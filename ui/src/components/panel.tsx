@@ -7,6 +7,7 @@
  */
 
 import type { ReactNode } from 'react';
+import { useSkins } from '../skins.tsx';
 import type { Call } from '../toil.ts';
 
 /** `toil jira get-changelog` ×8: each command once, with how many calls it took. */
@@ -58,11 +59,14 @@ export function Sources({ calls, alerts = true }: { calls: Call[]; alerts?: bool
 }
 
 export function Panel({ id, title, calls, children, alerts = true }: { id: string; title: string; calls: Call[]; children: ReactNode; alerts?: boolean }) {
+  const { Panel: Skin } = useSkins();
   return (
     <section className="panel" aria-labelledby={id}>
-      <h2 id={id}>{title}</h2>
-      {children}
-      <Sources calls={calls} alerts={alerts} />
+      <Skin id={id}>
+        <h2 id={id}>{title}</h2>
+        {children}
+        <Sources calls={calls} alerts={alerts} />
+      </Skin>
     </section>
   );
 }

@@ -19,6 +19,19 @@ The app (dist/app/) bundles:
   (https://github.com/tonsky/FiraCode); each through Fontsource
   (https://fontsource.org) and licensed under the SIL Open Font License,
   Version 1.1, copied below.
+- For the Harvest, Starship and Realm themes, each loaded only when its theme
+  is picked: Pixelify Sans, Copyright 2021 The Pixelify Sans Project Authors
+  (https://github.com/eifetx/Pixelify-Sans); Orbitron, Copyright 2018 The
+  Orbitron Project Authors (https://github.com/theleagueof/orbitron); Exo 2,
+  Copyright 2013 The Exo 2 Project Authors
+  (https://github.com/googlefonts/Exo-2.0); Cinzel, Copyright 2020 The Cinzel
+  Project Authors (https://github.com/NDISCOVER/Cinzel); Cinzel Decorative,
+  Copyright 2012 Natanael Gama, with Reserved Font Name 'Cinzel'; and EB
+  Garamond, Copyright 2017 The EB Garamond Project Authors
+  (https://github.com/octaviopardo/EBGaramond12); each through Fontsource and
+  licensed under the SIL Open Font License, Version 1.1, copied below. The
+  themes' art (ui/themes/*/assets/) is original, drawn for Toil UI, and
+  licensed under the Apache License, Version 2.0 with the rest of the app.
 - dnd-kit (@dnd-kit/core, @dnd-kit/accessibility and @dnd-kit/utilities,
   https://github.com/clauderic/dnd-kit), Copyright (c) 2021, Claudéric Demers,
   licensed under the MIT License.

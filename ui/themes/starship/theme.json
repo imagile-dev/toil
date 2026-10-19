@@ -1,0 +1,44 @@
+{
+  "name": "starship",
+  "label": "Starship",
+  "description": "A starship's bridge console: HUD frames, scanlines and a slow starfield, holo panels with a glow, sprint health as ship's readouts, and the dependency graph as a star chart.",
+  "schemes": {
+    "dark": {
+      "bg": "#05070f",
+      "surface": "#0a1222",
+      "raised": "#101b31",
+      "ink": "#e6f1ff",
+      "muted": "#9fb4cd",
+      "line": "#2a4262",
+      "accent": "#36d6ff",
+      "accentInk": "#00121c",
+      "link": "#7fe3ff",
+      "focus": "#ffcf4a",
+      "ok": "#5df2a6",
+      "warn": "#ffc857",
+      "danger": "#ff7a8e",
+      "bannerBg": "#0a1222",
+      "bannerInk": "#7fe3ff"
+    }
+  },
+  "fonts": {
+    "body": "'Exo 2', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    "display": "'Orbitron', 'Exo 2', system-ui, sans-serif",
+    "mono": "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace"
+  },
+  "radius": "2px",
+  "motion": "subtle",
+  "sounds": {},
+  "assets": {
+    "starfield": "assets/starfield.svg",
+    "chart": "assets/star-chart.svg",
+    "computer": "assets/computer.svg",
+    "loading": "assets/lightspeed.svg"
+  },
+  "terms": {
+    "sprint": "Ship's status",
+    "agent": "Ship's computer",
+    "dependencies": "Star chart",
+    "blocked": "Hazard"
+  }
+}

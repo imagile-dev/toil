@@ -7,7 +7,7 @@
  * The one page the weekly status meeting was trying to be.
  */
 
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Checkbox } from 'react-aria-components';
 import { Ask } from '../components/ask.tsx';
 import { Cited, ItemLink } from '../components/items.tsx';
@@ -16,7 +16,7 @@ import { useData, useDerived } from '../data.ts';
 import { SOURCE_LABEL, STATUS_CATEGORY_LABEL, day, dateTime, estimateText } from '../format.ts';
 import { describe, type Health } from '../model/sprint.ts';
 import { FLAG_TEXT, trace } from '../model/trace.ts';
-import { useSkins } from '../skins.tsx';
+import { useSkins, useTerm } from '../skins.tsx';
 import type { ChangeRef, Deployment, SourceKind } from '../toil.ts';
 import { Board } from './Board.tsx';
 import { Aging, Attention, Burnup, CycleTime, Throughput } from './Flow.tsx';
@@ -54,9 +54,11 @@ function Items({ ids }: { ids: string[] }) {
 
 export function Dashboard() {
   const { dossier } = useData();
-  const { EmptyState } = useSkins();
+  const { EmptyState, Loading } = useSkins();
+  const term = useTerm();
   const [gapsOnly, setGapsOnly] = useState(false);
   const { health: h } = useDerived();
+  useSprintProgress(h);
   const rows = trace(h?.items ?? dossier.items, dossier.changes, dossier.deployments);
   const shown = gapsOnly ? rows.filter((r) => r.flags.length) : rows;
   const prs = dossier.changes.filter((c) => c.kind === 'pull-request');
@@ -81,7 +83,7 @@ export function Dashboard() {
 
       <div className="dashboard">
         <div className="dash-main">
-          <Panel id="sprint" title={h ? `${h.sprint.name}: day ${h.days.gone} of ${h.days.total}` : 'Sprint'} calls={dossier.calls.work}>
+          <Panel id="sprint" title={term('sprint', h ? `${h.sprint.name}: day ${h.days.gone} of ${h.days.total}` : 'Sprint')} calls={dossier.calls.work}>
             {h ? <Sprint h={h} /> : <EmptyState message="No sprint is running in this dossier's work items." />}
           </Panel>
 
@@ -90,7 +92,7 @@ export function Dashboard() {
             <Attention />
           </Panel>
 
-          <Panel id="board" title={h ? `${h.sprint.name} board` : 'Board'} calls={dossier.calls.work} alerts={false}>
+          <Panel id="board" title={term('board', h ? `${h.sprint.name} board` : 'Board')} calls={dossier.calls.work} alerts={false}>
             <Board items={h?.items ?? dossier.items} />
           </Panel>
 
@@ -108,8 +110,8 @@ export function Dashboard() {
             <Aging />
           </Panel>
 
-          <Panel id="graph" title="Dependencies" calls={dossier.calls.work} alerts={false}>
-            <Suspense fallback={<p className="skin-loading" role="status">Drawing the graph…</p>}>
+          <Panel id="graph" title={term('dependencies', 'Dependencies')} calls={dossier.calls.work} alerts={false}>
+            <Suspense fallback={<Loading message="Drawing the graph…" />}>
               <Graph />
             </Suspense>
           </Panel>
@@ -243,6 +245,24 @@ export function Dashboard() {
       </div>
     </>
   );
+}
+
+/**
+ * How far through its sprint the dossier is, from 0 on day one to 1 on the
+ * last, as `--sprint-progress` on the page, for a theme's sky to follow
+ * (Harvest's dawn to dusk). It is decoration: the sprint panel says the day
+ * in words. Off the dashboard, there is no sprint, and the property goes.
+ */
+function useSprintProgress(h: Health | null) {
+  const progress = h && h.days.total > 1 ? Math.min(1, Math.max(0, (h.days.gone - 1) / (h.days.total - 1))) : null;
+  useEffect(() => {
+    if (progress === null) return;
+    const root = document.documentElement;
+    root.style.setProperty('--sprint-progress', progress.toFixed(3));
+    return () => {
+      root.style.removeProperty('--sprint-progress');
+    };
+  }, [progress]);
 }
 
 function DeploymentRow({ d }: { d: Deployment }) {

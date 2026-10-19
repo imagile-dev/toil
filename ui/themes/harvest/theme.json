@@ -1,0 +1,49 @@
+{
+  "name": "harvest",
+  "label": "Harvest",
+  "description": "A 16-bit farm: a pixel font, wooden sign panels, a sky that runs from dawn on the sprint's first day to dusk on its last, and crops that grow a stage with each column an item moves.",
+  "schemes": {
+    "light": {
+      "bg": "#efe3c2",
+      "surface": "#f6ecd2",
+      "raised": "#fdf6e3",
+      "ink": "#2b1a0e",
+      "muted": "#5c3f24",
+      "line": "#b08a5a",
+      "accent": "#2f6b1f",
+      "accentInk": "#ffffff",
+      "link": "#8a3410",
+      "focus": "#1f55a8",
+      "ok": "#2c6a1c",
+      "warn": "#7a4800",
+      "danger": "#a3200f",
+      "bannerBg": "#3b2614",
+      "bannerInk": "#fbe7b5"
+    }
+  },
+  "fonts": {
+    "body": "'Pixelify Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    "display": "'Pixelify Sans', system-ui, -apple-system, 'Segoe UI', sans-serif",
+    "mono": "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace"
+  },
+  "radius": "0px",
+  "motion": "subtle",
+  "sounds": {},
+  "assets": {
+    "panel": "assets/wood-panel.svg",
+    "sign": "assets/wood-sign.svg",
+    "seed": "assets/crop-seed.svg",
+    "sprout": "assets/crop-sprout.svg",
+    "grown": "assets/crop-grown.svg",
+    "harvested": "assets/crop-harvested.svg",
+    "portrait": "assets/portrait.svg",
+    "emptyState": "assets/empty-field.svg",
+    "loading": "assets/watering-can.svg"
+  },
+  "terms": {
+    "board": "Farm plot",
+    "sprint": "Season calendar",
+    "agent": "Almanac",
+    "dependencies": "Irrigation"
+  }
+}

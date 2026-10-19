@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vitest/config';
+import { META_CSP } from './server/csp.ts';
 
 // The UI is static files any server can host under any path: the site serves
 // the preview at /toil/ui-preview/, and the local server serves the app at its
@@ -28,11 +29,30 @@ function localApp(): Plugin {
   };
 }
 
+/**
+ * The server's Content-Security-Policy as a <meta> tag in the built page, so the
+ * site preview, which a static host serves, holds to it too. Build only: Vite's
+ * dev server injects inline script for hot reload.
+ */
+function contentSecurityPolicy(): Plugin {
+  return {
+    name: 'toil-ui-csp',
+    apply: 'build',
+    transformIndexHtml: (html) => html.replace('<meta charset="utf-8" />', `<meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="${META_CSP}" />`),
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   base: './',
-  plugins: [react(), ...(mode === 'app' ? [localApp()] : [])],
+  plugins: [react(), contentSecurityPolicy(), ...(mode === 'app' ? [localApp()] : [])],
   server: { fs: { allow: ['..'] } },
-  build: { outDir: mode === 'app' ? 'dist/app' : 'dist/preview', emptyOutDir: true },
+  build: {
+    outDir: mode === 'app' ? 'dist/app' : 'dist/preview',
+    emptyOutDir: true,
+    // Fonts stay files, never data: URLs, so the Content-Security-Policy can say `font-src 'self'`.
+    assetsInlineLimit: (file: string) => (/\.(woff2?|ttf|otf)$/.test(file) ? false : undefined),
+  },
   test: {
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}', 'test/**/*.test.{ts,tsx}'],

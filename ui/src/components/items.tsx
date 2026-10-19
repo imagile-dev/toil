@@ -9,6 +9,8 @@
 import { segments } from '../agent.ts';
 import { useData } from '../data.ts';
 import { itemHref, shortKey, sourceLabel } from '../format.ts';
+import { themed } from '../theme-context.ts';
+import type { ThemeManifest } from '../themes.ts';
 import type { WorkItem } from '../toil.ts';
 
 /** The item's source and key, as a link to its page. */
@@ -36,7 +38,9 @@ export function Cited({ text }: { text: string }) {
 }
 
 /** The OWI type, with the source's own word beside it when they differ (#206: real field names stay visible). */
-export function typeText(item: WorkItem): string {
+export function typeText(item: WorkItem, theme?: ThemeManifest): string {
   const owi = item.type.charAt(0) + item.type.slice(1).toLowerCase();
-  return item.typeName && item.typeName.toLowerCase() !== owi.toLowerCase() ? `${item.typeName} (${owi})` : owi;
+  const text = item.typeName && item.typeName.toLowerCase() !== owi.toLowerCase() ? `${item.typeName} (${owi})` : owi;
+  // A theme may call an epic a quest, beside the source's own word.
+  return theme?.terms?.epic && item.type === 'EPIC' ? themed(theme, 'epic', item.typeName ?? owi) : text;
 }

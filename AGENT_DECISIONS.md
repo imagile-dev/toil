@@ -3062,6 +3062,76 @@ Toil UI's sync and SQLite cache (#206 point 2), on the server #249 built.
   >= "…"` and one changelog; with the stub returning 503, the source showed failed
   and stale, and the dashboard kept all seven items.
 
+### #208 #209 #210 UI themes
+
+Harvest, Starship and Realm, built as theme packs on the skin registry #206
+describes, in one PR because they share the registry, the rules and the bar.
+
+- **The skin registry has all seven slots** (`ui/src/skins.tsx`): `Card`, `Panel`,
+  `Avatar`, `ChatMessage`, `EmptyState`, `Loading` and `Header`, through context.
+  A wrapping slot is handed the default content as `children` and must render it,
+  so a skin can add art but never take away a word, link or button. Skins exist
+  only in `BUILT_IN_SKINS`; nothing reads one from a theme folder.
+- **Renamed words carry the real one** (`terms` in `theme.json`, `useTerm()`): six
+  keys (`epic`, `board`, `dependencies`, `sprint`, `agent`, `blocked`), always shown
+  as "Quest (Epic)". Plain renames nothing. The graph now says "Blocked" on a blocked
+  node in every theme, where it was colour alone before.
+- **User themes are checked, not yet served** (`ui/server/user-themes.ts`, rules in
+  `ui/src/theme-rules.ts`, shared with the built-in themes' test). A theme in
+  `~/.toil-ui/themes/<name>/` is refused whole, with each reason, if it holds any
+  file other than CSS, JSON, SVG, WebP, PNG, AVIF or WOFF2, anything that runs
+  script in its CSS or SVG, a `skins` key, an `@import`, a `url()` outside its own
+  folder (a remote `url()` on an attribute selector would read the page out), fonts
+  or a radius that could break out of the stylesheet, a link, or a built-in theme's
+  name. The picker and a route for these files come with milestone 8; the gate came
+  first so it can't be skipped later.
+- **The boundary is the Content-Security-Policy, the checker explains** (#259 review).
+  Regular expressions over raw CSS were walked past five ways (a quoted `)`, escapes
+  in `url` and in a scheme, `image-set()` strings, an escaped `@import`). Two layers
+  now. `ui/server/csp.ts` sets one policy on every response the toil-ui server sends,
+  and the built page carries it as a `<meta>` (less `frame-ancestors`) for the site
+  preview: `default-src 'none'`, script, style, font and connect from `'self'` only,
+  images from `'self'` and `data:`, `base-uri`, `form-action`, `frame-ancestors`,
+  `object-src`, `worker-src`, `media-src` and `manifest-src` all `'none'`. No
+  `'unsafe-inline'`: the theme tokens are a constructed stylesheet
+  (`adoptedStyleSheets`, CSSOM rather than markup), the build keeps fonts as files
+  (`assetsInlineLimit`), and the one `<style>` React Aria adds (`touch-action` for
+  presses) is allowed by its SHA-256, which `ui/test/server.test.ts` recomputes from
+  React Aria's source. The checker (`userCssProblems`) reads a user's CSS through
+  `ui/src/css-tokens.ts`, a tokenizer written to CSS Syntax 3 section 4 (escapes
+  decoded, strings and `url()` whole, bad strings and urls refused), with no new
+  dependency. It allows only `@media`, `@supports`, `@font-face` and `@keyframes`,
+  and refuses any `url()`, or string inside `src()`, `image()`, `image-set()` or
+  `cross-fade()`, that isn't a plain relative path in the theme folder
+  (`[A-Za-z0-9_.-]` segments, no `.` or `..`, no `%`, `\`, `?` or `#`).
+- **`site/dist/` is git-ignored** beside `site/.astro/`; it was committed by mistake.
+- **Each theme's stylesheet loads when it's picked** (`loadThemeStyles`): Plain is the
+  only one in the first load; Crate, Harvest, Starship and Realm are their own CSS
+  chunks, with their fonts and art. Manifests stay up front, since the picker lists
+  them.
+- **One scheme each:** Harvest and Realm are light, Starship dark. Harvest's day and
+  night is a sky strip that follows the sprint instead (`--sprint-progress`, set by
+  the dashboard, 0 on day one to 1 on the last; midday elsewhere). The sprint panel
+  says the day in words, so the sky is decoration.
+- **Crops grow by column:** a seed in To do, a growing plant in In progress, a basket
+  in Done, so each move to the next column is a stage. Realm's cards name the quest
+  (epic) they belong to. Starship's and Realm's dependency graphs are CSS over the
+  same xyflow drawing: stars and lanes, and a map with roads and mountain passes.
+- **Art is SVG drawn for the themes** (pixel grids for Harvest, line art for the
+  others), from a scratch script, not the image-generation skill: SVG stays small,
+  sharp at any size and themeable, and the repository's style rules are toil's own
+  brand, which these themes deliberately aren't. Every image is `alt=""` or
+  `aria-hidden`. Assets are capped at 64 KB a file and 160 KB a theme by a test.
+- **Fonts, all SIL OFL 1.1 through Fontsource 5.3.0** (installed `--before` a date 14
+  days back): Pixelify Sans; Orbitron and Exo 2; Cinzel, Cinzel Decorative and EB
+  Garamond. Recorded in `ui/NOTICE`.
+- **The bar, as tests:** `ui/test/themes.test.ts` holds every theme to the file rules,
+  token contrast (WCAG AA), listed assets, size caps, motion only inside
+  `prefers-reduced-motion: no-preference`, and no sound. `ui/test/theme-bar.test.tsx`
+  runs every theme and scheme through axe on every route and requires the same click
+  targets (role and name) as Plain, plus the sync panel's stale and wipe states.
+  No theme plays sound; none of the three issues asks for it.
+
 ### #251 agent adapters
 
 Toil UI's agent (#206 point 4): one server-side `Agent`, three adapters, read-only

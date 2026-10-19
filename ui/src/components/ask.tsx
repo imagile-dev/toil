@@ -41,7 +41,7 @@ function useNarrow(): boolean {
 
 export function Ask() {
   const { agent, dossier } = useData();
-  const { EmptyState } = useSkins();
+  const { EmptyState, ChatMessage } = useSkins();
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
@@ -104,16 +104,18 @@ export function Ask() {
           {turns.length === 0 && (agent.notice ? <p className="note agent-notice">{agent.notice}</p> : <EmptyState message="Pick a question, or ask your own, to see how answers cite their sources." />)}
           {turns.map((t) => (
             <div key={t.id} className="turn">
-              <p className="bubble bubble--you">
-                <span className="sr-only">You asked: </span>
-                {t.prompt}
-              </p>
+              <ChatMessage from="you">
+                <p>
+                  <span className="sr-only">You asked: </span>
+                  {t.prompt}
+                </p>
+              </ChatMessage>
               {t.error ? (
                 <p role="alert" className="failure">
                   {t.error}
                 </p>
               ) : (
-                <div className="bubble bubble--agent">
+                <ChatMessage from="agent">
                   {t.answer ? (
                     <>
                       <h3>{t.answer.prompt}</h3>
@@ -144,7 +146,7 @@ export function Ask() {
                     t.answer?.proposals
                       .filter((p) => !dismissed.has(p.id))
                       .map((p) => <ProposalCard key={p.id} proposal={p} onDismiss={() => setDismissed((d) => new Set(d).add(p.id))} />)}
-                </div>
+                </ChatMessage>
               )}
             </div>
           ))}

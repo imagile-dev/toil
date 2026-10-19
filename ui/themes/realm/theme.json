@@ -1,0 +1,49 @@
+{
+  "name": "realm",
+  "label": "Realm",
+  "description": "A high-fantasy chronicle: parchment and ink, illuminated capitals on the headings, the dependency graph as a hand-drawn map, epics as quests, and the agent as a scribe.",
+  "schemes": {
+    "light": {
+      "bg": "#efe2c4",
+      "surface": "#f5ead0",
+      "raised": "#fbf4e2",
+      "ink": "#2a1d12",
+      "muted": "#5a4430",
+      "line": "#a88a5e",
+      "accent": "#7a1f1f",
+      "accentInk": "#fff8e8",
+      "link": "#23466e",
+      "focus": "#2c4f86",
+      "ok": "#2f5a1e",
+      "warn": "#764600",
+      "danger": "#8f1d12",
+      "bannerBg": "#2a1d12",
+      "bannerInk": "#f5ead0"
+    }
+  },
+  "fonts": {
+    "body": "'EB Garamond', Georgia, 'Times New Roman', serif",
+    "display": "'Cinzel', Georgia, 'Times New Roman', serif",
+    "mono": "ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace"
+  },
+  "radius": "2px",
+  "motion": "none",
+  "sounds": {},
+  "assets": {
+    "parchment": "assets/parchment.svg",
+    "border": "assets/ink-border.svg",
+    "capital": "assets/capital.svg",
+    "map": "assets/map.svg",
+    "pass": "assets/mountain-pass.svg",
+    "scroll": "assets/scroll.svg",
+    "quill": "assets/quill.svg",
+    "flourish": "assets/flourish.svg"
+  },
+  "terms": {
+    "epic": "Quest",
+    "sprint": "Chronicle",
+    "agent": "Scribe",
+    "dependencies": "Map",
+    "blocked": "Mountain pass"
+  }
+}
