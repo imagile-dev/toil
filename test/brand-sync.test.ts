@@ -1,18 +1,20 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BRANCHES, CENTER, RING, TOOLS } from '../src/welcome/logo.js';
+import { CENTER, DOT_COLORS, ORBIT, orbitDots, SHEET, TILE, tilePath } from '../src/welcome/logo.js';
 import { PALETTE, type Rgb } from '../src/welcome/term.js';
 
 /**
- * The site and the terminal menu show the same mark in the same colours. They
- * can't share code (the site is its own package), so this test reads the
- * site's sources and fails when either drifts. Change one, change the other.
+ * The site, the terminal and Toil UI show one mark, the badge, in the same
+ * colours. They can't share code (the site and the UI are their own packages),
+ * so this test reads their sources and fails when any of them drifts. Change
+ * one, change the others.
  */
 
 const root = join(import.meta.dirname, '..');
-const css = readFileSync(join(root, 'site/src/styles/global.css'), 'utf8');
-const logo = readFileSync(join(root, 'site/src/components/Logo.astro'), 'utf8');
+const read = (path: string) => readFileSync(join(root, path), 'utf8');
+const css = read('site/src/styles/global.css');
+const logo = read('site/src/components/Logo.astro');
 
 function token(name: string): Rgb {
   const rgb = css.match(new RegExp(`--rgb-${name}:\\s*(\\d+),\\s*(\\d+),\\s*(\\d+)`));
@@ -22,8 +24,10 @@ function token(name: string): Rgb {
   const n = parseInt(hex[1]!, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
+const hex = (rgb: Rgb) => `#${rgb.map((n) => n.toString(16).padStart(2, '0')).join('')}`;
 
-const numbers = (text: string) => (text.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+/** The page's placement, as every copy of the badge writes it. */
+const placement = `translate(${SHEET.cx} ${SHEET.cy}) scale(${SHEET.s}) translate(-31.5 -32.5)`;
 
 describe('the terminal matches the site', () => {
   it('uses the site palette for every colour', () => {
@@ -32,31 +36,98 @@ describe('the terminal matches the site', () => {
     }
   });
 
-  it('draws the same ring', () => {
-    expect(numbers(logo.match(/<circle[^>]*r="27"[^>]*\/>/)?.[0] ?? '')).toEqual(expect.arrayContaining([CENTER, RING]));
+  it('draws the same tile, its corner cut parallel to the fold', () => {
+    expect(logo).toContain(`'${tilePath()}'`);
+    // The cut runs from (42, 6) to (58, 22): the line x - y = 36, parallel to the
+    // fold's diagonal, which the sheet's own path draws as `l7 7`.
+    expect(TILE.x + TILE.w - TILE.cut - TILE.y).toBe(36);
+    expect(logo).toContain('h13l7 7v20');
   });
 
-  it('draws the same six branches, from the terminal to each tool', () => {
-    const paths = [...logo.matchAll(/'(M[^']+)'/g)].map((m) => m[1]!);
-    expect(paths).toHaveLength(BRANCHES.length);
-    paths.forEach((d, i) => {
-      const n = numbers(d);
-      const [start, , , end] = BRANCHES[i]!;
-      expect(start, `branch ${i + 1} start`).toEqual([n[0], n[1]]);
-      // `M x y C c1 c2 end` ends on its last pair; `M x y H x2` stays on y.
-      const finish = d.includes('C') ? [n[n.length - 2], n[n.length - 1]] : [n[2], n[1]];
-      expect(end, `branch ${i + 1} end`).toEqual(finish);
-      if (d.includes('C')) expect(BRANCHES[i]!.slice(1, 3).flat(), `branch ${i + 1} curve`).toEqual(n.slice(2, 6));
-    });
+  it('places the page on the tile the same way', () => {
+    expect(logo).toContain(`'${placement}'`);
+  });
+});
+
+/**
+ * The badge's static copies: the favicon, the avatar, and the standard badge
+ * Toil UI shows in Plain and as its favicon. Each draws the same tile and
+ * places the page the same way, in the site's colours.
+ */
+describe('every copy of the badge is the same badge', () => {
+  const copies = ['site/public/favicon.svg', 'site/public/brand/toil-avatar.svg', 'site/public/brand/toil-orbit.svg', 'ui/src/mark.svg', 'ui/src/favicon.svg'];
+
+  it.each(copies)('%s draws the site tile and page', (path) => {
+    const svg = read(path);
+    expect(svg).toContain(`d="${tilePath()}"`);
+    expect(svg).toContain(`transform="${placement}"`);
+    for (const name of ['accent', 'amber', 'ink', 'bg'] as const) expect(svg.toLowerCase(), name).toContain(hex(token(name)));
   });
 
-  it('puts the same six tools in the same places, in the same colours', () => {
-    const tools = [...logo.matchAll(/\{ cx: ([\d.]+), cy: ([\d.]+), fill: 'var\(--color-(\w+)\)' \}/g)];
-    expect(tools).toHaveLength(TOOLS.length);
-    tools.forEach((m, i) => {
-      expect(TOOLS[i]!.at, `tool ${i + 1} position`).toEqual([Number(m[1]), Number(m[2])]);
-      expect(TOOLS[i]!.color, `tool ${i + 1} colour (${m[3]})`).toEqual(token(m[3]!));
+  it.each(['crate', 'starship', 'realm'])("Toil UI's %s badge keeps the tile's silhouette", (theme) => {
+    expect(read(`ui/themes/${theme}/assets/mark.svg`)).toContain(`d="${tilePath()}"`);
+  });
+
+  it("Toil UI's Harvest badge is the tile on a 16-pixel grid, its corner cut on the same diagonal", () => {
+    const cells = [...read('ui/themes/harvest/assets/mark.svg').matchAll(/<rect x="(\d+)" y="(\d+)" width="4" height="4"/g)].map((m) => [Number(m[1]) / 4, Number(m[2]) / 4] as const);
+    const at = (c: number, r: number) => cells.some(([x, y]) => x === c && y === r);
+    expect(cells.length).toBeGreaterThan(150);
+    // The cut: nothing at or beyond the diagonal c - r = 10 (x - y = 40 in badge units).
+    expect(cells.filter(([c, r]) => c - r >= 10)).toEqual([]);
+    // The rest of the tile spans columns and rows 1 to 14, its three other corners rounded off.
+    expect(at(1, 2) && at(14, 13) && at(2, 14)).toBe(true);
+    expect(at(1, 1) || at(14, 14) || at(1, 14)).toBe(false);
+  });
+});
+
+/**
+ * The splash's orbit: the badge shrunk to ORBIT.k in the middle, and the dots
+ * where src/welcome/logo.ts draws them at rest. Its still copy is
+ * site/public/brand/toil-orbit.svg.
+ */
+describe("the orbit SVG is the terminal's orbit, still", () => {
+  const svg = read('site/public/brand/toil-orbit.svg');
+
+  it('shrinks the badge by the same factor about the centre', () => {
+    expect(svg).toContain(`transform="translate(${CENTER} ${CENTER}) scale(${ORBIT.k}) translate(-${CENTER} -${CENTER})"`);
+  });
+
+  it('puts the dots where the terminal does, in the same colours', () => {
+    const dots = [...svg.matchAll(/<circle cx="([\d.]+)" cy="([\d.]+)" r="([\d.]+)" fill="(#[0-9a-f]{6})"\/>/g)];
+    expect(dots).toHaveLength(ORBIT.n);
+    orbitDots(0).forEach((dot, i) => {
+      const [, cx, cy, r, fill] = dots[i]!;
+      expect(Number(cx), `dot ${i + 1} x`).toBeCloseTo(dot.at[0], 1);
+      expect(Number(cy), `dot ${i + 1} y`).toBeCloseTo(dot.at[1], 1);
+      expect(Number(r)).toBe(ORBIT.dot);
+      expect(fill, `dot ${i + 1} colour`).toBe(hex(token(DOT_COLORS[i % DOT_COLORS.length]!)));
     });
+  });
+});
+
+/**
+ * Toil UI shows a badge for every theme, and its tab icon follows (#281).
+ */
+describe("Toil UI's badges", () => {
+  it('draws the standard badge beside the name, and each theme swaps in its own', () => {
+    expect(read('ui/src/app.css')).toMatch(/\.brand::before \{[^}]*url\("\.\/mark\.svg"\)/);
+    for (const theme of ['crate', 'harvest', 'starship', 'realm']) {
+      expect(read(`ui/themes/${theme}/theme.css`), theme).toContain(`[data-theme="${theme}"] .brand::before {
+  background-image: url("./assets/mark.svg");`);
+      expect(read('ui/src/favicon.ts'), theme).toContain(`'../themes/${theme}/assets/mark.svg'`);
+    }
+  });
+
+  // Plain's badge is the same badge in Plain's own blue, one per scheme: the
+  // tile takes that scheme's accent instead of the flame-to-amber gradient.
+  const plain = JSON.parse(read('ui/themes/plain/theme.json')) as { schemes: Record<'light' | 'dark', { accent: string }> };
+  it.each(['light', 'dark'] as const)("draws Plain's %s badge in that scheme's accent, on the same tile", (scheme) => {
+    const svg = read(`ui/themes/plain/assets/mark-${scheme}.svg`);
+    expect(svg).toContain(`<path d="${tilePath()}" fill="${plain.schemes[scheme].accent}"/>`);
+    expect(svg).toContain(`transform="${placement}"`);
+    expect(svg).not.toContain('Gradient');
+    expect(read('ui/themes/plain/theme.css')).toContain(`url("./assets/mark-${scheme}.svg")`);
+    expect(read('ui/src/favicon.ts')).toContain(`'../themes/plain/assets/mark-${scheme}.svg'`);
   });
 });
 

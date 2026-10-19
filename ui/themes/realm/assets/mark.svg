@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<!-- Realm's badge: an illuminated tile with a gilt border, the page parchment. The badge's silhouette, skinned. -->
+<defs>
+<linearGradient id="b7r" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#9b2a2a"/>
+<stop offset="1" stop-color="#5a1212"/>
+</linearGradient>
+<linearGradient id="b7g" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#fbe7a1"/>
+<stop offset=".45" stop-color="#d6a53e"/>
+<stop offset=".7" stop-color="#f3d27a"/>
+<stop offset="1" stop-color="#9c6f1f"/>
+</linearGradient>
+</defs>
+<path d="M18 6H42L58 22V46A12 12 0 0 1 46 58H18A12 12 0 0 1 6 46V18A12 12 0 0 1 18 6Z" fill="url(#b7r)"/>
+<path d="M18.1 7.3H41.3L56.699999999999996 22.7V45.89999999999999A10.8 10.8 0 0 1 45.89999999999999 56.699999999999996H18.1A10.8 10.8 0 0 1 7.3 45.89999999999999V18.1A10.8 10.8 0 0 1 18.1 7.3Z" stroke="url(#b7g)" stroke-width="2.6"/>
+<path d="M18.799999999999997 10.2H40.199999999999996L53.8 23.799999999999997V45.199999999999996A8.6 8.6 0 0 1 45.199999999999996 53.8H18.799999999999997A8.6 8.6 0 0 1 10.2 45.199999999999996V18.799999999999997A8.6 8.6 0 0 1 18.799999999999997 10.2Z" stroke="url(#b7g)" stroke-width=".7" opacity=".9"/>
+<path d="M13.2 11l2.2 2.2-2.2 2.2-2.2-2.2Z" fill="url(#b7g)"/>
+<path d="M13.2 48.599999999999994l2.2 2.2-2.2 2.2-2.2-2.2Z" fill="url(#b7g)"/>
+<path d="M50.8 48.599999999999994l2.2 2.2-2.2 2.2-2.2-2.2Z" fill="url(#b7g)"/>
+<g transform="translate(32 32.6) scale(1.22) translate(-31.5 -32.5)">
+<path d="M23 17.5h13l7 7v20a3 3 0 0 1-3 3H23a3 3 0 0 1-3-3v-24a3 3 0 0 1 3-3Z" fill="#f2e2bd" stroke="#b08a4a" stroke-width=".8"/>
+<path d="M36 17.5v4.5a2.5 2.5 0 0 0 2.5 2.5H43Z" fill="url(#b7g)"/>
+<path d="m24.5 27.5 5 4.3-5 4.3" stroke="#2a1d12" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M31.8 40h6.2" stroke="#7a1f1f" stroke-width="3.2" stroke-linecap="round"/>
+</g>
+</svg>

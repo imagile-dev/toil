@@ -54,13 +54,9 @@
   color: var(--accent);
 }
 
-/* The realm's crest beside the name: a quill and a key on a crimson shield. */
+/* The badge as an illuminated tile beside the name. */
 [data-theme="realm"] .brand::before {
-  content: "";
-  width: 34px;
-  height: 40px;
-  margin-right: 0.5rem;
-  background: url("./assets/emblem.webp") center / contain no-repeat;
+  background-image: url("./assets/mark.svg");
 }
 
 [data-theme="realm"] .top {

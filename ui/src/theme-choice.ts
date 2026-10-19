@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useState } from 'react';
+import { showFavicon } from './favicon.ts';
 import { DEFAULT_THEME, THEMES, loadThemeStyles } from './themes.ts';
 
 export type SchemeChoice = 'system' | 'light' | 'dark';
@@ -40,6 +41,13 @@ export function useThemeChoice() {
     } catch {
       // Not remembered; nothing else depends on it.
     }
+    // The tab's icon follows the scheme too (Plain has one per scheme), and with
+    // `system` it follows the operating system as it changes.
+    const dark = window.matchMedia?.('(prefers-color-scheme: dark)');
+    const icon = () => showFavicon(choice.theme, choice.scheme === 'system' ? (dark?.matches ? 'dark' : 'light') : choice.scheme);
+    icon();
+    dark?.addEventListener('change', icon);
+    return () => dark?.removeEventListener('change', icon);
   }, [choice]);
   return {
     ...choice,
