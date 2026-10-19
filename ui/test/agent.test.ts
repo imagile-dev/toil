@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { citationsOf, segments } from '../src/agent.ts';
-import { SCRIPTS, scriptedAgent } from '../src/fixtures/agent.ts';
+import { SCRIPTS, VOICED, scriptedAgent } from '../src/fixtures/agent.ts';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
 import { needsAttention, prepare } from '../src/model/insights.ts';
 import { NAMES, healthOf } from './harness.ts';
@@ -130,5 +130,39 @@ describe.each(NAMES)('the %s attention answer agrees with the insights', (name) 
 describe('the scripts', () => {
   it('cover every dossier the fixture serves', () => {
     expect(Object.keys(SCRIPTS).sort()).toEqual([...NAMES].sort());
+  });
+});
+
+describe('the scripted answers in each theme\'s voice (#283)', () => {
+  /** Every figure in a text, outside its citations: what a voice may never change. */
+  const figures = (text: string) => (text.replace(/\[\[[^\]]+\]\]/g, ' ').match(/\d+(\.\d+)?/g) ?? []).sort();
+
+  it.each(NAMES.flatMap((name) => ['crate', 'harvest', 'starship', 'realm'].map((theme) => [name, theme] as const)))('%s in %s cites the same items, keeps every figure and the same proposals', async (name, theme) => {
+    const standard = await agent.ask(name, 'risk');
+    const voiced = await agent.ask(name, 'risk', { theme, voice: true });
+    expect(VOICED[name]?.[theme]).toBeDefined();
+    expect(voiced.parts.map((p) => p.text)).toEqual(VOICED[name]![theme]);
+    expect(voiced.parts).not.toEqual(standard.parts);
+    expect(voiced.citations).toEqual(standard.citations);
+    expect(voiced.parts.map((p) => p.text).join(' ')).not.toMatch(/\*\*|^#|```/m);
+    expect(figures(voiced.parts.map((p) => p.text).join(' '))).toEqual(figures(standard.parts.map((p) => p.text).join(' ')));
+    expect(voiced.proposals).toEqual(standard.proposals);
+    expect(voiced.proposals.length).toBeGreaterThan(0);
+    expect(voiced.prompt).toBe(standard.prompt);
+  });
+
+  it('answers in the standard words with the voice off, in Plain, and for the questions with no voiced script', async () => {
+    const standard = await agent.ask('card-payments', 'risk');
+    expect((await agent.ask('card-payments', 'risk', { theme: 'crate', voice: false })).parts).toEqual(standard.parts);
+    expect((await agent.ask('card-payments', 'risk', { theme: 'plain', voice: true })).parts).toEqual(standard.parts);
+    expect((await agent.ask('card-payments', 'deployed', { theme: 'crate', voice: true })).parts).toEqual((await agent.ask('card-payments', 'deployed')).parts);
+    // By label too, as the pane sends a typed question.
+    expect((await agent.ask('settlement', "What's at risk in this dossier?", { theme: 'realm', voice: true })).parts[0]!.text).toMatch(/^Hear ye/);
+  });
+
+  it('streams the voiced answer and ends on the whole of it', async () => {
+    let last;
+    for await (const partial of agent.stream!('checkout-web', 'risk', undefined, { theme: 'starship', voice: true })) last = partial;
+    expect(last).toEqual(await agent.ask('checkout-web', 'risk', { theme: 'starship', voice: true }));
   });
 });

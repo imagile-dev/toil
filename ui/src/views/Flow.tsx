@@ -14,7 +14,7 @@ import { dateTime, shortKey, sourceLabel } from '../format.ts';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput, type Unknown } from '../model/flow.ts';
 import { AGING_PERCENTILE, INSIGHT_LABEL, MIN_CYCLES, needsAttention } from '../model/insights.ts';
-import { useSkins } from '../skins.tsx';
+import { useSkins, useWords } from '../skins.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const daysText = (n: number) => `${round1(n)} ${round1(n) === 1 ? 'day' : 'days'}`;
@@ -41,7 +41,8 @@ export function Burnup() {
   const { now } = useData();
   const { health: h } = useDerived();
   const { EmptyState } = useSkins();
-  if (!h) return <EmptyState message="No sprint is running, so there is nothing to burn up." />;
+  const words = useWords();
+  if (!h) return <EmptyState message={words('empty.burnup')} />;
   return <BurnupChart b={burnup(h, now)} sprint={h.sprint.name} />;
 }
 

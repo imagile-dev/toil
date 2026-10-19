@@ -3146,7 +3146,7 @@ describes, in one PR because they share the registry, the rules and the bar.
   keys (`epic`, `board`, `dependencies`, `sprint`, `agent`, `blocked`), always shown
   as "Quest (Epic)". Plain renames nothing. The graph now says "Blocked" on a blocked
   node in every theme, where it was colour alone before.
-- **User themes are checked, not yet served** (`ui/server/user-themes.ts`, rules in
+- **User themes are checked, not yet served** (superseded by #283: user themes were removed) (`ui/server/user-themes.ts`, rules in
   `ui/src/theme-rules.ts`, shared with the built-in themes' test). A theme in
   `~/.toil-ui/themes/<name>/` is refused whole, with each reason, if it holds any
   file other than CSS, JSON, SVG, WebP, PNG, AVIF or WOFF2, anything that runs
@@ -3547,7 +3547,7 @@ fills.
   behind text and never cross a panel; it is `aria-hidden`, takes no pointer,
   stops in a hidden tab, and is never created when motion is unwelcome. Presets
   live in code (`presets.ts`), not in `theme.json`, because they are script and
-  only built-in themes ship script. A user theme gets none.
+  only built-in themes ship script.
 - **Reduce motion and effects is Toil UI's own setting,** on the General page
   (renamed from "Bounds and time limit", which it still holds), kept in this
   browser as `toil-ui.motion` beside `toil-ui.theme`. It mirrors onto the root
@@ -3669,3 +3669,77 @@ decided here.
   token site-wide, so the dossiers page's local overrides are gone. Doc tables are
   wrapped in focusable, labelled scrollers by a rehype plugin, so the skill files
   stay plain markdown.
+
+### #283 theme depth
+
+- **User-installed themes are removed, whole** (the maintainer's decision on #283:
+  new themes are requested through feedback). `ui/server/user-themes.ts`, its tests,
+  the CSS tokenizer (`ui/src/css-tokens.ts`) and the user-only rules in
+  `theme-rules.ts` (`userCssProblems`, `isThemePath`, the at-rule and `url()`
+  allowlists) are gone; nothing served them, so no route, setting or UI went with
+  them. What the built-in themes are held to (file types, no script, scoped
+  selectors, plain manifest values) moved to `ui/test/theme-rules.ts`, since only the
+  test reads it now. The Content-Security-Policy is unchanged: its one hash is React
+  Aria's press style, which the new popover and buttons still need, and it never
+  depended on user themes.
+- **A leftover `~/.toil-ui/themes/` gets a notice, once per start** (`themesNotice`
+  in `ui/server/settings.ts`), on stderr after the launch URL, naming the folder and
+  how to ask for a theme. It's never read and never deleted. "Once per start" rather
+  than once ever, because remembering that it was said would mean another file in
+  the data folder; the maintainer may prefer a marker. A saved theme name the app
+  doesn't know already falls back to Crate.
+- **Wording is microcopy only** (`ui/src/wording.ts`, 22 keys): ledes, eyebrows,
+  panel notes, empty states and loading lines. No button, link, field label or
+  section heading is themed, beyond the existing `terms`, which keep the real word
+  beside them. The brief listed "button microcopy"; I read that as the text around
+  controls ("Thinking…", the Ask note), because every control's name is what the
+  theme bar test, the layout check, scripts, voice control and the docs use to find
+  it, and the theme bar already fails any theme whose controls differ from Plain's.
+  Themeing button labels is the maintainer's call. Themed wording off also drops
+  the `terms`, so "off" means the standard words everywhere.
+- **The lexicon keeps placeholders and commands** (`ui/test/theme-rules.ts`,
+  `lexiconProblems`): a themed line must carry every `{id}` or `{name}` and every
+  `toil …` command its standard text has, and holds no markup. Each game theme
+  defines all 22 keys.
+- **Both preferences live with the theme in `localStorage`** (`toil-ui.theme`, now
+  `{ theme, scheme, wording, voice }`), with `?wording=off|on` and `?voice=off|on`
+  for links. A value that isn't a boolean reads as on. The server never stores the
+  voice flag: each question sends `theme` and `voice`, and the server looks the
+  voice up in its own bundled copy of the theme (`ui/server/agents/voices.ts`), so
+  the page can't put text into the prompt through the style. An unknown theme or a
+  non-boolean voice is a 400. A question with neither (an older page) gets the
+  voice off.
+- **The prompt's order and its precedence lines** (`ui/server/agents/prompts.ts`):
+  the rules unchanged, then `Style:` with the voice and `STYLE_RULE`, then
+  `Instructions from the person asking:` with `INSTRUCTIONS_RULE`. The precedence is
+  said after each part rather than added to the rules, so the rules stay word for
+  word what they were. All three adapters already took `r.system`, so none changed.
+- **Custom instructions are fields of `agent.json`** (`instructions`, `voice`), saved
+  through `POST api/agent/settings` and its field allowlist, rather than a new file
+  and route: the brief asked for the existing write path. Each is trimmed, CRLF
+  becomes LF, at most 4,000 characters (`MAX_INSTRUCTIONS`), and a control character
+  other than a line break or tab is refused. An `agent.json` from before has neither
+  and loads with both empty. The instructions card saves the saved adapter fields
+  with its own, so an unsaved edit in the adapter form is neither sent nor lost.
+- **`GET api/agent/prompt`** (`?dossier=&theme=&voice=on|off`) returns the system
+  prompt as the next question would get it, with the saved instructions and the
+  time now; the Settings page asks it for the first dossier toil lists. The preview
+  and `--sample` have no agent settings, so there the card composes the prompt in the
+  page from the same function and what is typed, with saving off.
+- **A custom voice applies only while the voice is on and the theme has one**, so
+  with Plain chosen it is ignored, as the theme's own voice is; the card says which
+  case is current.
+- **The (i) is a popover, not a tooltip** (`AskInfo` in `ui/src/components/ask.tsx`):
+  it holds two links, which a tooltip can't, and opens on press only. Its name,
+  "About these answers", is sr-only text inside the button beside an `aria-hidden`
+  "i", so WCAG 2.5.3 holds without an `aria-label`.
+- **The preview's voiced answers cover the risk question only** (`VOICED` in
+  `ui/src/fixtures/agent.ts`, three dossiers by four themes). `test/agent.test.ts`
+  holds each to its standard answer: the same citations in order, the same figures,
+  the same proposals.
+- **The docs page is Toil UI's, not the skill's** (`ui/docs/themes.md`, rendered at
+  `/docs/themes/` like the README is at `/docs/ui/`): an agent driving toil has no
+  theme. Its screenshots are figures placed with `<!-- figure: -->`, which the remark
+  plugin now also reads in `ui/docs/`, and `test/site-docs.test.ts` checks them the
+  same way. `ui/test/prompts.test.ts` fails if the prompt the page shows drifts from
+  what the server composes.

@@ -191,8 +191,35 @@ never starts that copy anyway.
   for that question. The token reaches Codex in its environment, never on its command
   line, and the endpoint refuses any request carrying a browser's `Origin`.
 
+- **Your own instructions.** Under **Settings, Agent**, general instructions (for
+  example "answer in British English") and a custom voice, each up to 4,000
+  characters, kept in `agent.json` beside the adapter. They come after the rules in
+  the prompt, and the rules win: they change phrasing, never the citations, the
+  proposals or what the tools can do. **Show the full prompt** shows exactly what
+  the agent is sent.
+
 With no adapter chosen, the chat says so and names the three. `toil-ui --sample`
 keeps the scripted agent, which answers its starter questions from the sample data.
+
+## Themes
+
+Five built-in themes: Plain, Crate (the default), Harvest, Starship and Realm. Pick
+one from the header, or under **Settings, General**, where two checkboxes say how far
+it goes, both on by default:
+
+- **Themed wording:** the theme's own empty states, loading lines, eyebrows and
+  notes. Buttons, links, headings, figures, ids, commands and errors read the same
+  in every theme.
+- **Themed agent voice:** the agent answers in the theme's register, a terse
+  dockworker in Crate, a patient farmhand in Harvest, a ship's log in Starship, a
+  herald in Realm. It changes phrasing only.
+
+Plain has neither, so both are off while it's chosen. The choice is kept in this
+browser. Toil UI doesn't install themes from anywhere else: to ask for one, send a
+feature request from **Feedback** or with `toil feedback feature`. A `themes/` folder
+left in the data folder by an earlier alpha is not read, and Toil UI says so when it
+starts. [Themes](https://imagile-dev.github.io/toil/docs/themes/) has the whole
+story, the composed prompt included.
 
 ## The lock on the door
 

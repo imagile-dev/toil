@@ -13,7 +13,7 @@
  * needs the launch URL again. Paperwork, but the kind that files itself.
  */
 
-import { NO_AGENT_FIX, NO_AGENT_NOTICE, type Agent, type Answer, type Starter } from './agent.ts';
+import { NO_AGENT_FIX, NO_AGENT_NOTICE, type Agent, type Answer, type AskStyle, type Starter } from './agent.ts';
 import type { AreaInfo, ConfigApi, SettingsInfo } from './config.ts';
 import { FEEDBACK_SAMPLE_DISABLED, type FeedbackApi, type FeedbackFields } from './feedback.ts';
 import type { SyncStatus } from '../server/sync.ts';
@@ -185,6 +185,15 @@ export function httpFeedback(session: Session, base = './'): FeedbackApi {
   };
 }
 
+/** Who answers, by the session's agent kind, for the Ask pane's info (#283). */
+export const AGENT_LABEL: Record<string, string> = {
+  claude: 'Claude, through the Claude Agent SDK',
+  copilot: 'GitHub Copilot, through the Copilot SDK',
+  codex: 'Codex, through the Codex SDK',
+  scripted: 'a scripted preview, not a model',
+  none: 'nobody yet: no agent is set up',
+};
+
 /**
  * The Agent over the server. The App asks for starters while it renders, so
  * they're fetched for each dossier before it mounts.
@@ -199,14 +208,15 @@ export async function httpAgent(session: Session, dossiers: string[], base = './
   }
   return {
     ...(session.agent === 'none' ? { notice: `${NO_AGENT_NOTICE} ${NO_AGENT_FIX}` } : {}),
+    label: AGENT_LABEL[session.agent] ?? session.agent,
     starters: (dossier) => starters.get(dossier) ?? [],
-    async ask(dossier, prompt) {
-      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt } });
+    async ask(dossier, prompt, style) {
+      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, ...style } });
       if (!res.ok) throw await failure(res, 'The question');
       return (await res.json()) as Answer;
     },
-    async *stream(dossier, prompt, signal) {
-      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, stream: true }, ...(signal ? { signal } : {}) });
+    async *stream(dossier, prompt, signal, style) {
+      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, stream: true, ...style }, ...(signal ? { signal } : {}) });
       if (!res.ok) throw await failure(res, 'The question');
       if (!/^application\/x-ndjson/.test(res.headers.get('content-type') ?? '')) {
         yield (await res.json()) as Answer;
@@ -254,6 +264,8 @@ export async function* answerLines(res: Response): AsyncIterable<Answer> {
 export interface AgentSettingsClient {
   status(): Promise<AgentStatus>;
   save(settings: AgentSettings): Promise<AgentStatus>;
+  /** The system prompt a question about the dossier would get now, in this style, with the saved instructions (#283). */
+  prompt(dossier: string | undefined, style: AskStyle): Promise<string>;
 }
 
 export function httpAgentSettings(session: Session, base = './'): AgentSettingsClient {
@@ -264,5 +276,11 @@ export function httpAgentSettings(session: Session, base = './'): AgentSettingsC
   return {
     status: async () => answer(await call(base, session, 'api/agent/settings'), 'Reading the agent settings'),
     save: async (settings) => answer(await call(base, session, 'api/agent/settings', { body: settings }), 'Saving the agent settings'),
+    async prompt(dossier, style) {
+      const query = new URLSearchParams({ ...(dossier ? { dossier } : {}), theme: style.theme, voice: style.voice ? 'on' : 'off' });
+      const res = await call(base, session, `api/agent/prompt?${query}`);
+      if (!res.ok) throw await failure(res, 'Reading the full prompt');
+      return ((await res.json()) as { prompt: string }).prompt;
+    },
   };
 }

@@ -121,8 +121,10 @@ from `main`).
     a drawing too wide for a phone has a second, tall variant, and scrolling code
     is `tabindex="0"` with a label; `test/site-docs.test.ts` checks all of it. The
     figures' styles live in the page that renders the file
-    (`src/pages/docs/dossiers.astro`). The dev server keeps a figure's old markup
-    until it restarts.
+    (`src/pages/docs/dossiers.astro`). Toil UI's own docs, `ui/docs/*.md`
+    (`/docs/themes/`), place figures the same way, and `UI_DOC_PAGES` in
+    `skill-pages.mjs` names each one's page. The dev server keeps a figure's old
+    markup until it restarts.
 - **Every new or changed integration reviews its skill file, which is its docs
   page, in the same PR**: setup, credential and where to create it, config keys,
   commands, verification level. Add a `credentialWhere` entry only when the menu path is certain; a wrong

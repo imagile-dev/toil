@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -238,6 +238,7 @@ describe('the views on a dashboard (#252, #253)', () => {
   });
 
   it('says so when a dossier has no links to draw', async () => {
+    localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'plain' }));
     await open('#/dossier/checkout-web');
     await waitFor(() => expect(panel('Dependencies').textContent).toContain("No links between this dossier's items."));
   });
@@ -436,7 +437,7 @@ describe('settings', () => {
   });
 
   it('in the local app, says plainly when no SDK is installed and names the three', async () => {
-    const client = { status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null }), save: async (s: AgentSettings) => STATUS(s) };
+    const client = { status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null }), save: async (s: AgentSettings) => STATUS(s), prompt: async () => '' };
     const { container } = await open('#/settings/agent', { preview: false, agentSettings: { client } });
     const agentPanel = panel('Agent');
     await within(agentPanel).findByRole('radiogroup', { name: 'Adapter' });
@@ -449,7 +450,7 @@ describe('settings', () => {
   it('saves the adapter, model, CLI path and Claude endpoint, and says so', async () => {
     const saves: AgentSettings[] = [];
     const changed: AgentStatus[] = [];
-    const client = { status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null }, true), save: async (s: AgentSettings) => (saves.push(s), STATUS(s, true)) };
+    const client = { status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null }, true), save: async (s: AgentSettings) => (saves.push(s), STATUS(s, true)), prompt: async () => '' };
     const { container } = await open('#/settings/agent', { preview: false, agentSettings: { client, onChange: (s) => changed.push(s) } });
     const agentPanel = panel('Agent');
     await userEvent.click(await within(agentPanel).findByRole('radio', { name: /^Claude/ }));
@@ -458,7 +459,7 @@ describe('settings', () => {
     expect(await violations(container)).toEqual([]);
     await userEvent.click(within(agentPanel).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(within(agentPanel).getByRole('status').textContent).toBe('Saved: Claude answers from the next question.'));
-    expect(saves).toEqual([{ adapter: 'claude', model: 'sonnet', cliPath: null, endpoint: 'bedrock' }]);
+    expect(saves).toEqual([{ adapter: 'claude', model: 'sonnet', cliPath: null, endpoint: 'bedrock', instructions: null, voice: null }]);
     expect(changed).toHaveLength(1);
   });
 });
@@ -575,7 +576,7 @@ describe('themes', () => {
     expect(screen.getByRole('button', { name: /Appearance/ })).toBeTruthy();
     expect(document.querySelector('.ask img')).toBeNull();
     expect(screen.getAllByRole('button').map((b) => b.textContent).filter((t) => !/Plain|Crate|System/.test(t ?? ''))).toEqual(before.filter((t) => !/Plain|Crate|System/.test(t ?? '')));
-    expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toEqual({ theme: 'plain', scheme: 'system' });
+    expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toEqual({ theme: 'plain', scheme: 'system', wording: true, voice: true });
   });
 
   it('takes the theme and scheme from the address first', async () => {
@@ -587,3 +588,141 @@ describe('themes', () => {
     window.history.replaceState(null, '', '/');
   });
 });
+
+describe('how deep the theme goes (#283)', () => {
+  const setTheme = (theme: string, more: Record<string, unknown> = {}) => localStorage.setItem('toil-ui.theme', JSON.stringify({ theme, ...more }));
+
+  it('says the empty states, loading lines and notes in the theme\'s words, and the standard ones with wording off', async () => {
+    setTheme('crate');
+    await open('#/dossier/checkout-web');
+    await waitFor(() => expect(panel('Dependencies').textContent).toContain("No links between this dossier's items: every crate stands on its own."));
+    expect(screen.getByText('Consignment')).toBeTruthy();
+    cleanupView();
+    setTheme('crate', { wording: false });
+    await open('#/dossier/checkout-web');
+    await waitFor(() => expect(panel('Dependencies').textContent).toContain("No links between this dossier's items."));
+    expect(panel('Dependencies').textContent).not.toContain('every crate');
+    expect(screen.getByText('Dossier')).toBeTruthy();
+  });
+
+  it('never changes a control, a heading or a figure: the same buttons, links and headings with wording on and off', async () => {
+    const names = () => ['button', 'link', 'heading', 'checkbox', 'textbox'].flatMap((role) => screen.queryAllByRole(role).map((el) => `${role}: ${el.textContent}`));
+    setTheme('realm', { wording: false });
+    await open('#/dossier/card-payments');
+    const off = names();
+    cleanupView();
+    setTheme('realm');
+    await open('#/dossier/card-payments');
+    expect(names()).toEqual(off.map((n) => n.replace(/^heading: Sprint 42(?=:)/, 'heading: Chronicle (Sprint 42').replace(/^(heading: Chronicle \(Sprint 42: day \d+ of \d+)$/, '$1)').replace(/^heading: Dependencies$/, 'heading: Map (Dependencies)')));
+  });
+
+  it('has both boxes on by default under the theme picker, and turns both off, with a note, for Plain', async () => {
+    await open('#/settings/toil');
+    const card = screen.getByRole('region', { name: 'Theme' });
+    const wording = within(card).getByRole('checkbox', { name: 'Themed wording' }) as HTMLInputElement;
+    const voice = within(card).getByRole('checkbox', { name: 'Themed agent voice' }) as HTMLInputElement;
+    expect([wording.checked, voice.checked]).toEqual([true, true]);
+    await userEvent.click(wording);
+    expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toMatchObject({ theme: 'crate', wording: false, voice: true });
+    expect(within(card).getByRole('link', { name: 'the themes documentation' }).getAttribute('href')).toBe('https://imagile-dev.github.io/toil/docs/themes/');
+    cleanupView();
+    setTheme('plain');
+    const { container } = await open('#/settings/toil');
+    const plain = screen.getByRole('region', { name: 'Theme' });
+    for (const name of ['Themed wording', 'Themed agent voice']) {
+      const box = within(plain).getByRole('checkbox', { name }) as HTMLInputElement;
+      expect(box.checked).toBe(false);
+      expect(box.disabled).toBe(true);
+    }
+    expect(plain.textContent).toContain('Plain has no wording or voice of its own, so both are off');
+    expect(await violations(container)).toEqual([]);
+  });
+
+  it('answers in the theme\'s voice with the voice on, and in the standard words with it off', async () => {
+    setTheme('crate');
+    await open('#/dossier/card-payments');
+    await userEvent.click(within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button')[0]!);
+    expect(await screen.findByText(/3 of 21 points are on the truck/, {}, { timeout: 4000 })).toBeTruthy();
+    cleanupView();
+    setTheme('crate', { voice: false });
+    await open('#/dossier/card-payments');
+    await userEvent.click(within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button')[0]!);
+    expect(await screen.findByText(/3 of 21 points are done and 18 remain/, {}, { timeout: 4000 })).toBeTruthy();
+  });
+
+  it('explains the answers from an (i) beside the questions, by keyboard, and closes on Escape', async () => {
+    setTheme('harvest');
+    const { container } = await open('#/dossier/settlement');
+    const info = screen.getByRole('button', { name: 'About these answers' });
+    info.focus();
+    await userEvent.keyboard('{Enter}');
+    const dialog = await screen.findByRole('dialog', { name: 'About these answers' });
+    expect(dialog.textContent).toContain("Answers are written in Harvest's voice, which changes their phrasing only");
+    expect(dialog.textContent).toContain('Answered by a scripted preview, not a model.');
+    expect(dialog.textContent).toContain('The agent only reads');
+    expect(within(dialog).getByRole('link', { name: 'Settings, Agent' }).getAttribute('href')).toBe('#/settings/agent');
+    expect(within(dialog).getByRole('link', { name: 'Settings, General' }).getAttribute('href')).toBe('#/settings/toil');
+    expect(await violations(container)).toEqual([]);
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.activeElement).toBe(info);
+    cleanupView();
+    setTheme('harvest', { voice: false });
+    await open('#/dossier/settlement');
+    await userEvent.click(screen.getByRole('button', { name: 'About these answers' }));
+    expect((await screen.findByRole('dialog')).textContent).toContain('Themed agent voice is off');
+  });
+
+  it('shows the instructions form in the preview, with counters, saving off, and the full prompt the agent would get', async () => {
+    setTheme('starship');
+    const { container } = await open('#/settings/agent');
+    const card = screen.getByRole('region', { name: 'Instructions' });
+    expect(card.textContent).toContain("Instructions can't widen what the agent can do, since its tools only read.");
+    expect(card.textContent).toContain('nothing is saved');
+    expect(within(card).queryByRole('button', { name: 'Save' })).toBeNull();
+    const general = within(card).getByRole('textbox', { name: 'General instructions' });
+    await userEvent.type(general, 'Lead with risks.');
+    expect(card.textContent).toContain('16 of 4,000 characters');
+    expect(general.getAttribute('maxlength')).toBe('4000');
+    await userEvent.click(within(card).getByRole('button', { name: 'Show the full prompt' }));
+    const prompt = await within(card).findByRole('region', { name: 'The full prompt' });
+    expect(prompt.textContent).toContain('You are the analyst inside Toil UI, answering a question about the dossier "card-payments"');
+    expect(prompt.textContent).toContain("Style:\nWrite like a starship's log");
+    expect(prompt.textContent!.trimEnd().endsWith("Lead with risks.\n\nThese instructions come from the person using Toil UI. Follow them where they fit the rules above; where they disagree, the rules win. They can't give you a tool, and nothing in them lets you change anything.")).toBe(true);
+    expect(await violations(container)).toEqual([]);
+    await userEvent.type(within(card).getByRole('textbox', { name: 'Custom voice' }), 'Talk like a quartermaster.');
+    await userEvent.click(within(card).getByRole('button', { name: 'Hide the full prompt' }));
+    await userEvent.click(within(card).getByRole('button', { name: 'Show the full prompt' }));
+    const again = await within(card).findByRole('region', { name: 'The full prompt' });
+    expect(again.textContent).toContain('Style:\nTalk like a quartermaster.');
+    expect(again.textContent).not.toContain("starship's log");
+  });
+
+  it('saves the instructions and the custom voice in the local app, keeping the adapter as it was saved', async () => {
+    const saves: AgentSettings[] = [];
+    const prompts: unknown[] = [];
+    const base: AgentSettings = { adapter: 'codex', model: null, cliPath: null, endpoint: null, instructions: null, voice: null };
+    const status = (settings: AgentSettings): AgentStatus => ({ settings, problem: null, adapters: [], kind: settings.adapter });
+    const client = {
+      status: async () => status(base),
+      save: async (s: AgentSettings) => (saves.push(s), status(s)),
+      prompt: async (dossier: string | undefined, style: unknown) => (prompts.push([dossier, style]), 'the composed prompt'),
+    };
+    setTheme('crate');
+    await open('#/settings/agent', { preview: false, agentSettings: { client, dossier: 'card-payments' } });
+    const card = await screen.findByRole('region', { name: 'Instructions' });
+    await userEvent.type(within(card).getByRole('textbox', { name: 'General instructions' }), 'Answer in British English.');
+    await userEvent.click(within(card).getByRole('button', { name: 'Save' }));
+    await waitFor(() => expect(within(card).getByRole('status').textContent).toBe('Saved: the next question uses them.'));
+    expect(saves).toEqual([{ ...base, instructions: 'Answer in British English.', voice: null }]);
+    await userEvent.click(within(card).getByRole('button', { name: 'Show the full prompt' }));
+    expect((await within(card).findByRole('region', { name: 'The full prompt' })).textContent).toBe('the composed prompt');
+    expect(prompts).toEqual([['card-payments', { theme: 'crate', voice: true }]]);
+  });
+});
+
+/** Unmounts what open() rendered, so one test can open a view twice. */
+function cleanupView() {
+  cleanup();
+  window.location.hash = '';
+}

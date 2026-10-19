@@ -6,14 +6,16 @@
  * agent writes them, their citations link to items, and the changes they
  * suggest are proposal cards to review, never applied. An agent that fails
  * says so in the pane, never only in the console. It reads; it never changes
- * a ticket.
+ * a ticket. Beside the starter questions, an (i) says whose voice the answers
+ * are in, who answers, and where to change both (#283).
  */
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Button, Input, Label, TextField } from 'react-aria-components';
+import { Button, Dialog, DialogTrigger, Heading, Input, Label, Popover, TextField } from 'react-aria-components';
 import type { Answer } from '../agent.ts';
 import { useData } from '../data.ts';
-import { useSkins } from '../skins.tsx';
+import { useSkins, useTheme, useThemeChoiceContext, useWords } from '../skins.tsx';
+import { voiceOn } from '../theme-context.ts';
 import { useMediaQuery } from './layout.tsx';
 import { Cited } from './items.tsx';
 import { ProposalCard } from './proposal.tsx';
@@ -29,6 +31,10 @@ interface Turn {
 export function Ask() {
   const { agent, dossier } = useData();
   const { EmptyState, ChatMessage } = useSkins();
+  const words = useWords();
+  const theme = useTheme();
+  const choice = useThemeChoiceContext();
+  const style = { theme: theme.name, voice: voiceOn(theme, choice) };
   const [turns, setTurns] = useState<Turn[]>([]);
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
@@ -54,12 +60,12 @@ export function Ask() {
     setTurns((ts) => [...ts, { id, prompt: shown, answer: null, error: null, done: false }]);
     try {
       if (agent.stream) {
-        for await (const partial of agent.stream(dossier.name, prompt, controller.signal)) {
+        for await (const partial of agent.stream(dossier.name, prompt, controller.signal, style)) {
           if (controller.signal.aborted) return;
           update(id, { answer: partial });
         }
       } else {
-        update(id, { answer: await agent.ask(dossier.name, prompt) });
+        update(id, { answer: await agent.ask(dossier.name, prompt, style) });
       }
       update(id, { done: true });
     } catch (e: unknown) {
@@ -86,9 +92,9 @@ export function Ask() {
         )}
       </div>
       <div id="ask-body" className="ask-body" hidden={!showBody}>
-        <p className="note">Answers cite the items they rest on. The agent reads; it never changes a ticket. What it suggests comes back as a proposal for you to apply.</p>
+        <p className="note">{words('ask.note')}</p>
         <div className="log" role="log" aria-live="polite" aria-busy={busy} aria-label="Conversation">
-          {turns.length === 0 && (agent.notice ? <p className="note agent-notice">{agent.notice}</p> : <EmptyState message="Pick a question, or ask your own, to see how answers cite their sources." />)}
+          {turns.length === 0 && (agent.notice ? <p className="note agent-notice">{agent.notice}</p> : <EmptyState message={words('empty.ask')} />)}
           {turns.map((t) => (
             <div key={t.id} className="turn">
               <ChatMessage from="you">
@@ -127,7 +133,7 @@ export function Ask() {
                       )}
                     </>
                   ) : (
-                    <p className="note">Thinking…</p>
+                    <p className="note">{words('loading.answer')}</p>
                   )}
                   {t.done &&
                     t.answer?.proposals
@@ -138,6 +144,10 @@ export function Ask() {
             </div>
           ))}
           <div ref={end} />
+        </div>
+        <div className="starters-head">
+          <p className="note">Questions</p>
+          <AskInfo agentLabel={agent.label} />
         </div>
         <div className="starters" role="group" aria-label="Starter questions">
           {agent.starters(dossier.name).map((s) => (
@@ -157,5 +167,45 @@ export function Ask() {
         </form>
       </div>
     </aside>
+  );
+}
+
+/**
+ * The (i) beside the starter questions (#283): a button that opens a short
+ * popover, never a hover-only tooltip, so a keyboard, a touch screen and a
+ * screen reader reach the same words. React Aria's Dialog keeps focus inside
+ * while it's open, and Escape or a click outside closes it.
+ */
+export function AskInfo({ agentLabel }: { agentLabel: string | undefined }) {
+  const theme = useTheme();
+  const choice = useThemeChoiceContext();
+  const voiced = voiceOn(theme, choice);
+  const voice = voiced
+    ? `Answers are written in ${theme.label}'s voice, which changes their phrasing only: citations, figures and proposals stay exact.`
+    : theme.voice
+      ? `Themed agent voice is off, so answers are in plain wording, whatever the theme.`
+      : `${theme.label} has no voice of its own, so answers are in plain wording.`;
+  return (
+    <DialogTrigger>
+      <Button className="btn info-button" data-ask-info="">
+        <span aria-hidden="true" className="info-button__mark">
+          i
+        </span>
+        <span className="sr-only">About these answers</span>
+      </Button>
+      <Popover className="popover ask-info" placement="top end" offset={6}>
+        <Dialog className="ask-info__dialog" aria-labelledby="ask-info-title">
+          <Heading slot="title" id="ask-info-title" className="ask-info__title">
+            About these answers
+          </Heading>
+          <p>{voice}</p>
+          <p>Answered by {agentLabel ?? 'the agent chosen in Settings'}.</p>
+          <p>The agent only reads: its tools can't change a ticket, and anything it suggests comes back as a proposal for you to apply.</p>
+          <p>
+            Change the voice under <a href="#/settings/toil">Settings, General</a>, and add your own instructions or voice under <a href="#/settings/agent">Settings, Agent</a>.
+          </p>
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
   );
 }

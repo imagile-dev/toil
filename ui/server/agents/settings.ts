@@ -6,12 +6,21 @@
  * credentials, the Copilot seat, Codex's sign-in). A field this file doesn't
  * know is refused rather than stored, so a key can't end up here by
  * accident. A settings card with no space for a password.
+ *
+ * Two of them are the person's own words (#283): general instructions, and a
+ * custom voice that replaces the theme's while "Themed agent voice" is on.
+ * Each is plain text up to MAX_INSTRUCTIONS characters, added to the prompt
+ * after the rules, which say they win (prompts.ts). They can't widen what the
+ * agent may do: its tools are read-only whatever the prompt says.
  */
 
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import * as nodePath from 'node:path';
 import { AgentError } from './cli.ts';
+import { MAX_INSTRUCTIONS } from './prompts.ts';
 import type { AdapterName, Endpoint } from './runtime.ts';
+
+export { MAX_INSTRUCTIONS } from './prompts.ts';
 
 export interface AgentSettings {
   adapter: AdapterName | 'none';
@@ -21,12 +30,16 @@ export interface AgentSettings {
   cliPath: string | null;
   /** Claude only: which endpoint Claude Code uses. Null is the CLI's own default. */
   endpoint: Endpoint | null;
+  /** The person's general instructions for every answer, or null. */
+  instructions: string | null;
+  /** A voice of the person's own, used instead of the theme's while the voice is on, or null. */
+  voice: string | null;
 }
 
-export const DEFAULT_AGENT_SETTINGS: AgentSettings = { adapter: 'none', model: null, cliPath: null, endpoint: null };
+export const DEFAULT_AGENT_SETTINGS: AgentSettings = { adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null };
 export const ADAPTERS: readonly AgentSettings['adapter'][] = ['none', 'claude', 'copilot', 'codex'];
 export const ENDPOINTS: readonly Endpoint[] = ['anthropic', 'bedrock', 'foundry', 'vertex'];
-const FIELDS = new Set(['adapter', 'model', 'cliPath', 'endpoint']);
+const FIELDS = new Set(['adapter', 'model', 'cliPath', 'endpoint', 'instructions', 'voice']);
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/@[\]-]{0,127}$/;
 
 export const agentSettingsFile = (dataDir: string, path: Pick<typeof nodePath, 'join'> = nodePath) => path.join(dataDir, 'agent.json');
@@ -44,7 +57,7 @@ export function checkAgentSettings(input: unknown, isAbsolute: (p: string) => bo
   if (extra.length) {
     throw new AgentError(
       `Toil UI's agent settings have no ${extra.map((k) => JSON.stringify(k)).join(', ')}.`,
-      'They hold the adapter, model, CLI path and endpoint only. Keys and tokens never go here: each SDK signs in the way its own CLI does.',
+      'They hold the adapter, model, CLI path, endpoint, instructions and voice only. Keys and tokens never go here: each SDK signs in the way its own CLI does.',
     );
   }
   const adapter = o.adapter ?? 'none';
@@ -67,7 +80,19 @@ export function checkAgentSettings(input: unknown, isAbsolute: (p: string) => bo
   const endpoint = blank(o.endpoint) ? null : (o.endpoint as Endpoint);
   if (endpoint !== null && !ENDPOINTS.includes(endpoint)) throw new AgentError(`There is no endpoint ${JSON.stringify(endpoint)}.`, `Choose one of ${ENDPOINTS.join(', ')}, or none for Claude Code's default.`);
   if (endpoint !== null && adapter !== 'claude') throw new AgentError('Only the Claude adapter takes an endpoint.', "Copilot and Codex use their CLI's own endpoint; clear the endpoint.");
-  return { adapter: adapter as AgentSettings['adapter'], model, cliPath, endpoint };
+  return { adapter: adapter as AgentSettings['adapter'], model, cliPath, endpoint, instructions: words(o.instructions, 'instructions'), voice: words(o.voice, 'voice') };
+}
+
+/** The person's own text: null when blank, else plain text of at most MAX_INSTRUCTIONS characters. */
+function words(value: unknown, field: 'instructions' | 'voice'): string | null {
+  if (blank(value)) return null;
+  const what = field === 'instructions' ? 'The general instructions' : 'The custom voice';
+  if (typeof value !== 'string') throw new AgentError(`${what} must be text.`, 'Type them in Settings, Agent, or leave the box empty.');
+  const text = value.replace(/\r\n?/g, '\n').trim();
+  if (text.length > MAX_INSTRUCTIONS) throw new AgentError(`${what} are ${text.length} characters, over the ${MAX_INSTRUCTIONS}-character limit.`, `Shorten them to ${MAX_INSTRUCTIONS} characters or fewer.`);
+  // Control characters other than a line break or a tab have no business in a prompt, and could hide text from the person reading it.
+  if ([...text].some((c) => { const n = c.charCodeAt(0); return (n < 32 && n !== 9 && n !== 10) || n === 127; })) throw new AgentError(`${what} hold a control character.`, 'Use plain text: letters, punctuation, line breaks and tabs.');
+  return text;
 }
 
 /** The saved settings, or the defaults when there are none. A broken file is an AgentError naming it. */

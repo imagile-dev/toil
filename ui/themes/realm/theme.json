@@ -47,5 +47,30 @@
     "agent": "Scribe",
     "dependencies": "Map",
     "blocked": "Mountain pass"
-  }
+  },
+  "lexicon": {
+    "dossiers.lede": "Each dossier is one chronicle of work: its repositories, its tracker, its pipelines and its environments. Choose one to read its stories, pull requests, builds and deployments on a single page.",
+    "dossier.eyebrow": "Chronicle",
+    "settings.eyebrow": "The council",
+    "attention.note": "Open items ranked by their insights, the gravest first. Each insight names the record it rests on.",
+    "aging.note": "How long each item in progress has been on its journey, from its history, oldest first.",
+    "trace.note": "Each work item with the pull requests that name it, their latest builds, and the environments where it now runs.",
+    "graph.note": "Arrows run the way each link reads, from the source's own links. Blocking chains run left to right across the map.",
+    "ask.note": "Answers cite the items they rest on. The scribe reads; it never changes a ticket. What it suggests comes back as a proposal, for you to seal.",
+    "empty.dossiers": "The library is empty: toil sees no dossiers yet. A dossier is founded with toil dossiers init.",
+    "empty.sprint": "No sprint is being chronicled in this dossier's work items.",
+    "empty.burnup": "No sprint is being chronicled, so there is nothing to record.",
+    "empty.column": "No deeds here.",
+    "empty.prs": "No pull requests have been brought before the court for this dossier.",
+    "empty.builds": "No builds are recorded for this dossier's pull requests.",
+    "empty.deployments": "This dossier names no environment, so no herald brings word of deployments.",
+    "empty.links": "No links between this dossier's items. The map has no roads yet.",
+    "empty.item": "The chronicle holds no item {id}.",
+    "empty.ask": "Pick a question, or ask your own. The scribe cites every record an answer rests on.",
+    "loading.dossiers": "Unrolling the dossiers…",
+    "loading.dossier": "Unrolling the chronicle of {name}…",
+    "loading.graph": "Inking the map…",
+    "loading.answer": "The scribe is writing…"
+  },
+  "voice": "Speak as a herald of the realm reading the chronicle aloud: formal, a little ceremonious, and brief, as if each line were to be proclaimed in the square. Epics are quests, the sprint is the chronicle of these days, work items are deeds, a blocker is a mountain pass closed by snow, a failing build is a broken bridge, and a deployment is news carried to a far city. Proclaim the state of things first, then the perils, then your counsel. Grand in tone and never mocking of any person. The old words go around the facts, never instead of them."
 }

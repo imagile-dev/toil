@@ -45,18 +45,31 @@ export const NO_AGENT_NOTICE =
   'No agent is set up in this Toil UI, so nobody can answer yet. Toil UI reasons with the subscription you already have, through one of three adapters: Claude (the Claude Agent SDK, @anthropic-ai/claude-agent-sdk), GitHub Copilot (@github/copilot-sdk) or Codex (@openai/codex-sdk).';
 export const NO_AGENT_FIX = 'Install the one your organization approves beside toil-ui, with its CLI on PATH, and choose it under Settings, Agent. The dashboards work without one, and toil-ui --sample shows the scripted agent.';
 
+/**
+ * How the answer should sound (#283): the theme on screen and whether
+ * "Themed agent voice" is on. The server turns it into the prompt's style
+ * from its own copy of the theme, so the page names a theme and never sends
+ * prompt text.
+ */
+export interface AskStyle {
+  theme: string;
+  voice: boolean;
+}
+
 export interface Agent {
   /** A line the pane shows before any question, such as that no agent is set up. */
   notice?: string;
+  /** Who answers, in words, for the pane's info: an adapter's name, or the scripted preview. */
+  label?: string;
   /** The questions offered about a dossier before anyone types. */
   starters(dossier: string): Starter[];
   /** Answers about the named dossier only. */
-  ask(dossier: string, prompt: string): Promise<Answer>;
+  ask(dossier: string, prompt: string, style?: AskStyle): Promise<Answer>;
   /**
    * The same answer as it grows: each value is the answer so far, and the
    * last is the whole of it. Optional; the pane falls back to `ask`.
    */
-  stream?(dossier: string, prompt: string, signal?: AbortSignal): AsyncIterable<Answer>;
+  stream?(dossier: string, prompt: string, signal?: AbortSignal, style?: AskStyle): AsyncIterable<Answer>;
 }
 
 const CITE = /\[\[([^\]]+)\]\]/g;

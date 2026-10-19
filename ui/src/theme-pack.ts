@@ -1,9 +1,11 @@
 /**
  * The shape of a theme pack's manifest (`theme.json`, #206), apart from the
- * themes themselves, so the server can check a user's theme without loading
+ * themes themselves, so the server can read a theme's voice without loading
  * any stylesheet.
  * The standard form for colours, in triplicate per scheme.
  */
+
+import type { WordKey } from './wording.ts';
 
 /** The tokens every theme defines for every scheme it offers. */
 export const TOKENS = [
@@ -32,4 +34,8 @@ export interface ThemeManifest {
   sounds: Record<string, string>;
   assets: Record<string, string>;
   terms?: Partial<Record<TermKey, string>>;
+  /** Themed wording (#283): the theme's own microcopy, by key, over the standard text in src/wording.ts. */
+  lexicon?: Partial<Record<WordKey, string>>;
+  /** Themed agent voice (#283): the register the agent answers in, added to its prompt as style. Plain has none. */
+  voice?: string;
 }
