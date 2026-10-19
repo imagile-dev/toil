@@ -82,7 +82,7 @@ add a second connection with its own token.
 **In Azure Pipelines**, map the job's own token and organization URL into the step:
 
 ```yaml
-- script: toil ado-cloud work get --id 42
+- script: toil ado-cloud work-item get 42
   env:
     TOIL_ADO_CLOUD_PAT: $(System.AccessToken)
     TOIL_ADO_CLOUD_BASE_URL: $(System.CollectionUri)
@@ -99,74 +99,77 @@ environment anyway, so naming it `TOIL_ADO_CLOUD_PAT` costs nothing. On Services
 ## Where a command acts
 
 `--project <name>` and `--repo <name>` are group flags, accepted before or after the
-command (`toil ado-cloud --project Imagile work search --wiql ...`). Without them,
+command (`toil ado-cloud --project Imagile work-item search --wiql ...`). Without them,
 toil uses a dossier, then the connection's `project` and `repo`. The git remote isn't
 read. Over MCP they're the `project` and `repo` fields. `meta.context` says where each
 came from.
 
-- A work item belongs to the organization, so `work get`, `work update`,
-  `work revisions` and `work get-batch` need neither.
-- `work create`, `work search`, `work list-comments`, `work add-comment`,
-  `work list-iterations` and `repo list` need a project.
-- Every other `repo` command needs a project and a repo.
+- A work item belongs to the organization, so `work-item get`, `work-item update`,
+  `work-item history` and `work-item get-many` need neither.
+- `work-item create`, `work-item search`, `work-item comments`, `work-item comment`,
+  `work-item iterations` and `repo list` need a project.
+- `repo get` and every `pr` command need a project and a repo.
 - `whoami`, `project list` and `project get` need neither.
 
 ## Commands
 
-Every command also takes `--connection <name>`. Write commands (marked ✎) need
-`writes: true` on the connection **and** `--allow-write`. Names and flags match
+Commands are `toil ado-cloud <resource> <action> [ids...] [--flags]`; ids are
+positional. Every command also takes `--connection <name>`. Write commands (marked ✎)
+need `writes: true` on the connection **and** `--allow-write`. Names and flags match
 `ado` wherever the operation is the same. MCP tools are `ado_cloud_<command>`
-(`ado_cloud_work_get`). There are no deletes.
+(`ado_cloud_work_item_get`), and a positional id is the `id` field. There are no
+deletes.
 
 | Command | Flags | Returns |
 |---------|-------|---------|
 | `whoami` | | The token's connection data; `authenticatedUser.id` is the identity id the vote commands use |
 | `project list` | `--limit --cursor` | Projects in the organization |
-| `project get` | `--name` | One project by name or id |
+| `project get <name>` | | One project by name or id |
 | `repo list` | | Git repositories in the project |
 | `repo get` | | The repository |
-| `work get` | `--id` | A work item with every field and relation |
-| `work get-batch` | `--id --fields` | `{ count, value, missing }` for several ids |
-| `work create` ✎ | `--type --title --description --assignee --priority --field` | The created work item |
-| `work update` ✎ | `--id --field --rev` | The updated work item |
-| `work search` | `--wiql --updated-since --limit --cursor` | The WIQL answer: matching ids and urls, not fields |
-| `work revisions` | `--id --limit --cursor` | Every revision, oldest first |
-| `work list-comments` | `--id --limit --cursor` | Every comment on the work item |
-| `work add-comment` ✎ | `--id --body` | The new comment |
-| `work list-iterations` | `--depth` | The iteration tree, with dates |
-| `repo list-prs` | `--state --creator --reviewer --created-after --created-before --limit --cursor` | Pull requests |
-| `repo get-pr` | `--id` | One pull request |
-| `repo create-pr` ✎ | `--title --source --target --description --reviewers --draft` | The created pull request |
-| `repo update-pr` ✎ | `--id --title --description --target --draft` | The updated pull request |
-| `repo merge-pr` ✎ | `--id --strategy --delete-source --message` | The pull request, with completion requested |
-| `repo abandon-pr` ✎ | `--id` | The abandoned pull request |
-| `repo list-reviewers` | `--pr` | Reviewers and their votes |
-| `repo approve` ✎ | `--pr` | Your reviewer entry, vote 10 |
-| `repo unapprove` ✎ | `--pr` | Your reviewer entry, vote 0 |
-| `repo wait-for-author` ✎ | `--pr` | Your reviewer entry, vote -5 |
-| `repo list-threads` | `--pr` | Comment threads, as the server returns them |
-| `repo list-comments` | `--pr --inline-only --general-only --include-system` | Every comment, flattened from the threads |
-| `repo add-comment` ✎ | `--pr --body` | The new thread |
-| `repo add-inline-comment` ✎ | `--pr --file --line --body --line-type` | The new thread, on one line of a file |
-| `repo reply-comment` ✎ | `--pr --thread-id --body` | The new reply |
-| `repo resolve-comment` ✎ | `--pr --thread-id --status` | The thread, with its new status |
+| `work-item get <id>` | | A work item with every field and relation |
+| `work-item get-many <id...>` | `--fields` | `{ count, value, missing }` for several ids |
+| `work-item create` ✎ | `--type --title --description --assignee --priority --field` | The created work item |
+| `work-item update <id>` ✎ | `--field --rev` | The updated work item |
+| `work-item search` | `--wiql --updated-since --limit --cursor` | The WIQL answer: matching ids and urls, not fields |
+| `work-item history <id>` | `--limit --cursor` | Every revision, oldest first |
+| `work-item comments <id>` | `--limit --cursor` | Every comment on the work item |
+| `work-item comment <id>` ✎ | `--body` | The new comment |
+| `work-item iterations` | `--depth` | The iteration tree, with dates |
+| `pr list` | `--state --creator --reviewer --created-after --created-before --limit --cursor` | Pull requests |
+| `pr get <id>` | | One pull request |
+| `pr create` ✎ | `--title --source --target --description --reviewers --draft` | The created pull request |
+| `pr update <id>` ✎ | `--title --description --target --draft` | The updated pull request |
+| `pr merge <id>` ✎ | `--strategy --delete-source --message` | The pull request, with completion requested |
+| `pr abandon <id>` ✎ | | The abandoned pull request |
+| `pr reviewers <id>` | | Reviewers and their votes |
+| `pr approve <id>` ✎ | | Your reviewer entry, vote 10 |
+| `pr unapprove <id>` ✎ | | Your reviewer entry, vote 0 |
+| `pr wait-for-author <id>` ✎ | | Your reviewer entry, vote -5 |
+| `pr threads <id>` | | Comment threads, as the server returns them |
+| `pr comments <id>` | `--inline-only --general-only --include-system` | Every comment, flattened from the threads |
+| `pr comment <id>` ✎ | `--body` | The new thread |
+| `pr comment-inline <id>` ✎ | `--file --line --body --line-type` | The new thread, on one line of a file |
+| `pr reply <id> <thread-id>` ✎ | `--body` | The new reply |
+| `pr resolve <id> <thread-id>` ✎ | `--status` | The thread, with its new status |
 | `api` | `--query --body-file --content-type` | Any endpoint (below) |
 
 ```bash
-toil ado-cloud --project Imagile work search --wiql "SELECT [System.Id] FROM WorkItems" --updated-since 2026-10-01 --limit 200
-toil ado-cloud work get-batch --id 42 --id 7 --fields System.Title,System.State
-toil ado-cloud --project Imagile work create --type Bug --title "Login broken" --field storypoints=3 --allow-write
-toil ado-cloud work update --id 42 --field state=Active --rev 3 --allow-write
-toil ado-cloud --project Imagile --repo imagile-api repo list-prs --state all --limit 50
-toil ado-cloud --project Imagile --repo imagile-api repo merge-pr --id 42 --strategy squash --delete-source --allow-write
+toil ado-cloud --project Imagile work-item search --wiql "SELECT [System.Id] FROM WorkItems" --updated-since 2026-10-01 --limit 200
+toil ado-cloud work-item get-many 42 7 --fields System.Title,System.State
+toil ado-cloud --project Imagile work-item create --type Bug --title "Login broken" --field storypoints=3 --allow-write
+toil ado-cloud work-item update 42 --field state=Active --rev 3 --allow-write
+toil ado-cloud --project Imagile --repo imagile-api pr list --state all --limit 50
+toil ado-cloud --project Imagile --repo imagile-api pr merge 42 --strategy squash --delete-source --allow-write
+toil ado-cloud --project Imagile --repo imagile-api pr reply 42 7 --body "Fixed in the next commit." --allow-write
 ```
 
 ### Paging
 
-`project list`, `repo list-prs`, `work search`, `work revisions` and
-`work list-comments` return the whole list by default. With `--limit <n>` they return
+`project list`, `pr list`, `work-item search`, `work-item history` and
+`work-item comments` return the whole list by default. With `--limit <n>` they return
 at most that many and set `meta.page.nextCursor`; pass it back as `--cursor`, with the
-same `--limit`, for the next page, until it's `null`. Every list except `work search`
+same `--limit`, for the next page, until it's `null`. Every list except `work-item search`
 reads page by page (continuation tokens for projects and comments, `$top` and `$skip`
 for pull requests and revisions) and stops with an `HTTP` error after 1,000 pages,
 naming the list.
@@ -180,10 +183,10 @@ naming the list.
   `iteration`, `tags`, `priority`, `severity`, `effort`, `storypoints`,
   `remainingwork`, `remaining`, `acceptancecriteria`, `reprosteps`). Anything else is
   sent as given. Values are sent as text; the server converts them.
-- **`work update --rev <n>`** adds a JSON Patch `test` of the revision first, so the
+- **`work-item update <id> --rev <n>`** adds a JSON Patch `test` of the revision first, so the
   server refuses the whole change if someone else changed the item since you read it.
-- **`work search`** returns the matching ids and urls, not their fields; fetch those
-  with `work get-batch`. `--updated-since <iso>` keeps only items changed at or after
+- **`work-item search`** returns the matching ids and urls, not their fields; fetch
+  those with `work-item get-many`. `--updated-since <iso>` keeps only items changed at or after
   that instant: a date (`2026-10-01`, UTC midnight) or a date-time with its zone
   (`2026-10-01T09:00:00Z`). toil ANDs `[System.ChangedDate] >= '<instant>'` onto the
   query's own `WHERE`, in parentheses so an `OR` keeps its meaning, and asks for time
@@ -192,11 +195,11 @@ naming the list.
   `>=` and `<` instead. It and `--limit` work on flat queries (`FROM WorkItems`) only;
   a link query is refused. With `--limit`, each page runs the query again, so an item
   changed in between can move. A query returns at most 20,000 items.
-- **`work get-batch --id <n> --id <n>`** reads 200 ids per request, at most 1,000 per
+- **`work-item get-many <id...>`** reads 200 ids per request, at most 1,000 per
   call. `value` holds the items found in the order asked, with every field and
   relation, or only `--fields`; `missing` lists each id that doesn't exist or the
   token can't see, with an `ADO_CLOUD_WORK_ITEMS_MISSING` warning.
-- **`work revisions`** returns each revision as the whole item as it stood after that
+- **`work-item history`** returns each revision as the whole item as it stood after that
   change, oldest first, so neighbours show what changed and when.
 
 ### Pull requests
@@ -206,47 +209,48 @@ naming the list.
   `whoami`, or a pull request's `reviewers[].id`), not names or emails.
 - `--created-after` and `--created-before` take a date (UTC midnight) or a date-time
   with its zone, as `--updated-since` does.
-- `merge-pr` reads the pull request for its source commit, then asks the server to
+- `pr merge` reads the pull request for its source commit, then asks the server to
   complete it with `--strategy noFastForward` (default), `squash`, `rebase` or
   `rebaseMerge`. A pull request with no source commit yet is refused with
   `INVALID_INPUT` before anything is changed. Completion is asynchronous: check `data.status` and
   `data.mergeStatus`, which stay `active` and `queued` while policies or conflicts
   hold it.
-- `update-pr` doesn't change reviewers: the API doesn't take them on that call.
-- `repo list-comments` flattens every live thread's comments, oldest first, each with
+- `pr update` doesn't change reviewers: the API doesn't take them on that call.
+- `pr comments` flattens every live thread's comments, oldest first, each with
   `threadId` and `threadContext` (null for a general comment). System comments (votes,
-  pushes) are left out unless `--include-system`. `repo list-threads` returns the
+  pushes) are left out unless `--include-system`. `pr threads` returns the
   threads themselves, system ones included.
-- `repo add-inline-comment` anchors on the right (new) side of `--line` unless
+- `pr comment-inline` anchors on the right (new) side of `--line` unless
   `--line-type left`; a path without a leading `/` gets one.
-- `repo resolve-comment` sets `--status fixed` (resolved) by default; `wontFix`,
+- `pr resolve` sets `--status fixed` (resolved) by default; `wontFix`,
   `closed`, `byDesign`, `pending`, or `active` to reopen.
 
 ## Output, compared with `ado`
 
 `data` is the server's own JSON, so where Services and Server agree it has the same
-shape as `ado`'s, and `toil util owi map` reads `work get`, `work get-batch`,
-`work revisions` and `work list-iterations` output from either area into Open Work
+shape as `ado`'s, and `toil util owi map` reads `work-item get`, `work-item get-many`,
+`work-item history` and `work-item iterations` output from either area into Open Work
 Items. The differences, for anything that reads both:
 
-- **Work items** (`work get`, `work get-batch`, `work revisions`, `work search`) have
+- **Work items** (`work-item get`, `work-item get-many`, `work-item history`,
+  `work-item search`) have
   the same shape: `id`, `rev`, `fields` keyed by reference name, `relations`, `url`.
   On Services every `url` is under the organization (`https://dev.azure.com/<org>/_apis/...`)
-  with no collection segment. `work get-batch` returns `{ count, value, missing }`,
+  with no collection segment. `work-item get-many` returns `{ count, value, missing }`,
   the same as `ado`'s.
 - **Identities** (`System.AssignedTo`, `System.CreatedBy`, `createdBy`, `reviewers`)
   are the same object, `{ displayName, id, uniqueName, url, imageUrl, descriptor }`,
   but on Services `uniqueName` is the user's sign-in email, `descriptor` starts with
   `aad.` (or `msa.`), and `url` is on `vssps.dev.azure.com`. On Server `uniqueName` is
   often `DOMAIN\user`.
-- **`work list-comments`** returns every comment, following continuation tokens;
+- **`work-item comments`** returns every comment, following continuation tokens;
   `ado`'s returns only the server's first page. Each comment has the same shape.
-- **`work create`** takes `--type`, `--title` and the other flags, and `--field`; it
+- **`work-item create`** takes `--type`, `--title` and the other flags, and `--field`; it
   has no `--input-file` or `--parent`, which `ado`'s has.
-- **`work update`** takes `--field` (and `--rev`); it has no `--input-file`.
-- **`repo list-comments`** leaves system comments out unless `--include-system`;
+- **`work-item update`** takes `--field` (and `--rev`); it has no `--input-file`.
+- **`pr comments`** leaves system comments out unless `--include-system`;
   `ado`'s includes them.
-- **Ids** are whole numbers, checked by the schema: `--id 12abc` is refused, where
+- **Ids** are whole numbers, checked by the schema: `work-item get 12abc` is refused, where
   `ado` reads it as 12.
 
 ## Any endpoint: `ado-cloud api`

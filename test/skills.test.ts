@@ -81,7 +81,7 @@ describe('shipped skill', () => {
     it(`${area.name}: its reference names every command and every connection key's env var`, () => {
       const doc = readFileSync(join(dir, `${area.name}.md`), 'utf8');
       for (const def of commands.filter((d) => d.path[0] === area.name)) {
-        // In code, either bare (`get-issue`) or in full (`toil jira get-issue`).
+        // In code, either bare (`issue get`) or in full (`toil jira issue get`).
         const name = def.path.slice(1).join(' ');
         const named = doc.includes(`\`${name}`) || doc.includes(`\`toil ${def.path.join(' ')}`);
         expect(named, `${commandName(def)} is not named in skills/toil/${area.name}.md`).toBe(true);
@@ -119,9 +119,9 @@ describe('commands and flags the skill names exist', () => {
   it('finds invocations to check, so a broken parser cannot pass by finding none', () => {
     const found = files.flatMap((f) => invocations(readFileSync(join(dir, f), 'utf8')));
     expect(found.length).toBeGreaterThan(50);
-    expect(checkInvocation(['jira', 'get-issue', '--key', 'ABC-1', '--pretty'])).toBeUndefined();
-    expect(checkInvocation(['jira', 'get-issue', '--kye', 'ABC-1'])).toMatch(/--kye/);
-    expect(checkInvocation(['jira', 'get-isue'])).toMatch(/get-isue/);
+    expect(checkInvocation(['jira', 'issue', 'get', 'ABC-1', '--pretty'])).toBeUndefined();
+    expect(checkInvocation(['jira', 'issue', 'get', '--kye', 'ABC-1'])).toMatch(/--kye/);
+    expect(checkInvocation(['jira', 'issue', 'gte'])).toMatch(/gte/);
     expect(checkInvocation(['setup', 'alias', '--profile', '$PROFILE'])).toBeUndefined();
     expect(checkInvocation(['mcp', '--areas', 'jira'])).toBeUndefined();
   });

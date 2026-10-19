@@ -10,8 +10,8 @@
     },
     {
       "allows": [
-        "ado work schema data.example",
-        "ado work schema data.schema"
+        "ado work-item schema data.example",
+        "ado work-item schema data.schema"
       ],
       "when": {
         "exampleOnly": true
@@ -66,10 +66,7 @@
       "principle": "2"
     },
     {
-      "allows": [
-        "ado work fields --save",
-        "ado work types --save"
-      ],
+      "allows": [],
       "old": "ado work fields --save and work types --save writing fieldAliases, discoveredFields and discoveredTypes into the global config file",
       "toil": "There is no --save: passing it is the usual unknown-option INVALID_INPUT. Every call without it returns the data the contract records. A custom alias is fieldAliases on the connection",
       "why": "The saved fieldAliases were the built-in aliases filtered to fields the server has, and they were merged over those same built-ins when used, so saving never changed what a field name resolved to; nothing ever read discoveredFields or discoveredTypes. Removed on the maintainer's instruction of 2026-10-17 (KF6, #68), so no area command needs to write config.",
@@ -105,7 +102,7 @@
     },
     {
       "allows": [
-        "ado work add-attachment data.name"
+        "ado work-item attach data.name"
       ],
       "old": "ado work add-attachment typing its data as an attachment with a name",
       "toil": "data is the server's answer passed through unchanged, as the contract specifies. The upload endpoint answers with an AttachmentReference, { id, url }, so the typed field the contract records never exists at run time",
@@ -114,7 +111,7 @@
     },
     {
       "allows": [
-        "ado work fields data.[].type"
+        "ado work-item fields data.[].type"
       ],
       "when": {
         "type": "Bug"

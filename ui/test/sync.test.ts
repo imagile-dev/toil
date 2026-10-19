@@ -71,9 +71,9 @@ describe('a full sync', () => {
     expect(states.flatMap((d) => d.sources.map((s) => `${d.name}/${s.area}:${s.status}`)).sort()).toEqual(
       ['card-payments/bitbucket:ok', 'card-payments/jenkins:ok', 'card-payments/jira:ok', 'card-payments/openshift:ok', 'checkout-web/github:ok', 'checkout-web/openshift:ok', 'settlement/ado:ok'],
     );
-    // jira search came in pages of JIRA_PAGE, every one followed.
-    const pages = named(toil, 'jira search');
-    const issues = (await fixtureExecute().execute('jira search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' }, { readOnly: true })).data as { issues: unknown[] };
+    // jira issue search came in pages of JIRA_PAGE, every one followed.
+    const pages = named(toil, 'jira issue search');
+    const issues = (await fixtureExecute().execute('jira issue search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' }, { readOnly: true })).data as { issues: unknown[] };
     expect(pages.length).toBe(Math.ceil(issues.issues.length / JIRA_PAGE));
     expect(pages.slice(1).map((p) => p.input.cursor)).toEqual(pages.slice(1).map((_, i) => String((i + 1) * JIRA_PAGE)));
     // OWI items, transitions and change refs are stored.
@@ -100,7 +100,7 @@ describe('a full sync', () => {
 
   it('answers a call it never synced with a refusal that says to sync', async () => {
     const { viaStore } = await setup();
-    const env = await viaStore('jira search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' });
+    const env = await viaStore('jira issue search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' });
     expect(env.ok).toBe(false);
     if (!env.ok) {
       expect(env.error.code).toBe('NOT_FOUND');
@@ -124,14 +124,14 @@ describe('an incremental sync', () => {
     const job = await sync.run(ctx);
     expect(job.error).toBeNull();
 
-    const searches = named(toil, 'jira search');
+    const searches = named(toil, 'jira issue search');
     expect(searches).toHaveLength(1);
     expect(searches[0]!.input.updatedSince).toBe(new Date(first - SKEW_MS).toISOString());
-    expect(named(toil, 'jira get-changelog').map((c) => c.input.key)).toEqual(['PAY-104']);
+    expect(named(toil, 'jira issue history').map((c) => c.input.key)).toEqual(['PAY-104']);
 
-    expect(named(toil, 'ado work search')[0]!.input.updatedSince).toBe(new Date(first - SKEW_MS).toISOString());
-    expect(named(toil, 'ado work get-batch').map((c) => c.input.id)).toEqual([[2302]]);
-    expect(named(toil, 'ado work revisions').map((c) => c.input.id)).toEqual([2302]);
+    expect(named(toil, 'ado work-item search')[0]!.input.updatedSince).toBe(new Date(first - SKEW_MS).toISOString());
+    expect(named(toil, 'ado work-item get-many').map((c) => c.input.id)).toEqual([[2302]]);
+    expect(named(toil, 'ado work-item history').map((c) => c.input.id)).toEqual([2302]);
 
     // Nothing on the GitHub board moved, so no issue or timeline was fetched again.
     expect(named(toil, 'github projects list-items')).toHaveLength(1);
@@ -197,7 +197,7 @@ describe('a failing source', () => {
     const after = await loadDossier(viaStore, 'card-payments', { mapOwi });
     expect(after.items).toEqual(good.items);
     expect(after.changes).toEqual(good.changes);
-    const search = (await viaStore('jira search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' })) as Envelope & { ok: true };
+    const search = (await viaStore('jira issue search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' })) as Envelope & { ok: true };
     expect(search.ok).toBe(true);
     expect(search.meta.warnings?.map((w) => w.code)).toContain('STALE');
     expect(cache.items('card-payments')).toHaveLength(good.items.length);
@@ -207,9 +207,9 @@ describe('a failing source', () => {
     toil.reset();
     advance(3_600_000);
     await sync.run(ctx);
-    expect(named(toil, 'jira search')[0]!.input.updatedSince).toBe(watermark);
+    expect(named(toil, 'jira issue search')[0]!.input.updatedSince).toBe(watermark);
     expect(cache.source('card-payments', 'jira')).toMatchObject({ status: 'ok', stale: false });
-    const fresh = (await viaStore('jira search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' })) as Envelope & { ok: true };
+    const fresh = (await viaStore('jira issue search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' })) as Envelope & { ok: true };
     expect(fresh.meta.warnings ?? []).toEqual([]);
   });
 

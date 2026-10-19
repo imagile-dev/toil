@@ -28,7 +28,7 @@ proves MCP doesn't serve them, and runs the area ones' examples and write gate o
 CLI; keep those two the only exclusions. A served tool can still refuse one kind
 of call: `offMcpWhen` (a `DELETE` through `<area>_api`), which execute() checks
 for MCP calls only, through `runCommand`'s `via`. A command
-with no connection (`standalone`, `config`, `area-local` such as `jira schema`), or
+with no connection (`standalone`, `config`, `area-local` such as `jira issue schema`), or
 one marked `connectionOptional`, is served without `--areas` whether or not its area
 is set up. Context inputs are fixed
 fields on each tool, the same inputs the CLI takes as flags; aliases are CLI paths

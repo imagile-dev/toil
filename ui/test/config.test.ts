@@ -161,7 +161,7 @@ describe('the allowlist', () => {
 
   it("refuses a tracker write and every other command before toil sees it, so the audit log has no line for it", async () => {
     const { config } = await serve();
-    for (const command of ['jira create-issue', 'jira transition-issue', 'github create-issue', 'connections import', 'dossiers remove', 'setup alias']) {
+    for (const command of ['jira issue create', 'jira issue transition', 'github create-issue', 'connections import', 'dossiers remove', 'setup alias']) {
       const { status, envelope } = await config(command, { project: 'PAY', summary: 'x', allowWrite: true });
       expect(status, command).toBe(403);
       expect(envelope).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });

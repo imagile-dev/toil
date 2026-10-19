@@ -88,8 +88,8 @@ describe('the dossier list', () => {
 
 describe('a dashboard', () => {
   it.each([
-    ['card-payments', ['jira search', 'jira get-changelog'], ['bitbucket list-prs'], ['jenkins pipeline list-runs'], ['openshift deployments']],
-    ['settlement', ['ado work list-iterations', 'ado work search', 'ado work get-batch', 'ado work revisions'], ['ado repo list-prs'], ['ado pipeline list-runs'], ['ado pipeline list-runs']],
+    ['card-payments', ['jira issue search', 'jira issue history'], ['bitbucket list-prs'], ['jenkins pipeline list-runs'], ['openshift deployments']],
+    ['settlement', ['ado work-item iterations', 'ado work-item search', 'ado work-item get-many', 'ado work-item history'], ['ado pr list'], ['ado run list'], ['ado run list']],
     ['checkout-web', ['github projects list-items', 'github get-issue', 'github issue-events'], ['github list-prs'], ['github list-checks'], ['openshift deployments']],
   ])('%s names the commands that fed each panel', async (name, work, prs, builds, deployments) => {
     await open(`#/dossier/${name}`);
@@ -152,11 +152,11 @@ describe('a dashboard', () => {
     const card = await within(chat).findByRole('article', { name: 'Proposal: Move 2303 to Sprint 43' });
     expect(card.textContent).toContain('Proposed change, not applied');
     // jsdom has no platform, so the viewer's shell is POSIX; the toggle switches it, for every card.
-    expect(within(card).getByText(/^toil ado work update/).textContent).toBe("toil ado work update --dossier 'settlement' --id '2303' --field 'System.IterationPath=Payments\\Sprint 43' --allow-write");
+    expect(within(card).getByText(/^toil ado work-item update/).textContent).toBe("toil ado work-item update --dossier 'settlement' --id '2303' --field 'System.IterationPath=Payments\\Sprint 43' --allow-write");
     expect(within(card).getAllByRole('button').map((b) => b.textContent)).toEqual(['Copy command', 'Dismiss']);
     await userEvent.click(within(card).getByRole('radio', { name: 'PowerShell' }));
     expect(within(card).getByRole('radio', { name: 'PowerShell' })).toHaveProperty('checked', true);
-    expect(within(card).getByText(/^toil ado work update/).textContent).not.toContain('"');
+    expect(within(card).getByText(/^toil ado work-item update/).textContent).not.toContain('"');
     expect(localStorage.getItem('toil-ui.shell')).toBe('powershell');
     await userEvent.click(within(card).getByRole('button', { name: 'Dismiss' }));
     expect(within(chat).queryByRole('article', { name: /^Proposal:/ })).toBeNull();
@@ -201,7 +201,7 @@ describe('the views on a dashboard (#252, #253)', () => {
     await userEvent.click(within(board).getByRole('button', { name: 'Move PAY-102 to…' }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'In progress' }));
     const card = within(board).getByRole('article', { name: 'Proposal: Move PAY-102 to In progress' });
-    expect(card.textContent).toContain("toil jira transition-issue --dossier 'card-payments' --key 'PAY-102' --transition 'In Progress' --allow-write");
+    expect(card.textContent).toContain("toil jira issue transition --dossier 'card-payments' --key 'PAY-102' --transition 'In Progress' --allow-write");
     expect(screen.getByText(/Proposed: Move PAY-102 to In progress. Nothing has changed/)).toBeTruthy();
     // The card is still where Jira says it is, and nothing was asked of toil.
     expect(within(within(board).getByRole('region', { name: /^To do/ })).getByText('Store tokens in the vault')).toBeTruthy();
@@ -514,7 +514,7 @@ describe('an item', () => {
     await open(item('settlement', 'corp-ado:2305'));
     expect(screen.getByRole('heading', { level: 1 }).textContent).toContain('Schedule the export job');
     expect(screen.getByText('Microsoft.VSTS.Scheduling.OriginalEstimate')).toBeTruthy();
-    expect(screen.getByText(/read with/).textContent).toContain('toil ado work get-batch');
+    expect(screen.getByText(/read with/).textContent).toContain('toil ado work-item get-many');
     expect(screen.getByRole('link', { name: 'Schedule the settlement export job' }).getAttribute('href')).toBe('https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement/pullrequest/84');
     expect(screen.getByText(/settlement-deploy 20261008.1/).textContent).toContain('test');
   });

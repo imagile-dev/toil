@@ -18,8 +18,8 @@ import { CONSENT_VERSION, DISCLAIMER, FEEDBACK_ENDPOINT } from './consent.js';
 const COMMIT = 'abc1234500000000000000000000000000000000';
 const defs = feedbackCommands(COMMIT);
 const accepted: Route = { method: 'POST', url: FEEDBACK_ENDPOINT, respond: { status: 202, json: { ok: true, message: 'Thanks. Your report is queued.' } } };
-const args = ['feedback', 'bug', '--title', 'jira search ignores --max-results', '--body', 'It returns 50.', '--email', 'you@example.com'];
-const expected = { kind: 'bug', title: 'jira search ignores --max-results', body: 'It returns 50.', email: 'you@example.com', consent: CONSENT_VERSION, version: '0.0.0-test', commit: COMMIT };
+const args = ['feedback', 'bug', '--title', 'jira issue search ignores --limit', '--body', 'It returns 50.', '--email', 'you@example.com'];
+const expected = { kind: 'bug', title: 'jira issue search ignores --limit', body: 'It returns 50.', email: 'you@example.com', consent: CONSENT_VERSION, version: '0.0.0-test', commit: COMMIT };
 
 describe('toil feedback', () => {
   it('sends nothing without --consent off a terminal, and returns the exact report, the disclaimer and how to approve', async () => {
@@ -165,7 +165,7 @@ describe('toil feedback', () => {
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ command: 'feedback' });
     const line = JSON.stringify(entries);
-    expect(line).not.toContain('jira search ignores');
+    expect(line).not.toContain('jira issue search ignores');
     expect(line).not.toContain('It returns 50');
     expect(line).not.toContain('you@example.com');
   });

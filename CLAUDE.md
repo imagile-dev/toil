@@ -20,7 +20,7 @@ Who it is for, in priority order:
 The rules in this file are consequences of a few principles. When a rule and a
 situation disagree, or a case is not covered, reason from the principle.
 
-Principles 1 to 7 and 9 govern **toil itself**: the npm package and what it does on a
+Principles 1 to 7, 9 and 10 govern **toil itself**: the npm package and what it does on a
 user's machine. This repository's own tooling (`scripts/`, the tests, workflows, and
 the skills under `.claude/skills/`) is never published or installed by toil. It may
 run `git` and `gh` and call GitHub. It still follows principle 8, because every
@@ -86,6 +86,15 @@ gets made again in the next place it applies.
    it's configured on, or to one the user paired it with; the one exception is an
    area's default connection taking another area's default env value, which keeps
    the env chain the contract records.
+10. **Learn one area, know them all.** Every integration command has one shape,
+    `toil <area> <resource> <action> [ids...] [--flags]`: everything you can do to a
+    thing lives under that thing, positional arguments are only the ids that lead to
+    it, and one idea has one flag in every area (`--limit`, `--assignee`, `--target`,
+    `--body`). The welcome menu's Services module is that tree, so browsing it teaches
+    what to type. The shape is toil's own: it doesn't follow the predecessor's paths
+    or flags, and the old ones are dropped with no alias. → **Command Shape**
+    (`integrations` skill); `jira`, `jira-cloud`, `ado` and `ado-cloud` follow it,
+    and other areas move to it as they're reshaped.
 
 ## Cross-Platform
 
@@ -328,7 +337,7 @@ behavior of their own; if one needs something the other lacks, the gap is in cor
 **Every command has one `kind`**, which decides what core hands it and which front
 doors serve it: `standalone` (`defineCommand`: no area, no config, e.g. `version`),
 `area` (the default for `area.command`), `area-local` (under an area's path with no
-connection or config, e.g. `jira schema`), `config` (`defineConfigCommand`: gets
+connection or config, e.g. `jira issue schema`), `config` (`defineConfigCommand`: gets
 `ctx.manage`) and `cli-only` (a config command never served over MCP).
 
 **Context inputs** say where in the service a command acts (`--project`, `--repo`,
@@ -674,7 +683,7 @@ old file always loads. A file from a newer toil is refused with an upgrade fix r
 than half-read. Version 1 is a map of area to settings and reads as one connection
 per area, named after it and set as its default. Version 2 holds `connections` and
 `defaults`; using them needs `"version": 2`. Standalone and area-local commands
-(`version`, `jira schema`) don't load config at all, so a broken or newer file can't stop a user finding out which
+(`version`, `jira issue schema`) don't load config at all, so a broken or newer file can't stop a user finding out which
 toil they have.
 
 ## Writes
@@ -755,6 +764,11 @@ error, and the `data` it returns. Toil's unit suite has never met a real server,
 an integration that "fixes" what looks wrong is guessing, and it silently breaks
 callers who rely on the recorded result.
 
+- **The behavior is the predecessor's; the surface is toil's** (*principle 10*). An
+  area reshaped to the command shape records its new paths, arguments and flags in
+  the contract, in the same change, and keeps every recorded request, result, error
+  and `data` field. A path or flag the predecessor had and toil dropped is gone, not
+  aliased, and needs no divergence entry.
 - **Implement the recorded behavior exactly, bugs included,** until a live instance
   proves otherwise. That covers validation, defaults, paging, id-or-name detection,
   encoding and error messages too, not just the happy path.

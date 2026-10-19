@@ -17,9 +17,9 @@ const read = { readOnly: true, caller: 'toil-ui' };
 describe('the fixture execute()', () => {
   it('answers a canned call with its envelope, dossier context included', async () => {
     const { execute } = fixtureExecute();
-    const env = await execute('jira search', { jql: JQL('PAY'), dossier: 'card-payments' }, read);
+    const env = await execute('jira issue search', { jql: JQL('PAY'), dossier: 'card-payments' }, read);
     expect(env.ok).toBe(true);
-    expect(env.meta.command).toBe('jira search');
+    expect(env.meta.command).toBe('jira issue search');
     expect(env.meta.contractVersion).toBe(1);
     expect(env.meta.context?.dossier?.name).toBe('card-payments');
     expect(env.meta.context?.connection).toEqual({ value: 'corp-jira', source: 'dossier' });
@@ -27,7 +27,7 @@ describe('the fixture execute()', () => {
 
   it("refuses, as an envelope with a fix, a call it has no answer for", async () => {
     const { execute, calls } = fixtureExecute();
-    const env = await execute('jira search', { dossier: 'card-payments', jql: 'project = NOPE' }, read);
+    const env = await execute('jira issue search', { dossier: 'card-payments', jql: 'project = NOPE' }, read);
     expect(env.ok).toBe(false);
     expect(!env.ok && env.error.code).toBe('INVALID_INPUT');
     expect(!env.ok && env.error.fix).toMatch(/CANNED/);

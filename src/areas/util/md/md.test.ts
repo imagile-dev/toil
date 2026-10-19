@@ -323,7 +323,7 @@ describe('util md: Markdown reading', () => {
 describe('util md: the areas accept what it writes', () => {
   const POSTED = (calls: Array<{ method: string; body?: unknown }>) => JSON.parse(String(calls.find((c) => c.method === 'POST')!.body)) as Record<string, unknown>;
 
-  it('jira create-issue takes the wiki markup as its description', async () => {
+  it('jira issue create takes the wiki markup as its description', async () => {
     const wiki = (await convert(MD_CORPUS['bug-report.md']!, 'md', 'wiki')).data.output as string;
     const t = testContext({ config: jiraConfig, routes: jiraRoutes });
     const envelope = await execute(jiraCreateIssue, { project: 'PROJ', summary: 'Sign-in button does nothing', description: wiki, allowWrite: true }, t.context);
@@ -331,7 +331,7 @@ describe('util md: the areas accept what it writes', () => {
     expect((POSTED(t.http.calls).fields as { description: string }).description).toBe(wiki);
   });
 
-  it('jira-cloud create-issue takes the ADF as the description in --input-file, and sends it as it is', async () => {
+  it('jira-cloud issue create takes the ADF as the description in --input-file, and sends it as it is', async () => {
     const adf = (await convert(MD_CORPUS['bug-report.md']!, 'md', 'adf')).data.output;
     const t = testContext({ config: jiraCloudConfig, routes: jiraCloudRoutes, files: { 'issue.json': JSON.stringify({ fields: { summary: 'Sign-in button does nothing', description: adf } }) } });
     const envelope = await execute(jiraCloudCreateIssue, { project: 'PROJ', inputFile: 'issue.json', allowWrite: true }, t.context);

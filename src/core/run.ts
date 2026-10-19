@@ -91,7 +91,7 @@ export function inFieldNames(def: AnyCommand, envelope: Envelope): Envelope {
   // Longest first, so `--max-results` isn't read as `--max` followed by text.
   flags.sort((a, b) => b[0].length - a[0].length);
   const swap = (text: string) => flags.reduce((out, [flag, field]) => out.replace(new RegExp(`(?<![\\w-])${flag}(?![\\w-])`, 'g'), field), text);
-  // A quoted command line (`toil jira list-transitions --key X`) is something to
+  // A quoted command line (`toil jira issue transitions X`) is something to
   // run on the CLI, so it keeps its flags: only the prose between them is swapped.
   const reword = (text: string) => text.split(COMMAND_LINE).map((part, i) => (i % 2 === 1 ? part : swap(part))).join('');
   const error = { ...envelope.error, message: reword(envelope.error.message) };

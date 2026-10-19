@@ -85,11 +85,11 @@ export function quote(value: string, shell: Shell): string | null {
  * to it exactly.
  */
 export const INPUT_FILE_COMMANDS: ReadonlySet<string> = new Set([
-  'ado work create', 'ado work update', 'alation document create', 'alation document update', 'jira create-issue', 'jira update-issue',
-  'jira-cloud create-issue', 'jira-cloud update-issue', 'splitio flags update', 'splitio flags batch-toggle',
+  'ado work-item create', 'ado work-item update', 'alation document create', 'alation document update', 'jira issue create', 'jira issue update',
+  'jira-cloud issue create', 'jira-cloud issue update', 'splitio flags update', 'splitio flags batch-toggle',
 ]);
 
-/** A call over MCP: the tool's name (`jira transition-issue` is `jira_transition_issue`) and its input, which as JSON needs no shell quoting. */
+/** A call over MCP: the tool's name (`jira issue transition` is `jira_issue_transition`) and its input, which as JSON needs no shell quoting. */
 export interface McpCall {
   tool: string;
   input: Record<string, unknown>;

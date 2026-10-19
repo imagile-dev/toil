@@ -467,7 +467,7 @@ files directly:
   inside the workspace, each with its root, branch and remotes (credentials stripped),
   read from `.git` with no git installed. It walks 3 levels by default, never follows
   links, and doesn't go into a repository or into folders like `node_modules`. The
-  rest is the areas' own reads: `toil jira fields --project PAY`, `toil jira
+  rest is the areas' own reads: `toil jira issue fields --project PAY`, `toil jira
   list-boards`, `toil confluence list-spaces`, `toil sonar projects --query payments`,
   `toil openshift cluster list`.
 

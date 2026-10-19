@@ -23,7 +23,7 @@ const dossierActions = [
   { action: 'Create: name', cmd: 'toil dossiers init <name>', then: '' },
   { action: 'Create: repositories', cmd: 'toil repos scan', then: 'then toil dossiers add-repo <name> <folder> for each one ticked' },
   { action: 'Create: an area and its connection', cmd: 'toil dossiers link <name> <area> --connection <connection>', then: 'or --host <host>' },
-  { action: 'Create: discovery', cmd: 'toil jira fields --discover --custom-only --dossier <name>', then: 'then toil dossiers field for each one ticked' },
+  { action: 'Create: discovery', cmd: 'toil jira issue fields --discover --custom-only --dossier <name>', then: 'then toil dossiers field for each one ticked' },
   { action: 'Create: an environment', cmd: 'toil dossiers env <name> <env> <area> --connection <connection>', then: '' },
   { action: 'Review', cmd: 'toil dossiers check <name>', then: 'and toil <area> check-dossier' },
   { action: 'Remove a section', cmd: 'toil dossiers unlink <name> --area <area>', then: 'after you type the area' },

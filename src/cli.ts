@@ -13,7 +13,7 @@ import { checkOutputFile, createNodeContext, writeOutputFile } from './node-cont
 import { runProgram, type CliIO, type GlobalOptions, type ProgramOptions } from './program.js';
 import { areas, commands, routedAliases } from './registry.js';
 import { VERSION } from './version.js';
-import { gatherWelcomeData } from './welcome/data.js';
+import { commandSummaries, gatherWelcomeData } from './welcome/data.js';
 import { runWelcome, wantsWelcome } from './welcome/index.js';
 import { saveFor } from './welcome/rogue/save.js';
 
@@ -124,7 +124,7 @@ export async function main(): Promise<void> {
       cwd: process.cwd(),
       home: homedir(),
       areas: areaInfo,
-      catalog: areas.map((a) => ({ name: a.name, description: a.description, signsIn: a.secrets.length > 0, live: Boolean(a.probe && a.request), configurable: Object.keys(a.connection.shape).length > 0, context: Object.keys(a.context), checksDossier: commands.some((def) => def.path[0] === a.name && def.path[1] === 'check-dossier') })),
+      catalog: areas.map((a) => ({ name: a.name, description: a.description, signsIn: a.secrets.length > 0, live: Boolean(a.probe && a.request), configurable: Object.keys(a.connection.shape).length > 0, context: Object.keys(a.context), checksDossier: commands.some((def) => def.path[0] === a.name && def.path[1] === 'check-dossier'), commands: commandSummaries(a.name, commands) })),
       mcpAreas: [...new Set(commands.filter((def) => servedOverMcp(def) && def.kind !== 'standalone').map(areaOf))].sort(),
       script: process.argv[1],
     });

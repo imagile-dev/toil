@@ -143,7 +143,7 @@ export function inputKey(input: Record<string, unknown>): string {
   return JSON.stringify(sort(input));
 }
 
-/** The area a command belongs to: `jira` for `jira search`. A source, in the sync's terms. */
+/** The area a command belongs to: `jira` for `jira issue search`. A source, in the sync's terms. */
 export const areaOf = (command: string) => command.split(' ')[0]!;
 
 export interface StoredResponse {

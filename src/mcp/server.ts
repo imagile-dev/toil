@@ -34,7 +34,7 @@ import { listResources, listTemplates, readResource, ResourceError, type Resourc
  * terminal, which under MCP is the protocol, or it changes connections, which
  * an agent never does. Nor is an area command marked `mcp: false` (a delete).
  * A command that needs no connection (standalone,
- * config, area-local such as `jira schema`), or one marked `connectionOptional`,
+ * config, area-local such as `jira issue schema`), or one marked `connectionOptional`,
  * is served without --areas whether or not its area is set up. Aliases stay on the CLI: one tool per command.
  */
 export function selectCommands(commands: AnyCommand[], areas: string[] | undefined, config: ResolvedConfig): AnyCommand[] {
@@ -47,7 +47,7 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
       });
     }
   }
-  // A command with no connection (version, connections list, jira schema), or
+  // A command with no connection (version, connections list, jira issue schema), or
   // one that answers for an unconfigured area itself, needs no area set up.
   const inScope = (def: AnyCommand) => (areas ? areas.includes(areaOf(def)) : !usesConnection(def) || def.connectionOptional === true || hasConfig(config, areaOf(def)));
   const tools = commands.filter((def) => !def.dispatches && servedOverMcp(def) && inScope(def) && (!def.writes || anyWrites(config, areaOf(def))));

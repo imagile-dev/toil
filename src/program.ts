@@ -520,7 +520,13 @@ function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<str
   const input: Record<string, unknown> = {};
   const positional = cmd.processedArgs as unknown[];
   (def.args ?? []).forEach((arg, i) => {
-    if (positional[i] !== undefined) input[arg.field] = typed(def, arg.field, positional[i]);
+    if (positional[i] === undefined) return;
+    // A variadic argument always parses to a list. For a field that is one
+    // value or a list (`oneOrMany`), one given stays one value, as a flag given
+    // once does: `jira issue get A` is one issue, `jira issue get A B` the bulk read.
+    const value = positional[i];
+    const single = Array.isArray(value) && value.length === 1 && repeatsAs(def, arg.field)?.single === true;
+    input[arg.field] = typed(def, arg.field, single ? value[0] : value);
   });
   const own = cmd.opts<Record<string, unknown>>();
   const all = cmd.optsWithGlobals<Record<string, unknown>>();

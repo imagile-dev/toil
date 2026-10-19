@@ -1,6 +1,6 @@
 import { ok } from '../screens.js';
 import { PALETTE, paint } from '../term.js';
-import { commandLine, type StepResult, type View } from '../view.js';
+import { commandLine, type Caps, type StepResult, type View } from '../view.js';
 import { dossiersOutcome } from './dossiers.js';
 import { skillsOutcome } from './skills.js';
 
@@ -41,6 +41,15 @@ export function outcome(result: StepResult): { good: boolean; text: string; fix?
   return { good: true, text, warnings };
 }
 
+const DATA_LINES = 24;
+
+/** What a command returned, as indented JSON, cut short with a count: the full envelope is a shell away. */
+export function dataLines(caps: Caps, data: unknown): string[] {
+  const all = (JSON.stringify(data, null, 2) ?? 'null').split('\n');
+  const shown = all.slice(0, DATA_LINES).map((line) => `  ${line}`);
+  return all.length > DATA_LINES ? [...shown, paint(caps, PALETTE.muted, `  … ${all.length - DATA_LINES} more lines; run it in a shell (add --pretty) for all of it.`)] : shown;
+}
+
 export const resultView: View = {
   // The run's title was on screen while it ran; the breadcrumb stays where the user is.
   title: () => '',
@@ -53,7 +62,8 @@ export const resultView: View = {
     for (const r of results) {
       const o = outcome(r);
       lines.push(paint(caps, PALETTE.faint, `$ ${commandLine(p.data, r.args)}`));
-      lines.push(`${mark(o.good)} ${o.good ? o.text : ok(caps, false, o.text)}`);
+      if (p.frame.run?.showData && r.envelope.ok) lines.push(...dataLines(caps, r.envelope.data));
+      else lines.push(`${mark(o.good)} ${o.good ? o.text : ok(caps, false, o.text)}`);
       if (o.fix) lines.push(paint(caps, PALETTE.muted, `  Fix: ${o.fix}`));
       for (const w of o.warnings.filter((m) => !known.has(m))) lines.push(paint(caps, PALETTE.muted, `  Note: ${w}`));
       lines.push('');

@@ -128,7 +128,7 @@ const base = { GITHUB_REPOSITORY: 'imagile-dev/toil', GH_TOKEN: 't', TRIAGE_CAP:
 const quiet = () => undefined;
 const issue = (number: number, extra: Partial<FakeIssue> = {}): FakeIssue => ({
   number,
-  title: `AcmeBank: jira get-issue fails ${number}`,
+  title: `AcmeBank: jira issue get fails ${number}`,
   body: 'TOIL_JIRA_TOKEN=ATATT3xFfGF0abcdefghijklmnopqrstuvwxyz at https://jira.acme-int.corp',
   state: 'open',
   labels: ['bug', 'from-website'],
@@ -143,14 +143,14 @@ describe('triage steps, wired as the workflow wires them', () => {
     expect(claimed).toEqual({ issues: '[5]' });
 
     await viaOutputFile(() => redactIssues({ env: { ...base, ISSUES: claimed.issues }, fetcher: gh.fetcher, log: quiet }));
-    expect(gh.byNumber.get(5)!.title).toBe('[org]: jira get-issue fails 5');
+    expect(gh.byNumber.get(5)!.title).toBe('[org]: jira issue get fails 5');
     expect(gh.byNumber.get(5)!.body).toBe('TOIL_JIRA_TOKEN=[redacted-secret] at https://jira.imagile.dev');
 
     const work = checkout();
     const runnerTemp = temp('toil-runner-temp-');
     const prep = await viaOutputFile(() => prepare({ env: { ...base, NUMBER: '5', RUNNER_TEMP: runnerTemp }, fetcher: gh.fetcher, cwd: work }));
     expect(prep.nonce).toMatch(/^[0-9a-f]{24}$/);
-    expect(prep.fenced).toBe(`BEGIN UNTRUSTED ${prep.nonce}\nTitle: [org]: jira get-issue fails 5\n\nTOIL_JIRA_TOKEN=[redacted-secret] at https://jira.imagile.dev\nEND UNTRUSTED ${prep.nonce}`);
+    expect(prep.fenced).toBe(`BEGIN UNTRUSTED ${prep.nonce}\nTitle: [org]: jira issue get fails 5\n\nTOIL_JIRA_TOKEN=[redacted-secret] at https://jira.imagile.dev\nEND UNTRUSTED ${prep.nonce}`);
     expect(prep.areas).toBe('github jira');
     expect(prep.handover_sha).toMatch(/^[0-9a-f]{64}$/);
     expect(JSON.parse(readFileSync(join(work, '.triage-in', 'issues.json'), 'utf8')).map((i: { number: number }) => i.number)).toEqual([2, 5]);

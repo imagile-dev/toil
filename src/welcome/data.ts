@@ -1,10 +1,13 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { CONNECTION_FIELD, CWD_FIELD, DOSSIER_FIELD } from '../core/area.js';
+import { takesAllowWrite, type AnyCommand } from '../core/command.js';
 import { loadConfig, type AreaInfo } from '../core/config.js';
+import { fieldSchema } from '../core/schema.js';
 import { toToilError } from '../core/errors.js';
 import { readGitContext } from '../core/git-repo.js';
 import { withoutHttpUserinfo } from '../node-context.js';
-import type { AreaSummary, WelcomeData } from './screens.js';
+import type { AreaSummary, CommandSummary, WelcomeData } from './screens.js';
 
 export interface WelcomeDataOptions {
   version: string;
@@ -48,6 +51,27 @@ export function gatherWelcomeData(o: WelcomeDataOptions): WelcomeData {
     launch: launchCommand(o.script),
     folder: folderOf(o),
   };
+}
+
+const CORE_FIELDS = new Set([CONNECTION_FIELD, DOSSIER_FIELD, CWD_FIELD]);
+
+/**
+ * An area's commands as the Services browser lists them: the ones under its
+ * path that take a connection or none, with their arguments and their own
+ * flags. A flag is required when its field won't parse as absent, the same
+ * test execute() applies, so the menu never asks for less than the call needs.
+ */
+export function commandSummaries(area: string, commands: readonly AnyCommand[]): CommandSummary[] {
+  const required = (def: AnyCommand, field: string) => fieldSchema(def.input, field)?.safeParse(undefined).success === false;
+  return commands
+    .filter((def) => def.path[0] === area && (def.kind === 'area' || def.kind === 'area-local'))
+    .map((def) => ({
+      path: [...def.path],
+      description: def.description,
+      writes: takesAllowWrite(def),
+      args: (def.args ?? []).map((a) => ({ name: a.name, description: a.description, required: a.required !== false, variadic: a.variadic === true })),
+      flags: (def.options ?? []).filter((o) => !CORE_FIELDS.has(o.field)).map((o) => ({ flags: o.flags, description: o.description, required: !o.group && required(def, o.field) })),
+    }));
 }
 
 /** `toil` when installed from npm; `node <path to toil.js>` when run from a clone. */

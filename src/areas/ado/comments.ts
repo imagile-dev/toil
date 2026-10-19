@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { allowWriteField } from '../../core/run.js';
 import { adoArea } from './area.js';
 import { API, ado, repoPath, toInt, where } from './client.js';
-import { IN_REPO } from './repo.js';
+import { IN_REPO, prArg } from './repo.js';
 import { intText } from './work.js';
 
 /**
@@ -14,9 +14,8 @@ import { intText } from './work.js';
 
 const W = { ...IN_REPO, allowWrite: true };
 const prInput = intText.describe('Pull request ID');
-const prOption = { flags: '--pr <n>', field: 'pr', description: 'Pull request ID' };
 const threadInput = intText.describe('Thread ID');
-const threadOption = { flags: '--thread-id <id>', field: 'threadId', description: 'Thread ID' };
+const threadArg = { name: 'thread-id', field: 'threadId', description: 'Thread ID' };
 const bodyOption = { flags: '--body <text>', field: 'body', description: 'Comment text' };
 
 interface Comment {
@@ -48,35 +47,37 @@ function flatten(threads: Thread[], inlineOnly: boolean, generalOnly: boolean): 
 }
 
 export const repoListCommentsCommand = adoArea.command({
-  path: ['ado', 'repo', 'list-comments'],
+  path: ['ado', 'pr', 'comments'],
   description: 'List all comments on a pull request (general + inline)',
   toolDescription:
     "Lists every comment on a pull request, flattened from its threads and sorted by publishedDate, each with threadId and threadContext (null for a general comment). System comments (votes, status changes) are included. inlineOnly or generalOnly narrows it.",
-  input: z.object({ pr: prInput, inlineOnly: z.boolean().optional().describe('Return only inline file comments'), generalOnly: z.boolean().optional().describe('Return only general PR comments') }),
+  input: z.object({ id: prInput, inlineOnly: z.boolean().optional().describe('Return only inline file comments'), generalOnly: z.boolean().optional().describe('Return only general PR comments') }),
   writes: false,
-  options: [prOption, { flags: '--inline-only', field: 'inlineOnly', description: 'Return only inline file comments' }, { flags: '--general-only', field: 'generalOnly', description: 'Return only general PR comments' }],
+  args: [prArg],
+  options: [{ flags: '--inline-only', field: 'inlineOnly', description: 'Return only inline file comments' }, { flags: '--general-only', field: 'generalOnly', description: 'Return only general PR comments' }],
   examples: [
-    { ...IN_REPO, pr: '42' },
-    { ...IN_REPO, pr: '42', inlineOnly: true },
-    { ...IN_REPO, pr: '42', generalOnly: true },
+    { ...IN_REPO, id: '42' },
+    { ...IN_REPO, id: '42', inlineOnly: true },
+    { ...IN_REPO, id: '42', generalOnly: true },
   ],
   run: async (input, ctx) => {
-    const result = await ado<{ value?: Thread[] }>(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.pr)}/threads?api-version=${API}`);
+    const result = await ado<{ value?: Thread[] }>(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.id)}/threads?api-version=${API}`);
     // Suspected bug (#69 item 22): system comments come through with the rest.
     return flatten(result.value ?? [], input.inlineOnly ?? false, input.generalOnly ?? false);
   },
 });
 
 export const repoAddCommentCommand = adoArea.command({
-  path: ['ado', 'repo', 'add-comment'],
+  path: ['ado', 'pr', 'comment'],
   description: 'Add a general comment to a pull request',
   toolDescription: 'Starts an active thread on a pull request with one general comment, and returns the thread.',
-  input: z.object({ pr: prInput, body: z.string().describe('Comment text'), ...allowWriteField }),
+  input: z.object({ id: prInput, body: z.string().describe('Comment text'), ...allowWriteField }),
   writes: true,
-  options: [prOption, bodyOption],
-  examples: [{ ...W, pr: '42', body: 'Looks good.' }],
+  args: [prArg],
+  options: [bodyOption],
+  examples: [{ ...W, id: '42', body: 'Looks good.' }],
   run: async (input, ctx) =>
-    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.pr)}/threads?api-version=${API}`, {
+    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.id)}/threads?api-version=${API}`, {
       method: 'POST',
       json: { comments: [{ content: input.body, commentType: 'text' }], status: 'active' },
     }),
@@ -85,12 +86,12 @@ export const repoAddCommentCommand = adoArea.command({
 const LINE_TYPE = 'Line side: left|right (default: right) (default: "right")';
 
 export const repoAddInlineCommentCommand = adoArea.command({
-  path: ['ado', 'repo', 'add-inline-comment'],
+  path: ['ado', 'pr', 'comment-inline'],
   description: 'Add an inline comment on a file in a pull request',
   toolDescription:
     'Starts an active thread on one line of a file in a pull request (the right, new side unless lineType is left) and returns the thread. Give the path as the server shows it, with a leading /.',
   input: z.object({
-    pr: prInput,
+    id: prInput,
     file: z.string().describe('File path'),
     line: intText.describe('Line number'),
     body: z.string().describe('Comment text'),
@@ -98,16 +99,16 @@ export const repoAddInlineCommentCommand = adoArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [prArg],
   options: [
-    prOption,
     { flags: '--file <path>', field: 'file', description: 'File path' },
     { flags: '--line <n>', field: 'line', description: 'Line number' },
     bodyOption,
     { flags: '--line-type <side>', field: 'lineType', description: LINE_TYPE },
   ],
   examples: [
-    { ...W, pr: '42', file: '/src/app.ts', line: '12', body: 'Off by one?' },
-    { ...W, pr: '42', file: 'src/app.ts', line: '3', body: 'Was this removed on purpose?', lineType: 'left' },
+    { ...W, id: '42', file: '/src/app.ts', line: '12', body: 'Off by one?' },
+    { ...W, id: '42', file: 'src/app.ts', line: '3', body: 'Was this removed on purpose?', lineType: 'left' },
   ],
   run: async (input, ctx) => {
     const w = where(ctx, true);
@@ -117,7 +118,7 @@ export const repoAddInlineCommentCommand = adoArea.command({
       (input.lineType ?? 'right') !== 'left'
         ? { rightFileStart: { line, offset: 1 }, rightFileEnd: { line, offset: 1 } }
         : { leftFileStart: { line, offset: 1 }, leftFileEnd: { line, offset: 1 } };
-    return ado(ctx, `${repoPath(w)}/pullrequests/${toInt(input.pr)}/threads?api-version=${API}`, {
+    return ado(ctx, `${repoPath(w)}/pullrequests/${toInt(input.id)}/threads?api-version=${API}`, {
       method: 'POST',
       json: { comments: [{ content: input.body, commentType: 'text' }], status: 'active', threadContext: { filePath: input.file, ...range } },
     });
@@ -125,43 +126,44 @@ export const repoAddInlineCommentCommand = adoArea.command({
 });
 
 export const repoReplyCommentCommand = adoArea.command({
-  path: ['ado', 'repo', 'reply-comment'],
+  path: ['ado', 'pr', 'reply'],
   description: 'Reply to a comment thread',
-  toolDescription: 'Adds a reply to a thread on a pull request and returns the new comment. Thread ids come from ado_repo_list_comments.',
-  input: z.object({ pr: prInput, threadId: threadInput, body: z.string().describe('Reply text'), ...allowWriteField }),
+  toolDescription: 'Adds a reply to a thread on a pull request and returns the new comment. Thread ids come from ado_pr_comments.',
+  input: z.object({ id: prInput, threadId: threadInput, body: z.string().describe('Reply text'), ...allowWriteField }),
   writes: true,
-  options: [prOption, threadOption, { flags: '--body <text>', field: 'body', description: 'Reply text' }],
-  examples: [{ ...W, pr: '42', threadId: '7', body: 'Fixed in the next commit.' }],
+  args: [prArg, threadArg],
+  options: [{ flags: '--body <text>', field: 'body', description: 'Reply text' }],
+  examples: [{ ...W, id: '42', threadId: '7', body: 'Fixed in the next commit.' }],
   run: async (input, ctx) =>
-    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.pr)}/threads/${toInt(input.threadId)}/comments?api-version=${API}`, {
+    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.id)}/threads/${toInt(input.threadId)}/comments?api-version=${API}`, {
       method: 'POST',
       json: { content: input.body, commentType: 'text' },
     }),
 });
 
 export const repoResolveCommentCommand = adoArea.command({
-  path: ['ado', 'repo', 'resolve-comment'],
+  path: ['ado', 'pr', 'resolve'],
   description: 'Mark a comment thread as resolved (fixed)',
   toolDescription: 'Sets a pull request thread\'s status to fixed (resolved) and returns the thread.',
-  input: z.object({ pr: prInput, threadId: threadInput, ...allowWriteField }),
+  input: z.object({ id: prInput, threadId: threadInput, ...allowWriteField }),
   writes: true,
-  options: [prOption, threadOption],
-  examples: [{ ...W, pr: '42', threadId: '7' }],
+  args: [prArg, threadArg],
+  examples: [{ ...W, id: '42', threadId: '7' }],
   run: async (input, ctx) =>
-    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.pr)}/threads/${toInt(input.threadId)}?api-version=${API}`, { method: 'PATCH', json: { status: 'fixed' } }),
+    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.id)}/threads/${toInt(input.threadId)}?api-version=${API}`, { method: 'PATCH', json: { status: 'fixed' } }),
 });
 
 export const repoDeleteCommentCommand = adoArea.command({
-  path: ['ado', 'repo', 'delete-comment'],
+  path: ['ado', 'pr', 'delete-comment'],
   description: 'Delete a comment from a thread',
-  input: z.object({ pr: prInput, threadId: threadInput, commentId: intText.describe('Comment ID'), ...allowWriteField }),
+  input: z.object({ id: prInput, threadId: threadInput, commentId: intText.describe('Comment ID'), ...allowWriteField }),
   writes: true,
   // A delete: CLI only, never an MCP tool (CLAUDE.md, Writes).
   mcp: false,
-  options: [prOption, threadOption, { flags: '--comment-id <id>', field: 'commentId', description: 'Comment ID' }],
-  examples: [{ ...W, pr: '42', threadId: '7', commentId: '2' }],
+  args: [prArg, threadArg, { name: 'comment-id', field: 'commentId', description: 'Comment ID' }],
+  examples: [{ ...W, id: '42', threadId: '7', commentId: '2' }],
   run: async (input, ctx) => {
-    await ado<void>(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.pr)}/threads/${toInt(input.threadId)}/comments/${toInt(input.commentId)}?api-version=${API}`, { method: 'DELETE' });
+    await ado<void>(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.id)}/threads/${toInt(input.threadId)}/comments/${toInt(input.commentId)}?api-version=${API}`, { method: 'DELETE' });
     return { deleted: true };
   },
 });

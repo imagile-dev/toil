@@ -3,15 +3,15 @@
   "divergences": [
     {
       "allows": [
-        "jira schema data.example",
-        "jira schema data.schema"
+        "jira issue schema data.example",
+        "jira issue schema data.schema"
       ],
       "when": {
         "exampleOnly": true
       },
       "old": "jira schema --example-only printing the bare example with no envelope",
       "toil": "The flag stays; the example comes back as data in the usual envelope, so with the flag data is the example itself, not { schema, example }. Save .data to use it as an --input-file",
-      "why": "Every command writes exactly one envelope, so an agent never has to guess which shape stdout holds. The allowed fields are excused only for calls with --example-only (`when`), so plain jira schema must still return both.",
+      "why": "Every command writes exactly one envelope, so an agent never has to guess which shape stdout holds. The allowed fields are excused only for calls with --example-only (`when`), so plain jira issue schema must still return both.",
       "principle": "Output Contract"
     },
     {
@@ -53,7 +53,7 @@
     },
     {
       "allows": [
-        "jira fields data.[].toilType"
+        "jira issue fields data.[].toilType"
       ],
       "old": "jira fields --discover typing each field with toilType, the customFields type that suits it",
       "toil": "Each field carries that type as suggestedType, and no second type-hint key. Read suggestedType where toilType was read; the value is the same",

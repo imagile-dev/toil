@@ -262,7 +262,7 @@ describe('the API', () => {
     expect(seen[0]!.ctx.signal).toBeInstanceOf(AbortSignal);
   });
 
-  it.each(['connections list', 'jira create-issue', 'dossiers field', 'util md'])('refuses %s, which the views never read, before the Store sees it', async (command) => {
+  it.each(['connections list', 'jira issue create', 'dossiers field', 'util md'])('refuses %s, which the views never read, before the Store sees it', async (command) => {
     const { store, seen } = watched();
     const { origin } = await start({ store });
     const { sid, session } = await signIn(origin);
@@ -281,7 +281,7 @@ describe('the API', () => {
     const { store, seen } = watched();
     const { origin } = await start({ store });
     const { sid, session } = await signIn(origin);
-    for (const command of ['jira create-issue', 'jira transition-issue', 'setup alias', 'dossiers remove', 'jira search']) {
+    for (const command of ['jira issue create', 'jira issue transition', 'setup alias', 'dossiers remove', 'jira issue search']) {
       const res = await post(origin, '/api/config', { command, input: {} }, { sid, csrf: session.csrf });
       expect(res.status, command).toBe(403);
       expect(JSON.parse(res.body).error.message).toContain(`Toil UI doesn't change ${command} from the page`);
@@ -309,7 +309,7 @@ describe('the API', () => {
     expect(starters.map((s) => s.id)).toEqual(['risk', 'attention', 'deployed']);
     const answer = JSON.parse((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk' }, { sid, csrf: session.csrf })).body);
     expect(answer.citations).toContain('corp-jira:PAY-101');
-    expect(answer.proposals.map((p: { command: string }) => p.command)).toEqual(['jira update-issue']);
+    expect(answer.proposals.map((p: { command: string }) => p.command)).toEqual(['jira issue update']);
     expect(asked).toEqual(['local card-payments risk']);
 
     const none = await start({ agent: noAgent() });
@@ -435,7 +435,7 @@ describe('the sync API', () => {
     let release!: () => void;
     const { origin, auth, session, get } = await withSync(new Promise((r) => (release = r)));
     expect(session).toMatchObject({ store: 'sqlite', sync: true, sample: false });
-    const before = JSON.parse((await post(origin, '/api/execute', { command: 'jira search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
+    const before = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
     expect(before.ok).toBe(false);
 
     const started = await post(origin, '/api/sync', {}, auth);
@@ -454,7 +454,7 @@ describe('the sync API', () => {
     expect(status.retentionDays).toBe(30);
     expect(status.dossiers.map((d: { name: string; status: string }) => `${d.name}:${d.status}`)).toEqual(['card-payments:ok', 'checkout-web:ok', 'settlement:ok']);
 
-    const after = JSON.parse((await post(origin, '/api/execute', { command: 'jira search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
+    const after = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
     expect(after.ok).toBe(true);
     const one = await post(origin, '/api/sync', { dossier: 7 }, auth);
     expect(one.status).toBe(400);
@@ -559,7 +559,7 @@ describe('toil-ui wipe and a running server', () => {
       const job = await sync.run(ctx);
       expect(job.error).toBeNull();
       expect(cache.states().map((d) => d.status)).toEqual(['ok', 'ok', 'ok']);
-      const search = JSON.parse((await post(origin, '/api/execute', { command: 'jira search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
+      const search = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
       expect(search.ok).toBe(true);
       cache.close();
     } finally {
@@ -669,7 +669,7 @@ afterAll(() => {
 });
 
 describe('feedback (#265)', () => {
-  const fields = { kind: 'bug', title: 'jira search ignores --max-results', body: 'It returns 50.', email: 'you@example.com' };
+  const fields = { kind: 'bug', title: 'jira issue search ignores --max-results', body: 'It returns 50.', email: 'you@example.com' };
 
   /** A Store that records each feedback call, with how it was to run and how its person answers the consent question. */
   function feedbackStore() {
@@ -704,7 +704,7 @@ describe('feedback (#265)', () => {
     const { store, calls } = feedbackStore();
     const { origin } = await start({ store });
     const { sid, session } = await signIn(origin);
-    for (const body of [{ command: 'jira create-issue', fields }, { fields: { ...fields, connection: 'corp-jira' } }, { fields: { ...fields, title: 5 } }, { fields, consent: 'yes' }, { fields, consent: false }, { fields: [fields] }, {}]) {
+    for (const body of [{ command: 'jira issue create', fields }, { fields: { ...fields, connection: 'corp-jira' } }, { fields: { ...fields, title: 5 } }, { fields, consent: 'yes' }, { fields, consent: false }, { fields: [fields] }, {}]) {
       const res = await post(origin, '/api/feedback', body, { sid, csrf: session.csrf });
       expect(res.status, JSON.stringify(body)).toBe(400);
       expect(JSON.parse(res.body).error.fix).toContain('"consent": true');

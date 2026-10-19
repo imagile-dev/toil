@@ -266,7 +266,7 @@ describe('@imagile-dev/toil/api (src/api.ts)', () => {
 
   it('refuses a write under readOnly before reading config or sending anything', async () => {
     isolatedHome();
-    const envelope = await apiExecute('jira create-issue', { project: 'PAY', summary: 'x', allowWrite: true }, { readOnly: true });
+    const envelope = await apiExecute('jira issue create', { project: 'PAY', summary: 'x', allowWrite: true }, { readOnly: true });
     expect(envelope).toMatchObject({ ok: false, error: { code: 'WRITE_DISABLED' } });
   });
 });

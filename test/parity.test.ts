@@ -525,8 +525,8 @@ describe('which tools MCP serves', () => {
     sessions.push(s1);
     const names = (await s1.client.listTools()).tools.map((t) => t.name);
     expect(names).toContain('version');
-    expect(names, 'an area-local command needs no connection, so it is served unconfigured').toContain('jira_schema');
-    expect(names).not.toContain('jira_get_issue');
+    expect(names, 'an area-local command needs no connection, so it is served unconfigured').toContain('jira_issue_schema');
+    expect(names).not.toContain('jira_issue_get');
     expect(names).not.toContain('demo_get_thing');
 
     const configured = testContext({ config: { demo: { token: 't' } } });

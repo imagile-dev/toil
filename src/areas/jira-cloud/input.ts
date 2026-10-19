@@ -12,7 +12,7 @@ import { formatFieldValue, resolveFieldKey, type CustomFieldMap } from './custom
  * unusually, be read.
  */
 
-/** Shape of the JSON accepted by --input-file on create-issue and update-issue. */
+/** Shape of the JSON accepted by --input-file on issue create and issue update. */
 export interface IssueJsonInput {
   project?: string;
   issueType?: string;
@@ -21,9 +21,9 @@ export interface IssueJsonInput {
 
 export const BUILTIN_ISSUE_FIELDS = new Set(['summary', 'description', 'priority', 'assignee', 'labels', 'parent']);
 
-const FIELD_FIX = "Use the raw field id (e.g. customfield_10032), or register its friendly name in the connection's customFields. Run toil jira-cloud fields --discover to find ids.";
+const FIELD_FIX = "Use the raw field id (e.g. customfield_10032), or register its friendly name in the connection's customFields. Run toil jira-cloud issue fields --discover to find ids.";
 const unknownField = (name: string) =>
-  new ToilError('INVALID_INPUT', `Unknown custom field: "${name}". Fields must be registered in config by friendly name or ID. Run: toil jira-cloud fields`, { fix: FIELD_FIX });
+  new ToilError('INVALID_INPUT', `Unknown custom field: "${name}". Fields must be registered in config by friendly name or ID. Run: toil jira-cloud issue fields`, { fix: FIELD_FIX });
 
 /** A string value starting with `@` is replaced by that file's contents; anything else is returned as is. */
 export function resolveAtFileRef(value: unknown, files: FileAccess): unknown {
@@ -38,7 +38,7 @@ export function readJsonInputFile(path: string, files: FileAccess, flag = '--inp
     return JSON.parse(raw) as unknown;
   } catch (err) {
     throw new ToilError('INVALID_INPUT', `${flag} must contain valid JSON: ${(err as Error).message}`, {
-      fix: 'Run toil jira-cloud schema for the expected shape and a runnable example.',
+      fix: 'Run toil jira-cloud issue schema for the expected shape and a runnable example.',
     });
   }
 }
@@ -120,7 +120,7 @@ export function parseFieldsFile(path: string, fieldMap: CustomFieldMap, files: F
   for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
     const id = resolveFieldKey(key, fieldMap);
     if (id === undefined) {
-      throw new ToilError('INVALID_INPUT', `Unknown field in "${path}": "${key}". Fields must be registered in config by friendly name or ID. Run: toil jira-cloud fields`, { fix: FIELD_FIX });
+      throw new ToilError('INVALID_INPUT', `Unknown field in "${path}": "${key}". Fields must be registered in config by friendly name or ID. Run: toil jira-cloud issue fields`, { fix: FIELD_FIX });
     }
     result[id] = value;
   }

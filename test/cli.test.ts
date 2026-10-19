@@ -123,7 +123,7 @@ describe('toil CLI', () => {
       expect(argvFor(echo, { n: 5, tags: ['x', 'y'] })).toEqual(['echo', '--n', '5', '--tag', 'x', '--tag', 'y']);
     });
 
-    // One value or several, as `jira get-issue --key A --key B` takes them.
+    // One value or several, as `jira issue get A B` takes them.
     const oneOrMany = defineCommand({
       path: ['pick'],
       description: 'pick',

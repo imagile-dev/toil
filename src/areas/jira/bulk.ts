@@ -3,7 +3,7 @@ import { ToilError } from '../../core/errors.js';
 import type { Warning } from '../../core/envelope.js';
 
 /**
- * `get-issue --key A --key B`, shared by `jira` and `jira-cloud`: what the
+ * `issue get A B`, shared by `jira` and `jira-cloud`: what the
  * keys may be, how many, and how a key that couldn't be read is reported. A
  * bulk read answers for every key it was given. One that failed is listed
  * under `errors` with why, never left out, and a warning says how many; the
@@ -16,7 +16,7 @@ export const MAX_BULK_KEYS = 100;
 /** Requests in flight at once on Data Center, which has no bulk endpoint. */
 export const BULK_CONCURRENCY = 5;
 
-export const keyOrKeys = oneOrMany(`Issue key, e.g. PROJ-123, or a list of up to ${MAX_BULK_KEYS} keys (repeat --key) to get { issues, errors } instead of one issue`);
+export const keyOrKeys = oneOrMany(`Issue key, e.g. PROJ-123, or a list of up to ${MAX_BULK_KEYS} keys to get { issues, errors } instead of one issue`);
 
 export interface BulkError {
   key: string;
@@ -33,7 +33,7 @@ export interface BulkResult<T> {
 export function bulkKeys(keys: string[]): string[] {
   const unique = [...new Set(keys)];
   if (unique.length === 0 || unique.some((k) => k.trim() === '')) {
-    throw new ToilError('INVALID_INPUT', 'Every --key needs an issue key.', { fix: 'Pass --key PROJ-123, once per issue.' });
+    throw new ToilError('INVALID_INPUT', 'Every <key> needs an issue key.', { fix: 'Pass each issue key, e.g. PROJ-123, as its own argument.' });
   }
   if (unique.length > MAX_BULK_KEYS) {
     throw new ToilError('INVALID_INPUT', `${unique.length} issue keys is more than the ${MAX_BULK_KEYS} one call reads.`, {

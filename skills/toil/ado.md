@@ -71,7 +71,7 @@ credential store, or set `TOIL_ADO_PAT`.
 
 `--collection <name>` (or its alias `--organization <name>`), `--project <name>` and
 `--repo <name>` are group flags, accepted before or after the command
-(`toil ado --project Imagile work get --id 42`). Without them, toil reads them from
+(`toil ado --project Imagile work-item get 42`). Without them, toil reads them from
 the first of the workspace's remotes on the connection's host, of any name, trying
 `origin` first
 (`https://<host>[/tfs]/<collection>/<project>/_git/<repo>`, or the `_ssh` forms with
@@ -82,79 +82,83 @@ the short `<collection>/_git/<project>` form aren't read correctly. `meta.contex
 says where each came from.
 
 **Every command needs a collection and a project**, even the ones that don't use
-them (`whoami`, `project list-collections`), and fails with "Could not determine Azure
-DevOps collection" (or project) when either is missing. Every `repo` command except
-`list` and `create` also needs a repo.
+them (`whoami`, `collection list`), and fails with "Could not determine Azure
+DevOps collection" (or project) when either is missing. Every `repo` and `pr` command
+except `repo list` and `repo create` also needs a repo.
 
 Ids are read as whole numbers from the start of the text: `12abc` is 12, and `abc` is
 sent as `NaN`.
 
 ## Commands
 
+Commands are `toil ado <resource> <action> [ids...] [--flags]`. Ids are positional:
+the resource's id first, then a sub-item's (attachment, thread, comment).
+
 Server and projects:
 
 - `whoami`, `connection-data`: The collection's connection data: the authenticated
   user (`authenticatedUser.id` is the identity id the vote commands use), the instance
   and the deployment. The two return the same thing.
-- `project list-collections`: The server's project collections.
+- `collection list`: The server's project collections.
 - `project list`: Every team project in the collection.
-- `project get`: One team project by `--name`.
+- `project get <name>`: One team project by name.
 
-Work items (`--id <n>`):
+Work items (`<id>` is the work item id):
 
-- `work get`: A work item with every field and relation.
-- `work create`: Create one (`--type`, `--title`, `--description`, `--assignee`,
+- `work-item get <id>`: A work item with every field and relation.
+- `work-item create`: Create one (`--type`, `--title`, `--description`, `--assignee`,
   `--priority`, `--field name=value` repeatable, `--input-file`). `--parent <id>`
   adds a parent link afterwards; the result is the item as created, and a failed link
   is only an `ADO_PARENT_LINK_FAILED` warning, with the item already created.
-- `work update`: Set fields (`--field name=value` repeatable, or `--input-file`).
-- `work transition`: Set `--state`.
-- `work assign`: Assign `--to` a display name or email.
-- `work link`: Link `--id` to `--to`, `--type related` (default), `parent`, `child`,
-  `duplicate`, `duplicate-of`, or a raw relation name.
-- `work search`: Run `--wiql`; returns the matching ids and urls, not their fields.
-  `--updated-since <iso>` keeps only items changed at or after that instant: a date
-  (`2026-10-01`, UTC midnight) or a date-time with its zone (`2026-10-01T09:00:00Z`).
-  toil ANDs `[System.ChangedDate] >= '<instant>'` onto the query's own `WHERE`, in
-  parentheses so an `OR` keeps its meaning, and asks the server for time precision.
-  Time precision applies to the whole query, so with `--updated-since` an `=` on a
-  date field (`[System.CreatedDate] = @Today`) matches one exact instant, not a day;
-  write date conditions with `>=` and `<` instead.
+- `work-item update <id>`: Set fields (`--field name=value` repeatable, or
+  `--input-file`).
+- `work-item transition <id>`: Set `--state`.
+- `work-item assign <id>`: Assign to `--assignee`, a display name or email.
+- `work-item link <id>`: Link it to `--target <id>`, `--type related` (default),
+  `parent`, `child`, `duplicate`, `duplicate-of`, or a raw relation name.
+- `work-item search`: Run `--wiql`; returns the matching ids and urls, not their
+  fields. `--updated-since <iso>` keeps only items changed at or after that instant: a
+  date (`2026-10-01`, UTC midnight) or a date-time with its zone
+  (`2026-10-01T09:00:00Z`). toil ANDs `[System.ChangedDate] >= '<instant>'` onto the
+  query's own `WHERE`, in parentheses so an `OR` keeps its meaning, and asks the
+  server for time precision. Time precision applies to the whole query, so with
+  `--updated-since` an `=` on a date field (`[System.CreatedDate] = @Today`) matches
+  one exact instant, not a day; write date conditions with `>=` and `<` instead.
   It and `--limit` work on flat queries (`FROM WorkItems`) only; a link query is
   refused. With `--limit`, each page runs the query again, so an item changed in
   between can move. A query returns at most 20,000 items, so a page can't end past
   that.
-- `work get-batch --id <n> --id <n>`: Several work items through the batch endpoint,
-  200 ids per request, at most 1,000 per call. Returns `{ count, value, missing }`:
-  `value` holds the items found in the order asked, with every field and relation,
-  or only `--fields System.Title,System.State`; `missing` lists each id that doesn't
-  exist or the token can't see, with an `ADO_WORK_ITEMS_MISSING` warning.
-- `work revisions --id <n>`: Every revision of a work item, oldest first; each is the
+- `work-item get-many <id...>`: Several work items through the batch endpoint, 200 ids
+  per request, at most 1,000 per call. Returns `{ count, value, missing }`: `value`
+  holds the items found in the order asked, with every field and relation, or only
+  `--fields System.Title,System.State`; `missing` lists each id that doesn't exist or
+  the token can't see, with an `ADO_WORK_ITEMS_MISSING` warning.
+- `work-item history <id>`: Every revision of a work item, oldest first; each is the
   whole item as it stood after that change, so neighbours show what changed and when.
-- `work list-comments`, `work add-comment` (`--body`): Comments; listing reads the
-  first page only.
-- `work add-tag`, `work remove-tag`: `--tags a;b` or `a,b`, matched ignoring case. The
-  tag list is read and written back, with no revision check.
-- `work list-attachments`: The attached files (id, name, url, size, dates).
-- `work add-attachment`: Upload `--file` (a path in the workspace), then link it
+- `work-item comments <id>`, `work-item comment <id>` (`--body`): Comments; listing
+  reads the first page only.
+- `work-item tag <id>`, `work-item untag <id>`: `--tags a;b` or `a,b`, matched
+  ignoring case. The tag list is read and written back, with no revision check.
+- `work-item attachments <id>`: The attached files (id, name, url, size, dates).
+- `work-item attach <id>`: Upload `--file` (a path in the workspace), then link it
   (`--comment` optional). Returns the uploaded attachment's `{ id, url }`. If the link
   fails, the upload stays on the server.
-- `work download-attachment`: Save `--attachment-id` to `--dir` (default `.toil`) in
-  the workspace; returns `{ saved, name, size }`. It never overwrites a file. The
-  token only goes to the configured host: an attachment URL naming another host is
-  fetched from the configured one, with an `ADO_ATTACHMENT_HOST` warning.
-- `work list-areas`, `work list-iterations`: The area or iteration tree, `--depth`
+- `work-item download <id> <attachment-id>`: Save the attachment to `--dir` (default
+  `.toil`) in the workspace; returns `{ saved, name, size }`. It never overwrites a
+  file. The token only goes to the configured host: an attachment URL naming another
+  host is fetched from the configured one, with an `ADO_ATTACHMENT_HOST` warning.
+- `work-item areas`, `work-item iterations`: The area or iteration tree, `--depth`
   (default 10).
-- `work types`: The work item types with their states and required fields.
-- `work list-states`: The states of `--type`.
-- `work fields`: The collection's fields, or with `--type` a type's (those have no
-  `type` or `readOnly`); `--custom-only` drops `System.*` and `Microsoft.VSTS.*`.
-- `work schema`: The `--input-file` JSON schema and an example; `--example-only`
+- `work-item types`: The work item types with their states and required fields.
+- `work-item states`: The states of `--type`.
+- `work-item fields`: The collection's fields, or with `--type` a type's (those have
+  no `type` or `readOnly`); `--custom-only` drops `System.*` and `Microsoft.VSTS.*`.
+- `work-item schema`: The `--input-file` JSON schema and an example; `--example-only`
   returns just the example as `data`. Needs no connection.
 
-`work types` and `work fields` have no `--save`; passing it is an unknown option.
-The aliases `--save` would store are the built-in ones below, which apply anyway.
-`--discover` is accepted and changes nothing.
+`work-item types` and `work-item fields` have no `--save`; passing it is an unknown
+option. The aliases `--save` would store are the built-in ones below, which apply
+anyway. `--discover` is accepted and changes nothing.
 
 Field names in `--field` and `--input-file` resolve through the connection's
 `fieldAliases`, then the built-in aliases (`title`, `state`, `description`,
@@ -169,75 +173,82 @@ in `~/.toil/config.json`, or set `TOIL_ADO_FIELD_ALIASES` (or
 starting with `@` is read from that file. Flags win over the file, with an
 `ADO_INPUT_OVERRIDDEN` warning naming the keys.
 
-Repositories and pull requests:
+Repositories:
 
 - `repo list`, `repo create` (`--name`), `repo get`: Repositories in the project.
-- `repo list-prs`: Every pull request, `--state active` (default), `abandoned`,
+- `repo build-status <commit>`: Statuses posted to a commit.
+- `repo default-reviewers`: Required reviewers policies covering the repository.
+
+Pull requests (`<id>` is the pull request id):
+
+- `pr list`: Every pull request, `--state active` (default), `abandoned`,
   `completed` or `all`. `--creator` and `--reviewer` are sent as identity id filters,
   so pass an id (from `whoami`), not an alias. `--created-after` and
   `--created-before` take ISO 8601 dates; a date alone is UTC midnight, a date-time
   without a zone is local time.
-- `repo get-pr`: One by `--id`.
-- `repo create-pr`: `--title`, `--source`, `--target` (default `main`),
-  `--description`, `--reviewers <id,id>` (identity ids), `--draft`. Give branch names
-  without `refs/heads/`, which toil adds (a full ref gets it twice).
-- `repo update-pr`: `--title`, `--description`, `--reviewers`, `--draft true|false`,
+- `pr get <id>`: One pull request.
+- `pr create`: `--title`, `--source`, `--target` (default `main`), `--description`,
+  `--reviewers <id,id>` (identity ids), `--draft`. Give branch names without
+  `refs/heads/`, which toil adds (a full ref gets it twice).
+- `pr update <id>`: `--title`, `--description`, `--reviewers`, `--draft true|false`,
   in one PATCH.
-- `repo merge-pr`: Ask the server to complete it, `--strategy noFastForward`
+- `pr merge <id>`: Ask the server to complete it, `--strategy noFastForward`
   (default), `squash`, `rebase` or `rebaseMerge`, `--delete-source`. Completion is
   asynchronous; check `data.status`.
-- `repo abandon-pr`: Abandon it.
-- `repo list-comments --pr <n>`: Every comment of every thread, oldest first, with
-  `threadId` and `threadContext` (null for a general comment); system comments
-  included. `--inline-only` or `--general-only` narrows it.
-- `repo add-comment`, `repo add-inline-comment` (`--file /src/a.ts --line 12`,
-  `--line-type left|right`, default `right`), `repo reply-comment --thread-id`,
-  `repo resolve-comment --thread-id` (status `fixed`).
-- `repo delete-comment --thread-id --comment-id`: Returns `{ "deleted": true }`. CLI
-  only: deletes are never exposed through MCP.
-- `repo list-files --pr <n>`: Changed files of the latest iteration, at most 100.
-- `repo diff --pr <n>`: Changed files between the last merge commits, at most 100;
-  `--path` keeps one file (a leading `/` is added).
-- `repo get-build-status --commit <sha>`: Statuses posted to a commit.
-- `repo list-reviewers --pr <n>`: Reviewers and their votes.
-- `repo list-default-reviewers`: Required reviewers policies covering the repository.
-- `repo approve`, `repo unapprove`, `repo wait-for-author` (`--pr <n>`): Vote 10, 0 or
-  -5 as the token's own user.
-- `repo list-builds --pr <n>`: Builds of the pull request's source branch (not of its
-  merge ref).
+- `pr abandon <id>`: Abandon it.
+- `pr comments <id>`: Every comment of every thread, oldest first, with `threadId` and
+  `threadContext` (null for a general comment); system comments included.
+  `--inline-only` or `--general-only` narrows it.
+- `pr comment <id>` (`--body`), `pr comment-inline <id>` (`--file /src/a.ts`,
+  `--line 12`, `--body`, `--line-type left|right`, default `right`),
+  `pr reply <id> <thread-id>` (`--body`), `pr resolve <id> <thread-id>` (status
+  `fixed`).
+- `pr delete-comment <id> <thread-id> <comment-id>`: Returns `{ "deleted": true }`.
+  CLI only: deletes are never exposed through MCP.
+- `pr files <id>`: Changed files of the latest iteration, at most 100.
+- `pr diff <id>`: Changed files between the last merge commits, at most 100; `--path`
+  keeps one file (a leading `/` is added).
+- `pr reviewers <id>`: Reviewers and their votes.
+- `pr approve <id>`, `pr unapprove <id>`, `pr wait-for-author <id>`: Vote 10, 0 or -5
+  as the token's own user.
+- `pr builds <id>`: Builds of the pull request's source branch (not of its merge ref).
 
-Pipelines:
+Pipelines and runs:
 
-- `pipeline list`, `pipeline get --id`: Pipelines (build definitions).
-- `pipeline run --id`: Queue a run, `--branch` (a short name gets `refs/heads/`),
-  `--parameter k=v` repeatable. `--wait` polls every `--poll` seconds (10) for up to
-  `--timeout` seconds (600). A result other than `succeeded` still returns the build,
-  with an `ADO_BUILD_NOT_SUCCEEDED` warning, and the CLI exits 1. The command's own
-  time limit is 11 minutes, so a longer `--timeout` also needs `TOIL_TIMEOUT_MS`.
-- `pipeline list-runs`: Runs, `--definition <id>` or `--name <pipeline>`, `--branch`
-  (as given, e.g. `refs/heads/main`), `--status`, `--top` (default 50; `--top 0`
-  lists every run).
-- `pipeline get-run --id`, `pipeline cancel-run --id`: One run; cancel it.
-- `pipeline logs --build-id <n>` (or `--id`): The run's logs; with `--log-id`, that
-  log's text as `{ "log": "..." }`.
+- `pipeline list`, `pipeline get <id>`: Pipelines (build definitions).
+- `pipeline run <id>`: Queue a run of the pipeline, `--branch` (a short name gets
+  `refs/heads/`), `--parameter k=v` repeatable. `--wait` polls every `--poll` seconds
+  (10) for up to `--timeout` seconds (600). A result other than `succeeded` still
+  returns the build, with an `ADO_BUILD_NOT_SUCCEEDED` warning, and the CLI exits 1.
+  The command's own time limit is 11 minutes, so a longer `--timeout` also needs
+  `TOIL_TIMEOUT_MS`.
+- `run list`: Runs, `--definition <id>` or `--name <pipeline>`, `--branch` (as given,
+  e.g. `refs/heads/main`), `--status`, `--top` (default 50; `--top 0` lists every
+  run).
+- `run get <id>`, `run cancel <id>`: One run; cancel it.
+- `run logs <id>`: The run's logs; with `--log-id`, that log's text as
+  `{ "log": "..." }`.
 
-Paging: `project list`, `pipeline list`, `pipeline list-runs`, `repo list-prs`,
-`repo list-builds`, `work search` and `work revisions` return the whole list by
-default. With `--limit <n>` they return at most that many and set
-`meta.page.nextCursor`; pass it back as `--cursor`, with the same `--limit`, for the
-next page, until it's `null`. `pipeline list-runs` takes `--limit` or `--top`, not
-both. Every list except `work search` (one request) reads page by page and stops
-with an `HTTP` error after 1,000 pages, naming the list.
+Paging: `project list`, `pipeline list`, `run list`, `pr list`, `pr builds`,
+`work-item search` and `work-item history` return the whole list by default. With
+`--limit <n>` they return at most that many and set `meta.page.nextCursor`; pass it
+back as `--cursor`, with the same `--limit`, for the next page, until it's `null`.
+`run list` takes `--limit` or `--top`, not both. Every list except `work-item search`
+(one request) reads page by page and stops with an `HTTP` error after 1,000 pages,
+naming the list.
 
 Write commands need `writes: true` on the connection and `--allow-write` on the call.
 
 ```bash
-toil ado --collection DefaultCollection --project Imagile work get --id 42
-toil ado work create --type Bug --title "Login broken" --field "Story Points=3" --allow-write
-toil ado --repo imagile-api repo list-prs --state all
-toil ado work search --wiql "SELECT [System.Id] FROM WorkItems" --updated-since 2026-10-01 --limit 200
-toil ado work get-batch --id 42 --id 7 --fields System.Title,System.State
-toil ado pipeline run --id 5 --branch main --wait --allow-write
+toil ado --collection DefaultCollection --project Imagile work-item get 42
+toil ado work-item create --type Bug --title "Login broken" --field "Story Points=3" --allow-write
+toil ado work-item link 42 --target 7 --type child --allow-write
+toil ado --repo imagile-api pr list --state all
+toil ado pr comment-inline 42 --file /src/app.ts --line 12 --body "Off by one?" --allow-write
+toil ado work-item search --wiql "SELECT [System.Id] FROM WorkItems" --updated-since 2026-10-01 --limit 200
+toil ado work-item get-many 42 7 --fields System.Title,System.State
+toil ado pipeline run 5 --branch main --wait --allow-write
+toil ado run logs 101 --log-id 3
 ```
 
 ## Checking a dossier

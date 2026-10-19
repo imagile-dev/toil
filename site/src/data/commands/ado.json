@@ -26,8 +26,8 @@
     ]
   },
   {
-    "name": "project list-collections",
-    "tool": "ado_project_list_collections",
+    "name": "collection list",
+    "tool": "ado_collection_list",
     "description": "List all project collections on the server",
     "writes": false,
     "connection": true,
@@ -60,7 +60,7 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "--name <project>",
+      "<name>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -68,13 +68,13 @@
     ]
   },
   {
-    "name": "work get",
-    "tool": "ado_work_get",
+    "name": "work-item get",
+    "tool": "ado_work_item_get",
     "description": "Get a work item by ID",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -82,8 +82,8 @@
     ]
   },
   {
-    "name": "work create",
-    "tool": "ado_work_create",
+    "name": "work-item create",
+    "tool": "ado_work_item_create",
     "description": "Create a work item",
     "writes": true,
     "connection": true,
@@ -104,13 +104,13 @@
     ]
   },
   {
-    "name": "work update",
-    "tool": "ado_work_update",
+    "name": "work-item update",
+    "tool": "ado_work_item_update",
     "description": "Update a work item field",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--field <name=value>",
       "--input-file <path>",
       "--collection <name>",
@@ -121,13 +121,13 @@
     ]
   },
   {
-    "name": "work transition",
-    "tool": "ado_work_transition",
+    "name": "work-item transition",
+    "tool": "ado_work_item_transition",
     "description": "Set the state of a work item",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--state <state>",
       "--collection <name>",
       "--organization <name>",
@@ -137,14 +137,14 @@
     ]
   },
   {
-    "name": "work assign",
-    "tool": "ado_work_assign",
+    "name": "work-item assign",
+    "tool": "ado_work_item_assign",
     "description": "Assign a work item to a user",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
-      "--to <user>",
+      "<id>",
+      "--assignee <user>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -153,14 +153,14 @@
     ]
   },
   {
-    "name": "work link",
-    "tool": "ado_work_link",
+    "name": "work-item link",
+    "tool": "ado_work_item_link",
     "description": "Link two work items",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <a>",
-      "--to <b>",
+      "<id>",
+      "--target <id>",
       "--type <rel>",
       "--collection <name>",
       "--organization <name>",
@@ -170,8 +170,8 @@
     ]
   },
   {
-    "name": "work search",
-    "tool": "ado_work_search",
+    "name": "work-item search",
+    "tool": "ado_work_item_search",
     "description": "Run a WIQL query (consider --output-file for large results)",
     "writes": false,
     "connection": true,
@@ -187,13 +187,13 @@
     ]
   },
   {
-    "name": "work revisions",
-    "tool": "ado_work_revisions",
+    "name": "work-item history",
+    "tool": "ado_work_item_history",
     "description": "List the revisions of a work item, oldest first",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--limit <n>",
       "--cursor <cursor>",
       "--collection <name>",
@@ -203,13 +203,13 @@
     ]
   },
   {
-    "name": "work get-batch",
-    "tool": "ado_work_get_batch",
+    "name": "work-item get-many",
+    "tool": "ado_work_item_get_many",
     "description": "Get several work items by ID in one call",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--fields <names>",
       "--collection <name>",
       "--organization <name>",
@@ -218,13 +218,13 @@
     ]
   },
   {
-    "name": "work list-comments",
-    "tool": "ado_work_list_comments",
+    "name": "work-item comments",
+    "tool": "ado_work_item_comments",
     "description": "List comments on a work item",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -232,13 +232,13 @@
     ]
   },
   {
-    "name": "work add-comment",
-    "tool": "ado_work_add_comment",
+    "name": "work-item comment",
+    "tool": "ado_work_item_comment",
     "description": "Add a comment to a work item",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--body <text>",
       "--collection <name>",
       "--organization <name>",
@@ -248,13 +248,13 @@
     ]
   },
   {
-    "name": "work add-tag",
-    "tool": "ado_work_add_tag",
+    "name": "work-item tag",
+    "tool": "ado_work_item_tag",
     "description": "Add one or more tags to a work item (non-destructive)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--tags <tags>",
       "--collection <name>",
       "--organization <name>",
@@ -264,13 +264,13 @@
     ]
   },
   {
-    "name": "work remove-tag",
-    "tool": "ado_work_remove_tag",
+    "name": "work-item untag",
+    "tool": "ado_work_item_untag",
     "description": "Remove one or more tags from a work item (non-destructive)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--tags <tags>",
       "--collection <name>",
       "--organization <name>",
@@ -280,13 +280,13 @@
     ]
   },
   {
-    "name": "work list-attachments",
-    "tool": "ado_work_list_attachments",
+    "name": "work-item attachments",
+    "tool": "ado_work_item_attachments",
     "description": "List attachments on a work item",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -294,13 +294,13 @@
     ]
   },
   {
-    "name": "work add-attachment",
-    "tool": "ado_work_add_attachment",
+    "name": "work-item attach",
+    "tool": "ado_work_item_attach",
     "description": "Upload a local file and attach it to a work item",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--file <path>",
       "--comment <text>",
       "--collection <name>",
@@ -311,14 +311,14 @@
     ]
   },
   {
-    "name": "work download-attachment",
-    "tool": "ado_work_download_attachment",
+    "name": "work-item download",
+    "tool": "ado_work_item_download",
     "description": "Download a work item attachment to .toil/ (or --dir)",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
-      "--attachment-id <guid>",
+      "<id>",
+      "<attachment-id>",
       "--dir <path>",
       "--collection <name>",
       "--organization <name>",
@@ -327,8 +327,8 @@
     ]
   },
   {
-    "name": "work list-areas",
-    "tool": "ado_work_list_areas",
+    "name": "work-item areas",
+    "tool": "ado_work_item_areas",
     "description": "List classification areas for the team project (tree)",
     "writes": false,
     "connection": true,
@@ -341,8 +341,8 @@
     ]
   },
   {
-    "name": "work list-iterations",
-    "tool": "ado_work_list_iterations",
+    "name": "work-item iterations",
+    "tool": "ado_work_item_iterations",
     "description": "List classification iterations for the team project (tree), including start/finish dates",
     "writes": false,
     "connection": true,
@@ -355,8 +355,8 @@
     ]
   },
   {
-    "name": "work types",
-    "tool": "ado_work_types",
+    "name": "work-item types",
+    "tool": "ado_work_item_types",
     "description": "List work item types in the project",
     "writes": false,
     "connection": true,
@@ -369,8 +369,8 @@
     ]
   },
   {
-    "name": "work list-states",
-    "tool": "ado_work_list_states",
+    "name": "work-item states",
+    "tool": "ado_work_item_states",
     "description": "List valid states for a work item type",
     "writes": false,
     "connection": true,
@@ -383,8 +383,8 @@
     ]
   },
   {
-    "name": "work fields",
-    "tool": "ado_work_fields",
+    "name": "work-item fields",
+    "tool": "ado_work_item_fields",
     "description": "List work item fields available in the collection (consider --output-file for large results)",
     "writes": false,
     "connection": true,
@@ -399,9 +399,9 @@
     ]
   },
   {
-    "name": "work schema",
-    "tool": "ado_work_schema",
-    "description": "Print the --input-file JSON schema and an example for work create/update",
+    "name": "work-item schema",
+    "tool": "ado_work_item_schema",
+    "description": "Print the --input-file JSON schema and an example for work-item create/update",
     "writes": false,
     "connection": false,
     "flags": [
@@ -450,8 +450,8 @@
     ]
   },
   {
-    "name": "repo list-prs",
-    "tool": "ado_repo_list_prs",
+    "name": "pr list",
+    "tool": "ado_pr_list",
     "description": "List pull requests",
     "writes": false,
     "connection": true,
@@ -470,13 +470,13 @@
     ]
   },
   {
-    "name": "repo get-pr",
-    "tool": "ado_repo_get_pr",
+    "name": "pr get",
+    "tool": "ado_pr_get",
     "description": "Get a pull request by ID",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -484,8 +484,8 @@
     ]
   },
   {
-    "name": "repo create-pr",
-    "tool": "ado_repo_create_pr",
+    "name": "pr create",
+    "tool": "ado_pr_create",
     "description": "Create a pull request",
     "writes": true,
     "connection": true,
@@ -504,13 +504,13 @@
     ]
   },
   {
-    "name": "repo update-pr",
-    "tool": "ado_repo_update_pr",
+    "name": "pr update",
+    "tool": "ado_pr_update",
     "description": "Update a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--title <title>",
       "--description <text>",
       "--reviewers <ids>",
@@ -523,13 +523,13 @@
     ]
   },
   {
-    "name": "repo merge-pr",
-    "tool": "ado_repo_merge_pr",
+    "name": "pr merge",
+    "tool": "ado_pr_merge",
     "description": "Complete (merge) a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--strategy <s>",
       "--delete-source",
       "--collection <name>",
@@ -540,13 +540,13 @@
     ]
   },
   {
-    "name": "repo abandon-pr",
-    "tool": "ado_repo_abandon_pr",
+    "name": "pr abandon",
+    "tool": "ado_pr_abandon",
     "description": "Abandon a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -555,13 +555,13 @@
     ]
   },
   {
-    "name": "repo list-files",
-    "tool": "ado_repo_list_files",
+    "name": "pr files",
+    "tool": "ado_pr_files",
     "description": "List files changed in a pull request",
     "writes": false,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -569,13 +569,13 @@
     ]
   },
   {
-    "name": "repo diff",
-    "tool": "ado_repo_diff",
+    "name": "pr diff",
+    "tool": "ado_pr_diff",
     "description": "Show files changed in a pull request with change types and commit metadata",
     "writes": false,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--path <p>",
       "--collection <name>",
       "--organization <name>",
@@ -584,13 +584,13 @@
     ]
   },
   {
-    "name": "repo get-build-status",
-    "tool": "ado_repo_get_build_status",
+    "name": "repo build-status",
+    "tool": "ado_repo_build_status",
     "description": "Get CI/build statuses posted to a commit",
     "writes": false,
     "connection": true,
     "flags": [
-      "--commit <sha>",
+      "<commit>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -598,13 +598,13 @@
     ]
   },
   {
-    "name": "repo list-reviewers",
-    "tool": "ado_repo_list_reviewers",
+    "name": "pr reviewers",
+    "tool": "ado_pr_reviewers",
     "description": "List reviewers on a pull request",
     "writes": false,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -612,8 +612,8 @@
     ]
   },
   {
-    "name": "repo list-default-reviewers",
-    "tool": "ado_repo_list_default_reviewers",
+    "name": "repo default-reviewers",
+    "tool": "ado_repo_default_reviewers",
     "description": "List required-reviewer branch policies (default reviewers) that apply to the repository",
     "writes": false,
     "connection": true,
@@ -625,13 +625,13 @@
     ]
   },
   {
-    "name": "repo approve",
-    "tool": "ado_repo_approve",
+    "name": "pr approve",
+    "tool": "ado_pr_approve",
     "description": "Approve a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -640,13 +640,13 @@
     ]
   },
   {
-    "name": "repo unapprove",
-    "tool": "ado_repo_unapprove",
+    "name": "pr unapprove",
+    "tool": "ado_pr_unapprove",
     "description": "Remove approval from a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -655,13 +655,13 @@
     ]
   },
   {
-    "name": "repo wait-for-author",
-    "tool": "ado_repo_wait_for_author",
+    "name": "pr wait-for-author",
+    "tool": "ado_pr_wait_for_author",
     "description": "Mark a pull request as waiting for author",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -670,13 +670,13 @@
     ]
   },
   {
-    "name": "repo list-builds",
-    "tool": "ado_repo_list_builds",
+    "name": "pr builds",
+    "tool": "ado_pr_builds",
     "description": "List builds associated with a pull request",
     "writes": false,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--limit <n>",
       "--cursor <cursor>",
       "--collection <name>",
@@ -686,13 +686,13 @@
     ]
   },
   {
-    "name": "repo list-comments",
-    "tool": "ado_repo_list_comments",
+    "name": "pr comments",
+    "tool": "ado_pr_comments",
     "description": "List all comments on a pull request (general + inline)",
     "writes": false,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--inline-only",
       "--general-only",
       "--collection <name>",
@@ -702,13 +702,13 @@
     ]
   },
   {
-    "name": "repo add-comment",
-    "tool": "ado_repo_add_comment",
+    "name": "pr comment",
+    "tool": "ado_pr_comment",
     "description": "Add a general comment to a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--body <text>",
       "--collection <name>",
       "--organization <name>",
@@ -718,13 +718,13 @@
     ]
   },
   {
-    "name": "repo add-inline-comment",
-    "tool": "ado_repo_add_inline_comment",
+    "name": "pr comment-inline",
+    "tool": "ado_pr_comment_inline",
     "description": "Add an inline comment on a file in a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
+      "<id>",
       "--file <path>",
       "--line <n>",
       "--body <text>",
@@ -737,14 +737,14 @@
     ]
   },
   {
-    "name": "repo reply-comment",
-    "tool": "ado_repo_reply_comment",
+    "name": "pr reply",
+    "tool": "ado_pr_reply",
     "description": "Reply to a comment thread",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
-      "--thread-id <id>",
+      "<id>",
+      "<thread-id>",
       "--body <text>",
       "--collection <name>",
       "--organization <name>",
@@ -754,14 +754,14 @@
     ]
   },
   {
-    "name": "repo resolve-comment",
-    "tool": "ado_repo_resolve_comment",
+    "name": "pr resolve",
+    "tool": "ado_pr_resolve",
     "description": "Mark a comment thread as resolved (fixed)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
-      "--thread-id <id>",
+      "<id>",
+      "<thread-id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -770,15 +770,15 @@
     ]
   },
   {
-    "name": "repo delete-comment",
+    "name": "pr delete-comment",
     "tool": null,
     "description": "Delete a comment from a thread",
     "writes": true,
     "connection": true,
     "flags": [
-      "--pr <n>",
-      "--thread-id <id>",
-      "--comment-id <id>",
+      "<id>",
+      "<thread-id>",
+      "<comment-id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -808,7 +808,7 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -822,7 +822,7 @@
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--branch <ref>",
       "--parameter <k=v>",
       "--wait",
@@ -836,8 +836,8 @@
     ]
   },
   {
-    "name": "pipeline list-runs",
-    "tool": "ado_pipeline_list_runs",
+    "name": "run list",
+    "tool": "ado_run_list",
     "description": "List pipeline runs",
     "writes": false,
     "connection": true,
@@ -856,13 +856,13 @@
     ]
   },
   {
-    "name": "pipeline get-run",
-    "tool": "ado_pipeline_get_run",
+    "name": "run get",
+    "tool": "ado_run_get",
     "description": "Get a pipeline run by build ID",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -870,13 +870,13 @@
     ]
   },
   {
-    "name": "pipeline cancel-run",
-    "tool": "ado_pipeline_cancel_run",
+    "name": "run cancel",
+    "tool": "ado_run_cancel",
     "description": "Cancel a running pipeline build",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <n>",
+      "<id>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -885,14 +885,13 @@
     ]
   },
   {
-    "name": "pipeline logs",
-    "tool": "ado_pipeline_logs",
+    "name": "run logs",
+    "tool": "ado_run_logs",
     "description": "List or retrieve build logs (consider --output-file for large logs)",
     "writes": false,
     "connection": true,
     "flags": [
-      "--build-id <n>",
-      "--id <n>",
+      "<id>",
       "--log-id <n>",
       "--collection <name>",
       "--organization <name>",
