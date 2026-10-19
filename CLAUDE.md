@@ -87,15 +87,16 @@ gets made again in the next place it applies.
    it's configured on, or to one the user paired it with; the one exception is an
    area's default connection taking another area's default env value, which keeps
    the env chain the contract records.
-10. **Learn one area, know them all.** Every integration command has one shape,
+10. **Learn one area, know them all.** Integration commands converge on one shape,
     `toil <area> <resource> <action> [ids...] [--flags]`: everything you can do to a
     thing lives under that thing, positional arguments are only the ids that lead to
     it, and one idea has one flag in every area (`--limit`, `--assignee`, `--target`,
     `--body`). The welcome menu's Services module is that tree, so browsing it teaches
-    what to type. The shape is toil's own: paths and flags the contract recorded before
-    it are dropped with no alias. → **Command Shape**
-    (`integrations` skill); `jira`, `jira-cloud`, `ado` and `ado-cloud` follow it,
-    and other areas move to it as they're reshaped.
+    what to type. The shape is toil's own: when an area is reshaped, the paths and flags
+    the contract recorded before are dropped, not kept as aliases. Deliberate aliases
+    (`deps outdated`, a routed alias, an area's `coreAliases`) are a different thing
+    and stay. → **Command Shape** (`integrations` skill); `jira`, `jira-cloud`, `ado`
+    and `ado-cloud` follow it, and every other area is reshaped before 1.0 (#297).
 
 ## Cross-Platform
 
@@ -776,7 +777,10 @@ callers who rely on the recorded result.
   area reshaped to the command shape records its new paths, arguments and flags in
   the contract, in the same change, and keeps every recorded request, result, error
   and `data` field. A path or flag the contract recorded before the reshape is gone, not
-  aliased, and needs no divergence entry.
+  aliased, and needs no divergence entry. The area's entries may be rebuilt from the
+  registry only in its reshape PR, before the first non-alpha release, and that PR
+  carries the old-to-new table of every path and flag for review: a contract rebuilt
+  from the code can't catch what the code dropped, so the table is the check.
 - **Implement the recorded behavior exactly, bugs included,** until a live instance
   proves otherwise. That covers validation, defaults, paging, id-or-name detection,
   encoding and error messages too, not just the happy path.
@@ -948,6 +952,10 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   for the package, then OIDC with no token. The release PR is opened by the Imagile
   Bot App, not `GITHUB_TOKEN`, so CI runs on it. The agent review skips it, because
   the App can't review its own PR; the human who merges it is the review.
+- **Toil UI never releases ahead of the toil it needs.** Its tests run against toil
+  from source, so `ui/` on `main` may already use commands the pinned toil doesn't
+  have. A `toil-ui-v…` release goes out with or after the toil release that has them,
+  and bumps `ui/package.json`'s exact pin in the same release PR.
 - **Until 1.0, every release is an alpha prerelease** (`0.1.0-alpha.1`, then
   `-alpha.2` …), marked as a prerelease on GitHub and published under npm's `alpha`
   dist-tag. Until a stable release exists, `latest` also follows the newest alpha,

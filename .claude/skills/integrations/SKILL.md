@@ -378,7 +378,8 @@ breaking the other.
   never aliased, and the contract's entries for the area are rewritten to the new
   surface in the same change (CLAUDE.md, **The command contract**).
 - **Today** `jira`, `jira-cloud`, `ado` and `ado-cloud` follow it. A new area follows
-  it from the start; any other area moves to it when it's reshaped, in a PR of its own.
+  it from the start; every other area moves to it before 1.0 (#297), and its reshape PR
+  carries the old-to-new table of every path and flag (CLAUDE.md, **The command contract**).
 
 ## Compatibility
 
