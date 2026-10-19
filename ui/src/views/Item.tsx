@@ -11,7 +11,7 @@ import { STATUS_CATEGORY_LABEL, dateTime, dossierHref, estimateText, personText,
 import { age, cycleTime } from '../model/flow.ts';
 import { INSIGHT_LABEL, insights } from '../model/insights.ts';
 import { entry } from '../model/sprint.ts';
-import { useSkins } from '../skins.tsx';
+import { useSkins, useTheme } from '../skins.tsx';
 
 /** OWI's link type in words, by direction; the source's own wording is shown beside it. */
 const LINK_WORD: Record<string, [string, string]> = {
@@ -24,6 +24,7 @@ const LINK_WORD: Record<string, [string, string]> = {
 
 export function ItemView({ id }: { id: string }) {
   const { byId, dossier, now } = useData();
+  const theme = useTheme();
   const { insights: prepared } = useDerived();
   const { EmptyState } = useSkins();
   const item = byId.get(id);
@@ -102,7 +103,7 @@ export function ItemView({ id }: { id: string }) {
               {source}, connection <code>{item.source.connection}</code>, read with <code>toil {item.source.command}</code>
             </dd>
             <dt>Type</dt>
-            <dd>{typeText(item)}</dd>
+            <dd>{typeText(item, theme)}</dd>
             <dt>Status</dt>
             <dd>
               {item.status ?? 'None'} ({STATUS_CATEGORY_LABEL[item.statusCategory]})

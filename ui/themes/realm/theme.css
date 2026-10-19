@@ -1,0 +1,245 @@
+/* Realm (#210): a high-fantasy chronicle. Tokens come from theme.json; this
+   file adds parchment, ink-drawn borders, illuminated capitals on the
+   headings, the sprint as a chronicle page, and the dependency graph as a
+   hand-drawn map, where blockers are mountain passes. The same layout and
+   click targets as Plain: only the look changes. Art is original and hidden
+   from screen readers; the words beside it say what it shows. */
+
+@import '@fontsource/cinzel/600.css';
+@import '@fontsource/cinzel-decorative/700.css';
+@import '@fontsource/eb-garamond/400.css';
+@import '@fontsource/eb-garamond/600.css';
+
+[data-theme="realm"] body {
+  background: url("./assets/parchment.svg") 0 0 / 320px 320px, var(--bg);
+  font-size: 1.0625rem;
+}
+
+[data-theme="realm"] h1,
+[data-theme="realm"] h2,
+[data-theme="realm"] .brand,
+[data-theme="realm"] .stat-value,
+[data-theme="realm"] .big-number {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+/* Illuminated capitals: the first letter of each heading, in red on gold leaf. */
+[data-theme="realm"] h1::first-letter,
+[data-theme="realm"] .panel > h2::first-letter,
+[data-theme="realm"] .ask h2::first-letter {
+  font-family: 'Cinzel Decorative', var(--font-display);
+  font-weight: 700;
+  font-size: 1.4em;
+  line-height: 1;
+  color: var(--accent);
+  background: url("./assets/capital.svg") center / 100% 100% no-repeat;
+  padding: 0.14em 0.22em 0.06em;
+  margin-right: 0.1em;
+}
+
+[data-theme="realm"] .brand {
+  color: var(--accent);
+  letter-spacing: 0.06em;
+}
+
+[data-theme="realm"] .top {
+  position: relative;
+  background: transparent;
+  border-bottom: 2px solid var(--ink);
+  box-shadow: 0 3px 0 var(--surface), 0 4px 0 var(--ink);
+}
+
+[data-theme="realm"] .realm-flourish {
+  position: absolute;
+  left: 50%;
+  width: 160px;
+  height: 16px;
+  margin-left: -80px;
+  pointer-events: none;
+}
+
+[data-theme="realm"] .realm-flourish--header {
+  bottom: -11px;
+  background: var(--bg);
+}
+
+/* Ink-drawn borders on parchment, from ink-border.svg. */
+[data-theme="realm"] .panel {
+  position: relative;
+}
+
+[data-theme="realm"] .panel,
+[data-theme="realm"] .dossier-card,
+[data-theme="realm"] .ask {
+  border: 12px solid transparent;
+  border-image: url("./assets/ink-border.svg") 16 / 12px round;
+  border-radius: 0;
+  background-color: var(--surface);
+  background-clip: padding-box;
+}
+
+[data-theme="realm"] .realm-flourish--panel {
+  bottom: -14px;
+  background: var(--surface);
+}
+
+[data-theme="realm"] .card,
+[data-theme="realm"] .attention-item,
+[data-theme="realm"] .proposal,
+[data-theme="realm"] .stat {
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  box-shadow: 2px 2px 0 rgba(42, 29, 18, 0.18);
+}
+
+[data-theme="realm"] .column {
+  border: 1.5px solid var(--ink);
+  border-top: 4px double var(--ink);
+  border-radius: 0;
+}
+
+[data-theme="realm"] .column--in_progress {
+  border-top-color: var(--accent);
+}
+
+[data-theme="realm"] .column--done {
+  border-top-color: var(--ok);
+}
+
+[data-theme="realm"] button,
+[data-theme="realm"] .btn,
+[data-theme="realm"] .starter,
+[data-theme="realm"] .shell-choice,
+[data-theme="realm"] .field-text input {
+  border-color: var(--ink);
+}
+
+/* The quest a card serves. */
+[data-theme="realm"] .realm-quest {
+  font-style: italic;
+  font-size: 0.875rem;
+  color: var(--muted);
+  border-top: 1px dashed var(--line);
+  padding-top: 0.35rem;
+}
+
+/* The sprint panel as a chronicle page: a double rule under its title, and a drop capital to open it. */
+[data-theme="realm"] section[aria-labelledby="sprint"] > h2 {
+  border-bottom: 3px double var(--ink);
+  padding-bottom: 0.35rem;
+}
+
+[data-theme="realm"] section[aria-labelledby="sprint"] > .note:first-of-type::first-letter {
+  float: left;
+  font-family: 'Cinzel Decorative', var(--font-display);
+  font-weight: 700;
+  font-size: 2.6em;
+  line-height: 0.9;
+  color: var(--accent);
+  margin: 0.05em 0.12em 0 0;
+}
+
+[data-theme="realm"] .stat-value {
+  color: var(--accent);
+}
+
+[data-theme="realm"] .meter {
+  border-radius: 0;
+  border-color: var(--ink);
+}
+
+[data-theme="realm"] .meter > span {
+  background: repeating-linear-gradient(-45deg, var(--accent) 0 4px, #5e1717 4px 6px);
+}
+
+/* The dependency graph as a hand-drawn map. */
+[data-theme="realm"] .graph {
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background:
+    url("./assets/map.svg") center / cover no-repeat,
+    url("./assets/parchment.svg") 0 0 / 320px 320px,
+    var(--bg);
+}
+
+[data-theme="realm"] .graph .react-flow__background {
+  display: none;
+}
+
+/* Each item is a place on the map, with a town mark beside its name. */
+[data-theme="realm"] .gnode {
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  background: var(--raised);
+  box-shadow: 2px 2px 0 rgba(42, 29, 18, 0.2);
+}
+
+[data-theme="realm"] .gnode::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--ink);
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+[data-theme="realm"] .gnode--blocked {
+  border-color: var(--danger);
+  border-width: 2px;
+}
+
+/* Blockers are mountain passes: the word, with a pass drawn beside it. */
+[data-theme="realm"] .gflag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-style: italic;
+}
+
+[data-theme="realm"] .gflag::before {
+  content: "";
+  width: 24px;
+  height: 16px;
+  background: url("./assets/mountain-pass.svg") center / contain no-repeat;
+}
+
+/* Links are roads, inked in dashes. */
+[data-theme="realm"] .gedge .react-flow__edge-path {
+  stroke: var(--ink);
+  stroke-dasharray: 7 4;
+}
+
+[data-theme="realm"] .gedge--live .react-flow__edge-path {
+  stroke: var(--danger);
+}
+
+[data-theme="realm"] .graph .react-flow__edge-textbg {
+  fill: var(--raised);
+}
+
+/* The scribe. */
+[data-theme="realm"] .realm-scribe {
+  border: 1.5px solid var(--ink);
+  border-radius: 0;
+  background: var(--raised);
+}
+
+[data-theme="realm"] .realm-scribe-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.875rem;
+  color: var(--accent);
+}
+
+[data-theme="realm"] .bubble--you {
+  border-color: var(--ink);
+  font-style: italic;
+}
+
+[data-theme="realm"] .realm-scroll img {
+  width: 200px;
+  max-width: 100%;
+}

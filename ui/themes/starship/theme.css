@@ -1,0 +1,295 @@
+/* Starship (#209): a starship's bridge console. Tokens come from theme.json;
+   this file adds the console fonts, a slow starfield, scanlines, holo panels
+   with HUD corner brackets, sprint health as ship's readouts, and the
+   dependency graph as a star chart: items are systems, links are hyperspace
+   lanes, and blockers are hazards. The same layout and click targets as
+   Plain: only the look changes. Art is original and hidden from screen
+   readers; the words beside it say what it shows. */
+
+@import '@fontsource/orbitron/600.css';
+@import '@fontsource/orbitron/700.css';
+@import '@fontsource/exo-2/400.css';
+@import '@fontsource/exo-2/600.css';
+
+[data-theme="starship"] body {
+  background-color: var(--bg);
+}
+
+/* The starfield, on its own layer so it can drift without repainting the page. */
+[data-theme="starship"] body::before {
+  content: "";
+  position: fixed;
+  inset: -320px 0 0 -320px;
+  z-index: -1;
+  pointer-events: none;
+  background: url("./assets/starfield.svg") 0 0 / 320px 320px;
+}
+
+/* Scanlines over everything, faint enough that text keeps its contrast, and never in the way of a click. */
+[data-theme="starship"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(230, 241, 255, 0.022) 0 1px, transparent 1px 3px);
+}
+
+[data-theme="starship"] h1,
+[data-theme="starship"] h2,
+[data-theme="starship"] .brand,
+[data-theme="starship"] .stat-value,
+[data-theme="starship"] .big-number,
+[data-theme="starship"] .rank,
+[data-theme="starship"] .aging-days {
+  font-family: var(--font-display);
+  letter-spacing: 0.04em;
+}
+
+[data-theme="starship"] h1 {
+  text-shadow: 0 0 12px rgba(54, 214, 255, 0.45);
+}
+
+[data-theme="starship"] h2 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--link);
+}
+
+[data-theme="starship"] .brand {
+  color: var(--accent);
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(54, 214, 255, 0.6);
+}
+
+[data-theme="starship"] .banner {
+  border-bottom: 1px solid var(--line);
+  letter-spacing: 0.02em;
+}
+
+/* The header is a HUD rail. */
+[data-theme="starship"] .top {
+  position: relative;
+  border-bottom: 1px solid var(--accent);
+  box-shadow: 0 1px 0 rgba(54, 214, 255, 0.25), 0 6px 18px rgba(54, 214, 255, 0.12);
+  background: linear-gradient(180deg, rgba(54, 214, 255, 0.07), transparent), var(--surface);
+}
+
+/* Holo panels with a glow, and HUD corner brackets from the Panel skin. */
+[data-theme="starship"] .panel,
+[data-theme="starship"] .dossier-card {
+  position: relative;
+}
+
+[data-theme="starship"] .panel,
+[data-theme="starship"] .dossier-card,
+[data-theme="starship"] .ask {
+  border: 1px solid rgba(54, 214, 255, 0.45);
+  background: linear-gradient(180deg, rgba(54, 214, 255, 0.05), rgba(54, 214, 255, 0.015) 40%), var(--surface);
+  box-shadow: 0 0 18px rgba(54, 214, 255, 0.12), inset 0 0 24px rgba(54, 214, 255, 0.05);
+}
+
+[data-theme="starship"] .ask {
+  border-top: 2px solid var(--accent);
+}
+
+[data-theme="starship"] .hud-corners {
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+}
+
+[data-theme="starship"] .hud-corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 0 solid var(--accent);
+}
+
+[data-theme="starship"] .hud-corner--tl { top: 0; left: 0; border-top-width: 2px; border-left-width: 2px; }
+[data-theme="starship"] .hud-corner--tr { top: 0; right: 0; border-top-width: 2px; border-right-width: 2px; }
+[data-theme="starship"] .hud-corner--bl { bottom: 0; left: 0; border-bottom-width: 2px; border-left-width: 2px; }
+[data-theme="starship"] .hud-corner--br { bottom: 0; right: 0; border-bottom-width: 2px; border-right-width: 2px; }
+
+[data-theme="starship"] .card,
+[data-theme="starship"] .attention-item,
+[data-theme="starship"] .proposal,
+[data-theme="starship"] .gnode {
+  border-color: rgba(54, 214, 255, 0.35);
+  box-shadow: inset 0 0 14px rgba(54, 214, 255, 0.06);
+}
+
+[data-theme="starship"] .column {
+  border-color: rgba(54, 214, 255, 0.25);
+  background: rgba(5, 7, 15, 0.85);
+}
+
+[data-theme="starship"] button,
+[data-theme="starship"] .btn,
+[data-theme="starship"] .starter,
+[data-theme="starship"] .shell-choice,
+[data-theme="starship"] .field-text input {
+  border-color: rgba(54, 214, 255, 0.6);
+}
+
+/* Sprint health as ship's status readouts. */
+[data-theme="starship"] .stat {
+  border: 1px solid rgba(54, 214, 255, 0.4);
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(90deg, rgba(54, 214, 255, 0.08), transparent 70%), var(--raised);
+}
+
+[data-theme="starship"] .stat-label {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-size: 0.8125rem;
+}
+
+[data-theme="starship"] .stat-value {
+  color: var(--link);
+  text-shadow: 0 0 10px rgba(54, 214, 255, 0.5);
+}
+
+[data-theme="starship"] .meter {
+  height: 0.875rem;
+  border-radius: 0;
+  border-color: var(--accent);
+  background: var(--raised);
+}
+
+[data-theme="starship"] .meter > span {
+  background: repeating-linear-gradient(90deg, var(--accent) 0 10px, transparent 10px 13px);
+  box-shadow: 0 0 10px rgba(54, 214, 255, 0.6);
+}
+
+/* The dependency graph as a star chart. */
+[data-theme="starship"] .graph {
+  border-color: rgba(54, 214, 255, 0.45);
+  background:
+    url("./assets/star-chart.svg") center / cover no-repeat,
+    url("./assets/starfield.svg") 0 0 / 320px 320px,
+    var(--bg);
+}
+
+[data-theme="starship"] .graph .react-flow__background {
+  display: none;
+}
+
+/* Each item is a system, with its star beside its key. */
+[data-theme="starship"] .gnode {
+  background: rgba(16, 27, 49, 0.94);
+  border-radius: 14px 2px 14px 2px;
+}
+
+[data-theme="starship"] .gnode::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #e6f1ff, #36d6ff 45%, #0b5a80);
+  box-shadow: 0 0 10px #36d6ff;
+}
+
+[data-theme="starship"] .gnode--done::before {
+  background: radial-gradient(circle at 35% 35%, #e6f1ff, #5df2a6 45%, #0e5a38);
+  box-shadow: 0 0 10px #5df2a6;
+}
+
+/* Blockers are hazards: amber-striped, with the word on the node. */
+[data-theme="starship"] .gnode--blocked {
+  border-color: var(--danger);
+  background:
+    repeating-linear-gradient(-45deg, rgba(255, 200, 87, 0.09) 0 8px, transparent 8px 16px),
+    rgba(16, 27, 49, 0.96);
+}
+
+[data-theme="starship"] .gnode--blocked::before {
+  border-radius: 0;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  background: var(--warn);
+  box-shadow: none;
+}
+
+[data-theme="starship"] .gflag {
+  color: var(--warn);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Links are hyperspace lanes. */
+[data-theme="starship"] .gedge .react-flow__edge-path {
+  stroke: #36d6ff;
+  filter: drop-shadow(0 0 3px rgba(54, 214, 255, 0.8));
+}
+
+[data-theme="starship"] .gedge--live .react-flow__edge-path {
+  stroke: var(--danger);
+  filter: drop-shadow(0 0 3px rgba(255, 122, 142, 0.8));
+}
+
+[data-theme="starship"] .graph .react-flow__edge-textbg {
+  fill: var(--bg);
+}
+
+/* The ship's computer. */
+[data-theme="starship"] .starship-computer {
+  border-color: rgba(54, 214, 255, 0.5);
+  background: linear-gradient(180deg, rgba(54, 214, 255, 0.08), transparent 60%), var(--bg);
+}
+
+[data-theme="starship"] .starship-voice {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--link);
+}
+
+[data-theme="starship"] .bubble--you {
+  border-color: rgba(54, 214, 255, 0.35);
+}
+
+[data-theme="starship"] .chart .line--done,
+[data-theme="starship"] .chart .bar,
+[data-theme="starship"] .chart .dot {
+  filter: drop-shadow(0 0 3px rgba(54, 214, 255, 0.7));
+}
+
+/* The jump to lightspeed: still when reduced motion is on. */
+[data-theme="starship"] .starship-jump img {
+  border: 1px solid rgba(54, 214, 255, 0.45);
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="starship"] body::before {
+    animation: starship-drift 400s linear infinite;
+  }
+
+  [data-theme="starship"] .starship-jump img {
+    animation: starship-jump 1.1s ease-in infinite;
+  }
+
+  [data-theme="starship"] .gedge .react-flow__edge-path {
+    stroke-dasharray: 10 6;
+    animation: starship-lane 2.4s linear infinite;
+  }
+}
+
+@keyframes starship-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(320px, 320px, 0); }
+}
+
+@keyframes starship-jump {
+  from { transform: scale(1); filter: brightness(1); }
+  to { transform: scale(1.35); filter: brightness(1.6); }
+}
+
+@keyframes starship-lane {
+  to { stroke-dashoffset: -32; }
+}

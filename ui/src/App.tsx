@@ -15,7 +15,7 @@ import type { Agent } from './agent.ts';
 import { DataContext, type Data } from './data.ts';
 import { dateTime, dossierHref } from './format.ts';
 import { loadDossier, loadDossiers, type DossierData, type DossierSummary } from './load.ts';
-import { SkinProvider, skinsFor } from './skins.tsx';
+import { SkinProvider, ThemeProvider, skinsFor } from './skins.tsx';
 import { THEMES, themeNamed, tokenCss } from './themes.ts';
 import { useThemeChoice } from './theme-choice.ts';
 import type { Call, Execute } from './toil.ts';
@@ -143,6 +143,7 @@ export function App({ execute, agent, now, preview }: AppProps) {
   }
 
   return (
+    <ThemeProvider value={theme}>
     <SkinProvider value={skins}>
       <style>{THEMES.map(tokenCss).join('\n')}</style>
       <a className="skip" href="#main" onClick={skip}>
@@ -155,6 +156,7 @@ export function App({ execute, agent, now, preview }: AppProps) {
           </p>
         )}
         <div className="top">
+          <skins.Header>
           <a className="brand" href="#/">
             Toil UI
           </a>
@@ -194,6 +196,7 @@ export function App({ execute, agent, now, preview }: AppProps) {
               />
             )}
           </div>
+          </skins.Header>
         </div>
         <p className="sync">
           {preview ? 'Sample data' : 'Data'} read {dateTime(now)} through toil, read-only.
@@ -203,6 +206,7 @@ export function App({ execute, agent, now, preview }: AppProps) {
         {body}
       </main>
     </SkinProvider>
+    </ThemeProvider>
   );
 }
 
