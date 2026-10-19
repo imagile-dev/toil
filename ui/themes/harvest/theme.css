@@ -315,3 +315,8 @@
 [data-theme="harvest"] .chart .area {
   fill: var(--chart-fill);
 }
+
+/* The week still running stays muted, as in Plain, so a partial count never reads as a finished one. */
+[data-theme="harvest"] .chart .bar--partial {
+  fill: var(--muted);
+}

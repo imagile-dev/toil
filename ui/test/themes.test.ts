@@ -100,6 +100,12 @@ describe.each(THEMES.map((t) => [t.name, t] as const))('the %s theme', (name, th
     expect(theme.sounds).toEqual({});
   });
 
+  it('keeps the running week muted wherever it recolours chart bars', () => {
+    // A theme rule on `.chart .bar` outranks the base `.bar--partial`, so it must restate it (#271).
+    const css = readFileSync(join(themesDir, name, 'theme.css'), 'utf8');
+    if (/\.chart \.bar[\s,{]/.test(css)) expect(css).toMatch(/\.chart \.bar--partial\s*\{\s*fill:\s*var\(--muted\)/);
+  });
+
   it('renames only words a theme may rename', () => {
     for (const key of Object.keys(theme.terms ?? {})) expect(TERMS).toContain(key);
   });
