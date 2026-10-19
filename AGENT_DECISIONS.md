@@ -3613,3 +3613,59 @@ decided here.
 - **The terminal's wordmark is hand-drawn**, 28 columns by 7 lines of half-blocks,
   after Fredoka's shapes. It fits beside the logo at 80 columns; the existing rule
   doubles it from 97 columns, which is what that rule gives for 28.
+
+### #277 layout primitives, the overflow check and the sweep fixes
+
+- **The wordmark's name is its own text, "toil UI"** (overturns #272's `aria-label`).
+  axe's `label-content-name-mismatch` (WCAG 2.5.3) failed on every view: the label
+  "Toil UI" didn't contain the visible "toil" + "UI". The link now has no label; the
+  word and the sticker are inline text in one span with a real space between them,
+  narrowed with `word-spacing` to the width the sticker's margin had. The board's
+  Drag and Move… buttons, which the stricter rule also flagged, now carry the item
+  in visually hidden text instead of an `aria-label`.
+- **Crate is the default theme; the system's light or dark preference doesn't
+  change that.** Crate is dark only, so following `prefers-color-scheme` would mean
+  defaulting light-preferring browsers to Plain, two defaults to explain for one
+  choice. A saved choice and `?theme=` still win, and the scheme preference still
+  applies to Plain once someone picks it. Crate's stylesheet is now in the first
+  load beside Plain's. The local app keeps `?theme=` and `?scheme=` when it drops the
+  launch token from the address, so a themed link works there too.
+- **The compact header starts below 1024px**, not only on phones: at 960px the
+  inline header (name, three links, Feedback, Theme and Appearance) measured about
+  970px in Crate and Starship, so it would have wrapped on a tablet. The menu is a
+  React Aria `DialogTrigger` with a `Popover`; Feedback closes the menu before its
+  dialog opens, so focus returns to the Menu button.
+- **`Card` is the surface themes style**: themes that dressed `.panel` and
+  `.dossier-card` together now dress `.l-card`, which also brings the Settings
+  connection and dossier cards into each theme. Board cards, sprint stats and
+  attention rows stay their own small tiles, not `Card`s.
+- **The settings tabs wrap evenly** (two by two below 600px) rather than scroll:
+  four short labels fit in two even rows, and a scroller would hide one of them.
+- **Long values:** file paths, the config file and repository remotes use `Path` /
+  `Url` (cut in the middle, whole value in the tooltip, the text and a copy button);
+  a call's JSON input under "Fed by" and the feedback page's curl command wrap at
+  any character instead.
+- **The layout check runs inside `npm run smoke -w ui`** against the installed
+  package (`toil-ui --sample`), so it sees the real build under the real CSP. It
+  needs Chrome, Edge or Chromium (every GitHub runner has Chrome) and says so plainly
+  when there's none. It adds about three and a half minutes on a laptop. It runs
+  with reduced motion so an animation can't fail a run; a full-motion run by hand
+  found the same nothing. It enables axe's experimental
+  `label-content-name-mismatch` explicitly (it is off by default in axe-core 4.13),
+  as `ui/test/theme-bar.test.tsx` now does too, which also gives each of its cases a
+  30-second limit (one timed out at 5s on macOS).
+- **Not reproduced, and why:** the graph nodes' 3px (xyflow's invisible handles
+  hung half outside each node; they now sit inside, so the measurement is clean,
+  but no text was ever clipped); the DOM-flagged overlaps on the item page, the
+  Connections forms, General and the dashboard (bounding boxes of wrapped inline
+  text, nothing overlaps on screen); the Feedback dialog's backdrop (it dims, at
+  55% black, which reads faintly on Plain dark's near-black page; the check now
+  asserts a backdrop); the site's 400px gap on the home page at 375px (the reserved
+  box of the lazy cartoon, which a full-page capture never scrolls to; it loads on a
+  real scroll with and without reduced motion); and the hero art at 820 to 900px.
+- **Site contrast through the token:** `--color-faint` goes from `#857a6c` to
+  `#998d7e` (4.7:1 on the raised surface, the darkest it sits on), with the terminal
+  palette to match (`test/brand-sync.test.ts`). Shiki's comment grey takes that
+  token site-wide, so the dossiers page's local overrides are gone. Doc tables are
+  wrapped in focusable, labelled scrollers by a rehype plugin, so the skill files
+  stay plain markdown.

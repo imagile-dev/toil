@@ -59,14 +59,18 @@ async function failure(res: Response, what: string): Promise<Error> {
 
 /**
  * Signs in with the launch token in the page's URL, then takes the token out
- * of the address bar and the history. Without one (a reload, a bookmark)
+ * of the address bar and the history, leaving any other parameter. Without one (a reload, a bookmark)
  * it says to open the launch URL again.
  */
 export async function signIn(base = './', location: Pick<Location, 'search' | 'pathname' | 'hash'> = window.location, history: Pick<History, 'replaceState'> = window.history): Promise<Session> {
   const token = new URLSearchParams(location.search).get('token');
   if (!token) throw new Error('This page needs the URL toil-ui printed when it started, which carries the launch token. A reloaded page forgets its session, so open that URL again.');
   const res = await fetch(`${base}api/session`, { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
-  history.replaceState(null, '', `${location.pathname}${location.hash}`);
+  // Only the token goes; a ?theme= or ?scheme= beside it still picks how the app looks.
+  const rest = new URLSearchParams(location.search);
+  rest.delete('token');
+  const query = rest.toString();
+  history.replaceState(null, '', `${location.pathname}${query ? `?${query}` : ''}${location.hash}`);
   if (!res.ok) throw await failure(res, 'Signing in');
   return (await res.json()) as Session;
 }

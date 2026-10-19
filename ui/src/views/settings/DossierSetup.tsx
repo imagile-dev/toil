@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { pairs, type AreaInfo, type ConfigApi, type ConnectionsData } from '../../config.ts';
 import type { Envelope } from '../../toil.ts';
-import { Card, CardGrid, DataTable, Path, Url } from '../../components/layout.tsx';
+import { Card, CardGrid, Cluster, DataTable, Path, Stack, Url } from '../../components/layout.tsx';
 import { AreaField, ChangeForm, CheckField, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
 
 interface ListedDossier {
@@ -143,14 +143,14 @@ function DossierCard({ dossier: d, config }: { dossier: ListedDossier; config: C
         <Path value={d.file} what={`${d.name}'s file path`} />
         {d.shadowedBy && <> (a dossier of the same name in {d.shadowedBy} takes precedence)</>}
       </p>
-      <div className="conn-actions">
+      <Cluster className="conn-actions">
         <button type="button" className="btn" aria-expanded={shown !== null} onClick={show}>
           {shown ? 'Hide' : 'Show'}
         </button>
         <button type="button" className="btn" onClick={check}>
           Check
         </button>
-      </div>
+      </Cluster>
       <OutcomeLine outcome={checked} />
       {problems.length > 0 && (
         <ul className="plain">
@@ -175,7 +175,7 @@ function ShownDossier({ shown }: { shown: Shown }) {
   const areas = Object.entries(shown.areas);
   const repos = shown.dossier.repos ?? [];
   return (
-    <div className="shown">
+    <Stack className="shown" gap="sm">
       <DataTable
         label={`What ${shown.name} gives each area`}
         caption={`What ${shown.name} gives each area`}
@@ -217,7 +217,7 @@ function ShownDossier({ shown }: { shown: Shown }) {
       ) : (
         <p className="note">None yet.</p>
       )}
-    </div>
+    </Stack>
   );
 }
 

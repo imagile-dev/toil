@@ -195,7 +195,7 @@ export function Dashboard() {
               </span>
               Only items with something to check
             </Checkbox>
-            <DataTable label="Work items and their delivery" wide rows={shown} rowKey={(r) => r.item.id} columns={traceColumns(builds)} />
+            <DataTable className="trace" label="Work items and their delivery" wide rows={shown} rowKey={(r) => r.item.id} columns={traceColumns(builds)} />
           </Panel>
 
           <div className="panel-grid">

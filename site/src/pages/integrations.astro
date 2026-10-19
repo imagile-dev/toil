@@ -59,11 +59,11 @@ import { groups, depsCommands, notPlanned, integrationCount, levels } from '../d
       </div>
       <div class="codeblock deps__pipe" data-reveal>
         <span class="card-tag">compose</span>
-<pre><span class="p">$</span> toil deps scan <span class="p">|</span> toil osv vulns
+<pre tabindex="0" role="region" aria-label="Composing the dependency commands"><span class="p">$</span> toil deps scan <span class="p">|</span> toil osv vulns
 <span class="p">$</span> toil deps scan <span class="k">&gt;</span> inventory.json
 <span class="p">$</span> toil sonatypeiq evaluate <span class="k">--from</span> inventory.json <span class="k">--application</span> <span class="s">payments-api</span></pre>
       </div>
-      <div class="table-wrap" data-reveal>
+      <div class="table-wrap" data-reveal tabindex="0" role="region" aria-label="Dependency commands">
         <table>
           <thead><tr><th>Command</th><th>Source</th><th>Covers</th><th>Network</th></tr></thead>
           <tbody>
@@ -169,7 +169,7 @@ import { groups, depsCommands, notPlanned, integrationCount, levels } from '../d
   .tile__docs {
     align-self: flex-end;
     font-family: var(--font-action); font-size: var(--text-xs); font-weight: 500;
-    color: var(--color-accent); opacity: 0.6;
+    color: var(--color-accent);
     transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
   }
   .tile:hover .tile__docs { opacity: 1; transform: translateX(3px); }

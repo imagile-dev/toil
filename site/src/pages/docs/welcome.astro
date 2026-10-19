@@ -100,7 +100,7 @@ const keys = [
             The menu has no logic of its own. Each action runs a <code>toil connections</code> command in the same process, prompting on your terminal,
             and the result screen shows the command line it ran and what came back. Run the same line yourself any time.
           </p>
-          <div class="table-wrap">
+          <div class="table-wrap" tabindex="0" role="region" aria-label="The connections menu and the commands it runs">
             <table>
               <thead><tr><th>In the menu</th><th>It runs</th></tr></thead>
               <tbody>
@@ -179,7 +179,7 @@ const keys = [
             whose bindings do asks for the dossier's name. Import lists every connection the file names that you don't have yet, each with a row that
             adds it. Export writes into this repository's <code>.toil/dossiers/</code> or to a file, and never commits. Deleting asks for the name.
           </p>
-          <div class="table-wrap">
+          <div class="table-wrap" tabindex="0" role="region" aria-label="The dossiers menu and the commands it runs">
             <table>
               <thead><tr><th>In the menu</th><th>It runs</th></tr></thead>
               <tbody>
@@ -213,7 +213,7 @@ const keys = [
             legacy console host or <code>TOIL_ASCII</code>, everything is drawn in plain ASCII. Long lists scroll on a short window; on a narrow one, text
             wraps and table rows are cut at the edge rather than wrapping into each other.
           </p>
-          <div class="table-wrap">
+          <div class="table-wrap" tabindex="0" role="region" aria-label="Keys">
             <table>
               <thead><tr><th>Key</th><th>Does</th></tr></thead>
               <tbody>

@@ -17,7 +17,7 @@
   --color-surface-raised: #2a231c;
   --color-ink: #f6f1e9;
   --color-muted: #b4a998;
-  --color-faint: #857a6c;
+  --color-faint: #998d7e; /* 4.7:1 on the raised surface, the darkest it sits on (#277) */
   --rgb-accent: 255, 106, 61;
   --rgb-amber: 255, 184, 77;
   --color-accent: rgb(var(--rgb-accent));
@@ -333,6 +333,10 @@ button { font: inherit; color: inherit; }
 /* Scroll lives on the pre, so the card tag above the block is never clipped. */
 .codeblock pre { margin: 0; font: inherit; white-space: pre; overflow-x: auto; }
 .codeblock .c { color: var(--color-faint); }
+/* The highlighter's theme greys comments to #6a737d, which misses 4.5:1 on the
+   code background; they take the faint ink instead, which passes everywhere
+   it sits (#277). Shiki writes the colour inline, hence the attribute match. */
+pre span[style*="#6A737D" i] { color: var(--color-faint) !important; }
 .codeblock .k { color: var(--color-accent); }
 .codeblock .s { color: var(--color-ok); }
 .codeblock .p { color: var(--color-muted); user-select: none; }
@@ -389,10 +393,9 @@ button { font: inherit; color: inherit; }
   background: var(--color-bg-deep) !important; font-size: 0.8rem; line-height: 1.6;
 }
 .skill-doc pre code { overflow-wrap: normal; color: inherit; }
-.skill-doc table {
-  display: block; overflow-x: auto; max-width: 100%; border-collapse: collapse;
-  font-size: var(--text-sm);
-}
+/* Each table sits in a focusable scroller (rehypeScrollTables in src/lib/skill-pages.mjs). */
+.skill-doc .table-scroll { overflow-x: auto; max-width: 100%; }
+.skill-doc table { border-collapse: collapse; font-size: var(--text-sm); }
 .skill-doc th, .skill-doc td { border: 1px solid var(--color-line); padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; min-width: 8rem; }
 .skill-doc th { color: var(--color-ink); background: var(--color-surface); font-weight: 600; }
 .skill-doc blockquote { border-left: 2px solid var(--color-accent); padding-left: var(--space-sm); }

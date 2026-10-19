@@ -14,7 +14,7 @@ const { lines, caption } = Astro.props;
 
 <figure class="shot">
   <div class="shot__screen">
-    <pre class="shot__pre" set:html={screenHtml(lines)} />
+    <pre class="shot__pre" tabindex="0" role="region" aria-label={caption} set:html={screenHtml(lines)} />
   </div>
   <figcaption>{caption}</figcaption>
 </figure>

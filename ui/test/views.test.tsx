@@ -56,9 +56,9 @@ describe('every view', () => {
     expect(await violations(container)).toEqual([]);
   });
 
-  it('names the app "Toil UI" in the header: the wordmark, then the sticker, read as one link home (#272)', async () => {
+  it('names the app "toil UI" in the header, by its own words: the wordmark, then the sticker, read as one link home (#272, #277)', async () => {
     await open('#/dossier/settlement');
-    const home = screen.getByRole('link', { name: 'Toil UI' });
+    const home = screen.getByRole('link', { name: 'toil UI' });
     expect(home.getAttribute('href')).toBe('#/');
     expect(home.querySelector('.wordmark')?.textContent).toBe('toil');
     expect(home.querySelector('.sticker')?.textContent).toBe('UI');
@@ -110,7 +110,7 @@ describe('a dashboard', () => {
 
   it('shows a story with its pull request, its build and where it runs, in one row', async () => {
     await open('#/dossier/card-payments');
-    const row = (name: RegExp) => screen.getAllByRole('rowheader', { name }).find((r) => r.closest('table.trace'))!.closest('tr')!;
+    const row = (name: RegExp) => screen.getAllByRole('rowheader', { name }).find((r) => r.closest('.trace'))!.closest('tr')!;
     expect(row(/PAY-105/).textContent).toContain('#298 PAY-105 Show the last four digits on receipts');
     expect(row(/PAY-105/).textContent).toContain('SUCCESS');
     expect(row(/PAY-105/).textContent).toContain('dev');
@@ -118,7 +118,7 @@ describe('a dashboard', () => {
     expect(row(/PAY-101/).textContent).toContain('Latest build failed');
     expect(row(/PAY-101/).textContent).toContain('Not deployed');
     await userEvent.click(screen.getByRole('checkbox', { name: 'Only items with something to check' }));
-    const trace = document.querySelector('table.trace') as HTMLElement;
+    const trace = document.querySelector('.trace table') as HTMLElement;
     expect(within(trace).getAllByRole('rowheader').map((r) => r.textContent)).toEqual([expect.stringContaining('PAY-101')]);
   });
 
@@ -206,7 +206,8 @@ describe('the views on a dashboard (#252, #253)', () => {
     await open('#/dossier/card-payments', { execute: fixture.execute });
     const before = fixture.calls.length;
     const board = panel('Sprint 42 board');
-    await userEvent.click(within(board).getByRole('button', { name: 'Move PAY-102 to…' }));
+    // A browser names it "Move PAY-102 to…"; jsdom's name computation drops the space that leads the hidden words.
+    await userEvent.click(within(board).getByRole('button', { name: /^Move ?PAY-102 to…$/ }));
     await userEvent.click(await screen.findByRole('menuitem', { name: 'In progress' }));
     const card = within(board).getByRole('article', { name: 'Proposal: Move PAY-102 to In progress' });
     expect(card.textContent).toContain("toil jira transition-issue --dossier 'card-payments' --key 'PAY-102' --transition 'In Progress' --allow-write");
@@ -375,7 +376,8 @@ describe('settings', () => {
     await open('#/settings/dossiers', { config });
     const card = await screen.findByRole('article', { name: 'settlement' });
     await userEvent.click(within(card).getByRole('button', { name: 'Check' }));
-    expect((await within(card).findByRole('status')).textContent).toContain('settlement checks out: no problems.');
+    expect(await within(card).findByText('settlement checks out: no problems.')).toBeTruthy();
+    expect(within(card).getByText('settlement checks out: no problems.').closest('[role="status"]')).toBeTruthy();
     await userEvent.click(within(card).getByRole('button', { name: 'Show' }));
     expect(within(card).getByRole('table').textContent).toContain('corp-ado (dossier)');
 
@@ -560,20 +562,20 @@ describe('keyboard and focus', () => {
 });
 
 describe('themes', () => {
-  it('switches between Plain and Crate without changing the layout, and remembers the choice', async () => {
+  it('opens in Crate, switches to Plain without changing the layout, and remembers the choice (#277)', async () => {
     await open('#/dossier/card-payments');
     const before = screen.getAllByRole('button').map((b) => b.textContent);
-    expect(document.documentElement.dataset.theme).toBe('plain');
-    expect(screen.getByRole('button', { name: /Appearance/ })).toBeTruthy();
-    expect(document.querySelector('.ask img')).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: /Theme/ }));
-    await userEvent.click(await screen.findByRole('option', { name: 'Crate' }));
     expect(document.documentElement.dataset.theme).toBe('crate');
     // Crate is dark only, so there's no appearance to choose; its crate stars in the empty state.
     expect(screen.queryByRole('button', { name: /Appearance/ })).toBeNull();
     expect(document.querySelector('.ask img')?.getAttribute('alt')).toBe('');
+    await userEvent.click(screen.getByRole('button', { name: /Theme/ }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Plain' }));
+    expect(document.documentElement.dataset.theme).toBe('plain');
+    expect(screen.getByRole('button', { name: /Appearance/ })).toBeTruthy();
+    expect(document.querySelector('.ask img')).toBeNull();
     expect(screen.getAllByRole('button').map((b) => b.textContent).filter((t) => !/Plain|Crate|System/.test(t ?? ''))).toEqual(before.filter((t) => !/Plain|Crate|System/.test(t ?? '')));
-    expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toEqual({ theme: 'crate', scheme: 'system' });
+    expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toEqual({ theme: 'plain', scheme: 'system' });
   });
 
   it('takes the theme and scheme from the address first', async () => {

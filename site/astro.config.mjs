@@ -1,6 +1,6 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
-import { remarkSkillLinks } from './src/lib/skill-pages.mjs';
+import { rehypeScrollTables, remarkSkillLinks } from './src/lib/skill-pages.mjs';
 
 // Served from GitHub Pages as a project site, so every internal link goes
 // through `url()` in src/lib/url.ts rather than starting with a bare `/`.
@@ -26,6 +26,6 @@ export default defineConfig({
   base: '/toil',
   trailingSlash: 'always',
   integrations: [sitemap()],
-  markdown: { remarkPlugins: [remarkSkillLinks({ base: '/toil' })] },
+  markdown: { remarkPlugins: [remarkSkillLinks({ base: '/toil' })], rehypePlugins: [rehypeScrollTables()] },
   vite: { server: { fs: { allow: ['..'] } }, plugins: [uiPreviewIndex] },
 });

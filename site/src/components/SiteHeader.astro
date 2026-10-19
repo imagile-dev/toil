@@ -171,7 +171,8 @@ const current = Astro.url.pathname;
   @media (max-width: 560px) {
     .site-header__nav { gap: 0.9rem; }
     .site-header__nav ul { gap: 0.9rem; font-size: var(--text-xs); }
-    .site-header__gh span { display: none; }
+    /* The word stays for screen readers; the icon alone shows. */
+    .site-header__gh span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     .site-header__gh { padding-inline: 0.6rem; }
   }
 </style>

@@ -27,9 +27,10 @@
 // --sample`). By hand, against any build:
 //
 //   npx vite preview --port 4173            (after `npx vite build`, in ui/)
-//   node scripts/layout-check.mjs --base http://127.0.0.1:4173/ [--theme crate] [--route '#/settings/dossiers'] [--width 375] [--shots <dir>] [--json <file>]
+//   node scripts/layout-check.mjs --base http://127.0.0.1:4173/ [--theme crate] [--route '#/settings/dossiers'] [--width 375] [--motion full] [--shots <dir>] [--json <file>]
 //
 // Repo tooling only; nothing here ships. It measures twice and files once.
+/* global document, window, getComputedStyle -- inspect() and covered() run in the page */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
@@ -199,7 +200,7 @@ async function axeRun(page, source) {
  * in one theme. Resolves with the problems that fail the run, the report-only
  * axe findings, and a count of what was checked.
  */
-export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES, widths = WIDTHS, shots = null, log = () => {} }) {
+export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES, widths = WIDTHS, shots = null, motion = 'reduce', log = () => {} }) {
   const chrome = findChrome();
   if (!chrome) throw new Error('The layout check needs Chrome, Edge or Chromium, and found none. Install one, or set CHROME_PATH to it.');
   const axeSource = readFileSync(createRequire(join(ui, 'package.json')).resolve('axe-core/axe.min.js'), 'utf8');
@@ -210,7 +211,7 @@ export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES,
   if (shots) mkdirSync(shots, { recursive: true });
   const shoot = async (name) => shots && writeFileSync(join(shots, `${name}.png`), await page.screenshot());
   try {
-    await page.media([{ name: 'prefers-reduced-motion', value: 'reduce' }]);
+    await page.media([{ name: 'prefers-reduced-motion', value: motion }]);
     for (const run of runs) {
       const label = `${run.theme}${run.theme === 'plain' ? ` ${run.scheme}` : ''}`;
       for (const route of routes) {
@@ -272,7 +273,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const one = (flag) => many(flag)[0];
   const base = one('--base');
   if (!base) {
-    console.error('Usage: node scripts/layout-check.mjs --base <url> [--theme <name>] [--route <hash>] [--width <px>] [--shots <dir>] [--json <file>]');
+    console.error('Usage: node scripts/layout-check.mjs --base <url> [--theme <name>] [--route <hash>] [--width <px>] [--motion full] [--shots <dir>] [--json <file>]');
     process.exit(2);
   }
   const themes = many('--theme');
@@ -286,7 +287,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     u.hash = route;
     return u.href;
   };
-  const result = await checkLayout({ urlFor, runs, routes, widths, shots: one('--shots') ?? null, log: (l) => console.error(l) });
+  const motion = one('--motion') === 'full' ? 'no-preference' : 'reduce';
+  const result = await checkLayout({ urlFor, runs, routes, widths, motion, shots: one('--shots') ?? null, log: (l) => console.error(l) });
   for (const r of result.reported) console.log(`report-only: ${r}`);
   for (const p of result.problems) console.log(`problem: ${p}`);
   if (one('--json')) writeFileSync(one('--json'), JSON.stringify(result, null, 2));

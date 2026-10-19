@@ -59,10 +59,11 @@ function Card({ item, others, onMove }: { item: WorkItem; others: StatusCategory
         <div className="card-actions">
           {/* The name is the visible word plus what it acts on, so voice control finds it by "Drag" (WCAG 2.5.3). */}
           <button type="button" className="drag" {...listeners} {...attributes}>
-            <span aria-hidden="true">⠿</span> Drag<span className="sr-only"> {key} to another column</span>
+            <span aria-hidden="true">⠿</span> Drag <span className="sr-only">{key} to another column</span>
           </button>
           <MenuTrigger>
             <Button className="btn btn--small">
+              {/* The space leads the hidden words, so the button still reads "Move…" on screen. */}
               Move<span className="sr-only"> {key} to</span>…
             </Button>
             <Popover className="popover" placement="bottom end">

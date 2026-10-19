@@ -304,7 +304,9 @@ GitHub Actions; its build tooling is out of scope.
   Agent are its test harness, `toil-ui --sample`, and the site's `/ui-preview/`.
   `ui/test/registry.test.ts` holds every call the fixture answers to the real
   registry; `npm run check:package -w ui` is its `check:pure`, and `npm run smoke
-  -w ui` installs both tarballs and opens it. The decisions are in
+  -w ui` installs both tarballs, opens it, and holds every view in every theme at
+  375, 768 and 1440px to the layout check in headless Chrome
+  (`ui/scripts/layout-check.mjs`). The decisions are in
   `AGENT_DECISIONS.md`, **#206 preview**, **#228 dossier dashboard** and **#249 UI
   server**
 - `functions/feedback/` — the feedback backend behind the site's form and its curl

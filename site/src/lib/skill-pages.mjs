@@ -115,3 +115,39 @@ export function remarkSkillLinks({ base }) {
     walk(tree);
   };
 }
+
+/** The plain text inside a hast node. */
+const textOf = (node) => (node.type === 'text' ? node.value : (node.children ?? []).map(textOf).join(''));
+
+/**
+ * A rehype plugin: every table in the rendered docs sits in its own scroller,
+ * so a wide one scrolls inside the page rather than widening it, and the
+ * scroller can be reached and scrolled with the keyboard, named by the
+ * table's first heading (#277).
+ */
+export function rehypeScrollTables() {
+  return () => (tree) => {
+    const walk = (node) => {
+      if (!node.children) return;
+      node.children = node.children.map((child) => {
+        if (child.type === 'element' && child.tagName === 'table') {
+          const head = findFirst(child, 'th');
+          const first = head ? textOf(head).trim().slice(0, 60) : '';
+          return { type: 'element', tagName: 'div', properties: { className: ['table-scroll'], tabIndex: 0, role: 'region', ariaLabel: first ? `Table: ${first}` : 'Table' }, children: [child] };
+        }
+        walk(child);
+        return child;
+      });
+    };
+    walk(tree);
+  };
+}
+
+function findFirst(node, tag) {
+  for (const child of node.children ?? []) {
+    if (child.type === 'element' && child.tagName === tag) return child;
+    const found = findFirst(child, tag);
+    if (found) return found;
+  }
+  return null;
+}
