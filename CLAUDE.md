@@ -919,7 +919,7 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
     for Toil UI (`ui/`), and both when it changes both. Repository tooling, the site,
     `functions/`, `infra/` and docs alone carry neither. Issues filed by the feedback
     backend (`from-website`, `from-terminal`) can't know which product they are
-    about, so triage adds the product label when it finishes them.
+    about, so they're filed without one; whoever picks the issue up adds it.
   - **`deferred`** goes on any issue the maintainer calls "later" or "much later".
     A deferred issue records the problem and isn't planned in detail.
   - **PR links:** many PRs can serve one issue. They use `Refs #n`, and the PR that
