@@ -28,7 +28,11 @@ export interface CliLookup {
   platform: NodeJS.Platform;
   /** Tests pass their own; a real lookup asks the file system. */
   isFile?: (path: string) => boolean;
-  path?: Pick<typeof nodePath, 'delimiter' | 'join' | 'isAbsolute'>;
+  path?: Pick<typeof nodePath, 'delimiter' | 'join' | 'isAbsolute' | 'relative' | 'resolve'>;
+  /** The working directory: a PATH entry in it or under it is skipped. process.cwd() by default. */
+  cwd?: string;
+  /** The home folder, which stays searchable when the working directory holds it. */
+  home?: string;
 }
 
 const realIsFile = (p: string) => {
@@ -57,7 +61,19 @@ export function findCli(l: CliLookup): string {
     if (l.platform === 'win32' && SHIM.test(l.configured)) throw shimError(l.configured);
     return l.configured;
   }
-  const dirs = (l.env.PATH ?? l.env.Path ?? '').split(path.delimiter).filter(Boolean);
+  // The rule src/core/git.ts follows: a relative PATH entry, or one in the working directory, could hold a CLI a cloned repository planted, so neither is searched.
+  const cwd = path.resolve(l.cwd ?? process.cwd());
+  const home = l.home ?? l.env.HOME ?? l.env.USERPROFILE;
+  const fold = (p: string) => (l.platform === 'win32' ? p.toLowerCase() : p);
+  const under = (dir: string, root: string) => {
+    const rel = path.relative(fold(root), fold(dir));
+    return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
+  };
+  const homeInside = home !== undefined && path.isAbsolute(home) && under(path.resolve(home), cwd);
+  const dirs = (l.env.PATH ?? l.env.Path ?? '')
+    .split(path.delimiter)
+    .map((d) => d.replace(/^"(.*)"$/, '$1'))
+    .filter((d) => d !== '' && path.isAbsolute(d) && !(under(path.resolve(d), cwd) && !(homeInside && path.resolve(d) !== cwd)));
   // On Windows a real executable beats a shim in the same folder; PATHEXT order otherwise.
   const exts = l.platform === 'win32' ? ['.exe', '.com', ...(l.env.PATHEXT ?? '.CMD;.BAT').split(';').map((e) => e.toLowerCase()).filter((e) => e === '.cmd' || e === '.bat'), ''] : [''];
   let shim: string | null = null;

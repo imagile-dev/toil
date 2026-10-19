@@ -3170,3 +3170,28 @@ fills.
   "Backlog hygiene" in about 75 seconds with ten cited items, none unverified, and
   six proposals (`jira add-comment`, and `jira update-issue` with
   `--field 'Epic Link=…'`), none run.
+- **Review round 1.**
+  - **An environment allowlist for the agent CLI** (`ui/server/agents/env.ts`), the
+    approach git takes: PATH and PATHEXT, the home, profile, AppData and temp folders,
+    SystemRoot, windir and ComSpec, locale and TZ, the XDG folders, the proxy
+    variables and the CA variables (`NODE_EXTRA_CA_CERTS`, `SSL_CERT_FILE`,
+    `SSL_CERT_DIR`). On top of that, each CLI's own sign-in and config: Claude
+    `ANTHROPIC_*`, `CLAUDE_CODE_*`, `CLAUDE_CONFIG_DIR`, and Bedrock's `AWS_*` and
+    Vertex's `GOOGLE_APPLICATION_CREDENTIALS`, `GOOGLE_CLOUD_PROJECT`,
+    `CLOUD_ML_REGION` and `VERTEX_REGION_*`; Copilot `COPILOT_*` and `GH_HOST`;
+    Codex `CODEX_*` and `OPENAI_*`. Nothing else is passed: no `TOIL_*`, no
+    `GITHUB_TOKEN` or `GH_TOKEN` (Copilot's own variable is `COPILOT_GITHUB_TOKEN`),
+    and no CI tokens. Copilot now gets an explicit `env` on its stdio connection
+    instead of inheriting.
+  - **`findCli` skips relative `PATH` entries and the working directory,** git's rule
+    from `src/core/git.ts`: an empty or relative entry, the working directory and
+    anything under it are never searched, except that a home folder inside the
+    working directory stays searchable. Case is folded on Windows.
+  - **The run count** is taken right after the `MAX_RUNS` check and given back in a
+    `finally` that covers the SDK load and the CLI search too, so a failed load can't
+    leak a place.
+  - **A CLI path in Settings must name the adapter's own CLI:** its basename is
+    `claude`, `copilot` or `codex`, or on Windows that name with `.exe` or `.cmd`, in
+    any case. So Settings can't point the agent's arguments at another program. A
+    path with no adapter chosen is refused. The check sits in `checkAgentSettings`,
+    which `POST api/agent/settings` runs, and also when the saved file is read.

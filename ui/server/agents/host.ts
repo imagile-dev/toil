@@ -23,6 +23,7 @@ import { AgentError } from './cli.ts';
 import { codexRuntime } from './codex.ts';
 import { copilotRuntime } from './copilot.ts';
 import { promptFor, STARTERS, systemPrompt } from './prompts.ts';
+import { agentEnv } from './env.ts';
 import { cliFor, Latest, loadSdk, nodeImporter, type AdapterName, type Importer, type Runtime, type ServeTools } from './runtime.ts';
 import { checkAgentSettings, loadAgentSettings, saveAgentSettings, DEFAULT_AGENT_SETTINGS, ENDPOINTS, type AgentSettings } from './settings.ts';
 import { cacheTools, Ledger, liveTools, proposalTool, recorded, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
@@ -46,6 +47,8 @@ export interface AgentHostOptions {
   /** Whether a package resolves from here, without loading it. */
   installed?: (specifier: string) => boolean;
   isFile?: (path: string) => boolean;
+  /** The working directory, which a PATH search skips; process.cwd() by default. */
+  cwd?: string;
   runtimes?: Runtime[];
   now?: () => string;
 }
@@ -88,6 +91,10 @@ export class AgentHost implements Agent {
   private settings: AgentSettings;
   private problem: string | null = null;
   private running = 0;
+  /** How many questions are running now. */
+  get active(): number {
+    return this.running;
+  }
   private readonly runtimes: Runtime[];
   private readonly writes: Map<string, WriteCommand>;
 
@@ -134,49 +141,52 @@ export class AgentHost implements Agent {
       return;
     }
     if (this.running >= MAX_RUNS) throw new AgentError(`${MAX_RUNS} questions are already running.`, 'Wait for an answer, then ask again.');
-    const data = this.o.data(dossier);
-    if (!data) throw new AgentError(`Toil UI hasn't synced ${dossier} yet, so the agent has nothing to read.`, 'Press Sync now in the Sync panel, then ask again.');
-    const importer = this.o.importer ?? nodeImporter;
-    const env = this.o.env ?? process.env;
-    const sdk = await loadSdk(runtime, importer);
-    const cli = cliFor(runtime, this.settings.cliPath, env, this.o.platform ?? process.platform, this.o.isFile);
-
-    const ledger = new Ledger();
-    const tools = this.tools(dossier, data, ledger);
-    const { label, text } = promptFor(dossier, prompt);
-    const by = this.settings.model ? `${runtime.label} (${this.settings.model})` : runtime.label;
-    const workDir = join(this.o.dataDir, 'agent');
-    mkdirSync(workDir, { recursive: true, mode: 0o700 });
-
-    const out = new Latest<Answer>();
+    // Counted from here, before anything can await, and given back in the finally whatever fails: the SDK load, the CLI search, the run.
     this.running++;
-    const run = runtime
-      .run(sdk, {
-        system: systemPrompt(dossier, (this.o.now ?? (() => new Date().toISOString()))()),
-        prompt: text,
-        tools,
-        model: this.settings.model,
-        cli,
-        workDir,
-        env,
-        signal: ctx.signal,
-        onText: (t) => out.push(partial(t, { prompt: label, by })),
-        serveTools: this.o.serveTools,
-        endpoint: runtime.name === 'claude' ? this.settings.endpoint : null,
-        importer,
-      })
-      .then(
-        (final) => {
-          out.push(finish(final, { dossier, prompt: label, by, ledger, writes: this.writes }));
-          out.end();
-        },
-        (e: unknown) => out.end(e instanceof AgentError ? e : new AgentError(`${runtime.label} failed: ${e instanceof Error ? e.message : String(e)}`, `Check that ${runtime.cliLabel} is signed in (run ${runtime.command} once on its own), then ask again.`)),
-      )
-      .finally(() => this.running--);
+    let run: Promise<void> | undefined;
     try {
+      const data = this.o.data(dossier);
+      if (!data) throw new AgentError(`Toil UI hasn't synced ${dossier} yet, so the agent has nothing to read.`, 'Press Sync now in the Sync panel, then ask again.');
+      const importer = this.o.importer ?? nodeImporter;
+      const env = this.o.env ?? process.env;
+      const sdk = await loadSdk(runtime, importer);
+      const cli = cliFor(runtime, this.settings.cliPath, env, this.o.platform ?? process.platform, this.o.isFile, this.o.cwd);
+
+      const ledger = new Ledger();
+      const tools = this.tools(dossier, data, ledger);
+      const { label, text } = promptFor(dossier, prompt);
+      const by = this.settings.model ? `${runtime.label} (${this.settings.model})` : runtime.label;
+      const workDir = join(this.o.dataDir, 'agent');
+      mkdirSync(workDir, { recursive: true, mode: 0o700 });
+
+      const out = new Latest<Answer>();
+      run = runtime
+        .run(sdk, {
+          system: systemPrompt(dossier, (this.o.now ?? (() => new Date().toISOString()))()),
+          prompt: text,
+          tools,
+          model: this.settings.model,
+          cli,
+          workDir,
+          // Only what this CLI needs: never toil's variables, GITHUB_TOKEN or CI tokens (env.ts).
+          env: agentEnv(env, runtime.name),
+          signal: ctx.signal,
+          onText: (t) => out.push(partial(t, { prompt: label, by })),
+          serveTools: this.o.serveTools,
+          endpoint: runtime.name === 'claude' ? this.settings.endpoint : null,
+          importer,
+        })
+        .then(
+          (final) => {
+            out.push(finish(final, { dossier, prompt: label, by, ledger, writes: this.writes }));
+            out.end();
+          },
+          (e: unknown) => out.end(e instanceof AgentError ? e : new AgentError(`${runtime.label} failed: ${e instanceof Error ? e.message : String(e)}`, `Check that ${runtime.cliLabel} is signed in (run ${runtime.command} once on its own), then ask again.`)),
+        );
       yield* out;
     } finally {
       await run;
+      this.running--;
     }
   }
 
@@ -187,7 +197,7 @@ export class AgentHost implements Agent {
     const adapters = this.runtimes.map((r): AdapterStatus => {
       let cli: AdapterStatus['cli'];
       try {
-        cli = { path: cliFor(r, r.name === this.settings.adapter ? this.settings.cliPath : null, env, this.o.platform ?? process.platform, this.o.isFile), problem: null, fix: null };
+        cli = { path: cliFor(r, r.name === this.settings.adapter ? this.settings.cliPath : null, env, this.o.platform ?? process.platform, this.o.isFile, this.o.cwd), problem: null, fix: null };
       } catch (e) {
         cli = { path: null, problem: e instanceof Error ? e.message : String(e), fix: e instanceof AgentError ? e.fix : null };
       }

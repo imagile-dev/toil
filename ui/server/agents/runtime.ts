@@ -81,8 +81,8 @@ export async function loadSdk(runtime: Pick<Runtime, 'label' | 'package'>, impor
 }
 
 /** The CLI for a runtime: the configured path, else PATH. */
-export function cliFor(runtime: Pick<Runtime, 'cliLabel' | 'command'>, configured: string | null, env: Record<string, string | undefined>, platform: NodeJS.Platform, isFile?: (p: string) => boolean): string {
-  return findCli({ label: runtime.cliLabel, command: runtime.command, configured: configured ?? undefined, env, platform, ...(isFile ? { isFile } : {}) });
+export function cliFor(runtime: Pick<Runtime, 'cliLabel' | 'command'>, configured: string | null, env: Record<string, string | undefined>, platform: NodeJS.Platform, isFile?: (p: string) => boolean, cwd?: string): string {
+  return findCli({ label: runtime.cliLabel, command: runtime.command, configured: configured ?? undefined, env, platform, ...(isFile ? { isFile } : {}), ...(cwd ? { cwd } : {}) });
 }
 
 /** The real importer. The specifier is a variable, so the bundler leaves the import for Node to resolve at run time. */

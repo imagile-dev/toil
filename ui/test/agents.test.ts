@@ -11,6 +11,7 @@ import { claudeEnv, claudeRuntime, claudeToolName, zodShape } from '../server/ag
 import { AgentError, findCli } from '../server/agents/cli.ts';
 import { CODEX_FEATURES_OFF, codexOverrides, codexRuntime, TOKEN_ENV } from '../server/agents/codex.ts';
 import { copilotRuntime } from '../server/agents/copilot.ts';
+import { agentEnv } from '../server/agents/env.ts';
 import { AgentHost, type AgentHostOptions } from '../server/agents/host.ts';
 import { answerMcp, McpGrants } from '../server/agents/mcp.ts';
 import { STARTERS } from '../server/agents/prompts.ts';
@@ -379,7 +380,8 @@ function hostFor(adapter: 'claude' | 'copilot' | 'codex', module: unknown, over:
     mapIds: () => [],
     serveTools: (tools) => grants.serve(tools),
     fallback: noAgent(),
-    env: { PATH: '/usr/bin' },
+    env: { PATH: '/usr/bin', HOME: '/home/you', TOIL_JIRA_TOKEN: 'toil-secret', GITHUB_TOKEN: 'gh-secret', SYSTEM_ACCESSTOKEN: 'ci-secret', ANTHROPIC_API_KEY: 'claude-own', OPENAI_API_KEY: 'codex-own', COPILOT_GITHUB_TOKEN: 'copilot-own', HTTPS_PROXY: 'http://proxy.imagile.dev:8080' },
+    cwd: '/work',
     platform: 'linux',
     importer,
     installed: () => true,
@@ -470,7 +472,8 @@ describe('the Copilot adapter, on a stubbed SDK', () => {
     const stub = copilotStub(SCRIPT);
     const { host, rec } = hostFor('copilot', stub.module);
     expectTheRules(await streamed(host), rec);
-    expect(stub.seen.client!.connection).toEqual({ kind: 'stdio', path: '/usr/bin/copilot' });
+    expect(stub.seen.client!.connection).toMatchObject({ kind: 'stdio', path: '/usr/bin/copilot' });
+    expect(stub.seen.client).not.toHaveProperty('env');
     const s = stub.seen.session!;
     const names = (s.tools as Array<{ name: string; skipPermission: boolean }>).map((t) => t.name);
     expect(names).not.toContain('jira_update_issue');
@@ -566,7 +569,17 @@ describe('when an adapter cannot run', () => {
 });
 
 describe('finding the CLI', () => {
-  const look = (over: Partial<Parameters<typeof findCli>[0]>) => findCli({ label: 'Claude Code', command: 'claude', env: {}, platform: 'linux', isFile: () => false, ...over });
+  const look = (over: Partial<Parameters<typeof findCli>[0]>) => findCli({ label: 'Claude Code', command: 'claude', env: {}, platform: 'linux', isFile: () => false, cwd: '/work', path: posix, ...over });
+
+  it('skips relative PATH entries and the working directory, as git does, but not a home inside it', () => {
+    const planted = (p: string) => p.endsWith('/claude');
+    expect(look({ env: { PATH: '.:bin:/work:/work/node_modules/.bin:/usr/bin' }, isFile: planted })).toBe('/usr/bin/claude');
+    expect(() => look({ env: { PATH: '.:bin:/work/tools' }, isFile: planted })).toThrow(/found no claude on PATH/);
+    // A home inside the working directory stays searchable, as git's rule has it; the working directory itself never is.
+    expect(look({ cwd: '/home', home: '/home/you', env: { PATH: '/home:/home/you/.local/bin' }, isFile: planted })).toBe('/home/you/.local/bin/claude');
+    const exe = win32.join('C:\\tools', 'claude.exe');
+    expect(look({ platform: 'win32', path: win32, cwd: 'C:\\repo', env: { Path: '.;C:\\repo;C:\\REPO\\bin;C:\\tools' }, isFile: (p) => p.toLowerCase().endsWith('claude.exe') })).toBe(exe);
+  });
 
   it('takes the configured path first, and refuses one that is missing or relative', () => {
     expect(look({ configured: '/opt/claude/bin/claude', isFile: (p) => p === '/opt/claude/bin/claude', env: { PATH: '/usr/bin' } })).toBe('/opt/claude/bin/claude');
@@ -609,6 +622,77 @@ describe('the agent settings', () => {
     const host = new AgentHost({ dataDir, version: 't', data: () => data, registry: registry.commands, execute: recordingExecute().execute, mapIds: () => [], serveTools: () => ({ url: '', token: '', close() {} }), fallback: noAgent() });
     expect(host.kind).toBe('none');
     expect(host.status().problem).toMatch(/agent\.json can't be used/);
+  });
+});
+
+describe("the agent CLI's environment", () => {
+  const leaked = (env: Record<string, unknown>) => ['TOIL_JIRA_TOKEN', 'GITHUB_TOKEN', 'SYSTEM_ACCESSTOKEN'].filter((k) => k in env);
+
+  it('is an allowlist per adapter: toil and CI tokens never reach any CLI, each CLI keeps its own sign-in', async () => {
+    const claude = claudeStub(SCRIPT);
+    await streamed(hostFor('claude', claude.module).host);
+    const c = claude.seen.options!.env as Record<string, string>;
+    expect(leaked(c)).toEqual([]);
+    expect(c).toMatchObject({ PATH: '/usr/bin', HOME: '/home/you', ANTHROPIC_API_KEY: 'claude-own', HTTPS_PROXY: 'http://proxy.imagile.dev:8080' });
+    expect(c).not.toHaveProperty('OPENAI_API_KEY');
+
+    const copilot = copilotStub(SCRIPT);
+    await streamed(hostFor('copilot', copilot.module).host);
+    const p = (copilot.seen.client!.connection as { env: Record<string, string> }).env;
+    expect(leaked(p)).toEqual([]);
+    expect(p).toEqual({ PATH: '/usr/bin', HOME: '/home/you', COPILOT_GITHUB_TOKEN: 'copilot-own', HTTPS_PROXY: 'http://proxy.imagile.dev:8080' });
+
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const codex = codexStub(SCRIPT, holder);
+    await streamed(hostFor('codex', codex.module, { serveTools: (t) => holder.serve(t) }).host);
+    const x = codex.seen.options!.env as Record<string, string>;
+    expect(leaked(x)).toEqual([]);
+    expect(Object.keys(x).sort()).toEqual(['HOME', 'HTTPS_PROXY', 'OPENAI_API_KEY', 'PATH', TOKEN_ENV].sort());
+  });
+
+  it('agentEnv drops everything off the list', () => {
+    expect(agentEnv({ PATH: '/bin', TOIL_CONFIG: '/x', GH_TOKEN: 'g', NPM_TOKEN: 'n', CODEX_HOME: '/c', ANTHROPIC_API_KEY: 'a' }, 'codex')).toEqual({ PATH: '/bin', CODEX_HOME: '/c' });
+  });
+});
+
+describe('the run count', () => {
+  it('is taken before the SDK loads and given back whatever fails, so a third question waits and a failed load frees its place', async () => {
+    let release: (e: unknown) => void = () => {};
+    const blocked = new Promise<never>((_, reject) => (release = reject));
+    const { host } = hostFor('claude', null, { importer: () => blocked });
+    const first = host.ask(ctx(), 'card-payments', 'q').catch((e: unknown) => e);
+    const second = host.ask(ctx(), 'card-payments', 'q').catch((e: unknown) => e);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(host.active).toBe(2);
+    await expect(host.ask(ctx(), 'card-payments', 'q')).rejects.toThrow('2 questions are already running.');
+    release(Object.assign(new Error("Cannot find package '@anthropic-ai/claude-agent-sdk'"), { code: 'ERR_MODULE_NOT_FOUND' }));
+    expect(await first).toBeInstanceOf(AgentError);
+    expect(await second).toBeInstanceOf(AgentError);
+    expect(host.active).toBe(0);
+  });
+
+  it('is given back after a CLI search fails, and after an answer', async () => {
+    const missing = hostFor('codex', codexStub(SCRIPT, new McpGrants(() => '')).module, { isFile: () => false }).host;
+    await missing.ask(ctx(), 'card-payments', 'q').catch(() => undefined);
+    expect(missing.active).toBe(0);
+    const { host } = hostFor('claude', claudeStub(SCRIPT).module);
+    await host.ask(ctx(), 'card-payments', 'q');
+    expect(host.active).toBe(0);
+  });
+});
+
+describe('a CLI path in Settings', () => {
+  it("must name the adapter's own CLI", () => {
+    expect(checkAgentSettings({ adapter: 'claude', cliPath: '/opt/bin/claude' }, posix.isAbsolute, 'linux').cliPath).toBe('/opt/bin/claude');
+    expect(() => checkAgentSettings({ adapter: 'claude', cliPath: '/bin/sh' }, posix.isAbsolute, 'linux')).toThrow('The CLI path must end in claude, the claude adapter\'s own CLI, not "sh".');
+    expect(() => checkAgentSettings({ adapter: 'codex', cliPath: '/opt/bin/claude' }, posix.isAbsolute, 'linux')).toThrow(/must end in codex/);
+    expect(() => checkAgentSettings({ adapter: 'claude', cliPath: '/opt/bin/claude.exe' }, posix.isAbsolute, 'linux')).toThrow(/must end in claude,/);
+    expect(() => checkAgentSettings({ adapter: 'none', cliPath: '/opt/bin/claude' }, posix.isAbsolute, 'linux')).toThrow(/needs an adapter/);
+  });
+
+  it('takes .exe and .cmd on Windows, in any case, and nothing else', () => {
+    for (const p of ['C:\\Tools\\codex.exe', 'C:\\Tools\\CODEX.EXE', 'C:\\Tools\\codex.cmd', 'C:\\Tools\\codex']) expect(checkAgentSettings({ adapter: 'codex', cliPath: p }, win32.isAbsolute, 'win32').cliPath).toBe(p);
+    expect(() => checkAgentSettings({ adapter: 'codex', cliPath: 'C:\\Windows\\System32\\cmd.exe' }, win32.isAbsolute, 'win32')).toThrow(/codex or codex.exe or codex.cmd/);
   });
 });
 

@@ -119,8 +119,12 @@ and has no field for a key: each SDK signs in the way its CLI does. Install the 
 with `--omit=optional` if you don't want its bundled copy of the CLI on disk; Toil UI
 never starts that copy anyway.
 
-- **Only the CLI already on this machine.** Toil UI finds it on `PATH` or at the path
-  you set, hands that path to the SDK, and never downloads one. Not found is a plain
+- **Only the CLI already on this machine.** Toil UI finds it on `PATH` (skipping
+  relative entries and the working directory) or at the path you set, which must
+  name that CLI, hands that path to the SDK, and never downloads one.
+- **An environment of its own.** The CLI gets only what it needs to run (paths, home
+  and temp folders, proxy and CA settings) and its own sign-in variables. toil's
+  `TOIL_*` variables, `GITHUB_TOKEN` and CI tokens never reach it. Not found is a plain
   error naming the CLI and the fix. On Windows a `.cmd` shim can't be started by the
   SDKs, so point at the `.exe`.
 - **Read-only tools, one dossier.** The agent gets `owi_query`, `owi_get` and

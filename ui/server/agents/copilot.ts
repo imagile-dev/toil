@@ -8,7 +8,8 @@
  * Locked down: the session's tools are Toil UI's read tools and nothing else
  * (`availableTools` names only them, as `custom:<name>`), each marked
  * `skipPermission` because it only reads, and every other permission request
- * is rejected. The system message is replaced with Toil UI's. Options checked
+ * is rejected. The CLI gets an explicit environment, the allowlist in env.ts,
+ * rather than inheriting Toil UI's. The system message is replaced with Toil UI's. Options checked
  * against the SDK's types.d.ts at 1.0.16.
  */
 
@@ -27,7 +28,7 @@ interface CopilotClient {
 }
 interface CopilotSdk {
   CopilotClient: new (options: Record<string, unknown>) => CopilotClient;
-  RuntimeConnection: { forStdio(options: { path: string }): unknown };
+  RuntimeConnection: { forStdio(options: { path: string; env: Record<string, string> }): unknown };
   defineTool(name: string, config: Record<string, unknown>): unknown;
 }
 
@@ -43,7 +44,7 @@ export function copilotRuntime(): Runtime {
     cliLabel: 'the Copilot CLI',
     async run(module, r) {
       const sdk = module as CopilotSdk;
-      const client = new sdk.CopilotClient({ connection: sdk.RuntimeConnection.forStdio({ path: r.cli }), workingDirectory: r.workDir, logLevel: 'error' });
+      const client = new sdk.CopilotClient({ connection: sdk.RuntimeConnection.forStdio({ path: r.cli, env: Object.fromEntries(Object.entries(r.env).filter((e): e is [string, string] => typeof e[1] === 'string')) }), workingDirectory: r.workDir, logLevel: 'error' });
       await client.start();
       try {
         const session = await client.createSession({

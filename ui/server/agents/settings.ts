@@ -34,7 +34,10 @@ export const agentSettingsFile = (dataDir: string, path: Pick<typeof nodePath, '
 const blank = (v: unknown) => v === undefined || v === null || (typeof v === 'string' && !v.trim());
 
 /** Checks a settings object (from the page or the file); throws an AgentError with a fix. */
-export function checkAgentSettings(input: unknown, isAbsolute: (p: string) => boolean = nodePath.isAbsolute): AgentSettings {
+/** The command each adapter starts: a CLI path set in Settings must name it. */
+export const COMMANDS: Record<AdapterName, string> = { claude: 'claude', copilot: 'copilot', codex: 'codex' };
+
+export function checkAgentSettings(input: unknown, isAbsolute: (p: string) => boolean = nodePath.isAbsolute, platform: NodeJS.Platform = process.platform): AgentSettings {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) throw new AgentError('The agent settings must be an object.', 'Send { "adapter", "model", "cliPath", "endpoint" }.');
   const o = input as Record<string, unknown>;
   const extra = Object.keys(o).filter((k) => !FIELDS.has(k));
@@ -50,6 +53,17 @@ export function checkAgentSettings(input: unknown, isAbsolute: (p: string) => bo
   if (model !== null && !MODEL.test(model)) throw new AgentError(`${JSON.stringify(model)} isn't a model name.`, 'Use the name the SDK takes, such as sonnet or gpt-5, or leave it empty for the CLI\'s default.');
   const cliPath = blank(o.cliPath) ? null : String(o.cliPath).trim();
   if (cliPath !== null && (!isAbsolute(cliPath) || /[\0\r\n]/.test(cliPath))) throw new AgentError(`The CLI path must be an absolute path, not ${JSON.stringify(cliPath)}.`, 'Set the full path to the CLI, or leave it empty to use the one on PATH.');
+  if (cliPath !== null) {
+    // The path must name the adapter's own CLI, so Settings can't point the agent's arguments at some other program.
+    if (adapter === 'none') throw new AgentError('A CLI path needs an adapter to belong to.', 'Choose Claude, Copilot or Codex, or clear the CLI path.');
+    const command = COMMANDS[adapter as AdapterName];
+    const path = platform === 'win32' ? nodePath.win32 : nodePath.posix;
+    const base = path.basename(cliPath);
+    const names = platform === 'win32' ? [command, `${command}.exe`, `${command}.cmd`] : [command];
+    if (!names.includes(platform === 'win32' ? base.toLowerCase() : base)) {
+      throw new AgentError(`The CLI path must end in ${names.join(' or ')}, the ${adapter} adapter's own CLI, not ${JSON.stringify(base)}.`, `Point it at the ${command} executable, or clear it to use the one on PATH.`);
+    }
+  }
   const endpoint = blank(o.endpoint) ? null : (o.endpoint as Endpoint);
   if (endpoint !== null && !ENDPOINTS.includes(endpoint)) throw new AgentError(`There is no endpoint ${JSON.stringify(endpoint)}.`, `Choose one of ${ENDPOINTS.join(', ')}, or none for Claude Code's default.`);
   if (endpoint !== null && adapter !== 'claude') throw new AgentError('Only the Claude adapter takes an endpoint.', "Copilot and Codex use their CLI's own endpoint; clear the endpoint.");
