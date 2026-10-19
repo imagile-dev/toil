@@ -56,6 +56,14 @@ describe('every view', () => {
     expect(await violations(container)).toEqual([]);
   });
 
+  it('names the app "Toil UI" in the header: the wordmark, then the sticker, read as one link home (#272)', async () => {
+    await open('#/dossier/settlement');
+    const home = screen.getByRole('link', { name: 'Toil UI' });
+    expect(home.getAttribute('href')).toBe('#/');
+    expect(home.querySelector('.wordmark')?.textContent).toBe('toil');
+    expect(home.querySelector('.sticker')?.textContent).toBe('UI');
+  });
+
   it('has no banner outside the preview', async () => {
     await open('#/', { preview: false });
     expect(screen.queryByRole('note')).toBeNull();

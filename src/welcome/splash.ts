@@ -16,22 +16,27 @@ export const TAGLINE = 'Let your agents handle the toil.';
  */
 export const SPEED = 1.25;
 
-// "toil" as a 10-row bitmap; each pair of rows becomes one line of half-blocks.
+// "toil" as a 14-row bitmap, hand-drawn after the wordmark's typeface (Fredoka,
+// weight 600: round terminals, a footed t, 3-pixel strokes). Each pair of rows
+// becomes one line of half-blocks, so it stands 7 lines tall. The site and Toil
+// UI set the same word in the font itself; a terminal has no fonts to set.
 const LETTERS: string[][] = [
   // t
-  ['.##..', '.##..', '#####', '.##..', '.##..', '.##..', '.##..', '.##..', '.##..', '..###'],
+  ['.......', '.......', '..###..', '..###..', '..###..', '#######', '#######', '..###..', '..###..', '..###..', '..###..', '..###..', '..####.', '...####'],
   // o
-  ['......', '......', '......', '.####.', '##..##', '##..##', '##..##', '##..##', '##..##', '.####.'],
+  ['.........', '.........', '.........', '.........', '.........', '..#####..', '.#######.', '###...###', '###...###', '###...###', '###...###', '###...###', '.#######.', '..#####..'],
   // i
-  ['##', '##', '..', '##', '##', '##', '##', '##', '##', '##'],
+  ['...', '###', '###', '...', '...', '###', '###', '###', '###', '###', '###', '###', '###', '###'],
   // l
-  ['##.', '##.', '##.', '##.', '##.', '##.', '##.', '##.', '##.', '.##'],
+  ['###', '###', '###', '###', '###', '###', '###', '###', '###', '###', '###', '###', '###', '###'],
 ];
 
 const WORD: string[] = LETTERS[0]!.map((_, row) => LETTERS.map((letter) => letter[row]).join('..'));
 const WORD_WIDTH = WORD[0]!.length;
 const LOGO_WIDTH = 32;
 const GAP = 3;
+/** Blank lines above the wordmark, so the text column sits centred beside the 16-line logo. */
+const LEAD = 2;
 
 const clamp = (v: number) => Math.max(0, Math.min(1, v));
 
@@ -84,9 +89,7 @@ export function splashFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unic
   const dot = caps.unicode ? '·' : '-';
   const wide = caps.columns >= LOGO_WIDTH + GAP + WORD_WIDTH * 2 + 6;
   const side: Cell[][] = [
-    [],
-    [],
-    [],
+    ...Array.from({ length: LEAD }, () => []),
     ...wordmarkCells(t, caps, wide ? 2 : 1),
     [],
     textCells(typed(TAGLINE, t, 0.9, 1.4), PALETTE.ink),
@@ -96,7 +99,7 @@ export function splashFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unic
   ];
   const stacked = caps.columns < LOGO_WIDTH + GAP + Math.max(WORD_WIDTH, TAGLINE.length) + 4;
   const rows = stacked
-    ? [...logo, ...side.slice(3)].map((row) => [{ ch: ' ' }, ...row])
+    ? [...logo, ...side.slice(LEAD)].map((row) => [{ ch: ' ' }, ...row])
     : logo.map((row, i) => [{ ch: ' ' }, ...row, ...blank(GAP), ...(side[i] ?? [])]);
   return rows.map((row) => renderCells(row, caps));
 }

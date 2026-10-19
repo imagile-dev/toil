@@ -3511,3 +3511,37 @@ fills.
   checkbox, so the yes belongs to the report on screen. The disclaimer and checkbox
   appear once toil has returned a preview, since the text is toil's; until then the
   dialog says what to fill in.
+
+### #272 wordmark
+
+The maintainer picked the face, Fredoka 600, from four candidates (Fredoka, Bagel Fat
+One, Shrikhand, DynaPuff), and asked for "UI" as a separate sticker. The rest was
+decided here.
+
+- **One weight, Latin only.** Both packages import `@fontsource/fredoka/latin-600.css`,
+  the static 600 file (16.5 KB as WOFF2), not the variable font: the word "toil" needs
+  one weight and four Latin letters, and the static file is the smaller of the two.
+- **`--font-brand` sets only the word "toil".** It's a token of its own on the site
+  (`global.css`) and in Toil UI (`app.css`), not a theme token, so no theme can swap
+  it. Headings, the hero and body text keep their faces.
+- **The word keeps its shape in every theme; only its colour follows the theme.**
+  Harvest, Starship and Realm no longer restyle `.brand`'s font, letter-spacing or
+  case (Starship uppercased it). Crate keeps the flame-to-amber gradient, Starship its
+  glow and Realm its crimson, on `.wordmark` only.
+- **The sticker uses the theme's own accent and accent-ink**, the pair every theme
+  already passes for the current nav link, so a new theme needs no sticker rule.
+  Crate makes it amber (`--sticker-bg: var(--link)`, 11.3:1) so it doesn't match
+  the flame "Dossiers" pill beside it. It's pure CSS: a cream border, two drop
+  shadows, a -8° tilt and a clipped corner with a peeled flap.
+- **The accessible name is "Toil UI", from an `aria-label` on the link.** The word
+  and the sticker are separate boxes with no space between, so the name computed from
+  the text would be "toilUI"; a hidden space isn't reliable either, since whitespace
+  between flex items isn't rendered and browsers differ on whether it counts. The
+  label holds the visible words, so voice control still finds it.
+- **Only Toil UI's favicon changes.** The site's stays the mark, per the site rules.
+  Toil UI had none; it gets Fredoka's "t", outlined to a path (an SVG favicon can't
+  load a font), on the brand's near-black, with the sticker's corner. Vite emits it
+  as an asset, which the tarball rules already allow.
+- **The terminal's wordmark is hand-drawn**, 28 columns by 7 lines of half-blocks,
+  after Fredoka's shapes. It fits beside the logo at 80 columns; the existing rule
+  doubles it from 97 columns, which is what that rule gives for 28.

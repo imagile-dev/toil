@@ -168,8 +168,13 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
           )}
           <div className="top">
             <skins.Header>
-              <a className="brand" href="#/">
-                Toil UI
+              {/* The wordmark, the site's and the terminal's, with "UI" stuck on beside it. The
+                  label says the name once, since the two words are separate boxes with no space between. */}
+              <a className="brand" href="#/" aria-label="Toil UI">
+                <span className="wordmark">toil</span>
+                <span className="sticker">
+                  <span className="sticker__face">UI</span>
+                </span>
               </a>
               <nav aria-label="Views">
                 <ul>

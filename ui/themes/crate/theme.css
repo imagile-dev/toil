@@ -32,11 +32,17 @@
   letter-spacing: -0.005em;
 }
 
-[data-theme="crate"] .brand {
+/* The site's flame-to-amber on the word, and an amber sticker beside it. */
+[data-theme="crate"] .brand .wordmark {
+  padding-block: 0.08em;
   background: linear-gradient(100deg, var(--accent) 10%, var(--link) 90%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
+}
+
+[data-theme="crate"] .brand {
+  --sticker-bg: var(--link);
 }
 
 [data-theme="crate"] .dossier-card {

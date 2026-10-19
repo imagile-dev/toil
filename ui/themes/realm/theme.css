@@ -23,7 +23,6 @@
 
 [data-theme="realm"] h1,
 [data-theme="realm"] h2,
-[data-theme="realm"] .brand,
 [data-theme="realm"] .stat-value,
 [data-theme="realm"] .big-number {
   font-family: var(--font-display);
@@ -44,9 +43,9 @@
   margin-right: 0.1em;
 }
 
-[data-theme="realm"] .brand {
+/* The wordmark keeps its shape in every theme; here it takes the realm's crimson. */
+[data-theme="realm"] .brand .wordmark {
   color: var(--accent);
-  letter-spacing: 0.06em;
 }
 
 /* The realm's crest beside the name: a quill and a key on a crimson shield. */

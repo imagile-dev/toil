@@ -1,6 +1,6 @@
 ---
 name: site
-description: Rules for toil's GitHub Pages site under site/ (Astro), and for the brand it shares with the terminal welcome screen in src/welcome/. Use when changing any page, component, style, colour token, the logo or its animation, data file (integrations board, principles), generated art, when adding or updating an integration's docs page, when touching the terminal splash, menu palette or logo in src/welcome/, or when taking the desktop and 375px screenshots a site PR needs.
+description: Rules for toil's GitHub Pages site under site/ (Astro), and for the brand it shares with the terminal welcome screen in src/welcome/ and Toil UI's header. Use when changing any page, component, style, colour token, the logo or its animation, the wordmark or its font, data file (integrations board, principles), generated art, when adding or updating an integration's docs page, when touching the terminal splash, menu palette or logo in src/welcome/, or when taking the desktop and 375px screenshots a site PR needs.
 ---
 
 # Site
@@ -76,6 +76,17 @@ from `main`).
     branches or tools differ from the site's. It can't see the motion, so a change
     to the "Command" motion is mirrored by hand (the terminal plays it twice, then
     spins the ring twice).
+  - *The wordmark* is the word "toil" in Fredoka 600 (`--font-brand`, the class
+    `.wordmark`): the site's header and footer, and Toil UI's header in every theme,
+    where "UI" is a die-cut sticker stuck on beside it, so the word itself never
+    changes. It's real type, never an image, and only the word "toil" uses it;
+    headings and the hero keep their faces. Only the Latin 600 file is imported.
+    The terminal draws the same word as half-block art (`LETTERS` in
+    `src/welcome/splash.ts`), hand-tuned to Fredoka's shapes, 7 lines tall and 28
+    columns wide so it sits beside the logo at 80 columns. A change to the face
+    changes all three in the same PR; `test/brand-sync.test.ts` holds the site's and
+    the UI's token, weight and version together. The site's favicon stays the mark;
+    Toil UI's is the wordmark's "t" (`ui/src/favicon.svg`).
   - *Its motion is "Command".* The ring and branches draw in, and the tools pop
     on. Then, every 4.5s, the cursor types two keystrokes, a signal fires down all
     six branches at once, and each tool bumps as it arrives. The motion is pure
