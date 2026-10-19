@@ -69,7 +69,8 @@ gets made again in the next place it applies.
 7. **Never break what users already rely on silently.** Config on disk, flags, the
    JSON envelope and precedence are contracts; changing them is a declared,
    documented breaking change. → Output Contract, Delivery. **This starts at toil's
-   first npm release**, which waits until every integration is built. Until then
+   first npm release**, which waits until every integration is built. Alpha
+   prereleases (`0.1.0-alpha.N`) don't count (the maintainer's call, 2026-10-19). Until then
    no one can rely on anything, so contract changes need no breaking-change checks,
    declarations or migration notes. Compatibility with the command contract
    (the `integrations` skill) is a separate requirement and still applies.
@@ -916,7 +917,7 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 - Conventional Commits: `fix:`, `feat:`, `feat!:` with a `BREAKING CHANGE:` footer
   that says why and how to migrate. release-please builds the changelog from them.
   **Before the first npm release, don't use `feat!:` or `BREAKING CHANGE:`**
-  (principle 7): a contract change is a plain `feat:` or `fix:`, and a breaking
+  (principle 7; alphas don't count as that release): a contract change is a plain `feat:` or `fix:`, and a breaking
   marker would put a migration note for a change no user ever saw into the first
   changelog.
 - **Every major item starts with a GitHub issue, created before the branch.** Keep it

@@ -3840,7 +3840,3 @@ choices made by default inside that:
   `data`.
 - **A resource's row in `--help` lists its actions** (`issue  get, history, create,
   ...`) instead of "jira issue commands".
-- **Open for the maintainer:** toil has published alphas (0.1.0-alpha.3), while
-  CLAUDE.md still says no `feat!:` before the first npm release. This change is
-  committed as `feat:`; if the alphas count as a release, it needs `feat!:` and a
-  `BREAKING CHANGE:` footer naming the old paths.
