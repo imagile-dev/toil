@@ -11,11 +11,12 @@ import { Suspense, lazy, useEffect, useState } from 'react';
 import { Checkbox } from 'react-aria-components';
 import { Ask } from '../components/ask.tsx';
 import { Cited, ItemLink } from '../components/items.tsx';
+import { DataTable, type Column } from '../components/layout.tsx';
 import { Panel, Sources } from '../components/panel.tsx';
 import { useData, useDerived } from '../data.ts';
 import { SOURCE_LABEL, STATUS_CATEGORY_LABEL, day, dateTime, estimateText } from '../format.ts';
 import { describe, type Health } from '../model/sprint.ts';
-import { FLAG_TEXT, trace } from '../model/trace.ts';
+import { FLAG_TEXT, trace, type Trace as TraceRow } from '../model/trace.ts';
 import { useSkins, useTerm } from '../skins.tsx';
 import type { ChangeRef, Deployment, SourceKind } from '../toil.ts';
 import { Board } from './Board.tsx';
@@ -50,6 +51,76 @@ function Items({ ids }: { ids: string[] }) {
       ))}
     </span>
   );
+}
+
+/** The delivery table's columns: each work item, its pull requests, their latest builds, where it runs, and what to check. */
+function traceColumns(builds: ChangeRef[]): Array<Column<TraceRow>> {
+  return [
+    {
+      header: 'Work item',
+      label: 'Work item',
+      rowHeader: true,
+      cell: (r) => (
+        <>
+          <ItemLink id={r.item.id} withTitle />
+          <span className="field"> {estimateText(r.item)}</span>
+        </>
+      ),
+    },
+    {
+      header: 'Status',
+      label: 'Status',
+      cell: (r) => (
+        <>
+          {r.item.status}
+          {r.item.status?.toLowerCase() !== STATUS_CATEGORY_LABEL[r.item.statusCategory].toLowerCase() && <span className="field"> ({STATUS_CATEGORY_LABEL[r.item.statusCategory]})</span>}
+        </>
+      ),
+    },
+    {
+      header: 'Pull requests',
+      label: 'Pull requests',
+      cell: (r) =>
+        r.changes.length ? (
+          <ul className="plain">
+            {r.changes.map((c) => (
+              <li key={c.id}>
+                <ChangeLink change={c} /> <Outcome of={c} />
+              </li>
+            ))}
+          </ul>
+        ) : (
+          'None linked'
+        ),
+    },
+    {
+      header: 'Builds',
+      label: 'Builds',
+      cell: (r) =>
+        r.changes.length ? (
+          <ul className="plain">
+            {r.changes.map((pr) => {
+              const build = builds.filter((b) => b.builds === pr.id).sort((a, b) => (a.at < b.at ? 1 : -1))[0];
+              return (
+                <li key={pr.id}>
+                  {build ? (
+                    <>
+                      <ChangeLink change={build} /> <Outcome of={build} />
+                    </>
+                  ) : (
+                    <span className="note">No build for {short(pr.id)}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          'None'
+        ),
+    },
+    { header: 'Deployed to', label: 'Deployed to', cell: (r) => (r.deployedTo.length ? r.deployedTo.map((d) => d.environment).join(', ') : 'Not deployed') },
+    { header: 'Check', label: 'Check', cell: (r) => (r.flags.length ? <ul className="plain flags">{r.flags.map((f) => <li key={f}>{FLAG_TEXT[f]}</li>)}</ul> : 'No gaps') },
+  ];
 }
 
 export function Dashboard() {
@@ -124,73 +195,7 @@ export function Dashboard() {
               </span>
               Only items with something to check
             </Checkbox>
-            <div className="table-wrap" tabIndex={0} role="region" aria-label="Work items and their delivery">
-              <table className="trace">
-                <thead>
-                  <tr>
-                    <th scope="col">Work item</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Pull requests</th>
-                    <th scope="col">Builds</th>
-                    <th scope="col">Deployed to</th>
-                    <th scope="col">Check</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {shown.map((r) => (
-                    <tr key={r.item.id}>
-                      <th scope="row">
-                        <ItemLink id={r.item.id} withTitle />
-                        <span className="field"> {estimateText(r.item)}</span>
-                      </th>
-                      <td>
-                        {r.item.status}
-                        {r.item.status?.toLowerCase() !== STATUS_CATEGORY_LABEL[r.item.statusCategory].toLowerCase() && (
-                          <span className="field"> ({STATUS_CATEGORY_LABEL[r.item.statusCategory]})</span>
-                        )}
-                      </td>
-                      <td>
-                        {r.changes.length ? (
-                          <ul className="plain">
-                            {r.changes.map((c) => (
-                              <li key={c.id}>
-                                <ChangeLink change={c} /> <Outcome of={c} />
-                              </li>
-                            ))}
-                          </ul>
-                        ) : (
-                          'None linked'
-                        )}
-                      </td>
-                      <td>
-                        {r.changes.length ? (
-                          <ul className="plain">
-                            {r.changes.map((pr) => {
-                              const build = builds.filter((b) => b.builds === pr.id).sort((a, b) => (a.at < b.at ? 1 : -1))[0];
-                              return (
-                                <li key={pr.id}>
-                                  {build ? (
-                                    <>
-                                      <ChangeLink change={build} /> <Outcome of={build} />
-                                    </>
-                                  ) : (
-                                    <span className="note">No build for {short(pr.id)}</span>
-                                  )}
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        ) : (
-                          'None'
-                        )}
-                      </td>
-                      <td>{r.deployedTo.length ? r.deployedTo.map((d) => d.environment).join(', ') : 'Not deployed'}</td>
-                      <td>{r.flags.length ? <ul className="plain flags">{r.flags.map((f) => <li key={f}>{FLAG_TEXT[f]}</li>)}</ul> : 'No gaps'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable className="trace" label="Work items and their delivery" wide rows={shown} rowKey={(r) => r.item.id} columns={traceColumns(builds)} />
           </Panel>
 
           <div className="panel-grid">

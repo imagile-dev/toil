@@ -40,12 +40,6 @@ import CommandIndex from '../../components/CommandIndex.astro';
   }
   :global(.dx code) { font-family: var(--font-mono); }
 
-  /* This page's examples lean on comments, and the highlighter's comment grey
-     misses 4.5:1 on the code background, as the command list's tool names miss
-     it on the panel; both take the muted ink here. */
-  :global(.skill-doc pre span[style*="#6A737D" i]) { color: var(--color-muted) !important; }
-  :global(.doc .doc__body .cmd__tool) { color: var(--color-muted); }
-
   /* (a) The map: one SVG for wide screens, one for phones. */
   :global(.dx-svg) { display: block; width: 100%; height: auto; }
   :global(.dx-svg--wide) { display: none; }

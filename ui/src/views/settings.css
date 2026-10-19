@@ -2,8 +2,10 @@
    and the change forms. Colours come from the theme's tokens, so Plain and
    Crate both style them; every control is at least 44px tall. */
 
-.subnav ul { display: flex; flex-wrap: wrap; gap: 0.25rem; list-style: none; padding: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
-.subnav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 0.75rem; color: var(--ink); text-decoration: none; border-bottom: 3px solid transparent; }
+/* The tabs share the row evenly, and on a phone fall into even rows of two rather than leave one on its own. */
+.subnav ul { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.5rem), max-content)); gap: 0.25rem; list-style: none; padding: 0; margin-bottom: 1rem; border-bottom: 1px solid var(--line); }
+@media (max-width: 600px) { .subnav ul { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.subnav a { display: flex; align-items: center; min-height: 44px; padding: 0 0.75rem; color: var(--ink); text-decoration: none; border-bottom: 3px solid transparent; }
 .subnav a:hover { border-bottom-color: var(--line); }
 .subnav a[aria-current="page"] { border-bottom-color: var(--accent); font-weight: 600; }
 
@@ -11,8 +13,9 @@
 .page-title { font-size: 1.35rem; margin-top: 0.5rem; }
 .page-title + .lede { margin-bottom: 1rem; }
 
-.conn-cards { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr)); gap: 1rem; }
-.conn-card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; display: grid; gap: 0.6rem; height: 100%; align-content: start; min-width: 0; }
+.conn-card { background: var(--raised); }
+.shown-repos { font-size: 0.9375rem; }
+.any-break { overflow-wrap: anywhere; }
 .conn-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem; }
 .conn-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; padding: 0; }
 .tag { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); font-size: 0.8125rem; color: var(--ink); background: var(--surface); }
@@ -54,5 +57,5 @@ button.btn:disabled { cursor: not-allowed; opacity: 0.75; }
 .outcome-line { display: grid; gap: 0.25rem; padding: 0.5rem 0.75rem; border-radius: var(--radius); border: 1px solid var(--line); }
 .outcome-line--ok { border-color: var(--ok); }
 .outcome-line--failed { border-color: var(--danger); }
-.shown { display: grid; gap: 0.5rem; }
+
 .motion-setting { margin-bottom: 1.5rem; }

@@ -57,12 +57,14 @@ function Card({ item, others, onMove }: { item: WorkItem; others: StatusCategory
         </div>
         <InsightChips insights={insights(item, prepared)} />
         <div className="card-actions">
-          <button type="button" className="drag" {...listeners} {...attributes} aria-label={`Drag ${key} to another column`}>
-            <span aria-hidden="true">⠿</span> Drag
+          {/* The name is the visible word plus what it acts on, so voice control finds it by "Drag" (WCAG 2.5.3). */}
+          <button type="button" className="drag" {...listeners} {...attributes}>
+            <span aria-hidden="true">⠿</span> Drag <span className="sr-only">{key} to another column</span>
           </button>
           <MenuTrigger>
-            <Button className="btn btn--small" aria-label={`Move ${key} to…`}>
-              Move…
+            <Button className="btn btn--small">
+              {/* The space leads the hidden words, so the button still reads "Move…" on screen. */}
+              Move<span className="sr-only"> {key} to</span>…
             </Button>
             <Popover className="popover" placement="bottom end">
               <Menu className="menu" aria-label={`Move ${key} to`} onAction={(k) => onMove(k as StatusCategory)}>

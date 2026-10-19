@@ -9,8 +9,8 @@
  * rule, which is one fewer change request.
  */
 
-import { useEffect, useInsertionEffect, useRef, useState, type MouseEvent } from 'react';
-import { Button, Label, ListBox, ListBoxItem, Popover, Select, SelectValue } from 'react-aria-components';
+import { useEffect, useInsertionEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { Button, Dialog, DialogTrigger, Label, ListBox, ListBoxItem, Popover, Select, SelectValue } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { Ambient } from './ambient/Ambient.tsx';
 import { DataContext, type Data } from './data.ts';
@@ -27,7 +27,8 @@ import { Settings } from './views/Settings.tsx';
 import type { ConfigApi } from './config.ts';
 import type { AgentSettingsPanelProps } from './agent-settings.tsx';
 import type { FeedbackApi } from './feedback.ts';
-import { FeedbackButton } from './feedback-dialog.tsx';
+import { FeedbackButton, FeedbackModal } from './feedback-dialog.tsx';
+import { useMediaQuery } from './components/layout.tsx';
 
 export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'agent';
 export type Route = { view: 'dossiers' } | { view: 'settings'; page: SettingsPage } | { view: 'dashboard'; dossier: string } | { view: 'item'; dossier: string; id: string };
@@ -132,6 +133,29 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   };
 
   const skins = skinsFor(theme.name);
+  const compact = useMediaQuery(COMPACT_HEADER);
+  const links: NavLink[] = [
+    { href: '#/', label: 'Dossiers', current: route.view === 'dossiers' },
+    ...(wanted ? [{ href: dossierHref(wanted), label: wanted, current: route.view === 'dashboard' }] : []),
+    { href: '#/settings', label: 'Settings', current: route.view === 'settings' },
+  ];
+  const controls = (
+    <>
+      <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
+      {Object.keys(theme.schemes).length > 1 && (
+        <Choice
+          label="Appearance"
+          value={choice.scheme}
+          onChange={(v) => choice.setScheme(v as typeof choice.scheme)}
+          options={[
+            { id: 'system', label: 'System' },
+            { id: 'light', label: 'Light' },
+            { id: 'dark', label: 'Dark' },
+          ]}
+        />
+      )}
+    </>
+  );
   const current = wanted ? dossiers[wanted] : undefined;
   const failure = (message: string) => (
     <div role="alert" className="failure">
@@ -168,53 +192,33 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
               <strong>Preview of an unreleased product.</strong> Sample data only: nothing here connects to a tracker.
             </p>
           )}
-          <div className="top">
+          <div className="top" data-one-row="">
             <skins.Header>
-              {/* The wordmark, the site's and the terminal's, with "UI" stuck on beside it. The
-                  label says the name once, since the two words are separate boxes with no space between. */}
-              <a className="brand" href="#/" aria-label="Toil UI">
-                <span className="wordmark">toil</span>
-                <span className="sticker">
-                  <span className="sticker__face">UI</span>
+              {/* The wordmark, the site's and the terminal's, with "UI" stuck on beside it. Its
+                  name is its own text, "toil UI": the space between the word and the sticker is a
+                  real one, kept narrow, so the name a screen reader or voice control uses is the
+                  words on screen (WCAG 2.5.3). */}
+              <a className="brand" href="#/">
+                <span className="brand-name">
+                  <span className="wordmark">toil</span>{' '}
+                  <span className="sticker">
+                    <span className="sticker__face">UI</span>
+                  </span>
                 </span>
               </a>
-              <nav aria-label="Views">
-                <ul>
-                  <li>
-                    <a href="#/" aria-current={route.view === 'dossiers' ? 'page' : undefined}>
-                      Dossiers
-                    </a>
-                  </li>
-                  {wanted && (
-                    <li>
-                      <a href={dossierHref(wanted)} aria-current={route.view === 'dashboard' ? 'page' : undefined}>
-                        {wanted}
-                      </a>
-                    </li>
-                  )}
-                  <li>
-                    <a href="#/settings" aria-current={route.view === 'settings' ? 'page' : undefined}>
-                      Settings
-                    </a>
-                  </li>
-                </ul>
-              </nav>
-              <div className="settings">
-                {feedback && <FeedbackButton api={feedback} />}
-                <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
-                {Object.keys(theme.schemes).length > 1 && (
-                  <Choice
-                    label="Appearance"
-                    value={choice.scheme}
-                    onChange={(v) => choice.setScheme(v as typeof choice.scheme)}
-                    options={[
-                      { id: 'system', label: 'System' },
-                      { id: 'light', label: 'Light' },
-                      { id: 'dark', label: 'Dark' },
-                    ]}
-                  />
-                )}
-              </div>
+              {compact ? (
+                <HeaderMenu links={links} feedback={feedback} controls={controls} />
+              ) : (
+                <>
+                  <nav aria-label="Views">
+                    <NavLinks links={links} />
+                  </nav>
+                  <div className="settings">
+                    {feedback && <FeedbackButton api={feedback} />}
+                    {controls}
+                  </div>
+                </>
+              )}
             </skins.Header>
           </div>
           <p className="sync">
@@ -247,6 +251,74 @@ function TokenStyles({ css }: { css: string }) {
     };
   }, [css, constructable]);
   return constructable ? null : <style>{css}</style>;
+}
+
+/**
+ * Below 1024px the header is the name and a Menu button; the views,
+ * Feedback and the theme controls open from it. Wider, they sit in one row.
+ */
+export const COMPACT_HEADER = '(max-width: 1023px)';
+
+type NavLink = { href: string; label: string; current: boolean };
+
+function NavLinks({ links, onFollow }: { links: NavLink[]; onFollow?: () => void }) {
+  return (
+    <ul>
+      {links.map((l) => (
+        <li key={l.href}>
+          <a href={l.href} aria-current={l.current ? 'page' : undefined} onClick={onFollow}>
+            {l.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The compact header's menu: a button that opens a popover holding the
+ * views, Feedback and the theme controls. React Aria's Dialog keeps focus
+ * inside while it's open, Escape or a click outside closes it, and focus goes
+ * back to the button. Feedback closes the menu first, then opens its dialog.
+ */
+function HeaderMenu({ links, feedback, controls }: { links: NavLink[]; feedback: FeedbackApi | undefined; controls: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const current = links.find((l) => l.current)?.label;
+  return (
+    <>
+      <DialogTrigger isOpen={open} onOpenChange={setOpen}>
+        <Button className="btn menu-button" data-menu-button="">
+          <span aria-hidden="true" className="menu-button__icon">
+            ☰
+          </span>
+          Menu
+        </Button>
+        <Popover className="popover nav-menu" placement="bottom end" offset={6}>
+          <Dialog className="nav-menu__dialog" aria-label={current ? `Menu, on ${current}` : 'Menu'}>
+            <nav aria-label="Views">
+              <NavLinks links={links} onFollow={() => setOpen(false)} />
+            </nav>
+            <div className="nav-menu__settings">
+              {feedback && (
+                <Button
+                  className="btn feedback-open"
+                  onPress={() => {
+                    setOpen(false);
+                    setFeedbackOpen(true);
+                  }}
+                >
+                  Feedback
+                </Button>
+              )}
+              {controls}
+            </div>
+          </Dialog>
+        </Popover>
+      </DialogTrigger>
+      {feedback && <FeedbackModal api={feedback} isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />}
+    </>
+  );
 }
 
 /** A labelled choice from a short list, on React Aria's Select: a button that opens a listbox. */

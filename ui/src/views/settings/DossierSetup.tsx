@@ -11,6 +11,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { pairs, type AreaInfo, type ConfigApi, type ConnectionsData } from '../../config.ts';
 import type { Envelope } from '../../toil.ts';
+import { Card, CardGrid, Cluster, DataTable, Path, Stack, Url } from '../../components/layout.tsx';
 import { AreaField, ChangeForm, CheckField, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
 
 interface ListedDossier {
@@ -68,24 +69,24 @@ export function DossierSetup({ config }: { config: ConfigApi }) {
 
   return (
     <>
-      <section className="panel" aria-labelledby="dossier-list">
+      <Card as="section" className="panel" aria-labelledby="dossier-list">
         <h2 id="dossier-list">Your dossiers</h2>
         <p className="lede">
-          From <code>toil dossiers list</code>: your own in <code>{list.value.places.user}</code>, any folders you listed, and the ones a repository checks in. Show one to see what it gives each area; Check finds problems without contacting any service.
+          From <code>toil dossiers list</code>: your own in <Path value={list.value.places.user} what="folder path" />, any folders you listed, and the ones a repository checks in. Show one to see what it gives each area; Check finds problems without contacting any service.
         </p>
         {dossiers.length === 0 ? (
           <p>toil sees no dossiers yet. Create one below.</p>
         ) : (
-          <ul className="conn-cards">
+          <CardGrid min="lg" className="conn-cards">
             {dossiers.map((d) => (
               <li key={d.file}>
                 <DossierCard dossier={d} config={config} />
               </li>
             ))}
-          </ul>
+          </CardGrid>
         )}
-      </section>
-      <section className="panel" aria-labelledby="dossier-change">
+      </Card>
+      <Card as="section" className="panel" aria-labelledby="dossier-change">
         <h2 id="dossier-change">Create or change a dossier</h2>
         <p className="lede">Each form runs one <code>toil dossiers</code> command, which checks the file before writing it and refuses to add what's already there unless you tick Replace.</p>
         <InitForm config={config} onChanged={reload} />
@@ -97,7 +98,7 @@ export function DossierSetup({ config }: { config: ConfigApi }) {
             <FieldForm config={config} dossier={target} areas={areas} />
           </>
         )}
-      </section>
+      </Card>
     </>
   );
 }
@@ -127,7 +128,7 @@ function DossierCard({ dossier: d, config }: { dossier: ListedDossier; config: C
     }
   };
   return (
-    <article className="conn-card" aria-labelledby={titleId}>
+    <Card className="conn-card" aria-labelledby={titleId}>
       <div className="conn-head">
         <h3 id={titleId}>
           <code>{d.name}</code>
@@ -139,17 +140,17 @@ function DossierCard({ dossier: d, config }: { dossier: ListedDossier; config: C
       </div>
       {d.description && <p>{d.description}</p>}
       <p className="note">
-        <code>{d.file}</code>
+        <Path value={d.file} what={`${d.name}'s file path`} />
         {d.shadowedBy && <> (a dossier of the same name in {d.shadowedBy} takes precedence)</>}
       </p>
-      <div className="conn-actions">
+      <Cluster className="conn-actions">
         <button type="button" className="btn" aria-expanded={shown !== null} onClick={show}>
           {shown ? 'Hide' : 'Show'}
         </button>
         <button type="button" className="btn" onClick={check}>
           Check
         </button>
-      </div>
+      </Cluster>
       <OutcomeLine outcome={checked} />
       {problems.length > 0 && (
         <ul className="plain">
@@ -166,7 +167,7 @@ function DossierCard({ dossier: d, config }: { dossier: ListedDossier; config: C
         </p>
       )}
       {shown?.ok && <ShownDossier shown={shown.value} />}
-    </article>
+    </Card>
   );
 }
 
@@ -174,39 +175,49 @@ function ShownDossier({ shown }: { shown: Shown }) {
   const areas = Object.entries(shown.areas);
   const repos = shown.dossier.repos ?? [];
   return (
-    <div className="shown">
-      <div className="table-wrap">
-        <table>
-          <caption className="sr-only">What {shown.name} gives each area</caption>
-          <thead>
-            <tr>
-              <th scope="col">Area</th>
-              <th scope="col">Connection</th>
-              <th scope="col">Writes</th>
-              <th scope="col">Inputs</th>
-            </tr>
-          </thead>
-          <tbody>
-            {areas.map(([area, a]) => (
-              <tr key={area}>
-                <th scope="row">{area}</th>
-                <td>{a.error ? <span className="failure">{a.error.message}</span> : a.connection ? `${a.connection.value} (${a.connection.source})` : 'Your default'}</td>
-                <td>{a.writes === null ? '–' : a.writes ? 'On' : 'Off'}</td>
-                <td>
-                  {Object.entries(a.inputs)
-                    .map(([k, v]) => `${k}=${v}`)
-                    .join(', ') || 'None'}
-                  {a.env && <span className="note"> (environment {a.env})</span>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <p className="note">
-        Repositories: {repos.length ? repos.map((r) => `${r.name}${r.remotes[0] ? ` (${r.remotes[0]})` : ''}`).join(', ') : 'none yet'}
-      </p>
-    </div>
+    <Stack className="shown" gap="sm">
+      <DataTable
+        label={`What ${shown.name} gives each area`}
+        caption={`What ${shown.name} gives each area`}
+        rows={areas}
+        rowKey={([area]) => area}
+        columns={[
+          { header: 'Area', label: 'Area', rowHeader: true, cell: ([area]) => area },
+          { header: 'Connection', label: 'Connection', cell: ([, a]) => (a.error ? <span className="failure">{a.error.message}</span> : a.connection ? `${a.connection.value} (${a.connection.source})` : 'Your default') },
+          { header: 'Writes', label: 'Writes', cell: ([, a]) => (a.writes === null ? '–' : a.writes ? 'On' : 'Off') },
+          {
+            header: 'Inputs',
+            label: 'Inputs',
+            cell: ([, a]) => (
+              <>
+                {Object.entries(a.inputs)
+                  .map(([k, v]) => `${k}=${v}`)
+                  .join(', ') || 'None'}
+                {a.env && <span className="note"> (environment {a.env})</span>}
+              </>
+            ),
+          },
+        ]}
+      />
+      <h4 className="shown-repos">Repositories</h4>
+      {repos.length ? (
+        <ul className="plain">
+          {repos.map((r) => (
+            <li key={r.name}>
+              {r.name}
+              {r.remotes[0] && (
+                <>
+                  {' '}
+                  <Url value={r.remotes[0]} what={`${r.name}'s remote URL`} />
+                </>
+              )}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="note">None yet.</p>
+      )}
+    </Stack>
   );
 }
 
@@ -250,7 +261,7 @@ function AddRepoForm({ config, dossier }: { config: ConfigApi; dossier: string }
       disabled={config.disabled}
       onSubmit={async () => outcomeOf(await config.run('dossiers add-repo', { dossier, location, ...(name ? { name } : {}), ...(replace ? { replace } : {}) }), `The repository was added to ${dossier}.`)}
     >
-      <TextField label="Folder or remote URL" value={location} onChange={setLocation} required hint="e.g. https://git.imagile.dev/pay/payments-api.git" />
+      <TextField label="Folder or remote URL" value={location} onChange={setLocation} required hint={<>e.g. <span className="any-break">https://git.imagile.dev/pay/payments-api.git</span></>} />
       <TextField label="Name in the dossier" value={name} onChange={setName} hint="Defaults to the folder's or remote's last part." />
       <CheckField label="Replace a repository of that name" checked={replace} onChange={setReplace} />
     </ChangeForm>

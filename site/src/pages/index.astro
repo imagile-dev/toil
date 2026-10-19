@@ -279,7 +279,7 @@ const teaser = principles.slice(0, 3);
             <span class="card-tag">{a.tag}</span>
             <h3>{a.title}</h3>
             <p>{a.body}</p>
-            <code class="area__ex"><span>$</span> {a.example}</code>
+            <code class="area__ex" tabindex="0" role="region" aria-label={`Example: ${a.example}`}><span>$</span> {a.example}</code>
           </article>
         ))}
       </div>
@@ -312,7 +312,7 @@ const teaser = principles.slice(0, 3);
       </div>
       <div class="codeblock mcp__code" data-reveal style="--d: 120ms">
         <span class="card-tag">mcp.json</span>
-<pre><span class="p">{</span>
+<pre tabindex="0" role="region" aria-label="mcp.json"><span class="p">{</span>
   <span class="k">"mcpServers"</span><span class="p">: {</span>
     <span class="k">"tickets-and-docs"</span><span class="p">: {</span>
       <span class="k">"command"</span><span class="p">:</span> <span class="s">"npx"</span><span class="p">,</span>

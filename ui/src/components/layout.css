@@ -1,0 +1,86 @@
+/* The layout primitives (src/components/layout.tsx). Layout only: colours,
+   fonts and the radius come from the active theme's tokens, so every theme
+   gets the same structure and dresses it as it likes. */
+
+/* Stack and Cluster: any child may shrink, so one long word can't widen the row. */
+.l-stack { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; }
+.l-cluster { display: flex; flex-wrap: wrap; align-items: center; }
+.l-stack > *, .l-cluster > * { min-width: 0; }
+.l-stack[data-gap="xs"], .l-cluster[data-gap="xs"] { gap: 0.3rem; }
+.l-stack[data-gap="sm"], .l-cluster[data-gap="sm"] { gap: 0.5rem; }
+.l-stack[data-gap="md"], .l-cluster[data-gap="md"] { gap: 0.75rem; }
+.l-stack[data-gap="lg"], .l-cluster[data-gap="lg"] { gap: 1.5rem; }
+
+/* CardGrid: as many columns as fit, never wider than the screen, and each
+   cell a size container, so a card lays itself out by its own width. */
+.l-card-grid {
+  --l-card-min: 20rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--l-card-min)), 1fr));
+  gap: 1rem;
+  list-style: none;
+  padding: 0;
+}
+.l-card-grid[data-min="sm"] { --l-card-min: 17rem; }
+.l-card-grid[data-min="lg"] { --l-card-min: 24rem; }
+.l-card-grid > * { min-width: 0; container-type: inline-size; }
+
+/* Card: the one surface. A card is a size container too, so its tables and
+   rows can answer to the card's width rather than the window's. */
+.l-card {
+  min-width: 0;
+  container-type: inline-size;
+  overflow-wrap: anywhere;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.6rem;
+  align-content: start;
+}
+.l-card-grid > * > .l-card { height: 100%; }
+
+/* Scroller: the one place content may be wider than its box. A shadow
+   marks each edge with more beyond it, and the box takes focus to scroll. */
+.l-scroll { position: relative; min-width: 0; max-width: 100%; }
+.l-scroll__body { overflow-x: auto; max-width: 100%; overscroll-behavior-x: contain; }
+.l-scroll__body:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.l-scroll::before, .l-scroll::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.5rem;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 1;
+}
+.l-scroll::before { left: 0; background: linear-gradient(to right, color-mix(in srgb, var(--ink) 28%, transparent), transparent); }
+.l-scroll::after { right: 0; background: linear-gradient(to left, color-mix(in srgb, var(--ink) 28%, transparent), transparent); }
+.l-scroll[data-more-start]::before, .l-scroll[data-more-end]::after { opacity: 1; }
+
+/* DataTable: a table while the card is wide enough, label and value pairs
+   below about 28rem. Its own box is the container it answers to. */
+.l-table { container: l-table / inline-size; min-width: 0; }
+.l-table table { width: 100%; overflow-wrap: break-word; }
+.l-table[data-wide] table { min-width: 50rem; }
+.l-table__label { display: none; }
+@container l-table (max-width: 28rem) {
+  .l-table table, .l-table tbody, .l-table tr, .l-table th, .l-table td { display: block; width: 100%; }
+  .l-table[data-wide] table { min-width: 0; }
+  .l-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
+  .l-table tr { padding: 0.5rem 0; border-bottom: 1px solid var(--line); }
+  .l-table tr > * { border: 0; padding: 0.2rem 0; display: grid; grid-template-columns: minmax(0, 7.5rem) minmax(0, 1fr); gap: 0.75rem; }
+  .l-table tr > th[role="rowheader"] { grid-template-columns: minmax(0, 1fr); font-weight: 600; }
+  .l-table tr > th[role="rowheader"] .l-table__label { display: none; }
+  .l-table__label { display: block; color: var(--muted); font-size: 0.8125rem; font-weight: 400; }
+}
+
+/* Path and Url: the start gives way to an ellipsis, the end always shows. */
+.l-path { display: inline-flex; align-items: center; gap: 0.4rem; max-width: 100%; min-width: 0; vertical-align: middle; }
+.l-path__text { display: inline-flex; min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; overflow-wrap: normal; }
+.l-path__head { min-width: 1.5ch; overflow: hidden; text-overflow: ellipsis; }
+.l-path__tail { flex: none; }
+.l-copy { flex: none; }

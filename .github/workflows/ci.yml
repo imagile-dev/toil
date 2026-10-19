@@ -54,7 +54,8 @@ jobs:
       # toil's tarball, but held to the same gate on every OS. check:package is
       # its check:pure (one dependency, toil pinned exactly, no install scripts,
       # no native addon, the server imports only built-ins and toil, a tarball
-      # allowlist); its smoke installs both tarballs offline and opens the UI.
+      # allowlist); its smoke installs both tarballs offline, opens the UI, and
+      # runs the layout check in the runner's Chrome (ui/scripts/layout-check.mjs).
       - run: npm run typecheck -w ui
       - run: npm run lint -w ui
       - run: npm test -w ui
