@@ -665,7 +665,7 @@ describe('how deep the theme goes (#283)', () => {
     expect(await violations(container)).toEqual([]);
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(document.activeElement).toBe(info);
+    await waitFor(() => expect(document.activeElement).toBe(info));
     cleanupView();
     setTheme('harvest', { voice: false });
     await open('#/dossier/settlement');
