@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { inspect } from '../scripts/triage/archive.mjs';
 import { tokenShaped } from '../scripts/triage/redact.mjs';
 import { ustar } from './harness/ustar.js';
@@ -92,7 +92,14 @@ const temp = (prefix: string) => {
   temps.push(dir);
   return dir;
 };
+// The fake GitHub's events are dated 2026-10-18, and the cap counts claims for "today" (UTC).
+// Pin the clock to that day, or every run after midnight UTC sees no claims from today.
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-10-18T12:00:00Z'));
+});
 afterEach(() => {
+  vi.useRealTimers();
   for (const dir of temps.splice(0)) rmSync(dir, { recursive: true, force: true });
 });
 
