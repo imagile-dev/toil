@@ -27,6 +27,15 @@ export interface Proposal {
   input: Record<string, unknown> | null;
   /** Anything a person should check first, or why there is no command. */
   note: string | null;
+  /** A read-only toil command that helps, such as listing the workflow's transitions, rendered like the main one. */
+  hint?: Hint | null;
+}
+
+/** A read-only command a proposal points to, and what it is for. */
+export interface Hint {
+  text: string;
+  command: string;
+  input: Record<string, unknown>;
 }
 
 const flag = (key: string) => `--${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
@@ -42,14 +51,30 @@ export const SHELL_LABEL: Record<Shell, string> = { posix: 'bash/zsh', powershel
 /** Characters PowerShell reads as a single quote: the ASCII one and the typographic ones. */
 const PS_QUOTES = /['\u2018\u2019\u201A\u201B]/g;
 
+const BREAKS = /[\r\n\u0085\u2028\u2029\0]/;
+/**
+ * What PowerShell can't pass on safely: npm installs `toil` on Windows as a
+ * `toil.cmd` shim, and cmd.exe re-reads its arguments, acting on `& | < > ^`
+ * and expanding `%VAR%`; Windows PowerShell 5.1 also mangles an embedded `"`.
+ */
+const CMD_UNSAFE = /[&|<>^%"]/;
+
+/** Why a value can't go on a command line for this shell, or null when it can. */
+export function unsafe(value: string, shell: Shell): string | null {
+  if (BREAKS.test(value)) return 'it holds a line break';
+  const bad = shell === 'powershell' ? CMD_UNSAFE.exec(value)?.[0] : undefined;
+  if (bad) return `it holds ${bad}, which cmd.exe acts on when PowerShell runs npm's toil.cmd shim`;
+  return null;
+}
+
 /**
  * One argument, single quoted for the shell. POSIX writes a `'` inside as
  * `'\''` (close, escaped quote, reopen); PowerShell doubles every character it
- * treats as a single quote. A line break can't be written on one command line
- * a person pastes, so a value holding one is refused (null) rather than split.
+ * treats as a single quote. A value `unsafe` refuses comes back null rather
+ * than as a line that would do something else.
  */
 export function quote(value: string, shell: Shell): string | null {
-  if (/[\r\n\u0085\u2028\u2029]/.test(value) || value.includes('\0')) return null;
+  if (unsafe(value, shell)) return null;
   return shell === 'posix' ? `'${value.replace(/'/g, `'\\''`)}'` : `'${value.replace(PS_QUOTES, (q) => q + q)}'`;
 }
 
@@ -64,17 +89,27 @@ export type CommandLine = { line: string; reason: null } | { line: null; reason:
  */
 export function commandLine(p: Pick<Proposal, 'command' | 'input'>, shell: Shell): CommandLine {
   if (!p.command || !p.input) return { line: null, reason: 'toil has no command for this change.' };
-  const entries = Object.entries(p.input).sort(([a], [b]) => (a === 'dossier' ? -1 : b === 'dossier' ? 1 : 0));
+  return render(p.command, p.input, shell, true);
+}
+
+/** A read-only command line (no `--allow-write`), through the same quoting. */
+export function readLine(h: Pick<Hint, 'command' | 'input'>, shell: Shell): CommandLine {
+  return render(h.command, h.input, shell, false);
+}
+
+/** Every toil command line the UI shows is built here, and only here. */
+function render(command: string, input: Record<string, unknown>, shell: Shell, write: boolean): CommandLine {
+  const entries = Object.entries(input).sort(([a], [b]) => (a === 'dossier' ? -1 : b === 'dossier' ? 1 : 0));
   const parts: string[] = [];
   for (const [k, v] of entries) {
     for (const x of Array.isArray(v) ? v : [v]) {
       const value = String(x);
-      const quoted = value.startsWith('-') ? quote(`${flag(k)}=${value}`, shell) : quote(value, shell);
-      if (quoted === null) return { line: null, reason: `The ${flag(k)} value holds a line break, which can't be pasted as one command. Run it from an --input-file instead.` };
-      parts.push(value.startsWith('-') ? quoted : `${flag(k)} ${quoted}`);
+      const why = unsafe(value, shell);
+      if (why) return { line: null, reason: `The ${flag(k)} value can't be passed safely on a ${SHELL_LABEL[shell]} command line: ${why}. Use the command's --input-file instead, or apply it over MCP.` };
+      parts.push(value.startsWith('-') ? quote(`${flag(k)}=${value}`, shell)! : `${flag(k)} ${quote(value, shell)}`);
     }
   }
-  return { line: `toil ${p.command} ${parts.join(' ')} --allow-write`, reason: null };
+  return { line: `toil ${command} ${parts.join(' ')}${write ? ' --allow-write' : ''}`, reason: null };
 }
 
 /** The viewer's shell: PowerShell on Windows, POSIX anywhere else. */

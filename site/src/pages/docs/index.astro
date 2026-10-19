@@ -3,6 +3,7 @@ import SkillPage from '../../components/SkillPage.astro';
 import { groups } from '../../data/integrations';
 import { allDocs, integrationDocs } from '../../lib/skill';
 import { url } from '../../lib/url';
+import uiPackage from '../../../../ui/package.json';
 
 // The docs index is the skill's own index, skills/toil/SKILL.md, rendered,
 // then every page: each file's title and frontmatter description, and the
@@ -21,6 +22,7 @@ const unlisted = integrationDocs.filter((d) => !onBoard.has(d.area!));
         <li><a class="tap" href={url(d.path!)}>{d.title}</a><p>{d.description}</p></li>
       ))}
       <li><a class="tap" href={url('/docs/welcome/')}>The welcome menu</a></li>
+      <li><a class="tap" href={url('/docs/ui/')}>Toil UI</a><p>{uiPackage.description}</p></li>
     </ul>
   </section>
 

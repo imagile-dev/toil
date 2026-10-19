@@ -14,12 +14,18 @@ import { pagePath, skillFiles } from '../site/src/lib/skill-pages.mjs';
  *
  * The one page left out is /docs/welcome/: it describes the menu a person
  * sees on a terminal, which no agent reads, so it has no skill file to render.
+ * /docs/ui/ renders Toil UI's README (ui/README.md) instead: the UI is its own
+ * package, outside the toil skill, and its README is its one copy of the
+ * reference, the same file npm shows.
+ *
  * A second copy of a document is how a filing cabinet starts.
  */
 const root = join(import.meta.dirname, '..');
 const docsDir = join(root, 'site', 'src', 'pages', 'docs');
 const components = ['SkillPage.astro', 'CommandIndex.astro'].map((f) => join(root, 'site', 'src', 'components', f));
 const NOT_SKILL = new Set(['welcome.astro']);
+/** Pages that render one Markdown file from outside the skill, by the file. */
+const RENDERS = new Map([['ui.astro', 'ui/README.md']]);
 /** Longest run of literal words a page may carry: a label or a heading, not a sentence of reference. */
 const MAX_WORDS = 8;
 
@@ -86,8 +92,11 @@ describe('the docs pages render skills/toil/ and carry no reference prose of the
 
   for (const file of files) {
     const name = relative(docsDir, file).replace(/\\/g, '/');
-    it(`docs/${name} renders a file of the skill`, () => {
-      expect(readFileSync(file, 'utf8')).toMatch(/<SkillPage file=/);
+    const other = RENDERS.get(name);
+    it(other ? `docs/${name} renders ${other}` : `docs/${name} renders a file of the skill`, () => {
+      const page = readFileSync(file, 'utf8');
+      if (other) expect(page).toContain(`import { Content } from '../../../../${other}';`);
+      else expect(page).toMatch(/<SkillPage file=/);
     });
   }
 

@@ -49,12 +49,13 @@ export function proposeMove(item: WorkItem, to: StatusCategory, items: WorkItem[
   if (fam === 'github') {
     return { ...base, command: null, input: null, note: `toil has no command that sets a GitHub Projects status yet. Change ${key}'s Status field on the project board${item.url ? `: ${item.url}` : ''}.` };
   }
+  const transitions = { text: 'List the transitions the workflow offers:', command: 'jira list-transitions', input: { dossier, key: item.source.key } };
   if (!status) {
-    const list = fam === 'jira' ? `toil jira list-transitions --dossier ${dossier} --key ${item.source.key}` : `toil ado work list-states --dossier ${dossier} --type "${item.typeName ?? 'User Story'}"`;
-    return { ...base, command: null, input: null, note: `No ${label} item in this dossier shows which status to use. List them with ${list}.` };
+    const hint = fam === 'jira' ? transitions : { text: 'List the states the work item type has:', command: 'ado work list-states', input: { dossier, type: item.typeName ?? 'User Story' } };
+    return { ...base, command: null, input: null, note: `No ${label} item in this dossier shows which status to use.`, hint };
   }
   if (fam === 'jira') {
-    return { ...base, command: 'jira transition-issue', input: { dossier, key: item.source.key, transition: status }, note: `"${status}" is the status other ${label} items use; the workflow may name the transition differently (toil jira list-transitions).` };
+    return { ...base, command: 'jira transition-issue', input: { dossier, key: item.source.key, transition: status }, note: `"${status}" is the status other ${label} items use; the workflow may name the transition differently.`, hint: transitions };
   }
   if (fam === 'ado') {
     return { ...base, command: 'ado work transition', input: { dossier, id: Number(item.source.key), state: status }, note: null };

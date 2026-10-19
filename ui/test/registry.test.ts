@@ -91,4 +91,14 @@ describe('every proposal the board and the scripted agent can make', async () =>
     const result = new Validator(def!.inputSchema as object, '2020-12', false).validate(p.input);
     expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
   });
+  const hints = proposals.flatMap((p) => (p?.hint ? [[`${p.id} hint`, p.hint] as const] : []));
+  it('includes read-only hints', () => expect(hints.length).toBeGreaterThan(0));
+
+  it.each(hints)('%s names a read command, with input its schema accepts', (_id, h) => {
+    const def = byName.get(h.command);
+    expect(def, `toil has no API command "${h.command}"`).toBeDefined();
+    expect(def!.writes).toBe(false);
+    const result = new Validator(def!.inputSchema as object, '2020-12', false).validate(h.input);
+    expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
+  });
 });

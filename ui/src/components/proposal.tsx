@@ -7,7 +7,7 @@
 
 import { useState, useSyncExternalStore } from 'react';
 import { Button, Radio, RadioGroup } from 'react-aria-components';
-import { SHELL_LABEL, commandLine, defaultShell, type Proposal, type Shell } from '../proposal.ts';
+import { SHELL_LABEL, commandLine, defaultShell, readLine, type Proposal, type Shell } from '../proposal.ts';
 import { Cited } from './items.tsx';
 
 // Which shell the commands are shown for: the viewer's by default, one choice for every card, remembered when storage allows.
@@ -40,6 +40,8 @@ export function ProposalCard({ proposal, onDismiss }: { proposal: Proposal; onDi
   const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
   const shell = useShell();
   const { line, reason } = commandLine(proposal, shell);
+  const hint = proposal.hint ? { text: proposal.hint.text, ...readLine(proposal.hint, shell) } : null;
+  const showShells = Boolean(line || hint?.line);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(line!);
@@ -55,16 +57,18 @@ export function ProposalCard({ proposal, onDismiss }: { proposal: Proposal; onDi
       <p>
         <Cited text={proposal.reason} />
       </p>
+      {showShells && (
+        <RadioGroup className="shells" orientation="horizontal" value={shell} onChange={(v) => setShell(v as Shell)} aria-label="Show the command for">
+          {(['powershell', 'posix'] as const).map((s) => (
+            <Radio key={s} value={s} className="shell-choice">
+              {SHELL_LABEL[s]}
+            </Radio>
+          ))}
+        </RadioGroup>
+      )}
       {line ? (
         <>
           <p className="note">Apply it yourself through toil's write gate:</p>
-          <RadioGroup className="shells" orientation="horizontal" value={shell} onChange={(v) => setShell(v as Shell)} aria-label="Show the command for">
-            {(['powershell', 'posix'] as const).map((s) => (
-              <Radio key={s} value={s} className="shell-choice">
-                {SHELL_LABEL[s]}
-              </Radio>
-            ))}
-          </RadioGroup>
           <pre className="command">
             <code>{line}</code>
           </pre>
@@ -73,6 +77,18 @@ export function ProposalCard({ proposal, onDismiss }: { proposal: Proposal; onDi
         proposal.command && <p className="failure">{reason}</p>
       )}
       {proposal.note && <p className="note">{proposal.note}</p>}
+      {hint && (
+        <>
+          <p className="note">{hint.text}</p>
+          {hint.line ? (
+            <pre className="command">
+              <code>{hint.line}</code>
+            </pre>
+          ) : (
+            <p className="failure">{hint.reason}</p>
+          )}
+        </>
+      )}
       <div className="proposal-actions">
         {line && (
           <Button className="btn" onPress={copy}>

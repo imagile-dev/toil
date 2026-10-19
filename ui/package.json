@@ -1,19 +1,45 @@
 {
   "name": "@imagile-dev/toil-ui",
   "version": "0.0.0",
-  "description": "Toil UI: a local web app to see and reason about work across Jira, Azure DevOps and GitHub. Unreleased; the site serves a preview of it.",
+  "description": "Toil UI: a local web app to see and reason about work across Jira, Azure DevOps and GitHub, on toil. Alpha, local only.",
   "license": "Apache-2.0",
-  "private": true,
+  "author": "Imagile",
+  "homepage": "https://imagile-dev.github.io/toil/docs/ui/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/imagile-dev/toil.git",
+    "directory": "ui"
+  },
+  "bugs": "https://github.com/imagile-dev/toil/issues",
   "type": "module",
+  "bin": {
+    "toil-ui": "dist/server/toil-ui.js"
+  },
+  "files": [
+    "dist/server/toil-ui.js",
+    "dist/app/",
+    "README.md",
+    "LICENSE",
+    "NOTICE"
+  ],
   "engines": {
     "node": ">=24.14"
   },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "typecheck": "tsc --noEmit && tsc -p tsconfig.registry.json",
+    "build": "vite build && vite build --mode app && vite build --config vite.server.config.ts",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.registry.json && tsc -p tsconfig.server.json",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check:package": "node scripts/check-package.mjs",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@imagile-dev/toil": "0.1.0-alpha.2"
   },
   "devDependencies": {
     "@cfworker/json-schema": "4.1.1",

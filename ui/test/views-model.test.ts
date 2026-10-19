@@ -7,7 +7,7 @@ import { dependencyGraph } from '../src/model/graph.ts';
 import { insights, needsAttention, prepare, type Context } from '../src/model/insights.ts';
 import { Buffer } from 'node:buffer';
 import { spawnSync } from 'node:child_process';
-import { commandLine, defaultShell, quote } from '../src/proposal.ts';
+import { commandLine, defaultShell, quote, readLine, unsafe } from '../src/proposal.ts';
 import type { ChangeRef, Deployment, StatusCategory, Transition, WorkItem } from '../src/toil.ts';
 import { healthOf } from './harness.ts';
 
@@ -193,7 +193,17 @@ describe('the board', () => {
     expect(p.note).toMatch(/no command that sets a GitHub Projects status/);
     const lone = item({ id: 'c:L-1' });
     expect(statusFor(lone, 'DONE', [lone])).toBeNull();
-    expect(proposeMove(lone, 'DONE', [lone], 'd')!.note).toMatch(/toil jira list-transitions --dossier d --key L-1/);
+    const p2 = proposeMove(lone, 'DONE', [lone], 'd')!;
+    expect(p2.note).toBe('No Done item in this dossier shows which status to use.');
+    expect(readLine(p2.hint!, 'posix').line).toBe("toil jira list-transitions --dossier 'd' --key 'L-1'");
+  });
+
+  it('builds its hints through the same quoting, so a hostile type name stays one inert argument', () => {
+    const odd = item({ id: 'corp-ado:9', source: { area: 'ado', connection: 'corp-ado', key: '9', command: 'ado work get-batch' }, typeName: "$(rm -rf ~) `id` it's" });
+    const p = proposeMove(odd, 'DONE', [odd], 'settlement')!;
+    expect(p.hint).toEqual({ text: 'List the states the work item type has:', command: 'ado work list-states', input: { dossier: 'settlement', type: "$(rm -rf ~) `id` it's" } });
+    expect(readLine(p.hint!, 'posix').line).toBe("toil ado work list-states --dossier 'settlement' --type '$(rm -rf ~) `id` it'\\''s'");
+    expect(readLine(p.hint!, 'powershell').line).toBe("toil ado work list-states --dossier 'settlement' --type '$(rm -rf ~) `id` it''s'");
   });
 });
 
@@ -252,7 +262,8 @@ describe('a proposal', () => {
 
   it('never uses double quotes, whatever the value', () => {
     for (const shell of ['posix', 'powershell'] as const) {
-      expect(commandLine({ command: 'jira update-issue', input: { key: 'A-1', summary: 'say "hi" $(id) `whoami` \'x\'' } }, shell).line).not.toMatch(/^toil[^']*"/);
+      const line = commandLine({ command: 'jira update-issue', input: { key: 'A-1', summary: "say 'hi' $(id) `whoami` \\x" } }, shell).line!;
+      expect(line).not.toContain('"');
     }
   });
 
@@ -265,8 +276,18 @@ describe('a proposal', () => {
     for (const v of ['a\nb', 'a\r\nb', 'a\u2028b']) {
       const out = commandLine({ command: 'jira update-issue', input: { key: 'A-1', summary: v } }, 'posix');
       expect(out.line).toBeNull();
-      expect(out.reason).toMatch(/--summary value holds a line break/);
+      expect(out.reason).toMatch(/--summary value can't be passed safely on a bash\/zsh command line: it holds a line break/);
     }
+  });
+
+  it.each(['&', '|', '<', '>', '^', '%', '"', '\n', '\r'])('refuses %j on a PowerShell line, which would reach cmd.exe through toil.cmd, with the reason', (c) => {
+    const input = { key: 'A-1', summary: `a ${c} b` };
+    const ps = commandLine({ command: 'jira update-issue', input }, 'powershell');
+    expect(ps.line).toBeNull();
+    expect(ps.reason).toMatch(/can't be passed safely on a PowerShell command line: .* Use the command's --input-file instead/);
+    expect(quote(`a ${c} b`, 'powershell')).toBeNull();
+    // bash and zsh take all but a line break inside single quotes as they are.
+    expect(commandLine({ command: 'jira update-issue', input }, 'posix').line === null).toBe(c === '\n' || c === '\r');
   });
 
   it("picks PowerShell on Windows and POSIX anywhere else", () => {
@@ -286,6 +307,7 @@ const HOSTILE = [
   '`whoami` and `$(id)`',
   "it's 'quoted'",
   'say "hi" and ""',
+  "PowerShell's own: $env:X @(1) $null 'a''b' -f",
   'back\\slash\\\\ and \\" and \\\'',
   "‘curly’ ‚low‛ quotes",
   '-rf --allow-write',
@@ -295,15 +317,26 @@ const HOSTILE = [
   'ünïcödé ✓ 日本',
 ];
 
+/** The hostile values PowerShell may carry: none holds a character cmd.exe acts on. */
+const PS_SAFE = HOSTILE.filter((v) => !/[&|<>^%"]/.test(v));
+
 describe('quoting', () => {
-  it.each(HOSTILE)('writes %j as one single-quoted argument in both shells', (v) => {
+  it('leaves PowerShell some hostile values to carry, and refuses the rest', () => {
+    expect(PS_SAFE.length).toBeGreaterThan(8);
+    for (const v of HOSTILE.filter((x) => !PS_SAFE.includes(x))) expect(unsafe(v, 'powershell')).toMatch(/cmd\.exe/);
+  });
+
+  it.each(HOSTILE)('writes %j as one single-quoted argument for bash/zsh', (v) => {
     const posix = quote(v, 'posix')!;
-    const ps = quote(v, 'powershell')!;
     expect(posix.startsWith("'") && posix.endsWith("'")).toBe(true);
-    expect(ps.startsWith("'") && ps.endsWith("'")).toBe(true);
-    // POSIX: between the outer quotes, a quote only ever appears as '\''.
+    // Between the outer quotes, a quote only ever appears as '\''.
     expect(posix.slice(1, -1).replace(/'\\''/g, '')).not.toContain("'");
-    // PowerShell: every quote character inside comes in a pair.
+  });
+
+  it.each(PS_SAFE)('writes %j as one single-quoted argument for PowerShell', (v) => {
+    const ps = quote(v, 'powershell')!;
+    expect(ps.startsWith("'") && ps.endsWith("'")).toBe(true);
+    // Every quote character inside comes in a pair.
     expect(ps.slice(1, -1).replace(/(['\u2018\u2019\u201A\u201B])\1/g, '')).not.toMatch(/['\u2018\u2019\u201A\u201B]/);
   });
 
@@ -335,8 +368,8 @@ describe('the round trip through a real shell', () => {
   });
 
   // pwsh: PowerShell 7, on the Windows runner and wherever it is installed; skipped where it isn't.
-  it.skipIf(!PWSH)('pwsh -EncodedCommand gives back every value byte for byte', () => {
-    for (const v of HOSTILE) {
+  it.skipIf(!PWSH)('pwsh -EncodedCommand gives back every value it will carry, byte for byte', () => {
+    for (const v of PS_SAFE) {
       // -EncodedCommand carries the script as base64 UTF-16, past any argv quoting, to PowerShell's own parser.
       const script = `[Console]::OutputEncoding = [Text.Encoding]::UTF8; [Console]::Out.Write(${quote(v, 'powershell')})`;
       const out = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')], { encoding: 'utf8', timeout: 30_000 });

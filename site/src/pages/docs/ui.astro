@@ -1,0 +1,45 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PageHero from '../../components/PageHero.astro';
+import { Content } from '../../../../ui/README.md';
+import pkg from '../../../../ui/package.json';
+import { url, repoUrl } from '../../lib/url';
+
+// Toil UI is its own package, so its reference is its README (ui/README.md),
+// which is also its npm page, rendered here. It is not in the toil skill: an
+// agent driving toil doesn't need it, and approving toil never means approving
+// the UI. The lead is the package's own description.
+---
+
+<Layout title="Toil UI" description={pkg.description}>
+  <PageHero eyebrow="<b>Docs</b> · Toil UI" title="Toil UI" lead={pkg.description}>
+    <p class="crumb">
+      <a href={url('/docs/')}>Docs</a>
+      <span aria-hidden="true"> / </span><span>Toil UI</span>
+    </p>
+  </PageHero>
+
+  <section class="section--tight">
+    <div class="container doc">
+      <article class="doc__body">
+        <div class="skill-doc">
+          <Content />
+        </div>
+        <p class="doc__source"><a href={`${repoUrl}/blob/main/ui/README.md`}><code>ui/README.md</code></a></p>
+      </article>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .crumb { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-faint); }
+  .crumb a { color: var(--color-muted); }
+  .crumb a:hover { color: var(--color-accent); }
+  .doc { display: grid; gap: var(--space-lg); align-items: start; padding-block: var(--space-lg); }
+  .doc > * { min-width: 0; }
+  .doc__body { display: grid; gap: var(--space-lg); max-width: 72ch; }
+  .doc__body > * { min-width: 0; }
+  .doc__source { margin-top: var(--space-sm); font-size: var(--text-xs); }
+  .doc__source a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-muted); }
+  .doc__source a:hover code { color: var(--color-accent); }
+</style>
