@@ -276,8 +276,8 @@ GitHub Actions; its build tooling is out of scope.
   table (`divergences.mjs`), PR screenshots (`shoot.mjs`), and the PR watcher the
   `ship` skill runs (dev tooling; none of it ships)
 - `skills/toil/` — the one skill shipped to users, and the site's docs: `SKILL.md` is a
-  small index (a test caps it) of `core.md`, the per-area files, `install.md` and
-  `mcp.md`. `scripts/gen-areas.mjs` embeds every file in the bundle, `toil skill
+  small index (a test caps it) of `core.md`, `dossiers.md`, the per-area files,
+  `install.md` and `mcp.md`. `scripts/gen-areas.mjs` embeds every file in the bundle, `toil skill
   install` writes it into an agent's skills folder (`src/skills/bundled.ts`), and toil
   rewrites that copy, and only that copy, when a command changes the config file or
   another toil version runs. `.claude-plugin/` lists it as a Claude Code plugin
