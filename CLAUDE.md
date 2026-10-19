@@ -287,14 +287,20 @@ GitHub Actions; its build tooling is out of scope.
   area still to build
 - `site/` — the GitHub Pages site (Astro), its own private package; see the `site`
   skill
-- `ui/` — Toil UI (#206), its own private package (`@imagile-dev/toil-ui`, unreleased):
-  a React and Vite front end, with one dashboard per dossier. It's built on toil's
-  own `execute()` (from `@imagile-dev/toil/api`, read-only) and an `Agent`
-  interface, with themes in `ui/themes/` (CSS, JSON and assets only). Its fixture
-  `execute()` and scripted Agent are its test harness and the site's
-  `/ui-preview/`. `ui/test/registry.test.ts` holds every call the fixture answers to
-  the real registry. The decisions are in `AGENT_DECISIONS.md`, **#206 preview** and
-  **#228 dossier dashboard**
+- `ui/` — Toil UI (#206), the separate package `@imagile-dev/toil-ui` (alpha, local
+  only), the root's npm workspace with its own release (`toil-ui-v…`): a React and
+  Vite front end, with one dashboard per dossier, and its local server in
+  `ui/server/` (`node:http`, the `toil-ui` bin), which pins `@imagile-dev/toil`
+  exactly and has no other runtime dependency. The app is built on toil's own
+  `execute()` and an `Agent` interface; the server answers both behind its `Store`
+  and `Agent` interfaces, read-only, behind a launch token. Themes are in
+  `ui/themes/` (CSS, JSON and assets only). Its fixture `execute()` and scripted
+  Agent are its test harness, `toil-ui --sample`, and the site's `/ui-preview/`.
+  `ui/test/registry.test.ts` holds every call the fixture answers to the real
+  registry; `npm run check:package -w ui` is its `check:pure`, and `npm run smoke
+  -w ui` installs both tarballs and opens it. The decisions are in
+  `AGENT_DECISIONS.md`, **#206 preview**, **#228 dossier dashboard** and **#249 UI
+  server**
 - `functions/feedback/` — the feedback backend behind the site's form and its curl
   endpoint (an Azure Function, Node.js), its own private package like `site/`, never
   published, so the No Executables rule doesn't cover it; `infra/main.bicep` provisions

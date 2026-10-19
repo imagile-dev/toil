@@ -33,10 +33,8 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            ui/package-lock.json
-      # Install scripts stay off even for the dev toolchain.
+      # Install scripts stay off even for the dev toolchain. ui/ is a workspace,
+      # so this installs Toil UI's dev dependencies too, from the one lockfile.
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm run lint
@@ -52,18 +50,17 @@ jobs:
       # Install the packed tarball with scripts off; drive the CLI and MCP.
       # Then clone the checkout and run the build from the clone, no install.
       - run: npm run smoke
-      # Toil UI (ui/), its own private package: never in toil's tarball, but
-      # held to the same gate on every OS, since the site serves its preview.
-      - run: npm ci --ignore-scripts
-        working-directory: ui
-      - run: npm run typecheck
-        working-directory: ui
-      - run: npm run lint
-        working-directory: ui
-      - run: npm test
-        working-directory: ui
-      - run: npm run build
-        working-directory: ui
+      # Toil UI (ui/, @imagile-dev/toil-ui), the root's npm workspace: never in
+      # toil's tarball, but held to the same gate on every OS. check:package is
+      # its check:pure (one dependency, toil pinned exactly, no install scripts,
+      # no native addon, the server imports only built-ins and toil, a tarball
+      # allowlist); its smoke installs both tarballs offline and opens the UI.
+      - run: npm run typecheck -w ui
+      - run: npm run lint -w ui
+      - run: npm test -w ui
+      - run: npm run build -w ui
+      - run: npm run check:package -w ui
+      - run: npm run smoke -w ui
 
   # The committed dist/toil.js is the last released toil, and only the release
   # PR rebuilds it, so any other PR that changes dist/ fails here. The head

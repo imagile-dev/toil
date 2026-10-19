@@ -144,6 +144,15 @@ verified: `unit`, `live` or `stable`. Each one's
 page on the [integrations board](https://imagile-dev.github.io/toil/integrations/)
 says what its level means.
 
+## Toil UI
+
+**Alpha, local only.** Toil UI (`@imagile-dev/toil-ui`, in [`ui/`](ui/)) is a
+separate package: a local web app with one dashboard per dossier, reading through
+toil with your own connections, read-only. It binds loopback and opens only from
+the one URL it prints when it starts. Installing toil never installs it.
+[`ui/README.md`](ui/README.md) and the
+[docs page](https://imagile-dev.github.io/toil/docs/ui/) say how to run it.
+
 ## Contributing
 
 Read [CLAUDE.md](CLAUDE.md). It holds the rules for people and agents alike.

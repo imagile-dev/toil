@@ -1,5 +1,10 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "plugins": [
+    {
+      "type": "node-workspace"
+    }
+  ],
   "packages": {
     ".": {
       "release-type": "node",
@@ -11,12 +16,27 @@
       "versioning": "prerelease",
       "prerelease": true,
       "prerelease-type": "alpha",
+      "exclude-paths": [
+        "ui"
+      ],
       "extra-files": [
         {
           "type": "generic",
           "path": "dist/toil-lib.js"
         }
       ]
+    },
+    "ui": {
+      "release-type": "node",
+      "package-name": "@imagile-dev/toil-ui",
+      "component": "toil-ui",
+      "include-component-in-tag": true,
+      "changelog-path": "CHANGELOG.md",
+      "bump-minor-pre-major": true,
+      "initial-version": "0.1.0-alpha.1",
+      "versioning": "prerelease",
+      "prerelease": true,
+      "prerelease-type": "alpha"
     }
   }
 }

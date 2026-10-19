@@ -70,12 +70,17 @@ export const integrationFiles = skillFiles.filter((f) => f.area && !(f.file in O
  * A remark plugin: inline code naming another file of the skill (`core.md`)
  * becomes a link to its page, and each file's own first heading is dropped,
  * since the page hero shows it. Agents read the same text with the file names.
+ * Toil UI's README (ui/README.md: its npm page, and /docs/ui/) loses its first
+ * heading the same way, and keeps its links as written.
  */
 export function remarkSkillLinks({ base }) {
   return () => (tree, file) => {
-    if (!String(file.path ?? file.history?.[0] ?? '').replace(/\\/g, '/').includes('/skills/toil/')) return;
+    const path = String(file.path ?? file.history?.[0] ?? '').replace(/\\/g, '/');
+    const readme = path.endsWith('/ui/README.md');
+    if (!path.includes('/skills/toil/') && !readme) return;
     const first = tree.children.findIndex((n) => n.type === 'heading' && n.depth === 1);
     if (first >= 0) tree.children.splice(first, 1);
+    if (readme) return;
     const walk = (node) => {
       if (!node.children || node.type === 'link') return;
       node.children = node.children.map((child) => {
