@@ -14,7 +14,8 @@
  * server the user's Codex config names (`$CODEX_HOME/config.toml`, else
  * `~/.codex/config.toml`) is switched off by name for the run (#287: on a real
  * machine the user's own servers were started beside Toil UI's). A config
- * whose servers can't be read by name is refused, never guessed at. The shell,
+ * whose servers can't be read by name is refused, never guessed at; profiles
+ * and plugin servers are #300. The shell,
  * apps, plugins, sub-agents, browser and web search are switched off, and the
  * sandbox is read-only with approvals never asked.
  * Options checked against the SDK's index.d.ts at 0.160.0; the feature names

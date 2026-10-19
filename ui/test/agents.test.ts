@@ -832,7 +832,7 @@ describe("the user's own Codex MCP servers", () => {
   it('come from CODEX_HOME, else .codex in the home folder', () => {
     expect(codexConfigPath({ CODEX_HOME: '/opt/codex', HOME: '/home/you' }, 'linux')).toBe(join('/opt/codex', 'config.toml'));
     expect(codexConfigPath({ HOME: '/home/you' }, 'linux')).toBe(join('/home/you', '.codex', 'config.toml'));
-    expect(codexConfigPath({ USERPROFILE: 'C:\Users\you', HOME: '/c/Users/you' }, 'win32')).toBe(join('C:\Users\you', '.codex', 'config.toml'));
+    expect(codexConfigPath({ USERPROFILE: 'C:\\Users\\you', HOME: '/c/Users/you' }, 'win32')).toBe(join('C:\\Users\\you', '.codex', 'config.toml'));
   });
 
   it('are switched off on a real run: the adapter reads the config from the CLI\'s environment and passes the overrides', async () => {
