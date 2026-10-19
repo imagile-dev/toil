@@ -1,7 +1,7 @@
 /* Crate: toil's own brand, from site/src/styles/global.css. Tokens come from
    theme.json (test/brand-sync.test.ts in the repository root holds them to the
-   site); this file adds the site's fonts, its drafting grid and its accent
-   gradient. The same layout and click targets as Plain: only the look changes. */
+   site); this file adds the site's fonts, its drafting grid, its accent
+   gradient and the crate's head beside the name. The same layout and click targets as Plain: only the look changes. */
 
 @import '@fontsource/ibm-plex-sans/400.css';
 @import '@fontsource/ibm-plex-sans/600.css';

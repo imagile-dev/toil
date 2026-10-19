@@ -1,7 +1,7 @@
 /* Harvest (#208): a 16-bit farm. Tokens come from theme.json; this file adds
    the pixel font, wooden nine-slice panels, a sky that follows the sprint from
-   dawn on day one to dusk on the last, the board as a farm plot, and the
-   dialogue box. The same layout and click targets as Plain: only the look
+   dawn on day one to dusk on the last, the board as a farm plot, the
+   dialogue box, a barn beside the name and the farm along the foot of the page. The same layout and click targets as Plain: only the look
    changes. Every sprite is drawn on a pixel grid and kept crisp with
    `image-rendering: pixelated`. Art is original and hidden from screen
    readers; the words beside it say what it shows. */

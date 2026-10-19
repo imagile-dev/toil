@@ -1,10 +1,11 @@
 /* Starship (#209): a starship's bridge console. Tokens come from theme.json;
-   this file adds the console fonts, a slow starfield, scanlines, holo panels
-   with HUD corner brackets, sprint health as ship's readouts, and the
-   dependency graph as a star chart: items are systems, links are hyperspace
-   lanes, and blockers are hazards. The same layout and click targets as
-   Plain: only the look changes. Art is original and hidden from screen
-   readers; the words beside it say what it shows. */
+   this file adds the console fonts, a nebula under a slow starfield, the
+   ship's insignia beside the name, scanlines, holo panels with HUD corner
+   brackets, sprint health as ship's readouts, and the dependency graph as a
+   star chart: items are systems, links are hyperspace lanes, and blockers
+   are hazards. The same layout and click targets as Plain: only the look
+   changes. Art is original and hidden from screen readers; the words beside
+   it say what it shows. */
 
 @import '@fontsource/orbitron/600.css';
 @import '@fontsource/orbitron/700.css';

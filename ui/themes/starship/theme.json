@@ -1,7 +1,7 @@
 {
   "name": "starship",
   "label": "Starship",
-  "description": "A starship's bridge console: HUD frames, scanlines and a slow starfield, holo panels with a glow, sprint health as ship's readouts, and the dependency graph as a star chart.",
+  "description": "A starship's bridge console: HUD frames, scanlines and a slow starfield over a nebula, holo panels with a glow, sprint health as ship's readouts, and the dependency graph as a star chart.",
   "schemes": {
     "dark": {
       "bg": "#05070f",

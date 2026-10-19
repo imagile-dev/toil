@@ -1,9 +1,10 @@
 /* Realm (#210): a high-fantasy chronicle. Tokens come from theme.json; this
-   file adds parchment, ink-drawn borders, illuminated capitals on the
-   headings, the sprint as a chronicle page, and the dependency graph as a
-   hand-drawn map, where blockers are mountain passes. The same layout and
-   click targets as Plain: only the look changes. Art is original and hidden
-   from screen readers; the words beside it say what it shows. */
+   file adds parchment, a crest beside the name, ink-drawn borders,
+   illuminated capitals on the headings, the sprint as a chronicle page, and
+   the dependency graph as a hand-drawn map, where blockers are mountain
+   passes. The same layout and click targets as Plain: only the look changes.
+   Art is original and hidden from screen readers; the words beside it say
+   what it shows. */
 
 @import '@fontsource/cinzel/600.css';
 @import '@fontsource/cinzel-decorative/700.css';
