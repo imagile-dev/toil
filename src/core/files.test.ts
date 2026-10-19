@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -389,8 +389,10 @@ describe('list', () => {
     const files = nodeFiles({ cwd: root, stdin: false, home: root });
     const warnings: Array<{ code: string; message: string }> = [];
     expect(files.list('.', { warn: (w) => warnings.push(w) })).toEqual(['.gitignore', 'a', 'src/.gitignore', 'src/index.ts', 'src/m.txt']);
-    const top = forwardSlashes(join(root, '.gitignore'));
-    const nested = forwardSlashes(join(root, 'src', '.gitignore'));
+    // The listing names the file by its real path (/private/var on macOS, a long name for a short one on Windows).
+    const real = realpathSync.native(root);
+    const top = forwardSlashes(join(real, '.gitignore'));
+    const nested = forwardSlashes(join(real, 'src', '.gitignore'));
     expect(warnings).toEqual([
       { code: 'GITIGNORE_LINE_SKIPPED', message: expect.stringContaining(`Line 3 of ${top} ("[b-a]")`) },
       { code: 'GITIGNORE_LINE_SKIPPED', message: expect.stringContaining(`Line 2 of ${nested} ("[z-a].txt")`) },
@@ -402,6 +404,11 @@ describe('list', () => {
     const below: Array<{ code: string; message: string }> = [];
     expect(files.list('src', { warn: (w) => below.push(w) })).toEqual(['.gitignore', 'index.ts', 'm.txt']);
     expect(below.map((w) => w.message.slice(0, w.message.indexOf(')') + 1))).toEqual([`Line 3 of ${top} ("[b-a]")`, `Line 2 of ${nested} ("[z-a].txt")`]);
+
+    // With .gitignore off, no ignore file is read at all, so nothing is said about one.
+    const off: Array<{ code: string; message: string }> = [];
+    expect(files.list('src', { gitignore: false, warn: (w) => off.push(w) })).toContain('secret.json');
+    expect(off).toEqual([]);
   });
 
   it('outside a repository applies only the .gitignore files under the folder (git would list nothing: the deps area must check for a repository itself)', () => {
