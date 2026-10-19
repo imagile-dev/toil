@@ -20,12 +20,14 @@
  * Every request becomes a `RequestContext` with its viewer before a Store or
  * Agent sees it. Reads are only the commands the views make (`READ_COMMANDS`),
  * always read-only. A config change (#253) is only a command on the server's
- * config allowlist, empty in this release. The agent (#251) answers on
- * `agent/ask`, streamed as NDJSON when asked, and its settings are
- * `agent/settings`. `agent/mcp` is the one route without a session: it serves
- * one question's read tools to the Codex CLI, by that question's bearer token,
- * and refuses anything carrying a page's `Origin`. The building has one door,
- * one key and a guest book, and the guest book is toil's audit log.
+ * config allowlist (ui/server/config.ts): toil's own commands for its
+ * connections and dossiers, with the person's answers to their questions. The
+ * agent (#251) answers on `agent/ask`, streamed as NDJSON when asked, and its
+ * settings are `agent/settings`. `agent/mcp` is the one route without a
+ * session: it serves one question's read tools to the Codex CLI, by that
+ * question's bearer token, and refuses anything carrying a page's `Origin`.
+ * The building has one door, one key and a guest book, and the guest book is
+ * toil's audit log.
  */
 
 import { randomBytes, timingSafeEqual } from 'node:crypto';
@@ -35,7 +37,9 @@ import type { AddressInfo } from 'node:net';
 import { extname, isAbsolute, join, normalize, relative, sep } from 'node:path';
 import type { Answer } from '../src/agent.ts';
 import type { Envelope } from '../src/toil.ts';
+import type { AreaInfo, SettingsInfo } from '../src/config.ts';
 import type { Agent } from './agent.ts';
+import { AnswersError, CONFIG_COMMANDS, isConfigRead, personFrom, settingsFrom } from './config.ts';
 import { AgentError } from './agents/cli.ts';
 import type { AgentStatus } from './agents/host.ts';
 import { answerMcp, McpGrants } from './agents/mcp.ts';
@@ -54,8 +58,10 @@ export interface UiServerOptions {
   /** Toil UI's own version, and the toil it runs on, for the session and refusals. */
   version: string;
   toil: { version: string; contractVersion: number };
-  /** Commands `/api/config` may run with writes on this machine (#253). Empty in this release. */
+  /** Commands `/api/config` may run (#253): CONFIG_COMMANDS unless a test narrows it. */
   configCommands?: ReadonlySet<string>;
+  /** What the settings pages show beside the commands: the areas' connection fields, and the settings toil has no command for. */
+  config?: { areas: AreaInfo[]; settings: SettingsInfo };
   /** The sync job and its cache (#250): `api/sync` and `api/cache/wipe`. None with sample data. */
   sync?: SyncService;
   /** The agent's settings (#251): `api/agent/settings`. None with sample data, which always uses the scripted agent. */
@@ -169,7 +175,8 @@ export function createUiServer(options: UiServerOptions): UiServer {
   const { settings, store, agent, appDir } = options;
   const token = options.token ?? secret();
   const viewer = options.viewer ?? localViewer();
-  const configCommands = options.configCommands ?? new Set<string>();
+  const configCommands = options.configCommands ?? CONFIG_COMMANDS;
+  const configInfo = options.config ?? { areas: [], settings: settingsFrom(process.env) };
   const sessions = new Map<string, Session>();
   const base = settings.basePath;
   let host = '';
@@ -295,11 +302,24 @@ export function createUiServer(options: UiServerOptions): UiServer {
     if (!allowed.has(command)) {
       const message = access === 'read'
         ? `Toil UI doesn't run toil ${command} from the page: it runs only the reads its views make.`
-        : `Toil UI doesn't change ${command} from the page in this release.`;
+        : `Toil UI doesn't change ${command} from the page: its settings pages run only toil's commands for its own connections and dossiers.`;
       json(res, 403, refusal(command, message, `Run toil ${command} on the CLI, where toil's own rules apply.`));
       return;
     }
-    json(res, 200, await store.execute(ctx, command, input as Record<string, unknown>, access));
+    if (access === 'read') {
+      json(res, 200, await store.execute(ctx, command, input as Record<string, unknown>, access));
+      return;
+    }
+    // A config read runs read-only. A change runs with the person's answers, which go to toil and nowhere else.
+    const readOnly = isConfigRead(command);
+    let person;
+    try {
+      person = readOnly ? undefined : personFrom(body);
+    } catch (e) {
+      if (e instanceof AnswersError) throw new HttpError(400, e.message, e.fix);
+      throw e;
+    }
+    json(res, 200, await store.execute(ctx, command, input as Record<string, unknown>, access, { readOnly, ...(person ? { person } : {}) }));
   };
 
   const api = async (req: IncomingMessage, res: ServerResponse, route: string, url: URL, ctx: RequestContext) => {
@@ -322,6 +342,12 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return run(req, res, ctx, 'read');
       case 'POST config':
         return run(req, res, ctx, 'config');
+      case 'GET config/areas':
+        json(res, 200, configInfo.areas);
+        return;
+      case 'GET config/settings':
+        json(res, 200, configInfo.settings);
+        return;
       case 'GET agent/starters': {
         const dossier = url.searchParams.get('dossier');
         if (!dossier) throw new HttpError(400, 'Name the dossier.', `Ask ${base}api/agent/starters?dossier=<name>.`);
@@ -381,7 +407,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return;
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, sync, cache/wipe, agent/starters, agent/ask, agent/settings and agent/mcp.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, sync, cache/wipe, agent/starters, agent/ask, agent/settings and agent/mcp.`);
     }
   };
 

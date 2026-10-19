@@ -19,8 +19,9 @@
  * with the tenant.
  */
 
+import { fixtureConfigExecute } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import type { Envelope, Execute } from '../src/toil.ts';
+import type { Envelope, Execute, ExecuteOptions, ExecutePerson } from '../src/toil.ts';
 import type { Cache } from './cache.ts';
 import type { RequestContext } from './context.ts';
 
@@ -37,9 +38,11 @@ export interface Store {
   /**
    * Runs one toil call for the viewer and returns its envelope; never throws.
    * `access` is the server's decision, already checked against its
-   * allowlists: `read` must run read-only.
+   * allowlists: `read` must run read-only, and so must a `config` call the
+   * server marks `readOnly`. `person` carries a config change's answers
+   * (ui/server/config.ts), for the commands that ask a person questions.
    */
-  execute(ctx: RequestContext, command: string, input: Record<string, unknown>, access: Access): Promise<Envelope>;
+  execute(ctx: RequestContext, command: string, input: Record<string, unknown>, access: Access, how?: ConfigCall): Promise<Envelope>;
 }
 
 /**
@@ -68,8 +71,27 @@ export const READ_COMMANDS: ReadonlySet<string> = new Set([
   'openshift deployments',
 ]);
 
+/** How a `config` call runs: read-only for the pages' reads, and with the person's answers for a change. */
+export interface ConfigCall {
+  readOnly: boolean;
+  person?: ExecutePerson;
+}
+
 /** Every Toil UI call names itself, so the audit log says which lines were the UI's. */
 export const CALLER = 'toil-ui';
+
+/**
+ * The options a call to toil's own `execute()` gets: read-only for every read
+ * and for a config read, and a config change's person only on a config call.
+ */
+function toilOptions(ctx: RequestContext, access: Access, how: ConfigCall | undefined): ExecuteOptions {
+  return {
+    readOnly: access === 'read' || how?.readOnly !== false,
+    caller: CALLER,
+    signal: ctx.signal,
+    ...(access === 'config' && how?.person ? { person: how.person } : {}),
+  };
+}
 
 /** toil's own `execute()`, read-only for every read; `config` calls go through toil's write rules unchanged. */
 export function toilStore(execute: Execute): Store {
@@ -77,7 +99,7 @@ export function toilStore(execute: Execute): Store {
     kind: 'toil',
     sample: false,
     now: () => new Date().toISOString(),
-    execute: (ctx, command, input, access) => execute(command, input, { readOnly: access === 'read', caller: CALLER, signal: ctx.signal }),
+    execute: (ctx, command, input, access, how) => execute(command, input, toilOptions(ctx, access, how)),
   };
 }
 
@@ -98,8 +120,8 @@ export function sqliteStore(cache: () => Cache, execute: Execute, toil: { versio
     kind: 'sqlite',
     sample: false,
     now: () => new Date().toISOString(),
-    async execute(ctx, command, input, access) {
-      if (access !== 'read' || LIVE_COMMANDS.has(command)) return execute(command, input, { readOnly: access === 'read', caller: CALLER, signal: ctx.signal });
+    async execute(ctx, command, input, access, how) {
+      if (access !== 'read' || LIVE_COMMANDS.has(command)) return execute(command, input, toilOptions(ctx, access, how));
       const meta = { command, durationMs: 0, version: toil.version, contractVersion: toil.contractVersion };
       const dossier = typeof input.dossier === 'string' ? input.dossier : null;
       const stored = dossier ? cache().response(dossier, command, input) : null;
@@ -126,10 +148,12 @@ export function sqliteStore(cache: () => Cache, execute: Execute, toil: { versio
 /** The preview's fixture `execute()`. It answers read-only calls only, so a `config` call comes back refused. */
 export function fixtureStore(): Store {
   const fixture = fixtureExecute();
+  const config = fixtureConfigExecute();
   return {
     kind: 'fixture',
     sample: true,
     now: () => FIXTURE_NOW,
-    execute: (ctx, command, input, access) => fixture.execute(command, input, { readOnly: access === 'read', caller: CALLER, signal: ctx.signal }),
+    // The settings pages read the sample config; a change is refused, since the sample has nothing of yours to change.
+    execute: (ctx, command, input, access) => (access === 'config' ? config(command, input) : fixture.execute(command, input, { readOnly: true, caller: CALLER, signal: ctx.signal })),
   };
 }

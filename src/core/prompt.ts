@@ -6,16 +6,23 @@ import { ToilError } from './errors.js';
  * Questions for a person at a terminal, used only by the `toil connections`
  * setup commands. Nothing else in toil prompts, and nothing prompts under MCP,
  * where stdin is the protocol. The CLI builds one only when stdin and stderr
- * are both terminals; everywhere else a command that needs one fails with a
- * fix naming the env vars.
+ * are both terminals; a program using the API builds one only from the
+ * `person` it passes, whose answers a person typed in that program's own
+ * interface (src/api.ts). Everywhere else a command that needs one fails with
+ * a fix naming the env vars.
  *
  * Prompts go to stderr so stdout still carries exactly one envelope.
  */
 export interface Prompter {
-  /** A visible answer; an empty one returns `fallback` (or ''). */
-  ask(question: string, fallback?: string): Promise<string>;
-  /** An answer read without echo, for a secret. */
-  askSecret(question: string): Promise<string>;
+  /**
+   * A visible answer; an empty one returns `fallback` (or ''). `id` names the
+   * question for a host that asks it in its own interface (src/api.ts,
+   * `person`): `area`, `setting:<key>`, `confirm` or `confirm-name`. A
+   * terminal shows only the question.
+   */
+  ask(question: string, fallback?: string, id?: string): Promise<string>;
+  /** An answer read without echo, for a secret. `id` is `secret:<key>`. */
+  askSecret(question: string, id?: string): Promise<string>;
 }
 
 /**

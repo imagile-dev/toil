@@ -1,0 +1,294 @@
+[
+  {
+    "name": "ado",
+    "description": "Azure DevOps Server: work items, repositories, pull requests and pipelines",
+    "connection": [
+      {
+        "name": "baseUrl",
+        "description": "Azure DevOps Server root, e.g. https://ado.imagile.dev (keep any /tfs prefix)",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": true
+      },
+      {
+        "name": "collection",
+        "description": "Default collection, when --collection isn't given",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "project",
+        "description": "Default team project, when --project isn't given",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "repo",
+        "description": "Default git repository, when --repo isn't given",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "fieldAliases",
+        "description": "Work item field aliases, friendly name to reference name (e.g. {\"storypoints\": \"Microsoft.VSTS.Scheduling.StoryPoints\"})",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "discoveredFields",
+        "description": "Work item fields recorded by an earlier discovery; kept, not read",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "discoveredTypes",
+        "description": "Work item types recorded by an earlier discovery; kept, not read",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "pat",
+        "description": "Personal access token",
+        "secret": true,
+        "password": false,
+        "default": null,
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "bitbucket",
+    "description": "Bitbucket Data Center: repositories, pull requests, comments, reviewers and build statuses",
+    "connection": [
+      {
+        "name": "baseUrl",
+        "description": "Bitbucket server root, e.g. https://bitbucket.imagile.dev",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": true
+      },
+      {
+        "name": "project",
+        "description": "Default project key",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "repo",
+        "description": "Default repository slug",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "targetBranch",
+        "description": "Default target branch for create-pr (main when unset)",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "pat",
+        "description": "HTTP access token",
+        "secret": true,
+        "password": false,
+        "default": null,
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "github",
+    "description": "GitHub and GitHub Enterprise Server: pull requests, reviews, comments, checks, labels, assignees, issues and projects",
+    "connection": [
+      {
+        "name": "baseUrl",
+        "description": "REST API root: https://api.github.com, or https://ghe.imagile.dev/api/v3 for Enterprise Server",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": true
+      },
+      {
+        "name": "owner",
+        "description": "Default owner (user or org)",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "repo",
+        "description": "Default repository name",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "targetBranch",
+        "description": "Default base branch for create-pr (main when unset)",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "token",
+        "description": "Fine-grained personal access token",
+        "secret": true,
+        "password": false,
+        "default": null,
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jenkins",
+    "description": "Jenkins: jobs, builds, console logs and the build queue",
+    "connection": [
+      {
+        "name": "baseUrl",
+        "description": "Jenkins server root, e.g. https://jenkins.imagile.dev",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": true
+      },
+      {
+        "name": "username",
+        "description": "Jenkins user name the API token belongs to",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": true
+      },
+      {
+        "name": "instance",
+        "description": "The name --instance selects this connection by, when it isn't the connection's own name",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "apiToken",
+        "description": "Jenkins API token",
+        "secret": true,
+        "password": false,
+        "default": null,
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "jira",
+    "description": "Jira Data Center: issues, search, transitions, comments, worklogs, attachments, custom fields, boards and sprints",
+    "connection": [
+      {
+        "name": "baseUrl",
+        "description": "Jira server root, e.g. https://jira.imagile.dev",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": true
+      },
+      {
+        "name": "customFields",
+        "description": "Custom fields addressable by friendly name",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "project",
+        "description": "Default project key for create-issue",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "issueType",
+        "description": "Default issue type for create-issue (Task when unset)",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "priority",
+        "description": "Default priority for create-issue",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "apiToken",
+        "description": "Personal access token",
+        "secret": true,
+        "password": false,
+        "default": null,
+        "required": true
+      }
+    ]
+  },
+  {
+    "name": "openshift",
+    "description": "OpenShift and Kubernetes: pods, deployments, events, logs and resource usage",
+    "connection": [
+      {
+        "name": "baseUrl",
+        "description": "API server URL, e.g. https://openshift.imagile.dev",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "env",
+        "description": "Environment name that --env selects this cluster by, e.g. prod",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "instance",
+        "description": "Cluster instance name within the environment that --instance selects this cluster by, e.g. east",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "token",
+        "description": "Bearer token, typically a service account token",
+        "secret": true,
+        "password": false,
+        "default": null,
+        "required": false
+      }
+    ]
+  }
+]

@@ -277,12 +277,15 @@ describe('the API', () => {
     expect(seen).toEqual([]);
   });
 
-  it('runs no config change in this release: the config allowlist is empty', async () => {
+  it("refuses on the config path anything but toil's own config commands: a tracker write never reaches a Store", async () => {
     const { store, seen } = watched();
     const { origin } = await start({ store });
     const { sid, session } = await signIn(origin);
-    const res = await post(origin, '/api/config', { command: 'dossiers field', input: {} }, { sid, csrf: session.csrf });
-    expect(res.status).toBe(403);
+    for (const command of ['jira create-issue', 'jira transition-issue', 'setup alias', 'dossiers remove', 'jira search']) {
+      const res = await post(origin, '/api/config', { command, input: {} }, { sid, csrf: session.csrf });
+      expect(res.status, command).toBe(403);
+      expect(JSON.parse(res.body).error.message).toContain(`Toil UI doesn't change ${command} from the page`);
+    }
     expect(seen).toEqual([]);
   });
 
@@ -609,18 +612,27 @@ describe('the Stores', () => {
     const ctx: RequestContext = { viewer: { id: 'local', name: 'you', via: 'launch-token' }, signal: new AbortController().signal };
     await store.execute(ctx, 'dossiers list', {}, 'read');
     await store.execute(ctx, 'dossiers field', { dossier: 'd' }, 'config');
+    const person = { ask: () => undefined };
+    await store.execute(ctx, 'connections add', { name: 'x' }, 'config', { readOnly: false, person });
+    await store.execute(ctx, 'connections list', {}, 'config', { readOnly: true });
+    await store.execute(ctx, 'dossiers show', {}, 'read', { readOnly: false, person });
     expect(calls).toEqual([
       ['dossiers list', {}, { readOnly: true, caller: CALLER, signal: ctx.signal }],
-      ['dossiers field', { dossier: 'd' }, { readOnly: false, caller: CALLER, signal: ctx.signal }],
+      // A config call the server didn't mark as a change stays read-only.
+      ['dossiers field', { dossier: 'd' }, { readOnly: true, caller: CALLER, signal: ctx.signal }],
+      ['connections add', { name: 'x' }, { readOnly: false, caller: CALLER, signal: ctx.signal, person }],
+      ['connections list', {}, { readOnly: true, caller: CALLER, signal: ctx.signal }],
+      // A read never runs with writes or a person, whatever it's handed.
+      ['dossiers show', {}, { readOnly: true, caller: CALLER, signal: ctx.signal }],
     ]);
     expect(store.sample).toBe(false);
   });
 
-  it('the fixture Store refuses anything but a read', async () => {
+  it('the fixture Store reads the sample config and refuses every change', async () => {
     const ctx: RequestContext = { viewer: { id: 'local', name: 'you', via: 'launch-token' }, signal: new AbortController().signal };
-    const env = await fixtureStore().execute(ctx, 'dossiers list', {}, 'config');
-    expect(env.ok).toBe(false);
-    if (!env.ok) expect(env.error.code).toBe('WRITE_DISABLED');
+    expect(await fixtureStore().execute(ctx, 'connections list', {}, 'config', { readOnly: true })).toMatchObject({ ok: true });
+    const env = await fixtureStore().execute(ctx, 'dossiers init', { name: 'x' }, 'config', { readOnly: false, person: { ask: () => undefined } });
+    expect(env).toMatchObject({ ok: false, error: { code: 'WRITE_DISABLED' } });
   });
 });
 

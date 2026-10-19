@@ -18,6 +18,8 @@
  * committee ever approves.
  */
 import { homedir } from 'node:os';
+import type { z } from 'zod';
+import type { AnyArea } from './core/area.js';
 import { CALLER_LABEL } from './core/audit.js';
 import { commandName, servedOverMcp, toolName, type AnyCommand, type CommandKind } from './core/command.js';
 import type { AreaInfo } from './core/config.js';
@@ -25,6 +27,7 @@ import { CONTRACT_VERSION, failure, type Envelope } from './core/envelope.js';
 import { ToilError } from './core/errors.js';
 import { createSecretStore, type SecretStore } from './core/keychain.js';
 import type { ProgressEvent } from './core/progress.js';
+import type { Prompter } from './core/prompt.js';
 import { runCommand } from './core/run.js';
 import { inputSchemaFor } from './mcp/server.js';
 import { createNodeContext } from './node-context.js';
@@ -75,17 +78,68 @@ export interface CommandInfo {
 export interface AreaSummary {
   name: string;
   description: string;
+  /**
+   * What a connection to it holds, in the order `toil connections add` asks:
+   * each setting, then each secret. Empty for an area that takes no
+   * connection.
+   */
+  connection: readonly ConnectionField[];
+}
+
+/** One value a connection holds, as `toil connections add` asks for it. */
+export interface ConnectionField {
+  /** The key in config and the question's id (`setting:<name>` or `secret:<name>`). */
+  name: string;
+  description: string | null;
+  /** Asked for hidden, and kept in the OS credential store, never the file. */
+  secret: boolean;
+  /** A secret that is a password, not a token. */
+  password: boolean;
+  /** What an empty answer keeps, as the question shows it. */
+  default: string | null;
+  /** The connection isn't valid without it. */
+  required: boolean;
 }
 
 /**
  * The commands and areas this toil has. `commands` is what `execute()`
  * serves: every command MCP would serve with every area set up. The CLI-only
  * ones (they prompt on a terminal, or change connections) and deletes are a
- * person's, on the CLI, and aren't here.
+ * person's, on the CLI, and aren't there. `personCommands` are the ones of
+ * those `execute()` runs for a host that passes a `person` to answer them.
  */
 export interface Registry {
   readonly areas: readonly AreaSummary[];
   readonly commands: readonly CommandInfo[];
+  readonly personCommands: readonly CommandInfo[];
+}
+
+/**
+ * One question a person's command asks, which a host shows in its own
+ * interface. `id` says what it asks for, so the host can match it to a field:
+ * `area`, `setting:<key>` and `secret:<key>` (the connection's fields,
+ * `AreaSummary.connection`), `confirm` (save what was reviewed: `y` or `n`)
+ * and `confirm-name` (type the connection's name to turn writes on).
+ */
+export interface Question {
+  id: string;
+  /** The question as a terminal shows it. */
+  text: string;
+  /** Asked for hidden: the answer is a secret. */
+  secret: boolean;
+  /** What an empty answer keeps, if anything. */
+  fallback: string | null;
+}
+
+/**
+ * A person, answering through the host's own interface (Toil UI's settings
+ * pages). The host must ask them and pass on what they typed: the commands
+ * this opens are a person's, which no agent or script is ever allowed to run
+ * on its own. Return `undefined` for a question the person wasn't asked, and
+ * the command stops with `CANCELLED`, having saved nothing.
+ */
+export interface ExecutePerson {
+  ask(question: Question): Promise<string | undefined> | string | undefined;
 }
 
 /** Options for one call. More fields may be added; none will change meaning. */
@@ -119,32 +173,99 @@ export interface ExecuteOptions {
   workspace?: string;
   /** Add every request to `meta.requests`, as `--verbose` does. */
   verbose?: boolean;
+  /**
+   * The person the call is for, answering the questions toil would ask on a
+   * terminal. With one, `execute()` also runs `registry.personCommands`
+   * (`connections add`, `login`, `remove`, `writes` and `default`), asking
+   * each question through it: a secret goes from their answer straight to the
+   * OS credential store and is never in the input, the envelope or the audit
+   * log, and turning writes on still needs them to type the connection's
+   * name. Without one, those commands are refused, as before.
+   */
+  person?: ExecutePerson;
 }
 
 const served: AnyCommand[] = commands.filter(servedOverMcp);
 const byName = new Map(served.map((def) => [commandName(def), def]));
+/**
+ * The person's commands a host may run with `person`: setting up and changing
+ * connections. The other CLI-only commands (a shell alias, a dossier's or a
+ * marketplace's removal) and every delete stay on the CLI.
+ */
+const PERSON_COMMANDS = new Set(['connections add', 'connections login', 'connections remove', 'connections writes', 'connections default']);
+const forPerson: AnyCommand[] = commands.filter((def) => PERSON_COMMANDS.has(commandName(def)));
+const personByName = new Map(forPerson.map((def) => [commandName(def), def]));
 const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context) }));
 
+const info = (def: AnyCommand): CommandInfo => ({
+  name: commandName(def),
+  tool: toolName(def),
+  path: [...def.path],
+  area: def.path[0],
+  kind: def.kind ?? 'area',
+  description: def.description,
+  writes: def.writes,
+  writesLocal: def.writesLocal === true,
+  writesDependOnInput: def.writesWhen !== undefined || def.writesLocalWhen !== undefined,
+  inputSchema: inputSchemaFor(def),
+});
+
+/** A connection's fields in the order `connections add` asks for them: settings (`baseUrl` first), then secrets. */
+function connectionFields(area: AnyArea): ConnectionField[] {
+  const shape = area.connection.shape as Record<string, z.ZodType>;
+  const secretKeys: string[] = area.secrets ?? [];
+  const settings = Object.keys(shape)
+    .filter((k) => !secretKeys.includes(k))
+    .sort((a, b) => Number(b === 'baseUrl') - Number(a === 'baseUrl'));
+  const field = (name: string, secret: boolean): ConnectionField => {
+    const fallback = (area.defaults as Record<string, unknown> | undefined)?.[name];
+    return {
+      name,
+      description: shape[name]?.description ?? null,
+      secret,
+      password: secret && area.secretKinds[name] === 'password',
+      default: fallback === undefined ? null : String(fallback),
+      required: fallback === undefined && shape[name]?.safeParse(undefined).success === false,
+    };
+  };
+  return [...settings.map((k) => field(k, false)), ...secretKeys.filter((k) => k in shape).map((k) => field(k, true))];
+}
+
 let listed: CommandInfo[] | undefined;
+let listedForPerson: CommandInfo[] | undefined;
+let summaries: AreaSummary[] | undefined;
 /** Built on first read: a JSON Schema for every command takes a moment, and most hosts look once. */
 export const registry: Registry = {
-  areas: areas.map((a) => ({ name: a.name, description: a.description })),
+  get areas() {
+    summaries ??= areas.map((a) => ({ name: a.name, description: a.description, connection: connectionFields(a) }));
+    return summaries;
+  },
   get commands() {
-    listed ??= served.map((def) => ({
-      name: commandName(def),
-      tool: toolName(def),
-      path: [...def.path],
-      area: def.path[0],
-      kind: def.kind ?? 'area',
-      description: def.description,
-      writes: def.writes,
-      writesLocal: def.writesLocal === true,
-      writesDependOnInput: def.writesWhen !== undefined || def.writesLocalWhen !== undefined,
-      inputSchema: inputSchemaFor(def),
-    }));
+    listed ??= served.map(info);
     return listed;
   },
+  get personCommands() {
+    listedForPerson ??= forPerson.map(info);
+    return listedForPerson;
+  },
 };
+
+/** The host's person as the Prompter the connections commands ask through. */
+function prompterFor(person: ExecutePerson): Prompter {
+  const ask = async (question: Question): Promise<string> => {
+    const answer = await person.ask(question);
+    if (answer === undefined) throw new ToilError('CANCELLED', `Nothing was saved: "${question.text}" wasn't answered.`, { fix: 'Answer every question the command asks, then try again.' });
+    if (typeof answer !== 'string') throw new ToilError('INVALID_INPUT', `The answer to "${question.text}" must be text.`, { fix: 'Pass the text the person typed.' });
+    return answer.trim();
+  };
+  return {
+    ask: async (text, fallback, id) => {
+      const answer = await ask({ id: id ?? 'question', text, secret: false, fallback: fallback ?? null });
+      return answer === '' ? (fallback ?? '') : answer;
+    },
+    askSecret: (text, id) => ask({ id: id ?? 'secret', text, secret: true, fallback: null }),
+  };
+}
 
 // Nothing is spawned until a `keychain:` reference is actually read.
 let secrets: SecretStore | undefined;
@@ -157,12 +278,16 @@ let secrets: SecretStore | undefined;
  */
 export async function execute(command: string, input: Record<string, unknown> = {}, options: ExecuteOptions = {}): Promise<Envelope> {
   const refuse = (message: string, fix: string): Envelope => failure(new ToilError('INVALID_INPUT', message, { fix }), { command, durationMs: 0, version: VERSION });
-  const def = byName.get(command);
+  const def = byName.get(command) ?? (options.person ? personByName.get(command) : undefined);
   if (!def) {
     const known = commands.find((d) => commandName(d) === command);
+    if (known && personByName.has(command)) return refuse(`${command} is a person's command: execute() runs it only with a person to answer its questions.`, `Pass options.person, or run toil ${command} in a terminal.`);
     return known
       ? refuse(`${command} isn't served through the API: it's a person's command, on the CLI.`, `Run toil ${command} in a terminal.`)
       : refuse(`toil has no command ${JSON.stringify(command)}.`, 'Use a name from registry.commands, such as "version" or "jira search".');
+  }
+  if (options.person !== undefined && (typeof options.person !== 'object' || options.person === null || typeof options.person.ask !== 'function')) {
+    return refuse('person must be an object with an ask(question) function.', 'Pass { ask: (question) => <what the person typed> }.');
   }
   if (options.caller !== undefined && (typeof options.caller !== 'string' || !CALLER_LABEL.test(options.caller))) {
     return refuse(`caller must be a short name such as "toil-ui", not ${JSON.stringify(options.caller)}.`, 'Use lowercase letters, digits, ".", "_" and "-", up to 64 characters, starting with a letter or digit.');
@@ -185,6 +310,8 @@ export async function execute(command: string, input: Record<string, unknown> = 
       stderr: (text) => process.stderr.write(text),
       secrets,
       ...(options.onProgress ? { progress: options.onProgress } : {}),
+      // Only the person's commands are handed it, through ctx.manage; run() keeps it from every other.
+      ...(options.person && personByName.has(commandName(d)) ? { prompt: prompterFor(options.person) } : {}),
     });
   return runCommand(def, input, context, VERSION, 'api', { targets: served }, { ...(options.readOnly ? { readOnly: true } : {}), ...(options.caller ? { caller: options.caller } : {}) });
 }
