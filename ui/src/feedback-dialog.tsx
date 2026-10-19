@@ -26,14 +26,26 @@ export function FeedbackButton({ api }: { api: FeedbackApi }) {
   return (
     <DialogTrigger>
       <Button className="btn feedback-open">Feedback</Button>
-      <ModalOverlay className="feedback-overlay" isDismissable>
-        <Modal className="feedback-modal">
-          <Dialog className="feedback-dialog" aria-labelledby="feedback-title">
-            {({ close }) => <FeedbackForm api={api} close={close} />}
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
+      <FeedbackModal api={api} />
     </DialogTrigger>
+  );
+}
+
+/**
+ * The dialog itself. Inside a DialogTrigger it opens from the trigger; the
+ * compact header's menu opens it with `isOpen` instead, once the menu has
+ * closed, so focus goes back to the menu button.
+ */
+export function FeedbackModal({ api, isOpen, onOpenChange }: { api: FeedbackApi; isOpen?: boolean; onOpenChange?: (open: boolean) => void }) {
+  const controlled = isOpen === undefined ? {} : { isOpen, ...(onOpenChange ? { onOpenChange } : {}) };
+  return (
+    <ModalOverlay className="feedback-overlay" data-backdrop="" isDismissable {...controlled}>
+      <Modal className="feedback-modal">
+        <Dialog className="feedback-dialog" aria-labelledby="feedback-title">
+          {({ close }) => <FeedbackForm api={api} close={close} />}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }
 

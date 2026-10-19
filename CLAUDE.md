@@ -285,8 +285,8 @@ GitHub Actions; its build tooling is out of scope.
   table (`divergences.mjs`), PR screenshots (`shoot.mjs`), and the PR watcher the
   `ship` skill runs (dev tooling; none of it ships)
 - `skills/toil/` — the one skill shipped to users, and the site's docs: `SKILL.md` is a
-  small index (a test caps it) of `core.md`, the per-area files, `install.md` and
-  `mcp.md`. `scripts/gen-areas.mjs` embeds every file in the bundle, `toil skill
+  small index (a test caps it) of `core.md`, `dossiers.md`, the per-area files,
+  `install.md` and `mcp.md`. `scripts/gen-areas.mjs` embeds every file in the bundle, `toil skill
   install` writes it into an agent's skills folder (`src/skills/bundled.ts`), and toil
   rewrites that copy, and only that copy, when a command changes the config file or
   another toil version runs. `.claude-plugin/` lists it as a Claude Code plugin
@@ -313,7 +313,9 @@ GitHub Actions; its build tooling is out of scope.
   Agent are its test harness, `toil-ui --sample`, and the site's `/ui-preview/`.
   `ui/test/registry.test.ts` holds every call the fixture answers to the real
   registry; `npm run check:package -w ui` is its `check:pure`, and `npm run smoke
-  -w ui` installs both tarballs and opens it. The decisions are in
+  -w ui` installs both tarballs, opens it, and holds every view in every theme at
+  375, 768 and 1440px to the layout check in headless Chrome
+  (`ui/scripts/layout-check.mjs`). The decisions are in
   `AGENT_DECISIONS.md`, **#206 preview**, **#228 dossier dashboard** and **#249 UI
   server**
 - `functions/feedback/` — the feedback backend behind the site's form and its curl
@@ -1009,7 +1011,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, issue triage and its daily cap, the feedback deploy, action pins, Discord notifications, redaction |
-| `site` | Changing anything under `site/`, or the brand it shares with the terminal splash and menu in `src/welcome/`: responsive rules, palette, the mark and its motion, art, status honesty, screenshots |
+| `site` | Changing anything under `site/`, or the brand it shares with the terminal splash and menu in `src/welcome/`: responsive rules, palette, the mark and its motion, the wordmark, art, status honesty, screenshots |
 | `ship` | Opening, updating or shepherding a PR: four local reviews (gate, code, docs, principles), fixing all but principle findings, and the four-minute PR watch that replaces the app's Auto-fix |
 
 ## Cloud Cost

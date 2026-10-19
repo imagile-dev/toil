@@ -2,6 +2,13 @@
    active theme's tokens (src/themes.ts); a theme's own theme.css may restyle,
    but the layout and the click targets stay the same in every theme (#206). */
 
+@import '@fontsource/fredoka/latin-600.css';
+
+/* The wordmark's face, the same token as the site's (test/brand-sync.test.ts in
+   the repository root holds them together). Every theme sets "toil" in it, so the
+   word looks the same whatever the theme; only its colour follows the theme. */
+:root { --font-brand: 'Fredoka', ui-rounded, 'Arial Rounded MT Bold', system-ui, sans-serif; }
+
 *, *::before, *::after { box-sizing: border-box; }
 * { margin: 0; }
 
@@ -59,17 +66,75 @@ h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
   background: var(--surface);
 }
 .brand {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 1.15rem;
+  font-size: 1.6rem;
   color: var(--ink);
   text-decoration: none;
   min-height: 44px;
   display: inline-flex;
   align-items: center;
+  flex: none;
+}
+/* The badge beside the name (#281): the standard one here, and each theme swaps in
+   its own skin (theme.css, `background-image`). It's decorative; the link's name
+   is its text. 32px, twice Harvest's 16-pixel grid, so the pixel art stays crisp. */
+.brand::before {
+  content: "";
+  flex: none;
+  width: 32px;
+  height: 32px;
+  margin-right: 0.5rem;
+  background: url("./mark.svg") center / contain no-repeat;
+}
+/* One line of text, so the space between the word and the sticker is a real,
+   rendered one and the link's name reads "toil UI". word-spacing narrows it to
+   the width the sticker's margin used to be; the padding holds the tilted
+   sticker's corner inside the link. */
+.brand-name { white-space: nowrap; word-spacing: -0.12em; padding-right: 0.15em; }
+.wordmark {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+/* "UI" is a die-cut sticker stuck on beside the word: tilted, with a cream
+   border, a soft shadow and a peeled corner, so "toil" itself stays exactly the
+   wordmark. The face takes the theme's accent, which every theme already pairs
+   with accent-ink for the current nav link. */
+.sticker {
+  position: relative;
+  display: inline-block;
+  transform: translateY(-0.28em) rotate(-8deg);
+  filter: drop-shadow(0 1px 1px rgb(0 0 0 / 0.28)) drop-shadow(0 3px 4px rgb(0 0 0 / 0.22));
+}
+.sticker__face {
+  display: block;
+  padding: 0.2em 0.36em 0.22em;
+  border: 0.14em solid #fffaf0;
+  border-radius: 0.32em;
+  background: var(--sticker-bg, var(--accent));
+  color: var(--sticker-ink, var(--accent-ink));
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: 0.56em;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  /* The corner that peeled is cut away here, and the flap below covers the gap. */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 0.42em), calc(100% - 0.42em) 100%, 0 100%);
+}
+.sticker::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 0.235em;
+  height: 0.235em;
+  border-bottom-left-radius: 0.08em;
+  background: linear-gradient(315deg, transparent 50%, #e9e1d2 50%, #fffaf0 85%);
+  box-shadow: -1px -1px 2px rgb(0 0 0 / 0.18);
 }
 .top nav ul { display: flex; flex-wrap: wrap; gap: 0.25rem; list-style: none; padding: 0; }
-.top nav a {
+.top nav a, .nav-menu nav a {
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -78,13 +143,27 @@ h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
   color: var(--ink);
   text-decoration: none;
 }
-.top nav a:hover { background: var(--raised); }
-.top nav a[aria-current="page"] {
+.top nav a:hover, .nav-menu nav a:hover { background: var(--surface); }
+.top nav a[aria-current="page"], .nav-menu nav a[aria-current="page"] {
   background: var(--accent);
   color: var(--accent-ink);
   font-weight: 600;
 }
 .settings { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-left: auto; }
+
+/* The compact header (below 1024px, COMPACT_HEADER in App.tsx): the name on
+   the left, Menu on the right, and everything else in the menu's popover. */
+
+.menu-button { margin-left: auto; flex: none; gap: 0.5rem; font-weight: 600; }
+.menu-button__icon { font-size: 1.1em; line-height: 1; }
+.nav-menu { width: min(20rem, calc(100vw - 32px)); max-height: calc(100svh - 6rem); overflow-y: auto; }
+.nav-menu__dialog { display: grid; gap: 0.75rem; padding: 0.5rem; outline: none; }
+.nav-menu nav ul { display: grid; gap: 0.25rem; list-style: none; padding: 0; }
+.nav-menu nav a { display: flex; width: 100%; overflow-wrap: anywhere; }
+.nav-menu__settings { display: grid; gap: 0.5rem; padding-top: 0.75rem; border-top: 1px solid var(--line); }
+.nav-menu__settings > .btn { justify-content: center; }
+.nav-menu__settings .choice { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr); }
+.nav-menu__settings .choice-button { min-width: 0; }
 .settings label { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9375rem; color: var(--muted); }
 select, button {
   font: inherit;
@@ -120,8 +199,8 @@ main {
 .check[data-selected] .box { background: var(--accent); border-color: var(--accent); }
 .check[data-focus-visible] .box { outline: 3px solid var(--focus); outline-offset: 2px; }
 
-.dossiers { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-.dossier-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; display: grid; gap: 0.5rem; height: 100%; align-content: start; }
+.dossiers { margin-bottom: 1.5rem; }
+.dossier-card { gap: 0.5rem; }
 .dossier-card h2 a { display: inline-flex; align-items: center; min-height: 44px; font-family: var(--font-mono); }
 .key { display: block; font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 400; color: var(--muted); }
 .source { font-family: var(--font-body); font-weight: 600; color: var(--ink); }
@@ -133,11 +212,13 @@ main {
 .fed-by { margin-top: 0.75rem; font-size: 0.875rem; color: var(--muted); }
 .fed-by summary { cursor: pointer; min-height: 44px; display: flex; flex-wrap: wrap; align-items: center; gap: 0 0.25rem; }
 .fed-by code { color: var(--ink); }
+/* A call's exact input is one long line of JSON; it wraps at any character rather than run past the panel. */
+.calls .call { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
 .calls { margin-top: 0.5rem; }
 
 .dashboard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 25rem); gap: 1.5rem; align-items: start; }
 .dash-main { display: grid; gap: 1.5rem; min-width: 0; }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 1rem; display: grid; gap: 0.75rem; min-width: 0; align-content: start; }
+.panel { gap: 0.75rem; }
 .panel h3 { margin-top: 0.5rem; }
 .panel-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: 1.5rem; align-items: start; }
 .env { font-family: var(--font-mono); font-size: 0.9375rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
@@ -157,7 +238,7 @@ main {
 .stat-note { color: var(--muted); font-size: 0.8125rem; }
 .meter { height: 0.75rem; border-radius: 999px; background: var(--surface); border: 1px solid var(--muted); overflow: hidden; }
 .meter > span { display: block; height: 100%; background: var(--accent); }
-.rows { list-style: none; padding: 0; display: grid; gap: 0.6rem; }
+.rows { list-style: none; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
 .rows > li { padding: 0.6rem 0; border-bottom: 1px solid var(--line); }
 .reasons { margin-top: 0.25rem; padding-left: 1.25rem; color: var(--muted); font-size: 0.9375rem; }
 
@@ -171,9 +252,8 @@ main {
 table { border-collapse: collapse; width: 100%; font-size: 0.9375rem; }
 th, td { text-align: left; vertical-align: top; padding: 0.6rem 0.75rem 0.6rem 0; border-bottom: 1px solid var(--line); }
 thead th { color: var(--muted); font-weight: 600; font-size: 0.875rem; }
-table.trace { min-width: 50rem; }
 tbody th { font-weight: 400; }
-.plain { list-style: none; padding: 0; display: grid; gap: 0.35rem; }
+.plain { list-style: none; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.35rem; }
 .flags li { color: var(--warn); font-weight: 600; }
 .outcome { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); }
 .outcome--failed { color: var(--danger); font-weight: 600; }
@@ -192,8 +272,14 @@ tbody th { font-weight: 400; }
 }
 @media (max-width: 760px) {
   .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .settings { margin-left: 0; }
+}
+/* A term and its value stack on a phone, so a long term can't squeeze its value out of the panel. */
+@media (max-width: 480px) {
+  .fields { grid-template-columns: minmax(0, 1fr); row-gap: 0.15rem; }
+  .fields dd + dt { margin-top: 0.4rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+/* "Reduce motion and effects" in Settings (#271, src/motion.ts) stops the same things. */
+:root[data-motion="reduced"] *, :root[data-motion="reduced"] *::before, :root[data-motion="reduced"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }

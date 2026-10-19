@@ -5,6 +5,7 @@
  * be asked about in a meeting, which is a shorter list than the org chart.
  */
 
+import { Card, CardGrid } from '../components/layout.tsx';
 import { Sources } from '../components/panel.tsx';
 import { SOURCE_LABEL, dossierHref } from '../format.ts';
 import type { DossierSummary } from '../load.ts';
@@ -22,10 +23,10 @@ export function Dossiers({ dossiers, calls }: { dossiers: DossierSummary[]; call
       {dossiers.length === 0 ? (
         <EmptyState message="toil sees no dossiers yet. A dossier is made with toil dossiers init." />
       ) : (
-        <ul className="dossiers">
+        <CardGrid className="dossiers">
           {dossiers.map((d) => (
             <li key={d.name}>
-              <article className="dossier-card" aria-labelledby={`dossier-${d.name}`}>
+              <Card className="dossier-card" aria-labelledby={`dossier-${d.name}`}>
                 <h2 id={`dossier-${d.name}`}>
                   <a href={dossierHref(d.name)}>{d.name}</a>
                 </h2>
@@ -40,10 +41,10 @@ export function Dossiers({ dossiers, calls }: { dossiers: DossierSummary[]; call
                     <dd>{d.environments.length ? d.environments.join(', ') : 'None named'}</dd>
                   </div>
                 </dl>
-              </article>
+              </Card>
             </li>
           ))}
-        </ul>
+        </CardGrid>
       )}
       <Sources calls={calls} />
     </>

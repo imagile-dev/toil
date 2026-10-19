@@ -57,9 +57,9 @@ const keys = [
         <TerminalRecording />
       </div>
       <p class="note" data-reveal>
-        The splash draws toil's mark in the terminal: the branches draw out from the prompt to the ring, the tools pop on, a signal runs down the
-        branches twice, the ring spins, and it settles, in under four seconds. Any key skips it. This replay is recorded frame by frame from the
-        same code, so it is exactly what your terminal shows. toil is alpha, so the version line says so.
+        The splash draws toil's mark in the terminal: the badge fades in, six tool dots pop onto a ring around it, the cursor blinks twice, and
+        the ring makes half a turn and settles, in under three seconds. Any key skips it. This replay is recorded frame by frame from the same
+        code, so it is exactly what your terminal shows. toil is alpha, so the version line says so.
       </p>
     </div>
   </section>
@@ -100,7 +100,7 @@ const keys = [
             The menu has no logic of its own. Each action runs a <code>toil connections</code> command in the same process, prompting on your terminal,
             and the result screen shows the command line it ran and what came back. Run the same line yourself any time.
           </p>
-          <div class="table-wrap">
+          <div class="table-wrap" tabindex="0" role="region" aria-label="The connections menu and the commands it runs">
             <table>
               <thead><tr><th>In the menu</th><th>It runs</th></tr></thead>
               <tbody>
@@ -160,6 +160,9 @@ const keys = [
         <section data-reveal>
           <h2>Dossiers</h2>
           <p>
+            New to dossiers? <a href={url('/docs/dossiers/')}>What is a dossier?</a> explains them, with diagrams.
+          </p>
+          <p>
             <strong>This folder</strong> says which dossier applies where you are and why: your repository's
             folder or remote is one of its repos, or it's checked into the repository. If none does, it offers to create one for this repository or add
             the repository to one of yours.
@@ -176,7 +179,7 @@ const keys = [
             whose bindings do asks for the dossier's name. Import lists every connection the file names that you don't have yet, each with a row that
             adds it. Export writes into this repository's <code>.toil/dossiers/</code> or to a file, and never commits. Deleting asks for the name.
           </p>
-          <div class="table-wrap">
+          <div class="table-wrap" tabindex="0" role="region" aria-label="The dossiers menu and the commands it runs">
             <table>
               <thead><tr><th>In the menu</th><th>It runs</th></tr></thead>
               <tbody>
@@ -210,7 +213,7 @@ const keys = [
             legacy console host or <code>TOIL_ASCII</code>, everything is drawn in plain ASCII. Long lists scroll on a short window; on a narrow one, text
             wraps and table rows are cut at the edge rather than wrapping into each other.
           </p>
-          <div class="table-wrap">
+          <div class="table-wrap" tabindex="0" role="region" aria-label="Keys">
             <table>
               <thead><tr><th>Key</th><th>Does</th></tr></thead>
               <tbody>

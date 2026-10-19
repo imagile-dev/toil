@@ -18,8 +18,8 @@ import { checkInvocation, flagsOf, invocations, program, subcommand } from './ha
  * capability is, for audit purposes, indistinguishable from no capability.
  */
 const dir = join(import.meta.dirname, '..', 'skills', 'toil');
-/** The files in the skill that belong to no area: the index, what every command shares, installing toil, and the MCP server. */
-const GENERAL = ['SKILL.md', 'core.md', 'install.md', 'mcp.md'];
+/** The files in the skill that belong to no area: the index, what every command shares, dossiers, installing toil, and the MCP server. */
+const GENERAL = ['SKILL.md', 'core.md', 'dossiers.md', 'install.md', 'mcp.md'];
 const integrations = join(import.meta.dirname, '..', 'site', 'src', 'data', 'integrations');
 
 /** The `key: value` lines between a file's opening `---` fences. */

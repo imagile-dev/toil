@@ -14,9 +14,11 @@ The app (dist/app/) bundles:
   Copyright (c) Meta Platforms, Inc. and affiliates, licensed under the MIT
   License.
 - IBM Plex Sans, Copyright 2019 IBM Corp.; Source Serif 4, Copyright 2014-2021
-  Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'; and Fira Code,
+  Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'; Fira Code,
   Copyright 2014-2020 The Fira Code Project Authors
-  (https://github.com/tonsky/FiraCode); each through Fontsource
+  (https://github.com/tonsky/FiraCode); and Fredoka, the wordmark's face,
+  Copyright 2016 The Fredoka Project Authors
+  (https://github.com/hafontia/Fredoka-One); each through Fontsource
   (https://fontsource.org) and licensed under the SIL Open Font License,
   Version 1.1, copied below.
 - For the Harvest, Starship and Realm themes, each loaded only when its theme

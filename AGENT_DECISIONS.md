@@ -3511,3 +3511,219 @@ fills.
   checkbox, so the yes belongs to the report on screen. The disclaimer and checkbox
   appear once toil has returned a preview, since the text is toil's; until then the
   dialog says what to fill in.
+
+### #271 UI theme motion
+
+- **Crate keeps its grid and gains the warehouse, the maintainer's call
+  (2026-10-19).** Crate's tokens are held to the site by `test/brand-sync.test.ts`,
+  so the warehouse proposal's palette (kraft cardboard, rack steel, the dark
+  floor) lives in `ui/themes/crate/theme.css` as `--wh-*` custom properties and
+  reaches the page through the backdrop and gradients, never through the
+  tokens. The drafting grid moved off `body` onto the backdrop's middle layer,
+  unchanged in size and colour.
+- **Parallax is three layers behind the page** (`ui/src/ambient/Ambient.tsx`):
+  racking far off (6% of the scroll), the grid (20%) and pallets of boxes nearest
+  (40%). Each is a CSS scroll-driven animation of `transform` where the browser
+  has them, on the compositor: an iteration of a scroll-driven animation spans
+  an equal share of its range, so 50 iterations each `--tile / --depth` long move
+  a layer exactly `--depth` px per px scrolled and wrap every tile, keeping each
+  layer no taller than the window plus one tile. Elsewhere a passive scroll
+  listener and one `requestAnimationFrame` per scroll frame do the same from the
+  same custom properties. Only Crate has parallax; the maintainer asked for it
+  there and nowhere else.
+- **Contrast over the backdrop is measured on the images.** The proposal's 55%
+  scrim held muted text but not `danger`, which can sit straight on the page
+  (a failed load). The racking now sits under a 90% scrim and the pallets are
+  baked to a fifth of their brightness, as silhouettes in shadow. At the single
+  brightest pixel of every layer at once (racking, the light shaft's peak, the
+  grid, the brightest pallet pixel), ink is 11.7:1, muted 5.7:1, link 7.7:1 and
+  danger 4.6:1. The racking reads darker than the mockup as a result; a lighter
+  backdrop would need `danger` text kept off the page background.
+- **One particle engine, one canvas, 30 frames a second**
+  (`ui/src/ambient/engine.ts`). Each frame books the next with a timer and only
+  then asks for an animation frame, so the page wakes 30 times a second whatever
+  the display's refresh rate. Sprites are painted once into small offscreen
+  canvases. The canvas sits at `z-index: -1` behind the page, so particles pass
+  behind text and never cross a panel; it is `aria-hidden`, takes no pointer,
+  stops in a hidden tab, and is never created when motion is unwelcome. Presets
+  live in code (`presets.ts`), not in `theme.json`, because they are script and
+  only built-in themes ship script. A user theme gets none.
+- **Reduce motion and effects is Toil UI's own setting,** on the General page
+  (renamed from "Bounds and time limit", which it still holds), kept in this
+  browser as `toil-ui.motion` beside `toil-ui.theme`. It mirrors onto the root
+  as `data-motion`, and `app.css` stops every animation and transition under it,
+  the same rule as the OS setting. The OS setting wins when it asks for less, and
+  the page says so. A browser that can't answer the media query counts as
+  reduced.
+- **Gradients go through the tokens** with `color-mix()` and, for charts, a
+  per-chart `<linearGradient>` whose stops a theme colours in CSS and opts into
+  as `fill: var(--chart-fill)`. Plain never opts in and stays flat. Each new
+  stop was checked against every text colour that can sit on it: the lowest is
+  Crate's `danger` on its header at 4.7:1.
+- **The running week stays muted in every theme's throughput chart** (review on
+  #275). A theme rule on `.chart .bar` outranks the base `.bar--partial`, which
+  had already hidden the partial week in Crate and Starship on main, so each of
+  the four themes restates it, and `ui/test/themes.test.ts` requires that of any
+  theme that recolours chart bars.
+- **Two overflows from before this change are fixed,** since the bar is clean
+  layout in every theme: a long field name in a Connections label at 375px
+  (`overflow-wrap: anywhere`), and Harvest's Bounds terms at 375px, which now
+  stack under their values below 480px.
+- **Starship's lanes are left as they are.** Its animated hyperspace lanes
+  (#209, `stroke-dashoffset` on every graph edge) cost about 10% of a core at
+  idle in headless Chrome at 240 Hz, before and after this change; the particles
+  add about 1%. Making them cheaper changes Starship's design, which is the
+  maintainer's call.
+- **Generation.** The racking wall (gpt-image-2, medium) was cut to an exact
+  four-bay, three-shelf repeat with its seams cross-faded, so it tiles; the
+  pallets (gpt-image-1.5, transparent) were three cut-outs scattered on one
+  sparse tile. Both are WebP; Crate's art is 83 KB of its 160 KB budget. The
+  proposal's original master was gone, so the racking was regenerated.
+
+### #272 wordmark
+
+The maintainer picked the face, Fredoka 600, from four candidates (Fredoka, Bagel Fat
+One, Shrikhand, DynaPuff), and asked for "UI" as a separate sticker. The rest was
+decided here.
+
+- **One weight, Latin only.** Both packages import `@fontsource/fredoka/latin-600.css`,
+  the static 600 file (16.5 KB as WOFF2), not the variable font: the word "toil" needs
+  one weight and four Latin letters, and the static file is the smaller of the two.
+- **`--font-brand` sets only the word "toil".** It's a token of its own on the site
+  (`global.css`) and in Toil UI (`app.css`), not a theme token, so no theme can swap
+  it. Headings, the hero and body text keep their faces.
+- **The word keeps its shape in every theme; only its colour follows the theme.**
+  Harvest, Starship and Realm no longer restyle `.brand`'s font, letter-spacing or
+  case (Starship uppercased it). Crate keeps the flame-to-amber gradient, Starship its
+  glow and Realm its crimson, on `.wordmark` only.
+- **The sticker uses the theme's own accent and accent-ink**, the pair every theme
+  already passes for the current nav link, so a new theme needs no sticker rule.
+  Crate makes it amber (`--sticker-bg: var(--link)`, 11.3:1) so it doesn't match
+  the flame "Dossiers" pill beside it. It's pure CSS: a cream border, two drop
+  shadows, a -8° tilt and a clipped corner with a peeled flap.
+- **The accessible name is "Toil UI", from an `aria-label` on the link.** The word
+  and the sticker are separate boxes with no space between, so the name computed from
+  the text would be "toilUI"; a hidden space isn't reliable either, since whitespace
+  between flex items isn't rendered and browsers differ on whether it counts. The
+  label holds the visible words, so voice control still finds it.
+- **Only Toil UI's favicon changes.** The site's stays the mark, per the site rules.
+  Toil UI had none; it gets Fredoka's "t", outlined to a path (an SVG favicon can't
+  load a font), on the brand's near-black, with the sticker's corner. Vite emits it
+  as an asset, which the tarball rules already allow.
+- **The terminal's wordmark is hand-drawn**, 28 columns by 7 lines of half-blocks,
+  after Fredoka's shapes. It fits beside the logo at 80 columns; the existing rule
+  doubles it from 97 columns, which is what that rule gives for 28.
+
+### #277 layout primitives, the overflow check and the sweep fixes
+
+- **The wordmark's name is its own text, "toil UI"** (overturns #272's `aria-label`).
+  axe's `label-content-name-mismatch` (WCAG 2.5.3) failed on every view: the label
+  "Toil UI" didn't contain the visible "toil" + "UI". The link now has no label; the
+  word and the sticker are inline text in one span with a real space between them,
+  narrowed with `word-spacing` to the width the sticker's margin had. The board's
+  Drag and Move… buttons, which the stricter rule also flagged, now carry the item
+  in visually hidden text instead of an `aria-label`.
+- **Crate is the default theme; the system's light or dark preference doesn't
+  change that.** Crate is dark only, so following `prefers-color-scheme` would mean
+  defaulting light-preferring browsers to Plain, two defaults to explain for one
+  choice. A saved choice and `?theme=` still win, and the scheme preference still
+  applies to Plain once someone picks it. Crate's stylesheet is now in the first
+  load beside Plain's. The local app keeps `?theme=` and `?scheme=` when it drops the
+  launch token from the address, so a themed link works there too.
+- **The compact header starts below 1024px**, not only on phones: at 960px the
+  inline header (name, three links, Feedback, Theme and Appearance) measured about
+  970px in Crate and Starship, so it would have wrapped on a tablet. The menu is a
+  React Aria `DialogTrigger` with a `Popover`; Feedback closes the menu before its
+  dialog opens, so focus returns to the Menu button.
+- **`Card` is the surface themes style**: themes that dressed `.panel` and
+  `.dossier-card` together now dress `.l-card`, which also brings the Settings
+  connection and dossier cards into each theme. Board cards, sprint stats and
+  attention rows stay their own small tiles, not `Card`s.
+- **The settings tabs wrap evenly** (two by two below 600px) rather than scroll:
+  four short labels fit in two even rows, and a scroller would hide one of them.
+- **Long values:** file paths, the config file and repository remotes use `Path` /
+  `Url` (cut in the middle, whole value in the tooltip, the text and a copy button);
+  a call's JSON input under "Fed by" and the feedback page's curl command wrap at
+  any character instead.
+- **The layout check runs inside `npm run smoke -w ui`** against the installed
+  package (`toil-ui --sample`), so it sees the real build under the real CSP. It
+  needs Chrome, Edge or Chromium (every GitHub runner has Chrome) and says so plainly
+  when there's none. It adds about three and a half minutes on a laptop. It runs
+  with reduced motion so an animation can't fail a run; a full-motion run by hand
+  found the same nothing. It enables axe's experimental
+  `label-content-name-mismatch` explicitly (it is off by default in axe-core 4.13),
+  as `ui/test/theme-bar.test.tsx` now does too, which also gives each of its cases a
+  30-second limit (one timed out at 5s on macOS).
+- **Not reproduced, and why:** the graph nodes' 3px (xyflow's invisible handles
+  hung half outside each node; they now sit inside, so the measurement is clean,
+  but no text was ever clipped); the DOM-flagged overlaps on the item page, the
+  Connections forms, General and the dashboard (bounding boxes of wrapped inline
+  text, nothing overlaps on screen); the Feedback dialog's backdrop (it dims, at
+  55% black, which reads faintly on Plain dark's near-black page; the check now
+  asserts a backdrop); the site's 400px gap on the home page at 375px (the reserved
+  box of the lazy cartoon, which a full-page capture never scrolls to; it loads on a
+  real scroll with and without reduced motion); and the hero art at 820 to 900px.
+- **Site contrast through the token:** `--color-faint` goes from `#857a6c` to
+  `#998d7e` (4.7:1 on the raised surface, the darkest it sits on), with the terminal
+  palette to match (`test/brand-sync.test.ts`). Shiki's comment grey takes that
+  token site-wide, so the dossiers page's local overrides are gone. Doc tables are
+  wrapped in focusable, labelled scrollers by a rehype plugin, so the skill files
+  stay plain markdown.
+
+### #281 the badge as toil's mark
+
+- **The badge replaces the terminal-hub mark everywhere**, from the maintainer's
+  pick among the mockups. The cut corner (parallel to the page's fold), the 45°
+  gradient and the deep-flame cursor came out of a similarity check against
+  terminal, developer-tool and agent-CLI icons: the `>_` alone matched macOS
+  Terminal, Windows Terminal and Lucide's square-terminal, and a cursor on a warm
+  gradient tile was close to JetBrains', so the silhouette carries the identity.
+- **The cursor is `#c43d12`, not the accent.** The accent on the page is 2.5:1,
+  under even the 3:1 for graphics; the deeper flame is 4.6:1. It's a literal in
+  the mark's files rather than a new site token, since nothing else uses it.
+- **The site's mark blinks its cursor three times, on load and on hover or focus**,
+  instead of blinking forever, so it stops well inside five seconds (WCAG 2.2.2)
+  without a pause control.
+- **The CLI splash is the badge in an orbit of six dots**, half a turn, then still.
+  Six read at 80 columns; eight touched and four looked like a compass. The colours
+  repeat every three dots, so half a turn lands on the starting picture and the
+  still frame needs no special case. The splash runs 3.2 timeline seconds (2.6 real),
+  down from 4.05. A one-pixel gap separates the tile from the page in braille, or
+  the two solid areas would read as one block.
+- **Toil UI's theme emblems are gone; the badge skins take their place.** Each
+  generated emblem (#269) sat in `.brand::before`, the only place it was used, so
+  `emblem.webp` is deleted from Crate, Harvest, Starship and Realm and `mark.svg`
+  takes its slot in each `theme.json`. The skins are hand-built SVG, no generated
+  art. Harvest's is drawn on the same 16-cell grid, so the badge sits at 32px in
+  the header, twice the grid, where the pixels stay crisp.
+- **Toil UI's favicon follows the theme** (`ui/src/favicon.ts`, called where the
+  theme is applied). It replaces #274's Fredoka "t". A theme from the user's folder
+  has no mark the build knows, so it shows the standard badge.
+- **The README banner and social preview aren't re-rendered here.** They live on
+  #268's branch, which hasn't merged; they follow once it does.
+- **Plain's badge is blue** (the maintainer's call on #282): the tile takes the
+  scheme's `accent` (`#0b5cad` light, `#8cc4ff` dark) instead of the gradient, so
+  Plain has two marks and its favicon follows the scheme, including `system` as the
+  OS changes. On the light accent the page is white; on the dark accent's light
+  blue a white page would barely separate, so the dark mark has a dark page
+  (`#0b1220`, Plain dark's accent ink) with Plain's ink for the chevron. The
+  cursor is the accent in both: 6.7:1 and 10.2:1 on the page. Plain's sticker and
+  wordmark needed no change: the sticker already takes the theme's accent and the
+  word its ink.
+- **The terminal wordmark is generated from Fredoka itself** (#282, the
+  maintainer's note that the hand-drawn one didn't read as Fredoka).
+  `scripts/gen-wordmark.mjs` rasterises the real glyphs in headless Chrome (already
+  how the repo's screenshot and layout tools run) rather than adding opentype.js
+  for a one-off; Chrome's text rasteriser is the one the site's wordmark goes
+  through too. Quadrant blocks (U+2596 to U+259F, in the same Block Elements range
+  the half-blocks were) rather than sextants or octants, which many terminal fonts
+  still lack. The sampler's output needed no hand-tuning, so `TUNE` is empty.
+- **The splash no longer doubles the word's width on a wide window.** That was
+  the "fatter" logo: from 97 columns the splash drew "toil" at twice its width
+  while the menu didn't. The word now has one size everywhere, and a test holds
+  the splash's and the menu's to the same lines and columns. The badge itself was
+  already square (a test now measures it, dot by dot, at 1:1 within 5%).
+- **The wordmark's shadow is foreground-only**: it shows in cells the word
+  doesn't touch, and is dropped where a cell holds both, rather than adding a
+  background colour to every cell, the recording's encoder and the site's player.
+

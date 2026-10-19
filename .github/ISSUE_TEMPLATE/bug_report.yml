@@ -1,0 +1,71 @@
+name: Bug report
+description: Something in toil does the wrong thing, fails, or says something untrue.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. Issues here are **public and not redacted**, so use
+        placeholder hosts (`<service>.imagile.dev`), IDs like `abc12345`, and never paste a
+        token, even a revoked one.
+
+        A security problem goes through [SECURITY.md](https://github.com/imagile-dev/toil/blob/main/.github/SECURITY.md) instead, never here.
+  - type: input
+    id: version
+    attributes:
+      label: toil version
+      description: The `version` field from `toil version`, or the commit if you run a clone.
+      placeholder: 0.1.0-alpha.2
+    validations:
+      required: true
+  - type: dropdown
+    id: door
+    attributes:
+      label: How you ran it
+      options:
+        - CLI
+        - MCP server (toil mcp)
+        - Programmatic API (@imagile-dev/toil/api)
+        - Toil UI
+        - The site or docs
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Area
+      description: The area or command, if it's about one.
+      placeholder: jira search
+  - type: input
+    id: environment
+    attributes:
+      label: OS and Node.js version
+      placeholder: Windows 11, Node 24.14.0
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command or MCP call you ran, and what came back. The JSON envelope is the most useful part.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: more
+    attributes:
+      label: Anything else
+      description: The service's version (Data Center or Cloud, and which release), whether it happens every time, and anything you already tried.
+  - type: checkboxes
+    id: placeholders
+    attributes:
+      label: Before you submit
+      options:
+        - label: I replaced real hosts, IDs and names with placeholders, and removed every token.
+          required: true

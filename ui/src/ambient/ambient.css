@@ -1,0 +1,27 @@
+/* The ambient layer (#271): fixed behind the page, under every panel, and
+   out of the pointer's way. A theme's stylesheet gives the layers their art
+   and their rates (`--depth`, the share of the scroll a layer follows, and
+   `--tile`, the height its art repeats at); this file only places them. */
+
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  contain: strict;
+}
+
+.ambient-layer {
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(100% + var(--tile, 0px));
+}
+
+.ambient-particles {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+}

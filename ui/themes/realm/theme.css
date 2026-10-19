@@ -23,7 +23,6 @@
 
 [data-theme="realm"] h1,
 [data-theme="realm"] h2,
-[data-theme="realm"] .brand,
 [data-theme="realm"] .stat-value,
 [data-theme="realm"] .big-number {
   font-family: var(--font-display);
@@ -44,18 +43,20 @@
   margin-right: 0.1em;
 }
 
-[data-theme="realm"] .brand {
-  color: var(--accent);
-  letter-spacing: 0.06em;
+/* The illuminated capital stands taller than the heading's line, so the
+   heading makes room above it and the eyebrow over it never touches it. */
+[data-theme="realm"] h1 {
+  padding-top: 0.3em;
 }
 
-/* The realm's crest beside the name: a quill and a key on a crimson shield. */
+/* The wordmark keeps its shape in every theme; here it takes the realm's crimson. */
+[data-theme="realm"] .brand .wordmark {
+  color: var(--accent);
+}
+
+/* The badge as an illuminated tile beside the name. */
 [data-theme="realm"] .brand::before {
-  content: "";
-  width: 34px;
-  height: 40px;
-  margin-right: 0.5rem;
-  background: url("./assets/emblem.webp") center / contain no-repeat;
+  background-image: url("./assets/mark.svg");
 }
 
 [data-theme="realm"] .top {
@@ -84,8 +85,7 @@
   position: relative;
 }
 
-[data-theme="realm"] .panel,
-[data-theme="realm"] .dossier-card,
+[data-theme="realm"] .l-card,
 [data-theme="realm"] .ask {
   border: 12px solid transparent;
   border-image: url("./assets/ink-border.svg") 16 / 12px round;
@@ -268,4 +268,35 @@
 [data-theme="realm"] .sync-panel {
   border-top: 3px double var(--ink);
   background: transparent;
+}
+
+/* Gradients for life (#271): pages gilded at their foot, wax-seal buttons
+   lit from above, and crimson charts that deepen toward the axis. Every text
+   colour keeps 6:1 or better on the gilt, and the seal's cream 7.8:1. */
+[data-theme="realm"] .l-card,
+[data-theme="realm"] .ask {
+  background: linear-gradient(180deg, var(--raised), var(--surface) 50%, color-mix(in srgb, var(--surface) 88%, #c9a24a));
+}
+
+[data-theme="realm"] .stat {
+  background: linear-gradient(180deg, var(--raised) 40%, color-mix(in srgb, var(--raised) 85%, #c9a24a));
+}
+
+[data-theme="realm"] .btn--accent,
+[data-theme="realm"] .top nav a[aria-current="page"],
+[data-theme="realm"] button[aria-pressed="true"] {
+  background: linear-gradient(180deg, #8f2a2a, var(--accent) 55%, #5e1616);
+}
+
+[data-theme="realm"] .chart .chart-stop--top { stop-color: #a33a2a; }
+[data-theme="realm"] .chart .chart-stop--bottom { stop-color: #5e1616; }
+
+[data-theme="realm"] .chart .bar,
+[data-theme="realm"] .chart .area {
+  fill: var(--chart-fill);
+}
+
+/* The week still running stays muted, as in Plain, so a partial count never reads as a finished one. */
+[data-theme="realm"] .chart .bar--partial {
+  fill: var(--muted);
 }

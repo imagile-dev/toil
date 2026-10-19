@@ -1,6 +1,6 @@
 ---
 name: site
-description: Rules for toil's GitHub Pages site under site/ (Astro), and for the brand it shares with the terminal welcome screen in src/welcome/. Use when changing any page, component, style, colour token, the logo or its animation, data file (integrations board, principles), generated art, when adding or updating an integration's docs page, when touching the terminal splash, menu palette or logo in src/welcome/, or when taking the desktop and 375px screenshots a site PR needs.
+description: Rules for toil's GitHub Pages site under site/ (Astro), and for the brand it shares with the terminal welcome screen in src/welcome/ and Toil UI's header. Use when changing any page, component, style, colour token, the logo or its animation, the wordmark or its font, data file (integrations board, principles), generated art, when adding or updating an integration's docs page, when touching the terminal splash, menu palette or logo in src/welcome/, or when taking the desktop and 375px screenshots a site PR needs.
 ---
 
 # Site
@@ -58,28 +58,66 @@ from `main`).
   A reveal never clips the observed element itself (a fully clipped element never
   intersects, and a lazy image inside it never loads); clip its children.
 - **House style has three registers; pick by job, never mix them in one image.**
-  - *The mark* is toil's logo, and the central integrator drawn literally. A
-    terminal (a sheet with a `>_` prompt) is the hub. Three branches leave each
-    side of it and fan out to six tools, dots on an outer ring at 0° and 38° either
-    side of horizontal. It's flat, symbolic, serious, and hand-built SVG: the
-    component is `site/src/components/Logo.astro`, the static copies are
-    `public/favicon.svg` and `public/brand/toil-avatar.svg` (circular, with
-    transparent corners, exported to 512 and 256 PNG for avatars). All three share
-    one geometry; change them together. It never comes from an image model, and
-    has no characters and no jokes.
-  - *The terminal draws the same mark.* Bare `toil` opens a splash
-    (`src/welcome/logo.ts`) that draws this geometry on a braille canvas, and the
-    menu (`src/welcome/term.ts`, `PALETTE`) uses the site's colour tokens. **The
-    site and the terminal are one brand: a change to the mark's geometry or to a
-    colour token changes both in the same PR.** `test/brand-sync.test.ts` reads
-    `global.css` and `Logo.astro` and fails when the terminal's palette, ring,
-    branches or tools differ from the site's. It can't see the motion, so a change
-    to the "Command" motion is mirrored by hand (the terminal plays it twice, then
-    spins the ring twice).
-  - *Its motion is "Command".* The ring and branches draw in, and the tools pop
-    on. Then, every 4.5s, the cursor types two keystrokes, a signal fires down all
-    six branches at once, and each tool bumps as it arrives. The motion is pure
-    CSS, so reduced motion turns it off.
+  - *The mark* is toil's logo: the badge. A flame-to-amber tile (the 45° gradient,
+    flame at the bottom-left, amber at the cut corner) whose top-right corner is
+    cut on the diagonal, parallel to the fold of the page it holds, and on the page
+    a `>_` prompt: a near-black chevron and a deep-flame cursor (`#c43d12`, 4.6:1
+    on the page). The cut corner is what makes it toil's: the `>_` alone is
+    everyone's (macOS Terminal, Windows Terminal, Lucide's square-terminal), and a
+    cursor on a warm gradient tile is close to JetBrains', so the page stays a light
+    sheet with a dark fold, never a dark square. It's flat, symbolic, serious, and
+    hand-built SVG: the component is `site/src/components/Logo.astro`, the static
+    copies are `public/favicon.svg` and `public/brand/toil-avatar.svg` (the badge on
+    a near-black disc, circular with transparent corners, exported to 512 and 256
+    PNG; Discord's posts use the 512, see the `automation` skill). All of them share
+    one geometry; change them together. It never comes from an image model, and has
+    no characters and no jokes. **Never add a spark, starburst or sparkle to it**, in
+    any theme or any size: an orange agent CLI with a burst is another product's
+    mark. Sizes: 34px in the header, 26px in the footer, 192px at most in the
+    homepage's closing call to action.
+  - *Its motion is a cursor blink.* The cursor blinks three times on load and again
+    when the pointer or focus reaches the link around it, then stays lit, so it
+    never blinks for five seconds (WCAG 2.2.2). It's pure CSS, behind
+    `prefers-reduced-motion: no-preference`.
+  - *The terminal draws the badge in orbit.* Bare `toil` opens a splash
+    (`src/welcome/logo.ts`) that draws the badge, shrunk, on a braille canvas with
+    six tool dots (amber, flame, cream, repeating) on an implied ring around it: the
+    badge fades in, the dots pop on, the cursor blinks twice, the ring turns half a
+    revolution and settles on the picture it left. Its still copy is
+    `public/brand/toil-orbit.svg`, for docs. The menu (`src/welcome/term.ts`,
+    `PALETTE`) uses the site's colour tokens. **The site, the terminal and Toil UI
+    are one brand: a change to the badge's geometry or to a colour token changes all
+    three in the same PR.** `test/brand-sync.test.ts` fails when the terminal's
+    palette, tile, page placement or orbit, or any static copy, differs from the
+    site's. It can't see the motion, so a change to it is mirrored by hand.
+  - *Toil UI wears the badge in every theme.* A theme that brings none (one from
+    the user's folder) shows the standard badge (`ui/src/mark.svg`). Plain's is the
+    same badge in Plain's own blue, one per scheme (the tile takes that scheme's
+    `accent`, with a white or dark page; `assets/mark-light.svg` and
+    `mark-dark.svg`), so the quiet theme never wears flame. Each built-in game theme
+    has its own skin of the same silhouette in `ui/themes/<theme>/assets/mark.svg`: Crate
+    kraft cardboard with a hazard-striped tape and a stencilled prompt, Harvest a
+    16-pixel wooden sign, Starship a riveted hull plate with a glowing console, Realm
+    an illuminated tile with a gilt edge. It sits beside the name at 32px (twice
+    Harvest's grid), and it is the tab's icon too (`ui/src/favicon.ts` swaps it with
+    the theme). A new theme's mark keeps the tile's silhouette and a prompt at 4.5:1
+    on what it sits on; the test holds the tile's path in every skin.
+  - *The wordmark* is the word "toil" in Fredoka 600 (`--font-brand`, the class
+    `.wordmark`): the site's header and footer, and Toil UI's header in every theme,
+    where "UI" is a die-cut sticker stuck on beside it, so the word itself never
+    changes. It's real type, never an image, and only the word "toil" uses it;
+    headings and the hero keep their faces. Only the Latin 600 file is imported.
+    The terminal draws the same word from the face itself: `scripts/gen-wordmark.mjs`
+    rasterises Fredoka 600 in headless Chrome onto quadrant blocks (two pixels across
+    and two down per cell, sampled twice as densely across because a cell is twice
+    as tall as it is wide) and writes `src/welcome/wordmark.ts`; hand-tuning goes in
+    the script's `TUNE`, never in the data. It's 8 lines by 33 columns, shaded flame
+    at the baseline to amber at the top, over a one-cell shadow in a dark flame
+    (colour only), with a cursor after it that blinks with the badge's. The splash
+    and the menu draw it at that one size, never stretched for a wide window, so it
+    sits beside the logo at 80 columns. A change to the face
+    changes all three in the same PR; `test/brand-sync.test.ts` holds the site's and
+    the UI's token, weight and version together. Both favicons are the badge.
   - *Diagrams* are precise drafting-style line drawings for how-it-works art (the
     hero), generated with `.claude/image-generation/style.md`.
   - *Cartoons* are lighthearted spot illustrations, generated with
@@ -96,11 +134,22 @@ from `main`).
     design, output, configuration, credentials, safety, MCP and installation. It
     changes only when the big picture does.
   - **The docs** (`/docs/`) are the detail: `SKILL.md` as the index, `core.md`,
-    `install.md`, `mcp.md`, `db.md`, `util.md`, `skills.md`, and one page per area
+    `dossiers.md`, `install.md`, `mcp.md`, `db.md`, `util.md`, `skills.md`, and one page per area
     file at `/docs/integrations/<area>/`, generated by
     `src/pages/docs/integrations/[area].astro` from the files themselves. A new
     area's file is its page with no page code, and the test fails when a board
     entry has no file, so each board tile links to a page.
+  - **Diagrams in the docs** are hand-drawn HTML and inline SVG in
+    `site/src/figures/<name>.html`, never a runtime library or CDN. A skill file
+    places one with a `<!-- figure: <name> -->` line, which agents read past and the
+    remark plugin in `src/lib/skill-pages.mjs` swaps for the figure (`{base}` in it
+    becomes the site's base path). The prose around it says the same thing in
+    words. Each is a `<figure>` with a caption, an SVG has a `<title>` and `<desc>`,
+    a drawing too wide for a phone has a second, tall variant, and scrolling code
+    is `tabindex="0"` with a label; `test/site-docs.test.ts` checks all of it. The
+    figures' styles live in the page that renders the file
+    (`src/pages/docs/dossiers.astro`). The dev server keeps a figure's old markup
+    until it restarts.
 - **Every new or changed integration reviews its skill file, which is its docs
   page, in the same PR**: setup, credential and where to create it, config keys,
   commands, verification level. Add a `credentialWhere` entry only when the menu path is certain; a wrong

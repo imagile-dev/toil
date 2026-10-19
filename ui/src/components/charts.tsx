@@ -9,8 +9,9 @@
  * Charts for the steering group, finally with their working shown.
  */
 
-import { useId, type ReactNode } from 'react';
+import { useId, type CSSProperties, type ReactNode } from 'react';
 import { day } from '../format.ts';
+import { DataTable } from './layout.tsx';
 import type { Burnup } from '../model/burnup.ts';
 import type { Week } from '../model/flow.ts';
 
@@ -22,36 +23,34 @@ function Figures({ caption, head, rows }: { caption: string; head: string[]; row
   return (
     <details className="figures">
       <summary>Show the figures</summary>
-      <div className="table-wrap" tabIndex={0} role="region" aria-label={caption}>
-        <table>
-          <caption className="sr-only">{caption}</caption>
-          <thead>
-            <tr>
-              {head.map((h) => (
-                <th key={h} scope="col">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i}>
-                {r.map((c, j) => (j === 0 ? <th key={j} scope="row">{c}</th> : <td key={j}>{c}</td>))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable
+        label={caption}
+        caption={caption}
+        rows={rows.map((cells, i) => ({ i, cells }))}
+        rowKey={(r) => String(r.i)}
+        columns={head.map((h, j) => ({ header: h, label: h, rowHeader: j === 0, cell: (r: { cells: ReactNode[] }) => r.cells[j] }))}
+      />
     </details>
   );
 }
 
+/**
+ * Each chart carries a vertical gradient a theme can fill its bars and areas
+ * with (#271), as `fill: var(--chart-fill)`, colouring the stops in its own
+ * stylesheet. Plain never asks for it, so its fills stay flat.
+ */
 function Svg({ label, height, children }: { label: string; height: number; children: ReactNode }) {
   const id = useId();
+  const fill = `chart-fill-${id.replace(/[^\w-]/g, '')}`;
   return (
-    <svg className="chart" viewBox={`0 0 ${W} ${height}`} role="img" aria-labelledby={id} preserveAspectRatio="xMidYMid meet">
+    <svg className="chart" viewBox={`0 0 ${W} ${height}`} role="img" aria-labelledby={id} preserveAspectRatio="xMidYMid meet" style={{ '--chart-fill': `url(#${fill})` } as CSSProperties}>
       <title id={id}>{label}</title>
+      <defs>
+        <linearGradient id={fill} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" className="chart-stop chart-stop--top" />
+          <stop offset="1" className="chart-stop chart-stop--bottom" />
+        </linearGradient>
+      </defs>
       {children}
     </svg>
   );

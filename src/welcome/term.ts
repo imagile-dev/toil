@@ -13,7 +13,7 @@ export const PALETTE = {
   amber: [255, 184, 77],
   ink: [246, 241, 233],
   muted: [180, 169, 152],
-  faint: [133, 122, 108],
+  faint: [153, 141, 126],
   bg: [22, 19, 15],
 } as const satisfies Record<string, Rgb>;
 

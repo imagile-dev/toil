@@ -14,6 +14,7 @@ import { Button, Input, Label, TextField } from 'react-aria-components';
 import type { Answer } from '../agent.ts';
 import { useData } from '../data.ts';
 import { useSkins } from '../skins.tsx';
+import { useMediaQuery } from './layout.tsx';
 import { Cited } from './items.tsx';
 import { ProposalCard } from './proposal.tsx';
 
@@ -25,20 +26,6 @@ interface Turn {
   done: boolean;
 }
 
-/** True on a screen too narrow to dock the chat beside the dashboard. */
-function useNarrow(): boolean {
-  const query = '(max-width: 1000px)';
-  const [narrow, setNarrow] = useState(() => typeof window.matchMedia === 'function' && window.matchMedia(query).matches);
-  useEffect(() => {
-    if (typeof window.matchMedia !== 'function') return;
-    const m = window.matchMedia(query);
-    const on = () => setNarrow(m.matches);
-    m.addEventListener('change', on);
-    return () => m.removeEventListener('change', on);
-  }, []);
-  return narrow;
-}
-
 export function Ask() {
   const { agent, dossier } = useData();
   const { EmptyState, ChatMessage } = useSkins();
@@ -46,7 +33,7 @@ export function Ask() {
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
-  const narrow = useNarrow();
+  const narrow = useMediaQuery('(max-width: 1000px)');
   const next = useRef(0);
   const abort = useRef<AbortController | null>(null);
   const busy = turns.some((t) => !t.done);

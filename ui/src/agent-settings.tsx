@@ -12,6 +12,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Input, Label, Radio, RadioGroup, TextField } from 'react-aria-components';
 import type { AdapterStatus, AgentSettings, AgentSettingsClient, AgentStatus } from './server-client.ts';
+import { Card } from './components/layout.tsx';
 
 const ENDPOINT_LABEL: Record<string, string> = { anthropic: 'Anthropic API', bedrock: 'Amazon Bedrock', foundry: 'Microsoft Foundry', vertex: 'Google Vertex AI' };
 
@@ -70,7 +71,7 @@ export function AgentSettingsPanel({ client, onChange }: AgentSettingsPanelProps
 
   const none = status?.adapters.every((a) => !a.installed);
   return (
-    <section className="panel" aria-labelledby="agent-settings">
+    <Card as="section" className="panel" aria-labelledby="agent-settings">
       <h2 id="agent-settings">Agent</h2>
       <p className="note">
         The agent reasons with the subscription you already have, through its own CLI on this machine. Toil UI never downloads one, stores no keys, and gives the agent read-only tools: anything it suggests changing comes back as a proposal for you to apply.
@@ -141,18 +142,18 @@ export function AgentSettingsPanel({ client, onChange }: AgentSettingsPanelProps
           </div>
         </form>
       )}
-    </section>
+    </Card>
   );
 }
 
 /** What the preview shows instead: what the local app lets you choose, changing nothing. */
 export function AgentSettingsPreview() {
   return (
-    <section className="panel" aria-labelledby="agent-settings">
+    <Card as="section" className="panel" aria-labelledby="agent-settings">
       <h2 id="agent-settings">Agent</h2>
       <p className="note">
         The preview answers with a scripted agent. The local app answers with the one your organization approved: Claude (the Claude Agent SDK, on the Anthropic API, Bedrock, Foundry or Vertex), GitHub Copilot (the Copilot SDK) or Codex (the Codex SDK), each through its own CLI on your machine. You choose the adapter, model and CLI path here; no key is ever stored.
       </p>
-    </section>
+    </Card>
   );
 }

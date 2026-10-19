@@ -31,7 +31,7 @@ const lines = [
     <i></i><i></i><i></i>
     <span>~/orders-service</span>
   </div>
-  <div class="term__body">
+  <div class="term__body" tabindex="0" role="region" aria-label={`Terminal: ${command}`}>
     <pre class="term__cmd"><span class="p">$ </span><span data-term-cmd data-text={command}>{command}</span><span class="term__caret" aria-hidden="true"></span></pre>
     <pre class="term__out" data-term-out>{lines.map((l) => <span class="term__line" set:html={l} />)}</pre>
   </div>

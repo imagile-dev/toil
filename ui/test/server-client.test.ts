@@ -22,6 +22,13 @@ describe('signIn', () => {
     expect(replaceState).toHaveBeenCalledWith(null, '', '/#/dossier/x');
   });
 
+  it('keeps a theme in the address while dropping the token (#277)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(SESSION), { status: 200 })));
+    const replaceState = vi.fn();
+    await signIn('./', { search: '?token=abc&theme=realm&scheme=light', pathname: '/', hash: '#/' }, { replaceState });
+    expect(replaceState).toHaveBeenCalledWith(null, '', '/?theme=realm&scheme=light#/');
+  });
+
   it('says to open the launch URL again when the page has no token, as after a reload', async () => {
     const fetch = vi.fn();
     vi.stubGlobal('fetch', fetch);

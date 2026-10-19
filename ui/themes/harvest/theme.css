@@ -27,27 +27,20 @@
   padding-bottom: 192px;
 }
 
-/* The barn and its sunflower beside the name. */
+/* The badge as a pixel-art sign beside the name. */
 [data-theme="harvest"] .brand::before {
-  content: "";
-  width: 40px;
-  height: 40px;
-  margin-right: 0.5rem;
-  background: url("./assets/emblem.webp") center / contain no-repeat;
-  image-rendering: pixelated;
+  background-image: url("./assets/mark.svg");
 }
 
 [data-theme="harvest"] img,
-[data-theme="harvest"] .panel,
+[data-theme="harvest"] .l-card,
 [data-theme="harvest"] .card,
-[data-theme="harvest"] .dossier-card,
 [data-theme="harvest"] .ask {
   image-rendering: pixelated;
 }
 
 [data-theme="harvest"] h1,
-[data-theme="harvest"] h2,
-[data-theme="harvest"] .brand {
+[data-theme="harvest"] h2 {
   font-weight: 600;
   letter-spacing: 0.02em;
 }
@@ -77,8 +70,7 @@
 }
 
 /* Wooden nine-slice panels: plank borders with nails, from wood-panel.svg. */
-[data-theme="harvest"] .panel,
-[data-theme="harvest"] .dossier-card,
+[data-theme="harvest"] .l-card,
 [data-theme="harvest"] .ask,
 [data-theme="harvest"] .stat {
   border: 8px solid #8a5226;
@@ -282,4 +274,40 @@
 @keyframes harvest-pour {
   from { transform: rotate(0deg); }
   to { transform: rotate(-16deg); }
+}
+
+/* Gradients for life (#271): a morning wash on the header, panels that warm
+   to straw at the foot, sky-tinted stat cards, and buttons lit from above in
+   two pixel bands. Each stop keeps every text colour at 4.5:1 or better
+   (the darkest, `ok` on the straw, is 5.2:1). */
+[data-theme="harvest"] .top {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--raised) 70%, #fff4b0), var(--surface));
+}
+
+[data-theme="harvest"] .l-card,
+[data-theme="harvest"] .ask {
+  background: linear-gradient(180deg, var(--raised), var(--surface) 55%, color-mix(in srgb, var(--surface) 90%, #c9932a));
+}
+
+[data-theme="harvest"] .stat {
+  background: linear-gradient(180deg, var(--raised), color-mix(in srgb, var(--surface) 82%, #9fd8ff));
+}
+
+[data-theme="harvest"] .btn--accent,
+[data-theme="harvest"] .top nav a[aria-current="page"],
+[data-theme="harvest"] button[aria-pressed="true"] {
+  background: linear-gradient(180deg, #367a23 0 50%, var(--accent) 50%);
+}
+
+[data-theme="harvest"] .chart .chart-stop--top { stop-color: #4f9a2a; }
+[data-theme="harvest"] .chart .chart-stop--bottom { stop-color: var(--accent); }
+
+[data-theme="harvest"] .chart .bar,
+[data-theme="harvest"] .chart .area {
+  fill: var(--chart-fill);
+}
+
+/* The week still running stays muted, as in Plain, so a partial count never reads as a finished one. */
+[data-theme="harvest"] .chart .bar--partial {
+  fill: var(--muted);
 }

@@ -6,12 +6,15 @@
 // them, and reads through the installed toil with no sample data at all. Run
 // after `npm run build` at the root (toil's tarball) and in ui/ (its own).
 // Stops every process it starts.
-// The tour of the building takes nine seconds and visits only the lobby.
+// Then it opens every view of the sample app in every theme in headless Chrome
+// and holds the layout to scripts/layout-check.mjs.
+// The tour of the building now takes in every floor, in every livery.
 import { execFileSync, spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { WIDTHS, checkLayout, themeRuns } from './layout-check.mjs';
 import { npmCli } from './package-rules.mjs';
 
 const ui = join(import.meta.dirname, '..');
@@ -125,6 +128,16 @@ try {
   check(all.every((r) => !r.headers['set-cookie']), 'a response set a cookie');
   check(all.every((r) => !Object.keys(r.headers).some((h) => h.startsWith('access-control-'))), 'a response carried a CORS header');
   steps.push(`--sample on ${origin}: foreign Host 403, API without a session 401, wrong token 401, token traded for a header session (no cookie), a cookie-only session 401, app and script 200, 3 dossiers over the API, a write refused, no CSRF 403, no CORS header`);
+
+  // Every view in every theme, at 375, 768 and 1440, in real Chrome (scripts/layout-check.mjs).
+  const layout = await checkLayout({
+    urlFor: (theme, scheme, route) => `${launchUrl}&theme=${theme}&scheme=${scheme}${route}`,
+    log: (line) => process.stderr.write(`  layout: ${line}
+`),
+  });
+  problems.push(...layout.problems);
+  for (const r of layout.reported) console.log(`  report-only (decorative theme): ${r}`);
+  steps.push(`layout: ${layout.checked} views and states in ${themeRuns().length} theme schemes at ${WIDTHS.join(', ')}px, ${layout.problems.length} problem(s) (no sideways scroll, no overflow outside a declared scroller, nothing past its card, the Ask dock clear of the page's end, one-row headers, a dimming backdrop, and no axe violation in Plain or Crate), ${layout.reported.length} report-only axe finding(s) in the decorative themes`);
 
   // toil's own execute(), from the installed package, with an empty home, behind the SQLite cache.
   const live = launch(bin, []);

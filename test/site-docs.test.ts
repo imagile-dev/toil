@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { pagePath, skillFiles } from '../site/src/lib/skill-pages.mjs';
+import { FIGURE, figureDir, pagePath, skillFiles } from '../site/src/lib/skill-pages.mjs';
 
 /**
  * The docs are the toil skill (#202): skills/toil/*.md is the one copy of the
@@ -109,6 +109,40 @@ describe('the docs pages render skills/toil/ and carry no reference prose of the
     const board = readdirSync(join(root, 'site', 'src', 'data', 'integrations')).filter((f) => f.endsWith('.json'));
     expect(board.length).toBeGreaterThan(10);
     for (const f of board) expect(existsSync(join(root, 'skills', 'toil', f.replace(/\.json$/, '.md'))), `skills/toil/${f.replace(/\.json$/, '.md')}`).toBe(true);
+  });
+});
+
+describe('the diagrams a skill file places', () => {
+  const placed = readdirSync(join(root, 'skills', 'toil'))
+    .filter((f) => f.endsWith('.md'))
+    .flatMap((f) => readFileSync(join(root, 'skills', 'toil', f), 'utf8').split(/\r?\n/).flatMap((line) => {
+      const name = FIGURE.exec(line.trim())?.[1];
+      return name ? [{ file: f, name }] : [];
+    }));
+  const figures = readdirSync(figureDir).filter((f) => f.endsWith('.html')).map((f) => f.replace(/\.html$/, ''));
+
+  it('finds some, so a broken marker cannot pass by finding none', () => {
+    expect(placed.length).toBeGreaterThan(3);
+  });
+
+  it('each one placed exists, and each one that exists is placed', () => {
+    for (const p of placed) expect(figures, `${p.file} places ${p.name}`).toContain(p.name);
+    for (const f of figures) expect(placed.map((p) => p.name), `site/src/figures/${f}.html`).toContain(f);
+  });
+
+  it('each is a figure with a caption, every drawing is named and described, and anything that scrolls can be reached by keyboard', () => {
+    for (const f of figures) {
+      const html = readFileSync(join(figureDir, `${f}.html`), 'utf8');
+      expect(html.trimStart(), f).toMatch(/^<figure /);
+      expect(html, f).toMatch(/<figcaption[ >]/);
+      for (const svg of html.match(/<svg[\s\S]*?<\/svg>/g) ?? []) {
+        expect(svg, f).toMatch(/^<svg [^>]*role="img"[^>]*aria-labelledby="[^"]+ [^"]+"/);
+        expect(svg, f).toMatch(/<title id=/);
+        expect(svg, f).toMatch(/<desc id=/);
+      }
+      for (const img of html.match(/<img [^>]*>/g) ?? []) expect(img, f).toMatch(/ alt="[^"]{20,}"/);
+      for (const pre of html.match(/<pre[^>]*>/g) ?? []) expect(pre, f).toMatch(/tabindex="0" role="region" aria-label="[^"]+"/);
+    }
   });
 });
 

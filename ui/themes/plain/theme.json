@@ -46,5 +46,8 @@
   "radius": "6px",
   "motion": "none",
   "sounds": {},
-  "assets": {}
+  "assets": {
+    "mark": "assets/mark-light.svg",
+    "markDark": "assets/mark-dark.svg"
+  }
 }

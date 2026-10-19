@@ -2,7 +2,8 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { cssProblems, fileProblems, manifestProblems } from '../src/theme-rules.ts';
-import { TERMS, THEMES, TOKENS, tokenCss, type Token } from '../src/themes.ts';
+import { initialChoice } from '../src/theme-choice.ts';
+import { DEFAULT_THEME, TERMS, THEMES, TOKENS, themeNamed, tokenCss, type Token } from '../src/themes.ts';
 
 /**
  * Every theme is held to the same bar (#206): data and styling only, every
@@ -100,6 +101,12 @@ describe.each(THEMES.map((t) => [t.name, t] as const))('the %s theme', (name, th
     expect(theme.sounds).toEqual({});
   });
 
+  it('keeps the running week muted wherever it recolours chart bars', () => {
+    // A theme rule on `.chart .bar` outranks the base `.bar--partial`, so it must restate it (#271).
+    const css = readFileSync(join(themesDir, name, 'theme.css'), 'utf8');
+    if (/\.chart \.bar[\s,{]/.test(css)) expect(css).toMatch(/\.chart \.bar--partial\s*\{\s*fill:\s*var\(--muted\)/);
+  });
+
   it('renames only words a theme may rename', () => {
     for (const key of Object.keys(theme.terms ?? {})) expect(TERMS).toContain(key);
   });
@@ -129,7 +136,7 @@ describe.each(THEMES.map((t) => [t.name, t] as const))('the %s theme', (name, th
 describe('Plain', () => {
   const plain = THEMES.find((t) => t.name === 'plain')!;
 
-  it('is the default, with light first and a dark variant that follows the system', () => {
+  it('comes first in the picker, with light first and a dark variant that follows the system', () => {
     expect(THEMES[0]!.name).toBe('plain');
     expect(Object.keys(plain.schemes)).toEqual(['light', 'dark']);
     const css = tokenCss(plain);
@@ -140,5 +147,23 @@ describe('Plain', () => {
   it('has no motion and no sound', () => {
     expect(plain.motion).toBe('none');
     expect(plain.sounds).toEqual({});
+  });
+});
+
+describe('the default theme (#277)', () => {
+  it('is Crate until someone picks another, and an explicit choice always wins', () => {
+    localStorage.clear();
+    expect(DEFAULT_THEME).toBe('crate');
+    expect(initialChoice('')).toEqual({ theme: 'crate', scheme: 'system' });
+    expect(initialChoice('?theme=plain&scheme=light')).toEqual({ theme: 'plain', scheme: 'light' });
+    localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'plain', scheme: 'dark' }));
+    expect(initialChoice('')).toEqual({ theme: 'plain', scheme: 'dark' });
+    expect(initialChoice('?theme=realm')).toEqual({ theme: 'realm', scheme: 'dark' });
+    localStorage.clear();
+    expect(themeNamed('no-such-theme').name).toBe('crate');
+  });
+
+  it('is the theme the page starts in, before any script runs', () => {
+    expect(readFileSync(join(import.meta.dirname, '..', 'index.html'), 'utf8')).toContain('<html lang="en" data-theme="crate" data-scheme="system">');
   });
 });

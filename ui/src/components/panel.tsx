@@ -7,6 +7,7 @@
  */
 
 import type { ReactNode } from 'react';
+import { Card } from './layout.tsx';
 import { useSkins } from '../skins.tsx';
 import type { Call } from '../toil.ts';
 
@@ -46,7 +47,7 @@ export function Sources({ calls, alerts = true }: { calls: Call[]; alerts?: bool
         <ul className="plain calls">
           {calls.map((c, i) => (
             <li key={i}>
-              <code>
+              <code className="call">
                 execute({JSON.stringify(c.command)}, {JSON.stringify(c.input)})
               </code>
               {!c.ok && <span className="failure"> (failed)</span>}
@@ -61,12 +62,12 @@ export function Sources({ calls, alerts = true }: { calls: Call[]; alerts?: bool
 export function Panel({ id, title, calls, children, alerts = true }: { id: string; title: string; calls: Call[]; children: ReactNode; alerts?: boolean }) {
   const { Panel: Skin } = useSkins();
   return (
-    <section className="panel" aria-labelledby={id}>
+    <Card as="section" className="panel" aria-labelledby={id}>
       <Skin id={id}>
         <h2 id={id}>{title}</h2>
         {children}
         <Sources calls={calls} alerts={alerts} />
       </Skin>
-    </section>
+    </Card>
   );
 }
