@@ -43,6 +43,8 @@ import { url, repoUrl } from '../../lib/url';
   .doc__body > * { min-width: 0; }
   /* Prose keeps its measure; the screenshots and the prompt get the container's width. */
   :global(.skill-doc > :not(.tx):not(pre):not(.table-scroll)) { max-width: 72ch; }
+  /* The composed prompt is one long paragraph per line; it wraps here rather than scroll sideways. */
+  :global(.skill-doc pre) { white-space: pre-wrap; overflow-wrap: anywhere; }
   .doc__source { margin-top: var(--space-sm); font-size: var(--text-xs); }
   .doc__source a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-muted); }
   .doc__source a:hover code { color: var(--color-accent); }
