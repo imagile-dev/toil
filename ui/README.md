@@ -29,7 +29,8 @@ It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
 Toil UI 0.1.0-alpha.1 (alpha, local only), on toil 0.1.0-alpha.3
-Reading through toil, read-only, with your own connections and dossiers.
+Syncing through toil, read-only, with your own connections and dossiers.
+The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
 Open this URL in your browser. It carries this launch's token, so keep it to yourself:
   http://127.0.0.1:53117/?token=<token>
