@@ -284,10 +284,37 @@ describe('a proposal', () => {
     const input = { key: 'A-1', summary: `a ${c} b` };
     const ps = commandLine({ command: 'jira update-issue', input }, 'powershell');
     expect(ps.line).toBeNull();
-    expect(ps.reason).toMatch(/can't be passed safely on a PowerShell command line: .* Use the command's --input-file instead/);
+    expect(ps.reason).toMatch(/can't be passed safely on a PowerShell command line: /);
+    // update-issue takes --input-file, so the advice offers it; MCP is always there.
+    expect(ps.reason).toContain("toil jira update-issue's --input-file");
+    expect(ps.reason).toContain('the tool jira_update_issue');
+    expect(ps.mcp).toEqual({ tool: 'jira_update_issue', input: { ...input, allowWrite: true } });
     expect(quote(`a ${c} b`, 'powershell')).toBeNull();
     // bash and zsh take all but a line break inside single quotes as they are.
     expect(commandLine({ command: 'jira update-issue', input }, 'posix').line === null).toBe(c === '\n' || c === '\r');
+  });
+
+  it('advises only what the command accepts: a board move to "Code Review & QA" in PowerShell', () => {
+    const qa = item({ id: 'corp-jira:QA-2', status: 'Code Review & QA', statusCategory: 'IN_PROGRESS' });
+    const todo = item({ id: 'corp-jira:QA-1', status: 'To Do' });
+    const p = proposeMove(todo, 'IN_PROGRESS', [todo, qa], 'card-payments')!;
+    expect(p.input).toEqual({ dossier: 'card-payments', key: 'QA-1', transition: 'Code Review & QA' });
+    const ps = commandLine(p, 'powershell');
+    expect(ps.line).toBeNull();
+    // transition-issue has no --input-file, so the advice never names it: bash/zsh or MCP instead.
+    expect(ps.reason).not.toContain('--input-file');
+    expect(ps.reason).toContain('it holds &');
+    expect(ps.reason).toContain('Switch this card to bash/zsh');
+    expect(ps.reason).toContain('the tool jira_transition_issue');
+    expect(ps.mcp).toEqual({ tool: 'jira_transition_issue', input: { dossier: 'card-payments', key: 'QA-1', transition: 'Code Review & QA', allowWrite: true } });
+    expect(commandLine(p, 'posix').line).toBe("toil jira transition-issue --dossier 'card-payments' --key 'QA-1' --transition 'Code Review & QA' --allow-write");
+  });
+
+  it('never offers bash/zsh for a line break, which no shell line carries', () => {
+    const out = commandLine({ command: 'ado work transition', input: { id: 1, state: 'a\nb' } }, 'powershell');
+    expect(out.reason).not.toContain('bash/zsh');
+    expect(out.reason).not.toContain('--input-file');
+    expect(out.reason).toContain('the tool ado_work_transition');
   });
 
   it("picks PowerShell on Windows and POSIX anywhere else", () => {

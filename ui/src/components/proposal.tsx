@@ -39,9 +39,10 @@ export const useShell = () => useSyncExternalStore(subscribe, shellNow, shellNow
 export function ProposalCard({ proposal, onDismiss }: { proposal: Proposal; onDismiss?: () => void }) {
   const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
   const shell = useShell();
-  const { line, reason } = commandLine(proposal, shell);
+  const { line, reason, mcp } = commandLine(proposal, shell);
   const hint = proposal.hint ? { text: proposal.hint.text, ...readLine(proposal.hint, shell) } : null;
-  const showShells = Boolean(line || hint?.line);
+  // The toggle stays even when this shell can't carry a value, so the card can switch to one that can.
+  const showShells = Boolean(proposal.command || proposal.hint);
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(line!);
@@ -74,7 +75,16 @@ export function ProposalCard({ proposal, onDismiss }: { proposal: Proposal; onDi
           </pre>
         </>
       ) : (
-        proposal.command && <p className="failure">{reason}</p>
+        proposal.command && (
+          <>
+            <p className="failure">{reason}</p>
+            {mcp && (
+              <pre className="command" aria-label={`MCP call to ${mcp.tool}`}>
+                <code>{JSON.stringify({ tool: mcp.tool, input: mcp.input }, null, 2)}</code>
+              </pre>
+            )}
+          </>
+        )
       )}
       {proposal.note && <p className="note">{proposal.note}</p>}
       {hint && (

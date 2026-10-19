@@ -91,6 +91,27 @@ describe('every proposal the board and the scripted agent can make', async () =>
     const result = new Validator(def!.inputSchema as object, '2020-12', false).validate(p.input);
     expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
   });
+  it('lists exactly the commands whose input takes inputFile, so the advice never offers one that is not there', async () => {
+    const { INPUT_FILE_COMMANDS } = await import('../src/proposal.ts');
+    const takes = registry.commands.filter((c) => Object.keys((c.inputSchema as { properties?: object }).properties ?? {}).includes('inputFile')).map((c) => c.name);
+    expect([...INPUT_FILE_COMMANDS].sort()).toEqual(takes.sort());
+  });
+
+  it('refers a PowerShell refusal to an MCP tool that exists, with input its schema accepts', async () => {
+    const { commandLine, toolName } = await import('../src/proposal.ts');
+    const byTool = new Map(registry.commands.map((c) => [toolName(c.name), c]));
+    const hostile = withCommand.map((p) => ({ ...p, input: { ...p!.input, ...(p!.command === 'jira transition-issue' ? { transition: 'Code Review & QA' } : p!.command === 'ado work transition' ? { state: 'Code Review & QA' } : { dossier: 'a&b' }) } }));
+    for (const p of hostile) {
+      const out = commandLine({ command: p!.command ?? null, input: p!.input }, 'powershell');
+      expect(out.line, p!.command!).toBeNull();
+      const def = byTool.get(out.mcp!.tool);
+      expect(def, out.mcp!.tool).toBeDefined();
+      const result = new Validator(def!.inputSchema as object, '2020-12', false).validate(out.mcp!.input);
+      expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
+      expect((out.reason ?? '').includes('--input-file')).toBe(Object.keys((def!.inputSchema as { properties?: object }).properties ?? {}).includes('inputFile'));
+    }
+  });
+
   const hints = proposals.flatMap((p) => (p?.hint ? [[`${p.id} hint`, p.hint] as const] : []));
   it('includes read-only hints', () => expect(hints.length).toBeGreaterThan(0));
 

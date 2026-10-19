@@ -78,7 +78,26 @@ export function quote(value: string, shell: Shell): string | null {
   return shell === 'posix' ? `'${value.replace(/'/g, `'\\''`)}'` : `'${value.replace(PS_QUOTES, (q) => q + q)}'`;
 }
 
-export type CommandLine = { line: string; reason: null } | { line: null; reason: string };
+/**
+ * The toil commands whose input takes `inputFile` (`--input-file`), so a value
+ * no command line can carry can go in a file instead. The page can't load
+ * toil's registry (it is Node-only), so test/registry.test.ts holds this list
+ * to it exactly.
+ */
+export const INPUT_FILE_COMMANDS: ReadonlySet<string> = new Set([
+  'ado work create', 'ado work update', 'alation document create', 'alation document update', 'jira create-issue', 'jira update-issue',
+  'jira-cloud create-issue', 'jira-cloud update-issue', 'splitio flags update', 'splitio flags batch-toggle',
+]);
+
+/** A call over MCP: the tool's name (`jira transition-issue` is `jira_transition_issue`) and its input, which as JSON needs no shell quoting. */
+export interface McpCall {
+  tool: string;
+  input: Record<string, unknown>;
+}
+
+export const toolName = (command: string) => command.replace(/[ -]/g, '_');
+
+export type CommandLine = { line: string; reason: null; mcp?: undefined } | { line: null; reason: string; mcp?: McpCall };
 
 /**
  * The command line that applies a proposal, for one shell: `--dossier` first,
@@ -97,6 +116,20 @@ export function readLine(h: Pick<Hint, 'command' | 'input'>, shell: Shell): Comm
   return render(h.command, h.input, shell, false);
 }
 
+/**
+ * What to do instead, true for this command: `--input-file` only where it
+ * takes one; bash/zsh where only PowerShell refused; and always MCP, whose
+ * JSON input carries any value.
+ */
+function advice(command: string, shell: Shell, why: string, tool: string): string {
+  const ways: string[] = [];
+  if (INPUT_FILE_COMMANDS.has(command)) ways.push(`put the input in a file and pass it with toil ${command}'s --input-file`);
+  if (shell === 'powershell' && !why.includes('line break')) ways.push('switch this card to bash/zsh, where single quotes carry it');
+  ways.push(`apply it over MCP with the tool ${tool} and the input below`);
+  const text = ways.length === 1 ? ways[0]! : `${ways.slice(0, -1).join(', ')}, or ${ways.at(-1)}`;
+  return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
+}
+
 /** Every toil command line the UI shows is built here, and only here. */
 function render(command: string, input: Record<string, unknown>, shell: Shell, write: boolean): CommandLine {
   const entries = Object.entries(input).sort(([a], [b]) => (a === 'dossier' ? -1 : b === 'dossier' ? 1 : 0));
@@ -105,7 +138,10 @@ function render(command: string, input: Record<string, unknown>, shell: Shell, w
     for (const x of Array.isArray(v) ? v : [v]) {
       const value = String(x);
       const why = unsafe(value, shell);
-      if (why) return { line: null, reason: `The ${flag(k)} value can't be passed safely on a ${SHELL_LABEL[shell]} command line: ${why}. Use the command's --input-file instead, or apply it over MCP.` };
+      if (why) {
+        const mcp = { tool: toolName(command), input: write ? { ...input, allowWrite: true } : input };
+        return { line: null, reason: `The ${flag(k)} value can't be passed safely on a ${SHELL_LABEL[shell]} command line: ${why}. ${advice(command, shell, why, mcp.tool)}`, mcp };
+      }
       parts.push(value.startsWith('-') ? quote(`${flag(k)}=${value}`, shell)! : `${flag(k)} ${quote(value, shell)}`);
     }
   }

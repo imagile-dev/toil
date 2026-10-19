@@ -2505,7 +2505,13 @@ preview has a Settings entry that says so.
   installs `toil` as a `toil.cmd` shim, so PowerShell hands the arguments to cmd.exe,
   which re-reads `& | < > ^` and expands `%VAR%`; Windows PowerShell 5.1 also mangles
   an embedded `"`. A value holding any of those (or a line break, in either shell)
-  gets no PowerShell line, only the reason and a pointer to `--input-file` or MCP.
+  gets no PowerShell line, only the reason and advice that is true for that command
+  (#255 round 3): `--input-file` only where the command takes one (`INPUT_FILE_COMMANDS`,
+  which the registry test holds to every command whose input has `inputFile`);
+  switching the card to bash/zsh where only PowerShell refused; and always the MCP
+  call, its tool name and input shown as JSON, which needs no shell quoting. The board's
+  transitions (`jira transition-issue`, `ado work transition`) take no input file, so a
+  column named "Code Review & QA" is offered bash/zsh and MCP.
   Every toil command line the UI shows, the board's read-only hints (`jira
   list-transitions`, `ado work list-states`) included, goes through the one renderer
   in `ui/src/proposal.ts`; a hint is a `{ command, input }` the registry test holds
