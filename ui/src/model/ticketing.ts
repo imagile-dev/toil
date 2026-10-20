@@ -37,7 +37,11 @@ export function isQuestion(prompt: string): boolean {
 
 const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-/** The open item a prompt already names, by OWI id or by its key as a whole word (`PAY-12`, `#51`, `2302`), or null. */
+/**
+ * The item a prompt already names, open or done, by OWI id or by its key as a
+ * whole word (`PAY-12`, `#51`, `#2302`), or null. A done one counts: work that
+ * names its ticket ("reopen PAY-92") is ticketed, whatever state that ticket is in.
+ */
 export function namedItem(prompt: string, items: readonly WorkItem[]): WorkItem | null {
   for (const item of items) {
     if (prompt.includes(item.id)) return item;
