@@ -1252,7 +1252,7 @@ describe('implement mode, when the agent commits anyway (#293 review)', () => {
 
 describe('implement mode, when the diff would hide something staged (#293 review round 4)', () => {
   const git = (cwd: string, ...args: string[]) => {
-    const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=you@example.com', '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8' });
+    const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=you@example.com', '-c', 'commit.gpgsign=false', '-c', 'maintenance.auto=false', '-c', 'gc.auto=0', ...args], { cwd, encoding: 'utf8' });
     if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
     return r.stdout;
   };

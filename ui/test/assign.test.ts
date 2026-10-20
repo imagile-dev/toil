@@ -266,6 +266,7 @@ describe('the assigned agent\'s prompts', () => {
     mkdirSync(join(source, '.git', 'objects'), { recursive: true });
     writeFileSync(join(source, '.git', 'HEAD'), 'ref: refs/heads/main\n');
     writeFileSync(join(source, '.git', 'objects', 'pack.idx'), 'x');
+    writeFileSync(join(source, '.git', 'objects', 'maintenance.lock'), 'busy');
     writeFileSync(join(source, '.git', 'hooks', 'post-checkout'), 'theirs');
     writeFileSync(join(source, '.git', 'config'), '[core]\n\trepositoryformatversion = 0\n[user]\n\temail = you@example.com\n');
     writeFileSync(join(source, 'uncommitted.txt'), 'stays home');
@@ -274,6 +275,7 @@ describe('the assigned agent\'s prompts', () => {
     expect(readFileSync(join(clone, '.git', 'HEAD'), 'utf8')).toBe('ref: refs/heads/main\n');
     expect(readFileSync(join(clone, '.git', 'objects', 'pack.idx'), 'utf8')).toBe('x');
     expect(() => readFileSync(join(clone, '.git', 'hooks', 'post-checkout'))).toThrow();
+    expect(() => readFileSync(join(clone, '.git', 'objects', 'maintenance.lock'))).toThrow();
     expect(() => readFileSync(join(clone, 'uncommitted.txt'))).toThrow();
     expect(readFileSync(join(clone, '.git', 'config'), 'utf8')).not.toContain('you@example.com');
     const worktree = join(folder, 'worktree');

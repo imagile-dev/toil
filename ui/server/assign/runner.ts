@@ -379,7 +379,18 @@ export function prepareClone(source: string, clone: string): string | null {
     throw new RunStopped('error', `${slashes(source)} isn't a git clone, so implement mode has nothing to copy.`, 'Point the dossier repository at a git clone (toil dossiers add-repo <dossier> <folder>), then assign again.');
   }
   if (!st.isDirectory()) throw new RunStopped('error', `${slashes(source)} is a git worktree or a submodule (its .git is a file), so implement mode can't copy it.`, 'Point the dossier repository at the main clone, then assign again.');
-  cpSync(git, join(clone, '.git'), { recursive: true, filter: (from) => !/[\\/]\.git[\\/](hooks|config|[^\\/]*\.lock)$/.test(from) });
+  // A lock file anywhere is git at work in the person's clone (a commit, or the background maintenance git 2.5x
+  // starts after one) and may vanish mid-copy; a file that still vanishes between listing and copying gets a fresh try.
+  const copy = () => cpSync(git, join(clone, '.git'), { recursive: true, filter: (from) => !/[\\/]\.git[\\/](hooks|config)$/.test(from) && !/\.lock$/.test(from) });
+  for (let attempt = 1; ; attempt++) {
+    try {
+      copy();
+      break;
+    } catch (e) {
+      rmSync(join(clone, '.git'), { recursive: true, force: true });
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT' || attempt === 3) throw new RunStopped('error', `Toil UI couldn't copy ${slashes(git)}: ${(e as Error).message}`, 'Wait for git to finish in that clone, then assign again.');
+    }
+  }
   const refused = reclaimGitDir(clone, source);
   if (refused) throw new RunStopped('error', refused, 'Assign it again.');
   return headCommit(clone);
