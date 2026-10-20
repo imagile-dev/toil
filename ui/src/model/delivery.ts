@@ -178,6 +178,9 @@ export function adoBuilds(data: unknown, connection: string, prs: ChangeRef[]): 
   });
 }
 
+/** Each name once, in the order first seen. */
+const unique = (names: Array<string | null>) => [...new Set(names.filter((n): n is string => n !== null))];
+
 /** A pull request head's GitHub checks, as one build. */
 export function githubBuild(data: unknown, connection: string, pr: ChangeRef): ChangeRef | null {
   const runs = recs(data);
@@ -192,9 +195,10 @@ export function githubBuild(data: unknown, connection: string, pr: ChangeRef): C
     source: 'github',
     command: 'github list-checks',
     items: pr.items,
-    title: runs.map((r) => str(r.name)).join(', '),
+    // A check that ran for both the push and the pull request is named once.
+    title: unique(runs.map((r) => str(r.name))).join(', '),
     url: str(worst.html_url),
-    state: failed.length ? `failure (${failed.map((r) => r.name).join(', ')})` : running.length ? 'in_progress' : 'success',
+    state: failed.length ? `failure (${unique(failed.map((r) => str(r.name))).join(', ')})` : running.length ? 'in_progress' : 'success',
     outcome: failed.length ? 'failed' : running.length ? 'running' : 'passed',
     builds: pr.id,
     mergeCommit: null,

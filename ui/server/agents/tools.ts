@@ -111,6 +111,9 @@ export class Ledger {
 
 const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
 
+/** Who an item is assigned to, by name, else by id: GitHub names people by login alone, which OWI keeps as the id. */
+const assigneeOf = (item: WorkItem) => (item.assignee ? (item.assignee.name ?? item.assignee.id) : null);
+
 /** An item as a tool returns it: no `native` record, a bounded body. */
 function brief(item: WorkItem) {
   return {
@@ -120,7 +123,7 @@ function brief(item: WorkItem) {
     title: item.title,
     status: item.status,
     statusCategory: item.statusCategory,
-    assignee: item.assignee?.name ?? null,
+    assignee: assigneeOf(item),
     priority: item.priority,
     estimate: item.estimate ? { value: item.estimate.value, unit: item.estimate.unit, field: item.estimate.field } : null,
     labels: item.labels,
@@ -185,7 +188,7 @@ export function cacheTools(dossier: string, data: AgentData, ledger: Ledger): To
             (!str(input.type) || i.type === input.type) &&
             (!str(input.statusCategory) || i.statusCategory === input.statusCategory) &&
             (!str(input.status) || (i.status ?? '').toLowerCase() === String(input.status).toLowerCase()) &&
-            (!assignee || (assignee === 'none' ? !i.assignee : (i.assignee?.name ?? '').toLowerCase().includes(assignee))) &&
+            (!assignee || (assignee === 'none' ? !i.assignee : (assigneeOf(i) ?? '').toLowerCase().includes(assignee))) &&
             (!iteration || (i.iteration?.name ?? '').toLowerCase().includes(iteration)) &&
             (!str(input.label) || i.labels.includes(String(input.label))),
         );
