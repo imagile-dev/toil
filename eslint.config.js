@@ -80,6 +80,6 @@ export default tseslint.config(
     // Repo tooling and tests may run git (CLAUDE.md, Principles); none of it ships.
     files: ['scripts/**/*.mjs', 'functions/feedback/scripts/**/*.mjs', 'test/**/*.ts', 'src/core/**/*.test.ts', '*.config.ts', '*.config.js'],
     rules: { 'no-restricted-imports': 'off' },
-    languageOptions: { globals: { process: 'readonly', console: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly', URL: 'readonly', fetch: 'readonly', Buffer: 'readonly' } },
+    languageOptions: { globals: { process: 'readonly', console: 'readonly', setTimeout: 'readonly', clearTimeout: 'readonly', URL: 'readonly', fetch: 'readonly', Buffer: 'readonly', AbortSignal: 'readonly' } },
   },
 );
