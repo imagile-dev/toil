@@ -19,6 +19,10 @@ port.
   `writes: true`, and every call still needs `allowWrite: true`. Deletes, and the
   commands that prompt or change connections (`connections add`, `setup alias`), are
   never tools.
+- **Big results**: every tool takes `outputFormat` (`"toon"` writes `data` as compact
+  TOON text) and `summaryFile` (the whole of `data` goes to that file in the
+  workspace, and a summary comes back in its place), as `core.md`, **Big results**,
+  describes.
 - **Files**: a command that reads or writes a file needs a workspace: `--workspace
   <dir>` in the server's args, else `TOIL_WORKSPACE`, else the client's root when it
   shares exactly one. With none, it returns `NOT_CONFIGURED`.

@@ -4203,6 +4203,79 @@ choices made by default inside that:
 - **The preview's sample month** is generated from a fixed seed and summarized by
   `src/audit/stats.ts` itself, so its figures are toil's sums, not hand-made ones.
 
+## Size-aware output (#301)
+
+The issue fixed the shape (TOON for `data` only, a summary by fixed rules with the
+full result on disk, applied in core after `--select`). These are the choices made
+by default inside it:
+
+- **The flags are `--output-format` and `--summary-file <path>`, not `--format` and
+  `--summary` with `--output-file`.** Both names the issue used are taken by area
+  flags already (`util report --format`, `jira issue create --summary`), and a global
+  flag of the same name would swallow them. `--summary-file` is one flag holding the
+  path, so `--output-file` keeps its one meaning (the whole envelope to a file, CLI
+  only) and MCP gets one field, `summaryFile`, rather than a pair where one is
+  meaningless without the other. The fields are `outputFormat` and `summaryFile`,
+  reserved like `select`.
+- **Shaping lives in `runCommand()`, not `execute()`**, the one function all three
+  front doors call, so `toil wait` gets it on its final envelope and each attempt
+  isn't summarized. It uses the call's own `ctx.files`, so the file is in the
+  workspace and never overwrites; the path is checked before the command runs, and a
+  read-only API call refuses `summaryFile`, since it writes a file.
+- **The file is always written, as pretty-printed JSON**, even when the whole result
+  fits in the envelope, so the path is always there for a caller that asked for it.
+  JSON rather than TOON so `jq`, a script, or toil's own `--input-file` read it, and
+  pretty so line tools (`head`, `grep`) work on it.
+- **The rules are ordered record, all, outline, head, sample**, with the issue's two
+  shape rows (nested data that flattens, and that doesn't) checked before the size
+  tiers, since they decide whether there is a table at all. A result with no table
+  counts as one row. The table is the result itself when it's a list, else the list
+  reached through objects (up to four levels down) with the most cells: its rows
+  times their width, judged from the first 20 (an object's dot-path keys, a list's
+  items). Real results nest their rows (`util report`'s `findings.results`). Two
+  review findings set the measure: most items picked a `db query`'s 40 `columns`
+  over its 30 `rows`, and most content let one 50 KB comment beat 200 issues, so it
+  is rows and shape, never size. A third finding showed that cells alone pick a
+  one- or two-row `db` result's `columns`, so a list of objects as long as a sibling's
+  list rows are wide, or whose items are all exactly `{ name, type }` beside an empty
+  list (a `db` query with no rows; any list of named objects was too broad, a later
+  finding), is taken as that sibling's header and never ranked. A last
+  row too wide for the budget at 200 characters is cut to 40 before it's dropped, so
+  a one-row answer keeps its row (a non-blocking review note). Fields beside the table that are still over a
+  quarter of the budget after their texts are cut are kept from the front while
+  they fit, in one pass (`trimmed.fields`), as are an outline's keys: dropping one
+  at a time and re-serializing took 10.8 s at 6,000 fields, and the pass takes
+  about 10 ms.
+- **"Flattens" means at least 80% of the rows' dot-path keys are in every row.**
+  Lists inside a row stay whole, as one column.
+- **Every summary is held to the 1,500-token budget**, `record` included (a review
+  finding: a 200 KB text was returned whole). Over it, texts longer than 200
+  characters are cut short with `…`, then rows are dropped from the end (down to
+  none), and an outline's sample, then its lengths, then its keys from the end are
+  cut; a bare text keeps its first 2,000 characters. Each cut is recorded in
+  `meta.summary.trimmed`, and `schema` and `stats` cover the first 25 columns,
+  with the full count in `meta.summary.columns`. The issue's 5,000-row case needs that
+  to hold for wide rows.
+- **`stats` has the same four keys for every column** (`min` and `max` null where they
+  don't apply), so TOON writes it as one keyed table.
+- **Sample rows are spread evenly from the first to the last**, not random, so the
+  same data always gives the same summary.
+- **What's beside the table stays, as `fields`**, whole while it's a quarter of the
+  budget or less, else only its top-level primitives (`total`, a cursor).
+- **`--output-format toon` always writes TOON when asked**, even where it comes out
+  longer than JSON (deeply nested data with few repeated rows, such as `util size`'s
+  folder tree, measured about 45% larger as a JSON string). Falling back to JSON
+  silently would make the format depend on the data; the docs say where it pays.
+  Whether to switch automatically is left for the maintainer.
+- **The encoder targets TOON 4.4** (spec v4.4.0, a working draft), and the spec's
+  encode fixtures are vendored under `test/fixtures/toon/` like the JMESPath suite,
+  with its MIT licence beside them and in `NOTICE`. Only the comma delimiter and
+  two-space indent are used; the others are implemented because the fixtures cover
+  them.
+- **The token estimate is JSON characters / 3.5**, as the issue set, on the JSON of
+  `data` whichever format is asked for, so the rule that applies never depends on the
+  format.
+
 ## Command shape for the remaining areas (#297)
 
 The rest of the integrations moved to the command shape, the same way `jira` and
