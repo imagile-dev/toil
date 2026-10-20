@@ -19,7 +19,7 @@ export interface CliOption {
   description: string;
   /**
    * Registered on the area's group command (`toil bitbucket --project X
-   * list-prs`) rather than on the leaf. Set by core for an area's group-level
+   * pr list`) rather than on the leaf. Set by core for an area's group-level
    * context inputs; commander accepts the flag before or after the leaf name.
    */
   group?: boolean;

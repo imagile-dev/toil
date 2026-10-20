@@ -12,7 +12,7 @@ import { iq } from './client.js';
 export const applicationsListCommand = sonatypeiqArea.command({
   path: ['sonatypeiq', 'application', 'list'],
   description: 'List all applications in Sonatype IQ Server',
-  toolDescription: 'Every application in Sonatype IQ Server, as the server returns it: { applications: [{ id, publicId, name, organizationId, ... }] }. Use the publicId with sonatypeiq_application_evaluate.',
+  toolDescription: 'Every application in Sonatype IQ Server, as the server returns it: { applications: [{ id, publicId, name, organizationId, ... }] }. Use the publicId with sonatypeiq_evaluate.',
   input: z.object({
     organizationId: z.string().optional().describe('Filter by organization ID'),
   }),

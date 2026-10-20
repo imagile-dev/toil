@@ -161,7 +161,7 @@ export const projectCommand = sdeArea.command({
   }),
   writes: false,
   context: { project: 'optional' },
-  args: [{ name: 'id', field: 'id', description: "SD Elements project ID (default: --project, then the connection's project)", required: false }],
+  args: [{ name: 'id', field: 'id', description: "SD Elements project ID (default: --project, then the dossier, then the connection's project)", required: false }],
   options: [
     { flags: '--expand <fields>', field: 'expand', description: 'Expand nested fields (comma-separated): application,business_unit,creator' },
     { flags: '--include <fields>', field: 'include', description: 'Include extra fields (comma-separated): task_counts,permissions' },

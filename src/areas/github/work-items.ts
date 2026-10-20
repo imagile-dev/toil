@@ -167,7 +167,7 @@ export const getIssueCommand = githubArea.command({
   toolDescription:
     'Gets issues by number as GitHub returns them: type is the issue type, sub_issues_summary the sub-issue counts and parent_issue_url the parent, where the server has them. subIssues adds sub_issues, the full list. One number returns the issue itself; several (up to 100) return { issues, errors }, fetched four at a time, where a number GitHub can\'t find goes into errors instead of failing the call.',
   input: z.object({
-    number: z.array(intText).min(1).describe('Issue number (repeatable, up to 100)'),
+    number: z.array(intText).min(1).describe('Issue numbers, up to 100'),
     subIssues: z.boolean().optional().describe('Add sub_issues, the list of each issue\'s sub-issues (one more request per issue)'),
   }),
   writes: false,

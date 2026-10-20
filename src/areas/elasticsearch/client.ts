@@ -111,7 +111,7 @@ function parseJsonObject(raw: string, flag: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
-/** A whole number of at least zero, from a number or its text, as `--size`, `--from` and `--timeout-ms` take it. */
+/** A whole number of at least zero, from a number or its text, as `--limit`, `--offset` and `--timeout-ms` take it. */
 export function nonNegativeInt(value: number | string, flag: string): number {
   const n = Number(value);
   if (!Number.isInteger(n) || n < 0) throw invalid(`${flag} must be a non-negative integer.`, `Pass a whole number of 0 or more to ${flag}.`);
