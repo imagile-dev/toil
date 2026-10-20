@@ -15,7 +15,7 @@ import { forwardSlashes } from '../core/files.js';
 
 /**
  * `toil dossiers init | add-repo | link | env | field | person | wip-limit |
- * export | import | unlink | remove`: building a dossier, and sharing one
+ * describe | export | import | unlink | remove`: building a dossier, and sharing one
  * through a repository.
  *
  * Writing a dossier is a local write, so none of these needs --allow-write,
@@ -358,6 +358,64 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     },
   });
 
+  const describe = defineConfigCommand({
+    path: ['dossiers', 'describe'],
+    description: "Rename one of your own dossiers, or change its description",
+    toolDescription:
+      "Renames one of your own dossiers (~/.toil/dossiers), or sets its one-line description, or both. A rename moves the file to ~/.toil/dossiers/<new name>.json with every section, repo, person and environment as it was, and is refused when you already have a dossier of that name. A checked-in or listed dossier is refused: copy it into your own folder with dossiers_import first. A local write: no allowWrite.",
+    input: z.object({
+      dossier: dossierField,
+      name: z.string().min(1).optional().describe('The new name: lowercase letters, digits and single hyphens, e.g. card-payments'),
+      description: z.string().min(1).optional().describe('One line saying what the body of work is; replaces the one there'),
+    }),
+    writes: false,
+    writesLocal: true,
+    args: [dossierArg],
+    options: [
+      { flags: '--name <name>', field: 'name', description: 'Rename it' },
+      { flags: '--description <text>', field: 'description', description: 'One line saying what it covers' },
+    ],
+    examples: [{ dossier: 'payments', description: 'Card payments v2' }, { dossier: 'payments', name: 'card-payments', description: 'Card payments v2' }],
+    run: async (input, ctx) => {
+      const { catalog } = access(ctx);
+      if (input.name === undefined && input.description === undefined) throw new ToilError('INVALID_INPUT', 'Pass --name, --description, or both.', { fix: 'toil dossiers describe <dossier> --name <new name> --description "<one line>".' });
+      const file = catalog.find(input.dossier);
+      // Renaming a teammate's file in a repository, or a listed folder's, would move it out from under them; your copy is yours to change.
+      if (file.source !== 'user') {
+        throw new ToilError('INVALID_INPUT', `Dossier ${file.dossier.name} is ${file.source === 'repo' ? 'checked into a repository' : file.source === 'listed' ? 'in a listed folder' : 'a file outside your own folder'} (${forwardSlashes(file.file)}), so it isn't yours to rename or describe.`, {
+          fix: `Copy it into your own folder with toil dossiers import ${forwardSlashes(file.file)}, then describe your copy.`,
+        });
+      }
+      const dossier = structuredClone(file.dossier);
+      const from = dossier.name;
+      let description: string | undefined;
+      if (input.description !== undefined) {
+        // One line, as the field says: a pasted paragraph keeps its words, not its line breaks.
+        description = input.description.trim().replace(/\s*\r?\n\s*/g, ' ');
+        if (!description) throw new ToilError('INVALID_INPUT', 'The description is empty.', { fix: 'Give one line of text, e.g. --description "Card payments v2".' });
+        dossier.description = description;
+      }
+      const to = input.name ?? from;
+      if (to !== from) {
+        if (!CONNECTION_NAME.test(to)) throw new ToilError('INVALID_INPUT', `"${to}" isn't a valid dossier name.`, { fix: 'Use lowercase letters, digits and single hyphens, starting with a letter, e.g. card-payments.' });
+        const others = catalog.scan().files.filter((f) => f.dossier?.name === to);
+        const mine = others.find((f) => f.source === 'user');
+        if (mine) throw new ToilError('INVALID_INPUT', `You already have a dossier named "${to}" (${forwardSlashes(mine.file)}).`, { fix: 'Choose another name, or remove that one first with toil dossiers remove.' });
+        for (const other of others) ctx.warn({ code: 'DOSSIER_DUPLICATE_NAME', message: `A dossier named "${to}" is also in ${forwardSlashes(other.file)} (${other.source}); yours takes precedence.` });
+        dossier.name = to;
+      }
+      const changed = to !== from || file.dossier.description !== dossier.description;
+      if (to === from) return saved(ctx, catalog, file, dossier, changed, { renamed: null, description: dossier.description ?? null });
+      // The new file is written and checked first, then the old one goes: a refusal or a crash leaves the dossier where it was.
+      const target = catalog.userFile(to);
+      // A file already named for the new name (pay.json holding "payments", renamed to pay) is this one: rewritten in place.
+      const written = catalog.save(target, dossier, samePath(target, file.file) ? 'edit' : 'create');
+      if (!samePath(written, file.file)) rmSync(file.file);
+      if (credentialPaths(file).length) ctx.warn({ code: 'DOSSIER_REMOTE_USERINFO', message: `Removed the credential from ${credentialPaths(file).join(', ')}; the file's remotes now carry none.` });
+      return { name: to, file: written, source: 'user', changed: true, renamed: { from, to, previousFile: forwardSlashes(file.file) }, description: dossier.description ?? null };
+    },
+  });
+
   const exportCommand = defineConfigCommand({
     path: ['dossiers', 'export'],
     description: "Write a dossier for sharing: into a repository's .toil/dossiers, or to one file",
@@ -501,7 +559,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     },
   });
 
-  return [init, addRepo, link, env, field, person, wipLimit, exportCommand, importCommand, unlink, remove];
+  return [init, addRepo, link, env, field, person, wipLimit, describe, exportCommand, importCommand, unlink, remove];
 
   /** link and env: one section's binding, context inputs and reference data. */
   async function changeSection(

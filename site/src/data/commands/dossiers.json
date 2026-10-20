@@ -147,6 +147,18 @@
     ]
   },
   {
+    "name": "describe",
+    "tool": "dossiers_describe",
+    "description": "Rename one of your own dossiers, or change its description",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<dossier>",
+      "--name <name>",
+      "--description <text>"
+    ]
+  },
+  {
     "name": "export",
     "tool": "dossiers_export",
     "description": "Write a dossier for sharing: into a repository's .toil/dossiers, or to one file",

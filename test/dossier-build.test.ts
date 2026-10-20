@@ -525,3 +525,53 @@ describe('people and the work-in-progress limit', () => {
     expect(shared).toMatchObject({ people: [{ name: 'Pat', ids: { jira: 'pat' } }], wipLimit: 2 });
   });
 });
+
+describe('renaming and describing a dossier', () => {
+  const at = (d: DossierDisk, name: string) => join(d.home, '.toil', 'dossiers', `${name}.json`);
+  const read = (d: DossierDisk, name: string) => JSON.parse(readFileSync(at(d, name), 'utf8')) as Record<string, unknown>;
+  const full = { name: 'pay', description: 'Payments', repos: [{ name: 'api', remotes: ['https://git.imagile.dev/pay/api.git'] }], jira: { project: 'PAY' }, people: [{ name: 'Pat', ids: { jira: 'pat' } }], wipLimit: 3, env: 'prod', environments: { prod: { openshift: { namespace: 'pay-prod' } } } };
+
+  it('sets the description, as one line, and an edit that changes nothing writes nothing', async () => {
+    const d = disk({ 'home/.toil/dossiers/pay.json': { name: 'pay' } });
+    expect(ok(await mcp(d, 'dossiers_describe', { dossier: 'pay', description: '  Card payments\n  v2 ' }))).toMatchObject({ name: 'pay', changed: true, renamed: null, description: 'Card payments v2' });
+    expect(read(d, 'pay').description).toBe('Card payments v2');
+    expect(ok(await cli(d, ['dossiers', 'describe', 'pay', '--description', 'Card payments v2']))).toMatchObject({ changed: false });
+    expect((await cli(d, ['dossiers', 'describe', 'pay'])).envelope.error?.message).toBe('Pass --name, --description, or both.');
+    expect((await cli(d, ['dossiers', 'describe', 'pay', '--description', '   '])).envelope.error?.message).toBe('The description is empty.');
+  });
+
+  it('renames: the file moves, and every section, repo, person and environment goes with it', async () => {
+    const d = disk({ 'home/.toil/dossiers/pay.json': full });
+    const run = ok(await cli(d, ['dossiers', 'describe', 'pay', '--name', 'card-payments', '--description', 'Card payments v2']));
+    expect(run).toMatchObject({ name: 'card-payments', file: forwardSlashes(at(d, 'card-payments')), changed: true, renamed: { from: 'pay', to: 'card-payments', previousFile: forwardSlashes(at(d, 'pay')) } });
+    expect(existsSync(at(d, 'pay'))).toBe(false);
+    expect(read(d, 'card-payments')).toEqual({ ...full, name: 'card-payments', description: 'Card payments v2' });
+    // The new name resolves; the old one is gone.
+    expect(ok(await cli(d, ['dossiers', 'show', 'card-payments']))).toMatchObject({ name: 'card-payments' });
+    expect((await cli(d, ['dossiers', 'show', 'pay'])).envelope.ok).toBe(false);
+  });
+
+  it('refuses a name that is taken or invalid, leaving the dossier where it was', async () => {
+    const d = disk({ 'home/.toil/dossiers/pay.json': { name: 'pay' }, 'home/.toil/dossiers/ledger.json': { name: 'ledger' } });
+    const taken = await mcp(d, 'dossiers_describe', { dossier: 'pay', name: 'ledger' });
+    expect(taken.envelope.error?.message).toBe(`You already have a dossier named "ledger" (${forwardSlashes(at(d, 'ledger'))}).`);
+    expect((await cli(d, ['dossiers', 'describe', 'pay', '--name', 'Pay Two'])).envelope.error?.message).toBe('"Pay Two" isn\'t a valid dossier name.');
+    expect(read(d, 'pay')).toEqual({ name: 'pay' });
+    expect(read(d, 'ledger')).toEqual({ name: 'ledger' });
+  });
+
+  it('renames a file named for the new name in place', async () => {
+    const d = disk({ 'home/.toil/dossiers/pay.json': { name: 'payments' } });
+    expect(ok(await cli(d, ['dossiers', 'describe', 'payments', '--name', 'pay']))).toMatchObject({ name: 'pay', renamed: { from: 'payments', to: 'pay' } });
+    expect(read(d, 'pay')).toMatchObject({ name: 'pay' });
+  });
+
+  it("refuses a checked-in dossier, naming toil dossiers import", async () => {
+    const d = disk({ 'work/.toil/dossiers/team.json': { name: 'team' } });
+    d.write('work/.git/HEAD', 'ref: refs/heads/main\n');
+    const run = await cli(d, ['dossiers', 'describe', 'team', '--description', 'Ours now']);
+    expect(run.envelope.error?.message).toContain("is checked into a repository");
+    expect(run.envelope.error?.fix).toContain('toil dossiers import');
+    expect(JSON.parse(readFileSync(join(d.workspace, '.toil', 'dossiers', 'team.json'), 'utf8'))).toEqual({ name: 'team' });
+  });
+});
