@@ -17,7 +17,10 @@
  * builds and deployments linked to them. An answer may cite only ids in its
  * ledger: anything else it names is flagged (answer.ts). `worklog_day`
  * (#308) reads one day's worklog page, the same fold the Worklog view shows,
- * and vouches for every item and pull request its lines name. A reading room
+ * and vouches for every item and pull request its lines name; `standup_report`
+ * (#345) reads a range of days folded into a stand-up, the same report the
+ * Worklog view's Stand-up shows, its lines numbered F1, F2, ... so a write-up
+ * can say which facts it used. A reading room
  * with a sign-out sheet and no photocopier.
  */
 
@@ -29,6 +32,7 @@ import { CHECK_LABEL, readiness, readReadiness, tally, VERDICTS, type Readiness 
 import { SimilarityIndex } from '../../../src/core/owi/similar.ts';
 import { CALLER } from '../store.ts';
 import { addDays, appliedText, dayOf, isDay, OUTCOME_TEXT, timeOf, type WorklogPage } from '../../src/model/worklog.ts';
+import { BUCKETS, BUCKET_TITLE, defaultRange, whenText, type StandupLine, type StandupReport } from '../../src/model/standup.ts';
 
 /** What the cache tools read: one dossier's synced rows. */
 export interface AgentData {
@@ -39,6 +43,8 @@ export interface AgentData {
   syncedAt(): string | null;
   /** One UTC day's worklog page (#308), as the Worklog view builds it; absent where there is no worklog. */
   worklog?(day: string): Promise<WorklogPage>;
+  /** The stand-up report for a range of UTC days (#345), as the Worklog view's Stand-up builds it; absent where there is no worklog. */
+  standup?(from: string, to: string): Promise<StandupReport>;
 }
 
 /**
@@ -746,6 +752,50 @@ export function worklogTool(dossier: string, data: AgentData, ledger: Ledger, no
           })),
           notes: page.notes.map((n) => ({ time: timeOf(n.at), by: n.by, text: n.text })),
           syncs: page.sources,
+        };
+      },
+    },
+  ];
+}
+
+/** The stand-up tool (#345): a range of days folded into a stand-up, every line numbered, with the ids it names. */
+export function standupTool(dossier: string, data: AgentData, ledger: Ledger, now: () => string = () => new Date().toISOString()): ToolSpec[] {
+  const standup = data.standup;
+  if (!standup) return [];
+  return [
+    {
+      name: 'standup_report',
+      description: `The stand-up report for the dossier "${dossier}" over a range of UTC days, built by code from the worklog: team lines first (the sprint's working days left, scope added to or dropped from a sprint, builds and deployments that broke or recovered), then each person, agents included, with what they got done, what is in progress, what is blocked and what is next in the sprint. Every line has its fact number (F1, F2, ...) and cite, the ids to cite it by. gaps says what the worklog can't vouch for in the range. Default range: since the last working day, through today.`,
+      inputSchema: {
+        type: 'object',
+        properties: { from: { type: 'string', description: 'The first UTC day, yyyy-mm-dd. Default: the last working day before today.' }, to: { type: 'string', description: 'The last UTC day, yyyy-mm-dd. Default: today.' } },
+        additionalProperties: false,
+      },
+      async run(input) {
+        const today = dayOf(now())!;
+        const range = defaultRange(today);
+        const from = str(input.from) ?? range.from;
+        const to = str(input.to) ?? range.to;
+        if (!isDay(from) || !isDay(to)) return { error: 'Give from and to as days, yyyy-mm-dd.' };
+        let report: StandupReport;
+        try {
+          report = await standup(from, to);
+        } catch (e) {
+          return { error: e instanceof Error ? e.message : String(e) };
+        }
+        const line = (l: StandupLine) => {
+          for (const id of l.cites) ledger.add(id);
+          return { fact: l.fact, when: whenText(report, l), about: l.label, title: l.title, text: l.text, cite: l.cites };
+        };
+        return {
+          dossier,
+          from: report.from,
+          to: report.to,
+          timeZone: 'UTC',
+          asOfSync: report.asOf,
+          gaps: report.gaps,
+          team: report.team.map(line),
+          people: report.people.map((p) => ({ name: p.name, kind: p.kind, inDossierPeople: p.mapped, ...Object.fromEntries(BUCKETS.map((b) => [BUCKET_TITLE[b], p.lines[b].map(line)])) })),
         };
       },
     },

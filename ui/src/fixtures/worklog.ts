@@ -10,12 +10,13 @@
 
 import type { Answer } from '../agent.ts';
 import { loadDossier, type DossierData } from '../load.ts';
+import { buildStandup, daysBetween, rangeProblem, standupMarkdown, standupText } from '../model/standup.ts';
 import {
   addDays, buildDay, dayOf, eventsFrom, gapsFor, isDay, isMonth, lineCount, markdownOf, monthOf, runFromAnswer,
   type AgentRun, type Applied, type SyncRun, type WorklogEvent, type WorklogNote, type WorklogPage,
 } from '../model/worklog.ts';
 import type { Execute } from '../toil.ts';
-import { WORKLOG_SAMPLE_DISABLED, WorklogRefusal, type ExportWhat, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt } from '../worklog.ts';
+import { WORKLOG_SAMPLE_DISABLED, WorklogRefusal, type ExportWhat, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt, type WorklogStandup } from '../worklog.ts';
 import { scriptedAgent } from './agent.ts';
 import { FIXTURE_NOW, fixtureExecute } from './execute.ts';
 
@@ -25,6 +26,7 @@ const RETENTION = 30;
 const SYNC_DAYS = 14;
 
 interface Sample {
+  data: DossierData;
   events: WorklogEvent[];
   runs: AgentRun[];
   applied: Record<string, Applied>;
@@ -84,10 +86,12 @@ async function sampleOf(data: DossierData, now: string): Promise<Sample> {
       cites: [blocked.id, by],
       refs: { [blocked.id]: { label: label(blocked.source.key), url: blocked.url }, [by]: { label: label(blocker.source.key), url: blocker.url } },
       observed: { previousSync: at(addDays(yesterday, -1), '07:00') },
+      who: blocked.assignee,
     });
   }
   const scripted = await sampleRun(data.name, yesterday);
   return {
+    data,
     events,
     runs: scripted ? [scripted.run] : [],
     applied: scripted?.applied ?? {},
@@ -145,6 +149,14 @@ export function fixtureWorklog(execute: Execute = fixtureExecute().execute, now:
     },
     async exportTo(_dossier: string, _what: ExportWhat): Promise<WorklogExport> {
       throw new WorklogRefusal(WORKLOG_SAMPLE_DISABLED, 'Run toil-ui on your own machine to export a page.');
+    },
+    async standup(dossier, from, to): Promise<WorklogStandup> {
+      const s = await sample(dossier);
+      const problem = rangeProblem(from, to, today);
+      if (problem) throw new WorklogRefusal(problem, 'Pick the days again, ending today or earlier.');
+      const asOf = s.syncs.filter((x) => x.ok).map((x) => x.at).sort().at(-1) ?? null;
+      const report = buildStandup({ dossier, from, to, pages: daysBetween(from, to).map((d) => page(dossier, s, d)), people: s.data.people, items: s.data.items, pullRequests: s.data.pullRequests, asOf, notes: s.data.peopleNotes });
+      return { report, markdown: standupMarkdown(report), text: standupText(report) };
     },
   };
 }
