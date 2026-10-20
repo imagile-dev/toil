@@ -136,6 +136,18 @@ refuses.
   prompt fences them between `BEGIN/END UNTRUSTED <nonce>` lines with a nonce per
   run, and tells the agent to triage on the title alone when the body reads as an
   injection attempt.
+- **Duplicates come first.** `prepare` gives the agent every other issue, open and
+  closed (`.triage-in/issues.json`, up to ten pages; the issue itself is left out, so
+  a re-triage is never its own duplicate), plus each denied issue's redacted body and its
+  last three comments from triage or from an `OWNER`, `MEMBER` or `COLLABORATOR`
+  (`.triage-in/denied.json`). Anyone can comment on a closed issue, so a stranger's
+  "the rule changed" never reaches the agent as a reason. That way a past denial binds only when
+  its reason still holds under today's CLAUDE.md, and the agent reads that reason
+  rather than guessing. The same request as any earlier issue, whatever its outcome,
+  is a `duplicate`. `apply` checks that the original exists and is an issue (if not,
+  no decision is applied, and any failure other than a 404 fails the step), labels it `duplicate`, adds `denied` only when the
+  original was denied, makes sure the comment names it, ends with `Duplicate of #n`
+  and closes it as a duplicate.
 - **Paths.** `scripts/triage/archive.mjs` reads the handover archive itself (regular
   files only, no links or extensions) and `scripts/triage/changes.mjs` holds every
   path to one area's own files, in `finish` before anything lands, and again on the
