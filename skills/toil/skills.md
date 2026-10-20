@@ -103,7 +103,8 @@ another toil version wrote. Marketplace and untracked skills are never rewritten
 
 Registers a marketplace and clones it, with writes off; it installs nothing. CLI only;
 `setup` is an alias. On a terminal it asks for an access token (leave it empty for a
-public repository) and keeps it in the OS credential store. The first marketplace
+public repository, or to keep the one already stored), checks the paste as
+`connections add` does (`core.md`), and keeps it in the OS credential store. The first marketplace
 becomes the default. Adding it again keeps whatever `writes` you set.
 
 ```bash

@@ -59,8 +59,10 @@ describe('checkSecret', () => {
     expect(check).toMatchObject({ status: 'ok', value: raw, wrapper: { without: TOKEN, withoutLength: 19, what, question } });
   });
 
-  it('takes a lone "Bearer" or "token" as the value, not a prefix', () => {
+  it('takes a lone "Bearer" or "token", or quotes with nothing inside, as the value, not a wrapper', () => {
     expect(checkSecret('token', token)).toMatchObject({ status: 'ok', value: 'token', wrapper: null });
+    expect(checkSecret('""', token)).toMatchObject({ status: 'ok', value: '""', wrapper: null });
+    expect(checkSecret("'x'", token)).toMatchObject({ status: 'ok', wrapper: { without: 'x' } });
   });
 
   it('refuses a line break in the middle', () => {
@@ -73,7 +75,9 @@ describe('checkSecret', () => {
   it('refuses a space in the middle of a token, but not of a password', () => {
     expect(checkSecret(`${TOKEN} ${TOKEN}`, token)).toMatchObject({ status: 'refused', message: expect.stringContaining('space in the middle') });
     expect(checkSecret(`Bearer ${TOKEN} x`, token).status).toBe('refused');
+    expect(checkSecret(`${TOKEN}\t${TOKEN}`, token)).toMatchObject({ status: 'refused', message: expect.stringContaining('a tab in the middle') });
     expect(checkSecret('correct horse battery', { password: true, empty: 'required' })).toMatchObject({ status: 'ok', value: 'correct horse battery' });
+    expect(checkSecret('correct\nhorse', { password: true, empty: 'required' })).toMatchObject({ status: 'refused', fix: 'Copy just the password, on its own, and paste it again.' });
   });
 
   it('says what an empty answer means', () => {

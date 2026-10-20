@@ -231,6 +231,11 @@ running those commands through `@imagile-dev/toil/api`, never by editing a file:
   replace a secret (`toil connections login`) and remove. A secret goes from a
   password field to toil, which keeps it in the OS credential store; the page
   clears the field, and it is never logged, stored by Toil UI, or sent back.
+  A note under the field says how many characters it holds and what trimming
+  removes, never the value. The same paste checks as the CLI's run, in the
+  CLI's words: a line break (or, for a token, a space) in the middle is
+  refused, and quotes or a `Bearer ` / `token ` prefix ask Remove it or Keep
+  it before anything is saved.
   Turning writes on asks you to type the connection's name, as the CLI does. A
   connection made by `TOIL_*` env vars alone is shown read-only, with where it
   came from.

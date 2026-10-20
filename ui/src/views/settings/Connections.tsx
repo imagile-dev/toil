@@ -240,8 +240,9 @@ function WritesForm({ connection: c, config, after }: { connection: ConnectionRo
 function LoginForm({ connection: c, fields, config, after }: { connection: ConnectionRow; fields: AreaInfo['connection']; config: ConfigApi; after: (e: Envelope, done: string) => Promise<Outcome> }) {
   const [values, setValues] = useState<Record<string, string>>({});
   const secrets = useSecretChoices();
-  // An empty field keeps the secret the connection has; one it doesn't have stays unset.
-  const rules = (f: AreaInfo['connection'][number]): SecretRules => ({ password: f.password, empty: c.values[f.name] ? 'keep' : 'skip' });
+  // An empty field keeps the secret the config file points at, as the CLI's login does; one it has no secret for stays unset.
+  const kept = (f: AreaInfo['connection'][number]) => c.values[f.name] === 'store' || c.values[f.name] === 'file';
+  const rules = (f: AreaInfo['connection'][number]): SecretRules => ({ password: f.password, empty: kept(f) ? 'keep' : 'skip' });
   return (
     <ChangeForm
       title={`Replace ${c.name}'s secret`}

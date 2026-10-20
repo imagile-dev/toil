@@ -23,10 +23,10 @@ export interface Prompter {
    */
   ask(question: string, fallback?: string, id?: string): Promise<string>;
   /**
-   * An answer read without echo, for a secret, exactly as typed or pasted:
+   * An answer read hidden, for a secret, exactly as typed or pasted:
    * untrimmed, so `askCheckedSecret()` (src/core/secret-input.ts) can say what
-   * it trimmed. `id` is `secret:<key>`. Everything but the skills token asks
-   * through `askCheckedSecret()`, which checks the paste.
+   * it trimmed. `id` is `secret:<key>`. Every caller asks through
+   * `askCheckedSecret()`, which checks the paste.
    */
   askSecret(question: string, id?: string): Promise<string>;
   /** A line for the person, after an answer (`Received 40 characters.`). A host's person has none. */
@@ -66,19 +66,19 @@ export class HiddenLine {
   /** Feeds one chunk as it arrived. `enter` and `cancel` end the line; anything after them in the chunk is dropped. */
   feed(chunk: string): 'enter' | 'cancel' | null {
     const pieces = this.split(chunk);
-    // A paste and its Enter can arrive together, so only what's typed outside a paste decides.
-    const enterOnly = /^[\r\n]+$/.test(pieces.filter((p) => !p.pasted).map((p) => p.c).join(''));
+    // Only text typed outside a paste decides: a paste and its Enter can arrive together, and so can Backspace and Enter.
+    const enterOnly = /^[\r\n]+$/.test(pieces.filter((p) => !p.pasted && !EDITS.has(p.c)).map((p) => p.c).join(''));
     for (const { c, pasted } of pieces) {
       if (pasted) {
         // A paste keeps its line breaks and tabs, for checkSecret() to report; other controls aren't text.
-        if (c >= ' ' || c === '\t' || c === '\r' || c === '\n') this.chars.push(c);
+        if (isText(c) || c === '\t' || c === '\r' || c === '\n') this.chars.push(c);
       } else if (c === '\x03') return 'cancel';
       else if (c === '\r' || c === '\n') {
         if (enterOnly) return 'enter';
         this.chars.push(c);
       } else if (c === '\x7f' || c === '\b') this.chars.pop();
       else if (c === '\x15') this.chars = [];
-      else if (c === '\t' || c >= ' ') this.chars.push(c);
+      else if (c === '\t' || isText(c)) this.chars.push(c);
     }
     return null;
   }
@@ -87,13 +87,15 @@ export class HiddenLine {
   private split(chunk: string): Array<{ c: string; pasted: boolean }> {
     const out: Array<{ c: string; pasted: boolean }> = [];
     for (const c of chunk) {
+      // A lone Esc followed by anything but a sequence's second byte was the Esc key: drop it, keep the key after it.
+      if (this.escape === '\x1b' && c !== '[' && c !== 'O') this.escape = '';
       if (this.escape === '' && c !== '\x1b') {
         out.push({ c, pasted: this.pasting });
         continue;
       }
       this.escape += c;
       const e = this.escape;
-      if (e.length >= 2 && (e[1] === '[' ? e.length > 2 && /[@-~]/.test(c) : e[1] === 'O' ? e.length === 3 : true)) {
+      if (e.length >= 2 && (e[1] === '[' ? e.length > 2 && /[@-~]/.test(c) : e.length === 3)) {
         if (e === '\x1b[200~') this.pasting = true;
         else if (e === '\x1b[201~') this.pasting = false;
         this.escape = '';
@@ -102,6 +104,12 @@ export class HiddenLine {
     return out;
   }
 }
+
+/** Backspace (DEL or BS) and Ctrl+U: editing keys, which don't make a chunk text. */
+const EDITS = new Set(['\x7f', '\b', '\x15']);
+
+/** A character of the answer: not a C0 or C1 control, nor DEL. */
+const isText = (c: string) => c >= ' ' && c !== '\x7f' && !(c >= '\x80' && c <= '\x9f');
 
 /** The bullet shown for each character of a hidden answer. */
 export const BULLET = '\u2022';
@@ -156,9 +164,13 @@ export function terminalPrompter(input: NodeJS.ReadableStream, output: NodeJS.Wr
         }
         drawn = n;
       };
+      // Bracketed paste outlives the process unless it's turned off: if toil exits mid-question, the shell
+      // after it would see every paste wrapped in markers. Best effort, since an exit can't wait for a write.
+      const pasteOff = () => output.write('\x1b[?2004l');
       const finish = (error: ToilError | null) => {
         input.off('data', onData);
         input.off('end', onEnd);
+        process.off('exit', pasteOff);
         output.write('\x1b[?2004l\r\n');
         tty.setRawMode?.(wasRaw);
         input.pause();
@@ -174,6 +186,7 @@ export function terminalPrompter(input: NodeJS.ReadableStream, output: NodeJS.Wr
       const onEnd = () => finish(cancel());
       // Bracketed paste on, so a pasted line break arrives inside markers rather than as Enter.
       output.write(`${question}\x1b[?2004h`);
+      process.once('exit', pasteOff);
       input.on('data', onData);
       input.on('end', onEnd);
       input.resume();

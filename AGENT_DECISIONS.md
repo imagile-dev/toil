@@ -5226,3 +5226,15 @@ it pins. These are the choices made by default in the fix:
   a password field's value, which would join two pasted lines without a word. The
   field takes such a paste itself so the check sees it; typing over it afterwards
   goes back to what the browser holds.
+- **Bracketed paste is turned off on an abnormal exit too**, best effort, from a
+  `process` exit hook held only while a secret is being read, so a shell after a
+  crashed toil doesn't see paste markers. No principle says toil must restore
+  terminal state after an abnormal exit; this is the cheap half of it.
+- **A lone Esc is dropped and the key after it kept**, so Esc then Enter still
+  ends the line. Alt+key reads as the key.
+- **Editing keys don't make a chunk text.** Backspace or Ctrl+U arriving in one
+  chunk with Enter is still Enter; only printable text typed outside a paste turns
+  a line break into part of the answer.
+- **The empty-keep rule in Toil UI follows the file, as the CLI's does:** a secret
+  whose value comes from the store or the file is kept on an empty field; one that
+  only an env var supplies isn't in the file, so an empty field stores nothing.

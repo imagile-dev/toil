@@ -2,9 +2,17 @@ import { PassThrough } from 'node:stream';
 import { describe, expect, it } from 'vitest';
 import { BULLET, HiddenLine, terminalPrompter } from './prompt.js';
 
-/** A fake terminal: what's typed goes in, everything shown is collected. */
+/** A fake terminal: what's typed goes in, everything shown is collected, and raw mode is recorded. */
 function fakeTerminal() {
-  const input = new PassThrough();
+  const input = Object.assign(new PassThrough(), {
+    isRaw: false,
+    modes: [] as boolean[],
+    setRawMode(on: boolean) {
+      input.modes.push(on);
+      input.isRaw = on;
+      return input;
+    },
+  });
   const output = new PassThrough();
   let shown = '';
   output.on('data', (chunk: Buffer) => (shown += chunk.toString()));
@@ -108,6 +116,25 @@ describe('terminalPrompter', () => {
     await expect(answer).rejects.toMatchObject({ code: 'CANCELLED' });
   });
 
+  it.each([
+    ['Enter', '\r'],
+    ['Ctrl+C', '\x03'],
+  ])('after %s, puts raw mode back, turns bracketed paste off and stops listening', async (_, key) => {
+    const t = fakeTerminal();
+    const exits = process.listenerCount('exit');
+    const answer = terminalPrompter(t.input, t.output).askSecret('token');
+    expect(t.input.modes).toEqual([true]);
+    expect(process.listenerCount('exit')).toBe(exits + 1);
+    t.input.write('ab');
+    t.input.write(key);
+    await answer.catch(() => undefined);
+    expect(t.input.modes).toEqual([true, false]);
+    expect(t.shown().endsWith('\x1b[?2004l\r\n')).toBe(true);
+    expect(t.input.listenerCount('data')).toBe(0);
+    expect(t.input.listenerCount('end')).toBe(0);
+    expect(process.listenerCount('exit')).toBe(exits);
+  });
+
   it('turns the end of input into CANCELLED', async () => {
     const t = fakeTerminal();
     const answer = terminalPrompter(t.input, t.output).askSecret('token');
@@ -157,6 +184,20 @@ describe('HiddenLine', () => {
 
   it('ignores arrows, focus reports and other control keys, and keeps tabs', () => {
     expect(fed('a', '\x1b[A', '\x1b[I', '\x1bOB', '\x01', '\tb', '\r').value).toBe('a\tb');
+  });
+
+  it('takes Enter after Backspace or Ctrl+U in the same chunk as Enter', () => {
+    expect(fed('abc', '\x7f\r')).toEqual({ value: 'ab', count: 2, result: 'enter' });
+    expect(fed('abc', '\x15\r')).toEqual({ value: '', count: 0, result: 'enter' });
+  });
+
+  it('keeps no DEL or other control character a paste carries', () => {
+    expect(fed('\x1b[200~ab\x7fc\x85\x01\x1b[201~', '\r').value).toBe('abc');
+  });
+
+  it('drops a lone Esc without swallowing the key after it', () => {
+    expect(fed('\x1b', 'a', 'b', '\r')).toEqual({ value: 'ab', count: 2, result: 'enter' });
+    expect(fed('ab', '\x1b', '\r').result).toBe('enter');
   });
 
   it('cancels on Ctrl+C', () => {

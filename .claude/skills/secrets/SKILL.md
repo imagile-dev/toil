@@ -14,7 +14,8 @@ config file. A plaintext value in the file is refused with `CONFIG_INVALID`; see
 or uploads files can't leak a credential through `~/.toil/config.json`.
 
 `toil connections add <name>` and `toil connections login <name>` read the secret
-without echo and put it in the store, writing only `keychain:<connection>.<key>`
+hidden (one `•` per character, never the characters; **Reading a secret** below)
+and put it in the store, writing only `keychain:<connection>.<key>`
 to the config file. There is no `--plaintext`. Env vars are the path for CI,
 containers and machines with no store (headless Linux without `secret-tool`).
 Anything added later that writes secrets (`config init`, `config set`) does the

@@ -366,7 +366,8 @@ const envelope = await execute('jira issue search', { jql: 'project = PAY', limi
   person typed. The `id` is one of `area`, `setting:<key>`, `secret:<key>`, `confirm`
   (`y` saves what they reviewed), `confirm-name` (the connection's name, typed to
   turn writes on), `unwrap:<key>` (the secret is in quotes or starts with `Bearer `
-  or `token `: `y` stores it without them, `n` as typed) or `consent` (`yes` sends
+  or `token `: `y` stores it without them, `n` as typed; call `checkSecret` first
+  to know whether it will be asked) or `consent` (`yes` sends
   the feedback report and disclaimer the question shows, **Feedback**, above). A
   secret is checked as on a terminal (`checkSecret`, below), but asked once: a
   refused or empty required one is `INVALID_INPUT`, with the terminal's words. With `readOnly`, nothing is asked: `feedback`
@@ -400,8 +401,9 @@ const envelope = await execute('jira issue search', { jql: 'project = PAY', limi
   (Toil UI's settings): `rules` is `{ password, empty }`, `empty` being `required`,
   `keep` or `skip`. It returns `{ status: 'ok', value, length, removed, received,
   wrapper }` (`received` is the terminal's `Received 40 characters …` line, and
-  `wrapper`, when set, has the `question`, `what` and the value `without` it),
-  `{ status: 'refused', message, fix }`, or `{ status: 'empty', message }`. Nothing
+  `wrapper`, when set, has the `question`, `what`, the value `without` it and its
+  `withoutLength`), `{ status: 'refused', message, fix, length }`, or `{ status:
+  'empty', empty, message, fix }`. Nothing
   it returns holds part of the value but the value itself.
 - **`findSimilar(records, request, options)`** finds likely duplicates among OWI
   records you already hold (mapOwi's `items`, or the text `util owi map` printed),

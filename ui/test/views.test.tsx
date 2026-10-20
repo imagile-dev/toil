@@ -475,7 +475,7 @@ describe('settings', () => {
       expect(note()).toBe('17 characters (removed a trailing newline)');
       await save();
       await waitFor(() => expect(sent).toHaveLength(1));
-      expect((sent[0]!.answers as { secrets: Record<string, string> }).secrets.apiToken.trim()).toBe('fake-pat-abc12345');
+      expect((sent[0]!.answers as { secrets: Record<string, string> }).secrets.apiToken?.trim()).toBe('fake-pat-abc12345');
     });
 
     it('refuses a paste with a line break in the middle, which a browser would silently join', async () => {

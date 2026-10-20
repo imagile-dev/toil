@@ -102,7 +102,8 @@ const PREFIX = /^(bearer|token)[ \t]+/i;
 function unwrap(value: string): { inner: string; quoted: boolean; prefix: string | null } {
   let inner = value;
   let quoted = false;
-  const pair = QUOTES.find(([open, close]) => inner.length >= 2 && inner.startsWith(open) && inner.endsWith(close));
+  // A pair of quotes with nothing inside is the value, not a wrapper: removing them would store nothing.
+  const pair = QUOTES.find(([open, close]) => inner.length > open.length + close.length && inner.startsWith(open) && inner.endsWith(close));
   if (pair) {
     inner = inner.slice(pair[0].length, inner.length - pair[1].length);
     quoted = true;
@@ -140,12 +141,13 @@ export function checkSecret(raw: string, rules: SecretRules): SecretCheck {
   const breaks = /[\r\n]/.test(inner);
   const spaced = !rules.password && [...inner].some((c) => WHITESPACE.test(c));
   if (breaks || spaced) {
+    const what = rules.password ? 'password' : 'token';
     return {
       status: 'refused',
       message: breaks
         ? 'This has a line break in the middle, so the paste most likely took two lines. Nothing was stored.'
-        : 'This has a space in the middle, so the paste most likely took more than the token. Nothing was stored.',
-      fix: 'Copy just the token, on its own, and paste it again.',
+        : `This has ${inner.includes('\t') ? 'a tab' : 'a space'} in the middle, so the paste most likely took more than the token. Nothing was stored.`,
+      fix: `Copy just the ${what}, on its own, and paste it again.`,
       length,
     };
   }
