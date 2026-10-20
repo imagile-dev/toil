@@ -4169,6 +4169,51 @@ work-item transition` and the new `ado-cloud work-item transition`, resolved in 
 - **`--to <intent-or-status>` is recorded in the command contract** for `jira issue
   transition` and `ado work-item transition`, beside the existing flags.
 
+### #309 toil audit stats and the Usage page
+
+- **The default window starts at midnight UTC 30 days ago** rather than exactly 30
+  days before now, so two calls a second apart (the CLI and MCP in the parity suite,
+  or the panel's three calls) agree on it. `--until` is exclusive; a bare date keeps
+  all of that day. `day` is the UTC date, as every date in Toil UI is.
+- **`--by` defaults to `command`**, and a repeated dimension counts once. Groups
+  come most calls first, ties in key order; with `day` first, in date order.
+- **Groups are flat**: each group carries its dimension values (`command`, `via`,
+  ...) beside its figures, so `--select groups[].[command, calls]` works. None of the
+  figure names collides with a dimension.
+- **Percentiles are nearest-rank** (`median` is the lower middle for an even count),
+  in whole milliseconds as the log keeps them. An empty window has zeros and empty
+  `firstSeen` / `lastSeen` rather than nulls.
+- **`errors[].fix` is the code's general fix**, from a table in `src/audit/stats.ts`
+  covering every `ErrorCode`, and null for any other code. The audit line keeps the
+  code only, never the message or the fix, since a message can quote a server's
+  response; the issue asked for "top error and fix", and the panel says plainly
+  that the fix is the usual one for that code. The audit line is unchanged.
+- **`--outcome failed`** means any failure, beside `ok` and an exact code. Outcome
+  codes are upper case, so the lower-case word can't collide with one. `audit list`
+  takes `--outcome` too, which is how the panel opens a command's recent failures.
+- **`--area` matches the line's `area` field.** Commands with no area (toil's own,
+  and the `util` group) have none, so `--area util` matches nothing; `--command util`
+  is the way to filter them. `--unused` takes the area from the registry the same way.
+- **`--unused` lists every registered command** (aliases aren't commands), with its
+  area and whether MCP serves it, within `--area` and `--command`; `--caller` and
+  `--outcome` narrow which calls count as use. The registry is handed to
+  `auditCommands()` as a function, since the registry holds these commands.
+- **`src/audit/stats.ts` declares the audit line's fields it reads** (`AuditLine`)
+  instead of importing `AuditEntry`, so Toil UI imports the arithmetic without
+  type-checking core. `AuditEntry` fits it structurally.
+- **The Usage page is a fifth Settings page** (`#/settings/usage`), since the model
+  usage panel the issue mentions (#295) hasn't landed. It makes three `audit stats`
+  calls with one `until`, the moment it opened, so its figures agree with each other
+  (each call adds its own line to the log as it runs), and `audit list` on request.
+  Both are config reads in `CONFIG_READS`, run read-only.
+- **Skill page reads aren't counted yet.** They need the agent transcripts of #293,
+  which hasn't landed; MCP's skill-page resources don't write audit lines.
+- **Toil UI pins toil exactly**, so the page works once a released toil has
+  `audit stats`. Against the currently pinned toil it shows `audit stats`'s own
+  `INVALID_INPUT` (no such command) as the panel's error.
+- **The preview's sample month** is generated from a fixed seed and summarized by
+  `src/audit/stats.ts` itself, so its figures are toil's sums, not hand-made ones.
+
 ## Command shape for the remaining areas (#297)
 
 The rest of the integrations moved to the command shape, the same way `jira` and

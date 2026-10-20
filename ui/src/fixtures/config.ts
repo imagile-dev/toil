@@ -2,7 +2,8 @@
  * The settings pages' sample data, for the site preview and `toil-ui
  * --sample`: what `toil connections list`, `dossiers list`, `dossiers show`,
  * `dossiers check` and `connections test` print for the preview's own
- * connections and dossiers, and the areas' connection fields as the registry
+ * connections and dossiers, what `audit stats` and `audit list` print for a
+ * sample month (usage.ts), and the areas' connection fields as the registry
  * describes them (config-areas.json, which test/config.test.ts holds equal to
  * the real registry). Every change is refused, saying why: the preview has
  * no configuration to change, so nothing on these pages changes anything.
@@ -17,6 +18,7 @@ import type { Envelope } from '../toil.ts';
 import AREAS from './config-areas.json' with { type: 'json' };
 import { DOSSIERS, fileOf, listData, showData } from './dossiers.ts';
 import { callKey } from './execute.ts';
+import { usageCanned } from './usage.ts';
 
 const VERSION = '0.1.0-alpha.1';
 const CONFIG_FILE = '/home/you/.toil/config.json';
@@ -65,7 +67,11 @@ export const CONFIG_CANNED: Answer[] = [
     input: { name: c.name },
     data: { name: c.name, area: c.area, host: c.host, live: true, authenticated: true, request: PROBES[c.area] ?? null },
   })),
+  ...usageCanned(),
 ];
+
+/** The Usage page sends `until` as the moment it opened; the sample month answers whatever moment that is. */
+const answerInput = (command: string, input: Record<string, unknown>) => (command === 'audit stats' ? Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'until')) : input);
 
 const meta = (command: string) => ({ command, durationMs: 0, version: VERSION, contractVersion: 1 });
 
@@ -94,7 +100,7 @@ function fixtureConfigAnswer(answers: Map<string, Answer>, reads: Set<string>, c
   if (!reads.has(command)) {
     return { ok: false, data: null, error: { code: 'WRITE_DISABLED', message: `The preview changes nothing, so toil ${command} didn't run.`, fix: 'Run Toil UI on your own machine to change your configuration.' }, meta: meta(command) };
   }
-  const hit = answers.get(callKey(command, input));
+  const hit = answers.get(callKey(command, answerInput(command, input)));
   if (!hit) {
     return { ok: false, data: null, error: { code: 'INVALID_INPUT', message: `The preview has no sample answer for ${callKey(command, input)}.`, fix: 'Add the call to CONFIG_CANNED in ui/src/fixtures/config.ts.' }, meta: meta(command) };
   }

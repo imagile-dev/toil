@@ -21,7 +21,8 @@
 // Each view is checked as it opens and with its hidden parts showing: every
 // <details> open, each dossier card's Show pressed, the header menu and the
 // Feedback dialog open, the Ask dock both closed and open, the Ask pane's (i)
-// popover open, and the Agent page's full prompt shown. Reduced motion
+// popover open, the Agent page's full prompt shown, and every failing
+// command's recent audit lines open on the Usage page. Reduced motion
 // is on, so an animation caught mid-flight can't fail a run.
 //
 // `npm run smoke -w ui` runs it against the installed package (`toil-ui
@@ -59,6 +60,7 @@ export const ROUTES = [
   '#/settings/connections',
   '#/settings/dossiers',
   '#/settings/toil',
+  '#/settings/usage',
   '#/settings/agent',
 ];
 export const WIDTHS = [375, 768, 1440];
@@ -194,6 +196,8 @@ function states(route, width) {
     const open = narrow ? `${clickAll('.ask--sheet .ask-head button', '/Open/')}; await new Promise((r) => setTimeout(r, 250));` : '';
     out.push({ name: 'ask-info', setup: `(async () => { ${open} return ${clickAll('[data-ask-info]')}; })()`, undo: 'Escape', ...(narrow ? { undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') } : {}) });
   }
+  // A failing command's recent audit lines, opened under it on the Usage page (#309).
+  if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).
   if (route === '#/settings/agent') out.push({ name: 'full-prompt', setup: clickAll('[data-full-prompt]', '/Show the full prompt/'), undoJs: clickAll('[data-full-prompt]', '/Hide the full prompt/') });
   return out;

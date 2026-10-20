@@ -22,8 +22,8 @@
 
 import type { Envelope } from './toil.ts';
 
-/** The reads the pages make: run read-only, even on the config path. */
-export const CONFIG_READS = ['connections list', 'connections test', 'dossiers list', 'dossiers show', 'dossiers check'] as const;
+/** The reads the pages make: run read-only, even on the config path. The audit reads fill Usage (#309). */
+export const CONFIG_READS = ['connections list', 'connections test', 'dossiers list', 'dossiers show', 'dossiers check', 'audit stats', 'audit list'] as const;
 
 /** The changes, each only to toil's own config or dossiers. */
 export const CONFIG_CHANGES = [
