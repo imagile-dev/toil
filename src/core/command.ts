@@ -125,6 +125,13 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
    * with no required context input. Any other connection problem still fails.
    */
   connectionOptional?: true;
+  /**
+   * The call's own input makes a connection unnecessary (`db lint --engine
+   * postgres`): core resolves none, reads no secret and consults no dossier,
+   * and `run` gets `ctx.connection` undefined. Only on a `connectionOptional`
+   * command, so it's served with nothing set up too.
+   */
+  connectionlessWhen?: (input: Record<string, unknown>) => boolean;
   /** Set by `area.command()`, for `area` and `area-local` commands. */
   area?: AnyArea;
   /**

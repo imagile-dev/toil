@@ -15,7 +15,9 @@ says what to do about it. New codes may appear in any release, so treat a code y
 don't know as a generic failure. `meta.warnings` lists anything worth knowing that
 isn't a failure, such as a truncated result. `meta.context` says which connection a
 call used and how it was chosen, and where any project, repo or environment it
-resolved came from. `--pretty` formats the output for people.
+resolved came from. `meta.lint`, on the `db` commands that run SQL you wrote, names
+the engine whose dialect toil checked it against and the rules that ran (`db.md`,
+**Pre-flight lint**). `--pretty` formats the output for people.
 
 `meta.contractVersion` (also in `toil version`) is the version of toil's command
 contract: its commands, flags, `data` fields, envelope and error codes. It goes up only
