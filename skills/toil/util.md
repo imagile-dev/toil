@@ -148,7 +148,9 @@ Which files it reads:
 - **Which files:** every file in the workspace that `git ls-files --cached --others
   --exclude-standard` would list. That's tracked files plus untracked ones `.gitignore`
   and `.git/info/exclude` don't cover. A nested repository isn't walked into. Your
-  global git excludes file isn't read, so a file only it ignores is scanned.
+  global git excludes file isn't read, so a file only it ignores is scanned. An
+  ignore file that exists but can't be read applies no rules, with a
+  `GITIGNORE_UNREADABLE` warning naming it and the fix.
 - **npm:** `package.json` (not under `node_modules`), with the first of
   `package-lock.json` (v2 or later), `yarn.lock` (v1) or `pnpm-lock.yaml` beside it.
   A `package-lock.json` with no packages falls back to `package.json`.

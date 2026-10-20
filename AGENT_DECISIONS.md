@@ -3817,6 +3817,42 @@ decided here.
   same way. `ui/test/prompts.test.ts` fails if the prompt the page shows drifts from
   what the server composes.
 
+### #279 object projections
+
+- **An object projection takes every field after it** (`led` for `.*` in
+  `src/core/query/parser.ts`): its right-hand side binds at the star's power, as
+  `[*]`'s does, not the dot's. `a.*.b.c` on `{"a":{"x":{"b":{"c":1}},"y":{"b":{"c":2}}}}`
+  is now `[1,2]`; it was null.
+- **This follows the specification over both reference implementations.** The
+  specification says that once a projection is made, "all subsequent expressions
+  are projected onto the resulting list". jmespath.js 0.16.0 and jmespath.py 1.0.1
+  both return null for `a.*.b.c`, because both bind at the dot's power, and the
+  vendored compliance suite has no case that reaches it. The new cases in
+  `src/core/query/query.test.ts` were checked against the Python reference by
+  rewriting each `a.*.<rest>` as `values(a)[*].<rest>`, which it projects
+  correctly, and a test holds the two forms equal in toil.
+
+### #264 an unreadable .gitignore
+
+- **Only a missing ignore file is silently no rules** (`readRules` in `listTree`,
+  `src/core/files.ts`). `ENOENT` and `ENOTDIR` (a parent of the path is a file)
+  count as missing. Any other read error (permission, a lock, a folder named
+  `.gitignore`) applies no rules from that file and is a `GITIGNORE_UNREADABLE`
+  warning through the listing's `warn` path, as #262's skipped line is. The message
+  names the file, Node's error, what it means for the listing, and a fix chosen by
+  the error code. The same holds for `.git/info/exclude` and for the `.gitignore`
+  files above the listing root.
+- **A file that isn't UTF-8 still applies, and is reported as `GITIGNORE_NOT_UTF8`**,
+  its own code, because the file was read and its rules apply (review on #312).
+  It's decoded with each bad byte replaced, which is what reading it as `'utf8'`
+  did before without a word. Throwing the file out instead would lose its ASCII
+  lines, which are most of any real `.gitignore`. A byte-order mark is kept in the
+  text, as before; whether to drop it, as git does, is left for the maintainer.
+- **The test fails reads through a stand-in for `readFileSync`**
+  (`src/core/files-unreadable.test.ts`, `vi.mock('node:fs')`), since a permission
+  or a lock can't be set up the same way on every OS. The folder and the bad
+  encoding are made for real.
+
 ### #294 util owi similar
 
 - **The scorer lives in core, pure, with no Node import** (`src/core/owi/similar.ts`):
