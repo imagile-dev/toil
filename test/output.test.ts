@@ -183,6 +183,12 @@ describe('summary rules, first match wins', () => {
     }
     const comments = Array.from({ length: 60 }, (_, i) => ({ author: `user${i}`, body: `comment ${i}` }));
     expect(summarize({ comments, attachments: [] }).report).toMatchObject({ rows: 60, table: 'comments' });
+    const packages = Array.from({ length: 600 }, (_, i) => ({ name: `pkg${i}`, version: '1.0.0' }));
+    expect(summarize({ packages, warnings: [] }).report).toMatchObject({ rule: 'sample', rows: 600, table: 'packages' });
+    const users = Array.from({ length: 60 }, (_, i) => ({ name: `user${i}`, email: 'you@example.com', active: true }));
+    expect(summarize({ users, groups: [] }).report).toMatchObject({ rows: 60, table: 'users' });
+    const components = Array.from({ length: 30 }, (_, i) => ({ name: `c${i}`, id: i, description: 'x'.repeat(80) }));
+    expect(summarize({ key: 'PAY-1', labels: [], components }).report).toMatchObject({ rows: 30, table: 'components' });
   });
 
   it('keeps one very wide row, its texts cut to 40 characters, rather than none', () => {

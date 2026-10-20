@@ -104,15 +104,19 @@ function cellsOf(rows: unknown[]): number {
 /**
  * Whether `list` is the header of a sibling list rather than data: a list of
  * objects (`{ name, type }`), as long as a sibling's rows are wide when those
- * rows are lists, or naming its columns beside an empty sibling. That's how `db query` returns `{ columns, rows }`, and its
+ * rows are lists, or exactly `{ name, type }` columns beside an empty sibling. That's how `db query` returns `{ columns, rows }`, and its
  * one-row answer is still a table of one row, not of its column definitions.
  */
 function describesSibling(list: unknown[], siblings: unknown[][]): boolean {
   if (list.length === 0 || !list.every(isObject)) return false;
   // With no rows there's no width to match, so an empty sibling counts only when
-  // every item names a column (a string `name`), as `db`'s do: an empty answer is
-  // a table of no rows, and `{ comments, attachments: [] }` keeps its comments.
-  const named = list.every((item) => typeof (item as Record<string, unknown>).name === 'string');
+  // every item is exactly a `db` result column, `{ name, type }`: an empty answer
+  // is a table of no rows, and `{ packages: [{ name, version }], warnings: [] }`
+  // keeps its packages.
+  const named = list.every((item) => {
+    const { name, type, ...rest } = item as Record<string, unknown>;
+    return typeof name === 'string' && (typeof type === 'string' || type === null) && Object.keys(rest).length === 0;
+  });
   return siblings.some(
     (other) => other !== list && (other.length === 0 ? named : Array.isArray(other[0]) && other.every((row) => Array.isArray(row) && row.length === list.length)),
   );
