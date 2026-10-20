@@ -74,7 +74,8 @@ rules pick the summary, the first that matches:
 The rows are the result itself when it's a list, else the list in it with the most
 cells, its rows times their width (`issues` in `{ total, issues }`, `findings.results`
 a level down, or `rows` beside a `db` query's `columns`). Size doesn't count, so one
-long text can't make a one-row list the table. Nested rows
+long text can't make a one-row list the table, and a list of objects that names the
+columns of a sibling's list rows (a `db` query's `columns`) is never the table. Nested rows
 are compared by their dot paths (`fields.status.name`). `stats` has, for each column
 (the first 25), `nulls`, `distinct`, and `min` and `max` for numbers and dates (null
 otherwise). Every summary is held to the 1,500-token budget: texts longer than 200

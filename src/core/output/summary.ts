@@ -100,8 +100,20 @@ function cellsOf(rows: unknown[]): number {
 }
 
 /**
+ * Whether `list` is the header of a sibling list rather than data: a list of
+ * objects (`{ name, type }`), as long as a sibling's rows are wide when those
+ * rows are lists. That's how `db query` returns `{ columns, rows }`, and its
+ * one-row answer is still a table of one row, not of its column definitions.
+ */
+function describesSibling(list: unknown[], siblings: unknown[][]): boolean {
+  if (list.length === 0 || !list.every(isObject)) return false;
+  return siblings.some((other) => other !== list && other.length > 0 && Array.isArray(other[0]) && other.every((row) => Array.isArray(row) && row.length === list.length));
+}
+
+/**
  * The table in a result: the result itself when it's a list, else the list
- * reached through objects with the most cells (`issues` in `{ total, issues }`,
+ * reached through objects with the most cells, leaving out one that only
+ * names a sibling's columns (`issues` in `{ total, issues }`,
  * `findings.results` a level down, `rows` beside a `db` query's 40 `columns`),
  * the shallowest and then the first on a tie.
  */
@@ -110,9 +122,11 @@ function findTable(data: unknown): { path: string; rows: unknown[] } | undefined
   let best: { path: string; rows: unknown[]; depth: number; cells: number } | undefined;
   const visit = (value: unknown, path: string, depth: number) => {
     if (!isObject(value) || depth > MAX_DEPTH) return;
+    const lists = Object.values(value).filter((child): child is unknown[] => Array.isArray(child));
     for (const [key, child] of Object.entries(value)) {
       const at = path === '' ? key : `${path}.${key}`;
       if (Array.isArray(child)) {
+        if (describesSibling(child, lists)) continue;
         const cells = cellsOf(child);
         if (!best || cells > best.cells || (cells === best.cells && depth < best.depth)) best = { path: at, rows: child, depth, cells };
       } else visit(child, at, depth + 1);

@@ -165,6 +165,17 @@ describe('summary rules, first match wins', () => {
     expect((data as { rows: unknown[] }).rows.length).toBeGreaterThan(0);
   });
 
+  it("never takes a db result's column definitions as its table, whatever the row count", () => {
+    for (const [width, height, cell] of [[30, 1, 300], [30, 2, 300], [5, 2, 5000], [1, 1, 100_000], [40, 1, 50], [40, 1, 3], [3, 3, 5000]] as const) {
+      const columns = Array.from({ length: width }, (_, i) => ({ name: `col${i}`, type: 'text' }));
+      const rows = Array.from({ length: height }, () => columns.map(() => 'v'.repeat(cell)));
+      const { data, report } = summarize({ columns, rows });
+      expect(report, `${width} x ${height}`).toMatchObject({ rows: height });
+      expect(estimateTokens(data)).toBeLessThanOrEqual(1500);
+      if (report.rule !== 'record' && report.rule !== 'all') expect(report.table, `${width} x ${height}`).toBe('rows');
+    }
+  });
+
   it('chooses the table by rows and their shape, so one long text in a one-row list does not win', () => {
     const rows = Array.from({ length: 200 }, (_, i) => ({ id: i, name: `item ${i}` }));
     const { report } = summarize({ comments: [{ body: 'x'.repeat(50_000) }], issues: rows });
