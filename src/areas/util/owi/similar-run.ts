@@ -17,12 +17,12 @@ import { MAX_SIMILAR_ITEMS, type SimilarTaskOutput } from './similar-task.js';
  */
 
 /**
- * The limits scoring runs under, measured on a Windows laptop (Node 24.14):
- * 20,000 items with bodies of about 60 words, a set near the input cap, read,
- * indexed twice and paired in about 9 s at a peak of about 600 MB; a query or
- * an item over the same set takes about 3 s. A set larger than that, or one
- * whose items share far more than real backlogs do, stops at the deadline
- * with TIMEOUT rather than holding the process.
+ * The limits scoring runs under, measured with the built CLI on a Windows
+ * laptop (Node 24.14): 20,000 items (8 MB, titles of five words and bodies of
+ * about sixty) read, indexed twice and paired in about 3.7 s, a query or an
+ * item over the same set in about 1.8 s. The deadline leaves room for a set
+ * near the input cap; one past it, or whose items share far more than real
+ * backlogs do, stops with TIMEOUT rather than holding the process.
  */
 export const SIMILAR_LIMITS = { timeoutMs: 30_000, maxMemoryMb: 1_536 } as const;
 const SIMILAR_FIX = 'Pass fewer items (filter the search that produced them), or compare fewer fields with --fields title.';

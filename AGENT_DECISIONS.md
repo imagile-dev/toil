@@ -3883,8 +3883,8 @@ decided here.
   pair costs O(1) once found. The rarest features are used first until a fixed budget
   (60 M posting visits) is spent; past it, a pair sharing only the commonest words
   isn't compared, `search.skippedFeatures` counts them and an `APPROXIMATED` warning
-  says so. Measured on synthetic sets: 20,000 items paired in about 2.5 s in-process,
-  50,000 in about 2 s with features skipped. Only the top `limit` pairs are kept and
+  says so. Measured with the built CLI on a synthetic 20,000-item set: paired in
+  about 3.7 s in the worker, every check passing, with 4,815 common features skipped. Only the top `limit` pairs are kept and
   explained; `count` is every pair at or above the threshold.
 - **The worker gets the input's bytes, not parsed records** (`kind: 'owi-similar'`),
   as `docs/util.md` asks of large documents. `SIMILAR_LIMITS` is 30 s and 1,536 MB,
