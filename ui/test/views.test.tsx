@@ -18,7 +18,7 @@ import type { AgentSettings, AgentStatus } from '../src/server-client.ts';
  */
 
 const item = (dossier: string, id: string) => `#/dossier/${dossier}/item/${encodeURIComponent(id)}`;
-const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', item('card-payments', 'corp-jira:PAY-101'), '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/agent'];
+const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', item('card-payments', 'corp-jira:PAY-101'), '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/usage', '#/settings/agent'];
 
 async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), config = fixtureConfig(), agentSettings }: { preview?: boolean; execute?: Execute; agent?: Agent; config?: ConfigApi; agentSettings?: AgentSettingsPanelProps } = {}) {
   window.location.hash = hash;
@@ -417,6 +417,38 @@ describe('settings', () => {
     expect(document.body.textContent).toContain('/home/you/.toil/config.json');
     expect(document.body.textContent).toContain("120 s, toil's default");
     expect(screen.queryByRole('button', { name: /Save|Change/ })).toBeNull();
+  });
+
+  it("has a Usage page with toil audit stats' figures, and opens a failing command's recent lines through toil audit list", async () => {
+    const config = fixtureConfig();
+    await open('#/settings/usage', { config });
+    await screen.findByRole('heading', { name: 'Usage of toil' });
+    expect(screen.getByRole('link', { name: 'Usage' }).getAttribute('aria-current')).toBe('page');
+    expect(document.body.textContent).not.toContain('Changes are turned off.');
+    const until = config.calls[0]!.input.until;
+    expect(until).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(config.calls.map((c) => [c.command, c.input])).toEqual([
+      ['audit stats', { by: ['day'], until }],
+      ['audit stats', { by: ['command'], unused: true, until }],
+      ['audit stats', { by: ['via', 'caller'], until }],
+    ]);
+    expect(screen.getByRole('img', { name: /^Calls per day: \d+ calls in 30 days/ })).toBeTruthy();
+    const doors = panel('How toil was called');
+    for (const door of ['Toil UI', 'MCP', 'The CLI']) expect(doors.textContent).toContain(door);
+    const top = within(panel('Used most')).getAllByRole('rowheader').map((h) => h.textContent);
+    expect(top[0]).toBe('Commandjira issue get');
+    const failing = panel('Failed most');
+    expect(failing.textContent).toContain('Usual fix:');
+    const show = within(failing).getAllByRole('button', { name: 'Show recent failures' })[0]!;
+    await userEvent.click(show);
+    await within(failing).findByRole('region', { name: /^Recent failures of / });
+    const last = config.calls.at(-1)!;
+    expect(last.command).toBe('audit list');
+    expect(last.input).toMatchObject({ outcome: 'failed', limit: 10 });
+    expect(show.getAttribute('aria-expanded')).toBe('true');
+    const unused = panel('Not used');
+    expect(unused.textContent).toContain('6 commands had no call in this window');
+    expect(unused.textContent).toContain('(CLI only)');
   });
 
   it("has an Agent page, which says what the local app offers and changes nothing in the preview", async () => {

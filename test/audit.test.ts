@@ -405,7 +405,7 @@ describe('execute() and the log', () => {
 });
 
 describe('toil audit', () => {
-  const list = auditCommands();
+  const list = auditCommands(() => []);
   const seeded = () => {
     const audit = memoryAudit();
     audit.append(entry({ time: '2026-09-30T23:59:00.000Z', command: 'jira issue get', connection: 'corp-jira' }));
@@ -450,8 +450,8 @@ describe('toil audit', () => {
 
   it('audit path shows the folder, whether the log is on, and where that is set', async () => {
     const home = tempHome();
-    const ctx = createNodeContext({ globals: {}, def: list[1], signal: new AbortController().signal, env: {}, cwd: home, home, areas: [], version: '0.0.0-test', stderr: () => {} });
-    const envelope = await execute(list[1]!, {}, ctx);
+    const ctx = createNodeContext({ globals: {}, def: list[2], signal: new AbortController().signal, env: {}, cwd: home, home, areas: [], version: '0.0.0-test', stderr: () => {} });
+    const envelope = await execute(list[2]!, {}, ctx);
     const slashes = (p: string) => p.replace(/\\/g, '/');
     expect(envelope.data).toEqual({ path: slashes(join(home, '.toil', 'audit')), enabled: true, keepMonths: 6, configFile: slashes(join(home, '.toil', 'config.json')) });
   });
@@ -460,5 +460,145 @@ describe('toil audit', () => {
     const { context, audit } = testContext({ config: demoConfig, routes: demoRoutes });
     await runCli(['demo', 'get-thing', '--id', 'THING-1'], { commands: demoCommands, context });
     expect(audit.entries().map((e) => [e.via, e.command, e.area])).toEqual([['cli', 'demo get-thing', demoArea.name]]);
+  });
+});
+
+describe('toil audit stats', () => {
+  const fake = (path: string, area: string | null, over: Partial<AnyCommand> = {}) => ({ path: path.split(' '), kind: 'area', area: area ? { name: area } : undefined, ...over }) as unknown as AnyCommand;
+  const registry = [fake('jira issue get', 'jira'), fake('jira issue transition', 'jira'), fake('jira issue delete', 'jira', { mcp: false }), fake('db execute', 'db'), fake('connections login', null, { kind: 'cli-only' })];
+  const cmds = auditCommands(() => registry);
+  const seeded = () => {
+    const audit = memoryAudit();
+    const at = (day: number, hour = 9) => `2026-10-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:00:00.000Z`;
+    audit.append(entry({ time: '2026-09-30T23:59:00.000Z', durationMs: 5 }));
+    for (const [i, ms] of [10, 20, 30, 40, 1000].entries()) audit.append(entry({ time: at(2, 9 + i), durationMs: ms }));
+    audit.append(entry({ time: at(3), outcome: 'AUTH', durationMs: 7, via: 'api', caller: 'toil-ui' }));
+    audit.append(entry({ time: at(3, 10), outcome: 'AUTH', durationMs: 9, via: 'mcp' }));
+    audit.append(entry({ time: at(4), outcome: 'NOT_FOUND', durationMs: 3, via: 'mcp' }));
+    audit.append(entry({ time: at(4, 10), command: 'jira issue transition', writes: true, allowWrite: true, durationMs: 50, via: 'mcp' }));
+    audit.append(entry({ time: at(5), command: 'db execute', area: 'db', connection: 'local', writes: true, durationMs: 80, outcome: 'DATABASE', input: { sql: 'sha256:abc' } }));
+    return audit;
+  };
+  const run = async (argv: string[], fields: Record<string, unknown>) => {
+    const cli = await runCli(['audit', 'stats', ...argv], { commands: cmds, context: testContext({ audit: seeded() }).context });
+    const session = await connectMcp({ commands: cmds, context: testContext({ audit: seeded() }).context });
+    sessions.push(session);
+    const viaMcp = await session.call(toolName(cmds[1]!), fields);
+    expect(viaMcp.envelope.data, `the same through MCP: ${argv.join(' ')}`).toEqual(cli.envelope?.data);
+    return cli.envelope!;
+  };
+  const window = ['--since', '2026-10-01', '--until', '2026-10-31'];
+  const fields = { since: '2026-10-01', until: '2026-10-31' };
+  type Groups = { groups: Array<Record<string, unknown>> };
+
+  it('totals the window and groups by command, most calls first, with counts, top errors, durations and write share', async () => {
+    const e = await run(window, fields);
+    expect(e.ok).toBe(true);
+    const data = e.data as { window: unknown; by: string[]; totals: Record<string, unknown> } & Groups;
+    expect(data.window).toEqual({ since: '2026-10-01T00:00:00.000Z', until: '2026-11-01T00:00:00.000Z' });
+    expect(data.by).toEqual(['command']);
+    // The 30 September line is outside the window.
+    expect(data.totals).toMatchObject({ calls: 10, ok: 6, failed: 4, writes: 2, writeShare: 0.2, firstSeen: '2026-10-02T09:00:00.000Z', lastSeen: '2026-10-05T09:00:00.000Z' });
+    expect(data.groups.map((g) => [g.command, g.calls])).toEqual([
+      ['jira issue get', 8],
+      ['db execute', 1],
+      ['jira issue transition', 1],
+    ]);
+    const get = data.groups[0]!;
+    expect(get).toMatchObject({ ok: 5, failed: 3, writes: 0, writeShare: 0 });
+    // Nearest rank over 3, 7, 9, 10, 20, 30, 40, 1000: the 4th and the 8th.
+    expect(get.durationMs).toEqual({ median: 10, p95: 1000 });
+    expect(get.errors).toEqual([
+      { code: 'AUTH', count: 2, fix: expect.stringContaining('toil connections login') },
+      { code: 'NOT_FOUND', count: 1, fix: expect.any(String) },
+    ]);
+  });
+
+  it('cross-tabs several dimensions, and keeps a missing value as null', async () => {
+    const data = (await run([...window, '--by', 'via', '--by', 'caller'], { ...fields, by: ['via', 'caller'] })).data as Groups;
+    expect(data.groups.map((g) => [g.via, g.caller, g.calls])).toEqual([
+      ['cli', null, 6],
+      ['mcp', null, 3],
+      ['api', 'toil-ui', 1],
+    ]);
+  });
+
+  it('puts days in date order, and groups by area, connection and outcome', async () => {
+    const days = (await run([...window, '--by', 'day'], { ...fields, by: ['day'] })).data as Groups;
+    expect(days.groups.map((g) => [g.day, g.calls])).toEqual([
+      ['2026-10-02', 5],
+      ['2026-10-03', 2],
+      ['2026-10-04', 2],
+      ['2026-10-05', 1],
+    ]);
+    const outcomes = (await run([...window, '--by', 'outcome'], { ...fields, by: ['outcome'] })).data as Groups;
+    expect(outcomes.groups.map((g) => [g.outcome, g.calls])).toEqual([
+      ['ok', 6],
+      ['AUTH', 2],
+      ['DATABASE', 1],
+      ['NOT_FOUND', 1],
+    ]);
+    const areas = (await run([...window, '--by', 'area', '--by', 'connection'], { ...fields, by: ['area', 'connection'] })).data as Groups;
+    expect(areas.groups.map((g) => [g.area, g.connection, g.calls])).toEqual([
+      ['jira', 'corp-jira', 9],
+      ['db', 'local', 1],
+    ]);
+  });
+
+  it('filters by area, command, caller and outcome, failed meaning any failure', async () => {
+    const calls = async (argv: string[], f: Record<string, unknown>) => ((await run([...window, ...argv], { ...fields, ...f })).data as { totals: { calls: number } }).totals.calls;
+    expect(await calls(['--area', 'db'], { area: 'db' })).toBe(1);
+    expect(await calls(['--command', 'jira'], { command: 'jira' })).toBe(9);
+    expect(await calls(['--command', 'jira issue get'], { command: 'jira issue get' })).toBe(8);
+    expect(await calls(['--caller', 'toil-ui'], { caller: 'toil-ui' })).toBe(1);
+    expect(await calls(['--outcome', 'failed'], { outcome: 'failed' })).toBe(4);
+    expect(await calls(['--outcome', 'AUTH'], { outcome: 'AUTH' })).toBe(2);
+    expect(await calls(['--outcome', 'ok'], { outcome: 'ok' })).toBe(6);
+  });
+
+  it('--unused lists the registered commands with no call in the window, within the filters, and says which MCP serves', async () => {
+    const data = (await run([...window, '--unused'], { ...fields, unused: true })).data as { unused: unknown };
+    expect(data.unused).toEqual([
+      { command: 'connections login', area: null, mcp: false },
+      { command: 'jira issue delete', area: 'jira', mcp: false },
+    ]);
+    const jira = (await run([...window, '--unused', '--area', 'jira', '--outcome', 'ok'], { ...fields, unused: true, area: 'jira', outcome: 'ok' })).data as { unused: Array<{ command: string }> };
+    expect(jira.unused.map((u) => u.command)).toEqual(['jira issue delete']);
+    // Without --unused, there's no list at all.
+    expect((await run(window, fields)).data).not.toHaveProperty('unused');
+  });
+
+  it('defaults to the 30 days from midnight UTC, and returns empty figures for an empty window', async () => {
+    const data = (await runCli(['audit', 'stats'], { commands: cmds, context: testContext({ audit: memoryAudit() }).context })).envelope?.data as { window: unknown; totals: unknown } & Groups;
+    const today = new Date();
+    expect(data.window).toEqual({ since: new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 30)).toISOString(), until: null });
+    expect(data.totals).toEqual({ calls: 0, ok: 0, failed: 0, errors: [], durationMs: { median: 0, p95: 0 }, writes: 0, writeShare: 0, firstSeen: '', lastSeen: '' });
+    expect(data.groups).toEqual([]);
+  });
+
+  it('refuses a bad time, an until before since, and a dimension it does not know', async () => {
+    const fail = async (argv: string[]) => (await runCli(['audit', 'stats', ...argv], { commands: cmds, context: testContext({ audit: seeded() }).context })).envelope?.error;
+    expect(await fail(['--until', 'soon'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('until "soon"') });
+    expect(await fail(['--since', '2026-10-05', '--until', '2026-10-01'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('later than since'), fix: expect.stringContaining('Pass an until after since') });
+    // With no since, the default is what until fell behind, and the fix says so.
+    expect(await fail(['--until', '2020-01-01'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining(', the default)'), fix: expect.stringContaining('pass an earlier since (--since)') });
+    expect(await fail(['--by', 'input'])).toMatchObject({ code: 'INVALID_INPUT' });
+  });
+
+  it('never groups by an input value: a hashed statement is never a heading', async () => {
+    const all = ['command', 'area', 'connection', 'caller', 'via', 'outcome', 'day'];
+    const e = await run([...window, ...all.flatMap((d) => ['--by', d])], { ...fields, by: all });
+    expect(JSON.stringify(e.data)).not.toContain('sha256');
+  });
+
+  it('audit list filters by outcome too', async () => {
+    const cli = await runCli(['audit', 'list', '--outcome', 'failed', '--command', 'jira issue get'], { commands: cmds, context: testContext({ audit: seeded() }).context });
+    expect((cli.envelope?.data as AuditEntry[]).map((e) => e.outcome)).toEqual(['NOT_FOUND', 'AUTH', 'AUTH']);
+  });
+
+  it('the registry hands --unused every shipped command', async () => {
+    const real = registered.find((d) => commandName(d) === 'audit stats')!;
+    const e = await runCli(['audit', 'stats', '--unused'], { commands: [real], context: testContext({ audit: memoryAudit() }).context });
+    expect((e.envelope?.data as { unused: unknown[] }).unused).toHaveLength(registered.length);
   });
 });

@@ -76,6 +76,13 @@ running those commands through `@imagile-dev/toil/api`, never by editing a file:
   here, as over MCP: make it on the CLI.
 - **Bounds and time limit:** toil has no command for these, so they are shown
   read-only, with the file or env var that sets them.
+- **Usage:** how toil is used on this machine, from `toil audit stats`, which
+  reads only toil's local audit log: calls per day, the split between Toil UI, the
+  CLI and MCP, the commands used most, the ones that fail most with their top
+  error code and its usual fix (and, on request, their recent failures from
+  `toil audit list`), and the commands nothing called. It needs a toil with
+  `audit stats`, newer than 0.1.0-alpha.3; with an older one the page shows toil's
+  error.
 
 Every change is an explicit action, runs the command's own checks, and is in
 toil's audit log as `caller: "toil-ui"`. The page can run no other command on this
