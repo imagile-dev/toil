@@ -24,7 +24,7 @@ function ItemBox({ data }: NodeProps<ItemNode>) {
   const item = byId.get(data.node.id);
   const n = data.node;
   return (
-    <div className={`gnode${n.blocked ? ' gnode--blocked' : ''}${n.blocking ? ' gnode--blocking' : ''}${n.done ? ' gnode--done' : ''}${n.known ? '' : ' gnode--unknown'}`}>
+    <div className={`gnode${n.blocked ? ' gnode--blocked' : ''}${n.blocking ? ' gnode--blocking' : ''}${n.done ? ' gnode--done' : ''}${n.known ? '' : ' gnode--unknown'}${item?.type === 'EPIC' ? ' gnode--epic' : ''}`}>
       <Handle type="target" position={Position.Left} isConnectable={false} />
       <ItemLink id={n.id} />
       {item ? (

@@ -1,24 +1,63 @@
-/* Realm (#210): a high-fantasy chronicle. Tokens come from theme.json; this
-   file adds parchment, a crest beside the name, ink-drawn borders,
-   illuminated capitals on the headings, the sprint as a chronicle page, and
-   the dependency graph as a hand-drawn map, where blockers are mountain
-   passes. The same layout and click targets as Plain: only the look changes.
+/* Realm (#210, #349): a grimdark house ledger. Tokens come from theme.json;
+   this file adds aged vellum under everything, soot at the window's far edges,
+   an iron band for the header, leather-bound folios riveted at the corners for
+   the panels, wax-sealed tabs for their headings, one illuminated capital for
+   the dossier's title, and the dependency graph as an engraved war-table map,
+   where epics fly a banner, a blocker is a keep and the road it holds is
+   broken. The same layout and click targets as Plain: only the look changes.
    Art is original and hidden from screen readers; the words beside it say
-   what it shows. */
+   what it shows. Text stays on vellum, never on soot, so every pair keeps AA. */
 
-@import '@fontsource/cinzel/600.css';
-@import '@fontsource/cinzel-decorative/700.css';
+@import '@fontsource/grenze-gotisch/latin-600.css';
+@import '@fontsource/grenze-gotisch/latin-800.css';
 @import '@fontsource/eb-garamond/400.css';
 @import '@fontsource/eb-garamond/600.css';
 
-/* Parchment under everything, washed with the page's own colour so text
-   that sits on it keeps 6:1 at the darkest fibre. */
+/* Aged vellum under everything, washed with the page's own colour so muted
+   text keeps 6:1 at the darkest stain. */
 [data-theme="realm"] body {
   background:
-    linear-gradient(rgba(239, 226, 196, 0.35), rgba(239, 226, 196, 0.35)),
-    url("./assets/parchment.webp") 0 0 / 384px 384px,
+    linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
+    url("./assets/vellum.webp") 0 0 / 512px 512px,
     var(--bg);
   font-size: 1.0625rem;
+}
+
+/* Soot in the margins beside the 1280px column, where no text ever sits. */
+@media (min-width: 1360px) {
+  [data-theme="realm"] body {
+    background:
+      linear-gradient(90deg, rgba(20, 17, 14, 0.62), rgba(20, 17, 14, 0) calc(50% - 640px), rgba(20, 17, 14, 0) calc(50% + 640px), rgba(20, 17, 14, 0.62)) fixed,
+      linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
+      url("./assets/vellum.webp") 0 0 / 512px 512px,
+      var(--bg);
+  }
+}
+
+/* A candle's warmth behind the page, low and to one side. It holds still at
+   rest; where motion is welcome it flickers, faintly. */
+[data-theme="realm"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 70% 55% at 12% 100%, rgba(214, 140, 52, 0.16), rgba(214, 140, 52, 0) 70%);
+}
+
+@keyframes realm-candle {
+  0%, 100% { opacity: 1; }
+  18% { opacity: 0.82; }
+  31% { opacity: 0.96; }
+  47% { opacity: 0.74; }
+  63% { opacity: 0.92; }
+  80% { opacity: 0.84; }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="realm"] body::after {
+    animation: realm-candle 4.2s steps(12, end) infinite;
+  }
 }
 
 [data-theme="realm"] h1,
@@ -27,46 +66,61 @@
 [data-theme="realm"] .big-number {
   font-family: var(--font-display);
   font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
-/* Illuminated capitals: the first letter of each heading, in red on gold leaf. */
-[data-theme="realm"] h1::first-letter,
-[data-theme="realm"] .panel > h2::first-letter,
-[data-theme="realm"] .ask h2::first-letter {
-  font-family: 'Cinzel Decorative', var(--font-display);
-  font-weight: 700;
-  font-size: 1.4em;
-  line-height: 1;
-  color: var(--accent);
-  background: url("./assets/capital.svg") center / 100% 100% no-repeat;
-  padding: 0.14em 0.22em 0.06em;
-  margin-right: 0.1em;
-}
-
-/* The illuminated capital stands taller than the heading's line, so the
-   heading makes room above it and the eyebrow over it never touches it. */
 [data-theme="realm"] h1 {
-  padding-top: 0.3em;
+  font-size: clamp(1.75rem, 1.35rem + 1.4vw, 2.35rem);
 }
 
-/* The wordmark keeps its shape in every theme; here it takes the realm's crimson. */
+/* One illuminated capital, on the dossier's title only: vellum on an oxblood
+   field in a tarnished-gold frame. The title makes room above it, so the
+   eyebrow never touches it. */
+[data-theme="realm"] .view-head:has(> .sources) > h1 {
+  padding-top: 0.25em;
+}
+
+[data-theme="realm"] .view-head:has(> .sources) > h1::first-letter {
+  font-weight: 800;
+  font-size: 1.35em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: #efe6d2;
+  background: url("./assets/capital.svg") center / 100% 100% no-repeat;
+  padding: 0.14em 0.2em 0.02em;
+  margin-right: 0.08em;
+}
+
+/* The header is an iron band. Its own tokens turn light on iron, so every
+   control in it keeps the same contrast as on vellum. */
+[data-theme="realm"] .top {
+  --bg: #1d1a17;
+  --surface: #2e2a26;
+  --raised: #34302b;
+  --ink: #e6dcc6;
+  --muted: #b9ab92;
+  --line: #5d554b;
+  --focus: #c9a45a;
+  position: relative;
+  color: var(--ink);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 40%),
+    linear-gradient(180deg, #2a2724, #1a1715);
+  border-bottom: 1px solid #9c7a3c;
+  box-shadow: 0 1px 0 #14110e, 0 3px 8px rgba(20, 17, 14, 0.45);
+}
+
+/* The wordmark keeps its shape in every theme; here it takes tarnished gold. */
 [data-theme="realm"] .brand .wordmark {
-  color: var(--accent);
+  color: #c9a85e;
 }
 
-/* The badge as an illuminated tile beside the name. */
+/* The badge as an iron plate beside the name. */
 [data-theme="realm"] .brand::before {
   background-image: url("./assets/mark.svg");
 }
 
-[data-theme="realm"] .top {
-  position: relative;
-  background: transparent;
-  border-bottom: 2px solid var(--ink);
-  box-shadow: 0 3px 0 var(--surface), 0 4px 0 var(--ink);
-}
-
-[data-theme="realm"] .realm-flourish {
+[data-theme="realm"] .realm-rule {
   position: absolute;
   left: 50%;
   width: 160px;
@@ -75,42 +129,80 @@
   pointer-events: none;
 }
 
-[data-theme="realm"] .realm-flourish--header {
-  bottom: -11px;
-  background: var(--bg);
+[data-theme="realm"] .realm-rule--header {
+  bottom: -9px;
 }
 
-/* Ink-drawn borders on parchment, from ink-border.svg. */
-[data-theme="realm"] .panel {
-  position: relative;
-}
-
+/* Panels are folios: a leather binding, gilt-tooled and riveted at the
+   corners, around a leaf of vellum. */
 [data-theme="realm"] .l-card,
 [data-theme="realm"] .ask {
   border: 12px solid transparent;
-  border-image: url("./assets/ink-border.svg") 16 / 12px round;
+  border-image: url("./assets/iron-band.svg") 12 / 12px stretch;
   border-radius: 0;
-  background-color: var(--surface);
+  background:
+    linear-gradient(rgba(226, 215, 191, 0.8), rgba(226, 215, 191, 0.8)),
+    url("./assets/vellum.webp") 0 0 / 512px 512px,
+    var(--surface);
   background-clip: padding-box;
+  box-shadow: 0 6px 14px rgba(20, 17, 14, 0.32);
 }
 
-[data-theme="realm"] .realm-flourish--panel {
-  bottom: -14px;
-  background: var(--surface);
+/* Section headings are wax-sealed tabs, cut into the folio's top edge. */
+[data-theme="realm"] .panel > h2 {
+  justify-self: start;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: calc(100% + 1rem);
+  margin: -1rem 0 0 -1rem;
+  padding: 0.4rem 0.9rem 0.45rem 0.55rem;
+  color: #efe6d2;
+  background: linear-gradient(180deg, #3a2a22, #241a15);
+  border-right: 1px solid #9c7a3c;
+  border-bottom: 1px solid #9c7a3c;
+  box-shadow: 1px 2px 0 rgba(20, 17, 14, 0.35);
 }
 
+[data-theme="realm"] .panel > h2::before,
+[data-theme="realm"] .ask h2::before {
+  content: "";
+  flex: none;
+  width: 1.35em;
+  height: 1.35em;
+  background: url("./assets/wax-seal.svg") center / contain no-repeat;
+}
+
+[data-theme="realm"] .ask h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+/* Thin, precise borders inside the folio: an iron rule with an embossed
+   highlight, never a thick scroll end. */
 [data-theme="realm"] .card,
 [data-theme="realm"] .attention-item,
 [data-theme="realm"] .proposal,
 [data-theme="realm"] .stat {
-  border: 1.5px solid var(--ink);
-  border-radius: 2px;
-  box-shadow: 2px 2px 0 rgba(42, 29, 18, 0.18);
+  border: 1px solid #3a3733;
+  border-radius: 1px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 1px 0 rgba(20, 17, 14, 0.25);
+}
+
+/* Each tally is a small riveted plate. */
+[data-theme="realm"] .stat {
+  background:
+    radial-gradient(circle at 6px 6px, #6b6660 1.6px, transparent 2.2px),
+    radial-gradient(circle at calc(100% - 6px) 6px, #6b6660 1.6px, transparent 2.2px),
+    radial-gradient(circle at 6px calc(100% - 6px), #6b6660 1.6px, transparent 2.2px),
+    radial-gradient(circle at calc(100% - 6px) calc(100% - 6px), #6b6660 1.6px, transparent 2.2px),
+    linear-gradient(180deg, var(--raised) 40%, color-mix(in srgb, var(--raised) 88%, #9c7a3c));
 }
 
 [data-theme="realm"] .column {
-  border: 1.5px solid var(--ink);
-  border-top: 4px double var(--ink);
+  border: 1px solid #3a3733;
+  border-top: 3px solid #3a3733;
   border-radius: 0;
 }
 
@@ -127,32 +219,28 @@
 [data-theme="realm"] .starter,
 [data-theme="realm"] .shell-choice,
 [data-theme="realm"] .field-text input {
-  border-color: var(--ink);
+  border-color: #3a3733;
 }
 
-/* The quest a card serves. */
-[data-theme="realm"] .realm-quest {
+[data-theme="realm"] .top button,
+[data-theme="realm"] .top .btn,
+[data-theme="realm"] .top select {
+  border-color: #6b6660;
+}
+
+/* The campaign a card serves. */
+[data-theme="realm"] .realm-campaign {
   font-style: italic;
   font-size: 0.875rem;
   color: var(--muted);
-  border-top: 1px dashed var(--line);
+  border-top: 1px solid var(--line);
   padding-top: 0.35rem;
 }
 
-/* The sprint panel as a chronicle page: a double rule under its title, and a drop capital to open it. */
-[data-theme="realm"] section[aria-labelledby="sprint"] > h2 {
-  border-bottom: 3px double var(--ink);
-  padding-bottom: 0.35rem;
-}
-
-[data-theme="realm"] section[aria-labelledby="sprint"] > .note:first-of-type::first-letter {
-  float: left;
-  font-family: 'Cinzel Decorative', var(--font-display);
-  font-weight: 700;
-  font-size: 2.6em;
-  line-height: 0.9;
-  color: var(--accent);
-  margin: 0.05em 0.12em 0 0;
+/* The sprint panel as a page of the ledger: an embossed double rule under its tab. */
+[data-theme="realm"] section[aria-labelledby="sprint"] > h2 + * {
+  border-top: 3px double #3a3733;
+  padding-top: 0.5rem;
 }
 
 [data-theme="realm"] .stat-value {
@@ -161,50 +249,66 @@
 
 [data-theme="realm"] .meter {
   border-radius: 0;
-  border-color: var(--ink);
+  border-color: #3a3733;
 }
 
 [data-theme="realm"] .meter > span {
-  background: repeating-linear-gradient(-45deg, var(--accent) 0 4px, #5e1717 4px 6px);
+  background: repeating-linear-gradient(-45deg, var(--accent) 0 4px, #4a1411 4px 6px);
 }
 
-/* The dependency graph as a hand-drawn map. */
+/* The dependency graph as an engraved war-table map, darkened toward its
+   edges as if scorched. Every word on it sits on its own vellum label. */
 [data-theme="realm"] .graph {
-  border: 1.5px solid var(--ink);
+  border: 1px solid #14110e;
   border-radius: 0;
   background:
-    linear-gradient(rgba(239, 226, 196, 0.3), rgba(239, 226, 196, 0.3)),
-    url("./assets/map.webp") center / cover no-repeat,
-    var(--bg);
+    radial-gradient(ellipse at center, rgba(20, 17, 14, 0.05) 40%, rgba(20, 17, 14, 0.55)),
+    url("./assets/war-map.webp") center / cover no-repeat,
+    #14110e;
+  box-shadow: inset 0 0 0 1px #9c7a3c;
 }
 
 [data-theme="realm"] .graph .react-flow__background {
   display: none;
 }
 
-/* Each item is a place on the map, with a town mark beside its name. */
+/* Each item is a token on the war table: a vellum label with an iron edge. */
 [data-theme="realm"] .gnode {
-  border: 1.5px solid var(--ink);
-  border-radius: 2px;
+  border: 1px solid #14110e;
+  border-radius: 1px;
   background: var(--raised);
-  box-shadow: 2px 2px 0 rgba(42, 29, 18, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(156, 122, 60, 0.55), 0 3px 6px rgba(20, 17, 14, 0.55);
 }
 
-[data-theme="realm"] .gnode::before {
+/* An epic flies a banner: an oxblood pennant hung from its top edge. */
+[data-theme="realm"] .gnode--epic {
+  position: relative;
+  border-top: 4px solid var(--accent);
+}
+
+[data-theme="realm"] .gnode--epic::after {
   content: "";
-  width: 10px;
-  height: 10px;
-  border: 1.5px solid var(--ink);
-  border-radius: 50%;
+  position: absolute;
+  top: -4px;
+  right: 10px;
+  width: 14px;
+  height: 22px;
   background: var(--accent);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+  pointer-events: none;
+}
+
+/* A blocker is a keep that holds the road: a heavier iron wall. */
+[data-theme="realm"] .gnode--blocking {
+  border: 2px solid #3a3733;
+  box-shadow: inset 0 0 0 1px var(--warn), 0 3px 6px rgba(20, 17, 14, 0.55);
 }
 
 [data-theme="realm"] .gnode--blocked {
-  border-color: var(--danger);
-  border-width: 2px;
+  border: 2px solid var(--danger);
 }
 
-/* Blockers are mountain passes: the word, with a pass drawn beside it. */
+/* Blocked items name the broken road, with the road drawn beside the word. */
 [data-theme="realm"] .gflag {
   display: inline-flex;
   align-items: center;
@@ -216,80 +320,77 @@
   content: "";
   width: 24px;
   height: 16px;
-  background: url("./assets/mountain-pass.svg") center / contain no-repeat;
+  background: url("./assets/broken-road.svg") center / contain no-repeat;
 }
 
-/* Links are roads, inked in dashes. */
+/* Links are roads, inked pale on the dark map; a blocking chain is a road
+   broken into short pieces. */
 [data-theme="realm"] .gedge .react-flow__edge-path {
-  stroke: var(--ink);
-  stroke-dasharray: 7 4;
+  stroke: #e6dcc6;
+  stroke-dasharray: 8 3;
+  filter: drop-shadow(0 0 1px #14110e);
 }
 
 [data-theme="realm"] .gedge--live .react-flow__edge-path {
-  stroke: var(--danger);
+  stroke: #d0614c;
+  stroke-dasharray: 6 5 2 5;
 }
 
 [data-theme="realm"] .graph .react-flow__edge-textbg {
   fill: var(--raised);
 }
 
-/* The scribe. */
-[data-theme="realm"] .realm-scribe {
-  border: 1.5px solid var(--ink);
+/* The steward. */
+[data-theme="realm"] .realm-steward {
+  border: 1px solid #3a3733;
+  border-left: 3px solid var(--accent);
   border-radius: 0;
   background: var(--raised);
 }
 
-[data-theme="realm"] .realm-scribe-name {
+[data-theme="realm"] .realm-steward-name {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   font-family: var(--font-display);
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: var(--accent);
 }
 
 [data-theme="realm"] .bubble--you {
-  border-color: var(--ink);
+  border-color: #3a3733;
   font-style: italic;
 }
 
-[data-theme="realm"] .realm-scroll img {
+[data-theme="realm"] .realm-ledger img {
   width: 200px;
   max-width: 100%;
 }
 
-/* While a view loads, the scribe is still writing. */
-[data-theme="realm"] .realm-writing img {
+/* While a view loads, the candle burns beside the closed ledger; its soot
+   ground fades into the vellum around it. */
+[data-theme="realm"] .realm-candle img {
   width: 240px;
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at center, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at center, #000 55%, transparent 100%);
 }
 
 /* The local app's sync panel (#257). */
 [data-theme="realm"] .sync-panel {
-  border-top: 3px double var(--ink);
+  border-top: 3px double #3a3733;
   background: transparent;
 }
 
-/* Gradients for life (#271): pages gilded at their foot, wax-seal buttons
-   lit from above, and crimson charts that deepen toward the axis. Every text
-   colour keeps 6:1 or better on the gilt, and the seal's cream 7.8:1. */
-[data-theme="realm"] .l-card,
-[data-theme="realm"] .ask {
-  background: linear-gradient(180deg, var(--raised), var(--surface) 50%, color-mix(in srgb, var(--surface) 88%, #c9a24a));
-}
-
-[data-theme="realm"] .stat {
-  background: linear-gradient(180deg, var(--raised) 40%, color-mix(in srgb, var(--raised) 85%, #c9a24a));
-}
-
+/* Wax-seal buttons, lit from above, and oxblood charts that deepen toward
+   the axis. The seal's vellum keeps 9:1. */
 [data-theme="realm"] .btn--accent,
 [data-theme="realm"] .top nav a[aria-current="page"],
 [data-theme="realm"] button[aria-pressed="true"] {
-  background: linear-gradient(180deg, #8f2a2a, var(--accent) 55%, #5e1616);
+  background: linear-gradient(180deg, #84251f, var(--accent) 55%, #4a1411);
 }
 
-[data-theme="realm"] .chart .chart-stop--top { stop-color: #a33a2a; }
-[data-theme="realm"] .chart .chart-stop--bottom { stop-color: #5e1616; }
+[data-theme="realm"] .chart .chart-stop--top { stop-color: #8a2a22; }
+[data-theme="realm"] .chart .chart-stop--bottom { stop-color: #4a1411; }
 
 [data-theme="realm"] .chart .bar,
 [data-theme="realm"] .chart .area {

@@ -37,7 +37,7 @@ export const voiceOn = (theme: ThemeManifest, choice: Pick<ThemeChoiceState, 'vo
 
 /**
  * A theme's own word for something, always with the real one beside it
- * (#206, principle 4): Realm's epic reads "Quest (Epic)", and Plain, which
+ * (#206, principle 4): Realm's epic reads "Campaign (Epic)", and Plain, which
  * renames nothing, reads "Epic". With themed wording off, every theme reads
  * the real word alone.
  */

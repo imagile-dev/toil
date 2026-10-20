@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.tsx';
 import { Ambient } from '../src/ambient/Ambient.tsx';
 import { blank, fill, particleCount, stepAll, type Preset, type Viewport } from '../src/ambient/engine.ts';
-import { PRESETS, realmMargin, shaft } from '../src/ambient/presets.ts';
+import { PRESETS, shaft } from '../src/ambient/presets.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
@@ -106,15 +106,17 @@ describe('the particle presets', () => {
     expect(shaft(...at(0.8), w, h)).toBeLessThan(0.01);
   });
 
-  it("shows Realm's runes only in a margin wide enough to hold one", () => {
-    expect(realmMargin(375)).toBe(0);
-    expect(realmMargin(1440)).toBe(80);
-    const view = { w: 375, h: 812, t: 0 };
-    const ps = [] as ReturnType<typeof blank>[];
-    const rand = seeded(3);
-    fill(PRESETS.realm!, ps, view, rand);
-    for (let i = 0; i < 900; i++) stepAll(PRESETS.realm!, ps, 1 / 30, view, rand);
-    expect(ps.every((p) => p.kind === 0)).toBe(true);
+  it("drifts Realm's ash down the page and its embers up it, in every width", () => {
+    for (const w of [375, 1440]) {
+      const view = { w, h: 812, t: 0 };
+      const ps = [] as ReturnType<typeof blank>[];
+      const rand = seeded(3);
+      fill(PRESETS.realm!, ps, view, rand);
+      for (let i = 0; i < 900; i++) stepAll(PRESETS.realm!, ps, 1 / 30, view, rand);
+      expect(new Set(ps.map((p) => p.kind))).toEqual(new Set([0, 1]));
+      expect(ps.filter((p) => p.kind === 1).every((p) => p.vy > 0)).toBe(true);
+      expect(ps.filter((p) => p.kind === 0).every((p) => p.vy < 0)).toBe(true);
+    }
   });
 });
 
