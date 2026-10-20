@@ -28,7 +28,7 @@ export * from './api.js';
 
 /** Runs toil as the CLI on this process: argv, stdio, Ctrl+C, the exit code. Only dist/toil.js calls it. */
 export async function main(): Promise<void> {
-  const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context) }));
+  const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) }));
 
   // Ctrl-C cancels the command in flight; execute() turns it into a CANCELLED
   // envelope. Installing this listener switches off Node's own exit on SIGINT,

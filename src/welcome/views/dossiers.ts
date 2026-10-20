@@ -315,6 +315,13 @@ export const openRun = (ref: string, root?: string): Run => ({
   next: (r) => (r[0]?.envelope.ok ? { go: 'dossier', params: { ref }, ...(root ? { root } : {}) } : undefined),
 });
 
+/**
+ * Set up this repo: `dossiers onboard`, which asks on this terminal for each
+ * connection the folder's dossier needs, then checks it and tests each. What
+ * it found per area is the point, so the result shows its data.
+ */
+export const onboardRun: Run = { title: 'Set up this repo', steps: [{ args: ['dossiers', 'onboard'], label: 'Match each area to your connections; add the ones you lack' }], showData: true };
+
 export const dossiersView: View = {
   title: () => 'Dossiers',
   body: (caps, p) => [
@@ -322,11 +329,12 @@ export const dossiersView: View = {
     '',
     `${label(caps, 'Folder')} ${p.data.folder.repo ? p.data.folder.repo.root : p.data.folder.cwd}${p.data.folder.repo ? '' : faint(caps, '  (not in a git repository)')}`,
   ],
-  items: () => [
+  items: (p) => [
     { label: 'This folder', hint: 'Which dossier applies here, and why', action: { run: contextRun } },
     { label: 'Your dossiers', hint: 'Every dossier toil can see; open one to review or edit it', action: { run: listRun() } },
     { label: 'Create a dossier', hint: 'Name, repos, areas, environments, then a review', action: { go: 'dossier-new' } },
     { label: 'Import a dossier', hint: 'Adopt a shared dossier file as your own', action: { go: 'dossier-import' } },
+    ...(p.data.folder.repo ? [{ label: 'Set up this repo', hint: "Connect its dossier's areas to your connections, adding any you lack", action: { run: onboardRun } }] : []),
     { label: 'Hand off to an agent', hint: 'A prompt and the MCP areas to build one with an agent', action: { go: 'dossier-agent' } },
   ],
 };
@@ -363,7 +371,12 @@ export const folderView: View = {
   items: (p) => {
     const c = parse<Context | undefined>(p.frame.params.context, undefined);
     if (!c) return [];
-    if (c.dossier) return [{ label: `Open ${c.dossier.name}`, hint: 'Review, edit or export it', action: { run: openRun(c.dossier.name) } }];
+    if (c.dossier) {
+      return [
+        { label: `Open ${c.dossier.name}`, hint: 'Review, edit or export it', action: { run: openRun(c.dossier.name) } },
+        { label: 'Set up this repo', hint: `Connect ${c.dossier.name}'s areas to your connections, adding any you lack`, action: { run: onboardRun } },
+      ];
+    }
     if (c.candidates.length > 1) return c.candidates.map((x) => ({ label: `Open ${x.name}`, hint: x.file, action: { run: openRun(x.name) } }));
     if (!c.repo) return [{ label: 'Create a dossier', hint: 'Name, repos, areas, environments', action: { go: 'dossier-new' } }];
     return [

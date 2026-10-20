@@ -11,6 +11,8 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
 - `toil dossiers list | show | check | context`, which read
 - `toil dossiers init | add-repo | link | env | field | person | wip-limit | export | import | unlink | remove`, which
   build and share (`src/core/dossier.ts`, `src/dossiers/`)
+- `toil dossiers onboard`, which sets a reader up for a repository's dossier (#333,
+  `src/dossiers/onboard.ts`)
 - field aliases on Jira's and Jira Cloud's `--field`
 - `toil repos scan` (`src/repos/`)
 - `toil <area> check-dossier` for every area a dossier describes: `jira`, `jira-cloud`,
@@ -171,7 +173,9 @@ a connection for it. When several match, it fails with `INVALID_INPUT`, listing 
 and saying to pick one with `connection`. A selector never falls back to the default
 connection, because a silent fallback could point the dossier somewhere the author
 didn't mean. A connection matches on its `baseUrl`'s host, or on a `host` setting for
-an area that has one instead (a database). `meta.context.connection` then carries the
+an area that has one instead (a database). An area whose API lives on another host
+names it (`defineArea({ siteApis })`): `host: github.com` also matches a GitHub
+connection on `api.github.com`, and sharing that connection records `github.com`. `meta.context.connection` then carries the
 `host` that matched.
 
 A `connection` that names no connection you have fails the call too, as an unknown
@@ -427,6 +431,8 @@ files directly:
   `--allow-write`; each returns the change it made, and `changed: false` when there
   was nothing to change):
   - `toil dossiers init <name> [--description <text>]` creates `~/.toil/dossiers/<name>.json`.
+    `--shared [--repo <root>]` creates `<root>/.toil/dossiers/<name>.json` instead, in
+    the folder's own repository unless `--repo` names one.
   - `toil dossiers add-repo <dossier> <folder|remote> [--name <repo>]` adds a repo. A
     folder records its git root as the path, plus its origin with any credential
     stripped. A remote URL records just the remote.
@@ -437,6 +443,9 @@ files directly:
     A context input's value is checked against the area's own rule first.
     `--set env=` is refused: the environment is the dossier's `env` (set with
     `dossiers env ... --default`) or the call's `--env`, never a section's.
+    `--connection` on a dossier others read (checked in, listed, or a loose file)
+    records that connection's host instead: on a terminal after a y/n that may keep
+    the name, anywhere else with a `DOSSIER_HOST_RECORDED` warning.
   - `toil dossiers env <dossier> <env> <area> [--default] ...` does the same for
     `environments.<env>.<area>`. `--default` makes it the dossier's `env`.
   - `toil dossiers field <dossier> <area> <alias> <field-id>` names a field.
@@ -476,6 +485,8 @@ files directly:
     - remotes are free of userinfo
     - which bindings in a dossier that isn't your own land on a connection with
       writes on (a warning: a write through them needs `import`)
+    - a `connection` name in a dossier that isn't your own (`DOSSIER_CONNECTION_SHARED`,
+      a warning naming the `host` to use instead)
 
     It contacts no service. `data.ok` is false, and the CLI exits 1, when there's an
     error; a dossier too broken to load is reported the same way.
@@ -513,6 +524,17 @@ files directly:
   its key path. The CLI exits 1 when one is missing. A failure that isn't "not found"
   (a bad token, an unreachable host) fails the command. An area adds one with
   `src/core/check-dossier.ts` and `ctx.dossierView()`.
+- **Onboarding to a repository that has a dossier:** `toil dossiers onboard
+  [<name|file>] [--cwd <dir>] [--plan] [--pin <area>=<connection>]`, CLI only (and the
+  API with a `person`), never MCP. Per section that picks a connection, it reports
+  `matched` (your connection by `host`, `connection` or default), `missing`, or
+  `ambiguous`. On a terminal it offers to add a missing one through `connections add`'s
+  own flow, offering a base URL on the host (the area's `siteApis` say github.com's is
+  `https://api.github.com`) and refusing one on any other host before saving; and asks
+  which ambiguous one to pin, writing it into your own copy in `~/.toil/dossiers/`.
+  It ends with `dossiers check` and one `connections test` read per connection, and
+  the CLI exits 1 unless every area resolved and read. With no terminal, or `--plan`,
+  it adds nothing and each area carries a `fix` and a `suggest`.
 - **Sharing through a repository:**
   - `toil dossiers export <name> --repo <dir>` writes `.toil/dossiers/<name>.json`
     into that working tree. It's written for sharing: a `connection` name is replaced

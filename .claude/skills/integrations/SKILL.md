@@ -219,6 +219,11 @@ versions.
 - An area that drops its cached token itself builds the key with
   `tokenKey(tokenScope(area, ctx.connection), exchange)` from `src/core/token.ts`,
   never by copying the format.
+- **An API on another host than the one people know** (GitHub's api.github.com for
+  github.com) is `defineArea({ siteApis: { 'github.com': 'https://api.github.com' } })`.
+  A dossier's `host: github.com` then selects a connection on the API host, sharing a
+  dossier records `github.com`, and `dossiers onboard` offers that base URL. Only a
+  selector and a suggestion: toil never contacts it on its own.
 - **Not-configured wording of the area's own** ("OSS Index needs an account…") is
   `defineArea({ notConfigured: { message, fix? } })`; the fix defaults to core's.
 - **A key the area no longer accepts** (checkmarx's `clientId`) is `defineArea({

@@ -7,7 +7,7 @@ import { dossierConnection } from '../core/call-context.js';
 import { CONNECTION_NAME, connectionWrites, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
 import {
-  dossierContent, EMAIL, hasSecretUserinfo, identityKey, identityProblem, normalizeRemote, PERSON_KINDS, samePath, stripUserinfo,
+  dossierContent, EMAIL, hasSecretUserinfo, identityKey, identityProblem, normalizeRemote, PERSON_KINDS, samePath, selectorHost, stripUserinfo,
   type Dossier, type DossierCatalog, type DossierFile, type DossierPerson, type Section,
 } from '../core/dossier.js';
 import { ToilError, toToilError } from '../core/errors.js';
@@ -45,22 +45,38 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
 
   const init = defineConfigCommand({
     path: ['dossiers', 'init'],
-    description: 'Create a dossier in your own folder (~/.toil/dossiers)',
+    description: 'Create a dossier in your own folder (~/.toil/dossiers), or with --shared in a repository for the team',
     toolDescription:
-      'Creates an empty dossier, ~/.toil/dossiers/<name>.json, for one body of work. Build it up with dossiers_add_repo, dossiers_link, dossiers_env and dossiers_field. A local write: it needs no allowWrite. Refuses a name already in your folder.',
+      "Creates an empty dossier for one body of work: ~/.toil/dossiers/<name>.json, or with shared, <repo>/.toil/dossiers/<name>.json in a repository's working tree (repo, else the folder's own repository) for everyone who clones it. A shared dossier selects connections by host, so a later link that names a connection records that connection's host instead. Build it up with dossiers_add_repo, dossiers_link, dossiers_env and dossiers_field. A local write: it needs no allowWrite. Refuses a name already there.",
     input: z.object({
       name: z.string().min(1).describe('The dossier name: lowercase letters, digits and single hyphens, e.g. payments'),
       description: z.string().min(1).optional().describe('One line saying what the body of work is'),
+      shared: z.boolean().optional().describe("Create it in a repository's .toil/dossiers for the team, selecting connections by host"),
+      repo: z.string().min(1).optional().describe("With shared: a working tree's root (default: the repository the folder is in)"),
     }),
     writes: false,
     writesLocal: true,
     args: [{ name: 'name', field: 'name', description: 'The dossier name, e.g. payments' }],
-    options: [{ flags: '--description <text>', field: 'description', description: 'One line saying what it covers' }],
-    examples: [{ name: 'billing' }, { name: 'billing', description: 'Billing platform' }],
+    options: [
+      { flags: '--description <text>', field: 'description', description: 'One line saying what it covers' },
+      { flags: '--shared', field: 'shared', description: "Create it in a repository's .toil/dossiers, for the team" },
+      { flags: '--repo <dir>', field: 'repo', description: "With --shared: the working tree's root (default: this folder's repository)" },
+    ],
+    examples: [{ name: 'billing' }, { name: 'billing', description: 'Billing platform' }, { name: 'billing', shared: true, repo: '.' }],
     run: async (input, ctx) => {
       const { catalog } = access(ctx);
       if (!CONNECTION_NAME.test(input.name)) {
         throw new ToilError('INVALID_INPUT', `"${input.name}" isn't a valid dossier name.`, { fix: 'Use lowercase letters, digits and single hyphens, starting with a letter, e.g. payments.' });
+      }
+      if (input.repo !== undefined && !input.shared) {
+        throw new ToilError('INVALID_INPUT', '--repo says which repository a shared dossier goes in, so it needs --shared.', { fix: `toil dossiers init ${input.name} --shared --repo <dir>, or leave --repo out.` });
+      }
+      if (input.shared) {
+        const root = input.repo ?? catalog.inspect('.').repo?.root;
+        if (root === undefined) throw new ToilError('INVALID_INPUT', "A shared dossier goes in a repository, and this folder isn't in one.", { fix: "Pass --repo <dir>, a working tree's root, or run it inside the repository." });
+        const dossier: Dossier = { name: input.name, ...(input.description ? { description: input.description } : {}), repos: [], sections: {}, environments: {}, people: [] };
+        const file = catalog.save(join(catalog.repoFolder(root), `${input.name}.json`), dossier, 'create');
+        return { name: input.name, file, source: 'repo', dossier: dossierContent(dossier) };
       }
       const elsewhere = catalog.scan().files.filter((f) => f.dossier?.name === input.name);
       const mine = elsewhere.find((f) => f.source === 'user');
@@ -383,7 +399,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       if ((input.repo === undefined) === (input.file === undefined)) throw new ToilError('INVALID_INPUT', 'Pass exactly one of --repo and --file.', { fix: 'toil dossiers export <name> --repo <dir>, or --file <path>.' });
       const source = catalog.find(input.dossier);
       if (via !== 'cli') refuseWritesBindings(catalog, config, areas, source.dossier, 'export');
-      const { dossier, hosts, droppedPaths } = forSharing(source.dossier, config);
+      const { dossier, hosts, droppedPaths } = forSharing(source.dossier, config, areas);
       const target = input.repo !== undefined ? join(catalog.repoFolder(input.repo), `${dossier.name}.json`) : catalog.pathFor(input.file!, 'The export file');
       const file = catalog.save(target, dossier, input.replace ? 'replace' : 'create');
       return { name: dossier.name, file, hosts, droppedPaths, dossier: dossierContent(dossier) };
@@ -505,7 +521,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
 
   /** link and env: one section's binding, context inputs and reference data. */
   async function changeSection(
-    { catalog, config, via }: Access,
+    { catalog, config, via, prompt }: Access,
     ctx: CommandContext<unknown>,
     area: AnyArea,
     envName: string | undefined,
@@ -525,6 +541,8 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     if (input.connection !== undefined) {
       const conn = config.connections[input.connection];
       if (!conn || conn.area !== area.name) throw refuse(`You have no ${area.name} connection named "${input.connection}"`, `Run toil connections list --area ${area.name} to see yours.`);
+      // A dossier others read selects by host, since their connections have names of their own (docs/dossiers.md, Selecting a connection).
+      if (file.source !== 'user') input = await sharedBinding(ctx, prompt, file.file, area, input.connection, conn, input);
     }
     const bound = typeof section.connection === 'string' ? `connection ${section.connection}` : typeof section.host === 'string' ? `host ${section.host}` : undefined;
     const wanted = input.connection !== undefined ? `connection ${input.connection}` : input.host !== undefined ? `host ${input.host.toLowerCase()}` : undefined;
@@ -584,12 +602,47 @@ interface Access {
   catalog: DossierCatalog;
   config: ResolvedConfig;
   via: ConfigAccess['via'];
+  prompt: ConfigAccess['prompt'];
 }
 
 function access(ctx: CommandContext<unknown>): Access {
   if (!ctx.manage) throw new Error('A dossiers command ran without ctx.manage; define it with defineConfigCommand.');
   if (!ctx.manage.dossiers) throw new ToilError('NOT_CONFIGURED', 'Dossiers are not available here.', { fix: 'Run toil dossiers from the CLI or toil mcp.' });
-  return { catalog: ctx.manage.dossiers, config: ctx.manage.config, via: ctx.manage.via };
+  return { catalog: ctx.manage.dossiers, config: ctx.manage.config, via: ctx.manage.via, prompt: ctx.manage.prompt };
+}
+
+/**
+ * `--connection` on a dossier others read (checked in, or in a listed folder):
+ * the connection's host is recorded instead, since a teammate's connection on
+ * that host has a name of its own. On a terminal it asks first, and a person
+ * may keep the name; anywhere else the host is recorded, and a warning says so.
+ * A connection with no host to record keeps its name, with a warning.
+ */
+async function sharedBinding<T extends { connection?: string | undefined; host?: string | undefined }>(
+  ctx: CommandContext<unknown>,
+  prompt: Access['prompt'],
+  file: string,
+  area: AnyArea,
+  name: string,
+  conn: Record<string, unknown>,
+  input: T,
+): Promise<T> {
+  const host = selectorHost(conn, area.siteApis);
+  const shared = `${forwardSlashes(file)} is shared`;
+  if (host === undefined) {
+    ctx.warn({ code: 'DOSSIER_CONNECTION_SHARED', message: `${shared}, but connection ${name} has no host to record, so the dossier names it: that works only for readers with a ${area.name} connection called ${name}.` });
+    return input;
+  }
+  if (prompt) {
+    const answer = await prompt.ask(`${shared}, and teammates name their connections differently. Record host ${host} instead of connection ${name}? y/n`, 'y', 'confirm');
+    if (!/^y(es)?$/i.test(answer)) {
+      ctx.warn({ code: 'DOSSIER_CONNECTION_SHARED', message: `${shared} and names connection ${name}, which works only for readers with a ${area.name} connection called ${name}; "host": "${host}" works for everyone.` });
+      return input;
+    }
+  } else {
+    ctx.warn({ code: 'DOSSIER_HOST_RECORDED', message: `${shared}, so it records host ${host}, which selects each reader's own ${area.name} connection there, rather than connection ${name}.` });
+  }
+  return { ...input, connection: undefined, host };
 }
 
 /**
@@ -678,7 +731,7 @@ function refuseNewWritesTarget(catalog: DossierCatalog, config: ResolvedConfig, 
 }
 
 /** Over MCP, import and export refuse a dossier that chooses a connection with writes on, by any binding or selecting input. */
-function refuseWritesBindings(catalog: DossierCatalog, config: ResolvedConfig, areas: readonly AnyArea[], dossier: Dossier, what: 'import' | 'export'): void {
+export function refuseWritesBindings(catalog: DossierCatalog, config: ResolvedConfig, areas: readonly AnyArea[], dossier: Dossier, what: 'import' | 'export'): void {
   for (const area of areasOf(areas, dossier)) {
     const hit = choices(catalog, config, area, dossier).find((c) => c.byDossier && c.chosen !== undefined && connectionWrites(config.connections[c.chosen]));
     if (hit) {
@@ -705,13 +758,13 @@ function hostWarnings(catalog: DossierCatalog, dossier: Dossier, area: string, e
  * selector from that connection's base URL, since teammates name connections
  * differently, and local repo paths, which are machine-specific, go.
  */
-export function forSharing(source: Dossier, config: ResolvedConfig): { dossier: Dossier; hosts: Array<{ area: string; env: string | null; connection: string; host: string }>; droppedPaths: number } {
+export function forSharing(source: Dossier, config: ResolvedConfig, areas: readonly AnyArea[] = []): { dossier: Dossier; hosts: Array<{ area: string; env: string | null; connection: string; host: string }>; droppedPaths: number } {
   const dossier = structuredClone(source);
   const hosts: Array<{ area: string; env: string | null; connection: string; host: string }> = [];
   const share = (area: string, env: string | undefined, section: Section) => {
     if (typeof section.connection !== 'string') return;
     const name = section.connection;
-    const host = hostOf(config.connections[name]);
+    const host = selectorHost(config.connections[name], areas.find((a) => a.name === area)?.siteApis);
     if (!host) {
       throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name}'s ${env ? `${env} ` : ''}${area} section selects connection ${name}, ${config.connections[name] ? 'which has no host to share' : "which isn't one of yours"}.`, {
         fix: `Select it by host instead (toil dossiers link ${dossier.name} ${area} --host <host> --replace), or remove the binding.`,
@@ -730,20 +783,6 @@ export function forSharing(source: Dossier, config: ResolvedConfig): { dossier: 
     return { name: r.name, remotes: r.remotes };
   });
   return { dossier, hosts, droppedPaths };
-}
-
-/** A connection's host as a selector: its base URL's host (with a port that isn't the scheme's default), or its `host` setting. */
-function hostOf(settings: Record<string, unknown> | undefined): string | undefined {
-  if (!settings) return undefined;
-  if (typeof settings.baseUrl === 'string') {
-    try {
-      return new URL(settings.baseUrl).host.toLowerCase();
-    } catch {
-      return undefined;
-    }
-  }
-  if (typeof settings.host === 'string') return settings.host.toLowerCase() + (settings.port !== undefined ? `:${String(settings.port)}` : '');
-  return undefined;
 }
 
 /** What an imported dossier names that you don't have: connections and hosts to set up. toil creates none. */

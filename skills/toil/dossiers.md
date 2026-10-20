@@ -256,11 +256,23 @@ environment and the inputs it supplies.
 
 ### Share
 
-`toil dossiers export card-payments --repo .` writes a copy into the repository's
-`.toil/dossiers/`, with host selectors and no local paths. Commit it yourself; toil
-never commits. A teammate with a clone gets it with no setup beyond their own
-connections, and `toil dossiers import .toil/dossiers/card-payments.json` copies it
-into their own folder, listing any connection they still need under `toSetUp`.
+A dossier a team shares selects each area's connection by `host`, because teammates
+name their connections differently. toil makes that the default:
+
+- `toil dossiers init card-payments --shared` creates it in the repository's
+  `.toil/dossiers/` (`--repo <root>` for another working tree).
+- `toil dossiers link` or `env` with `--connection` on a checked-in or listed dossier
+  records that connection's host instead. On a terminal it asks first, and you may
+  keep the name; anywhere else it records the host and warns `DOSSIER_HOST_RECORDED`.
+- `toil dossiers check` warns `DOSSIER_CONNECTION_SHARED` for a checked-in dossier
+  that names a connection, and shows the `host` to use instead.
+
+`toil dossiers export card-payments --repo .` writes a copy of one of your own into
+the repository's `.toil/dossiers/`, with host selectors and no local paths. Commit it
+yourself; toil never commits. A teammate with a clone gets it with no setup beyond
+their own connections: `toil dossiers onboard` (below) sets those up. `toil dossiers
+import .toil/dossiers/card-payments.json` copies it into their own folder instead,
+listing any connection they still need under `toSetUp`.
 
 ### Writes
 
@@ -275,6 +287,38 @@ pins follow any dossier straight away. Writes still need `writes: true` on
 the connection and `--allow-write` on the call, as everywhere. Over MCP, and in Toil
 UI, the dossier commands refuse to point a dossier at a connection with writes on; a
 person makes that link on the command line.
+
+## Onboarding to a repo that has a dossier
+
+<!-- figure: dossier-onboard -->
+
+Clone a repository with a dossier in `.toil/dossiers/`, then run one command in it:
+
+```bash
+toil dossiers onboard
+```
+
+For each area the dossier covers, it looks for your connection the way a call would:
+
+- **One matches** the section's `host` (or its `connection` name, or your default):
+  it says so, and uses it.
+- **None matches:** it offers to add one through `toil connections add`, with a base
+  URL on that host already offered (`https://api.github.com` for `github.com`) and the
+  token typed hidden, straight into your OS credential store. A base URL on another
+  host is refused before anything is saved.
+- **Several match:** it asks which one, and pins it in your own copy,
+  `~/.toil/dossiers/<name>.json`. That copy then applies wherever the checked-in one
+  does, and since it is yours, writes may follow it.
+
+It ends with `toil dossiers check` and one test read per connection (the same read
+`toil connections test` sends), and the CLI exits 1 unless every area resolved and
+read. `--pin <area>=<connection>` answers the several-match question without asking.
+With no terminal, or with `--plan`, it asks nothing and adds no connection: each area
+says what it needs and the command that sets it up (a `--pin` still applies).
+
+It asks for tokens, so it is CLI only, and Toil UI runs it as a person's command
+(**Settings → Dossiers**, Set up this repo); it is never an MCP tool. The menu a bare
+`toil` opens has it under **Dossiers** too.
 
 ## One dossier, three views
 

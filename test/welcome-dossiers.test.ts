@@ -331,8 +331,12 @@ describe('the Dossiers module', () => {
     s = await perform(s, d, c, api);
     expect(screen(s, w)).toContain('This folder resolves to payments');
     s = press(s, w, 'return');
-    expect(screen(s, w)).toMatch(/This folder resolves to payments[\s\S]*remote[\s\S]*is its repo\s+payments-api/);
+    expect(screen(s, w)).toMatch(/This folder resolves to payments[\s\S]*remote[\s\S]*is its repo\s+payments-api[\s\S]*Set up this repo/);
     expect(steps(press(s, w, 'return'))).toEqual([['dossiers', 'show', 'payments']]);
+    // Set up this repo is the same step from the module's own screen, in a repository: dossiers onboard, which asks on this terminal.
+    expect(steps(press(s, w, 'down', 'return'))).toEqual([['dossiers', 'onboard']]);
+    expect(screen(press(settled, w, '6'), w)).toContain('Set up this repo');
+    expect(steps(press(settled, w, '6', '5'))).toEqual([['dossiers', 'onboard']]);
 
     const other = disk();
     const lone = clone(other, 'lone');

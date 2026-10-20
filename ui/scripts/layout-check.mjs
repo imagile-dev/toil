@@ -234,6 +234,11 @@ function states(route, width) {
   // Feedback is in the header, or in its Menu when the header folds, which it does below 1024px or when its row is full.
   if (route === '#/') out.push({ name: 'feedback', setup: inMenu('button.feedback-open'), undo: 'Escape' });
   if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
+  // Set up this repo (#333): the sample's plan, with its table, check problems and the form for the missing connection.
+  if (route === '#/settings/dossiers') {
+    const plan = `document.querySelector('[aria-labelledby="repo-setup"] .shown')`;
+    out.push({ name: 'repo-setup', setup: `(async () => { const n = await ${clickAll('form.change button', '/^Check this repo$/')}; await new Promise((r) => setTimeout(r, 300)); ${plan}?.scrollIntoView({ block: 'start' }); return n; })()`, undoJs: 'window.scrollTo(0, 0)' });
+  }
   if (/^#\/dossier\/[^/]+$/.test(route) && narrow) out.push({ name: 'ask-open', setup: clickAll('.ask--sheet .ask-head button', '/Open/'), undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') });
   // The (i) beside the starter questions (#283): on a narrow screen the sheet opens first, then the popover.
   if (/^#\/dossier\/[^/]+$/.test(route)) {

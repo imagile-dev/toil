@@ -1,4 +1,4 @@
-import { mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -64,7 +64,7 @@ it("clears every area's CI fallback, as the registry declares them, so a runner'
 
 describe('the registry', () => {
   it("lists the person's commands apart from what execute() serves without one", () => {
-    expect(registry.personCommands.map((c) => c.name).sort()).toEqual(['connections add', 'connections default', 'connections login', 'connections remove', 'connections writes', 'feedback']);
+    expect(registry.personCommands.map((c) => c.name).sort()).toEqual(['connections add', 'connections default', 'connections login', 'connections remove', 'connections writes', 'dossiers onboard', 'feedback']);
     expect(registry.commands.map((c) => c.name)).not.toContain('connections add');
     expect(registry.personCommands.find((c) => c.name === 'connections writes')).toMatchObject({ kind: 'cli-only', writes: false, writesLocal: true });
   });
@@ -164,5 +164,16 @@ describe('execute() with a person', () => {
     ]);
     const changed = await execute('connections default', { name: 'ci-jira' }, { person: person({}) });
     expect(changed).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: 'Connection "ci-jira" is defined by env vars, not your config file, so there\'s nothing here to change.' } });
+  });
+
+  it("runs dossiers onboard only for a person, and its plan for one asks nothing, offering github.com's API for the new connection", async () => {
+    mkdirSync(join(home, '.toil', 'dossiers'), { recursive: true });
+    writeFileSync(join(home, '.toil', 'dossiers', 'team.json'), JSON.stringify({ name: 'team', github: { host: 'github.com', owner: 'imagile' } }));
+    const refused = await execute('dossiers onboard', { dossier: 'team', plan: true });
+    expect(refused).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: "dossiers onboard is a person's command: execute() runs it only with a person to answer its questions." } });
+    const someone = person({});
+    const plan = await execute('dossiers onboard', { dossier: 'team', plan: true }, { person: someone });
+    expect(someone.asked).toEqual([]);
+    expect(plan).toMatchObject({ ok: true, data: { plan: true, ok: false, areas: [{ area: 'github', status: 'missing', selects: { host: 'github.com' }, suggest: { name: 'github', baseUrl: 'https://api.github.com' } }] } });
   });
 });
