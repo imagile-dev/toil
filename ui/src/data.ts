@@ -12,7 +12,15 @@ import type { ConfigApi } from './config.ts';
 import type { DossierData } from './load.ts';
 import { prepare, type Prepared } from './model/insights.ts';
 import { health, type Health } from './model/sprint.ts';
-import type { Change, WorkItem } from './toil.ts';
+import type { Change, Execute, WorkItem } from './toil.ts';
+
+/**
+ * What the Command Center hands #293's start action: the ready items in the
+ * order they were slated, and the plan's id, which changes when anything in
+ * the plan does, so a person starts the plan they saw. It resolves with what
+ * it did, in words, and throws saying why it started nothing.
+ */
+export type StartReady = (plan: { id: string; items: string[] }) => Promise<string>;
 
 export interface Data {
   dossier: DossierData;
@@ -28,6 +36,14 @@ export interface Data {
   refresh?: () => void;
   /** Assigning items to an agent (#293): the server's, or the preview's sample; absent where there is neither. */
   assignments?: AssignmentsApi;
+  /** toil's `execute()`, read-only, for the one live read a view may make on a person's press (the readiness gate's workflow check, #307); absent where there is none. */
+  execute?: Execute;
+  /**
+   * Starts every slated item at once: the Command Center's start action
+   * (#307). Absent until assign-to-agent (#293) provides it, and the
+   * Command Center then shows its button disabled, saying so.
+   */
+  startReady?: StartReady;
 }
 
 export const DataContext = createContext<Data | null>(null);

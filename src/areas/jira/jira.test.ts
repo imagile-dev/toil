@@ -428,6 +428,43 @@ describe('attachments', () => {
     expect(written).toEqual({});
   });
 
+  it('issue download: saves a name Windows reserves under a name it will write as a file, so the no-overwrite check sees the real name (a listed divergence)', async () => {
+    for (const [filename, saved] of [
+      ['CON', '_CON'],
+      ['nul.txt', '_nul.txt'],
+      ['COM1', '_COM1'],
+      ['notes.md:hidden', 'notes.md'],
+      ['report.pdf. . ', 'report.pdf'],
+      ['a<b>?.png', 'a_b__.png'],
+      ['...', 'attachment'],
+    ]) {
+      const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7' }, [
+        listing(`${JIRA}/secure/attachment/7/x`, filename),
+        { url: `${JIRA}/secure/attachment/7/x`, respond: { text: 'X' } },
+      ]);
+      expect(envelope.data, filename).toEqual({ saved: `/work/.toil/${saved}`, filename, size: 1 });
+      expect(Object.keys(written), filename).toEqual([`/work/.toil/${saved}`]);
+    }
+    // A stream suffix names the file it would have written into, which is already there.
+    const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7' }, [
+      listing(`${JIRA}/secure/attachment/7/x`, 'notes.md:Zone.Identifier'),
+      { url: `${JIRA}/secure/attachment/7/x`, respond: { text: 'X' } },
+    ], { files: { '.toil/notes.md': 'mine' } });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '"/work/.toil/notes.md" already exists.' });
+    expect(written).toEqual({});
+  });
+
+  it('issue download: refuses a --dir Windows would read as something else', async () => {
+    for (const dir of ['CON', 'out.', 'out/aux.d', 'x:y']) {
+      const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7', dir }, [
+        listing(`${JIRA}/secure/attachment/7/shot.png`),
+        { url: `${JIRA}/secure/attachment/7/shot.png`, respond: { text: 'PNG' } },
+      ]);
+      expect(envelope.error, dir).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("can't be written"), fix: 'Choose another file or folder name.' });
+      expect(written).toEqual({});
+    }
+  });
+
   it('issue download: an unknown id is INVALID_INPUT, as in the contract, pointing at issue attachments', async () => {
     const { envelope } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '8' }, [listing(`${JIRA}/x`)]);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Attachment not found: 8', fix: expect.stringContaining('issue attachments') });

@@ -1,4 +1,4 @@
-import { alreadyExists, DEFAULT_LIST_LIMIT, forwardSlashes, readFailed, STDIN_IS_TERMINAL, STREAM_CHUNK, STDIN_OVER_MCP, toCsv, tooManyFiles, type FileAccess } from '../../src/core/files.js';
+import { alreadyExists, DEFAULT_LIST_LIMIT, forwardSlashes, readFailed, refuseUnsafeName, STDIN_IS_TERMINAL, STREAM_CHUNK, STDIN_OVER_MCP, toCsv, tooManyFiles, type FileAccess } from '../../src/core/files.js';
 import { isIgnored, parseIgnore, skippedLineWarning, type IgnoreRule } from '../../src/core/gitignore.js';
 
 /**
@@ -30,6 +30,7 @@ export function memoryFiles(initial: Record<string, string | Uint8Array> = {}, o
   const isDir = (path: string) => [...store.keys()].some((k) => k.startsWith(`${path === '/' ? '' : path}/`));
   const writeBytes = (path: string, data: Uint8Array) => {
     const target = at(path);
+    refuseUnsafeName(path);
     if (store.has(target)) throw alreadyExists(target);
     store.set(target, data);
     written[target] = data;

@@ -6,6 +6,7 @@
 
 import { Avatar, StatusChip } from '../components/bits.tsx';
 import { Cited, ItemLink, typeText } from '../components/items.tsx';
+import { ReadinessPanel } from '../components/readiness.tsx';
 import { Card, DataTable } from '../components/layout.tsx';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, dateTime, dossierHref, estimateText, personText, shortKey, sourceLabel } from '../format.ts';
@@ -98,6 +99,8 @@ export function ItemView({ id }: { id: string }) {
               : 'Not started.'}
         </p>
       </Card>
+      {/* Keyed by item, so a live read made on one item's page never shows on the next one's. */}
+      <ReadinessPanel key={item.id} item={item} />
       <Card as="section" className="panel duplicates-panel" aria-labelledby="duplicates">
         <h2 id="duplicates">Possible duplicates</h2>
         {duplicates.length ? (

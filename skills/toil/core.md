@@ -86,7 +86,10 @@ MCP), a [JMESPath](https://jmespath.org/specification.html) expression applied t
 `data`, for example `--select "issues[].{key: key, status: fields.status.name}"`.
 `meta`, including `meta.page`, is left as it is. A bad expression is `INVALID_INPUT`
 before the command runs, with its position in `error.fix`; one that selects nothing
-gives `data: null` and a `SELECT_EMPTY` warning.
+gives `data: null` and a `SELECT_EMPTY` warning. An expression may build at most 16 MiB
+of JSON plus four times the size of the data, so one that multiplies the data (`[@,@]`
+piped into itself) is `INVALID_INPUT` too; select fewer fields or elements. The same
+holds for `toil wait --until`.
 
 ## Big results
 

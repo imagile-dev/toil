@@ -83,3 +83,22 @@ describe('the People view', () => {
     expect(within(section).getByRole('heading', { name: 'Claude' })).toBeTruthy();
   }, 20_000);
 });
+
+describe("the Command Center's start (#307)", () => {
+  it('queues an implement assignment for each ready item, and says so', async () => {
+    const api = fixtureAssignments({ delay: 1 });
+    await open('#/dossier/card-payments/command-center', api);
+    const slate = screen.getByRole('region', { name: 'Start every ready item' });
+    await userEvent.setup().click(within(slate).getByRole('button', { name: /^Start 1 ready item/ }));
+    await within(slate).findByText(/^Queued one implement assignment on Codex\. They run 2 at a time/);
+    const list = await api.list('card-payments');
+    expect(list.assignments.filter((a) => a.mode === 'implement' && a.item === 'corp-jira:PAY-101' && a.state !== 'failed')).toHaveLength(1);
+  }, 20_000);
+
+  it('starts nothing, and says why, where no repository has a local path', async () => {
+    const api = fixtureAssignments({ delay: 1 });
+    const { startReadyWith } = await import('../src/assign/start.ts');
+    await expect(startReadyWith(api, 'checkout-web')({ id: 'x', items: ['github:imagile/payments-web#41'] })).rejects.toThrow(/lists no repository with a local path.*Nothing was started/);
+    expect((await api.list('checkout-web')).assignments).toEqual([]);
+  });
+});

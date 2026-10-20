@@ -4,6 +4,7 @@ import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { jiraArea } from './area.js';
 import * as client from './client.js';
+import { downloadFileName } from '../../core/files.js';
 
 /**
  * Attachments: upload one, list them, save one locally. Files move through
@@ -73,7 +74,7 @@ export const downloadAttachment = jiraArea.command({
       });
     }
     const data = await client.downloadAttachment(ctx, attachment.content);
-    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${baseName(attachment.filename)}`, data);
+    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${downloadFileName(attachment.filename, 'attachment')}`, data);
     return { saved, filename: attachment.filename, size: data.length };
   },
 });

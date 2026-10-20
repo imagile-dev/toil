@@ -638,6 +638,8 @@ describe('the Stores', () => {
     // test/github-repo.test.ts proves that path with its own stub.
     // The sample has no Azure DevOps Services dossier; test/ado-seed.test.ts reads one through toil, its work items and its board.
     const noSampleDossier = ['github issue list', 'ado-cloud work-item iterations', 'ado-cloud work-item search', 'ado-cloud work-item get-many', 'ado-cloud work-item history', 'ado-cloud pr list', 'ado-cloud pr get'];
+    // The readiness gate's workflow reads (#307) for the trackers the sample has no dossier on, Jira Cloud and Azure DevOps Services.
+    noSampleDossier.push('jira-cloud issue transitions', 'ado-cloud work-item states');
     expect([...READ_COMMANDS].sort()).toEqual([...new Set([...CANNED.map((c) => c.command), ...noSampleDossier])].sort());
   });
 

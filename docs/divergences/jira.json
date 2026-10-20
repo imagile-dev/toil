@@ -59,6 +59,14 @@
       "toil": "Each field carries that type as suggestedType, and no second type-hint key. Read suggestedType where toilType was read; the value is the same",
       "why": "One name for one fact: the same type under two keys leaves a caller guessing which one is authoritative, and the two can drift apart. suggestedType says what the value is, a suggestion for a customFields entry.",
       "principle": "decision"
+    },
+    {
+      "allows": [],
+      "old": "jira issue download saving the attachment under the name the server gave it, once reduced to its last path segment",
+      "toil": "A name Windows reserves for a device (CON, NUL, COM1 and the like, with any extension) is saved with a leading _, a : and everything after it is dropped, as are trailing dots and spaces, and the characters Windows forbids become _. filename in data is still the server's name; saved is where the file went. A --dir that names any of those is refused with INVALID_INPUT.",
+      "why": "Windows reads each of those as a different file from the one named: a device, a stream inside an existing file, or the same name without its dots. The no-overwrite check has to see the file a write really lands on, and a name must work the same way on every platform.",
+      "principle": "2",
+      "class": "security"
     }
   ]
 }
