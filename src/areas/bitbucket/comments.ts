@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { apiPath, rawPath } from '../../core/api-path.js';
 import { allowWriteField } from '../../core/run.js';
 import { bitbucketArea } from './area.js';
 import { bb, bbAll, IN_REPO, prPath, toInt, where } from './client.js';
@@ -155,7 +156,7 @@ export const resolveCommentCommand = bitbucketArea.command({
   ],
   run: async (input, ctx) => {
     const { project, repo } = where(ctx);
-    const path = `${prPath(project, repo, toInt(input.id))}/comments/${toInt(input.commentId)}`;
+    const path = apiPath`${rawPath(prPath(project, repo, toInt(input.id)))}/comments/${toInt(input.commentId)}`;
     await bb(ctx, path, { method: 'PUT', json: { version: toInt(input.commentVersion, '0'), threadResolved: true } });
     return { resolved: true };
   },
@@ -178,7 +179,7 @@ export const deleteCommentCommand = bitbucketArea.command({
   ],
   run: async (input, ctx) => {
     const { project, repo } = where(ctx);
-    const path = `${prPath(project, repo, toInt(input.id))}/comments/${toInt(input.commentId)}`;
+    const path = apiPath`${rawPath(prPath(project, repo, toInt(input.id)))}/comments/${toInt(input.commentId)}`;
     await bb(ctx, path, { method: 'DELETE', query: { version: toInt(input.commentVersion, '0') } });
     return { deleted: true };
   },

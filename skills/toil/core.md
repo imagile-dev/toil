@@ -86,7 +86,10 @@ MCP), a [JMESPath](https://jmespath.org/specification.html) expression applied t
 `data`, for example `--select "issues[].{key: key, status: fields.status.name}"`.
 `meta`, including `meta.page`, is left as it is. A bad expression is `INVALID_INPUT`
 before the command runs, with its position in `error.fix`; one that selects nothing
-gives `data: null` and a `SELECT_EMPTY` warning.
+gives `data: null` and a `SELECT_EMPTY` warning. An expression may build at most 16 MiB
+of JSON plus four times the size of the data, so one that multiplies the data (`[@,@]`
+piped into itself) is `INVALID_INPUT` too; select fewer fields or elements. The same
+holds for `toil wait --until`.
 
 ## Big results
 
@@ -200,7 +203,10 @@ exactly one. Relative paths resolve against it, a path outside is refused with
 root, a command that touches a file returns `NOT_CONFIGURED`: add `--workspace <dir>`
 to the server's args. A person can let commands reach any path with
 `"bounds": { "files": "unbounded" }` in their config, and every envelope then
-carries a `BOUND_RELAXED` warning. Saved paths come back absolute, with forward
+carries a `BOUND_RELAXED` warning. A network path (`\\host\share\x`, `//host/share/x`)
+or a Windows device path (`\\?\`, `\\.\`) is refused with `INVALID_INPUT` before
+anything looks at it, relaxed or not, unless the workspace is itself a folder on that
+share; copy the file into the workspace instead. Saved paths come back absolute, with forward
 slashes. Commands that run git need git on PATH and say
 `GIT_NOT_FOUND` without it; nothing else does.
 

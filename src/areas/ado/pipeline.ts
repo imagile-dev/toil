@@ -3,7 +3,7 @@ import { ToilError } from '../../core/errors.js';
 import { sleep } from '../../core/rest.js';
 import { allowWriteField } from '../../core/run.js';
 import { adoArea } from './area.js';
-import { API, ado, adoAll, adoText, cursorField, exampleCursor, limitField, pageOf, pageOptions, projectPath, toInt, where, type AdoContext, type PageRequest, type Where } from './client.js';
+import { API, ado, adoAll, adoText, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, toInt, where, type AdoContext, type PageRequest, type Where } from './client.js';
 import { listBuilds } from './repo.js';
 import { AT, intText } from './work.js';
 
@@ -28,7 +28,7 @@ interface Build {
   [key: string]: unknown;
 }
 
-const buildPath = (w: Where, id: number) => `${projectPath(w)}/_apis/build/builds/${id}?api-version=${API}`;
+const buildPath = (w: Where, id: number) => `${projectPath(w)}/_apis/build/builds/${enc(id)}?api-version=${API}`;
 const getBuild = (ctx: AdoContext, w: Where, id: number) => ado<Build>(ctx, buildPath(w, id));
 const listDefinitions = (ctx: AdoContext, w: Where, page: PageRequest = {}) =>
   adoAll<{ id: number; name: string }>(ctx, `${projectPath(w)}/_apis/build/definitions`, { 'api-version': API }, `Azure DevOps pipelines in ${w.project}`, page);
@@ -57,7 +57,7 @@ export const pipelineGetCommand = adoArea.command({
   examples: [{ ...AT, id: '5' }],
   run: async (input, ctx) => {
     const w = where(ctx);
-    return ado(ctx, `${projectPath(w)}/_apis/build/definitions/${toInt(input.id)}?api-version=${API}`);
+    return ado(ctx, `${projectPath(w)}/_apis/build/definitions/${enc(toInt(input.id))}?api-version=${API}`);
   },
 });
 
@@ -240,8 +240,8 @@ export const pipelineLogsCommand = adoArea.command({
     if (raw === '') throw new ToilError('INVALID_INPUT', 'The run <id> is required (build run ID from run list or run get)', { fix: 'Pass the run id: toil ado run logs <id>; toil ado run list lists them.' });
     const w = where(ctx);
     const buildId = toInt(raw);
-    const logs = `${projectPath(w)}/_apis/build/builds/${buildId}/logs`;
-    if (input.logId !== undefined && input.logId !== '') return { log: await adoText(ctx, `${logs}/${toInt(input.logId)}?api-version=${API}`) };
+    const logs = `${projectPath(w)}/_apis/build/builds/${enc(buildId)}/logs`;
+    if (input.logId !== undefined && input.logId !== '') return { log: await adoText(ctx, `${logs}/${enc(toInt(input.logId))}?api-version=${API}`) };
     const result = await ado<{ value?: unknown[] }>(ctx, `${logs}?api-version=${API}`);
     return result.value ?? [];
   },

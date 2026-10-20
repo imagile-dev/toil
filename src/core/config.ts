@@ -74,8 +74,24 @@ export const CONFIG_VERSION = 2;
 /** Top-level keys that are never areas, in any version. */
 const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds', 'dossierPaths', 'audit', 'wait', 'game']);
 
-/** Connection names map one-to-one onto env names: lowercase, digits, single hyphens. */
-export const CONNECTION_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+/**
+ * Connection names map one-to-one onto env names: lowercase letters, digits
+ * and single hyphens, starting with a letter. Dossier names follow it too.
+ * `constructor` and `prototype` fit that shape but name parts of every
+ * JavaScript object, so a lookup by either could find something no one
+ * configured; they're refused, as `__proto__` is by the shape itself.
+ */
+export const CONNECTION_NAME = /^(?!(?:constructor|prototype)$)[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
+
+/** Keys that name parts of every JavaScript object rather than data; never a connection, area or setting in a config file. */
+const RESERVED_OBJECT_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
+
+function refuseReservedKey(key: string, where: string, path: string): void {
+  if (!RESERVED_OBJECT_KEYS.has(key)) return;
+  throw new ToilError('CONFIG_INVALID', `"${where}" in ${path} uses the reserved key "${key}".`, {
+    fix: `Rename or remove it: __proto__, constructor and prototype can't be names in a toil config file.`,
+  });
+}
 
 export function emptyConfig(globalPath = ''): ResolvedConfig {
   return { connections: {}, defaults: {}, sources: {}, files: { global: globalPath }, warnings: [] };
@@ -358,6 +374,7 @@ function fromVersion1(raw: Record<string, unknown>, path: string, warnings: Reso
   const connections: Record<string, ConnectionSettings> = {};
   const defaults: Record<string, Settings> = {};
   for (const [key, settings] of Object.entries(raw)) {
+    refuseReservedKey(key, key, path);
     if (RESERVED_KEYS.has(key)) {
       if (key === 'connections' || key === 'defaults' || key === 'dossierPaths') {
         warnings.push({ code: 'CONFIG_RESERVED_KEY', message: `"${key}" in ${path} needs "version": ${CONFIG_VERSION} and was ignored.` });
@@ -390,6 +407,7 @@ function fromVersion2(raw: Record<string, unknown>, path: string, warnings: Reso
     });
   }
   for (const [name, settings] of Object.entries(rawConnections)) {
+    refuseReservedKey(name, `connections.${name}`, path);
     if (!CONNECTION_NAME.test(name)) {
       throw new ToilError('CONFIG_INVALID', `Connection name "${name}" in ${path} isn't valid.`, {
         fix: 'Use lowercase letters, digits and single hyphens, starting with a letter, e.g. "corp-jira".',
@@ -409,8 +427,9 @@ function fromVersion2(raw: Record<string, unknown>, path: string, warnings: Reso
     });
   }
   for (const [area, settings] of Object.entries(rawDefaults as Record<string, Settings>)) {
+    refuseReservedKey(area, `defaults.${area}`, path);
     const named = settings.connection;
-    if (named !== undefined && (typeof named !== 'string' || connections[named]?.area !== area)) {
+    if (named !== undefined && (typeof named !== 'string' || !Object.hasOwn(connections, named) || connections[named]!.area !== area)) {
       throw new ToilError('CONFIG_INVALID', `"defaults.${area}.connection" in ${path} names ${JSON.stringify(named)}, which isn't ${withArticle(area)} connection.`, {
         fix: `Set it to one of: ${Object.keys(connections).filter((n) => connections[n]!.area === area).join(', ') || `(no ${area} connections yet)`}.`,
       });

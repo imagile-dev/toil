@@ -4684,6 +4684,85 @@ it pins. These are the choices made by default in the fix:
   in `ui/server/agents/prompts.ts`). Filling the name into the chat box from the
   starter would mean changing the chat component another change is working in.
 
+## The readiness gate and a read-only Command Center (#307)
+
+- **This change is the gate and a read-only Command Center; starting the plan waits
+  for assign-to-agent (#293).** There is nothing yet to start an item with, so the
+  Command Center lists, filters and slates, and its start button is disabled with a
+  note naming #293. The extension point is one function, `startReady(plan)` (`StartReady`
+  in `ui/src/data.ts`), passed to `App` and on to the view's data: it gets the plan's
+  id and the slated ids in order, and the button enables itself once something passes
+  it. The plan id is a hash of each slated item's id, status and last update, so it
+  changes when anything in the plan does. Seats, modes, adapters, the concurrency
+  limit, queueing and the reasons an item can't be seated (no free seat, two possible
+  repositories, already in progress) are #293's, since they need the seats it adds.
+  So is showing the verdict on assignment cards, which don't exist yet. The PR says
+  `Refs #307`, not `Closes`.
+- **The settings are reference data in each area's section, not a new top-level key**:
+  `fields.acceptanceCriteria` (as the issue names it, and also the area's `--field`
+  alias) and `readiness: { minWords, templates }`. A section keeps keys it doesn't
+  know as written (`src/core/dossier.ts`), so this needs no change to toil's dossier
+  reader, and a published toil reads such a dossier without a warning; a top-level
+  key would have been `DOSSIER_UNKNOWN_SECTION` there. A wrongly shaped value is said
+  in the view and the defaults apply.
+- **Azure DevOps defaults to its own field**, `Microsoft.VSTS.Common.AcceptanceCriteria`,
+  when its section names none: every process that has acceptance criteria keeps them
+  there. Jira has no standard field, so it has no default. A Jira custom field toil
+  sends under its registered name (the connection's `customFields`) is found by a
+  field named "Acceptance Criteria" when the id isn't there. Acceptance criteria are
+  counted the way the description is (`realText`), so a field or heading holding only
+  TBD, N/A or a template line doesn't pass, and a heading is the words alone or
+  followed by a colon, not a sentence that starts with them (#351 review).
+- **Which failures are thin and which are blocked.** Missing acceptance criteria, a
+  short description, a done state the cache can't settle, a blocker the dossier
+  doesn't hold and a dossier with no repository are thin: a person can look and
+  decide. Already done, an open blocker, an item from outside the dossier's sources,
+  and an Azure DevOps type with no Done state are blocked. Estimates aren't checked:
+  the issue's table has five checks and an estimate isn't one.
+- **The done state, from the cache:** a GitHub issue closes from any state; otherwise
+  another item of the same type on the same connection that is done, or that moved
+  into Done in its history, shows the workflow gets there. With none, the row is thin
+  and says to check live.
+- **The one live read is a person's press on the item page**, never a load, the
+  Command Center or an agent tool. Jira: `jira issue transitions <key>`, which lists
+  only the moves offered now, so no direct move into Done is thin ("may get there in
+  more steps"), not blocked. Azure DevOps: `ado work-item states --type <type>`, where
+  a Completed state passes and its absence is blocked; Removed doesn't count as Done.
+  The four commands (`jira`, `jira-cloud`, `ado`, `ado-cloud`) are added to the
+  server's `READ_COMMANDS`, and the cache passes them to toil, read-only, as it does
+  `dossiers show`, since a sync never stores them.
+- **The Command Center lists every work item in the dossier, not only "yours"**, with
+  an assignee filter, and shows items that aren't done by default. The issue's
+  "assigned to you" needs a mapping from the person using Toil UI to an account in
+  each system, which nothing has yet; the People view's `people` list is the likely
+  source once #293 seats agents for a person.
+- **The description counts the body's words only**, not the acceptance criteria field,
+  and a heading line counts like any other line unless a template lists it.
+  Placeholders taken out are lines of only TBD, TODO, N/A, none, lorem ipsum or
+  punctuation, and `<…>` or `{…}` slots.
+- **No toil command for it.** The issue asks for the gate in Toil UI, and the gate
+  reads the cache Toil UI keeps; the agent gets it as two read-only tools,
+  `readiness_list` and `readiness_get`, which read the dossier live through `dossiers
+  show` as the people tools do and vouch for every id their rows cite.
+- **Sample data:** card-payments names `customfield_10500` for acceptance criteria and
+  asks for 20 words, with the field filled on PAY-101 and PAY-102 in the UI's copy of
+  the Jira search (not in the OWI sprint fixture core's tests pin); checkout-web asks
+  for 10 words and names its issue template; settlement takes the defaults and has
+  nothing ready. The fixture answers the live read for every open item it applies to.
+- **The header folds into its Menu whenever its one row would wrap**, not only below
+  1024px. With Command Center beside #308's Worklog, a dossier's seven links wrapped
+  the header at 1440px in CI's Linux fonts, and in Plain on Windows it is within a few
+  pixels. The header now measures its own parts (`useCrowded` in `ui/src/App.tsx`;
+  a theme's decorations aren't measured) and shows the Menu until the window is wider
+  than where it last didn't fit, or its links change. Shortening labels would only have
+  moved the line to the next view added.
+- **Found, not fixed:** Toil UI's Jira read is `jira issue search` with toil's default
+  fields (`STANDARD_SEARCH_FIELDS`), which leave out `description`, `issuelinks` and
+  `parent`, so on a real Jira instance items arrive with no body and no links. The gate
+  would read every real Jira item as thin, and miss its blockers. The sample's Jira
+  data carries both, so the preview doesn't show it. Fixing it means the loader asking
+  for those fields, which is a change to what every Jira dashboard reads and is out of
+  this change's scope; no Jira instance was available to check it against.
 ## Model usage per chat, and caps (#295)
 
 - **Meter and caps ship in one PR**, as the maintainer asked on the task, though the
@@ -4891,3 +4970,73 @@ it pins. These are the choices made by default in the fix:
   run at a stage named `redaction`.
 - **The branch is `kolatts/339-feedback-redact-first`**, the requested name with the issue
   number CLAUDE.md asks for.
+
+## Core bounds on select, dossiers and .gitignore (#353)
+
+- **`query.size` is 16 MiB of JSON plus four times the data's own size**, counted as
+  each array, object and string is built, and the structure built along the way
+  (kept or not) counts against the same figure. A fixed figure alone refused a plain
+  `rows[*]` over a result larger than it; the input's size is measured only once
+  something passes the fixed part, so a small select from large data never walks it
+  all. Numbers count as 8 characters rather than being printed to measure.
+- **Sizes are kept in a `Map` for one evaluation, not a `WeakMap`**: filling a
+  `WeakMap` with a million entries was about three times slower, and the `Map` is
+  bounded by the same budget and dropped when the evaluation ends.
+- **Dossier files are capped at 1 MiB.** A large team's dossier is tens of KB.
+- **A dossier may not use `__proto__`, `constructor` or `prototype` as a key
+  anywhere**, not only as a section, so no future reader of a nested object has to
+  remember the rule. `CONNECTION_NAME` refuses `constructor` and `prototype` too (it
+  is also the dossier name rule); `__proto__` never fit it.
+- **A `.gitignore` line is capped at 4096 characters**, the longest path most
+  systems allow; the warning quotes its first 60.
+- **A server-supplied file name with a `:` keeps what's before it** (`notes.md:x`
+  saves as `notes.md`), so a stream suffix on an existing file meets the
+  no-overwrite check instead of a new name. A device name gets a leading `_`, and
+  Windows' forbidden characters become `_`, on every platform. `ctx.files` refuses any
+  such segment in a path it writes, so a `--dir` of `CON` fails rather than being
+  renamed.
+- **The listing warns `LIST_FOLDER_IGNORED`** whenever its folder is inside one
+  `.gitignore` excludes, for every command that lists, and `secrets scan` turns it
+  into `SECRETS_NOTHING_SCANNED` when nothing was left to scan.
+
+## Local paths and ids in request paths (#340)
+
+- **Network and device paths are refused from their text, on every OS** (`src/core/local-path.ts`,
+  bound `files.remote`): a path that starts with two slashes of either kind, or a
+  `\?\`, `\.\` or `\??\` device path, is refused as typed and as resolved, before
+  any `node:fs` call. The same text is refused on macOS and Linux too, where it
+  would only be an odd local path, so behaviour doesn't depend on the OS (principle 8).
+  It holds with the workspace bound relaxed and for `--output-file`; the one way to
+  work on a share is to make a folder on it the workspace. A device path is never
+  allowed.
+- **Paths from the user's own config and env are not checked**: `dossierPaths` /
+  `TOIL_DOSSIER_PATHS`, a SQLite connection's `path`, skills folders, `--config` and
+  `--workspace` are settings the user wrote, not values a call handed in.
+- **`apiPath` is the one way to build a request path from ids**, and areas that already
+  encoded every value with their own `encodeURIComponent` helper were moved to it or
+  left as they were, case by case. A value that is really several segments (a file
+  path in a repository) goes through `segments()`, which refuses a `.` or `..` part.
+- **Which ids are refused rather than encoded**: context inputs whose real id rules
+  can't hold `/`, `\`, `?`, `#`, `%` or a control character get `pathIdSchema`
+  (GitHub owner and repo, Jira and Jira Cloud project keys, Bitbucket project and
+  repo, Bitbucket Cloud workspace and repo, Kibana space, Split workspace). ADO names
+  may hold `%`, and Confluence titles, labels and file names may hold anything, so
+  those are encoded, never refused.
+- **The request-layer backstop is narrow on purpose**: a relative path with a `#`, or
+  with a `?` when the request also has `query`, is refused. A plain `?` in a relative
+  path is still allowed, because servers hand back relative links with a query
+  (Confluence's download links) and a few areas build a query into the path. The
+  dot-segment check now also ends a segment at `%2f` / `%5c` and cuts `;params` at
+  `%3b`, so an id that encodes to `..` with one of them is refused rather than sent.
+- **Writes take their target only from dossiers you've adopted** (the maintainer's
+  decision): a write whose non-selecting context inputs came from an unadopted dossier
+  is `WRITE_DISABLED`. The check is made when the command reads the input (a guard
+  on `ctx.context` that `execute()` installs for an unadopted dossier's write), not
+  when it resolves, because core resolves an area's group inputs for every command
+  and some writes use none of them (an ADO work-item update). Every command reads its
+  target before it sends the write (a read may come first); the tests hold that for
+  the ones they cover. The fix
+  differs by door, since `toil dossiers import` is CLI only; that makes the refusal's
+  envelope differ between the CLI and MCP, which the parity suite allows because no
+  example reaches it. Inputs from the git remote are not gated: the clone is the
+  user's own.

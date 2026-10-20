@@ -61,6 +61,16 @@ describe('auth and errors', () => {
     expect(calls[0]!.url).toBe(`${SAUCE}/rest/v1/imagile%20qa/tunnels/a%2Fb`);
   });
 
+  it('encodes an id with path, query or fragment syntax in it as one path segment, for a write and a read, and refuses a dot segment inside one', async () => {
+    const del = await run(jobDeleteCommand, { jobId: 'a/b?c=d', ...write }, [noContent('DELETE')]);
+    expect(del.calls[0]!.url).toBe(`${SAUCE}/rest/v1/${USER}/jobs/a%2Fb%3Fc%3Dd`);
+    const read = await run(tunnelGetCommand, { tunnelId: 'p1#hot' }, [ok({})]);
+    expect(read.calls[0]!.url).toBe(`${SAUCE}/rest/v1/${USER}/tunnels/p1%23hot`);
+    const dots = await run(jobDeleteCommand, { jobId: 'x/../y', ...write }, []);
+    expect(dots.envelope.error?.code).toBe('INVALID_INPUT');
+    expect(dots.calls).toEqual([]);
+  });
+
   it('an id of .. is refused before any request, so a delete cannot climb out of the job path (core bound requests.path)', async () => {
     const { envelope, calls } = await run(jobDeleteCommand, { jobId: '..', ...write }, []);
     expect(calls).toEqual([]);

@@ -19,6 +19,10 @@
  * and Claude as an agent. settlement lists nobody, so every account in its
  * data gets a card of its own.
  *
+ * Two set the readiness gate (#307): card-payments keeps acceptance criteria
+ * in a Jira custom field and asks for 20 words of description, checkout-web
+ * asks for 10 and names its issue template; settlement takes the defaults.
+ *
  * Reference data (`jobs`, `builds`, `deployments`, `projects`) is the kind a
  * dossier keeps as written (docs/dossiers.md); the dashboard reads it to know
  * which pipelines and boards to ask about. Every host is a placeholder.
@@ -42,7 +46,8 @@ export const DOSSIERS: DossierFile[] = [
     description: 'Card payments v2: tokenised cards at the edge. Jira, Bitbucket, Jenkins and OpenShift.',
     env: 'dev',
     repos: [{ name: 'payments-core', remotes: ['ssh://git@bitbucket.imagile.dev:7999/pay/payments-core.git'] }],
-    jira: { connection: 'corp-jira', project: 'PAY' },
+    // The readiness gate (#307): acceptance criteria live in a custom field, and 20 words of description will do here.
+    jira: { connection: 'corp-jira', project: 'PAY', fields: { acceptanceCriteria: 'customfield_10500' }, readiness: { minWords: 20 } },
     bitbucket: { connection: 'corp-bitbucket', project: 'PAY', repo: 'payments-core' },
     jenkins: { connection: 'corp-jenkins', jobs: ['payments-core'] },
     environments: {
@@ -70,7 +75,8 @@ export const DOSSIERS: DossierFile[] = [
       { name: 'payments-web', remotes: ['https://ghe.imagile.dev/imagile/payments-web.git'] },
       { name: 'checkout-sdk', remotes: ['https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk.git'] },
     ],
-    github: { connection: 'github', owner: 'imagile', repo: 'payments-web', projects: ['7'] },
+    // The readiness gate (#307): ten words of description, not counting the issue template's headings.
+    github: { connection: 'github', owner: 'imagile', repo: 'payments-web', projects: ['7'], readiness: { minWords: 10, templates: [['## What', '## Why', '## Acceptance criteria'].join('\n')] } },
     'bitbucket-cloud': { connection: 'bitbucket-cloud', workspace: 'imagile', repo: 'checkout-sdk' },
     environments: {
       staging: { openshift: { connection: 'ocp-nonprod', namespace: 'checkout-staging' } },

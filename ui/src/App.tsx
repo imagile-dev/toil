@@ -9,17 +9,18 @@
  * rule, which is one fewer change request.
  */
 
-import { useEffect, useInsertionEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useInsertionEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
 import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { Ambient } from './ambient/Ambient.tsx';
-import { DataContext, type Data } from './data.ts';
-import { dateTime, dossierHref, peopleHref, prsHref, worklogHref } from './format.ts';
+import { DataContext, type Data, type StartReady } from './data.ts';
+import { commandCenterHref, dateTime, dossierHref, peopleHref, prsHref, worklogHref } from './format.ts';
 import { loadDossier, loadDossiers, type DossierData, type DossierSummary } from './load.ts';
 import { SkinProvider, ThemeProvider, skinsFor } from './skins.tsx';
 import { THEMES, themeNamed, tokenCss } from './themes.ts';
 import { useThemeChoice } from './theme-choice.ts';
 import type { Call, Execute } from './toil.ts';
+import { CommandCenter } from './views/CommandCenter.tsx';
 import { Dashboard } from './views/Dashboard.tsx';
 import { Dossiers } from './views/Dossiers.tsx';
 import { ItemView } from './views/Item.tsx';
@@ -48,6 +49,8 @@ export type Route =
   | { view: 'dashboard'; dossier: string; person?: string }
   | { view: 'prs'; dossier: string }
   | { view: 'people'; dossier: string }
+  /** Every work item with its readiness verdict (#307). */
+  | { view: 'command-center'; dossier: string }
   | { view: 'worklog'; dossier: string; day: string | null }
   /** The stand-up (#345): a range of days, or since the last working day when it names none. */
   | { view: 'standup'; dossier: string; from: string | null; to: string | null }
@@ -61,6 +64,7 @@ export function parseRoute(hash: string): Route {
     if (parts[2] === 'item' && parts[3]) return { view: 'item', dossier, id: decodeURIComponent(parts.slice(3).join('/')) };
     if (parts[2] === 'prs') return { view: 'prs', dossier };
     if (parts[2] === 'people') return { view: 'people', dossier };
+    if (parts[2] === 'command-center') return { view: 'command-center', dossier };
     if (parts[2] === 'board' && parts[3]) return { view: 'dashboard', dossier, person: decodeURIComponent(parts.slice(3).join('/')) };
     if (parts[2] === 'worklog' && parts[3] === 'standup') return { view: 'standup', dossier, from: isDay(parts[4]) ? parts[4] : null, to: isDay(parts[5]) ? parts[5] : null };
     if (parts[2] === 'worklog') return { view: 'worklog', dossier, day: isDay(parts[3]) ? parts[3] : null };
@@ -93,6 +97,8 @@ export interface AppProps {
   agentSettings?: AgentSettingsPanelProps;
   /** `toil feedback`, behind the header's Feedback button (#265): the server's, or the preview's, which sends nothing. */
   feedback?: FeedbackApi;
+  /** The Command Center's start action (#307), which assign-to-agent (#293) provides; without it the start button is disabled. */
+  startReady?: StartReady;
   /** The worklog (#308): the server's pages, or the sample's, which keep nothing. */
   worklog?: WorklogApi;
   /** The agent's model usage and caps (#295), for Settings, Agent usage: the server's, or the preview's sample. */
@@ -102,7 +108,7 @@ export interface AppProps {
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady }: AppProps) {
   const route = useRoute();
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
@@ -165,7 +171,6 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   const skins = skinsFor(theme.name);
   // The App provides the theme context, so it can't read it through useWords(); this is the same lookup.
   const words = (key: WordKey, vars?: Record<string, string>) => wordFor(theme.lexicon, wordingOn(theme, choice), key, vars);
-  const compact = useMediaQuery(COMPACT_HEADER);
   const links: NavLink[] = [
     { href: '#/', label: 'Dossiers', current: route.view === 'dossiers' },
     ...(wanted
@@ -173,11 +178,16 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
           { href: dossierHref(wanted), label: wanted, current: route.view === 'dashboard' },
           { href: prsHref(wanted), label: 'Pull requests', current: route.view === 'prs' },
           { href: peopleHref(wanted), label: 'People', current: route.view === 'people' },
+          { href: commandCenterHref(wanted), label: 'Command Center', current: route.view === 'command-center' },
           { href: worklogHref(wanted), label: 'Worklog', current: route.view === 'worklog' || route.view === 'standup' },
         ]
       : []),
     { href: '#/settings', label: 'Settings', current: route.view === 'settings' },
   ];
+  const top = useRef<HTMLDivElement>(null);
+  const narrow = useMediaQuery(COMPACT_HEADER);
+  const crowded = useCrowded(top, !narrow, links.map((l) => l.label).join('|'));
+  const compact = narrow || crowded;
   const controls = (
     <>
       <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
@@ -213,10 +223,10 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   } else if (!current.ok) {
     body = failure(current.message);
   } else {
-    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(config ? { config } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest) };
+    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, execute, ...(config ? { config } : {}), ...(startReady ? { startReady } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest) };
     body = (
       <DataContext value={data}>
-        {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
+        {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
       </DataContext>
     );
   }
@@ -236,7 +246,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
               <strong>Preview of an unreleased product.</strong> Sample data only: nothing here connects to a tracker.
             </p>
           )}
-          <div className="top" data-one-row="">
+          <div className="top" data-one-row="" ref={top}>
             <skins.Header>
               {/* The wordmark, the site's and the terminal's, with "UI" stuck on beside it. Its
                   name is its own text, "toil UI": the space between the word and the sticker is a
@@ -303,6 +313,41 @@ function TokenStyles({ css }: { css: string }) {
  * Feedback and the theme controls open from it. Wider, they sit in one row.
  */
 export const COMPACT_HEADER = '(max-width: 1023px)';
+
+/**
+ * Whether the header's one row is too crowded at this width: its links and
+ * controls would wrap onto a second row, as a dossier's seven links can with a
+ * wider font (Linux's, say). Measured on the full header and kept until the
+ * window is wider than where it last didn't fit or its links change, so the header shows its Menu
+ * instead of wrapping, and never flips back and forth at one width.
+ */
+function useCrowded(row: RefObject<HTMLElement | null>, measuring: boolean, links: string): boolean {
+  // The width it last didn't fit at, and the links it was measured with: other links (another view) are measured afresh.
+  const [crowded, setCrowded] = useState<{ width: number; links: string } | null>(null);
+  useLayoutEffect(() => {
+    const check = () => {
+      if (crowded !== null) {
+        if (crowded.links !== links || window.innerWidth > crowded.width) setCrowded(null);
+        return;
+      }
+      const el = row.current;
+      if (!measuring || !el) return;
+      // Only the header's own parts: a theme's corners and flourishes sit beside them, positioned on their own.
+      const parts = [...el.querySelectorAll<HTMLElement>('.brand, nav, .settings')];
+      const items = [...el.querySelectorAll<HTMLElement>('nav li')];
+      // A second row is an element lying wholly below another one of the row.
+      const wraps = (xs: HTMLElement[]) => {
+        const rects = xs.map((x) => x.getBoundingClientRect()).filter((r) => r.height > 0);
+        return rects.some((a) => rects.some((b) => a.top >= b.bottom));
+      };
+      if (wraps(parts) || wraps(items)) setCrowded({ width: window.innerWidth, links });
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [row, measuring, links, crowded]);
+  return crowded !== null && crowded.links === links;
+}
 
 type NavLink = { href: string; label: string; current: boolean };
 

@@ -1,6 +1,7 @@
 import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
 import { apiRequest, apiResponse, type ApiRequest } from '../../core/api.js';
+import { segments } from '../../core/api-path.js';
 import { ToilError } from '../../core/errors.js';
 import { paginate, type Paged } from '../../core/paginate.js';
 import type { QueryParam, RestResponse } from '../../core/rest.js';
@@ -28,13 +29,15 @@ export const IN_WORKSPACE = { workspace: 'required' } as const;
 /** One path segment, percent-encoded; core refuses a `.` or `..` segment before sending. */
 export const seg = (value: string | number): string => encodeURIComponent(String(value));
 
-/** A file or folder path inside a repository, each segment encoded and the slashes kept. */
+/** A file or folder path inside a repository, each segment encoded and the slashes kept; a `.` or `..` part is INVALID_INPUT. */
 export const filePath = (path: string): string =>
-  path
-    .split('/')
-    .filter((s) => s !== '')
-    .map(seg)
-    .join('/');
+  segments(
+    path
+      .split('/')
+      .filter((s) => s !== '')
+      .join('/'),
+    'The file path',
+  ).text;
 
 /** The repository's own root: `/repositories/{workspace}/{repo}`. */
 export function repoPath(ctx: BitbucketCloudContext): string {

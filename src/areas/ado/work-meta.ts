@@ -6,6 +6,7 @@ import { adoArea } from './area.js';
 import { API, PATCH, ado, adoDownload, adoUpload, enc, projectPath, toInt, where, type AdoContext } from './client.js';
 import { ADO_WORK_INPUT_FILE_EXAMPLE, ADO_WORK_INPUT_FILE_SCHEMA } from './fields.js';
 import { AT, getWorkItem, idArg, idInput, intText } from './work.js';
+import { downloadFileName } from '../../core/files.js';
 
 /**
  * Around the work items: their attachments, the area and iteration trees,
@@ -79,7 +80,7 @@ export const workAddAttachmentCommand = adoArea.command({
     // Step 1, the upload; step 2, the link. Suspected bug (#69 item 16): a failed link leaves the upload behind.
     const attachment = await adoUpload<Attachment>(ctx, `/${enc(collection)}/_apis/wit/attachments?fileName=${enc(basename(input.file))}&api-version=${API}`, data);
     const relation = { rel: 'AttachedFile', url: attachment.url, ...(input.comment ? { attributes: { comment: input.comment } } : {}) };
-    await ado(ctx, `/${enc(collection)}/_apis/wit/workitems/${id}?api-version=${API}`, { method: 'PATCH', json: [{ op: 'add', path: '/relations/-', value: relation }], headers: PATCH });
+    await ado(ctx, `/${enc(collection)}/_apis/wit/workitems/${enc(id)}?api-version=${API}`, { method: 'PATCH', json: [{ op: 'add', path: '/relations/-', value: relation }], headers: PATCH });
     return attachment;
   },
 });
@@ -111,7 +112,7 @@ export const workDownloadAttachmentCommand = adoArea.command({
       throw new ToilError('INVALID_INPUT', `Attachment not found: ${input.attachmentId}`, { fix: `Run toil ado work-item attachments ${String(input.id)} for the ids it has.` });
     }
     const data = await adoDownload(ctx, attachment.url);
-    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${basename(attachment.name)}`, data);
+    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${downloadFileName(attachment.name, 'attachment')}`, data);
     return { saved, name: attachment.name, size: data.length };
   },
 });

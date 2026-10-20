@@ -1,3 +1,4 @@
+import { apiPath } from '../../core/api-path.js';
 import { z } from 'zod';
 import { githubArea } from './area.js';
 import { exampleCursor, github, githubList, target } from './client.js';
@@ -28,7 +29,7 @@ export const getStatusCommand = githubArea.command({
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     // One request: the server's first 30 statuses (suspected bug, #72 item 5).
-    return github(ctx, `/repos/${owner}/${repo}/commits/${input.ref}/status`);
+    return github(ctx, apiPath`/repos/${owner}/${repo}/commits/${input.ref}/status`);
   },
 });
 
@@ -46,7 +47,7 @@ export const listChecksCommand = githubArea.command({
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     // The list sits inside { total_count, check_runs }, so the pages are unwrapped here.
-    return githubList(ctx, `/repos/${owner}/${repo}/commits/${input.ref}/check-runs`, `GitHub check runs for ${input.ref}`, {}, {
+    return githubList(ctx, apiPath`/repos/${owner}/${repo}/commits/${input.ref}/check-runs`, `GitHub check runs for ${input.ref}`, {}, {
       limit: input.limit,
       cursor: input.cursor,
       items: checkRunItems,

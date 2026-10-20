@@ -24,8 +24,24 @@ const historyOf = (command: string) => envs.filter(isWrapped).filter((e) => e.hi
 
 const jiraIssues = (dataOf('jira issue get') as { issues: Array<{ key: string }> }).issues;
 
+/**
+ * The acceptance criteria card-payments keeps in a custom field (its dossier
+ * names `customfield_10500`), for the readiness gate (#307): PAY-101 and
+ * PAY-102 have them, the rest don't. Added here rather than in the OWI
+ * fixture, which core's own tests pin.
+ */
+export const JIRA_ACCEPTANCE: Record<string, string> = {
+  'PAY-101': ['* The PAN is swapped for a token before the first log line', '* A replayed token is refused'].join('\n'),
+  'PAY-102': ['* A stored token charges once', '* A second charge with the same idempotency key is refused'].join('\n'),
+};
+
 /** `jira issue search`'s data: Jira's own search answer. */
-export const JIRA_SEARCH = { startAt: 0, maxResults: 50, total: jiraIssues.length, issues: jiraIssues };
+export const JIRA_SEARCH = {
+  startAt: 0,
+  maxResults: 50,
+  total: jiraIssues.length,
+  issues: jiraIssues.map((i) => (JIRA_ACCEPTANCE[i.key] ? { ...i, fields: { ...(i as { fields?: Record<string, unknown> }).fields, customfield_10500: JIRA_ACCEPTANCE[i.key] } } : i)),
+};
 export const JIRA_KEYS = jiraIssues.map((i) => i.key);
 
 const SMITH = { self: 'https://jira.imagile.dev/rest/api/2/user?username=jsmith', name: 'jsmith', key: 'jsmith', displayName: 'J. Smith', active: true };
@@ -114,3 +130,44 @@ export const GITHUB_ISSUES = dataOf('github issue get');
 export const GITHUB_EVENTS: Record<number, unknown> = Object.fromEntries(
   GITHUB_NUMBERS.map((n) => [n, historyOf('github issue history').find((h) => h.key === String(n))?.history.data ?? []]),
 );
+
+// The readiness gate's one live read (#307) ------------------------------------
+
+const jiraStatus2 = (name: string, id: string, key: 'new' | 'indeterminate' | 'done', category: string) => ({ self: `https://jira.imagile.dev/rest/api/2/status/${id}`, name, id, statusCategory: { id: key === 'new' ? 2 : key === 'done' ? 3 : 4, key, name: category } });
+const TO = {
+  progress: jiraStatus2('In Progress', '3', 'indeterminate', 'In Progress'),
+  review: jiraStatus2('In Review', '10100', 'indeterminate', 'In Progress'),
+  done: jiraStatus2('Done', '10001', 'done', 'Done'),
+  todo: jiraStatus2('To Do', '10000', 'new', 'To Do'),
+};
+/** The moves Jira offers from each status in the sample workflow: To Do only starts, so it can't go straight to Done. */
+const MOVES: Record<string, Array<{ id: string; name: string; to: unknown }>> = {
+  'To Do': [{ id: '11', name: 'Start Progress', to: TO.progress }],
+  'In Progress': [
+    { id: '21', name: 'Submit for Review', to: TO.review },
+    { id: '31', name: 'Done', to: TO.done },
+    { id: '41', name: 'Stop Progress', to: TO.todo },
+  ],
+  'In Review': [
+    { id: '31', name: 'Done', to: TO.done },
+    { id: '51', name: 'Back to In Progress', to: TO.progress },
+  ],
+};
+const statusName = (i: unknown) => String(((i as { fields?: { status?: { name?: string } } }).fields?.status?.name) ?? '');
+
+/** `jira issue transitions <key>`'s data for each issue that isn't done: Jira's own transitions list. */
+export const JIRA_TRANSITIONS: Record<string, unknown> = Object.fromEntries(jiraIssues.filter((i) => statusName(i) !== 'Done').map((i) => [i.key, MOVES[statusName(i)] ?? []]));
+
+/** `ado work-item states --type <type>`'s data for each type with an open item on the settlement board: the Agile process's states. */
+const AGILE = [
+  { name: 'New', color: 'b2b2b2', category: 'Proposed' },
+  { name: 'Active', color: '007acc', category: 'InProgress' },
+  { name: 'Resolved', color: 'ff9d00', category: 'Resolved' },
+  { name: 'Closed', color: '339933', category: 'Completed' },
+  { name: 'Removed', color: 'ffffff', category: 'Removed' },
+];
+export const ADO_STATES: Record<string, unknown> = {
+  'User Story': AGILE,
+  Bug: AGILE,
+  Feature: AGILE,
+};

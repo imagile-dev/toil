@@ -10,7 +10,7 @@ import { attachmentFileName, deleteAttachment, downloadAttachment, uploadAttachm
 import { addComment, addLabel, listComments, removeLabel } from './discussion.js';
 import { storageFormatHint, xmlParseHint } from './hints.js';
 import { createPage, deletePage, getPage, getPageByTitle, listPages, search, updatePage } from './pages.js';
-import { listSpaces } from './spaces.js';
+import { getSpace, listSpaces } from './spaces.js';
 
 /**
  * Request building and response reshaping, command by command: the exact
@@ -23,8 +23,6 @@ import { listSpaces } from './spaces.js';
 const API = `${CONFLUENCE}/rest/api`;
 const JSON_HEADERS = { authorization: 'Bearer test-token', 'content-type': 'application/json', accept: 'application/json', connection: 'close' };
 const write = { allowWrite: true };
-/** Dot segments carrying `;params`, which some servers strip before routing; core's bound refuses them (KF5). */
-const DOT_PARAMS = ['..;x', '.;', '%2e%2e;x', '.%2e;jsessionid=1'];
 
 async function run(
   def: AnyCommand,
@@ -73,11 +71,23 @@ describe('pages', () => {
     expect(calls[0]!.url).toBe(`${API}/content/12345?expand=body.view,version`);
   });
 
-  it('page get: puts a plain id in the path unencoded, and refuses one that would change the path (#78 item 4)', async () => {
-    const plain = await run(getPage, { id: 'abc 1' }, [{ url: /content/, respond: { json: {} } }]);
-    expect(plain.calls[0]!.url).toBe(`${API}/content/abc%201?expand=body.storage,version,space,ancestors`);
-    // Dot segments in any spelling are core's bound (requests.path); the rest are seg()'s.
-    for (const id of ['1/history', '..', '.', '%2e%2e', '.%2E', '%2e', 'a\\b', '1?x', '1#x', '.\t.', '%2e\n%2e', '.\t', '.\r.', ...DOT_PARAMS]) {
+  it('page get: encodes the id as one path segment, so path or query syntax in it is part of the id, not the URL (#78 item 4, now encoded rather than refused)', async () => {
+    const cases: Array<[string, string]> = [
+      ['abc 1', 'abc%201'],
+      ['1/history', '1%2Fhistory'],
+      ['a/b?c=d', 'a%2Fb%3Fc%3Dd'],
+      ['a\\b', 'a%5Cb'],
+      ['p1#hot', 'p1%23hot'],
+      ['%2e%2e', '%252e%252e'],
+      ['.\t.', '.%09.'],
+    ];
+    for (const [id, sent] of cases) {
+      const { calls } = await run(getPage, { id }, [{ url: /content/, respond: { json: {} } }]);
+      expect(calls.map((c) => c.url), id).toEqual([`${API}/content/${sent}?expand=body.storage,version,space,ancestors`]);
+    }
+    // A bare . or .., one between encoded slashes, or one before ;params (which
+    // servlet containers drop, encoded or not), is core's bound (requests.path).
+    for (const id of ['..', '.', 'x/../y', '..;x']) {
       const { envelope, calls } = await run(getPage, { id }, []);
       expect(envelope.error, id).toMatchObject({ code: 'INVALID_INPUT' });
       expect(calls).toHaveLength(0);
@@ -86,12 +96,19 @@ describe('pages', () => {
 
   it('page delete: an id with dot segments never turns into a space delete', async () => {
     const { envelope, calls } = await run(deletePage, { id: '../space/DOCS', ...write }, []);
-    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('../space/DOCS') });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('..%2Fspace%2FDOCS') });
     expect(calls).toHaveLength(0);
-    for (const id of ['.\t', ...DOT_PARAMS]) {
+    for (const id of ['..', '.']) {
       const refused = await run(deletePage, { id, ...write }, []);
       expect(refused.envelope.error, id).toMatchObject({ code: 'INVALID_INPUT' });
       expect(refused.calls).toHaveLength(0);
+    }
+  });
+
+  it('page delete: an id with a tab after the dots, or ;params after anything but dots, is sent encoded, as one name', async () => {
+    for (const [id, sent] of [['.\t', '.%09'], ['.%2e;jsessionid=1', '.%252e%3Bjsessionid%3D1']] as const) {
+      const { calls } = await run(deletePage, { id, ...write }, [{ method: 'DELETE', url: /content/, respond: { status: 204 } }]);
+      expect(calls.map((c) => [c.method, c.url]), id).toEqual([['DELETE', `${API}/content/${sent}`]]);
     }
   });
 
@@ -253,21 +270,34 @@ describe('comments and labels', () => {
     expect(envelope.data).toEqual([{ name: 'a' }]);
   });
 
-  it('page unlabel: the label goes in the path unencoded (#78 item 4)', async () => {
+  it('page unlabel: a plain label goes in the path as it is (#78 item 4)', async () => {
     const { envelope, calls } = await run(removeLabel, { id: '12345', label: 'runbook', ...write }, [{ method: 'DELETE', url: /label/, respond: { status: 204 } }]);
     expect(calls[0]!.url).toBe(`${API}/content/12345/label/runbook`);
     expect(envelope.data).toEqual({ removed: 'runbook', from: '12345' });
   });
 
-  it('page unlabel: a ; that leaves a real name before it is sent as given', async () => {
+  it('page unlabel: a ; in a label is encoded, so the whole label is the name, not a ;param', async () => {
     const { envelope, calls } = await run(removeLabel, { id: '12345', label: 'a;b', ...write }, [{ method: 'DELETE', url: /label/, respond: { status: 204 } }]);
-    expect(calls[0]!.url).toBe(`${API}/content/12345/label/a;b`);
+    expect(calls[0]!.url).toBe(`${API}/content/12345/label/a%3Bb`);
     expect(envelope.data).toEqual({ removed: 'a;b', from: '12345' });
   });
 
-  it('page unlabel: a label that would change the path is refused before any request', async () => {
-    // Tab, LF and CR are dropped by the URL parser, so core's bound strips them first (KF4).
-    for (const label of ['a/b', '../../../space/DOCS', '..', '%2e%2e', '.%2E', '.\t.', '%2e\n%2e', '.\t', '.\r.', ...DOT_PARAMS]) {
+  it('page unlabel: a label with path or query syntax is encoded as one segment, where it used to be refused', async () => {
+    const cases: Array<[string, string]> = [
+      ['a/b', 'a%2Fb'],
+      ['a/b?c=d', 'a%2Fb%3Fc%3Dd'],
+      ['p1#hot', 'p1%23hot'],
+      ['%2e%2e', '%252e%252e'],
+      ['.\t.', '.%09.'],
+    ];
+    for (const [label, sent] of cases) {
+      const { calls } = await run(removeLabel, { id: '12345', label, ...write }, [{ method: 'DELETE', url: /label/, respond: { status: 204 } }]);
+      expect(calls.map((c) => [c.method, c.url]), label).toEqual([['DELETE', `${API}/content/12345/label/${sent}`]]);
+    }
+  });
+
+  it('page unlabel: a label that is a dot segment, or climbs out through encoded slashes, is refused before any request', async () => {
+    for (const label of ['..', '.', '../../../space/DOCS', 'x/../y']) {
       const { envelope, calls } = await run(removeLabel, { id: '12345', label, ...write }, []);
       expect(envelope.error, label).toMatchObject({ code: 'INVALID_INPUT' });
       expect(calls).toHaveLength(0);
@@ -280,6 +310,13 @@ describe('spaces', () => {
     const { envelope, calls } = await run(listSpaces, { type: 'global', limit: '1' }, [{ url: /space/, respond: listOf([{ key: 'A' }, { key: 'B' }], true) }]);
     expect(calls.map((c) => c.url)).toEqual([`${API}/space?start=0&limit=1&type=global`]);
     expect(envelope.data).toEqual([{ key: 'A' }]);
+  });
+
+  it('space get: a personal space key goes in as it is, and one with path or query syntax is encoded as one segment', async () => {
+    for (const [key, sent] of [['~jsmith', '~jsmith'], ['a/b?c=d', 'a%2Fb%3Fc%3Dd'], ['p1#hot', 'p1%23hot']] as const) {
+      const { calls } = await run(getSpace, { key }, [{ url: /space\//, respond: { json: { key } } }]);
+      expect(calls.map((c) => c.url), key).toEqual([`${API}/space/${sent}?expand=description.plain`]);
+    }
   });
 });
 

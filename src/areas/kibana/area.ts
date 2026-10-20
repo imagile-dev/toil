@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pathIdSchema } from '../../core/api-path.js';
 import { defineArea } from '../../core/area.js';
 import { ToilError } from '../../core/errors.js';
 import type { SupportedVersion } from '../../core/supported.js';
@@ -29,6 +30,8 @@ export const kibanaArea = defineArea({
       flags: '--space <id>',
       scope: 'command',
       setting: 'space',
+      // Kibana space IDs are lowercase letters, digits, _ and -, so one with path syntax in it names no space and is refused.
+      schema: pathIdSchema('A Kibana space ID').min(1),
     },
   },
   // The status page can be public; the spaces list needs a user.

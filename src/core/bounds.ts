@@ -25,13 +25,17 @@ export const BOUNDS: readonly Bound[] = [
   { id: 'files.workspace', enforcedIn: ['src/core/files.ts'], errors: ['INVALID_INPUT', 'NOT_CONFIGURED'], relaxedBy: '"bounds": { "files": "unbounded" }', securityClass: false },
   { id: 'files.own', enforcedIn: ['src/core/files.ts', 'src/node-context.ts', 'src/core/git-config.ts', 'src/core/dossier.ts'], errors: ['INVALID_INPUT'], securityClass: true },
   { id: 'files.system', enforcedIn: ['src/core/files.ts', 'src/core/git-config.ts', 'src/core/dossier.ts'], errors: ['INVALID_INPUT'], securityClass: true },
+  { id: 'files.remote', enforcedIn: ['src/core/local-path.ts', 'src/core/files.ts', 'src/core/dossier.ts'], errors: ['INVALID_INPUT'], securityClass: true },
   { id: 'files.no-overwrite', enforcedIn: ['src/core/files.ts'], errors: ['INVALID_INPUT'], securityClass: true },
   { id: 'credentials.host', enforcedIn: ['src/core/api.ts', 'src/core/rest.ts', 'src/core/passthrough.ts'], errors: ['HTTP', 'AUTH', 'INVALID_INPUT'], securityClass: true },
-  { id: 'requests.path', enforcedIn: ['src/core/api.ts', 'src/core/rest.ts'], errors: ['INVALID_INPUT'], securityClass: true },
+  { id: 'requests.path', enforcedIn: ['src/core/api.ts', 'src/core/rest.ts', 'src/core/api-path.ts'], errors: ['INVALID_INPUT'], securityClass: true },
   { id: 'secrets.storage', enforcedIn: ['src/core/connection.ts'], errors: ['CONFIG_INVALID'], securityClass: true },
   { id: 'commands.cli-only', enforcedIn: ['src/mcp/server.ts', 'src/api.ts', 'src/core/run.ts'], errors: ['INVALID_INPUT'], securityClass: true },
   { id: 'commands.time-limit', enforcedIn: ['src/core/run.ts', 'src/core/wait.ts'], errors: ['TIMEOUT', 'CANCELLED'], securityClass: false },
   { id: 'commands.read-only', enforcedIn: ['src/core/run.ts', 'src/core/wait.ts', 'src/core/git.ts'], errors: ['WRITE_DISABLED', 'INVALID_INPUT'], securityClass: true },
+  { id: 'query.size', enforcedIn: ['src/core/query/interpreter.ts'], errors: ['INVALID_INPUT'], securityClass: false },
+  { id: 'dossiers.size', enforcedIn: ['src/core/dossier.ts'], errors: ['CONFIG_INVALID', 'DOSSIER_INVALID'], securityClass: false },
+  { id: 'gitignore.line', enforcedIn: ['src/core/gitignore.ts', 'src/core/wildmatch.ts'], errors: ['GITIGNORE_LINE_SKIPPED'], securityClass: false },
   { id: 'process.spawn', enforcedIn: ['src/core/git.ts', 'src/core/keychain.ts', 'src/os/windows-sspi.ts', 'scripts/spawners.mjs', 'scripts/check-pure.mjs'], errors: ['GIT_NOT_FOUND'], securityClass: true },
 ];
 

@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { defineArea } from '../../core/area.js';
 import type { TokenExchange } from '../../core/token.js';
 import type { SupportedVersion } from '../../core/supported.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * Checkmarx One (cloud): projects, scans and scan results statistics, read
@@ -34,14 +35,13 @@ export function apiKeyClientId(apiKey: string): string {
 /**
  * The token endpoint: the API host with its `ast.` label swapped for `iam.`
  * (`eu.ast.checkmarx.net` to `eu.iam.checkmarx.net`), always https, with the
- * base URL's port and path dropped, and the tenant put into the path as typed.
- * Suspected bugs (#89 items 3 and 6): the port is dropped and the tenant isn't
- * encoded. Core refuses the result unless it's under checkmarx.net or the
- * connection's own origin.
+ * base URL's port and path dropped, and the tenant encoded as one path segment.
+ * Suspected bug (#89 item 3): the port is dropped. Core refuses the result
+ * unless it's under checkmarx.net or the connection's own origin.
  */
 export function tokenUrl(baseUrl: string, tenantName: string): string {
   const iamHost = new URL(baseUrl).hostname.replace(/(^|\.)ast\./, '$1iam.');
-  return `https://${iamHost}/auth/realms/${tenantName}/protocol/openid-connect/token`;
+  return `https://${iamHost}${apiPath`/auth/realms/${tenantName}/protocol/openid-connect/token`}`;
 }
 
 const obj = (body: unknown): Record<string, unknown> => (typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {});

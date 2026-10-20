@@ -5,7 +5,8 @@
  * util owi similar` runs; `pr_query`, `pr_get` and `pr_metrics`, the pull
  * requests as OWI changes, worked out by src/model/prs.ts as the pull request
  * view works them out; `people_list` and `person_get`, each person's load as
- * src/model/people.ts and the People view work it out); the rest are `toil mcp`'s own read tools, by
+ * src/model/people.ts and the People view work it out; `readiness_list` and
+ * `readiness_get`, each item's readiness verdict, #307); the rest are `toil mcp`'s own read tools, by
  * their MCP names, for live lookups through `@imagile-dev/toil/api`'s
  * `execute()` with `readOnly: true`. There is no write tool, and a live tool
  * is built only for a command the registry says never writes, so the list
@@ -27,6 +28,7 @@ import type { Cache, ChangeRow, TransitionRow } from '../cache.ts';
 import type { AuthorKind, Change, Envelope, Execute, WorkItem } from '../../src/toil.ts';
 import { flagsOf, KINDS, linked, PR_FLAG_LABEL, prMetrics, sizeOf, waitOf, workingDays, type Sample, type WaitingOn } from '../../src/model/prs.ts';
 import { people, readPeople, type Card } from '../../src/model/people.ts';
+import { CHECK_LABEL, readiness, readReadiness, tally, VERDICTS, type Readiness } from '../../src/model/readiness.ts';
 import { SimilarityIndex } from '../../../src/core/owi/similar.ts';
 import { CALLER } from '../store.ts';
 import { addDays, appliedText, dayOf, isDay, OUTCOME_TEXT, timeOf, type WorklogPage } from '../../src/model/worklog.ts';
@@ -453,6 +455,104 @@ export function peopleTools(dossier: string, data: AgentData, ledger: Ledger, re
             moreActivity: card.moreActivity,
           },
         };
+      },
+    },
+  ];
+}
+
+/** The most items readiness_list returns, and how many by default. */
+export const MAX_READINESS = 200;
+export const DEFAULT_READINESS = 50;
+
+const CITE = /\[\[([^\]]+)\]\]/g;
+
+/** Every id a verdict names: the item, and any blocker or Done example its rows cite. */
+function vouchReadiness(ledger: Ledger, r: Readiness) {
+  ledger.add(r.id);
+  for (const row of r.rows) for (const m of row.reason.matchAll(CITE)) ledger.add(m[1]);
+}
+
+const verdictBrief = (item: WorkItem, r: Readiness) => ({
+  id: item.id,
+  title: item.title,
+  type: item.typeName ?? item.type,
+  status: item.status,
+  statusCategory: item.statusCategory,
+  assignee: assigneeOf(item),
+  verdict: r.verdict,
+  notReadyBecause: r.why.map((w) => ({ check: w.label, state: w.state, reason: w.reason })),
+});
+
+/**
+ * The two readiness tools for one dossier (#307): every item's verdict, and
+ * one item's five rows, worked out by src/model/readiness.ts from the cache
+ * and the dossier's settings, as the Command Center and the item page work
+ * them out. No live read: the item page's workflow check is a person's to
+ * press.
+ */
+export function readinessTools(dossier: string, data: AgentData, ledger: Ledger, readDossier: ReadDossier): ToolSpec[] {
+  const note = () => ({ dossier, syncedAt: data.syncedAt() });
+  const RULE =
+    'Verdicts come from the cached records with no model call: ready means all five checks pass (acceptance criteria, description, done state, blockers, scope); thin means something a person could waive is missing; blocked means it cannot be worked on as it is. Only ready items are slated for an agent. Cite every item by its id.';
+  const settingsNow = async () => {
+    const shown = await readDossier();
+    const settings = readReadiness(shown.dossier);
+    if (shown.error) settings.notes.unshift(`${shown.error} So no source, repository or readiness setting is known, and every item fails scope.`);
+    return settings;
+  };
+  return [
+    {
+      name: 'readiness_list',
+      description: `Every work item in the dossier "${dossier}" with its readiness verdict for agent work (ready, thin or blocked) and, for each that isn't ready, which of the five checks (${Object.values(CHECK_LABEL).join(', ')}) didn't pass and why, from Toil UI's cache. Done items are left out unless includeDone is true. Also the count of each verdict among open items, and the dossier's readiness settings. ${RULE}`,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          verdict: { type: 'string', enum: [...VERDICTS], description: 'Only items with this verdict.' },
+          includeDone: { type: 'boolean', description: 'Include items that are already done (they are always blocked). Default false.' },
+          limit: { type: 'integer', minimum: 1, maximum: MAX_READINESS, description: `Default ${DEFAULT_READINESS}.` },
+        },
+        additionalProperties: false,
+      },
+      async run(input) {
+        const settings = await settingsNow();
+        const items = data.items();
+        const byId = new Map(items.map((i) => [i.id, i]));
+        const all = items.map((item) => ({ item, r: readiness({ item, settings, byId }) }));
+        const open = all.filter((x) => x.item.statusCategory !== 'DONE');
+        const limit = Math.min(MAX_READINESS, Math.max(1, Number.isInteger(input.limit) ? (input.limit as number) : DEFAULT_READINESS));
+        const matches = (input.includeDone === true ? all : open).filter((x) => !str(input.verdict) || x.r.verdict === input.verdict);
+        const returned = matches.slice(0, limit);
+        for (const x of returned) vouchReadiness(ledger, x.r);
+        return {
+          ...note(),
+          rule: RULE,
+          openByVerdict: tally(open.map((x) => x.r)),
+          settings: {
+            sources: settings.sources,
+            repositories: settings.repos,
+            areas: Object.fromEntries(Object.entries(settings.areas).map(([a, s]) => [a, { acceptanceCriteriaField: s.acceptanceField, acceptanceCriteriaFieldFrom: s.acceptanceFrom, minWords: s.minWords, templateLines: s.templateLines.length }])),
+          },
+          notes: settings.notes,
+          total: matches.length,
+          returned: returned.length,
+          ...(matches.length > limit ? { more: `${matches.length - limit} more match; narrow with verdict or raise limit (max ${MAX_READINESS}).` } : {}),
+          items: returned.map((x) => verdictBrief(x.item, x.r)),
+        };
+      },
+    },
+    {
+      name: 'readiness_get',
+      description: `One work item's readiness in "${dossier}", by its OWI id: its verdict and all five rows (each pass, thin or fail, with its reason and where the answer came from). ${RULE}`,
+      inputSchema: { type: 'object', properties: { id: { type: 'string', description: 'The OWI id.' } }, required: ['id'], additionalProperties: false },
+      async run(input) {
+        const id = str(input.id);
+        const items = data.items();
+        const item = id ? items.find((i) => i.id === id) : undefined;
+        if (!item) return { ...note(), error: `The cache holds no item ${JSON.stringify(id ?? '')} in ${dossier}. Use readiness_list or owi_query to find ids.` };
+        const settings = await settingsNow();
+        const r = readiness({ item, settings, byId: new Map(items.map((i) => [i.id, i])) });
+        vouchReadiness(ledger, r);
+        return { ...note(), rule: RULE, notes: settings.notes, ...verdictBrief(item, r), rows: r.rows.map((w) => ({ check: w.label, state: w.state, reason: w.reason, source: w.source })) };
       },
     },
   ];

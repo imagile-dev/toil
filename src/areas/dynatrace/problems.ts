@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { dynatraceArea } from './area.js';
 import { allPages, dynatrace } from './client.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * Problems: every page of a list over a window (the last two hours unless
@@ -47,7 +48,7 @@ export const problemsGetCommand = dynatraceArea.command({
   ],
   examples: [{ id: '1234567890123456789_1700000000000V2' }, { id: '1234567890123456789_1700000000000V2', fields: 'evidenceDetails,impactAnalysis', env: 'dynatrace' }],
   // The server's problem, passed through as it came.
-  run: async (input, ctx) => dynatrace(ctx, `/api/v2/problems/${encodeURIComponent(input.id)}`, { query: { fields: input.fields } }),
+  run: async (input, ctx) => dynatrace(ctx, apiPath`/api/v2/problems/${input.id}`, { query: { fields: input.fields } }),
 });
 
 export const problemsCommands = [problemsListCommand, problemsGetCommand];

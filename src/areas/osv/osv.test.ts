@@ -63,6 +63,11 @@ describe('osv vulns: requests', () => {
     expect(calls[2]!.body).toBeUndefined();
   });
 
+  it('encodes a record id from the batch answer as one path segment when it fetches the record', async () => {
+    const { calls } = await run({ from: 'inventory.json' }, [idsFor(['a/b?c=d#hot']), recordRoute(() => ({ json: { id: 'a/b?c=d#hot' } }))]);
+    expect(calls.filter((c) => c.method === 'GET').map((c) => c.url)).toEqual([`${OSV}/v1/vulns/a%2Fb%3Fc%3Dd%23hot`]);
+  });
+
   it('is an area-local command: it takes no --connection and reads no config', () => {
     expect(commands.map((c) => c.kind)).toEqual(['area-local']);
     expect(Object.keys(vulnsCommand.input.shape).sort()).toEqual(['directOnly', 'ecosystem', 'from', 'includeDev']);

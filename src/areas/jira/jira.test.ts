@@ -42,11 +42,10 @@ describe('issues', () => {
     expect(data.fields).not.toHaveProperty('customfield_10016');
   });
 
-  it('issue get: keeps a base URL context path, and puts the key in the path unencoded, as the contract specifies', async () => {
+  it('issue get: keeps a base URL context path, and encodes the key as one segment, so a / in it no longer reaches another endpoint (was #70)', async () => {
     const config = { jira: { ...fixtureConfig.jira, baseUrl: `${JIRA}/jira` } };
     const { calls } = await run(getIssue, { key: 'PROJ-1/comment' }, [{ url: /\/jira\/rest\/api\/2\/issue\//, respond: { json: issue('X-1') } }], { config });
-    // Suspected bug (#70): the key changes the path. Pinned until a live run decides.
-    expect(calls[0]!.url).toBe(`${JIRA}/jira/rest/api/2/issue/PROJ-1/comment`);
+    expect(calls[0]!.url).toBe(`${JIRA}/jira/rest/api/2/issue/PROJ-1%2Fcomment`);
   });
 
   it('issue get: a 401 is AUTH, with where to make a new token', async () => {
@@ -428,6 +427,43 @@ describe('attachments', () => {
     expect(written).toEqual({});
   });
 
+  it('issue download: saves a name Windows reserves under a name it will write as a file, so the no-overwrite check sees the real name (a listed divergence)', async () => {
+    for (const [filename, saved] of [
+      ['CON', '_CON'],
+      ['nul.txt', '_nul.txt'],
+      ['COM1', '_COM1'],
+      ['notes.md:hidden', 'notes.md'],
+      ['report.pdf. . ', 'report.pdf'],
+      ['a<b>?.png', 'a_b__.png'],
+      ['...', 'attachment'],
+    ]) {
+      const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7' }, [
+        listing(`${JIRA}/secure/attachment/7/x`, filename),
+        { url: `${JIRA}/secure/attachment/7/x`, respond: { text: 'X' } },
+      ]);
+      expect(envelope.data, filename).toEqual({ saved: `/work/.toil/${saved}`, filename, size: 1 });
+      expect(Object.keys(written), filename).toEqual([`/work/.toil/${saved}`]);
+    }
+    // A stream suffix names the file it would have written into, which is already there.
+    const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7' }, [
+      listing(`${JIRA}/secure/attachment/7/x`, 'notes.md:Zone.Identifier'),
+      { url: `${JIRA}/secure/attachment/7/x`, respond: { text: 'X' } },
+    ], { files: { '.toil/notes.md': 'mine' } });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '"/work/.toil/notes.md" already exists.' });
+    expect(written).toEqual({});
+  });
+
+  it('issue download: refuses a --dir Windows would read as something else', async () => {
+    for (const dir of ['CON', 'out.', 'out/aux.d', 'x:y']) {
+      const { envelope, written } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '7', dir }, [
+        listing(`${JIRA}/secure/attachment/7/shot.png`),
+        { url: `${JIRA}/secure/attachment/7/shot.png`, respond: { text: 'PNG' } },
+      ]);
+      expect(envelope.error, dir).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("can't be written"), fix: 'Choose another file or folder name.' });
+      expect(written).toEqual({});
+    }
+  });
+
   it('issue download: an unknown id is INVALID_INPUT, as in the contract, pointing at issue attachments', async () => {
     const { envelope } = await run(downloadAttachment, { key: 'PROJ-1', attachmentId: '8' }, [listing(`${JIRA}/x`)]);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Attachment not found: 8', fix: expect.stringContaining('issue attachments') });
@@ -647,5 +683,49 @@ describe('more pinned paging and project cases', () => {
     const { envelope, calls } = await run(createIssue, { project: '', summary: 'S', ...write }, created, { config });
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: required });
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe('ids in request paths', () => {
+  // Each key goes in as exactly one path segment: what was suspected bug #70
+  // (a key with / or ? changing the endpoint) is now a divergence (principle 2).
+  it('issue get: a key with path or query syntax is sent encoded as one segment', async () => {
+    const cases: Array<[string, string]> = [
+      ['a/b?c=d', 'a%2Fb%3Fc%3Dd'],
+      ['p1#hot', 'p1%23hot'],
+      ['%2e%2e', '%252e%252e'],
+    ];
+    for (const [key, sent] of cases) {
+      const { calls } = await run(getIssue, { key }, [{ url: /\/rest\/api\/2\/issue\//, respond: { json: issue('X-1') } }]);
+      expect(calls.map((c) => c.url), key).toEqual([`${JIRA}/rest/api/2/issue/${sent}`]);
+    }
+  });
+
+  it('issue get: a key that would climb out of the issue path is refused before any request', async () => {
+    const { envelope, calls } = await run(getIssue, { key: 'x/../y' }, []);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('issue assign: the key is sent encoded, so the PUT names that one issue', async () => {
+    const { calls } = await run(assign, { key: 'a/b?c=d', assignee: 'jsmith', ...write }, [{ method: 'PUT', url: /assignee$/, respond: { status: 204 } }]);
+    expect(calls.map((c) => [c.method, c.url])).toEqual([['PUT', `${JIRA}/rest/api/2/issue/a%2Fb%3Fc%3Dd/assignee`]]);
+  });
+
+  it('sprint list: a board id goes in as one segment', async () => {
+    const { calls } = await run(listSprints, { board: '7' }, [{ url: /sprint/, respond: { json: { values: [], total: 0 } } }]);
+    expect(new URL(calls[0]!.url).pathname).toBe('/rest/agile/1.0/board/7/sprint');
+  });
+
+  it('issue create: a project key with path syntax is refused from the flag, the connection setting or --input-file', async () => {
+    const flag = await run(createIssue, { project: 'P/../X', summary: 'S', ...write }, []);
+    expect(flag.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("can't contain") });
+    expect(flag.calls).toHaveLength(0);
+    const setting = await run(createIssue, { summary: 'S', ...write }, [], { config: { jira: { ...fixtureConfig.jira, project: 'P?x=1' } } });
+    expect(setting.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("can't contain") });
+    expect(setting.calls).toHaveLength(0);
+    const file = await run(createIssue, { inputFile: 'i.json', ...write }, [], { files: { 'i.json': JSON.stringify({ project: 'P#1', fields: { summary: 'S' } }) } });
+    expect(file.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("can't contain") });
+    expect(file.calls).toHaveLength(0);
   });
 });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pathIdSchema } from '../../core/api-path.js';
 import { defineArea } from '../../core/area.js';
 import { parseBitbucketRemote } from '../../core/git-remote.js';
 import type { SupportedVersion } from '../../core/supported.js';
@@ -26,7 +27,10 @@ export const bitbucketArea = defineArea({
   // Most commands require both and say so in the contract's specified wording; the
   // project-only commands check their own. The git remote counts only when
   // it's on the connection's own host, so a clone of something else never
-  // names a Bitbucket project.
+  // names a Bitbucket project. A project key is letters, digits and _ (a
+  // personal project is ~ and the user's URL-safe slug) and a repository slug
+  // is letters, digits, -, _ and ., so neither can hold path syntax, and one
+  // that does is refused however it arrived.
   context: {
     project: {
       description: 'Bitbucket project key',
@@ -34,6 +38,7 @@ export const bitbucketArea = defineArea({
       setting: 'project',
       git: (remote, connection) => parseBitbucketRemote(remote.url, connection?.baseUrl)?.project,
       missing: { message: BOTH_MISSING },
+      schema: pathIdSchema('A Bitbucket project key').min(1),
     },
     repo: {
       description: 'Bitbucket repository slug',
@@ -41,6 +46,7 @@ export const bitbucketArea = defineArea({
       setting: 'repo',
       git: (remote, connection) => parseBitbucketRemote(remote.url, connection?.baseUrl)?.repo,
       missing: { message: BOTH_MISSING },
+      schema: pathIdSchema('A Bitbucket repository slug').min(1),
     },
   },
   examples: { baseUrl: 'https://bitbucket.imagile.dev' },

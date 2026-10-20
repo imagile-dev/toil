@@ -126,6 +126,30 @@ describe('context', () => {
     expect(calls[0]!.url).toBe(`${API}/repositories/my%20team/%7Babc12345-0000-0000-0000-000000000000%7D`);
   });
 
+  it('a workspace or repo with path syntax in it is refused before anything is sent, since slugs never hold / \\ ? # or %', async () => {
+    for (const where of [{ workspace: 'x/../y', repo: 'toil' }, { workspace: 'imagile', repo: 'a/b?c=d' }, { workspace: 'imagile', repo: 'p1#hot' }, { workspace: 'imag%2Fle', repo: 'toil' }]) {
+      const { calls, envelope } = await run(getRepoCommand, where, [{ path: /.*/, respond: { json: {} } }]);
+      expect(envelope.error?.code).toBe('INVALID_INPUT');
+      expect(calls).toHaveLength(0);
+    }
+  });
+
+  it('a repo with path syntax in it is refused for a write, and when the connection supplies it', async () => {
+    const write1 = await run(approveCommand, { workspace: 'imagile', repo: 'toil/../other', id: 42, ...write }, [{ path: /.*/, respond: { json: {} } }]);
+    expect(write1.envelope.error?.code).toBe('INVALID_INPUT');
+    expect(write1.calls).toHaveLength(0);
+    const fromConnection = await run(getRepoCommand, {}, [{ path: /.*/, respond: { json: {} } }], { config: { 'bitbucket-cloud': { ...own, workspace: 'imagile', repo: 'toil?x=1' } } });
+    expect(fromConnection.envelope.error?.code).toBe('INVALID_INPUT');
+    expect(fromConnection.calls).toHaveLength(0);
+  });
+
+  it('a commit or file path with path or query syntax in it is sent encoded, one segment per id', async () => {
+    const commit = await run(getCommitCommand, { ...at, commit: 'a/b?c=d' }, [{ path: /.*/, respond: { json: {} } }]);
+    expect(commit.calls[0]!.url).toBe(`${R}/commit/a%2Fb%3Fc%3Dd`);
+    const file = await run(getFileCommand, { ...at, path: 'docs/notes#1 a?.md', ref: HASH }, [{ path: /.*/, respond: { text: 'x' } }]);
+    expect(file.calls[0]!.url).toBe(`${R}/src/${HASH}/docs/notes%231%20a%3F.md`);
+  });
+
   it('a .. slug never reaches the server', async () => {
     const { calls, envelope } = await run(getRepoCommand, { workspace: 'imagile', repo: '..' });
     expect(envelope.error?.code).toBe('INVALID_INPUT');

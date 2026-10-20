@@ -1,12 +1,16 @@
 import { mkdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
+import { z } from 'zod';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ResolvedConfig, Settings, Source } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { forwardSlashes } from '../src/core/files.js';
 import { toolName } from '../src/core/command.js';
-import { inFieldNames } from '../src/core/run.js';
+import { allowWriteField, inFieldNames } from '../src/core/run.js';
 import { currentPrCommand } from '../src/areas/bitbucket/pull-requests.js';
+import { adoArea } from '../src/areas/ado/area.js';
+import { workUpdateCommand } from '../src/areas/ado/work.js';
+import { dossierBuildCommands } from '../src/dossiers/build.js';
 import { dossiersCommands } from '../src/dossiers/commands.js';
 import { demoCommands, demoArea } from './fixtures/demo-commands.js';
 import { demoContextArea, demoContextCommands } from './fixtures/demo-context-commands.js';
@@ -26,7 +30,20 @@ import { connectMcp, type McpSession } from './harness/mcp.js';
  * the point.
  */
 
-const commands = [...demoContextCommands, ...demoCommands, currentPrCommand, ...dossiersCommands([demoContextArea, demoArea])];
+/** A write that names no project: it reads none of the group's context inputs. */
+const pingWidgets = demoContextArea.command({
+  path: ['demo-context', 'ping-widgets'],
+  description: 'Ping the widget service',
+  input: z.object({ ...allowWriteField }),
+  writes: true,
+  examples: [{ allowWrite: true }],
+  run: async (_input, ctx) => {
+    const res = await ctx.fetch(new URL('/api/ping', ctx.connection.baseUrl), { method: 'PUT', headers: { Authorization: `Bearer ${ctx.connection.token ?? ''}` } });
+    return (await res.json()) as unknown;
+  },
+});
+
+const commands = [pingWidgets, ...demoContextCommands, ...demoCommands, currentPrCommand, ...dossiersCommands([demoContextArea, demoArea]), ...dossierBuildCommands([demoContextArea, demoArea])];
 
 /** Two demo-context connections on different hosts, writes on for both, prod the default. */
 function configOf(extra: Partial<ResolvedConfig> = {}): ResolvedConfig {
@@ -43,6 +60,7 @@ function configOf(extra: Partial<ResolvedConfig> = {}): ResolvedConfig {
 const routes: Route[] = [
   { path: /^\/api\/projects\/[A-Z0-9]+\/widgets\/W-\d+$/, respond: (req) => ({ json: { id: new URL(req.url).pathname.split('/').pop(), name: 'Widget' } }) },
   { method: 'PUT', path: /^\/api\/projects\/[A-Z0-9]+\/widgets\/W-\d+$/, respond: { json: { ok: true } } },
+  { method: 'PUT', path: '/api/ping', respond: { json: { ok: true } } },
 ];
 
 const disks: DossierDisk[] = [];
@@ -283,7 +301,8 @@ describe('writes through a dossier', () => {
     expect(refused.calls).toEqual([]);
     const read = await both(d, ['demo-context', 'get-widget', 'W-1'], 'demo_context_get_widget', { id: 'W-1' });
     expect(read.envelope.meta.context?.connection).toEqual({ value: 'stage', source: 'dossier' });
-    const named = await both(d, rename(['--connection', 'stage']), 'demo_context_rename_widget', { ...renameArgs, connection: 'stage' });
+    // Naming the connection isn't enough while the dossier still sets the project; naming both is.
+    const named = await both(d, rename(['--connection', 'stage', '--project', 'STG']), 'demo_context_rename_widget', { ...renameArgs, connection: 'stage', project: 'STG' });
     expect(named.envelope.ok).toBe(true);
   });
 
@@ -298,9 +317,97 @@ describe('writes through a dossier', () => {
   it('takes the default connection for a section with no binding, which was always yours', async () => {
     const d = disk({ 'work/.toil/dossiers/payments.json': { ...payments, 'demo-context': { project: 'STG' } } });
     asRepo(d);
-    const { envelope } = await both(d, rename(), 'demo_context_rename_widget', renameArgs);
+    const { envelope } = await both(d, rename(['--project', 'STG']), 'demo_context_rename_widget', { ...renameArgs, project: 'STG' });
     expect(envelope.ok).toBe(true);
     expect(envelope.meta.context?.connection).toMatchObject({ value: 'prod', source: 'default' });
+  });
+});
+
+describe('a write takes its target only from a dossier you adopted', () => {
+  const rename = (extra: string[] = []) => ['demo-context', 'rename-widget', 'W-1', '--name', 'N', '--allow-write', ...extra];
+  const checkedIn = () => {
+    const d = disk({ 'work/.toil/dossiers/payments.json': { ...payments, 'demo-context': { project: 'OTHER' } } });
+    asRepo(d);
+    return d;
+  };
+  /** The CLI and MCP separately: their fix text differs, since only the CLI can adopt a dossier. */
+  async function doors(d: DossierDisk, argv: string[], args: Record<string, unknown>) {
+    const config = configOf();
+    const make = () => {
+      const { context, http } = testContext({ routes });
+      return { context: { ...context, config, dossiers: d.catalog(config) }, http };
+    };
+    const cli = make();
+    const viaCli = await runCli(argv, { commands, context: cli.context });
+    const mcp = make();
+    const session = await connectMcp({ commands, context: mcp.context, areas: ['demo-context', 'dossiers'] });
+    sessions.push(session);
+    const viaMcp = await session.call('demo_context_rename_widget', args);
+    return { cli: viaCli.envelope!, mcp: viaMcp.envelope, calls: [...cli.http.calls, ...mcp.http.calls] };
+  }
+
+  it("refuses a write whose project came from a checked-in dossier, on a writes-on default connection, before any request", async () => {
+    const d = checkedIn();
+    const { cli, mcp, calls } = await doors(d, rename(), { id: 'W-1', name: 'N', allowWrite: true });
+    expect(calls).toEqual([]);
+    expect(cli.meta.context?.connection).toMatchObject({ value: 'prod', source: 'default' });
+    expect(cli.error).toMatchObject({ code: 'WRITE_DISABLED', message: expect.stringContaining("project came from dossier payments, which you haven't adopted"), fix: expect.stringContaining('toil dossiers import payments (the CLI only), or pass --project yourself') });
+    expect(mcp.error).toMatchObject({ code: 'WRITE_DISABLED', fix: expect.stringContaining('Ask the user to adopt it') });
+  });
+
+  it('lets the same write through once the dossier is imported', async () => {
+    const d = checkedIn();
+    const config = configOf();
+    const { context } = testContext({ routes });
+    const imported = await runCli(['dossiers', 'import', join(d.workspace, '.toil', 'dossiers', 'payments.json')], { commands, context: { ...context, config, dossiers: d.catalog(config) } });
+    expect(imported.envelope?.ok, JSON.stringify(imported.envelope?.error)).toBe(true);
+    const { envelope, calls } = await both(d, rename(), 'demo_context_rename_widget', { id: 'W-1', name: 'N', allowWrite: true });
+    expect(envelope.ok).toBe(true);
+    expect(calls.map((c) => [c.method, c.url])).toEqual([['PUT', 'https://demo.imagile.dev/api/projects/OTHER/widgets/W-1']]);
+  });
+
+  it('lets an explicit --project override the dossier and pass', async () => {
+    const { envelope, calls } = await both(checkedIn(), rename(['--project', 'PRD']), 'demo_context_rename_widget', { id: 'W-1', name: 'N', allowWrite: true, project: 'PRD' });
+    expect(envelope.ok).toBe(true);
+    expect(calls.map((c) => c.url)).toEqual(['https://demo.imagile.dev/api/projects/PRD/widgets/W-1']);
+  });
+
+  it("doesn't refuse a write over a dossier input the write never uses", async () => {
+    const { envelope, calls } = await both(checkedIn(), ['demo-context', 'ping-widgets', '--allow-write'], 'demo_context_ping_widgets', { allowWrite: true });
+    expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
+    expect(envelope.meta.context?.inputs?.project).toEqual({ value: 'OTHER', source: 'dossier' });
+    expect(calls.map((c) => c.method + ' ' + new URL(c.url).pathname)).toEqual(['PUT /api/ping']);
+  });
+
+  it("an ado work-item update, which names no project or repo, isn't refused over a checked-in dossier's", async () => {
+    const d = disk({ 'work/.toil/dossiers/payments.json': { ...payments, ado: { project: 'PAY', repo: 'payments-api' } } });
+    asRepo(d);
+    const config: ResolvedConfig = {
+      connections: { ado: { area: 'ado', baseUrl: 'https://ado.imagile.dev/tfs', pat: 'p', collection: 'DefaultCollection', writes: true } },
+      defaults: {},
+      sources: { 'ado.baseUrl': 'env', 'ado.pat': 'env', 'ado.collection': 'env', 'ado.writes': 'env' },
+      files: { global: '/home/test/.toil/config.json' },
+      warnings: [],
+    };
+    const { context, http } = testContext({ routes: [{ method: 'PATCH', url: /workitems\/42/, respond: { json: { id: 42 } } }] });
+    const run = await runCli(['ado', 'work-item', 'update', '42', '--field', 'System.Title=T', '--allow-write'], { commands: [workUpdateCommand], context: { ...context, config, dossiers: d.catalog(config, { areas: [{ name: adoArea.name, context: Object.keys(adoArea.context) }] }) } });
+    expect(run.envelope?.ok, JSON.stringify(run.envelope?.error)).toBe(true);
+    expect(run.envelope?.meta.context?.inputs?.project).toEqual({ value: 'PAY', source: 'dossier' });
+    expect(http.calls.map((c) => `${c.method} ${new URL(c.url).pathname}`)).toEqual(['PATCH /tfs/DefaultCollection/_apis/wit/workitems/42']);
+  });
+
+  it('lets a write follow a dossier in your own folder', async () => {
+    const d = disk({ 'home/.toil/dossiers/payments.json': { ...payments, 'demo-context': { project: 'OTHER' } } });
+    asRepo(d);
+    const { envelope } = await both(d, rename(), 'demo_context_rename_widget', { id: 'W-1', name: 'N', allowWrite: true });
+    expect(envelope.ok).toBe(true);
+    expect(envelope.meta.context?.inputs?.project).toEqual({ value: 'OTHER', source: 'dossier' });
+  });
+
+  it('leaves reads alone: they follow a checked-in dossier straight away', async () => {
+    const { envelope, calls } = await both(checkedIn(), ['demo-context', 'get-widget', 'W-1'], 'demo_context_get_widget', { id: 'W-1' });
+    expect(envelope.ok).toBe(true);
+    expect(calls.map((c) => new URL(c.url).pathname)).toEqual(['/api/projects/OTHER/widgets/W-1']);
   });
 });
 
@@ -425,6 +532,38 @@ describe('toil dossiers list, show, check and context', () => {
     const d = disk({ 'home/.toil/dossiers/broken.json': { name: 'broken', repos: 'nope' } });
     const { envelope } = await both(d, ['dossiers', 'check', 'broken'], 'dossiers_check', { dossier: 'broken' });
     expect(envelope.data).toMatchObject({ ok: false, problems: [{ level: 'error', code: 'DOSSIER_INVALID', path: 'repos' }] });
+  });
+
+  it('refuses a dossier that uses a reserved key, at the top or under environments: check says where, and a call that names it fails before any request', async () => {
+    // Written as text: an object literal can't hold a __proto__ key, which is the point.
+    const base = JSON.stringify({ name: 'payments', repos: payments.repos }).slice(0, -1);
+    const files = {
+      top: `${base}, "__proto__": { "demo-context": { "connection": "stage" } } }`,
+      env: `${base}, "env": "qa", "environments": { "qa": { "__proto__": { "demo-context": { "connection": "stage" } } } } }`,
+      named: `${base}, "constructor": { "connection": "stage" } }`,
+    };
+    for (const [label, text] of Object.entries(files)) {
+      const d = disk();
+      d.write('home/.toil/dossiers/payments.json', text);
+      const check = await both(d, ['dossiers', 'check', 'payments'], 'dossiers_check', { dossier: 'payments' });
+      const data = check.envelope.data as { ok: boolean; problems: Array<{ level: string; code: string; path: string; message: string }> };
+      expect(data.ok, label).toBe(false);
+      expect(data.problems, label).toContainEqual(expect.objectContaining({ level: 'error', code: 'DOSSIER_INVALID', message: expect.stringContaining('reserved') }));
+      const call = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments' });
+      expect(call.envelope.error, label).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('reserved') });
+      expect(call.calls, label).toEqual([]);
+    }
+  });
+
+  it('refuses a dossier file larger than the size bound without parsing it, in check and on a call', async () => {
+    const d = disk();
+    const padding = Array.from({ length: 12_000 }, (_, i) => `REF-${String(i).padStart(90, '0')}`);
+    d.write('home/.toil/dossiers/payments.json', { ...payments, 'demo-context': { ...payments['demo-context'], projects: padding } });
+    const check = await both(d, ['dossiers', 'check', 'payments'], 'dossiers_check', { dossier: 'payments' });
+    expect(check.envelope.data).toMatchObject({ ok: false, problems: [{ level: 'error', code: 'DOSSIER_INVALID', path: '', message: expect.stringContaining('larger than 1 MiB') }] });
+    const call = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments' });
+    expect(call.envelope.error).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('larger than 1 MiB') });
+    expect(call.calls).toEqual([]);
   });
 
   it("says what a folder resolves to and why, origin credentials stripped, and lists the candidates when it's ambiguous", async () => {

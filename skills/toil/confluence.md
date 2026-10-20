@@ -63,8 +63,9 @@ Every command also takes `--connection <name>`. Write commands (marked ✎) need
 stands in for the flag. `page delete` and `attachment delete` run on the CLI only; they are
 not MCP tools.
 
-Ids, space keys and labels go into URL paths as given. One that is a `.` or `..`
-segment, in any spelling (`%2e%2e` too), or contains `/`, `\`, `?` or `#`, is refused
+Ids, space keys and labels go into URL paths encoded, each as one segment, so a `/`,
+`\`, `?`, `#` or `%` in one is part of the name (label `a/b` is sent as `a%2Fb`). One
+that is a `.` or `..` segment, bare or between slashes (`../space/DOCS`), is refused
 with `INVALID_INPUT` before anything is sent.
 
 | Command | Arguments and flags | Returns |
@@ -127,7 +128,9 @@ toil confluence attachment download 98765 --dir downloads
   (`abc`, `0`) usually returns an empty list, with a `CONFLUENCE_LIMIT_INVALID` warning.
 - `attachment download` never replaces a file: one of the same name in the target
   directory fails with `INVALID_INPUT`. The file name is the attachment title's last
-  path segment. The token only ever goes to `baseUrl`'s host: a download link naming
+  path segment, made safe to save on any platform: a device name such as `CON` gets a
+  leading `_`, a `:` and what follows it is dropped, as are trailing dots and spaces,
+  and the characters Windows forbids become `_`. The token only ever goes to `baseUrl`'s host: a download link naming
   another host is fetched from `baseUrl` instead, with a `CONFLUENCE_ATTACHMENT_HOST`
   warning.
 - `page attach` always creates a new attachment; a file name already on the page

@@ -1,3 +1,4 @@
+import { apiPath, rawPath } from '../../core/api-path.js';
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { githubArea } from './area.js';
@@ -41,7 +42,7 @@ export const repoFileCommand = githubArea.command({
       if (part === '.' || part === '..' || part === '') throw new ToilError('INVALID_INPUT', `"${input.path}" isn't a file path in the repository.`, { fix: 'Name the file from the repository root, with no . or .. parts: .github/CODEOWNERS.' });
       return encodeURIComponent(part);
     });
-    const body = await github<Contents | Contents[]>(ctx, `/repos/${owner}/${repo}/contents/${encoded.join('/')}`, { query: input.ref ? { ref: input.ref } : {} });
+    const body = await github<Contents | Contents[]>(ctx, apiPath`/repos/${owner}/${repo}/contents/${rawPath(encoded.join('/'))}`, { query: input.ref ? { ref: input.ref } : {} });
     if (Array.isArray(body) || body.type !== 'file') {
       throw new ToilError('INVALID_INPUT', `${path} in ${owner}/${repo} is ${Array.isArray(body) ? 'a folder' : `a ${body.type ?? 'thing'}`}, not a file.`, { fix: 'Name a file in it: github repo file <folder>/<file>.' });
     }

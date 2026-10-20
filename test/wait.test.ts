@@ -199,6 +199,13 @@ describe('toil wait', () => {
     expect([...viaCli.audit.lines, ...viaMcp.audit.lines]).toEqual([]);
   });
 
+  it('stops an until expression that builds past the size bound with INVALID_INPUT, on the first attempt', async () => {
+    const until = `length(${Array(40).fill('[@,@]').join(' | ')}[]) > \`0\``;
+    const run = await cli(['wait', '--until', until, '--', 'ci', 'get-build', '7'], build(1));
+    expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('builds more than 16 MiB of JSON') });
+    expect(run.http.calls).toHaveLength(1);
+  });
+
   it('keeps the exit code the read asked for', async () => {
     const failed = await cli(['wait', '--until', 'result', '--', 'ci', 'get-build', '7'], [{ url: 'https://ci.imagile.dev/builds/7', respond: { json: { number: 7, result: 'FAILURE' } } }]);
     expect(failed.envelope?.ok).toBe(true);

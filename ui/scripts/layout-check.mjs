@@ -63,6 +63,11 @@ export const ROUTES = [
   '#/dossier/checkout-web/people',
   '#/dossier/settlement/people',
   `#/dossier/card-payments/board/${encodeURIComponent('person:J. Smith')}`,
+  // The readiness gate (#307): the Command Center with one ready item, with none, and with a ready GitHub feature; an item blocked by another.
+  '#/dossier/card-payments/command-center',
+  '#/dossier/settlement/command-center',
+  '#/dossier/checkout-web/command-center',
+  item('card-payments', 'corp-jira:PAY-102'),
   '#/dossier/card-payments/worklog',
   '#/dossier/card-payments/worklog/2026-10-12',
   '#/dossier/checkout-web/worklog/2026-10-11',
@@ -225,7 +230,8 @@ function states(route, width) {
   // The app's own breakpoint (COMPACT_HEADER in src/App.tsx): below it, the header is the Menu button.
   const compact = width < 1024;
   if (compact) out.push({ name: 'menu', setup: clickAll('[data-menu-button]'), undo: 'Escape' });
-  if (route === '#/') out.push({ name: 'feedback', setup: compact ? inMenu('button.feedback-open') : clickAll('button.feedback-open'), undo: 'Escape' });
+  // Feedback is in the header, or in its Menu when the header folds, which it does below 1024px or when its row is full.
+  if (route === '#/') out.push({ name: 'feedback', setup: inMenu('button.feedback-open'), undo: 'Escape' });
   if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
   if (/^#\/dossier\/[^/]+$/.test(route) && narrow) out.push({ name: 'ask-open', setup: clickAll('.ask--sheet .ask-head button', '/Open/'), undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') });
   // The (i) beside the starter questions (#283): on a narrow screen the sheet opens first, then the popover.
@@ -233,6 +239,10 @@ function states(route, width) {
     const open = narrow ? `await ${clickAll('.ask--sheet .ask-head button', '/Open/')};` : '';
     out.push({ name: 'ask-info', setup: `(async () => { ${open} return await ${clickAll('[data-ask-info]')}; })()`, undo: 'Escape', ...(narrow ? { undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') } : {}) });
   }
+  // The readiness gate (#307): an item's workflow read live, and the Command Center's verdict filter open. Only
+  // the sample's Jira and Azure DevOps items are pressed: a GitHub issue has no read to make, and a done item none either.
+  if (/\/item\/corp-(jira|ado)%3A/.test(route)) out.push({ name: 'workflow-live', setup: `(async () => { const n = ${clickAll('.readiness-live button', '/Check the workflow live|Read the workflow again/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
+  if (/\/command-center$/.test(route)) out.push({ name: 'verdict-filter', setup: clickAll('.readiness-filters > div.choice:first-of-type .choice-button'), undo: 'Escape' });
   // An answered question (#295): its usage footer, and the chat's running total and context meter in the pane's head.
   if (route === '#/dossier/card-payments') {
     const open = narrow ? `await ${clickAll('.ask--sheet .ask-head button', '/Open/')};` : '';

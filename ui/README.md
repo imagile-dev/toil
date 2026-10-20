@@ -118,6 +118,49 @@ It shows what is on each plate and never scores anyone: no ranking, no productiv
 figure, no person-to-person comparison and no line or commit counts. Flow metrics
 stay team-level, in the pull requests view.
 
+## Readiness and the Command Center
+
+Before a work item goes to an agent, Toil UI checks whether it is ready for one. The
+check uses no model and no premium request: only the item's cached OWI record, the
+dossier's other items, and at most one live read, made when you press for it
+(`ui/src/model/readiness.ts`). Its verdict is **ready**, **thin** or **blocked**, with
+one row per check:
+
+| Check | Passes when | Otherwise |
+|---|---|---|
+| Acceptance criteria | The field the dossier names has them, or the description has an "Acceptance criteria", "Definition of done" or "Done when" heading with text under it, or a checklist | thin |
+| Description | At least `minWords` words (25 by default) of real text, not counting the dossier's template lines, placeholder lines (TBD, N/A, lorem ipsum) or unfilled `<slots>` | thin |
+| Done state | It isn't done, and a way to Done is known: a GitHub issue closes from any state; otherwise an item of the same type in the dossier reached Done, or the live read finds a Done state (Azure DevOps) or a move into Done (Jira) | blocked when it's already done, or the workflow has no Done state; thin when it isn't known |
+| Blockers | No open item blocks it | blocked by an open item; thin for a blocker the dossier doesn't hold |
+| Scope | It comes from one of the dossier's sources, and the dossier names a repository | blocked from outside the dossier; thin with no repository |
+
+The verdict is blocked when any row is, thin when any row is, and ready only when every
+row passes. Each area's section in the dossier sets it up:
+
+```json
+"jira": {
+  "project": "PAY",
+  "fields": { "acceptanceCriteria": "customfield_10500" },
+  "readiness": { "minWords": 20, "templates": ["## What\n## Why\n## Acceptance criteria"] }
+}
+```
+
+`fields.acceptanceCriteria` is also the area's `--field` alias. An Azure DevOps section
+that names none uses `Microsoft.VSTS.Common.AcceptanceCriteria`.
+
+- **On each item's page**, a **Ready for an agent?** panel shows the verdict and its
+  rows, each with where its answer came from. **Check the workflow live** makes the one
+  live read, read-only: `jira issue transitions` for a Jira issue, `ado work-item
+  states` for an Azure DevOps type. A GitHub issue needs none.
+- **The Command Center** (`#/dossier/<name>/command-center`, in the header) lists every
+  work item with its verdict and, for each one that isn't ready, the rows that say why.
+  It filters by verdict, status, type, assignee and source, and makes no live read.
+  It is strict: only ready items are slated, in the dossier's order, under a plan id
+  that changes when anything in the plan does.
+- **Starting the plan comes with assign-to-agent (#293).** Until then the start button
+  is disabled and says so; the plan it would start is shown above it.
+- **The agent** gets `readiness_list` and `readiness_get` and a starter, "Which items
+  are ready for an agent?" (The agent, below).
 ## Worklog
 
 Each dossier has a **Worklog** (`#/dossier/<name>/worklog`, linked from the header):
@@ -351,6 +394,9 @@ never starts that copy anyway.
   pull requests (what each waits on, its flags, and flow figures by author kind with
   their sample sizes), `people_list` and `person_get` (each person's plate as the
   People view works it out, with the dossier read live through `dossiers show`, and
+  told it describes load, never performance), `readiness_list` and
+  `readiness_get` (each item's readiness verdict and its rows, as the Command Center
+  works them out), `proposal_fields` (a write command's input fields,
   told it describes load, never performance), `worklog_day` (one day's worklog page,
   with what it can't vouch for), `standup_report` (a range of days as the Stand-up folds
   them, each line numbered), `proposal_fields` (a write command's input fields,
