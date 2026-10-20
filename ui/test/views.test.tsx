@@ -11,6 +11,9 @@ import type { ConfigApi } from '../src/config.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import type { AgentSettingsPanelProps } from '../src/agent-settings.tsx';
 import type { AgentSettings, AgentStatus } from '../src/server-client.ts';
+import { fixtureWorklog } from '../src/fixtures/worklog.ts';
+import { parseRoute } from '../src/App.tsx';
+import type { WorklogApi, WorklogDay } from '../src/worklog.ts';
 
 /**
  * The views, rendered against the fixture `execute()` and the scripted Agent:
@@ -18,11 +21,11 @@ import type { AgentSettings, AgentStatus } from '../src/server-client.ts';
  */
 
 const item = (dossier: string, id: string) => `#/dossier/${dossier}/item/${encodeURIComponent(id)}`;
-const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', '#/dossier/checkout-web/prs', '#/dossier/card-payments/prs', '#/dossier/checkout-web/people', '#/dossier/card-payments/people', '#/dossier/settlement/people', '#/dossier/card-payments/board/person%3AJ.%20Smith', item('card-payments', 'corp-jira:PAY-101'), '#/dossier/card-payments/command-center', '#/dossier/settlement/command-center', '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/usage', '#/settings/agent'];
+const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', '#/dossier/checkout-web/prs', '#/dossier/card-payments/prs', '#/dossier/checkout-web/people', '#/dossier/card-payments/people', '#/dossier/settlement/people', '#/dossier/card-payments/board/person%3AJ.%20Smith', '#/dossier/card-payments/worklog', '#/dossier/checkout-web/worklog/2026-10-12', item('card-payments', 'corp-jira:PAY-101'), '#/dossier/card-payments/command-center', '#/dossier/settlement/command-center', '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/usage', '#/settings/agent'];
 
-async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), config = fixtureConfig(), agentSettings }: { preview?: boolean; execute?: Execute; agent?: Agent; config?: ConfigApi; agentSettings?: AgentSettingsPanelProps } = {}) {
+async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), config = fixtureConfig(), agentSettings, worklog = fixtureWorklog() }: { preview?: boolean; execute?: Execute; agent?: Agent; config?: ConfigApi; agentSettings?: AgentSettingsPanelProps; worklog?: WorklogApi | null } = {}) {
   window.location.hash = hash;
-  const view = render(<App execute={execute} agent={agent} config={config} now={FIXTURE_NOW} preview={preview} {...(agentSettings ? { agentSettings } : {})} />);
+  const view = render(<App execute={execute} agent={agent} config={config} now={FIXTURE_NOW} preview={preview} {...(agentSettings ? { agentSettings } : {})} {...(worklog ? { worklog } : {})} />);
   await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
   return view;
 }
@@ -1026,5 +1029,79 @@ describe('the readiness gate (#307)', () => {
     expect(slate.textContent).toContain('Starts the plan above, as listed.');
     await userEvent.click(within(slate).getByRole('button', { name: 'Start 1 ready item' }));
     expect(started).toEqual([{ id: shownId, items: ['github:imagile/payments-web#41'] }]);
+  });
+});
+
+describe('the worklog (#308)', () => {
+  it('is a route per dossier, and per UTC day', () => {
+    expect(parseRoute('#/dossier/card-payments/worklog')).toEqual({ view: 'worklog', dossier: 'card-payments', day: null });
+    expect(parseRoute('#/dossier/card-payments/worklog/2026-10-12')).toEqual({ view: 'worklog', dossier: 'card-payments', day: '2026-10-12' });
+    expect(parseRoute('#/dossier/card-payments/worklog/2026-02-30')).toEqual({ view: 'worklog', dossier: 'card-payments', day: null });
+  });
+
+  it("opens on today's page, linked from the header, with the calendar of days that have one", async () => {
+    await open('#/dossier/card-payments/worklog');
+    expect(within(screen.getByRole('navigation', { name: 'Views' })).getByRole('link', { name: 'Worklog' }).getAttribute('aria-current')).toBe('page');
+    await screen.findByRole('heading', { name: 'Tuesday 13 October 2026' });
+    const today = screen.getByRole('link', { name: /Tuesday 13 October 2026, today/ });
+    expect(today.getAttribute('aria-current')).toBe('date');
+    expect(today.getAttribute('href')).toBe('#/dossier/card-payments/worklog/2026-10-13');
+    expect(screen.getByText(/^Today so far: built from the syncs up to 07:55 UTC/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Next month' }).getAttribute('data-disabled')).not.toBeNull();
+  });
+
+  it("shows a day's facts, each linked to its source, the agent's run with whether its proposal was applied, and the note", async () => {
+    const { container } = await open('#/dossier/card-payments/worklog/2026-10-12');
+    const day = await screen.findByRole('region', { name: 'Monday 12 October 2026' });
+    expect(within(day).getByRole('heading', { name: 'Work items' })).toBeTruthy();
+    const run = within(day).getByText(/^Asked the scripted preview/).closest('li')!;
+    expect(run.textContent).toMatch(/finished at 15:21/);
+    expect(run.textContent).toMatch(/applied: toil's audit log has the write at 12 Oct 2026 16:02 UTC \(cli\)/);
+    expect(within(run).getByText('Transcript, written by the agent')).toBeTruthy();
+    expect(within(day).getByText(/Paired on the retry fix/, { selector: '.worklog-line span' })).toBeTruthy();
+    expect(within(day).getAllByText(/^This is sample data, so it keeps no notes and writes no files/).length).toBeGreaterThan(0);
+    expect(within(day).getByRole('region', { name: 'The page as Markdown' }).textContent).toMatch(/^# Worklog: card-payments, Monday 12 October 2026/);
+    expect(await violations(container)).toEqual([]);
+  }, AXE_TIMEOUT);
+
+  it('rebuilds a day on request and says how it compared', async () => {
+    await open('#/dossier/checkout-web/worklog/2026-10-12');
+    await screen.findByRole('region', { name: 'Monday 12 October 2026' });
+    await userEvent.click(screen.getByRole('button', { name: 'Rebuild this day' }));
+    expect((await screen.findByText(/^Rebuilt from the cache/)).textContent).toBe('Rebuilt from the cache. There was no page kept to compare it with.');
+  });
+
+  it("adds a note to today's page, and exports, through the API it's given", async () => {
+    const sample = fixtureWorklog();
+    const added: string[] = [];
+    const exported: unknown[] = [];
+    const api: WorklogApi = {
+      ...sample,
+      disabled: null,
+      month: (d, m) => sample.month(d, m),
+      day: (d, x) => sample.day(d, x),
+      rebuild: (d, x) => sample.rebuild(d, x),
+      addNote: async (dossier, text) => {
+        added.push(text);
+        const d: WorklogDay = await sample.day(dossier, '2026-10-13');
+        return { ...d, page: { ...d.page, notes: [{ id: 'n', at: FIXTURE_NOW, by: 'You', text }] } };
+      },
+      exportTo: async (dossier, what, folder) => (exported.push({ dossier, what, folder }), { path: 'C:/Users/you/Documents/worklog-card-payments-2026-10-13.md', bytes: 1234, proposals: [] }),
+    };
+    await open('#/dossier/card-payments/worklog', { worklog: api });
+    await userEvent.type(await screen.findByRole('textbox', { name: "Add a note to today's page" }), 'Paired on PAY-101');
+    await userEvent.click(screen.getByRole('button', { name: 'Add the note' }));
+    expect(await screen.findByText('Paired on PAY-101')).toBeTruthy();
+    expect(added).toEqual(['Paired on PAY-101']);
+    await userEvent.type(screen.getByRole('textbox', { name: 'Folder, as a full path' }), 'C:/Users/you/Documents');
+    await userEvent.click(screen.getByRole('button', { name: 'Export' }));
+    expect((await screen.findByText(/^toil wrote 1234 bytes to/)).textContent).toContain('worklog-card-payments-2026-10-13.md');
+    expect(screen.getByText(/names no Confluence space and no GitHub repository/)).toBeTruthy();
+    expect(exported).toEqual([{ dossier: 'card-payments', what: { day: '2026-10-13' }, folder: 'C:/Users/you/Documents' }]);
+  });
+
+  it('says plainly when there is no worklog to show', async () => {
+    await open('#/dossier/card-payments/worklog', { worklog: null });
+    expect(screen.getByRole('alert').textContent).toBe('This Toil UI keeps no worklog: it has no cache to fold one from.');
   });
 });

@@ -18,6 +18,7 @@ import type { AreaInfo, ConfigApi, SettingsInfo } from './config.ts';
 import { FEEDBACK_SAMPLE_DISABLED, type FeedbackApi, type FeedbackFields } from './feedback.ts';
 import type { SyncStatus } from '../server/sync.ts';
 import type { Envelope, Execute } from './toil.ts';
+import { WORKLOG_SAMPLE_DISABLED, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt } from './worklog.ts';
 
 export type { DossierState, SourceState } from '../server/cache.ts';
 export type { SyncJob, SyncStatus } from '../server/sync.ts';
@@ -294,6 +295,27 @@ export function httpAgentSettings(session: Session, base = './'): AgentSettingsC
       if (!res.ok) throw await failure(res, 'Reading the full prompt');
       return ((await res.json()) as { prompt: string }).prompt;
     },
+  };
+}
+
+/**
+ * The worklog over the server (#308): its calendar and pages, and the three
+ * presses that change anything (rebuild, a note, an export). With sample
+ * data the server answers from the sample and refuses notes and exports.
+ */
+export function httpWorklog(session: Session, base = './'): WorklogApi {
+  const answer = async <T,>(res: Response, what: string) => {
+    if (!res.ok) throw await failure(res, what);
+    return (await res.json()) as T;
+  };
+  const q = (params: Record<string, string | undefined>) => new URLSearchParams(Object.entries(params).filter((e): e is [string, string] => e[1] !== undefined)).toString();
+  return {
+    disabled: session.sample ? WORKLOG_SAMPLE_DISABLED : null,
+    month: async (dossier, month) => answer<WorklogMonth>(await call(base, session, `api/worklog/month?${q({ dossier, month })}`), 'Reading the worklog'),
+    day: async (dossier, day) => answer<WorklogDay>(await call(base, session, `api/worklog/day?${q({ dossier, day })}`), 'Reading the page'),
+    rebuild: async (dossier, day) => answer<WorklogRebuilt>(await call(base, session, 'api/worklog/rebuild', { body: { dossier, day } }), 'Rebuilding the page'),
+    addNote: async (dossier, text) => answer<WorklogDay>(await call(base, session, 'api/worklog/note', { body: { dossier, text } }), 'Adding the note'),
+    exportTo: async (dossier, what, folder) => answer<WorklogExport>(await call(base, session, 'api/worklog/export', { body: { dossier, ...what, folder } }), 'The export'),
   };
 }
 

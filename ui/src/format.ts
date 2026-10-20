@@ -46,6 +46,8 @@ export const peopleHref = (dossier: string) => `${dossierHref(dossier)}/people`;
 export const commandCenterHref = (dossier: string) => `${dossierHref(dossier)}/command-center`;
 /** The dashboard with its board filtered to one person (#292), by the key the People view gives them. */
 export const boardHref = (dossier: string, person: string) => `${dossierHref(dossier)}/board/${encodeURIComponent(person)}`;
+/** The worklog (#308): its calendar, or one UTC day's page. */
+export const worklogHref = (dossier: string, day?: string) => `${dossierHref(dossier)}/worklog${day ? `/${day}` : ''}`;
 
 /** A pull request's short name: `payments-core #311`, the host and owner left to the panel. */
 export const prName = (id: string) => {

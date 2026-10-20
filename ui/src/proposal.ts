@@ -13,8 +13,8 @@
 export interface Proposal {
   /** Stable for one suggestion, so the same move isn't listed twice. */
   id: string;
-  /** Where it came from: a move on the board, the agent's answer, or a reviewer the pull request view suggests. */
-  from: 'board' | 'agent' | 'reviewers';
+  /** Where it came from: a move on the board, the agent's answer, a reviewer the pull request view suggests, or publishing a worklog. */
+  from: 'board' | 'agent' | 'reviewers' | 'worklog';
   /** The OWI id of the work item it changes, or of the change (pull request) it asks a review of. */
   item: string;
   /** One line: "Move PAY-102 to In progress". */

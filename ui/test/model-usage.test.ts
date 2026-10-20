@@ -382,6 +382,15 @@ describe('the host, holding a chat to its usage and caps', () => {
     expect(ledger.rows.filter((r) => r.chatId === 'chat-test-0002')).toHaveLength(1);
   });
 
+  it('records a run a cap stopped, partway or before it began, as capped in the worklog (#308)', async () => {
+    const runs: Array<{ outcome: string }> = [];
+    const { host, dataDir } = hostFor('claude', claudeModule([{ id: 'msg_1', input: 600, output: 50 }, { id: 'msg_2', input: 600, output: 50 }]), { onRun: (r) => void runs.push({ outcome: r.outcome }) });
+    saveUsageSettings(dataDir, checkUsageSettings({ caps: { 'claude.chat': { unit: 'tokens', limit: 1000 } } }));
+    await last(host).catch(() => undefined);
+    await last(host, { id: 'chat-test-0001', turn: 2 }).catch(() => undefined);
+    expect(runs.map((r) => r.outcome)).toEqual(['running', 'capped', 'running', 'capped']);
+  });
+
   it('warns at 80% of a cap under the answer', async () => {
     const { host, dataDir } = hostFor('claude', claudeModule([{ id: 'msg_1', input: 100, output: 20 }]));
     saveUsageSettings(dataDir, checkUsageSettings({ caps: { 'claude.chat': { unit: 'tokens', limit: 1400 } } }));

@@ -18,7 +18,8 @@ import { STARTERS, STYLE_RULE, systemPrompt } from '../server/agents/prompts.ts'
 import { THEME_VOICES } from '../server/agents/voices.ts';
 import { Latest, loadSdk, type Importer, type Runtime } from '../server/agents/runtime.ts';
 import { agentSettingsFile, checkAgentSettings, loadAgentSettings } from '../server/agents/settings.ts';
-import { cacheData, cacheTools, dossierReader, Ledger, LIVE_COMMANDS, liveTools, neverWrites, peopleTools, proposalTool, prTools, readinessTools, type AgentData, type ToolSpec } from '../server/agents/tools.ts';
+import { cacheData, cacheTools, dossierReader, Ledger, LIVE_COMMANDS, liveTools, neverWrites, peopleTools, proposalTool, prTools, readinessTools, worklogTool, type AgentData, type ToolSpec } from '../server/agents/tools.ts';
+import type { AgentRun } from '../src/model/worklog.ts';
 import { Cache } from '../server/cache.ts';
 import type { RequestContext } from '../server/context.ts';
 import { SyncService } from '../server/sync.ts';
@@ -672,9 +673,9 @@ describe('when an adapter cannot run', () => {
     ]);
   });
 
-  it('offers the nine starters, each scoped to the dossier, once an adapter is chosen', async () => {
+  it('offers the ten starters, each scoped to the dossier, once an adapter is chosen', async () => {
     const { host } = hostFor('claude', claudeStub(SCRIPT).module);
-    expect((await host.starters(ctx(), 'card-payments')).map((s) => s.label)).toEqual(['Stand-up digest', 'Why is this sprint at risk?', 'Backlog hygiene', 'Dependency risk', "What's stuck in review, and why?", "Who's overloaded or blocked?", 'Prepare my 1:1 notes for <person>', 'Which items are ready for an agent?', 'Release notes']);
+    expect((await host.starters(ctx(), 'card-payments')).map((s) => s.label)).toEqual(['Stand-up digest', 'Why is this sprint at risk?', 'Backlog hygiene', 'Dependency risk', "What's stuck in review, and why?", 'What happened yesterday?', "Who's overloaded or blocked?", 'Prepare my 1:1 notes for <person>', 'Which items are ready for an agent?', 'Release notes']);
     for (const s of STARTERS) expect(s.prompt('card-payments')).toContain('"card-payments"');
   });
 });
@@ -1047,5 +1048,59 @@ describe('the readiness tools (#307)', () => {
     const r = (await tool(failing, 'readiness_list').run({})) as ReadinessList;
     expect(r.notes).toEqual(['toil dossiers show settlement failed: it broke. So no source, repository or readiness setting is known, and every item fails scope.']);
     expect(new Set(r.items.map((i) => i.verdict))).toEqual(new Set(['blocked']));
+  });
+});
+
+describe('each question, as an agent run for the worklog (#308)', () => {
+  it('is recorded as it starts and again when it finishes, with its answer, citations and proposals', async () => {
+    const runs: AgentRun[] = [];
+    const { host } = hostFor('claude', claudeStub(SCRIPT).module, { onRun: (r) => void runs.push(structuredClone(r)) });
+    const versions = await streamed(host);
+    expect(runs.map((r) => r.outcome)).toEqual(['running', 'finished']);
+    const [start, end] = runs;
+    expect(start).toMatchObject({ kind: 'ask', dossier: 'card-payments', prompt: 'Backlog hygiene', by: 'Claude (test-model)', startedAt: FIXTURE_NOW, finishedAt: null, answer: null });
+    expect(end!.id).toBe(start!.id);
+    expect(end).toMatchObject({ finishedAt: FIXTURE_NOW, citations: versions.at(-1)!.citations, unverified: ['corp-jira:PAY-999'] });
+    expect(end!.proposals.map((p) => p.command)).toEqual(['jira issue update']);
+    expect(end!.answer).toBe(versions.at(-1)!.parts.map((p) => p.text).join('\n\n'));
+  });
+
+  it('is recorded as failed, with why, when the agent fails', async () => {
+    const runs: AgentRun[] = [];
+    const missing = hostFor('codex', codexStub(SCRIPT, new McpGrants(() => '')).module, { isFile: () => false, onRun: (r) => void runs.push(structuredClone(r)) }).host;
+    await missing.ask(ctx(), 'card-payments', 'q').catch(() => undefined);
+    expect(runs.map((r) => r.outcome)).toEqual(['running', 'failed']);
+    expect(runs[1]!.error).toMatch(/codex/i);
+  });
+
+  it('is recorded as stopped when the person leaves mid-answer, with what it had said', async () => {
+    const runs: AgentRun[] = [];
+    const { host } = hostFor('claude', claudeStub(SCRIPT).module, { onRun: (r) => void runs.push(structuredClone(r)) });
+    for await (const a of host.stream(ctx(), 'card-payments', 'hygiene')) {
+      void a;
+      break;
+    }
+    expect(runs.map((r) => r.outcome)).toEqual(['running', 'stopped']);
+    expect(runs[1]!.answer).toBe('[[corp-jira:PAY-107]] has no estimate');
+    expect(runs[1]!.citations).toEqual(['corp-jira:PAY-107']);
+  });
+
+  it("never fails the question when the worklog can't record it", async () => {
+    const { host } = hostFor('claude', claudeStub(SCRIPT).module, { onRun: () => { throw new Error('disk full'); } });
+    expect((await streamed(host)).at(-1)!.proposals).toHaveLength(1);
+  });
+
+  it('gives the agent worklog_day when the dossier has a worklog, vouching for every id a line names', async () => {
+    const page = { dossier: 'card-payments', day: '2026-10-12', timeZone: 'UTC' as const, gaps: ['a gap'], work: [{ key: 'k', kind: 'status' as const, at: '2026-10-12T09:00:00.000Z', subject: 'corp-jira:PAY-101', source: 'jira', label: 'PAY-101', title: 'T', url: null, by: 'Ada', text: 'To Do → Done', cites: ['corp-jira:PAY-101'], refs: {}, observed: null }], prs: [], delivery: [], agents: [], notes: [], sources: [] };
+    const ledger = new Ledger();
+    const days: string[] = [];
+    const [tool] = worklogTool('card-payments', { ...data, worklog: async (day) => (days.push(day), { ...page, day }) }, ledger, () => FIXTURE_NOW);
+    expect(tool!.name).toBe('worklog_day');
+    const out = (await tool!.run({})) as { day: string; gaps: string[]; lines: Array<{ time: string; cite: string[] }> };
+    expect(days).toEqual(['2026-10-12']);
+    expect(out).toMatchObject({ day: '2026-10-12', gaps: ['a gap'], lines: [{ time: '09:00', cite: ['corp-jira:PAY-101'] }] });
+    expect(ledger.ids.has('corp-jira:PAY-101')).toBe(true);
+    expect(await tool!.run({ day: '2026-10-14' })).toEqual({ error: '2026-10-14 is after today (2026-10-13, UTC), so it has no page yet.' });
+    expect(worklogTool('card-payments', data, ledger)).toEqual([]);
   });
 });

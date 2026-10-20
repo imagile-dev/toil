@@ -231,3 +231,34 @@
 .usage-notice { font-size: 0.8125rem; border-left: 4px solid var(--danger); padding-left: 0.5rem; overflow-wrap: anywhere; }
 .context-meter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; }
 .context-meter meter { flex: 1 1 6rem; min-width: 0; max-width: 12rem; height: 0.75rem; }
+
+/* The worklog (#308): the calendar beside the day's page, stacked on a narrow screen. */
+.worklog { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+@media (min-width: 1024px) { .worklog { grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr); } }
+.calendar-nav { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.75rem; }
+.calendar { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 2px; font-variant-numeric: tabular-nums; }
+.calendar th { font-size: 0.75rem; font-weight: 600; color: var(--muted); padding: 0.25rem 0; }
+.calendar th abbr { text-decoration: none; }
+.calendar td { text-align: center; padding: 0; height: 2.75rem; color: var(--muted); }
+.calendar__day { display: grid; align-content: center; justify-items: center; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--ink); text-decoration: none; background: var(--raised); }
+.calendar__day:hover { border-color: var(--ink); }
+.calendar__day:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.calendar__day[aria-current] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 700; }
+.calendar__day[data-today]:not([aria-current]) { border-color: var(--accent); border-width: 2px; }
+.calendar__n { line-height: 1.1; }
+.calendar__count { font-size: 0.6875rem; line-height: 1.1; }
+.worklog-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; min-width: 0; }
+.worklog-page h3 { margin: 0 0 0.25rem; font-size: 1rem; }
+.worklog-gaps { border-left: 4px solid var(--accent); padding-left: 0.75rem; }
+.worklog-gaps ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
+.worklog-section { min-width: 0; }
+.worklog-line { display: grid; grid-template-columns: 3.25rem minmax(0, 1fr); gap: 0 0.5rem; overflow-wrap: anywhere; }
+.worklog-line time { font-family: var(--font-mono); font-size: 0.875rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.worklog-proposals { margin-top: 0.35rem; font-size: 0.875rem; }
+.worklog-transcript { margin-top: 0.35rem; }
+.worklog-transcript summary, .worklog-md summary { cursor: pointer; color: var(--link); min-height: 44px; display: flex; align-items: center; }
+.worklog-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1rem; }
+.worklog-note, .worklog-export { display: grid; gap: 0.75rem; margin-top: 0.5rem; justify-items: start; }
+.worklog-note .field-text, .worklog-export .field-text { width: 100%; }
+.worklog-md pre { margin: 0; max-height: 28rem; overflow: auto; padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); color: var(--ink); font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.worklog-md pre:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }

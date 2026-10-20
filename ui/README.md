@@ -2,13 +2,14 @@
 
 A local web app for seeing work across Jira, Azure DevOps and GitHub, read through
 [toil](https://www.npmjs.com/package/@imagile-dev/toil): one dashboard per dossier,
-with its stories, pull requests, builds and deployments side by side, and a pull
-requests view for what is waiting on review.
+with its stories, pull requests, builds and deployments side by side, a pull
+requests view for what is waiting on review, and a daily worklog of what happened.
 
 **Status: alpha, local only.** It runs on your own machine, binds loopback, and
 reads through toil with your own connections and dossiers, read-only. Its
-settings pages are the one place it changes anything, and only toil's own
-connections and dossiers. Its Feedback dialog sends a report to Imagile through
+settings pages are the one place it changes anything of toil's, and only toil's own
+connections and dossiers. The worklog keeps its pages and the notes you add in its own
+data folder, and writes anywhere else only when you export a page. Its Feedback dialog sends a report to Imagile through
 `toil feedback`, only when you approve it. It is a separate package from toil: installing toil
 never installs it.
 
@@ -33,7 +34,7 @@ It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
 Toil UI 0.1.0-alpha.1 (alpha, local only), on toil 0.1.0-alpha.3
-Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil's own connections and dossiers, when you ask. Feedback goes to Imagile only when you send it.
+Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil's own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
 Open this URL in your browser. It carries this launch's token, so keep it to yourself:
@@ -160,6 +161,66 @@ that names none uses `Microsoft.VSTS.Common.AcceptanceCriteria`.
   is disabled and says so; the plan it would start is shown above it.
 - **The agent** gets `readiness_list` and `readiness_get` and a starter, "Which items
   are ready for an agent?" (The agent, below).
+## Worklog
+
+Each dossier has a **Worklog** (`#/dossier/<name>/worklog`, linked from the header):
+one page a day, folded by code from what the cache holds, facts only. No model writes
+a line of it. A calendar shows the days that have a page, with how many lines each
+has; a day opens as `#/dossier/<name>/worklog/<yyyy-mm-dd>`. Days and times are UTC,
+as everywhere else in Toil UI.
+
+A page has:
+
+- **Work items** that changed status (from, to, who and when), were added to or
+  dropped from a sprint, or got a new blocker.
+- **Pull requests** opened, reviewed (approved, changes requested, commented), merged
+  or declined.
+- **Builds and deployments** that failed or recovered (deployments from OpenShift,
+  whose state a sync can see change): a build is recovered when a
+  passing run follows a failing one of the same pull request or pipeline.
+- **Agent runs:** each question an agent adapter answers in the Ask pane, when it
+  started and ended,
+  whether it finished, failed, was stopped or was stopped at a usage cap, what it
+  cited, and its proposals, each
+  with whether toil's audit log (`toil audit list`) shows a person ran that write on
+  the same item afterwards. Each run's transcript is kept beside the pages and shown
+  under the run, labelled as the agent's.
+- **Notes** a person added that day, on today's page.
+- **Sources:** each source's syncs that day.
+
+Every line links to its item, pull request, build or transcript, where the source has a
+page for it. Two kinds of fact
+come in differently. Status and sprint changes, pull requests, reviews and builds
+carry their own times in the sources' history, so a page can be built for any past
+day the cache covers. A new blocker and a deployment that failed or came back have
+no time in the trackers, so a sync sees them by comparing what it read with the last
+sync, and the line says which sync first saw it and when the one before ran.
+
+**What a page can't vouch for is said at the top:** a day before the earliest sync the
+cache holds, a day no sync of a source ran on, a sync that failed, a source whose latest
+sync failed, today so far, and a day older than the retention period.
+
+**How it's kept.** Each sync records its facts in the cache, one row per fact by a key
+that never changes, so the same fact synced twice is one row. After each sync every
+page is folded again from the cache and written where its text changed, as Markdown
+in the data folder:
+
+```text
+<data folder>/cache/worklog/<dossier>/<yyyy-mm>/<yyyy-mm-dd>.md
+<data folder>/cache/worklog/<dossier>/runs/<run id>.md
+```
+
+The pages live under the cache's retention: a day whose rows are gone loses its page,
+and a wipe deletes them all. **Rebuild this day** folds the day again and says whether
+it came out the same as the page kept; the same cache always gives the same page.
+
+**Export** writes the day's or the month's Markdown into a folder you name, through
+toil's own file service: `toil util encode base64 --decode --out <file>`, run with that
+folder as its workspace, which writes a new file only and never into toil's own
+config. Publishing an exported page is a proposal: `toil confluence page create
+--body-file <file> --markdown` in the dossier's Confluence space, or `toil github issue
+create --body-file <file>` in its repository, for you to run through toil's write gate.
+Toil UI posts nothing. With sample data, notes and export are off.
 
 ## Toil's configuration
 
@@ -255,7 +316,9 @@ requests, builds and deployments that name them.
 The page can run only the reads the dashboards make: `dossiers list` and `dossiers
 show`, and each area's search, history, pull request, build and deployment reads.
 Any other command is refused before it reaches toil, and a change to a tracker is
-never made from the page.
+never made from the page. The worklog's own calls are made by the server, never named
+by the page: `toil audit list`, read-only, to see whether a proposal was applied, and
+`toil util encode` for an export you asked for.
 
 ## The agent
 
@@ -297,6 +360,8 @@ never starts that copy anyway.
   told it describes load, never performance), `readiness_list` and
   `readiness_get` (each item's readiness verdict and its rows, as the Command Center
   works them out), `proposal_fields` (a write command's input fields,
+  told it describes load, never performance), `worklog_day` (one day's worklog page,
+  with what it can't vouch for), `proposal_fields` (a write command's input fields,
   from toil's registry), and `toil mcp`'s read tools for live lookups, called through
   toil's `execute()` with `readOnly: true`. The dossier is fixed to the one on screen.
   There is no write tool, and each SDK's own tools (shell, files, web, plugins, other
