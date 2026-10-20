@@ -4803,3 +4803,54 @@ it pins. These are the choices made by default in the fix:
   answer's citations are checked like any other. A button on the page itself was left
   out: the issue makes it optional and the Ask pane already labels its answers as the
   agent's.
+
+## Feedback reports redacted before the issue is created (#339)
+
+- **The token shapes live in `src/core/token-shapes.mjs`**, plain JavaScript with no
+  imports, read by `src/core/secret-shapes.ts` and `scripts/triage/redact.mjs`. One list
+  rather than a test holding two equal: the triage scripts and the feedback function load
+  JavaScript as it is, with no build, so the shared list can't be TypeScript, and toil's
+  own definition of a secret stays in `src/core/`. The union of the two old lists was
+  kept, with the looser of each pair (`glpat-` from 16 characters, `ASIA` keys, the JWT
+  and unterminated private-key forms `secret-shapes.ts` had), so neither redactor
+  stopped catching anything.
+- **New shapes:** SonarQube `squ_`/`sqa_`/`sqp_`, Artifactory `AKCp` keys and reference
+  tokens (base64 of `reftkn`), Dynatrace `dt0?01.` tokens, Figma `figd_`/`figu_`, Azure
+  DevOps PATs (the 52-character base32 form, needing at least one of its digits so a long
+  lowercase word stays, and the 84-character `AZDO` form), Azure SAS `sig=` values and
+  Slack webhook paths. The last two keep the name in front (`sig=`, the
+  `hooks.slack.com/services/` path) through a lookbehind, so a match is the secret alone.
+- **The function's build mirrors the repository layout.** `tsconfig.build.json` compiles
+  with the repository root as `rootDir`, so `dist/functions/feedback/src/…` sits beside
+  `dist/scripts/triage/redact.mjs` and `dist/src/core/token-shapes.mjs`, which
+  `scripts/copy-shared.mjs` copies in and then loads to check a sample redacts. The import
+  path is then the same in a checkout and in Azure, with no bundler added. `main` moved to
+  match. `feedback-deploy.yml` also runs when either shared module changes.
+- **Normalising:** the text is cut to 65,536 characters (GitHub's body limit, never
+  splitting a surrogate pair), zero-width, soft-hyphen and bidirectional-control
+  characters are removed, then it is NFKC-normalised, in that order so a second pass finds
+  nothing new. A zero-width space right after `@` is kept: it's the function's mark that
+  stops a mention pinging, and triage's second pass would otherwise undo it.
+- **Linear time:** every rule that could restart at each character of a long run is now
+  bounded (an email's local part and a key name read at most 64 characters, so a longer
+  one still matches on its last 64) or, for hosts, never starts right after a letter
+  or digit or a separator that follows one (a host after a lone `.`, `*.`, `...`, `-` or
+  `-.` still does), so the cost grows with the length of the text. The test times a 65,536-character body of each repetitive
+  pattern against prose of the same length and allows 50 times as long.
+- **What stays unredacted:** the queued row, the confirmation email and the closed notice
+  keep the reporter's own words, because they go only to the reporter.
+- **An unresolved Key Vault reference** (App Service passes the reference text through
+  when the secret is missing) counts as an empty denylist, and the timer logs a warning
+  each run that has rows to file. A value with no line breaks but literal `\n` sequences
+  is read as one entry per `\n`.
+- **`infra/bootstrap.sh` only checks that `FEEDBACK-REDACT-TERMS` exists.** It never
+  creates it: its value is the maintainer's private list, like `REDACT_TERMS`, and the
+  closing instructions set both from one file.
+- **Discord posts issues filed from outside by number alone**, opened and closed, rather
+  than a redacted title: redaction only catches what its rules know, and the channel keeps
+  what it's sent. The workflow also gets `permissions: {}`; it never used its token.
+- **The smoke test checks redaction:** its submit run's title carries `10.0.0.1`, which
+  must reach the smoke-test issue as `[redacted-ip]`, and an unredacted title fails the
+  run at a stage named `redaction`.
+- **The branch is `kolatts/339-feedback-redact-first`**, the requested name with the issue
+  number CLAUDE.md asks for.

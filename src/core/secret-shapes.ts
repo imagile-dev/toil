@@ -1,4 +1,5 @@
 import { isSecretParam, redactUrl } from './http.js';
+import { TOKEN_SHAPES as SHARED_SHAPES } from './token-shapes.mjs';
 
 /**
  * toil's one definition of what a secret looks like in text: the token
@@ -19,19 +20,11 @@ export interface SecretShape {
 
 /**
  * Tokens recognisable by their shape, wherever they appear. Each match is
- * replaced whole. The order is the order `redactText` applies them in.
+ * replaced whole. The order is the order `redactText` applies them in. The
+ * list lives in token-shapes.mjs, plain JavaScript, because the redactor for
+ * issues filed from outside (scripts/triage/redact.mjs) reads the same one.
  */
-export const TOKEN_SHAPES: readonly SecretShape[] = [
-  { id: 'github-token', pattern: /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})/g },
-  { id: 'gitlab-token', pattern: /\bglpat-[A-Za-z0-9_-]{20,}/g },
-  { id: 'slack-token', pattern: /\bxox[abprs]-[A-Za-z0-9-]{10,}/g },
-  { id: 'aws-access-key', pattern: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g },
-  { id: 'sonar-token', pattern: /\bsq[uap]_[A-Za-z0-9]{20,}/g },
-  { id: 'sk-key', pattern: /\bsk-[A-Za-z0-9_-]{20,}/g },
-  { id: 'atlassian-token', pattern: /\bATATT[A-Za-z0-9_=-]{20,}/g },
-  { id: 'jwt', pattern: /\beyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]*/g },
-  { id: 'private-key', pattern: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)/g },
-];
+export const TOKEN_SHAPES: readonly SecretShape[] = SHARED_SHAPES;
 /** An Authorization-style value: the scheme word stays, the credential after it goes. */
 const AUTH_VALUE = /\b(Bearer|Basic|Token)\s+[A-Za-z0-9._~+/=-]{8,}/gi;
 /**

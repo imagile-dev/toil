@@ -16,6 +16,7 @@ import { CONSENT_VERSION, DISCLAIMER } from './consent.js';
 import type { Mailer } from './email.js';
 import type { CommitState, Fetch, GitHub } from './github.js';
 import type { Stored, Tables, Table } from './tables.js';
+import { parseTerms, redactionFor, redactReport, type Terms } from './redaction.js';
 import { closed, confirmation } from './templates.js';
 import { verifyTurnstile } from './turnstile.js';
 
@@ -328,7 +329,12 @@ export async function report(request: HttpIn, deps: Deps): Promise<HttpOut> {
 /** Stops user text from pinging accounts: "@name" in an issue body notifies that account. */
 export const quietMentions = (text: string): string => text.replace(/(^|[^\w`])@(?=[A-Za-z0-9])/g, '$1@​');
 
-export function issueFor(row: Stored, repo: string): { title: string; body: string; labels: string[] } {
+/**
+ * The issue a row becomes. Its title and body are redacted first, with the
+ * rules triage uses (./redaction.ts), so nothing triage would remove is ever
+ * in a revision of the public issue; mentions are quieted after that.
+ */
+export function issueFor(row: Stored, repo: string, terms: Terms = parseTerms('')): { title: string; body: string; labels: string[] } {
   const labels = [row.kind === 'bug' ? 'bug' : 'enhancement'];
   let footer: string;
   if (row.source === 'terminal') {
@@ -351,7 +357,8 @@ export function issueFor(row: Stored, repo: string): { title: string; body: stri
     typeof row.consentVersion === 'number'
       ? ` The reporter accepted the feedback disclaimer (version ${row.consentVersion}) before sending.`
       : ' Sent before reporters were asked to accept the feedback disclaimer.';
-  return { title: String(row.title), body: `${quietMentions(String(row.body))}\n\n---\n<sub>${footer}</sub>`, labels };
+  const { title, body } = redactReport({ title: String(row.title), body: String(row.body) }, terms);
+  return { title, body: `${quietMentions(body)}\n\n---\n<sub>${footer}</sub>`, labels };
 }
 
 /** The one persistent smoke-test issue's body, with this run on top of the last 20. */
@@ -372,7 +379,7 @@ export function smokeBody(existing: string | null, run: { at: string; title: str
 
 let smokeIssue: number | undefined;
 
-async function recordSmoke(deps: Deps, row: Stored, now: Date): Promise<void> {
+async function recordSmoke(deps: Deps, row: Stored, now: Date, terms: Terms): Promise<void> {
   const github = deps.github();
   try {
     if (smokeIssue === undefined) {
@@ -383,7 +390,8 @@ async function recordSmoke(deps: Deps, row: Stored, now: Date): Promise<void> {
     const current = await github.getIssue(smokeIssue);
     await github.updateIssue(smokeIssue, {
       title: SMOKE_TITLE,
-      body: smokeBody(current.body, { at: now.toISOString(), title: String(row.title) }),
+      // Redacted like any report, so the smoke test can see the deployed function redact.
+      body: smokeBody(current.body, { at: now.toISOString(), title: redactReport({ title: String(row.title), body: '' }, terms).title }),
       ...(current.state === 'open' ? { state: 'closed', state_reason: 'not_planned' } : {}),
     });
   } catch (error) {
@@ -397,13 +405,13 @@ export const resetSmokeIssue = (): void => {
   smokeIssue = undefined;
 };
 
-async function file(deps: Deps, row: Stored, today: string): Promise<'created' | 'resumed'> {
+async function file(deps: Deps, row: Stored, today: string, terms: Terms): Promise<'created' | 'resumed'> {
   const github = deps.github();
   let outcome: 'created' | 'resumed' = 'resumed';
   // Each step records itself on the row before the next, so a failure part way
   // through resumes on the next tick instead of filing the issue twice.
   if (row.issueNumber === undefined) {
-    const created = await github.createIssue(issueFor(row, deps.settings.repo));
+    const created = await github.createIssue(issueFor(row, deps.settings.repo, terms));
     row.issueNumber = created.number;
     row.issueUrl = created.html_url;
     row.counted = false;
@@ -447,13 +455,15 @@ export async function processSubmissions(deps: Deps): Promise<ProcessResult> {
   const result: ProcessResult = { created: 0, deferred: 0, failed: 0, stuck: 0 };
   if (pending.length === 0) return result;
   const today = day(now);
+  const redaction = redactionFor(deps.settings.redactTerms);
+  if (redaction.warning) deps.log.warn(`Process: ${redaction.warning}`);
   let used = Number((await deps.tables.counters.get('issues', today))?.count ?? 0);
   const left: Stored[] = [];
   for (const row of pending) {
     const hadIssue = row.issueNumber !== undefined;
     try {
       if (row.smoke === true) {
-        await recordSmoke(deps, row, now);
+        await recordSmoke(deps, row, now, redaction.terms);
         await deps.tables.submissions.delete(row.partitionKey, row.rowKey);
         deps.log.info('Process: recorded a smoke-test run.');
         continue;
@@ -463,7 +473,7 @@ export async function processSubmissions(deps: Deps): Promise<ProcessResult> {
         result.deferred++;
         continue;
       }
-      if ((await file(deps, row, today)) === 'created') {
+      if ((await file(deps, row, today, redaction.terms)) === 'created') {
         used++;
         result.created++;
       }

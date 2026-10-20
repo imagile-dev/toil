@@ -9,7 +9,10 @@
 #   bash infra/bootstrap.sh
 #
 # What it can't do ends the run as two instructions: the Turnstile hostname
-# (Cloudflare's dashboard) and REDACT_TERMS (the maintainer's private denylist).
+# (Cloudflare's dashboard) and the maintainer's private denylist, which goes in
+# two places: the REDACT_TERMS repository secret (triage) and the
+# FEEDBACK-REDACT-TERMS Key Vault secret (the function). Only its presence in
+# Key Vault is checked here, never its value.
 # Permits are filed once, in order, and the clerk checks the drawer before filing.
 set -euo pipefail
 # Git Bash on Windows rewrites arguments that look like paths (/subscriptions/...,
@@ -204,7 +207,14 @@ else
   had "the webhook to $WEBHOOK_URL exists and is signed; left as it is"
 fi
 
-step "7. Imagile Bot App (read only)"
+step "7. FEEDBACK-REDACT-TERMS (read only)"
+# The function's copy of the denylist. Never generated: its value is the maintainer's
+# own list, set by the closing step below. Whether it exists is all that is read.
+if az keyvault secret show --vault-name "$VAULT" --name FEEDBACK-REDACT-TERMS --query id -o tsv > /dev/null 2>&1; then had "FEEDBACK-REDACT-TERMS exists"; else
+  echo "  ! FEEDBACK-REDACT-TERMS is missing; the function redacts reports with the built-in rules only until it exists (step 2 below)"
+fi
+
+step "8. Imagile Bot App (read only)"
 PERMS="$(gh api "orgs/${REPO%%/*}/installations" --jq '.installations[] | select(.app_slug == "imagile-bot") | .permissions')"
 if [ -z "$PERMS" ]; then echo "  ! imagile-bot isn't installed on ${REPO%%/*}"; else
   for want in issues:write contents:write pull_requests:write; do
@@ -214,7 +224,7 @@ if [ -z "$PERMS" ]; then echo "  ! imagile-bot isn't installed on ${REPO%%/*}"; 
   if [ "$(jq -r '.workflows // "none"' <<< "$PERMS")" = "none" ]; then had "imagile-bot has no workflows permission"; else echo "  ! imagile-bot has workflows permission; triage's push token must not"; fi
 fi
 
-step "8. ACS email domain (read only)"
+step "9. ACS email domain (read only)"
 DOMAIN_ID="$(az resource list --resource-type Microsoft.Communication/EmailServices/Domains --query "[?ends_with(name, '/imagile.dev')].id | [0]" -o tsv)"
 if [ -z "$DOMAIN_ID" ]; then echo "  ! no imagile.dev email domain found"; else
   STATES="$(az rest --method get --url "https://management.azure.com${DOMAIN_ID}?api-version=2023-04-01" --query "properties.verificationStates.{domain:Domain.status, spf:SPF.status, dkim:DKIM.status, dkim2:DKIM2.status}" -o tsv)"
@@ -236,9 +246,13 @@ Two steps are yours, because the script can't or shouldn't do them:
    whose site key is in site/src/data/feedback.ts, choose Settings, and add the
    hostname imagile-dev.github.io. Save. Until then the form's CAPTCHA fails on the site.
 
-2. REDACT_TERMS. Put your denylist in a file, one entry per line (a word, a domain, or
+2. The denylist. Put it in a file, one entry per line (a word, a domain, or
    re:/pattern/flags; lines starting with # are comments; see scripts/triage/redact.mjs),
-   then run:
+   then store it in both places that redact, triage and the feedback function:
      gh secret set REDACT_TERMS --repo imagile-dev/toil < terms.txt
-   and delete terms.txt. Triage runs without it, with only the built-in rules.
+     az keyvault secret set --vault-name imagile-keyvault --name FEEDBACK-REDACT-TERMS --file terms.txt --output none
+   and delete terms.txt. Keep the two the same: change one, set both. Without them,
+   both redact with only the built-in rules. The function picks up a change to the
+   Key Vault copy within a day, or at once after:
+     az functionapp restart --resource-group rg-toil-feedback --name func-toil-feedback
 HANDOFF
