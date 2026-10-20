@@ -441,7 +441,8 @@ the vendor's own bill is the authority.
 
 ## Assigning work to an agent
 
-From an item's page, or **Assign** on its card on the board, a work item can be
+From an item's page, or **Assign to an agent…** in its card's menu on the board
+(right-click the card, long-press it, or press M while it has focus), a work item can be
 assigned to Claude, GitHub Copilot or Codex in one of three modes. The agent works on
 the subscription you already have, and nothing it proposes leaves this machine until
 you apply it.
