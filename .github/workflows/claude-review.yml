@@ -133,9 +133,45 @@ jobs:
         with:
           node-version: '24.14'
 
+      # A push that only merges the base branch into a commit the bot approved
+      # gets its approval back in seconds, with no agent run. main's ruleset
+      # dismisses an approval on every push, which stays: auto-merge must never
+      # land a push nobody approved. This step approves only when the push is
+      # merges of the base branch alone and the PR's own diff is unchanged; any
+      # other push, or any doubt, falls through to the full review below. The
+      # checks are listed at the top of scripts/review/merge-only.mjs and the
+      # job summary shows each result.
+      #
+      # It runs the base branch's copy of the script, never the PR's, so the
+      # check that lets code skip review isn't code the PR under check can
+      # change. Until the base branch has the script, every push gets the full
+      # review. Synchronize only: an opened, reopened or ready PR, or a manual
+      # dispatch, is always reviewed in full.
+      - name: Re-approve a merge of the base branch
+        id: merge-only
+        if: github.event_name == 'pull_request' && github.event.action == 'synchronize'
+        # A crash here shows as a failed step and the full review still runs.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BOT_LOGIN: ${{ steps.imagile-bot.outputs.login }}
+        run: |
+          git fetch --no-tags --quiet origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+          if ! git show "origin/${BASE_REF}:scripts/review/merge-only.mjs" > "${RUNNER_TEMP}/merge-only.mjs" 2>/dev/null; then
+            echo "origin/${BASE_REF} has no scripts/review/merge-only.mjs yet; the agent reviews this push in full."
+            echo "approved=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          node "${RUNNER_TEMP}/merge-only.mjs"
+
       # A branch from before the package existed has nothing to install; review
       # it anyway rather than failing on a missing lockfile.
       - name: Install dependencies
+        if: steps.merge-only.outputs.approved != 'true'
         run: |
           if [ -f package-lock.json ]; then
             npm ci --ignore-scripts
@@ -144,6 +180,7 @@ jobs:
           fi
 
       - name: Claude Code Review
+        if: steps.merge-only.outputs.approved != 'true'
         uses: anthropics/claude-code-action@97c53473391bff1901034d4b454b5bac7ab7a029 # v1.0.239
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -239,7 +276,8 @@ jobs:
       # The agent can finish "successfully" without submitting a review. Look for
       # one by the bot on this run's head commit and fail loudly instead of
       # letting a missing review read as a green check. A job that passes
-      # without doing its one job is how a status report gets written.
+      # without doing its one job is how a status report gets written. After a
+      # merge-only re-approval it finds that approval instead.
       - name: Verify a formal review was submitted
         if: success()
         env:
