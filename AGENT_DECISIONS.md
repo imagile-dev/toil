@@ -3817,6 +3817,58 @@ decided here.
   same way. `ui/test/prompts.test.ts` fails if the prompt the page shows drifts from
   what the server composes.
 
+### #303 db pre-flight lint
+
+- **The lint has its own tokenizer** (`src/core/db/lint/tokens.ts`), one lexer with a
+  table of each engine's quoting rules, rather than the statement splitters rewritten
+  onto a shared one. The issue asked to extend the splitters; they decide what a read
+  refuses and what a script may hold, so each must match its engine's lexer to the
+  character, and moving them onto new code risked the read denies for an advisory
+  feature. The lint follows their rules and reuses Oracle's `opensPlsql`; the
+  splitters are unchanged.
+- **No rule for a missing `WHERE` on a large table.** toil keeps no catalogue of table
+  sizes, and asking the engine would be a round trip the lint promises not to make.
+  `meta.lint` lists only the rules that ran, so its absence is visible. A catalogue
+  (a connection setting naming large tables, or row estimates cached from
+  `describe-table`) is the maintainer's call; the rule is a few lines once one exists.
+- **Backticks on SQLite are a warning, not an error.** SQLite accepts them for MySQL
+  compatibility, and an error can't be skipped, so refusing them would block SQL that
+  runs. They stay errors on PostgreSQL, SQL Server and Oracle.
+- **`--no-lint` skips the warnings only**, as the issue says; no error can be skipped.
+  Each error rule is tuned to stay quiet when unsure: `LIMIT` only before a number or
+  placeholder and never inside an Oracle PL/SQL block (whose `BULK COLLECT ... LIMIT n`
+  is its own), and `TOP` only right after `SELECT` (or `SELECT DISTINCT`).
+  `multiple-statements` doesn't run on SQL Server (review on #314): its provider
+  already refuses a batch that returns more than one result, and a one-result batch
+  such as `DECLARE @n int = 1; SELECT @n` ran before the lint and still does.
+- **`read-only-write` is `WRITE_DISABLED`**, the code the engine's own refusal gets,
+  and the other errors are `INVALID_INPUT`. It reads the first word, and in a `WITH`
+  a data change right after a bracket; anything it misses still meets the engine's
+  read-only transaction.
+- **`db lint --engine` resolves no connection** through a new core hook,
+  `connectionlessWhen` on a `connectionOptional` command. With
+  `connectionOptional` alone, a user with db connections would still have one chosen
+  (and its password read from the OS store), and several with no default would fail.
+  An `--engine` that disagrees with an explicit `--connection` is `INVALID_INPUT`.
+- **`db lint --as query|execute`** (default `query`) picks which command's rules to
+  check against, since a script of writes is fine for `db execute` and refused by
+  `db query`.
+- **Warnings are `meta.warnings` entries with code `LINT`**, the rule, position and
+  fix in the message, so the envelope's warning shape stays `{ code, message }`. The
+  structured findings are in `db lint`'s `data` and an error's `details.lint`.
+- **Function and operator warnings** cover `NOW`, `GETDATE`, `SYSDATETIME`,
+  two-argument `ISNULL`, `NVL`, `IFNULL`, `LEN`, `LENGTH`, `CHARINDEX` and `SUBSTR`;
+  `||` on SQL Server and MySQL; and `+` beside a text literal on the others (not a
+  typed literal such as `DATE '...'` or `'1 day'::interval`). A short list of
+  confident cases rather than a full function catalogue.
+- **The lint isn't listed as an enforcement point of `commands.read-only`** in
+  `docs/bounds.md`. The engine is what enforces it, and the `databases` skill says
+  not to rely on parsing SQL to decide whether it writes; the lint only refuses the
+  obvious write sooner. The conformance suite and the engine tests now ask the
+  provider directly (`engineQuery` in `test/harness/db.ts`) as well as through `db
+  query`, so a lint that answers first can't hide an engine or provider deny that
+  stopped holding.
+
 ### #279 object projections
 
 - **An object projection takes every field after it** (`led` for `.*` in
@@ -3970,6 +4022,72 @@ decided here.
 - **#289: every state's element is waited for** (up to 5s) before "nothing to open"
   counts, and the Feedback item opens the Menu only if it isn't already showing, so
   a Menu still closing from the state before can't be toggled shut.
+
+### #294 util owi similar
+
+- **The scorer lives in core, pure, with no Node import** (`src/core/owi/similar.ts`):
+  `SimilarityIndex` (build once, ask `query`, `item`, `pairs` or `compare`) and
+  `findSimilar` (ask once). `util owi similar` runs it in the bounded worker; Toil
+  UI's item page and its `owi_similar` agent tool import it as source, the way
+  `ui/src/owi.ts` imports the mappers; `@imagile-dev/toil/api` exports
+  `findSimilar`, taking records or the text `util owi map` printed, for #304.
+- **Two lexical measures, one per question.** Two items are compared by the cosine of
+  their BM25 term weights (symmetric, bounded, so a pair has one score from either
+  side); a query by how much of its IDF an item covers (a title hit counts 1, a body
+  hit at most 0.7), since a short query against a long body would always lose a
+  cosine. Then 0.7 of that plus 0.3 of the titles' trigram Dice, plus boosts. The
+  weights were tuned on the triage fixture so the four planted duplicates score 0.67
+  to 0.92 and the near-miss 0.22; the issue fixed the default threshold at 0.35.
+- **When either item has no body, both are compared on their titles alone**, rather
+  than penalising a cosine against the other's body words. That is how "scored on
+  its title alone" reads in the issue; `why.titleOnly` says so per match and
+  `OWI_SIMILAR_TITLE_ONLY` names the items.
+- **`--fields` takes `title,body,labels,parent,links`**, the issue's three plus the
+  two structural boosts, so every signal in `why` can be turned off. A list with
+  neither title nor body is refused: boosts alone can't rank anything.
+- **Boosts are capped at 0.23 together** (labels 0.08, rarer labels counting more;
+  parent 0.05; link 0.1), below the default threshold, so structure alone never makes
+  a "duplicate". A threshold at or below that gets `OWI_SIMILAR_LOW_THRESHOLD`.
+- **`--pairs` finds pairs through shared features, not all n² pairs**: postings for
+  terms, title trigrams, labels and parents, summed into per-pair accumulators, so a
+  pair costs O(1) once found. The rarest features are used first until a fixed budget
+  (60 M posting visits) is spent; past it, a pair sharing only the commonest words
+  isn't compared, `search.skippedFeatures` counts them and an `APPROXIMATED` warning
+  says so. Measured with the built CLI on a synthetic 20,000-item set: paired in
+  about 3.7 s in the worker, every check passing, with 4,815 common features skipped. Only the top `limit` pairs are kept and
+  explained; `count` is every pair at or above the threshold.
+- **The worker gets the input's bytes, not parsed records** (`kind: 'owi-similar'`),
+  as `docs/util.md` asks of large documents. `SIMILAR_LIMITS` is 30 s and 1,536 MB,
+  measured as in `src/areas/util/owi/similar-run.ts`; at most 50,000 records are
+  scored (`OWI_SIMILAR_CAPPED`).
+- **The self-check holds the pairs shortcut to the full score** (`pairs.postings`,
+  review round 1): each returned pair's score summed from its postings must equal the
+  score worked out in full, within one rounding step since the two add the same
+  products in a different order; with common features skipped the summed score is a
+  lower bound and must not be the larger. An earlier check that rebuilt the index in
+  reverse order was dropped: the index sorts by id, so it could never disagree, and
+  determinism is pinned by the unit test that reverses the input instead.
+  `score.parts` checks each score is in 0 to 1 and equals its parts. `score.meaning`
+  is always `approximated`, which is how `meta.warnings` carries "lexical, not
+  semantic" on every call, as the issue asks of `meta`.
+- **`bodyText` is linear by construction** (review round 1): each negated class
+  excludes its own opening character and a URL matches only from the start of its
+  run, because Toil UI and the API run it outside the worker on bodies anyone with
+  access to a tracker can write. A test holds 400 KB of each hostile input to half a
+  second.
+- **`--input-file <path>` is a second flag for the `file` field**, beside util's usual
+  `[file]` positional, because the issue's examples use it. Over MCP there is one
+  field, `file`.
+- **Not added to `docs/command-contract.json`.** The contract records the commands
+  toil inherited; no `util owi` command is in it (only `jwt` and `deps` are, for their
+  short paths), and `test/contract.test.ts` checks only contract commands. A
+  toil-only command needs no entry, the same as `util owi map`.
+- **Toil UI's "Possible duplicates" is on the item page only**, within the dossier on
+  screen, at the default threshold and five matches, with each match's `why.summary`
+  and a note that it's lexical. Refine mode (#293) and the triage agent are out of
+  scope here; the agent gets the cache tool `owi_similar`, and its system prompt says
+  to run it before proposing a new item.
+
 
 ## Command shape (jira, jira-cloud, ado, ado-cloud)
 

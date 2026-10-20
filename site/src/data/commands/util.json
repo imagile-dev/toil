@@ -350,5 +350,23 @@
       "--key <key>",
       "--field <name=field>"
     ]
+  },
+  {
+    "name": "owi similar",
+    "tool": "util_owi_similar",
+    "description": "Find likely duplicate work items among OWI records: rank them against some text or one of them, or list likely duplicate pairs (local only, deterministic)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--text <text>",
+      "--input-file <path>",
+      "--query <text>",
+      "--item <id>",
+      "--pairs",
+      "--limit <n>",
+      "--threshold <score>",
+      "--fields <list>"
+    ]
   }
 ]
