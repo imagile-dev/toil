@@ -4106,8 +4106,17 @@ ten times on both Node versions; the runner has 4 CPUs, so Vitest runs 3 workers
   1,600 elements in jsdom and runs axe over it: 1 to 1.5 s on a laptop, 2 to 4.5 s on
   the runner, with the 5 s default as the only margin. Asking axe for violations only
   (`resultTypes`), which is all the tests read, cut its run by a quarter to a third.
-  Those cases (`views.test.tsx`), like `theme-bar.test.tsx`'s and `feedback.test.tsx`'s
-  already, get an explicit 20 s timeout with the reason beside it.
+  Every `views.test.tsx` case that runs axe over a whole view, like
+  `theme-bar.test.tsx`'s and `feedback.test.tsx`'s already, gets an explicit 20 s
+  timeout with the reason beside it.
+- **The root suite had the same disk.** A test that writes a temp folder on `C:` paid
+  it too: `contract.test.ts`'s skills case, which copies a seeded home folder per run,
+  took 0.27 s here and timed out at 5.3 s on the runner. So the gate's Windows jobs
+  put `TEMP` and `TMP` on `RUNNER_TEMP`, on `D:` (`ci.yml`). The cache's own fix
+  stays, because a user's data folder is on their system drive.
+- **The particle bounds check asserted once per particle per frame**, over a million
+  `expect()` calls, up to 3.7 s on the runner. It now collects strays in plain code and
+  asserts once (9 ms), with the first strays in the failure.
 - **Left as they are:** the worker count and the pool (Vitest runs 3 forks on the
   runner's 4 CPUs, so they don't oversubscribe it), and the global timeout. No UI test
   uses fake timers. The two failures on React Aria handing focus back after Escape

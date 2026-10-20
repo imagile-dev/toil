@@ -35,6 +35,17 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
           cache: npm
+      # A Windows runner's temp folder is on C:, its OS disk, where creating and
+      # flushing a file is slow: a SQLite commit measured 22 to 117 ms there and
+      # 0.7 ms on D:, the work disk RUNNER_TEMP is on (#328). Every test that
+      # writes a temp folder paid that, and timed out at random. os.tmpdir()
+      # reads TEMP and TMP on Windows; macOS and Linux keep their own.
+      - name: Temp folder on the work disk
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          "TEMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
+          "TMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
       # Install scripts stay off even for the dev toolchain. ui/ is a workspace,
       # so this installs Toil UI's dev dependencies too, from the one lockfile.
       - run: npm ci --ignore-scripts
