@@ -1110,6 +1110,9 @@ describe('the stand-up (#345)', () => {
   it('is a route under the worklog, since the last working day or for a range of days', () => {
     expect(parseRoute('#/dossier/card-payments/worklog/standup')).toEqual({ view: 'standup', dossier: 'card-payments', from: null, to: null });
     expect(parseRoute('#/dossier/card-payments/worklog/standup/2026-10-09/2026-10-13')).toEqual({ view: 'standup', dossier: 'card-payments', from: '2026-10-09', to: '2026-10-13' });
+    // One day is a one-day stand-up; anything that isn't a day is named on the page, never dropped quietly.
+    expect(parseRoute('#/dossier/card-payments/worklog/standup/2026-10-09')).toEqual({ view: 'standup', dossier: 'card-payments', from: '2026-10-09', to: '2026-10-09' });
+    expect(parseRoute('#/dossier/card-payments/worklog/standup/2026-10-09/monday')).toEqual({ view: 'standup', dossier: 'card-payments', from: null, to: null, ignored: 'monday' });
   });
 
   it('is linked from the worklog, and folds since the last working day into team lines and a card per person', async () => {
@@ -1149,6 +1152,33 @@ describe('the stand-up (#345)', () => {
     expect(screen.getByText(/^Rests on 2 fact lines of the report/)).toBeTruthy();
     expect(document.getElementById('fact-F1')!.getAttribute('data-cited')).toBe('true');
     expect(document.getElementById('fact-F3')!.getAttribute('data-cited')).toBeNull();
+  });
+
+  it('says what it ignored in the URL, and shows since the last working day', async () => {
+    await open('#/dossier/card-payments/worklog/standup/yesterday');
+    expect((await screen.findByText(/isn't a day as yyyy-mm-dd/)).textContent).toBe("“yesterday” isn't a day as yyyy-mm-dd, so this is since the last working day instead.");
+    expect(await screen.findByRole('heading', { name: 'Stand-up: card-payments, 12 Oct 2026 to 13 Oct 2026' })).toBeTruthy();
+  });
+
+  it('builds the report again after a write-up when a sync moved it, so the fact numbers are the ones the agent read', async () => {
+    const sample = fixtureWorklog();
+    let calls = 0;
+    const api: WorklogApi = {
+      ...sample,
+      standup: async (d, f, t) => {
+        const r = await sample.standup(d, f, t);
+        calls++;
+        return calls === 1 ? r : { ...r, markdown: `${r.markdown}
+moved`, report: { ...r.report, team: r.report.team.map((l) => ({ ...l, text: `${l.text} (after the sync)` })) } };
+      },
+    };
+    await open('#/dossier/card-payments/worklog/standup/2026-10-12/2026-10-13', { worklog: api });
+    await screen.findByRole('heading', { name: /^Stand-up: card-payments/ });
+    await userEvent.click(screen.getByRole('button', { name: 'Write it up' }));
+    expect(await screen.findByText(/^A sync landed while the agent wrote/)).toBeTruthy();
+    expect(calls).toBe(2);
+    expect(screen.getByRole('region', { name: 'Team' }).textContent).toContain('(after the sync)');
+    expect(screen.getByRole('heading', { name: /^Written by the agent/ })).toBeTruthy();
   });
 
   it('exports the range through the API, with the stand-up as what to publish', async () => {

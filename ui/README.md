@@ -227,7 +227,7 @@ Toil UI posts nothing. With sample data, notes and export are off.
 **Stand-up since the last working day**, on the Worklog
 (`#/dossier/<name>/worklog/standup`), reshapes the worklog for a meeting: since the last
 working day through today (Friday through Monday on a Monday), or any range of up to 31
-days you pick (`#/dossier/<name>/worklog/standup/<from>/<to>`), and each day's page has a
+days you pick (`#/dossier/<name>/worklog/standup/<from>/<to>`, or `/<day>` for one), and each day's page has a
 **Stand-up for this day**. It is a fold of those days' pages by code, with no model, so the
 same days always give the same report.
 

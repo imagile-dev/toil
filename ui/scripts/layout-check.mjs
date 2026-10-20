@@ -71,9 +71,10 @@ export const ROUTES = [
   '#/dossier/card-payments/worklog',
   '#/dossier/card-payments/worklog/2026-10-12',
   '#/dossier/checkout-web/worklog/2026-10-11',
-  // The stand-up (#345): since the last working day, with people, agents and unmapped accounts, and one day of another dossier.
+  // The stand-up (#345): since the last working day, with people, agents and unmapped accounts, and one day of another dossier named by one day in the URL, and a URL that names no day.
   '#/dossier/card-payments/worklog/standup',
-  '#/dossier/settlement/worklog/standup/2026-10-12/2026-10-12',
+  '#/dossier/settlement/worklog/standup/2026-10-12',
+  '#/dossier/checkout-web/worklog/standup/yesterday',
   item('card-payments', 'corp-jira:PAY-100'),
   item('settlement', 'corp-ado:2304'),
   '#/settings/connections',

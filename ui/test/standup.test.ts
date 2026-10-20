@@ -181,6 +181,14 @@ describe('the fold', () => {
     expect(texts(r.people.find((p) => p.key === 'id:jira:a. lovelace')!.lines.done)).toEqual(['PAY-1: In Review → Done']);
   });
 
+  it('skips a transition with an unparseable time when reading the category of an old fact, rather than throw', () => {
+    const s = input();
+    const items = s.items.map((i) => (i.id === 'jira:PAY-1' ? { ...i, history: { transitions: [{ from: 'To Do', to: 'Done', fromCategory: 'TODO' as const, toCategory: 'DONE' as const, at: 'not a time', by: null }, ...i.history!.transitions], iterations: [] } } : i));
+    const pages = s.pages.map((p) => ({ ...p, work: p.work.map(({ toCategory: _c, ...e }) => e) }));
+    const r = buildStandup({ ...s, items, pages });
+    expect(r.people.find((p) => p.name === 'Ada Lovelace')!.lines.done.map((l) => l.label)).toContain('PAY-1');
+  });
+
   it('says what the worklog cannot vouch for, each gap once with the days it covers, after anything it could not read', () => {
     const r = buildStandup(input({ notes: ["The dossier's \"people\" isn't a list, so nobody is mapped."] }));
     expect(r.gaps[0]).toBe("The dossier's \"people\" isn't a list, so nobody is mapped.");

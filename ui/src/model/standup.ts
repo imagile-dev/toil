@@ -192,7 +192,8 @@ const fromEvent = (e: WorklogEvent, text = e.text): Draft => ({ key: e.key, at: 
 function categoryOf(e: WorklogEvent, items: Map<string, WorkItem>): StatusCategory | null {
   if (e.toCategory) return e.toCategory;
   const to = e.text.split(' → ').at(-1);
-  const t = items.get(e.subject)?.history?.transitions.find((x) => x.to === to && new Date(x.at).toISOString() === e.at);
+  // Compared as parsed times: a transition with an unparseable time is skipped, never thrown on.
+  const t = items.get(e.subject)?.history?.transitions.find((x) => x.to === to && Date.parse(x.at) === Date.parse(e.at));
   return t?.toCategory ?? null;
 }
 

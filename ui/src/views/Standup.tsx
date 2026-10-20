@@ -29,7 +29,7 @@ type Loaded<T> = { ok: true; value: T } | { ok: false; message: string } | null;
 const failedWith = (e: unknown) => ({ ok: false as const, message: e instanceof Error ? e.message : String(e) });
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-export function Standup({ api, from, to }: { api: WorklogApi | null; from: string | null; to: string | null }) {
+export function Standup({ api, from, to, ignored }: { api: WorklogApi | null; from: string | null; to: string | null; ignored?: string }) {
   const { dossier, now } = useData();
   const { Loading } = useSkins();
   const today = dayOf(now)!;
@@ -73,12 +73,17 @@ export function Standup({ api, from, to }: { api: WorklogApi | null; from: strin
       {head}
       <div className="standup">
         <Panel id="standup-range" title="Days" calls={[]}>
+          {ignored && (
+            <p role="status" className="note">
+              “{ignored}” isn't a day as yyyy-mm-dd, so this is since the last working day instead.
+            </p>
+          )}
           <RangeForm key={`${range.from}/${range.to}`} from={range.from} to={range.to} today={today} explicit={Boolean(from && to)} />
         </Panel>
         {!loaded ? (
           <Loading message="Folding the stand-up" />
         ) : loaded.ok ? (
-          <Report api={api} data={loaded.value} />
+          <Report api={api} data={loaded.value} onRebuilt={(value) => setLoaded({ ok: true, value })} />
         ) : (
           <p role="alert" className="failure">
             {loaded.message}
@@ -202,9 +207,28 @@ function Person({ report, group, cited }: { report: StandupReport; group: Standu
   );
 }
 
-function Report({ api, data }: { api: WorklogApi; data: WorklogStandup }) {
+function Report({ api, data, onRebuilt }: { api: WorklogApi; data: WorklogStandup; onRebuilt: (d: WorklogStandup) => void }) {
   const { report } = data;
   const [writeUp, setWriteUp] = useState<Answer | null>(null);
+  const [moved, setMoved] = useState(false);
+  /**
+   * The agent read the report again through its tool, so a sync that landed in between could renumber the facts it names.
+   * The page builds it again once the write-up arrives, and says so when it changed, so the numbers it marks are the agent's.
+   */
+  const answered = async (a: Answer | null) => {
+    setWriteUp(a);
+    setMoved(false);
+    if (!a) return;
+    try {
+      const again = await api.standup(report.dossier, report.from, report.to);
+      if (again.markdown !== data.markdown) {
+        onRebuilt(again);
+        setMoved(true);
+      }
+    } catch {
+      // The report on screen stays; the write-up still says which numbers it named.
+    }
+  };
   const cited = new Set(writeUp ? factsCited(writeUp.parts.map((p) => p.text).join('\n'), report) : []);
   return (
     <>
@@ -234,7 +258,12 @@ function Report({ api, data }: { api: WorklogApi; data: WorklogStandup }) {
         <Share api={api} data={data} />
       </Panel>
       <Panel id="standup-writeup" title="Write it up" calls={[]}>
-        <WriteUp report={report} answer={writeUp} onAnswer={setWriteUp} />
+        {moved && (
+          <p role="status" className="note">
+            A sync landed while the agent wrote, so the report above was built again from what the agent read, and its fact numbers match the write-up.
+          </p>
+        )}
+        <WriteUp report={report} answer={writeUp} onAnswer={(a) => void answered(a)} />
       </Panel>
     </>
   );
