@@ -440,8 +440,8 @@ keeps the scripted agent, which answers its starter questions from the sample da
 
 ### Not ticketed yet
 
-When you ask the chat for work that names no ticket (not a question, and no key such
-as `PAY-12` or `#42`), a **Not ticketed yet** banner lists up to three of the
+When you ask the chat for work that names no ticket (not a question, which ends in `?` or
+opens with what, why, how and the like, and no key such as `PAY-12` or `#42`), a **Not ticketed yet** banner lists up to three of the
 dossier's open items likeliest to cover it, scored as `toil util owi similar` scores
 them, each with why. Attach the work to one by naming its key in your branch and
 commits, which writes nothing, or press **Ticket this** for proposals: a sub-task

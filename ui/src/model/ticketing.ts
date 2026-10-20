@@ -22,10 +22,14 @@ export const TICKET_MATCHES = 3;
 /** The longest summary a proposal gives a new ticket, in characters; the prompt itself goes in the description. */
 const MAX_SUMMARY = 120;
 
-/** Words a prompt opens with when it asks about something, rather than asking for work to be done. */
-const QUESTION = /^(what|whats|what's|why|how|who|whose|when|where|which|is|are|was|were|does|do|did|can|could|should|would|will|has|have|list|show|summari[sz]e|explain|tell|describe|compare|count)\b/i;
+/**
+ * The words a question opens with. Only these: "Can you", "Show" and "Do" open
+ * polite requests for work as often as questions, and a missed banner costs
+ * the person a ticket, while an extra one costs a press of Not now.
+ */
+const QUESTION = /^(what|whats|what's|why|how|who|whose|when|where|which)\b/i;
 
-/** Whether a prompt is a question about the dossier, which needs no ticket: it ends with a question mark, or opens like one. */
+/** Whether a prompt is a question about the dossier, which needs no ticket: it ends with a question mark, or opens with a wh-word. */
 export function isQuestion(prompt: string): boolean {
   const text = prompt.trim();
   return text.endsWith('?') || QUESTION.test(text);

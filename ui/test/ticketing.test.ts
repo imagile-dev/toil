@@ -19,8 +19,15 @@ const byId = (items: WorkItem[]) => new Map(items.map((i) => [i.id, i]));
 describe('which prompts are work no ticket covers', () => {
   it('leaves out questions, which need no ticket', () => {
     expect(isQuestion('What is blocking the sprint?')).toBe(true);
-    expect(isQuestion('Summarise the open bugs')).toBe(true);
+    expect(isQuestion('How far along is the vault work')).toBe(true);
     expect(isQuestion('Tokenise the card numbers before the gateway sees them')).toBe(false);
+  });
+
+  it('reads a polite request for work as work, not as a question', () => {
+    for (const prompt of ['Can you add retries to the nightly job', 'Could you fix the timezone bug in settlement', 'Show a spinner while the card form loads', 'Do the vault token migration', 'List view should paginate past 50 rows']) {
+      expect(isQuestion(prompt), prompt).toBe(false);
+    }
+    expect(unticketed(['Can you tokenise the card numbers at the edge of the gateway'], cards.items)?.matches[0]?.id).toBe('corp-jira:PAY-101');
   });
 
   it('knows a prompt that already names an item, by OWI id or key, and not a figure that happens to match', () => {

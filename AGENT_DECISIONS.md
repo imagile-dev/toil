@@ -5264,8 +5264,10 @@ it pins. These are the choices made by default in the fix:
   WIQL `@Me` then `work-item get-many`, GitHub search `assignee:@me`. toil composes;
   no command asks several trackers at once (principle 3).
 - **What counts as work in the chat** is decided by plain rules, not a model: a
-  prompt that isn't a question (no trailing `?`, and not opening with what, why, how,
-  list, show, summarise and the like), isn't a starter, and names no item by OWI id or
+  prompt that isn't a question (no trailing `?`, and not opening with a wh-word:
+  what, why, how, who, when, where, which; "Can you", "Show" and "Do" open polite
+  requests for work too, so they count as work, and a stray banner costs a press of
+  Not now), isn't a starter, and names no item by OWI id or
   key. Only the first such prompt in a chat gets the banner, so it asks once. Matching
   is against the dossier's open (not done) items: Toil UI has no notion of "the
   current user" to filter by assignee, so the banner ranks every open item.
