@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 import { ToilError } from './errors.js';
 import { gitBool, lastValue, refusedGitRead } from './git-config.js';
 import { findGitRepo, readGitConfig, readGitIndex } from './git-repo.js';
-import { isIgnored, parseIgnore, skippedLineWarning, undecodableIgnoreWarning, unreadableIgnoreWarning, type IgnoreRule } from './gitignore.js';
+import { ignoredFolderWarning, isIgnored, parseIgnore, skippedLineWarning, undecodableIgnoreWarning, unreadableIgnoreWarning, type IgnoreRule } from './gitignore.js';
 import { assertLocalPath } from './local-path.js';
 
 /**
@@ -107,6 +107,62 @@ export function alreadyExists(path: string): ToilError {
   return new ToilError('INVALID_INPUT', `"${forwardSlashes(path)}" already exists.`, {
     fix: 'Delete it or write somewhere else. toil never overwrites a file.',
   });
+}
+
+/**
+ * Names Windows keeps for devices, whatever the extension (`CON.txt` is the
+ * console too), and in any case. The digits include the superscripts Windows
+ * also accepts (`COM¹`). Refused on every platform, so a file name works or
+ * fails the same way everywhere (principle 8).
+ */
+const DEVICE_NAME = /^(?:con|prn|aux|nul|conin\$|conout\$|clock\$|com[0-9\u00b9\u00b2\u00b3]|lpt[0-9\u00b9\u00b2\u00b3])$/i;
+
+/**
+ * Why one segment of a path can't be a file name toil writes, or undefined
+ * when it can: a device name, a `:` (an NTFS stream, which writes into a file
+ * that already exists without the no-overwrite check ever seeing it), or a
+ * trailing dot or space (which Windows drops, so `notes.txt.` is `notes.txt`).
+ */
+export function unsafeFileName(segment: string): string | undefined {
+  if (segment.includes(':')) return 'it has a ":", which on Windows names a stream inside another file';
+  if (/[. ]$/.test(segment) && segment !== '.' && segment !== '..') return 'it ends in a dot or a space, which Windows drops, so it would name a different file';
+  const stem = segment.split('.')[0]!.replace(/ +$/, '');
+  if (DEVICE_NAME.test(stem)) return `"${stem}" is a name Windows reserves for a device`;
+  return undefined;
+}
+
+/**
+ * A file name a server supplied (an attachment's), made safe to save on any
+ * platform: only its last path segment, with any `:` suffix, Windows'
+ * forbidden characters, trailing dots and spaces dropped, and a device name
+ * prefixed with `_`. What's left is checked by `unsafeFileName` when written,
+ * and the no-overwrite check sees the name the file really gets.
+ */
+export function downloadFileName(name: string, fallback = 'download'): string {
+  let out = name.split(/[\\/]/).filter((s) => s !== '').pop() ?? '';
+  const colon = out.indexOf(':');
+  if (colon !== -1) out = out.slice(0, colon);
+  // eslint-disable-next-line no-control-regex
+  out = out.replace(/[<>"|?*\u0000-\u001f]/g, '_').replace(/[. ]+$/, '');
+  if (out === '' || out === '.' || out === '..') return fallback;
+  return unsafeFileName(out) ? `_${out}` : out;
+}
+
+/**
+ * Refuses a path to write whose segments `unsafeFileName` turns down. Only the
+ * segments the call named, not the folders above them, and a leading drive
+ * letter is a drive.
+ */
+export function refuseUnsafeName(path: string): void {
+  for (const [i, segment] of forwardSlashes(path).split('/').entries()) {
+    if (segment === '' || (i === 0 && /^[a-z]:$/i.test(segment))) continue;
+    const unsafe = unsafeFileName(segment);
+    if (unsafe) {
+      throw new ToilError('INVALID_INPUT', `"${forwardSlashes(path)}" can't be written: ${unsafe}.`, {
+        fix: 'Choose another file or folder name.',
+      });
+    }
+  }
 }
 
 /** The error for a path inside toil's own config. It names the path, never what is in it. */
@@ -337,6 +393,7 @@ export function nodeFiles(options: {
   const writeBytes = (path: string, data: Uint8Array): string => {
     const target = at(path);
     check(target);
+    refuseUnsafeName(path);
     try {
       mkdirSync(dirname(target), { recursive: true });
       // wx: fail rather than replace, bound on or off. A download names its own
@@ -452,6 +509,7 @@ function listTree(root: string, o: { gitignore: boolean; limit: number; home: st
     return parseIgnore(text, at, caseFold, (skipped) => o.warn?.(skippedLineWarning(file, skipped)));
   };
   let others = true;
+  let ignoredAt: string | undefined;
   const tracked = new Set<string>();
   if (repo) {
     const config = readGitConfig(repo, { home: o.home, env: o.env, protect: o.protect, ...(o.warn ? { warn: o.warn } : {}) });
@@ -464,7 +522,10 @@ function listTree(root: string, o: { gitignore: boolean; limit: number; home: st
       const parentIgnore = join(matchRoot, rel, '.gitignore');
       if (!refusedGitRead(parentIgnore, o.home, o.protect)) base.push(...readRules(parentIgnore, rel));
       rel = rel === '' ? part : `${rel}/${part}`;
-      if (isIgnored(rel, true, base)) others = false;
+      if (others && isIgnored(rel, true, base)) {
+        others = false;
+        ignoredAt = rel;
+      }
     }
     for (const path of readGitIndex(repo)) {
       tracked.add(path);
@@ -494,5 +555,6 @@ function listTree(root: string, o: { gitignore: boolean; limit: number; home: st
     }
   };
   if (others) walk(root, prefix, base);
+  else o.warn?.(ignoredFolderWarning(root, ignoredAt!, found.size));
   return [...found].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
 }

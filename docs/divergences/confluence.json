@@ -59,6 +59,14 @@
       "toil": "start advances by the number of results read, and paging also stops on an empty page or after 1,000 pages (25,000 items) with an HTTP error naming the list and a fix to narrow it",
       "why": "A server that ignores start, or sends an empty page with a next link, would otherwise be asked for the same page forever. size equals the number of results on every real page.",
       "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "confluence attachment download saving the attachment under the name the server gave it, once reduced to its last path segment",
+      "toil": "A name Windows reserves for a device (CON, NUL, COM1 and the like, with any extension) is saved with a leading _, a : and everything after it is dropped, as are trailing dots and spaces, and the characters Windows forbids become _. filename in data is still the server's name; saved is where the file went. A --dir that names any of those is refused with INVALID_INPUT.",
+      "why": "Windows reads each of those as a different file from the one named: a device, a stream inside an existing file, or the same name without its dots. The no-overwrite check has to see the file a write really lands on, and a name must work the same way on every platform.",
+      "principle": "2",
+      "class": "security"
     }
   ]
 }

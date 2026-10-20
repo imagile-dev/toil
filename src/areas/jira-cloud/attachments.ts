@@ -4,6 +4,7 @@ import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { jiraCloudArea } from './area.js';
 import * as client from './client.js';
+import { downloadFileName } from '../../core/files.js';
 
 /**
  * Attachments on a Jira Cloud issue: upload one, list them, save one locally.
@@ -72,7 +73,7 @@ export const downloadAttachment = jiraCloudArea.command({
       });
     }
     const data = await client.downloadAttachment(ctx, attachment.id);
-    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${basename(attachment.filename)}`, data);
+    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${downloadFileName(attachment.filename, 'attachment')}`, data);
     return { saved, filename: attachment.filename, size: data.length };
   },
 });

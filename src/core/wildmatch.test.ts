@@ -209,3 +209,47 @@ describe('gitignore rules', () => {
     expect(isIgnored('#hash', false, rules)).toBe(true);
   });
 });
+
+describe('compile time', () => {
+  const timed = (pattern: string): number => {
+    const started = performance.now();
+    wildmatch(pattern);
+    return performance.now() - started;
+  };
+  // A pattern of the same length whose classes all close: work linear in its length by any account.
+  const baseline = () => Math.min(...[1, 2, 3].map(() => timed('[ab]x'.repeat(1800))));
+
+  it('compiles a 9 KB line of classes that never close in time linear in its length, against a deadline set by one that does', () => {
+    const base = baseline();
+    for (const unit of ['[:', '[[:', '[', '[!', '[[:alpha:', '[\\']) {
+      const pattern = unit.repeat(Math.ceil(9000 / unit.length));
+      const ms = timed(pattern);
+      expect(ms, `${JSON.stringify(unit)} x ${pattern.length} took ${Math.round(ms)} ms; the baseline took ${Math.round(base)} ms`).toBeLessThan(20 * base + 100);
+      // `[` that never closes is a literal, as git reads it.
+      expect(wildmatch(pattern).test(pattern), unit).toBe(!pattern.includes('\\'));
+    }
+  });
+
+  it('reads a class name only as its own key: [:constructor:] is not a class, so its characters are', () => {
+    // As git reads it: `[`, `:` and the letters are the class, and the last `]` is a literal.
+    expect(wildmatch('[[:constructor:]]').test('c]')).toBe(true);
+    expect(wildmatch('[[:constructor:]]').test('x]')).toBe(false);
+    expect(wildmatch('[[:digit:]]').test('7')).toBe(true);
+  });
+
+  it('skips a pattern line longer than 4096 characters with a warning that quotes only its start, and keeps the rest of the file', () => {
+    const skipped: SkippedIgnoreLine[] = [];
+    const long = `${'[:'.repeat(4500)}`;
+    const rules = parseIgnore(`*.log\n${long}\nbuild/\n`, '', false, (s) => skipped.push(s));
+    expect(rules).toHaveLength(2);
+    expect(skipped).toEqual([
+      {
+        line: 2,
+        pattern: `${long.slice(0, 60)}...`,
+        reason: 'it is 9000 characters long, longer than the 4096 toil compiles in one pattern, which is already as long as the longest path most systems allow',
+        fix: 'Shorten the pattern or delete the line.',
+      },
+    ]);
+    expect(parseIgnore('x'.repeat(4096), '')).toHaveLength(1);
+  });
+});

@@ -534,6 +534,38 @@ describe('toil dossiers list, show, check and context', () => {
     expect(envelope.data).toMatchObject({ ok: false, problems: [{ level: 'error', code: 'DOSSIER_INVALID', path: 'repos' }] });
   });
 
+  it('refuses a dossier that uses a reserved key, at the top or under environments: check says where, and a call that names it fails before any request', async () => {
+    // Written as text: an object literal can't hold a __proto__ key, which is the point.
+    const base = JSON.stringify({ name: 'payments', repos: payments.repos }).slice(0, -1);
+    const files = {
+      top: `${base}, "__proto__": { "demo-context": { "connection": "stage" } } }`,
+      env: `${base}, "env": "qa", "environments": { "qa": { "__proto__": { "demo-context": { "connection": "stage" } } } } }`,
+      named: `${base}, "constructor": { "connection": "stage" } }`,
+    };
+    for (const [label, text] of Object.entries(files)) {
+      const d = disk();
+      d.write('home/.toil/dossiers/payments.json', text);
+      const check = await both(d, ['dossiers', 'check', 'payments'], 'dossiers_check', { dossier: 'payments' });
+      const data = check.envelope.data as { ok: boolean; problems: Array<{ level: string; code: string; path: string; message: string }> };
+      expect(data.ok, label).toBe(false);
+      expect(data.problems, label).toContainEqual(expect.objectContaining({ level: 'error', code: 'DOSSIER_INVALID', message: expect.stringContaining('reserved') }));
+      const call = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments' });
+      expect(call.envelope.error, label).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('reserved') });
+      expect(call.calls, label).toEqual([]);
+    }
+  });
+
+  it('refuses a dossier file larger than the size bound without parsing it, in check and on a call', async () => {
+    const d = disk();
+    const padding = Array.from({ length: 12_000 }, (_, i) => `REF-${String(i).padStart(90, '0')}`);
+    d.write('home/.toil/dossiers/payments.json', { ...payments, 'demo-context': { ...payments['demo-context'], projects: padding } });
+    const check = await both(d, ['dossiers', 'check', 'payments'], 'dossiers_check', { dossier: 'payments' });
+    expect(check.envelope.data).toMatchObject({ ok: false, problems: [{ level: 'error', code: 'DOSSIER_INVALID', path: '', message: expect.stringContaining('larger than 1 MiB') }] });
+    const call = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments' });
+    expect(call.envelope.error).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('larger than 1 MiB') });
+    expect(call.calls).toEqual([]);
+  });
+
   it("says what a folder resolves to and why, origin credentials stripped, and lists the candidates when it's ambiguous", async () => {
     const d = disk({ 'home/.toil/dossiers/payments.json': payments });
     asRepo(d);

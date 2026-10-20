@@ -5,7 +5,7 @@ import { dirname, join, relative } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { memoryFiles } from '../../test/harness/files.js';
 import { ToilError } from './errors.js';
-import { forwardSlashes, isSystemPath, nodeFiles, resolveWorkspace, toCsv } from './files.js';
+import { downloadFileName, forwardSlashes, isSystemPath, nodeFiles, resolveWorkspace, toCsv, unsafeFileName } from './files.js';
 import { findGit } from './git.js';
 
 const dirs: string[] = [];
@@ -33,6 +33,33 @@ describe('nodeFiles', () => {
     writeFileSync(join(cwd, 'mine.txt'), 'mine');
     expect(() => files.writeBytes('mine.txt', new TextEncoder().encode('theirs'))).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('already exists') }));
     expect(readFileSync(join(cwd, 'mine.txt'), 'utf8')).toBe('mine');
+  });
+
+  it('refuses, on every platform, a name Windows would write somewhere else, and leaves the existing file alone', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'toil-files-'));
+    dirs.push(cwd);
+    const files = nodeFiles({ cwd, stdin: true });
+    writeFileSync(join(cwd, 'mine.txt'), 'mine');
+    for (const path of ['mine.txt:hidden', 'mine.txt.', 'mine.txt ', 'CON', 'out/nul.txt', 'LPT9.log', 'COM¹','conout$', 'aux/x.txt']) {
+      expect(() => files.writeBytes(path, new TextEncoder().encode('theirs')), path).toThrow(expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining("can't be written") }));
+    }
+    expect(readFileSync(join(cwd, 'mine.txt'), 'utf8')).toBe('mine');
+    // A drive letter is a drive, and a name merely starting like a device is a name.
+    expect(files.writeBytes(join(cwd, 'console.txt'), new TextEncoder().encode('ok'))).toBe(forwardSlashes(join(cwd, 'console.txt')));
+    expect(files.writeBytes('com10', new TextEncoder().encode('ok'))).toBe(forwardSlashes(join(cwd, 'com10')));
+  });
+
+  it('turns a server-supplied file name into one that is safe to save', () => {
+    expect(downloadFileName('CON')).toBe('_CON');
+    expect(downloadFileName('Prn.TXT')).toBe('_Prn.TXT');
+    expect(downloadFileName('nul .txt')).toBe('_nul .txt');
+    expect(downloadFileName('a.txt:stream:$DATA')).toBe('a.txt');
+    expect(downloadFileName('..\\..\\x.txt..  ')).toBe('x.txt');
+    expect(downloadFileName('dir/sub/')).toBe('sub');
+    expect(downloadFileName(':')).toBe('download');
+    expect(downloadFileName('', 'attachment')).toBe('attachment');
+    expect(downloadFileName('ta\tb|c')).toBe('ta_b_c');
+    for (const name of ['CON', 'a.txt:s', 'x. ', 'COM².png', 'ordinary.txt', '.hidden']) expect(unsafeFileName(downloadFileName(name)), name).toBeUndefined();
   });
 
   it('turns a missing file into INVALID_INPUT with a fix', () => {

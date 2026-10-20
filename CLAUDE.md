@@ -614,7 +614,8 @@ a breaking change.
   `src/core/query/`, built in rather than a dependency, and passes the official
   compliance suite (`test/fixtures/jmespath/`). A bad expression, or one nested more
   than 500 levels deep, is `INVALID_INPUT` with its position in the fix, and so is
-  any failure applying it; one that selects nothing is `data: null` plus a
+  any failure applying it, including building more than the `query.size` bound
+  allows (`docs/bounds.md`); one that selects nothing is `data: null` plus a
   `SELECT_EMPTY` warning. No command may declare a `select` field.
 - **`--output-format` and `--summary-file`** (`outputFormat` and `summaryFile` in every
   MCP tool's input) are core's too, in `src/core/output/`: `runCommand()` takes them

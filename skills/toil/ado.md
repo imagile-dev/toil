@@ -147,7 +147,9 @@ Work items (`<id>` is the work item id):
   fails, the upload stays on the server.
 - `work-item download <id> <attachment-id>`: Save the attachment to `--dir` (default
   `.toil`) in the workspace; returns `{ saved, name, size }`. It never overwrites a
-  file. The token only goes to the configured host: an attachment URL naming another
+  file. A name Windows would read as another file is saved as one it won't: a device
+  name such as `CON` gets a leading `_`, a `:` and what follows it is dropped, as are
+  trailing dots and spaces. The token only goes to the configured host: an attachment URL naming another
   host is fetched from the configured one, with an `ADO_ATTACHMENT_HOST` warning.
 - `work-item areas`, `work-item iterations`: The area or iteration tree, `--depth`
   (default 10).

@@ -88,6 +88,23 @@ describe('--select', () => {
     expect(overflow.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("couldn't be applied"), details: { kind: 'invalid-value' } });
   });
 
+  it('refuses an expression that builds past the size bound as INVALID_INPUT, and still selects from large data', async () => {
+    const { context } = testContext();
+    const doubled = await execute(listing, { select: '[@,@][]'.repeat(40) }, context);
+    expect(doubled.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('builds more than 16 MiB of JSON'), details: { kind: 'invalid-value' } });
+    const many = defineCommand({
+      path: ['demo', 'many'],
+      description: 'Return many rows',
+      input: z.object({}),
+      writes: false,
+      examples: [{}],
+      run: async () => ({ rows: Array.from({ length: 50_000 }, (_, i) => ({ id: i, name: `row-${i}` })) }),
+    });
+    const large = await execute(many, { select: 'rows[*].{key: id}' }, context);
+    expect(large.ok).toBe(true);
+    expect(large.data).toHaveLength(50_000);
+  });
+
   it('says a write was made when the expression fails on its result', async () => {
     const write = defineArea({ name: 'demo', description: 'd', connection: z.object({}) }).command({
       path: ['demo', 'make'],

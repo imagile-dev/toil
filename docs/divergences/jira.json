@@ -66,6 +66,14 @@
       "toil": "Each id is encoded as one path segment (PROJ-1/comment is sent as PROJ-1%2Fcomment), and one that is a . or .. segment once encoded slashes split it (x/../y) is refused with INVALID_INPUT by core's requests.path bound. The project context input (--project, the connection's project setting, a dossier or \"project\" in --input-file) is refused with INVALID_INPUT if it holds /, \\, ?, #, % or a control character, which a Jira project key never does. Plain keys and ids are sent unchanged",
       "why": "The write gate approves the command a caller asked for; an id must name the one resource that command is about, not another endpoint. An agent can be handed such an id by text in the content it reads.",
       "principle": "2"
+    },
+    {
+      "allows": [],
+      "old": "jira issue download saving the attachment under the name the server gave it, once reduced to its last path segment",
+      "toil": "A name Windows reserves for a device (CON, NUL, COM1 and the like, with any extension) is saved with a leading _, a : and everything after it is dropped, as are trailing dots and spaces, and the characters Windows forbids become _. filename in data is still the server's name; saved is where the file went. A --dir that names any of those is refused with INVALID_INPUT.",
+      "why": "Windows reads each of those as a different file from the one named: a device, a stream inside an existing file, or the same name without its dots. The no-overwrite check has to see the file a write really lands on, and a name must work the same way on every platform.",
+      "principle": "2",
+      "class": "security"
     }
   ]
 }

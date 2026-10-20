@@ -249,7 +249,10 @@ endpoints. **Sprint is not a custom field**: use `issue set-sprint` after the is
 `issue download` looks the id up on the issue, then asks Jira for the bytes with
 `GET /rest/api/3/attachment/content/<id>?redirect=false`, so the request never leaves
 your site and the credential goes nowhere else. It saves under `.toil/` (or `--dir`),
-keeping only the file name, and never replaces a file that's already there.
+keeping only the file name, and never replaces a file that's already there. A name
+Windows would read as another file is saved as one it won't: a device name such as
+`CON` gets a leading `_`, a `:` and what follows it is dropped, as are trailing dots
+and spaces.
 
 ## Notes
 

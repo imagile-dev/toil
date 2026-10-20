@@ -220,3 +220,65 @@ describe('wildcard and object projections (#279)', () => {
     }
   });
 });
+
+describe('the size of what an expression builds (query.size)', () => {
+  // Each step doubles what came before: `[@,@]` makes two of it, and `[]` copies
+  // both halves into one new list, so the copy really is twice as long.
+  const doubling = (levels: number) => '[@,@][]'.repeat(levels);
+  const timed = (run: () => unknown): { ms: number; error?: unknown } => {
+    const started = performance.now();
+    try {
+      run();
+      return { ms: performance.now() - started };
+    } catch (error) {
+      return { ms: performance.now() - started, error };
+    }
+  };
+  const rows = Array.from({ length: 100_000 }, (_, i) => ({ id: i, name: `row-${i}`, tags: ['a', 'b'] }));
+
+  it('stops an expression that doubles its input at each step, early and with an error, against a deadline set by a normal select', () => {
+    // The baseline is a select that builds about as much as the bound allows,
+    // so the deadline scales with the machine running the test.
+    const baseline = timed(() => search({ rows }, 'rows[*].{id: id, name: name, tags: tags}'));
+    expect(baseline.error).toBeUndefined();
+    for (const levels of [30, 64, 200]) {
+      const run = timed(() => search({ a: 1 }, doubling(levels)));
+      expect(run.error, `${levels} levels`).toBeInstanceOf(QueryError);
+      expect((run.error as QueryError).kind).toBe('invalid-value');
+      expect((run.error as QueryError).message).toMatch(/builds more than 16 MiB of JSON/);
+      expect(run.ms, `${levels} levels took ${Math.round(run.ms)} ms; the baseline took ${Math.round(baseline.ms)} ms`).toBeLessThan(Math.max(20 * baseline.ms, 2000));
+    }
+  });
+
+  it('stops a doubling made only of shared references, which builds almost nothing but would print as gigabytes', () => {
+    const piped = Array(64).fill('[@,@]').join(' | ');
+    const run = timed(() => search({ a: 1 }, piped));
+    expect((run.error as QueryError).message).toMatch(/builds more than 16 MiB/);
+    expect(run.ms).toBeLessThan(1000);
+    // A function that serializes or copies its argument is held to the same bound.
+    expect(() => search({ a: 1 }, `to_string(${piped})`)).toThrow(/builds more than/);
+    expect(() => search({ a: 1 }, `length(${Array(40).fill('[@,@]').join(' | ')}[])`)).toThrow(/builds more than/);
+  });
+
+  it('still answers a select over large data, including one that rebuilds all of it', () => {
+    const data = { rows };
+    expect(search(data, 'rows[*].id')).toHaveLength(100_000);
+    expect(search(data, 'rows[].tags[]')).toHaveLength(200_000);
+    expect(search(data, 'rows[*].{key: name}')).toHaveLength(100_000);
+    // Up to four times the data's own size may be built from it, so even a copy of a copy works.
+    expect(search(data, '[rows, rows][]')).toHaveLength(200_000);
+    expect(search(data, 'length(sort_by(rows, &name))')).toBe(100_000);
+    // Passing data along builds nothing, however large it is.
+    expect(search(data, 'rows')).toBe(rows);
+  });
+
+  it('measures data nested far deeper than the stack goes, and refuses data that refers to itself', () => {
+    let deep: unknown = 0;
+    for (let i = 0; i < 200_000; i++) deep = [deep];
+    expect(search({ deep }, '[deep]')).toEqual([deep]);
+    const loop: Record<string, unknown> = { name: 'x' };
+    loop.self = loop;
+    expect(() => search(loop, '[@]')).toThrow(/refers to itself/);
+    expect(search(loop, 'name')).toBe('x');
+  });
+});

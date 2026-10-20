@@ -1,4 +1,4 @@
-import { mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, statSync, writeFileSync, type Dirent } from 'node:fs';
+import { closeSync, fstatSync, mkdirSync, openSync, readdirSync, readSync, realpathSync, renameSync, statSync, writeFileSync, type Dirent } from 'node:fs';
 import { basename, delimiter, isAbsolute, join, relative, resolve } from 'node:path';
 import type { DossierLookup, GitRemoteReader } from './call-context.js';
 import { CONNECTION_NAME, connectionsOf, type ResolvedConfig } from './config.js';
@@ -110,6 +110,40 @@ const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'en
 const ALIAS = /^[a-z][a-zA-Z0-9]*$/;
 const HOST = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:\d{1,5})?$/i;
 
+/**
+ * The largest dossier file toil reads (docs/bounds.md, `dossiers.size`). Every
+ * call to an area command reads the dossiers that may apply, so a file far
+ * larger than any team's would cost every call the time to parse it.
+ */
+export const MAX_DOSSIER_BYTES = 1024 * 1024;
+
+/**
+ * Keys no dossier may use, anywhere in it. Each names part of how JavaScript
+ * objects work rather than data, so a section, environment or field called one
+ * of them would be read through the object machinery instead of as written.
+ */
+export const RESERVED_OBJECT_KEYS: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
+
+/** An object's own value for a key, never one it inherits: `constructor` is not a section. */
+export const ownValue = <T>(record: Record<string, T> | undefined, key: string): T | undefined => (record !== undefined && Object.hasOwn(record, key) ? record[key] : undefined);
+
+/** Every key path in a parsed dossier that uses a reserved key, walked with a list so depth can't overflow the stack. */
+function reservedKeyPaths(raw: unknown): string[] {
+  const found: string[] = [];
+  const stack: Array<[unknown, string]> = [[raw, '']];
+  while (stack.length > 0) {
+    const [value, path] = stack.pop()!;
+    if (Array.isArray(value)) value.forEach((item, i) => stack.push([item, at(path, i)]));
+    else if (isRecord(value)) {
+      for (const key of Object.keys(value)) {
+        if (RESERVED_OBJECT_KEYS.has(key)) found.push(at(path, key));
+        else stack.push([value[key], at(path, key)]);
+      }
+    }
+  }
+  return found.sort();
+}
+
 /** Enough of an email address to compare: something, an @, something. */
 export const EMAIL = /^[^@\s]+@[^@\s]+$/;
 
@@ -176,6 +210,10 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
     return { problems };
   }
   const byName = new Map(areas.map((a) => [a.name, a]));
+  for (const path of reservedKeyPaths(raw)) {
+    const key = path.slice(path.lastIndexOf('.') + 1);
+    error(path, `"${key}" can't be a key in a dossier: __proto__, constructor and prototype are reserved. Rename it.`);
+  }
 
   if (typeof raw.name !== 'string' || !CONNECTION_NAME.test(raw.name)) error('name', '"name" must be lowercase letters, digits and single hyphens, starting with a letter, e.g. "payments".');
   if (raw.description !== undefined && typeof raw.description !== 'string') error('description', '"description" must be text.');
@@ -278,28 +316,31 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
     return value;
   };
 
-  const sections: Record<string, Section> = {};
+  // No prototype, so a key can only ever be a section, whatever it's called.
+  const sections = Object.create(null) as Record<string, Section>;
   for (const [key, value] of Object.entries(raw)) {
-    if (TOP_LEVEL.has(key)) continue;
+    if (TOP_LEVEL.has(key) || RESERVED_OBJECT_KEYS.has(key)) continue;
     const section = readSection(key, value, key);
     if (section) sections[key] = section;
   }
 
-  const environments: Record<string, Record<string, Section>> = {};
+  const environments = Object.create(null) as Record<string, Record<string, Section>>;
   if (raw.environments !== undefined && !isRecord(raw.environments)) error('environments', '"environments" must map each environment to its areas.');
   for (const [env, areasOf] of Object.entries(isRecord(raw.environments) ? raw.environments : {})) {
+    if (RESERVED_OBJECT_KEYS.has(env)) continue;
     const path = at('environments', env);
     if (!isRecord(areasOf)) {
       error(path, `Environment "${env}" must map areas to their sections.`);
       continue;
     }
-    environments[env] = {};
+    environments[env] = Object.create(null) as Record<string, Section>;
     for (const [area, value] of Object.entries(areasOf)) {
+      if (RESERVED_OBJECT_KEYS.has(area)) continue;
       const section = readSection(area, value, at(path, area));
       if (section) environments[env]![area] = section;
     }
   }
-  if (raw.env !== undefined && (typeof raw.env !== 'string' || !(raw.env in environments))) {
+  if (raw.env !== undefined && (typeof raw.env !== 'string' || !Object.hasOwn(environments, raw.env))) {
     error('env', `"env" must name one of the dossier's environments${Object.keys(environments).length ? ` (${Object.keys(environments).join(', ')})` : ', and it has none'}.`);
   }
 
@@ -429,7 +470,15 @@ export function dossierContent(dossier: Dossier): Record<string, unknown> {
 export function readDossierFile(file: string, source: DossierSource, areas: readonly DossierArea[]): DossierFile {
   let text: string;
   try {
-    text = readFileSync(file, 'utf8');
+    const read = readCapped(file, MAX_DOSSIER_BYTES);
+    if (read === undefined) {
+      return {
+        file,
+        source,
+        problems: [{ level: 'error', code: 'DOSSIER_INVALID', path: '', message: `It is larger than ${MAX_DOSSIER_BYTES / 1024 / 1024} MiB, the most a dossier file may be, so it wasn't read. A dossier holds names and keys; move anything else out of it.` }],
+      };
+    }
+    text = read;
   } catch (err) {
     return { file, source, problems: [{ level: 'error', code: 'DOSSIER_INVALID', path: '', message: `It couldn't be read: ${(err as NodeJS.ErrnoException).code ?? (err as Error).message}.` }] };
   }
@@ -444,6 +493,29 @@ export function readDossierFile(file: string, source: DossierSource, areas: read
   const { dossier, problems } = validateDossier(parsed.value, areas);
   const duplicates: DossierProblem[] = parsed.duplicates.map((path) => ({ level: 'warning', code: 'DOSSIER_DUPLICATE_KEY', path, message: `"${path}" is set twice; the last one is used.` }));
   return { file, source, ...(dossier ? { dossier } : {}), problems: [...duplicates, ...problems] };
+}
+
+/**
+ * A file's text, or undefined when it holds more than `max` bytes. The size
+ * is taken from the open file and the read stops one byte past the cap, so a
+ * file that grows between the two still can't be read whole.
+ */
+function readCapped(file: string, max: number): string | undefined {
+  const fd = openSync(file, 'r');
+  try {
+    if (fstatSync(fd).size > max) return undefined;
+    const buffer = Buffer.alloc(max + 1);
+    let length = 0;
+    for (;;) {
+      const n = readSync(fd, buffer, length, buffer.length - length, null);
+      if (n === 0) break;
+      length += n;
+      if (length > max) return undefined;
+    }
+    return buffer.toString('utf8', 0, length);
+  } finally {
+    closeSync(fd);
+  }
 }
 
 /** A problem as a meta.warnings entry, naming the file and key. */
@@ -965,7 +1037,7 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
   };
 
   const sectionsFor = (dossier: Dossier, area: string, env: string | undefined): Section[] =>
-    [env === undefined ? undefined : dossier.environments[env]?.[area], dossier.sections[area]].filter((s): s is Section => s !== undefined);
+    [env === undefined ? undefined : ownValue(ownValue(dossier.environments, env), area), ownValue(dossier.sections, area)].filter((s): s is Section => s !== undefined);
 
   const binding: DossierCatalog['binding'] = (dossier, area, env) => {
     for (const section of sectionsFor(dossier, area, env)) {
@@ -988,11 +1060,11 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
       if (key === 'connection') return binding(dossier, area, env).connection;
       // The dossier's environment is the same `--env` an area already has; it
       // applies to the areas the environment lists (docs/dossiers.md, One --env).
-      if (key === 'env' && areaNames.get(area)?.context.includes('env')) return dossier.env !== undefined && dossier.environments[dossier.env]?.[area] ? dossier.env : undefined;
+      if (key === 'env' && areaNames.get(area)?.context.includes('env')) return dossier.env !== undefined && ownValue(ownValue(dossier.environments, dossier.env), area) ? dossier.env : undefined;
       for (const section of sectionsFor(dossier, area, env)) {
-        const value = section[key];
+        const value = ownValue(section, key);
         if (typeof value === 'string') return value;
-        if (isRecord(value) && applied.repo !== undefined && typeof value[applied.repo] === 'string') return value[applied.repo] as string;
+        if (isRecord(value) && applied.repo !== undefined && typeof ownValue(value, applied.repo) === 'string') return ownValue(value, applied.repo) as string;
       }
       return undefined;
     };
@@ -1083,9 +1155,13 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
         const { applied } = choose();
         if (!applied) return undefined;
         const d = applied.file.dossier;
+        const top = ownValue(d.sections, area);
         const sections = [
-          ...(d.sections[area] ? [{ path: area, env: null, values: d.sections[area]! }] : []),
-          ...Object.entries(d.environments).flatMap(([env, byArea]) => (byArea[area] ? [{ path: `environments.${env}.${area}`, env, values: byArea[area]! }] : [])),
+          ...(top ? [{ path: area, env: null, values: top }] : []),
+          ...Object.entries(d.environments).flatMap(([env, byArea]) => {
+            const section = ownValue(byArea, area);
+            return section ? [{ path: `environments.${env}.${area}`, env, values: section }] : [];
+          }),
         ];
         return { name: d.name, source: applied.file.source, file: forwardSlashes(applied.file.file), env: d.env ?? null, sections };
       },
