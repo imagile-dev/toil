@@ -33,6 +33,8 @@ export interface Settings {
   smokeTestKey: string | undefined;
   webhookSecret: string | undefined;
   acsConnectionString: string | undefined;
+  /** The organization denylist reports are redacted with (scripts/triage/redact.mjs); built-in rules only when unset. */
+  redactTerms: string | undefined;
   /** GitHub's API root; only a local end-to-end run points it elsewhere. */
   githubApi: string;
 }
@@ -71,6 +73,7 @@ export function readSettings(env: Record<string, string | undefined> = process.e
     smokeTestKey: text(env, 'SMOKE_TEST_KEY'),
     webhookSecret: text(env, 'WEBHOOK_SECRET'),
     acsConnectionString: text(env, 'ACS_CONNECTION_STRING'),
+    redactTerms: text(env, 'REDACT_TERMS'),
     githubApi: (text(env, 'GITHUB_API_URL') ?? 'https://api.github.com').replace(/\/+$/, ''),
   };
 }

@@ -1,5 +1,10 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "noEmit": false },
+  "compilerOptions": {
+    "noEmit": false,
+    // The repository root, so dist/ mirrors its layout and the shared redaction
+    // modules that scripts/copy-shared.mjs copies resolve at the same paths.
+    "rootDir": "../.."
+  },
   "include": ["src"]
 }

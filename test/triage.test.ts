@@ -9,7 +9,9 @@ import { CLAIMED, QUEUED, claim, claimRank, gh, waiting, type LabelEvent } from 
 import { areaOf, check, parseRaw } from '../scripts/triage/changes.mjs';
 import { agentRan, defuseClosingKeywords, parseDecision } from '../scripts/triage/decision.mjs';
 import { areas, labels } from '../scripts/triage/labels.mjs';
-import { parseTerms, redact } from '../scripts/triage/redact.mjs';
+import { MAX_LENGTH, parseTerms, redact, tokenShaped } from '../scripts/triage/redact.mjs';
+import { redactText } from '../src/core/secret-shapes.js';
+import { TOKEN_SHAPES } from '../src/core/token-shapes.mjs';
 
 /**
  * The scripts .github/workflows/triage.yml runs around the triage agent:
@@ -17,6 +19,30 @@ import { parseTerms, redact } from '../scripts/triage/redact.mjs';
  * decides whether its fix may become a pull request. None of this touches
  * the network: GitHub is a fake fetch.
  */
+
+/**
+ * One sample per token shape, joined from pieces so no whole token is written
+ * in this file, where a host's push protection would rightly object to it.
+ */
+const SAMPLES: Record<string, string> = {
+  'github-token': ['ghp', '_', 'a1B2'.repeat(9)].join(''),
+  'gitlab-token': ['glpat', '-', 'x1Y2'.repeat(5)].join(''),
+  'slack-token': ['xoxb', '-1234567890-abcdefghij'].join(''),
+  'slack-webhook': ['https://hooks.slack.com/services/', 'T0000/B0000/', 'Xx9'.repeat(8)].join(''),
+  'aws-access-key': ['AKIA', 'Q3WX7ZP2LM9NBV4C'].join(''),
+  'sonar-token': ['squ', '_', 'a1'.repeat(12)].join(''),
+  'sk-key': ['sk', '-ant-', 'Ab3'.repeat(8)].join(''),
+  'atlassian-token': ['ATATT', 'Zz9'.repeat(8)].join(''),
+  'bitbucket-token': ['BBDC', '-', 'Mz4'.repeat(8)].join(''),
+  'npm-token': ['npm', '_', 'Ab3'.repeat(12)].join(''),
+  'artifactory-token': ['AKCp', 'Xy7'.repeat(8)].join(''),
+  'dynatrace-token': ['dt0c01', '.', 'ABC2'.repeat(6), '.', 'xyZ9'.repeat(16)].join(''),
+  'figma-token': ['figd', '_', 'Fg5'.repeat(8)].join(''),
+  'azure-devops-pat': ['abcd2345'.repeat(6), 'abcd'].join(''),
+  'azure-sas': ['sig', '=', 'Ab3%2B'.repeat(4)].join(''),
+  jwt: 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhYmMxMjM0NSJ9.c2lnbmF0dXJl',
+  'private-key': ['-----BEGIN PRIVATE', ' KEY-----\nMIIBVgIBADANBg\n-----END PRIVATE KEY-----'].join(''),
+};
 
 describe('redact', () => {
   const terms = parseTerms(['# fictional names only', 'acmebank', 'acme-int.example', 're:/initech[- ]?corp/i', 'org', 'jira', 'imagile.dev', 're:/(/'].join('\n'));
@@ -40,6 +66,13 @@ describe('redact', () => {
     ['https://jdoe:pa55word@bitbucket.imagile.dev/scm', 'https://[redacted-secret]@bitbucket.imagile.dev/scm'],
     ['-----BEGIN RSA PRIVATE KEY-----\nMIIabc\n-----END RSA PRIVATE KEY-----', '[redacted-secret]'],
     ['eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop', '[redacted-secret]'],
+    [`scan with ${SAMPLES['sonar-token']}`, 'scan with [redacted-secret]'],
+    [`jf ${SAMPLES['artifactory-token']}`, 'jf [redacted-secret]'],
+    [`dt ${SAMPLES['dynatrace-token']} end`, 'dt [redacted-secret] end'],
+    [`figma ${SAMPLES['figma-token']}`, 'figma [redacted-secret]'],
+    [`pat ${SAMPLES['azure-devops-pat']} end`, 'pat [redacted-secret] end'],
+    [`https://st.blob.core.windows.net/c/x?sv=2022-11-02&${SAMPLES['azure-sas']}`, 'https://st.blob.core.windows.net/c/x?sv=2022-11-02&sig=[redacted-secret]'],
+    [`post ${SAMPLES['slack-webhook']}`, 'post https://hooks.slack.com/services/[redacted-secret]'],
   ])('removes the credential in %j', (input, output) => {
     expect(redact(input, terms)).toBe(output);
   });
@@ -70,6 +103,51 @@ describe('redact', () => {
   it('is idempotent', () => {
     const once = redact('ghp_abcdefghijklmnopqrstuvwxyz0123456789 jane@acmebank.example https://jira.acme-int.example 10.0.0.1 AcmeBank password=hunter22', terms);
     expect(redact(once, terms)).toBe(once);
+  });
+
+  it("reads every token shape toil's own redactor reads, from the one shared list", () => {
+    expect(Object.keys(SAMPLES).sort()).toEqual(TOKEN_SHAPES.map((s) => s.id).sort());
+    for (const [id, sample] of Object.entries(SAMPLES)) {
+      expect(tokenShaped(sample), id).toBe(true);
+      expect(redact(sample, terms), id).toContain('[redacted-secret]');
+      expect(redactText(sample), id).toContain('[redacted]');
+    }
+  });
+
+  it('normalises first: a token in fullwidth letters or split by invisible characters is still a token', () => {
+    const token = `ghp_${'a1B2'.repeat(9)}`;
+    const fullwidth = [...token].map((c) => String.fromCodePoint(c.codePointAt(0)! + 0xfee0)).join('');
+    expect(redact(`token ${fullwidth}`, terms)).toBe('token [redacted-secret]');
+    expect(redact(`token ${token.slice(0, 6)}\u200b${token.slice(6, 12)}\u2060\u00ad${token.slice(12)}`, terms)).toBe('token [redacted-secret]');
+    expect(redact('wiki.acme\u200dbank.local and AcmeBa\ufeffnk', terms)).toBe('redacted.imagile.dev and [org]');
+    // The feedback function's zero-width space after an @, which keeps a mention quiet, survives a second pass.
+    expect(redact('cc @\u200bsomeone', terms)).toBe('cc @\u200bsomeone');
+  });
+
+  it('cuts text to MAX_LENGTH before redacting it, never in the middle of a character', () => {
+    expect(redact('a'.repeat(MAX_LENGTH * 4), terms)).toHaveLength(MAX_LENGTH);
+    expect(redact(`${'a'.repeat(MAX_LENGTH - 1)}😀`, terms)).toBe('a'.repeat(MAX_LENGTH - 1));
+  });
+
+  it('stays fast on a 65,536-character body whatever it is made of: within 50 times plain prose of the same length', () => {
+    const fill = (unit: string) => unit.repeat(Math.ceil(MAX_LENGTH / unit.length)).slice(0, MAX_LENGTH);
+    // The best of three runs, so a garbage collection or a busy runner doesn't decide the result.
+    const time = (text: string) => {
+      let best = Infinity;
+      for (let run = 0; run < 3; run++) {
+        const start = performance.now();
+        redact(text, terms);
+        best = Math.min(best, performance.now() - start);
+      }
+      return best;
+    };
+    const prose = fill('The quick brown fox filed a bug about the build. ');
+    time(prose);
+    const baseline = Math.max(2, time(prose));
+    // Long runs of one pattern: a rule that restarts at every character of a run would be quadratic on them.
+    const repetitive = ['a.', 'a', '-', '1.', 'A1', 'set a', 'eyJaaaa.', 'dt0c01.', 'abcdefg2', 'a@-.', 'x://a:', 'token' + ' '.repeat(64), 'a'.repeat(512) + 'token='];
+    for (const unit of repetitive) expect(time(fill(unit)), JSON.stringify(unit.slice(0, 12))).toBeLessThan(baseline * 50);
+    expect(time('a.'.repeat(MAX_LENGTH * 8))).toBeLessThan(baseline * 50);
   });
 
   it('runs as a CLI: JSON in, JSON out, terms only from env', () => {

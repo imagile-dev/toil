@@ -267,8 +267,10 @@ false` (also exit 1) means the scan itself failed.
 **What it looks for:**
 
 - The rules the audit log redacts with, so toil has one definition of a
-  secret: GitHub, GitLab, Slack, AWS, SonarQube, `sk-` and Atlassian tokens,
-  JWTs, private keys, credentials in URLs, `Bearer` / `Basic` / `Token`
+  secret: GitHub, GitLab, Slack (tokens and webhook URLs), AWS, SonarQube, `sk-`,
+  Atlassian, Bitbucket Data Center, npm, Artifactory, Dynatrace, Figma and Azure
+  DevOps tokens, Azure SAS signatures (`sig=`), JWTs, private keys, credentials
+  in URLs, `Bearer` / `Basic` / `Token`
   values, `name=value` pairs whose name says secret (`password=`,
   `"apiToken":`, `--token=`), `curl -u user:pass`, and long random runs of
   letters and digits.
