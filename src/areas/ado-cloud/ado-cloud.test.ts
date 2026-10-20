@@ -355,7 +355,7 @@ describe('team settings: sprints, backlogs and boards', () => {
   it('with --team, sends the name in the path and reads nothing else', async () => {
     const { calls, envelope } = await run('sprint list', named);
     expect(calls.map((c) => c.url)).toEqual([`${P}/Imagile%20Team/_apis/work/teamsettings/iterations?api-version=7.1`]);
-    expect(envelope.meta.context?.inputs.team).toEqual({ value: 'Imagile Team', source: 'input' });
+    expect(envelope.meta.context?.inputs?.team).toEqual({ value: 'Imagile Team', source: 'input' });
   });
 
   it('the team comes from the connection when the call names none', async () => {
