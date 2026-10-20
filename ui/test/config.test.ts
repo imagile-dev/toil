@@ -336,6 +336,16 @@ describe('the pages beside the commands', () => {
 describe("the preview's sample config", () => {
   const served = new Map([...registry.commands, ...registry.personCommands].map((c) => [c.name, c]));
 
+  it("names only real commands in the Usage page's sample month", () => {
+    const names = new Set(registry.commands.map((c) => c.name).concat(registry.personCommands.map((c) => c.name)));
+    const usage = CONFIG_CANNED.filter((c) => c.command === 'audit stats').flatMap((c) => {
+      const d = c.data as { groups: Array<{ command?: string | null }>; unused?: Array<{ command: string }> };
+      return [...d.groups.flatMap((g) => (g.command ? [g.command] : [])), ...(d.unused ?? []).map((u) => u.command)];
+    });
+    expect(usage.length).toBeGreaterThan(0);
+    for (const name of usage) expect(names, name).toContain(name);
+  });
+
   it.each(CONFIG_CANNED.map((c) => [`${c.command} ${JSON.stringify(c.input)}`, c] as const))("%s is a config read whose input validates against toil's schema", (_label, call) => {
     expect(CONFIG_READS as readonly string[]).toContain(call.command);
     const def = served.get(call.command)!;

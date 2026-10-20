@@ -20,8 +20,8 @@ const UNTIL = '2026-10-19T00:00:00.000Z';
 const MIX: Array<{ command: string; area: string | null; connection: string | null; weight: number; fails?: Array<[string, number]>; ms: number; writes?: boolean }> = [
   { command: 'jira issue get', area: 'jira', connection: 'corp-jira', weight: 30, fails: [['NOT_FOUND', 0.06]], ms: 180 },
   { command: 'jira issue search', area: 'jira', connection: 'corp-jira', weight: 18, fails: [['INVALID_INPUT', 0.08], ['TIMEOUT', 0.02]], ms: 420 },
-  { command: 'github list-prs', area: 'github', connection: 'github', weight: 14, ms: 260 },
-  { command: 'github get-pr', area: 'github', connection: 'github', weight: 10, fails: [['AUTH', 0.12]], ms: 230 },
+  { command: 'github pr list', area: 'github', connection: 'github', weight: 14, ms: 260 },
+  { command: 'github pr get', area: 'github', connection: 'github', weight: 10, fails: [['AUTH', 0.12]], ms: 230 },
   { command: 'ado work-item get', area: 'ado', connection: 'corp-ado', weight: 9, fails: [['NETWORK', 0.1], ['AUTH', 0.04]], ms: 340 },
   { command: 'jira issue comment', area: 'jira', connection: 'corp-jira', weight: 3, fails: [['WRITE_DISABLED', 0.3]], ms: 210, writes: true },
   { command: 'dossiers list', area: null, connection: null, weight: 6, ms: 12 },
@@ -94,7 +94,7 @@ export function sampleEntries(): ListedLine[] {
 const SAMPLE_UNUSED: UnusedCommand[] = [
   { command: 'audit path', area: null, mcp: true },
   { command: 'connections login', area: null, mcp: false },
-  { command: 'github resolve-thread', area: 'github', mcp: true },
+  { command: 'github pr resolve', area: 'github', mcp: true },
   { command: 'jira issue log-work', area: 'jira', mcp: true },
   { command: 'jira issue set-sprint', area: 'jira', mcp: true },
   { command: 'ado work-item attach', area: 'ado', mcp: true },
