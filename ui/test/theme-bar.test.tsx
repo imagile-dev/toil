@@ -255,14 +255,14 @@ describe('the header (#277)', { timeout: SLOW }, () => {
   });
 
   it('folds into the Menu at any width when its one row would wrap, as a dossier\'s links can in a wider font', async () => {
-    // jsdom lays nothing out, so the last two views' links report a second row.
-    const real = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetTop')!;
-    Object.defineProperty(HTMLElement.prototype, 'offsetTop', {
-      configurable: true,
-      get(this: HTMLElement) {
-        return this.tagName === 'LI' && /Worklog|Command Center/.test(this.textContent ?? '') ? 40 : 0;
-      },
-    });
+    // jsdom lays nothing out, so the header's links report a row each: the last two views' a second one.
+    const real = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      const below = this.tagName === 'LI' && /Worklog|Command Center/.test(this.textContent ?? '');
+      const top = this.tagName === 'LI' ? (below ? 40 : 0) : 0;
+      const height = this.tagName === 'LI' ? 20 : 0;
+      return { top, bottom: top + height, height, left: 0, right: 0, width: 0, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    };
     try {
       await open('#/dossier/settlement', 'plain', 'light');
       expect(screen.queryByRole('navigation', { name: 'Views' })).toBeNull();
@@ -274,7 +274,7 @@ describe('the header (#277)', { timeout: SLOW }, () => {
       });
       await waitFor(() => expect(screen.getByRole('navigation', { name: 'Views' })).toBeTruthy());
     } finally {
-      Object.defineProperty(HTMLElement.prototype, 'offsetTop', real);
+      HTMLElement.prototype.getBoundingClientRect = real;
     }
     cleanup();
     // One row that fits keeps the views in the header.

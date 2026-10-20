@@ -227,7 +227,8 @@ function states(route, width) {
   // The app's own breakpoint (COMPACT_HEADER in src/App.tsx): below it, the header is the Menu button.
   const compact = width < 1024;
   if (compact) out.push({ name: 'menu', setup: clickAll('[data-menu-button]'), undo: 'Escape' });
-  if (route === '#/') out.push({ name: 'feedback', setup: compact ? inMenu('button.feedback-open') : clickAll('button.feedback-open'), undo: 'Escape' });
+  // Feedback is in the header, or in its Menu when the header folds, which it does below 1024px or when its row is full.
+  if (route === '#/') out.push({ name: 'feedback', setup: inMenu('button.feedback-open'), undo: 'Escape' });
   if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
   if (/^#\/dossier\/[^/]+$/.test(route) && narrow) out.push({ name: 'ask-open', setup: clickAll('.ask--sheet .ask-head button', '/Open/'), undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') });
   // The (i) beside the starter questions (#283): on a narrow screen the sheet opens first, then the popover.

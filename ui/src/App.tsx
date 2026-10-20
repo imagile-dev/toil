@@ -326,13 +326,17 @@ function useCrowded(row: RefObject<HTMLElement | null>, measuring: boolean, link
         if (crowded.links !== links || window.innerWidth > crowded.width) setCrowded(null);
         return;
       }
-      // The default skin's Header is its children; a theme's may wrap them in one element.
-      const el = row.current?.children.length === 1 ? row.current.firstElementChild : row.current;
+      const el = row.current;
       if (!measuring || !el) return;
-      const tops = [...el.children].map((c) => (c as HTMLElement).offsetTop);
-      const items = [...el.querySelectorAll<HTMLElement>('nav li')].map((li) => li.offsetTop);
-      const wraps = (xs: number[]) => xs.length > 1 && Math.max(...xs) - Math.min(...xs) > 4;
-      if (wraps(tops) || wraps(items)) setCrowded({ width: window.innerWidth, links });
+      // Only the header's own parts: a theme's corners and flourishes sit beside them, positioned on their own.
+      const parts = [...el.querySelectorAll<HTMLElement>('.brand, nav, .settings')];
+      const items = [...el.querySelectorAll<HTMLElement>('nav li')];
+      // A second row is an element lying wholly below another one of the row.
+      const wraps = (xs: HTMLElement[]) => {
+        const rects = xs.map((x) => x.getBoundingClientRect()).filter((r) => r.height > 0);
+        return rects.some((a) => rects.some((b) => a.top >= b.bottom));
+      };
+      if (wraps(parts) || wraps(items)) setCrowded({ width: window.innerWidth, links });
     };
     check();
     window.addEventListener('resize', check);
