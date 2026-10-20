@@ -113,3 +113,110 @@ describe('compileQuery', () => {
     expect(search({ a: undefined, b: 1 }, '[a, b]')).toEqual([null, 1]);
   });
 });
+
+/**
+ * Wildcard and object projections the vendored suite never reaches: it has no
+ * object projection followed by more than one field, which is where `a.*.b.c`
+ * gave null (#279). Written in the suite's own shape (`given`, then each
+ * expression and its result). The specification says that once a projection
+ * is made, "all subsequent expressions are projected onto the resulting list",
+ * so `a.*.<rest>` means the same as `values(a)[*].<rest>` whenever `a` is an
+ * object. Each result here was checked against that rewrite in the Python
+ * reference implementation (jmespath 1.0.1), which projects arrays correctly
+ * and is the only reason this paragraph has a footnote's worth of provenance.
+ * Both reference implementations (that one and jmespath.js 0.16.0) return null
+ * for the unrewritten expressions; toil follows the specification.
+ */
+const projections: Array<{ given: unknown; cases: Array<{ expression: string; result: unknown }> }> = [
+  {
+    given: { a: { x: { b: { c: 1 } }, y: { b: { c: 2 } } } },
+    cases: [
+      { expression: 'a.*.b.c', result: [1, 2] },
+      { expression: 'a.*.b', result: [{ c: 1 }, { c: 2 }] },
+      { expression: 'values(a)[].b.c', result: [1, 2] },
+      { expression: 'a.*.b.c.d', result: [] },
+      { expression: 'a.*.b.missing', result: [] },
+      { expression: 'a.*.missing.c', result: [] },
+      { expression: 'a.*.b.c[0]', result: [] },
+      { expression: 'a.*.b.[c]', result: [[1], [2]] },
+      { expression: 'a.*.b.{v: c}', result: [{ v: 1 }, { v: 2 }] },
+      // A pipe ends the projection, so what follows it sees the whole list.
+      { expression: 'a.*.b.c | [0]', result: 1 },
+      { expression: 'a.*.b.c | length(@)', result: 2 },
+    ],
+  },
+  {
+    given: { a: { x: { b: { c: { d: { e: 1 } } } }, y: { b: { c: { d: { e: 2 } } } }, z: { b: { c: null } } } },
+    cases: [
+      { expression: 'a.*.b.c.d.e', result: [1, 2] },
+      { expression: 'a.*.b.c.d', result: [{ e: 1 }, { e: 2 }] },
+      // Nested projections: each wildcard projects inside the one before it.
+      { expression: 'a.*.b.c.*.e', result: [[1], [2]] },
+      { expression: 'a.*.b.*.d.e', result: [[1], [2], []] },
+      { expression: 'a.*.*.c.d.e', result: [[1], [2], []] },
+      { expression: 'a.*.b.*.d.e[]', result: [1, 2] },
+    ],
+  },
+  {
+    given: { a: { x: { b: [{ c: 1 }, { c: 2 }] }, y: { b: [{ c: 3 }] } } },
+    cases: [
+      { expression: 'a.*.b[*].c', result: [[1, 2], [3]] },
+      { expression: 'a.*.b[].c', result: [1, 2, 3] },
+      { expression: 'a.*.b[0].c', result: [1, 3] },
+      { expression: 'a.*.b[-1].c', result: [2, 3] },
+      { expression: 'a.*.b[?c > `1`].c', result: [[2], [3]] },
+      { expression: 'a.*.b[*].c | []', result: [1, 2, 3] },
+    ],
+  },
+  {
+    given: { a: [{ b: { x: { c: 1 }, y: { c: 2 } } }, { b: { z: { c: 3 } } }] },
+    cases: [
+      { expression: 'a[*].b.*.c', result: [[1, 2], [3]] },
+      { expression: 'a[].b.*.c', result: [[1, 2], [3]] },
+      { expression: 'a[*].b.*.c[]', result: [1, 2, 3] },
+      { expression: 'a[0].b.*.c', result: [1, 2] },
+    ],
+  },
+  {
+    // Projections over null and over anything that isn't an object or array.
+    given: { a: null, s: 'str', n: 1, l: [1, 2], o: { p: null, q: { r: null } } },
+    cases: [
+      { expression: 'a.*.b.c', result: null },
+      { expression: 's.*.b.c', result: null },
+      { expression: 'n.*.b.c', result: null },
+      { expression: 'l.*.b.c', result: null },
+      { expression: 'missing.*.b.c', result: null },
+      { expression: 'a[*].b.c', result: null },
+      { expression: 's[*].b.c', result: null },
+      { expression: 'o.p.*.x.y', result: null },
+      { expression: 'o.*.r', result: [] },
+      { expression: 'o.*.r.t', result: [] },
+    ],
+  },
+  {
+    // A null part way down drops that value; a falsy one that isn't null stays.
+    given: { a: { x: null, y: { b: null }, z: { b: { c: null } }, w: { b: { c: 0 } } } },
+    cases: [
+      { expression: 'a.*.b.c', result: [0] },
+      { expression: 'a.*.b', result: [{ c: null }, { c: 0 }] },
+      { expression: 'a.*', result: [{ b: null }, { b: { c: null } }, { b: { c: 0 } }] },
+    ],
+  },
+];
+
+describe('wildcard and object projections (#279)', () => {
+  projections.forEach((group, g) => {
+    group.cases.forEach((c, i) => {
+      it(`${g + 1}.${i + 1}: ${c.expression}`, () => {
+        expect(search(group.given, c.expression)).toEqual(c.result);
+      });
+    });
+  });
+
+  it('projects an object exactly as values() projects the same object as a list, however many fields follow', () => {
+    const given = { a: { x: { b: { c: { d: [1, { e: 2 }] } } }, y: { b: { c: { d: [3] } } }, z: {} } };
+    for (const rest of ['b', 'b.c', 'b.c.d', 'b.c.d[0]', 'b.c.d[1].e', 'b.c.d[*].e', 'b.c.d[]', 'b.[c]', 'b.c.{d: d}', 'b.*.d', 'b.c.d | [0]']) {
+      expect(search(given, `a.*.${rest}`), rest).toEqual(search(given, `values(a)[*].${rest}`));
+    }
+  });
+});

@@ -3,7 +3,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'nod
 import { ToilError } from './errors.js';
 import { gitBool, lastValue, refusedGitRead } from './git-config.js';
 import { findGitRepo, readGitConfig, readGitIndex } from './git-repo.js';
-import { isIgnored, parseIgnore, skippedLineWarning, type IgnoreRule } from './gitignore.js';
+import { isIgnored, parseIgnore, skippedLineWarning, undecodableIgnoreWarning, unreadableIgnoreWarning, type IgnoreRule } from './gitignore.js';
 
 /**
  * The local files a command may read or write: an `--input-file`, a file to
@@ -52,9 +52,10 @@ export interface FileAccess {
    * --exclude-standard` lists: tracked files, ignored or not, plus untracked
    * ones no ignore rule covers, and a nested repository as `name/`. Symlinks
    * are listed, never followed. More than `limit` files (default 100,000) is
-   * INVALID_INPUT. A git config include it refuses to read, and a `.gitignore`
+   * INVALID_INPUT. A git config include it refuses to read, a `.gitignore`
    * line it can't compile (skipped alone, the rest of that file still applying),
-   * are reported through `warn`, which execute() points at meta.warnings.
+   * and an ignore file that exists but can't be read or isn't UTF-8, are
+   * reported through `warn`, which execute() points at meta.warnings.
    */
   list(dir?: string, options?: { gitignore?: boolean; limit?: number; warn?: (warning: { code: string; message: string }) => void }): string[];
   /**
@@ -409,16 +410,32 @@ function listTree(root: string, o: { gitignore: boolean; limit: number; home: st
   };
   let caseFold = process.platform === 'win32' || process.platform === 'darwin';
   const base: IgnoreRule[] = [];
-  // A missing .gitignore is the usual case and means no rules. A line that
-  // won't compile is a different matter: only that line is left out, and it's
-  // reported, because dropping the file's other rules would list what they
-  // exclude with nothing to say so (#262).
+  // A missing .gitignore is the usual case and means no rules, and it's the
+  // only failure that goes unsaid. One that exists but can't be read (no
+  // permission, a lock, a folder of that name) applies no rules either, and is
+  // reported, since the files it excludes are now listed (#264). A file that
+  // isn't UTF-8 still applies, decoded with replacements, and is reported too.
+  // A line that won't compile leaves out only that line, and is reported,
+  // because dropping the file's other rules would list what they exclude with
+  // nothing to say so (#262).
   const readRules = (file: string, at: string) => {
+    let bytes: Buffer;
+    try {
+      bytes = readFileSync(file);
+    } catch (err) {
+      const code = (err as NodeJS.ErrnoException).code;
+      // ENOTDIR: a parent of the path is a file (an `info` file where git
+      // expects a folder), so there is no ignore file there to read.
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') o.warn?.(unreadableIgnoreWarning(file, err));
+      return [];
+    }
     let text: string;
     try {
-      text = readFileSync(file, 'utf8');
+      // ignoreBOM keeps a byte-order mark in the text, as readFileSync's 'utf8' did.
+      text = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
     } catch {
-      return [];
+      o.warn?.(undecodableIgnoreWarning(file));
+      text = bytes.toString('utf8');
     }
     return parseIgnore(text, at, caseFold, (skipped) => o.warn?.(skippedLineWarning(file, skipped)));
   };
