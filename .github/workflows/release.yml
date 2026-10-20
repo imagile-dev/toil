@@ -233,23 +233,21 @@ jobs:
         with:
           node-version: '24.14'
           cache: npm
-      # A toil publish-toil sent seconds ago can take a moment to show, as in publish-ui.
+      # npm can take ten minutes or more to serve a toil publish-toil just sent,
+      # as in publish-ui; the script waits up to 15 (#363).
       - name: Wait for npm to serve the toil Toil UI pins
         run: |
           PIN="$(node -p "require('./ui/package.json').dependencies['@imagile-dev/toil']")"
           echo "PIN=$PIN" >> "$GITHUB_ENV"
-          for attempt in 1 2 3 4 5 6; do
-            if [[ "$(npm view "@imagile-dev/toil@$PIN" version 2>/dev/null)" == "$PIN" ]]; then
-              echo "npm serves @imagile-dev/toil $PIN."
-              exit 0
-            fi
-            [[ $attempt -lt 6 ]] && sleep 10
-          done
-          echo "::error::npm still doesn't serve @imagile-dev/toil $PIN after a minute, so the lockfile can't point at it yet. Re-run this job."
-          exit 1
+          if ! node scripts/wait-for-npm.mjs @imagile-dev/toil "$PIN"; then
+            echo "::error::npm still doesn't serve @imagile-dev/toil $PIN after the wait above, so the lockfile can't point at it yet. Re-run this job once it does."
+            exit 1
+          fi
+      # --prefer-online: setup-node restored ~/.npm, and its cached packument
+      # may predate the publish.
       - name: Point the lockfile at it, and prove what npm ci installs
         run: |
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund "@imagile-dev/toil@$PIN" -w ui --save-exact
+          npm install --package-lock-only --prefer-online --ignore-scripts --no-audit --no-fund "@imagile-dev/toil@$PIN" -w ui --save-exact
           npm ci --ignore-scripts
           npm run check:lockfile -w ui
       - name: Open the lockfile PR
@@ -307,21 +305,16 @@ jobs:
       - run: npm install -g npm@11.5.1
       - run: npm ci --ignore-scripts
       # The pin is exact, so a toil npm doesn't serve would make a UI nobody
-      # can install. Fail before publishing, not after. A toil publish-toil
-      # sent seconds ago can take a moment to show, so it asks six times, ten
-      # seconds apart.
+      # can install. Fail before publishing, not after. npm can take ten
+      # minutes or more to serve a toil publish-toil just sent, so the script
+      # asks with backoff for up to 15, logging each try (#363).
       - name: Check that npm serves the toil the UI pins
         run: |
           PIN="$(node -p "require('./ui/package.json').dependencies['@imagile-dev/toil']")"
-          for attempt in 1 2 3 4 5 6; do
-            if [[ "$(npm view "@imagile-dev/toil@$PIN" version 2>/dev/null)" == "$PIN" ]]; then
-              echo "npm serves @imagile-dev/toil $PIN."
-              exit 0
-            fi
-            [[ $attempt -lt 6 ]] && sleep 10
-          done
-          echo "::error::@imagile-dev/toil-ui $VERSION pins @imagile-dev/toil $PIN, which npm still doesn't serve after a minute."
-          exit 1
+          if ! node scripts/wait-for-npm.mjs @imagile-dev/toil "$PIN"; then
+            echo "::error::@imagile-dev/toil-ui $VERSION pins @imagile-dev/toil $PIN, which npm still doesn't serve after the wait above. Re-run this job once it does."
+            exit 1
+          fi
       # The root build is toil's tarball, which the UI's smoke installs beside its own.
       - run: npm run build
       - run: npm test -w ui

@@ -28,6 +28,8 @@ interface Job {
 const workflow = load(readFileSync(join(root, '.github', 'workflows', 'release.yml'), 'utf8')) as { jobs: Record<string, Job> };
 const { jobs } = workflow;
 const step = (job: string, name: string) => jobs[job]!.steps.find((s) => s.name === name);
+/** Both jobs after publish-toil wait for npm to serve the toil they need the same way (#363). */
+const WAIT = 'node scripts/wait-for-npm.mjs @imagile-dev/toil "$PIN"';
 
 describe('release-please', () => {
   const config = json('release-please-config.json');
@@ -96,9 +98,20 @@ describe('the publish jobs', () => {
     const runs = jobs['publish-ui']!.steps.map((s) => s.run ?? '');
     const at = (cmd: string) => runs.findIndex((r) => r.includes(cmd));
     const publish = runs.findIndex((r) => r.includes('npm publish'));
-    for (const cmd of ['npm view "@imagile-dev/toil@$PIN"', 'npm test -w ui', 'npm run build -w ui', 'npm run check:package -w ui', 'npm run smoke -w ui']) {
+    for (const cmd of [WAIT, 'npm test -w ui', 'npm run build -w ui', 'npm run check:package -w ui', 'npm run smoke -w ui']) {
       expect(at(cmd), cmd).toBeGreaterThan(-1);
       expect(at(cmd), cmd).toBeLessThan(publish);
+    }
+  });
+});
+
+describe('waiting for npm (#363)', () => {
+  it('gives publish-ui and lockfile the same long wait, with no loop of their own left beside it', () => {
+    for (const [job, name] of [['publish-ui', 'Check that npm serves the toil the UI pins'], ['lockfile', 'Wait for npm to serve the toil Toil UI pins']] as const) {
+      const run = step(job, name)!.run!;
+      expect(run, job).toContain(`if ! ${WAIT}; then`);
+      expect(run, job).toContain('after the wait above');
+      expect(run, job).not.toMatch(/npm view|sleep|2>\/dev\/null/);
     }
   });
 });
@@ -111,14 +124,14 @@ describe('the lockfile after a release (#299)', () => {
   it('runs once toil is on npm, and never before', () => {
     expect(job.needs).toEqual(['release-please', 'publish-toil']);
     expect(job.if).toBe("needs.publish-toil.result == 'success'");
-    const served = runs.findIndex((r) => r.includes('npm view "@imagile-dev/toil@$PIN"'));
+    const served = runs.findIndex((r) => r.includes(WAIT));
     expect(served).toBeGreaterThan(-1);
     expect(served).toBeLessThan(runs.findIndex((r) => r.includes('--package-lock-only')));
   });
 
   it("points the entry at the published toil, proves it with npm ci and check:lockfile, and opens a PR with package-lock.json alone", () => {
     const fix = runs.find((r) => r.includes('--package-lock-only'))!;
-    expect(fix).toContain('npm install --package-lock-only --ignore-scripts --no-audit --no-fund "@imagile-dev/toil@$PIN" -w ui --save-exact');
+    expect(fix).toContain('npm install --package-lock-only --prefer-online --ignore-scripts --no-audit --no-fund "@imagile-dev/toil@$PIN" -w ui --save-exact');
     expect(fix.indexOf('npm ci --ignore-scripts')).toBeLessThan(fix.indexOf('npm run check:lockfile -w ui'));
     const pr = step('lockfile', 'Open the lockfile PR')!.run!;
     expect(pr).toContain('git add package-lock.json\n');

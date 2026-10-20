@@ -5187,3 +5187,23 @@ it pins. These are the choices made by default in the fix:
 - **The sample seeds one assignment in every state**, and reads PAY-107 with
   `agent:refine` added so the inbox has an entry; the sample's tracker data, shared
   with toil's own OWI fixture, is unchanged.
+
+## Waiting for npm after a release (#363)
+
+- **The wait reads the registry with `fetch`, not `npm view`.** `scripts/wait-for-npm.mjs`
+  asks for both packuments (the abbreviated one `npm install` and `npm ci` resolve
+  against, and the full one `npm view` reads) and then `HEAD`s the tarball, each with
+  `Cache-Control: no-cache`. The old loop called `npm view`, whose first answer npm
+  caches for five minutes, so its later tries in the same minute could never see the
+  new version; it also threw npm's error away. `fetch` needs no child process, where
+  running npm on Windows would need a shell (`npm.cmd`), which Cross-Platform rules out,
+  so the script runs the same on every OS.
+- **Backoff is 10s, 20s, 40s, then every 60s, for up to 15 minutes**
+  (`NPM_WAIT_SECONDS`, default 900). Run 39502971120 took about ten minutes before a
+  hand re-run found alpha.4.
+- **`lockfile` still doesn't wait on `publish-ui`.** It needs toil on npm, not the UI,
+  and depending on `publish-ui` would skip the lockfile fix whenever the UI's publish
+  fails or has nothing to release, which is when other PRs most need
+  `check:lockfile` to stop failing. Both jobs wait for toil the same way instead.
+- **The lockfile's `npm install --package-lock-only` adds `--prefer-online`**, because
+  setup-node restores `~/.npm` and a cached packument there can predate the publish.
