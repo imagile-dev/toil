@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -108,6 +109,21 @@ describe.skipIf(!tracked)('tracked files', () => {
       }
     }
     expect(counts).toEqual(DOLLAR_PATTERNS);
+  });
+
+  it('leaves AGENT_DECISIONS.md frozen: new decisions get a file of their own in docs/decisions/', () => {
+    // Every PR appended to one file, so every PR conflicted on it (#361). The
+    // archive's content is pinned; an entry added to it fails here, not as a
+    // merge conflict on the next PR. docs/decisions/README.md says where it goes.
+    const text = readFileSync(join(root, 'AGENT_DECISIONS.md'), 'utf8').replace(/\r\n/g, '\n');
+    expect(createHash('sha256').update(text).digest('hex'),
+      'AGENT_DECISIONS.md is a frozen archive. Put the decision in docs/decisions/<issue#>-<slug>.md instead (docs/decisions/README.md).')
+      .toBe('9586220051d494fc2cfd9eb9cc072364ed10bab9a77d93b92f53b20e11778f3c');
+  });
+
+  it('names every decision file <issue#>-<slug>.md, after its branch', () => {
+    const files = tracked!.filter((f) => f.startsWith('docs/decisions/') && f !== 'docs/decisions/README.md');
+    expect(files.filter((f) => !/^docs\/decisions\/\d+-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(f))).toEqual([]);
   });
 
   it('the title check counts only headings outside code', () => {
