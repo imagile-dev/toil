@@ -131,7 +131,7 @@
             "area": { "description": "The toil area the record came from: jira, jira-cloud, ado or github in 0.1; an area added later that sends one of their shapes is added here without a version change.", "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
             "connection": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
             "key": { "description": "The native key, the part of id after the connection.", "type": "string", "minLength": 1 },
-            "command": { "description": "The toil command whose output was mapped (jira search).", "type": "string" }
+            "command": { "description": "The toil command whose output was mapped (jira issue search).", "type": "string" }
           }
         },
         "url": { "description": "The item in the source's web UI.", "type": ["string", "null"] },
@@ -171,7 +171,7 @@
         "dueDate": { "anyOf": [{ "$ref": "#/$defs/Day" }, { "type": "null" }] },
         "history": { "description": "null when no history was mapped for the item, which is not the same as an empty one.", "anyOf": [{ "$ref": "#/$defs/History" }, { "type": "null" }] },
         "unmapped": { "description": "Every OWI field left empty because the record didn't hold it, and why.", "type": "array", "items": { "$ref": "#/$defs/Unmapped" } },
-        "native": { "description": "The source records, untouched, keyed by the command that returned each (jira search, github projects list-items)." , "type": "object", "minProperties": 1 }
+        "native": { "description": "The source records, untouched, keyed by the command that returned each (jira issue search, github projects list-items)." , "type": "object", "minProperties": 1 }
       }
     }
   }

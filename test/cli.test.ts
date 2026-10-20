@@ -84,6 +84,19 @@ describe('toil CLI', () => {
     expect(run.stdout).toContain('Usage: toil');
   });
 
+  it("lists each resource with its actions in an area's --help", async () => {
+    const { context } = testContext();
+    const run = await runCli(['jira', '--help'], { commands, context });
+    expect(run.stdout).toMatch(/issue\s+get, history, create, update/);
+    expect(run.stdout).toMatch(/board\s+list/);
+  });
+
+  it('lists an alias-only group by what it holds', async () => {
+    const { context } = testContext();
+    const run = await runCli(['jenkins', '--help'], { commands, context });
+    expect(run.stdout).toMatch(/instance\s+add, list, remove/);
+  });
+
   it('returns INVALID_INPUT with a fix when a required field is missing', async () => {
     const { context, http } = testContext({ config: { demo: { token: 't' } }, routes: demoRoutes });
     const run = await runCli(['demo', 'get-thing'], { commands: demoCommands, context });
@@ -123,7 +136,7 @@ describe('toil CLI', () => {
       expect(argvFor(echo, { n: 5, tags: ['x', 'y'] })).toEqual(['echo', '--n', '5', '--tag', 'x', '--tag', 'y']);
     });
 
-    // One value or several, as `jira get-issue --key A --key B` takes them.
+    // One value or several, as `jira issue get A B` takes them.
     const oneOrMany = defineCommand({
       path: ['pick'],
       description: 'pick',

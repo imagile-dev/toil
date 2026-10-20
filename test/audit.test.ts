@@ -38,7 +38,7 @@ const demoConfig = { demo: { token: 'demo-token', writes: true } };
 const entry = (over: Partial<AuditEntry> = {}): AuditEntry => ({
   time: '2026-10-17T09:00:00.000Z',
   via: 'cli',
-  command: 'jira get-issue',
+  command: 'jira issue get',
   area: 'jira',
   connection: 'corp-jira',
   writes: false,
@@ -148,7 +148,7 @@ describe('redaction', () => {
     const huge = entry({ requests: Array.from({ length: 100 }, () => ({ method: 'GET', url: longUrl, status: 200 })), input: { q: 'x'.repeat(100_000) } });
     const line = auditLine(huge);
     expect(Buffer.byteLength(line)).toBeLessThanOrEqual(64 * 1024);
-    expect(JSON.parse(line)).toMatchObject({ command: 'jira get-issue', outcome: 'ok', input: null, requests: [], requestsOmitted: 100, truncated: true });
+    expect(JSON.parse(line)).toMatchObject({ command: 'jira issue get', outcome: 'ok', input: null, requests: [], requestsOmitted: 100, truncated: true });
   });
 
   it('takes linear time on long runs that would make a backtracking pattern quadratic', () => {
@@ -246,12 +246,12 @@ describe('the log on disk', () => {
     const home = tempHome();
     const log = fileAuditLog({ home, now: () => new Date('2026-10-17T09:00:00Z') });
     log.append(entry());
-    log.append(entry({ command: 'jira search' }));
+    log.append(entry({ command: 'jira issue search' }));
     const file = join(home, '.toil', 'audit', '2026-10.jsonl');
     const text = readFileSync(file, 'utf8');
     expect(text.split('\n')).toHaveLength(3);
     expect(text.endsWith('\n')).toBe(true);
-    expect(log.read().entries.map((e) => e.command)).toEqual(['jira get-issue', 'jira search']);
+    expect(log.read().entries.map((e) => e.command)).toEqual(['jira issue get', 'jira issue search']);
   });
 
   it.skipIf(process.platform === 'win32')('is readable by the user only (skipped on Windows, which has no POSIX modes; the profile folder ACL applies)', () => {
@@ -408,9 +408,9 @@ describe('toil audit', () => {
   const list = auditCommands();
   const seeded = () => {
     const audit = memoryAudit();
-    audit.append(entry({ time: '2026-09-30T23:59:00.000Z', command: 'jira get-issue', connection: 'corp-jira' }));
-    audit.append(entry({ time: '2026-10-02T10:00:00.000Z', command: 'jira transition-issue', connection: 'corp-jira', writes: true, allowWrite: true }));
-    audit.append(entry({ time: '2026-10-03T10:00:00.000Z', command: 'jira-cloud get-issue', area: 'jira-cloud', connection: 'cloud' }));
+    audit.append(entry({ time: '2026-09-30T23:59:00.000Z', command: 'jira issue get', connection: 'corp-jira' }));
+    audit.append(entry({ time: '2026-10-02T10:00:00.000Z', command: 'jira issue transition', connection: 'corp-jira', writes: true, allowWrite: true }));
+    audit.append(entry({ time: '2026-10-03T10:00:00.000Z', command: 'jira-cloud issue get', area: 'jira-cloud', connection: 'cloud' }));
     audit.append(entry({ time: '2026-10-04T10:00:00.000Z', command: 'db execute', area: 'db', connection: 'local', writes: true, allowWrite: true }));
     return audit;
   };
@@ -418,12 +418,12 @@ describe('toil audit', () => {
 
   it('lists newest first and filters by --since, --command, --connection and --writes-only, the same through both doors', async () => {
     const cases: Array<[string[], Record<string, unknown>, string[]]> = [
-      [[], {}, ['db execute', 'jira-cloud get-issue', 'jira transition-issue', 'jira get-issue']],
-      [['--since', '2026-10-01'], { since: '2026-10-01' }, ['db execute', 'jira-cloud get-issue', 'jira transition-issue']],
-      [['--since', '2026-10-03T10:00:00Z'], { since: '2026-10-03T10:00:00Z' }, ['db execute', 'jira-cloud get-issue']],
-      [['--command', 'jira'], { command: 'jira' }, ['jira transition-issue', 'jira get-issue']],
-      [['--command', 'jira get-issue'], { command: 'jira get-issue' }, ['jira get-issue']],
-      [['--connection', 'corp-jira', '--writes-only'], { connection: 'corp-jira', writesOnly: true }, ['jira transition-issue']],
+      [[], {}, ['db execute', 'jira-cloud issue get', 'jira issue transition', 'jira issue get']],
+      [['--since', '2026-10-01'], { since: '2026-10-01' }, ['db execute', 'jira-cloud issue get', 'jira issue transition']],
+      [['--since', '2026-10-03T10:00:00Z'], { since: '2026-10-03T10:00:00Z' }, ['db execute', 'jira-cloud issue get']],
+      [['--command', 'jira'], { command: 'jira' }, ['jira issue transition', 'jira issue get']],
+      [['--command', 'jira issue get'], { command: 'jira issue get' }, ['jira issue get']],
+      [['--connection', 'corp-jira', '--writes-only'], { connection: 'corp-jira', writesOnly: true }, ['jira issue transition']],
       [['--limit', '1'], { limit: 1 }, ['db execute']],
     ];
     for (const [argv, fields, expected] of cases) {

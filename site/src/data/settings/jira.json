@@ -26,7 +26,7 @@
   {
     "key": "project",
     "env": "TOIL_JIRA_PROJECT",
-    "description": "Default project key for create-issue",
+    "description": "Default project key for issue create",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -34,7 +34,7 @@
   {
     "key": "issueType",
     "env": "TOIL_JIRA_ISSUE_TYPE",
-    "description": "Default issue type for create-issue (Task when unset)",
+    "description": "Default issue type for issue create (Task when unset)",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -42,7 +42,7 @@
   {
     "key": "priority",
     "env": "TOIL_JIRA_PRIORITY",
-    "description": "Default priority for create-issue",
+    "description": "Default priority for issue create",
     "required": false,
     "secret": false,
     "fallbacks": []

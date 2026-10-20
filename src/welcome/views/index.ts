@@ -5,6 +5,7 @@ import * as dossiers from './dossiers.js';
 import { healthView, helpView } from './health.js';
 import { homeView, type HomeEntry } from './home.js';
 import { resultView } from './result.js';
+import * as services from './services.js';
 import { addNameView, addUrlView, agentSkillsView, agentView as skillsAgentView, marketplaceView, pluginsView, pluginView, removeMarketplaceView, reviewView, scopeView, skillsView, toggleView } from './skills.js';
 
 /**
@@ -14,6 +15,7 @@ import { addNameView, addUrlView, agentSkillsView, agentView as skillsAgentView,
  * local standards counts as no paperwork at all.
  */
 export const HOME_ENTRIES: HomeEntry[] = [
+  { label: 'Services', hint: 'Browse and run every command: service, resource, action', view: 'services' },
   { label: 'Health check', hint: 'Config file, this folder and every connection', view: 'health' },
   { label: 'Connections', hint: 'Add, test, sign in again, writes and defaults', view: 'connections' },
   { label: 'Connect an agent', hint: 'Pick areas and get the MCP config snippet', view: 'agents' },
@@ -83,5 +85,14 @@ export const VIEWS: Record<string, View> = {
   'dossier-delete': dossiers.deleteView,
   'dossier-unlink': dossiers.unlinkView,
   'dossier-agent': dossiers.agentView,
+  services: services.servicesView,
+  service: services.serviceView,
+  'service-resource': services.resourceView,
+  'service-command': services.commandView,
+  'service-arg': services.argView,
+  'service-flags': services.flagsView,
+  'service-confirm': services.confirmView,
+  'service-find': services.findView,
+  'service-matches': services.matchesView,
   result: resultView,
 };

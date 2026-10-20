@@ -314,23 +314,23 @@ describe('the menu', () => {
 
   it('moves with arrows or j/k, wrapping at both ends', () => {
     expect(top(press(settled, data(), 'down', 'down')).selected).toBe(2);
-    expect(top(press(settled, data(), 'up')).selected).toBe(6);
-    expect(top(press(settled, data(), 'j', 'k', 'k')).selected).toBe(6);
+    expect(top(press(settled, data(), 'up')).selected).toBe(7);
+    expect(top(press(settled, data(), 'j', 'k', 'k')).selected).toBe(7);
   });
 
   it('opens a screen with enter or its number, and goes back with esc to where it was', () => {
-    expect(where(press(settled, data(), 'down', 'return'))).toBe('connections');
-    expect(where(press(settled, data(), '1'))).toBe('health');
-    const back = press(settled, data(), '3', 'escape');
+    expect(where(press(settled, data(), 'down', 'down', 'return'))).toBe('connections');
+    expect(where(press(settled, data(), '2'))).toBe('health');
+    const back = press(settled, data(), '4', 'escape');
     expect(where(back)).toBe('home');
-    expect(top(back).selected).toBe(2);
+    expect(top(back).selected).toBe(3);
   });
 
   it('quits with q or the Quit entry; Ctrl+C is left to the loop, which wants it twice', () => {
     expect(press(settled, data(), 'q').quit).toBe(true);
     expect(press(settled, data(), { name: 'c', ctrl: true }).quit).toBeUndefined();
-    expect(press(settled, data(), '7').quit).toBe(true);
-    expect(press(settled, data(), '8').quit).toBeUndefined();
+    expect(press(settled, data(), '8').quit).toBe(true);
+    expect(press(settled, data(), '9').quit).toBeUndefined();
     expect(press(settled, data(), '0').quit).toBeUndefined();
   });
 
@@ -357,7 +357,7 @@ describe('the menu', () => {
 
   it("offers a file connection's actions, each one a real connections command", () => {
     const d = data({ config: fileConfig({ jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'keychain:jira.apiToken' } }) });
-    const conn = press(settled, d, '2', '1');
+    const conn = press(settled, d, '3', '1');
     expect(top(conn)).toMatchObject({ view: 'connection', params: { name: 'jira' } });
     const text = render(conn, plain, d).join('\n');
     for (const label of ['Test it', 'Sign in again', 'Turn writes on', 'Remove']) expect(text).toContain(label);
@@ -371,7 +371,7 @@ describe('the menu', () => {
 
   it('removes a connection only once its name is typed back', () => {
     const d = data({ config: fileConfig({ jira: { baseUrl: 'https://jira.imagile.dev', apiToken: 'keychain:jira.apiToken' } }) });
-    const remove = press(settled, d, '2', '1', '4');
+    const remove = press(settled, d, '3', '1', '4');
     expect(where(remove)).toBe('remove');
     const wrong = press(type(remove, d, 'jir'), d, 'return');
     expect(wrong.pending).toBeUndefined();
@@ -383,7 +383,7 @@ describe('the menu', () => {
   });
 
   it('only tests a connection defined by env vars, since there is nothing in the file to change', () => {
-    const conn = press(settled, data(), '2', '1');
+    const conn = press(settled, data(), '3', '1');
     const text = render(conn, plain, data()).join('\n');
     expect(text).toContain('Defined by env vars');
     expect(text).not.toContain('Turn writes on');
@@ -391,7 +391,7 @@ describe('the menu', () => {
 
   it('walks the add wizard: service, then name, then the real add and test commands, in four numbered steps', () => {
     const d = data();
-    const service = press(settled, d, '2', 'down', 'return');
+    const service = press(settled, d, '3', 'down', 'return');
     expect(where(service)).toBe('add-area');
     expect(render(service, plain, d).join('\n')).toContain('Step 1 of 4: service');
     const named = press(service, d, '2');
@@ -413,7 +413,7 @@ describe('the menu', () => {
 
   it('after a run, records the health it found, shows each command and its outcome, and goes where the run says', () => {
     const d = data();
-    const started = press(settled, d, '2', 'down', 'return', '2', 'return');
+    const started = press(settled, d, '3', 'down', 'return', '2', 'return');
     const ok: Envelope = { ok: true, data: { name: 'confluence', area: 'confluence', configFile: '/home/test/.toil/config.json' }, error: null, meta: { command: 'connections add', durationMs: 1, version: '0', contractVersion: 1 } };
     const tested: Envelope = { ok: false, data: null, error: { code: 'AUTH', message: 'Confluence rejected the token.', fix: 'Make a new one.' }, meta: { command: 'connections test', durationMs: 1, version: '0', contractVersion: 1 } };
     const done = finish(started, [
@@ -434,7 +434,7 @@ describe('the menu', () => {
 
   it('asks which areas an agent should see, and prints the snippet for just those', () => {
     const d = data({ mcpAreas: ['confluence', 'jira'] });
-    const areas = press(settled, d, '3', '1');
+    const areas = press(settled, d, '4', '1');
     expect(where(areas)).toBe('agent-areas');
     const snippet = press(areas, d, 'down', ' ', 'return');
     expect(top(snippet)).toMatchObject({ view: 'agent', params: { client: 'claude', areas: 'jira' } });
@@ -451,13 +451,13 @@ describe('the menu', () => {
         for (const line of lines) expect(visibleLength(line)).toBeLessThan(columns);
       }
     }
-    expect(render(press(settled, d, '2'), plain, d).join('\n')).toContain('toil › Connections');
-    expect(render(press(settled, d, '2'), ascii, d).join('\n')).toContain('toil > Connections');
+    expect(render(press(settled, d, '3'), plain, d).join('\n')).toContain('toil › Connections');
+    expect(render(press(settled, d, '3'), ascii, d).join('\n')).toContain('toil > Connections');
   });
 
   it('scrolls a long list to keep the selection in view on a short terminal', () => {
     const d = data({ areas: Array.from({ length: 30 }, (_, i) => ({ name: `area-${i}`, description: '', signsIn: true, live: true, configurable: true })) });
-    const wizard = press(settled, d, '2', 'down', 'return', ...Array(20).fill('down'));
+    const wizard = press(settled, d, '3', 'down', 'return', ...Array(20).fill('down'));
     const lines = render(wizard, { ...plain, rows: 24 }, d);
     expect(lines.length).toBeLessThanOrEqual(24);
     expect(lines.join('\n')).toContain('area-20');

@@ -11,7 +11,7 @@ import { OWI_VERSION } from './types.js';
 /** One command's output, as the mapper reads it. */
 export interface OwiDocument {
   area: OwiArea;
-  /** `jira search`, `ado work get-batch`: what the envelope's meta.command says. */
+  /** `jira issue search`, `ado work-item get-many`: what the envelope's meta.command says. */
   command: string;
   /** The toil connection, the first part of every id. The area's name when the input says none. */
   connection: string;

@@ -6,7 +6,7 @@ description: Running toil as an MCP server over stdio, the tools and resources i
 
 `toil mcp` serves every toil command as an MCP tool over stdio. It's the same core as
 the CLI, with the same inputs and the same envelope. A tool's name is its command path
-with underscores: `toil jira get-issue` is `jira_get_issue`. It never opens a network
+with underscores: `toil jira issue get` is `jira_issue_get`. It never opens a network
 port.
 
 - **`--areas jira,confluence`** serves exactly those areas, so an agent sees a short
@@ -14,7 +14,7 @@ port.
   an area are areas of their own here: add `version` or `connections` to the list to
   serve them too. Without `--areas`, toil serves every area that has a connection set
   up, plus every command that needs none (`version`, `connections list`,
-  `jira schema`).
+  `jira issue schema`).
 - **Writes**: a write tool is listed only when one of its area's connections has
   `writes: true`, and every call still needs `allowWrite: true`. Deletes, and the
   commands that prompt or change connections (`connections add`, `setup alias`), are

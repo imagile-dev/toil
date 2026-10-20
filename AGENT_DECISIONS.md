@@ -3816,3 +3816,38 @@ decided here.
   plugin now also reads in `ui/docs/`, and `test/site-docs.test.ts` checks them the
   same way. `ui/test/prompts.test.ts` fails if the prompt the page shows drifts from
   what the server composes.
+
+
+## Command shape (jira, jira-cloud, ado, ado-cloud)
+
+The maintainer asked for one streamlined interface, a clean break with no aliases,
+standardised flags, and no change to the client code (principle 10). These are the
+choices made by default inside that:
+
+- **A sub-collection's read is a plural noun under its resource**, `jira issue comments
+  <key>` and `ado pr threads <id>`, not a resource of its own (`jira comment list`).
+  Everything about one issue or PR is then under one `--help` and one menu screen.
+- **Compound verbs where one word would mislead**: `issue log-work`, `issue set-sprint`,
+  `work-item get-many`, `pr comment-inline`, `pr delete-comment`, `pr wait-for-author`.
+- **Vendor words stay where the concepts differ**: Jira's `--transition` (a transition
+  name) and ADO's `--state` aren't merged into one flag.
+- **`ado run list` keeps `--top` beside `--limit`.** They aren't the same idea: `--top`
+  is one request with a cap (`0` lists every run, as the contract records), `--limit`
+  pages with a cursor. `jira issue search` keeps `--start-at` for the same reason.
+- **Positional arguments are ids only.** The other end of a link (`--target`), a
+  sprint, a state and a person are flags, so a line reads the same in every area.
+- **One positional value for a one-or-many field stays one value**
+  (`src/program.ts`): `jira issue get PAY-1` returns the issue, as `--key PAY-1` did,
+  and `jira issue get PAY-1 PAY-2` the bulk shape.
+- **The contract's jira and ado entries were regenerated from the registry**, each
+  carrying its old entry's recorded `output`; commands the contract never recorded
+  (`issue history`, `work-item get-many`, `api`, `check-dossier`) stay out of it, as
+  before. The `--save` divergence on `work-item fields` and `types` keeps its record
+  with empty `allows`, since the flag is no longer in the contract to excuse.
+- **The welcome menu's Services module is its first entry**: service, resource,
+  action, then a form for the positional ids and a flags line with the required ones
+  filled in. A write shows its line with `--allow-write` and asks before running; the
+  connection's own writes setting still decides. A result shows the first 24 lines of
+  `data`.
+- **A resource's row in `--help` lists its actions** (`issue  get, history, create,
+  ...`) instead of "jira issue commands".

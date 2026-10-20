@@ -15,7 +15,7 @@ import { andWhere, checkFlat, wiqlInstant } from './wiql.js';
 /** A number read with parseInt, as the contract specifies: text stays text until then. */
 export const intText = z.union([z.number(), z.string()]);
 export const idInput = intText.describe('Work item ID');
-export const idOption = { flags: '--id <n>', field: 'id', description: 'Work item ID' };
+export const idArg = { name: 'id', field: 'id', description: 'Work item ID' };
 export const AT = { collection: 'DefaultCollection', organization: 'DefaultCollection', project: 'Imagile', repo: 'imagile-api' };
 const W = { ...AT, allowWrite: true };
 
@@ -43,22 +43,22 @@ function reportOverrides(ctx: AdoContext, overrides: string[]): void {
 }
 
 const fieldInput = (description: string) => z.array(z.string()).optional().describe(description);
-const INPUT_FILE_CREATE = "JSON file describing the work item ({ type, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil ado work schema";
-const INPUT_FILE_UPDATE = "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil ado work schema";
+const INPUT_FILE_CREATE = "JSON file describing the work item ({ type, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil ado work-item schema";
+const INPUT_FILE_UPDATE = "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil ado work-item schema";
 
 export const workGetCommand = adoArea.command({
-  path: ['ado', 'work', 'get'],
+  path: ['ado', 'work-item', 'get'],
   description: 'Get a work item by ID',
   toolDescription: 'Returns one work item by id with every field, its relations and links ($expand=all).',
   input: z.object({ id: idInput }),
   writes: false,
-  options: [idOption],
+  args: [idArg],
   examples: [{ ...AT, id: '42' }],
   run: async (input, ctx) => getWorkItem(ctx, where(ctx).collection, toInt(input.id)),
 });
 
 export const workCreateCommand = adoArea.command({
-  path: ['ado', 'work', 'create'],
+  path: ['ado', 'work-item', 'create'],
   description: 'Create a work item',
   toolDescription:
     'Creates a work item of a type in the project and returns it as created. Title, description, assignee and priority have flags; any other field goes in field as name=value, resolved through field aliases. With parent, a parent link is added afterwards; if that fails the item still exists, the result is the item as created, and an ADO_PARENT_LINK_FAILED warning says so.',
@@ -94,7 +94,7 @@ export const workCreateCommand = adoArea.command({
     const { builtin: jsonBuiltin, custom: jsonCustom } = json?.fields ? splitWorkFieldsDictionary(json.fields, ctx.files) : { builtin: {}, custom: {} };
 
     const type = input.type ?? json?.type;
-    if (!type) throw new ToilError('INVALID_INPUT', '--type required (or "type" in --input-file)', { fix: 'Pass --type Bug (or Task, User Story, ...). toil ado work types lists them.' });
+    if (!type) throw new ToilError('INVALID_INPUT', '--type required (or "type" in --input-file)', { fix: 'Pass --type Bug (or Task, User Story, ...). toil ado work-item types lists them.' });
 
     const flagBuiltin: Record<string, unknown> = {
       ...(input.title !== undefined ? { title: input.title } : {}),
@@ -134,7 +134,7 @@ export const workCreateCommand = adoArea.command({
 });
 
 export const workUpdateCommand = adoArea.command({
-  path: ['ado', 'work', 'update'],
+  path: ['ado', 'work-item', 'update'],
   description: 'Update a work item field',
   toolDescription: 'Sets fields on a work item (field as name=value, or an input file of fields) and returns the updated item. Names resolve through field aliases; anything else is sent as a reference name.',
   input: z.object({
@@ -144,8 +144,8 @@ export const workUpdateCommand = adoArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [idArg],
   options: [
-    idOption,
     { flags: '--field <name=value>', field: 'field', description: 'Field to update (repeatable) (default: [])' },
     { flags: '--input-file <path>', field: 'inputFile', description: INPUT_FILE_UPDATE },
   ],
@@ -164,25 +164,27 @@ export const workUpdateCommand = adoArea.command({
 });
 
 export const workTransitionCommand = adoArea.command({
-  path: ['ado', 'work', 'transition'],
+  path: ['ado', 'work-item', 'transition'],
   description: 'Set the state of a work item',
-  toolDescription: 'Sets System.State on a work item and returns it. ado_work_list_states lists the states a type has.',
+  toolDescription: 'Sets System.State on a work item and returns it. ado_work_item_states lists the states a type has.',
   input: z.object({ id: idInput, state: z.string().describe('New state (e.g. Active, Resolved, Closed)'), ...allowWriteField }),
   writes: true,
-  options: [idOption, { flags: '--state <state>', field: 'state', description: 'New state (e.g. Active, Resolved, Closed)' }],
+  args: [idArg],
+  options: [{ flags: '--state <state>', field: 'state', description: 'New state (e.g. Active, Resolved, Closed)' }],
   examples: [{ ...W, id: '42', state: 'Resolved' }],
   run: async (input, ctx) => updateWorkItem(ctx, where(ctx).collection, toInt(input.id), [{ op: 'add', path: '/fields/System.State', value: input.state }]),
 });
 
 export const workAssignCommand = adoArea.command({
-  path: ['ado', 'work', 'assign'],
+  path: ['ado', 'work-item', 'assign'],
   description: 'Assign a work item to a user',
   toolDescription: 'Sets System.AssignedTo on a work item (display name or email) and returns it.',
-  input: z.object({ id: idInput, to: z.string().describe('User display name or email'), ...allowWriteField }),
+  input: z.object({ id: idInput, assignee: z.string().describe('User display name or email'), ...allowWriteField }),
   writes: true,
-  options: [idOption, { flags: '--to <user>', field: 'to', description: 'User display name or email' }],
-  examples: [{ ...W, id: '42', to: 'you@example.com' }],
-  run: async (input, ctx) => updateWorkItem(ctx, where(ctx).collection, toInt(input.id), [{ op: 'add', path: '/fields/System.AssignedTo', value: input.to }]),
+  args: [idArg],
+  options: [{ flags: '--assignee <user>', field: 'assignee', description: 'User display name or email' }],
+  examples: [{ ...W, id: '42', assignee: 'you@example.com' }],
+  run: async (input, ctx) => updateWorkItem(ctx, where(ctx).collection, toInt(input.id), [{ op: 'add', path: '/fields/System.AssignedTo', value: input.assignee }]),
 });
 
 /** Link type words to Azure DevOps relation names; anything else is sent as a relation name. */
@@ -196,25 +198,25 @@ const REL: Record<string, string> = {
 const LINK_TYPE = 'Link type (related|parent|child|duplicate|duplicate-of) (default: "related")';
 
 export const workLinkCommand = adoArea.command({
-  path: ['ado', 'work', 'link'],
+  path: ['ado', 'work-item', 'link'],
   description: 'Link two work items',
   toolDescription: 'Adds a relation from one work item to another (related by default; parent, child, duplicate, duplicate-of, or a raw relation name) and returns the source item.',
-  input: z.object({ id: idInput.describe('Source work item ID'), to: z.string().describe('Target work item ID'), type: z.string().optional().describe(LINK_TYPE), ...allowWriteField }),
+  input: z.object({ id: idInput.describe('Source work item ID'), target: z.string().describe('Target work item ID'), type: z.string().optional().describe(LINK_TYPE), ...allowWriteField }),
   writes: true,
+  args: [{ name: 'id', field: 'id', description: 'Source work item ID' }],
   options: [
-    { flags: '--id <a>', field: 'id', description: 'Source work item ID' },
-    { flags: '--to <b>', field: 'to', description: 'Target work item ID' },
+    { flags: '--target <id>', field: 'target', description: 'Target work item ID' },
     { flags: '--type <rel>', field: 'type', description: LINK_TYPE },
   ],
   examples: [
-    { ...W, id: '42', to: '7' },
-    { ...W, id: '42', to: '8', type: 'child' },
+    { ...W, id: '42', target: '7' },
+    { ...W, id: '42', target: '8', type: 'child' },
   ],
   run: async (input, ctx) => {
     const { collection } = where(ctx);
     const type = input.type ?? 'related';
     const rel = REL[type] ?? type;
-    return updateWorkItem(ctx, collection, toInt(input.id), [{ op: 'add', path: '/relations/-', value: { rel, url: workItemUrl(ctx, collection, input.to) } }]);
+    return updateWorkItem(ctx, collection, toInt(input.id), [{ op: 'add', path: '/relations/-', value: { rel, url: workItemUrl(ctx, collection, input.target) } }]);
   },
 });
 
@@ -229,10 +231,10 @@ interface WiqlResult {
 }
 
 export const workSearchCommand = adoArea.command({
-  path: ['ado', 'work', 'search'],
+  path: ['ado', 'work-item', 'search'],
   description: 'Run a WIQL query (consider --output-file for large results)',
   toolDescription:
-    "Runs a WIQL query in the project and returns the server's answer: the matching work item ids and urls (workItems), not their fields. Fetch fields with ado_work_get_batch. updatedSince (an ISO 8601 date or zoned date-time) ANDs [System.ChangedDate] >= it onto a flat query and turns on time precision for the whole query, so = on any date field then matches one exact instant: write date conditions with >= and < instead. With limit, workItems holds at most that many; pass meta.page.nextCursor as cursor for the next page, which runs the query again.",
+    "Runs a WIQL query in the project and returns the server's answer: the matching work item ids and urls (workItems), not their fields. Fetch fields with ado_work_item_get_many. updatedSince (an ISO 8601 date or zoned date-time) ANDs [System.ChangedDate] >= it onto a flat query and turns on time precision for the whole query, so = on any date field then matches one exact instant: write date conditions with >= and < instead. With limit, workItems holds at most that many; pass meta.page.nextCursor as cursor for the next page, which runs the query again.",
   input: z.object({
     wiql: z.string().describe('WIQL query string'),
     updatedSince: z.string().optional().describe(UPDATED_SINCE),
@@ -286,13 +288,14 @@ export const workSearchCommand = adoArea.command({
 const REVISIONS_PAGE = 100;
 
 export const workRevisionsCommand = adoArea.command({
-  path: ['ado', 'work', 'revisions'],
+  path: ['ado', 'work-item', 'history'],
   description: 'List the revisions of a work item, oldest first',
   toolDescription:
     "Lists every revision of a work item, oldest first: each is the whole work item as it stood after that change (id, rev, fields, url), so comparing neighbours gives the history of states, assignees and other fields. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.",
   input: z.object({ id: idInput, limit: limitField('revisions'), cursor: cursorField }),
   writes: false,
-  options: [idOption, ...pageOptions('revisions')],
+  args: [idArg],
+  options: [...pageOptions('revisions')],
   examples: [
     { ...AT, id: '42' },
     { ...AT, id: '42', limit: 1 },
@@ -307,22 +310,22 @@ export const workRevisionsCommand = adoArea.command({
 
 /** The most ids the batch endpoint takes in one request. */
 export const BATCH_SIZE = 200;
-/** The most ids one get-batch call takes: five requests, then a bound rather than a loop. */
+/** The most ids one get-many call takes: five requests, then a bound rather than a loop. */
 export const BATCH_MAX = 1000;
 
 export const workGetBatchCommand = adoArea.command({
-  path: ['ado', 'work', 'get-batch'],
+  path: ['ado', 'work-item', 'get-many'],
   description: 'Get several work items by ID in one call',
   toolDescription: `Returns several work items by id through the batch endpoint, ${BATCH_SIZE} per request, at most ${BATCH_MAX} ids: { count, value, missing }. value holds the items found, in the order asked, with every field and relation unless fields names the ones to return; missing lists each id that doesn't exist or the token can't see, with an ADO_WORK_ITEMS_MISSING warning.`,
   input: z.object({
-    id: z.array(z.number().int().positive()).min(1).describe('Work item ID (repeatable)'),
+    id: z.array(z.number().int().positive()).min(1).describe('Work item IDs'),
     fields: z.string().optional().describe('Comma-separated field reference names to return (default: every field, with relations)'),
   }),
   writes: false,
   // The ids go in a POST body, as the batch endpoint requires; nothing is written.
   queryByPost: true,
+  args: [{ name: 'id', field: 'id', description: 'Work item IDs', variadic: true }],
   options: [
-    { flags: '--id <n>', field: 'id', description: 'Work item ID (repeatable)' },
     { flags: '--fields <names>', field: 'fields', description: 'Comma-separated field reference names to return (default: every field, with relations)' },
   ],
   examples: [
@@ -332,7 +335,7 @@ export const workGetBatchCommand = adoArea.command({
   run: async (input, ctx) => {
     const ids = [...new Set(input.id)];
     if (ids.length > BATCH_MAX) {
-      throw new ToilError('INVALID_INPUT', `get-batch takes at most ${BATCH_MAX} work item ids in one call, and this one has ${ids.length}.`, { fix: `Split the ids into calls of ${BATCH_MAX} or fewer.` });
+      throw new ToilError('INVALID_INPUT', `get-many takes at most ${BATCH_MAX} work item ids in one call, and this one has ${ids.length}.`, { fix: `Split the ids into calls of ${BATCH_MAX} or fewer.` });
     }
     const fields = input.fields?.split(',').map((f) => f.trim()).filter(Boolean);
     const path = `${projectPath(where(ctx))}/_apis/wit/workitemsbatch?api-version=${API}`;
@@ -351,12 +354,12 @@ export const workGetBatchCommand = adoArea.command({
 });
 
 export const workListCommentsCommand = adoArea.command({
-  path: ['ado', 'work', 'list-comments'],
+  path: ['ado', 'work-item', 'comments'],
   description: 'List comments on a work item',
   toolDescription: 'Returns the first page of comments on a work item, as the server pages them.',
   input: z.object({ id: idInput }),
   writes: false,
-  options: [idOption],
+  args: [idArg],
   examples: [{ ...AT, id: '42' }],
   run: async (input, ctx) => {
     // One page only: suspected bug (#69 item 19). The endpoint wraps results in `comments`, not `value`.
@@ -366,12 +369,13 @@ export const workListCommentsCommand = adoArea.command({
 });
 
 export const workAddCommentCommand = adoArea.command({
-  path: ['ado', 'work', 'add-comment'],
+  path: ['ado', 'work-item', 'comment'],
   description: 'Add a comment to a work item',
   toolDescription: 'Adds a comment to a work item and returns it.',
   input: z.object({ id: idInput, body: z.string().describe('Comment text'), ...allowWriteField }),
   writes: true,
-  options: [idOption, { flags: '--body <text>', field: 'body', description: 'Comment text' }],
+  args: [idArg],
+  options: [{ flags: '--body <text>', field: 'body', description: 'Comment text' }],
   examples: [{ ...W, id: '42', body: 'Looked into it.' }],
   run: async (input, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${toInt(input.id)}/comments?api-version=${API_COMMENTS}`, { method: 'POST', json: { text: input.body } }),
 });
@@ -384,12 +388,13 @@ const tagList = (tags: string) =>
 const currentTags = (item: WorkItem) => ((item.fields['System.Tags'] as string | undefined) ?? '').split(';').map((t) => t.trim());
 
 export const workAddTagCommand = adoArea.command({
-  path: ['ado', 'work', 'add-tag'],
+  path: ['ado', 'work-item', 'tag'],
   description: 'Add one or more tags to a work item (non-destructive)',
   toolDescription: 'Adds tags to a work item, keeping the ones it has (matched ignoring case), and returns the item. Reads then writes the tag list, with no revision check.',
   input: z.object({ id: idInput, tags: z.string().describe('Semicolon- or comma-separated tags to add'), ...allowWriteField }),
   writes: true,
-  options: [idOption, { flags: '--tags <tags>', field: 'tags', description: 'Semicolon- or comma-separated tags to add' }],
+  args: [idArg],
+  options: [{ flags: '--tags <tags>', field: 'tags', description: 'Semicolon- or comma-separated tags to add' }],
   examples: [{ ...W, id: '42', tags: 'ui; Backend,urgent' }],
   run: async (input, ctx) => {
     const { collection } = where(ctx);
@@ -403,12 +408,13 @@ export const workAddTagCommand = adoArea.command({
 });
 
 export const workRemoveTagCommand = adoArea.command({
-  path: ['ado', 'work', 'remove-tag'],
+  path: ['ado', 'work-item', 'untag'],
   description: 'Remove one or more tags from a work item (non-destructive)',
   toolDescription: 'Removes tags from a work item (matched ignoring case), keeping the rest, and returns the item.',
   input: z.object({ id: idInput, tags: z.string().describe('Semicolon- or comma-separated tags to remove'), ...allowWriteField }),
   writes: true,
-  options: [idOption, { flags: '--tags <tags>', field: 'tags', description: 'Semicolon- or comma-separated tags to remove' }],
+  args: [idArg],
+  options: [{ flags: '--tags <tags>', field: 'tags', description: 'Semicolon- or comma-separated tags to remove' }],
   examples: [{ ...W, id: '42', tags: 'UI' }],
   run: async (input, ctx) => {
     const { collection } = where(ctx);

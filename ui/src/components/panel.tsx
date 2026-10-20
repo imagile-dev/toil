@@ -11,7 +11,7 @@ import { Card } from './layout.tsx';
 import { useSkins } from '../skins.tsx';
 import type { Call } from '../toil.ts';
 
-/** `toil jira get-changelog` ×8: each command once, with how many calls it took. */
+/** `toil jira issue history` ×8: each command once, with how many calls it took. */
 export function commandsOf(calls: Call[]): Array<{ command: string; count: number }> {
   const out: Array<{ command: string; count: number }> = [];
   for (const c of calls) {

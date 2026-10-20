@@ -68,7 +68,7 @@ describe("every area's fixtures map to valid OWI", async () => {
   const fixtures = await loadFixtures();
   await setUp(fixtures);
   // A history command's output names no item; these keys are the ones its examples read.
-  const KEYS: Record<string, string> = { 'jira get-changelog': 'PROJ-123', 'jira-cloud get-changelog': 'PROJ-123', 'github issue-events': '9' };
+  const KEYS: Record<string, string> = { 'jira issue history': 'PROJ-123', 'jira-cloud issue history': 'PROJ-123', 'github issue-events': '9' };
   const families = new Set<string>();
   for (const fixture of fixtures.filter((f) => OWI_SOURCES[f.area])) {
     const known = OWI_COMMANDS[fixture.area]!;
@@ -111,8 +111,8 @@ describe("every area's fixtures map to valid OWI", async () => {
  * its mapper (the `integrations` skill, **Open Work Items**).
  */
 describe('work-item areas are all mapped to OWI', () => {
-  /** Command paths that read or write issues, work items or tickets: `get-issue`, `search-issues`, `issue-events`, `get-changelog`, `work get`. */
-  const WORK_ITEM = /(^| )((create|get|update|list|search|transition|link)-(issue|issues|ticket|tickets)|issue-events|get-changelog|work (get|get-batch|revisions|search|create|update))( |$)/;
+  /** Command paths that read or write issues, work items or tickets: `get-issue`, `search-issues`, `issue-events`, `issue get`, `work-item get`. */
+  const WORK_ITEM = /(^| )((create|get|update|list|search|transition|link)-(issue|issues|ticket|tickets)|issue-events|(issue|work-item|ticket) (get|get-many|history|search|create|update|transition|link))( |$)/;
   /** Areas known to be on their way, by the issue that builds them. Each switches on once the area is registered. */
   const PENDING: Record<string, string> = {};
   const registered = new Set(registry.map((def) => areaOf(def)));
@@ -207,7 +207,7 @@ describe('mapping rules', () => {
   const jiraIssue = (fields: Record<string, unknown>, key = 'PAY-1') => ({ key, id: '1', self: 'https://jira.imagile.dev/rest/api/2/issue/1', fields: { summary: 'S', issuetype: { name: 'Story' }, ...fields } });
 
   it('maps a status with no category to UNKNOWN, warns once, and lists it', async () => {
-    const text = json(env('jira search', { issues: [jiraIssue({ status: { name: 'Waiting on Legal' } }), jiraIssue({ status: { name: 'Waiting on Legal' } }, 'PAY-2')] }));
+    const text = json(env('jira issue search', { issues: [jiraIssue({ status: { name: 'Waiting on Legal' } }), jiraIssue({ status: { name: 'Waiting on Legal' } }, 'PAY-2')] }));
     const { data, warnings } = await map({ text });
     expect(data.items.map((i: WorkItem) => i.statusCategory)).toEqual(['UNKNOWN', 'UNKNOWN']);
     expect(warnings.filter((w) => w.code === 'OWI_UNKNOWN_STATE')).toHaveLength(1);
@@ -216,25 +216,25 @@ describe('mapping rules', () => {
   });
 
   it('maps an Azure DevOps custom state to UNKNOWN, naming the command that shows its category', async () => {
-    const { data } = await map({ text: json(env('ado work get', { id: 5, fields: { 'System.Title': 'T', 'System.State': 'Ready for QA', 'System.WorkItemType': 'Bug' } })) });
+    const { data } = await map({ text: json(env('ado work-item get', { id: 5, fields: { 'System.Title': 'T', 'System.State': 'Ready for QA', 'System.WorkItemType': 'Bug' } })) });
     expect(data.items[0]).toMatchObject({ statusCategory: 'UNKNOWN', type: 'BUG' });
-    expect(data.items[0].unmapped.find((u: Data) => u.field === 'statusCategory').reason).toContain('ado work list-states');
+    expect(data.items[0].unmapped.find((u: Data) => u.field === 'statusCategory').reason).toContain('ado work-item states');
   });
 
   it('points estimate at a team field with fields, keeping the field it came from', async () => {
     const issue = jiraIssue({ customfield_10234: 13, 'Story Points': 2 });
-    const { data } = await map({ text: json(env('jira get-issue', issue)), field: ['estimate=customfield_10234', 'estimateUnit=days'] });
+    const { data } = await map({ text: json(env('jira issue get', issue)), field: ['estimate=customfield_10234', 'estimateUnit=days'] });
     expect(data.items[0].estimate).toEqual({ value: 13, unit: 'days', field: 'customfield_10234' });
-    const ado = await map({ file: 'b.json', field: ['estimate=Custom.TeamPoints'] }, { 'b.json': json(env('ado work get-batch', { value: [{ id: 7, fields: { 'System.Title': 'T', 'System.State': 'New', 'Custom.TeamPoints': 8 } }] })) });
+    const ado = await map({ file: 'b.json', field: ['estimate=Custom.TeamPoints'] }, { 'b.json': json(env('ado work-item get-many', { value: [{ id: 7, fields: { 'System.Title': 'T', 'System.State': 'New', 'Custom.TeamPoints': 8 } }] })) });
     expect(ado.data.items[0].estimate).toEqual({ value: 8, unit: 'points', field: 'Custom.TeamPoints' });
   });
 
   it("reads Jira's original estimate in seconds as hours, and finds Story Points by an expanded name", async () => {
-    const hours = await map({ text: json(env('jira get-issue', jiraIssue({ timeoriginalestimate: 27000 }))) });
+    const hours = await map({ text: json(env('jira issue get', jiraIssue({ timeoriginalestimate: 27000 }))) });
     expect(hours.data.items[0].estimate).toEqual({ value: 7.5, unit: 'hours', field: 'timeoriginalestimate' });
-    const named = await map({ text: json(env('jira get-issue', { ...jiraIssue({ customfield_10002: 3 }), names: { customfield_10002: 'Story Points' } })) });
+    const named = await map({ text: json(env('jira issue get', { ...jiraIssue({ customfield_10002: 3 }), names: { customfield_10002: 'Story Points' } })) });
     expect(named.data.items[0].estimate).toEqual({ value: 3, unit: 'points', field: 'customfield_10002' });
-    const none = await map({ text: json(env('jira get-issue', jiraIssue({}))) });
+    const none = await map({ text: json(env('jira issue get', jiraIssue({}))) });
     expect(none.data.items[0].estimate).toBeNull();
     expect(none.data.items[0].unmapped.map((u: Data) => u.field)).toContain('estimate');
   });
@@ -255,31 +255,31 @@ describe('mapping rules', () => {
   it('refuses output OWI has no mapping for, and data with no command', async () => {
     const other = await map({ text: json(env('bitbucket list-prs', [])) });
     expect(other.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
-    expect(other.envelope.error!.fix).toContain('jira search');
+    expect(other.envelope.error!.fix).toContain('jira issue search');
     const bare = await map({ text: json([{ number: 1 }]) });
     expect(bare.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
     expect(bare.envelope.error!.fix).toContain('--command');
   });
 
   it('skips, with a reason and a warning, a failed call and a WIQL result of ids alone', async () => {
-    const failed = { ok: false, data: null, error: { code: 'AUTH', message: 'no' }, meta: { command: 'jira search', durationMs: 1, version: 'x' } };
-    const ids = env('ado work search', { workItems: [{ id: 1 }] });
+    const failed = { ok: false, data: null, error: { code: 'AUTH', message: 'no' }, meta: { command: 'jira issue search', durationMs: 1, version: 'x' } };
+    const ids = env('ado work-item search', { workItems: [{ id: 1 }] });
     const { data, warnings } = await map({ text: [json(failed), json(ids)].join('\n') });
     expect(data.count).toBe(0);
     expect(data.skipped).toEqual([
-      { at: 'document 1', command: 'jira search', reason: 'the call failed (AUTH), so there is nothing to map' },
-      { at: 'document 2', command: 'ado work search', reason: 'it returns work item ids only: fetch their fields with ado work get-batch and map that' },
+      { at: 'document 1', command: 'jira issue search', reason: 'the call failed (AUTH), so there is nothing to map' },
+      { at: 'document 2', command: 'ado work-item search', reason: 'it returns work item ids only: fetch their fields with ado work-item get-many and map that' },
     ]);
     expect(warnings.filter((w) => w.code === 'OWI_SKIPPED')).toHaveLength(2);
     expect(data.verified.checks.find((c: Data) => c.check === 'items.schema').status).toBe('unchecked');
   });
 
   it('maps bare data with --command, and keeps a keyless history whose item is elsewhere', async () => {
-    const { data } = await map({ text: json([jiraIssue({ status: { name: 'Done', statusCategory: { key: 'done' } } })]), command: 'jira search' });
+    const { data } = await map({ text: json([jiraIssue({ status: { name: 'Done', statusCategory: { key: 'done' } } })]), command: 'jira issue search' });
     expect(data.items).toHaveLength(0);
-    const issue = await map({ text: json({ issues: [jiraIssue({ status: { name: 'Done', statusCategory: { key: 'done' } } })] }), command: 'jira search' });
+    const issue = await map({ text: json({ issues: [jiraIssue({ status: { name: 'Done', statusCategory: { key: 'done' } } })] }), command: 'jira issue search' });
     expect(issue.data.items[0]).toMatchObject({ id: 'jira:PAY-1', statusCategory: 'DONE' });
-    const history = await map({ text: json(env('jira get-changelog', [{ id: '1', created: '2026-10-06T09:00:00.000+0000', items: [{ field: 'status', fromString: 'To Do', toString: 'Done' }] }])), key: 'PAY-9' });
+    const history = await map({ text: json(env('jira issue history', [{ id: '1', created: '2026-10-06T09:00:00.000+0000', items: [{ field: 'status', fromString: 'To Do', toString: 'Done' }] }])), key: 'PAY-9' });
     expect(history.data.histories).toEqual([{ id: 'jira:PAY-9', history: { transitions: [{ from: 'To Do', to: 'Done', fromCategory: 'UNKNOWN', toCategory: 'UNKNOWN', at: '2026-10-06T09:00:00.000Z', by: null }], iterations: [] } }]);
     expect(history.data.verified.passed).toBe(true);
     const keyless = await map({ text: json(env('github issue-events', [])) });
@@ -293,20 +293,20 @@ describe('mapping rules', () => {
   });
 
   it('parses one envelope, an array of envelopes, and JSON Lines', () => {
-    const a = env('jira search', { issues: [] });
+    const a = env('jira issue search', { issues: [] });
     expect(parseOwiInput(json(a))).toHaveLength(1);
     expect(parseOwiInput(json([a, a]))).toHaveLength(2);
     expect(parseOwiInput(`${json(a)}\n\n${json(a)}\n`)).toHaveLength(2);
     expect(() => parseOwiInput('{"ok":')).toThrow(/isn't JSON/);
     expect(() => parseOwiInput('  ')).toThrow(/empty/);
     expect(documentsFrom([a]).documents[0]).toMatchObject({ area: 'jira', connection: 'jira' });
-    expect(documentsFrom([env('jira-cloud search', {})]).documents[0]!.area).toBe('jira-cloud');
+    expect(documentsFrom([env('jira-cloud issue search', {})]).documents[0]!.area).toBe('jira-cloud');
   });
 });
 
 describe('the self-check', () => {
   it('fails an item that breaks the schema, by pointer, under OWI_SCHEMA_INVALID', async () => {
-    const { data } = await map({ text: json(env('jira get-issue', { key: 'PAY-1', self: 'https://jira.imagile.dev/rest/api/2/issue/1', fields: { summary: 'S' } })) });
+    const { data } = await map({ text: json(env('jira issue get', { key: 'PAY-1', self: 'https://jira.imagile.dev/rest/api/2/issue/1', fields: { summary: 'S' } })) });
     const broken = { ...data.items[0], statusCategory: 'SOMEDAY', created: '2026-10-06' } as WorkItem;
     const warnings: Warning[] = [];
     const v = new Verifier((w) => warnings.push(w));
@@ -332,7 +332,7 @@ describe('@imagile-dev/toil/api', () => {
     const result = api.mapOwi(sprintEnvelopes, { fields: { estimateUnit: 'points' } });
     expect(result.items).toHaveLength(29);
     expect(api.mapOwi(sprintJsonl).items).toHaveLength(29);
-    expect(api.mapOwi({ issues: [] }, { command: 'jira search' }).items).toEqual([]);
+    expect(api.mapOwi({ issues: [] }, { command: 'jira issue search' }).items).toEqual([]);
     expect(() => api.mapOwi(sprintEnvelopes, { fields: { storyPoints: 'x' } })).toThrow(ToilError);
   });
 });
@@ -345,9 +345,9 @@ describe('review round 1', () => {
   const issue = (number: number) => ({ number, title: 'T', state: 'open', html_url: `https://ghe.imagile.dev/imagile/x/issues/${number}`, type: { name: 'Task' } });
 
   it.each([
-    ['jira', [env('jira get-issue', { key: 'PAY-1', self: 'https://jira.imagile.dev/rest/api/2/issue/1', fields: { summary: 'S', status: { name: 'Done', statusCategory: { key: 'done' } } } })]],
-    ['jira-cloud', [env('jira-cloud get-issue', { key: 'PAY-1', self: 'https://jira-cloud.imagile.dev/rest/api/3/issue/1', fields: { summary: 'S' } })]],
-    ['ado', [env('ado work get', { id: 5, fields: { 'System.Title': 'T', 'System.State': 'New', 'System.WorkItemType': 'Bug', 'System.IterationPath': 'P\\S1' } })]],
+    ['jira', [env('jira issue get', { key: 'PAY-1', self: 'https://jira.imagile.dev/rest/api/2/issue/1', fields: { summary: 'S', status: { name: 'Done', statusCategory: { key: 'done' } } } })]],
+    ['jira-cloud', [env('jira-cloud issue get', { key: 'PAY-1', self: 'https://jira-cloud.imagile.dev/rest/api/3/issue/1', fields: { summary: 'S' } })]],
+    ['ado', [env('ado work-item get', { id: 5, fields: { 'System.Title': 'T', 'System.State': 'New', 'System.WorkItemType': 'Bug', 'System.IterationPath': 'P\\S1' } })]],
     ['github, on a board', [env('github get-issue', issue(3), 'github'), env('github projects list-items', [board(3)], 'github', { owner: 'imagile' })]],
     ['github, a board item alone', [env('github projects list-items', [board(4)], 'github', { owner: 'imagile' })]],
     ['github, with no board', [env('github get-issue', issue(5), 'github')]],
@@ -371,19 +371,19 @@ describe('review round 1', () => {
 
   it("says an Azure DevOps history state is a custom one, not Jira's changelog", async () => {
     const rev = (rev: number, state: string, at: string) => ({ id: 9, rev, fields: { 'System.State': state, 'System.ChangedDate': at } });
-    const input = [env('ado work get', { id: 9, fields: { 'System.Title': 'T', 'System.State': 'Blocked', 'System.WorkItemType': 'Task' } }), env('ado work revisions', [rev(1, 'New', '2026-10-05T09:00:00Z'), rev(2, 'Blocked', '2026-10-06T09:00:00Z')])];
+    const input = [env('ado work-item get', { id: 9, fields: { 'System.Title': 'T', 'System.State': 'Blocked', 'System.WorkItemType': 'Task' } }), env('ado work-item history', [rev(1, 'New', '2026-10-05T09:00:00Z'), rev(2, 'Blocked', '2026-10-06T09:00:00Z')])];
     const { data } = await map({ text: json(input) });
     const item = data.items[0] as WorkItem;
     expect(item.history!.transitions.map((t) => [t.from, t.to, t.toCategory])).toEqual([[null, 'New', 'TODO'], ['New', 'Blocked', 'UNKNOWN']]);
     const reason = item.unmapped.find((u) => u.field === 'history.transitions')!.reason;
-    expect(reason).toContain('ado work list-states');
+    expect(reason).toContain('ado work-item states');
     expect(reason).not.toContain('Jira');
   });
 
   it('splits API input with the same predicate as the CLI', async () => {
     const { inputValues } = await import('../src/core/owi/index.js');
     const api = await import('../src/api.js');
-    const wrapped = [{ key: 'PAY-104', history: env('jira get-changelog', []) }, env('jira search', { issues: [] })];
+    const wrapped = [{ key: 'PAY-104', history: env('jira issue history', []) }, env('jira issue search', { issues: [] })];
     expect(inputValues(wrapped)).toHaveLength(2);
     expect(parseOwiInput(json(wrapped))).toHaveLength(2);
     expect(api.mapOwi(wrapped).histories).toEqual([{ id: 'jira:PAY-104', history: { transitions: [], iterations: [] } }]);

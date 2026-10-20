@@ -18,7 +18,7 @@ import { OVERRIDABLE, OWI_AREAS, OWI_SOURCES, type FieldOverrides, type History,
 /** The most items one call maps; the rest are left out with a warning, never silently. */
 export const MAX_ITEMS = 5000;
 
-/** The commands whose output maps, by area, with the area's name: `jira search`. */
+/** The commands whose output maps, by area, with the area's name: `jira issue search`. */
 export const OWI_COMMANDS: Record<string, { items: string[]; history: string[]; context: string[] }> = Object.fromEntries(
   Object.entries(OWI_SOURCES).map(([area, s]) => [area, { items: s.items.map((c) => `${area} ${c}`), history: s.history.map((c) => `${area} ${c}`), context: s.context.map((c) => `${area} ${c}`) }]),
 );
@@ -26,7 +26,7 @@ export const OWI_COMMANDS: Record<string, { items: string[]; history: string[]; 
 /** Why a history's status can have no category, by the shape it came in. */
 const UNKNOWN_HISTORY: Record<OwiFamily, string> = {
   jira: "Jira's changelog names statuses only, and a status no item in the input is in has no category to learn",
-  ado: 'a state in the revisions is a custom one, outside the default states OWI knows; ado work list-states shows its category',
+  ado: 'a state in the revisions is a custom one, outside the default states OWI knows; ado work-item states shows its category',
   github: 'GitHub issues are only open or closed, so this should not happen; the history is kept as it was read',
 };
 
@@ -34,7 +34,7 @@ const UNKNOWN_HISTORY: Record<OwiFamily, string> = {
 const INSTEAD: Record<string, string> = Object.fromEntries(
   Object.entries(OWI_SOURCES)
     .filter(([, s]) => s.family === 'ado')
-    .map(([area]) => [`${area} work search`, `it returns work item ids only: fetch their fields with ${area} work get-batch and map that`]),
+    .map(([area]) => [`${area} work-item search`, `it returns work item ids only: fetch their fields with ${area} work-item get-many and map that`]),
 );
 
 export interface OwiSkipped {
@@ -53,9 +53,9 @@ export interface OwiResult {
 }
 
 export interface DocumentOptions {
-  /** For bare `data`: the command that returned it (`jira search`). */
+  /** For bare `data`: the command that returned it (`jira issue search`). */
   command?: string | undefined;
-  /** For a history with no key of its own (`jira get-changelog`, `github issue-events`): the item's key. */
+  /** For a history with no key of its own (`jira issue history`, `github issue-events`): the item's key. */
   key?: string | undefined;
 }
 
@@ -68,7 +68,7 @@ const isEnvelope = (value: unknown): value is { ok: unknown; data?: unknown; err
  */
 export function parseOwiInput(text: string): unknown[] {
   const trimmed = text.trim();
-  if (trimmed === '') throw new ToilError('INVALID_INPUT', 'The input is empty.', { fix: 'Pipe a toil command\'s output in (toil jira search … | toil util owi map), or pass the file that holds it.' });
+  if (trimmed === '') throw new ToilError('INVALID_INPUT', 'The input is empty.', { fix: 'Pipe a toil command\'s output in (toil jira issue search … | toil util owi map), or pass the file that holds it.' });
   try {
     return inputValues(JSON.parse(trimmed) as unknown);
   } catch {
@@ -126,7 +126,7 @@ export function documentsFrom(values: unknown[], options: DocumentOptions = {}):
       data = value;
     } else {
       throw new ToilError('INVALID_INPUT', `${at} of the input isn't a toil envelope, so it doesn't say which command it came from.`, {
-        fix: 'Pass the whole envelope a command printed, or name the command with --command (for example --command "jira search") when passing its data alone.',
+        fix: 'Pass the whole envelope a command printed, or name the command with --command (for example --command "jira issue search") when passing its data alone.',
       });
     }
     const area = [...OWI_AREAS].sort((a, b) => b.length - a.length).find((a) => command.startsWith(`${a} `));

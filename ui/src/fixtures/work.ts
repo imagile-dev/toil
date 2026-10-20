@@ -22,9 +22,9 @@ const historyOf = (command: string) => envs.filter(isWrapped).filter((e) => e.hi
 
 // Jira Data Center: card-payments --------------------------------------------
 
-const jiraIssues = (dataOf('jira get-issue') as { issues: Array<{ key: string }> }).issues;
+const jiraIssues = (dataOf('jira issue get') as { issues: Array<{ key: string }> }).issues;
 
-/** `jira search`'s data: Jira's own search answer. */
+/** `jira issue search`'s data: Jira's own search answer. */
 export const JIRA_SEARCH = { startAt: 0, maxResults: 50, total: jiraIssues.length, issues: jiraIssues };
 export const JIRA_KEYS = jiraIssues.map((i) => i.key);
 
@@ -48,20 +48,20 @@ const moreChangelogs: Record<string, unknown[]> = {
   ],
 };
 
-/** Each issue's `jira get-changelog` data; an issue nothing changed on since it was created has an empty one. */
+/** Each issue's `jira issue history` data; an issue nothing changed on since it was created has an empty one. */
 export const JIRA_CHANGELOGS: Record<string, unknown> = Object.fromEntries(
-  JIRA_KEYS.map((key) => [key, historyOf('jira get-changelog').find((h) => h.key === key)?.history.data ?? moreChangelogs[key] ?? []]),
+  JIRA_KEYS.map((key) => [key, historyOf('jira issue history').find((h) => h.key === key)?.history.data ?? moreChangelogs[key] ?? []]),
 );
 
 // Azure DevOps Server: settlement -------------------------------------------
 
-export const ADO_ITERATIONS = dataOf('ado work list-iterations');
-export const ADO_BATCH = dataOf('ado work get-batch') as { count: number; value: Array<{ id: number; fields: Record<string, unknown> }>; missing: unknown[] };
+export const ADO_ITERATIONS = dataOf('ado work-item iterations');
+export const ADO_BATCH = dataOf('ado work-item get-many') as { count: number; value: Array<{ id: number; fields: Record<string, unknown> }>; missing: unknown[] };
 export const ADO_IDS = ADO_BATCH.value.map((w) => w.id);
 
 const ADO = 'https://ado.imagile.dev/DefaultCollection';
 
-/** `ado work search`'s data: the WIQL answer, ids and urls only. */
+/** `ado work-item search`'s data: the WIQL answer, ids and urls only. */
 export const ADO_WIQL = {
   queryType: 'flat',
   queryResultType: 'workItem',
@@ -72,7 +72,7 @@ export const ADO_WIQL = {
 
 const fixtureRevisions = new Map(
   envs
-    .filter((e): e is Env => !isWrapped(e) && e.meta?.command === 'ado work revisions')
+    .filter((e): e is Env => !isWrapped(e) && e.meta?.command === 'ado work-item history')
     .map((e) => [(e.data as Array<{ id: number }>)[0]!.id, e.data]),
 );
 
@@ -101,7 +101,7 @@ const moreRevisions: Record<number, unknown[]> = {
   2307: [revision(2307, 1, '2026-09-01T09:00:00Z', NAKAMURA, 'Bug', 'New', ROOT), revision(2307, 2, '2026-09-30T15:00:00Z', NAKAMURA, 'Bug', 'New', S42), revision(2307, 3, '2026-10-07T09:00:00Z', NAKAMURA, 'Bug', 'Removed', S42)],
 };
 
-/** Each work item's `ado work revisions` data, oldest first. */
+/** Each work item's `ado work-item history` data, oldest first. */
 export const ADO_REVISIONS: Record<number, unknown> = Object.fromEntries(ADO_IDS.map((id) => [id, fixtureRevisions.get(id) ?? moreRevisions[id]]));
 
 // GitHub Enterprise: checkout-web --------------------------------------------

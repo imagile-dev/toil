@@ -28,7 +28,7 @@ proves MCP doesn't serve them, and runs the area ones' examples and write gate o
 CLI; keep those two the only exclusions. A served tool can still refuse one kind
 of call: `offMcpWhen` (a `DELETE` through `<area>_api`), which execute() checks
 for MCP calls only, through `runCommand`'s `via`. A command
-with no connection (`standalone`, `config`, `area-local` such as `jira schema`), or
+with no connection (`standalone`, `config`, `area-local` such as `jira issue schema`), or
 one marked `connectionOptional`, is served without `--areas` whether or not its area
 is set up. Context inputs are fixed
 fields on each tool, the same inputs the CLI takes as flags; aliases are CLI paths
@@ -44,7 +44,7 @@ signal; never share one context across calls. Both front doors run commands thro
 `runCommand()`, which turns a failure building the context (config that broke while
 the server was up) into an envelope too. The MCP server passes `'mcp'` to it, and
 an `INVALID_INPUT` envelope then names each of the command's flags as its field
-(`--max-results` becomes `maxResults`) in the message and fix, so areas word their
+(`--updated-since` becomes `updatedSince`) in the message and fix, so areas word their
 input errors once, for the CLI, and nothing else changes. A quoted command line
 (`toil …` in backticks, or plain text up to the end of its clause) keeps its flags,
 since it's something to run on the CLI. Tool descriptions are written for a model

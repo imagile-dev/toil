@@ -13,18 +13,19 @@ import * as client from './client.js';
  */
 
 const key = z.string().describe('Issue key, e.g. PROJ-123');
-const keyOption = { flags: '--key <issue-key>', field: 'key', description: 'Issue key (e.g. PROJ-123)' };
+const keyArg = { name: 'key', field: 'key', description: 'Issue key (e.g. PROJ-123)' };
 
 /** The platform's own basename, as the contract specifies: on Linux and macOS a backslash is part of the name. */
 export const baseName = (path: string): string => basename(path);
 
 export const addAttachment = jiraArea.command({
-  path: ['jira', 'add-attachment'],
+  path: ['jira', 'issue', 'attach'],
   description: 'Upload a file as an attachment to a Jira issue',
   toolDescription: 'Uploads a local file to a Jira issue and returns the attachments Jira created. file is a path on the machine toil runs on.',
   input: z.object({ key, file: z.string().describe('Path to the file to upload'), ...allowWriteField }),
   writes: true,
-  options: [keyOption, { flags: '--file <path>', field: 'file', description: 'Path to the file to upload' }],
+  args: [keyArg],
+  options: [{ flags: '--file <path>', field: 'file', description: 'Path to the file to upload' }],
   examples: [{ key: 'PROJ-123', file: 'screenshot.png', allowWrite: true }],
   run: async (input, ctx) => {
     const data = ctx.files.readBytes(input.file);
@@ -33,31 +34,30 @@ export const addAttachment = jiraArea.command({
 });
 
 export const listAttachments = jiraArea.command({
-  path: ['jira', 'list-attachments'],
+  path: ['jira', 'issue', 'attachments'],
   description: 'List attachments on a Jira issue',
-  toolDescription: 'Returns the attachments on a Jira issue (id, filename, size, mimeType, content URL). Use jira_download_attachment to save one.',
+  toolDescription: 'Returns the attachments on a Jira issue (id, filename, size, mimeType, content URL). Use jira_issue_download to save one.',
   input: z.object({ key }),
   writes: false,
-  options: [keyOption],
+  args: [keyArg],
   examples: [{ key: 'PROJ-123' }],
   run: (input, ctx) => client.listAttachments(ctx, input.key),
 });
 
 export const downloadAttachment = jiraArea.command({
-  path: ['jira', 'download-attachment'],
+  path: ['jira', 'issue', 'download'],
   description: 'Download a Jira issue attachment to .toil/ (or --dir)',
   toolDescription:
-    'Saves one attachment from a Jira issue to a local directory (default .toil in the working directory) and returns { saved, filename, size }. Get the id from jira_list_attachments.',
+    'Saves one attachment from a Jira issue to a local directory (default .toil in the working directory) and returns { saved, filename, size }. Get the id from jira_issue_attachments.',
   input: z.object({
     key,
-    attachmentId: z.string().describe('Attachment id from list-attachments'),
+    attachmentId: z.string().describe('Attachment id from issue attachments'),
     dir: z.string().optional().describe('Output directory; defaults to .toil in the working directory'),
   }),
   writes: false,
   writesLocal: true,
+  args: [keyArg, { name: 'attachment-id', field: 'attachmentId', description: 'Attachment ID from issue attachments output' }],
   options: [
-    keyOption,
-    { flags: '--attachment-id <id>', field: 'attachmentId', description: 'Attachment ID from list-attachments output' },
     { flags: '--dir <path>', field: 'dir', description: 'Output directory (default: .toil relative to cwd)' },
   ],
   examples: [
@@ -69,7 +69,7 @@ export const downloadAttachment = jiraArea.command({
     const attachment = attachments.find((a) => a.id === input.attachmentId);
     if (!attachment) {
       throw new ToilError('INVALID_INPUT', `Attachment not found: ${input.attachmentId}`, {
-        fix: `Run toil jira list-attachments --key ${input.key} for the ids it has.`,
+        fix: `Run toil jira issue attachments ${input.key} for the ids it has.`,
       });
     }
     const data = await client.downloadAttachment(ctx, attachment.content);

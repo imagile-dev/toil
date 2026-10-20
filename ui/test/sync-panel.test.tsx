@@ -26,7 +26,7 @@ const synced: SyncStatus = {
       error: 'jira: failed',
       sources: [
         { area: 'bitbucket', status: 'ok', lastAttemptAt: LATER, lastSuccessAt: LATER, watermark: LATER, error: null, fix: null, calls: 1, stale: false },
-        { area: 'jira', status: 'failed', lastAttemptAt: LATER, lastSuccessAt: AT, watermark: AT, error: 'jira search: jira.imagile.dev answered 503.', fix: 'Try again when the server is back.', calls: 1, stale: true },
+        { area: 'jira', status: 'failed', lastAttemptAt: LATER, lastSuccessAt: AT, watermark: AT, error: 'jira issue search: jira.imagile.dev answered 503.', fix: 'Try again when the server is back.', calls: 1, stale: true },
       ],
     },
     { name: 'settlement', lastSyncAt: AT, status: 'ok', error: null, sources: [{ area: 'ado', status: 'ok', lastAttemptAt: AT, lastSuccessAt: AT, watermark: AT, error: null, fix: null, calls: 9, stale: false }] },
