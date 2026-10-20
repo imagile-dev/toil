@@ -560,6 +560,16 @@ describe('renaming and describing a dossier', () => {
     expect(read(d, 'ledger')).toEqual({ name: 'ledger' });
   });
 
+  it("refuses a rename onto a file that holds another dossier, with a fix it can follow, and keeps credentialsRemoved on a rename", async () => {
+    const d = disk({ 'home/.toil/dossiers/pay.json': { name: 'pay', repos: [{ name: 'api', remotes: ['https://ci:t0ken@git.imagile.dev/pay/api.git'] }] }, 'home/.toil/dossiers/ledger.json': { name: 'other' } });
+    const taken = await cli(d, ['dossiers', 'describe', 'pay', '--name', 'ledger']);
+    expect(taken.envelope.error).toMatchObject({ code: 'INVALID_INPUT', fix: 'Choose another name, or move that file out of your dossier folder first.' });
+    expect(taken.envelope.error?.message).toContain("is already there, so dossier pay can't be renamed to \"ledger\".");
+    expect(read(d, 'ledger')).toEqual({ name: 'other' });
+    expect(ok(await cli(d, ['dossiers', 'describe', 'pay', '--name', 'payments']))).toMatchObject({ name: 'payments', credentialsRemoved: ['repos[0].remotes[0]'] });
+    expect(JSON.stringify(read(d, 'payments'))).not.toContain('t0ken');
+  });
+
   it('renames a file named for the new name in place', async () => {
     const d = disk({ 'home/.toil/dossiers/pay.json': { name: 'payments' } });
     expect(ok(await cli(d, ['dossiers', 'describe', 'payments', '--name', 'pay']))).toMatchObject({ name: 'pay', renamed: { from: 'payments', to: 'pay' } });

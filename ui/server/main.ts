@@ -173,6 +173,7 @@ async function main(): Promise<number> {
   const renames: DossierRenames | undefined =
     cache && sync && worklog
       ? {
+          hold: () => sync!.hold(),
           blocked: (dossier) =>
             sync!.running
               ? { message: `A sync is running, so ${dossier} can't be renamed until it ends.`, fix: 'Wait for the Sync panel to say the sync finished, then rename it.' }

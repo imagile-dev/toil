@@ -392,7 +392,9 @@ it('runs in a temp home, never the real ~/.toil', () => {
 describe("a dossier's name and description, from its card or dashboard (#342)", () => {
   it("describes and renames through toil dossiers describe, then moves Toil UI's own records, labelled toil-ui in the audit log", async () => {
     const moved: Array<[string, string]> = [];
-    const { config } = await serve({ renames: { blocked: () => null, moved: async (from, to) => (moved.push([from, to]), []) } });
+    let holds = 0;
+    let released = 0;
+    const { config } = await serve({ renames: { hold: () => (holds++, () => void released++), blocked: () => null, moved: async (from, to) => (moved.push([from, to]), []) } });
     expectEnvelope(await config('dossiers init', { name: 'scratch' })).toMatchObject({ ok: true });
     expectEnvelope(await config('dossiers describe', { dossier: 'scratch', description: 'A scratch dossier' })).toMatchObject({ ok: true, data: { renamed: null, description: 'A scratch dossier' } });
     expect(moved).toEqual([]);
@@ -402,10 +404,16 @@ describe("a dossier's name and description, from its card or dashboard (#342)", 
     expect(existsSync(join(home, '.toil', 'dossiers', 'scratch.json'))).toBe(false);
     expect(JSON.parse(readFileSync(join(home, '.toil', 'dossiers', 'scratch-two.json'), 'utf8'))).toMatchObject({ name: 'scratch-two', description: 'A scratch dossier' });
     expect(audit().filter((l) => l.command === 'dossiers describe').map((l) => l.caller)).toEqual(['toil-ui', 'toil-ui']);
+    // Syncs were held for the rename only, and let go after it.
+    expect([holds, released]).toEqual([1, 1]);
+    // A rename names the dossier as Toil UI keeps it, by name, never a path.
+    const byPath = await config('dossiers describe', { dossier: join(home, '.toil', 'dossiers', 'scratch-two.json'), name: 'scratch-three' });
+    expect(byPath.status).toBe(400);
+    expect(byPath.envelope.error.message).toBe('Toil UI renames a dossier by its name, not a path to its file.');
   });
 
   it('refuses a rename while a sync or an assignment of it runs, before toil sees it, and says what Toil UI could not move', async () => {
-    const { config } = await serve({ renames: { blocked: (d) => (d === 'busy' ? { message: "A sync is running, so busy can't be renamed until it ends.", fix: 'Wait for it.' } : null), moved: async () => ["Toil UI couldn't move its cache."] } });
+    const { config } = await serve({ renames: { hold: () => () => undefined, blocked: (d) => (d === 'busy' ? { message: "A sync is running, so busy can't be renamed until it ends.", fix: 'Wait for it.' } : null), moved: async () => ["Toil UI couldn't move its cache."] } });
     await config('dossiers init', { name: 'busy' });
     await config('dossiers init', { name: 'idle' });
     const refused = await config('dossiers describe', { dossier: 'busy', name: 'busy-two' });

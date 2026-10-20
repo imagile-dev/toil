@@ -1,4 +1,4 @@
-import { rmSync } from 'node:fs';
+import { existsSync, rmSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { z } from 'zod';
 import type { AnyArea, ContextInput } from '../core/area.js';
@@ -408,11 +408,16 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       if (to === from) return saved(ctx, catalog, file, dossier, changed, { renamed: null, description: dossier.description ?? null });
       // The new file is written and checked first, then the old one goes: a refusal or a crash leaves the dossier where it was.
       const target = catalog.userFile(to);
+      // A file of that name holding another dossier: say so, rather than let save's own refusal suggest a --replace this command hasn't got.
+      if (!samePath(target, file.file) && existsSync(target)) {
+        throw new ToilError('INVALID_INPUT', `${forwardSlashes(target)} is already there, so dossier ${from} can't be renamed to "${to}".`, { fix: 'Choose another name, or move that file out of your dossier folder first.' });
+      }
       // A file already named for the new name (pay.json holding "payments", renamed to pay) is this one: rewritten in place.
       const written = catalog.save(target, dossier, samePath(target, file.file) ? 'edit' : 'create');
       if (!samePath(written, file.file)) rmSync(file.file);
-      if (credentialPaths(file).length) ctx.warn({ code: 'DOSSIER_REMOTE_USERINFO', message: `Removed the credential from ${credentialPaths(file).join(', ')}; the file's remotes now carry none.` });
-      return { name: to, file: written, source: 'user', changed: true, renamed: { from, to, previousFile: forwardSlashes(file.file) }, description: dossier.description ?? null };
+      const removed = credentialPaths(file);
+      if (removed.length) ctx.warn({ code: 'DOSSIER_REMOTE_USERINFO', message: `Removed the credential from ${removed.join(', ')}; the file's remotes now carry none.` });
+      return { name: to, file: written, source: 'user', changed: true, renamed: { from, to, previousFile: forwardSlashes(file.file) }, description: dossier.description ?? null, ...(removed.length ? { credentialsRemoved: removed } : {}) };
     },
   });
 

@@ -101,9 +101,14 @@ export interface UiServerOptions {
 }
 
 export interface DossierRenames {
+  /** Stops a sync starting until the returned function is called. */
+  hold(): () => void;
   blocked(dossier: string): { message: string; fix: string } | null;
   moved(from: string, to: string): Promise<string[]>;
 }
+
+/** toil's dossier names: lowercase letters, digits and single hyphens. */
+const DOSSIER_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
 /** What the Settings page reads and changes about the agent. */
 export interface AgentControl {
@@ -410,25 +415,34 @@ export function createUiServer(options: UiServerOptions): UiServer {
       throw e;
     }
     const fields = input as Record<string, unknown>;
-    const describing = command === 'dossiers describe' && options.renames !== undefined;
-    // A rename waits for a sync or an assignment of the dossier to end: both read it by name as they go.
-    if (describing && typeof fields.name === 'string' && typeof fields.dossier === 'string' && fields.name !== fields.dossier) {
-      const why = options.renames!.blocked(fields.dossier);
+    const renames = command === 'dossiers describe' ? options.renames : undefined;
+    const renaming = renames !== undefined && fields.name !== undefined;
+    if (renaming && (typeof fields.dossier !== 'string' || !DOSSIER_NAME.test(fields.dossier))) {
+      // Toil UI's records are kept by name, so a rename from the page names the dossier the same way; toil itself also takes a path.
+      json(res, 400, refusal(command, 'Toil UI renames a dossier by its name, not a path to its file.', 'Send the name toil dossiers list shows, or rename it on the CLI.'));
+      return;
+    }
+    // While it renames, no sync may start, and none may be running, nor an assignment of the dossier: each reads it by name as it goes.
+    const release = renaming ? renames!.hold() : () => undefined;
+    try {
+      const why = renaming ? renames!.blocked(fields.dossier as string) : null;
       if (why) {
         json(res, 409, { ...refusal(command, why.message, why.fix), error: { code: 'CONFLICT', message: why.message, fix: why.fix } });
         return;
       }
-    }
-    const envelope = await store.execute(ctx, command, fields, access, { readOnly, ...(person ? { person } : {}) });
-    const renamed = describing && envelope.ok ? (envelope.data as { renamed?: { from?: unknown; to?: unknown } | null } | null)?.renamed : null;
-    if (renamed && typeof renamed.from === 'string' && typeof renamed.to === 'string') {
-      // toil has renamed the file by now; what Toil UI couldn't carry over is said beside toil's own warnings, never instead of the result.
-      const problems = await options.renames!.moved(renamed.from, renamed.to).catch((e: unknown) => [`Toil UI couldn't move its own records of ${renamed.from} to ${renamed.to}: ${e instanceof Error ? e.message : String(e)}. The next sync reads it afresh under its new name.`]);
-      if (problems.length) {
-        envelope.meta.warnings = [...(envelope.meta.warnings ?? []), ...problems.map((message) => ({ code: 'TOIL_UI_RENAME', message }))];
+      const envelope = await store.execute(ctx, command, fields, access, { readOnly, ...(person ? { person } : {}) });
+      const renamed = renames && envelope.ok ? (envelope.data as { renamed?: { from?: unknown; to?: unknown } | null } | null)?.renamed : null;
+      if (renamed && typeof renamed.from === 'string' && typeof renamed.to === 'string') {
+        // toil has renamed the file by now; what Toil UI couldn't carry over is said beside toil's own warnings, never instead of the result.
+        const problems = await renames!.moved(renamed.from, renamed.to).catch((e: unknown) => [`Toil UI couldn't move its own records of ${renamed.from} to ${renamed.to}: ${e instanceof Error ? e.message : String(e)}. The next sync reads it afresh under its new name.`]);
+        if (problems.length) {
+          envelope.meta.warnings = [...(envelope.meta.warnings ?? []), ...problems.map((message) => ({ code: 'TOIL_UI_RENAME', message }))];
+        }
       }
+      json(res, 200, envelope);
+    } finally {
+      release();
     }
-    json(res, 200, envelope);
   };
 
   /**
