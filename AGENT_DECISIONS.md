@@ -4804,6 +4804,43 @@ it pins. These are the choices made by default in the fix:
   out: the issue makes it optional and the Ask pane already labels its answers as the
   agent's.
 
+## The stand-up report in Toil UI (#345)
+
+- **Built on the server, from the same pages the Worklog shows**
+  (`WorklogService.standup`, `src/model/standup.ts`), so the view, the export and the
+  agent's `standup_report` tool read one fold. Nothing is kept: a stand-up is read,
+  copied or exported, never written to the data folder.
+- **A fact says whose it is.** Worklog events now carry `who` (the account, not only its
+  name) and, for a status change, `toCategory`. The next sync records both on every
+  fact from history, since facts are upserted by key. A fact recorded before #345 falls
+  back to the name on its line, or for a blocker to the item's assignee.
+- **Whose line it is:** the person who did it (moved the item, wrote or reviewed the pull
+  request), not the item's assignee, since that is what the worklog records. A merge or a
+  close goes to the pull request's author, as the source doesn't say who pressed it; a
+  new blocker to the blocked item's assignee; a failed build to its pull request's
+  author. A pull request a dossier agent wrote (matched as the People view matches it)
+  goes under the agent, naming the human author.
+- **Buckets:** a status change into the DONE category is Done, every other one (forward,
+  sideways or back) In progress, so no fact is hidden. Sprint changes are scope, so they
+  are team lines, as are builds with no pull request and deployments. Agent runs of kind
+  `assignment` (#293) go under the agent; questions asked in the Ask pane are not stand-up
+  news and are left out.
+- **What no worklog line records** (a review wait of 2 working days or more, the sprint's
+  days left, Next) is worked out as of the latest good sync, never the clock, so the same
+  cache gives the same report; the report names that sync.
+- **Default range** is since the last working day (Monday to Friday, UTC) through today;
+  a range is at most 31 days. Gaps are each page's, said once with the days they apply to.
+- **Everyone the dossier lists gets a card**, empty or not, so a quiet person reads as
+  quiet rather than missing; an unmapped account only when it has lines. Cards are in
+  name order, never ranked.
+- **The write-up names fact numbers**, `(F3, F7)`, because the server's citation check
+  only knows OWI ids; the page marks the lines it names and says when it names none. The
+  write-up's prompt is matched from its text (`Write up the stand-up for <from> to <to>`),
+  as the 1:1 notes are, so the page sends no prompt text. The system prompt is unchanged
+  (the tool's own description introduces it), which keeps `ui/docs/themes.md` as it is.
+- **Publishing** reuses the worklog's proposals (a Confluence page, a GitHub issue). A
+  comment on an item was left out: a stand-up has no one item to comment on.
+
 ## Feedback reports redacted before the issue is created (#339)
 
 - **The token shapes live in `src/core/token-shapes.mjs`**, plain JavaScript with no

@@ -102,7 +102,7 @@ async function main(): Promise<number> {
         version: __TOIL_UI_VERSION__,
         data: (dossier) => {
           const data = cacheData(cache!, dossier);
-          return data && worklog ? { ...data, worklog: async (day) => (await worklog!.day(dossier, day)).page } : data;
+          return data && worklog ? { ...data, worklog: async (day) => (await worklog!.day(dossier, day)).page, standup: async (from, to) => (await worklog!.standup(dossier, from, to)).report } : data;
         },
         onRun: (run) => worklog?.recordRun(run),
         registry: registry.commands,

@@ -60,7 +60,7 @@ async function setup({ now = T, audit, exportResult }: { now?: string; audit?: (
     calls.push({ command, input, options });
     if (command === 'audit list') return audit ? audit(input) : ok(command, []);
     if (command === 'util encode') return exportResult ? exportResult(input, options) : ok(command, { file: `${String(options?.workspace).replace(/\\/g, '/')}/${String(input.out)}` });
-    if (command === 'dossiers show') return ok(command, { name: 'card-payments', areas: { confluence: { connection: { value: 'confluence' }, inputs: { space: 'PAY' } } } });
+    if (command === 'dossiers show') return ok(command, { name: 'card-payments', dossier: { people: [{ name: 'Ada Lovelace', ids: { jira: 'ada' } }] }, areas: { confluence: { connection: { value: 'confluence' }, inputs: { space: 'PAY' } } } });
     return bad(command, `The stub has no ${command}.`, 'Add it.');
   };
   const worklog = new WorklogService({ cache: () => cache, execute, now: () => new Date(clock) });
@@ -318,5 +318,43 @@ describe('export', () => {
     expect(calls.some((c) => c.command === 'util encode')).toBe(false);
     const refused = await worklog.exportTo('card-payments', { day: '2026-10-11' }, join(tmpdir(), 'x')).catch((e: unknown) => e as WorklogRefusal);
     expect(refused).toMatchObject({ message: "toil couldn't write the export: C:/out/worklog.md already exists.", fix: 'Choose a new file name.' });
+  });
+});
+
+describe('the stand-up (#345)', () => {
+  it("folds a range of the cache's days with the dossier's people, the same twice, and keeps no file", async () => {
+    const { worklog, cache, calls, dir } = await setup();
+    cache.saveDossier(save(T));
+    const a = await worklog.standup('card-payments', '2026-10-09', '2026-10-12');
+    const b = await worklog.standup('card-payments', '2026-10-09', '2026-10-12');
+    expect(b).toEqual(a);
+    expect(a.report.asOf).toBe(T);
+    const ada = a.report.people.find((p) => p.name === 'Ada Lovelace')!;
+    expect(ada.mapped).toBe(true);
+    expect(ada.lines.progress.map((l) => `${l.label}: ${l.text}`)).toEqual(['PAY-1: To Do → In Progress', 'PAY-2: To Do → In Progress']);
+    expect(a.markdown.split('\n')[0]).toBe('# Stand-up: card-payments, 9 Oct 2026 to 12 Oct 2026');
+    expect(a.report.gaps[0]).toMatch(/^9 Oct 2026, 10 Oct 2026, 11 Oct 2026: The earliest sync the cache holds is 12 Oct 2026 07:00 UTC, after this day/);
+    const show = calls.filter((c) => c.command === 'dossiers show');
+    expect(show.map((c) => [c.input, c.options?.readOnly])).toEqual([[{ dossier: 'card-payments' }, true], [{ dossier: 'card-payments' }, true]]);
+    expect(existsSync(join(dir, 'cache', 'worklog', 'card-payments', 'standup'))).toBe(false);
+  });
+
+  it('refuses a range it cannot cover, and a dossier never synced', async () => {
+    const { worklog, cache } = await setup();
+    cache.saveDossier(save(T));
+    await expect(worklog.standup('card-payments', '2026-10-12', '2026-10-13')).rejects.toThrow("2026-10-13 hasn't happened yet: end the range today (2026-10-12) or earlier.");
+    await expect(worklog.standup('card-payments', '2026-08-01', '2026-10-12')).rejects.toBeInstanceOf(WorklogRefusal);
+    await expect(worklog.standup('elsewhere', '2026-10-12', '2026-10-12')).rejects.toThrow("Toil UI hasn't synced elsewhere, so it has no worklog yet.");
+  });
+
+  it("exports the stand-up's Markdown through toil's file service, and proposes publishing it", async () => {
+    const { worklog, cache, calls } = await setup();
+    cache.saveDossier(save(T));
+    const out = await worklog.exportTo('card-payments', { from: '2026-10-11', to: '2026-10-12' }, '/home/you/out');
+    const encode = calls.find((c) => c.command === 'util encode')!;
+    expect(encode.input.out).toBe('standup-card-payments-2026-10-11-to-2026-10-12.md');
+    expect(Buffer.from(String(encode.input.text), 'base64').toString('utf8')).toBe((await worklog.standup('card-payments', '2026-10-11', '2026-10-12')).markdown);
+    expect(encode.options).toMatchObject({ readOnly: false, workspace: '/home/you/out' });
+    expect(out.proposals.map((p) => p.title)).toEqual(['Publish the stand-up as a Confluence page in PAY']);
   });
 });

@@ -18,7 +18,7 @@ import type { AreaInfo, ConfigApi, SettingsInfo } from './config.ts';
 import { FEEDBACK_SAMPLE_DISABLED, type FeedbackApi, type FeedbackFields } from './feedback.ts';
 import type { SyncStatus } from '../server/sync.ts';
 import type { Envelope, Execute } from './toil.ts';
-import { WORKLOG_SAMPLE_DISABLED, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt } from './worklog.ts';
+import { WORKLOG_SAMPLE_DISABLED, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt, type WorklogStandup } from './worklog.ts';
 
 export type { DossierState, SourceState } from '../server/cache.ts';
 export type { SyncJob, SyncStatus } from '../server/sync.ts';
@@ -316,6 +316,7 @@ export function httpWorklog(session: Session, base = './'): WorklogApi {
     rebuild: async (dossier, day) => answer<WorklogRebuilt>(await call(base, session, 'api/worklog/rebuild', { body: { dossier, day } }), 'Rebuilding the page'),
     addNote: async (dossier, text) => answer<WorklogDay>(await call(base, session, 'api/worklog/note', { body: { dossier, text } }), 'Adding the note'),
     exportTo: async (dossier, what, folder) => answer<WorklogExport>(await call(base, session, 'api/worklog/export', { body: { dossier, ...what, folder } }), 'The export'),
+    standup: async (dossier, from, to) => answer<WorklogStandup>(await call(base, session, `api/worklog/standup?${q({ dossier, from, to })}`), 'Building the stand-up'),
   };
 }
 

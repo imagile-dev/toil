@@ -26,6 +26,7 @@ import { ItemView } from './views/Item.tsx';
 import { People } from './views/People.tsx';
 import { PullRequests } from './views/PullRequests.tsx';
 import { Settings } from './views/Settings.tsx';
+import { Standup } from './views/Standup.tsx';
 import { Worklog } from './views/Worklog.tsx';
 import type { WorklogApi } from './worklog.ts';
 import { isDay } from './model/worklog.ts';
@@ -48,6 +49,8 @@ export type Route =
   | { view: 'prs'; dossier: string }
   | { view: 'people'; dossier: string }
   | { view: 'worklog'; dossier: string; day: string | null }
+  /** The stand-up (#345): a range of days, or since the last working day when it names none. */
+  | { view: 'standup'; dossier: string; from: string | null; to: string | null }
   | { view: 'item'; dossier: string; id: string };
 
 export function parseRoute(hash: string): Route {
@@ -59,6 +62,7 @@ export function parseRoute(hash: string): Route {
     if (parts[2] === 'prs') return { view: 'prs', dossier };
     if (parts[2] === 'people') return { view: 'people', dossier };
     if (parts[2] === 'board' && parts[3]) return { view: 'dashboard', dossier, person: decodeURIComponent(parts.slice(3).join('/')) };
+    if (parts[2] === 'worklog' && parts[3] === 'standup') return { view: 'standup', dossier, from: isDay(parts[4]) ? parts[4] : null, to: isDay(parts[5]) ? parts[5] : null };
     if (parts[2] === 'worklog') return { view: 'worklog', dossier, day: isDay(parts[3]) ? parts[3] : null };
     return { view: 'dashboard', dossier };
   }
@@ -169,7 +173,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
           { href: dossierHref(wanted), label: wanted, current: route.view === 'dashboard' },
           { href: prsHref(wanted), label: 'Pull requests', current: route.view === 'prs' },
           { href: peopleHref(wanted), label: 'People', current: route.view === 'people' },
-          { href: worklogHref(wanted), label: 'Worklog', current: route.view === 'worklog' },
+          { href: worklogHref(wanted), label: 'Worklog', current: route.view === 'worklog' || route.view === 'standup' },
         ]
       : []),
     { href: '#/settings', label: 'Settings', current: route.view === 'settings' },
@@ -212,7 +216,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
     const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(config ? { config } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest) };
     body = (
       <DataContext value={data}>
-        {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
+        {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
       </DataContext>
     );
   }
