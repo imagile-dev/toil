@@ -15,7 +15,7 @@ import { adoCloudArea, type AdoCloudSettings } from './area.js';
  */
 
 export type AdoCloudConnection = Connection<AdoCloudSettings>;
-export type AdoCloudContext = CommandContext<AdoCloudConnection, { project?: string; repo?: string }>;
+export type AdoCloudContext = CommandContext<AdoCloudConnection, { project?: string; repo?: string; team?: string }>;
 
 /** The REST API version every request asks for: the newest released one (7.2 is preview only). */
 export const API = '7.1';

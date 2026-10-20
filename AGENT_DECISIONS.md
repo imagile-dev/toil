@@ -4026,7 +4026,6 @@ decided here.
 - **#289: every state's element is waited for** (up to 5s) before "nothing to open"
   counts, and the Feedback item opens the Menu only if it isn't already showing, so
   a Menu still closing from the state before can't be toggled shut.
-- **Three slow ui tests get 30 s**: the sync API test in `ui/test/server.test.ts` and `ui/test/agents.test.ts`'s `beforeAll` (each syncs the whole sample), and `ui/test/views.test.tsx`'s axe pass over each view. All three timed out on Windows runners, on `main` as well as on this PR, at the 5 s and 10 s defaults.
 
 ### #298 GitHub without a board
 
@@ -4148,6 +4147,43 @@ decided here.
   scope here; the agent gets the cache tool `owi_similar`, and its system prompt says
   to run it before proposing a new item.
 
+### #328 Toil UI's tests on Windows runners
+
+Measured on `windows-latest` before changing anything: a probe in the UI suite, in ten
+gate jobs, five on each Node version. The runner has 4 CPUs, so Vitest runs 3 workers.
+
+- **The SQLite tests were slow because of the disk, not the CPU.** `os.tmpdir()` on
+  the runner is on `C:`, its OS disk, where one commit under SQLite's default rollback
+  journal took 22 to 117 ms, against 0.7 ms on `D:`, the work disk. `sync.test.ts`
+  took 3 to 8 s there and under 1 s on Linux, and `server.test.ts`'s sync case timed
+  out at 5.5 to 11 s.
+  - **The cache commits to a write-ahead log** with `synchronous = NORMAL` (`JOURNAL`
+    in `ui/server/cache.ts`): 0.1 ms a commit on the same disk. That's a product
+    change, not a test setting, because a user's data folder is on their system drive
+    and a sync paid the same cost. It's safe for a cache: a crash loses nothing, and a
+    power cut may lose the last commits, which the next sync fetches again.
+  - **The gate's Windows jobs put `TEMP` and `TMP` on `RUNNER_TEMP`**, on `D:`
+    (`ci.yml`), because the root suite had the same disk: `contract.test.ts`'s skills
+    case, which copies a seeded home folder per run, takes 0.27 s on a laptop and
+    timed out at 5.3 s on the runner. With both, `sync.test.ts` takes 0.4 to 0.9 s
+    there.
+- **The dashboard axe cases are genuinely heavy.** Each renders a dashboard of about
+  1,600 elements in jsdom and runs axe over it: about a second on a laptop, 2 to 6 s
+  on the runner, with the 5 s default as the only margin. Asking axe for violations
+  only (`resultTypes`), which is all the tests read, cut its run by a quarter to a
+  third. Every `views.test.tsx` case that runs axe over a whole view, like
+  `theme-bar.test.tsx`'s and `feedback.test.tsx`'s already, gets an explicit 20 s
+  timeout with the reason beside it.
+- **The particle bounds check asserted once per particle per frame**, over a million
+  `expect()` calls, up to 3.7 s on the runner. It now collects strays in plain code
+  and asserts once (9 ms), with the first strays in the failure.
+- `test/start-commands.test.ts`'s `scripts/setup.mjs` cases spawn Node to run the real
+  bundle, once or twice each, so they get a 30 s timeout with the reason beside it.
+- **Left as they are:** the worker count and the pool (Vitest runs 3 forks on the
+  runner's 4 CPUs, so they don't oversubscribe it), and the global timeout. No UI test
+  uses fake timers. The two failures on React Aria handing focus back after Escape
+  were already fixed by waiting for it (#280, #284).
+
 ## Command shape (jira, jira-cloud, ado, ado-cloud)
 
 The maintainer asked for one streamlined interface, a clean break with no aliases,
@@ -4226,6 +4262,79 @@ choices made by default inside that:
   `INVALID_INPUT` (no such command) as the panel's error.
 - **The preview's sample month** is generated from a fixed seed and summarized by
   `src/audit/stats.ts` itself, so its figures are toil's sums, not hand-made ones.
+
+## Size-aware output (#301)
+
+The issue fixed the shape (TOON for `data` only, a summary by fixed rules with the
+full result on disk, applied in core after `--select`). These are the choices made
+by default inside it:
+
+- **The flags are `--output-format` and `--summary-file <path>`, not `--format` and
+  `--summary` with `--output-file`.** Both names the issue used are taken by area
+  flags already (`util report --format`, `jira issue create --summary`), and a global
+  flag of the same name would swallow them. `--summary-file` is one flag holding the
+  path, so `--output-file` keeps its one meaning (the whole envelope to a file, CLI
+  only) and MCP gets one field, `summaryFile`, rather than a pair where one is
+  meaningless without the other. The fields are `outputFormat` and `summaryFile`,
+  reserved like `select`.
+- **Shaping lives in `runCommand()`, not `execute()`**, the one function all three
+  front doors call, so `toil wait` gets it on its final envelope and each attempt
+  isn't summarized. It uses the call's own `ctx.files`, so the file is in the
+  workspace and never overwrites; the path is checked before the command runs, and a
+  read-only API call refuses `summaryFile`, since it writes a file.
+- **The file is always written, as pretty-printed JSON**, even when the whole result
+  fits in the envelope, so the path is always there for a caller that asked for it.
+  JSON rather than TOON so `jq`, a script, or toil's own `--input-file` read it, and
+  pretty so line tools (`head`, `grep`) work on it.
+- **The rules are ordered record, all, outline, head, sample**, with the issue's two
+  shape rows (nested data that flattens, and that doesn't) checked before the size
+  tiers, since they decide whether there is a table at all. A result with no table
+  counts as one row. The table is the result itself when it's a list, else the list
+  reached through objects (up to four levels down) with the most cells: its rows
+  times their width, judged from the first 20 (an object's dot-path keys, a list's
+  items). Real results nest their rows (`util report`'s `findings.results`). Two
+  review findings set the measure: most items picked a `db query`'s 40 `columns`
+  over its 30 `rows`, and most content let one 50 KB comment beat 200 issues, so it
+  is rows and shape, never size. A third finding showed that cells alone pick a
+  one- or two-row `db` result's `columns`, so a list of objects as long as a sibling's
+  list rows are wide, or whose items are all exactly `{ name, type }` beside an empty
+  list (a `db` query with no rows; any list of named objects was too broad, a later
+  finding), is taken as that sibling's header and never ranked. A last
+  row too wide for the budget at 200 characters is cut to 40 before it's dropped, so
+  a one-row answer keeps its row (a non-blocking review note). Fields beside the table that are still over a
+  quarter of the budget after their texts are cut are kept from the front while
+  they fit, in one pass (`trimmed.fields`), as are an outline's keys: dropping one
+  at a time and re-serializing took 10.8 s at 6,000 fields, and the pass takes
+  about 10 ms.
+- **"Flattens" means at least 80% of the rows' dot-path keys are in every row.**
+  Lists inside a row stay whole, as one column.
+- **Every summary is held to the 1,500-token budget**, `record` included (a review
+  finding: a 200 KB text was returned whole). Over it, texts longer than 200
+  characters are cut short with `…`, then rows are dropped from the end (down to
+  none), and an outline's sample, then its lengths, then its keys from the end are
+  cut; a bare text keeps its first 2,000 characters. Each cut is recorded in
+  `meta.summary.trimmed`, and `schema` and `stats` cover the first 25 columns,
+  with the full count in `meta.summary.columns`. The issue's 5,000-row case needs that
+  to hold for wide rows.
+- **`stats` has the same four keys for every column** (`min` and `max` null where they
+  don't apply), so TOON writes it as one keyed table.
+- **Sample rows are spread evenly from the first to the last**, not random, so the
+  same data always gives the same summary.
+- **What's beside the table stays, as `fields`**, whole while it's a quarter of the
+  budget or less, else only its top-level primitives (`total`, a cursor).
+- **`--output-format toon` always writes TOON when asked**, even where it comes out
+  longer than JSON (deeply nested data with few repeated rows, such as `util size`'s
+  folder tree, measured about 45% larger as a JSON string). Falling back to JSON
+  silently would make the format depend on the data; the docs say where it pays.
+  Whether to switch automatically is left for the maintainer.
+- **The encoder targets TOON 4.4** (spec v4.4.0, a working draft), and the spec's
+  encode fixtures are vendored under `test/fixtures/toon/` like the JMESPath suite,
+  with its MIT licence beside them and in `NOTICE`. Only the comma delimiter and
+  two-space indent are used; the others are implemented because the fixtures cover
+  them.
+- **The token estimate is JSON characters / 3.5**, as the issue set, on the JSON of
+  `data` whichever format is asked for, so the rule that applies never depends on the
+  format.
 
 ## Command shape for the remaining areas (#297)
 
@@ -4313,3 +4422,53 @@ These are the choices made by default inside that:
 - **The Sprint panel stays empty on this board**, because its sprints have no dates
   and the maintainer's rule is not to set them. Which sprint is current is only in the
   team's settings, which ado-cloud has no command for yet (#320).
+
+## ado-cloud boards, backlogs, sprints and states (#320)
+
+The issue asked for read commands for what a team's board is built from. These are
+the choices made by default inside that:
+
+- **Paths follow the command shape:** `sprint list`, `sprint items <id>`, `backlog
+  list`, `backlog items <id>`, `board list`, `board get <id>`, and `work-item states
+  --type`, which mirrors `ado work-item states` (same flag, same `data`: the server's
+  `value`). `ado` gets none of the team commands: the issue asks for `ado-cloud` only,
+  and there is no live Server to run them against.
+- **`--team` is a command-level context input**, on the six team commands only, so
+  it isn't a field on every `ado-cloud` tool. It resolves like every context input
+  (flag, dossier, the connection's new `team` setting). With none, toil reads the
+  project (`GET _apis/projects/<project>`) for its `defaultTeam` and puts its id in
+  the path. The live run showed the backlog endpoints answer 404 with no team in the
+  path while the others fall back to the default team, so every team command names one
+  rather than rely on the server's default for some and not others; the cost is one
+  extra request when no team is set. `meta.context` lists only the inputs that
+  resolved, so an `ADO_CLOUD_DEFAULT_TEAM` warning names the team that was read
+  (principle 4, raised in review).
+- **`sprint list --state`** takes `past`, `current` and `future`, the team settings'
+  own `timeFrame` words, comma-separated as `jira sprint list --state` takes its
+  states. It filters the full list in toil rather than sending `$timeframe=current`,
+  which accepts only `current`; one request either way, and one code path.
+- **`data` is the server's JSON**, as the rest of `ado-cloud`: a list's `value` for
+  `sprint list`, `backlog list`, `board list` and `work-item states`, the whole body
+  for `sprint items`, `backlog items` and `board get`. The item lists are ids only,
+  as the server sends them; `work-item get-many` fetches fields.
+- **`work-item states` warns on an empty answer** (`ADO_CLOUD_TYPE_UNKNOWN`): the server
+  answers a type the project doesn't have with an empty list, not a 404 (principle 4).
+- **API version 7.1 everywhere**: the live organization accepted the released 7.1 on
+  every one of these, including backlog work items, which Microsoft's reference lists
+  as `7.1-preview.1`.
+- **No contract entries.** `docs/command-contract.json` records no `ado-cloud`
+  command (the area isn't in its scope table), so the issue's "contract entries" are
+  the parity suite, fixtures and the skill's command table, as for the rest of the area.
+- **Fixtures were captured from the live board** and sanitized to placeholders, and say
+  so; the rest of the fixture file stays invented from the reference.
+- **OWI's custom-state reason names the item's own area** (`ado-cloud work-item
+  states` for Services), and Toil UI's board offers the same command as a hint when no
+  item shows which state a move should use, as it does for `ado`.
+- **Toil UI's Sprint panel is not wired to `sprint list`.** The issue doesn't ask for
+  it, the panel's model needs sprint dates (working days, burn-up), and the seeded
+  board's sprints have none. Showing a dateless current sprint is a change to the
+  sprint model and the panel's views, left for its own issue.
+- **The verification level stays `unit`.** The work item reads (#319) and these
+  commands have now been run against one live Scrum organization, which the skill and
+  the supported-version note now say, but the pull request commands haven't, so
+  raising the board status to `live` is left to the maintainer.

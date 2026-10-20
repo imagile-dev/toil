@@ -15,6 +15,12 @@ test/fixtures/jmespath/, as distributed with jmespath.py
 or its affiliates, licensed under the MIT License (see
 test/fixtures/jmespath/LICENSE). It is not part of the published package.
 
+The repository's tests also include the TOON specification's encode fixtures, in
+test/fixtures/toon/, from https://github.com/toon-format/spec (release v4.4.0),
+Copyright (c) 2025-PRESENT Johann Schopplich, licensed under the MIT License (see
+test/fixtures/toon/LICENSE). They are not part of the published package; the TOON
+encoder in src/core/output/toon.ts is toil's own, written from the specification.
+
 The util commands that read YAML or validate JSON Schema bundle, loaded only
 when such a command runs:
 

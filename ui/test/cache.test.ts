@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -108,6 +108,19 @@ describe('the schema', () => {
       expect((e as CacheError).fix).toContain('toil-ui wipe');
     }
     db.close();
+  });
+
+  it('commits to a write-ahead log, which closing folds back into the one file (#328)', async () => {
+    const dir = folder();
+    const cache = await open(dir);
+    cache.saveDossier(save(T0));
+    expect(readdirSync(cachePaths(dir).dir).sort()).toEqual(['toil-ui.db', 'toil-ui.db-shm', 'toil-ui.db-wal']);
+    cache.close();
+    expect(readdirSync(cachePaths(dir).dir)).toEqual(['toil-ui.db']);
+    const { DatabaseSync } = await loadSqlite();
+    const raw = new DatabaseSync(cachePaths(dir).db);
+    expect(raw.prepare('PRAGMA journal_mode').get()).toEqual({ journal_mode: 'wal' });
+    raw.close();
   });
 
   it('keys a call by its input whatever the order of its fields', () => {
