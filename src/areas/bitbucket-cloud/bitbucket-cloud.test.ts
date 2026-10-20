@@ -181,12 +181,12 @@ describe('paging', () => {
 });
 
 describe('repositories, refs, commits and files', () => {
-  it('list-repos sends a filter as q', async () => {
+  it('repo list sends a filter as q', async () => {
     const { calls } = await run(listReposCommand, { workspace: 'imagile', filter: 'project.key = "TOIL"', limit: 1 });
     expect(calls[0]!.url).toBe(`${API}/repositories/imagile?q=project.key+%3D+%22TOIL%22&pagelen=100`);
   });
 
-  it('create-repo POSTs a private git repository to the new slug, with its project', async () => {
+  it('repo create POSTs a private git repository to the new slug, with its project', async () => {
     const plain = await run(createRepoCommand, { workspace: 'imagile', name: 'scratch', ...write });
     expect(plain.calls[0]).toMatchObject({ method: 'POST', url: `${API}/repositories/imagile/scratch`, headers: JSON_HEADERS });
     expect(body(plain.calls[0]!)).toEqual({ scm: 'git', is_private: true });
@@ -194,7 +194,7 @@ describe('repositories, refs, commits and files', () => {
     expect(body(full.calls[0]!)).toEqual({ scm: 'git', is_private: false, description: 'd', project: { key: 'TOIL' } });
   });
 
-  it('create-branch and create-tag POST a name and target hash', async () => {
+  it('branch create and tag create POST a name and target hash', async () => {
     const branch = await run(createBranchCommand, { ...at, name: 'feature/x', commit: HASH, ...write });
     expect(branch.calls[0]).toMatchObject({ method: 'POST', url: `${R}/refs/branches` });
     expect(body(branch.calls[0]!)).toEqual({ name: 'feature/x', target: { hash: HASH } });
@@ -202,7 +202,7 @@ describe('repositories, refs, commits and files', () => {
     expect(body(tag.calls[0]!)).toEqual({ name: 'v1.2.0', target: { hash: HASH }, message: 'Release' });
   });
 
-  it('list-tags filters with q; list-commits sends the branch as include and the path as path', async () => {
+  it('tag list filters with q; commit list sends the branch as include and the path as path', async () => {
     const tags = await run(listTagsCommand, { ...at, filter: 'name ~ "v1."' });
     expect(tags.calls[0]!.url).toBe(`${R}/refs/tags?q=name+%7E+%22v1.%22&pagelen=100`);
     const commits = await run(listCommitsCommand, { ...at, branch: 'feature/retries', path: 'src/retry.ts', limit: 1 });
@@ -210,19 +210,19 @@ describe('repositories, refs, commits and files', () => {
     expect((commits.envelope.data as unknown[]).length).toBe(1);
   });
 
-  it('get-commit GETs one commit by hash', async () => {
+  it('commit get GETs one commit by hash', async () => {
     const { calls, envelope } = await run(getCommitCommand, { ...at, commit: HASH });
     expect(calls[0]!.url).toBe(`${R}/commit/${HASH}`);
     expect(envelope.data).toMatchObject({ hash: HASH });
   });
 
-  it('get-file with no ref reads the main branch, resolves it to its newest commit, then reads the raw file', async () => {
+  it('file get with no ref reads the main branch, resolves it to its newest commit, then reads the raw file', async () => {
     const { calls, envelope } = await run(getFileCommand, { ...at, path: 'README.md' });
     expect(urls(calls)).toEqual([R, `${R}/commits?include=main&pagelen=1`, `${R}/src/${HASH}/README.md`]);
     expect(envelope.data).toEqual({ path: 'README.md', commit: HASH, content: '# toil\n' });
   });
 
-  it('get-file resolves a branch with a slash through include, and uses a hash as it is', async () => {
+  it('file get resolves a branch with a slash through include, and uses a hash as it is', async () => {
     const branch = await run(getFileCommand, { ...at, path: 'src/retry.ts', ref: 'feature/retries' });
     expect(urls(branch.calls)).toEqual([`${R}/commits?include=feature%2Fretries&pagelen=1`, `${R}/src/${HASH}/src/retry.ts`]);
     const hash = await run(getFileCommand, { ...at, path: '/src/retry.ts', ref: HASH });
@@ -237,7 +237,7 @@ describe('repositories, refs, commits and files', () => {
     expect(dots.calls).toHaveLength(0);
   });
 
-  it('list-dir reads a folder listing at the ref, every page', async () => {
+  it('file list reads a folder listing at the ref, every page', async () => {
     const { calls, envelope } = await run(listDirCommand, { ...at, path: 'src', ref: HASH });
     expect(urls(calls)).toEqual([`${R}/src/${HASH}/src/?pagelen=100`, `${R}/src/${HASH}/src/?pagelen=100&page=2`]);
     expect((envelope.data as Array<{ path: string }>).map((e) => e.path)).toEqual(['src/README.md', 'src/src', 'src/package.json']);
@@ -245,7 +245,7 @@ describe('repositories, refs, commits and files', () => {
 });
 
 describe('pull requests', () => {
-  it('list-prs asks for OPEN by default, and every state repeated for ALL, with a query as q', async () => {
+  it('pr list asks for OPEN by default, and every state repeated for ALL, with a query as q', async () => {
     const open = await run(listPrsCommand, at);
     expect(open.calls[0]!.url).toBe(`${R}/pullrequests?state=OPEN&pagelen=100`);
     const every = await run(listPrsCommand, { ...at, state: 'ALL', query: 'author.account_id = "x"', limit: 2 });
@@ -258,13 +258,13 @@ describe('pull requests', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('get-pr returns the pull request as Bitbucket sends it', async () => {
+  it('pr get returns the pull request as Bitbucket sends it', async () => {
     const { envelope, calls } = await run(getPrCommand, { ...at, id: 42 });
     expect(calls[0]!.url).toBe(`${R}/pullrequests/42`);
     expect(envelope.data).toEqual(pullRequest(42));
   });
 
-  it('create-pr sends title and source, and target, reviewers and flags only when given', async () => {
+  it('pr create sends title and source, and target, reviewers and flags only when given', async () => {
     const plain = await run(createPrCommand, { ...at, title: 'T', source: 'feature/x', ...write });
     expect(body(plain.calls[0]!)).toEqual({ title: 'T', source: { branch: { name: 'feature/x' } } });
     const full = await run(createPrCommand, { ...at, title: 'T', source: 's', target: 'develop', description: 'd', reviewers: '557058:abc, {abc12345-0000-0000-0000-000000000000},', closeSourceBranch: true, draft: false, ...write });
@@ -283,7 +283,7 @@ describe('pull requests', () => {
     expect(reviewerRefs(' a ,, {b} ')).toEqual([{ account_id: 'a' }, { uuid: '{b}' }]);
   });
 
-  it('update-pr reads the PR, then PUTs the current title, description and reviewers for whatever was not given', async () => {
+  it('pr update reads the PR, then PUTs the current title, description and reviewers for whatever was not given', async () => {
     const { calls } = await run(updatePrCommand, { ...at, id: 42, title: 'New', ...write });
     expect(calls.map((c) => c.method)).toEqual(['GET', 'PUT']);
     expect(body(calls[1]!)).toEqual({ title: 'New', description: 'Retries with backoff.', reviewers: [{ uuid: '{abc12345-0000-0000-0000-00000000000a}' }] });
@@ -291,7 +291,7 @@ describe('pull requests', () => {
     expect(body(replaced.calls[1]!)).toEqual({ title: 'Add retries', description: '', reviewers: [{ account_id: 'x' }], destination: { branch: { name: 'develop' } } });
   });
 
-  it('merge-pr sends the strategy, message and close_source_branch only when given', async () => {
+  it('pr merge sends the strategy, message and close_source_branch only when given', async () => {
     const plain = await run(mergePrCommand, { ...at, id: 42, ...write });
     expect(plain.calls[0]).toMatchObject({ method: 'POST', url: `${R}/pullrequests/42/merge` });
     expect(body(plain.calls[0]!)).toEqual({});
@@ -313,13 +313,13 @@ describe('pull requests', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('decline-pr POSTs to decline', async () => {
+  it('pr decline POSTs to decline', async () => {
     const { calls, envelope } = await run(declinePrCommand, { ...at, id: 42, ...write });
     expect(calls[0]).toMatchObject({ method: 'POST', url: `${R}/pullrequests/42/decline`, body: undefined });
     expect(envelope.data).toMatchObject({ state: 'DECLINED' });
   });
 
-  it('current-pr asks for the open PR from the current branch, quoting it for the query', async () => {
+  it('pr current asks for the open PR from the current branch, quoting it for the query', async () => {
     const found = await run(currentPrCommand, at, fixtureRoutes, { repo: fixtureRepo });
     expect(found.calls[0]!.url).toBe(`${R}/pullrequests?state=OPEN&q=source.branch.name+%3D+%22feature%2Fretries%22&pagelen=1`);
     expect(found.envelope.data).toMatchObject({ id: 42 });
@@ -332,47 +332,47 @@ describe('pull requests', () => {
 });
 
 describe('review', () => {
-  it('diff --pr diffs the PR source against its destination with topic=true, passing file and context', async () => {
-    const { calls, envelope } = await run(diffCommand, { ...at, pr: 42, file: 'src/retry.ts', contextLines: 0 });
+  it('pr diff <id> diffs the PR source against its destination with topic=true, passing file and context', async () => {
+    const { calls, envelope } = await run(diffCommand, { ...at, id: 42, file: 'src/retry.ts', contextLines: 0 });
     expect(urls(calls)).toEqual([`${R}/pullrequests/42`, `${R}/diff/${SPEC}?topic=true&path=src%2Fretry.ts&context=0`]);
     expect(envelope.data).toEqual({ diff: DIFF });
   });
 
-  it('diff --spec diffs commits directly; neither or both of --pr and --spec is INVALID_INPUT', async () => {
+  it('pr diff --spec diffs commits directly; neither or both of an id and --spec is INVALID_INPUT', async () => {
     const spec = await run(diffCommand, { ...at, spec: HASH });
     expect(urls(spec.calls)).toEqual([`${R}/diff/${HASH}`]);
-    for (const input of [at, { ...at, pr: 42, spec: HASH }]) {
+    for (const input of [at, { ...at, id: 42, spec: HASH }]) {
       const { envelope, calls } = await run(diffCommand, input);
-      expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Pass exactly one of --pr and --spec.' });
+      expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Pass exactly one of a pull request id and --spec.' });
       expect(calls).toHaveLength(0);
     }
   });
 
-  it('list-files reads every diffstat page and keeps the new path, or the old one for a deletion', async () => {
-    const { calls, envelope } = await run(listFilesCommand, { ...at, pr: 42 });
+  it('pr files reads every diffstat page and keeps the new path, or the old one for a deletion', async () => {
+    const { calls, envelope } = await run(listFilesCommand, { ...at, id: 42 });
     expect(urls(calls)).toEqual([`${R}/pullrequests/42`, `${R}/diffstat/${SPEC}?topic=true&pagelen=100`, `${R}/diffstat/${SPEC}?topic=true&pagelen=100&page=2`]);
     expect(envelope.data).toEqual(['src/retry.ts', 'src/backoff.ts', 'src/old.ts']);
   });
 
-  it('approve, unapprove and request-changes', async () => {
-    const approve = await run(approveCommand, { ...at, pr: 42, ...write });
+  it('pr approve, pr unapprove and pr request-changes', async () => {
+    const approve = await run(approveCommand, { ...at, id: 42, ...write });
     expect(approve.calls[0]).toMatchObject({ method: 'POST', url: `${R}/pullrequests/42/approve` });
-    const un = await run(unapproveCommand, { ...at, pr: 42, ...write });
+    const un = await run(unapproveCommand, { ...at, id: 42, ...write });
     expect(un.calls[0]).toMatchObject({ method: 'DELETE', url: `${R}/pullrequests/42/approve` });
     expect(un.envelope.data).toEqual({ unapproved: true });
-    const changes = await run(requestChangesCommand, { ...at, pr: 42, ...write });
+    const changes = await run(requestChangesCommand, { ...at, id: 42, ...write });
     expect(changes.calls[0]).toMatchObject({ method: 'POST', url: `${R}/pullrequests/42/request-changes` });
     expect(changes.envelope.data).toMatchObject({ state: 'changes_requested' });
   });
 
-  it('list-reviewers keeps only participants in the REVIEWER role', async () => {
-    const { envelope } = await run(listReviewersCommand, { ...at, pr: 42 });
+  it('pr reviewers keeps only participants in the REVIEWER role', async () => {
+    const { envelope } = await run(listReviewersCommand, { ...at, id: 42 });
     expect(envelope.data).toEqual([pullRequest(42).participants[1]]);
   });
 
-  it('list-default-reviewers, list-builds and get-build-status read every page of their lists', async () => {
+  it('repo default-reviewers, pr builds and commit status read every page of their lists', async () => {
     expect(urls((await run(listDefaultReviewersCommand, at)).calls)).toEqual([`${R}/default-reviewers?pagelen=100`]);
-    expect(urls((await run(listBuildsCommand, { ...at, pr: 42 })).calls)).toEqual([`${R}/pullrequests/42/statuses?pagelen=100`]);
+    expect(urls((await run(listBuildsCommand, { ...at, id: 42 })).calls)).toEqual([`${R}/pullrequests/42/statuses?pagelen=100`]);
     const commit = await run(getBuildStatusCommand, { ...at, commit: HASH });
     expect(urls(commit.calls)).toEqual([`${R}/commit/${HASH}/statuses?pagelen=100`]);
     expect(commit.envelope.data).toMatchObject([{ key: 'ci', state: 'SUCCESSFUL' }]);
@@ -380,52 +380,52 @@ describe('review', () => {
 });
 
 describe('comments', () => {
-  it('list-comments reads every page, oldest first, and filters replies, inline and general comments', async () => {
-    const everything = await run(listCommentsCommand, { ...at, pr: 42 });
+  it('pr comments reads every page, oldest first, and filters replies, inline and general comments', async () => {
+    const everything = await run(listCommentsCommand, { ...at, id: 42 });
     expect(urls(everything.calls)).toEqual([`${R}/pullrequests/42/comments?sort=created_on&pagelen=100`, `${R}/pullrequests/42/comments?sort=created_on&pagelen=100&page=2`]);
     expect(everything.envelope.data).toEqual(comments);
-    const ids = async (input: Record<string, unknown>) => ((await run(listCommentsCommand, { ...at, pr: 42, ...input })).envelope.data as Array<{ id: number }>).map((c) => c.id);
+    const ids = async (input: Record<string, unknown>) => ((await run(listCommentsCommand, { ...at, id: 42, ...input })).envelope.data as Array<{ id: number }>).map((c) => c.id);
     expect(await ids({ withReplies: false })).toEqual([1001, 1002]);
     expect(await ids({ inlineOnly: true })).toEqual([1002]);
     expect(await ids({ generalOnly: true })).toEqual([1001, 1003]);
   });
 
-  it('add-comment, reply-comment and add-inline-comment send raw content, a parent, and an inline anchor', async () => {
-    const add = await run(addCommentCommand, { ...at, pr: 42, body: 'Hi', ...write });
+  it('pr comment, pr reply and pr comment-inline send raw content, a parent, and an inline anchor', async () => {
+    const add = await run(addCommentCommand, { ...at, id: 42, body: 'Hi', ...write });
     expect(add.calls[0]).toMatchObject({ method: 'POST', url: `${R}/pullrequests/42/comments`, headers: JSON_HEADERS });
     expect(body(add.calls[0]!)).toEqual({ content: { raw: 'Hi' } });
-    const reply = await run(replyCommentCommand, { ...at, pr: 42, commentId: 1001, body: 'Done', ...write });
+    const reply = await run(replyCommentCommand, { ...at, id: 42, commentId: 1001, body: 'Done', ...write });
     expect(body(reply.calls[0]!)).toEqual({ content: { raw: 'Done' }, parent: { id: 1001 } });
-    const added = await run(addInlineCommentCommand, { ...at, pr: 42, file: 'src/retry.ts', line: 12, body: 'x', ...write });
+    const added = await run(addInlineCommentCommand, { ...at, id: 42, file: 'src/retry.ts', line: 12, body: 'x', ...write });
     expect(body(added.calls[0]!)).toEqual({ content: { raw: 'x' }, inline: { path: 'src/retry.ts', to: 12 } });
-    const removed = await run(addInlineCommentCommand, { ...at, pr: 42, file: 'src/old.ts', line: 3, body: 'y', lineType: 'REMOVED', ...write });
+    const removed = await run(addInlineCommentCommand, { ...at, id: 42, file: 'src/old.ts', line: 3, body: 'y', lineType: 'REMOVED', ...write });
     expect(body(removed.calls[0]!)).toEqual({ content: { raw: 'y' }, inline: { path: 'src/old.ts', from: 3 } });
   });
 
-  it('resolve-comment POSTs to resolve; delete-comment DELETEs and is never an MCP tool', async () => {
-    const resolve = await run(resolveCommentCommand, { ...at, pr: 42, commentId: 1001, ...write });
+  it('pr resolve POSTs to resolve; pr delete-comment DELETEs and is never an MCP tool', async () => {
+    const resolve = await run(resolveCommentCommand, { ...at, id: 42, commentId: 1001, ...write });
     expect(resolve.calls[0]).toMatchObject({ method: 'POST', url: `${R}/pullrequests/42/comments/1001/resolve` });
-    const del = await run(deleteCommentCommand, { ...at, pr: 42, commentId: 1002, ...write });
+    const del = await run(deleteCommentCommand, { ...at, id: 42, commentId: 1002, ...write });
     expect(del.calls[0]).toMatchObject({ method: 'DELETE', url: `${R}/pullrequests/42/comments/1002` });
     expect(del.envelope.data).toEqual({ deleted: true });
     expect(deleteCommentCommand.mcp).toBe(false);
   });
 
   it('writes need writes on the connection and --allow-write', async () => {
-    const noFlag = await run(addCommentCommand, { ...at, pr: 42, body: 'Hi' });
+    const noFlag = await run(addCommentCommand, { ...at, id: 42, body: 'Hi' });
     expect(noFlag.envelope.error?.code).toBe('WRITE_DISABLED');
     expect(noFlag.calls).toHaveLength(0);
   });
 });
 
 describe('pipelines', () => {
-  it('list-pipelines asks newest first, with a branch filter, and stops at 100 by default', async () => {
+  it('pipeline list asks newest first, with a branch filter, and stops at 100 by default', async () => {
     const { calls, envelope } = await run(listPipelinesCommand, { ...at, branch: 'main', limit: 1 });
     expect(calls[0]!.url).toBe(`${R}/pipelines?sort=-created_on&target.branch=main&pagelen=100`);
     expect(envelope.data).toEqual([pipeline(7)]);
   });
 
-  it('get-pipeline, list-pipeline-steps and get-step-log put the uuid in braces, encoded, whether typed with them or not', async () => {
+  it('pipeline get, pipeline steps and pipeline logs put the uuid in braces, encoded, whether typed with them or not', async () => {
     const P = '%7Babc12345-0000-0000-0000-000000000000%7D';
     expect(urls((await run(getPipelineCommand, { ...at, pipeline: 'abc12345-0000-0000-0000-000000000000' })).calls)).toEqual([`${R}/pipelines/${P}`]);
     expect(urls((await run(listPipelineStepsCommand, { ...at, pipeline: '{abc12345-0000-0000-0000-000000000000}' })).calls)).toEqual([`${R}/pipelines/${P}/steps?pagelen=100`]);

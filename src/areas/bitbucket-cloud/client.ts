@@ -184,7 +184,7 @@ export async function resolveRef(ctx: BitbucketCloudContext, ref: string | undef
   const page = await bbc<PageBody<{ hash?: string }>>(ctx, `${repoPath(ctx)}/commits`, { query: { include: name, pagelen: 1 } });
   const hash = page.values?.[0]?.hash;
   if (!hash) {
-    throw new ToilError('NOT_FOUND', `No commit found for "${name}" in ${ctx.context.workspace}/${ctx.context.repo}.`, { fix: 'Check the branch, tag or commit exists: toil bitbucket-cloud list-branches or list-tags.' });
+    throw new ToilError('NOT_FOUND', `No commit found for "${name}" in ${ctx.context.workspace}/${ctx.context.repo}.`, { fix: 'Check the branch, tag or commit exists: toil bitbucket-cloud branch list or tag list.' });
   }
   return hash;
 }

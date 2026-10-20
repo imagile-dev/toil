@@ -66,7 +66,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-describe('pods', () => {
+describe('pod list', () => {
   it('GETs the namespace\'s pods with the JSON headers and the token, and sends labelSelector only when given', async () => {
     const { calls } = await run(podsCommand, { namespace: 'pay ments', labelSelector: 'app=api,tier!=db' }, [json(podList)]);
     expect(calls).toEqual([{ method: 'GET', url: `${OPENSHIFT}/api/v1/namespaces/pay%20ments/pods?labelSelector=app%3Dapi,tier%21%3Ddb`, headers: JSON_HEADERS, body: undefined }]);
@@ -173,7 +173,7 @@ describe('pods', () => {
   });
 });
 
-describe('deployments', () => {
+describe('deployment list', () => {
   it('reads apps/v1 Deployments: ready, replica counts, images, strategy, and only the problem conditions', async () => {
     const { envelope, calls } = await run(deploymentsCommand, { namespace: NAMESPACE, labelSelector: 'app=api' }, [json({ items: [deployment] })]);
     expect(calls).toEqual([{ method: 'GET', url: `${OPENSHIFT}/apis/apps/v1/namespaces/${NAMESPACE}/deployments?labelSelector=app%3Dapi`, headers: JSON_HEADERS, body: undefined }]);
@@ -217,7 +217,7 @@ describe('deployments', () => {
   });
 });
 
-describe('events', () => {
+describe('event list', () => {
   it('asks for Warning events by default and maps both core and events.k8s.io field names, most frequent first', async () => {
     const { envelope, calls } = await run(eventsCommand, { namespace: NAMESPACE }, [json(eventList)]);
     expect(calls).toEqual([{ method: 'GET', url: `${OPENSHIFT}/api/v1/namespaces/${NAMESPACE}/events?fieldSelector=type%3DWarning`, headers: JSON_HEADERS, body: undefined }]);
@@ -249,7 +249,7 @@ describe('events', () => {
   });
 });
 
-describe('logs', () => {
+describe('pod logs', () => {
   it('GETs the log as text with Accept */* and no Content-Type, tailLines 100 by default, and no container (suspected bug #88 item 1)', async () => {
     const { envelope, calls } = await run(logsCommand, { namespace: NAMESPACE, pod: POD }, [{ url: /.*/, respond: { text: LOG } }]);
     expect(calls).toEqual([{ method: 'GET', url: `${OPENSHIFT}/api/v1/namespaces/${NAMESPACE}/pods/${POD}/log?tailLines=100`, headers: TEXT_HEADERS, body: undefined }]);
@@ -280,7 +280,7 @@ describe('logs', () => {
   });
 });
 
-describe('pod-metrics', () => {
+describe('pod metrics', () => {
   it('reads metrics.k8s.io and returns each container\'s raw usage', async () => {
     const { envelope, calls } = await run(podMetricsCommand, { namespace: NAMESPACE }, [json(podMetrics)]);
     expect(calls).toEqual([{ method: 'GET', url: `${OPENSHIFT}/apis/metrics.k8s.io/v1beta1/namespaces/${NAMESPACE}/pods`, headers: JSON_HEADERS, body: undefined }]);
@@ -291,7 +291,7 @@ describe('pod-metrics', () => {
   });
 });
 
-describe('resource-usage', () => {
+describe('namespace usage', () => {
   const routes: Route[] = [
     { path: `/api/v1/namespaces/${NAMESPACE}/pods`, respond: { json: podList } },
     { path: `/apis/metrics.k8s.io/v1beta1/namespaces/${NAMESPACE}/pods`, respond: { json: podMetrics } },

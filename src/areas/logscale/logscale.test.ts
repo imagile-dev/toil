@@ -25,7 +25,7 @@ async function run(def: AnyCommand, input: Record<string, unknown>, routes: Rout
 
 const answer = (json: unknown, status = 200): Route => ({ method: 'POST', url: /.*/, respond: { status, json } });
 
-describe('query', () => {
+describe('repository query', () => {
   it('POSTs the documented QueryInput to the repository query endpoint, with the defaults 1h and now', async () => {
     const { envelope, calls } = await run(queryCommand, { repository: 'imagile-app', query: 'level=error' }, [answer(events)]);
     expect(calls).toEqual([
@@ -124,7 +124,7 @@ describe('query', () => {
   });
 });
 
-describe('repositories list', () => {
+describe('repository list', () => {
   it('#85 item 5: POSTs the GraphQL repositories query to /graphql and returns count and the repositories', async () => {
     const { envelope, calls } = await run(repositoriesListCommand, {}, [answer({ data: { repositories } })]);
     expect(calls).toEqual([{ method: 'POST', url: `${LOGSCALE}/graphql`, headers: HEADERS, body: JSON.stringify({ query: REPOSITORIES_QUERY }) }]);

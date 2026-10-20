@@ -164,7 +164,7 @@ export interface ContextInput {
   flags?: string;
   /**
    * `group` (the default): an input of every command in the area, a flag on
-   * the group (`toil github --owner o get-pr`) and a field on every MCP tool.
+   * the group (`toil github --owner o pr get 7`) and a field on every MCP tool.
    * `command`: only on commands that list it in their `context`, as a leaf flag.
    */
   scope?: 'group' | 'command';

@@ -55,5 +55,5 @@ export const kibanaSupported: SupportedVersion = {
   product: 'Kibana',
   minimum: null,
   api: 'REST API',
-  note: "toil calls /api/status, /api/spaces/space, /api/saved_objects/_find and _export, /api/data_views and the alerting rule APIs with an API key sent as an ApiKey header. Requests follow Elastic's current Kibana API reference; data views list needs Kibana 8.0 or later. No release has been verified yet.",
+  note: "toil calls /api/status, /api/spaces/space, /api/saved_objects/_find and _export, /api/data_views and the alerting rule APIs with an API key sent as an ApiKey header. Requests follow Elastic's current Kibana API reference; data-view list needs Kibana 8.0 or later. No release has been verified yet.",
 };

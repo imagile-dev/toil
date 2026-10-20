@@ -79,14 +79,14 @@ export const LIVE_COMMANDS: readonly string[] = [
   'ado work-item iterations',
   'ado pr list',
   'ado run list',
-  'github get-issue',
-  'github issue-events',
-  'github projects list-items',
-  'github list-prs',
-  'github list-checks',
-  'bitbucket list-prs',
-  'jenkins pipeline list-runs',
-  'openshift deployments',
+  'github issue get',
+  'github issue history',
+  'github project items',
+  'github pr list',
+  'github commit checks',
+  'bitbucket pr list',
+  'jenkins pipeline runs',
+  'openshift deployment list',
 ];
 
 /** Fields a live tool never offers: the dossier is fixed, and a file or folder on this machine is not the agent's to name. */

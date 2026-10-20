@@ -18,7 +18,7 @@
   {
     "key": "platformUrl",
     "env": "TOIL_DYNATRACE_PLATFORM_URL",
-    "description": "Platform URL for trace, like https://<environment-id>.apps.dynatrace.com",
+    "description": "Platform URL for trace get, like https://<environment-id>.apps.dynatrace.com",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -26,7 +26,7 @@
   {
     "key": "platformToken",
     "env": "TOIL_DYNATRACE_PLATFORM_TOKEN",
-    "description": "Platform token for trace, sent as Bearer",
+    "description": "Platform token for trace get, sent as Bearer",
     "required": false,
     "secret": true,
     "fallbacks": []

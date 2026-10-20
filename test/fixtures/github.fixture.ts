@@ -148,7 +148,7 @@ const routes: Route[] = [
   { method: 'POST', path: '/api/v3/user/repos', respond: { status: 201, json: repository() } },
   { method: 'POST', path: '/api/v3/orgs/imagile/repos', respond: { status: 201, json: repository() } },
   { method: 'POST', path: `${REPO}/issues`, respond: { status: 201, json: issue() } },
-  // The issues endpoint answers with pull requests mixed in; list-issues drops them.
+  // The issues endpoint answers with pull requests mixed in; issue list drops them.
   { path: `${REPO}/issues`, respond: { json: [issue(9), prAsIssue(7)] } },
   { path: `${REPO}/issues/9`, respond: { json: issue(9) } },
   { path: `${REPO}/issues/10`, respond: { json: issue(10) } },
@@ -160,7 +160,7 @@ const routes: Route[] = [
   { method: 'POST', path: `${REPO}/pulls`, respond: { status: 201, json: pullRequest(7) } },
   { method: 'PATCH', path: pr, respond: { json: pullRequest(7) } },
   { method: 'PUT', path: `${pr}/merge`, respond: { json: { sha: 'abc1234', merged: true, message: 'Pull Request successfully merged' } } },
-  // GET /pulls/7 answers both get-pr (JSON) and diff (the diff media type).
+  // GET /pulls/7 answers both pr get (JSON) and pr diff (the diff media type).
   { path: pr, respond: (request) => (request.headers.accept === 'application/vnd.github.v3.diff' ? { text: DIFF } : { json: pullRequest(7) }) },
   { path: `${pr}/files`, respond: { json: [file()] } },
   { path: `${REPO}/issues/7/comments`, respond: { json: [comment()] } },

@@ -11,7 +11,7 @@ import type { SupportedVersion } from '../../core/supported.js';
  * is the step most compliance programmes also stop at.
  */
 
-const project = z.string().min(1).optional().describe('Default project ID for project, tasks, task and threats');
+const project = z.string().min(1).optional().describe('Default project ID for project get, task list, task get and threat list');
 
 export const sdeArea = defineArea({
   name: 'sde',
@@ -38,13 +38,6 @@ export const sdeArea = defineArea({
     project: {
       description: 'SD Elements project ID',
       flags: '--project <id>',
-      scope: 'command',
-      setting: 'project',
-    },
-    // `sde project` has always spelt the same project ID --id.
-    id: {
-      description: 'SD Elements project ID',
-      flags: '--id <id>',
       scope: 'command',
       setting: 'project',
     },

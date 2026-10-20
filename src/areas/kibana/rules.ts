@@ -56,25 +56,25 @@ export function summarizeRule(r: Rule): Record<string, unknown> {
 // GET /api/alerting/rules/_find:
 // https://www.elastic.co/docs/api/doc/kibana/operation/operation-get-alerting-rules-find
 export const rulesListCommand = kibanaArea.command({
-  path: ['kibana', 'rules', 'list'],
+  path: ['kibana', 'rule', 'list'],
   description: 'List alerting rules with their schedule and last execution status',
   input: z.object({
     search: z.string().optional().describe('Match rule names; supports a trailing * wildcard'),
     page: intText.default('1').describe('Page number (default: "1")'),
-    perPage: intText.default('100').describe('Results per page (default: "100")'),
+    pageSize: intText.default('100').describe('Results per page (default: "100")'),
   }),
   writes: false,
   context: { space: 'optional' },
   options: [
     { flags: '--search <text>', field: 'search', description: 'Match rule names; supports a trailing * wildcard' },
     { flags: '--page <n>', field: 'page', description: 'Page number (default: "1")' },
-    { flags: '--per-page <n>', field: 'perPage', description: 'Results per page (default: "100")' },
+    { flags: '--page-size <n>', field: 'pageSize', description: 'Results per page (default: "100")' },
   ],
-  examples: [{}, { search: 'High*', space: 'ops', page: '1', perPage: '20' }],
+  examples: [{}, { search: 'High*', space: 'ops', page: '1', pageSize: '20' }],
   run: async (input, ctx) => {
     const space = ctx.context.space;
     const page = positiveInt(input.page, '--page');
-    const perPage = positiveInt(input.perPage, '--per-page');
+    const perPage = positiveInt(input.pageSize, '--page-size');
     const data = await kibana<RulesFindResponse>(ctx, spacePath(space, '/api/alerting/rules/_find'), {
       query: { search: input.search, search_fields: input.search ? 'name' : undefined, page, per_page: perPage },
     });
@@ -86,14 +86,14 @@ export const rulesListCommand = kibanaArea.command({
 // GET /api/alerting/rule/{id}:
 // https://www.elastic.co/docs/api/doc/kibana/operation/operation-get-alerting-rule-id
 export const rulesGetCommand = kibanaArea.command({
-  path: ['kibana', 'rules', 'get'],
+  path: ['kibana', 'rule', 'get'],
   description: 'Get one alerting rule, including its params and actions',
   input: z.object({
     id: z.string().min(1).describe('Rule ID'),
   }),
   writes: false,
   context: { space: 'optional' },
-  options: [{ flags: '--id <id>', field: 'id', description: 'Rule ID' }],
+  args: [{ name: 'id', field: 'id', description: 'Rule ID' }],
   examples: [{ id: 'abc12345-0000-0000-0000-000000000000' }, { id: 'abc12345-0000-0000-0000-000000000000', space: 'ops' }],
   run: async (input, ctx) => {
     const space = ctx.context.space;

@@ -86,16 +86,16 @@ describe('the connection string', () => {
 });
 
 describe('the project ID', () => {
-  it('comes from the connection (defaults.sde.project) and says so in meta.context; --id on project', async () => {
+  it('comes from the connection (defaults.sde.project) and says so in meta.context; project get takes the ID as an argument', async () => {
     const config = { sde: { ...fixtureConfig.sde, project: '7' } };
     const tasks = await run(tasksCommand, {}, [ok(page('/x/', [], 0, 1, 100))], config);
     expect(urlOf(tasks.calls)).toEqual([`${SDE}/api/v2/projects/7/tasks/?page=1&page_size=100`]);
     expect(tasks.envelope.meta.context?.inputs?.project).toEqual({ value: '7', source: 'connection' });
     const project = await run(projectCommand, {}, [ok(sdeProject(7))], config);
     expect(urlOf(project.calls)).toEqual([`${SDE}/api/v2/projects/7/`]);
-    expect(project.envelope.meta.context?.inputs?.id).toEqual({ value: '7', source: 'connection' });
-    const flag = await run(projectCommand, { id: '9' }, [ok(sdeProject(9))], config);
-    expect(urlOf(flag.calls)).toEqual([`${SDE}/api/v2/projects/9/`]);
+    expect(project.envelope.meta.context?.inputs?.project).toEqual({ value: '7', source: 'connection' });
+    const positional = await run(projectCommand, { id: '9' }, [ok(sdeProject(9))], config);
+    expect(urlOf(positional.calls)).toEqual([`${SDE}/api/v2/projects/9/`]);
   });
 
   it('missing or not a positive whole number fails with the contract\'s specified wording before any request', async () => {
@@ -113,7 +113,7 @@ describe('the project ID', () => {
 });
 
 describe('the list commands', () => {
-  it('users sends each filter by the API\'s name, then page and page_size, and returns the server page as data', async () => {
+  it('user list sends each filter by the API\'s name, then page and page_size, and returns the server page as data', async () => {
     const body = page('/users/', [sdeUser(1)], 26, 2, 25);
     const { envelope, calls } = await run(usersCommand, { email: 'you@example.com', firstName: 'Pat', lastName: 'Lee', active: 'true', page: '2', pageSize: '25' }, [ok(body)]);
     expect(calls).toEqual([
@@ -123,7 +123,7 @@ describe('the list commands', () => {
     expect(envelope.data).toEqual(body);
   });
 
-  it('projects keeps commas literal and checks --active against true, false and all', async () => {
+  it('project list keeps commas literal and checks --active against true, false and all', async () => {
     const { calls } = await run(projectsCommand, { active: 'all', expand: 'application,creator', include: 'task_counts,permissions' }, [ok(page('/projects/', [], 0, 1, 100))]);
     expect(urlOf(calls)).toEqual([`${SDE}/api/v2/projects/?active=all&expand=application,creator&include=task_counts,permissions&page=1&page_size=100`]);
     const bad = await run(projectsCommand, { active: 'yes' }, []);
@@ -133,7 +133,7 @@ describe('the list commands', () => {
     expect(users.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid --active value: "all". Allowed: true, false.' });
   });
 
-  it('tasks and threats send their filters unchecked, by the API\'s names', async () => {
+  it('task list and threat list send their filters unchecked, by the API\'s names', async () => {
     const tasks = await run(tasksCommand, { project: '42', assignedTo: 'you@example.com', priority: 'high', accepted: 'maybe' }, [ok(page('/x/', [], 0, 1, 100))]);
     expect(urlOf(tasks.calls)).toEqual([`${SDE}/api/v2/projects/42/tasks/?priority=high&assigned_to=you%40example.com&accepted=maybe&page=1&page_size=100`]);
     const threats = await run(threatsCommand, { project: '42', capecId: '66', componentId: 'C12', severity: 'x' }, [ok(page('/x/', [], 0, 1, 100))]);
@@ -179,20 +179,20 @@ describe('the list commands', () => {
   });
 });
 
-describe('project and task', () => {
-  it('project sends expand and include', async () => {
+describe('project get and task get', () => {
+  it('project get sends expand and include', async () => {
     const { envelope, calls } = await run(projectCommand, { id: '42', expand: 'application,business_unit', include: 'task_counts' }, [ok(sdeProject(PROJECT))]);
     expect(urlOf(calls)).toEqual([`${SDE}/api/v2/projects/42/?expand=application,business_unit&include=task_counts`]);
     expect(envelope.data).toEqual(sdeProject(PROJECT));
   });
 
-  it('task needs --task', async () => {
+  it('task get needs a task ID', async () => {
     const { envelope, calls } = await run(taskCommand, { project: '42' }, []);
     expect(calls).toEqual([]);
     expect(envelope.error?.code).toBe('INVALID_INPUT');
   });
 
-  it('suspected bug #86 item 1: --task goes into the path as given, with no <project>- prefix and no encoding', async () => {
+  it('suspected bug #86 item 1: the task ID goes into the path as given, with no <project>- prefix and no encoding', async () => {
     const bare = await run(taskCommand, { project: '42', task: 'T21' }, [ok(sdeTask(21))]);
     expect(urlOf(bare.calls)).toEqual([`${SDE}/api/v2/projects/42/tasks/T21/`]);
     const composite = await run(taskCommand, { project: '42', task: '42-T21', expand: 'status' }, [ok(sdeTask(21))]);

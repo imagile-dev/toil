@@ -3,7 +3,7 @@
   "divergences": [
     {
       "allows": [],
-      "old": "confluence download-attachment fetching the attachment's _links.download, with the token, from whatever host an absolute link names",
+      "old": "confluence attachment download fetching the attachment's _links.download, with the token, from whatever host an absolute link names",
       "toil": "The token goes only to baseUrl's origin: an absolute download link on another host has its path and query re-pointed at baseUrl, with a CONFLUENCE_ATTACHMENT_HOST warning. Relative links, the usual shape, still resolve under baseUrl (#78 item 1)",
       "why": "A server-supplied URL must not carry the user's credential to a host they didn't configure. A change a principle requires, so the integration makes it before a live run (CLAUDE.md, The command contract).",
       "principle": "9",
@@ -11,7 +11,7 @@
     },
     {
       "allows": [],
-      "old": "Ids, space keys and labels put into URL paths as given, so a value with .., /, \\, ? or # changes which resource a request names (delete-page --id ../space/DOCS sends DELETE /rest/api/space/DOCS)",
+      "old": "Ids, space keys and labels put into URL paths as given, so a value with .., /, \\, ? or # changes which resource a request names (page delete ../space/DOCS sends DELETE /rest/api/space/DOCS)",
       "toil": "A path value containing /, \\, ? or # is refused with INVALID_INPUT before any request, and so is one that is a . or .. segment in any spelling (%2e%2e, a tab or newline inside it, or ;params after it, as in ..;x), by core's requests.path bound (docs/bounds.md). Plain values still go in unencoded (#78 item 4)",
       "why": "The write gate approves the command a caller asked for; a value must not turn a page delete into a space delete. An agent can be handed such a value by text in the content it reads.",
       "principle": "2",
@@ -19,14 +19,14 @@
     },
     {
       "allows": [],
-      "old": "confluence delete-page and delete-attachment as commands of every front door",
+      "old": "confluence page delete and attachment delete as commands of every front door",
       "toil": "CLI only, still behind the write gate: they are not MCP tools",
       "why": "Deletes are never exposed through MCP (CLAUDE.md, Writes).",
       "principle": "2"
     },
     {
       "allows": [],
-      "old": "confluence download-attachment writing to a file that already exists",
+      "old": "confluence attachment download writing to a file that already exists",
       "toil": "Refused with INVALID_INPUT naming the path; the existing file is left alone. The contract records it being replaced",
       "why": "A read-only command, whose file name comes from whoever uploaded the attachment, must not change files already on disk.",
       "principle": "2",
@@ -34,14 +34,14 @@
     },
     {
       "allows": [],
-      "old": "confluence download-attachment reporting saved with the platform's separator",
+      "old": "confluence attachment download reporting saved with the platform's separator",
       "toil": "saved uses forward slashes on every platform; the file lands in the same place",
       "why": "Paths in JSON output are identical on Windows, macOS and Linux (CLAUDE.md, Cross-Platform). On macOS and Linux the separator is unchanged.",
       "principle": "8"
     },
     {
       "allows": [],
-      "old": "confluence download-attachment reporting saved as --dir joined with the file name, so a relative --dir gives a relative path",
+      "old": "confluence attachment download reporting saved as --dir joined with the file name, so a relative --dir gives a relative path",
       "toil": "saved is always the absolute path written, with forward slashes, even when --dir is relative. The file lands in the same place (#233)",
       "why": "A relative --dir resolves against the workspace, which over MCP is not the caller's working directory, so a relative saved would point somewhere else. The absolute path says exactly where the file is.",
       "principle": "4"
@@ -55,7 +55,7 @@
     },
     {
       "allows": [],
-      "old": "confluence list-pages, list-spaces, get-page-children, get-labels, list-comments and list-attachments paging for as long as the server keeps sending _links.next, advancing start by the page's size",
+      "old": "confluence page list, space list, page children, page labels, page comments and page attachments paging for as long as the server keeps sending _links.next, advancing start by the page's size",
       "toil": "start advances by the number of results read, and paging also stops on an empty page or after 1,000 pages (25,000 items) with an HTTP error naming the list and a fix to narrow it",
       "why": "A server that ignores start, or sends an empty page with a next link, would otherwise be asked for the same page forever. size equals the number of results on every real page.",
       "principle": "4"

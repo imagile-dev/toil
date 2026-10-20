@@ -86,7 +86,7 @@ for (const target of targets) {
       });
     });
 
-    describe('describe-table', () => {
+    describe('table describe', () => {
       it('describes columns, primary key, indexes and foreign keys', async () => {
         const d = (await run(describeTable, { table: 'people' })).data as Record<string, unknown>;
         expect(d).toMatchObject({ schema: schema(), name: n('people'), type: 'table', primaryKey: [n('id')] });
@@ -120,7 +120,7 @@ for (const target of targets) {
       });
     });
 
-    describe('preview-table', () => {
+    describe('table preview', () => {
       it('returns columns and rows as arrays, every row with no cursor when they fit', async () => {
         const envelope = await run(previewTable, { table: 'teams' });
         expect(data(envelope)).toEqual({
@@ -261,9 +261,10 @@ for (const target of targets) {
           return e.error?.fix ?? '';
         });
         const registered = new Set(commands.map((c) => c.path.join(' ')));
-        const named = fixes.flatMap((f) => [...f.matchAll(/toil (db [a-z][a-z-]*)/g)].map((m) => m[1]!));
+        // A command is one word after db (`db query`) or two (`db table list`), so the words after it may be prose.
+        const named = fixes.flatMap((f) => [...f.matchAll(/toil (db(?: [a-z][a-z-]*){1,2})/g)].map((m) => m[1]!));
         expect(named.length, 'the hints name at least some commands').toBeGreaterThan(3);
-        expect(named.filter((n) => !registered.has(n))).toEqual([]);
+        expect(named.filter((n) => !registered.has(n) && !registered.has(n.split(' ').slice(0, 2).join(' ')))).toEqual([]);
       });
     });
 

@@ -181,7 +181,7 @@ export function toToilError(err: unknown, conn: DbConnection, mode: Mode): unkno
     return new ToilError('DATABASE', `PostgreSQL: ${message}`, { fix: 'A conflict with other sessions, or the server is out of connections. Retry shortly.' });
   }
   if (sqlstate) {
-    return new ToilError('DATABASE', `PostgreSQL: ${message}`, { fix: 'Check the SQL against toil db describe-table for the tables it uses.' });
+    return new ToilError('DATABASE', `PostgreSQL: ${message}`, { fix: 'Check the SQL against toil db table describe for the tables it uses.' });
   }
 
   if (typeof f.code === 'string' && NETWORK_CODES.has(f.code)) {
@@ -238,12 +238,12 @@ async function findTable(client: PgClient, ref: TableRef): Promise<{ oid: number
 }
 
 function notFoundSchema(conn: DbConnection, schema: string): ToilError {
-  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema "${schema}".`, { fix: 'Run toil db list-schemas to see the schemas it has.' });
+  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema "${schema}".`, { fix: 'Run toil db schema list to see the schemas it has.' });
 }
 
 function notFoundTable(conn: DbConnection, ref: TableRef): ToilError {
   return new ToilError('NOT_FOUND', `Schema "${ref.schema}" on connection ${conn.name} has no table or view "${ref.table}".`, {
-    fix: `Run toil db list-tables --schema ${ref.schema} to see what it has. Names are case-sensitive: an unquoted name is stored in lower case.`,
+    fix: `Run toil db table list --schema ${ref.schema} to see what it has. Names are case-sensitive: an unquoted name is stored in lower case.`,
   });
 }
 

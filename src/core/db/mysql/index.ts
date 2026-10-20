@@ -221,7 +221,7 @@ function toToilError(raw: unknown, conn: DbConnection, mode: Mode): unknown {
     return new ToilError('DATABASE', `MySQL: ${message}`, { fix: 'A conflict with other sessions, or the server is out of connections. Retry shortly.' });
   }
   if (errno !== undefined) {
-    return new ToilError('DATABASE', `MySQL: ${message}`, { fix: 'Check the SQL against toil db describe-table for the tables it uses.' });
+    return new ToilError('DATABASE', `MySQL: ${message}`, { fix: 'Check the SQL against toil db table describe for the tables it uses.' });
   }
 
   if (typeof f.code === 'string' && NETWORK_CODES.has(f.code)) {
@@ -283,12 +283,12 @@ function tableType(type: string): 'table' | 'view' {
 }
 
 function notFoundSchema(conn: DbConnection, schema: string): ToilError {
-  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema (database) "${schema}".`, { fix: 'Run toil db list-schemas to see the schemas it has.' });
+  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema (database) "${schema}".`, { fix: 'Run toil db schema list to see the schemas it has.' });
 }
 
 function notFoundTable(conn: DbConnection, ref: TableRef): ToilError {
   return new ToilError('NOT_FOUND', `Schema "${ref.schema}" on connection ${conn.name} has no table or view "${ref.table}".`, {
-    fix: `Run toil db list-tables --schema ${ref.schema} to see what it has. On most Linux servers table names are case-sensitive.`,
+    fix: `Run toil db table list --schema ${ref.schema} to see what it has. On most Linux servers table names are case-sensitive.`,
   });
 }
 

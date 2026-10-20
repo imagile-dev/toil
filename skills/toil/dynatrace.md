@@ -10,7 +10,7 @@ Monitored entities, services, Kubernetes workloads and problems from the Dynatra
 reads; none changes anything. Verification level: `unit`.
 
 **Supported versions:** The oldest Dynatrace version toil supports hasn't been established. The
-classic commands call Environment API v2 (`/api/v2`) on SaaS and Managed; `trace`
+classic commands call Environment API v2 (`/api/v2`) on SaaS and Managed; `trace get`
 needs the platform Grail query API (`/platform/storage/query/v1`), so a deployment
 without the platform can't run it. No release has been verified yet.
 
@@ -18,10 +18,10 @@ without the platform can't run it. No release has been verified yet.
 
 Two hosts, two tokens, and each token goes only to its own host:
 
-- **Access token**, for every command except `trace`. In Dynatrace: Access tokens →
+- **Access token**, for every command except `trace get`. In Dynatrace: Access tokens →
   Generate new token, with the `entities.read` and `problems.read` scopes. toil sends
   it to `baseUrl` as `Authorization: Api-Token <token>`.
-- **Platform token**, for `trace` only, with the `storage:spans:read` and
+- **Platform token**, for `trace get` only, with the `storage:spans:read` and
   `storage:buckets:read` scopes. toil sends it to `platformUrl` as
   `Authorization: Bearer <token>`.
 
@@ -31,10 +31,10 @@ There is no username, password or browser login, and no CI fallback variable.
 
 | Key | Env var | Required | Meaning |
 |-----|---------|----------|---------|
-| `baseUrl` | `TOIL_DYNATRACE_BASE_URL` | for all but `trace` | Classic environment URL, like `https://<environment-id>.live.dynatrace.com`. On Managed, keep the `/e/<environment-id>` path |
-| `apiToken` | `TOIL_DYNATRACE_API_TOKEN` | for all but `trace` | Access token, sent as `Api-Token` |
-| `platformUrl` | `TOIL_DYNATRACE_PLATFORM_URL` | for `trace` | Platform URL, like `https://<environment-id>.apps.dynatrace.com` |
-| `platformToken` | `TOIL_DYNATRACE_PLATFORM_TOKEN` | for `trace` | Platform token, sent as `Bearer` |
+| `baseUrl` | `TOIL_DYNATRACE_BASE_URL` | for all but `trace get` | Classic environment URL, like `https://<environment-id>.live.dynatrace.com`. On Managed, keep the `/e/<environment-id>` path |
+| `apiToken` | `TOIL_DYNATRACE_API_TOKEN` | for all but `trace get` | Access token, sent as `Api-Token` |
+| `platformUrl` | `TOIL_DYNATRACE_PLATFORM_URL` | for `trace get` | Platform URL, like `https://<environment-id>.apps.dynatrace.com` |
+| `platformToken` | `TOIL_DYNATRACE_PLATFORM_TOKEN` | for `trace get` | Platform token, sent as `Bearer` |
 | `env` | `TOIL_DYNATRACE_ENV` | no | The environment name `--env` selects this connection by, when it differs from the connection's name |
 
 A command that needs a missing key fails with `NOT_CONFIGURED` naming it
@@ -78,26 +78,26 @@ default connection only; for another one use `TOIL_CONN_<NAME>_<KEY>`
 (`TOIL_CONN_STAGING_API_TOKEN`).
 
 ```bash
-toil dynatrace --env staging problems list
+toil dynatrace --env staging problem list
 ```
 
 ## Commands
 
-- `entities list`: List monitored entities using an entity selector. `--selector`
+- `entity list`: List monitored entities using an entity selector. `--selector`
   is required; `--from`, `--to` and `--fields` are passed through.
-- `entities get`: Get a monitored entity by ID (`--id`, plus `--from`, `--to`,
-  `--fields`). `data` is Dynatrace's entity as it came.
-- `services`: List monitored services: `entities list` with `type("SERVICE")`
+- `entity get <id>`: Get a monitored entity by ID (`--from`, `--to`, `--fields`). `data` is Dynatrace's entity as it came.
+- `service list`: List monitored services: `entity list` with `type("SERVICE")`
   (`--from`, `--to`). `data` is `{ totalCount, services }`.
-- `workloads`: List monitored Kubernetes workloads: `entities list` with
+- `workload list`: List monitored Kubernetes workloads: `entity list` with
   `type("CLOUD_APPLICATION")` (`--from`, `--to`). `data` is `{ totalCount, workloads }`.
-- `problems list`: List problems. `--from` defaults to `now-2h` and `--to` to `now`;
+- `problem list`: List problems. `--from` defaults to `now-2h` and `--to` to `now`;
   `--problem-selector` and `--entity-selector` filter. `data` is
   `{ totalCount, problems }`.
-- `problems get`: Get a problem by ID (`--id`, `--fields`). `data` is Dynatrace's
-  problem as it came.
-- `trace`: Get distributed-trace spans from Grail (`--id`, 16 to 32 hexadecimal
-  characters). It runs `fetch spans | filter trace.id == "<id>" | sort start_time asc`
+- `problem get <id>`: Get a problem by ID (`--fields`). `data` is Dynatrace's
+  problem as it came. A problem id often starts with `-`; on the CLI, put `--`
+  before it so it isn't read as a flag (`problem get -- -1234567890123456789_1700000000000V2`).
+- `trace get <id>`: Get distributed-trace spans from Grail (the id is 16 to 32
+  hexadecimal characters). It runs `fetch spans | filter trace.id == "<id>" | sort start_time asc`
   and waits up to 60 seconds for Grail, polling at most once a second; past that it
   fails with `TIMEOUT`. `data` is the query's `result` (`records`, `types`,
   `metadata`). The query sends no timeframe and no record limit, so Grail's
@@ -112,9 +112,9 @@ Dynatrace's own error text isn't shown yet: an error is the status line, such as
 `HTTP 400 Bad Request`, with toil's fix.
 
 ```bash
-toil dynatrace entities list --selector 'type("HOST"),tag("team:payments")'
-toil dynatrace problems list --from now-1d --problem-selector 'status("open")'
-toil dynatrace trace --id 4bf92f3577b34da6a3ce929d0e0e4736
+toil dynatrace entity list --selector 'type("HOST"),tag("team:payments")'
+toil dynatrace problem list --from now-1d --problem-selector 'status("open")'
+toil dynatrace trace get 4bf92f3577b34da6a3ce929d0e0e4736
 ```
 
 ## Checking a dossier

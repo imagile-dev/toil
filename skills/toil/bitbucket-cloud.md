@@ -34,8 +34,8 @@ setting both is refused with `CONFIG_INVALID`.
   - reads: `read:repository:bitbucket`, `read:pullrequest:bitbucket` and
     `read:pipeline:bitbucket`, plus `read:user:bitbucket` for `toil connections test`
   - writes: `write:pullrequest:bitbucket` (pull requests and comments),
-    `write:repository:bitbucket` (`create-branch`, `create-tag`) and
-    `admin:repository:bitbucket` (`create-repo`)
+    `write:repository:bitbucket` (`branch create`, `tag create`) and
+    `admin:repository:bitbucket` (`repo create`)
 - **A workspace, project or repository access token**, from Repository settings,
   Project settings or Workspace settings → Access tokens. toil sends
   `Authorization: Bearer <accessToken>`. The token acts as itself, named after the
@@ -95,75 +95,76 @@ the env var. Env vars always win over the file.
 ## Workspace and repository
 
 Every command takes `--ws <slug>` and `--repo <slug>`, before or after the command
-name: `toil bitbucket-cloud --ws imagile --repo toil list-prs`. It's `--ws`, not
+name: `toil bitbucket-cloud --ws imagile --repo toil pr list`. It's `--ws`, not
 `--workspace`, because toil's own `--workspace` is the folder commands may read and
 write files in. Each falls back to a dossier, then the connection's `workspace` and
-`repo`. The git remote is not read. `list-repos` and `create-repo` need only the
+`repo`. The git remote is not read. `repo list` and `repo create` need only the
 workspace; everything else needs both. Over MCP they're the `workspace` and `repo`
 fields.
 
 ## Commands
 
-Every command also takes `--connection <name>`. Write commands (marked ✎) need
-`writes: true` on the connection **and** `--allow-write`. Names and flags match
+Commands are `toil bitbucket-cloud <resource> <action> [ids...] [--flags]`; ids are
+positional. Every command also takes `--connection <name>`. Write commands (marked ✎)
+need `writes: true` on the connection **and** `--allow-write`. Names and flags match
 `bitbucket` wherever the operation is the same. MCP tools are
-`bitbucket_cloud_<command>` (`bitbucket_cloud_get_pr`). `delete-comment` is CLI only:
-it is never an MCP tool.
+`bitbucket_cloud_<command>` (`bitbucket_cloud_pr_get`), and a positional id is the
+field of the same name (`id` for a pull request). `pr delete-comment` is CLI only: it
+is never an MCP tool.
 
 | Command | Flags | Returns |
 |---------|-------|---------|
-| `list-repos` | `--filter --limit --cursor` | Repositories in the workspace |
-| `get-repo` | | The repository |
-| `create-repo` ✎ | `--name --description --project --public` | The created repository (private unless `--public`) |
-| `list-branches` | `--filter --limit --cursor` | Branches, each with its target commit |
-| `create-branch` ✎ | `--name --commit` | The created branch |
-| `list-tags` | `--filter --limit --cursor` | Tags, each with its target commit |
-| `create-tag` ✎ | `--name --commit --message` | The created annotated tag |
-| `list-commits` | `--branch --path --limit --cursor` | Commits, newest first (100 unless `--limit` says otherwise) |
-| `get-commit` | `--commit` | The commit |
-| `get-file` | `--path --ref` | `{ path, commit, content }` |
-| `list-dir` | `--path --ref` | The folder's files and subfolders |
-| `list-prs` | `--state --query --limit --cursor` | Pull requests in one state (`OPEN` unless `--state` says otherwise) |
-| `get-pr` | `--id` | The pull request, with participants |
-| `create-pr` ✎ | `--title --source --target --description --reviewers --close-source-branch --draft` | The created pull request |
-| `update-pr` ✎ | `--id --title --description --reviewers --target` | The updated pull request |
-| `merge-pr` ✎ | `--id --strategy --message --delete-branch` | The merged pull request, or `{ pending, taskStatus }` |
-| `decline-pr` ✎ | `--id` | The declined pull request |
-| `current-pr` | | The open pull request from the current git branch, or `null` |
-| `diff` | `--pr --spec --file --context-lines` | `{ diff }`, unified diff text |
-| `list-files` | `--pr` | Paths the pull request changes |
-| `approve` ✎ | `--pr` | The participant record |
-| `unapprove` ✎ | `--pr` | `{ unapproved }` |
-| `request-changes` ✎ | `--pr` | The participant record |
-| `list-reviewers` | `--pr` | Reviewer participants, with `approved` and `state` |
-| `list-default-reviewers` | | The repository's default reviewers |
-| `list-builds` | `--pr` | Build statuses on the pull request |
-| `get-build-status` | `--commit` | Build statuses on the commit |
-| `list-comments` | `--pr --no-with-replies --inline-only --general-only` | Comments, oldest first, replies included |
-| `add-comment` ✎ | `--pr --body` | The comment |
-| `add-inline-comment` ✎ | `--pr --file --line --body --line-type` | The comment |
-| `reply-comment` ✎ | `--pr --comment-id --body` | The reply |
-| `resolve-comment` ✎ | `--pr --comment-id` | The resolution record |
-| `delete-comment` ✎ (CLI only) | `--pr --comment-id` | `{ deleted }` |
-| `list-pipelines` | `--branch --limit --cursor` | Pipeline runs, newest first (100 unless `--limit` says otherwise) |
-| `get-pipeline` | `--pipeline` | The pipeline run |
-| `list-pipeline-steps` | `--pipeline` | Its steps |
-| `get-step-log` | `--pipeline --step` | `{ log }`, the step's log text |
-| `api` | `<METHOD> <path> --query --body-file --content-type` | Any endpoint (below) |
+| `repo list` | `--filter --limit --cursor` | Repositories in the workspace |
+| `repo get` | | The repository |
+| `repo create` ✎ | `--name --description --project --public` | The created repository (private unless `--public`) |
+| `repo default-reviewers` | | The repository's default reviewers |
+| `branch list` | `--filter --limit --cursor` | Branches, each with its target commit |
+| `branch create` ✎ | `--name --commit` | The created branch |
+| `tag list` | `--filter --limit --cursor` | Tags, each with its target commit |
+| `tag create` ✎ | `--name --commit --message` | The created annotated tag |
+| `commit list` | `--branch --path --limit --cursor` | Commits, newest first (100 unless `--limit` says otherwise) |
+| `commit get <commit>` | | The commit |
+| `commit status <commit>` | | Build statuses on the commit |
+| `file get <path>` | `--ref` | `{ path, commit, content }` |
+| `file list [path]` | `--ref` | The folder's files and subfolders (the repository root without a path) |
+| `pr list` | `--state --query --limit --cursor` | Pull requests in one state (`OPEN` unless `--state` says otherwise) |
+| `pr get <id>` | | The pull request, with participants |
+| `pr create` ✎ | `--title --source --target --description --reviewers --close-source-branch --draft` | The created pull request |
+| `pr update <id>` ✎ | `--title --description --reviewers --target` | The updated pull request |
+| `pr merge <id>` ✎ | `--strategy --message --delete-branch` | The merged pull request, or `{ pending, taskStatus }` |
+| `pr decline <id>` ✎ | | The declined pull request |
+| `pr current` | | The open pull request from the current git branch, or `null` |
+| `pr diff [id]` | `--spec --file --context-lines` | `{ diff }`, unified diff text |
+| `pr files <id>` | | Paths the pull request changes |
+| `pr approve <id>` ✎ | | The participant record |
+| `pr unapprove <id>` ✎ | | `{ unapproved }` |
+| `pr request-changes <id>` ✎ | | The participant record |
+| `pr reviewers <id>` | | Reviewer participants, with `approved` and `state` |
+| `pr builds <id>` | | Build statuses on the pull request |
+| `pr comments <id>` | `--no-with-replies --inline-only --general-only` | Comments, oldest first, replies included |
+| `pr comment <id>` ✎ | `--body` | The comment |
+| `pr comment-inline <id>` ✎ | `--file --line --body --line-type` | The comment |
+| `pr reply <id> <comment-id>` ✎ | `--body` | The reply |
+| `pr resolve <id> <comment-id>` ✎ | | The resolution record |
+| `pr delete-comment <id> <comment-id>` ✎ (CLI only) | | `{ deleted }` |
+| `pipeline list` | `--branch --limit --cursor` | Pipeline runs, newest first (100 unless `--limit` says otherwise) |
+| `pipeline get <pipeline>` | | The pipeline run |
+| `pipeline steps <pipeline>` | | Its steps |
+| `pipeline logs <pipeline> <step>` | | `{ log }`, the step's log text |
 
 ```bash
-toil bitbucket-cloud --ws imagile --repo toil list-prs --state ALL --limit 20
-toil bitbucket-cloud --ws imagile --repo toil get-file --path src/retry.ts --ref feature/retries
-toil bitbucket-cloud --ws imagile --repo toil diff --pr 42 --file src/retry.ts
-toil bitbucket-cloud --ws imagile --repo toil create-pr --title "Add retries" --source feature/retries --allow-write
-toil bitbucket-cloud --ws imagile --repo toil list-pipelines --branch main --limit 5
+toil bitbucket-cloud --ws imagile --repo toil pr list --state ALL --limit 20
+toil bitbucket-cloud --ws imagile --repo toil file get src/retry.ts --ref feature/retries
+toil bitbucket-cloud --ws imagile --repo toil pr diff 42 --file src/retry.ts
+toil bitbucket-cloud --ws imagile --repo toil pr create --title "Add retries" --source feature/retries --allow-write
+toil bitbucket-cloud --ws imagile --repo toil pipeline list --branch main --limit 5
 ```
 
 ### People
 
 Bitbucket Cloud has no usernames in its API. `--reviewers` takes a comma-separated
 list of **Atlassian account ids** (`557058:abc12345-…`), or `{uuid}`s in braces, as
-`get-pr` and `list-default-reviewers` show them. `list-prs --query` filters with
+`pr get` and `repo default-reviewers` show them. `pr list --query` filters with
 Bitbucket's query language, for example `--query 'author.account_id = "557058:abc12345"'`
 or `--query 'source.branch.name = "feature/retries"'`, where `bitbucket` had
 `--author` and `--reviewer`.
@@ -172,8 +173,8 @@ or `--query 'source.branch.name = "feature/retries"'`, where `bitbucket` had
 
 Lists follow Bitbucket's `next` link, 100 items a request, and toil follows a link
 only when it's on the connection's own host and names the same list. Without
-`--limit`, `list-repos`, `list-branches`, `list-tags` and `list-prs` read every page;
-`list-commits` and `list-pipelines` return the newest 100, since a history has no end
+`--limit`, `repo list`, `branch list`, `tag list` and `pr list` read every page;
+`commit list` and `pipeline list` return the newest 100, since a history has no end
 worth reaching. With `--limit N` they return at most N, and `meta.page.nextCursor`
 resumes: pass it back as `--cursor` (with `--limit` on the lists that read every page).
 Every other list is read in full. Paging stops after 1,000 requests with an error
@@ -222,35 +223,35 @@ and `bitbucket-cloud api` doesn't.
 
 ## Notes
 
-- `get-file` and `list-dir` read at `--ref`, a branch, tag or commit hash (the
+- `file get` and `file list` read at `--ref`, a branch, tag or commit hash (the
   repository's main branch without it). A branch or tag is first resolved to its
   newest commit, which `data.commit` reports, so a branch name with a `/` works. A
-  file comes back as text; read a folder with `list-dir`, not `get-file`.
-- `diff --pr` and `list-files` read the pull request first and diff its source commit
+  file comes back as text; read a folder with `file list`, not `file get`.
+- `pr diff <id>` and `pr files` read the pull request first and diff its source commit
   against its destination with `topic=true`, the three-dot diff Bitbucket shows on
-  the pull request, so `--file` and `--context-lines` apply. `diff --spec` takes one
-  commit (against its first parent) or `a..b`. Pass exactly one of `--pr` and `--spec`.
+  the pull request, so `--file` and `--context-lines` apply. `pr diff --spec` takes one
+  commit (against its first parent) or `a..b`. Pass exactly one of an id and `--spec`.
   A pull request from a fork isn't diffed this way: use `--spec` in the fork, or `api`.
-- `update-pr` reads the pull request first and sends back its current title,
+- `pr update` reads the pull request first and sends back its current title,
   description and reviewers for anything not given, so nothing is cleared by
   omission. `--reviewers` replaces the whole list.
-- `merge-pr --delete-branch` sends `close_source_branch`, which deletes the source
+- `pr merge --delete-branch` sends `close_source_branch`, which deletes the source
   branch after the merge. `--strategy` is one of `merge_commit`, `squash`,
   `fast_forward`, `squash_fast_forward`, `rebase_fast_forward` or `rebase_merge`; left
   out, the repository's default applies. When Bitbucket queues the merge or takes
   longer than it waits (`202`), `data` is `{ pending: true, taskStatus }` with a
   `BITBUCKET_CLOUD_MERGE_PENDING` warning: read `taskStatus` with
   `bitbucket-cloud api GET` until its `task_status` is `SUCCESS`.
-- `request-changes` is Cloud's needs-work. `unapprove` withdraws an approval.
-  Adding a single reviewer is `update-pr --reviewers` with the whole list.
-- `add-inline-comment` anchors `ADDED` and `CONTEXT` lines in the new file (`to`) and
+- `pr request-changes` is Cloud's needs-work. `pr unapprove` withdraws an approval.
+  Adding a single reviewer is `pr update --reviewers` with the whole list.
+- `pr comment-inline` anchors `ADDED` and `CONTEXT` lines in the new file (`to`) and
   `REMOVED` lines in the old one (`from`).
-- `resolve-comment` takes the thread's root comment; one that's already resolved is
+- `pr resolve` takes the thread's root comment; one that's already resolved is
   an HTTP `409`.
-- `current-pr` matches the current git branch against open pull requests' source
+- `pr current` matches the current git branch against open pull requests' source
   branch. It reads the branch from `.git`, and the workspace and repository from
   `--ws` and `--repo` or the connection, never from the remote.
-- `get-step-log` follows a redirect to signed storage with every header dropped, so
+- `pipeline logs` follows a redirect to signed storage with every header dropped, so
   the credential stays on `baseUrl`'s host. Pipeline and step uuids are taken with or
   without their braces.
 - Not covered: Issues and Wikis (removed from Bitbucket Cloud in August 2026), the

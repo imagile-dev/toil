@@ -5,7 +5,7 @@ import * as client from './client.js';
 /** Spaces: list them, or read one with its plain-text description. A space is a filing cabinet with a key. */
 
 export const listSpaces = confluenceArea.command({
-  path: ['confluence', 'list-spaces'],
+  path: ['confluence', 'space', 'list'],
   description: 'List Confluence spaces',
   input: z.object({
     type: z.string().optional().describe('Space type: global or personal'),
@@ -25,11 +25,11 @@ export const listSpaces = confluenceArea.command({
 });
 
 export const getSpace = confluenceArea.command({
-  path: ['confluence', 'get-space'],
+  path: ['confluence', 'space', 'get'],
   description: 'Get a Confluence space by key',
   input: z.object({ key: z.string().describe('Space key') }),
   writes: false,
-  options: [{ flags: '--key <space-key>', field: 'key', description: 'Space key' }],
+  args: [{ name: 'key', field: 'key', description: 'Space key' }],
   examples: [{ key: 'DOCS' }],
   run: (input, ctx) => client.getSpace(ctx, input.key),
 });

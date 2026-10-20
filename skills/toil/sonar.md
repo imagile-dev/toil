@@ -25,7 +25,7 @@ browser login.
 |-----|---------|----------|---------|
 | `baseUrl` | `TOIL_SONAR_BASE_URL` | yes | SonarQube server root, e.g. `https://sonar.imagile.dev` (keep any context path) |
 | `token` | `TOIL_SONAR_TOKEN`, then `SONAR_TOKEN` | yes | User token |
-| `project` | `TOIL_SONAR_PROJECT` | no | Default project key for `quality-gate`, `issues`, `measures` and `hotspots` |
+| `project` | `TOIL_SONAR_PROJECT` | no | Default project key for `quality-gate get`, `issue list`, `measure list` and `hotspot list` |
 
 **CI fallback:** when `TOIL_SONAR_TOKEN` isn't set, the default connection takes its
 token from `SONAR_TOKEN`, the variable SonarSource's own scanner reads. It sits
@@ -62,31 +62,35 @@ The project comes from `--project <key>`, else the connection's `project` (usual
 `defaults.sonar.project`). With neither, the command fails with "No project
 specified".
 
-- `quality-gate`: Get quality gate status for a project (`--branch`).
-- `issues`: Search/list issues for a project. Filters `--severities`, `--types` and
+- `quality-gate get`: Get quality gate status for a project (`--branch`).
+- `issue list`: Search/list issues for a project. Filters `--severities`, `--types` and
   `--statuses` take comma lists; `--resolved` sends `true` only for the exact string
   `true`, anything else as `false`.
-- `measures`: Get key metrics for a project. `--metrics` defaults to coverage,
+- `measure list`: Get key metrics for a project. `--metrics` defaults to coverage,
   duplicated lines density, bugs, vulnerabilities, code smells, the three ratings
   and ncloc.
-- `projects`: Search/list projects (`--query`). SonarQube's `api/projects/search`
+- `project list`: Search/list projects (`--query`). SonarQube's `api/projects/search`
   needs the Administer System permission, so other tokens may get `AUTH`.
-- `hotspots`: List security hotspots for a project (`--status`, `--resolution`).
+- `hotspot list`: List security hotspots for a project (`--status`, `--resolution`).
 - `check-dossier`: Check that every project key the call's dossier names (`project`,
   `projectKeys`, `projects`) exists, through `api/components/show`. Returns `{ dossier,
   connection, env, ok, checked, checks, unchecked }`, and the CLI exits 1 when one is missing.
 
-`issues`, `projects` and `hotspots` page with `--page` (default 1) and `--page-size`
+`issue list`, `project list` and `hotspot list` page with `--page` (default 1) and `--page-size`
 (default 100), passed to the server as given; `data` is then SonarQube's own page.
 `--all` ignores both and fetches every page, 500 at a time, until the total is
-reached or a page comes back empty; `data` is then one flat list of items. SonarQube refuses `issues` past the
-10,000th result, so `issues --all` on a larger result fails; narrow the filters.
+reached or a page comes back empty; `data` is then one flat list of items. SonarQube refuses `issue list` past the
+10,000th result, so `issue list --all` on a larger result fails; narrow the filters.
 `--all` also stops with an error after 1,000 pages (500,000 items), and like every
 command it's subject to toil's time limit (`TOIL_TIMEOUT_MS`, 120 s by default), so a
-very large `projects` or `hotspots --all` can end in `TIMEOUT`.
+very large `project list` or `hotspot list --all` can end in `TIMEOUT`.
+
+Over MCP the same commands are tools named after the path, with spaces and hyphens
+as underscores (`sonar_issue_list`, `sonar_quality_gate_get`), taking camelCase
+fields named after the flags (`project`, `pageSize`).
 
 ```bash
-toil sonar quality-gate --project imagile-api
-toil sonar issues --project imagile-api --severities BLOCKER,CRITICAL --all
-toil sonar measures --metrics coverage,bugs --branch main
+toil sonar quality-gate get --project imagile-api
+toil sonar issue list --project imagile-api --severities BLOCKER,CRITICAL --all
+toil sonar measure list --metrics coverage,bugs --branch main
 ```

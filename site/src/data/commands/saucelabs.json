@@ -16,8 +16,8 @@
     "flags": []
   },
   {
-    "name": "platforms",
-    "tool": "saucelabs_platforms",
+    "name": "platform list",
+    "tool": "saucelabs_platform_list",
     "description": "Supported OS/browser/device platforms",
     "writes": false,
     "connection": true,
@@ -26,16 +26,16 @@
     ]
   },
   {
-    "name": "appium-versions",
-    "tool": "saucelabs_appium_versions",
+    "name": "appium-version list",
+    "tool": "saucelabs_appium_version_list",
     "description": "Appium versions available for real-device sessions, with end-of-life dates",
     "writes": false,
     "connection": true,
     "flags": []
   },
   {
-    "name": "users",
-    "tool": "saucelabs_users",
+    "name": "user list",
+    "tool": "saucelabs_user_list",
     "description": "Look up users in your organization",
     "writes": false,
     "connection": true,
@@ -54,7 +54,7 @@
     "connection": true,
     "flags": [
       "--limit <n>",
-      "--skip <n>",
+      "--offset <n>",
       "--from <time>",
       "--to <time>"
     ]
@@ -227,8 +227,8 @@
     ]
   },
   {
-    "name": "build for-job",
-    "tool": "saucelabs_build_for_job",
+    "name": "job build",
+    "tool": "saucelabs_job_build",
     "description": "Get the build a job belongs to",
     "writes": false,
     "connection": true,
@@ -544,7 +544,7 @@
       "--query <text>",
       "--kind <kind>",
       "--page <n>",
-      "--per-page <n>"
+      "--page-size <n>"
     ]
   },
   {
@@ -557,7 +557,7 @@
       "--query <text>",
       "--kind <kind>",
       "--page <n>",
-      "--per-page <n>"
+      "--page-size <n>"
     ]
   },
   {

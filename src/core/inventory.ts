@@ -4,7 +4,7 @@ import { STDIN_OVER_MCP, type FileAccess } from './files.js';
 
 /**
  * Reading a dependency inventory that `toil deps scan` wrote, for the
- * commands that check one against a source (`artifactory outdated`, `osv
+ * commands that check one against a source (`artifactory package outdated`, `osv
  * vulns`, `sonatypeiq evaluate`): `--from <file>`, or stdin when it's left
  * out (`toil deps scan | toil osv vulns`). They read an inventory; none of
  * them scans a repository itself (principle 3). One reader, so every source

@@ -66,7 +66,7 @@ describe('auth', () => {
   });
 });
 
-describe('apps list', () => {
+describe('app list', () => {
   it('GETs applications with limit 25 and offset 0 by default, and returns the body as data', async () => {
     const body = applicationsPage([application(1)], 1);
     const { envelope, calls } = await run(appsListCommand, {}, [ok(body)]);
@@ -91,7 +91,7 @@ describe('apps list', () => {
   });
 });
 
-describe('findings list', () => {
+describe('app findings', () => {
   it('GETs traces/<app>/filter with severities and statuses, commas literal', async () => {
     const body = tracesPage([trace(1)], 1);
     const { envelope, calls } = await run(findingsListCommand, { app: APP, severity: 'HIGH,CRITICAL', status: 'CONFIRMED' }, [ok(body)]);
@@ -110,14 +110,14 @@ describe('findings list', () => {
     expect(calls[0]!.url).toContain('severities=SEVERE');
   });
 
-  it('requires --app', async () => {
+  it('requires the application ID', async () => {
     const { envelope, calls } = await run(findingsListCommand, {}, []);
     expect(calls).toEqual([]);
     expect(envelope.error?.code).toBe('INVALID_INPUT');
   });
 
-  // Suspected bug (#87 item 6): --app goes into the path unencoded, so a slash or ".." changes the endpoint.
-  it('pastes --app into the path as typed, except a dot segment, which core refuses before sending (global divergence)', async () => {
+  // Suspected bug (#87 item 6): the application ID goes into the path unencoded, so a slash or ".." changes the endpoint.
+  it('pastes the application ID into the path as typed, except a dot segment, which core refuses before sending (global divergence)', async () => {
     const slash = await run(findingsListCommand, { app: 'a/b' }, [ok({})]);
     expect(slash.calls[0]!.url).toBe(`${CONTRAST}${NG}/traces/a/b/filter?limit=25&offset=0`);
     const dots = await run(findingsListCommand, { app: '../../x' }, [ok({})]);
@@ -126,7 +126,7 @@ describe('findings list', () => {
   });
 });
 
-describe('findings get', () => {
+describe('finding get', () => {
   it('GETs traces/<app>/trace/<trace> with no query and returns the body', async () => {
     const { envelope, calls } = await run(findingsGetCommand, { app: APP, trace: TRACE }, [ok(traceDetail)]);
     expect(calls).toEqual([{ method: 'GET', url: `${CONTRAST}${NG}/traces/${APP}/trace/${TRACE}`, headers: HEADERS, body: undefined }]);
@@ -139,7 +139,7 @@ describe('findings get', () => {
   });
 });
 
-describe('libraries list', () => {
+describe('app libraries', () => {
   it('GETs applications/<app>/libraries with the default paging', async () => {
     const body = librariesPage([library(HASH)]);
     const { envelope, calls } = await run(librariesListCommand, { app: APP }, [ok(body)]);
@@ -153,7 +153,7 @@ describe('libraries list', () => {
   });
 });
 
-describe('libraries get', () => {
+describe('library get', () => {
   const url = (offset: number) => `${CONTRAST}${NG}/applications/${APP}/libraries?limit=25&offset=${offset}`;
   const full = (from: number) => librariesPage(Array.from({ length: 25 }, (_, i) => library(`other-${from + i}`)));
   const at = (offset: number, body: unknown): Route => ({ path: `${NG}/applications/${APP}/libraries`, query: { limit: '25', offset: String(offset) }, respond: { json: body } });

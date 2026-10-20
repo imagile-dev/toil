@@ -10,7 +10,7 @@ import { allPages, dynatrace } from './client.js';
  */
 
 export const problemsListCommand = dynatraceArea.command({
-  path: ['dynatrace', 'problems', 'list'],
+  path: ['dynatrace', 'problem', 'list'],
   description: 'List problems',
   input: z.object({
     from: z.string().optional().describe('Start time (default: now-2h)'),
@@ -34,18 +34,18 @@ export const problemsListCommand = dynatraceArea.command({
 });
 
 export const problemsGetCommand = dynatraceArea.command({
-  path: ['dynatrace', 'problems', 'get'],
+  path: ['dynatrace', 'problem', 'get'],
   description: 'Get a problem by ID',
   input: z.object({
     id: z.string().describe('Problem ID'),
     fields: z.string().optional().describe('Additional fields'),
   }),
   writes: false,
+  args: [{ name: 'id', field: 'id', description: 'Problem ID' }],
   options: [
-    { flags: '--id <id>', field: 'id', description: 'Problem ID' },
     { flags: '--fields <fields>', field: 'fields', description: 'Additional fields' },
   ],
-  examples: [{ id: '-1234567890123456789_1700000000000V2' }, { id: '-1234567890123456789_1700000000000V2', fields: 'evidenceDetails,impactAnalysis', env: 'dynatrace' }],
+  examples: [{ id: '1234567890123456789_1700000000000V2' }, { id: '1234567890123456789_1700000000000V2', fields: 'evidenceDetails,impactAnalysis', env: 'dynatrace' }],
   // The server's problem, passed through as it came.
   run: async (input, ctx) => dynatrace(ctx, `/api/v2/problems/${encodeURIComponent(input.id)}`, { query: { fields: input.fields } }),
 });

@@ -15,7 +15,7 @@ export const sonarArea = defineArea({
     baseUrl: z.url().describe('SonarQube server root, e.g. https://sonar.imagile.dev'),
     token: z.string().min(1).describe('SonarQube user token'),
     // Usually set once under defaults.sonar, so every SonarQube connection shares it.
-    project: z.string().min(1).optional().describe('Default project key for quality-gate, issues, measures and hotspots'),
+    project: z.string().min(1).optional().describe('Default project key for quality-gate get, issue list, measure list and hotspot list'),
   }),
   secrets: ['token'],
   // SonarSource's own scanner reads SONAR_TOKEN, so CI that already runs a scan needs nothing more.

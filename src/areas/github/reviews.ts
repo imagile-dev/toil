@@ -3,7 +3,7 @@ import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { githubArea } from './area.js';
 import { exampleCursor, github, githubGraphql, githubList, target, type GitHubContext } from './client.js';
-import { pageFields, pageOptions, parseIntText, prNumber, prNumberOption } from './input.js';
+import { pageFields, pageOptions, parseIntText, prNumber, prNumberArg } from './input.js';
 import { repeatedFlag } from '../../core/schema.js';
 
 /**
@@ -14,11 +14,12 @@ import { repeatedFlag } from '../../core/schema.js';
  */
 
 export const listReviewsCommand = githubArea.command({
-  path: ['github', 'list-reviews'],
+  path: ['github', 'pr', 'reviews'],
   description: 'List reviews on a pull request',
   input: z.object({ number: prNumber, ...pageFields('reviews') }),
   writes: false,
-  options: [prNumberOption, ...pageOptions('reviews')],
+  args: [prNumberArg],
+  options: [...pageOptions('reviews')],
   examples: [
     { owner: 'imagile', repo: 'toil-probe', number: '7' },
     { owner: 'imagile', repo: 'toil-probe', number: '7', limit: 1, cursor: exampleCursor() },
@@ -36,11 +37,12 @@ function submitReview(ctx: GitHubContext, number: number | string, event: 'APPRO
 }
 
 export const approveCommand = githubArea.command({
-  path: ['github', 'approve'],
+  path: ['github', 'pr', 'approve'],
   description: 'Approve a pull request',
   input: z.object({ number: prNumber, body: z.string().optional().describe('Review body text'), ...allowWriteField }),
   writes: true,
-  options: [prNumberOption, { flags: '--body <text>', field: 'body', description: 'Review body text' }],
+  args: [prNumberArg],
+  options: [{ flags: '--body <text>', field: 'body', description: 'Review body text' }],
   examples: [
     { owner: 'imagile', repo: 'toil-probe', number: '7', allowWrite: true },
     { owner: 'imagile', repo: 'toil-probe', number: '7', body: 'Ship it.', allowWrite: true },
@@ -49,21 +51,22 @@ export const approveCommand = githubArea.command({
 });
 
 export const requestChangesCommand = githubArea.command({
-  path: ['github', 'request-changes'],
+  path: ['github', 'pr', 'request-changes'],
   description: 'Request changes on a pull request',
   input: z.object({ number: prNumber, body: z.string().describe('Review feedback text'), ...allowWriteField }),
   writes: true,
-  options: [prNumberOption, { flags: '--body <text>', field: 'body', description: 'Review feedback text' }],
+  args: [prNumberArg],
+  options: [{ flags: '--body <text>', field: 'body', description: 'Review feedback text' }],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', body: 'Please add a test.', allowWrite: true }],
   run: async (input, ctx) => submitReview(ctx, input.number, 'REQUEST_CHANGES', input.body),
 });
 
 export const listReviewersCommand = githubArea.command({
-  path: ['github', 'list-reviewers'],
+  path: ['github', 'pr', 'reviewers'],
   description: 'List requested reviewers for a pull request',
   input: z.object({ number: prNumber }),
   writes: false,
-  options: [prNumberOption],
+  args: [prNumberArg],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7' }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
@@ -87,12 +90,12 @@ function reviewersBody(reviewer: string[] | undefined, teamReviewer: string[] | 
 }
 
 export const addReviewersCommand = githubArea.command({
-  path: ['github', 'add-reviewers'],
+  path: ['github', 'pr', 'add-reviewers'],
   description: 'Request reviewers on a pull request',
   input: z.object(reviewerInputs),
   writes: true,
+  args: [prNumberArg],
   options: [
-    prNumberOption,
     { flags: '--reviewer <login>', field: 'reviewer', description: 'User reviewer login (repeatable)' },
     { flags: '--team-reviewer <slug>', field: 'teamReviewer', description: 'Team slug to request (repeatable)' },
   ],
@@ -105,14 +108,14 @@ export const addReviewersCommand = githubArea.command({
 });
 
 export const removeReviewersCommand = githubArea.command({
-  path: ['github', 'remove-reviewers'],
+  path: ['github', 'pr', 'remove-reviewers'],
   description: 'Remove requested reviewers from a pull request',
   input: z.object(reviewerInputs),
   writes: true,
   // A delete: never served over MCP (CLAUDE.md, Writes).
   mcp: false,
+  args: [prNumberArg],
   options: [
-    prNumberOption,
     { flags: '--reviewer <login>', field: 'reviewer', description: 'User reviewer login to remove (repeatable)' },
     { flags: '--team-reviewer <slug>', field: 'teamReviewer', description: 'Team slug to remove (repeatable)' },
   ],
@@ -143,12 +146,12 @@ const THREAD_FIELDS = `id
                 }`;
 
 export const listReviewThreadsCommand = githubArea.command({
-  path: ['github', 'list-review-threads'],
-  description: 'List review threads on a pull request (includes thread node IDs for resolve-thread)',
+  path: ['github', 'pr', 'threads'],
+  description: 'List review threads on a pull request (includes thread node IDs for pr resolve)',
   input: z.object({ number: prNumber }),
   writes: false,
   queryByPost: true,
-  options: [prNumberOption],
+  args: [prNumberArg],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7' }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
@@ -177,11 +180,11 @@ export const listReviewThreadsCommand = githubArea.command({
 });
 
 export const resolveThreadCommand = githubArea.command({
-  path: ['github', 'resolve-thread'],
-  description: 'Mark a review thread as resolved (use list-review-threads to get the thread id)',
+  path: ['github', 'pr', 'resolve'],
+  description: 'Mark a review thread as resolved (use pr threads to get the thread id)',
   input: z.object({ threadId: z.string().describe('GraphQL node ID of the review thread (e.g. PRT_kwDO...)'), ...allowWriteField }),
   writes: true,
-  options: [{ flags: '--thread-id <id>', field: 'threadId', description: 'GraphQL node ID of the review thread (e.g. PRT_kwDO...)' }],
+  args: [{ name: 'thread-id', field: 'threadId', description: 'GraphQL node ID of the review thread (e.g. PRT_kwDO...)' }],
   examples: [{ owner: 'imagile', repo: 'toil-probe', threadId: 'PRT_kwDOabc12345', allowWrite: true }],
   run: async (input, ctx) => {
     // Owner and repo are required though the mutation never uses them (suspected bug, #72 item 8).
