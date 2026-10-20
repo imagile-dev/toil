@@ -89,7 +89,7 @@ describe('checkout-web: GitHub with Projects and Actions, OpenShift', () => {
     const { h, byId } = await healthOf('checkout-web');
     expect(ids(h, 'added')).toEqual(['github:imagile/payments-web#43', 'github:imagile/payments-web#45']);
     expect(entry(byId.get('github:imagile/payments-web#43')!)).toEqual({
-      kind: 'added', at: '2026-10-07T09:00:00.000Z', from: null, evidence: 'github projects list-items: createdAt',
+      kind: 'added', at: '2026-10-07T09:00:00.000Z', from: null, evidence: 'github project items: createdAt',
     });
     expect(reasons(h)).toEqual({ 'github:imagile/payments-web#43': ['failing-build'], 'github:imagile/payments-web#45': ['unestimated'] });
   });
@@ -167,17 +167,17 @@ describe('review round 1 (#229)', () => {
     const base = { dossier: 'mixed' };
     const canned: Canned[] = [
       { command: 'dossiers show', input: base, data: showData(mixed) },
-      { command: 'bitbucket list-prs', input: { ...base, state: 'ALL' }, data: BITBUCKET_PRS },
+      { command: 'bitbucket pr list', input: { ...base, state: 'ALL' }, data: BITBUCKET_PRS },
       // No board named, so the repository's issues are read; this test is about deployments, so there are none.
-      { command: 'github list-issues', input: { ...base, state: 'all' }, data: [] },
-      { command: 'github list-prs', input: { ...base, state: 'all' }, data: GITHUB_PRS },
-      ...Object.keys(GITHUB_CHECKS).map((ref) => ({ command: 'github list-checks', input: { ...base, ref }, data: GITHUB_CHECKS[ref] })),
-      { command: 'openshift deployments', input: { ...base, env: 'dev', namespace: 'mixed-dev' }, data: { namespace: 'mixed-dev', kind: 'Deployment', count: 2, deployments: [...ns, ...staging] } },
+      { command: 'github issue list', input: { ...base, state: 'all' }, data: [] },
+      { command: 'github pr list', input: { ...base, state: 'all' }, data: GITHUB_PRS },
+      ...Object.keys(GITHUB_CHECKS).map((ref) => ({ command: 'github commit checks', input: { ...base, ref }, data: GITHUB_CHECKS[ref] })),
+      { command: 'openshift deployment list', input: { ...base, env: 'dev', namespace: 'mixed-dev' }, data: { namespace: 'mixed-dev', kind: 'Deployment', count: 2, deployments: [...ns, ...staging] } },
     ];
     const fixture = fixtureExecute(canned);
     const data = await loadDossier(fixture.execute, 'mixed');
     expect(fixture.calls.filter((c) => !c.ok)).toEqual([]);
-    expect(fixture.calls.filter((c) => c.command === 'openshift deployments')).toHaveLength(1);
+    expect(fixture.calls.filter((c) => c.command === 'openshift deployment list')).toHaveLength(1);
     expect(data.deployments.map((d) => [d.name, d.commit, d.includes])).toEqual([
       ['payments-core in mixed-dev', '4e1d2a9', ['bitbucket:PAY/payments-core#290', 'bitbucket:PAY/payments-core#296', 'bitbucket:PAY/payments-core#298']],
       ['payments-web in mixed-dev', '5a7e3f1', ['github:imagile/payments-web#48', 'github:imagile/payments-web#50']],

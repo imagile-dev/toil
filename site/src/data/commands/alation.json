@@ -38,7 +38,7 @@
       "--ds <id>",
       "--name <name>",
       "--limit <n>",
-      "--skip <n>"
+      "--offset <n>"
     ]
   },
   {
@@ -64,7 +64,7 @@
       "--name <name>",
       "--search <text>",
       "--limit <n>",
-      "--skip <n>"
+      "--offset <n>"
     ]
   },
   {
@@ -92,7 +92,7 @@
       "--name <name>",
       "--search <text>",
       "--limit <n>",
-      "--skip <n>"
+      "--offset <n>"
     ]
   },
   {
@@ -129,7 +129,7 @@
       "--parent <id>",
       "--search <text>",
       "--limit <n>",
-      "--skip <n>"
+      "--offset <n>"
     ]
   },
   {
@@ -155,7 +155,7 @@
       "--search <text>",
       "--deleted",
       "--limit <n>",
-      "--skip <n>"
+      "--offset <n>"
     ]
   },
   {

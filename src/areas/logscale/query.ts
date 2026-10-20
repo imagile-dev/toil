@@ -43,9 +43,9 @@ export function timeOf(value: string, flag: string): string | number {
 const TIME_HELP = 'epoch milliseconds, ISO 8601 (UTC unless it has an offset), or relative such as 1h or 24h';
 
 export const queryCommand = logscaleArea.command({
-  path: ['logscale', 'query'],
+  path: ['logscale', 'repository', 'query'],
   description: 'Execute a LogScale Query Language (LQL) search against a repository',
-  toolDescription: 'Run one LogScale Query Language search against a repository or view over a time window, and return its events (at most limit). Suited to filter queries over short windows. logscale_repositories_list gives repository names.',
+  toolDescription: 'Run one LogScale Query Language search against a repository or view over a time window, and return its events (at most limit). Suited to filter queries over short windows. logscale_repository_list gives repository names.',
   input: z.object({
     repository: z.string().min(1).describe('Repository name to query'),
     query: z.string().min(1).describe('LogScale Query Language expression (e.g. "error" or "level=error | count()")'),
@@ -59,8 +59,8 @@ export const queryCommand = logscaleArea.command({
   queryByPost: true,
   // Room for the longest --timeout-ms, so the request's own timeout is what reports it.
   timeLimitMs: MAX_TIMEOUT_MS + 5_000,
+  args: [{ name: 'repository', field: 'repository', description: 'Repository name to query' }],
   options: [
-    { flags: '--repository <name>', field: 'repository', description: 'Repository name to query' },
     { flags: '--query <lql>', field: 'query', description: 'LogScale Query Language expression (e.g. "error" or "level=error | count()")' },
     { flags: '--start <time>', field: 'start', description: `Start time: ${TIME_HELP} (default: "1h")` },
     { flags: '--end <time>', field: 'end', description: `End time: ${TIME_HELP} (default: "now")` },

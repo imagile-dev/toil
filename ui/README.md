@@ -177,8 +177,9 @@ never starts that copy anyway.
   `TOIL_*` variables, `GITHUB_TOKEN` and CI tokens never reach it. Not found is a plain
   error naming the CLI and the fix. On Windows a `.cmd` shim can't be started by the
   SDKs, so point at the `.exe`.
-- **Read-only tools, one dossier.** The agent gets `owi_query`, `owi_get` and
-  `owi_history` over the cache, `proposal_fields` (a write command's input fields,
+- **Read-only tools, one dossier.** The agent gets `owi_query`, `owi_get`,
+  `owi_similar` (likely duplicates, scored as `toil util owi similar` scores them)
+  and `owi_history` over the cache, `proposal_fields` (a write command's input fields,
   from toil's registry), and `toil mcp`'s read tools for live lookups, called through
   toil's `execute()` with `readOnly: true`. The dossier is fixed to the one on screen.
   There is no write tool, and each SDK's own tools (shell, files, web, plugins, other

@@ -64,5 +64,5 @@ export const openshiftSupported: SupportedVersion = {
   product: 'OpenShift / Kubernetes',
   minimum: null,
   api: 'core v1, apps/v1, apps.openshift.io/v1 and metrics.k8s.io/v1beta1',
-  note: 'pods, events and logs use core v1; deployments use apps/v1, or apps.openshift.io/v1 for DeploymentConfigs; pod-metrics and resource-usage need metrics-server (metrics.k8s.io/v1beta1). No release has been verified yet.',
+  note: 'pod list, event list and pod logs use core v1; deployment list uses apps/v1, or apps.openshift.io/v1 for DeploymentConfigs; pod metrics and namespace usage need metrics-server (metrics.k8s.io/v1beta1). No release has been verified yet.',
 };

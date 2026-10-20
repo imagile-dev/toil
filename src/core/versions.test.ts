@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { compareSemver, isNewer, updateType } from './versions.js';
 
-// The comparison artifactory outdated and util deps diff have always used, pinned
+// The comparison artifactory package outdated and util deps diff have always used, pinned
 // as it is, quirks included, so moving it to core changed nothing they see.
 describe('versions', () => {
   it('orders by major, minor and patch, and puts a release above its prereleases', () => {

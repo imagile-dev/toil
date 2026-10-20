@@ -30,7 +30,7 @@ export const areas: AnyArea[] = modules.flatMap((m) => (m.area ? [m.area] : []))
  */
 export const commands: AnyCommand[] = withCoreAliases([...modules.flatMap((m) => m.commands), ...connectionsCommands(areas), ...dossiersCommands(areas), ...dossierBuildCommands(areas), ...reposCommands(), ...skillsConfigCommands(), ...skillCommands(areas), ...setupCommands(), ...auditCommands(), ...feedbackCommands(), waitCommand], areas);
 
-// An alias in another group (`deps outdated` for `artifactory outdated`) can
+// An alias in another group (`deps outdated` for `artifactory package outdated`) can
 // collide with a command there; better a failed start than a silent winner.
 assertUniquePaths(commands);
 

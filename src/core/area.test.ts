@@ -33,6 +33,8 @@ describe('command kinds', () => {
     expect(() => area.command({ ...base, path: ['kinds', 'x'], cliOnly: true } as never)).toThrow(/"cliOnly" is gone/);
     expect(() => area.command({ ...base, path: ['kinds', 'x'], kind: 'config' } as never)).toThrow(/area or area-local/);
     expect(() => area.command({ ...base, path: ['kinds', 'x'], kind: 'area-local', context: {} })).toThrow(/no connection/);
+    expect(() => area.command({ ...base, path: ['kinds', 'x'], connectionlessWhen: () => true })).toThrow(/connectionlessWhen is for a connectionOptional command/);
+    expect(() => area.command({ ...base, path: ['kinds', 'x'], connectionOptional: true, connectionlessWhen: () => true })).not.toThrow();
   });
 
   it('refuses two commands on one path, aliases included', () => {

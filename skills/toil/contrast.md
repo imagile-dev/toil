@@ -72,28 +72,31 @@ OS credential store, or set the env vars.
 
 ## Commands
 
-`data` is Contrast's own response, as it came, except for `libraries get`.
+`data` is Contrast's own response, as it came, except for `library get`.
 
-- `apps list`: List applications in the organization.
-- `findings list`: List vulnerability findings for an application (`--app`, required).
+- `app list`: List applications in the organization.
+- `app findings <app>`: List vulnerability findings for an application.
   `--severity` and `--status` are sent as `severities` and `statuses`, as typed; a
   comma list such as `HIGH,CRITICAL` keeps its commas.
-- `findings get`: Get details for a specific vulnerability finding (`--app` and
-  `--trace`, both required).
-- `libraries list`: List libraries used by an application, as shown on the Libraries
-  tab (`--app`, required).
-- `libraries get`: Get details for a specific library used by an application, by hash
-  (`--app` and `--hash`, both required). It reads the application's libraries 25 at a
+- `finding get <app> <trace>`: Get details for a specific vulnerability finding.
+- `app libraries <app>`: List libraries used by an application, as shown on the
+  Libraries tab.
+- `library get <app> <hash>`: Get details for a specific library used by an
+  application, by hash. It reads the application's libraries 25 at a
   time until one's `hash` matches exactly, or a page has fewer than 25, and returns
   that one library object. No match is `NOT_FOUND`. It stops with an error after
   1,000 pages.
 
-`apps list`, `findings list` and `libraries list` take `--limit` (default 25) and
+`app list`, `app findings` and `app libraries` take `--limit` (default 25) and
 `--offset` (default 0), sent to the server as given; they return one page, and you
-page by hand. `--app`, `--trace` and the org UUID go into the URL path as typed.
+page by hand. The application ID, the trace ID and the org UUID go into the URL path as typed.
+
+Over MCP the same commands are tools named after the path, with spaces as
+underscores (`contrast_app_findings`, `contrast_library_get`), taking the fields
+`app`, `trace`, `hash`, `limit` and `offset`.
 
 ```bash
-toil contrast apps list --limit 50
-toil contrast findings list --app abc12345-0000-0000-0000-000000000000 --severity HIGH,CRITICAL
-toil contrast libraries get --app abc12345-0000-0000-0000-000000000000 --hash 0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c
+toil contrast app list --limit 50
+toil contrast app findings abc12345-0000-0000-0000-000000000000 --severity HIGH,CRITICAL
+toil contrast library get abc12345-0000-0000-0000-000000000000 0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c
 ```

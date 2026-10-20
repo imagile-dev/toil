@@ -7,7 +7,7 @@ import type { SupportedVersion } from '../../core/supported.js';
 /**
  * Dynatrace, on two hosts with two credentials: the classic environment API
  * (entities, services, workloads, problems) takes an access token as
- * `Api-Token`, and the platform's Grail query API (`trace`) takes a platform
+ * `Api-Token`, and the platform's Grail query API (`trace get`) takes a platform
  * token as `Bearer`. Each token goes only to its own host. Two front desks,
  * two visitor badges, and neither badge opens the other door.
  */
@@ -15,8 +15,8 @@ import type { SupportedVersion } from '../../core/supported.js';
 const connection = z.object({
   baseUrl: z.url().optional().describe('Classic environment URL, like https://<environment-id>.live.dynatrace.com (Managed: keep the /e/<environment-id> path)'),
   apiToken: z.string().min(1).optional().describe('Access token for the classic environment API, sent as Api-Token'),
-  platformUrl: z.url().optional().describe('Platform URL for trace, like https://<environment-id>.apps.dynatrace.com'),
-  platformToken: z.string().min(1).optional().describe('Platform token for trace, sent as Bearer'),
+  platformUrl: z.url().optional().describe('Platform URL for trace get, like https://<environment-id>.apps.dynatrace.com'),
+  platformToken: z.string().min(1).optional().describe('Platform token for trace get, sent as Bearer'),
   env: z.string().min(1).optional().describe('Environment name that --env selects this connection by, when it differs from the connection name'),
 });
 
@@ -26,7 +26,7 @@ type DynatraceSettings = z.output<typeof connection>;
 const setHint = (conn: Connection<DynatraceSettings>, area: HookArea, key: keyof DynatraceSettings & string) =>
   `Set ${key} on connection "${conn.name}" (${area.envName(key)} for the default connection), or run toil connections add <name> --area dynatrace.`;
 
-/** The classic environment API: every command but trace. */
+/** The classic environment API: every command but trace get. */
 function classicEndpoint(conn: Connection<DynatraceSettings>, area: HookArea): AreaEndpoint {
   // The contract checks the URL before the token, so a connection missing both names the URL.
   if (!conn.baseUrl) throw new ToilError('NOT_CONFIGURED', 'Dynatrace baseUrl not configured.', { fix: setHint(conn, area, 'baseUrl') });
@@ -39,7 +39,7 @@ function classicEndpoint(conn: Connection<DynatraceSettings>, area: HookArea): A
   };
 }
 
-/** The platform's Grail query API: trace only. */
+/** The platform's Grail query API: trace get only. */
 function platformEndpoint(conn: Connection<DynatraceSettings>, area: HookArea): AreaEndpoint {
   if (!conn.platformUrl) throw new ToilError('NOT_CONFIGURED', 'Dynatrace platformUrl not configured.', { fix: setHint(conn, area, 'platformUrl') });
   if (!conn.platformToken) throw new ToilError('NOT_CONFIGURED', 'Dynatrace platform credentials not configured.', { fix: setHint(conn, area, 'platformToken') });
@@ -66,7 +66,7 @@ export const dynatraceArea = defineArea({
 });
 
 /**
- * The same area with the platform hook, for trace. A request hook answers for
+ * The same area with the platform hook, for trace get. A request hook answers for
  * one host, so the second host gets a second hook rather than a flag on the
  * first; apiRequest still builds every request, and still refuses any origin
  * but the hook's.
@@ -78,5 +78,5 @@ export const dynatraceSupported: SupportedVersion = {
   product: 'Dynatrace',
   minimum: null,
   api: 'Environment API v2 and the Grail storage query API v1',
-  note: 'The classic commands call Environment API v2 (/api/v2) on SaaS and Managed; trace needs the platform Grail query API (/platform/storage/query/v1), so a deployment without the platform can\'t run it. No release has been verified yet.',
+  note: 'The classic commands call Environment API v2 (/api/v2) on SaaS and Managed; trace get needs the platform Grail query API (/platform/storage/query/v1), so a deployment without the platform can\'t run it. No release has been verified yet.',
 };

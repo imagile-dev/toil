@@ -245,8 +245,8 @@ describe('insights', () => {
   it('flags an open PR with no build, a merged one not deployed, and work deployed but still open', () => {
     const a = item({ id: 'c:I-1', statusCategory: 'IN_PROGRESS', status: 'In Review' });
     const b = item({ id: 'c:I-2', statusCategory: 'IN_PROGRESS', status: 'In Progress' });
-    const pr = (id: string, items: string[], outcome: ChangeRef['outcome']): ChangeRef => ({ id, kind: 'pull-request', source: 'bitbucket', command: 'bitbucket list-prs', items, title: `#${id}`, url: null, state: outcome, outcome, builds: null, mergeCommit: null, at: NOW });
-    const dep: Deployment = { id: 'd1', environment: 'dev', source: 'openshift', command: 'openshift deployments', name: 'app', commit: 'abc1234', version: null, state: 'Available', outcome: 'passed', url: null, includes: ['m2'], items: ['c:I-2'], unknownCommit: false };
+    const pr = (id: string, items: string[], outcome: ChangeRef['outcome']): ChangeRef => ({ id, kind: 'pull-request', source: 'bitbucket', command: 'bitbucket pr list', items, title: `#${id}`, url: null, state: outcome, outcome, builds: null, mergeCommit: null, at: NOW });
+    const dep: Deployment = { id: 'd1', environment: 'dev', source: 'openshift', command: 'openshift deployment list', name: 'app', commit: 'abc1234', version: null, state: 'Available', outcome: 'passed', url: null, includes: ['m2'], items: ['c:I-2'], unknownCommit: false };
     const p = prepare(ctx([a, b], { changes: [pr('o1', ['c:I-1'], 'open'), pr('m1', ['c:I-1'], 'merged'), pr('m2', ['c:I-2'], 'merged')], deployments: [dep] }));
     expect(insights(a, p).map((i) => i.code)).toEqual(['pr-no-build', 'built-not-deployed', 'unestimated']);
     expect(insights(b, p).map((i) => [i.code, i.text])).toEqual([['deployed-not-closed', 'Running in dev, but still In Progress'], ['unestimated', 'No estimate']]);

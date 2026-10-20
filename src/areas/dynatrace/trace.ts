@@ -5,7 +5,7 @@ import { dynatraceArea } from './area.js';
 import { dynatracePlatformCall, type DynatraceContext } from './client.js';
 
 /**
- * `trace`: one distributed trace's spans from Grail, by DQL. The query is
+ * `trace get`: one distributed trace's spans from Grail, by DQL. The query is
  * started with query:execute and, while Grail is still working, polled with
  * query:poll at most once a second, for up to 60 seconds in all. `data` is
  * the query's `result` as it came. Grail is asked politely, and then asked
@@ -42,7 +42,7 @@ async function runTraceQuery(ctx: DynatraceContext, traceId: string): Promise<un
   // Suspected bug (#83 item 4): any length from 16 to 32 passes, though Grail's trace.id is 32 characters.
   if (!/^[0-9a-f]{16,32}$/i.test(traceId)) {
     throw new ToilError('INVALID_INPUT', 'Trace ID must be a 16- or 32-character hexadecimal value', {
-      fix: 'Pass --id with the trace id from the Distributed Traces app: hexadecimal, 16 to 32 characters.',
+      fix: 'Pass the trace id from the Distributed Traces app: hexadecimal, 16 to 32 characters.',
     });
   }
   const deadline = Date.now() + DEADLINE_MS;
@@ -85,7 +85,7 @@ async function runTraceQuery(ctx: DynatraceContext, traceId: string): Promise<un
 }
 
 export const traceCommand = dynatraceArea.command({
-  path: ['dynatrace', 'trace'],
+  path: ['dynatrace', 'trace', 'get'],
   description: 'Get distributed-trace spans from Grail',
   input: z.object({
     id: z.string().describe('16- or 32-character hexadecimal trace ID'),
@@ -93,7 +93,7 @@ export const traceCommand = dynatraceArea.command({
   writes: false,
   // A trace query is a read; Grail just wants it sent as POST.
   queryByPost: true,
-  options: [{ flags: '--id <trace-id>', field: 'id', description: '16- or 32-character hexadecimal trace ID' }],
+  args: [{ name: 'id', field: 'id', description: '16- or 32-character hexadecimal trace ID' }],
   examples: [{ id: '4BF92F3577B34DA6A3CE929D0E0E4736', env: 'prod' }],
   run: async (input, ctx) => runTraceQuery(ctx, input.id),
 });

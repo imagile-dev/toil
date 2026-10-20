@@ -50,10 +50,10 @@ export const CANNED: Canned[] = [
   // card-payments
   { command: 'jira issue search', input: { dossier: card, jql: JQL('PAY') }, data: JIRA_SEARCH, ...at(card, 'jira') },
   ...JIRA_KEYS.map((key) => ({ command: 'jira issue history', input: { dossier: card, key }, data: JIRA_CHANGELOGS[key], ...at(card, 'jira') })),
-  { command: 'bitbucket list-prs', input: { dossier: card, state: 'ALL' }, data: BITBUCKET_PRS, ...at(card, 'bitbucket') },
-  ...Object.entries(JENKINS_RUNS).map(([pr, runs]) => ({ command: 'jenkins pipeline list-runs', input: { dossier: card, name: `payments-core/PR-${pr}`, top: 5 }, data: runs, ...at(card, 'jenkins') })),
-  { command: 'openshift deployments', input: { dossier: card, env: 'dev', namespace: 'payments-dev' }, data: OPENSHIFT['payments-dev'], ...at(card, 'openshift', 'dev') },
-  { command: 'openshift deployments', input: { dossier: card, env: 'prod', namespace: 'payments-prod' }, data: OPENSHIFT['payments-prod'], ...at(card, 'openshift', 'prod') },
+  { command: 'bitbucket pr list', input: { dossier: card, state: 'ALL' }, data: BITBUCKET_PRS, ...at(card, 'bitbucket') },
+  ...Object.entries(JENKINS_RUNS).map(([pr, runs]) => ({ command: 'jenkins pipeline runs', input: { dossier: card, name: `payments-core/PR-${pr}`, limit: 5 }, data: runs, ...at(card, 'jenkins') })),
+  { command: 'openshift deployment list', input: { dossier: card, env: 'dev', namespace: 'payments-dev' }, data: OPENSHIFT['payments-dev'], ...at(card, 'openshift', 'dev') },
+  { command: 'openshift deployment list', input: { dossier: card, env: 'prod', namespace: 'payments-prod' }, data: OPENSHIFT['payments-prod'], ...at(card, 'openshift', 'prod') },
 
   // settlement
   { command: 'ado work-item iterations', input: { dossier: settle }, data: ADO_ITERATIONS, ...at(settle, 'ado') },
@@ -65,13 +65,13 @@ export const CANNED: Canned[] = [
   { command: 'ado run list', input: { dossier: settle, name: 'settlement-deploy', top: 20 }, data: ADO_DEPLOY_RUNS, ...at(settle, 'ado') },
 
   // checkout-web
-  { command: 'github projects list-items', input: { dossier: checkout, project: 7 }, data: GITHUB_PROJECT_ITEMS, ...at(checkout, 'github') },
-  { command: 'github get-issue', input: { dossier: checkout, number: GITHUB_NUMBERS, subIssues: true }, data: GITHUB_ISSUES, ...at(checkout, 'github') },
-  ...GITHUB_NUMBERS.map((number) => ({ command: 'github issue-events', input: { dossier: checkout, number }, data: GITHUB_EVENTS[number], ...at(checkout, 'github') })),
-  { command: 'github list-prs', input: { dossier: checkout, state: 'all' }, data: GITHUB_PRS, ...at(checkout, 'github') },
-  ...Object.entries(GITHUB_CHECKS).map(([ref, runs]) => ({ command: 'github list-checks', input: { dossier: checkout, ref }, data: runs, ...at(checkout, 'github') })),
-  { command: 'openshift deployments', input: { dossier: checkout, env: 'staging', namespace: 'checkout-staging' }, data: OPENSHIFT['checkout-staging'], ...at(checkout, 'openshift', 'staging') },
-  { command: 'openshift deployments', input: { dossier: checkout, env: 'prod', namespace: 'checkout-prod' }, data: OPENSHIFT['checkout-prod'], ...at(checkout, 'openshift', 'prod') },
+  { command: 'github project items', input: { dossier: checkout, project: 7 }, data: GITHUB_PROJECT_ITEMS, ...at(checkout, 'github') },
+  { command: 'github issue get', input: { dossier: checkout, number: GITHUB_NUMBERS, subIssues: true }, data: GITHUB_ISSUES, ...at(checkout, 'github') },
+  ...GITHUB_NUMBERS.map((number) => ({ command: 'github issue history', input: { dossier: checkout, number }, data: GITHUB_EVENTS[number], ...at(checkout, 'github') })),
+  { command: 'github pr list', input: { dossier: checkout, state: 'all' }, data: GITHUB_PRS, ...at(checkout, 'github') },
+  ...Object.entries(GITHUB_CHECKS).map(([ref, runs]) => ({ command: 'github commit checks', input: { dossier: checkout, ref }, data: runs, ...at(checkout, 'github') })),
+  { command: 'openshift deployment list', input: { dossier: checkout, env: 'staging', namespace: 'checkout-staging' }, data: OPENSHIFT['checkout-staging'], ...at(checkout, 'openshift', 'staging') },
+  { command: 'openshift deployment list', input: { dossier: checkout, env: 'prod', namespace: 'checkout-prod' }, data: OPENSHIFT['checkout-prod'], ...at(checkout, 'openshift', 'prod') },
 ];
 
 /** One string per command and input, whatever order the input's keys came in. */

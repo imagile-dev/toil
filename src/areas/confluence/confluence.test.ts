@@ -68,12 +68,12 @@ describe('auth', () => {
 });
 
 describe('pages', () => {
-  it('get-page: --expand replaces the default, with literal commas', async () => {
+  it('page get: --expand replaces the default, with literal commas', async () => {
     const { calls } = await run(getPage, { id: '12345', expand: 'body.view,version' }, [{ url: /content\/12345/, respond: { json: page('12345') } }]);
     expect(calls[0]!.url).toBe(`${API}/content/12345?expand=body.view,version`);
   });
 
-  it('get-page: puts a plain id in the path unencoded, and refuses one that would change the path (#78 item 4)', async () => {
+  it('page get: puts a plain id in the path unencoded, and refuses one that would change the path (#78 item 4)', async () => {
     const plain = await run(getPage, { id: 'abc 1' }, [{ url: /content/, respond: { json: {} } }]);
     expect(plain.calls[0]!.url).toBe(`${API}/content/abc%201?expand=body.storage,version,space,ancestors`);
     // Dot segments in any spelling are core's bound (requests.path); the rest are seg()'s.
@@ -84,7 +84,7 @@ describe('pages', () => {
     }
   });
 
-  it('delete-page: an id with dot segments never turns into a space delete', async () => {
+  it('page delete: an id with dot segments never turns into a space delete', async () => {
     const { envelope, calls } = await run(deletePage, { id: '../space/DOCS', ...write }, []);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('../space/DOCS') });
     expect(calls).toHaveLength(0);
@@ -95,25 +95,25 @@ describe('pages', () => {
     }
   });
 
-  it('delete-page and delete-attachment are CLI only: never MCP tools', () => {
+  it('page delete and attachment delete are CLI only: never MCP tools', () => {
     expect(deletePage.mcp).toBe(false);
     expect(deleteAttachment.mcp).toBe(false);
   });
 
-  it('get-page-by-title: asks for pages with that title and returns the first', async () => {
+  it('page find: asks for pages with that title and returns the first', async () => {
     const { envelope, calls } = await run(getPageByTitle, { space: 'DOCS', title: 'Release notes' }, [{ url: /content\?/, respond: listOf([page('1'), page('2')]) }]);
     expect(calls[0]!.url).toBe(`${API}/content?spaceKey=DOCS&title=Release+notes&expand=body.storage,version,space&type=page`);
     expect(envelope.data).toMatchObject({ id: '1' });
   });
 
-  it("get-page-by-title: no match is NOT_FOUND with its documented message", async () => {
+  it("page find: no match is NOT_FOUND with its documented message", async () => {
     const { envelope } = await run(getPageByTitle, { space: 'DOCS', title: 'Nope' }, [{ url: /content\?/, respond: listOf([]) }]);
     expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'Page not found: "Nope" in space DOCS' });
   });
 
-  it('list-pages: pages 25 at a time from --start, asking the last page only for what --limit leaves', async () => {
+  it('page list: pages 25 at a time from --offset, asking the last page only for what --limit leaves', async () => {
     const twentyFive = Array.from({ length: 25 }, (_, i) => ({ id: String(i) }));
-    const { envelope, calls } = await run(listPages, { space: 'DOCS', limit: '30', start: '5' }, [
+    const { envelope, calls } = await run(listPages, { space: 'DOCS', limit: '30', offset: '5' }, [
       { path: '/rest/api/content', query: { spaceKey: 'DOCS', type: 'page', expand: 'version', start: '5', limit: '25' }, respond: listOf(twentyFive, true) },
       { path: '/rest/api/content', query: { spaceKey: 'DOCS', type: 'page', expand: 'version', start: '30', limit: '5' }, respond: listOf(twentyFive.slice(0, 5), true) },
     ]);
@@ -124,7 +124,7 @@ describe('pages', () => {
     expect(envelope.data).toHaveLength(30);
   });
 
-  it('list-pages: with no --limit, stops when a page has no next link', async () => {
+  it('page list: with no --limit, stops when a page has no next link', async () => {
     const { envelope, calls } = await run(listPages, { space: 'DOCS' }, [
       { path: '/rest/api/content', query: { spaceKey: 'DOCS', type: 'page', expand: 'version', start: '0', limit: '25' }, respond: listOf([{ id: '1' }], true) },
       { path: '/rest/api/content', query: { spaceKey: 'DOCS', type: 'page', expand: 'version', start: '1', limit: '25' }, respond: listOf([{ id: '2' }]) },
@@ -133,7 +133,7 @@ describe('pages', () => {
     expect(envelope.data).toEqual([{ id: '1' }, { id: '2' }]);
   });
 
-  it('list-pages: --limit abc sends limit=NaN and returns nothing (#78 item 9)', async () => {
+  it('page list: --limit abc sends limit=NaN and returns nothing (#78 item 9)', async () => {
     const { envelope, calls } = await run(listPages, { space: 'DOCS', limit: 'abc' }, [{ path: '/rest/api/content', respond: listOf([{ id: '1' }]) }]);
     expect(calls[0]!.url).toContain('&limit=NaN');
     expect(envelope.data).toEqual([]);
@@ -141,7 +141,7 @@ describe('pages', () => {
     expect(envelope.meta.warnings).toEqual([{ code: 'CONFLUENCE_LIMIT_INVALID', message: '--limit must be a positive whole number, not "abc"; the result was cut to 0 item(s).' }]);
   });
 
-  it('list-spaces: --limit 0 sends limit=0 once, returns nothing, and warns (#78 item 10)', async () => {
+  it('space list: --limit 0 sends limit=0 once, returns nothing, and warns (#78 item 10)', async () => {
     const { envelope, calls } = await run(listSpaces, { limit: '0' }, [{ url: /space/, respond: listOf([{ key: 'A' }], true) }]);
     expect(calls.map((c) => c.url)).toEqual([`${API}/space?start=0&limit=0`]);
     expect(envelope.data).toEqual([]);
@@ -153,19 +153,19 @@ describe('pages', () => {
     expect(envelope.meta.warnings).toBeUndefined();
   });
 
-  it('search: one page, 25 from 0 by default, expand only when given, data as it came', async () => {
+  it('page search: one page, 25 from 0 by default, expand only when given, data as it came', async () => {
     const body = { results: [], start: 0, limit: 25, size: 0, totalSize: 0, _links: {} };
     const { envelope, calls } = await run(search, { cql: 'space=DOCS' }, [{ url: /search/, respond: { json: body } }]);
     expect(calls[0]!.url).toBe(`${API}/content/search?cql=space%3DDOCS&start=0&limit=25`);
     expect(envelope.data).toEqual(body);
   });
 
-  it('search: parseInt, so --limit 10abc is 10 and --limit abc goes out as NaN (#78 item 9)', async () => {
-    const r = await run(search, { cql: 'x', limit: '10abc', start: 'abc', expand: 'space' }, [{ url: /search/, respond: { json: {} } }]);
+  it('page search: parseInt, so --limit 10abc is 10 and --limit abc goes out as NaN (#78 item 9)', async () => {
+    const r = await run(search, { cql: 'x', limit: '10abc', offset: 'abc', expand: 'space' }, [{ url: /search/, respond: { json: {} } }]);
     expect(r.calls[0]!.url).toBe(`${API}/content/search?cql=x&start=NaN&limit=10&expand=space`);
   });
 
-  it('create-page: POSTs the storage body, with ancestors only for a parent', async () => {
+  it('page create: POSTs the storage body, with ancestors only for a parent', async () => {
     const { calls } = await run(createPage, { space: 'DOCS', title: 'T', body: '<p>B</p>', ...write }, [{ method: 'POST', url: `${API}/content`, respond: { json: page('9') } }]);
     expect(calls[0]).toEqual({
       method: 'POST',
@@ -175,12 +175,12 @@ describe('pages', () => {
     });
   });
 
-  it('create-page: --representation wiki still goes under body.storage (#78 item 7)', async () => {
+  it('page create: --representation wiki still goes under body.storage (#78 item 7)', async () => {
     const { calls } = await run(createPage, { space: 'DOCS', title: 'T', body: 'h1. X', parentId: '7', representation: 'wiki', ...write }, [{ method: 'POST', url: `${API}/content`, respond: { json: page('9') } }]);
     expect(JSON.parse(calls[0]!.body!)).toMatchObject({ ancestors: [{ id: '7' }], body: { storage: { value: 'h1. X', representation: 'wiki' } } });
   });
 
-  it('create-page: --markdown converts the body file through Confluence first, and sends storage (#78 item 2)', async () => {
+  it('page create: --markdown converts the body file through Confluence first, and sends storage (#78 item 2)', async () => {
     const { calls } = await run(createPage, { space: 'DOCS', title: 'T', bodyFile: 'a.md', markdown: true, representation: 'wiki', ...write }, [
       { method: 'POST', url: `${API}/contentbody/convert/storage`, respond: { json: { value: '<h1>A</h1>' } } },
       { method: 'POST', url: `${API}/content`, respond: { json: page('9') } },
@@ -189,7 +189,7 @@ describe('pages', () => {
     expect(JSON.parse(calls[1]!.body!).body).toEqual({ storage: { value: '<h1>A</h1>', representation: 'storage' } });
   });
 
-  it('create-page: refuses no body, or both, before any request; reads stdin on the CLI', async () => {
+  it('page create: refuses no body, or both, before any request; reads stdin on the CLI', async () => {
     const none = await run(createPage, { space: 'D', title: 'T', ...write }, []);
     expect(none.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Must specify --body or --body-file' });
     const both = await run(createPage, { space: 'D', title: 'T', body: 'x', bodyFile: 'f', ...write }, []);
@@ -200,7 +200,7 @@ describe('pages', () => {
     expect(JSON.parse(piped.calls[0]!.body!).body.storage.value).toBe('<p>S</p>');
   });
 
-  it('create-page: an XML parse error gets the offending line appended', async () => {
+  it('page create: an XML parse error gets the offending line appended', async () => {
     const body = '<p>one</p>\n<p>bad & char</p>';
     const { envelope } = await run(createPage, { space: 'D', title: 'T', body, ...write }, [
       { method: 'POST', url: `${API}/content`, respond: { status: 400, json: { statusCode: 400, message: 'Error parsing xhtml: Unexpected character at [row,col]={2,9}' } } },
@@ -208,7 +208,7 @@ describe('pages', () => {
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'Error parsing xhtml: Unexpected character at [row,col]={2,9}\n\nOffending line 2: <p>bad & char</p>\n        ^' });
   });
 
-  it('update-page: reads the version, sends the next one and the current title, status current', async () => {
+  it('page update: reads the version, sends the next one and the current title, status current', async () => {
     const { calls } = await run(updatePage, { id: '12345', body: '<p>N</p>', ...write }, [
       { url: `${API}/content/12345?expand=version`, respond: { json: { title: 'Old', version: { number: 3 } } } },
       { method: 'PUT', url: `${API}/content/12345`, respond: { json: page('12345') } },
@@ -216,7 +216,7 @@ describe('pages', () => {
     expect(JSON.parse(calls[1]!.body!)).toEqual({ version: { number: 4 }, type: 'page', title: 'Old', status: 'current', body: { storage: { value: '<p>N</p>', representation: 'storage' } } });
   });
 
-  it('update-page: --title alone sends no body (#78 item 6)', async () => {
+  it('page update: --title alone sends no body (#78 item 6)', async () => {
     const { calls } = await run(updatePage, { id: '12345', title: 'New', status: 'draft', ...write }, [
       { url: `${API}/content/12345?expand=version`, respond: { json: { title: 'Old', version: { number: 1 } } } },
       { method: 'PUT', url: `${API}/content/12345`, respond: { json: page('12345') } },
@@ -224,7 +224,7 @@ describe('pages', () => {
     expect(JSON.parse(calls[1]!.body!)).toEqual({ version: { number: 2 }, type: 'page', title: 'New', status: 'draft' });
   });
 
-  it('update-page: --markdown converts before reading the version; a 500 lists storage-format causes', async () => {
+  it('page update: --markdown converts before reading the version; a 500 lists storage-format causes', async () => {
     const { envelope, calls } = await run(updatePage, { id: '12345', body: 'x', markdown: true, ...write }, [
       { method: 'POST', url: `${API}/contentbody/convert/storage`, respond: { json: { value: '<ac:structured-macro ac:name="code"></ac:structured-macro>' } } },
       { url: `${API}/content/12345?expand=version`, respond: { json: { title: 'Old', version: { number: 1 } } } },
@@ -237,35 +237,35 @@ describe('pages', () => {
 });
 
 describe('comments and labels', () => {
-  it('list-comments: sends no depth, so replies are left out (#78 item 3)', async () => {
+  it('page comments: sends no depth, so replies are left out (#78 item 3)', async () => {
     const { calls } = await run(listComments, { id: '12345' }, [{ url: /child\/comment/, respond: listOf([]) }]);
     expect(calls[0]!.url).toBe(`${API}/content/12345/child/comment?expand=body.storage,version&start=0&limit=25`);
   });
 
-  it('add-comment: the container is always a page (#78 item 8)', async () => {
+  it('page comment: the container is always a page (#78 item 8)', async () => {
     const { calls } = await run(addComment, { id: '555', body: 'hi', representation: 'wiki', ...write }, [{ method: 'POST', url: `${API}/content`, respond: { json: {} } }]);
     expect(calls[0]!.body).toBe(JSON.stringify({ type: 'comment', container: { id: '555', type: 'page' }, body: { storage: { value: 'hi', representation: 'wiki' } } }));
   });
 
-  it('add-label: global labels from a trimmed comma list, returning results', async () => {
+  it('page label: global labels from a trimmed comma list, returning results', async () => {
     const { envelope, calls } = await run(addLabel, { id: '12345', labels: ' a, b,,', ...write }, [{ method: 'POST', url: `${API}/content/12345/label`, respond: { json: { results: [{ name: 'a' }] } } }]);
     expect(calls[0]!.body).toBe(JSON.stringify([{ prefix: 'global', name: 'a' }, { prefix: 'global', name: 'b' }]));
     expect(envelope.data).toEqual([{ name: 'a' }]);
   });
 
-  it('remove-label: the label goes in the path unencoded (#78 item 4)', async () => {
+  it('page unlabel: the label goes in the path unencoded (#78 item 4)', async () => {
     const { envelope, calls } = await run(removeLabel, { id: '12345', label: 'runbook', ...write }, [{ method: 'DELETE', url: /label/, respond: { status: 204 } }]);
     expect(calls[0]!.url).toBe(`${API}/content/12345/label/runbook`);
     expect(envelope.data).toEqual({ removed: 'runbook', from: '12345' });
   });
 
-  it('remove-label: a ; that leaves a real name before it is sent as given', async () => {
+  it('page unlabel: a ; that leaves a real name before it is sent as given', async () => {
     const { envelope, calls } = await run(removeLabel, { id: '12345', label: 'a;b', ...write }, [{ method: 'DELETE', url: /label/, respond: { status: 204 } }]);
     expect(calls[0]!.url).toBe(`${API}/content/12345/label/a;b`);
     expect(envelope.data).toEqual({ removed: 'a;b', from: '12345' });
   });
 
-  it('remove-label: a label that would change the path is refused before any request', async () => {
+  it('page unlabel: a label that would change the path is refused before any request', async () => {
     // Tab, LF and CR are dropped by the URL parser, so core's bound strips them first (KF4).
     for (const label of ['a/b', '../../../space/DOCS', '..', '%2e%2e', '.%2E', '.\t.', '%2e\n%2e', '.\t', '.\r.', ...DOT_PARAMS]) {
       const { envelope, calls } = await run(removeLabel, { id: '12345', label, ...write }, []);
@@ -276,7 +276,7 @@ describe('comments and labels', () => {
 });
 
 describe('spaces', () => {
-  it('list-spaces: start, limit, then type; --limit caps the total', async () => {
+  it('space list: start, limit, then type; --limit caps the total', async () => {
     const { envelope, calls } = await run(listSpaces, { type: 'global', limit: '1' }, [{ url: /space/, respond: listOf([{ key: 'A' }, { key: 'B' }], true) }]);
     expect(calls.map((c) => c.url)).toEqual([`${API}/space?start=0&limit=1&type=global`]);
     expect(envelope.data).toEqual([{ key: 'A' }]);
@@ -284,7 +284,7 @@ describe('spaces', () => {
 });
 
 describe('attachments', () => {
-  it('upload-attachment: multipart with the file then the comment, and the no-check header', async () => {
+  it('page attach: multipart with the file then the comment, and the no-check header', async () => {
     const { envelope, calls } = await run(uploadAttachment, { id: '12345', file: 'docs/a.txt', comment: 'v1', ...write }, [
       { method: 'POST', url: `${API}/content/12345/child/attachment`, respond: { json: { results: [{ id: '1' }] } } },
     ], { files: { 'docs/a.txt': 'hello' } });
@@ -294,18 +294,18 @@ describe('attachments', () => {
     expect(envelope.data).toEqual([{ id: '1' }]);
   });
 
-  it("upload-attachment: a missing file is INVALID_INPUT naming the path, before any request", async () => {
+  it("page attach: a missing file is INVALID_INPUT naming the path, before any request", async () => {
     const { envelope, calls } = await run(uploadAttachment, { id: '12345', file: 'gone.txt', ...write }, []);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'File not found: gone.txt' });
     expect(calls).toHaveLength(0);
   });
 
-  it('upload-attachment: always POSTs a new attachment, never a new version (#78 item 5)', async () => {
+  it('page attach: always POSTs a new attachment, never a new version (#78 item 5)', async () => {
     const { calls } = await run(uploadAttachment, { id: '12345', file: 'a.txt', ...write }, [{ method: 'POST', url: /attachment$/, respond: { json: { results: [] } } }], { files: { 'a.txt': 'x' } });
     expect(calls[0]!.url).toBe(`${API}/content/12345/child/attachment`);
   });
 
-  it('download-attachment: fetches the relative link under baseUrl, context path kept, and saves it to .toil', async () => {
+  it('attachment download: fetches the relative link under baseUrl, context path kept, and saves it to .toil', async () => {
     const config = { confluence: { ...fixtureConfig.confluence, baseUrl: `${CONFLUENCE}/wiki` } };
     const { envelope, calls, written } = await run(downloadAttachment, { id: '98765' }, [
       { url: `${CONFLUENCE}/wiki/rest/api/content/98765`, respond: { json: attachment() } },
@@ -316,7 +316,7 @@ describe('attachments', () => {
     expect(Object.keys(written)).toHaveLength(1);
   });
 
-  it('download-attachment: saved is absolute with forward slashes even when --dir is relative (#233, a listed divergence)', async () => {
+  it('attachment download: saved is absolute with forward slashes even when --dir is relative (#233, a listed divergence)', async () => {
     const { envelope } = await run(downloadAttachment, { id: '98765', dir: 'downloads' }, [
       { url: `${API}/content/98765`, respond: { json: attachment() } },
       { url: /download/, respond: { text: 'PNG!' } },
@@ -325,7 +325,7 @@ describe('attachments', () => {
     expect((envelope.data as { saved: string }).saved).not.toContain('\\');
   });
 
-  it('download-attachment: an absolute link on another host is re-pointed at baseUrl, with a warning (#78 item 1)', async () => {
+  it('attachment download: an absolute link on another host is re-pointed at baseUrl, with a warning (#78 item 1)', async () => {
     const elsewhere = { ...attachment(), _links: { download: 'https://other.imagile.dev/download/attachments/1/x.png?api=v2' } };
     const { envelope, calls } = await run(downloadAttachment, { id: '98765', dir: 'out' }, [
       { url: `${API}/content/98765`, respond: { json: elsewhere } },
@@ -335,13 +335,13 @@ describe('attachments', () => {
     expect(envelope.meta.warnings).toEqual([{ code: 'CONFLUENCE_ATTACHMENT_HOST', message: expect.stringContaining('https://other.imagile.dev') }]);
   });
 
-  it('download-attachment: content with no download link is refused, naming the id and title', async () => {
+  it('attachment download: content with no download link is refused, naming the id and title', async () => {
     const { envelope, calls } = await run(downloadAttachment, { id: '12345' }, [{ url: /content\/12345/, respond: { json: { id: '12345', title: 'A page', _links: {} } } }]);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Content 12345 has no download link — is it an attachment? (title: A page)' });
     expect(calls).toHaveLength(1);
   });
 
-  it('download-attachment: never replaces a file already there', async () => {
+  it('attachment download: never replaces a file already there', async () => {
     const { envelope } = await run(downloadAttachment, { id: '98765' }, [
       { url: /content\/98765/, respond: { json: attachment() } },
       { url: /download/, respond: { text: 'new' } },

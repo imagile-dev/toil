@@ -1,15 +1,15 @@
 [
   {
-    "name": "list-schemas",
-    "tool": "db_list_schemas",
+    "name": "schema list",
+    "tool": "db_schema_list",
     "description": "List the schemas in a database",
     "writes": false,
     "connection": true,
     "flags": []
   },
   {
-    "name": "list-tables",
-    "tool": "db_list_tables",
+    "name": "table list",
+    "tool": "db_table_list",
     "description": "List the tables and views in a schema",
     "writes": false,
     "connection": true,
@@ -18,8 +18,8 @@
     ]
   },
   {
-    "name": "describe-table",
-    "tool": "db_describe_table",
+    "name": "table describe",
+    "tool": "db_table_describe",
     "description": "Describe a table or view: columns, primary key, indexes and foreign keys",
     "writes": false,
     "connection": true,
@@ -29,8 +29,8 @@
     ]
   },
   {
-    "name": "preview-table",
-    "tool": "db_preview_table",
+    "name": "table preview",
+    "tool": "db_table_preview",
     "description": "Preview the rows of a table or view, a page at a time",
     "writes": false,
     "connection": true,
@@ -50,7 +50,8 @@
     "flags": [
       "<sql>",
       "--limit <rows>",
-      "--cursor <cursor>"
+      "--cursor <cursor>",
+      "--no-lint"
     ]
   },
   {
@@ -61,7 +62,20 @@
     "connection": true,
     "flags": [
       "<sql>",
+      "--no-lint",
       "--allow-write"
+    ]
+  },
+  {
+    "name": "lint",
+    "tool": "db_lint",
+    "description": "Check SQL against an engine's dialect before running it; with --engine, no connection is used",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<sql>",
+      "--engine <engine>",
+      "--as <command>"
     ]
   }
 ]

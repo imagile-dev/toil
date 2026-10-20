@@ -28,7 +28,7 @@ description: Rules for toil's `db` area and its database providers (PostgreSQL, 
 ## The framework
 
 The `db` area (`src/areas/db/`) has one set of commands for every engine:
-`list-schemas`, `list-tables`, `describe-table`, `preview-table`, `query` (read-only,
+`schema list`, `table list`, `table describe`, `table preview`, `query` (read-only,
 one statement, paged) and `execute` (the only write, `writes: true`). A connection
 names its `engine`; commands look up that engine's provider and never know which
 one they got.
@@ -59,6 +59,21 @@ one they got.
   files, PostgreSQL's server-side functions such as `lo_export` for a privileged role, a MySQL procedure that commits and turns read-write itself, SQL Server's `COMMIT` inside dynamic SQL, which toil detects from the transaction ending and reports, and which a read-only login is what stops),
   an Oracle stored function with an autonomous transaction called from a `SELECT`) is
   pinned with a test and documented as a known limit.
+- **The pre-flight lint** (`src/core/db/lint/`, #303) reads caller SQL for the
+  connection's engine before the provider is asked anything: `db query` and `db
+  execute` call it first in `run`, and `db lint` runs it alone (with `--engine`, a
+  `connectionlessWhen` command, so no connection resolves). It has its own small
+  tokenizer, a table of each engine's quoting rules, and leaves the statement
+  splitters beside the providers alone: they decide what a read refuses and must
+  match the engine's lexer exactly, while the lint only advises. Errors throw before
+  a connection opens (`read-only-write` as `WRITE_DISABLED`, the rest
+  `INVALID_INPUT`) and `--no-lint` never skips one; warnings go to `meta.warnings`
+  as `LINT`, and `meta.lint` lists the rules that ran. An error rule must stay quiet
+  when unsure, since a false one blocks good SQL with no way round it. Its
+  `read-only-write` rule is not what keeps reads read-only: the engine is, as above.
+  A new rule gets a bad and a good fixture for every engine it runs on in
+  `src/core/db/lint/lint.test.ts`, which fails until it has them, and a row in the
+  rule table in `skills/toil/db.md`.
 - **`execute` is all or nothing.** A script that starts or ends its own transaction
   is refused before any of it runs, so a mid-script `COMMIT` can't leave half a
   change applied.
@@ -137,7 +152,9 @@ one they got.
   `test/fixtures/db.fixture.ts` (removed by its `cleanup`). The examples name the
   seed's tables (`people`, `teams`), so keep them in step with `SEED_SQL`. Parity
   sees no HTTP from the db area, so its "same requests" check is vacuous there; the
-  conformance suite is what proves read-only.
+  conformance suite is what proves read-only. `db query`'s pre-flight lint refuses an
+  obvious write first, so a test proving the engine or a provider's deny asks the
+  provider directly too, with `engineQuery` (`test/harness/db.ts`).
 - **Before opening a PR that touches a database provider, run it against the real
   engine locally in Docker.** Pull the same official image CI uses (`postgres`,
   `mysql`/`mariadb`, `mcr.microsoft.com/mssql/server` at a dated cumulative-update tag such as `2022-CU27-ubuntu-22.04`, never `2022-latest`, `gvenzl/oracle-free`), seed

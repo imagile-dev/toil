@@ -121,7 +121,7 @@ export const buildJobsCommand = saucelabsArea.command({
 });
 
 export const buildForJobCommand = saucelabsArea.command({
-  path: ['saucelabs', 'build', 'for-job'],
+  path: ['saucelabs', 'job', 'build'],
   description: 'Get the build a job belongs to',
   input: z.object({ jobId: z.string().describe('Job ID'), source }),
   writes: false,

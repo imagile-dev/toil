@@ -1,7 +1,7 @@
 [
   {
-    "name": "file",
-    "tool": "figma_file",
+    "name": "file get",
+    "tool": "figma_file_get",
     "description": "Get a Figma file — metadata, structure, and component/style inventory (or a single node with --node-id)",
     "writes": false,
     "connection": true,
@@ -12,8 +12,8 @@
     ]
   },
   {
-    "name": "comments",
-    "tool": "figma_comments",
+    "name": "file comments",
+    "tool": "figma_file_comments",
     "description": "Get comments on a Figma file",
     "writes": false,
     "connection": true,
@@ -23,8 +23,8 @@
     ]
   },
   {
-    "name": "versions",
-    "tool": "figma_versions",
+    "name": "file versions",
+    "tool": "figma_file_versions",
     "description": "Get the version history of a Figma file",
     "writes": false,
     "connection": true,
@@ -33,7 +33,7 @@
     ]
   },
   {
-    "name": "project-files",
+    "name": "project files",
     "tool": "figma_project_files",
     "description": "List files in a Figma project",
     "writes": false,
@@ -43,8 +43,8 @@
     ]
   },
   {
-    "name": "me",
-    "tool": "figma_me",
+    "name": "whoami",
+    "tool": "figma_whoami",
     "description": "Get the current Figma user (useful for verifying credentials)",
     "writes": false,
     "connection": true,

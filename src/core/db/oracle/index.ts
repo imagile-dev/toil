@@ -247,7 +247,7 @@ export function toToilError(err: unknown, conn: DbConnection, mode: Mode): unkno
     });
   }
   if (code.startsWith('ORA-') || code.startsWith('PLS-')) {
-    return new ToilError('DATABASE', `Oracle: ${message}`, { fix: 'Check the SQL against toil db describe-table for the tables it uses.' });
+    return new ToilError('DATABASE', `Oracle: ${message}`, { fix: 'Check the SQL against toil db table describe for the tables it uses.' });
   }
   return new ToilError('DATABASE', `Oracle: ${message}`, { fix: 'Check the connection settings and the SQL. If it persists, run with --debug and report it.' });
 }
@@ -300,12 +300,12 @@ async function findTable(client: OraConnection, owner: string, table: string): P
 }
 
 function notFoundSchema(conn: DbConnection, schema: string): ToilError {
-  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema "${schema}" that its user can see.`, { fix: 'Run toil db list-schemas to see the schemas it has.' });
+  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema "${schema}" that its user can see.`, { fix: 'Run toil db schema list to see the schemas it has.' });
 }
 
 function notFoundTable(conn: DbConnection, ref: TableRef): ToilError {
   return new ToilError('NOT_FOUND', `Schema "${ref.schema}" on connection ${conn.name} has no table or view "${ref.table}" that its user can see.`, {
-    fix: `Run toil db list-tables --schema ${ref.schema} to see what it has. A quoted name stored in mixed case must be typed exactly.`,
+    fix: `Run toil db table list --schema ${ref.schema} to see what it has. A quoted name stored in mixed case must be typed exactly.`,
   });
 }
 

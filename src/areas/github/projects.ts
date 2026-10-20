@@ -125,7 +125,7 @@ async function projectsCall<T>(owner: string, what: string, call: () => Promise<
     if (denied) throw new ToilError('AUTH', `The GitHub token can't read ${what}: ${denied.message ?? 'missing scope'}`, { fix: SCOPES });
     if (errors.some((e) => e.type === 'NOT_FOUND')) {
       throw new ToilError('NOT_FOUND', `GitHub found no ${what}: ${errors.find((e) => e.type === 'NOT_FOUND')?.message ?? ''}`.trim(), {
-        fix: `Check --owner (${owner}) and --project, and that the token can see the project. ${SCOPES}`,
+        fix: `Check --owner (${owner}) and the project number, and that the token can see the project. ${SCOPES}`,
       });
     }
     if (errors.some((e) => e.extensions?.code === 'undefinedField' || e.extensions?.code === 'undefinedType' || /doesn't exist on type|unknown type/i.test(e.message ?? ''))) {
@@ -137,11 +137,11 @@ async function projectsCall<T>(owner: string, what: string, call: () => Promise<
   }
 }
 
-const projectNumber = intText.describe('Project number (from projects list, or the project URL)');
-const projectOption = { flags: '--project <number>', field: 'project', description: 'Project number (from projects list, or the project URL)' } as const;
+const projectNumber = intText.describe('Project number (from project list, or the project URL)');
+const projectArg = { name: 'project', field: 'project', description: 'Project number (from project list, or the project URL)' };
 
 export const listProjectsCommand = githubArea.command({
-  path: ['github', 'projects', 'list'],
+  path: ['github', 'project', 'list'],
   description: "List an owner's projects (v2)",
   toolDescription: "Lists the Projects (v2) an organization or user owns: id, number, title, shortDescription, url, public, closed, createdAt, updatedAt. Needs read:project on a classic token, or Projects: read on a fine-grained one (organization projects only). With limit, pass meta.page.nextCursor as cursor for the next page.",
   queryByPost: true,
@@ -164,14 +164,15 @@ function inProject(ctx: GitHubContext, input: { project: number | string; limit?
 }
 
 export const projectFieldsCommand = githubArea.command({
-  path: ['github', 'projects', 'fields'],
+  path: ['github', 'project', 'fields'],
   description: "List a project's fields, with single-select options and iterations",
   toolDescription:
     "Lists a project's fields: id, name and dataType (TEXT, NUMBER, DATE, SINGLE_SELECT, ITERATION, and the built-in ones), the options of a single-select field such as Status, and an iteration field's configuration with its current and completed iterations. With limit, pass meta.page.nextCursor as cursor for the next page.",
   queryByPost: true,
   input: z.object({ project: projectNumber, ...pageFields('fields') }),
   writes: false,
-  options: [projectOption, ...pageOptions('fields')],
+  args: [projectArg],
+  options: [...pageOptions('fields')],
   examples: [{ owner: 'imagile', project: '3' }, { owner: 'imagile', repo: 'unused', project: 3, limit: 1, cursor: exampleGraphqlCursor() }],
   run: async (input, ctx) => inProject(ctx, input, FIELDS, 'fields', 'fields'),
 });
@@ -182,14 +183,15 @@ interface Item {
 }
 
 export const projectItemsCommand = githubArea.command({
-  path: ['github', 'projects', 'list-items'],
+  path: ['github', 'project', 'items'],
   description: "List a project's items (issues, pull requests, drafts) with their field values",
   toolDescription:
     "Lists a project's items: id, type (ISSUE, PULL_REQUEST, DRAFT_ISSUE), isArchived, the content (number, title, state, url and repository for an issue or PR; title for a draft) and fieldValues, each with its field's name and the value (text, number, date, a single-select name, or an iteration's title and dates). With limit, pass meta.page.nextCursor as cursor for the next page.",
   queryByPost: true,
   input: z.object({ project: projectNumber, ...pageFields('items') }),
   writes: false,
-  options: [projectOption, ...pageOptions('items')],
+  args: [projectArg],
+  options: [...pageOptions('items')],
   examples: [{ owner: 'imagile', project: '3' }, { owner: 'imagile', repo: 'unused', project: '3', limit: 1, cursor: exampleGraphqlCursor() }],
   run: async (input, ctx) => {
     const items = (await inProject(ctx, input, ITEMS, 'items', 'items')) as Item[];

@@ -1,20 +1,20 @@
 [
   {
-    "name": "repositories list",
-    "tool": "logscale_repositories_list",
+    "name": "repository list",
+    "tool": "logscale_repository_list",
     "description": "List available repositories",
     "writes": false,
     "connection": true,
     "flags": []
   },
   {
-    "name": "query",
-    "tool": "logscale_query",
+    "name": "repository query",
+    "tool": "logscale_repository_query",
     "description": "Execute a LogScale Query Language (LQL) search against a repository",
     "writes": false,
     "connection": true,
     "flags": [
-      "--repository <name>",
+      "<repository>",
       "--query <lql>",
       "--start <time>",
       "--end <time>",

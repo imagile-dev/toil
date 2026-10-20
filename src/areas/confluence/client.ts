@@ -84,7 +84,7 @@ export function confluence<T>(ctx: ConfluenceContext, path: string, req: Conflue
  * `max` is used as parseInt left it: 0, a negative number
  * or NaN still pages, and the result is cut with `slice(0, max)`, so NaN
  * returns nothing at all (#78 item 9). `first` offsets every request, as
- * `list-pages --start` specifies.
+ * `page list --start` specifies.
  */
 async function every<T>(
   what: string,
@@ -246,7 +246,7 @@ export async function downloadAttachment(ctx: ConfluenceContext, attachment: Con
   // /content/{id} answers for any content, so a page id gets here with no link.
   if (!link) {
     throw new ToilError('INVALID_INPUT', `Content ${attachment.id} has no download link — is it an attachment? (title: ${attachment.title})`, {
-      fix: 'Pass an attachment id. toil confluence list-attachments --id <page-id> lists them.',
+      fix: 'Pass an attachment id. toil confluence page attachments <page-id> lists them.',
     });
   }
   const target = /^[a-z][a-z0-9+.-]*:/i.test(link)

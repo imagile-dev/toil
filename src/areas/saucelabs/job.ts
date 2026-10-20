@@ -19,22 +19,22 @@ export const jobListCommand = saucelabsArea.command({
   description: 'List your recent jobs',
   input: z.object({
     limit: intText.optional().describe('Maximum number of jobs to return'),
-    skip: intText.optional().describe('Number of jobs to skip'),
+    offset: intText.optional().describe('Number of jobs to skip'),
     from: intText.optional().describe('Only jobs created after this time (Unix seconds or ISO 8601)'),
     to: intText.optional().describe('Only jobs created before this time (Unix seconds or ISO 8601)'),
   }),
   writes: false,
   options: [
     { flags: '--limit <n>', field: 'limit', description: 'Maximum number of jobs to return' },
-    { flags: '--skip <n>', field: 'skip', description: 'Number of jobs to skip' },
+    { flags: '--offset <n>', field: 'offset', description: 'Number of jobs to skip' },
     { flags: '--from <time>', field: 'from', description: 'Only jobs created after this time (Unix seconds or ISO 8601)' },
     { flags: '--to <time>', field: 'to', description: 'Only jobs created before this time (Unix seconds or ISO 8601)' },
   ],
-  examples: [{}, { limit: '5', skip: '10', from: '2026-09-01T00:00:00Z', to: '1790000000' }],
+  examples: [{}, { limit: '5', offset: '10', from: '2026-09-01T00:00:00Z', to: '1790000000' }],
   run: async (input, ctx) => {
     const query = {
       limit: parseIntOption(input.limit, '--limit'),
-      skip: parseIntOption(input.skip, '--skip'),
+      skip: parseIntOption(input.offset, '--offset'),
       from: parseUnixTime(input.from, '--from'),
       to: parseUnixTime(input.to, '--to'),
     };

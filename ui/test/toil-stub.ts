@@ -95,7 +95,7 @@ export function stubToil(): StubToil {
       const data = hit.data as { workItems: Array<{ id: number }> };
       return ok(command, { ...data, workItems: data.workItems.filter((w) => since === null || Date.parse(changed.get(w.id) ?? '') >= since) });
     }
-    if (command === 'ado work-item get-many' || command === 'github get-issue') {
+    if (command === 'ado work-item get-many' || command === 'github issue get') {
       const exact = find(command, rest);
       if (exact) return ok(command, structuredClone(exact.data));
       const whole = sameDossier(command, rest);

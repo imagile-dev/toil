@@ -2,7 +2,7 @@ import type { AuditLog } from './audit.js';
 import type { DossierLookup, GitRemoteReader, SuppliedSource } from './call-context.js';
 import type { ResolvedConfig } from './config.js';
 import type { DossierCatalog, DossierView } from './dossier.js';
-import type { ApiAnswer, ContextReport, Page, Warning } from './envelope.js';
+import type { ApiAnswer, ContextReport, LintReport, Page, Warning } from './envelope.js';
 import type { FileAccess } from './files.js';
 import type { GitRunner } from './git.js';
 import type { GitContext } from './git-repo.js';
@@ -156,7 +156,7 @@ export interface CommandContext<C = undefined, X = Record<string, string | undef
   /**
    * The repository the workspace is in: its root, current branch and remote
    * URLs, read from `.git` in pure JS, so it needs no git installed and spawns
-   * nothing (`bitbucket current-pr`). Undefined outside a repository. Read-only;
+   * nothing (`bitbucket pr current`). Undefined outside a repository. Read-only;
    * to run git, a command that is git uses `ctx.git`. An http(s) remote's
    * userinfo, which may be a token, is left out.
    */
@@ -183,6 +183,8 @@ export interface CommandContext<C = undefined, X = Record<string, string | undef
   setPage: (page: Page) => void;
   /** Set meta.response: the status and content type of a raw API call's answer. */
   setResponse: (response: ApiAnswer) => void;
+  /** Set meta.lint: the engine and rules the pre-flight SQL lint ran (src/core/db/lint/). */
+  setLint: (lint: LintReport) => void;
   /**
    * Ask the CLI to exit with `code` while the envelope stays a success, as a
    * build that ran and failed does: `ok: true`, the build as `data`, exit 1.

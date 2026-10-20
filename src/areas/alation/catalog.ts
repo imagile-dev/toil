@@ -6,7 +6,7 @@ import { alation, getOne, given, intText, MAX_PAGE, pageParams, parseIntOption, 
 /**
  * The relational catalog: data sources under `integration/v1/datasource/`,
  * schemas, tables and columns under `integration/v2/`, and full-text search.
- * Lists return one page (`--limit`/`--skip`, no loop) wrapped as
+ * Lists return one page (`--limit`/`--offset`, no loop; `--offset` is sent as `skip`) wrapped as
  * `{ count, limit, skip, <plural> }`. The catalog is read, never amended;
  * amendments go through Document Hubs, as amendments traditionally do.
  */
@@ -32,10 +32,10 @@ export function parseOtypes(raw: string | undefined): string[] | undefined {
 }
 
 const LIMIT = { flags: '--limit <n>', field: 'limit', description: 'Page size (max 1000) (default: "100")' } as const;
-const SKIP = { flags: '--skip <n>', field: 'skip', description: 'Number of results to skip (default: "0")' } as const;
+const OFFSET = { flags: '--offset <n>', field: 'offset', description: 'Number of results to skip (default: "0")' } as const;
 const paging = {
   limit: intText.optional().describe('Page size (max 1000) (default: "100")'),
-  skip: intText.optional().describe('Number of results to skip (default: "0")'),
+  offset: intText.optional().describe('Number of results to skip (default: "0")'),
 };
 const idInput = (what: string) => z.object({ id: intText.describe(`${what} ID`) });
 const idArg = (what: string) => [{ name: 'id', field: 'id', description: `${what} ID` }];
@@ -85,9 +85,9 @@ export const schemaListCommand = alationArea.command({
     { flags: '--ds <id>', field: 'ds', description: 'Filter by data source ID' },
     { flags: '--name <name>', field: 'name', description: 'Filter by exact schema name' },
     LIMIT,
-    SKIP,
+    OFFSET,
   ],
-  examples: [{}, { ds: '3', name: 'public', limit: '50', skip: '50' }],
+  examples: [{}, { ds: '3', name: 'public', limit: '50', offset: '50' }],
   run: async (input, ctx) => {
     const params: Params = { ...pageParams(input) };
     if (given(input.ds)) params.ds_id = parsePositiveId(input.ds, '--ds');
@@ -126,9 +126,9 @@ export const tableListCommand = alationArea.command({
     { flags: '--name <name>', field: 'name', description: 'Filter by exact table name' },
     { flags: '--search <text>', field: 'search', description: 'Case-insensitive substring match on table name' },
     LIMIT,
-    SKIP,
+    OFFSET,
   ],
-  examples: [{}, { ds: '3', schema: '11', schemaName: 'public', name: 'customers', search: 'cust', limit: '50', skip: '10' }],
+  examples: [{}, { ds: '3', schema: '11', schemaName: 'public', name: 'customers', search: 'cust', limit: '50', offset: '10' }],
   run: async (input, ctx) => {
     const params: Params = { ...pageParams(input) };
     if (given(input.ds)) params.ds_id = parsePositiveId(input.ds, '--ds');
@@ -159,7 +159,7 @@ export const tableGetCommand = alationArea.command({
     // Suspected bug (#77 item 5): one page of 1000, so a wider table is cut off. A warning says when it may have been.
     const columns = await alation<unknown[]>(ctx, 'integration/v2/column/', { params: { table_id: tableId, limit: MAX_PAGE, order_by: 'id' } });
     if (columns.length >= MAX_PAGE) {
-      ctx.warn({ code: 'ALATION_COLUMNS_TRUNCATED', message: `columns holds the first ${MAX_PAGE} by ID; the table may have more. Use toil alation column list --table ${tableId} --skip ${MAX_PAGE} for the rest.` });
+      ctx.warn({ code: 'ALATION_COLUMNS_TRUNCATED', message: `columns holds the first ${MAX_PAGE} by ID; the table may have more. Use toil alation column list --table ${tableId} --offset ${MAX_PAGE} for the rest.` });
     }
     return { ...data, columnCount: columns.length, columns };
   },
@@ -186,9 +186,9 @@ export const columnListCommand = alationArea.command({
     { flags: '--name <name>', field: 'name', description: 'Filter by exact column name' },
     { flags: '--search <text>', field: 'search', description: 'Case-insensitive substring match on column name' },
     LIMIT,
-    SKIP,
+    OFFSET,
   ],
-  examples: [{ table: '7' }, { table: '7', tableName: 'orders', schema: '11', ds: '3', name: 'total', search: 'tot', limit: '20', skip: '0' }],
+  examples: [{ table: '7' }, { table: '7', tableName: 'orders', schema: '11', ds: '3', name: 'total', search: 'tot', limit: '20', offset: '0' }],
   run: async (input, ctx) => {
     if (!given(input.table) && !input.tableName && !given(input.schema) && !given(input.ds) && !input.name && !input.search) {
       throw new ToilError('INVALID_INPUT', 'Pass at least one filter (--table, --table-name, --schema, --ds, --name, or --search); listing every column in the catalog is not supported.', {

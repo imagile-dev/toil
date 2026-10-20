@@ -149,7 +149,7 @@ versions.
   Name it `env`, give it `selectsConnection` (or an enum schema), and never add a
   second environment flag.
 - **A path the contract records in another group** (`deps outdated`, served by
-  `artifactory outdated`) is an `aliases` entry on the command that serves it; the
+  `artifactory package outdated`) is an `aliases` entry on the command that serves it; the
   contract test checks the contract's row against it.
 - **A path in the area that a core command answers** (`jenkins instance list`, which
   lists the area's connections) is `defineArea({ coreAliases: { 'instance list':
@@ -182,7 +182,10 @@ versions.
   answering that Bitbucket isn't set up) sets `connectionOptional: true`. When the
   area has no connection and the call names none, `run` gets `ctx.connection`
   undefined and no context inputs, and answers itself; any other connection problem
-  still fails as usual. Only for a read with no required context input.
+  still fails as usual. Only for a read with no required context input. One whose
+  own input can stand in for the connection (`db lint --engine postgres`) adds
+  `connectionlessWhen(input)`: when it's true, core resolves no connection, reads
+  no secret and consults no dossier.
 - **The working repository** (root, current branch, remote URLs) is `ctx.repo()`,
   read from `.git` in pure JS; it spawns nothing and needs no git. Use `ctx.git` only
   for a command that is git.
@@ -237,7 +240,7 @@ versions.
 - **A `connectionOptional` command** also runs with `ctx.connection` undefined
   when the default connection exists but only lacks a key (a missing `pat`), with
   a `CONFIG_INCOMPLETE` warning; a key set to something wrong still fails.
-- **A fixture whose examples read the repository** (`current-pr`) sets `repo`
+- **A fixture whose examples read the repository** (`pr current`) sets `repo`
   (root, branch, remotes) in `defineFixture`, and `ctx.repo()` returns it on both
   front doors.
 - **Two selecting inputs** (`--env prod --instance east`) pick the one connection
@@ -320,7 +323,7 @@ the Open Work Item mapping (`docs/owi/spec.md`) **in the same PR**:
   returned: `verified.passed`, and anything in `unmapped` or `skipped`.
 
 `test/owi.test.ts` enforces the mark: an area with issue- or work-item-shaped
-commands (`get-issue`, `search-issues`, `issue-events`, `issue get`, `work-item get`)
+commands (`issue get`, `issue search`, `issue history`, `work-item get`)
 that isn't in `OWI_SOURCES` fails CI, and so does a marked area without a fixture or
 whose mapped examples don't validate against the schema. An area that is on its way
 sits in that test's `PENDING` list, by its issue, and switches on once it registers.
@@ -359,8 +362,12 @@ breaking the other.
   `assign`, `transition`, `link`, `comment`, `merge`, `approve`, `download`), **or,
   for a read of a sub-collection, its plural noun** (`comments`, `transitions`,
   `attachments`, `files`, `reviewers`, `builds`, `threads`, `fields`, `types`).
-- **Service-level commands stay two words**: `whoami`, `connection-data`, `api`,
-  `check-dossier`.
+- **A service-level command stays two words**: one that acts on the connection or the
+  service as a whole rather than on one resource (`whoami`, `connection-data`, `api`,
+  `check-dossier`, `status`, `ping`, `db query`, `alation search`), and an inventory
+  command that is an area's one job (`osv vulns`, `ossindex vulns`, `sonatypeiq
+  evaluate`). `sonatypeiq evaluate` keeps `--application-id` as a flag, a named
+  exception: `deps frisk`'s routed alias can pass flags only.
 - **Positional arguments are the path to the thing and nothing else**: the
   resource's id first, then a sub-item's id (an attachment, a thread, a comment).
   Values, including the other end of a link, a state, a sprint or a person, are
@@ -372,14 +379,22 @@ breaking the other.
   its flag, and a positional id's field after the argument (`key` for a Jira issue,
   `id` for most others, `name` or `commit` where that's what identifies it). Where an
   idea needs two flags (`--top` beside `--limit`), `AGENT_DECISIONS.md` says why.
+  Page-number paging is `--page` and `--page-size`, and an offset is `--offset`.
+  **Named exceptions**, the vendor's own terms where the idea isn't quite ours:
+  GitHub's `--head` / `--base` on `pr create` (Git's refs, where ADO and Bitbucket
+  say `--source` / `--target`), ADO's `--creator`, and `--all`, which means
+  "every page" in sonar and sde and "include the rest" elsewhere.
+- **An id that starts with `-`** goes after `--` on the CLI, and the error for one
+  given without it says so (`dashLedFix` in `src/program.ts`).
 - **Reshaping an area changes the command layer only**: paths, arguments, flags,
   field names and the text that names them. Client code, requests, results, errors
   and `data` stay as the contract records them. The old paths and flags are dropped,
   never aliased, and the contract's entries for the area are rewritten to the new
   surface in the same change (CLAUDE.md, **The command contract**).
-- **Today** `jira`, `jira-cloud`, `ado` and `ado-cloud` follow it. A new area follows
-  it from the start; every other area moves to it before 1.0 (#297), and its reshape PR
-  carries the old-to-new table of every path and flag (CLAUDE.md, **The command contract**).
+- **Every integration area follows it** (#290, #297), and a new area follows it from
+  the start. A later reshape carries the old-to-new table of every path and flag in
+  its PR (CLAUDE.md, **The command contract**). `git` (local git's own verbs) and `util`
+  (local utilities) keep their shapes.
 
 ## Compatibility
 

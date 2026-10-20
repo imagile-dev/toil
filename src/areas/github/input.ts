@@ -14,9 +14,9 @@ export const intText = z.union([z.number(), z.string()]);
 export const parseIntText = (value: number | string): number => parseInt(String(value), 10);
 
 export const prNumber = intText.describe('Pull request number');
-export const prNumberOption = { flags: '--number <n>', field: 'number', description: 'Pull request number' } as const;
+export const prNumberArg = { name: 'number', field: 'number', description: 'Pull request number' };
 export const itemNumber = intText.describe('PR or issue number');
-export const itemNumberOption = { flags: '--number <n>', field: 'number', description: 'PR or issue number' } as const;
+export const itemNumberArg = { name: 'number', field: 'number', description: 'PR or issue number' };
 
 /** A date flag as `new Date()` reads it: date-only is UTC midnight, a zone-less date-time local time (#72 item 14). */
 export function parseDateOption(flag: string, value: string): Date {

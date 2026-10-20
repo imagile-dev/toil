@@ -9,6 +9,7 @@ import { controlsTransaction, splitStatements } from '../../src/core/db/oracle/s
 import type { DbConnection } from '../../src/core/db/provider.js';
 import { execute } from '../../src/core/run.js';
 import { testContext } from '../harness/context.js';
+import { engineQuery } from '../harness/db.js';
 import { oracle, targets, type TargetDatabase } from './targets.js';
 
 /**
@@ -149,7 +150,7 @@ const target = targets.find((t) => t.engine === 'oracle')!;
 const skip = await target.skip?.();
 
 // Oracle is slow to create and drop a user, and slower still on a shared CI
-// runner (one describe-table test took 6.8 s there): the target's one limit
+// runner (one table describe test took 6.8 s there): the target's one limit
 // covers every test here and the hooks that create and drop the user.
 describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})` : ''}`, { timeout: target.timeout }, () => {
   let db: TargetDatabase;
@@ -279,6 +280,8 @@ describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})`
     for (const [sql] of escapes) {
       const envelope = await run(query, { sql: `/* c */ ${sql.toLowerCase()}` });
       expect(envelope.error, sql).toMatchObject({ code: 'WRITE_DISABLED', fix: expect.stringContaining('db execute') });
+      // The pre-flight lint refuses some of these first; the provider's own deny must hold without it.
+      await expect(engineQuery(db.settings, `/* c */ ${sql.toLowerCase()}`), sql).rejects.toMatchObject({ code: 'WRITE_DISABLED' });
     }
     expect(await tables()).toEqual(['PEOPLE', 'TEAMS', 'VICTIM']);
     expect(await direct('SELECT count(*) FROM people')).toEqual([[12]]);
@@ -309,6 +312,7 @@ describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})`
   it('refuses MERGE, SELECT FOR UPDATE and a multi-table INSERT as writes, at the engine', async () => {
     for (const sql of ['MERGE INTO teams t USING dual ON (t.id = 1) WHEN MATCHED THEN UPDATE SET name = \'X\'', 'SELECT * FROM people FOR UPDATE', 'INSERT ALL INTO teams (id, name) VALUES (9, \'Nine\') SELECT * FROM dual']) {
       expect((await run(query, { sql })).error?.code, sql).toBe('WRITE_DISABLED');
+      await expect(engineQuery(db.settings, sql), sql).rejects.toMatchObject({ code: 'WRITE_DISABLED' });
     }
     expect(await direct('SELECT name FROM teams ORDER BY id')).toEqual([['Platform'], ['Data']]);
   });

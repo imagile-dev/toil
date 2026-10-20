@@ -7,7 +7,7 @@ import { artifactory, ping } from './client.js';
 /**
  * The nine Artifactory commands: health, repositories, artifact metadata and
  * properties, AQL search, and Build Integration. `data` is Artifactory's own
- * answer, except where noted (`builds` derives names; `properties-set`
+ * answer, except where noted (`build list` derives names; `artifact set-properties`
  * reports what it asked for). Repo and path go into the URL as typed, and AQL
  * values into the query as typed, both suspected bugs (#82) kept until a
  * live server rules on them, as rulings tend to be scheduled.
@@ -30,7 +30,7 @@ export const pingCommand = artifactoryArea.command({
 });
 
 export const reposCommand = artifactoryArea.command({
-  path: ['artifactory', 'repos'],
+  path: ['artifactory', 'repo', 'list'],
   description: 'List repositories',
   input: z.object({
     type: z.string().optional().describe('Filter by type: local, virtual, remote, federated'),
@@ -47,7 +47,7 @@ export const reposCommand = artifactoryArea.command({
 });
 
 export const artifactInfoCommand = artifactoryArea.command({
-  path: ['artifactory', 'artifact-info'],
+  path: ['artifactory', 'artifact', 'get'],
   description: 'Get metadata for an artifact or folder (checksums, size, timestamps)',
   input: z.object({
     repo: z.string().describe('Repository key'),
@@ -63,7 +63,7 @@ export const artifactInfoCommand = artifactoryArea.command({
 });
 
 export const propertiesGetCommand = artifactoryArea.command({
-  path: ['artifactory', 'properties-get'],
+  path: ['artifactory', 'artifact', 'properties'],
   description: 'Read custom properties on an artifact',
   input: z.object({
     repo: z.string().describe('Repository key'),
@@ -79,7 +79,7 @@ export const propertiesGetCommand = artifactoryArea.command({
 });
 
 export const propertiesSetCommand = artifactoryArea.command({
-  path: ['artifactory', 'properties-set'],
+  path: ['artifactory', 'artifact', 'set-properties'],
   description: 'Set custom properties on an artifact (format: key=value key=value...)',
   input: z.object({
     repo: z.string().describe('Repository key'),
@@ -102,7 +102,7 @@ export const propertiesSetCommand = artifactoryArea.command({
   run: async (input, ctx) => {
     const keyvals = input.keyvals ?? [];
     if (!keyvals.length) {
-      throw new ToilError('INVALID_INPUT', 'Provide at least one key=value pair', { fix: 'Pass the properties to set after the path, e.g. toil artifactory properties-set <repo> <path> qa.status=passed.' });
+      throw new ToilError('INVALID_INPUT', 'Provide at least one key=value pair', { fix: 'Pass the properties to set after the path, e.g. toil artifactory artifact set-properties <repo> <path> qa.status=passed.' });
     }
     const properties: Record<string, string> = {};
     for (const kv of keyvals) {
@@ -122,7 +122,7 @@ export const propertiesSetCommand = artifactoryArea.command({
 });
 
 export const searchCommand = artifactoryArea.command({
-  path: ['artifactory', 'search'],
+  path: ['artifactory', 'artifact', 'search'],
   description: 'Search artifacts using AQL (Artifactory Query Language) (consider --output-file for large results)',
   toolDescription: 'Search artifacts with AQL, newest first, by repository key, name pattern or path pattern (at least one), optionally by creation date. Returns { results, range }.',
   input: z.object({
@@ -181,7 +181,7 @@ export function aql(opts: { repo?: string | undefined; name?: string | undefined
 }
 
 export const buildsCommand = artifactoryArea.command({
-  path: ['artifactory', 'builds'],
+  path: ['artifactory', 'build', 'list'],
   description: 'List builds registered in Artifactory Build Integration (names may differ from ADO pipeline names; use "search --repo" when empty)',
   input: z.object({
     timeout: intText.optional().describe('Request timeout in seconds (default 60; increase for large Artifactory instances)'),
@@ -202,35 +202,35 @@ export const buildsCommand = artifactoryArea.command({
     const result: { builds: typeof builds; uri: string; hint?: string } = { builds, uri: raw.uri };
     if (builds.length === 0) {
       result.hint =
-        'No builds are registered in Artifactory Build Integration. Build names may differ from ADO pipeline names. Use "artifactory repos" to list repositories, then "artifactory search --repo <repo>" to locate artifacts directly.';
+        'No builds are registered in Artifactory Build Integration. Build names may differ from ADO pipeline names. Use "artifactory repo list" to list repositories, then "artifactory artifact search --repo <repo>" to locate artifacts directly.';
     }
     return result;
   },
 });
 
 export const buildRunsCommand = artifactoryArea.command({
-  path: ['artifactory', 'build-runs'],
+  path: ['artifactory', 'build', 'runs'],
   description: 'List all run numbers for a build',
   input: z.object({
-    name: z.string().describe('Build name, as builds lists it'),
+    name: z.string().describe('Build name, as build list lists it'),
   }),
   writes: false,
-  args: [{ name: 'name', field: 'name', description: 'Build name, as builds lists it' }],
+  args: [{ name: 'name', field: 'name', description: 'Build name, as build list lists it' }],
   examples: [{ name: 'imagile-api' }, { name: 'imagile api/main' }],
   run: async (input, ctx) => artifactory(ctx, `api/build/${encodeURIComponent(input.name)}`),
 });
 
 export const buildInfoCommand = artifactoryArea.command({
-  path: ['artifactory', 'build-info'],
+  path: ['artifactory', 'build', 'get'],
   description: 'Get build info (artifacts, dependencies, VCS revision) for a specific run',
   input: z.object({
-    name: z.string().describe('Build name, as builds lists it'),
-    number: z.string().describe('Run number, as build-runs lists it'),
+    name: z.string().describe('Build name, as build list lists it'),
+    number: z.string().describe('Run number, as build runs lists it'),
   }),
   writes: false,
   args: [
-    { name: 'name', field: 'name', description: 'Build name, as builds lists it' },
-    { name: 'number', field: 'number', description: 'Run number, as build-runs lists it' },
+    { name: 'name', field: 'name', description: 'Build name, as build list lists it' },
+    { name: 'number', field: 'number', description: 'Run number, as build runs lists it' },
   ],
   examples: [{ name: 'imagile-api', number: '142' }],
   run: async (input, ctx) => artifactory(ctx, `api/build/${encodeURIComponent(input.name)}/${encodeURIComponent(input.number)}`),

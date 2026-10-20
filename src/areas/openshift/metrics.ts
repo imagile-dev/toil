@@ -5,8 +5,8 @@ import { ns, openshift } from './client.js';
 import { cpuMillicores, memMiB, type K8sList, type K8sPod, type K8sPodMetrics } from './k8s.js';
 
 /**
- * CPU and memory from metrics-server, alone (pod-metrics) or joined to each
- * container's limits and requests (resource-usage). The CSV goes to a file
+ * CPU and memory from metrics-server, alone (pod metrics) or joined to each
+ * container's limits and requests (namespace usage). The CSV goes to a file
  * the caller names, never to stdout: a spreadsheet is a deliverable, and
  * deliverables get filed.
  */
@@ -14,7 +14,7 @@ import { cpuMillicores, memMiB, type K8sList, type K8sPod, type K8sPodMetrics } 
 const CSV_HEADER = ['Pod', 'Container', 'CPU Usage (m)', 'Memory Usage (Mi)', 'CPU Limits (m)', 'Memory Limits (Mi)', 'CPU Requests (m)', 'Memory Requests (Mi)'];
 
 export const podMetricsCommand = openshiftArea.command({
-  path: ['openshift', 'pod-metrics'],
+  path: ['openshift', 'pod', 'metrics'],
   description: 'Get CPU and memory usage for pods in a namespace (requires metrics-server)',
   input: z.object({ namespace: z.string().describe('Kubernetes namespace') }),
   writes: false,
@@ -28,7 +28,7 @@ export const podMetricsCommand = openshiftArea.command({
 });
 
 export const resourceUsageCommand = openshiftArea.command({
-  path: ['openshift', 'resource-usage'],
+  path: ['openshift', 'namespace', 'usage'],
   description:
     'Combined CPU/memory usage, limits, and requests for all pods in a namespace — all values normalized to millicores (m) and mebibytes (Mi). Requires metrics-server. Use --csv with --out <file> to also save a spreadsheet-friendly CSV.',
   input: z.object({

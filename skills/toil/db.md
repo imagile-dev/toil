@@ -350,12 +350,13 @@ other engines; see the known limit under "Reads are read-only at the engine".
 
 | Command | MCP tool | Returns |
 |---------|----------|---------|
-| `toil db list-schemas` | `db_list_schemas` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas; for Oracle, the users the login can see that Oracle doesn't maintain. |
-| `toil db list-tables [--schema <name>]` | `db_list_tables` | `{ schema, tables: [{ name, type }] }`, `type` being `table` or `view` |
-| `toil db describe-table <table> [--schema <name>]` | `db_describe_table` | `{ schema, name, type, columns, primaryKey, indexes, foreignKeys }` |
-| `toil db preview-table <table> [--schema] [--limit] [--cursor]` | `db_preview_table` | A page of rows: `{ columns, rows }` |
-| `toil db query <sql> [--limit] [--cursor]` | `db_query` | A page of rows from one read-only statement: `{ columns, rows }` |
-| `toil db execute <sql> --allow-write` | `db_execute` | `{ changes }`: rows inserted, updated or deleted |
+| `toil db schema list` | `db_schema_list` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas; for Oracle, the users the login can see that Oracle doesn't maintain. |
+| `toil db table list [--schema <name>]` | `db_table_list` | `{ schema, tables: [{ name, type }] }`, `type` being `table` or `view` |
+| `toil db table describe <table> [--schema <name>]` | `db_table_describe` | `{ schema, name, type, columns, primaryKey, indexes, foreignKeys }` |
+| `toil db table preview <table> [--schema] [--limit] [--cursor]` | `db_table_preview` | A page of rows: `{ columns, rows }` |
+| `toil db query <sql> [--limit] [--cursor] [--no-lint]` | `db_query` | A page of rows from one read-only statement: `{ columns, rows }` |
+| `toil db execute <sql> --allow-write [--no-lint]` | `db_execute` | `{ changes }`: rows inserted, updated or deleted |
+| `toil db lint <sql> [--engine <engine>] [--as <command>]` | `db_lint` | `{ engine, as, errors, warnings, findings }`: what the pre-flight lint finds in the SQL, without running it |
 
 Every command takes `--connection <name>`. `--schema` defaults to the engine's
 default schema (`main` for SQLite, `public` for PostgreSQL, the connection's database
@@ -364,7 +365,7 @@ schema for Oracle). PostgreSQL names are case-sensitive as stored: an unquoted
 `CREATE TABLE People` is stored as `people`. MySQL table names are case-sensitive on
 most Linux servers. Oracle stores an unquoted name in upper case and reports names as
 stored (`PEOPLE`, `ID`); a schema or table you name that doesn't exist as written is
-looked up again in upper case, so `describe-table people` finds `PEOPLE`. A quoted
+looked up again in upper case, so `table describe people` finds `PEOPLE`. A quoted
 mixed-case name (`"People"`) must be typed exactly.
 
 Rows come back as arrays in the order of `columns`, so a join's two `id` columns both
@@ -384,11 +385,11 @@ PostgreSQL names every result column's type (`integer`, `character varying(100)`
 come back as the text the server sent, never shifted into the local time zone.
 
 MySQL names each result column's type from the protocol (`INT`, `BIGINT`, `VARCHAR`,
-`DECIMAL`, `DATETIME`), without lengths; `describe-table` gives the full column type
+`DECIMAL`, `DATETIME`), without lengths; `table describe` gives the full column type
 (`varchar(100)`). `DECIMAL` comes back as a string; dates, times and timestamps as the
 text the server sent; `JSON` as JSON; `BLOB`, `BINARY` and `BIT` as base64.
-`preview-table` orders a table by its primary key, so pages stay stable. In
-`describe-table`, a foreign key's `NO ACTION` and `RESTRICT` both read as null: InnoDB
+`table preview` orders a table by its primary key, so pages stay stable. In
+`table describe`, a foreign key's `NO ACTION` and `RESTRICT` both read as null: InnoDB
 enforces them the same way, and MariaDB reports an unstated rule as `RESTRICT`.
 SQL Server names every result column's type as you'd write it in DDL (`int`,
 `varchar(100)`, `nvarchar(max)`, `decimal(10,2)`, `datetime2(7)`). `bigint` comes back
@@ -400,11 +401,11 @@ past that are dropped. `datetimeoffset` comes back as the instant in UTC
 (`2026-01-02T01:04:05.000Z`), without its original offset. `decimal`, `numeric` and
 `money` come back as JSON numbers, so a value with more than about 15 significant
 digits loses the rest; `CAST` it to `varchar` in the query when every digit matters.
-`preview-table` pages in primary-key order, or in the engine's own order for a table
+`table preview` pages in primary-key order, or in the engine's own order for a table
 without one.
 
 Oracle names each result column's type (`NUMBER`, `VARCHAR2`, `DATE`), and
-`describe-table` gives the declared form (`NUMBER(10,2)`, `VARCHAR2(100)`). A `NUMBER`
+`table describe` gives the declared form (`NUMBER(10,2)`, `VARCHAR2(100)`). A `NUMBER`
 is a JSON number when that's exactly its value, and a string otherwise, so no digits
 are lost. `CLOB` comes back as text, `BLOB` and `RAW` as base64, `BOOLEAN` as a
 boolean, and `BINARY_DOUBLE`'s NaN and infinities as strings. Dates and
@@ -418,15 +419,59 @@ UTC (`+00`).
 
 ### Paging and row caps
 
-`preview-table` and `query` return 100 rows per page unless you pass `--limit`
+`table preview` and `query` return 100 rows per page unless you pass `--limit`
 (1 to 1000). When there are more, `meta.page.nextCursor` holds a cursor; pass it
 back with `--cursor`, along with the same SQL or table, to get the next page. A
 cursor only works with the query it came from. Use `ORDER BY` in a query you page
 through, so the pages are stable.
 
+### Pre-flight lint
+
+Before `db query` or `db execute` sends anything, toil checks the SQL against the
+connection's engine, with no network and no model. An **error** refuses the
+statement before a connection is even opened, with a fix in that engine's own form;
+a **warning** lets it run and lands in `meta.warnings` (code `LINT`). `meta.lint`
+names the engine and every rule that ran, on success and failure alike.
+
+| Rule | Severity | Engines | Trips on |
+|------|----------|---------|----------|
+| `unterminated` | error | all | A string, quoted name or block comment that is never closed (SQLite lets a block comment run to the end, so only its strings and names) |
+| `multiple-statements` | error | all but SQL Server, on `db query` | More than one statement. SQL Server is left to its own check, which refuses SQL that returns more than one result, so `DECLARE @n int = 1; SELECT @n` still runs |
+| `read-only-write` | error (`WRITE_DISABLED`) | all, on `db query` | A statement that starts with `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `REPLACE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, `RENAME` or `COMMENT`, or a `WITH` holding a data change |
+| `dialect-limit` | error | SQL Server, Oracle | `LIMIT n`: use `TOP (n)` or `OFFSET ... FETCH NEXT n ROWS ONLY` on SQL Server, `FETCH FIRST n ROWS ONLY` on Oracle (`ROWNUM <= n` on 11g). A PL/SQL block's own `BULK COLLECT ... LIMIT n` is left alone |
+| `dialect-top` | error | all but SQL Server | `SELECT TOP n`: use `LIMIT n`, or `FETCH FIRST n ROWS ONLY` on Oracle |
+| `dialect-backtick` | error; warning on SQLite | all but MySQL | `` `name` ``: use `"name"`, or `[name]` on SQL Server. SQLite accepts backticks for MySQL compatibility, so there it only warns |
+| `dialect-function` | warning | all | A function another engine has: `NOW()`, `GETDATE()`, `SYSDATETIME()`, two-argument `ISNULL()`, `NVL()`, `IFNULL()`, `LEN()`, `LENGTH()`, `CHARINDEX()`, `SUBSTR()`, where the engine lacks it |
+| `dialect-concat` | warning | all | `\|\|` on SQL Server (use `+` or `CONCAT()`) or MySQL (a logical OR there; use `CONCAT()`), and `+` beside a text literal elsewhere (use `\|\|`, or `CONCAT()` on MySQL) |
+| `select-star` | warning | all, on `db query` | `SELECT *` at the top of a query, whose rows are capped at `--limit` |
+| `implicit-cross-join` | warning | all | A comma between tables in `FROM` with no `WHERE`, which pairs every row with every row |
+
+Every finding has its rule, a message, a fix, and its position in the SQL: `offset`
+from the start, and 1-based `line` and `column`. An error's `error.details.lint`
+lists them.
+
+`--no-lint` (`lint: false` over MCP) skips the warnings for one call. Errors always
+run: `--no-lint` can't send a write through `db query`, and it can't send SQL the
+engine would refuse anyway.
+
+`toil db lint <sql>` runs the same lint without running anything, and returns the
+findings as `data`. With `--engine`, it uses no connection at all: none is looked up
+and no secret is read, so it works with nothing set up. Without it, it takes the
+engine from the connection. `--as execute` checks the SQL as `db execute` would (a
+script of changes) instead of as `db query` would (the default).
+
+```bash
+toil db lint "SELECT TOP 10 * FROM people" --engine postgres
+```
+
+The lint is a check, not a guard. It refuses a write on `db query` a little earlier,
+but what keeps a read read-only is the engine, below, and that still holds for any
+SQL the lint lets through. A table's size isn't known locally, so the lint has no
+rule for a missing `WHERE` on a large table.
+
 ### Reads are read-only at the engine
 
-`db query`, `preview-table` and the listing commands open SQLite read-only with
+`db query`, `table preview` and the listing commands open SQLite read-only with
 `PRAGMA query_only` on. A statement that tries to write fails with `WRITE_DISABLED`,
 whatever the connection's `writes` setting. `db query` runs exactly one statement;
 SQL holding several is refused with `INVALID_INPUT`.
@@ -615,9 +660,9 @@ away. `db query` reads rows a batch at a time from a server-side cursor.
 ## Examples
 
 ```bash
-toil db list-tables
-toil db describe-table people
-toil db preview-table people --limit 20
+toil db table list
+toil db table describe people
+toil db table preview people --limit 20
 toil db query "SELECT id, name FROM people WHERE active = 1 ORDER BY id" --limit 50
 toil db query "SELECT id, name FROM people WHERE active = 1 ORDER BY id" --limit 50 --cursor <meta.page.nextCursor>
 toil db execute "UPDATE people SET active = 0 WHERE id = 7" --allow-write --connection scratch
@@ -633,12 +678,12 @@ Over MCP:
 
 | Code | Means |
 |------|-------|
-| `NOT_CONFIGURED` | No db connection set up |
+| `NOT_CONFIGURED` | No db connection set up (`db lint` needs one only without `--engine`) |
 | `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`), `path` is relative, the file isn't a SQLite database, `"auth": "windows"` is set off Windows, or an Oracle `host` or `database` holds more than a host name or service name |
 | `AUTH` | The server refused the login: check `user` and `password` (for SQL Server, also that SQL Server logins are allowed; for Oracle, also a locked or expired account, or a password verifier too old for Thin mode); or Windows authentication couldn't start (Constrained Language mode, SSPI refused) |
 | `NETWORK` | The server or listener couldn't be reached, didn't answer, or its TLS certificate wasn't trusted; or SQL Server requires encryption and `ssl` is off |
 | `NOT_FOUND` | The file, database, Oracle service, schema or table doesn't exist |
-| `WRITE_DISABLED` | A write was refused: by `db query` (DDL included, on Oracle), or by the write gate on `db execute` |
-| `INVALID_INPUT` | Bad flags, a cursor from another query, several statements in `db query`, or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), transaction control and `OUTPUT` (SQL Server), or PL/SQL (Oracle) |
+| `WRITE_DISABLED` | A write was refused: by `db query` (by the pre-flight lint before it ran, or by the engine; DDL included, on Oracle), or by the write gate on `db execute` |
+| `INVALID_INPUT` | Bad flags, a cursor from another query, SQL the pre-flight lint refused (another engine's syntax, an unclosed quote), several statements in `db query`, or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), transaction control and `OUTPUT` (SQL Server), or PL/SQL (Oracle) |
 | `DATABASE` | The engine refused or failed the statement: bad SQL, a constraint, a lock, a permission; on SQL Server, also SQL that ended toil's transaction itself |
 | `TIMEOUT`, `CANCELLED` | Stopped waiting; for `db execute`, check whether the change was made before retrying |

@@ -66,7 +66,7 @@ export async function triggerBuild(ctx: JenkinsContext, name: string, params?: R
   const match = /\/queue\/item\/(\d+)\/?$/.exec(location);
   if (!match) {
     throw new ToilError('HTTP', 'Build queued but Jenkins did not return a Location header — cannot track queue item', {
-      fix: `The build may be queued. Check it with toil jenkins pipeline list-runs --name ${name} before triggering it again.`,
+      fix: `The build may be queued. Check it with toil jenkins pipeline runs ${name} before triggering it again.`,
       details: { status: res.status },
     });
   }

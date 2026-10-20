@@ -168,17 +168,17 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       const projects = strings(section('github').projects);
       // No board named: the repository's own issues are the tracker, open and closed.
       if (!projects.length) {
-        const issues = await run('work', 'github list-issues', { ...base, state: 'all' });
+        const issues = await run('work', 'github issue list', { ...base, state: 'all' });
         if (!issues) return;
         work.push(issues);
         for (const number of historyNumbers(recs(issues.data))) {
-          const events = await run('work', 'github issue-events', { ...base, number });
+          const events = await run('work', 'github issue history', { ...base, number });
           if (events) work.push({ key: String(number), history: events });
         }
         return;
       }
       for (const project of projects) {
-        const board = await run('work', 'github projects list-items', { ...base, project: Number(project) });
+        const board = await run('work', 'github project items', { ...base, project: Number(project) });
         if (!board) continue;
         work.push(board);
         for (const item of recs(board.data)) {
@@ -187,10 +187,10 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
         }
       }
       if (!numbers.size) return;
-      const issues = await run('work', 'github get-issue', { ...base, number: [...numbers], subIssues: true });
+      const issues = await run('work', 'github issue get', { ...base, number: [...numbers], subIssues: true });
       if (issues) work.push(issues);
       for (const number of numbers) {
-        const events = await run('work', 'github issue-events', { ...base, number });
+        const events = await run('work', 'github issue history', { ...base, number });
         if (events) work.push({ key: String(number), history: events });
       }
     })());
@@ -211,14 +211,14 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   const onOpenShift = async (prs: ChangeRef[]) => {
     const out: Deployment[] = [];
     for (const [env, namespace] of namespaces) {
-      const answer = await run('deployments', 'openshift deployments', { ...base, env, namespace });
+      const answer = await run('deployments', 'openshift deployment list', { ...base, env, namespace });
       if (answer) out.push(...openshiftDeployments(answer.data, env, repos, prs));
     }
     return out;
   };
 
   if (areas.bitbucket) {
-    const list = await run('prs', 'bitbucket list-prs', { ...base, state: 'ALL' });
+    const list = await run('prs', 'bitbucket pr list', { ...base, state: 'ALL' });
     const prs = list ? bitbucketPrs(list.data, connectionOf(list, 'bitbucket'), items) : [];
     const jobs = strings(section('jenkins').jobs);
     await deliver(prs, async () => {
@@ -226,7 +226,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       for (const job of jobs) {
         for (const pr of prs) {
           const id = pr.id.slice(pr.id.lastIndexOf('#') + 1);
-          const runs = await run('builds', 'jenkins pipeline list-runs', { ...base, name: `${job}/PR-${id}`, top: 5 });
+          const runs = await run('builds', 'jenkins pipeline runs', { ...base, name: `${job}/PR-${id}`, limit: 5 });
           if (runs) out.push(...jenkinsBuilds(runs.data, connectionOf(runs, 'jenkins'), `${job}/PR-${id}`, pr));
         }
       }
@@ -261,7 +261,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   }
   if (areas.github) {
     const repo = `${areas.github.inputs.owner}/${areas.github.inputs.repo}`;
-    const list = await run('prs', 'github list-prs', { ...base, state: 'all' });
+    const list = await run('prs', 'github pr list', { ...base, state: 'all' });
     const connection = list ? connectionOf(list, 'github') : 'github';
     const prs = list ? githubPrs(list.data, connection, repo, items) : [];
     const heads = new Map(recs(list?.data).map((raw) => [`${connection}:${repo}#${raw.number}`, githubHead(raw)]));
@@ -270,7 +270,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       for (const pr of checkedPrs(prs)) {
         const ref = heads.get(pr.id);
         if (!ref) continue;
-        const checks = await run('builds', 'github list-checks', { ...base, ref });
+        const checks = await run('builds', 'github commit checks', { ...base, ref });
         const build = checks ? githubBuild(checks.data, connection, pr) : null;
         if (build) out.push(build);
       }
