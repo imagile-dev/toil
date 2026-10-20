@@ -59,3 +59,5 @@ interface to the work around the code: enterprise tools and databases. The princ
 3. CI + release-please + `ship` skill
 4. First vertical slice: `db` area on SQLite and PostgreSQL, CLI + MCP, tests
 5. Review/feedback/triage workflows
+
+Scratch base line for the #361 proof; this branch is deleted afterwards.
