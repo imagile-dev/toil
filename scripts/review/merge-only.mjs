@@ -132,7 +132,7 @@ export function standingApproval(reviews, timeline, bot) {
   if (!last) return { ok: false, reason: `${bot} has no formal review on this PR` };
   const sha = last.commit_id;
   if (!SHA.test(sha ?? '')) return { ok: false, reason: `${bot}'s last review has no commit id` };
-  if (last.state === 'APPROVED') return { ok: true, sha, review: last.id };
+  if (last.state === 'APPROVED') return { ok: true, sha, review: last.id, standing: true };
   if (last.state !== 'DISMISSED') return { ok: false, reason: `${bot}'s last review, at ${sha}, is ${last.state}` };
   const dismissal = timeline.find((e) => e.event === 'review_dismissed' && e.dismissed_review?.review_id === last.id)?.dismissed_review;
   if (!dismissal) return { ok: false, reason: `${bot}'s last review, at ${sha}, was dismissed and no dismissal event explains it` };
@@ -140,7 +140,7 @@ export function standingApproval(reviews, timeline, bot) {
   if (dismissal.dismissal_message || !dismissal.dismissal_commit_id) {
     return { ok: false, reason: `${bot}'s approval of ${sha} was dismissed by a person or a later review, not as stale by a push` };
   }
-  return { ok: true, sha, review: last.id };
+  return { ok: true, sha, review: last.id, standing: false };
 }
 
 /** A small GitHub REST and GraphQL client over fetch. */
@@ -240,7 +240,9 @@ export async function run({ env, gh, git, dryRun = false }) {
   // gone. The approval already counts for the head; what's left to decide is
   // whether the agent reviews again. That is checked against the newest commit
   // that could have changed the PR, the conservative choice.
-  const carried = approved === head;
+  // Only a standing approval can be one GitHub kept; a dismissed review at the
+  // head's sha falls to the chain check, which refuses it.
+  const carried = approved === head && approval.standing;
   let since = approved;
   if (carried) {
     const last = lastChangeBeforeMerges(git, head, base);

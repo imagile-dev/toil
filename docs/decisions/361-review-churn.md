@@ -14,6 +14,12 @@
   compared byte for byte, and a binary file's section is compared whole, since its
   delta depends on the whole pre-image. When `main` changed a PR hunk's context, that
   is a full review: the conservative side.
+- **Blanking hunk line numbers leaves one narrow gap, accepted.** A merge commit
+  could move a PR hunk to another place in the same file whose three context lines
+  happen to be identical, and the diffs would still match: same file, same order,
+  same content and context. That adds nothing for someone with push access, who can
+  already change `claude-review.yml` or run test code with the App token (the review
+  bot's note on #368).
 - **The checker runs from the base branch's copy**, so a PR can't change the code
   that decides whether it skips review. The cost is that a PR changing the checker
   only takes effect once merged. A PR can still change `claude-review.yml` itself,

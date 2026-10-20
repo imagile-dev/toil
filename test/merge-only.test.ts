@@ -225,7 +225,7 @@ describe('merge-only: the whole decision', SLOW, () => {
     expect(posted).toEqual([]);
   });
 
-  it('reviews in full when an approval kept on the head follows a merge that changed the PR, or no merge', async () => {
+  it('reviews in full when an approval at the head follows a merge that changed the PR, was dismissed, or follows no merge', async () => {
     approvedThenMainMoves();
     sh('merge', '-q', '--no-ff', '--no-commit', 'main');
     write('c.txt', 'slipped into the merge\n');
@@ -233,6 +233,9 @@ describe('merge-only: the whole decision', SLOW, () => {
     originMain();
     const kept = fakeGitHub(head, { reviews: [{ ...review(5, 'APPROVED'), commit_id: head }] });
     expect(await run({ env: envFor(head), gh: kept.gh, git: git() })).toMatchObject({ approved: false });
+
+    const dismissed = fakeGitHub(head, { reviews: [{ ...review(5, 'DISMISSED'), commit_id: head }], timeline: [staleDismissal(5)] });
+    expect(await run({ env: envFor(head), gh: dismissed.gh, git: git() })).toMatchObject({ approved: false, reason: expect.stringContaining('is the approved commit') });
 
     write('c.txt', 'a real change\n');
     const real = commit('a real change');
