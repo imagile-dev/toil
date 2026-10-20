@@ -4,9 +4,10 @@
  * builds and deployments, every one read-only and named `toil-ui` in the audit
  * log. What the dossier holds decides what is asked: its Jira project, its
  * Azure DevOps pipelines, its GitHub project board (or, with none named, the
- * repository's issues), the namespace of each environment. Every call is kept with the panel it fed, so the panel can say
- * so, and a call that fails is shown on its panel with toil's own message and
- * fix (principle 4), never dropped.
+ * repository's issues), the namespace of each environment. Every call is kept
+ * with the panel it fed, so the panel can say so, and a call that fails is
+ * shown on its panel with toil's own message and fix (principle 4), never
+ * dropped.
  *
  * Work items go through `mapOwi` (src/owi.ts); the rest through
  * src/model/delivery.ts. One loader, one dossier, no spreadsheet.

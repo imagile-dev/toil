@@ -11,9 +11,9 @@
  * views will make and they render from it unchanged. On the way, that
  * `execute()` makes the sync incremental:
  *
- * - **Searches** (`jira search`, `ado work search`, `github list-issues`) ask only for what changed
- *   since the source's watermark, with `updatedSince`, and merge the answer
- *   into the last copy by key.
+ * - **Searches** (`jira search`, `ado work search`, `github list-issues`) ask
+ *   only for what changed since the source's watermark, with `updatedSince`,
+ *   and merge the answer into the last copy by key.
  * - **The GitHub board** (`github projects list-items`) is read whole, and an
  *   item counts as changed when its issue's `updatedAt` moved.
  * - **Batches** (`ado work get-batch`, `github get-issue`) fetch only the
