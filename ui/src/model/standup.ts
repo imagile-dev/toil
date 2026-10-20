@@ -140,7 +140,9 @@ export function rangeProblem(from: unknown, to: unknown, today: string): string 
   if (!isDay(from) || !isDay(to)) return 'Name the range as two days, yyyy-mm-dd.';
   if (from > to) return `The range starts (${from}) after it ends (${to}).`;
   if (to > today) return `${to} hasn't happened yet: end the range today (${today}) or earlier.`;
-  if (daysBetween(from, to).length > MAX_STANDUP_DAYS) return `A stand-up covers at most ${MAX_STANDUP_DAYS} days; ${from} to ${to} is ${daysBetween(from, to).length}.`;
+  // Counted by arithmetic, not by listing the days: a range of centuries is refused as fast as one of a week.
+  const days = Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000) + 1;
+  if (days > MAX_STANDUP_DAYS) return `A stand-up covers at most ${MAX_STANDUP_DAYS} days; ${from} to ${to} is ${days}.`;
   return null;
 }
 
@@ -148,7 +150,8 @@ export function rangeProblem(from: unknown, to: unknown, today: string): string 
 
 const lower = (s: string | null | undefined) => (s ?? '').trim().toLowerCase();
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const byName = (a: StandupGroup, b: StandupGroup) => (a.key === 'none' ? 1 : b.key === 'none' ? -1 : a.name.localeCompare(b.name, 'en', { sensitivity: 'base' }) || a.key.localeCompare(b.key));
+// Names compared by code, without case, rather than through Intl, whose collation moves with each runtime's ICU data.
+const byName = (a: StandupGroup, b: StandupGroup) => (a.key === 'none' ? 1 : b.key === 'none' ? -1 : natural(a.name.toLowerCase(), b.name.toLowerCase()) || natural(a.key, b.key));
 const emptyLines = (): Record<Bucket, StandupLine[]> => ({ done: [], progress: [], blocked: [], next: [] });
 
 /** Finds or makes the group a line goes in. */
@@ -358,7 +361,9 @@ export function whenText(r: Pick<StandupReport, 'from' | 'to'>, l: Pick<StandupL
 }
 
 const rangeText = (r: Pick<StandupReport, 'from' | 'to'>) => (r.from === r.to ? shortDay(r.from) : `${shortDay(r.from)} to ${shortDay(r.to)}`);
-const asOfText = (r: StandupReport) => (r.asOf ? `the sync at ${shortDay(dayOf(r.asOf)!)} ${timeOf(r.asOf)} UTC` : 'no sync yet');
+/** What review waits, the sprint and Next rest on: the latest good sync, or that there hasn't been one. */
+const asOfText = (r: StandupReport) =>
+  r.asOf ? `Review waits, the sprint and Next are as of the sync at ${shortDay(dayOf(r.asOf)!)} ${timeOf(r.asOf)} UTC.` : 'Review waits, the sprint and Next come from a sync, and none has run yet, so there are none.';
 
 /** A group's heading: its name, the account for one the dossier doesn't map, and whether it is an agent. */
 export const groupTitle = (p: StandupGroup) => `${p.name}${p.account && p.account.id !== p.name ? ` (${p.account.area} ${p.account.id})` : p.account ? ` (${p.account.area})` : ''}${p.kind === 'agent' ? ' (agent)' : ''}`;
@@ -368,7 +373,7 @@ export const standupTitle = (r: Pick<StandupReport, 'dossier' | 'from' | 'to'>) 
 
 /** What the report is, in a sentence, under its title. */
 export const standupLede = (r: StandupReport) =>
-  `Built by Toil UI from the worklog, ${rangeText(r)}, times in UTC: facts only, each linked to its source. Review waits, the sprint and Next are as of ${asOfText(r)}.`;
+  `Built by Toil UI from the worklog, ${rangeText(r)}, times in UTC: facts only, each linked to its source. ${asOfText(r)}`;
 
 function mdLine(r: StandupReport, l: StandupLine): string {
   const subject = l.subject.startsWith('run:') ? escapeMd(l.label) : link({ label: l.label, url: l.url });
@@ -401,20 +406,22 @@ export function standupMarkdown(r: StandupReport): string {
 }
 
 /** `[[id]]` citations as their labels, for plain text. */
-const plainCited = (text: string, refs: Record<string, WorklogRef>) => text.replace(/\[\[([^\]]+)\]\]/g, (_, id: string) => refs[id]?.label ?? id);
+/** Text from a tracker on one line, as a list item needs it: a title with a line break would otherwise start a line of its own. */
+const flat = (text: string) => text.replace(/\s*\r?\n\s*/g, ' ');
+const plainCited = (text: string, refs: Record<string, WorklogRef>) => flat(text.replace(/\[\[([^\]]+)\]\]/g, (_, id: string) => refs[id]?.label ?? id));
 
 function plainLine(r: StandupReport, l: StandupLine): string {
-  const title = l.title ? ` ${plainCited(l.title, l.refs).replace(/\r?\n/g, ' ')}` : '';
-  return `- ${l.label}${title}: ${plainCited(l.text, l.refs)} (${whenText(r, l)})${l.url ? ` ${l.url}` : ''}`;
+  const title = l.title ? ` ${plainCited(l.title, l.refs)}` : '';
+  return `- ${flat(l.label)}${title}: ${plainCited(l.text, l.refs)} (${whenText(r, l)})${l.url ? ` ${l.url}` : ''}`;
 }
 
 /** The report as plain text, for a chat that doesn't render Markdown. */
 export function standupText(r: StandupReport): string {
   const out = [standupTitle(r), '', standupLede(r), ''];
-  if (r.gaps.length) out.push('Coverage', ...r.gaps.map((gap) => `- ${gap}`), '');
+  if (r.gaps.length) out.push('Coverage', ...r.gaps.map((gap) => `- ${flat(gap)}`), '');
   out.push('Team', ...(r.team.length ? r.team.map((l) => plainLine(r, l)) : ['No sprint, scope changes, or builds and deployments that broke or recovered.']), '');
   for (const p of r.people) {
-    out.push(`${groupTitle(p)}${p.mapped || p.key === 'none' ? '' : ", not in the dossier's people"}`);
+    out.push(`${flat(groupTitle(p))}${p.mapped || p.key === 'none' ? '' : ", not in the dossier's people"}`);
     for (const b of BUCKETS) out.push(`${BUCKET_TITLE[b]}:`, ...(p.lines[b].length ? p.lines[b].map((l) => plainLine(r, l)) : [`- ${bucketNone(b, r.sprint)}`]));
     out.push('');
   }

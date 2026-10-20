@@ -102,6 +102,9 @@ describe('ranges', () => {
     expect(rangeProblem('2026-10-12', '2026-10-14', '2026-10-13')).toMatch(/hasn't happened yet/);
     expect(rangeProblem('2026-02-30', '2026-03-01', '2026-10-13')).toBe('Name the range as two days, yyyy-mm-dd.');
     expect(rangeProblem('2026-08-01', '2026-10-13', '2026-10-13')).toBe(`A stand-up covers at most ${MAX_STANDUP_DAYS} days; 2026-08-01 to 2026-10-13 is 74.`);
+    expect(rangeProblem('2026-09-13', '2026-10-13', '2026-10-13')).toBeNull();
+    // Counted by arithmetic: centuries are refused at once, with the count right.
+    expect(rangeProblem('0001-01-01', '2026-10-13', '2026-10-13')).toBe(`A stand-up covers at most ${MAX_STANDUP_DAYS} days; 0001-01-01 to 2026-10-13 is 739902.`);
   });
 });
 
@@ -192,7 +195,7 @@ describe('the fold', () => {
     const r = buildStandup(input({ asOf: null }));
     expect(r.team.some((l) => l.subject.startsWith('sprint:'))).toBe(false);
     expect(r.people.flatMap((p) => p.lines.next)).toEqual([]);
-    expect(standupMarkdown(r)).toMatch(/Review waits, the sprint and Next are as of no sync yet\./);
+    expect(standupText(r)).toContain('Review waits, the sprint and Next come from a sync, and none has run yet, so there are none.');
     expect(r.sprint).toBeNull();
     expect(standupMarkdown(r)).toContain('No current sprint to take it from.');
     expect(standupMarkdown(buildStandup(input()))).toContain('Nothing assigned and not started in Sprint 42.');
@@ -211,6 +214,27 @@ describe('the text', () => {
     const text = standupText(r);
     expect(text).toContain('- PAY-2 Title of PAY-2: blocked by PAY-3 (13 Oct 2026 07:00 UTC) https://jira.imagile.dev/browse/PAY-2');
     expect(text).not.toMatch(/\]\(/);
+  });
+
+  it('keeps every plain-text line on one line, whatever line breaks a title, a name or a gap has', () => {
+    const s = input({ notes: ['A note
+over two lines.'], people: [{ name: 'Ada
+Lovelace', kind: 'human', email: null, ids: { github: 'ada', jira: 'alovelace' } }] });
+    const pages = s.pages.map((p) => ({ ...p, work: p.work.map((e) => ({ ...e, title: 'First line
+second line' })) }));
+    const text = standupText(buildStandup({ ...s, pages }));
+    expect(text).toContain('- PAY-1 First line second line: In Review → Done');
+    expect(text).toContain('- A note over two lines.');
+    expect(text).toContain('
+Ada Lovelace
+');
+    expect(text).not.toMatch(/
+second line/);
+  });
+
+  it('puts people in name order without case, by code, the same on every runtime', () => {
+    const r = buildStandup(input({ people: [{ name: 'bob', kind: 'human', email: null, ids: {} }, { name: 'Ada', kind: 'human', email: null, ids: {} }, { name: 'Ada 10', kind: 'human', email: null, ids: {} }, { name: 'Ada 9', kind: 'human', email: null, ids: {} }] }));
+    expect(r.people.filter((p) => p.mapped).map((p) => p.name)).toEqual(['Ada', 'Ada 9', 'Ada 10', 'bob']);
   });
 
   it("escapes a tracker's Markdown so a title can't make a link or a heading", () => {

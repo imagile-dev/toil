@@ -49,7 +49,7 @@ const save = (at: string, items: WorkItem[] = [item('PAY-1'), item('PAY-2')], ov
 
 interface Call { command: string; input: Record<string, unknown>; options: ExecuteOptions | undefined }
 
-async function setup({ now = T, audit, exportResult }: { now?: string; audit?: (input: Record<string, unknown>) => Envelope; exportResult?: (input: Record<string, unknown>, options?: ExecuteOptions) => Envelope } = {}) {
+async function setup({ now = T, audit, exportResult, show }: { now?: string; audit?: (input: Record<string, unknown>) => Envelope; exportResult?: (input: Record<string, unknown>, options?: ExecuteOptions) => Envelope; show?: () => Envelope } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'toil-ui-worklog-'));
   folders.push(dir);
   let clock = Date.parse(now);
@@ -60,6 +60,7 @@ async function setup({ now = T, audit, exportResult }: { now?: string; audit?: (
     calls.push({ command, input, options });
     if (command === 'audit list') return audit ? audit(input) : ok(command, []);
     if (command === 'util encode') return exportResult ? exportResult(input, options) : ok(command, { file: `${String(options?.workspace).replace(/\\/g, '/')}/${String(input.out)}` });
+    if (command === 'dossiers show' && show) return show();
     if (command === 'dossiers show') return ok(command, { name: 'card-payments', dossier: { people: [{ name: 'Ada Lovelace', ids: { jira: 'ada' } }] }, areas: { confluence: { connection: { value: 'confluence' }, inputs: { space: 'PAY' } } } });
     return bad(command, `The stub has no ${command}.`, 'Add it.');
   };
@@ -337,6 +338,14 @@ describe('the stand-up (#345)', () => {
     const show = calls.filter((c) => c.command === 'dossiers show');
     expect(show.map((c) => [c.input, c.options?.readOnly])).toEqual([[{ dossier: 'card-payments' }, true], [{ dossier: 'card-payments' }, true]]);
     expect(existsSync(join(dir, 'cache', 'worklog', 'card-payments', 'standup'))).toBe(false);
+  });
+
+  it("says so when toil can't read the dossier's people, and still folds every account on its own", async () => {
+    const { worklog, cache } = await setup({ show: () => bad('dossiers show', 'The dossier file is not valid JSON.', 'Fix the file.') });
+    cache.saveDossier(save(T));
+    const r = await worklog.standup('card-payments', '2026-10-11', '2026-10-12');
+    expect(r.report.gaps[0]).toBe("toil dossiers show card-payments failed (The dossier file is not valid JSON.), so each account is its own person here: the dossier's people couldn't be read.");
+    expect(r.report.people.map((p) => [p.key, p.mapped])).toEqual([['id:jira:ada', false]]);
   });
 
   it('refuses a range it cannot cover, and a dossier never synced', async () => {
