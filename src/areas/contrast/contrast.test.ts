@@ -116,13 +116,15 @@ describe('app findings', () => {
     expect(envelope.error?.code).toBe('INVALID_INPUT');
   });
 
-  // Suspected bug (#87 item 6): the application ID goes into the path unencoded, so a slash or ".." changes the endpoint.
-  it('pastes the application ID into the path as typed, except a dot segment, which core refuses before sending (global divergence)', async () => {
-    const slash = await run(findingsListCommand, { app: 'a/b' }, [ok({})]);
-    expect(slash.calls[0]!.url).toBe(`${CONTRAST}${NG}/traces/a/b/filter?limit=25&offset=0`);
-    const dots = await run(findingsListCommand, { app: '../../x' }, [ok({})]);
-    expect(dots.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('".." as a segment') });
-    expect(dots.calls).toEqual([]);
+  // Was suspected bug #87 item 6 (the application ID pasted into the path as typed).
+  it('encodes an application ID with path or query syntax in it as one path segment; one with a dot segment is refused before sending', async () => {
+    const slash = await run(findingsListCommand, { app: 'a/b?c=d' }, [ok({})]);
+    expect(slash.calls[0]!.url).toBe(`${CONTRAST}${NG}/traces/a%2Fb%3Fc%3Dd/filter?limit=25&offset=0`);
+    for (const app of ['../../x', 'x/../y']) {
+      const dots = await run(findingsListCommand, { app }, [ok({})]);
+      expect(dots.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('as a segment') });
+      expect(dots.calls).toEqual([]);
+    }
   });
 });
 
@@ -131,6 +133,11 @@ describe('finding get', () => {
     const { envelope, calls } = await run(findingsGetCommand, { app: APP, trace: TRACE }, [ok(traceDetail)]);
     expect(calls).toEqual([{ method: 'GET', url: `${CONTRAST}${NG}/traces/${APP}/trace/${TRACE}`, headers: HEADERS, body: undefined }]);
     expect(envelope.data).toEqual(traceDetail);
+  });
+
+  it('encodes the application and trace IDs as one path segment each', async () => {
+    const { calls } = await run(findingsGetCommand, { app: 'a/b', trace: 'p1#hot' }, [ok(traceDetail)]);
+    expect(calls[0]!.url).toBe(`${CONTRAST}${NG}/traces/a%2Fb/trace/p1%23hot`);
   });
 
   it("a 404 is NOT_FOUND with Contrast's own message", async () => {
@@ -208,5 +215,10 @@ describe('library get', () => {
     const other = 'abc12345-0000-0000-0000-00000000beef';
     const { calls } = await run(librariesGetCommand, { app: APP, hash: HASH }, [ok(librariesPage([library(HASH)]))], { contrast: { ...fixtureConfig.contrast, orgUuid: other } });
     expect(calls[0]!.url).toBe(`${CONTRAST}/Contrast/api/ng/${other}/applications/${APP}/libraries?limit=25&offset=0`);
+  });
+
+  it('encodes the org UUID and the application ID as one path segment each', async () => {
+    const { calls } = await run(librariesListCommand, { app: 'a/b' }, [ok({})], { contrast: { ...fixtureConfig.contrast, orgUuid: 'org?x=1' } });
+    expect(calls[0]!.url).toBe(`${CONTRAST}/Contrast/api/ng/org%3Fx%3D1/applications/a%2Fb/libraries?limit=25&offset=0`);
   });
 });

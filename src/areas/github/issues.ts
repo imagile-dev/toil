@@ -1,3 +1,4 @@
+import { apiPath } from '../../core/api-path.js';
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
@@ -41,7 +42,7 @@ export const createRepoCommand = githubArea.command({
     const org = inputs.owner?.source === 'input' ? ctx.context.owner : undefined;
     if (inputs.owner?.source !== 'input') delete inputs.owner;
     delete inputs.repo;
-    return github(ctx, org ? `/orgs/${org}/repos` : '/user/repos', {
+    return github(ctx, org ? apiPath`/orgs/${org}/repos` : '/user/repos', {
       method: 'POST',
       json: {
         name: input.name,
@@ -79,7 +80,7 @@ export const createIssueCommand = githubArea.command({
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     const body = bodyOf(ctx, input.body, input.bodyFile);
-    return github(ctx, `/repos/${owner}/${repo}/issues`, {
+    return github(ctx, apiPath`/repos/${owner}/${repo}/issues`, {
       method: 'POST',
       json: {
         title: input.title,
@@ -104,7 +105,7 @@ export const addLabelsCommand = githubArea.command({
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     if (!input.label?.length) throw new ToilError('INVALID_INPUT', 'At least one --label is required', { fix: 'Pass --label <label>; repeat it for more than one.' });
-    return github(ctx, `/repos/${owner}/${repo}/issues/${parseIntText(input.number)}/labels`, { method: 'POST', json: { labels: input.label } });
+    return github(ctx, apiPath`/repos/${owner}/${repo}/issues/${parseIntText(input.number)}/labels`, { method: 'POST', json: { labels: input.label } });
   },
 });
 
@@ -122,9 +123,9 @@ export const removeLabelCommand = githubArea.command({
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', label: 'needs review', allowWrite: true }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
-    // The label goes into the path unencoded: URL parsing escapes a space but
-    // leaves `/`, `?`, `#` and `%` their URL meaning (suspected bug, #72 item 4).
-    await github(ctx, `/repos/${owner}/${repo}/issues/${parseIntText(input.number)}/labels/${input.label}`, { method: 'DELETE' });
+    // The label is one path segment, encoded, so `area/api` or `needs-info?`
+    // names that label (#72 item 4).
+    await github(ctx, apiPath`/repos/${owner}/${repo}/issues/${parseIntText(input.number)}/labels/${input.label}`, { method: 'DELETE' });
     return { removed: true, label: input.label };
   },
 });
@@ -132,7 +133,7 @@ export const removeLabelCommand = githubArea.command({
 function assignees(ctx: GitHubContext, number: number | string, assignee: string[] | undefined, method: 'POST' | 'DELETE') {
   const { owner, repo } = target(ctx);
   if (!assignee?.length) throw new ToilError('INVALID_INPUT', 'At least one --assignee is required', { fix: 'Pass --assignee <login>; repeat it for more than one.' });
-  return github(ctx, `/repos/${owner}/${repo}/issues/${parseIntText(number)}/assignees`, { method, json: { assignees: assignee } });
+  return github(ctx, apiPath`/repos/${owner}/${repo}/issues/${parseIntText(number)}/assignees`, { method, json: { assignees: assignee } });
 }
 
 export const addAssigneesCommand = githubArea.command({

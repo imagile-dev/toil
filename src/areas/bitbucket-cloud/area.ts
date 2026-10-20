@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pathIdSchema } from '../../core/api-path.js';
 import { defineArea, type Connection } from '../../core/area.js';
 import type { AreaEndpoint, HookArea } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
@@ -107,17 +108,22 @@ export const bitbucketCloudArea = defineArea({
   context: {
     // toil's own --workspace is the file-workspace flag and takes it wherever
     // it appears, so Bitbucket's workspace is spelt --ws, as splitio's is.
+    // A workspace slug (or its {uuid}) and a repository slug are letters,
+    // digits, -, _ and ., so either one holding path syntax is refused,
+    // whether it came from a flag, the connection or BITBUCKET_* in a pipeline.
     workspace: {
       description: 'Bitbucket Cloud workspace slug',
       flags: '--ws <slug>',
       setting: 'workspace',
       missing: { message: "No Bitbucket Cloud workspace given. Pass --ws <slug>; toil's --workspace is the folder commands may read files in, not the Bitbucket workspace." },
+      schema: pathIdSchema('A Bitbucket Cloud workspace slug').min(1),
     },
     repo: {
       description: 'Bitbucket Cloud repository slug',
       flags: '--repo <slug>',
       setting: 'repo',
       missing: { message: 'No Bitbucket Cloud repository given. Pass --repo <slug>, or set repo on the connection.' },
+      schema: pathIdSchema('A Bitbucket Cloud repository slug').min(1),
     },
   },
   // An API token belongs to a user, so /user proves it. An access token is no

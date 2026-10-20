@@ -62,8 +62,9 @@ describe('token exchange', () => {
     expect(tokenUrl('https://ast.checkmarx.net/api', 'imagile')).toBe('https://iam.checkmarx.net/auth/realms/imagile/protocol/openid-connect/token');
     // Suspected bug (#89 item 3): the port goes, and a host with no ast. label is used as it is.
     expect(tokenUrl('https://checkmarx.imagile.dev:8443/api', 'imagile')).toBe('https://checkmarx.imagile.dev/auth/realms/imagile/protocol/openid-connect/token');
-    // Suspected bug (#89 item 6): the tenant goes into the path as typed.
-    expect(tokenUrl('https://eu.ast.checkmarx.net/api', 'imagile/other')).toBe('https://eu.iam.checkmarx.net/auth/realms/imagile/other/protocol/openid-connect/token');
+    // Was suspected bug #89 item 6 (the tenant as typed): it's now one encoded path segment.
+    expect(tokenUrl('https://eu.ast.checkmarx.net/api', 'imagile/other')).toBe('https://eu.iam.checkmarx.net/auth/realms/imagile%2Fother/protocol/openid-connect/token');
+    expect(tokenUrl('https://eu.ast.checkmarx.net/api', 'a?b#c')).toBe('https://eu.iam.checkmarx.net/auth/realms/a%3Fb%23c/protocol/openid-connect/token');
   });
 
   it('refuses, before sending anything, a derived token host that is neither under checkmarx.net nor the connection origin', async () => {
@@ -178,15 +179,19 @@ describe('get and stats', () => {
     expect(stats.envelope.data).toEqual(resultsSummary);
   });
 
-  it('puts the id into the path unencoded (suspected bug, #89 item 7)', async () => {
-    const { calls } = await run(projectGetCommand, { id: 'x/y' }, [token(), api(cxScan(1))]);
-    expect(calls[1]!.url).toBe(`${CX}/projects/x/y`);
+  it('encodes an id with path or query syntax in it as one path segment (was suspected bug #89 item 7, the id as typed)', async () => {
+    const project = await run(projectGetCommand, { id: 'p1#hot' }, [token(), api(cxProject(1))]);
+    expect(project.calls[1]!.url).toBe(`${CX}/projects/p1%23hot`);
+    const scan = await run(scanGetCommand, { id: 'a/b?c=d' }, [token(), api(cxScan(1))]);
+    expect(scan.calls[1]!.url).toBe(`${CX}/scans/a%2Fb%3Fc%3Dd`);
   });
 
-  it("an id with a dot segment is refused by core's requests.path bound before any GET", async () => {
-    const { envelope, calls } = await run(projectGetCommand, { id: '../scans/x' }, [token(), api(cxScan(1))]);
-    expect(calls.filter((c) => c.method === 'GET')).toEqual([]);
-    expect(envelope.error?.code).toBe('INVALID_INPUT');
+  it("an id with a dot segment in it is refused by core's requests.path bound before any GET, encoded or not", async () => {
+    for (const id of ['..', 'x/../y']) {
+      const { envelope, calls } = await run(projectGetCommand, { id }, [token(), api(cxScan(1))]);
+      expect(calls.filter((c) => c.method === 'GET')).toEqual([]);
+      expect(envelope.error?.code).toBe('INVALID_INPUT');
+    }
   });
 
   it("a 404 is NOT_FOUND with Checkmarx One's message", async () => {

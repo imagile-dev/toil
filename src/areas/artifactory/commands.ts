@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { apiPath, segments } from '../../core/api-path.js';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { artifactoryArea } from './area.js';
@@ -8,16 +9,21 @@ import { artifactory, ping } from './client.js';
  * The nine Artifactory commands: health, repositories, artifact metadata and
  * properties, AQL search, and Build Integration. `data` is Artifactory's own
  * answer, except where noted (`build list` derives names; `artifact set-properties`
- * reports what it asked for). Repo and path go into the URL as typed, and AQL
- * values into the query as typed, both suspected bugs (#82) kept until a
- * live server rules on them, as rulings tend to be scheduled.
+ * reports what it asked for). The repository key goes into the URL as one
+ * segment and the artifact path one segment per part, each encoded. AQL
+ * values go into the query as typed, a suspected bug (#82) kept until a live
+ * server rules on it, as rulings tend to be scheduled.
  */
 
 /** A number read with parseInt, as the contract specifies: text stays text until then. */
 const intText = z.union([z.number(), z.string()]);
 
-/** One leading slash goes; the rest of the path is sent as typed (suspected bug #82 item 4: no encoding). */
-const storagePath = (repo: string, path: string) => `api/storage/${repo}/${path.startsWith('/') ? path.slice(1) : path}`;
+/**
+ * One leading slash goes; the repository key is one segment and the artifact
+ * path is split on `/` with each part encoded, so a `#` or `%` in a file name
+ * is part of the name. A `.` or `..` part is refused.
+ */
+const storagePath = (repo: string, path: string) => apiPath`api/storage/${repo}/${segments(path.startsWith('/') ? path.slice(1) : path, 'The artifact path')}`;
 
 export const pingCommand = artifactoryArea.command({
   path: ['artifactory', 'ping'],
@@ -217,7 +223,7 @@ export const buildRunsCommand = artifactoryArea.command({
   writes: false,
   args: [{ name: 'name', field: 'name', description: 'Build name, as build list lists it' }],
   examples: [{ name: 'imagile-api' }, { name: 'imagile api/main' }],
-  run: async (input, ctx) => artifactory(ctx, `api/build/${encodeURIComponent(input.name)}`),
+  run: async (input, ctx) => artifactory(ctx, apiPath`api/build/${input.name}`),
 });
 
 export const buildInfoCommand = artifactoryArea.command({
@@ -233,7 +239,7 @@ export const buildInfoCommand = artifactoryArea.command({
     { name: 'number', field: 'number', description: 'Run number, as build runs lists it' },
   ],
   examples: [{ name: 'imagile-api', number: '142' }],
-  run: async (input, ctx) => artifactory(ctx, `api/build/${encodeURIComponent(input.name)}/${encodeURIComponent(input.number)}`),
+  run: async (input, ctx) => artifactory(ctx, apiPath`api/build/${input.name}/${input.number}`),
 });
 
 export const artifactoryCommands = [pingCommand, reposCommand, artifactInfoCommand, propertiesGetCommand, propertiesSetCommand, searchCommand, buildsCommand, buildRunsCommand, buildInfoCommand];

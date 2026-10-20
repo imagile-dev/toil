@@ -29,7 +29,7 @@ export interface WorkItem {
   [key: string]: unknown;
 }
 
-const workItemPath = (n: number) => `/_apis/wit/workitems/${n}`;
+const workItemPath = (n: number) => `/_apis/wit/workitems/${enc(n)}`;
 /** What resolving `--to` needs to know about a work item: its type, state and project. */
 const STATE_FIELDS = 'System.WorkItemType,System.State,System.TeamProject';
 
@@ -237,7 +237,7 @@ export const workRevisionsCommand = adoCloudArea.command({
   args: [idArg],
   options: pageOptions('revisions'),
   examples: [{ id: 42 }, { ...all, id: 42, limit: 1 }, { id: 42, limit: 1, cursor: exampleCursor('1', REVISIONS_PAGE) }],
-  run: (input, ctx) => skipPages(ctx, `/_apis/wit/workItems/${input.id}/revisions`, {}, REVISIONS_PAGE, `revisions of Azure DevOps work item ${input.id}`, pageOf(input)),
+  run: (input, ctx) => skipPages(ctx, `/_apis/wit/workItems/${enc(input.id)}/revisions`, {}, REVISIONS_PAGE, `revisions of Azure DevOps work item ${input.id}`, pageOf(input)),
 });
 
 /** The most ids the batch endpoint takes in one request. */
@@ -298,7 +298,7 @@ export const workListCommentsCommand = adoCloudArea.command({
   run: (input, ctx) =>
     bodyTokenPages(
       ctx,
-      `${projectPath(ctx)}/_apis/wit/workItems/${input.id}/comments`,
+      `${projectPath(ctx)}/_apis/wit/workItems/${enc(input.id)}/comments`,
       { $top: COMMENTS_PAGE, 'api-version': API_COMMENTS },
       (body) => (body as { comments?: unknown[] }).comments ?? [],
       `comments on Azure DevOps work item ${input.id}`,
@@ -316,7 +316,7 @@ export const workAddCommentCommand = adoCloudArea.command({
   args: [idArg],
   options: [{ flags: '--body <text>', field: 'body', description: 'Comment text' }],
   examples: [{ ...W, repo: 'imagile-api', id: 42, body: 'Looked into it.' }],
-  run: (input, ctx) => adoc(ctx, `${projectPath(ctx)}/_apis/wit/workItems/${input.id}/comments`, { method: 'POST', query: { 'api-version': API_COMMENTS }, json: { text: input.body } }),
+  run: (input, ctx) => adoc(ctx, `${projectPath(ctx)}/_apis/wit/workItems/${enc(input.id)}/comments`, { method: 'POST', query: { 'api-version': API_COMMENTS }, json: { text: input.body } }),
 });
 
 const DEPTH = 'Depth of the iteration tree to retrieve (default: 10)';

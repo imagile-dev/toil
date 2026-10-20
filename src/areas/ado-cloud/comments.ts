@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { allowWriteField } from '../../core/run.js';
 import { adoCloudArea } from './area.js';
-import { IN_REPO, adoc } from './client.js';
+import { IN_REPO, adoc, enc } from './client.js';
 import { inRepo, prArg, prPath } from './pull-requests.js';
 
 /**
@@ -153,7 +153,7 @@ export const repoReplyCommentCommand = adoCloudArea.command({
   options: [{ flags: '--body <text>', field: 'body', description: 'Reply text (Markdown)' }],
   examples: [{ ...W, id: 42, threadId: 7, body: 'Fixed in the next commit.' }],
   // parentCommentId 1 is the thread's first comment, so the reply sits under it.
-  run: (input, ctx) => adoc(ctx, `${prPath(ctx, input.id)}/threads/${input.threadId}/comments`, { method: 'POST', json: { parentCommentId: 1, content: input.body, commentType: 'text' } }),
+  run: (input, ctx) => adoc(ctx, `${prPath(ctx, input.id)}/threads/${enc(input.threadId)}/comments`, { method: 'POST', json: { parentCommentId: 1, content: input.body, commentType: 'text' } }),
 });
 
 const STATUSES = ['active', 'fixed', 'wontFix', 'closed', 'byDesign', 'pending'] as const;
@@ -171,7 +171,7 @@ export const repoResolveCommentCommand = adoCloudArea.command({
     { ...W, id: 42, threadId: 7 },
     { ...W, id: 42, threadId: 7, status: 'wontFix' },
   ],
-  run: (input, ctx) => adoc(ctx, `${prPath(ctx, input.id)}/threads/${input.threadId}`, { method: 'PATCH', json: { status: input.status ?? 'fixed' } }),
+  run: (input, ctx) => adoc(ctx, `${prPath(ctx, input.id)}/threads/${enc(input.threadId)}`, { method: 'PATCH', json: { status: input.status ?? 'fixed' } }),
 });
 
 export const commentCommands = [repoListThreadsCommand, repoListCommentsCommand, repoAddCommentCommand, repoAddInlineCommentCommand, repoReplyCommentCommand, repoResolveCommentCommand];

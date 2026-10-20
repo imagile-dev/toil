@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { dynatraceArea } from './area.js';
 import { allPages, dynatrace } from './client.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * Monitored entities from the classic environment API: a list by entity
@@ -50,7 +51,7 @@ export const entitiesGetCommand = dynatraceArea.command({
   ],
   examples: [{ id: 'SERVICE-1234567890ABCDEF' }, { id: 'HOST-ABC1234500000000', from: 'now-2h', to: 'now', fields: '+properties', env: 'prod' }],
   // The server's entity, passed through as it came.
-  run: async (input, ctx) => dynatrace(ctx, `/api/v2/entities/${encodeURIComponent(input.id)}`, { query: { from: input.from, to: input.to, fields: input.fields } }),
+  run: async (input, ctx) => dynatrace(ctx, apiPath`/api/v2/entities/${input.id}`, { query: { from: input.from, to: input.to, fields: input.fields } }),
 });
 
 export const entitiesCommands = [entitiesListCommand, entitiesGetCommand];

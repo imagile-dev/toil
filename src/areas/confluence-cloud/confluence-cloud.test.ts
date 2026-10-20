@@ -103,6 +103,16 @@ describe('pages', () => {
     expect(seg('att98765')).toBe('att98765');
   });
 
+  it('an id with path or query syntax is refused before a read or a delete is sent', async () => {
+    for (const id of ['x/../y', 'a/b?c=d', 'p1#hot', '%2e%2e']) {
+      for (const [def, input] of [[getPage, { id }], [deletePage, { id, ...write }]] as const) {
+        const { envelope, calls } = await run(def, input);
+        expect(envelope.error, `${def.path.join(' ')} ${id}`).toMatchObject({ code: 'INVALID_INPUT' });
+        expect(calls).toHaveLength(0);
+      }
+    }
+  });
+
   it('a . or .. id, in any spelling, is refused before a delete is sent', async () => {
     for (const id of ['..', '.', '..;x', '%2e%2e', '.\t.']) {
       const { envelope, calls } = await run(deletePage, { id, ...write });

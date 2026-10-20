@@ -270,3 +270,7 @@ jsmith`, `user`-typed fields send `{ "name": ... }`), where Jira Cloud needs an
 - `issue download` saves a name Windows would read as another file under one it won't: a device name such as `CON` or `nul.txt` gets a leading `_`, a `:` and what follows it is dropped, as are trailing dots and spaces, and the characters Windows forbids become `_`. `filename` is still the name Jira gave; `saved` is where the file went. The same holds on every platform.
 - `issue download` only ever sends the token to `baseUrl`'s host. If Jira names
   another host for the file, toil fetches the same path from `baseUrl` and warns.
+- Issue keys and ids are sent as one URL path segment each, encoded, so a `/` or `?` in
+  one can't change the endpoint called. A project key from `--project`, the
+  connection's `project` setting, a dossier or `--input-file` that holds `/`, `\`, `?`,
+  `#`, `%` or a control character is refused with `INVALID_INPUT`.

@@ -4962,6 +4962,48 @@ it pins. These are the choices made by default in the fix:
   `.gitignore` excludes, for every command that lists, and `secrets scan` turns it
   into `SECRETS_NOTHING_SCANNED` when nothing was left to scan.
 
+## Local paths and ids in request paths (#340)
+
+- **Network and device paths are refused from their text, on every OS** (`src/core/local-path.ts`,
+  bound `files.remote`): a path that starts with two slashes of either kind, or a
+  `\?\`, `\.\` or `\??\` device path, is refused as typed and as resolved, before
+  any `node:fs` call. The same text is refused on macOS and Linux too, where it
+  would only be an odd local path, so behaviour doesn't depend on the OS (principle 8).
+  It holds with the workspace bound relaxed and for `--output-file`; the one way to
+  work on a share is to make a folder on it the workspace. A device path is never
+  allowed.
+- **Paths from the user's own config and env are not checked**: `dossierPaths` /
+  `TOIL_DOSSIER_PATHS`, a SQLite connection's `path`, skills folders, `--config` and
+  `--workspace` are settings the user wrote, not values a call handed in.
+- **`apiPath` is the one way to build a request path from ids**, and areas that already
+  encoded every value with their own `encodeURIComponent` helper were moved to it or
+  left as they were, case by case. A value that is really several segments (a file
+  path in a repository) goes through `segments()`, which refuses a `.` or `..` part.
+- **Which ids are refused rather than encoded**: context inputs whose real id rules
+  can't hold `/`, `\`, `?`, `#`, `%` or a control character get `pathIdSchema`
+  (GitHub owner and repo, Jira and Jira Cloud project keys, Bitbucket project and
+  repo, Bitbucket Cloud workspace and repo, Kibana space, Split workspace). ADO names
+  may hold `%`, and Confluence titles, labels and file names may hold anything, so
+  those are encoded, never refused.
+- **The request-layer backstop is narrow on purpose**: a relative path with a `#`, or
+  with a `?` when the request also has `query`, is refused. A plain `?` in a relative
+  path is still allowed, because servers hand back relative links with a query
+  (Confluence's download links) and a few areas build a query into the path. The
+  dot-segment check now also ends a segment at `%2f` / `%5c` and cuts `;params` at
+  `%3b`, so an id that encodes to `..` with one of them is refused rather than sent.
+- **Writes take their target only from dossiers you've adopted** (the maintainer's
+  decision): a write whose non-selecting context inputs came from an unadopted dossier
+  is `WRITE_DISABLED`. The check is made when the command reads the input (a guard
+  on `ctx.context` that `execute()` installs for an unadopted dossier's write), not
+  when it resolves, because core resolves an area's group inputs for every command
+  and some writes use none of them (an ADO work-item update). Every command reads its
+  target before it sends the write (a read may come first); the tests hold that for
+  the ones they cover. The fix
+  differs by door, since `toil dossiers import` is CLI only; that makes the refusal's
+  envelope differ between the CLI and MCP, which the parity suite allows because no
+  example reaches it. Inputs from the git remote are not gated: the clone is the
+  user's own.
+
 ## A grimdark Realm theme (#349)
 
 - **The ground is a smoked vellum, not soot.** Every theme has one `ink` token, and the
