@@ -4731,6 +4731,78 @@ it pins. These are the choices made by default in the fix:
 - **The preview and `--sample` show made-up usage**, marked "Sample figures, not from a
   model" on every line, so the footer and the page have something to show.
 
+## The worklog in Toil UI (#308)
+
+- **Days are UTC**, as every other date in Toil UI is, and the page says so. A day in
+  the viewer's own time zone would make the same facts land on different pages on two
+  machines; a setting for it can come later.
+- **A page is a fold of rows the cache keeps, and the file is written from it**:
+  `worklog_events` (each fact, upserted by a key that never changes), `sync_runs`,
+  `agent_runs` and `notes`, schema 3 of the cache (after #295's usage table). After every sync every page is
+  folded again and written only where its text changed. Folding is cheap, and
+  rebuilding everything means a page never drifts from the cache; "incremental" is in
+  how facts are recorded (one sync's new rows) and which files are written.
+- **Facts with their own time come from the sources' history; facts without one are
+  seen by a sync.** Status and sprint changes, pull requests opened, reviewed, merged or
+  declined, and builds carry times. A new blocker (an inward `blocks` link whose
+  blocker isn't done) and a deployment that started failing or came back have none, so
+  the sync compares its picture with the last one and records them at that sync, with
+  the sync before it on the line. The first sync of a dossier, and a source just linked
+  to it, see nothing new.
+- **A recovered build is a passing run after a failing one of the same pull request or
+  pipeline**, judged with the earlier runs a sync recorded, since GitHub keeps one check
+  roll-up per pull request head. A pass with no failure before it is recorded (to tell
+  the next one apart) and never shown.
+- **Every day a sync ran has a page**, even one where nothing changed, so a quiet day
+  reads as quiet rather than missing.
+- **Retention**: a fact goes when no sync has recorded it for the retention period,
+  like every other row; a sync run, an agent run and a note go by when they happened.
+  The pages and transcripts live in `cache/worklog/`, so the retention and the wipe
+  take them too.
+- **Agent runs today are the Ask pane's questions**, recorded by the agent host as they
+  start and end (`finished`, `failed`, `stopped` when the page went away mid-answer, or
+  `capped` when a usage cap from #295 refused or stopped it). `kind: 'assignment'` is there
+  for assign-to-agent (#293),
+  which records through the same `WorklogService.recordRun`. The typed question and the
+  answer are kept as the run's transcript, in the cache like everything else.
+- **"Applied" is read from toil's audit log, never assumed**: the same command,
+  writing and succeeding, after the run finished, naming the same item in the command's
+  positional fields, or, for a command with none (a create), with every field the
+  proposal named. Where the log can't tell (it can't be read, a matching write's input
+  was too large to record or keeps only a hash of a field the proposal named, or more
+  writes than one read returns), the line says so. The log is read at most once a minute,
+  since every read is itself a line in it.
+- **One fold at a time.** Every page fold and write in the service runs in turn, so a
+  note or a run landing mid-fold isn't overwritten. A question doesn't wait on its
+  page: the run is kept, and its day folded after. The sync folds every dossier when
+  the job ends, since the cache's retention ran for all of them.
+- **A new blocker is judged against the last good picture**, which the items table
+  keeps through a failed sync, and its line names the last good sync as the one before.
+- **Left as they are:** a deployment that goes failed, then running, then passed shows
+  no recovery (no mapper reports a running deployment today); exporting the same day
+  twice into one folder is refused by toil, which never overwrites, with its own fix;
+  and a source time with no zone would be read as local time, though every mapper
+  writes UTC with a `Z`.
+- **Notes go on today's page only**, one line each, up to 2,000 characters, by the
+  viewer's name. There is no edit or delete: a note stays until the retention ends or
+  the cache is wiped. Say if one is wanted.
+- **Export goes through `toil util encode base64 --decode --out <file>`**, with the
+  folder the person names as toil's workspace. It is the one command in toil that
+  writes given bytes to a new file through `ctx.files`, so the workspace bound, the
+  refusal to touch toil's own config, never-overwrite and the audit line all apply. A
+  dedicated toil command would read better; it needs a toil change and a release, so
+  this keeps the PR to Toil UI. The audit line keeps only the content's hash.
+- **Publishing proposals are Confluence Data Center (`page create --markdown`) and
+  GitHub (`issue create --body-file`)**. Confluence Cloud's `page create` takes storage
+  format or wiki markup only, so a Markdown page isn't offered there. A comment on an
+  existing issue would need a body file `pr comment` doesn't take.
+- **Dates on the page are spelled out by hand, not with `Intl`**, whose wording moves
+  with each runtime's ICU data, so the same page reads the same on every Node release.
+- **"Summarize this day" is a starter, "What happened yesterday?"**, over a new
+  read-only tool, `worklog_day`, which vouches for every id its lines name, so the
+  answer's citations are checked like any other. A button on the page itself was left
+  out: the issue makes it optional and the Ask pane already labels its answers as the
+  agent's.
 
 ## Assigning work items to an agent (#293)
 

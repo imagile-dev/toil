@@ -7,7 +7,8 @@
  * prints the one URL that opens it, once. It opens no browser: that would mean
  * spawning a program, and the URL is right there. Ctrl+C stops it. The whole
  * onboarding process, minus the onboarding. `toil-ui wipe` deletes the cache
- * and exits.
+ * and exits. The worklog (#308) is folded again at start, after every sync
+ * job, and after each agent question's start and end.
  */
 
 import { execute, mapOwi, registry, contractVersion as toilContract, version as toilVersion } from '@imagile-dev/toil/api';
@@ -22,6 +23,8 @@ import { createUiServer } from './server.ts';
 import { parseSettings, SettingsError, themesNotice, USAGE } from './settings.ts';
 import { fixtureStore, sqliteStore } from './store.ts';
 import { SyncService } from './sync.ts';
+import { WorklogService } from './worklog.ts';
+import { fixtureWorklog } from '../src/fixtures/worklog.ts';
 import { cacheLedger, memoryLedger, usageControl } from './usage.ts';
 import { SAMPLE_USAGE_SETTINGS, sampleUsageRecords } from '../src/fixtures/model-usage.ts';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
@@ -76,6 +79,7 @@ async function main(): Promise<number> {
   // The cache and its sync, unless this is the sample: that reads the fixtures, and stores nothing.
   let cache: Cache | undefined;
   let sync: SyncService | undefined;
+  let worklog: WorklogService | undefined;
   if (!settings.sample) {
     try {
       cache = await Cache.open(settings.dataDir, { retentionDays: settings.retentionDays });
@@ -86,7 +90,11 @@ async function main(): Promise<number> {
       }
       throw e;
     }
-    sync = new SyncService({ cache, execute, mapOwi });
+    worklog = new WorklogService({ cache: () => cache!, execute });
+    const pages = worklog;
+    sync = new SyncService({ cache, execute, mapOwi, onFinished: () => pages.reconcileAll() });
+    // The cache pruned what outlived its retention as it opened; the pages follow it.
+    await worklog.reconcileAll().catch((e: unknown) => process.stderr.write(`toil-ui: couldn't fold the worklog pages again: ${e instanceof Error ? e.message : String(e)}\n`));
   }
   const toil = { version: toilVersion, contractVersion: toilContract };
   // The agent (#251): the adapter chosen in Settings, reading the cache, or the scripted one for the sample.
@@ -111,7 +119,11 @@ async function main(): Promise<number> {
     ? new AgentHost({
         dataDir: settings.dataDir,
         version: __TOIL_UI_VERSION__,
-        data: (dossier) => cacheData(cache!, dossier),
+        data: (dossier) => {
+          const data = cacheData(cache!, dossier);
+          return data && worklog ? { ...data, worklog: async (day) => (await worklog!.day(dossier, day)).page } : data;
+        },
+        onRun: (run) => worklog?.recordRun(run),
         registry: registry.commands,
         execute,
         mapIds,
@@ -163,6 +175,7 @@ async function main(): Promise<number> {
     agent: host ?? fixtureAgent(),
     ...(host ? { agentControl: host } : {}),
     ...(sync ? { sync } : {}),
+    worklog: worklog ?? fixtureWorklog(),
     usage,
     assignments,
     appDir: fileURLToPath(new URL('../app/', import.meta.url)),
@@ -187,7 +200,7 @@ async function main(): Promise<number> {
   process.stdout.write(
     [
       `Toil UI ${__TOIL_UI_VERSION__} (alpha, local only), on toil ${toilVersion}`,
-      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil\'s own connections and dossiers, when you ask. Feedback goes to Imagile only when you send it.',
+      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil\'s own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.',
       ...(cache ? [`The cache is ${cache.paths.db}, kept ${settings.retentionDays} days after each sync; toil-ui wipe deletes it.`] : []),
       '',
       'Open this URL in your browser. It carries this launch\'s token, so keep it to yourself:',

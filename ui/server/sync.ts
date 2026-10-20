@@ -190,6 +190,12 @@ export interface SyncOptions {
   mapOwi: MapOwi;
   now?: () => Date;
   maxPages?: number;
+  /**
+   * When the job ends, however it ended: the worklog (#308) folds every
+   * dossier's pages again, since the cache's retention ran for all of them.
+   * A failure is said in the job's messages and never fails the sync.
+   */
+  onFinished?: () => Promise<void>;
 }
 
 export class SyncService {
@@ -198,6 +204,7 @@ export class SyncService {
   private readonly mapOwi: MapOwi;
   private readonly now: () => Date;
   private readonly maxPages: number;
+  private readonly onFinished: SyncOptions['onFinished'];
   private job: SyncJob = idle();
   private current: Promise<SyncJob> | null = null;
   private controller: AbortController | null = null;
@@ -208,6 +215,7 @@ export class SyncService {
     this.mapOwi = options.mapOwi;
     this.now = options.now ?? (() => new Date());
     this.maxPages = options.maxPages ?? MAX_PAGES;
+    this.onFinished = options.onFinished;
   }
 
   status(): SyncStatus {
@@ -279,6 +287,11 @@ export class SyncService {
       job.error = e instanceof Error ? e.message : String(e);
       this.say(`Stopped: ${job.error}`);
     } finally {
+      try {
+        await this.onFinished?.();
+      } catch (e) {
+        this.say(`Couldn't update the worklog: ${e instanceof Error ? e.message : String(e)}`);
+      }
       job.running = false;
       job.dossier = null;
       job.finishedAt = this.now().toISOString();

@@ -781,3 +781,67 @@ describe('feedback (#265)', () => {
     ]);
   });
 });
+
+describe('the worklog (#308)', () => {
+  const get = (origin: string, path: string, sid: string) => send(origin, path, { headers: { [SESSION_HEADER]: sid } });
+
+  it("serves the sample's calendar and pages with a session, and nothing without one", async () => {
+    const { fixtureWorklog } = await import('../src/fixtures/worklog.ts');
+    const { origin } = await start({ worklog: fixtureWorklog() });
+    expect((await send(origin, '/api/worklog/month?dossier=card-payments')).status).toBe(401);
+    const { sid } = await signIn(origin);
+    const month = await get(origin, '/api/worklog/month?dossier=card-payments', sid);
+    expect(month.status).toBe(200);
+    expect(JSON.parse(month.body)).toMatchObject({ dossier: 'card-payments', month: '2026-10', today: '2026-10-13', timeZone: 'UTC' });
+    const day = JSON.parse((await get(origin, '/api/worklog/day?dossier=card-payments&day=2026-10-12', sid)).body) as { markdown: string; file: null };
+    expect(day.markdown).toMatch(/^# Worklog: card-payments, Monday 12 October 2026/);
+    expect(day.file).toBeNull();
+  });
+
+  it("answers a refusal with its own status, message and fix, and a missing field with how to send it", async () => {
+    const { fixtureWorklog } = await import('../src/fixtures/worklog.ts');
+    const { origin } = await start({ worklog: fixtureWorklog() });
+    const auth = await signIn(origin);
+    const future = await get(origin, '/api/worklog/day?dossier=card-payments&day=2026-10-14', auth.sid);
+    expect(future.status).toBe(400);
+    expect(JSON.parse(future.body)).toEqual({ error: { message: "2026-10-14 hasn't happened yet, so it has no page.", fix: 'Pick today or an earlier day.' } });
+    expect(JSON.parse((await get(origin, '/api/worklog/day?dossier=card-payments', auth.sid)).body).error.message).toBe('Name the day.');
+    const note = await post(origin, '/api/worklog/note', { dossier: 'card-payments', text: 'hi' }, { sid: auth.sid, csrf: auth.session.csrf });
+    expect(note.status).toBe(400);
+    expect(JSON.parse(note.body).error.message).toMatch(/sample data/);
+    const both = await post(origin, '/api/worklog/export', { dossier: 'card-payments', day: '2026-10-12', month: '2026-10', folder: '/tmp' }, { sid: auth.sid, csrf: auth.session.csrf });
+    expect(JSON.parse(both.body).error.message).toBe('Export a day or a month, one of the two.');
+    const extra = await post(origin, '/api/worklog/export', { dossier: 'card-payments', day: '2026-10-12', folder: '/tmp', overwrite: true }, { sid: auth.sid, csrf: auth.session.csrf });
+    expect(JSON.parse(extra.body).error.message).toBe('An export takes dossier, day or month, and folder, not overwrite.');
+    const misspelt = await post(origin, '/api/worklog/note', { dossier: 'card-payments', txt: 'hi' }, { sid: auth.sid, csrf: auth.session.csrf });
+    expect(JSON.parse(misspelt.body).error.message).toBe('A note takes dossier and text, not txt.');
+  });
+
+  it('needs the CSRF token on every change: a rebuild, a note, an export', async () => {
+    const { fixtureWorklog } = await import('../src/fixtures/worklog.ts');
+    const { origin } = await start({ worklog: fixtureWorklog() });
+    const auth = await signIn(origin);
+    for (const path of ['/api/worklog/rebuild', '/api/worklog/note', '/api/worklog/export']) {
+      const res = await post(origin, path, { dossier: 'card-payments', day: '2026-10-12' }, { sid: auth.sid, csrf: 'not-it' });
+      expect(res.status, path).toBe(403);
+    }
+  });
+
+  it('passes the viewer to a note as its author', async () => {
+    const notes: Array<{ text: string; by?: string }> = [];
+    const { fixtureWorklog } = await import('../src/fixtures/worklog.ts');
+    const inner = fixtureWorklog();
+    const { origin } = await start({ viewer: { id: 'local', name: 'Ada', via: 'launch-token' }, worklog: { ...inner, disabled: null, addNote: async (dossier, text, by?: string) => (notes.push({ text, ...(by ? { by } : {}) }), inner.day(dossier, '2026-10-13')) } });
+    const auth = await signIn(origin);
+    expect((await post(origin, '/api/worklog/note', { dossier: 'card-payments', text: 'Paired on it' }, { sid: auth.sid, csrf: auth.session.csrf })).status).toBe(200);
+    expect(notes).toEqual([{ text: 'Paired on it', by: 'Ada' }]);
+  });
+
+  it('says plainly when it keeps no worklog', async () => {
+    const { origin } = await start();
+    const { sid } = await signIn(origin);
+    const res = await get(origin, '/api/worklog/month?dossier=card-payments', sid);
+    expect(res.status).toBe(404);
+    expect(JSON.parse(res.body).error.message).toBe('This Toil UI keeps no worklog.');
+  });
+});

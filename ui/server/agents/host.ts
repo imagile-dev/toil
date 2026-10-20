@@ -8,7 +8,10 @@
  * Every question runs with the dossier's read-only tools and a fresh ledger,
  * streams its text, and ends with answer.ts's checks: citations held to the
  * tool results, writes turned into proposals the pane shows and nobody here
- * runs. A switchboard with three lines and no outgoing calls.
+ * runs. Each question is recorded as an agent run (#308) as it starts and
+ * again as it ends, finished, failed or stopped, with its answer and
+ * proposals, for the worklog. A switchboard with three lines and no outgoing
+ * calls.
  *
  * Usage (#295): every adapter hands what its SDK reports to a sink here,
  * which stamps each report with the chat, turn, dossier and time, prices
@@ -22,6 +25,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Answer, Starter } from '../../src/agent.ts';
+import { runFromAnswer, type AgentRun } from '../../src/model/worklog.ts';
 import { capStandings, capStop, capWarning, codexCost, UsageSettingsError, WARN_AT, type AnswerUsage, type CapStanding, type ChatTurn, type UsageRecord } from '../../src/model-usage.ts';
 import type { Execute } from '../../src/toil.ts';
 import type { Agent } from '../agent.ts';
@@ -37,7 +41,7 @@ import { cliFor, Latest, loadSdk, nodeImporter, type Activity, type AdapterName,
 import { loadUsageSettings, memoryLedger, type UsageLedger } from '../usage.ts';
 import { checkAgentSettings, loadAgentSettings, saveAgentSettings, DEFAULT_AGENT_SETTINGS, ENDPOINTS, type AgentSettings } from './settings.ts';
 import { promptStyle, type StyleChoice } from './voices.ts';
-import { cacheTools, dossierReader, Ledger, liveTools, peopleTools, proposalTool, prTools, recorded, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
+import { cacheTools, dossierReader, Ledger, liveTools, peopleTools, proposalTool, prTools, recorded, worklogTool, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
 
 /** A task Toil UI wrote for an agent (#293): an assignment's run. */
 export interface TaskRequest {
@@ -84,6 +88,11 @@ export interface AgentHostOptions {
   cwd?: string;
   runtimes?: Runtime[];
   now?: () => string;
+  /**
+   * Each question, as an agent run (#308): once as it starts and once as it
+   * ends. The worklog keeps it. A failure here is never the question's.
+   */
+  onRun?: (run: AgentRun) => Promise<void> | void;
   /** Where usage records go (#295): the cache's ledger, or one in memory. */
   ledger?: UsageLedger;
 }
@@ -169,7 +178,8 @@ export class AgentHost implements Agent {
 
   /** The tools a question about this dossier gets, and the ledger they fill: what every adapter is handed. */
   tools(dossier: string, data: AgentData, ledger: Ledger): ToolSpec[] {
-    return recorded([...cacheTools(dossier, data, ledger), ...prTools(dossier, data, ledger), ...peopleTools(dossier, data, ledger, dossierReader(this.o.execute, dossier)), proposalTool(this.o.registry), ...liveTools(dossier, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
+    const now = this.o.now ?? (() => new Date().toISOString());
+    return recorded([...cacheTools(dossier, data, ledger), ...prTools(dossier, data, ledger), ...peopleTools(dossier, data, ledger, dossierReader(this.o.execute, dossier)), ...worklogTool(dossier, data, ledger, now), proposalTool(this.o.registry), ...liveTools(dossier, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
   }
 
   /**
@@ -211,6 +221,21 @@ export class AgentHost implements Agent {
     // Counted from here, before anything can await, and given back in the finally whatever fails: the SDK load, the CLI search, the run.
     this.running++;
     let run: Promise<void> | undefined;
+    const now = this.o.now ?? (() => new Date().toISOString());
+    const asked = promptFor(dossier, prompt).label;
+    let record: AgentRun = {
+      id: randomUUID(), kind: 'ask', dossier, startedAt: now(), finishedAt: null, outcome: 'running',
+      by: this.settings.model ? `${runtime.label} (${this.settings.model})` : runtime.label, prompt: asked, answer: null, error: null, citations: [], unverified: [], proposals: [],
+    };
+    const report = async () => {
+      try {
+        await this.o.onRun?.(record);
+      } catch {
+        // The worklog's record of a question never fails the question.
+      }
+    };
+    await report();
+    let last: Answer | undefined;
     try {
       const data = this.o.data(dossier);
       if (!data) throw new AgentError(`Toil UI hasn't synced ${dossier} yet, so the agent has nothing to read.`, 'Press Sync now in the Sync panel, then ask again.');
@@ -237,10 +262,23 @@ export class AgentHost implements Agent {
         },
         (e: unknown) => out.end(e),
       );
-      yield* out;
+      for await (const answer of out) {
+        last = answer;
+        yield answer;
+      }
+      record = runFromAnswer(record, now(), last ?? { prompt: asked, parts: [], citations: [], by, proposals: [] });
+    } catch (e) {
+      const capHit = e instanceof AgentError && e.capped === true;
+      const message = e instanceof AgentError ? `${e.message} ${e.fix}` : e instanceof Error ? e.message : String(e);
+      // A run stopped at a usage cap (#295) is the worklog's `capped`, whether it was refused before it began or stopped partway.
+      record = { ...(last ? runFromAnswer(record, now(), last) : { ...record, finishedAt: now() }), outcome: capHit ? 'capped' : ctx.signal.aborted ? 'stopped' : 'failed', error: message };
+      throw e;
     } finally {
       await run;
       this.running--;
+      // The person closed the pane or the page mid-answer: the run stopped, with what it had said so far.
+      if (record.outcome === 'running') record = { ...(last ? runFromAnswer(record, now(), last) : { ...record, finishedAt: now() }), outcome: 'stopped' };
+      await report();
     }
   }
 

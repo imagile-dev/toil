@@ -33,7 +33,7 @@ export interface ExecuteOptions {
   person?: ExecutePerson;
   /** Who the call is for, on the audit line beside `caller`: an agent assignment (#293). A toil without the option ignores it. */
   actor?: string;
-  /** The folder toil's file and git commands work in: implement mode's clone (#293). */
+  /** The folder toil's file and git commands work in: the worklog's export (ui/server/worklog.ts), and implement mode's clone (#293). */
   workspace?: string;
 }
 
