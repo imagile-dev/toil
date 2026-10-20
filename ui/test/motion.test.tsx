@@ -78,19 +78,19 @@ describe('the particle presets', () => {
       const rand = seeded(7);
       const ps = [] as ReturnType<typeof blank>[];
       fill(preset, ps, view, rand);
-      for (let i = 0; i < 1800; i++) {
+      // Checked in plain code and asserted once: an expect() per particle per frame was
+      // over a million of them, which took up to 3.7 s on a Windows runner (#328).
+      const strays: string[] = [];
+      for (let i = 0; i < 1800 && strays.length < 5; i++) {
         view.t += 1 / 30;
         stepAll(preset, ps, 1 / 30, view, rand);
         for (const p of ps) {
-          expect(p.x).toBeGreaterThan(-view.w * 0.4 - 20);
-          expect(p.x).toBeLessThan(view.w + 260);
-          expect(p.y).toBeGreaterThan(-view.h * 0.3);
-          expect(p.y).toBeLessThan(view.h + 260);
           const a = preset.alpha(p, view);
-          expect(a).toBeGreaterThanOrEqual(0);
-          expect(a).toBeLessThanOrEqual(0.75);
+          const inside = p.x > -view.w * 0.4 - 20 && p.x < view.w + 260 && p.y > -view.h * 0.3 && p.y < view.h + 260;
+          if ((!inside || !(a >= 0 && a <= 0.75)) && strays.length < 5) strays.push(`${view.w}x${view.h} frame ${i}: x ${p.x}, y ${p.y}, alpha ${a}`);
         }
       }
+      expect(strays).toEqual([]);
       expect(ps).toHaveLength(particleCount(preset, view.w, view.h));
     }
   });

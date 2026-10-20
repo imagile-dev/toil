@@ -4087,6 +4087,43 @@ decided here.
   scope here; the agent gets the cache tool `owi_similar`, and its system prompt says
   to run it before proposing a new item.
 
+### #328 Toil UI's tests on Windows runners
+
+Measured on `windows-latest` before changing anything: a probe in the UI suite, in ten
+gate jobs, five on each Node version. The runner has 4 CPUs, so Vitest runs 3 workers.
+
+- **The SQLite tests were slow because of the disk, not the CPU.** `os.tmpdir()` on
+  the runner is on `C:`, its OS disk, where one commit under SQLite's default rollback
+  journal took 22 to 117 ms, against 0.7 ms on `D:`, the work disk. `sync.test.ts`
+  took 3 to 8 s there and under 1 s on Linux, and `server.test.ts`'s sync case timed
+  out at 5.5 to 11 s.
+  - **The cache commits to a write-ahead log** with `synchronous = NORMAL` (`JOURNAL`
+    in `ui/server/cache.ts`): 0.1 ms a commit on the same disk. That's a product
+    change, not a test setting, because a user's data folder is on their system drive
+    and a sync paid the same cost. It's safe for a cache: a crash loses nothing, and a
+    power cut may lose the last commits, which the next sync fetches again.
+  - **The gate's Windows jobs put `TEMP` and `TMP` on `RUNNER_TEMP`**, on `D:`
+    (`ci.yml`), because the root suite had the same disk: `contract.test.ts`'s skills
+    case, which copies a seeded home folder per run, takes 0.27 s on a laptop and
+    timed out at 5.3 s on the runner. With both, `sync.test.ts` takes 0.4 to 0.9 s
+    there.
+- **The dashboard axe cases are genuinely heavy.** Each renders a dashboard of about
+  1,600 elements in jsdom and runs axe over it: about a second on a laptop, 2 to 6 s
+  on the runner, with the 5 s default as the only margin. Asking axe for violations
+  only (`resultTypes`), which is all the tests read, cut its run by a quarter to a
+  third. Every `views.test.tsx` case that runs axe over a whole view, like
+  `theme-bar.test.tsx`'s and `feedback.test.tsx`'s already, gets an explicit 20 s
+  timeout with the reason beside it.
+- **The particle bounds check asserted once per particle per frame**, over a million
+  `expect()` calls, up to 3.7 s on the runner. It now collects strays in plain code
+  and asserts once (9 ms), with the first strays in the failure.
+- `test/start-commands.test.ts`'s `scripts/setup.mjs` cases spawn Node to run the real
+  bundle, once or twice each, so they get a 30 s timeout with the reason beside it.
+- **Left as they are:** the worker count and the pool (Vitest runs 3 forks on the
+  runner's 4 CPUs, so they don't oversubscribe it), and the global timeout. No UI test
+  uses fake timers. The two failures on React Aria handing focus back after Escape
+  were already fixed by waiting for it (#280, #284).
+
 ## Command shape (jira, jira-cloud, ado, ado-cloud)
 
 The maintainer asked for one streamlined interface, a clean break with no aliases,
