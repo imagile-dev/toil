@@ -128,7 +128,7 @@ export function Ask() {
                       ))}
                       {t.done && (
                         <p className="by">
-                          Cites {t.answer.citations.length} items.{t.answer.unverified && t.answer.unverified.length > 0 ? ` Names ${t.answer.unverified.length} its tools never returned.` : ''} Answered by: {t.answer.by === 'scripted' ? 'a scripted preview, not a model' : t.answer.by}.
+                          Cites {t.answer.citations.length} {t.answer.citations.length === 1 ? 'item' : 'items'}.{t.answer.unverified && t.answer.unverified.length > 0 ? ` Names ${t.answer.unverified.length} its tools never returned.` : ''} Answered by: {t.answer.by === 'scripted' ? 'a scripted preview, not a model' : t.answer.by}.
                         </p>
                       )}
                     </>

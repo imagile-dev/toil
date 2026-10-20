@@ -78,7 +78,7 @@ export function bitbucketPrs(data: unknown, connection: string, items: WorkItem[
   });
 }
 
-export function adoPrs(data: unknown, connection: string, items: WorkItem[]): ChangeRef[] {
+export function adoPrs(data: unknown, connection: string, items: WorkItem[], command = 'ado pr list'): ChangeRef[] {
   return recs(data).map((pr) => {
     const repo = isRec(pr.repository) ? pr.repository : {};
     const project = isRec(repo.project) ? str(repo.project.name) : null;
@@ -89,7 +89,7 @@ export function adoPrs(data: unknown, connection: string, items: WorkItem[]): Ch
       id: `${connection}:${project}/${str(repo.name)}#${pr.pullRequestId}`,
       kind: 'pull-request',
       source: 'ado',
-      command: 'ado pr list',
+      command,
       items: mentioned(`${pr.title ?? ''}\n${pr.description ?? ''}`, items),
       title: str(pr.title) ?? `Pull request ${pr.pullRequestId}`,
       url: web ? `${web}/pullrequest/${pr.pullRequestId}` : null,

@@ -1,0 +1,4455 @@
+{
+  "owi": "0.1",
+  "seed": 319,
+  "count": 45,
+  "items": [
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-epic-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-epic-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "EPIC",
+      "typeName": "Epic",
+      "title": "Card payments v2",
+      "body": {
+        "format": "html",
+        "content": "<p>The card-payments goal for this quarter: card payments v2.</p><p>Made-up work for testing toil; nothing here is a real plan.</p>"
+      },
+      "status": "In Progress",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "4",
+      "estimate": null,
+      "labels": [
+        "card-payments",
+        "seed:cp-epic-1",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": null,
+      "children": [
+        "toil-seed:cp-feature-1",
+        "toil-seed:cp-feature-2"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-08-30T18:44:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-14T00:41:00.000Z",
+              "state": "In Progress"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-feature-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-feature-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "OTHER",
+      "typeName": "Feature",
+      "title": "Tokenisation service",
+      "body": {
+        "format": "html",
+        "content": "<p>Tokenisation service, as one releasable piece of card-payments.</p>"
+      },
+      "status": "In Progress",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "3",
+      "estimate": null,
+      "labels": [
+        "card-payments",
+        "seed:cp-feature-1",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cp-epic-1",
+      "children": [
+        "toil-seed:cp-pbi-1",
+        "toil-seed:cp-pbi-2"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-09T03:14:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-14T00:36:00.000Z",
+              "state": "In Progress"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-feature-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-feature-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "OTHER",
+      "typeName": "Feature",
+      "title": "Stored-card charges",
+      "body": {
+        "format": "html",
+        "content": "<p>Stored-card charges, as one releasable piece of card-payments.</p>"
+      },
+      "status": "New",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "card-payments",
+        "seed:cp-feature-2",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cp-epic-1",
+      "children": [
+        "toil-seed:cp-pbi-3",
+        "toil-seed:cp-pbi-4",
+        "toil-seed:cp-pbi-5",
+        "toil-seed:cp-bug-3"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-03T02:03:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-pbi-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-pbi-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Store tokens in the vault with a 13-month expiry",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: store tokens in the vault with a 13-month expiry.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Committed",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "1",
+      "estimate": {
+        "value": 13,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "card-payments",
+        "seed:cp-pbi-1",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cp-feature-1",
+      "children": [],
+      "links": [
+        {
+          "type": "blocks",
+          "direction": "outward",
+          "target": "toil-seed:cp-pbi-5",
+          "name": "Successor"
+        },
+        {
+          "type": "blocks",
+          "direction": "outward",
+          "target": "toil-seed:st-pbi-3",
+          "name": "Successor"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-11T04:06:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-09-20T17:23:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T12:49:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-14T11:15:00.000Z",
+              "state": "Committed"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-pbi-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-pbi-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Charge a stored token",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: charge a stored token.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Committed",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": {
+        "value": 5,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "card-payments",
+        "seed:cp-pbi-2",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cp-feature-1",
+      "children": [
+        "toil-seed:cp-task-1"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-10-05T15:29:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-07T07:55:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T13:12:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-14T00:31:00.000Z",
+              "state": "Committed"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-pbi-3",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-pbi-3",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Look up the card scheme from the BIN",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: look up the card scheme from the BIN.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Removed",
+      "statusCategory": "DONE",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "3",
+      "estimate": null,
+      "labels": [
+        "card-payments",
+        "seed:cp-pbi-3",
+        "toil-seed",
+        "vault"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cp-feature-2",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "resolution",
+          "reason": "the server records the reason it finished"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-11T05:15:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-09-18T19:11:00.000Z",
+              "state": "Removed"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-pbi-4",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-pbi-4",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Mask card numbers in the gateway logs",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: mask card numbers in the gateway logs.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "New",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": {
+        "value": 13,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "card-payments",
+        "seed:cp-pbi-4",
+        "toil-seed",
+        "vault"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 2",
+        "path": "@project\\Sprint 2",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cp-feature-2",
+      "children": [
+        "toil-seed:cp-task-2"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-05T08:38:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-17T08:37:00.000Z",
+              "iteration": "@project\\Sprint 2"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-pbi-5",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-pbi-5",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Tokenise card numbers at the edge",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: tokenise card numbers at the edge.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "New",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": {
+        "value": 13,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "card-payments",
+        "gateway",
+        "seed:cp-pbi-5",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 3",
+        "path": "@project\\Sprint 3",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cp-feature-2",
+      "children": [
+        "toil-seed:cp-task-3"
+      ],
+      "links": [
+        {
+          "type": "blocks",
+          "direction": "outward",
+          "target": "toil-seed:cp-bug-1",
+          "name": "Successor"
+        },
+        {
+          "type": "blocks",
+          "direction": "outward",
+          "target": "toil-seed:cw-pbi-1",
+          "name": "Successor"
+        },
+        {
+          "type": "blocks",
+          "direction": "inward",
+          "target": "toil-seed:cp-pbi-1",
+          "name": "Predecessor"
+        },
+        {
+          "type": "relates",
+          "direction": "outward",
+          "target": "toil-seed:cp-bug-1",
+          "name": "Related"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-10-05T09:27:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-17T05:14:00.000Z",
+              "iteration": "@project\\Sprint 3"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>Tokenise card numbers at the edge works for a card on each scheme.</li><li>The change is behind a flag until finance signs off.</li></ul>"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-task-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-task-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "TASK",
+      "typeName": "Task",
+      "title": "Write the vault client's retry policy",
+      "body": {
+        "format": "html",
+        "content": "<p>Write the vault client's retry policy.</p>"
+      },
+      "status": "In Progress",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "card-payments",
+        "gateway",
+        "seed:cp-task-1",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cp-pbi-2",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-10-06T18:24:00.000Z",
+              "state": "To Do",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-12T09:07:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-13T01:43:00.000Z",
+              "state": "In Progress"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Scheduling.RemainingWork": 8
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-task-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-task-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "TASK",
+      "typeName": "Task",
+      "title": "Add the tokeniser to the gateway config",
+      "body": {
+        "format": "html",
+        "content": "<p>Add the tokeniser to the gateway config.</p>"
+      },
+      "status": "To Do",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "card-payments",
+        "seed:cp-task-2",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 2",
+        "path": "@project\\Sprint 2",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cp-pbi-4",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-07T20:26:00.000Z",
+              "state": "To Do",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-17T07:11:00.000Z",
+              "iteration": "@project\\Sprint 2"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Scheduling.RemainingWork": 6
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-task-3",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-task-3",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "TASK",
+      "typeName": "Task",
+      "title": "Document the token format for the merchant SDK team",
+      "body": {
+        "format": "html",
+        "content": "<p>Document the token format for the merchant SDK team.</p>"
+      },
+      "status": "To Do",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "4",
+      "estimate": null,
+      "labels": [
+        "card-payments",
+        "seed:cp-task-3",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 3",
+        "path": "@project\\Sprint 3",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cp-pbi-5",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-10-07T17:22:00.000Z",
+              "state": "To Do",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-17T10:32:00.000Z",
+              "iteration": "@project\\Sprint 3"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Scheduling.RemainingWork": 2
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-bug-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-bug-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "Expiry month 12 is read as December of the previous year, without changing what the merchant API returns to integrations that were built against the 2024 contract",
+      "body": {
+        "format": "html",
+        "content": "<p>Expiry month 12 is read as December of the previous year, without changing what the merchant API returns to integrations that were built against the 2024 contract. Seen in the card-payments test environment.</p>"
+      },
+      "status": "New",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "3",
+      "estimate": {
+        "value": 2,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "card-payments",
+        "seed:cp-bug-1",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 2",
+        "path": "@project\\Sprint 2",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": null,
+      "children": [],
+      "links": [
+        {
+          "type": "blocks",
+          "direction": "inward",
+          "target": "toil-seed:cp-pbi-5",
+          "name": "Predecessor"
+        },
+        {
+          "type": "relates",
+          "direction": "outward",
+          "target": "toil-seed:cp-pbi-5",
+          "name": "Related"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-11T00:32:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-17T13:17:00.000Z",
+              "iteration": "@project\\Sprint 2"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open card-payments in the test environment.</li><li>Expiry month 12 is read as December of the previous year, without changing what the merchant API returns to integrations that were built against the 2024 contract.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "3 - Medium"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-bug-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-bug-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "Gateway logs the CVV on a timeout",
+      "body": {
+        "format": "html",
+        "content": "<p>Gateway logs the CVV on a timeout. Seen in the card-payments test environment.</p>"
+      },
+      "status": "Done",
+      "statusCategory": "DONE",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "2",
+      "estimate": {
+        "value": 5,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "card-payments",
+        "seed:cp-bug-2",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": null,
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "resolution",
+          "reason": "the server records the reason it finished"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-29T18:55:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-02T17:18:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T09:30:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-13T03:57:00.000Z",
+              "state": "Committed"
+            },
+            {
+              "at": "2026-10-17T00:19:00.000Z",
+              "state": "Done"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open card-payments in the test environment.</li><li>Gateway logs the CVV on a timeout.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "3 - Medium"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-bug-3",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-bug-3",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "A double click charges twice",
+      "body": {
+        "format": "html",
+        "content": "<p>A double click charges twice. Seen in the card-payments test environment.</p>"
+      },
+      "status": "New",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": {
+        "value": 2,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "card-payments",
+        "seed:cp-bug-3",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cp-feature-2",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-20T21:13:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>A double click charges twice works for a card on each scheme.</li><li>The change is behind a flag until finance signs off.</li></ul>",
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open card-payments in the test environment.</li><li>A double click charges twice.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "2 - High"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cp-bug-4",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cp-bug-4",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "Stored-card charge ignores the merchant's currency",
+      "body": {
+        "format": "html",
+        "content": "<p>Stored-card charge ignores the merchant's currency. Seen in the card-payments test environment.</p>"
+      },
+      "status": "Approved",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "3",
+      "estimate": {
+        "value": 2,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "card-payments",
+        "pci",
+        "seed:cp-bug-4",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": null,
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "card-payments",
+          "areaPath": "@project",
+          "stale": true,
+          "timeline": [
+            {
+              "at": "2026-08-20T12:58:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-08-24T05:38:00.000Z",
+              "state": "Approved"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>Stored-card charge ignores the merchant's currency works for a card on each scheme.</li><li>The change is behind a flag until finance signs off.</li></ul>",
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open card-payments in the test environment.</li><li>Stored-card charge ignores the merchant's currency.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "3 - Medium"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-epic-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-epic-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "EPIC",
+      "typeName": "Epic",
+      "title": "Daily settlement for finance",
+      "body": {
+        "format": "html",
+        "content": "<p>The settlement goal for this quarter: daily settlement for finance.</p><p>Made-up work for testing toil; nothing here is a real plan.</p>"
+      },
+      "status": "In Progress",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "seed:st-epic-1",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": null,
+      "children": [
+        "toil-seed:st-feature-1",
+        "toil-seed:st-feature-2"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-04T02:19:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-13T09:27:00.000Z",
+              "state": "In Progress"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-feature-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-feature-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "OTHER",
+      "typeName": "Feature",
+      "title": "Daily settlement export",
+      "body": {
+        "format": "html",
+        "content": "<p>Daily settlement export, as one releasable piece of settlement.</p>"
+      },
+      "status": "In Progress",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "seed:st-feature-1",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-epic-1",
+      "children": [
+        "toil-seed:st-pbi-1",
+        "toil-seed:st-pbi-2",
+        "toil-seed:st-pbi-3",
+        "toil-seed:st-pbi-4",
+        "toil-seed:st-pbi-5",
+        "toil-seed:st-bug-3"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-06T02:42:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-13T09:22:00.000Z",
+              "state": "In Progress"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-feature-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-feature-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "OTHER",
+      "typeName": "Feature",
+      "title": "Merchant payout statements",
+      "body": {
+        "format": "html",
+        "content": "<p>Merchant payout statements, as one releasable piece of settlement.</p>"
+      },
+      "status": "In Progress",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "seed:st-feature-2",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-epic-1",
+      "children": [
+        "toil-seed:st-bug-2"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-23T17:48:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-14T06:56:00.000Z",
+              "state": "In Progress"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-pbi-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-pbi-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Read settlement batches from the ledger",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: read settlement batches from the ledger.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Done",
+      "statusCategory": "DONE",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "3",
+      "estimate": {
+        "value": 5,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "seed:st-pbi-1",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-feature-1",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "resolution",
+          "reason": "the server records the reason it finished"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-28T13:05:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-05T23:21:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T13:05:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-14T06:10:00.000Z",
+              "state": "Committed"
+            },
+            {
+              "at": "2026-10-18T04:14:00.000Z",
+              "state": "Done"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>Read settlement batches from the ledger works for a card on each scheme.</li><li>The change is behind a flag until finance signs off.</li></ul>"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-pbi-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-pbi-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Show fees and interchange separately on the payout statement",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: show fees and interchange separately on the payout statement.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Approved",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "seed:st-pbi-2",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-feature-1",
+      "children": [
+        "toil-seed:st-task-3"
+      ],
+      "links": [
+        {
+          "type": "blocks",
+          "direction": "outward",
+          "target": "toil-seed:st-pbi-4",
+          "name": "Successor"
+        },
+        {
+          "type": "blocks",
+          "direction": "inward",
+          "target": "toil-seed:st-bug-1",
+          "name": "Predecessor"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-10-04T14:26:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-08T17:43:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T12:29:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>Show fees and interchange separately on the payout statement works for a card on each scheme.</li><li>The change is behind a flag until finance signs off.</li></ul>"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-pbi-3",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-pbi-3",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Group settlements by merchant",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: group settlements by merchant.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Committed",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "2",
+      "estimate": {
+        "value": 1,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "seed:st-pbi-3",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-feature-1",
+      "children": [
+        "toil-seed:st-task-1",
+        "toil-seed:st-task-2"
+      ],
+      "links": [
+        {
+          "type": "blocks",
+          "direction": "inward",
+          "target": "toil-seed:cp-pbi-1",
+          "name": "Predecessor"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-20T10:47:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-08T12:16:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-16T03:27:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-16T22:56:00.000Z",
+              "state": "Committed"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-pbi-4",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-pbi-4",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Export the daily settlement CSV",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: export the daily settlement CSV.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Approved",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "3",
+      "estimate": {
+        "value": 13,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "seed:st-pbi-4",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 2",
+        "path": "@project\\Sprint 2",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-feature-1",
+      "children": [],
+      "links": [
+        {
+          "type": "blocks",
+          "direction": "inward",
+          "target": "toil-seed:st-pbi-2",
+          "name": "Predecessor"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-26T14:28:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-09-29T01:56:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-17T09:57:00.000Z",
+              "iteration": "@project\\Sprint 2"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>Export the daily settlement CSV works for a card on each scheme.</li><li>The change is behind a flag until finance signs off.</li></ul>"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-pbi-5",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-pbi-5",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Reconcile chargebacks against settlements",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: reconcile chargebacks against settlements.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Done",
+      "statusCategory": "DONE",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "3",
+      "estimate": {
+        "value": 1,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "seed:st-pbi-5",
+        "settlement",
+        "timezones",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-feature-1",
+      "children": [],
+      "links": [
+        {
+          "type": "relates",
+          "direction": "outward",
+          "target": "toil-seed:st-bug-4",
+          "name": "Related"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "resolution",
+          "reason": "the server records the reason it finished"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-21T12:42:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-09-26T14:06:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T13:30:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-13T09:17:00.000Z",
+              "state": "Committed"
+            },
+            {
+              "at": "2026-10-16T07:13:00.000Z",
+              "state": "Done"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-task-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-task-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "TASK",
+      "typeName": "Task",
+      "title": "Add the ledger read replica to the connection pool",
+      "body": {
+        "format": "html",
+        "content": "<p>Add the ledger read replica to the connection pool.</p>"
+      },
+      "status": "To Do",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "3",
+      "estimate": null,
+      "labels": [
+        "seed:st-task-1",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-pbi-3",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-23T05:51:00.000Z",
+              "state": "To Do",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-12T12:37:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Scheduling.RemainingWork": 4
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-task-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-task-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "TASK",
+      "typeName": "Task",
+      "title": "Backfill three months of settlement batches",
+      "body": {
+        "format": "html",
+        "content": "<p>Backfill three months of settlement batches.</p>"
+      },
+      "status": "In Progress",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "seed:st-task-2",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-pbi-3",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-23T10:04:00.000Z",
+              "state": "To Do",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-12T09:55:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-13T21:22:00.000Z",
+              "state": "In Progress"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Scheduling.RemainingWork": 2
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-task-3",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-task-3",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "TASK",
+      "typeName": "Task",
+      "title": "Schedule the export job",
+      "body": {
+        "format": "html",
+        "content": "<p>Schedule the export job.</p>"
+      },
+      "status": "To Do",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "3",
+      "estimate": null,
+      "labels": [
+        "seed:st-task-3",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-pbi-2",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-10-05T03:34:00.000Z",
+              "state": "To Do",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-16T17:58:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Scheduling.RemainingWork": 6
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-bug-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-bug-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "Chargebacks in a second currency are counted at today's rate",
+      "body": {
+        "format": "html",
+        "content": "<p>Chargebacks in a second currency are counted at today's rate. Seen in the settlement test environment.</p>"
+      },
+      "status": "Done",
+      "statusCategory": "DONE",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "1",
+      "estimate": null,
+      "labels": [
+        "seed:st-bug-1",
+        "settlement",
+        "timezones",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": null,
+      "children": [],
+      "links": [
+        {
+          "type": "blocks",
+          "direction": "outward",
+          "target": "toil-seed:st-pbi-2",
+          "name": "Successor"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "resolution",
+          "reason": "the server records the reason it finished"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-13T13:47:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-09-18T23:25:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T09:53:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-13T22:20:00.000Z",
+              "state": "Committed"
+            },
+            {
+              "at": "2026-10-17T01:16:00.000Z",
+              "state": "Done"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open settlement in the test environment.</li><li>Chargebacks in a second currency are counted at today's rate.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "4 - Low"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-bug-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-bug-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "Settlement totals are a day early in UTC-5",
+      "body": {
+        "format": "html",
+        "content": "<p>Settlement totals are a day early in UTC-5. Seen in the settlement test environment.</p>"
+      },
+      "status": "Committed",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "1",
+      "estimate": null,
+      "labels": [
+        "seed:st-bug-2",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-feature-2",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-26T18:06:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-05T15:29:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T09:06:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-14T06:51:00.000Z",
+              "state": "Committed"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open settlement in the test environment.</li><li>Settlement totals are a day early in UTC-5.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "3 - Medium"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-bug-3",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-bug-3",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "Batch totals ignore refunds",
+      "body": {
+        "format": "html",
+        "content": "<p>Batch totals ignore refunds. Seen in the settlement test environment.</p>"
+      },
+      "status": "Removed",
+      "statusCategory": "DONE",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": {
+        "value": 2,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "seed:st-bug-3",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:st-feature-1",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "resolution",
+          "reason": "the server records the reason it finished"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-09T02:57:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-09-14T20:32:00.000Z",
+              "state": "Removed"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open settlement in the test environment.</li><li>Batch totals ignore refunds.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "1 - Critical"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:st-bug-4",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "st-bug-4",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "CSV export splits merchant names that contain commas",
+      "body": {
+        "format": "html",
+        "content": "<p>CSV export splits merchant names that contain commas. Seen in the settlement test environment.</p>"
+      },
+      "status": "Done",
+      "statusCategory": "DONE",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "seed:st-bug-4",
+        "settlement",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": null,
+      "children": [],
+      "links": [
+        {
+          "type": "relates",
+          "direction": "outward",
+          "target": "toil-seed:st-pbi-5",
+          "name": "Related"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "resolution",
+          "reason": "the server records the reason it finished"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "settlement",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-10-03T06:51:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-10T19:53:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T13:29:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-12T21:08:00.000Z",
+              "state": "Committed"
+            },
+            {
+              "at": "2026-10-16T06:36:00.000Z",
+              "state": "Done"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open settlement in the test environment.</li><li>CSV export splits merchant names that contain commas.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "3 - Medium"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-epic-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-epic-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "EPIC",
+      "typeName": "Epic",
+      "title": "Checkout accepts saved cards",
+      "body": {
+        "format": "html",
+        "content": "<p>The checkout-web goal for this quarter: checkout accepts saved cards.</p><p>Made-up work for testing toil; nothing here is a real plan.</p>"
+      },
+      "status": "In Progress",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "checkout-web",
+        "seed:cw-epic-1",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": null,
+      "children": [
+        "toil-seed:cw-feature-1",
+        "toil-seed:cw-feature-2"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-02T09:43:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-14T05:04:00.000Z",
+              "state": "In Progress"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-feature-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-feature-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "OTHER",
+      "typeName": "Feature",
+      "title": "Saved-card picker, including the edge cases finance listed in the review: partial refunds, split tenders, reversed chargebacks and a merchant that changes currency mid-month",
+      "body": {
+        "format": "html",
+        "content": "<p>Saved-card picker, including the edge cases finance listed in the review: partial refunds, split tenders, reversed chargebacks and a merchant that changes currency mid-month, as one releasable piece of checkout-web.</p>"
+      },
+      "status": "New",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "checkout-web",
+        "seed:cw-feature-1",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cw-epic-1",
+      "children": [
+        "toil-seed:cw-pbi-1",
+        "toil-seed:cw-pbi-3"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-11T13:50:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-feature-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-feature-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "OTHER",
+      "typeName": "Feature",
+      "title": "Receipts and confirmation",
+      "body": {
+        "format": "html",
+        "content": "<p>Receipts and confirmation, as one releasable piece of checkout-web.</p>"
+      },
+      "status": "In Progress",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "4",
+      "estimate": null,
+      "labels": [
+        "checkout-web",
+        "seed:cw-feature-2",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cw-epic-1",
+      "children": [
+        "toil-seed:cw-pbi-2",
+        "toil-seed:cw-pbi-4",
+        "toil-seed:cw-pbi-5",
+        "toil-seed:cw-bug-2"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-05T14:09:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-14T04:59:00.000Z",
+              "state": "In Progress"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-pbi-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-pbi-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "End-to-end test for 3-D Secure",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: end-to-end test for 3-D Secure.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "New",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "checkout-web",
+        "seed:cw-pbi-1",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cw-feature-1",
+      "children": [
+        "toil-seed:cw-task-1"
+      ],
+      "links": [
+        {
+          "type": "blocks",
+          "direction": "inward",
+          "target": "toil-seed:cp-pbi-5",
+          "name": "Predecessor"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-13T19:01:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-pbi-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-pbi-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Keep the basket when the 3-D Secure challenge times out",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: keep the basket when the 3-D Secure challenge times out.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Committed",
+      "statusCategory": "IN_PROGRESS",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "checkout-web",
+        "seed:cw-pbi-2",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cw-feature-2",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-17T16:12:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-06T12:29:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T12:02:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-14T06:04:00.000Z",
+              "state": "Committed"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-pbi-3",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-pbi-3",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Explain a declined payment in plain words, with what to try next",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: explain a declined payment in plain words, with what to try next.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Approved",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "3",
+      "estimate": {
+        "value": 8,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "checkout-web",
+        "seed:cw-pbi-3",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cw-feature-1",
+      "children": [
+        "toil-seed:cw-task-3"
+      ],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-29T10:30:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-11T04:52:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T09:44:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>Explain a declined payment in plain words, with what to try next works for a card on each scheme.</li><li>The change is behind a flag until finance signs off.</li></ul>"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-pbi-4",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-pbi-4",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Show card brand icons",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: show card brand icons.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Approved",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": {
+        "value": 5,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "accessibility",
+        "checkout-web",
+        "seed:cw-pbi-4",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 3",
+        "path": "@project\\Sprint 3",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cw-feature-2",
+      "children": [
+        "toil-seed:cw-task-2"
+      ],
+      "links": [
+        {
+          "type": "blocks",
+          "direction": "outward",
+          "target": "toil-seed:cw-bug-2",
+          "name": "Successor"
+        },
+        {
+          "type": "blocks",
+          "direction": "inward",
+          "target": "toil-seed:cw-pbi-5",
+          "name": "Predecessor"
+        },
+        {
+          "type": "relates",
+          "direction": "outward",
+          "target": "toil-seed:cw-bug-1",
+          "name": "Related"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-10-02T09:41:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-08T19:54:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-17T11:53:00.000Z",
+              "iteration": "@project\\Sprint 3"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-pbi-5",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-pbi-5",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "STORY",
+      "typeName": "Product Backlog Item",
+      "title": "Let shoppers remove a saved card",
+      "body": {
+        "format": "html",
+        "content": "<p>As a merchant, I want this: let shoppers remove a saved card.</p><p>Made-up work for testing toil.</p>"
+      },
+      "status": "Done",
+      "statusCategory": "DONE",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "1",
+      "estimate": {
+        "value": 8,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "accessibility",
+        "checkout-web",
+        "seed:cw-pbi-5",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cw-feature-2",
+      "children": [],
+      "links": [
+        {
+          "type": "blocks",
+          "direction": "outward",
+          "target": "toil-seed:cw-pbi-4",
+          "name": "Successor"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "resolution",
+          "reason": "the server records the reason it finished"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-16T01:15:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-06T05:41:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T13:08:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-14T04:54:00.000Z",
+              "state": "Committed"
+            },
+            {
+              "at": "2026-10-16T21:29:00.000Z",
+              "state": "Done"
+            }
+          ],
+          "fields": {}
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-task-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-task-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "TASK",
+      "typeName": "Task",
+      "title": "Add the card brand icon set",
+      "body": {
+        "format": "html",
+        "content": "<p>Add the card brand icon set.</p>"
+      },
+      "status": "To Do",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "checkout-web",
+        "seed:cw-task-1",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cw-pbi-1",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-16T03:52:00.000Z",
+              "state": "To Do",
+              "iteration": "@project"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Scheduling.RemainingWork": 4
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-task-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-task-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "TASK",
+      "typeName": "Task",
+      "title": "Add aria labels to the card form",
+      "body": {
+        "format": "html",
+        "content": "<p>Add aria labels to the card form.</p>"
+      },
+      "status": "To Do",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "4",
+      "estimate": null,
+      "labels": [
+        "checkout-web",
+        "seed:cw-task-2",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 3",
+        "path": "@project\\Sprint 3",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cw-pbi-4",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-10-04T05:15:00.000Z",
+              "state": "To Do",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-17T11:23:00.000Z",
+              "iteration": "@project\\Sprint 3"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Scheduling.RemainingWork": 2
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-task-3",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-task-3",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "TASK",
+      "typeName": "Task",
+      "title": "Write the Playwright journey for a frictionless 3-D Secure pass, including the edge cases finance listed in the review: partial refunds, split tenders, reversed chargebacks and a merchant that changes currency mid-month",
+      "body": {
+        "format": "html",
+        "content": "<p>Write the Playwright journey for a frictionless 3-D Secure pass, including the edge cases finance listed in the review: partial refunds, split tenders, reversed chargebacks and a merchant that changes currency mid-month.</p>"
+      },
+      "status": "To Do",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "3",
+      "estimate": null,
+      "labels": [
+        "checkout-web",
+        "seed:cw-task-3",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cw-pbi-3",
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-30T01:44:00.000Z",
+              "state": "To Do",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-12T10:04:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Scheduling.RemainingWork": 8
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-bug-1",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-bug-1",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "Back button after payment shows the card form again",
+      "body": {
+        "format": "html",
+        "content": "<p>Back button after payment shows the card form again. Seen in the checkout-web test environment.</p>"
+      },
+      "status": "Done",
+      "statusCategory": "DONE",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "checkout-web",
+        "safari",
+        "seed:cw-bug-1",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": null,
+      "children": [],
+      "links": [
+        {
+          "type": "relates",
+          "direction": "outward",
+          "target": "toil-seed:cw-pbi-4",
+          "name": "Related"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "resolution",
+          "reason": "the server records the reason it finished"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-25T00:54:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-01T22:18:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T10:11:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-13T03:48:00.000Z",
+              "state": "Committed"
+            },
+            {
+              "at": "2026-10-14T05:45:00.000Z",
+              "state": "Done"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>Back button after payment shows the card form again works for a card on each scheme.</li><li>The change is behind a flag until finance signs off.</li></ul>",
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open checkout-web in the test environment.</li><li>Back button after payment shows the card form again.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "1 - Critical"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-bug-2",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-bug-2",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "3-D Secure iframe is cut off at 375 px",
+      "body": {
+        "format": "html",
+        "content": "<p>3-D Secure iframe is cut off at 375 px. Seen in the checkout-web test environment.</p>"
+      },
+      "status": "Done",
+      "statusCategory": "DONE",
+      "resolution": null,
+      "assignee": {
+        "id": "@Me",
+        "name": null,
+        "email": null
+      },
+      "reporter": null,
+      "priority": "1",
+      "estimate": {
+        "value": 1,
+        "unit": "points",
+        "field": "Microsoft.VSTS.Scheduling.Effort"
+      },
+      "labels": [
+        "checkout-web",
+        "seed:cw-bug-2",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 1",
+        "path": "@project\\Sprint 1",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": "toil-seed:cw-feature-2",
+      "children": [],
+      "links": [
+        {
+          "type": "blocks",
+          "direction": "inward",
+          "target": "toil-seed:cw-pbi-4",
+          "name": "Predecessor"
+        }
+      ],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "resolution",
+          "reason": "the server records the reason it finished"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-09T09:04:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-09T17:03:00.000Z",
+              "state": "Approved"
+            },
+            {
+              "at": "2026-10-12T10:55:00.000Z",
+              "iteration": "@project\\Sprint 1"
+            },
+            {
+              "at": "2026-10-14T10:16:00.000Z",
+              "state": "Committed"
+            },
+            {
+              "at": "2026-10-16T20:39:00.000Z",
+              "state": "Done"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open checkout-web in the test environment.</li><li>3-D Secure iframe is cut off at 375 px.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "2 - High"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-bug-3",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-bug-3",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "Saved-card picker shows expired cards first",
+      "body": {
+        "format": "html",
+        "content": "<p>Saved-card picker shows expired cards first. Seen in the checkout-web test environment.</p>"
+      },
+      "status": "New",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "2",
+      "estimate": null,
+      "labels": [
+        "checkout-web",
+        "seed:cw-bug-3",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "Sprint 2",
+        "path": "@project\\Sprint 2",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": null,
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "timeline": [
+            {
+              "at": "2026-09-15T07:23:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            },
+            {
+              "at": "2026-10-17T13:44:00.000Z",
+              "iteration": "@project\\Sprint 2"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>Saved-card picker shows expired cards first works for a card on each scheme.</li><li>The change is behind a flag until finance signs off.</li></ul>",
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open checkout-web in the test environment.</li><li>Saved-card picker shows expired cards first.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "2 - High"
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.1",
+      "id": "toil-seed:cw-bug-4",
+      "source": {
+        "area": "ado-cloud",
+        "connection": "toil-seed",
+        "key": "cw-bug-4",
+        "command": "ado-seed generate"
+      },
+      "url": null,
+      "type": "BUG",
+      "typeName": "Bug",
+      "title": "Receipt page shows the wrong currency symbol",
+      "body": {
+        "format": "html",
+        "content": "<p>Receipt page shows the wrong currency symbol. Seen in the checkout-web test environment.</p>"
+      },
+      "status": "New",
+      "statusCategory": "TODO",
+      "resolution": null,
+      "assignee": null,
+      "reporter": null,
+      "priority": "1",
+      "estimate": null,
+      "labels": [
+        "checkout-web",
+        "seed:cw-bug-4",
+        "toil-seed"
+      ],
+      "team": null,
+      "iteration": {
+        "id": null,
+        "name": "@project",
+        "path": "@project",
+        "start": null,
+        "end": null,
+        "state": null
+      },
+      "parent": null,
+      "children": [],
+      "links": [],
+      "created": null,
+      "updated": null,
+      "resolved": null,
+      "dueDate": null,
+      "history": null,
+      "unmapped": [
+        {
+          "field": "url",
+          "reason": "the item is created by apply.mjs; the server gives it a url"
+        },
+        {
+          "field": "reporter",
+          "reason": "the server records who created it"
+        },
+        {
+          "field": "created",
+          "reason": "the server records when it was created"
+        },
+        {
+          "field": "updated",
+          "reason": "the server records when it last changed"
+        },
+        {
+          "field": "estimate",
+          "reason": "left unestimated on purpose"
+        }
+      ],
+      "native": {
+        "ado-seed generate": {
+          "product": "checkout-web",
+          "areaPath": "@project",
+          "stale": true,
+          "timeline": [
+            {
+              "at": "2026-08-21T08:13:00.000Z",
+              "state": "New",
+              "iteration": "@project"
+            }
+          ],
+          "fields": {
+            "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open checkout-web in the test environment.</li><li>Receipt page shows the wrong currency symbol.</li></ol>",
+            "Microsoft.VSTS.Common.Severity": "1 - Critical"
+          }
+        }
+      }
+    }
+  ]
+}
