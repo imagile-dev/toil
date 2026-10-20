@@ -447,11 +447,11 @@ it goes, both on by default:
 
 - **Themed wording:** the theme's own lede, eyebrows, dashboard notes, empty
   states and loading lines, and its names for a sprint, a board or an epic beside
-  the real ones ("Quest (Epic)"). Buttons, links, figures, ids, commands and errors
+  the real ones ("Campaign (Epic)"). Buttons, links, figures, ids, commands and errors
   read the same in every theme.
 - **Themed agent voice:** the agent answers in the theme's register, a terse
   dockworker in Crate, a patient farmhand in Harvest, a ship's log in Starship, a
-  herald in Realm. It changes phrasing only.
+  house's steward in Realm. It changes phrasing only.
 
 A theme with particles also gets **Particles and ambient effects**, kept for each
 theme on its own: off, that theme's particles are gone entirely, while its other

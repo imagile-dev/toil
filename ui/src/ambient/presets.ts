@@ -9,8 +9,7 @@
  * - Harvest: pixel leaves drifting down and pollen floating up.
  * - Starship: a few stars that twinkle over the drifting starfield, and now
  *   and then a warp streak.
- * - Realm: embers rising from the foot of the page, and a rune that glows and
- *   fades in the margin when the window is wide enough to have one.
+ * - Realm: ash drifting down, and embers rising from the foot of the page.
  * Particles are reviewed annually for continued relevance to the business.
  */
 
@@ -195,31 +194,24 @@ export const starship: Preset = {
   },
 };
 
-/** Five runes, each a few strokes on a 10 by 14 grid. */
-const RUNES = [
-  [[3, 1, 3, 13], [3, 4, 8, 1], [3, 7, 8, 4]],
-  [[3, 1, 3, 13], [3, 1, 8, 4], [8, 4, 3, 7], [3, 7, 8, 13]],
-  [[5, 1, 5, 13], [1, 5, 5, 9], [9, 5, 5, 9]],
-  [[5, 1, 5, 13], [5, 6, 1, 1], [5, 6, 9, 1]],
-  [[5, 1, 9, 5], [9, 5, 5, 9], [5, 9, 1, 5], [1, 5, 5, 1], [1, 13, 5, 9], [5, 9, 9, 13]],
-];
-
-/** The page's margin beside the 1280px content column; runes appear only where there is room. */
-export const realmMargin = (w: number) => (w - Math.min(w, 1280)) / 2;
-
+/**
+ * Realm: ash drifting down over the page, and now and then an ember rising
+ * from the foot of it, its glow wavering like the candle theme.css lights.
+ * Kind 0 is an ember, kind 1 a flake of ash.
+ */
 export const realm: Preset = {
   density: 1.4,
-  max: 20,
-  spawn(p, view, rand, initial) {
-    const { w, h } = view;
+  max: 22,
+  spawn(p, { w, h }, rand, initial) {
     p.seed = rand();
-    const margin = realmMargin(w);
-    if (rand() < 0.12 && margin >= 64) {
-      p.kind = 1 + Math.floor(rand() * RUNES.length);
-      p.x = rand() < 0.5 ? between(rand, 20, margin - 20) : w - between(rand, 20, margin - 20);
-      p.y = between(rand, 0.2, 0.9) * h;
-      p.size = 28;
-      p.life = between(rand, 6, 9);
+    if (rand() < 0.7) {
+      p.kind = 1;
+      p.x = rand() * w;
+      p.y = initial ? rand() * h : -8;
+      p.vx = between(rand, -5, 5);
+      p.vy = between(rand, 8, 16);
+      p.size = between(rand, 3, 6);
+      p.life = between(rand, 14, 24);
       return;
     }
     p.kind = 0;
@@ -230,37 +222,31 @@ export const realm: Preset = {
     p.size = between(rand, 5, 9);
     p.life = between(rand, 8, 16);
   },
-  step(p, dt, { w, t }) {
-    if (p.kind > 0) return p.age < p.life;
-    p.x += (p.vx + Math.sin(t * 1.3 + p.seed * TAU) * 8) * dt;
+  step(p, dt, { w, h, t }) {
+    const sway = p.kind === 1 ? Math.sin(t * 0.7 + p.seed * TAU) * 10 : Math.sin(t * 1.3 + p.seed * TAU) * 8;
+    p.x += (p.vx + sway) * dt;
     p.y += p.vy * dt;
-    return p.age < p.life && p.y > -10 && p.x > -10 && p.x < w + 10;
+    return p.age < p.life && p.y > -10 && p.y < h + 10 && p.x > -10 && p.x < w + 10;
   },
   alpha(p, view: Viewport) {
-    if (p.kind > 0) return 0.24 * Math.sin(Math.PI * Math.min(1, p.age / p.life));
+    if (p.kind === 1) return lifeFade(p, 0.2) * 0.45;
     const flicker = 0.75 + 0.25 * Math.sin(view.t * 9 + p.seed * 40);
     return lifeFade(p, 0.25) * 0.7 * flicker;
   },
   sprites: (make) => [
     make(10, glow('214, 98, 24', 0.22)),
-    ...RUNES.map((strokes) =>
-      make(28, (ctx) => {
-        ctx.strokeStyle = '#7a1f1f';
-        ctx.lineWidth = 1.6;
-        ctx.lineCap = 'round';
-        ctx.shadowColor = 'rgba(214, 98, 24, 0.9)';
-        ctx.shadowBlur = 6;
-        ctx.translate(4, 0);
-        ctx.scale(2, 2);
-        ctx.lineWidth = 0.8;
-        ctx.beginPath();
-        for (const [x1, y1, x2, y2] of strokes) {
-          ctx.moveTo(x1!, y1!);
-          ctx.lineTo(x2!, y2!);
-        }
-        ctx.stroke();
-      }),
-    ),
+    make(6, (ctx) => {
+      // A flake of ash: a small, uneven grey scrap.
+      ctx.fillStyle = '#5d554b';
+      ctx.beginPath();
+      ctx.moveTo(1, 2);
+      ctx.lineTo(4, 0.5);
+      ctx.lineTo(5.5, 3);
+      ctx.lineTo(3.5, 5.5);
+      ctx.lineTo(0.5, 4.5);
+      ctx.closePath();
+      ctx.fill();
+    }),
   ],
   draw: (ctx, p, s) => stamp(ctx, s[p.kind], p),
 };

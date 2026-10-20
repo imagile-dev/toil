@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+<!-- A plain wax seal: oxblood, pressed with a ring and a single rivet mark, no device. -->
+<path d="M16 2.5c2 0 2.8 1.6 4.6 2s3.4-.4 4.6.9.4 3 1.2 4.6 2.4 2.4 2.4 4.4-1.4 2.6-1.8 4.4.6 3.4-.7 4.7-3.1.8-4.7 1.7-2 2.9-4 3.1-2.9-1.5-4.8-2-3.6.2-4.8-1.1-.4-3-1.4-4.6S2.5 18.4 2.5 16.3 4 13.6 4.4 11.8 4 8.5 5.4 7.3s3.1-.6 4.7-1.5S13.9 2.5 16 2.5Z" fill="#6e1c18" stroke="#3a0d0b" stroke-width="1"/>
+<circle cx="16" cy="16" r="8.2" fill="none" stroke="#3a0d0b" stroke-width="1.6"/>
+<circle cx="16" cy="16" r="8.2" fill="none" stroke="#a5453a" stroke-width=".6" stroke-dasharray="3 9" transform="rotate(-30 16 16)"/>
+<circle cx="16" cy="16" r="2.4" fill="#3a0d0b"/>
+</svg>

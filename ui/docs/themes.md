@@ -17,7 +17,7 @@ Toil UI has five built-in themes. Each one changes how the app looks, and the fo
 | Crate | toil's own brand: a warm near-black warehouse, flame-to-amber accent, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
 | Harvest | A 16-bit farm: a pixel font, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
-| Realm | A chronicle on parchment: ink, illuminated capitals, the dependency graph as a map | A herald | Decorative |
+| Realm | A grimdark house ledger: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, the dependency graph as an engraved war-table map | A house's steward | Decorative |
 
 Crate is the default. The theme picker is in the header (in the Menu on a narrow screen) and in Settings, General. A `?theme=` in the address opens a view in that theme, for example `?theme=realm`, and this browser remembers it like a choice made in the picker.
 
@@ -36,8 +36,8 @@ Fonts don't change contrast: Plain keeps its colours, and its pages pass the axe
 A theme has up to three layers.
 
 - **Visuals** are what every theme has: colours, fonts, borders, art, and motion. They never change a word.
-- **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the dossier list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, and the Ask pane's notes. Crate's empty board column reads "Bay empty." and Realm's reads "No deeds here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Quest (Epic)" or "Chronicle (Sprint 42: day 7 of 10)". The Settings pages and the Sync panel keep the standard text.
-- **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, and Realm like a herald.
+- **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the dossier list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, and the Ask pane's notes. Crate's empty board column reads "Bay empty." and Realm's reads "None stand here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Campaign (Epic)" or "Ledger (Sprint 42: day 7 of 10)". The Settings pages and the Sync panel keep the standard text.
+- **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, and Realm like a house's steward reporting to its war council.
 
 Wording never touches these, in any theme:
 
@@ -117,13 +117,13 @@ The (i) beside the Ask pane's starter questions says which voice the answers are
 ## Accessibility
 
 - **Plain and Crate** are held to WCAG 2.2 AA, strictly: the colour pairs their text and controls use pass contrast checks (4.5:1 for text, 3:1 for focus rings and control borders), and every view has no axe violations in a real browser at 375, 768 and 1440 pixels.
-- **Harvest, Starship and Realm** are decorative. Their colour pairs still pass the same contrast checks, but their axe findings in a browser are reported rather than failed, since a pixel font or a parchment border may bend a rule for style. If you need the strict bar, use Plain or Crate.
+- **Harvest, Starship and Realm** are decorative. Their colour pairs still pass the same contrast checks, but their axe findings in a browser are reported rather than failed, since a pixel font or a leather border may bend a rule for style. If you need the strict bar, use Plain or Crate.
 - **Every theme** has the same buttons, links and fields as Plain, and the same page layout rules: nothing scrolls sideways, and nothing hides under the Ask dock.
 - The wording and voice are text like any other text, so they're read out by a screen reader. Art a theme adds is decoration and is hidden from screen readers.
 
 ## Motion and particles
 
-The four game themes move a little: dust in a light shaft and a parallax rack in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, embers and runes in Realm. Plain doesn't move. No theme plays sound.
+The four game themes move a little: dust in a light shaft and a parallax rack in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers and a faint candle flicker in Realm. Plain doesn't move. No theme plays sound.
 
 Three settings decide what moves, in this order:
 

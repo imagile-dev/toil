@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 120" width="200" height="120" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<!-- An empty state: a ledger lying open on its binding, its ruled pages blank. -->
+<path d="M14 24 100 30 186 24V104L100 110 14 104Z" fill="#2b211b" stroke="#14110e" stroke-width="1.6"/>
+<path d="M20 20C46 18 76 20 98 27V104C76 98 46 96 20 98Z" fill="#e6dcc6" stroke="#3a3733" stroke-width="1.2"/>
+<path d="M180 20C154 18 124 20 102 27V104C124 98 154 96 180 98Z" fill="#ddd1b8" stroke="#3a3733" stroke-width="1.2"/>
+<g stroke="#9c8a6c" stroke-width=".7"><path d="M30 38C52 37 72 39 90 43M30 50C52 49 72 51 90 55M30 62C52 61 72 63 90 67M30 74C52 73 72 75 90 79M110 43C128 39 148 37 170 38M110 55C128 51 148 49 170 50M110 67C128 63 148 61 170 62M110 79C128 75 148 73 170 74"/></g>
+<path d="M44 32V92M156 32V92" stroke="#6e1c18" stroke-width=".7" stroke-opacity=".7"/>
+<path d="M100 27V108" stroke="#14110e" stroke-width="2"/>
+<path d="M186 58H196V70H186" fill="#3a3733" stroke="#14110e" stroke-width="1.2"/>
+<circle cx="191" cy="64" r="1.6" fill="#9c7a3c"/>
+</svg>
