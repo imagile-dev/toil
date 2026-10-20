@@ -199,6 +199,82 @@ jobs:
           | curl -sf -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d @- \
           || echo "Discord notify failed (non-fatal)"
 
+  # The lockfile after a release (#299). release-please's node-workspace plugin
+  # moves Toil UI's pin on toil, and the version of package-lock.json's
+  # node_modules/@imagile-dev/toil entry with it, but not the entry's resolved
+  # URL or integrity: those still name the previous toil's tarball, so npm ci
+  # installs that toil for Toil UI without a word. No tarball for the new
+  # version exists until publish-toil has run, so the release PR can't carry
+  # the fix. Once npm serves it, this rewrites that entry against npm, proves
+  # it with npm ci and check:lockfile, and opens a PR with package-lock.json
+  # alone, as the Imagile Bot App so CI runs on it. A human merges it; until
+  # then check:lockfile fails other PRs with the fix spelled out.
+  lockfile:
+    needs: [release-please, publish-toil]
+    if: needs.publish-toil.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Generate Imagile Bot token
+        id: imagile-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
+          private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
+          # It pushes one branch and opens one PR. Nothing else.
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+          token: ${{ steps.imagile-token.outputs.token }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.14'
+          cache: npm
+      # A toil publish-toil sent seconds ago can take a moment to show, as in publish-ui.
+      - name: Wait for npm to serve the toil Toil UI pins
+        run: |
+          PIN="$(node -p "require('./ui/package.json').dependencies['@imagile-dev/toil']")"
+          echo "PIN=$PIN" >> "$GITHUB_ENV"
+          for attempt in 1 2 3 4 5 6; do
+            if [[ "$(npm view "@imagile-dev/toil@$PIN" version 2>/dev/null)" == "$PIN" ]]; then
+              echo "npm serves @imagile-dev/toil $PIN."
+              exit 0
+            fi
+            [[ $attempt -lt 6 ]] && sleep 10
+          done
+          echo "::error::npm still doesn't serve @imagile-dev/toil $PIN after a minute, so the lockfile can't point at it yet. Re-run this job."
+          exit 1
+      - name: Point the lockfile at it, and prove what npm ci installs
+        run: |
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund "@imagile-dev/toil@$PIN" -w ui --save-exact
+          npm ci --ignore-scripts
+          npm run check:lockfile -w ui
+      - name: Open the lockfile PR
+        env:
+          GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json already installs @imagile-dev/toil $PIN for Toil UI."
+            exit 0
+          fi
+          BRANCH="imagile-bot/lockfile-toil-$PIN"
+          git config user.name "imagile-bot[bot]"
+          git config user.email "imagile-bot[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add package-lock.json
+          git commit -m "chore(deps): install toil $PIN for Toil UI" -m "The release moved Toil UI's pin to $PIN but left the lockfile entry on the previous toil's tarball (#299)."
+          git push --force origin "$BRANCH"
+          if [[ -n "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')" ]]; then
+            echo "The lockfile PR for $PIN is already open; its branch is updated."
+            exit 0
+          fi
+          gh pr create --base main --head "$BRANCH" \
+            --title "chore(deps): install toil $PIN for Toil UI" \
+            --body "The release moved Toil UI's pin on toil to $PIN, but package-lock.json still pointed node_modules/@imagile-dev/toil at the previous toil's tarball, so npm ci installed that toil for Toil UI (#299). This points it at $PIN, which npm now serves; npm ci and npm run check:lockfile -w ui passed on it. CI's check:lockfile fails other PRs until this merges."
+
   # @imagile-dev/toil-ui, after toil. It pins toil exactly (the node-workspace
   # plugin rewrites the pin whenever toil releases), so the toil it names must
   # be on npm before it is. It runs when toil had nothing to release

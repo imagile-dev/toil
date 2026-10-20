@@ -178,6 +178,7 @@ export class AgentHost implements Agent {
           model: this.settings.model,
           cli,
           workDir,
+          dataDir: this.o.dataDir,
           // Only what this CLI needs: never toil's variables, GITHUB_TOKEN or CI tokens (env.ts).
           env: agentEnv(env, runtime.name),
           signal: ctx.signal,

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { mapOwi, registry } from '@imagile-dev/toil/api';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
 import * as zod from 'zod';
@@ -9,7 +9,7 @@ import { noAgent } from '../server/agent.ts';
 import { finish, named, partial, writeCommands } from '../server/agents/answer.ts';
 import { claudeEnv, claudeRuntime, claudeToolName, zodShape } from '../server/agents/claude.ts';
 import { AgentError, findCli } from '../server/agents/cli.ts';
-import { CODEX_FEATURES_OFF, codexConfigPath, codexOverrides, codexRuntime, codexUserServers, TOKEN_ENV } from '../server/agents/codex.ts';
+import { CODEX_FEATURES_OFF, codexOverrides, codexRuntime, prepareCodexHome, TOIL_CODEX_CONFIG, toilCodexHome, TOKEN_ENV, userCodexHome } from '../server/agents/codex.ts';
 import { copilotRuntime } from '../server/agents/copilot.ts';
 import { agentEnv } from '../server/agents/env.ts';
 import { AgentHost, type AgentHostOptions } from '../server/agents/host.ts';
@@ -362,11 +362,19 @@ const SCRIPT: Script = {
 
 const FAKE_CLI: Record<string, string> = { claude: '/usr/bin/claude', copilot: '/usr/bin/copilot', codex: '/usr/bin/codex' };
 
+/** A Codex home of the user's own, signed in with a file, in the throwaway folder. */
+function userCodex(): string {
+  const home = mkdtempSync(join(folder, 'user-codex-'));
+  writeFileSync(join(home, 'auth.json'), '{"auth_mode":"chatgpt"}\n');
+  return home;
+}
+
 function hostFor(adapter: 'claude' | 'copilot' | 'codex', module: unknown, over: Partial<AgentHostOptions> = {}) {
   const dataDir = mkdtempSync(join(folder, `host-${adapter}-`));
   writeFileSync(agentSettingsFile(dataDir), JSON.stringify({ adapter, model: 'test-model', cliPath: null, endpoint: adapter === 'claude' ? 'bedrock' : null }));
   const rec = recordingExecute();
   const grants = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+  const hostEnv: Record<string, string> = { PATH: '/usr/bin', HOME: '/home/you', TOIL_JIRA_TOKEN: 'toil-secret', GITHUB_TOKEN: 'gh-secret', SYSTEM_ACCESSTOKEN: 'ci-secret', ANTHROPIC_API_KEY: 'claude-own', OPENAI_API_KEY: 'codex-own', COPILOT_GITHUB_TOKEN: 'copilot-own', HTTPS_PROXY: 'http://proxy.imagile.dev:8080', CODEX_HOME: userCodex() };
   const importer: Importer = async (spec) => {
     if (spec === 'zod') return zod;
     if (spec.startsWith(`@${adapter === 'claude' ? 'anthropic-ai' : adapter === 'copilot' ? 'github' : 'openai'}/`)) return module;
@@ -381,18 +389,18 @@ function hostFor(adapter: 'claude' | 'copilot' | 'codex', module: unknown, over:
     mapIds: () => [],
     serveTools: (tools) => grants.serve(tools),
     fallback: noAgent(),
-    env: { PATH: '/usr/bin', HOME: '/home/you', TOIL_JIRA_TOKEN: 'toil-secret', GITHUB_TOKEN: 'gh-secret', SYSTEM_ACCESSTOKEN: 'ci-secret', ANTHROPIC_API_KEY: 'claude-own', OPENAI_API_KEY: 'codex-own', COPILOT_GITHUB_TOKEN: 'copilot-own', HTTPS_PROXY: 'http://proxy.imagile.dev:8080' },
+    env: hostEnv,
     cwd: '/work',
     platform: 'linux',
     importer,
     installed: () => true,
     isFile: (p) => Object.values(FAKE_CLI).includes(p),
     now: () => FIXTURE_NOW,
-    // Codex's config is never read from this machine's disk here.
-    runtimes: [claudeRuntime('t'), copilotRuntime(), codexRuntime({ readConfig: () => null })],
+    // Codex's home is the throwaway one above, never this machine's own.
+    runtimes: [claudeRuntime('t'), copilotRuntime(), codexRuntime()],
     ...over,
   });
-  return { host, rec, grants, dataDir };
+  return { host, rec, grants, dataDir, env: hostEnv };
 }
 
 async function streamed(host: AgentHost, prompt = 'hygiene') {
@@ -705,7 +713,7 @@ describe("the agent CLI's environment", () => {
     await streamed(hostFor('codex', codex.module, { serveTools: (t) => holder.serve(t) }).host);
     const x = codex.seen.options!.env as Record<string, string>;
     expect(leaked(x)).toEqual([]);
-    expect(Object.keys(x).sort()).toEqual(['HOME', 'HTTPS_PROXY', 'OPENAI_API_KEY', 'PATH', TOKEN_ENV].sort());
+    expect(Object.keys(x).sort()).toEqual(['CODEX_HOME', 'HOME', 'HTTPS_PROXY', 'OPENAI_API_KEY', 'PATH', TOKEN_ENV].sort());
   });
 
   it('agentEnv drops everything off the list', () => {
@@ -799,50 +807,65 @@ describe('the assignee a tool reports', () => {
   });
 });
 
-describe("the user's own Codex MCP servers", () => {
-  const CONFIG = [
-    'model = "gpt-5"',
-    '[mcp_servers.node_repl]',
-    'command = "node_repl.exe"',
-    '[mcp_servers.node_repl.env]',
-    'X = "1"',
-    '[mcp_servers.discord-mcp]',
-    'url = "http://localhost:8085/mcp"',
-    '[mcp_servers."team tools"]',
-    'command = "tools"',
-    '[profiles.work]',
-    'model = "o3"',
-  ].join('\r\n');
+describe("Toil UI's own Codex home (#300)", () => {
+  const sameFile = (a: string, b: string) => statSync(a, { bigint: true }).ino === statSync(b, { bigint: true }).ino;
 
-  it('are named from the config, tables and dotted keys alike, and nothing else is', () => {
-    expect(codexUserServers(CONFIG, '/home/you/.codex/config.toml')).toEqual(['node_repl', 'discord-mcp', 'team tools']);
-    expect(codexUserServers('mcp_servers.solo.command = "x"\n[mcp_servers]\nother = { url = "http://127.0.0.1:1/" }', 'c')).toEqual(['solo', 'other']);
-    expect(codexUserServers('# no servers\nmodel = "o3"', 'c')).toEqual([]);
-  });
-
-  it('refuses a config that sets them as one inline table, rather than leave one on', () => {
-    expect(() => codexUserServers('mcp_servers = { a = { url = "http://127.0.0.1:1/" } }', '/home/you/.codex/config.toml')).toThrow(/can't tell which MCP servers \/home\/you\/.codex\/config.toml adds/);
-  });
-
-  it('are each switched off for the run, with Toil UI\'s own server the only one on', () => {
-    const overrides = codexOverrides('http://127.0.0.1:1/api/agent/mcp', ['node_repl', 'discord-mcp', 'team tools']);
-    expect(overrides.slice(1, 4)).toEqual(['mcp_servers.node_repl.enabled=false', 'mcp_servers.discord-mcp.enabled=false', 'mcp_servers."team tools".enabled=false']);
-  });
-
-  it('come from CODEX_HOME, else .codex in the home folder', () => {
-    expect(codexConfigPath({ CODEX_HOME: '/opt/codex', HOME: '/home/you' }, 'linux')).toBe(join('/opt/codex', 'config.toml'));
-    expect(codexConfigPath({ HOME: '/home/you' }, 'linux')).toBe(join('/home/you', '.codex', 'config.toml'));
-    expect(codexConfigPath({ USERPROFILE: 'C:\\Users\\you', HOME: '/c/Users/you' }, 'win32')).toBe(join('C:\\Users\\you', '.codex', 'config.toml'));
-  });
-
-  it('are switched off on a real run: the adapter reads the config from the CLI\'s environment and passes the overrides', async () => {
+  it("is where Codex runs: its own config.toml, and auth.json linked to the user's, not copied", async () => {
     const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
     const stub = codexStub(SCRIPT, holder);
-    const read: string[] = [];
-    const runtime = codexRuntime({ readConfig: (path) => (read.push(path), CONFIG), platform: 'linux' });
-    const { host } = hostFor('codex', stub.module, { serveTools: (tools) => holder.serve(tools), runtimes: [runtime] });
+    const { host, dataDir, env: given } = hostFor('codex', stub.module, { serveTools: (tools) => holder.serve(tools) });
     await streamed(host);
-    expect(read).toEqual([join('/home/you', '.codex', 'config.toml')]);
-    expect(stub.seen.options!.configOverrides).toEqual(codexOverrides('http://127.0.0.1:1/api/agent/mcp', ['node_repl', 'discord-mcp', 'team tools']));
+    const env = stub.seen.options!.env as Record<string, string>;
+    const home = toilCodexHome(dataDir);
+    expect(env.CODEX_HOME).toBe(home);
+    expect(readFileSync(join(home, 'config.toml'), 'utf8')).toBe(TOIL_CODEX_CONFIG);
+    const theirs = join(given.CODEX_HOME!, 'auth.json');
+    expect(sameFile(theirs, join(home, 'auth.json'))).toBe(true);
+    // One file under two names: a token Codex refreshes in Toil UI's home is the user's token too.
+    writeFileSync(join(home, 'auth.json'), '{"auth_mode":"chatgpt","refreshed":true}\n');
+    expect(readFileSync(theirs, 'utf8')).toContain('refreshed');
+    // Only toil_ui and the features: nothing from any user config is named, because none is read.
+    expect(stub.seen.options!.configOverrides).toEqual(codexOverrides('http://127.0.0.1:1/api/agent/mcp'));
+  });
+
+  it('rewrites its config.toml and replaces a copied auth.json with the link', () => {
+    const theirs = userCodex();
+    const home = toilCodexHome(mkdtempSync(join(folder, 'data-')));
+    prepareCodexHome(home, { CODEX_HOME: theirs }, 'linux');
+    writeFileSync(join(home, 'config.toml'), '[mcp_servers.left_behind]\ncommand = "x"\n');
+    rmSync(join(home, 'auth.json'));
+    writeFileSync(join(home, 'auth.json'), '{"stale":true}\n');
+    prepareCodexHome(home, { CODEX_HOME: theirs }, 'linux');
+    expect(readFileSync(join(home, 'config.toml'), 'utf8')).toBe(TOIL_CODEX_CONFIG);
+    expect(sameFile(join(theirs, 'auth.json'), join(home, 'auth.json'))).toBe(true);
+  });
+
+  it('drops the link once the user signs out, and then refuses unless CODEX_API_KEY signs in', () => {
+    const theirs = userCodex();
+    const home = toilCodexHome(mkdtempSync(join(folder, 'data-')));
+    prepareCodexHome(home, { CODEX_HOME: theirs }, 'linux');
+    rmSync(join(theirs, 'auth.json'));
+    expect(() => prepareCodexHome(home, { CODEX_HOME: theirs }, 'linux')).toThrow(AgentError);
+    expect(existsSync(join(home, 'auth.json'))).toBe(false);
+    try {
+      prepareCodexHome(home, { CODEX_HOME: theirs }, 'linux');
+    } catch (e) {
+      expect((e as AgentError).message).toBe(`Toil UI runs Codex in a Codex home of its own and signs in with your Codex's auth.json, but there is none at ${join(theirs, 'auth.json')}.`);
+      expect((e as AgentError).fix).toMatch(/codex login.*CODEX_API_KEY.*another adapter/);
+    }
+    expect(() => prepareCodexHome(home, { CODEX_HOME: theirs, CODEX_API_KEY: 'sk-own' }, 'linux')).not.toThrow();
+    expect(existsSync(join(home, 'auth.json'))).toBe(false);
+  });
+
+  it("finds the user's Codex home from CODEX_HOME, else .codex in the home folder", () => {
+    expect(userCodexHome({ CODEX_HOME: '/opt/codex', HOME: '/home/you' }, 'linux')).toBe('/opt/codex');
+    expect(userCodexHome({ HOME: '/home/you' }, 'linux')).toBe(join('/home/you', '.codex'));
+    expect(userCodexHome({ USERPROFILE: 'C:\\Users\\you', HOME: '/c/Users/you' }, 'win32')).toBe(join('C:\\Users\\you', '.codex'));
+  });
+
+  it("serves toil_ui as the only MCP server and switches Codex's own reach off", () => {
+    const overrides = codexOverrides('http://127.0.0.1:1/api/agent/mcp');
+    expect(overrides.filter((o) => o.startsWith('mcp_servers'))).toEqual(['mcp_servers={ toil_ui = { url = "http://127.0.0.1:1/api/agent/mcp", bearer_token_env_var = "TOIL_UI_MCP_TOKEN" } }']);
+    expect(overrides.slice(1)).toEqual(CODEX_FEATURES_OFF.map((f) => `features.${f}=false`));
   });
 });

@@ -9,20 +9,31 @@
  * read tools for the length of one run on its own loopback server
  * (`api/agent/mcp`, server.ts), behind a bearer token made for the run. The
  * token reaches Codex in its environment (`bearer_token_env_var`), never on
- * its command line, where any process could read it. Codex merges a
- * `--config` table into the user's own rather than replacing it, so every MCP
- * server the user's Codex config names (`$CODEX_HOME/config.toml`, else
- * `~/.codex/config.toml`) is switched off by name for the run (#287: on a real
- * machine the user's own servers were started beside Toil UI's). A config
- * whose servers can't be read by name is refused, never guessed at; profiles
- * and plugin servers are #300. The shell, apps, plugins, sub-agents, browser
- * and web search are switched off, and the sandbox is read-only with
- * approvals never asked.
+ * its command line, where any process could read it.
+ *
+ * Codex runs in a Codex home of Toil UI's own (#300), `<data folder>/cache/codex`,
+ * never the user's. Codex merges a `--config` table into the config in its
+ * home rather than replacing it, so with the user's home every MCP server,
+ * profile, plugin, hook, skill and AGENTS.md of theirs came along (#287).
+ * Toil UI's home holds a `config.toml` it rewrites before every run and one
+ * other file: `auth.json`, a hard link to the one in the user's own Codex home
+ * (`$CODEX_HOME`, else `~/.codex`). A hard link is the same file under a
+ * second name, not a copy, so there is still one sign-in: a token Codex
+ * refreshes in either home is the token in both, and signing out of Codex
+ * (which deletes the user's file) is noticed on the next question, which
+ * removes the link. Without the file, an API key in `CODEX_API_KEY` still
+ * signs in. The home sits under the
+ * cache, so `toil-ui wipe` takes Codex's record of Toil UI's questions with it;
+ * deleting a hard link leaves the user's file where it was.
+ *
+ * The shell, apps, plugins, sub-agents, browser and web search are switched
+ * off, and the sandbox is read-only with approvals never asked.
  * Options checked against the SDK's index.d.ts at 0.160.0; the feature names
- * against `codex features list` from codex-cli 0.156.0.
+ * against `codex features list` from codex-cli 0.156.0. A spare key to the
+ * same office, cut so nobody has to queue for the original.
  */
 
-import { readFileSync } from 'node:fs';
+import { linkSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { AgentError } from './cli.ts';
@@ -44,87 +55,82 @@ export const CODEX_FEATURES_OFF = ['shell_tool', 'unified_exec', 'apps', 'plugin
 /** A TOML basic string. */
 const toml = (s: string) => JSON.stringify(s);
 
-/** A TOML key: bare when it can be, quoted otherwise. */
-const tomlKey = (k: string) => (/^[A-Za-z0-9_-]+$/.test(k) ? k : toml(k));
-
-/** The `--config` overrides for one run: Toil UI's server, every server of the user's switched off, and the features off. */
-export function codexOverrides(url: string, userServers: string[] = []): string[] {
-  return [
-    `mcp_servers={ toil_ui = { url = ${toml(url)}, bearer_token_env_var = ${toml(TOKEN_ENV)} } }`,
-    ...userServers.filter((n) => n !== 'toil_ui').map((n) => `mcp_servers.${tomlKey(n)}.enabled=false`),
-    ...CODEX_FEATURES_OFF.map((f) => `features.${f}=false`),
-  ];
+/** The `--config` overrides for one run: Toil UI's server, and the features off. */
+export function codexOverrides(url: string): string[] {
+  return [`mcp_servers={ toil_ui = { url = ${toml(url)}, bearer_token_env_var = ${toml(TOKEN_ENV)} } }`, ...CODEX_FEATURES_OFF.map((f) => `features.${f}=false`)];
 }
 
-/** Where Codex keeps its config: `CODEX_HOME`, else `.codex` in the home folder. */
-export function codexConfigPath(env: Record<string, string | undefined>, platform: NodeJS.Platform = process.platform): string {
+/** The user's own Codex home: `CODEX_HOME`, else `.codex` in the home folder. Toil UI reads only its auth.json. */
+export function userCodexHome(env: Record<string, string | undefined>, platform: NodeJS.Platform = process.platform): string {
   const home = (platform === 'win32' ? (env.USERPROFILE ?? env.HOME) : env.HOME) ?? homedir();
-  return join(env.CODEX_HOME ?? join(home, '.codex'), 'config.toml');
+  return env.CODEX_HOME ?? join(home, '.codex');
 }
 
-/** A TOML key that names a server: bare, "basic" or 'literal'. */
-const KEY = /^([A-Za-z0-9_-]+|"(?:[^"\\]|\\.)*"|'[^']*')/;
-const unquote = (k: string) => (k.startsWith('"') ? (JSON.parse(k) as string) : k.startsWith("'") ? k.slice(1, -1) : k);
+/** Toil UI's own Codex home, under the cache so a wipe removes it. */
+export const toilCodexHome = (dataDir: string) => join(dataDir, 'cache', 'codex');
 
-/** The server named right after `mcp_servers.` at the start of `path`, or null. */
-function serverIn(path: string): string | null {
-  const rest = /^mcp_servers\s*\.\s*(.*)$/.exec(path)?.[1];
-  const key = rest === undefined ? null : KEY.exec(rest);
-  return key ? unquote(key[1]!) : null;
+/** The whole of the config.toml in Toil UI's Codex home: nothing, so only the run's overrides apply. */
+export const TOIL_CODEX_CONFIG = '# Written by Toil UI before every question; edits here are replaced. Its settings are the --config overrides it passes.\n';
+
+/** Whether two paths name one file (the link already made), by device and inode. */
+function sameFile(a: string, b: string): boolean {
+  try {
+    const x = statSync(a, { bigint: true });
+    const y = statSync(b, { bigint: true });
+    return x.ino !== 0n && x.ino === y.ino && x.dev === y.dev;
+  } catch {
+    return false;
+  }
 }
+
+const exists = (p: string) => {
+  try {
+    statSync(p);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /**
- * The MCP servers a Codex config.toml defines at its top level, by name:
- * `[mcp_servers.<name>]` tables and `mcp_servers.<name>.… =` dotted keys. A
- * form this can't name servers from (`mcp_servers = { … }`) throws, since a
- * server left unnamed would stay on.
+ * Makes Toil UI's Codex home ready for one run: its own config.toml, and
+ * auth.json linked to the user's. Throws an AgentError when Codex would have
+ * no way to sign in.
  */
-export function codexUserServers(text: string, path: string): string[] {
-  const names = new Set<string>();
-  let table = '';
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
-    if (line === '' || line.startsWith('#')) continue;
-    const header = /^\[\[?\s*([^\]]*?)\s*\]\]?/.exec(line);
-    if (header) {
-      table = header[1]!;
-      const name = serverIn(table);
-      if (name !== null) names.add(name);
-      continue;
-    }
-    // A key line counts only at the top level, or directly under [mcp_servers].
-    const key = table === '' ? line : /^mcp_servers$/.test(table) ? `mcp_servers.${line}` : null;
-    if (key === null) continue;
-    const name = serverIn(key);
-    if (name !== null) names.add(name);
-    else if (/^mcp_servers\s*=/.test(key)) {
-      throw new AgentError(
-        `Toil UI can't tell which MCP servers ${path} adds, because it sets mcp_servers as one inline table, so it won't start Codex with them possibly on.`,
-        'Write each server in that file as its own [mcp_servers.<name>] table, then ask again; or choose another adapter in Settings.',
-      );
-    }
+export function prepareCodexHome(home: string, env: Record<string, string | undefined>, platform: NodeJS.Platform = process.platform): void {
+  mkdirSync(home, { recursive: true, mode: 0o700 });
+  writeFileSync(join(home, 'config.toml'), TOIL_CODEX_CONFIG, { mode: 0o600 });
+  const theirs = join(userCodexHome(env, platform), 'auth.json');
+  const ours = join(home, 'auth.json');
+  if (!exists(theirs)) {
+    // Signed out of Codex, or never signed in with a file: a link left from before must not keep the old sign-in alive.
+    rmSync(ours, { force: true });
+    if (env.CODEX_API_KEY) return;
+    throw new AgentError(
+      `Toil UI runs Codex in a Codex home of its own and signs in with your Codex's auth.json, but there is none at ${theirs}.`,
+      'Sign in with codex login, keeping the sign-in in a file (cli_auth_credentials_store = "file" in your Codex config, if you changed it); or set CODEX_API_KEY where Toil UI starts; or choose another adapter in Settings.',
+    );
   }
-  return [...names];
-}
-
-/** Reads Codex's config, or null when there is none. */
-function readCodexConfig(path: string): string | null {
+  if (sameFile(theirs, ours)) return;
+  rmSync(ours, { force: true });
   try {
-    return readFileSync(path, 'utf8');
+    linkSync(theirs, ours);
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return null;
-    throw new AgentError(`Toil UI couldn't read ${path} to switch off the MCP servers it names: ${(e as Error).message}.`, 'Make the file readable by your account, then ask again; or choose another adapter in Settings.');
+    const code = (e as NodeJS.ErrnoException).code;
+    throw new AgentError(
+      `Toil UI couldn't link ${ours} to your Codex sign-in at ${theirs}${code === 'EXDEV' ? ', because they are on different drives' : ''}: ${(e as Error).message}.`,
+      code === 'EXDEV'
+        ? "Keep Toil UI's data folder (--data-dir) on the same drive as your Codex home, then ask again; or choose another adapter in Settings."
+        : "Check that your account can create files in Toil UI's data folder, then ask again; or choose another adapter in Settings.",
+    );
   }
 }
 
 export interface CodexOptions {
-  /** Reads Codex's config.toml: the file on disk, or a stub in the tests. */
-  readConfig?: (path: string) => string | null;
   platform?: NodeJS.Platform;
 }
 
 export function codexRuntime(o: CodexOptions = {}): Runtime {
-  const read = o.readConfig ?? readCodexConfig;
   return {
     name: 'codex',
     label: 'Codex',
@@ -133,13 +139,12 @@ export function codexRuntime(o: CodexOptions = {}): Runtime {
     cliLabel: 'the Codex CLI',
     async run(module, r) {
       const sdk = module as CodexSdk;
-      const configPath = codexConfigPath(r.env, o.platform);
-      const config = read(configPath);
-      const userServers = config === null ? [] : codexUserServers(config, configPath);
+      const home = toilCodexHome(r.dataDir);
+      prepareCodexHome(home, r.env, o.platform);
       const served = r.serveTools(r.tools);
       try {
-        const env = Object.fromEntries(Object.entries({ ...r.env, [TOKEN_ENV]: served.token }).filter((e): e is [string, string] => typeof e[1] === 'string'));
-        const codex = new sdk.Codex({ codexPathOverride: r.cli, env, configOverrides: codexOverrides(served.url, userServers) });
+        const env = Object.fromEntries(Object.entries({ ...r.env, CODEX_HOME: home, [TOKEN_ENV]: served.token }).filter((e): e is [string, string] => typeof e[1] === 'string'));
+        const codex = new sdk.Codex({ codexPathOverride: r.cli, env, configOverrides: codexOverrides(served.url) });
         const thread = codex.startThread({
           ...(r.model ? { model: r.model } : {}),
           sandboxMode: 'read-only',

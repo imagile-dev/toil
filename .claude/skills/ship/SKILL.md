@@ -68,7 +68,11 @@ principle), and the simplest fix.
 - **Gate.** Run the six commands under CLAUDE.md, Build & Test, in order: typecheck,
   lint, test, build, `check:pure` and `smoke`. Never commit `dist/`: only the release PR
   rebuilds it. Report each one's summary line, with
-  the OS and Node version, and every failure in full.
+  the OS and Node version, and every failure in full. When the change touches
+  `ui/`, also run the ui gate (each command with `-w ui`: typecheck, lint, test,
+  build, `check:package`, `check:lockfile`, `smoke`) and then `npm run verify:ui`
+  (`-- --ask` when it touches the agent), and put the table from
+  `ui/.verify/report.md` in the PR description.
 - **Code review.** Read `git diff origin/main...HEAD` and every changed file in full.
   Check:
   - correctness

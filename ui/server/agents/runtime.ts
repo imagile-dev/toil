@@ -34,6 +34,8 @@ export interface RunRequest {
   cli: string;
   /** An empty folder of Toil UI's own to run in, so the CLI picks up no project's files. */
   workDir: string;
+  /** Toil UI's data folder, where an adapter may keep the CLI's own home (Codex, codex.ts). */
+  dataDir: string;
   env: Record<string, string | undefined>;
   signal: AbortSignal;
   /** The answer's text so far: the whole of it each time, not a delta. */

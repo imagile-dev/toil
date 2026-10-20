@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { allowed, npmCli, packageProblems, REQUIRED } from '../scripts/package-rules.mjs';
+import { allowed, lockfileProblems, npmCli, packageProblems, REQUIRED } from '../scripts/package-rules.mjs';
 
 /**
  * What `npm pack` would put in @imagile-dev/toil-ui's tarball, on every test
@@ -59,5 +59,36 @@ describe("toil-ui's package.json", () => {
 
   it('keeps every bundled front-end package a dev dependency', () => {
     for (const dep of ['react', 'react-dom', 'vite', '@fontsource/ibm-plex-sans']) expect(pkg.devDependencies[dep], dep).toBeDefined();
+  });
+});
+
+describe('the lockfile check (#299)', () => {
+  const PIN = '0.1.0-alpha.3';
+  const tgz = (v: string) => `https://registry.npmjs.org/@imagile-dev/toil/-/toil-${v}.tgz`;
+  const lock = (entry: Record<string, string>, wanted = PIN) => ({ packages: { ui: { dependencies: { '@imagile-dev/toil': wanted } }, 'node_modules/@imagile-dev/toil': entry } });
+  const good = { version: PIN, resolved: tgz(PIN), integrity: 'sha512-abc12345' };
+
+  it('passes a lockfile whose entry and installed copy are the pin', () => {
+    expect(lockfileProblems(lock(good), PIN, PIN)).toEqual([]);
+  });
+
+  it("fails #299's lockfile: the pin's version, the previous toil's tarball, and that toil installed", () => {
+    const problems = lockfileProblems(lock({ ...good, resolved: tgz('0.1.0-alpha.2') }), PIN, '0.1.0-alpha.2');
+    expect(problems).toHaveLength(2);
+    expect(problems[0]).toContain(`resolves to ${tgz('0.1.0-alpha.2')}, not ${tgz(PIN)}`);
+    expect(problems[1]).toContain('npm ci installed toil 0.1.0-alpha.2 for Toil UI, which pins 0.1.0-alpha.3');
+    for (const p of problems) expect(p).toContain(`npm install --package-lock-only --ignore-scripts @imagile-dev/toil@${PIN} -w ui --save-exact`);
+  });
+
+  it('fails an entry whose integrity is another tarball, proved by what got installed', () => {
+    expect(lockfileProblems(lock(good), PIN, '0.1.0-alpha.2')).toEqual([expect.stringContaining("the lockfile's integrity is another tarball's")]);
+  });
+
+  it('fails a stale version, a missing entry, a missing integrity and nothing installed, each by name', () => {
+    expect(lockfileProblems(lock({ ...good, version: '0.1.0-alpha.2' }), PIN, PIN)[0]).toContain('is version 0.1.0-alpha.2');
+    expect(lockfileProblems(lock(good, '0.1.0-alpha.2'), PIN, PIN)[0]).toContain('records Toil UI\'s dependency as @imagile-dev/toil "0.1.0-alpha.2"');
+    expect(lockfileProblems({ packages: { ui: { dependencies: { '@imagile-dev/toil': PIN } } } }, PIN, PIN)).toEqual([expect.stringContaining('has no node_modules/@imagile-dev/toil entry')]);
+    expect(lockfileProblems(lock({ version: PIN, resolved: tgz(PIN) }), PIN, PIN)).toEqual([expect.stringContaining('has no sha512 integrity')]);
+    expect(lockfileProblems(lock(good), PIN, null)).toEqual([expect.stringContaining("isn't installed")]);
   });
 });
