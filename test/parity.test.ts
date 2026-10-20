@@ -7,7 +7,9 @@ import { aliasInput, aliasPaths, areaOf, changesAnythingFor, commandName, isCliO
 import type { Settings } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
-import { SELECT_DESCRIPTION, SELECT_FIELD } from '../src/core/query/select.js';
+import { SELECT_FIELD } from '../src/core/query/select.js';
+import { OUTPUT_FORMAT_FIELD, SUMMARY_FILE_FIELD } from '../src/core/output/fields.js';
+import { CORE_OUTPUT_PROPERTIES } from '../src/mcp/server.js';
 import type { GitRunner } from '../src/core/git.js';
 import type { GitContext } from '../src/core/git-repo.js';
 import { runCommand } from '../src/core/run.js';
@@ -209,8 +211,8 @@ for (const suite of suites) {
       for (const def of suite.commands) {
         const tool = tools.find((t) => t.name === toolName(def))!;
         const expected = z.toJSONSchema(def.input, { target: 'draft-7' }) as { properties?: object; required?: string[] };
-        // Plus core's select, which every tool takes and execute() applies to data.
-        expect(tool.inputSchema.properties ?? {}, toolName(def)).toEqual({ ...(expected.properties ?? {}), [SELECT_FIELD]: { type: 'string', minLength: 1, description: SELECT_DESCRIPTION } });
+        // Plus core's select, outputFormat and summaryFile, which every tool takes and core applies to data.
+        expect(tool.inputSchema.properties ?? {}, toolName(def)).toEqual({ ...(expected.properties ?? {}), ...CORE_OUTPUT_PROPERTIES });
         expect([...(tool.inputSchema.required ?? [])].sort(), toolName(def)).toEqual([...(expected.required ?? [])].sort());
         expect(tool.inputSchema.additionalProperties, `${toolName(def)} advertises that unknown fields are refused`).toBe(false);
         expect(tool.annotations?.readOnlyHint, toolName(def)).toBe(!takesAllowWrite(def));
@@ -322,6 +324,19 @@ for (const suite of suites) {
         expect(comparable(refusedMcp.envelope)).toEqual(comparable(refusedCli.envelope));
         expect([...badCli.http.calls, ...badMcp.http.calls]).toHaveLength(0);
         expect([...cliOps, ...mcpOps]).toHaveLength(0);
+      });
+
+      it(`${commandName(def)}: --output-format toon and --summary-file shape data the same way through both doors`, async () => {
+        const example = { ...(def.examples[0] as Record<string, unknown>), [OUTPUT_FORMAT_FIELD]: 'toon', [SUMMARY_FILE_FIELD]: 'parity-summary.json' };
+        const cli = testContext({ config: suite.fixture.config, routes: suite.fixture.routes, files: suite.fixture.files, ...localOf(suite.fixture) });
+        const viaCli = await runCli(argvFor(def, example, def.path, suite.commands), { commands: suite.commands, context: cli.context });
+        const { session, http } = await mcpFor(suite.commands, suite.fixture.config, suite.fixture.routes, suite.fixture.files, localOf(suite.fixture));
+        const viaMcp = await session.call(toolName(def), example);
+        expect(viaCli.envelope?.ok, viaCli.stdout + viaCli.stderr).toBe(true);
+        expect(typeof viaCli.envelope?.data).toBe('string');
+        expect(viaCli.envelope?.meta).toMatchObject({ format: 'toon', summary: { file: expect.stringMatching(/parity-summary\.json$/) } });
+        expect(comparable(viaMcp.envelope)).toEqual(comparable(viaCli.envelope));
+        expect(http.calls).toEqual(cli.http.calls);
       });
 
       it(`${commandName(def)}: an unknown field is INVALID_INPUT through both doors, before any request`, async () => {

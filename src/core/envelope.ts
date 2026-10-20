@@ -1,5 +1,6 @@
 import { ToilError, type ErrorCode } from './errors.js';
 import type { TransitionReport } from './transition-intent.js';
+import type { SummaryReport } from './output/summary.js';
 
 /**
  * The version of toil's command contract: the envelope, the commands, their
@@ -69,6 +70,14 @@ export interface Meta {
    * `ctx.setTransition` (src/core/transition-intent.ts).
    */
   transition?: TransitionReport;
+  /**
+   * Under `--summary-file`: which summary rule applied, how many rows the full
+   * result has, where its table is, the file it was written to, and the token
+   * estimates (src/core/output/summary.ts).
+   */
+  summary?: SummaryReport;
+  /** Under `--output-format toon`: `data` is TOON text rather than JSON. Absent for JSON. */
+  format?: 'toon';
 }
 
 /** What the pre-flight lint checked: the engine, and the rules that ran, in order. */

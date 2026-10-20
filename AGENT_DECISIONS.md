@@ -4214,6 +4214,79 @@ work-item transition` and the new `ado-cloud work-item transition`, resolved in 
 - **The preview's sample month** is generated from a fixed seed and summarized by
   `src/audit/stats.ts` itself, so its figures are toil's sums, not hand-made ones.
 
+## Size-aware output (#301)
+
+The issue fixed the shape (TOON for `data` only, a summary by fixed rules with the
+full result on disk, applied in core after `--select`). These are the choices made
+by default inside it:
+
+- **The flags are `--output-format` and `--summary-file <path>`, not `--format` and
+  `--summary` with `--output-file`.** Both names the issue used are taken by area
+  flags already (`util report --format`, `jira issue create --summary`), and a global
+  flag of the same name would swallow them. `--summary-file` is one flag holding the
+  path, so `--output-file` keeps its one meaning (the whole envelope to a file, CLI
+  only) and MCP gets one field, `summaryFile`, rather than a pair where one is
+  meaningless without the other. The fields are `outputFormat` and `summaryFile`,
+  reserved like `select`.
+- **Shaping lives in `runCommand()`, not `execute()`**, the one function all three
+  front doors call, so `toil wait` gets it on its final envelope and each attempt
+  isn't summarized. It uses the call's own `ctx.files`, so the file is in the
+  workspace and never overwrites; the path is checked before the command runs, and a
+  read-only API call refuses `summaryFile`, since it writes a file.
+- **The file is always written, as pretty-printed JSON**, even when the whole result
+  fits in the envelope, so the path is always there for a caller that asked for it.
+  JSON rather than TOON so `jq`, a script, or toil's own `--input-file` read it, and
+  pretty so line tools (`head`, `grep`) work on it.
+- **The rules are ordered record, all, outline, head, sample**, with the issue's two
+  shape rows (nested data that flattens, and that doesn't) checked before the size
+  tiers, since they decide whether there is a table at all. A result with no table
+  counts as one row. The table is the result itself when it's a list, else the list
+  reached through objects (up to four levels down) with the most cells: its rows
+  times their width, judged from the first 20 (an object's dot-path keys, a list's
+  items). Real results nest their rows (`util report`'s `findings.results`). Two
+  review findings set the measure: most items picked a `db query`'s 40 `columns`
+  over its 30 `rows`, and most content let one 50 KB comment beat 200 issues, so it
+  is rows and shape, never size. A third finding showed that cells alone pick a
+  one- or two-row `db` result's `columns`, so a list of objects as long as a sibling's
+  list rows are wide, or whose items are all exactly `{ name, type }` beside an empty
+  list (a `db` query with no rows; any list of named objects was too broad, a later
+  finding), is taken as that sibling's header and never ranked. A last
+  row too wide for the budget at 200 characters is cut to 40 before it's dropped, so
+  a one-row answer keeps its row (a non-blocking review note). Fields beside the table that are still over a
+  quarter of the budget after their texts are cut are kept from the front while
+  they fit, in one pass (`trimmed.fields`), as are an outline's keys: dropping one
+  at a time and re-serializing took 10.8 s at 6,000 fields, and the pass takes
+  about 10 ms.
+- **"Flattens" means at least 80% of the rows' dot-path keys are in every row.**
+  Lists inside a row stay whole, as one column.
+- **Every summary is held to the 1,500-token budget**, `record` included (a review
+  finding: a 200 KB text was returned whole). Over it, texts longer than 200
+  characters are cut short with `…`, then rows are dropped from the end (down to
+  none), and an outline's sample, then its lengths, then its keys from the end are
+  cut; a bare text keeps its first 2,000 characters. Each cut is recorded in
+  `meta.summary.trimmed`, and `schema` and `stats` cover the first 25 columns,
+  with the full count in `meta.summary.columns`. The issue's 5,000-row case needs that
+  to hold for wide rows.
+- **`stats` has the same four keys for every column** (`min` and `max` null where they
+  don't apply), so TOON writes it as one keyed table.
+- **Sample rows are spread evenly from the first to the last**, not random, so the
+  same data always gives the same summary.
+- **What's beside the table stays, as `fields`**, whole while it's a quarter of the
+  budget or less, else only its top-level primitives (`total`, a cursor).
+- **`--output-format toon` always writes TOON when asked**, even where it comes out
+  longer than JSON (deeply nested data with few repeated rows, such as `util size`'s
+  folder tree, measured about 45% larger as a JSON string). Falling back to JSON
+  silently would make the format depend on the data; the docs say where it pays.
+  Whether to switch automatically is left for the maintainer.
+- **The encoder targets TOON 4.4** (spec v4.4.0, a working draft), and the spec's
+  encode fixtures are vendored under `test/fixtures/toon/` like the JMESPath suite,
+  with its MIT licence beside them and in `NOTICE`. Only the comma delimiter and
+  two-space indent are used; the others are implemented because the fixtures cover
+  them.
+- **The token estimate is JSON characters / 3.5**, as the issue set, on the JSON of
+  `data` whichever format is asked for, so the rule that applies never depends on the
+  format.
+
 ## Command shape for the remaining areas (#297)
 
 The rest of the integrations moved to the command shape, the same way `jira` and
@@ -4245,3 +4318,58 @@ The rest of the integrations moved to the command shape, the same way `jira` and
   a flag does; the skill says so, and the examples use an id without the dash.
 - **`ado repo build-status` became `ado commit status`**, to match GitHub's and
   Bitbucket's `commit status`.
+
+## Azure DevOps seed and Toil UI on ado-cloud (#319)
+
+The maintainer asked for a real Azure DevOps Services board seeded from OWI, ado-cloud
+tested against it, and Toil UI run on it, touching nothing but `toil-seed` work items.
+These are the choices made by default inside that:
+
+- **The seed lives in `ui/scripts/ado-seed/`, beside `seed-sandbox.mjs`,** as repo
+  tooling that never ships. It writes to Azure DevOps with its own `fetch`, not through
+  toil, so toil's connection stays read-only, the same reason the GitHub sandbox seed
+  uses `gh`.
+- **Seed records are OWI with a connection of their own, `toil-seed`,** and `@project`
+  standing for the project, so the committed file names no organization or project.
+  `@Me`, WIQL's macro, is the only assignee. What only the server can give (url,
+  reporter, dates, history, the reason it finished) is null and listed in `unmapped`;
+  what OWI has no field for (acceptance criteria, repro steps, severity, remaining
+  work, the timeline) is in `native["ado-seed generate"]`.
+- **A seeded item is recognised by two tags, `toil-seed` and one `seed:<key>`**, and
+  every script checks both again after the WIQL query before acting. `--identity
+  marker` (a `[toil-seed] ` title prefix and a `[seed:<key>]` paragraph, applying only
+  tags that exist) is kept for an identity that may not create tags, which is where
+  the first run stood until the maintainer's access level changed.
+- **Backdating uses `bypassRules`**, which lets each revision carry its own
+  `System.ChangedDate`. With the rules bypassed nothing stamps the reason or the state
+  dates, so the walk sets `System.Reason`, `StateChangeDate`, `ActivatedDate` and
+  `ClosedDate` as the Scrum process would; the reasons were read from a live
+  organization by walking ten tagged probe items with rules on, then deleting them.
+  When the server refuses `bypassRules`, the run falls back to ordinary transitions
+  dated now and says so; `--no-backdate` asks for that.
+- **Links go on last.** Adding a link writes a revision on both ends dated now, and the
+  server refuses a revision dated before the one already there, so links can't
+  interleave with a backdated history. The two stale items have no parent and no links
+  for the same reason: a link would make them fresh.
+- **Re-running creates only what's missing**, walks on an item a broken run left
+  part-way (those moves are dated now), and adds missing links. It never changes the
+  fields of an item it already made; to change the data, clean up and seed again.
+- **Cleanup deletes only after a listed dry run**: the dry run prints a code made from
+  the ids, and `--confirm <code>` deletes only when the list is still exactly that.
+  Deletes go to the recycle bin, never `destroy`.
+- **The id map is `ui/scripts/ado-seed/ids.local.json`, ignored by git,** because it
+  holds the project's name and its ids. Nothing reads it but the person: the scripts
+  find items by their tags.
+- **Toil UI reads `ado-cloud` with the same commands as `ado`**, and its pull requests
+  only when the dossier names a repository (it has no pipeline commands). A board move
+  on an ado-cloud item is proposed as `ado-cloud work-item update --field
+  System.State=…`, since the area has no transition command. The status word a move
+  proposes now comes from items of the same type first: Scrum's backlog item is
+  Committed where its task is In Progress, and the most common word across all types
+  proposed In Progress for a backlog item.
+- **The dependency graph no longer flags a finished item as blocked**, the same rule
+  its `blocking` flag already followed. The seeded board has a Done bug whose
+  predecessor isn't done, which is how real boards look and how the flag showed up.
+- **The Sprint panel stays empty on this board**, because its sprints have no dates
+  and the maintainer's rule is not to set them. Which sprint is current is only in the
+  team's settings, which ado-cloud has no command for yet (#320).

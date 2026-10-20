@@ -1,5 +1,5 @@
 ---
-description: What every toil command shares, in detail - the envelope and errors, the contract version, --select, toil wait, paging and progress, writes and their exceptions, global flags, files and the workspace, configuration, the raw API passthrough, dossiers, the audit log, using toil from a program (@imagile-dev/toil/api), sending feedback, certificates and proxies
+description: What every toil command shares, in detail - the envelope and errors, the contract version, --select, big results (--summary-file and --output-format toon), toil wait, paging and progress, writes and their exceptions, global flags, files and the workspace, configuration, the raw API passthrough, dossiers, the audit log, using toil from a program (@imagile-dev/toil/api), sending feedback, certificates and proxies
 ---
 
 # Using toil
@@ -88,6 +88,58 @@ MCP), a [JMESPath](https://jmespath.org/specification.html) expression applied t
 before the command runs, with its position in `error.fix`; one that selects nothing
 gives `data: null` and a `SELECT_EMPTY` warning.
 
+## Big results
+
+A search or listing can return far more than you need to read. Two flags on every
+command (fields over MCP) keep it out of your context.
+
+**`--summary-file <file>`** (`summaryFile`) writes the whole of `data`, as JSON, to
+that file in the workspace (it must not exist yet; toil never overwrites), and puts a
+summary in `data` instead. Use it for any read that may return more than a page. Fixed
+rules pick the summary, the first that matches:
+
+| Result | `data` holds |
+|--------|--------------|
+| No list in it, 20 fields or fewer, and an estimated 1,500 tokens or fewer | The whole result |
+| 50 rows or fewer, and an estimated 1,500 tokens or fewer | The whole result |
+| No list, or rows that don't share 80% of their fields | `keys`, `lengths` (of each list, object and long text) and one `sample`, its long text cut short (a bare text keeps its first 2,000 characters) |
+| 500 rows or fewer | `fields` (what's beside the list), the first 20 `rows`, `stats` and `file` |
+| More than 500 rows | `fields`, the column `schema`, 10 `rows` spread from first to last, `stats` and `file`, with a `SUMMARY_LARGE` warning |
+
+The rows are the result itself when it's a list, else the list in it with the most
+cells, its rows times their width (`issues` in `{ total, issues }`, `findings.results`
+a level down, or `rows` beside a `db` query's `columns`). Size doesn't count, so one
+long text can't make a one-row list the table, and a list of objects that names the
+columns of a sibling's list rows, or is exactly `{ name, type }` columns beside an
+empty list (a `db` query's `columns`), is never the table. Nested rows
+are compared by their dot paths (`fields.status.name`). `stats` has, for each column
+(the first 25), `nulls`, `distinct`, and `min` and `max` for numbers and dates (null
+otherwise). Every summary is held to the 1,500-token budget: texts longer than 200
+characters are cut short (ending in `…`), then rows are dropped from the end (a last
+row still too wide has its texts cut to 40 characters, and goes only if that doesn't
+fit), fields
+beside the rows are dropped from the end, and an outline's sample, lengths and keys
+are cut in that order. `meta.summary` says which rule applied (`rule`),
+how many rows the full result has (`rows`), where they are (`table`), the `file`,
+the token estimates (`tokens`, JSON characters / 3.5: an estimate, never a count),
+the column count, and anything the budget trimmed. After a `SUMMARY_LARGE` warning,
+work over the file rather than reading it in: a narrower query, `--select`, or a tool
+that reads JSON. The file is written even when the whole result fits, so it's always
+there; a read-only API call refuses `summaryFile`, since it writes a file.
+
+**`--output-format toon`** (`outputFormat: "toon"`) writes `data` as
+[TOON](https://github.com/toon-format/spec) text: a list of uniform rows becomes one
+header (`rows[20]{key,status}:`) and one comma-separated line per row, so field names
+are paid for once rather than on every row. Only `data` changes: `ok`, `error` and
+`meta` stay JSON, and `meta.format` is `"toon"`. It pays off for tables; deeply
+nested data with few repeated rows can come out longer than JSON. `--output-format
+json` is the default, and output without either flag is exactly what it always was.
+Both flags go together, the summary first:
+
+```bash
+toil util deps scan --include-transitive --summary-file deps.json --output-format toon
+```
+
 ## Waiting for something to finish
 
 To wait for a build, a scan or a deployment to finish, don't call a read in a loop:
@@ -105,7 +157,8 @@ with a `WAIT_TIMEOUT_CAPPED` warning when it is longer; at most the
 `"wait": { "maxTimeout" }` in config, default 1h) it's `TIMEOUT`, with the last `data`
 in `error.details.data`. Only reads can be waited on: a write is `INVALID_INPUT`.
 `--select` before `wait` applies to the final `data`; a `--select` after `--` belongs
-to the read, so `--until` sees what it selected. Other global flags go before `wait`.
+to the read, so `--until` sees what it selected. Other global flags go before `wait`,
+`--summary-file` and `--output-format` included, and shape the final `data`.
 
 ## Writes
 
@@ -168,8 +221,10 @@ terminal opens a menu for them.
 
 Global flags go before or after the command: `--pretty`, `--verbose` (adds every
 request to `meta.requests`, credentials redacted), `--debug` (traces on stderr),
-`--config <file>`, `--output-file <file>` and `--workspace <dir>`. `--help` on any
-command lists its own flags.
+`--config <file>`, `--output-file <file>` (the whole envelope to a file, CLI only),
+`--workspace <dir>`, `--select <expression>`, `--summary-file <file>` and
+`--output-format json|toon` (**Big results**). `--help` on any command lists its own
+flags.
 
 ## Dossiers
 
