@@ -579,7 +579,9 @@ describe('toil audit stats', () => {
   it('refuses a bad time, an until before since, and a dimension it does not know', async () => {
     const fail = async (argv: string[]) => (await runCli(['audit', 'stats', ...argv], { commands: cmds, context: testContext({ audit: seeded() }).context })).envelope?.error;
     expect(await fail(['--until', 'soon'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('until "soon"') });
-    expect(await fail(['--since', '2026-10-05', '--until', '2026-10-01'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('later than since') });
+    expect(await fail(['--since', '2026-10-05', '--until', '2026-10-01'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('later than since'), fix: expect.stringContaining('Pass an until after since') });
+    // With no since, the default is what until fell behind, and the fix says so.
+    expect(await fail(['--until', '2020-01-01'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining(', the default)'), fix: expect.stringContaining('pass an earlier since (--since)') });
     expect(await fail(['--by', 'input'])).toMatchObject({ code: 'INVALID_INPUT' });
   });
 

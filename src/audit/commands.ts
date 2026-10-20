@@ -88,7 +88,9 @@ export function auditCommands(registered: () => readonly AnyCommand[]): AnyComma
       const since = parseTime(input.since ?? defaultSince(), 'since');
       const until = input.until === undefined ? undefined : parseTime(input.until, 'until', true);
       if (until !== undefined && until.getTime() <= since.getTime()) {
-        throw new ToilError('INVALID_INPUT', `until (${until.toISOString()}) must be later than since (${since.toISOString()}).`, { fix: 'Pass an until after since, or leave it out to summarize up to now.' });
+        // A since the caller never passed is the default, which a bare --until can fall behind.
+        const fix = input.since === undefined ? 'since defaults to midnight UTC 30 days ago; pass an earlier since (--since) to look further back.' : 'Pass an until after since, or leave it out to summarize up to now.';
+        throw new ToilError('INVALID_INPUT', `until (${until.toISOString()}) must be later than since (${since.toISOString()}${input.since === undefined ? ', the default' : ''}).`, { fix });
       }
       const filter: UsageFilter = { since, until, area: input.area, command: input.command, caller: input.caller, outcome: input.outcome };
       const matching = readLog(ctx, since).filter((e) => matchesFilter(e, filter));
