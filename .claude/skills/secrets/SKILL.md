@@ -95,8 +95,12 @@ It runs only what the OS ships, each behind a platform check, under the service
   for parameters (except a bare `key`), every URL in a value through `redactUrl`, and
   every token-shaped run in any string. Those rules are `src/core/secret-shapes.ts`,
   toil's one definition of a secret: `redactText` hides what they match, and
-  `findSecrets` reports where, so redacting and finding can't disagree. A new
-  shape goes there, with a planted example in `src/core/secret-shapes.test.ts`. A field a command can't afford to keep goes
+  `findSecrets` reports where, so redacting and finding can't disagree. The token
+  shapes themselves live in `src/core/token-shapes.mjs`, plain JavaScript, because the
+  redactor for issues filed from outside (`scripts/triage/redact.mjs`, run by the
+  feedback function and by triage) reads the same list. A new shape goes there, with
+  a planted example in `src/core/secret-shapes.test.ts`, `src/areas/util/secrets.test.ts`
+  and the `SAMPLES` in `test/triage.test.ts`; each fails until it has one. A field a command can't afford to keep goes
   in its `auditInput` (`drop`, or `hash` for SHA-256 only). `test/audit.test.ts`
   sends a token-shaped value through every input of every registered command and
   fails on any line that still holds it; keep it passing when adding a field.

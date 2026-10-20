@@ -184,11 +184,16 @@ resource app 'Microsoft.Web/sites@2024-04-01' = {
         { name: 'EMAIL_FROM_ADDRESS', value: 'no-reply@imagile.dev' }
         // Key Vault references, resolved by kvIdentity. SMOKE-TEST-KEY and
         // TOIL-WEBHOOK-SECRET are made by infra/bootstrap.sh when missing.
+        // FEEDBACK-REDACT-TERMS is the maintainer's copy of the REDACT_TERMS
+        // denylist (bootstrap.sh's closing steps); until it exists the
+        // reference stays unresolved and reports are redacted with the
+        // built-in rules only, which the timer's log says.
         { name: 'GITHUB_APP_PRIVATE_KEY', value: '@Microsoft.KeyVault(SecretUri=${kvRef}/GITHUB-APP-PRIVATE-KEY)' }
         { name: 'TURNSTILE_SECRET', value: '@Microsoft.KeyVault(SecretUri=${kvRef}/TURNSTILE-SECRET)' }
         { name: 'SMOKE_TEST_KEY', value: '@Microsoft.KeyVault(SecretUri=${kvRef}/SMOKE-TEST-KEY)' }
         { name: 'ACS_CONNECTION_STRING', value: '@Microsoft.KeyVault(SecretUri=${kvRef}/ACS-CONNECTION-STRING)' }
         { name: 'WEBHOOK_SECRET', value: '@Microsoft.KeyVault(SecretUri=${kvRef}/TOIL-WEBHOOK-SECRET)' }
+        { name: 'REDACT_TERMS', value: '@Microsoft.KeyVault(SecretUri=${kvRef}/FEEDBACK-REDACT-TERMS)' }
       ]
     }
   }

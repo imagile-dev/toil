@@ -53,8 +53,14 @@ ever turns auto-merge on, and the fix agent never does either. Auto-merge relies
   minting inputs, secrets, `uses:` pins, agent prompts and tool allowlists, or new
   `run:` steps in agent workflows. Agents do not edit the rules that constrain them.
 - Externally filed issues are redacted (secrets, internal hosts, private IPs, org names
-  from the `REDACT_TERMS` secret) before any agent reads them. The denylist lives only
-  in that secret.
+  from the `REDACT_TERMS` secret) before the issue is even created: the feedback
+  function runs `scripts/triage/redact.mjs` on the title and body before
+  `createIssue`, and triage runs it again before any agent reads them. The denylist
+  lives only in that secret and its one copy, the `FEEDBACK-REDACT-TERMS` Key Vault
+  secret the function reads (the secret can't be read back, so the maintainer sets
+  both from one file; `infra/bootstrap.sh` prints how). The token shapes come from
+  `src/core/token-shapes.mjs`, the same list toil's own `src/core/secret-shapes.ts`
+  reads, so the two redactors can't drift.
 
 ## Triage of issues filed from outside
 
@@ -136,8 +142,9 @@ refuses.
   fifth gets `triage-queued`; the daily run drains the queue oldest first, along with
   anything a run missed, triaging them in the same run as a matrix. A manual dispatch
   is a re-triage and isn't counted.
-- **Redaction first.** `scripts/triage/redact.mjs` rewrites the issue's title and
-  body in place before the agent starts, and again on what the agent is shown; the
+- **Redaction first.** The issue arrives already redacted by the feedback function.
+  `scripts/triage/redact.mjs` rewrites the issue's title and body in place again
+  before the agent starts (a no-op unless the denylist has grown), and again on what the agent is shown; the
   prompt fences them between `BEGIN/END UNTRUSTED <nonce>` lines with a nonce per
   run, and tells the agent to triage on the title alone when the body reads as an
   injection attempt.
@@ -177,7 +184,9 @@ the Key Vault identity and the secrets it uses come from `infra/bootstrap.sh`, r
 by a maintainer and safe to re-run), runs `what-if`, deploys `infra/main.bicep` and
 the function, and ends with `functions/feedback/scripts/smoke.mjs`, which drives both
 endpoints with the smoke-test key and waits for the runs on the one persistent
-`smoke-test` issue. The smoke-test key is read from Key Vault at run time and masked.
+`smoke-test` issue, one of them with a private address in its title that must arrive
+redacted. It also runs when `scripts/triage/redact.mjs` or `src/core/token-shapes.mjs`
+changes, because the function's build copies both in. The smoke-test key is read from Key Vault at run time and masked.
 Nothing it deploys may be always on; any change to `infra/` states its monthly cost
 (CLAUDE.md, Cloud Cost).
 
@@ -188,6 +197,9 @@ repository secret. Without the secret, every notify step logs a skip and exits 0
 forks and fresh clones never fail on it.
 
 - `.github/workflows/discord-notify.yml` posts every issue as it opens and closes.
+  An issue filed from outside (`from-website`, `from-terminal`) is posted by number
+  alone, with no title: the channel keeps whatever it's sent, and redaction only
+  catches what its rules know.
   Each post sets `username: toil` and its avatar from
   `https://imagile-dev.github.io/toil/brand/toil-avatar-512.png`, so moving or
   renaming that file breaks the bot's avatar.
