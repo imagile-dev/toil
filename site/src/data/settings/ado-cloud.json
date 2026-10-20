@@ -32,6 +32,14 @@
     "fallbacks": []
   },
   {
+    "key": "team",
+    "env": "TOIL_ADO_CLOUD_TEAM",
+    "description": "Default team for the board, backlog and sprint commands, when --team isn't given (else the project's default team)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
     "key": "fieldAliases",
     "env": "TOIL_ADO_CLOUD_FIELD_ALIASES",
     "description": "Work item field aliases, friendly name to reference name (e.g. {\"effortdays\": \"MyOrg.EffortDays\"})",

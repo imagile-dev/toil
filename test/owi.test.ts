@@ -229,6 +229,9 @@ describe('mapping rules', () => {
     const { data } = await map({ text: json(env('ado work-item get', { id: 5, fields: { 'System.Title': 'T', 'System.State': 'Ready for QA', 'System.WorkItemType': 'Bug' } })) });
     expect(data.items[0]).toMatchObject({ statusCategory: 'UNKNOWN', type: 'BUG' });
     expect(data.items[0].unmapped.find((u: Data) => u.field === 'statusCategory').reason).toContain('ado work-item states');
+    // Services has its own states command, and the reason names it.
+    const cloud = await map({ text: json(env('ado-cloud work-item get', { id: 5, fields: { 'System.Title': 'T', 'System.State': 'Ready for QA', 'System.WorkItemType': 'Bug' } })) });
+    expect(cloud.data.items[0].unmapped.find((u: Data) => u.field === 'statusCategory').reason).toContain('ado-cloud work-item states');
   });
 
   it("maps Scrum's In Progress (Epic, Feature, Task) to IN_PROGRESS, in the item and its history, as a live Scrum organization reports it (#319)", async () => {

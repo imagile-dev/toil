@@ -6,11 +6,13 @@ import { defineFixture } from '../harness/fixtures.js';
  * examples send, so the parity suite runs every command offline through both
  * front doors.
  *
- * Provenance: every shape here is invented from Microsoft's Azure DevOps
+ * Provenance: most shapes here are invented from Microsoft's Azure DevOps
  * Services REST API 7.1 reference
  * (https://learn.microsoft.com/en-us/rest/api/azure/devops/?view=azure-devops-rest-7.1),
- * trimmed to the fields that matter; none was captured from a live
- * organization. The organization URL is a placeholder host with the
+ * trimmed to the fields that matter. The team settings (sprints, backlogs,
+ * boards), work item type states and the project's defaultTeam were captured
+ * from a live Scrum organization (#320) and sanitized to placeholders; each
+ * says so where it's defined. The organization URL is a placeholder host with the
  * organization `imagile` as its first path segment, as on dev.azure.com.
  * Paged lists answer by whether the request carries a continuation token or
  * a `$skip` past the first page. An organization that exists only on paper
@@ -95,6 +97,95 @@ const iterations = {
   url: `${ORG_URL}/Imagile/_apis/wit/classificationNodes/Iterations`,
 };
 
+// Captured from Projects - Get on a live organization (#320): the project names its default team.
+export const DEFAULT_TEAM = 'abc12345-0000-0000-0000-000000000200';
+const projectWithTeam = { ...project('Imagile'), defaultTeam: { id: DEFAULT_TEAM, name: 'Imagile Team', url: `${ORG_URL}/_apis/projects/${project('Imagile').id}/teams/${DEFAULT_TEAM}` } };
+/** The team path, by the default team's id (no --team) or by the name given. */
+export const TEAM_ID = `${PROJ}/${DEFAULT_TEAM}`;
+export const TEAM_NAME = `${PROJ}/Imagile%20Team`;
+
+// Captured from Iterations - List (team settings) on a live Scrum organization (#320): sprints
+// with no dates, which the team settings still place in time.
+const teamIteration = (n: number, timeFrame: string) => ({
+  id: `abc12345-0000-0000-0000-00000000020${n}`,
+  name: `Sprint ${n}`,
+  path: `Imagile\\Sprint ${n}`,
+  attributes: { startDate: null, finishDate: null, timeFrame },
+  url: `${ORG_URL}/${project('Imagile').id}/${DEFAULT_TEAM}/_apis/work/teamsettings/iterations/abc12345-0000-0000-0000-00000000020${n}`,
+});
+export const teamIterations = [teamIteration(1, 'current'), teamIteration(2, 'future'), teamIteration(3, 'future')];
+
+// Captured from Iterations - Get Iteration Work Items (#320): a top-level item has no rel or
+// source, and a child names its parent as the source.
+const ref = (id: number) => ({ id, url: `${ORG_URL}/_apis/wit/workItems/${id}` });
+export const sprintItems = {
+  workItemRelations: [
+    { rel: null, source: null, target: ref(42) },
+    { rel: 'System.LinkTypes.Hierarchy-Forward', source: ref(42), target: ref(43) },
+  ],
+  url: `${teamIterations[0]!.url}/workitems`,
+};
+
+// Captured from Backlogs - List (#320), trimmed to two levels and their first column field.
+const field = (referenceName: string, name: string) => ({ referenceName, name, url: `${ORG_URL}/_apis/wit/fields/${referenceName}` });
+const wit = (name: string) => ({ name, url: `${ORG_URL}/${project('Imagile').id}/_apis/wit/workItemTypes/${encodeURIComponent(name)}` });
+const level = (id: string, name: string, rank: number, type: string, types: string[], color: string) => ({
+  id,
+  name,
+  rank,
+  workItemCountLimit: 1000,
+  addPanelFields: [field('System.Title', 'Title')],
+  columnFields: [{ columnFieldReference: field('System.Title', 'Title'), width: 400 }],
+  workItemTypes: types.map(wit),
+  defaultWorkItemType: wit(types[0]!),
+  color,
+  isHidden: false,
+  type,
+});
+export const backlogs = [level('Microsoft.FeatureCategory', 'Features', 3, 'portfolio', ['Feature'], 'FF773B93'), level('Microsoft.RequirementCategory', 'Backlog items', 2, 'requirement', ['Product Backlog Item', 'Bug'], 'FF009CCC')];
+// Captured from Backlogs - Get Backlog Level Work Items (#320): targets carry an id and no url.
+export const backlogItems = { workItems: [42, 7].map((id) => ({ rel: null, source: null, target: { id } })) };
+
+// Captured from Boards - List and Boards - Get (#320): the team renamed the columns, so
+// To Do / Doing / Testing / Done sit over New / Approved / Committed / Done.
+export const BOARD = 'abc12345-0000-0000-0000-000000000301';
+const boardUrl = `${ORG_URL}/${project('Imagile').id}/${DEFAULT_TEAM}/_apis/work/boards/${BOARD}`;
+export const boards = [{ id: BOARD, url: boardUrl, name: 'Backlog items' }];
+const column = (n: number, name: string, state: string, columnType: string, itemLimit: number, extra: Record<string, unknown> = {}) => ({
+  id: `abc12345-0000-0000-0000-00000000031${n}`,
+  name,
+  itemLimit,
+  stateMappings: { 'Product Backlog Item': state, Bug: state },
+  ...extra,
+  columnType,
+});
+const split = { isSplit: false, description: '' };
+export const board = {
+  id: BOARD,
+  url: boardUrl,
+  name: 'Backlog items',
+  revision: 0,
+  columns: [column(1, 'To Do', 'New', 'incoming', 0), column(2, 'Doing', 'Approved', 'inProgress', 5, split), column(3, 'Testing', 'Committed', 'inProgress', 5, split), column(4, 'Done', 'Done', 'outgoing', 0)],
+  rows: [{ id: '00000000-0000-0000-0000-000000000000', name: null, color: null }],
+  isValid: true,
+  allowedMappings: {
+    Incoming: { Bug: ['New'], 'Product Backlog Item': ['New'] },
+    InProgress: { Bug: ['Approved', 'Committed', 'New'], 'Product Backlog Item': ['Approved', 'Committed', 'New'] },
+    Outgoing: { Bug: ['Done'], 'Product Backlog Item': ['Done'] },
+  },
+  canEdit: true,
+  fields: { columnField: field('WEF_ABC12345_Kanban.Column', 'Board Column'), rowField: field('WEF_ABC12345_Kanban.Lane', 'Board Lane'), doneField: field('WEF_ABC12345_Kanban.Column.Done', 'Board Column Done') },
+};
+
+// Captured from Work Item Type States - List (#320), Scrum's Bug.
+export const bugStates = [
+  { name: 'New', color: 'b2b2b2', category: 'Proposed' },
+  { name: 'Approved', color: 'b2b2b2', category: 'Proposed' },
+  { name: 'Committed', color: '007acc', category: 'InProgress' },
+  { name: 'Done', color: '339933', category: 'Completed' },
+  { name: 'Removed', color: 'ffffff', category: 'Removed' },
+];
+
 export const repo = { id: 'abc12345-0000-0000-0000-000000000003', name: 'imagile-api', url: `${ORG_URL}/Imagile/_apis/git/repositories/abc12345-0000-0000-0000-000000000003`, project: project('Imagile'), defaultBranch: 'refs/heads/main', remoteUrl: `${HOST}/imagile/Imagile/_git/imagile-api`, size: 1024, isDisabled: false };
 
 // Invented from Pull Requests - Get Pull Request.
@@ -178,7 +269,7 @@ const skipped = (first: unknown[]) => (r: RecordedRequest) => ({ json: new URL(r
 export const routes: Route[] = [
   { path: `${ORG}/_apis/connectionData`, respond: { json: connectionData } },
   { path: `${ORG}/_apis/projects`, respond: continued([project('Imagile')], [project('Imagile Ops')]) },
-  { path: `${ORG}/_apis/projects/Imagile`, respond: { json: project('Imagile') } },
+  { path: `${ORG}/_apis/projects/Imagile`, respond: { json: projectWithTeam } },
   { path: `${PROJ}/_apis/git/repositories`, respond: { json: { count: 1, value: [repo] } } },
   { path: REPO, respond: { json: repo } },
 
@@ -214,6 +305,21 @@ export const routes: Route[] = [
   { path: `${PROJ}/_apis/wit/classificationnodes/iterations`, respond: { json: iterations } },
   // The passthrough's second read.
   { path: `${PROJ}/_apis/wit/workitemtypes`, respond: { json: { count: 1, value: [{ name: 'Bug', referenceName: 'Microsoft.VSTS.WorkItemTypes.Bug', states: [{ name: 'New' }, { name: 'Active' }] }] } } },
+
+  // A type the project doesn't have answers with no states, not a 404.
+  { path: /^\/imagile\/Imagile\/_apis\/wit\/workitemtypes\/[^/]+\/states$/, respond: (r) => ({ json: new URL(r.url).pathname.includes('/Bug/') ? { count: bugStates.length, value: bugStates } : { count: 0, value: [] } }) },
+
+  // Team settings, by the default team's id (no --team) or by the team's name
+  ...[TEAM_ID, TEAM_NAME].flatMap((team): Route[] => [
+    { path: `${team}/_apis/work/teamsettings/iterations`, respond: { json: { count: teamIterations.length, value: teamIterations } } },
+    { path: `${team}/_apis/work/teamsettings/iterations/${teamIterations[0]!.id}/workitems`, respond: { json: sprintItems } },
+    { path: `${team}/_apis/work/backlogs`, respond: { json: { count: backlogs.length, value: backlogs } } },
+    { path: `${team}/_apis/work/backlogs/Microsoft.RequirementCategory/workItems`, respond: { json: backlogItems } },
+    { path: `${team}/_apis/work/backlogs/Microsoft.FeatureCategory/workItems`, respond: { json: { workItems: [] } } },
+    { path: `${team}/_apis/work/boards`, respond: { json: { count: boards.length, value: boards } } },
+    { path: `${team}/_apis/work/boards/Backlog%20items`, respond: { json: board } },
+    { path: `${team}/_apis/work/boards/${BOARD}`, respond: { json: board } },
+  ]),
 
   // Pull requests
   { path: `${REPO}/pullrequests`, respond: skipped([pr(42)]) },

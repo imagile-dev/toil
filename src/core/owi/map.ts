@@ -28,13 +28,13 @@ export const OWI_COMMANDS: Record<string, { items: string[]; history: string[]; 
   Object.entries(OWI_SOURCES).map(([area, s]) => [area, { items: s.items.map((c) => `${area} ${c}`), history: s.history.map((c) => `${area} ${c}`), context: s.context.map((c) => `${area} ${c}`), changes: s.changes.map((c) => `${area} ${c}`) }]),
 );
 
-/** Why a history's status can have no category, by the shape it came in. */
-const UNKNOWN_HISTORY: Record<OwiFamily, string> = {
-  jira: "Jira's changelog names statuses only, and a status no item in the input is in has no category to learn",
-  ado: 'a state in the revisions is a custom one, outside the default states OWI knows; ado work-item states shows its category',
-  github: 'GitHub issues are only open or closed, so this should not happen; the history is kept as it was read',
-  bitbucket: 'Bitbucket has no work items, so this should not happen',
-  'bitbucket-cloud': 'Bitbucket has no work items, so this should not happen',
+/** Why a history's status can have no category, by the shape it came in; the area names the command that shows it. */
+const UNKNOWN_HISTORY: Record<OwiFamily, (area: string) => string> = {
+  jira: () => "Jira's changelog names statuses only, and a status no item in the input is in has no category to learn",
+  ado: (area) => `a state in the revisions is a custom one, outside the default states OWI knows; ${area} work-item states shows its category`,
+  github: () => 'GitHub issues are only open or closed, so this should not happen; the history is kept as it was read',
+  bitbucket: () => 'Bitbucket has no work items, so this should not happen',
+  'bitbucket-cloud': () => 'Bitbucket has no work items, so this should not happen',
 };
 
 /** Commands that look as if they should map but don't, and what to run instead. */
@@ -301,7 +301,7 @@ export function mapOwi(documents: OwiDocument[], options: MapOptions = {}): OwiR
   }
   for (const item of items.values()) {
     if (item.history?.transitions.some((t) => t.toCategory === 'UNKNOWN' || t.fromCategory === 'UNKNOWN')) {
-      unmapped(item, 'history.transitions', `some statuses in the history have no category: ${UNKNOWN_HISTORY[OWI_SOURCES[item.source.area]?.family ?? 'jira']}`);
+      unmapped(item, 'history.transitions', `some statuses in the history have no category: ${UNKNOWN_HISTORY[OWI_SOURCES[item.source.area]?.family ?? 'jira'](item.source.area)}`);
     }
   }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
-import { change, iteration, ME, ORG_URL, REPO, SHA, config as fixtureConfig, files as fixtureFiles, pr, prCommit, prStatus, routes as fixtureRoutes, threads, workItem } from '../../../test/fixtures/ado-cloud.fixture.js';
+import { change, iteration, ME, ORG_URL, REPO, SHA, config as fixtureConfig, files as fixtureFiles, pr, prCommit, prStatus, routes as fixtureRoutes, threads, workItem, BOARD, DEFAULT_TEAM, backlogItems, backlogs, board, boards, bugStates, sprintItems, teamIterations } from '../../../test/fixtures/ado-cloud.fixture.js';
 import { commandName, type AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
 import { referenceName } from './fields.js';
@@ -393,6 +393,109 @@ describe('pull request comments', () => {
     expect(body(reply.calls[0]!)).toEqual({ parentCommentId: 1, content: 'Done', commentType: 'text' });
     const resolve = await run('pr resolve', { ...inRepo, id: 42, threadId: 7, ...write });
     expect(body(resolve.calls[0]!)).toEqual({ status: 'fixed' });
+  });
+});
+
+describe('work item type states', () => {
+  it('states reads the type under the project and returns its states, categories included', async () => {
+    const { calls, data, envelope } = await run('work-item states', { ...at, type: 'Bug' });
+    expect(calls).toEqual([{ method: 'GET', url: `${P}/_apis/wit/workitemtypes/Bug/states?api-version=7.1`, headers: GET_HEADERS, body: undefined }]);
+    expect(data).toEqual(bugStates);
+    expect(envelope.meta.warnings).toBeUndefined();
+  });
+
+  it('a type the project has no states for comes back empty with a warning, since the server sends no 404', async () => {
+    const { calls, data, envelope } = await run('work-item states', { ...at, type: 'User Story' });
+    expect(calls[0]!.url).toBe(`${P}/_apis/wit/workitemtypes/User%20Story/states?api-version=7.1`);
+    expect(data).toEqual([]);
+    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'ADO_CLOUD_TYPE_UNKNOWN', message: expect.stringContaining('"User Story"') })]);
+  });
+});
+
+describe('team settings: sprints, backlogs and boards', () => {
+  const T = `${P}/${DEFAULT_TEAM}`;
+  const named = { ...at, team: 'Imagile Team' };
+
+  it("without --team, reads the project's default team first and puts its id in the path", async () => {
+    const { calls, data, envelope } = await run('sprint list', at);
+    expect(envelope.meta.warnings).toEqual([{ code: 'ADO_CLOUD_DEFAULT_TEAM', message: `No team given, so this read the project's default team, "Imagile Team" (${DEFAULT_TEAM}). Pass --team to read another.` }]);
+    expect(calls).toEqual([
+      { method: 'GET', url: `${ORG_URL}/_apis/projects/Imagile?api-version=7.1`, headers: GET_HEADERS, body: undefined },
+      { method: 'GET', url: `${T}/_apis/work/teamsettings/iterations?api-version=7.1`, headers: GET_HEADERS, body: undefined },
+    ]);
+    expect(data).toEqual(teamIterations);
+  });
+
+  it('with --team, sends the name in the path and reads nothing else', async () => {
+    const { calls, envelope } = await run('sprint list', named);
+    expect(calls.map((c) => c.url)).toEqual([`${P}/Imagile%20Team/_apis/work/teamsettings/iterations?api-version=7.1`]);
+    expect(envelope.meta.warnings).toBeUndefined();
+    expect(envelope.meta.context?.inputs?.team).toEqual({ value: 'Imagile Team', source: 'input' });
+  });
+
+  it('the team comes from the connection when the call names none', async () => {
+    const { calls } = await run('board list', at, [], { 'ado-cloud': { ...fixtureConfig['ado-cloud'], team: 'Imagile Team' } });
+    expect(calls.map((c) => c.url)).toEqual([`${P}/Imagile%20Team/_apis/work/boards?api-version=7.1`]);
+  });
+
+  it('a project with no default team is NOT_FOUND, naming --team', async () => {
+    const { envelope, calls } = await run('backlog list', at, [{ path: '/imagile/_apis/projects/Imagile', respond: { json: { id: 'abc12345-0000-0000-0000-000000000000', name: 'Imagile' } } }]);
+    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', fix: expect.stringContaining('--team') });
+    expect(calls).toHaveLength(1);
+  });
+
+  it('sprint list --state keeps the time frames named, from the team settings, even for sprints with no dates', async () => {
+    const current = await run('sprint list', { ...named, state: 'current' });
+    expect(current.data).toEqual([teamIterations[0]]);
+    expect((current.data as Array<{ name: string }>)[0]!.name).toBe('Sprint 1');
+    const ahead = await run('sprint list', { ...named, state: 'Future, current' });
+    expect((ahead.data as Array<{ name: string }>).map((s) => s.name)).toEqual(['Sprint 1', 'Sprint 2', 'Sprint 3']);
+    expect((await run('sprint list', { ...named, state: 'past' })).data).toEqual([]);
+  });
+
+  it('an unknown sprint state is refused before anything is sent', async () => {
+    const { envelope, calls } = await run('sprint list', { ...named, state: 'active' });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Unknown sprint state: active', fix: expect.stringContaining('past, current and/or future') });
+    expect(calls).toEqual([]);
+  });
+
+  it("sprint items reads the sprint's work items under the team, as the server sends them", async () => {
+    const { calls, data } = await run('sprint items', { ...named, id: teamIterations[0]!.id });
+    expect(calls.map((c) => c.url)).toEqual([`${P}/Imagile%20Team/_apis/work/teamsettings/iterations/${teamIterations[0]!.id}/workitems?api-version=7.1`]);
+    expect(data).toEqual(sprintItems);
+  });
+
+  it('backlog list returns the levels, and backlog items one level in backlog order', async () => {
+    const list = await run('backlog list', named);
+    expect(list.calls.map((c) => c.url)).toEqual([`${P}/Imagile%20Team/_apis/work/backlogs?api-version=7.1`]);
+    expect(list.data).toEqual(backlogs);
+    const items = await run('backlog items', { ...named, id: 'Microsoft.RequirementCategory' });
+    expect(items.calls.map((c) => c.url)).toEqual([`${P}/Imagile%20Team/_apis/work/backlogs/Microsoft.RequirementCategory/workItems?api-version=7.1`]);
+    expect(items.data).toEqual(backlogItems);
+  });
+
+  it('board list returns the boards, and board get one by name or id with the state under each column', async () => {
+    const list = await run('board list', named);
+    expect(list.calls.map((c) => c.url)).toEqual([`${P}/Imagile%20Team/_apis/work/boards?api-version=7.1`]);
+    expect(list.data).toEqual(boards);
+    const byName = await run('board get', { ...named, id: 'Backlog items' });
+    expect(byName.calls.map((c) => c.url)).toEqual([`${P}/Imagile%20Team/_apis/work/boards/Backlog%20items?api-version=7.1`]);
+    expect(byName.data).toEqual(board);
+    const columns = (byName.data as typeof board).columns.map((c) => [c.name, c.stateMappings.Bug]);
+    expect(columns).toEqual([['To Do', 'New'], ['Doing', 'Approved'], ['Testing', 'Committed'], ['Done', 'Done']]);
+    const byId = await run('board get', { ...at, id: BOARD });
+    expect(byId.calls.map((c) => c.url)).toEqual([`${ORG_URL}/_apis/projects/Imagile?api-version=7.1`, `${T}/_apis/work/boards/${BOARD}?api-version=7.1`]);
+  });
+
+  it("a team or board the server doesn't know is NOT_FOUND with its own message", async () => {
+    const { envelope } = await run('board get', { ...named, id: 'Nope' }, fail(404, { message: 'TF401501: The board does not exist.', typeKey: 'BoardDoesNotExistException' }));
+    expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: expect.stringContaining('TF401501') });
+  });
+
+  it('every team command needs a project, and says so', async () => {
+    const { envelope, calls } = await run('board list', {});
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--project') });
+    expect(calls).toEqual([]);
   });
 });
 
