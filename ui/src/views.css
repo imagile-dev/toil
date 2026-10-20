@@ -237,7 +237,7 @@
 .calendar__day[data-today]:not([aria-current]) { border-color: var(--accent); border-width: 2px; }
 .calendar__n { line-height: 1.1; }
 .calendar__count { font-size: 0.6875rem; line-height: 1.1; }
-.worklog-page { display: grid; gap: 1rem; min-width: 0; }
+.worklog-page { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; min-width: 0; }
 .worklog-page h3 { margin: 0 0 0.25rem; font-size: 1rem; }
 .worklog-gaps { border-left: 4px solid var(--accent); padding-left: 0.75rem; }
 .worklog-gaps ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }

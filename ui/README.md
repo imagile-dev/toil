@@ -34,7 +34,7 @@ It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
 Toil UI 0.1.0-alpha.1 (alpha, local only), on toil 0.1.0-alpha.3
-Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil's own connections and dossiers, when you ask. Feedback goes to Imagile only when you send it.
+Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil's own connections and dossiers, when you ask. The worklog keeps your notes in its cache and writes a file only when you export one. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
 Open this URL in your browser. It carries this launch's token, so keep it to yourself:

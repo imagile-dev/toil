@@ -187,7 +187,7 @@ function Calendar({ data, selected, onMonth }: { data: WorklogMonth; selected: s
 /** What a line is about: its item's page, its pull request, or its build or deployment where the source has a page for it. */
 function Subject({ e }: { e: WorklogEvent }) {
   const { byId, prById } = useData();
-  if (byId.has(e.subject) || prById?.has(e.subject)) return <ItemLink id={e.subject} />;
+  if (byId.has(e.subject) || prById?.has(e.subject)) return <ItemLink id={e.subject} withTitle />;
   return e.url ? (
     <a href={e.url} className="item-link">
       <span className="key">{e.label}</span>
@@ -200,9 +200,9 @@ function Subject({ e }: { e: WorklogEvent }) {
 }
 
 function Line({ e }: { e: WorklogEvent }) {
-  const { byId } = useData();
-  // An item the dossier holds is named by its link; one it no longer holds keeps its title from the record.
-  const title = byId.has(e.subject) ? null : e.title;
+  const { byId, prById } = useData();
+  // An item or pull request the dossier holds carries its title in its link; anything else keeps the title the record has.
+  const title = byId.has(e.subject) || prById?.has(e.subject) ? null : e.title;
   return (
     <li className="worklog-line">
       <time dateTime={e.at}>{timeOf(e.at)}</time>{' '}
