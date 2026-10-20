@@ -3,8 +3,8 @@ import type { History, Iteration, Link, Person, StatusCategory, WorkItem } from 
 
 /**
  * Jira Data Center (`jira`) and Jira Cloud (`jira-cloud`) to OWI: the issues
- * `search` and `get-issue` return, one key or several, and the history
- * `get-changelog` returns. Both variants send the same issue shape; Cloud
+ * `issue search` and `issue get` return, one key or several, and the history
+ * `issue history` returns. Both variants send the same issue shape; Cloud
  * identifies people by accountId and writes the description as ADF.
  *
  * Custom fields reach the output under the name the connection registers
@@ -33,7 +33,7 @@ const CATEGORY: Record<string, StatusCategory> = { new: 'TODO', indeterminate: '
 
 type Issue = { key?: unknown; id?: unknown; self?: unknown; fields?: Record<string, unknown>; names?: Record<string, unknown> };
 
-/** The issues a document holds: `search` and bulk `get-issue` ({ issues }), or one `get-issue`. */
+/** The issues a document holds: `issue search` and bulk `issue get` ({ issues }), or one `issue get`. */
 export function issuesOf(data: unknown): Issue[] | undefined {
   if (isRecord(data) && Array.isArray(data.issues)) return data.issues.filter(isRecord) as Issue[];
   if (isRecord(data) && typeof data.key === 'string' && isRecord(data.fields)) return [data as Issue];
@@ -201,7 +201,7 @@ function iteration(item: WorkItem, issue: Issue, state: MapState): void {
   item.iteration = current(sprints.filter((s): s is Iteration => s !== undefined));
 }
 
-/** The change history `get-changelog` returns, as transitions and sprint moves. */
+/** The change history `issue history` returns, as transitions and sprint moves. */
 export function jiraHistory(doc: OwiDocument, state: MapState, categoryOf: (status: string) => StatusCategory | undefined): History | undefined {
   if (!Array.isArray(doc.data)) return undefined;
   const sprintField = state.fields.iteration ?? JIRA_SPRINT_FIELD;

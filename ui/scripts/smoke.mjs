@@ -118,7 +118,7 @@ try {
   check(s.session.store === 'fixture' && s.session.sample === true && s.session.toil.version === toilInstalled, `the session was ${JSON.stringify(s.session)}`);
   const list = JSON.parse((await s.call('dossiers list')).body);
   check(list.ok && list.data.dossiers.length === 3, `dossiers list over the API returned ${JSON.stringify(list).slice(0, 200)}`);
-  const refused = await s.call('jira create-issue', { project: 'PAY' });
+  const refused = await s.call('jira issue create', { project: 'PAY' });
   check(refused.status === 403 && JSON.parse(refused.body).ok === false, `a write command got ${refused.status}`);
   const noCsrf = await s.call('dossiers list', {}, { 'x-toil-ui-csrf': 'wrong' });
   check(noCsrf.status === 403, `a POST without the CSRF token got ${noCsrf.status}`);

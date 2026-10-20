@@ -48,9 +48,9 @@ export const jiraCloudArea = defineArea({
     apiToken: z.string().min(1).describe('Atlassian account API token'),
     customFields: z.array(customFieldSchema).default([]).describe('Custom fields addressable by friendly name'),
     // Shared defaults, usually set once under defaults.jira-cloud for every connection.
-    project: z.string().min(1).optional().describe('Default project key for create-issue'),
-    issueType: z.string().min(1).optional().describe('Default issue type for create-issue (Task when unset)'),
-    priority: z.string().min(1).optional().describe('Default priority for create-issue'),
+    project: z.string().min(1).optional().describe('Default project key for issue create'),
+    issueType: z.string().min(1).optional().describe('Default issue type for issue create (Task when unset)'),
+    priority: z.string().min(1).optional().describe('Default priority for issue create'),
   }),
   secrets: ['apiToken'],
   examples: { baseUrl: 'https://<your-site>.atlassian.net', email: 'you@example.com' },

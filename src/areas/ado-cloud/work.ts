@@ -19,7 +19,7 @@ export const at = { project: 'Imagile' };
 const all = { ...at, repo: 'imagile-api' };
 const W = { ...at, allowWrite: true };
 const id = z.number().int().positive().describe('Work item ID');
-const idOption = { flags: '--id <n>', field: 'id', description: 'Work item ID' };
+const idArg = { name: 'id', field: 'id', description: 'Work item ID' };
 
 export interface WorkItem {
   id: number;
@@ -31,12 +31,12 @@ export interface WorkItem {
 const workItemPath = (n: number) => `/_apis/wit/workitems/${n}`;
 
 export const workGetCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work', 'get'],
+  path: ['ado-cloud', 'work-item', 'get'],
   description: 'Get a work item by ID',
   toolDescription: 'Returns one work item by id with every field, its relations and links ($expand=all). Needs no project.',
   input: z.object({ id }),
   writes: false,
-  options: [idOption],
+  args: [idArg],
   examples: [{ id: 42 }, { ...all, id: 7 }],
   run: (input, ctx) => adoc<WorkItem>(ctx, workItemPath(input.id), { query: { $expand: 'all' } }),
 });
@@ -45,7 +45,7 @@ const fieldInput = z.array(z.string()).optional().describe('Field as name=value,
 const fieldOption = { flags: '--field <name=value>', field: 'field', description: 'Field as name=value, by reference name or alias (repeatable)' };
 
 export const workCreateCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work', 'create'],
+  path: ['ado-cloud', 'work-item', 'create'],
   description: 'Create a work item',
   toolDescription:
     'Creates a work item of a type in the project and returns it as created. Title, description, assignee and priority have flags; any other field goes in field as name=value, by reference name (Microsoft.VSTS.Scheduling.StoryPoints) or alias (storypoints).',
@@ -86,7 +86,7 @@ export const workCreateCommand = adoCloudArea.command({
 });
 
 export const workUpdateCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work', 'update'],
+  path: ['ado-cloud', 'work-item', 'update'],
   description: 'Update work item fields',
   toolDescription:
     'Sets fields on a work item (field as name=value, by reference name or alias: state=Active, Microsoft.VSTS.Scheduling.StoryPoints=5) in one JSON Patch and returns the updated item. With rev, the change is refused if the item has moved past that revision. Needs no project.',
@@ -97,7 +97,8 @@ export const workUpdateCommand = adoCloudArea.command({
     ...allowWriteField,
   }),
   writes: true,
-  options: [idOption, { flags: '--field <name=value>', field: 'field', description: 'Field to set as name=value (repeatable)' }, { flags: '--rev <n>', field: 'rev', description: "Refuse the change unless the item's revision is still this one" }],
+  args: [idArg],
+  options: [{ flags: '--field <name=value>', field: 'field', description: 'Field to set as name=value (repeatable)' }, { flags: '--rev <n>', field: 'rev', description: "Refuse the change unless the item's revision is still this one" }],
   examples: [
     { ...W, id: 42, field: ['state=Active', 'storypoints=5'] },
     { ...W, repo: 'imagile-api', id: 42, field: ['System.Title=Login broken on Safari'], rev: 3 },
@@ -120,10 +121,10 @@ interface WiqlResult {
 }
 
 export const workSearchCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work', 'search'],
+  path: ['ado-cloud', 'work-item', 'search'],
   description: 'Run a WIQL query (consider --output-file for large results)',
   toolDescription:
-    "Runs a WIQL query in the project and returns the server's answer: the matching work item ids and urls (workItems), not their fields. Fetch fields with ado_cloud_work_get_batch. updatedSince (an ISO 8601 date or zoned date-time) ANDs [System.ChangedDate] >= it onto a flat query and turns on time precision for the whole query, so = on any date field then matches one exact instant: write date conditions with >= and < instead. With limit, workItems holds at most that many; pass meta.page.nextCursor as cursor for the next page, which runs the query again.",
+    "Runs a WIQL query in the project and returns the server's answer: the matching work item ids and urls (workItems), not their fields. Fetch fields with ado_cloud_work_item_get_many. updatedSince (an ISO 8601 date or zoned date-time) ANDs [System.ChangedDate] >= it onto a flat query and turns on time precision for the whole query, so = on any date field then matches one exact instant: write date conditions with >= and < instead. With limit, workItems holds at most that many; pass meta.page.nextCursor as cursor for the next page, which runs the query again.",
   input: z.object({
     wiql: z.string().min(1).describe('WIQL query string'),
     updatedSince: z.string().optional().describe(UPDATED_SINCE),
@@ -178,42 +179,43 @@ export const workSearchCommand = adoCloudArea.command({
 const REVISIONS_PAGE = 100;
 
 export const workRevisionsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work', 'revisions'],
+  path: ['ado-cloud', 'work-item', 'history'],
   description: 'List the revisions of a work item, oldest first',
   toolDescription:
     'Lists every revision of a work item, oldest first: each is the whole work item as it stood after that change (id, rev, fields, url), so comparing neighbours gives the history of states, assignees and other fields. Needs no project. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.',
   input: z.object({ id, limit: limitField('revisions'), cursor: cursorField }),
   writes: false,
-  options: [idOption, ...pageOptions('revisions')],
+  args: [idArg],
+  options: pageOptions('revisions'),
   examples: [{ id: 42 }, { ...all, id: 42, limit: 1 }, { id: 42, limit: 1, cursor: exampleCursor('1', REVISIONS_PAGE) }],
   run: (input, ctx) => skipPages(ctx, `/_apis/wit/workItems/${input.id}/revisions`, {}, REVISIONS_PAGE, `revisions of Azure DevOps work item ${input.id}`, pageOf(input)),
 });
 
 /** The most ids the batch endpoint takes in one request. */
 export const BATCH_SIZE = 200;
-/** The most ids one get-batch call takes: five requests, then a bound rather than a loop. */
+/** The most ids one get-many call takes: five requests, then a bound rather than a loop. */
 export const BATCH_MAX = 1000;
 
 export const workGetBatchCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work', 'get-batch'],
+  path: ['ado-cloud', 'work-item', 'get-many'],
   description: 'Get several work items by ID in one call',
   toolDescription: `Returns several work items by id through the batch endpoint, ${BATCH_SIZE} per request, at most ${BATCH_MAX} ids: { count, value, missing }. value holds the items found, in the order asked, with every field and relation unless fields names the ones to return; missing lists each id that doesn't exist or the token can't see, with an ADO_CLOUD_WORK_ITEMS_MISSING warning. Needs no project.`,
   input: z.object({
-    id: z.array(z.number().int().positive()).min(1).describe('Work item ID (repeatable)'),
+    id: z.array(z.number().int().positive()).min(1).describe('Work item IDs'),
     fields: z.string().optional().describe('Comma-separated field reference names to return (default: every field, with relations)'),
   }),
   writes: false,
   // The ids go in a POST body, as the batch endpoint requires; nothing is written.
   queryByPost: true,
+  args: [{ name: 'id', field: 'id', description: 'Work item IDs', variadic: true }],
   options: [
-    { flags: '--id <n>', field: 'id', description: 'Work item ID (repeatable)' },
     { flags: '--fields <names>', field: 'fields', description: 'Comma-separated field reference names to return (default: every field, with relations)' },
   ],
   examples: [{ ...all, id: [42, 7] }, { id: [42, 404], fields: 'System.Title, System.State' }],
   run: async (input, ctx) => {
     const ids = [...new Set(input.id)];
     if (ids.length > BATCH_MAX) {
-      throw new ToilError('INVALID_INPUT', `get-batch takes at most ${BATCH_MAX} work item ids in one call, and this one has ${ids.length}.`, { fix: `Split the ids into calls of ${BATCH_MAX} or fewer.` });
+      throw new ToilError('INVALID_INPUT', `get-many takes at most ${BATCH_MAX} work item ids in one call, and this one has ${ids.length}.`, { fix: `Split the ids into calls of ${BATCH_MAX} or fewer.` });
     }
     const fields = input.fields?.split(',').map((f) => f.trim()).filter(Boolean);
     const found = new Map<number, WorkItem>();
@@ -234,14 +236,15 @@ export const workGetBatchCommand = adoCloudArea.command({
 const COMMENTS_PAGE = 200;
 
 export const workListCommentsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work', 'list-comments'],
+  path: ['ado-cloud', 'work-item', 'comments'],
   description: 'List comments on a work item',
   toolDescription:
     "Lists every comment on a work item in the server's order (newest first in Microsoft's examples): id, text, createdBy, createdDate, modifiedDate, following continuation tokens to the end. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.",
   input: z.object({ id, limit: limitField('comments'), cursor: cursorField }),
   writes: false,
   context: IN_PROJECT,
-  options: [idOption, ...pageOptions('comments')],
+  args: [idArg],
+  options: pageOptions('comments'),
   examples: [{ ...at, id: 42 }, { ...all, id: 42, limit: 1 }, { ...at, id: 42, limit: 1, cursor: exampleCursor('abc12345') }],
   run: (input, ctx) =>
     bodyTokenPages(
@@ -255,13 +258,14 @@ export const workListCommentsCommand = adoCloudArea.command({
 });
 
 export const workAddCommentCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work', 'add-comment'],
+  path: ['ado-cloud', 'work-item', 'comment'],
   description: 'Add a comment to a work item',
   toolDescription: 'Adds a comment (HTML or plain text) to a work item and returns it.',
   input: z.object({ id, body: z.string().min(1).describe('Comment text'), ...allowWriteField }),
   writes: true,
   context: IN_PROJECT,
-  options: [idOption, { flags: '--body <text>', field: 'body', description: 'Comment text' }],
+  args: [idArg],
+  options: [{ flags: '--body <text>', field: 'body', description: 'Comment text' }],
   examples: [{ ...W, repo: 'imagile-api', id: 42, body: 'Looked into it.' }],
   run: (input, ctx) => adoc(ctx, `${projectPath(ctx)}/_apis/wit/workItems/${input.id}/comments`, { method: 'POST', query: { 'api-version': API_COMMENTS }, json: { text: input.body } }),
 });
@@ -269,7 +273,7 @@ export const workAddCommentCommand = adoCloudArea.command({
 const DEPTH = 'Depth of the iteration tree to retrieve (default: 10)';
 
 export const workListIterationsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work', 'list-iterations'],
+  path: ['ado-cloud', 'work-item', 'iterations'],
   description: 'List the iteration tree for the project, with start and finish dates',
   toolDescription: "Returns the project's iteration tree (classification nodes) with start and finish dates, to the given depth (10 by default).",
   input: z.object({ depth: z.number().int().min(0).optional().describe(DEPTH) }),

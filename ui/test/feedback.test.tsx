@@ -41,7 +41,7 @@ async function openDialog(feedback: FeedbackApi, theme = 'plain', scheme = 'ligh
 }
 
 async function fill(dialog: HTMLElement) {
-  await userEvent.type(within(dialog).getByRole('textbox', { name: /Title/ }), 'jira search ignores --max-results');
+  await userEvent.type(within(dialog).getByRole('textbox', { name: /Title/ }), 'jira issue search ignores --max-results');
   await userEvent.type(within(dialog).getByRole('textbox', { name: /Details/ }), 'It returns 50.');
   await userEvent.type(within(dialog).getByRole('textbox', { name: /Your email/ }), 'you@example.com');
   return within(dialog).findByRole('checkbox', {}, { timeout: 3000 });
@@ -67,7 +67,7 @@ describe('the Feedback dialog', { timeout: 20_000 }, () => {
     const box = await fill(dialog);
     const report = within(dialog).getByRole('region', { name: 'Exactly what will be sent' });
     expect(within(report).getByLabelText('The report, as toil would send it').textContent).toBe(
-      JSON.stringify({ kind: 'bug', title: 'jira search ignores --max-results', body: 'It returns 50.', email: 'you@example.com', consent: 1, version: '0.1.0-alpha.1', commit: 'abc1234500000000000000000000000000000000' }, null, 2),
+      JSON.stringify({ kind: 'bug', title: 'jira issue search ignores --max-results', body: 'It returns 50.', email: 'you@example.com', consent: 1, version: '0.1.0-alpha.1', commit: 'abc1234500000000000000000000000000000000' }, null, 2),
     );
     expect(within(dialog).getByText(DISCLAIMER)).toBeTruthy();
     expect(send.getAttribute('data-disabled')).not.toBeNull();
@@ -82,7 +82,7 @@ describe('the Feedback dialog', { timeout: 20_000 }, () => {
 
     await userEvent.click(within(dialog).getByRole('checkbox'));
     await userEvent.click(send);
-    expect(api.sent).toEqual([{ kind: 'bug', title: 'jira search ignores --max-results', body: 'It returns 50. Every time.', email: 'you@example.com' }]);
+    expect(api.sent).toEqual([{ kind: 'bug', title: 'jira issue search ignores --max-results', body: 'It returns 50. Every time.', email: 'you@example.com' }]);
     expect(await screen.findByRole('heading', { name: 'Feedback sent' })).toBeTruthy();
     expect(screen.getByRole('status').textContent).toBe('Thanks. Your report is queued.');
   });

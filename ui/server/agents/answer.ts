@@ -19,7 +19,7 @@
  */
 
 import { citationsOf, type Answer, type AnswerPart } from '../../src/agent.ts';
-import type { Proposal } from '../../src/proposal.ts';
+import { POSITIONAL_FIELDS, type Proposal } from '../../src/proposal.ts';
 import type { Ledger } from './tools.ts';
 
 /** A write command in toil's registry: the fields its input takes, and the ones it needs. */
@@ -112,7 +112,9 @@ export function proposalOf(raw: string, f: Pick<Finish, 'dossier' | 'writes'>, i
       const absent = write.required.filter((k) => !(k in rest));
       if (unknown.length || absent.length) {
         // A command line toil would refuse is worse than none: say what was wrong instead.
-        const why = [unknown.length ? `has no ${unknown.map((k) => `--${k}`).join(', ')}` : '', absent.length ? `needs ${absent.map((k) => `--${k}`).join(', ')}` : ''].filter(Boolean).join(' and ');
+        // A positional argument is named as --help shows it (<key>), every other field as its flag.
+        const arg = (k: string) => (POSITIONAL_FIELDS.get(write.name)?.includes(k) ? `<${k}>` : `--${k}`);
+        const why = [unknown.length ? `has no ${unknown.map((k) => `--${k}`).join(', ')}` : '', absent.length ? `needs ${absent.map(arg).join(', ')}` : ''].filter(Boolean).join(' and ');
         note = [`The agent's input doesn't fit toil ${write.name}, which ${why}, so there is no command line to show; see toil ${write.name} --help.`, note].filter(Boolean).join(' ');
       } else {
         command = write.name;

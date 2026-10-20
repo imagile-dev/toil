@@ -15,7 +15,7 @@ export interface JsonPatchOp {
   value?: unknown;
 }
 
-/** Shape of the JSON accepted by --input-file on work create and work update. */
+/** Shape of the JSON accepted by --input-file on work-item create and work-item update. */
 export interface WorkItemJsonInput {
   type?: string;
   fields?: Record<string, unknown>;
@@ -92,7 +92,7 @@ export function readJsonInputFile(path: string, files: FileAccess): WorkItemJson
   try {
     return JSON.parse(raw) as WorkItemJsonInput;
   } catch (err) {
-    throw new ToilError('INVALID_INPUT', `--input-file must contain valid JSON: ${(err as Error).message}`, { fix: 'Run toil ado work schema for the expected shape and a runnable example.' });
+    throw new ToilError('INVALID_INPUT', `--input-file must contain valid JSON: ${(err as Error).message}`, { fix: 'Run toil ado work-item schema for the expected shape and a runnable example.' });
   }
 }
 
@@ -128,12 +128,12 @@ export function mergeWithOverrides(fromJson: Record<string, unknown>, fromFlags:
   return { merged, overrides };
 }
 
-/** The JSON Schema `work schema` returns for the --input-file of work create and update. */
+/** The JSON Schema `work-item schema` returns for the --input-file of work-item create and update. */
 export const ADO_WORK_INPUT_FILE_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   title: 'toil Azure DevOps work item input file',
   description:
-    'Shape accepted by --input-file on `toil ado work create` / `work update`. ' +
+    'Shape accepted by --input-file on `toil ado work-item create` / `work-item update`. ' +
     'CLI flags (--title, --description, --priority, --field, ...) override matching keys here; ' +
     'overridden keys are reported in meta.warnings.',
   type: 'object',

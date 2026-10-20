@@ -8,8 +8,8 @@
  *   https://developer.atlassian.com/server/bitbucket/rest/ (Pull Requests).
  * - Jenkins builds of a multibranch job (`jenkins pipeline list-runs`), with
  *   the `tree` fields src/areas/jenkins/client.ts asks for.
- * - Azure DevOps Server pull requests and builds (`ado repo list-prs`,
- *   `ado pipeline list-runs`): https://learn.microsoft.com/rest/api/azure/devops/
+ * - Azure DevOps Server pull requests and builds (`ado pr list`,
+ *   `ado run list`): https://learn.microsoft.com/rest/api/azure/devops/
  *   (Git Pull Requests, Build Builds).
  * - GitHub pull requests and check runs (`github list-prs`,
  *   `github list-checks`): https://docs.github.com/rest (Pulls, Check Runs).
@@ -205,14 +205,14 @@ const adoBuild = (s: BuildSpec) => ({
 const CI = { id: 12, name: 'settlement-ci' };
 const DEPLOY = { id: 13, name: 'settlement-deploy' };
 
-/** `ado pipeline list-runs --name settlement-ci`, newest first. */
+/** `ado run list --name settlement-ci`, newest first. */
 export const ADO_CI_RUNS = [
   adoBuild({ id: 5530, definition: CI, number: '20261013.1', status: 'inProgress', branch: 'refs/pull/87/merge', commit: '87ab3e2', at: '2026-10-13T07:55:00Z', pr: 87 }),
   adoBuild({ id: 5512, definition: CI, number: '20261008.3', status: 'completed', result: 'succeeded', branch: 'refs/pull/84/merge', commit: '84cd1f9', at: '2026-10-08T12:10:00Z', pr: 84 }),
   adoBuild({ id: 5461, definition: CI, number: '20261001.2', status: 'completed', result: 'succeeded', branch: 'refs/pull/80/merge', commit: '80ef2a1', at: '2026-10-01T10:30:00Z', pr: 80 }),
 ];
 
-/** `ado pipeline list-runs --name settlement-deploy`, newest first: one run per environment it deployed to. */
+/** `ado run list --name settlement-deploy`, newest first: one run per environment it deployed to. */
 export const ADO_DEPLOY_RUNS = [
   adoBuild({ id: 5521, definition: DEPLOY, number: '20261008.1', status: 'completed', result: 'succeeded', branch: 'refs/heads/main', commit: 'c84e5f0', at: '2026-10-08T14:00:00Z', environment: 'test' }),
   adoBuild({ id: 5470, definition: DEPLOY, number: '20261002.1', status: 'completed', result: 'succeeded', branch: 'refs/heads/main', commit: 'b80a1d2', at: '2026-10-02T16:00:00Z', environment: 'prod' }),

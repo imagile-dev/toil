@@ -69,6 +69,8 @@ export interface Run {
   steps: Step[];
   /** Run every step even after one fails (testing each connection). */
   keepGoing?: boolean;
+  /** Show what each step returned, its `data`, under the outcome: a service command, whose answer is the point. */
+  showData?: boolean;
   next?: (results: StepResult[], data: WelcomeData) => Action | undefined;
 }
 

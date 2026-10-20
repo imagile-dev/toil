@@ -49,25 +49,25 @@ function context(stdin: boolean, configFlag?: string) {
 }
 
 describe("toil's own config is not an input file", () => {
-  it('jira_search { jqlFile: <config path> } over MCP refuses, sends no request, and echoes no secret', async () => {
+  it('jira_issue_search { jqlFile: <config path> } over MCP refuses, sends no request, and echoes no secret', async () => {
     const { http, context: ctx } = context(false);
     const session = await connectMcp({ commands, context: ctx, areas: ['jira'] });
-    const result = await session.call('jira_search', { jqlFile: configPath });
+    const result = await session.call('jira_issue_search', { jqlFile: configPath });
     await session.close();
     expect(result.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("toil's own configuration") });
     expect(result.text).not.toMatch(/SECRET|jira-token|keychain:/);
     expect(http.calls).toHaveLength(0);
   });
 
-  it('jira search --jql-file on the CLI refuses the --config file, and a .. path to the default one', async () => {
+  it('jira issue search --jql-file on the CLI refuses the --config file, and a .. path to the default one', async () => {
     const viaConfig = context(true, custom);
-    const run1 = await runCli(['--config', custom, 'jira', 'search', '--jql-file', custom], { commands, context: viaConfig.context });
+    const run1 = await runCli(['--config', custom, 'jira', 'issue', 'search', '--jql-file', custom], { commands, context: viaConfig.context });
     expect(run1.envelope?.error?.code).toBe('INVALID_INPUT');
     expect(run1.stdout).not.toMatch(/CUSTOM-SECRET|keychain:/);
     expect(viaConfig.http.calls).toHaveLength(0);
 
     const plain = context(true);
-    const run2 = await runCli(['jira', 'search', '--jql-file', join('..', 'home', '.toil', 'config.json')], { commands, context: plain.context });
+    const run2 = await runCli(['jira', 'issue', 'search', '--jql-file', join('..', 'home', '.toil', 'config.json')], { commands, context: plain.context });
     expect(run2.envelope?.error?.code).toBe('INVALID_INPUT');
     expect(plain.http.calls).toHaveLength(0);
   });
@@ -75,7 +75,7 @@ describe("toil's own config is not an input file", () => {
   it('a file outside toil config still works', async () => {
     writeFileSync(join(cwd, 'q.jql'), 'project = PROJ\n');
     const { http, context: ctx } = context(true);
-    const run = await runCli(['jira', 'search', '--jql-file', 'q.jql', '--max-results', '1'], { commands, context: ctx });
+    const run = await runCli(['jira', 'issue', 'search', '--jql-file', 'q.jql', '--limit', '1'], { commands, context: ctx });
     expect(run.envelope?.ok).toBe(true);
     expect(JSON.parse(http.calls[0]!.body!).jql).toBe('project = PROJ');
   });

@@ -85,14 +85,14 @@ async function perform(state: MenuState, home: string): Promise<MenuState> {
 const steps = (s: MenuState) => s.pending?.steps.map((x) => x.args);
 
 /** Home → Agent skills → Skill plugins. */
-const SKILL_PLUGINS = ['4', '1'];
+const SKILL_PLUGINS = ['5', '1'];
 /** … → Switch skill plugins on and off, after the one marketplace and Add. */
 const SWITCH = [...SKILL_PLUGINS, '3'];
 
 describe('the Agent skills module', () => {
   it('sits on home after Connect an agent, holding Skill plugins, View installed skills and Install the toil skill', () => {
     const d = data();
-    const module = press(settled, d, '4');
+    const module = press(settled, d, '5');
     expect(where(module)).toBe('agent-skills');
     expect(where(press(module, d, '1'))).toBe('skills');
     expect(steps(press(module, d, '2'))).toEqual([['skills', 'status']]);
@@ -102,7 +102,7 @@ describe('the Agent skills module', () => {
 
   it('installs the toil skill for one agent and place, the default first, with the real command', () => {
     const d = data();
-    const agents = press(settled, d, '4', '3');
+    const agents = press(settled, d, '5', '3');
     // One agent at a time: toil skill install takes no --all-agents.
     expect(press(agents, d, 'up').stack.at(-1)?.selected).toBe(2);
     expect(steps(press(agents, d, 'return', 'return'))).toEqual([['skill', 'install', '--agent', 'codex', '--scope', 'user', '--allow-write']]);
@@ -112,7 +112,7 @@ describe('the Agent skills module', () => {
   it('labels marketplace plugins as skill plugins on every screen that lists them', () => {
     const d = data();
     const screen = (s: MenuState) => render(s, { colorDepth: 1, unicode: true, columns: 120, rows: 40 }, d).join('\n');
-    const shown = [press(settled, d), press(settled, d, '4'), press(settled, d, ...SKILL_PLUGINS), press(settled, d, ...SKILL_PLUGINS, 'return'), press(settled, d, ...SWITCH)].map(screen);
+    const shown = [press(settled, d), press(settled, d, '5'), press(settled, d, ...SKILL_PLUGINS), press(settled, d, ...SKILL_PLUGINS, 'return'), press(settled, d, ...SWITCH)].map(screen);
     for (const text of shown) expect(text).not.toMatch(/\b(?<!skill )plugins?\b(?! on and off)/i);
     expect(shown.join('\n')).toContain('Install a skill plugin');
   });

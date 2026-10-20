@@ -12,7 +12,7 @@ export interface CliArgument {
   variadic?: boolean;
 }
 
-/** A CLI flag, e.g. `--key <issue-key>`, mapped onto one input field. */
+/** A CLI flag, e.g. `--body <text>`, mapped onto one input field. */
 export interface CliOption {
   flags: string;
   field: string;
@@ -31,9 +31,9 @@ export interface CliOption {
  *
  * - `standalone`: no area, no config, no connection (`version`). Always served
  *   by `toil mcp`; a broken config file can't stop it.
- * - `area`: an area command with one resolved connection (`jira get-issue`).
+ * - `area`: an area command with one resolved connection (`jira issue get`).
  * - `area-local`: lives under an area's path but needs no connection and no
- *   config (`jira schema`). Served by `toil mcp` whether or not the area is set up.
+ *   config (`jira issue schema`). Served by `toil mcp` whether or not the area is set up.
  * - `config`: reads or changes the user's connections and gets `ctx.manage`
  *   (`connections list`). Served by `toil mcp`.
  * - `cli-only`: a `config` command that runs on the CLI only (`connections
@@ -226,7 +226,7 @@ export function areaOf(def: AnyCommand): string {
   return def.path[0];
 }
 
-/** `jira get-issue` -> `jira_get_issue`. MCP tool names avoid hyphens and spaces. */
+/** `jira issue get` -> `jira_issue_get`. MCP tool names avoid hyphens and spaces. */
 export function toolName(def: AnyCommand): string {
   return def.path.join('_').replace(/-/g, '_');
 }

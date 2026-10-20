@@ -230,7 +230,7 @@ export interface Area<S extends z.ZodObject = z.ZodObject, K extends string = st
 export type AreaCommand<I extends z.ZodObject, C, K extends string = string> = Omit<CommandDefinition<I>, 'run' | 'kind' | 'area' | 'context' | 'examples'> & {
   /** Real inputs, which may set the context inputs core adds, even on a command with no inputs of its own. */
   examples: Array<OwnFields<z.input<I>> & Partial<Record<K, string>>>;
-  /** `area-local` for a command that needs no connection (`jira schema`). Defaults to `area`. */
+  /** `area-local` for a command that needs no connection (`jira issue schema`). Defaults to `area`. */
   kind?: 'area' | 'area-local';
   /** Command-level context inputs it takes, and any input (group-level too) it can't do without. */
   context?: Partial<Record<K, ContextNeed>>;

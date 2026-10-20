@@ -13,10 +13,10 @@ import { pagingFields, pagingOptions } from './paging.js';
  */
 
 export const listBoards = jiraArea.command({
-  path: ['jira', 'list-boards'],
+  path: ['jira', 'board', 'list'],
   description: 'List Agile boards for a project',
   toolDescription:
-    'Returns the Agile boards (id, name, type scrum or kanban) for a Jira project. Board ids feed jira_list_sprints. Without limit it returns every board; with limit, pass meta.page.nextCursor as cursor for the next page.',
+    'Returns the Agile boards (id, name, type scrum or kanban) for a Jira project. Board ids feed jira_sprint_list. Without limit it returns every board; with limit, pass meta.page.nextCursor as cursor for the next page.',
   input: z.object({ project: z.string().describe('Project key'), ...pagingFields('boards') }),
   writes: false,
   options: [{ flags: '--project <key>', field: 'project', description: 'Project key' }, ...pagingOptions('boards')],
@@ -25,7 +25,7 @@ export const listBoards = jiraArea.command({
 });
 
 export const listSprints = jiraArea.command({
-  path: ['jira', 'list-sprints'],
+  path: ['jira', 'sprint', 'list'],
   description: 'List sprints for a board or project, including start/end dates',
   toolDescription:
     "Returns sprints (id, name, state, startDate, endDate, goal) for one board, or across every scrum board of a project, each sprint once. state filters to active, future and/or closed. With board, limit and cursor page through them: pass meta.page.nextCursor as cursor for the next page.",
@@ -46,13 +46,13 @@ export const listSprints = jiraArea.command({
   run: async (input, ctx) => {
     const board = input.board === undefined ? '' : String(input.board);
     if (!board && !input.project) {
-      throw new ToilError('INVALID_INPUT', 'Either --board or --project is required', { fix: 'Pass --board <id> (from toil jira list-boards), or --project <key>.' });
+      throw new ToilError('INVALID_INPUT', 'Either --board or --project is required', { fix: 'Pass --board <id> (from toil jira board list), or --project <key>.' });
     }
     // Passed through unchecked, empty entries and unknown states included.
     const states = input.state ? input.state.split(',').map((s) => s.trim()) : undefined;
     if (!board && (input.limit !== undefined || input.cursor !== undefined)) {
       throw new ToilError('INVALID_INPUT', "--limit and --cursor page one board's sprints, so they need --board", {
-        fix: 'Pass --board <id> (from toil jira list-boards) with --limit, or leave --limit and --cursor out to list every sprint of the project.',
+        fix: 'Pass --board <id> (from toil jira board list) with --limit, or leave --limit and --cursor out to list every sprint of the project.',
       });
     }
     return board ? client.listSprintsForBoard(ctx, asInt(board), states, input) : client.listSprintsForProject(ctx, input.project!, states);
@@ -60,18 +60,18 @@ export const listSprints = jiraArea.command({
 });
 
 export const setSprint = jiraArea.command({
-  path: ['jira', 'set-sprint'],
+  path: ['jira', 'issue', 'set-sprint'],
   description: 'Move a Jira issue into a sprint',
-  toolDescription: 'Moves a Jira issue into a sprint by sprint id (from jira_list_sprints). Returns { updated, sprint }.',
+  toolDescription: 'Moves a Jira issue into a sprint by sprint id (from jira_sprint_list). Returns { updated, sprint }.',
   input: z.object({
     key: z.string().describe('Issue key, e.g. PROJ-123'),
-    sprint: z.union([z.number(), z.string()]).describe('Sprint id, from list-sprints'),
+    sprint: z.union([z.number(), z.string()]).describe('Sprint id, from sprint list'),
     ...allowWriteField,
   }),
   writes: true,
+  args: [{ name: 'key', field: 'key', description: 'Issue key' }],
   options: [
-    { flags: '--key <issue-key>', field: 'key', description: 'Issue key' },
-    { flags: '--sprint <id>', field: 'sprint', description: 'Sprint ID (from list-sprints)' },
+    { flags: '--sprint <id>', field: 'sprint', description: 'Sprint ID (from sprint list)' },
   ],
   examples: [{ key: 'PROJ-123', sprint: 42, allowWrite: true }],
   run: async (input, ctx) => {

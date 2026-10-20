@@ -72,7 +72,7 @@ Getting text into the shape an enterprise tool expects before it's sent, so a de
 
 Work from Jira, Azure DevOps and GitHub in one shape, so a sprint, a board or a question about the work reads the same whichever tracker holds it.
 
-- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, jira-cloud, ado and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item, and every item is checked against the published schema.
+- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, jira-cloud, ado, ado-cloud and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item, and every item is checked against the published schema.
 
 ### Safety
 
@@ -1108,9 +1108,9 @@ Known losses, by format:
   well-formed, with its line and column.
 
 To send the result, pass it to the area's own command: wiki markup as
-`toil jira create-issue --description`, storage format as
+`toil jira issue create --description`, storage format as
 `toil confluence create-page --body` (or `confluence-cloud`), and ADF as
-`fields.description` in a `toil jira-cloud create-issue --input-file`. How each product's own renderer displays it hasn't
+`fields.description` in a `toil jira-cloud issue create --input-file`. How each product's own renderer displays it hasn't
 been checked against a live instance.
 ### `toil util openapi`: read an API description before calling it
 
@@ -1377,7 +1377,7 @@ and this reads what they printed, whether piped, saved to a file, or appended on
 envelope a line.
 
 ```bash
-toil jira search --jql "sprint in openSprints()" --fields "summary,status,issuetype,Story Points,Sprint" | toil util owi map
+toil jira issue search --jql "sprint in openSprints()" --fields "summary,status,issuetype,Story Points,Sprint" | toil util owi map
 toil util owi map sprint-42.jsonl
 toil util owi map changelog.json --key PAY-104
 toil util owi map batch.json --field estimate=Custom.TeamPoints --field estimateUnit=points
@@ -1388,7 +1388,7 @@ toil util owi map issue.json --command "github get-issue"
 |-----------------|---------|
 | `[file]` | A file inside the workspace. `-`, or no file and no `--text`, reads stdin |
 | `--text <text>` | The input itself, instead of a file |
-| `--command <name>` | The command whose data the input is, when it holds `data` without its envelope (`"jira search"`) |
+| `--command <name>` | The command whose data the input is, when it holds `data` without its envelope (`"jira issue search"`) |
 | `--key <key>` | The item a history belongs to, when its output doesn't say: `PAY-104`, or `imagile/payments-web#44` (a bare `44` takes the envelope's owner and repo) |
 | `--field <name=field>` | Point an OWI field at a field of your own, repeatable: `estimate`, `estimateUnit` (`points`, `hours` or `days`), `priority`, `type`, `team`, `dueDate` or `iteration` |
 
@@ -1397,11 +1397,11 @@ and `field` (a list of `name=field`).
 
 **What it reads**, by the command each envelope's `meta.command` names:
 
-- **Jira and Jira Cloud:** `search` and `get-issue` (one key or several) for items,
-  `get-changelog` for history.
-- **Azure DevOps:** `work get` and `work get-batch` for items, `work revisions`
-  for history, and `work list-iterations` for iteration dates. `work search`
-  returns ids only and is skipped: map `work get-batch` for those ids instead.
+- **Jira and Jira Cloud:** `issue search` and `issue get` (one key or several) for items,
+  `issue history` for history.
+- **Azure DevOps and Azure DevOps Services:** `work-item get` and `work-item get-many` for items, `work-item history`
+  for history, and `work-item iterations` for iteration dates. `work-item search`
+  returns ids only and is skipped: map `work-item get-many` for those ids instead.
 - **GitHub:** `list-issues`, `search-issues` and `get-issue` for issues,
   `projects list-items` for the board's status, estimate and iteration, and
   `issue-events` for history. Pull requests are left out with a warning.
@@ -1421,7 +1421,7 @@ Output:
   "items": [{
     "owi": "0.1",
     "id": "corp-jira:PAY-101",
-    "source": { "area": "jira", "connection": "corp-jira", "key": "PAY-101", "command": "jira get-issue" },
+    "source": { "area": "jira", "connection": "corp-jira", "key": "PAY-101", "command": "jira issue get" },
     "url": "https://jira.imagile.dev/browse/PAY-101",
     "type": "STORY", "typeName": "Story",
     "title": "Tokenise card numbers at the edge",
@@ -1432,7 +1432,7 @@ Output:
     "links": [{ "type": "blocks", "direction": "outward", "target": "corp-jira:PAY-102", "name": "blocks" }],
     "history": { "transitions": [{ "from": "To Do", "to": "In Progress", "fromCategory": "TODO", "toCategory": "IN_PROGRESS", "at": "2026-10-06T09:15:00.000Z", "by": { "id": "jsmith", "name": "J. Smith", "email": null } }], "iterations": [] },
     "unmapped": [],
-    "native": { "jira get-issue": { "key": "PAY-101", "fields": { "...": "..." } } }
+    "native": { "jira issue get": { "key": "PAY-101", "fields": { "...": "..." } } }
   }],
   "histories": [],
   "unmapped": {},
@@ -1457,13 +1457,13 @@ Output:
   of their own point `estimate` at it with `--field`, the same keys a dossier's
   `fields` uses.
 - **`unmapped`**, on each item, lists every field the record couldn't fill and
-  why: a field `jira search` wasn't asked for, an iteration whose dates need
-  `ado work list-iterations`, an issue with no board in the input. `data.unmapped`
+  why: a field `jira issue search` wasn't asked for, an iteration whose dates need
+  `ado work-item iterations`, an issue with no board in the input. `data.unmapped`
   counts them by field, and an `OWI_UNMAPPED` warning sums them up. Nothing is
   guessed.
 - **`histories`** holds histories whose item wasn't in the input, by id, so they
   can be joined to items read earlier. **`skipped`** lists each document that
-  wasn't mapped (a failed call, `work search`), each also an `OWI_SKIPPED` warning.
+  wasn't mapped (a failed call, `work-item search`), each also an `OWI_SKIPPED` warning.
 - **`native`** keeps every source record as it came, keyed by command.
 - **`verified`:** every item, and every history in `histories`, is validated
   against `docs/owi/schema.json` (`items.schema`, `histories.schema`) before it is

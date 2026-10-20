@@ -43,9 +43,9 @@ check `email` first.
 | `email` | `TOIL_JIRA_CLOUD_EMAIL` | yes | Email address of the Atlassian account the token belongs to |
 | `apiToken` | `TOIL_JIRA_CLOUD_API_TOKEN` | yes | Atlassian account API token (a secret) |
 | `customFields` | `TOIL_JIRA_CLOUD_CUSTOM_FIELDS` (JSON) | no | Custom fields addressable by friendly name; see **Custom fields** |
-| `project` | `TOIL_JIRA_CLOUD_PROJECT` | no | Default project for `create-issue` |
-| `issueType` | `TOIL_JIRA_CLOUD_ISSUE_TYPE` | no | Default issue type for `create-issue` (`Task` when unset) |
-| `priority` | `TOIL_JIRA_CLOUD_PRIORITY` | no | Default priority for `create-issue` |
+| `project` | `TOIL_JIRA_CLOUD_PROJECT` | no | Default project for `issue create` |
+| `issueType` | `TOIL_JIRA_CLOUD_ISSUE_TYPE` | no | Default issue type for `issue create` (`Task` when unset) |
+| `priority` | `TOIL_JIRA_CLOUD_PRIORITY` | no | Default priority for `issue create` |
 | `writes` | `TOIL_JIRA_CLOUD_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
 
 There is no CI fallback variable. The examples use the placeholder
@@ -80,49 +80,51 @@ The token never goes in this file; a plaintext one there is refused with
 
 Every command also takes `--connection <name>`. Write commands (marked ✎) need
 `writes: true` on the connection **and** `--allow-write`. Names and flags match
-`jira` wherever the operation is the same. MCP tools are `jira_cloud_<command>`
-(`jira_cloud_get_issue`).
+`jira` wherever the operation is the same. MCP tools are named after the path, with
+spaces and hyphens as underscores (`jira_cloud_issue_get`, `jira_cloud_user_search`).
 
-| Command | Flags | Returns |
+| Command | Arguments and flags | Returns |
 |---------|-------|---------|
-| `get-issue` | `--key` (repeat for up to 100) | The issue as Jira returns it, registered custom fields under their friendly names, plus `descriptionText`. With several keys, `{ issues, errors }` |
-| `get-changelog` | `--key --limit --cursor` | The issue's change history, oldest first: `id`, `author`, `created`, `items` |
-| `create-issue` ✎ | `--project --type --summary --description --priority --assignee <account-id> --labels --parent --field (repeatable) --fields-file --input-file` | The created issue, read back, plus `descriptionText` |
-| `update-issue` ✎ | `--key --summary --description --priority --assignee <account-id> --labels --field --fields-file --input-file` | `{ updated }` |
-| `schema` | `--example-only` | `{ schema, example }` for `--input-file`, or just the example; needs no connection |
-| `transition-issue` ✎ | `--key --transition <name-or-id>` | `{ transitioned, transition }` |
-| `list-transitions` | `--key` | Transitions available now |
-| `add-comment` ✎ | `--key --body` | The comment, plus `bodyText` |
-| `list-comments` | `--key --limit --cursor` | Every comment, or a page of them, each with `bodyText` |
-| `log-work` ✎ | `--key --time-spent --started --comment` | The worklog, plus `commentText` |
-| `add-label` ✎ | `--key --labels` | `{ updated, labelsAdded }` |
-| `remove-label` ✎ | `--key --labels` | `{ updated, labelsRemoved }` |
-| `assign` ✎ | `--key --assignee <account-id>` | `{ assigned, assignee }` |
-| `link-issue` ✎ | `--key --link-type --target` | `{ linked, to, type }` |
-| `search` | `--jql` or `--jql-file`, `--max-results --cursor --updated-since --fields` | `{ issues, maxResults, isLast }` |
-| `fields` | `--discover --custom-only --project --issue-type` | Registered custom fields, or Jira's field list with `suggestedType` (and `allowedValues` with `--project`) |
-| `add-attachment` ✎ | `--key --file` | The attachments Jira created |
-| `list-attachments` | `--key` | The issue's attachments |
-| `download-attachment` | `--key --attachment-id --dir` | `{ saved, filename, size }` |
-| `list-projects` | `--query --limit --cursor` | Every visible project, or a page of them |
-| `get-project` | `--project` | The project |
-| `search-users` | `--query --max-results --cursor` | One page of matching users, with `accountId` |
-| `list-boards` | `--project --limit --cursor` | Agile boards |
-| `list-sprints` | `--board` or `--project`, `--state`, `--limit --cursor` (with `--board`) | Sprints, each once |
-| `set-sprint` ✎ | `--key --sprint` | `{ updated, sprint }` |
+| `issue get` | `<key...>` (up to 100) | The issue as Jira returns it, registered custom fields under their friendly names, plus `descriptionText`. With several keys, `{ issues, errors }` |
+| `issue history` | `<key> --limit --cursor` | The issue's change history, oldest first: `id`, `author`, `created`, `items` |
+| `issue create` ✎ | `--project --type --summary --description --priority --assignee <account-id> --labels --parent --field (repeatable) --fields-file --input-file` | The created issue, read back, plus `descriptionText` |
+| `issue update` ✎ | `<key> --summary --description --priority --assignee <account-id> --labels --field --fields-file --input-file` | `{ updated }` |
+| `issue schema` | `--example-only` | `{ schema, example }` for `--input-file`, or just the example; needs no connection |
+| `issue transition` ✎ | `<key> --transition <name-or-id>` | `{ transitioned, transition }` |
+| `issue transitions` | `<key>` | Transitions available now |
+| `issue comment` ✎ | `<key> --body` | The comment, plus `bodyText` |
+| `issue comments` | `<key> --limit --cursor` | Every comment, or a page of them, each with `bodyText` |
+| `issue log-work` ✎ | `<key> --time-spent --started --comment` | The worklog, plus `commentText` |
+| `issue label` ✎ | `<key> --labels` | `{ updated, labelsAdded }` |
+| `issue unlabel` ✎ | `<key> --labels` | `{ updated, labelsRemoved }` |
+| `issue assign` ✎ | `<key> --assignee <account-id>` | `{ assigned, assignee }` |
+| `issue link` ✎ | `<key> --target --type` | `{ linked, to, type }` |
+| `issue search` | `--jql` or `--jql-file`, `--limit --cursor --updated-since --fields` | `{ issues, maxResults, isLast }` |
+| `issue fields` | `--discover --custom-only --project --issue-type` | Registered custom fields, or Jira's field list with `suggestedType` (and `allowedValues` with `--project`) |
+| `issue attach` ✎ | `<key> --file` | The attachments Jira created |
+| `issue attachments` | `<key>` | The issue's attachments |
+| `issue download` | `<key> <attachment-id> --dir` | `{ saved, filename, size }` |
+| `issue set-sprint` ✎ | `<key> --sprint` | `{ updated, sprint }` |
+| `project list` | `--query --limit --cursor` | Every visible project, or a page of them |
+| `project get` | `<project>` | The project |
+| `user search` | `--query --limit --cursor` | One page of matching users, with `accountId` |
+| `board list` | `--project --limit --cursor` | Agile boards |
+| `sprint list` | `--board` or `--project`, `--state`, `--limit --cursor` (with `--board`) | Sprints, each once |
 
 ```bash
-toil jira-cloud search --jql 'project = PROJ AND status = "In Progress"' --max-results 20
-toil jira-cloud search-users --query smith
-toil jira-cloud create-issue --project PROJ --type Bug --summary "Login broken" --description "Open the login page in Safari; the button does nothing." --assignee 5b10ac8d82e05b22cc7d4ef5 --allow-write
-toil jira-cloud log-work --key PROJ-123 --time-spent "2h 30m" --started 2026-01-15T09:00:00.000+0000 --allow-write
-toil jira-cloud list-sprints --project PROJ --state active
+toil jira-cloud issue search --jql 'project = PROJ AND status = "In Progress"' --limit 20
+toil jira-cloud user search --query smith
+toil jira-cloud issue create --project PROJ --type Bug --summary "Login broken" --description "Open the login page in Safari; the button does nothing." --assignee 5b10ac8d82e05b22cc7d4ef5 --allow-write
+toil jira-cloud issue log-work PROJ-123 --time-spent "2h 30m" --started 2026-01-15T09:00:00.000+0000 --allow-write
+toil jira-cloud issue link PROJ-123 --target PROJ-456 --type Blocks --allow-write
+toil jira-cloud project get PROJ
+toil jira-cloud sprint list --project PROJ --state active
 ```
 
 ### People are accountIds
 
 `--assignee` takes an **accountId** (`5b10ac8d82e05b22cc7d4ef5`), never a username or
-email: Jira Cloud has no usernames in its API. Find one with `search-users --query
+email: Jira Cloud has no usernames in its API. Find one with `user search --query
 <name or email>`. People in output (`assignee`, `reporter`, `author`) carry
 `accountId` and `displayName`; an email address appears only where the person's
 profile settings allow it. A `user`-typed custom field sends `{ "accountId": ... }`.
@@ -148,10 +150,10 @@ toil converts them simply, and no more:
 
 ### Search
 
-`search` uses Jira Cloud's enhanced JQL search, which pages by token and reports
-**no total**. Without `--max-results` it reads every match. With `--max-results N`
+`issue search` uses Jira Cloud's enhanced JQL search, which pages by token and reports
+**no total**. Without `--limit` it reads every match. With `--limit N`
 it returns at most N, `isLast` says whether that was all, and `meta.page.nextCursor`
-resumes it: pass it back as `--cursor` with `--max-results`. `maxResults` in `data`
+resumes it: pass it back as `--cursor` with `--limit`. `maxResults` in `data`
 is how many issues came back. `--fields` takes field ids or registered names; the
 default is summary, status, priority, assignee, issuetype, project, created, updated,
 labels, reporter and every registered custom field. `--start-at` from `jira` doesn't
@@ -162,22 +164,21 @@ exist here, since the API has no offsets.
 These are what a sync needs: read everything once, then only what changed.
 
 ```bash
-toil jira-cloud search --jql 'project = ABC' --max-results 100
-toil jira-cloud search --jql 'project = ABC ORDER BY updated' --updated-since 2026-10-01T09:30:00Z
-toil jira-cloud get-changelog --key ABC-123
-toil jira-cloud get-issue --key ABC-1 --key ABC-2 --key ABC-7
-toil jira-cloud list-projects --limit 50
+toil jira-cloud issue search --jql 'project = ABC' --limit 100
+toil jira-cloud issue search --jql 'project = ABC ORDER BY updated' --updated-since 2026-10-01T09:30:00Z
+toil jira-cloud issue history ABC-123
+toil jira-cloud issue get ABC-1 ABC-2 ABC-7
+toil jira-cloud project list --limit 50
 ```
 
-- **Paging.** Every list and search pages the same way. Without `--limit`
-  (`--max-results` on `search` and `search-users`), a list returns every item. With
-  one, it returns that many and `meta.page.nextCursor` says where the next page
+- **Paging.** Every list and search pages the same way. Without `--limit`,
+  a list returns every item (`user search` excepted, below). With one, it returns that many and `meta.page.nextCursor` says where the next page
   starts; pass it back as `--cursor`, unchanged. `null` means that was the last page.
-  `search-users` is always one page; a full page hands out a cursor, which may lead
-  to an empty one. `list-transitions`, `list-attachments` and `fields` have no
-  paging, because Jira sends each of them whole. `list-sprints` pages only with
+  `user search` is always one page; a full page hands out a cursor, which may lead
+  to an empty one. `issue transitions`, `issue attachments` and `issue fields` have no
+  paging, because Jira sends each of them whole. `sprint list` pages only with
   `--board`, since `--project` gathers sprints from several boards.
-- **`--updated-since <iso>`** on `search` adds `updated >= "<instant>"` to the JQL,
+- **`--updated-since <iso>`** on `issue search` adds `updated >= "<instant>"` to the JQL,
   before any `ORDER BY`, with your JQL in parentheses. The instant is an ISO 8601
   date (`2026-10-01`, read as midnight UTC) or a date and time with a zone
   (`2026-10-01T09:30:00Z`). JQL has no time zones, so toil reads your account's zone
@@ -185,10 +186,10 @@ toil jira-cloud list-projects --limit 50
   an issue near the boundary can come back twice, never not at all. If Jira names no
   zone it knows, toil writes UTC and warns with `JIRA_CLOUD_TIME_ZONE`. On its own,
   `--updated-since` is the whole query.
-- **`get-changelog`** reads `/rest/api/3/issue/{key}/changelog`, oldest first, each
+- **`issue history`** reads `/rest/api/3/issue/{key}/changelog`, oldest first, each
   entry with `id`, `author` (an `accountId`), `created` and `items` (`field`,
   `fieldtype`, `fieldId`, `from`, `fromString`, `to`, `toString`).
-- **Several issues.** Repeat `--key` (up to 100) and `get-issue` reads them in one
+- **Several issues.** Give `issue get` several keys (up to 100) and it reads them in one
   `POST /rest/api/3/issue/bulkfetch` and returns `{ issues, errors }`: the issues in
   the order you asked, and each key that couldn't be read as `{ key, code, message }`,
   with a `JIRA_CLOUD_BULK_PARTIAL` warning, and never more than one error per key.
@@ -198,22 +199,22 @@ toil jira-cloud list-projects --limit 50
   `NOT_FOUND` when everything else Jira sent is accounted for; otherwise it's
   `UNMATCHED`, with a message naming the issues returned under other keys and the
   ids Jira couldn't fetch, since the answer doesn't say which is which. Issues
-  returned under another key still come back, after the others. One `--key` returns
-  the issue itself, as before. Over MCP, `key` takes a string or a list.
+  returned under another key still come back, after the others. One key returns
+  the issue itself. Over MCP, `key` takes a string or a list.
 
 ## Large fields via --input-file
 
-`create-issue` and `update-issue` take `--input-file <path>` (`-` reads stdin on the
+`issue create` and `issue update` take `--input-file <path>` (`-` reads stdin on the
 CLI) describing the issue as `{ project, issueType, fields: { ... } }`.
-`toil jira-cloud schema` returns its JSON Schema and an example. Any string value in
+`toil jira-cloud issue schema` returns its JSON Schema and an example. Any string value in
 `fields` may be `@path/to/file` to read it from a file. Flags override matching keys
 from the file, and each override is reported in `meta.warnings` as
 `JIRA_CLOUD_INPUT_OVERRIDDEN`. The project comes from `--project`, then the file, then
 the connection's `project`; `meta.context` says which.
 
 ```bash
-toil jira-cloud schema --example-only > envelope.json   # the example is in .data
-toil jira-cloud create-issue --input-file issue.json --priority Low --allow-write
+toil jira-cloud issue schema --example-only > envelope.json   # the example is in .data
+toil jira-cloud issue create --input-file issue.json --priority Low --allow-write
 ```
 
 Over MCP, `-` is refused because stdin carries the protocol; pass a file path.
@@ -237,31 +238,31 @@ connection:
 `parentId:childId`), `user` (`{accountId}`), `multi-user` (comma-separated accountIds, `[{accountId}]`), `labels`, `url`, and `textarea`, which
 is plain text sent as ADF, since a multi-line text field takes ADF on Cloud. Omit it to
 send the raw string. A value in `--fields-file` or `--input-file` is sent untouched, so
-a multi-line text field there needs ADF. `fields --discover` lists Jira's fields with a
+a multi-line text field there needs ADF. `issue fields --discover` lists Jira's fields with a
 `suggestedType` (a single-line text field is `string`, a multi-line one `textarea`); add
 `--project PROJ` for each select field's `allowedValues`, from the paged createmeta
-endpoints. **Sprint is not a custom field**: use `set-sprint` after the issue exists.
+endpoints. **Sprint is not a custom field**: use `issue set-sprint` after the issue exists.
 
 ## Attachments
 
-`add-attachment` uploads one file as multipart with `X-Atlassian-Token: no-check`.
-`download-attachment` looks the id up on the issue, then asks Jira for the bytes with
+`issue attach` uploads one file as multipart with `X-Atlassian-Token: no-check`.
+`issue download` looks the id up on the issue, then asks Jira for the bytes with
 `GET /rest/api/3/attachment/content/<id>?redirect=false`, so the request never leaves
 your site and the credential goes nowhere else. It saves under `.toil/` (or `--dir`),
 keeping only the file name, and never replaces a file that's already there.
 
 ## Notes
 
-- `create-issue` doesn't check for duplicates. After a timeout, search for the summary
+- `issue create` doesn't check for duplicates. After a timeout, search for the summary
   before retrying: the issue may already exist.
-- `update-issue` with nothing to change is `INVALID_INPUT`; nothing is sent.
-- `log-work` needs `--started`: Jira Cloud's API requires it, where `jira` lets the
+- `issue update` with nothing to change is `INVALID_INPUT`; nothing is sent.
+- `issue log-work` needs `--started`: Jira Cloud's API requires it, where `jira` lets the
   server default it.
-- `list-sprints --project` reads scrum and team-managed (`simple`) boards and skips
+- `sprint list --project` reads scrum and team-managed (`simple`) boards and skips
   kanban ones. A team-managed board whose project hasn't turned sprints on answers 400;
   it's skipped with a `JIRA_CLOUD_NO_SPRINTS` warning naming it. Any other failure is
   the command's error.
-- `transition-issue` and `link-issue` treat an all-digits value as an id and anything
+- `issue transition` and `issue link` treat an all-digits value as an id and anything
   else as a name (case-insensitive), looked up first.
 - An issue key or id is sent as one URL path segment, encoded, so it can't change the
   endpoint called.

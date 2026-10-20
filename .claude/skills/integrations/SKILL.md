@@ -45,7 +45,7 @@ versions.
    become the area's context inputs in `area.ts`, with a TODO for where each value
    comes from (a connection setting, the git remote, or selecting the connection).
    An area with no contract entry (a Cloud variant, with no contract) is stubbed
-   from command names given after it, `node scripts/stub-area.mjs jira-cloud search
+   from command names given after it, `node scripts/stub-area.mjs jira-cloud "issue search"
    "issue get"`, each with no flags yet, or with none named, one `example` command.
 3. **Build each command**: request, paging, errors and `data` exactly as
    recorded, through `ctx.fetch` and core's helpers. Set `writes`
@@ -54,7 +54,7 @@ versions.
      the `page` style with a `total` callback: it stops once the items read reach
      the total or a page is empty, never on a short page. The result's `total` is
      the last one the server reported, an empty page's included, so a command
-     asked for zero items (`--max-results 0`) still returns the count.
+     asked for zero items (`jira issue search --limit 0`) still returns the count.
    - **The 1,000-page bound** (`MAX_PAGES`) isn't in the contract,
      which records none: list it in the area's `docs/divergences/<area>.json` (principle 4)
      for every area that pages, and pass `what` so the error names the list.
@@ -111,7 +111,7 @@ versions.
   non-OK status that's an answer, `multipart` and raw uploads, `apiGraphql`, `paginate`
   (`src/core/paginate.ts`), `poll` (`src/core/poll.ts`), a per-request `timeoutMs`
   and a command's `timeLimitMs` above the 120 s default.
-- A command that needs no connection at all (`jira schema`) is `area.command({
+- A command that needs no connection at all (`jira issue schema`) is `area.command({
   kind: 'area-local', ... })`; it works with no config.
 - Files through `ctx.files`, never `node:fs`. Numbers, booleans, enums, JSON objects
   and repeatable flags come from the schema (`z.number()`, `z.boolean()`,
@@ -130,7 +130,7 @@ versions.
   contract records a failure without it, unless the command has its own fallback (a project in
   `--input-file`); then keep it optional and fill that step with `ctx.supply` (step 3).
   A flag that names a target but doesn't fall back to a setting stays an ordinary
-  option (Jira's `fields`, `list-boards`, `list-sprints`); a context input always
+  option (Jira's `issue fields`, `board list`, `sprint list`); a context input always
   falls back. Give it a `setting` when the connection can hold a
   default, `git` when the remote names it, and `selectsConnection` when the contract
   records it picking an instance or environment. Read it from `ctx.context`. When the
@@ -323,7 +323,7 @@ the Open Work Item mapping (`docs/owi/spec.md`) **in the same PR**:
   returned: `verified.passed`, and anything in `unmapped` or `skipped`.
 
 `test/owi.test.ts` enforces the mark: an area with issue- or work-item-shaped
-commands (`get-issue`, `search-issues`, `issue-events`, `get-changelog`, `work get`)
+commands (`get-issue`, `search-issues`, `issue-events`, `issue get`, `work-item get`)
 that isn't in `OWI_SOURCES` fails CI, and so does a marked area without a fixture or
 whose mapped examples don't validate against the schema. An area that is on its way
 sits in that test's `PENDING` list, by its issue, and switches on once it registers.
@@ -338,7 +338,7 @@ schema, one MCP tool describing two payload shapes, and fixes for one variant qu
 breaking the other.
 
 - Each variant has its own module, config section, credentials, commands, MCP tools
-  (`jira_get_issue`, `jira_cloud_get_issue`), skill file, site page and verification
+  (`jira_issue_get`, `jira_cloud_issue_get`), skill file, site page and verification
   level. They share only generic HTTP helpers.
 - The unsuffixed area is the self-hosted variant, the one the command contract
   records, so its commands keep the contract's paths.
@@ -348,6 +348,41 @@ breaking the other.
 - When the variants differ only in host (GitHub.com and GitHub Enterprise Server),
   they stay one area with a configurable `baseUrl`.
 - Env vars follow the area name: `TOIL_JIRA_CLOUD_TOKEN` configures `jira-cloud`.
+
+## Command Shape
+
+*Principle 10.* Every integration command is `toil <area> <resource> <action>
+[ids...] [--flags]`, and the MCP tool name follows the path (`jira_issue_get`).
+
+- **The resource is the thing you'd hold an id for**: `issue`, `work-item`, `pr`,
+  `pipeline`, `run`, `repo`, `project`, `board`, `sprint`, `user`, `collection`.
+  Everything you can do to one lives under it, so `toil <area> <resource> --help`
+  and the menu's Services module list it all in one place.
+- **The action is a verb** (`get`, `list`, `search`, `create`, `update`, `history`,
+  `assign`, `transition`, `link`, `comment`, `merge`, `approve`, `download`), **or,
+  for a read of a sub-collection, its plural noun** (`comments`, `transitions`,
+  `attachments`, `files`, `reviewers`, `builds`, `threads`, `fields`, `types`).
+- **Service-level commands stay two words**: `whoami`, `connection-data`, `api`,
+  `check-dossier`.
+- **Positional arguments are the path to the thing and nothing else**: the
+  resource's id first, then a sub-item's id (an attachment, a thread, a comment).
+  Values, including the other end of a link, a state, a sprint or a person, are
+  flags.
+- **One idea, one flag, everywhere**: `--limit` / `--cursor` to page (never
+  `--max-results` or `--top` for the same thing), `--assignee`, `--target`, `--type`,
+  `--body`, `--file` to upload, `--dir` to download into, `--input-file` for a JSON
+  document, `--field Name=value`, `--updated-since`. A new input field is named after
+  its flag, and a positional id's field after the argument (`key` for a Jira issue,
+  `id` for most others, `name` or `commit` where that's what identifies it). Where an
+  idea needs two flags (`--top` beside `--limit`), `AGENT_DECISIONS.md` says why.
+- **Reshaping an area changes the command layer only**: paths, arguments, flags,
+  field names and the text that names them. Client code, requests, results, errors
+  and `data` stay as the contract records them. The old paths and flags are dropped,
+  never aliased, and the contract's entries for the area are rewritten to the new
+  surface in the same change (CLAUDE.md, **The command contract**).
+- **Today** `jira`, `jira-cloud`, `ado` and `ado-cloud` follow it. A new area follows
+  it from the start; every other area moves to it before 1.0 (#297), and its reshape PR
+  carries the old-to-new table of every path and flag (CLAUDE.md, **The command contract**).
 
 ## Compatibility
 
@@ -396,7 +431,8 @@ anything it does differently is a listed divergence.
   never do.
 - **Every integration command in the contract exists in toil at the same path**,
   with the same positional arguments, the same long and short flags, and the same
-  accepted values. Output uses the same envelope with the same `data` field names.
+  accepted values. For an area reshaped to the command shape, the contract records
+  toil's new surface (**Command Shape**, above), so the same check holds it there. Output uses the same envelope with the same `data` field names.
   The global flags (`--pretty`, `--verbose`, `--debug`, `--config`,
   `--output-file`) are recorded too.
 - **Env vars and config keys keep the names the contract records**:
