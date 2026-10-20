@@ -17,12 +17,18 @@ on:
       - functions/feedback/**
       - infra/**
       - .github/workflows/feedback-deploy.yml
+      # The redaction modules the function's build copies in (functions/feedback/scripts/copy-shared.mjs).
+      - scripts/triage/redact.mjs
+      - src/core/token-shapes.mjs
   push:
     branches: [main]
     paths:
       - functions/feedback/**
       - infra/**
       - .github/workflows/feedback-deploy.yml
+      # The redaction modules the function's build copies in (functions/feedback/scripts/copy-shared.mjs).
+      - scripts/triage/redact.mjs
+      - src/core/token-shapes.mjs
   workflow_dispatch:
 
 permissions:

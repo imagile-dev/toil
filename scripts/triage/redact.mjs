@@ -1,9 +1,14 @@
 // Redaction for issues filed from outside (the feedback form and the curl
-// endpoint), run by .github/workflows/triage.yml on the title and body before
-// any agent reads them, and written back to the issue in the same step.
+// endpoint). The feedback function (functions/feedback/) runs it on a report's
+// title and body before it files the issue, so the first revision is already
+// redacted; .github/workflows/triage.yml runs it again before any agent reads
+// the issue, and writes the result back in the same step. The second pass
+// changes nothing unless the denylist has grown since.
 //
 // It removes, in this order:
-//   1. credential-shaped strings → [redacted-secret]
+//   1. credential-shaped strings → [redacted-secret]: the token shapes in
+//      src/core/token-shapes.mjs (the list toil's own redactor reads too), then
+//      the Authorization, URL userinfo and key-name rules below
 //   2. email addresses, except reserved example domains and GitHub's noreply → [redacted-email]
 //   3. denylisted domains and internal hosts (.local, .internal, .corp, .lan,
 //      .intranet, .localdomain) → <service>.imagile.dev when the first label names a
@@ -11,22 +16,38 @@
 //   4. private, loopback, link-local and shared-range IPv4 addresses → [redacted-ip]
 //   5. denylisted words and patterns → [org]
 //
-// The denylist comes only from the REDACT_TERMS secret, one entry per line: a
-// word (whole-word, any case), a domain (contains a dot; it and its
-// subdomains), or `re:/pattern/flags`. Lines starting with # are comments. An
-// entry that would match the redactor's own markers is refused, or every run
-// would rewrite the last one's output, which is how a filing system ends up
-// filing itself. Running it twice changes nothing the second time.
+// Before any rule runs, the text is cut to MAX_LENGTH, zero-width and
+// direction-control characters are removed, and the rest is NFKC-normalised,
+// so a token typed in fullwidth letters or split by an invisible space keeps
+// its shape. Every rule is bounded or starts only where its run of characters
+// starts, so a 65,536-character body costs about what 65,536 characters of
+// prose do.
+//
+// The denylist comes only from the REDACT_TERMS secret (and, for the feedback
+// function, its copy in Key Vault), one entry per line: a word (whole-word,
+// any case), a domain (contains a dot; it and its subdomains), or
+// `re:/pattern/flags`. Lines starting with # are comments. An entry that would
+// match the redactor's own markers is refused, or every run would rewrite the
+// last one's output, which is how a filing system ends up filing itself.
+// Running it twice changes nothing the second time.
+//
+// The module imports only node:url and token-shapes.mjs, so the feedback
+// function's build can copy the two files into its package at the same
+// relative paths and load them as they are.
 //
 //   node scripts/triage/redact.mjs < {"title","body"}.json   → {"title","body","changed","invalidTerms"}
 //   node scripts/triage/redact.mjs --titles < [{"title",…}]     → the same list, titles redacted
 
 import { pathToFileURL } from 'node:url';
+import { TOKEN_SHAPES } from '../../src/core/token-shapes.mjs';
 
 const SECRET = '[redacted-secret]';
 const EMAIL = '[redacted-email]';
 const IP = '[redacted-ip]';
 const ORG = '[org]';
+
+/** The longest text redacted; anything after it is dropped first. GitHub's own limit for an issue body. */
+export const MAX_LENGTH = 65_536;
 
 export const SERVICES = [
   'ado', 'alation', 'artifactory', 'bitbucket', 'checkmarx', 'confluence', 'contrast', 'dynatrace', 'elasticsearch',
@@ -38,6 +59,10 @@ const INTERNAL_TLDS = ['local', 'internal', 'corp', 'lan', 'intranet', 'localdom
 const KEEP_EMAIL_DOMAINS = /(^|\.)(example\.(com|org|net)|users\.noreply\.github\.com)$/i;
 // Words in the markers this script writes; a denylist entry matching one is refused.
 const OWN_OUTPUT = ['redacted', 'secret', 'email', 'ip', 'org', 'imagile', 'dev', 'imagile.dev', ...SERVICES];
+// Zero-width characters, the soft hyphen and the bidirectional controls: invisible, and
+// enough to split a token so no shape matches it. A zero-width space right after an @
+// stays, because that is the feedback function's mark that keeps a mention from pinging.
+const INVISIBLE = /[\u00AD\u180E\u200C-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u2069\uFEFF]|(?<!@)\u200B/g;
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -71,40 +96,31 @@ export function parseTerms(raw = '') {
   return terms;
 }
 
-const SECRET_PATTERNS = [
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
-  /\bgh[pousr]_[A-Za-z0-9]{20,}\b/g,
-  /\bgithub_pat_[A-Za-z0-9_]{20,}\b/g,
-  /\bATATT[A-Za-z0-9_\-=]{20,}/g,
-  /\bBBDC-[A-Za-z0-9+/_-]{20,}/g,
-  /\bglpat-[A-Za-z0-9_-]{16,}/g,
-  /\bnpm_[A-Za-z0-9]{30,}\b/g,
-  /\bsk-ant-[A-Za-z0-9_-]{16,}/g,
-  /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}/g,
-  /\bAKIA[0-9A-Z]{16}\b/g,
-  /\bxox[abposr]-[A-Za-z0-9-]{10,}/g,
-  /\beyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
-];
+const SECRET_PATTERNS = TOKEN_SHAPES.map((shape) => shape.pattern);
 
-const KEY_NAME = '[A-Za-z0-9_.-]*(?:token|secret|password|passwd|pwd|api[_-]?key|access[_-]?key|private[_-]?key|credential)s?';
+const CREDENTIAL = '(?:token|secret|password|passwd|pwd|api[_-]?key|access[_-]?key|private[_-]?key|credential)s?';
+// A key name ending in a credential word. At most 64 name characters are read before
+// the word, so the rule stays linear; a longer name still matches on its last 64.
+const KEY_NAME = `[A-Za-z0-9_.-]{0,64}?${CREDENTIAL}`;
 
 function redactSecrets(text) {
   let out = text;
   for (const pattern of SECRET_PATTERNS) out = out.replace(pattern, SECRET);
   // Authorization headers.
-  out = out.replace(/\b(Bearer|Basic)(\s+)(?!\[redacted)[A-Za-z0-9._~+/=-]{12,}/gi, (_, scheme, space) => `${scheme}${space}${SECRET}`);
-  // userinfo in a URL: scheme://user:password@host keeps the scheme and host.
-  out = out.replace(/\b([a-z][a-z0-9+.-]*:\/\/)(?!\[redacted)[^\s/@:]+:[^\s/@]+@/gi, (_, scheme) => `${scheme}${SECRET}@`);
+  out = out.replace(/\b(Bearer|Basic)(\s{1,8})(?!\[redacted)[A-Za-z0-9._~+/=-]{12,}/gi, (_, scheme, space) => `${scheme}${space}${SECRET}`);
+  // userinfo in a URL: scheme://user:password@host keeps the scheme and host. A scheme
+  // starts where no scheme character precedes it and is at most 32 long.
+  out = out.replace(/(?<![a-z0-9+.-])([a-z][a-z0-9+.-]{0,31}:\/\/)(?!\[redacted)[^\s/@:]+:[^\s/@]+@/gi, (_, scheme) => `${scheme}${SECRET}@`);
   // key=value, key: value and "key": "value" where the key names a credential by its
   // suffix, so TOIL_JIRA_TOKEN=…, "apiToken": "…" and clientSecret: … are all caught.
   out = out.replace(
-    new RegExp(`(["']?${KEY_NAME}["']?\\s*[:=]\\s*)(["']?)(?!\\[redacted)([^\\s"',;]{4,})\\2`, 'gi'),
+    new RegExp(`(["']?${KEY_NAME}["']?\\s{0,8}[:=]\\s{0,8})(["']?)(?!\\[redacted)([^\\s"',;]{4,})\\2`, 'gi'),
     (_, key, quote) => `${key}${quote}${SECRET}${quote}`,
   );
   // A credential flag: --token <value>, --password=<value>.
-  out = out.replace(/(--(?:token|password|secret|api-key|apikey)(?:=|\s+))(?!\[redacted)(\S{4,})/gi, (_, flag) => `${flag}${SECRET}`);
+  out = out.replace(/(--(?:token|password|secret|api-key|apikey)(?:=|\s{1,8}))(?!\[redacted)(\S{4,})/gi, (_, flag) => `${flag}${SECRET}`);
   // The positional form: `connections set <name>.<secretKey> <value>` or `config set …`.
-  out = out.replace(new RegExp(`(\\bset\\s+\\S*${KEY_NAME}\\s+)(?!\\[redacted)(\\S+)`, 'gi'), (_, prefix) => `${prefix}${SECRET}`);
+  out = out.replace(new RegExp(`(\\bset\\s{1,8}\\S{0,128}?${CREDENTIAL}\\s{1,8})(?!\\[redacted)(\\S+)`, 'gi'), (_, prefix) => `${prefix}${SECRET}`);
   return out;
 }
 
@@ -119,11 +135,15 @@ function replacementHost(host) {
   return SERVICES.includes(first) ? `${first}.imagile.dev` : 'redacted.imagile.dev';
 }
 
-const hasWord = (text, terms) => terms.words.some((w) => new RegExp(`(^|[^a-z0-9])${escapeRegex(w)}([^a-z0-9]|$)`, 'i').test(text));
+/** One pattern for every denylisted word, built once per text rather than once per address. */
+const wordPattern = (terms) => (terms.words.length ? new RegExp(`(^|[^a-z0-9])(?:${terms.words.map(escapeRegex).join('|')})([^a-z0-9]|$)`, 'i') : null);
 
 function redactEmails(text, terms) {
-  return text.replace(/\b([A-Za-z0-9._%+-]+)@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)\b/g, (whole, user, domain) => {
-    if (hasWord(whole, terms) || isInternalHost(domain, terms)) return EMAIL;
+  const words = wordPattern(terms);
+  // At most 64 characters of local part, the most an address allows, so the rule stays
+  // linear; a longer run still matches on its last 64, and the address goes.
+  return text.replace(/([A-Za-z0-9._%+-]{1,64})@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)\b/g, (whole, user, domain) => {
+    if (words?.test(whole) || isInternalHost(domain, terms)) return EMAIL;
     // git@host is an SSH remote, not a person.
     if (user.toLowerCase() === 'git') return whole;
     return KEEP_EMAIL_DOMAINS.test(domain) ? whole : EMAIL;
@@ -131,7 +151,10 @@ function redactEmails(text, terms) {
 }
 
 function redactHosts(text, terms) {
-  return text.replace(/\b((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z][A-Za-z0-9-]{1,62})\b/g, (host) =>
+  // A host never starts right after a letter or digit, or after a dot or hyphen that follows
+  // one, so a long dotted run is read once, not once per label. A host after a lone `.`,
+  // `*.`, `...`, `-` or `-.` (a wildcard certificate, a cookie domain) still starts there.
+  return text.replace(/(?<![A-Za-z0-9]|[A-Za-z0-9][.-])((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z][A-Za-z0-9-]{1,62})\b/g, (host) =>
     isInternalHost(host, terms) ? replacementHost(host) : host,
   );
 }
@@ -155,7 +178,7 @@ function redactWords(text, terms) {
 
 /**
  * Whether a text holds a token by its shape alone: the prefixed formats, JWTs
- * and private keys in SECRET_PATTERNS, never the key-name rules, which flag
+ * and private keys in TOKEN_SHAPES, never the key-name rules, which flag
  * ordinary code such as `token: z.string()`. What the triage workflow checks
  * every agent-written text and every added line for before posting any of it;
  * a `/proc/self/environ` dump is caught because every token it could hold has
@@ -166,10 +189,21 @@ export function tokenShaped(text) {
   return SECRET_PATTERNS.some((pattern) => new RegExp(pattern.source, pattern.flags.replace('g', '')).test(text));
 }
 
+/**
+ * The text the rules read: at most MAX_LENGTH long (never ending in half a
+ * surrogate pair), with invisible characters removed, then NFKC-normalised.
+ * Removing them before normalising means a second pass finds nothing new.
+ */
+export function normalize(text) {
+  let out = text.length > MAX_LENGTH ? text.slice(0, MAX_LENGTH) : text;
+  if (/[\uD800-\uDBFF]$/.test(out)) out = out.slice(0, -1);
+  return out.replace(INVISIBLE, '').normalize('NFKC');
+}
+
 /** Redacts one string with terms from parseTerms(). */
 export function redact(text, terms = parseTerms('')) {
   if (typeof text !== 'string' || text === '') return '';
-  return redactWords(redactIps(redactHosts(redactEmails(redactSecrets(text), terms), terms)), terms);
+  return redactWords(redactIps(redactHosts(redactEmails(redactSecrets(normalize(text)), terms), terms)), terms);
 }
 
 // CLI: JSON {title, body} on stdin, REDACT_TERMS in env, JSON out. The terms
