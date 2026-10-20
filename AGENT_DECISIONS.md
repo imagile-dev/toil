@@ -4025,7 +4025,7 @@ decided here.
 - **#289: every state's element is waited for** (up to 5s) before "nothing to open"
   counts, and the Feedback item opens the Menu only if it isn't already showing, so
   a Menu still closing from the state before can't be toggled shut.
-- **Two ui tests that sync the whole sample get 30 s** (`ui/test/server.test.ts`, the sync API test, and `ui/test/agents.test.ts`'s `beforeAll`): both timed out on Windows runners, on `main` as well as on this PR, at the 5 s and 10 s defaults.
+- **Three slow ui tests get 30 s**: the sync API test in `ui/test/server.test.ts` and `ui/test/agents.test.ts`'s `beforeAll` (each syncs the whole sample), and `ui/test/views.test.tsx`'s axe pass over each view. All three timed out on Windows runners, on `main` as well as on this PR, at the 5 s and 10 s defaults.
 
 ### #298 GitHub without a board
 

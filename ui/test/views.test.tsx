@@ -54,7 +54,8 @@ describe('every view', () => {
     const { container } = await open(hash);
     expect(document.documentElement.dataset.theme).toBe(theme);
     expect(await violations(container)).toEqual([]);
-  });
+    // axe over a whole dossier view in jsdom takes 1–2s here and over 5s on a busy Windows runner.
+  }, 30_000);
 
   it('names the app "toil UI" in the header, by its own words: the wordmark, then the sticker, read as one link home (#272, #277)', async () => {
     await open('#/dossier/settlement');
