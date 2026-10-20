@@ -85,7 +85,7 @@ function withReason(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 export function indexPath(index: string, flag: string): string {
   const targets = index.split(',').map((s) => s.trim());
   if (targets.some((t) => t === '')) {
-    throw invalid(`${flag} has an empty target: "${index}".`, `Pass one or more index, data stream or alias names, comma-separated with nothing empty between them, e.g. ${flag} logs-app,logs-web.`);
+    throw invalid(`${flag} has an empty target: "${index}".`, `Pass one or more index, data stream or alias names, comma-separated with nothing empty between them, e.g. logs-app,logs-web.`);
   }
   return targets.map((t) => encodeURIComponent(t)).join(',');
 }
@@ -111,7 +111,7 @@ function parseJsonObject(raw: string, flag: string): Record<string, unknown> {
   return parsed as Record<string, unknown>;
 }
 
-/** A whole number of at least zero, from a number or its text, as `--size`, `--from` and `--timeout-ms` take it. */
+/** A whole number of at least zero, from a number or its text, as `--limit`, `--offset` and `--timeout-ms` take it. */
 export function nonNegativeInt(value: number | string, flag: string): number {
   const n = Number(value);
   if (!Number.isInteger(n) || n < 0) throw invalid(`${flag} must be a non-negative integer.`, `Pass a whole number of 0 or more to ${flag}.`);

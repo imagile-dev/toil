@@ -20,7 +20,7 @@
   {
     "key": "project",
     "env": "TOIL_SONAR_PROJECT",
-    "description": "Default project key for quality-gate, issues, measures and hotspots",
+    "description": "Default project key for quality-gate get, issue list, measure list and hotspot list",
     "required": false,
     "secret": false,
     "fallbacks": []

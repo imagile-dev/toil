@@ -11,8 +11,8 @@ command reads; none changes anything. There's no kubeconfig and no other CLI
 involved. Verification level: `unit`.
 
 **Supported versions:** The oldest OpenShift / Kubernetes version toil supports hasn't been established.
-`pods`, `events` and `logs` use core `v1`; `deployments` uses `apps/v1`, or
-`apps.openshift.io/v1` for DeploymentConfigs; `pod-metrics` and `resource-usage` need
+`pod list`, `event list` and `pod logs` use core `v1`; `deployment list` uses `apps/v1`, or
+`apps.openshift.io/v1` for DeploymentConfigs; `pod metrics` and `namespace usage` need
 metrics-server (`metrics.k8s.io/v1beta1`). No release has been verified yet.
 
 ## Credential
@@ -91,26 +91,26 @@ Every command but `cluster list` needs `--namespace <ns>`.
   openshift` (CLI only; over MCP, call the `connections_list` tool with `area`
   `openshift`). Each connection shows its `name`, `isDefault`, `host`, `writes` and
   where each setting came from, never a secret. It takes no `--env` or `--instance`.
-- `pods`: Pod health summary: phase counters, `crashLoopBackOff`,
+- `pod list`: Pod health summary: phase counters, `crashLoopBackOff`,
   `imagePullBackOff` (which includes `ErrImagePull`), `oomKilled` and
   `totalRestarts`, then each pod with `phase`, `ready`, `restartCount`, `age`,
   `reason`, `message`, `containers` and `labels`. Failed pods come first, then
   Pending, then Unknown, then the rest, by restarts within each. `--label-selector`
   filters; `--raw` returns the pod objects unmodified, with `count`.
-- `deployments`: Deployments (`apps/v1`), or DeploymentConfigs
+- `deployment list`: Deployments (`apps/v1`), or DeploymentConfigs
   (`apps.openshift.io/v1`) with `--deployment-configs`: `ready` as `ready/desired`,
   replica counts, `age`, `images`, `strategy`, `latestVersion`, and only the problem
   conditions (Available or Progressing that are `False`, and any ReplicaFailure),
   sorted by unavailable replicas. `--raw` returns the objects unmodified.
-- `events`: Warning events only, unless `--all`. `--field-selector` adds to the
+- `event list`: Warning events only, unless `--all`. `--field-selector` adds to the
   `type=Warning` selector, joined with a comma. Sorted by `count`, highest first.
-- `logs`: The last `--lines` (default 100) lines of `--pod`'s log, as text in `log`.
+- `pod logs <pod>`: The last `--lines` (default 100) lines of the pod's log, as text in `log`.
   `--container` picks a container; without it no container is sent, and the API
   server refuses a pod with more than one unless it names a default container.
   `--previous` reads the previous container instance.
-- `pod-metrics`: Each pod's containers with their raw `cpu` and `memory` usage, from
+- `pod metrics`: Each pod's containers with their raw `cpu` and `memory` usage, from
   metrics-server.
-- `resource-usage`: One row per container: usage, limits and requests, in millicores
+- `namespace usage`: One row per container: usage, limits and requests, in millicores
   (`m`) and mebibytes (`Mi`); a quantity toil can't read is `null`. `--csv --out
   <file>` also writes the rows as CSV to a new file inside the workspace (it never
   overwrites) and returns its absolute path as `file`. `--csv` needs `--out`, and
@@ -122,10 +122,10 @@ Lists come back whole: the API server is asked for everything in one response, w
 no paging.
 
 ```bash
-toil openshift pods --namespace payments
-toil openshift --env prod --instance east events --namespace payments --all
-toil openshift logs --namespace payments --pod api-7d9f8b6c5-abcde --container api --lines 50
-toil openshift resource-usage --namespace payments --csv --out usage.csv
+toil openshift pod list --namespace payments
+toil openshift --env prod --instance east event list --namespace payments --all
+toil openshift pod logs api-7d9f8b6c5-abcde --namespace payments --container api --lines 50
+toil openshift namespace usage --namespace payments --csv --out usage.csv
 ```
 
 ## Checking a dossier

@@ -60,18 +60,18 @@ credential store, or set `TOIL_SONATYPEIQ_PASSCODE`.
 
 The four read commands return IQ Server's answer unchanged as `data`.
 
-- `applications list`: List all applications in Sonatype IQ Server
+- `application list`: List all applications in Sonatype IQ Server
   (`--organization-id <id>`, sent as an `organizationId` query parameter, which IQ
   may ignore).
-- `applications get --public-id <id>`: Get an application by its public ID. `data`
+- `application get <public-id>`: Get an application by its public ID. `data`
   is the filtered list, `{ applications: [...] }`; an unknown ID gives an empty
   list, not an error.
-- `organizations list`: List all organizations in Sonatype IQ Server.
-- `policies list`: List all policies (`--organization-id <id>` asks
+- `organization list`: List all organizations in Sonatype IQ Server.
+- `policy list`: List all policies (`--organization-id <id>` asks
   `/api/v2/policies/organization/<id>`).
-- `evaluate` (also `toil deps frisk --source sonatypeiq`): Evaluate a dependency
-  inventory against an application's policies. `--application-id <id>` (required) is
-  the application's public ID. `data` is `{ tier, source, sourcesQueried,
+- `evaluate --application-id <id>` (also `toil deps frisk --source
+  sonatypeiq`): Evaluate a dependency inventory against an application's policies.
+  `--application-id` is the application's public ID. `data` is `{ tier, source, sourcesQueried,
   sourceErrors, scanned, vulnerable, packages }`, each package with its
   `vulnerabilities`.
 
@@ -96,9 +96,13 @@ count, with threat level 9 or more as `CRITICAL`, 7 `HIGH`, 4 `MEDIUM` and above
 `components` list to read findings from, and `SONATYPEIQ_UNMATCHED_RESULT` for a
 result that matches no package sent. Either means the result may undercount.
 
+Over MCP the same commands are tools named after the path, with spaces as
+underscores (`sonatypeiq_application_list`, `sonatypeiq_evaluate`),
+taking camelCase fields (`publicId`, `applicationId`, `organizationId`, `from`).
+
 ```bash
-toil sonatypeiq applications list
-toil sonatypeiq applications get --public-id imagile-api
+toil sonatypeiq application list
+toil sonatypeiq application get imagile-api
 toil deps scan --include-transitive | toil sonatypeiq evaluate --application-id imagile-api
-toil sonatypeiq evaluate --from inventory.json --application-id imagile-api --ecosystem npm
+toil sonatypeiq evaluate --application-id imagile-api --from inventory.json --ecosystem npm
 ```

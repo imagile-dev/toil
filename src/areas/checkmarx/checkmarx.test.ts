@@ -194,7 +194,7 @@ describe('get and stats', () => {
     expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: expect.stringContaining('project not found') });
   });
 
-  it('--id is required', async () => {
+  it('the scan ID is required', async () => {
     const { envelope, calls } = await run(scanStatsCommand, {}, []);
     expect(calls).toEqual([]);
     expect(envelope.error?.code).toBe('INVALID_INPUT');

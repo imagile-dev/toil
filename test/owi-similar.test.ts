@@ -53,7 +53,7 @@ describe('util owi similar --query', () => {
     expect(ids(data.matches).slice(0, 2)).toEqual(['corp-jira:PAY-210', 'github:imagile/payments-web#51']);
     expect(ids(data.matches)).not.toContain('corp-jira:PAY-211');
     const gh51 = data.matches[1];
-    expect(gh51).toMatchObject({ title: 'Checkout times out when paying by card', source: { area: 'github', connection: 'github', key: 'imagile/payments-web#51', command: 'github list-issues' }, url: 'https://ghe.imagile.dev/imagile/payments-web/issues/51' });
+    expect(gh51).toMatchObject({ title: 'Checkout times out when paying by card', source: { area: 'github', connection: 'github', key: 'imagile/payments-web#51', command: 'github issue list' }, url: 'https://ghe.imagile.dev/imagile/payments-web/issues/51' });
     expect(gh51.score).toBeGreaterThan(0.6);
     expect(gh51.why.titleTerms).toEqual(expect.arrayContaining(['card', 'checkout', 'time']));
     expect(data.count).toBe(data.matches.length);

@@ -485,7 +485,7 @@ export const sessionAppiumCommand = saucelabsArea.command({
   input: z.object({
     sessionId,
     start: z.boolean().optional().describe('Start an Appium server for the session'),
-    appiumVersion: z.string().optional().describe('Appium version to start (see appium-versions)'),
+    appiumVersion: z.string().optional().describe('Appium version to start (see appium-version list)'),
     ...allowWriteField,
   }),
   // It can POST, so it goes through the write gate even when it only reads.
@@ -493,7 +493,7 @@ export const sessionAppiumCommand = saucelabsArea.command({
   args: [sessionArg],
   options: [
     { flags: '--start', field: 'start', description: 'Start an Appium server for the session' },
-    { flags: '--appium-version <version>', field: 'appiumVersion', description: 'Appium version to start (see appium-versions)' },
+    { flags: '--appium-version <version>', field: 'appiumVersion', description: 'Appium version to start (see appium-version list)' },
   ],
   examples: [
     { sessionId: 'abc12345', allowWrite: true },

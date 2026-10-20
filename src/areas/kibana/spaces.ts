@@ -16,7 +16,7 @@ interface Space {
 }
 
 export const spacesListCommand = kibanaArea.command({
-  path: ['kibana', 'spaces', 'list'],
+  path: ['kibana', 'space', 'list'],
   description: 'List the spaces the API key can see',
   input: z.object({}),
   writes: false,

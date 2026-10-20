@@ -33,7 +33,7 @@ export function dynatrace<T>(ctx: DynatraceContext, path: string, call: Call = {
   return apiRequest<T>(dynatraceArea, ctx, path, { headers: JSON_HEADERS, timeoutMs: TIMEOUT_MS, ...call });
 }
 
-/** A platform call (Bearer on platformUrl), for trace. */
+/** A platform call (Bearer on platformUrl), for trace get. */
 export function dynatracePlatformCall<T>(ctx: DynatraceContext, path: string, call: Call = {}): Promise<T> {
   return apiRequest<T>(dynatracePlatform, ctx, path, { headers: JSON_HEADERS, timeoutMs: TIMEOUT_MS, ...call });
 }

@@ -20,17 +20,17 @@ export const PIPELINE_LIMIT = 100;
 export function uuid(value: string, what: string): string {
   const bare = value.trim().replace(/^\{/, '').replace(/\}$/, '');
   if (!/^[0-9a-f-]{36}$/i.test(bare)) {
-    throw new ToilError('INVALID_INPUT', `"${value}" isn't a ${what} uuid.`, { fix: `Pass the ${what}'s uuid, with or without braces, as list-pipelines or list-pipeline-steps returns it: ${PIPELINE}.` });
+    throw new ToilError('INVALID_INPUT', `"${value}" isn't a ${what} uuid.`, { fix: `Pass the ${what}'s uuid, with or without braces, as pipeline list or pipeline steps returns it: ${PIPELINE}.` });
   }
   return `{${bare}}`;
 }
 
 const pipelinePath = (ctx: BitbucketCloudContext, pipeline: string) => `${repoPath(ctx)}/pipelines/${seg(uuid(pipeline, 'pipeline'))}`;
 const pipelineInput = z.string().min(1).describe('Pipeline uuid, with or without braces');
-const pipelineOption = { flags: '--pipeline <uuid>', field: 'pipeline', description: 'Pipeline uuid, with or without braces' };
+const pipelineArg = { name: 'pipeline', field: 'pipeline', description: 'Pipeline uuid, with or without braces' };
 
 export const listPipelinesCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'list-pipelines'],
+  path: ['bitbucket-cloud', 'pipeline', 'list'],
   description: 'List pipeline runs, newest first',
   toolDescription: `Lists a repository's pipeline runs, newest first (uuid, build_number, state, target, trigger, created_on, completed_on), optionally only those for one branch. Without limit it returns the newest ${PIPELINE_LIMIT}; pass meta.page.nextCursor as cursor for more.`,
   input: z.object({
@@ -53,37 +53,37 @@ export const listPipelinesCommand = bitbucketCloudArea.command({
 });
 
 export const getPipelineCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'get-pipeline'],
+  path: ['bitbucket-cloud', 'pipeline', 'get'],
   description: 'Get a pipeline run',
   toolDescription: 'Returns one pipeline run: uuid, build_number, state (with its result), target branch and commit, trigger, creator, created_on, completed_on and build_seconds_used.',
   input: z.object({ pipeline: pipelineInput }),
   writes: false,
   context: IN_REPO,
-  options: [pipelineOption],
+  args: [pipelineArg],
   examples: [{ ...at, pipeline: PIPELINE }],
   run: (input, ctx) => bbc(ctx, pipelinePath(ctx, input.pipeline)),
 });
 
 export const listPipelineStepsCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'list-pipeline-steps'],
+  path: ['bitbucket-cloud', 'pipeline', 'steps'],
   description: "List a pipeline run's steps",
-  toolDescription: "Lists every step of a pipeline run (uuid, name, state with its result, started_on, completed_on, the image and the script commands). A step's uuid reads its log with bitbucket_cloud_get_step_log.",
+  toolDescription: "Lists every step of a pipeline run (uuid, name, state with its result, started_on, completed_on, the image and the script commands). A step's uuid reads its log with bitbucket_cloud_pipeline_logs.",
   input: z.object({ pipeline: pipelineInput }),
   writes: false,
   context: IN_REPO,
-  options: [pipelineOption],
+  args: [pipelineArg],
   examples: [{ ...at, pipeline: 'abc12345-0000-0000-0000-000000000000' }],
   run: (input, ctx) => all(ctx, `Bitbucket Cloud steps of pipeline ${input.pipeline}`, `${pipelinePath(ctx, input.pipeline)}/steps`),
 });
 
 export const getStepLogCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'get-step-log'],
+  path: ['bitbucket-cloud', 'pipeline', 'logs'],
   description: "Get a pipeline step's log",
   toolDescription: "Returns { log }: the full log of one pipeline step as text. A log can be large; --select or --output-file help with that on the CLI.",
   input: z.object({ pipeline: pipelineInput, step: z.string().min(1).describe('Step uuid, with or without braces') }),
   writes: false,
   context: IN_REPO,
-  options: [pipelineOption, { flags: '--step <uuid>', field: 'step', description: 'Step uuid, with or without braces' }],
+  args: [pipelineArg, { name: 'step', field: 'step', description: 'Step uuid, with or without braces' }],
   examples: [{ ...at, pipeline: PIPELINE, step: STEP }],
   // The log may answer with a redirect to signed storage; toil follows it with every header dropped.
   run: async (input, ctx) => ({ log: await bbc<string>(ctx, `${pipelinePath(ctx, input.pipeline)}/steps/${seg(uuid(input.step, 'step'))}/log`, { as: 'text', redirect: 'follow-without-auth' }) }),

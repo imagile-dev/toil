@@ -346,7 +346,7 @@ function toToilError(err: unknown, conn: DbConnection, mode: Mode): unknown {
     return new ToilError('DATABASE', `SQL Server: ${message}`, { fix: 'A conflict with other sessions (a deadlock or a lock wait). Retry shortly.' });
   }
   if (number !== undefined) {
-    return new ToilError('DATABASE', `SQL Server: ${message}`, { fix: 'Check the SQL against toil db describe-table for the tables it uses.' });
+    return new ToilError('DATABASE', `SQL Server: ${message}`, { fix: 'Check the SQL against toil db table describe for the tables it uses.' });
   }
 
   if (f.code === 'EENCRYPT') {
@@ -455,12 +455,12 @@ async function findTable(s: Session, ref: TableRef): Promise<{ id: number; schem
 }
 
 function notFoundSchema(conn: DbConnection, schema: string): ToilError {
-  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema "${schema}".`, { fix: 'Run toil db list-schemas to see the schemas it has.' });
+  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema "${schema}".`, { fix: 'Run toil db schema list to see the schemas it has.' });
 }
 
 function notFoundTable(conn: DbConnection, ref: TableRef): ToilError {
   return new ToilError('NOT_FOUND', `Schema "${ref.schema}" on connection ${conn.name} has no table or view "${ref.table}".`, {
-    fix: `Run toil db list-tables --schema ${ref.schema} to see what it has.`,
+    fix: `Run toil db table list --schema ${ref.schema} to see what it has.`,
   });
 }
 

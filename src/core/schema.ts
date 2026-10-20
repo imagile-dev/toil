@@ -34,7 +34,7 @@ export function fieldSchema(schema: z.ZodObject, field: string): z.ZodType | und
  * The two shapes of a repeatable flag, so every area builds them the same way
  * and `flagRepeats` below is the one rule that reads them:
  *
- * - `repeatedFlag`: always a list (`github create-issue --label a --label b`);
+ * - `repeatedFlag`: always a list (`github issue create --label a --label b`);
  *   empty or absent means not given
  * - `oneOrMany`: one value, or a list when the flag is repeated (`jira
  *   issue get A B`), for a command whose single form must keep its

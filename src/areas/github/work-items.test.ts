@@ -29,7 +29,7 @@ async function run(def: AnyCommand, input: Record<string, unknown>, routes: Rout
 const query = (url: string) => Object.fromEntries(new URL(url).searchParams);
 const graphqlBody = (body: string | undefined) => JSON.parse(body ?? '{}') as { query: string; variables: Record<string, unknown> };
 
-describe('list-issues', () => {
+describe('issue list', () => {
   it('sends state, labels, filters and since as UTC seconds, and leaves out pull requests', async () => {
     const { envelope, calls } = await run(listIssuesCommand, { ...BASE, label: ['bug', 'area/api'], assignee: 'octo-dev', type: 'Bug', sort: 'updated', direction: 'asc', updatedSince: '2025-01-31' });
     expect(calls).toHaveLength(1);
@@ -68,7 +68,7 @@ describe('list-issues', () => {
   });
 });
 
-describe('list-prs paging', () => {
+describe('pr list paging', () => {
   it('--limit counts the pull requests that pass --author', async () => {
     const { envelope } = await run(listPrsCommand, { ...BASE, author: 'someone-else', limit: 1 });
     expect(envelope.data).toEqual([pullRequest(8, { user: user('someone-else', 4), created_at: '2024-12-01T00:00:00Z' })]);
@@ -76,7 +76,7 @@ describe('list-prs paging', () => {
   });
 });
 
-describe('search-issues', () => {
+describe('issue search', () => {
   it('adds is:issue and the updated qualifier, and neither reads nor reports --owner and --repo', async () => {
     const { envelope, calls } = await run(searchIssuesCommand, { ...BASE, query: 'repo:imagile/toil-probe label:bug', updatedSince: '2025-01-31T09:00:00.500Z', sort: 'updated', order: 'asc' });
     expect(query(calls[0]!.url)).toEqual({ q: 'repo:imagile/toil-probe label:bug is:issue updated:>=2025-01-31T09:00:00Z', sort: 'updated', order: 'asc', per_page: '100', page: '1' });
@@ -96,7 +96,7 @@ describe('search-issues', () => {
   });
 });
 
-describe('get-issue', () => {
+describe('issue get', () => {
   it('one number returns the issue itself, issue type and sub-issue summary included', async () => {
     const { envelope, calls } = await run(getIssueCommand, { ...BASE, number: ['9'] });
     expect(calls.map((c) => c.url)).toEqual([`${API}/repos/imagile/toil-probe/issues/9`]);
@@ -127,7 +127,7 @@ describe('get-issue', () => {
   });
 });
 
-describe('issue-events', () => {
+describe('issue history', () => {
   it('reads the timeline, paged, and reports where a capped read stopped', async () => {
     const { envelope, calls } = await run(issueEventsCommand, { ...BASE, number: '9', limit: 1 });
     expect(calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/issues/9/timeline?per_page=100&page=1`);
@@ -137,7 +137,7 @@ describe('issue-events', () => {
 });
 
 describe('projects', () => {
-  it('projects list pages through $after with endCursor, owner only', async () => {
+  it('project list pages through $after with endCursor, owner only', async () => {
     const pages: Record<string, unknown> = {
       first: { data: { repositoryOwner: { projectsV2: { pageInfo: { hasNextPage: true, endCursor: 'Y3Vyc29yOjE=' }, nodes: [project(1)] } } } },
       'Y3Vyc29yOjE=': { data: { repositoryOwner: { projectsV2: { pageInfo: { hasNextPage: false, endCursor: 'Y3Vyc29yOjI=' }, nodes: [project(2)] } } } },

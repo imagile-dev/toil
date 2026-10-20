@@ -134,9 +134,9 @@ describe('an incremental sync', () => {
     expect(named(toil, 'ado work-item history').map((c) => c.input.id)).toEqual([2302]);
 
     // Nothing on the GitHub board moved, so no issue or timeline was fetched again.
-    expect(named(toil, 'github projects list-items')).toHaveLength(1);
-    expect(named(toil, 'github get-issue')).toHaveLength(0);
-    expect(named(toil, 'github issue-events')).toHaveLength(0);
+    expect(named(toil, 'github project items')).toHaveLength(1);
+    expect(named(toil, 'github issue get')).toHaveLength(0);
+    expect(named(toil, 'github issue history')).toHaveLength(0);
     expect(job.reused).toBeGreaterThan(10);
 
     // The merged answer still holds every item, with the change in it.
@@ -151,13 +151,13 @@ describe('an incremental sync', () => {
   it('fetches a GitHub issue again when its board item says it was updated', async () => {
     const { toil, sync, advance } = await setup();
     await sync.run(ctx);
-    const board = toil.canned.find((c) => c.command === 'github projects list-items')!.data as Array<{ content: { number: number; updatedAt: string } }>;
+    const board = toil.canned.find((c) => c.command === 'github project items')!.data as Array<{ content: { number: number; updatedAt: string } }>;
     board.find((i) => i.content.number === 43)!.content.updatedAt = '2026-10-13T08:30:00Z';
     advance(3_600_000);
     toil.reset();
     await sync.run(ctx);
-    expect(named(toil, 'github get-issue').map((c) => c.input.number)).toEqual([[43]]);
-    expect(named(toil, 'github issue-events').map((c) => c.input.number)).toEqual([43]);
+    expect(named(toil, 'github issue get').map((c) => c.input.number)).toEqual([[43]]);
+    expect(named(toil, 'github issue history').map((c) => c.input.number)).toEqual([43]);
   });
 
   it('syncs one dossier when asked, and leaves the others as they were', async () => {

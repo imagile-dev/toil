@@ -55,7 +55,7 @@ export interface OwiResult {
 export interface DocumentOptions {
   /** For bare `data`: the command that returned it (`jira issue search`). */
   command?: string | undefined;
-  /** For a history with no key of its own (`jira issue history`, `github issue-events`): the item's key. */
+  /** For a history with no key of its own (`jira issue history`, `github issue history`): the item's key. */
   key?: string | undefined;
 }
 
@@ -211,7 +211,7 @@ export function mapOwi(documents: OwiDocument[], options: { fields?: FieldOverri
       const records = workItemsOf(doc.data);
       if (!records) skipped.push({ at: doc.at, command: doc.command, reason: "it doesn't hold work items" });
       for (const record of records ?? []) add(adoItem(doc, record, state, dates.get(doc.connection) ?? new Map()), doc);
-    } else if (doc.command === `${doc.area} projects list-items`) {
+    } else if (doc.command === `${doc.area} project items`) {
       const board = boardEntries(doc);
       if (!board) skipped.push({ at: doc.at, command: doc.command, reason: "it doesn't hold project items" });
       else {

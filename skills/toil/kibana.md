@@ -9,7 +9,7 @@ Status, spaces, dashboards, data views and alerting rules on **Kibana**, through
 REST API. Every command reads; none changes anything. Verification level: `unit`.
 
 **Supported versions:** The oldest Kibana version toil supports hasn't been established. `status` reads both the 7.x (`state`/`title`) and the 8.x
-(`level`/`summary`) shapes; `data-views list` calls `/api/data_views`, which Kibana
+(`level`/`summary`) shapes; `data-view list` calls `/api/data_views`, which Kibana
 added in 8.0, so on 7.x it fails with `NOT_FOUND`. Requests follow Elastic's current
 Kibana API reference. No release has been verified yet.
 
@@ -86,47 +86,46 @@ With no key at all, commands fail with `NOT_CONFIGURED`, naming both ways to set
 
 ## Commands
 
-`--space <id>` on `dashboards`, `data-views` and `rules` picks the space, falling back
+`--space <id>` on `dashboard`, `data-view` and `rule` commands picks the space, falling back
 to the connection's `space`; the default space has no URL prefix, any other is
 `/s/<id>/api/...`. Each of those commands reports `space` as the id used, or
-`default`. `status` and `spaces list` are never space-scoped.
+`default`. `status` and `space list` are never space-scoped.
 
 - `status`: Show Kibana version and overall status. `data` is `{ name, uuid,
   version, buildFlavor, status, summary }`. An unhealthy Kibana answers 503 with its
   status in the body, and that's a successful answer (`status` `unavailable`, say); a
   503 without Kibana's own status, such as a proxy's, is an `HTTP` error.
-- `spaces list`: List the spaces the API key can see. `data` is `{ count, spaces }`,
+- `space list`: List the spaces the API key can see. `data` is `{ count, spaces }`,
   each `{ id, name, description, disabledFeatures }`.
-- `dashboards list`: List dashboards (id, title, description, last updated).
+- `dashboard list`: List dashboards (id, title, description, last updated).
   `--search` matches titles (a trailing `*` is a wildcard). One page per call:
-  `--page` (default 1) and `--per-page` (default 100), each a whole number of at
+  `--page` (default 1) and `--page-size` (default 100), each a whole number of at
   least 1. `data` is `{ space, total, page, perPage, count, dashboards }`; ask for the
   next page while `page × perPage < total`. Kibana marks the API it uses
   (`_find`) as deprecated, though it still serves it.
-- `dashboards export`: Export dashboards as saved objects, including the
-  visualizations and data views they reference. `--id` takes one or more ids;
+- `dashboard export <id...>`: Export dashboards as saved objects, including the
+  visualizations and data views they reference. It takes one or more ids;
   `--no-references` exports only the dashboards. `data` is `{ space, count,
   exportDetails, objects }`: the saved objects as Kibana exported them, and its
   closing summary (`exportedCount`, `missingRefCount`, `missingReferences`). Sent as a
   POST; it still only reads.
-- `data-views list`: List data views (id, name, index pattern). `data` is `{ space,
+- `data-view list`: List data views (id, name, index pattern). `data` is `{ space,
   count, dataViews }`, each `{ id, name, pattern, namespaces }`; a view with no name
   is named by its pattern.
-- `rules list`: List alerting rules with their schedule and last execution status.
-  `--search` matches names; `--page` and `--per-page` as for `dashboards list`. Each
+- `rule list`: List alerting rules with their schedule and last execution status.
+  `--search` matches names; `--page` and `--page-size` as for `dashboard list`. Each
   rule is `{ id, name, ruleTypeId, consumer, enabled, muted, tags, interval,
   executionStatus, lastExecutionDate, lastRunOutcome, error, nextRun, updatedAt }`.
-- `rules get`: Get one alerting rule, including its params and actions (`--id`
-  required). `data` is the same summary plus `params` and `actions`.
+- `rule get <id>`: Get one alerting rule, including its params and actions. `data` is the same summary plus `params` and `actions`.
 
-`status` and `dashboards export` hand a 429 back at once; the other commands retry it.
+`status` and `dashboard export` hand a 429 back at once; the other commands retry it.
 
 ```bash
 toil kibana status
-toil kibana spaces list
-toil kibana dashboards list --search "payments*" --space ops
-toil kibana dashboards export --id abc12345 abc12346 --no-references
-toil kibana data-views list
-toil kibana rules list --search "High*" --per-page 20
-toil kibana rules get --id abc12345-0000-0000-0000-000000000000
+toil kibana space list
+toil kibana dashboard list --search "payments*" --space ops
+toil kibana dashboard export abc12345 abc12346 --no-references
+toil kibana data-view list
+toil kibana rule list --search "High*" --page-size 20
+toil kibana rule get abc12345-0000-0000-0000-000000000000
 ```

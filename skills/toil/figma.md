@@ -66,12 +66,12 @@ parsed locally and never opened.
 - FigJam (`/board/`), prototype (`/proto/`) and Slides (`/slides/`) links are
   refused; pass the bare key instead.
 - A node ID is `12:34` or `12-34` (dashes become colons), or for a layer inside an
-  instance `I12:34;56:78`. `file` takes it from `--node-id`, else from the link's
+  instance `I12:34;56:78`. `file get` takes it from `--node-id`, else from the link's
   `node-id` query parameter. A malformed one fails with "Invalid Figma node ID".
 
 ## Commands
 
-- `file`: Get a Figma file — metadata, structure, and component/style inventory (or a
+- `file get <file-key-or-url>`: Get a Figma file — metadata, structure, and component/style inventory (or a
   single node with `--node-id`).
   - Whole file: `data` is `fileKey`, `name`, `lastModified`, `version`,
     `thumbnailUrl`, `role`, `editorType`, `schemaVersion`, `componentCount` and
@@ -83,24 +83,24 @@ parsed locally and never opened.
     whole `document` subtree (with or without `--document`), `componentCount` and
     `styleCount`. A node the answer doesn't hold is `NOT_FOUND` ("Node 12:34 not
     found in file ...").
-- `comments`: Get comments on a Figma file. `data` is `fileKey`, `count` and
+- `file comments <file-key-or-url>`: Get comments on a Figma file. `data` is `fileKey`, `count` and
   `comments` as Figma returns them. `--as-of <date>` is sent as `as_of`, a parameter
   Figma doesn't document, so every comment comes back regardless, and
   `meta.warnings` says so (`FIGMA_AS_OF_IGNORED`).
-- `versions`: Get the version history of a Figma file. `data` is `fileKey`, `count`
+- `file versions <file-key-or-url>`: Get the version history of a Figma file. `data` is `fileKey`, `count`
   and `versions`. Only the first page Figma returns is read; when Figma has more,
   `meta.warnings` says so (`FIGMA_MORE_VERSIONS`) and older versions are missing.
-- `project-files`: List files in a Figma project. `data` is `projectId`, `count` and
+- `project files <project-id>`: List files in a Figma project. `data` is `projectId`, `count` and
   `files`. The project ID is in the project's URL.
-- `me`: Get the current Figma user (useful for verifying credentials). `data` is
+- `whoami`: Get the current Figma user (useful for verifying credentials). `data` is
   Figma's answer as it came.
 
 Image links in the answers (`thumbnailUrl`, `thumbnail_url`, `img_url`) are returned
 as they are and never fetched; they're on Figma's image host, not the API.
 
 ```bash
-toil figma file "https://www.figma.com/design/abc12345/Checkout?node-id=12-34"
-toil figma file abc12345 --document
-toil figma comments abc12345
-toil figma me
+toil figma file get "https://www.figma.com/design/abc12345/Checkout?node-id=12-34"
+toil figma file get abc12345 --document
+toil figma file comments abc12345
+toil figma whoami
 ```

@@ -281,7 +281,7 @@ const selectStar: Rule = {
         {
           at: star,
           message: 'SELECT * returns every column, and db query returns a page of at most --limit rows of them.',
-          fix: `Name the columns you need; toil db describe-table ${name} lists them.`,
+          fix: `Name the columns you need; toil db table describe ${name} lists them.`,
         },
       ];
     }

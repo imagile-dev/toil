@@ -77,13 +77,13 @@ Account and platform:
 
 - `status`: Sauce Labs service status (operational flag, wait time)
 - `concurrency`: Concurrency allowed and in use for your organization and team (also verifies credentials)
-- `platforms`: Supported OS/browser/device platforms (`--api all|appium|webdriver`, default `all`); `data` is `{ api, count, platforms }`
-- `appium-versions`: Appium versions available for real-device sessions, with end-of-life dates
-- `users`: Look up users in your organization (`--username`, `--phrase`, `--limit` (default 20, max 100), `--offset`)
+- `platform list`: Supported OS/browser/device platforms (`--api all|appium|webdriver`, default `all`); `data` is `{ api, count, platforms }`
+- `appium-version list`: Appium versions available for real-device sessions, with end-of-life dates
+- `user list`: Look up users in your organization (`--username`, `--phrase`, `--limit` (default 20, max 100), `--offset`)
 
 Jobs on virtual devices and desktop browsers, under your username:
 
-- `job list`: List your recent jobs (`--limit`, `--skip`, `--from`, `--to`); `data` is `{ count, jobs }`
+- `job list`: List your recent jobs (`--limit`, `--offset`, `--from`, `--to`); `data` is `{ count, jobs }`
 - `job get`: Get one job: status, platform, timings, and log/video URLs
 - `job update`: Update a job's name, build, tags, result, or visibility (`--name`, `--build`, `--tags` (repeatable or comma-separated; replaces the existing tags), `--passed` or `--failed`, `--public public|public restricted|share|team|private`). At least one is required, checked before any request
 - `job stop`: Stop a running job
@@ -103,7 +103,7 @@ Builds (`--source vdc|rdc`, default `vdc`):
 - `build list`: List builds (`--status` repeatable or comma-separated, each sent as its own `status=` parameter: running, error, failed, complete, success; `--name`, `--start`, `--end`, `--limit`, `--offset`, `--sort asc|desc`); `data` is `{ source, count, builds }`
 - `build get`: Get one build with its job counts
 - `build jobs`: List the jobs in a build (`--failed`, `--errored`, `--passed`, `--running`, `--queued`, `--completed`, `--finished`, `--faulty`, `--modified-since`, which is sent as typed); `data` is `{ buildId, source, count, jobs }`
-- `build for-job`: Get the build a job belongs to
+- `job build <job-id>`: Get the build a job belongs to
 
 Real devices:
 
@@ -140,7 +140,7 @@ Sauce Connect tunnels, under your username:
 
 App storage (metadata only; no upload or download):
 
-- `storage files`: List uploaded app files (`--query`, `--kind android|ios`, `--page` (starts at 1), `--per-page` (max 100))
+- `storage files`: List uploaded app files (`--query`, `--kind android|ios`, `--page` (starts at 1), `--page-size` (max 100))
 - `storage groups`: List app groups (all versions of one app), with the same flags
 
 Teams:

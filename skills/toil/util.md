@@ -199,7 +199,7 @@ Known quirks, which stay until they're checked against real repositories:
 
 The output is the inventory the vulnerability and licence commands read from stdin
 or `--from <file>`: `toil osv vulns`, `toil ossindex vulns`, `toil sonatypeiq
-evaluate`, and `toil artifactory outdated` / `license-check`. Over MCP, save it to a
+evaluate`, and `toil artifactory package outdated` / `license-check`. Over MCP, save it to a
 file in the workspace and pass that file's path as `from`.
 
 ### `toil util deps diff`
@@ -1113,7 +1113,7 @@ Known losses, by format:
 
 To send the result, pass it to the area's own command: wiki markup as
 `toil jira issue create --description`, storage format as
-`toil confluence create-page --body` (or `confluence-cloud`), and ADF as
+`toil confluence page create --body` (or `confluence-cloud`), and ADF as
 `fields.description` in a `toil jira-cloud issue create --input-file`. How each product's own renderer displays it hasn't
 been checked against a live instance.
 ### `toil util openapi`: read an API description before calling it
@@ -1385,7 +1385,7 @@ toil jira issue search --jql "sprint in openSprints()" --fields "summary,status,
 toil util owi map sprint-42.jsonl
 toil util owi map changelog.json --key PAY-104
 toil util owi map batch.json --field estimate=Custom.TeamPoints --field estimateUnit=points
-toil util owi map issue.json --command "github get-issue"
+toil util owi map issue.json --command "github issue get"
 ```
 
 | Argument / flag | Meaning |
@@ -1406,9 +1406,9 @@ and `field` (a list of `name=field`).
 - **Azure DevOps and Azure DevOps Services:** `work-item get` and `work-item get-many` for items, `work-item history`
   for history, and `work-item iterations` for iteration dates. `work-item search`
   returns ids only and is skipped: map `work-item get-many` for those ids instead.
-- **GitHub:** `list-issues`, `search-issues` and `get-issue` for issues,
-  `projects list-items` for the board's status, estimate and iteration, and
-  `issue-events` for history. Pull requests are left out with a warning.
+- **GitHub:** `issue list`, `issue search` and `issue get` for issues,
+  `project items` for the board's status, estimate and iteration, and
+  `issue history` for history. Pull requests are left out with a warning.
 
 Pass one envelope, a JSON array of them, or one a line (`>>` appends each command's
 output to one file). A Jira changelog and a GitHub timeline don't name their issue,
@@ -1532,7 +1532,7 @@ Output, for `--item corp-jira:PAY-210 --limit 1`:
   "matches": [{
     "id": "github:imagile/payments-web#51",
     "title": "Checkout times out when paying by card",
-    "source": { "area": "github", "connection": "github", "key": "imagile/payments-web#51", "command": "github list-issues" },
+    "source": { "area": "github", "connection": "github", "key": "imagile/payments-web#51", "command": "github issue list" },
     "url": "https://ghe.imagile.dev/imagile/payments-web/issues/51",
     "score": 0.7211,
     "why": {

@@ -7,7 +7,7 @@ import { defineFixture } from '../harness/fixtures.js';
  *
  * Provenance: the nodes and whole-file shapes follow the canonical
  * implementation's tests (name, lastModified, version, nodes keyed by a colon
- * ID); every other field, and the comments, versions, project-files and me
+ * ID); every other field, and the file comments, file versions, project files and whoami
  * shapes, are invented from Figma's REST API reference
  * (developers.figma.com/docs/rest-api), trimmed to the fields that matter.
  */

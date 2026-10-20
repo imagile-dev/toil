@@ -10,14 +10,14 @@ import { pageFields, pageOptions } from './input.js';
  */
 
 const refInput = z.string().describe('Git ref (branch, tag, or commit SHA)');
-const refOption = { flags: '--ref <ref>', field: 'ref', description: 'Git ref (branch, tag, or commit SHA)' } as const;
+const refArg = { name: 'ref', field: 'ref', description: 'Git ref (branch, tag, or commit SHA)' };
 
 export const getStatusCommand = githubArea.command({
-  path: ['github', 'get-status'],
+  path: ['github', 'commit', 'status'],
   description: 'Get combined commit status for a ref (branch, tag, or SHA)',
   input: z.object({ ref: refInput }),
   writes: false,
-  options: [refOption],
+  args: [refArg],
   examples: [{ owner: 'imagile', repo: 'toil-probe', ref: 'main' }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
@@ -27,11 +27,12 @@ export const getStatusCommand = githubArea.command({
 });
 
 export const listChecksCommand = githubArea.command({
-  path: ['github', 'list-checks'],
+  path: ['github', 'commit', 'checks'],
   description: 'List check runs for a ref (branch, tag, or SHA)',
   input: z.object({ ref: refInput, ...pageFields('check runs') }),
   writes: false,
-  options: [refOption, ...pageOptions('check runs')],
+  args: [refArg],
+  options: [...pageOptions('check runs')],
   examples: [
     { owner: 'imagile', repo: 'toil-probe', ref: 'abc1234' },
     { owner: 'imagile', repo: 'toil-probe', ref: 'abc1234', limit: 1, cursor: exampleCursor() },
