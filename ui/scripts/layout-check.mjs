@@ -57,6 +57,11 @@ export const ROUTES = [
   '#/dossier/checkout-web',
   '#/dossier/checkout-web/prs',
   '#/dossier/card-payments/prs',
+  // The People view (#292): mapped people with a suggested match, people plus agents and an unmapped account, a dossier listing nobody, and the board filtered to one person.
+  '#/dossier/card-payments/people',
+  '#/dossier/checkout-web/people',
+  '#/dossier/settlement/people',
+  `#/dossier/card-payments/board/${encodeURIComponent('person:J. Smith')}`,
   item('card-payments', 'corp-jira:PAY-100'),
   item('settlement', 'corp-ado:2304'),
   '#/settings/connections',

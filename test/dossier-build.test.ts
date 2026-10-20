@@ -436,3 +436,92 @@ describe('credentials in stored remotes, and removing a section', () => {
     expect((await session.client.listTools()).tools.map((t) => t.name)).not.toContain(toolName(commands.find((c) => c.path.join(' ') === 'dossiers unlink')!));
   });
 });
+
+describe('people and the work-in-progress limit', () => {
+  const file = (d: DossierDisk) => JSON.parse(readFileSync(join(d.home, '.toil', 'dossiers', 'pay.json'), 'utf8')) as Record<string, unknown>;
+  const fresh = () => disk({ 'home/.toil/dossiers/pay.json': { name: 'pay' } });
+
+  it('adds a person, then more identities, and refuses to change one already set unless --replace', async () => {
+    const d = fresh();
+    expect(ok(await cli(d, ['dossiers', 'person', 'pay', 'Pat Example', '--id', 'jira=pat', '--email', 'you@example.com']))).toMatchObject({ changed: true, person: { name: 'Pat Example', email: 'you@example.com', ids: { jira: 'pat' } } });
+    ok(await cli(d, ['dossiers', 'person', 'pay', 'pat example', '--id', 'github=pat-ex']));
+    expect(file(d).people).toEqual([{ name: 'Pat Example', email: 'you@example.com', ids: { jira: 'pat', github: 'pat-ex' } }]);
+    // The same again changes nothing and writes nothing.
+    expect(ok(await cli(d, ['dossiers', 'person', 'pay', 'Pat Example', '--id', 'github=PAT-EX']))).toMatchObject({ changed: false });
+    const conflict = await cli(d, ['dossiers', 'person', 'pay', 'Pat Example', '--id', 'jira=pexample']);
+    expect(conflict.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: "Pat Example's jira identity is already pat (dossier pay).", fix: 'Pass --replace to change it.' });
+    ok(await cli(d, ['dossiers', 'person', 'pay', 'Pat Example', '--id', 'jira=pexample', '--replace']));
+    expect((file(d).people as Array<{ ids: Record<string, string> }>)[0]!.ids.jira).toBe('pexample');
+    expect((await cli(d, ['dossiers', 'person', 'pay', 'Pat Example', '--email', 'pat@example.com'])).envelope.error?.message).toContain('email is already you@example.com');
+  });
+
+  it("gives one account to one person, refuses an area toil hasn't got, a token-shaped identity, and a bad email", async () => {
+    const d = fresh();
+    ok(await cli(d, ['dossiers', 'person', 'pay', 'Pat', '--id', 'github=pat-ex']));
+    const twice = await cli(d, ['dossiers', 'person', 'pay', 'Sam', '--id', 'github=Pat-Ex']);
+    expect(twice.envelope.error?.message).toBe("The github identity Pat-Ex is already Pat's (dossier pay).");
+    expect(twice.envelope.error?.fix).toBe('One account can only be one person\'s. Remove it from them first: toil dossiers person pay "Pat" --id github=Pat-Ex --remove.');
+    expect((await cli(d, ['dossiers', 'person', 'pay', 'Sam', '--id', 'nonesuch=sam'])).envelope.error?.message).toBe('toil has no area named "nonesuch".');
+    const token = await cli(d, ['dossiers', 'person', 'pay', 'Sam', '--id', 'github=ghp_abcdefghijklmnopqrstuvwxyz0123456789']);
+    expect(token.envelope.error?.message).toContain("The github identity can't be used: it's shaped like a credential");
+    expect(JSON.stringify(token.envelope)).not.toContain('ghp_');
+    expect((await cli(d, ['dossiers', 'person', 'pay', 'Sam', '--email', 'sam'])).envelope.error?.message).toBe("--email isn't an email address (dossier pay).");
+    // A token pasted anywhere is refused and never repeated: as an --id with no area, as an email, as a name.
+    const TOKEN = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789';
+    for (const argv of [['Sam', '--id', TOKEN], ['Sam', '--id', `${TOKEN}==`], ['Sam', '--email', TOKEN], ['Sam', '--email', `x@${TOKEN}`], [TOKEN]]) {
+      const run = await cli(d, ['dossiers', 'person', 'pay', ...argv]);
+      expect(run.envelope.error?.code, argv.join(' ')).toBe('INVALID_INPUT');
+      expect(JSON.stringify(run.envelope), argv.join(' ')).not.toContain('ghp_');
+    }
+    expect((await cli(d, ['dossiers', 'person', 'pay', 'Sam', '--id', TOKEN])).envelope.error?.fix).toBe('For example --id github=pat-ex.');
+    expect(file(d).people).toEqual([{ name: 'Pat', ids: { github: 'pat-ex' } }]);
+  });
+
+  it('lists an agent by kind, and changes a kind only with --replace', async () => {
+    const d = fresh();
+    ok(await cli(d, ['dossiers', 'person', 'pay', 'Claude', '--kind', 'agent', '--id', 'github=claude']));
+    expect((await cli(d, ['dossiers', 'person', 'pay', 'Claude', '--kind', 'human'])).envelope.error?.message).toBe('Claude is already listed as agent (dossier pay).');
+    ok(await cli(d, ['dossiers', 'person', 'pay', 'Claude', '--kind', 'human', '--replace']));
+    expect(file(d).people).toEqual([{ name: 'Claude', ids: { github: 'claude' } }]);
+  });
+
+  it('removes an identity or a person on the CLI only, and an agent may add people over MCP', async () => {
+    const d = fresh();
+    expect(ok(await mcp(d, 'dossiers_person', { dossier: 'pay', name: 'Pat', id: ['jira=pat', 'github=pat-ex'] }))).toMatchObject({ changed: true });
+    const refused = await mcp(d, 'dossiers_person', { dossier: 'pay', name: 'Pat', remove: true });
+    expect(refused.envelope.error).toMatchObject({ code: 'INVALID_INPUT', fix: 'Only a person can make this call, on the CLI with toil dossiers person.' });
+    expect(refused.envelope.error?.message).toContain('Removing a person or an identity is a delete');
+    expect(ok(await cli(d, ['dossiers', 'person', 'pay', 'Pat', '--id', 'jira=pat', '--remove']))).toMatchObject({ person: { ids: { github: 'pat-ex' } }, removed: { jira: 'pat' } });
+    expect((await cli(d, ['dossiers', 'person', 'pay', 'Pat', '--id', 'jira=pat', '--remove'])).envelope.error?.message).toBe('Pat has no jira identity pat (dossier pay).');
+    expect(ok(await cli(d, ['dossiers', 'person', 'pay', 'Pat', '--remove']))).toMatchObject({ person: null, removed: { name: 'Pat' } });
+    expect(file(d)).not.toHaveProperty('people');
+    expect((await cli(d, ['dossiers', 'person', 'pay', 'Pat', '--remove'])).envelope.error?.fix).toBe('It has: (nobody yet).');
+  });
+
+  it("removes an identity the reader kept under an area this toil hasn't got", async () => {
+    const d = disk({ 'home/.toil/dossiers/pay.json': { name: 'pay', people: [{ name: 'Pat', ids: { githb: 'pat', jira: 'pat' } }] } });
+    expect((await cli(d, ['dossiers', 'person', 'pay', 'Pat', '--id', 'githb=pat'])).envelope.error?.message).toBe('toil has no area named "githb".');
+    expect(ok(await cli(d, ['dossiers', 'person', 'pay', 'Pat', '--id', 'githb=pat', '--remove']))).toMatchObject({ person: { ids: { jira: 'pat' } } });
+  });
+
+  it('sets the limit, changes it only with --replace, and clears it on the CLI only', async () => {
+    const d = fresh();
+    expect(ok(await mcp(d, 'dossiers_wip_limit', { dossier: 'pay', limit: 3 }))).toMatchObject({ changed: true, wipLimit: 3 });
+    expect((await cli(d, ['dossiers', 'wip-limit', 'pay', '4'])).envelope.error?.message).toBe("Dossier pay's limit is already 3.");
+    ok(await cli(d, ['dossiers', 'wip-limit', 'pay', '4', '--replace']));
+    expect(file(d).wipLimit).toBe(4);
+    expect((await cli(d, ['dossiers', 'wip-limit', 'pay', '0'])).envelope.error?.code).toBe('INVALID_INPUT');
+    expect((await cli(d, ['dossiers', 'wip-limit', 'pay'])).envelope.error?.message).toBe('Pass a limit, or --clear, and not both.');
+    expect((await mcp(d, 'dossiers_wip_limit', { dossier: 'pay', clear: true })).envelope.error?.message).toContain('Clearing the limit is a delete');
+    expect(ok(await cli(d, ['dossiers', 'wip-limit', 'pay', '--clear']))).toMatchObject({ changed: true, wipLimit: null });
+    expect(file(d)).not.toHaveProperty('wipLimit');
+  });
+
+  it('keeps people and the limit when the dossier is exported for sharing', async () => {
+    const d = disk({ 'home/.toil/dossiers/pay.json': { name: 'pay', people: [{ name: 'Pat', ids: { jira: 'pat' } }], wipLimit: 2 } });
+    d.write('work/.git/HEAD', 'ref: refs/heads/main\n');
+    ok(await cli(d, ['dossiers', 'export', 'pay', '--repo', '.']));
+    const shared = JSON.parse(readFileSync(join(d.workspace, '.toil', 'dossiers', 'pay.json'), 'utf8')) as Record<string, unknown>;
+    expect(shared).toMatchObject({ people: [{ name: 'Pat', ids: { jira: 'pat' } }], wipLimit: 2 });
+  });
+});

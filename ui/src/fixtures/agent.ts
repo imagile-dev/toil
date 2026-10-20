@@ -69,6 +69,14 @@ export const SCRIPTS: Record<string, Record<string, Script>> = {
         `${J(101)} and ${J(104)} have pull requests still open, so neither is deployed anywhere.`,
       ],
     },
+    people: {
+      label: "Who's overloaded or blocked?",
+      parts: [
+        `Nobody is over the dossier's limit of 2 items in progress. J. Smith has ${J(101)} in progress for 6.9 days, and A. Chen has ${J(104)} in review for 5.9 days.`,
+        `A. Chen is blocked: ${J(102)} waits on ${J(101)}, still in progress with J. Smith, whose pull request ${BB(311)} now waits on J. Smith after A. Chen asked for changes.`,
+        `One review waits on J. Smith: ${BB(305)}, open 3.9 working days. A. Chen's Bitbucket account isn't mapped to her yet; the People view suggests it.`,
+      ],
+    },
     review: {
       label: "What's stuck in review, and why?",
       parts: [
@@ -114,6 +122,14 @@ export const SCRIPTS: Record<string, Record<string, Script>> = {
         `${A(2302)}'s pull request #87 is open and its CI run is still in progress.`,
       ],
     },
+    people: {
+      label: "Who's overloaded or blocked?",
+      parts: [
+        `This dossier sets no limit and lists nobody yet, so each account stands on its own. D. Okafor has ${A(2302)} in progress for 7 days, and M. Lind has ${A(2304)} for 15 days.`,
+        `D. Okafor's pull request ${AZ(87)} waits on D. Okafor: J. Park asked for changes 0.8 working days ago.`,
+        `Nobody's own items are blocked. ${A(2303)} is blocked by ${A(2302)}, but nobody is assigned to it.`,
+      ],
+    },
     review: {
       label: "What's stuck in review, and why?",
       parts: [
@@ -155,6 +171,14 @@ export const SCRIPTS: Record<string, Record<string, Script>> = {
         `The staging environment runs payments-web 2026.10.12 (5a7e3f1), which includes ${G(44)}'s fix, pull request #50.`,
         `The prod environment runs 2026.10.02 (1c9b8e4), so ${G(44)} isn't in prod yet.`,
         `${G(42)} and ${G(43)} have pull requests still open, so neither is deployed anywhere. ${G(44)}'s SDK change, imagile/checkout-sdk #12, is still open too.`,
+      ],
+    },
+    people: {
+      label: "Who's overloaded or blocked?",
+      parts: [
+        `Nobody is over the dossier's limit of 2. Bo W. has ${G(42)} in review; GitHub records no move into that status, so how long it has sat there is unknown.`,
+        `Two reviews wait on Ada D.: ${SDK(12)} and ${GH(52)}, each open 1.3 working days.`,
+        `${GH(51)}, which Ada D. wrote with Claude, waits on its failing checks, for 2 working days. Nothing assigned to anyone is blocked.`,
       ],
     },
     review: {

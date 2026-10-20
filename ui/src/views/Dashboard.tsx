@@ -7,14 +7,15 @@
  * The one page the weekly status meeting was trying to be.
  */
 
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Checkbox } from 'react-aria-components';
 import { Ask } from '../components/ask.tsx';
 import { Cited, ItemLink } from '../components/items.tsx';
 import { DataTable, type Column } from '../components/layout.tsx';
 import { Panel, Sources } from '../components/panel.tsx';
 import { useData, useDerived } from '../data.ts';
-import { SOURCE_LABEL, STATUS_CATEGORY_LABEL, day, dateTime, estimateText, prsHref } from '../format.ts';
+import { SOURCE_LABEL, STATUS_CATEGORY_LABEL, day, dateTime, dossierHref, estimateText, peopleHref, prsHref } from '../format.ts';
+import { assignedTo, cardByKey, people } from '../model/people.ts';
 import { describe, type Health } from '../model/sprint.ts';
 import { FLAG_TEXT, trace, type Trace as TraceRow } from '../model/trace.ts';
 import { useSkins, useTerm, useWords } from '../skins.tsx';
@@ -123,8 +124,24 @@ function traceColumns(builds: ChangeRef[]): Array<Column<TraceRow>> {
   ];
 }
 
-export function Dashboard() {
+/**
+ * The board filtered to one person (#292), from the People view: their
+ * items on this board, by every identity the dossier gives them, or nobody's
+ * when the key names no one the dossier's data shows.
+ */
+function useBoardFilter(person: string | undefined) {
+  const { dossier, now } = useData();
+  return useMemo(() => {
+    if (!person) return null;
+    const view = people({ dossier: dossier.name, entries: dossier.people ?? [], wipLimit: dossier.wipLimit ?? null, items: dossier.items, changes: dossier.pullRequests ?? [], now });
+    const card = cardByKey(view, person);
+    return { name: card?.who.name ?? null, items: card ? assignedTo(view, person, dossier.items, dossier.people ?? []) : [] };
+  }, [person, dossier, now]);
+}
+
+export function Dashboard({ person }: { person?: string } = {}) {
   const { dossier } = useData();
+  const filter = useBoardFilter(person);
   const { EmptyState, Loading } = useSkins();
   const term = useTerm();
   const words = useWords();
@@ -165,7 +182,8 @@ export function Dashboard() {
           </Panel>
 
           <Panel id="board" title={term('board', h ? `${h.sprint.name} board` : 'Board')} calls={dossier.calls.work} alerts={false}>
-            <Board items={h?.items ?? dossier.items} />
+            {filter && <BoardFilter name={filter.name} shown={(h?.items ?? dossier.items).filter((i) => filter.items.includes(i)).length} all={filter.items.length} />}
+            <Board items={filter ? (h?.items ?? dossier.items).filter((i) => filter.items.includes(i)) : (h?.items ?? dossier.items)} />
           </Panel>
 
           <div className="panel-grid panel-grid--two">
@@ -253,6 +271,29 @@ export function Dashboard() {
         <Ask />
       </div>
     </>
+  );
+}
+
+/** What the filtered board says: whose items, how many of theirs are on it, and the way back to everyone's. The shell moves focus here. */
+function BoardFilter({ name, shown, all }: { name: string | null; shown: number; all: number }) {
+  const { dossier } = useData();
+  const line = useRef<HTMLParagraphElement>(null);
+  // Opened straight from a link or a reload, the shell moves no focus, so the board panel, heading and all, is brought into view here.
+  useEffect(() => {
+    (line.current?.closest('section') ?? line.current)?.scrollIntoView?.({ block: 'start' });
+  }, []);
+  const on = (n: number) => `${n} ${n === 1 ? 'item' : 'items'}`;
+  return (
+    <p id="board-filter" ref={line} className="board-filter" tabIndex={-1}>
+      {name === null ? (
+        <>The People view's link named nobody this dossier's data shows, so no items are shown. </>
+      ) : (
+        <>
+          Showing {name}'s items: {on(shown)} on this board{all > shown ? `, of ${on(all)} assigned to them in all` : ''}.{' '}
+        </>
+      )}
+      <a href={dossierHref(dossier.name)}>Show everyone's</a> · <a href={peopleHref(dossier.name)}>Back to People</a>
+    </p>
   );
 }
 

@@ -9,7 +9,7 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
 - host selectors, environments and the write rule
 - `meta.context.dossier`
 - `toil dossiers list | show | check | context`, which read
-- `toil dossiers init | add-repo | link | env | field | export | import | unlink | remove`, which
+- `toil dossiers init | add-repo | link | env | field | person | wip-limit | export | import | unlink | remove`, which
   build and share (`src/core/dossier.ts`, `src/dossiers/`)
 - field aliases on Jira's and Jira Cloud's `--field`
 - `toil repos scan` (`src/repos/`)
@@ -137,6 +137,14 @@ TOIL_CONN_OCP_PROD_TOKEN=...
   reported (`DOSSIER_UNKNOWN_SECTION`), never dropped.
 - **`env`** names the environment the dossier works in by default; it must be a key of
   `environments`.
+- **`people`** (#292) lists the team, agents included: `{ "name": "Pat Example",
+  "kind": "human", "email": "you@example.com", "ids": { "jira": "pat", "github":
+  "pat-ex", "ado": "you@example.com" } }`. `kind` is `human` (the default) or `agent`;
+  `ids` maps an area to the account it knows the person by. Names and identities are
+  unique (an identity compares without case), and a value shaped like a token is
+  refused by key path, never echoed: an identity is a name, not a credential.
+  `wipLimit`, a whole number above 0, is how many items one person may have in
+  progress at once. toil itself reads neither; Toil UI's People view does.
 - **Remotes are only for matching.** toil never contacts a remote URL. Before storing,
   comparing or printing one, toil strips any userinfo
   (`https://user:<token>@host/...` becomes `https://host/...`), so a token embedded in
@@ -410,6 +418,15 @@ files directly:
   - `toil dossiers env <dossier> <env> <area> [--default] ...` does the same for
     `environments.<env>.<area>`. `--default` makes it the dossier's `env`.
   - `toil dossiers field <dossier> <area> <alias> <field-id>` names a field.
+  - `toil dossiers person <dossier> <name> [--id area=identity ...] [--kind human|agent]
+    [--email <address>]` adds someone to the dossier's `people`, or more identities to
+    someone already there: the user name, login or email each area knows them by. A
+    value shaped like a token is refused, as is an identity already another person's.
+    `--remove` takes the person out, or with `--id` only those identities; it's a
+    delete, so it runs on the CLI only (refused over MCP and the API).
+  - `toil dossiers wip-limit <dossier> <limit>` sets how many items one person may have
+    in progress at once, which Toil UI's People view counts against. `--clear` removes
+    it, on the CLI only.
   - `toil dossiers unlink <dossier> --area <area> [--env <env>]` removes a section, an
     area's own or one environment's, including one for an area toil doesn't have. An
     environment left with no areas goes too, and stops being the default. CLI only, like
@@ -565,6 +582,9 @@ wherever it's used, including dossiers already bound to it.
   permissions, as is the config. Files in a repository take the repository's.
 - **Paths** are stored as given and compared after normalising case and separators on
   Windows (*principle 8*).
+- **People are names, not credentials.** A `people` identity shaped like a token is
+  refused. An email in a dossier is personal data: an exported or checked-in dossier
+  carries it, so leave `email` out of one you share beyond the team.
 
 ## Settled questions
 

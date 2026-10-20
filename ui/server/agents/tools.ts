@@ -1,10 +1,11 @@
 /**
- * The agent's tools (#251, #291): read-only, scoped to one dossier, and the
- * same list for every adapter. Seven read the cache a sync filled
+ * The agent's tools (#251, #291, #292): read-only, scoped to one dossier, and the
+ * same list for every adapter. Nine read the cache a sync filled
  * (`owi_query`, `owi_get`, `owi_history`, and `owi_similar`, the scorer `toil
  * util owi similar` runs; `pr_query`, `pr_get` and `pr_metrics`, the pull
  * requests as OWI changes, worked out by src/model/prs.ts as the pull request
- * view works them out); the rest are `toil mcp`'s own read tools, by
+ * view works them out; `people_list` and `person_get`, each person's load as
+ * src/model/people.ts and the People view work it out); the rest are `toil mcp`'s own read tools, by
  * their MCP names, for live lookups through `@imagile-dev/toil/api`'s
  * `execute()` with `readOnly: true`. There is no write tool, and a live tool
  * is built only for a command the registry says never writes, so the list
@@ -19,6 +20,7 @@
 import type { Cache, ChangeRow, TransitionRow } from '../cache.ts';
 import type { AuthorKind, Change, Envelope, Execute, WorkItem } from '../../src/toil.ts';
 import { flagsOf, KINDS, linked, PR_FLAG_LABEL, prMetrics, sizeOf, waitOf, workingDays, type Sample, type WaitingOn } from '../../src/model/prs.ts';
+import { people, readPeople, type Card } from '../../src/model/people.ts';
 import { SimilarityIndex } from '../../../src/core/owi/similar.ts';
 import { CALLER } from '../store.ts';
 
@@ -30,6 +32,14 @@ export interface AgentData {
   /** When the dossier was last synced, or null if never. */
   syncedAt(): string | null;
 }
+
+/**
+ * The dossier itself, as `dossiers show` prints it now: its `people` and
+ * `wipLimit` among the rest. It's toil's own config on this machine, which the
+ * cache never holds (server/store.ts reads it live), so the people tools ask
+ * toil for it, read-only, on each call.
+ */
+export type ReadDossier = () => Promise<{ dossier: unknown; error: string | null }>;
 
 /** The pull requests among a dossier's change rows, as the OWI changes they were made from. */
 export const pullRequestsOf = (rows: ChangeRow[]): Change[] => rows.flatMap((r) => (r.kind === 'pull-request' && 'change' in r.ref && r.ref.change ? [r.ref.change] : []));
@@ -43,6 +53,15 @@ export function cacheData(cache: Pick<Cache, 'states' | 'items' | 'transitions' 
     transitions: (id) => cache.transitions(dossier, id),
     changes: () => cache.changes(dossier),
     syncedAt: () => state.lastSyncAt,
+  };
+}
+
+/** `dossiers show` through toil, read-only and labelled as Toil UI: the people tools' `ReadDossier`. */
+export function dossierReader(execute: Execute, dossier: string): ReadDossier {
+  return async () => {
+    const e = await execute('dossiers show', { dossier }, { readOnly: true, caller: CALLER });
+    if (!e.ok) return { dossier: null, error: `toil dossiers show ${dossier} failed: ${e.error.message}${e.error.fix ? ` ${e.error.fix}` : ''}` };
+    return { dossier: typeof e.data === 'object' && e.data !== null ? ((e.data as { dossier?: unknown }).dossier ?? null) : null, error: null };
   };
 }
 
@@ -321,6 +340,106 @@ export function prTools(dossier: string, data: AgentData, ledger: Ledger, now: (
           mergedWithNoMergeTime: m.unplacedMerges,
           mergedWithNoApproval: m.mergedUnreviewed,
           pullRequests: m.counts,
+        };
+      },
+    },
+  ];
+}
+
+/** One card, as people_list returns it: the load, never a score. */
+function personBrief(c: Card) {
+  return {
+    key: c.who.key,
+    name: c.who.name,
+    kind: c.who.kind,
+    mapped: c.who.mapped,
+    identities: c.who.identities.map((i) => `${i.area}:${i.id}`),
+    inProgress: c.wip.flatMap((g) => g.items.map((w) => ({ id: w.item.id, title: w.item.title, status: g.status, daysInStatus: w.days }))),
+    overLimit: c.overLimit,
+    openPullRequests: c.prs.map((p) => ({ id: p.change.id, title: p.change.title, waitingOn: p.wait.on, waitingWorkingDays: p.wait.days === null ? null : round1(p.wait.days), writtenWithAgent: p.withAgent })),
+    reviewsWaitingOnThem: c.reviews.map((r) => ({ id: r.change.id, title: r.change.title, openWorkingDays: r.days })),
+    blocked: c.blocked.map((b) => ({ id: b.item.id, title: b.item.title, blockedBy: b.by.map((x) => ({ id: x.id, status: x.item ? x.item.status : null, inDossier: x.item !== null })) })),
+  };
+}
+
+/** Every id a card names, so an answer may cite them. */
+function vouchCard(ledger: Ledger, c: Card) {
+  for (const g of c.wip) for (const w of g.items) ledger.add(w.item.id);
+  for (const p of c.prs) ledger.add(p.change.id);
+  for (const r of c.reviews) ledger.add(r.change.id);
+  for (const b of c.blocked) {
+    ledger.add(b.item.id);
+    for (const x of b.by) ledger.add(x.id);
+  }
+  for (const a of c.activity) ledger.add(a.kind === 'moved' ? a.item.id : a.change.id);
+}
+
+/** The two people tools for one dossier (#292): everyone's load, and one person's plate in full. */
+export function peopleTools(dossier: string, data: AgentData, ledger: Ledger, readDossier: ReadDossier, now: () => string = () => new Date().toISOString()): ToolSpec[] {
+  const note = () => ({ dossier, syncedAt: data.syncedAt() });
+  const view = async () => {
+    const shown = await readDossier();
+    const team = readPeople(shown.dossier);
+    if (shown.error) team.notes.unshift(`${shown.error} So nobody is mapped, and no limit is known.`);
+    return { team, view: people({ dossier, entries: team.people, wipLimit: team.wipLimit, items: data.items(), changes: pullRequestsOf(data.changes()), now: now() }) };
+  };
+  const LOAD = 'This is load, not performance: never rank, score or compare people; say what is on each plate and what blocks it, citing ids.';
+  return [
+    {
+      name: 'people_list',
+      description: `The people of the dossier "${dossier}" (its people list, agents included as kind agent) and the accounts in its data it doesn't map, each with their current load from Toil UI's cache: items in progress with days in their status, open pull requests and what each waits on, reviews waiting on them, and blocked items with what blocks them. Also the dossier's work-in-progress limit and who is over it, the team's review queue, unassigned items in the current sprint, and accounts that share an email with someone (suggested matches, never applied). ${LOAD}`,
+      inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+      async run() {
+        const { team, view: v } = await view();
+        const cards = [...v.people, ...v.unmapped];
+        for (const c of cards) vouchCard(ledger, c);
+        for (const r of v.team.reviewQueue) ledger.add(r.change.id);
+        for (const i of v.team.unassigned?.items ?? []) ledger.add(i.id);
+        return {
+          ...note(),
+          now: now(),
+          rule: LOAD,
+          wipLimitPerPerson: v.wipLimit,
+          notes: team.notes,
+          people: v.people.map(personBrief),
+          unmapped: v.unmapped.map(personBrief),
+          suggestedMatches: v.suggestions.map((s) => ({ accounts: s.identities.map((i) => `${i.area}:${i.id}`), probably: s.person ?? `a new person, ${s.name}`, sharedEmail: s.email, applyWith: s.command })),
+          ambiguous: v.ambiguous,
+          pullRequestsByUnnamedAgents: v.unnamedAgents.map((c) => c.id),
+          team: {
+            inProgress: v.team.wip.total,
+            overLimit: v.team.wip.over.map((o) => ({ name: o.name, inProgress: o.count })),
+            reviewQueue: v.team.reviewQueue.map((r) => ({ id: r.change.id, waitingWorkingDays: r.wait.days === null ? null : round1(r.wait.days) })),
+            unassignedInSprint: v.team.unassigned ? { sprint: v.team.unassigned.sprint, ids: v.team.unassigned.items.map((i) => i.id) } : null,
+          },
+        };
+      },
+    },
+    {
+      name: 'person_get',
+      description: `One person's plate in the dossier "${dossier}", from people_list's key or by name or account (such as Pat Example, or github:pat-ex): everything people_list says about them plus their recent activity (status moves, their pull requests merged, reviews they gave) over the last 14 days. ${LOAD}`,
+      inputSchema: { type: 'object', properties: { person: { type: 'string', description: "people_list's key, a name, or an account as area:id." } }, required: ['person'], additionalProperties: false },
+      async run(input) {
+        const wanted = str(input.person)?.toLowerCase();
+        const { view: v } = await view();
+        const cards = [...v.people, ...v.unmapped];
+        const card =
+          cards.find((c) => c.who.key.toLowerCase() === wanted) ??
+          cards.find((c) => c.who.name.toLowerCase() === wanted) ??
+          cards.find((c) => c.who.identities.some((i) => `${i.area}:${i.id}`.toLowerCase() === wanted || i.id.toLowerCase() === wanted));
+        if (!card) return { ...note(), error: `Nobody in ${dossier} is ${JSON.stringify(input.person ?? '')}. Use people_list for the names and keys.`, people: cards.map((c) => ({ key: c.who.key, name: c.who.name })) };
+        vouchCard(ledger, card);
+        return {
+          ...note(),
+          now: now(),
+          rule: LOAD,
+          person: {
+            ...personBrief(card),
+            recentActivity: card.activity.map((a) =>
+              a.kind === 'moved' ? { kind: 'moved', at: a.at, id: a.item.id, from: a.from, to: a.to } : a.kind === 'merged' ? { kind: 'their pull request merged', at: a.at, id: a.change.id } : { kind: 'reviewed', at: a.at, id: a.change.id, state: a.state },
+            ),
+            moreActivity: card.moreActivity,
+          },
         };
       },
     },

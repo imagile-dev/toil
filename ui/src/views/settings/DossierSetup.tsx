@@ -3,7 +3,8 @@
  * The list and each dossier's areas come from `dossiers list` and `dossiers
  * show`; `dossiers check` checks one without contacting any service. The
  * forms create a dossier and add to one: a repository, an area's connection
- * and keys, a field alias. A dossier holds no secret and can't turn writes
+ * and keys, a field alias, a person with the identity each system knows them
+ * by, and the work-in-progress limit (#292). A dossier holds no secret and can't turn writes
  * on, and toil refuses, from here as over MCP, a link that would point a
  * dossier at a connection with writes on: a person makes that one on the CLI.
  */
@@ -27,7 +28,7 @@ interface Shown {
   name: string;
   file: string;
   areas: Record<string, { connection: { value: string; source: string } | null; writes: boolean | null; env: string | null; inputs: Record<string, string>; error?: { message: string } }>;
-  dossier: { repos?: Array<{ name: string; path?: string; remotes: string[] }> };
+  dossier: { repos?: Array<{ name: string; path?: string; remotes: string[] }>; people?: Array<{ name: string; kind?: string; email?: string; ids?: Record<string, string> }>; wipLimit?: number };
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
@@ -96,6 +97,8 @@ export function DossierSetup({ config }: { config: ConfigApi }) {
             <AddRepoForm config={config} dossier={target} />
             <LinkForm config={config} dossier={target} areas={areas} connections={connections} />
             <FieldForm config={config} dossier={target} areas={areas} />
+            <PersonForm config={config} dossier={target} areas={areas} />
+            <WipLimitForm config={config} dossier={target} />
           </>
         )}
       </Card>
@@ -199,6 +202,27 @@ function ShownDossier({ shown }: { shown: Shown }) {
           },
         ]}
       />
+      <h4 className="shown-repos">People</h4>
+      {shown.dossier.people?.length ? (
+        <ul className="plain">
+          {shown.dossier.people.map((p) => (
+            <li key={p.name} className="any-break">
+              {p.name}
+              {p.kind === 'agent' && ' (agent)'}
+              <span className="note">
+                {' '}
+                {Object.entries(p.ids ?? {})
+                  .map(([area, id]) => `${area} ${id}`)
+                  .join(', ') || 'no identities yet'}
+                {p.email && `; email ${p.email}`}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="note">None yet.</p>
+      )}
+      <p className="note">Work-in-progress limit: {shown.dossier.wipLimit === undefined ? 'none set' : `${shown.dossier.wipLimit} per person`}.</p>
       <h4 className="shown-repos">Repositories</h4>
       {repos.length ? (
         <ul className="plain">
@@ -297,6 +321,73 @@ function LinkForm({ config, dossier, areas, connections }: { config: ConfigApi; 
       <AreaField label="Keys to set, one key=value per line" value={set} onChange={setSet} hint="The area's context inputs (project=PAY, owner=imagile) are applied to calls; any other key is kept as reference data." />
       <AreaField label="Values to add to lists, one key=value per line" value={add} onChange={setAdd} hint="e.g. projects=FEES" />
       <CheckField label="Replace values already set" checked={replace} onChange={setReplace} />
+    </ChangeForm>
+  );
+}
+
+function PersonForm({ config, dossier, areas }: { config: ConfigApi; dossier: string; areas: AreaInfo[] }) {
+  const [name, setName] = useState('');
+  const [ids, setIds] = useState('');
+  const [kind, setKind] = useState<'human' | 'agent'>('human');
+  const [email, setEmail] = useState('');
+  const [replace, setReplace] = useState(false);
+  const list = pairs(ids);
+  const args = [dossier, name ? (/\s/.test(name) ? `"${name}"` : name) : '<name>', ...list.flatMap((p) => ['--id', p]), ...(kind === 'agent' ? ['--kind', 'agent'] : []), ...(email ? ['--email', email] : []), ...(replace ? ['--replace'] : [])];
+  return (
+    <ChangeForm
+      title={`Add a person to ${dossier}`}
+      explain={
+        <>
+          Says who someone is in each system, so the People view gathers their work from all of them: one area=identity per line, the user name, login or email that system shows. An agent is a person of kind agent. Their email is only compared, to suggest which accounts are theirs. Removing a person or an identity is a delete, made in a terminal with <code>toil dossiers person {dossier} &lt;name&gt; --remove</code>.
+        </>
+      }
+      runs={commandLine('dossiers person', args)}
+      submit="Add person"
+      disabled={config.disabled}
+      onSubmit={async () => {
+        const outcome = outcomeOf(
+          await config.run('dossiers person', { dossier, name, ...(list.length ? { id: list } : {}), ...(kind === 'agent' ? { kind } : {}), ...(email ? { email } : {}), ...(replace ? { replace } : {}) }),
+          `${name} is in ${dossier}'s people.`,
+        );
+        if (outcome.ok) {
+          setName('');
+          setIds('');
+          setEmail('');
+        }
+        return outcome;
+      }}
+    >
+      <TextField label="Name" value={name} onChange={setName} required hint="As the team writes it, e.g. Pat Example." />
+      <AreaField label="Identities, one area=identity per line" value={ids} onChange={setIds} hint={<>e.g. jira=pat and github=pat-ex. Areas: {areas.map((a) => a.name).join(', ') || 'the ones toil has'}.</>} />
+      <SelectField label="Kind" value={kind} onChange={(v) => setKind(v === 'agent' ? 'agent' : 'human')} options={[{ value: 'human', label: 'Person' }, { value: 'agent', label: 'Agent' }]} />
+      <TextField label="Email" value={email} onChange={setEmail} hint="Optional, e.g. you@example.com. Compared only, to suggest matches." />
+      <CheckField label="Replace an identity, kind or email already set" checked={replace} onChange={setReplace} />
+    </ChangeForm>
+  );
+}
+
+function WipLimitForm({ config, dossier }: { config: ConfigApi; dossier: string }) {
+  const [limit, setLimit] = useState('');
+  const [replace, setReplace] = useState(false);
+  const n = Number(limit);
+  return (
+    <ChangeForm
+      title={`Set ${dossier}'s work-in-progress limit`}
+      explain={
+        <>
+          How many items one person may have in progress at once, as the team agreed. The People view counts each person's work in progress against it, and names nobody else's. Clearing it is a delete, made in a terminal with <code>toil dossiers wip-limit {dossier} --clear</code>.
+        </>
+      }
+      runs={commandLine('dossiers wip-limit', [dossier, limit || '<limit>', ...(replace ? ['--replace'] : [])])}
+      submit="Set limit"
+      disabled={config.disabled}
+      onSubmit={async () => {
+        if (!Number.isInteger(n) || n < 1) return { ok: false, message: 'The limit must be a whole number above 0.', fix: 'Type a number such as 3.' };
+        return outcomeOf(await config.run('dossiers wip-limit', { dossier, limit: n, ...(replace ? { replace } : {}) }), `${dossier}'s limit is ${n} per person.`);
+      }}
+    >
+      <TextField label="Limit" value={limit} onChange={setLimit} required hint="A whole number, e.g. 3." />
+      <CheckField label="Replace a limit already set" checked={replace} onChange={setReplace} />
     </ChangeForm>
   );
 }

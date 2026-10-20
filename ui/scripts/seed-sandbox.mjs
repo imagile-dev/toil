@@ -1,15 +1,16 @@
 // Seeds a GitHub repository with a small, made-up body of work for trying Toil UI
 // on real data: labels for type, priority, points and blocked; three milestones
 // used as sprints; about 25 issues, some closed, some assigned, some blocked by
-// others; a CI workflow that echoes, with one branch that fails on purpose; and
-// four pull requests (merged, open, draft, failing) that close issues.
+// others; a CI workflow that echoes, with one branch that fails on purpose;
+// four pull requests (merged, open, draft, failing) that close issues; and comment
+// reviews on two of them, with review requests when there is someone to ask.
 //
 //   node ui/scripts/seed-sandbox.mjs                       # imagile-dev/toil-sandbox
 //   node ui/scripts/seed-sandbox.mjs --owner you --repo toil-sandbox
 //
 // It writes through the GitHub CLI's own login (gh), never through toil, which
-// stays read-only. It is safe to run again: labels, milestones, issues, branches
-// and pull requests are found by name or title and left alone when they exist.
+// stays read-only. It is safe to run again: labels, milestones, issues, branches,
+// pull requests and reviews are found by name, title or text and left alone when they exist.
 // The repository must exist already (gh repo create <owner>/<repo> --private
 // --add-readme). Repo tooling only: nothing here ships. The sprint was planned
 // in full, retroactively, by the script that made it.
@@ -229,6 +230,33 @@ for (const p of PRS) {
     say(`PR #${pr.number}: merged`);
   }
 }
+
+// Reviews and review requests (#292) ----------------------------------------------------
+// The People view's "reviews waiting on them" and "reviews given" read these. GitHub
+// refuses an approval, a request for changes or a review request from a pull
+// request's own author, so with only its author able to see the repository the seed
+// leaves comment reviews, and asks for reviews only from another collaborator.
+const REVIEWS = [
+  { branch: 'docs/refund-runbook', body: 'Read through: step 3 should say which console role issues the refunds. (Seeded review, test data for Toil UI.)' },
+  { branch: 'fix/payout-retry-backoff', body: 'The backoff reads right; CI is red on purpose, so this waits on checks. (Seeded review, test data for Toil UI.)' },
+];
+const others = gh('GET', `${R}/collaborators?per_page=100`, null, { paginate: true }).map((c) => c.login).filter((l) => l !== me);
+for (const r of REVIEWS) {
+  const pr = gh('GET', `${R}/pulls?state=open&head=${owner}:${encodeURIComponent(r.branch)}`)[0];
+  if (!pr) continue;
+  const reviews = gh('GET', `${R}/pulls/${pr.number}/reviews?per_page=100`, null, { paginate: true });
+  if (!reviews.some((x) => x.user?.login === me && x.body === r.body)) {
+    gh('POST', `${R}/pulls/${pr.number}/reviews`, { event: 'COMMENT', body: r.body });
+    say(`PR #${pr.number}: comment review added`);
+  }
+  const asked = (pr.requested_reviewers ?? []).map((u) => u.login);
+  const ask = others.filter((l) => l !== pr.user?.login && !asked.includes(l)).slice(0, 1);
+  if (ask.length) {
+    gh('POST', `${R}/pulls/${pr.number}/requested_reviewers`, { reviewers: ask });
+    say(`PR #${pr.number}: review requested from ${ask.join(', ')}`);
+  }
+}
+if (!others.length) say(`Skipped: review requests, since ${me} is the only collaborator and GitHub won't ask a pull request's author to review it. Add a second collaborator to seed them.`);
 
 say('');
 say('Skipped: a Projects (v2) board, which needs the project scope on the gh token (gh auth refresh -s project); toil reads boards with github project items.');
