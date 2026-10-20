@@ -4609,7 +4609,9 @@ it pins. These are the choices made by default in the fix:
   published package still run on the pinned toil.
 - **toil is built into `.scratch/toil` by `TOIL_BUILD_DIR`**, a new optional env var
   `tsup.config.ts` reads for its output folder (default `dist`), so the build takes
-  the release build's own steps without rewriting the committed `dist/`. A second build config would drift from the first.
+  the release build's own steps without rewriting the committed `dist/`.
+  `scripts/gen-worker.mjs` reads it too, so the worker's metafile lands beside the
+  bundle's and `dist/` isn't written at all (review round 1). A second build config would drift from the first.
 - **It builds every run**, in both scripts: about 6 seconds, and a stale build is the
   failure this issue is about. `verify:ui --no-build` reuses `.scratch/toil` when it
   exists, as it reuses `ui/dist`.

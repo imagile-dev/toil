@@ -6,7 +6,7 @@ import { ENTRIES } from './scripts/entries.mjs';
 import { noSpawn } from './scripts/no-spawn.mjs';
 
 // Where the build goes: dist/, unless TOIL_BUILD_DIR names another folder. Toil UI's
-// verify:ui and dev-real.mjs build into .scratch/toil that way (ui/scripts/local-toil.mjs),
+// verify:ui and dev-real.mjs build into .scratch/toil that way (ui/scripts/real-home.mjs, buildToil),
 // so running Toil UI on this checkout's toil never rewrites the committed dist/ (#332).
 const outDir = process.env.TOIL_BUILD_DIR?.trim() || 'dist';
 
