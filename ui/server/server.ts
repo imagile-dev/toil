@@ -60,6 +60,8 @@ import { READ_COMMANDS, type Access, type Store } from './store.ts';
 import { SyncBusy, type SyncService } from './sync.ts';
 import { WorklogRefusal, type ExportWhat, type WorklogApi } from '../src/worklog.ts';
 import type { UsageControl } from './usage.ts';
+import { assignmentRoute, type AssignmentControl } from './assign/routes.ts';
+import { AssignError } from '../src/assign/queue.ts';
 import { CHAT_ID, UsageSettingsError, type AnswerUsage, type ChatTurn } from '../src/model-usage.ts';
 
 export interface UiServerOptions {
@@ -83,6 +85,8 @@ export interface UiServerOptions {
   worklog?: WorklogApi;
   /** The agent's model usage and its caps (#295): `api/usage`. */
   usage?: UsageControl;
+  /** Assigning work items to an agent (#293): `api/assignments`. */
+  assignments?: AssignmentControl;
   /** Tests pass a fixed token; a real start makes one. */
   token?: string;
   viewer?: Viewer;
@@ -251,6 +255,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
     sync: options.sync !== undefined,
     agent: agent.kind,
     agentSettings: options.agentControl !== undefined,
+    assignments: options.assignments !== undefined,
     sample: store.sample,
     now: store.now(),
   });
@@ -427,6 +432,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
       checkOrigin(req);
       checkCsrf(req, signedIn.session);
     }
+    if (await assignmentRoute(key, req, res, url, options.assignments, { readJson, json, headers: SECURITY_HEADERS })) return;
     switch (key) {
       case 'GET session':
         json(res, 200, sessionInfo(signedIn.id, signedIn.session));
@@ -518,7 +524,10 @@ export function createUiServer(options: UiServerOptions): UiServer {
         const body = await readJson(req);
         if (body.confirm !== 'wipe') throw new HttpError(400, 'Wiping the cache needs { "confirm": "wipe" }.', 'Confirm in the page; it deletes everything synced on this machine.');
         try {
+          // The assignments live under the cache too, and one that is running holds it, as a sync does.
+          if (options.assignments?.queue.busy) throw new HttpError(409, 'An assignment is running, so the cache stays until it ends.', 'Stop it from its page, or wait for it to finish, then wipe.');
           syncer().wipe();
+          options.assignments?.queue.wipe();
         } catch (e) {
           if (e instanceof SyncBusy) throw new HttpError(409, 'A sync is running, so the cache stays until it ends.', 'Wait for the sync to finish, then wipe.');
           throw e;
@@ -557,7 +566,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return worklogCall(res, () => worklog().exportTo(named(body.dossier, 'dossier', shape), what, named(body.folder, 'folder', shape)));
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/rebuild, worklog/note, worklog/export, agent/starters, agent/ask, agent/prompt, agent/settings and agent/mcp.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/rebuild, worklog/note, worklog/export, agent/starters, agent/ask, agent/prompt, agent/settings, agent/mcp and assignments.`);
     }
   };
 
@@ -602,7 +611,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
       await api(req, res, route.slice('api/'.length), url, ctx);
     } catch (e) {
       if (res.headersSent) return;
-      if (e instanceof HttpError) return json(res, e.status, { error: { message: e.message, fix: e.fix } });
+      if (e instanceof HttpError || e instanceof AssignError) return json(res, e.status, { error: { message: e.message, fix: e.fix } });
       json(res, 500, { error: { message: `Toil UI failed answering ${route}: ${e instanceof Error ? e.message : String(e)}`, fix: 'This is a bug in Toil UI; report it with the message.' } });
     }
   };

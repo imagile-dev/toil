@@ -26,6 +26,21 @@ export interface ServedTools {
 }
 export type ServeTools = (tools: ToolSpec[]) => ServedTools;
 
+/**
+ * Implement mode's folder (#293): the agent may write inside `root` and
+ * nowhere else, with no network, as the adapter's own sandbox enforces.
+ */
+export interface Workspace {
+  root: string;
+}
+
+/** Something the agent did besides talking, for an assignment's transcript: a command it ran, a file it changed. */
+export interface Activity {
+  kind: 'command' | 'file' | 'tool';
+  title: string;
+  detail?: string;
+}
+
 export interface RunRequest {
   system: string;
   prompt: string;
@@ -33,8 +48,12 @@ export interface RunRequest {
   model: string | null;
   /** The CLI to start, as findCli found it. */
   cli: string;
-  /** An empty folder of Toil UI's own to run in, so the CLI picks up no project's files. */
+  /** An empty folder of Toil UI's own to run in, so the CLI picks up no project's files; implement mode's clone when there is a workspace. */
   workDir: string;
+  /** Implement mode's folder, or null: every other run is read-only. */
+  workspace: Workspace | null;
+  /** What the agent did besides its text, where the SDK says. */
+  onActivity?(activity: Activity): void;
   /** Toil UI's data folder, where an adapter may keep the CLI's own home (Codex, codex.ts). */
   dataDir: string;
   env: Record<string, string | undefined>;
@@ -77,6 +96,8 @@ export interface Runtime {
   cliLabel: string;
   /** Its SDK reports usage only once a turn is over (Codex), so a cap can't stop a run partway: it refuses the next question. */
   usageAtEnd?: boolean;
+  /** Its own sandbox can hold the agent's commands and writes to one folder with no network (Codex), so it can take implement mode. */
+  workspace?: boolean;
   /** Sends one question; resolves with the final answer's text. */
   run(sdk: unknown, request: RunRequest): Promise<string>;
 }

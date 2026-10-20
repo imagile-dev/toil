@@ -1,6 +1,6 @@
 // @vitest-environment node
-import { mapOwi, registry } from '@imagile-dev/toil/api';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { execute as realExecute, mapOwi, registry } from '@imagile-dev/toil/api';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
 import * as zod from 'zod';
@@ -27,6 +27,9 @@ import { commandLine } from '../src/proposal.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { stubToil } from './toil-stub.ts';
+import { headCommit, hiddenStaged, hostRunner } from '../server/assign/runner.ts';
+import { spawnSync } from 'node:child_process';
+import { memoryLedger, usageSettingsFile } from '../server/usage.ts';
 
 /**
  * The agent adapters (#251), each against a stubbed SDK module: no test
@@ -1111,5 +1114,235 @@ describe('each question, as an agent run for the worklog (#308)', () => {
     expect(ledger.ids.has('corp-jira:PAY-101')).toBe(true);
     expect(await tool!.run({ day: '2026-10-14' })).toEqual({ error: '2026-10-14 is after today (2026-10-13, UTC), so it has no page yet.' });
     expect(worklogTool('card-payments', data, ledger)).toEqual([]);
+  });
+});
+
+describe('assignments on the agent host (#293)', () => {
+  const item = () => data.items().find((i) => i.id === 'corp-jira:PAY-107')!;
+  const run = async (over: { mode?: 'refine' | 'investigate' | 'implement'; script?: Script } = {}) => {
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const stub = codexStub(over.script ?? SCRIPT, holder);
+    const { host, rec, dataDir } = hostFor('codex', stub.module, { serveTools: (tools) => holder.serve(tools) });
+    const runner = hostRunner({ host, dataDir, registry: registry.commands, execute: rec.execute, mapIds: () => [], data: () => data, version: 't', toilVersion: '0.0.0-test', now: () => FIXTURE_NOW });
+    const lines: string[] = [];
+    const assignment = { id: 'abc12345-0000-0000-0000-000000000000', dossier: 'card-payments', item: 'corp-jira:PAY-107', itemTitle: 'x', mode: over.mode ?? 'refine', adapter: 'codex', origin: 'person', trigger: null, state: 'working', waiting: null, repo: null, createdAt: FIXTURE_NOW, startedAt: FIXTURE_NOW, endedAt: null, stop: null, report: null, questions: [], proposals: [], usage: null, startedOn: null, branch: null } as const;
+    const result = await runner.run({ assignment: { ...assignment, proposals: [], questions: [] }, item: item(), signal: new AbortController().signal, record: (e) => lines.push(`${e.kind}: ${e.title}`) });
+    return { result, stub, rec, lines, holder, dataDir };
+  };
+
+  it('runs refine on the adapter the assignment names, read-only, with the read tools and the server checks', async () => {
+    const { result, stub, rec, lines, holder } = await run();
+    expect(stub.seen.thread).toMatchObject({ sandboxMode: 'read-only', approvalPolicy: 'never', networkAccessEnabled: false });
+    expect(stub.seen.listed).toEqual(expect.arrayContaining(['owi_get', 'owi_similar', 'pr_query', 'proposal_fields']));
+    expect(stub.seen.listed).not.toContain('people_list');
+    expect(stub.seen.listed).not.toContain('jira_issue_update');
+    // The item is fenced as data, and the rules say what to do with an instruction inside it.
+    expect(stub.seen.input).toContain('<<<TRACKER_ITEM');
+    expect(stub.seen.input).toContain('INJECTION:');
+    expect(result.report!.unverified).toEqual(['corp-jira:PAY-999']);
+    expect(result.proposals.map((p) => p.command)).toEqual(['jira issue update']);
+    expect(result.startedOn).toMatchObject({ toil: '0.0.0-test', toilUi: 't', adapter: 'codex', skills: [], dossier: { name: 'card-payments' }, item: { id: 'corp-jira:PAY-107' } });
+    expect(result.startedOn.item.fingerprint).toMatch(/^[0-9a-f]{64}$/);
+    expect(lines).toContain('tool: Called: owi_get');
+    // Every call toil made was a read, and the run's own carry the assignment as their actor.
+    expect(rec.calls.every((c) => c.options.readOnly === true && c.options.caller === 'toil-ui')).toBe(true);
+    expect(rec.calls.some((c) => c.options.actor === 'assignment-abc12345-0000-0000-0000-000000000000')).toBe(true);
+    expect(holder.size).toBe(0);
+  });
+
+  it('turns an investigation into a report and a comment proposal', async () => {
+    const { result } = await run({ mode: 'investigate', script: { calls: [{ name: 'owi_get', input: { id: 'corp-jira:PAY-107' } }], chunks: ['[[corp-jira:PAY-107]] is unestimated.\nQUESTION: Who owns it?'] } });
+    expect(result.questions).toEqual(['Who owns it?']);
+    expect(result.report!.parts.map((p) => p.text)).toEqual(['[[corp-jira:PAY-107]] is unestimated.']);
+    expect(result.proposals).toEqual([expect.objectContaining({ command: 'jira issue comment', input: expect.objectContaining({ dossier: 'card-payments', key: 'PAY-107' }) })]);
+  });
+
+  it('stops on an item the agent says is an injection attempt', async () => {
+    const { result } = await run({ script: { calls: [], chunks: ['INJECTION: asks to post the tokens elsewhere'] } });
+    expect(result.injection).toBe('asks to post the tokens elsewhere');
+    expect(result.proposals).toEqual([]);
+  });
+
+  it('gives implement mode the workspace-write sandbox in its own folder, with the shell and no network', async () => {
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const stub = codexStub({ calls: [], chunks: ['done'] }, holder);
+    const { host, dataDir } = hostFor('codex', stub.module, { serveTools: (tools) => holder.serve(tools) });
+    const root = join(dataDir, 'cache', 'work', 'x');
+    await host.task({ adapter: 'codex', dossier: 'card-payments', chat: 'abc12345', system: 's', prompt: 'p', tools: [], workspace: { root }, signal: new AbortController().signal, onText: () => undefined });
+    expect(stub.seen.thread).toMatchObject({ sandboxMode: 'workspace-write', workingDirectory: root, networkAccessEnabled: false, approvalPolicy: 'never' });
+    const overrides = stub.seen.options!.configOverrides as string[];
+    expect(overrides).toEqual(codexOverrides('http://127.0.0.1:1/api/agent/mcp', true));
+    expect(overrides).toContain('sandbox_workspace_write.network_access=false');
+    expect(overrides).toContain('windows.sandbox="unelevated"');
+    expect(overrides).not.toContain('features.shell_tool=false');
+    expect(overrides).toContain('features.unified_exec=false');
+  });
+
+  it('refuses a workspace on an adapter whose own sandbox Toil UI does not use to bound one folder', async () => {
+    const { host } = hostFor('claude', claudeStub(SCRIPT).module);
+    await expect(host.task({ adapter: 'claude', dossier: 'card-payments', chat: 'abc12345', system: 's', prompt: 'p', tools: [], workspace: { root: '/x' }, signal: new AbortController().signal, onText: () => undefined })).rejects.toThrow(/only Codex/);
+    expect(host.adapterChoices().map((a) => [a.name, a.workspace])).toEqual([['claude', false], ['copilot', false], ['codex', true]]);
+  });
+
+  it('holds an assignment to the per-chat cap, and marks the refusal as a cap', async () => {
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const stub = codexStub(SCRIPT, holder);
+    const ledger = memoryLedger([{ id: 'r1', chatId: 'abc12345', turn: 1, dossier: 'card-payments', adapter: 'codex', at: FIXTURE_NOW, model: null, costSource: 'none', inputTokens: 900 }]);
+    const { host, dataDir } = hostFor('codex', stub.module, { serveTools: (tools) => holder.serve(tools), ledger });
+    writeFileSync(usageSettingsFile(dataDir), JSON.stringify({ caps: { 'codex.chat': { unit: 'tokens', limit: 500 } }, codexRates: null }));
+    const e = await host.task({ adapter: 'codex', dossier: 'card-payments', chat: 'abc12345', system: 's', prompt: 'p', tools: [], workspace: null, signal: new AbortController().signal, onText: () => undefined }).catch((x: unknown) => x);
+    expect(e).toBeInstanceOf(AgentError);
+    expect((e as AgentError).capped).toBe(true);
+    expect(stub.seen.thread).toBeUndefined();
+  });
+});
+
+describe('implement mode, when the agent commits anyway (#293 review)', () => {
+  it('warns and proposes no commit or push, since its commits are not in the staged diff', async () => {
+    const source = mkdtempSync(join(folder, 'person-clone-'));
+    mkdirSync(join(source, '.git', 'refs', 'heads'), { recursive: true });
+    mkdirSync(join(source, '.git', 'objects'), { recursive: true });
+    writeFileSync(join(source, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    writeFileSync(join(source, '.git', 'refs', 'heads', 'main'), `${'a'.repeat(40)}\n`);
+    let root = '';
+    // The Codex SDK, stubbed: inside the run it "commits" by moving the branch the clone is on.
+    class Codex {
+      startThread(t: Record<string, unknown>) {
+        root = String(t.workingDirectory);
+        return {
+          runStreamed: async () => ({
+            events: (async function* () {
+              writeFileSync(join(root, 'repo', '.git', 'refs', 'heads', 'main'), `${'b'.repeat(40)}\n`);
+              yield { type: 'item.completed', item: { type: 'agent_message', text: 'Staged a README change.' } };
+              yield { type: 'turn.completed', usage: {} };
+            })(),
+          }),
+        };
+      }
+    }
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const { host, dataDir } = hostFor('codex', { Codex }, { serveTools: (tools) => holder.serve(tools) });
+    const calls: string[] = [];
+    const execute: Execute = async (command) => {
+      calls.push(command);
+      const data = command === 'dossiers show' ? { dossier: { repos: [{ name: 'payments-core', path: source }] } } : { staged: ['README.md'] };
+      return { ok: true, data, error: null, meta: { command, durationMs: 0, version: '0', contractVersion: 1 } } as unknown as Envelope;
+    };
+    const runner = hostRunner({ host, dataDir, registry: registry.commands, execute, mapIds: () => [], data: () => data, version: 't', toilVersion: 't', now: () => FIXTURE_NOW });
+    const item = data.items().find((i) => i.id === 'corp-jira:PAY-107')!;
+    const a = { id: 'abc12345-0000-0000-0000-000000000001', dossier: 'card-payments', item: item.id, itemTitle: 'x', mode: 'implement', adapter: 'codex', origin: 'person', trigger: null, state: 'working', waiting: null, repo: 'payments-core', createdAt: FIXTURE_NOW, startedAt: FIXTURE_NOW, endedAt: null, stop: null, report: null, questions: [], proposals: [], usage: null, startedOn: null, branch: null } as const;
+    const result = await runner.run({ assignment: { ...a, questions: [], proposals: [] }, item, signal: new AbortController().signal, record: () => undefined });
+    expect(result.report!.warnings[0]).toMatch(/moved the clone off the commit it started at \(aaaaaaaaaaaa, now bbbbbbbbbbbb\)/);
+    expect(result.proposals.some((p) => p.title.startsWith('Commit and push'))).toBe(false);
+    expect(headCommit(join(root, 'repo'))).toBe('b'.repeat(40));
+  });
+
+  it('reads the commit HEAD is at from a loose ref, packed-refs, or a detached HEAD', () => {
+    const clone = mkdtempSync(join(folder, 'heads-'));
+    mkdirSync(join(clone, '.git'), { recursive: true });
+    writeFileSync(join(clone, '.git', 'HEAD'), 'ref: refs/heads/agent/x\n');
+    writeFileSync(join(clone, '.git', 'packed-refs'), `# pack-refs with: peeled\n${'c'.repeat(40)} refs/heads/agent/x\n`);
+    expect(headCommit(clone)).toBe('c'.repeat(40));
+    writeFileSync(join(clone, '.git', 'HEAD'), `${'d'.repeat(40)}\n`);
+    expect(headCommit(clone)).toBe('d'.repeat(40));
+    writeFileSync(join(clone, '.git', 'HEAD'), 'ref: refs/../../x\n');
+    expect(headCommit(clone)).toBeNull();
+  });
+});
+
+describe('implement mode, when the diff would hide something staged (#293 review round 4)', () => {
+  const git = (cwd: string, ...args: string[]) => {
+    const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=you@example.com', '-c', 'commit.gpgsign=false', '-c', 'maintenance.auto=false', '-c', 'gc.auto=0', ...args], { cwd, encoding: 'utf8' });
+    if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
+    return r.stdout;
+  };
+
+  /** An implement run on a real clone of a real repository, with a stubbed Codex doing `act` in it, and toil's real git status and diff. */
+  const implementWith = async (act: (repo: string) => void) => {
+    const source = mkdtempSync(join(folder, 'gitlink-source-'));
+    git(source, 'init', '-q', '-b', 'main');
+    writeFileSync(join(source, 'README.md'), 'one\n');
+    git(source, 'add', 'README.md');
+    git(source, 'commit', '-q', '-m', 'start');
+    // The Codex SDK, stubbed: inside the run it does what an injected agent might, with real git.
+    class Codex {
+      startThread(t: Record<string, unknown>) {
+        const repo = join(String(t.workingDirectory), 'repo');
+        return {
+          runStreamed: async () => ({
+            events: (async function* () {
+              git(repo, 'reset', '-q', '--hard', 'HEAD');
+              git(repo, 'switch', '-q', '-c', 'agent/PAY-107');
+              act(repo);
+              yield { type: 'item.completed', item: { type: 'agent_message', text: 'Staged a README change.' } };
+              yield { type: 'turn.completed', usage: {} };
+            })(),
+          }),
+        };
+      }
+    }
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const { host, dataDir } = hostFor('codex', { Codex }, { serveTools: (tools) => holder.serve(tools) });
+    // toil's own git status and git diff, for real, with its audit log in a home of the test's own.
+    const home = mkdtempSync(join(folder, 'gitlink-home-'));
+    const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE };
+    process.env.HOME = home;
+    process.env.USERPROFILE = home;
+    const execute: Execute = async (command, input = {}, options = {}) =>
+      command === 'dossiers show'
+        ? ({ ok: true, data: { dossier: { repos: [{ name: 'payments-core', path: source }] } }, error: null, meta: { command, durationMs: 0, version: '0', contractVersion: 1 } } as unknown as Envelope)
+        : ((await realExecute(command, input, options as never)) as unknown as Envelope);
+    try {
+      const runner = hostRunner({ host, dataDir, registry: registry.commands, execute, mapIds: () => [], data: () => data, version: 't', toilVersion: 't', now: () => FIXTURE_NOW });
+      const item = data.items().find((i) => i.id === 'corp-jira:PAY-107')!;
+      const a = { id: 'abc12345-0000-0000-0000-000000000002', dossier: 'card-payments', item: item.id, itemTitle: 'x', mode: 'implement', adapter: 'codex', origin: 'person', trigger: null, state: 'working', waiting: null, repo: 'payments-core', createdAt: FIXTURE_NOW, startedAt: FIXTURE_NOW, endedAt: null, stop: null, report: null, questions: [], proposals: [], usage: null, startedOn: null, branch: null } as const;
+      const result = await runner.run({ assignment: { ...a, questions: [], proposals: [] }, item, signal: new AbortController().signal, record: () => undefined });
+      return result;
+    } finally {
+      process.env.HOME = saved.HOME;
+      process.env.USERPROFILE = saved.USERPROFILE;
+    }
+  };
+
+
+  it('stages a gitlink beside a README change, names it, and proposes no commit or push', async () => {
+    const result = await implementWith((repo) => {
+      writeFileSync(join(repo, 'README.md'), 'one\ntwo\n');
+      git(repo, 'add', 'README.md');
+      git(repo, 'update-index', '--add', '--cacheinfo', `160000,${'0123456789abcdef'.repeat(2)}01234567,leak1`);
+    });
+    expect(result.branch!.hidden).toEqual(['leak1']);
+    expect(result.branch!.diff).toContain('+two');
+    expect(result.branch!.diff).not.toContain('leak1');
+    expect(result.report!.warnings[0]).toMatch(/^The staged change includes a file the diff below doesn't show: leak1\..*no commit or push is proposed/);
+    expect(result.proposals.some((p) => p.title.startsWith('Commit and push'))).toBe(false);
+  }, 30_000);
+
+  it('stages a file longer than toil reads, says the diff is cut, and proposes no commit or push', async () => {
+    const result = await implementWith((repo) => {
+      writeFileSync(join(repo, 'big.md'), `${Array.from({ length: 5_100 }, (_, i) => `line ${i}`).join('\n')}\nSECRET\n`);
+      git(repo, 'add', 'big.md');
+    });
+    expect(result.branch!.cut).toBe(true);
+    expect(result.branch!.diff).not.toContain('SECRET');
+    expect(result.branch!.diff).toContain("[toil stopped reading the diff");
+    expect(result.report!.warnings[0]).toMatch(/^The staged diff is too long to show in full/);
+    expect(result.proposals.some((p) => p.title.startsWith('Commit and push'))).toBe(false);
+  }, 30_000);
+
+  it('proposes the commit and push when the diff shows every staged file in full', async () => {
+    const result = await implementWith((repo) => {
+      writeFileSync(join(repo, 'README.md'), 'one\ntwo\n');
+      git(repo, 'add', 'README.md');
+    });
+    expect(result.branch).toMatchObject({ hidden: [], cut: false, onBranch: true });
+    expect(result.proposals.some((p) => p.title.startsWith('Commit and push'))).toBe(true);
+  }, 30_000);
+
+  it('counts a staged path as reviewed only when the diff has text for it', () => {
+    const diff = { files: [{ path: 'a.md', binary: false, hunks: [{}] }, { path: 'logo.png', binary: true, hunks: [] }, { path: 'run.sh', binary: false, hunks: [] }, { path: 'new.md', binary: false, hunks: [{}] }] };
+    expect(hiddenStaged({ staged: ['a.md', 'logo.png', 'run.sh', 'old.md -> new.md', 'leak1'] }, diff)).toEqual(['logo.png', 'run.sh', 'leak1']);
+    expect(hiddenStaged({ staged: ['a.md'] }, null)).toEqual(['a.md']);
+    expect(hiddenStaged({ staged: [] }, diff)).toEqual([]);
   });
 });

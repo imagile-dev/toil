@@ -49,6 +49,8 @@ export interface AuditEntry {
   via: FrontDoor;
   /** Who called through the API, as it named itself (`toil-ui`). Present only when it gave a name. */
   caller?: string;
+  /** Who the API call was made on behalf of (`assignment-<id>`), when the caller named one. */
+  actor?: string;
   command: string;
   /** The area the command belongs to; null for core commands (`connections list`). */
   area: string | null;
@@ -145,7 +147,7 @@ export function auditInput(def: AnyCommand, input: unknown): unknown {
 }
 
 /** The line execute() writes for one finished command. */
-export function auditEntry(o: { def: AnyCommand; input: unknown; via: FrontDoor; caller?: string; writes: boolean; requests: readonly RequestLog[]; envelope: Envelope; now?: Date }): AuditEntry {
+export function auditEntry(o: { def: AnyCommand; input: unknown; via: FrontDoor; caller?: string; actor?: string; writes: boolean; requests: readonly RequestLog[]; envelope: Envelope; now?: Date }): AuditEntry {
   const now = o.now ?? new Date();
   const { envelope } = o;
   const requests = o.requests.slice(0, MAX_REQUESTS).map((r) => ({ method: r.method, url: clip(r.url), status: r.status }));
@@ -155,6 +157,7 @@ export function auditEntry(o: { def: AnyCommand; input: unknown; via: FrontDoor;
     via: o.via,
     // Checked against CALLER_LABEL by the API before the call ran; clipped anyway, as everything else here is.
     ...(o.caller ? { caller: clip(o.caller) } : {}),
+    ...(o.actor ? { actor: clip(o.actor) } : {}),
     command: envelope.meta.command,
     area: o.def.area?.name ?? null,
     connection: envelope.meta.context?.connection?.value ?? null,
