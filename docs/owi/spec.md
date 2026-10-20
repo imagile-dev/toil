@@ -136,7 +136,7 @@ Services differs, the mapping already holds:
 
 - **Type** from the issue type (GitHub's defaults are Task, Bug and Feature).
   **Parent** from `parent_issue_url`, **children** from `sub_issues`
-  (`get-issue --sub-issues`).
+  (`github issue get <number> --sub-issues`).
 - **Status, estimate and iteration** live on a Projects board. With
   `github project items` in the input, an issue and its board item are one
   item: the board's **Status** option sets `status` (Todo, Backlog, Ready and New

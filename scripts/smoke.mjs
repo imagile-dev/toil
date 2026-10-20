@@ -192,7 +192,7 @@ async function apiConsumer(prefix, bin) {
     }
     const types = out.events.map((e) => e.type);
     if (out.contractVersion !== 1 || out.listed.contractVersion !== 1 || typeof out.version !== 'string') fail(`the API reported version ${out.version}, contract ${out.contractVersion} and ${out.listed.contractVersion}`);
-    if (out.commands < 100 || out.listPrs?.tool !== 'bitbucket_pr_list' || out.listPrs.writes !== false || !out.listPrs.hasSchema) fail(`the API's registry gave ${out.commands} commands, list-prs as ${JSON.stringify(out.listPrs)}`);
+    if (out.commands < 100 || out.listPrs?.tool !== 'bitbucket_pr_list' || out.listPrs.writes !== false || !out.listPrs.hasSchema) fail(`the API's registry gave ${out.commands} commands, pr list as ${JSON.stringify(out.listPrs)}`);
     if (!out.listed.ok || JSON.stringify(out.listed.ids) !== '[1,2]') fail(`execute('bitbucket pr list') returned ${JSON.stringify(out.listed)}`);
     if (types.filter((t) => t === 'page').length !== 2 || !types.includes('retry') || types.filter((t) => t === 'request').length !== 3) fail(`the API heard progress ${JSON.stringify(out.events)}`);
     if (out.refused !== 'WRITE_DISABLED' || out.unknown !== 'INVALID_INPUT' || out.badCaller !== 'INVALID_INPUT') fail(`the API's refusals were ${JSON.stringify({ refused: out.refused, unknown: out.unknown, badCaller: out.badCaller })}`);
