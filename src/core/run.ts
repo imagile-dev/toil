@@ -7,7 +7,7 @@ import { connectionEnvName, connectionsOf, defaultConnectionName, envName } from
 import { IncompleteConnectionError } from './connection.js';
 import type { CommandContext, Context } from './context.js';
 import type { Place } from './dossier.js';
-import { CONTRACT_VERSION, failure, success, type ApiAnswer, type ContextReport, type Envelope, type Meta, type Page, type Warning } from './envelope.js';
+import { CONTRACT_VERSION, failure, success, type ApiAnswer, type ContextReport, type Envelope, type LintReport, type Meta, type Page, type Warning } from './envelope.js';
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
 import { progressMessage, withProgress, type ProgressBody } from './progress.js';
@@ -167,6 +167,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
   const warnings: Warning[] = [...ctx.config.warnings];
   let page: Page | undefined;
   let response: ApiAnswer | undefined;
+  let lint: LintReport | undefined;
   let report: ContextReport | undefined;
   let exitCode: number | undefined;
   // Reports the dossier once it has been consulted, which may be as late as the command's own run.
@@ -178,6 +179,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     if (warnings.length > 0) m.warnings = warnings;
     if (page) m.page = page;
     if (response) m.response = response;
+    if (lint) m.lint = lint;
     if (report && Object.keys(report).length > 0) m.context = report;
     return m;
   };
@@ -288,7 +290,9 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       Object.assign(partial, { dossier: used }, rest);
     };
     let call: ResolvedCall | undefined;
-    if (usesConnection(def) && !unconfigured) {
+    // An input that says everything a connection would (db lint's --engine) skips resolution entirely.
+    const connectionless = optional && def.connectionlessWhen?.(input) === true;
+    if (usesConnection(def) && !unconfigured && !connectionless) {
       try {
         const dossier = ctx.dossiers ? place?.lookup : ctx.dossier;
         try {
@@ -376,6 +380,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       warn: (warning) => warnings.push(warning),
       setPage: (p) => (page = p),
       setResponse: (r) => (response = r),
+      setLint: (l) => (lint = l),
       setExitCode: (code) => {
         if (!Number.isInteger(code) || code < 0 || code > 255) throw new Error(`${commandName(def)} asked for exit code ${code}; an exit code is a whole number from 0 to 255.`);
         exitCode = code;
