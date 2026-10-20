@@ -17,8 +17,10 @@ import type { Change, Execute, WorkItem } from './toil.ts';
 /**
  * What the Command Center hands #293's start action: the ready items in the
  * order they were slated, and the plan's id, which changes when anything in
- * the plan does, so a person starts the plan they saw. It resolves with what
- * it did, in words, and throws saying why it started nothing.
+ * the plan does (the Command Center shows it beside the list). The items are
+ * what starts: the page sends exactly the list on screen. It resolves with
+ * what it did, in words, and throws saying what it couldn't do, naming
+ * anything it queued first.
  */
 export type StartReady = (plan: { id: string; items: string[] }) => Promise<string>;
 

@@ -101,4 +101,12 @@ describe("the Command Center's start (#307)", () => {
     await expect(startReadyWith(api, 'checkout-web')({ id: 'x', items: ['github:imagile/payments-web#41'] })).rejects.toThrow(/lists no repository with a local path.*Nothing was started/);
     expect((await api.list('checkout-web')).assignments).toEqual([]);
   });
+
+  it('names the items it queued beside one it could not', async () => {
+    const api = fixtureAssignments({ delay: 1 });
+    const { startReadyWith } = await import('../src/assign/start.ts');
+    const flaky = { ...api, assign: async (r: Parameters<typeof api.assign>[0]) => (r.item === 'corp-jira:PAY-103' ? Promise.reject(new Error('That item left the cache.')) : api.assign(r)) };
+    await expect(startReadyWith(flaky, 'card-payments')({ id: 'x', items: ['corp-jira:PAY-102', 'corp-jira:PAY-103'] })).rejects.toThrow("Queued one implement assignment on Codex. One item couldn't be queued: corp-jira:PAY-103: That item left the cache.");
+    expect((await api.list('card-payments')).assignments.filter((a) => a.item === 'corp-jira:PAY-102' && a.mode === 'implement')).toHaveLength(1);
+  });
 });
