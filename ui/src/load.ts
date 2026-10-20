@@ -19,6 +19,8 @@ import { CALL_OPTIONS, type Call, type ChangeRef, type Deployment, type Envelope
 
 /** The JQL and WIQL a dashboard sends: one query per tracker, the whole project. */
 export const JQL = (project: string) => `project = ${project} ORDER BY Rank ASC`;
+/** The areas that read Azure DevOps work items: Server and Services. */
+export const ADO_AREAS = ['ado', 'ado-cloud'] as const;
 export const WIQL = 'SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project ORDER BY [System.Id]';
 
 export type Panel = 'dossier' | 'work' | 'prs' | 'builds' | 'deployments';
@@ -140,7 +142,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
 
   // Work items, mapped to OWI ---------------------------------------------------------
   // Each area is mapped on its own, with its own section's OWI fields.
-  const work: Record<'jira' | 'ado' | 'github', unknown[]> = { jira: [], ado: [], github: [] };
+  const work: Record<'jira' | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], ado: [], 'ado-cloud': [], github: [] };
   const tasks: Array<Promise<void>> = [];
   if (areas.jira?.inputs.project) {
     tasks.push((async () => {
@@ -154,18 +156,19 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       }
     })());
   }
-  if (areas.ado) {
+  // Azure DevOps Server and Services send the same work item shapes under the same command names.
+  for (const ado of ADO_AREAS.filter((a) => areas[a])) {
     tasks.push((async () => {
-      const iterations = await run('work', 'ado work-item iterations', base);
-      if (iterations) work.ado.push(iterations);
-      const search = await run('work', 'ado work-item search', { ...base, wiql: WIQL });
+      const iterations = await run('work', `${ado} work-item iterations`, base);
+      if (iterations) work[ado].push(iterations);
+      const search = await run('work', `${ado} work-item search`, { ...base, wiql: WIQL });
       const ids = search ? recs((search.data as Rec).workItems).map((w) => Number(w.id)) : [];
       if (!ids.length) return;
-      const batch = await run('work', 'ado work-item get-many', { ...base, id: ids });
-      if (batch) work.ado.push(batch);
+      const batch = await run('work', `${ado} work-item get-many`, { ...base, id: ids });
+      if (batch) work[ado].push(batch);
       for (const id of ids) {
-        const revisions = await run('work', 'ado work-item history', { ...base, id });
-        if (revisions) work.ado.push(revisions);
+        const revisions = await run('work', `${ado} work-item history`, { ...base, id });
+        if (revisions) work[ado].push(revisions);
       }
     })());
   }
@@ -241,6 +244,12 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       }
       return out;
     }, async () => []);
+  }
+  // Azure DevOps Services: its pull requests when the dossier names a repository. It has no pipeline commands yet.
+  if (areas['ado-cloud']?.inputs.repo) {
+    const list = await run('prs', 'ado-cloud pr list', { ...base, state: 'all' });
+    const connection = list ? connectionOf(list, 'ado-cloud') : 'ado-cloud';
+    changes.push(...(list ? adoPrs(list.data, connection, items, 'ado-cloud pr list') : []));
   }
   if (areas.ado) {
     const list = await run('prs', 'ado pr list', { ...base, state: 'all' });
