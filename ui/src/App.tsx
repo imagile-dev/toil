@@ -163,20 +163,29 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   }, [looking]);
 
   /**
-   * After a name or description was changed in place: the list and that dossier
-   * are read again, and a rename moves the route, and what this browser
-   * remembers, to the new name. The server has moved its cache, worklog and
-   * assignments by then.
+   * After a name or description was changed in place: a description is written
+   * into what's loaded; a rename reads the list and that dossier again, and
+   * moves the route, and what this browser remembers, to the new name. The
+   * server has moved its cache, worklog and assignments by then.
    */
   const described = (d: Described) => {
-    const old = d.renamed?.from ?? d.name;
-    if (d.renamed) renameLooked(d.renamed.from, d.renamed.to);
     afterDescribe?.();
+    if (!d.renamed) {
+      // A new description changes one line of what's loaded, so it's written in rather than read again.
+      setList((l) => (l?.ok ? { ok: true, value: { ...l.value, dossiers: l.value.dossiers.map((x) => (x.name === d.name ? { ...x, description: d.description } : x)) } } : l));
+      setDossiers((all) => {
+        const had = all[d.name];
+        return had?.ok ? { ...all, [d.name]: { ok: true, value: { ...had.value, description: d.description } } } : all;
+      });
+      return;
+    }
+    const { from, to } = d.renamed;
+    renameLooked(from, to);
     setList(null);
-    setDossiers(({ [old]: _, ...rest }) => rest);
-    if (d.renamed && wanted === d.renamed.from) {
+    setDossiers(({ [from]: _, ...rest }) => rest);
+    if (wanted === from) {
       const rest = window.location.hash.replace(/^#\/dossier\/[^/]+/, '');
-      window.location.hash = `${dossierHref(d.renamed.to)}${rest}`;
+      window.location.hash = `${dossierHref(to)}${rest}`;
     }
   };
 

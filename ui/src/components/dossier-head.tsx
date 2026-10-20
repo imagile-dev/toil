@@ -59,7 +59,7 @@ function Count({ value, label, tone }: { value: string; label: string; tone?: 'w
 export function MiniBurnup({ sprint }: { sprint: PreviewSprint }) {
   const days = sprint.burn;
   const top = Math.max(1, ...days.map((d) => d.scope));
-  const span = Math.max(1, sprint.daysTotal > 0 ? Math.max(days.length - 1, sprint.daysTotal) : days.length - 1);
+  const span = Math.max(1, days.length - 1 + sprint.ahead);
   const x = (i: number) => (100 * i) / span;
   const y = (v: number) => 28 - (26 * v) / top;
   const line = (pick: (d: { scope: number; done: number }) => number) => days.map((d, i) => `${x(i).toFixed(1)},${y(pick(d)).toFixed(1)}`).join(' ');

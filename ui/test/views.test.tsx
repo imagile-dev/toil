@@ -192,6 +192,8 @@ describe("editing a dossier's name and description in place (#342)", () => {
     await user.type(screen.getByRole('textbox', { name: 'Description of settlement' }), 'Nightly settlement{Enter}');
     await waitFor(() => expect(config.runs).toEqual([{ command: 'dossiers describe', input: { dossier: 'settlement', description: 'Nightly settlement' } }]));
     await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Description of settlement' })).toBeNull());
+    // Written into what's loaded: the dashboard isn't read again for a new description.
+    expect(document.querySelector('.dossier-head .lede')!.textContent).toBe('Nightly settlement✎');
   });
 
   it("shows toil's message and fix when it refuses, and keeps the field open", async () => {

@@ -26,6 +26,8 @@ export interface PreviewSprint {
   scope: number;
   /** Each day's scope and done points, for the small burn-up. */
   burn: Array<{ scope: number; done: number }>;
+  /** Calendar days still to come after the last one in `burn`, so the burn-up keeps room for them. */
+  ahead: number;
 }
 
 export interface PreviewPerson {
@@ -69,6 +71,7 @@ export function previewOf(d: DossierData, now: string, since: string | null): Do
       done: h.done.points,
       scope: h.done.points + h.remaining.points,
       burn: b.days.map((x) => ({ scope: x.scope, done: x.done })),
+      ahead: b.ahead,
     };
   }
   const prs = d.pullRequests ?? [];

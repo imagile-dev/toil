@@ -230,9 +230,10 @@ or listed dossier: import it first, then describe your copy.
 
 Each command returns the change it made, refuses a value that's already there unless
 `--replace`, and needs no `--allow-write`, since it only writes your own dossier.
-The same steps are under **Settings → Dossiers** in Toil UI, and, apart from people
-and the limit, under **Dossiers** in the menu a bare `toil` opens. Both run these
-commands; neither edits the file itself.
+The same steps are under **Settings → Dossiers** in Toil UI, where a dossier's name
+and description are also edited in place on its card and dashboard, and, apart from
+people, the limit and `describe`, under **Dossiers** in the menu a bare `toil` opens.
+Both run these commands; neither edits the file itself.
 
 ### Check
 
