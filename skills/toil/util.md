@@ -1394,7 +1394,7 @@ toil util owi map issue.json --command "github issue get"
 | `--text <text>` | The input itself, instead of a file |
 | `--command <name>` | The command whose data the input is, when it holds `data` without its envelope (`"jira issue search"`) |
 | `--key <key>` | The item a history belongs to, when its output doesn't say: `PAY-104`, or `imagile/payments-web#44` (a bare `44` takes the envelope's owner and repo) |
-| `--field <name=field>` | Point an OWI field at a field of your own, repeatable: `estimate`, `estimateUnit` (`points`, `hours` or `days`), `priority`, `type`, `team`, `dueDate` or `iteration` |
+| `--field <name=field>` | Point an OWI field at a field of your own, repeatable: `estimate`, `estimateUnit` (`points`, `hours` or `days`), `priority`, `type`, `team`, `dueDate` or `iteration`; and for GitHub without a board, `estimateLabel` (`size/{n}`) and `iterationDays` |
 
 Over MCP the tool is `util_owi_map`, with `file` or `text`, and `command`, `key`
 and `field` (a list of `name=field`).
@@ -1408,7 +1408,10 @@ and `field` (a list of `name=field`).
   returns ids only and is skipped: map `work-item get-many` for those ids instead.
 - **GitHub:** `issue list`, `issue search` and `issue get` for issues,
   `project items` for the board's status, estimate and iteration, and
-  `issue history` for history. Pull requests are left out with a warning.
+  `issue history` for history. Where no board gives a value, the issue's
+  milestone is its iteration, a `points: N` label its estimate, and "Blocked by
+  #n" or "Depends on #n" in its body a `blocks` link. Pull requests are left out
+  with a warning.
 
 Pass one envelope, a JSON array of them, or one a line (`>>` appends each command's
 output to one file). A Jira changelog and a GitHub timeline don't name their issue,
@@ -1457,12 +1460,17 @@ Output:
   point estimate in Jira (by the name the connection registers, never a fixed
   `customfield_` id), then the original estimate in hours; StoryPoints, Effort or
   Size in Azure DevOps, then OriginalEstimate; a board number field named
-  Estimate, Size or Story Points in GitHub. `field` says which. Teams with a field
-  of their own point `estimate` at it with `--field`, the same keys a dossier's
-  `fields` uses.
+  Estimate, Size or Story Points in GitHub, else a label such as `points: 3`
+  (`field` is then `label:points: 3`). `field` says which. Teams with a field of
+  their own point `estimate` at it with `--field`, the same keys a dossier's
+  `fields` uses; a GitHub team with its own estimate labels names them with
+  `--field estimateLabel=size/{n}`.
+- **`iteration`** on a GitHub issue with no board value is its milestone: the
+  due date is the end, and the previous milestone's due date the start (14 days
+  before the end for the first, or `--field iterationDays=10` for every one).
 - **`unmapped`**, on each item, lists every field the record couldn't fill and
   why: a field `jira issue search` wasn't asked for, an iteration whose dates need
-  `ado work-item iterations`, an issue with no board in the input. `data.unmapped`
+  `ado work-item iterations`, a GitHub issue with no milestone and no board. `data.unmapped`
   counts them by field, and an `OWI_UNMAPPED` warning sums them up. Nothing is
   guessed.
 - **`histories`** holds histories whose item wasn't in the input, by id, so they

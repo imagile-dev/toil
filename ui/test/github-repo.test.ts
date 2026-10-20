@@ -22,6 +22,8 @@ import { SKEW_MS, SyncService } from '../server/sync.ts';
 import { CHECKED_CLOSED_PRS, CLOSED_ISSUE_HISTORIES, checkedPrs, historyNumbers, loadDossier } from '../src/load.ts';
 import { columns } from '../src/model/board.ts';
 import { flows } from '../src/model/flow.ts';
+import { dependencyGraph } from '../src/model/graph.ts';
+import { health } from '../src/model/sprint.ts';
 import type { ChangeRef, Execute } from '../src/toil.ts';
 
 const API = 'https://api.github.com';
@@ -203,6 +205,29 @@ describe('a GitHub dossier with no project board', () => {
     // A job that ran for both the push and the pull request is named once.
     const failing = data.changes.find((c) => c.kind === 'build' && c.outcome === 'failed');
     expect([failing?.title, failing?.state]).toEqual(['test, build', 'failure (test)']);
+
+    // With no board, the milestone is the sprint, the points label the estimate, and the body's Blocked by a link (#298).
+    const sprint = health(data.items, data.changes, '2026-10-19T22:10:00Z');
+    expect([sprint?.sprint.name, sprint?.sprint.start, sprint?.sprint.end, sprint?.items.length]).toEqual(['Sprint 42', '2026-10-12T07:00:00.000Z', '2026-10-26T07:00:00.000Z', 3]);
+    expect([sprint?.done.points, sprint?.remaining.points]).toEqual([3, 6]);
+    expect(data.items.find((i) => i.id.endsWith('#7'))?.estimate).toEqual({ value: 3, unit: 'points', field: 'label:points: 3' });
+    expect(sprint?.risks).toEqual([
+      { id: 'github:imagile/payments-sandbox#7', reasons: [{ code: 'failing-build', change: 'github:imagile/payments-sandbox#29/checks' }] },
+      { id: 'github:imagile/payments-sandbox#8', reasons: [{ code: 'blocked', by: 'github:imagile/payments-sandbox#7' }] },
+    ]);
+    expect(dependencyGraph(data.items).edges.map((e) => [e.type, e.source, e.target])).toEqual([['blocks', 'github:imagile/payments-sandbox#7', 'github:imagile/payments-sandbox#8']]);
+  });
+
+  it("maps with the section's OWI fields, and leaves its --field aliases to the area's commands", async () => {
+    stubGithub();
+    const { sync, viaStore } = await syncOnce('2026-10-19T22:10:00Z');
+    const dossier = join(process.env.HOME!, '.toil', 'dossiers', 'sandbox.json');
+    writeFileSync(dossier, JSON.stringify({ name: 'sandbox', repos: [], github: { connection: 'github', owner: 'imagile', repo: 'payments-sandbox', fields: { estimateLabel: 'size/{n}', iterationDays: '7', storyPoints: 'Story Points' } } }));
+    await sync.run(ctx);
+    const data = await loadDossier(viaStore, 'sandbox', { mapOwi });
+    const item = data.items.find((i) => i.id.endsWith('#7'))!;
+    expect(item.estimate).toBeNull();
+    expect(item.iteration).toMatchObject({ name: 'Sprint 42', start: '2026-10-19T07:00:00.000Z' });
   });
 
   it('asks the next sync only for issues updated since the last one, and refetches only their timelines', async () => {
