@@ -20,13 +20,18 @@
 // --project, else TOIL_ADO_CLOUD_PROJECT, names the project; the dossier file
 // in the scratch home holds it.
 //
+// Toil UI, and the toil that makes the dossiers, run on toil built from this
+// checkout into .scratch/toil each time it starts, never the published toil
+// ui/package.json pins, so commands ui/ calls before their release work here
+// (#332, real-home.mjs's buildToil and local-toil-hook.mjs).
+//
 // `npm run verify:ui` runs the same homes through the layout check and, with
 // --ask, one Codex question (scripts/verify.mjs). Repo tooling only: nothing
 // here ships. A sandbox inside a sandbox, filed in triplicate under scratch.
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { CODEX_SDK_INSTALL, RealHomeError, adoProblem, codexSdkInstalled, githubToken, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilUi } from './real-home.mjs';
+import { CODEX_SDK_INSTALL, RealHomeError, adoProblem, buildToil, codexSdkInstalled, githubToken, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilUi, toilUiNodeArgs } from './real-home.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -68,7 +73,9 @@ if (!ado) {
 }
 const env = realHomeEnv(home, token, process.env, { ado });
 
+let toil;
 try {
+  toil = buildToil();
   if (ado) prepareAdoHome({ home, project, env });
   else prepareRealHome({ home, repo, self, env });
 } catch (e) {
@@ -77,8 +84,8 @@ try {
 }
 if (!codexSdkInstalled()) process.stdout.write(`Codex for Ask: @openai/codex-sdk isn't installed in this clone. To try it: ${CODEX_SDK_INSTALL}\n`);
 
-process.stdout.write(`Home for this run: ${home}\n\n`);
-const child = spawn(process.execPath, [toilUi, '--port', port], { env, stdio: 'inherit' });
+process.stdout.write(`Toil UI runs on ${toil.describe}.\nHome for this run: ${home}\n\n`);
+const child = spawn(process.execPath, [...toilUiNodeArgs, toilUi, '--port', port], { env, stdio: 'inherit' });
 const stop = () => child.kill('SIGINT');
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);
