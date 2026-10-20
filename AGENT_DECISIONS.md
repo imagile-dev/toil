@@ -4749,6 +4749,12 @@ it pins. These are the choices made by default in the fix:
   the Jira search (not in the OWI sprint fixture core's tests pin); checkout-web asks
   for 10 words and names its issue template; settlement takes the defaults and has
   nothing ready. The fixture answers the live read for every open item it applies to.
+- **The header folds into its Menu whenever its one row would wrap**, not only below
+  1024px. With Command Center beside #308's Worklog, a dossier's seven links wrapped
+  the header at 1440px in CI's Linux fonts, though not on Windows. The header now
+  measures its row (`useCrowded` in `ui/src/App.tsx`) and shows the Menu until the
+  window is wider than where it last didn't fit. Shortening labels would only have
+  moved the line to the next view added.
 - **Found, not fixed:** Toil UI's Jira read is `jira issue search` with toil's default
   fields (`STANDARD_SEARCH_FIELDS`), which leave out `description`, `issuelinks` and
   `parent`, so on a real Jira instance items arrive with no body and no links. The gate
