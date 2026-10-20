@@ -29,7 +29,7 @@ export const ADO_HOURS_FIELD = 'Microsoft.VSTS.Scheduling.OriginalEstimate';
  * the table had missed it, as tables do. Resolved behaves like In Progress on boards,
  * so it is IN_PROGRESS here; Removed is out of the work, so DONE, with the
  * reason as its resolution. A custom state isn't here and is UNKNOWN, with a
- * warning: `ado work-item states` shows its category.
+ * warning: `ado work-item states` (or `ado-cloud work-item states`) shows its category.
  */
 export const ADO_STATES: Record<string, StatusCategory> = {
   New: 'TODO',
@@ -127,7 +127,7 @@ export function adoItem(doc: OwiDocument, record: Item, state: MapState, dates: 
 
   item.status = str(f['System.State']);
   if (item.status === null) unmapped(item, 'status', 'the record has no System.State');
-  else item.statusCategory = ADO_STATES[item.status] ?? unknownState(item, state, item.status, 'a custom state; ado work-item states shows its category');
+  else item.statusCategory = ADO_STATES[item.status] ?? unknownState(item, state, item.status, `a custom state; ${doc.area} work-item states shows its category`);
   if (item.statusCategory === 'DONE') item.resolution = str(f['System.Reason']) ?? (item.status === 'Removed' ? 'Removed' : null);
 
   item.assignee = adoPerson(f['System.AssignedTo']);

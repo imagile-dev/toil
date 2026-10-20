@@ -4087,6 +4087,43 @@ decided here.
   scope here; the agent gets the cache tool `owi_similar`, and its system prompt says
   to run it before proposing a new item.
 
+### #328 Toil UI's tests on Windows runners
+
+Measured on `windows-latest` before changing anything: a probe in the UI suite, in ten
+gate jobs, five on each Node version. The runner has 4 CPUs, so Vitest runs 3 workers.
+
+- **The SQLite tests were slow because of the disk, not the CPU.** `os.tmpdir()` on
+  the runner is on `C:`, its OS disk, where one commit under SQLite's default rollback
+  journal took 22 to 117 ms, against 0.7 ms on `D:`, the work disk. `sync.test.ts`
+  took 3 to 8 s there and under 1 s on Linux, and `server.test.ts`'s sync case timed
+  out at 5.5 to 11 s.
+  - **The cache commits to a write-ahead log** with `synchronous = NORMAL` (`JOURNAL`
+    in `ui/server/cache.ts`): 0.1 ms a commit on the same disk. That's a product
+    change, not a test setting, because a user's data folder is on their system drive
+    and a sync paid the same cost. It's safe for a cache: a crash loses nothing, and a
+    power cut may lose the last commits, which the next sync fetches again.
+  - **The gate's Windows jobs put `TEMP` and `TMP` on `RUNNER_TEMP`**, on `D:`
+    (`ci.yml`), because the root suite had the same disk: `contract.test.ts`'s skills
+    case, which copies a seeded home folder per run, takes 0.27 s on a laptop and
+    timed out at 5.3 s on the runner. With both, `sync.test.ts` takes 0.4 to 0.9 s
+    there.
+- **The dashboard axe cases are genuinely heavy.** Each renders a dashboard of about
+  1,600 elements in jsdom and runs axe over it: about a second on a laptop, 2 to 6 s
+  on the runner, with the 5 s default as the only margin. Asking axe for violations
+  only (`resultTypes`), which is all the tests read, cut its run by a quarter to a
+  third. Every `views.test.tsx` case that runs axe over a whole view, like
+  `theme-bar.test.tsx`'s and `feedback.test.tsx`'s already, gets an explicit 20 s
+  timeout with the reason beside it.
+- **The particle bounds check asserted once per particle per frame**, over a million
+  `expect()` calls, up to 3.7 s on the runner. It now collects strays in plain code
+  and asserts once (9 ms), with the first strays in the failure.
+- `test/start-commands.test.ts`'s `scripts/setup.mjs` cases spawn Node to run the real
+  bundle, once or twice each, so they get a 30 s timeout with the reason beside it.
+- **Left as they are:** the worker count and the pool (Vitest runs 3 forks on the
+  runner's 4 CPUs, so they don't oversubscribe it), and the global timeout. No UI test
+  uses fake timers. The two failures on React Aria handing focus back after Escape
+  were already fixed by waiting for it (#280, #284).
+
 ## Command shape (jira, jira-cloud, ado, ado-cloud)
 
 The maintainer asked for one streamlined interface, a clean break with no aliases,
@@ -4168,6 +4205,14 @@ work-item transition` and the new `ado-cloud work-item transition`, resolved in 
   for Jira, `transition` is the resolved transition's name when `--to` was used.
 - **`--to <intent-or-status>` is recorded in the command contract** for `jira issue
   transition` and `ado work-item transition`, beside the existing flags.
+- **Pins apply from any dossier that applies, adopted or not** (the maintainer's
+  decision, 2026-10-20, recorded here at their request). A checked-in or listed
+  dossier you haven't imported can still pin which transition `--to` resolves to,
+  as its field aliases already shape what `--field` sends; `meta.transition`
+  reports `resolvedBy: "dossier"` when a pin decided. Restricting pins to your own
+  dossiers was considered and not taken, because the same challenges could happen
+  with skills and the other things a repository can carry. The write itself is still
+  gated as every write is.
 
 ### #309 toil audit stats and the Usage page
 
@@ -4373,3 +4418,53 @@ These are the choices made by default inside that:
 - **The Sprint panel stays empty on this board**, because its sprints have no dates
   and the maintainer's rule is not to set them. Which sprint is current is only in the
   team's settings, which ado-cloud has no command for yet (#320).
+
+## ado-cloud boards, backlogs, sprints and states (#320)
+
+The issue asked for read commands for what a team's board is built from. These are
+the choices made by default inside that:
+
+- **Paths follow the command shape:** `sprint list`, `sprint items <id>`, `backlog
+  list`, `backlog items <id>`, `board list`, `board get <id>`, and `work-item states
+  --type`, which mirrors `ado work-item states` (same flag, same `data`: the server's
+  `value`). `ado` gets none of the team commands: the issue asks for `ado-cloud` only,
+  and there is no live Server to run them against.
+- **`--team` is a command-level context input**, on the six team commands only, so
+  it isn't a field on every `ado-cloud` tool. It resolves like every context input
+  (flag, dossier, the connection's new `team` setting). With none, toil reads the
+  project (`GET _apis/projects/<project>`) for its `defaultTeam` and puts its id in
+  the path. The live run showed the backlog endpoints answer 404 with no team in the
+  path while the others fall back to the default team, so every team command names one
+  rather than rely on the server's default for some and not others; the cost is one
+  extra request when no team is set. `meta.context` lists only the inputs that
+  resolved, so an `ADO_CLOUD_DEFAULT_TEAM` warning names the team that was read
+  (principle 4, raised in review).
+- **`sprint list --state`** takes `past`, `current` and `future`, the team settings'
+  own `timeFrame` words, comma-separated as `jira sprint list --state` takes its
+  states. It filters the full list in toil rather than sending `$timeframe=current`,
+  which accepts only `current`; one request either way, and one code path.
+- **`data` is the server's JSON**, as the rest of `ado-cloud`: a list's `value` for
+  `sprint list`, `backlog list`, `board list` and `work-item states`, the whole body
+  for `sprint items`, `backlog items` and `board get`. The item lists are ids only,
+  as the server sends them; `work-item get-many` fetches fields.
+- **`work-item states` warns on an empty answer** (`ADO_CLOUD_TYPE_UNKNOWN`): the server
+  answers a type the project doesn't have with an empty list, not a 404 (principle 4).
+- **API version 7.1 everywhere**: the live organization accepted the released 7.1 on
+  every one of these, including backlog work items, which Microsoft's reference lists
+  as `7.1-preview.1`.
+- **No contract entries.** `docs/command-contract.json` records no `ado-cloud`
+  command (the area isn't in its scope table), so the issue's "contract entries" are
+  the parity suite, fixtures and the skill's command table, as for the rest of the area.
+- **Fixtures were captured from the live board** and sanitized to placeholders, and say
+  so; the rest of the fixture file stays invented from the reference.
+- **OWI's custom-state reason names the item's own area** (`ado-cloud work-item
+  states` for Services), and Toil UI's board offers the same command as a hint when no
+  item shows which state a move should use, as it does for `ado`.
+- **Toil UI's Sprint panel is not wired to `sprint list`.** The issue doesn't ask for
+  it, the panel's model needs sprint dates (working days, burn-up), and the seeded
+  board's sprints have none. Showing a dateless current sprint is a change to the
+  sprint model and the panel's views, left for its own issue.
+- **The verification level stays `unit`.** The work item reads (#319) and these
+  commands have now been run against one live Scrum organization, which the skill and
+  the supported-version note now say, but the pull request commands haven't, so
+  raising the board status to `live` is left to the maintainer.

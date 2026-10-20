@@ -3,6 +3,7 @@ import { adoCloudArea, adoCloudSupported } from './area.js';
 import { commentCommands } from './comments.js';
 import { pullRequestCommands } from './pull-requests.js';
 import { repoCommands } from './repos.js';
+import { teamCommands } from './team.js';
 import { workCommands } from './work.js';
 
 /** `ado-cloud api`: any Azure DevOps Services REST endpoint in the organization, through the same request hook as every other ado-cloud command. */
@@ -20,4 +21,4 @@ const adoCloudApi = apiCommand(adoCloudArea, {
 // second Azure DevOps needed no change request against the first.
 export const area = adoCloudArea;
 export const supported = adoCloudSupported;
-export const commands = [...repoCommands, ...workCommands, ...pullRequestCommands, ...commentCommands, adoCloudApi];
+export const commands = [...repoCommands, ...workCommands, ...pullRequestCommands, ...commentCommands, ...teamCommands, adoCloudApi];

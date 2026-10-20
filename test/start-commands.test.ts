@@ -39,7 +39,10 @@ describe('start commands', () => {
  * variables, so nothing lands in the real ~/.toil; afterEach checks the real
  * audit log with home-guard's own reading.
  */
-describe('scripts/setup.mjs', () => {
+// Each case runs node scripts/setup.mjs, which runs the real bundle once or more
+// (and twice for --profile). Spawning Node takes a second or more on a Windows
+// runner, so the 5 s default leaves no room (#328).
+describe('scripts/setup.mjs', { timeout: 30_000 }, () => {
   let home: string;
   let realAudit: Map<string, number>;
   beforeEach(() => {

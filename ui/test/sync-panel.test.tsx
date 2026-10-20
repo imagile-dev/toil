@@ -65,7 +65,7 @@ describe('the sync panel', () => {
     expect(jira.textContent).toContain('Showing the last good copy, from 13 Oct 2026, 08:00 UTC.');
     expect(within(card).getByText(/Bitbucket/).textContent).toContain('up to date');
     expect(screen.getByRole('list', { name: 'settlement sources' })).toBeTruthy();
-    const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false } } });
+    const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false } }, resultTypes: ['violations'] });
     expect(result.violations.map((v) => v.id)).toEqual([]);
   });
 

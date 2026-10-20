@@ -57,13 +57,15 @@ export function proposeMove(item: WorkItem, to: StatusCategory, items: WorkItem[
     return { ...base, command: null, input: null, note: `toil has no command that sets a GitHub Projects status yet. Change ${key}'s Status field on the project board${item.url ? `: ${item.url}` : ''}.` };
   }
   const transitions = { text: 'List the transitions the workflow offers:', command: 'jira issue transitions', input: { dossier, key: item.source.key } };
-  // Azure DevOps Services has no transition or states command; its state is a field, set with work-item update.
+  // Both Azure DevOps areas list a type's states under the same command name.
+  const states = { text: 'List the states the work item type has:', command: `${item.source.area} work-item states`, input: { dossier, type: item.typeName ?? 'User Story' } };
+  // Azure DevOps Services has no transition command; its state is a field, set with work-item update.
   if (item.source.area === 'ado-cloud') {
-    if (!status) return { ...base, command: null, input: null, note: `No ${label} item in this dossier shows which state to use. The work item type's states are in the project's process settings.` };
+    if (!status) return { ...base, command: null, input: null, note: `No ${label} item in this dossier shows which state to use.`, hint: states };
     return { ...base, command: 'ado-cloud work-item update', input: { dossier, id: Number(item.source.key), field: [`System.State=${status}`] }, note: null };
   }
   if (!status) {
-    const hint = fam === 'jira' ? transitions : { text: 'List the states the work item type has:', command: 'ado work-item states', input: { dossier, type: item.typeName ?? 'User Story' } };
+    const hint = fam === 'jira' ? transitions : states;
     return { ...base, command: null, input: null, note: `No ${label} item in this dossier shows which status to use.`, hint };
   }
   if (fam === 'jira') {

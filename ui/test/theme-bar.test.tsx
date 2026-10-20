@@ -39,8 +39,10 @@ async function open(hash: string, theme: string, scheme: string) {
   return view;
 }
 
+/** Only violations are read, so axe skips building the passes (#328). */
 async function violations(container: HTMLElement) {
   const result = await axe.run(container, {
+    resultTypes: ['violations'],
     runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] },
     // Experimental in this axe, so named: WCAG 2.5.3, a control's name holding its visible words (the header's name was the case, #277).
     rules: { 'color-contrast': { enabled: false }, 'label-content-name-mismatch': { enabled: true } },

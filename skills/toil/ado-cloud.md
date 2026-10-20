@@ -1,15 +1,17 @@
 ---
 area: ado-cloud
-description: Work items, git repositories and pull requests on Azure DevOps Services (dev.azure.com)
+description: Work items, boards, backlogs, sprints, git repositories and pull requests on Azure DevOps Services (dev.azure.com)
 ---
 
 # Azure DevOps Services (`ado-cloud`)
 
-Work items, git repositories and pull requests on **Azure DevOps Services**
-(`https://dev.azure.com/<organization>`, or the older
+Work items, a team's boards, backlogs and sprints, git repositories and pull requests
+on **Azure DevOps Services** (`https://dev.azure.com/<organization>`, or the older
 `https://<organization>.visualstudio.com`), through its REST API with
-`api-version=7.1`. Built from Microsoft's REST API reference and never run against a
-live organization. Verification level: `unit`.
+`api-version=7.1`. Built from Microsoft's REST API reference. The work item reads and
+the team settings commands (sprints, backlogs, boards, work item type states) have
+been run against one live Scrum organization; the pull request commands have not.
+Verification level: `unit`.
 
 For Azure DevOps Server (on-premises), use the `ado` area instead. The two are
 separate areas so that neither one's fixes can change the other: a Services
@@ -27,7 +29,8 @@ An **organization-scoped personal access token**: in Azure DevOps, User settings
 Personal access tokens → New Token, with **Organization** set to the one organization
 this connection is for. Give it the scopes the commands you'll use need: Work Items
 and Code, Read (or Read & write for the write commands), plus Project and Team Read
-for `project list`. toil sends it as `Authorization: Basic base64(":" + token)`, with
+for `project list`, `project get`, and the `sprint`, `backlog` and `board` commands
+when no team is given (toil reads the project for its default team). toil sends it as `Authorization: Basic base64(":" + token)`, with
 an empty user name.
 
 **Don't create a global token** ("All accessible organizations"). Microsoft is retiring
@@ -47,6 +50,7 @@ browser login or an app registration, and toil takes only a token you create onc
 | `pat` | `TOIL_ADO_CLOUD_PAT` | yes | Organization-scoped personal access token (a secret) |
 | `project` | `TOIL_ADO_CLOUD_PROJECT` | no | Default project, when `--project` isn't given |
 | `repo` | `TOIL_ADO_CLOUD_REPO` | no | Default git repository, when `--repo` isn't given |
+| `team` | `TOIL_ADO_CLOUD_TEAM` | no | Default team for the `sprint`, `backlog` and `board` commands, when `--team` isn't given (else the project's default team) |
 | `fieldAliases` | `TOIL_ADO_CLOUD_FIELD_ALIASES` | no | Work item field aliases as a JSON object, friendly name to reference name, e.g. `{"effortdays": "MyOrg.EffortDays"}` |
 | `writes` | `TOIL_ADO_CLOUD_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
 
@@ -109,6 +113,12 @@ came from.
 - `work-item create`, `work-item search`, `work-item comments`, `work-item comment`,
   `work-item iterations` and `repo list` need a project.
 - `repo get` and every `pr` command need a project and a repo.
+- `work-item states` needs a project.
+- Every `sprint`, `backlog` and `board` command needs a project and acts for one
+  team: `--team <name or id>` on the command (not the group; `team` over MCP), else a
+  dossier's or the connection's `team`, else the project's default team, which toil
+  reads from the project first (one extra request) and names in an
+  `ADO_CLOUD_DEFAULT_TEAM` warning.
 - `whoami`, `project list` and `project get` need neither.
 
 ## Commands
@@ -137,6 +147,13 @@ deletes.
 | `work-item comments <id>` | `--limit --cursor` | Every comment on the work item |
 | `work-item comment <id>` ✎ | `--body` | The new comment |
 | `work-item iterations` | `--depth` | The iteration tree, with dates |
+| `work-item states` | `--type` | The states of `--type`, with their categories |
+| `sprint list` | `--team --state` | The team's sprints, each with its `timeFrame` (past, current, future) |
+| `sprint items <id>` | `--team` | The work items in one sprint, as ids with their parent links |
+| `backlog list` | `--team` | The team's backlog levels |
+| `backlog items <id>` | `--team` | The work items on one backlog level, in backlog order, as ids |
+| `board list` | `--team` | The team's boards |
+| `board get <id>` | `--team` | One board, with its columns and the state each holds |
 | `pr list` | `--state --creator --reviewer --created-after --created-before --limit --cursor` | Pull requests |
 | `pr get <id>` | | One pull request |
 | `pr create` ✎ | `--title --source --target --description --reviewers --draft` | The created pull request |
@@ -164,6 +181,8 @@ toil ado-cloud work-item transition 42 --to review --allow-write
 toil ado-cloud --project Imagile --repo imagile-api pr list --state all --limit 50
 toil ado-cloud --project Imagile --repo imagile-api pr merge 42 --strategy squash --delete-source --allow-write
 toil ado-cloud --project Imagile --repo imagile-api pr reply 42 7 --body "Fixed in the next commit." --allow-write
+toil ado-cloud --project Imagile sprint list --state current
+toil ado-cloud --project Imagile board get "Backlog items" --team "Imagile Team"
 ```
 
 ### Paging
@@ -203,6 +222,40 @@ naming the list.
   token can't see, with an `ADO_CLOUD_WORK_ITEMS_MISSING` warning.
 - **`work-item history`** returns each revision as the whole item as it stood after that
   change, oldest first, so neighbours show what changed and when.
+
+### Sprints, backlogs and boards
+
+These read a team's settings, which is where Azure DevOps keeps what its boards are
+built from. Each returns the server's own JSON (a list's `value`, or the whole body).
+
+- **`sprint list`** returns the sprints the team has selected, in the team's order:
+  `id`, `name`, `path` and `attributes { startDate, finishDate, timeFrame }`.
+  `timeFrame` is `past`, `current` or `future`, and the team settings set it even when
+  the sprint has no dates, so this is how to tell which sprint is current; the
+  iteration tree (`work-item iterations`) carries dates only where someone set them.
+  `--state current` (or a comma-separated list of `past`, `current`, `future`) keeps
+  only those; anything else is `INVALID_INPUT`.
+- **`sprint items <id>`** takes a sprint's `id` from `sprint list` and returns
+  `workItemRelations`: each `{ rel, source, target: { id, url } }`, with `rel` and
+  `source` null for a top-level item and `System.LinkTypes.Hierarchy-Forward` with the
+  parent as `source` for a child. Ids only: fetch fields with `work-item get-many`.
+- **`backlog list`** returns the backlog levels: `id` (a category reference name such
+  as `Microsoft.RequirementCategory`), `name`, `rank`, `type`, `workItemTypes`,
+  `defaultWorkItemType`, `columnFields` and `isHidden`. **`backlog items <id>`** returns
+  that level's `workItems` in backlog (priority) order, each `{ rel, source, target: {
+  id } }`.
+- **`board list`** returns the boards, one per backlog level (`id`, `name`, `url`).
+  **`board get <id>`** takes the id or the name and returns the board's `columns`, each
+  `{ id, name, itemLimit, columnType, stateMappings, isSplit }`, its `rows`
+  (swimlanes), `allowedMappings` and `fields`. A team can rename its columns (To Do,
+  Doing, Testing, Done over New, Approved, Committed, Done), so the column an item sits
+  in can't be worked out from its state: `stateMappings` (`{ "<work item type>":
+  "<state>" }`) says which state each column holds.
+- **`work-item states --type <type>`** returns the type's states, each `{ name, color,
+  category }`, in workflow order. `category` (`Proposed`, `InProgress`, `Resolved`,
+  `Completed`, `Removed`) is how a custom state is classified. A type the project
+  doesn't have answers with no states rather than an error, so toil adds an
+  `ADO_CLOUD_TYPE_UNKNOWN` warning.
 
 ### Pull requests
 
@@ -298,6 +351,6 @@ and `ado-cloud api` doesn't.
 - `toil connections test` reads the organization's connection data, which names the
   token's own user.
 - A 429 is retried after the delay Azure DevOps asks for, as in every area.
-- Not covered yet: pipelines and builds, attachments, work item types, states and
-  fields, areas, links, tags, and PR files and diffs. `ado-cloud api` reaches all of
-  them.
+- Not covered yet: pipelines and builds, attachments, work item types and fields,
+  areas, links, tags, team capacity and settings changes, and PR files and diffs.
+  `ado-cloud api` reaches all of them.

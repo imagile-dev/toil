@@ -254,7 +254,8 @@ describe('the job', () => {
     sync.wipe();
     expect(Object.values(cache.counts()).every((n) => n === 0)).toBe(true);
     expect(sync.status().dossiers).toEqual([]);
-    expect(readdirSync(cache.paths.dir)).toEqual(['toil-ui.db']);
+    // The database, and the write-ahead log beside it while the file is open (server/cache.ts, JOURNAL).
+    expect(readdirSync(cache.paths.dir).sort()).toEqual(['toil-ui.db', 'toil-ui.db-shm', 'toil-ui.db-wal']);
   });
 
   it('forgets a dossier toil no longer has', async () => {

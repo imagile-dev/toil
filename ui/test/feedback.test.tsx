@@ -47,8 +47,9 @@ async function fill(dialog: HTMLElement) {
   return within(dialog).findByRole('checkbox', {}, { timeout: 3000 });
 }
 
+/** Only violations are read, so axe skips building the passes (#328). */
 async function violations() {
-  const result = await axe.run(document.body, { rules: { 'color-contrast': { enabled: false } } });
+  const result = await axe.run(document.body, { rules: { 'color-contrast': { enabled: false } }, resultTypes: ['violations'] });
   return result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
 }
 
