@@ -117,7 +117,8 @@ export function decide(dir, issue, areas, log = console.log, root = undefined) {
   writeFileSync(join(dir, 'pr-body.checked.md'), quietMentions(defuseClosingKeywords(readText(join(dir, 'pr-body.md')).slice(0, MAX_BODY))));
   return {
     decision: parsed.ok ? parsed.decision : 'invalid',
-    labels: ['triaged', ...(parsed.ok && parsed.decision !== 'fix' ? ['denied'] : []), ...(parsed.areas ?? []).map((a) => `area:${a}`)].join(','),
+    // A duplicate gets `duplicate`; `denied` only when its original was denied, which apply checks.
+    labels: ['triaged', ...(parsed.ok && parsed.decision === 'deny' ? ['denied'] : []), ...(parsed.ok && parsed.decision === 'duplicate' ? ['duplicate'] : []), ...(parsed.areas ?? []).map((a) => `area:${a}`)].join(','),
     duplicate_of: parsed.ok && parsed.duplicateOf ? String(parsed.duplicateOf) : '',
   };
 }
