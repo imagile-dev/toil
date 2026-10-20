@@ -11,6 +11,7 @@ import type { DbConnection } from '../../src/core/db/provider.js';
 import type { NetworkApis } from '../../src/core/network.js';
 import { execute } from '../../src/core/run.js';
 import { testContext } from '../harness/context.js';
+import { engineQuery } from '../harness/db.js';
 import { targets, type TargetDatabase } from './targets.js';
 
 /**
@@ -189,6 +190,8 @@ describe.skipIf(skip !== undefined)(`postgres server${skip ? ` (skipped: ${skip}
     await direct('CREATE SEQUENCE s');
     expect((await run(query, { sql: "SELECT nextval('s')" })).error?.code).toBe('WRITE_DISABLED');
     expect((await run(query, { sql: 'WITH d AS (DELETE FROM people RETURNING id) SELECT count(*) FROM d' })).error?.code).toBe('WRITE_DISABLED');
+    // The pre-flight lint refuses that CTE by its DELETE; the read-only transaction must refuse it without the lint.
+    await expect(engineQuery(db.settings, 'WITH d AS (DELETE FROM people RETURNING id) SELECT count(*) FROM d')).rejects.toMatchObject({ code: 'WRITE_DISABLED' });
     expect((await direct('SELECT count(*)::int AS n FROM people')).rows[0].n).toBe(12);
   });
 

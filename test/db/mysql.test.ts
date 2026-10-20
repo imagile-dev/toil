@@ -9,6 +9,7 @@ import { controlsTransaction, splitStatements, writesServerFile } from '../../sr
 import type { DbConnection } from '../../src/core/db/provider.js';
 import { execute } from '../../src/core/run.js';
 import { testContext } from '../harness/context.js';
+import { engineQuery } from '../harness/db.js';
 import { targets, type TargetDatabase } from './targets.js';
 
 /**
@@ -171,6 +172,8 @@ for (const target of targets.filter((t) => t.engine === 'mysql')) {
 
       for (const sql of ['CREATE TABLE notes (id INT)', 'TRUNCATE TABLE people', 'ALTER TABLE people ADD COLUMN z INT', 'CREATE TEMPORARY TABLE tmp (id INT)']) {
         expect((await run(query, { sql }, writable())).error?.code, sql).toBe('WRITE_DISABLED');
+        // Past the pre-flight lint, which refuses these by their first word: the session setting is what holds.
+        await expect(engineQuery(db.settings, sql), sql).rejects.toMatchObject({ code: 'WRITE_DISABLED' });
       }
       expect(await scalar('SELECT COUNT(*) FROM people')).toBe(12);
     });
