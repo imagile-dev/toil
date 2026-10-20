@@ -7,6 +7,7 @@
 
 import { createContext, useContext } from 'react';
 import type { Agent } from './agent.ts';
+import type { ConfigApi } from './config.ts';
 import type { DossierData } from './load.ts';
 import { prepare, type Prepared } from './model/insights.ts';
 import { health, type Health } from './model/sprint.ts';
@@ -20,6 +21,10 @@ export interface Data {
   agent: Agent;
   /** When the data was read: every view shows it (principle 4), and sprint figures are worked out at it. */
   now: string;
+  /** toil's config commands, for a change a person approves on a view (the People view's suggested matches); absent where there are none. */
+  config?: ConfigApi;
+  /** Reads the dossier again, after a person changed it from a view; absent where nothing can change. */
+  refresh?: () => void;
 }
 
 export const DataContext = createContext<Data | null>(null);

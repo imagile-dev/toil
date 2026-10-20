@@ -36,6 +36,8 @@ export const CONFIG_CHANGES = [
   'dossiers add-repo',
   'dossiers link',
   'dossiers field',
+  'dossiers person',
+  'dossiers wip-limit',
 ] as const;
 
 /** Everything `/api/config` runs, and nothing else. */

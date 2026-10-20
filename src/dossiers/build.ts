@@ -6,13 +6,17 @@ import { defineConfigCommand, type AnyCommand } from '../core/command.js';
 import { dossierConnection } from '../core/call-context.js';
 import { CONNECTION_NAME, connectionWrites, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
-import { dossierContent, hasSecretUserinfo, normalizeRemote, samePath, stripUserinfo, type Dossier, type DossierCatalog, type DossierFile, type Section } from '../core/dossier.js';
+import {
+  dossierContent, EMAIL, hasSecretUserinfo, identityKey, identityProblem, normalizeRemote, PERSON_KINDS, samePath, stripUserinfo,
+  type Dossier, type DossierCatalog, type DossierFile, type DossierPerson, type Section,
+} from '../core/dossier.js';
 import { ToilError, toToilError } from '../core/errors.js';
 import { forwardSlashes } from '../core/files.js';
 
 /**
- * `toil dossiers init | add-repo | link | env | field | export | import |
- * remove`: building a dossier, and sharing one through a repository.
+ * `toil dossiers init | add-repo | link | env | field | person | wip-limit |
+ * export | import | unlink | remove`: building a dossier, and sharing one
+ * through a repository.
  *
  * Writing a dossier is a local write, so none of these needs --allow-write,
  * which governs changes to remote systems; an agent may build one over MCP.
@@ -62,7 +66,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       const mine = elsewhere.find((f) => f.source === 'user');
       if (mine) throw new ToilError('INVALID_INPUT', `You already have a dossier named "${input.name}" (${forwardSlashes(mine.file)}).`, { fix: `Change it with toil dossiers link ${input.name} ..., or choose another name.` });
       for (const other of elsewhere) ctx.warn({ code: 'DOSSIER_DUPLICATE_NAME', message: `A dossier named "${input.name}" is also in ${forwardSlashes(other.file)} (${other.source}); yours takes precedence.` });
-      const dossier: Dossier = { name: input.name, ...(input.description ? { description: input.description } : {}), repos: [], sections: {}, environments: {} };
+      const dossier: Dossier = { name: input.name, ...(input.description ? { description: input.description } : {}), repos: [], sections: {}, environments: {}, people: [] };
       const file = catalog.save(catalog.userFile(input.name), dossier, 'create');
       return { name: input.name, file, source: 'user', dossier: dossierContent(dossier) };
     },
@@ -227,6 +231,128 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     },
   });
 
+  const person = defineConfigCommand({
+    path: ['dossiers', 'person'],
+    description: "Add someone to a dossier's people, with the identity each system knows them by",
+    toolDescription:
+      "Adds a person (or an agent, kind agent) to the dossier's people list, or adds to one already there: the identity each area knows them by (id github=pat-ex, id jira=pat), and an email used only to suggest matches. An identity is a user name, login or email, never a credential, and one account can be only one person's. Refuses to change an identity, kind or email already set unless replace is set. Removing a person or an identity (remove) is a delete: a person does that on the CLI. A local write: no allowWrite.",
+    input: z.object({
+      dossier: dossierField,
+      name: z.string().min(1).describe('The person\'s name as the team writes it, e.g. Pat Example'),
+      id: z.array(z.string().min(1)).optional().describe('Identities to add, each area=identity: the user name, login or email that area shows (github=pat-ex, jira=pat, ado=you@example.com)'),
+      kind: z.enum(PERSON_KINDS).optional().describe('human (the default) or agent'),
+      email: z.string().min(1).optional().describe('Their email, compared only to suggest which unmapped identities are theirs'),
+      remove: z.boolean().optional().describe('Remove the person, or with id only those identities. A delete: CLI only.'),
+      replace: replaceField,
+    }),
+    writes: false,
+    writesLocal: true,
+    offMcpWhen: (input) => (input.remove ? 'Removing a person or an identity is a delete, which is never served over MCP or the API: a person runs toil dossiers person --remove on the CLI.' : undefined),
+    args: [dossierArg, { name: 'name', field: 'name', description: "The person's name, e.g. Pat Example" }],
+    options: [
+      { flags: '--id <area=identity>', field: 'id', description: 'An identity to add, e.g. github=pat-ex; repeatable' },
+      { flags: '--kind <kind>', field: 'kind', description: 'human (the default) or agent' },
+      { flags: '--email <address>', field: 'email', description: 'Their email, used only to suggest matches' },
+      { flags: '--remove', field: 'remove', description: 'Remove the person, or with --id only those identities (CLI only)' },
+      replaceOption,
+    ],
+    examples: [
+      { dossier: 'payments', name: 'Pat Example', id: ['jira=pat', 'github=pat-ex'], email: 'you@example.com' },
+      { dossier: 'payments', name: 'Claude', kind: 'agent', id: ['github=claude'], replace: true },
+      // A removal is off MCP, so the example that sets the field keeps it false, as parity runs every example through both doors.
+      { dossier: 'payments', name: 'Pat Example', id: ['github=pat-ex'], remove: false },
+    ],
+    run: async (input, ctx) => {
+      const { catalog } = access(ctx);
+      const file = catalog.find(input.dossier);
+      const dossier = structuredClone(file.dossier);
+      const name = input.name.trim();
+      const refuse = (message: string, fix: string) => new ToilError('INVALID_INPUT', `${message} (dossier ${dossier.name}).`, { fix });
+      const ids = (input.id ?? []).map((pair) => {
+        const [area, value] = keyValue(pair, '--id');
+        areaNamed(area);
+        // The value never goes in the message: something shaped like a token may be one.
+        const problem = identityProblem(value);
+        if (problem) throw refuse(`The ${area} identity can't be used: ${problem}`, 'Pass the user name, login or email, never a token.');
+        return [area, value.trim()] as const;
+      });
+      if (input.email !== undefined && !EMAIL.test(input.email)) throw refuse(`"${input.email}" isn't an email address`, 'Give one such as you@example.com, or leave --email out.');
+      const at = dossier.people.findIndex((p) => p.name.toLowerCase() === name.toLowerCase());
+      const current = at >= 0 ? dossier.people[at]! : undefined;
+      const names = () => dossier.people.map((p) => p.name).join(', ') || '(nobody yet)';
+
+      if (input.remove) {
+        if (!current) throw refuse(`Nobody named "${name}" is in its people`, `It has: ${names()}.`);
+        if (!ids.length) {
+          dossier.people.splice(at, 1);
+          return saved(ctx, catalog, file, dossier, true, { person: null, removed: current });
+        }
+        const next: DossierPerson = { ...current, ids: { ...current.ids } };
+        for (const [area, value] of ids) {
+          if (next.ids[area] === undefined || next.ids[area]!.toLowerCase() !== value.toLowerCase()) throw refuse(`${current.name} has no ${area} identity ${value}`, `Their identities: ${Object.entries(current.ids).map(([a, v]) => `${a}=${v}`).join(', ') || 'none'}.`);
+          delete next.ids[area];
+        }
+        dossier.people[at] = next;
+        return saved(ctx, catalog, file, dossier, true, { person: next, removed: Object.fromEntries(ids) });
+      }
+
+      const next: DossierPerson = current ? { ...current, ids: { ...current.ids } } : { name, ids: {} };
+      for (const [area, value] of ids) {
+        const owner = dossier.people.find((p, i) => i !== at && p.ids[area] !== undefined && identityKey(area, p.ids[area]!) === identityKey(area, value));
+        if (owner) throw refuse(`The ${area} identity ${value} is already ${owner.name}'s`, `One account can only be one person's. Remove it from them first: toil dossiers person ${dossier.name} "${owner.name}" --id ${area}=${value} --remove.`);
+        const had = next.ids[area];
+        if (had !== undefined && had.toLowerCase() !== value.toLowerCase() && !input.replace) throw refuse(`${next.name}'s ${area} identity is already ${had}`, 'Pass --replace to change it.');
+        // The same account written in another case is the same account: the file keeps it as first written.
+        if (had === undefined || had.toLowerCase() !== value.toLowerCase()) next.ids[area] = value;
+      }
+      if (input.kind !== undefined) {
+        if ((next.kind ?? 'human') !== input.kind && current && !input.replace) throw refuse(`${next.name} is already listed as ${next.kind ?? 'human'}`, 'Pass --replace to change it.');
+        if (input.kind === 'human') delete next.kind;
+        else next.kind = input.kind;
+      }
+      if (input.email !== undefined) {
+        if (next.email !== undefined && next.email.toLowerCase() !== input.email.toLowerCase() && !input.replace) throw refuse(`${next.name}'s email is already ${next.email}`, 'Pass --replace to change it.');
+        next.email = input.email;
+      }
+      if (current) dossier.people[at] = next;
+      else dossier.people.push(next);
+      return saved(ctx, catalog, file, dossier, JSON.stringify(current) !== JSON.stringify(next), { person: next });
+    },
+  });
+
+  const wipLimit = defineConfigCommand({
+    path: ['dossiers', 'wip-limit'],
+    description: 'Set how many items one person may have in progress at once',
+    toolDescription:
+      "Sets the dossier's work-in-progress limit (wipLimit): how many items one person may have in progress at once, as the team agreed. Toil UI's People view counts each person's work in progress against it. Refuses to change a limit already set unless replace is set. Clearing it (clear) is a delete: a person does that on the CLI. A local write: no allowWrite.",
+    input: z.object({
+      dossier: dossierField,
+      limit: z.number().int().positive().optional().describe('The most items one person may have in progress at once, e.g. 3'),
+      clear: z.boolean().optional().describe('Remove the limit. A delete: CLI only.'),
+      replace: replaceField,
+    }),
+    writes: false,
+    writesLocal: true,
+    offMcpWhen: (input) => (input.clear ? 'Clearing the limit is a delete, which is never served over MCP or the API: a person runs toil dossiers wip-limit --clear on the CLI.' : undefined),
+    args: [dossierArg, { name: 'limit', field: 'limit', description: 'The most items one person may have in progress, e.g. 3', required: false }],
+    options: [{ flags: '--clear', field: 'clear', description: 'Remove the limit (CLI only)' }, replaceOption],
+    examples: [{ dossier: 'payments', limit: 3 }, { dossier: 'payments', limit: 4, replace: true, clear: false }],
+    run: async (input, ctx) => {
+      const { catalog } = access(ctx);
+      if ((input.limit === undefined) === (input.clear !== true)) throw new ToilError('INVALID_INPUT', 'Pass a limit, or --clear, and not both.', { fix: 'toil dossiers wip-limit <dossier> 3, or --clear to remove it.' });
+      const file = catalog.find(input.dossier);
+      const dossier = structuredClone(file.dossier);
+      const was = dossier.wipLimit;
+      if (input.clear) {
+        delete dossier.wipLimit;
+        return saved(ctx, catalog, file, dossier, was !== undefined, { wipLimit: null });
+      }
+      if (was !== undefined && was !== input.limit && !input.replace) throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name}'s limit is already ${was}.`, { fix: 'Pass --replace to change it.' });
+      dossier.wipLimit = input.limit!;
+      return saved(ctx, catalog, file, dossier, was !== input.limit, { wipLimit: input.limit });
+    },
+  });
+
   const exportCommand = defineConfigCommand({
     path: ['dossiers', 'export'],
     description: "Write a dossier for sharing: into a repository's .toil/dossiers, or to one file",
@@ -370,7 +496,7 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     },
   });
 
-  return [init, addRepo, link, env, field, exportCommand, importCommand, unlink, remove];
+  return [init, addRepo, link, env, field, person, wipLimit, exportCommand, importCommand, unlink, remove];
 
   /** link and env: one section's binding, context inputs and reference data. */
   async function changeSection(
