@@ -21,7 +21,7 @@ const t = (fromCategory: StatusCategory | null, toCategory: StatusCategory, at: 
 
 function item(over: Partial<WorkItem> & { id: string }): WorkItem {
   return {
-    owi: '0.1', source: { area: 'jira', connection: 'corp-jira', key: over.id.split(':')[1]!, command: 'jira issue search' }, url: null, type: 'STORY', typeName: 'Story',
+    owi: '0.2', source: { area: 'jira', connection: 'corp-jira', key: over.id.split(':')[1]!, command: 'jira issue search' }, url: null, type: 'STORY', typeName: 'Story',
     title: over.id, body: null, status: null, statusCategory: 'TODO', resolution: null, assignee: null, reporter: null, priority: null, estimate: null, labels: [], team: null,
     iteration: null, parent: null, children: [], links: [], created: null, updated: null, resolved: null, dueDate: null, history: { transitions: [], iterations: [] }, unmapped: [], native: {},
     ...over,

@@ -362,12 +362,14 @@ const envelope = await execute('jira issue search', { jql: 'project = PAY', limi
   `commit`, the 40-character hash of the commit the build came from (`null` when the
   build didn't record one), which is what a bug report from a terminal names.
 - **`mapOwi(input, options)`** maps envelopes you already hold (one, an array, or
-  JSON Lines text) to Open Work Items, the way `toil util owi map` does (`util.md`),
-  synchronously and without the schema check: `{ items, histories, skipped,
-  warnings }`. `options.fields` is a dossier section's `fields` object
-  (`{ estimate: 'customfield_10234', estimateUnit: 'points' }`), `command` names the
-  command for bare `data`, and `key` the item a keyless history belongs to. A
-  refused input throws, with a fix. **`owiVersion`** is the OWI version items carry,
+  JSON Lines text) to Open Work Items and pull requests to changes, the way `toil
+  util owi map` does (`util.md`), synchronously and without the schema check:
+  `{ items, changes, histories, skipped, warnings }`. `options.fields` is a dossier
+  section's `fields` object (`{ estimate: 'customfield_10234', estimateUnit: 'points' }`),
+  `command` names the command for bare `data`, `key` the item a keyless history
+  belongs to, `keyPatterns` where work item keys in a pull request point
+  (`['PAY-{n}=corp-jira']`), and `authorKinds` the author kinds set by hand
+  (`{ 'release-bot': 'BOT' }`). A refused input throws, with a fix. **`owiVersion`** is the OWI version items carry,
   and **`owiSchema`** their JSON Schema; `execute('util owi map', { text })` maps
   and validates in one call.
 - **`findSimilar(records, request, options)`** finds likely duplicates among OWI

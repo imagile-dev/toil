@@ -8,15 +8,17 @@
 
 import { segments } from '../agent.ts';
 import { useData } from '../data.ts';
-import { itemHref, shortKey, sourceLabel } from '../format.ts';
+import { itemHref, prName, shortKey, sourceLabel } from '../format.ts';
 import { themed } from '../theme-context.ts';
 import type { ThemeManifest } from '../themes.ts';
-import type { WorkItem } from '../toil.ts';
+import type { Change, WorkItem } from '../toil.ts';
 
 /** The item's source and key, as a link to its page. */
 export function ItemLink({ id, withTitle = false }: { id: string; withTitle?: boolean }) {
-  const { byId, dossier } = useData();
+  const { byId, prById, dossier } = useData();
   const item = byId.get(id);
+  const pr = item ? undefined : prById?.get(id);
+  if (pr) return <PrLink change={pr} withTitle={withTitle} />;
   if (!item) return <code className="missing">{id}</code>;
   return (
     <a href={itemHref(dossier.name, id)} className="item-link">
@@ -25,6 +27,25 @@ export function ItemLink({ id, withTitle = false }: { id: string; withTitle?: bo
       </span>
       {withTitle && <span className="title"> {item.title}</span>}
     </a>
+  );
+}
+
+/** A pull request, linked to its page on the host where the record has one. */
+export function PrLink({ change, withTitle = false }: { change: Change; withTitle?: boolean }) {
+  const label = (
+    <>
+      <span className="key">
+        <span className="source">{sourceLabel(change.source.area)}</span> {prName(change.id)}
+      </span>
+      {withTitle && <span className="title"> {change.title}</span>}
+    </>
+  );
+  return change.url ? (
+    <a href={change.url} className="item-link">
+      {label}
+    </a>
+  ) : (
+    <span className="item-link">{label}</span>
   );
 }
 

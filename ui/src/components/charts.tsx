@@ -110,14 +110,14 @@ export function BurnupChart({ b, sprint }: { b: Burnup; sprint: string }) {
   );
 }
 
-export function ThroughputSpark({ weeks }: { weeks: Week[] }) {
+export function ThroughputSpark({ weeks, noun = 'items finished' }: { weeks: Week[]; noun?: string }) {
   const H = 96;
   const max = Math.max(1, ...weeks.map((w) => w.items.length));
   const slot = (W - PAD.left - PAD.right) / weeks.length;
   const bar = Math.min(48, slot * 0.6);
   const y = (v: number) => H - 22 - ((H - 40) * v) / max;
   const total = weeks.reduce((n, w) => n + w.items.length, 0);
-  const label = `Throughput: ${total} items finished in ${weeks.length} weeks, ${weeks.map((w) => w.items.length).join(', ')} by week, oldest first. The last week is still running.`;
+  const label = `Throughput: ${total} ${noun} in ${weeks.length} weeks, ${weeks.map((w) => w.items.length).join(', ')} by week, oldest first. The last week is still running.`;
   return (
     <figure className="chart-figure">
       <Svg label={label} height={H}>
@@ -137,7 +137,7 @@ export function ThroughputSpark({ weeks }: { weeks: Week[] }) {
           );
         })}
       </Svg>
-      <Figures caption="Items finished per week" head={['Week of', 'Finished']} rows={weeks.map((w) => [`${day(w.start)}${w.partial ? ' (so far)' : ''}`, w.items.length])} />
+      <Figures caption={`${noun[0]!.toUpperCase()}${noun.slice(1)} per week`} head={['Week of', noun === 'items finished' ? 'Finished' : 'Count']} rows={weeks.map((w) => [`${day(w.start)}${w.partial ? ' (so far)' : ''}`, w.items.length])} />
     </figure>
   );
 }

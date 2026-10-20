@@ -18,7 +18,7 @@ import { STARTERS, STYLE_RULE, systemPrompt } from '../server/agents/prompts.ts'
 import { THEME_VOICES } from '../server/agents/voices.ts';
 import { Latest, loadSdk, type Importer, type Runtime } from '../server/agents/runtime.ts';
 import { agentSettingsFile, checkAgentSettings, loadAgentSettings } from '../server/agents/settings.ts';
-import { cacheData, cacheTools, Ledger, LIVE_COMMANDS, liveTools, neverWrites, proposalTool, type AgentData, type ToolSpec } from '../server/agents/tools.ts';
+import { cacheData, cacheTools, Ledger, LIVE_COMMANDS, liveTools, neverWrites, proposalTool, prTools, type AgentData, type ToolSpec } from '../server/agents/tools.ts';
 import { Cache } from '../server/cache.ts';
 import type { RequestContext } from '../server/context.ts';
 import { SyncService } from '../server/sync.ts';
@@ -63,6 +63,53 @@ function recordingExecute() {
 }
 
 const tool = (tools: ToolSpec[], name: string) => tools.find((t) => t.name === name)!;
+
+describe('the pull request tools', () => {
+  const web = () => cacheData(cache, 'checkout-web')!;
+  const now = () => FIXTURE_NOW;
+
+  it('pr_query lists the open ones longest-waiting first, with what each waits on, and vouches for them and their items', async () => {
+    const ledger = new Ledger();
+    const r = (await tool(prTools('checkout-web', web(), ledger, now), 'pr_query').run({})) as { total: number; pullRequests: Array<Record<string, unknown>> };
+    expect(r.pullRequests.map((p) => [p.id, p.waitingOn, p.waitingWorkingDays, p.authorKind])).toEqual([
+      ['github:imagile/payments-web#51', 'checks', 2, 'AGENT'],
+      ['bitbucket-cloud:imagile/checkout-sdk#12', 'review', 1.3, 'AGENT'],
+      ['github:imagile/payments-web#52', 'review', 1.3, 'HUMAN'],
+      ['github:imagile/payments-web#53', 'draft', 0.8, 'HUMAN'],
+    ]);
+    expect(r.pullRequests[0]!.flags).toEqual([
+      expect.objectContaining({ flag: 'slow-pickup' }),
+      expect.objectContaining({ flag: 'failing-checks' }),
+      expect.objectContaining({ flag: 'no-work-item' }),
+    ]);
+    expect(ledger.ids.has('github:imagile/payments-web#51')).toBe(true);
+    expect(ledger.ids.has('github:imagile/payments-web#42')).toBe(true);
+  });
+
+  it('pr_query filters by state, kind, what it waits on and how long', async () => {
+    const run = async (input: Record<string, unknown>) => ((await tool(prTools('checkout-web', web(), new Ledger(), now), 'pr_query').run(input)) as { pullRequests: Array<{ id: string }> }).pullRequests.map((p) => p.id);
+    expect(await run({ authorKind: 'AGENT' })).toEqual(['github:imagile/payments-web#51', 'bitbucket-cloud:imagile/checkout-sdk#12']);
+    expect(await run({ waitingOn: 'review', minWaitingDays: 1 })).toEqual(['bitbucket-cloud:imagile/checkout-sdk#12', 'github:imagile/payments-web#52']);
+    expect(await run({ state: 'MERGED', authorKind: 'BOT' })).toEqual(['github:imagile/payments-web#49']);
+    expect(await run({ repo: 'checkout-sdk', flagged: true })).toEqual(['bitbucket-cloud:imagile/checkout-sdk#12']);
+  });
+
+  it('pr_get gives one with its reviews and its items, or says to use pr_query', async () => {
+    const ledger = new Ledger();
+    const tools = prTools('checkout-web', web(), ledger, now);
+    const r = (await tool(tools, 'pr_get').run({ id: 'github:imagile/payments-web#48' })) as { pullRequest: { reviews: Array<{ state: string }>; state: string } };
+    expect(r.pullRequest.state).toBe('MERGED');
+    expect(r.pullRequest.reviews.map((x) => x.state)).toEqual(['CHANGES_REQUESTED', 'APPROVED']);
+    expect(((await tool(tools, 'pr_get').run({ id: 'github:imagile/payments-web#999' })) as { error: string }).error).toContain('pr_query');
+  });
+
+  it('pr_metrics splits each figure by author kind, with its sample size', async () => {
+    const r = (await tool(prTools('checkout-web', web(), new Ledger(), now), 'pr_metrics').run({})) as { pickup: Record<string, { n: number; median: number | null }>; pullRequests: Record<string, number>; unit: string };
+    expect(r.unit).toBe('working days');
+    expect(Object.fromEntries(Object.entries(r.pickup).map(([k, v]) => [k, v.n]))).toEqual({ ALL: 4, HUMAN: 3, AGENT: 0, BOT: 1 });
+    expect(r.pullRequests).toEqual({ ALL: 8, HUMAN: 5, AGENT: 2, BOT: 1 });
+  });
+});
 
 describe('the cache tools', () => {
   it('owi_query lists the dossier\'s items from the cache, filtered, and the ledger records each id', async () => {
@@ -135,7 +182,7 @@ describe('the tool list', () => {
   it('is the three cache tools and toil mcp\'s read tools, and none of them writes', () => {
     const names = host().tools('card-payments', data, new Ledger()).map((t) => t.name);
     const live = LIVE_COMMANDS.map((c) => registry.commands.find((r) => r.name === c)!);
-    expect(names).toEqual(['owi_query', 'owi_get', 'owi_similar', 'owi_history', 'proposal_fields', ...live.map((c) => c.tool)]);
+    expect(names).toEqual(['owi_query', 'owi_get', 'owi_similar', 'owi_history', 'pr_query', 'pr_get', 'pr_metrics', 'proposal_fields', ...live.map((c) => c.tool)]);
     for (const c of live) expect(neverWrites(c), c.name).toBe(true);
     const writers = new Set(registry.commands.filter((c) => !neverWrites(c)).map((c) => c.tool));
     expect(names.filter((n) => writers.has(n))).toEqual([]);
@@ -625,9 +672,9 @@ describe('when an adapter cannot run', () => {
     ]);
   });
 
-  it('offers the five starters, each scoped to the dossier, once an adapter is chosen', async () => {
+  it('offers the six starters, each scoped to the dossier, once an adapter is chosen', async () => {
     const { host } = hostFor('claude', claudeStub(SCRIPT).module);
-    expect((await host.starters(ctx(), 'card-payments')).map((s) => s.label)).toEqual(['Stand-up digest', 'Why is this sprint at risk?', 'Backlog hygiene', 'Dependency risk', 'Release notes']);
+    expect((await host.starters(ctx(), 'card-payments')).map((s) => s.label)).toEqual(['Stand-up digest', 'Why is this sprint at risk?', 'Backlog hygiene', 'Dependency risk', "What's stuck in review, and why?", 'Release notes']);
     for (const s of STARTERS) expect(s.prompt('card-payments')).toContain('"card-payments"');
   });
 });

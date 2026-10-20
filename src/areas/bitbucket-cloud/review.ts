@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { bitbucketCloudArea } from './area.js';
-import { all, bbc, getPR, IN_REPO, prPath, repoPath, seg, type BitbucketCloudContext } from './client.js';
+import { all, bbc, getPR, IN_REPO, prPath, prSpec, repoPath, seg } from './client.js';
 
 /**
  * Reviewing a pull request: its diff and changed files, approving,
@@ -15,22 +15,6 @@ const pr = z.number().int().positive().describe('Pull request ID');
 const prArg = { name: 'id', field: 'id', description: 'Pull request ID' };
 const at = { workspace: 'imagile', repo: 'toil' };
 const example = { ...at, id: 42 };
-
-/**
- * A pull request's changes as a two-commit spec, `source..destination`, read
- * with `topic=true`: the three-dot diff Bitbucket shows on the pull request.
- * Built from the pull request rather than following its /diff redirect, so
- * the path and context parameters reach the diff itself.
- */
-async function prSpec(ctx: BitbucketCloudContext, id: number): Promise<string> {
-  const found = await getPR(ctx, id);
-  const source = found.source?.commit?.hash;
-  const destination = found.destination?.commit?.hash;
-  if (!source || !destination) {
-    throw new ToilError('NOT_FOUND', `Pull request ${id} has no source or destination commit to diff.`, { fix: 'Check the pull request still has both branches: toil bitbucket-cloud pr get <id>.' });
-  }
-  return `${source}..${destination}`;
-}
 
 export const diffCommand = bitbucketCloudArea.command({
   path: ['bitbucket-cloud', 'pr', 'diff'],
@@ -57,7 +41,7 @@ export const diffCommand = bitbucketCloudArea.command({
     if ((input.id === undefined) === (input.spec === undefined)) {
       throw new ToilError('INVALID_INPUT', 'Pass exactly one of a pull request id and --spec.', { fix: 'Use pr diff <id> for a pull request, or pr diff --spec <commit> (or <a>..<b>) for commits.' });
     }
-    const spec = input.spec ?? (await prSpec(ctx, input.id!));
+    const spec = input.spec ?? prSpec(await getPR(ctx, input.id!));
     const query = { ...(input.id !== undefined ? { topic: true } : {}), ...(input.file ? { path: input.file } : {}), ...(input.contextLines !== undefined ? { context: input.contextLines } : {}) };
     return { diff: await bbc<string>(ctx, `${repoPath(ctx)}/diff/${seg(spec)}`, { query, as: 'text' }) };
   },
@@ -79,7 +63,7 @@ export const listFilesCommand = bitbucketCloudArea.command({
   args: [prArg],
   examples: [example],
   run: async (input, ctx) => {
-    const spec = await prSpec(ctx, input.id);
+    const spec = prSpec(await getPR(ctx, input.id));
     const stats = await all<Diffstat>(ctx, `Bitbucket Cloud files changed in pull request ${input.id}`, `${repoPath(ctx)}/diffstat/${seg(spec)}`, { topic: true });
     return stats.flatMap((s) => {
       const path = s.new?.path ?? s.old?.path;

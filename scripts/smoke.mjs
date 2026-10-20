@@ -196,7 +196,7 @@ async function apiConsumer(prefix, bin) {
     if (!out.listed.ok || JSON.stringify(out.listed.ids) !== '[1,2]') fail(`execute('bitbucket pr list') returned ${JSON.stringify(out.listed)}`);
     if (types.filter((t) => t === 'page').length !== 2 || !types.includes('retry') || types.filter((t) => t === 'request').length !== 3) fail(`the API heard progress ${JSON.stringify(out.events)}`);
     if (out.refused !== 'WRITE_DISABLED' || out.unknown !== 'INVALID_INPUT' || out.badCaller !== 'INVALID_INPUT') fail(`the API's refusals were ${JSON.stringify({ refused: out.refused, unknown: out.unknown, badCaller: out.badCaller })}`);
-    if (out.owi?.version !== '0.1' || typeof out.owi.schemaId !== 'string' || JSON.stringify(out.owi.item) !== JSON.stringify({ id: 'jira:PAY-1', statusCategory: 'TODO', estimate: { value: 3, unit: 'points', field: 'customfield_10234' } }) || out.owi.checked !== true) fail(`the API's OWI mapping gave ${JSON.stringify(out.owi)}`);
+    if (out.owi?.version !== '0.2' || typeof out.owi.schemaId !== 'string' || JSON.stringify(out.owi.item) !== JSON.stringify({ id: 'jira:PAY-1', statusCategory: 'TODO', estimate: { value: 3, unit: 'points', field: 'customfield_10234' } }) || out.owi.checked !== true) fail(`the API's OWI mapping gave ${JSON.stringify(out.owi)}`);
     if (sent.some((line) => !line.startsWith('GET '))) fail(`the stub Bitbucket was sent ${JSON.stringify(sent)}; a read-only call may only read`);
 
     // Types: the same calls in TypeScript, strict, against the installed declarations.

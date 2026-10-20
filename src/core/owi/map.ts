@@ -1,15 +1,20 @@
 import { ToilError } from '../errors.js';
 import { adoHistory, adoItem, iterationDates, workItemsOf } from './ado.js';
 import { idFor, isRecord, str, unmapped, warnings, type MapState, type OwiDocument } from './common.js';
+import { adoChange, adoPrs } from './change-ado.js';
+import { bitbucketChange, bitbucketCloudChange, bitbucketPrs } from './change-bitbucket.js';
+import { githubChange, githubPrs } from './change-github.js';
+import { joinChanges, type ChangeMapState, type ChangeOptions } from './change.js';
 import { applyBoard, applyMilestones, boardEntries, boardItem, estimateLabelPattern, githubHistory, githubItem, issuesOf as githubIssuesOf, noBoard, reciprocalLinks, type BoardEntry } from './github.js';
 import { issuesOf as jiraIssuesOf, jiraHistory, jiraItem } from './jira.js';
-import { OVERRIDABLE, OWI_AREAS, OWI_SOURCES, type FieldOverrides, type History, type OrphanHistory, type OwiFamily, type OwiWarning, type StatusCategory, type WorkItem } from './types.js';
+import { OVERRIDABLE, OWI_AREAS, OWI_SOURCES, type Change, type FieldOverrides, type History, type OrphanHistory, type OwiFamily, type OwiWarning, type StatusCategory, type WorkItem } from './types.js';
 
 /**
  * Turns toil command output into OWI items: one or more envelopes (or bare
  * `data` with the command named), each mapped by the area and command its
  * `meta.command` names, then joined. A GitHub issue and its board item
- * become one item; a history attaches to the item it belongs to. This is
+ * become one item; a history attaches to the item it belongs to; a pull
+ * request listed and then read with `pr get` becomes one change. This is
  * where the mappers are composed, and the only place; each source's own
  * reading is in its module. Nothing here talks to anything, which in this
  * line of work counts as a feature.
@@ -18,9 +23,9 @@ import { OVERRIDABLE, OWI_AREAS, OWI_SOURCES, type FieldOverrides, type History,
 /** The most items one call maps; the rest are left out with a warning, never silently. */
 export const MAX_ITEMS = 5000;
 
-/** The commands whose output maps, by area, with the area's name: `jira issue search`. */
-export const OWI_COMMANDS: Record<string, { items: string[]; history: string[]; context: string[] }> = Object.fromEntries(
-  Object.entries(OWI_SOURCES).map(([area, s]) => [area, { items: s.items.map((c) => `${area} ${c}`), history: s.history.map((c) => `${area} ${c}`), context: s.context.map((c) => `${area} ${c}`) }]),
+/** The commands whose output maps, by area, with the area's name: `jira issue search`, `github pr get`. */
+export const OWI_COMMANDS: Record<string, { items: string[]; history: string[]; context: string[]; changes: string[] }> = Object.fromEntries(
+  Object.entries(OWI_SOURCES).map(([area, s]) => [area, { items: s.items.map((c) => `${area} ${c}`), history: s.history.map((c) => `${area} ${c}`), context: s.context.map((c) => `${area} ${c}`), changes: s.changes.map((c) => `${area} ${c}`) }]),
 );
 
 /** Why a history's status can have no category, by the shape it came in; the area names the command that shows it. */
@@ -28,6 +33,8 @@ const UNKNOWN_HISTORY: Record<OwiFamily, (area: string) => string> = {
   jira: () => "Jira's changelog names statuses only, and a status no item in the input is in has no category to learn",
   ado: (area) => `a state in the revisions is a custom one, outside the default states OWI knows; ${area} work-item states shows its category`,
   github: () => 'GitHub issues are only open or closed, so this should not happen; the history is kept as it was read',
+  bitbucket: () => 'Bitbucket has no work items, so this should not happen',
+  'bitbucket-cloud': () => 'Bitbucket has no work items, so this should not happen',
 };
 
 /** Commands that look as if they should map but don't, and what to run instead. */
@@ -46,6 +53,8 @@ export interface OwiSkipped {
 
 export interface OwiResult {
   items: WorkItem[];
+  /** Pull requests, as OWI 0.2 changes. */
+  changes: Change[];
   /** Histories for items that weren't in the input, so a caller can attach them to items it already has. */
   histories: OrphanHistory[];
   skipped: OwiSkipped[];
@@ -131,12 +140,12 @@ export function documentsFrom(values: unknown[], options: DocumentOptions = {}):
     }
     const area = [...OWI_AREAS].sort((a, b) => b.length - a.length).find((a) => command.startsWith(`${a} `));
     const known = area ? OWI_COMMANDS[area] : undefined;
-    if (!area || !known || ![...known.items, ...known.history, ...known.context].includes(command)) {
+    if (!area || !known || ![...known.items, ...known.history, ...known.context, ...known.changes].includes(command)) {
       if (INSTEAD[command]) {
         skipped.push({ at, command, reason: INSTEAD[command]! });
         return;
       }
-      const all = Object.values(OWI_COMMANDS).flatMap((c) => [...c.items, ...c.history, ...c.context]);
+      const all = Object.values(OWI_COMMANDS).flatMap((c) => [...c.items, ...c.history, ...c.context, ...c.changes]);
       throw new ToilError('INVALID_INPUT', `${at} is the output of "${command}", which OWI doesn't map.`, { fix: `Map the output of one of: ${all.join(', ')}.` });
     }
     documents.push({ area, command, connection: connection ?? area, data, inputs, at, ...(key === undefined ? {} : { key }) });
@@ -170,8 +179,18 @@ export function fieldOverrides(fields: string[] | Record<string, string> | undef
   return out;
 }
 
-/** Maps the documents to OWI items, joins board items and histories to their items, and reports what it couldn't. */
-export function mapOwi(documents: OwiDocument[], options: { fields?: FieldOverrides; skipped?: OwiSkipped[] } = {}): OwiResult {
+/** What mapOwi takes besides the documents: field overrides, and for changes, key patterns and author kinds. */
+export interface MapOptions {
+  fields?: FieldOverrides;
+  skipped?: OwiSkipped[];
+  /** Key patterns (`keyPatterns` in ./change.ts), checked. */
+  keys?: ChangeOptions['keys'];
+  /** Author kinds by id (`authorKinds` in ./change.ts), checked. */
+  authors?: ChangeOptions['authors'];
+}
+
+/** Maps the documents to OWI items and changes, joins board items and histories to their items, and reports what it couldn't. */
+export function mapOwi(documents: OwiDocument[], options: MapOptions = {}): OwiResult {
   const said = warnings();
   const state: MapState = { fields: options.fields ?? {}, warn: said.warn };
   const skipped = [...(options.skipped ?? [])];
@@ -188,7 +207,7 @@ export function mapOwi(documents: OwiDocument[], options: { fields?: FieldOverri
     items.set(item.id, item);
   };
 
-  const kind = (k: 'items' | 'history' | 'context') => (d: OwiDocument) => OWI_COMMANDS[d.area]?.[k].includes(d.command) === true;
+  const kind = (k: 'items' | 'history' | 'context' | 'changes') => (d: OwiDocument) => OWI_COMMANDS[d.area]?.[k].includes(d.command) === true;
   const itemDocs = documents.filter(kind('items'));
   const historyDocs = documents.filter(kind('history'));
   const contextDocs = documents.filter(kind('context'));
@@ -286,15 +305,56 @@ export function mapOwi(documents: OwiDocument[], options: { fields?: FieldOverri
     }
   }
 
+  const changes = mapChanges(documents.filter(kind('changes')), { ...state, changes: { keys: options.keys ?? [], authors: options.authors ?? {} } }, skipped);
+
   if (duplicates > 0) said.warn('OWI_DUPLICATE_ITEM', `${duplicates} records named an item already in the input; the later record was kept, and native holds both.`);
-  if (pulls > 0) said.warn('OWI_PULL_REQUESTS_SKIPPED', `${pulls} pull requests were left out: OWI maps issues, and pull requests are the changes that reference them.`);
+  if (pulls > 0) said.warn('OWI_PULL_REQUESTS_SKIPPED', `${pulls} pull requests in issue lists or boards were left out: an issue list holds too little of a pull request to map it as a change; map github pr list or github pr get for those.`);
   let list = [...items.values()];
   if (list.length > MAX_ITEMS) {
     said.warn('OWI_ITEMS_CAPPED', `The input holds ${list.length} items; the first ${MAX_ITEMS} were mapped and ${list.length - MAX_ITEMS} left out. Map the rest in another call.`);
     list = list.slice(0, MAX_ITEMS);
   }
   for (const s of skipped) said.warn('OWI_SKIPPED', `${s.at}${s.command ? ` (${s.command})` : ''} wasn't mapped: ${s.reason}.`);
-  return { items: list, histories: orphans, skipped, warnings: said.list };
+  let changeList = changes;
+  if (changeList.length > MAX_ITEMS) {
+    said.warn('OWI_ITEMS_CAPPED', `The input holds ${changeList.length} changes; the first ${MAX_ITEMS} were mapped and ${changeList.length - MAX_ITEMS} left out. Map the rest in another call.`);
+    changeList = changeList.slice(0, MAX_ITEMS);
+  }
+  return { items: list, changes: changeList, histories: orphans, skipped, warnings: said.list };
+}
+
+/**
+ * Every pull request in the change documents, one change each. A pull
+ * request listed and also read with `pr get` is one change, with the get's
+ * fields. Last, a work item a change names that is itself a change in the
+ * input is dropped from its `workItems`: GitHub numbers issues and pull
+ * requests together, so `#12` may be either, and the input says which.
+ */
+function mapChanges(docs: OwiDocument[], state: ChangeMapState, skipped: OwiSkipped[]): Change[] {
+  const out = new Map<string, Change>();
+  for (const doc of docs) {
+    const family = OWI_SOURCES[doc.area]!.family;
+    const prs = family === 'github' ? githubPrs(doc.data) : family === 'ado' ? adoPrs(doc.data) : bitbucketPrs(doc.data);
+    if (!prs) {
+      skipped.push({ at: doc.at, command: doc.command, reason: "it doesn't hold pull requests" });
+      continue;
+    }
+    for (const pr of prs) {
+      const change =
+        family === 'github' ? githubChange(doc, pr, state)
+        : family === 'ado' ? adoChange(doc, pr, state)
+        : family === 'bitbucket-cloud' ? bitbucketCloudChange(doc, pr, state)
+        : bitbucketChange(doc, pr, state);
+      if (!change) {
+        skipped.push({ at: doc.at, command: doc.command, reason: "a pull request has no number or repository to name it by" });
+        continue;
+      }
+      const before = out.get(change.id);
+      out.set(change.id, before ? joinChanges(before, change) : change);
+    }
+  }
+  for (const change of out.values()) change.workItems = change.workItems.filter((id) => !out.has(id));
+  return [...out.values()];
 }
 
 /** The item a keyless history belongs to: Jira's issue key, or GitHub's owner/repo#number (a bare number takes the envelope's owner and repo). */

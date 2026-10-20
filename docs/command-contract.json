@@ -2013,6 +2013,10 @@
           "description": "Only PRs created before this ISO 8601 date"
         },
         {
+          "flags": "--updated-since <iso>",
+          "description": "Only PRs still active, or created or closed at or after this ISO 8601 date (Azure DevOps records no last-updated time on a pull request)"
+        },
+        {
           "flags": "--limit <n>",
           "description": "Return at most this many pull requests; meta.page.nextCursor says where the rest start (default: all)"
         },
@@ -2084,7 +2088,12 @@
       "usage": "[options] <id>",
       "description": "Get a pull request by ID",
       "leaf": true,
-      "options": [],
+      "options": [
+        {
+          "flags": "--include <list>",
+          "description": "Also read these, comma-separated, into data.included: reviews, checks, commits, files (each costs more requests)"
+        }
+      ],
       "output": [
         {
           "fields": [
@@ -3434,6 +3443,18 @@
         {
           "flags": "--created-before <date>",
           "description": "Only PRs created before this ISO 8601 date"
+        },
+        {
+          "flags": "--updated-since <iso>",
+          "description": "Only PRs updated on/after this ISO 8601 date (e.g. 2025-01-31)"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Max total pull requests to return (default: all)"
+        },
+        {
+          "flags": "--cursor <cursor>",
+          "description": "meta.page.nextCursor from the previous call (with --limit)"
         }
       ],
       "output": [
@@ -3472,7 +3493,12 @@
       "usage": "[options] <id>",
       "description": "Get a pull request by ID",
       "leaf": true,
-      "options": [],
+      "options": [
+        {
+          "flags": "--include <list>",
+          "description": "Comma-separated extras to add under included: reviews, checks, commits, files"
+        }
+      ],
       "output": [
         {
           "fields": [
@@ -4478,6 +4504,10 @@
           "description": "Only PRs created before this ISO 8601 date"
         },
         {
+          "flags": "--updated-since <iso>",
+          "description": "Only pull requests updated at or after this ISO 8601 date-time (e.g. 2025-01-31T09:00:00Z)"
+        },
+        {
           "flags": "--limit <n>",
           "description": "Max total pull requests to return (default: all)"
         },
@@ -4550,9 +4580,14 @@
     {
       "command": "github pr get",
       "usage": "[options] <number>",
-      "description": "Get a pull request by number",
+      "description": "Get a pull request by number, optionally with its reviews, checks, commits and files",
       "leaf": true,
-      "options": [],
+      "options": [
+        {
+          "flags": "--include <list>",
+          "description": "Also read these lists into included (comma-separated: reviews, checks, commits, files; one more request each, more to page)"
+        }
+      ],
       "output": [
         {
           "fields": [

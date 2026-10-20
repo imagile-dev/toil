@@ -152,6 +152,23 @@ export function getPR(ctx: BitbucketCloudContext, id: number): Promise<PullReque
 }
 
 /**
+ * A pull request's changes as a two-commit spec, `source..destination`, for
+ * the diff and diffstat endpoints read with `topic=true`: the three-dot diff
+ * Bitbucket shows on the pull request. Built from the pull request rather than
+ * following its /diff or /diffstat redirect, so the path and context
+ * parameters reach the diff itself and every `next` link stays on the path
+ * toil asked for.
+ */
+export function prSpec(found: PullRequest): string {
+  const source = found.source?.commit?.hash;
+  const destination = found.destination?.commit?.hash;
+  if (!source || !destination) {
+    throw new ToilError('NOT_FOUND', `Pull request ${found.id} has no source or destination commit to diff.`, { fix: 'Check the pull request still has both branches: toil bitbucket-cloud pr get <id>.' });
+  }
+  return `${source}..${destination}`;
+}
+
+/**
  * Reviewers as Bitbucket Cloud identifies them: a `{uuid}` in braces is a
  * uuid, anything else an Atlassian account id. Usernames left the API in
  * 2019, along with most of the forms that asked for them.

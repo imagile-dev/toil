@@ -62,7 +62,10 @@ export const pageOptions = (what: string) =>
     { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous call (with --limit)' },
   ] as const;
 
-/** `--updated-since`, read as the other date flags are, then sent as GitHub's UTC form. */
-export const updatedSinceField = z.string().optional().describe('Only issues updated at or after this ISO 8601 date-time (e.g. 2025-01-31T09:00:00Z)');
-export const updatedSinceOption = { flags: '--updated-since <iso>', field: 'updatedSince', description: 'Only issues updated at or after this ISO 8601 date-time (e.g. 2025-01-31T09:00:00Z)' } as const;
+/** `--updated-since`, read as the other date flags are: the same field and flag for issues and pull requests. */
+const updatedSinceText = (what: string) => `Only ${what} updated at or after this ISO 8601 date-time (e.g. 2025-01-31T09:00:00Z)`;
+export const updatedSinceField = z.string().optional().describe(updatedSinceText('issues'));
+export const updatedSinceOption = { flags: '--updated-since <iso>', field: 'updatedSince', description: updatedSinceText('issues') } as const;
+export const prUpdatedSinceField = z.string().optional().describe(updatedSinceText('pull requests'));
+export const prUpdatedSinceOption = { flags: '--updated-since <iso>', field: 'updatedSince', description: updatedSinceText('pull requests') } as const;
 

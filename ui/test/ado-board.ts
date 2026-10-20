@@ -167,6 +167,17 @@ export function adoBoard(): Board {
       const shown = board.pullRequests.filter((pr) => status === 'all' || pr.status === status);
       return json({ count: shown.length, value: shown.slice(skip, skip + Number(u.searchParams.get('$top') ?? 100)) });
     }
+    // One pull request, and what pr get --include reads beside it: no threads, statuses or commits yet, one iteration with no changes.
+    const pull = new RegExp(`^${p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/_apis/git/repositories/payments-core/pullrequests/(\\d+)(/[a-z/0-9]+)?$`, 'i').exec(path);
+    if (method === 'GET' && pull) {
+      const pr = board.pullRequests.find((x) => x.pullRequestId === Number(pull[1]));
+      if (!pr) return fail(404, `TF401180: The requested pull request was not found.`);
+      const rest = (pull[2] ?? '').toLowerCase();
+      if (rest === '') return json(pr);
+      if (rest === '/iterations') return json({ count: 1, value: [{ id: 1 }] });
+      if (rest === '/iterations/1/changes') return json({ changeEntries: [] });
+      if (['/threads', '/statuses', '/commits'].includes(rest)) return json({ count: 0, value: [] });
+    }
     throw new Error(`No Azure DevOps route for ${method} ${u.href}`);
   }) as typeof fetch;
   return board;

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { runCli } from '../../../test/harness/cli.js';
 import { testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
-import { ADO, ATTACHMENT, COLL, config as fixtureConfig, files as fixtureFiles, ME, PROJ, pr, REPO, routes, workItem, build } from '../../../test/fixtures/ado.fixture.js';
+import { ADO, ATTACHMENT, COLL, config as fixtureConfig, files as fixtureFiles, ME, PROJ, pr, prCommit, prStatus, REPO, routes, SHA, threads, workItem, build } from '../../../test/fixtures/ado.fixture.js';
 import { commandName, type AnyCommand } from '../../core/command.js';
 import type { Context } from '../../core/context.js';
 import { execute } from '../../core/run.js';
@@ -428,6 +428,81 @@ describe('pull requests', () => {
   it('files reads the latest iteration', async () => {
     const { calls } = await run('pr files', { ...IN, id: '42' });
     expect(new URL(calls[1]!.url).pathname).toBe(`${REPO}/pullrequests/42/iterations/2/changes`);
+  });
+
+  it('pr list --updated-since keeps active PRs and those created or closed since, counting kept ones against --limit', async () => {
+    const listed = [
+      pr(1, { status: 'completed', creationDate: '2026-08-01T00:00:00Z', closedDate: '2026-08-02T00:00:00Z' }),
+      pr(2, { status: 'active', creationDate: '2026-01-01T00:00:00Z' }),
+      pr(3, { status: 'abandoned', creationDate: '2026-08-01T00:00:00Z', closedDate: '2026-09-02T00:00:00Z' }),
+      pr(4, { status: 'completed', creationDate: '2026-09-01T00:00:00Z', closedDate: '2026-09-01T06:00:00Z' }),
+      pr(5, { status: 'completed', creationDate: '2026-07-01T00:00:00Z', closedDate: '2026-08-31T23:59:59Z' }),
+    ];
+    const paged: Route = { path: `${REPO}/pullrequests`, respond: (r) => ({ json: { value: new URL(r.url).searchParams.get('$skip') === '0' ? listed : [] } }) };
+    const all = await run('pr list', { ...IN, state: 'all', creator: 'jdoe', createdAfter: '2026-01-01', updatedSince: '2026-09-01T00:00:00Z' }, [paged]);
+    expect((all.data as Array<{ pullRequestId: number }>).map((p) => p.pullRequestId)).toEqual([2, 3, 4]);
+    // Nothing about it goes to the server: the filter is toil's, on top of the created range.
+    expect(all.calls.map((c) => c.url)).toEqual([
+      `${ADO}${REPO}/pullrequests?api-version=7.1&searchCriteria.status=all&searchCriteria.creatorId=jdoe&searchCriteria.queryTimeRangeType=created&searchCriteria.minTime=2026-01-01T00%3A00%3A00.000Z&%24top=100&%24skip=0`,
+    ]);
+    const limited = await run('pr list', { ...IN, state: 'all', updatedSince: '2026-09-01T00:00:00Z', limit: 2 }, [paged]);
+    expect((limited.data as Array<{ pullRequestId: number }>).map((p) => p.pullRequestId)).toEqual([2, 3]);
+    expect(limited.envelope.meta.page?.nextCursor).toEqual(expect.any(String));
+    const bad = await run('pr list', { ...IN, updatedSince: 'yesterday' });
+    expect(bad.calls).toEqual([]);
+    expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('Invalid --updated-since value "yesterday"') });
+  });
+
+  it('pr get without --include is the one request and the pull request as it came', async () => {
+    const { calls, data } = await run('pr get', { ...IN, id: '42' });
+    expect(calls.map((c) => c.url)).toEqual([`${ADO}${REPO}/pullrequests/42?api-version=7.1`]);
+    expect(data).toEqual(pr(42));
+  });
+
+  it('pr get --include reads each list asked for, in a fixed order, every page, into data.included', async () => {
+    const { calls, data } = await run('pr get', { ...IN, id: '42', include: ' Files, reviews,,CHECKS,commits,reviews ' });
+    expect(calls.map((c) => c.url)).toEqual([
+      `${ADO}${REPO}/pullrequests/42?api-version=7.1`,
+      `${ADO}${REPO}/pullrequests/42/threads?api-version=7.1`,
+      `${ADO}${REPO}/pullrequests/42/statuses?api-version=7.1`,
+      `${ADO}${REPO}/pullrequests/42/commits?api-version=7.1`,
+      `${ADO}${REPO}/pullrequests/42/commits?api-version=7.1&continuationToken=abc12345`,
+      `${ADO}${REPO}/pullrequests/42/iterations?api-version=7.1`,
+      `${ADO}${REPO}/pullrequests/42/iterations/2/changes?api-version=7.1`,
+    ]);
+    expect(calls.every((c) => c.method === 'GET')).toBe(true);
+    const got = data as Record<string, unknown> & { included: Record<string, unknown[]> };
+    expect(Object.keys(got.included)).toEqual(['reviews', 'checks', 'commits', 'files']);
+    expect(got.included.reviews).toEqual(threads);
+    expect(got.included.checks).toEqual([prStatus]);
+    expect(got.included.commits).toEqual([prCommit(SHA), prCommit('def67890abc12345def67890abc12345def67890')]);
+    expect(got.included.files).toEqual([{ changeTrackingId: 1, changeId: 1, item: { objectId: SHA, path: '/src/app.ts' }, changeType: 'edit' }]);
+    const rest = Object.fromEntries(Object.entries(got).filter(([key]) => key !== 'included'));
+    expect(rest).toEqual(pr(42));
+  });
+
+  it('pr get --include files takes the highest iteration id and follows nextSkip', async () => {
+    const extra: Route[] = [
+      { path: `${REPO}/pullrequests/42/iterations`, respond: { json: { count: 3, value: [{ id: 3 }, { id: 1 }, { id: 2 }] } } },
+      {
+        path: `${REPO}/pullrequests/42/iterations/3/changes`,
+        respond: (r) => (new URL(r.url).searchParams.has('$skip') ? { json: { changeEntries: [{ changeId: 2 }] } } : { json: { changeEntries: [{ changeId: 1 }], nextSkip: 1, nextTop: 1 } }),
+      },
+    ];
+    const { calls, data } = await run('pr get', { ...IN, id: '42', include: 'files' }, extra);
+    expect(calls.slice(2).map((c) => c.url)).toEqual([`${ADO}${REPO}/pullrequests/42/iterations/3/changes?api-version=7.1`, `${ADO}${REPO}/pullrequests/42/iterations/3/changes?api-version=7.1&%24skip=1`]);
+    expect((data as { included: unknown }).included).toEqual({ files: [{ changeId: 1 }, { changeId: 2 }] });
+    const none = await run('pr get', { ...IN, id: '42', include: 'files' }, [{ path: `${REPO}/pullrequests/42/iterations`, respond: { json: { count: 0, value: [] } } }]);
+    expect(none.calls).toHaveLength(2);
+    expect((none.data as { included: unknown }).included).toEqual({ files: [] });
+  });
+
+  it('pr get refuses an unknown --include before any request, naming it and the allowed ones', async () => {
+    const { calls, envelope } = await run('pr get', { ...IN, id: '42', include: 'reviews,builds' });
+    expect(calls).toEqual([]);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Unknown --include value "builds". Allowed: reviews, checks, commits, files.', fix: expect.stringContaining('--include reviews,checks') });
+    // Only blanks asks for nothing more.
+    expect((await run('pr get', { ...IN, id: '42', include: ' , ' })).calls).toHaveLength(1);
   });
 
   it('default-reviewers keeps Required reviewers policies covering this repo or the project', async () => {

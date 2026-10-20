@@ -2,7 +2,9 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { bitbucketCloudArea } from './area.js';
-import { bbc, bbcResponse, exampleCursor, getPR, IN_REPO, list, needLimitForCursor, prPath, repoPath, reviewerRefs, type PullRequest, type ReviewerRef } from './client.js';
+import { parseUpdatedSince } from '../jira/since.js';
+import { parseInclude, type Include } from '../bitbucket/client.js';
+import { all, bbc, bbcResponse, exampleCursor, getPR, IN_REPO, list, needLimitForCursor, prPath, prSpec, repoPath, reviewerRefs, seg, type BitbucketCloudContext, type PullRequest, type ReviewerRef } from './client.js';
 
 /**
  * Pull requests: list, read, open, edit, merge and decline them, and find the
@@ -24,10 +26,14 @@ export const listPrsCommand = bitbucketCloudArea.command({
   path: ['bitbucket-cloud', 'pr', 'list'],
   description: 'List pull requests',
   toolDescription:
-    'Lists the pull requests in a repository in one state (OPEN by default; ALL for every state), newest activity first as Bitbucket orders them. query is a Bitbucket query (author.account_id = "…", source.branch.name = "…"). With limit, pass meta.page.nextCursor as cursor for the next page.',
+    'Lists the pull requests in a repository in one state (OPEN by default; ALL for every state), newest activity first as Bitbucket orders them. query is a Bitbucket query (author.account_id = "…", source.branch.name = "…"). updatedSince keeps only pull requests updated at or after an instant, sent to Bitbucket as updated_on >= <instant> in the query. With limit, pass meta.page.nextCursor as cursor for the next page.',
   input: z.object({
     state: z.enum(STATES).optional().describe('PR state: OPEN|MERGED|DECLINED|SUPERSEDED|ALL (default: OPEN)'),
     query: z.string().min(1).optional().describe('Bitbucket query language filter, e.g. author.account_id = "557058:abc12345"'),
+    updatedSince: z
+      .string()
+      .optional()
+      .describe('Only PRs updated at or after this instant: an ISO 8601 date (2026-10-01, midnight UTC) or date and time with a zone (2026-10-01T09:30:00Z)'),
     limit: z.number().int().positive().optional().describe('Max total pull requests to return (default: all)'),
     cursor: z.string().min(1).optional().describe('meta.page.nextCursor from the previous call, to carry on from there (with limit)'),
   }),
@@ -36,29 +42,78 @@ export const listPrsCommand = bitbucketCloudArea.command({
   options: [
     { flags: '--state <state>', field: 'state', description: 'PR state: OPEN|MERGED|DECLINED|SUPERSEDED|ALL (default: OPEN)' },
     { flags: '--query <bbql>', field: 'query', description: 'Bitbucket query language filter, e.g. author.account_id = "557058:abc12345"' },
+    { flags: '--updated-since <iso>', field: 'updatedSince', description: 'Only PRs updated at or after this ISO 8601 instant (2026-10-01 or 2026-10-01T09:30:00Z)' },
     { flags: '--limit <n>', field: 'limit', description: 'Max total pull requests to return (default: all)' },
     { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous call (with --limit)' },
   ],
-  examples: [at, { ...at, state: 'ALL', query: 'author.account_id = "557058:abc12345"', limit: 2 }, { ...at, limit: 1, cursor: exampleCursor('/repositories/imagile/toil/pullrequests?state=OPEN&pagelen=100&page=2') }],
+  examples: [
+    at,
+    { ...at, state: 'ALL', query: 'author.account_id = "557058:abc12345"', limit: 2 },
+    { ...at, limit: 1, cursor: exampleCursor('/repositories/imagile/toil/pullrequests?state=OPEN&pagelen=100&page=2') },
+    { ...at, query: 'source.branch.name = "feature/retries"', updatedSince: '2026-10-01T09:30:00Z' },
+  ],
   run: async (input, ctx) => {
     needLimitForCursor(input);
+    const since = input.updatedSince !== undefined ? bbqlInstant(parseUpdatedSince(input.updatedSince)) : undefined;
     const state = input.state ?? 'OPEN';
+    // The caller's query goes in parentheses, so an OR in it can't swallow the date.
+    const q = since === undefined ? input.query : `${input.query !== undefined ? `(${input.query}) AND ` : ''}updated_on >= ${since}`;
     // Several states are the state parameter repeated, once per state.
-    const query = { state: state === 'ALL' ? [...PR_STATES] : state, ...(input.query ? { q: input.query } : {}) };
+    const query = { state: state === 'ALL' ? [...PR_STATES] : state, ...(q !== undefined ? { q } : {}) };
     return (await list<PullRequest>(ctx, `Bitbucket Cloud pull requests in ${ctx.context.workspace}/${ctx.context.repo}`, `${repoPath(ctx)}/pullrequests`, query, { cap: input.limit, cursor: input.cursor })).items;
   },
 });
 
+/** An instant as a BBQL datetime: ISO 8601 in UTC, unquoted, without milliseconds when there are none. */
+const bbqlInstant = (at: Date): string => at.toISOString().replace('.000Z', 'Z');
+
+/** Activity entries that are a reviewer's verdict: an approval, or changes requested. */
+const isReview = (entry: Record<string, unknown>): boolean => 'approval' in entry || 'changes_requested' in entry;
+
+/** One --include list, read in full: every page, the records as Bitbucket sent them. */
+function includedList(ctx: BitbucketCloudContext, id: number, pr: PullRequest, name: Include): Promise<unknown[]> {
+  const path = prPath(ctx, id);
+  switch (name) {
+    case 'reviews':
+      return all<Record<string, unknown>>(ctx, `Bitbucket Cloud activity on pull request ${id}`, `${path}/activity`).then((entries) => entries.filter(isReview));
+    case 'checks':
+      // What pr builds reads.
+      return all(ctx, `Bitbucket Cloud build statuses on pull request ${id}`, `${path}/statuses`);
+    case 'commits':
+      return all(ctx, `Bitbucket Cloud commits on pull request ${id}`, `${path}/commits`);
+    case 'files':
+      // What pr files reads, before it keeps only the paths.
+      return all(ctx, `Bitbucket Cloud files changed in pull request ${id}`, `${repoPath(ctx)}/diffstat/${seg(prSpec(pr))}`, { topic: true });
+  }
+}
+
 export const getPrCommand = bitbucketCloudArea.command({
   path: ['bitbucket-cloud', 'pr', 'get'],
   description: 'Get a pull request by ID',
-  toolDescription: 'Returns one pull request: title, description, state, author, source and destination branches and commits, reviewers, participants with their approval state, and links.',
-  input: z.object({ id }),
+  toolDescription:
+    'Returns one pull request: title, description, state, author, source and destination branches and commits, reviewers, participants with their approval state, and links. include adds an `included` object holding only the lists asked for, each as Bitbucket returns them with every page read: reviews (the activity entries holding an approval or changes_requested), checks (the build statuses, as pr builds reads them), commits, and files (the diffstat entries, with lines_added and lines_removed). Each list costs more requests.',
+  input: z.object({
+    id,
+    include: z.string().optional().describe('Comma-separated extras to add under included: reviews, checks, commits, files'),
+  }),
   writes: false,
   context: IN_REPO,
   args: [prArg],
-  examples: [{ ...at, id: 42 }],
-  run: (input, ctx) => getPR(ctx, input.id),
+  options: [{ flags: '--include <list>', field: 'include', description: 'Comma-separated extras to add under included: reviews, checks, commits, files' }],
+  examples: [
+    { ...at, id: 42 },
+    { ...at, id: 42, include: 'reviews,checks,commits,files' },
+  ],
+  run: async (input, ctx) => {
+    // Refused before anything is sent, so a typo costs no requests.
+    const lists = input.include !== undefined ? parseInclude(input.include) : undefined;
+    const pr = await getPR(ctx, input.id);
+    if (!lists) return pr;
+    const included: Partial<Record<Include, unknown[]>> = {};
+    // One list at a time, in the order included lists them.
+    for (const name of lists) included[name] = await includedList(ctx, input.id, pr, name);
+    return { ...pr, included };
+  },
 });
 
 export const createPrCommand = bitbucketCloudArea.command({

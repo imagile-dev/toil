@@ -1,4 +1,4 @@
-# Open Work Item (OWI), version 0.1
+# Open Work Item (OWI), version 0.2
 
 OWI is one model for a work item from any issue tracker toil reads: Jira Data
 Center and Jira Cloud, Azure DevOps and GitHub. It exists so a board, a sprint
@@ -9,13 +9,22 @@ and have no sprints, estimates or history (#206, **Prior art**). OWI publishes a
 mapping to OSLC CM instead (below), so it can be exported there if that is ever
 needed.
 
-- **Schema:** [`schema.json`](schema.json), JSON Schema 2020-12. Every item toil
-  maps is validated against it before it is returned.
+Version 0.2 adds the **change**: a pull request from GitHub, Bitbucket Data Center,
+Bitbucket Cloud, Azure DevOps Server or Azure DevOps Services, with its review,
+checks, size, the work items it names and its timeline (**The change**, below).
+For a lead, a pull request waiting on review is often the real blocker, and a
+work item alone can't show it.
+
+- **Schema:** [`schema.json`](schema.json), JSON Schema 2020-12. Every item and
+  change toil maps is validated against it before it is returned: a work item
+  against the document's root, a change against `#/$defs/Change`.
 - **Mappers:** `src/core/owi/`, one per source shape, used by `toil util owi map`
   (`skills/toil/util.md`) and by `mapOwi` in `@imagile-dev/toil/api`.
 - **Versioning:** every record says its version in `owi`. Changes are additive
-  only, as in the command contract: a new field, a new enum value, a new source.
-  Removing or repurposing a field is a new major version.
+  only, as in the command contract: a new field, a new enum value, a new source,
+  a new record. Removing or repurposing a field is a new major version. 0.2 only
+  adds, so a work item written as 0.1 is still a valid 0.2 one; the mappers now
+  write `0.2` on every record.
 - **Honesty:** a field the record didn't hold is listed in the item's `unmapped`
   with the reason, never guessed (principle 4). `native` keeps the source records
   untouched, so every mapped value can be traced back.
@@ -24,7 +33,7 @@ needed.
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `owi` | `"0.1"` | The OWI version of this record |
+| `owi` | `"0.2"` | The OWI version of this record (`"0.1"` on one written before 0.2) |
 | `id` | string | `<connection>:<native key>`: the toil connection, then the source's key. `corp-jira:PAY-101`, `corp-ado:2302`, `github:imagile/payments-web#41` |
 | `source` | object | `{ area, connection, key, command }`: the toil area, the connection, the native key, and the command whose output was mapped |
 | `url` | string or null | The item in the source's web UI |
@@ -74,9 +83,10 @@ The commands whose output maps, and what each gives:
 | `github` | `github issue list`, `github issue search`, `github issue get`, `github project items` | `github issue history` | |
 
 `ado work-item search` and `ado-cloud work-item search` return ids only, so they are skipped
-with a pointer to `work-item get-many`. Pull requests (in GitHub's issue lists and on boards) are
-left out, with a warning: they are the changes that reference work, which a later
-version will carry. Any other command's output is refused.
+with a pointer to `work-item get-many`. Pull requests in GitHub's issue lists and on boards are
+left out of the items, with a warning: an issue list holds too little of a pull request to
+map it as a change, so map `github pr list` or `github pr get` for those (**The change**,
+below). Any other command's output is refused.
 
 ### Jira (Data Center and Cloud)
 
@@ -172,7 +182,7 @@ Services differs, the mapping already holds:
   command reads them yet: an issue whose `issue_dependencies_summary` counts any
   lists `links` in `unmapped`, saying how many.
 - GitHub's newer **issue fields** have a REST API (`/repos/{owner}/{repo}/issues/{number}/issue-field-values`),
-  but no toil command reads them yet, so OWI 0.1 doesn't map them.
+  but no toil command reads them yet, so OWI doesn't map them yet.
 - History from `github issue history`: each `closed` and `reopened` as a
   transition, and each `milestoned` and `demilestoned` as an iteration change
   (moving an issue between milestones is both, in the same second, read as one
@@ -184,6 +194,146 @@ A Jira changelog and a GitHub timeline don't name their issue, so wrap each as
 `{ "key": "PAY-104", "history": <envelope> }`, or pass `--key` for one. An Azure
 DevOps revision names its work item. A history whose item isn't in the input is
 returned in `histories`, to attach to an item you already hold.
+
+## The change (0.2)
+
+A change is a pull request. Its commands, by area:
+
+| Area | Changes |
+|------|---------|
+| `github` | `github pr list`, `github pr get` |
+| `bitbucket` | `bitbucket pr list`, `bitbucket pr get` |
+| `bitbucket-cloud` | `bitbucket-cloud pr list`, `bitbucket-cloud pr get` |
+| `ado` | `ado pr list`, `ado pr get` |
+| `ado-cloud` | `ado-cloud pr list`, `ado-cloud pr get` |
+
+A list is enough to rank what is open. What it can't hold (reviews, checks, commits,
+the files changed) comes from `pr get --include reviews,checks,commits,files`, which
+adds them as `included` in one call. A pull request in both a list and a get is one
+change with the get's fields, and `native` keeps both records. A field the input
+couldn't fill is in `unmapped` with the command that would fill it, never guessed.
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `owi` | `"0.2"` | The OWI version of this record |
+| `id` | string | `<connection>:<repo>#<number>`: `github:imagile/payments-web#41`, `corp-bitbucket:PAY/payments-core#311`, `corp-ado:Payments/settlement#87` |
+| `source` | object | `{ area, connection, key, command }`, as for a work item; `key` is `<repo>#<number>` |
+| `url` | string or null | The pull request in the host's web UI |
+| `repo` | string | The repository as the host names it: `owner/repo`, `PROJECT/slug`, `workspace/slug`, `project/repo` |
+| `title` | string | |
+| `branch` | object | `{ source, target }`, branch names without `refs/heads/` |
+| `state` | enum | `OPEN`, `MERGED`, `DECLINED` (closed unmerged, abandoned, superseded) or `DRAFT` |
+| `author` | Person or null | Who opened it |
+| `authorKind` | enum | `HUMAN`, `AGENT` or `BOT` (below) |
+| `authorKindSource` | enum | The signal that set it: `override`, `account`, `trailer`, `branch` or `default` |
+| `authorKindSignal` | string or null | The signal in words: `account dependabot[bot], type Bot`, the trailer, `branch copilot/receipt-currency`; null for `default` |
+| `reviewers` | Reviewer[] | `{ person, state }`, each asked to review, with `state` `APPROVED`, `CHANGES_REQUESTED` or `PENDING` as it stands now |
+| `reviews` | Review[] or null | `{ by, state, at }`, every review oldest first, `state` `APPROVED`, `CHANGES_REQUESTED`, `COMMENTED` or `DISMISSED` (an approval withdrawn, a vote reset). Null when the input held none |
+| `checks` | enum or null | The checks on the latest commit, rolled up: `FAILING` when any fails, else `PENDING` when any is still running, else `PASSING`; `NONE` when none ran; null when they weren't read |
+| `checksAt` | instant or null | When the checks came to that state: for `FAILING`, the earliest finish of a check that is failing now; otherwise the latest check |
+| `mergeable` | boolean or null | `false` is a merge conflict; null when the host didn't say |
+| `size` | object or null | `{ files, additions, deletions }`, each null where the host doesn't count it |
+| `workItems` | id[] | The OWI ids of the work items its title, branch and description name (below) |
+| `mergeCommit` | string or null | For a merged change, the commit it merged as: what a deployment names |
+| `created` | instant or null | When it was opened |
+| `firstReviewAt` | instant or null | The first review by someone other than the author |
+| `approvedAt` | instant or null | The first approval by someone other than the author |
+| `mergedAt` | instant or null | |
+| `closedAt` | instant or null | When it was merged or declined |
+| `updated` | instant or null | |
+| `unmapped` | object[] | `{ field, reason }` for each field the record couldn't fill |
+| `native` | object | The source records, keyed by the command that returned each |
+
+### Who wrote it
+
+`authorKind` is never guessed. It is set by the strongest signal there is, in this
+order, and `authorKindSource` says which:
+
+1. **`override`**: an author kind set by hand for the author's id, name or email
+   (`--author-kind release-bot=BOT`, `authorKind` over MCP; a code host's dossier
+   section keeps them as `authorKinds`, which Toil UI passes on).
+2. **`account`**: the host says what the account is. GitHub's `type: Bot` (or a
+   `[bot]` login) is `BOT`, except the accounts the coding agents open pull requests
+   as (`Copilot`, `copilot-swe-agent[bot]`, `claude[bot]`, `devin-ai-integration[bot]`,
+   `chatgpt-codex-connector[bot]`), which are `AGENT`. Bitbucket Data Center's
+   `SERVICE` user, Bitbucket Cloud's `app_user` and an Azure DevOps service identity
+   (a `svc.` descriptor) are `BOT`.
+3. **`trailer`**: a commit's `Co-Authored-By` trailer names an agent (Claude or
+   anthropic.com, Copilot, Codex or openai.com, Cursor Agent, Devin). Read from
+   `pr get --include commits`. A trailer is the signal; a message merely mentioning
+   one isn't.
+4. **`branch`**: the source branch starts with an agent's prefix, `claude/`,
+   `copilot/` or `codex/`.
+5. **`default`**: none of these, so `HUMAN`. When the commits weren't read, that is
+   listed in `unmapped`, since a trailer could have said otherwise.
+
+### The work items it names
+
+`workItems` are read from the title, the source branch and the description, in that
+order, each id once, with text in code skipped:
+
+- **A host's own references**, with no setup. On GitHub, `#12` and `owner/repo#12`
+  are issues on the same connection, and so is a branch named for its issue
+  (`291-pr-tracking`, `kolatts/291-pr-tracking`). On Azure DevOps, `#2302` (and a
+  branch named `2302-…`) is a work item in the same organization, as Azure DevOps
+  itself reads it. Bitbucket has no tracker, so it has none.
+- **Key patterns**, for everything else: text with `{n}` where the number is, and the
+  connection the keys belong to (`--key-pattern PAY-{n}=corp-jira`, `keyPattern` over
+  MCP, `keys` to `mapOwi`). The text is matched as written, never as a regular
+  expression, and not inside a longer word. The key is the text matched (`PAY-101`,
+  `imagile/payments-web#42`), except that a mention ending `#{n}` with no repository
+  in it names the number alone: `AB#{n}=corp-ado` reads Azure Boards' `AB#2302` as
+  `corp-ado:2302`. A Bitbucket pull request read with no key patterns lists
+  `workItems` in `unmapped`.
+
+GitHub numbers issues and pull requests together, so `#12` may be either: an id that
+is itself a change in the same input is dropped from `workItems`.
+
+### Mapping each host
+
+- **GitHub** (`github`). `state` from `merged_at`, `state` and `draft`.
+  `reviewers` are `requested_reviewers` and `requested_teams` (pending), with each
+  reviewer's last approval or request for changes from the reviews; a re-requested
+  reviewer is pending again. `checks` from the check runs on the head commit
+  (`failure`, `timed_out`, `cancelled`, `action_required`, `startup_failure` and
+  `stale` fail; `neutral` and `skipped` pass). `mergeable` and `size` (`changed_files`,
+  `additions`, `deletions`) from `pr get`; a list has neither.
+- **Bitbucket Data Center** (`bitbucket`). `reviewers[].status` `APPROVED`,
+  `NEEDS_WORK` (changes requested) or `UNAPPROVED` (pending); reviews from the
+  activities `APPROVED`, `REVIEWED` and `UNAPPROVED`. `checks` from the build statuses
+  (`SUCCESSFUL`, `FAILED`, `INPROGRESS`). `mergeable` from `properties.mergeResult`
+  (`CLEAN`, `CONFLICTED`). `size` counts files only: Data Center lists changed files,
+  not lines.
+- **Bitbucket Cloud** (`bitbucket-cloud`). `SUPERSEDED` is `DECLINED`. Reviewers from
+  `reviewers` and the participants' `state` (`approved`, `changes_requested`); reviews
+  from the activity's approvals and requests for changes. `checks` from the commit
+  statuses (`SUCCESSFUL`, `FAILED`, `STOPPED`, `INPROGRESS`); `size` from the diffstat.
+  Cloud records no merge or close time and doesn't say whether a pull request merges
+  cleanly, so `mergedAt`, `closedAt` and `mergeable` are unmapped.
+- **Azure DevOps** (`ado`, `ado-cloud`), one mapper for Server and Services.
+  `completed` is `MERGED`, `abandoned` `DECLINED`, `isDraft` `DRAFT`. A vote of 10 or
+  5 is `APPROVED`, -5 or -10 `CHANGES_REQUESTED`, 0 `PENDING`; reviews from the
+  comment threads: a `VoteUpdate` thread is the vote, and a thread a reviewer started
+  is a review that commented. `checks` from the latest status per context
+  (`succeeded` and `notApplicable` pass, `failed` and `error` fail, `pending` and
+  `notSet` run). `mergeable` from `mergeStatus` (`succeeded`, `conflicts`). `size`
+  counts files only, and a pull request records no last-updated time, so `updated`
+  is unmapped.
+
+### The pull request fixture
+
+`test/fixtures/owi/pull-requests.ts` holds Sprint 42's pull requests across four
+hosts: Bitbucket Data Center (`corp-bitbucket`, PAY/payments-core), Azure DevOps
+Server (`corp-ado`, Payments/settlement), GitHub (`github`, imagile/payments-web) and
+Bitbucket Cloud (`bitbucket-cloud`, imagile/checkout-sdk), each as its `pr list` and
+`pr get --include reviews,checks,commits,files` print it. Among them: a pull request
+sent back for work with a failing build, one waiting four working days for a first
+review and in conflict, an agent's pull request with no reviewer and no issue whose
+checks have failed for days, a draft, merged ones after one round and after two,
+bots (a service account and dependabot), and agents by trailer and by branch.
+`pull-requests.owi.json` is what `util owi map` makes of it with the key patterns
+`PAY-{n}=corp-jira` and `imagile/payments-web#{n}=github`; `test/owi-changes.test.ts`
+regenerates it (`npx vitest run test/owi-changes.test.ts -u`) and fails when it drifts.
 
 ## Pointing a field at your own
 
@@ -222,6 +372,8 @@ OWI maps to [OSLC Change Management 3.0](https://docs.oasis-open-projects.org/os
 `oslc_cm`). Each item is one `oslc_cm:ChangeRequest` whose resource URI is `url`.
 This is a documented mapping only: no tracker serves OSLC, and toil has no export
 command.
+It covers work items only: a change (a pull request) is not an OSLC CM resource,
+and OSLC's configuration management domain has no pull request either.
 
 | OWI | OSLC CM |
 |-----|---------|

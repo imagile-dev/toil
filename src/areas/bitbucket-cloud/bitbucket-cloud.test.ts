@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
-import { API, BASE_HASH, DIFF, HASH, LOG, comments, config as fixtureConfig, files as fixtureFiles, pipeline, pullRequest, repo as fixtureRepo, routes as fixtureRoutes } from '../../../test/fixtures/bitbucket-cloud.fixture.js';
+import { API, BASE_HASH, DIFF, HASH, LOG, activity, comments, config as fixtureConfig, diffstat, statuses, files as fixtureFiles, pipeline, pullRequest, repo as fixtureRepo, routes as fixtureRoutes } from '../../../test/fixtures/bitbucket-cloud.fixture.js';
 import type { AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
 import { errorMessage } from './area.js';
@@ -258,10 +258,61 @@ describe('pull requests', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('pr get returns the pull request as Bitbucket sends it', async () => {
+  it('pr list --updated-since sends updated_on >= the instant in UTC as q, after the caller query in parentheses', async () => {
+    const alone = await run(listPrsCommand, { ...at, updatedSince: '2026-10-01' });
+    expect(alone.calls[0]!.url).toBe(`${R}/pullrequests?state=OPEN&q=updated_on+%3E%3D+2026-10-01T00%3A00%3A00Z&pagelen=100`);
+    const both = await run(listPrsCommand, { ...at, query: 'author.account_id = "x" OR state = "MERGED"', updatedSince: '2026-10-01T11:30:00.250+02:00', limit: 1 });
+    expect(new URL(both.calls[0]!.url).searchParams.get('q')).toBe('(author.account_id = "x" OR state = "MERGED") AND updated_on >= 2026-10-01T09:30:00.250Z');
+    expect((both.envelope.data as Array<{ id: number }>).map((p) => p.id)).toEqual([42]);
+    // Later pages follow the next link, which carries q, so they keep the date.
+    const every = await run(listPrsCommand, { ...at, updatedSince: '2026-10-01' });
+    expect(urls(every.calls)).toEqual([
+      `${R}/pullrequests?state=OPEN&q=updated_on+%3E%3D+2026-10-01T00%3A00%3A00Z&pagelen=100`,
+      `${R}/pullrequests?state=OPEN&q=updated_on+%3E%3D+2026-10-01T00%3A00%3A00Z&pagelen=100&page=2`,
+    ]);
+  });
+
+  it('pr list refuses an --updated-since that is not an ISO 8601 instant, before anything is sent', async () => {
+    for (const updatedSince of ['yesterday', '2026-10-01T09:30:00']) {
+      const { envelope, calls } = await run(listPrsCommand, { ...at, updatedSince });
+      expect(calls).toHaveLength(0);
+      expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--updated-since'), fix: expect.stringContaining('2026-10-01T09:30:00Z') });
+    }
+  });
+
+  it('pr get returns the pull request as Bitbucket sends it, in one request without --include', async () => {
     const { envelope, calls } = await run(getPrCommand, { ...at, id: 42 });
-    expect(calls[0]!.url).toBe(`${R}/pullrequests/42`);
+    expect(urls(calls)).toEqual([`${R}/pullrequests/42`]);
     expect(envelope.data).toEqual(pullRequest(42));
+  });
+
+  it('pr get --include adds each list under included, every page, in the order reviews, checks, commits, files', async () => {
+    const { envelope, calls } = await run(getPrCommand, { ...at, id: 42, include: 'files,commits,checks,reviews' });
+    expect(urls(calls)).toEqual([
+      `${R}/pullrequests/42`,
+      `${R}/pullrequests/42/activity?pagelen=100`,
+      `${R}/pullrequests/42/activity?pagelen=100&page=2`,
+      `${R}/pullrequests/42/statuses?pagelen=100`,
+      `${R}/pullrequests/42/commits?pagelen=100`,
+      `${R}/diffstat/${SPEC}?topic=true&pagelen=100`,
+      `${R}/diffstat/${SPEC}?topic=true&pagelen=100&page=2`,
+    ]);
+    const data = envelope.data as Record<string, unknown> & { included: Record<string, unknown[]> };
+    expect({ ...data, included: undefined }).toEqual({ ...pullRequest(42), included: undefined });
+    expect(Object.keys(data.included)).toEqual(['reviews', 'checks', 'commits', 'files']);
+    expect(data.included.reviews).toEqual([activity[0], activity[2]]);
+    expect(data.included.checks).toEqual(statuses);
+    expect((data.included.commits as Array<{ hash: string }>).map((c) => c.hash)).toEqual([HASH]);
+    expect(data.included.files).toEqual(diffstat);
+  });
+
+  it('pr get --include reads any case, ignores spaces, empty entries and repeats, and refuses an unknown list before any request', async () => {
+    const some = await run(getPrCommand, { ...at, id: 42, include: ' CHECKS,, checks ' });
+    expect(urls(some.calls)).toEqual([`${R}/pullrequests/42`, `${R}/pullrequests/42/statuses?pagelen=100`]);
+    expect(Object.keys((some.envelope.data as { included: object }).included)).toEqual(['checks']);
+    const bad = await run(getPrCommand, { ...at, id: 42, include: 'reviews,diff' });
+    expect(bad.calls).toHaveLength(0);
+    expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Unknown --include value "diff". Use any of: reviews, checks, commits, files.' });
   });
 
   it('pr create sends title and source, and target, reviewers and flags only when given', async () => {

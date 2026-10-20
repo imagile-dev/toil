@@ -109,6 +109,13 @@ export function stubToil(): StubToil {
       const issues = (whole.data as { issues: Array<{ number: number }> }).issues.filter((i) => numbers.includes(i.number));
       return ok(command, numbers.length === 1 ? issues[0] : { issues, errors: [] });
     }
+    // A pull request list narrowed by updatedSince, each host by its own updated field; Azure DevOps records none, so it keeps the active ones.
+    if (command.endsWith(' pr list') && since !== null) {
+      const hit = find(command, rest);
+      if (!hit) return fail(command, 'INVALID_INPUT', `No canned ${command}.`, 'Add it.');
+      const at = (pr: Rec) => (typeof pr.updatedDate === 'number' ? pr.updatedDate : Date.parse(String(pr.updated_at ?? pr.updated_on ?? pr.closedDate ?? pr.creationDate ?? '')));
+      return ok(command, (hit.data as Rec[]).filter((pr) => pr.status === 'active' || at(pr) >= since));
+    }
     if (updatedSince !== undefined || cursor !== undefined) return fail(command, 'INVALID_INPUT', `The stub's ${command} takes no updatedSince or cursor.`, 'Call it as the views do.');
     const hit = find(command, rest);
     return hit ? ok(command, structuredClone(hit.data)) : fail(command, 'INVALID_INPUT', `No canned answer for ${command} ${inputKey(rest)}.`, 'Add it to CANNED.');

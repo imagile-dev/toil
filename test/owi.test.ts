@@ -6,7 +6,7 @@ import { Verifier } from '../src/areas/util/kit/verify.js';
 import { areaOf, commandName } from '../src/core/command.js';
 import type { Envelope, Warning } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
-import { documentsFrom, fieldOverrides, mapOwi, OVERRIDABLE, OWI_COMMANDS, OWI_SOURCES, OWI_VERSION, parseOwiInput, type WorkItem } from '../src/core/owi/index.js';
+import { documentsFrom, fieldOverrides, mapOwi, OVERRIDABLE, OWI_COMMANDS, OWI_SOURCES, OWI_VERSION, parseOwiInput, type Change, type WorkItem } from '../src/core/owi/index.js';
 import { bodyLinks } from '../src/core/owi/github.js';
 import { sprintOf } from '../src/core/owi/jira.js';
 import { execute } from '../src/core/run.js';
@@ -49,14 +49,16 @@ const spec = readFileSync(new URL('../docs/owi/spec.md', import.meta.url), 'utf8
 
 describe('the OWI spec and schema', () => {
   it('declare the same version as the mappers', () => {
-    expect(schema.$defs.WorkItem.properties.owi.const).toBe(OWI_VERSION);
+    expect(schema.$defs.WorkItem.properties.owi.enum).toEqual(['0.1', OWI_VERSION]);
+    expect(schema.$defs.Change.properties.owi.const).toBe(OWI_VERSION);
     expect(spec).toContain(`version ${OWI_VERSION}`);
   });
 
-  it('documents every WorkItem field, every overridable field and every mapped command', () => {
+  it('documents every WorkItem and Change field, every overridable field and every mapped command', () => {
     for (const field of Object.keys(schema.$defs.WorkItem.properties)) expect(spec, field).toContain(`\`${field}\``);
+    for (const field of Object.keys(schema.$defs.Change.properties)) expect(spec, field).toContain(`\`${field}\``);
     for (const field of OVERRIDABLE) expect(spec, field).toContain(`\`${field}\``);
-    for (const commands of Object.values(OWI_COMMANDS)) for (const c of [...commands.items, ...commands.history, ...commands.context]) expect(spec, c).toContain(`\`${c}\``);
+    for (const commands of Object.values(OWI_COMMANDS)) for (const c of [...commands.items, ...commands.history, ...commands.context, ...commands.changes]) expect(spec, c).toContain(`\`${c}\``);
   });
 
   it('maps every WorkItem field to OSLC CM, or says why not', () => {
@@ -74,9 +76,10 @@ describe("every area's fixtures map to valid OWI", async () => {
   const families = new Set<string>();
   for (const fixture of fixtures.filter((f) => OWI_SOURCES[f.area])) {
     const known = OWI_COMMANDS[fixture.area]!;
-    const mapped = fixture.commands.filter((def) => [...known.items, ...known.history, ...known.context].includes(commandName(def)));
+    const all = [...known.items, ...known.history, ...known.context, ...known.changes];
+    const mapped = fixture.commands.filter((def) => all.includes(commandName(def)));
     it(`${fixture.area}: every mapped command has examples`, () => {
-      expect(mapped.map(commandName).sort()).toEqual([...known.items, ...known.history, ...known.context].sort());
+      expect(mapped.map(commandName).sort()).toEqual([...all].sort());
     });
     for (const def of mapped) {
       families.add(fixture.area);
@@ -91,6 +94,11 @@ describe("every area's fixtures map to valid OWI", async () => {
         expect(data.verified.passed, json(data.verified)).toBe(true);
         expect(data.skipped).toEqual([]);
         if (known.items.includes(name)) expect(data.count).toBeGreaterThan(0);
+        if (known.changes.includes(name) && (!Array.isArray(run.envelope!.data) || run.envelope!.data.length > 0)) expect(data.changes.length).toBeGreaterThan(0);
+        for (const change of data.changes as Change[]) {
+          expect(change.id.startsWith(`${fixture.area}:`)).toBe(true);
+          expect(change.source.command).toBe(name);
+        }
         if (known.history.includes(name) && Array.isArray(run.envelope!.data) && run.envelope!.data.length > 0) expect(data.histories.length + data.items.length).toBeGreaterThan(0);
         for (const item of data.items as WorkItem[]) {
           expect(item.id.startsWith(`${fixture.area}:`)).toBe(true);
@@ -271,9 +279,10 @@ describe('mapping rules', () => {
   });
 
   it('refuses output OWI has no mapping for, and data with no command', async () => {
-    const other = await map({ text: json(env('bitbucket pr list', [])) });
+    const other = await map({ text: json(env('bitbucket pr diff', 'diff --git a/x b/x')) });
     expect(other.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
     expect(other.envelope.error!.fix).toContain('jira issue search');
+    expect(other.envelope.error!.fix).toContain('bitbucket pr get');
     const bare = await map({ text: json([{ number: 1 }]) });
     expect(bare.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
     expect(bare.envelope.error!.fix).toContain('--command');

@@ -122,7 +122,28 @@ export const threads = [
   thread(9, [threadComment(4, 0)], { isDeleted: true }),
 ];
 
-const definitionRef = { id: 5, name: 'imagile-api-ci', path: '\\', type: 'build', queueStatus: 'enabled', revision: 4, project: project('Imagile'), url: `${ADO}${PROJ}/_apis/build/Definitions/5` };
+// Invented from the docs: one GitPullRequestStatus.
+export const prStatus = {
+  id: 1,
+  state: 'succeeded',
+  description: 'Build passed',
+  context: { name: 'ci', genre: 'build' },
+  creationDate: '2026-09-16T12:00:00Z',
+  updatedDate: '2026-09-16T12:05:00Z',
+  createdBy: identity(ME, 'Jane Doe'),
+  targetUrl: `${ADO}${PROJ}/_build/results?buildId=101`,
+};
+
+// Invented from the docs: one GitCommitRef of a pull request.
+export const prCommit = (commitId: string) => ({
+  commitId,
+  author: { name: 'Jane Doe', email: 'you@example.com', date: '2026-09-15T11:00:00Z' },
+  committer: { name: 'Jane Doe', email: 'you@example.com', date: '2026-09-15T11:00:00Z' },
+  comment: 'Add retries',
+  url: `${ADO}${REPO}/commits/${commitId}`,
+});
+
+const definitionRef ={ id: 5, name: 'imagile-api-ci', path: '\\', type: 'build', queueStatus: 'enabled', revision: 4, project: project('Imagile'), url: `${ADO}${PROJ}/_apis/build/Definitions/5` };
 export const definition = (id: number, name: string) => ({ ...definitionRef, id, name, url: `${ADO}${PROJ}/_apis/build/Definitions/${id}` });
 
 export const build = (id: number, extra: Record<string, unknown> = {}) => ({
@@ -219,6 +240,9 @@ export const routes: Route[] = [
   { method: 'POST', path: `${REPO}/pullrequests/42/threads/7/comments`, respond: { json: threadComment(6, 10) } },
   { method: 'PATCH', path: `${REPO}/pullrequests/42/threads/7`, respond: { json: thread(7, [threadComment(1, 5)], { status: 'fixed' }) } },
   { method: 'DELETE', path: `${REPO}/pullrequests/42/threads/7/comments/2`, respond: { status: 204 } },
+  // Invented from the docs: Pull Request Statuses - List, and Pull Request Commits - Get Pull Request Commits (paged by x-ms-continuationtoken).
+  { path: `${REPO}/pullrequests/42/statuses`, respond: { json: { count: 1, value: [prStatus] } } },
+  { path: `${REPO}/pullrequests/42/commits`, respond: continued([prCommit(SHA)], [prCommit('def67890abc12345def67890abc12345def67890')]) },
   { path: `${REPO}/pullrequests/42/iterations`, respond: { json: { count: 2, value: [{ id: 1 }, { id: 2 }] } } },
   { path: `${REPO}/pullrequests/42/iterations/2/changes`, respond: { json: { changeEntries: [{ changeTrackingId: 1, changeId: 1, item: { objectId: SHA, path: '/src/app.ts' }, changeType: 'edit' }] } } },
   {

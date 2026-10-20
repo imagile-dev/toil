@@ -112,8 +112,39 @@ describe('paginate', () => {
     expect(first.items).toEqual([0, 2, 4]);
     const rest = await paginate(style, s.fetchPage, { keep: even, cursor: first.nextCursor as string });
     expect(rest).toEqual({ items: [6, 8], nextCursor: null });
-    const offset: PageStyle<number> = { kind: 'offset', startParam: 's', limitParam: 'l', pageSize: 2, items: (b) => b as number[] };
-    await expect(paginate(offset, s.fetchPage, { keep: even })).rejects.toThrow(/keep needs/);
+  });
+
+  it("keep on an offset style resumes at the next kept item's own offset, neither repeating nor skipping one", async () => {
+    const style: PageStyle<number> = { kind: 'nextPageStart', startParam: 'start', limitParam: 'limit', pageSize: 4 };
+    const s = recorder((p) => {
+      const start = Number(p.start);
+      const values = range(start, 4, 10);
+      return { body: start + 4 >= 10 ? { values, isLastPage: true } : { values, isLastPage: false, nextPageStart: start + 4 } };
+    });
+    const odd = (n: number) => n % 2 === 1;
+    expect((await paginate(style, s.fetchPage, { keep: odd })).items).toEqual([1, 3, 5, 7, 9]);
+    // Page one holds 1 and 3; a cap of 1 stops after 1, and 3 sits at offset 3.
+    const first = await paginate(style, s.fetchPage, { keep: odd, cap: 1 });
+    expect(first).toEqual({ items: [1], nextCursor: '3' });
+    const rest = await paginate(style, s.fetchPage, { keep: odd, cursor: '3' });
+    expect(rest).toEqual({ items: [3, 5, 7, 9], nextCursor: null });
+    const offset: PageStyle<number> = { kind: 'offset', startParam: 's', limitParam: 'l', pageSize: 4, items: (b) => b as number[] };
+    const o = recorder((p) => ({ body: range(Number(p.s), 4, 10) }));
+    const capped = await paginate(offset, o.fetchPage, { keep: odd, cap: 3 });
+    expect(capped).toEqual({ items: [1, 3, 5], nextCursor: '7' });
+    expect((await paginate(offset, o.fetchPage, { keep: odd, cursor: '7' })).items).toEqual([7, 9]);
+  });
+
+  it('stop ends paging after the page that holds a stopping item, before keep is applied', async () => {
+    const style: PageStyle<number> = { kind: 'page', pageParam: 'page', sizeParam: 'per_page', pageSize: 3, items: (b) => b as number[] };
+    // Newest first: 9 down to 0. Read back to 5, keeping only what is 5 or newer.
+    const s = recorder((p) => ({ body: range((Number(p.page) - 1) * 3, 3, 10).map((n) => 9 - n) }));
+    const since = (n: number) => n >= 5;
+    const all = await paginate(style, s.fetchPage, { keep: since, stop: (n) => !since(n) });
+    expect(all).toEqual({ items: [9, 8, 7, 6, 5], nextCursor: null });
+    expect(s.requests).toHaveLength(2);
+    const capped = await paginate(style, s.fetchPage, { keep: since, stop: (n) => !since(n), cap: 5, setPage: () => {} });
+    expect(capped.nextCursor).toBeNull();
   });
 
   it('isLastPage/nextPageStart, reading values by default', async () => {

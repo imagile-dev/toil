@@ -249,9 +249,10 @@ describe("toil's ado-cloud commands on the seeded board", () => {
     writeFileSync(file, JSON.stringify({ name: 'ado-board', repos: [], 'ado-cloud': { connection: 'ado-cloud', project: PROJECT, repo: 'payments-core' } }));
     vi.stubGlobal('fetch', board.fetch);
     const data = await loadDossier(execute as unknown as Execute, 'ado-board', { mapOwi });
-    expect(data.calls.prs.map((c) => [c.command, c.ok])).toEqual([['ado-cloud pr list', true]]);
+    expect(data.calls.prs.map((c) => [c.command, c.ok])).toEqual([['ado-cloud pr list', true], ['ado-cloud pr get', true]]);
+    expect(data.pullRequests.map((c) => [c.id, c.state, c.workItems, c.checks])).toEqual([[`ado-cloud:${PROJECT}/payments-core#7`, 'MERGED', [`ado-cloud:${id}`], 'NONE']]);
     expect(READ_COMMANDS.has('ado-cloud pr list')).toBe(true);
-    expect(data.changes.filter((c) => c.kind === 'pull-request').map((c) => [c.id, c.command, c.outcome, c.items])).toEqual([[`ado-cloud:${PROJECT}/payments-core#7`, 'ado-cloud pr list', 'merged', [`ado-cloud:${id}`]]]);
+    expect(data.changes.filter((c) => c.kind === 'pull-request').map((c) => [c.id, c.command, c.outcome, c.items])).toEqual([[`ado-cloud:${PROJECT}/payments-core#7`, 'ado-cloud pr get', 'merged', [`ado-cloud:${id}`]]]);
   });
 
   it('proposes a board move on an ado-cloud item as work-item update in its own area', async () => {

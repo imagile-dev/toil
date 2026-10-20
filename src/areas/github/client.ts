@@ -99,6 +99,8 @@ export interface ListOptions<T> {
   items?: (body: unknown) => T[];
   /** Applied to each page after the short-page check, so a filter never ends paging early. */
   keep?: (item: T) => boolean;
+  /** Ends paging after the page holding an item this is true for (a newest-first list read back to a date). */
+  stop?: (item: T) => boolean;
   /** Page size; 100 unless an endpoint has a lower ceiling. */
   pageSize?: number;
   /** Answers a page without a request (search past its 1,000th result); undefined sends the request. */
@@ -120,6 +122,7 @@ export async function githubList<T>(ctx: GitHubContext, path: string, what: stri
     {
       what,
       ...(opts.keep ? { keep: opts.keep } : {}),
+      ...(opts.stop ? { stop: opts.stop } : {}),
       ...(opts.limit !== undefined ? { cap: opts.limit, setPage: ctx.setPage } : {}),
       ...(opts.cursor !== undefined ? { cursor: opts.cursor } : {}),
     },

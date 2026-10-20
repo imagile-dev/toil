@@ -103,6 +103,23 @@ export const forbiddenProjects = { data: { repositoryOwner: { projectsV2: null }
 export const comment = (id = 401) => ({ id, body: 'Looks right.', html_url: `${GHE}/imagile/toil-probe/pull/7#issuecomment-${id}`, user: user('octo-dev'), created_at: '2025-01-15T10:00:00Z', updated_at: '2025-01-15T10:00:00Z' });
 export const review = (state = 'APPROVED') => ({ id: 80, state, body: '', commit_id: 'abc1234', html_url: `${GHE}/imagile/toil-probe/pull/7#pullrequestreview-80`, user: user('octo-rev', 3) });
 export const file = (filename = 'src/probe.ts') => ({ sha: 'abc1234', filename, status: 'modified', additions: 3, deletions: 1, changes: 4 });
+/** A pull request's commit as GET /pulls/{n}/commits lists it, trimmed from the docs' example (not captured live). */
+export const prCommit = (sha = 'abc1234') => ({
+  sha,
+  node_id: `C_kwDOabc12345${sha}`,
+  url: `${API}/repos/imagile/toil-probe/commits/${sha}`,
+  html_url: `${GHE}/imagile/toil-probe/commit/${sha}`,
+  commit: {
+    author: { name: 'Octo Dev', email: 'you@example.com', date: '2025-01-15T10:00:00Z' },
+    committer: { name: 'Octo Dev', email: 'you@example.com', date: '2025-01-15T10:00:00Z' },
+    message: 'Add the probe',
+    tree: { sha: 'def5678', url: `${API}/repos/imagile/toil-probe/git/trees/def5678` },
+    comment_count: 0,
+  },
+  author: user('octo-dev'),
+  committer: user('octo-dev'),
+  parents: [{ sha: 'def5678', url: `${API}/repos/imagile/toil-probe/commits/def5678` }],
+});
 export const checkRun = (id = 1) => ({ id, name: `build-${id}`, status: 'completed', conclusion: 'success', html_url: `${GHE}/imagile/toil-probe/runs/${id}` });
 export const thread = (id = 'PRT_kwDOabc12345') => ({ id, isResolved: false, isOutdated: false, path: 'src/probe.ts', line: 12, comments: { nodes: [{ id: 'PRRC_1', databaseId: 501, body: 'Off by one?', author: { login: 'octo-rev' }, createdAt: '2025-01-15T10:00:00Z' }] } });
 export const repository = () => ({ id: 3000, name: 'toil-probe', full_name: 'imagile/toil-probe', private: true, owner: user('imagile', 9), html_url: `${GHE}/imagile/toil-probe`, clone_url: `${GHE}/imagile/toil-probe.git`, ssh_url: 'git@ghe.imagile.dev:imagile/toil-probe.git', default_branch: 'main', created_at: '2025-01-15T10:00:00Z', updated_at: '2025-01-15T10:00:00Z' });
@@ -163,6 +180,7 @@ const routes: Route[] = [
   // GET /pulls/7 answers both pr get (JSON) and pr diff (the diff media type).
   { path: pr, respond: (request) => (request.headers.accept === 'application/vnd.github.v3.diff' ? { text: DIFF } : { json: pullRequest(7) }) },
   { path: `${pr}/files`, respond: { json: [file()] } },
+  { path: `${pr}/commits`, respond: { json: [prCommit()] } },
   { path: `${REPO}/issues/7/comments`, respond: { json: [comment()] } },
   { method: 'POST', path: `${REPO}/issues/7/comments`, respond: { status: 201, json: comment() } },
   { path: `${pr}/comments`, respond: { json: [comment(501)] } },
@@ -184,6 +202,9 @@ const routes: Route[] = [
   { method: 'POST', path: `${REPO}/issues/7/assignees`, respond: { status: 201, json: issue(7) } },
   { method: 'DELETE', path: `${REPO}/issues/7/assignees`, respond: { json: issue(7) } },
   { method: 'POST', path: '/api/graphql', respond: (request) => ({ json: graphql(request.body) }) },
+  // repo file: a file's contents, base64 as GitHub sends them, at the default branch and at a ref.
+  { path: `${REPO}/contents/.github/CODEOWNERS`, respond: { json: { type: 'file', encoding: 'base64', size: 12, name: 'CODEOWNERS', path: '.github/CODEOWNERS', content: Buffer.from('* @octo-dev\n').toString('base64'), sha: 'c0de0e5', html_url: `${GHE}/imagile/toil-probe/blob/main/.github/CODEOWNERS` } } },
+  { path: `${REPO}/contents/docs/CODEOWNERS`, query: { ref: 'release/1.4' }, respond: { json: { type: 'file', encoding: 'base64', size: 22, name: 'CODEOWNERS', path: 'docs/CODEOWNERS', content: Buffer.from('docs/ @imagile/writers\n').toString('base64'), sha: 'c0de0e6', html_url: `${GHE}/imagile/toil-probe/blob/release/1.4/docs/CODEOWNERS` } } },
 ];
 
 export const fixture = defineFixture({

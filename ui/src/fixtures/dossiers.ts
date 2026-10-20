@@ -10,7 +10,8 @@
  *   Azure Repos (settlement) and two Azure Pipelines, one for CI and one that
  *   deploys.
  * - **checkout-web**: GitHub Enterprise (imagile/payments-web) with Projects
- *   (project 7) and Actions checks, and OpenShift for staging and prod.
+ *   (project 7) and Actions checks, its SDK on Bitbucket Cloud
+ *   (imagile/checkout-sdk), and OpenShift for staging and prod.
  *
  * Reference data (`jobs`, `builds`, `deployments`, `projects`) is the kind a
  * dossier keeps as written (docs/dossiers.md); the dashboard reads it to know
@@ -49,10 +50,14 @@ export const DOSSIERS: DossierFile[] = [
   },
   {
     name: 'checkout-web',
-    description: 'The checkout web front end. GitHub Enterprise with Projects and Actions, deployed on OpenShift.',
+    description: 'The checkout web front end and its SDK. GitHub Enterprise with Projects and Actions, Bitbucket Cloud for the SDK, deployed on OpenShift.',
     env: 'staging',
-    repos: [{ name: 'payments-web', remotes: ['https://ghe.imagile.dev/imagile/payments-web.git'] }],
+    repos: [
+      { name: 'payments-web', remotes: ['https://ghe.imagile.dev/imagile/payments-web.git'] },
+      { name: 'checkout-sdk', remotes: ['https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk.git'] },
+    ],
     github: { connection: 'github', owner: 'imagile', repo: 'payments-web', projects: ['7'] },
+    'bitbucket-cloud': { connection: 'bitbucket-cloud', workspace: 'imagile', repo: 'checkout-sdk' },
     environments: {
       staging: { openshift: { connection: 'ocp-nonprod', namespace: 'checkout-staging' } },
       prod: { openshift: { connection: 'ocp-prod', namespace: 'checkout-prod' } },
@@ -67,6 +72,7 @@ export const fileOf = (name: string) => `${USER_DIR}/${name}.json`;
 const CONTEXT: Record<string, string[]> = {
   jira: ['project'],
   bitbucket: ['project', 'repo'],
+  'bitbucket-cloud': ['workspace', 'repo'],
   jenkins: ['instance'],
   ado: ['collection', 'organization', 'project', 'repo'],
   github: ['owner', 'repo'],
