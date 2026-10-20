@@ -169,6 +169,7 @@ export function AssignmentView({ id }: { id: string }) {
               {a.branch.files.map((f) => (
                 <li key={`${f.status}:${f.path}`}>
                   <code>{f.path}</code> <span className="note">{f.status}</span>
+                  {a.branch?.hidden?.includes(f.path) && <span className="assign-stop"> not in the diff below</span>}
                 </li>
               ))}
             </ul>

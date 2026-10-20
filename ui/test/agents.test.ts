@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mapOwi, registry } from '@imagile-dev/toil/api';
+import { execute as realExecute, mapOwi, registry } from '@imagile-dev/toil/api';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
@@ -27,7 +27,8 @@ import { commandLine } from '../src/proposal.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { stubToil } from './toil-stub.ts';
-import { headCommit, hostRunner } from '../server/assign/runner.ts';
+import { headCommit, hiddenStaged, hostRunner } from '../server/assign/runner.ts';
+import { spawnSync } from 'node:child_process';
 import { memoryLedger, usageSettingsFile } from '../server/usage.ts';
 
 /**
@@ -1237,5 +1238,72 @@ describe('implement mode, when the agent commits anyway (#293 review)', () => {
     expect(headCommit(clone)).toBe('d'.repeat(40));
     writeFileSync(join(clone, '.git', 'HEAD'), 'ref: refs/../../x\n');
     expect(headCommit(clone)).toBeNull();
+  });
+});
+
+describe('implement mode, when the diff would hide something staged (#293 review round 4)', () => {
+  const git = (cwd: string, ...args: string[]) => {
+    const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=you@example.com', '-c', 'commit.gpgsign=false', ...args], { cwd, encoding: 'utf8' });
+    if (r.status !== 0) throw new Error(`git ${args.join(' ')}: ${r.stderr}`);
+    return r.stdout;
+  };
+
+  it('stages a gitlink beside a README change, names it, and proposes no commit or push', async () => {
+    const source = mkdtempSync(join(folder, 'gitlink-source-'));
+    git(source, 'init', '-q', '-b', 'main');
+    writeFileSync(join(source, 'README.md'), 'one\n');
+    git(source, 'add', 'README.md');
+    git(source, 'commit', '-q', '-m', 'start');
+    // The Codex SDK, stubbed: inside the run it does what an injected agent might, with real git.
+    class Codex {
+      startThread(t: Record<string, unknown>) {
+        const repo = join(String(t.workingDirectory), 'repo');
+        return {
+          runStreamed: async () => ({
+            events: (async function* () {
+              git(repo, 'reset', '-q', '--hard', 'HEAD');
+              git(repo, 'switch', '-q', '-c', 'agent/PAY-107');
+              writeFileSync(join(repo, 'README.md'), 'one\ntwo\n');
+              git(repo, 'add', 'README.md');
+              git(repo, 'update-index', '--add', '--cacheinfo', `160000,${'0123456789abcdef'.repeat(2)}01234567,leak1`);
+              yield { type: 'item.completed', item: { type: 'agent_message', text: 'Staged a README change.' } };
+              yield { type: 'turn.completed', usage: {} };
+            })(),
+          }),
+        };
+      }
+    }
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const { host, dataDir } = hostFor('codex', { Codex }, { serveTools: (tools) => holder.serve(tools) });
+    // toil's own git status and git diff, for real, with its audit log in a home of the test's own.
+    const home = mkdtempSync(join(folder, 'gitlink-home-'));
+    const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE };
+    process.env.HOME = home;
+    process.env.USERPROFILE = home;
+    const execute: Execute = async (command, input = {}, options = {}) =>
+      command === 'dossiers show'
+        ? ({ ok: true, data: { dossier: { repos: [{ name: 'payments-core', path: source }] } }, error: null, meta: { command, durationMs: 0, version: '0', contractVersion: 1 } } as unknown as Envelope)
+        : ((await realExecute(command, input, options as never)) as unknown as Envelope);
+    try {
+      const runner = hostRunner({ host, dataDir, registry: registry.commands, execute, mapIds: () => [], data: () => data, version: 't', toilVersion: 't', now: () => FIXTURE_NOW });
+      const item = data.items().find((i) => i.id === 'corp-jira:PAY-107')!;
+      const a = { id: 'abc12345-0000-0000-0000-000000000002', dossier: 'card-payments', item: item.id, itemTitle: 'x', mode: 'implement', adapter: 'codex', origin: 'person', trigger: null, state: 'working', waiting: null, repo: 'payments-core', createdAt: FIXTURE_NOW, startedAt: FIXTURE_NOW, endedAt: null, stop: null, report: null, questions: [], proposals: [], usage: null, startedOn: null, branch: null } as const;
+      const result = await runner.run({ assignment: { ...a, questions: [], proposals: [] }, item, signal: new AbortController().signal, record: () => undefined });
+      expect(result.branch!.hidden).toEqual(['leak1']);
+      expect(result.branch!.diff).toContain('+two');
+      expect(result.branch!.diff).not.toContain('leak1');
+      expect(result.report!.warnings[0]).toMatch(/^The staged change includes a file the diff below doesn't show: leak1\..*no commit or push is proposed/);
+      expect(result.proposals.some((p) => p.title.startsWith('Commit and push'))).toBe(false);
+    } finally {
+      process.env.HOME = saved.HOME;
+      process.env.USERPROFILE = saved.USERPROFILE;
+    }
+  }, 30_000);
+
+  it('counts a staged path as reviewed only when the diff has text for it', () => {
+    const diff = { files: [{ path: 'a.md', binary: false, hunks: [{}] }, { path: 'logo.png', binary: true, hunks: [] }, { path: 'run.sh', binary: false, hunks: [] }, { path: 'new.md', binary: false, hunks: [{}] }] };
+    expect(hiddenStaged({ staged: ['a.md', 'logo.png', 'run.sh', 'old.md -> new.md', 'leak1'] }, diff)).toEqual(['logo.png', 'run.sh', 'leak1']);
+    expect(hiddenStaged({ staged: ['a.md'] }, null)).toEqual(['a.md']);
+    expect(hiddenStaged({ staged: [] }, diff)).toEqual([]);
   });
 });

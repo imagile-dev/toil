@@ -5028,6 +5028,17 @@ it pins. These are the choices made by default in the fix:
   Toil UI never creates, because `--no-verify` skips only some hooks
   (`prepare-commit-msg`, `post-commit` and `reference-transaction` still run) and the
   work folder stays writable after the run.
+- **Anything staged that the diff doesn't show stops the push** (review round 4).
+  `diff.ignoreSubmodules = all` keeps git out of a submodule's own config, but it also
+  drops a staged gitlink from `git diff --staged`, so an agent could stage 20 bytes
+  per gitlink (`git update-index --cacheinfo 160000,…`) that the person never sees.
+  `hiddenStaged` compares `git status`'s staged paths with the diff's files that
+  carry text: a gitlink, a mode-only change, a binary file, or a path quoted
+  differently on either side is named in a warning, marked on the file list, and no
+  commit or push is proposed. Showing gitlinks in the diff instead would need
+  `--ignore-submodules=none` on toil's `git diff`, which takes no such flag, and
+  loosening the clone's config would let git read the agent's submodule configs again,
+  so the refusal is the whole fix.
 - **The agent can read the whole disk in implement mode.** Codex's `workspace-write`
   limits writes and network, not reads, and implement mode has the shell, so the
   agent could read files in the person's home folder and put what it read into its

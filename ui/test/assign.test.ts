@@ -299,7 +299,7 @@ describe("the runner's own proposals", () => {
   });
 
   it('proposes the commit and push as git lines with the message in a file, so nothing from the tracker is shell syntax', () => {
-    const branch = { name: 'agent/PAY-107', repo: 'payments-core', folder: 'C:/work/x/repo', onBranch: true, files: [{ path: 'a.ts', status: 'staged' }], diff: null };
+    const branch = { name: 'agent/PAY-107', repo: 'payments-core', folder: 'C:/work/x/repo', onBranch: true, files: [{ path: 'a.ts', status: 'staged' }], diff: null, hidden: [] };
     const p = pushProposal({ ...item('corp-jira:PAY-107'), title: "Retry & don't | charge twice" }, branch, 'C:/work/x.commit-message.txt', 'C:/work/x.no-hooks');
     expect(p).toMatchObject({ command: null, input: null });
     expect(p.note).toContain('git -C "C:/work/x/repo" --no-replace-objects -c core.hooksPath="C:/work/x.no-hooks" commit --no-verify -F "C:/work/x.commit-message.txt" then git -C "C:/work/x/repo" --no-replace-objects -c core.hooksPath="C:/work/x.no-hooks" push --no-verify origin HEAD:refs/heads/agent/PAY-107.');

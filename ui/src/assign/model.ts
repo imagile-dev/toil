@@ -129,6 +129,8 @@ export interface Branch {
   files: Array<{ path: string; status: string }>;
   /** `git diff --staged`, as toil reported it, cut to a size the page can show. */
   diff: string | null;
+  /** Staged paths the diff doesn't show in full (a submodule link, a mode change, a binary file): with any, nothing is proposed. */
+  hidden: string[];
 }
 
 export interface Assignment {

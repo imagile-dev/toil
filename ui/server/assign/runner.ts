@@ -248,7 +248,10 @@ export function hostRunner(o: HostRunnerOptions): Runner {
         } else {
           branchInfo = await branchOf(read, clone, branch, repo.name, actor);
           if (!branchInfo.onBranch) report.warnings.unshift(`The clone isn't on ${branch}, the branch the agent was asked to make, so check its work before you use it.`);
-          if (branchInfo.files.length) {
+          if (branchInfo.hidden.length) {
+            // Whatever the diff doesn't show would go out with the commit unread: nothing is proposed.
+            report.warnings.unshift(`The staged change includes ${branchInfo.hidden.length === 1 ? 'a file' : `${branchInfo.hidden.length} files`} the diff below doesn't show: ${branchInfo.hidden.join(', ')}. It may be a submodule link, a mode change, a binary file or anything else git's diff leaves out, and it would go out with the commit unread, so no commit or push is proposed. Look at the clone yourself before you use any of it.`);
+          } else if (branchInfo.files.length) {
             // The message goes in a file beside the agent's folder, written after the run, so nothing from the tracker is shell syntax on the person's command line.
             const message = `${workspace.root}.commit-message.txt`;
             writeFileSync(message, `${item.source.key}: ${item.title}\n\n${item.url ?? item.id}\n`);
@@ -277,7 +280,7 @@ async function repoNamed(execute: Execute, dossier: string, name: string | null)
 }
 
 /** The clone's branch, its changed files and its staged diff, through toil's own read-only git commands. */
-async function branchOf(read: (command: string, input: Record<string, unknown>, extra: { workspace?: string; actor: string }) => Promise<Envelope>, folder: string, name: string, repo: string, actor: string): Promise<Branch> {
+export async function branchOf(read: (command: string, input: Record<string, unknown>, extra: { workspace?: string; actor: string }) => Promise<Envelope>, folder: string, name: string, repo: string, actor: string): Promise<Branch> {
   const status = await read('git status', {}, { workspace: folder, actor });
   const diff = await read('git diff', { staged: true }, { workspace: folder, actor });
   const files = status.ok ? filesOf(status.data) : [];
@@ -286,7 +289,28 @@ async function branchOf(read: (command: string, input: Record<string, unknown>, 
     const raw = typeof diff.data === 'string' ? diff.data : (unified(diff.data) ?? JSON.stringify(diff.data, null, 2));
     text = raw.length > MAX_DIFF ? `${raw.slice(0, MAX_DIFF)}\n[cut at ${MAX_DIFF} characters]` : raw;
   }
-  return { name, repo, folder: slashes(folder), onBranch: headBranch(folder) === name, files, diff: text };
+  const hidden = status.ok ? hiddenStaged(status.data, diff.ok ? diff.data : null) : files.map((f) => f.path);
+  return { name, repo, folder: slashes(folder), onBranch: headBranch(folder) === name, files, diff: text, hidden };
+}
+
+/**
+ * The staged paths the reviewed diff doesn't show in full (#293 review round
+ * 4): every path `git status` lists as staged that toil's `git diff --staged`
+ * has no hunk of text for. A gitlink (which `diff.ignoreSubmodules = all`
+ * leaves out), a mode-only change, a binary file, a path either side quotes
+ * differently: each would go out with the person's commit unread, so any one
+ * of them means no commit or push is proposed. A rename is read by its new
+ * path. With no readable diff, every staged path is hidden.
+ */
+export function hiddenStaged(status: unknown, diff: unknown): string[] {
+  const staged = Array.isArray((status as { staged?: unknown } | null)?.staged) ? ((status as { staged: unknown[] }).staged.filter((p) => typeof p === 'string') as string[]) : [];
+  const files = (diff as { files?: unknown } | null)?.files;
+  const shown = new Set(
+    (Array.isArray(files) ? (files as Array<{ path?: unknown; binary?: unknown; hunks?: unknown }>) : [])
+      .filter((f) => typeof f.path === 'string' && f.binary !== true && Array.isArray(f.hunks) && f.hunks.length > 0)
+      .map((f) => f.path as string),
+  );
+  return staged.filter((p) => !shown.has(p.includes(' -> ') ? p.slice(p.lastIndexOf(' -> ') + 4) : p));
 }
 
 /** toil's `git diff` (files of hunks) as the unified diff a person reads, or null for a shape it doesn't know. */
