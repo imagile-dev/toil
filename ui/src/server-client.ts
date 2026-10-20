@@ -217,11 +217,10 @@ export const AGENT_LABEL: Record<string, string> = {
  */
 export async function httpAgent(session: Session, dossiers: string[], base = './'): Promise<Agent> {
   const starters = new Map<string, Starter[]>();
-  if (session.agent !== 'none') {
-    for (const name of dossiers) {
-      const res = await call(base, session, `api/agent/starters?dossier=${encodeURIComponent(name)}`);
-      starters.set(name, res.ok ? ((await res.json()) as Starter[]) : []);
-    }
+  // Fetched with no adapter chosen too: a chat can switch to one (#344).
+  for (const name of dossiers) {
+    const res = await call(base, session, `api/agent/starters?dossier=${encodeURIComponent(name)}`);
+    starters.set(name, res.ok ? ((await res.json()) as Starter[]) : []);
   }
   return {
     ...(session.agent === 'none' ? { notice: `${NO_AGENT_NOTICE} ${NO_AGENT_FIX}` } : {}),

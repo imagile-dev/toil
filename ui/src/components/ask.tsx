@@ -132,6 +132,7 @@ function useChat() {
   };
 
   const switchTo = (name: string | null, label: string) => {
+    if (name === adapter) return;
     setAdapter(name);
     setEntries((es) => (es.length ? [...es, { kind: 'switch', id: next.current++, label }] : es));
   };

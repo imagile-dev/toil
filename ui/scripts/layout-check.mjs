@@ -239,7 +239,10 @@ function states(route, width) {
   const openAsk = `await ${clickAll('[data-ask-bar]')};`;
   const closeAsk = clickAll('[data-ask-close]');
   if (/^#\/dossier\/[^/]+$/.test(route)) {
-    out.push({ name: 'ask-open', setup: `(async () => { ${openAsk} const deadline = Date.now() + 5000; while (!document.querySelector('.ask-focus .starters') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('.ask-focus .starters') ? 1 : 0; })()`, undoJs: closeAsk });
+    // The page stays open from one width to the next, so the chat may already hold the answer an earlier width asked
+    // for: then its starters are the Suggestions button instead of chips.
+    const ready = `document.querySelector('.ask-focus .starters, .ask-focus [data-ask-suggestions]')`;
+    out.push({ name: 'ask-open', setup: `(async () => { ${openAsk} const deadline = Date.now() + 5000; while (!${ready} && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return ${ready} ? 1 : 0; })()`, undoJs: closeAsk });
     out.push({ name: 'ask-info', setup: `(async () => { ${openAsk} return await ${clickAll('[data-ask-info]')}; })()`, undo: 'Escape', undoJs: closeAsk });
     out.push({ name: 'ask-switcher', setup: `(async () => { ${openAsk} return await ${clickAll('[data-agent-switch]')}; })()`, undo: 'Escape', undoJs: closeAsk });
   }
@@ -250,9 +253,11 @@ function states(route, width) {
   // An answered question (#295): its usage footer, and the chat's running total and context meter in the pane's head.
   // Then, once a question has its answer, the Suggestions menu the starters fold into (#343).
   // Analyze (#343) on the next dossier: its pulse check, pressed in the bar, in the focused view.
-  const answered = (press) => `(async () => { const before = document.querySelectorAll('[data-usage-footer]').length; if (!(await ${press})) return 0; const deadline = Date.now() + 8000; while (document.querySelectorAll('[data-usage-footer]').length <= before && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelectorAll('[data-usage-footer]').length > before && document.querySelector('[data-chat-usage]') && document.querySelector('[data-ask-status]') ? 1 : 0; })()`;
+  // Done means the new turn is in the view, the Stop button gone and its usage shown; the closed view holds no turns, so they're counted from the bar.
+  const answered = (press) => `(async () => { const asked = Number(/(\\d+) questions? in this chat/.exec(document.querySelector('.ask-bar')?.textContent ?? '')?.[1] ?? 0); if (!(await ${press})) return 0; const done = () => { const turns = document.querySelectorAll('.ask-focus .turn'); return turns.length > asked && !document.querySelector('[data-ask-stop]') && turns[turns.length - 1].querySelector('[data-usage-footer]') && document.querySelector('[data-chat-usage]') && document.querySelector('[data-ask-status]'); }; const deadline = Date.now() + 15000; while (!done() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return done() ? 1 : 0; })()`;
   if (route === '#/dossier/card-payments') {
-    out.push({ name: 'answered', setup: answered(`(async () => { ${openAsk} return await ${clickAll('.starters .starter:first-child')}; })()`), undoJs: closeAsk });
+    const firstQuestion = `(async () => { ${openAsk} const deadline = Date.now() + 5000; while (!document.querySelector('.ask-focus .starters .starter, [data-ask-suggestions]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const chip = document.querySelector('.ask-focus .starters .starter'); if (chip) return (chip.click(), 1); if (!(await ${clickAll('[data-ask-suggestions]')})) return 0; return await ${clickAll('[role="menuitem"]:first-child')}; })()`;
+    out.push({ name: 'answered', setup: answered(firstQuestion), undoJs: closeAsk });
     out.push({ name: 'ask-suggestions', setup: `(async () => { ${openAsk} return await ${clickAll('[data-ask-suggestions]')}; })()`, undo: 'Escape', undoJs: closeAsk });
   }
   if (route === '#/dossier/settlement') out.push({ name: 'analyzed', setup: answered(clickAll('[data-analyze]')), undoJs: closeAsk });
