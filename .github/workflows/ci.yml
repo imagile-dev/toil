@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   gate:
-    name: ${{ matrix.os }} / Node ${{ matrix.node }}
+    name: ${{ matrix.os }} / Node ${{ matrix.node }} / rep ${{ matrix.rep }}
     strategy:
       fail-fast: false
       matrix:
@@ -24,8 +24,10 @@ jobs:
         # vars can be switched on from code (tls.setDefaultCACertificates,
         # http.setGlobalProxyFromEnv); keep it in step with "engines" in
         # package.json.
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        # TEMPORARY (#328): Windows only, five times per Node version, to measure the UI suite. Reverted before review.
+        os: [windows-latest]
         node: ['24.14', 26]
+        rep: [1, 2, 3, 4, 5]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
