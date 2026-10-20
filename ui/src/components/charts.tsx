@@ -195,8 +195,8 @@ export function CycleScatter({ points, p85 }: { points: ScatterPoint[]; p85: num
 
 /**
  * Calls per day (#309), from `toil audit stats --by day`: one bar a day, the
- * number over the tallest, and a date under every few, so thirty bars still
- * read at 375px. The figures table under it holds every day's calls and
+ * scale's top beside the tallest, and a date under every few, so thirty bars
+ * still read at 375px. The figures table under it holds every day's calls and
  * failures.
  */
 export function CallsPerDay({ days }: { days: DayCalls[] }) {
@@ -221,8 +221,9 @@ export function CallsPerDay({ days }: { days: DayCalls[] }) {
           return (
             <g key={d.day}>
               <rect className="bar" x={cx - bar / 2} y={y(d.calls)} width={bar} height={Math.max(0, y(0) - y(d.calls))} rx={2} />
+              {/* Every other date is minor, and a phone's stylesheet hides those, so the dates still fit at 375px. */}
               {(i % every === 0 || i === days.length - 1) && (
-                <text className="axis" x={cx} y={H - 6} textAnchor="middle">
+                <text className={`axis${i !== days.length - 1 && (i / every) % 2 === 1 ? ' axis--minor' : ''}`} x={cx} y={H - 4} textAnchor="middle">
                   {day(d.day).replace(/ \d{4}$/, '')}
                 </text>
               )}
