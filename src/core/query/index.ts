@@ -39,7 +39,7 @@ export function compileQuery(expression: string): Query {
   return {
     expression,
     search: (data) => {
-      const result = interpreter.visit(ast, data);
+      const result = interpreter.run(ast, data);
       return result instanceof ExpressionReference ? null : result;
     },
   };

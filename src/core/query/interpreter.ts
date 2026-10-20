@@ -35,6 +35,38 @@ export class ExpressionReference {
 
 type Obj = Record<string, unknown>;
 
+/**
+ * How much JSON one evaluation may build (docs/bounds.md, `query.size`):
+ * 16 MiB, plus four times the size of the data it was given, so selecting
+ * from a large result works as well as from a small one. Every array, object
+ * and string the interpreter makes is measured as it grows, as the JSON it
+ * would serialize to, so an expression that doubles its input at each step
+ * (`[@,@][]` repeated, or `[@,@]` piped into itself) stops with an error long
+ * before the heap runs out. The structure built along the way, kept or thrown
+ * away, counts against the same figure. Values the interpreter only passes
+ * along (`@`, a field) aren't built, so they cost nothing.
+ */
+export const MAX_RESULT_BYTES = 16 * 1024 * 1024;
+export const RESULT_INPUT_FACTOR = 4;
+
+const tooLarge = (limit: number) =>
+  new QueryError(
+    'invalid-value',
+    `The expression builds more than ${Math.round(limit / (1024 * 1024))} MiB of JSON, the most it may build from this data (16 MiB plus four times the data's own size). Select fewer fields or elements.`,
+  );
+
+/**
+ * A leaf's size as JSON, near enough: a string's escapes aren't counted, and
+ * every number counts as 8 characters, since printing each one to find out
+ * would cost more than the bound saves.
+ */
+function leafSize(value: unknown): number {
+  if (typeof value === 'string') return value.length + 2;
+  if (typeof value === 'number') return 8;
+  if (typeof value === 'boolean') return value ? 4 : 5;
+  return 4;
+}
+
 const isObject = (value: unknown): value is Obj => typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof ExpressionReference);
 
 function typeOf(value: unknown): JsonType {
@@ -249,6 +281,136 @@ function children(node: Node): Node[] {
 }
 
 export class Interpreter {
+  /**
+   * Each built value's size as JSON, and each input value's once it has been
+   * measured; -1 while one is being measured. A Map rather than a WeakMap,
+   * which is several times slower to fill; what it holds is bounded by
+   * `spent`, and it's dropped when `run` ends.
+   */
+  private sizes = new Map<object, number>();
+  /** The structure built so far in this run: brackets, commas and keys, never the values they hold. */
+  private spent = 0;
+  private input: unknown = null;
+  /** The limit in force: `limit` until something passes it, then `limit` plus four times the input's size. */
+  private cap = 0;
+  private raised = false;
+
+  constructor(private readonly limit = MAX_RESULT_BYTES) {}
+
+  /** Evaluates one expression against one piece of data, with a fresh budget. */
+  run(node: Node, value: unknown): unknown {
+    this.sizes = new Map();
+    this.spent = 0;
+    this.input = value;
+    this.cap = this.limit;
+    this.raised = false;
+    try {
+      return this.visit(node, value);
+    } finally {
+      this.sizes = new Map();
+      this.input = null;
+    }
+  }
+
+  /**
+   * Throws once `bytes` passes the limit. The input is measured only the
+   * first time something passes the fixed part, so a small result from large
+   * data never pays for walking all of it.
+   */
+  private check(bytes: number): void {
+    if (bytes <= this.cap) return;
+    if (!this.raised) {
+      this.raised = true;
+      this.cap = this.limit + RESULT_INPUT_FACTOR * this.size(this.input);
+      if (bytes <= this.cap) return;
+    }
+    throw tooLarge(this.cap);
+  }
+
+  /** The running size of a value being built, after adding `item`; throws past the limit, before anything more is added. */
+  private grow(total: number, item: unknown, extra = 0): number {
+    const next = total + this.size(item) + 1 + extra;
+    this.spent += 1 + extra;
+    this.check(Math.max(next, this.spent));
+    return next;
+  }
+
+  /** Records a value's size once it's built, so whatever is built from it next can add it in one step. */
+  private built<T>(value: T, total: number): T {
+    this.spent += 2;
+    if (typeof value === 'object' && value !== null) this.sizes.set(value, total);
+    return value;
+  }
+
+  /**
+   * A value a function or a slice returned, measured whole. Each of those
+   * returns at most a constant times what it was given, which was measured
+   * already, so measuring afterwards can't come too late.
+   */
+  private measured<T>(value: T): T {
+    if (typeof value === 'string') {
+      this.spent += value.length;
+      this.check(Math.max(value.length + 2, this.spent));
+      return value;
+    }
+    if (typeof value !== 'object' || value === null || value instanceof ExpressionReference || this.sizes.has(value)) return value;
+    let total = 2;
+    if (Array.isArray(value)) for (const item of value) total = this.grow(total, item);
+    else for (const [key, item] of Object.entries(value)) total = this.grow(total, item, key.length + 3);
+    return this.built(value, total);
+  }
+
+  /**
+   * A value's size as JSON. Data the expression was given is walked once,
+   * depth first with a list of frames rather than recursion, so nesting
+   * thousands deep can't overflow the stack, and remembered, so a value used
+   * twice costs nothing the second time. The frames are exactly the path from
+   * the value down, so meeting one of them again means data that refers to
+   * itself, which has no JSON form, and says so.
+   */
+  private size(value: unknown): number {
+    if (typeof value !== 'object' || value === null) return leafSize(value);
+    if (value instanceof ExpressionReference) return 4;
+    const known = this.sizes.get(value);
+    if (known !== undefined && known >= 0) return known;
+    const frames: Array<{ node: object; keys: string[] | undefined; i: number; total: number }> = [];
+    const open = (node: object) => {
+      this.sizes.set(node, -1);
+      frames.push({ node, keys: Array.isArray(node) ? undefined : Object.keys(node), i: 0, total: 2 });
+    };
+    open(value);
+    while (frames.length > 0) {
+      const frame = frames[frames.length - 1]!;
+      const array = frame.keys === undefined ? (frame.node as unknown[]) : undefined;
+      const count = array ? array.length : frame.keys!.length;
+      let descended = false;
+      while (frame.i < count) {
+        const key = array ? undefined : frame.keys![frame.i]!;
+        const item = array ? array[frame.i] : (frame.node as Obj)[key!];
+        if (typeof item === 'object' && item !== null && !(item instanceof ExpressionReference)) {
+          const child = this.sizes.get(item);
+          if (child === -1) throw new QueryError('invalid-value', 'The data refers to itself, so it has no JSON form to select from.');
+          if (child === undefined) {
+            // Measure the child first; this element is added when the frame resumes.
+            open(item);
+            descended = true;
+            break;
+          }
+          frame.total += child;
+        } else {
+          frame.total += item instanceof ExpressionReference ? 4 : leafSize(item);
+        }
+        frame.total += key === undefined ? 1 : key.length + 4;
+        frame.i++;
+      }
+      if (!descended) {
+        frames.pop();
+        this.sizes.set(frame.node, frame.total);
+      }
+    }
+    return this.sizes.get(value)!;
+  }
+
   visit(node: Node, value: unknown): unknown {
     switch (node.type) {
       case 'Field':
@@ -265,7 +427,7 @@ export class Interpreter {
         return value[index] ?? null;
       }
       case 'Slice':
-        return Array.isArray(value) ? slice(value, node.start, node.stop, node.step) : null;
+        return Array.isArray(value) ? this.measured(slice(value, node.start, node.stop, node.step)) : null;
       case 'Projection': {
         const base = this.visit(node.left, value);
         if (!Array.isArray(base)) return null;
@@ -287,16 +449,49 @@ export class Interpreter {
       case 'Flatten': {
         const base = this.visit(node.child, value);
         if (!Array.isArray(base)) return null;
-        return base.flatMap((item) => (Array.isArray(item) ? item : [item]));
+        const out: unknown[] = [];
+        let total = 2;
+        for (const item of base) {
+          if (!Array.isArray(item)) {
+            total = this.grow(total, item);
+            out.push(item);
+            continue;
+          }
+          // An inner array's elements cost what the array did, less its brackets:
+          // added up before any is copied, so a doubling stops before the copy.
+          total += this.size(item) - 2;
+          this.spent += item.length;
+          this.check(Math.max(total, this.spent));
+          for (const element of item) out.push(element);
+        }
+        return this.built(out, total);
       }
       case 'Identity':
         return value ?? null;
       case 'Literal':
         return node.value;
-      case 'MultiSelectList':
-        return value === null || value === undefined ? null : node.children.map((child) => this.visit(child, value));
-      case 'MultiSelectHash':
-        return value === null || value === undefined ? null : objectOf(node.pairs.map((pair) => [pair.key, this.visit(pair.value, value)] as const));
+      case 'MultiSelectList': {
+        if (value === null || value === undefined) return null;
+        const out: unknown[] = [];
+        let total = 2;
+        for (const child of node.children) {
+          const item = this.visit(child, value);
+          total = this.grow(total, item);
+          out.push(item);
+        }
+        return this.built(out, total);
+      }
+      case 'MultiSelectHash': {
+        if (value === null || value === undefined) return null;
+        const entries: Array<readonly [string, unknown]> = [];
+        let total = 2;
+        for (const pair of node.pairs) {
+          const item = this.visit(pair.value, value);
+          total = this.grow(total, item, pair.key.length + 3);
+          entries.push([pair.key, item]);
+        }
+        return this.built(objectOf(entries), total);
+      }
       case 'Comparator':
         return comparison(node.op, this.visit(node.left, value), this.visit(node.right, value));
       case 'Or': {
@@ -321,11 +516,14 @@ export class Interpreter {
   /** A projection keeps each element's result, dropping the nulls. */
   private project(base: unknown[], right: Node): unknown[] {
     const out: unknown[] = [];
+    let total = 2;
     for (const item of base) {
       const result = this.visit(right, item);
-      if (result !== null && result !== undefined) out.push(result);
+      if (result === null || result === undefined) continue;
+      total = this.grow(total, result);
+      out.push(result);
     }
-    return out;
+    return this.built(out, total);
   }
 
   private call(name: string, args: unknown[]): unknown {
@@ -337,7 +535,7 @@ export class Interpreter {
         throw new QueryError('invalid-type', `${name}() expected argument ${i + 1} to be ${accepted.join(' or ')}, and got ${typeOf(arg)}.`);
       }
     });
-    return spec.run(args, this);
+    return this.measured(spec.run(args, this));
   }
 }
 

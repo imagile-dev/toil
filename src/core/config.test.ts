@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   anyWrites,
+  CONNECTION_NAME,
   CONFIG_VERSION,
   connectionEnvName,
   defaultConnectionName,
@@ -211,6 +212,24 @@ describe('config file versions', () => {
     expect(() => load()).toThrow(ToilError);
     writeJson(file(), { jira: 'https://jira.imagile.dev' });
     expect(() => load()).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', fix: expect.stringContaining('"jira"') }));
+  });
+
+  it('refuses a reserved key as a connection, area or default, in either version, and never reads a connection through one', () => {
+    const conn = '{ "area": "jira", "baseUrl": "https://jira.imagile.dev" }';
+    // Written as text: an object literal can't hold a __proto__ key.
+    for (const text of [
+      `{ "__proto__": { "jira": { "baseUrl": "https://jira.imagile.dev" } } }`,
+      `{ "version": 2, "connections": { "__proto__": ${conn} } }`,
+      `{ "version": 2, "connections": { "constructor": ${conn} } }`,
+      `{ "version": 2, "connections": { "a": ${conn} }, "defaults": { "__proto__": { "jira": { "connection": "a" } } } }`,
+    ]) {
+      writeFileSync(file(), text);
+      expect(() => load(), text).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', message: expect.stringContaining('reserved key') }));
+    }
+    writeFileSync(file(), `{ "version": 2, "connections": { "a": ${conn} } }`);
+    expect(load().connections).not.toHaveProperty('constructor');
+    expect(CONNECTION_NAME.test('constructor') || CONNECTION_NAME.test('prototype') || CONNECTION_NAME.test('__proto__')).toBe(false);
+    expect(CONNECTION_NAME.test('constructors')).toBe(true);
   });
 });
 

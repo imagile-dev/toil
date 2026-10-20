@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -252,5 +252,33 @@ describe('the header (#277)', { timeout: SLOW }, () => {
     } finally {
       window.matchMedia = real;
     }
+  });
+
+  it('folds into the Menu at any width when its one row would wrap, as a dossier\'s links can in a wider font', async () => {
+    // jsdom lays nothing out, so the header's links report a row each: the last two views' a second one.
+    const real = HTMLElement.prototype.getBoundingClientRect;
+    HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+      const below = this.tagName === 'LI' && /Worklog|Command Center/.test(this.textContent ?? '');
+      const top = this.tagName === 'LI' ? (below ? 40 : 0) : 0;
+      const height = this.tagName === 'LI' ? 20 : 0;
+      return { top, bottom: top + height, height, left: 0, right: 0, width: 0, x: 0, y: top, toJSON: () => ({}) } as DOMRect;
+    };
+    try {
+      await open('#/dossier/settlement', 'plain', 'light');
+      expect(screen.queryByRole('navigation', { name: 'Views' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Menu' })).toBeTruthy();
+      // Back on the dossier list, two links fit again: the header measures them afresh (#351 review).
+      await act(async () => {
+        window.location.hash = '#/';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+      await waitFor(() => expect(screen.getByRole('navigation', { name: 'Views' })).toBeTruthy());
+    } finally {
+      HTMLElement.prototype.getBoundingClientRect = real;
+    }
+    cleanup();
+    // One row that fits keeps the views in the header.
+    await open('#/dossier/settlement', 'plain', 'light');
+    expect(screen.getByRole('navigation', { name: 'Views' })).toBeTruthy();
   });
 });

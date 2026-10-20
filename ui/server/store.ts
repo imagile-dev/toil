@@ -51,6 +51,13 @@ export interface Store {
 }
 
 /**
+ * The readiness gate's live reads (#307): an item's workflow, read on a
+ * person's press from its page. A sync never stores them, so the cache passes
+ * them to toil, read-only, like the dossiers.
+ */
+export const WORKFLOW_READS = ['jira issue transitions', 'jira-cloud issue transitions', 'ado work-item states', 'ado-cloud work-item states'] as const;
+
+/**
  * The commands the views read, and the only ones `/api/execute` runs. They are
  * the calls src/load.ts makes; test/server.test.ts holds this list to every
  * call the fixture answers, so a new panel's command is added here on purpose.
@@ -86,6 +93,8 @@ export const READ_COMMANDS: ReadonlySet<string> = new Set([
   'bitbucket-cloud pr get',
   'jenkins pipeline runs',
   'openshift deployment list',
+  // The readiness gate's one live read (#307): an item's workflow, on a person's press.
+  ...WORKFLOW_READS,
 ]);
 
 /** How a `config` or `feedback` call runs: read-only for the pages' reads and a feedback preview, and with the person's answers for a change or a send. */
@@ -120,8 +129,8 @@ export function toilStore(execute: Execute): Store {
   };
 }
 
-/** The commands a cache answers by passing them to toil: the dossiers are toil's own config on this machine, read fresh. */
-const LIVE_COMMANDS = new Set(['dossiers list', 'dossiers show']);
+/** The commands a cache answers by passing them to toil: the dossiers are toil's own config on this machine, read fresh, and the readiness gate's workflow reads are live by design. */
+const LIVE_COMMANDS = new Set<string>(['dossiers list', 'dossiers show', ...WORKFLOW_READS]);
 
 /**
  * The SQLite cache (#250): the views' calls answered from what the last sync

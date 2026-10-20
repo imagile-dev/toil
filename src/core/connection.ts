@@ -60,7 +60,7 @@ export async function resolveConnection(
     });
   }
 
-  const stored = config.connections[name];
+  const stored = Object.hasOwn(config.connections, name) ? config.connections[name] : undefined;
   if (!stored) {
     const known = connectionsOf(config, area.name);
     throw new ToilError('INVALID_INPUT', `There's no connection named "${name}".`, {
