@@ -4,21 +4,22 @@
 // kit/bounded.ts evaluates in a worker thread. A worker gets this small script
 // rather than the whole CLI, so it starts in milliseconds and carries nothing
 // it doesn't run. It's built with the same no-spawn plugin as the CLI, and its
-// metafile goes to dist/metafile-worker.json, where check:pure holds it to the
+// metafile goes to dist/metafile-worker.json (or TOIL_BUILD_DIR's folder), where check:pure holds it to the
 // same rules as dist/toil.js: code in a string still ships. Run by
 // scripts/gen-areas.mjs before typecheck, build and tests; the output is
 // gitignored, like the registry it sits beside.
 // The worker's job description fits on one page, which is a first.
 import { build } from 'esbuild';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { noSpawn } from './no-spawn.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const entry = join(root, 'src', 'areas', 'util', 'kit', 'bounded-task.ts');
 const out = join(root, 'src', 'areas', 'util', 'kit', 'bounded-worker.generated.ts');
-const metaOut = join(root, 'dist', 'metafile-worker.json');
+// Beside the bundle's own metafile: dist/, or the folder TOIL_BUILD_DIR names (tsup.config.ts).
+const metaOut = join(resolve(root, process.env.TOIL_BUILD_DIR?.trim() || 'dist'), 'metafile-worker.json');
 
 export async function generateWorker() {
   const result = await build({

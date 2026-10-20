@@ -382,6 +382,14 @@ GitHub CLI signed in (`gh auth login`), or `TOIL_GITHUB_TOKEN` set in the shell.
   `imagile-dev/toil-sandbox` (as `sandbox`), which is private to Imagile's
   maintainers; anyone else passes their own repository, or seeds a sandbox of their
   own (below).
+- **toil from this checkout.** Each start builds toil from the clone into
+  `.scratch/toil` (`npm run build` with `TOIL_BUILD_DIR`, a few seconds), and both the
+  dossier setup and Toil UI run on that build, not on the published toil
+  `ui/package.json` pins. Toil UI is started with `node --import
+  ui/scripts/local-toil-hook.mjs`, which resolves `@imagile-dev/toil/api` to
+  `.scratch/toil/api.js` and says so on stderr. So a command `ui/` calls before its
+  release works here. The committed `dist/` and `node_modules` are left alone, and a
+  plain `node ui/dist/server/toil-ui.js` still runs on the pinned toil.
 - **Then** it starts `ui/dist/server/toil-ui.js` on loopback and prints its URL.
   Press **Sync now**, then open a dossier. `--port <n>` fixes the port, and
   `--home <dir>` uses another folder.
@@ -403,8 +411,13 @@ npm run verify:ui -- --ask        # and one Codex question
 npm run verify:ui -- --no-build --starter standup
 ```
 
-- **It builds Toil UI**, unless `--no-build`, and confirms that the toil `npm ci`
-  installed is the one `ui/package.json` pins (`npm run check:lockfile -w ui`).
+- **It builds Toil UI and toil**, unless `--no-build`: toil from this checkout into
+  `.scratch/toil`, which Toil UI runs on, as `dev-real.mjs` does (above). The report's
+  header and its **Toil** row name that toil: its version, the commit it was built
+  at, and whether `src/` had uncommitted changes. The run fails if Toil UI didn't
+  resolve `@imagile-dev/toil/api` to it. It also confirms that the toil `npm ci`
+  installs is the one `ui/package.json` pins (`npm run check:lockfile -w ui`), which
+  is what the published package runs on.
 - **Sample data:** `toil-ui --sample` in a throwaway home, every view through the
   layout check (`scripts/layout-check.mjs`) in every theme and scheme at 375, 768 and
   1440px. It needs only a browser, so it runs anywhere, CI included.
@@ -467,8 +480,6 @@ connection from them, with writes off, and nothing about the organization is
 written to the config file. `--project`, or `TOIL_ADO_CLOUD_PROJECT`, names the
 project; the dossier in the scratch home holds it. The dossier names no repository,
 so no pull requests are read; add `repo` to its `ado-cloud` section for them.
-Until toil's next release, the toil Toil UI pins predates the command names the
-dashboard calls, so copy the clone's own build over it first (#326).
 
 To fill a board with made-up work, `ui/scripts/ado-seed/` seeds one from Open Work
 Items. `items.owi.json` holds 45 of them across the three sample products

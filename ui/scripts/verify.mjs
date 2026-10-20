@@ -1,5 +1,9 @@
 // `npm run verify:ui`: one command an agent or a person runs before opening a
-// PR that touches Toil UI. It builds Toil UI, then checks it two ways:
+// PR that touches Toil UI. It builds Toil UI, and toil from this checkout into
+// .scratch/toil, which Toil UI then runs on in place of the published toil it
+// pins (#332: real-home.mjs's buildToil, local-toil-hook.mjs), so commands ui/
+// calls before their release work here. The report names that toil. Then it
+// checks Toil UI two ways:
 //
 //   1. Sample data. `toil-ui --sample` in a throwaway home, every view through
 //      the layout and axe check (scripts/layout-check.mjs) in every theme and
@@ -38,7 +42,7 @@ import { basename, join, relative } from 'node:path';
 import { findChrome, openBrowser } from './chrome.mjs';
 import { ROUTES, WIDTHS, checkLayout, themeRuns } from './layout-check.mjs';
 import { npmCli } from './package-rules.mjs';
-import { CODEX_SDK_INSTALL, RealHomeError, adoProblem, codexSdkInstalled, githubToken, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilUi } from './real-home.mjs';
+import { CODEX_SDK_INSTALL, RealHomeError, adoProblem, buildToil, codexSdkInstalled, githubToken, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilUi, toilUiNodeArgs } from './real-home.mjs';
 
 const ui = join(root, 'ui');
 const out = join(ui, '.verify');
@@ -125,7 +129,7 @@ function send(origin, path, { method = 'GET', headers = {}, body, timeoutMs = 60
 
 /** Starts the built toil-ui and resolves with its launch URL and a signed-in API client. */
 async function launch(argv, env) {
-  const child = spawn(process.execPath, [toilUi, '--port', '0', ...argv], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(process.execPath, [...toilUiNodeArgs, toilUi, '--port', '0', ...argv], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   children.push(child);
   let stdout = '';
   let stderr = '';
@@ -280,7 +284,7 @@ async function askCodex(api, dossier, home, dataDir) {
 }
 
 const startedAt = new Date();
-let toilVersion = '?';
+let toilVersion = 'toil ? (it never built)';
 let uiVersion = '?';
 try {
   rmSync(out, { recursive: true, force: true });
@@ -298,12 +302,25 @@ try {
     step('Build', 'skip', '--no-build: the existing ui/dist');
   }
 
-  // The toil Toil UI runs on is the one npm ci installed; a wrong one would make every check below about another toil (#299).
+  // Toil UI runs on toil built from this checkout, so ui/ can call commands no release has yet (#332).
+  let toil;
+  try {
+    toil = buildToil({ build });
+  } catch (e) {
+    if (e instanceof RealHomeError) throw new Error(`${e.message} Fix: ${e.fix}`, { cause: e });
+    throw e;
+  }
+  const version = spawnSync(process.execPath, [...toilUiNodeArgs, toilUi, '--version'], { encoding: 'utf8' });
+  const hooked = version.stderr.includes('@imagile-dev/toil/api is toil built from this checkout');
+  if (!hooked) problems.push(`toil-ui --version never resolved @imagile-dev/toil/api to the build in .scratch/toil, so every check below would be about another toil: ${version.stderr.trim() || 'nothing on stderr'}`);
+  uiVersion = version.stdout.trim().split(' ')[0] || '?';
+  toilVersion = toil.describe;
+  step('Toil', hooked ? 'pass' : 'fail', `${toil.describe}${toil.built ? '' : ' (--no-build: the existing build)'}; Toil UI imports it through ui/scripts/local-toil-hook.mjs`);
+
+  // The published Toil UI still installs the toil it pins; a wrong lockfile would install another one (#299).
   const lock = spawnSync(process.execPath, [join(ui, 'scripts', 'check-lockfile.mjs')], { encoding: 'utf8' });
   if (lock.status !== 0) problems.push(lock.stderr.trim());
-  step('Installed toil', lock.status === 0 ? 'pass' : 'fail', (lock.status === 0 ? lock.stdout : lock.stderr).trim().replace(/^check:lockfile (ok|found)[^:]*: ?/, ''));
-  const version = spawnSync(process.execPath, [toilUi, '--version'], { encoding: 'utf8' }).stdout.trim();
-  [, uiVersion, toilVersion] = /^(\S+) \(toil (\S+)\)/.exec(version) ?? [null, version, '?'];
+  step('Pinned toil', lock.status === 0 ? 'pass' : 'fail', `${(lock.status === 0 ? lock.stdout : lock.stderr).trim().replace(/^check:lockfile (ok|found)[^:]*: ?/, '')} That is what the published package installs; this run uses the build above.`);
 
   // 1. Sample data, in a throwaway home.
   const work = join(tmpdir(), `toil-ui-verify-${process.pid}`);
@@ -378,7 +395,7 @@ const cell = (s) => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 const report = [
   '# Toil UI verification',
   '',
-  `**${pass ? 'PASS' : `FAIL: ${problems.length} problem(s)`}** in ${Math.round((Date.now() - startedAt.getTime()) / 60_000)} min. ${startedAt.toISOString()}, ${process.platform} ${process.arch}, Node ${process.versions.node}, Toil UI ${uiVersion} on toil ${toilVersion}. \`npm run verify:ui${[ask ? '--ask' : '', build ? '' : '--no-build', sourceName !== 'github' ? `--source ${sourceName}` : '', starter !== 'hygiene' ? `--starter ${starter}` : ''].filter(Boolean).map((a) => ` ${a}`).join('')}\``,
+  `**${pass ? 'PASS' : `FAIL: ${problems.length} problem(s)`}** in ${Math.round((Date.now() - startedAt.getTime()) / 60_000)} min. ${startedAt.toISOString()}, ${process.platform} ${process.arch}, Node ${process.versions.node}, Toil UI ${uiVersion} on ${toilVersion}. \`npm run verify:ui${[ask ? '--ask' : '', build ? '' : '--no-build', sourceName !== 'github' ? `--source ${sourceName}` : '', starter !== 'hygiene' ? `--starter ${starter}` : ''].filter(Boolean).map((a) => ` ${a}`).join('')}\``,
   '',
   '| Step | Result | Detail |',
   '|---|---|---|',
