@@ -87,7 +87,7 @@ describe('the particle presets', () => {
         for (const p of ps) {
           const a = preset.alpha(p, view);
           const inside = p.x > -view.w * 0.4 - 20 && p.x < view.w + 260 && p.y > -view.h * 0.3 && p.y < view.h + 260;
-          if (!inside || !(a >= 0 && a <= 0.75)) strays.push(`${view.w}x${view.h} frame ${i}: x ${p.x}, y ${p.y}, alpha ${a}`);
+          if ((!inside || !(a >= 0 && a <= 0.75)) && strays.length < 5) strays.push(`${view.w}x${view.h} frame ${i}: x ${p.x}, y ${p.y}, alpha ${a}`);
         }
       }
       expect(strays).toEqual([]);
