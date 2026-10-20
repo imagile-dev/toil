@@ -127,6 +127,13 @@
       "toil": "The id is a required positional, so a missing one is refused before the command runs: on the CLI as Missing required argument id, over MCP as the schema error naming id. Only an explicit empty id reaches the command, which says the run <id> is required",
       "why": "The reshape makes the run id the command's one positional; a required positional is checked by the parser, so the recorded message for a missing id has nowhere to come from",
       "principle": "10"
+    },
+    {
+      "allows": [],
+      "old": "work-item link put --target into the relation URL as typed, and ids read with parseInt or taken from a response (build, iteration) into request paths unencoded; collection, project and repo were already encoded",
+      "toil": "Every id is encoded as one path segment, --target included, so an id with path syntax in it stays one name; a value that would still name a . or .. segment is refused as INVALID_INPUT. Collection, project and repo are encoded, never refused, since Azure DevOps names may hold spaces and % (and the API accepts names the UI forbids)",
+      "why": "An id names one resource, and the relation URL is stored by the server and read back as a path.",
+      "principle": "2"
     }
   ]
 }

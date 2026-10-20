@@ -79,7 +79,7 @@ export const workAddAttachmentCommand = adoArea.command({
     // Step 1, the upload; step 2, the link. Suspected bug (#69 item 16): a failed link leaves the upload behind.
     const attachment = await adoUpload<Attachment>(ctx, `/${enc(collection)}/_apis/wit/attachments?fileName=${enc(basename(input.file))}&api-version=${API}`, data);
     const relation = { rel: 'AttachedFile', url: attachment.url, ...(input.comment ? { attributes: { comment: input.comment } } : {}) };
-    await ado(ctx, `/${enc(collection)}/_apis/wit/workitems/${id}?api-version=${API}`, { method: 'PATCH', json: [{ op: 'add', path: '/relations/-', value: relation }], headers: PATCH });
+    await ado(ctx, `/${enc(collection)}/_apis/wit/workitems/${enc(id)}?api-version=${API}`, { method: 'PATCH', json: [{ op: 'add', path: '/relations/-', value: relation }], headers: PATCH });
     return attachment;
   },
 });

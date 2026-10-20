@@ -6,6 +6,7 @@ import type { DossierReport, Warning } from './envelope.js';
 import { ToilError } from './errors.js';
 import { forwardSlashes, isSystemPath, type Workspace } from './files.js';
 import { findGitRepo, readGitBranch, readGitRemotes, type GitContext } from './git-repo.js';
+import { assertLocalPath } from './local-path.js';
 import { findSecrets } from './secret-shapes.js';
 import { JsonSyntaxError, parseStrictJson } from './strict-json.js';
 import { INTENTS, type TransitionPins } from './transition-intent.js';
@@ -705,14 +706,21 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
     return raw.map((p) => resolve(p));
   };
 
+  /**
+   * A path on the call (`cwd`, a dossier file, an import source, a folder to
+   * scan), resolved from its text alone. A network or device path is refused
+   * here, before anything stats, realpaths or reads it (src/core/local-path.ts).
+   */
   const fromBase = (value: string, what: string): string => {
-    if (isAbsolute(value)) return resolve(value);
-    if (o.base === undefined) {
-      throw new ToilError('INVALID_INPUT', `${what} "${value}" is relative, and there's no folder to resolve it against.`, {
-        fix: 'Pass an absolute path, or give the MCP server a workspace with --workspace <dir> or TOIL_WORKSPACE.',
-      });
+    assertLocalPath(value, o.workspace.dir, what);
+    const path = isAbsolute(value) ? resolve(value) : o.base === undefined ? undefined : resolve(o.base, value);
+    if (path !== undefined) {
+      assertLocalPath(path, o.workspace.dir, what);
+      return path;
     }
-    return resolve(o.base, value);
+    throw new ToilError('INVALID_INPUT', `${what} "${value}" is relative, and there's no folder to resolve it against.`, {
+      fix: 'Pass an absolute path, or give the MCP server a workspace with --workspace <dir> or TOIL_WORKSPACE.',
+    });
   };
 
   const folder = (cwd?: string): Folder => {
@@ -1104,7 +1112,9 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
   };
 
   const save: DossierCatalog['save'] = (path, dossier, mode) => {
+    assertLocalPath(path, o.workspace.dir, 'The dossier file');
     const target = resolve(path);
+    assertLocalPath(target, o.workspace.dir, 'The dossier file');
     const refuse = (why: string, fix: string) => new ToilError('INVALID_INPUT', `toil won't write a dossier to ${forwardSlashes(target)}: ${why}`, { fix });
     if (!target.toLowerCase().endsWith('.json')) throw refuse('a dossier file ends in .json.', 'Name a .json file.');
     // Judged where it would really land, through any link in the folders above it.

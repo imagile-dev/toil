@@ -269,3 +269,7 @@ jsmith`, `user`-typed fields send `{ "name": ... }`), where Jira Cloud needs an
 - `issue download` never replaces a file. If one of the same name is already in the target directory, it fails with `INVALID_INPUT`; delete the file or pass a different `--dir`.
 - `issue download` only ever sends the token to `baseUrl`'s host. If Jira names
   another host for the file, toil fetches the same path from `baseUrl` and warns.
+- Issue keys and ids are sent as one URL path segment each, encoded, so a `/` or `?` in
+  one can't change the endpoint called. A project key from `--project`, the
+  connection's `project` setting, a dossier or `--input-file` that holds `/`, `\`, `?`,
+  `#`, `%` or a control character is refused with `INVALID_INPUT`.

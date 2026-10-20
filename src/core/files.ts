@@ -4,6 +4,7 @@ import { ToilError } from './errors.js';
 import { gitBool, lastValue, refusedGitRead } from './git-config.js';
 import { findGitRepo, readGitConfig, readGitIndex } from './git-repo.js';
 import { isIgnored, parseIgnore, skippedLineWarning, undecodableIgnoreWarning, unreadableIgnoreWarning, type IgnoreRule } from './gitignore.js';
+import { assertLocalPath } from './local-path.js';
 
 /**
  * The local files a command may read or write: an `--input-file`, a file to
@@ -275,11 +276,22 @@ export function nodeFiles(options: {
   const wsReal = ws.dir ? comparable(realish(ws.dir)) : undefined;
   const unbounded = options.unbounded === true;
   const noWorkspace = () => ws.error ?? new ToilError('NOT_CONFIGURED', "This command reads or writes files, but there's no workspace folder to keep them in.", { fix: HOW_TO_SET });
+  /**
+   * Where `path` lands, from its text alone. Every operation starts here, so a
+   * network or device path (src/core/local-path.ts) is refused before any
+   * `node:fs` call, bound relaxed or not: as typed, and as resolved against the
+   * workspace. Inside a workspace that is itself on a share, it's allowed.
+   */
   const at = (path: string) => {
+    assertLocalPath(path, ws.dir);
     if (isAbsolute(path)) return path;
     // With no workspace there's nothing to be relative to, bounded or not: under
     // MCP the process's own working directory is wherever the client started it.
-    if (ws.dir) return resolve(ws.dir, path);
+    if (ws.dir) {
+      const resolved = resolve(ws.dir, path);
+      assertLocalPath(resolved, ws.dir);
+      return resolved;
+    }
     throw noWorkspace();
   };
   const guarded = (options.protect ?? []).map((p) => comparable(realish(p)));

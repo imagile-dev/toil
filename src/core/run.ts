@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { areaOf, changesAnythingFor, commandName, isCliOnly, managesConfig, takesAllowWrite, usesConnection, writesFor, type AnyCommand } from './command.js';
-import type { Connection } from './area.js';
+import type { Connection, ContextInput } from './area.js';
 import { recordAudit } from './audit.js';
-import { resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
+import { flagOf, resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
 import { connectionEnvName, connectionsOf, defaultConnectionName, envName } from './config.js';
 import { IncompleteConnectionError } from './connection.js';
 import type { CommandContext, Context } from './context.js';
@@ -318,7 +318,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       }
     }
     const connection = call?.connection;
-    if (writing) assertWritesAllowed(def, input, connection, call?.report, place ? place.adopted : ctx.adopted, ctx);
+    if (writing) assertWritesAllowed(def, input, connection, call?.report, place ? place.adopted : ctx.adopted, ctx, via);
 
     // Commands get their connection and nothing else: no config, and no env,
     // which carries every other connection's token too. Need-to-know,
@@ -440,6 +440,7 @@ function assertWritesAllowed(
   report: ContextReport | undefined,
   adopted: Context['adopted'],
   ctx: Context,
+  via: FrontDoor,
 ): void {
   // A CLI-only write (`skills marketplace add`) has no connection yet to hold
   // a standing opt-in: it's never an MCP tool, so whoever types it is giving
@@ -459,6 +460,25 @@ function assertWritesAllowed(
     const by = chosenBy === 'dossier' ? 'your dossier' : 'the git remote';
     throw new ToilError('WRITE_DISABLED', `${commandName(def)} changes data in ${area}, and connection ${connection.name} was chosen by ${by}, not by you.`, {
       fix: `Pass --connection ${connection.name} to choose it yourself${chosenBy === 'dossier' ? ', or adopt the dossier once with toil dossiers import, which copies it into your own folder' : ''}.`,
+    });
+  }
+  // Where in the service a write lands (owner and repo, a project) is as much
+  // a choice as which connection: a write takes it only from a source the
+  // user owns. A dossier they haven't adopted (a repository's checked-in one,
+  // a listed folder's, a loose file) may set it for reads, never for a write.
+  // Field aliases and transition pins from such a dossier stay allowed (#302).
+  const declared = (def.area?.context ?? {}) as Record<string, ContextInput>;
+  const fromDossier = Object.entries(report?.inputs ?? {})
+    .filter(([name, value]) => value.source === 'dossier' && !declared[name]?.selectsConnection)
+    .map(([name]) => name);
+  if (connection && fromDossier.length > 0 && !adopted?.(area, connection.name, 'dossier')) {
+    const flags = fromDossier.map((name) => flagOf(name, declared[name]!).split(' ')[0]).join(' and ');
+    const dossier = report?.dossier?.name;
+    throw new ToilError('WRITE_DISABLED', `${commandName(def)} changes data in ${area}, and ${fromDossier.join(' and ')} came from ${dossier ? `dossier ${dossier}` : 'a dossier'}, which you haven't adopted.`, {
+      fix:
+        via === 'cli'
+          ? `This repository's dossier sets where this write goes. Adopt it with toil dossiers import ${dossier ?? '<name>'} (the CLI only), or pass ${flags} yourself.`
+          : `This repository's dossier sets where this write goes. Ask the user to adopt it (toil dossiers import ${dossier ?? '<name>'}, on the CLI), or pass ${fromDossier.join(' and ')} yourself.`,
     });
   }
   if (!connection?.writes) {

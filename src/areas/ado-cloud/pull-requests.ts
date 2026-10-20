@@ -23,7 +23,7 @@ export interface PullRequest {
   [key: string]: unknown;
 }
 
-export const prPath = (ctx: AdoCloudContext, id: number) => `${repoPath(ctx)}/pullrequests/${id}`;
+export const prPath = (ctx: AdoCloudContext, id: number) => `${repoPath(ctx)}/pullrequests/${enc(id)}`;
 
 export const getPR = (ctx: AdoCloudContext, id: number) => adoc<PullRequest>(ctx, prPath(ctx, id));
 
@@ -95,7 +95,7 @@ async function prIncluded(ctx: AdoCloudContext, id: number, name: PrInclude): Pr
       if (iterations.length === 0) return [];
       const latest = Math.max(...iterations.map((it) => it.id));
       const entries = (body: unknown) => (body as { changeEntries?: unknown[] } | undefined)?.changeEntries ?? [];
-      return nextSkipPages(ctx, `${base}/iterations/${latest}/changes`, {}, entries, `Azure DevOps changes of pull request ${id}`);
+      return nextSkipPages(ctx, `${base}/iterations/${enc(latest)}/changes`, {}, entries, `Azure DevOps changes of pull request ${id}`);
     }
   }
 }

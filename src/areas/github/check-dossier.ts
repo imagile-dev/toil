@@ -1,3 +1,4 @@
+import { apiPath } from '../../core/api-path.js';
 import { z } from 'zod';
 import { checkEach, dossierCheckResult, dossierToCheck, exists, uncheckedScopes, type DossierCheck } from '../../core/check-dossier.js';
 import { viewScopes, viewValues } from '../../core/dossier.js';
@@ -22,8 +23,7 @@ export const checkDossier = githubArea.command({
   examples: [{}, { owner: 'imagile', repo: 'toil-probe' }],
   run: async (_input, ctx) => {
     const view = dossierToCheck(ctx, 'github');
-    const enc = encodeURIComponent;
-    const checks: DossierCheck[] = await checkEach(viewValues(view, ['owner', 'owners']), 'owner', (owner) => exists(() => github(ctx, `/users/${enc(owner)}`)));
+    const checks: DossierCheck[] = await checkEach(viewValues(view, ['owner', 'owners']), 'owner', (owner) => exists(() => github(ctx, apiPath`/users/${owner}`)));
     const { scopes, incomplete } = viewScopes(view, ['owner', 'repo']);
     checks.push(
       ...(await checkEach(
@@ -31,7 +31,7 @@ export const checkDossier = githubArea.command({
         'repo',
         (or) => {
           const at = or.indexOf('/');
-          return exists(() => github(ctx, `/repos/${enc(or.slice(0, at))}/${enc(or.slice(at + 1))}`));
+          return exists(() => github(ctx, apiPath`/repos/${or.slice(0, at)}/${or.slice(at + 1)}`));
         },
       )),
     );

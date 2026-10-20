@@ -5,7 +5,7 @@ import { ALATION, column, config as fixtureConfig, document, exchanged, jobStatu
 import type { AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
 import { clearTokenCache } from '../../core/token.js';
-import { columnListCommand, datasourceListCommand, schemaGetCommand, schemaListCommand, searchCommand, tableGetCommand, tableListCommand } from './catalog.js';
+import { columnListCommand, datasourceGetCommand, datasourceListCommand, schemaGetCommand, schemaListCommand, searchCommand, tableGetCommand, tableListCommand } from './catalog.js';
 import { documentCreateCommand, documentGetCommand, documentSchemaCommand, documentUpdateCommand, jobGetCommand } from './documents.js';
 import { lifetimeFor } from './area.js';
 import { tokenStatusCommand } from './token.js';
@@ -195,6 +195,16 @@ describe('catalog', () => {
     }
     const id = await run(schemaGetCommand, { id: 'x' }, []);
     expect(id.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid schema ID "x". Expected a positive integer ID.' });
+  });
+
+  it('datasource get puts its ID into the path as a positive integer, and refuses one with path or query syntax in it before any request', async () => {
+    const ok = await run(datasourceGetCommand, { id: '3' }, [get('/integration/v1/datasource/3/', { id: 3 })]);
+    expect(ok.data[0]!.url).toBe(`${ALATION}/integration/v1/datasource/3/`);
+    for (const id of ['x/../y', '3/?a=b', '3#hot']) {
+      const { envelope, calls } = await run(datasourceGetCommand, { id }, []);
+      expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: `Invalid data source ID "${id}". Expected a positive integer ID.` });
+      expect(calls).toEqual([]);
+    }
   });
 
   it('an empty filter is skipped, as the contract specifies for an empty string', async () => {

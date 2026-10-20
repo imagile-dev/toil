@@ -35,6 +35,13 @@
       "toil": "The command is allowed 600 s, so --timeout up to 600 works as the contract records; a longer one is cut short with TIMEOUT unless TOIL_TIMEOUT_MS is raised",
       "why": "Every command has a time limit and can be cancelled.",
       "principle": "Output Contract"
+    },
+    {
+      "allows": [],
+      "old": "artifactory artifact get, artifact properties and artifact set-properties putting the repository key and artifact path into the request path as typed, and package outdated and package license-check doing the same with the configured repository keys and package names, so a #, ? or % in one of them is URL syntax rather than part of the name (#82 item 4)",
+      "toil": "The repository key is encoded as one path segment and the artifact path one segment per /-separated part, so dir/a#1.txt is sent as dir/a%231.txt and %41 as %2541. An artifact path with a . or .. part is refused with INVALID_INPUT before anything is sent. The lookups encode the repository key, the package name and the version as one segment each (a scoped npm name is still @scope%2Fname), and the Maven lookup sends g, a and repos as query parameters",
+      "why": "An id names one resource: a file name with # or % in it must reach that file, and a property write approved for one artifact must not land on another.",
+      "principle": "2"
     }
   ]
 }

@@ -265,7 +265,9 @@ keeping only the file name, and never replaces a file that's already there.
 - `issue transition` and `issue link` treat an all-digits value as an id and anything
   else as a name (case-insensitive), looked up first.
 - An issue key or id is sent as one URL path segment, encoded, so it can't change the
-  endpoint called.
+  endpoint called. A project key from `--project`, the connection's `project` setting
+  or a dossier that holds `/`, `\`, `?`, `#`, `%` or a control character is refused
+  with `INVALID_INPUT`.
 - A 429 is retried after the delay Jira asks for, as in every area.
 
 ## Checking a dossier

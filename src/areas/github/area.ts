@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pathIdSchema } from '../../core/api-path.js';
 import { defineArea } from '../../core/area.js';
 import type { GitRemote } from '../../core/call-context.js';
 import { parseGitHubRemote } from '../../core/git-remote.js';
@@ -43,15 +44,16 @@ export const githubArea = defineArea({
       flags: '--owner <owner>',
       setting: 'owner',
       git: fromRemote('owner'),
-      // Any string: an empty --owner still gets the "Could not determine" error.
-      schema: z.string(),
+      // Empty is allowed, so an empty --owner still gets the "Could not
+      // determine" error; path syntax isn't, since an owner is one segment.
+      schema: pathIdSchema('A GitHub owner'),
     },
     repo: {
       description: 'GitHub repository name',
       flags: '--repo <repo>',
       setting: 'repo',
       git: fromRemote('repo'),
-      schema: z.string(),
+      schema: pathIdSchema('A GitHub repository name'),
     },
   },
   probe: () => ({ path: '/user' }),

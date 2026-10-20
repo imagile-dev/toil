@@ -26,5 +26,3 @@ export function openshift<T>(ctx: OpenShiftContext, path: string, query?: Record
 export function openshiftText(ctx: OpenShiftContext, path: string, query: Record<string, QueryValue>): Promise<string> {
   return apiRequest<string>(openshiftArea, ctx, path, { headers: TEXT_HEADERS, timeoutMs: TIMEOUT_MS, query, as: 'text' });
 }
-
-export const ns = (namespace: string) => encodeURIComponent(namespace);

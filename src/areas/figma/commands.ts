@@ -6,6 +6,7 @@ import { ToilError } from '../../core/errors.js';
 import type { QueryValue } from '../../core/rest.js';
 import { figmaArea } from './area.js';
 import { findNodeIdInUrl, isUrl, parseFileKey, parseNodeId } from './links.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * The five Figma commands, one GET each, sent exactly as the canonical
@@ -77,7 +78,7 @@ export const fileCommand = figmaArea.command({
     const nodeId = input.nodeId ? parseNodeId(input.nodeId) : isUrl(input.fileKeyOrUrl) ? findNodeIdInUrl(input.fileKeyOrUrl) : undefined;
 
     if (nodeId) {
-      const data = await figma<FigmaNodesResponse>(ctx, `/v1/files/${encodeURIComponent(fileKey)}/nodes`, { ids: nodeId });
+      const data = await figma<FigmaNodesResponse>(ctx, apiPath`/v1/files/${fileKey}/nodes`, { ids: nodeId });
       const node = data.nodes[nodeId];
       // Suspected bug (#73 item 8): the response's `err` is never read, so any null node is "not found".
       if (!node) {
@@ -99,7 +100,7 @@ export const fileCommand = figmaArea.command({
     }
 
     // Suspected bug (#73 item 7): counts come from a depth=1 answer, which may hold fewer components and styles.
-    const data = await figma<FigmaFile>(ctx, `/v1/files/${encodeURIComponent(fileKey)}`, input.document ? {} : { depth: 1 });
+    const data = await figma<FigmaFile>(ctx, apiPath`/v1/files/${fileKey}`, input.document ? {} : { depth: 1 });
     return {
       fileKey,
       name: data.name,
@@ -130,7 +131,7 @@ export const commentsCommand = figmaArea.command({
   run: async (input, ctx) => {
     const fileKey = parseFileKey(input.fileKeyOrUrl);
     // Suspected bug (#73 item 2): Figma has no as_of parameter, so the filter is ignored and every comment comes back.
-    const data = await figma<{ comments: unknown[] }>(ctx, `/v1/files/${encodeURIComponent(fileKey)}/comments`, input.asOf ? { as_of: input.asOf } : {});
+    const data = await figma<{ comments: unknown[] }>(ctx, apiPath`/v1/files/${fileKey}/comments`, input.asOf ? { as_of: input.asOf } : {});
     if (input.asOf) ctx.warn({ code: 'FIGMA_AS_OF_IGNORED', message: "Figma's API doesn't filter comments by --as-of; every comment was returned." });
     return { fileKey, count: data.comments.length, comments: data.comments };
   },
@@ -148,7 +149,7 @@ export const versionsCommand = figmaArea.command({
   run: async (input, ctx) => {
     const fileKey = parseFileKey(input.fileKeyOrUrl);
     // Suspected bug (#73 item 3): one page of history only; the answer's `pagination` is dropped.
-    const data = await figma<{ versions: unknown[]; pagination?: { next_page?: string | null } }>(ctx, `/v1/files/${encodeURIComponent(fileKey)}/versions`);
+    const data = await figma<{ versions: unknown[]; pagination?: { next_page?: string | null } }>(ctx, apiPath`/v1/files/${fileKey}/versions`);
     if (data.pagination?.next_page) ctx.warn({ code: 'FIGMA_MORE_VERSIONS', message: 'Figma has more versions than this page; only the first page was read.' });
     return { fileKey, count: data.versions.length, versions: data.versions };
   },
@@ -165,7 +166,7 @@ export const projectFilesCommand = figmaArea.command({
   examples: [{ projectId: '12345' }],
   run: async (input, ctx) => {
     // Suspected bug (#73 item 9): Figma has deprecated this endpoint in favour of /v2/folders/:id/files.
-    const data = await figma<{ files: unknown[] }>(ctx, `/v1/projects/${encodeURIComponent(input.projectId)}/files`);
+    const data = await figma<{ files: unknown[] }>(ctx, apiPath`/v1/projects/${input.projectId}/files`);
     return { projectId: input.projectId, count: data.files.length, files: data.files };
   },
 });

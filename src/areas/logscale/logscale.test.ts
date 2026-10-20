@@ -45,6 +45,14 @@ describe('repository query', () => {
     expect(calls[0]!.url).toBe(`${LOGSCALE}/api/v1/repositories/imagile%20app%2Fprod/query`);
   });
 
+  it('encodes a repository name with query or fragment syntax in it as one path segment, and refuses one with a dot segment before sending', async () => {
+    const { calls } = await run(queryCommand, { repository: 'a/b?c=d#hot', query: '*' }, [answer([])]);
+    expect(calls[0]!.url).toBe(`${LOGSCALE}/api/v1/repositories/a%2Fb%3Fc%3Dd%23hot/query`);
+    const dots = await run(queryCommand, { repository: 'x/../y', query: '*' }, [answer([])]);
+    expect(dots.envelope.error?.code).toBe('INVALID_INPUT');
+    expect(dots.calls).toEqual([]);
+  });
+
   it('#85 item 1: reads the JSON array the endpoint documents, so an empty answer is zero events, not a TypeError', async () => {
     const { envelope } = await run(queryCommand, { repository: 'imagile-app', query: '*' }, [answer([])]);
     expect(envelope.data).toMatchObject({ eventCount: 0, events: [] });

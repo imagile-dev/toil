@@ -3,6 +3,7 @@ import { checkEach, dossierCheckResult, dossierToCheck, exists, type DossierChec
 import { viewValues } from '../../core/dossier.js';
 import { dynatraceArea } from './area.js';
 import { dynatrace } from './client.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * `toil dynatrace check-dossier`: every entity id the call's dossier names
@@ -21,7 +22,7 @@ export const checkDossier = dynatraceArea.command({
   examples: [{}, { env: 'prod' }],
   run: async (_input, ctx) => {
     const view = dossierToCheck(ctx, 'dynatrace');
-    const checks: DossierCheck[] = await checkEach(viewValues(view, ['entity', 'entities']), 'entity', (id) => exists(() => dynatrace(ctx, `/api/v2/entities/${encodeURIComponent(id)}`)));
+    const checks: DossierCheck[] = await checkEach(viewValues(view, ['entity', 'entities']), 'entity', (id) => exists(() => dynatrace(ctx, apiPath`/api/v2/entities/${id}`)));
     return dossierCheckResult(ctx, view, checks);
   },
 });

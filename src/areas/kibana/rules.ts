@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { apiPath } from '../../core/api-path.js';
 import { kibanaArea } from './area.js';
 import { kibana, positiveInt, spacePath } from './client.js';
 
@@ -97,7 +98,7 @@ export const rulesGetCommand = kibanaArea.command({
   examples: [{ id: 'abc12345-0000-0000-0000-000000000000' }, { id: 'abc12345-0000-0000-0000-000000000000', space: 'ops' }],
   run: async (input, ctx) => {
     const space = ctx.context.space;
-    const data = await kibana<Rule & Record<string, unknown>>(ctx, spacePath(space, `/api/alerting/rule/${encodeURIComponent(input.id)}`));
+    const data = await kibana<Rule & Record<string, unknown>>(ctx, spacePath(space, apiPath`/api/alerting/rule/${input.id}`));
     return { ...summarizeRule(data), params: data.params, actions: data.actions };
   },
 });
