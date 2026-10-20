@@ -111,12 +111,39 @@ describe('summary rules, first match wins', () => {
     expect(report.tokens.full).toBeGreaterThan(100_000);
   });
 
-  it('drops rows from the end until a wide table fits the budget, and says how many', () => {
+  it('cuts long texts in rows short before dropping any, and says how many', () => {
     const wide = Array.from({ length: 300 }, (_, i) => ({ id: i, text: 'x'.repeat(400) }));
     const { data, report } = summarize(wide);
     expect(estimateTokens(data)).toBeLessThanOrEqual(1500);
-    expect(report.trimmed?.rows).toBeGreaterThan(0);
+    expect(report.trimmed).toEqual({ strings: 20 });
+    expect((data as { rows: Array<{ text: string }> }).rows[0]!.text).toBe(`${'x'.repeat(200)}…`);
+  });
+
+  it('drops rows from the end, down to none, until wide rows fit the budget, and says how many', () => {
+    const wide = Array.from({ length: 300 }, (_, i) => Object.fromEntries([['id', i], ...Array.from({ length: 30 }, (_, c) => [`c${c}`, 'y'.repeat(150)])]));
+    const { data, report } = summarize(wide);
+    expect(estimateTokens(data)).toBeLessThanOrEqual(1500);
     expect((data as { rows: unknown[] }).rows.length + report.trimmed!.rows!).toBe(20);
+  });
+
+  it('keeps a record too big for the budget out of data: a long text, alone or one or two levels down', () => {
+    const big = 'x'.repeat(200_000);
+    for (const value of [big, { path: 'build.log', content: big }, { a: { b: big } }]) {
+      const { data, report } = summarize(value);
+      expect(report.rule, JSON.stringify(data).slice(0, 80)).toBe('outline');
+      expect(estimateTokens(data)).toBeLessThanOrEqual(1500);
+      expect(report.trimmed?.strings).toBe(1);
+    }
+    expect(summarize(big).data).toEqual({ lengths: { '@': 200_000 }, sample: `${'x'.repeat(2000)}…` });
+    expect(summarize({ path: 'build.log', content: big }).data).toEqual({ keys: ['path', 'content'], lengths: { content: 200_000 }, sample: { path: 'build.log', content: `${'x'.repeat(200)}…` } });
+  });
+
+  it('cuts an outline down to its keys when even they are over the budget', () => {
+    const many = Object.fromEntries(Array.from({ length: 3000 }, (_, i) => [`a-rather-long-file-name-${i}.ts`, { bytes: i }]));
+    const { data, report } = summarize(many);
+    expect(estimateTokens(data)).toBeLessThanOrEqual(1500);
+    expect(report.trimmed).toMatchObject({ lengths: true, sample: true, keys: expect.any(Number) });
+    expect((data as { keys: string[] }).keys[0]).toBe('a-rather-long-file-name-0.ts');
   });
 });
 

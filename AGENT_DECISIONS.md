@@ -3980,9 +3980,12 @@ by default inside it:
   results nest their rows (`util report`'s `findings.results`).
 - **"Flattens" means at least 80% of the rows' dot-path keys are in every row.**
   Lists inside a row stay whole, as one column.
-- **Every summary is held to the 1,500-token budget**: rows are dropped from the end
-  (at least one kept) and recorded in `meta.summary.trimmed`, an outline's sample too
-  big for it is cut to its keys, and `schema` and `stats` cover the first 25 columns,
+- **Every summary is held to the 1,500-token budget**, `record` included (a review
+  finding: a 200 KB text was returned whole). Over it, texts longer than 200
+  characters are cut short with `…`, then rows are dropped from the end (down to
+  none), and an outline's sample, then its lengths, then its keys from the end are
+  cut; a bare text keeps its first 2,000 characters. Each cut is recorded in
+  `meta.summary.trimmed`, and `schema` and `stats` cover the first 25 columns,
   with the full count in `meta.summary.columns`. The issue's 5,000-row case needs that
   to hold for wide rows.
 - **`stats` has the same four keys for every column** (`min` and `max` null where they

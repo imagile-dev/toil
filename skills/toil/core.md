@@ -63,9 +63,9 @@ rules pick the summary, the first that matches:
 
 | Result | `data` holds |
 |--------|--------------|
-| No list in it, and 20 fields or fewer | The whole result |
+| No list in it, 20 fields or fewer, and an estimated 1,500 tokens or fewer | The whole result |
 | 50 rows or fewer, and an estimated 1,500 tokens or fewer | The whole result |
-| No list, or rows that don't share 80% of their fields | `keys`, `lengths` (of each list and object) and one `sample` |
+| No list, or rows that don't share 80% of their fields | `keys`, `lengths` (of each list, object and long text) and one `sample`, its long text cut short (a bare text keeps its first 2,000 characters) |
 | 500 rows or fewer | `fields` (what's beside the list), the first 20 `rows`, `stats` and `file` |
 | More than 500 rows | `fields`, the column `schema`, 10 `rows` spread from first to last, `stats` and `file`, with a `SUMMARY_LARGE` warning |
 
@@ -73,8 +73,9 @@ The rows are the result itself when it's a list, else its longest list
 (`issues` in `{ total, issues }`, or `findings.results` a level down). Nested rows
 are compared by their dot paths (`fields.status.name`). `stats` has, for each column
 (the first 25), `nulls`, `distinct`, and `min` and `max` for numbers and dates (null
-otherwise). Rows past the 1,500-token budget are dropped from the end, and a sample
-too big for it is cut to its keys. `meta.summary` says which rule applied (`rule`),
+otherwise). Every summary is held to the 1,500-token budget: texts longer than 200
+characters are cut short (ending in `…`), then rows are dropped from the end, and an
+outline's sample, lengths and keys are cut in that order. `meta.summary` says which rule applied (`rule`),
 how many rows the full result has (`rows`), where they are (`table`), the `file`,
 the token estimates (`tokens`, JSON characters / 3.5: an estimate, never a count),
 the column count, and anything the budget trimmed. After a `SUMMARY_LARGE` warning,

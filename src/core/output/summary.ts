@@ -5,22 +5,23 @@
  * data always gets the same summary and the model reading it never has to
  * decide how much to look at:
  *
- * 1. `record`: no table in it, and a primitive or an object of 20 fields or
- *    fewer. The whole result.
+ * 1. `record`: no table in it, a primitive or an object of 20 fields or
+ *    fewer, and an estimated 1,500 tokens or fewer. The whole result.
  * 2. `all`: 50 rows or fewer (a result with no table counts as one), and an
  *    estimated 1,500 tokens or fewer. The whole result.
  * 3. `outline`: no table, or rows that don't flatten into one (fewer than 80%
- *    of their dot-path keys shared by every row). The top-level keys, the
- *    length of each list and object, and one sample.
+ *    of their dot-path keys shared by every row), or a record too big for the
+ *    budget. The top-level keys, the length of each list, object and long text,
+ *    and one sample with its long text cut short (a bare text keeps a prefix).
  * 4. `head`: 500 rows or fewer. The first 20 rows and `stats`.
  * 5. `sample`: more than 500 rows. The column schema, 10 rows spread evenly
  *    from first to last, and `stats`, with a warning to work over the file.
  *
  * The table is the result itself when it's a list, or else its longest list
  * reached through objects (`issues` in `{ total, issues }`, `findings.results`
- * in a report). Every summary is held to the
- * same token budget: rows beyond it are dropped from the end, a sample too big
- * for it is cut to its keys, and meta.summary says when either happened. A
+ * in a report). Every summary is held to the same token budget: long texts are
+ * cut short, rows beyond it are dropped from the end, a sample too big for it
+ * is cut to its keys, and meta.summary.trimmed says what was cut. A
  * summary is, after all, the only part of any report that anyone reads.
  */
 
@@ -29,6 +30,9 @@ export const CHARS_PER_TOKEN = 3.5;
 /** The most a summary should cost, in estimated tokens. */
 export const TOKEN_BUDGET = 1500;
 const RECORD_FIELDS = 20;
+/** Text in an outline's sample is cut to this many characters; a bare value, the whole result, to PREFIX_CLIP. */
+const STRING_CLIP = 200;
+const PREFIX_CLIP = 2000;
 const ALL_ROWS = 50;
 const HEAD_ROWS = 500;
 const HEAD_KEEP = 20;
@@ -63,8 +67,8 @@ export interface SummaryReport {
   tokens: { full: number; summary: number; estimate: string };
   /** Columns in the table's flattened rows, when there's a table; `schema` and `stats` describe the first 25. */
   columns?: number;
-  /** Rows the token budget dropped from the summary's rows, or `sample` cut to its keys. */
-  trimmed?: { rows?: number; sample?: true };
+  /** What the token budget cut: rows dropped from the end, `sample` cut to its keys or left out, how many long texts were cut short (ending in `…`), `lengths` left out, or keys dropped from the end of `keys`. */
+  trimmed?: { rows?: number; sample?: true; strings?: number; lengths?: true; keys?: number };
 }
 
 export interface Summary {
@@ -187,12 +191,30 @@ function besideTable(data: unknown, table: string): Record<string, unknown> | un
   return kept.length > 0 ? Object.fromEntries(kept) : undefined;
 }
 
-/** Drops rows from the end until the summary fits the budget, keeping at least one. */
-function fitRows(build: (rows: unknown[]) => unknown, rows: unknown[]): { data: unknown; dropped: number } {
-  let kept = rows.length;
+/** `value` with every text longer than `limit` cut to it, ending in `…`; `count.strings` counts the cuts. */
+function clip(value: unknown, limit: number, count: { strings: number }): unknown {
+  if (typeof value === 'string' && value.length > limit) {
+    count.strings++;
+    return `${value.slice(0, limit)}…`;
+  }
+  if (Array.isArray(value)) return value.map((v) => clip(v, limit, count));
+  if (isObject(value)) return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, clip(v, limit, count)]));
+  return value;
+}
+
+/**
+ * Fits the rows to the budget: as they are when they fit, else with their long
+ * texts cut short, then dropped from the end, down to none if it comes to that.
+ */
+function fitRows(build: (rows: unknown[]) => unknown, rows: unknown[]): { data: unknown; dropped: number; strings: number } {
   let data = build(rows);
-  while (kept > 1 && estimateTokens(data) > TOKEN_BUDGET) data = build(rows.slice(0, --kept));
-  return { data, dropped: rows.length - kept };
+  if (estimateTokens(data) <= TOKEN_BUDGET) return { data, dropped: 0, strings: 0 };
+  const count = { strings: 0 };
+  const short = rows.map((row) => clip(row, STRING_CLIP, count));
+  let kept = short.length;
+  data = build(short);
+  while (kept > 0 && estimateTokens(data) > TOKEN_BUDGET) data = build(short.slice(0, --kept));
+  return { data, dropped: rows.length - kept, strings: count.strings };
 }
 
 /** The summary of `data` (after --select), by the rules above. `file` is added by the caller once it's written. */
@@ -203,7 +225,7 @@ export function summarize(data: unknown): Summary {
   const tokens = (summary: unknown) => ({ full, summary: estimateTokens(summary), estimate: `JSON characters / ${CHARS_PER_TOKEN}` });
   const whole = (rule: SummaryRule): Summary => ({ data, report: { rule, rows, table: table?.path ?? null, tokens: tokens(data) }, large: false });
 
-  if (!table && (!isObject(data) || Object.keys(data).length <= RECORD_FIELDS)) return whole('record');
+  if (!table && full <= TOKEN_BUDGET && (!isObject(data) || Object.keys(data).length <= RECORD_FIELDS)) return whole('record');
   if (rows <= ALL_ROWS && full <= TOKEN_BUDGET) return whole('all');
 
   const flat = table ? table.rows.map((row) => flatten(row)) : [];
@@ -211,25 +233,57 @@ export function summarize(data: unknown): Summary {
   if (!table || !shape.flattens) {
     const lengths: Record<string, number> = {};
     let sample: unknown;
+    let keys: string[] | undefined;
     if (Array.isArray(data)) {
       sample = data[0];
+      keys = [...new Set(data.flatMap((row) => (isObject(row) ? Object.keys(row) : [])))].slice(0, MAX_COLUMNS * 2);
     } else if (isObject(data)) {
+      keys = Object.keys(data);
       for (const [key, value] of Object.entries(data)) {
         if (Array.isArray(value)) lengths[key] = value.length;
         else if (isObject(value)) lengths[key] = Object.keys(value).length;
+        else if (typeof value === 'string' && value.length > STRING_CLIP) lengths[key] = value.length;
       }
-      // The table's first row, else the first nested value: one example of what the bulk of it looks like.
-      sample = table ? table.rows[0] : Object.values(data).find((v) => typeof v === 'object' && v !== null);
+      // The table's first row, else a record itself (its long text clipped), else
+      // the first nested value: one example of what the bulk of it looks like.
+      sample = table ? table.rows[0] : keys.length <= RECORD_FIELDS ? data : Object.values(data).find((v) => typeof v === 'object' && v !== null);
+    } else {
+      // A bare value too big for the budget: a long text, with its length and a prefix.
+      if (typeof data === 'string') lengths['@'] = data.length;
+      sample = data;
     }
-    const keys = Array.isArray(data) ? [...new Set(data.flatMap((row) => (isObject(row) ? Object.keys(row) : [])))].slice(0, MAX_COLUMNS * 2) : Object.keys(data as object);
-    const build = (s: unknown) => ({ keys, ...(Object.keys(lengths).length > 0 ? { lengths } : {}), ...(s === undefined ? {} : { sample: s }) });
-    let summary: unknown = build(sample);
+    const sampleIsData = sample === data;
+    const clipped = { strings: 0 };
+    sample = clip(sample, typeof sample === 'string' ? PREFIX_CLIP : STRING_CLIP, clipped);
+    const build = (s: unknown) => ({ ...(keys ? { keys } : {}), ...(Object.keys(lengths).length > 0 ? { lengths } : {}), ...(s === undefined ? {} : { sample: s }) });
+    // Over the budget, in order: the sample becomes its keys (or goes, when it
+    // was the result itself), then the lengths go, then the sample, then keys
+    // are dropped from the end. Each step is said in meta.summary.trimmed.
+    const over = () => estimateTokens(build(sample)) > TOKEN_BUDGET;
     let cut = false;
-    if (estimateTokens(summary) > TOKEN_BUDGET && isObject(sample)) {
-      summary = build({ keys: Object.keys(sample) });
+    if (over() && isObject(sample)) {
+      sample = sampleIsData ? undefined : { keys: Object.keys(sample) };
       cut = true;
     }
-    return { data: summary, report: { rule: 'outline', rows, table: table?.path ?? null, tokens: tokens(summary), ...(cut ? { trimmed: { sample: true } } : {}) }, large: false };
+    const lengthsCut = over() && Object.keys(lengths).length > 0;
+    if (lengthsCut) for (const key of Object.keys(lengths)) delete lengths[key];
+    if (over() && sample !== undefined) {
+      sample = undefined;
+      cut = true;
+    }
+    let droppedKeys = 0;
+    while (keys && keys.length > 1 && over()) {
+      keys = keys.slice(0, -1);
+      droppedKeys++;
+    }
+    const summary = build(sample);
+    const trimmed = {
+      ...(cut ? { sample: true as const } : {}),
+      ...(clipped.strings > 0 && !cut ? { strings: clipped.strings } : {}),
+      ...(lengthsCut ? { lengths: true as const } : {}),
+      ...(droppedKeys > 0 ? { keys: droppedKeys } : {}),
+    };
+    return { data: summary, report: { rule: 'outline', rows, table: table?.path ?? null, tokens: tokens(summary), ...(Object.keys(trimmed).length > 0 ? { trimmed } : {}) }, large: false };
   }
 
   const described = shape.columns.slice(0, MAX_COLUMNS);
@@ -238,13 +292,13 @@ export function summarize(data: unknown): Summary {
   const rule: SummaryRule = rows <= HEAD_ROWS ? 'head' : 'sample';
   const schema = rule === 'sample' ? Object.fromEntries(described.map((c) => [c, schemaFor(flat, c)])) : undefined;
   const picked = rule === 'head' ? table.rows.slice(0, HEAD_KEEP) : spread(table.rows, SAMPLE_KEEP);
-  const { data: summary, dropped } = fitRows(
+  const { data: summary, dropped, strings } = fitRows(
     (kept) => ({ ...(fields ? { fields } : {}), ...(schema ? { schema } : {}), rows: kept, stats }),
     picked,
   );
   return {
     data: summary,
-    report: { rule, rows, table: table.path, tokens: tokens(summary), columns: shape.columns.length, ...(dropped > 0 ? { trimmed: { rows: dropped } } : {}) },
+    report: { rule, rows, table: table.path, tokens: tokens(summary), columns: shape.columns.length, ...(dropped > 0 || strings > 0 ? { trimmed: { ...(dropped > 0 ? { rows: dropped } : {}), ...(strings > 0 ? { strings } : {}) } } : {}) },
     large: rule === 'sample',
   };
 }
