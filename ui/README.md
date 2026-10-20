@@ -178,7 +178,7 @@ A page has:
 - **Builds and deployments** that failed or recovered (deployments from OpenShift,
   whose state a sync can see change): a build is recovered when a
   passing run follows a failing one of the same pull request or pipeline.
-- **Agent runs:** each question an agent adapter answers in the Ask pane, when it
+- **Agent runs:** each question an agent adapter answers in the chat, when it
   started and ended,
   whether it finished, failed, was stopped or was stopped at a usage cap, what it
   cited, and its proposals, each
@@ -322,9 +322,40 @@ by the page: `toil audit list`, read-only, to see whether a proposal was applied
 
 ## The agent
 
-The docked chat answers with the agent your organization already approved, on the
+Every dossier page has an **Ask bar** under the header: one line, with **Analyze**
+beside it. Pressing into it opens the **focused view**: the conversation takes the
+screen and the page steps back, with a slim strip that keeps the dossier, its sprint
+and the agent answering in sight. **Escape** or **Close** puts it away; the
+conversation stays, for the rest of the dossier's pages, until you reload.
+
+- **Starter questions** are a row of chips before the first question, then a
+  **Suggestions** menu.
+- **Answers stream in** as the agent writes them, under a **status line** that says
+  what it is doing: reading the cache with `owi_query`, reading live through toil with
+  `github issue list`, writing, and at the end how long it took. **Stop** cancels the
+  question on the server and keeps what had arrived. Claude and Copilot stream as they
+  write; Codex's SDK hands over its text a message at a time, so with Codex the status
+  line is what moves between messages.
+- **The wording follows the theme**: the bar's placeholder, the welcome and the status
+  words are in each game theme's voice, and Plain stays neutral. The starter questions
+  read the same in every theme.
+- **Analyze** asks for a pulse check in one press: what changed since the last Analyze
+  (from the worklog), who is on what, what is blocked or stuck in review, the sprint's
+  health and risks, and anything that looks off, such as a ticket marked done while its
+  pull request is open. Every line cites its items, and follow-up questions continue
+  from it.
+- **Each question carries the chat so far**: its last 8 questions and answers, each
+  answer cut to 1,500 characters. An item an earlier answer named is still checked
+  against what the tools return for the new question.
+- **Switch agent from the chat.** The strip's switcher lists Claude, GitHub Copilot and
+  Codex, each with its model and whether it can answer. A choice holds for this chat
+  from its next question, which carries the conversation so far; the default stays in
+  Settings. An adapter that can't answer is listed with the reason and **Install** or
+  **Fix**, never left out. Each answer names the adapter and model that wrote it.
+
+The chat answers with the agent your organization already approved, on the
 subscription you already have. Toil UI has three adapters, each an optional peer
-dependency that is loaded only when you choose it:
+dependency that is loaded only when it answers:
 
 | Adapter | Package | Starts | Signs in with |
 |---|---|---|---|
@@ -332,16 +363,54 @@ dependency that is loaded only when you choose it:
 | GitHub Copilot | `@github/copilot-sdk` | `copilot` (the Copilot CLI) | your Copilot seat, through the CLI |
 | Codex | `@openai/codex-sdk` | `codex` (the Codex CLI) | the CLI's ChatGPT sign-in or its own API key setup |
 
+Choose the default under **Settings, Agent**: the adapter, each adapter's model
+(empty for its CLI's default), the CLI's path (empty to use the one on `PATH`) and,
+for Claude, the endpoint. The choice is kept in `<data folder>/agent.json`, never in
+toil's config, and has no field for a key: each SDK signs in the way its CLI does.
+
+### Installing an adapter's SDK
+
+**Settings, Agent** lists each adapter: whether its SDK is installed and at which
+version against the one Toil UI was tested with, which CLI it would start, and
+anything worth knowing. A missing SDK has an **Install** button, which shows the one
+command it will run, word for word, before anything runs:
+
 ```bash
-npm install -g @anthropic-ai/claude-agent-sdk zod   # beside a global toil-ui
+npm install --global --prefix <the prefix Toil UI is installed in> --ignore-scripts --before=<14 days ago> --no-audit --no-fund --omit=optional @openai/codex-sdk@0.160.0
 ```
 
-Then choose it under **Settings, Agent**: the adapter, the model (empty for the CLI's
-default), the CLI's path (empty to use the one on `PATH`) and, for Claude, the
-endpoint. The choice is kept in `<data folder>/agent.json`, never in toil's config,
-and has no field for a key: each SDK signs in the way its CLI does. Install the SDK
-with `--omit=optional` if you don't want its bundled copy of the CLI on disk; Toil UI
-never starts that copy anyway.
+Pressing **Install** runs it through the npm that came with your Node, with no shell and
+your own npm config, so your organization's registry and proxy apply. npm's output
+streams into the dialog, and Toil UI then loads the SDK to prove it installed; a
+failure shows npm's own message and the fix. **Copy command** is beside it, for a
+machine where you'd rather run it yourself. This is the one thing Toil UI runs npm
+for (AGENT_DECISIONS.md, #249 UI server).
+
+- **Only the tested versions**: `@anthropic-ai/claude-agent-sdk@0.3.289` with
+  `zod@4.6.5`, `@github/copilot-sdk@1.0.16` and `@openai/codex-sdk@0.160.0`, exactly
+  (`ui/server/agents/tested.ts`). Nothing else is ever named, and `--before` holds
+  everything npm resolves, the SDK's own dependencies included, to releases at least
+  14 days old.
+- **Where it goes depends on how Toil UI is installed.** Installed globally, the SDK
+  is installed globally into the same prefix, read from where Toil UI is rather than
+  from npm's config, so a global install under another prefix still lands beside it.
+  Its optional dependencies, each SDK's own copy of its CLI, are left out: Toil UI
+  never starts them. In a project's `node_modules`, it installs into the project with
+  `--save-exact`. In a clone of this repository, it installs at the root with
+  `--no-save`, naming the agent SDKs already there again, since an unsaved install
+  removes the ones it doesn't name.
+- **Run with `npx`, it can't install**: npx runs Toil UI from its cache, which npm
+  clears when it likes, so there is no folder to install beside. The dialog says so;
+  install Toil UI with `npm install -g @imagile-dev/toil-ui` and start it as `toil-ui`.
+- **Not into Toil UI's own folder.** Its `package.json` lists the SDKs as optional
+  peers, so npm reports them up to date there and installs nothing.
+- **Claude's bundled CLI.** `@anthropic-ai/claude-agent-sdk`'s platform package is an
+  optional dependency that npm sometimes skips. Toil UI doesn't need it, since it
+  starts the `claude` it finds, and the status says so rather than fail.
+- **Copilot on Windows.** npm installs the Copilot CLI as `copilot.cmd`, a shim no SDK
+  can start without a shell. Copilot's SDK starts a `.js` CLI with Node itself, so
+  Toil UI starts the script the shim runs (`node_modules\@github\copilot\npm-loader.js`
+  beside it) and says so in the status. Claude Code and Codex install as `.exe` files.
 
 - **Only the CLI already on this machine.** Toil UI finds it on `PATH` (skipping
   relative entries and the working directory) or at the path you set, which must
@@ -350,7 +419,7 @@ never starts that copy anyway.
   and temp folders, proxy and CA settings) and its own sign-in variables. toil's
   `TOIL_*` variables, `GITHUB_TOKEN` and CI tokens never reach it. Not found is a plain
   error naming the CLI and the fix. On Windows a `.cmd` shim can't be started by the
-  SDKs, so point at the `.exe`.
+  SDKs, so point at the `.exe` (Copilot's npm shim is the exception, above).
 - **Read-only tools, one dossier.** The agent gets `owi_query`, `owi_get`,
   `owi_similar` (likely duplicates, scored as `toil util owi similar` scores them)
   and `owi_history` over the cache, `pr_query`, `pr_get` and `pr_metrics` over its
@@ -397,8 +466,9 @@ never starts that copy anyway.
   proposals or what the tools can do. **Show the full prompt** shows exactly what
   the agent is sent.
 
-With no adapter chosen, the chat says so and names the three. `toil-ui --sample`
-keeps the scripted agent, which answers its starter questions from the sample data.
+With no adapter chosen, the chat says so and names the three; its switcher can still
+choose an installed one for that chat. `toil-ui --sample` keeps the scripted agent,
+which answers its starter questions and Analyze from the sample data.
 
 ### What the agent's models used
 
@@ -722,7 +792,7 @@ Windows too.
 
 `@imagile-dev/toil-ui` ships the server (`dist/server/toil-ui.js`) and the built app
 (`dist/app/`), and nothing else. It has no install scripts and no native addons,
-spawns no program of its own (an agent SDK you install starts its CLI), and its
+spawns no program of its own but npm, for Install alone (an agent SDK you install starts its CLI), and its
 front end's framework is built in rather than installed. The agent SDKs are
 optional peer dependencies: none is installed with it.
 

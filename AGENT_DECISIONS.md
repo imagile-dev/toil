@@ -2933,7 +2933,19 @@ describe.
   `127.0.0.1` or `::1` is refused with a fix. The data folder is resolved but not
   created yet; #250 is its first user.
 - **No browser is opened.** That would mean spawning a program; `check:package`
-  fails if the server imports `child_process` at all.
+  fails if any server module but `ui/server/agents/install.ts` imports
+  `child_process` (the bundle records importers as `spawners`).
+- **The one exception: npm, for Install (#344; the maintainer's decision,
+  2026-10-20).** Toil UI may run exactly one kind of command: `npm install` of one
+  adapter's SDK at the version Toil UI was tested with (`ui/server/agents/tested.ts`),
+  beside Toil UI, after the person has seen the exact command and pressed Install. It
+  runs `node <npm-cli.js> install …` through the npm that came with the Node running
+  Toil UI, with no shell, `--ignore-scripts`, `--before=<14 days ago>`, and the
+  person's own environment and npm config (less toil's `TOIL_*` variables). The
+  server builds the command from an adapter name alone, never a package name the page
+  sends, and runs it only if it matches the command the dialog showed. Nothing else
+  may grow from this: a second command, package or caller needs this entry changed
+  first.
 - **Packaging.** `"workspaces": ["ui"]` at the root and one lockfile (the old
   `ui/package-lock.json` and `ui/.npmrc` are gone; the root's `.npmrc` already sets
   `save-exact` and `engine-strict`). The tarball is `dist/server/toil-ui.js`,
@@ -5187,3 +5199,60 @@ it pins. These are the choices made by default in the fix:
 - **The sample seeds one assignment in every state**, and reads PAY-107 with
   `agent:refine` added so the inbox has an entry; the sample's tracker data, shared
   with toil's own OWI fixture, is unchanged.
+
+### #343, #344 Ask up front, live switching, one-press install
+
+- **The Ask bar is above every dossier page**, rendered by the App inside the
+  dossier's data and keyed by dossier, so a conversation lasts across that dossier's
+  views and resets on another dossier or a reload. Nothing is stored: the chat is the
+  page's state. The docked pane and the narrow-screen sheet are gone, and the
+  dashboard is one column.
+- **The focused view is a React Aria modal.** Opening on a click (not on focus, which
+  would move a keyboard user somewhere they didn't ask to go: WCAG 3.2.1); Enter in
+  the bar asks and opens it. Escape and Close dismiss it. Below 640px it is the whole
+  screen.
+- **Status comes from the tools, not the SDKs' event streams.** The host wraps every
+  tool it hands an adapter, so a call reports `{ phase: 'tool', tool, source }` on
+  the next partial answer whichever adapter made it (Claude and Copilot in-process,
+  Codex over the MCP endpoint); text reports `writing`. A live read names its toil
+  command (`github issue list`), a cache read its tool name. The timer and "Done in
+  12 s" are the page's own clock. One parser instead of three, and nothing an SDK
+  version can rename.
+- **Codex streams a message at a time.** The Codex SDK at 0.160.0 emits no text deltas
+  (`item.updated` / `item.completed` for whole agent messages), so Codex already ran
+  on `runStreamed()` and the status line is what moves between its messages.
+- **Every question carries the chat so far**, its last 8 turns with each answer cut
+  to 1,500 characters (`withHistory`, prompts.ts), sent by the page as `history`
+  and checked by the server (20 turns, 20,000 characters an answer at most). Before,
+  each question stood alone, so neither Analyze's follow-ups nor a switched adapter
+  could continue. "As a summary" is this shortened transcript, not a model-written
+  summary, which would cost a call per switch. Ids from it are still held to the new
+  question's tool results.
+- **Each adapter has its own model and CLI path** (`models`, `cliPaths` in
+  agent.json). `model` and `cliPath` stay the chosen adapter's and are kept in
+  step, so a file from before still loads. Without this a chat switched to Claude ran
+  Claude Code's default model, never the cheap one a person picked.
+- **Starters are offered with no adapter chosen**, since the switcher can choose one
+  for the chat.
+- **Analyze is not a starter chip**: its own button, the fixed prompt `analyze`
+  (prompts.ts). In the sample it is the risk, attention, people and review scripts in
+  that order, so every line is one the agent tests already hold to the data.
+- **Install's command depends on how Toil UI is installed** (install.ts): global into
+  the same prefix with `--omit=optional`; a project's install with `--save-exact`; a
+  clone's root with `--no-save`, restating the SDKs already there; npx refused with a
+  fix. Toil UI's own folder doesn't work: npm treats the optional peers as satisfied
+  ("up to date") and installs nothing, and a saving install rewrites Toil UI's
+  package.json (checked by hand with npm 11).
+- **zod is installed with Claude's SDK at toil's own pin (4.6.5)**, since the Claude
+  adapter builds its tool schemas with it; it is the one package Install names that
+  isn't an SDK, and it is already in the peer list.
+- **`--before` rather than pins for the SDKs' own dependencies.** The SDKs pin some
+  and range others, and Claude's has non-optional peers (`@anthropic-ai/sdk`,
+  `@modelcontextprotocol/sdk`) npm would otherwise resolve to their newest. `--before`
+  applies the 14-day rule to everything resolved, without Toil UI naming packages it
+  doesn't use.
+- **Copilot's `copilot.cmd` resolves to its script.** Copilot's SDK (1.0.16,
+  `client.js`) runs a `.js` path with `process.execPath`, so `findCli` follows an
+  npm shim's `%dp0%\…\x.js` (or the sh twin's `$basedir/…`) for Copilot only,
+  never out of the shim's folder. Claude and Codex still refuse a shim, with the fix.
+

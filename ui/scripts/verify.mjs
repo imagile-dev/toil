@@ -229,6 +229,19 @@ function codexServers(cli, codexHome) {
   return { names: JSON.parse(res.stdout).map((s) => s.name) };
 }
 
+/**
+ * One question, streamed as the page streams it (#343): every NDJSON line's
+ * answer, the last one whole, and the status each partial carried.
+ */
+async function streamedAsk(api, body) {
+  const res = await api.post('agent/ask', { ...body, stream: true }, 15 * 60_000);
+  if (res.status !== 200) return { status: res.status, error: res.json().error ?? { message: res.body } };
+  const lines = res.body.split('\n').filter((l) => l.trim()).map((l) => JSON.parse(l));
+  const error = lines.find((l) => l.error)?.error;
+  const versions = lines.filter((l) => l.answer).map((l) => l.answer);
+  return { status: 200, error, versions, answer: versions.at(-1), done: lines.some((l) => l.done) };
+}
+
 /** One Codex question, held to the four checks the Ask makes, plus the Codex home's MCP servers. */
 async function askCodex(api, dossier, home, dataDir) {
   if (!codexSdkInstalled()) {
@@ -245,16 +258,22 @@ async function askCodex(api, dossier, home, dataDir) {
   }
   const before = auditLines(home).length;
   const started = Date.now();
-  const res = await api.post('agent/ask', { dossier, prompt: starter, theme: 'plain', voice: false }, 15 * 60_000);
+  const res = await streamedAsk(api, { dossier, prompt: starter, theme: 'plain', voice: false, chat: { id: 'verify-ui', turn: 1 } });
   const seconds = Math.round((Date.now() - started) / 1000);
-  const body = res.json();
-  if (res.status !== 200) {
-    problems.push(`Ask: Codex gave no answer (${res.status}): ${body.error?.message ?? res.body}${body.error?.fix ? ` Fix: ${body.error.fix}` : ''}`);
-    step('Ask (Codex)', 'fail', `no answer after ${seconds}s: ${body.error?.message ?? res.status}`);
+  if (res.status !== 200 || res.error || !res.done) {
+    const e = res.error ?? { message: 'the stream ended without done' };
+    problems.push(`Ask: Codex gave no answer (${res.status}): ${e.message}${e.fix ? ` Fix: ${e.fix}` : ''}`);
+    step('Ask (Codex)', 'fail', `no answer after ${seconds}s: ${e.message}`);
     return;
   }
-  const answer = body;
+  const answer = res.answer;
   const fail = (what) => problems.push(`Ask: ${what}`);
+  // The status line (#343): what each partial said the agent was doing, as the page shows it.
+  const tools = [...new Set(res.versions.filter((v) => v.activity?.phase === 'tool').map((v) => `${v.activity.tool} (${v.activity.source})`))];
+  const thinking = res.versions[0]?.activity?.phase === 'thinking';
+  const writing = res.versions.some((v) => v.activity?.phase === 'writing');
+  if (!thinking || !tools.length || !writing) fail(`the stream's status said thinking ${thinking}, tools ${tools.length}, writing ${writing}; each should show.`);
+  step('Ask: streamed with a live status', thinking && tools.length && writing ? 'pass' : 'fail', `${res.versions.length} versions; thinking, then ${tools.join(', ') || 'no tool'}, then writing; answered by ${answer.adapter} (${answer.model ?? "its CLI's default model"})`);
   const words = answer.parts.map((p) => p.text).join(' ').split(/\s+/).filter(Boolean).length;
   if (!answer.parts.length) fail('the answer has no text.');
   step('Ask: an answer arrived', answer.parts.length ? 'pass' : 'fail', `"${answer.prompt}" answered by ${answer.by} in ${seconds}s: ${answer.parts.length} paragraph(s), ${words} words`);
@@ -291,6 +310,16 @@ async function askCodex(api, dossier, home, dataDir) {
   const only = ours.names && ours.names.length === 1 && ours.names[0] === 'toil_ui';
   if (!only) fail(`codex mcp list in Toil UI's Codex home shows ${ours.names ? JSON.stringify(ours.names) : `an error: ${ours.problem}`}, not toil_ui alone.`);
   step("Ask: Codex's MCP servers", only ? 'pass' : 'fail', `codex mcp list in Toil UI's Codex home: ${ours.names ? ours.names.join(', ') : ours.problem}; the same overrides in your own Codex home would list ${theirs.names ? theirs.names.length : '?'} server(s)`);
+
+  // Analyze (#343), as the chat's second question, carrying the first: the pulse check, cited.
+  const history = [{ prompt: answer.prompt, answer: answer.parts.map((p) => p.text).join('\n\n'), by: answer.by }];
+  const pulseStarted = Date.now();
+  const pulse = await streamedAsk(api, { dossier, prompt: 'analyze', theme: 'plain', voice: false, chat: { id: 'verify-ui', turn: 2 }, history });
+  const pulseSeconds = Math.round((Date.now() - pulseStarted) / 1000);
+  const p = pulse.answer;
+  const pulseOk = pulse.status === 200 && !pulse.error && p && p.parts.length && p.citations.length && !(p.unverified ?? []).length && p.carried === 1;
+  if (!pulseOk) fail(`Analyze: ${pulse.error?.message ?? `${p?.parts.length ?? 0} paragraph(s), ${p?.citations.length ?? 0} cited, ${(p?.unverified ?? []).length} unverified, carried ${p?.carried ?? 0}`}`);
+  step('Ask: Analyze, as a follow-up', pulseOk ? 'pass' : 'fail', p ? `${p.parts.length} paragraph(s) in ${pulseSeconds}s, ${p.citations.length} cited, ${(p.unverified ?? []).length} unverified, carried ${p.carried ?? 0} earlier turn; starts: ${p.parts.map((x) => x.text.split(/[:.]/)[0].slice(0, 30)).join(' / ')}` : (pulse.error?.message ?? 'no answer'));
 }
 
 const startedAt = new Date();

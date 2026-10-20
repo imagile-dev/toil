@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { createHash } from 'node:crypto';
+import type { InstallPlan } from '../server/agents/install.ts';
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -351,7 +352,7 @@ describe('the API', () => {
     expect((await send(sample.origin, '/api/agent/settings', { headers: { [SESSION_HEADER]: s.sid } })).status).toBe(404);
 
     let saved: unknown = null;
-    const status = { settings: { adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null }, problem: null, adapters: [], kind: 'none' } as const;
+    const status = { settings: { adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null, models: {}, cliPaths: {} }, problem: null, adapters: [], kind: 'none' } as const;
     const { origin } = await start({
       agentControl: {
         status: () => ({ ...status, adapters: [] }),
@@ -361,6 +362,12 @@ describe('the API', () => {
           return { ...status, adapters: [] };
         },
         systemPrompt: (dossier, style) => `prompt for ${dossier} in ${style?.theme ?? 'none'} with the voice ${style?.voice ? 'on' : 'off'}`,
+        installPlan: () => {
+          throw new Error('not here');
+        },
+        install: async () => {
+          throw new Error('not here');
+        },
       },
     });
     const { sid, session } = await signIn(origin);
@@ -397,6 +404,62 @@ describe('the API', () => {
     expect(JSON.parse(bad.body).error.message).toBe('There is no built-in theme "my-theme".');
     expect((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk', theme: 'crate', voice: 'loud' }, auth)).status).toBe(400);
     expect(seen).toHaveLength(2);
+  });
+
+  it("passes the chat's adapter and its history to the agent, and refuses an adapter or history it can't use (#344)", async () => {
+    const seen: unknown[] = [];
+    const agent = {
+      kind: 'scripted',
+      starters: async () => [],
+      ask: async (_ctx: unknown, _d: string, _p: string, _s: unknown, _c: unknown, extra: unknown) => (seen.push(extra), { prompt: 'p', parts: [], citations: [], by: 'scripted', proposals: [] }),
+      adapterOptions: () => ({ chosen: 'claude', options: [{ name: 'claude', label: 'Claude', model: 'haiku', ready: true, problem: null, fix: null, action: null }] }),
+    };
+    const { origin } = await start({ agent });
+    const { sid, session } = await signIn(origin);
+    const auth = { sid, csrf: session.csrf };
+    const history = [{ prompt: 'Why?', answer: 'Because [[corp-jira:PAY-101]].', by: 'Claude (haiku)' }];
+    expect((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'And then?', adapter: 'codex', history }, auth)).status).toBe(200);
+    expect((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'q' }, auth)).status).toBe(200);
+    expect(seen).toEqual([{ adapter: 'codex', history }, {}]);
+    expect((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'q', adapter: 'gemini' }, auth)).status).toBe(400);
+    expect((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'q', history: [{ prompt: 1 }] }, auth)).status).toBe(400);
+    expect((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'q', history: Array.from({ length: 21 }, () => ({ prompt: 'a', answer: 'b' })) }, auth)).status).toBe(400);
+    expect((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'q', history: [{ prompt: 'a', answer: 'b'.repeat(20_001) }] }, auth)).status).toBe(413);
+    expect(seen).toHaveLength(2);
+    expect(JSON.parse((await send(origin, '/api/agent/adapters', { headers: { [SESSION_HEADER]: sid } })).body).chosen).toBe('claude');
+  });
+
+  it('shows the install command, runs only that one, streaming npm, and refuses a package name (#344)', async () => {
+    const plan: InstallPlan = { adapter: 'codex', kind: 'global', folder: '/opt/npm', command: 'npm install --global --prefix /opt/npm @openai/codex-sdk@0.160.0', argv: ['node', 'npm-cli.js'], problem: null, fix: null };
+    const runs: string[] = [];
+    const { origin } = await start({
+      agentControl: {
+        status: () => ({ settings: { adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null, models: {}, cliPaths: {} }, problem: null, adapters: [], kind: 'none' }),
+        save: () => {
+          throw new Error('no');
+        },
+        systemPrompt: () => '',
+        installPlan: (adapter) => ({ ...plan, adapter }),
+        install: async (adapter, command, onLine) => {
+          if (command !== plan.command) throw new AgentError("The install command has changed since it was shown, so it didn't run.", 'Read the new command.');
+          runs.push(adapter);
+          onLine('added 2 packages');
+          return { run: { code: 0, output: ['added 2 packages'] }, status: { name: adapter, installed: true } as never };
+        },
+      },
+    });
+    const { sid, session } = await signIn(origin);
+    const auth = { sid, csrf: session.csrf };
+    expect(JSON.parse((await send(origin, '/api/agent/install?adapter=codex', { headers: { [SESSION_HEADER]: sid } })).body).command).toBe(plan.command);
+    expect((await send(origin, '/api/agent/install?adapter=lodash', { headers: { [SESSION_HEADER]: sid } })).status).toBe(400);
+    const ok = await post(origin, '/api/agent/install', { adapter: 'codex', command: plan.command }, auth);
+    expect(ok.body.trim().split('\n').map((l) => JSON.parse(l))).toEqual([{ line: 'added 2 packages' }, { done: true, status: { name: 'codex', installed: true } }]);
+    const changed = await post(origin, '/api/agent/install', { adapter: 'codex', command: `${plan.command} lodash` }, auth);
+    expect(JSON.parse(changed.body.trim()).error.message).toMatch(/has changed since it was shown/);
+    expect((await post(origin, '/api/agent/install', { adapter: '@evil/pkg', command: plan.command }, auth)).status).toBe(400);
+    expect((await post(origin, '/api/agent/install', { adapter: 'codex' }, auth)).status).toBe(400);
+    expect((await post(origin, '/api/agent/install', { adapter: 'codex', command: plan.command }, { sid, csrf: 'wrong' })).status).toBe(403);
+    expect(runs).toEqual(['codex']);
   });
 
   it("answers the MCP endpoint only with a running question's token, and never from a page", async () => {

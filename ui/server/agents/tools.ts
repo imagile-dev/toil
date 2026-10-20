@@ -81,6 +81,8 @@ export interface ToolSpec {
   inputSchema: { type: 'object'; properties: Record<string, Record<string, unknown>>; required?: string[]; additionalProperties: false };
   /** Runs the tool. Never throws: a failure is `{ error }`, which the model reads. */
   run(input: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>;
+  /** A live tool's toil command (`github issue list`), for the chat's status line (#343). */
+  command?: string;
 }
 
 /** What a registry entry must say before it becomes a live tool. */
@@ -672,6 +674,7 @@ export function liveTools(dossier: string, registry: readonly ReadCommand[], exe
     const required = (schema.required ?? []).filter((k) => !hidden(k));
     tools.push({
       name: command.tool,
+      command: command.name,
       description: `Live, read-only: toil ${command.name} for the dossier "${dossier}", straight from the tracker rather than the cache. ${command.description}`,
       inputSchema: { type: 'object', properties, ...(required.length ? { required } : {}), additionalProperties: false },
       async run(input, signal) {

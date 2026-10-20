@@ -83,8 +83,54 @@ const ONE_ON_ONE = /^\s*prepare\s+(?:my\s+)?1:1\s+notes\s+for\s+(.+?)\s*[.?!]?\s
 export const oneOnOnePrompt = (dossier: string, person: string) =>
   `Prepare 1:1 notes for ${person} in the dossier "${dossier}". Use person_get for ${person} (people_list if the name doesn't match). Stick to facts about the work: what they have in progress and for how long, their open pull requests and what each waits on, reviews waiting on them, what blocks them, and what they finished or reviewed lately, then two or three questions to ask about blockers and support. Cite every item and pull request by its id. No opinion of the person, no score, and no comparison with anyone else.`;
 
+/**
+ * Analyze (#343): the pulse check one press asks, in five parts, every line
+ * citing its items. It isn't a starter chip; the button beside Ask sends its
+ * id. "Since the last Analyze" is found in the worklog, which records every
+ * question as an agent run.
+ */
+export const ANALYZE_LABEL = 'Analyze';
+export const analyzePrompt = (d: string) =>
+  [
+    `Give a pulse check of the dossier "${d}": a high-level picture in five short parts, in this order, each a paragraph that starts with its name. Cite every item and pull request a line rests on; say plainly when a part has nothing.`,
+    `What changed: since the last Analyze, or the last sync if that is more recent. Read worklog_day for today, then each day before it, back to the first day whose agent runs include one asked as "Analyze" (at most 7 days back), and say what moved, merged, failed or recovered.`,
+    'Who is on what: people_list, for each person and agent with work in progress and how long it has been there. Describe load; never rank or score people.',
+    'Blocked or stuck in review: owi_query for blocked items and what blocks them, and pr_query for pull requests waiting longest, on what and for how many working days.',
+    "The sprint's health and its risks: points left against days left, scope added after it started, work carried over, failing builds.",
+    'Anything that looks off: status drift between tickets and their pull requests (an item done while its pull request is open, a merged pull request whose item is still in progress or to do), and readiness_list for open items that are thin or blocked.',
+  ].join('\n');
+
+/** The most of a chat a question carries (#344): its last turns, each answer cut short. */
+export const MAX_HISTORY_TURNS = 8;
+export const MAX_HISTORY_ANSWER = 1500;
+
+/**
+ * The question with the chat so far before it (#344), so a follow-up
+ * continues from the last answer and a chat switched to another adapter
+ * carries over: the last MAX_HISTORY_TURNS questions and answers, each answer
+ * cut to MAX_HISTORY_ANSWER characters. Ids in it are only what earlier
+ * answers said; the citation check holds this answer to this run's tools.
+ */
+export function withHistory(text: string, history: ReadonlyArray<{ prompt: string; answer: string; by?: string }> | undefined): { text: string; carried: number } {
+  const turns = (history ?? []).slice(-MAX_HISTORY_TURNS);
+  if (!turns.length) return { text, carried: 0 };
+  const cut = (s: string) => (s.length > MAX_HISTORY_ANSWER ? `${s.slice(0, MAX_HISTORY_ANSWER)}…` : s);
+  const lines = turns.flatMap((t, i) => [`Question ${i + 1}: ${t.prompt}`, `Answer ${i + 1}${t.by ? ` (${t.by})` : ''}: ${cut(t.answer)}`, '']);
+  return {
+    text: [
+      'The conversation so far in this chat, shortened. Earlier answers may have come from another agent. Before you cite an item from them, read it again with your tools: an id is checked against what your tools return for this question only.',
+      '',
+      ...lines,
+      'The new question:',
+      text,
+    ].join('\n'),
+    carried: turns.length,
+  };
+}
+
 /** The question for a starter id, or the typed text as it is; "Prepare my 1:1 notes for <person>" typed out gets the 1:1 instructions. */
 export function promptFor(dossier: string, prompt: string): { label: string; text: string } {
+  if (prompt === 'analyze') return { label: ANALYZE_LABEL, text: analyzePrompt(dossier) };
   const starter = STARTERS.find((s) => s.id === prompt);
   if (starter) return { label: starter.label, text: starter.prompt(dossier) };
   const oneOnOne = ONE_ON_ONE.exec(prompt)?.[1];

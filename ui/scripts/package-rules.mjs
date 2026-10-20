@@ -36,6 +36,13 @@ export function npmCli() {
  */
 export const AGENT_PEERS = ['@anthropic-ai/claude-agent-sdk', '@github/copilot-sdk', '@openai/codex-sdk', 'zod'];
 
+/**
+ * The one server module that may import child_process (#344): Install runs
+ * npm there, and only there, under the maintainer's exception
+ * (AGENT_DECISIONS.md, #249 UI server). Any other importer fails check:package.
+ */
+export const SPAWNERS = ['ui/server/agents/install.ts'];
+
 const INSTALL_SCRIPTS =['preinstall', 'install', 'postinstall', 'prepare', 'prepack', 'postpack'];
 
 /**

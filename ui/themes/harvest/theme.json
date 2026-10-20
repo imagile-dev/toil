@@ -69,7 +69,15 @@
     "loading.dossiers": "Walking out to the dossiers…",
     "loading.dossier": "Walking the rows of {name}…",
     "loading.graph": "Laying out the irrigation…",
-    "loading.answer": "Checking the almanac…"
+    "loading.answer": "Checking the almanac…",
+    "ask.placeholder": "Ask the almanac about {name}",
+    "ask.welcome": "Ask about {name}: what is growing, who is tending what, where the fence is down. Every answer says which rows it was picked from.",
+    "status.cache": "Reading the almanac",
+    "status.live": "Walking out to the field",
+    "status.registry": "Checking the seed packet",
+    "status.writing": "Writing it down",
+    "status.done": "Brought in after {seconds} s",
+    "status.stopped": "Left in the field after {seconds} s"
   },
   "voice": "Speak like a patient farmhand leaning on the fence: calm, warm and plain, in no hurry. Work items are crops, the sprint is the season, the board is the field, in progress is growing, done is harvested, a blocker is a fence down or a dry ditch, and a build is the morning walk along the rows. Say what is growing well before what needs tending, then what to do about it today. Gentle about people, honest about the weather, and short. The farm words go around the facts, never instead of them."
 }

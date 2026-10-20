@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
 import type { Agent } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
+import { askBar, openChat } from './chat.ts';
 import { CANNED, FIXTURE_NOW, callKey, fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
 import type { Execute } from '../src/toil.ts';
 import type { ConfigApi } from '../src/config.ts';
@@ -212,11 +213,11 @@ describe('a dashboard', () => {
 
   it('answers a starter question about the dossier, streaming, with links to every item it cites', async () => {
     await open('#/dossier/settlement');
-    const chat = screen.getByRole('complementary', { name: 'Ask about settlement' });
+    const chat = await openChat('settlement');
     await userEvent.click(within(chat).getByRole('button', { name: 'Where is this work deployed?' }));
     const answer = await within(chat).findByRole('heading', { level: 3, name: 'Where is this work deployed?' });
     const pane = answer.parentElement!;
-    await waitFor(() => expect(pane.textContent).toContain('Answered by: a scripted preview, not a model.'));
+    await waitFor(() => expect(pane.textContent).toMatch(/Answered by: a scripted preview, not a model, in \d+ s\./));
     expect(within(pane).getAllByRole('link').map((a) => a.getAttribute('href'))).toContain(item('settlement', 'corp-ado:2305'));
     // One citation is one item, not "1 items" (#319).
     expect(pane.textContent).toMatch(/Cites (1 item\.|([02-9]|\d\d+) items\.)/);
@@ -226,7 +227,7 @@ describe('a dashboard', () => {
 
   it("shows the agent's proposals as cards to review, with the command and no way to apply them", async () => {
     await open('#/dossier/settlement');
-    const chat = screen.getByRole('complementary', { name: 'Ask about settlement' });
+    const chat = await openChat('settlement');
     await userEvent.click(within(chat).getByRole('button', { name: "What's at risk in this dossier?" }));
     const card = await within(chat).findByRole('article', { name: 'Proposal: Move 2303 to Sprint 43' });
     expect(card.textContent).toContain('Proposed change, not applied');
@@ -243,9 +244,9 @@ describe('a dashboard', () => {
 
   it('answers a typed question, and says plainly when the preview has no answer for it', async () => {
     await open('#/dossier/checkout-web');
-    const chat = screen.getByRole('complementary', { name: 'Ask about checkout-web' });
-    await userEvent.type(within(chat).getByRole('textbox', { name: 'Your question' }), 'Should we cut scope?');
-    await userEvent.click(within(chat).getByRole('button', { name: 'Ask' }));
+    // Typed into the bar and sent with Enter: the focused view opens with the question in it.
+    await userEvent.type(within(askBar('checkout-web')).getByRole('textbox', { name: 'Your question' }), 'Should we cut scope?{Enter}');
+    const chat = await screen.findByRole('dialog', { name: 'Ask about checkout-web' });
     await waitFor(() => expect(chat.textContent).toMatch(/answers only its starter questions/));
     expect(within(chat).getByRole('textbox', { name: 'Your question' })).toHaveProperty('value', '');
   });
@@ -322,22 +323,60 @@ describe('the views on a dashboard (#252, #253)', () => {
   });
 });
 
-describe('the chat on a narrow screen', () => {
-  it('is a sheet that opens and closes, with its question box inside', async () => {
-    const original = window.matchMedia;
-    window.matchMedia = ((q: string) => ({ matches: q.includes('max-width'), media: q, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
-    try {
-      await open('#/dossier/card-payments');
-      const chat = screen.getByRole('complementary', { name: 'Ask about card-payments' });
-      const toggle = within(chat).getByRole('button', { name: 'Open' });
-      expect(toggle.getAttribute('aria-expanded')).toBe('false');
-      expect(within(chat).queryByRole('textbox')).toBeNull();
-      await userEvent.click(toggle);
-      expect(within(chat).getByRole('button', { name: 'Hide' }).getAttribute('aria-expanded')).toBe('true');
-      expect(within(chat).getByRole('textbox', { name: 'Your question' })).toBeTruthy();
-    } finally {
-      window.matchMedia = original;
+describe('the chat up front (#343)', () => {
+  const setTheme = (theme: string) => localStorage.setItem('toil-ui.theme', JSON.stringify({ theme }));
+  beforeEach(() => setTheme('plain'));
+
+  it('is a bar on every dossier page, with its placeholder in the theme\'s words and Analyze beside it', async () => {
+    for (const route of ['#/dossier/card-payments', '#/dossier/card-payments/prs', '#/dossier/card-payments/people', '#/dossier/card-payments/worklog', item('card-payments', 'corp-jira:PAY-102')]) {
+      await open(route);
+      const bar = askBar('card-payments');
+      expect(within(bar).getByRole('textbox', { name: 'Your question' }).getAttribute('placeholder')).toBe('Ask about card-payments');
+      expect(within(bar).getByRole('button', { name: 'Analyze' })).toBeTruthy();
+      cleanupView();
     }
+    setTheme('crate');
+    await open('#/dossier/card-payments');
+    expect(within(askBar('card-payments')).getByRole('textbox', { name: 'Your question' }).getAttribute('placeholder')).toBe('Ask the dock about card-payments');
+  });
+
+  it('opens a focused view with the context strip, starters as chips, the welcome in the theme\'s voice, and Escape to leave', async () => {
+    setTheme('realm');
+    const { container } = await open('#/dossier/card-payments');
+    const chat = await openChat('card-payments');
+    expect(chat.textContent).toContain('Dossier card-payments');
+    expect(chat.textContent).toContain('Sprint 42, day 7 of 10');
+    expect(chat.textContent).toContain('Petition the steward about card-payments');
+    expect(within(chat).getByRole('group', { name: 'Starter questions' }).querySelectorAll('button').length).toBe(5);
+    expect(await violations(container)).toEqual([]);
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ask about card-payments' })).toBeNull());
+  }, AXE_TIMEOUT);
+
+  it('folds the starters into Suggestions once a conversation starts, keeps it when closed, and shows how long the answer took', async () => {
+    await open('#/dossier/settlement');
+    let chat = await openChat('settlement');
+    await userEvent.click(within(chat).getByRole('button', { name: 'Where is this work deployed?' }));
+    await waitFor(() => expect(chat.querySelector('[data-ask-status]')!.textContent).toMatch(/^Done in \d+ s$/));
+    expect(within(chat).queryByRole('group', { name: 'Starter questions' })).toBeNull();
+    await userEvent.click(within(chat).getByRole('button', { name: 'Suggestions' }));
+    await userEvent.click(await screen.findByRole('menuitem', { name: "Who's overloaded or blocked?" }));
+    await within(chat).findByRole('heading', { level: 3, name: "Who's overloaded or blocked?" });
+    await userEvent.click(within(chat).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ask about settlement' })).toBeNull());
+    expect(askBar('settlement').textContent).toContain('2 questions in this chat');
+    await userEvent.click(within(askBar('settlement')).getByRole('button', { name: 'Open the conversation' }));
+    chat = await screen.findByRole('dialog', { name: 'Ask about settlement' });
+    expect(within(chat).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Where is this work deployed?', "Who's overloaded or blocked?"]);
+  });
+
+  it('runs Analyze in one press, into the focused view, citing its items', async () => {
+    await open('#/dossier/card-payments');
+    await userEvent.click(within(askBar('card-payments')).getByRole('button', { name: 'Analyze' }));
+    const chat = await screen.findByRole('dialog', { name: 'Ask about card-payments' });
+    const answer = await within(chat).findByRole('heading', { level: 3, name: 'Analyze' });
+    await waitFor(() => expect(answer.parentElement!.textContent).toContain('Answered by'));
+    expect(within(answer.parentElement!).getAllByRole('link').length).toBeGreaterThan(5);
   });
 });
 
@@ -521,6 +560,33 @@ describe('settings', () => {
     expect(document.body.textContent).not.toContain('Changes are turned off.');
   });
 
+  it('installs a missing SDK in one press, after showing the exact command, streaming npm into the dialog (#344)', async () => {
+    const ran: string[] = [];
+    const client = {
+      status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null, models: {}, cliPaths: {} }, ran.length > 0),
+      save: async (s: AgentSettings) => STATUS(s),
+      prompt: async () => '',
+      installPlan: NO_INSTALL.installPlan,
+      install: async (adapter: string, command: string, onLine: (l: string) => void) => {
+        ran.push(`${adapter}: ${command}`);
+        onLine('added 105 packages in 8s');
+        return STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null, models: {}, cliPaths: {} }, true).adapters[0]!;
+      },
+    };
+    const { container } = await open('#/settings/agent', { preview: false, agentSettings: { client } });
+    const card = await screen.findByRole('region', { name: 'Adapters on this machine' });
+    await userEvent.click(within(card).getByRole('button', { name: 'Install GitHub Copilot' }));
+    const dialog = await screen.findByRole('dialog', { name: "Install GitHub Copilot's SDK" });
+    expect(within(dialog).getByRole('region', { name: 'The command' }).textContent).toBe('npm install --global --prefix /usr/local --ignore-scripts @x/y@1');
+    expect(ran).toEqual([]);
+    expect(within(dialog).getByRole('button', { name: 'Copy command' })).toBeTruthy();
+    expect(await violations(container)).toEqual([]);
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Install' }));
+    await waitFor(() => expect(within(dialog).getByRole('log', { name: "npm's output" }).textContent).toBe('added 105 packages in 8s'));
+    await waitFor(() => expect(dialog.textContent).toContain('Installed @github/copilot-sdk'));
+    expect(ran).toEqual(['copilot: npm install --global --prefix /usr/local --ignore-scripts @x/y@1']);
+  }, AXE_TIMEOUT);
+
   const STATUS = (settings: AgentSettings, installed = false): AgentStatus => ({
     settings,
     problem: null,
@@ -533,14 +599,15 @@ describe('settings', () => {
         installed,
         cli: installed ? { path: '/usr/local/bin/claude', problem: null, fix: null } : { path: null, problem: "Toil UI found no claude on PATH, so it can't start Claude Code. It never downloads one.", fix: 'Install it.' },
         endpoints: ['anthropic', 'bedrock', 'foundry', 'vertex'],
+        version: installed ? '0.3.289' : null, tested: '0.3.289', model: null, notes: [], install: { adapter: 'claude', kind: 'global', folder: '/usr/local', command: 'npm install --global --prefix /usr/local --ignore-scripts @x/y@1', argv: ['node', 'npm-cli.js'], problem: null, fix: null },
       },
-      { name: 'copilot', label: 'GitHub Copilot', package: '@github/copilot-sdk', installed: false, cli: { path: null, problem: 'Toil UI found no copilot on PATH.', fix: null }, endpoints: [] },
-      { name: 'codex', label: 'Codex', package: '@openai/codex-sdk', installed: false, cli: { path: null, problem: 'Toil UI found no codex on PATH.', fix: null }, endpoints: [] },
+      { name: 'copilot', label: 'GitHub Copilot', package: '@github/copilot-sdk', installed: false, cli: { path: null, problem: 'Toil UI found no copilot on PATH.', fix: null }, endpoints: [], version: null, tested: '0.3.289', model: null, notes: [], install: { adapter: 'copilot', kind: 'global', folder: '/usr/local', command: 'npm install --global --prefix /usr/local --ignore-scripts @x/y@1', argv: ['node', 'npm-cli.js'], problem: null, fix: null } },
+      { name: 'codex', label: 'Codex', package: '@openai/codex-sdk', installed: false, cli: { path: null, problem: 'Toil UI found no codex on PATH.', fix: null }, endpoints: [], version: null, tested: '0.3.289', model: null, notes: [], install: { adapter: 'codex', kind: 'global', folder: '/usr/local', command: 'npm install --global --prefix /usr/local --ignore-scripts @x/y@1', argv: ['node', 'npm-cli.js'], problem: null, fix: null } },
     ],
   });
 
   it('in the local app, says plainly when no SDK is installed and names the three', async () => {
-    const client = { status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null }), save: async (s: AgentSettings) => STATUS(s), prompt: async () => '' };
+    const client = { status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null, models: {}, cliPaths: {} }), save: async (s: AgentSettings) => STATUS(s), prompt: async () => '', ...NO_INSTALL };
     const { container } = await open('#/settings/agent', { preview: false, agentSettings: { client } });
     const agentPanel = panel('Agent');
     await within(agentPanel).findByRole('radiogroup', { name: 'Adapter' });
@@ -553,16 +620,16 @@ describe('settings', () => {
   it('saves the adapter, model, CLI path and Claude endpoint, and says so', async () => {
     const saves: AgentSettings[] = [];
     const changed: AgentStatus[] = [];
-    const client = { status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null }, true), save: async (s: AgentSettings) => (saves.push(s), STATUS(s, true)), prompt: async () => '' };
+    const client = { status: async () => STATUS({ adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null, models: {}, cliPaths: {} }, true), save: async (s: AgentSettings) => (saves.push(s), STATUS(s, true)), prompt: async () => '', ...NO_INSTALL };
     const { container } = await open('#/settings/agent', { preview: false, agentSettings: { client, onChange: (s) => changed.push(s) } });
     const agentPanel = panel('Agent');
     await userEvent.click(await within(agentPanel).findByRole('radio', { name: /^Claude/ }));
-    await userEvent.type(within(agentPanel).getByRole('textbox', { name: /Model/ }), 'sonnet');
+    await userEvent.type(within(agentPanel).getByRole('textbox', { name: "Claude's model" }), 'sonnet');
     await userEvent.click(within(agentPanel).getByRole('radio', { name: 'Amazon Bedrock' }));
     expect(await violations(container)).toEqual([]);
     await userEvent.click(within(agentPanel).getByRole('button', { name: 'Save' }));
     await waitFor(() => expect(within(agentPanel).getByRole('status').textContent).toBe('Saved: Claude answers from the next question.'));
-    expect(saves).toEqual([{ adapter: 'claude', model: 'sonnet', cliPath: null, endpoint: 'bedrock', instructions: null, voice: null }]);
+    expect(saves).toEqual([{ adapter: 'claude', model: 'sonnet', cliPath: null, endpoint: 'bedrock', instructions: null, voice: null, models: { claude: 'sonnet' }, cliPaths: {} }]);
     expect(changed).toHaveLength(1);
   }, AXE_TIMEOUT);
 });
@@ -571,6 +638,7 @@ describe('the agent pane, with a real adapter', () => {
   it('says plainly when no agent is set up', async () => {
     const agent: Agent = { notice: 'No agent is set up in this Toil UI. Claude, GitHub Copilot or Codex.', starters: () => [], ask: () => Promise.reject(new Error('none')) };
     await open('#/dossier/card-payments', { agent, preview: false });
+    await openChat('card-payments');
     expect(screen.getByText(/No agent is set up in this Toil UI/).textContent).toContain('GitHub Copilot');
   });
 
@@ -588,6 +656,7 @@ describe('the agent pane, with a real adapter', () => {
       }),
     };
     const { container } = await open('#/dossier/card-payments', { agent, preview: false });
+    await openChat('card-payments');
     await userEvent.click(await screen.findByRole('button', { name: 'Why is this sprint at risk?' }));
     const checks = await screen.findByLabelText('Checks on this answer');
     expect(checks.textContent).toContain('corp-jira:PAY-999');
@@ -616,10 +685,11 @@ describe('failures', () => {
   it('says the agent failed, in the answer pane, when ask() rejects', async () => {
     const agent: Agent = { starters: scriptedAgent().starters, ask: () => Promise.reject(new Error('model endpoint unreachable')) };
     await open('#/dossier/checkout-web', { agent });
+    await openChat('checkout-web');
     await userEvent.click(await screen.findByRole('button', { name: "What's at risk in this dossier?" }));
     const alert = await screen.findByRole('alert');
     expect(alert.textContent).toBe("The agent couldn't answer: model endpoint unreachable");
-    expect(screen.getByRole('button', { name: "What's at risk in this dossier?" }).hasAttribute('disabled')).toBe(false);
+    expect(screen.getByRole('button', { name: 'Suggestions' }).hasAttribute('disabled')).toBe(false);
   });
 });
 
@@ -672,12 +742,18 @@ describe('themes', () => {
     expect(document.documentElement.dataset.theme).toBe('crate');
     // Crate is dark only, so there's no appearance to choose; its crate stars in the empty state.
     expect(screen.queryByRole('button', { name: /Appearance/ })).toBeNull();
+    await openChat('card-payments');
     expect(document.querySelector('.ask img')?.getAttribute('alt')).toBe('');
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     await userEvent.click(screen.getByRole('button', { name: /Theme/ }));
     await userEvent.click(await screen.findByRole('option', { name: 'Plain' }));
     expect(document.documentElement.dataset.theme).toBe('plain');
     expect(screen.getByRole('button', { name: /Appearance/ })).toBeTruthy();
+    await openChat('card-payments');
     expect(document.querySelector('.ask img')).toBeNull();
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getAllByRole('button').map((b) => b.textContent).filter((t) => !/Plain|Crate|System/.test(t ?? ''))).toEqual(before.filter((t) => !/Plain|Crate|System/.test(t ?? '')));
     expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toEqual({ theme: 'plain', scheme: 'system', wording: true, voice: true });
   });
@@ -744,11 +820,13 @@ describe('how deep the theme goes (#283)', () => {
   it('answers in the theme\'s voice with the voice on, and in the standard words with it off', async () => {
     setTheme('crate');
     await open('#/dossier/card-payments');
+    await openChat('card-payments');
     await userEvent.click(within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button')[0]!);
     expect(await screen.findByText(/3 of 21 points are on the truck/, {}, { timeout: 4000 })).toBeTruthy();
     cleanupView();
     setTheme('crate', { voice: false });
     await open('#/dossier/card-payments');
+    await openChat('card-payments');
     await userEvent.click(within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button')[0]!);
     expect(await screen.findByText(/3 of 21 points are done and 18 remain/, {}, { timeout: 4000 })).toBeTruthy();
   });
@@ -756,6 +834,7 @@ describe('how deep the theme goes (#283)', () => {
   it('explains the answers from an (i) beside the questions, by keyboard, and closes on Escape', async () => {
     setTheme('harvest');
     const { container } = await open('#/dossier/settlement');
+    await openChat('settlement');
     const info = screen.getByRole('button', { name: 'About these answers' });
     info.focus();
     await userEvent.keyboard('{Enter}');
@@ -767,13 +846,14 @@ describe('how deep the theme goes (#283)', () => {
     expect(within(dialog).getByRole('link', { name: 'Settings, General' }).getAttribute('href')).toBe('#/settings/toil');
     expect(await violations(container)).toEqual([]);
     await userEvent.keyboard('{Escape}');
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'About these answers' })).toBeNull());
     await waitFor(() => expect(document.activeElement).toBe(info));
     cleanupView();
     setTheme('harvest', { voice: false });
     await open('#/dossier/settlement');
+    await openChat('settlement');
     await userEvent.click(screen.getByRole('button', { name: 'About these answers' }));
-    expect((await screen.findByRole('dialog')).textContent).toContain('Themed agent voice is off');
+    expect((await screen.findByRole('dialog', { name: 'About these answers' })).textContent).toContain('Themed agent voice is off');
   }, AXE_TIMEOUT);
 
   it('shows the instructions form in the preview, with counters, saving off, and the full prompt the agent would get', async () => {
@@ -802,12 +882,13 @@ describe('how deep the theme goes (#283)', () => {
   it('saves the instructions and the custom voice in the local app, keeping the adapter as it was saved', async () => {
     const saves: AgentSettings[] = [];
     const prompts: unknown[] = [];
-    const base: AgentSettings = { adapter: 'codex', model: null, cliPath: null, endpoint: null, instructions: null, voice: null };
+    const base: AgentSettings = { adapter: 'codex', model: null, cliPath: null, endpoint: null, instructions: null, voice: null, models: {}, cliPaths: {} };
     const status = (settings: AgentSettings): AgentStatus => ({ settings, problem: null, adapters: [], kind: settings.adapter });
     const client = {
       status: async () => status(base),
       save: async (s: AgentSettings) => (saves.push(s), status(s)),
       prompt: async (dossier: string | undefined, style: unknown) => (prompts.push([dossier, style]), 'the composed prompt'),
+      ...NO_INSTALL,
     };
     setTheme('crate');
     await open('#/settings/agent', { preview: false, agentSettings: { client, dossier: 'card-payments' } });
@@ -821,6 +902,16 @@ describe('how deep the theme goes (#283)', () => {
     expect(prompts).toEqual([['card-payments', { theme: 'crate', voice: true }]]);
   });
 });
+
+/** A settings client's install calls, for a test that never presses Install. */
+const NO_INSTALL = {
+  installPlan: async () => {
+    throw new Error('not in this test');
+  },
+  install: async (): Promise<never> => {
+    throw new Error('not in this test');
+  },
+};
 
 /** Unmounts what open() rendered, so one test can open a view twice. */
 function cleanupView() {

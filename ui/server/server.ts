@@ -44,13 +44,15 @@ import { readFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { extname, isAbsolute, join, normalize, relative, sep } from 'node:path';
-import type { Answer } from '../src/agent.ts';
+import type { Answer, AskExtra, HistoryTurn } from '../src/agent.ts';
 import type { Envelope, ExecutePerson } from '../src/toil.ts';
 import type { AreaInfo, SettingsInfo } from '../src/config.ts';
 import type { Agent } from './agent.ts';
 import { AnswersError, CONFIG_COMMANDS, isConfigRead, personFrom, settingsFrom } from './config.ts';
 import { AgentError } from './agents/cli.ts';
-import type { AgentStatus } from './agents/host.ts';
+import type { AdapterStatus, AgentStatus } from './agents/host.ts';
+import type { InstallPlan, InstallRun } from './agents/install.ts';
+import type { AdapterName } from './agents/runtime.ts';
 import { answerMcp, McpGrants } from './agents/mcp.ts';
 import type { ServeTools } from './agents/runtime.ts';
 import { StyleError, styleFrom, type StyleChoice } from './agents/voices.ts';
@@ -98,6 +100,10 @@ export interface AgentControl {
   save(input: unknown): AgentStatus;
   /** The system prompt a question about the dossier gets now, in the page's style (#283). */
   systemPrompt(dossier: string, style: StyleChoice | null): string;
+  /** The one command Install would run for an adapter, or why it can't here (#344). */
+  installPlan(adapter: AdapterName): InstallPlan;
+  /** Runs that command, as shown, streaming npm's output; then loads the SDK to prove it. */
+  install(adapter: AdapterName, command: string, onLine: (line: string) => void, signal: AbortSignal): Promise<{ run: InstallRun; status: AdapterStatus }>;
 }
 
 export interface UiServer {
@@ -191,6 +197,43 @@ function chatOf(value: unknown): ChatTurn | undefined {
   return { id: c.id, turn: c.turn as number };
 }
 
+/** The longest earlier answer a question carries, before prompts.ts shortens it further. */
+const MAX_HISTORY_TEXT = 20_000;
+const ADAPTER_NAMES: readonly string[] = ['claude', 'copilot', 'codex'];
+
+/**
+ * What a question carries beyond its text (#344): the chat's own adapter, by
+ * name, and the chat so far, each turn a question and the answer's text. Both
+ * are checked, never trusted: an adapter the server doesn't have, or history
+ * that isn't plain turns, is refused.
+ */
+function extraOf(body: Record<string, unknown>): AskExtra {
+  const extra: AskExtra = {};
+  if (body.adapter !== undefined) {
+    if (typeof body.adapter !== 'string' || !ADAPTER_NAMES.includes(body.adapter)) throw new HttpError(400, `There is no adapter ${JSON.stringify(body.adapter)}.`, `Send adapter as one of ${ADAPTER_NAMES.join(', ')}, or leave it out for the one chosen in Settings.`);
+    extra.adapter = body.adapter;
+  }
+  if (body.history !== undefined) {
+    const shape = 'Send history as at most 20 turns, each { "prompt": "<question>", "answer": "<text>", "by": "<who>" }, or leave it out.';
+    if (!Array.isArray(body.history) || body.history.length > 20) throw new HttpError(400, 'history is the chat so far, as a list of turns.', shape);
+    const turns: HistoryTurn[] = [];
+    for (const t of body.history as unknown[]) {
+      const o = t as Record<string, unknown> | null;
+      if (!o || typeof o !== 'object' || typeof o.prompt !== 'string' || typeof o.answer !== 'string' || (o.by !== undefined && typeof o.by !== 'string')) throw new HttpError(400, 'Each turn of history needs a prompt and an answer, as text.', shape);
+      if (o.prompt.length > MAX_PROMPT || o.answer.length > MAX_HISTORY_TEXT || (typeof o.by === 'string' && o.by.length > 200)) throw new HttpError(413, 'A turn of history is too long.', `Keep each question to ${MAX_PROMPT} characters and each answer to ${MAX_HISTORY_TEXT}.`);
+      turns.push({ prompt: o.prompt, answer: o.answer, ...(typeof o.by === 'string' ? { by: o.by } : {}) });
+    }
+    extra.history = turns;
+  }
+  return extra;
+}
+
+/** The adapter an install names: one of the three, never a package name. */
+function installAdapter(value: unknown): AdapterName {
+  if (typeof value !== 'string' || !ADAPTER_NAMES.includes(value)) throw new HttpError(400, `There is no adapter ${JSON.stringify(value)} to install.`, `Name one of ${ADAPTER_NAMES.join(', ')}: Install takes an adapter, and Toil UI decides the package and its version.`);
+  return value as AdapterName;
+}
+
 /** The answer's style the page sent (#283): a built-in theme and the voice switch, or neither. */
 function checkedStyle(body: Record<string, unknown>): StyleChoice | null {
   try {
@@ -280,6 +323,24 @@ export function createUiServer(options: UiServerOptions): UiServer {
         res.write(`${JSON.stringify({ answer })}\n`);
       }
       res.end(`${JSON.stringify({ done: true })}\n`);
+    } catch (e) {
+      if (!res.destroyed) res.end(`${JSON.stringify({ error: agentFailure(e) })}\n`);
+    }
+  };
+
+  /**
+   * Install (#344), as NDJSON like an answer: `{ "line" }` for each line npm
+   * prints, then `{ "done": true, "status" }` with the adapter's new status,
+   * or `{ "error" }` with npm's own words and the fix.
+   */
+  const streamInstall = async (res: ServerResponse, c: AgentControl, adapter: AdapterName, command: string, signal: AbortSignal) => {
+    res.writeHead(200, { ...SECURITY_HEADERS, 'Content-Type': 'application/x-ndjson; charset=utf-8' });
+    const write = (line: string) => {
+      if (!res.destroyed) res.write(`${JSON.stringify({ line })}\n`);
+    };
+    try {
+      const { status } = await c.install(adapter, command, write, signal);
+      if (!res.destroyed) res.end(`${JSON.stringify({ done: true, status })}\n`);
     } catch (e) {
       if (!res.destroyed) res.end(`${JSON.stringify({ error: agentFailure(e) })}\n`);
     }
@@ -461,9 +522,10 @@ export function createUiServer(options: UiServerOptions): UiServer {
         if (body.prompt.length > MAX_PROMPT) throw new HttpError(413, `A question is at most ${MAX_PROMPT} characters.`, 'Ask a shorter question.');
         const style = checkedStyle(body);
         const chat = chatOf(body.chat);
-        if (body.stream === true && agent.stream) return streamAnswer(res, agent.stream(ctx, body.dossier, body.prompt, style, chat));
+        const extra = extraOf(body);
+        if (body.stream === true && agent.stream) return streamAnswer(res, agent.stream(ctx, body.dossier, body.prompt, style, chat, extra));
         try {
-          json(res, 200, await agent.ask(ctx, body.dossier, body.prompt, style, chat));
+          json(res, 200, await agent.ask(ctx, body.dossier, body.prompt, style, chat, extra));
         } catch (e) {
           json(res, 502, { error: agentFailure(e) });
         }
@@ -482,6 +544,19 @@ export function createUiServer(options: UiServerOptions): UiServer {
       case 'GET agent/settings':
         json(res, 200, control().status());
         return;
+      case 'GET agent/adapters':
+        // The chat's switcher (#344): every adapter with its model and whether it can answer, or none for an agent with no choice.
+        json(res, 200, agent.adapterOptions?.() ?? { chosen: null, options: [] });
+        return;
+      case 'GET agent/install':
+        json(res, 200, control().installPlan(installAdapter(url.searchParams.get('adapter'))));
+        return;
+      case 'POST agent/install': {
+        const body = await readJson(req);
+        const adapter = installAdapter(body.adapter);
+        if (typeof body.command !== 'string') throw new HttpError(400, 'Send the command the dialog showed, so only that command runs.', 'Send { "adapter": "<name>", "command": "<the command as shown>" }.');
+        return streamInstall(res, control(), adapter, body.command, ctx.signal);
+      }
       case 'POST agent/settings': {
         const body = await readJson(req);
         try {
@@ -566,7 +641,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return worklogCall(res, () => worklog().exportTo(named(body.dossier, 'dossier', shape), what, named(body.folder, 'folder', shape)));
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/rebuild, worklog/note, worklog/export, agent/starters, agent/ask, agent/prompt, agent/settings, agent/mcp and assignments.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/rebuild, worklog/note, worklog/export, agent/starters, agent/ask, agent/prompt, agent/settings, agent/adapters, agent/install, agent/mcp and assignments.`);
     }
   };
 

@@ -130,6 +130,8 @@ async function main(): Promise<number> {
         serveTools: (tools) => serveTools(tools),
         fallback: noAgent(),
         ledger,
+        // Toil UI's own package folder (dist/server/ is two below it), which decides where Install puts an SDK (#344).
+        uiDir: fileURLToPath(new URL('../../', import.meta.url)),
       })
     : undefined;
   // Assigning items to an agent (#293): the queue on the cache and the agent host, or the sample's, scripted.

@@ -24,7 +24,7 @@
 import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Answer, Starter } from '../../src/agent.ts';
+import type { AdapterList, AdapterOption, Answer, AnswerActivity, AskExtra, Starter } from '../../src/agent.ts';
 import { runFromAnswer, type AgentRun } from '../../src/model/worklog.ts';
 import { capStandings, capStop, capWarning, codexCost, UsageSettingsError, WARN_AT, type AnswerUsage, type CapStanding, type ChatTurn, type UsageRecord } from '../../src/model-usage.ts';
 import type { Execute } from '../../src/toil.ts';
@@ -35,11 +35,12 @@ import { claudeRuntime } from './claude.ts';
 import { AgentError } from './cli.ts';
 import { codexRuntime } from './codex.ts';
 import { copilotRuntime } from './copilot.ts';
-import { promptFor, STARTERS, systemPrompt } from './prompts.ts';
+import { promptFor, STARTERS, systemPrompt, withHistory } from './prompts.ts';
+import { installedVersion, installPlan, runInstall, testedVersion, type InstallPlan, type InstallRun } from './install.ts';
 import { agentEnv } from './env.ts';
 import { cliFor, Latest, loadSdk, nodeImporter, type Activity, type AdapterName, type Importer, type Runtime, type ServeTools, type UsageReport, type Workspace } from './runtime.ts';
 import { loadUsageSettings, memoryLedger, type UsageLedger } from '../usage.ts';
-import { checkAgentSettings, loadAgentSettings, saveAgentSettings, DEFAULT_AGENT_SETTINGS, ENDPOINTS, type AgentSettings } from './settings.ts';
+import { checkAgentSettings, cliPathOf, loadAgentSettings, modelOf, saveAgentSettings, DEFAULT_AGENT_SETTINGS, ENDPOINTS, type AgentSettings } from './settings.ts';
 import { promptStyle, type StyleChoice } from './voices.ts';
 import { cacheTools, dossierReader, Ledger, liveTools, peopleTools, proposalTool, prTools, readinessTools, recorded, worklogTool, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
 
@@ -95,6 +96,15 @@ export interface AgentHostOptions {
   onRun?: (run: AgentRun) => Promise<void> | void;
   /** Where usage records go (#295): the cache's ledger, or one in memory. */
   ledger?: UsageLedger;
+  /** Toil UI's own package folder, the one holding dist/server/toil-ui.js: where Install puts an SDK (install.ts, #344). */
+  uiDir?: string;
+  /** Runs an install's plan; the real one spawns npm, the tests pass their own. */
+  installer?: typeof runInstall;
+  /** Resolves a package from here, for its version: import.meta.resolve, or a stub. */
+  resolve?: (specifier: string) => string;
+  readText?: (path: string) => string | null;
+  /** The Node running Toil UI, which runs npm's CLI for Install. */
+  execPath?: string;
 }
 
 /** What the Settings page shows about one adapter on this machine. */
@@ -104,10 +114,20 @@ export interface AdapterStatus {
   package: string;
   /** The SDK resolves beside Toil UI. */
   installed: boolean;
+  /** Its version, as it resolves, or null when it isn't installed (#344). */
+  version: string | null;
+  /** The version Toil UI was tested with, which Install installs. */
+  tested: string;
   /** The CLI this adapter would start, or why there is none. */
   cli: { path: string | null; problem: string | null; fix: string | null };
   /** Claude only: the endpoints it can be pointed at. */
   endpoints: readonly string[];
+  /** The model it runs with (#344), or null for its CLI's default. */
+  model: string | null;
+  /** The command Install would run, or why it can't here (install.ts). */
+  install: InstallPlan;
+  /** Things found that aren't failures, each in words with what it means. */
+  notes: string[];
 }
 
 export interface AgentStatus {
@@ -130,6 +150,9 @@ const defaultInstalled = (specifier: string) => {
     return false;
   }
 };
+
+/** Where a tool reads, for the status line (#343): a live read names its toil command. */
+const sourceOf = (t: ToolSpec): NonNullable<AnswerActivity['source']> => (t.command ? 'live' : t.name === 'proposal_fields' ? 'registry' : 'cache');
 
 export class AgentHost implements Agent {
   private settings: AgentSettings;
@@ -156,22 +179,28 @@ export class AgentHost implements Agent {
     }
   }
 
-  private runtime(): Runtime | null {
-    return this.runtimes.find((r) => r.name === this.settings.adapter) ?? null;
+  private runtime(name: string = this.settings.adapter): Runtime | null {
+    return this.runtimes.find((r) => r.name === name) ?? null;
+  }
+
+  /** "Codex", or "Claude (haiku)": who answers, with the model Settings gave it. */
+  private byOf(runtime: Runtime): string {
+    const model = modelOf(this.settings, runtime.name);
+    return model ? `${runtime.label} (${model})` : runtime.label;
   }
 
   get kind(): string {
     return this.runtime()?.name ?? this.o.fallback.kind;
   }
 
-  async starters(ctx: RequestContext, dossier: string): Promise<Starter[]> {
-    if (!this.runtime()) return this.o.fallback.starters(ctx, dossier);
+  /** The same starters whichever adapter answers, and with none chosen, since a chat can switch to one (#344). */
+  async starters(_ctx: RequestContext, _dossier: string): Promise<Starter[]> {
     return STARTERS.map(({ id, label }) => ({ id, label }));
   }
 
-  async ask(ctx: RequestContext, dossier: string, prompt: string, style: StyleChoice | null = null, chat?: ChatTurn): Promise<Answer> {
+  async ask(ctx: RequestContext, dossier: string, prompt: string, style: StyleChoice | null = null, chat?: ChatTurn, extra: AskExtra = {}): Promise<Answer> {
     let last: Answer | undefined;
-    for await (const a of this.stream(ctx, dossier, prompt, style, chat)) last = a;
+    for await (const a of this.stream(ctx, dossier, prompt, style, chat, extra)) last = a;
     if (!last) throw new AgentError('The agent ended without an answer.', 'Ask again.');
     return last;
   }
@@ -211,8 +240,10 @@ export class AgentHost implements Agent {
     return capStandings(settings, adapter, [...this.ledger.chat(chatId), ...run], [...this.ledger.since(day), ...run]);
   }
 
-  async *stream(ctx: RequestContext, dossier: string, prompt: string, style: StyleChoice | null = null, chat?: ChatTurn): AsyncIterable<Answer> {
-    const runtime = this.runtime();
+  async *stream(ctx: RequestContext, dossier: string, prompt: string, style: StyleChoice | null = null, chat?: ChatTurn, extra: AskExtra = {}): AsyncIterable<Answer> {
+    // The chat's own adapter (#344) wins over Settings' for this question only.
+    const runtime = extra.adapter ? this.runtime(extra.adapter) : this.runtime();
+    if (extra.adapter && !runtime) throw new AgentError(`Toil UI has no ${extra.adapter} adapter.`, 'Choose claude, copilot or codex.');
     if (!runtime) {
       yield await this.o.fallback.ask(ctx, dossier, prompt, style);
       return;
@@ -225,7 +256,7 @@ export class AgentHost implements Agent {
     const asked = promptFor(dossier, prompt).label;
     let record: AgentRun = {
       id: randomUUID(), kind: 'ask', dossier, startedAt: now(), finishedAt: null, outcome: 'running',
-      by: this.settings.model ? `${runtime.label} (${this.settings.model})` : runtime.label, prompt: asked, answer: null, error: null, citations: [], unverified: [], proposals: [],
+      by: this.byOf(runtime), prompt: asked, answer: null, error: null, citations: [], unverified: [], proposals: [],
     };
     const report = async () => {
       try {
@@ -240,9 +271,23 @@ export class AgentHost implements Agent {
       const data = this.o.data(dossier);
       if (!data) throw new AgentError(`Toil UI hasn't synced ${dossier} yet, so the agent has nothing to read.`, 'Press Sync now in the Sync panel, then ask again.');
       const ledger = new Ledger();
-      const { label, text } = promptFor(dossier, prompt);
-      const by = this.settings.model ? `${runtime.label} (${this.settings.model})` : runtime.label;
+      const { label, text: question } = promptFor(dossier, prompt);
+      // The chat so far goes before the question, so a follow-up or a switched adapter continues from it (#344).
+      const { text, carried } = withHistory(question, extra.history);
+      const by = this.byOf(runtime);
+      const who = { adapter: runtime.name, model: modelOf(this.settings, runtime.name), ...(carried ? { carried } : {}) };
       const out = new Latest<Answer>();
+      // The status line (#343): every partial answer says what the agent is doing, whichever adapter it is.
+      let sofar = '';
+      const doing = (activity: AnswerActivity) => out.push({ ...partial(sofar, { prompt: label, by }), ...who, activity });
+      doing({ phase: 'thinking' });
+      const watched = this.tools(dossier, data, ledger).map((t): ToolSpec => ({
+        ...t,
+        run: (input, signal) => {
+          doing({ phase: 'tool', tool: t.command ?? t.name, source: sourceOf(t) });
+          return t.run(input, signal);
+        },
+      }));
       run = this.once({
         runtime,
         dossier,
@@ -251,13 +296,16 @@ export class AgentHost implements Agent {
         // The rules, then the theme's voice or the person's own, then their instructions (prompts.ts): the same for all three adapters.
         system: this.systemPrompt(dossier, style),
         prompt: text,
-        tools: this.tools(dossier, data, ledger),
+        tools: watched,
         workspace: null,
         signal: ctx.signal,
-        onText: (t) => out.push(partial(t, { prompt: label, by })),
+        onText: (t) => {
+          sofar = t;
+          doing({ phase: 'writing' });
+        },
       }).then(
         ({ text: final, usage }) => {
-          out.push({ ...finish(final, { dossier, prompt: label, by, ledger, writes: this.writes }), usage });
+          out.push({ ...finish(final, { dossier, prompt: label, by, ledger, writes: this.writes }), ...who, usage });
           out.end();
         },
         (e: unknown) => out.end(e),
@@ -295,20 +343,84 @@ export class AgentHost implements Agent {
     const runtime = this.runtimes.find((r) => r.name === t.adapter);
     if (!runtime) throw new AgentError(`Toil UI has no ${t.adapter} adapter.`, 'Choose claude, copilot or codex.');
     if (t.workspace && !runtime.workspace) throw new AgentError(`${runtime.label} can't work in a folder through Toil UI: only Codex's own sandbox bounds its commands to one folder here.`, 'Choose Codex for implement mode.');
-    const model = this.settings.adapter === runtime.name ? this.settings.model : null;
+    const model = modelOf(this.settings, runtime.name);
     const { text, usage } = await this.once({ ...t, runtime, turn: { id: t.chat, turn: 1 } });
     return { text, usage, model };
   }
 
   /** The adapters, for the Assign dialog: whether each can run here, and whether it can work in a folder (implement mode). */
   adapterChoices(): Array<{ name: AdapterName; label: string; problem: string | null; workspace: boolean }> {
-    const installed = this.o.installed ?? defaultInstalled;
-    return this.status().adapters.map((a) => ({
-      name: a.name,
+    return this.adapterOptions().options.map((a) => ({
+      name: a.name as AdapterName,
       label: a.label,
-      problem: !installed(a.package) ? `The ${a.label} adapter needs ${a.package}, which isn't installed beside Toil UI.` : a.cli.problem,
+      problem: a.problem,
       workspace: this.runtimes.find((r) => r.name === a.name)?.workspace === true,
     }));
+  }
+
+  /**
+   * The adapters a chat can switch between (#344): each with its model, and
+   * ready or not with the reason and what to do: Install when its SDK is
+   * missing, Fix for anything else (its CLI not found, a shim, a broken path).
+   */
+  adapterOptions(): AdapterList {
+    const options = this.status().adapters.map((a): AdapterOption => {
+      if (!a.installed) {
+        return { name: a.name, label: a.label, model: a.model, ready: false, problem: `The ${a.label} adapter needs ${a.package}, which isn't installed beside Toil UI.`, fix: a.install.argv ? `Press Install under Settings, Agent: it runs ${a.install.command}` : (a.install.fix ?? null), action: 'install' };
+      }
+      if (a.cli.problem) return { name: a.name, label: a.label, model: a.model, ready: false, problem: a.cli.problem, fix: a.cli.fix, action: 'fix' };
+      return { name: a.name, label: a.label, model: a.model, ready: true, problem: null, fix: null, action: null };
+    });
+    return { chosen: this.chosen, options };
+  }
+
+  /** The command Install would run for an adapter, or why it can't here. */
+  installPlan(adapter: AdapterName): InstallPlan {
+    return installPlan(adapter, {
+      uiDir: this.o.uiDir ?? '',
+      platform: this.o.platform ?? process.platform,
+      execPath: this.o.execPath ?? process.execPath,
+      env: this.o.env ?? process.env,
+      now: this.clock(),
+      ...(this.o.isFile ? { exists: this.o.isFile } : {}),
+      ...(this.o.readText ? { readText: this.o.readText } : {}),
+    });
+  }
+
+  private installing = false;
+
+  /**
+   * Install (#344): runs the plan the person was shown, and only that one.
+   * `command` is what their dialog showed; if the plan has changed since (a
+   * new day moves --before, another SDK arrived), nothing runs and they are
+   * shown the new one. Then the SDK is loaded, as an answer would load it,
+   * to prove it installed. One install at a time.
+   */
+  async install(adapter: AdapterName, command: string, onLine: (line: string) => void, signal: AbortSignal): Promise<{ run: InstallRun; status: AdapterStatus }> {
+    const runtime = this.runtime(adapter);
+    if (!runtime) throw new AgentError(`Toil UI has no ${adapter} adapter.`, 'Choose claude, copilot or codex.');
+    const plan = this.installPlan(adapter);
+    if (!plan.argv) throw new AgentError(plan.problem ?? "Install can't run here.", plan.fix ?? 'Copy the command and run it yourself.');
+    if (plan.command !== command) throw new AgentError("The install command has changed since it was shown, so it didn't run.", `Read the new command, then press Install again: ${plan.command}`);
+    if (this.installing) throw new AgentError('An install is already running.', 'Wait for it to finish, then press Install again.');
+    this.installing = true;
+    try {
+      const run = await (this.o.installer ?? runInstall)(plan, { env: this.o.env ?? process.env, onLine, signal });
+      if (run.code === null) throw new AgentError('The install was stopped before npm finished, so the SDK may be half installed.', `Press Install again to finish it, or run ${plan.command} yourself.`);
+      if (run.code !== 0) {
+        const said = run.output.filter((l) => /npm (error|ERR!)/i.test(l)).slice(-6).join('\n') || run.output.slice(-6).join('\n');
+        throw new AgentError(`npm stopped with exit code ${run.code}: ${said || 'it printed nothing'}`, 'Fix what npm says above (a registry, a proxy, a permission), then press Install again; or copy the command and run it yourself.');
+      }
+      try {
+        await loadSdk(runtime, this.o.importer ?? nodeImporter);
+      } catch (e) {
+        throw new AgentError(`npm finished, but ${runtime.package} still doesn't load from Toil UI: ${e instanceof Error ? e.message : String(e)}`, `Check that npm installed it into ${plan.folder}, the folder Toil UI resolves packages from, then restart Toil UI.`);
+      }
+      const status = this.status().adapters.find((a) => a.name === adapter)!;
+      return { run, status };
+    } finally {
+      this.installing = false;
+    }
   }
 
   /** The adapter chosen in Settings, or null. */
@@ -326,9 +438,8 @@ export class AgentHost implements Agent {
     const importer = this.o.importer ?? nodeImporter;
     const env = this.o.env ?? process.env;
     const sdk = await loadSdk(runtime, importer);
-    // The model and CLI path in Settings belong to the adapter chosen there; another adapter runs its CLI's defaults.
-    const own = this.settings.adapter === runtime.name;
-    const cli = cliFor(runtime, own ? this.settings.cliPath : null, env, this.o.platform ?? process.platform, this.o.isFile, this.o.cwd);
+    // Each adapter runs with its own model and CLI path from Settings (#344), or its CLI's defaults.
+    const cli = cliFor(runtime, cliPathOf(this.settings, runtime.name), env, this.o.platform ?? process.platform, this.o.isFile, this.o.cwd, this.o.readText);
 
     const reached = this.standings(runtime.name, turn.id, []).find((c) => c.share >= 1);
     if (reached) {
@@ -380,7 +491,7 @@ export class AgentHost implements Agent {
         system: s.system,
         prompt: s.prompt,
         tools: s.tools,
-        model: own ? this.settings.model : null,
+        model: modelOf(this.settings, runtime.name),
         cli,
         workDir,
         workspace: s.workspace,
@@ -430,14 +541,25 @@ export class AgentHost implements Agent {
   status(): AgentStatus {
     const installed = this.o.installed ?? defaultInstalled;
     const env = this.o.env ?? process.env;
+    const resolve = this.o.resolve ?? ((s: string) => import.meta.resolve(s));
     const adapters = this.runtimes.map((r): AdapterStatus => {
       let cli: AdapterStatus['cli'];
+      const notes: string[] = [];
       try {
-        cli = { path: cliFor(r, r.name === this.settings.adapter ? this.settings.cliPath : null, env, this.o.platform ?? process.platform, this.o.isFile, this.o.cwd), problem: null, fix: null };
+        const path = cliFor(r, cliPathOf(this.settings, r.name), env, this.o.platform ?? process.platform, this.o.isFile, this.o.cwd, this.o.readText);
+        cli = { path, problem: null, fix: null };
+        // npm's copilot.cmd can't be started without a shell; the script it runs can, by Node, which is what Copilot's SDK does with a .js path.
+        if (r.scripts && path.endsWith('.js')) notes.push(`${r.command}.cmd on PATH is an npm shim the SDK can't start, so Toil UI starts the script it runs, ${path}, with Node.`);
       } catch (e) {
         cli = { path: null, problem: e instanceof Error ? e.message : String(e), fix: e instanceof AgentError ? e.fix : null };
       }
-      return { name: r.name, label: r.label, package: r.package, installed: installed(r.package), cli, endpoints: r.name === 'claude' ? ENDPOINTS : [] };
+      const has = installed(r.package);
+      const version = has ? installedVersion(r.package, resolve, this.o.readText) : null;
+      const tested = testedVersion(r.name);
+      // A skipped optional dependency is each SDK's own copy of its CLI, which Toil UI never starts: worth saying, never a failure.
+      if (has && r.name === 'claude' && !installed(`${r.package}-${this.o.platform ?? process.platform}-${process.arch}`)) notes.push(`${r.package}'s bundled Claude Code isn't installed (an optional dependency npm skipped). Toil UI doesn't need it: it starts the claude it finds.`);
+      if (has && version && version !== tested) notes.push(`${r.package} ${version} is installed; Toil UI was tested with ${tested}.`);
+      return { name: r.name, label: r.label, package: r.package, installed: has, version, tested, cli, endpoints: r.name === 'claude' ? ENDPOINTS : [], model: modelOf(this.settings, r.name), install: this.installPlan(r.name), notes };
     });
     return { settings: { ...this.settings }, problem: this.problem, adapters, kind: this.kind };
   }

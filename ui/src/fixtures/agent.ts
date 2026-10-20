@@ -8,8 +8,8 @@
  * say.
  */
 
-import type { Agent, Answer, AnswerPart, AskStyle, Starter } from '../agent.ts';
-import { SCRIPTED_LABEL, citationsOf } from '../agent.ts';
+import type { AdapterList, Agent, Answer, AnswerPart, AskStyle, Starter } from '../agent.ts';
+import { ANALYZE, SCRIPTED_LABEL, citationsOf } from '../agent.ts';
 import type { ChatTurn } from '../model-usage.ts';
 import type { Proposal } from '../proposal.ts';
 import { sampleAnswerUsage } from './model-usage.ts';
@@ -272,6 +272,26 @@ export const VOICED: Record<string, Record<string, string[]>> = {
   },
 };
 
+/**
+ * What the sample's switcher lists (#344): the scripted agent, ready, and the
+ * three adapters, each unavailable because the sample never runs a model.
+ */
+export const SAMPLE_ADAPTERS: AdapterList = {
+  chosen: 'scripted',
+  options: [
+    { name: 'scripted', label: SCRIPTED_LABEL, model: null, ready: true, problem: null, fix: null, action: null },
+    ...(['Claude', 'GitHub Copilot', 'Codex'] as const).map((label) => ({
+      name: label === 'Claude' ? 'claude' : label === 'Codex' ? 'codex' : 'copilot',
+      label,
+      model: null,
+      ready: false,
+      problem: `The sample answers with ${SCRIPTED_LABEL}, so ${label} isn't offered here.`,
+      fix: 'Start toil-ui without --sample to switch between the agents installed on this machine.',
+      action: null,
+    })),
+  ],
+};
+
 const UNSCRIPTED = 'This preview answers only its starter questions. The released app sends your question to the agent your organization approved.';
 
 export interface ScriptedOptions {
@@ -289,19 +309,27 @@ const wait = (ms: number, signal?: AbortSignal) =>
 /** Splits text into words, never inside a `[[citation]]`, so a half-streamed answer never shows a broken link. */
 const words = (text: string) => text.match(/\[\[[^\]]+\]\]\S*\s*|\S+\s*/g) ?? [];
 
+/** Analyze in the preview (#343): the scripted answers it covers, in its order, so every line is one the tests already hold to the data. */
+export const ANALYZE_PARTS = ['risk', 'attention', 'people', 'review'] as const;
+
 export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
   const answer = (dossier: string, prompt: string, style?: AskStyle, chat?: ChatTurn): Answer => {
     const script = SCRIPTS[dossier] ?? {};
+    if (prompt === ANALYZE && SCRIPTS[dossier]) {
+      const parts: AnswerPart[] = ANALYZE_PARTS.flatMap((id) => script[id]?.parts ?? []).map((text) => ({ text }));
+      return { prompt: 'Analyze', parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals: script.risk?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, dossier) } : {}) };
+    }
     const id = script[prompt] ? prompt : Object.entries(script).find(([, s]) => s.label === prompt)?.[0];
     const entry = id ? script[id] : undefined;
     // The voiced risk answer when the voice is on and the theme has one; Plain, and the voice off, read the standard.
     const voiced = id === 'risk' && style?.voice ? VOICED[dossier]?.[style.theme] : undefined;
     const parts: AnswerPart[] = (voiced ?? entry?.parts ?? [UNSCRIPTED]).map((text) => ({ text }));
     // In a chat, the answer carries sample usage figures (#295), marked as made up, so the footer has something to show.
-    return { prompt: entry?.label ?? prompt, parts, citations: citationsOf(parts), by: 'scripted', proposals: entry?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, dossier) } : {}) };
+    return { prompt: entry?.label ?? prompt, parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals: entry?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, dossier) } : {}) };
   };
   return {
     label: SCRIPTED_LABEL,
+    adapters: async () => SAMPLE_ADAPTERS,
     starters: (dossier: string): Starter[] => Object.entries(SCRIPTS[dossier] ?? {}).map(([id, s]) => ({ id, label: s.label })),
     ask: async (dossier, prompt, style, chat) => answer(dossier, prompt, style, chat),
     async *stream(dossier, prompt, signal, style, chat) {
@@ -314,7 +342,8 @@ export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
           if (signal?.aborted) return;
           text += w;
           parts[parts.length - 1] = { text };
-          yield { ...whole, parts: [...parts], citations: citationsOf(parts), proposals: [] };
+          // The status line says Writing, and only that: the script reads no tools, so it never claims to.
+          yield { ...whole, parts: [...parts], citations: citationsOf(parts), proposals: [], activity: { phase: 'writing' } };
           await wait(delay, signal);
         }
       }

@@ -72,6 +72,7 @@
 /* Wooden nine-slice panels: plank borders with nails, from wood-panel.svg. */
 [data-theme="harvest"] .l-card,
 [data-theme="harvest"] .ask,
+[data-theme="harvest"] .ask-bar,
 [data-theme="harvest"] .stat {
   border: 8px solid #8a5226;
   border-image: url("./assets/wood-panel.svg") 8 / 8px round;

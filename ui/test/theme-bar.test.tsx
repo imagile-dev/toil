@@ -1,4 +1,5 @@
 import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { openChat } from './chat.ts';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -142,6 +143,7 @@ describe('the skins', { timeout: SLOW }, () => {
     ['realm', 'light', 'Steward (Agent)'],
   ])('answer in %s (%s) as %s', async (theme, scheme, name) => {
     await open('#/dossier/settlement', theme, scheme);
+    await openChat('settlement');
     const starters = screen.getByRole('group', { name: 'Starter questions' });
     await userEvent.click(within(starters).getAllByRole('button')[0]!);
     expect(await screen.findByText(name, {}, { timeout: 4000 })).toBeTruthy();

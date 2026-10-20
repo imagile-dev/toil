@@ -140,11 +140,43 @@
 .graph .react-flow__attribution { background: var(--surface); padding: 2px 6px; }
 .graph .react-flow__attribution a { color: var(--link); display: inline-block; min-height: 24px; min-width: 24px; padding: 4px 2px; }
 
-/* The chat: docked beside the dashboard, or a sheet on a narrow screen. */
-.ask { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: var(--radius); padding: 1rem; display: grid; gap: 0.75rem; align-content: start; position: sticky; top: 0.75rem; max-height: calc(100svh - 1.5rem); overflow: auto; }
-.ask-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-.ask-body { display: grid; gap: 0.75rem; }
-.ask-body[hidden] { display: none; }
+/* The chat (#343): the Ask bar under the header on every dossier page, and the
+   focused view it opens, which takes the screen while the page steps back. */
+.ask-bar { background: var(--surface); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: var(--radius); padding: 0.6rem 0.75rem; margin-bottom: 1.25rem; display: grid; gap: 0.4rem; }
+.ask-bar__form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.ask-bar__field { flex: 1 1 14rem; min-width: 0; }
+.ask-bar__form .btn { flex: none; }
+.ask-bar__resume { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.ask-overlay { position: fixed; inset: 0; z-index: 30; display: grid; place-items: stretch center; padding: 1rem 16px; background: rgb(0 0 0 / 0.6); }
+.ask-modal { width: 100%; max-width: 64rem; min-width: 0; height: calc(100svh - 2rem); display: grid; }
+.ask { background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-top: 4px solid var(--accent); border-radius: var(--radius); padding: 1rem; outline: none; box-shadow: 0 12px 32px rgb(0 0 0 / 0.35); }
+.ask-focus { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0.75rem; min-height: 0; min-width: 0; }
+.ask-strip { display: flex; align-items: flex-start; gap: 0.5rem; border-bottom: 1px solid var(--line); padding-bottom: 0.6rem; min-width: 0; }
+.ask-strip__text { flex: 1 1 auto; min-width: 0; display: grid; gap: 0.25rem; }
+.ask-strip h2 { margin: 0; font-size: 1.25rem; overflow-wrap: anywhere; }
+.ask-strip__context { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 1rem; overflow-wrap: anywhere; }
+.ask-strip > .btn { flex: none; }
+.ask-scroll { overflow-y: auto; min-height: 0; display: grid; gap: 0.75rem; align-content: start; padding-right: 0.25rem; outline: none; }
+.ask-scroll:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.ask-foot { display: grid; gap: 0.6rem; border-top: 1px solid var(--line); padding-top: 0.6rem; min-width: 0; }
+.ask-status { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; min-width: 0; }
+.ask-status__line { margin: 0; flex: 1 1 12rem; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.ask-status__line code { font-weight: 400; overflow-wrap: anywhere; }
+.ask-status__time { font-weight: 400; color: var(--muted); }
+.ask-suggest { justify-self: start; }
+.ask-switch { text-align: center; border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); padding: 0.4rem 0; margin: 0; }
+.agent-switch { min-height: 36px; }
+.agent-switch__popover { max-width: min(26rem, calc(100vw - 2rem)); }
+.agent-switch__dialog { padding: 0.9rem 1rem; display: grid; gap: 0.6rem; outline: none; font-size: 0.9375rem; }
+.agent-switch__dialog p { margin: 0; overflow-wrap: anywhere; }
+.agent-picks { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.agent-pick { display: grid; gap: 0.25rem; }
+.agent-pick__button { font: inherit; display: grid; gap: 0.1rem; text-align: left; width: 100%; min-height: 44px; padding: 0.45rem 0.7rem; border: 1px solid var(--line); border-radius: var(--radius); background: transparent; color: var(--ink); cursor: pointer; }
+.agent-pick__button[aria-current="true"] { border-color: var(--accent); box-shadow: inset 4px 0 0 var(--accent); }
+.agent-pick__button[data-disabled] { cursor: not-allowed; }
+.agent-pick__button[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+.agent-pick__ready { color: var(--ink); font-weight: 600; }
+.agent-pick__why { padding-left: 0.7rem; }
 .log { display: grid; gap: 0.75rem; }
 .turn { display: grid; gap: 0.5rem; }
 .bubble { padding: 0.6rem 0.75rem; border-radius: var(--radius); border: 1px solid var(--line); display: grid; gap: 0.5rem; }
@@ -163,6 +195,7 @@
 .starter { font: inherit; font-size: 0.875rem; min-height: 44px; padding: 0.35rem 0.8rem; border-radius: 999px; border: 1px solid var(--accent); background: var(--raised); color: var(--ink); cursor: pointer; text-align: left; }
 .starter[data-hovered] { background: var(--bg); }
 .ask-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; }
+.ask-form .btn { flex: none; }
 .field-text { display: grid; gap: 0.25rem; flex: 1 1 12rem; font-size: 0.875rem; color: var(--muted); }
 .field-text input { font: inherit; font-size: 1rem; min-height: 44px; padding: 0 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); }
 .field-text input[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
@@ -170,16 +203,13 @@
 
 .panel-grid--two { grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); }
 
-/* On a narrow screen the chat is a sheet fixed to the bottom. Closed, it is
-   exactly --dock-h tall, and the main area keeps that much room at its end, so
-   the last of the page always scrolls clear of it. */
-:root { --dock-h: 5.75rem; }
+/* On a narrow screen the focused chat is the whole screen. */
+@media (max-width: 640px) {
+  .ask-overlay { padding: 0; }
+  .ask-modal { height: 100svh; max-width: none; }
+  .ask { border-radius: 0; border-left: 0; border-right: 0; padding: 0.75rem 16px; }
+}
 @media (max-width: 1000px) {
-  main:has(.ask--sheet) { padding-bottom: calc(var(--dock-h) + 1.5rem); }
-  .ask--sheet { position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 20; width: auto; height: var(--dock-h); max-height: none; border-radius: var(--radius) var(--radius) 0 0; border-left: 0; border-right: 0; border-bottom: 0; padding: 0.75rem 16px; box-shadow: 0 -8px 24px rgb(0 0 0 / 0.25); }
-  .ask--sheet .ask-head h2 { min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
-  .ask--sheet .ask-head .btn { flex: none; }
-  .ask--sheet.ask--open { height: auto; max-height: 85svh; }
   .board { grid-template-columns: minmax(0, 1fr) !important; }
 }
 
@@ -190,7 +220,7 @@
   .aging-bar > span { animation: toil-grow 0.7s ease-out; transform-origin: left; }
   .card { transition: box-shadow 0.15s ease; }
   .card:hover:not(.card--dragging) { box-shadow: 0 4px 12px rgb(0 0 0 / 0.14); }
-  .ask--sheet { transition: max-height 0.25s ease; }
+  .ask-overlay[data-entering] { animation: toil-fade 0.18s ease-out; }
 }
 @keyframes toil-draw { to { stroke-dashoffset: 0; } }
 @keyframes toil-fade { from { opacity: 0; } to { opacity: 1; } }

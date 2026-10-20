@@ -32,12 +32,20 @@ export interface AgentSettings {
   instructions: string | null;
   /** A voice of the person's own, used instead of the theme's while the voice is on, or null. */
   voice: string | null;
+  /**
+   * Each adapter's own model and CLI path (#344), for a chat switched to it or
+   * an assignment run on it. `model` and `cliPath` above are the chosen
+   * adapter's, kept in step with its entry here; a file from before has only those.
+   */
+  models: Partial<Record<AdapterName, string>>;
+  cliPaths: Partial<Record<AdapterName, string>>;
 }
 
-export const DEFAULT_AGENT_SETTINGS: AgentSettings = { adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null };
+export const DEFAULT_AGENT_SETTINGS: AgentSettings = { adapter: 'none', model: null, cliPath: null, endpoint: null, instructions: null, voice: null, models: {}, cliPaths: {} };
 export const ADAPTERS: readonly AgentSettings['adapter'][] = ['none', 'claude', 'copilot', 'codex'];
 export const ENDPOINTS: readonly Endpoint[] = ['anthropic', 'bedrock', 'foundry', 'vertex'];
-const FIELDS = new Set(['adapter', 'model', 'cliPath', 'endpoint', 'instructions', 'voice']);
+const FIELDS = new Set(['adapter', 'model', 'cliPath', 'endpoint', 'instructions', 'voice', 'models', 'cliPaths']);
+const NAMES: readonly AdapterName[] = ['claude', 'copilot', 'codex'];
 const MODEL = /^[A-Za-z0-9][A-Za-z0-9._:/@[\]-]{0,127}$/;
 
 export const agentSettingsFile = (dataDir: string, path: Pick<typeof nodePath, 'join'> = nodePath) => path.join(dataDir, 'agent.json');
@@ -55,39 +63,77 @@ export function checkAgentSettings(input: unknown, isAbsolute: (p: string) => bo
   if (extra.length) {
     throw new AgentError(
       `Toil UI's agent settings have no ${extra.map((k) => JSON.stringify(k)).join(', ')}.`,
-      'They hold the adapter, model, CLI path, endpoint, instructions and voice only. Keys and tokens never go here: each SDK signs in the way its own CLI does.',
+      'They hold the adapter, model, CLI path, endpoint, instructions, voice, and each adapter\'s model and CLI path only. Keys and tokens never go here: each SDK signs in the way its own CLI does.',
     );
   }
   const adapter = o.adapter ?? 'none';
   if (!ADAPTERS.includes(adapter as AgentSettings['adapter'])) throw new AgentError(`There is no adapter ${JSON.stringify(adapter)}.`, `Choose one of ${ADAPTERS.join(', ')}.`);
-  const model = blank(o.model) ? null : String(o.model).trim();
+  const model = checkModel(o.model);
+  const cliPath = checkCliPath(o.cliPath, adapter as AgentSettings['adapter'], isAbsolute, platform);
+  const models = perAdapter(o.models, 'models', (v) => checkModel(v));
+  const cliPaths = perAdapter(o.cliPaths, 'cliPaths', (v, name) => checkCliPath(v, name, isAbsolute, platform));
+  // The chosen adapter's model and path are its entries too: what the page sends for it wins.
+  if (adapter !== 'none') {
+    const name = adapter as AdapterName;
+    if (model === null) delete models[name];
+    else models[name] = model;
+    if (cliPath === null) delete cliPaths[name];
+    else cliPaths[name] = cliPath;
+  }
+  const endpoint = blank(o.endpoint) ? null : (o.endpoint as Endpoint);
+  if (endpoint !== null && !ENDPOINTS.includes(endpoint)) throw new AgentError(`There is no endpoint ${JSON.stringify(endpoint)}.`, `Choose one of ${ENDPOINTS.join(', ')}, or none for Claude Code's default.`);
+  if (endpoint !== null && adapter !== 'claude') throw new AgentError('Only the Claude adapter takes an endpoint.', "Copilot and Codex use their CLI's own endpoint; clear the endpoint.");
+  return { adapter: adapter as AgentSettings['adapter'], model, cliPath, endpoint, instructions: words(o.instructions, 'instructions'), voice: words(o.voice, 'voice'), models, cliPaths };
+}
+
+/** The model an adapter runs with (#344): its own from Settings, or null for its CLI's default. */
+export const modelOf = (s: Pick<AgentSettings, 'adapter' | 'model' | 'models'>, name: AdapterName): string | null => (s.adapter === name ? s.model : (s.models[name] ?? null));
+/** The CLI path an adapter starts (#344): its own from Settings, or null to search PATH. */
+export const cliPathOf = (s: Pick<AgentSettings, 'adapter' | 'cliPath' | 'cliPaths'>, name: AdapterName): string | null => (s.adapter === name ? s.cliPath : (s.cliPaths[name] ?? null));
+
+function checkModel(value: unknown): string | null {
+  const model = blank(value) ? null : String(value).trim();
   if (model !== null && !MODEL.test(model)) throw new AgentError(`${JSON.stringify(model)} isn't a model name.`, 'Use the name the SDK takes, such as sonnet or gpt-5, or leave it empty for the CLI\'s default.');
-  const cliPath = blank(o.cliPath) ? null : String(o.cliPath).trim();
-  if (cliPath !== null && (!isAbsolute(cliPath) || /[\0\r\n]/.test(cliPath))) throw new AgentError(`The CLI path must be an absolute path, not ${JSON.stringify(cliPath)}.`, 'Set the full path to the CLI, or leave it empty to use the one on PATH.');
+  return model;
+}
+
+/** One adapter's CLI path: absolute, on a local drive on Windows, and naming that adapter's own CLI. */
+function checkCliPath(value: unknown, adapter: AgentSettings['adapter'], isAbsolute: (p: string) => boolean, platform: NodeJS.Platform): string | null {
+  const cliPath = blank(value) ? null : String(value).trim();
+  if (cliPath === null) return null;
+  if (!isAbsolute(cliPath) || /[\0\r\n]/.test(cliPath)) throw new AgentError(`The CLI path must be an absolute path, not ${JSON.stringify(cliPath)}.`, 'Set the full path to the CLI, or leave it empty to use the one on PATH.');
   // On Windows a path that starts with two slashes is a share on another
   // machine, or a device path, and only looking for the file there makes
   // Windows connect to that host. The CLI must be on a local drive.
-  if (cliPath !== null && platform === 'win32' && !/^[A-Za-z]:[\\/]/.test(cliPath)) {
+  if (platform === 'win32' && !/^[A-Za-z]:[\\/]/.test(cliPath)) {
     throw new AgentError(
       `The CLI path must be on a local drive, such as C:\\Users\\you\\bin\\claude.exe, not ${JSON.stringify(cliPath)}.`,
       'Set the full path to the CLI on this machine, or leave it empty to use the one on PATH. Network paths (\\\\host\\share) and device paths (\\\\?\\) are not accepted.',
     );
   }
-  if (cliPath !== null) {
-    // The path must name the adapter's own CLI, so Settings can't point the agent's arguments at some other program.
-    if (adapter === 'none') throw new AgentError('A CLI path needs an adapter to belong to.', 'Choose Claude, Copilot or Codex, or clear the CLI path.');
-    const command = COMMANDS[adapter as AdapterName];
-    const path = platform === 'win32' ? nodePath.win32 : nodePath.posix;
-    const base = path.basename(cliPath);
-    const names = platform === 'win32' ? [command, `${command}.exe`] : [command];
-    if (!names.includes(platform === 'win32' ? base.toLowerCase() : base)) {
-      throw new AgentError(`The CLI path must end in ${names.join(' or ')}, the ${adapter} adapter's own CLI, not ${JSON.stringify(base)}.`, `Point it at the ${command} executable, or clear it to use the one on PATH.`);
-    }
+  // The path must name the adapter's own CLI, so Settings can't point the agent's arguments at some other program.
+  if (adapter === 'none') throw new AgentError('A CLI path needs an adapter to belong to.', 'Choose Claude, Copilot or Codex, or clear the CLI path.');
+  const command = COMMANDS[adapter];
+  const path = platform === 'win32' ? nodePath.win32 : nodePath.posix;
+  const base = path.basename(cliPath);
+  const names = platform === 'win32' ? [command, `${command}.exe`] : [command];
+  if (!names.includes(platform === 'win32' ? base.toLowerCase() : base)) {
+    throw new AgentError(`The CLI path must end in ${names.join(' or ')}, the ${adapter} adapter's own CLI, not ${JSON.stringify(base)}.`, `Point it at the ${command} executable, or clear it to use the one on PATH.`);
   }
-  const endpoint = blank(o.endpoint) ? null : (o.endpoint as Endpoint);
-  if (endpoint !== null && !ENDPOINTS.includes(endpoint)) throw new AgentError(`There is no endpoint ${JSON.stringify(endpoint)}.`, `Choose one of ${ENDPOINTS.join(', ')}, or none for Claude Code's default.`);
-  if (endpoint !== null && adapter !== 'claude') throw new AgentError('Only the Claude adapter takes an endpoint.', "Copilot and Codex use their CLI's own endpoint; clear the endpoint.");
-  return { adapter: adapter as AgentSettings['adapter'], model, cliPath, endpoint, instructions: words(o.instructions, 'instructions'), voice: words(o.voice, 'voice') };
+  return cliPath;
+}
+
+/** A per-adapter map (`models`, `cliPaths`, #344): adapter names only, each value checked, blanks dropped. */
+function perAdapter(value: unknown, field: 'models' | 'cliPaths', check: (v: unknown, name: AdapterName) => string | null): Partial<Record<AdapterName, string>> {
+  if (value === undefined || value === null) return {};
+  if (typeof value !== 'object' || Array.isArray(value)) throw new AgentError(`${field} must be an object of adapter to value.`, `Send { "claude": …, "copilot": …, "codex": … }, or leave ${field} out.`);
+  const out: Partial<Record<AdapterName, string>> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (!NAMES.includes(k as AdapterName)) throw new AgentError(`${field} has no adapter ${JSON.stringify(k)}.`, `Its keys are ${NAMES.join(', ')}.`);
+    const checked = check(v, k as AdapterName);
+    if (checked !== null) out[k as AdapterName] = checked;
+  }
+  return out;
 }
 
 /**

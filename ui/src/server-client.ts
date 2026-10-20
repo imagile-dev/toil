@@ -13,7 +13,7 @@
  * needs the launch URL again. Paperwork, but the kind that files itself.
  */
 
-import { NO_AGENT_FIX, NO_AGENT_NOTICE, SCRIPTED_LABEL, type Agent, type Answer, type AskStyle, type Starter } from './agent.ts';
+import { NO_AGENT_FIX, NO_AGENT_NOTICE, SCRIPTED_LABEL, type AdapterList, type Agent, type Answer, type AskExtra, type AskStyle, type Starter } from './agent.ts';
 import type { AreaInfo, ConfigApi, SettingsInfo } from './config.ts';
 import { FEEDBACK_SAMPLE_DISABLED, type FeedbackApi, type FeedbackFields } from './feedback.ts';
 import type { SyncStatus } from '../server/sync.ts';
@@ -22,11 +22,13 @@ import { WORKLOG_SAMPLE_DISABLED, type WorklogApi, type WorklogDay, type Worklog
 
 export type { DossierState, SourceState } from '../server/cache.ts';
 export type { SyncJob, SyncStatus } from '../server/sync.ts';
-import type { AgentStatus } from '../server/agents/host.ts';
+import type { AdapterStatus, AgentStatus } from '../server/agents/host.ts';
+import type { InstallPlan } from '../server/agents/install.ts';
 import type { AnswerUsage, ModelUsageApi, UsageView } from './model-usage.ts';
 export type { ModelUsageApi, UsageView } from './model-usage.ts';
 import type { AgentSettings } from '../server/agents/settings.ts';
 export type { AdapterStatus, AgentStatus } from '../server/agents/host.ts';
+export type { InstallPlan } from '../server/agents/install.ts';
 export type { AgentSettings } from '../server/agents/settings.ts';
 
 export interface Session {
@@ -225,13 +227,18 @@ export async function httpAgent(session: Session, dossiers: string[], base = './
     ...(session.agent === 'none' ? { notice: `${NO_AGENT_NOTICE} ${NO_AGENT_FIX}` } : {}),
     label: AGENT_LABEL[session.agent] ?? session.agent,
     starters: (dossier) => starters.get(dossier) ?? [],
-    async ask(dossier, prompt, style, chat) {
-      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, ...style, ...(chat ? { chat } : {}) } });
+    async adapters() {
+      const res = await call(base, session, 'api/agent/adapters');
+      if (!res.ok) throw await failure(res, 'Reading the agents');
+      return (await res.json()) as AdapterList;
+    },
+    async ask(dossier, prompt, style, chat, extra) {
+      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, ...style, ...(chat ? { chat } : {}), ...extraBody(extra) } });
       if (!res.ok) throw await failure(res, 'The question');
       return (await res.json()) as Answer;
     },
-    async *stream(dossier, prompt, signal, style, chat) {
-      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, stream: true, ...style, ...(chat ? { chat } : {}) }, ...(signal ? { signal } : {}) });
+    async *stream(dossier, prompt, signal, style, chat, extra) {
+      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, stream: true, ...style, ...(chat ? { chat } : {}), ...extraBody(extra) }, ...(signal ? { signal } : {}) });
       if (!res.ok) throw await failure(res, 'The question');
       if (!/^application\/x-ndjson/.test(res.headers.get('content-type') ?? '')) {
         yield (await res.json()) as Answer;
@@ -241,6 +248,9 @@ export async function httpAgent(session: Session, dossiers: string[], base = './
     },
   };
 }
+
+/** A question's extra fields (#344), only those set, so a question with none sends what it always did. */
+const extraBody = (extra: AskExtra | undefined) => ({ ...(extra?.adapter ? { adapter: extra.adapter } : {}), ...(extra?.history?.length ? { history: extra.history } : {}) });
 
 /** One streamed answer's NDJSON lines (server.ts, streamAnswer): each answer as it grows, then done or an error. */
 export async function* answerLines(res: Response): AsyncIterable<Answer> {
@@ -275,12 +285,45 @@ export async function* answerLines(res: Response): AsyncIterable<Answer> {
   if (!done) throw new Error('The answer stopped partway: the connection to Toil UI closed.');
 }
 
+/** An install's NDJSON (server.ts, streamInstall): npm's lines, then the adapter's status or an error. */
+export async function installLines(res: Response, onLine: (line: string) => void): Promise<AdapterStatus> {
+  if (!res.body) throw new Error('The install answered with no body.');
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let status: AdapterStatus | null = null;
+  const take = (text: string) => {
+    const msg = JSON.parse(text) as { line?: string; done?: boolean; status?: AdapterStatus; error?: { message?: string; fix?: string } };
+    if (msg.error) throw new Error(`${msg.error.message ?? 'The install failed.'}${msg.error.fix ? ` ${msg.error.fix}` : ''}`);
+    if (typeof msg.line === 'string') onLine(msg.line);
+    if (msg.done && msg.status) status = msg.status;
+  };
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (value) buffer += decoder.decode(value, { stream: true });
+    let nl: number;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const text = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (text) take(text);
+    }
+    if (done) break;
+  }
+  if (buffer.trim()) take(buffer.trim());
+  if (!status) throw new Error('The install stopped partway: the connection to Toil UI closed.');
+  return status;
+}
+
 /** What Settings shows and changes about the agent (#251): server/agents/host.ts's status. */
 export interface AgentSettingsClient {
   status(): Promise<AgentStatus>;
   save(settings: AgentSettings): Promise<AgentStatus>;
   /** The system prompt a question about the dossier would get now, in this style, with the saved instructions (#283). */
   prompt(dossier: string | undefined, style: AskStyle): Promise<string>;
+  /** The one command Install would run for an adapter (#344), to show before it runs. */
+  installPlan(adapter: string): Promise<InstallPlan>;
+  /** Runs it, as shown: npm's output a line at a time, then the adapter's new status. Throws npm's own words and the fix. */
+  install(adapter: string, command: string, onLine: (line: string) => void, signal?: AbortSignal): Promise<AdapterStatus>;
 }
 
 export function httpAgentSettings(session: Session, base = './'): AgentSettingsClient {
@@ -296,6 +339,16 @@ export function httpAgentSettings(session: Session, base = './'): AgentSettingsC
       const res = await call(base, session, `api/agent/prompt?${query}`);
       if (!res.ok) throw await failure(res, 'Reading the full prompt');
       return ((await res.json()) as { prompt: string }).prompt;
+    },
+    async installPlan(adapter) {
+      const res = await call(base, session, `api/agent/install?adapter=${encodeURIComponent(adapter)}`);
+      if (!res.ok) throw await failure(res, 'Reading the install command');
+      return (await res.json()) as InstallPlan;
+    },
+    async install(adapter, command, onLine, signal) {
+      const res = await call(base, session, 'api/agent/install', { body: { adapter, command }, ...(signal ? { signal } : {}) });
+      if (!res.ok) throw await failure(res, 'The install');
+      return installLines(res, onLine);
     },
   };
 }

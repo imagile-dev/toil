@@ -6,7 +6,9 @@
  * which CLI it would start, or why it can't. The server keeps the choice in
  * `~/.toil-ui/agent.json`, never in toil's config, and there is no field for
  * a key: each SDK signs in the way its own CLI does. A form with one blank
- * left deliberately out.
+ * left deliberately out. Each adapter keeps its own model (#344), which the
+ * chat's switcher uses, and a missing SDK installs in one press from the
+ * status card below (agent-install.tsx).
  *
  * Below it, the person's own words (#283): general instructions for every
  * answer, and a custom voice that replaces the theme's while "Themed agent
@@ -25,6 +27,8 @@ import { MAX_INSTRUCTIONS, systemPrompt } from '../server/agents/prompts.ts';
 import { promptStyle } from '../server/agents/voices.ts';
 import { useTheme, useThemeChoiceContext, voiceOn } from './theme-context.ts';
 import { FIXTURE_NOW } from './fixtures/execute.ts';
+import { AdaptersCard } from './agent-install.tsx';
+import { SAMPLE_ADAPTER_STATUS } from './fixtures/agent-status.ts';
 
 const ENDPOINT_LABEL: Record<string, string> = { anthropic: 'Anthropic API', bedrock: 'Amazon Bedrock', foundry: 'Microsoft Foundry', vertex: 'Google Vertex AI' };
 
@@ -84,6 +88,25 @@ export function AgentSettingsPanel({ client, onChange, dossier }: AgentSettingsP
   };
 
   const none = status?.adapters.every((a) => !a.installed);
+  /** After an install: the status again, so the radio rows and the chat's switcher see the new SDK. */
+  const installed = async () => {
+    try {
+      const next = await client.status();
+      setStatus(next);
+      onChange?.(next);
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : String(err));
+    }
+  };
+  type Named = Exclude<AgentSettings['adapter'], 'none'>;
+  const modelFor = (f: AgentSettings, name: Named) => (f.adapter === name ? f.model : (f.models[name] ?? null));
+  const setModel = (f: AgentSettings, name: Named, v: string) => {
+    const value = v || null;
+    const models = { ...f.models };
+    if (value) models[name] = value;
+    else delete models[name];
+    setForm({ ...f, models, ...(f.adapter === name ? { model: value } : {}) });
+  };
   const saveWords = async (words: Pick<AgentSettings, 'instructions' | 'voice'>) => {
     if (!status) throw new Error('The agent settings have not loaded yet.');
     // The saved adapter, model and path go back as they are, so an unsaved edit above is neither lost nor sent.
@@ -114,11 +137,19 @@ export function AgentSettingsPanel({ client, onChange, dossier }: AgentSettingsP
               None of the three agent SDKs is installed beside Toil UI: {status.adapters.map((a) => `${a.label} (${a.package})`).join(', ')}. Install the one your organization approves, with its CLI on PATH, and choose it here.
             </p>
           )}
-          <RadioGroup className="agent-adapters" value={form.adapter} onChange={(v) => setForm({ ...form, adapter: v as AgentSettings['adapter'] })}>
+          <RadioGroup
+            className="agent-adapters"
+            value={form.adapter}
+            onChange={(v) => {
+              const adapter = v as AgentSettings['adapter'];
+              // Each adapter's own model and CLI path come with it (#344).
+              setForm({ ...form, adapter, model: adapter === 'none' ? null : (form.models[adapter] ?? null), cliPath: adapter === 'none' ? null : (form.cliPaths[adapter] ?? null) });
+            }}
+          >
             <Label>Adapter</Label>
             <Radio value="none" className="agent-choice">
               <strong>None</strong>
-              <span className="note">The dashboards only; questions get no answer.</span>
+              <span className="note">The dashboards only; a chat answers only once it is switched to an adapter.</span>
             </Radio>
             {status.adapters.map((a) => (
               <Radio key={a.name} value={a.name} className="agent-choice">
@@ -127,17 +158,21 @@ export function AgentSettingsPanel({ client, onChange, dossier }: AgentSettingsP
               </Radio>
             ))}
           </RadioGroup>
+          <fieldset className="agent-models">
+            <legend>Models, each empty for its CLI's default</legend>
+            <p className="note">Each adapter runs with its own, whether it answers by default, in a chat switched to it, or on an assignment.</p>
+            {status.adapters.map((a) => (
+              <TextField key={a.name} className="field-text" value={modelFor(form, a.name) ?? ''} onChange={(v) => setModel(form, a.name, v)}>
+                <Label>{a.label}'s model</Label>
+                <Input spellCheck={false} autoComplete="off" />
+              </TextField>
+            ))}
+          </fieldset>
           {form.adapter !== 'none' && (
-            <>
-              <TextField className="field-text" value={form.model ?? ''} onChange={(v) => setForm({ ...form, model: v || null })}>
-                <Label>Model (empty for the CLI's default)</Label>
-                <Input spellCheck={false} autoComplete="off" />
-              </TextField>
-              <TextField className="field-text" value={form.cliPath ?? ''} onChange={(v) => setForm({ ...form, cliPath: v || null })}>
-                <Label>CLI path (empty to use the one on PATH)</Label>
-                <Input spellCheck={false} autoComplete="off" />
-              </TextField>
-            </>
+            <TextField className="field-text" value={form.cliPath ?? ''} onChange={(v) => setForm({ ...form, cliPath: v || null, cliPaths: { ...form.cliPaths, [form.adapter as Named]: v || undefined } })}>
+              <Label>{status.adapters.find((a) => a.name === form.adapter)?.label ?? form.adapter}'s CLI path (empty to use the one on PATH)</Label>
+              <Input spellCheck={false} autoComplete="off" />
+            </TextField>
           )}
           {form.adapter === 'claude' && (
             <RadioGroup className="shells" orientation="horizontal" value={form.endpoint ?? ''} onChange={(v) => setForm({ ...form, endpoint: (v || null) as AgentSettings['endpoint'] })}>
@@ -166,6 +201,7 @@ export function AgentSettingsPanel({ client, onChange, dossier }: AgentSettingsP
         </form>
       )}
     </Card>
+    {status && <AdaptersCard adapters={status.adapters} client={client} onInstalled={() => void installed()} />}
     {status && <InstructionsCard saved={status.settings} save={saveWords} dossier={dossier ?? null} prompt={(style) => client.prompt(dossier, style)} />}
     </>
   );
@@ -178,9 +214,10 @@ export function AgentSettingsPreview() {
     <Card as="section" className="panel" aria-labelledby="agent-settings">
       <h2 id="agent-settings">Agent</h2>
       <p className="note">
-        The preview answers with a scripted agent. The local app answers with the one your organization approved: Claude (the Claude Agent SDK, on the Anthropic API, Bedrock, Foundry or Vertex), GitHub Copilot (the Copilot SDK) or Codex (the Codex SDK), each through its own CLI on your machine. You choose the adapter, model and CLI path here; no key is ever stored.
+        The preview answers with a scripted agent. The local app answers with the one your organization approved: Claude (the Claude Agent SDK, on the Anthropic API, Bedrock, Foundry or Vertex), GitHub Copilot (the Copilot SDK) or Codex (the Codex SDK), each through its own CLI on your machine. You choose the adapter, each one's model and the CLI path here; no key is ever stored.
       </p>
     </Card>
+    <AdaptersCard adapters={SAMPLE_ADAPTER_STATUS} client={null} />
     <InstructionsCard
       saved={{ instructions: null, voice: null }}
       dossier="card-payments"

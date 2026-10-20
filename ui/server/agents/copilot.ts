@@ -71,6 +71,8 @@ export function copilotRuntime(): Runtime {
     package: '@github/copilot-sdk',
     command: 'copilot',
     cliLabel: 'the Copilot CLI',
+    // RuntimeConnection.forStdio runs a .js path with Node (client.js at 1.0.16), so npm's copilot.cmd resolves to its npm-loader.js.
+    scripts: true,
     async run(module, r) {
       const sdk = module as CopilotSdk;
       const client = new sdk.CopilotClient({ connection: sdk.RuntimeConnection.forStdio({ path: r.cli, env: Object.fromEntries(Object.entries(r.env).filter((e): e is [string, string] => typeof e[1] === 'string')) }), workingDirectory: r.workDir, logLevel: 'error' });

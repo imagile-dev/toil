@@ -2,14 +2,14 @@
  * One dossier's dashboard (#228, #252, #253): its sprint with a burn-up, what
  * needs attention, the board, throughput, cycle time and aging work, the
  * dependency graph, its stories with their pull requests, builds and
- * deployments side by side, and the chat docked beside it all. Every panel
+ * deployments side by side. The chat is the Ask bar above every dossier
+ * page (components/ask.tsx, #343). Every panel
  * was filled by toil commands (src/load.ts) and says which ones.
  * The one page the weekly status meeting was trying to be.
  */
 
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Checkbox } from 'react-aria-components';
-import { Ask } from '../components/ask.tsx';
 import { Cited, ItemLink } from '../components/items.tsx';
 import { DataTable, type Column } from '../components/layout.tsx';
 import { Panel, Sources } from '../components/panel.tsx';
@@ -271,7 +271,6 @@ export function Dashboard({ person }: { person?: string } = {}) {
             </Panel>
           </div>
         </div>
-        <Ask />
       </div>
     </>
   );
