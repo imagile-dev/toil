@@ -3886,3 +3886,32 @@ choices made by default inside that:
   `data`.
 - **A resource's row in `--help` lists its actions** (`issue  get, history, create,
   ...`) instead of "jira issue commands".
+
+## Command shape for the remaining areas (#297)
+
+The rest of the integrations moved to the command shape, the same way `jira` and
+`ado` did in #290. These are the choices made by default:
+
+- **Page-number paging keeps its flags.** `--page`, `--page-size`, `--per-page` and
+  `--all` (sonar, sde, kibana) and Jenkins' `--top` are a different idea from `--limit`,
+  so they stay. Flags that meant `--limit` or `--offset` under another name were
+  renamed: Elasticsearch `--size`/`--from`, Alation's and Sauce Labs' `--skip`.
+- **`sonatypeiq evaluate` keeps its path and `--application-id` flag.** `deps frisk`'s
+  routed alias can pass only flags, so a positional id would stop the CLI starting
+  (`resolveRoutedAliases`). It sits with `osv vulns` and `ossindex vulns` as an area's
+  one inventory command.
+- **GitHub's issue comments live under `pr`** (`pr comments`, `pr comment`): the API
+  is the issue's, and it takes a PR's or an issue's number, but PR review is where
+  people look for it. Labels and assignees, which work the same way, live under `issue`.
+- **`sde project get [id]` drops its `--id` context input.** Core can't put a context
+  input on a positional, so without an id the command uses the `project` context
+  (`--project`, the dossier, the connection), and `meta.context` reports `project`.
+- **`github issue get` and `kibana dashboard export` take several ids**, as their
+  repeatable flags did.
+- **Bitbucket Cloud's `pr diff [id]` keeps `--spec`** for a commit diff, so nothing it
+  could do is lost; one of the two is required.
+- **Dynatrace problem ids that start with `-`** need `--` before them on the CLI
+  (`toil dynatrace problem get -- -123_456V2`), as any shell argument that looks like
+  a flag does; the skill says so, and the examples use an id without the dash.
+- **`ado repo build-status` became `ado commit status`**, to match GitHub's and
+  Bitbucket's `commit status`.

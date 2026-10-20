@@ -20,7 +20,7 @@ export const bitbucketArea = defineArea({
     // Shared defaults, usually set once under defaults.bitbucket for every connection.
     project: z.string().min(1).optional().describe('Default project key'),
     repo: z.string().min(1).optional().describe('Default repository slug'),
-    targetBranch: z.string().min(1).optional().describe('Default target branch for create-pr (main when unset)'),
+    targetBranch: z.string().min(1).optional().describe('Default target branch for pr create (main when unset)'),
   }),
   secrets: ['pat'],
   // Most commands require both and say so in the contract's specified wording; the

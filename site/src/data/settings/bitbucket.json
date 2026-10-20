@@ -34,7 +34,7 @@
   {
     "key": "targetBranch",
     "env": "TOIL_BITBUCKET_TARGET_BRANCH",
-    "description": "Default target branch for create-pr (main when unset)",
+    "description": "Default target branch for pr create (main when unset)",
     "required": false,
     "secret": false,
     "fallbacks": []

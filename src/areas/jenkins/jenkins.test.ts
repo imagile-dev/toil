@@ -194,7 +194,7 @@ describe('pipeline run', () => {
       { path: '/job/api-build/42/api/json', respond: { json: build(42, { result: 'UNSTABLE' }) } },
     ];
     const t = testContext({ config: fixtureConfig, routes });
-    const result = await runCli(['jenkins', 'pipeline', 'run', '--name', 'api-build', '--wait', '--allow-write'], { commands: [pipelineRunCommand], context: t.context });
+    const result = await runCli(['jenkins', 'pipeline', 'run', 'api-build', '--wait', '--allow-write'], { commands: [pipelineRunCommand], context: t.context });
     expect(result.envelope?.ok).toBe(true);
     expect(result.exitCode).toBe(1);
   });
@@ -236,7 +236,7 @@ describe('pipeline run', () => {
   });
 });
 
-describe('pipeline list-runs', () => {
+describe('pipeline runs', () => {
   it('GETs builds with the tree range, default 25, and returns them', async () => {
     const builds = [{ number: 1 }];
     const { envelope, calls } = await run(pipelineListRunsCommand, { name: 'my-folder/my-job' }, [json({ builds })]);
@@ -265,14 +265,14 @@ describe('pipeline list-runs', () => {
   });
 });
 
-describe('pipeline get-run and logs', () => {
+describe('run get and run logs', () => {
   it('GETs one build with no tree', async () => {
     const { envelope, calls } = await run(pipelineGetRunCommand, { name: 'api-build', number: '42' }, [json(build(42))]);
     expect(calls).toEqual([{ method: 'GET', url: `${JENKINS}/job/api-build/42/api/json`, headers: HEADERS, body: undefined }]);
     expect(envelope.data).toEqual(build(42));
   });
 
-  it('suspected bug #80 item 5: --number is read with parseInt, so 12abc is 12 and -3 reaches Jenkins', async () => {
+  it('suspected bug #80 item 5: the build number is read with parseInt, so 12abc is 12 and -3 reaches Jenkins', async () => {
     const a = await run(pipelineGetRunCommand, { name: 'job', number: '12abc' }, [json(build(12))]);
     expect(new URL(a.calls[0]!.url).pathname).toBe('/job/job/12/api/json');
     const b = await run(pipelineGetRunCommand, { name: 'job', number: '-3' }, [{ url: /.*/, respond: { status: 404, text: '' } }]);
@@ -280,10 +280,10 @@ describe('pipeline get-run and logs', () => {
     expect(b.envelope.error?.code).toBe('NOT_FOUND');
   });
 
-  it('refuses a --number that is no integer at all', async () => {
+  it('refuses a build number that is no integer at all', async () => {
     const { envelope, calls } = await run(pipelineLogsCommand, { name: 'job', number: 'abc' }, []);
     expect(calls).toEqual([]);
-    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid --number "abc". Expected an integer.' });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid build number "abc". Expected an integer.' });
   });
 
   it('logs GETs consoleText and returns it whole as { log }', async () => {

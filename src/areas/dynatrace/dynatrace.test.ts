@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { runCli } from '../../../test/harness/cli.js';
 import { testConfig, testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
 import { CLASSIC, config as fixtureConfig, entity, entityPage, PLATFORM, problem, problemPage, TRACE_ID, TRACE_QUERY, traceResult } from '../../../test/fixtures/dynatrace.fixture.js';
@@ -51,7 +52,7 @@ const status = (code: number, json: unknown): Route => ({ url: /.*/, method: 'GE
 
 afterEach(() => vi.restoreAllMocks());
 
-describe('entities list', () => {
+describe('entity list', () => {
   it('sends the filters and pageSize=500 first, then nextPageKey alone, and counts what it collected', async () => {
     const routes: Route[] = [
       { path: '/api/v2/entities', query: { entitySelector: 'type("HOST")', from: 'now-1d', to: 'now', fields: '+properties,+tags', pageSize: '500' }, respond: { json: entityPage([entity('HOST', 1), entity('HOST', 2)], 'key-2') } },
@@ -97,7 +98,7 @@ describe('entities list', () => {
   });
 });
 
-describe('entities get', () => {
+describe('entity get', () => {
   it('encodes the id into the path, sends only the given parameters, and passes the entity through', async () => {
     const body = { entityId: 'SERVICE-1/2', displayName: 'odd' };
     const { envelope, calls } = await run(entitiesGetCommand, { id: 'SERVICE-1/2', fields: '+properties' }, [ok(body)]);
@@ -111,7 +112,7 @@ describe('entities get', () => {
   });
 });
 
-describe('services and workloads', () => {
+describe('service list and workload list', () => {
   it('services lists type("SERVICE") entities under services', async () => {
     const { envelope, calls } = await run(servicesCommand, { from: 'now-6h' }, [ok(entityPage([entity('SERVICE', 1)]))]);
     expect(calls[0]!.url).toBe(`${CLASSIC}/api/v2/entities?entitySelector=type%28%22SERVICE%22%29&from=now-6h&pageSize=500`);
@@ -125,7 +126,7 @@ describe('services and workloads', () => {
   });
 });
 
-describe('problems', () => {
+describe('problem list and problem get', () => {
   it('list defaults to from=now-2h and to=now, and pages by nextPageKey alone', async () => {
     const routes: Route[] = [
       { path: '/api/v2/problems', query: { from: 'now-2h', to: 'now', pageSize: '500' }, respond: { json: problemPage([problem(1)], 'p2') } },
@@ -146,9 +147,16 @@ describe('problems', () => {
     expect(calls).toEqual([{ method: 'GET', url: `${CLASSIC}/api/v2/problems/-123_456V2?fields=evidenceDetails`, headers: CLASSIC_HEADERS, body: undefined }]);
     expect(envelope.data).toEqual(problem(1));
   });
+
+  it('get takes an id that starts with a dash on the CLI after --', async () => {
+    const t = testContext({ config: fixtureConfig, routes: [ok(problem(1))] });
+    const result = await runCli(['dynatrace', 'problem', 'get', '--', '-123_456V2'], { commands: [problemsGetCommand], context: t.context });
+    expect(t.http.calls.map((c) => c.url)).toEqual([`${CLASSIC}/api/v2/problems/-123_456V2`]);
+    expect(result.envelope?.ok).toBe(true);
+  });
 });
 
-describe('trace', () => {
+describe('trace get', () => {
   const running = { json: { state: 'RUNNING', requestToken: TOKEN } };
   const succeeded = { json: { state: 'SUCCEEDED', result: traceResult } };
 

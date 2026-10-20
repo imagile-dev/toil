@@ -6,7 +6,7 @@ import { jenkinsArea } from './area.js';
 import { getBuild, getConsoleLog, getJob, getQueueItem, listBuilds, listJobs, triggerBuild, type Build, type JenkinsContext } from './client.js';
 
 /**
- * The six pipeline commands: jobs, builds, a build's console log, and
+ * The six pipeline and run commands: jobs, builds, a build's console log, and
  * triggering a build, optionally waiting for it. Numbers are read with
  * parseInt, as the contract specifies, so `12abc` is build 12 (#80 item
  * 5). Waiting is two phases, each with its own budget: the queue, then the
@@ -15,7 +15,8 @@ import { getBuild, getConsoleLog, getJob, getQueueItem, listBuilds, listJobs, tr
 
 const NAME_DESCRIPTION = 'Job name (use folder/job for folder-scoped jobs)';
 const name = z.string().describe(NAME_DESCRIPTION);
-const nameOption = { flags: '--name <job>', field: 'name', description: NAME_DESCRIPTION };
+const nameArg = { name: 'name', field: 'name', description: NAME_DESCRIPTION };
+const numberArg = { name: 'number', field: 'number', description: 'Build number' };
 
 /** A number read with parseInt, per the command contract: text stays text until then. */
 const intText = z.union([z.number(), z.string()]);
@@ -35,7 +36,7 @@ const RUN_TIME_LIMIT_MS = 1_260_000;
 function buildNumberOf(value: number | string): number {
   const buildNumber = parseInt(String(value), 10);
   if (isNaN(buildNumber)) {
-    throw new ToilError('INVALID_INPUT', `Invalid --number "${String(value)}". Expected an integer.`, { fix: 'Pass the build number, e.g. --number 42.' });
+    throw new ToilError('INVALID_INPUT', `Invalid build number "${String(value)}". Expected an integer.`, { fix: 'Pass the build number, e.g. toil jenkins run get api-build 42.' });
   }
   return buildNumber;
 }
@@ -57,7 +58,7 @@ export const pipelineGetCommand = jenkinsArea.command({
   description: 'Get details for a specific job',
   input: z.object({ name }),
   writes: false,
-  options: [nameOption],
+  args: [nameArg],
   examples: [{ name: 'platform/api-build', instance: 'jenkins' }],
   run: async (input, ctx) => getJob(ctx, input.name),
 });
@@ -75,8 +76,8 @@ export const pipelineRunCommand = jenkinsArea.command({
   }),
   writes: true,
   timeLimitMs: RUN_TIME_LIMIT_MS,
+  args: [nameArg],
   options: [
-    nameOption,
     { flags: '--parameter <k=v>', field: 'parameter', description: 'Build parameter (repeatable) (default: [])' },
     { flags: '--wait', field: 'wait', description: 'Wait for the build to complete before returning' },
     { flags: '--timeout <s>', field: 'timeout', description: TIMEOUT_DESCRIPTION },
@@ -101,7 +102,7 @@ export const pipelineRunCommand = jenkinsArea.command({
     // Suspected bug (#80 item 2): checked only after the build was triggered.
     const timeoutSec = parseIntText(input.timeout, '600');
     const pollSec = parseIntText(input.poll, '10');
-    const queued = `Build was queued as queue item #${queueItemId} and may still run. Check it with toil jenkins pipeline list-runs --name ${input.name} before triggering it again.`;
+    const queued = `Build was queued as queue item #${queueItemId} and may still run. Check it with toil jenkins pipeline runs ${input.name} before triggering it again.`;
     if (isNaN(timeoutSec) || timeoutSec <= 0) {
       throw new ToilError('INVALID_INPUT', `Invalid --timeout "${shown(input.timeout, '600')}". Expected a positive number of seconds.`, { fix: queued });
     }
@@ -144,16 +145,17 @@ async function waitForBuild(ctx: JenkinsContext, name: string, buildNumber: numb
     await sleep(pollMs, ctx.signal);
   }
   throw new ToilError('TIMEOUT', `Timed out waiting for build #${buildNumber} to complete after ${timeoutMs / 1000}s`, {
-    fix: `The build is still running in Jenkins. Check it later with toil jenkins pipeline get-run --name ${name} --number ${buildNumber}.`,
+    fix: `The build is still running in Jenkins. Check it later with toil jenkins run get ${name} ${buildNumber}.`,
   });
 }
 
 export const pipelineListRunsCommand = jenkinsArea.command({
-  path: ['jenkins', 'pipeline', 'list-runs'],
+  path: ['jenkins', 'pipeline', 'runs'],
   description: 'List recent builds for a job',
   input: z.object({ name, top: intText.optional().describe(TOP_DESCRIPTION) }),
   writes: false,
-  options: [nameOption, { flags: '--top <n>', field: 'top', description: TOP_DESCRIPTION }],
+  args: [nameArg],
+  options: [{ flags: '--top <n>', field: 'top', description: TOP_DESCRIPTION }],
   examples: [{ name: 'api-build' }, { name: 'platform/api-build', top: '5', instance: 'jenkins' }],
   run: async (input, ctx) => {
     const top = parseIntText(input.top, '25');
@@ -165,21 +167,21 @@ export const pipelineListRunsCommand = jenkinsArea.command({
 });
 
 export const pipelineGetRunCommand = jenkinsArea.command({
-  path: ['jenkins', 'pipeline', 'get-run'],
+  path: ['jenkins', 'run', 'get'],
   description: 'Get details for a specific build',
   input: z.object({ name, number: intText.describe('Build number') }),
   writes: false,
-  options: [nameOption, { flags: '--number <n>', field: 'number', description: 'Build number' }],
+  args: [nameArg, numberArg],
   examples: [{ name: 'api-build', number: '42', instance: 'jenkins' }],
   run: async (input, ctx) => getBuild(ctx, input.name, buildNumberOf(input.number)),
 });
 
 export const pipelineLogsCommand = jenkinsArea.command({
-  path: ['jenkins', 'pipeline', 'logs'],
+  path: ['jenkins', 'run', 'logs'],
   description: 'Fetch console log for a build (consider --output-file for large logs)',
   input: z.object({ name, number: intText.describe('Build number') }),
   writes: false,
-  options: [nameOption, { flags: '--number <n>', field: 'number', description: 'Build number' }],
+  args: [nameArg, numberArg],
   examples: [{ name: 'platform/api-build', number: '42', instance: 'jenkins' }],
   run: async (input, ctx) => ({ log: await getConsoleLog(ctx, input.name, buildNumberOf(input.number)) }),
 });

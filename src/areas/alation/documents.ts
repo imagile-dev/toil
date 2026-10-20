@@ -13,10 +13,10 @@ import { buildDocumentPayload, DOCUMENT_INPUT_FILE_EXAMPLE, DOCUMENT_INPUT_FILE_
  */
 
 const LIMIT = { flags: '--limit <n>', field: 'limit', description: 'Page size (max 1000) (default: "100")' } as const;
-const SKIP = { flags: '--skip <n>', field: 'skip', description: 'Number of results to skip (default: "0")' } as const;
+const OFFSET = { flags: '--offset <n>', field: 'offset', description: 'Number of results to skip (default: "0")' } as const;
 const paging = {
   limit: intText.optional().describe('Page size (max 1000) (default: "100")'),
-  skip: intText.optional().describe('Number of results to skip (default: "0")'),
+  offset: intText.optional().describe('Number of results to skip (default: "0")'),
 };
 
 interface JobResponse {
@@ -38,9 +38,9 @@ export const folderListCommand = alationArea.command({
     { flags: '--parent <id>', field: 'parent', description: 'Parent folder ID (list its subfolders)' },
     { flags: '--search <text>', field: 'search', description: 'Filter on textual fields' },
     LIMIT,
-    SKIP,
+    OFFSET,
   ],
-  examples: [{}, { hub: '1', parent: '42', search: 'onboarding', limit: '10', skip: '20' }],
+  examples: [{}, { hub: '1', parent: '42', search: 'onboarding', limit: '10', offset: '20' }],
   run: async (input, ctx) => {
     const params: Params = { ...pageParams(input) };
     if (given(input.hub)) params.document_hub_id = parsePositiveId(input.hub, '--hub');
@@ -80,9 +80,9 @@ export const documentListCommand = alationArea.command({
     { flags: '--search <text>', field: 'search', description: 'Filter on all textual fields' },
     { flags: '--deleted', field: 'deleted', description: 'Return only deleted documents' },
     LIMIT,
-    SKIP,
+    OFFSET,
   ],
-  examples: [{}, { hub: '1', folder: '42', parentDocument: '12', search: 'customer', deleted: true, limit: '25', skip: '25' }],
+  examples: [{}, { hub: '1', folder: '42', parentDocument: '12', search: 'customer', deleted: true, limit: '25', offset: '25' }],
   run: async (input, ctx) => {
     const params: Params = { ...pageParams(input) };
     if (given(input.hub)) params.document_hub_id = parsePositiveId(input.hub, '--hub');

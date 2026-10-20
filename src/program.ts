@@ -365,7 +365,7 @@ async function parseCommandLine(options: ProgramOptions, words: string[]): Promi
   // Said plainly before parsing, in MCP's words, rather than as an unknown command whose fix names one that works.
   const named = commandFromArgv(words, options.commands);
   if (options.commands.some((def) => def.dispatches && commandName(def) === named)) {
-    return { error: new ToilError('INVALID_INPUT', "toil wait can't wait on a wait: the command after -- must be a read.", { fix: 'Put the read itself after --, for example toil wait --until "result != null" -- jenkins pipeline get-run --name <job> --number <n>.' }) };
+    return { error: new ToilError('INVALID_INPUT', "toil wait can't wait on a wait: the command after -- must be a read.", { fix: 'Put the read itself after --, for example toil wait --until "result != null" -- jenkins run get <job> <n>.' }) };
   }
   try {
     await program.parseAsync(words, { from: 'user' });
@@ -377,7 +377,7 @@ async function parseCommandLine(options: ProgramOptions, words: string[]): Promi
   }
   const call = captured as { def: AnyCommand; input: Record<string, unknown>; globals: GlobalOptions } | undefined;
   if (!call) {
-    return { error: new ToilError('INVALID_INPUT', `${line} isn't a command toil wait can repeat.`, { fix: 'Name a read command after --, for example toil wait --until "result != null" -- jenkins pipeline get-run --name <job> --number <n>.' }) };
+    return { error: new ToilError('INVALID_INPUT', `${line} isn't a command toil wait can repeat.`, { fix: 'Name a read command after --, for example toil wait --until "result != null" -- jenkins run get <job> <n>.' }) };
   }
   const outer = OUTER_GLOBALS.find(([key]) => call.globals[key] !== undefined && call.globals[key] !== false);
   if (outer) {

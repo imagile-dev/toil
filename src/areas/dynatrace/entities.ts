@@ -10,7 +10,7 @@ import { allPages, dynatrace } from './client.js';
  */
 
 export const entitiesListCommand = dynatraceArea.command({
-  path: ['dynatrace', 'entities', 'list'],
+  path: ['dynatrace', 'entity', 'list'],
   description: 'List monitored entities using an entity selector',
   input: z.object({
     selector: z.string().describe('Dynatrace entity selector, e.g. type("SERVICE")'),
@@ -33,7 +33,7 @@ export const entitiesListCommand = dynatraceArea.command({
 });
 
 export const entitiesGetCommand = dynatraceArea.command({
-  path: ['dynatrace', 'entities', 'get'],
+  path: ['dynatrace', 'entity', 'get'],
   description: 'Get a monitored entity by ID',
   input: z.object({
     id: z.string().describe('Entity ID, e.g. SERVICE-1234567890ABCDEF'),
@@ -42,8 +42,8 @@ export const entitiesGetCommand = dynatraceArea.command({
     fields: z.string().optional().describe('Additional entity fields'),
   }),
   writes: false,
+  args: [{ name: 'id', field: 'id', description: 'Entity ID, e.g. SERVICE-1234567890ABCDEF' }],
   options: [
-    { flags: '--id <id>', field: 'id', description: 'Entity ID, e.g. SERVICE-1234567890ABCDEF' },
     { flags: '--from <time>', field: 'from', description: 'Start time' },
     { flags: '--to <time>', field: 'to', description: 'End time' },
     { flags: '--fields <fields>', field: 'fields', description: 'Additional entity fields' },

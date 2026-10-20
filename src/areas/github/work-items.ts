@@ -20,7 +20,7 @@ import { intText, pageFields, pageOptions, parseDateOption, parseIntText, update
 
 /** GitHub serves the first 1,000 results of a search and refuses the page past them. */
 const SEARCH_MAX = 1000;
-/** Issue numbers one get-issue call takes, and how many it fetches at once. */
+/** Issue numbers one issue get call takes, and how many it fetches at once. */
 const MAX_NUMBERS = 100;
 const CONCURRENCY = 4;
 
@@ -33,7 +33,7 @@ interface Issue {
 const since = (value: string | undefined) => (value === undefined ? undefined : isoSeconds(parseDateOption('--updated-since', value)));
 
 export const listIssuesCommand = githubArea.command({
-  path: ['github', 'list-issues'],
+  path: ['github', 'issue', 'list'],
   description: 'List issues in a repository (pull requests left out)',
   toolDescription:
     'Lists the issues in a repository as GitHub returns them, with issue type (type), sub-issue counts (sub_issues_summary) and parent (parent_issue_url) where the server has them. Pull requests, which the endpoint mixes in, are left out. updatedSince is GitHub\'s since parameter, for incremental reads. With limit, pass meta.page.nextCursor as cursor for the next page.',
@@ -79,14 +79,14 @@ export const listIssuesCommand = githubArea.command({
         ...(input.direction ? { direction: input.direction } : {}),
         ...(updated ? { since: updated } : {}),
       },
-      // GitHub marks a pull request with a pull_request key; list-prs is where those live.
+      // GitHub marks a pull request with a pull_request key; pr list is where those live.
       { limit: input.limit, cursor: input.cursor, keep: (item) => item.pull_request === undefined },
     );
   },
 });
 
 export const searchIssuesCommand = githubArea.command({
-  path: ['github', 'search-issues'],
+  path: ['github', 'issue', 'search'],
   description: 'Search issues with GitHub search syntax (is:issue is added)',
   toolDescription:
     'Searches issues across everything the token can see, with GitHub search syntax (repo:imagile/toil-probe label:bug state:open). toil adds is:issue, and updated:>=<updatedSince> when updatedSince is given; --owner and --repo are not added, so scope the query yourself. GitHub serves the first 1,000 results only, and toil warns when there were more. With limit, pass meta.page.nextCursor as cursor for the next page.',
@@ -162,8 +162,8 @@ async function getIssue(ctx: GitHubContext, owner: string, repo: string, number:
 }
 
 export const getIssueCommand = githubArea.command({
-  path: ['github', 'get-issue'],
-  description: 'Get one or more issues by number (repeat --number), with issue type and, on request, sub-issues',
+  path: ['github', 'issue', 'get'],
+  description: 'Get one or more issues by number (give several numbers to read several), with issue type and, on request, sub-issues',
   toolDescription:
     'Gets issues by number as GitHub returns them: type is the issue type, sub_issues_summary the sub-issue counts and parent_issue_url the parent, where the server has them. subIssues adds sub_issues, the full list. One number returns the issue itself; several (up to 100) return { issues, errors }, fetched four at a time, where a number GitHub can\'t find goes into errors instead of failing the call.',
   input: z.object({
@@ -171,8 +171,8 @@ export const getIssueCommand = githubArea.command({
     subIssues: z.boolean().optional().describe('Add sub_issues, the list of each issue\'s sub-issues (one more request per issue)'),
   }),
   writes: false,
+  args: [{ name: 'number', field: 'number', description: 'Issue number; give up to 100 to read several', variadic: true }],
   options: [
-    { flags: '--number <n>', field: 'number', description: 'Issue number (repeatable, up to 100)' },
     { flags: '--sub-issues', field: 'subIssues', description: 'Add sub_issues, the list of each issue\'s sub-issues (one more request per issue)' },
   ],
   examples: [
@@ -181,7 +181,7 @@ export const getIssueCommand = githubArea.command({
   ],
   run: async (input, ctx) => {
     if (input.number.length > MAX_NUMBERS) {
-      throw new ToilError('INVALID_INPUT', `get-issue takes up to ${MAX_NUMBERS} issue numbers in one call, not ${input.number.length}.`, { fix: `Split the numbers into calls of ${MAX_NUMBERS} or fewer.` });
+      throw new ToilError('INVALID_INPUT', `issue get takes up to ${MAX_NUMBERS} issue numbers in one call, not ${input.number.length}.`, { fix: `Split the numbers into calls of ${MAX_NUMBERS} or fewer.` });
     }
     const { owner, repo } = target(ctx);
     const numbers = input.number.map(parseIntText);
@@ -213,13 +213,14 @@ export const getIssueCommand = githubArea.command({
 });
 
 export const issueEventsCommand = githubArea.command({
-  path: ['github', 'issue-events'],
+  path: ['github', 'issue', 'history'],
   description: "List an issue's timeline: state changes, labels, assignments, issue types, sub-issues, cross-references and comments",
   toolDescription:
     "Lists an issue's timeline events oldest first, as GitHub returns them, each with event, actor and created_at: closed and reopened (with state_reason), labeled, assigned, issue_type_added/changed, sub_issue_added, cross-referenced (the PRs that mention it), commented and more. With limit, pass meta.page.nextCursor as cursor for the next page.",
   input: z.object({ number: intText.describe('Issue number'), ...pageFields('events') }),
   writes: false,
-  options: [{ flags: '--number <n>', field: 'number', description: 'Issue number' }, ...pageOptions('events')],
+  args: [{ name: 'number', field: 'number', description: 'Issue number' }],
+  options: [...pageOptions('events')],
   examples: [
     { owner: 'imagile', repo: 'toil-probe', number: '9' },
     { owner: 'imagile', repo: 'toil-probe', number: '9', limit: 1, cursor: exampleCursor() },

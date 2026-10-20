@@ -15,7 +15,7 @@ import { withBodyHints } from './hints.js';
  */
 
 const id = z.string().describe('Page ID');
-const idOption = { flags: '--id <page-id>', field: 'id', description: 'Page ID' };
+const idArg = { name: 'id', field: 'id', description: 'Page ID' };
 /** A number read with parseInt: text stays text until then. */
 const intText = z.union([z.number(), z.string()]);
 
@@ -25,20 +25,21 @@ const DEFAULT_EXPAND = 'body.storage,version,space,ancestors';
 const optionalInt = (value: number | string | undefined) => (value === undefined || value === '' ? undefined : parseInt(String(value), 10));
 
 export const getPage = confluenceArea.command({
-  path: ['confluence', 'get-page'],
+  path: ['confluence', 'page', 'get'],
   description: 'Get a Confluence page by ID',
   input: z.object({
     id,
     expand: z.string().optional().describe(`Comma-separated fields to expand (default: "${DEFAULT_EXPAND}")`),
   }),
   writes: false,
-  options: [idOption, { flags: '--expand <fields>', field: 'expand', description: `Comma-separated fields to expand (default: "${DEFAULT_EXPAND}")` }],
+  args: [idArg],
+  options: [{ flags: '--expand <fields>', field: 'expand', description: `Comma-separated fields to expand (default: "${DEFAULT_EXPAND}")` }],
   examples: [{ id: '12345' }, { id: '12345', expand: 'body.view,version' }],
   run: (input, ctx) => client.getPage(ctx, input.id, input.expand ?? DEFAULT_EXPAND),
 });
 
 export const getPageByTitle = confluenceArea.command({
-  path: ['confluence', 'get-page-by-title'],
+  path: ['confluence', 'page', 'find'],
   description: 'Find a Confluence page by space key and title',
   input: z.object({ space: z.string().describe('Space key'), title: z.string().describe('Page title') }),
   writes: false,
@@ -51,7 +52,7 @@ export const getPageByTitle = confluenceArea.command({
     const page = await client.getPageByTitle(ctx, input.space, input.title);
     if (!page) {
       throw new ToilError('NOT_FOUND', `Page not found: "${input.title}" in space ${input.space}`, {
-        fix: `Check the title (it must match exactly) and the space key. toil confluence search --cql 'space=${input.space} AND title~"…"' finds near matches.`,
+        fix: `Check the title (it must match exactly) and the space key. toil confluence page search --cql 'space=${input.space} AND title~"…"' finds near matches.`,
       });
     }
     return page;
@@ -59,7 +60,7 @@ export const getPageByTitle = confluenceArea.command({
 });
 
 export const listPages = confluenceArea.command({
-  path: ['confluence', 'list-pages'],
+  path: ['confluence', 'page', 'list'],
   description: 'List pages in a Confluence space (consider --output-file for large results)',
   toolDescription: 'Lists the pages in a Confluence space (id, title, version). Without limit it returns every page, which can be large; set limit to bound it.',
   input: z.object({
@@ -81,27 +82,27 @@ export const listPages = confluenceArea.command({
 });
 
 export const getPageChildren = confluenceArea.command({
-  path: ['confluence', 'get-page-children'],
+  path: ['confluence', 'page', 'children'],
   description: 'Get child pages of a Confluence page',
   input: z.object({ id: z.string().describe('Parent page ID') }),
   writes: false,
-  options: [{ flags: '--id <page-id>', field: 'id', description: 'Parent page ID' }],
+  args: [{ name: 'id', field: 'id', description: 'Parent page ID' }],
   examples: [{ id: '12345' }],
   run: (input, ctx) => client.getPageChildren(ctx, input.id),
 });
 
 export const getPageHistory = confluenceArea.command({
-  path: ['confluence', 'get-page-history'],
+  path: ['confluence', 'page', 'history'],
   description: 'Get the version history metadata for a Confluence page',
   input: z.object({ id }),
   writes: false,
-  options: [idOption],
+  args: [idArg],
   examples: [{ id: '12345' }],
   run: (input, ctx) => client.getPageHistory(ctx, input.id),
 });
 
 export const search = confluenceArea.command({
-  path: ['confluence', 'search'],
+  path: ['confluence', 'page', 'search'],
   description: 'Search Confluence with CQL',
   toolDescription: "Runs a CQL query and returns Confluence's search result as it came (results, start, limit, size). One page: raise limit or advance start for more.",
   input: z.object({
@@ -151,7 +152,7 @@ function bodyOf(files: FileAccess, body: string | undefined, bodyFile: string | 
 }
 
 export const createPage = confluenceArea.command({
-  path: ['confluence', 'create-page'],
+  path: ['confluence', 'page', 'create'],
   description: 'Create a new Confluence page',
   toolDescription: 'Creates a page in a space, optionally under a parent page, and returns the page Confluence created. The body is storage-format XHTML unless markdown or representation says otherwise.',
   input: z.object({
@@ -199,7 +200,7 @@ export const createPage = confluenceArea.command({
 });
 
 export const updatePage = confluenceArea.command({
-  path: ['confluence', 'update-page'],
+  path: ['confluence', 'page', 'update'],
   description: 'Update a Confluence page (fetches current version automatically)',
   toolDescription: "Updates a page's title, body or status. Reads the current version first and sends the next one, keeping the title unless one is given. With no body, none is sent.",
   input: z.object({
@@ -213,8 +214,8 @@ export const updatePage = confluenceArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [idArg],
   options: [
-    idOption,
     { flags: '--title <title>', field: 'title', description: 'New page title' },
     { flags: '--body <html>', field: 'body', description: 'New page body (storage format HTML or Markdown when --markdown is set)' },
     { flags: '--body-file <path>', field: 'bodyFile', description: "Path to a file containing the new page body ('-' = stdin)" },
@@ -248,12 +249,12 @@ export const updatePage = confluenceArea.command({
 });
 
 export const deletePage = confluenceArea.command({
-  path: ['confluence', 'delete-page'],
+  path: ['confluence', 'page', 'delete'],
   description: 'Delete a Confluence page',
   input: z.object({ id, ...allowWriteField }),
   writes: true,
   mcp: false,
-  options: [idOption],
+  args: [idArg],
   examples: [{ id: '12345', allowWrite: true }],
   run: async (input, ctx) => {
     await client.deleteContent(ctx, input.id);

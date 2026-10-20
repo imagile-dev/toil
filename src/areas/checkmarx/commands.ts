@@ -31,7 +31,7 @@ export const projectGetCommand = checkmarxArea.command({
     id: z.string().describe('Project UUID'),
   }),
   writes: false,
-  options: [{ flags: '--id <id>', field: 'id', description: 'Project UUID' }],
+  args: [{ name: 'id', field: 'id', description: 'Project UUID' }],
   examples: [{ id: PROJECT_ID }],
   // Suspected bug (#89 item 7): the id goes into the path unencoded.
   run: async (input, ctx) => checkmarx(ctx, `projects/${input.id}`),
@@ -69,7 +69,7 @@ export const scanGetCommand = checkmarxArea.command({
     id: z.string().describe('Scan UUID'),
   }),
   writes: false,
-  options: [{ flags: '--id <id>', field: 'id', description: 'Scan UUID' }],
+  args: [{ name: 'id', field: 'id', description: 'Scan UUID' }],
   examples: [{ id: SCAN_ID }],
   run: async (input, ctx) => checkmarx(ctx, `scans/${input.id}`),
 });
@@ -81,7 +81,7 @@ export const scanStatsCommand = checkmarxArea.command({
     id: z.string().describe('Scan UUID'),
   }),
   writes: false,
-  options: [{ flags: '--id <id>', field: 'id', description: 'Scan UUID' }],
+  args: [{ name: 'id', field: 'id', description: 'Scan UUID' }],
   examples: [{ id: SCAN_ID }],
   // Suspected bug (#89 item 2): the deprecated Results Summary API, with scan-id.
   run: async (input, ctx) => checkmarx(ctx, 'results/summary', { 'scan-id': input.id }),

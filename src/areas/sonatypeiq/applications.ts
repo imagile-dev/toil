@@ -10,9 +10,9 @@ import { iq } from './client.js';
  */
 
 export const applicationsListCommand = sonatypeiqArea.command({
-  path: ['sonatypeiq', 'applications', 'list'],
+  path: ['sonatypeiq', 'application', 'list'],
   description: 'List all applications in Sonatype IQ Server',
-  toolDescription: 'Every application in Sonatype IQ Server, as the server returns it: { applications: [{ id, publicId, name, organizationId, ... }] }. Use the publicId with sonatypeiq_evaluate.',
+  toolDescription: 'Every application in Sonatype IQ Server, as the server returns it: { applications: [{ id, publicId, name, organizationId, ... }] }. Use the publicId with sonatypeiq_application_evaluate.',
   input: z.object({
     organizationId: z.string().optional().describe('Filter by organization ID'),
   }),
@@ -24,14 +24,14 @@ export const applicationsListCommand = sonatypeiqArea.command({
 });
 
 export const applicationsGetCommand = sonatypeiqArea.command({
-  path: ['sonatypeiq', 'applications', 'get'],
+  path: ['sonatypeiq', 'application', 'get'],
   description: 'Get an application by its public ID',
   toolDescription: 'One application by its public ID, as the server returns the filtered list: { applications: [...] }, with zero or one entry. An unknown ID is an empty list, not an error.',
   input: z.object({
     publicId: z.string().describe('Application public ID'),
   }),
   writes: false,
-  options: [{ flags: '--public-id <id>', field: 'publicId', description: 'Application public ID' }],
+  args: [{ name: 'public-id', field: 'publicId', description: 'Application public ID' }],
   examples: [{ publicId: 'imagile-api' }],
   run: async (input, ctx) => iq(ctx, '/api/v2/applications', { publicId: input.publicId }),
 });

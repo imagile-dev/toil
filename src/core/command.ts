@@ -130,7 +130,7 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
   /**
    * Other CLI paths that run this command. A string is a sibling in the same
    * group (commander's own alias); a path may sit in another group, as `deps
-   * outdated` does for `artifactory outdated`. Aliases are CLI only: MCP has
+   * outdated` does for `artifactory package outdated`. Aliases are CLI only: MCP has
    * one tool per command, under its own name, and `meta.command` always names
    * the command, never the alias typed.
    *

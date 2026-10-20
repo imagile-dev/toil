@@ -12,22 +12,22 @@ import { withBodyText } from './storage.js';
  */
 
 const id = z.string().min(1).describe('Page ID');
-const idOption = { flags: '--id <page-id>', field: 'id', description: 'Page ID' };
+const idArg = { name: 'id', field: 'id', description: 'Page ID' };
 
 export const listComments = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'list-comments'],
+  path: ['confluence-cloud', 'page', 'comments'],
   description: 'List footer comments on a Confluence Cloud page',
   toolDescription:
     'Returns the top-level footer comments on a page, each with its storage-format body, version and bodyText (plain text). Replies and inline comments are not included.',
   input: z.object({ id }),
   writes: false,
-  options: [idOption],
+  args: [idArg],
   examples: [{ id: '12345' }],
   run: async (input, ctx) => (await client.listComments(ctx, input.id)).map(withBodyText),
 });
 
 export const addComment = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'add-comment'],
+  path: ['confluence-cloud', 'page', 'comment'],
   description: 'Add a footer comment to a Confluence Cloud page',
   input: z.object({
     id,
@@ -36,8 +36,8 @@ export const addComment = confluenceCloudArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [idArg],
   options: [
-    idOption,
     { flags: '--body <text>', field: 'body', description: 'Comment body (storage-format XHTML, or wiki markup with --representation wiki)' },
     { flags: '--representation <format>', field: 'representation', description: 'Body format: storage (default) or wiki' },
   ],
@@ -49,21 +49,22 @@ export const addComment = confluenceCloudArea.command({
 });
 
 export const getLabels = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'get-labels'],
+  path: ['confluence-cloud', 'page', 'labels'],
   description: 'Get labels on a Confluence Cloud page',
   input: z.object({ id }),
   writes: false,
-  options: [idOption],
+  args: [idArg],
   examples: [{ id: '12345' }],
   run: (input, ctx) => client.getLabels(ctx, input.id),
 });
 
 export const addLabel = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'add-label'],
+  path: ['confluence-cloud', 'page', 'label'],
   description: 'Add labels to a Confluence Cloud page',
   input: z.object({ id, labels: z.string().min(1).describe('Comma-separated label names'), ...allowWriteField }),
   writes: true,
-  options: [idOption, { flags: '--labels <names>', field: 'labels', description: 'Comma-separated label names' }],
+  args: [idArg],
+  options: [{ flags: '--labels <names>', field: 'labels', description: 'Comma-separated label names' }],
   examples: [{ id: '12345', labels: 'runbook, ops,', allowWrite: true }],
   run: (input, ctx) =>
     client.addLabels(
@@ -77,11 +78,12 @@ export const addLabel = confluenceCloudArea.command({
 });
 
 export const removeLabel = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'remove-label'],
+  path: ['confluence-cloud', 'page', 'unlabel'],
   description: 'Remove a label from a Confluence Cloud page',
   input: z.object({ id, label: z.string().min(1).describe('Label name to remove'), ...allowWriteField }),
   writes: true,
-  options: [idOption, { flags: '--label <name>', field: 'label', description: 'Label name to remove' }],
+  args: [idArg],
+  options: [{ flags: '--label <name>', field: 'label', description: 'Label name to remove' }],
   examples: [{ id: '12345', label: 'runbook', allowWrite: true }],
   run: async (input, ctx) => {
     await client.removeLabel(ctx, input.id, input.label);

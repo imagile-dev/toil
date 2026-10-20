@@ -1,18 +1,18 @@
 [
   {
-    "name": "get-page",
-    "tool": "confluence_get_page",
+    "name": "page get",
+    "tool": "confluence_page_get",
     "description": "Get a Confluence page by ID",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--expand <fields>"
     ]
   },
   {
-    "name": "get-page-by-title",
-    "tool": "confluence_get_page_by_title",
+    "name": "page find",
+    "tool": "confluence_page_find",
     "description": "Find a Confluence page by space key and title",
     "writes": false,
     "connection": true,
@@ -22,8 +22,8 @@
     ]
   },
   {
-    "name": "list-pages",
-    "tool": "confluence_list_pages",
+    "name": "page list",
+    "tool": "confluence_page_list",
     "description": "List pages in a Confluence space (consider --output-file for large results)",
     "writes": false,
     "connection": true,
@@ -34,28 +34,28 @@
     ]
   },
   {
-    "name": "get-page-children",
-    "tool": "confluence_get_page_children",
+    "name": "page children",
+    "tool": "confluence_page_children",
     "description": "Get child pages of a Confluence page",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>"
+      "<id>"
     ]
   },
   {
-    "name": "get-page-history",
-    "tool": "confluence_get_page_history",
+    "name": "page history",
+    "tool": "confluence_page_history",
     "description": "Get the version history metadata for a Confluence page",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>"
+      "<id>"
     ]
   },
   {
-    "name": "search",
-    "tool": "confluence_search",
+    "name": "page search",
+    "tool": "confluence_page_search",
     "description": "Search Confluence with CQL",
     "writes": false,
     "connection": true,
@@ -67,8 +67,8 @@
     ]
   },
   {
-    "name": "create-page",
-    "tool": "confluence_create_page",
+    "name": "page create",
+    "tool": "confluence_page_create",
     "description": "Create a new Confluence page",
     "writes": true,
     "connection": true,
@@ -84,13 +84,13 @@
     ]
   },
   {
-    "name": "update-page",
-    "tool": "confluence_update_page",
+    "name": "page update",
+    "tool": "confluence_page_update",
     "description": "Update a Confluence page (fetches current version automatically)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--title <title>",
       "--body <html>",
       "--body-file <path>",
@@ -101,76 +101,76 @@
     ]
   },
   {
-    "name": "delete-page",
+    "name": "page delete",
     "tool": null,
     "description": "Delete a Confluence page",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--allow-write"
     ]
   },
   {
-    "name": "list-comments",
-    "tool": "confluence_list_comments",
+    "name": "page comments",
+    "tool": "confluence_page_comments",
     "description": "List comments on a Confluence page",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>"
+      "<id>"
     ]
   },
   {
-    "name": "add-comment",
-    "tool": "confluence_add_comment",
+    "name": "page comment",
+    "tool": "confluence_page_comment",
     "description": "Add a comment to a Confluence page",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--body <text>",
       "--representation <format>",
       "--allow-write"
     ]
   },
   {
-    "name": "get-labels",
-    "tool": "confluence_get_labels",
+    "name": "page labels",
+    "tool": "confluence_page_labels",
     "description": "Get labels on a Confluence page",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>"
+      "<id>"
     ]
   },
   {
-    "name": "add-label",
-    "tool": "confluence_add_label",
+    "name": "page label",
+    "tool": "confluence_page_label",
     "description": "Add labels to a Confluence page",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--labels <names>",
       "--allow-write"
     ]
   },
   {
-    "name": "remove-label",
-    "tool": "confluence_remove_label",
+    "name": "page unlabel",
+    "tool": "confluence_page_unlabel",
     "description": "Remove a label from a Confluence page",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--label <name>",
       "--allow-write"
     ]
   },
   {
-    "name": "list-spaces",
-    "tool": "confluence_list_spaces",
+    "name": "space list",
+    "tool": "confluence_space_list",
     "description": "List Confluence spaces",
     "writes": false,
     "connection": true,
@@ -180,57 +180,57 @@
     ]
   },
   {
-    "name": "get-space",
-    "tool": "confluence_get_space",
+    "name": "space get",
+    "tool": "confluence_space_get",
     "description": "Get a Confluence space by key",
     "writes": false,
     "connection": true,
     "flags": [
-      "--key <space-key>"
+      "<key>"
     ]
   },
   {
-    "name": "list-attachments",
-    "tool": "confluence_list_attachments",
+    "name": "page attachments",
+    "tool": "confluence_page_attachments",
     "description": "List attachments on a Confluence page",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>"
+      "<id>"
     ]
   },
   {
-    "name": "upload-attachment",
-    "tool": "confluence_upload_attachment",
+    "name": "page attach",
+    "tool": "confluence_page_attach",
     "description": "Upload a file as an attachment to a Confluence page",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--file <path>",
       "--comment <text>",
       "--allow-write"
     ]
   },
   {
-    "name": "download-attachment",
-    "tool": "confluence_download_attachment",
+    "name": "attachment download",
+    "tool": "confluence_attachment_download",
     "description": "Download a Confluence attachment to .toil/ (or --dir)",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <attachment-id>",
+      "<id>",
       "--dir <path>"
     ]
   },
   {
-    "name": "delete-attachment",
+    "name": "attachment delete",
     "tool": null,
     "description": "Delete an attachment from Confluence by its content ID (moves it to the trash; does not permanently purge it)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <attachment-id>",
+      "<id>",
       "--allow-write"
     ]
   },

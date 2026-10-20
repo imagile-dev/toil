@@ -17,7 +17,7 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "--name <job>",
+      "<name>",
       "--instance <name>"
     ]
   },
@@ -28,7 +28,7 @@
     "writes": true,
     "connection": true,
     "flags": [
-      "--name <job>",
+      "<name>",
       "--parameter <k=v>",
       "--wait",
       "--timeout <s>",
@@ -38,38 +38,38 @@
     ]
   },
   {
-    "name": "pipeline list-runs",
-    "tool": "jenkins_pipeline_list_runs",
+    "name": "pipeline runs",
+    "tool": "jenkins_pipeline_runs",
     "description": "List recent builds for a job",
     "writes": false,
     "connection": true,
     "flags": [
-      "--name <job>",
+      "<name>",
       "--top <n>",
       "--instance <name>"
     ]
   },
   {
-    "name": "pipeline get-run",
-    "tool": "jenkins_pipeline_get_run",
+    "name": "run get",
+    "tool": "jenkins_run_get",
     "description": "Get details for a specific build",
     "writes": false,
     "connection": true,
     "flags": [
-      "--name <job>",
-      "--number <n>",
+      "<name>",
+      "<number>",
       "--instance <name>"
     ]
   },
   {
-    "name": "pipeline logs",
-    "tool": "jenkins_pipeline_logs",
+    "name": "run logs",
+    "tool": "jenkins_run_logs",
     "description": "Fetch console log for a build (consider --output-file for large logs)",
     "writes": false,
     "connection": true,
     "flags": [
-      "--name <job>",
-      "--number <n>",
+      "<name>",
+      "<number>",
       "--instance <name>"
     ]
   }

@@ -9,7 +9,7 @@ import { iq } from './client.js';
  */
 
 export const policiesListCommand = sonatypeiqArea.command({
-  path: ['sonatypeiq', 'policies', 'list'],
+  path: ['sonatypeiq', 'policy', 'list'],
   description: 'List all policies',
   toolDescription: 'Every policy in Sonatype IQ Server, as the server returns it: { policies: [{ id, name, ownerId, ownerType, threatLevel, policyType }] }.',
   input: z.object({

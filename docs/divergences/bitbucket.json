@@ -10,8 +10,8 @@
     },
     {
       "allows": [],
-      "old": "\"Could not determine Bitbucket project/repo. Pass --project and --repo, or run config init.\" (and the project-only form for create-repo and create-prs)",
-      "toil": "The same first sentence, then \"or set project and repo on the connection\", with a fix naming the env vars; checked by core before the command runs, so for list-prs it comes before a bad --created-after is reported",
+      "old": "\"Could not determine Bitbucket project/repo. Pass --project and --repo, or run config init.\" (and the project-only form for repo create and pr create-many)",
+      "toil": "The same first sentence, then \"or set project and repo on the connection\", with a fix naming the env vars; checked by core before the command runs, so for pr list it comes before a bad --created-after is reported",
       "why": "toil has no config init; an error must point at something the user can do.",
       "principle": "4"
     },
@@ -24,7 +24,7 @@
     },
     {
       "allows": [],
-      "old": "list-prs, list-comments paging until isLastPage is true, stepping by start + limit when a page has no nextPageStart, with no limit on the number of pages",
+      "old": "pr list, pr comments paging until isLastPage is true, stepping by start + limit when a page has no nextPageStart, with no limit on the number of pages",
       "toil": "Paging stops when isLastPage is true or a page has no nextPageStart, and after 1,000 pages (100,000 items) fails with HTTP naming the list and a fix to narrow it",
       "why": "A server that never says isLastPage would otherwise be read forever; Bitbucket sends nextPageStart on every page that isn't the last.",
       "principle": "4"

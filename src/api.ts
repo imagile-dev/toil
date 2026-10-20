@@ -347,7 +347,7 @@ export interface OwiMapOptions {
   fields?: Record<string, string> | string[];
   /** The command whose bare `data` the input is (`jira issue search`). */
   command?: string;
-  /** The item a keyless history (`jira issue history`, `github issue-events`) belongs to. */
+  /** The item a keyless history (`jira issue history`, `github issue history`) belongs to. */
   key?: string;
 }
 

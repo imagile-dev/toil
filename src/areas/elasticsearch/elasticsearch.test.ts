@@ -57,7 +57,7 @@ describe('cluster health', () => {
   });
 });
 
-describe('indices list', () => {
+describe('index list', () => {
   it('GETs _cat/indices as JSON with the named columns, commas literal, and counts the rows', async () => {
     const rows = [indexRow('logs-app'), indexRow('logs-web')];
     const { envelope, calls } = await run(indicesListCommand, {}, [any(rows)]);
@@ -76,7 +76,7 @@ describe('indices list', () => {
   });
 });
 
-describe('search', () => {
+describe('index search', () => {
   it('POSTs match_all with size 100 and from 0 by default, and reshapes the 7.0+ hits.total', async () => {
     const answer = searchBody({ value: 2, relation: 'eq' }, [hit(1), hit(2)]);
     const { envelope, calls } = await run(searchCommand, { index: 'logs-app' }, [any(answer, 'POST')]);
@@ -84,10 +84,10 @@ describe('search', () => {
     expect(envelope.data).toEqual({ index: 'logs-app', took: 7, timedOut: false, total: 2, totalRelation: 'eq', hitCount: 2, hits: [hit(1), hit(2)] });
   });
 
-  it('sends --query, --size, --from and --source as given, and --sort as one entry per pair', async () => {
+  it('sends --query, --limit, --offset and --source as given, and --sort as one entry per pair', async () => {
     const { calls } = await run(
       searchCommand,
-      { index: 'logs-app, logs-web', query: '{"match":{"message":"timeout"}}', sort: '@timestamp:desc,_score', source: 'message, @timestamp,', size: '20', from: 40 },
+      { index: 'logs-app, logs-web', query: '{"match":{"message":"timeout"}}', sort: '@timestamp:desc,_score', source: 'message, @timestamp,', limit: '20', offset: 40 },
       [any(searchBody({ value: 10000, relation: 'gte' }, []), 'POST')],
     );
     expect(calls[0]!.url).toBe(`${ES}/logs-app,logs-web/_search`);
@@ -112,14 +112,14 @@ describe('search', () => {
     expect(envelope.data).toEqual({ index: 'logs-app', took: 1, timedOut: false, hitCount: 0, hits: [] });
   });
 
-  it('refuses --query with --q, a non-object --query, invalid JSON and a negative size, before any request', async () => {
+  it('refuses --query with --q, a non-object --query, invalid JSON and a negative limit, before any request', async () => {
     for (const [input, message] of [
       [{ query: '{}', q: 'x' }, 'Use either --query or --q, not both.'],
       [{ query: '[1]' }, '--query must be a JSON object.'],
       [{ query: 'null' }, '--query must be a JSON object.'],
       [{ query: '{nope' }, `--query must be valid JSON. Example: --query '{"match_all":{}}'`],
-      [{ size: '-1' }, '--size must be a non-negative integer.'],
-      [{ from: '1.5' }, '--from must be a non-negative integer.'],
+      [{ limit: '-1' }, '--limit must be a non-negative integer.'],
+      [{ offset: '1.5' }, '--offset must be a non-negative integer.'],
       [{ timeoutMs: 'soon' }, '--timeout-ms must be a non-negative integer.'],
     ] as const) {
       const { envelope, calls } = await run(searchCommand, { index: 'logs-app', ...input }, []);
@@ -128,7 +128,7 @@ describe('search', () => {
     }
   });
 
-  it('--index is required, and an empty one is refused rather than searching every index', async () => {
+  it('the index is required, and an empty one is refused rather than searching every index', async () => {
     for (const input of [{}, { index: '' }]) {
       const { envelope, calls } = await run(searchCommand, input, []);
       expect(calls).toEqual([]);
@@ -136,11 +136,11 @@ describe('search', () => {
     }
   });
 
-  it('an empty target in --index or --pattern is refused before any request', async () => {
+  it('an empty target in the index or --pattern is refused before any request', async () => {
     for (const [def, input, flag] of [
-      [searchCommand, { index: 'a,,b' }, '--index'],
-      [searchCommand, { index: ' ' }, '--index'],
-      [countCommand, { index: ',' }, '--index'],
+      [searchCommand, { index: 'a,,b' }, 'The index'],
+      [searchCommand, { index: ' ' }, 'The index'],
+      [countCommand, { index: ',' }, 'The index'],
       [indicesListCommand, { pattern: ' ' }, '--pattern'],
     ] as const) {
       const { envelope, calls } = await run(def, input, []);
@@ -202,7 +202,7 @@ describe('#84 item 3, fixed from the docs: --sort takes comma-separated field:or
   });
 });
 
-describe('count', () => {
+describe('index count', () => {
   it('POSTs the query to /<index>/_count and returns { index, count }', async () => {
     const { envelope, calls } = await run(countCommand, { index: 'logs-*', q: 'level:error' }, [any({ count: 37, _shards: {} }, 'POST')]);
     expect(calls).toEqual([{ method: 'POST', url: `${ES}/logs-*/_count`, headers: HEADERS, body: JSON.stringify({ query: { query_string: { query: 'level:error' } } }) }]);
@@ -217,7 +217,7 @@ describe('count', () => {
 
 describe('helpers', () => {
   it('indexPath keeps commas literal and wildcards as they are', () => {
-    expect(indexPath('a, b ,c*', '--index')).toBe('a,b,c*');
+    expect(indexPath('a, b ,c*', 'The index')).toBe('a,b,c*');
   });
 
   it('errorReason reads the documented shapes and nothing else', () => {

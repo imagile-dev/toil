@@ -149,7 +149,7 @@ export async function githubGraphqlList<T>(
   needLimitForCursor(opts);
   const page = (body: unknown) => {
     const found = connection(body);
-    if (!found) throw new ToilError('NOT_FOUND', `GitHub found no ${what}.`, { fix: 'Check --owner (and --project, for a project\'s fields or items): the owner must exist, and the token must be able to see its projects.' });
+    if (!found) throw new ToilError('NOT_FOUND', `GitHub found no ${what}.`, { fix: 'Check --owner (and the project number, for a project\'s fields or items): the owner must exist, and the token must be able to see its projects.' });
     return found;
   };
   const paged = await paginate<T>(

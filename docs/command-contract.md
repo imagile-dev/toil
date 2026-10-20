@@ -2,7 +2,7 @@
 
 `command-contract.json` is toil's hand-maintained record of its command surface: every
 command path and alias, each command's positional arguments and flags with their
-accepted values and defaults, and the field names of the `data` each command returns. It holds 450
+accepted values and defaults, and the field names of the `data` each command returns. It holds 486
 commands, 369 of them leaves. `test/contract.test.ts` checks the registered CLI against
 it on every run, so a command, flag or output field can't change or disappear without
 someone noticing. Each difference toil makes on purpose is a divergence, listed with its
@@ -16,7 +16,7 @@ working rules are **Compatibility** in the `integrations` skill
 
 For every command in scope:
 
-- the command path (`jira issue get`, `ado pr list`, `dynatrace entities list`) and its
+- the command path (`jira issue get`, `ado pr list`, `dynatrace entity list`) and its
   aliases
 - the positional arguments, in order
 - the long and short flags, their accepted values and their defaults

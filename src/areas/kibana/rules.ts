@@ -56,7 +56,7 @@ export function summarizeRule(r: Rule): Record<string, unknown> {
 // GET /api/alerting/rules/_find:
 // https://www.elastic.co/docs/api/doc/kibana/operation/operation-get-alerting-rules-find
 export const rulesListCommand = kibanaArea.command({
-  path: ['kibana', 'rules', 'list'],
+  path: ['kibana', 'rule', 'list'],
   description: 'List alerting rules with their schedule and last execution status',
   input: z.object({
     search: z.string().optional().describe('Match rule names; supports a trailing * wildcard'),
@@ -86,14 +86,14 @@ export const rulesListCommand = kibanaArea.command({
 // GET /api/alerting/rule/{id}:
 // https://www.elastic.co/docs/api/doc/kibana/operation/operation-get-alerting-rule-id
 export const rulesGetCommand = kibanaArea.command({
-  path: ['kibana', 'rules', 'get'],
+  path: ['kibana', 'rule', 'get'],
   description: 'Get one alerting rule, including its params and actions',
   input: z.object({
     id: z.string().min(1).describe('Rule ID'),
   }),
   writes: false,
   context: { space: 'optional' },
-  options: [{ flags: '--id <id>', field: 'id', description: 'Rule ID' }],
+  args: [{ name: 'id', field: 'id', description: 'Rule ID' }],
   examples: [{ id: 'abc12345-0000-0000-0000-000000000000' }, { id: 'abc12345-0000-0000-0000-000000000000', space: 'ops' }],
   run: async (input, ctx) => {
     const space = ctx.context.space;

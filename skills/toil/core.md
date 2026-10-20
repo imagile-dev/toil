@@ -57,8 +57,8 @@ To wait for a build, a scan or a deployment to finish, don't call a read in a lo
 `toil wait --until "<expression>" -- <read command>` runs it again every `--interval`
 (default 15s, at least 5s) until the JMESPath expression over its `data` is true (not
 null, false or empty), for example
-`toil wait --until "result != null" -- jenkins pipeline get-run --name my-job --number 42` or
-`toil wait --until "projectStatus.status != 'NONE'" --timeout 10m -- sonar quality-gate --project my-app`.
+`toil wait --until "result != null" -- jenkins run get my-job 42` or
+`toil wait --until "projectStatus.status != 'NONE'" --timeout 10m -- sonar quality-gate get --project my-app`.
 Over MCP it's the `wait` tool, with `tool` (the read's tool name), `input` (that tool's
 input) and the same `until`, `interval` and `timeout`. It returns the read's last
 envelope plus `meta.wait` (`until`, `attempts`, `elapsedMs`). `NETWORK` errors and

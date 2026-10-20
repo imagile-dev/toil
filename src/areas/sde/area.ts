@@ -41,13 +41,6 @@ export const sdeArea = defineArea({
       scope: 'command',
       setting: 'project',
     },
-    // `sde project` has always spelt the same project ID --id.
-    id: {
-      description: 'SD Elements project ID',
-      flags: '--id <id>',
-      scope: 'command',
-      setting: 'project',
-    },
   },
   probe: () => ({ path: '/api/v2/users/me/' }),
   request: (connection, area) => {

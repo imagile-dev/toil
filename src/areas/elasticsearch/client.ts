@@ -85,7 +85,7 @@ function withReason(fetch: typeof globalThis.fetch): typeof globalThis.fetch {
 export function indexPath(index: string, flag: string): string {
   const targets = index.split(',').map((s) => s.trim());
   if (targets.some((t) => t === '')) {
-    throw invalid(`${flag} has an empty target: "${index}".`, `Pass one or more index, data stream or alias names, comma-separated with nothing empty between them, e.g. ${flag} logs-app,logs-web.`);
+    throw invalid(`${flag} has an empty target: "${index}".`, `Pass one or more index, data stream or alias names, comma-separated with nothing empty between them, e.g. logs-app,logs-web.`);
   }
   return targets.map((t) => encodeURIComponent(t)).join(',');
 }

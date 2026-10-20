@@ -149,7 +149,7 @@ versions.
   Name it `env`, give it `selectsConnection` (or an enum schema), and never add a
   second environment flag.
 - **A path the contract records in another group** (`deps outdated`, served by
-  `artifactory outdated`) is an `aliases` entry on the command that serves it; the
+  `artifactory package outdated`) is an `aliases` entry on the command that serves it; the
   contract test checks the contract's row against it.
 - **A path in the area that a core command answers** (`jenkins instance list`, which
   lists the area's connections) is `defineArea({ coreAliases: { 'instance list':
@@ -237,7 +237,7 @@ versions.
 - **A `connectionOptional` command** also runs with `ctx.connection` undefined
   when the default connection exists but only lacks a key (a missing `pat`), with
   a `CONFIG_INCOMPLETE` warning; a key set to something wrong still fails.
-- **A fixture whose examples read the repository** (`current-pr`) sets `repo`
+- **A fixture whose examples read the repository** (`pr current`) sets `repo`
   (root, branch, remotes) in `defineFixture`, and `ctx.repo()` returns it on both
   front doors.
 - **Two selecting inputs** (`--env prod --instance east`) pick the one connection
@@ -320,7 +320,7 @@ the Open Work Item mapping (`docs/owi/spec.md`) **in the same PR**:
   returned: `verified.passed`, and anything in `unmapped` or `skipped`.
 
 `test/owi.test.ts` enforces the mark: an area with issue- or work-item-shaped
-commands (`get-issue`, `search-issues`, `issue-events`, `issue get`, `work-item get`)
+commands (`issue get`, `issue search`, `issue history`, `work-item get`)
 that isn't in `OWI_SOURCES` fails CI, and so does a marked area without a fixture or
 whose mapped examples don't validate against the schema. An area that is on its way
 sits in that test's `PENDING` list, by its issue, and switches on once it registers.
@@ -360,7 +360,9 @@ breaking the other.
   for a read of a sub-collection, its plural noun** (`comments`, `transitions`,
   `attachments`, `files`, `reviewers`, `builds`, `threads`, `fields`, `types`).
 - **Service-level commands stay two words**: `whoami`, `connection-data`, `api`,
-  `check-dossier`.
+  `check-dossier`, `status`, `ping`, and an inventory command that is an area's one
+  job (`osv vulns`, `ossindex vulns`, `sonatypeiq evaluate`), which `deps frisk`'s
+  routed alias reaches with flags only.
 - **Positional arguments are the path to the thing and nothing else**: the
   resource's id first, then a sub-item's id (an attachment, a thread, a comment).
   Values, including the other end of a link, a state, a sprint or a person, are
@@ -377,9 +379,10 @@ breaking the other.
   and `data` stay as the contract records them. The old paths and flags are dropped,
   never aliased, and the contract's entries for the area are rewritten to the new
   surface in the same change (CLAUDE.md, **The command contract**).
-- **Today** `jira`, `jira-cloud`, `ado` and `ado-cloud` follow it. A new area follows
-  it from the start; every other area moves to it before 1.0 (#297), and its reshape PR
-  carries the old-to-new table of every path and flag (CLAUDE.md, **The command contract**).
+- **Every integration area follows it** (#290, #297), and a new area follows it from
+  the start. A later reshape carries the old-to-new table of every path and flag in
+  its PR (CLAUDE.md, **The command contract**). `git` (local git's own verbs) and `util`
+  (local utilities) keep their shapes.
 
 ## Compatibility
 

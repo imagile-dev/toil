@@ -4,7 +4,7 @@ import { hotspotsPage, issuesPage, projectsPage, sonar, sonarAll } from './clien
 
 /**
  * The five SonarQube commands. Four act on one project, taken from --project
- * or the connection's `project` (usually `defaults.sonar.project`); `projects`
+ * or the connection's `project` (usually `defaults.sonar.project`); `project list`
  * lists them. Without --all, `data` is the server's page as it came; with
  * --all, the items of every page in one flat list. Paging parameters reach
  * the server exactly as typed, `NaN` included, because the server is the
@@ -18,7 +18,7 @@ const intText = z.union([z.number(), z.string()]);
 const parseIntText = (value: number | string | undefined, fallback: string) => parseInt(String(value ?? fallback), 10);
 
 export const qualityGateCommand = sonarArea.command({
-  path: ['sonar', 'quality-gate'],
+  path: ['sonar', 'quality-gate', 'get'],
   description: 'Get quality gate status for a project',
   input: z.object({
     branch: z.string().optional().describe('Branch name'),
@@ -34,7 +34,7 @@ export const qualityGateCommand = sonarArea.command({
 });
 
 export const issuesCommand = sonarArea.command({
-  path: ['sonar', 'issues'],
+  path: ['sonar', 'issue', 'list'],
   description: 'Search/list issues for a project',
   input: z.object({
     severities: z.string().optional().describe('Filter by severity: BLOCKER,CRITICAL,MAJOR,MINOR,INFO (comma-separated)'),
@@ -80,7 +80,7 @@ export const issuesCommand = sonarArea.command({
 });
 
 export const measuresCommand = sonarArea.command({
-  path: ['sonar', 'measures'],
+  path: ['sonar', 'measure', 'list'],
   description: 'Get key metrics for a project',
   input: z.object({
     metrics: z.string().optional().describe(`Comma-separated metric keys (default: "${DEFAULT_METRICS}")`),
@@ -100,7 +100,7 @@ export const measuresCommand = sonarArea.command({
 });
 
 export const projectsCommand = sonarArea.command({
-  path: ['sonar', 'projects'],
+  path: ['sonar', 'project', 'list'],
   description: 'Search/list projects',
   input: z.object({
     query: z.string().optional().describe('Search query'),
@@ -124,7 +124,7 @@ export const projectsCommand = sonarArea.command({
 });
 
 export const hotspotsCommand = sonarArea.command({
-  path: ['sonar', 'hotspots'],
+  path: ['sonar', 'hotspot', 'list'],
   description: 'List security hotspots for a project',
   input: z.object({
     status: z.string().optional().describe('Filter: TO_REVIEW or REVIEWED'),

@@ -95,8 +95,8 @@ gets made again in the next place it applies.
     what to type. The shape is toil's own: when an area is reshaped, the paths and flags
     the contract recorded before are dropped, not kept as aliases. Deliberate aliases
     (`deps outdated`, a routed alias, an area's `coreAliases`) are a different thing
-    and stay. → **Command Shape** (`integrations` skill); `jira`, `jira-cloud`, `ado`
-    and `ado-cloud` follow it, and every other area is reshaped before 1.0 (#297).
+    and stay. → **Command Shape** (`integrations` skill); every integration area
+    follows it (#290, #297).
 
 ## Cross-Platform
 
@@ -351,7 +351,7 @@ connection or config, e.g. `jira issue schema`), `config` (`defineConfigCommand`
 
 **Context inputs** say where in the service a command acts (`--project`, `--repo`,
 `--instance`). An area declares them once in `context`; a `group` input (the default)
-is a flag on the area's group (`toil github --owner o get-pr`, accepted before or
+is a flag on the area's group (`toil github --owner o pr get 7`, accepted before or
 after the leaf) and a field on every one of its MCP tools, and a `command` input
 belongs to the commands that list it in their own `context`, which also marks any
 input `required`. Core resolves each in one order: the call's own value, then the
@@ -412,7 +412,7 @@ matching precedence rule 2. A shared key is a secret in both areas or in neither
 value came from env or the store, never the value.
 
 **Aliases** add CLI paths onto a command: a word is a sibling in its group, a path
-may sit in another group (`deps outdated` for `artifactory outdated`); MCP still has
+may sit in another group (`deps outdated` for `artifactory package outdated`); MCP still has
 one tool per command, and `meta.command` names the command. An area's `coreAliases`
 put a path in its group onto a core command fixed to that area (`jenkins instance
 list` is `connections list --area jenkins`). A **routed alias** is a contract path

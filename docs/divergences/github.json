@@ -12,53 +12,53 @@
       "allows": [],
       "old": "github commands putting owner, repo, label and ref into request paths as typed, so a \".\" or \"..\" segment (or its %2e or backslash form) is collapsed by URL parsing and the request, a DELETE included, goes to a different resource on the same host",
       "toil": "A path with a \".\" or \"..\" segment is refused with INVALID_INPUT before anything is sent: core's requests.path bound for every area, plus a check here that first reads the path as the URL parser does (tab, LF and CR dropped, trailing C0 controls and spaces trimmed), so two dots with a tab between them or a trailing \".. \" can't become \"..\" afterwards. Every other character still goes in unencoded (#72 item 4)",
-      "why": "A write approved for one resource must not land on another: --label ../../../repos/o/r on remove-label would otherwise send DELETE /repos/o/r.",
+      "why": "A write approved for one resource must not land on another: --label ../../../repos/o/r on issue unlabel would otherwise send DELETE /repos/o/r.",
       "principle": "2",
       "class": "security"
     },
     {
       "allows": [],
-      "old": "github delete-comment, delete-review-comment, remove-label, remove-reviewers and remove-assignees available to every caller",
+      "old": "github pr delete-comment, pr delete-review-comment, issue unlabel, pr remove-reviewers and issue unassign available to every caller",
       "toil": "The same commands on the CLI; toil mcp never serves them",
       "why": "Deletes are never exposed through MCP (CLAUDE.md, Writes).",
       "principle": "2"
     },
     {
       "allows": [],
-      "old": "github list-prs, list-comments, list-review-comments, list-files, list-reviews and list-checks paging until a short page, with no limit on the number of pages",
+      "old": "github pr list, pr comments, pr review-comments, pr files, pr reviews and commit checks paging until a short page, with no limit on the number of pages",
       "toil": "The same short-page stop, plus a bound: after 1,000 pages (100,000 items) the command fails with HTTP, naming what was being paged, and fix text to narrow the request",
       "why": "A server that ignores the page parameter would otherwise be asked for the same page forever; the bound turns a hang into an error that says what happened.",
       "principle": "4"
     },
     {
       "allows": [],
-      "old": "github list-review-threads printing \"warning: more than N review threads ...\" to stderr when the first 100 threads aren't all of them",
+      "old": "github pr threads printing \"warning: more than N review threads ...\" to stderr when the first 100 threads aren't all of them",
       "toil": "The same text as a GITHUB_REVIEW_THREADS_TRUNCATED entry in meta.warnings; data is unchanged",
       "why": "An MCP client never sees stderr, so a truncation it can't see would fail silently. meta.warnings is the envelope's place for it (Output Contract).",
       "principle": "4"
     },
     {
       "allows": [],
-      "old": "GraphQL failures (review threads, pr-status, auto-merge, merge queue, drafts, resolve-thread) reported as the joined error messages alone, or \"GraphQL response contained no data\"",
+      "old": "GraphQL failures (review threads, pr status, auto-merge, merge queue, drafts, pr resolve) reported as the joined error messages alone, or \"GraphQL response contained no data\"",
       "toil": "\"GitHub GraphQL error: <messages joined with '; '>\", or \"GitHub answered the GraphQL query at <url> with no data.\", both as HTTP with a fix, from core's one GraphQL helper",
       "why": "Every area's GraphQL calls fail the same way, saying which service failed and what to check next.",
       "principle": "4"
     },
     {
       "allows": [
-        "github add-labels data.labels"
+        "github issue label data.labels"
       ],
-      "old": "github add-labels typing its data as { labels: [...] }",
+      "old": "github issue label typing its data as { labels: [...] }",
       "toil": "data is GitHub's answer passed through unchanged, as the contract specifies. GitHub answers with a bare array of labels, so the typed field the contract records never exists at run time",
       "why": "Nothing changes; the recorded field comes from a declared type, not from what GitHub returns, and a fixture shaped like the real API can't carry it.",
       "principle": "The command contract"
     },
     {
       "allows": [
-        "github add-reviewers data.users",
-        "github add-reviewers data.teams"
+        "github pr add-reviewers data.users",
+        "github pr add-reviewers data.teams"
       ],
-      "old": "github add-reviewers typing its data as { url, users, teams }",
+      "old": "github pr add-reviewers typing its data as { url, users, teams }",
       "toil": "data is GitHub's answer passed through unchanged, as the contract specifies. GitHub answers a reviewer request with the pull request, which has url and requested_reviewers but no users or teams",
       "why": "Nothing changes; the recorded fields come from a declared type, not from what GitHub returns, and a fixture shaped like the real API can't carry them.",
       "principle": "The command contract"

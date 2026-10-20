@@ -30,11 +30,11 @@ function oneOf(value: string | undefined, allowed: string[]): string | undefined
   return value;
 }
 
-/** The project ID from the flag or the connection's `project`, as a positive integer, with the contract's specified wording. */
-function projectOf(value: string | undefined, flag: string): number {
-  const fix = `Pass ${flag} <id>, or set project under defaults.sde in your toil config (${sdeArea.envName('project')} for the default connection).`;
+/** The project ID from the call or the connection's `project`, as a positive integer, with the contract's specified wording. */
+function projectOf(value: string | undefined, how = '--project <id>'): number {
+  const fix = `Pass ${how}, or set project under defaults.sde in your toil config (${sdeArea.envName('project')} for the default connection).`;
   if (!value) throw new ToilError('INVALID_INPUT', 'No project specified. Use --project or set defaults.sde.project in config.', { fix });
-  const invalid = () => new ToilError('INVALID_INPUT', `Invalid project ID: "${value}". SDElements project IDs must be positive integers.`, { fix: 'Use the numeric ID from toil sde projects.' });
+  const invalid = () => new ToilError('INVALID_INPUT', `Invalid project ID: "${value}". SDElements project IDs must be positive integers.`, { fix: 'Use the numeric ID from toil sde project list.' });
   if (!/^\d+$/.test(value)) throw invalid();
   const id = parseInt(value, 10);
   if (id <= 0) throw invalid();
@@ -84,7 +84,7 @@ export const whoamiCommand = sdeArea.command({
 });
 
 export const usersCommand = sdeArea.command({
-  path: ['sde', 'users'],
+  path: ['sde', 'user', 'list'],
   description: 'List users',
   input: z.object({
     email: z.string().optional().describe('Filter by email address'),
@@ -110,7 +110,7 @@ export const usersCommand = sdeArea.command({
 });
 
 export const projectsCommand = sdeArea.command({
-  path: ['sde', 'projects'],
+  path: ['sde', 'project', 'list'],
   description: 'List projects',
   input: z.object({
     name: z.string().optional().describe('Filter by project name'),
@@ -151,28 +151,32 @@ export const projectsCommand = sdeArea.command({
 });
 
 export const projectCommand = sdeArea.command({
-  path: ['sde', 'project'],
+  path: ['sde', 'project', 'get'],
   description: 'Get a single project by ID',
+  toolDescription: "Returns one SD Elements project by ID. Without id, it reads the project from --project, the dossier or the connection's project setting.",
   input: z.object({
+    id: z.string().optional().describe("SD Elements project ID; defaults to the call's project (--project, the dossier, then the connection's project)"),
     expand: z.string().optional().describe('Expand nested fields (comma-separated): application,business_unit,creator'),
     include: z.string().optional().describe('Include extra fields (comma-separated): task_counts,permissions'),
   }),
   writes: false,
-  context: { id: 'optional' },
+  context: { project: 'optional' },
+  args: [{ name: 'id', field: 'id', description: "SD Elements project ID (default: --project, then the connection's project)", required: false }],
   options: [
     { flags: '--expand <fields>', field: 'expand', description: 'Expand nested fields (comma-separated): application,business_unit,creator' },
     { flags: '--include <fields>', field: 'include', description: 'Include extra fields (comma-separated): task_counts,permissions' },
   ],
-  examples: [{ id: '42' }, { id: '42', expand: 'application,business_unit', include: 'task_counts,permissions' }],
+  examples: [{ id: '42' }, { project: '42' }, { id: '42', expand: 'application,business_unit', include: 'task_counts,permissions' }],
   run: async (input, ctx) => {
     endpointOf(ctx.connection);
-    const id = projectOf(ctx.context.id, '--id');
+    // The positional ID wins; without it, the project resolved the way every other sde command resolves one.
+    const id = projectOf(input.id ?? ctx.context.project, 'the project ID (toil sde project get <id>) or --project <id>');
     return sde(ctx, `/projects/${id}/`, { expand: input.expand, include: input.include });
   },
 });
 
 export const tasksCommand = sdeArea.command({
-  path: ['sde', 'tasks'],
+  path: ['sde', 'task', 'list'],
   description: 'List countermeasures for a project',
   input: z.object({
     phase: z.string().optional().describe('Filter by phase slug (e.g. development, architecture-design)'),
@@ -226,7 +230,7 @@ export const tasksCommand = sdeArea.command({
   ],
   run: async (input, ctx) => {
     endpointOf(ctx.connection);
-    const id = projectOf(ctx.context.project, '--project');
+    const id = projectOf(ctx.context.project);
     const params = {
       phase: input.phase,
       priority: input.priority,
@@ -245,7 +249,7 @@ export const tasksCommand = sdeArea.command({
 });
 
 export const taskCommand = sdeArea.command({
-  path: ['sde', 'task'],
+  path: ['sde', 'task', 'get'],
   description: 'Get a single countermeasure',
   input: z.object({
     task: z.string().describe('Task ID (e.g. T21)'),
@@ -254,8 +258,8 @@ export const taskCommand = sdeArea.command({
   }),
   writes: false,
   context: { project: 'optional' },
+  args: [{ name: 'task', field: 'task', description: 'Task ID (e.g. T21)' }],
   options: [
-    { flags: '--task <id>', field: 'task', description: 'Task ID (e.g. T21)' },
     { flags: '--expand <fields>', field: 'expand', description: 'Expand nested fields (comma-separated): status,phase,problem,text' },
     { flags: '--include <fields>', field: 'include', description: 'Include extra fields (comma-separated): how_tos,last_note,references' },
   ],
@@ -266,14 +270,14 @@ export const taskCommand = sdeArea.command({
   ],
   run: async (input, ctx) => {
     endpointOf(ctx.connection);
-    const id = projectOf(ctx.context.project, '--project');
+    const id = projectOf(ctx.context.project);
     // Suspected bug (#86 item 1): no `<project>-` prefix and no encoding, so `T21` asks for tasks/T21/.
     return sde(ctx, `/projects/${id}/tasks/${input.task}/`, { expand: input.expand, include: input.include });
   },
 });
 
 export const threatsCommand = sdeArea.command({
-  path: ['sde', 'threats'],
+  path: ['sde', 'threat', 'list'],
   description: 'List threats for a project',
   input: z.object({
     severity: z.string().optional().describe('Filter by severity (1-10)'),
@@ -300,7 +304,7 @@ export const threatsCommand = sdeArea.command({
   ],
   run: async (input, ctx) => {
     endpointOf(ctx.connection);
-    const id = projectOf(ctx.context.project, '--project');
+    const id = projectOf(ctx.context.project);
     const params = { severity: input.severity, search: input.search, ordering: input.ordering, capec_id: input.capecId, component_id: input.componentId };
     return listed(ctx, `/projects/${id}/threats/`, params, input, `SD Elements threats for project ${id}`);
   },

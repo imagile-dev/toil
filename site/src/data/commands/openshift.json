@@ -1,7 +1,7 @@
 [
   {
-    "name": "pods",
-    "tool": "openshift_pods",
+    "name": "pod list",
+    "tool": "openshift_pod_list",
     "description": "List pod health summary for a namespace — pre-processed for LLM analysis. Use --raw to return the full unmodified Kubernetes pod objects.",
     "writes": false,
     "connection": true,
@@ -14,8 +14,8 @@
     ]
   },
   {
-    "name": "deployments",
-    "tool": "openshift_deployments",
+    "name": "deployment list",
+    "tool": "openshift_deployment_list",
     "description": "List Deployments (or OpenShift DeploymentConfigs with --deployment-configs) for a namespace, read-only. Use --raw to return the full unmodified objects.",
     "writes": false,
     "connection": true,
@@ -29,8 +29,8 @@
     ]
   },
   {
-    "name": "events",
-    "tool": "openshift_events",
+    "name": "event list",
+    "tool": "openshift_event_list",
     "description": "List Warning events for a namespace — pre-filtered for LLM analysis",
     "writes": false,
     "connection": true,
@@ -43,14 +43,14 @@
     ]
   },
   {
-    "name": "logs",
-    "tool": "openshift_logs",
+    "name": "pod logs",
+    "tool": "openshift_pod_logs",
     "description": "Get recent log lines from a pod container",
     "writes": false,
     "connection": true,
     "flags": [
+      "<pod>",
       "--namespace <ns>",
-      "--pod <name>",
       "--container <name>",
       "--lines <n>",
       "--previous",
@@ -59,7 +59,7 @@
     ]
   },
   {
-    "name": "pod-metrics",
+    "name": "pod metrics",
     "tool": "openshift_pod_metrics",
     "description": "Get CPU and memory usage for pods in a namespace (requires metrics-server)",
     "writes": false,
@@ -71,8 +71,8 @@
     ]
   },
   {
-    "name": "resource-usage",
-    "tool": "openshift_resource_usage",
+    "name": "namespace usage",
+    "tool": "openshift_namespace_usage",
     "description": "Combined CPU/memory usage, limits, and requests for all pods in a namespace — all values normalized to millicores (m) and mebibytes (Mi). Requires metrics-server. Use --csv with --out <file> to also save a spreadsheet-friendly CSV.",
     "writes": false,
     "connection": true,

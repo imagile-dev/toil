@@ -7,12 +7,12 @@ import { contractVersion, execute, mapOwi, owiSchema, owiVersion, registry, vers
 
 const events = [];
 const listed = await execute(
-  'bitbucket list-prs',
+  'bitbucket pr list',
   { project: 'PAY', repo: 'web' },
   { readOnly: true, caller: 'api-consumer', onProgress: (event) => events.push({ type: event.type, command: event.command, message: event.message }) },
 );
 // Refused before any request: the stub would record a POST if one were sent.
-const refused = await execute('bitbucket create-pr', { project: 'PAY', repo: 'web', title: 'Add retries', source: 'feature/retries', allowWrite: true }, { readOnly: true, caller: 'api-consumer' });
+const refused = await execute('bitbucket pr create', { project: 'PAY', repo: 'web', title: 'Add retries', source: 'feature/retries', allowWrite: true }, { readOnly: true, caller: 'api-consumer' });
 const unknown = await execute('no such command');
 const badCaller = await execute('version', {}, { caller: 'Not A Label' });
 // The Open Work Item mappers, in-process, on an envelope a host already holds: a dossier's fields point estimate at the team's field.
@@ -25,7 +25,7 @@ console.log(
     version,
     contractVersion,
     commands: registry.commands.length,
-    listPrs: (({ name, tool, writes, inputSchema }) => ({ name, tool, writes, hasSchema: inputSchema.type === 'object' }))(registry.commands.find((c) => c.name === 'bitbucket list-prs')),
+    listPrs: (({ name, tool, writes, inputSchema }) => ({ name, tool, writes, hasSchema: inputSchema.type === 'object' }))(registry.commands.find((c) => c.name === 'bitbucket pr list')),
     listed: { ok: listed.ok, ids: listed.ok ? listed.data.map((pr) => pr.id) : null, error: listed.error, contractVersion: listed.meta.contractVersion },
     events,
     refused: refused.error?.code,

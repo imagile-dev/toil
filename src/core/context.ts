@@ -156,7 +156,7 @@ export interface CommandContext<C = undefined, X = Record<string, string | undef
   /**
    * The repository the workspace is in: its root, current branch and remote
    * URLs, read from `.git` in pure JS, so it needs no git installed and spawns
-   * nothing (`bitbucket current-pr`). Undefined outside a repository. Read-only;
+   * nothing (`bitbucket pr current`). Undefined outside a repository. Read-only;
    * to run git, a command that is git uses `ctx.git`. An http(s) remote's
    * userinfo, which may be a token, is left out.
    */

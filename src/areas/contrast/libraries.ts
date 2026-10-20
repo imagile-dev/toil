@@ -11,13 +11,13 @@ import { contrast, intText, limitOffset } from './client.js';
  * conducts all searches: from the front.
  */
 
-/** Batch size for `libraries get`, as the contract specifies. */
+/** Batch size for `library get`, as the contract specifies. */
 const BATCH = 25;
 
 type Library = Record<string, unknown>;
 
 export const librariesListCommand = contrastArea.command({
-  path: ['contrast', 'libraries', 'list'],
+  path: ['contrast', 'app', 'libraries'],
   description: 'List libraries used by an application, as shown on the Libraries tab',
   input: z.object({
     app: z.string().describe('Application ID (UUID)'),
@@ -25,8 +25,8 @@ export const librariesListCommand = contrastArea.command({
     offset: intText.optional().describe('Pagination offset (default: "0")'),
   }),
   writes: false,
+  args: [{ name: 'app', field: 'app', description: 'Application ID (UUID)' }],
   options: [
-    { flags: '--app <app-id>', field: 'app', description: 'Application ID (UUID)' },
     { flags: '--limit <n>', field: 'limit', description: 'Maximum number of results (default: "25")' },
     { flags: '--offset <n>', field: 'offset', description: 'Pagination offset (default: "0")' },
   ],
@@ -38,16 +38,16 @@ export const librariesListCommand = contrastArea.command({
 });
 
 export const librariesGetCommand = contrastArea.command({
-  path: ['contrast', 'libraries', 'get'],
+  path: ['contrast', 'library', 'get'],
   description: 'Get details for a specific library used by an application, by hash',
   input: z.object({
     app: z.string().describe('Application ID (UUID)'),
     hash: z.string().describe('Library hash'),
   }),
   writes: false,
-  options: [
-    { flags: '--app <app-id>', field: 'app', description: 'Application ID (UUID)' },
-    { flags: '--hash <library-hash>', field: 'hash', description: 'Library hash' },
+  args: [
+    { name: 'app', field: 'app', description: 'Application ID (UUID)' },
+    { name: 'hash', field: 'hash', description: 'Library hash' },
   ],
   examples: [{ app: 'abc12345-0000-0000-0000-000000000000', hash: '0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c' }],
   run: async (input, ctx) => {
@@ -68,7 +68,7 @@ export const librariesGetCommand = contrastArea.command({
     );
     if (!match) {
       throw new ToilError('NOT_FOUND', `Library with hash "${input.hash}" not found for application ${input.app}`, {
-        fix: `Check the hash with toil contrast libraries list --app ${input.app}, and that the application ID is right.`,
+        fix: `Check the hash with toil contrast app libraries ${input.app}, and that the application ID is right.`,
       });
     }
     return match;

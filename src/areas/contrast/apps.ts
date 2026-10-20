@@ -3,13 +3,13 @@ import { contrastArea } from './area.js';
 import { contrast, intText, limitOffset } from './client.js';
 
 /**
- * `apps list`: one page of the organization's applications, the server's body
+ * `app list`: one page of the organization's applications, the server's body
  * as it came. The caller pages by hand with --limit and --offset, as is
  * customary for anything involving an inventory.
  */
 
 export const appsListCommand = contrastArea.command({
-  path: ['contrast', 'apps', 'list'],
+  path: ['contrast', 'app', 'list'],
   description: 'List applications in the organization',
   input: z.object({
     limit: intText.optional().describe('Maximum number of results (default: "25")'),

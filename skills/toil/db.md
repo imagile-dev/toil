@@ -350,10 +350,10 @@ other engines; see the known limit under "Reads are read-only at the engine".
 
 | Command | MCP tool | Returns |
 |---------|----------|---------|
-| `toil db list-schemas` | `db_list_schemas` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas; for Oracle, the users the login can see that Oracle doesn't maintain. |
-| `toil db list-tables [--schema <name>]` | `db_list_tables` | `{ schema, tables: [{ name, type }] }`, `type` being `table` or `view` |
-| `toil db describe-table <table> [--schema <name>]` | `db_describe_table` | `{ schema, name, type, columns, primaryKey, indexes, foreignKeys }` |
-| `toil db preview-table <table> [--schema] [--limit] [--cursor]` | `db_preview_table` | A page of rows: `{ columns, rows }` |
+| `toil db schema list` | `db_schema_list` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas; for Oracle, the users the login can see that Oracle doesn't maintain. |
+| `toil db table list [--schema <name>]` | `db_table_list` | `{ schema, tables: [{ name, type }] }`, `type` being `table` or `view` |
+| `toil db table describe <table> [--schema <name>]` | `db_table_describe` | `{ schema, name, type, columns, primaryKey, indexes, foreignKeys }` |
+| `toil db table preview <table> [--schema] [--limit] [--cursor]` | `db_table_preview` | A page of rows: `{ columns, rows }` |
 | `toil db query <sql> [--limit] [--cursor]` | `db_query` | A page of rows from one read-only statement: `{ columns, rows }` |
 | `toil db execute <sql> --allow-write` | `db_execute` | `{ changes }`: rows inserted, updated or deleted |
 
@@ -364,7 +364,7 @@ schema for Oracle). PostgreSQL names are case-sensitive as stored: an unquoted
 `CREATE TABLE People` is stored as `people`. MySQL table names are case-sensitive on
 most Linux servers. Oracle stores an unquoted name in upper case and reports names as
 stored (`PEOPLE`, `ID`); a schema or table you name that doesn't exist as written is
-looked up again in upper case, so `describe-table people` finds `PEOPLE`. A quoted
+looked up again in upper case, so `table describe people` finds `PEOPLE`. A quoted
 mixed-case name (`"People"`) must be typed exactly.
 
 Rows come back as arrays in the order of `columns`, so a join's two `id` columns both
@@ -384,11 +384,11 @@ PostgreSQL names every result column's type (`integer`, `character varying(100)`
 come back as the text the server sent, never shifted into the local time zone.
 
 MySQL names each result column's type from the protocol (`INT`, `BIGINT`, `VARCHAR`,
-`DECIMAL`, `DATETIME`), without lengths; `describe-table` gives the full column type
+`DECIMAL`, `DATETIME`), without lengths; `table describe` gives the full column type
 (`varchar(100)`). `DECIMAL` comes back as a string; dates, times and timestamps as the
 text the server sent; `JSON` as JSON; `BLOB`, `BINARY` and `BIT` as base64.
-`preview-table` orders a table by its primary key, so pages stay stable. In
-`describe-table`, a foreign key's `NO ACTION` and `RESTRICT` both read as null: InnoDB
+`table preview` orders a table by its primary key, so pages stay stable. In
+`table describe`, a foreign key's `NO ACTION` and `RESTRICT` both read as null: InnoDB
 enforces them the same way, and MariaDB reports an unstated rule as `RESTRICT`.
 SQL Server names every result column's type as you'd write it in DDL (`int`,
 `varchar(100)`, `nvarchar(max)`, `decimal(10,2)`, `datetime2(7)`). `bigint` comes back
@@ -400,11 +400,11 @@ past that are dropped. `datetimeoffset` comes back as the instant in UTC
 (`2026-01-02T01:04:05.000Z`), without its original offset. `decimal`, `numeric` and
 `money` come back as JSON numbers, so a value with more than about 15 significant
 digits loses the rest; `CAST` it to `varchar` in the query when every digit matters.
-`preview-table` pages in primary-key order, or in the engine's own order for a table
+`table preview` pages in primary-key order, or in the engine's own order for a table
 without one.
 
 Oracle names each result column's type (`NUMBER`, `VARCHAR2`, `DATE`), and
-`describe-table` gives the declared form (`NUMBER(10,2)`, `VARCHAR2(100)`). A `NUMBER`
+`table describe` gives the declared form (`NUMBER(10,2)`, `VARCHAR2(100)`). A `NUMBER`
 is a JSON number when that's exactly its value, and a string otherwise, so no digits
 are lost. `CLOB` comes back as text, `BLOB` and `RAW` as base64, `BOOLEAN` as a
 boolean, and `BINARY_DOUBLE`'s NaN and infinities as strings. Dates and
@@ -418,7 +418,7 @@ UTC (`+00`).
 
 ### Paging and row caps
 
-`preview-table` and `query` return 100 rows per page unless you pass `--limit`
+`table preview` and `query` return 100 rows per page unless you pass `--limit`
 (1 to 1000). When there are more, `meta.page.nextCursor` holds a cursor; pass it
 back with `--cursor`, along with the same SQL or table, to get the next page. A
 cursor only works with the query it came from. Use `ORDER BY` in a query you page
@@ -426,7 +426,7 @@ through, so the pages are stable.
 
 ### Reads are read-only at the engine
 
-`db query`, `preview-table` and the listing commands open SQLite read-only with
+`db query`, `table preview` and the listing commands open SQLite read-only with
 `PRAGMA query_only` on. A statement that tries to write fails with `WRITE_DISABLED`,
 whatever the connection's `writes` setting. `db query` runs exactly one statement;
 SQL holding several is refused with `INVALID_INPUT`.
@@ -615,9 +615,9 @@ away. `db query` reads rows a batch at a time from a server-side cursor.
 ## Examples
 
 ```bash
-toil db list-tables
-toil db describe-table people
-toil db preview-table people --limit 20
+toil db table list
+toil db table describe people
+toil db table preview people --limit 20
 toil db query "SELECT id, name FROM people WHERE active = 1 ORDER BY id" --limit 50
 toil db query "SELECT id, name FROM people WHERE active = 1 ORDER BY id" --limit 50 --cursor <meta.page.nextCursor>
 toil db execute "UPDATE people SET active = 0 WHERE id = 7" --allow-write --connection scratch
