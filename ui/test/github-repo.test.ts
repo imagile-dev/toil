@@ -19,7 +19,7 @@ import { Cache } from '../server/cache.ts';
 import type { RequestContext } from '../server/context.ts';
 import { sqliteStore } from '../server/store.ts';
 import { SKEW_MS, SyncService } from '../server/sync.ts';
-import { CHECKED_CLOSED_PRS, checkedPrs, loadDossier } from '../src/load.ts';
+import { CHECKED_CLOSED_PRS, CLOSED_ISSUE_HISTORIES, checkedPrs, historyNumbers, loadDossier } from '../src/load.ts';
 import { columns } from '../src/model/board.ts';
 import { flows } from '../src/model/flow.ts';
 import type { ChangeRef, Execute } from '../src/toil.ts';
@@ -237,5 +237,17 @@ describe('the pull requests whose checks are read', () => {
     expect(kept).toContain(open);
     expect(kept.some((p) => p.id === '#0')).toBe(false);
     expect(kept.some((p) => p.id === `#${CHECKED_CLOSED_PRS + 4}`)).toBe(true);
+  });
+});
+
+describe('the issues whose timelines are read', () => {
+  it('are every open one and only the most recently closed ones', () => {
+    const closed = Array.from({ length: CLOSED_ISSUE_HISTORIES + 5 }, (_, i) => ({ number: i + 1, state: 'closed', closed_at: new Date(Date.UTC(2026, 0, 1 + i)).toISOString() }));
+    const open = { number: 9999, state: 'open', closed_at: null, updated_at: '2020-01-01T00:00:00Z' };
+    const kept = historyNumbers([open, ...closed, { state: 'open' }]);
+    expect(kept).toHaveLength(CLOSED_ISSUE_HISTORIES + 1);
+    expect(kept).toContain(9999);
+    expect(kept).not.toContain(1);
+    expect(kept).toContain(CLOSED_ISSUE_HISTORIES + 5);
   });
 });

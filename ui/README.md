@@ -53,7 +53,7 @@ Each dashboard reads its dossier the way `toil dossiers show` describes it: the
 Jira project, the Azure DevOps project and pipelines, the GitHub repository and
 project board, and the OpenShift namespace of each environment. A GitHub section
 with no `projects` reads the repository's own issues, open and closed, as its work
-items. Checks are read for every open pull request and the 20 newest closed or
+items, with the history of every open one and the 50 most recently closed. Checks are read for every open pull request and the 20 newest closed or
 merged ones. Every call runs
 in-process through `@imagile-dev/toil/api`, read-only, and toil's audit log
 records it with `via: "api"` and `caller: "toil-ui"`. A call that fails shows on

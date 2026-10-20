@@ -83,6 +83,23 @@ export function checkedPrs(prs: ChangeRef[]): ChangeRef[] {
   return prs.filter((p) => keep.has(p));
 }
 
+/** How many closed issues of a repository with no board still get their history read: the most recently closed. */
+export const CLOSED_ISSUE_HISTORIES = 50;
+
+/**
+ * The issues whose timelines are read: every open one, and the most recently
+ * closed ones, which are all throughput and cycle time look at. A repository
+ * with thousands of closed issues would otherwise send one request each on
+ * its first sync. The rest are still listed, with no history.
+ */
+export function historyNumbers(issues: Rec[]): number[] {
+  const numbered = issues.filter((i) => typeof i.number === 'number');
+  const when = (i: Rec) => String(i.closed_at ?? i.updated_at ?? '');
+  const closed = numbered.filter((i) => i.state === 'closed').sort((a, b) => (when(a) < when(b) ? 1 : -1)).slice(0, CLOSED_ISSUE_HISTORIES);
+  const keep = new Set([...numbered.filter((i) => i.state !== 'closed'), ...closed]);
+  return numbered.filter((i) => keep.has(i)).map((i) => i.number as number);
+}
+
 const connectionOf = (env: Envelope, fallback: string) => (env.ok ? (env.meta.context?.connection?.value ?? fallback) : fallback);
 
 export interface LoadOptions {
@@ -151,8 +168,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
         const issues = await run('work', 'github list-issues', { ...base, state: 'all' });
         if (!issues) return;
         work.push(issues);
-        for (const issue of recs(issues.data)) if (typeof issue.number === 'number') numbers.add(issue.number);
-        for (const number of numbers) {
+        for (const number of historyNumbers(recs(issues.data))) {
           const events = await run('work', 'github issue-events', { ...base, number });
           if (events) work.push({ key: String(number), history: events });
         }

@@ -3859,7 +3859,11 @@ decided here.
   (`ui/src/load.ts`): `github list-issues --state all`, then `issue-events` per
   issue, rather than showing no work. The sync treats `list-issues` as a search
   (`ui/server/sync.ts`): after the first sync it asks with `updatedSince` and
-  refetches only the changed issues' timelines. `get-issue --sub-issues` isn't
+  refetches only the changed issues' timelines. Timelines are read for every open
+  issue and the 50 most recently closed (`historyNumbers`, review round 1), so a
+  first sync of a repository with thousands of closed issues doesn't spend the
+  token's hourly budget; older closed issues are listed with no history.
+  `get-issue --sub-issues` isn't
   called on this path, so a repository's sub-issues aren't followed yet (#298 is
   the wider mapping gap). The sample has no GitHub dossier without a board, so
   `github list-issues` is the one read command the fixture doesn't answer;
