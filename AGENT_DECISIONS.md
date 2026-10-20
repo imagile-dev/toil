@@ -4684,6 +4684,53 @@ it pins. These are the choices made by default in the fix:
   in `ui/server/agents/prompts.ts`). Filling the name into the chat box from the
   starter would mean changing the chat component another change is working in.
 
+## Model usage per chat, and caps (#295)
+
+- **Meter and caps ship in one PR**, as the maintainer asked on the task, though the
+  issue suggested caps as a second slice. The caps are built on the same records and
+  the same `addUp`.
+- **A "chat" is the Ask pane's conversation**: the page makes a UUID when the pane
+  opens and numbers the questions; each question still runs as its own SDK session.
+  An API caller with no chat gets one of its own (`ask-<uuid>`). A chat id is letters,
+  digits and hyphens, 8 to 64 characters, or the server refuses it.
+- **The adding-up rule is "same id: highest of each figure; different ids: sum"**, so
+  running totals and per-call reports share one function. Claude's per-step usage is
+  provisional and the result's `modelUsage` replaces it (the SDK docs name
+  `modelUsage` as the field for accounting); an error result keeps the steps, since
+  its figures may be zeroed. Copilot's events are keyed by their event id; Codex's by
+  thread and turn.
+- **Token totals count cached input once**: Codex's `input_tokens` already includes
+  `cached_input_tokens` (as OpenAI counts), Claude's doesn't. Copilot's isn't
+  documented either way, so it is counted apart, which can only make a cap trip
+  early, never late.
+- **Copilot premium requests are the sum of each call's `cost`**, as the issue's table
+  says. If the CLI turns out to put the multiplier on follow-up calls too, this
+  over-counts; the live check in #317 settles it.
+- **Claude plan detection**: `apiKeySource: "none"` on the init message and the model
+  served by `firstParty` (or no provider and the Anthropic endpoint). Bedrock, Vertex
+  and Foundry are billed per token, so their figure is the plain SDK estimate.
+- **Codex caps refuse the next question rather than stop a run**: the SDK reports
+  usage only at `turn.completed`, when the answer is already written. Claude and
+  Copilot runs are aborted at the first report past a cap, and the adapters stop
+  reading once the signal is aborted, whether or not the SDK noticed.
+- **Caps and rates live in `<data folder>/usage.json`**, not the cache, so a wipe
+  clears the figures (as the issue says) but not the limits. A broken file refuses
+  every question until it's fixed or saved again: failing closed is the point.
+- **Days are UTC**, like the Usage page beside it.
+- **Settings, Agent usage is its own page** (`#/settings/agent-usage`) beside Usage,
+  rather than a tab inside it, so the layout check reaches it by route and the
+  existing page is untouched.
+- **CSV export is a download the page makes** from the records it already has.
+  Toil UI is not a toil command, so `ctx.files` isn't available to it; nothing goes
+  through the server for it.
+- **No `toil-ui usage` CLI command**: the issue's "the CLI" reads as Toil UI's own
+  surfaces; the page, the heading and the caps already share one function. A CLI can
+  read the same `addUp` later.
+- **Codex's model is "not named by the SDK"** when Settings leaves it empty: the SDK's
+  events carry no model, and reading Codex's own session log would be a second source.
+- **The preview and `--sample` show made-up usage**, marked "Sample figures, not from a
+  model" on every line, so the footer and the page have something to show.
+
 ## The worklog in Toil UI (#308)
 
 - **Days are UTC**, as every other date in Toil UI is, and the page says so. A day in
@@ -4691,7 +4738,7 @@ it pins. These are the choices made by default in the fix:
   machines; a setting for it can come later.
 - **A page is a fold of rows the cache keeps, and the file is written from it**:
   `worklog_events` (each fact, upserted by a key that never changes), `sync_runs`,
-  `agent_runs` and `notes`, schema 2 of the cache. After every sync every page is
+  `agent_runs` and `notes`, schema 3 of the cache (after #295's usage table). After every sync every page is
   folded again and written only where its text changed. Folding is cheap, and
   rebuilding everything means a page never drifts from the cache; "incremental" is in
   how facts are recorded (one sync's new rows) and which files are written.
@@ -4713,8 +4760,9 @@ it pins. These are the choices made by default in the fix:
   The pages and transcripts live in `cache/worklog/`, so the retention and the wipe
   take them too.
 - **Agent runs today are the Ask pane's questions**, recorded by the agent host as they
-  start and end (`finished`, `failed`, or `stopped` when the page went away mid-answer).
-  `kind: 'assignment'` and the `capped` outcome are there for assign-to-agent (#293),
+  start and end (`finished`, `failed`, `stopped` when the page went away mid-answer, or
+  `capped` when a usage cap from #295 refused or stopped it). `kind: 'assignment'` is there
+  for assign-to-agent (#293),
   which records through the same `WorklogService.recordRun`. The typed question and the
   answer are kept as the run's transcript, in the cache like everything else.
 - **"Applied" is read from toil's audit log, never assumed**: the same command,

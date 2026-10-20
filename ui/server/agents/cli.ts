@@ -8,10 +8,13 @@
  * told about.
  */
 
+import type { AnswerUsage } from '../../src/model-usage.ts';
 import { statSync } from 'node:fs';
 import * as nodePath from 'node:path';
 
 export class AgentError extends Error {
+  /** What a run used before it failed or was stopped (#295), so the page counts it as the ledger does. */
+  usage?: AnswerUsage;
   constructor(message: string, readonly fix: string) {
     super(message);
   }

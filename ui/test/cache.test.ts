@@ -63,7 +63,7 @@ describe('the schema', () => {
   it('creates a new file at the latest version, with every table', async () => {
     const cache = await open(folder());
     expect(cache.version()).toBe(SCHEMA_VERSION);
-    expect(Object.keys(cache.counts())).toEqual(['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers', 'worklog_events', 'sync_runs', 'agent_runs', 'notes']);
+    expect(Object.keys(cache.counts())).toEqual(['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers', 'usage', 'worklog_events', 'sync_runs', 'agent_runs', 'notes']);
   });
 
   /** A file left at an older schema, with one dossier's row in it, as an older Toil UI wrote it. */
@@ -86,7 +86,7 @@ describe('the schema', () => {
     const second = await open(dir, { migrations: [...MIGRATIONS, next] });
     expect(second.version()).toBe(SCHEMA_VERSION + 1);
     expect(second.items('card-payments').map((i) => i.id)).toEqual(['jira:PAY-1']);
-    // Schema 2 (#308) added the worklog's tables, empty, beside what schema 1 held.
+    // Schema 3 (#308) added the worklog's tables, empty, beside what schemas 1 and 2 held.
     expect(second.counts()).toMatchObject({ items: 1, dossiers: 1, worklog_events: 0, sync_runs: 0, agent_runs: 0, notes: 0 });
     const { DatabaseSync } = await loadSqlite();
     second.close();

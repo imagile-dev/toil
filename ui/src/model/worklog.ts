@@ -106,8 +106,9 @@ export type Applied =
 /**
  * One agent run, as Toil UI recorded it. Today every run is a question asked
  * in the Ask pane (`ask`). Assign-to-agent (#293) records its assignments
- * through the same record with `kind: 'assignment'`, and `capped` is the
- * outcome it uses when a run stops at its turn or cost cap.
+ * through the same record with `kind: 'assignment'`. `capped` is a run
+ * stopped at a usage cap (#295), refused before it began or stopped partway,
+ * and the outcome an assignment's turn or cost cap will use too.
  */
 export interface AgentRun {
   id: string;

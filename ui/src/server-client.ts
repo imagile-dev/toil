@@ -23,6 +23,8 @@ import { WORKLOG_SAMPLE_DISABLED, type WorklogApi, type WorklogDay, type Worklog
 export type { DossierState, SourceState } from '../server/cache.ts';
 export type { SyncJob, SyncStatus } from '../server/sync.ts';
 import type { AgentStatus } from '../server/agents/host.ts';
+import type { AnswerUsage, ModelUsageApi, UsageView } from './model-usage.ts';
+export type { ModelUsageApi, UsageView } from './model-usage.ts';
 import type { AgentSettings } from '../server/agents/settings.ts';
 export type { AdapterStatus, AgentStatus } from '../server/agents/host.ts';
 export type { AgentSettings } from '../server/agents/settings.ts';
@@ -47,11 +49,21 @@ export interface Session {
 const SESSION_HEADER = 'X-Toil-UI-Session';
 const CSRF_HEADER = 'X-Toil-UI-CSRF';
 
+/** An agent's failure as the page has it: the message, and what the run used before it ended (#295). */
+export class AnswerError extends Error {
+  constructor(
+    message: string,
+    readonly usage?: AnswerUsage,
+  ) {
+    super(message);
+  }
+}
+
 /** The server's error body, as a message the page can show. */
 async function failure(res: Response, what: string): Promise<Error> {
   try {
-    const body = (await res.json()) as { error?: { message?: string; fix?: string } };
-    if (body.error?.message) return new Error(`${body.error.message}${body.error.fix ? ` ${body.error.fix}` : ''}`);
+    const body = (await res.json()) as { error?: { message?: string; fix?: string; usage?: AnswerUsage } };
+    if (body.error?.message) return new AnswerError(`${body.error.message}${body.error.fix ? ` ${body.error.fix}` : ''}`, body.error.usage);
   } catch {
     // Not JSON: fall through to the status.
   }
@@ -211,13 +223,13 @@ export async function httpAgent(session: Session, dossiers: string[], base = './
     ...(session.agent === 'none' ? { notice: `${NO_AGENT_NOTICE} ${NO_AGENT_FIX}` } : {}),
     label: AGENT_LABEL[session.agent] ?? session.agent,
     starters: (dossier) => starters.get(dossier) ?? [],
-    async ask(dossier, prompt, style) {
-      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, ...style } });
+    async ask(dossier, prompt, style, chat) {
+      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, ...style, ...(chat ? { chat } : {}) } });
       if (!res.ok) throw await failure(res, 'The question');
       return (await res.json()) as Answer;
     },
-    async *stream(dossier, prompt, signal, style) {
-      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, stream: true, ...style }, ...(signal ? { signal } : {}) });
+    async *stream(dossier, prompt, signal, style, chat) {
+      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, stream: true, ...style, ...(chat ? { chat } : {}) }, ...(signal ? { signal } : {}) });
       if (!res.ok) throw await failure(res, 'The question');
       if (!/^application\/x-ndjson/.test(res.headers.get('content-type') ?? '')) {
         yield (await res.json()) as Answer;
@@ -236,8 +248,8 @@ export async function* answerLines(res: Response): AsyncIterable<Answer> {
   let buffer = '';
   let done = false;
   const line = (text: string): Answer | null => {
-    const msg = JSON.parse(text) as { answer?: Answer; done?: boolean; error?: { message?: string; fix?: string } };
-    if (msg.error) throw new Error(`${msg.error.message ?? 'The agent failed.'}${msg.error.fix ? ` ${msg.error.fix}` : ''}`);
+    const msg = JSON.parse(text) as { answer?: Answer; done?: boolean; error?: { message?: string; fix?: string; usage?: AnswerUsage } };
+    if (msg.error) throw new AnswerError(`${msg.error.message ?? 'The agent failed.'}${msg.error.fix ? ` ${msg.error.fix}` : ''}`, msg.error.usage);
     if (msg.done) done = true;
     return msg.answer ?? null;
   };
@@ -304,5 +316,21 @@ export function httpWorklog(session: Session, base = './'): WorklogApi {
     rebuild: async (dossier, day) => answer<WorklogRebuilt>(await call(base, session, 'api/worklog/rebuild', { body: { dossier, day } }), 'Rebuilding the page'),
     addNote: async (dossier, text) => answer<WorklogDay>(await call(base, session, 'api/worklog/note', { body: { dossier, text } }), 'Adding the note'),
     exportTo: async (dossier, what, folder) => answer<WorklogExport>(await call(base, session, 'api/worklog/export', { body: { dossier, ...what, folder } }), 'The export'),
+  };
+}
+
+/**
+ * The agent's model usage over the server (#295): the last 30 days' records,
+ * which the page adds up with the meter's one function, and the caps and
+ * Codex rates. Each throws with the server's message.
+ */
+export function httpModelUsage(session: Session, base = './'): ModelUsageApi {
+  const answer = async (res: Response, what: string) => {
+    if (!res.ok) throw await failure(res, what);
+    return (await res.json()) as UsageView;
+  };
+  return {
+    view: async () => answer(await call(base, session, 'api/usage'), 'Reading the model usage'),
+    save: async (settings) => answer(await call(base, session, 'api/usage/settings', { body: settings }), 'Saving the caps'),
   };
 }

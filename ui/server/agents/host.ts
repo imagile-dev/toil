@@ -12,6 +12,13 @@
  * again as it ends, finished, failed or stopped, with its answer and
  * proposals, for the worklog. A switchboard with three lines and no outgoing
  * calls.
+ *
+ * Usage (#295): every adapter hands what its SDK reports to a sink here,
+ * which stamps each report with the chat, turn, dossier and time, prices
+ * Codex's from the person's rates, and holds it against the caps as it
+ * arrives: a cap already reached refuses the question, and one passed during
+ * a run stops it cleanly. Whatever the outcome, the run's records go to the
+ * ledger before the answer or the error does, and the answer carries them.
  */
 
 import { randomUUID } from 'node:crypto';
@@ -19,6 +26,7 @@ import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Answer, Starter } from '../../src/agent.ts';
 import { runFromAnswer, type AgentRun } from '../../src/model/worklog.ts';
+import { capStandings, capStop, capWarning, codexCost, UsageSettingsError, WARN_AT, type AnswerUsage, type CapStanding, type ChatTurn, type UsageRecord } from '../../src/model-usage.ts';
 import type { Execute } from '../../src/toil.ts';
 import type { Agent } from '../agent.ts';
 import type { RequestContext } from '../context.ts';
@@ -29,7 +37,8 @@ import { codexRuntime } from './codex.ts';
 import { copilotRuntime } from './copilot.ts';
 import { promptFor, STARTERS, systemPrompt } from './prompts.ts';
 import { agentEnv } from './env.ts';
-import { cliFor, Latest, loadSdk, nodeImporter, type AdapterName, type Importer, type Runtime, type ServeTools } from './runtime.ts';
+import { cliFor, Latest, loadSdk, nodeImporter, type AdapterName, type Importer, type Runtime, type ServeTools, type UsageReport } from './runtime.ts';
+import { loadUsageSettings, memoryLedger, type UsageLedger } from '../usage.ts';
 import { checkAgentSettings, loadAgentSettings, saveAgentSettings, DEFAULT_AGENT_SETTINGS, ENDPOINTS, type AgentSettings } from './settings.ts';
 import { promptStyle, type StyleChoice } from './voices.ts';
 import { cacheTools, dossierReader, Ledger, liveTools, peopleTools, proposalTool, prTools, recorded, worklogTool, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
@@ -62,6 +71,8 @@ export interface AgentHostOptions {
    * ends. The worklog keeps it. A failure here is never the question's.
    */
   onRun?: (run: AgentRun) => Promise<void> | void;
+  /** Where usage records go (#295): the cache's ledger, or one in memory. */
+  ledger?: UsageLedger;
 }
 
 /** What the Settings page shows about one adapter on this machine. */
@@ -108,9 +119,12 @@ export class AgentHost implements Agent {
   }
   private readonly runtimes: Runtime[];
   private readonly writes: Map<string, WriteCommand>;
+  /** The usage ledger (#295). */
+  readonly ledger: UsageLedger;
 
   constructor(private readonly o: AgentHostOptions) {
     this.runtimes = o.runtimes ?? [claudeRuntime(o.version), copilotRuntime(), codexRuntime()];
+    this.ledger = o.ledger ?? memoryLedger();
     this.writes = writeCommands(o.registry);
     try {
       this.settings = loadAgentSettings(o.dataDir);
@@ -133,9 +147,9 @@ export class AgentHost implements Agent {
     return STARTERS.map(({ id, label }) => ({ id, label }));
   }
 
-  async ask(ctx: RequestContext, dossier: string, prompt: string, style: StyleChoice | null = null): Promise<Answer> {
+  async ask(ctx: RequestContext, dossier: string, prompt: string, style: StyleChoice | null = null, chat?: ChatTurn): Promise<Answer> {
     let last: Answer | undefined;
-    for await (const a of this.stream(ctx, dossier, prompt, style)) last = a;
+    for await (const a of this.stream(ctx, dossier, prompt, style, chat)) last = a;
     if (!last) throw new AgentError('The agent ended without an answer.', 'Ask again.');
     return last;
   }
@@ -154,7 +168,28 @@ export class AgentHost implements Agent {
     return systemPrompt(dossier, (this.o.now ?? (() => new Date().toISOString()))(), promptStyle(style, this.settings));
   }
 
-  async *stream(ctx: RequestContext, dossier: string, prompt: string, style: StyleChoice | null = null): AsyncIterable<Answer> {
+  private clock(): string {
+    return (this.o.now ?? (() => new Date().toISOString()))();
+  }
+
+  /**
+   * The caps that apply to this adapter, against the chat's records and
+   * today's (UTC) plus a run's own. A usage file that can't be read refuses
+   * the question: a broken cap is never read as no cap.
+   */
+  private standings(adapter: AdapterName, chatId: string, run: readonly UsageRecord[]): CapStanding[] {
+    let settings;
+    try {
+      settings = loadUsageSettings(this.o.dataDir);
+    } catch (e) {
+      if (e instanceof UsageSettingsError) throw new AgentError(e.message, e.fix);
+      throw e;
+    }
+    const day = `${this.clock().slice(0, 10)}T00:00:00.000Z`;
+    return capStandings(settings, adapter, [...this.ledger.chat(chatId), ...run], [...this.ledger.since(day), ...run]);
+  }
+
+  async *stream(ctx: RequestContext, dossier: string, prompt: string, style: StyleChoice | null = null, chat?: ChatTurn): AsyncIterable<Answer> {
     const runtime = this.runtime();
     if (!runtime) {
       yield await this.o.fallback.ask(ctx, dossier, prompt, style);
@@ -179,6 +214,7 @@ export class AgentHost implements Agent {
     };
     await report();
     let last: Answer | undefined;
+    let capHit = false;
     try {
       const data = this.o.data(dossier);
       if (!data) throw new AgentError(`Toil UI hasn't synced ${dossier} yet, so the agent has nothing to read.`, 'Press Sync now in the Sync panel, then ask again.');
@@ -186,6 +222,50 @@ export class AgentHost implements Agent {
       const env = this.o.env ?? process.env;
       const sdk = await loadSdk(runtime, importer);
       const cli = cliFor(runtime, this.settings.cliPath, env, this.o.platform ?? process.platform, this.o.isFile, this.o.cwd);
+
+      // A question with no chat (an API caller) is a chat of its own.
+      const turn: ChatTurn = chat ?? { id: `ask-${randomUUID()}`, turn: 1 };
+      const reached = this.standings(runtime.name, turn.id, []).find((c) => c.share >= 1);
+      if (reached) {
+        capHit = true;
+        const { message, fix } = capStop(reached);
+        throw new AgentError(message, fix);
+      }
+      const rates = runtime.name === 'codex' ? this.usageRates() : null;
+      let records: UsageRecord[] = [];
+      const extra: Pick<AnswerUsage, 'context' | 'quota'> = {};
+      let stopped: CapStanding | null = null;
+      // The run stops on the page's cancel or at a cap, whichever comes first.
+      const controller = new AbortController();
+      const cancel = () => controller.abort(ctx.signal.reason);
+      if (ctx.signal.aborted) cancel();
+      else ctx.signal.addEventListener('abort', cancel, { once: true });
+      const stamp = (r: UsageReport): UsageRecord => {
+        const record: UsageRecord = { ...r, chatId: turn.id, turn: turn.turn, dossier, adapter: runtime.name, at: this.clock() };
+        const cost = rates ? codexCost(record, rates) : undefined;
+        return cost === undefined ? record : { ...record, costUsd: cost, costSource: 'your-rates' };
+      };
+      const usage = {
+        report: (reports: UsageReport[]) => {
+          records = reports.map(stamp);
+          if (stopped || runtime.usageAtEnd) return;
+          stopped = this.standings(runtime.name, turn.id, records).find((c) => c.share >= 1) ?? null;
+          if (stopped) controller.abort(new Error('cap'));
+        },
+        context: (c: NonNullable<AnswerUsage['context']>) => void (extra.context = c),
+        quota: (q: NonNullable<AnswerUsage['quota']>) => void (extra.quota = q),
+      };
+      // Before the answer or the error leaves: whatever the run used is in the ledger, and the answer says so.
+      const settle = (): AnswerUsage => {
+        this.ledger.add(records);
+        let notices: string[];
+        try {
+          notices = this.standings(runtime.name, turn.id, []).filter((c) => c.share >= WARN_AT).map(capWarning);
+        } catch (e) {
+          notices = [e instanceof Error ? e.message : String(e)];
+        }
+        return { adapter: runtime.name, records, notices, ...extra };
+      };
 
       const ledger = new Ledger();
       const tools = this.tools(dossier, data, ledger);
@@ -207,19 +287,39 @@ export class AgentHost implements Agent {
           dataDir: this.o.dataDir,
           // Only what this CLI needs: never toil's variables, GITHUB_TOKEN or CI tokens (env.ts).
           env: agentEnv(env, runtime.name),
-          signal: ctx.signal,
+          signal: controller.signal,
           onText: (t) => out.push(partial(t, { prompt: label, by })),
           serveTools: this.o.serveTools,
           endpoint: runtime.name === 'claude' ? this.settings.endpoint : null,
           importer,
+          usage,
+          runId: randomUUID(),
         })
         .then(
           (final) => {
-            out.push(finish(final, { dossier, prompt: label, by, ledger, writes: this.writes }));
+            const used = settle();
+            const cap = stopped as CapStanding | null;
+            // An SDK that finished anyway after the stop still doesn't get past the cap.
+            capHit = cap !== null;
+            if (cap) return out.end(Object.assign(new AgentError(capStop(cap).message, capStop(cap).fix), { usage: used }));
+            out.push({ ...finish(final, { dossier, prompt: label, by, ledger, writes: this.writes }), usage: used });
             out.end();
           },
-          (e: unknown) => out.end(e instanceof AgentError ? e : new AgentError(`${runtime.label} failed: ${e instanceof Error ? e.message : String(e)}`, `Check that ${runtime.cliLabel} is signed in (run ${runtime.command} once on its own), then ask again.`)),
-        );
+          (e: unknown) => {
+            // The error carries what the run used, so the chat counts it as the ledger just did.
+            const used = settle();
+            const cap = stopped as CapStanding | null;
+            capHit = cap !== null;
+            const failure = cap
+              ? new AgentError(capStop(cap).message, capStop(cap).fix)
+              : e instanceof AgentError
+                ? e
+                : new AgentError(`${runtime.label} failed: ${e instanceof Error ? e.message : String(e)}`, `Check that ${runtime.cliLabel} is signed in (run ${runtime.command} once on its own), then ask again.`);
+            if (used.records.length) failure.usage = used;
+            out.end(failure);
+          },
+        )
+        .finally(() => ctx.signal.removeEventListener('abort', cancel));
       for await (const answer of out) {
         last = answer;
         yield answer;
@@ -227,7 +327,8 @@ export class AgentHost implements Agent {
       record = runFromAnswer(record, now(), last ?? { prompt: asked, parts: [], citations: [], by, proposals: [] });
     } catch (e) {
       const message = e instanceof AgentError ? `${e.message} ${e.fix}` : e instanceof Error ? e.message : String(e);
-      record = { ...(last ? runFromAnswer(record, now(), last) : { ...record, finishedAt: now() }), outcome: ctx.signal.aborted ? 'stopped' : 'failed', error: message };
+      // A run stopped at a usage cap (#295) is the worklog's `capped`, whether it was refused before it began or stopped partway.
+      record = { ...(last ? runFromAnswer(record, now(), last) : { ...record, finishedAt: now() }), outcome: capHit ? 'capped' : ctx.signal.aborted ? 'stopped' : 'failed', error: message };
       throw e;
     } finally {
       await run;
@@ -235,6 +336,15 @@ export class AgentHost implements Agent {
       // The person closed the pane or the page mid-answer: the run stopped, with what it had said so far.
       if (record.outcome === 'running') record = { ...(last ? runFromAnswer(record, now(), last) : { ...record, finishedAt: now() }), outcome: 'stopped' };
       await report();
+    }
+  }
+
+  /** The Codex rates the person entered, or null; a broken usage file has already refused the question. */
+  private usageRates() {
+    try {
+      return loadUsageSettings(this.o.dataDir).codexRates;
+    } catch {
+      return null;
     }
   }
 

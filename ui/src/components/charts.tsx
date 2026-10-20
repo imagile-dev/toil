@@ -200,27 +200,40 @@ export function CycleScatter({ points, p85 }: { points: ScatterPoint[]; p85: num
  * failures.
  */
 export function CallsPerDay({ days }: { days: DayCalls[] }) {
+  const total = days.reduce((n, d) => n + d.calls, 0);
+  const busiest = days.reduce<DayCalls | null>((b, d) => (!b || d.calls > b.calls ? d : b), null);
+  const label = `Calls per day: ${total} calls in ${days.length} days${busiest && busiest.calls > 0 ? `, the most on ${day(busiest.day)} with ${busiest.calls}` : ''}.`;
+  return <DayBars days={days} value={(d) => d.calls} label={label} max={String} figures={<Figures caption="Calls per day, UTC" head={['Day', 'Calls', 'Failed']} rows={days.map((d) => [day(d.day), d.calls, d.failed])} />} />;
+}
+
+/** Tokens per day (#295), for Settings, Agent usage: the same bars, in the meter's figures. */
+export function TokensPerDay({ days, compact }: { days: Array<{ day: string; tokens: number }>; compact: (n: number) => string }) {
+  const total = days.reduce((n, d) => n + d.tokens, 0);
+  const busiest = days.reduce<{ day: string; tokens: number } | null>((b, d) => (!b || d.tokens > b.tokens ? d : b), null);
+  const label = `Tokens per day: ${compact(total)} tokens in ${days.length} days${busiest && busiest.tokens > 0 ? `, the most on ${day(busiest.day)} with ${compact(busiest.tokens)}` : ''}.`;
+  return <DayBars days={days} value={(d) => d.tokens} label={label} max={compact} figures={<Figures caption="Tokens per day, UTC" head={['Day', 'Tokens']} rows={days.map((d) => [day(d.day), d.tokens.toLocaleString('en-US')])} />} />;
+}
+
+/** One bar a day, the busiest day at the top of the scale. */
+function DayBars<T extends { day: string }>({ days, value, label, max: maxLabel, figures }: { days: T[]; value: (d: T) => number; label: string; max: (n: number) => string; figures: ReactNode }) {
   const H = 110;
-  const max = Math.max(1, ...days.map((d) => d.calls));
+  const max = Math.max(1, ...days.map(value));
   const slot = (W - PAD.left - PAD.right) / Math.max(1, days.length);
   const bar = Math.max(2, Math.min(32, slot * 0.7));
   const y = (v: number) => H - 22 - ((H - 40) * v) / max;
   const every = Math.max(1, Math.ceil(days.length / 6));
-  const total = days.reduce((n, d) => n + d.calls, 0);
-  const busiest = days.reduce<DayCalls | null>((b, d) => (!b || d.calls > b.calls ? d : b), null);
-  const label = `Calls per day: ${total} calls in ${days.length} days${busiest && busiest.calls > 0 ? `, the most on ${day(busiest.day)} with ${busiest.calls}` : ''}.`;
   return (
     <figure className="chart-figure">
       <Svg label={label} height={H}>
         <line className="grid" x1={PAD.left} x2={W - PAD.right} y1={y(0)} y2={y(0)} />
         <text className="axis" x={PAD.left - 6} y={y(max) + 4} textAnchor="end">
-          {max}
+          {maxLabel(max)}
         </text>
         {days.map((d, i) => {
           const cx = PAD.left + slot * i + slot / 2;
           return (
             <g key={d.day}>
-              <rect className="bar" x={cx - bar / 2} y={y(d.calls)} width={bar} height={Math.max(0, y(0) - y(d.calls))} rx={2} />
+              <rect className="bar" x={cx - bar / 2} y={y(value(d))} width={bar} height={Math.max(0, y(0) - y(value(d)))} rx={2} />
               {/* Every other date is minor, and a phone's stylesheet hides those, so the dates still fit at 375px. */}
               {(i % every === 0 || i === days.length - 1) && (
                 <text className={`axis${i !== days.length - 1 && (i / every) % 2 === 1 ? ' axis--minor' : ''}`} x={cx} y={H - 4} textAnchor="middle">
@@ -231,7 +244,7 @@ export function CallsPerDay({ days }: { days: DayCalls[] }) {
           );
         })}
       </Svg>
-      <Figures caption="Calls per day, UTC" head={['Day', 'Calls', 'Failed']} rows={days.map((d) => [day(d.day), d.calls, d.failed])} />
+      {figures}
     </figure>
   );
 }

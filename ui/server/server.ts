@@ -59,6 +59,8 @@ import type { Settings } from './settings.ts';
 import { READ_COMMANDS, type Access, type Store } from './store.ts';
 import { SyncBusy, type SyncService } from './sync.ts';
 import { WorklogRefusal, type ExportWhat, type WorklogApi } from '../src/worklog.ts';
+import type { UsageControl } from './usage.ts';
+import { CHAT_ID, UsageSettingsError, type AnswerUsage, type ChatTurn } from '../src/model-usage.ts';
 
 export interface UiServerOptions {
   settings: Settings;
@@ -79,6 +81,8 @@ export interface UiServerOptions {
   agentControl?: AgentControl;
   /** The worklog (#308): the cache's pages, or the sample's. Absent, `api/worklog/*` says there is none. */
   worklog?: WorklogApi;
+  /** The agent's model usage and its caps (#295): `api/usage`. */
+  usage?: UsageControl;
   /** Tests pass a fixed token; a real start makes one. */
   token?: string;
   viewer?: Viewer;
@@ -168,9 +172,19 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
 }
 
 /** An agent's failure as the pane shows it: the message, and the fix when there is one. */
-function agentFailure(e: unknown): { message: string; fix?: string } {
-  if (e instanceof AgentError) return { message: e.message, fix: e.fix };
+function agentFailure(e: unknown): { message: string; fix?: string; usage?: AnswerUsage } {
+  if (e instanceof AgentError) return { message: e.message, fix: e.fix, ...(e.usage ? { usage: e.usage } : {}) };
   return { message: e instanceof Error ? e.message : String(e) };
+}
+
+/** The chat a question belongs to (#295), as the page numbers it, or none for a question of its own. */
+function chatOf(value: unknown): ChatTurn | undefined {
+  if (value === undefined) return undefined;
+  const c = value as Record<string, unknown> | null;
+  if (!c || typeof c !== 'object' || typeof c.id !== 'string' || !CHAT_ID.test(c.id) || !Number.isInteger(c.turn) || (c.turn as number) < 1 || (c.turn as number) > 100_000) {
+    throw new HttpError(400, 'chat is the chat a question belongs to: { "id": "<letters, digits and hyphens>", "turn": <1 or more> }.', 'Leave chat out to ask a question of its own.');
+  }
+  return { id: c.id, turn: c.turn as number };
 }
 
 /** The answer's style the page sent (#283): a built-in theme and the voice switch, or neither. */
@@ -305,6 +319,11 @@ export function createUiServer(options: UiServerOptions): UiServer {
     if (typeof value !== 'string' || !value) throw new HttpError(400, `Name the ${what}.`, shape);
     return value;
   };
+  /** The usage view, or a 404 when this server keeps none. */
+  const usage = (): UsageControl => {
+    if (!options.usage) throw new HttpError(404, 'This Toil UI keeps no record of model usage.', 'Start toil-ui with its cache to record what the agent uses.');
+    return options.usage;
+  };
 
   /** The sync job, or a 404 saying this server has none (sample data syncs nothing). */
   const syncer = (): SyncService => {
@@ -435,9 +454,10 @@ export function createUiServer(options: UiServerOptions): UiServer {
         if (typeof body.dossier !== 'string' || typeof body.prompt !== 'string') throw new HttpError(400, 'A question needs a dossier and a prompt.', 'Send { "dossier": "<name>", "prompt": "<question>", "theme": "<theme>", "voice": true }.');
         if (body.prompt.length > MAX_PROMPT) throw new HttpError(413, `A question is at most ${MAX_PROMPT} characters.`, 'Ask a shorter question.');
         const style = checkedStyle(body);
-        if (body.stream === true && agent.stream) return streamAnswer(res, agent.stream(ctx, body.dossier, body.prompt, style));
+        const chat = chatOf(body.chat);
+        if (body.stream === true && agent.stream) return streamAnswer(res, agent.stream(ctx, body.dossier, body.prompt, style, chat));
         try {
-          json(res, 200, await agent.ask(ctx, body.dossier, body.prompt, style));
+          json(res, 200, await agent.ask(ctx, body.dossier, body.prompt, style, chat));
         } catch (e) {
           json(res, 502, { error: agentFailure(e) });
         }
@@ -462,6 +482,19 @@ export function createUiServer(options: UiServerOptions): UiServer {
           json(res, 200, control().save(body));
         } catch (e) {
           if (e instanceof AgentError) throw new HttpError(400, e.message, e.fix);
+          throw e;
+        }
+        return;
+      }
+      case 'GET usage':
+        json(res, 200, usage().view());
+        return;
+      case 'POST usage/settings': {
+        const body = await readJson(req);
+        try {
+          json(res, 200, usage().save(body));
+        } catch (e) {
+          if (e instanceof UsageSettingsError) throw new HttpError(400, e.message, e.fix);
           throw e;
         }
         return;
@@ -524,7 +557,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return worklogCall(res, () => worklog().exportTo(named(body.dossier, 'dossier', shape), what, named(body.folder, 'folder', shape)));
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, worklog/month, worklog/day, worklog/rebuild, worklog/note, worklog/export, agent/starters, agent/ask, agent/prompt, agent/settings and agent/mcp.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/rebuild, worklog/note, worklog/export, agent/starters, agent/ask, agent/prompt, agent/settings and agent/mcp.`);
     }
   };
 

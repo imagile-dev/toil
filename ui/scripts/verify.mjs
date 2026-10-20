@@ -19,7 +19,8 @@
 //      question and checks that an answer arrived, that the server verified
 //      every [[id]] it cites, that its proposals parsed, that nothing ran (no
 //      write in toil's audit log), and that `codex mcp list` in Toil UI's own
-//      Codex home shows only toil_ui. Without a GitHub sign-in this part is
+//      Codex home shows only toil_ui, and that the answer's usage, as the Codex SDK
+//      reported it, is in the usage ledger unchanged (#295). Without a GitHub sign-in this part is
 //      skipped, and the report says so plainly.
 //
 // In both, the layout problems fail the run in every theme; axe violations
@@ -269,6 +270,15 @@ async function askCodex(api, dossier, home, dataDir) {
   if (malformed.length) fail(`${malformed.length} proposal(s) have no item or title.`);
   const runnable = answer.proposals.filter((p) => p.command);
   step('Ask: proposals parsed', dropped.length || malformed.length ? 'fail' : 'pass', `${answer.proposals.length} proposal(s), ${runnable.length} with a toil command line (${[...new Set(runnable.map((p) => p.command))].join(', ') || 'none'}), ${dropped.length} left out`);
+
+  // Usage (#295): the answer carries what the Codex SDK reported, and the ledger holds exactly that.
+  const records = answer.usage?.records ?? [];
+  const ledger = (await api.get('usage')).json().records ?? [];
+  const stored = records.filter((r) => ledger.some((l) => l.id === r.id && l.inputTokens === r.inputTokens && l.outputTokens === r.outputTokens && l.cachedInputTokens === r.cachedInputTokens));
+  const tokened = records.filter((r) => typeof r.inputTokens === 'number' && typeof r.outputTokens === 'number');
+  if (!tokened.length) fail('the answer carries no usage with tokens from the Codex SDK.');
+  if (stored.length !== records.length) fail(`${records.length - stored.length} of the answer's usage record(s) aren't in the ledger as the answer reported them.`);
+  step('Ask: usage recorded', tokened.length && stored.length === records.length ? 'pass' : 'fail', records.map((r) => `${r.inputTokens} in (${r.cachedInputTokens ?? 'not reported'} cached), ${r.outputTokens} out, cache write ${r.cacheWriteTokens ?? 'not reported'}, model ${r.model ?? 'not named by the SDK'}`).join('; ') || 'none reported');
 
   const during = auditLines(home).slice(before);
   const wrote = during.filter((l) => l.writes || l.allowWrite);

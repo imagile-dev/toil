@@ -13,15 +13,18 @@
  * against the SDK's types.d.ts at 1.0.16.
  */
 
-import type { Runtime } from './runtime.ts';
+import type { PremiumQuota } from '../../src/model-usage.ts';
+import type { Runtime, UsageReport } from './runtime.ts';
 
 interface CopilotSession {
-  on(event: string, handler: (e: { data?: Record<string, unknown> }) => void): () => void;
+  on(event: string, handler: (e: { id?: string; data?: Record<string, unknown> }) => void): () => void;
   sendAndWait(options: { prompt: string }, timeout?: number): Promise<{ data?: { content?: string } } | undefined>;
   abort(): Promise<void>;
   disconnect(): Promise<void>;
 }
 interface CopilotClient {
+  /** The server RPC; `account.getQuota` is experimental and may not be there. */
+  rpc?: { account?: { getQuota?: (params: Record<string, unknown>) => Promise<unknown> } };
   start(): Promise<void>;
   stop(): Promise<Error[]>;
   createSession(config: Record<string, unknown>): Promise<CopilotSession>;
@@ -34,6 +37,32 @@ interface CopilotSdk {
 
 /** How long one question may take before the adapter gives up waiting (Bounds). */
 export const COPILOT_TIMEOUT_MS = 10 * 60_000;
+
+const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined);
+
+/**
+ * One `assistant.usage` event as a report (#295): one model call, with its
+ * tokens and `cost`, the premium-request multiplier the SDK bills it at. The
+ * events are live only (never replayed on resume), so each is reported as it
+ * arrives, by its own event id. There is never a dollar figure.
+ */
+export function copilotUsage(data: Record<string, unknown> | undefined, id: string): UsageReport {
+  const d = data ?? {};
+  const out: UsageReport = { id, model: typeof d.model === 'string' ? d.model : null, costSource: 'none' };
+  const figures = { inputTokens: count(d.inputTokens), cachedInputTokens: count(d.cacheReadTokens), cacheWriteTokens: count(d.cacheWriteTokens), outputTokens: count(d.outputTokens), premiumRequests: count(d.cost) };
+  for (const [k, v] of Object.entries(figures)) if (v !== undefined) (out as unknown as Record<string, number>)[k] = v;
+  return out;
+}
+
+/** The premium-interactions snapshot from `account.getQuota` (experimental), or null when it has none. */
+export function premiumQuota(result: unknown): PremiumQuota | null {
+  const snap = (result as { quotaSnapshots?: Record<string, Record<string, unknown> | undefined> } | undefined)?.quotaSnapshots?.premium_interactions;
+  if (!snap || typeof snap !== 'object') return null;
+  const unlimited = snap.isUnlimitedEntitlement === true;
+  const entitlement = count(snap.entitlementRequests) ?? null;
+  const used = count(snap.usedRequests);
+  return { unlimited, entitlement: unlimited ? null : entitlement, remaining: unlimited || entitlement === null || used === undefined ? null : Math.max(0, entitlement - used), resetDate: typeof snap.resetDate === 'string' ? snap.resetDate : null };
+}
 
 export function copilotRuntime(): Runtime {
   return {
@@ -65,10 +94,30 @@ export function copilotRuntime(): Runtime {
           current += String(e.data?.deltaContent ?? '');
           r.onText(current);
         });
+        // Usage (#295): every model call's event, stored as it arrives, and the context window's fill.
+        const calls: UsageReport[] = [];
+        session.on('assistant.usage', (e) => {
+          calls.push(copilotUsage(e.data, `copilot:${e.id ?? `${r.runId}:${calls.length + 1}`}`));
+          r.usage.report([...calls]);
+        });
+        session.on('session.usage_info', (e) => {
+          const used = count(e.data?.currentTokens);
+          const window = count(e.data?.tokenLimit);
+          if (used !== undefined && window) r.usage.context({ used, window });
+        });
         const abort = () => void session.abort();
         r.signal.addEventListener('abort', abort, { once: true });
         try {
           const reply = await session.sendAndWait({ prompt: r.prompt }, COPILOT_TIMEOUT_MS);
+          if (r.signal.aborted) throw new Error('The question was stopped.');
+          // The premium requests left, where the pinned SDK has the experimental call; its absence or failure costs the answer nothing.
+          try {
+            const account = client.rpc?.account;
+            const quota = typeof account?.getQuota === 'function' ? premiumQuota(await account.getQuota({})) : null;
+            if (quota) r.usage.quota(quota);
+          } catch {
+            // Experimental, so a refusal here only means no quota line under the answer.
+          }
           return reply?.data?.content ?? current;
         } finally {
           r.signal.removeEventListener('abort', abort);
