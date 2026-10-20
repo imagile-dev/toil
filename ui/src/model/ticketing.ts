@@ -39,8 +39,9 @@ const escape = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
  * The item a prompt already names, open or done, by OWI id or by its key as a
- * whole word (`PAY-12`, `#51`, `#2302`), or null. A done one counts: work that
- * names its ticket ("reopen PAY-92") is ticketed, whatever state that ticket is in.
+ * whole word (`PAY-12`, `payments-web#51`, or `#2302` for Azure DevOps), or
+ * null. A done one counts: work that names its ticket ("reopen PAY-92") is
+ * ticketed, whatever state that ticket is in.
  */
 export function namedItem(prompt: string, items: readonly WorkItem[]): WorkItem | null {
   for (const item of items) {
