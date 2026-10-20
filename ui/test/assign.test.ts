@@ -19,7 +19,7 @@ import type { Envelope } from '../src/toil.ts';
 import type { Proposal } from '../src/proposal.ts';
 import { assignSettingsFile, checkAssignSettings, fileKeeper, loadAssignSettings, memoryKeeper, queueSettings } from '../server/assign/files.ts';
 import { defang, fencedItem, implementPrompt, readPrompt, splitLines } from '../server/assign/prompts.ts';
-import { commentProposal, commentText, headBranch, pushProposal } from '../server/assign/runner.ts';
+import { commentProposal, commentText, headBranch, pushProposal, reclaimGitDir } from '../server/assign/runner.ts';
 import { writeCommands } from '../server/agents/answer.ts';
 import { registry } from '@imagile-dev/toil/api';
 import { createUiServer } from '../server/server.ts';
@@ -109,6 +109,22 @@ describe('the assignment queue', () => {
     expect(h.applied).toEqual([{ id: a.id, proposal: expect.objectContaining({ command: 'jira issue update' }) }]);
     expect(after.state).toBe('done');
     expect(after.proposals[0]).toMatchObject({ status: 'applied', outcome: { ok: true } });
+    await expect(h.queue.apply(a.id, 'p1')).rejects.toThrow(/applied/);
+  });
+
+  it('applies a proposal once when two Applies arrive together', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let calls = 0;
+    const h = harness({ apply: async (_a, p) => (calls++, await gate, ok(p.command!)) });
+    const a = await h.queue.assign({ dossier: 'card-payments', item: 'corp-jira:PAY-107', mode: 'refine', adapter: 'codex' });
+    h.runs[0]!.resolve(h.result());
+    await h.tick();
+    const first = h.queue.apply(a.id, 'p1');
+    await expect(h.queue.apply(a.id, 'p1')).rejects.toMatchObject({ status: 409 });
+    release();
+    await first;
+    expect(calls).toBe(1);
     await expect(h.queue.apply(a.id, 'p1')).rejects.toThrow(/applied/);
   });
 
@@ -238,8 +254,8 @@ describe('the assigned agent\'s prompts', () => {
 
   it('tells implement mode to stage and never commit, push or fetch', () => {
     const p = implementPrompt('card-payments', i, 'now', { repo: 'payments-core', source: 'C:\\src\\payments-core', branch: 'agent/PAY-107' });
-    expect(p.prompt).toContain('git clone --no-hardlinks "C:\\\\src\\\\payments-core" .');
-    expect(p.prompt).toContain('git switch -c agent/PAY-107');
+    expect(p.prompt).toContain('git clone --no-hardlinks "C:\\\\src\\\\payments-core" repo');
+    expect(p.prompt).toContain('git -C repo switch -c agent/PAY-107');
     expect(p.system).toMatch(/Never commit, push, fetch, pull or change a remote/);
   });
 
@@ -259,10 +275,41 @@ describe("the runner's own proposals", () => {
     expect(commentText([{ text: 'See [[corp-jira:PAY-1]].' }], 'Codex')).toMatch(/^See corp-jira:PAY-1\.\n\nInvestigated by Codex through Toil UI/);
   });
 
-  it('proposes the commit and push as git lines, since toil has no command for them', () => {
-    const p = pushProposal(item('corp-jira:PAY-107'), { name: 'agent/PAY-107', repo: 'payments-core', folder: 'C:/work/x', onBranch: true, files: [{ path: 'a.ts', status: 'staged' }], diff: null });
+  it('proposes the commit and push as git lines with the message in a file, so nothing from the tracker is shell syntax', () => {
+    const branch = { name: 'agent/PAY-107', repo: 'payments-core', folder: 'C:/work/x/repo', onBranch: true, files: [{ path: 'a.ts', status: 'staged' }], diff: null };
+    const p = pushProposal({ ...item('corp-jira:PAY-107'), title: "Retry & don't | charge twice" }, branch, 'C:/work/x.commit-message.txt');
     expect(p).toMatchObject({ command: null, input: null });
-    expect(p.note).toContain("git -C 'C:/work/x' push origin agent/PAY-107");
+    expect(p.note).toContain('git -C "C:/work/x/repo" commit --no-verify -F "C:/work/x.commit-message.txt" then git -C "C:/work/x/repo" push --no-verify origin HEAD:refs/heads/agent/PAY-107.');
+    expect(p.note).not.toContain('Retry &');
+    // A path no shell line can carry is never put on one.
+    expect(pushProposal(item('corp-jira:PAY-107'), { ...branch, folder: 'C:/Users/$me/repo' }, 'C:/m.txt').note).toMatch(/^toil has no command that commits or pushes, and the clone's path holds a character/);
+  });
+
+  it("takes the clone's git directory back before any git runs there: its own config, no hooks", () => {
+    const source = join(folder, 'source');
+    mkdirSync(join(source, '.git'), { recursive: true });
+    writeFileSync(join(source, '.git', 'config'), '[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectFormat = sha256\n[filter "theirs"]\n\tclean = keep-out\n');
+    const clone = join(folder, 'work', 'repo');
+    mkdirSync(join(clone, '.git', 'hooks'), { recursive: true });
+    mkdirSync(join(clone, '.git', 'info'), { recursive: true });
+    writeFileSync(join(clone, '.git', 'config'), '[filter "x"]\n\tclean = calc.exe\n[core]\n\thooksPath = elsewhere\n[include]\n\tpath = ../evil\n');
+    writeFileSync(join(clone, '.git', 'hooks', 'pre-commit'), 'evil');
+    writeFileSync(join(clone, '.git', 'commondir'), '../../elsewhere');
+    writeFileSync(join(clone, '.git', 'info', 'attributes'), '* filter=x');
+    expect(reclaimGitDir(clone, source)).toBeNull();
+    const config = readFileSync(join(clone, '.git', 'config'), 'utf8');
+    expect(config).not.toMatch(/filter|hooksPath|include|calc|keep-out/);
+    expect(config).toContain('repositoryformatversion = 1');
+    expect(config).toContain('objectFormat = sha256');
+    expect(config).toContain('ignoreSubmodules = all');
+    expect(config).toContain(`url = "${source.replace(/\\/g, '/')}"`);
+    for (const gone of [['hooks'], ['commondir'], ['info', 'attributes']]) expect(() => readFileSync(join(clone, '.git', ...gone))).toThrow();
+    // A .git that is a file points anywhere: no git runs there.
+    const pointer = join(folder, 'work2', 'repo');
+    mkdirSync(pointer, { recursive: true });
+    writeFileSync(join(pointer, '.git'), 'gitdir: C:/elsewhere');
+    expect(reclaimGitDir(pointer, source)).toMatch(/isn't a folder/);
+    expect(reclaimGitDir(join(folder, 'none'), source)).toMatch(/no clone/);
   });
 
   it("reads the clone's branch from .git/HEAD", () => {

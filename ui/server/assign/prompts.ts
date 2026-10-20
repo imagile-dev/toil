@@ -79,19 +79,19 @@ export function readPrompt(mode: Exclude<AssignMode, 'implement'>, dossier: stri
   return { system: common(dossier, mode, now).join('\n'), prompt: `${TASK[mode](item.id)}\n\nThe work item:\n${fencedItem(item)}` };
 }
 
-/** Implement mode's prompt: clone, branch, change, stage; never commit, push or fetch. */
+/** Implement mode's prompt: clone into `repo`, branch, change, stage; never commit, push or fetch. */
 export function implementPrompt(dossier: string, item: WorkItem, now: string, o: { repo: string; source: string; branch: string }): ModePrompt {
   const system = [
     ...common(dossier, 'implement', now),
-    `7. You work in the folder you start in, which is empty, and nowhere else. The sandbox lets you write only there, with no network. Use git only on the clone in that folder.`,
+    `7. You work in the folder you start in, which is empty, and nowhere else. The sandbox lets you write only there, with no network. Use git only on the clone in its repo folder.`,
     '8. Never commit, push, fetch, pull or change a remote: a person reviews your staged changes, then commits and pushes them through proposals.',
   ].join('\n');
   const prompt = [
     `Implement [[${item.id}]] in the dossier's repository ${o.repo}:`,
-    `1. Clone it into the folder you are in: git clone --no-hardlinks ${JSON.stringify(o.source)} .`,
-    `2. Make a branch for the work: git switch -c ${o.branch}`,
+    `1. Clone it into a folder named repo inside the one you are in: git clone --no-hardlinks ${JSON.stringify(o.source)} repo`,
+    `2. Make a branch for the work: git -C repo switch -c ${o.branch}`,
     '3. Make the change the item asks for, the way the repository already does things, with tests where it has them, and run them if they need no network.',
-    '4. Stage every change with git add -A. Do not commit.',
+    '4. Stage every change with git -C repo add -A. Do not commit.',
     `5. Then report what you changed and why, how you tested it, and what is left, citing the item. If the work should become a pull request, propose one with the toil command for the repository's host (proposal_fields first), with the branch ${o.branch}, a title and a body; it can only be applied once a person has pushed the branch.`,
     '',
     'The work item:',

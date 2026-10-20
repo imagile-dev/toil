@@ -151,6 +151,8 @@ export class AssignmentQueue {
   private seq = 0;
   /** The sample's seeded working assignments: they hold a slot and never run. */
   private readonly held = new Set<string>();
+  /** Proposals being applied now, so a second Apply (another tab, a retry, #307) can't write twice. */
+  private readonly applying = new Set<string>();
 
   constructor(private readonly o: QueueOptions) {
     for (const r of o.keeper.load()) {
@@ -284,7 +286,15 @@ export class AssignmentQueue {
     if (p.status === 'applied') throw new AssignError(`That proposal was applied ${p.outcome?.at ?? 'already'}.`, 'Nothing to do: it is in the tracker.', 409);
     if (p.status === 'dismissed') throw new AssignError('That proposal was dismissed.', 'Assign the item again for a fresh proposal.', 409);
     if (!p.command || !p.input) throw new AssignError("toil has no command for this proposal, so there is nothing to apply here.", p.note ?? 'Make the change by hand.');
-    const envelope = await this.o.apply(this.summary(r), p);
+    const key = `${id}/${proposalId}`;
+    if (this.applying.has(key)) throw new AssignError('That proposal is being applied now.', 'Wait for it to finish; its card says what came of it.', 409);
+    this.applying.add(key);
+    let envelope: Envelope;
+    try {
+      envelope = await this.o.apply(this.summary(r), p);
+    } finally {
+      this.applying.delete(key);
+    }
     const at = this.o.now();
     p.status = envelope.ok ? 'applied' : 'failed';
     p.outcome = envelope.ok

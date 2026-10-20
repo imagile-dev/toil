@@ -411,7 +411,7 @@ you apply it.
 - **Implement runs on Codex only, for now.** Codex's own sandbox, `workspace-write`,
   holds the agent's commands and writes to the clone, with no network and none of the
   temp folders Codex adds by default, on Windows, macOS and Linux. The clone is
-  `<data folder>/cache/work/<assignment>`, so `toil-ui wipe` deletes it. The dossier's
+  `<data folder>/cache/work/<assignment>/repo`, so `toil-ui wipe` deletes it; before any git runs there outside the sandbox, Toil UI rewrites its git config and removes its hooks. The dossier's
   repository needs a local path (`toil dossiers add-repo <dossier> <folder>`). The agent stages its change and never commits, pushes or fetches; the
   staged diff is shown through toil's own `git status` and `git diff`, and the commit
   and push are a proposal of the exact git lines to run, since toil has no command

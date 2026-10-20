@@ -12,11 +12,13 @@
  * - **implement** runs on Codex alone, the one adapter whose own sandbox
  *   holds commands and writes to one folder with no network on every OS
  *   Toil UI supports. The folder is under the cache. The agent clones the
- *   dossier's repository there from its local path, branches, changes and
- *   stages; Toil UI then reads the branch from `.git/HEAD` and the staged
- *   diff through toil's own read-only `git status` and `git diff`, and
- *   proposes the commit and push as git lines for a person to run, since
- *   toil has no command that pushes.
+ *   dossier's repository into its `repo` from the local path, branches,
+ *   changes and stages. Then, before any git runs outside the sandbox,
+ *   Toil UI takes the clone's git directory back (`reclaimGitDir`: its own
+ *   config, no hooks), reads the branch from `.git/HEAD` and the staged diff
+ *   through toil's own read-only `git status` and `git diff`, and proposes
+ *   the commit and push as git lines for a person to run, since toil has no
+ *   command that pushes.
  *
  * Every tool call is in the transcript, and every call toil makes for the
  * run is in toil's audit log as `caller: "toil-ui"` with the assignment as
@@ -24,7 +26,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, rmSync } from 'node:fs';
+import { lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ADAPTER_NAME, actorOf, branchName, type AdapterChoice, type AssignAdapter, type Branch, type RepoChoice } from '../../src/assign/model.ts';
 import { RunStopped, type RunContext, type RunResult, type Runner } from '../../src/assign/queue.ts';
@@ -55,8 +57,9 @@ export const MAX_DIFF = 200_000;
 
 export const sha256 = (value: unknown) => createHash('sha256').update(typeof value === 'string' ? value : JSON.stringify(value ?? null)).digest('hex');
 
-/** The folder implement mode clones into, under the cache so a wipe takes it. */
+/** The folder implement mode's agent may write in, under the cache so a wipe takes it; the clone is its `repo`. */
 export const workFolder = (dataDir: string, id: string) => join(dataDir, 'cache', 'work', id);
+export const cloneOf = (folder: string) => join(folder, 'repo');
 
 /** The tracker command that posts a comment on an item, by area, where toil has one; its input from the item and the text. */
 const COMMENT: Record<string, (key: string, body: string) => { command: string; input: Record<string, unknown> }> = {
@@ -204,9 +207,19 @@ export function hostRunner(o: HostRunnerOptions): Runner {
 
       let branchInfo: Branch | null = null;
       if (workspace && branch && repo) {
-        branchInfo = await branchOf(read, workspace.root, branch, repo.name, actor);
-        if (!branchInfo.onBranch) report.warnings.unshift(`The clone isn't on ${branch}, the branch the agent was asked to make, so check its work before you use it.`);
-        if (branchInfo.files.length) proposals.unshift(pushProposal(item, branchInfo));
+        const clone = cloneOf(workspace.root);
+        const refused = reclaimGitDir(clone, repo.path);
+        if (refused) report.warnings.unshift(`${refused} Nothing of the agent's work is shown or proposed.`);
+        else {
+          branchInfo = await branchOf(read, clone, branch, repo.name, actor);
+          if (!branchInfo.onBranch) report.warnings.unshift(`The clone isn't on ${branch}, the branch the agent was asked to make, so check its work before you use it.`);
+          if (branchInfo.files.length) {
+            // The message goes in a file beside the agent's folder, written after the run, so nothing from the tracker is shell syntax on the person's command line.
+            const message = `${workspace.root}.commit-message.txt`;
+            writeFileSync(message, `${item.source.key}: ${item.title}\n\n${item.url ?? item.id}\n`);
+            proposals.unshift(pushProposal(item, branchInfo, slashes(message)));
+          }
+        }
       }
       return { report, proposals, questions: lines.questions, injection: lines.injection, usage, startedOn, branch: branchInfo };
     },
@@ -255,9 +268,65 @@ function filesOf(data: unknown): Branch['files'] {
   return out;
 }
 
+/**
+ * Takes back the clone's git directory before anything runs git there
+ * outside the sandbox (#293 review): toil's `git status` and `git diff`
+ * after the run, and the person's commit and push. The agent could write
+ * anything under its folder, `.git` included, and git runs what a
+ * repository's own config names (a clean or smudge filter) or what its hooks
+ * folder holds. So Toil UI, in plain file operations and before any git
+ * runs: refuses a `.git` that isn't a directory (a `gitdir:` file points
+ * anywhere); rewrites `.git/config` whole, keeping from the person's own
+ * clone only its format version and `[extensions]`, with `origin` at that
+ * clone and submodules ignored (their own configs are the agent's too);
+ * and deletes the hooks folder, `commondir`, `config.worktree` and
+ * `info/attributes`. What the agent left in the working tree's
+ * `.gitattributes` can name a filter, and a filter with no definition does
+ * nothing. Returns why it couldn't, or null.
+ */
+export function reclaimGitDir(clone: string, source: string): string | null {
+  const git = join(clone, '.git');
+  let st;
+  try {
+    st = lstatSync(git);
+  } catch {
+    return `The agent left no clone at ${slashes(clone)}.`;
+  }
+  if (!st.isDirectory()) return `The clone's .git at ${slashes(git)} isn't a folder, so Toil UI won't run git there.`;
+  let theirs = '';
+  try {
+    theirs = readFileSync(join(source, '.git', 'config'), 'utf8');
+  } catch {
+    // A source with no readable config: the defaults below, format version 0.
+  }
+  const version = /^\s*repositoryformatversion\s*=\s*(\d+)\s*$/m.exec(theirs)?.[1] ?? '0';
+  const extensions = /^\[extensions\][^\n]*\n((?:[ \t]+[^\n]*\n?)*)/m.exec(theirs)?.[1] ?? '';
+  const url = slashes(source).replace(/["\\]/g, '');
+  const config = [
+    '[core]',
+    `\trepositoryformatversion = ${version}`,
+    '\tbare = false',
+    '[diff]',
+    '\tignoreSubmodules = all',
+    '[remote "origin"]',
+    `\turl = "${url}"`,
+    '\tfetch = +refs/heads/*:refs/remotes/origin/*',
+    ...(extensions.trim() ? ['[extensions]', ...extensions.trimEnd().split('\n')] : []),
+    '',
+  ].join('\n');
+  for (const p of ['hooks', 'commondir', 'config.worktree', join('info', 'attributes')]) rmSync(join(git, p), { recursive: true, force: true });
+  writeFileSync(join(git, 'config'), config);
+  return null;
+}
+
 /** Commit and push are a person's: toil has no command for either, so the proposal is the exact git lines. */
-export function pushProposal(item: WorkItem, b: Branch): Proposal {
-  const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
+export function pushProposal(item: WorkItem, b: Branch, messageFile: string): Proposal {
+  // Double quotes mean the same in PowerShell, cmd.exe and POSIX shells for a value without $, `, %, " or a line break; only Toil UI's own paths go in them.
+  const unsafe = [b.folder, messageFile].some((v) => /[$`%"\r\n]/.test(v));
+  const q = (v: string) => `"${v}"`;
+  const lines = unsafe
+    ? `toil has no command that commits or pushes, and the clone's path holds a character no shell line can carry safely, so in a terminal in ${b.folder} commit with the message in ${messageFile} (git commit --no-verify -F <that file>) and push with git push --no-verify origin HEAD:refs/heads/${b.name}.`
+    : `toil has no command that commits or pushes, so run these in a terminal once the diff looks right: git -C ${q(b.folder)} commit --no-verify -F ${q(messageFile)} then git -C ${q(b.folder)} push --no-verify origin HEAD:refs/heads/${b.name}.`;
   return {
     id: `agent:${item.id}:push:${b.name}`,
     from: 'agent',
@@ -266,6 +335,6 @@ export function pushProposal(item: WorkItem, b: Branch): Proposal {
     reason: `The agent staged ${b.files.length === 1 ? 'one file' : `${b.files.length} files`} on ${b.name} in a clone of ${b.repo}. Review the staged diff, then commit and push it yourself.`,
     command: null,
     input: null,
-    note: `toil has no command that commits or pushes, so run these in a terminal once the diff looks right: git -C ${q(b.folder)} commit -m ${q(`${item.source.key}: ${item.title}`)} then git -C ${q(b.folder)} push origin ${b.name}. The clone's origin is your local clone of ${b.repo}, so the branch lands there first; push it on from there.`,
+    note: `${lines} The message is the item's key, title and link, in that file. Toil UI rewrote the clone's git config and removed its hooks before showing the diff, and --no-verify skips any hook besides. The clone's origin is your local clone of ${b.repo}, so the branch lands there first; push it on from there.`,
   };
 }

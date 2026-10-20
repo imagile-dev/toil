@@ -4827,17 +4827,40 @@ it pins. These are the choices made by default in the fix:
   Toil UI checking paths in a callback, which a shell command walks past. The dialog
   says so. Whether to add them with a path-checking callback and no shell is the
   maintainer's call.
-- **The clone is the agent's own, under the cache** (`<data folder>/cache/work/<id>`),
+- **The clone is the agent's own, under the cache** (`<data folder>/cache/work/<id>/repo`),
   made by the agent inside its sandbox with `git clone --no-hardlinks <the dossier
-  repo's path> .`, never the person's working tree. Toil UI spawns nothing itself
+  repo's path> repo`, never the person's working tree. Toil UI spawns nothing itself
   (`check:package`), so it can't run git; toil's git area only reads. The dossier's
-  repository therefore needs a local `path`.
+  repository therefore needs a local path. The clone is a folder below the
+  sandbox's writable root, not the root itself, so Codex's protection of a root's
+  `.git` doesn't stop the agent's own `git switch` and `git add`.
+- **Toil UI takes the clone's `.git` back before any git runs there outside the
+  sandbox** (review round 1). The agent could write the clone's config and hooks, and
+  git runs what a repository's config names (a clean or smudge filter, which toil's
+  hardened git still allows on `status`) and its hooks run on the person's commit.
+  So after the run, in plain file operations, `reclaimGitDir` refuses a `.git` that
+  isn't a folder, rewrites `.git/config` whole (the person's clone's format version
+  and `[extensions]`, `origin` at their clone, `diff.ignoreSubmodules = all` so a
+  submodule's own config is never read), and deletes `hooks`, `commondir`,
+  `config.worktree` and `info/attributes`. A filter the working tree's
+  `.gitattributes` names then has no definition and does nothing. The person's lines
+  add `--no-verify`, and the commit message is a file Toil UI writes beside the
+  agent's folder, so nothing from the tracker reaches a command line; the paths are
+  Toil UI's own, in double quotes, which every shell reads alike when they hold no
+  `$`, `` ` ``, `%` or `"` (otherwise the note says what to run by hand).
+- **The agent can read the whole disk in implement mode.** Codex's `workspace-write`
+  limits writes and network, not reads, and implement mode has the shell, so the
+  agent could read files in the person's home folder and put what it read into its
+  report or a proposal's body. Nothing leaves the machine without a person applying
+  a proposal, but this is part of open question 1.
 - **The agent stages its change and never commits, pushes or fetches.** toil's own
   `git diff` shows only staged or unstaged changes, not commits, so staging is what
   makes the diff reviewable through toil's read-only `git status` and `git diff`
   (with `workspace` set to the clone). Commit and push are one proposal of the exact
   git lines, since toil has no command for either; the clone's `origin` is the
   person's local clone, so a push lands there first.
+- **One Apply at a time per proposal** (review round 1): a second Apply for a
+  proposal still being applied (another tab, a retry, #307) gets 409.
 - **No network in implement mode, whatever the dossier says.** The issue allows the
   repository's package registry "if the dossier allows it"; a dossier has no key for
   that yet, and adding one widens a bound, so the sandbox's network is always off
