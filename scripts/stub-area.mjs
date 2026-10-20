@@ -66,7 +66,7 @@ function commandSource(entry, area, contextFields = new Set()) {
     return field;
   };
   const argFields = args.map((a) => claim(camel(a.name)));
-  // A leaf flag the group also has (`bitbucket create-pr --project`) maps onto
+  // A leaf flag the group also has (`bitbucket pr create --project`) maps onto
   // the area's context input, which core adds; the command declares no field for it.
   const isContext = (o) => contextFields.has(fieldOf(o.flags));
   const optionFields = options.map((o) => (isContext(o) ? fieldOf(o.flags) : claim(fieldOf(o.flags))));

@@ -1,7 +1,7 @@
 [
   {
-    "name": "quality-gate",
-    "tool": "sonar_quality_gate",
+    "name": "quality-gate get",
+    "tool": "sonar_quality_gate_get",
     "description": "Get quality gate status for a project",
     "writes": false,
     "connection": true,
@@ -11,8 +11,8 @@
     ]
   },
   {
-    "name": "issues",
-    "tool": "sonar_issues",
+    "name": "issue list",
+    "tool": "sonar_issue_list",
     "description": "Search/list issues for a project",
     "writes": false,
     "connection": true,
@@ -29,8 +29,8 @@
     ]
   },
   {
-    "name": "measures",
-    "tool": "sonar_measures",
+    "name": "measure list",
+    "tool": "sonar_measure_list",
     "description": "Get key metrics for a project",
     "writes": false,
     "connection": true,
@@ -41,8 +41,8 @@
     ]
   },
   {
-    "name": "projects",
-    "tool": "sonar_projects",
+    "name": "project list",
+    "tool": "sonar_project_list",
     "description": "Search/list projects",
     "writes": false,
     "connection": true,
@@ -54,8 +54,8 @@
     ]
   },
   {
-    "name": "hotspots",
-    "tool": "sonar_hotspots",
+    "name": "hotspot list",
+    "tool": "sonar_hotspot_list",
     "description": "List security hotspots for a project",
     "writes": false,
     "connection": true,

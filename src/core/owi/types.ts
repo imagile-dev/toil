@@ -22,7 +22,7 @@ export interface OwiSource {
 
 const JIRA: OwiSource = { family: 'jira', items: ['issue search', 'issue get'], history: ['issue history'], context: [] };
 const ADO: OwiSource = { family: 'ado', items: ['work-item get', 'work-item get-many'], history: ['work-item history'], context: ['work-item iterations'] };
-const GITHUB: OwiSource = { family: 'github', items: ['list-issues', 'search-issues', 'get-issue', 'projects list-items'], history: ['issue-events'], context: [] };
+const GITHUB: OwiSource = { family: 'github', items: ['issue list', 'issue search', 'issue get', 'project items'], history: ['issue history'], context: [] };
 
 /**
  * The areas toil maps to OWI. An area that sends one of these shapes is one

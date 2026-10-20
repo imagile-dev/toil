@@ -22,9 +22,9 @@ the credential and is the only thing that talks to the host.
 
 - **One name instead of the same flags on every call.** Without a dossier, every
   command repeats where the work lives:
-  `toil bitbucket list-prs --connection corp-bitbucket --project PAY --repo payments-core`.
-  With one, inside a clone of `payments-core` it's `toil bitbucket list-prs`, and from
-  anywhere else `toil bitbucket list-prs --dossier card-payments`. A value you pass
+  `toil bitbucket pr list --connection corp-bitbucket --project PAY --repo payments-core`.
+  With one, inside a clone of `payments-core` it's `toil bitbucket pr list`, and from
+  anywhere else `toil bitbucket pr list --dossier card-payments`. A value you pass
   still wins over the dossier's.
 - **Scoping for agents.** An agent working in the repository gets the right project,
   repository and connection without being told, and every envelope says where each
@@ -79,7 +79,7 @@ Every area command runs the same steps, on the CLI and over MCP alike:
 5. **Send the request** with that connection's credential, and report what was used
    in `meta.context`.
 
-A real envelope from `toil bitbucket list-prs`, run in a clone of `payments-core`
+A real envelope from `toil bitbucket pr list`, run in a clone of `payments-core`
 (the host doesn't resolve, which is the point of a placeholder):
 
 ```json

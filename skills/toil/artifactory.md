@@ -7,7 +7,7 @@ description: Repositories, artifact metadata and properties, AQL search, builds,
 
 Repositories, artifact metadata and properties, AQL search, Build Integration, and
 newer versions and licenses for a dependency inventory, on **JFrog Artifactory**,
-through its classic REST API (`api/...`). `properties-set` is the one command that
+through its classic REST API (`api/...`). `artifact set-properties` is the one command that
 writes. Verification level: `unit`.
 
 **Supported versions:** The oldest JFrog Artifactory version toil supports hasn't been established. toil
@@ -27,10 +27,10 @@ no CI fallback variable.
 |-----|---------|----------|---------|
 | `baseUrl` | `TOIL_ARTIFACTORY_BASE_URL` | yes | Artifactory root, keeping any context path, e.g. `https://artifactory.imagile.dev/artifactory` |
 | `token` | `TOIL_ARTIFACTORY_TOKEN` | yes | Access or identity token |
-| `npmRepo` | `TOIL_ARTIFACTORY_NPM_REPO` | no | npm repository key for `outdated` and `license-check` |
-| `nugetRepo` | `TOIL_ARTIFACTORY_NUGET_REPO` | no | NuGet repository key for `outdated` and `license-check` |
-| `mavenRepo` | `TOIL_ARTIFACTORY_MAVEN_REPO` | no | Maven repository key for `outdated` |
-| `writes` | `TOIL_ARTIFACTORY_WRITES` | no | `true` lets `properties-set` run (with `--allow-write`) |
+| `npmRepo` | `TOIL_ARTIFACTORY_NPM_REPO` | no | npm repository key for `package outdated` and `package license-check` |
+| `nugetRepo` | `TOIL_ARTIFACTORY_NUGET_REPO` | no | NuGet repository key for `package outdated` and `package license-check` |
+| `mavenRepo` | `TOIL_ARTIFACTORY_MAVEN_REPO` | no | Maven repository key for `package outdated` |
+| `writes` | `TOIL_ARTIFACTORY_WRITES` | no | `true` lets `artifact set-properties` run (with `--allow-write`) |
 
 Environment variables (CI, or a one-off shell):
 
@@ -61,36 +61,36 @@ set `TOIL_ARTIFACTORY_TOKEN`.
 
 - `ping`: Check Artifactory connectivity and authentication. `data` is Artifactory's
   text answer, normally `OK`.
-- `repos`: List repositories (`--type local|virtual|remote|federated`,
+- `repo list`: List repositories (`--type local|virtual|remote|federated`,
   `--package-type npm|maven|nuget|docker|pypi|...`).
-- `artifact-info <repo> <path>`: Get metadata for an artifact or folder (checksums,
+- `artifact get <repo> <path>`: Get metadata for an artifact or folder (checksums,
   size, timestamps).
-- `properties-get <repo> <path>`: Read custom properties on an artifact.
-- `properties-set <repo> <path> key=value...`: Set custom properties on an artifact. A
+- `artifact properties <repo> <path>`: Read custom properties on an artifact.
+- `artifact set-properties <repo> <path> key=value...`: Set custom properties on an artifact. A
   write: needs `writes: true` on the connection and `--allow-write`. Without
   `--recursive` no `recursive` parameter is sent, so on a folder Artifactory's own
   default applies. Values are sent as typed: a comma makes several values, and a `;`
   starts another property. `data` is `{ repo, path, properties }` as asked for.
-- `search`: Search artifacts using AQL, newest first. Needs at least one of `--repo`,
+- `artifact search`: Search artifacts using AQL, newest first. Needs at least one of `--repo`,
   `--name` or `--path` (`*` and `?` wildcards); `--after` / `--before` filter on the
   creation date (ISO 8601); `--limit` defaults to 100 (0 also means 100);
   `--properties` asks for properties too. `data` is `{ results, range }`.
-- `builds`: List builds registered in Artifactory Build Integration, each with a
+- `build list`: List builds registered in Artifactory Build Integration, each with a
   `name` derived from its `uri`, and a `hint` when there are none. `--timeout <s>`
   (default 60) is the request's timeout; the command itself allows up to 600 s.
-- `build-runs <name>`: List all run numbers for a build.
-- `build-info <name> <number>`: Get build info (artifacts, dependencies, VCS revision)
+- `build runs <name>`: List all run numbers for a build.
+- `build get <name> <number>`: Get build info (artifacts, dependencies, VCS revision)
   for a specific run.
-- `outdated` (also `toil deps outdated`): Check for newer versions available in
+- `package outdated` (also `toil deps outdated`): Check for newer versions available in
   Artifactory, for the direct production dependencies of an inventory.
   `--ecosystem npm|nuget|maven|all` (default `all`); `--major`, `--minor` or `--patch`
   keep only bumps of at least that size. Ecosystems with no repository key set are
   listed in `uncheckedEcosystems`.
-- `license-check` (also `toil deps license-check`): Report licenses for the direct
+- `package license-check` (also `toil deps license-check`): Report licenses for the direct
   dependencies of an inventory (`--ecosystem`, `--include-dev`). Maven licenses are
   always `null`; a NuGet package with only a license URL reports `See licenseUrl`.
 
-`outdated` and `license-check` read the inventory that `toil deps scan` writes, from
+`package outdated` and `package license-check` read the inventory that `toil deps scan` writes, from
 `--from <file>` or, when that's left out on the CLI, from stdin; over MCP, pass `from`.
 They first ping Artifactory and stop if it doesn't answer or rejects the token, then
 make one request per package, one at a time, so they're allowed up to 600 s. A lookup
@@ -98,8 +98,8 @@ that fails for any reason (a wrong repository key included) counts as no answer:
 package is left out of `outdated`, or gets `license: null`.
 
 ```bash
-toil artifactory search --repo libs-release-local --name 'api-*.jar' --limit 10
-toil artifactory properties-set libs-release-local dev/imagile/api/1.4.0/api-1.4.0.jar qa.status=passed --allow-write
-toil deps scan | toil artifactory outdated --ecosystem npm --minor
-toil artifactory license-check --from inventory.json --include-dev
+toil artifactory artifact search --repo libs-release-local --name 'api-*.jar' --limit 10
+toil artifactory artifact set-properties libs-release-local dev/imagile/api/1.4.0/api-1.4.0.jar qa.status=passed --allow-write
+toil deps scan | toil artifactory package outdated --ecosystem npm --minor
+toil artifactory package license-check --from inventory.json --include-dev
 ```

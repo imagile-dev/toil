@@ -1,17 +1,17 @@
 [
   {
-    "name": "get-page",
-    "tool": "confluence_cloud_get_page",
+    "name": "page get",
+    "tool": "confluence_cloud_page_get",
     "description": "Get a Confluence Cloud page by ID, with its storage-format body",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>"
+      "<id>"
     ]
   },
   {
-    "name": "get-page-by-title",
-    "tool": "confluence_cloud_get_page_by_title",
+    "name": "page find",
+    "tool": "confluence_cloud_page_find",
     "description": "Find a Confluence Cloud page by space key and exact title",
     "writes": false,
     "connection": true,
@@ -21,8 +21,8 @@
     ]
   },
   {
-    "name": "list-pages",
-    "tool": "confluence_cloud_list_pages",
+    "name": "page list",
+    "tool": "confluence_cloud_page_list",
     "description": "List pages in a Confluence Cloud space (consider --output-file for large results)",
     "writes": false,
     "connection": true,
@@ -33,28 +33,28 @@
     ]
   },
   {
-    "name": "get-page-children",
-    "tool": "confluence_cloud_get_page_children",
+    "name": "page children",
+    "tool": "confluence_cloud_page_children",
     "description": "Get the direct children of a Confluence Cloud page",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>"
+      "<id>"
     ]
   },
   {
-    "name": "get-page-history",
-    "tool": "confluence_cloud_get_page_history",
+    "name": "page history",
+    "tool": "confluence_cloud_page_history",
     "description": "Get the versions of a Confluence Cloud page",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>"
+      "<id>"
     ]
   },
   {
-    "name": "search",
-    "tool": "confluence_cloud_search",
+    "name": "page search",
+    "tool": "confluence_cloud_page_search",
     "description": "Search Confluence Cloud with CQL",
     "writes": false,
     "connection": true,
@@ -66,8 +66,8 @@
     ]
   },
   {
-    "name": "create-page",
-    "tool": "confluence_cloud_create_page",
+    "name": "page create",
+    "tool": "confluence_cloud_page_create",
     "description": "Create a new Confluence Cloud page",
     "writes": true,
     "connection": true,
@@ -82,13 +82,13 @@
     ]
   },
   {
-    "name": "update-page",
-    "tool": "confluence_cloud_update_page",
+    "name": "page update",
+    "tool": "confluence_cloud_page_update",
     "description": "Update a Confluence Cloud page (fetches the current version automatically)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--title <title>",
       "--body <html>",
       "--body-file <path>",
@@ -98,76 +98,76 @@
     ]
   },
   {
-    "name": "delete-page",
+    "name": "page delete",
     "tool": null,
     "description": "Delete a Confluence Cloud page (moves it to the trash; does not purge it)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--allow-write"
     ]
   },
   {
-    "name": "list-comments",
-    "tool": "confluence_cloud_list_comments",
+    "name": "page comments",
+    "tool": "confluence_cloud_page_comments",
     "description": "List footer comments on a Confluence Cloud page",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>"
+      "<id>"
     ]
   },
   {
-    "name": "add-comment",
-    "tool": "confluence_cloud_add_comment",
+    "name": "page comment",
+    "tool": "confluence_cloud_page_comment",
     "description": "Add a footer comment to a Confluence Cloud page",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--body <text>",
       "--representation <format>",
       "--allow-write"
     ]
   },
   {
-    "name": "get-labels",
-    "tool": "confluence_cloud_get_labels",
+    "name": "page labels",
+    "tool": "confluence_cloud_page_labels",
     "description": "Get labels on a Confluence Cloud page",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>"
+      "<id>"
     ]
   },
   {
-    "name": "add-label",
-    "tool": "confluence_cloud_add_label",
+    "name": "page label",
+    "tool": "confluence_cloud_page_label",
     "description": "Add labels to a Confluence Cloud page",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--labels <names>",
       "--allow-write"
     ]
   },
   {
-    "name": "remove-label",
-    "tool": "confluence_cloud_remove_label",
+    "name": "page unlabel",
+    "tool": "confluence_cloud_page_unlabel",
     "description": "Remove a label from a Confluence Cloud page",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--label <name>",
       "--allow-write"
     ]
   },
   {
-    "name": "list-spaces",
-    "tool": "confluence_cloud_list_spaces",
+    "name": "space list",
+    "tool": "confluence_cloud_space_list",
     "description": "List Confluence Cloud spaces",
     "writes": false,
     "connection": true,
@@ -178,57 +178,57 @@
     ]
   },
   {
-    "name": "get-space",
-    "tool": "confluence_cloud_get_space",
+    "name": "space get",
+    "tool": "confluence_cloud_space_get",
     "description": "Get a Confluence Cloud space by key",
     "writes": false,
     "connection": true,
     "flags": [
-      "--key <space-key>"
+      "<key>"
     ]
   },
   {
-    "name": "list-attachments",
-    "tool": "confluence_cloud_list_attachments",
+    "name": "page attachments",
+    "tool": "confluence_cloud_page_attachments",
     "description": "List attachments on a Confluence Cloud page",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <page-id>"
+      "<id>"
     ]
   },
   {
-    "name": "upload-attachment",
-    "tool": "confluence_cloud_upload_attachment",
+    "name": "page attach",
+    "tool": "confluence_cloud_page_attach",
     "description": "Upload a file as an attachment to a Confluence Cloud page",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <page-id>",
+      "<id>",
       "--file <path>",
       "--comment <text>",
       "--allow-write"
     ]
   },
   {
-    "name": "download-attachment",
-    "tool": "confluence_cloud_download_attachment",
+    "name": "attachment download",
+    "tool": "confluence_cloud_attachment_download",
     "description": "Download a Confluence Cloud attachment to .toil/ (or --dir)",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <attachment-id>",
+      "<id>",
       "--dir <path>"
     ]
   },
   {
-    "name": "delete-attachment",
+    "name": "attachment delete",
     "tool": null,
     "description": "Delete a Confluence Cloud attachment by its ID (moves it to the trash; does not purge it)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--id <attachment-id>",
+      "<id>",
       "--allow-write"
     ]
   }

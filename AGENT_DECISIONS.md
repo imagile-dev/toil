@@ -4111,3 +4111,35 @@ choices made by default inside that:
   `INVALID_INPUT` (no such command) as the panel's error.
 - **The preview's sample month** is generated from a fixed seed and summarized by
   `src/audit/stats.ts` itself, so its figures are toil's sums, not hand-made ones.
+
+## Command shape for the remaining areas (#297)
+
+The rest of the integrations moved to the command shape, the same way `jira` and
+`ado` did in #290. These are the choices made by default:
+
+- **Paging is `--limit`, `--offset`, `--page` and `--page-size`** (the maintainer's call
+  on the principle review). Renamed to them: Elasticsearch `--size`/`--from`, Alation's
+  and Sauce Labs' `--skip`, Jenkins' `--top` (its only cap), Confluence's `--start`,
+  and Kibana's and Sauce Labs' `--per-page`. ADO's `run list --top` stays beside
+  `--limit`, as #290 recorded, and `--all` stays as each area has it.
+- **`sonatypeiq evaluate` keeps its path and `--application-id` flag.** `deps frisk`'s
+  routed alias can pass only flags, so a positional id would stop the CLI starting
+  (`resolveRoutedAliases`). It sits with `osv vulns` and `ossindex vulns` as an area's
+  one inventory command.
+- **GitHub's comments, labels and assignees are under both `pr` and `issue`** (the
+  maintainer's call): `pr comments` and `pr comment` are the commands, with `issue
+  comments` and `issue comment` as deliberate aliases; `issue label`, `unlabel`,
+  `assign` and `unassign` are the commands, with `pr …` aliases. Each takes either
+  kind of number.
+- **`sde project get [id]` drops its `--id` context input.** Core can't put a context
+  input on a positional, so without an id the command uses the `project` context
+  (`--project`, the dossier, the connection), and `meta.context` reports `project`.
+- **`github issue get` and `kibana dashboard export` take several ids**, as their
+  repeatable flags did.
+- **Bitbucket Cloud's `pr diff [id]` keeps `--spec`** for a commit diff, so nothing it
+  could do is lost; one of the two is required.
+- **Dynatrace problem ids that start with `-`** need `--` before them on the CLI
+  (`toil dynatrace problem get -- -123_456V2`), as any shell argument that looks like
+  a flag does; the skill says so, and the examples use an id without the dash.
+- **`ado repo build-status` became `ado commit status`**, to match GitHub's and
+  Bitbucket's `commit status`.

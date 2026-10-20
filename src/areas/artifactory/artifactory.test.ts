@@ -57,7 +57,7 @@ describe('ping', () => {
   });
 });
 
-describe('repos', () => {
+describe('repo list', () => {
   it('GETs api/repositories with the JSON headers, sending only the filters given', async () => {
     const all = await run(reposCommand, {}, [ok([])]);
     expect(all.calls).toEqual([{ method: 'GET', url: `${ARTIFACTORY}/api/repositories`, headers: HEADERS, body: undefined }]);
@@ -71,7 +71,7 @@ describe('repos', () => {
   });
 });
 
-describe('artifact-info and properties-get', () => {
+describe('artifact get and artifact properties', () => {
   it('GETs api/storage/<repo>/<path> with one leading slash stripped', async () => {
     const { calls } = await run(artifactInfoCommand, { repo: REPO, path: `/${JAR}` }, [ok({})]);
     expect(calls).toEqual([{ method: 'GET', url: `${ARTIFACTORY}/api/storage/${REPO}/${JAR}`, headers: HEADERS, body: undefined }]);
@@ -93,7 +93,7 @@ describe('artifact-info and properties-get', () => {
   });
 });
 
-describe('properties-set', () => {
+describe('artifact set-properties', () => {
   const put: Route = { method: 'PUT', url: /.*/, respond: { status: 204 } };
 
   it('PUTs properties=k=v;k2=v2 with ; and = encoded and commas literal, and reports what it asked for', async () => {
@@ -130,7 +130,7 @@ describe('properties-set', () => {
   });
 });
 
-describe('search', () => {
+describe('artifact search', () => {
   const AQL = (find: string, limit = 100, props = false) =>
     `items.find(${find}).include("repo","path","name","type","size","created","modified","sha256"${props ? ',"properties"' : ''}).sort({"$desc": ["created"]}).limit(${limit})`;
 
@@ -171,7 +171,7 @@ describe('search', () => {
   });
 });
 
-describe('builds', () => {
+describe('build list', () => {
   it('GETs api/build, names each build from its uri, and adds no hint when there are some', async () => {
     const { envelope, calls } = await run(buildsCommand, {}, [ok(buildList)]);
     expect(calls).toEqual([{ method: 'GET', url: `${ARTIFACTORY}/api/build`, headers: HEADERS, body: undefined }]);
@@ -209,7 +209,7 @@ describe('builds', () => {
   });
 });
 
-describe('build-runs and build-info', () => {
+describe('build runs and build get', () => {
   it('percent-encode the name and number', async () => {
     const runs = await run(buildRunsCommand, { name: 'imagile api/main' }, [ok({})]);
     expect(runs.calls[0]!.url).toBe(`${ARTIFACTORY}/api/build/imagile%20api%2Fmain`);
@@ -218,7 +218,7 @@ describe('build-runs and build-info', () => {
   });
 });
 
-describe('outdated', () => {
+describe('package outdated', () => {
   it('pings with only the token, then looks up each direct production package with only the token, one at a time', async () => {
     const { envelope, calls } = await run(outdatedCommand, { from: 'inventory.json' }, fixtureRoutes);
     expect(calls.map((c) => [c.method, c.url, c.headers])).toEqual([
@@ -311,7 +311,7 @@ describe('outdated', () => {
   });
 });
 
-describe('license-check', () => {
+describe('package license-check', () => {
   it('reports npm string and object licenses, NuGet expressions, and null for Maven, without calling OSV or anything else', async () => {
     const { envelope, calls } = await run(licenseCheckCommand, { from: 'inventory.json' }, fixtureRoutes);
     expect(calls.every((c) => new URL(c.url).origin === ARTIFACTORY)).toBe(true);

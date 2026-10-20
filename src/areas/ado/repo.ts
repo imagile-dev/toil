@@ -340,7 +340,7 @@ export const repoDiffCommand = adoArea.command({
 });
 
 export const repoGetBuildStatusCommand = adoArea.command({
-  path: ['ado', 'repo', 'build-status'],
+  path: ['ado', 'commit', 'status'],
   description: 'Get CI/build statuses posted to a commit',
   toolDescription: 'Lists the statuses CI posted to a commit in the repository (state, context, description, target url).',
   input: z.object({ commit: z.string().describe('Commit SHA') }),

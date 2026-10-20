@@ -397,11 +397,11 @@ export const sprintEnvelopes: unknown[] = [
   envelope('ado work-item iterations', iterations, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' }),
   envelope('ado work-item get-many', { count: adoSpecs.length, value: adoSpecs.map(adoItem), missing: [] }, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' }),
   ...Object.values(revisions).map((value) => envelope('ado work-item history', value, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' })),
-  envelope('github get-issue', { issues: ghSpecs.map((s) => (s.subs ? { ...ghIssue(s), sub_issues: s.subs.map((n) => ghIssue(ghSpecs.find((g) => g.number === n)!)) } : ghIssue(s))), errors: [] }, 'github', GH),
-  { key: '36', history: envelope('github issue-events', closedOn(36, BO, '2026-09-24T17:00:00Z'), 'github', GH) },
-  { key: '38', history: envelope('github issue-events', closedOn(38, ADA, '2026-10-01T12:00:00Z'), 'github', GH) },
-  { key: '44', history: envelope('github issue-events', timeline44, 'github', GH) },
-  envelope('github projects list-items', ghSpecs.map(projectItem), 'github', { owner: 'imagile' }),
+  envelope('github issue get', { issues: ghSpecs.map((s) => (s.subs ? { ...ghIssue(s), sub_issues: s.subs.map((n) => ghIssue(ghSpecs.find((g) => g.number === n)!)) } : ghIssue(s))), errors: [] }, 'github', GH),
+  { key: '36', history: envelope('github issue history', closedOn(36, BO, '2026-09-24T17:00:00Z'), 'github', GH) },
+  { key: '38', history: envelope('github issue history', closedOn(38, ADA, '2026-10-01T12:00:00Z'), 'github', GH) },
+  { key: '44', history: envelope('github issue history', timeline44, 'github', GH) },
+  envelope('github project items', ghSpecs.map(projectItem), 'github', { owner: 'imagile' }),
 ];
 
 /** The same input as JSON Lines. */

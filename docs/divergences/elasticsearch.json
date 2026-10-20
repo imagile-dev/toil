@@ -10,31 +10,31 @@
     },
     {
       "allows": [],
-      "old": "elasticsearch search --sort splitting on every colon and using only the first two pieces, so \"@timestamp:desc,level:asc\" sends order \"desc,level\" and a field containing a colon is cut short (#84 item 3)",
+      "old": "elasticsearch index search --sort splitting on every colon and using only the first two pieces, so \"@timestamp:desc,level:asc\" sends order \"desc,level\" and a field containing a colon is cut short (#84 item 3)",
       "toil": "--sort takes comma-separated field:order pairs, each split on its last colon when asc or desc follows (case-insensitive, sent lowercase); an entry without one is all field, ascending. Each pair becomes one {field: {order}} entry in the body's sort array. The search API documents its sort parameter as \"a comma-separated list of <field>:<direction> pairs\": https://www.elastic.co/docs/api/doc/elasticsearch/operation/operation-search and https://www.elastic.co/docs/reference/elasticsearch/rest-apis/sort-search-results",
       "why": "The maintainer had this area rebuilt from Elastic's API docs (#38), and the docs give the field:direction form as a comma-separated list.",
       "principle": "decision"
     },
     {
       "allows": [],
-      "old": "elasticsearch indices list failing with a raw TypeError when the server's answer wasn't a list",
+      "old": "elasticsearch index list failing with a raw TypeError when the server's answer wasn't a list",
       "toil": "An HTTP error saying the answer wasn't a list of indices, with a fix to check baseUrl points at Elasticsearch",
       "why": "Errors say plainly what went wrong and what to do about it.",
       "principle": "4"
     },
     {
       "allows": [],
-      "old": "elasticsearch search and count sending an empty --index, or an empty comma-separated target in --index or --pattern, to the server: an empty --index becomes a request to /_search or /_count, which reaches every index",
-      "toil": "INVALID_INPUT before any request, naming the flag and the value; --pattern left out entirely still lists every index",
+      "old": "elasticsearch index search and index count sending an empty index, or an empty comma-separated target in the index or --pattern, to the server: an empty index becomes a request to /_search or /_count, which reaches every index",
+      "toil": "INVALID_INPUT before any request, naming the index argument or --pattern and the value; --pattern left out entirely still lists every index",
       "why": "An agent that sends an empty index would otherwise get the whole cluster back with no error.",
       "principle": "4"
     },
     {
       "allows": [
-        "elasticsearch search data.aggregations",
-        "elasticsearch search data.totalRelation"
+        "elasticsearch index search data.aggregations",
+        "elasticsearch index search data.totalRelation"
       ],
-      "old": "elasticsearch search leaving aggregations out of the JSON when the response has none, and totalRelation out when hits.total is a bare number",
+      "old": "elasticsearch index search leaving aggregations out of the JSON when the response has none, and totalRelation out when hits.total is a bare number",
       "toil": "The same: both fields are absent in those cases. No flag asks for aggregations (--query is only the query clause), so a real search returns none; totalRelation is present whenever Elasticsearch sends hits.total as {value, relation}, as it does from 7.0",
       "why": "Not a change in behaviour. The contract lists both as always present because the type it records always assigns them, but JSON drops a field whose value is undefined; the fixture keeps Elasticsearch's real response shapes rather than inventing aggregations nobody asked for.",
       "principle": "Output Contract"

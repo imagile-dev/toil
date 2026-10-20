@@ -1,7 +1,7 @@
 import { ToilError } from '../../core/errors.js';
 
 /**
- * What a failed create-page or update-page adds to Confluence's error, word
+ * What a failed page create or page update adds to Confluence's error, word
  * for word as specified: the offending line of an XML parse error, and the
  * storage-format mistakes known to turn into an HTTP 500. Confluence reports a
  * malformed macro as a NullPointerException, which is accurate in the way a

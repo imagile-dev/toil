@@ -10,7 +10,7 @@ import { contrast, intText, limitOffset } from './client.js';
  */
 
 export const findingsListCommand = contrastArea.command({
-  path: ['contrast', 'findings', 'list'],
+  path: ['contrast', 'app', 'findings'],
   description: 'List vulnerability findings for an application',
   input: z.object({
     app: z.string().describe('Application ID (UUID)'),
@@ -20,8 +20,8 @@ export const findingsListCommand = contrastArea.command({
     offset: intText.optional().describe('Pagination offset (default: "0")'),
   }),
   writes: false,
+  args: [{ name: 'app', field: 'app', description: 'Application ID (UUID)' }],
   options: [
-    { flags: '--app <app-id>', field: 'app', description: 'Application ID (UUID)' },
     { flags: '--severity <level>', field: 'severity', description: 'Filter by severity: CRITICAL, HIGH, MEDIUM, LOW, NOTE' },
     { flags: '--status <status>', field: 'status', description: 'Filter by status: REPORTED, CONFIRMED, SUSPICIOUS, NOT_A_PROBLEM, REMEDIATED, FIXED' },
     { flags: '--limit <n>', field: 'limit', description: 'Maximum number of results (default: "25")' },
@@ -44,16 +44,16 @@ export const findingsListCommand = contrastArea.command({
 });
 
 export const findingsGetCommand = contrastArea.command({
-  path: ['contrast', 'findings', 'get'],
+  path: ['contrast', 'finding', 'get'],
   description: 'Get details for a specific vulnerability finding',
   input: z.object({
     app: z.string().describe('Application ID (UUID)'),
     trace: z.string().describe('Trace/finding UUID'),
   }),
   writes: false,
-  options: [
-    { flags: '--app <app-id>', field: 'app', description: 'Application ID (UUID)' },
-    { flags: '--trace <trace-id>', field: 'trace', description: 'Trace/finding UUID' },
+  args: [
+    { name: 'app', field: 'app', description: 'Application ID (UUID)' },
+    { name: 'trace', field: 'trace', description: 'Trace/finding UUID' },
   ],
   examples: [{ app: 'abc12345-0000-0000-0000-000000000000', trace: 'ABCD-1234-EFGH-5678' }],
   // Suspected bug (#87 item 3): the SDK reads a trace from `/filter/<id>`, not `/trace/<id>`.

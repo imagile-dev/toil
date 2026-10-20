@@ -71,7 +71,7 @@ export interface ChangeRef {
   id: string;
   kind: 'pull-request' | 'build';
   source: SourceKind;
-  /** The toil command whose output it came from (`bitbucket list-prs`). */
+  /** The toil command whose output it came from (`bitbucket pr list`). */
   command: string;
   /** The OWI ids of the work items it mentions. */
   items: string[];

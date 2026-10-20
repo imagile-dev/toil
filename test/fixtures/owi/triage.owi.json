@@ -4041,7 +4041,7 @@
         "area": "github",
         "connection": "github",
         "key": "imagile/payments-web#36",
-        "command": "github get-issue"
+        "command": "github issue get"
       },
       "url": "https://ghe.imagile.dev/imagile/payments-web/issues/36",
       "type": "BUG",
@@ -4108,7 +4108,7 @@
       },
       "unmapped": [],
       "native": {
-        "github get-issue": {
+        "github issue get": {
           "id": 9036,
           "number": 36,
           "title": "Pay button stays disabled after an error",
@@ -4157,7 +4157,7 @@
           "updated_at": "2026-09-24T17:00:00Z",
           "closed_at": "2026-09-24T17:00:00Z"
         },
-        "github projects list-items": {
+        "github project items": {
           "id": "PVTI_abc1234536",
           "type": "ISSUE",
           "isArchived": false,
@@ -4213,7 +4213,7 @@
             }
           ]
         },
-        "github issue-events": [
+        "github issue history": [
           {
             "id": 7360,
             "node_id": "CE_kwDOabc123457036",
@@ -4238,7 +4238,7 @@
         "area": "github",
         "connection": "github",
         "key": "imagile/payments-web#38",
-        "command": "github get-issue"
+        "command": "github issue get"
       },
       "url": "https://ghe.imagile.dev/imagile/payments-web/issues/38",
       "type": "TASK",
@@ -4306,7 +4306,7 @@
       },
       "unmapped": [],
       "native": {
-        "github get-issue": {
+        "github issue get": {
           "id": 9038,
           "number": 38,
           "title": "Show card brand icons",
@@ -4361,7 +4361,7 @@
           "updated_at": "2026-10-01T12:00:00Z",
           "closed_at": "2026-10-01T12:00:00Z"
         },
-        "github projects list-items": {
+        "github project items": {
           "id": "PVTI_abc1234538",
           "type": "ISSUE",
           "isArchived": false,
@@ -4417,7 +4417,7 @@
             }
           ]
         },
-        "github issue-events": [
+        "github issue history": [
           {
             "id": 7380,
             "node_id": "CE_kwDOabc123457038",
@@ -4442,7 +4442,7 @@
         "area": "github",
         "connection": "github",
         "key": "imagile/payments-web#41",
-        "command": "github get-issue"
+        "command": "github issue get"
       },
       "url": "https://ghe.imagile.dev/imagile/payments-web/issues/41",
       "type": "OTHER",
@@ -4495,7 +4495,7 @@
       "history": null,
       "unmapped": [],
       "native": {
-        "github get-issue": {
+        "github issue get": {
           "id": 9041,
           "number": 41,
           "title": "Checkout accepts saved cards",
@@ -4601,7 +4601,7 @@
             }
           ]
         },
-        "github projects list-items": {
+        "github project items": {
           "id": "PVTI_abc1234541",
           "type": "ISSUE",
           "isArchived": false,
@@ -4666,7 +4666,7 @@
         "area": "github",
         "connection": "github",
         "key": "imagile/payments-web#42",
-        "command": "github get-issue"
+        "command": "github issue get"
       },
       "url": "https://ghe.imagile.dev/imagile/payments-web/issues/42",
       "type": "TASK",
@@ -4718,7 +4718,7 @@
       "history": null,
       "unmapped": [],
       "native": {
-        "github get-issue": {
+        "github issue get": {
           "id": 9042,
           "number": 42,
           "title": "Saved-card picker component",
@@ -4773,7 +4773,7 @@
           "updated_at": "2026-10-09T14:00:00Z",
           "closed_at": null
         },
-        "github projects list-items": {
+        "github project items": {
           "id": "PVTI_abc1234542",
           "type": "ISSUE",
           "isArchived": false,
@@ -4838,7 +4838,7 @@
         "area": "github",
         "connection": "github",
         "key": "imagile/payments-web#43",
-        "command": "github get-issue"
+        "command": "github issue get"
       },
       "url": "https://ghe.imagile.dev/imagile/payments-web/issues/43",
       "type": "BUG",
@@ -4890,7 +4890,7 @@
       "history": null,
       "unmapped": [],
       "native": {
-        "github get-issue": {
+        "github issue get": {
           "id": 9043,
           "number": 43,
           "title": "Card form loses focus on Safari",
@@ -4945,7 +4945,7 @@
           "updated_at": "2026-10-07T08:45:00Z",
           "closed_at": null
         },
-        "github projects list-items": {
+        "github project items": {
           "id": "PVTI_abc1234543",
           "type": "ISSUE",
           "isArchived": false,
@@ -5010,7 +5010,7 @@
         "area": "github",
         "connection": "github",
         "key": "imagile/payments-web#44",
-        "command": "github get-issue"
+        "command": "github issue get"
       },
       "url": "https://ghe.imagile.dev/imagile/payments-web/issues/44",
       "type": "BUG",
@@ -5077,7 +5077,7 @@
       },
       "unmapped": [],
       "native": {
-        "github get-issue": {
+        "github issue get": {
           "id": 9044,
           "number": 44,
           "title": "Receipt page shows the wrong currency symbol",
@@ -5126,7 +5126,7 @@
           "updated_at": "2026-10-12T16:00:00Z",
           "closed_at": "2026-10-12T16:00:00Z"
         },
-        "github projects list-items": {
+        "github project items": {
           "id": "PVTI_abc1234544",
           "type": "ISSUE",
           "isArchived": false,
@@ -5182,7 +5182,7 @@
             }
           ]
         },
-        "github issue-events": [
+        "github issue history": [
           {
             "id": 7001,
             "node_id": "LE_kwDOabc123457001",
@@ -5223,7 +5223,7 @@
         "area": "github",
         "connection": "github",
         "key": "imagile/payments-web#45",
-        "command": "github get-issue"
+        "command": "github issue get"
       },
       "url": "https://ghe.imagile.dev/imagile/payments-web/issues/45",
       "type": "TASK",
@@ -5271,7 +5271,7 @@
         }
       ],
       "native": {
-        "github get-issue": {
+        "github issue get": {
           "id": 9045,
           "number": 45,
           "title": "End-to-end test for 3-D Secure",
@@ -5313,7 +5313,7 @@
           "updated_at": "2026-10-05T11:00:00Z",
           "closed_at": null
         },
-        "github projects list-items": {
+        "github project items": {
           "id": "PVTI_abc1234545",
           "type": "ISSUE",
           "isArchived": false,
@@ -6011,7 +6011,7 @@
         "area": "github",
         "connection": "github",
         "key": "imagile/payments-web#51",
-        "command": "github list-issues"
+        "command": "github issue list"
       },
       "url": "https://ghe.imagile.dev/imagile/payments-web/issues/51",
       "type": "BUG",
@@ -6049,15 +6049,15 @@
       "unmapped": [
         {
           "field": "estimate",
-          "reason": "GitHub keeps estimates on a project board: add github projects list-items output to the input"
+          "reason": "GitHub keeps estimates on a project board: add github project items output to the input"
         },
         {
           "field": "iteration",
-          "reason": "GitHub keeps iterations on a project board: add github projects list-items output to the input"
+          "reason": "GitHub keeps iterations on a project board: add github project items output to the input"
         }
       ],
       "native": {
-        "github list-issues": {
+        "github issue list": {
           "id": 9051,
           "number": 51,
           "title": "Checkout times out when paying by card",
@@ -6107,7 +6107,7 @@
         "area": "github",
         "connection": "github",
         "key": "imagile/payments-web#52",
-        "command": "github list-issues"
+        "command": "github issue list"
       },
       "url": "https://ghe.imagile.dev/imagile/payments-web/issues/52",
       "type": "BUG",
@@ -6144,15 +6144,15 @@
       "unmapped": [
         {
           "field": "estimate",
-          "reason": "GitHub keeps estimates on a project board: add github projects list-items output to the input"
+          "reason": "GitHub keeps estimates on a project board: add github project items output to the input"
         },
         {
           "field": "iteration",
-          "reason": "GitHub keeps iterations on a project board: add github projects list-items output to the input"
+          "reason": "GitHub keeps iterations on a project board: add github project items output to the input"
         }
       ],
       "native": {
-        "github list-issues": {
+        "github issue list": {
           "id": 9052,
           "number": 52,
           "title": "Add Apple Pay to checkout",
@@ -6196,7 +6196,7 @@
         "area": "github",
         "connection": "github",
         "key": "imagile/payments-web#53",
-        "command": "github list-issues"
+        "command": "github issue list"
       },
       "url": "https://ghe.imagile.dev/imagile/payments-web/issues/53",
       "type": "BUG",
@@ -6233,15 +6233,15 @@
       "unmapped": [
         {
           "field": "estimate",
-          "reason": "GitHub keeps estimates on a project board: add github projects list-items output to the input"
+          "reason": "GitHub keeps estimates on a project board: add github project items output to the input"
         },
         {
           "field": "iteration",
-          "reason": "GitHub keeps iterations on a project board: add github projects list-items output to the input"
+          "reason": "GitHub keeps iterations on a project board: add github project items output to the input"
         }
       ],
       "native": {
-        "github list-issues": {
+        "github issue list": {
           "id": 9053,
           "number": 53,
           "title": "Recipt page shows wrong curency symbol",

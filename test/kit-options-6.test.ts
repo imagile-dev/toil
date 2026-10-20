@@ -63,13 +63,13 @@ describe('a CLI command line quoted in an input error stays CLI-shaped over MCP'
 
   it('splitio: a command up to a semicolon keeps --environment, and the flag in the clause after it becomes its field', () => {
     const envelope = failure(
-      new ToilError('INVALID_INPUT', 'Rule index 9 is out of range', { fix: 'Run toil splitio flags get --environment <id> to see the rules; --rule-index counts from 0.' }),
-      { command: 'splitio flags set-rule', durationMs: 0, version: '0.0.0' },
+      new ToilError('INVALID_INPUT', 'Rule index 9 is out of range', { fix: 'Run toil splitio flag get --environment <id> to see the rules; --rule-index counts from 0.' }),
+      { command: 'splitio flag set-rule', durationMs: 0, version: '0.0.0' },
     );
-    expect(inFieldNames(flagsSetRuleCommand, envelope).error?.fix).toBe('Run toil splitio flags get --environment <id> to see the rules; ruleIndex counts from 0.');
+    expect(inFieldNames(flagsSetRuleCommand, envelope).error?.fix).toBe('Run toil splitio flag get --environment <id> to see the rules; ruleIndex counts from 0.');
     // In backticks, a command line ends at the closing backtick.
-    const ticked = failure(new ToilError('INVALID_INPUT', 'x', { fix: 'Run `toil splitio flags get --environment <id>`, then pass --environment.' }), { command: 'splitio flags set-rule', durationMs: 0, version: '0.0.0' });
-    expect(inFieldNames(flagsSetRuleCommand, ticked).error?.fix).toBe('Run `toil splitio flags get --environment <id>`, then pass environment.');
+    const ticked = failure(new ToilError('INVALID_INPUT', 'x', { fix: 'Run `toil splitio flag get --environment <id>`, then pass --environment.' }), { command: 'splitio flag set-rule', durationMs: 0, version: '0.0.0' });
+    expect(inFieldNames(flagsSetRuleCommand, ticked).error?.fix).toBe('Run `toil splitio flag get --environment <id>`, then pass environment.');
   });
 });
 

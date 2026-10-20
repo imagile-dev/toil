@@ -72,7 +72,7 @@ export function where(ctx: BitbucketContext): { project: string; repo: string } 
 }
 
 /**
- * The project alone, for create-repo and create-prs, with the contract's
+ * The project alone, for repo create and pr create-many, with the contract's
  * specified wording for those two; the area-wide wording names the repo as well.
  */
 export function projectOf(ctx: BitbucketContext): string {

@@ -83,8 +83,8 @@ Job names with folders are written `folder/job` (`platform/api-build`); each lev
 becomes `/job/<segment>`, percent-encoded.
 
 - `pipeline list`: List all jobs on the Jenkins instance (or within a folder, `--folder parent/child`).
-- `pipeline get`: Get details for a specific job (`--name`), with its last 10 builds.
-- `pipeline run`: Trigger a build (`--name`). It writes, so it needs `writes: true`
+- `pipeline get <name>`: Get details for a specific job, with its last 10 builds.
+- `pipeline run <name>`: Trigger a build. It writes, so it needs `writes: true`
   on the connection and `--allow-write`. Each `--parameter key=value` (repeatable)
   sends the build to `buildWithParameters`; without one it goes to `build`, even for
   a parameterized job. Without `--wait`, `data` is `{ queueItemId }`. With `--wait`
@@ -96,17 +96,17 @@ becomes `/job/<segment>`, percent-encoded.
   `data.result`).
   The command's time limit is 21 minutes (`TOIL_TIMEOUT_MS` overrides it).
   `--timeout` and `--poll` are checked only after the build was triggered.
-- `pipeline list-runs`: List recent builds for a job (`--name`, `--top`, default 25).
+- `pipeline runs <name>`: List recent builds for a job (`--limit`, default 25).
   Jenkins' `builds` list holds only the newest 100.
-- `pipeline get-run`: Get details for a specific build (`--name`, `--number`).
-- `pipeline logs`: Fetch console log for a build (consider --output-file for large
+- `run get <name> <number>`: Get details for a specific build.
+- `run logs <name> <number>`: Fetch console log for a build (consider --output-file for large
   logs); `data` is `{ log }`, the whole text.
 
-`--number`, `--top`, `--timeout` and `--poll` are read as whole numbers from the
+The build number, `--limit`, `--timeout` and `--poll` are read as whole numbers from the
 start of the text, so `12abc` is 12.
 
 ```bash
 toil jenkins pipeline list --folder platform
-toil jenkins --instance ephemeral pipeline list-runs --name platform/api-build --top 5
-toil jenkins pipeline run --name api-build --parameter BRANCH=main --wait --allow-write
+toil jenkins --instance ephemeral pipeline runs platform/api-build --limit 5
+toil jenkins pipeline run api-build --parameter BRANCH=main --wait --allow-write
 ```

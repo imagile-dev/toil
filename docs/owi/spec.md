@@ -71,7 +71,7 @@ The commands whose output maps, and what each gives:
 |------|-------|---------|---------|
 | `jira`, `jira-cloud` | `jira issue search`, `jira issue get`, `jira-cloud issue search`, `jira-cloud issue get` | `jira issue history`, `jira-cloud issue history` | |
 | `ado`, `ado-cloud` | `ado work-item get`, `ado work-item get-many`, `ado-cloud work-item get`, `ado-cloud work-item get-many` | `ado work-item history`, `ado-cloud work-item history` | `ado work-item iterations`, `ado-cloud work-item iterations` (iteration dates) |
-| `github` | `github list-issues`, `github search-issues`, `github get-issue`, `github projects list-items` | `github issue-events` | |
+| `github` | `github issue list`, `github issue search`, `github issue get`, `github project items` | `github issue history` | |
 
 `ado work-item search` and `ado-cloud work-item search` return ids only, so they are skipped
 with a pointer to `work-item get-many`. Pull requests (in GitHub's issue lists and on boards) are
@@ -136,9 +136,9 @@ Services differs, the mapping already holds:
 
 - **Type** from the issue type (GitHub's defaults are Task, Bug and Feature).
   **Parent** from `parent_issue_url`, **children** from `sub_issues`
-  (`get-issue --sub-issues`).
+  (`github issue get <number> --sub-issues`).
 - **Status, estimate and iteration** live on a Projects board. With
-  `github projects list-items` in the input, an issue and its board item are one
+  `github project items` in the input, an issue and its board item are one
   item: the board's **Status** option sets `status` (Todo, Backlog, Ready and New
   are `TODO`; In Progress, Doing and In Review `IN_PROGRESS`; Done `DONE`; other
   options `UNKNOWN`), the first number field named **Estimate**, **Size** or
@@ -148,7 +148,7 @@ Services differs, the mapping already holds:
   what the board carries.
 - GitHub's newer **issue fields** have a REST API (`/repos/{owner}/{repo}/issues/{number}/issue-field-values`),
   but no toil command reads them yet, so OWI 0.1 doesn't map them.
-- History from `github issue-events`: each `closed` and `reopened`.
+- History from `github issue history`: each `closed` and `reopened`.
 
 ### A history's item
 
@@ -229,7 +229,7 @@ realistic OWI items without a tracker, the Toil UI preview first:
 
 - `sprint.ts` builds the input: the envelopes `jira issue get`, `jira issue history`,
   `ado work-item iterations`, `ado work-item get-many`, `ado work-item history`,
-  `github get-issue`, `github issue-events` and `github projects list-items` print,
+  `github issue get`, `github issue history` and `github project items` print,
   as `util owi map` reads them (also served to its examples as `owi/sprint-42.jsonl`).
 - `triage.ts` adds a week of newly filed work to it, from Jira Data Center, Jira
   Cloud, Azure DevOps Server and GitHub Enterprise, with four duplicates planted (one

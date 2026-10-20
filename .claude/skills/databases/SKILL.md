@@ -28,7 +28,7 @@ description: Rules for toil's `db` area and its database providers (PostgreSQL, 
 ## The framework
 
 The `db` area (`src/areas/db/`) has one set of commands for every engine:
-`list-schemas`, `list-tables`, `describe-table`, `preview-table`, `query` (read-only,
+`schema list`, `table list`, `table describe`, `table preview`, `query` (read-only,
 one statement, paged) and `execute` (the only write, `writes: true`). A connection
 names its `engine`; commands look up that engine's provider and never know which
 one they got.

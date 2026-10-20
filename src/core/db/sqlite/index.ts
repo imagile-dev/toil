@@ -125,7 +125,7 @@ function toToilError(err: SqliteWorkerError, conn: DbConnection, write: boolean)
   if (f.errcode === undefined) {
     return new ToilError('DATABASE', `SQLite: ${f.message}`, { fix: 'Check the SQL and the database file. If it persists, run with --debug and report it.' });
   }
-  return new ToilError('DATABASE', `SQLite: ${f.message}`, { fix: 'Check the SQL against toil db describe-table for the tables it uses.' });
+  return new ToilError('DATABASE', `SQLite: ${f.message}`, { fix: 'Check the SQL against toil db table describe for the tables it uses.' });
 }
 
 function rowsOf(result: SqliteStepResult | undefined): unknown[][] {
@@ -133,12 +133,12 @@ function rowsOf(result: SqliteStepResult | undefined): unknown[][] {
 }
 
 function notFoundSchema(conn: DbConnection, schema: string): ToilError {
-  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema "${schema}".`, { fix: 'Run toil db list-schemas to see the schemas it has.' });
+  return new ToilError('NOT_FOUND', `Connection ${conn.name} has no schema "${schema}".`, { fix: 'Run toil db schema list to see the schemas it has.' });
 }
 
 function notFoundTable(conn: DbConnection, ref: TableRef): ToilError {
   return new ToilError('NOT_FOUND', `Schema "${ref.schema}" on connection ${conn.name} has no table or view "${ref.table}".`, {
-    fix: `Run toil db list-tables --schema ${ref.schema} to see what it has.`,
+    fix: `Run toil db table list --schema ${ref.schema} to see what it has.`,
   });
 }
 

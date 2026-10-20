@@ -3,7 +3,7 @@
   "divergences": [
     {
       "allows": [],
-      "old": "dynatrace entities list, services, workloads and problems list following nextPageKey with no limit on the number of pages",
+      "old": "dynatrace entity list, service list, workload list and problem list following nextPageKey with no limit on the number of pages",
       "toil": "The same stop rule (until a page has no nextPageKey), plus a bound: after 1,000 pages (500,000 items) the command fails with HTTP, naming what was being paged, and fix text to narrow the request. A server that hands back a key it already gave also ends the loop",
       "why": "A server that kept returning a nextPageKey would otherwise be asked for pages forever.",
       "principle": "4"

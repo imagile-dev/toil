@@ -1,15 +1,15 @@
 [
   {
-    "name": "workspaces list",
-    "tool": "splitio_workspaces_list",
+    "name": "workspace list",
+    "tool": "splitio_workspace_list",
     "description": "List all Split.IO workspaces",
     "writes": false,
     "connection": true,
     "flags": []
   },
   {
-    "name": "environments list",
-    "tool": "splitio_environments_list",
+    "name": "environment list",
+    "tool": "splitio_environment_list",
     "description": "List environments in a workspace",
     "writes": false,
     "connection": true,
@@ -18,8 +18,8 @@
     ]
   },
   {
-    "name": "flags list",
-    "tool": "splitio_flags_list",
+    "name": "flag list",
+    "tool": "splitio_flag_list",
     "description": "List feature flags in a workspace",
     "writes": false,
     "connection": true,
@@ -31,25 +31,25 @@
     ]
   },
   {
-    "name": "flags get",
-    "tool": "splitio_flags_get",
+    "name": "flag get",
+    "tool": "splitio_flag_get",
     "description": "Get a flag definition",
     "writes": false,
     "connection": true,
     "flags": [
-      "--flag <name>",
+      "<flag>",
       "--environment <id>",
       "--ws <id>"
     ]
   },
   {
-    "name": "flags update",
-    "tool": "splitio_flags_update",
+    "name": "flag update",
+    "tool": "splitio_flag_update",
     "description": "Submit a Change Request to replace a flag's full definition in an environment",
     "writes": true,
     "connection": true,
     "flags": [
-      "--flag <name>",
+      "<flag>",
       "--environment <id>",
       "--mnemonic <text>",
       "--description <text>",
@@ -62,13 +62,13 @@
     ]
   },
   {
-    "name": "flags set-rule",
-    "tool": "splitio_flags_set_rule",
+    "name": "flag set-rule",
+    "tool": "splitio_flag_set_rule",
     "description": "Change one targeting rule without altering the rest of the flag definition",
     "writes": true,
     "connection": true,
     "flags": [
-      "--flag <name>",
+      "<flag>",
       "--environment <id>",
       "--rule-index <n>",
       "--treatment <name>",
@@ -83,13 +83,13 @@
     ]
   },
   {
-    "name": "flags set-default",
-    "tool": "splitio_flags_set_default",
+    "name": "flag set-default",
+    "tool": "splitio_flag_set_default",
     "description": "Update the fallback default rule for traffic matching no targeting rule",
     "writes": true,
     "connection": true,
     "flags": [
-      "--flag <name>",
+      "<flag>",
       "--environment <id>",
       "--treatment <name>",
       "--mnemonic <text>",
@@ -102,13 +102,13 @@
     ]
   },
   {
-    "name": "flags toggle",
-    "tool": "splitio_flags_toggle",
+    "name": "flag toggle",
+    "tool": "splitio_flag_toggle",
     "description": "Enable or disable a single flag via a Change Request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--flag <name>",
+      "<flag>",
       "--environment <id>",
       "--enabled <bool>",
       "--mnemonic <text>",
@@ -121,8 +121,8 @@
     ]
   },
   {
-    "name": "flags batch-toggle",
-    "tool": "splitio_flags_batch_toggle",
+    "name": "flag toggle-many",
+    "tool": "splitio_flag_toggle_many",
     "description": "Enable or disable multiple flags from a JSON file (each creates its own Change Request)",
     "writes": true,
     "connection": true,
@@ -139,13 +139,13 @@
     ]
   },
   {
-    "name": "flags kill",
-    "tool": "splitio_flags_kill",
+    "name": "flag kill",
+    "tool": "splitio_flag_kill",
     "description": "Submit a Change Request to kill (disable) a flag",
     "writes": true,
     "connection": true,
     "flags": [
-      "--flag <name>",
+      "<flag>",
       "--environment <id>",
       "--mnemonic <text>",
       "--description <text>",
@@ -157,13 +157,13 @@
     ]
   },
   {
-    "name": "flags restore",
-    "tool": "splitio_flags_restore",
+    "name": "flag restore",
+    "tool": "splitio_flag_restore",
     "description": "Submit a Change Request to restore a killed flag",
     "writes": true,
     "connection": true,
     "flags": [
-      "--flag <name>",
+      "<flag>",
       "--environment <id>",
       "--mnemonic <text>",
       "--description <text>",
@@ -175,13 +175,13 @@
     ]
   },
   {
-    "name": "flags archive",
+    "name": "flag archive",
     "tool": null,
     "description": "Submit a Change Request to remove a flag's definition from an environment",
     "writes": true,
     "connection": true,
     "flags": [
-      "--flag <name>",
+      "<flag>",
       "--environment <id>",
       "--mnemonic <text>",
       "--description <text>",
@@ -193,8 +193,8 @@
     ]
   },
   {
-    "name": "change-requests list",
-    "tool": "splitio_change_requests_list",
+    "name": "change-request list",
+    "tool": "splitio_change_request_list",
     "description": "List Change Requests for a workspace",
     "writes": false,
     "connection": true,
@@ -208,13 +208,13 @@
     ]
   },
   {
-    "name": "change-requests get",
-    "tool": "splitio_change_requests_get",
+    "name": "change-request get",
+    "tool": "splitio_change_request_get",
     "description": "Get a Change Request by ID",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <id>"
+      "<id>"
     ]
   }
 ]

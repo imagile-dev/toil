@@ -171,7 +171,7 @@
         "dueDate": { "anyOf": [{ "$ref": "#/$defs/Day" }, { "type": "null" }] },
         "history": { "description": "null when no history was mapped for the item, which is not the same as an empty one.", "anyOf": [{ "$ref": "#/$defs/History" }, { "type": "null" }] },
         "unmapped": { "description": "Every OWI field left empty because the record didn't hold it, and why.", "type": "array", "items": { "$ref": "#/$defs/Unmapped" } },
-        "native": { "description": "The source records, untouched, keyed by the command that returned each (jira issue search, github projects list-items)." , "type": "object", "minProperties": 1 }
+        "native": { "description": "The source records, untouched, keyed by the command that returned each (jira issue search, github project items)." , "type": "object", "minProperties": 1 }
       }
     }
   }

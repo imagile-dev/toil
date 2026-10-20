@@ -1,7 +1,7 @@
 [
   {
-    "name": "entities list",
-    "tool": "dynatrace_entities_list",
+    "name": "entity list",
+    "tool": "dynatrace_entity_list",
     "description": "List monitored entities using an entity selector",
     "writes": false,
     "connection": true,
@@ -14,13 +14,13 @@
     ]
   },
   {
-    "name": "entities get",
-    "tool": "dynatrace_entities_get",
+    "name": "entity get",
+    "tool": "dynatrace_entity_get",
     "description": "Get a monitored entity by ID",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <id>",
+      "<id>",
       "--from <time>",
       "--to <time>",
       "--fields <fields>",
@@ -28,8 +28,8 @@
     ]
   },
   {
-    "name": "services",
-    "tool": "dynatrace_services",
+    "name": "service list",
+    "tool": "dynatrace_service_list",
     "description": "List monitored services",
     "writes": false,
     "connection": true,
@@ -40,8 +40,8 @@
     ]
   },
   {
-    "name": "workloads",
-    "tool": "dynatrace_workloads",
+    "name": "workload list",
+    "tool": "dynatrace_workload_list",
     "description": "List monitored Kubernetes workloads",
     "writes": false,
     "connection": true,
@@ -52,8 +52,8 @@
     ]
   },
   {
-    "name": "problems list",
-    "tool": "dynatrace_problems_list",
+    "name": "problem list",
+    "tool": "dynatrace_problem_list",
     "description": "List problems",
     "writes": false,
     "connection": true,
@@ -66,25 +66,25 @@
     ]
   },
   {
-    "name": "problems get",
-    "tool": "dynatrace_problems_get",
+    "name": "problem get",
+    "tool": "dynatrace_problem_get",
     "description": "Get a problem by ID",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <id>",
+      "<id>",
       "--fields <fields>",
       "--env <name>"
     ]
   },
   {
-    "name": "trace",
-    "tool": "dynatrace_trace",
+    "name": "trace get",
+    "tool": "dynatrace_trace_get",
     "description": "Get distributed-trace spans from Grail",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <trace-id>",
+      "<id>",
       "--env <name>"
     ]
   },

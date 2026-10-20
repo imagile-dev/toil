@@ -2,12 +2,12 @@ import { z } from 'zod';
 import { allowWriteField } from '../../core/run.js';
 import { githubArea } from './area.js';
 import { exampleCursor, github, githubList, githubText, target, type GitHubContext } from './client.js';
-import { bodyOf, inDateRange, pageFields, pageOptions, parseDateOption, parseIntText, prNumber, prNumberOption } from './input.js';
+import { bodyOf, inDateRange, pageFields, pageOptions, parseDateOption, parseIntText, prNumber, prNumberArg } from './input.js';
 
 /**
  * Pull requests themselves: list, read, open, edit, merge, close, reopen, and
  * the diff and file list. `data` is GitHub's answer as it came, apart from
- * `list-prs`'s client-side author and date filters and `diff`'s wrapper.
+ * `pr list`'s client-side author and date filters and `pr diff`'s wrapper.
  * Merging is done by request, like every other approval worth having.
  */
 
@@ -19,7 +19,7 @@ interface PullRequest {
 const prPath = (owner: string, repo: string, number: number) => `/repos/${owner}/${repo}/pulls/${number}`;
 
 export const listPrsCommand = githubArea.command({
-  path: ['github', 'list-prs'],
+  path: ['github', 'pr', 'list'],
   description: 'List pull requests',
   input: z.object({
     state: z.enum(['open', 'closed', 'all']).optional().describe('PR state (choices: "open", "closed", "all", default: "open")'),
@@ -64,11 +64,11 @@ export const listPrsCommand = githubArea.command({
 });
 
 export const getPrCommand = githubArea.command({
-  path: ['github', 'get-pr'],
+  path: ['github', 'pr', 'get'],
   description: 'Get a pull request by number',
   input: z.object({ number: prNumber }),
   writes: false,
-  options: [prNumberOption],
+  args: [prNumberArg],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7' }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
@@ -77,7 +77,7 @@ export const getPrCommand = githubArea.command({
 });
 
 export const createPrCommand = githubArea.command({
-  path: ['github', 'create-pr'],
+  path: ['github', 'pr', 'create'],
   description: 'Create a pull request',
   input: z.object({
     title: z.string().describe('PR title'),
@@ -127,7 +127,7 @@ function updatePr(ctx: GitHubContext, number: number, fields: { title?: string |
 }
 
 export const updatePrCommand = githubArea.command({
-  path: ['github', 'update-pr'],
+  path: ['github', 'pr', 'update'],
   description: 'Update a pull request',
   input: z.object({
     number: prNumber,
@@ -137,8 +137,8 @@ export const updatePrCommand = githubArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [prNumberArg],
   options: [
-    prNumberOption,
     { flags: '--title <title>', field: 'title', description: 'New title' },
     { flags: '--body <body>', field: 'body', description: 'New description' },
     { flags: '--base <branch>', field: 'base', description: 'New base branch' },
@@ -148,28 +148,28 @@ export const updatePrCommand = githubArea.command({
 });
 
 export const closePrCommand = githubArea.command({
-  path: ['github', 'close-pr'],
+  path: ['github', 'pr', 'close'],
   description: 'Close a pull request',
   input: z.object({ number: prNumber, ...allowWriteField }),
   writes: true,
-  options: [prNumberOption],
+  args: [prNumberArg],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', allowWrite: true }],
   run: async (input, ctx) => updatePr(ctx, parseIntText(input.number), { state: 'closed' }),
 });
 
 export const reopenPrCommand = githubArea.command({
-  path: ['github', 'reopen-pr'],
+  path: ['github', 'pr', 'reopen'],
   description: 'Reopen a closed pull request',
   input: z.object({ number: prNumber, ...allowWriteField }),
   writes: true,
-  options: [prNumberOption],
+  args: [prNumberArg],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', allowWrite: true }],
   run: async (input, ctx) => updatePr(ctx, parseIntText(input.number), { state: 'open' }),
 });
 
 export const mergePrCommand = githubArea.command({
-  path: ['github', 'merge-pr'],
-  description: 'Merge a pull request (immediate merge — use enable-auto-merge for auto-merge)',
+  path: ['github', 'pr', 'merge'],
+  description: 'Merge a pull request (immediate merge — use pr enable-auto-merge for auto-merge)',
   input: z.object({
     number: prNumber,
     method: z.enum(['merge', 'squash', 'rebase']).optional().describe('Merge method (choices: "merge", "squash", "rebase", default: "merge")'),
@@ -178,8 +178,8 @@ export const mergePrCommand = githubArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [prNumberArg],
   options: [
-    prNumberOption,
     { flags: '--method <method>', field: 'method', description: 'Merge method (choices: "merge", "squash", "rebase", default: "merge")' },
     { flags: '--commit-title <title>', field: 'commitTitle', description: 'Commit title for merge/squash' },
     { flags: '--commit-message <msg>', field: 'commitMessage', description: 'Commit message for merge/squash' },
@@ -200,11 +200,11 @@ export const mergePrCommand = githubArea.command({
 });
 
 export const diffCommand = githubArea.command({
-  path: ['github', 'diff'],
+  path: ['github', 'pr', 'diff'],
   description: 'Get unified diff for a pull request',
   input: z.object({ number: prNumber }),
   writes: false,
-  options: [prNumberOption],
+  args: [prNumberArg],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7' }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
@@ -214,11 +214,12 @@ export const diffCommand = githubArea.command({
 });
 
 export const listFilesCommand = githubArea.command({
-  path: ['github', 'list-files'],
+  path: ['github', 'pr', 'files'],
   description: 'List files changed in a pull request',
   input: z.object({ number: prNumber, ...pageFields('files') }),
   writes: false,
-  options: [prNumberOption, ...pageOptions('files')],
+  args: [prNumberArg],
+  options: [...pageOptions('files')],
   examples: [
     { owner: 'imagile', repo: 'toil-probe', number: '7' },
     { owner: 'imagile', repo: 'toil-probe', number: '7', limit: 1, cursor: exampleCursor() },

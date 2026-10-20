@@ -77,19 +77,19 @@ credential store, or set `TOIL_CHECKMARX_API_KEY`.
 - `project list`: List all projects. One request for the first 100; when Checkmarx
   One counts more, `meta.warnings` says so (`CHECKMARX_TRUNCATED`, "N projects
   found; only showing first 100"). `data` is the bare list of projects.
-- `project get`: Get a project by ID (`--id <uuid>`).
+- `project get <id>`: Get a project by its UUID.
 - `scan list`: List scans, optionally for one project (`--project <uuid>`).
   `--last <n>` sets how many come back (default 100), read as a leading integer,
   so `5abc` is 5; a value with no leading number is `INVALID_INPUT`. No order is
   requested, so "last" is whatever order Checkmarx One returns. More than that
   many gives the same `CHECKMARX_TRUNCATED` warning.
-- `scan get`: Get a scan by ID (`--id <uuid>`).
-- `scan stats`: Get results statistics for a scan (`--id <uuid>`): the counts
+- `scan get <id>`: Get a scan by its UUID.
+- `scan stats <id>`: Get results statistics for a scan (its UUID): the counts
   `highSeverity`, `mediumSeverity`, `lowSeverity`, `infoSeverity` and, when
   Checkmarx One sends it, `severitiesTotalCount`, from `results/summary`.
 
 ```bash
 toil checkmarx project list
 toil checkmarx scan list --project abc12345-0000-0000-0000-000000000000 --last 5
-toil checkmarx scan stats --id abc12345-0000-0000-0000-0000000000a1
+toil checkmarx scan stats abc12345-0000-0000-0000-0000000000a1
 ```

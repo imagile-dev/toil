@@ -3,7 +3,7 @@
   "divergences": [
     {
       "allows": [],
-      "old": "sde users, projects, tasks and threats --all paging until count or an empty page, with no limit on the number of pages",
+      "old": "sde user list, project list, task list and threat list --all paging until count or an empty page, with no limit on the number of pages",
       "toil": "The same stop rule, plus a bound: after 1,000 pages (100,000 items) the command fails with HTTP, naming what was being paged, and fix text to narrow the request",
       "why": "A server that ignores the page parameter would otherwise be asked for the same page forever.",
       "principle": "4"

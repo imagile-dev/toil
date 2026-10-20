@@ -17,8 +17,8 @@ No release has been verified yet.
 ## Credential
 
 A LogScale **personal API token**: in LogScale, your account settings → Personal
-API Token. A token with read access to the repository also works for `query`;
-`repositories list` lists what the token's user can see. toil sends it as
+API Token. A token with read access to the repository also works for `repository query`;
+`repository list` lists what the token's user can see. toil sends it as
 `Authorization: Bearer <token>`. There is no username, password or browser login.
 
 ## Configuration
@@ -54,11 +54,11 @@ The token never goes in this file; a plaintext one there is refused with
 
 ## Commands
 
-- `repositories list`: List available repositories. `data` is `{ count,
+- `repository list`: List available repositories. `data` is `{ count,
   repositories }`, each with `id`, `name`, `description` and `timeOfLatestIngest`
   from the GraphQL `repositories` query.
-- `query`: Execute a LogScale Query Language (LQL) search against a repository.
-  `--repository` and `--query` are required.
+- `repository query <repository>`: Execute a LogScale Query Language (LQL) search
+  against a repository. `--query` is required.
   - `--start` (default `1h`) and `--end` (default `now`) take epoch milliseconds, an
     ISO 8601 date or date-time (UTC unless it carries an offset), or a relative time
     such as `1h`, `24hours` or `2days`. ISO 8601 is sent as epoch milliseconds.
@@ -81,7 +81,7 @@ A query LogScale rejects (a syntax error) is `HTTP`, with LogScale's explanation
 after the status, such as `HTTP 400 Bad Request: Unexpected end of input at 1:7`.
 
 ```bash
-toil logscale repositories list
-toil logscale query --repository imagile-app --query 'level=error' --start 15m
-toil logscale query --repository imagile-app --query 'level=error | count()' --start 2026-10-01T00:00:00Z --end 2026-10-02T00:00:00Z
+toil logscale repository list
+toil logscale repository query imagile-app --query 'level=error' --start 15m
+toil logscale repository query imagile-app --query 'level=error | count()' --start 2026-10-01T00:00:00Z --end 2026-10-02T00:00:00Z
 ```
