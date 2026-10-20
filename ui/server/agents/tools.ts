@@ -1,7 +1,8 @@
 /**
  * The agent's tools (#251): read-only, scoped to one dossier, and the same
- * list for every adapter. Three read the cache a sync filled (`owi_query`,
- * `owi_get`, `owi_history`); the rest are `toil mcp`'s own read tools, by
+ * list for every adapter. Four read the cache a sync filled (`owi_query`,
+ * `owi_get`, `owi_history`, and `owi_similar`, the scorer `toil util owi
+ * similar` runs); the rest are `toil mcp`'s own read tools, by
  * their MCP names, for live lookups through `@imagile-dev/toil/api`'s
  * `execute()` with `readOnly: true`. There is no write tool, and a live tool
  * is built only for a command the registry says never writes, so the list
@@ -15,6 +16,7 @@
 
 import type { Cache, ChangeRow, TransitionRow } from '../cache.ts';
 import type { Envelope, Execute, WorkItem } from '../../src/toil.ts';
+import { SimilarityIndex } from '../../../src/core/owi/similar.ts';
 import { CALLER } from '../store.ts';
 
 /** What the cache tools read: one dossier's synced rows. */
@@ -147,7 +149,11 @@ function vouch(ledger: Ledger, item: Pick<WorkItem, 'id' | 'parent' | 'children'
   for (const l of item.links) ledger.add(l.target);
 }
 
-/** The three cache tools for one dossier. */
+/** The most matches owi_similar returns, and how many by default. */
+export const MAX_SIMILAR = 20;
+export const DEFAULT_SIMILAR = 5;
+
+/** The four cache tools for one dossier. */
 export function cacheTools(dossier: string, data: AgentData, ledger: Ledger): ToolSpec[] {
   const note = () => ({ dossier, syncedAt: data.syncedAt() });
   return [
@@ -203,6 +209,32 @@ export function cacheTools(dossier: string, data: AgentData, ledger: Ledger): To
           .map((c) => ({ kind: c.kind, id: c.id, area: c.area, state: c.state, outcome: c.outcome, at: c.at }));
         for (const c of changes) ledger.add(c.id);
         return { ...note(), item: { ...brief(item), body: bodyText(item) }, changes };
+      },
+    },
+    {
+      name: 'owi_similar',
+      description: `Finds likely duplicate work items in the cache for "${dossier}", scored the way toil util owi similar scores them: pass query (some text, such as the title of an item about to be filed) or id (an OWI id, to find what duplicates that item). Returns at most limit matches scoring 0.35 or more, best first, each with score (0 to 1) and why: the shared title and body terms, how alike the titles are by trigram, shared labels, the same parent and a direct link. Lexical: it finds shared words, not shared meaning.`,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Text to rank the items against.' },
+          id: { type: 'string', description: 'The OWI id of an item, to rank the others against it.' },
+          limit: { type: 'integer', minimum: 1, maximum: MAX_SIMILAR, description: `Default ${DEFAULT_SIMILAR}.` },
+        },
+        additionalProperties: false,
+      },
+      async run(input) {
+        const query = str(input.query);
+        const id = str(input.id);
+        if (!query === !id) return { ...note(), error: 'Pass exactly one of query (text to rank against) and id (an OWI id from owi_query).' };
+        const limit = Math.min(MAX_SIMILAR, Math.max(1, Number.isInteger(input.limit) ? (input.limit as number) : DEFAULT_SIMILAR));
+        const index = new SimilarityIndex(data.items());
+        const found = query ? index.query(query, { limit }) : index.item(id!, { limit });
+        if (!found) return { ...note(), error: `The cache holds no item ${JSON.stringify(id)} in ${dossier}. Use owi_query to find ids.` };
+        if (id) ledger.add(id);
+        const matches = found.matches.map((m) => ({ id: m.id, title: m.title, score: m.score, why: { summary: m.why.summary, titleTerms: m.why.titleTerms, bodyTerms: m.why.bodyTerms, trigram: m.why.trigram, labels: m.why.labels, parent: m.why.parent, link: m.why.link } }));
+        for (const m of matches) ledger.add(m.id);
+        return { ...note(), count: found.count, returned: matches.length, matches };
       },
     },
     {

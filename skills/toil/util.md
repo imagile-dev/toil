@@ -1,6 +1,6 @@
 ---
 area: util
-description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, converting Markdown to and from Jira and Confluence formats, reading OpenAPI documents, drawing C4 architecture diagrams from a JSON model, and mapping Jira, Azure DevOps and GitHub work items to Open Work Items
+description: Local utilities with no connection or network, decoding a JWT, inventorying dependencies from manifests and lockfiles, checked encoding and hashing, decoding certificates and checking a chain, summarising test, SARIF and coverage reports, triaging a large log, scanning for secrets before a commit or post, sizing files and folders before reading them, time zone, duration, business-day and cron arithmetic, comparing versions and ranges for npm, NuGet and Maven, converting Markdown to and from Jira and Confluence formats, reading OpenAPI documents, drawing C4 architecture diagrams from a JSON model, mapping Jira, Azure DevOps and GitHub work items to Open Work Items, and finding likely duplicates among them
 ---
 
 # Local utilities (`util`)
@@ -45,6 +45,7 @@ the same flags and output:
 | `toil util c4 mermaid` | none | `util_c4_mermaid` |
 | `toil util c4 d2` | none | `util_c4_d2` |
 | `toil util owi map` | none | `util_owi_map` |
+| `toil util owi similar` | none | `util_owi_similar` |
 
 Over MCP the tools are served without any configuration. `toil mcp --areas util`
 serves just these.
@@ -73,6 +74,7 @@ Getting text into the shape an enterprise tool expects before it's sent, so a de
 Work from Jira, Azure DevOps and GitHub in one shape, so a sprint, a board or a question about the work reads the same whichever tracker holds it.
 
 - **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, jira-cloud, ado and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item, and every item is checked against the published schema.
+- **Finding likely duplicates** (`toil util owi similar`): Before filing, proposing or triaging an item, asks whether it already exists: ranks OWI records against some text or one of them, or lists likely duplicate pairs across Jira, Azure DevOps and GitHub. Lexical and deterministic, with no model or network, and every match says why it matched: the shared title and body terms, title trigrams, labels, parent and link.
 
 ### Safety
 
@@ -1475,3 +1477,125 @@ Output:
 At most 5,000 items are mapped in one call; past that the rest are left out with
 an `OWI_ITEMS_CAPPED` warning, so map them in another call. Input is at most
 64 MiB.
+
+### `toil util owi similar`
+
+Finds likely duplicate work items among Open Work Items, offline and deterministic:
+no model, no network, and the same answer every time. It reads what
+`toil util owi map` printed and asks no tracker itself, so it composes with any
+search. **Run it before filing or proposing a new item**, and before triaging one:
+`--query` with the title you were about to file says whether it already exists, in
+Jira, Azure DevOps or GitHub.
+
+```bash
+toil jira search --jql "project = PAY" | toil util owi map | toil util owi similar --query "Card payments time out at checkout"
+toil util owi similar --input-file items.owi.json --item corp-jira:PAY-101 --limit 5
+toil util owi similar --input-file items.owi.json --pairs --threshold 0.6
+toil util owi similar items.owi.json --pairs --fields title,body
+```
+
+| Argument / flag | Meaning |
+|-----------------|---------|
+| `[file]`, `--input-file <path>` | The OWI records: a file inside the workspace. `-`, or no file and no `--text`, reads stdin |
+| `--text <text>` | The records themselves, instead of a file |
+| `--query <text>` | Rank every item against this text |
+| `--item <id>` | Rank the set against one of its items, by OWI id (`corp-jira:PAY-101`) |
+| `--pairs` | List likely duplicate pairs across the whole set, so items from different trackers are compared with each other |
+| `--limit <n>` | The most matches or pairs to return (default 10, up to 1000) |
+| `--threshold <score>` | The lowest score returned, 0 to 1 (default 0.35) |
+| `--fields <list>` | What to compare, separated by commas: `title`, `body`, `labels`, `parent` and `links` (default all) |
+
+Ask exactly one of `--query`, `--item` and `--pairs`. Over MCP the tool is
+`util_owi_similar`, with `file` or `text`, one of `query`, `item` and `pairs`, and
+`limit`, `threshold` and `fields`.
+
+**What it reads:** the envelope `util owi map` printed, its `data`, a JSON array of
+OWI records (as Toil UI's cache holds them), or one record a line. A record needs an
+`id` and a `title`; one without either is skipped, listed in `data.skipped` and
+warned about (`OWI_SIMILAR_SKIPPED`). Output from any other command is refused with
+`INVALID_INPUT`: map it first. An id that appears twice is read once
+(`OWI_SIMILAR_DUPLICATE_ID`).
+
+Output, for `--item corp-jira:PAY-210 --limit 1`:
+
+```json
+{
+  "mode": "item",
+  "method": "Lexical similarity: BM25-weighted shared terms in titles and bodies, title character trigrams, and small boosts for shared labels, the same parent and a direct link. It measures shared words, not meaning, so a duplicate written in entirely different words scores low.",
+  "fields": ["title", "body", "labels", "parent", "links"],
+  "threshold": 0.35, "limit": 1,
+  "query": null,
+  "item": { "id": "corp-jira:PAY-210", "title": "Card payments time out at checkout", "source": { "area": "jira", "connection": "corp-jira", "key": "PAY-210", "command": "jira search" }, "url": "https://jira.imagile.dev/browse/PAY-210" },
+  "items": 39, "count": 4,
+  "matches": [{
+    "id": "github:imagile/payments-web#51",
+    "title": "Checkout times out when paying by card",
+    "source": { "area": "github", "connection": "github", "key": "imagile/payments-web#51", "command": "github list-issues" },
+    "url": "https://ghe.imagile.dev/imagile/payments-web/issues/51",
+    "score": 0.7211,
+    "why": {
+      "summary": "title terms checkout, time, card; body terms pay, 504, release, spinner, timeout, gateway; titles 72% alike by trigram; shared label checkout.",
+      "titleTerms": ["checkout", "time", "card"],
+      "bodyTerms": ["pay", "504", "release", "spinner", "timeout", "gateway"],
+      "trigram": 0.7234,
+      "labels": ["checkout"], "parent": null, "link": null, "titleOnly": false,
+      "parts": { "terms": 0.4702, "trigram": 0.217, "labels": 0.0338, "parent": 0, "link": 0 }
+    }
+  }],
+  "pairs": [], "search": null,
+  "titleOnly": 19, "skipped": [],
+  "verified": { "passed": true, "checks": [{ "check": "score.parts", "status": "passed", "checked": 1, "failed": 0 }, { "check": "score.reordered", "status": "passed", "checked": 1, "failed": 0 }, { "check": "score.meaning", "status": "approximated", "checked": 0, "failed": 0, "detail": "…" }, { "check": "input.complete", "status": "passed", "checked": 1, "failed": 0 }] }
+}
+```
+
+`--pairs` returns `pairs` instead, each `{ score, a, b, why }` with `a` the lower id,
+and `search`: how many pairs were `compared`, and `skippedFeatures` (below).
+
+**How it scores**, so `why` can say exactly what drove each score:
+
+- **Terms (`titleTerms`, `bodyTerms`):** titles and bodies (Markdown, Jira wiki
+  markup, HTML and ADF, read as plain text without their URLs) become lowercase
+  words, with common English words dropped and plurals, `-ed` and `-ing` stemmed,
+  each weighted by BM25 over the set, a title word worth twice a body word. Two
+  items are compared by the cosine of those weights; a query by how much of its
+  weight an item covers, a word in the title counting fully and one only in the
+  body at most 0.7.
+- **Trigrams (`trigram`):** the character trigrams of the titles' words, which
+  catch typos and word forms the terms miss (`Recipt` and `Receipt`).
+- **Boosts (`labels`, `parent`, `link`):** up to 0.08 for shared labels (a rarer
+  label counts more), 0.05 for the same parent and 0.1 for a direct link. Together
+  they can't reach the default threshold on their own; at a threshold of 0.23 or
+  less they can, and `OWI_SIMILAR_LOW_THRESHOLD` says so.
+
+The score is 0.7 of the terms and 0.3 of the trigrams (all terms when titles aren't
+in `--fields`), plus the boosts, capped at 1 and rounded to four places. `parts`
+says what each added, and they sum to the score. Results score at least the
+threshold, best first, ties by id.
+
+**What it misses:** it measures shared words, not meaning. Two items that describe
+one problem in entirely different words ("checkout hangs" and "payment page never
+loads") score low, which `method` and an `APPROXIMATED` warning say on every call.
+An item with no body is compared on its title alone (`why.titleOnly`), and
+`OWI_SIMILAR_TITLE_ONLY` names those items: where the tracker holds a body, map them
+from a command that returns it. A body is read up to 5,000 terms
+(`OWI_SIMILAR_BODY_CUT`).
+
+**Large sets:** scoring runs in a worker with a 30 s deadline, so tens of thousands
+of items never hold the CLI or the MCP server. `--pairs` finds pairs through the
+terms, trigrams, labels and parents they share, so its work grows with what items
+have in common, not with the square of the set. On a very large set the commonest
+of those stop being used to find pairs once a fixed budget is spent; `search`
+counts them, and an `APPROXIMATED` warning says a pair sharing only those wasn't
+compared. At most 50,000 records are scored in one call (`OWI_SIMILAR_CAPPED`), and
+input is at most 64 MiB.
+
+**`verified`:** `score.parts` checks every returned score lies in 0 to 1 and equals
+its parts. `score.reordered` asks again on a second index built from the records in
+reverse order: a query or an item must give the same matches in the same order, and
+each pair the same score from its other side. Past 20,000 items it is unchecked. A
+failure is an `OWI_SIMILAR_MISMATCH` warning. The same input always gives the same
+`data`.
+
+From a program, `findSimilar(items, request, options)` in `@imagile-dev/toil/api`
+ranks OWI records you already hold the same way, in-process (`core.md`, **Using
+toil from a program**).

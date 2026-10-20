@@ -3816,3 +3816,61 @@ decided here.
   plugin now also reads in `ui/docs/`, and `test/site-docs.test.ts` checks them the
   same way. `ui/test/prompts.test.ts` fails if the prompt the page shows drifts from
   what the server composes.
+
+### #294 util owi similar
+
+- **The scorer lives in core, pure, with no Node import** (`src/core/owi/similar.ts`):
+  `SimilarityIndex` (build once, ask `query`, `item`, `pairs` or `compare`) and
+  `findSimilar` (ask once). `util owi similar` runs it in the bounded worker; Toil
+  UI's item page and its `owi_similar` agent tool import it as source, the way
+  `ui/src/owi.ts` imports the mappers; `@imagile-dev/toil/api` exports
+  `findSimilar`, taking records or the text `util owi map` printed, for #304.
+- **Two lexical measures, one per question.** Two items are compared by the cosine of
+  their BM25 term weights (symmetric, bounded, so a pair has one score from either
+  side); a query by how much of its IDF an item covers (a title hit counts 1, a body
+  hit at most 0.7), since a short query against a long body would always lose a
+  cosine. Then 0.7 of that plus 0.3 of the titles' trigram Dice, plus boosts. The
+  weights were tuned on the triage fixture so the four planted duplicates score 0.67
+  to 0.92 and the near-miss 0.22; the issue fixed the default threshold at 0.35.
+- **When either item has no body, both are compared on their titles alone**, rather
+  than penalising a cosine against the other's body words. That is how "scored on
+  its title alone" reads in the issue; `why.titleOnly` says so per match and
+  `OWI_SIMILAR_TITLE_ONLY` names the items.
+- **`--fields` takes `title,body,labels,parent,links`**, the issue's three plus the
+  two structural boosts, so every signal in `why` can be turned off. A list with
+  neither title nor body is refused: boosts alone can't rank anything.
+- **Boosts are capped at 0.23 together** (labels 0.08, rarer labels counting more;
+  parent 0.05; link 0.1), below the default threshold, so structure alone never makes
+  a "duplicate". A threshold at or below that gets `OWI_SIMILAR_LOW_THRESHOLD`.
+- **`--pairs` finds pairs through shared features, not all n² pairs**: postings for
+  terms, title trigrams, labels and parents, summed into per-pair accumulators, so a
+  pair costs O(1) once found. The rarest features are used first until a fixed budget
+  (60 M posting visits) is spent; past it, a pair sharing only the commonest words
+  isn't compared, `search.skippedFeatures` counts them and an `APPROXIMATED` warning
+  says so. Measured on synthetic sets: 20,000 items paired in about 2.5 s in-process,
+  50,000 in about 2 s with features skipped. Only the top `limit` pairs are kept and
+  explained; `count` is every pair at or above the threshold.
+- **The worker gets the input's bytes, not parsed records** (`kind: 'owi-similar'`),
+  as `docs/util.md` asks of large documents. `SIMILAR_LIMITS` is 30 s and 1,536 MB,
+  measured as in `src/areas/util/owi/similar-run.ts`; at most 50,000 records are
+  scored (`OWI_SIMILAR_CAPPED`).
+- **The self-check rebuilds the index from the records in reverse order**
+  (`score.reordered`): a query or item must return the same matches in the same
+  order, and each pair the same score from its other side, worked out in full where
+  the first pass summed it from postings. It's skipped past 20,000 items, where two
+  indexes wouldn't fit the worker's memory together, and says so (`unchecked`).
+  `score.parts` checks each score is in 0 to 1 and equals its parts. `score.meaning`
+  is always `approximated`, which is how `meta.warnings` carries "lexical, not
+  semantic" on every call, as the issue asks of `meta`.
+- **`--input-file <path>` is a second flag for the `file` field**, beside util's usual
+  `[file]` positional, because the issue's examples use it. Over MCP there is one
+  field, `file`.
+- **Not added to `docs/command-contract.json`.** The contract records the commands
+  toil inherited; no `util owi` command is in it (only `jwt` and `deps` are, for their
+  short paths), and `test/contract.test.ts` checks only contract commands. A
+  toil-only command needs no entry, the same as `util owi map`.
+- **Toil UI's "Possible duplicates" is on the item page only**, within the dossier on
+  screen, at the default threshold and five matches, with each match's `why.summary`
+  and a note that it's lexical. Refine mode (#293) and the triage agent are out of
+  scope here; the agent gets the cache tool `owi_similar`, and its system prompt says
+  to run it before proposing a new item.
