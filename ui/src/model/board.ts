@@ -31,10 +31,17 @@ export function columns(items: WorkItem[]): Column[] {
 
 const family = (item: WorkItem) => item.source.area.split('-')[0]!;
 
-/** The status word the dossier's items from the same tracker use for a category, most common first. */
+/**
+ * The status word the dossier's items from the same tracker use for a
+ * category, most common first: among items of the same type when any has
+ * one, since a workflow's states can differ by type (Scrum's backlog item is
+ * Committed where its task is In Progress), else among all of them.
+ */
 export function statusFor(item: WorkItem, to: StatusCategory, items: WorkItem[]): string | null {
+  const peers = items.filter((i) => family(i) === family(item) && i.source.connection === item.source.connection && i.statusCategory === to && i.status);
+  const sameType = peers.filter((i) => i.typeName === item.typeName);
   const counts = new Map<string, number>();
-  for (const i of items) if (family(i) === family(item) && i.source.connection === item.source.connection && i.statusCategory === to && i.status) counts.set(i.status, (counts.get(i.status) ?? 0) + 1);
+  for (const i of sameType.length ? sameType : peers) counts.set(i.status!, (counts.get(i.status!) ?? 0) + 1);
   return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
@@ -50,6 +57,11 @@ export function proposeMove(item: WorkItem, to: StatusCategory, items: WorkItem[
     return { ...base, command: null, input: null, note: `toil has no command that sets a GitHub Projects status yet. Change ${key}'s Status field on the project board${item.url ? `: ${item.url}` : ''}.` };
   }
   const transitions = { text: 'List the transitions the workflow offers:', command: 'jira issue transitions', input: { dossier, key: item.source.key } };
+  // Azure DevOps Services has no transition or states command; its state is a field, set with work-item update.
+  if (item.source.area === 'ado-cloud') {
+    if (!status) return { ...base, command: null, input: null, note: `No ${label} item in this dossier shows which state to use. The work item type's states are in the project's process settings.` };
+    return { ...base, command: 'ado-cloud work-item update', input: { dossier, id: Number(item.source.key), field: [`System.State=${status}`] }, note: null };
+  }
   if (!status) {
     const hint = fam === 'jira' ? transitions : { text: 'List the states the work item type has:', command: 'ado work-item states', input: { dossier, type: item.typeName ?? 'User Story' } };
     return { ...base, command: null, input: null, note: `No ${label} item in this dossier shows which status to use.`, hint };

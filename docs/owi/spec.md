@@ -117,8 +117,8 @@ Services differs, the mapping already holds:
   Requirement are `STORY`, and so is Basic's Issue; Feature is `OTHER`.
 - **Status category** by the default states' categories ([Microsoft's
   table](https://learn.microsoft.com/en-us/azure/devops/boards/work-items/workflow-and-state-categories)):
-  New, To Do, Approved and Proposed are `TODO`; Active, Doing, Committed, Open and
-  Resolved are `IN_PROGRESS` (Resolved behaves as in progress on boards); Closed
+  New, To Do, Approved and Proposed are `TODO`; Active, In Progress (Scrum's Epic,
+  Feature and Task), Doing, Committed, Open and Resolved are `IN_PROGRESS` (Resolved behaves as in progress on boards); Closed
   and Done are `DONE`; Removed is `DONE` with its reason as `resolution`. A custom
   state is `UNKNOWN`; `ado work-item states` shows its category.
 - **Estimate**, the first with a value: `Microsoft.VSTS.Scheduling.StoryPoints`

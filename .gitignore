@@ -68,3 +68,6 @@ test/.stubs/
 
 # Scratch homes and output for local runs (ui/scripts/dev-real.mjs)
 .scratch/
+
+# The ADO seed's map of seed keys to one organization's work item ids (ui/scripts/ado-seed/apply.mjs)
+ui/scripts/ado-seed/ids.local.json

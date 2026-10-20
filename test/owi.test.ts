@@ -221,6 +221,19 @@ describe('mapping rules', () => {
     expect(data.items[0].unmapped.find((u: Data) => u.field === 'statusCategory').reason).toContain('ado work-item states');
   });
 
+  it("maps Scrum's In Progress (Epic, Feature, Task) to IN_PROGRESS, in the item and its history, as a live Scrum organization reports it (#319)", async () => {
+    const rev = (rev: number, state: string, at: string) => ({ id: 9, rev, fields: { 'System.State': state, 'System.ChangedDate': at } });
+    const input = [
+      env('ado-cloud work-item get', { id: 9, fields: { 'System.Title': 'T', 'System.State': 'In Progress', 'System.WorkItemType': 'Task' } }),
+      env('ado-cloud work-item history', [rev(1, 'To Do', '2026-10-05T09:00:00Z'), rev(2, 'In Progress', '2026-10-06T09:00:00Z')]),
+    ];
+    const { data, warnings } = await map({ text: json(input) });
+    const item = data.items[0] as WorkItem;
+    expect(item).toMatchObject({ status: 'In Progress', statusCategory: 'IN_PROGRESS', type: 'TASK' });
+    expect(item.history!.transitions.map((t) => [t.from, t.to, t.toCategory])).toEqual([[null, 'To Do', 'TODO'], ['To Do', 'In Progress', 'IN_PROGRESS']]);
+    expect(warnings.filter((w) => w.code === 'OWI_UNKNOWN_STATE')).toEqual([]);
+  });
+
   it('points estimate at a team field with fields, keeping the field it came from', async () => {
     const issue = jiraIssue({ customfield_10234: 13, 'Story Points': 2 });
     const { data } = await map({ text: json(env('jira issue get', issue)), field: ['estimate=customfield_10234', 'estimateUnit=days'] });
