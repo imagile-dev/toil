@@ -34,7 +34,10 @@ ever turns auto-merge on, and the fix agent never does either. Auto-merge relies
     open; every first-parent commit from the head back to A is a merge whose other
     parent is on the base branch; and the PR's own diff (`git diff
     <merge-base(main, X)> X`) is the same for A and the head, ignoring only hunk line
-    numbers and whole-file blob ids. Anything else, an error included, runs the full
+    numbers and whole-file blob ids. GitHub sometimes keeps an approval on the head
+    after such a merge and reports it at the head's sha; then A is taken as the
+    newest commit that isn't a merge of the base, and nothing is posted, since the
+    approval already counts. Anything else, an error included, runs the full
     review. The job summary lists each check, and the approval links its run.
     `test/merge-only.test.ts` holds the cases. The ruleset still dismisses approvals
     on every push; this only gives a merge its approval back.

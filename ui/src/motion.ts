@@ -6,6 +6,11 @@
  * choice is mirrored on the root as `data-motion`, so CSS stops what CSS
  * started (src/app.css) without asking script. Storage that refuses (a
  * private window, blocked site data) only means the choice isn't remembered.
+ *
+ * Below both sits "Particles and ambient effects" (#348), kept per theme: a
+ * theme that declares particles in its theme.json (`"ambient": { "particles":
+ * "dust" }`) can have them switched off on their own while everything else
+ * keeps moving. The order is the OS, then the motion switch, then this one.
  * Stillness can be requested at any time and requires no countersignature.
  */
 
@@ -79,4 +84,49 @@ export function useMotionAllowed(): boolean {
   const os = useSyncExternalStore(subscribeOs, osReduces, () => true);
   useEffect(mirror, [mine]);
   return mine === 'full' && !os;
+}
+
+const PARTICLES_KEY = 'toil-ui.particles';
+
+/** The themes whose particles were switched off, from storage; anything unreadable counts as none. */
+function rememberedParticles(): Record<string, boolean> {
+  try {
+    const saved: unknown = JSON.parse(localStorage.getItem(PARTICLES_KEY) ?? '{}');
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {};
+    return Object.fromEntries(Object.entries(saved).filter((e): e is [string, boolean] => typeof e[1] === 'boolean'));
+  } catch {
+    return {};
+  }
+}
+
+let particles: Record<string, boolean> | null = null;
+const currentParticles = () => (particles ??= rememberedParticles());
+
+/** Switches one theme's particles on or off, in this browser, leaving every other theme's as it was. */
+export function setParticlesOn(theme: string, on: boolean) {
+  particles = { ...currentParticles(), [theme]: on };
+  try {
+    localStorage.setItem(PARTICLES_KEY, JSON.stringify(particles));
+  } catch {
+    // Not remembered; it still holds for this visit.
+  }
+  for (const l of listeners) l();
+}
+
+/** Forgets the cached particle choices, so the next read comes from storage again. For tests. */
+export function resetParticlesChoice() {
+  particles = null;
+}
+
+/** Whether the person wants this theme's particles (on unless they switched them off), and the setter for it. */
+export function useParticlesChoice(theme: string): [boolean, (on: boolean) => void] {
+  const on = useSyncExternalStore(subscribe, () => currentParticles()[theme] ?? true, () => true);
+  return [on, (next) => setParticlesOn(theme, next)];
+}
+
+/** True when this theme's particles may run: motion is allowed (the OS and the motion switch) and its own switch is on. */
+export function useParticlesAllowed(theme: string): boolean {
+  const allowed = useMotionAllowed();
+  const [on] = useParticlesChoice(theme);
+  return allowed && on;
 }

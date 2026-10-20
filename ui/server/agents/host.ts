@@ -41,7 +41,7 @@ import { cliFor, Latest, loadSdk, nodeImporter, type Activity, type AdapterName,
 import { loadUsageSettings, memoryLedger, type UsageLedger } from '../usage.ts';
 import { checkAgentSettings, loadAgentSettings, saveAgentSettings, DEFAULT_AGENT_SETTINGS, ENDPOINTS, type AgentSettings } from './settings.ts';
 import { promptStyle, type StyleChoice } from './voices.ts';
-import { cacheTools, dossierReader, Ledger, liveTools, peopleTools, proposalTool, prTools, readinessTools, recorded, worklogTool, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
+import { cacheTools, dossierReader, Ledger, liveTools, peopleTools, proposalTool, prTools, readinessTools, recorded, standupTool, worklogTool, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
 
 /** A task Toil UI wrote for an agent (#293): an assignment's run. */
 export interface TaskRequest {
@@ -179,7 +179,7 @@ export class AgentHost implements Agent {
   /** The tools a question about this dossier gets, and the ledger they fill: what every adapter is handed. */
   tools(dossier: string, data: AgentData, ledger: Ledger): ToolSpec[] {
     const now = this.o.now ?? (() => new Date().toISOString());
-    return recorded([...cacheTools(dossier, data, ledger), ...prTools(dossier, data, ledger), ...peopleTools(dossier, data, ledger, dossierReader(this.o.execute, dossier)), ...worklogTool(dossier, data, ledger, now), ...readinessTools(dossier, data, ledger, dossierReader(this.o.execute, dossier)), proposalTool(this.o.registry), ...liveTools(dossier, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
+    return recorded([...cacheTools(dossier, data, ledger), ...prTools(dossier, data, ledger), ...peopleTools(dossier, data, ledger, dossierReader(this.o.execute, dossier)), ...worklogTool(dossier, data, ledger, now), ...standupTool(dossier, data, ledger, now), ...readinessTools(dossier, data, ledger, dossierReader(this.o.execute, dossier)), proposalTool(this.o.registry), ...liveTools(dossier, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
   }
 
   /**

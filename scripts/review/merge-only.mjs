@@ -20,7 +20,10 @@
 //      doesn't count.
 //   2. No review thread on the PR is open.
 //   3. Every commit on the first-parent chain from the head back to A is a
-//      two-parent merge whose second parent is on the base branch.
+//      two-parent merge whose second parent is on the base branch. When GitHub
+//      kept the approval on the head itself (it reports it at the head's sha),
+//      A is unknown, so A is taken as the newest commit on that chain that is
+//      not such a merge, and nothing is posted: the approval already counts.
 //   4. The PR's own diff, `git diff <merge-base(base, X)> X`, is the same for A
 //      and the head. Hunk positions (the `@@` line numbers) and the blob ids of
 //      a text file's whole pre- and post-image are ignored, because a merge of
@@ -70,6 +73,24 @@ export function mergesOfBaseOnly(git, approved, head, base) {
     if (commit === approved) return { ok: true, merges: i + 1 };
   }
   return { ok: false, reason: `the approved commit ${approved} is not within ${MAX_MERGES} first-parent merges of the head` };
+}
+
+/**
+ * For an approval GitHub already carried onto the head: walk first parents from
+ * `head` through merges of `base` to the newest commit that isn't one, which is
+ * the last commit that can have changed the PR. At least one merge must lead to it.
+ */
+export function lastChangeBeforeMerges(git, head, base) {
+  let commit = head;
+  for (let i = 0; i < MAX_MERGES; i++) {
+    const [, ...parents] = git(['rev-list', '--parents', '-n', '1', commit]).trim().split(' ');
+    if (parents.length !== 2 || !isAncestor(git, parents[1], base)) {
+      if (i === 0) return { ok: false, reason: `the head ${head} is not a merge of ${base}` };
+      return { ok: true, sha: commit, merges: i };
+    }
+    commit = parents[0];
+  }
+  return { ok: false, reason: `more than ${MAX_MERGES} merges of ${base} in a row` };
 }
 
 /**
@@ -214,12 +235,26 @@ export async function run({ env, gh, git, dryRun = false }) {
   const open = await openThreads(gh, repo, number);
   if (!check('no open threads', open === 0 ? { ok: true, detail: '0 open' } : { ok: false, reason: `${open} review thread${open === 1 ? ' is' : 's are'} open` })) return result(false, checks.at(-1).detail);
 
-  const chain = mergesOfBaseOnly(git, approved, head, base);
-  if (!check(`only merges of ${baseRef}`, { ...chain, detail: `${chain.merges} merge${chain.merges === 1 ? '' : 's'} of ${baseRef} after ${approved}` })) return result(false, chain.reason);
+  // GitHub sometimes keeps an approval on the head after a merge of the base
+  // branch and reports it at the head's sha, so the commit it was given at is
+  // gone. The approval already counts for the head; what's left to decide is
+  // whether the agent reviews again. That is checked against the newest commit
+  // that could have changed the PR, the conservative choice.
+  const carried = approved === head;
+  let since = approved;
+  if (carried) {
+    const last = lastChangeBeforeMerges(git, head, base);
+    if (!check(`only merges of ${baseRef}`, { ...last, detail: `GitHub kept the approval on the head; ${last.merges} merge${last.merges === 1 ? '' : 's'} of ${baseRef} after ${last.sha}` })) return result(false, last.reason);
+    since = last.sha;
+  } else {
+    const chain = mergesOfBaseOnly(git, approved, head, base);
+    if (!check(`only merges of ${baseRef}`, { ...chain, detail: `${chain.merges} merge${chain.merges === 1 ? '' : 's'} of ${baseRef} after ${approved}` })) return result(false, chain.reason);
+  }
 
-  const same = samePrChange(git, approved, head, base);
+  const same = samePrChange(git, since, head, base);
   if (!check('same PR diff', { ...same, detail: `sha256 ${same.digest}` })) return result(false, same.reason);
 
+  if (carried) return result(true, `GitHub kept the approval on the head, and the push is merges of ${baseRef} with the same PR diff as ${since}`);
   if (!dryRun) {
     const runUrl = env.GITHUB_RUN_ID ? `${env.GITHUB_SERVER_URL ?? 'https://github.com'}/${repo}/actions/runs/${env.GITHUB_RUN_ID}` : '';
     await gh.post(`/repos/${repo}/pulls/${number}/reviews`, { commit_id: head, event: 'APPROVE', body: approvalBody(approved, baseRef, runUrl) });

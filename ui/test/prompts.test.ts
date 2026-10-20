@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { INSTRUCTIONS_RULE, oneOnOnePrompt, promptFor, STYLE_RULE, systemPrompt } from '../server/agents/prompts.ts';
+import { INSTRUCTIONS_RULE, oneOnOnePrompt, promptFor, standupPrompt, STYLE_RULE, systemPrompt } from '../server/agents/prompts.ts';
+import { standupWriteUp } from '../src/model/standup.ts';
 import { promptStyle, styleFrom, StyleError, THEME_VOICES } from '../server/agents/voices.ts';
 import { THEMES } from '../src/themes.ts';
 
@@ -91,5 +92,11 @@ describe('the 1:1 notes question (#292)', () => {
     // The starter's own label, typed back, isn't a name.
     expect(promptFor('payments', 'Prepare my 1:1 notes for <person>').text).toBe('Prepare my 1:1 notes for <person>');
     expect(oneOnOnePrompt('payments', 'Pat')).toContain('No opinion of the person, no score, and no comparison with anyone else.');
+    // The stand-up's Write it up (#345), as the page sends it or typed out: the report's facts, each sentence naming its fact numbers.
+    expect(promptFor('payments', standupWriteUp('2026-10-12', '2026-10-13'))).toEqual({ label: 'Write up the stand-up for 2026-10-12 to 2026-10-13', text: standupPrompt('payments', '2026-10-12', '2026-10-13') });
+    expect(promptFor('payments', 'write up the standup for 2026-10-12.')).toMatchObject({ text: standupPrompt('payments', '2026-10-12', '2026-10-12') });
+    expect(standupPrompt('payments', '2026-10-12', '2026-10-13')).toContain('Call standup_report with from "2026-10-12" and to "2026-10-13"');
+    expect(standupPrompt('payments', '2026-10-12', '2026-10-13')).toContain('(F3, F7)');
+    expect(promptFor('payments', 'Write up the stand-up for yesterday').text).toBe('Write up the stand-up for yesterday');
   });
 });

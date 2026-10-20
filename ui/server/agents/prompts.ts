@@ -83,10 +83,19 @@ const ONE_ON_ONE = /^\s*prepare\s+(?:my\s+)?1:1\s+notes\s+for\s+(.+?)\s*[.?!]?\s
 export const oneOnOnePrompt = (dossier: string, person: string) =>
   `Prepare 1:1 notes for ${person} in the dossier "${dossier}". Use person_get for ${person} (people_list if the name doesn't match). Stick to facts about the work: what they have in progress and for how long, their open pull requests and what each waits on, reviews waiting on them, what blocks them, and what they finished or reviewed lately, then two or three questions to ask about blockers and support. Cite every item and pull request by its id. No opinion of the person, no score, and no comparison with anyone else.`;
 
-/** The question for a starter id, or the typed text as it is; "Prepare my 1:1 notes for <person>" typed out gets the 1:1 instructions. */
+/** "Write up the stand-up for 2026-10-19 to 2026-10-20": the stand-up's "Write it up" (#345), typed or pressed. */
+const STANDUP = /^\s*write\s+up\s+the\s+stand-?up\s+for\s+(\d{4}-\d{2}-\d{2})(?:\s+to\s+(\d{4}-\d{2}-\d{2}))?\s*[.?!]?\s*$/i;
+
+/** The instructions behind it: the report's facts only, in its order, each sentence naming its fact numbers. */
+export const standupPrompt = (dossier: string, from: string, to: string) =>
+  `Write up the stand-up for the dossier "${dossier}" from ${from} to ${to} (UTC days). Call standup_report with from "${from}" and to "${to}" and use only what it returns. Write it as a few short paragraphs a team can read aloud in a minute: first the team lines, then each person with anything in their lists, in the report's order, saying what they got done, what is in progress, what is blocked and what is next. Keep every fact as the report gives it: add nothing it doesn't say, and leave out nothing that is blocked. End each sentence with the fact numbers it rests on in parentheses, such as (F3, F7), and cite every work item and pull request by its id. If the report's gaps say the worklog can't vouch for part of the range, say so in one sentence first. Describe the work, never the people: no praise, no blame and no comparison.`;
+
+/** The question for a starter id, or the typed text as it is; "Prepare my 1:1 notes for <person>" typed out gets the 1:1 instructions, and "Write up the stand-up for <from> to <to>" the stand-up's. */
 export function promptFor(dossier: string, prompt: string): { label: string; text: string } {
   const starter = STARTERS.find((s) => s.id === prompt);
   if (starter) return { label: starter.label, text: starter.prompt(dossier) };
+  const standup = STANDUP.exec(prompt);
+  if (standup) return { label: prompt.trim(), text: standupPrompt(dossier, standup[1]!, standup[2] ?? standup[1]!) };
   const oneOnOne = ONE_ON_ONE.exec(prompt)?.[1];
   return oneOnOne && !oneOnOne.startsWith('<') ? { label: prompt, text: oneOnOnePrompt(dossier, oneOnOne) } : { label: prompt, text: prompt };
 }
