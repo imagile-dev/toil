@@ -198,7 +198,7 @@ export function sinceInStatus(item: WorkItem): string | null {
 }
 
 /** The agents a change was written with, among the dossier's agents: its author's account is one, or its authorKind signal names one. */
-function agentsOf(c: Change, agents: PersonEntry[]): PersonEntry[] {
+export function agentsOf(c: Change, agents: PersonEntry[]): PersonEntry[] {
   if (c.authorKind !== 'AGENT') return [];
   const author = asIdentity(c.source.area, c.author);
   const signal = lower(c.authorKindSignal);
