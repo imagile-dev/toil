@@ -5224,3 +5224,30 @@ it pins. These are the choices made by default in the fix:
 - **The sample seeds one assignment in every state**, and reads PAY-107 with
   `agent:refine` added so the inbox has an entry; the sample's tracker data, shared
   with toil's own OWI fixture, is unchanged.
+
+## Particle switch per theme, and Fredoka in Plain (#348)
+
+- **The particle presets are keyed by the name a theme declares**, not by theme name:
+  `"ambient": { "particles": "dust" }` in Crate, `leaves` in Harvest, `stars` in
+  Starship and `embers` in Realm, looked up in `PRESETS` (`ui/src/ambient/presets.ts`).
+  A new theme gets the switch by declaring one, and can reuse a preset. A test holds
+  every declared name to a preset and every preset to one theme.
+- **Crate's parallax stays with the motion switch.** The issue keeps parallax on the
+  motion switch, so with Crate's particles off its three still layers remain and only
+  the canvas goes; for the other three themes the whole ambient layer is gone.
+  Measured on real data: 0 animation frames in 2 s with particles off in every theme.
+- **The switch stays enabled while motion is reduced**, so a person can set it ahead;
+  its note says the motion setting or the OS wins for now. Disabling it would hide
+  what it is set to.
+- **"Shown on the theme picker's preview"** is read as the Theme card in Settings,
+  General: under the theme's description, one line names the theme's particles and
+  whether they're on ("Particles: stars, off."), and "Particles: none." for Plain.
+  The header's picker is a bare select with no preview, so it's unchanged.
+- **Plain's body is IBM Plex Sans** (already bundled for Crate, 400 and 600), over
+  Nunito Sans or Inter, either of which would be a new dependency; the reasoning is in
+  `ui/docs/themes.md`. **Fredoka is used at 600 only**, the weight `app.css` already
+  loads for the wordmark, on h1 to h3 and the big figures (`.stat-value`,
+  `.big-number`, `.team-figure`, `.rank`, `.aging-days`), which are 700 elsewhere:
+  Fredoka 700 isn't loaded, and a synthesised bold smears it. "The header" in the
+  issue is read as the wordmark (already Fredoka) and the page's h1; the nav links
+  and controls stay in the body face.
