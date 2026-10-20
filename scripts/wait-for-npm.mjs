@@ -33,8 +33,8 @@ export const duration = (seconds) => {
 };
 
 const NO_CACHE = { 'cache-control': 'no-cache' };
-// One request that hangs mustn't outlast the whole wait: each gets 30s, or what's
-// left of the wait if that's less (at least 1s).
+// A registry that hangs mustn't outlast the whole wait: each attempt's requests
+// share one timeout of 30s, or what's left of the wait if that's less (at least 1s).
 const REQUEST_TIMEOUT_MS = 30_000;
 export const requestTimeoutMs = (leftMs) => Math.max(1000, Math.min(REQUEST_TIMEOUT_MS, leftMs));
 // The abbreviated packument is what npm install and npm ci resolve against; the
@@ -50,12 +50,13 @@ const PACKUMENTS = [
  */
 export async function check(pkg, version, { registry, fetch, timeoutMs = REQUEST_TIMEOUT_MS }) {
   const url = packumentUrl(registry, pkg);
+  const signal = AbortSignal.timeout(timeoutMs);
   const seen = [];
   let tarball;
   for (const [label, accept] of PACKUMENTS) {
     let res;
     try {
-      res = await fetch(url, { headers: { ...NO_CACHE, accept }, signal: AbortSignal.timeout(timeoutMs) });
+      res = await fetch(url, { headers: { ...NO_CACHE, accept }, signal });
     } catch (err) {
       return { served: false, detail: `${label}: ${err instanceof Error ? err.message : String(err)}` };
     }
@@ -74,7 +75,7 @@ export async function check(pkg, version, { registry, fetch, timeoutMs = REQUEST
   if (!tarball) return { served: false, detail: `${seen.join(', ')}, but names no tarball` };
   let res;
   try {
-    res = await fetch(tarball, { method: 'HEAD', headers: NO_CACHE, signal: AbortSignal.timeout(timeoutMs) });
+    res = await fetch(tarball, { method: 'HEAD', headers: NO_CACHE, signal });
   } catch (err) {
     return { served: false, detail: `${seen.join(', ')}; tarball: ${err instanceof Error ? err.message : String(err)}` };
   }

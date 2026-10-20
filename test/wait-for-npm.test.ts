@@ -40,6 +40,14 @@ describe('check', () => {
     expect(calls.every((c) => c.headers?.['cache-control'] === 'no-cache')).toBe(true);
   });
 
+  it("shares one timeout across an attempt's three requests", async () => {
+    const signals = new Set<unknown>();
+    const { fetch } = registry(() => true);
+    await check('@imagile-dev/toil', '1.0.0', { registry: REGISTRY, timeoutMs: 5_000, fetch: async (url, init) => { signals.add((init as { signal?: unknown }).signal); return fetch(url, init); } });
+    expect(signals.size).toBe(1);
+    expect([...signals][0]).toBeInstanceOf(AbortSignal);
+  });
+
   it("isn't served while the tarball doesn't download", async () => {
     const { fetch } = registry(() => true, 404);
     await expect(check('@imagile-dev/toil', '1.0.0', { registry: REGISTRY, fetch })).resolves.toMatchObject({ served: false, detail: expect.stringContaining('HTTP 404') });
@@ -97,7 +105,7 @@ describe('settings and wording', () => {
     expect([1, 2, 3, 4, 9].map(delayAfter)).toEqual([10, 20, 40, 60, 60]);
   });
 
-  it("gives each request 30s, or what's left of the wait, so a hung registry can't run far past the deadline", () => {
+  it("gives each attempt 30s, or what's left of the wait, so a hung registry can't run far past the deadline", () => {
     expect([900_000, 30_000, 12_000, 0, -5_000].map(requestTimeoutMs)).toEqual([30_000, 30_000, 12_000, 1_000, 1_000]);
     expect(packumentUrl('https://npm.imagile.dev/repo/', 'left-pad')).toBe('https://npm.imagile.dev/repo/left-pad');
   });
