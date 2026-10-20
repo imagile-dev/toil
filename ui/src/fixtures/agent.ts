@@ -274,6 +274,13 @@ export const VOICED: Record<string, Record<string, string[]>> = {
 
 const UNSCRIPTED = 'This preview answers only its starter questions. The released app sends your question to the agent your organization approved.';
 
+/** The stand-up's "Write it up" (#345), scripted: where a real agent's narrative goes, naming two fact lines as one would. */
+const STANDUP_WRITE_UP = /^write up the stand-up for /i;
+const SCRIPTED_WRITE_UP = [
+  "This is the preview's scripted write-up, not a model's: it shows where the agent's short narrative of the report goes. The team lines come first (F1).",
+  "Then each person's done, in progress, blocked and next, in the report's order, each sentence naming the fact lines it rests on (F2).",
+];
+
 export interface ScriptedOptions {
   /** Milliseconds between streamed words; 0 streams as fast as the page renders. */
   delay?: number;
@@ -296,7 +303,7 @@ export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
     const entry = id ? script[id] : undefined;
     // The voiced risk answer when the voice is on and the theme has one; Plain, and the voice off, read the standard.
     const voiced = id === 'risk' && style?.voice ? VOICED[dossier]?.[style.theme] : undefined;
-    const parts: AnswerPart[] = (voiced ?? entry?.parts ?? [UNSCRIPTED]).map((text) => ({ text }));
+    const parts: AnswerPart[] = (voiced ?? entry?.parts ?? (STANDUP_WRITE_UP.test(prompt) ? SCRIPTED_WRITE_UP : [UNSCRIPTED])).map((text) => ({ text }));
     // In a chat, the answer carries sample usage figures (#295), marked as made up, so the footer has something to show.
     return { prompt: entry?.label ?? prompt, parts, citations: citationsOf(parts), by: 'scripted', proposals: entry?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, dossier) } : {}) };
   };

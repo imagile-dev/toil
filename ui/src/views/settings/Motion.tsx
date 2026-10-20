@@ -4,7 +4,8 @@
  * operating system's reduced-motion setting stops: every animation, the
  * themes' particles and Crate's parallax (src/motion.ts). The OS setting
  * still wins when it asks for less; this page says so rather than offering a
- * switch that would do nothing.
+ * switch that would do nothing. A theme's particles can also be switched
+ * off on their own, under Theme (#348); this switch wins over that one.
  * A form to reduce the forms' animations, filed in triplicate, approved at once.
  */
 
@@ -29,7 +30,7 @@ export function MotionSetting() {
         {reduced
           ? 'Nothing moves: no animations, particles or parallax. Saved in this browser only.'
           : allowed
-            ? "The themes' animations, particles and parallax are on. Saved in this browser only."
+            ? "The themes' animations, particles and parallax are on, apart from any theme's particles switched off under Theme. Saved in this browser only."
             : "Your system asks for reduced motion, so nothing moves whichever way this is set."}
       </p>
     </Card>
