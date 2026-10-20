@@ -313,7 +313,8 @@ export function capStandings(settings: UsageSettings, adapter: UsageAdapter, cha
     if (s.adapter !== adapter) continue;
     const cap = settings.caps[s.key];
     if (!cap || cap === 'off') continue;
-    const value = counted(addUp(s.scope === 'chat' ? chat : day.filter((r) => r.adapter === adapter)), cap.unit, adapter);
+    // Both scopes count this adapter's records only: a chat that switched adapters holds the other's too.
+    const value = counted(addUp((s.scope === 'chat' ? chat : day).filter((r) => r.adapter === adapter)), cap.unit, adapter);
     const used = value ?? 0;
     out.push({ key: s.key, adapter, scope: s.scope, cap, used, reported: value !== undefined, share: used / cap.limit });
   }

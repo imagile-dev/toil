@@ -80,6 +80,16 @@ describe('the chat', () => {
     expect(within(header).getByRole('meter')).toBeTruthy();
   });
 
+  it('counts what a stopped run used, under its error and in the chat total, as the server does', async () => {
+    const usage = { adapter: 'claude' as const, records: [{ id: 'claude:msg_1', chatId: 'c', turn: 1, dossier: 'card-payments', adapter: 'claude' as const, model: 'claude-sonnet-4-6', inputTokens: 600, outputTokens: 50, cachedInputTokens: 1000, costSource: 'none' as const, at: FIXTURE_NOW }], notices: [] };
+    const agent: Agent = { ...scriptedAgent(), stream: undefined, ask: async () => Promise.reject(Object.assign(new Error("Claude's per-chat cap (claude.chat) stopped this question: this chat has used 1,650 tokens, and the cap is 1,000 tokens."), { usage })) };
+    await open('#/dossier/card-payments', { agent });
+    await userEvent.click(within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button')[0]!);
+    expect((await screen.findByRole('alert')).textContent).toContain('stopped this question');
+    expect(screen.getByRole('group', { name: 'What this answer used' }).textContent).toContain('600 in · 50 out · 1k cached');
+    expect(screen.getByLabelText('What this chat used').textContent).toContain('This chat: 1.6k tokens.');
+  });
+
   it('marks the preview\'s figures as sample, never as a model\'s', async () => {
     await open('#/dossier/card-payments');
     await userEvent.click(within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button')[0]!);

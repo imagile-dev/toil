@@ -22,7 +22,7 @@ import type { Envelope, Execute } from './toil.ts';
 export type { DossierState, SourceState } from '../server/cache.ts';
 export type { SyncJob, SyncStatus } from '../server/sync.ts';
 import type { AgentStatus } from '../server/agents/host.ts';
-import type { ModelUsageApi, UsageView } from './model-usage.ts';
+import type { AnswerUsage, ModelUsageApi, UsageView } from './model-usage.ts';
 export type { ModelUsageApi, UsageView } from './model-usage.ts';
 import type { AgentSettings } from '../server/agents/settings.ts';
 export type { AdapterStatus, AgentStatus } from '../server/agents/host.ts';
@@ -48,11 +48,21 @@ export interface Session {
 const SESSION_HEADER = 'X-Toil-UI-Session';
 const CSRF_HEADER = 'X-Toil-UI-CSRF';
 
+/** An agent's failure as the page has it: the message, and what the run used before it ended (#295). */
+export class AnswerError extends Error {
+  constructor(
+    message: string,
+    readonly usage?: AnswerUsage,
+  ) {
+    super(message);
+  }
+}
+
 /** The server's error body, as a message the page can show. */
 async function failure(res: Response, what: string): Promise<Error> {
   try {
-    const body = (await res.json()) as { error?: { message?: string; fix?: string } };
-    if (body.error?.message) return new Error(`${body.error.message}${body.error.fix ? ` ${body.error.fix}` : ''}`);
+    const body = (await res.json()) as { error?: { message?: string; fix?: string; usage?: AnswerUsage } };
+    if (body.error?.message) return new AnswerError(`${body.error.message}${body.error.fix ? ` ${body.error.fix}` : ''}`, body.error.usage);
   } catch {
     // Not JSON: fall through to the status.
   }
@@ -237,8 +247,8 @@ export async function* answerLines(res: Response): AsyncIterable<Answer> {
   let buffer = '';
   let done = false;
   const line = (text: string): Answer | null => {
-    const msg = JSON.parse(text) as { answer?: Answer; done?: boolean; error?: { message?: string; fix?: string } };
-    if (msg.error) throw new Error(`${msg.error.message ?? 'The agent failed.'}${msg.error.fix ? ` ${msg.error.fix}` : ''}`);
+    const msg = JSON.parse(text) as { answer?: Answer; done?: boolean; error?: { message?: string; fix?: string; usage?: AnswerUsage } };
+    if (msg.error) throw new AnswerError(`${msg.error.message ?? 'The agent failed.'}${msg.error.fix ? ` ${msg.error.fix}` : ''}`, msg.error.usage);
     if (msg.done) done = true;
     return msg.answer ?? null;
   };

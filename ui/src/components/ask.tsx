@@ -23,6 +23,7 @@ import { useMediaQuery } from './layout.tsx';
 import { Cited } from './items.tsx';
 import { ProposalCard } from './proposal.tsx';
 import { ChatUsage, UsageFooter } from './usage.tsx';
+import type { AnswerUsage } from '../model-usage.ts';
 
 /** A new chat's id: one per pane, so the server can add up and cap the chat (#295). */
 const newChatId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
@@ -33,6 +34,8 @@ interface Turn {
   answer: Answer | null;
   error: string | null;
   done: boolean;
+  /** What a run that failed or was stopped used (#295): counted in the chat as the server counts it. */
+  usage?: AnswerUsage;
 }
 
 export function Ask() {
@@ -78,7 +81,8 @@ export function Ask() {
       }
       update(id, { done: true });
     } catch (e: unknown) {
-      update(id, { answer: null, error: `The agent couldn't answer: ${e instanceof Error ? e.message : String(e)}`, done: true });
+      const usage = (e as { usage?: AnswerUsage } | null)?.usage;
+      update(id, { answer: null, error: `The agent couldn't answer: ${e instanceof Error ? e.message : String(e)}`, done: true, ...(usage ? { usage } : {}) });
     }
   };
 
@@ -90,7 +94,7 @@ export function Ask() {
   };
 
   const showBody = !narrow || open;
-  const usages = turns.flatMap((t) => (t.done && t.answer?.usage ? [t.answer.usage] : []));
+  const usages = turns.flatMap((t) => (t.done && (t.answer?.usage ?? t.usage) ? [(t.answer?.usage ?? t.usage)!] : []));
   return (
     <aside className={`ask${narrow ? ' ask--sheet' : ''}${narrow && open ? ' ask--open' : ''}`} aria-labelledby="ask">
       <div className="ask-head">
@@ -115,9 +119,12 @@ export function Ask() {
                 </p>
               </ChatMessage>
               {t.error ? (
-                <p role="alert" className="failure">
-                  {t.error}
-                </p>
+                <>
+                  <p role="alert" className="failure">
+                    {t.error}
+                  </p>
+                  {t.usage && <UsageFooter usage={t.usage} />}
+                </>
               ) : (
                 <ChatMessage from="agent">
                   {t.answer ? (

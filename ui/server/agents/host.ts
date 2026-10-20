@@ -273,18 +273,21 @@ export class AgentHost implements Agent {
             const used = settle();
             const cap = stopped as CapStanding | null;
             // An SDK that finished anyway after the stop still doesn't get past the cap.
-            if (cap) return out.end(new AgentError(capStop(cap).message, capStop(cap).fix));
+            if (cap) return out.end(Object.assign(new AgentError(capStop(cap).message, capStop(cap).fix), { usage: used }));
             out.push({ ...finish(final, { dossier, prompt: label, by, ledger, writes: this.writes }), usage: used });
             out.end();
           },
           (e: unknown) => {
-            settle();
+            // The error carries what the run used, so the chat counts it as the ledger just did.
+            const used = settle();
             const cap = stopped as CapStanding | null;
-            if (cap) {
-              const { message, fix } = capStop(cap);
-              return out.end(new AgentError(message, fix));
-            }
-            out.end(e instanceof AgentError ? e : new AgentError(`${runtime.label} failed: ${e instanceof Error ? e.message : String(e)}`, `Check that ${runtime.cliLabel} is signed in (run ${runtime.command} once on its own), then ask again.`));
+            const failure = cap
+              ? new AgentError(capStop(cap).message, capStop(cap).fix)
+              : e instanceof AgentError
+                ? e
+                : new AgentError(`${runtime.label} failed: ${e instanceof Error ? e.message : String(e)}`, `Check that ${runtime.cliLabel} is signed in (run ${runtime.command} once on its own), then ask again.`);
+            if (used.records.length) failure.usage = used;
+            out.end(failure);
           },
         )
         .finally(() => ctx.signal.removeEventListener('abort', cancel));

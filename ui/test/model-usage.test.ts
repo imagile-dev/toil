@@ -11,6 +11,7 @@ import { claudeResultUsage, claudeRuntime, claudeStepUsage, onPlan } from '../se
 import { codexRuntime, codexUsage, TOKEN_ENV } from '../server/agents/codex.ts';
 import { copilotRuntime, copilotUsage, premiumQuota } from '../server/agents/copilot.ts';
 import { AgentHost, type AgentHostOptions } from '../server/agents/host.ts';
+import { AgentError as AgentErrorClass, type AgentError } from '../server/agents/cli.ts';
 import { McpGrants } from '../server/agents/mcp.ts';
 import type { Importer } from '../server/agents/runtime.ts';
 import { agentSettingsFile } from '../server/agents/settings.ts';
@@ -220,6 +221,12 @@ describe('cap settings', () => {
     expect(loadUsageSettings(dir).caps).toEqual({ 'codex.chat': 'off' });
   });
 
+  it("count only the adapter's own records in a chat that switched adapters, as the day does", () => {
+    const settings = checkUsageSettings({ caps: { 'codex.chat': { unit: 'tokens', limit: 1000 } } });
+    const chat = [rec({ id: 'claude-call', adapter: 'claude', inputTokens: 5000 })];
+    expect(capStandings(settings, 'codex', chat, chat)[0]).toMatchObject({ used: 0, share: 0 });
+  });
+
   it('stand at 80% with a warning and at 100% with a stop that says how to raise the cap', () => {
     const settings = checkUsageSettings({ caps: { 'claude.chat': { unit: 'tokens', limit: 1000 }, 'claude.day': { unit: 'usd', limit: 1 } } });
     const [chat, day] = capStandings(settings, 'claude', [rec({ inputTokens: 850 })], [rec({ id: 'd', costUsd: 1.2, costSource: 'sdk-estimate' }), rec({ id: 'o', adapter: 'codex', costUsd: 9, costSource: 'your-rates' })]);
@@ -359,7 +366,10 @@ describe('the host, holding a chat to its usage and caps', () => {
     let afterStop = 0;
     const { host, ledger, dataDir } = hostFor('claude', claudeModule([{ id: 'msg_1', input: 600, output: 50 }, { id: 'msg_2', input: 600, output: 50 }], () => afterStop++));
     saveUsageSettings(dataDir, checkUsageSettings({ caps: { 'claude.chat': { unit: 'tokens', limit: 1000 } } }));
-    await expect(last(host)).rejects.toThrow("Claude's per-chat cap (claude.chat) stopped this question: this chat has used 1,650 tokens, and the cap is 1,000 tokens.");
+    const stop = await last(host).catch((e: unknown) => e as AgentError);
+    expect((stop as Error).message).toBe("Claude's per-chat cap (claude.chat) stopped this question: this chat has used 1,650 tokens, and the cap is 1,000 tokens.");
+    // The error carries what the stopped run used, so the page counts what the ledger counts.
+    expect((stop as AgentError).usage!.records).toEqual(ledger.rows);
     expect(addUp(ledger.rows).inputTokens).toBe(600);
     // It stopped at the first step past the cap: the second step was never read.
     expect(afterStop).toBe(0);
@@ -507,6 +517,33 @@ describe("the server's usage routes", () => {
     expect(asked).toEqual([{ id: 'abc12345-0000-0000-0000-000000000000', turn: 2 }]);
     expect((await post('/api/agent/ask', { dossier: 'card-payments', prompt: 'risk', chat: { id: '../x', turn: 1 } })).status).toBe(400);
     expect((await post('/api/agent/ask', { dossier: 'card-payments', prompt: 'risk', chat: { id: 'abc12345', turn: 0 } })).status).toBe(400);
+  });
+
+  it("send a failed run's usage with its error, streamed or not", async () => {
+    const app = mkdtempSync(join(folder, 'app-'));
+    writeFileSync(join(app, 'index.html'), '<!doctype html>');
+    const usage: AnswerUsage = { adapter: 'claude', records: [rec({ id: 'claude:msg_1', inputTokens: 600 })], notices: [] };
+    const fail = () => Object.assign(new AgentErrorClass('stopped at the cap', 'raise it'), { usage });
+    const agent = {
+      ...fixtureAgent(),
+      ask: async () => {
+        throw fail();
+      },
+      async *stream() {
+        yield* [];
+        throw fail();
+      },
+    };
+    const ui = createUiServer({ settings: { host: '127.0.0.1', port: 0, basePath: '/', dataDir: app, retentionDays: 30, sample: false }, store: fixtureStore(), agent, appDir: app, version: 't', toil: { version: 't', contractVersion: 1 }, token: 'tok' });
+    const { origin } = await ui.listen();
+    running.push(() => ui.close());
+    const s = JSON.parse((await send(origin, '/api/session', { method: 'POST', body: JSON.stringify({ token: 'tok' }), headers: { origin, 'content-type': 'application/json' } })).body) as { session: string; csrf: string };
+    const post = (body: unknown) => send(origin, '/api/agent/ask', { method: 'POST', body: JSON.stringify(body), headers: { [SESSION_HEADER]: s.session, origin, 'content-type': 'application/json', [CSRF_HEADER]: s.csrf } });
+    const whole = await post({ dossier: 'card-payments', prompt: 'q' });
+    expect(whole.status).toBe(502);
+    expect(JSON.parse(whole.body).error).toEqual({ message: 'stopped at the cap', fix: 'raise it', usage });
+    const streamed = await post({ dossier: 'card-payments', prompt: 'q', stream: true });
+    expect(JSON.parse(streamed.body.trim().split('\n').at(-1)!).error.usage).toEqual(usage);
   });
 
   it('with sample data, show the sample settings and save nothing', async () => {

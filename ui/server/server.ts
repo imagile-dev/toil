@@ -55,7 +55,7 @@ import type { Settings } from './settings.ts';
 import { READ_COMMANDS, type Access, type Store } from './store.ts';
 import { SyncBusy, type SyncService } from './sync.ts';
 import type { UsageControl } from './usage.ts';
-import { CHAT_ID, UsageSettingsError, type ChatTurn } from '../src/model-usage.ts';
+import { CHAT_ID, UsageSettingsError, type AnswerUsage, type ChatTurn } from '../src/model-usage.ts';
 
 export interface UiServerOptions {
   settings: Settings;
@@ -165,8 +165,8 @@ async function readJson(req: IncomingMessage): Promise<Record<string, unknown>> 
 }
 
 /** An agent's failure as the pane shows it: the message, and the fix when there is one. */
-function agentFailure(e: unknown): { message: string; fix?: string } {
-  if (e instanceof AgentError) return { message: e.message, fix: e.fix };
+function agentFailure(e: unknown): { message: string; fix?: string; usage?: AnswerUsage } {
+  if (e instanceof AgentError) return { message: e.message, fix: e.fix, ...(e.usage ? { usage: e.usage } : {}) };
   return { message: e instanceof Error ? e.message : String(e) };
 }
 
