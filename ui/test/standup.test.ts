@@ -217,19 +217,13 @@ describe('the text', () => {
   });
 
   it('keeps every plain-text line on one line, whatever line breaks a title, a name or a gap has', () => {
-    const s = input({ notes: ['A note
-over two lines.'], people: [{ name: 'Ada
-Lovelace', kind: 'human', email: null, ids: { github: 'ada', jira: 'alovelace' } }] });
-    const pages = s.pages.map((p) => ({ ...p, work: p.work.map((e) => ({ ...e, title: 'First line
-second line' })) }));
+    const s = input({ notes: ['A note\nover two lines.'], people: [{ name: 'Ada\nLovelace', kind: 'human', email: null, ids: { github: 'ada', jira: 'alovelace' } }] });
+    const pages = s.pages.map((p) => ({ ...p, work: p.work.map((e) => ({ ...e, title: 'First line\r\nsecond line' })) }));
     const text = standupText(buildStandup({ ...s, pages }));
     expect(text).toContain('- PAY-1 First line second line: In Review → Done');
     expect(text).toContain('- A note over two lines.');
-    expect(text).toContain('
-Ada Lovelace
-');
-    expect(text).not.toMatch(/
-second line/);
+    expect(text).toContain('\nAda Lovelace\n');
+    expect(text).not.toMatch(/\nsecond line/);
   });
 
   it('puts people in name order without case, by code, the same on every runtime', () => {
