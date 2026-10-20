@@ -25,7 +25,7 @@ Crate is the default. The theme picker is in the header (in the Menu on a narrow
 
 Plain uses toil's own type, so it looks like toil without leaving the accessibility baseline.
 
-- **Fredoka**, toil's wordmark face, is Plain's display face: page and panel headings, and the big figures (the sprint's numbers, the team's counts, an item's rank and its days in progress). It's used at 600 only, the one weight the wordmark already loads, so Plain adds no Fredoka file, and no figure is drawn in a faked bold.
+- **Fredoka**, toil's wordmark face, is Plain's display face: page and panel headings, and the big figures (the sprint's numbers, the team's counts, an item's rank and its days in progress). It's used at 600 only, the weight the wordmark already loads, so no figure is drawn in a faked bold. Plain adds Fredoka's Latin Extended file at that weight, which the browser fetches only when a heading needs it, so a dossier named Łódź keeps one face.
 - **IBM Plex Sans** is the body, at 400 and 600. Its open shapes and tall lowercase stay clear at the small sizes the notes and tables use (13 to 14px), it tells `I`, `l` and `1` apart, and its soft curves sit well beside Fredoka's rounded ones. It's already bundled for Crate, so it costs Plain nothing new. Nunito Sans and Inter were the alternatives: Nunito Sans is rounder still but lighter and narrower at small sizes, and Inter reads well but is sharper beside Fredoka; either would be a new font to bundle.
 - **Mono** stays the system's monospace, for commands and ids, where the platform's own face is the one people read code in.
 
@@ -131,7 +131,7 @@ Three settings decide what moves, in this order:
 2. **Reduce motion and effects**, under Settings, General. Ticked, nothing moves: no animations, no particles, no parallax.
 3. **Particles and ambient effects**, under the theme picker, for each theme that has particles. Off takes that theme's particles away entirely. Everything else, such as transitions and Crate's parallax, keeps following the motion setting.
 
-Each theme says which particles it has in its `theme.json`, as `"ambient": { "particles": "dust" }`, so the switch knows what it controls. All three choices are kept in this browser only, never in toil's config.
+Each theme says which particles it has in its `theme.json`, as `"ambient": { "particles": "dust" }`, so the switch knows what it controls. The two Toil UI choices are kept in this browser only, never in toil's config.
 
 ## Asking for a new theme
 
