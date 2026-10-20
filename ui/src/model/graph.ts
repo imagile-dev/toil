@@ -95,7 +95,8 @@ export function dependencyGraph(items: WorkItem[]): Graph {
       rank: r,
       row,
       done: byId.get(id)?.statusCategory === 'DONE',
-      blocked: blocks.some((e) => e.target === id && unfinished(e.source)),
+      // A finished item isn't held up by anything any more, whatever its links say; the same rule as blocking.
+      blocked: unfinished(id) && blocks.some((e) => e.target === id && unfinished(e.source)),
       blocking: unfinished(id) && blocks.some((e) => e.source === id && unfinished(e.target)),
     };
   });

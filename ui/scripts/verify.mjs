@@ -11,7 +11,7 @@
 //      each run, with the token from `gh auth token` in toil-ui's environment
 //      only. It syncs the `sandbox` dossier through toil, then runs the same
 //      check over the real-data routes (home, the dossier, one of its items,
-//      and the settings pages). With `--ask` it also asks Codex one starter
+//      and every settings page in the layout check's list). With `--ask` it also asks Codex one starter
 //      question and checks that an answer arrived, that the server verified
 //      every [[id]] it cites, that its proposals parsed, that nothing ran (no
 //      write in toil's audit log), and that `codex mcp list` in Toil UI's own
@@ -38,7 +38,7 @@ import { basename, join, relative } from 'node:path';
 import { findChrome, openBrowser } from './chrome.mjs';
 import { ROUTES, WIDTHS, checkLayout, themeRuns } from './layout-check.mjs';
 import { npmCli } from './package-rules.mjs';
-import { CODEX_SDK_INSTALL, RealHomeError, codexSdkInstalled, githubToken, prepareRealHome, realHomeEnv, root, toilUi } from './real-home.mjs';
+import { CODEX_SDK_INSTALL, RealHomeError, adoProblem, codexSdkInstalled, githubToken, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilUi } from './real-home.mjs';
 
 const ui = join(root, 'ui');
 const out = join(ui, '.verify');
@@ -53,23 +53,25 @@ const value = (name, fallback) => {
   const fromNpm = npmFlag(name);
   return fromNpm && fromNpm !== 'true' ? fromNpm : fallback;
 };
-const known = new Set(['--ask', '--no-build', '--source', '--starter']);
-const unknown = args.filter((a, i) => a.startsWith('--') && !known.has(a) && !['--source', '--starter'].includes(args[i - 1]));
+const known = new Set(['--ask', '--no-build', '--source', '--starter', '--project']);
+const unknown = args.filter((a, i) => a.startsWith('--') && !known.has(a) && !['--source', '--starter', '--project'].includes(args[i - 1]));
 if (unknown.length) {
-  process.stderr.write(`verify:ui: unknown argument ${unknown.join(' ')}\n  Fix: use --ask, --no-build, --source <name> and --starter <id>; see the comment at the top of ui/scripts/verify.mjs.\n`);
+  process.stderr.write(`verify:ui: unknown argument ${unknown.join(' ')}\n  Fix: use --ask, --no-build, --source github|ado, --project <name> and --starter <id>; see the comment at the top of ui/scripts/verify.mjs.\n`);
   process.exit(2);
 }
 const ask = has('ask');
 const build = !has('no-build');
 const sourceName = value('source', 'github');
 const starter = value('starter', 'hygiene');
+const project = value('project', process.env.TOIL_ADO_CLOUD_PROJECT);
 
 /**
  * Where real data comes from. Each source sets up its dossier in the scratch
  * home and hands back toil-ui's environment, or says why it can't (`skip`).
- * The hook for another tracker: an ADO board is being seeded on a
- * kolatts/*-ado-seed branch, and adds `ado` here with the same shape, so
- * `--source ado` runs the same sync, layout check and Ask against it.
+ * Another tracker is one more entry of the same shape: `--source ado` runs
+ * the same sync, layout check and Ask against an Azure DevOps Services board
+ * (the one ui/scripts/ado-seed/ fills), from TOIL_ADO_CLOUD_BASE_URL,
+ * TOIL_ADO_CLOUD_PAT and --project (else TOIL_ADO_CLOUD_PROJECT).
  */
 const SOURCES = {
   github: {
@@ -80,6 +82,16 @@ const SOURCES = {
       const env = { ...realHomeEnv(home, gh.token), TOIL_UI_DATA_DIR: join(home, '.toil-ui') };
       const dossier = prepareRealHome({ home, repo: 'imagile-dev/toil-sandbox', self: false, env, log: say });
       return { env, dossier, detail: `token from ${gh.from}, in toil-ui's environment only` };
+    },
+  },
+  ado: {
+    label: 'Azure DevOps Services, ado-board',
+    setup(home) {
+      const missing = adoProblem(process.env, project);
+      if (missing) return { skip: `${missing}.` };
+      const env = { ...realHomeEnv(home, null, process.env, { ado: true }), TOIL_UI_DATA_DIR: join(home, '.toil-ui') };
+      const dossier = prepareAdoHome({ home, project, env, log: say });
+      return { env, dossier, detail: "TOIL_ADO_CLOUD_BASE_URL and TOIL_ADO_CLOUD_PAT in toil-ui's environment only" };
     },
   },
 };
@@ -340,7 +352,8 @@ try {
 
       const item = await firstItemRoute(real.launchUrl, ready.dossier);
       if (!item) problems.push(`real data: the ${ready.dossier} dossier page links no work item, so no item view was checked.`);
-      const routes = ['#/', `#/dossier/${ready.dossier}`, ...(item ? [item] : []), '#/settings/connections', '#/settings/dossiers', '#/settings/toil', '#/settings/agent'];
+      // The settings pages come from the layout check's own list, so a page added there is checked on real data too.
+      const routes = ['#/', `#/dossier/${ready.dossier}`, ...(item ? [item] : []), ...ROUTES.filter((r) => r.startsWith('#/settings/'))];
       await layout('real', real.launchUrl, routes);
 
       if (ask) await askCodex(real.api, ready.dossier, home, ready.env.TOIL_UI_DATA_DIR);

@@ -70,3 +70,6 @@ test/.stubs/
 .scratch/
 # npm run verify:ui's report and screenshots
 ui/.verify/
+
+# The ADO seed's map of seed keys to one organization's work item ids (ui/scripts/ado-seed/apply.mjs)
+ui/scripts/ado-seed/ids.local.json

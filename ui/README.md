@@ -327,8 +327,11 @@ npm run verify:ui -- --no-build --starter standup
   and never fail it. Screenshots are of Plain and Crate.
 - **It stops** every server and browser it started, and exits 1 on any problem.
 
-A second source (`--source ado`) slots into `SOURCES` in `scripts/verify.mjs`.
-Set `CHROME_PATH` if the browser it finds doesn't draw headless; Playwright's
+`--source ado` runs the real-data part against an Azure DevOps Services board
+instead (the `ado-board` dossier, as `dev-real.mjs --source ado` makes it below),
+with `TOIL_ADO_CLOUD_BASE_URL`, `TOIL_ADO_CLOUD_PAT` and `--project <name>` (else
+`TOIL_ADO_CLOUD_PROJECT`); without them it skips that part and says why. Each source is
+one entry in `SOURCES` in `scripts/verify.mjs`. Set `CHROME_PATH` if the browser it finds doesn't draw headless; Playwright's
 Chromium works where an installed Chrome doesn't.
 
 ### The sandbox repository
@@ -351,6 +354,63 @@ over, delete the repository (`gh repo delete <owner>/toil-sandbox`, which needs 
 `delete_repo` scope), create it again and re-run the seed. It adds no Projects
 board, which needs the `project` scope on the token, and no deployments, which
 toil's `github` area doesn't read.
+
+### An Azure DevOps Services board
+
+`--source ado` runs the same way against an Azure DevOps Services project, through
+toil's `ado-cloud` area, with a dossier named `ado-board`:
+
+```bash
+node ui/scripts/dev-real.mjs --source ado --project "<project>"
+```
+
+It needs `TOIL_ADO_CLOUD_BASE_URL` (`https://dev.azure.com/<organization>`) and
+`TOIL_ADO_CLOUD_PAT` (an organization-scoped token with Work Items, Read) in the
+shell. They go into Toil UI's environment only: toil makes its `ado-cloud`
+connection from them, with writes off, and nothing about the organization is
+written to the config file. `--project`, or `TOIL_ADO_CLOUD_PROJECT`, names the
+project; the dossier in the scratch home holds it. The dossier names no repository,
+so no pull requests are read; add `repo` to its `ado-cloud` section for them.
+Until toil's next release, the toil Toil UI pins predates the command names the
+dashboard calls, so copy the clone's own build over it first (#326).
+
+To fill a board with made-up work, `ui/scripts/ado-seed/` seeds one from Open Work
+Items. `items.owi.json` holds 45 of them across the three sample products
+(`card-payments`, `settlement`, `checkout-web`): Scrum epics, features, backlog
+items, tasks and bugs, in a mix of states, in Sprints 1 to 3 and the backlog, with
+efforts (some missing), acceptance criteria (some missing), parents, dependencies,
+related pairs, long titles and two stale items. It's written by a seeded generator,
+so the same seed always gives the same file:
+
+```bash
+node ui/scripts/ado-seed/generate.mjs                                   # writes items.owi.json, checked against docs/owi/schema.json
+node ui/scripts/ado-seed/apply.mjs --project "<project>" --dry-run      # what it would create; sends no write
+node ui/scripts/ado-seed/apply.mjs --project "<project>"                # creates what's missing
+node ui/scripts/ado-seed/cleanup.mjs --project "<project>"              # lists the seeded items, deletes nothing
+node ui/scripts/ado-seed/cleanup.mjs --project "<project>" --confirm <code>   # sends exactly that list to the recycle bin
+```
+
+The scripts read the same two variables, create and change work items only, in
+sprints that already exist (a missing sprint stops the run; none is ever created),
+and touch only items tagged `toil-seed` with one `seed:<key>` tag. Every item gets
+both. Running `apply.mjs` again creates only what's missing. Each item's history is
+backdated to its timeline when the token's identity may bypass rules, and seeded with
+ordinary transitions dated today when not, which the run says. `cleanup.mjs` deletes
+only after a dry run has listed the items: the code it prints is made from their ids,
+and `--confirm` refuses a code for any other list. Deleted items can be restored from
+the project's recycle bin. To start over, clean up and apply again.
+
+To check what toil reads back, map the board's output and compare it with the file:
+`compare.mjs` matches each item to its record by its `seed:` tag and prints every
+difference, leaving out what the server assigns.
+
+```bash
+toil ado-cloud work-item iterations --project "<project>" > board.jsonl
+toil ado-cloud work-item get-many <ids…> >> board.jsonl
+toil ado-cloud work-item history <id> >> board.jsonl        # once for each id
+toil util owi map board.jsonl > mapped.json
+node ui/scripts/ado-seed/compare.mjs mapped.json --project "<project>" --backdated
+```
 
 ## Settings
 
