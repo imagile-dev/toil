@@ -328,6 +328,59 @@ refused, naming the setting, and while the file can't be read the agent answers
 nothing, so a typo can never turn a cap off. A cap counts only what the SDK reports:
 the vendor's own bill is the authority.
 
+## Assigning work to an agent
+
+From an item's page, or **Assign** on its card on the board, a work item can be
+assigned to Claude, GitHub Copilot or Codex in one of three modes. The agent works on
+the subscription you already have, and nothing it proposes leaves this machine until
+you apply it.
+
+| Mode | What the agent does | What it can change |
+|---|---|---|
+| **Refine** | Checks for duplicates, drafts acceptance criteria, suggests an estimate, splits the item into children where it is too big, and asks its open questions | Nothing: every change is a proposal |
+| **Investigate** | Reads the item, its parent, children, links, likely duplicates, pull requests and toil's live reads, and writes a report that cites each source | Nothing: the report is kept with the assignment, and posting it as a comment is a proposal |
+| **Implement** | Clones the dossier's repository from its local path into a folder of Toil UI's own, makes the branch `agent/<key>`, changes and tests the code, and stages the change | Only that clone, with no network. Committing, pushing and opening a pull request are proposals |
+
+- **Refine and investigate** get the same read-only tools as the chat (`owi_*`, `pr_*`,
+  `proposal_fields` and toil's live reads), with no shell and no file writes.
+- **Implement runs on Codex only, for now.** Codex's own sandbox, `workspace-write`,
+  holds the agent's commands and writes to the clone, with no network and none of the
+  temp folders Codex adds by default, on Windows, macOS and Linux. The clone is
+  `<data folder>/cache/work/<assignment>`, so `toil-ui wipe` deletes it. The dossier's
+  repository needs a local path (`toil dossiers add-repo <dossier> <folder>`). The agent stages its change and never commits, pushes or fetches; the
+  staged diff is shown through toil's own `git status` and `git diff`, and the commit
+  and push are a proposal of the exact git lines to run, since toil has no command
+  that pushes.
+- **States**: `queued` (waiting for a free slot, or for a person to press Start),
+  `working`, `needs you` (proposals or questions to review, or an item the agent
+  thought was trying to instruct it), `done` and `failed`. The **Agents** lane on the
+  dashboard shows each assignment's state, mode, adapter, run time and what it used,
+  and the People view shows each agent's assignments.
+- **The tracker only queues.** An item labelled `agent:refine`, `agent:investigate` or
+  `agent:implement`, or assigned to one of the dossier's agents (its `people` with
+  `kind: agent`, which queues a refine), appears in the **Agent inbox** on the next
+  read. It runs only when a person presses Start.
+- **Applying a proposal** runs its toil command, the one the server stored when the
+  run ended, through toil's write gate: the connection needs `writes: true`, and your
+  press of Apply is the call's `--allow-write`. Each call toil makes for an assignment
+  is in toil's audit log with `caller: "toil-ui"` and `actor: "assignment-<id>"`.
+- **Tracker text is untrusted.** The item is fenced off in the prompt as data, and an
+  item that tells the agent to do anything else stops the run, marked `needs you`.
+- **Limits.** One assignment runs at a time and each has 20 minutes, both changeable
+  in the lane's **Limits** (1 to 3 at once, 1 to 240 minutes), kept in
+  `<data folder>/assignments.json`. An assignment is one chat to the usage caps under
+  **Settings, Agent usage**, so a per-chat cap is a per-assignment cap. Either limit
+  stops a run cleanly, saying which.
+- **The transcript** keeps the prompts, every tool call, the agent's text, the
+  commands and file changes Codex reports, and each proposal and what came of it.
+  Each assignment also records what it started on: the toil and Toil UI versions, the
+  adapter and model, the tools, and SHA-256 fingerprints of the dossier, the item and
+  the prompt. Assignments are kept under the cache, in
+  `<data folder>/cache/assignments/`, so a wipe deletes them.
+- **For programs on the same server**, `api/assignments` lists, assigns, starts,
+  stops, applies and dismisses, and `api/assignments/events?since=<n>` streams every
+  change of state as NDJSON.
+
 ## Themes
 
 Five built-in themes: Plain, Crate (the default), Harvest, Starship and Realm. Pick
@@ -548,6 +601,7 @@ Windows too.
 ## Not in this alpha
 
 - **Serving other machines.** It is local only.
+- **Implement mode on Claude or Copilot**, and **answering an agent's questions in the assignment** itself: answer on the item and assign it again.
 
 ## The package
 

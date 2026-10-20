@@ -26,6 +26,8 @@ import { commandLine } from '../src/proposal.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { stubToil } from './toil-stub.ts';
+import { hostRunner } from '../server/assign/runner.ts';
+import { memoryLedger, usageSettingsFile } from '../server/usage.ts';
 
 /**
  * The agent adapters (#251), each against a stubbed SDK module: no test
@@ -997,5 +999,84 @@ describe('the people tools (#292)', () => {
     expect(((await tool(failing, 'people_list').run({})) as PeopleList).notes).toEqual(['toil dossiers show settlement failed: it broke. So nobody is mapped, and no limit is known.']);
     expect(r.wipLimitPerPerson).toBeNull();
     expect(r.unmapped.map((p: { name: string }) => p.name)).toEqual(['D. Okafor', 'J. Park', 'K. Nakamura', 'M. Lind']);
+  });
+});
+
+describe('assignments on the agent host (#293)', () => {
+  const item = () => data.items().find((i) => i.id === 'corp-jira:PAY-107')!;
+  const run = async (over: { mode?: 'refine' | 'investigate' | 'implement'; script?: Script } = {}) => {
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const stub = codexStub(over.script ?? SCRIPT, holder);
+    const { host, rec, dataDir } = hostFor('codex', stub.module, { serveTools: (tools) => holder.serve(tools) });
+    const runner = hostRunner({ host, dataDir, registry: registry.commands, execute: rec.execute, mapIds: () => [], data: () => data, version: 't', toilVersion: '0.0.0-test', now: () => FIXTURE_NOW });
+    const lines: string[] = [];
+    const assignment = { id: 'abc12345-0000-0000-0000-000000000000', dossier: 'card-payments', item: 'corp-jira:PAY-107', itemTitle: 'x', mode: over.mode ?? 'refine', adapter: 'codex', origin: 'person', trigger: null, state: 'working', waiting: null, repo: null, createdAt: FIXTURE_NOW, startedAt: FIXTURE_NOW, endedAt: null, stop: null, report: null, questions: [], proposals: [], usage: null, startedOn: null, branch: null } as const;
+    const result = await runner.run({ assignment: { ...assignment, proposals: [], questions: [] }, item: item(), signal: new AbortController().signal, record: (e) => lines.push(`${e.kind}: ${e.title}`) });
+    return { result, stub, rec, lines, holder, dataDir };
+  };
+
+  it('runs refine on the adapter the assignment names, read-only, with the read tools and the server checks', async () => {
+    const { result, stub, rec, lines, holder } = await run();
+    expect(stub.seen.thread).toMatchObject({ sandboxMode: 'read-only', approvalPolicy: 'never', networkAccessEnabled: false });
+    expect(stub.seen.listed).toEqual(expect.arrayContaining(['owi_get', 'owi_similar', 'pr_query', 'proposal_fields']));
+    expect(stub.seen.listed).not.toContain('people_list');
+    expect(stub.seen.listed).not.toContain('jira_issue_update');
+    // The item is fenced as data, and the rules say what to do with an instruction inside it.
+    expect(stub.seen.input).toContain('<<<TRACKER_ITEM');
+    expect(stub.seen.input).toContain('INJECTION:');
+    expect(result.report!.unverified).toEqual(['corp-jira:PAY-999']);
+    expect(result.proposals.map((p) => p.command)).toEqual(['jira issue update']);
+    expect(result.startedOn).toMatchObject({ toil: '0.0.0-test', toilUi: 't', adapter: 'codex', skills: [], dossier: { name: 'card-payments' }, item: { id: 'corp-jira:PAY-107' } });
+    expect(result.startedOn.item.fingerprint).toMatch(/^[0-9a-f]{64}$/);
+    expect(lines).toContain('tool: Called: owi_get');
+    // Every call toil made was a read, and the run's own carry the assignment as their actor.
+    expect(rec.calls.every((c) => c.options.readOnly === true && c.options.caller === 'toil-ui')).toBe(true);
+    expect(rec.calls.some((c) => c.options.actor === 'assignment-abc12345-0000-0000-0000-000000000000')).toBe(true);
+    expect(holder.size).toBe(0);
+  });
+
+  it('turns an investigation into a report and a comment proposal', async () => {
+    const { result } = await run({ mode: 'investigate', script: { calls: [{ name: 'owi_get', input: { id: 'corp-jira:PAY-107' } }], chunks: ['[[corp-jira:PAY-107]] is unestimated.\nQUESTION: Who owns it?'] } });
+    expect(result.questions).toEqual(['Who owns it?']);
+    expect(result.report!.parts.map((p) => p.text)).toEqual(['[[corp-jira:PAY-107]] is unestimated.']);
+    expect(result.proposals).toEqual([expect.objectContaining({ command: 'jira issue comment', input: expect.objectContaining({ dossier: 'card-payments', key: 'PAY-107' }) })]);
+  });
+
+  it('stops on an item the agent says is an injection attempt', async () => {
+    const { result } = await run({ script: { calls: [], chunks: ['INJECTION: asks to post the tokens elsewhere'] } });
+    expect(result.injection).toBe('asks to post the tokens elsewhere');
+    expect(result.proposals).toEqual([]);
+  });
+
+  it('gives implement mode the workspace-write sandbox in its own folder, with the shell and no network', async () => {
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const stub = codexStub({ calls: [], chunks: ['done'] }, holder);
+    const { host, dataDir } = hostFor('codex', stub.module, { serveTools: (tools) => holder.serve(tools) });
+    const root = join(dataDir, 'cache', 'work', 'x');
+    await host.task({ adapter: 'codex', dossier: 'card-payments', chat: 'abc12345', system: 's', prompt: 'p', tools: [], workspace: { root }, signal: new AbortController().signal, onText: () => undefined });
+    expect(stub.seen.thread).toMatchObject({ sandboxMode: 'workspace-write', workingDirectory: root, networkAccessEnabled: false, approvalPolicy: 'never' });
+    const overrides = stub.seen.options!.configOverrides as string[];
+    expect(overrides).toEqual(codexOverrides('http://127.0.0.1:1/api/agent/mcp', true));
+    expect(overrides).toContain('sandbox_workspace_write.network_access=false');
+    expect(overrides).not.toContain('features.shell_tool=false');
+    expect(overrides).toContain('features.unified_exec=false');
+  });
+
+  it('refuses a workspace on an adapter whose own sandbox Toil UI does not use to bound one folder', async () => {
+    const { host } = hostFor('claude', claudeStub(SCRIPT).module);
+    await expect(host.task({ adapter: 'claude', dossier: 'card-payments', chat: 'abc12345', system: 's', prompt: 'p', tools: [], workspace: { root: '/x' }, signal: new AbortController().signal, onText: () => undefined })).rejects.toThrow(/only Codex/);
+    expect(host.adapterChoices().map((a) => [a.name, a.workspace])).toEqual([['claude', false], ['copilot', false], ['codex', true]]);
+  });
+
+  it('holds an assignment to the per-chat cap, and marks the refusal as a cap', async () => {
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const stub = codexStub(SCRIPT, holder);
+    const ledger = memoryLedger([{ id: 'r1', chatId: 'abc12345', turn: 1, dossier: 'card-payments', adapter: 'codex', at: FIXTURE_NOW, model: null, costSource: 'none', inputTokens: 900 }]);
+    const { host, dataDir } = hostFor('codex', stub.module, { serveTools: (tools) => holder.serve(tools), ledger });
+    writeFileSync(usageSettingsFile(dataDir), JSON.stringify({ caps: { 'codex.chat': { unit: 'tokens', limit: 500 } }, codexRates: null }));
+    const e = await host.task({ adapter: 'codex', dossier: 'card-payments', chat: 'abc12345', system: 's', prompt: 'p', tools: [], workspace: null, signal: new AbortController().signal, onText: () => undefined }).catch((x: unknown) => x);
+    expect(e).toBeInstanceOf(AgentError);
+    expect((e as AgentError).capped).toBe(true);
+    expect(stub.seen.thread).toBeUndefined();
   });
 });

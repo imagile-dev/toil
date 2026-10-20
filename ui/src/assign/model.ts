@@ -340,8 +340,8 @@ export function runText(ms: number | null): string {
   return `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, '0')} s`;
 }
 
-/** Whether a proposal still waits on a person. */
-export const pending = (p: Pick<AssignedProposal, 'status'>) => p.status === 'pending';
+/** Whether a proposal still waits on a person: not yet applied, or refused by toil and not yet dismissed. */
+export const pending = (p: Pick<AssignedProposal, 'status'>) => p.status === 'pending' || p.status === 'failed';
 
 /** The state an assignment settles in once a run ends: needs you while anything waits on a person, else done. */
 export function settledState(a: Pick<Assignment, 'proposals' | 'questions' | 'stop'>): AssignState {

@@ -350,7 +350,7 @@ export class AssignmentQueue {
 
   private async repoFor(dossier: string, name: string | undefined): Promise<RepoChoice> {
     const repos = await this.o.repos(dossier);
-    if (!repos.length) throw new AssignError(`${dossier} lists no repository with a local path, so implement mode has nothing to clone.`, `Add one with toil dossiers add-repo ${dossier} <name> --path <folder>, then assign again.`);
+    if (!repos.length) throw new AssignError(`${dossier} lists no repository with a local path, so implement mode has nothing to clone.`, `Add one with toil dossiers add-repo ${dossier} <folder>, then assign again.`);
     if (name === undefined) {
       if (repos.length === 1) return repos[0]!;
       throw new AssignError(`${dossier} lists ${repos.length} repositories; say which one to work in.`, `Choose one of ${repos.map((r) => r.name).join(', ')}.`);

@@ -284,7 +284,7 @@ function AssignedCard({ p, busy, onApply, onDismiss }: { p: AssignedProposal; bu
           rowKey={(r) => r.field}
           columns={[
             { header: 'Field', label: 'Field', rowHeader: true, cell: (r) => <code>{r.field}</code> },
-            { header: 'Now', label: 'Now', cell: (r) => (r.before === null ? <span className="note">not in the cache</span> : r.before === '' ? <span className="note">empty</span> : <span className="assign-before">{r.before}</span>) },
+            { header: 'Now', label: 'Now', cell: (r) => (r.before === null ? <span className="note">not in the synced item</span> : r.before === '' ? <span className="note">empty</span> : <span className="assign-before">{r.before}</span>) },
             { header: 'Proposed', label: 'Proposed', cell: (r) => <span className="assign-after">{r.after}</span> },
           ]}
         />

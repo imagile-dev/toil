@@ -118,7 +118,7 @@ export function AssignForm({ item, list, start, close, onDone }: { item: Pick<Wo
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const choice = list.adapters.find((a) => a.name === adapter);
-  const implementOff = mode === 'implement' ? (choice?.implement ?? (list.repos.length ? null : `${dossier.name} lists no repository with a local path, so implement mode has nothing to clone. Add one with toil dossiers add-repo ${dossier.name} <name> --path <folder>.`)) : null;
+  const implementOff = mode === 'implement' ? (choice?.implement ?? (list.repos.length ? null : `${dossier.name} lists no repository with a local path, so implement mode has nothing to clone. Add one with toil dossiers add-repo ${dossier.name} <folder>.`)) : null;
   const canSend = api && !api.disabled && adapter !== null && !choice?.problem && !implementOff && !busy && (mode !== 'implement' || repo !== null);
 
   const submit = async (e: FormEvent) => {
@@ -258,7 +258,7 @@ export function AssignButton({ item, small = false }: { item: Pick<WorkItem, 'id
   if (!api) return null;
   return (
     <DialogTrigger>
-      <Button className={`btn${small ? ' btn--small' : ''}`}>
+      <Button className={`btn${small ? ' btn--small' : ''}`} {...(small ? {} : { 'data-assign-open': '' })}>
         {/* On a board card the visible word is short; the name still starts with it (WCAG 2.5.3). */}
         {small ? (
           <>
@@ -284,7 +284,7 @@ function InboxRow({ a, onStarted }: { a: Assignment; onStarted: () => void }) {
         <span>
           <ItemLink id={a.item} /> {a.itemTitle}: <strong>{MODE_INFO[a.mode].label.toLowerCase()}</strong>, asked for by the tracker's {a.trigger}.
         </span>
-        <Button className="btn btn--accent btn--small" onPress={() => setOpen(true)}>
+        <Button className="btn btn--accent btn--small" onPress={() => setOpen(true)} data-inbox-start="">
           Start<span className="sr-only"> {a.item}</span>…
         </Button>
       </Cluster>

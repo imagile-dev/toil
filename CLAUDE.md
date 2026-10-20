@@ -580,7 +580,7 @@ a breaking change.
   under `src/areas/` may not call `fetch` directly, and ESLint enforces it.
 - **Every call `execute()` runs appends one line to the audit log**,
   `~/.toil/audit/<yyyy-mm>.jsonl` (`src/core/audit.ts`): front door (and an API
-  caller's label), command,
+  caller's label and the actor it names), command,
   area, connection, whether it wrote and had `--allow-write`, outcome, duration,
   the input and every request's method, redacted URL and status, `--verbose` or
   not. Never a header, body or row. Input goes through `--verbose`'s name rule,

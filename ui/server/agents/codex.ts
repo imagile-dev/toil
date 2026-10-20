@@ -88,7 +88,7 @@ export function codexActivity(item: Record<string, unknown>): Activity | null {
     const files = (item.changes as Array<{ path?: unknown; kind?: unknown }>).map((c) => `${String(c.kind ?? 'change')} ${String(c.path ?? '')}`);
     return { kind: 'file', title: `Changed ${files.length === 1 ? 'a file' : `${files.length} files`}`, detail: files.join('\n') };
   }
-  if (item.type === 'mcp_tool_call' && typeof item.tool === 'string') return { kind: 'tool', title: `Called ${item.tool}` };
+  // Toil UI's own tools are in the transcript already, from the tool side; an MCP call would say it twice.
   return null;
 }
 

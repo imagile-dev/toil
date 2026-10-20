@@ -4731,3 +4731,81 @@ it pins. These are the choices made by default in the fix:
 - **The preview and `--sample` show made-up usage**, marked "Sample figures, not from a
   model" on every line, so the footer and the page have something to show.
 
+
+## Assigning work items to an agent (#293)
+
+- **Applying a proposal is the one tracker write Toil UI makes, and only on a
+  person's Apply.** The issue asks for it; until now Toil UI only showed command
+  lines. The page sends an assignment id and a proposal id, never a command: the
+  server runs the proposal it stored when the run ended, as toil's own command
+  through `execute()` with `allowWrite: true`, so the connection's `writes: true` is
+  still required and toil's gate is unchanged. The press is the call's explicit flag
+  (principle 2). Proposals from the Ask pane and the board still have no Apply.
+- **`actor` is a new `execute()` option in toil**, recorded on the audit line beside
+  `caller` (`actor: "assignment-<id>"`), checked like `caller`. `CallOptions` already
+  named it as where an actor goes. The published toil Toil UI pins ignores an option
+  it doesn't know, so the audit lines carry the actor from the toil release that has
+  it (as Toil UI on this checkout's toil does now).
+- **Implement mode runs on Codex only, for now (open question).** It needs an
+  agent that runs commands and writes files, bounded to one folder with no network.
+  Codex's own `workspace-write` sandbox enforces that on Windows (its restricted-token
+  sandbox), macOS and Linux. Claude Code's sandbox runs on macOS and Linux only, and
+  Copilot's SDK has a permission callback but no OS sandbox; offering implement on
+  either would bound it on some OSes and not others (principle 8) or bound it only by
+  Toil UI checking paths in a callback, which a shell command walks past. The dialog
+  says so. Whether to add them with a path-checking callback and no shell is the
+  maintainer's call.
+- **The clone is the agent's own, under the cache** (`<data folder>/cache/work/<id>`),
+  made by the agent inside its sandbox with `git clone --no-hardlinks <the dossier
+  repo's path> .`, never the person's working tree. Toil UI spawns nothing itself
+  (`check:package`), so it can't run git; toil's git area only reads. The dossier's
+  repository therefore needs a local `path`.
+- **The agent stages its change and never commits, pushes or fetches.** toil's own
+  `git diff` shows only staged or unstaged changes, not commits, so staging is what
+  makes the diff reviewable through toil's read-only `git status` and `git diff`
+  (with `workspace` set to the clone). Commit and push are one proposal of the exact
+  git lines, since toil has no command for either; the clone's `origin` is the
+  person's local clone, so a push lands there first.
+- **No network in implement mode, whatever the dossier says.** The issue allows the
+  repository's package registry "if the dossier allows it"; a dossier has no key for
+  that yet, and adding one widens a bound, so the sandbox's network is always off
+  (`sandbox_workspace_write.network_access=false`), and its writable roots are the
+  clone alone, without the temp folders Codex adds by default. An install that needs
+  the registry fails inside the run, and the report says so.
+- **The tracker's inbox is a fixed label convention plus the dossier's agents**:
+  `agent:refine`, `agent:investigate` or `agent:implement`, or an assignee who is one
+  of the dossier's `people` with `kind: agent` (which queues a refine, the mode that
+  changes least). The issue's "a label the dossier names" would need a new dossier
+  key and its commands; the convention needs neither. The inbox is read when the
+  Agents lane lists the dossier (after each sync), not inside the sync, so sync.ts is
+  unchanged. Each item, mode and trigger queues once, ever.
+- **One queue, isomorphic** (`ui/src/assign/queue.ts`): the server runs it on the
+  cache and the agent host, and the preview and `--sample` run the same queue on the
+  sample's items with a scripted runner. States are `queued` (`waiting: start` or
+  `slot`), `working`, `needs-you`, `done`, `failed`; a proposal toil refused stays
+  open to retry or dismiss. A run Toil UI lost when it stopped is `failed`
+  (`interrupted`) on the next start; nothing resumes on its own.
+- **Limits**: one at a time and 20 minutes by default, 1 to 3 and 1 to 240 allowed,
+  in `<data folder>/assignments.json` (kept by a wipe, like usage.json). A broken file
+  starts nothing (concurrent 0) and the lane says why. An assignment is one chat to
+  #295's caps, so the per-chat cap is the per-assignment cap; there is no separate
+  default token cap. Assignments don't count against the Ask pane's two questions.
+- **Questions don't thread yet.** The agent's `QUESTION:` lines put the assignment in
+  `needs you`; the person answers on the item and assigns it again, or marks it
+  reviewed. A reply box that resumes the run is left for later.
+- **Records live in `<data folder>/cache/assignments/<id>.json`**, transcript and
+  all, so a wipe deletes them with the clones; a wipe is refused while one runs.
+- **What a run started on**: toil and Toil UI versions, adapter and model, the tools,
+  `skills: []` (Toil UI hands an assigned agent no skill), and SHA-256 fingerprints of
+  the dossier (`dossiers show`), the item as synced and the prompt, for #305.
+  Events carry a sequence number and are kept (last 500) for
+  `api/assignments/events?since=<n>` (NDJSON) and `queue.subscribe`, for #306. The
+  page polls every 2 seconds while anything is queued or working, rather than hold a
+  stream open.
+- **For #307**, the server function is `AssignmentQueue.assign({ dossier, item, mode,
+  adapter, repo? })` (also `POST api/assignments`), which queues behind the limit; a
+  "start every ready ticket" button can call it per item. #307 hadn't merged when this
+  PR opened, so its button isn't wired here.
+- **The sample seeds one assignment in every state**, and reads PAY-107 with
+  `agent:refine` added so the inbox has an entry; the sample's tracker data, shared
+  with toil's own OWI fixture, is unchanged.
