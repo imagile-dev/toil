@@ -49,7 +49,7 @@ const envelope = (command: string, data: unknown, connection: string, inputs: Re
   },
 });
 
-// Jira Data Center: jira search --fields summary,description,status,issuetype,labels,created,updated
+// Jira Data Center: jira issue search --fields summary,description,status,issuetype,labels,created,updated
 
 const TODO = { name: 'To Do', id: '10000', statusCategory: { id: 2, key: 'new', name: 'To Do' } };
 const BUG = { name: 'Bug', id: '1', subtask: false };
@@ -89,7 +89,7 @@ const jiraSearch = {
   ],
 };
 
-// Jira Cloud: jira-cloud search, with the description in Atlassian Document Format
+// Jira Cloud: jira-cloud issue search, with the description in Atlassian Document Format
 
 const adf = (...paragraphs: string[]) => ({ type: 'doc', version: 1, content: paragraphs.map((text) => ({ type: 'paragraph', content: [{ type: 'text', text }] })) });
 
@@ -117,7 +117,7 @@ const cloudSearch = {
   isLast: true,
 };
 
-// Azure DevOps Server: ado work get-batch
+// Azure DevOps Server: ado work-item get-many
 
 const adoItem = (id: number, type: string, title: string, description: string, tags: string, created: string) => ({
   id,
@@ -178,9 +178,9 @@ const ghIssues = [
 
 /** The new week's envelopes alone. */
 export const triageEnvelopes: unknown[] = [
-  envelope('jira search', jiraSearch, 'corp-jira'),
-  envelope('jira-cloud search', cloudSearch, 'cloud-jira'),
-  envelope('ado work get-batch', adoBatch, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' }),
+  envelope('jira issue search', jiraSearch, 'corp-jira'),
+  envelope('jira-cloud issue search', cloudSearch, 'cloud-jira'),
+  envelope('ado work-item get-many', adoBatch, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' }),
   envelope('github list-issues', ghIssues, 'github', { owner: 'imagile', repo: 'payments-web' }),
 ];
 

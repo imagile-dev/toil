@@ -38,33 +38,33 @@ const remote = (url: string): Partial<Context> => ({ gitRemote: async () => [{ n
 
 describe('requests', () => {
   it('sends the PAT as Basic with an empty user and JSON headers, even on a GET, keeping a /tfs context path', async () => {
-    const { calls, envelope } = await run('work get', { ...AT, id: '42' }, [], { baseUrl: `${ADO}/tfs` }, {}, {});
+    const { calls, envelope } = await run('work-item get', { ...AT, id: '42' }, [], { baseUrl: `${ADO}/tfs` }, {}, {});
     expect(envelope.ok).toBe(false);
     expect(calls[0]).toEqual({ method: 'GET', url: `${ADO}/tfs${COLL}/_apis/wit/workitems/42?api-version=7.1&$expand=all`, headers: HEADERS, body: undefined });
   });
 
   it('a 401 is AUTH, naming where to make a PAT and the SYSTEM_ACCESSTOKEN fallback', async () => {
-    const { envelope } = await run('work get', { ...AT, id: '42' }, [{ url: /.*/, respond: { status: 401, json: { message: 'TF400813: not authorized' } } }]);
+    const { envelope } = await run('work-item get', { ...AT, id: '42' }, [{ url: /.*/, respond: { status: 401, json: { message: 'TF400813: not authorized' } } }]);
     expect(envelope.error).toMatchObject({ code: 'AUTH', fix: expect.stringContaining('User settings → Personal access tokens') });
     expect(envelope.error?.fix).toContain('TOIL_ADO_PAT, or SYSTEM_ACCESSTOKEN');
   });
 
   it("an older server's out-of-range answer says the server is too old, naming 2022.1, with the code unchanged", async () => {
     const message = 'The requested REST API version of 7.1 is out of range for this server. The latest REST API version this server supports is 6.0.';
-    const { envelope } = await run('work get', { ...AT, id: '42' }, [{ url: /.*/, respond: { status: 400, json: { message } } }]);
+    const { envelope } = await run('work-item get', { ...AT, id: '42' }, [{ url: /.*/, respond: { status: 400, json: { message } } }]);
     expect(envelope.error?.code).toBe('HTTP');
     expect(envelope.error?.message).toBe(`This server is too old for toil, which needs Azure DevOps Server 2022.1 or later (REST API 7.1). The server said: ${message}`);
   });
 
   it('reads ids with parseInt, as the contract specifies (#69 item 25): 12abc is 12, abc is NaN', async () => {
-    expect((await run('work get', { ...AT, id: '12abc' })).calls[0]!.url).toContain('/workitems/12?');
-    expect((await run('work get', { ...AT, id: 'abc' })).calls[0]!.url).toContain('/workitems/NaN?');
+    expect((await run('work-item get', { ...AT, id: '12abc' })).calls[0]!.url).toContain('/workitems/12?');
+    expect((await run('work-item get', { ...AT, id: 'abc' })).calls[0]!.url).toContain('/workitems/NaN?');
   });
 });
 
 describe('collection, project and repo', () => {
-  it('every command needs a collection and a project, list-collections included (#69 item 2)', async () => {
-    const none = await run('project list-collections', {});
+  it('every command needs a collection and a project, collection list included (#69 item 2)', async () => {
+    const none = await run('collection list', {});
     expect(none.calls).toEqual([]);
     expect(none.envelope.error).toMatchObject({
       code: 'INVALID_INPUT',
@@ -73,7 +73,7 @@ describe('collection, project and repo', () => {
     });
     const noProject = await run('whoami', { collection: 'DefaultCollection' });
     expect(noProject.envelope.error?.message).toBe('Could not determine Azure DevOps project. Pass --project, or set project on the connection.');
-    expect((await run('project list-collections', AT)).calls[0]!.url).toBe(`${ADO}/_apis/projectCollections?api-version=7.1`);
+    expect((await run('collection list', AT)).calls[0]!.url).toBe(`${ADO}/_apis/projectCollections?api-version=7.1`);
   });
 
   it('an empty --project is still "Could not determine"', async () => {
@@ -118,7 +118,7 @@ describe('collection, project and repo', () => {
   });
 
   it("repo commands need a repo, in the contract's specified wording; repo list and create do not", async () => {
-    const { envelope, calls } = await run('repo get-pr', { ...AT, id: '42' });
+    const { envelope, calls } = await run('pr get', { ...AT, id: '42' });
     expect(calls).toEqual([]);
     expect(envelope.error?.message).toBe('Could not determine Azure DevOps repo. Pass --repo, or run from inside a checked-out ADO repo.');
     expect((await run('repo list', AT)).envelope.ok).toBe(true);
@@ -142,20 +142,20 @@ describe('paging', () => {
     const listed = await run('project list', AT, limited);
     expect(listed.calls).toHaveLength(1);
     expect(listed.envelope.ok).toBe(false);
-    expect((await run('pipeline logs', { ...AT, buildId: '101', logId: '3' }, limited)).calls).toHaveLength(1);
+    expect((await run('run logs', { ...AT, id: '101', logId: '3' }, limited)).calls).toHaveLength(1);
   });
 
-  it('repo list-prs pages by $top=100 and $skip until a short page', async () => {
+  it('pr list pages by $top=100 and $skip until a short page', async () => {
     const full = Array.from({ length: 100 }, (_, i) => pr(i + 1));
     const paged: Route = { path: `${REPO}/pullrequests`, respond: (r) => ({ json: { value: new URL(r.url).searchParams.get('$skip') === '0' ? full : [pr(101)] } }) };
-    const { calls, data } = await run('repo list-prs', IN, [paged]);
+    const { calls, data } = await run('pr list', IN, [paged]);
     expect(calls.map((c) => new URL(c.url).searchParams.get('$skip'))).toEqual(['0', '100']);
     expect(new URL(calls[0]!.url).searchParams.get('searchCriteria.status')).toBe('active');
     expect((data as unknown[]).length).toBe(101);
   });
 
-  it('repo list-prs sends --creator and --reviewer as identity filters, and dates with a created range (#69 items 6 and 26)', async () => {
-    const { calls } = await run('repo list-prs', { ...IN, state: 'all', creator: 'jdoe', reviewer: 'asmith', createdAfter: '2026-09-01' });
+  it('pr list sends --creator and --reviewer as identity filters, and dates with a created range (#69 items 6 and 26)', async () => {
+    const { calls } = await run('pr list', { ...IN, state: 'all', creator: 'jdoe', reviewer: 'asmith', createdAfter: '2026-09-01' });
     const q = new URL(calls[0]!.url).searchParams;
     expect([q.get('searchCriteria.status'), q.get('searchCriteria.creatorId'), q.get('searchCriteria.reviewerId'), q.get('searchCriteria.queryTimeRangeType'), q.get('searchCriteria.minTime'), q.get('searchCriteria.maxTime')]).toEqual([
       'all',
@@ -165,36 +165,36 @@ describe('paging', () => {
       '2026-09-01T00:00:00.000Z',
       null,
     ]);
-    expect((await run('repo list-prs', { ...IN, createdBefore: 'soon' })).envelope.error?.message).toContain('Invalid --created-before value "soon"');
+    expect((await run('pr list', { ...IN, createdBefore: 'soon' })).envelope.error?.message).toContain('Invalid --created-before value "soon"');
   });
 
-  it('pipeline list-runs is one request with $top=50 by default, sliced to --top', async () => {
-    const { calls, data } = await run('pipeline list-runs', { ...AT, top: '1' });
+  it('run list is one request with $top=50 by default, sliced to --top', async () => {
+    const { calls, data } = await run('run list', { ...AT, top: '1' });
     expect(calls).toHaveLength(1);
     expect(new URL(calls[0]!.url).searchParams.get('$top')).toBe('1');
     expect(data).toEqual([build(101)]);
-    expect(new URL((await run('pipeline list-runs', AT)).calls[0]!.url).searchParams.get('$top')).toBe('50');
+    expect(new URL((await run('run list', AT)).calls[0]!.url).searchParams.get('$top')).toBe('50');
   });
 
-  it('pipeline list-runs --top 0 is falsy and lists every run through continuation tokens (#69 item 28, pinned)', async () => {
-    const { calls } = await run('pipeline list-runs', { ...AT, top: '0' });
+  it('run list --top 0 is falsy and lists every run through continuation tokens (#69 item 28, pinned)', async () => {
+    const { calls } = await run('run list', { ...AT, top: '0' });
     expect(calls.map((c) => new URL(c.url).searchParams.has('$top'))).toEqual([false, false]);
     expect(calls[1]!.url).toContain('continuationToken=abc12345');
   });
 
-  it('pipeline list-runs --name looks the pipeline up, ignoring case; --branch goes as typed (#69 item 12)', async () => {
-    const { calls } = await run('pipeline list-runs', { ...AT, name: 'IMAGILE-WEB-CI', branch: 'main' });
+  it('run list --name looks the pipeline up, ignoring case; --branch goes as typed (#69 item 12)', async () => {
+    const { calls } = await run('run list', { ...AT, name: 'IMAGILE-WEB-CI', branch: 'main' });
     const q = new URL(calls.at(-1)!.url).searchParams;
     expect([q.get('definitions'), q.get('branchName')]).toEqual(['6', 'main']);
-    expect((await run('pipeline list-runs', { ...AT, name: 'nope' })).envelope.error?.message).toBe("Pipeline \"nope\" not found. Run 'toil ado pipeline list' to see available pipelines.");
-    expect((await run('pipeline list-runs', { ...AT, definition: 'x' })).envelope.error?.message).toContain('--definition must be a numeric ID');
-    expect((await run('pipeline list-runs', { ...AT, definition: '5', name: 'x' })).envelope.error?.message).toContain('Cannot specify both');
+    expect((await run('run list', { ...AT, name: 'nope' })).envelope.error?.message).toBe("Pipeline \"nope\" not found. Run 'toil ado pipeline list' to see available pipelines.");
+    expect((await run('run list', { ...AT, definition: 'x' })).envelope.error?.message).toContain('--definition must be a numeric ID');
+    expect((await run('run list', { ...AT, definition: '5', name: 'x' })).envelope.error?.message).toContain('Cannot specify both');
   });
 });
 
 describe('work items', () => {
-  it('work create sends a JSON Patch with built-in and aliased fields, then nothing else', async () => {
-    const { calls, envelope } = await run('work create', { ...W, type: 'User Story', title: 'T', description: '', priority: '2', field: ['Story Points=3', 'MyOrg.Team=Core'] });
+  it('work-item create sends a JSON Patch with built-in and aliased fields, then nothing else', async () => {
+    const { calls, envelope } = await run('work-item create', { ...W, type: 'User Story', title: 'T', description: '', priority: '2', field: ['Story Points=3', 'MyOrg.Team=Core'] });
     expect(envelope.ok).toBe(true);
     expect(calls).toHaveLength(1);
     expect(calls[0]!.url).toBe(`${ADO}${PROJ}/_apis/wit/workitems/%24User%20Story?api-version=7.1`);
@@ -207,8 +207,8 @@ describe('work items', () => {
     ]);
   });
 
-  it('work create reads --input-file with @file values; flags win with a warning', async () => {
-    const { calls, envelope } = await run('work create', { ...W, inputFile: 'work-item.json', title: 'Flag' });
+  it('work-item create reads --input-file with @file values; flags win with a warning', async () => {
+    const { calls, envelope } = await run('work-item create', { ...W, inputFile: 'work-item.json', title: 'Flag' });
     expect(calls[0]!.url).toContain('/workitems/%24Task?');
     expect(body(calls[0]!)).toEqual([
       { op: 'add', path: '/fields/System.Title', value: 'Flag' },
@@ -219,40 +219,40 @@ describe('work items', () => {
     expect(envelope.meta.warnings).toEqual([{ code: 'ADO_INPUT_OVERRIDDEN', message: '--input-file value(s) overridden by CLI flags: title' }]);
   });
 
-  it("work create without a type or title is refused before anything is sent, in the contract's specified wording", async () => {
-    expect((await run('work create', { ...W, title: 't' })).envelope.error?.message).toBe('--type required (or "type" in --input-file)');
-    const { envelope, calls } = await run('work create', { ...W, type: 'Bug' });
+  it("work-item create without a type or title is refused before anything is sent, in the contract's specified wording", async () => {
+    expect((await run('work-item create', { ...W, title: 't' })).envelope.error?.message).toBe('--type required (or "type" in --input-file)');
+    const { envelope, calls } = await run('work-item create', { ...W, type: 'Bug' });
     expect(calls).toEqual([]);
     expect(envelope.error?.message).toBe('--title required (or "fields.Title" in --input-file)');
-    expect((await run('work create', { ...W, type: 'Bug', title: 't', field: ['=x'] })).envelope.error?.message).toBe('Invalid --field value "=x". Expected format: name=value');
+    expect((await run('work-item create', { ...W, type: 'Bug', title: 't', field: ['=x'] })).envelope.error?.message).toBe('Invalid --field value "=x". Expected format: name=value');
   });
 
-  it('work create --parent links afterwards, to a URL built from baseUrl, and returns the item as created', async () => {
-    const { calls, data } = await run('work create', { ...W, type: 'Task', title: 't', parent: '7' }, [], { baseUrl: `${ADO}/` });
+  it('work-item create --parent links afterwards, to a URL built from baseUrl, and returns the item as created', async () => {
+    const { calls, data } = await run('work-item create', { ...W, type: 'Task', title: 't', parent: '7' }, [], { baseUrl: `${ADO}/` });
     expect(calls.map((c) => c.method)).toEqual(['POST', 'PATCH']);
     expect(calls[1]!.url).toBe(`${ADO}${COLL}/_apis/wit/workitems/43?api-version=7.1`);
     expect(body(calls[1]!)).toEqual([{ op: 'add', path: '/relations/-', value: { rel: 'System.LinkTypes.Hierarchy-Reverse', url: `${ADO}${COLL}/_apis/wit/workitems/7` } }]);
     expect(data).toEqual(workItem(43, { rev: 1 }));
   });
 
-  it('work create --parent that fails to link still succeeds, with only a warning (#69 items 15 and 29, pinned)', async () => {
+  it('work-item create --parent that fails to link still succeeds, with only a warning (#69 items 15 and 29, pinned)', async () => {
     const failing: Route = { method: 'PATCH', path: `${COLL}/_apis/wit/workitems/43`, respond: { status: 404, json: { message: 'TF401232: Work item 999 does not exist' } } };
-    const { envelope } = await run('work create', { ...W, type: 'Task', title: 't', parent: '999' }, [failing]);
+    const { envelope } = await run('work-item create', { ...W, type: 'Task', title: 't', parent: '999' }, [failing]);
     expect(envelope.ok).toBe(true);
     expect(envelope.data).toEqual(workItem(43, { rev: 1 }));
     expect(envelope.meta.warnings).toEqual([{ code: 'ADO_PARENT_LINK_FAILED', message: 'Created #43 but failed to link to parent 999: TF401232: Work item 999 does not exist' }]);
   });
 
-  it('work update resolves the built-in aliases with no fieldAliases on the connection', async () => {
-    const { calls } = await run('work update', { ...W, id: '42', field: ['Story Points=5', 'title=T'] });
+  it('work-item update resolves the built-in aliases with no fieldAliases on the connection', async () => {
+    const { calls } = await run('work-item update', { ...W, id: '42', field: ['Story Points=5', 'title=T'] });
     expect(body(calls[0]!)).toEqual([
       { op: 'add', path: '/fields/Microsoft.VSTS.Scheduling.StoryPoints', value: '5' },
       { op: 'add', path: '/fields/System.Title', value: 'T' },
     ]);
   });
 
-  it("work update resolves names through the connection's fieldAliases over the built-in ones", async () => {
-    const { calls } = await run('work update', { ...W, id: '42', field: ['Effort Days=3', 'state=Active', 'Custom.X=1'] }, [], { fieldAliases: { effortdays: 'MyOrg.EffortDays', state: 'MyOrg.State' } });
+  it("work-item update resolves names through the connection's fieldAliases over the built-in ones", async () => {
+    const { calls } = await run('work-item update', { ...W, id: '42', field: ['Effort Days=3', 'state=Active', 'Custom.X=1'] }, [], { fieldAliases: { effortdays: 'MyOrg.EffortDays', state: 'MyOrg.State' } });
     expect(calls[0]).toMatchObject({ method: 'PATCH', url: `${ADO}${COLL}/_apis/wit/workitems/42?api-version=7.1` });
     expect(body(calls[0]!)).toEqual([
       { op: 'add', path: '/fields/MyOrg.EffortDays', value: '3' },
@@ -261,24 +261,24 @@ describe('work items', () => {
     ]);
   });
 
-  it('work link maps the type word to a relation, or sends it as given', async () => {
-    const { calls } = await run('work link', { ...W, id: '42', to: '8', type: 'duplicate-of' });
+  it('work-item link maps the type word to a relation, or sends it as given', async () => {
+    const { calls } = await run('work-item link', { ...W, id: '42', target: '8', type: 'duplicate-of' });
     expect(body(calls[0]!)).toEqual([{ op: 'add', path: '/relations/-', value: { rel: 'System.LinkTypes.Duplicate-Reverse', url: `${ADO}${COLL}/_apis/wit/workitems/8` } }]);
-    expect(body((await run('work link', { ...W, id: '42', to: '8', type: 'Custom.Rel' })).calls[0]!)).toMatchObject([{ value: { rel: 'Custom.Rel' } }]);
+    expect(body((await run('work-item link', { ...W, id: '42', target: '8', type: 'Custom.Rel' })).calls[0]!)).toMatchObject([{ value: { rel: 'Custom.Rel' } }]);
   });
 
-  it('work add-tag reads the tags, keeps them, and adds new ones ignoring case', async () => {
-    const { calls } = await run('work add-tag', { ...W, id: '42', tags: 'UI; urgent,Backend' });
+  it('work-item tag reads the tags, keeps them, and adds new ones ignoring case', async () => {
+    const { calls } = await run('work-item tag', { ...W, id: '42', tags: 'UI; urgent,Backend' });
     expect(calls.map((c) => c.method)).toEqual(['GET', 'PATCH']);
     expect(body(calls[1]!)).toEqual([{ op: 'add', path: '/fields/System.Tags', value: 'ui; backend; urgent' }]);
-    expect(body((await run('work remove-tag', { ...W, id: '42', tags: 'UI' })).calls[1]!)).toEqual([{ op: 'add', path: '/fields/System.Tags', value: 'backend' }]);
+    expect(body((await run('work-item untag', { ...W, id: '42', tags: 'UI' })).calls[1]!)).toEqual([{ op: 'add', path: '/fields/System.Tags', value: 'backend' }]);
   });
 
-  it('work search posts the WIQL; list-comments uses 7.1-preview.4 and reads comments', async () => {
-    const searched = await run('work search', { ...AT, wiql: 'SELECT [System.Id] FROM WorkItems' });
+  it('work-item search posts the WIQL; comments uses 7.1-preview.4 and reads comments', async () => {
+    const searched = await run('work-item search', { ...AT, wiql: 'SELECT [System.Id] FROM WorkItems' });
     expect(searched.calls[0]).toMatchObject({ method: 'POST', url: `${ADO}${PROJ}/_apis/wit/wiql?api-version=7.1` });
     expect(body(searched.calls[0]!)).toEqual({ query: 'SELECT [System.Id] FROM WorkItems' });
-    const listed = await run('work list-comments', { ...AT, id: '42' });
+    const listed = await run('work-item comments', { ...AT, id: '42' });
     expect(listed.calls[0]!.url).toBe(`${ADO}${PROJ}/_apis/wit/workItems/42/comments?api-version=7.1-preview.4`);
     expect((listed.data as unknown[]).length).toBe(2);
   });
@@ -286,7 +286,7 @@ describe('work items', () => {
 
 describe('attachments', () => {
   it('add-attachment uploads the bytes as octet-stream, then links the returned URL', async () => {
-    const { calls, data } = await run('work add-attachment', { ...W, id: '42', file: 'logs/run.txt', comment: 'c' });
+    const { calls, data } = await run('work-item attach', { ...W, id: '42', file: 'logs/run.txt', comment: 'c' });
     expect(calls[0]).toMatchObject({ method: 'POST', url: `${ADO}${COLL}/_apis/wit/attachments?fileName=run.txt&api-version=7.1` });
     expect(calls[0]!.headers['content-type']).toBe('application/octet-stream');
     expect(calls[0]!.body).toBe('log line\n');
@@ -294,42 +294,42 @@ describe('attachments', () => {
     expect(data).toEqual({ id: ATTACHMENT, url: `${ADO}${COLL}/_apis/wit/attachments/${ATTACHMENT}` });
   });
 
-  it('list-attachments shapes AttachedFile relations, the id from the URL', async () => {
-    const { data } = await run('work list-attachments', { ...AT, id: '42' });
+  it('attachments shapes AttachedFile relations, the id from the URL', async () => {
+    const { data } = await run('work-item attachments', { ...AT, id: '42' });
     expect(data).toEqual([{ id: ATTACHMENT, name: 'screenshot.png', url: `${ADO}${COLL}/_apis/wit/attachments/${ATTACHMENT}`, comment: 'Before', resourceSize: 5, resourceCreatedDate: '2026-09-02T12:00:00Z' }]);
   });
 
-  it('download-attachment saves under .toil, and never overwrites', async () => {
-    const first = await run('work download-attachment', { ...AT, id: '42', attachmentId: ATTACHMENT });
+  it('download saves under .toil, and never overwrites', async () => {
+    const first = await run('work-item download', { ...AT, id: '42', attachmentId: ATTACHMENT });
     expect(first.calls[1]).toMatchObject({ method: 'GET', url: `${ADO}${COLL}/_apis/wit/attachments/${ATTACHMENT}` });
     expect(first.calls[1]!.headers.accept).toBe('application/octet-stream');
     expect(first.data).toMatchObject({ name: 'screenshot.png', size: 5 });
     expect((first.data as { saved: string }).saved).toMatch(/\.toil\/screenshot\.png$/);
-    const again = await run('work download-attachment', { ...AT, id: '42', attachmentId: ATTACHMENT }, [], {}, {}, { ...fixtureFiles, '.toil/screenshot.png': 'old' });
+    const again = await run('work-item download', { ...AT, id: '42', attachmentId: ATTACHMENT }, [], {}, {}, { ...fixtureFiles, '.toil/screenshot.png': 'old' });
     expect(again.envelope.error?.code).toBe('INVALID_INPUT');
   });
 
-  it('download-attachment: saved is absolute with forward slashes even when --dir is relative (#233, a listed divergence)', async () => {
-    const { data } = await run('work download-attachment', { ...AT, id: '42', attachmentId: ATTACHMENT, dir: 'downloads' });
+  it('download: saved is absolute with forward slashes even when --dir is relative (#233, a listed divergence)', async () => {
+    const { data } = await run('work-item download', { ...AT, id: '42', attachmentId: ATTACHMENT, dir: 'downloads' });
     expect(data).toEqual({ saved: expect.stringMatching(/^(\/|[A-Za-z]:\/).*\/downloads\/screenshot\.png$/), name: 'screenshot.png', size: 5 });
     expect((data as { saved: string }).saved).not.toContain('\\');
   });
 
-  it('download-attachment never sends the PAT to another host: the URL is re-pointed, with a warning (#69 item 1)', async () => {
+  it('download never sends the PAT to another host: the URL is re-pointed, with a warning (#69 item 1)', async () => {
     const elsewhere = workItem(42, { relations: [{ rel: 'AttachedFile', url: `https://evil.example.com${COLL}/_apis/wit/attachments/${ATTACHMENT}`, attributes: { name: 'x.txt' } }] });
-    const { calls, envelope } = await run('work download-attachment', { ...AT, id: '42', attachmentId: ATTACHMENT }, [{ path: `${COLL}/_apis/wit/workitems/42`, respond: { json: elsewhere } }]);
+    const { calls, envelope } = await run('work-item download', { ...AT, id: '42', attachmentId: ATTACHMENT }, [{ path: `${COLL}/_apis/wit/workitems/42`, respond: { json: elsewhere } }]);
     expect(calls.every((c) => c.url.startsWith(ADO))).toBe(true);
     expect(envelope.meta.warnings?.[0]?.code).toBe('ADO_ATTACHMENT_HOST');
   });
 
   it('an unknown attachment id is refused', async () => {
-    expect((await run('work download-attachment', { ...AT, id: '42', attachmentId: 'nope' })).envelope.error?.message).toBe('Attachment not found: nope');
+    expect((await run('work-item download', { ...AT, id: '42', attachmentId: 'nope' })).envelope.error?.message).toBe('Attachment not found: nope');
   });
 });
 
 describe('discovery', () => {
-  it('work types asks for each type\'s states', async () => {
-    const { calls, data } = await run('work types', AT);
+  it('work-item types asks for each type\'s states', async () => {
+    const { calls, data } = await run('work-item types', AT);
     expect(calls.map((c) => new URL(c.url).pathname)).toEqual([`${PROJ}/_apis/wit/workitemtypes`, `${PROJ}/_apis/wit/workitemtypes/Bug/states`, `${PROJ}/_apis/wit/workitemtypes/Task/states`]);
     expect(data).toEqual([
       { name: 'Bug', states: ['New', 'Active'], requiredFields: ['System.Title'] },
@@ -337,106 +337,106 @@ describe('discovery', () => {
     ]);
   });
 
-  it('work fields without --type lists the collection, ignoring the project; --custom-only drops System and VSTS', async () => {
-    const { calls, data } = await run('work fields', { ...AT, customOnly: true });
+  it('work-item fields without --type lists the collection, ignoring the project; --custom-only drops System and VSTS', async () => {
+    const { calls, data } = await run('work-item fields', { ...AT, customOnly: true });
     expect(calls[0]!.url).toBe(`${ADO}${COLL}/_apis/wit/fields?api-version=7.1`);
     expect(data).toEqual([{ referenceName: 'MyOrg.Team', name: 'Team', type: 'string', readOnly: false, picklistId: 'abc12345-0000-0000-0000-000000000005' }]);
   });
 
-  it('work fields --type returns no type or readOnly (#69 item 18, pinned)', async () => {
-    const { data } = await run('work fields', { ...AT, type: 'Bug' });
+  it('work-item fields --type returns no type or readOnly (#69 item 18, pinned)', async () => {
+    const { data } = await run('work-item fields', { ...AT, type: 'Bug' });
     expect(JSON.parse(JSON.stringify(data))).toEqual([
       { referenceName: 'System.Title', name: 'Title' },
       { referenceName: 'MyOrg.Team', name: 'Team' },
     ]);
   });
 
-  it('work fields and work types take no --save (KF6): it is an unknown input, refused before any request', async () => {
-    for (const command of ['work fields', 'work types']) {
+  it('work-item fields and work-item types take no --save (KF6): it is an unknown input, refused before any request', async () => {
+    for (const command of ['work-item fields', 'work-item types']) {
       const { envelope, calls } = await run(command, { ...AT, save: true });
       expect(envelope.error?.code, command).toBe('INVALID_INPUT');
       expect(calls, command).toEqual([]);
     }
   });
 
-  it('work schema needs no connection; --example-only returns the example as data', async () => {
+  it('work-item schema needs no connection; --example-only returns the example as data', async () => {
     const t = testContext({});
-    const envelope = await execute(cmd('work schema'), { exampleOnly: true }, t.context);
+    const envelope = await execute(cmd('work-item schema'), { exampleOnly: true }, t.context);
     expect(envelope.data).toMatchObject({ type: 'Bug' });
     expect(t.http.calls).toEqual([]);
   });
 });
 
 describe('pull requests', () => {
-  it('create-pr prefixes refs/heads/, even onto a full ref, and sends reviewers as ids (#69 items 7 and 8, pinned)', async () => {
-    const { calls } = await run('repo create-pr', { ...W, title: 't', source: 'refs/heads/feature', reviewers: 'Sam Smith, abc' });
+  it('pr create prefixes refs/heads/, even onto a full ref, and sends reviewers as ids (#69 items 7 and 8, pinned)', async () => {
+    const { calls } = await run('pr create', { ...W, title: 't', source: 'refs/heads/feature', reviewers: 'Sam Smith, abc' });
     expect(calls[0]).toMatchObject({ method: 'POST', url: `${ADO}${REPO}/pullrequests?api-version=7.1` });
     expect(body(calls[0]!)).toEqual({ title: 't', sourceRefName: 'refs/heads/refs/heads/feature', targetRefName: 'refs/heads/main', reviewers: [{ id: 'Sam Smith' }, { id: 'abc' }] });
   });
 
-  it('update-pr treats any --draft but "true" as false, and sends reviewers in the PATCH (#69 item 9)', async () => {
-    const { calls } = await run('repo update-pr', { ...W, id: '42', draft: 'yes', reviewers: 'a' });
+  it('pr update treats any --draft but "true" as false, and sends reviewers in the PATCH (#69 item 9)', async () => {
+    const { calls } = await run('pr update', { ...W, id: '42', draft: 'yes', reviewers: 'a' });
     expect(body(calls[0]!)).toEqual({ reviewers: [{ id: 'a' }], isDraft: false });
   });
 
-  it('merge-pr reads the PR, then completes it with its last merge source commit, or "" without one', async () => {
-    const { calls } = await run('repo merge-pr', { ...W, id: '42' });
+  it('pr merge reads the PR, then completes it with its last merge source commit, or "" without one', async () => {
+    const { calls } = await run('pr merge', { ...W, id: '42' });
     expect(calls.map((c) => c.method)).toEqual(['GET', 'PATCH']);
     expect(body(calls[1]!)).toEqual({ status: 'completed', lastMergeSourceCommit: { commitId: pr(42).lastMergeSourceCommit.commitId }, completionOptions: { mergeStrategy: 'noFastForward', deleteSourceBranch: false } });
-    const bare = await run('repo merge-pr', { ...W, id: '42', strategy: 'whatever' }, [{ path: `${REPO}/pullrequests/42`, respond: { json: pr(42, { lastMergeSourceCommit: undefined }) } }]);
+    const bare = await run('pr merge', { ...W, id: '42', strategy: 'whatever' }, [{ path: `${REPO}/pullrequests/42`, respond: { json: pr(42, { lastMergeSourceCommit: undefined }) } }]);
     expect(body(bare.calls[1]!)).toMatchObject({ lastMergeSourceCommit: { commitId: '' }, completionOptions: { mergeStrategy: 'whatever' } });
   });
 
   it('approve reads connectionData for its own id, then PUTs vote 10; unapprove 0; wait-for-author -5', async () => {
-    const { calls, data } = await run('repo approve', { ...W, pr: '42' });
+    const { calls, data } = await run('pr approve', { ...W, id: '42' });
     expect(calls.map((c) => `${c.method} ${new URL(c.url).pathname}`)).toEqual([`GET ${COLL}/_apis/connectionData`, `PUT ${REPO}/pullrequests/42/reviewers/${ME}`]);
     expect(body(calls[1]!)).toEqual({ vote: 10 });
     expect(data).toMatchObject({ vote: 10 });
-    expect(body((await run('repo unapprove', { ...W, pr: '42' })).calls[1]!)).toEqual({ vote: 0 });
-    expect(body((await run('repo wait-for-author', { ...W, pr: '42' })).calls[1]!)).toEqual({ vote: -5 });
+    expect(body((await run('pr unapprove', { ...W, id: '42' })).calls[1]!)).toEqual({ vote: 0 });
+    expect(body((await run('pr wait-for-author', { ...W, id: '42' })).calls[1]!)).toEqual({ vote: -5 });
   });
 
-  it('list-comments flattens live threads oldest first, skipping deleted threads and comments', async () => {
-    const { data } = await run('repo list-comments', { ...IN, pr: '42' });
+  it('comments flattens live threads oldest first, skipping deleted threads and comments', async () => {
+    const { data } = await run('pr comments', { ...IN, id: '42' });
     expect((data as Array<{ id: number; threadId: number; threadContext: unknown }>).map((c) => [c.id, c.threadId, c.threadContext === null])).toEqual([
       [3, 8, false],
       [1, 7, true],
     ]);
-    expect(((await run('repo list-comments', { ...IN, pr: '42', inlineOnly: true })).data as unknown[]).length).toBe(1);
+    expect(((await run('pr comments', { ...IN, id: '42', inlineOnly: true })).data as unknown[]).length).toBe(1);
   });
 
   it('add-inline-comment sends the path as given and any side but left as right (#69 item 23)', async () => {
-    const { calls } = await run('repo add-inline-comment', { ...W, pr: '42', file: 'src/a.ts', line: '3', body: 'b', lineType: 'LEFT' });
+    const { calls } = await run('pr comment-inline', { ...W, id: '42', file: 'src/a.ts', line: '3', body: 'b', lineType: 'LEFT' });
     expect(body(calls[0]!)).toEqual({ comments: [{ content: 'b', commentType: 'text' }], status: 'active', threadContext: { filePath: 'src/a.ts', rightFileStart: { line: 3, offset: 1 }, rightFileEnd: { line: 3, offset: 1 } } });
   });
 
   it('delete-comment sends DELETE and returns { deleted: true }, and is never an MCP tool', async () => {
-    const { calls, data } = await run('repo delete-comment', { ...W, pr: '42', threadId: '7', commentId: '2' });
+    const { calls, data } = await run('pr delete-comment', { ...W, id: '42', threadId: '7', commentId: '2' });
     expect(calls[0]).toMatchObject({ method: 'DELETE', url: `${ADO}${REPO}/pullrequests/42/threads/7/comments/2?api-version=7.1` });
     expect(data).toEqual({ deleted: true });
-    expect(cmd('repo delete-comment').mcp).toBe(false);
+    expect(cmd('pr delete-comment').mcp).toBe(false);
   });
 
   it('diff compares the last merge commits; --path keeps one file, adding a leading /', async () => {
-    const { calls, data } = await run('repo diff', { ...IN, pr: '42', path: 'src/app.ts' });
+    const { calls, data } = await run('pr diff', { ...IN, id: '42', path: 'src/app.ts' });
     expect(new URL(calls[1]!.url).search).toBe(`?baseVersion=${pr(42).lastMergeTargetCommit.commitId}&baseVersionType=commit&targetVersion=${pr(42).lastMergeSourceCommit.commitId}&targetVersionType=commit&api-version=7.1`);
     expect((data as { changes: unknown[] }).changes).toHaveLength(1);
-    const none = await run('repo diff', { ...IN, pr: '42' }, [{ path: `${REPO}/pullrequests/42`, respond: { json: pr(42, { lastMergeTargetCommit: undefined }) } }]);
+    const none = await run('pr diff', { ...IN, id: '42' }, [{ path: `${REPO}/pullrequests/42`, respond: { json: pr(42, { lastMergeTargetCommit: undefined }) } }]);
     expect(none.data).toEqual({ changes: [], aheadCount: 0, behindCount: 0 });
   });
 
-  it('list-files reads the latest iteration', async () => {
-    const { calls } = await run('repo list-files', { ...IN, pr: '42' });
+  it('files reads the latest iteration', async () => {
+    const { calls } = await run('pr files', { ...IN, id: '42' });
     expect(new URL(calls[1]!.url).pathname).toBe(`${REPO}/pullrequests/42/iterations/2/changes`);
   });
 
-  it('list-default-reviewers keeps Required reviewers policies covering this repo or the project', async () => {
-    const { data } = await run('repo list-default-reviewers', IN);
+  it('default-reviewers keeps Required reviewers policies covering this repo or the project', async () => {
+    const { data } = await run('repo default-reviewers', IN);
     expect((data as Array<{ id: number }>).map((p) => p.id)).toEqual([1]);
   });
 
-  it('list-builds filters by the source branch, missing merge-ref builds (#69 items 11 and 27, pinned)', async () => {
-    const { calls } = await run('repo list-builds', { ...IN, pr: '42' });
+  it('builds filters by the source branch, missing merge-ref builds (#69 items 11 and 27, pinned)', async () => {
+    const { calls } = await run('pr builds', { ...IN, id: '42' });
     expect(new URL(calls[1]!.url).searchParams.get('branchName')).toBe('refs/heads/feature/retries');
   });
 });
@@ -452,7 +452,7 @@ describe('pipelines', () => {
     let n = 0;
     const polled: Route = { path: `${PROJ}/_apis/build/builds/102`, respond: () => ({ json: build(102, n++ === 0 ? { status: 'inProgress', result: undefined } : { result: 'failed' }) }) };
     const t = testContext({ config: fixtureConfig, routes: [polled, ...routes] });
-    const result = await runCli(['ado', '--collection', 'DefaultCollection', '--project', 'Imagile', 'pipeline', 'run', '--id', '5', '--wait', '--poll', '1', '--allow-write'], { commands: [cmd('pipeline run')], context: t.context });
+    const result = await runCli(['ado', '--collection', 'DefaultCollection', '--project', 'Imagile', 'pipeline', 'run', '5', '--wait', '--poll', '1', '--allow-write'], { commands: [cmd('pipeline run')], context: t.context });
     expect(result.envelope?.ok).toBe(true);
     expect(result.envelope?.data).toEqual(build(102, { result: 'failed' }));
     expect(result.envelope?.meta.warnings).toEqual([{ code: 'ADO_BUILD_NOT_SUCCEEDED', message: 'Build #102 finished with result failed.' }]);
@@ -466,16 +466,17 @@ describe('pipelines', () => {
   });
 
   it('logs lists without --log-id, and returns { log } as text with --log-id', async () => {
-    const listed = await run('pipeline logs', { ...AT, id: '101' });
+    const listed = await run('run logs', { ...AT, id: '101' });
     expect(listed.calls[0]!.url).toBe(`${ADO}${PROJ}/_apis/build/builds/101/logs?api-version=7.1`);
-    const one = await run('pipeline logs', { ...AT, buildId: '101', logId: '3' });
+    const one = await run('run logs', { ...AT, id: '101', logId: '3' });
     expect(one.calls[0]!.headers.accept).toBe('text/plain');
     expect(one.data).toEqual({ log: expect.stringContaining('Finishing: Build') });
-    expect((await run('pipeline logs', AT)).envelope.error?.message).toBe('--build-id is required (build run ID from pipeline list-runs or get-run)');
+    expect((await run('run logs', AT)).envelope.error?.code).toBe('INVALID_INPUT');
+    expect((await run('run logs', { ...AT, id: '' })).envelope.error?.message).toBe('The run <id> is required (build run ID from run list or run get)');
   });
 
-  it('cancel-run PATCHes status cancelling', async () => {
-    const { calls } = await run('pipeline cancel-run', { ...AT, allowWrite: true, id: '101' });
+  it('run cancel PATCHes status cancelling', async () => {
+    const { calls } = await run('run cancel', { ...AT, allowWrite: true, id: '101' });
     expect(calls[0]).toMatchObject({ method: 'PATCH', url: `${ADO}${PROJ}/_apis/build/builds/101?api-version=7.1` });
     expect(body(calls[0]!)).toEqual({ status: 'cancelling' });
   });

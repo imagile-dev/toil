@@ -23,6 +23,22 @@ export interface AreaSummary {
   context?: string[];
   /** Whether it has `toil <area> check-dossier`, which looks a dossier's values up on the service. */
   checksDossier?: boolean;
+  /** Its commands, as the Services browser lists them: `<area> <resource> <action>`. */
+  commands?: CommandSummary[];
+}
+
+/** One command, as the Services browser shows and runs it. */
+export interface CommandSummary {
+  /** The full path, area first. */
+  path: string[];
+  description: string;
+  /** Every call writes. */
+  writes: boolean;
+  /** Some calls write, as the input decides (`<area> api` with a POST); they still need --allow-write. */
+  mayWrite?: boolean;
+  args: Array<{ name: string; description: string; required: boolean; variadic: boolean }>;
+  /** Its own flags, never the ones core adds to every command (--connection, --dossier, --cwd). */
+  flags: Array<{ flags: string; description: string; required: boolean }>;
 }
 
 export interface WelcomeData {

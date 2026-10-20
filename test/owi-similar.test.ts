@@ -205,7 +205,7 @@ describe('reading OWI records', () => {
 
   it('refuses output that isn\'t mapped yet, naming the command to run', async () => {
     const { envelope } = await run({ text: json(triageEnvelopes[0]), query: 'checkout' });
-    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'The input is the output of "jira search", not OWI records.', fix: 'Map it first: pipe it through toil util owi map, then into toil util owi similar.' });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'The input is the output of "jira issue search", not OWI records.', fix: 'Map it first: pipe it through toil util owi map, then into toil util owi similar.' });
   });
 
   it('refuses no question, two questions, unknown fields and fields with nothing to compare', async () => {

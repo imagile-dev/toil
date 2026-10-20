@@ -5,7 +5,7 @@ import { clientIp, report, submit } from '../src/lib/handlers.js';
 import { TURNSTILE_VERIFY } from '../src/lib/turnstile.js';
 import { API, ORIGIN, REPO, SHA, deps, json, request } from './helpers.js';
 
-const form = { kind: 'bug', title: 'jira get-issue drops the epic link', body: 'Steps: run it.', email: 'you@example.com', consent: 1, turnstileToken: 'cf-token', website: '' };
+const form = { kind: 'bug', title: 'jira issue get drops the epic link', body: 'Steps: run it.', email: 'you@example.com', consent: 1, turnstileToken: 'cf-token', website: '' };
 const site = { origin: ORIGIN, 'x-forwarded-for': '203.0.113.7:51234' };
 /** What a caller forging X-Forwarded-For looks like by the time the platform has appended the real address. */
 const forged = (n: number, real = '198.51.100.4') => ({ 'x-forwarded-for': `10.9.8.${n}, ${real}:40000` });

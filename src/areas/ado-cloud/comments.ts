@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { allowWriteField } from '../../core/run.js';
 import { adoCloudArea } from './area.js';
 import { IN_REPO, adoc } from './client.js';
-import { inRepo, prPath } from './pull-requests.js';
+import { inRepo, prArg, prPath } from './pull-requests.js';
 
 /**
  * Pull request comments, which Azure DevOps keeps in threads: read the
@@ -13,9 +13,8 @@ import { inRepo, prPath } from './pull-requests.js';
 
 const W = { ...inRepo, allowWrite: true };
 const prId = z.number().int().positive().describe('Pull request ID');
-const prOption = { flags: '--pr <n>', field: 'pr', description: 'Pull request ID' };
 const threadId = z.number().int().positive().describe('Thread ID');
-const threadOption = { flags: '--thread-id <id>', field: 'threadId', description: 'Thread ID' };
+const threadArg = { name: 'thread-id', field: 'threadId', description: 'Thread ID' };
 
 interface Comment {
   publishedDate?: string;
@@ -35,45 +34,45 @@ interface Thread {
 const threadsOf = async (ctx: Parameters<typeof prPath>[0], pr: number) => (await adoc<{ value?: Thread[] }>(ctx, `${prPath(ctx, pr)}/threads`)).value ?? [];
 
 export const repoListThreadsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'list-threads'],
+  path: ['ado-cloud', 'pr', 'threads'],
   description: 'List comment threads on a pull request',
   toolDescription:
     "Lists a pull request's comment threads as the server returns them (id, status, threadContext with the file and lines for an inline thread, comments), deleted ones left out. System threads (votes, pushes) are included; their comments have commentType system.",
-  input: z.object({ pr: prId }),
+  input: z.object({ id: prId }),
   writes: false,
   context: IN_REPO,
-  options: [prOption],
-  examples: [{ ...inRepo, pr: 42 }],
-  run: async (input, ctx) => (await threadsOf(ctx, input.pr)).filter((t) => !t.isDeleted),
+  args: [prArg],
+  examples: [{ ...inRepo, id: 42 }],
+  run: async (input, ctx) => (await threadsOf(ctx, input.id)).filter((t) => !t.isDeleted),
 });
 
 export const repoListCommentsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'list-comments'],
+  path: ['ado-cloud', 'pr', 'comments'],
   description: 'List all comments on a pull request (general + inline)',
   toolDescription:
     'Lists every comment on a pull request, flattened from its threads and sorted by publishedDate, each with threadId and threadContext (null for a general comment). Deleted threads and comments are left out; system comments are left out unless includeSystem. inlineOnly or generalOnly narrows it.',
   input: z.object({
-    pr: prId,
+    id: prId,
     inlineOnly: z.boolean().optional().describe('Return only inline file comments'),
     generalOnly: z.boolean().optional().describe('Return only general PR comments'),
     includeSystem: z.boolean().optional().describe('Include system comments (votes, pushes, status changes)'),
   }),
   writes: false,
   context: IN_REPO,
+  args: [prArg],
   options: [
-    prOption,
     { flags: '--inline-only', field: 'inlineOnly', description: 'Return only inline file comments' },
     { flags: '--general-only', field: 'generalOnly', description: 'Return only general PR comments' },
     { flags: '--include-system', field: 'includeSystem', description: 'Include system comments (votes, pushes, status changes)' },
   ],
   examples: [
-    { ...inRepo, pr: 42 },
-    { ...inRepo, pr: 42, inlineOnly: true },
-    { ...inRepo, pr: 42, generalOnly: true, includeSystem: true },
+    { ...inRepo, id: 42 },
+    { ...inRepo, id: 42, inlineOnly: true },
+    { ...inRepo, id: 42, generalOnly: true, includeSystem: true },
   ],
   run: async (input, ctx) => {
     const flat: Array<Comment & { threadId: number; threadContext: unknown }> = [];
-    for (const thread of await threadsOf(ctx, input.pr)) {
+    for (const thread of await threadsOf(ctx, input.id)) {
       if (thread.isDeleted) continue;
       if (input.inlineOnly && !thread.threadContext) continue;
       if (input.generalOnly && thread.threadContext) continue;
@@ -98,24 +97,25 @@ const startThread = (ctx: Parameters<typeof prPath>[0], pr: number, body: string
   });
 
 export const repoAddCommentCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'add-comment'],
+  path: ['ado-cloud', 'pr', 'comment'],
   description: 'Add a general comment to a pull request',
   toolDescription: 'Starts an active thread on a pull request with one general comment, and returns the thread.',
-  input: z.object({ pr: prId, body: z.string().min(1).describe('Comment text (Markdown)'), ...allowWriteField }),
+  input: z.object({ id: prId, body: z.string().min(1).describe('Comment text (Markdown)'), ...allowWriteField }),
   writes: true,
   context: IN_REPO,
-  options: [prOption, { flags: '--body <text>', field: 'body', description: 'Comment text (Markdown)' }],
-  examples: [{ ...W, pr: 42, body: 'Looks good.' }],
-  run: (input, ctx) => startThread(ctx, input.pr, input.body),
+  args: [prArg],
+  options: [{ flags: '--body <text>', field: 'body', description: 'Comment text (Markdown)' }],
+  examples: [{ ...W, id: 42, body: 'Looks good.' }],
+  run: (input, ctx) => startThread(ctx, input.id, input.body),
 });
 
 export const repoAddInlineCommentCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'add-inline-comment'],
+  path: ['ado-cloud', 'pr', 'comment-inline'],
   description: 'Add an inline comment on a file in a pull request',
   toolDescription:
     'Starts an active thread on one line of a file in a pull request (the right, new side unless lineType is left) and returns the thread. Give the path from the repository root, with or without a leading / (toil adds it).',
   input: z.object({
-    pr: prId,
+    id: prId,
     file: z.string().min(1).describe('File path'),
     line: z.number().int().positive().describe('Line number'),
     body: z.string().min(1).describe('Comment text (Markdown)'),
@@ -124,52 +124,54 @@ export const repoAddInlineCommentCommand = adoCloudArea.command({
   }),
   writes: true,
   context: IN_REPO,
+  args: [prArg],
   options: [
-    prOption,
     { flags: '--file <path>', field: 'file', description: 'File path' },
     { flags: '--line <n>', field: 'line', description: 'Line number' },
     { flags: '--body <text>', field: 'body', description: 'Comment text (Markdown)' },
     { flags: '--line-type <side>', field: 'lineType', description: LINE_TYPE },
   ],
   examples: [
-    { ...W, pr: 42, file: 'src/app.ts', line: 12, body: 'Off by one?' },
-    { ...W, pr: 42, file: '/src/app.ts', line: 3, body: 'Was this removed on purpose?', lineType: 'left' },
+    { ...W, id: 42, file: 'src/app.ts', line: 12, body: 'Off by one?' },
+    { ...W, id: 42, file: '/src/app.ts', line: 3, body: 'Was this removed on purpose?', lineType: 'left' },
   ],
   run: (input, ctx) => {
     const position = { line: input.line, offset: 1 };
     const range = (input.lineType ?? 'right') === 'left' ? { leftFileStart: position, leftFileEnd: position } : { rightFileStart: position, rightFileEnd: position };
-    return startThread(ctx, input.pr, input.body, { filePath: input.file.startsWith('/') ? input.file : `/${input.file}`, ...range });
+    return startThread(ctx, input.id, input.body, { filePath: input.file.startsWith('/') ? input.file : `/${input.file}`, ...range });
   },
 });
 
 export const repoReplyCommentCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'reply-comment'],
+  path: ['ado-cloud', 'pr', 'reply'],
   description: 'Reply to a comment thread',
-  toolDescription: 'Adds a reply to a thread on a pull request and returns the new comment. Thread ids come from ado_cloud_repo_list_threads or ado_cloud_repo_list_comments.',
-  input: z.object({ pr: prId, threadId, body: z.string().min(1).describe('Reply text (Markdown)'), ...allowWriteField }),
+  toolDescription: 'Adds a reply to a thread on a pull request and returns the new comment. Thread ids come from ado_cloud_pr_threads or ado_cloud_pr_comments.',
+  input: z.object({ id: prId, threadId, body: z.string().min(1).describe('Reply text (Markdown)'), ...allowWriteField }),
   writes: true,
   context: IN_REPO,
-  options: [prOption, threadOption, { flags: '--body <text>', field: 'body', description: 'Reply text (Markdown)' }],
-  examples: [{ ...W, pr: 42, threadId: 7, body: 'Fixed in the next commit.' }],
+  args: [prArg, threadArg],
+  options: [{ flags: '--body <text>', field: 'body', description: 'Reply text (Markdown)' }],
+  examples: [{ ...W, id: 42, threadId: 7, body: 'Fixed in the next commit.' }],
   // parentCommentId 1 is the thread's first comment, so the reply sits under it.
-  run: (input, ctx) => adoc(ctx, `${prPath(ctx, input.pr)}/threads/${input.threadId}/comments`, { method: 'POST', json: { parentCommentId: 1, content: input.body, commentType: 'text' } }),
+  run: (input, ctx) => adoc(ctx, `${prPath(ctx, input.id)}/threads/${input.threadId}/comments`, { method: 'POST', json: { parentCommentId: 1, content: input.body, commentType: 'text' } }),
 });
 
 const STATUSES = ['active', 'fixed', 'wontFix', 'closed', 'byDesign', 'pending'] as const;
 
 export const repoResolveCommentCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'resolve-comment'],
+  path: ['ado-cloud', 'pr', 'resolve'],
   description: 'Mark a comment thread as resolved',
   toolDescription: "Sets a pull request thread's status (fixed, which the web UI shows as resolved, by default; or wontFix, closed, byDesign, pending, or active to reopen it) and returns the thread.",
-  input: z.object({ pr: prId, threadId, status: z.enum(STATUSES).optional().describe('Thread status: fixed|wontFix|closed|byDesign|pending|active (default: fixed)'), ...allowWriteField }),
+  input: z.object({ id: prId, threadId, status: z.enum(STATUSES).optional().describe('Thread status: fixed|wontFix|closed|byDesign|pending|active (default: fixed)'), ...allowWriteField }),
   writes: true,
   context: IN_REPO,
-  options: [prOption, threadOption, { flags: '--status <status>', field: 'status', description: 'Thread status: fixed|wontFix|closed|byDesign|pending|active (default: fixed)' }],
+  args: [prArg, threadArg],
+  options: [{ flags: '--status <status>', field: 'status', description: 'Thread status: fixed|wontFix|closed|byDesign|pending|active (default: fixed)' }],
   examples: [
-    { ...W, pr: 42, threadId: 7 },
-    { ...W, pr: 42, threadId: 7, status: 'wontFix' },
+    { ...W, id: 42, threadId: 7 },
+    { ...W, id: 42, threadId: 7, status: 'wontFix' },
   ],
-  run: (input, ctx) => adoc(ctx, `${prPath(ctx, input.pr)}/threads/${input.threadId}`, { method: 'PATCH', json: { status: input.status ?? 'fixed' } }),
+  run: (input, ctx) => adoc(ctx, `${prPath(ctx, input.id)}/threads/${input.threadId}`, { method: 'PATCH', json: { status: input.status ?? 'fixed' } }),
 });
 
 export const commentCommands = [repoListThreadsCommand, repoListCommentsCommand, repoAddCommentCommand, repoAddInlineCommentCommand, repoReplyCommentCommand, repoResolveCommentCommand];

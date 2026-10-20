@@ -392,11 +392,11 @@ const GH = { owner: 'imagile', repo: 'payments-web' };
 
 /** The sprint's input to `util owi map`: one envelope per line, as appending each command's output to one file makes it. */
 export const sprintEnvelopes: unknown[] = [
-  envelope('jira get-issue', { issues: jiraSpecs.map(jiraIssue), errors: [] }, 'corp-jira'),
-  ...Object.entries(changelogs).map(([key, entries]) => ({ key, history: envelope('jira get-changelog', entries, 'corp-jira') })),
-  envelope('ado work list-iterations', iterations, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' }),
-  envelope('ado work get-batch', { count: adoSpecs.length, value: adoSpecs.map(adoItem), missing: [] }, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' }),
-  ...Object.values(revisions).map((value) => envelope('ado work revisions', value, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' })),
+  envelope('jira issue get', { issues: jiraSpecs.map(jiraIssue), errors: [] }, 'corp-jira'),
+  ...Object.entries(changelogs).map(([key, entries]) => ({ key, history: envelope('jira issue history', entries, 'corp-jira') })),
+  envelope('ado work-item iterations', iterations, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' }),
+  envelope('ado work-item get-many', { count: adoSpecs.length, value: adoSpecs.map(adoItem), missing: [] }, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' }),
+  ...Object.values(revisions).map((value) => envelope('ado work-item history', value, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' })),
   envelope('github get-issue', { issues: ghSpecs.map((s) => (s.subs ? { ...ghIssue(s), sub_issues: s.subs.map((n) => ghIssue(ghSpecs.find((g) => g.number === n)!)) } : ghIssue(s))), errors: [] }, 'github', GH),
   { key: '36', history: envelope('github issue-events', closedOn(36, BO, '2026-09-24T17:00:00Z'), 'github', GH) },
   { key: '38', history: envelope('github issue-events', closedOn(38, ADA, '2026-10-01T12:00:00Z'), 'github', GH) },
@@ -407,8 +407,8 @@ export const sprintEnvelopes: unknown[] = [
 /** The same input as JSON Lines. */
 export const sprintJsonl = `${sprintEnvelopes.map((e) => JSON.stringify(e)).join('\n')}\n`;
 
-/** PAY-104's changelog alone, the envelope `jira get-changelog --key PAY-104` prints, for the --key example. */
-export const pay104Changelog = `${JSON.stringify(envelope('jira get-changelog', changelogs['PAY-104'], 'corp-jira'), null, 2)}\n`;
+/** PAY-104's changelog alone, the envelope `jira issue history PAY-104` prints, for the --key example. */
+export const pay104Changelog = `${JSON.stringify(envelope('jira issue history', changelogs['PAY-104'], 'corp-jira'), null, 2)}\n`;
 
 /** The Azure DevOps batch alone, for the example that points estimate at a field of the team's own. */
-export const adoBatch = `${JSON.stringify(sprintEnvelopes.find((e) => (e as { meta?: { command?: string } }).meta?.command === 'ado work get-batch'), null, 2)}\n`;
+export const adoBatch = `${JSON.stringify(sprintEnvelopes.find((e) => (e as { meta?: { command?: string } }).meta?.command === 'ado work-item get-many'), null, 2)}\n`;

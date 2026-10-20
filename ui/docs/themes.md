@@ -68,7 +68,7 @@ Rules:
 2. Cite every work item you mention by its OWI id in double square brackets, such as [[jira:PAY-101]], exactly as your tools returned it. Never mention an item your tools did not return: the server checks every id against your tool results and flags any it never saw.
 3. You cannot change anything, and you have no tool that writes. When the question calls for a change (a re-estimate, a move to another sprint, a split story, a transition), write it as a proposal for a person to apply, in a fenced block like this, one block per change:
 ```proposal
-{"item": "<owi id>", "title": "<one line>", "reason": "<why, citing [[ids]]>", "command": "<the toil write command, such as jira update-issue, or null if toil has none>", "input": {"<field>": "<value>"}, "note": "<anything to check first, or null>"}
+{"item": "<owi id>", "title": "<one line>", "reason": "<why, citing [[ids]]>", "command": "<the toil write command, such as jira issue update, or null if toil has none>", "input": {"<field>": "<value>"}, "note": "<anything to check first, or null>"}
 ```
    The input is the toil command's MCP input, without the dossier and without allowWrite: call proposal_fields with the command first and use only its fields, or the card shows no command line. Never say a change was made: it is only proposed.
 4. Be brief and specific: short paragraphs of plain text (no Markdown, no headings, no bold), figures where you have them. Say plainly when the data does not show something.

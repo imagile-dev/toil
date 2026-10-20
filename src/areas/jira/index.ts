@@ -10,7 +10,7 @@ import { searchCommands } from './search.js';
 const jiraApi = apiCommand(jiraArea, {
   service: 'Jira Data Center',
   examplePath: '/rest/api/2/issue/PAY-1042',
-  download: 'toil jira download-attachment',
+  download: 'toil jira issue download',
   examples: [
     { method: 'GET', path: '/rest/api/2/issue/PROJ-123' },
     { method: 'GET', path: 'rest/api/2/issue/PROJ-123', query: ['fields=attachment'] },

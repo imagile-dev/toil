@@ -56,9 +56,9 @@ export const contractVersion: number = CONTRACT_VERSION;
 
 /** One command `execute()` can run. */
 export interface CommandInfo {
-  /** What `execute()` takes and `meta.command` reports: `jira search`. */
+  /** What `execute()` takes and `meta.command` reports: `jira issue search`. */
   name: string;
-  /** Its MCP tool name: `jira_search`. */
+  /** Its MCP tool name: `jira_issue_search`. */
   tool: string;
   path: readonly string[];
   /** The area it belongs to, or its group for core commands (`connections`). */
@@ -282,7 +282,7 @@ let secrets: SecretStore | undefined;
  * Runs one command, as `toil <name>` would, and returns its envelope. Never
  * throws: an unknown command, a bad option or a failure inside is an envelope
  * with `ok: false`, like every other. `input` is the command's MCP fields
- * (`{ jql: "project = PAY", maxResults: 50 }`), checked strictly.
+ * (`{ jql: "project = PAY", limit: 50 }`), checked strictly.
  */
 export async function execute(command: string, input: Record<string, unknown> = {}, options: ExecuteOptions = {}): Promise<Envelope> {
   const refuse = (message: string, fix: string): Envelope => failure(new ToilError('INVALID_INPUT', message, { fix }), { command, durationMs: 0, version: VERSION });
@@ -292,7 +292,7 @@ export async function execute(command: string, input: Record<string, unknown> = 
     if (known && personByName.has(command)) return refuse(`${command} is a person's command: execute() runs it only with a person to answer its questions.`, `Pass options.person, or run toil ${command} in a terminal.`);
     return known
       ? refuse(`${command} isn't served through the API: it's a person's command, on the CLI.`, `Run toil ${command} in a terminal.`)
-      : refuse(`toil has no command ${JSON.stringify(command)}.`, 'Use a name from registry.commands, such as "version" or "jira search".');
+      : refuse(`toil has no command ${JSON.stringify(command)}.`, 'Use a name from registry.commands, such as "version" or "jira issue search".');
   }
   if (options.person !== undefined && (typeof options.person !== 'object' || options.person === null || typeof options.person.ask !== 'function')) {
     return refuse('person must be an object with an ask(question) function.', 'Pass { ask: (question) => <what the person typed> }.');
@@ -346,9 +346,9 @@ export function mapOwi(input: unknown, options: OwiMapOptions = {}): OwiResult {
 export interface OwiMapOptions {
   /** OWI fields pointed at a team's own fields: a dossier section's `fields`, or `name=field` strings. */
   fields?: Record<string, string> | string[];
-  /** The command whose bare `data` the input is (`jira search`). */
+  /** The command whose bare `data` the input is (`jira issue search`). */
   command?: string;
-  /** The item a keyless history (`jira get-changelog`, `github issue-events`) belongs to. */
+  /** The item a keyless history (`jira issue history`, `github issue-events`) belongs to. */
   key?: string;
 }
 

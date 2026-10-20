@@ -14,8 +14,7 @@ import { wiqlInstant } from './wiql.js';
 export const inRepo = { project: 'Imagile', repo: 'imagile-api' };
 const W = { ...inRepo, allowWrite: true };
 const prId = z.number().int().positive().describe('Pull request ID');
-const idOption = { flags: '--id <n>', field: 'id', description: 'Pull request ID' };
-const prOption = { flags: '--pr <n>', field: 'pr', description: 'Pull request ID' };
+export const prArg = { name: 'id', field: 'id', description: 'Pull request ID' };
 
 export interface PullRequest {
   pullRequestId: number;
@@ -36,7 +35,7 @@ const STATE = 'PR state: active|abandoned|completed|all (default: active)';
 const PRS_PAGE = 100;
 
 export const repoListPrsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'list-prs'],
+  path: ['ado-cloud', 'pr', 'list'],
   description: 'List pull requests',
   toolDescription:
     'Lists every pull request in the repository in one state (active by default), optionally by creator or reviewer identity id (a GUID, from ado_cloud_whoami) and by creation date. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.',
@@ -83,13 +82,13 @@ export const repoListPrsCommand = adoCloudArea.command({
 });
 
 export const repoGetPrCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'get-pr'],
+  path: ['ado-cloud', 'pr', 'get'],
   description: 'Get a pull request by ID',
   toolDescription: 'Returns one pull request by id: title, description, status, refs, reviewers and votes, merge commits.',
   input: z.object({ id: prId }),
   writes: false,
   context: IN_REPO,
-  options: [idOption],
+  args: [prArg],
   examples: [{ ...inRepo, id: 42 }],
   run: (input, ctx) => getPR(ctx, input.id),
 });
@@ -97,7 +96,7 @@ export const repoGetPrCommand = adoCloudArea.command({
 const TARGET = 'Target branch (default: main)';
 
 export const repoCreatePrCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'create-pr'],
+  path: ['ado-cloud', 'pr', 'create'],
   description: 'Create a pull request',
   toolDescription:
     'Opens a pull request from a source branch to a target (main by default) and returns it. A branch name gets refs/heads/; a full ref (refs/...) is sent as given. reviewers are identity ids, comma-separated.',
@@ -143,7 +142,7 @@ export const repoCreatePrCommand = adoCloudArea.command({
 });
 
 export const repoUpdatePrCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'update-pr'],
+  path: ['ado-cloud', 'pr', 'update'],
   description: 'Update a pull request',
   toolDescription: "Changes a pull request's title, description, target branch or draft state in one PATCH and returns it. Reviewers aren't changed this way; the vote commands set the token's own vote.",
   input: z.object({
@@ -156,8 +155,8 @@ export const repoUpdatePrCommand = adoCloudArea.command({
   }),
   writes: true,
   context: IN_REPO,
+  args: [prArg],
   options: [
-    idOption,
     { flags: '--title <title>', field: 'title', description: 'New title' },
     { flags: '--description <text>', field: 'description', description: 'New description' },
     { flags: '--target <branch>', field: 'target', description: 'New target branch' },
@@ -182,7 +181,7 @@ const STRATEGIES = ['noFastForward', 'squash', 'rebase', 'rebaseMerge'] as const
 const STRATEGY = 'Merge strategy: noFastForward|squash|rebase|rebaseMerge (default: noFastForward)';
 
 export const repoMergePrCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'merge-pr'],
+  path: ['ado-cloud', 'pr', 'merge'],
   description: 'Complete (merge) a pull request',
   toolDescription:
     'Asks the server to complete a pull request with a merge strategy (noFastForward by default), optionally deleting the source branch, and returns the pull request. It reads the pull request first, to send the source commit the completion is for. Completion is asynchronous: check data.status and data.mergeStatus, which stay active and queued while policies or conflicts hold it.',
@@ -195,8 +194,8 @@ export const repoMergePrCommand = adoCloudArea.command({
   }),
   writes: true,
   context: IN_REPO,
+  args: [prArg],
   options: [
-    idOption,
     { flags: '--strategy <s>', field: 'strategy', description: STRATEGY },
     { flags: '--delete-source', field: 'deleteSource', description: 'Delete source branch after merge' },
     { flags: '--message <text>', field: 'message', description: 'Merge commit message' },
@@ -210,7 +209,7 @@ export const repoMergePrCommand = adoCloudArea.command({
     const commitId = pr.lastMergeSourceCommit?.commitId;
     if (!commitId) {
       throw new ToilError('INVALID_INPUT', `Pull request ${input.id} has no source commit to complete yet.`, {
-        fix: 'Check data.mergeStatus with ado-cloud repo get-pr, and retry once the server has merged the source branch.',
+        fix: 'Check data.mergeStatus with ado-cloud pr get, and retry once the server has merged the source branch.',
       });
     }
     const body = {
@@ -223,13 +222,13 @@ export const repoMergePrCommand = adoCloudArea.command({
 });
 
 export const repoAbandonPrCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'abandon-pr'],
+  path: ['ado-cloud', 'pr', 'abandon'],
   description: 'Abandon a pull request',
   toolDescription: 'Abandons a pull request and returns it.',
   input: z.object({ id: prId, ...allowWriteField }),
   writes: true,
   context: IN_REPO,
-  options: [idOption],
+  args: [prArg],
   examples: [{ ...W, id: 42 }],
   run: (input, ctx) => adoc(ctx, prPath(ctx, input.id), { method: 'PATCH', json: { status: 'abandoned' } }),
 });
@@ -237,17 +236,17 @@ export const repoAbandonPrCommand = adoCloudArea.command({
 /** A vote cast as the token's own identity, read from connectionData first. */
 function voteCommand(name: 'approve' | 'unapprove' | 'wait-for-author', description: string, vote: number, toolDescription: string) {
   return adoCloudArea.command({
-    path: ['ado-cloud', 'repo', name],
+    path: ['ado-cloud', 'pr', name],
     description,
     toolDescription,
-    input: z.object({ pr: prId, ...allowWriteField }),
+    input: z.object({ id: prId, ...allowWriteField }),
     writes: true,
     context: IN_REPO,
-    options: [prOption],
-    examples: [{ ...W, pr: 42 }],
+    args: [prArg],
+    examples: [{ ...W, id: 42 }],
     run: async (input, ctx) => {
       const me = await connectionData(ctx);
-      return adoc(ctx, `${prPath(ctx, input.pr)}/reviewers/${enc(me.authenticatedUser.id)}`, { method: 'PUT', json: { vote } });
+      return adoc(ctx, `${prPath(ctx, input.id)}/reviewers/${enc(me.authenticatedUser.id)}`, { method: 'PUT', json: { vote } });
     },
   });
 }
@@ -257,15 +256,15 @@ export const repoUnapproveCommand = voteCommand('unapprove', 'Remove your vote f
 export const repoWaitForAuthorCommand = voteCommand('wait-for-author', 'Mark a pull request as waiting for author', -5, "Votes -5 (waiting for author) on a pull request as the token's own user, and returns the reviewer entry.");
 
 export const repoListReviewersCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'list-reviewers'],
+  path: ['ado-cloud', 'pr', 'reviewers'],
   description: 'List reviewers on a pull request',
   toolDescription: 'Lists the reviewers on a pull request with their votes (10 approved, 5 with suggestions, 0 none, -5 waiting for author, -10 rejected).',
-  input: z.object({ pr: prId }),
+  input: z.object({ id: prId }),
   writes: false,
   context: IN_REPO,
-  options: [prOption],
-  examples: [{ ...inRepo, pr: 42 }],
-  run: async (input, ctx) => (await adoc<{ value?: unknown[] }>(ctx, `${prPath(ctx, input.pr)}/reviewers`)).value ?? [],
+  args: [prArg],
+  examples: [{ ...inRepo, id: 42 }],
+  run: async (input, ctx) => (await adoc<{ value?: unknown[] }>(ctx, `${prPath(ctx, input.id)}/reviewers`)).value ?? [],
 });
 
 export const pullRequestCommands = [

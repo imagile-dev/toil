@@ -54,6 +54,19 @@ export interface ProgramOptions {
 }
 
 /**
+ * What a resource's group holds, for its row in the area's --help: `issue`
+ * reads "get, search, create, update, ..." rather than "jira issue commands",
+ * so the list of resources says what each one can do without opening it.
+ */
+export function groupSummary(key: string, commands: readonly AnyCommand[]): string {
+  const depth = key.split(' ').length;
+  // Aliases count: a group made only of them (`jenkins instance`) still says what's in it.
+  const paths = commands.flatMap((def) => [def.path, ...aliasPaths(def)]);
+  const words = [...new Set(paths.filter((path) => path.length > depth && path.slice(0, depth).join(' ') === key).map((path) => path[depth]!))];
+  return words.join(', ') || `${key} commands`;
+}
+
+/**
  * Builds the `toil` CLI from command definitions. The CLI has no behaviour of
  * its own: it maps argv onto a command's input and prints the envelope that
  * core produces.
@@ -84,7 +97,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       const key = segments.slice(0, i + 1).join(' ');
       let group = groups.get(key);
       if (!group) {
-        group = quiet(parent.command(segments[i]!).description(`${key} commands`));
+        group = quiet(parent.command(segments[i]!).description(i === 0 ? `${key} commands` : groupSummary(key, options.commands)));
         groups.set(key, group);
       }
       parent = group;
@@ -520,7 +533,13 @@ function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<str
   const input: Record<string, unknown> = {};
   const positional = cmd.processedArgs as unknown[];
   (def.args ?? []).forEach((arg, i) => {
-    if (positional[i] !== undefined) input[arg.field] = typed(def, arg.field, positional[i]);
+    if (positional[i] === undefined) return;
+    // A variadic argument always parses to a list. For a field that is one
+    // value or a list (`oneOrMany`), one given stays one value, as a flag given
+    // once does: `jira issue get A` is one issue, `jira issue get A B` the bulk read.
+    const value = positional[i];
+    const single = Array.isArray(value) && value.length === 1 && repeatsAs(def, arg.field)?.single === true;
+    input[arg.field] = typed(def, arg.field, single ? value[0] : value);
   });
   const own = cmd.opts<Record<string, unknown>>();
   const all = cmd.optsWithGlobals<Record<string, unknown>>();
@@ -565,8 +584,8 @@ const isArrayField = (def: AnyCommand, field: string): boolean => repeatsAs(def,
 
 /**
  * argv holds only text. Each value becomes the type its field's schema asks
- * for, by the same rule env vars follow (`fromText`): `--max-results 50` and
- * MCP's `maxResults: 50` are the same input, and a repeated flag's values are
+ * for, by the same rule env vars follow (`fromText`): `--limit 50` and
+ * MCP's `limit: 50` are the same input, and a repeated flag's values are
  * each typed as the array's element. Anything that doesn't parse stays as
  * typed, and the schema rejects it with the same message through both doors.
  */

@@ -30,8 +30,8 @@ import { pagingFields, pagingOptions } from '../jira/paging.js';
  */
 
 const key = z.string().min(1).describe('Issue key, e.g. PROJ-123');
-const keyOption = (description = 'Issue key') => ({ flags: '--key <issue-key>', field: 'key', description });
-const accountId = (what: string) => z.string().min(1).describe(`${what} accountId (from jira-cloud search-users), not a username`);
+const keyArg = (description = 'Issue key') => ({ name: 'key', field: 'key', description });
+const accountId = (what: string) => z.string().min(1).describe(`${what} accountId (from jira-cloud user search), not a username`);
 
 /** The issue as Jira returned it, plus its description as plain text. */
 export function withDescriptionText(issue: client.JiraCloudIssue): client.JiraCloudIssue & { descriptionText: string | null } {
@@ -47,7 +47,7 @@ function readIssueFile(path: string | undefined, ctx: client.JiraCloudContext): 
 }
 
 /**
- * The project for create-issue: --project, then "project" in --input-file,
+ * The project for issue create: --project, then "project" in --input-file,
  * then the dossier, then the connection's project. Core
  * resolves the flag, the dossier and the connection; the file's step goes
  * through ctx.supply, so meta.context reports source `file`. An empty value
@@ -83,7 +83,7 @@ function description(value: unknown): string | AdfDocument | undefined {
   if (typeof value === 'string') return value;
   if (typeof value === 'object' && (value as { type?: unknown }).type === 'doc') return value as AdfDocument;
   throw new ToilError('INVALID_INPUT', 'fields.description in --input-file must be text or an ADF document ({ "type": "doc", ... }).', {
-    fix: 'Run toil jira-cloud schema for the expected shape.',
+    fix: 'Run toil jira-cloud issue schema for the expected shape.',
   });
 }
 
@@ -91,7 +91,7 @@ function description(value: unknown): string | AdfDocument | undefined {
 function text(name: string, value: unknown): string | undefined {
   if (value === undefined || value === null) return undefined;
   if (typeof value === 'string') return value;
-  throw new ToilError('INVALID_INPUT', `${name} in --input-file must be text.`, { fix: 'Run toil jira-cloud schema for the expected shape.' });
+  throw new ToilError('INVALID_INPUT', `${name} in --input-file must be text.`, { fix: 'Run toil jira-cloud issue schema for the expected shape.' });
 }
 
 const fieldOptions = [
@@ -104,14 +104,14 @@ const fieldInputs = {
 };
 
 export const getIssue = jiraCloudArea.command({
-  path: ['jira-cloud', 'get-issue'],
+  path: ['jira-cloud', 'issue', 'get'],
   description: 'Get a Jira Cloud issue by key',
-  toolDescription: `Returns one Jira Cloud issue by key with every field as Jira returns it (description in Atlassian Document Format, registered custom fields under their friendly names), plus descriptionText, the description as plain text. With a list of up to ${MAX_BULK_KEYS} keys it reads them in one bulk request and returns { issues, errors } instead: the issues in the order asked, and each key that couldn't be read with its code and message. Use jira_cloud_search to find issues by JQL.`,
+  toolDescription: `Returns one Jira Cloud issue by key with every field as Jira returns it (description in Atlassian Document Format, registered custom fields under their friendly names), plus descriptionText, the description as plain text. With a list of up to ${MAX_BULK_KEYS} keys it reads them in one bulk request and returns { issues, errors } instead: the issues in the order asked, and each key that couldn't be read with its code and message. Use jira_cloud_issue_search to find issues by JQL.`,
   input: z.object({ key: keyOrKeys }),
   writes: false,
   // Several keys go to POST /rest/api/3/issue/bulkfetch, which only reads.
   queryByPost: true,
-  options: [keyOption(`Issue key (e.g. PROJ-123); repeat for up to ${MAX_BULK_KEYS} issues`)],
+  args: [{ ...keyArg(`Issue key (e.g. PROJ-123); give up to ${MAX_BULK_KEYS} keys to read several`), variadic: true }],
   examples: [{ key: 'PROJ-123' }, { key: ['PROJ-1', 'PROJ-2', 'PROJ-404'] }],
   run: async (input, ctx) => {
     const fieldMap = buildFieldMap(ctx.connection.customFields);
@@ -126,19 +126,20 @@ export const getIssue = jiraCloudArea.command({
 });
 
 export const getChangelog = jiraCloudArea.command({
-  path: ['jira-cloud', 'get-changelog'],
+  path: ['jira-cloud', 'issue', 'history'],
   description: 'Get the change history of a Jira Cloud issue',
   toolDescription:
     "Returns a Jira Cloud issue's change history, oldest first, as Jira records it: each entry with id, author (accountId), created and items (field, fieldtype, fieldId, from, fromString, to, toString), so status transitions and field changes can be replayed. Without limit it returns every entry; with limit, pass meta.page.nextCursor as cursor for the next page.",
   input: z.object({ key, ...pagingFields('history entries') }),
   writes: false,
-  options: [keyOption(), ...pagingOptions('history entries')],
+  args: [keyArg()],
+  options: [...pagingOptions('history entries')],
   examples: [{ key: 'PROJ-123' }, { key: 'PROJ-123', limit: 1 }, { key: 'PROJ-123', limit: 1, cursor: '1' }],
   run: (input, ctx) => client.getChangelog(ctx, input.key, input),
 });
 
 export const createIssue = jiraCloudArea.command({
-  path: ['jira-cloud', 'create-issue'],
+  path: ['jira-cloud', 'issue', 'create'],
   description: 'Create a Jira Cloud issue',
   toolDescription:
     'Creates a Jira Cloud issue and returns it as Jira stores it, plus descriptionText. Project, issue type and priority fall back to the connection defaults. description is plain text, sent as ADF paragraphs; Markdown is not interpreted. assignee is an accountId. Custom fields go in field ("Name=value"). Does not check for duplicates: after a timeout, search for the summary before retrying.',
@@ -161,14 +162,14 @@ export const createIssue = jiraCloudArea.command({
     { flags: '--summary <text>', field: 'summary', description: 'Issue summary (required, unless supplied via --input-file)' },
     { flags: '--description <text>', field: 'description', description: 'Description as plain text (blank lines separate paragraphs)' },
     { flags: '--priority <name>', field: 'priority', description: 'Priority name' },
-    { flags: '--assignee <account-id>', field: 'assignee', description: 'Assignee accountId (from search-users)' },
+    { flags: '--assignee <account-id>', field: 'assignee', description: 'Assignee accountId (from user search)' },
     { flags: '--labels <labels>', field: 'labels', description: 'Comma-separated labels' },
     { flags: '--parent <key>', field: 'parent', description: 'Parent issue key — sets fields.parent in the create payload' },
     ...fieldOptions,
     {
       flags: '--input-file <path>',
       field: 'inputFile',
-      description: "JSON file describing the whole issue ({ project, issueType, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira-cloud schema",
+      description: "JSON file describing the whole issue ({ project, issueType, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira-cloud issue schema",
     },
   ],
   examples: [
@@ -194,7 +195,7 @@ export const createIssue = jiraCloudArea.command({
       const { json, builtin, custom } = gatherFields(ctx, input, flags, fieldMap);
       const project = projectFor(ctx, json);
       if (!project) {
-        throw new ToilError('INVALID_INPUT', 'No project for create-issue.', {
+        throw new ToilError('INVALID_INPUT', 'No project for issue create.', {
           fix: `Pass --project, put "project" in --input-file, or set project on the connection (${jiraCloudArea.envName('project')} for the default connection).`,
         });
       }
@@ -219,10 +220,10 @@ export const createIssue = jiraCloudArea.command({
 });
 
 export const updateIssue = jiraCloudArea.command({
-  path: ['jira-cloud', 'update-issue'],
+  path: ['jira-cloud', 'issue', 'update'],
   description: 'Update a Jira Cloud issue',
   toolDescription:
-    'Changes fields on an existing Jira Cloud issue and returns { updated: key }. Only the fields you pass are sent. description is plain text, sent as ADF; assignee is an accountId. labels replaces every label; use jira_cloud_add_label or jira_cloud_remove_label for one at a time, and jira_cloud_transition_issue to change status.',
+    'Changes fields on an existing Jira Cloud issue and returns { updated: key }. Only the fields you pass are sent. description is plain text, sent as ADF; assignee is an accountId. labels replaces every label; use jira_cloud_issue_label or jira_cloud_issue_unlabel for one at a time, and jira_cloud_issue_transition to change status.',
   input: z.object({
     key,
     summary: z.string().min(1).optional().describe('New summary'),
@@ -235,8 +236,8 @@ export const updateIssue = jiraCloudArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [keyArg()],
   options: [
-    keyOption(),
     { flags: '--summary <text>', field: 'summary', description: 'New summary' },
     { flags: '--description <text>', field: 'description', description: 'New description as plain text' },
     { flags: '--priority <name>', field: 'priority', description: 'New priority' },
@@ -246,7 +247,7 @@ export const updateIssue = jiraCloudArea.command({
     {
       flags: '--input-file <path>',
       field: 'inputFile',
-      description: "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira-cloud schema",
+      description: "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira-cloud issue schema",
     },
   ],
   examples: [
@@ -281,11 +282,11 @@ export const updateIssue = jiraCloudArea.command({
 });
 
 export const schema = jiraCloudArea.command({
-  path: ['jira-cloud', 'schema'],
+  path: ['jira-cloud', 'issue', 'schema'],
   // Under jira-cloud's path, but it needs no connection: it answers with no config at all.
   kind: 'area-local',
-  description: 'Print the --input-file JSON schema and an example for create-issue/update-issue',
-  toolDescription: 'Returns the JSON Schema and a runnable example for the inputFile accepted by jira_cloud_create_issue and jira_cloud_update_issue. Needs no Jira Cloud connection.',
+  description: 'Print the --input-file JSON schema and an example for issue create and issue update',
+  toolDescription: 'Returns the JSON Schema and a runnable example for the inputFile accepted by jira_cloud_issue_create and jira_cloud_issue_update. Needs no Jira Cloud connection.',
   input: z.object({ exampleOnly: z.boolean().optional().describe('Return only the runnable example as data, ready to save as an input file') }),
   writes: false,
   options: [{ flags: '--example-only', field: 'exampleOnly', description: 'Return only the runnable example JSON as data — save .data and pass it to --input-file' }],
@@ -294,7 +295,7 @@ export const schema = jiraCloudArea.command({
 });
 
 export const logWork = jiraCloudArea.command({
-  path: ['jira-cloud', 'log-work'],
+  path: ['jira-cloud', 'issue', 'log-work'],
   description: 'Add a worklog (time spent) entry to a Jira Cloud issue',
   toolDescription:
     'Logs time against a Jira Cloud issue and returns the worklog Jira created, plus commentText. timeSpent uses Jira durations ("2h 30m", "1d"); started is required on Cloud. comment is plain text, sent as ADF.',
@@ -306,8 +307,8 @@ export const logWork = jiraCloudArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [keyArg()],
   options: [
-    keyOption(),
     { flags: '--time-spent <duration>', field: 'timeSpent', description: 'Time spent in Jira duration format (e.g. "2h 30m", "1d")' },
     { flags: '--started <datetime>', field: 'started', description: 'When the work started, in Jira datetime format (e.g. 2026-01-15T09:00:00.000+0000)' },
     { flags: '--comment <text>', field: 'comment', description: 'Worklog comment (plain text)' },
@@ -323,13 +324,14 @@ export const logWork = jiraCloudArea.command({
 });
 
 export const transitionIssue = jiraCloudArea.command({
-  path: ['jira-cloud', 'transition-issue'],
+  path: ['jira-cloud', 'issue', 'transition'],
   description: 'Transition a Jira Cloud issue to a new status',
   toolDescription:
-    'Moves a Jira Cloud issue through its workflow by transition name (case-insensitive) or numeric id. Use jira_cloud_list_transitions to see which transitions the issue allows right now.',
+    'Moves a Jira Cloud issue through its workflow by transition name (case-insensitive) or numeric id. Use jira_cloud_issue_transitions to see which transitions the issue allows right now.',
   input: z.object({ key, transition: z.string().min(1).describe('Transition name or id'), ...allowWriteField }),
   writes: true,
-  options: [keyOption(), { flags: '--transition <name-or-id>', field: 'transition', description: 'Transition name or ID' }],
+  args: [keyArg()],
+  options: [{ flags: '--transition <name-or-id>', field: 'transition', description: 'Transition name or ID' }],
   examples: [
     { key: 'PROJ-123', transition: 'In Progress', allowWrite: true },
     { key: 'PROJ-123', transition: '31', allowWrite: true },
@@ -341,7 +343,7 @@ export const transitionIssue = jiraCloudArea.command({
       const found = transitions.find((t) => t.name.toLowerCase() === input.transition.toLowerCase());
       if (!found) {
         throw new ToilError('INVALID_INPUT', `Transition not found: ${input.transition}`, {
-          fix: `Available from here: ${transitions.map((t) => t.name).join(', ') || '(none)'}. Run toil jira-cloud list-transitions --key ${input.key}.`,
+          fix: `Available from here: ${transitions.map((t) => t.name).join(', ') || '(none)'}. Run toil jira-cloud issue transitions ${input.key}.`,
         });
       }
       id = found.id;
@@ -352,23 +354,24 @@ export const transitionIssue = jiraCloudArea.command({
 });
 
 export const listTransitions = jiraCloudArea.command({
-  path: ['jira-cloud', 'list-transitions'],
+  path: ['jira-cloud', 'issue', 'transitions'],
   description: 'List available transitions for an issue',
-  toolDescription: 'Returns the workflow transitions currently available on a Jira Cloud issue (id, name, target status). Use before jira_cloud_transition_issue.',
+  toolDescription: 'Returns the workflow transitions currently available on a Jira Cloud issue (id, name, target status). Use before jira_cloud_issue_transition.',
   input: z.object({ key }),
   writes: false,
-  options: [keyOption()],
+  args: [keyArg()],
   examples: [{ key: 'PROJ-123' }],
   run: (input, ctx) => client.listTransitions(ctx, input.key),
 });
 
 export const addComment = jiraCloudArea.command({
-  path: ['jira-cloud', 'add-comment'],
+  path: ['jira-cloud', 'issue', 'comment'],
   description: 'Add a comment to a Jira Cloud issue',
   toolDescription: 'Adds a plain-text comment to a Jira Cloud issue (sent as ADF paragraphs; Markdown is not interpreted) and returns the comment Jira created, plus bodyText.',
   input: z.object({ key, body: z.string().min(1).describe('Comment as plain text: blank lines separate paragraphs'), ...allowWriteField }),
   writes: true,
-  options: [keyOption(), { flags: '--body <text>', field: 'body', description: 'Comment text (plain text)' }],
+  args: [keyArg()],
+  options: [{ flags: '--body <text>', field: 'body', description: 'Comment text (plain text)' }],
   examples: [{ key: 'PROJ-123', body: 'Reproduced on staging.', allowWrite: true }],
   run: async (input, ctx) => {
     if (input.body.trim() === '') throw new ToilError('INVALID_INPUT', '--body is blank.', { fix: 'Pass the comment text in --body.' });
@@ -377,13 +380,14 @@ export const addComment = jiraCloudArea.command({
 });
 
 export const listComments = jiraCloudArea.command({
-  path: ['jira-cloud', 'list-comments'],
+  path: ['jira-cloud', 'issue', 'comments'],
   description: 'List comments on a Jira Cloud issue',
   toolDescription:
     'Returns the comments on a Jira Cloud issue, oldest first, each with its ADF body and bodyText, the body as plain text. Without limit it returns every comment; with limit, pass meta.page.nextCursor as cursor for the next page.',
   input: z.object({ key, ...pagingFields('comments') }),
   writes: false,
-  options: [keyOption(), ...pagingOptions('comments')],
+  args: [keyArg()],
+  options: [...pagingOptions('comments')],
   examples: [{ key: 'PROJ-123' }, { key: 'PROJ-123', limit: 1 }, { key: 'PROJ-123', limit: 1, cursor: '1' }],
   run: async (input, ctx) => (await client.listComments(ctx, input.key, input)).map(withBodyText),
 });
@@ -398,12 +402,13 @@ function labelList(raw: string): string[] {
 }
 
 export const addLabel = jiraCloudArea.command({
-  path: ['jira-cloud', 'add-label'],
+  path: ['jira-cloud', 'issue', 'label'],
   description: 'Add one or more labels to a Jira Cloud issue (non-destructive)',
-  toolDescription: "Adds labels to a Jira Cloud issue, keeping the ones it has. Returns { updated, labelsAdded }. jira_cloud_update_issue's labels replaces them all instead.",
+  toolDescription: "Adds labels to a Jira Cloud issue, keeping the ones it has. Returns { updated, labelsAdded }. jira_cloud_issue_update's labels replaces them all instead.",
   input: z.object({ key, labels: labelsInput('add'), ...allowWriteField }),
   writes: true,
-  options: [keyOption(), { flags: '--labels <labels>', field: 'labels', description: 'Comma-separated labels to add' }],
+  args: [keyArg()],
+  options: [{ flags: '--labels <labels>', field: 'labels', description: 'Comma-separated labels to add' }],
   examples: [{ key: 'PROJ-123', labels: 'backend,urgent', allowWrite: true }],
   run: async (input, ctx) => {
     const labels = labelList(input.labels);
@@ -413,12 +418,13 @@ export const addLabel = jiraCloudArea.command({
 });
 
 export const removeLabel = jiraCloudArea.command({
-  path: ['jira-cloud', 'remove-label'],
+  path: ['jira-cloud', 'issue', 'unlabel'],
   description: 'Remove one or more labels from a Jira Cloud issue (non-destructive)',
   toolDescription: 'Removes labels from a Jira Cloud issue, keeping the rest. Returns { updated, labelsRemoved }.',
   input: z.object({ key, labels: labelsInput('remove'), ...allowWriteField }),
   writes: true,
-  options: [keyOption(), { flags: '--labels <labels>', field: 'labels', description: 'Comma-separated labels to remove' }],
+  args: [keyArg()],
+  options: [{ flags: '--labels <labels>', field: 'labels', description: 'Comma-separated labels to remove' }],
   examples: [{ key: 'PROJ-123', labels: 'urgent', allowWrite: true }],
   run: async (input, ctx) => {
     const labels = labelList(input.labels);
@@ -428,12 +434,13 @@ export const removeLabel = jiraCloudArea.command({
 });
 
 export const assign = jiraCloudArea.command({
-  path: ['jira-cloud', 'assign'],
+  path: ['jira-cloud', 'issue', 'assign'],
   description: 'Assign a Jira Cloud issue to a user by accountId',
-  toolDescription: 'Assigns a Jira Cloud issue to a user by accountId (find one with jira_cloud_search_users). Returns { assigned, assignee }.',
+  toolDescription: 'Assigns a Jira Cloud issue to a user by accountId (find one with jira_cloud_user_search). Returns { assigned, assignee }.',
   input: z.object({ key, assignee: accountId('Assignee'), ...allowWriteField }),
   writes: true,
-  options: [keyOption(), { flags: '--assignee <account-id>', field: 'assignee', description: 'Assignee accountId (from search-users)' }],
+  args: [keyArg()],
+  options: [{ flags: '--assignee <account-id>', field: 'assignee', description: 'Assignee accountId (from user search)' }],
   examples: [{ key: 'PROJ-123', assignee: '5b10ac8d82e05b22cc7d4ef5', allowWrite: true }],
   run: async (input, ctx) => {
     await client.assignIssue(ctx, input.key, input.assignee);
@@ -442,29 +449,29 @@ export const assign = jiraCloudArea.command({
 });
 
 export const linkIssue = jiraCloudArea.command({
-  path: ['jira-cloud', 'link-issue'],
+  path: ['jira-cloud', 'issue', 'link'],
   description: 'Link two Jira Cloud issues together',
   toolDescription:
-    'Links two Jira Cloud issues: key is the inward issue, target the outward one. linkType is a link type id, name ("Blocks") or either phrase ("is blocked by"). Returns { linked, to, type }.',
+    'Links two Jira Cloud issues: key is the inward issue, target the outward one. type is a link type id, name ("Blocks") or either phrase ("is blocked by"). Returns { linked, to, type }.',
   input: z.object({
     key: z.string().min(1).describe('Source issue key'),
-    linkType: z.string().min(1).describe('Link type name, inward or outward phrase, or id'),
+    type: z.string().min(1).describe('Link type name, inward or outward phrase, or id'),
     target: z.string().min(1).describe('Target issue key'),
     ...allowWriteField,
   }),
   writes: true,
+  args: [keyArg('Source issue key')],
   options: [
-    keyOption('Source issue key'),
-    { flags: '--link-type <type>', field: 'linkType', description: 'Link type name or ID' },
     { flags: '--target <issue-key>', field: 'target', description: 'Target issue key' },
+    { flags: '--type <type>', field: 'type', description: 'Link type name or ID' },
   ],
   examples: [
-    { key: 'PROJ-123', linkType: 'Blocks', target: 'PROJ-456', allowWrite: true },
-    { key: 'PROJ-123', linkType: '10000', target: 'PROJ-456', allowWrite: true },
+    { key: 'PROJ-123', target: 'PROJ-456', type: 'Blocks', allowWrite: true },
+    { key: 'PROJ-123', target: 'PROJ-456', type: '10000', allowWrite: true },
   ],
   run: async (input, ctx) => {
-    await client.linkIssue(ctx, input);
-    return { linked: input.key, to: input.target, type: input.linkType };
+    await client.linkIssue(ctx, { key: input.key, linkType: input.type, target: input.target });
+    return { linked: input.key, to: input.target, type: input.type };
   },
 });
 

@@ -323,7 +323,7 @@ describe('field aliases and check-dossier on Jira', () => {
 
   it('lets --field use a dossier alias, typed as the connection registers the field', async () => {
     const d = disk({ 'home/.toil/dossiers/payments.json': jiraDossier });
-    const run = await cli(d, ['jira', 'create-issue', '--project', 'PROJ', '--summary', 'S', '--field', 'storyPoints=5', '--dossier', 'payments', '--allow-write']);
+    const run = await cli(d, ['jira', 'issue', 'create', '--project', 'PROJ', '--summary', 'S', '--field', 'storyPoints=5', '--dossier', 'payments', '--allow-write']);
     expect(run.envelope.ok, JSON.stringify(run.envelope.error)).toBe(true);
     const post = run.calls.find((c) => c.method === 'POST');
     expect(JSON.parse(post!.body!).fields).toMatchObject({ customfield_10016: 5 });

@@ -15,15 +15,16 @@ import * as client from './client.js';
  */
 
 const key = z.string().min(1).describe('Issue key, e.g. PROJ-123');
-const keyOption = { flags: '--key <issue-key>', field: 'key', description: 'Issue key (e.g. PROJ-123)' };
+const keyArg = { name: 'key', field: 'key', description: 'Issue key (e.g. PROJ-123)' };
 
 export const addAttachment = jiraCloudArea.command({
-  path: ['jira-cloud', 'add-attachment'],
+  path: ['jira-cloud', 'issue', 'attach'],
   description: 'Upload a file as an attachment to a Jira Cloud issue',
   toolDescription: 'Uploads a local file to a Jira Cloud issue and returns the attachments Jira created. file is a path on the machine toil runs on.',
   input: z.object({ key, file: z.string().min(1).describe('Path to the file to upload'), ...allowWriteField }),
   writes: true,
-  options: [keyOption, { flags: '--file <path>', field: 'file', description: 'Path to the file to upload' }],
+  args: [keyArg],
+  options: [{ flags: '--file <path>', field: 'file', description: 'Path to the file to upload' }],
   examples: [{ key: 'PROJ-123', file: 'screenshot.png', allowWrite: true }],
   run: async (input, ctx) => {
     const data = ctx.files.readBytes(input.file);
@@ -32,31 +33,30 @@ export const addAttachment = jiraCloudArea.command({
 });
 
 export const listAttachments = jiraCloudArea.command({
-  path: ['jira-cloud', 'list-attachments'],
+  path: ['jira-cloud', 'issue', 'attachments'],
   description: 'List attachments on a Jira Cloud issue',
-  toolDescription: 'Returns the attachments on a Jira Cloud issue (id, filename, size, mimeType, content URL). Use jira_cloud_download_attachment to save one.',
+  toolDescription: 'Returns the attachments on a Jira Cloud issue (id, filename, size, mimeType, content URL). Use jira_cloud_issue_download to save one.',
   input: z.object({ key }),
   writes: false,
-  options: [keyOption],
+  args: [keyArg],
   examples: [{ key: 'PROJ-123' }],
   run: (input, ctx) => client.listAttachments(ctx, input.key),
 });
 
 export const downloadAttachment = jiraCloudArea.command({
-  path: ['jira-cloud', 'download-attachment'],
+  path: ['jira-cloud', 'issue', 'download'],
   description: 'Download a Jira Cloud issue attachment to .toil/ (or --dir)',
   toolDescription:
-    'Saves one attachment from a Jira Cloud issue to a local directory (default .toil in the working directory) and returns { saved, filename, size }. Get the id from jira_cloud_list_attachments. Never replaces an existing file.',
+    'Saves one attachment from a Jira Cloud issue to a local directory (default .toil in the working directory) and returns { saved, filename, size }. Get the id from jira_cloud_issue_attachments. Never replaces an existing file.',
   input: z.object({
     key,
-    attachmentId: z.string().min(1).describe('Attachment id from list-attachments'),
+    attachmentId: z.string().min(1).describe('Attachment id from issue attachments'),
     dir: z.string().optional().describe('Output directory; defaults to .toil in the working directory'),
   }),
   writes: false,
   writesLocal: true,
+  args: [keyArg, { name: 'attachment-id', field: 'attachmentId', description: 'Attachment ID from issue attachments output' }],
   options: [
-    keyOption,
-    { flags: '--attachment-id <id>', field: 'attachmentId', description: 'Attachment ID from list-attachments output' },
     { flags: '--dir <path>', field: 'dir', description: 'Output directory (default: .toil relative to cwd)' },
   ],
   examples: [
@@ -68,7 +68,7 @@ export const downloadAttachment = jiraCloudArea.command({
     const attachment = (await client.listAttachments(ctx, input.key)).find((a) => a.id === input.attachmentId);
     if (!attachment) {
       throw new ToilError('INVALID_INPUT', `Attachment not found on ${input.key}: ${input.attachmentId}`, {
-        fix: `Run toil jira-cloud list-attachments --key ${input.key} for the ids it has.`,
+        fix: `Run toil jira-cloud issue attachments ${input.key} for the ids it has.`,
       });
     }
     const data = await client.downloadAttachment(ctx, attachment.id);

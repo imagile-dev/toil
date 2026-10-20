@@ -51,8 +51,8 @@ export function loadContract(): Contract {
 /**
  * One allowed difference from the contract. `allows` holds the identifiers
  * the diff reports that it excuses: a command path (`git credentials`), a
- * path and flag (`jira search --jql`), a global flag (`--dry-run`), or a path
- * and output field (`jira search data.issues[].key`). A divergence in
+ * path and flag (`jira issue search --jql`), a global flag (`--dry-run`), or a path
+ * and output field (`jira issue search data.issues[].key`). A divergence in
  * behavior only, with the surface unchanged, allows nothing, so it can't
  * excuse a missing command, flag or field.
  */

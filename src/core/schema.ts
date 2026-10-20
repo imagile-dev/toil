@@ -37,7 +37,7 @@ export function fieldSchema(schema: z.ZodObject, field: string): z.ZodType | und
  * - `repeatedFlag`: always a list (`github create-issue --label a --label b`);
  *   empty or absent means not given
  * - `oneOrMany`: one value, or a list when the flag is repeated (`jira
- *   get-issue --key A --key B`), for a command whose single form must keep its
+ *   issue get A B`), for a command whose single form must keep its
  *   own input and output
  */
 export const repeatedFlag = (description: string) => z.array(z.string()).optional().describe(description);
@@ -68,7 +68,7 @@ export function flagRepeats(schema: z.ZodType): { element: z.ZodType; single: bo
  * - number: plain decimal digits ("50", "-1.5"), never hex, exponents or
  *   padding; boolean: exactly "true" or "false"
  * - array or object: JSON (`[1,2]`, `{"a":1}`), as an env var or a single flag value
- * - anything else, a union included, stays text. Jira's `--max-results`
+ * - anything else, a union included, stays text. Jira's `issue search --limit`
  *   accepts number or string on purpose, so `parseInt` keeps the reading
  *   of "10x" the contract specifies.
  *

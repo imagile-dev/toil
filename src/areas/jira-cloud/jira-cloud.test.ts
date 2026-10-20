@@ -71,26 +71,26 @@ describe('ADF conversion', () => {
 });
 
 describe('issues', () => {
-  it('get-issue: GETs REST API 3 with Basic auth from email and token, and adds descriptionText', async () => {
+  it('issue get: GETs REST API 3 with Basic auth from email and token, and adds descriptionText', async () => {
     const { envelope, calls } = await run(getIssue, { key: 'PROJ-123' }, [{ method: 'GET', path: '/rest/api/3/issue/PROJ-123', respond: { json: issue('PROJ-123') } }]);
     expect(calls).toEqual([{ method: 'GET', url: `${API}/issue/PROJ-123`, headers: GET_HEADERS, body: undefined }]);
     expect(envelope.data).toMatchObject({ key: 'PROJ-123', fields: { description: doc('Steps to reproduce are in the attached HAR.', 'Seen on 17.x only.') } });
     expect((envelope.data as { descriptionText: string }).descriptionText).toBe('Steps to reproduce are in the attached HAR.\n\nSeen on 17.x only.');
   });
 
-  it('get-issue: an issue with no description has descriptionText null', async () => {
+  it('issue get: an issue with no description has descriptionText null', async () => {
     const bare = { ...issue('PROJ-1'), fields: { summary: 'S', description: null } };
     const { envelope } = await run(getIssue, { key: 'PROJ-1' }, [{ path: '/rest/api/3/issue/PROJ-1', respond: { json: bare } }]);
     expect((envelope.data as { descriptionText: unknown }).descriptionText).toBeNull();
   });
 
-  it('get-issue: encodes the key as one path segment and keeps a base URL context path', async () => {
+  it('issue get: encodes the key as one path segment and keeps a base URL context path', async () => {
     const config = { 'jira-cloud': { ...fixtureConfig['jira-cloud'], baseUrl: `${SITE}/jira` } };
     const { calls } = await run(getIssue, { key: 'PROJ-1/comment' }, [{ path: /\/jira\/rest\/api\/3\/issue\//, respond: { json: issue('X-1') } }], { config });
     expect(calls[0]!.url).toBe(`${SITE}/jira/rest/api/3/issue/PROJ-1%2Fcomment`);
   });
 
-  it('get-issue: a 401 is AUTH, naming the email setting and where to make a token', async () => {
+  it('issue get: a 401 is AUTH, naming the email setting and where to make a token', async () => {
     const { envelope } = await run(getIssue, { key: 'PROJ-1' }, [{ path: /issue/, respond: { status: 401, text: '' } }]);
     expect(envelope.error).toMatchObject({ code: 'AUTH' });
     expect(envelope.error?.fix).toContain('TOIL_JIRA_CLOUD_EMAIL');
@@ -98,7 +98,7 @@ describe('issues', () => {
     expect(envelope.error?.fix).toContain('then set apiToken (TOIL_JIRA_CLOUD_API_TOKEN for the default connection).');
   });
 
-  it('create-issue: POSTs the Cloud payload (ADF description, accountId assignee), then reads the issue back', async () => {
+  it('issue create: POSTs the Cloud payload (ADF description, accountId assignee), then reads the issue back', async () => {
     const { envelope, calls } = await run(
       createIssue,
       { project: 'PROJ', issueType: 'Bug', summary: 'S', description: 'Line one\nline two\n\nPara two', priority: 'High', assignee: ACCOUNT, labels: 'a, b,', parent: 'PROJ-1', ...write },
@@ -135,7 +135,7 @@ describe('issues', () => {
     expect(envelope.data).toMatchObject({ key: 'PROJ-9', descriptionText: expect.any(String) });
   });
 
-  it('create-issue: project, issue type and priority fall back to the connection, and meta.context says so', async () => {
+  it('issue create: project, issue type and priority fall back to the connection, and meta.context says so', async () => {
     const config = { 'jira-cloud': { ...fixtureConfig['jira-cloud'], project: 'DEF', issueType: 'Story', priority: 'Low' } };
     const { envelope, calls } = await run(createIssue, { summary: 'S', ...write }, [
       { method: 'POST', path: '/rest/api/3/issue', respond: { json: { id: '1', key: 'DEF-1' } } },
@@ -145,7 +145,7 @@ describe('issues', () => {
     expect(envelope.meta.context?.inputs?.project).toMatchObject({ value: 'DEF', source: 'connection' });
   });
 
-  it('create-issue: with no project anywhere, refuses before any request', async () => {
+  it('issue create: with no project anywhere, refuses before any request', async () => {
     const noProject: Record<string, unknown> = { ...fixtureConfig['jira-cloud'] };
     delete noProject.project;
     const { envelope, calls } = await run(createIssue, { summary: 'S', ...write }, [], { config: { 'jira-cloud': noProject } });
@@ -154,7 +154,7 @@ describe('issues', () => {
     expect(calls).toHaveLength(0);
   });
 
-  it('update-issue: PUTs only the fields given, and refuses an update with nothing in it', async () => {
+  it('issue update: PUTs only the fields given, and refuses an update with nothing in it', async () => {
     const { envelope, calls } = await run(updateIssue, { key: 'PROJ-123', description: 'New', assignee: ACCOUNT, ...write }, [{ method: 'PUT', path: '/rest/api/3/issue/PROJ-123', respond: { status: 204 } }]);
     expect(calls[0]).toMatchObject({ method: 'PUT', url: `${API}/issue/PROJ-123`, headers: JSON_HEADERS });
     expect(body(calls[0]!)).toEqual({ fields: { description: textToAdf('New'), assignee: { accountId: ACCOUNT } } });
@@ -164,7 +164,7 @@ describe('issues', () => {
     expect(nothing.calls).toHaveLength(0);
   });
 
-  it('transition-issue: a name is looked up case-insensitively; an unknown one lists what is available', async () => {
+  it('issue transition: a name is looked up case-insensitively; an unknown one lists what is available', async () => {
     const routes: Route[] = [
       { method: 'GET', path: '/rest/api/3/issue/PROJ-123/transitions', respond: { json: { transitions: [{ id: '21', name: 'In Progress' }, { id: '31', name: 'Done' }] } } },
       { method: 'POST', path: '/rest/api/3/issue/PROJ-123/transitions', respond: { status: 204 } },
@@ -179,7 +179,7 @@ describe('issues', () => {
     expect(digits.calls.map((c) => c.method)).toEqual(['POST']);
   });
 
-  it('add-comment: sends the body as ADF and returns the comment with bodyText; a blank body is refused', async () => {
+  it('issue comment: sends the body as ADF and returns the comment with bodyText; a blank body is refused', async () => {
     const { envelope, calls } = await run(addComment, { key: 'PROJ-123', body: 'Hello\n\nWorld', ...write }, [
       { method: 'POST', path: '/rest/api/3/issue/PROJ-123/comment', respond: { status: 201, json: { id: '1', body: doc('Hello', 'World') } } },
     ]);
@@ -190,7 +190,7 @@ describe('issues', () => {
     expect(blank.calls).toHaveLength(0);
   });
 
-  it('list-comments: pages by startAt until total, adding bodyText to each', async () => {
+  it('issue comments: pages by startAt until total, adding bodyText to each', async () => {
     const page = (startAt: number, comments: unknown[]) => ({ json: { startAt, maxResults: 50, total: 51, comments } });
     const first = Array.from({ length: 50 }, (_, i) => ({ id: String(i), body: doc(`c${i}`) }));
     const { envelope, calls } = await run(listComments, { key: 'PROJ-123' }, [
@@ -203,7 +203,7 @@ describe('issues', () => {
     expect(data.at(-1)).toEqual({ id: '50', body: doc('last'), bodyText: 'last' });
   });
 
-  it('add-label: sends label operations, and refuses a list with no label in it', async () => {
+  it('issue label: sends label operations, and refuses a list with no label in it', async () => {
     const { calls } = await run(addLabel, { key: 'PROJ-123', labels: 'a,b', ...write }, [{ method: 'PUT', path: '/rest/api/3/issue/PROJ-123', respond: { status: 204 } }]);
     expect(body(calls[0]!)).toEqual({ update: { labels: [{ add: 'a' }, { add: 'b' }] } });
     const none = await run(addLabel, { key: 'PROJ-123', labels: ',', ...write }, []);
@@ -217,14 +217,14 @@ describe('issues', () => {
     expect(envelope.data).toEqual({ assigned: 'PROJ-123', assignee: ACCOUNT });
   });
 
-  it('link-issue: resolves a phrase to its link type id; an unknown one lists the names', async () => {
+  it('issue link: resolves a phrase to its link type id; an unknown one lists the names', async () => {
     const routes: Route[] = [
       { path: '/rest/api/3/issueLinkType', respond: { json: { issueLinkTypes: [{ id: '10000', name: 'Blocks', inward: 'is blocked by', outward: 'blocks' }] } } },
       { method: 'POST', path: '/rest/api/3/issueLink', respond: { status: 201 } },
     ];
-    const ok = await run(linkIssue, { key: 'A-1', linkType: 'is blocked by', target: 'A-2', ...write }, routes);
+    const ok = await run(linkIssue, { key: 'A-1', type: 'is blocked by', target: 'A-2', ...write }, routes);
     expect(body(ok.calls[1]!)).toEqual({ type: { id: '10000' }, inwardIssue: { key: 'A-1' }, outwardIssue: { key: 'A-2' } });
-    const bad = await run(linkIssue, { key: 'A-1', linkType: 'Duplicates', target: 'A-2', ...write }, routes);
+    const bad = await run(linkIssue, { key: 'A-1', type: 'Duplicates', target: 'A-2', ...write }, routes);
     expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('Blocks') });
   });
 
@@ -263,22 +263,22 @@ describe('search', () => {
   });
 
   it('stops at maxResults and hands back a cursor that resumes exactly', async () => {
-    const first = await run(search, { jql: 'project = PROJ', maxResults: 1, fields: 'summary, customfield_10016' }, [pages]);
+    const first = await run(search, { jql: 'project = PROJ', limit: 1, fields: 'summary, customfield_10016' }, [pages]);
     expect(body(first.calls[0]!)).toEqual({ jql: 'project = PROJ', maxResults: 1, fields: ['summary', 'customfield_10016'] });
     expect(first.envelope.data).toMatchObject({ maxResults: 1, isLast: false });
     const cursor = first.envelope.meta.page?.nextCursor;
     expect(cursor).toEqual(expect.any(String));
-    const second = await run(search, { jql: 'project = PROJ', maxResults: 2, cursor }, [pages]);
+    const second = await run(search, { jql: 'project = PROJ', limit: 2, cursor }, [pages]);
     const keys = (second.envelope.data as { issues: Array<{ key: string }> }).issues.map((i) => i.key);
     expect(keys).toEqual(['PROJ-2', 'PROJ-3']);
     expect(second.envelope.meta.page).toEqual({ nextCursor: null, limit: 2 });
   });
 
   it('refuses a bad cursor, a cursor without maxResults, both --jql and --jql-file, and an empty query', async () => {
-    const bad = await run(search, { jql: 'x', maxResults: 1, cursor: 'nope' }, [pages]);
+    const bad = await run(search, { jql: 'x', limit: 1, cursor: 'nope' }, [pages]);
     expect(bad.envelope.error?.code).toBe('INVALID_INPUT');
     const lone = await run(search, { jql: 'x', cursor: 'eyJjIjpudWxsLCJzIjoyfQ' }, []);
-    expect(lone.envelope.error?.message).toBe('--cursor needs --max-results');
+    expect(lone.envelope.error?.message).toBe('--cursor needs --limit');
     const both = await run(search, { jql: 'x', jqlFile: 'q.jql' }, [], { files: { 'q.jql': 'y' } });
     expect(both.envelope.error?.message).toBe('Cannot specify both --jql and --jql-file');
     const blank = await run(search, { jqlFile: 'q.jql' }, [], { files: { 'q.jql': '\n' } });
@@ -287,7 +287,7 @@ describe('search', () => {
 });
 
 describe('projects and users', () => {
-  it('list-projects: pages /project/search until isLast, passing the query', async () => {
+  it('project list: pages /project/search until isLast, passing the query', async () => {
     const values = (n: number, from: number) => Array.from({ length: n }, (_, i) => ({ id: String(from + i), key: `P${from + i}` }));
     const { envelope, calls } = await run(listProjects, { query: 'img' }, [
       { path: '/rest/api/3/project/search', query: { query: 'img', startAt: '0', maxResults: '50' }, respond: { json: { startAt: 0, maxResults: 50, total: 52, isLast: false, values: values(50, 0) } } },
@@ -297,7 +297,7 @@ describe('projects and users', () => {
     expect(envelope.data as unknown[]).toHaveLength(52);
   });
 
-  it('search-users: one GET with the query and a default of 50', async () => {
+  it('user search: one GET with the query and a default of 50', async () => {
     const { calls } = await run(searchUsers, { query: 'smith' }, [{ path: '/rest/api/3/user/search', respond: { json: [] } }]);
     expect(calls[0]!.url).toBe(`${API}/user/search?query=smith&maxResults=50`);
   });
@@ -390,13 +390,13 @@ describe('worklogs and attachments', () => {
     expect(envelope.data).toMatchObject({ id: '1', commentText: 'Done' });
   });
 
-  it('add-attachment: one multipart part named file, with the no-check header', async () => {
+  it('issue attach: one multipart part named file, with the no-check header', async () => {
     const { calls } = await run(addAttachment, { key: 'PROJ-123', file: 'dir/shot.png', ...write }, [{ method: 'POST', path: '/rest/api/3/issue/PROJ-123/attachments', respond: { json: [] } }], { files: { 'dir/shot.png': 'PNG!' } });
     expect(calls[0]!.headers).toMatchObject({ authorization: AUTH, 'x-atlassian-token': 'no-check', 'content-type': expect.stringMatching(/^multipart\/form-data; boundary=/) });
     expect(String(calls[0]!.body)).toContain('name="file"; filename="shot.png"');
   });
 
-  it('download-attachment: asks for the bytes with redirect=false on the configured host, and saves under .toil', async () => {
+  it('issue download: asks for the bytes with redirect=false on the configured host, and saves under .toil', async () => {
     const { envelope, calls, written } = await run(downloadAttachment, { key: 'PROJ-123', attachmentId: '10001' }, [
       { path: '/rest/api/3/issue/PROJ-123', query: { fields: 'attachment' }, respond: { json: { fields: { attachment: [{ id: '10001', filename: '../shot.png', content: 'https://elsewhere.imagile.dev/x' }] } } } },
       { path: '/rest/api/3/attachment/content/10001', query: { redirect: 'false' }, respond: { text: 'PNG!' } },
@@ -406,15 +406,15 @@ describe('worklogs and attachments', () => {
     expect(Object.keys(written)).toEqual([expect.stringMatching(/\.toil\/shot\.png$/)]);
   });
 
-  it('download-attachment: an id not on the issue is INVALID_INPUT before any download', async () => {
+  it('issue download: an id not on the issue is INVALID_INPUT before any download', async () => {
     const { envelope, calls } = await run(downloadAttachment, { key: 'PROJ-123', attachmentId: '9' }, [{ path: '/rest/api/3/issue/PROJ-123', respond: { json: { fields: {} } } }]);
-    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('list-attachments') });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('issue attachments') });
     expect(calls).toHaveLength(1);
   });
 });
 
 describe('agile', () => {
-  it('list-sprints: across a project, only scrum boards, each sprint once, until isLast', async () => {
+  it('sprint list: across a project, only scrum boards, each sprint once, until isLast', async () => {
     const { envelope, calls } = await run(listSprints, { project: 'PROJ', state: 'active, closed' }, [
       { path: '/rest/agile/1.0/board', respond: { json: { startAt: 0, maxResults: 50, total: 3, isLast: true, values: [{ id: 3, type: 'scrum' }, { id: 4, type: 'kanban' }, { id: 5, type: 'scrum' }] } } },
       { path: /^\/rest\/agile\/1\.0\/board\/(3|5)\/sprint$/, respond: { json: { startAt: 0, maxResults: 50, isLast: true, values: sprints } } },
@@ -427,7 +427,7 @@ describe('agile', () => {
     expect((envelope.data as Array<{ id: number }>).map((s) => s.id)).toEqual([41, 42]);
   });
 
-  it('list-sprints --project: reads team-managed (simple) boards too; one without sprints is skipped with a warning naming it', async () => {
+  it('sprint list --project: reads team-managed (simple) boards too; one without sprints is skipped with a warning naming it', async () => {
     const { envelope, calls } = await run(listSprints, { project: 'IMG' }, [
       { path: '/rest/agile/1.0/board', respond: { json: { startAt: 0, isLast: true, values: [{ id: 7, name: 'IMG board', type: 'simple' }, { id: 8, name: 'IMG sprints', type: 'simple' }] } } },
       { path: '/rest/agile/1.0/board/7/sprint', respond: { status: 400, json: { errorMessages: ['The board does not support sprints'] } } },
@@ -438,7 +438,7 @@ describe('agile', () => {
     expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'JIRA_CLOUD_NO_SPRINTS', message: expect.stringContaining('IMG board (7)') })]);
   });
 
-  it('list-sprints --project: a 400 from a scrum board is still an error', async () => {
+  it('sprint list --project: a 400 from a scrum board is still an error', async () => {
     const { envelope } = await run(listSprints, { project: 'PROJ' }, [
       { path: '/rest/agile/1.0/board', respond: { json: { startAt: 0, isLast: true, values: [{ id: 3, name: 'PROJ board', type: 'scrum' }] } } },
       { path: '/rest/agile/1.0/board/3/sprint', respond: { status: 400, json: { errorMessages: ['Bad state'] } } },
@@ -446,7 +446,7 @@ describe('agile', () => {
     expect(envelope.error?.code).toBe('HTTP');
   });
 
-  it('list-sprints: needs a board or a project, and refuses an unknown state before any request', async () => {
+  it('sprint list: needs a board or a project, and refuses an unknown state before any request', async () => {
     const neither = await run(listSprints, {}, []);
     expect(neither.envelope.error?.message).toBe('Either --board or --project is required');
     const bad = await run(listSprints, { board: 3, state: 'open' }, []);

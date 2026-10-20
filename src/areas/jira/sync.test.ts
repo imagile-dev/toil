@@ -61,7 +61,7 @@ describe('--updated-since in JQL', () => {
   });
 
   it('search: reads the zone from /myself and POSTs the combined JQL', async () => {
-    const { envelope, calls } = await run(search, { jql: 'project = PROJ ORDER BY key', updatedSince: '2026-10-01T07:30:00Z', maxResults: 1 }, [
+    const { envelope, calls } = await run(search, { jql: 'project = PROJ ORDER BY key', updatedSince: '2026-10-01T07:30:00Z', limit: 1 }, [
       { url: `${API}/myself`, respond: { json: { name: 'jsmith', timeZone: 'Europe/London' } } },
       { method: 'POST', url: `${API}/search`, respond: { json: { issues: [issue('PROJ-1')], total: 4, startAt: 0, maxResults: 1 } } },
     ]);
@@ -97,7 +97,7 @@ describe('paging through meta.page.nextCursor', () => {
   };
 
   it('search: --cursor is the startAt the last page handed out, and refuses one that is not, or --start-at beside it', async () => {
-    const { envelope, calls } = await run(search, { jql: 'project = P', maxResults: 2, cursor: '4' }, [searchRoute]);
+    const { envelope, calls } = await run(search, { jql: 'project = P', limit: 2, cursor: '4' }, [searchRoute]);
     expect(JSON.parse(calls[0]!.body!)).toMatchObject({ startAt: 4, maxResults: 2 });
     expect(envelope.data).toMatchObject({ startAt: 4, maxResults: 1, total: 5 });
     expect(envelope.meta.page).toEqual({ nextCursor: null, limit: 2 });
@@ -105,7 +105,7 @@ describe('paging through meta.page.nextCursor', () => {
     expect((await run(search, { jql: 'project = P', cursor: '2', startAt: 2 }, [])).envelope.error?.code).toBe('INVALID_INPUT');
   });
 
-  it('list-comments: with --limit, stops there and hands out the startAt; --cursor carries on', async () => {
+  it('issue comments: with --limit, stops there and hands out the startAt; --cursor carries on', async () => {
     const page = (startAt: number) => ({ comments: [{ id: 'a' }, { id: 'b' }, { id: 'c' }].slice(startAt), total: 3, startAt, maxResults: 100 });
     const routes: Route[] = [{ url: /comment\?startAt=\d+/, respond: (req) => ({ json: page(Number(new URL(req.url).searchParams.get('startAt'))) }) }];
     const first = await run(listComments, { key: 'PROJ-1', limit: 2 }, routes);
@@ -119,7 +119,7 @@ describe('paging through meta.page.nextCursor', () => {
     expect((await run(listComments, { key: 'PROJ-1' }, routes)).envelope.meta.page).toBeUndefined();
   });
 
-  it('list-boards and list-sprints page the same way; sprints page only with --board', async () => {
+  it('board list and sprint list page the same way; sprints page only with --board', async () => {
     const boards = await run(listBoards, { project: 'PROJ', limit: 1 }, [
       { url: /\/board\?/, respond: { json: { startAt: 0, maxResults: 100, total: 2, isLast: true, values: [{ id: 1, name: 'a', type: 'scrum' }, { id: 2, name: 'b', type: 'kanban' }] } } },
     ]);
@@ -130,7 +130,7 @@ describe('paging through meta.page.nextCursor', () => {
   });
 });
 
-describe('get-changelog', () => {
+describe('issue history', () => {
   const history = (id: string, field: string) => ({ id, author: { name: 'jsmith', displayName: 'J. Smith' }, created: '2024-01-15T10:00:00.000+0000', items: [{ field, fieldtype: 'jira', from: null, fromString: '', to: null, toString: 'x' }] });
   const route = (histories: unknown[], total = histories.length): Route => ({ url: `${API}/issue/PROJ-1?expand=changelog&fields=summary`, respond: { json: { key: 'PROJ-1', fields: { summary: 's' }, changelog: { startAt: 0, maxResults: total, total, histories } } } });
 
@@ -158,7 +158,7 @@ describe('get-changelog', () => {
   });
 });
 
-describe('get-issue with several keys', () => {
+describe('issue get with several keys', () => {
   const routes: Route[] = [
     { url: `${API}/issue/PROJ-404`, respond: { status: 404, json: { errorMessages: ['Issue Does Not Exist'], errors: {} } } },
     { url: /\/issue\/PROJ-\d+$/, respond: (req) => ({ json: issue(new URL(req.url).pathname.split('/').pop()!) }) },
@@ -192,11 +192,11 @@ describe('get-issue with several keys', () => {
     }
   });
 
-  it('on the CLI, --key once is one issue and repeated is the bulk read', async () => {
+  it('on the CLI, one key is one issue and several are the bulk read', async () => {
     const t = testContext({ config: fixtureConfig, routes });
-    const one = await runCli(['jira', 'get-issue', '--key', 'PROJ-1'], { commands: [getIssue], context: t.context });
+    const one = await runCli(['jira', 'issue', 'get', 'PROJ-1'], { commands: [getIssue], context: t.context });
     expect(one.envelope?.data).toMatchObject({ key: 'PROJ-1' });
-    const two = await runCli(['jira', 'get-issue', '--key', 'PROJ-1', '--key', 'PROJ-2'], { commands: [getIssue], context: t.context });
+    const two = await runCli(['jira', 'issue', 'get', 'PROJ-1', 'PROJ-2'], { commands: [getIssue], context: t.context });
     expect((two.envelope?.data as { issues: unknown[] }).issues).toHaveLength(2);
   });
 });

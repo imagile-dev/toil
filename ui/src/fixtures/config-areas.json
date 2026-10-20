@@ -221,7 +221,7 @@
       },
       {
         "name": "project",
-        "description": "Default project key for create-issue",
+        "description": "Default project key for issue create",
         "secret": false,
         "password": false,
         "default": null,
@@ -229,7 +229,7 @@
       },
       {
         "name": "issueType",
-        "description": "Default issue type for create-issue (Task when unset)",
+        "description": "Default issue type for issue create (Task when unset)",
         "secret": false,
         "password": false,
         "default": null,
@@ -237,7 +237,7 @@
       },
       {
         "name": "priority",
-        "description": "Default priority for create-issue",
+        "description": "Default priority for issue create",
         "secret": false,
         "password": false,
         "default": null,
