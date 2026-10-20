@@ -22,6 +22,9 @@ import { createUiServer } from './server.ts';
 import { parseSettings, SettingsError, themesNotice, USAGE } from './settings.ts';
 import { fixtureStore, sqliteStore } from './store.ts';
 import { SyncService } from './sync.ts';
+import { cacheLedger, memoryLedger, usageControl } from './usage.ts';
+import { SAMPLE_USAGE_SETTINGS, sampleUsageRecords } from '../src/fixtures/model-usage.ts';
+import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
 
 declare const __TOIL_UI_VERSION__: string;
 
@@ -77,6 +80,11 @@ async function main(): Promise<number> {
   }
   const toil = { version: toilVersion, contractVersion: toilContract };
   // The agent (#251): the adapter chosen in Settings, reading the cache, or the scripted one for the sample.
+  // The agent's model usage (#295): the cache's ledger, or the sample month, read-only, with --sample.
+  const ledger = cache ? cacheLedger(() => cache!) : memoryLedger(sampleUsageRecords());
+  const usage = cache
+    ? usageControl({ dataDir: settings.dataDir, ledger, retentionDays: settings.retentionDays })
+    : usageControl({ dataDir: settings.dataDir, ledger, retentionDays: null, sample: SAMPLE_USAGE_SETTINGS, now: () => new Date(FIXTURE_NOW) });
   let serveTools: ConstructorParameters<typeof AgentHost>[0]['serveTools'] = () => {
     throw new Error('The server is not listening yet.');
   };
@@ -98,6 +106,7 @@ async function main(): Promise<number> {
         },
         serveTools: (tools) => serveTools(tools),
         fallback: noAgent(),
+        ledger,
       })
     : undefined;
   const ui = createUiServer({
@@ -106,6 +115,7 @@ async function main(): Promise<number> {
     agent: host ?? fixtureAgent(),
     ...(host ? { agentControl: host } : {}),
     ...(sync ? { sync } : {}),
+    usage,
     appDir: fileURLToPath(new URL('../app/', import.meta.url)),
     version: __TOIL_UI_VERSION__,
     toil,
