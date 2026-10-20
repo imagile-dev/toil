@@ -67,8 +67,9 @@ npm run smoke
 - The PR description says how you verified the change: the gate's summary lines
   with your OS and Node version, real runs of the commands you touched, and
   screenshots for anything visual.
-- A human merges. `main` needs an approving review and the `CI ok` check, and
-  takes squash merges only.
+- A person decides every merge. A maintainer merges a contributor's PR. `main`
+  needs an approving review of the head commit and the `CI ok` check, and takes
+  squash merges only.
 
 ## License
 

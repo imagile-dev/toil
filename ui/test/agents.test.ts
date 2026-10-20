@@ -9,7 +9,7 @@ import { noAgent } from '../server/agent.ts';
 import { finish, named, partial, writeCommands } from '../server/agents/answer.ts';
 import { claudeEnv, claudeRuntime, claudeToolName, zodShape } from '../server/agents/claude.ts';
 import { AgentError, findCli } from '../server/agents/cli.ts';
-import { CODEX_FEATURES_OFF, codexOverrides, codexRuntime, TOKEN_ENV } from '../server/agents/codex.ts';
+import { CODEX_FEATURES_OFF, codexConfigPath, codexOverrides, codexRuntime, codexUserServers, TOKEN_ENV } from '../server/agents/codex.ts';
 import { copilotRuntime } from '../server/agents/copilot.ts';
 import { agentEnv } from '../server/agents/env.ts';
 import { AgentHost, type AgentHostOptions } from '../server/agents/host.ts';
@@ -388,6 +388,8 @@ function hostFor(adapter: 'claude' | 'copilot' | 'codex', module: unknown, over:
     installed: () => true,
     isFile: (p) => Object.values(FAKE_CLI).includes(p),
     now: () => FIXTURE_NOW,
+    // Codex's config is never read from this machine's disk here.
+    runtimes: [claudeRuntime('t'), copilotRuntime(), codexRuntime({ readConfig: () => null })],
     ...over,
   });
   return { host, rec, grants, dataDir };
@@ -777,4 +779,70 @@ it('the three runtimes are the three adapters the settings name', () => {
     ['copilot', '@github/copilot-sdk', 'copilot'],
     ['codex', '@openai/codex-sdk', 'codex'],
   ]);
+});
+
+describe('the assignee a tool reports', () => {
+  it('is the person\'s login when the tracker gives no name, as GitHub does, and filters on it', async () => {
+    const github = cacheData(cache, 'checkout-web')!;
+    const assigned = github.items().filter((i) => i.assignee);
+    expect(assigned.length).toBeGreaterThan(0);
+    const tools = cacheTools('checkout-web', github, new Ledger());
+    const all = (await tool(tools, 'owi_query').run({ limit: 50 })) as { items: Array<{ id: string; assignee: string | null }> };
+    for (const item of assigned) {
+      const expected = item.assignee!.name ?? item.assignee!.id;
+      expect(all.items.find((i) => i.id === item.id)?.assignee).toBe(expected);
+    }
+    const one = assigned[0]!;
+    const login = one.assignee!.name ?? one.assignee!.id;
+    const filtered = (await tool(tools, 'owi_query').run({ assignee: login, limit: 50 })) as { items: Array<{ id: string }> };
+    expect(filtered.items.map((i) => i.id)).toContain(one.id);
+  });
+});
+
+describe("the user's own Codex MCP servers", () => {
+  const CONFIG = [
+    'model = "gpt-5"',
+    '[mcp_servers.node_repl]',
+    'command = "node_repl.exe"',
+    '[mcp_servers.node_repl.env]',
+    'X = "1"',
+    '[mcp_servers.discord-mcp]',
+    'url = "http://localhost:8085/mcp"',
+    '[mcp_servers."team tools"]',
+    'command = "tools"',
+    '[profiles.work]',
+    'model = "o3"',
+  ].join('\r\n');
+
+  it('are named from the config, tables and dotted keys alike, and nothing else is', () => {
+    expect(codexUserServers(CONFIG, '/home/you/.codex/config.toml')).toEqual(['node_repl', 'discord-mcp', 'team tools']);
+    expect(codexUserServers('mcp_servers.solo.command = "x"\n[mcp_servers]\nother = { url = "http://127.0.0.1:1/" }', 'c')).toEqual(['solo', 'other']);
+    expect(codexUserServers('# no servers\nmodel = "o3"', 'c')).toEqual([]);
+  });
+
+  it('refuses a config that sets them as one inline table, rather than leave one on', () => {
+    expect(() => codexUserServers('mcp_servers = { a = { url = "http://127.0.0.1:1/" } }', '/home/you/.codex/config.toml')).toThrow(/can't tell which MCP servers \/home\/you\/.codex\/config.toml adds/);
+  });
+
+  it('are each switched off for the run, with Toil UI\'s own server the only one on', () => {
+    const overrides = codexOverrides('http://127.0.0.1:1/api/agent/mcp', ['node_repl', 'discord-mcp', 'team tools']);
+    expect(overrides.slice(1, 4)).toEqual(['mcp_servers.node_repl.enabled=false', 'mcp_servers.discord-mcp.enabled=false', 'mcp_servers."team tools".enabled=false']);
+  });
+
+  it('come from CODEX_HOME, else .codex in the home folder', () => {
+    expect(codexConfigPath({ CODEX_HOME: '/opt/codex', HOME: '/home/you' }, 'linux')).toBe(join('/opt/codex', 'config.toml'));
+    expect(codexConfigPath({ HOME: '/home/you' }, 'linux')).toBe(join('/home/you', '.codex', 'config.toml'));
+    expect(codexConfigPath({ USERPROFILE: 'C:\\Users\\you', HOME: '/c/Users/you' }, 'win32')).toBe(join('C:\\Users\\you', '.codex', 'config.toml'));
+  });
+
+  it('are switched off on a real run: the adapter reads the config from the CLI\'s environment and passes the overrides', async () => {
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const stub = codexStub(SCRIPT, holder);
+    const read: string[] = [];
+    const runtime = codexRuntime({ readConfig: (path) => (read.push(path), CONFIG), platform: 'linux' });
+    const { host } = hostFor('codex', stub.module, { serveTools: (tools) => holder.serve(tools), runtimes: [runtime] });
+    await streamed(host);
+    expect(read).toEqual([join('/home/you', '.codex', 'config.toml')]);
+    expect(stub.seen.options!.configOverrides).toEqual(codexOverrides('http://127.0.0.1:1/api/agent/mcp', ['node_repl', 'discord-mcp', 'team tools']));
+  });
 });

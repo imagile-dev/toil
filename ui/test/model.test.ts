@@ -168,6 +168,8 @@ describe('review round 1 (#229)', () => {
     const canned: Canned[] = [
       { command: 'dossiers show', input: base, data: showData(mixed) },
       { command: 'bitbucket list-prs', input: { ...base, state: 'ALL' }, data: BITBUCKET_PRS },
+      // No board named, so the repository's issues are read; this test is about deployments, so there are none.
+      { command: 'github list-issues', input: { ...base, state: 'all' }, data: [] },
       { command: 'github list-prs', input: { ...base, state: 'all' }, data: GITHUB_PRS },
       ...Object.keys(GITHUB_CHECKS).map((ref) => ({ command: 'github list-checks', input: { ...base, ref }, data: GITHUB_CHECKS[ref] })),
       { command: 'openshift deployments', input: { ...base, env: 'dev', namespace: 'mixed-dev' }, data: { namespace: 'mixed-dev', kind: 'Deployment', count: 2, deployments: [...ns, ...staging] } },
