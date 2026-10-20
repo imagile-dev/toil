@@ -4904,11 +4904,20 @@ it pins. These are the choices made by default in the fix:
   submodule's own config is never read), and deletes `hooks`, `commondir`,
   `config.worktree` and `info/attributes`. A filter the working tree's
   `.gitattributes` names then has no definition and does nothing. The person's lines
-  add `--no-verify`, and the commit message is a file Toil UI writes beside the
+  add `--no-verify` and a `core.hooksPath` that doesn't exist, and the commit message is a file Toil UI writes beside the
   agent's folder, so nothing from the tracker reaches a command line; the paths are
   Toil UI's own, in double quotes, which every shell reads alike when they hold no
   dollar sign, backtick, percent sign or double quote (otherwise the note says what
   to run by hand).
+- **A commit the agent makes stops the push** (review round 2). The staged diff is
+  all the page shows, and a commit would leave it while still going out with the
+  person's push. `prepareClone` records the commit the clone starts at, read from
+  `.git/HEAD` and the ref or `packed-refs` in plain file operations; if HEAD has moved
+  when the run ends, the report says so and no commit or push is proposed. The
+  person's lines also carry `-c core.hooksPath="<work folder>.no-hooks"`, a folder
+  Toil UI never creates, because `--no-verify` skips only some hooks
+  (`prepare-commit-msg`, `post-commit` and `reference-transaction` still run) and the
+  work folder stays writable after the run.
 - **The agent can read the whole disk in implement mode.** Codex's `workspace-write`
   limits writes and network, not reads, and implement mode has the shell, so the
   agent could read files in the person's home folder and put what it read into its

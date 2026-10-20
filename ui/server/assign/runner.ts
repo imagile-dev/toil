@@ -91,6 +91,32 @@ export function commentProposal(dossier: string, item: WorkItem, body: string, w
   };
 }
 
+/**
+ * The commit a clone's HEAD is at, read in plain file operations: a detached
+ * HEAD's own id, else its branch's loose ref, else that branch's line in
+ * `packed-refs`; null when none of them says (#293 review: a commit the agent
+ * made would otherwise leave the staged diff and still go out with the push).
+ */
+export function headCommit(folder: string): string | null {
+  const git = join(folder, '.git');
+  try {
+    const head = readFileSync(join(git, 'HEAD'), 'utf8').trim();
+    if (/^[0-9a-f]{40,64}$/.test(head)) return head;
+    const ref = /^ref: (refs\/[^\s]+)$/.exec(head)?.[1];
+    if (!ref || ref.includes('..')) return null;
+    try {
+      const loose = readFileSync(join(git, ...ref.split('/')), 'utf8').trim();
+      if (/^[0-9a-f]{40,64}$/.test(loose)) return loose;
+    } catch {
+      // Not loose: packed, or a branch with no commit yet.
+    }
+    const packed = readFileSync(join(git, 'packed-refs'), 'utf8').split(/\r?\n/).find((l) => l.endsWith(` ${ref}`));
+    return packed ? packed.split(' ')[0]! : null;
+  } catch {
+    return null;
+  }
+}
+
 /** What `.git/HEAD` names in a clone: the branch, or null for a detached HEAD or no clone. */
 export function headBranch(folder: string): string | null {
   try {
@@ -146,6 +172,7 @@ export function hostRunner(o: HostRunnerOptions): Runner {
       let workspace: Workspace | null = null;
       let branch: string | null = null;
       let repo: RepoChoice | null = null;
+      let start: string | null = null;
       let modePrompt;
       if (a.mode === 'implement') {
         repo = await repoNamed(o.execute, a.dossier, a.repo);
@@ -154,7 +181,7 @@ export function hostRunner(o: HostRunnerOptions): Runner {
         rmSync(folder, { recursive: true, force: true });
         mkdirSync(folder, { recursive: true, mode: 0o700 });
         rmSync(`${folder}.commit-message.txt`, { force: true });
-        prepareClone(repo.path, cloneOf(folder));
+        start = prepareClone(repo.path, cloneOf(folder));
         workspace = { root: folder };
         modePrompt = implementPrompt(a.dossier, item, now(), { repo: repo.name, branch });
       } else {
@@ -212,15 +239,20 @@ export function hostRunner(o: HostRunnerOptions): Runner {
       if (workspace && branch && repo) {
         const clone = cloneOf(workspace.root);
         const refused = reclaimGitDir(clone, repo.path);
+        const head = headCommit(clone);
         if (refused) report.warnings.unshift(`${refused} Nothing of the agent's work is shown or proposed.`);
-        else {
+        else if (!start || head !== start) {
+          // A commit the agent made isn't in the staged diff, so it would go out with the push unseen: nothing is proposed.
+          report.warnings.unshift(`The agent moved the clone off the commit it started at (${start ? start.slice(0, 12) : 'unknown'}, now ${head ? head.slice(0, 12) : 'unknown'}), which it was told never to do, so its commits aren't in the diff below and no commit or push is proposed. Look at the clone's history yourself before you use any of it.`);
+          branchInfo = await branchOf(read, clone, branch, repo.name, actor);
+        } else {
           branchInfo = await branchOf(read, clone, branch, repo.name, actor);
           if (!branchInfo.onBranch) report.warnings.unshift(`The clone isn't on ${branch}, the branch the agent was asked to make, so check its work before you use it.`);
           if (branchInfo.files.length) {
             // The message goes in a file beside the agent's folder, written after the run, so nothing from the tracker is shell syntax on the person's command line.
             const message = `${workspace.root}.commit-message.txt`;
             writeFileSync(message, `${item.source.key}: ${item.title}\n\n${item.url ?? item.id}\n`);
-            proposals.unshift(pushProposal(item, branchInfo, slashes(message)));
+            proposals.unshift(pushProposal(item, branchInfo, slashes(message), slashes(`${workspace.root}.no-hooks`)));
           }
         }
       }
@@ -292,9 +324,10 @@ function filesOf(data: unknown): Branch['files'] {
  * it never has to read the person's clone, which Codex's sandbox on Windows
  * won't map (git's local clone fails there with "CreateFileMapping", error
  * 5), and uncommitted work in the person's clone never comes along. Throws
- * when the dossier's path isn't a plain git clone.
+ * when the dossier's path isn't a plain git clone. Returns the commit the
+ * clone starts at, which the agent must not move.
  */
-export function prepareClone(source: string, clone: string): void {
+export function prepareClone(source: string, clone: string): string | null {
   const git = join(source, '.git');
   let st;
   try {
@@ -306,6 +339,7 @@ export function prepareClone(source: string, clone: string): void {
   cpSync(git, join(clone, '.git'), { recursive: true, filter: (from) => !/[\\/]\.git[\\/](hooks|config|[^\\/]*\.lock)$/.test(from) });
   const refused = reclaimGitDir(clone, source);
   if (refused) throw new RunStopped('error', refused, 'Assign it again.');
+  return headCommit(clone);
 }
 
 /**
@@ -360,13 +394,13 @@ export function reclaimGitDir(clone: string, source: string): string | null {
 }
 
 /** Commit and push are a person's: toil has no command for either, so the proposal is the exact git lines. */
-export function pushProposal(item: WorkItem, b: Branch, messageFile: string): Proposal {
+export function pushProposal(item: WorkItem, b: Branch, messageFile: string, noHooks: string): Proposal {
   // Double quotes mean the same in PowerShell, cmd.exe and POSIX shells for a value without $, `, %, " or a line break; only Toil UI's own paths go in them.
-  const unsafe = [b.folder, messageFile].some((v) => /[$`%"\r\n]/.test(v));
+  const unsafe = [b.folder, messageFile, noHooks].some((v) => /[$`%"\r\n]/.test(v));
   const q = (v: string) => `"${v}"`;
   const lines = unsafe
-    ? `toil has no command that commits or pushes, and the clone's path holds a character no shell line can carry safely, so in a terminal in ${b.folder} commit with the message in ${messageFile} (git commit --no-verify -F <that file>) and push with git push --no-verify origin HEAD:refs/heads/${b.name}.`
-    : `toil has no command that commits or pushes, so run these in a terminal once the diff looks right: git -C ${q(b.folder)} commit --no-verify -F ${q(messageFile)} then git -C ${q(b.folder)} push --no-verify origin HEAD:refs/heads/${b.name}.`;
+    ? `toil has no command that commits or pushes, and the clone's path holds a character no shell line can carry safely, so in a terminal in ${b.folder} commit with the message in ${messageFile} (git -c core.hooksPath=<a folder that doesn't exist> commit --no-verify -F <that file>) and push the same way with push --no-verify origin HEAD:refs/heads/${b.name}.`
+    : `toil has no command that commits or pushes, so run these in a terminal once the diff looks right: git -C ${q(b.folder)} -c core.hooksPath=${q(noHooks)} commit --no-verify -F ${q(messageFile)} then git -C ${q(b.folder)} -c core.hooksPath=${q(noHooks)} push --no-verify origin HEAD:refs/heads/${b.name}.`;
   return {
     id: `agent:${item.id}:push:${b.name}`,
     from: 'agent',
@@ -375,6 +409,6 @@ export function pushProposal(item: WorkItem, b: Branch, messageFile: string): Pr
     reason: `The agent staged ${b.files.length === 1 ? 'one file' : `${b.files.length} files`} on ${b.name} in a clone of ${b.repo}. Review the staged diff, then commit and push it yourself.`,
     command: null,
     input: null,
-    note: `${lines} The message is the item's key, title and link, in that file. Toil UI rewrote the clone's git config and removed its hooks before showing the diff, and --no-verify skips any hook besides. The clone's origin is your local clone of ${b.repo}, so the branch lands there first; push it on from there.`,
+    note: `${lines} The message is the item's key, title and link, in that file. Toil UI rewrote the clone's git config and removed its hooks before showing the diff; core.hooksPath points git at a folder that doesn't exist, so no hook runs even if one comes back, and --no-verify is there besides. The clone's origin is your local clone of ${b.repo}, so the branch lands there first; push it on from there.`,
   };
 }

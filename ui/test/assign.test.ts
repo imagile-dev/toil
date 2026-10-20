@@ -300,12 +300,12 @@ describe("the runner's own proposals", () => {
 
   it('proposes the commit and push as git lines with the message in a file, so nothing from the tracker is shell syntax', () => {
     const branch = { name: 'agent/PAY-107', repo: 'payments-core', folder: 'C:/work/x/repo', onBranch: true, files: [{ path: 'a.ts', status: 'staged' }], diff: null };
-    const p = pushProposal({ ...item('corp-jira:PAY-107'), title: "Retry & don't | charge twice" }, branch, 'C:/work/x.commit-message.txt');
+    const p = pushProposal({ ...item('corp-jira:PAY-107'), title: "Retry & don't | charge twice" }, branch, 'C:/work/x.commit-message.txt', 'C:/work/x.no-hooks');
     expect(p).toMatchObject({ command: null, input: null });
-    expect(p.note).toContain('git -C "C:/work/x/repo" commit --no-verify -F "C:/work/x.commit-message.txt" then git -C "C:/work/x/repo" push --no-verify origin HEAD:refs/heads/agent/PAY-107.');
+    expect(p.note).toContain('git -C "C:/work/x/repo" -c core.hooksPath="C:/work/x.no-hooks" commit --no-verify -F "C:/work/x.commit-message.txt" then git -C "C:/work/x/repo" -c core.hooksPath="C:/work/x.no-hooks" push --no-verify origin HEAD:refs/heads/agent/PAY-107.');
     expect(p.note).not.toContain('Retry &');
     // A path no shell line can carry is never put on one.
-    expect(pushProposal(item('corp-jira:PAY-107'), { ...branch, folder: 'C:/Users/$me/repo' }, 'C:/m.txt').note).toMatch(/^toil has no command that commits or pushes, and the clone's path holds a character/);
+    expect(pushProposal(item('corp-jira:PAY-107'), { ...branch, folder: 'C:/Users/$me/repo' }, 'C:/m.txt', 'C:/h').note).toMatch(/^toil has no command that commits or pushes, and the clone's path holds a character/);
   });
 
   it("takes the clone's git directory back before any git runs there: its own config, no hooks", () => {

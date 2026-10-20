@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { mapOwi, registry } from '@imagile-dev/toil/api';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
 import * as zod from 'zod';
@@ -27,7 +27,7 @@ import { commandLine } from '../src/proposal.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { stubToil } from './toil-stub.ts';
-import { hostRunner } from '../server/assign/runner.ts';
+import { headCommit, hostRunner } from '../server/assign/runner.ts';
 import { memoryLedger, usageSettingsFile } from '../server/usage.ts';
 
 /**
@@ -1134,5 +1134,58 @@ describe('assignments on the agent host (#293)', () => {
     expect(e).toBeInstanceOf(AgentError);
     expect((e as AgentError).capped).toBe(true);
     expect(stub.seen.thread).toBeUndefined();
+  });
+});
+
+describe('implement mode, when the agent commits anyway (#293 review)', () => {
+  it('warns and proposes no commit or push, since its commits are not in the staged diff', async () => {
+    const source = mkdtempSync(join(folder, 'person-clone-'));
+    mkdirSync(join(source, '.git', 'refs', 'heads'), { recursive: true });
+    mkdirSync(join(source, '.git', 'objects'), { recursive: true });
+    writeFileSync(join(source, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    writeFileSync(join(source, '.git', 'refs', 'heads', 'main'), `${'a'.repeat(40)}\n`);
+    let root = '';
+    // The Codex SDK, stubbed: inside the run it "commits" by moving the branch the clone is on.
+    class Codex {
+      startThread(t: Record<string, unknown>) {
+        root = String(t.workingDirectory);
+        return {
+          runStreamed: async () => ({
+            events: (async function* () {
+              writeFileSync(join(root, 'repo', '.git', 'refs', 'heads', 'main'), `${'b'.repeat(40)}\n`);
+              yield { type: 'item.completed', item: { type: 'agent_message', text: 'Staged a README change.' } };
+              yield { type: 'turn.completed', usage: {} };
+            })(),
+          }),
+        };
+      }
+    }
+    const holder = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const { host, dataDir } = hostFor('codex', { Codex }, { serveTools: (tools) => holder.serve(tools) });
+    const calls: string[] = [];
+    const execute: Execute = async (command) => {
+      calls.push(command);
+      const data = command === 'dossiers show' ? { dossier: { repos: [{ name: 'payments-core', path: source }] } } : { staged: ['README.md'] };
+      return { ok: true, data, error: null, meta: { command, durationMs: 0, version: '0', contractVersion: 1 } } as unknown as Envelope;
+    };
+    const runner = hostRunner({ host, dataDir, registry: registry.commands, execute, mapIds: () => [], data: () => data, version: 't', toilVersion: 't', now: () => FIXTURE_NOW });
+    const item = data.items().find((i) => i.id === 'corp-jira:PAY-107')!;
+    const a = { id: 'abc12345-0000-0000-0000-000000000001', dossier: 'card-payments', item: item.id, itemTitle: 'x', mode: 'implement', adapter: 'codex', origin: 'person', trigger: null, state: 'working', waiting: null, repo: 'payments-core', createdAt: FIXTURE_NOW, startedAt: FIXTURE_NOW, endedAt: null, stop: null, report: null, questions: [], proposals: [], usage: null, startedOn: null, branch: null } as const;
+    const result = await runner.run({ assignment: { ...a, questions: [], proposals: [] }, item, signal: new AbortController().signal, record: () => undefined });
+    expect(result.report!.warnings[0]).toMatch(/moved the clone off the commit it started at \(aaaaaaaaaaaa, now bbbbbbbbbbbb\)/);
+    expect(result.proposals.some((p) => p.title.startsWith('Commit and push'))).toBe(false);
+    expect(headCommit(join(root, 'repo'))).toBe('b'.repeat(40));
+  });
+
+  it('reads the commit HEAD is at from a loose ref, packed-refs, or a detached HEAD', () => {
+    const clone = mkdtempSync(join(folder, 'heads-'));
+    mkdirSync(join(clone, '.git'), { recursive: true });
+    writeFileSync(join(clone, '.git', 'HEAD'), 'ref: refs/heads/agent/x\n');
+    writeFileSync(join(clone, '.git', 'packed-refs'), `# pack-refs with: peeled\n${'c'.repeat(40)} refs/heads/agent/x\n`);
+    expect(headCommit(clone)).toBe('c'.repeat(40));
+    writeFileSync(join(clone, '.git', 'HEAD'), `${'d'.repeat(40)}\n`);
+    expect(headCommit(clone)).toBe('d'.repeat(40));
+    writeFileSync(join(clone, '.git', 'HEAD'), 'ref: refs/../../x\n');
+    expect(headCommit(clone)).toBeNull();
   });
 });
