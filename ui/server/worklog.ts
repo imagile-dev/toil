@@ -114,7 +114,8 @@ export class WorklogService implements WorklogApi {
     }
     const entries = (Array.isArray(env.data) ? env.data : []) as Array<{ time: string; via: string; command: string; writes: boolean; outcome: string; input: unknown }>;
     const capped = (env.meta.warnings ?? []).some((w) => w.code === 'AUDIT_LIMIT');
-    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    // Scalars as text, since a proposal may carry an id as "7" that the CLI typed to 7; lists and objects as JSON.
+    const same = (a: unknown, b: unknown) => (typeof a === 'object' || typeof b === 'object' ? JSON.stringify(a) === JSON.stringify(b) : String(a) === String(b));
     for (const { p, after } of wanted) {
       const positional = POSITIONAL_FIELDS.get(p.command!) ?? [];
       const fields = positional.length ? positional : Object.keys(p.input ?? {}).filter((k) => k !== 'allowWrite');

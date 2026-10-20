@@ -244,6 +244,14 @@ describe('agent runs', () => {
     expect((await worklog.day('card-payments', '2026-10-12')).markdown).toContain("couldn't check toil's audit log: toil's audit log has a jira issue create write after it, but keeps only a hash of its summary.");
   });
 
+  it('match an id the proposal gives as text against the number the CLI typed', async () => {
+    const comment = run({ proposals: [{ id: 'p4', title: 'Comment on #7', item: 'github:imagile/payments-web#7', command: 'github pr comment', input: { number: '7', body: 'Looks done.' } }] });
+    const { cache, worklog } = await setup({ audit: () => ok('audit list', [{ time: '2026-10-12T07:30:00.000Z', via: 'cli', command: 'github pr comment', writes: true, outcome: 'ok', input: { number: 7, body: 'Looks done.', allowWrite: true } }]) });
+    cache.saveDossier(save(T));
+    await worklog.recordRun(comment);
+    expect((await worklog.day('card-payments', '2026-10-12')).markdown).toContain("Comment on #7 (`toil github pr comment`), applied: toil's audit log has the write at 12 Oct 2026 07:30 UTC (cli)");
+  });
+
   it('read the audit log at most once a minute, since every read is a line in it', async () => {
     const { cache, worklog, calls, tick } = await setup();
     cache.saveDossier(save(T));
