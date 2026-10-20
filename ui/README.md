@@ -51,7 +51,10 @@ preview uses, with nothing connected to a tracker.
 
 Each dashboard reads its dossier the way `toil dossiers show` describes it: the
 Jira project, the Azure DevOps project and pipelines, the GitHub repository and
-project board, and the OpenShift namespace of each environment. Every call runs
+project board, and the OpenShift namespace of each environment. A GitHub section
+with no `projects` reads the repository's own issues, open and closed, as its work
+items, with the history of every open one and the 50 most recently closed. Checks are read for every open pull request and the 20 newest closed or
+merged ones. Every call runs
 in-process through `@imagile-dev/toil/api`, read-only, and toil's audit log
 records it with `via: "api"` and `caller: "toil-ui"`. A call that fails shows on
 its own panel with toil's message and fix.
@@ -108,8 +111,8 @@ dashboards make, for every dossier, and stores the answers. The work items go
 through toil's Open Work Item mapping, with their status changes and the pull
 requests, builds and deployments that name them.
 
-- **Incremental.** After the first sync, Jira and Azure DevOps searches ask only for
-  what changed since the last good sync (`updatedSince`, five minutes early in
+- **Incremental.** After the first sync, Jira and Azure DevOps searches, and a
+  GitHub repository's issues, ask only for what changed since the last good sync (`updatedSince`, five minutes early in
   case the clocks disagree), and the GitHub board marks the issues whose
   `updatedAt` moved. Only those items and their histories are fetched again.
   Pull requests, builds, deployments and iterations have no "changed since" in
@@ -189,7 +192,11 @@ never starts that copy anyway.
 - **Codex takes tools only from an MCP server**, so for the length of one question
   Toil UI serves them at `api/agent/mcp` on its own loopback port, behind a token made
   for that question. The token reaches Codex in its environment, never on its command
-  line, and the endpoint refuses any request carrying a browser's `Origin`.
+  line, and the endpoint refuses any request carrying a browser's `Origin`. Codex adds
+  the MCP servers in your own Codex config (`$CODEX_HOME/config.toml`, else
+  `~/.codex/config.toml`) to any it's given, so Toil UI switches each of them off by
+  name for the question. A config that sets `mcp_servers` as one inline table is
+  refused with a fix, rather than run with a server possibly on.
 
 - **Your own instructions.** Under **Settings, Agent**, general instructions (for
   example "answer in British English") and a custom voice, each up to 4,000
@@ -236,6 +243,61 @@ port, so the server lets in only the browser holding this launch's token:
   page's own `Origin`, a JSON body, and the session's CSRF token.
 - **No network but toil's.** It talks to the hosts in your toil connections, and
   nothing else, apart from a feedback report you send, which toil sends to Imagile. The agent CLI you choose talks to its own model endpoint.
+
+## Run against a real repository
+
+From a clone, one command starts Toil UI on a real GitHub repository, in a home
+folder of its own (`.scratch/home` in the clone, ignored by git), so your own
+`~/.toil` and `~/.toil-ui` are never read or written:
+
+```bash
+npm ci --ignore-scripts
+npm run build -w ui
+node ui/scripts/dev-real.mjs
+```
+
+It works the same in PowerShell, Git Bash and a macOS or Linux shell. It needs the
+GitHub CLI signed in (`gh auth login`), or `TOIL_GITHUB_TOKEN` set in the shell.
+
+- **toil's config**, written once: one connection, `github`, to
+  `https://api.github.com`, with writes off and no token in the file.
+- **The token** comes from `gh auth token` each time it starts and goes only into
+  Toil UI's environment, as `TOIL_GITHUB_TOKEN`. It's never written to a file or
+  printed. `GITHUB_TOKEN` and other `TOIL_*` variables in your shell are left out.
+- **The dossiers**, made with `toil dossiers init` and `link` and checked with
+  `toil dossiers check`: one for `--repo`, and `toil-self` for the public
+  `imagile-dev/toil` unless `--no-self`. `--repo` defaults to
+  `imagile-dev/toil-sandbox` (as `sandbox`), which is private to Imagile's
+  maintainers; anyone else passes their own repository, or seeds a sandbox of their
+  own (below).
+- **Then** it starts `ui/dist/server/toil-ui.js` on loopback and prints its URL.
+  Press **Sync now**, then open a dossier. `--port <n>` fixes the port, and
+  `--home <dir>` uses another folder.
+- **Ask with Codex.** Install the SDK in the clone without saving it
+  (`npm install --no-save --ignore-scripts @openai/codex-sdk@0.160.0`), then choose
+  Codex under **Settings, Agent**. The script points `CODEX_HOME` at your real
+  `~/.codex`, so Codex keeps its own sign-in.
+
+### The sandbox repository
+
+`imagile-dev/toil-sandbox` is a private repository of made-up work for trying
+this, and the seed below makes the same in a repository of yours: labels for type, priority, points and blocked; three milestones as sprints
+(41 closed, 42 current, 43 next); 25 issues, open and closed, some assigned, some
+blocked by others, a few unestimated, one with a very long title; a workflow that
+only echoes, with one branch that fails on purpose; and four pull requests that
+close issues (merged, open, draft, and one with a failing build).
+
+```bash
+gh repo create <owner>/toil-sandbox --private --add-readme
+node ui/scripts/seed-sandbox.mjs --owner <owner> --repo toil-sandbox
+```
+
+The seed writes through the GitHub CLI's own login, never through toil, and is
+safe to run again: what exists is found by name or title and left alone. To start
+over, delete the repository (`gh repo delete <owner>/toil-sandbox`, which needs the
+`delete_repo` scope), create it again and re-run the seed. It adds no Projects
+board, which needs the `project` scope on the token, and no deployments, which
+toil's `github` area doesn't read.
 
 ## Settings
 

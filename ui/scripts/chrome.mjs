@@ -83,7 +83,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
  */
 export async function openBrowser(executable) {
   const profile = mkdtempSync(join(tmpdir(), 'toil-ui-layout-'));
-  const chrome = spawn(executable, ['--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--force-color-profile=srgb', 'about:blank'], {
+  // --disable-gpu: on some Windows machines headless Chrome with the GPU process draws no frames, so
+  // requestAnimationFrame and screenshots wait forever; software rendering is all a layout check needs.
+  const chrome = spawn(executable, ['--headless=new', '--disable-gpu', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--force-color-profile=srgb', 'about:blank'], {
     stdio: ['ignore', 'ignore', 'pipe'],
   });
   const endpoint = await new Promise((resolve, reject) => {

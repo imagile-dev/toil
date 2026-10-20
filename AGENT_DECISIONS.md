@@ -3853,6 +3853,68 @@ decided here.
   or a lock can't be set up the same way on every OS. The folder and the bad
   encoding are made for real.
 
+### #287 Toil UI on real data
+
+- **A GitHub section with no `projects` reads the repository's issues**
+  (`ui/src/load.ts`): `github list-issues --state all`, then `issue-events` per
+  issue, rather than showing no work. The sync treats `list-issues` as a search
+  (`ui/server/sync.ts`): after the first sync it asks with `updatedSince` and
+  refetches only the changed issues' timelines. Timelines are read for every open
+  issue and the 50 most recently closed (`historyNumbers`, review round 1), so a
+  first sync of a repository with thousands of closed issues doesn't spend the
+  token's hourly budget; older closed issues are listed with no history.
+  `get-issue --sub-issues` isn't
+  called on this path, so a repository's sub-issues aren't followed yet (#298 is
+  the wider mapping gap). The sample has no GitHub dossier without a board, so
+  `github list-issues` is the one read command the fixture doesn't answer;
+  `ui/test/server.test.ts` names it, and `ui/test/github-repo.test.ts` proves the
+  path through toil's own `execute()` with only `fetch` stubbed. A fourth sample
+  dossier would have changed the site's preview, which is the maintainer's call.
+- **Checks are read for open pull requests and the 20 newest closed ones**
+  (`checkedPrs`, `CHECKED_CLOSED_PRS`). `imagile-dev/toil` has nearly 300 pull
+  requests, and one `list-checks` each made a sync take minutes and spend
+  hundreds of requests on builds nobody looks at. Every pull request is still
+  listed and linked to its items.
+- **An item with no type at all flows** (`flows` in `ui/src/model/flow.ts`): a
+  GitHub issue in a repository without issue types maps to `OTHER` with no
+  `typeName`, and the board, throughput, cycle time and aging all left every one
+  out, so a real repository's board was empty. An `OTHER` item with a type name
+  (a Feature) is still a container and still left out.
+- **A check run is named once per build** (`githubBuild`): GitHub Actions runs a
+  job for the push and again for the pull request, and the title read "test,
+  build, build, test".
+- **The agent's tools report a GitHub assignee by login** (`assigneeOf` in
+  `ui/server/agents/tools.ts`): OWI keeps a GitHub login as the person's `id` with
+  no `name`, and the tools reported every item unassigned, which Codex then said.
+- **Codex runs with the user's own MCP servers switched off by name**
+  (`codexUserServers`, `codexOverrides` in `ui/server/agents/codex.ts`). Codex
+  merges a `--config` table into the user's config, so on a real machine the
+  user's servers started beside Toil UI's. Toil UI reads `$CODEX_HOME/config.toml`
+  (else `~/.codex/config.toml`) only to name them, and refuses an inline
+  `mcp_servers = { … }` it can't name servers from. Profiles and plugin servers,
+  and a durable isolation, are #300.
+- **The lockfile's toil tarball is fixed by hand**: it named alpha.3 with the
+  alpha.2 tarball's URL and integrity, so `npm ci` installed alpha.2. Preventing
+  it at release time is #299.
+- **`ui/scripts/dev-real.mjs` writes the scratch home with plain JSON for the
+  connection and toil's own commands for the dossiers.** `toil connections add`
+  prompts on a terminal, and the connection holds nothing secret (the token is
+  only in Toil UI's environment). It sets `CODEX_HOME` to the real `~/.codex`,
+  because Codex on Windows finds its home from the OS rather than `USERPROFILE`,
+  and Toil UI must read the same config Codex does. It doesn't install the Codex
+  SDK; it prints the `npm install --no-save` line, since a script that quietly adds
+  an optional peer and its bundled CLI to a clone would be a surprise.
+- **`ui/scripts/seed-sandbox.mjs` writes through `gh`, never toil**, so toil stays
+  read-only and its write gate isn't loosened for test data. It skips a Projects
+  board (the maintainer's `gh` token has no `project` scope, and changing the gh
+  login was out of bounds) and deployments (toil's `github` area doesn't read
+  them), and says so when it runs.
+- **Headless Chrome gets `--disable-gpu`** (`ui/scripts/chrome.mjs`): on the
+  maintainer's machine headless Chromium drew no frames with the GPU process, so
+  `requestAnimationFrame` and screenshots waited forever. Software rendering is all
+  the layout check needs. The installed Chrome there still hangs even so, for a
+  reason not found; Playwright's Chromium, through `CHROME_PATH`, works.
+
 ## Command shape (jira, jira-cloud, ado, ado-cloud)
 
 The maintainer asked for one streamlined interface, a clean break with no aliases,
