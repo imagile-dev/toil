@@ -175,7 +175,7 @@ describe('triage steps, wired as the workflow wires them', () => {
     expect(JSON.parse(readFileSync(join(work, '.triage-in', 'issues.json'), 'utf8')).map((i: { number: number }) => i.number)).toEqual([2]);
     // A denied issue comes with its body and last comments, redacted, so the agent reads why.
     expect(JSON.parse(readFileSync(join(work, '.triage-in', 'denied.json'), 'utf8'))).toEqual([
-      { number: 2, title: '[org]: jira get-issue fails 2', body: 'TOIL_JIRA_TOKEN=[redacted-secret] at https://jira.imagile.dev', comments: ['Denied: it needs a browser login at https://jira.imagile.dev.', 'Still out of scope.'] },
+      { number: 2, title: '[org]: jira issue get fails 2', body: 'TOIL_JIRA_TOKEN=[redacted-secret] at https://jira.imagile.dev', comments: ['Denied: it needs a browser login at https://jira.imagile.dev.', 'Still out of scope.'] },
     ]);
     expect(existsSync(join(runnerTemp, 'pristine', 'README.md'))).toBe(true);
     expect(existsSync(join(runnerTemp, 'pristine', '.triage-in'))).toBe(false);
