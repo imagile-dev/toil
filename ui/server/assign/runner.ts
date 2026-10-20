@@ -353,8 +353,9 @@ export function prepareClone(source: string, clone: string): string | null {
  * anywhere); rewrites `.git/config` whole, keeping from the person's own
  * clone only its format version and `[extensions]`, with `origin` at that
  * clone and submodules ignored (their own configs are the agent's too);
- * and deletes the hooks folder, `commondir`, `config.worktree` and
- * `info/attributes`. What the agent left in the working tree's
+ * with replace refs off; and deletes the hooks folder, `commondir`,
+ * `config.worktree`, `info/attributes`, `info/grafts` and `refs/replace`
+ * (and any replace ref in `packed-refs`). What the agent left in the working tree's
  * `.gitattributes` can name a filter, and a filter with no definition does
  * nothing. Returns why it couldn't, or null.
  */
@@ -380,6 +381,7 @@ export function reclaimGitDir(clone: string, source: string): string | null {
     '[core]',
     `\trepositoryformatversion = ${version}`,
     '\tbare = false',
+    '\tuseReplaceRefs = false',
     '[diff]',
     '\tignoreSubmodules = all',
     '[remote "origin"]',
@@ -388,7 +390,17 @@ export function reclaimGitDir(clone: string, source: string): string | null {
     ...(extensions.trim() ? ['[extensions]', ...extensions.trimEnd().split('\n')] : []),
     '',
   ].join('\n');
-  for (const p of ['hooks', 'commondir', 'config.worktree', join('info', 'attributes')]) rmSync(join(git, p), { recursive: true, force: true });
+  // Replace refs and grafts make git read one commit as another, so a staged diff could hide what a commit carries (review round 3).
+  for (const p of ['hooks', 'commondir', 'config.worktree', join('info', 'attributes'), join('info', 'grafts'), join('refs', 'replace')]) rmSync(join(git, p), { recursive: true, force: true });
+  try {
+    const packed = readFileSync(join(git, 'packed-refs'), 'utf8');
+    const lines = packed.split(/\r?\n/);
+    // A peeled line (^<id>) belongs to the ref above it, so it goes with a replace ref too.
+    const kept = lines.filter((l, i) => !/ refs\/replace\//.test(l) && !(l.startsWith('^') && / refs\/replace\//.test(lines[i - 1] ?? '')));
+    if (kept.length !== lines.length) writeFileSync(join(git, 'packed-refs'), kept.join('\n'));
+  } catch {
+    // No packed-refs: nothing packed to take out.
+  }
   writeFileSync(join(git, 'config'), config);
   return null;
 }
@@ -399,8 +411,8 @@ export function pushProposal(item: WorkItem, b: Branch, messageFile: string, noH
   const unsafe = [b.folder, messageFile, noHooks].some((v) => /[$`%"\r\n]/.test(v));
   const q = (v: string) => `"${v}"`;
   const lines = unsafe
-    ? `toil has no command that commits or pushes, and the clone's path holds a character no shell line can carry safely, so in a terminal in ${b.folder} commit with the message in ${messageFile} (git -c core.hooksPath=<a folder that doesn't exist> commit --no-verify -F <that file>) and push the same way with push --no-verify origin HEAD:refs/heads/${b.name}.`
-    : `toil has no command that commits or pushes, so run these in a terminal once the diff looks right: git -C ${q(b.folder)} -c core.hooksPath=${q(noHooks)} commit --no-verify -F ${q(messageFile)} then git -C ${q(b.folder)} -c core.hooksPath=${q(noHooks)} push --no-verify origin HEAD:refs/heads/${b.name}.`;
+    ? `toil has no command that commits or pushes, and the clone's path holds a character no shell line can carry safely, so in a terminal in ${b.folder} commit with the message in ${messageFile} (git --no-replace-objects -c core.hooksPath=<a folder that doesn't exist> commit --no-verify -F <that file>) and push the same way with push --no-verify origin HEAD:refs/heads/${b.name}.`
+    : `toil has no command that commits or pushes, so run these in a terminal once the diff looks right: git -C ${q(b.folder)} --no-replace-objects -c core.hooksPath=${q(noHooks)} commit --no-verify -F ${q(messageFile)} then git -C ${q(b.folder)} --no-replace-objects -c core.hooksPath=${q(noHooks)} push --no-verify origin HEAD:refs/heads/${b.name}.`;
   return {
     id: `agent:${item.id}:push:${b.name}`,
     from: 'agent',
@@ -409,6 +421,6 @@ export function pushProposal(item: WorkItem, b: Branch, messageFile: string, noH
     reason: `The agent staged ${b.files.length === 1 ? 'one file' : `${b.files.length} files`} on ${b.name} in a clone of ${b.repo}. Review the staged diff, then commit and push it yourself.`,
     command: null,
     input: null,
-    note: `${lines} The message is the item's key, title and link, in that file. Toil UI rewrote the clone's git config and removed its hooks before showing the diff; core.hooksPath points git at a folder that doesn't exist, so no hook runs even if one comes back, and --no-verify is there besides. The clone's origin is your local clone of ${b.repo}, so the branch lands there first; push it on from there.`,
+    note: `${lines} The message is the item's key, title and link, in that file. Toil UI rewrote the clone's git config and removed its hooks before showing the diff; core.hooksPath points git at a folder that doesn't exist, so no hook runs even if one comes back, --no-verify is there besides, and --no-replace-objects reads every commit as itself. The clone's origin is your local clone of ${b.repo}, so the branch lands there first; push it on from there.`,
   };
 }

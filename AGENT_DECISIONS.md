@@ -4901,8 +4901,11 @@ it pins. These are the choices made by default in the fix:
   So after the run, in plain file operations, `reclaimGitDir` refuses a `.git` that
   isn't a folder, rewrites `.git/config` whole (the person's clone's format version
   and `[extensions]`, `origin` at their clone, `diff.ignoreSubmodules = all` so a
-  submodule's own config is never read), and deletes `hooks`, `commondir`,
-  `config.worktree` and `info/attributes`. A filter the working tree's
+  submodule's own config is never read, `core.useReplaceRefs = false`), and deletes
+  `hooks`, `commondir`, `config.worktree`, `info/attributes`, and (review round 3)
+  `info/grafts`, `refs/replace` and any replace ref in `packed-refs`, which would make
+  git read the starting commit as one the agent made, hiding what the commit carries
+  from the staged diff. The person's lines add `--no-replace-objects` too. A filter the working tree's
   `.gitattributes` names then has no definition and does nothing. The person's lines
   add `--no-verify` and a `core.hooksPath` that doesn't exist, and the commit message is a file Toil UI writes beside the
   agent's folder, so nothing from the tracker reaches a command line; the paths are

@@ -302,7 +302,7 @@ describe("the runner's own proposals", () => {
     const branch = { name: 'agent/PAY-107', repo: 'payments-core', folder: 'C:/work/x/repo', onBranch: true, files: [{ path: 'a.ts', status: 'staged' }], diff: null };
     const p = pushProposal({ ...item('corp-jira:PAY-107'), title: "Retry & don't | charge twice" }, branch, 'C:/work/x.commit-message.txt', 'C:/work/x.no-hooks');
     expect(p).toMatchObject({ command: null, input: null });
-    expect(p.note).toContain('git -C "C:/work/x/repo" -c core.hooksPath="C:/work/x.no-hooks" commit --no-verify -F "C:/work/x.commit-message.txt" then git -C "C:/work/x/repo" -c core.hooksPath="C:/work/x.no-hooks" push --no-verify origin HEAD:refs/heads/agent/PAY-107.');
+    expect(p.note).toContain('git -C "C:/work/x/repo" --no-replace-objects -c core.hooksPath="C:/work/x.no-hooks" commit --no-verify -F "C:/work/x.commit-message.txt" then git -C "C:/work/x/repo" --no-replace-objects -c core.hooksPath="C:/work/x.no-hooks" push --no-verify origin HEAD:refs/heads/agent/PAY-107.');
     expect(p.note).not.toContain('Retry &');
     // A path no shell line can carry is never put on one.
     expect(pushProposal(item('corp-jira:PAY-107'), { ...branch, folder: 'C:/Users/$me/repo' }, 'C:/m.txt', 'C:/h').note).toMatch(/^toil has no command that commits or pushes, and the clone's path holds a character/);
@@ -319,14 +319,20 @@ describe("the runner's own proposals", () => {
     writeFileSync(join(clone, '.git', 'hooks', 'pre-commit'), 'evil');
     writeFileSync(join(clone, '.git', 'commondir'), '../../elsewhere');
     writeFileSync(join(clone, '.git', 'info', 'attributes'), '* filter=x');
+    writeFileSync(join(clone, '.git', 'info', 'grafts'), 'aaaa bbbb');
+    mkdirSync(join(clone, '.git', 'refs', 'replace'), { recursive: true });
+    writeFileSync(join(clone, '.git', 'refs', 'replace', 'a'.repeat(40)), 'b'.repeat(40));
+    writeFileSync(join(clone, '.git', 'packed-refs'), ['# pack-refs with: peeled', `${'c'.repeat(40)} refs/heads/main`, `${'b'.repeat(40)} refs/replace/${'d'.repeat(40)}`, `^${'e'.repeat(40)}`, ''].join('\n'));
     expect(reclaimGitDir(clone, source)).toBeNull();
+    expect(readFileSync(join(clone, '.git', 'packed-refs'), 'utf8')).toBe(['# pack-refs with: peeled', `${'c'.repeat(40)} refs/heads/main`, ''].join('\n'));
     const config = readFileSync(join(clone, '.git', 'config'), 'utf8');
     expect(config).not.toMatch(/filter|hooksPath|include|calc|keep-out/);
     expect(config).toContain('repositoryformatversion = 1');
     expect(config).toContain('objectFormat = sha256');
     expect(config).toContain('ignoreSubmodules = all');
+    expect(config).toContain('useReplaceRefs = false');
     expect(config).toContain(`url = "${source.replace(/\\/g, '/')}"`);
-    for (const gone of [['hooks'], ['commondir'], ['info', 'attributes']]) expect(() => readFileSync(join(clone, '.git', ...gone))).toThrow();
+    for (const gone of [['hooks'], ['commondir'], ['info', 'attributes'], ['info', 'grafts'], ['refs', 'replace']]) expect(() => readFileSync(join(clone, '.git', ...gone))).toThrow();
     // A .git that is a file points anywhere: no git runs there.
     const pointer = join(folder, 'work2', 'repo');
     mkdirSync(pointer, { recursive: true });
