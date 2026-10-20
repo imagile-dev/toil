@@ -33,7 +33,7 @@ import { inputSchemaFor } from './mcp/server.js';
 import { createNodeContext } from './node-context.js';
 import { areas, commands } from './registry.js';
 import { VERSION } from './version.js';
-import { documentsFrom, fieldOverrides, inputValues, mapOwi as mapDocuments, OWI_VERSION, parseOwiInput, type OwiResult } from './core/owi/index.js';
+import { documentsFrom, fieldOverrides, findSimilar as findSimilarItems, inputValues, mapOwi as mapDocuments, OWI_VERSION, parseOwiInput, parseOwiRecords, type OwiResult, type SimilarItem, type SimilarOptions, type SimilarRequest, type SimilarResult } from './core/owi/index.js';
 import owiSchemaJson from '../docs/owi/schema.json' with { type: 'json' };
 
 export type { ApiAnswer, ContextReport, ContextSource, ContextValue, DossierReport, Envelope, ErrorBody, Meta, Page, Warning } from './core/envelope.js';
@@ -41,6 +41,7 @@ export type { ErrorCode } from './core/errors.js';
 export type { PageProgress, ProgressEvent, RequestProgress, RetryProgress } from './core/progress.js';
 export type { CommandKind } from './core/command.js';
 export type { Body, Estimate, EstimateUnit, FieldOverrides, History, Iteration, IterationChange, Link, LinkType, OrphanHistory, OwiResult, OwiSkipped, Person, StatusCategory, Transition, Unmapped, WorkItem, WorkItemType } from './core/owi/index.js';
+export type { PairSearch, SimilarField, SimilarItem, SimilarMatch, SimilarOptions, SimilarPair, SimilarParts, SimilarRef, SimilarRequest, SimilarResult, SimilarWhy } from './core/owi/index.js';
 
 /** This toil's version, as `toil version` and every envelope's `meta.version` report it. */
 export const version: string = VERSION;
@@ -349,6 +350,21 @@ export interface OwiMapOptions {
   command?: string;
   /** The item a keyless history (`jira issue history`, `github issue-events`) belongs to. */
   key?: string;
+}
+
+/**
+ * Likely duplicates among OWI records you already hold, scored the way
+ * `util owi similar` scores them (src/core/owi/similar.ts), in-process and
+ * synchronous: `{ query }` ranks the records against some text, `{ item }`
+ * against one of them, `{ pairs: true }` lists likely duplicate pairs.
+ * `records` is OWI items (mapOwi's `items`), or the text `util owi map`
+ * printed. Lexical and deterministic: the same records give the same result.
+ * It doesn't run in the bounded worker the way `execute('util owi similar', …)`
+ * does, so a host scoring a very large set should use that. An unknown item, or
+ * a query with no words to compare, throws a ToilError with a fix.
+ */
+export function findSimilar(records: readonly SimilarItem[] | string, request: SimilarRequest, options: SimilarOptions = {}): SimilarResult {
+  return findSimilarItems(typeof records === 'string' ? parseOwiRecords(records).items : records, request, options);
 }
 
 /** The OWI version this toil writes, as every item's `owi` says. */

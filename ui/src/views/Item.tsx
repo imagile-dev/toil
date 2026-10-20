@@ -9,6 +9,7 @@ import { Cited, ItemLink, typeText } from '../components/items.tsx';
 import { Card, DataTable } from '../components/layout.tsx';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, dateTime, dossierHref, estimateText, personText, shortKey, sourceLabel } from '../format.ts';
+import { possibleDuplicates } from '../model/duplicates.ts';
 import { age, cycleTime } from '../model/flow.ts';
 import { INSIGHT_LABEL, insights } from '../model/insights.ts';
 import { entry } from '../model/sprint.ts';
@@ -49,6 +50,7 @@ export function ItemView({ id }: { id: string }) {
   const cycle = cycleTime(item);
   const inProgress = age(item, now);
   const round1 = (n: number) => Math.round(n * 10) / 10;
+  const duplicates = possibleDuplicates(dossier.items, id);
 
   return (
     <>
@@ -93,6 +95,24 @@ export function ItemView({ id }: { id: string }) {
                 ? `In progress for ${round1(inProgress.days)} days, since ${dateTime(inProgress.since)}.`
                 : `Time in progress unknown: ${inProgress.reason}.`
               : 'Not started.'}
+        </p>
+      </Card>
+      <Card as="section" className="panel duplicates-panel" aria-labelledby="duplicates">
+        <h2 id="duplicates">Possible duplicates</h2>
+        {duplicates.length ? (
+          <ul className="rows">
+            {duplicates.map((d) => (
+              <li key={d.id}>
+                <ItemLink id={d.id} withTitle /> <span className="score">{Math.round(d.score * 100)}% alike</span>{' '}
+                <span className="field">({d.why.summary.replace(/\.$/, '')})</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>None in {dossier.name}: no item shares enough words with this one.</p>
+        )}
+        <p className="note">
+          By shared words in titles and bodies, title trigrams, labels, parent and links, as <code>toil util owi similar</code> scores them: not by meaning, so a duplicate written in other words isn't found.
         </p>
       </Card>
       <div className="item-grid">

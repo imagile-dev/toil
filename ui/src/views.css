@@ -44,6 +44,8 @@
 .insight--w1, .insight--more { color: var(--muted); }
 .item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
 .insights-panel { margin-bottom: 1.5rem; }
+.duplicates-panel { margin-bottom: 1.5rem; }
+.duplicates-panel .score { font-variant-numeric: tabular-nums; white-space: nowrap; }
 
 /* Big figures and charts. */
 .big-figure { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.5rem; }
