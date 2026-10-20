@@ -3836,8 +3836,11 @@ decided here.
   runs. They stay errors on PostgreSQL, SQL Server and Oracle.
 - **`--no-lint` skips the warnings only**, as the issue says; no error can be skipped.
   Each error rule is tuned to stay quiet when unsure: `LIMIT` only before a number or
-  placeholder, `TOP` only right after `SELECT` (or `SELECT DISTINCT`), and on SQL Server
-  statements are counted only in SQL with no `BEGIN` block.
+  placeholder and never inside an Oracle PL/SQL block (whose `BULK COLLECT ... LIMIT n`
+  is its own), and `TOP` only right after `SELECT` (or `SELECT DISTINCT`).
+  `multiple-statements` doesn't run on SQL Server (review on #314): its provider
+  already refuses a batch that returns more than one result, and a one-result batch
+  such as `DECLARE @n int = 1; SELECT @n` ran before the lint and still does.
 - **`read-only-write` is `WRITE_DISABLED`**, the code the engine's own refusal gets,
   and the other errors are `INVALID_INPUT`. It reads the first word, and in a `WITH`
   a data change right after a bracket; anything it misses still meets the engine's

@@ -50,7 +50,6 @@ const FIXTURES: Record<Dialect, Partial<Record<RuleId, { bad: Case; good: Case }
   },
   sqlserver: {
     unterminated: { bad: { sql: 'SELECT [name FROM people' }, good: { sql: "SELECT [a]]b], N'it''s' /* a /* nested */ comment */" } },
-    'multiple-statements': { bad: { sql: 'SELECT 1; SELECT 2' }, good: { sql: 'BEGIN TRY SELECT 1; END TRY BEGIN CATCH SELECT 2; END CATCH' } },
     'read-only-write': { bad: { sql: 'TRUNCATE TABLE people' }, good: { sql: 'SELECT TOP (5) name FROM people' } },
     'dialect-limit': { bad: { sql: 'SELECT name FROM people ORDER BY name LIMIT 10' }, good: { sql: 'SELECT [limit] FROM people ORDER BY name OFFSET 0 ROWS FETCH NEXT 10 ROWS ONLY' } },
     'dialect-backtick': { bad: { sql: 'SELECT `name` FROM people' }, good: { sql: 'SELECT [name], "id" FROM people' } },
@@ -128,9 +127,21 @@ describe('db pre-flight lint', () => {
     expect(lintSql('SELECT * FROM people', 'postgres', { purpose: 'execute' }).rules).not.toContain('select-star');
   });
 
+  it("leaves SQL Server's batches to its provider, which refuses one by the results it returns", () => {
+    expect(lintSql('SELECT 1', 'sqlserver', { purpose: 'query' }).rules).not.toContain('multiple-statements');
+    expect(rulesOf('DECLARE @n int = 1; SELECT @n', 'sqlserver')).toEqual([]);
+    expect(rulesOf('SET NOCOUNT ON; SELECT id FROM people', 'sqlserver')).toEqual([]);
+  });
+
+  it("leaves PL/SQL's own LIMIT alone on Oracle", () => {
+    const block = 'DECLARE TYPE t IS TABLE OF NUMBER; v t; CURSOR c IS SELECT id FROM people; BEGIN OPEN c; LOOP FETCH c BULK COLLECT INTO v LIMIT 100; EXIT WHEN v.COUNT = 0; END LOOP; CLOSE c; END;';
+    expect(rulesOf(block, 'oracle', 'execute')).toEqual([]);
+    expect(rulesOf('SELECT id FROM people LIMIT 100', 'oracle', 'execute')).toEqual(['dialect-limit']);
+  });
+
   it('skips the warning rules on request, never an error', () => {
     const result = lintSql('SELECT * FROM people, teams LIMIT 5', 'sqlserver', { purpose: 'query', warnings: false });
-    expect(result.rules).toEqual(['unterminated', 'multiple-statements', 'read-only-write', 'dialect-limit', 'dialect-backtick']);
+    expect(result.rules).toEqual(['unterminated', 'read-only-write', 'dialect-limit', 'dialect-backtick']);
     expect(result.findings.map((f) => f.rule)).toEqual(['dialect-limit']);
   });
 

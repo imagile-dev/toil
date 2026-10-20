@@ -117,6 +117,8 @@ const dialectLimit: Rule = {
   id: 'dialect-limit',
   on: { sqlserver: 'error', oracle: 'error' },
   check(statement, { engine, label }) {
+    // PL/SQL has a LIMIT of its own (FETCH c BULK COLLECT INTO v LIMIT 100).
+    if (engine === 'oracle' && opensPlsql(firstWords(statement))) return [];
     return statement.flatMap((t, i) =>
       word(t, 'LIMIT') && statement[i - 1]?.kind !== 'dot' && isCount(statement[i + 1])
         ? [{ at: t, message: `LIMIT isn't ${label} syntax; it's how PostgreSQL, MySQL and SQLite cap rows.`, fix: limitFix[engine]!(statement[i + 1]!.text) }]
@@ -344,12 +346,15 @@ const implicitCrossJoin: Rule = {
 /** The order rules run in: the lexer's own error first, then the other errors, then the warnings. */
 const RULES: readonly Rule[] = [readOnlyWrite, dialectLimit, dialectTop, dialectBacktick, dialectFunction, dialectConcat, selectStar, implicitCrossJoin];
 
+/** A statement's first five tokens as words, upper-cased, '' for anything else: what `opensPlsql` reads. */
+const firstWords = (tokens: Token[]) => tokens.slice(0, 5).map((w) => (w.kind === 'word' ? w.upper : ''));
+
 /** Statements as token runs, cut at semicolons. An Oracle PL/SQL unit holds semicolons of its own, so it runs to the end. */
 function statementsOf(tokens: Token[], engine: Dialect): Token[][] {
   const out: Token[][] = [];
   let current: Token[] = [];
   for (const t of tokens) {
-    if (t.kind === 'semicolon' && !(engine === 'oracle' && opensPlsql(current.slice(0, 5).map((w) => (w.kind === 'word' ? w.upper : ''))))) {
+    if (t.kind === 'semicolon' && !(engine === 'oracle' && opensPlsql(firstWords(current)))) {
       if (current.length > 0) out.push(current);
       current = [];
     } else if (t.kind !== 'semicolon' || current.length > 0) current.push(t);
@@ -359,7 +364,9 @@ function statementsOf(tokens: Token[], engine: Dialect): Token[][] {
 }
 
 function ranFor(engine: Dialect, purpose: LintPurpose, warnings: boolean): RuleId[] {
-  const own: RuleId[] = ['unterminated', ...(purpose === 'query' ? (['multiple-statements'] as const) : [])];
+  // SQL Server's provider already refuses a batch by what it returns (more than one result), and a
+  // batch of one result often holds several statements (DECLARE @n int = 1; SELECT @n), so it's left to that.
+  const own: RuleId[] = ['unterminated', ...(purpose === 'query' && engine !== 'sqlserver' ? (['multiple-statements'] as const) : [])];
   const rest = RULES.filter((r) => r.on[engine] !== undefined && (r.purpose === undefined || r.purpose === purpose) && (warnings || r.on[engine] === 'error')).map((r) => r.id);
   return [...own, ...rest];
 }
@@ -387,9 +394,7 @@ export function lintSql(sql: string, engine: Dialect, { purpose, warnings = true
     return { engine, rules, findings };
   }
   const statements = statementsOf(tokens, engine);
-  // T-SQL needs no semicolons, and BEGIN ... END blocks hold them, so only a plain script is counted.
-  const counted = !(engine === 'sqlserver' && tokens.some((t) => word(t, 'BEGIN')));
-  if (purpose === 'query' && counted && statements.length > 1) {
+  if (rules.includes('multiple-statements') && statements.length > 1) {
     findings.push({
       rule: 'multiple-statements',
       severity: 'error',

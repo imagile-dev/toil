@@ -436,9 +436,9 @@ names the engine and every rule that ran, on success and failure alike.
 | Rule | Severity | Engines | Trips on |
 |------|----------|---------|----------|
 | `unterminated` | error | all | A string, quoted name or block comment that is never closed (SQLite lets a block comment run to the end, so only its strings and names) |
-| `multiple-statements` | error | all, on `db query` | More than one statement. On SQL Server only a plain script is counted: SQL with a `BEGIN` block is left to the server |
+| `multiple-statements` | error | all but SQL Server, on `db query` | More than one statement. SQL Server is left to its own check, which refuses SQL that returns more than one result, so `DECLARE @n int = 1; SELECT @n` still runs |
 | `read-only-write` | error (`WRITE_DISABLED`) | all, on `db query` | A statement that starts with `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `REPLACE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, `RENAME` or `COMMENT`, or a `WITH` holding a data change |
-| `dialect-limit` | error | SQL Server, Oracle | `LIMIT n`: use `TOP (n)` or `OFFSET ... FETCH NEXT n ROWS ONLY` on SQL Server, `FETCH FIRST n ROWS ONLY` on Oracle (`ROWNUM <= n` on 11g) |
+| `dialect-limit` | error | SQL Server, Oracle | `LIMIT n`: use `TOP (n)` or `OFFSET ... FETCH NEXT n ROWS ONLY` on SQL Server, `FETCH FIRST n ROWS ONLY` on Oracle (`ROWNUM <= n` on 11g). A PL/SQL block's own `BULK COLLECT ... LIMIT n` is left alone |
 | `dialect-top` | error | all but SQL Server | `SELECT TOP n`: use `LIMIT n`, or `FETCH FIRST n ROWS ONLY` on Oracle |
 | `dialect-backtick` | error; warning on SQLite | all but MySQL | `` `name` ``: use `"name"`, or `[name]` on SQL Server. SQLite accepts backticks for MySQL compatibility, so there it only warns |
 | `dialect-function` | warning | all | A function another engine has: `NOW()`, `GETDATE()`, `SYSDATETIME()`, two-argument `ISNULL()`, `NVL()`, `IFNULL()`, `LEN()`, `LENGTH()`, `CHARINDEX()`, `SUBSTR()`, where the engine lacks it |
