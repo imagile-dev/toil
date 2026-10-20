@@ -283,6 +283,13 @@ export function generate(seed = DEFAULT_SEED) {
     return record;
   };
 
+  // A feature or epic is as far along as its children.
+  const rollUp = (record) => {
+    const kids = items.filter((r) => r.parent === record.key && r.state !== 'Removed');
+    if (kids.length && kids.every((k) => k.state === 'Done')) return 'Done';
+    if (kids.some((k) => ['Committed', 'In Progress', 'Done'].includes(k.state))) return 'In Progress';
+    return 'New';
+  };
   for (const product of PRODUCTS) {
     const [epicTitle] = draw(product.epics, 1);
     const epic = add(product, 'epic', 1, 'Epic', epicTitle, { iteration: null, parent: null, priority: priority(), effort: null });
@@ -325,13 +332,6 @@ export function generate(seed = DEFAULT_SEED) {
         acceptance: chance(0.3),
       });
     });
-    // A feature or epic is as far along as its children.
-    const rollUp = (record) => {
-      const kids = items.filter((r) => r.parent === record.key && r.state !== 'Removed');
-      if (kids.length && kids.every((k) => k.state === 'Done')) return 'Done';
-      if (kids.some((k) => ['Committed', 'In Progress', 'Done'].includes(k.state))) return 'In Progress';
-      return 'New';
-    };
     for (const f of features) f.state = rollUp(f);
     epic.state = rollUp(epic);
   }
@@ -364,12 +364,16 @@ export function generate(seed = DEFAULT_SEED) {
   for (const r of items) if (r.state === 'Removed') r.removedFrom = pick(['New', 'Approved']);
 
   // Two stale items: backlog work nobody has touched in over a month. They have no
-  // parent and no links, because adding a link writes a revision on both ends today.
+  // parent, no children and no links, because adding a link writes a revision on both ends today.
   const linked = new Set([...blocks, ...related].flat());
-  for (const r of draw(items.filter((x) => x.iteration === null && ['New', 'Approved'].includes(x.state) && ['Product Backlog Item', 'Bug'].includes(x.typeName) && !linked.has(x.key)), 2)) {
+  const parents = new Set(items.map((r) => r.parent));
+  for (const r of draw(items.filter((x) => x.iteration === null && ['New', 'Approved'].includes(x.state) && ['Product Backlog Item', 'Bug'].includes(x.typeName) && !linked.has(x.key) && !parents.has(x.key)), 2)) {
     r.stale = true;
     r.parent = null;
   }
+  // Again, now that the stale items have left their features.
+  for (const f of items.filter((r) => r.typeName === 'Feature')) f.state = rollUp(f);
+  for (const e of items.filter((r) => r.typeName === 'Epic')) e.state = rollUp(e);
   timelines(items, rnd);
 
   return items.map((r) => owi(r, items, blocks, related));

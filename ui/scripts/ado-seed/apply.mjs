@@ -124,8 +124,8 @@ export async function apply({ items, api, identity = 'tags', dryRun = false, bac
       // Made by an earlier run: walk it on if that run stopped part-way. These moves are dated now.
       const state = existing.fields?.['System.State'];
       const rest = remainingStates(record, state);
-      const ops = [...(rest === null ? [add('System.State', last.state)] : rest.map((s) => add('System.State', s)))];
-      const steps = ops.map((op) => [op]);
+      // A state the walk never passes (someone moved it by hand) goes straight to the last one.
+      const steps = (rest === null ? [last.state] : rest).map((s) => [add('System.State', s)]);
       if (existing.fields?.['System.IterationPath'] !== last.iteration) steps.push([add('System.IterationPath', last.iteration)]);
       if (!steps.length) continue;
       log(`${dryRun ? 'Would walk on' : 'Walking on'} ${key} (#${existing.id}) from ${state}: ${steps.map((s) => s[0].value).join(' → ')}`);
