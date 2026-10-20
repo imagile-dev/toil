@@ -433,16 +433,18 @@
       "options": []
     },
     {
-      "command": "jira get-issue",
-      "usage": "[options]",
+      "command": "jira issue",
+      "usage": "[options] [command]",
+      "description": "issue commands",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "jira issue get",
+      "usage": "[options] <key...>",
       "description": "Get a Jira issue by key",
       "leaf": true,
-      "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key (e.g. PROJ-123)"
-        }
-      ],
+      "options": [],
       "output": [
         {
           "fields": [
@@ -466,15 +468,11 @@
       ]
     },
     {
-      "command": "jira create-issue",
+      "command": "jira issue create",
       "usage": "[options]",
       "description": "Create a Jira issue",
       "leaf": true,
       "options": [
-        {
-          "flags": "--project <key>",
-          "description": "Project key"
-        },
         {
           "flags": "--type <type>",
           "description": "Issue type (Bug, Story, Task, ...)"
@@ -505,7 +503,7 @@
         },
         {
           "flags": "--field <Name=value>",
-          "description": "Custom field value; use Name=@file.json to read value from file (repeatable) (default: [])"
+          "description": "Custom field value; use Name=@file.json to read value from file (repeatable)"
         },
         {
           "flags": "--fields-file <path>",
@@ -513,7 +511,11 @@
         },
         {
           "flags": "--input-file <path>",
-          "description": "JSON file describing the whole issue ({ project, issueType, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira schema"
+          "description": "JSON file describing the whole issue ({ project, issueType, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira issue schema"
+        },
+        {
+          "flags": "--project <key>",
+          "description": "Project key (or \"project\" in --input-file); defaults to your dossier's project, then the connection's project."
         }
       ],
       "output": [
@@ -538,15 +540,11 @@
       ]
     },
     {
-      "command": "jira update-issue",
-      "usage": "[options]",
+      "command": "jira issue update",
+      "usage": "[options] <key>",
       "description": "Update a Jira issue",
       "leaf": true,
       "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key"
-        },
         {
           "flags": "--summary <text>",
           "description": "New summary"
@@ -569,7 +567,7 @@
         },
         {
           "flags": "--field <Name=value>",
-          "description": "Custom field value; use Name=@file.json to read value from file (repeatable) (default: [])"
+          "description": "Custom field value; use Name=@file.json to read value from file (repeatable)"
         },
         {
           "flags": "--fields-file <path>",
@@ -577,7 +575,7 @@
         },
         {
           "flags": "--input-file <path>",
-          "description": "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira schema"
+          "description": "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil jira issue schema"
         }
       ],
       "output": [
@@ -589,14 +587,14 @@
       ]
     },
     {
-      "command": "jira schema",
+      "command": "jira issue schema",
       "usage": "[options]",
-      "description": "Print the --input-file JSON schema and an example for create-issue/update-issue",
+      "description": "Print the --input-file JSON schema and an example for issue create and issue update",
       "leaf": true,
       "options": [
         {
           "flags": "--example-only",
-          "description": "Print only the runnable example JSON (no envelope) — pipeable straight into --input-file"
+          "description": "Return only the runnable example JSON as data — save .data and pass it to --input-file"
         }
       ],
       "output": [
@@ -618,15 +616,11 @@
       ]
     },
     {
-      "command": "jira transition-issue",
-      "usage": "[options]",
+      "command": "jira issue transition",
+      "usage": "[options] <key>",
       "description": "Transition a Jira issue to a new status",
       "leaf": true,
       "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key"
-        },
         {
           "flags": "--transition <name-or-id>",
           "description": "Transition name or ID"
@@ -642,16 +636,11 @@
       ]
     },
     {
-      "command": "jira list-transitions",
-      "usage": "[options]",
+      "command": "jira issue transitions",
+      "usage": "[options] <key>",
       "description": "List available transitions for an issue",
       "leaf": true,
-      "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key"
-        }
-      ],
+      "options": [],
       "output": [
         {
           "fields": [
@@ -664,15 +653,11 @@
       ]
     },
     {
-      "command": "jira add-comment",
-      "usage": "[options]",
+      "command": "jira issue comment",
+      "usage": "[options] <key>",
       "description": "Add a comment to a Jira issue",
       "leaf": true,
       "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key"
-        },
         {
           "flags": "--body <text>",
           "description": "Comment text"
@@ -693,15 +678,11 @@
       ]
     },
     {
-      "command": "jira log-work",
-      "usage": "[options]",
+      "command": "jira issue log-work",
+      "usage": "[options] <key>",
       "description": "Add a worklog (time spent) entry to a Jira issue",
       "leaf": true,
       "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key"
-        },
         {
           "flags": "--time-spent <duration>",
           "description": "Time spent in Jira duration format (e.g. \"2h 30m\", \"1d\")"
@@ -733,14 +714,18 @@
       ]
     },
     {
-      "command": "jira list-comments",
-      "usage": "[options]",
+      "command": "jira issue comments",
+      "usage": "[options] <key>",
       "description": "List comments on a Jira issue",
       "leaf": true,
       "options": [
         {
-          "flags": "--key <issue-key>",
-          "description": "Issue key"
+          "flags": "--limit <n>",
+          "description": "Most comments to return (default: all)"
+        },
+        {
+          "flags": "--cursor <cursor>",
+          "description": "meta.page.nextCursor from the previous page"
         }
       ],
       "output": [
@@ -758,7 +743,7 @@
       ]
     },
     {
-      "command": "jira search",
+      "command": "jira issue search",
       "usage": "[options]",
       "description": "Search Jira issues with JQL (consider --output-file for large results)",
       "leaf": true,
@@ -772,12 +757,20 @@
           "description": "Path to a file containing the JQL query ('-' = stdin)"
         },
         {
-          "flags": "--max-results <n>",
+          "flags": "--limit <n>",
           "description": "Maximum number of results"
         },
         {
           "flags": "--start-at <n>",
           "description": "Index of the first result to return (for resuming or paging)"
+        },
+        {
+          "flags": "--cursor <cursor>",
+          "description": "meta.page.nextCursor from the previous page (the same as --start-at)"
+        },
+        {
+          "flags": "--updated-since <iso>",
+          "description": "Only issues updated at or after this ISO 8601 instant (2026-10-01 or 2026-10-01T09:30:00Z)"
         },
         {
           "flags": "--fields <list>",
@@ -799,15 +792,11 @@
       ]
     },
     {
-      "command": "jira add-label",
-      "usage": "[options]",
+      "command": "jira issue label",
+      "usage": "[options] <key>",
       "description": "Add one or more labels to a Jira issue (non-destructive)",
       "leaf": true,
       "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key"
-        },
         {
           "flags": "--labels <labels>",
           "description": "Comma-separated labels to add"
@@ -823,15 +812,11 @@
       ]
     },
     {
-      "command": "jira remove-label",
-      "usage": "[options]",
+      "command": "jira issue unlabel",
+      "usage": "[options] <key>",
       "description": "Remove one or more labels from a Jira issue (non-destructive)",
       "leaf": true,
       "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key"
-        },
         {
           "flags": "--labels <labels>",
           "description": "Comma-separated labels to remove"
@@ -847,15 +832,11 @@
       ]
     },
     {
-      "command": "jira assign",
-      "usage": "[options]",
+      "command": "jira issue assign",
+      "usage": "[options] <key>",
       "description": "Assign a Jira issue to a user",
       "leaf": true,
       "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key"
-        },
         {
           "flags": "--assignee <username>",
           "description": "Assignee username"
@@ -871,22 +852,18 @@
       ]
     },
     {
-      "command": "jira link-issue",
-      "usage": "[options]",
+      "command": "jira issue link",
+      "usage": "[options] <key>",
       "description": "Link two Jira issues together",
       "leaf": true,
       "options": [
         {
-          "flags": "--key <issue-key>",
-          "description": "Source issue key"
-        },
-        {
-          "flags": "--link-type <type>",
-          "description": "Link type name or ID"
-        },
-        {
           "flags": "--target <issue-key>",
           "description": "Target issue key"
+        },
+        {
+          "flags": "--type <type>",
+          "description": "Link type name or ID"
         }
       ],
       "output": [
@@ -900,15 +877,11 @@
       ]
     },
     {
-      "command": "jira add-attachment",
-      "usage": "[options]",
+      "command": "jira issue attach",
+      "usage": "[options] <key>",
       "description": "Upload a file as an attachment to a Jira issue",
       "leaf": true,
       "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key (e.g. PROJ-123)"
-        },
         {
           "flags": "--file <path>",
           "description": "Path to the file to upload"
@@ -931,16 +904,11 @@
       ]
     },
     {
-      "command": "jira list-attachments",
-      "usage": "[options]",
+      "command": "jira issue attachments",
+      "usage": "[options] <key>",
       "description": "List attachments on a Jira issue",
       "leaf": true,
-      "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key (e.g. PROJ-123)"
-        }
-      ],
+      "options": [],
       "output": [
         {
           "fields": [
@@ -958,19 +926,11 @@
       ]
     },
     {
-      "command": "jira download-attachment",
-      "usage": "[options]",
+      "command": "jira issue download",
+      "usage": "[options] <key> <attachment-id>",
       "description": "Download a Jira issue attachment to .toil/ (or --dir)",
       "leaf": true,
       "options": [
-        {
-          "flags": "--key <issue-key>",
-          "description": "Issue key (e.g. PROJ-123)"
-        },
-        {
-          "flags": "--attachment-id <id>",
-          "description": "Attachment ID from list-attachments output"
-        },
         {
           "flags": "--dir <path>",
           "description": "Output directory (default: .toil relative to cwd)"
@@ -987,9 +947,9 @@
       ]
     },
     {
-      "command": "jira fields",
+      "command": "jira issue fields",
       "usage": "[options]",
-      "description": "List custom fields (configured or discovered from Jira API) (consider",
+      "description": "List custom fields (configured or discovered from Jira API) (consider --output-file for large results)",
       "leaf": true,
       "options": [
         {
@@ -1038,7 +998,34 @@
       ]
     },
     {
-      "command": "jira list-boards",
+      "command": "jira issue set-sprint",
+      "usage": "[options] <key>",
+      "description": "Move a Jira issue into a sprint",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--sprint <id>",
+          "description": "Sprint ID (from sprint list)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "sprint",
+            "updated"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "jira board",
+      "usage": "[options] [command]",
+      "description": "board commands",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "jira board list",
       "usage": "[options]",
       "description": "List Agile boards for a project",
       "leaf": true,
@@ -1046,6 +1033,14 @@
         {
           "flags": "--project <key>",
           "description": "Project key"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Most boards to return (default: all)"
+        },
+        {
+          "flags": "--cursor <cursor>",
+          "description": "meta.page.nextCursor from the previous page"
         }
       ],
       "output": [
@@ -1059,7 +1054,14 @@
       ]
     },
     {
-      "command": "jira list-sprints",
+      "command": "jira sprint",
+      "usage": "[options] [command]",
+      "description": "sprint commands",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "jira sprint list",
       "usage": "[options]",
       "description": "List sprints for a board or project, including start/end dates",
       "leaf": true,
@@ -1075,6 +1077,14 @@
         {
           "flags": "--state <states>",
           "description": "Comma-separated states to filter (active,future,closed)"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Most sprints (with --board) to return (default: all)"
+        },
+        {
+          "flags": "--cursor <cursor>",
+          "description": "meta.page.nextCursor from the previous page"
         }
       ],
       "output": [
@@ -1091,25 +1101,2216 @@
       ]
     },
     {
-      "command": "jira set-sprint",
+      "command": "ado",
+      "usage": "[options] [command]",
+      "description": "Azure DevOps Server operations",
+      "leaf": false,
+      "options": [
+        {
+          "flags": "--collection <name>",
+          "description": "Azure DevOps collection (organization)"
+        },
+        {
+          "flags": "--organization <name>",
+          "description": "Alias for --collection"
+        },
+        {
+          "flags": "--project <name>",
+          "description": "Azure DevOps team project"
+        },
+        {
+          "flags": "--repo <name>",
+          "description": "Azure DevOps git repository name"
+        }
+      ]
+    },
+    {
+      "command": "ado collection",
+      "usage": "[options] [command]",
+      "description": "collection commands",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "ado collection list",
       "usage": "[options]",
-      "description": "Move a Jira issue into a sprint",
+      "description": "List all project collections on the server",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "[].collectionUrl",
+            "[].id",
+            "[].name",
+            "[].state",
+            "[].url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado project",
+      "usage": "[options] [command]",
+      "description": "project commands",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "ado project list",
+      "usage": "[options]",
+      "description": "List team projects in a collection",
       "leaf": true,
       "options": [
         {
-          "flags": "--key <issue-key>",
-          "description": "Issue key"
+          "flags": "--limit <n>",
+          "description": "Return at most this many projects; meta.page.nextCursor says where the rest start (default: all)"
         },
         {
-          "flags": "--sprint <id>",
-          "description": "Sprint ID (from list-sprints)"
+          "flags": "--cursor <cursor>",
+          "description": "meta.page.nextCursor from the previous call (with --limit)"
         }
       ],
       "output": [
         {
           "fields": [
-            "sprint",
-            "updated"
+            "[].description?",
+            "[].id",
+            "[].lastUpdateTime?",
+            "[].name",
+            "[].revision",
+            "[].state",
+            "[].url",
+            "[].visibility"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado project get",
+      "usage": "[options] <name>",
+      "description": "Get a team project by name",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "description?",
+            "id",
+            "lastUpdateTime?",
+            "name",
+            "revision",
+            "state",
+            "url",
+            "visibility"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item",
+      "usage": "[options] [command]",
+      "description": "work-item commands",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "ado work-item get",
+      "usage": "[options] <id>",
+      "description": "Get a work item by ID",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "_links?",
+            "fields",
+            "id",
+            "relations?",
+            "relations[].attributes?",
+            "relations[].rel?",
+            "relations[].url?",
+            "rev",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item create",
+      "usage": "[options]",
+      "description": "Create a work item",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--type <type>",
+          "description": "Work item type (e.g. Bug, Task, User Story) (required, unless supplied via --input-file)"
+        },
+        {
+          "flags": "--title <title>",
+          "description": "Work item title (required, unless supplied via --input-file)"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "Description"
+        },
+        {
+          "flags": "--assignee <user>",
+          "description": "Assigned to (display name or email)"
+        },
+        {
+          "flags": "--priority <n>",
+          "description": "Priority (1-4)"
+        },
+        {
+          "flags": "--parent <id>",
+          "description": "Parent work item ID — creates a parent link after creation"
+        },
+        {
+          "flags": "--field <name=value>",
+          "description": "Additional field (repeatable) (default: [])"
+        },
+        {
+          "flags": "--input-file <path>",
+          "description": "JSON file describing the work item ({ type, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil ado work-item schema"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "_links?",
+            "fields",
+            "id",
+            "relations?",
+            "relations[].attributes?",
+            "relations[].rel?",
+            "relations[].url?",
+            "rev",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item update",
+      "usage": "[options] <id>",
+      "description": "Update a work item field",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--field <name=value>",
+          "description": "Field to update (repeatable) (default: [])"
+        },
+        {
+          "flags": "--input-file <path>",
+          "description": "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil ado work-item schema"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "_links?",
+            "fields",
+            "id",
+            "relations?",
+            "relations[].attributes?",
+            "relations[].rel?",
+            "relations[].url?",
+            "rev",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item transition",
+      "usage": "[options] <id>",
+      "description": "Set the state of a work item",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--state <state>",
+          "description": "New state (e.g. Active, Resolved, Closed)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "_links?",
+            "fields",
+            "id",
+            "relations?",
+            "relations[].attributes?",
+            "relations[].rel?",
+            "relations[].url?",
+            "rev",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item assign",
+      "usage": "[options] <id>",
+      "description": "Assign a work item to a user",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--assignee <user>",
+          "description": "User display name or email"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "_links?",
+            "fields",
+            "id",
+            "relations?",
+            "relations[].attributes?",
+            "relations[].rel?",
+            "relations[].url?",
+            "rev",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item link",
+      "usage": "[options] <id>",
+      "description": "Link two work items",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--target <id>",
+          "description": "Target work item ID"
+        },
+        {
+          "flags": "--type <rel>",
+          "description": "Link type (related|parent|child|duplicate|duplicate-of) (default: \"related\")"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "_links?",
+            "fields",
+            "id",
+            "relations?",
+            "relations[].attributes?",
+            "relations[].rel?",
+            "relations[].url?",
+            "rev",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item search",
+      "usage": "[options]",
+      "description": "Run a WIQL query (consider --output-file for large results)",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--wiql <query>",
+          "description": "WIQL query string"
+        },
+        {
+          "flags": "--updated-since <iso>",
+          "description": "Only work items changed at or after this ISO 8601 instant: a date (UTC midnight) or a date-time with its zone. ANDed onto the query as [System.ChangedDate] >= it. Turns on time precision for the whole query, so = on a date field matches one exact instant: use >= and < instead"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Return at most this many work items; meta.page.nextCursor says where the rest start (default: all)"
+        },
+        {
+          "flags": "--cursor <cursor>",
+          "description": "meta.page.nextCursor from the previous call (with --limit)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "asOf",
+            "queryResultType",
+            "queryType",
+            "workItemRelations?",
+            "workItemRelations[].rel?",
+            "workItemRelations[].source?",
+            "workItemRelations[].target?",
+            "workItems?",
+            "workItems[].id?",
+            "workItems[].url?"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item comments",
+      "usage": "[options] <id>",
+      "description": "List comments on a work item",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "[].createdBy",
+            "[].createdBy.descriptor?",
+            "[].createdBy.displayName",
+            "[].createdBy.id",
+            "[].createdBy.imageUrl?",
+            "[].createdBy.uniqueName",
+            "[].createdBy.url?",
+            "[].createdDate",
+            "[].id",
+            "[].modifiedBy.descriptor?",
+            "[].modifiedBy.displayName?",
+            "[].modifiedBy.id?",
+            "[].modifiedBy.imageUrl?",
+            "[].modifiedBy.uniqueName?",
+            "[].modifiedBy.url?",
+            "[].modifiedBy?",
+            "[].modifiedDate?",
+            "[].text",
+            "[].url",
+            "[].version",
+            "[].workItemId"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item comment",
+      "usage": "[options] <id>",
+      "description": "Add a comment to a work item",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--body <text>",
+          "description": "Comment text"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "createdBy",
+            "createdBy.descriptor?",
+            "createdBy.displayName",
+            "createdBy.id",
+            "createdBy.imageUrl?",
+            "createdBy.uniqueName",
+            "createdBy.url?",
+            "createdDate",
+            "id",
+            "modifiedBy.descriptor?",
+            "modifiedBy.displayName?",
+            "modifiedBy.id?",
+            "modifiedBy.imageUrl?",
+            "modifiedBy.uniqueName?",
+            "modifiedBy.url?",
+            "modifiedBy?",
+            "modifiedDate?",
+            "text",
+            "url",
+            "version",
+            "workItemId"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item tag",
+      "usage": "[options] <id>",
+      "description": "Add one or more tags to a work item (non-destructive)",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--tags <tags>",
+          "description": "Semicolon- or comma-separated tags to add"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "_links?",
+            "fields",
+            "id",
+            "relations?",
+            "relations[].attributes?",
+            "relations[].rel?",
+            "relations[].url?",
+            "rev",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item untag",
+      "usage": "[options] <id>",
+      "description": "Remove one or more tags from a work item (non-destructive)",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--tags <tags>",
+          "description": "Semicolon- or comma-separated tags to remove"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "_links?",
+            "fields",
+            "id",
+            "relations?",
+            "relations[].attributes?",
+            "relations[].rel?",
+            "relations[].url?",
+            "rev",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item attachments",
+      "usage": "[options] <id>",
+      "description": "List attachments on a work item",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "[].comment?",
+            "[].id",
+            "[].name",
+            "[].resourceCreatedDate?",
+            "[].resourceModifiedDate?",
+            "[].resourceSize?",
+            "[].url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item attach",
+      "usage": "[options] <id>",
+      "description": "Upload a local file and attach it to a work item",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--file <path>",
+          "description": "Path to the file to upload"
+        },
+        {
+          "flags": "--comment <text>",
+          "description": "Optional comment for the attachment"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "comment?",
+            "id",
+            "name",
+            "resourceCreatedDate?",
+            "resourceModifiedDate?",
+            "resourceSize?",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item download",
+      "usage": "[options] <id> <attachment-id>",
+      "description": "Download a work item attachment to .toil/ (or --dir)",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--dir <path>",
+          "description": "Output directory (default: .toil relative to cwd)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "name",
+            "saved",
+            "size"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item areas",
+      "usage": "[options]",
+      "description": "List classification areas for the team project (tree)",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--depth <n>",
+          "description": "Depth of the area tree to retrieve (default: \"10\")"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "attributes.finishDate?",
+            "attributes.startDate?",
+            "attributes?",
+            "children?",
+            "children[].attributes?",
+            "children[].children?",
+            "children[].hasChildren?",
+            "children[].id?",
+            "children[].identifier?",
+            "children[].name?",
+            "children[].path?",
+            "children[].structureType?",
+            "children[].url?",
+            "hasChildren",
+            "id",
+            "identifier",
+            "name",
+            "path",
+            "structureType",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item iterations",
+      "usage": "[options]",
+      "description": "List classification iterations for the team project (tree), including start/finish dates",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--depth <n>",
+          "description": "Depth of the iteration tree to retrieve (default: \"10\")"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "attributes.finishDate?",
+            "attributes.startDate?",
+            "attributes?",
+            "children?",
+            "children[].attributes?",
+            "children[].children?",
+            "children[].hasChildren?",
+            "children[].id?",
+            "children[].identifier?",
+            "children[].name?",
+            "children[].path?",
+            "children[].structureType?",
+            "children[].url?",
+            "hasChildren",
+            "id",
+            "identifier",
+            "name",
+            "path",
+            "structureType",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item types",
+      "usage": "[options]",
+      "description": "List work item types in the project",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--discover",
+          "description": "Fetch from server (always true for this command)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "[].name",
+            "[].requiredFields",
+            "[].states"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item states",
+      "usage": "[options]",
+      "description": "List valid states for a work item type",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--type <type>",
+          "description": "Work item type name (e.g. Bug)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "[].category",
+            "[].color",
+            "[].name"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item fields",
+      "usage": "[options]",
+      "description": "List work item fields available in the collection (consider --output-file for large results)",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--type <type>",
+          "description": "Scope to fields for a specific work item type (e.g. Bug)"
+        },
+        {
+          "flags": "--custom-only",
+          "description": "Exclude System.* and Microsoft.VSTS.* fields"
+        },
+        {
+          "flags": "--discover",
+          "description": "Fetch from server (always true for this command)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "[].name",
+            "[].picklistId?",
+            "[].readOnly?",
+            "[].referenceName",
+            "[].type"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado work-item schema",
+      "usage": "[options]",
+      "description": "Print the --input-file JSON schema and an example for work-item create/update",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--example-only",
+          "description": "Return only the runnable example JSON as data — save .data and pass it to --input-file"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "example",
+            "example.fields",
+            "example.type",
+            "schema",
+            "schema.$schema",
+            "schema.additionalProperties",
+            "schema.description",
+            "schema.properties",
+            "schema.title",
+            "schema.type"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado repo",
+      "usage": "[options] [command]",
+      "description": "repo commands",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "ado repo list",
+      "usage": "[options]",
+      "description": "List git repositories in the project",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "[].defaultBranch?",
+            "[].id",
+            "[].isDisabled?",
+            "[].name",
+            "[].project",
+            "[].project.description?",
+            "[].project.id",
+            "[].project.lastUpdateTime?",
+            "[].project.name",
+            "[].project.revision",
+            "[].project.state",
+            "[].project.url",
+            "[].project.visibility",
+            "[].remoteUrl",
+            "[].size?",
+            "[].sshUrl?",
+            "[].url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado repo create",
+      "usage": "[options]",
+      "description": "Create a new git repository in the project",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--name <name>",
+          "description": "Repository name"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "defaultBranch?",
+            "id",
+            "isDisabled?",
+            "name",
+            "project",
+            "project.description?",
+            "project.id",
+            "project.lastUpdateTime?",
+            "project.name",
+            "project.revision",
+            "project.state",
+            "project.url",
+            "project.visibility",
+            "remoteUrl",
+            "size?",
+            "sshUrl?",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado repo get",
+      "usage": "[options]",
+      "description": "Get a specific repository",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "defaultBranch?",
+            "id",
+            "isDisabled?",
+            "name",
+            "project",
+            "project.description?",
+            "project.id",
+            "project.lastUpdateTime?",
+            "project.name",
+            "project.revision",
+            "project.state",
+            "project.url",
+            "project.visibility",
+            "remoteUrl",
+            "size?",
+            "sshUrl?",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado repo build-status",
+      "usage": "[options] <commit>",
+      "description": "Get CI/build statuses posted to a commit",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "[].context",
+            "[].context.genre?",
+            "[].context.name",
+            "[].createdBy.descriptor?",
+            "[].createdBy.displayName?",
+            "[].createdBy.id?",
+            "[].createdBy.imageUrl?",
+            "[].createdBy.uniqueName?",
+            "[].createdBy.url?",
+            "[].createdBy?",
+            "[].createdDate?",
+            "[].description?",
+            "[].id",
+            "[].state",
+            "[].targetUrl?",
+            "[].updatedDate?"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado repo default-reviewers",
+      "usage": "[options]",
+      "description": "List required-reviewer branch policies (default reviewers) that apply to the repository",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": []
+        }
+      ]
+    },
+    {
+      "command": "ado pr",
+      "usage": "[options] [command]",
+      "description": "pr commands",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "ado pr list",
+      "usage": "[options]",
+      "description": "List pull requests",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--state <state>",
+          "description": "PR state: active|abandoned|completed|all (default: \"active\")"
+        },
+        {
+          "flags": "--creator <alias>",
+          "description": "Filter by creator"
+        },
+        {
+          "flags": "--reviewer <alias>",
+          "description": "Filter by reviewer"
+        },
+        {
+          "flags": "--created-after <date>",
+          "description": "Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)"
+        },
+        {
+          "flags": "--created-before <date>",
+          "description": "Only PRs created before this ISO 8601 date"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Return at most this many pull requests; meta.page.nextCursor says where the rest start (default: all)"
+        },
+        {
+          "flags": "--cursor <cursor>",
+          "description": "meta.page.nextCursor from the previous call (with --limit)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "[].autoCompleteSetBy.descriptor?",
+            "[].autoCompleteSetBy.displayName?",
+            "[].autoCompleteSetBy.id?",
+            "[].autoCompleteSetBy.imageUrl?",
+            "[].autoCompleteSetBy.uniqueName?",
+            "[].autoCompleteSetBy.url?",
+            "[].autoCompleteSetBy?",
+            "[].closedDate?",
+            "[].codeReviewId?",
+            "[].completionOptions.deleteSourceBranch?",
+            "[].completionOptions.mergeCommitMessage?",
+            "[].completionOptions.mergeStrategy?",
+            "[].completionOptions.squashMerge?",
+            "[].completionOptions.transitionWorkItems?",
+            "[].completionOptions?",
+            "[].createdBy",
+            "[].createdBy.descriptor?",
+            "[].createdBy.displayName",
+            "[].createdBy.id",
+            "[].createdBy.imageUrl?",
+            "[].createdBy.uniqueName",
+            "[].createdBy.url?",
+            "[].creationDate",
+            "[].description?",
+            "[].lastMergeCommit.commitId?",
+            "[].lastMergeCommit.url?",
+            "[].lastMergeCommit?",
+            "[].lastMergeSourceCommit.commitId?",
+            "[].lastMergeSourceCommit.url?",
+            "[].lastMergeSourceCommit?",
+            "[].lastMergeTargetCommit.commitId?",
+            "[].lastMergeTargetCommit.url?",
+            "[].lastMergeTargetCommit?",
+            "[].mergeId?",
+            "[].mergeStatus?",
+            "[].pullRequestId",
+            "[].reviewers",
+            "[].reviewers[].displayName",
+            "[].reviewers[].hasDeclined?",
+            "[].reviewers[].id",
+            "[].reviewers[].imageUrl?",
+            "[].reviewers[].isRequired?",
+            "[].reviewers[].uniqueName",
+            "[].reviewers[].url?",
+            "[].reviewers[].vote",
+            "[].sourceRefName",
+            "[].status",
+            "[].supportsIterations?",
+            "[].targetRefName",
+            "[].title",
+            "[].url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr get",
+      "usage": "[options] <id>",
+      "description": "Get a pull request by ID",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "autoCompleteSetBy.descriptor?",
+            "autoCompleteSetBy.displayName?",
+            "autoCompleteSetBy.id?",
+            "autoCompleteSetBy.imageUrl?",
+            "autoCompleteSetBy.uniqueName?",
+            "autoCompleteSetBy.url?",
+            "autoCompleteSetBy?",
+            "closedDate?",
+            "codeReviewId?",
+            "completionOptions.deleteSourceBranch?",
+            "completionOptions.mergeCommitMessage?",
+            "completionOptions.mergeStrategy?",
+            "completionOptions.squashMerge?",
+            "completionOptions.transitionWorkItems?",
+            "completionOptions?",
+            "createdBy",
+            "createdBy.descriptor?",
+            "createdBy.displayName",
+            "createdBy.id",
+            "createdBy.imageUrl?",
+            "createdBy.uniqueName",
+            "createdBy.url?",
+            "creationDate",
+            "description?",
+            "lastMergeCommit.commitId?",
+            "lastMergeCommit.url?",
+            "lastMergeCommit?",
+            "lastMergeSourceCommit.commitId?",
+            "lastMergeSourceCommit.url?",
+            "lastMergeSourceCommit?",
+            "lastMergeTargetCommit.commitId?",
+            "lastMergeTargetCommit.url?",
+            "lastMergeTargetCommit?",
+            "mergeId?",
+            "mergeStatus?",
+            "pullRequestId",
+            "reviewers",
+            "reviewers[].displayName",
+            "reviewers[].hasDeclined?",
+            "reviewers[].id",
+            "reviewers[].imageUrl?",
+            "reviewers[].isRequired?",
+            "reviewers[].uniqueName",
+            "reviewers[].url?",
+            "reviewers[].vote",
+            "sourceRefName",
+            "status",
+            "supportsIterations?",
+            "targetRefName",
+            "title",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr create",
+      "usage": "[options]",
+      "description": "Create a pull request",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--title <title>",
+          "description": "PR title"
+        },
+        {
+          "flags": "--source <branch>",
+          "description": "Source branch"
+        },
+        {
+          "flags": "--target <branch>",
+          "description": "Target branch (default: main) (default: \"main\")"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "PR description"
+        },
+        {
+          "flags": "--reviewers <ids>",
+          "description": "Comma-separated reviewer IDs or display names"
+        },
+        {
+          "flags": "--draft",
+          "description": "Create as a draft pull request"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "autoCompleteSetBy.descriptor?",
+            "autoCompleteSetBy.displayName?",
+            "autoCompleteSetBy.id?",
+            "autoCompleteSetBy.imageUrl?",
+            "autoCompleteSetBy.uniqueName?",
+            "autoCompleteSetBy.url?",
+            "autoCompleteSetBy?",
+            "closedDate?",
+            "codeReviewId?",
+            "completionOptions.deleteSourceBranch?",
+            "completionOptions.mergeCommitMessage?",
+            "completionOptions.mergeStrategy?",
+            "completionOptions.squashMerge?",
+            "completionOptions.transitionWorkItems?",
+            "completionOptions?",
+            "createdBy",
+            "createdBy.descriptor?",
+            "createdBy.displayName",
+            "createdBy.id",
+            "createdBy.imageUrl?",
+            "createdBy.uniqueName",
+            "createdBy.url?",
+            "creationDate",
+            "description?",
+            "lastMergeCommit.commitId?",
+            "lastMergeCommit.url?",
+            "lastMergeCommit?",
+            "lastMergeSourceCommit.commitId?",
+            "lastMergeSourceCommit.url?",
+            "lastMergeSourceCommit?",
+            "lastMergeTargetCommit.commitId?",
+            "lastMergeTargetCommit.url?",
+            "lastMergeTargetCommit?",
+            "mergeId?",
+            "mergeStatus?",
+            "pullRequestId",
+            "reviewers",
+            "reviewers[].displayName",
+            "reviewers[].hasDeclined?",
+            "reviewers[].id",
+            "reviewers[].imageUrl?",
+            "reviewers[].isRequired?",
+            "reviewers[].uniqueName",
+            "reviewers[].url?",
+            "reviewers[].vote",
+            "sourceRefName",
+            "status",
+            "supportsIterations?",
+            "targetRefName",
+            "title",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr update",
+      "usage": "[options] <id>",
+      "description": "Update a pull request",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--title <title>",
+          "description": "New title"
+        },
+        {
+          "flags": "--description <text>",
+          "description": "New description"
+        },
+        {
+          "flags": "--reviewers <ids>",
+          "description": "Comma-separated reviewer IDs"
+        },
+        {
+          "flags": "--draft <bool>",
+          "description": "Set draft status: true|false"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "autoCompleteSetBy.descriptor?",
+            "autoCompleteSetBy.displayName?",
+            "autoCompleteSetBy.id?",
+            "autoCompleteSetBy.imageUrl?",
+            "autoCompleteSetBy.uniqueName?",
+            "autoCompleteSetBy.url?",
+            "autoCompleteSetBy?",
+            "closedDate?",
+            "codeReviewId?",
+            "completionOptions.deleteSourceBranch?",
+            "completionOptions.mergeCommitMessage?",
+            "completionOptions.mergeStrategy?",
+            "completionOptions.squashMerge?",
+            "completionOptions.transitionWorkItems?",
+            "completionOptions?",
+            "createdBy",
+            "createdBy.descriptor?",
+            "createdBy.displayName",
+            "createdBy.id",
+            "createdBy.imageUrl?",
+            "createdBy.uniqueName",
+            "createdBy.url?",
+            "creationDate",
+            "description?",
+            "lastMergeCommit.commitId?",
+            "lastMergeCommit.url?",
+            "lastMergeCommit?",
+            "lastMergeSourceCommit.commitId?",
+            "lastMergeSourceCommit.url?",
+            "lastMergeSourceCommit?",
+            "lastMergeTargetCommit.commitId?",
+            "lastMergeTargetCommit.url?",
+            "lastMergeTargetCommit?",
+            "mergeId?",
+            "mergeStatus?",
+            "pullRequestId",
+            "reviewers",
+            "reviewers[].displayName",
+            "reviewers[].hasDeclined?",
+            "reviewers[].id",
+            "reviewers[].imageUrl?",
+            "reviewers[].isRequired?",
+            "reviewers[].uniqueName",
+            "reviewers[].url?",
+            "reviewers[].vote",
+            "sourceRefName",
+            "status",
+            "supportsIterations?",
+            "targetRefName",
+            "title",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr merge",
+      "usage": "[options] <id>",
+      "description": "Complete (merge) a pull request",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--strategy <s>",
+          "description": "Merge strategy: noFastForward|squash|rebase|rebaseMerge (default: \"noFastForward\")"
+        },
+        {
+          "flags": "--delete-source",
+          "description": "Delete source branch after merge"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "autoCompleteSetBy.descriptor?",
+            "autoCompleteSetBy.displayName?",
+            "autoCompleteSetBy.id?",
+            "autoCompleteSetBy.imageUrl?",
+            "autoCompleteSetBy.uniqueName?",
+            "autoCompleteSetBy.url?",
+            "autoCompleteSetBy?",
+            "closedDate?",
+            "codeReviewId?",
+            "completionOptions.deleteSourceBranch?",
+            "completionOptions.mergeCommitMessage?",
+            "completionOptions.mergeStrategy?",
+            "completionOptions.squashMerge?",
+            "completionOptions.transitionWorkItems?",
+            "completionOptions?",
+            "createdBy",
+            "createdBy.descriptor?",
+            "createdBy.displayName",
+            "createdBy.id",
+            "createdBy.imageUrl?",
+            "createdBy.uniqueName",
+            "createdBy.url?",
+            "creationDate",
+            "description?",
+            "lastMergeCommit.commitId?",
+            "lastMergeCommit.url?",
+            "lastMergeCommit?",
+            "lastMergeSourceCommit.commitId?",
+            "lastMergeSourceCommit.url?",
+            "lastMergeSourceCommit?",
+            "lastMergeTargetCommit.commitId?",
+            "lastMergeTargetCommit.url?",
+            "lastMergeTargetCommit?",
+            "mergeId?",
+            "mergeStatus?",
+            "pullRequestId",
+            "reviewers",
+            "reviewers[].displayName",
+            "reviewers[].hasDeclined?",
+            "reviewers[].id",
+            "reviewers[].imageUrl?",
+            "reviewers[].isRequired?",
+            "reviewers[].uniqueName",
+            "reviewers[].url?",
+            "reviewers[].vote",
+            "sourceRefName",
+            "status",
+            "supportsIterations?",
+            "targetRefName",
+            "title",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr abandon",
+      "usage": "[options] <id>",
+      "description": "Abandon a pull request",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "autoCompleteSetBy.descriptor?",
+            "autoCompleteSetBy.displayName?",
+            "autoCompleteSetBy.id?",
+            "autoCompleteSetBy.imageUrl?",
+            "autoCompleteSetBy.uniqueName?",
+            "autoCompleteSetBy.url?",
+            "autoCompleteSetBy?",
+            "closedDate?",
+            "codeReviewId?",
+            "completionOptions.deleteSourceBranch?",
+            "completionOptions.mergeCommitMessage?",
+            "completionOptions.mergeStrategy?",
+            "completionOptions.squashMerge?",
+            "completionOptions.transitionWorkItems?",
+            "completionOptions?",
+            "createdBy",
+            "createdBy.descriptor?",
+            "createdBy.displayName",
+            "createdBy.id",
+            "createdBy.imageUrl?",
+            "createdBy.uniqueName",
+            "createdBy.url?",
+            "creationDate",
+            "description?",
+            "lastMergeCommit.commitId?",
+            "lastMergeCommit.url?",
+            "lastMergeCommit?",
+            "lastMergeSourceCommit.commitId?",
+            "lastMergeSourceCommit.url?",
+            "lastMergeSourceCommit?",
+            "lastMergeTargetCommit.commitId?",
+            "lastMergeTargetCommit.url?",
+            "lastMergeTargetCommit?",
+            "mergeId?",
+            "mergeStatus?",
+            "pullRequestId",
+            "reviewers",
+            "reviewers[].displayName",
+            "reviewers[].hasDeclined?",
+            "reviewers[].id",
+            "reviewers[].imageUrl?",
+            "reviewers[].isRequired?",
+            "reviewers[].uniqueName",
+            "reviewers[].url?",
+            "reviewers[].vote",
+            "sourceRefName",
+            "status",
+            "supportsIterations?",
+            "targetRefName",
+            "title",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr comments",
+      "usage": "[options] <id>",
+      "description": "List all comments on a pull request (general + inline)",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--inline-only",
+          "description": "Return only inline file comments"
+        },
+        {
+          "flags": "--general-only",
+          "description": "Return only general PR comments"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "[].author",
+            "[].author.descriptor?",
+            "[].author.displayName",
+            "[].author.id",
+            "[].author.imageUrl?",
+            "[].author.uniqueName",
+            "[].author.url?",
+            "[].commentType",
+            "[].content?",
+            "[].id",
+            "[].isDeleted?",
+            "[].lastContentUpdatedDate?",
+            "[].lastUpdatedDate",
+            "[].parentCommentId?",
+            "[].publishedDate",
+            "[].threadContext",
+            "[].threadContext.filePath?",
+            "[].threadContext.leftFileEnd?",
+            "[].threadContext.leftFileStart?",
+            "[].threadContext.rightFileEnd?",
+            "[].threadContext.rightFileStart?",
+            "[].threadId",
+            "[].usersLiked?",
+            "[].usersLiked[].descriptor?",
+            "[].usersLiked[].displayName?",
+            "[].usersLiked[].id?",
+            "[].usersLiked[].imageUrl?",
+            "[].usersLiked[].uniqueName?",
+            "[].usersLiked[].url?"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr comment",
+      "usage": "[options] <id>",
+      "description": "Add a general comment to a pull request",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--body <text>",
+          "description": "Comment text"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "comments",
+            "comments[].author",
+            "comments[].commentType",
+            "comments[].content?",
+            "comments[].id",
+            "comments[].isDeleted?",
+            "comments[].lastContentUpdatedDate?",
+            "comments[].lastUpdatedDate",
+            "comments[].parentCommentId?",
+            "comments[].publishedDate",
+            "comments[].usersLiked?",
+            "id",
+            "identities?",
+            "isDeleted?",
+            "lastUpdatedDate",
+            "properties?",
+            "publishedDate",
+            "status",
+            "threadContext.filePath?",
+            "threadContext.leftFileEnd?",
+            "threadContext.leftFileStart?",
+            "threadContext.rightFileEnd?",
+            "threadContext.rightFileStart?",
+            "threadContext?"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr comment-inline",
+      "usage": "[options] <id>",
+      "description": "Add an inline comment on a file in a pull request",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--file <path>",
+          "description": "File path"
+        },
+        {
+          "flags": "--line <n>",
+          "description": "Line number"
+        },
+        {
+          "flags": "--body <text>",
+          "description": "Comment text"
+        },
+        {
+          "flags": "--line-type <side>",
+          "description": "Line side: left|right (default: right) (default: \"right\")"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "comments",
+            "comments[].author",
+            "comments[].commentType",
+            "comments[].content?",
+            "comments[].id",
+            "comments[].isDeleted?",
+            "comments[].lastContentUpdatedDate?",
+            "comments[].lastUpdatedDate",
+            "comments[].parentCommentId?",
+            "comments[].publishedDate",
+            "comments[].usersLiked?",
+            "id",
+            "identities?",
+            "isDeleted?",
+            "lastUpdatedDate",
+            "properties?",
+            "publishedDate",
+            "status",
+            "threadContext.filePath?",
+            "threadContext.leftFileEnd?",
+            "threadContext.leftFileStart?",
+            "threadContext.rightFileEnd?",
+            "threadContext.rightFileStart?",
+            "threadContext?"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr reply",
+      "usage": "[options] <id> <thread-id>",
+      "description": "Reply to a comment thread",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--body <text>",
+          "description": "Reply text"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "author",
+            "author.descriptor?",
+            "author.displayName",
+            "author.id",
+            "author.imageUrl?",
+            "author.uniqueName",
+            "author.url?",
+            "commentType",
+            "content?",
+            "id",
+            "isDeleted?",
+            "lastContentUpdatedDate?",
+            "lastUpdatedDate",
+            "parentCommentId?",
+            "publishedDate",
+            "usersLiked?",
+            "usersLiked[].descriptor?",
+            "usersLiked[].displayName?",
+            "usersLiked[].id?",
+            "usersLiked[].imageUrl?",
+            "usersLiked[].uniqueName?",
+            "usersLiked[].url?"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr resolve",
+      "usage": "[options] <id> <thread-id>",
+      "description": "Mark a comment thread as resolved (fixed)",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "comments",
+            "comments[].author",
+            "comments[].commentType",
+            "comments[].content?",
+            "comments[].id",
+            "comments[].isDeleted?",
+            "comments[].lastContentUpdatedDate?",
+            "comments[].lastUpdatedDate",
+            "comments[].parentCommentId?",
+            "comments[].publishedDate",
+            "comments[].usersLiked?",
+            "id",
+            "identities?",
+            "isDeleted?",
+            "lastUpdatedDate",
+            "properties?",
+            "publishedDate",
+            "status",
+            "threadContext.filePath?",
+            "threadContext.leftFileEnd?",
+            "threadContext.leftFileStart?",
+            "threadContext.rightFileEnd?",
+            "threadContext.rightFileStart?",
+            "threadContext?"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr delete-comment",
+      "usage": "[options] <id> <thread-id> <comment-id>",
+      "description": "Delete a comment from a thread",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "deleted"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr files",
+      "usage": "[options] <id>",
+      "description": "List files changed in a pull request",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "[].changeType",
+            "[].item",
+            "[].item.isFolder?",
+            "[].item.path",
+            "[].originalPath?"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr diff",
+      "usage": "[options] <id>",
+      "description": "Show files changed in a pull request with change types and commit metadata",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--path <p>",
+          "description": "Filter diff to a specific file path"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "aheadCount?",
+            "behindCount?",
+            "changes?",
+            "changes[].changeType?",
+            "changes[].item?",
+            "changes[].originalPath?",
+            "commonCommit?"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pr reviewers",
+      "usage": "[options] <id>",
+      "description": "List reviewers on a pull request",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": []
+        }
+      ]
+    },
+    {
+      "command": "ado pr approve",
+      "usage": "[options] <id>",
+      "description": "Approve a pull request",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "opaque": "unknown"
+        }
+      ]
+    },
+    {
+      "command": "ado pr unapprove",
+      "usage": "[options] <id>",
+      "description": "Remove approval from a pull request",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "opaque": "unknown"
+        }
+      ]
+    },
+    {
+      "command": "ado pr wait-for-author",
+      "usage": "[options] <id>",
+      "description": "Mark a pull request as waiting for author",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "opaque": "unknown"
+        }
+      ]
+    },
+    {
+      "command": "ado pr builds",
+      "usage": "[options] <id>",
+      "description": "List builds associated with a pull request",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--limit <n>",
+          "description": "Return at most this many builds; meta.page.nextCursor says where the rest start (default: all)"
+        },
+        {
+          "flags": "--cursor <cursor>",
+          "description": "meta.page.nextCursor from the previous call (with --limit)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "[].buildNumber",
+            "[].definition",
+            "[].definition.id",
+            "[].definition.name",
+            "[].finishTime?",
+            "[].id",
+            "[].keepForever?",
+            "[].parameters?",
+            "[].priority?",
+            "[].project",
+            "[].project.description?",
+            "[].project.id",
+            "[].project.lastUpdateTime?",
+            "[].project.name",
+            "[].project.revision",
+            "[].project.state",
+            "[].project.url",
+            "[].project.visibility",
+            "[].queueTime?",
+            "[].reason?",
+            "[].requestedBy.descriptor?",
+            "[].requestedBy.displayName?",
+            "[].requestedBy.id?",
+            "[].requestedBy.imageUrl?",
+            "[].requestedBy.uniqueName?",
+            "[].requestedBy.url?",
+            "[].requestedBy?",
+            "[].requestedFor.descriptor?",
+            "[].requestedFor.displayName?",
+            "[].requestedFor.id?",
+            "[].requestedFor.imageUrl?",
+            "[].requestedFor.uniqueName?",
+            "[].requestedFor.url?",
+            "[].requestedFor?",
+            "[].result?",
+            "[].sourceBranch?",
+            "[].sourceVersion?",
+            "[].startTime?",
+            "[].status",
+            "[].tags?",
+            "[].url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pipeline",
+      "usage": "[options] [command]",
+      "description": "pipeline commands",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "ado pipeline list",
+      "usage": "[options]",
+      "description": "List pipeline definitions",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--limit <n>",
+          "description": "Return at most this many pipelines; meta.page.nextCursor says where the rest start (default: all)"
+        },
+        {
+          "flags": "--cursor <cursor>",
+          "description": "meta.page.nextCursor from the previous call (with --limit)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "[].id",
+            "[].latestBuild.buildNumber?",
+            "[].latestBuild.definition?",
+            "[].latestBuild.finishTime?",
+            "[].latestBuild.id?",
+            "[].latestBuild.keepForever?",
+            "[].latestBuild.parameters?",
+            "[].latestBuild.priority?",
+            "[].latestBuild.project?",
+            "[].latestBuild.queueTime?",
+            "[].latestBuild.reason?",
+            "[].latestBuild.requestedBy?",
+            "[].latestBuild.requestedFor?",
+            "[].latestBuild.result?",
+            "[].latestBuild.sourceBranch?",
+            "[].latestBuild.sourceVersion?",
+            "[].latestBuild.startTime?",
+            "[].latestBuild.status?",
+            "[].latestBuild.tags?",
+            "[].latestBuild.url?",
+            "[].latestBuild?",
+            "[].name",
+            "[].path",
+            "[].process.type?",
+            "[].process.yamlFilename?",
+            "[].process?",
+            "[].project",
+            "[].project.description?",
+            "[].project.id",
+            "[].project.lastUpdateTime?",
+            "[].project.name",
+            "[].project.revision",
+            "[].project.state",
+            "[].project.url",
+            "[].project.visibility",
+            "[].queue.id?",
+            "[].queue.name?",
+            "[].queue?",
+            "[].queueStatus",
+            "[].repository.id?",
+            "[].repository.name?",
+            "[].repository.type?",
+            "[].repository?",
+            "[].revision",
+            "[].type",
+            "[].url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pipeline get",
+      "usage": "[options] <id>",
+      "description": "Get a pipeline definition by ID",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "id",
+            "latestBuild.buildNumber?",
+            "latestBuild.definition?",
+            "latestBuild.finishTime?",
+            "latestBuild.id?",
+            "latestBuild.keepForever?",
+            "latestBuild.parameters?",
+            "latestBuild.priority?",
+            "latestBuild.project?",
+            "latestBuild.queueTime?",
+            "latestBuild.reason?",
+            "latestBuild.requestedBy?",
+            "latestBuild.requestedFor?",
+            "latestBuild.result?",
+            "latestBuild.sourceBranch?",
+            "latestBuild.sourceVersion?",
+            "latestBuild.startTime?",
+            "latestBuild.status?",
+            "latestBuild.tags?",
+            "latestBuild.url?",
+            "latestBuild?",
+            "name",
+            "path",
+            "process.type?",
+            "process.yamlFilename?",
+            "process?",
+            "project",
+            "project.description?",
+            "project.id",
+            "project.lastUpdateTime?",
+            "project.name",
+            "project.revision",
+            "project.state",
+            "project.url",
+            "project.visibility",
+            "queue.id?",
+            "queue.name?",
+            "queue?",
+            "queueStatus",
+            "repository.id?",
+            "repository.name?",
+            "repository.type?",
+            "repository?",
+            "revision",
+            "type",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado pipeline run",
+      "usage": "[options] <id>",
+      "description": "Queue a pipeline run",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--branch <ref>",
+          "description": "Source branch (e.g. refs/heads/main or main)"
+        },
+        {
+          "flags": "--parameter <k=v>",
+          "description": "Build parameter (repeatable) (default: [])"
+        },
+        {
+          "flags": "--wait",
+          "description": "Wait for the run to complete before returning"
+        },
+        {
+          "flags": "--timeout <s>",
+          "description": "Max wait time in seconds (default 600) (default: \"600\")"
+        },
+        {
+          "flags": "--poll <s>",
+          "description": "Poll interval in seconds (default 10) (default: \"10\")"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "buildNumber",
+            "definition",
+            "definition.id",
+            "definition.name",
+            "finishTime?",
+            "id",
+            "keepForever?",
+            "parameters?",
+            "priority?",
+            "project",
+            "project.description?",
+            "project.id",
+            "project.lastUpdateTime?",
+            "project.name",
+            "project.revision",
+            "project.state",
+            "project.url",
+            "project.visibility",
+            "queueTime?",
+            "reason?",
+            "requestedBy.descriptor?",
+            "requestedBy.displayName?",
+            "requestedBy.id?",
+            "requestedBy.imageUrl?",
+            "requestedBy.uniqueName?",
+            "requestedBy.url?",
+            "requestedBy?",
+            "requestedFor.descriptor?",
+            "requestedFor.displayName?",
+            "requestedFor.id?",
+            "requestedFor.imageUrl?",
+            "requestedFor.uniqueName?",
+            "requestedFor.url?",
+            "requestedFor?",
+            "result?",
+            "sourceBranch?",
+            "sourceVersion?",
+            "startTime?",
+            "status",
+            "tags?",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado run",
+      "usage": "[options] [command]",
+      "description": "run commands",
+      "leaf": false,
+      "options": []
+    },
+    {
+      "command": "ado run list",
+      "usage": "[options]",
+      "description": "List pipeline runs",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--definition <id>",
+          "description": "Filter by definition ID"
+        },
+        {
+          "flags": "--name <name>",
+          "description": "Filter by pipeline name (resolved to definition ID; use pipeline list to see names)"
+        },
+        {
+          "flags": "--branch <ref>",
+          "description": "Filter by branch name"
+        },
+        {
+          "flags": "--status <filter>",
+          "description": "Filter by status (inProgress|completed|cancelling|...)"
+        },
+        {
+          "flags": "--top <n>",
+          "description": "Maximum results (default: \"50\")"
+        },
+        {
+          "flags": "--limit <n>",
+          "description": "Return at most this many runs; meta.page.nextCursor says where the rest start (default: all)"
+        },
+        {
+          "flags": "--cursor <cursor>",
+          "description": "meta.page.nextCursor from the previous call (with --limit)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "[].buildNumber",
+            "[].definition",
+            "[].definition.id",
+            "[].definition.name",
+            "[].finishTime?",
+            "[].id",
+            "[].keepForever?",
+            "[].parameters?",
+            "[].priority?",
+            "[].project",
+            "[].project.description?",
+            "[].project.id",
+            "[].project.lastUpdateTime?",
+            "[].project.name",
+            "[].project.revision",
+            "[].project.state",
+            "[].project.url",
+            "[].project.visibility",
+            "[].queueTime?",
+            "[].reason?",
+            "[].requestedBy.descriptor?",
+            "[].requestedBy.displayName?",
+            "[].requestedBy.id?",
+            "[].requestedBy.imageUrl?",
+            "[].requestedBy.uniqueName?",
+            "[].requestedBy.url?",
+            "[].requestedBy?",
+            "[].requestedFor.descriptor?",
+            "[].requestedFor.displayName?",
+            "[].requestedFor.id?",
+            "[].requestedFor.imageUrl?",
+            "[].requestedFor.uniqueName?",
+            "[].requestedFor.url?",
+            "[].requestedFor?",
+            "[].result?",
+            "[].sourceBranch?",
+            "[].sourceVersion?",
+            "[].startTime?",
+            "[].status",
+            "[].tags?",
+            "[].url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado run get",
+      "usage": "[options] <id>",
+      "description": "Get a pipeline run by build ID",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "buildNumber",
+            "definition",
+            "definition.id",
+            "definition.name",
+            "finishTime?",
+            "id",
+            "keepForever?",
+            "parameters?",
+            "priority?",
+            "project",
+            "project.description?",
+            "project.id",
+            "project.lastUpdateTime?",
+            "project.name",
+            "project.revision",
+            "project.state",
+            "project.url",
+            "project.visibility",
+            "queueTime?",
+            "reason?",
+            "requestedBy.descriptor?",
+            "requestedBy.displayName?",
+            "requestedBy.id?",
+            "requestedBy.imageUrl?",
+            "requestedBy.uniqueName?",
+            "requestedBy.url?",
+            "requestedBy?",
+            "requestedFor.descriptor?",
+            "requestedFor.displayName?",
+            "requestedFor.id?",
+            "requestedFor.imageUrl?",
+            "requestedFor.uniqueName?",
+            "requestedFor.url?",
+            "requestedFor?",
+            "result?",
+            "sourceBranch?",
+            "sourceVersion?",
+            "startTime?",
+            "status",
+            "tags?",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado run cancel",
+      "usage": "[options] <id>",
+      "description": "Cancel a running pipeline build",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "buildNumber",
+            "definition",
+            "definition.id",
+            "definition.name",
+            "finishTime?",
+            "id",
+            "keepForever?",
+            "parameters?",
+            "priority?",
+            "project",
+            "project.description?",
+            "project.id",
+            "project.lastUpdateTime?",
+            "project.name",
+            "project.revision",
+            "project.state",
+            "project.url",
+            "project.visibility",
+            "queueTime?",
+            "reason?",
+            "requestedBy.descriptor?",
+            "requestedBy.displayName?",
+            "requestedBy.id?",
+            "requestedBy.imageUrl?",
+            "requestedBy.uniqueName?",
+            "requestedBy.url?",
+            "requestedBy?",
+            "requestedFor.descriptor?",
+            "requestedFor.displayName?",
+            "requestedFor.id?",
+            "requestedFor.imageUrl?",
+            "requestedFor.uniqueName?",
+            "requestedFor.url?",
+            "requestedFor?",
+            "result?",
+            "sourceBranch?",
+            "sourceVersion?",
+            "startTime?",
+            "status",
+            "tags?",
+            "url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado run logs",
+      "usage": "[options] <id>",
+      "description": "List or retrieve build logs (consider --output-file for large logs)",
+      "leaf": true,
+      "options": [
+        {
+          "flags": "--log-id <n>",
+          "description": "Specific log ID (omit to list all logs)"
+        }
+      ],
+      "output": [
+        {
+          "fields": [
+            "log"
+          ]
+        },
+        {
+          "fields": [
+            "[].createdOn?",
+            "[].id",
+            "[].lastChangedOn?",
+            "[].lineCount?",
+            "[].type",
+            "[].url"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado whoami",
+      "usage": "[options]",
+      "description": "Show current authenticated user",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "authenticatedUser",
+            "authenticatedUser.id",
+            "authenticatedUser.isActive",
+            "authenticatedUser.properties?",
+            "authenticatedUser.providerDisplayName",
+            "authorizedUser",
+            "authorizedUser.id",
+            "authorizedUser.isActive",
+            "authorizedUser.properties?",
+            "authorizedUser.providerDisplayName",
+            "deploymentType",
+            "instanceId",
+            "webApplicationRelativeDirectory"
+          ]
+        }
+      ]
+    },
+    {
+      "command": "ado connection-data",
+      "usage": "[options]",
+      "description": "Show raw connection data from the ADO server",
+      "leaf": true,
+      "options": [],
+      "output": [
+        {
+          "fields": [
+            "authenticatedUser",
+            "authenticatedUser.id",
+            "authenticatedUser.isActive",
+            "authenticatedUser.properties?",
+            "authenticatedUser.providerDisplayName",
+            "authorizedUser",
+            "authorizedUser.id",
+            "authorizedUser.isActive",
+            "authorizedUser.properties?",
+            "authorizedUser.providerDisplayName",
+            "deploymentType",
+            "instanceId",
+            "webApplicationRelativeDirectory"
           ]
         }
       ]
@@ -5734,2339 +7935,6 @@
             "version.node",
             "version.platform",
             "version.toil"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado",
-      "usage": "[options] [command]",
-      "description": "Azure DevOps Server operations",
-      "leaf": false,
-      "options": [
-        {
-          "flags": "--collection <name>",
-          "description": "Azure DevOps collection (organization)"
-        },
-        {
-          "flags": "--organization <name>",
-          "description": "Alias for --collection"
-        },
-        {
-          "flags": "--project <name>",
-          "description": "Azure DevOps team project"
-        },
-        {
-          "flags": "--repo <name>",
-          "description": "Azure DevOps git repository name"
-        }
-      ]
-    },
-    {
-      "command": "ado whoami",
-      "usage": "[options]",
-      "description": "Show current authenticated user",
-      "leaf": true,
-      "options": [],
-      "output": [
-        {
-          "fields": [
-            "authenticatedUser",
-            "authenticatedUser.id",
-            "authenticatedUser.isActive",
-            "authenticatedUser.properties?",
-            "authenticatedUser.providerDisplayName",
-            "authorizedUser",
-            "authorizedUser.id",
-            "authorizedUser.isActive",
-            "authorizedUser.properties?",
-            "authorizedUser.providerDisplayName",
-            "deploymentType",
-            "instanceId",
-            "webApplicationRelativeDirectory"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado connection-data",
-      "usage": "[options]",
-      "description": "Show raw connection data from the ADO server",
-      "leaf": true,
-      "options": [],
-      "output": [
-        {
-          "fields": [
-            "authenticatedUser",
-            "authenticatedUser.id",
-            "authenticatedUser.isActive",
-            "authenticatedUser.properties?",
-            "authenticatedUser.providerDisplayName",
-            "authorizedUser",
-            "authorizedUser.id",
-            "authorizedUser.isActive",
-            "authorizedUser.properties?",
-            "authorizedUser.providerDisplayName",
-            "deploymentType",
-            "instanceId",
-            "webApplicationRelativeDirectory"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado project",
-      "usage": "[options] [command]",
-      "description": "Azure DevOps project and collection operations",
-      "leaf": false,
-      "options": []
-    },
-    {
-      "command": "ado project list-collections",
-      "usage": "[options]",
-      "description": "List all project collections on the server",
-      "leaf": true,
-      "options": [],
-      "output": [
-        {
-          "fields": [
-            "[].collectionUrl",
-            "[].id",
-            "[].name",
-            "[].state",
-            "[].url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado project list",
-      "usage": "[options]",
-      "description": "List team projects in a collection",
-      "leaf": true,
-      "options": [],
-      "output": [
-        {
-          "fields": [
-            "[].description?",
-            "[].id",
-            "[].lastUpdateTime?",
-            "[].name",
-            "[].revision",
-            "[].state",
-            "[].url",
-            "[].visibility"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado project get",
-      "usage": "[options]",
-      "description": "Get a team project by name",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--name <project>",
-          "description": "Project name"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "description?",
-            "id",
-            "lastUpdateTime?",
-            "name",
-            "revision",
-            "state",
-            "url",
-            "visibility"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work",
-      "usage": "[options] [command]",
-      "description": "Azure DevOps work item operations",
-      "leaf": false,
-      "options": []
-    },
-    {
-      "command": "ado work get",
-      "usage": "[options]",
-      "description": "Get a work item by ID",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Work item ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "_links?",
-            "fields",
-            "id",
-            "relations?",
-            "relations[].attributes?",
-            "relations[].rel?",
-            "relations[].url?",
-            "rev",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work create",
-      "usage": "[options]",
-      "description": "Create a work item",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--type <type>",
-          "description": "Work item type (e.g. Bug, Task, User Story) (required, unless supplied via --input-file)"
-        },
-        {
-          "flags": "--title <title>",
-          "description": "Work item title (required, unless supplied via --input-file)"
-        },
-        {
-          "flags": "--description <text>",
-          "description": "Description"
-        },
-        {
-          "flags": "--assignee <user>",
-          "description": "Assigned to (display name or email)"
-        },
-        {
-          "flags": "--priority <n>",
-          "description": "Priority (1-4)"
-        },
-        {
-          "flags": "--parent <id>",
-          "description": "Parent work item ID — creates a parent link after creation"
-        },
-        {
-          "flags": "--field <name=value>",
-          "description": "Additional field (repeatable) (default: [])"
-        },
-        {
-          "flags": "--input-file <path>",
-          "description": "JSON file describing the work item ({ type, fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil ado work schema"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "_links?",
-            "fields",
-            "id",
-            "relations?",
-            "relations[].attributes?",
-            "relations[].rel?",
-            "relations[].url?",
-            "rev",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work update",
-      "usage": "[options]",
-      "description": "Update a work item field",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Work item ID"
-        },
-        {
-          "flags": "--field <name=value>",
-          "description": "Field to update (repeatable) (default: [])"
-        },
-        {
-          "flags": "--input-file <path>",
-          "description": "JSON file describing fields to update ({ fields: {...} }); '-' = stdin. CLI flags override matching keys. See: toil ado work schema"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "_links?",
-            "fields",
-            "id",
-            "relations?",
-            "relations[].attributes?",
-            "relations[].rel?",
-            "relations[].url?",
-            "rev",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work transition",
-      "usage": "[options]",
-      "description": "Set the state of a work item",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Work item ID"
-        },
-        {
-          "flags": "--state <state>",
-          "description": "New state (e.g. Active, Resolved, Closed)"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "_links?",
-            "fields",
-            "id",
-            "relations?",
-            "relations[].attributes?",
-            "relations[].rel?",
-            "relations[].url?",
-            "rev",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work assign",
-      "usage": "[options]",
-      "description": "Assign a work item to a user",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Work item ID"
-        },
-        {
-          "flags": "--to <user>",
-          "description": "User display name or email"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "_links?",
-            "fields",
-            "id",
-            "relations?",
-            "relations[].attributes?",
-            "relations[].rel?",
-            "relations[].url?",
-            "rev",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work link",
-      "usage": "[options]",
-      "description": "Link two work items",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <a>",
-          "description": "Source work item ID"
-        },
-        {
-          "flags": "--to <b>",
-          "description": "Target work item ID"
-        },
-        {
-          "flags": "--type <rel>",
-          "description": "Link type (related|parent|child|duplicate|duplicate-of) (default: \"related\")"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "_links?",
-            "fields",
-            "id",
-            "relations?",
-            "relations[].attributes?",
-            "relations[].rel?",
-            "relations[].url?",
-            "rev",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work search",
-      "usage": "[options]",
-      "description": "Run a WIQL query (consider --output-file for large results)",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--wiql <query>",
-          "description": "WIQL query string"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "asOf",
-            "queryResultType",
-            "queryType",
-            "workItemRelations?",
-            "workItemRelations[].rel?",
-            "workItemRelations[].source?",
-            "workItemRelations[].target?",
-            "workItems?",
-            "workItems[].id?",
-            "workItems[].url?"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work list-comments",
-      "usage": "[options]",
-      "description": "List comments on a work item",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Work item ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "[].createdBy",
-            "[].createdBy.descriptor?",
-            "[].createdBy.displayName",
-            "[].createdBy.id",
-            "[].createdBy.imageUrl?",
-            "[].createdBy.uniqueName",
-            "[].createdBy.url?",
-            "[].createdDate",
-            "[].id",
-            "[].modifiedBy.descriptor?",
-            "[].modifiedBy.displayName?",
-            "[].modifiedBy.id?",
-            "[].modifiedBy.imageUrl?",
-            "[].modifiedBy.uniqueName?",
-            "[].modifiedBy.url?",
-            "[].modifiedBy?",
-            "[].modifiedDate?",
-            "[].text",
-            "[].url",
-            "[].version",
-            "[].workItemId"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work add-comment",
-      "usage": "[options]",
-      "description": "Add a comment to a work item",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Work item ID"
-        },
-        {
-          "flags": "--body <text>",
-          "description": "Comment text"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "createdBy",
-            "createdBy.descriptor?",
-            "createdBy.displayName",
-            "createdBy.id",
-            "createdBy.imageUrl?",
-            "createdBy.uniqueName",
-            "createdBy.url?",
-            "createdDate",
-            "id",
-            "modifiedBy.descriptor?",
-            "modifiedBy.displayName?",
-            "modifiedBy.id?",
-            "modifiedBy.imageUrl?",
-            "modifiedBy.uniqueName?",
-            "modifiedBy.url?",
-            "modifiedBy?",
-            "modifiedDate?",
-            "text",
-            "url",
-            "version",
-            "workItemId"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work add-tag",
-      "usage": "[options]",
-      "description": "Add one or more tags to a work item (non-destructive)",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Work item ID"
-        },
-        {
-          "flags": "--tags <tags>",
-          "description": "Semicolon- or comma-separated tags to add"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "_links?",
-            "fields",
-            "id",
-            "relations?",
-            "relations[].attributes?",
-            "relations[].rel?",
-            "relations[].url?",
-            "rev",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work remove-tag",
-      "usage": "[options]",
-      "description": "Remove one or more tags from a work item (non-destructive)",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Work item ID"
-        },
-        {
-          "flags": "--tags <tags>",
-          "description": "Semicolon- or comma-separated tags to remove"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "_links?",
-            "fields",
-            "id",
-            "relations?",
-            "relations[].attributes?",
-            "relations[].rel?",
-            "relations[].url?",
-            "rev",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work list-attachments",
-      "usage": "[options]",
-      "description": "List attachments on a work item",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Work item ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "[].comment?",
-            "[].id",
-            "[].name",
-            "[].resourceCreatedDate?",
-            "[].resourceModifiedDate?",
-            "[].resourceSize?",
-            "[].url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work add-attachment",
-      "usage": "[options]",
-      "description": "Upload a local file and attach it to a work item",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Work item ID"
-        },
-        {
-          "flags": "--file <path>",
-          "description": "Path to the file to upload"
-        },
-        {
-          "flags": "--comment <text>",
-          "description": "Optional comment for the attachment"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "comment?",
-            "id",
-            "name",
-            "resourceCreatedDate?",
-            "resourceModifiedDate?",
-            "resourceSize?",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work download-attachment",
-      "usage": "[options]",
-      "description": "Download a work item attachment to .toil/ (or --dir)",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Work item ID"
-        },
-        {
-          "flags": "--attachment-id <guid>",
-          "description": "Attachment ID from work list-attachments output"
-        },
-        {
-          "flags": "--dir <path>",
-          "description": "Output directory (default: .toil relative to cwd)"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "name",
-            "saved",
-            "size"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work list-areas",
-      "usage": "[options]",
-      "description": "List classification areas for the team project (tree)",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--depth <n>",
-          "description": "Depth of the area tree to retrieve (default: \"10\")"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "attributes.finishDate?",
-            "attributes.startDate?",
-            "attributes?",
-            "children?",
-            "children[].attributes?",
-            "children[].children?",
-            "children[].hasChildren?",
-            "children[].id?",
-            "children[].identifier?",
-            "children[].name?",
-            "children[].path?",
-            "children[].structureType?",
-            "children[].url?",
-            "hasChildren",
-            "id",
-            "identifier",
-            "name",
-            "path",
-            "structureType",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work list-iterations",
-      "usage": "[options]",
-      "description": "List classification iterations for the team project (tree), including",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--depth <n>",
-          "description": "Depth of the iteration tree to retrieve (default: \"10\")"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "attributes.finishDate?",
-            "attributes.startDate?",
-            "attributes?",
-            "children?",
-            "children[].attributes?",
-            "children[].children?",
-            "children[].hasChildren?",
-            "children[].id?",
-            "children[].identifier?",
-            "children[].name?",
-            "children[].path?",
-            "children[].structureType?",
-            "children[].url?",
-            "hasChildren",
-            "id",
-            "identifier",
-            "name",
-            "path",
-            "structureType",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work types",
-      "usage": "[options]",
-      "description": "List work item types in the project",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--discover",
-          "description": "Fetch from server (always true for this command)"
-        },
-        {
-          "flags": "--save",
-          "description": "Save discovered types to ~/.toil/config.json"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "[].name",
-            "[].requiredFields",
-            "[].states"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work list-states",
-      "usage": "[options]",
-      "description": "List valid states for a work item type",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--type <type>",
-          "description": "Work item type name (e.g. Bug)"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "[].category",
-            "[].color",
-            "[].name"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work fields",
-      "usage": "[options]",
-      "description": "List work item fields available in the collection (consider --output-file for",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--type <type>",
-          "description": "Scope to fields for a specific work item type (e.g. Bug)"
-        },
-        {
-          "flags": "--custom-only",
-          "description": "Exclude System.* and Microsoft.VSTS.* fields"
-        },
-        {
-          "flags": "--discover",
-          "description": "Fetch from server (always true for this command)"
-        },
-        {
-          "flags": "--save",
-          "description": "Save discovered fields and aliases to ~/.toil/config.json"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "[].name",
-            "[].picklistId?",
-            "[].readOnly?",
-            "[].referenceName",
-            "[].type"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado work schema",
-      "usage": "[options]",
-      "description": "Print the --input-file JSON schema and an example for work create/update",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--example-only",
-          "description": "Print only the runnable example JSON (no envelope) — pipeable straight into --input-file"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "example",
-            "example.fields",
-            "example.type",
-            "schema",
-            "schema.$schema",
-            "schema.additionalProperties",
-            "schema.description",
-            "schema.properties",
-            "schema.title",
-            "schema.type"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo",
-      "usage": "[options] [command]",
-      "description": "Azure DevOps repository and pull request operations",
-      "leaf": false,
-      "options": []
-    },
-    {
-      "command": "ado repo list",
-      "usage": "[options]",
-      "description": "List git repositories in the project",
-      "leaf": true,
-      "options": [],
-      "output": [
-        {
-          "fields": [
-            "[].defaultBranch?",
-            "[].id",
-            "[].isDisabled?",
-            "[].name",
-            "[].project",
-            "[].project.description?",
-            "[].project.id",
-            "[].project.lastUpdateTime?",
-            "[].project.name",
-            "[].project.revision",
-            "[].project.state",
-            "[].project.url",
-            "[].project.visibility",
-            "[].remoteUrl",
-            "[].size?",
-            "[].sshUrl?",
-            "[].url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo create",
-      "usage": "[options]",
-      "description": "Create a new git repository in the project",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--name <name>",
-          "description": "Repository name"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "defaultBranch?",
-            "id",
-            "isDisabled?",
-            "name",
-            "project",
-            "project.description?",
-            "project.id",
-            "project.lastUpdateTime?",
-            "project.name",
-            "project.revision",
-            "project.state",
-            "project.url",
-            "project.visibility",
-            "remoteUrl",
-            "size?",
-            "sshUrl?",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo get",
-      "usage": "[options]",
-      "description": "Get a specific repository",
-      "leaf": true,
-      "options": [],
-      "output": [
-        {
-          "fields": [
-            "defaultBranch?",
-            "id",
-            "isDisabled?",
-            "name",
-            "project",
-            "project.description?",
-            "project.id",
-            "project.lastUpdateTime?",
-            "project.name",
-            "project.revision",
-            "project.state",
-            "project.url",
-            "project.visibility",
-            "remoteUrl",
-            "size?",
-            "sshUrl?",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo list-prs",
-      "usage": "[options]",
-      "description": "List pull requests",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--state <state>",
-          "description": "PR state: active|abandoned|completed|all (default: \"active\")"
-        },
-        {
-          "flags": "--creator <alias>",
-          "description": "Filter by creator"
-        },
-        {
-          "flags": "--reviewer <alias>",
-          "description": "Filter by reviewer"
-        },
-        {
-          "flags": "--created-after <date>",
-          "description": "Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)"
-        },
-        {
-          "flags": "--created-before <date>",
-          "description": "Only PRs created before this ISO 8601 date"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "[].autoCompleteSetBy.descriptor?",
-            "[].autoCompleteSetBy.displayName?",
-            "[].autoCompleteSetBy.id?",
-            "[].autoCompleteSetBy.imageUrl?",
-            "[].autoCompleteSetBy.uniqueName?",
-            "[].autoCompleteSetBy.url?",
-            "[].autoCompleteSetBy?",
-            "[].closedDate?",
-            "[].codeReviewId?",
-            "[].completionOptions.deleteSourceBranch?",
-            "[].completionOptions.mergeCommitMessage?",
-            "[].completionOptions.mergeStrategy?",
-            "[].completionOptions.squashMerge?",
-            "[].completionOptions.transitionWorkItems?",
-            "[].completionOptions?",
-            "[].createdBy",
-            "[].createdBy.descriptor?",
-            "[].createdBy.displayName",
-            "[].createdBy.id",
-            "[].createdBy.imageUrl?",
-            "[].createdBy.uniqueName",
-            "[].createdBy.url?",
-            "[].creationDate",
-            "[].description?",
-            "[].lastMergeCommit.commitId?",
-            "[].lastMergeCommit.url?",
-            "[].lastMergeCommit?",
-            "[].lastMergeSourceCommit.commitId?",
-            "[].lastMergeSourceCommit.url?",
-            "[].lastMergeSourceCommit?",
-            "[].lastMergeTargetCommit.commitId?",
-            "[].lastMergeTargetCommit.url?",
-            "[].lastMergeTargetCommit?",
-            "[].mergeId?",
-            "[].mergeStatus?",
-            "[].pullRequestId",
-            "[].reviewers",
-            "[].reviewers[].displayName",
-            "[].reviewers[].hasDeclined?",
-            "[].reviewers[].id",
-            "[].reviewers[].imageUrl?",
-            "[].reviewers[].isRequired?",
-            "[].reviewers[].uniqueName",
-            "[].reviewers[].url?",
-            "[].reviewers[].vote",
-            "[].sourceRefName",
-            "[].status",
-            "[].supportsIterations?",
-            "[].targetRefName",
-            "[].title",
-            "[].url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo get-pr",
-      "usage": "[options]",
-      "description": "Get a pull request by ID",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Pull request ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "autoCompleteSetBy.descriptor?",
-            "autoCompleteSetBy.displayName?",
-            "autoCompleteSetBy.id?",
-            "autoCompleteSetBy.imageUrl?",
-            "autoCompleteSetBy.uniqueName?",
-            "autoCompleteSetBy.url?",
-            "autoCompleteSetBy?",
-            "closedDate?",
-            "codeReviewId?",
-            "completionOptions.deleteSourceBranch?",
-            "completionOptions.mergeCommitMessage?",
-            "completionOptions.mergeStrategy?",
-            "completionOptions.squashMerge?",
-            "completionOptions.transitionWorkItems?",
-            "completionOptions?",
-            "createdBy",
-            "createdBy.descriptor?",
-            "createdBy.displayName",
-            "createdBy.id",
-            "createdBy.imageUrl?",
-            "createdBy.uniqueName",
-            "createdBy.url?",
-            "creationDate",
-            "description?",
-            "lastMergeCommit.commitId?",
-            "lastMergeCommit.url?",
-            "lastMergeCommit?",
-            "lastMergeSourceCommit.commitId?",
-            "lastMergeSourceCommit.url?",
-            "lastMergeSourceCommit?",
-            "lastMergeTargetCommit.commitId?",
-            "lastMergeTargetCommit.url?",
-            "lastMergeTargetCommit?",
-            "mergeId?",
-            "mergeStatus?",
-            "pullRequestId",
-            "reviewers",
-            "reviewers[].displayName",
-            "reviewers[].hasDeclined?",
-            "reviewers[].id",
-            "reviewers[].imageUrl?",
-            "reviewers[].isRequired?",
-            "reviewers[].uniqueName",
-            "reviewers[].url?",
-            "reviewers[].vote",
-            "sourceRefName",
-            "status",
-            "supportsIterations?",
-            "targetRefName",
-            "title",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo create-pr",
-      "usage": "[options]",
-      "description": "Create a pull request",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--title <title>",
-          "description": "PR title"
-        },
-        {
-          "flags": "--source <branch>",
-          "description": "Source branch"
-        },
-        {
-          "flags": "--target <branch>",
-          "description": "Target branch (default: main) (default: \"main\")"
-        },
-        {
-          "flags": "--description <text>",
-          "description": "PR description"
-        },
-        {
-          "flags": "--reviewers <ids>",
-          "description": "Comma-separated reviewer IDs or display names"
-        },
-        {
-          "flags": "--draft",
-          "description": "Create as a draft pull request"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "autoCompleteSetBy.descriptor?",
-            "autoCompleteSetBy.displayName?",
-            "autoCompleteSetBy.id?",
-            "autoCompleteSetBy.imageUrl?",
-            "autoCompleteSetBy.uniqueName?",
-            "autoCompleteSetBy.url?",
-            "autoCompleteSetBy?",
-            "closedDate?",
-            "codeReviewId?",
-            "completionOptions.deleteSourceBranch?",
-            "completionOptions.mergeCommitMessage?",
-            "completionOptions.mergeStrategy?",
-            "completionOptions.squashMerge?",
-            "completionOptions.transitionWorkItems?",
-            "completionOptions?",
-            "createdBy",
-            "createdBy.descriptor?",
-            "createdBy.displayName",
-            "createdBy.id",
-            "createdBy.imageUrl?",
-            "createdBy.uniqueName",
-            "createdBy.url?",
-            "creationDate",
-            "description?",
-            "lastMergeCommit.commitId?",
-            "lastMergeCommit.url?",
-            "lastMergeCommit?",
-            "lastMergeSourceCommit.commitId?",
-            "lastMergeSourceCommit.url?",
-            "lastMergeSourceCommit?",
-            "lastMergeTargetCommit.commitId?",
-            "lastMergeTargetCommit.url?",
-            "lastMergeTargetCommit?",
-            "mergeId?",
-            "mergeStatus?",
-            "pullRequestId",
-            "reviewers",
-            "reviewers[].displayName",
-            "reviewers[].hasDeclined?",
-            "reviewers[].id",
-            "reviewers[].imageUrl?",
-            "reviewers[].isRequired?",
-            "reviewers[].uniqueName",
-            "reviewers[].url?",
-            "reviewers[].vote",
-            "sourceRefName",
-            "status",
-            "supportsIterations?",
-            "targetRefName",
-            "title",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo update-pr",
-      "usage": "[options]",
-      "description": "Update a pull request",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Pull request ID"
-        },
-        {
-          "flags": "--title <title>",
-          "description": "New title"
-        },
-        {
-          "flags": "--description <text>",
-          "description": "New description"
-        },
-        {
-          "flags": "--reviewers <ids>",
-          "description": "Comma-separated reviewer IDs"
-        },
-        {
-          "flags": "--draft <bool>",
-          "description": "Set draft status: true|false"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "autoCompleteSetBy.descriptor?",
-            "autoCompleteSetBy.displayName?",
-            "autoCompleteSetBy.id?",
-            "autoCompleteSetBy.imageUrl?",
-            "autoCompleteSetBy.uniqueName?",
-            "autoCompleteSetBy.url?",
-            "autoCompleteSetBy?",
-            "closedDate?",
-            "codeReviewId?",
-            "completionOptions.deleteSourceBranch?",
-            "completionOptions.mergeCommitMessage?",
-            "completionOptions.mergeStrategy?",
-            "completionOptions.squashMerge?",
-            "completionOptions.transitionWorkItems?",
-            "completionOptions?",
-            "createdBy",
-            "createdBy.descriptor?",
-            "createdBy.displayName",
-            "createdBy.id",
-            "createdBy.imageUrl?",
-            "createdBy.uniqueName",
-            "createdBy.url?",
-            "creationDate",
-            "description?",
-            "lastMergeCommit.commitId?",
-            "lastMergeCommit.url?",
-            "lastMergeCommit?",
-            "lastMergeSourceCommit.commitId?",
-            "lastMergeSourceCommit.url?",
-            "lastMergeSourceCommit?",
-            "lastMergeTargetCommit.commitId?",
-            "lastMergeTargetCommit.url?",
-            "lastMergeTargetCommit?",
-            "mergeId?",
-            "mergeStatus?",
-            "pullRequestId",
-            "reviewers",
-            "reviewers[].displayName",
-            "reviewers[].hasDeclined?",
-            "reviewers[].id",
-            "reviewers[].imageUrl?",
-            "reviewers[].isRequired?",
-            "reviewers[].uniqueName",
-            "reviewers[].url?",
-            "reviewers[].vote",
-            "sourceRefName",
-            "status",
-            "supportsIterations?",
-            "targetRefName",
-            "title",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo merge-pr",
-      "usage": "[options]",
-      "description": "Complete (merge) a pull request",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Pull request ID"
-        },
-        {
-          "flags": "--strategy <s>",
-          "description": "Merge strategy: noFastForward|squash|rebase|rebaseMerge (default: \"noFastForward\")"
-        },
-        {
-          "flags": "--delete-source",
-          "description": "Delete source branch after merge"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "autoCompleteSetBy.descriptor?",
-            "autoCompleteSetBy.displayName?",
-            "autoCompleteSetBy.id?",
-            "autoCompleteSetBy.imageUrl?",
-            "autoCompleteSetBy.uniqueName?",
-            "autoCompleteSetBy.url?",
-            "autoCompleteSetBy?",
-            "closedDate?",
-            "codeReviewId?",
-            "completionOptions.deleteSourceBranch?",
-            "completionOptions.mergeCommitMessage?",
-            "completionOptions.mergeStrategy?",
-            "completionOptions.squashMerge?",
-            "completionOptions.transitionWorkItems?",
-            "completionOptions?",
-            "createdBy",
-            "createdBy.descriptor?",
-            "createdBy.displayName",
-            "createdBy.id",
-            "createdBy.imageUrl?",
-            "createdBy.uniqueName",
-            "createdBy.url?",
-            "creationDate",
-            "description?",
-            "lastMergeCommit.commitId?",
-            "lastMergeCommit.url?",
-            "lastMergeCommit?",
-            "lastMergeSourceCommit.commitId?",
-            "lastMergeSourceCommit.url?",
-            "lastMergeSourceCommit?",
-            "lastMergeTargetCommit.commitId?",
-            "lastMergeTargetCommit.url?",
-            "lastMergeTargetCommit?",
-            "mergeId?",
-            "mergeStatus?",
-            "pullRequestId",
-            "reviewers",
-            "reviewers[].displayName",
-            "reviewers[].hasDeclined?",
-            "reviewers[].id",
-            "reviewers[].imageUrl?",
-            "reviewers[].isRequired?",
-            "reviewers[].uniqueName",
-            "reviewers[].url?",
-            "reviewers[].vote",
-            "sourceRefName",
-            "status",
-            "supportsIterations?",
-            "targetRefName",
-            "title",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo abandon-pr",
-      "usage": "[options]",
-      "description": "Abandon a pull request",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Pull request ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "autoCompleteSetBy.descriptor?",
-            "autoCompleteSetBy.displayName?",
-            "autoCompleteSetBy.id?",
-            "autoCompleteSetBy.imageUrl?",
-            "autoCompleteSetBy.uniqueName?",
-            "autoCompleteSetBy.url?",
-            "autoCompleteSetBy?",
-            "closedDate?",
-            "codeReviewId?",
-            "completionOptions.deleteSourceBranch?",
-            "completionOptions.mergeCommitMessage?",
-            "completionOptions.mergeStrategy?",
-            "completionOptions.squashMerge?",
-            "completionOptions.transitionWorkItems?",
-            "completionOptions?",
-            "createdBy",
-            "createdBy.descriptor?",
-            "createdBy.displayName",
-            "createdBy.id",
-            "createdBy.imageUrl?",
-            "createdBy.uniqueName",
-            "createdBy.url?",
-            "creationDate",
-            "description?",
-            "lastMergeCommit.commitId?",
-            "lastMergeCommit.url?",
-            "lastMergeCommit?",
-            "lastMergeSourceCommit.commitId?",
-            "lastMergeSourceCommit.url?",
-            "lastMergeSourceCommit?",
-            "lastMergeTargetCommit.commitId?",
-            "lastMergeTargetCommit.url?",
-            "lastMergeTargetCommit?",
-            "mergeId?",
-            "mergeStatus?",
-            "pullRequestId",
-            "reviewers",
-            "reviewers[].displayName",
-            "reviewers[].hasDeclined?",
-            "reviewers[].id",
-            "reviewers[].imageUrl?",
-            "reviewers[].isRequired?",
-            "reviewers[].uniqueName",
-            "reviewers[].url?",
-            "reviewers[].vote",
-            "sourceRefName",
-            "status",
-            "supportsIterations?",
-            "targetRefName",
-            "title",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo list-comments",
-      "usage": "[options]",
-      "description": "List all comments on a pull request (general + inline)",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        },
-        {
-          "flags": "--inline-only",
-          "description": "Return only inline file comments"
-        },
-        {
-          "flags": "--general-only",
-          "description": "Return only general PR comments"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "[].author",
-            "[].author.descriptor?",
-            "[].author.displayName",
-            "[].author.id",
-            "[].author.imageUrl?",
-            "[].author.uniqueName",
-            "[].author.url?",
-            "[].commentType",
-            "[].content?",
-            "[].id",
-            "[].isDeleted?",
-            "[].lastContentUpdatedDate?",
-            "[].lastUpdatedDate",
-            "[].parentCommentId?",
-            "[].publishedDate",
-            "[].threadContext",
-            "[].threadContext.filePath?",
-            "[].threadContext.leftFileEnd?",
-            "[].threadContext.leftFileStart?",
-            "[].threadContext.rightFileEnd?",
-            "[].threadContext.rightFileStart?",
-            "[].threadId",
-            "[].usersLiked?",
-            "[].usersLiked[].descriptor?",
-            "[].usersLiked[].displayName?",
-            "[].usersLiked[].id?",
-            "[].usersLiked[].imageUrl?",
-            "[].usersLiked[].uniqueName?",
-            "[].usersLiked[].url?"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo add-comment",
-      "usage": "[options]",
-      "description": "Add a general comment to a pull request",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        },
-        {
-          "flags": "--body <text>",
-          "description": "Comment text"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "comments",
-            "comments[].author",
-            "comments[].commentType",
-            "comments[].content?",
-            "comments[].id",
-            "comments[].isDeleted?",
-            "comments[].lastContentUpdatedDate?",
-            "comments[].lastUpdatedDate",
-            "comments[].parentCommentId?",
-            "comments[].publishedDate",
-            "comments[].usersLiked?",
-            "id",
-            "identities?",
-            "isDeleted?",
-            "lastUpdatedDate",
-            "properties?",
-            "publishedDate",
-            "status",
-            "threadContext.filePath?",
-            "threadContext.leftFileEnd?",
-            "threadContext.leftFileStart?",
-            "threadContext.rightFileEnd?",
-            "threadContext.rightFileStart?",
-            "threadContext?"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo add-inline-comment",
-      "usage": "[options]",
-      "description": "Add an inline comment on a file in a pull request",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        },
-        {
-          "flags": "--file <path>",
-          "description": "File path"
-        },
-        {
-          "flags": "--line <n>",
-          "description": "Line number"
-        },
-        {
-          "flags": "--body <text>",
-          "description": "Comment text"
-        },
-        {
-          "flags": "--line-type <side>",
-          "description": "Line side: left|right (default: right) (default: \"right\")"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "comments",
-            "comments[].author",
-            "comments[].commentType",
-            "comments[].content?",
-            "comments[].id",
-            "comments[].isDeleted?",
-            "comments[].lastContentUpdatedDate?",
-            "comments[].lastUpdatedDate",
-            "comments[].parentCommentId?",
-            "comments[].publishedDate",
-            "comments[].usersLiked?",
-            "id",
-            "identities?",
-            "isDeleted?",
-            "lastUpdatedDate",
-            "properties?",
-            "publishedDate",
-            "status",
-            "threadContext.filePath?",
-            "threadContext.leftFileEnd?",
-            "threadContext.leftFileStart?",
-            "threadContext.rightFileEnd?",
-            "threadContext.rightFileStart?",
-            "threadContext?"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo reply-comment",
-      "usage": "[options]",
-      "description": "Reply to a comment thread",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        },
-        {
-          "flags": "--thread-id <id>",
-          "description": "Thread ID"
-        },
-        {
-          "flags": "--body <text>",
-          "description": "Reply text"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "author",
-            "author.descriptor?",
-            "author.displayName",
-            "author.id",
-            "author.imageUrl?",
-            "author.uniqueName",
-            "author.url?",
-            "commentType",
-            "content?",
-            "id",
-            "isDeleted?",
-            "lastContentUpdatedDate?",
-            "lastUpdatedDate",
-            "parentCommentId?",
-            "publishedDate",
-            "usersLiked?",
-            "usersLiked[].descriptor?",
-            "usersLiked[].displayName?",
-            "usersLiked[].id?",
-            "usersLiked[].imageUrl?",
-            "usersLiked[].uniqueName?",
-            "usersLiked[].url?"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo resolve-comment",
-      "usage": "[options]",
-      "description": "Mark a comment thread as resolved (fixed)",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        },
-        {
-          "flags": "--thread-id <id>",
-          "description": "Thread ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "comments",
-            "comments[].author",
-            "comments[].commentType",
-            "comments[].content?",
-            "comments[].id",
-            "comments[].isDeleted?",
-            "comments[].lastContentUpdatedDate?",
-            "comments[].lastUpdatedDate",
-            "comments[].parentCommentId?",
-            "comments[].publishedDate",
-            "comments[].usersLiked?",
-            "id",
-            "identities?",
-            "isDeleted?",
-            "lastUpdatedDate",
-            "properties?",
-            "publishedDate",
-            "status",
-            "threadContext.filePath?",
-            "threadContext.leftFileEnd?",
-            "threadContext.leftFileStart?",
-            "threadContext.rightFileEnd?",
-            "threadContext.rightFileStart?",
-            "threadContext?"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo delete-comment",
-      "usage": "[options]",
-      "description": "Delete a comment from a thread",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        },
-        {
-          "flags": "--thread-id <id>",
-          "description": "Thread ID"
-        },
-        {
-          "flags": "--comment-id <id>",
-          "description": "Comment ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "deleted"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo list-files",
-      "usage": "[options]",
-      "description": "List files changed in a pull request",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "[].changeType",
-            "[].item",
-            "[].item.isFolder?",
-            "[].item.path",
-            "[].originalPath?"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo diff",
-      "usage": "[options]",
-      "description": "Show files changed in a pull request with change types and commit metadata",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        },
-        {
-          "flags": "--path <p>",
-          "description": "Filter diff to a specific file path"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "aheadCount?",
-            "behindCount?",
-            "changes?",
-            "changes[].changeType?",
-            "changes[].item?",
-            "changes[].originalPath?",
-            "commonCommit?"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo get-build-status",
-      "usage": "[options]",
-      "description": "Get CI/build statuses posted to a commit",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--commit <sha>",
-          "description": "Commit SHA"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "[].context",
-            "[].context.genre?",
-            "[].context.name",
-            "[].createdBy.descriptor?",
-            "[].createdBy.displayName?",
-            "[].createdBy.id?",
-            "[].createdBy.imageUrl?",
-            "[].createdBy.uniqueName?",
-            "[].createdBy.url?",
-            "[].createdBy?",
-            "[].createdDate?",
-            "[].description?",
-            "[].id",
-            "[].state",
-            "[].targetUrl?",
-            "[].updatedDate?"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado repo list-reviewers",
-      "usage": "[options]",
-      "description": "List reviewers on a pull request",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": []
-        }
-      ]
-    },
-    {
-      "command": "ado repo list-default-reviewers",
-      "usage": "[options]",
-      "description": "List required-reviewer branch policies (default reviewers) that apply to the",
-      "leaf": true,
-      "options": [],
-      "output": [
-        {
-          "fields": []
-        }
-      ]
-    },
-    {
-      "command": "ado repo approve",
-      "usage": "[options]",
-      "description": "Approve a pull request",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        }
-      ],
-      "output": [
-        {
-          "opaque": "unknown"
-        }
-      ]
-    },
-    {
-      "command": "ado repo unapprove",
-      "usage": "[options]",
-      "description": "Remove approval from a pull request",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        }
-      ],
-      "output": [
-        {
-          "opaque": "unknown"
-        }
-      ]
-    },
-    {
-      "command": "ado repo wait-for-author",
-      "usage": "[options]",
-      "description": "Mark a pull request as waiting for author",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        }
-      ],
-      "output": [
-        {
-          "opaque": "unknown"
-        }
-      ]
-    },
-    {
-      "command": "ado repo list-builds",
-      "usage": "[options]",
-      "description": "List builds associated with a pull request",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--pr <n>",
-          "description": "Pull request ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "[].buildNumber",
-            "[].definition",
-            "[].definition.id",
-            "[].definition.name",
-            "[].finishTime?",
-            "[].id",
-            "[].keepForever?",
-            "[].parameters?",
-            "[].priority?",
-            "[].project",
-            "[].project.description?",
-            "[].project.id",
-            "[].project.lastUpdateTime?",
-            "[].project.name",
-            "[].project.revision",
-            "[].project.state",
-            "[].project.url",
-            "[].project.visibility",
-            "[].queueTime?",
-            "[].reason?",
-            "[].requestedBy.descriptor?",
-            "[].requestedBy.displayName?",
-            "[].requestedBy.id?",
-            "[].requestedBy.imageUrl?",
-            "[].requestedBy.uniqueName?",
-            "[].requestedBy.url?",
-            "[].requestedBy?",
-            "[].requestedFor.descriptor?",
-            "[].requestedFor.displayName?",
-            "[].requestedFor.id?",
-            "[].requestedFor.imageUrl?",
-            "[].requestedFor.uniqueName?",
-            "[].requestedFor.url?",
-            "[].requestedFor?",
-            "[].result?",
-            "[].sourceBranch?",
-            "[].sourceVersion?",
-            "[].startTime?",
-            "[].status",
-            "[].tags?",
-            "[].url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado pipeline",
-      "usage": "[options] [command]",
-      "description": "Azure DevOps pipeline (build) operations",
-      "leaf": false,
-      "options": []
-    },
-    {
-      "command": "ado pipeline list",
-      "usage": "[options]",
-      "description": "List pipeline definitions",
-      "leaf": true,
-      "options": [],
-      "output": [
-        {
-          "fields": [
-            "[].id",
-            "[].latestBuild.buildNumber?",
-            "[].latestBuild.definition?",
-            "[].latestBuild.finishTime?",
-            "[].latestBuild.id?",
-            "[].latestBuild.keepForever?",
-            "[].latestBuild.parameters?",
-            "[].latestBuild.priority?",
-            "[].latestBuild.project?",
-            "[].latestBuild.queueTime?",
-            "[].latestBuild.reason?",
-            "[].latestBuild.requestedBy?",
-            "[].latestBuild.requestedFor?",
-            "[].latestBuild.result?",
-            "[].latestBuild.sourceBranch?",
-            "[].latestBuild.sourceVersion?",
-            "[].latestBuild.startTime?",
-            "[].latestBuild.status?",
-            "[].latestBuild.tags?",
-            "[].latestBuild.url?",
-            "[].latestBuild?",
-            "[].name",
-            "[].path",
-            "[].process.type?",
-            "[].process.yamlFilename?",
-            "[].process?",
-            "[].project",
-            "[].project.description?",
-            "[].project.id",
-            "[].project.lastUpdateTime?",
-            "[].project.name",
-            "[].project.revision",
-            "[].project.state",
-            "[].project.url",
-            "[].project.visibility",
-            "[].queue.id?",
-            "[].queue.name?",
-            "[].queue?",
-            "[].queueStatus",
-            "[].repository.id?",
-            "[].repository.name?",
-            "[].repository.type?",
-            "[].repository?",
-            "[].revision",
-            "[].type",
-            "[].url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado pipeline get",
-      "usage": "[options]",
-      "description": "Get a pipeline definition by ID",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Pipeline definition ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "id",
-            "latestBuild.buildNumber?",
-            "latestBuild.definition?",
-            "latestBuild.finishTime?",
-            "latestBuild.id?",
-            "latestBuild.keepForever?",
-            "latestBuild.parameters?",
-            "latestBuild.priority?",
-            "latestBuild.project?",
-            "latestBuild.queueTime?",
-            "latestBuild.reason?",
-            "latestBuild.requestedBy?",
-            "latestBuild.requestedFor?",
-            "latestBuild.result?",
-            "latestBuild.sourceBranch?",
-            "latestBuild.sourceVersion?",
-            "latestBuild.startTime?",
-            "latestBuild.status?",
-            "latestBuild.tags?",
-            "latestBuild.url?",
-            "latestBuild?",
-            "name",
-            "path",
-            "process.type?",
-            "process.yamlFilename?",
-            "process?",
-            "project",
-            "project.description?",
-            "project.id",
-            "project.lastUpdateTime?",
-            "project.name",
-            "project.revision",
-            "project.state",
-            "project.url",
-            "project.visibility",
-            "queue.id?",
-            "queue.name?",
-            "queue?",
-            "queueStatus",
-            "repository.id?",
-            "repository.name?",
-            "repository.type?",
-            "repository?",
-            "revision",
-            "type",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado pipeline run",
-      "usage": "[options]",
-      "description": "Queue a pipeline run",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Pipeline definition ID"
-        },
-        {
-          "flags": "--branch <ref>",
-          "description": "Source branch (e.g. refs/heads/main or main)"
-        },
-        {
-          "flags": "--parameter <k=v>",
-          "description": "Build parameter (repeatable) (default: [])"
-        },
-        {
-          "flags": "--wait",
-          "description": "Wait for the run to complete before returning"
-        },
-        {
-          "flags": "--timeout <s>",
-          "description": "Max wait time in seconds (default 600) (default: \"600\")"
-        },
-        {
-          "flags": "--poll <s>",
-          "description": "Poll interval in seconds (default 10) (default: \"10\")"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "buildNumber",
-            "definition",
-            "definition.id",
-            "definition.name",
-            "finishTime?",
-            "id",
-            "keepForever?",
-            "parameters?",
-            "priority?",
-            "project",
-            "project.description?",
-            "project.id",
-            "project.lastUpdateTime?",
-            "project.name",
-            "project.revision",
-            "project.state",
-            "project.url",
-            "project.visibility",
-            "queueTime?",
-            "reason?",
-            "requestedBy.descriptor?",
-            "requestedBy.displayName?",
-            "requestedBy.id?",
-            "requestedBy.imageUrl?",
-            "requestedBy.uniqueName?",
-            "requestedBy.url?",
-            "requestedBy?",
-            "requestedFor.descriptor?",
-            "requestedFor.displayName?",
-            "requestedFor.id?",
-            "requestedFor.imageUrl?",
-            "requestedFor.uniqueName?",
-            "requestedFor.url?",
-            "requestedFor?",
-            "result?",
-            "sourceBranch?",
-            "sourceVersion?",
-            "startTime?",
-            "status",
-            "tags?",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado pipeline list-runs",
-      "usage": "[options]",
-      "description": "List pipeline runs",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--definition <id>",
-          "description": "Filter by definition ID"
-        },
-        {
-          "flags": "--name <name>",
-          "description": "Filter by pipeline name (resolved to definition ID; use pipeline list to see names)"
-        },
-        {
-          "flags": "--branch <ref>",
-          "description": "Filter by branch name"
-        },
-        {
-          "flags": "--status <filter>",
-          "description": "Filter by status (inProgress|completed|cancelling|...)"
-        },
-        {
-          "flags": "--top <n>",
-          "description": "Maximum results (default: \"50\")"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "[].buildNumber",
-            "[].definition",
-            "[].definition.id",
-            "[].definition.name",
-            "[].finishTime?",
-            "[].id",
-            "[].keepForever?",
-            "[].parameters?",
-            "[].priority?",
-            "[].project",
-            "[].project.description?",
-            "[].project.id",
-            "[].project.lastUpdateTime?",
-            "[].project.name",
-            "[].project.revision",
-            "[].project.state",
-            "[].project.url",
-            "[].project.visibility",
-            "[].queueTime?",
-            "[].reason?",
-            "[].requestedBy.descriptor?",
-            "[].requestedBy.displayName?",
-            "[].requestedBy.id?",
-            "[].requestedBy.imageUrl?",
-            "[].requestedBy.uniqueName?",
-            "[].requestedBy.url?",
-            "[].requestedBy?",
-            "[].requestedFor.descriptor?",
-            "[].requestedFor.displayName?",
-            "[].requestedFor.id?",
-            "[].requestedFor.imageUrl?",
-            "[].requestedFor.uniqueName?",
-            "[].requestedFor.url?",
-            "[].requestedFor?",
-            "[].result?",
-            "[].sourceBranch?",
-            "[].sourceVersion?",
-            "[].startTime?",
-            "[].status",
-            "[].tags?",
-            "[].url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado pipeline get-run",
-      "usage": "[options]",
-      "description": "Get a pipeline run by build ID",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Build ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "buildNumber",
-            "definition",
-            "definition.id",
-            "definition.name",
-            "finishTime?",
-            "id",
-            "keepForever?",
-            "parameters?",
-            "priority?",
-            "project",
-            "project.description?",
-            "project.id",
-            "project.lastUpdateTime?",
-            "project.name",
-            "project.revision",
-            "project.state",
-            "project.url",
-            "project.visibility",
-            "queueTime?",
-            "reason?",
-            "requestedBy.descriptor?",
-            "requestedBy.displayName?",
-            "requestedBy.id?",
-            "requestedBy.imageUrl?",
-            "requestedBy.uniqueName?",
-            "requestedBy.url?",
-            "requestedBy?",
-            "requestedFor.descriptor?",
-            "requestedFor.displayName?",
-            "requestedFor.id?",
-            "requestedFor.imageUrl?",
-            "requestedFor.uniqueName?",
-            "requestedFor.url?",
-            "requestedFor?",
-            "result?",
-            "sourceBranch?",
-            "sourceVersion?",
-            "startTime?",
-            "status",
-            "tags?",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado pipeline cancel-run",
-      "usage": "[options]",
-      "description": "Cancel a running pipeline build",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--id <n>",
-          "description": "Build ID"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "buildNumber",
-            "definition",
-            "definition.id",
-            "definition.name",
-            "finishTime?",
-            "id",
-            "keepForever?",
-            "parameters?",
-            "priority?",
-            "project",
-            "project.description?",
-            "project.id",
-            "project.lastUpdateTime?",
-            "project.name",
-            "project.revision",
-            "project.state",
-            "project.url",
-            "project.visibility",
-            "queueTime?",
-            "reason?",
-            "requestedBy.descriptor?",
-            "requestedBy.displayName?",
-            "requestedBy.id?",
-            "requestedBy.imageUrl?",
-            "requestedBy.uniqueName?",
-            "requestedBy.url?",
-            "requestedBy?",
-            "requestedFor.descriptor?",
-            "requestedFor.displayName?",
-            "requestedFor.id?",
-            "requestedFor.imageUrl?",
-            "requestedFor.uniqueName?",
-            "requestedFor.url?",
-            "requestedFor?",
-            "result?",
-            "sourceBranch?",
-            "sourceVersion?",
-            "startTime?",
-            "status",
-            "tags?",
-            "url"
-          ]
-        }
-      ]
-    },
-    {
-      "command": "ado pipeline logs",
-      "usage": "[options]",
-      "description": "List or retrieve build logs (consider --output-file for large logs)",
-      "leaf": true,
-      "options": [
-        {
-          "flags": "--build-id <n>",
-          "description": "Build (run) ID — from pipeline list-runs or get-run"
-        },
-        {
-          "flags": "--id <n>",
-          "description": "Build (run) ID — alias for --build-id (kept for backwards compatibility)"
-        },
-        {
-          "flags": "--log-id <n>",
-          "description": "Specific log ID (omit to list all logs)"
-        }
-      ],
-      "output": [
-        {
-          "fields": [
-            "log"
-          ]
-        },
-        {
-          "fields": [
-            "[].createdOn?",
-            "[].id",
-            "[].lastChangedOn?",
-            "[].lineCount?",
-            "[].type",
-            "[].url"
           ]
         }
       ]

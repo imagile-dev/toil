@@ -11,14 +11,14 @@
  * views will make and they render from it unchanged. On the way, that
  * `execute()` makes the sync incremental:
  *
- * - **Searches** (`jira search`, `ado work search`, `github list-issues`) ask
- *   only for what changed since the source's watermark, with `updatedSince`,
- *   and merge the answer into the last copy by key.
+ * - **Searches** (`jira issue search`, `ado work-item search`, `github
+ *   list-issues`) ask only for what changed since the source's watermark, with
+ *   `updatedSince`, and merge the answer into the last copy by key.
  * - **The GitHub board** (`github projects list-items`) is read whole, and an
  *   item counts as changed when its issue's `updatedAt` moved.
- * - **Batches** (`ado work get-batch`, `github get-issue`) fetch only the
+ * - **Batches** (`ado work-item get-many`, `github get-issue`) fetch only the
  *   changed and new items, merged into the last copy.
- * - **Histories** (`jira get-changelog`, `ado work revisions`, `github
+ * - **Histories** (`jira issue history`, `ado work-item history`, `github
  *   issue-events`) are fetched only for changed and new items; the rest are
  *   the last copy.
  * - **Everything else** (pull requests, builds, deployments, iterations) has
@@ -103,24 +103,24 @@ const recs = (v: unknown): Rec[] => (Array.isArray(v) ? v.filter(isRec) : []);
 
 /** A search whose answer is a list of items with ids, which `updatedSince` narrows. `list` is null when the answer is the list itself. */
 const SEARCHES: Record<string, { list: string | null; id: (r: Rec) => string }> = {
-  'jira search': { list: 'issues', id: (r) => String(r.key) },
-  'jira-cloud search': { list: 'issues', id: (r) => String(r.key) },
-  'ado work search': { list: 'workItems', id: (r) => String(r.id) },
-  'ado-cloud work search': { list: 'workItems', id: (r) => String(r.id) },
+  'jira issue search': { list: 'issues', id: (r) => String(r.key) },
+  'jira-cloud issue search': { list: 'issues', id: (r) => String(r.key) },
+  'ado work-item search': { list: 'workItems', id: (r) => String(r.id) },
+  'ado-cloud work-item search': { list: 'workItems', id: (r) => String(r.id) },
   'github list-issues': { list: null, id: (r) => String(r.number) },
 };
 /** A batch get by ids: the input field holding them, and where the answer lists the items. */
 const BATCHES: Record<string, { field: string; list: string; id: (r: Rec) => string }> = {
-  'ado work get-batch': { field: 'id', list: 'value', id: (r) => String(r.id) },
-  'ado-cloud work get-batch': { field: 'id', list: 'value', id: (r) => String(r.id) },
+  'ado work-item get-many': { field: 'id', list: 'value', id: (r) => String(r.id) },
+  'ado-cloud work-item get-many': { field: 'id', list: 'value', id: (r) => String(r.id) },
   'github get-issue': { field: 'number', list: 'issues', id: (r) => String(r.number) },
 };
 /** One item's history: the input field naming the item. */
 const HISTORIES: Record<string, string> = {
-  'jira get-changelog': 'key',
-  'jira-cloud get-changelog': 'key',
-  'ado work revisions': 'id',
-  'ado-cloud work revisions': 'id',
+  'jira issue history': 'key',
+  'jira-cloud issue history': 'key',
+  'ado work-item history': 'id',
+  'ado-cloud work-item history': 'id',
   'github issue-events': 'number',
 };
 const BOARD = 'github projects list-items';

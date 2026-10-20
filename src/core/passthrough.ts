@@ -61,7 +61,7 @@ export interface ApiCommandSpec<K extends string = never> {
    * area's fixture answers each one.
    */
   examples: Array<z.input<typeof passthroughInput> & Partial<Record<K, string>>>;
-  /** The area's own way to save a file, named when a response is binary: `toil jira download-attachment`. */
+  /** The area's own way to save a file, named when a response is binary: `toil jira issue download`. */
   download?: string;
 }
 

@@ -260,7 +260,7 @@ interface Discovery {
   key?: string;
 }
 
-const jiraFields = (area: string): Discovery => ({ what: 'custom fields', args: [area, 'fields', '--discover', '--custom-only'], id: 'id', name: 'name' });
+const jiraFields = (area: string): Discovery => ({ what: 'custom fields', args: [area, 'issue', 'fields', '--discover', '--custom-only'], id: 'id', name: 'name' });
 const spaces = (area: string): Discovery => ({ what: 'spaces', args: [area, 'list-spaces'], id: 'key', name: 'name', key: 'spaces' });
 
 export const DISCOVERY: Record<string, Discovery> = {
@@ -1241,7 +1241,7 @@ export function handOffPrompt(name: string | undefined, folder: string): string 
   return [
     `Build or extend ${which} with the toil MCP tools.`,
     `Find its repositories with repos_scan (folder ${folder}) and add each with dossiers_add_repo.`,
-    'For each service it uses, run that area\'s discovery reads (jira_fields, confluence_list_spaces, sonar_projects, ado_project_list) and record keys and fields with dossiers_link, dossiers_env and dossiers_field.',
+    'For each service it uses, run that area\'s discovery reads (jira_issue_fields, confluence_list_spaces, sonar_projects, ado_project_list) and record keys and fields with dossiers_link, dossiers_env and dossiers_field.',
     'Tell me what you plan to add before you add it, and finish with dossiers_check.',
     'Leave any binding to a connection with writes on to me.',
   ].join(' ');

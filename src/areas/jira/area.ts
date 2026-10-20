@@ -45,20 +45,20 @@ export const jiraArea = defineArea({
     apiToken: z.string().min(1).describe('Personal access token'),
     customFields: z.array(customFieldSchema).default([]).describe('Custom fields addressable by friendly name'),
     // Shared defaults, usually set once under defaults.jira for every connection.
-    project: z.string().min(1).optional().describe('Default project key for create-issue'),
-    issueType: z.string().min(1).optional().describe('Default issue type for create-issue (Task when unset)'),
-    priority: z.string().min(1).optional().describe('Default priority for create-issue'),
+    project: z.string().min(1).optional().describe('Default project key for issue create'),
+    issueType: z.string().min(1).optional().describe('Default issue type for issue create (Task when unset)'),
+    priority: z.string().min(1).optional().describe('Default priority for issue create'),
   }),
   secrets: ['apiToken'],
   context: {
-    // Only create-issue lists it: the other --project flags never fell back to
+    // Only issue create lists it: the other --project flags never fell back to
     // a configured project, and a context input always would.
     project: {
       scope: 'command',
       flags: '--project <key>',
       description: 'Project key (or "project" in --input-file)',
       setting: 'project',
-      // Any string: an empty --project still gets create-issue's own error.
+      // Any string: an empty --project still gets issue create's own error.
       schema: z.string(),
     },
   },

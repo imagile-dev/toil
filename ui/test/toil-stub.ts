@@ -4,7 +4,7 @@
  * which test/registry.test.ts holds to the real registry), plus what a sync
  * adds on top of the views' calls: `updatedSince` on the searches (filtered by
  * each item's own updated time, as Jira and Azure DevOps filter), a batch of
- * some of the ids, and `meta.page.nextCursor` paging on `jira search`. A
+ * some of the ids, and `meta.page.nextCursor` paging on `jira issue search`. A
  * test can change an item, fail an area, or count the calls. Nothing here
  * reaches a network.
  */
@@ -22,7 +22,7 @@ export interface StubCall {
   input: Rec;
 }
 
-/** The page size the stub's `jira search` hands out, so a sync has to follow nextCursor. */
+/** The page size the stub's `jira issue search` hands out, so a sync has to follow nextCursor. */
 export const JIRA_PAGE = 3;
 
 export interface StubToil {
@@ -65,7 +65,7 @@ export function stubToil(): StubToil {
   };
 
   const adoChanged = (dossier: unknown) => {
-    const batch = canned.find((c) => c.command === 'ado work get-batch' && c.input.dossier === dossier)!.data as { value: Array<{ id: number; fields: Rec }> };
+    const batch = canned.find((c) => c.command === 'ado work-item get-many' && c.input.dossier === dossier)!.data as { value: Array<{ id: number; fields: Rec }> };
     return new Map(batch.value.map((w) => [w.id, String(w.fields['System.ChangedDate'])]));
   };
 
@@ -79,7 +79,7 @@ export function stubToil(): StubToil {
     const { updatedSince, cursor, ...rest } = input;
     const since = typeof updatedSince === 'string' ? Date.parse(updatedSince) : null;
 
-    if (command === 'jira search') {
+    if (command === 'jira issue search') {
       const hit = find(command, rest);
       if (!hit) return fail(command, 'INVALID_INPUT', `No canned ${command}.`, 'Add it.');
       const all = (hit.data as { issues: Array<{ key: string; fields: Rec }> }).issues.filter((i) => since === null || Date.parse(String(i.fields.updated)) >= since);
@@ -88,19 +88,19 @@ export function stubToil(): StubToil {
       const next = start + JIRA_PAGE < all.length ? String(start + JIRA_PAGE) : null;
       return ok(command, { startAt: start, maxResults: JIRA_PAGE, total: all.length, issues }, { nextCursor: next, limit: JIRA_PAGE });
     }
-    if (command === 'ado work search') {
+    if (command === 'ado work-item search') {
       const hit = find(command, rest);
       if (!hit) return fail(command, 'INVALID_INPUT', `No canned ${command}.`, 'Add it.');
       const changed = adoChanged(rest.dossier);
       const data = hit.data as { workItems: Array<{ id: number }> };
       return ok(command, { ...data, workItems: data.workItems.filter((w) => since === null || Date.parse(changed.get(w.id) ?? '') >= since) });
     }
-    if (command === 'ado work get-batch' || command === 'github get-issue') {
+    if (command === 'ado work-item get-many' || command === 'github get-issue') {
       const exact = find(command, rest);
       if (exact) return ok(command, structuredClone(exact.data));
       const whole = sameDossier(command, rest);
       if (!whole) return fail(command, 'INVALID_INPUT', `No canned ${command}.`, 'Add it.');
-      if (command === 'ado work get-batch') {
+      if (command === 'ado work-item get-many') {
         const ids = (rest.id as number[]).map(Number);
         const value = (whole.data as { value: Array<{ id: number }> }).value.filter((w) => ids.includes(w.id));
         return ok(command, { count: value.length, value, missing: [] });
@@ -126,7 +126,7 @@ export function stubToil(): StubToil {
     canned,
     touchJira(key, status, at) {
       for (const c of canned) {
-        if (c.command !== 'jira search') continue;
+        if (c.command !== 'jira issue search') continue;
         for (const issue of (c.data as { issues: Array<{ key: string; fields: Rec }> }).issues) {
           if (issue.key !== key) continue;
           issue.fields.updated = at;
@@ -136,7 +136,7 @@ export function stubToil(): StubToil {
     },
     touchAdo(id, state, at) {
       for (const c of canned) {
-        if (c.command !== 'ado work get-batch') continue;
+        if (c.command !== 'ado work-item get-many') continue;
         for (const w of (c.data as { value: Array<{ id: number; fields: Rec }> }).value) {
           if (w.id !== id) continue;
           w.fields['System.ChangedDate'] = at;

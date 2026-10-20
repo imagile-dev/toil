@@ -14,7 +14,7 @@
 // path under the area ("search", "issue get"), with no flags; given none, it
 // gets one `example` command to copy from.
 //
-//   node scripts/stub-area.mjs jira-cloud search "issue get"
+//   node scripts/stub-area.mjs jira-cloud "issue search" "issue get"
 //
 // It never overwrites a file. Take behavior from the contract and the
 // sources the area's brief in docs/briefs/ names, not from these stubs.

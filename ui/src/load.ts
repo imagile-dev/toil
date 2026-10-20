@@ -116,27 +116,27 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   const tasks: Array<Promise<void>> = [];
   if (areas.jira?.inputs.project) {
     tasks.push((async () => {
-      const search = await run('work', 'jira search', { ...base, jql: JQL(areas.jira!.inputs.project!) });
+      const search = await run('work', 'jira issue search', { ...base, jql: JQL(areas.jira!.inputs.project!) });
       if (!search) return;
       work.push(search);
       const keys = recs((search.data as Rec).issues).map((i) => String(i.key));
       for (const key of keys) {
-        const history = await run('work', 'jira get-changelog', { ...base, key });
+        const history = await run('work', 'jira issue history', { ...base, key });
         if (history) work.push({ key, history });
       }
     })());
   }
   if (areas.ado) {
     tasks.push((async () => {
-      const iterations = await run('work', 'ado work list-iterations', base);
+      const iterations = await run('work', 'ado work-item iterations', base);
       if (iterations) work.push(iterations);
-      const search = await run('work', 'ado work search', { ...base, wiql: WIQL });
+      const search = await run('work', 'ado work-item search', { ...base, wiql: WIQL });
       const ids = search ? recs((search.data as Rec).workItems).map((w) => Number(w.id)) : [];
       if (!ids.length) return;
-      const batch = await run('work', 'ado work get-batch', { ...base, id: ids });
+      const batch = await run('work', 'ado work-item get-many', { ...base, id: ids });
       if (batch) work.push(batch);
       for (const id of ids) {
-        const revisions = await run('work', 'ado work revisions', { ...base, id });
+        const revisions = await run('work', 'ado work-item history', { ...base, id });
         if (revisions) work.push(revisions);
       }
     })());
@@ -215,20 +215,20 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     }, async () => []);
   }
   if (areas.ado) {
-    const list = await run('prs', 'ado repo list-prs', { ...base, state: 'all' });
+    const list = await run('prs', 'ado pr list', { ...base, state: 'all' });
     const connection = list ? connectionOf(list, 'ado') : 'ado';
     const prs = list ? adoPrs(list.data, connection, items) : [];
     await deliver(prs, async () => {
       const out: ChangeRef[] = [];
       for (const pipeline of strings(section('ado').builds)) {
-        const runs = await run('builds', 'ado pipeline list-runs', { ...base, name: pipeline, top: 20 });
+        const runs = await run('builds', 'ado run list', { ...base, name: pipeline, top: 20 });
         if (runs) out.push(...adoBuilds(runs.data, connection, prs));
       }
       return out;
     }, async () => {
       const out: Deployment[] = [];
       for (const pipeline of strings(section('ado').deployments)) {
-        const runs = await run('deployments', 'ado pipeline list-runs', { ...base, name: pipeline, top: 20 });
+        const runs = await run('deployments', 'ado run list', { ...base, name: pipeline, top: 20 });
         if (runs) out.push(...adoDeployments(runs.data, connection, prs));
       }
       return out;

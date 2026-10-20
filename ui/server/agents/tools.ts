@@ -67,16 +67,16 @@ export interface ReadCommand {
  */
 export const LIVE_COMMANDS: readonly string[] = [
   'dossiers show',
-  'jira search',
-  'jira get-issue',
-  'jira get-changelog',
-  'ado work search',
-  'ado work get',
-  'ado work get-batch',
-  'ado work revisions',
-  'ado work list-iterations',
-  'ado repo list-prs',
-  'ado pipeline list-runs',
+  'jira issue search',
+  'jira issue get',
+  'jira issue history',
+  'ado work-item search',
+  'ado work-item get',
+  'ado work-item get-many',
+  'ado work-item history',
+  'ado work-item iterations',
+  'ado pr list',
+  'ado run list',
   'github get-issue',
   'github issue-events',
   'github projects list-items',
@@ -267,8 +267,8 @@ export function proposalTool(registry: readonly ReadCommand[]): ToolSpec {
   const hiddenHere = new Set(['dossier', 'cwd', 'select', 'allowWrite']);
   return {
     name: 'proposal_fields',
-    description: "The input fields of one toil write command (such as jira update-issue or ado work update), for a proposal's input. It reads toil's command list and runs nothing: you can't call a write command, only propose one.",
-    inputSchema: { type: 'object', properties: { command: { type: 'string', description: 'The toil command, such as jira update-issue.' } }, required: ['command'], additionalProperties: false },
+    description: "The input fields of one toil write command (such as jira issue update or ado work-item update), for a proposal's input. It reads toil's command list and runs nothing: you can't call a write command, only propose one.",
+    inputSchema: { type: 'object', properties: { command: { type: 'string', description: 'The toil command, such as jira issue update.' } }, required: ['command'], additionalProperties: false },
     async run(input) {
       const name = str(input.command);
       const c = name ? registry.find((r) => r.name === name) : undefined;

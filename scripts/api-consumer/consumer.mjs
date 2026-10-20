@@ -17,8 +17,8 @@ const unknown = await execute('no such command');
 const badCaller = await execute('version', {}, { caller: 'Not A Label' });
 // The Open Work Item mappers, in-process, on an envelope a host already holds: a dossier's fields point estimate at the team's field.
 const issue = { key: 'PAY-1', self: 'https://jira.imagile.dev/rest/api/2/issue/1', fields: { summary: 'Retry once', status: { name: 'To Do', statusCategory: { key: 'new' } }, issuetype: { name: 'Story' }, customfield_10234: 3 } };
-const owi = mapOwi({ ok: true, data: issue, error: null, meta: { command: 'jira get-issue', durationMs: 1, version } }, { fields: { estimate: 'customfield_10234' } });
-const checked = await execute('util owi map', { text: JSON.stringify({ ok: true, data: issue, error: null, meta: { command: 'jira get-issue', durationMs: 1, version } }) }, { readOnly: true, caller: 'api-consumer' });
+const owi = mapOwi({ ok: true, data: issue, error: null, meta: { command: 'jira issue get', durationMs: 1, version } }, { fields: { estimate: 'customfield_10234' } });
+const checked = await execute('util owi map', { text: JSON.stringify({ ok: true, data: issue, error: null, meta: { command: 'jira issue get', durationMs: 1, version } }) }, { readOnly: true, caller: 'api-consumer' });
 
 console.log(
   JSON.stringify({

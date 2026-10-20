@@ -3727,6 +3727,17 @@ decided here.
 - **The wordmark's shadow is foreground-only**: it shows in cells the word
   doesn't touch, and is dropped where a cell holds both, rather than adding a
   background colour to every cell, the recording's encoder and the site's player.
+- **The README banner and social preview wear the badge and the Fredoka wordmark**
+  (#286, the follow-up the entry above promised). #268's background master wasn't
+  kept in any worktree's `.claude/image-generation/`, so the background was lifted
+  out of #268's own renders rather than regenerated: left of the art, the plate is a
+  flat gradient, so inside the text's rows each column was replaced by its median
+  over the rows with no text, and every other pixel is #268's. The art is unchanged
+  and nothing was image-generated. The badge is the hand-built SVG from
+  `site/src/components/Logo.astro`, "toil" is Fredoka 600 in the ink colour, and the
+  eyebrow, pitch and sub-line keep #268's words and faces. The banner is WebP at
+  quality 85 (47 KB); the social preview is a 256-colour PNG from pngquant (221 KB),
+  because a plain median-cut palette banded the badge's gradient.
 
 ### #283 theme depth
 
@@ -3863,3 +3874,37 @@ decided here.
   `requestAnimationFrame` and screenshots waited forever. Software rendering is all
   the layout check needs. The installed Chrome there still hangs even so, for a
   reason not found; Playwright's Chromium, through `CHROME_PATH`, works.
+
+## Command shape (jira, jira-cloud, ado, ado-cloud)
+
+The maintainer asked for one streamlined interface, a clean break with no aliases,
+standardised flags, and no change to the client code (principle 10). These are the
+choices made by default inside that:
+
+- **A sub-collection's read is a plural noun under its resource**, `jira issue comments
+  <key>` and `ado pr threads <id>`, not a resource of its own (`jira comment list`).
+  Everything about one issue or PR is then under one `--help` and one menu screen.
+- **Compound verbs where one word would mislead**: `issue log-work`, `issue set-sprint`,
+  `work-item get-many`, `pr comment-inline`, `pr delete-comment`, `pr wait-for-author`.
+- **Vendor words stay where the concepts differ**: Jira's `--transition` (a transition
+  name) and ADO's `--state` aren't merged into one flag.
+- **`ado run list` keeps `--top` beside `--limit`.** They aren't the same idea: `--top`
+  is one request with a cap (`0` lists every run, as the contract records), `--limit`
+  pages with a cursor. `jira issue search` keeps `--start-at` for the same reason.
+- **Positional arguments are ids only.** The other end of a link (`--target`), a
+  sprint, a state and a person are flags, so a line reads the same in every area.
+- **One positional value for a one-or-many field stays one value**
+  (`src/program.ts`): `jira issue get PAY-1` returns the issue, as `--key PAY-1` did,
+  and `jira issue get PAY-1 PAY-2` the bulk shape.
+- **The contract's jira and ado entries were regenerated from the registry**, each
+  carrying its old entry's recorded `output`; commands the contract never recorded
+  (`issue history`, `work-item get-many`, `api`, `check-dossier`) stay out of it, as
+  before. The `--save` divergence on `work-item fields` and `types` keeps its record
+  with empty `allows`, since the flag is no longer in the contract to excuse.
+- **The welcome menu's Services module is its first entry**: service, resource,
+  action, then a form for the positional ids and a flags line with the required ones
+  filled in. A write shows its line with `--allow-write` and asks before running; the
+  connection's own writes setting still decides. A result shows the first 24 lines of
+  `data`.
+- **A resource's row in `--help` lists its actions** (`issue  get, history, create,
+  ...`) instead of "jira issue commands".

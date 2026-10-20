@@ -25,7 +25,7 @@ async function run(def: AnyCommand, input: Record<string, unknown>, routes: Rout
   return { envelope, calls: t.http.calls };
 }
 
-describe('get-issue with several keys', () => {
+describe('issue get with several keys', () => {
   const bulk = (body: unknown): Route => ({ method: 'POST', path: '/rest/api/3/issue/bulkfetch', respond: { json: body } });
 
   it('POSTs the keys once to bulkfetch with every field, and puts the answer back in the order asked', async () => {
@@ -84,7 +84,7 @@ describe('get-issue with several keys', () => {
   });
 });
 
-describe('get-changelog', () => {
+describe('issue history', () => {
   const page = (startAt: number, values: unknown[], isLast: boolean) => ({ startAt, maxResults: 50, total: 3, isLast, values });
 
   it('pages GET /changelog by startAt until isLast, oldest first', async () => {
@@ -124,7 +124,7 @@ describe('--limit and --cursor on lists', () => {
     },
   });
 
-  it('list-comments, list-boards and list-projects stop at the limit and carry on from the cursor', async () => {
+  it('issue comments, board list and project list stop at the limit and carry on from the cursor', async () => {
     const comments = await run(listComments, { key: 'PROJ-1', limit: 1, cursor: '1' }, [offsetRoute('/rest/api/3/issue/PROJ-1/comment', 'comments', [{ id: 'a' }, { id: 'b' }, { id: 'c' }])]);
     expect(comments.calls.map((c) => new URL(c.url).searchParams.get('startAt'))).toEqual(['1']);
     expect((comments.envelope.data as Array<{ id: string }>).map((c) => c.id)).toEqual(['b']);
@@ -138,12 +138,12 @@ describe('--limit and --cursor on lists', () => {
     expect(projects.envelope.meta.page).toEqual({ nextCursor: '1', limit: 1 });
   });
 
-  it('list-sprints pages only with --board', async () => {
+  it('sprint list pages only with --board', async () => {
     const { envelope } = await run(listSprints, { project: 'PROJ', cursor: '1' }, []);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--board') });
   });
 
-  it('search-users: a full page hands out the next startAt, a short one ends the list, and only a cursor adds startAt', async () => {
+  it('user search: a full page hands out the next startAt, a short one ends the list, and only a cursor adds startAt', async () => {
     const users = [{ accountId: 'a' }, { accountId: 'b' }, { accountId: 'c' }];
     const route: Route = {
       method: 'GET',
@@ -154,10 +154,10 @@ describe('--limit and --cursor on lists', () => {
         return { json: users.slice(startAt, startAt + Number(params.get('maxResults'))) };
       },
     };
-    const first = await run(searchUsers, { query: 'smith', maxResults: 2 }, [route]);
+    const first = await run(searchUsers, { query: 'smith', limit: 2 }, [route]);
     expect(first.calls[0]!.url).toBe(`${API}/user/search?query=smith&maxResults=2`);
     expect(first.envelope.meta.page).toEqual({ nextCursor: '2', limit: 2 });
-    const last = await run(searchUsers, { query: 'smith', maxResults: 2, cursor: '2' }, [route]);
+    const last = await run(searchUsers, { query: 'smith', limit: 2, cursor: '2' }, [route]);
     expect(last.calls[0]!.url).toBe(`${API}/user/search?query=smith&maxResults=2&startAt=2`);
     expect(last.envelope.data).toEqual([{ accountId: 'c' }]);
     expect(last.envelope.meta.page).toEqual({ nextCursor: null, limit: 2 });

@@ -7,6 +7,10 @@ description: What every toil command shares, in detail - the envelope and errors
 `SKILL.md` has the rules every call needs. This page has the detail behind them, for
 when a call needs more than a command's own flags.
 
+The jira, jira-cloud, ado and ado-cloud commands are `toil <area> <resource> <action>
+[ids...]`: ids are positional, everything else is a flag, and `toil <area> <resource>
+--help` lists what a resource can do (`toil jira issue --help`).
+
 ## The envelope and errors
 
 Every command prints one JSON envelope on stdout: `{ ok, data, error, meta }`.
@@ -202,7 +206,7 @@ when your own build bundles it in: only toil's bin starts the CLI.
 import { contractVersion, execute, registry, version } from '@imagile-dev/toil/api';
 
 if (contractVersion !== 1) throw new Error(`Needs toil's contract 1; toil ${version} has ${contractVersion}.`);
-const envelope = await execute('jira search', { jql: 'project = PAY', maxResults: 50 }, {
+const envelope = await execute('jira issue search', { jql: 'project = PAY', limit: 50 }, {
   readOnly: true,
   caller: 'nightly-sync',
   onProgress: (event) => console.error(event.message),
@@ -211,7 +215,7 @@ const envelope = await execute('jira search', { jql: 'project = PAY', maxResults
 
 - **`execute(command, input, options)`** runs one command and returns its envelope,
   exactly as the CLI prints it. `command` is the name `meta.command` reports
-  (`jira search`); `input` is the command's MCP fields, checked strictly. It never
+  (`jira issue search`); `input` is the command's MCP fields, checked strictly. It never
   throws: an unknown command or a bad option is an `INVALID_INPUT` envelope.
   Connections, env vars, the credential store, dossiers, the workspace (the program's
   working directory, else `workspace`), the write gate and the audit log all apply as
@@ -276,7 +280,7 @@ disclaimer, version 1, and nothing is sent until the person sending it agrees to
 > identifiers and credentials. You are responsible for what you send.
 
 ```bash
-toil feedback bug --title "jira search ignores --max-results" --body "toil jira search --max-results 5 returns 50 issues." --email you@example.com
+toil feedback bug --title "jira issue search ignores --limit" --body "toil jira issue search --limit 5 returns 50 issues." --email you@example.com
 ```
 
 | Flag | Meaning |

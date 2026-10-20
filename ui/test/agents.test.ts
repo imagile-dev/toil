@@ -129,20 +129,20 @@ describe('the tool list', () => {
   });
 
   it('leaves out a live command the registry says writes, even if it is on the list', () => {
-    const lying = registry.commands.map((c) => (c.name === 'jira search' ? { ...c, writes: true } : c));
+    const lying = registry.commands.map((c) => (c.name === 'jira issue search' ? { ...c, writes: true } : c));
     const names = liveTools('card-payments', lying, recordingExecute().execute, () => [], new Ledger()).map((t) => t.name);
-    expect(names).not.toContain('jira_search');
+    expect(names).not.toContain('jira_issue_search');
   });
 
   it('hides the dossier, files and folders from a live tool, and fixes the dossier and readOnly on every call', async () => {
     const rec = recordingExecute();
     const ledger = new Ledger();
     const tools = liveTools('card-payments', registry.commands, rec.execute, () => ['corp-jira:PAY-101'], ledger);
-    const search = tool(tools, 'jira_search');
+    const search = tool(tools, 'jira_issue_search');
     expect(Object.keys(search.inputSchema.properties)).not.toEqual(expect.arrayContaining(['dossier']));
     for (const k of ['dossier', 'cwd', 'jqlFile', 'connection', 'select']) expect(search.inputSchema.properties).not.toHaveProperty(k);
     await search.run({ jql: 'project = PAY', dossier: 'someone-else', cwd: '/', jqlFile: '/etc/passwd' });
-    expect(rec.calls).toEqual([{ command: 'jira search', input: { jql: 'project = PAY', dossier: 'card-payments' }, options: { readOnly: true, caller: 'toil-ui' } }]);
+    expect(rec.calls).toEqual([{ command: 'jira issue search', input: { jql: 'project = PAY', dossier: 'card-payments' }, options: { readOnly: true, caller: 'toil-ui' } }]);
     expect([...ledger.ids]).toEqual(['corp-jira:PAY-101']);
   });
 });
@@ -202,15 +202,15 @@ describe('proposals', () => {
 
   it('become cards with a safe command line, the dossier forced and allowWrite never taken from the model', () => {
     const a = finish(
-      `Estimate [[corp-jira:PAY-107]].${block({ item: 'corp-jira:PAY-107', title: 'Estimate PAY-107', reason: 'No estimate on [[corp-jira:PAY-107]].', command: 'jira update-issue', input: { key: 'PAY-107', field: ['Story Points=3'], dossier: 'elsewhere', allowWrite: true }, note: null })}`,
+      `Estimate [[corp-jira:PAY-107]].${block({ item: 'corp-jira:PAY-107', title: 'Estimate PAY-107', reason: 'No estimate on [[corp-jira:PAY-107]].', command: 'jira issue update', input: { key: 'PAY-107', field: ['Story Points=3'], dossier: 'elsewhere', allowWrite: true }, note: null })}`,
       f,
     );
     expect(a.parts.map((p) => p.text)).toEqual(['Estimate [[corp-jira:PAY-107]].']);
     expect(a.proposals).toHaveLength(1);
     const p = a.proposals[0]!;
-    expect(p).toMatchObject({ from: 'agent', item: 'corp-jira:PAY-107', command: 'jira update-issue', input: { dossier: 'card-payments', key: 'PAY-107', field: ['Story Points=3'] } });
+    expect(p).toMatchObject({ from: 'agent', item: 'corp-jira:PAY-107', command: 'jira issue update', input: { dossier: 'card-payments', key: 'PAY-107', field: ['Story Points=3'] } });
     expect(p.input).not.toHaveProperty('allowWrite');
-    expect(commandLine(p, 'posix').line).toBe("toil jira update-issue --dossier 'card-payments' --key 'PAY-107' --field 'Story Points=3' --allow-write");
+    expect(commandLine(p, 'posix').line).toBe("toil jira issue update 'PAY-107' --dossier 'card-payments' --field 'Story Points=3' --allow-write");
   });
 
   it("name a command toil doesn't have as having none, rather than inventing one", () => {
@@ -220,20 +220,20 @@ describe('proposals', () => {
   });
 
   it("show no command line when the input doesn't fit the command's fields, and say why", () => {
-    const a = finish(block({ item: 'corp-jira:PAY-107', title: 'Parent it', reason: '', command: 'jira update-issue', input: { key: 'PAY-107', fields: { parent: 'PAY-100' } } }), f);
+    const a = finish(block({ item: 'corp-jira:PAY-107', title: 'Parent it', reason: '', command: 'jira issue update', input: { key: 'PAY-107', fields: { parent: 'PAY-100' } } }), f);
     expect(a.proposals[0]).toMatchObject({ command: null, input: null });
-    expect(a.proposals[0]!.note).toMatch(/doesn't fit toil jira update-issue, which has no --fields/);
-    const missing = finish(block({ item: 'corp-jira:PAY-107', title: 'x', reason: '', command: 'jira update-issue', input: { summary: 'y' } }), f);
-    expect(missing.proposals[0]!.note).toMatch(/needs --key/);
+    expect(a.proposals[0]!.note).toMatch(/doesn't fit toil jira issue update, which has no --fields/);
+    const missing = finish(block({ item: 'corp-jira:PAY-107', title: 'x', reason: '', command: 'jira issue update', input: { summary: 'y' } }), f);
+    expect(missing.proposals[0]!.note).toMatch(/needs <key>/);
   });
 
   it('proposal_fields reads a write command\'s fields from the registry and runs nothing', async () => {
     const t = proposalTool(registry.commands);
-    const r = (await t.run({ command: 'jira update-issue' })) as { fields: Record<string, unknown>; required: string[] };
+    const r = (await t.run({ command: 'jira issue update' })) as { fields: Record<string, unknown>; required: string[] };
     expect(Object.keys(r.fields)).toEqual(expect.arrayContaining(['key', 'field', 'summary']));
     expect(r.fields).not.toHaveProperty('allowWrite');
     expect(r.required).toEqual(['key']);
-    expect(((await t.run({ command: 'jira search' })) as { error: string }).error).toMatch(/no write command/);
+    expect(((await t.run({ command: 'jira issue search' })) as { error: string }).error).toMatch(/no write command/);
   });
 
   it('flag a proposal for an item no tool returned, and drop one that is not JSON', () => {
@@ -350,13 +350,13 @@ function codexStub(script: Script, grants: McpGrants) {
 const SCRIPT: Script = {
   calls: [
     { name: 'owi_get', input: { id: 'corp-jira:PAY-107' } },
-    { name: 'jira_update_issue', input: { key: 'PAY-107', field: ['Story Points=3'] } },
-    { name: 'jira_search', input: { jql: 'project = PAY' } },
+    { name: 'jira_issue_update', input: { key: 'PAY-107', field: ['Story Points=3'] } },
+    { name: 'jira_issue_search', input: { jql: 'project = PAY' } },
   ],
   chunks: [
     '[[corp-jira:PAY-107]] has no estimate',
     ', and [[corp-jira:PAY-999]] is invented.',
-    '\n\n```proposal\n{"item":"corp-jira:PAY-107","title":"Estimate PAY-107","reason":"Unestimated.","command":"jira update-issue","input":{"key":"PAY-107","field":["Story Points=3"]},"note":null}\n```',
+    '\n\n```proposal\n{"item":"corp-jira:PAY-107","title":"Estimate PAY-107","reason":"Unestimated.","command":"jira issue update","input":{"key":"PAY-107","field":["Story Points=3"]},"note":null}\n```',
   ],
 };
 
@@ -410,9 +410,9 @@ function expectTheRules(versions: Awaited<ReturnType<typeof streamed>>, rec: Ret
   expect(versions.slice(0, -1).every((v) => v.proposals.length === 0)).toBe(true);
   expect(last.prompt).toBe('Backlog hygiene');
   expect(last.unverified).toEqual(['corp-jira:PAY-999']);
-  expect(last.proposals.map((p) => p.command)).toEqual(['jira update-issue']);
+  expect(last.proposals.map((p) => p.command)).toEqual(['jira issue update']);
   // Nothing wrote: the one toil call was the live read, read-only; the proposal's command never ran.
-  expect(rec.calls.map((c) => c.command)).toEqual(['jira search']);
+  expect(rec.calls.map((c) => c.command)).toEqual(['jira issue search']);
   expect(rec.calls.every((c) => c.options.readOnly === true)).toBe(true);
 }
 
@@ -430,10 +430,10 @@ describe('the Claude adapter, on a stubbed SDK', () => {
     expect(o.strictMcpConfig).toBe(true);
     expect(o.permissionMode).toBe('dontAsk');
     expect(o.persistSession).toBe(false);
-    expect(stub.seen.tools).not.toContain('jira_update_issue');
+    expect(stub.seen.tools).not.toContain('jira_issue_update');
     expect(o.allowedTools).toEqual(stub.seen.tools.map(claudeToolName));
     expect((o.env as Record<string, string>).CLAUDE_CODE_USE_BEDROCK).toBe('1');
-    expect(stub.seen.results[1]).toEqual({ refused: 'jira_update_issue' });
+    expect(stub.seen.results[1]).toEqual({ refused: 'jira_issue_update' });
     expect(o).not.toHaveProperty('canUseTool');
     expect(versions.at(-1)!.by).toBe('Claude (test-model)');
   });
@@ -458,12 +458,12 @@ describe('the Claude adapter, on a stubbed SDK', () => {
   });
 
   it('builds zod shapes the SDK takes from the tools\' JSON Schemas', () => {
-    const search = liveTools('d', registry.commands, recordingExecute().execute, () => [], new Ledger()).find((t) => t.name === 'jira_search')!;
+    const search = liveTools('d', registry.commands, recordingExecute().execute, () => [], new Ledger()).find((t) => t.name === 'jira_issue_search')!;
     const shape = zodShape(zod as never, search.inputSchema) as unknown as Record<string, zod.ZodType>;
     const object = zod.object(shape);
-    expect(object.safeParse({ jql: 'project = PAY', maxResults: 5 }).success).toBe(true);
-    expect(object.safeParse({ maxResults: 'five' }).success).toBe(true);
-    expect(object.safeParse({ maxResults: true }).success).toBe(false);
+    expect(object.safeParse({ jql: 'project = PAY', limit: 5 }).success).toBe(true);
+    expect(object.safeParse({ limit: 'five' }).success).toBe(true);
+    expect(object.safeParse({ limit: true }).success).toBe(false);
     expect(object.safeParse({ jql: 5 }).success).toBe(false);
     const query = cacheTools('d', data, new Ledger())[0]!;
     expect(zod.object(zodShape(zod as never, query.inputSchema) as never).safeParse({ statusCategory: 'NOPE' }).success).toBe(false);
@@ -479,7 +479,7 @@ describe('the Copilot adapter, on a stubbed SDK', () => {
     expect(stub.seen.client).not.toHaveProperty('env');
     const s = stub.seen.session!;
     const names = (s.tools as Array<{ name: string; skipPermission: boolean }>).map((t) => t.name);
-    expect(names).not.toContain('jira_update_issue');
+    expect(names).not.toContain('jira_issue_update');
     expect(s.availableTools).toEqual(names.map((n) => `custom:${n}`));
     expect((s.systemMessage as { mode: string }).mode).toBe('replace');
     expect((s.onPermissionRequest as () => { kind: string })().kind).toBe('reject');
@@ -500,7 +500,7 @@ describe('the Codex adapter, on a stubbed SDK', () => {
     expect(CODEX_FEATURES_OFF).toEqual(expect.arrayContaining(['shell_tool', 'unified_exec', 'apps', 'plugins']));
     expect(JSON.stringify(o.configOverrides)).not.toContain((o.env as Record<string, string>)[TOKEN_ENV]);
     expect(stub.seen.thread).toMatchObject({ sandboxMode: 'read-only', approvalPolicy: 'never', webSearchMode: 'disabled', model: 'test-model' });
-    expect(stub.seen.listed).not.toContain('jira_update_issue');
+    expect(stub.seen.listed).not.toContain('jira_issue_update');
     // The grant ended with the run.
     expect(holder.size).toBe(0);
   });
@@ -553,7 +553,7 @@ describe('the MCP endpoint\'s protocol', () => {
     expect(await answerMcp({ jsonrpc: '2.0', method: 'notifications/initialized' }, tools, 'v')).toBeNull();
     const call = (await answerMcp({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'owi_get', arguments: { id: 'corp-jira:PAY-101' } } }, tools, 'v')) as { result: { content: Array<{ text: string }> } };
     expect(call.result.content[0]!.text).toContain('corp-jira:PAY-101');
-    const refused = (await answerMcp({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'jira_update_issue', arguments: {} } }, tools, 'v')) as { error: { message: string } };
+    const refused = (await answerMcp({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'jira_issue_update', arguments: {} } }, tools, 'v')) as { error: { message: string } };
     expect(refused.error.message).toMatch(/only its read tools/);
   });
 
