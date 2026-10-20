@@ -52,7 +52,10 @@ choosing between tools: what it returns, when to use it, and which sibling tool 
 instead. A field's description is the same text on both front doors, so it never names a
 CLI-only flag (`--output-file`, `--config`). Every tool also takes core's `select`
 (`--select` on the CLI): `inputSchemaFor` adds it to each schema and `execute()` takes it
-off before the command's own strict parse, so no command declares it.
+off before the command's own strict parse, so no command declares it. `outputFormat`
+and `summaryFile` (`--output-format`, `--summary-file`) are core's the same way
+(`CORE_OUTPUT_PROPERTIES`), taken off by `runCommand()` and applied to the envelope
+after `select` (`src/core/output/`), so `wait` gets them too.
 
 **`wait` and resources.** `wait` (`src/core/wait.ts`) is served whenever a read tool
 is, and repeats only the tools this server serves; it sends `notifications/progress`

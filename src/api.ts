@@ -71,7 +71,7 @@ export interface CommandInfo {
   writesLocal: boolean;
   /** Some calls write, depending on the input (the raw passthrough's POST, a file named with `out`); those are refused under `readOnly`. */
   writesDependOnInput: boolean;
-  /** The JSON Schema of its input, strict, as MCP advertises it, `select` included. */
+  /** The JSON Schema of its input, strict, as MCP advertises it, with core's `select`, `outputFormat` and `summaryFile`. */
   inputSchema: Record<string, unknown>;
 }
 

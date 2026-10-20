@@ -66,7 +66,7 @@ describe('context inputs', () => {
     sessions.push(session);
     const tools = (await session.client.listTools()).tools;
     const props = (name: string) => Object.keys(tools.find((t) => t.name === name)!.inputSchema.properties ?? {}).sort();
-    expect(props('demo_context_get_widget')).toEqual(['board', 'connection', 'cwd', 'dossier', 'env', 'id', 'project', 'select']);
+    expect(props('demo_context_get_widget')).toEqual(['board', 'connection', 'cwd', 'dossier', 'env', 'id', 'outputFormat', 'project', 'select', 'summaryFile']);
     expect(props('demo_context_echo_filters')).not.toContain('board');
 
     const viaMcp = await session.call('demo_context_echo_filters', { board: 'ops' });

@@ -16,6 +16,7 @@ import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
 import { shownToPeople, type ProgressEvent } from '../core/progress.js';
+import { OUTPUT_FORMAT_DESCRIPTION, OUTPUT_FORMAT_FIELD, OUTPUT_FORMATS, SUMMARY_FILE_DESCRIPTION, SUMMARY_FILE_FIELD } from '../core/output/fields.js';
 import { SELECT_DESCRIPTION, SELECT_FIELD } from '../core/query/select.js';
 import { runCommand } from '../core/run.js';
 import { waitable } from '../core/wait.js';
@@ -168,12 +169,23 @@ export function createMcpServer(options: {
 }
 
 /**
+ * The fields core adds to every tool: `select`, which execute() takes off
+ * first, and `outputFormat` and `summaryFile`, which runCommand() does
+ * (src/core/output/shape.ts).
+ */
+export const CORE_OUTPUT_PROPERTIES = {
+  [SELECT_FIELD]: { type: 'string', minLength: 1, description: SELECT_DESCRIPTION },
+  [OUTPUT_FORMAT_FIELD]: { type: 'string', enum: [...OUTPUT_FORMATS], description: OUTPUT_FORMAT_DESCRIPTION },
+  [SUMMARY_FILE_FIELD]: { type: 'string', minLength: 1, description: SUMMARY_FILE_DESCRIPTION },
+} as const;
+
+/**
  * The JSON Schema an MCP client sees: the command's input, strict, as
- * execute() parses it, plus core's `select`, which execute() takes off first.
+ * execute() parses it, plus core's fields (CORE_OUTPUT_PROPERTIES).
  */
 export function inputSchemaFor(def: AnyCommand): { type: 'object'; [key: string]: unknown } {
   const schema = z.toJSONSchema(def.input.strict(), { target: 'draft-7' }) as Record<string, unknown>;
   delete schema.$schema;
-  const properties = { ...(schema.properties as Record<string, unknown> | undefined), [SELECT_FIELD]: { type: 'string', minLength: 1, description: SELECT_DESCRIPTION } };
+  const properties = { ...(schema.properties as Record<string, unknown> | undefined), ...CORE_OUTPUT_PROPERTIES };
   return { ...schema, type: 'object', properties };
 }
