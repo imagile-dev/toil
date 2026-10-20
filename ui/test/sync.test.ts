@@ -307,3 +307,34 @@ describe('the job', () => {
     expect(joinPages({ issues: [1], total: 2, startAt: 0 }, { issues: [2], total: 2, startAt: 1 })).toEqual({ issues: [1, 2], total: 2, startAt: 1 });
   });
 });
+
+describe('the worklog after a sync (#308)', () => {
+  it('folds every synced dossier into pages, the same as the sample folds them, and keeps them as it syncs again', async () => {
+    const { dataDir, cache, toil, advance } = await setup();
+    const { WorklogService } = await import('../server/worklog.ts');
+    const { fixtureWorklog } = await import('../src/fixtures/worklog.ts');
+    const worklog = new WorklogService({ cache: () => cache, execute: toil.execute as unknown as Execute, now: () => new Date(FIXTURE_NOW) });
+    const saved: string[] = [];
+    const sync = new SyncService({ cache, execute: toil.execute, mapOwi, now: () => new Date(FIXTURE_NOW), onSaved: async (d) => void saved.push(d, ...(await worklog.reconcile(d))) });
+    await sync.run(ctx);
+    expect(saved.filter((d) => DOSSIERS.some((x) => x.name === d))).toEqual(DOSSIERS.map((d) => d.name));
+    // The day before the sample's clock: the facts with their own times are the sample's own, line for line.
+    const day = '2026-10-12';
+    const page = await worklog.day('checkout-web', day);
+    const sample = await fixtureWorklog().day('checkout-web', day);
+    expect([...page.page.work, ...page.page.prs, ...page.page.delivery].filter((e) => !e.observed).map((e) => e.key)).toEqual([...sample.page.work, ...sample.page.prs, ...sample.page.delivery].filter((e) => !e.observed).map((e) => e.key));
+    expect(existsSync(join(dataDir, 'cache', 'worklog', 'checkout-web', '2026-10', `${day}.md`))).toBe(true);
+    advance(60_000);
+    await sync.run(ctx);
+    expect((await worklog.rebuild('checkout-web', day)).same).toBe(true);
+  });
+
+  it("says in the job's messages when a dossier's worklog couldn't be folded, and finishes the sync", async () => {
+    const { cache, toil } = await setup();
+    const sync = new SyncService({ cache, execute: toil.execute, mapOwi, onSaved: async () => { throw new Error('disk full'); } });
+    const job = await sync.run(ctx);
+    expect(job.error).toBeNull();
+    expect(job.dossiersDone).toBe(DOSSIERS.length);
+    expect(job.messages.some((m) => m === "Couldn't update card-payments's worklog: disk full")).toBe(true);
+  });
+});

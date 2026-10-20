@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { existsSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -63,21 +63,31 @@ describe('the schema', () => {
   it('creates a new file at the latest version, with every table', async () => {
     const cache = await open(folder());
     expect(cache.version()).toBe(SCHEMA_VERSION);
-    expect(Object.keys(cache.counts())).toEqual(['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers']);
+    expect(Object.keys(cache.counts())).toEqual(['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers', 'worklog_events', 'sync_runs', 'agent_runs', 'notes']);
   });
+
+  /** A file left at an older schema, with one dossier's row in it, as an older Toil UI wrote it. */
+  async function olderFile(dir: string, version: number) {
+    const { DatabaseSync } = await loadSqlite();
+    mkdirSync(cachePaths(dir).dir, { recursive: true });
+    const raw = new DatabaseSync(cachePaths(dir).db);
+    migrate(raw, MIGRATIONS.filter((m) => m.version <= version));
+    const now = new Date().toISOString();
+    raw.prepare("INSERT INTO dossiers (name, last_sync_at, status, error) VALUES ('card-payments', ?, 'ok', NULL)").run(now);
+    raw.prepare("INSERT INTO items (dossier, id, area, connection, native_key, type, status_category, updated, item, synced_at) VALUES ('card-payments', 'jira:PAY-1', 'jira', 'jira', 'PAY-1', 'STORY', 'DONE', NULL, ?, ?)").run(JSON.stringify(item('PAY-1')), now);
+    raw.close();
+  }
 
   it('moves an older file forward one step at a time, keeping its rows', async () => {
     const dir = folder();
-    const v1 = MIGRATIONS.slice(0, 1);
-    const first = await open(dir, { migrations: v1 });
-    expect(first.version()).toBe(1);
-    first.saveDossier(save(new Date().toISOString()));
-    first.close();
+    await olderFile(dir, 1);
 
-    const v2: Migration = { version: 2, description: 'a note on each dossier', sql: 'ALTER TABLE dossiers ADD COLUMN note TEXT; UPDATE dossiers SET note = \'migrated\';' };
-    const second = await open(dir, { migrations: [...v1, v2] });
-    expect(second.version()).toBe(2);
+    const next: Migration = { version: SCHEMA_VERSION + 1, description: 'a note on each dossier', sql: 'ALTER TABLE dossiers ADD COLUMN note TEXT; UPDATE dossiers SET note = \'migrated\';' };
+    const second = await open(dir, { migrations: [...MIGRATIONS, next] });
+    expect(second.version()).toBe(SCHEMA_VERSION + 1);
     expect(second.items('card-payments').map((i) => i.id)).toEqual(['jira:PAY-1']);
+    // Schema 2 (#308) added the worklog's tables, empty, beside what schema 1 held.
+    expect(second.counts()).toMatchObject({ items: 1, dossiers: 1, worklog_events: 0, sync_runs: 0, agent_runs: 0, notes: 0 });
     const { DatabaseSync } = await loadSqlite();
     second.close();
     const raw = new DatabaseSync(cachePaths(dir).db);
@@ -87,12 +97,12 @@ describe('the schema', () => {
 
   it('rolls a failed step back and says to wipe', async () => {
     const dir = folder();
-    (await open(dir, { migrations: MIGRATIONS.slice(0, 1) })).close();
-    const broken: Migration = { version: 2, description: 'broken', sql: 'CREATE TABLE extra (x); SELECT * FROM no_such_table;' };
-    await expect(open(dir, { migrations: [...MIGRATIONS.slice(0, 1), broken] })).rejects.toThrow(/schema 2 \(broken\) failed/);
+    (await open(dir)).close();
+    const broken: Migration = { version: SCHEMA_VERSION + 1, description: 'broken', sql: 'CREATE TABLE extra (x); SELECT * FROM no_such_table;' };
+    await expect(open(dir, { migrations: [...MIGRATIONS, broken] })).rejects.toThrow(`schema ${SCHEMA_VERSION + 1} (broken) failed`);
     const { DatabaseSync } = await loadSqlite();
     const raw = new DatabaseSync(cachePaths(dir).db);
-    expect(raw.prepare('PRAGMA user_version').get()).toEqual({ user_version: 1 });
+    expect(raw.prepare('PRAGMA user_version').get()).toEqual({ user_version: SCHEMA_VERSION });
     expect(raw.prepare("SELECT name FROM sqlite_master WHERE name = 'extra'").all()).toEqual([]);
     raw.close();
   });

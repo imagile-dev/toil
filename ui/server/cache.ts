@@ -12,7 +12,12 @@
  * - **sources**: the sync state of each dossier's sources (one per area):
  *   when it last worked, when it was last tried, its error and fix, and the
  *   watermark the next incremental sync asks `--updated-since` from;
- * - **dossiers**: each dossier's last sync time and outcome.
+ * - **dossiers**: each dossier's last sync time and outcome;
+ * - **worklog_events**, **sync_runs**, **agent_runs** and **notes**: what
+ *   the worklog (#308, src/model/worklog.ts) folds a day's page from: every
+ *   fact a sync recorded, each source's syncs, the agent's runs and the
+ *   lines a person added. A sync upserts its facts by key, so the same fact
+ *   is one row however often it's synced.
  *
  * The schema is versioned with `PRAGMA user_version` and moved forward one
  * migration at a time inside a transaction. A file from a newer Toil UI is
@@ -26,6 +31,7 @@ import { randomBytes } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import * as nodePath from 'node:path';
 import type { ChangeRef, Deployment, Envelope, WorkItem } from '../src/toil.ts';
+import { dayOf, eventsFrom, observedEvents, type AgentRun, type SyncRun, type WorklogEvent, type WorklogNote } from '../src/model/worklog.ts';
 import { loadSqlite, type DatabaseSync } from './sqlite.ts';
 
 /** The path functions the cache's locations are built with: node:path, or path.win32 / path.posix in the tests. */
@@ -141,6 +147,47 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 2,
+    description: "the worklog's facts, each source's syncs, agent runs and notes (#308)",
+    sql: `
+      CREATE TABLE worklog_events (
+        dossier TEXT NOT NULL,
+        key TEXT NOT NULL,
+        day TEXT NOT NULL,
+        at TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        event TEXT NOT NULL,
+        synced_at TEXT NOT NULL,
+        PRIMARY KEY (dossier, key)
+      );
+      CREATE INDEX worklog_events_day ON worklog_events (dossier, day);
+      CREATE TABLE sync_runs (
+        dossier TEXT NOT NULL,
+        area TEXT NOT NULL,
+        at TEXT NOT NULL,
+        ok INTEGER NOT NULL,
+        error TEXT,
+        PRIMARY KEY (dossier, area, at)
+      );
+      CREATE TABLE agent_runs (
+        dossier TEXT NOT NULL,
+        id TEXT NOT NULL,
+        day TEXT NOT NULL,
+        started_at TEXT NOT NULL,
+        run TEXT NOT NULL,
+        PRIMARY KEY (dossier, id)
+      );
+      CREATE TABLE notes (
+        dossier TEXT NOT NULL,
+        id TEXT NOT NULL,
+        day TEXT NOT NULL,
+        at TEXT NOT NULL,
+        note TEXT NOT NULL,
+        PRIMARY KEY (dossier, id)
+      );
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
@@ -242,6 +289,9 @@ export interface CacheOptions {
 }
 
 const DAY = 86_400_000;
+
+/** The worklog's tables (#308), which a forgotten dossier takes with it. */
+const WORKLOG_TABLES = ['worklog_events', 'sync_runs', 'agent_runs', 'notes'];
 
 /** The lock a running Toil UI holds on its data folder: which process, and a token only the holder knows. */
 export interface CacheLock {
@@ -490,7 +540,7 @@ export class Cache {
   /** A dossier toil no longer has: everything synced for it goes. */
   forget(dossier: string) {
     this.transaction(() => {
-      for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources']) this.db.prepare(`DELETE FROM ${table} WHERE dossier = ?`).run(dossier);
+      for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', ...WORKLOG_TABLES]) this.db.prepare(`DELETE FROM ${table} WHERE dossier = ?`).run(dossier);
       this.db.prepare('DELETE FROM dossiers WHERE name = ?').run(dossier);
     });
   }
@@ -512,9 +562,32 @@ export class Cache {
    * are the dossier's whole picture as the sync saw it (the sync hands the
    * loader a failed source's last good copy, so a failure never blanks them).
    */
-  saveDossier(save: DossierSave) {
+  saveDossier(save: DossierSave): { days: string[] } {
     const at = save.finishedAt;
+    const days = new Set<string>();
     this.transaction(() => {
+      // The last sync's picture, for what the trackers record no time for (a new blocker, a deployment that failed).
+      const previous = this.db.prepare('SELECT last_sync_at, status FROM dossiers WHERE name = ?').get(save.dossier) as { last_sync_at: string; status: string } | undefined;
+      const before = previous && previous.status !== 'failed' ? { items: this.items(save.dossier), deployments: this.changes(save.dossier).filter((c) => c.kind === 'deployment').map((c) => c.ref as Deployment) } : null;
+      const known = new Map((this.db.prepare('SELECT key, event FROM worklog_events WHERE dossier = ?').all(save.dossier) as unknown as Array<{ key: string; event: string }>).map((r) => [r.key, r.event]));
+      const builds = [...known.values()].map((e) => JSON.parse(e) as WorklogEvent).filter((e) => e.group !== undefined);
+      const facts = [...eventsFrom({ items: save.items, changes: save.changes }, builds), ...observedEvents(before, { items: save.items, deployments: save.deployments }, at, previous?.last_sync_at ?? null)];
+      const fact = this.db.prepare(`INSERT INTO worklog_events (dossier, key, day, at, kind, event, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT (dossier, key) DO UPDATE SET day = excluded.day, at = excluded.at, kind = excluded.kind, event = excluded.event, synced_at = excluded.synced_at`);
+      for (const e of facts) {
+        const json = JSON.stringify(e);
+        const day = dayOf(e.at)!;
+        const was = known.get(e.key);
+        if (was !== json) {
+          days.add(day);
+          if (was) days.add(dayOf((JSON.parse(was) as WorklogEvent).at)!);
+        }
+        fact.run(save.dossier, e.key, day, e.at, e.kind, json, at);
+      }
+      const run = this.db.prepare('INSERT OR REPLACE INTO sync_runs (dossier, area, at, ok, error) VALUES (?, ?, ?, ?, ?)');
+      for (const s of save.sources) run.run(save.dossier, s.area, at, s.ok ? 1 : 0, s.error);
+      if (save.sources.length) days.add(dayOf(at)!);
+
       const put = this.db.prepare('INSERT INTO responses (dossier, command, input_key, area, envelope, synced_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (dossier, command, input_key) DO UPDATE SET area = excluded.area, envelope = excluded.envelope, synced_at = excluded.synced_at');
       for (const r of save.responses) put.run(save.dossier, r.command, inputKey(r.input), areaOf(r.command), JSON.stringify(r.envelope), at);
       const drop = this.db.prepare('DELETE FROM responses WHERE dossier = ? AND area = ? AND synced_at < ?');
@@ -551,6 +624,50 @@ export class Cache {
       this.db.prepare('INSERT INTO dossiers (name, last_sync_at, status, error) VALUES (?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET last_sync_at = excluded.last_sync_at, status = excluded.status, error = excluded.error').run(save.dossier, at, status, error);
     });
     this.prune();
+    return { days: [...days].sort() };
+  }
+
+  // The worklog (#308) ---------------------------------------------------------------
+
+  /** The facts a sync recorded for a dossier: one day's, or every one the cache holds. */
+  worklogEvents(dossier: string, day?: string): WorklogEvent[] {
+    const rows = (day === undefined
+      ? this.db.prepare('SELECT event FROM worklog_events WHERE dossier = ? ORDER BY at, key').all(dossier)
+      : this.db.prepare('SELECT event FROM worklog_events WHERE dossier = ? AND day = ? ORDER BY at, key').all(dossier, day)) as unknown as Array<{ event: string }>;
+    return rows.map((r) => JSON.parse(r.event) as WorklogEvent);
+  }
+
+  /** Every day the worklog has a page for: one with a fact, an agent run or a note, or a sync that found nothing. */
+  worklogDays(dossier: string): string[] {
+    return (this.db.prepare('SELECT day FROM worklog_events WHERE dossier = ? UNION SELECT day FROM agent_runs WHERE dossier = ? UNION SELECT day FROM notes WHERE dossier = ? UNION SELECT substr(at, 1, 10) FROM sync_runs WHERE dossier = ? ORDER BY 1').all(dossier, dossier, dossier, dossier) as unknown as Array<{ day: string }>).map((r) => r.day);
+  }
+
+  /** Each source's syncs of a dossier that the cache still holds, oldest first. */
+  syncRuns(dossier: string): SyncRun[] {
+    return (this.db.prepare('SELECT area, at, ok, error FROM sync_runs WHERE dossier = ? ORDER BY at, area').all(dossier) as unknown as Array<{ area: string; at: string; ok: number; error: string | null }>).map((r) => ({ area: r.area, at: r.at, ok: Number(r.ok) === 1, error: r.error }));
+  }
+
+  /** Records an agent run, or its end: the same id replaces what was there. */
+  saveRun(run: AgentRun) {
+    this.db.prepare('INSERT OR REPLACE INTO agent_runs (dossier, id, day, started_at, run) VALUES (?, ?, ?, ?, ?)').run(run.dossier, run.id, dayOf(run.startedAt)!, run.startedAt, JSON.stringify(run));
+  }
+
+  runs(dossier: string, day?: string): AgentRun[] {
+    const rows = (day === undefined
+      ? this.db.prepare('SELECT run FROM agent_runs WHERE dossier = ? ORDER BY started_at, id').all(dossier)
+      : this.db.prepare('SELECT run FROM agent_runs WHERE dossier = ? AND day = ? ORDER BY started_at, id').all(dossier, day)) as unknown as Array<{ run: string }>;
+    return rows.map((r) => JSON.parse(r.run) as AgentRun);
+  }
+
+  addNote(dossier: string, note: WorklogNote) {
+    this.db.prepare('INSERT INTO notes (dossier, id, day, at, note) VALUES (?, ?, ?, ?, ?)').run(dossier, note.id, dayOf(note.at)!, note.at, JSON.stringify(note));
+  }
+
+  notes(dossier: string, day?: string): WorklogNote[] {
+    const rows = (day === undefined
+      ? this.db.prepare('SELECT note FROM notes WHERE dossier = ? ORDER BY at, id').all(dossier)
+      : this.db.prepare('SELECT note FROM notes WHERE dossier = ? AND day = ? ORDER BY at, id').all(dossier, day)) as unknown as Array<{ note: string }>;
+    return rows.map((r) => JSON.parse(r.note) as WorklogNote);
   }
 
   /** Deletes every row last synced before the retention period. Returns how many went. */
@@ -561,6 +678,11 @@ export class Cache {
       for (const table of ['responses', 'items', 'transitions', 'change_refs']) removed += Number(this.db.prepare(`DELETE FROM ${table} WHERE synced_at < ?`).run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM sources WHERE last_attempt_at < ?').run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM dossiers WHERE last_sync_at < ?').run(cutoff).changes);
+      // The worklog's records: a fact by when a sync last recorded it, like every row above; a sync, a run and a note by when it happened.
+      removed += Number(this.db.prepare('DELETE FROM worklog_events WHERE synced_at < ?').run(cutoff).changes);
+      removed += Number(this.db.prepare('DELETE FROM sync_runs WHERE at < ?').run(cutoff).changes);
+      removed += Number(this.db.prepare('DELETE FROM agent_runs WHERE started_at < ?').run(cutoff).changes);
+      removed += Number(this.db.prepare('DELETE FROM notes WHERE at < ?').run(cutoff).changes);
     });
     return removed;
   }
@@ -568,7 +690,7 @@ export class Cache {
   /** Row counts per table, for the tests and the wipe's report. */
   counts(): Record<string, number> {
     const out: Record<string, number> = {};
-    for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers']) out[table] = Number((this.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n);
+    for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers', ...WORKLOG_TABLES]) out[table] = Number((this.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n);
     return out;
   }
 

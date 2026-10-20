@@ -8,12 +8,17 @@
  * Every question runs with the dossier's read-only tools and a fresh ledger,
  * streams its text, and ends with answer.ts's checks: citations held to the
  * tool results, writes turned into proposals the pane shows and nobody here
- * runs. A switchboard with three lines and no outgoing calls.
+ * runs. Each question is recorded as an agent run (#308) as it starts and
+ * again as it ends, finished, failed or stopped, with its answer and
+ * proposals, for the worklog. A switchboard with three lines and no outgoing
+ * calls.
  */
 
+import { randomUUID } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Answer, Starter } from '../../src/agent.ts';
+import { runFromAnswer, type AgentRun } from '../../src/model/worklog.ts';
 import type { Execute } from '../../src/toil.ts';
 import type { Agent } from '../agent.ts';
 import type { RequestContext } from '../context.ts';
@@ -27,7 +32,7 @@ import { agentEnv } from './env.ts';
 import { cliFor, Latest, loadSdk, nodeImporter, type AdapterName, type Importer, type Runtime, type ServeTools } from './runtime.ts';
 import { checkAgentSettings, loadAgentSettings, saveAgentSettings, DEFAULT_AGENT_SETTINGS, ENDPOINTS, type AgentSettings } from './settings.ts';
 import { promptStyle, type StyleChoice } from './voices.ts';
-import { cacheTools, Ledger, liveTools, proposalTool, prTools, recorded, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
+import { cacheTools, Ledger, liveTools, proposalTool, prTools, recorded, worklogTool, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
 
 export interface AgentHostOptions {
   dataDir: string;
@@ -52,6 +57,11 @@ export interface AgentHostOptions {
   cwd?: string;
   runtimes?: Runtime[];
   now?: () => string;
+  /**
+   * Each question, as an agent run (#308): once as it starts and once as it
+   * ends. The worklog keeps it. A failure here is never the question's.
+   */
+  onRun?: (run: AgentRun) => Promise<void> | void;
 }
 
 /** What the Settings page shows about one adapter on this machine. */
@@ -132,7 +142,8 @@ export class AgentHost implements Agent {
 
   /** The tools a question about this dossier gets, and the ledger they fill: what every adapter is handed. */
   tools(dossier: string, data: AgentData, ledger: Ledger): ToolSpec[] {
-    return recorded([...cacheTools(dossier, data, ledger), ...prTools(dossier, data, ledger), proposalTool(this.o.registry), ...liveTools(dossier, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
+    const now = this.o.now ?? (() => new Date().toISOString());
+    return recorded([...cacheTools(dossier, data, ledger), ...prTools(dossier, data, ledger), ...worklogTool(dossier, data, ledger, now), proposalTool(this.o.registry), ...liveTools(dossier, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
   }
 
   /**
@@ -153,6 +164,21 @@ export class AgentHost implements Agent {
     // Counted from here, before anything can await, and given back in the finally whatever fails: the SDK load, the CLI search, the run.
     this.running++;
     let run: Promise<void> | undefined;
+    const now = this.o.now ?? (() => new Date().toISOString());
+    const asked = promptFor(dossier, prompt).label;
+    let record: AgentRun = {
+      id: randomUUID(), kind: 'ask', dossier, startedAt: now(), finishedAt: null, outcome: 'running',
+      by: this.settings.model ? `${runtime.label} (${this.settings.model})` : runtime.label, prompt: asked, answer: null, error: null, citations: [], unverified: [], proposals: [],
+    };
+    const report = async () => {
+      try {
+        await this.o.onRun?.(record);
+      } catch {
+        // The worklog's record of a question never fails the question.
+      }
+    };
+    await report();
+    let last: Answer | undefined;
     try {
       const data = this.o.data(dossier);
       if (!data) throw new AgentError(`Toil UI hasn't synced ${dossier} yet, so the agent has nothing to read.`, 'Press Sync now in the Sync panel, then ask again.');
@@ -194,10 +220,21 @@ export class AgentHost implements Agent {
           },
           (e: unknown) => out.end(e instanceof AgentError ? e : new AgentError(`${runtime.label} failed: ${e instanceof Error ? e.message : String(e)}`, `Check that ${runtime.cliLabel} is signed in (run ${runtime.command} once on its own), then ask again.`)),
         );
-      yield* out;
+      for await (const answer of out) {
+        last = answer;
+        yield answer;
+      }
+      record = runFromAnswer(record, now(), last ?? { prompt: asked, parts: [], citations: [], by, proposals: [] });
+    } catch (e) {
+      const message = e instanceof AgentError ? `${e.message} ${e.fix}` : e instanceof Error ? e.message : String(e);
+      record = { ...record, finishedAt: now(), outcome: ctx.signal.aborted ? 'stopped' : 'failed', error: message, answer: last ? last.parts.map((p) => p.text).join('\n\n') : null };
+      throw e;
     } finally {
       await run;
       this.running--;
+      // The person closed the pane or the page mid-answer: the run stopped, with what it had said so far.
+      if (record.outcome === 'running') record = { ...record, finishedAt: now(), outcome: 'stopped', answer: last ? last.parts.map((p) => p.text).join('\n\n') : null };
+      await report();
     }
   }
 

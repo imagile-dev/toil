@@ -31,6 +31,8 @@ export interface ExecuteOptions {
   signal?: AbortSignal;
   /** Only the local server's config path passes one (ui/server/config.ts): the person's answers to toil's questions. */
   person?: ExecutePerson;
+  /** Only the worklog's export passes one (ui/server/worklog.ts): the folder toil's file service writes inside. */
+  workspace?: string;
 }
 
 /** One question a person's command asks (the API's `Question`). */

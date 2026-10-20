@@ -7,7 +7,8 @@
  * prints the one URL that opens it, once. It opens no browser: that would mean
  * spawning a program, and the URL is right there. Ctrl+C stops it. The whole
  * onboarding process, minus the onboarding. `toil-ui wipe` deletes the cache
- * and exits.
+ * and exits. The worklog (#308) is folded again at start, after every sync
+ * and after every agent question.
  */
 
 import { execute, mapOwi, registry, contractVersion as toilContract, version as toilVersion } from '@imagile-dev/toil/api';
@@ -22,6 +23,8 @@ import { createUiServer } from './server.ts';
 import { parseSettings, SettingsError, themesNotice, USAGE } from './settings.ts';
 import { fixtureStore, sqliteStore } from './store.ts';
 import { SyncService } from './sync.ts';
+import { WorklogService } from './worklog.ts';
+import { fixtureWorklog } from '../src/fixtures/worklog.ts';
 
 declare const __TOIL_UI_VERSION__: string;
 
@@ -63,6 +66,7 @@ async function main(): Promise<number> {
   // The cache and its sync, unless this is the sample: that reads the fixtures, and stores nothing.
   let cache: Cache | undefined;
   let sync: SyncService | undefined;
+  let worklog: WorklogService | undefined;
   if (!settings.sample) {
     try {
       cache = await Cache.open(settings.dataDir, { retentionDays: settings.retentionDays });
@@ -73,7 +77,19 @@ async function main(): Promise<number> {
       }
       throw e;
     }
-    sync = new SyncService({ cache, execute, mapOwi });
+    worklog = new WorklogService({ cache: () => cache!, execute });
+    const pages = worklog;
+    sync = new SyncService({
+      cache,
+      execute,
+      mapOwi,
+      onSaved: async (dossier) => {
+        await pages.reconcile(dossier);
+      },
+      onForgotten: () => pages.reconcileAll(),
+    });
+    // The cache pruned what outlived its retention as it opened; the pages follow it.
+    await worklog.reconcileAll().catch((e: unknown) => process.stderr.write(`toil-ui: couldn't fold the worklog pages again: ${e instanceof Error ? e.message : String(e)}\n`));
   }
   const toil = { version: toilVersion, contractVersion: toilContract };
   // The agent (#251): the adapter chosen in Settings, reading the cache, or the scripted one for the sample.
@@ -84,7 +100,11 @@ async function main(): Promise<number> {
     ? new AgentHost({
         dataDir: settings.dataDir,
         version: __TOIL_UI_VERSION__,
-        data: (dossier) => cacheData(cache!, dossier),
+        data: (dossier) => {
+          const data = cacheData(cache!, dossier);
+          return data && worklog ? { ...data, worklog: async (day) => (await worklog!.day(dossier, day)).page } : data;
+        },
+        onRun: (run) => worklog?.recordRun(run),
         registry: registry.commands,
         execute,
         mapIds: (envelope) => {
@@ -106,6 +126,7 @@ async function main(): Promise<number> {
     agent: host ?? fixtureAgent(),
     ...(host ? { agentControl: host } : {}),
     ...(sync ? { sync } : {}),
+    worklog: worklog ?? fixtureWorklog(),
     appDir: fileURLToPath(new URL('../app/', import.meta.url)),
     version: __TOIL_UI_VERSION__,
     toil,

@@ -31,6 +31,10 @@
  * would get in the page's theme. `agent/mcp` is the one route without a
  * session: it serves one question's read tools to the Codex CLI, by that
  * question's bearer token, and refuses anything carrying a page's `Origin`.
+ * The worklog (#308) is `worklog/month` and `worklog/day` to read, and
+ * `worklog/rebuild`, `worklog/note` and `worklog/export`, each an explicit
+ * press on the page: a note goes into the cache, and an export is a file
+ * toil's file service writes in the folder the person named.
  * The building has one door, one key and a guest book, and the guest book is
  * toil's audit log.
  */
@@ -54,6 +58,7 @@ import { localViewer, type RequestContext, type Viewer } from './context.ts';
 import type { Settings } from './settings.ts';
 import { READ_COMMANDS, type Access, type Store } from './store.ts';
 import { SyncBusy, type SyncService } from './sync.ts';
+import { WorklogRefusal, type ExportWhat, type WorklogApi } from '../src/worklog.ts';
 
 export interface UiServerOptions {
   settings: Settings;
@@ -72,6 +77,8 @@ export interface UiServerOptions {
   sync?: SyncService;
   /** The agent's settings (#251): `api/agent/settings`. None with sample data, which always uses the scripted agent. */
   agentControl?: AgentControl;
+  /** The worklog (#308): the cache's pages, or the sample's. Absent, `api/worklog/*` says there is none. */
+  worklog?: WorklogApi;
   /** Tests pass a fixed token; a real start makes one. */
   token?: string;
   viewer?: Viewer;
@@ -275,6 +282,25 @@ export function createUiServer(options: UiServerOptions): UiServer {
     json(res, 200, out);
   };
 
+  /** The worklog, or a 404 saying this server keeps none. */
+  const worklog = () => {
+    if (!options.worklog) throw new HttpError(404, 'This Toil UI keeps no worklog.', 'Start toil-ui with a cache to keep one.');
+    return options.worklog;
+  };
+  /** A worklog call, with its refusals as the page shows them. */
+  const worklogCall = async (res: ServerResponse, call: () => Promise<unknown>) => {
+    try {
+      json(res, 200, await call());
+    } catch (e) {
+      if (e instanceof WorklogRefusal) throw new HttpError(e.status, e.message, e.fix);
+      throw e;
+    }
+  };
+  const named = (value: unknown, what: string, shape: string) => {
+    if (typeof value !== 'string' || !value) throw new HttpError(400, `Name the ${what}.`, shape);
+    return value;
+  };
+
   /** The sync job, or a 404 saying this server has none (sample data syncs nothing). */
   const syncer = (): SyncService => {
     if (!options.sync) throw new HttpError(404, 'This Toil UI has no cache to sync: it serves sample data.', 'Start toil-ui without --sample to sync your own dossiers.');
@@ -462,8 +488,37 @@ export function createUiServer(options: UiServerOptions): UiServer {
         json(res, 200, syncer().status());
         return;
       }
+      case 'GET worklog/month': {
+        const dossier = named(url.searchParams.get('dossier'), 'dossier', `Ask ${base}api/worklog/month?dossier=<name>&month=<yyyy-mm>.`);
+        return worklogCall(res, () => worklog().month(dossier, url.searchParams.get('month') ?? undefined));
+      }
+      case 'GET worklog/day': {
+        const dossier = named(url.searchParams.get('dossier'), 'dossier', `Ask ${base}api/worklog/day?dossier=<name>&day=<yyyy-mm-dd>.`);
+        const day = named(url.searchParams.get('day'), 'day', `Ask ${base}api/worklog/day?dossier=<name>&day=<yyyy-mm-dd>.`);
+        return worklogCall(res, () => worklog().day(dossier, day));
+      }
+      case 'POST worklog/rebuild': {
+        const body = await readJson(req);
+        const shape = 'Send { "dossier": "<name>", "day": "<yyyy-mm-dd>" }.';
+        return worklogCall(res, () => worklog().rebuild(named(body.dossier, 'dossier', shape), named(body.day, 'day', shape)));
+      }
+      case 'POST worklog/note': {
+        const body = await readJson(req);
+        const shape = 'Send { "dossier": "<name>", "text": "<the note>" }.';
+        if (typeof body.text !== 'string') throw new HttpError(400, 'A note needs its text.', shape);
+        return worklogCall(res, () => worklog().addNote(named(body.dossier, 'dossier', shape), body.text as string, viewer.name));
+      }
+      case 'POST worklog/export': {
+        const body = await readJson(req);
+        const shape = 'Send { "dossier": "<name>", "day": "<yyyy-mm-dd>" } or { "dossier": "<name>", "month": "<yyyy-mm>" }, with "folder": "<a full path>".';
+        const extra = Object.keys(body).filter((k) => !['dossier', 'day', 'month', 'folder'].includes(k));
+        if (extra.length) throw new HttpError(400, `An export takes dossier, day or month, and folder, not ${extra.join(', ')}.`, shape);
+        if ((body.day === undefined) === (body.month === undefined)) throw new HttpError(400, 'Export a day or a month, one of the two.', shape);
+        const what: ExportWhat = body.day !== undefined ? { day: named(body.day, 'day', shape) } : { month: named(body.month, 'month', shape) };
+        return worklogCall(res, () => worklog().exportTo(named(body.dossier, 'dossier', shape), what, named(body.folder, 'folder', shape)));
+      }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, agent/starters, agent/ask, agent/prompt, agent/settings and agent/mcp.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, worklog/month, worklog/day, worklog/rebuild, worklog/note, worklog/export, agent/starters, agent/ask, agent/prompt, agent/settings and agent/mcp.`);
     }
   };
 

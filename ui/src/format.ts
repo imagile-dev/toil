@@ -41,6 +41,8 @@ export const personText = (p: Person | null) => (p ? (p.name ?? p.id) : 'Unassig
 export const dossierHref = (dossier: string) => `#/dossier/${encodeURIComponent(dossier)}`;
 export const itemHref = (dossier: string, id: string) => `${dossierHref(dossier)}/item/${encodeURIComponent(id)}`;
 export const prsHref = (dossier: string) => `${dossierHref(dossier)}/prs`;
+/** The worklog (#308): its calendar, or one UTC day's page. */
+export const worklogHref = (dossier: string, day?: string) => `${dossierHref(dossier)}/worklog${day ? `/${day}` : ''}`;
 
 /** A pull request's short name: `payments-core #311`, the host and owner left to the panel. */
 export const prName = (id: string) => {

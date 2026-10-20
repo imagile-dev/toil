@@ -10,7 +10,7 @@
 //      uses (scripts/real-home.mjs) at <clone>/.scratch/verify/home, made fresh
 //      each run, with the token from `gh auth token` in toil-ui's environment
 //      only. It syncs the `sandbox` dossier through toil, then runs the same
-//      check over the real-data routes (home, the dossier, one of its items,
+//      check over the real-data routes (home, the dossier, its worklog, one of its items,
 //      and every settings page in the layout check's list). With `--ask` it also asks Codex one starter
 //      question and checks that an answer arrived, that the server verified
 //      every [[id]] it cites, that its proposals parsed, that nothing ran (no
@@ -353,7 +353,7 @@ try {
       const item = await firstItemRoute(real.launchUrl, ready.dossier);
       if (!item) problems.push(`real data: the ${ready.dossier} dossier page links no work item, so no item view was checked.`);
       // The settings pages come from the layout check's own list, so a page added there is checked on real data too.
-      const routes = ['#/', `#/dossier/${ready.dossier}`, ...(item ? [item] : []), ...ROUTES.filter((r) => r.startsWith('#/settings/'))];
+      const routes = ['#/', `#/dossier/${ready.dossier}`, `#/dossier/${ready.dossier}/worklog`, ...(item ? [item] : []), ...ROUTES.filter((r) => r.startsWith('#/settings/'))];
       await layout('real', real.launchUrl, routes);
 
       if (ask) await askCodex(real.api, ready.dossier, home, ready.env.TOIL_UI_DATA_DIR);

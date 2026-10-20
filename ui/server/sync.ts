@@ -190,6 +190,13 @@ export interface SyncOptions {
   mapOwi: MapOwi;
   now?: () => Date;
   maxPages?: number;
+  /**
+   * After a dossier is saved, or after the job forgets the dossiers toil no
+   * longer has: the worklog (#308) folds its pages again. A failure is said in
+   * the job's messages and never fails the sync.
+   */
+  onSaved?: (dossier: string) => Promise<void>;
+  onForgotten?: () => Promise<void>;
 }
 
 export class SyncService {
@@ -198,6 +205,8 @@ export class SyncService {
   private readonly mapOwi: MapOwi;
   private readonly now: () => Date;
   private readonly maxPages: number;
+  private readonly onSaved: SyncOptions['onSaved'];
+  private readonly onForgotten: SyncOptions['onForgotten'];
   private job: SyncJob = idle();
   private current: Promise<SyncJob> | null = null;
   private controller: AbortController | null = null;
@@ -208,6 +217,8 @@ export class SyncService {
     this.mapOwi = options.mapOwi;
     this.now = options.now ?? (() => new Date());
     this.maxPages = options.maxPages ?? MAX_PAGES;
+    this.onSaved = options.onSaved;
+    this.onForgotten = options.onForgotten;
   }
 
   status(): SyncStatus {
@@ -249,6 +260,15 @@ export class SyncService {
     await this.current?.catch(() => {});
   }
 
+  /** Runs a hook after a save; its failure is a line in the job's messages, never a failed sync. */
+  private async after(what: string, hook: () => Promise<void> | undefined) {
+    try {
+      await hook();
+    } catch (e) {
+      this.say(`Couldn't update ${what}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+
   private say(message: string) {
     this.job.messages.push(message);
     if (this.job.messages.length > MAX_MESSAGES) this.job.messages.splice(0, this.job.messages.length - MAX_MESSAGES);
@@ -264,7 +284,11 @@ export class SyncService {
         .map((d) => String(d.name));
       if (only !== undefined && !names.includes(only)) throw new Error(`toil has no dossier named ${JSON.stringify(only)}. Run toil dossiers list to see them.`);
       // A dossier toil no longer has is forgotten, with everything synced for it.
-      if (only === undefined) for (const old of this.cache.dossierNames()) if (!names.includes(old)) this.cache.forget(old);
+      if (only === undefined) {
+        const gone = this.cache.dossierNames().filter((old) => !names.includes(old));
+        for (const old of gone) this.cache.forget(old);
+        if (gone.length) await this.after('the worklog of a dossier toil no longer has', () => this.onForgotten?.());
+      }
       const targets = only === undefined ? names : [only];
       job.dossiersTotal = targets.length;
       if (!targets.length) this.say('No dossiers to sync: add one with toil dossiers add.');
@@ -347,6 +371,7 @@ export class SyncService {
       deployments: loaded.deployments,
       sources,
     });
+    await this.after(`${name}'s worklog`, () => this.onSaved?.(name));
     const failed = sources.filter((s) => !s.ok);
     this.say(`${name}: ${loaded.items.length} items, ${loaded.changes.length} changes, ${loaded.deployments.length} deployments${failed.length ? `; ${failed.map((s) => s.area).join(', ')} failed, showing the last good copy` : ''}`);
   }
