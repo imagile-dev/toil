@@ -7,8 +7,8 @@ requests view for what is waiting on review, and a daily worklog of what happene
 
 **Status: alpha, local only.** It runs on your own machine, binds loopback, and
 reads through toil with your own connections and dossiers, read-only. Its
-settings pages are the one place it changes anything of toil's, and only toil's own
-connections and dossiers. The worklog keeps its pages and the notes you add in its own
+settings pages, and a dossier's name and description edited in place, are the only
+places it changes anything of toil's, and only toil's own connections and dossiers. The worklog keeps its pages and the notes you add in its own
 data folder, and writes anywhere else only when you export a page. Its Feedback dialog sends a report to Imagile through
 `toil feedback`, only when you approve it. It is a separate package from toil: installing toil
 never installs it.
@@ -34,7 +34,7 @@ It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
 Toil UI 0.1.0-alpha.1 (alpha, local only), on toil 0.1.0-alpha.3
-Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil's own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
+Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages, and a dossier's name and description edited in place, change anything: toil's own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
 Open this URL in your browser. It carries this launch's token, so keep it to yourself:
