@@ -44,6 +44,21 @@ export function cachePaths(dataDir: string, path: PathApi = nodePath): CachePath
   return { dir, db: path.join(dir, 'toil-ui.db') };
 }
 
+/**
+ * How the file commits (#328). SQLite's default rollback journal creates,
+ * flushes and deletes a `-journal` file on every commit, and a sync commits
+ * many times: on Windows each of those is a file the antivirus scans and a
+ * flush to disk, which made a sync tens of times slower there than on Linux
+ * or macOS. A write-ahead log appends to one file and, with `synchronous =
+ * NORMAL`, flushes only at a checkpoint. A crash of Toil UI loses nothing
+ * and never corrupts the file; a power cut may lose the last commits, which
+ * the next sync fetches again, since everything here is a copy of what toil
+ * read. The `-wal` and `-shm` files sit beside the database in the cache
+ * folder, so `wipe` removes them with it, and closing the file folds the log
+ * back in and deletes them.
+ */
+export const JOURNAL = 'PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;';
+
 /** One schema step: run once, in order, inside a transaction, taking `user_version` to `version`. */
 export interface Migration {
   version: number;
@@ -377,7 +392,9 @@ export class Cache {
       } catch {
         // Windows has no POSIX modes; the folder is under the user's profile there.
       }
-      return new DatabaseSync(path, { timeout: 5000 });
+      const db = new DatabaseSync(path, { timeout: 5000 });
+      db.exec(JOURNAL);
+      return db;
     };
     let db: DatabaseSync | undefined;
     try {

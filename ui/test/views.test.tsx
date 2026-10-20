@@ -27,9 +27,19 @@ async function open(hash: string, { preview = true, execute = fixtureExecute().e
   return view;
 }
 
-/** axe's rules, less colour contrast, which jsdom can't compute (themes.test.ts checks the tokens). */
+/**
+ * A case that renders a whole dashboard and runs axe over it, about 1,600
+ * elements in jsdom: about a second on a laptop, two to five on a Windows
+ * runner (#328), so it gets more than Vitest's 5 s default.
+ */
+const AXE_TIMEOUT = 20_000;
+
+/**
+ * axe's rules, less colour contrast, which jsdom can't compute (themes.test.ts checks the tokens).
+ * Only violations are read, so axe skips building the passes (#328).
+ */
 async function violations(container: HTMLElement) {
-  const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false } } });
+  const result = await axe.run(container, { rules: { 'color-contrast': { enabled: false } }, resultTypes: ['violations'] });
   return result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
 }
 
@@ -54,7 +64,7 @@ describe('every view', () => {
     const { container } = await open(hash);
     expect(document.documentElement.dataset.theme).toBe(theme);
     expect(await violations(container)).toEqual([]);
-  });
+  }, AXE_TIMEOUT);
 
   it('names the app "toil UI" in the header, by its own words: the wordmark, then the sticker, read as one link home (#272, #277)', async () => {
     await open('#/dossier/settlement');

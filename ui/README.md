@@ -128,7 +128,9 @@ requests, builds and deployments that name them.
   says when each dossier was synced, and shows a running sync's progress
   (requests, pages and retries, from toil's own progress events).
 - **Where.** The cache is one SQLite file, `cache/toil-ui.db` in the data folder,
-  through Node's built-in `node:sqlite`, so there's no native module. It holds
+  through Node's built-in `node:sqlite`, so there's no native module. While Toil
+  UI runs, its write-ahead log (`toil-ui.db-wal` and `toil-ui.db-shm`) sits beside
+  it, and closing folds the log back into the file. It holds
   ticket content, so it stays on this machine and is readable by your account
   only.
 - **For how long.** Anything not synced again within the retention period (30
