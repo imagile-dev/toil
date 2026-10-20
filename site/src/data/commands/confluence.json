@@ -30,7 +30,7 @@
     "flags": [
       "--space <key>",
       "--limit <n>",
-      "--start <n>"
+      "--offset <n>"
     ]
   },
   {
@@ -62,7 +62,7 @@
     "flags": [
       "--cql <query>",
       "--limit <n>",
-      "--start <n>",
+      "--offset <n>",
       "--expand <fields>"
     ]
   },

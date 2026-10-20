@@ -45,7 +45,7 @@
     "connection": true,
     "flags": [
       "<name>",
-      "--top <n>",
+      "--limit <n>",
       "--instance <name>"
     ]
   },

@@ -251,16 +251,16 @@ describe('pipeline runs', () => {
     expect(envelope.data).toEqual([]);
   });
 
-  it('suspected bug #80 item 3: --top above 100 asks builds{0,N}, which Jenkins caps at 100', async () => {
-    const { calls } = await run(pipelineListRunsCommand, { name: 'job', top: '500' }, [json({ builds: [] })]);
+  it('suspected bug #80 item 3: --limit above 100 asks builds{0,N}, which Jenkins caps at 100', async () => {
+    const { calls } = await run(pipelineListRunsCommand, { name: 'job', limit: '500' }, [json({ builds: [] })]);
     expect(new URL(calls[0]!.url).searchParams.get('tree')).toBe(buildsTree(500));
   });
 
-  it('refuses a top that is not a positive integer, before any request', async () => {
+  it('refuses a limit that is not a positive integer, before any request', async () => {
     for (const top of ['0', '-1', 'abc']) {
-      const { envelope, calls } = await run(pipelineListRunsCommand, { name: 'job', top }, []);
+      const { envelope, calls } = await run(pipelineListRunsCommand, { name: 'job', limit: top }, []);
       expect(calls).toEqual([]);
-      expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: `Invalid --top "${top}". Expected a positive integer.` });
+      expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: `Invalid --limit "${top}". Expected a positive integer.` });
     }
   });
 });

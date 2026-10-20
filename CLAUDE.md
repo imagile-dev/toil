@@ -66,8 +66,9 @@ gets made again in the next place it applies.
    repository or another CLI as a reference or comparison. The command contract
    (**The command contract**, below) is toil's own record, kept by hand in this
    repository.
-7. **Never break what users already rely on silently.** Config on disk, flags, the
-   JSON envelope and precedence are contracts; changing them is a declared,
+7. **Never break what users already rely on silently.** Config on disk, command paths
+   and flags, MCP tool names (which follow the paths), page cursors, the JSON envelope
+   and precedence are contracts; changing them is a declared,
    documented breaking change. → Output Contract, Delivery. **This starts at toil's
    first npm release**, which waits until every integration is built. Alpha
    prereleases (`0.1.0-alpha.N`) don't count (the maintainer's call, 2026-10-19). Until then
@@ -709,7 +710,10 @@ for production; it is never read from `defaults.<area>`. Env vars can enable wri
 for CI (`TOIL_CONN_<NAME>_WRITES=true`, or `TOIL_<AREA>_WRITES=true` for the
 default connection), following normal precedence.
 Deletes are never exposed through MCP: a delete command sets `mcp: false`, and the
-raw passthrough refuses a `DELETE` over MCP (`offMcpWhen`).
+raw passthrough refuses a `DELETE` over MCP (`offMcpWhen`). A delete is a command
+that sends an HTTP `DELETE`; a removal the service takes another way (Jira removes a
+label with a `PUT`) is a write like any other, so the same verb (`unlabel`) can be on
+MCP in one area and off it in another.
 
 Writing files on this machine outside toil's own config counts as a write too: the
 `skills` commands that install into or switch plugins in an agent's skills folder

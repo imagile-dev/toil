@@ -146,7 +146,8 @@ Owner, repo, labels and refs go into request paths as typed; a value that would 
     midnight) and sends it as UTC to the second, `2025-01-31T00:00:00Z`.
   - Labels and assignees, on an issue or a pull request by its number: `issue label
     <number>` (repeatable `--label`), `issue unlabel <number> --label`, `issue assign
-    <number>` and `issue unassign <number>` (repeatable `--assignee`).
+    <number>` and `issue unassign <number>` (repeatable `--assignee`). `pr label`,
+    `pr unlabel`, `pr assign` and `pr unassign` are the same commands.
 - **Projects (v2):** GitHub's boards, read over GraphQL. They belong to an owner, so
   only `--owner` is read; `<project>` is the number in the project's URL.
   - `project list`: the owner's projects (`id`, `number`, `title`, `url`, `closed`, …).
@@ -172,7 +173,8 @@ Owner, repo, labels and refs go into request paths as typed; a value that would 
 - **Merging:** `pr enable-auto-merge <number>` and `pr enqueue <number>` (`--method`,
   `--match-head-commit <sha>`), `pr disable-auto-merge <number>`.
 - **Comments:** `pr comments <number>` and `pr comment <number> --body` (the general
-  comments, which work on an issue's number too), `pr review-comments <number>`,
+  comments, which work on an issue's number too; `issue comments` and `issue comment`
+  are the same commands), `pr review-comments <number>`,
   `pr comment-inline <number>` (`--commit`, `--file`, `--line`, `--body`, `--side
   LEFT|RIGHT`, default `RIGHT`), `pr reply <number> <comment-id> --body`,
   `pr delete-comment <comment-id>`, `pr delete-review-comment <comment-id>`.

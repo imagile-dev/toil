@@ -33,20 +33,20 @@ export const dashboardsListCommand = kibanaArea.command({
   input: z.object({
     search: z.string().optional().describe('Match dashboard titles; supports a trailing * wildcard (e.g. "payments*")'),
     page: intText.default('1').describe('Page number (default: "1")'),
-    perPage: intText.default('100').describe('Results per page (default: "100")'),
+    pageSize: intText.default('100').describe('Results per page (default: "100")'),
   }),
   writes: false,
   context: { space: 'optional' },
   options: [
     { flags: '--search <text>', field: 'search', description: 'Match dashboard titles; supports a trailing * wildcard (e.g. "payments*")' },
     { flags: '--page <n>', field: 'page', description: 'Page number (default: "1")' },
-    { flags: '--per-page <n>', field: 'perPage', description: 'Results per page (default: "100")' },
+    { flags: '--page-size <n>', field: 'pageSize', description: 'Results per page (default: "100")' },
   ],
-  examples: [{}, { search: 'pay*', space: 'ops', page: '2', perPage: '20' }],
+  examples: [{}, { search: 'pay*', space: 'ops', page: '2', pageSize: '20' }],
   run: async (input, ctx) => {
     const space = ctx.context.space;
     const page = positiveInt(input.page, '--page');
-    const perPage = positiveInt(input.perPage, '--per-page');
+    const perPage = positiveInt(input.pageSize, '--page-size');
     const data = await kibana<FindResponse>(ctx, spacePath(space, '/api/saved_objects/_find'), {
       query: { type: 'dashboard', search: input.search, search_fields: input.search ? 'title' : undefined, page, per_page: perPage },
     });

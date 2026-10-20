@@ -15,6 +15,8 @@ const commentId = intText.describe('Comment ID');
 
 export const listCommentsCommand = githubArea.command({
   path: ['github', 'pr', 'comments'],
+  // It takes a pull request's number or an issue's, so it is reachable from both.
+  aliases: [['github', 'issue', 'comments']],
   description: 'List general comments on a pull request (or an issue, by its number)',
   input: z.object({ number: itemNumber, ...pageFields('comments') }),
   writes: false,
@@ -33,6 +35,8 @@ export const listCommentsCommand = githubArea.command({
 
 export const addCommentCommand = githubArea.command({
   path: ['github', 'pr', 'comment'],
+  // It takes a pull request's number or an issue's, so it is reachable from both.
+  aliases: [['github', 'issue', 'comment']],
   description: 'Add a general comment to a pull request (or an issue, by its number)',
   input: z.object({ number: itemNumber, body: z.string().describe('Comment text'), ...allowWriteField }),
   writes: true,

@@ -359,10 +359,12 @@ breaking the other.
   `assign`, `transition`, `link`, `comment`, `merge`, `approve`, `download`), **or,
   for a read of a sub-collection, its plural noun** (`comments`, `transitions`,
   `attachments`, `files`, `reviewers`, `builds`, `threads`, `fields`, `types`).
-- **Service-level commands stay two words**: `whoami`, `connection-data`, `api`,
-  `check-dossier`, `status`, `ping`, and an inventory command that is an area's one
-  job (`osv vulns`, `ossindex vulns`, `sonatypeiq evaluate`), which `deps frisk`'s
-  routed alias reaches with flags only.
+- **A service-level command stays two words**: one that acts on the connection or the
+  service as a whole rather than on one resource (`whoami`, `connection-data`, `api`,
+  `check-dossier`, `status`, `ping`, `db query`, `alation search`), and an inventory
+  command that is an area's one job (`osv vulns`, `ossindex vulns`, `sonatypeiq
+  evaluate`). `sonatypeiq evaluate` keeps `--application-id` as a flag, a named
+  exception: `deps frisk`'s routed alias can pass flags only.
 - **Positional arguments are the path to the thing and nothing else**: the
   resource's id first, then a sub-item's id (an attachment, a thread, a comment).
   Values, including the other end of a link, a state, a sprint or a person, are
@@ -374,6 +376,13 @@ breaking the other.
   its flag, and a positional id's field after the argument (`key` for a Jira issue,
   `id` for most others, `name` or `commit` where that's what identifies it). Where an
   idea needs two flags (`--top` beside `--limit`), `AGENT_DECISIONS.md` says why.
+  Page-number paging is `--page` and `--page-size`, and an offset is `--offset`.
+  **Named exceptions**, the vendor's own terms where the idea isn't quite ours:
+  GitHub's `--head` / `--base` on `pr create` (Git's refs, where ADO and Bitbucket
+  say `--source` / `--target`), ADO's `--creator`, and `--all`, which means
+  "every page" in sonar and sde and "include the rest" elsewhere.
+- **An id that starts with `-`** goes after `--` on the CLI, and the error for one
+  given without it says so (`dashLedFix` in `src/program.ts`).
 - **Reshaping an area changes the command layer only**: paths, arguments, flags,
   field names and the text that names them. Client code, requests, results, errors
   and `data` stay as the contract records them. The old paths and flags are dropped,

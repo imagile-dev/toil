@@ -111,9 +111,9 @@ describe('pages', () => {
     expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'Page not found: "Nope" in space DOCS' });
   });
 
-  it('page list: pages 25 at a time from --start, asking the last page only for what --limit leaves', async () => {
+  it('page list: pages 25 at a time from --offset, asking the last page only for what --limit leaves', async () => {
     const twentyFive = Array.from({ length: 25 }, (_, i) => ({ id: String(i) }));
-    const { envelope, calls } = await run(listPages, { space: 'DOCS', limit: '30', start: '5' }, [
+    const { envelope, calls } = await run(listPages, { space: 'DOCS', limit: '30', offset: '5' }, [
       { path: '/rest/api/content', query: { spaceKey: 'DOCS', type: 'page', expand: 'version', start: '5', limit: '25' }, respond: listOf(twentyFive, true) },
       { path: '/rest/api/content', query: { spaceKey: 'DOCS', type: 'page', expand: 'version', start: '30', limit: '5' }, respond: listOf(twentyFive.slice(0, 5), true) },
     ]);
@@ -161,7 +161,7 @@ describe('pages', () => {
   });
 
   it('page search: parseInt, so --limit 10abc is 10 and --limit abc goes out as NaN (#78 item 9)', async () => {
-    const r = await run(search, { cql: 'x', limit: '10abc', start: 'abc', expand: 'space' }, [{ url: /search/, respond: { json: {} } }]);
+    const r = await run(search, { cql: 'x', limit: '10abc', offset: 'abc', expand: 'space' }, [{ url: /search/, respond: { json: {} } }]);
     expect(r.calls[0]!.url).toBe(`${API}/content/search?cql=x&start=NaN&limit=10&expand=space`);
   });
 

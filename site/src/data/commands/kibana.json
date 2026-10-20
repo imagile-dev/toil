@@ -24,7 +24,7 @@
     "flags": [
       "--search <text>",
       "--page <n>",
-      "--per-page <n>",
+      "--page-size <n>",
       "--space <id>"
     ]
   },
@@ -59,7 +59,7 @@
     "flags": [
       "--search <text>",
       "--page <n>",
-      "--per-page <n>",
+      "--page-size <n>",
       "--space <id>"
     ]
   },

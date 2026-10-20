@@ -66,18 +66,18 @@ export const listPages = confluenceArea.command({
   input: z.object({
     space: z.string().describe('Space key'),
     limit: intText.optional().describe('Max total pages to return (default: all)'),
-    start: intText.optional().describe('Offset for first result'),
+    offset: intText.optional().describe('Offset for first result'),
   }),
   writes: false,
   options: [
     { flags: '--space <key>', field: 'space', description: 'Space key' },
     { flags: '--limit <n>', field: 'limit', description: 'Max total pages to return (default: all)' },
-    { flags: '--start <n>', field: 'start', description: 'Offset for first result' },
+    { flags: '--offset <n>', field: 'offset', description: 'Offset for first result' },
   ],
-  examples: [{ space: 'DOCS' }, { space: 'DOCS', limit: '30', start: '5' }],
+  examples: [{ space: 'DOCS' }, { space: 'DOCS', limit: '30', offset: '5' }],
   run: async (input, ctx) => {
     const max = optionalInt(input.limit);
-    return client.warnBadLimit(ctx, input.limit, max, await client.listPages(ctx, input.space, { max, start: optionalInt(input.start) }));
+    return client.warnBadLimit(ctx, input.limit, max, await client.listPages(ctx, input.space, { max, start: optionalInt(input.offset) }));
   },
 });
 
@@ -104,25 +104,25 @@ export const getPageHistory = confluenceArea.command({
 export const search = confluenceArea.command({
   path: ['confluence', 'page', 'search'],
   description: 'Search Confluence with CQL',
-  toolDescription: "Runs a CQL query and returns Confluence's search result as it came (results, start, limit, size). One page: raise limit or advance start for more.",
+  toolDescription: "Runs a CQL query and returns Confluence's search result as it came (results, start, limit, size). One page: raise limit or advance offset for more.",
   input: z.object({
     cql: z.string().describe('CQL query string (e.g. "space=PROJ AND type=page")'),
     limit: intText.optional().describe('Maximum number of results (default: "25")'),
-    start: intText.optional().describe('Offset for first result (default: "0")'),
+    offset: intText.optional().describe('Offset for first result (default: "0")'),
     expand: z.string().optional().describe('Comma-separated fields to expand'),
   }),
   writes: false,
   options: [
     { flags: '--cql <query>', field: 'cql', description: 'CQL query string (e.g. "space=PROJ AND type=page")' },
     { flags: '--limit <n>', field: 'limit', description: 'Maximum number of results (default: "25")' },
-    { flags: '--start <n>', field: 'start', description: 'Offset for first result (default: "0")' },
+    { flags: '--offset <n>', field: 'offset', description: 'Offset for first result (default: "0")' },
     { flags: '--expand <fields>', field: 'expand', description: 'Comma-separated fields to expand' },
   ],
-  examples: [{ cql: 'space=DOCS AND type=page' }, { cql: 'text~"runbook"', limit: '10', start: '20', expand: 'space,version' }],
+  examples: [{ cql: 'space=DOCS AND type=page' }, { cql: 'text~"runbook"', limit: '10', offset: '20', expand: 'space,version' }],
   run: (input, ctx) =>
     client.search(ctx, input.cql, {
       limit: parseInt(String(input.limit ?? '25'), 10),
-      start: parseInt(String(input.start ?? '0'), 10),
+      start: parseInt(String(input.offset ?? '0'), 10),
       expand: input.expand,
     }),
 });

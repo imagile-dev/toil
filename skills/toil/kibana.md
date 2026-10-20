@@ -99,7 +99,7 @@ to the connection's `space`; the default space has no URL prefix, any other is
   each `{ id, name, description, disabledFeatures }`.
 - `dashboard list`: List dashboards (id, title, description, last updated).
   `--search` matches titles (a trailing `*` is a wildcard). One page per call:
-  `--page` (default 1) and `--per-page` (default 100), each a whole number of at
+  `--page` (default 1) and `--page-size` (default 100), each a whole number of at
   least 1. `data` is `{ space, total, page, perPage, count, dashboards }`; ask for the
   next page while `page × perPage < total`. Kibana marks the API it uses
   (`_find`) as deprecated, though it still serves it.
@@ -113,7 +113,7 @@ to the connection's `space`; the default space has no URL prefix, any other is
   count, dataViews }`, each `{ id, name, pattern, namespaces }`; a view with no name
   is named by its pattern.
 - `rule list`: List alerting rules with their schedule and last execution status.
-  `--search` matches names; `--page` and `--per-page` as for `dashboard list`. Each
+  `--search` matches names; `--page` and `--page-size` as for `dashboard list`. Each
   rule is `{ id, name, ruleTypeId, consumer, enabled, muted, tags, interval,
   executionStatus, lastExecutionDate, lastRunOutcome, error, nextRun, updatedAt }`.
 - `rule get <id>`: Get one alerting rule, including its params and actions. `data` is the same summary plus `params` and `actions`.
@@ -126,6 +126,6 @@ toil kibana space list
 toil kibana dashboard list --search "payments*" --space ops
 toil kibana dashboard export abc12345 abc12346 --no-references
 toil kibana data-view list
-toil kibana rule list --search "High*" --per-page 20
+toil kibana rule list --search "High*" --page-size 20
 toil kibana rule get abc12345-0000-0000-0000-000000000000
 ```

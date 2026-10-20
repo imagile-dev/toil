@@ -93,6 +93,8 @@ export const createIssueCommand = githubArea.command({
 
 export const addLabelsCommand = githubArea.command({
   path: ['github', 'issue', 'label'],
+  // It takes a pull request's number or an issue's, so it is reachable from both.
+  aliases: [['github', 'pr', 'label']],
   description: 'Add labels to an issue or pull request',
   input: z.object({ number: itemNumber, label: repeatedFlag('Label to add (repeatable) (default: [])'), ...allowWriteField }),
   writes: true,
@@ -108,6 +110,8 @@ export const addLabelsCommand = githubArea.command({
 
 export const removeLabelCommand = githubArea.command({
   path: ['github', 'issue', 'unlabel'],
+  // It takes a pull request's number or an issue's, so it is reachable from both.
+  aliases: [['github', 'pr', 'unlabel']],
   description: 'Remove a label from an issue or pull request',
   input: z.object({ number: itemNumber, label: z.string().describe('Label name to remove'), ...allowWriteField }),
   writes: true,
@@ -133,6 +137,8 @@ function assignees(ctx: GitHubContext, number: number | string, assignee: string
 
 export const addAssigneesCommand = githubArea.command({
   path: ['github', 'issue', 'assign'],
+  // It takes a pull request's number or an issue's, so it is reachable from both.
+  aliases: [['github', 'pr', 'assign']],
   description: 'Add assignees to an issue or pull request',
   input: z.object({ number: itemNumber, assignee: repeatedFlag('Assignee login (repeatable) (default: [])'), ...allowWriteField }),
   writes: true,
@@ -144,6 +150,8 @@ export const addAssigneesCommand = githubArea.command({
 
 export const removeAssigneesCommand = githubArea.command({
   path: ['github', 'issue', 'unassign'],
+  // It takes a pull request's number or an issue's, so it is reachable from both.
+  aliases: [['github', 'pr', 'unassign']],
   description: 'Remove assignees from an issue or pull request',
   input: z.object({ number: itemNumber, assignee: repeatedFlag('Assignee login to remove (repeatable) (default: [])'), ...allowWriteField }),
   writes: true,

@@ -155,7 +155,7 @@ naming the list.
 `page search` returns one page, as Confluence returns it (`results`, `size`, `totalSize`,
 `_links`), 25 results unless `--limit` says otherwise. When there are more,
 `meta.page.nextCursor` is the cursor from its `_links.next`: pass it as `--cursor`
-(with the same `--cql`) for the next page. `confluence`'s `--start` isn't here: Cloud
+(with the same `--cql`) for the next page. `confluence`'s `--offset` isn't here: Cloud
 search pages by cursor.
 
 ## Notes

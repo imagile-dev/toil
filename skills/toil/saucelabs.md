@@ -140,7 +140,7 @@ Sauce Connect tunnels, under your username:
 
 App storage (metadata only; no upload or download):
 
-- `storage files`: List uploaded app files (`--query`, `--kind android|ios`, `--page` (starts at 1), `--per-page` (max 100))
+- `storage files`: List uploaded app files (`--query`, `--kind android|ios`, `--page` (starts at 1), `--page-size` (max 100))
 - `storage groups`: List app groups (all versions of one app), with the same flags
 
 Teams:

@@ -5734,7 +5734,7 @@
           "description": "Max total pages to return (default: all)"
         },
         {
-          "flags": "--start <n>",
+          "flags": "--offset <n>",
           "description": "Offset for first result"
         }
       ],
@@ -5843,7 +5843,7 @@
           "description": "Maximum number of results (default: \"25\")"
         },
         {
-          "flags": "--start <n>",
+          "flags": "--offset <n>",
           "description": "Offset for first result (default: \"0\")"
         },
         {
@@ -7924,7 +7924,7 @@
       "leaf": true,
       "options": [
         {
-          "flags": "--top <n>",
+          "flags": "--limit <n>",
           "description": "Maximum number of builds to return (default 25) (default: \"25\")"
         }
       ],
@@ -10428,7 +10428,7 @@
           "description": "Page number (default: \"1\")"
         },
         {
-          "flags": "--per-page <n>",
+          "flags": "--page-size <n>",
           "description": "Results per page (default: \"100\")"
         },
         {
@@ -10533,7 +10533,7 @@
           "description": "Page number (default: \"1\")"
         },
         {
-          "flags": "--per-page <n>",
+          "flags": "--page-size <n>",
           "description": "Results per page (default: \"100\")"
         },
         {
@@ -13020,7 +13020,7 @@
           "description": "Page number (starts at 1)"
         },
         {
-          "flags": "--per-page <n>",
+          "flags": "--page-size <n>",
           "description": "Results per page (max 100)"
         }
       ],
@@ -13049,7 +13049,7 @@
           "description": "Page number (starts at 1)"
         },
         {
-          "flags": "--per-page <n>",
+          "flags": "--page-size <n>",
           "description": "Results per page (max 100)"
         }
       ],

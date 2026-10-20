@@ -71,10 +71,10 @@ with `INVALID_INPUT` before anything is sent.
 |---------|-------|---------|
 | `page get` | `<id> --expand` | The page (default expand `body.storage,version,space,ancestors`) |
 | `page find` | `--space --title` | The first page with that exact title, or `NOT_FOUND` |
-| `page list` | `--space --limit --start` | Every page in the space (or `--limit` of them, from `--start`) |
+| `page list` | `--space --limit --offset` | Every page in the space (or `--limit` of them, from `--offset`) |
 | `page children` | `<id>` | Every child page |
 | `page history` | `<id>` | The page's history metadata |
-| `page search` | `--cql --limit --start --expand` | Confluence's search result, one page (25 by default) |
+| `page search` | `--cql --limit --offset --expand` | Confluence's search result, one page (25 by default) |
 | `page create` ✎ | `--space --title --body or --body-file --markdown --parent-id --representation` | The created page |
 | `page update` ✎ | `<id> --title --body or --body-file --markdown --status --representation` | The updated page |
 | `page delete` ✎ | `<id>` | `{ deleted }` |

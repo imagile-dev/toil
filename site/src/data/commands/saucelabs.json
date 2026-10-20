@@ -544,7 +544,7 @@
       "--query <text>",
       "--kind <kind>",
       "--page <n>",
-      "--per-page <n>"
+      "--page-size <n>"
     ]
   },
   {
@@ -557,7 +557,7 @@
       "--query <text>",
       "--kind <kind>",
       "--page <n>",
-      "--per-page <n>"
+      "--page-size <n>"
     ]
   },
   {

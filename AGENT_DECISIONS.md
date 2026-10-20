@@ -3892,17 +3892,20 @@ choices made by default inside that:
 The rest of the integrations moved to the command shape, the same way `jira` and
 `ado` did in #290. These are the choices made by default:
 
-- **Page-number paging keeps its flags.** `--page`, `--page-size`, `--per-page` and
-  `--all` (sonar, sde, kibana) and Jenkins' `--top` are a different idea from `--limit`,
-  so they stay. Flags that meant `--limit` or `--offset` under another name were
-  renamed: Elasticsearch `--size`/`--from`, Alation's and Sauce Labs' `--skip`.
+- **Paging is `--limit`, `--offset`, `--page` and `--page-size`** (the maintainer's call
+  on the principle review). Renamed to them: Elasticsearch `--size`/`--from`, Alation's
+  and Sauce Labs' `--skip`, Jenkins' `--top` (its only cap), Confluence's `--start`,
+  and Kibana's and Sauce Labs' `--per-page`. ADO's `run list --top` stays beside
+  `--limit`, as #290 recorded, and `--all` stays as each area has it.
 - **`sonatypeiq evaluate` keeps its path and `--application-id` flag.** `deps frisk`'s
   routed alias can pass only flags, so a positional id would stop the CLI starting
   (`resolveRoutedAliases`). It sits with `osv vulns` and `ossindex vulns` as an area's
   one inventory command.
-- **GitHub's issue comments live under `pr`** (`pr comments`, `pr comment`): the API
-  is the issue's, and it takes a PR's or an issue's number, but PR review is where
-  people look for it. Labels and assignees, which work the same way, live under `issue`.
+- **GitHub's comments, labels and assignees are under both `pr` and `issue`** (the
+  maintainer's call): `pr comments` and `pr comment` are the commands, with `issue
+  comments` and `issue comment` as deliberate aliases; `issue label`, `unlabel`,
+  `assign` and `unassign` are the commands, with `pr …` aliases. Each takes either
+  kind of number.
 - **`sde project get [id]` drops its `--id` context input.** Core can't put a context
   input on a positional, so without an id the command uses the `project` context
   (`--project`, the dossier, the connection), and `meta.context` reports `project`.

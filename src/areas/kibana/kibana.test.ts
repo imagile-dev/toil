@@ -192,16 +192,16 @@ describe('dashboard list', () => {
     expect((await run(dashboardsListCommand, { space: 'team a/b' }, [json(find(1, 100))])).calls[0]!.url).toContain(`${KIBANA}/s/team%20a%2Fb/api/saved_objects/_find?`);
   });
 
-  it('refuses a --page or --per-page that is not a positive integer, before any request', async () => {
-    for (const [input, flag] of [[{ page: '0' }, '--page'], [{ perPage: '1.5' }, '--per-page'], [{ perPage: 'ten' }, '--per-page']] as const) {
+  it('refuses a --page or --page-size that is not a positive integer, before any request', async () => {
+    for (const [input, flag] of [[{ page: '0' }, '--page'], [{ pageSize: '1.5' }, '--page-size'], [{ pageSize: 'ten' }, '--page-size']] as const) {
       const { envelope, calls } = await run(dashboardsListCommand, input, []);
       expect(calls).toEqual([]);
       expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: `${flag} must be a positive integer.` });
     }
   });
 
-  it('takes --page and --per-page as numbers over MCP too', async () => {
-    const { calls } = await run(dashboardsListCommand, { page: 3, perPage: 10 }, [json(find(3, 10))]);
+  it('takes --page and --page-size as numbers over MCP too', async () => {
+    const { calls } = await run(dashboardsListCommand, { page: 3, pageSize: 10 }, [json(find(3, 10))]);
     expect(calls[0]!.url).toBe(`${KIBANA}/api/saved_objects/_find?type=dashboard&page=3&per_page=10`);
   });
 });
@@ -279,7 +279,7 @@ describe('data-view list', () => {
 
 describe('rule list and rule get', () => {
   it('list GETs one page of _find, searching names, and flattens each rule', async () => {
-    const { envelope, calls } = await run(rulesListCommand, { search: 'High*', perPage: '20' }, [json({ page: 1, per_page: 20, total: 1, data: [rule] })]);
+    const { envelope, calls } = await run(rulesListCommand, { search: 'High*', pageSize: '20' }, [json({ page: 1, per_page: 20, total: 1, data: [rule] })]);
     expect(calls).toEqual([{ method: 'GET', url: `${KIBANA}/api/alerting/rules/_find?search=High*&search_fields=name&page=1&per_page=20`, headers: HEADERS, body: undefined }]);
     expect(envelope.data).toEqual({
       space: 'default',
@@ -313,10 +313,10 @@ describe('rule list and rule get', () => {
     expect((envelope.data as { rules: unknown[] }).rules[0]).toEqual({ id: 'r', name: 'n', ruleTypeId: 't', enabled: false, muted: false, tags: [] });
   });
 
-  it('list refuses a non-positive --per-page before any request', async () => {
-    const { envelope, calls } = await run(rulesListCommand, { perPage: '0' }, []);
+  it('list refuses a non-positive --page-size before any request', async () => {
+    const { envelope, calls } = await run(rulesListCommand, { pageSize: '0' }, []);
     expect(calls).toEqual([]);
-    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--per-page must be a positive integer.' });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--page-size must be a positive integer.' });
   });
 
   it('get encodes the id into the space path and adds params and actions', async () => {

@@ -152,15 +152,15 @@ async function waitForBuild(ctx: JenkinsContext, name: string, buildNumber: numb
 export const pipelineListRunsCommand = jenkinsArea.command({
   path: ['jenkins', 'pipeline', 'runs'],
   description: 'List recent builds for a job',
-  input: z.object({ name, top: intText.optional().describe(TOP_DESCRIPTION) }),
+  input: z.object({ name, limit: intText.optional().describe(TOP_DESCRIPTION) }),
   writes: false,
   args: [nameArg],
-  options: [{ flags: '--top <n>', field: 'top', description: TOP_DESCRIPTION }],
-  examples: [{ name: 'api-build' }, { name: 'platform/api-build', top: '5', instance: 'jenkins' }],
+  options: [{ flags: '--limit <n>', field: 'limit', description: TOP_DESCRIPTION }],
+  examples: [{ name: 'api-build' }, { name: 'platform/api-build', limit: '5', instance: 'jenkins' }],
   run: async (input, ctx) => {
-    const top = parseIntText(input.top, '25');
+    const top = parseIntText(input.limit, '25');
     if (isNaN(top) || top <= 0) {
-      throw new ToilError('INVALID_INPUT', `Invalid --top "${shown(input.top, '25')}". Expected a positive integer.`, { fix: 'Pass a whole number above zero, e.g. --top 10.' });
+      throw new ToilError('INVALID_INPUT', `Invalid --limit "${shown(input.limit, '25')}". Expected a positive integer.`, { fix: 'Pass a whole number above zero, e.g. --limit 10.' });
     }
     return listBuilds(ctx, input.name, top);
   },
