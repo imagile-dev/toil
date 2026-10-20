@@ -50,13 +50,36 @@ describe('requests', () => {
 });
 
 describe('project and repo', () => {
-  it('go into paths unencoded, but a ../ segment is refused by core before anything is sent (#76 item 18, bound requests.path)', async () => {
-    const { calls, envelope } = await run('pr get', { project: 'PROJ/repos/x/../../..', repo: 'imagile-api', id: '42' }, [{ path: /.*/, respond: { json: pr(42) } }]);
-    expect(calls).toEqual([]);
+  it('with path syntax in them are refused before anything is sent, since keys and slugs never hold /, backslash, ?, # or % (was put into paths as typed, #76 item 18)', async () => {
+    for (const at of [
+      { project: 'PROJ/repos/x/../../..', repo: 'imagile-api' },
+      { project: 'PROJ', repo: 'imagile-api?x=' },
+      { project: 'p1#hot', repo: 'imagile-api' },
+      { project: 'PROJ', repo: 'a\\b' },
+      { project: 'PROJ', repo: 'imagile-api%2F..' },
+    ]) {
+      const { calls, envelope } = await run('pr get', { ...at, id: '42' }, [{ path: /.*/, respond: { json: pr(42) } }]);
+      expect(calls).toHaveLength(0);
+      expect(envelope.error?.code).toBe('INVALID_INPUT');
+    }
+  });
+
+  it('with path syntax in them are refused for a write too, before the write is sent', async () => {
+    const { calls, envelope } = await run('pr approve', { ...W, repo: 'a/b?c=d', id: '42' });
+    expect(calls).toHaveLength(0);
     expect(envelope.error?.code).toBe('INVALID_INPUT');
-    // A ? still cuts the path, as it did: only dot segments are refused.
-    const cut = await run('pr get', { project: 'PROJ', repo: 'imagile-api?x=', id: '42' }, [{ path: /.*/, respond: { json: pr(42) } }]);
-    expect(new URL(cut.calls[0]!.url).pathname).toBe(`${API}/projects/PROJ/repos/imagile-api`);
+  });
+
+  it('with path syntax in them are refused when they come from the connection, not only from a flag', async () => {
+    const config = { bitbucket: { ...fixtureConfig.bitbucket, project: 'PROJ', repo: 'x/../y' } };
+    const { calls, envelope } = await run('pr get', { id: '42' }, [], config);
+    expect(calls).toHaveLength(0);
+    expect(envelope.error?.code).toBe('INVALID_INPUT');
+  });
+
+  it('a personal project key (~ and a user slug) goes in as one segment, as typed', async () => {
+    const { calls } = await run('pr get', { project: '~jdoe', repo: 'imagile-api', id: '42' }, [{ path: /.*/, respond: { json: pr(42) } }]);
+    expect(new URL(calls[0]!.url).pathname).toBe(`${API}/projects/~jdoe/repos/imagile-api/pull-requests/42`);
   });
 
   it('come from the connection (defaults.bitbucket) when not passed, and meta.context says so', async () => {
@@ -391,9 +414,16 @@ describe('review and builds', () => {
     expect(envelope.data).toEqual({ diff: '{"diffs":[]}' });
   });
 
-  it('pr diff --file appends the path unencoded (#76 item 6): a # ends the path', async () => {
-    const { calls } = await run('pr diff', { ...AT, id: '42', file: 'notes#1.md' }, [{ path: /\/diff\/notes$/, respond: { json: {} } }]);
-    expect(new URL(calls[0]!.url).pathname).toBe(`${REPO}/pull-requests/42/diff/notes`);
+  it('pr diff --file encodes each segment of the path, so a # or ? stays in the file name (was appended as typed, #76 item 6)', async () => {
+    const { calls } = await run('pr diff', { ...AT, id: '42', file: 'docs/notes#1 a?.md' }, [{ path: /\/diff\/docs\//, respond: { json: {} } }]);
+    expect(new URL(calls[0]!.url).pathname).toBe(`${REPO}/pull-requests/42/diff/docs/notes%231%20a%3F.md`);
+    expect(calls[0]!.url).toBe(`${BITBUCKET}${REPO}/pull-requests/42/diff/docs/notes%231%20a%3F.md`);
+  });
+
+  it('pr diff --file with a . or .. part is INVALID_INPUT before anything is sent', async () => {
+    const { calls, envelope } = await run('pr diff', { ...AT, id: '42', file: 'src/../../../../admin' });
+    expect(calls).toHaveLength(0);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--file path') });
   });
 
   it('pr files reads one page of up to 1000 and stringifies path objects (#76 items 3 and 4)', async () => {

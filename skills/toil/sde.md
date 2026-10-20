@@ -76,8 +76,8 @@ fails with "No project specified"; anything but a positive whole number fails wi
   `--assigned-to`, `--source`, `--verification`, `--tag`, `--accepted`, `--relevant`,
   `--expand`, `--include`).
 - `task get <task>`: Get a single countermeasure. Pass the composite ID
-  from `task list` (`id`, such as `42-T21`); the value goes into the path as given, so
-  the bare `task_id` (`T21`) asks for a different path and SD Elements likely answers
+  from `task list` (`id`, such as `42-T21`); the value goes into the path as one encoded segment,
+  with no prefix added, so the bare `task_id` (`T21`) asks for a different path and SD Elements likely answers
   `NOT_FOUND`.
 - `threat list`: List threats for a project (`--severity`, `--search`, `--ordering`,
   `--capec-id`, `--component-id`).

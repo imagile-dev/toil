@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { defineArea } from '../../core/area.js';
+import { pathIdSchema } from '../../core/api-path.js';
 import type { SupportedVersion } from '../../core/supported.js';
 
 /**
@@ -60,7 +61,9 @@ export const jiraCloudArea = defineArea({
       flags: '--project <key>',
       description: 'Project key (or "project" in --input-file)',
       setting: 'project',
-      schema: z.string().min(1),
+      // A project key is letters, digits and underscores, and it goes into
+      // project and createmeta paths, so path syntax is refused however it arrives.
+      schema: pathIdSchema('The project key').min(1),
     },
   },
   probe: () => ({ path: '/rest/api/3/myself' }),

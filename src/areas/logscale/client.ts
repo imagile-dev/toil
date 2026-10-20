@@ -3,6 +3,7 @@ import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
 import { apiGraphql, apiRequest } from '../../core/api.js';
 import { logscaleArea } from './area.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * Every request toil sends to LogScale, each one as LogScale's own API docs
@@ -33,7 +34,7 @@ export interface QueryInput {
  * (https://library.humio.com/logscale-api/api-search-responseformat.html).
  */
 export function searchRepository(ctx: LogscaleContext, repository: string, body: QueryInput, timeoutMs: number): Promise<unknown> {
-  return apiRequest<unknown>(logscaleArea, ctx, `/api/v1/repositories/${encodeURIComponent(repository)}/query`, {
+  return apiRequest<unknown>(logscaleArea, ctx, apiPath`/api/v1/repositories/${repository}/query`, {
     method: 'POST',
     headers: HEADERS,
     json: body,

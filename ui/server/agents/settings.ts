@@ -64,6 +64,15 @@ export function checkAgentSettings(input: unknown, isAbsolute: (p: string) => bo
   if (model !== null && !MODEL.test(model)) throw new AgentError(`${JSON.stringify(model)} isn't a model name.`, 'Use the name the SDK takes, such as sonnet or gpt-5, or leave it empty for the CLI\'s default.');
   const cliPath = blank(o.cliPath) ? null : String(o.cliPath).trim();
   if (cliPath !== null && (!isAbsolute(cliPath) || /[\0\r\n]/.test(cliPath))) throw new AgentError(`The CLI path must be an absolute path, not ${JSON.stringify(cliPath)}.`, 'Set the full path to the CLI, or leave it empty to use the one on PATH.');
+  // On Windows a path that starts with two slashes is a share on another
+  // machine, or a device path, and only looking for the file there makes
+  // Windows connect to that host. The CLI must be on a local drive.
+  if (cliPath !== null && platform === 'win32' && !/^[A-Za-z]:[\\/]/.test(cliPath)) {
+    throw new AgentError(
+      `The CLI path must be on a local drive, such as C:\\Users\\you\\bin\\claude.exe, not ${JSON.stringify(cliPath)}.`,
+      'Set the full path to the CLI on this machine, or leave it empty to use the one on PATH. Network paths (\\\\host\\share) and device paths (\\\\?\\) are not accepted.',
+    );
+  }
   if (cliPath !== null) {
     // The path must name the adapter's own CLI, so Settings can't point the agent's arguments at some other program.
     if (adapter === 'none') throw new AgentError('A CLI path needs an adapter to belong to.', 'Choose Claude, Copilot or Codex, or clear the CLI path.');

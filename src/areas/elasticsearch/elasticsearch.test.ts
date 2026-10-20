@@ -70,6 +70,11 @@ describe('index list', () => {
     expect(calls[0]!.url).toBe(`${ES}/_cat/indices/logs-*,%3Cmetrics-%7Bnow%2Fd%7D%3E?format=json&h=${COLUMNS}`);
   });
 
+  it('sends a --pattern with query or fragment syntax in it encoded, each target one segment', async () => {
+    const { calls } = await run(indicesListCommand, { pattern: 'a/b?c=d,p1#hot' }, [any([])]);
+    expect(calls[0]!.url).toBe(`${ES}/_cat/indices/a%2Fb%3Fc%3Dd,p1%23hot?format=json&h=${COLUMNS}`);
+  });
+
   it('an answer that is not a list is an HTTP error, not an empty result', async () => {
     const { envelope } = await run(indicesListCommand, {}, [any({ ok: true })]);
     expect(envelope.error).toMatchObject({ code: 'HTTP', fix: expect.stringContaining('baseUrl') });
@@ -199,6 +204,19 @@ describe('#84 item 3, fixed from the docs: --sort takes comma-separated field:or
   it('an empty --sort sends no sort at all', async () => {
     const { calls } = await run(searchCommand, { index: 'logs-app', sort: ' , ' }, [any(searchBody(0, []), 'POST')]);
     expect(sent(calls)).not.toHaveProperty('sort');
+  });
+});
+
+describe('index paths', () => {
+  it('search POSTs to an index with path or query syntax in it encoded as one segment', async () => {
+    const { calls } = await run(searchCommand, { index: 'a/b?c=d' }, [any(searchBody(0, []), 'POST')]);
+    expect(calls[0]).toMatchObject({ method: 'POST', url: `${ES}/a%2Fb%3Fc%3Dd/_search` });
+  });
+
+  it('an index of x/../y stays one segment, which the request layer refuses as a .. segment before any request', async () => {
+    const { envelope, calls } = await run(countCommand, { index: 'x/../y' }, [any({ count: 0 }, 'POST')]);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+    expect(calls).toHaveLength(0);
   });
 });
 

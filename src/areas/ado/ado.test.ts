@@ -128,6 +128,28 @@ describe('collection, project and repo', () => {
     const { calls } = await run('repo get', { collection: 'Default Collection', project: 'My Proj', repo: 'a b' }, [{ url: /.*/, respond: { json: {} } }]);
     expect(calls[0]!.url).toBe(`${ADO}/Default%20Collection/My%20Proj/_apis/git/repositories/a%20b?api-version=7.1`);
   });
+
+  it('an id with path or query syntax in it goes in as one encoded segment, not refused, since a name made through the API may hold any of them', async () => {
+    const { calls } = await run('repo get', { collection: 'Coll', project: 'a/b?c=d', repo: 'p1#hot' }, [{ url: /.*/, respond: { json: {} } }]);
+    expect(calls[0]!.url).toBe(`${ADO}/Coll/a%2Fb%3Fc%3Dd/_apis/git/repositories/p1%23hot?api-version=7.1`);
+    // From the connection too: a % is legal in a project name, so it is encoded rather than refused.
+    const fromConnection = await run('repo get', {}, [{ url: /.*/, respond: { json: {} } }], { collection: 'Coll', project: '100% Done', repo: 'r' });
+    expect(fromConnection.calls[0]!.url).toBe(`${ADO}/Coll/100%25%20Done/_apis/git/repositories/r?api-version=7.1`);
+  });
+
+  it('an id that would still name a .. segment once encoded is INVALID_INPUT before anything is sent', async () => {
+    const { calls, envelope } = await run('repo get', { collection: 'x/../y', project: 'Imagile', repo: 'imagile-api' }, [{ url: /.*/, respond: { json: {} } }]);
+    expect(envelope.error?.code).toBe('INVALID_INPUT');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('a write encodes the ids in its path, and work-item link encodes the target id in the relation URL it stores', async () => {
+    const create = await run('repo create', { collection: 'Coll', project: 'a/b?c=d', name: 'new', allowWrite: true }, [{ url: /.*/, respond: { json: {} } }]);
+    expect(create.calls[0]).toMatchObject({ method: 'POST', url: `${ADO}/Coll/a%2Fb%3Fc%3Dd/_apis/git/repositories?api-version=7.1` });
+    const link = await run('work-item link', { ...W, id: '42', target: '7/../8?x' });
+    expect(link.calls[0]!.url).toBe(`${ADO}${COLL}/_apis/wit/workitems/42?api-version=7.1`);
+    expect(body(link.calls[0]!)).toMatchObject([{ value: { url: `${ADO}${COLL}/_apis/wit/workitems/7%2F..%2F8%3Fx` } }]);
+  });
 });
 
 describe('paging', () => {

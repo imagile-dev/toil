@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { checkEach, dossierCheckResult, dossierToCheck, exists, type DossierCheck, type Unchecked } from '../../core/check-dossier.js';
 import { viewScopes, viewValues } from '../../core/dossier.js';
 import { openshiftArea } from './area.js';
-import { ns, openshift } from './client.js';
+import { openshift } from './client.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * `toil openshift check-dossier`: the call's dossier's OpenShift sections for
@@ -27,12 +28,12 @@ export const checkDossier = openshiftArea.command({
     const view = dossierToCheck(ctx, 'openshift');
     // A project, not the namespace object: listing namespaces needs cluster rights an ordinary token lacks.
     const checks: DossierCheck[] = await checkEach(viewValues(view, ['namespace', 'namespaces']), 'namespace', (name) =>
-      exists(() => openshift(ctx, `/apis/project.openshift.io/v1/projects/${ns(name)}`)),
+      exists(() => openshift(ctx, apiPath`/apis/project.openshift.io/v1/projects/${name}`)),
     );
     const namespaces = [...new Set(viewScopes(view, ['namespace']).scopes.map((s) => s.values.namespace!))];
     const deployments = viewValues(view, ['deployments']);
     const unchecked: Unchecked[] = namespaces.length > 0 ? [] : deployments.map((d) => ({ path: d.path, value: d.value, reason: 'no namespace to look this deployment up in; set namespace in the dossier' }));
-    const inNamespace = (namespace: string, name: string) => exists(() => openshift(ctx, `/apis/apps/v1/namespaces/${ns(namespace)}/deployments/${encodeURIComponent(name)}`));
+    const inNamespace = (namespace: string, name: string) => exists(() => openshift(ctx, apiPath`/apis/apps/v1/namespaces/${namespace}/deployments/${name}`));
     if (namespaces.length === 1) {
       checks.push(...(await checkEach(deployments.map((d) => ({ path: d.path, value: `${namespaces[0]}/${d.value}` })), 'deployment', (nd) => inNamespace(namespaces[0]!, nd.slice(nd.indexOf('/') + 1)))));
     } else if (namespaces.length > 1) {

@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
 import { apiRequest, apiResponse, type ApiRequest } from '../../core/api.js';
+import { apiPath, rawPath } from '../../core/api-path.js';
 import { ToilError } from '../../core/errors.js';
 import { paginate } from '../../core/paginate.js';
 import type { RestResponse } from '../../core/rest.js';
@@ -10,10 +11,10 @@ import { bitbucketArea } from './area.js';
 /**
  * Every request toil sends to Bitbucket Data Center, as the canonical
  * implementation sent them: REST API 1.0 under `/rest/api/1.0`, plus the
- * build-status and default-reviewers plugin roots, JSON headers on every call,
- * and project and repo dropped into paths unencoded (only the default-reviewer
- * lookup encodes them). Three REST roots for one product is not sprawl; it is
- * a reorganisation that was never completed.
+ * build-status and default-reviewers plugin roots, and JSON headers on every
+ * call. Every id goes into a path as one encoded segment (`apiPath`). Three
+ * REST roots for one product is not sprawl; it is a reorganisation that was
+ * never completed.
  */
 
 export type BitbucketConnection = Connection<z.output<typeof bitbucketArea.connection>>;
@@ -76,9 +77,9 @@ export function needLimitForCursor(input: { limit?: number | undefined; cursor?:
   }
 }
 
-/** The repository's own API root: `/rest/api/1.0/projects/{project}/repos/{repo}`, unencoded. Suspected bug (#76 item 18): a `?` or `#` in either cuts the path; core refuses a `..` segment (bound requests.path). */
-export const repoPath = (project: string, repo: string) => `${API}/projects/${project}/repos/${repo}`;
-export const prPath = (project: string, repo: string, id: number) => `${repoPath(project, repo)}/pull-requests/${id}`;
+/** The repository's own API root: `/rest/api/1.0/projects/{project}/repos/{repo}`, each encoded as one segment. */
+export const repoPath = (project: string, repo: string) => apiPath`/rest/api/1.0/projects/${project}/repos/${repo}`;
+export const prPath = (project: string, repo: string, id: number) => apiPath`${rawPath(repoPath(project, repo))}/pull-requests/${id}`;
 
 /** A number read with parseInt, as the contract specifies: `12abc` is 12, `abc` is NaN. */
 export const toInt = (value: number | string | undefined, fallback?: string): number => parseInt(String(value ?? fallback), 10);
@@ -170,7 +171,7 @@ export async function currentUser(ctx: BitbucketContext): Promise<BitbucketUser>
       details: { path: `${API}/application-properties` },
     });
   }
-  return bb<BitbucketUser>(ctx, `${API}/users/${encodeURIComponent(username)}`);
+  return bb<BitbucketUser>(ctx, apiPath`/rest/api/1.0/users/${username}`);
 }
 
 export interface BuildStatus {
@@ -184,7 +185,7 @@ export interface BuildStatus {
 
 /** One page of a commit's build statuses, at the server's default size. Suspected bug (#76 item 12): later pages are never read. */
 export async function buildStatus(ctx: BitbucketContext, commit: string): Promise<BuildStatus[]> {
-  const result = await bb<{ values?: BuildStatus[] } | undefined>(ctx, `/rest/build-status/1.0/commits/${commit}`);
+  const result = await bb<{ values?: BuildStatus[] } | undefined>(ctx, apiPath`/rest/build-status/1.0/commits/${commit}`);
   return result?.values ?? [];
 }
 

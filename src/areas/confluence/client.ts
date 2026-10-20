@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
 import { apiRequest } from '../../core/api.js';
+import { apiPath } from '../../core/api-path.js';
 import { ToilError } from '../../core/errors.js';
 import { paginate } from '../../core/paginate.js';
 import { repointUrl, type QueryValue } from '../../core/rest.js';
@@ -11,8 +12,9 @@ import { confluenceArea } from './area.js';
  * Every request toil sends to Confluence Data Center, sent exactly as the
  * command contract specifies: the same endpoints, the same headers,
  * the same `expand` lists (commas left literal, which core's URL builder
- * does), and ids and keys put in the path unencoded. The paging loop,
- * re-pointing and multipart are core's. A request that works is not
+ * does). Ids, space keys and labels go into the path encoded as one
+ * segment each (apiPath), so a label with a / in it is still one label.
+ * The paging loop, re-pointing and multipart are core's. A request that works is not
  * reworded; rewording it would need a review, and the review would need a
  * meeting.
  */
@@ -29,24 +31,6 @@ const TRANSFER_TIMEOUT_MS = 60_000;
 
 /** What every JSON call sends besides the hook's token, exactly as the contract specifies. */
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
-
-/**
- * An id, key or label in a URL path, unencoded as the contract specifies,
- * as long as it is one segment. A value holding `/`, `\`, `?` or `#` would
- * add segments or a query and change which resource the request names (a
- * page delete becoming a space delete), so it is refused before anything is
- * sent (principle 2; #78 item 4). A `.` or `..` segment, in any spelling,
- * is core's to refuse (bound `requests.path`); one form signed twice is
- * still one form.
- */
-function seg(value: string): string {
-  if (/[/\\?#]/.test(value)) {
-    throw new ToilError('INVALID_INPUT', `"${value}" can't be used in a Confluence URL path: it contains /, \\, ? or #.`, {
-      fix: 'Pass the plain id, space key or label. A label with one of those characters has to be removed in the Confluence web interface.',
-    });
-  }
-  return value;
-}
 
 export interface ConfluenceAttachment {
   id: string;
@@ -131,7 +115,7 @@ export function warnBadLimit(ctx: ConfluenceContext, raw: number | string | unde
 }
 
 export function getPage(ctx: ConfluenceContext, id: string, expand: string): Promise<unknown> {
-  return confluence(ctx, `/content/${seg(id)}`, { params: { expand } });
+  return confluence(ctx, apiPath`/content/${id}`, { params: { expand } });
 }
 
 export async function getPageByTitle(ctx: ConfluenceContext, spaceKey: string, title: string): Promise<unknown> {
@@ -148,11 +132,11 @@ export function listPages(ctx: ConfluenceContext, spaceKey: string, opts: { max?
 }
 
 export function getPageChildren(ctx: ConfluenceContext, id: string): Promise<unknown[]> {
-  return every(`Confluence child pages of ${id}`, (start, limit) => confluence(ctx, `/content/${seg(id)}/child/page`, { params: { expand: 'version', start, limit } }));
+  return every(`Confluence child pages of ${id}`, (start, limit) => confluence(ctx, apiPath`/content/${id}/child/page`, { params: { expand: 'version', start, limit } }));
 }
 
 export function getLabels(ctx: ConfluenceContext, id: string): Promise<unknown[]> {
-  return every(`Confluence labels on ${id}`, (start, limit) => confluence(ctx, `/content/${seg(id)}/label`, { params: { start, limit } }));
+  return every(`Confluence labels on ${id}`, (start, limit) => confluence(ctx, apiPath`/content/${id}/label`, { params: { start, limit } }));
 }
 
 export function search(ctx: ConfluenceContext, cql: string, opts: { start: number; limit: number; expand?: string | undefined }): Promise<unknown> {
@@ -177,17 +161,17 @@ export function updatePage(ctx: ConfluenceContext, id: string, opts: { version: 
   const body: Record<string, unknown> = { version: { number: opts.version }, type: 'page', title: opts.title, status: opts.status };
   // No body given means no body sent, even for a title-only rename (#78 item 6).
   if (opts.body !== undefined) body.body = { storage: { value: opts.body, representation: opts.representation } };
-  return confluence(ctx, `/content/${seg(id)}`, { method: 'PUT', body });
+  return confluence(ctx, apiPath`/content/${id}`, { method: 'PUT', body });
 }
 
 /** DELETE on any content id: a page, or an attachment, which goes to the trash. */
 export async function deleteContent(ctx: ConfluenceContext, id: string): Promise<void> {
-  await confluence<void>(ctx, `/content/${seg(id)}`, { method: 'DELETE' });
+  await confluence<void>(ctx, apiPath`/content/${id}`, { method: 'DELETE' });
 }
 
 /** Top-level comments only: no `depth` is sent (#78 item 3). */
 export function listComments(ctx: ConfluenceContext, pageId: string): Promise<unknown[]> {
-  return every(`Confluence comments on ${pageId}`, (start, limit) => confluence(ctx, `/content/${seg(pageId)}/child/comment`, { params: { expand: 'body.storage,version', start, limit } }));
+  return every(`Confluence comments on ${pageId}`, (start, limit) => confluence(ctx, apiPath`/content/${pageId}/child/comment`, { params: { expand: 'body.storage,version', start, limit } }));
 }
 
 /** The container is always a page, whatever the id is (#78 item 8). */
@@ -199,12 +183,12 @@ export function addComment(ctx: ConfluenceContext, pageId: string, body: string,
 }
 
 export async function addLabels(ctx: ConfluenceContext, pageId: string, labels: string[]): Promise<unknown[] | undefined> {
-  const result = await confluence<ConfluenceList<unknown>>(ctx, `/content/${seg(pageId)}/label`, { method: 'POST', body: labels.map((name) => ({ prefix: 'global', name })) });
+  const result = await confluence<ConfluenceList<unknown>>(ctx, apiPath`/content/${pageId}/label`, { method: 'POST', body: labels.map((name) => ({ prefix: 'global', name })) });
   return result.results;
 }
 
 export async function removeLabel(ctx: ConfluenceContext, pageId: string, label: string): Promise<void> {
-  await confluence<void>(ctx, `/content/${seg(pageId)}/label/${seg(label)}`, { method: 'DELETE' });
+  await confluence<void>(ctx, apiPath`/content/${pageId}/label/${label}`, { method: 'DELETE' });
 }
 
 export function listSpaces(ctx: ConfluenceContext, opts: { type?: string | undefined; max?: number | undefined }): Promise<unknown[]> {
@@ -212,16 +196,16 @@ export function listSpaces(ctx: ConfluenceContext, opts: { type?: string | undef
 }
 
 export function getSpace(ctx: ConfluenceContext, key: string): Promise<unknown> {
-  return confluence(ctx, `/space/${seg(key)}`, { params: { expand: 'description.plain' } });
+  return confluence(ctx, apiPath`/space/${key}`, { params: { expand: 'description.plain' } });
 }
 
 export function listAttachments(ctx: ConfluenceContext, pageId: string): Promise<unknown[]> {
-  return every(`Confluence attachments on ${pageId}`, (start, limit) => confluence(ctx, `/content/${seg(pageId)}/child/attachment`, { params: { start, limit } }));
+  return every(`Confluence attachments on ${pageId}`, (start, limit) => confluence(ctx, apiPath`/content/${pageId}/child/attachment`, { params: { start, limit } }));
 }
 
 export async function uploadAttachment(ctx: ConfluenceContext, pageId: string, fileName: string, data: Uint8Array, comment?: string): Promise<unknown[] | undefined> {
   // Always a new attachment: a file name already on the page isn't versioned (#78 item 5).
-  const result = await apiRequest<ConfluenceList<unknown>>(confluenceArea, ctx, `${API}/content/${seg(pageId)}/child/attachment`, {
+  const result = await apiRequest<ConfluenceList<unknown>>(confluenceArea, ctx, apiPath`/rest/api/content/${pageId}/child/attachment`, {
     method: 'POST',
     headers: { 'X-Atlassian-Token': 'no-check', Accept: 'application/json', Connection: 'close' },
     multipart: [{ name: 'file', fileName, data }, ...(comment ? [{ name: 'comment', value: comment }] : [])],
@@ -231,7 +215,7 @@ export async function uploadAttachment(ctx: ConfluenceContext, pageId: string, f
 }
 
 export function getAttachment(ctx: ConfluenceContext, id: string): Promise<ConfluenceAttachment> {
-  return confluence<ConfluenceAttachment>(ctx, `/content/${seg(id)}`);
+  return confluence<ConfluenceAttachment>(ctx, apiPath`/content/${id}`);
 }
 
 /**
@@ -261,7 +245,7 @@ export async function downloadAttachment(ctx: ConfluenceContext, attachment: Con
 }
 
 export function getPageHistory(ctx: ConfluenceContext, id: string): Promise<unknown> {
-  return confluence(ctx, `/content/${seg(id)}/history`);
+  return confluence(ctx, apiPath`/content/${id}/history`);
 }
 
 /** Markdown to storage format, by Confluence's own converter (#78 item 2: DC may not take markdown). */

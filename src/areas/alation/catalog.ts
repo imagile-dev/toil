@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { alationArea } from './area.js';
 import { alation, getOne, given, intText, MAX_PAGE, pageParams, parseIntOption, parsePositiveId, type Params } from './client.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * The relational catalog: data sources under `integration/v1/datasource/`,
@@ -69,7 +70,7 @@ export const datasourceGetCommand = alationArea.command({
   writes: false,
   args: idArg('Data source'),
   examples: [{ id: '3' }],
-  run: async (input, ctx) => alation<unknown>(ctx, `integration/v1/datasource/${parsePositiveId(input.id, 'data source ID')}/`),
+  run: async (input, ctx) => alation<unknown>(ctx, apiPath`integration/v1/datasource/${parsePositiveId(input.id, 'data source ID')}/`),
 });
 
 export const schemaListCommand = alationArea.command({

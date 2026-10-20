@@ -10,8 +10,8 @@ import { githubArea } from './area.js';
 /**
  * Every request toil sends to GitHub, sent exactly as the command
  * contract specifies: the same headers on every call (the pinned API version, JSON
- * content type, `Connection: close`), owner, repo and labels interpolated
- * into paths as given, page/per_page paging that stops on a short page, and
+ * content type, `Connection: close`), owner, repo, labels and refs encoded
+ * into paths as one segment each (`apiPath`), page/per_page paging that stops on a short page, and
  * GraphQL at the endpoint derived from the REST root. One header set for
  * every request, in the way a uniform is issued: whether or not it fits.
  */
@@ -30,9 +30,10 @@ const HEADERS = { 'Content-Type': 'application/json', Accept: 'application/vnd.g
 type Request = Pick<ApiRequest, 'method' | 'query' | 'json'>;
 
 /**
- * Owner, repo, labels and refs go into paths as typed, and URL parsing
- * collapses a `.` or `..` segment, so `--label ../../../repos/o/r` would aim a
- * DELETE at a different resource. Core refuses such a segment too (bound
+ * Owner, repo, labels and refs are encoded as one segment each, but
+ * encodeURIComponent leaves `.` and `..` as they are, and URL parsing
+ * collapses those, so a label of `..` would aim a DELETE at a different
+ * resource. Core refuses such a segment too (bound
  * `requests.path`); this check also reads the path as the URL parser does
  * first, dropping tab, LF and CR anywhere and trimming trailing C0 controls
  * and spaces, so `.\t.` or a trailing `.. ` can't slip past as something

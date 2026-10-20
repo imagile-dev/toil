@@ -3,6 +3,7 @@ import { ToilError } from '../../core/errors.js';
 import { paginate } from '../../core/paginate.js';
 import { contrastArea } from './area.js';
 import { contrast, intText, limitOffset } from './client.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * An application's libraries, as on its Libraries tab: one page of them, or
@@ -34,7 +35,7 @@ export const librariesListCommand = contrastArea.command({
     { app: 'abc12345-0000-0000-0000-000000000000' },
     { app: 'abc12345-0000-0000-0000-000000000000', limit: '10', offset: '20' },
   ],
-  run: async (input, ctx) => contrast<unknown>(ctx, `/applications/${input.app}/libraries`, limitOffset(input.limit, input.offset)),
+  run: async (input, ctx) => contrast<unknown>(ctx, apiPath`/applications/${input.app}/libraries`, limitOffset(input.limit, input.offset)),
 });
 
 export const librariesGetCommand = contrastArea.command({
@@ -59,7 +60,7 @@ export const librariesGetCommand = contrastArea.command({
     await paginate<Library>(
       { kind: 'offset', startParam: 'offset', limitParam: 'limit', pageSize: BATCH, items: (body) => body as Library[] },
       async (page) => {
-        const body = await contrast<{ libraries?: Library[] }>(ctx, `/applications/${input.app}/libraries`, { limit: page.limit, offset: page.offset });
+        const body = await contrast<{ libraries?: Library[] }>(ctx, apiPath`/applications/${input.app}/libraries`, { limit: page.limit, offset: page.offset });
         const items = body.libraries ?? [];
         match = items.find((item) => item.hash === input.hash);
         return { body: match || items.length < BATCH ? [] : items };

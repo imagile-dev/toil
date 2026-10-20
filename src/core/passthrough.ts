@@ -109,7 +109,20 @@ async function passthrough(
   download: string | undefined,
 ): Promise<unknown> {
   assertRelativePath(input.path, name);
-  const query = queryOf(input.query ?? [], name);
+  if (input.path.includes('#')) {
+    throw new ToilError('INVALID_INPUT', `${name}: "${input.path}" has a #, and a fragment is never sent to a server.`, {
+      fix: 'Leave out the # and what follows it. A # that is part of a name is sent as %23.',
+    });
+  }
+  // A query typed into the path is sent as typed. With --query as well, the
+  // two join into one query, the path's first, as they did before the request
+  // layer began refusing a path that carries a query beside query parameters.
+  const extra = queryOf(input.query ?? [], name);
+  const at = Object.keys(extra).length > 0 ? input.path.indexOf('?') : -1;
+  const path = at < 0 ? input.path : input.path.slice(0, at);
+  const query: Record<string, string[]> = {};
+  if (at >= 0) for (const [key, value] of new URLSearchParams(input.path.slice(at + 1))) (query[key] ??= []).push(value);
+  for (const [key, values] of Object.entries(extra)) (query[key] ??= []).push(...values);
   if (input.bodyFile === undefined && input.contentType !== undefined) {
     throw new ToilError('INVALID_INPUT', `${name}: --content-type describes a body, and there is no --body-file.`, { fix: 'Pass --body-file <path> with it, or leave --content-type out.' });
   }
@@ -117,7 +130,7 @@ async function passthrough(
     throw new ToilError('INVALID_INPUT', `${name}: a ${input.method} request has no body.`, { fix: 'Leave out --body-file, or use POST, PUT or PATCH.' });
   }
   const body = input.bodyFile === undefined ? undefined : ctx.files.readBytes(input.bodyFile);
-  const response = await apiResponse<Uint8Array>(area, ctx, input.path, {
+  const response = await apiResponse<Uint8Array>(area, ctx, path, {
     method: input.method,
     ...(Object.keys(query).length > 0 ? { query } : {}),
     ...(body !== undefined ? { body, contentType: input.contentType ?? 'application/json' } : {}),

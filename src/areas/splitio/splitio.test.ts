@@ -90,6 +90,17 @@ describe('environment list', () => {
     expect(envelope.error?.message).toContain("toil's --workspace is the folder");
   });
 
+  it('refuses a workspace ID with path or query syntax in it, from --ws or the connection, before any request', async () => {
+    for (const workspace of ['x/../y', 'a/b?c=d', 'p1#hot']) {
+      const given = await run(environmentsListCommand, { workspace }, [get(`${API}/environments/ws/x`, environments)]);
+      expect(given.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+      expect(given.calls).toHaveLength(0);
+    }
+    const stored = await run(flagsKillCommand, { ...CR, workspace: undefined, flag: 'new_checkout', environment: ENV }, [postCr], { config: { splitio: { ...config.splitio, workspace: 'p1#hot' } } });
+    expect(stored.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+    expect(stored.calls).toHaveLength(0);
+  });
+
   it('on the CLI, --ws names the Split workspace and --workspace stays the global file workspace', async () => {
     const t = testContext({ config, routes: [get(`${API}/environments/ws/${WS}`, environments)] });
     const viaWs = await runCli(['splitio', 'environment', 'list', '--ws', WS], { commands, context: t.context });
@@ -121,6 +132,11 @@ describe('flag get', () => {
     const inEnv = await run(flagsGetCommand, { workspace: WS, flag: 'new_checkout', environment: ENV }, [get(`${API}/splits/ws/${WS}/new_checkout/environments/${ENV}`, definition)]);
     expect(inEnv.calls[0]!.url).toBe(`${SPLIT}${API}/splits/ws/${WS}/new_checkout/environments/${ENV}`);
     expect(inEnv.envelope.data).toEqual(definition);
+  });
+
+  it('sends a flag and an environment with path or query syntax in them encoded, one segment each', async () => {
+    const { calls } = await run(flagsGetCommand, { workspace: WS, flag: 'a/b?c=d', environment: 'p1#hot' }, [{ method: 'GET', url: /.*/, respond: { json: definition } }]);
+    expect(calls[0]!.url).toBe(`${SPLIT}${API}/splits/ws/${WS}/a%2Fb%3Fc%3Dd/environments/p1%23hot`);
   });
 });
 
@@ -300,6 +316,11 @@ describe('change-request', () => {
     const offset = await run(changeRequestsListCommand, { workspace: WS, offset: '5' }, []);
     expect(offset.envelope.error).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('--after') });
     expect(offset.calls).toEqual([]);
+  });
+
+  it('kill POSTs to an encoded environment segment: a # in the environment is part of its name', async () => {
+    const { calls } = await run(flagsKillCommand, { ...CR, flag: 'new_checkout', environment: 'p1#hot' }, [{ method: 'POST', url: /.*/, respond: (request) => ({ json: changeRequest(request) }) }]);
+    expect(calls[0]).toMatchObject({ method: 'POST', url: `${SPLIT}${API}/changeRequests/ws/${WS}/environments/p1%23hot` });
   });
 
   it('get GETs /changeRequests/{id} with no workspace (#79 item 10: the docs have this endpoint)', async () => {

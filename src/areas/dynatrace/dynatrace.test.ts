@@ -106,6 +106,16 @@ describe('entity get', () => {
     expect(envelope.data).toEqual(body);
   });
 
+  it('encodes an id with query or fragment syntax in it as one path segment, and refuses one with a dot segment before sending', async () => {
+    const entity = await run(entitiesGetCommand, { id: 'a/b?c=d' }, [ok({})]);
+    expect(entity.calls[0]!.url).toBe(`${CLASSIC}/api/v2/entities/a%2Fb%3Fc%3Dd`);
+    const problem = await run(problemsGetCommand, { id: 'p1#hot' }, [ok({})]);
+    expect(problem.calls[0]!.url).toBe(`${CLASSIC}/api/v2/problems/p1%23hot`);
+    const dots = await run(entitiesGetCommand, { id: 'x/../y' }, [ok({})]);
+    expect(dots.envelope.error?.code).toBe('INVALID_INPUT');
+    expect(dots.calls).toEqual([]);
+  });
+
   it('a 404 is NOT_FOUND', async () => {
     const { envelope } = await run(entitiesGetCommand, { id: 'SERVICE-0' }, [status(404, { error: { code: 404, message: 'not found' } })]);
     expect(envelope.error?.code).toBe('NOT_FOUND');

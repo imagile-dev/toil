@@ -77,12 +77,19 @@ describe('artifact get and artifact properties', () => {
     expect(calls).toEqual([{ method: 'GET', url: `${ARTIFACTORY}/api/storage/${REPO}/${JAR}`, headers: HEADERS, body: undefined }]);
   });
 
-  it('suspected bug #82 item 4: repo and path are not encoded, so # cuts the path and %41 reaches the server as is', async () => {
+  it('encodes the repo as one segment and each part of the path on its own, so # and % are part of a file name', async () => {
     const hash = await run(artifactInfoCommand, { repo: REPO, path: 'dir/a#1.txt' }, [ok({})]);
-    // fetch never sends the fragment, so the server is asked for dir/a.
-    expect(new URL(hash.calls[0]!.url).pathname).toBe(`/api/storage/${REPO}/dir/a`);
+    expect(hash.calls[0]!.url).toBe(`${ARTIFACTORY}/api/storage/${REPO}/dir/a%231.txt`);
     const pct = await run(artifactInfoCommand, { repo: REPO, path: 'dir/%41.txt' }, [ok({})]);
-    expect(pct.calls[0]!.url).toBe(`${ARTIFACTORY}/api/storage/${REPO}/dir/%41.txt`);
+    expect(pct.calls[0]!.url).toBe(`${ARTIFACTORY}/api/storage/${REPO}/dir/%2541.txt`);
+    const repo = await run(artifactInfoCommand, { repo: 'a/b?c=d', path: 'x.txt' }, [ok({})]);
+    expect(repo.calls[0]!.url).toBe(`${ARTIFACTORY}/api/storage/a%2Fb%3Fc%3Dd/x.txt`);
+  });
+
+  it('refuses an artifact path with a .. part as INVALID_INPUT before any request', async () => {
+    const { envelope, calls } = await run(artifactInfoCommand, { repo: REPO, path: 'x/../y' }, [ok({})]);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+    expect(calls).toHaveLength(0);
   });
 
   it('properties-get adds an empty properties= and returns the body', async () => {
@@ -101,6 +108,12 @@ describe('artifact set-properties', () => {
     expect(calls).toEqual([{ method: 'PUT', url: `${ARTIFACTORY}/api/storage/${REPO}/${JAR}?properties=qa.status%3Dpassed%3Bnote%3Da,b`, headers: HEADERS, body: undefined }]);
     // Suspected bug #82 item 2: Artifactory reads note as two values; data says one.
     expect(envelope.data).toEqual({ repo: REPO, path: JAR, properties: { 'qa.status': 'passed', note: 'a,b' } });
+  });
+
+  it('PUTs to the encoded path: a repo with path syntax in it stays one segment', async () => {
+    const { calls } = await run(propertiesSetCommand, { repo: 'p1#hot', path: 'dir/a b?.txt', keyvals: ['a=1'], allowWrite: true }, [put]);
+    expect(calls[0]!.method).toBe('PUT');
+    expect(calls[0]!.url).toBe(`${ARTIFACTORY}/api/storage/p1%23hot/dir/a%20b%3F.txt?properties=a%3D1`);
   });
 
   it('suspected bug #82 item 1: recursive=1 only with --recursive; otherwise nothing is sent', async () => {

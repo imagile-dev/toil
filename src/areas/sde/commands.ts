@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { apiPath } from '../../core/api-path.js';
 import { ToilError } from '../../core/errors.js';
 import type { QueryValue } from '../../core/rest.js';
 import { endpointOf, sdeArea } from './area.js';
@@ -171,7 +172,7 @@ export const projectCommand = sdeArea.command({
     endpointOf(ctx.connection);
     // The positional ID wins; without it, the project resolved the way every other sde command resolves one.
     const id = projectOf(input.id ?? ctx.context.project, 'the project ID (toil sde project get <id>) or --project <id>');
-    return sde(ctx, `/projects/${id}/`, { expand: input.expand, include: input.include });
+    return sde(ctx, apiPath`/projects/${id}/`, { expand: input.expand, include: input.include });
   },
 });
 
@@ -244,7 +245,7 @@ export const tasksCommand = sdeArea.command({
       expand: input.expand,
       include: input.include,
     };
-    return listed(ctx, `/projects/${id}/tasks/`, params, input, `SD Elements tasks for project ${id}`);
+    return listed(ctx, apiPath`/projects/${id}/tasks/`, params, input, `SD Elements tasks for project ${id}`);
   },
 });
 
@@ -271,8 +272,8 @@ export const taskCommand = sdeArea.command({
   run: async (input, ctx) => {
     endpointOf(ctx.connection);
     const id = projectOf(ctx.context.project);
-    // Suspected bug (#86 item 1): no `<project>-` prefix and no encoding, so `T21` asks for tasks/T21/.
-    return sde(ctx, `/projects/${id}/tasks/${input.task}/`, { expand: input.expand, include: input.include });
+    // Suspected bug (#86 item 1): no `<project>-` prefix, so `T21` asks for tasks/T21/. The ID is one encoded segment.
+    return sde(ctx, apiPath`/projects/${id}/tasks/${input.task}/`, { expand: input.expand, include: input.include });
   },
 });
 
@@ -306,7 +307,7 @@ export const threatsCommand = sdeArea.command({
     endpointOf(ctx.connection);
     const id = projectOf(ctx.context.project);
     const params = { severity: input.severity, search: input.search, ordering: input.ordering, capec_id: input.capecId, component_id: input.componentId };
-    return listed(ctx, `/projects/${id}/threats/`, params, input, `SD Elements threats for project ${id}`);
+    return listed(ctx, apiPath`/projects/${id}/threats/`, params, input, `SD Elements threats for project ${id}`);
   },
 });
 

@@ -256,6 +256,14 @@ describe('pod logs', () => {
     expect(envelope.data).toEqual({ pod: POD, namespace: NAMESPACE, container: '(default)', previous: false, lines: 100, log: LOG });
   });
 
+  it('encodes a namespace and pod with path, query or fragment syntax in them as one path segment each, and refuses a dot segment before sending', async () => {
+    const { calls } = await run(logsCommand, { namespace: 'a/b?c=d', pod: 'p1#hot' }, [{ url: /.*/, respond: { text: LOG } }]);
+    expect(calls[0]!.url).toBe(`${OPENSHIFT}/api/v1/namespaces/a%2Fb%3Fc%3Dd/pods/p1%23hot/log?tailLines=100`);
+    const dots = await run(logsCommand, { namespace: NAMESPACE, pod: 'x/../y' }, [{ url: /.*/, respond: { text: LOG } }]);
+    expect(dots.envelope.error?.code).toBe('INVALID_INPUT');
+    expect(dots.calls).toEqual([]);
+  });
+
   it('sends container, previous=true and tailLines, in that order', async () => {
     const { envelope, calls } = await run(logsCommand, { namespace: NAMESPACE, pod: POD, container: 'api', lines: '20', previous: true }, [{ url: /.*/, respond: { text: LOG } }]);
     expect(calls[0]!.url).toBe(`${OPENSHIFT}/api/v1/namespaces/${NAMESPACE}/pods/${POD}/log?container=api&previous=true&tailLines=20`);

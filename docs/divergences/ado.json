@@ -130,6 +130,13 @@
     },
     {
       "allows": [],
+      "old": "work-item link put --target into the relation URL as typed, and ids read with parseInt or taken from a response (build, iteration) into request paths unencoded; collection, project and repo were already encoded",
+      "toil": "Every id is encoded as one path segment, --target included, so an id with path syntax in it stays one name; a value that would still name a . or .. segment is refused as INVALID_INPUT. Collection, project and repo are encoded, never refused, since Azure DevOps names may hold spaces and % (and the API accepts names the UI forbids)",
+      "why": "An id names one resource, and the relation URL is stored by the server and read back as a path.",
+      "principle": "2"
+    },
+    {
+      "allows": [],
       "old": "ado work-item download saving the attachment under the name the server gave it, once reduced to its last path segment",
       "toil": "A name Windows reserves for a device (CON, NUL, COM1 and the like, with any extension) is saved with a leading _, a : and everything after it is dropped, as are trailing dots and spaces, and the characters Windows forbids become _. filename in data is still the server's name; saved is where the file went. A --dir that names any of those is refused with INVALID_INPUT.",
       "why": "Windows reads each of those as a different file from the one named: a device, a stream inside an existing file, or the same name without its dots. The no-overwrite check has to see the file a write really lands on, and a name must work the same way on every platform.",

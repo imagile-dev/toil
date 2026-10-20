@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { checkmarxArea } from './area.js';
 import { checkmarx, checkmarxList } from './client.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * The five Checkmarx One commands: projects and scans, listed or fetched by
@@ -33,8 +34,7 @@ export const projectGetCommand = checkmarxArea.command({
   writes: false,
   args: [{ name: 'id', field: 'id', description: 'Project UUID' }],
   examples: [{ id: PROJECT_ID }],
-  // Suspected bug (#89 item 7): the id goes into the path unencoded.
-  run: async (input, ctx) => checkmarx(ctx, `projects/${input.id}`),
+  run: async (input, ctx) => checkmarx(ctx, apiPath`projects/${input.id}`),
 });
 
 export const scanListCommand = checkmarxArea.command({
@@ -71,7 +71,7 @@ export const scanGetCommand = checkmarxArea.command({
   writes: false,
   args: [{ name: 'id', field: 'id', description: 'Scan UUID' }],
   examples: [{ id: SCAN_ID }],
-  run: async (input, ctx) => checkmarx(ctx, `scans/${input.id}`),
+  run: async (input, ctx) => checkmarx(ctx, apiPath`scans/${input.id}`),
 });
 
 export const scanStatsCommand = checkmarxArea.command({

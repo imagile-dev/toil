@@ -356,6 +356,19 @@ selecting input) is a suggestion: reads follow it, but a write on it is
 adopted: its bindings are yours. A checked-in, listed or loose one isn't, and `toil
 dossiers import` adopts it by copying it into your folder.
 
+**Writes take their target only from dossiers you've adopted.** Where in the service
+a write lands is as much a choice as which connection: a write whose target context
+inputs (github `owner` and `repo`, a Jira or ADO `project`, a Bitbucket `project` and
+`repo`, any context input that doesn't select a connection) came from a dossier you
+haven't adopted is `WRITE_DISABLED` before the write is sent, even on your own default
+connection. Only an input the write actually uses counts: the check is made when the
+command reads it, so an Azure DevOps work-item update isn't refused over the
+dossier's `project`, which that write never names. The fix names `toil dossiers import <name>` (the CLI only; over MCP and
+the API it says to ask the user to adopt the dossier) and the flags to pass the
+target yourself. An input you pass, or one from the connection, the git remote or the
+default, is yours already. Reads are unchanged, and so are a dossier's field aliases
+and transition pins (#302), which still apply from any dossier.
+
 `meta.context` in the envelope reports what was resolved and from where: `{ dossier,
 connection, inputs, shared }`. The connection and each context input are `{ value,
 source }` (source `input`, `file`, `dossier`, `git`, `connection` or `default`, with
@@ -546,7 +559,9 @@ exporting it into a repository for the team.
   governs changes to remote systems.
 - **Agents never** create or change connections, credentials or `writes`
   (*principle 2*). No tool for those exists over MCP.
-- **A dossier never silently points a write somewhere new.** Over MCP, the dossier
+- **A dossier never silently points a write somewhere new.** A write takes its
+  connection and its target (owner, repo, project) only from a dossier you've adopted
+  (**Writes ask once**, above); `execute()` enforces that on every call. Over MCP, the dossier
   commands refuse any change that would make a section select a connection with
   `writes: true` when it didn't before:
   - setting `connection` or `host` to one that selects such a connection
