@@ -10,7 +10,7 @@ like `site/`, and is never published.
 |---|---|---|
 | `Submit` | `POST /api/submit` | The site's form. Honeypot, then `Origin`, validation, consent, Turnstile, and the per-IP daily limit (10), in that order. Stores a pending row. |
 | `Report` | `POST /api/report` | curl, for networks where Turnstile can't load. Validation and consent first. No CAPTCHA and no `Origin` check; instead `commit` must be a commit in the repository (checked through the GitHub API, cached in a table). Per-IP limit 3 a day, then a total of `REPORT_DAILY_LIMIT` (30) a day across every caller, both checked before the lookup; lookups themselves are capped at `COMMIT_LOOKUP_DAILY_LIMIT` (50) a day. |
-| `ProcessSubmissions` | timer, every minute | Files pending rows as issues, oldest first, at most `DAILY_SUBMISSION_LIMIT` (10) a UTC day. Labels: `bug` or `enhancement`; `from-website` or `from-terminal`; `unverified-build` when a reported commit isn't on `main`. The issue's footer says which version of the feedback disclaimer the reporter accepted. Records issue → email, sends the confirmation, and retries failures on the next tick without filing twice. |
+| `ProcessSubmissions` | timer, every minute | Files pending rows as issues, oldest first, each with its title and body redacted first (below), at most `DAILY_SUBMISSION_LIMIT` (10) a UTC day. Labels: `bug` or `enhancement`; `from-website` or `from-terminal`; `unverified-build` when a reported commit isn't on `main`. The issue's footer says which version of the feedback disclaimer the reporter accepted. Records issue → email, sends the confirmation, and retries failures on the next tick without filing twice. |
 | `IssueWebhook` | `POST /api/webhook/issue` | Verifies GitHub's HMAC signature. When a submitted issue closes, emails the submitter the close reason and the last maintainer comment, then forgets the address. |
 
 **Limits that hold whatever a caller claims.** The client address is the last
@@ -57,9 +57,23 @@ queued row as `consentVersion` and named in the issue's footer; a row queued bef
 consent was asked for is still filed, and its footer says it predates the
 disclaimer. Changing the wording means bumping `CONSENT_VERSION` and every copy.
 
+**Redaction.** A report's title and body are redacted before its issue is created,
+with the module triage uses, `scripts/triage/redact.mjs`: credential-shaped strings
+(the token shapes in `src/core/token-shapes.mjs` and the key-name rules), email
+addresses, internal hosts, private IPv4 addresses, and the organization denylist in
+`REDACT_TERMS`. So no revision of the issue ever holds what triage would remove, and GitHub's
+edit history has nothing to keep.
+Triage redacts again before its agent reads the issue; the module is idempotent, so
+that pass changes nothing unless the denylist has grown. With `REDACT_TERMS` empty,
+the built-in rules still apply, as they do in triage; with its Key Vault reference
+unresolved, the timer logs a warning and does the same. The queued row, the
+confirmation email and the closed notice keep the reporter's own words: they go only
+to the reporter. `npm run build` copies the two shared modules into `dist/` at their
+repository paths (`scripts/copy-shared.mjs`) and checks the built function redacts.
+
 Submissions carrying the `X-Smoke-Test-Key` header (the key is in Key Vault) skip
 Turnstile and nothing else, and are recorded on one persistent, closed `smoke-test`
-issue instead of a new one. The deploy's smoke test (`scripts/smoke.mjs`) uses it, and also checks that a report without consent is refused with 400.
+issue instead of a new one, with their titles redacted like any report. The deploy's smoke test (`scripts/smoke.mjs`) uses it, checks that a report without consent is refused with 400, and sends a private address in one title that must arrive as `[redacted-ip]`.
 
 ## Storage
 
@@ -87,6 +101,7 @@ existing `imagile-keyvault`, never copied anywhere else.
 | `SMOKE_TEST_KEY` | Key Vault `SMOKE-TEST-KEY` (made by `infra/bootstrap.sh` if missing) |
 | `ACS_CONNECTION_STRING` | Key Vault `ACS-CONNECTION-STRING` (`imagile-comms`, sending as `no-reply@imagile.dev`) |
 | `WEBHOOK_SECRET` | Key Vault `TOIL-WEBHOOK-SECRET` (made by `infra/bootstrap.sh`, below) |
+| `REDACT_TERMS` | Key Vault `FEEDBACK-REDACT-TERMS`: the maintainer's copy of the `REDACT_TERMS` repository secret, which can't be read back (set by hand, below). Until it exists, the built-in rules only |
 
 ## Cost
 
@@ -124,17 +139,21 @@ bash infra/bootstrap.sh
 | 4 | `id-toil-feedback-kv`, a user-assigned identity with Key Vault Secrets User on `imagile-keyvault`, which `infra/main.bicep` attaches to the app for its Key Vault references, so they resolve on the first deploy |
 | 5 | `SMOKE-TEST-KEY`, if missing (a random value), and Key Vault Secrets User on that one secret for the deploy identity (the smoke test reads it) |
 | 6 | `TOIL-WEBHOOK-SECRET`, if missing, and the repository webhook to `/api/webhook/issue` (Issues only, JSON) signed with it, if missing |
-| 7 | Read only: the Imagile Bot App has Issues, Contents and Pull requests write, and no Workflows |
-| 8 | Read only: `imagile.dev` is verified and linked to Communication Services |
+| 7 | Read only: `FEEDBACK-REDACT-TERMS` exists (only its presence is read, never its value) |
+| 8 | Read only: the Imagile Bot App has Issues, Contents and Pull requests write, and no Workflows |
+| 9 | Read only: `imagile.dev` is verified and linked to Communication Services |
 
 Two steps stay with the maintainer, and the script ends by printing them:
 
 1. **Turnstile hostname.** Add `imagile-dev.github.io` to the hostnames of the
    existing Turnstile widget in Cloudflare (the site key in `site/src/data/feedback.ts`).
-2. **`REDACT_TERMS`.** The private denylist triage redacts, one entry per line (see
-   `scripts/triage/redact.mjs`):
-   `gh secret set REDACT_TERMS --repo imagile-dev/toil < terms.txt`. Triage runs
-   without it, with only the built-in rules.
+2. **The denylist.** The private list of organization names both redactors use, one
+   entry per line (see `scripts/triage/redact.mjs`), stored twice from the same file:
+   `gh secret set REDACT_TERMS --repo imagile-dev/toil < terms.txt` for triage, and
+   `az keyvault secret set --vault-name imagile-keyvault --name FEEDBACK-REDACT-TERMS --file terms.txt --output none`
+   for the function. Keep the two the same. Both run without it, with only the built-in
+   rules. The function picks up a change within a day, or at once after
+   `az functionapp restart --resource-group rg-toil-feedback --name func-toil-feedback`.
 
 ## Develop
 
@@ -142,7 +161,7 @@ Two steps stay with the maintainer, and the script ends by printing them:
 npm ci --ignore-scripts
 npm run typecheck
 npm test            # every edge is a fake: tables in memory, GitHub, Turnstile and ACS stubbed
-npm run build
+npm run build       # tsc, then scripts/copy-shared.mjs: the shared redaction modules, and a check that they load
 ```
 
 To run it locally, copy `local.settings.json.example` to `local.settings.json`,

@@ -9,7 +9,9 @@
 //      consent check comes before every limit, so this costs no allowance
 //   4. POST /api/webhook/issue unsigned, which must be refused with 401: a 500
 //      means the webhook secret didn't resolve from Key Vault
-//   5. Wait for the timer to record both runs on the smoke-test issue
+//   5. Wait for the timer to record both runs on the smoke-test issue. The
+//      submit run's title carries a private address, which must arrive as
+//      [redacted-ip]: the function redacts every report before filing it
 //
 // It names the stage that failed and exits 1. A smoke test that passes when the
 // pipeline is down is a status report, and we have enough of those.
@@ -56,7 +58,9 @@ async function post(path, body, headers) {
   }
 }
 
-const titles = { submit: `smoke ${run} submit`, report: `smoke ${run} report` };
+const titles = { submit: `smoke ${run} submit from 10.0.0.1`, report: `smoke ${run} report` };
+// What the smoke-test issue shows for each run once the function has redacted it.
+const recorded = { submit: `smoke ${run} submit from [redacted-ip]`, report: titles.report };
 // consent: 1 is the version of the feedback disclaimer (functions/feedback/src/lib/consent.ts).
 const fields = { kind: 'bug', body: 'Automated smoke test of the deployed feedback backend.', email: 'you@example.com', consent: 1 };
 
@@ -88,7 +92,8 @@ const deadline = Date.now() + waitSeconds * 1000;
 for (;;) {
   const issues = (await gh(`/repos/${repo}/issues?labels=smoke-test&state=all&sort=created&direction=asc&per_page=20`)).filter((i) => !i.pull_request);
   const body = issues[0]?.body ?? '';
-  if (body.includes(`\`${titles.submit}\``) && body.includes(`\`${titles.report}\``)) {
+  if (body.includes(`\`${titles.submit}\``)) fail('redaction', `the smoke-test issue #${issues[0].number} shows the submit run's title unredacted, so the deployed function isn't redacting reports before it files them.`);
+  if (body.includes(`\`${recorded.submit}\``) && body.includes(`\`${recorded.report}\``)) {
     console.log(`smoke: both runs recorded on #${issues[0].number}. The pipeline works end to end.`);
     process.exit(0);
   }

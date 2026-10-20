@@ -5,12 +5,12 @@
   "description": "The feedback backend behind the toil site's form and its curl endpoint: an Azure Function (Node.js, v4 programming model). Never published.",
   "license": "Apache-2.0",
   "type": "module",
-  "main": "dist/src/functions/*.js",
+  "main": "dist/functions/feedback/src/functions/*.js",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-shared.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "start": "npm run build && func start"
