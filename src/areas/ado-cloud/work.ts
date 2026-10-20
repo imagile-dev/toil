@@ -135,7 +135,8 @@ export const workTransitionCommand = adoCloudArea.command({
   ],
   examples: [
     { ...W, id: 42, state: 'Resolved' },
-    { ...all, allowWrite: true, id: 42, to: 'review' },
+    // The fixture's Bug is Scrum's, captured, which has no review state: done resolves.
+    { ...all, allowWrite: true, id: 42, to: 'done' },
   ],
   run: async (input, ctx) => {
     if ((input.to === undefined) === (input.state === undefined)) throw oneOfTransition(TRANSITION_HELP, input.to !== undefined);
