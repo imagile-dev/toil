@@ -14,7 +14,7 @@
  */
 
 import { adoBuilds, adoDeployments, adoPrs, bitbucketPrs, byEnvironment, githubBuild, githubHead, githubPrs, jenkinsBuilds, openshiftDeployments } from './model/delivery.ts';
-import { mapOwi } from './owi.ts';
+import { mapOwi, OVERRIDABLE } from './owi.ts';
 import { CALL_OPTIONS, type Call, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
 /** The JQL and WIQL a dashboard sends: one query per tracker, the whole project. */
@@ -69,6 +69,16 @@ function readShow(data: Rec): { summary: DossierSummary; areas: Record<string, S
   return { summary, areas, dossier };
 }
 
+/**
+ * The OWI keys in a dossier section's `fields` (`estimate`, `estimateLabel`,
+ * `iterationDays`, …). The rest of `fields` are `--field` aliases for the
+ * area's own commands, which OWI would refuse as names it has no field for.
+ */
+export function owiFields(fields: unknown): Record<string, string> {
+  if (!isRec(fields)) return {};
+  return Object.fromEntries(Object.entries(fields).filter((e): e is [string, string] => (OVERRIDABLE as readonly string[]).includes(e[0]) && typeof e[1] === 'string'));
+}
+
 /** How many pull requests that aren't open still get their checks read: the newest ones. */
 export const CHECKED_CLOSED_PRS = 20;
 
@@ -104,7 +114,7 @@ const connectionOf = (env: Envelope, fallback: string) => (env.ok ? (env.meta.co
 
 export interface LoadOptions {
   /** The OWI mapper: the browser's (src/owi.ts) by default; the tests pass the API's to prove they agree. */
-  mapOwi?: (input: unknown) => { items: WorkItem[] };
+  mapOwi?: (input: unknown, options?: { fields?: Record<string, string> }) => { items: WorkItem[] };
 }
 
 export async function loadDossier(execute: Execute, name: string, options: LoadOptions = {}): Promise<DossierData> {
@@ -129,32 +139,33 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   const base = { dossier: name };
 
   // Work items, mapped to OWI ---------------------------------------------------------
-  const work: unknown[] = [];
+  // Each area is mapped on its own, with its own section's OWI fields.
+  const work: Record<'jira' | 'ado' | 'github', unknown[]> = { jira: [], ado: [], github: [] };
   const tasks: Array<Promise<void>> = [];
   if (areas.jira?.inputs.project) {
     tasks.push((async () => {
       const search = await run('work', 'jira issue search', { ...base, jql: JQL(areas.jira!.inputs.project!) });
       if (!search) return;
-      work.push(search);
+      work.jira.push(search);
       const keys = recs((search.data as Rec).issues).map((i) => String(i.key));
       for (const key of keys) {
         const history = await run('work', 'jira issue history', { ...base, key });
-        if (history) work.push({ key, history });
+        if (history) work.jira.push({ key, history });
       }
     })());
   }
   if (areas.ado) {
     tasks.push((async () => {
       const iterations = await run('work', 'ado work-item iterations', base);
-      if (iterations) work.push(iterations);
+      if (iterations) work.ado.push(iterations);
       const search = await run('work', 'ado work-item search', { ...base, wiql: WIQL });
       const ids = search ? recs((search.data as Rec).workItems).map((w) => Number(w.id)) : [];
       if (!ids.length) return;
       const batch = await run('work', 'ado work-item get-many', { ...base, id: ids });
-      if (batch) work.push(batch);
+      if (batch) work.ado.push(batch);
       for (const id of ids) {
         const revisions = await run('work', 'ado work-item history', { ...base, id });
-        if (revisions) work.push(revisions);
+        if (revisions) work.ado.push(revisions);
       }
     })());
   }
@@ -167,17 +178,17 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       if (!projects.length) {
         const issues = await run('work', 'github issue list', { ...base, state: 'all' });
         if (!issues) return;
-        work.push(issues);
+        work.github.push(issues);
         for (const number of historyNumbers(recs(issues.data))) {
           const events = await run('work', 'github issue history', { ...base, number });
-          if (events) work.push({ key: String(number), history: events });
+          if (events) work.github.push({ key: String(number), history: events });
         }
         return;
       }
       for (const project of projects) {
         const board = await run('work', 'github project items', { ...base, project: Number(project) });
         if (!board) continue;
-        work.push(board);
+        work.github.push(board);
         for (const item of recs(board.data)) {
           const content = isRec(item.content) ? item.content : {};
           if (isRec(content.repository) && content.repository.nameWithOwner === repo && typeof content.number === 'number') numbers.add(content.number);
@@ -185,15 +196,16 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       }
       if (!numbers.size) return;
       const issues = await run('work', 'github issue get', { ...base, number: [...numbers], subIssues: true });
-      if (issues) work.push(issues);
+      if (issues) work.github.push(issues);
       for (const number of numbers) {
         const events = await run('work', 'github issue history', { ...base, number });
-        if (events) work.push({ key: String(number), history: events });
+        if (events) work.github.push({ key: String(number), history: events });
       }
     })());
   }
   await Promise.all(tasks);
-  const items = work.length ? (options.mapOwi ?? mapOwi)(work).items : [];
+  const mapper = options.mapOwi ?? mapOwi;
+  const items = Object.entries(work).flatMap(([area, docs]) => (docs.length ? mapper(docs, { fields: owiFields(section(area).fields) }).items : []));
 
   // Pull requests, their builds, and deployments --------------------------------------
   const changes: ChangeRef[] = [];

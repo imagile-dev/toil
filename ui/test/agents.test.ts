@@ -46,7 +46,8 @@ beforeAll(async () => {
   const toil = stubToil();
   await new SyncService({ cache, execute: toil.execute, mapOwi, now: () => new Date(FIXTURE_NOW) }).run(ctx());
   data = cacheData(cache, 'card-payments')!;
-});
+  // The same whole sample sync as server.test.ts's, which outlasts 10s on a busy Windows runner.
+}, 30_000);
 afterAll(() => {
   cache.close();
   rmSync(folder, { recursive: true, force: true, maxRetries: 3 });

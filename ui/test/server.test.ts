@@ -489,7 +489,8 @@ describe('the sync API', () => {
     expect(after.ok).toBe(true);
     const one = await post(origin, '/api/sync', { dossier: 7 }, auth);
     expect(one.status).toBe(400);
-  });
+    // A whole sync of the sample into SQLite: under 2s here, over 5s on a busy Windows runner (it timed out on main too).
+  }, 30_000);
 
   it('wipes only when the page confirms', async () => {
     const { origin, auth, sync, cache } = await withSync();
