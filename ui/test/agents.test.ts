@@ -977,6 +977,7 @@ describe('each question, as an agent run for the worklog (#308)', () => {
     }
     expect(runs.map((r) => r.outcome)).toEqual(['running', 'stopped']);
     expect(runs[1]!.answer).toBe('[[corp-jira:PAY-107]] has no estimate');
+    expect(runs[1]!.citations).toEqual(['corp-jira:PAY-107']);
   });
 
   it("never fails the question when the worklog can't record it", async () => {

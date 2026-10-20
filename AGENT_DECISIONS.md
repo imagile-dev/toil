@@ -4660,7 +4660,20 @@ it pins. These are the choices made by default in the fix:
   answer are kept as the run's transcript, in the cache like everything else.
 - **"Applied" is read from toil's audit log, never assumed**: the same command,
   writing and succeeding, after the run finished, naming the same item in the command's
-  positional fields. An audit log that can't be read says so on the line.
+  positional fields, or, for a command with none (a create), with every field the
+  proposal named. Where the log can't tell (it can't be read, a matching write's input
+  was too large to record, or more writes than one read returns), the line says so.
+- **One fold at a time.** Every page fold and write in the service runs in turn, so a
+  note or a run landing mid-fold isn't overwritten. A question doesn't wait on its
+  page: the run is kept, and its day folded after. The sync folds every dossier when
+  the job ends, since the cache's retention ran for all of them.
+- **A new blocker is judged against the last good picture**, which the items table
+  keeps through a failed sync, and its line names the last good sync as the one before.
+- **Left as they are:** a deployment that goes failed, then running, then passed shows
+  no recovery (no mapper reports a running deployment today); exporting the same day
+  twice into one folder is refused by toil, which never overwrites, with its own fix;
+  and a source time with no zone would be read as local time, though every mapper
+  writes UTC with a `Z`.
 - **Notes go on today's page only**, one line each, up to 2,000 characters, by the
   viewer's name. There is no edit or delete: a note stays until the retention ends or
   the cache is wiped. Say if one is wanted.

@@ -70,11 +70,11 @@ async function setup({ now = T, audit, exportResult }: { now?: string; audit?: (
 const pagePath = (dir: string, day: string) => join(dir, 'cache', 'worklog', 'card-payments', day.slice(0, 7), `${day}.md`);
 
 describe('a sync records facts', () => {
-  it('upserts them by key, so syncing the same history again changes nothing, and says which days changed', async () => {
+  it('upserts them by key, so syncing the same history again adds no fact', async () => {
     const { cache } = await setup();
-    expect(cache.saveDossier(save(T)).days).toEqual(['2026-10-11', '2026-10-12']);
+    cache.saveDossier(save(T));
     expect(cache.counts()).toMatchObject({ worklog_events: 2, sync_runs: 1 });
-    expect(cache.saveDossier(save('2026-10-12T08:00:00.000Z')).days).toEqual(['2026-10-12']);
+    cache.saveDossier(save('2026-10-12T08:00:00.000Z'));
     expect(cache.counts()).toMatchObject({ worklog_events: 2, sync_runs: 2 });
     expect(cache.syncRuns('card-payments').map((s) => s.at)).toEqual([T, '2026-10-12T08:00:00.000Z']);
   });
@@ -88,6 +88,16 @@ describe('a sync records facts', () => {
     cache.saveDossier(save('2026-10-12T09:00:00.000Z', [blocked, item('PAY-2')]));
     const [b] = cache.worklogEvents('card-payments').filter((e) => e.kind === 'blocker');
     expect(b).toMatchObject({ at: '2026-10-12T09:00:00.000Z', observed: { previousSync: '2026-10-12T08:00:00.000Z' } });
+  });
+
+  it('still sees a blocker added while a sync failed, against the last good picture, naming the last good sync', async () => {
+    const { cache } = await setup();
+    const blocked = item('PAY-1', { links: [{ type: 'blocks', direction: 'inward', target: 'jira:PAY-2', name: 'is blocked by' }] });
+    cache.saveDossier(save(T));
+    cache.saveDossier(save('2026-10-12T08:00:00.000Z', [item('PAY-1'), item('PAY-2')], { sources: [{ area: 'jira', ok: false, error: 'toil timed out', fix: null, watermark: null, calls: 1 }] }));
+    cache.saveFailure('card-payments', '2026-10-12T08:30:00.000Z', 'dossiers show failed');
+    cache.saveDossier(save('2026-10-12T09:00:00.000Z', [blocked, item('PAY-2')]));
+    expect(cache.worklogEvents('card-payments').filter((e) => e.kind === 'blocker').map((e) => e.observed)).toEqual([{ previousSync: T }]);
   });
 
   it('forgets a dossier with everything the worklog held for it', async () => {
@@ -188,6 +198,8 @@ describe('agent runs', () => {
     cache.saveDossier(save(T));
     await worklog.recordRun(run({ finishedAt: null, outcome: 'running' }));
     await worklog.recordRun(run());
+    // The page is folded in turn, after the run is kept; the next read waits for it.
+    await worklog.day('card-payments', '2026-10-12');
     expect(cache.runs('card-payments')).toHaveLength(1);
     const transcript = readFileSync(join(dir, 'cache', 'worklog', 'card-payments', 'runs', 'run-1.md'), 'utf8');
     expect(transcript).toContain('It moved: [[jira:PAY-1]].');
@@ -201,6 +213,7 @@ describe('agent runs', () => {
       [[entry({ input: { key: 'PAY-2' } })], 'not applied'],
       [[entry({ time: '2026-10-12T06:59:00.000Z' })], 'not applied'],
       [[entry({ outcome: 'WRITE_DISABLED' })], 'not applied'],
+      [[entry({ input: null })], "couldn't check toil's audit log: toil's audit log has a jira issue transition write after it whose input was too large to record."],
     ];
     for (const [entries, text] of cases) {
       const { cache, worklog, calls } = await setup({ audit: () => ok('audit list', entries) });
@@ -210,6 +223,33 @@ describe('agent runs', () => {
       expect(md).toContain(`Move PAY-1 to Done (\`toil jira issue transition\`), ${text}`);
       expect(calls.find((c) => c.command === 'audit list')).toMatchObject({ input: { since: '2026-10-12T07:01:00.000Z', writesOnly: true, limit: 1000 }, options: { readOnly: true, caller: 'toil-ui' } });
     }
+  });
+
+  it('match a create, which has no id to act on, by every field the proposal named', async () => {
+    const create = run({ proposals: [{ id: 'p2', title: 'Split PAY-1', item: 'jira:PAY-1', command: 'jira issue create', input: { project: 'PAY', summary: 'Split part 2', type: 'Story' } }] });
+    const entry = (input: unknown) => ({ time: '2026-10-12T07:30:00.000Z', via: 'cli', command: 'jira issue create', writes: true, outcome: 'ok', input });
+    for (const [input, text] of [[{ project: 'PAY', summary: 'Something else', type: 'Story' }, 'not applied'], [{ project: 'PAY', summary: 'Split part 2', type: 'Story', allowWrite: true }, 'applied: ']] as const) {
+      const { cache, worklog } = await setup({ audit: () => ok('audit list', [entry(input)]) });
+      cache.saveDossier(save(T));
+      await worklog.recordRun(create);
+      expect((await worklog.day('card-payments', '2026-10-12')).markdown).toContain(`Split PAY-1 (\`toil jira issue create\`), ${text}`);
+    }
+  });
+
+  it('say they can\'t tell when the audit log has more writes than one read returns', async () => {
+    const capped: Envelope = { ...ok('audit list', []), meta: { ...ok('audit list', []).meta, warnings: [{ code: 'AUDIT_LIMIT', message: 'Showing the newest 1000.' }] } } as Envelope;
+    const { cache, worklog } = await setup({ audit: () => capped });
+    cache.saveDossier(save(T));
+    await worklog.recordRun(run());
+    expect((await worklog.day('card-payments', '2026-10-12')).markdown).toContain("couldn't check toil's audit log: toil's audit log has more writes since the run than one read returns (1,000).");
+  });
+
+  it('are not brought back into a cache wiped after they started', async () => {
+    const { cache, worklog, tick } = await setup();
+    tick(60_000);
+    cache.wipe();
+    await worklog.recordRun(run());
+    expect(cache.runs('card-payments')).toEqual([]);
   });
 
   it("say so when toil's audit log can't be read", async () => {

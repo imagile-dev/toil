@@ -8,8 +8,8 @@ requests view for what is waiting on review, and a daily worklog of what happene
 **Status: alpha, local only.** It runs on your own machine, binds loopback, and
 reads through toil with your own connections and dossiers, read-only. Its
 settings pages are the one place it changes anything of toil's, and only toil's own
-connections and dossiers. The worklog keeps notes you add in its own cache, and writes
-a page to a file only when you export it. Its Feedback dialog sends a report to Imagile through
+connections and dossiers. The worklog keeps its pages and the notes you add in its own
+data folder, and writes anywhere else only when you export a page. Its Feedback dialog sends a report to Imagile through
 `toil feedback`, only when you approve it. It is a separate package from toil: installing toil
 never installs it.
 
@@ -34,7 +34,7 @@ It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
 Toil UI 0.1.0-alpha.1 (alpha, local only), on toil 0.1.0-alpha.3
-Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil's own connections and dossiers, when you ask. The worklog keeps your notes in its cache and writes a file only when you export one. Feedback goes to Imagile only when you send it.
+Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil's own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
 Open this URL in your browser. It carries this launch's token, so keep it to yourself:
@@ -104,9 +104,11 @@ A page has:
   dropped from a sprint, or got a new blocker.
 - **Pull requests** opened, reviewed (approved, changes requested, commented), merged
   or declined.
-- **Builds and deployments** that failed or recovered: a build is recovered when a
+- **Builds and deployments** that failed or recovered (deployments from OpenShift,
+  whose state a sync can see change): a build is recovered when a
   passing run follows a failing one of the same pull request or pipeline.
-- **Agent runs:** each question asked in the Ask pane, when it started and ended,
+- **Agent runs:** each question an agent adapter answers in the Ask pane, when it
+  started and ended,
   whether it finished, failed or was stopped, what it cited, and its proposals, each
   with whether toil's audit log (`toil audit list`) shows a person ran that write on
   the same item afterwards. Each run's transcript is kept beside the pages and shown
@@ -114,7 +116,8 @@ A page has:
 - **Notes** a person added that day, on today's page.
 - **Sources:** each source's syncs that day.
 
-Every line links to its item, pull request, build or transcript. Two kinds of fact
+Every line links to its item, pull request, build or transcript, where the source has a
+page for it. Two kinds of fact
 come in differently. Status and sprint changes, pull requests, reviews and builds
 carry their own times in the sources' history, so a page can be built for any past
 day the cache covers. A new blocker and a deployment that failed or came back have

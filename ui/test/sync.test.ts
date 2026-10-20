@@ -314,10 +314,11 @@ describe('the worklog after a sync (#308)', () => {
     const { WorklogService } = await import('../server/worklog.ts');
     const { fixtureWorklog } = await import('../src/fixtures/worklog.ts');
     const worklog = new WorklogService({ cache: () => cache, execute: toil.execute as unknown as Execute, now: () => new Date(FIXTURE_NOW) });
-    const saved: string[] = [];
-    const sync = new SyncService({ cache, execute: toil.execute, mapOwi, now: () => new Date(FIXTURE_NOW), onSaved: async (d) => void saved.push(d, ...(await worklog.reconcile(d))) });
+    let finished = 0;
+    const sync = new SyncService({ cache, execute: toil.execute, mapOwi, now: () => new Date(FIXTURE_NOW), onFinished: async () => (finished++, worklog.reconcileAll()) });
     await sync.run(ctx);
-    expect(saved.filter((d) => DOSSIERS.some((x) => x.name === d))).toEqual(DOSSIERS.map((d) => d.name));
+    expect(finished).toBe(1);
+    for (const d of DOSSIERS) expect(existsSync(join(dataDir, 'cache', 'worklog', d.name))).toBe(true);
     // The day before the sample's clock: the facts with their own times are the sample's own, line for line.
     const day = '2026-10-12';
     const page = await worklog.day('checkout-web', day);
@@ -329,12 +330,12 @@ describe('the worklog after a sync (#308)', () => {
     expect((await worklog.rebuild('checkout-web', day)).same).toBe(true);
   });
 
-  it("says in the job's messages when a dossier's worklog couldn't be folded, and finishes the sync", async () => {
+  it("says in the job's messages when the worklog couldn't be folded, and finishes the sync", async () => {
     const { cache, toil } = await setup();
-    const sync = new SyncService({ cache, execute: toil.execute, mapOwi, onSaved: async () => { throw new Error('disk full'); } });
+    const sync = new SyncService({ cache, execute: toil.execute, mapOwi, onFinished: async () => { throw new Error('disk full'); } });
     const job = await sync.run(ctx);
     expect(job.error).toBeNull();
     expect(job.dossiersDone).toBe(DOSSIERS.length);
-    expect(job.messages.some((m) => m === "Couldn't update card-payments's worklog: disk full")).toBe(true);
+    expect(job.messages.at(-1)).toBe("Couldn't update the worklog: disk full");
   });
 });

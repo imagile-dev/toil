@@ -414,6 +414,8 @@ export class Cache {
   private readonly migrations: readonly Migration[];
   private readonly open: (path: string) => DatabaseSync;
   private readonly lock: CacheLock;
+  /** When this file was opened or last wiped: an agent run that started before it isn't brought back in (#308). */
+  openedAt: string;
 
   private constructor(dataDir: string, db: DatabaseSync, open: (path: string) => DatabaseSync, lock: CacheLock, options: CacheOptions) {
     this.dataDir = dataDir;
@@ -424,6 +426,7 @@ export class Cache {
     this.retentionDays = options.retentionDays;
     this.now = options.now ?? (() => new Date());
     this.migrations = options.migrations ?? MIGRATIONS;
+    this.openedAt = this.now().toISOString();
   }
 
   /**
@@ -484,6 +487,7 @@ export class Cache {
     if (this.db.isOpen) this.db.close();
     wipeCacheFiles(this.dataDir, this.lock);
     this.db = this.open(this.paths.db);
+    this.openedAt = this.now().toISOString();
     this.prepare();
   }
 
@@ -562,31 +566,21 @@ export class Cache {
    * are the dossier's whole picture as the sync saw it (the sync hands the
    * loader a failed source's last good copy, so a failure never blanks them).
    */
-  saveDossier(save: DossierSave): { days: string[] } {
+  saveDossier(save: DossierSave) {
     const at = save.finishedAt;
-    const days = new Set<string>();
     this.transaction(() => {
-      // The last sync's picture, for what the trackers record no time for (a new blocker, a deployment that failed).
-      const previous = this.db.prepare('SELECT last_sync_at, status FROM dossiers WHERE name = ?').get(save.dossier) as { last_sync_at: string; status: string } | undefined;
-      const before = previous && previous.status !== 'failed' ? { items: this.items(save.dossier), deployments: this.changes(save.dossier).filter((c) => c.kind === 'deployment').map((c) => c.ref as Deployment) } : null;
-      const known = new Map((this.db.prepare('SELECT key, event FROM worklog_events WHERE dossier = ?').all(save.dossier) as unknown as Array<{ key: string; event: string }>).map((r) => [r.key, r.event]));
-      const builds = [...known.values()].map((e) => JSON.parse(e) as WorklogEvent).filter((e) => e.group !== undefined);
-      const facts = [...eventsFrom({ items: save.items, changes: save.changes }, builds), ...observedEvents(before, { items: save.items, deployments: save.deployments }, at, previous?.last_sync_at ?? null)];
+      // The last good picture, for what the trackers record no time for (a new blocker, a deployment that failed). The items
+      // table keeps it through a failed sync, so a change made during the failure is still seen by the next good one.
+      const previous = this.db.prepare('SELECT name FROM dossiers WHERE name = ?').get(save.dossier);
+      const lastGood = (this.db.prepare('SELECT MAX(at) AS at FROM sync_runs WHERE dossier = ? AND ok = 1').get(save.dossier) as { at: string | null }).at;
+      const before = previous ? { items: this.items(save.dossier), deployments: this.changes(save.dossier).filter((c) => c.kind === 'deployment').map((c) => c.ref as Deployment) } : null;
+      const builds = (this.db.prepare("SELECT event FROM worklog_events WHERE dossier = ? AND kind LIKE 'build-%'").all(save.dossier) as unknown as Array<{ event: string }>).map((r) => JSON.parse(r.event) as WorklogEvent);
+      const facts = [...eventsFrom({ items: save.items, changes: save.changes }, builds), ...observedEvents(before, { items: save.items, deployments: save.deployments }, at, lastGood)];
       const fact = this.db.prepare(`INSERT INTO worklog_events (dossier, key, day, at, kind, event, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (dossier, key) DO UPDATE SET day = excluded.day, at = excluded.at, kind = excluded.kind, event = excluded.event, synced_at = excluded.synced_at`);
-      for (const e of facts) {
-        const json = JSON.stringify(e);
-        const day = dayOf(e.at)!;
-        const was = known.get(e.key);
-        if (was !== json) {
-          days.add(day);
-          if (was) days.add(dayOf((JSON.parse(was) as WorklogEvent).at)!);
-        }
-        fact.run(save.dossier, e.key, day, e.at, e.kind, json, at);
-      }
+      for (const e of facts) fact.run(save.dossier, e.key, dayOf(e.at)!, e.at, e.kind, JSON.stringify(e), at);
       const run = this.db.prepare('INSERT OR REPLACE INTO sync_runs (dossier, area, at, ok, error) VALUES (?, ?, ?, ?, ?)');
       for (const s of save.sources) run.run(save.dossier, s.area, at, s.ok ? 1 : 0, s.error);
-      if (save.sources.length) days.add(dayOf(at)!);
 
       const put = this.db.prepare('INSERT INTO responses (dossier, command, input_key, area, envelope, synced_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (dossier, command, input_key) DO UPDATE SET area = excluded.area, envelope = excluded.envelope, synced_at = excluded.synced_at');
       for (const r of save.responses) put.run(save.dossier, r.command, inputKey(r.input), areaOf(r.command), JSON.stringify(r.envelope), at);
@@ -624,7 +618,6 @@ export class Cache {
       this.db.prepare('INSERT INTO dossiers (name, last_sync_at, status, error) VALUES (?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET last_sync_at = excluded.last_sync_at, status = excluded.status, error = excluded.error').run(save.dossier, at, status, error);
     });
     this.prune();
-    return { days: [...days].sort() };
   }
 
   // The worklog (#308) ---------------------------------------------------------------

@@ -9,7 +9,7 @@
  *
  * - **From the sources' own history** (`eventsFrom`): status and sprint
  *   changes from each item's history, pull requests opened, reviewed, merged
- *   and declined from their OWI changes, and builds by their own finish time,
+ *   and declined from their OWI changes, and builds by the time the source gives each run,
  *   with a recovery wherever a passing build follows a failing one.
  * - **Seen by a sync** (`observedEvents`): what the trackers record no time
  *   for, a new blocker or a deployment that failed or came back, found by

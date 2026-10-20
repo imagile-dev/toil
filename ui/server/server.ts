@@ -296,6 +296,11 @@ export function createUiServer(options: UiServerOptions): UiServer {
       throw e;
     }
   };
+  /** A worklog call takes its fields and no others, so a misspelt one is an error rather than ignored. */
+  const only = (body: Record<string, unknown>, fields: string[], what: string, shape: string) => {
+    const extra = Object.keys(body).filter((k) => !fields.includes(k));
+    if (extra.length) throw new HttpError(400, `${what}, not ${extra.join(', ')}.`, shape);
+  };
   const named = (value: unknown, what: string, shape: string) => {
     if (typeof value !== 'string' || !value) throw new HttpError(400, `Name the ${what}.`, shape);
     return value;
@@ -500,19 +505,20 @@ export function createUiServer(options: UiServerOptions): UiServer {
       case 'POST worklog/rebuild': {
         const body = await readJson(req);
         const shape = 'Send { "dossier": "<name>", "day": "<yyyy-mm-dd>" }.';
+        only(body, ['dossier', 'day'], 'A rebuild takes dossier and day', shape);
         return worklogCall(res, () => worklog().rebuild(named(body.dossier, 'dossier', shape), named(body.day, 'day', shape)));
       }
       case 'POST worklog/note': {
         const body = await readJson(req);
         const shape = 'Send { "dossier": "<name>", "text": "<the note>" }.';
+        only(body, ['dossier', 'text'], 'A note takes dossier and text', shape);
         if (typeof body.text !== 'string') throw new HttpError(400, 'A note needs its text.', shape);
         return worklogCall(res, () => worklog().addNote(named(body.dossier, 'dossier', shape), body.text as string, viewer.name));
       }
       case 'POST worklog/export': {
         const body = await readJson(req);
         const shape = 'Send { "dossier": "<name>", "day": "<yyyy-mm-dd>" } or { "dossier": "<name>", "month": "<yyyy-mm>" }, with "folder": "<a full path>".';
-        const extra = Object.keys(body).filter((k) => !['dossier', 'day', 'month', 'folder'].includes(k));
-        if (extra.length) throw new HttpError(400, `An export takes dossier, day or month, and folder, not ${extra.join(', ')}.`, shape);
+        only(body, ['dossier', 'day', 'month', 'folder'], 'An export takes dossier, day or month, and folder', shape);
         if ((body.day === undefined) === (body.month === undefined)) throw new HttpError(400, 'Export a day or a month, one of the two.', shape);
         const what: ExportWhat = body.day !== undefined ? { day: named(body.day, 'day', shape) } : { month: named(body.month, 'month', shape) };
         return worklogCall(res, () => worklog().exportTo(named(body.dossier, 'dossier', shape), what, named(body.folder, 'folder', shape)));

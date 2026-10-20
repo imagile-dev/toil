@@ -8,7 +8,7 @@
  * spawning a program, and the URL is right there. Ctrl+C stops it. The whole
  * onboarding process, minus the onboarding. `toil-ui wipe` deletes the cache
  * and exits. The worklog (#308) is folded again at start, after every sync
- * and after every agent question.
+ * job, and after each agent question's start and end.
  */
 
 import { execute, mapOwi, registry, contractVersion as toilContract, version as toilVersion } from '@imagile-dev/toil/api';
@@ -79,15 +79,7 @@ async function main(): Promise<number> {
     }
     worklog = new WorklogService({ cache: () => cache!, execute });
     const pages = worklog;
-    sync = new SyncService({
-      cache,
-      execute,
-      mapOwi,
-      onSaved: async (dossier) => {
-        await pages.reconcile(dossier);
-      },
-      onForgotten: () => pages.reconcileAll(),
-    });
+    sync = new SyncService({ cache, execute, mapOwi, onFinished: () => pages.reconcileAll() });
     // The cache pruned what outlived its retention as it opened; the pages follow it.
     await worklog.reconcileAll().catch((e: unknown) => process.stderr.write(`toil-ui: couldn't fold the worklog pages again: ${e instanceof Error ? e.message : String(e)}\n`));
   }
@@ -149,7 +141,7 @@ async function main(): Promise<number> {
   process.stdout.write(
     [
       `Toil UI ${__TOIL_UI_VERSION__} (alpha, local only), on toil ${toilVersion}`,
-      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil\'s own connections and dossiers, when you ask. The worklog keeps your notes in its cache and writes a file only when you export one. Feedback goes to Imagile only when you send it.',
+      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil\'s own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.',
       ...(cache ? [`The cache is ${cache.paths.db}, kept ${settings.retentionDays} days after each sync; toil-ui wipe deletes it.`] : []),
       '',
       'Open this URL in your browser. It carries this launch\'s token, so keep it to yourself:',

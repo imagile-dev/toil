@@ -227,13 +227,13 @@ export class AgentHost implements Agent {
       record = runFromAnswer(record, now(), last ?? { prompt: asked, parts: [], citations: [], by, proposals: [] });
     } catch (e) {
       const message = e instanceof AgentError ? `${e.message} ${e.fix}` : e instanceof Error ? e.message : String(e);
-      record = { ...record, finishedAt: now(), outcome: ctx.signal.aborted ? 'stopped' : 'failed', error: message, answer: last ? last.parts.map((p) => p.text).join('\n\n') : null };
+      record = { ...(last ? runFromAnswer(record, now(), last) : { ...record, finishedAt: now() }), outcome: ctx.signal.aborted ? 'stopped' : 'failed', error: message };
       throw e;
     } finally {
       await run;
       this.running--;
       // The person closed the pane or the page mid-answer: the run stopped, with what it had said so far.
-      if (record.outcome === 'running') record = { ...record, finishedAt: now(), outcome: 'stopped', answer: last ? last.parts.map((p) => p.text).join('\n\n') : null };
+      if (record.outcome === 'running') record = { ...(last ? runFromAnswer(record, now(), last) : { ...record, finishedAt: now() }), outcome: 'stopped' };
       await report();
     }
   }

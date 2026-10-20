@@ -51,6 +51,8 @@ const fwd = (p: string) => p.replace(/\\/g, '/');
 export class WorklogService implements WorklogApi {
   readonly disabled = null;
   private readonly now: () => Date;
+  /** Every fold and write runs in turn, so a note or a run that lands mid-fold isn't overwritten by a page folded before it. */
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly o: WorklogOptions) {
     this.now = o.now ?? (() => new Date());
@@ -91,7 +93,10 @@ export class WorklogService implements WorklogApi {
    * What toil's audit log says about the proposals agent runs made, by
    * proposal id: one read of the log for every run passed. A matching write is
    * the same command, writing, succeeding, after the run finished, naming the
-   * same item in its positional fields (the id the command acts on).
+   * same item in its positional fields (the id the command acts on), or, for a
+   * command with none (a create), with every field the proposal named. Where
+   * the log can't tell (a line too large to keep its input, or more writes than
+   * one read returns), the proposal says so rather than guess.
    */
   private async applied(runs: AgentRun[]): Promise<Record<string, Applied>> {
     const wanted = runs.flatMap((r) => r.proposals.filter((p) => p.command).map((p) => ({ p, after: r.finishedAt ?? r.startedAt })));
@@ -104,13 +109,19 @@ export class WorklogService implements WorklogApi {
       return out;
     }
     const entries = (Array.isArray(env.data) ? env.data : []) as Array<{ time: string; via: string; command: string; writes: boolean; outcome: string; input: unknown }>;
+    const capped = (env.meta.warnings ?? []).some((w) => w.code === 'AUDIT_LIMIT');
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
     for (const { p, after } of wanted) {
-      const ids = POSITIONAL_FIELDS.get(p.command!) ?? [];
-      const hit = entries
-        .filter((e) => e.command === p.command && e.writes && e.outcome === 'ok' && e.time >= after)
-        .filter((e) => ids.every((f) => typeof e.input === 'object' && e.input !== null && String((e.input as Record<string, unknown>)[f]) === String(p.input?.[f])))
+      const positional = POSITIONAL_FIELDS.get(p.command!) ?? [];
+      const fields = positional.length ? positional : Object.keys(p.input ?? {}).filter((k) => k !== 'allowWrite');
+      const writes = entries.filter((e) => e.command === p.command && e.writes && e.outcome === 'ok' && e.time >= after);
+      const hit = writes
+        .filter((e) => typeof e.input === 'object' && e.input !== null && fields.every((f) => same((e.input as Record<string, unknown>)[f], p.input?.[f])))
         .sort((a, b) => (a.time < b.time ? -1 : 1))[0];
-      out[p.id] = hit ? { state: 'applied', at: hit.time, via: hit.via } : { state: 'not-applied' };
+      if (hit) out[p.id] = { state: 'applied', at: hit.time, via: hit.via };
+      else if (writes.some((e) => e.input === null)) out[p.id] = { state: 'unknown', why: `toil's audit log has a ${p.command} write after it whose input was too large to record.` };
+      else if (capped) out[p.id] = { state: 'unknown', why: "toil's audit log has more writes since the run than one read returns (1,000)." };
+      else out[p.id] = { state: 'not-applied' };
     }
     return out;
   }
@@ -140,12 +151,22 @@ export class WorklogService implements WorklogApi {
     return true;
   }
 
+  private serial<T>(fn: () => Promise<T>): Promise<T> {
+    const next = this.queue.then(fn, fn);
+    this.queue = next.catch(() => undefined);
+    return next;
+  }
+
   /**
    * Folds every day of a dossier that has anything into its page, writing
    * only those whose text changed, and removes pages and transcripts the
    * cache no longer backs. Returns the days it wrote.
    */
-  async reconcile(dossier: string): Promise<string[]> {
+  reconcile(dossier: string): Promise<string[]> {
+    return this.serial(() => this.fold(dossier));
+  }
+
+  private async fold(dossier: string): Promise<string[]> {
     if (!DOSSIER.test(dossier)) return [];
     const days = this.cache.worklogDays(dossier);
     const written: string[] = [];
@@ -170,12 +191,14 @@ export class WorklogService implements WorklogApi {
   }
 
   /** Every dossier the cache holds, and the folders of any it has forgotten. */
-  async reconcileAll(): Promise<void> {
-    const names = this.cache.dossierNames();
-    for (const name of names) await this.reconcile(name);
-    const root = join(this.cache.paths.dir, 'worklog');
-    if (!existsSync(root)) return;
-    for (const entry of readdirSync(root)) if (!names.includes(entry)) rmSync(join(root, entry), { recursive: true, force: true });
+  reconcileAll(): Promise<void> {
+    return this.serial(async () => {
+      const names = this.cache.dossierNames();
+      for (const name of names) await this.fold(name);
+      const root = join(this.cache.paths.dir, 'worklog');
+      if (!existsSync(root)) return;
+      for (const entry of readdirSync(root)) if (!names.includes(entry)) rmSync(join(root, entry), { recursive: true, force: true });
+    });
   }
 
   async month(dossier: string, month?: string): Promise<WorklogMonth> {
@@ -206,6 +229,10 @@ export class WorklogService implements WorklogApi {
   async day(dossier: string, day: string): Promise<WorklogDay> {
     const name = this.checkDossier(dossier);
     const d = this.checkDay(day);
+    return this.serial(() => this.foldDay(name, d));
+  }
+
+  private async foldDay(name: string, d: string): Promise<WorklogDay> {
     const [page] = await this.pages(name, [d]);
     const markdown = markdownOf(page!);
     const path = this.pagePath(name, d);
@@ -218,31 +245,36 @@ export class WorklogService implements WorklogApi {
     const name = this.checkDossier(dossier);
     const d = this.checkDay(day);
     const path = this.pagePath(name, d);
-    const before = existsSync(path) ? readFileSync(path, 'utf8') : null;
-    const built = await this.day(name, d);
-    return { ...built, same: before === null ? null : before === built.markdown };
+    return this.serial(async () => {
+      const before = existsSync(path) ? readFileSync(path, 'utf8') : null;
+      const built = await this.foldDay(name, d);
+      return { ...built, same: before === null ? null : before === built.markdown };
+    });
   }
 
   async addNote(dossier: string, text: string, by = 'You'): Promise<WorklogDay> {
     const name = this.checkDossier(dossier);
     if (typeof text !== 'string' || !text.trim()) throw new WorklogRefusal('A note needs some text.', 'Type the note, then add it.');
     if (text.length > MAX_NOTE) throw new WorklogRefusal(`A note is at most ${MAX_NOTE} characters.`, 'Shorten it, or add it as two notes.');
-    const at = this.now().toISOString();
-    this.cache.addNote(name, { id: randomUUID(), at, by, text: text.trim().replace(/\s*\r?\n\s*/g, ' ') });
-    return this.day(name, dayOf(at)!);
+    return this.serial(async () => {
+      const at = this.now().toISOString();
+      this.cache.addNote(name, { id: randomUUID(), at, by, text: text.trim().replace(/\s*\r?\n\s*/g, ' ') });
+      return this.foldDay(name, dayOf(at)!);
+    });
   }
 
   /**
-   * Records an agent run as it starts and again as it ends, writes its
-   * transcript, and folds its day's page again. The Ask pane's questions
-   * come here from the agent host; assign-to-agent (#293) will send its
-   * assignments the same way.
+   * Records an agent run as it starts and again as it ends, and writes its
+   * transcript; its day's page is folded again in turn, without the question
+   * waiting on it. A run that started before the cache was opened or wiped
+   * isn't brought back into it. The Ask pane's questions come here from the
+   * agent host; assign-to-agent (#293) will send its assignments the same way.
    */
   async recordRun(run: AgentRun): Promise<void> {
-    if (!DOSSIER.test(run.dossier)) return;
+    if (!DOSSIER.test(run.dossier) || run.startedAt < this.cache.openedAt) return;
     this.cache.saveRun(run);
     this.write(join(this.folder(run.dossier), 'runs', `${run.id}.md`), transcriptOf(run));
-    await this.day(run.dossier, dayOf(run.startedAt)!).catch(() => undefined);
+    void this.serial(() => this.foldDay(run.dossier, dayOf(run.startedAt)!)).catch(() => undefined);
   }
 
   /**
@@ -257,7 +289,8 @@ export class WorklogService implements WorklogApi {
     if (typeof folder !== 'string' || !folder.trim() || !isAbsolute(folder.trim())) throw new WorklogRefusal('Name the folder to export into, as a full path.', 'Type a folder that exists, such as your Documents folder.');
     let markdown: string;
     if ('day' in what) {
-      markdown = (await this.day(name, this.checkDay(what.day))).markdown;
+      const d = this.checkDay(what.day);
+      markdown = (await this.serial(() => this.foldDay(name, d))).markdown;
     } else {
       if (!isMonth(what.month)) throw new WorklogRefusal('Name a month as yyyy-mm.', 'Export the month the calendar shows.');
       const days = this.cache.worklogDays(name).filter((d) => monthOf(d) === what.month && d <= this.today());

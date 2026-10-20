@@ -812,6 +812,8 @@ describe('the worklog (#308)', () => {
     expect(JSON.parse(both.body).error.message).toBe('Export a day or a month, one of the two.');
     const extra = await post(origin, '/api/worklog/export', { dossier: 'card-payments', day: '2026-10-12', folder: '/tmp', overwrite: true }, { sid: auth.sid, csrf: auth.session.csrf });
     expect(JSON.parse(extra.body).error.message).toBe('An export takes dossier, day or month, and folder, not overwrite.');
+    const misspelt = await post(origin, '/api/worklog/note', { dossier: 'card-payments', txt: 'hi' }, { sid: auth.sid, csrf: auth.session.csrf });
+    expect(JSON.parse(misspelt.body).error.message).toBe('A note takes dossier and text, not txt.');
   });
 
   it('needs the CSRF token on every change: a rebuild, a note, an export', async () => {
