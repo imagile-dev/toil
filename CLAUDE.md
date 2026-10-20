@@ -987,8 +987,9 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   Bot App, not `GITHUB_TOKEN`, so CI runs on it. The agent review skips it, because
   the App can't review its own PR; the human who merges it is the review.
 - **Toil UI never releases ahead of the toil it needs.** Its tests run against toil
-  from source, so `ui/` on `main` may already use commands the pinned toil doesn't
-  have. A `toil-ui-v…` release goes out with or after the toil release that has them,
+  from source, and `npm run verify:ui` and `ui/scripts/dev-real.mjs` run it on toil
+  built from the checkout into `.scratch/toil` (#332), so `ui/` on `main` may already
+  use commands the pinned toil doesn't have. A `toil-ui-v…` release goes out with or after the toil release that has them,
   and bumps `ui/package.json`'s exact pin in the same release PR. That PR can't point
   `package-lock.json` at a toil npm doesn't serve yet, so once toil publishes, the
   release workflow's `lockfile` job opens a PR that does; until it merges,
