@@ -45,7 +45,7 @@
       }
     },
     "Iteration": {
-      "description": "A sprint (Jira), an iteration path (Azure DevOps) or a Projects iteration (GitHub).",
+      "description": "A sprint (Jira), an iteration path (Azure DevOps), or a Projects iteration or a milestone (GitHub).",
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "name", "path", "start", "end", "state"],
@@ -55,7 +55,7 @@
         "path": { "description": "The full iteration path, where the source has one (Azure DevOps).", "type": ["string", "null"] },
         "start": { "anyOf": [{ "$ref": "#/$defs/Instant" }, { "type": "null" }] },
         "end": { "anyOf": [{ "$ref": "#/$defs/Instant" }, { "type": "null" }] },
-        "state": { "description": "Jira's sprint state, as the source reported it when the record was read.", "enum": ["past", "current", "future", null] }
+        "state": { "description": "Jira's sprint state, as the source reported it when the record was read; past for a closed GitHub milestone.", "enum": ["past", "current", "future", null] }
       }
     },
     "Link": {
