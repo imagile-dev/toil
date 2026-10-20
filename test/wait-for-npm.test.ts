@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { check, delayAfter, duration, packumentUrl, waitFor, waitSecondsFrom } from '../scripts/wait-for-npm.mjs';
+import { check, delayAfter, duration, packumentUrl, requestTimeoutMs, waitFor, waitSecondsFrom } from '../scripts/wait-for-npm.mjs';
 
 /**
  * The release workflow's wait for npm to serve a toil it just published (#363).
@@ -95,6 +95,10 @@ describe('settings and wording', () => {
   it('formats what it reports plainly', () => {
     expect([900, 60, 5, 0].map(duration)).toEqual(['15 minutes', '1 minute', '5 seconds', '0 seconds']);
     expect([1, 2, 3, 4, 9].map(delayAfter)).toEqual([10, 20, 40, 60, 60]);
+  });
+
+  it("gives each request 30s, or what's left of the wait, so a hung registry can't run far past the deadline", () => {
+    expect([900_000, 30_000, 12_000, 0, -5_000].map(requestTimeoutMs)).toEqual([30_000, 30_000, 12_000, 1_000, 1_000]);
     expect(packumentUrl('https://npm.imagile.dev/repo/', 'left-pad')).toBe('https://npm.imagile.dev/repo/left-pad');
   });
 });

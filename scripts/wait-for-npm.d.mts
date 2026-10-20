@@ -8,11 +8,12 @@ export interface Answer {
 }
 
 export const DEFAULT_WAIT_SECONDS: number;
+export function requestTimeoutMs(leftMs: number): number;
 export function delayAfter(attempt: number): number;
 export function packumentUrl(registry: string, pkg: string): string;
 export function duration(seconds: number): string;
 export function waitSecondsFrom(env: Record<string, string | undefined>): number;
-export function check(pkg: string, version: string, opts: { registry: string; fetch: Fetch }): Promise<Answer>;
+export function check(pkg: string, version: string, opts: { registry: string; fetch: Fetch; timeoutMs?: number }): Promise<Answer>;
 export function waitFor(
   pkg: string,
   version: string,

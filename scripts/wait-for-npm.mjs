@@ -12,7 +12,7 @@
 // and exits 1 with a plain message if npm still doesn't serve it. Every request
 // sends `Cache-Control: no-cache`, so a packument cached on the first try can't
 // hide the version on all the later ones. The registry is npm_config_registry
-// when set, otherwise registry.npmjs.org.
+// (or NPM_CONFIG_REGISTRY) when set, otherwise registry.npmjs.org.
 // npm publishes no service-level agreement for when a new version shows up, so
 // this script files its own: fifteen minutes, in writing.
 import { pathToFileURL } from 'node:url';
@@ -33,8 +33,10 @@ export const duration = (seconds) => {
 };
 
 const NO_CACHE = { 'cache-control': 'no-cache' };
-// One request that hangs mustn't outlast the whole wait.
+// One request that hangs mustn't outlast the whole wait: each gets 30s, or what's
+// left of the wait if that's less (at least 1s).
 const REQUEST_TIMEOUT_MS = 30_000;
+export const requestTimeoutMs = (leftMs) => Math.max(1000, Math.min(REQUEST_TIMEOUT_MS, leftMs));
 // The abbreviated packument is what npm install and npm ci resolve against; the
 // full one is what npm view reads. A CDN can serve the two from different caches.
 const PACKUMENTS = [
@@ -46,14 +48,14 @@ const PACKUMENTS = [
  * One attempt. Resolves to `{ served, detail }`, never rejects: a network error
  * is one more reason it isn't served yet, and the deadline decides when to stop.
  */
-export async function check(pkg, version, { registry, fetch }) {
+export async function check(pkg, version, { registry, fetch, timeoutMs = REQUEST_TIMEOUT_MS }) {
   const url = packumentUrl(registry, pkg);
   const seen = [];
   let tarball;
   for (const [label, accept] of PACKUMENTS) {
     let res;
     try {
-      res = await fetch(url, { headers: { ...NO_CACHE, accept }, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+      res = await fetch(url, { headers: { ...NO_CACHE, accept }, signal: AbortSignal.timeout(timeoutMs) });
     } catch (err) {
       return { served: false, detail: `${label}: ${err instanceof Error ? err.message : String(err)}` };
     }
@@ -72,7 +74,7 @@ export async function check(pkg, version, { registry, fetch }) {
   if (!tarball) return { served: false, detail: `${seen.join(', ')}, but names no tarball` };
   let res;
   try {
-    res = await fetch(tarball, { method: 'HEAD', headers: NO_CACHE, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+    res = await fetch(tarball, { method: 'HEAD', headers: NO_CACHE, signal: AbortSignal.timeout(timeoutMs) });
   } catch (err) {
     return { served: false, detail: `${seen.join(', ')}; tarball: ${err instanceof Error ? err.message : String(err)}` };
   }
@@ -87,7 +89,7 @@ export async function check(pkg, version, { registry, fetch }) {
 export async function waitFor(pkg, version, { registry, fetch, waitSeconds, log, now = Date.now, sleep = (ms) => new Promise((r) => setTimeout(r, ms)) }) {
   const deadline = now() + waitSeconds * 1000;
   for (let attempt = 1; ; attempt++) {
-    const { served, detail } = await check(pkg, version, { registry, fetch });
+    const { served, detail } = await check(pkg, version, { registry, fetch, timeoutMs: requestTimeoutMs(deadline - now()) });
     const left = deadline - now();
     if (served) {
       log(`Attempt ${attempt}: npm serves ${pkg} ${version} (${detail}).`);
@@ -124,7 +126,7 @@ async function main(argv, env) {
     console.error(err.message);
     return 2;
   }
-  const registry = env.npm_config_registry || 'https://registry.npmjs.org/';
+  const registry = env.npm_config_registry || env.NPM_CONFIG_REGISTRY || 'https://registry.npmjs.org/';
   console.log(`Waiting up to ${duration(waitSeconds)} for ${registry} to serve ${pkg} ${version}.`);
   const result = await waitFor(pkg, version, { registry, fetch, waitSeconds, log: (line) => console.log(line) });
   if (result.served) return 0;
