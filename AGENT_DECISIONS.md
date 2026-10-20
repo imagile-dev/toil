@@ -4087,6 +4087,34 @@ decided here.
   scope here; the agent gets the cache tool `owi_similar`, and its system prompt says
   to run it before proposing a new item.
 
+### #328 Toil UI's tests on Windows runners
+
+Measured on `windows-latest` before changing anything (a probe in the UI suite, run
+ten times on both Node versions; the runner has 4 CPUs, so Vitest runs 3 workers):
+
+- **The SQLite tests were slow because of the disk, not the CPU.** `os.tmpdir()` on
+  the runner is on `C:`, where one commit under SQLite's default rollback journal took
+  22 to 117 ms (up to 168), against 0.7 ms on `D:`. `sync.test.ts` took 3 to 7 s there
+  and under 1 s on Linux, and `server.test.ts`'s sync case timed out at 5.5 to 11 s.
+  The cache now uses a write-ahead log with `synchronous = NORMAL` (`JOURNAL` in
+  `ui/server/cache.ts`): 0.1 ms a commit on the same disk. That's a product change,
+  not a test setting, because a user's sync on Windows paid the same cost. It's safe
+  for a cache: a crash loses nothing, a power cut may lose the last commits, which
+  the next sync fetches again. The tests keep the real temp folder rather than move
+  to a faster one, so they measure what users get.
+- **The dashboard axe cases are genuinely heavy.** Each renders a dashboard of about
+  1,600 elements in jsdom and runs axe over it: 1 to 1.5 s on a laptop, 2 to 4.5 s on
+  the runner, with the 5 s default as the only margin. Asking axe for violations only
+  (`resultTypes`), which is all the tests read, cut its run by a quarter to a third.
+  Those cases (`views.test.tsx`), like `theme-bar.test.tsx`'s and `feedback.test.tsx`'s
+  already, get an explicit 20 s timeout with the reason beside it.
+- **Left as they are:** the worker count and the pool (Vitest runs 3 forks on the
+  runner's 4 CPUs, so they don't oversubscribe it), and the global timeout. No UI test
+  uses fake timers. The two failures on React Aria handing focus back after Escape
+  were already fixed by waiting for it (#280, #284).
+- `test/start-commands.test.ts`'s `scripts/setup.mjs` cases spawn Node to run the real
+  bundle, once or twice each, so they get a 30 s timeout with the reason beside it.
+
 ## Command shape (jira, jira-cloud, ado, ado-cloud)
 
 The maintainer asked for one streamlined interface, a clean break with no aliases,
@@ -4152,30 +4180,3 @@ The rest of the integrations moved to the command shape, the same way `jira` and
   a flag does; the skill says so, and the examples use an id without the dash.
 - **`ado repo build-status` became `ado commit status`**, to match GitHub's and
   Bitbucket's `commit status`.
-
-### #328 Toil UI's tests on Windows runners
-
-Measured on `windows-latest` before changing anything (a probe in the UI suite, run
-ten times on both Node versions; the runner has 4 CPUs, so Vitest runs 3 workers):
-
-- **The SQLite tests were slow because of the disk, not the CPU.** `os.tmpdir()` on
-  the runner is on `C:`, where one commit under SQLite's default rollback journal took
-  22 to 117 ms (up to 168), against 0.7 ms on `D:`. `sync.test.ts` took 3 to 7 s there
-  and under 1 s on Linux, and `server.test.ts`'s sync case timed out at 5.5 to 11 s.
-  The cache now uses a write-ahead log with `synchronous = NORMAL` (`JOURNAL` in
-  `ui/server/cache.ts`): 0.1 ms a commit on the same disk. That's a product change,
-  not a test setting, because a user's sync on Windows paid the same cost. It's safe
-  for a cache: a crash loses nothing, a power cut may lose the last commits, which
-  the next sync fetches again. The tests keep the real temp folder rather than move
-  to a faster one, so they measure what users get.
-- **The dashboard axe cases are genuinely heavy.** Each renders a dashboard of about
-  1,600 elements in jsdom and runs axe over it: 1 to 1.5 s on a laptop, 2 to 4.5 s on
-  the runner, with the 5 s default as the only margin. Asking axe for violations only
-  (`resultTypes`), which is all the tests read, cut its run by a quarter to a third.
-  Those cases (`views.test.tsx`), like `theme-bar.test.tsx`'s and `feedback.test.tsx`'s
-  already, get an explicit 20 s timeout with the reason beside it.
-- **Not the cause:** the worker count (3 on 4 CPUs never oversubscribes), the pool, fake
-  timers (no UI test uses them) and React Aria's timers (no case waits on one). So the
-  worker count, the pool and the global timeout stay as they are.
-- `test/start-commands.test.ts`'s `scripts/setup.mjs` cases spawn Node to run the real
-  bundle, once or twice each, so they get a 30 s timeout with the reason beside it.
