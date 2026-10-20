@@ -41,7 +41,7 @@ export interface SimilarTaskOutput {
   titleOnly: string[];
   cutBodies: string[];
   /** For --pairs, each returned pair's two scores compared; how many were, and which disagreed. Null otherwise. */
-  postings: { checked: number; failed: Disagreement[]; lowerBounds: number } | null;
+  postings: { checked: number; failed: Disagreement[] } | null;
 }
 
 export function similarTask({ bytes, request, options }: SimilarTaskInput): SimilarTaskOutput {
@@ -51,11 +51,10 @@ export function similarTask({ bytes, request, options }: SimilarTaskInput): Simi
   let postings: SimilarTaskOutput['postings'] = null;
   let result: SimilarResult;
   if ('pairs' in request) {
-    const check = { checked: 0, failed: [] as Disagreement[], lowerBounds: 0 };
+    const check = { checked: 0, failed: [] as Disagreement[] };
     const found = index.pairs(options, {
       rescored: ({ a, b, summed, full, exact }) => {
         // With common features skipped the summed score is a lower bound, and only that can be held to it.
-        if (!exact) check.lowerBounds++;
         check.checked++;
         // One rounding step apart is the same figure: the two add the same products in a different order.
         if (exact ? Math.abs(summed - full) > 0.00011 : summed > full + 0.00011) check.failed.push({ at: `${a} and ${b}`, expected: full, actual: summed });
