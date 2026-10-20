@@ -635,7 +635,8 @@ describe('the Stores', () => {
   it('lets the views read exactly the commands the fixture answers, plus the ones the sample has no dossier for', () => {
     // A GitHub dossier with no board reads the repository's issues; the sample's GitHub dossier has a board.
     // test/github-repo.test.ts proves that path with its own stub.
-    const noSampleDossier = ['github list-issues'];
+    // The sample has no Azure DevOps Services dossier; test/ado-seed.test.ts reads one through toil, its work items and its board.
+    const noSampleDossier = ['github list-issues', 'ado-cloud work-item iterations', 'ado-cloud work-item search', 'ado-cloud work-item get-many', 'ado-cloud work-item history', 'ado-cloud pr list'];
     expect([...READ_COMMANDS].sort()).toEqual([...new Set([...CANNED.map((c) => c.command), ...noSampleDossier])].sort());
   });
 

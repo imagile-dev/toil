@@ -3948,3 +3948,58 @@ choices made by default inside that:
   `data`.
 - **A resource's row in `--help` lists its actions** (`issue  get, history, create,
   ...`) instead of "jira issue commands".
+
+## Azure DevOps seed and Toil UI on ado-cloud (#319)
+
+The maintainer asked for a real Azure DevOps Services board seeded from OWI, ado-cloud
+tested against it, and Toil UI run on it, touching nothing but `toil-seed` work items.
+These are the choices made by default inside that:
+
+- **The seed lives in `ui/scripts/ado-seed/`, beside `seed-sandbox.mjs`,** as repo
+  tooling that never ships. It writes to Azure DevOps with its own `fetch`, not through
+  toil, so toil's connection stays read-only, the same reason the GitHub sandbox seed
+  uses `gh`.
+- **Seed records are OWI with a connection of their own, `toil-seed`,** and `@project`
+  standing for the project, so the committed file names no organization or project.
+  `@Me`, WIQL's macro, is the only assignee. What only the server can give (url,
+  reporter, dates, history, the reason it finished) is null and listed in `unmapped`;
+  what OWI has no field for (acceptance criteria, repro steps, severity, remaining
+  work, the timeline) is in `native["ado-seed generate"]`.
+- **A seeded item is recognised by two tags, `toil-seed` and one `seed:<key>`**, and
+  every script checks both again after the WIQL query before acting. `--identity
+  marker` (a `[toil-seed] ` title prefix and a `[seed:<key>]` paragraph, applying only
+  tags that exist) is kept for an identity that may not create tags, which is where
+  the first run stood until the maintainer's access level changed.
+- **Backdating uses `bypassRules`**, which lets each revision carry its own
+  `System.ChangedDate`. With the rules bypassed nothing stamps the reason or the state
+  dates, so the walk sets `System.Reason`, `StateChangeDate`, `ActivatedDate` and
+  `ClosedDate` as the Scrum process would; the reasons were read from a live
+  organization by walking ten tagged probe items with rules on, then deleting them.
+  When the server refuses `bypassRules`, the run falls back to ordinary transitions
+  dated now and says so; `--no-backdate` asks for that.
+- **Links go on last.** Adding a link writes a revision on both ends dated now, and the
+  server refuses a revision dated before the one already there, so links can't
+  interleave with a backdated history. The two stale items have no parent and no links
+  for the same reason: a link would make them fresh.
+- **Re-running creates only what's missing**, walks on an item a broken run left
+  part-way (those moves are dated now), and adds missing links. It never changes the
+  fields of an item it already made; to change the data, clean up and seed again.
+- **Cleanup deletes only after a listed dry run**: the dry run prints a code made from
+  the ids, and `--confirm <code>` deletes only when the list is still exactly that.
+  Deletes go to the recycle bin, never `destroy`.
+- **The id map is `ui/scripts/ado-seed/ids.local.json`, ignored by git,** because it
+  holds the project's name and its ids. Nothing reads it but the person: the scripts
+  find items by their tags.
+- **Toil UI reads `ado-cloud` with the same commands as `ado`**, and its pull requests
+  only when the dossier names a repository (it has no pipeline commands). A board move
+  on an ado-cloud item is proposed as `ado-cloud work-item update --field
+  System.State=…`, since the area has no transition command. The status word a move
+  proposes now comes from items of the same type first: Scrum's backlog item is
+  Committed where its task is In Progress, and the most common word across all types
+  proposed In Progress for a backlog item.
+- **The dependency graph no longer flags a finished item as blocked**, the same rule
+  its `blocking` flag already followed. The seeded board has a Done bug whose
+  predecessor isn't done, which is how real boards look and how the flag showed up.
+- **The Sprint panel stays empty on this board**, because its sprints have no dates
+  and the maintainer's rule is not to set them. Which sprint is current is only in the
+  team's settings, which ado-cloud has no command for yet (#320).

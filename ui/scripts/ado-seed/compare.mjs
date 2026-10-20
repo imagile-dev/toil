@@ -85,7 +85,7 @@ if (import.meta.main) {
     process.stderr.write('compare: name the mapped file and the project.\n  Fix: node ui/scripts/ado-seed/compare.mjs mapped.json --project "<project>" [--backdated] [--file items.owi.json]\n');
     process.exit(1);
   }
-  const mapped = JSON.parse(readFileSync(mappedFile, 'utf8').replace(/^﻿/, ''));
+  const mapped = JSON.parse(readFileSync(mappedFile, 'utf8').replace(/^\uFEFF/, ''));
   const items = mapped.data?.items ?? mapped.items;
   const records = JSON.parse(readFileSync(file, 'utf8')).items;
   const diffs = compare(records, items, { project, backdated });

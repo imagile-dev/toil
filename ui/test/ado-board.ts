@@ -15,6 +15,7 @@ export const ORG = 'https://dev.azure.com/imagile';
 export const PROJECT = 'Imagile';
 const NOW = '2026-10-20T01:00:00.000Z';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- a canned REST payload, read field by field as the real one is
 type Rec = Record<string, any>;
 interface Item {
   id: number;
@@ -50,13 +51,15 @@ export interface Board {
   refuseBypass: boolean;
   /** A work item someone else made, carrying whatever fields the test gives it. */
   others(fields: Rec): number;
+  /** The pull requests of the one repository, `payments-core`, as the list endpoint returns them. */
+  pullRequests: Rec[];
   fetch: typeof fetch;
 }
 
 export function adoBoard(): Board {
   const items = new Map<number, Item>();
   let next = 2;
-  const board: Board = { items, requests: [], writes: [], refuseBypass: false, others: () => 0, fetch: undefined as never };
+  const board: Board = { items, requests: [], writes: [], refuseBypass: false, others: () => 0, pullRequests: [], fetch: undefined as never };
   const url = (id: number) => `${ORG}/_apis/wit/workItems/${id}`;
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
   const fail = (status: number, message: string) => json({ message, typeKey: 'Error' }, status);
@@ -157,6 +160,12 @@ export function adoBoard(): Board {
       const skip = Number(u.searchParams.get('$skip') ?? 0);
       const top = Number(u.searchParams.get('$top') ?? 200);
       return json({ count: item.revisions.length, value: item.revisions.slice(skip, skip + top) });
+    }
+    if (method === 'GET' && path === `${p}/_apis/git/repositories/payments-core/pullrequests`) {
+      const status = u.searchParams.get('searchCriteria.status');
+      const skip = Number(u.searchParams.get('$skip') ?? 0);
+      const shown = board.pullRequests.filter((pr) => status === 'all' || pr.status === status);
+      return json({ count: shown.length, value: shown.slice(skip, skip + Number(u.searchParams.get('$top') ?? 100)) });
     }
     throw new Error(`No Azure DevOps route for ${method} ${u.href}`);
   }) as typeof fetch;

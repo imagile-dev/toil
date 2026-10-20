@@ -19,6 +19,7 @@ import { apply, inOrder } from '../scripts/ado-seed/apply.mjs';
 import { cleanup, confirmationCode } from '../scripts/ado-seed/cleanup.mjs';
 import { compare } from '../scripts/ado-seed/compare.mjs';
 import { ANCHOR, check, DEFAULT_OUT, DEFAULT_SEED, generate, render, type SeedRecord } from '../scripts/ado-seed/generate.mjs';
+import { READ_COMMANDS } from '../server/store.ts';
 import { loadDossier } from '../src/load.ts';
 import { proposeMove } from '../src/model/board.ts';
 import type { Execute, WorkItem } from '../src/toil.ts';
@@ -226,6 +227,31 @@ describe("toil's ado-cloud commands on the seeded board", () => {
     // Reading never wrote; the dossier names no repository, so no pull requests were asked for.
     expect(board.writes).toEqual([]);
     expect(data.calls.prs).toEqual([]);
+    // Toil UI's server lets the page make every one of these reads.
+    expect(data.calls.work.filter((c) => !READ_COMMANDS.has(c.command))).toEqual([]);
+  });
+
+  it("reads the pull requests of the dossier's repository, and ties each to the work items it names", async () => {
+    const board = adoBoard();
+    const { ids } = await seed(board);
+    const id = ids.get('cp-pbi-1')!;
+    board.pullRequests.push({
+      pullRequestId: 7,
+      title: `Store tokens in the vault (#${id})`,
+      description: `Fixes AB#${id}.`,
+      status: 'completed',
+      creationDate: '2026-10-15T09:00:00Z',
+      closedDate: '2026-10-16T09:00:00Z',
+      lastMergeCommit: { commitId: 'abc1234' },
+      repository: { name: 'payments-core', webUrl: `${ORG}/${PROJECT}/_git/payments-core`, project: { name: PROJECT } },
+    });
+    const file = join(process.env.HOME!, '.toil', 'dossiers', 'ado-board.json');
+    writeFileSync(file, JSON.stringify({ name: 'ado-board', repos: [], 'ado-cloud': { connection: 'ado-cloud', project: PROJECT, repo: 'payments-core' } }));
+    vi.stubGlobal('fetch', board.fetch);
+    const data = await loadDossier(execute as unknown as Execute, 'ado-board', { mapOwi });
+    expect(data.calls.prs.map((c) => [c.command, c.ok])).toEqual([['ado-cloud pr list', true]]);
+    expect(READ_COMMANDS.has('ado-cloud pr list')).toBe(true);
+    expect(data.changes.filter((c) => c.kind === 'pull-request').map((c) => [c.id, c.command, c.outcome, c.items])).toEqual([[`ado-cloud:${PROJECT}/payments-core#7`, 'ado-cloud pr list', 'merged', [`ado-cloud:${id}`]]]);
   });
 
   it('proposes a board move on an ado-cloud item as work-item update in its own area', async () => {

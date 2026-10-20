@@ -173,7 +173,6 @@ export const FLOW = {
 };
 const OWI_TYPE = { Epic: 'EPIC', Feature: 'OTHER', 'Product Backlog Item': 'STORY', Bug: 'BUG', Task: 'TASK' };
 const CATEGORY = { New: 'TODO', 'To Do': 'TODO', Approved: 'TODO', Committed: 'IN_PROGRESS', 'In Progress': 'IN_PROGRESS', Done: 'DONE', Removed: 'DONE' };
-const SPRINTS = ['Sprint 1', 'Sprint 2', 'Sprint 3'];
 
 /** The day the timelines are drawn back from: every event is at or before it. Today's date when the committed file was made. */
 export const ANCHOR = '2026-10-19T09:00:00.000Z';

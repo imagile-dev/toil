@@ -1,15 +1,17 @@
 import type { SeedRecord } from './generate.mjs';
+/** One JSON Patch operation; value is a field's value or a relation. */
+export interface PatchOp { op: string; path: string; value: unknown }
 export const API: string;
 export const IDENTITIES: string[];
 export const TITLE_PREFIX: string;
 export class SeedError extends Error { fix: string; constructor(message: string, fix: string) }
-export interface AdoItem { id: number; rev?: number; fields: Record<string, any>; relations?: Array<{ rel: string; url: string; attributes?: Record<string, unknown> }> }
+export interface AdoItem { id: number; rev?: number; fields: Record<string, unknown>; relations?: Array<{ rel: string; url: string; attributes?: Record<string, unknown> }> }
 export interface Client {
   project: string;
   workItemUrl(id: number): string;
   me(): Promise<string>;
-  projectInfo(): Promise<any>;
-  iterations(): Promise<any>;
+  projectInfo(): Promise<{ id: string; name: string }>;
+  iterations(): Promise<unknown>;
   tags(): Promise<string[]>;
   wiql(query: string): Promise<number[]>;
   getMany(ids: number[]): Promise<AdoItem[]>;
@@ -24,7 +26,7 @@ export function seedKey(item: AdoItem, identity: string, project: string): strin
 export function findSeeded(api: Client, identity: string): Promise<{ seeded: Map<string, AdoItem>; refused: number[] }>;
 export function projectPath(path: string, project: string): string;
 export function keyOf(id: string): string;
-export function createPatch(record: SeedRecord, options: { project: string; identity: string; me: string | null; existingTags: Set<string> }): { ops: Array<{ op: string; path: string; value: any }>; skippedTags: string[] };
-export function missingLinks(record: SeedRecord, item: { relations?: AdoItem['relations'] }, idOf: (key: string) => number | undefined, workItemUrl: (id: number) => string): Array<{ op: string; path: string; value: any }>;
+export function createPatch(record: SeedRecord, options: { project: string; identity: string; me: string | null; existingTags: Set<string> }): { ops: PatchOp[]; skippedTags: string[] };
+export function missingLinks(record: SeedRecord, item: { relations?: AdoItem['relations'] }, idOf: (key: string) => number | undefined, workItemUrl: (id: number) => string): PatchOp[];
 export function statesOf(record: SeedRecord): string[];
 export function remainingStates(record: SeedRecord, current: string): string[] | null;

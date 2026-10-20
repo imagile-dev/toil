@@ -160,6 +160,16 @@ describe('the dependency graph', () => {
     expect(g.nodes.find((n) => n.id === 'other:X-9')).toMatchObject({ known: false });
     expect(g.cycle).toBe(true);
   });
+
+  it("doesn't flag a finished item as blocked, even when what it depends on isn't done (#319)", () => {
+    const a = item({ id: 'c:G-1', links: [{ type: 'blocks', direction: 'outward', target: 'c:G-2', name: 'blocks' }] });
+    const b = item({ id: 'c:G-2', statusCategory: 'DONE', links: [{ type: 'blocks', direction: 'inward', target: 'c:G-1', name: 'is blocked by' }] });
+    const c = item({ id: 'c:G-3', links: [{ type: 'blocks', direction: 'inward', target: 'c:G-1', name: 'is blocked by' }] });
+    a.links.push({ type: 'blocks', direction: 'outward', target: 'c:G-3', name: 'blocks' });
+    const g = dependencyGraph([a, b, c]);
+    expect(g.nodes.find((n) => n.id === 'c:G-2')).toMatchObject({ done: true, blocked: false });
+    expect(g.nodes.find((n) => n.id === 'c:G-3')).toMatchObject({ blocked: true });
+  });
 });
 
 describe('the board', () => {

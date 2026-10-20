@@ -149,6 +149,8 @@ describe('a dashboard', () => {
     const pane = answer.parentElement!;
     await waitFor(() => expect(pane.textContent).toContain('Answered by: a scripted preview, not a model.'));
     expect(within(pane).getAllByRole('link').map((a) => a.getAttribute('href'))).toContain(item('settlement', 'corp-ado:2305'));
+    // One citation is one item, not "1 items" (#319).
+    expect(pane.textContent).toMatch(/Cites (1 item\.|([02-9]|\d\d+) items\.)/);
     expect(within(chat).getByRole('log').getAttribute('aria-busy')).toBe('false');
     expect(within(chat).getByText('You asked:', { exact: false }).closest('.bubble')!.textContent).toBe('You asked: Where is this work deployed?');
   });

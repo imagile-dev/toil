@@ -57,12 +57,13 @@ export function client({ baseUrl, pat, project, fetch: fetchFn = fetch }) {
       ...(json !== undefined ? { body: JSON.stringify(json) } : {}),
     });
     const text = await res.text();
-    let body = null;
-    try {
-      body = text ? JSON.parse(text) : null;
-    } catch {
-      body = text;
-    }
+    const body = (() => {
+      try {
+        return text ? JSON.parse(text) : null;
+      } catch {
+        return text;
+      }
+    })();
     if (!res.ok) {
       const message = typeof body === 'object' && body?.message ? body.message : String(text).slice(0, 300);
       throw new SeedError(`${method} ${path} answered ${res.status}: ${message}`, res.status === 401 ? 'Check TOIL_ADO_CLOUD_PAT: it must be for this organization and not expired.' : res.status === 403 ? "The token's identity lacks a permission this needs; the message above names it." : 'See the message above.');
