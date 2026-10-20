@@ -344,7 +344,8 @@ describe('team settings: sprints, backlogs and boards', () => {
   const named = { ...at, team: 'Imagile Team' };
 
   it("without --team, reads the project's default team first and puts its id in the path", async () => {
-    const { calls, data } = await run('sprint list', at);
+    const { calls, data, envelope } = await run('sprint list', at);
+    expect(envelope.meta.warnings).toEqual([{ code: 'ADO_CLOUD_DEFAULT_TEAM', message: `No team given, so this read the project's default team, "Imagile Team" (${DEFAULT_TEAM}). Pass --team to read another.` }]);
     expect(calls).toEqual([
       { method: 'GET', url: `${ORG_URL}/_apis/projects/Imagile?api-version=7.1`, headers: GET_HEADERS, body: undefined },
       { method: 'GET', url: `${T}/_apis/work/teamsettings/iterations?api-version=7.1`, headers: GET_HEADERS, body: undefined },
@@ -355,6 +356,7 @@ describe('team settings: sprints, backlogs and boards', () => {
   it('with --team, sends the name in the path and reads nothing else', async () => {
     const { calls, envelope } = await run('sprint list', named);
     expect(calls.map((c) => c.url)).toEqual([`${P}/Imagile%20Team/_apis/work/teamsettings/iterations?api-version=7.1`]);
+    expect(envelope.meta.warnings).toBeUndefined();
     expect(envelope.meta.context?.inputs?.team).toEqual({ value: 'Imagile Team', source: 'input' });
   });
 

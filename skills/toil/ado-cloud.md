@@ -117,7 +117,8 @@ came from.
 - Every `sprint`, `backlog` and `board` command needs a project and acts for one
   team: `--team <name or id>` on the command (not the group; `team` over MCP), else a
   dossier's or the connection's `team`, else the project's default team, which toil
-  reads from the project first (one extra request).
+  reads from the project first (one extra request) and names in an
+  `ADO_CLOUD_DEFAULT_TEAM` warning.
 - `whoami`, `project list` and `project get` need neither.
 
 ## Commands

@@ -4270,7 +4270,9 @@ the choices made by default inside that:
   the path. The live run showed the backlog endpoints answer 404 with no team in the
   path while the others fall back to the default team, so every team command names one
   rather than rely on the server's default for some and not others; the cost is one
-  extra request when no team is set.
+  extra request when no team is set. `meta.context` lists only the inputs that
+  resolved, so an `ADO_CLOUD_DEFAULT_TEAM` warning names the team that was read
+  (principle 4, raised in review).
 - **`sprint list --state`** takes `past`, `current` and `future`, the team settings'
   own `timeFrame` words, comma-separated as `jira sprint list --state` takes its
   states. It filters the full list in toil rather than sending `$timeframe=current`,

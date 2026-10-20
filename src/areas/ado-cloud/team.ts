@@ -40,6 +40,8 @@ async function teamPath(ctx: AdoCloudContext): Promise<string> {
         fix: 'Pass --team <name>, or set team on the connection or in the dossier. The project\'s teams are under Project settings → Teams.',
       });
     }
+    // meta.context lists only the inputs that resolved, so say which team was read.
+    ctx.warn({ code: 'ADO_CLOUD_DEFAULT_TEAM', message: `No team given, so this read the project's default team, "${project.defaultTeam?.name ?? name}" (${name}). Pass --team to read another.` });
   }
   return `${projectPath(ctx)}/${enc(name)}`;
 }
