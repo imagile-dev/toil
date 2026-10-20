@@ -3,6 +3,7 @@
  * and `toil audit list`, and the small reshaping of their data it shows.
  * Plain functions of toil's output, kept apart from the page so the preview's
  * sample (src/fixtures/usage.ts) asks for exactly what the page asks for.
+ * The reporting template was approved on the condition that it report nothing new.
  */
 
 import type { UnusedCommand, UsageFigures, UsageGroup } from '../../src/audit/stats.ts';
