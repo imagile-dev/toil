@@ -152,7 +152,7 @@ describe('the allowlist', () => {
   it('is exactly the config commands the pages need, each one toil has, the changes local writes only', () => {
     const served = new Map([...registry.commands, ...registry.personCommands].map((c) => [c.name, c]));
     expect([...CONFIG_COMMANDS].sort()).toEqual(
-      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'dossiers add-repo', 'dossiers check', 'dossiers field', 'dossiers init', 'dossiers link', 'dossiers list', 'dossiers show'].sort(),
+      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'dossiers add-repo', 'dossiers check', 'dossiers field', 'dossiers init', 'dossiers link', 'dossiers list', 'dossiers person', 'dossiers show', 'dossiers wip-limit'].sort(),
     );
     for (const name of CONFIG_READS) expect(served.get(name), name).toMatchObject({ writes: false, writesLocal: false, writesDependOnInput: false });
     // A change writes only toil's own config on this machine, never a service.
@@ -289,6 +289,20 @@ describe('dossiers, through toil', () => {
     expect((await config('dossiers list')).envelope.data.dossiers.map((d: { name: string }) => d.name)).toEqual(['payments']);
     expectEnvelope(await config('dossiers show', { dossier: 'payments' })).toMatchObject({ ok: true, data: { areas: { jira: { connection: { value: 'corp-jira' }, writes: false, inputs: { project: 'PAY' } } } } });
     expectEnvelope(await config('dossiers check', { dossier: 'payments' })).toMatchObject({ ok: true, data: { ok: true } });
+    sweep();
+  });
+
+  it('maps people and sets the limit, and leaves removing either to the CLI', async () => {
+    const { config } = await serve();
+    await config('dossiers init', { name: 'payments' });
+    expectEnvelope(await config('dossiers person', { dossier: 'payments', name: 'Pat Example', id: ['jira=pat', 'github=pat-ex'], email: 'you@example.com' })).toMatchObject({ ok: true, data: { person: { name: 'Pat Example', ids: { jira: 'pat', github: 'pat-ex' } } } });
+    expectEnvelope(await config('dossiers person', { dossier: 'payments', name: 'Claude', kind: 'agent' })).toMatchObject({ ok: true });
+    expectEnvelope(await config('dossiers wip-limit', { dossier: 'payments', limit: 3 })).toMatchObject({ ok: true, data: { wipLimit: 3 } });
+    expectEnvelope(await config('dossiers show', { dossier: 'payments' })).toMatchObject({ ok: true, data: { dossier: { people: [{ name: 'Pat Example' }, { name: 'Claude', kind: 'agent' }], wipLimit: 3 } } });
+    // A removal is a delete: the API is held to MCP's rules, so the page can't make one.
+    expectEnvelope(await config('dossiers person', { dossier: 'payments', name: 'Claude', remove: true })).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', fix: 'Only a person can make this call, on the CLI with toil dossiers person.' } });
+    expectEnvelope(await config('dossiers wip-limit', { dossier: 'payments', clear: true })).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
+    expect(JSON.parse(readFileSync(join(home, '.toil', 'dossiers', 'payments.json'), 'utf8'))).toMatchObject({ people: [{ name: 'Pat Example' }, { name: 'Claude' }], wipLimit: 3 });
     sweep();
   });
 

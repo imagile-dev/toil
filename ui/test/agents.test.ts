@@ -18,13 +18,13 @@ import { STARTERS, STYLE_RULE, systemPrompt } from '../server/agents/prompts.ts'
 import { THEME_VOICES } from '../server/agents/voices.ts';
 import { Latest, loadSdk, type Importer, type Runtime } from '../server/agents/runtime.ts';
 import { agentSettingsFile, checkAgentSettings, loadAgentSettings } from '../server/agents/settings.ts';
-import { cacheData, cacheTools, Ledger, LIVE_COMMANDS, liveTools, neverWrites, proposalTool, prTools, type AgentData, type ToolSpec } from '../server/agents/tools.ts';
+import { cacheData, cacheTools, dossierReader, Ledger, LIVE_COMMANDS, liveTools, neverWrites, peopleTools, proposalTool, prTools, type AgentData, type ToolSpec } from '../server/agents/tools.ts';
 import { Cache } from '../server/cache.ts';
 import type { RequestContext } from '../server/context.ts';
 import { SyncService } from '../server/sync.ts';
 import { commandLine } from '../src/proposal.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
-import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
+import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { stubToil } from './toil-stub.ts';
 
 /**
@@ -182,7 +182,7 @@ describe('the tool list', () => {
   it('is the three cache tools and toil mcp\'s read tools, and none of them writes', () => {
     const names = host().tools('card-payments', data, new Ledger()).map((t) => t.name);
     const live = LIVE_COMMANDS.map((c) => registry.commands.find((r) => r.name === c)!);
-    expect(names).toEqual(['owi_query', 'owi_get', 'owi_similar', 'owi_history', 'pr_query', 'pr_get', 'pr_metrics', 'proposal_fields', ...live.map((c) => c.tool)]);
+    expect(names).toEqual(['owi_query', 'owi_get', 'owi_similar', 'owi_history', 'pr_query', 'pr_get', 'pr_metrics', 'people_list', 'person_get', 'proposal_fields', ...live.map((c) => c.tool)]);
     for (const c of live) expect(neverWrites(c), c.name).toBe(true);
     const writers = new Set(registry.commands.filter((c) => !neverWrites(c)).map((c) => c.tool));
     expect(names.filter((n) => writers.has(n))).toEqual([]);
@@ -672,9 +672,9 @@ describe('when an adapter cannot run', () => {
     ]);
   });
 
-  it('offers the six starters, each scoped to the dossier, once an adapter is chosen', async () => {
+  it('offers the eight starters, each scoped to the dossier, once an adapter is chosen', async () => {
     const { host } = hostFor('claude', claudeStub(SCRIPT).module);
-    expect((await host.starters(ctx(), 'card-payments')).map((s) => s.label)).toEqual(['Stand-up digest', 'Why is this sprint at risk?', 'Backlog hygiene', 'Dependency risk', "What's stuck in review, and why?", 'Release notes']);
+    expect((await host.starters(ctx(), 'card-payments')).map((s) => s.label)).toEqual(['Stand-up digest', 'Why is this sprint at risk?', 'Backlog hygiene', 'Dependency risk', "What's stuck in review, and why?", "Who's overloaded or blocked?", 'Prepare my 1:1 notes for <person>', 'Release notes']);
     for (const s of STARTERS) expect(s.prompt('card-payments')).toContain('"card-payments"');
   });
 });
@@ -942,5 +942,60 @@ describe("Toil UI's own Codex home (#300)", () => {
     const overrides = codexOverrides('http://127.0.0.1:1/api/agent/mcp');
     expect(overrides.filter((o) => o.startsWith('mcp_servers'))).toEqual(['mcp_servers={ toil_ui = { url = "http://127.0.0.1:1/api/agent/mcp", bearer_token_env_var = "TOIL_UI_MCP_TOKEN" } }']);
     expect(overrides.slice(1)).toEqual(CODEX_FEATURES_OFF.map((f) => `features.${f}=false`));
+  });
+});
+
+/** What the people tools return, as far as these tests read it. */
+type Brief = { key: string; name: string; kind: string; inProgress: unknown[]; blocked: unknown[]; reviewsWaitingOnThem: Array<{ id: string }>; openPullRequests: unknown[] };
+type PeopleList = { rule: string; wipLimitPerPerson: number | null; notes: string[]; people: Brief[]; unmapped: Brief[]; suggestedMatches: unknown[]; team: { unassignedInSprint: unknown } };
+type PersonGet = { person: Brief & { recentActivity: unknown[] }; error?: string; people?: Array<{ key: string; name: string }> };
+
+describe('the people tools (#292)', () => {
+  const now = () => FIXTURE_NOW;
+  const of = (name: string) => cacheData(cache, name)!;
+  const fixture = fixtureExecute();
+  const peopleTools_ = (name: string, ledger: Ledger) => peopleTools(name, of(name), ledger, dossierReader(fixture.execute, name), now);
+
+  it("people_list reads the dossier's people from the synced dossiers show, with each plate, and vouches for every id it names", async () => {
+    const ledger = new Ledger();
+    const r = (await tool(peopleTools_('card-payments', ledger), 'people_list').run({})) as PeopleList;
+    // The dossier is read live, as the cache never holds it: read-only, and labelled as Toil UI.
+    expect(fixture.calls.at(-1)).toMatchObject({ command: 'dossiers show', input: { dossier: 'card-payments' }, ok: true });
+    expect(r.rule).toContain('never rank, score or compare people');
+    expect(r.wipLimitPerPerson).toBe(2);
+    expect(r.people.map((p: { name: string }) => p.name)).toEqual(['A. Chen', 'J. Smith', 'R. Patel']);
+    const chen = r.people[0]!;
+    expect(chen.inProgress).toEqual([{ id: 'corp-jira:PAY-104', title: expect.any(String), status: 'In Review', daysInStatus: 5.9 }]);
+    expect(chen.blocked).toEqual([{ id: 'corp-jira:PAY-102', title: expect.any(String), blockedBy: [{ id: 'corp-jira:PAY-101', status: 'In Progress', inDossier: true }] }]);
+    expect(r.people[1]!.reviewsWaitingOnThem.map((x: { id: string }) => x.id)).toEqual(['corp-bitbucket:PAY/payments-core#305']);
+    expect(r.unmapped.map((p: { key: string }) => p.key)).toEqual(['id:bitbucket:achen']);
+    expect(r.suggestedMatches).toEqual([{ accounts: ['bitbucket:achen'], probably: 'A. Chen', sharedEmail: 'you@example.com', applyWith: 'dossiers person' }]);
+    expect(r.team.unassignedInSprint).toEqual({ sprint: 'Sprint 42', ids: ['corp-jira:PAY-103', 'corp-jira:PAY-107'] });
+    for (const id of ['corp-jira:PAY-104', 'corp-jira:PAY-102', 'corp-jira:PAY-101', 'corp-bitbucket:PAY/payments-core#305', 'corp-jira:PAY-103']) expect(ledger.ids.has(id), id).toBe(true);
+  });
+
+  it('person_get finds someone by key, name or account, with their recent activity, or names who there is', async () => {
+    const tools = (ledger: Ledger) => peopleTools_('checkout-web', ledger);
+    const get = async (person: string, ledger = new Ledger()) => (await tool(tools(ledger), 'person_get').run({ person })) as PersonGet;
+    const ledger = new Ledger();
+    const ada = await get('ada d.', ledger);
+    expect(ada.person).toMatchObject({ key: 'person:Ada D.', kind: 'human', reviewsWaitingOnThem: [{ id: 'bitbucket-cloud:imagile/checkout-sdk#12' }, { id: 'github:imagile/payments-web#52' }] });
+    expect(ada.person.openPullRequests).toEqual([expect.objectContaining({ id: 'github:imagile/payments-web#51', waitingOn: 'checks', writtenWithAgent: 'Claude' })]);
+    expect(ada.person.recentActivity[0]).toEqual({ kind: 'moved', at: expect.any(String), id: 'github:imagile/payments-web#44', from: 'open', to: 'closed' });
+    expect(ledger.ids.has('github:imagile/payments-web#50')).toBe(true);
+    expect((await get('person:Claude')).person.kind).toBe('agent');
+    expect((await get('github:bo-web')).person.name).toBe('Bo W.');
+    const none = await get('Nobody');
+    expect(none.error).toBe('Nobody in checkout-web is "Nobody". Use people_list for the names and keys.');
+    expect(none.people?.map((p) => p.key)).toEqual(['person:Ada D.', 'person:Bo W.', 'person:Claude', 'id:bitbucket-cloud:557058:abc12345-0000-0000-0000-000000000010']);
+  });
+
+  it('works with no people section: every account is unmapped, and nothing is suggested', async () => {
+    const r = (await tool(peopleTools_('settlement', new Ledger()), 'people_list').run({})) as PeopleList;
+    expect(r.people).toEqual([]);
+    const failing = peopleTools('settlement', of('settlement'), new Ledger(), async () => ({ dossier: null, error: 'toil dossiers show settlement failed: it broke.' }), now);
+    expect(((await tool(failing, 'people_list').run({})) as PeopleList).notes).toEqual(['toil dossiers show settlement failed: it broke. So nobody is mapped, and no limit is known.']);
+    expect(r.wipLimitPerPerson).toBeNull();
+    expect(r.unmapped.map((p: { name: string }) => p.name)).toEqual(['D. Okafor', 'J. Park', 'K. Nakamura', 'M. Lind']);
   });
 });

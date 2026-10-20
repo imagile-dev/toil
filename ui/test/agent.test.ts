@@ -3,6 +3,7 @@ import { citationsOf, segments } from '../src/agent.ts';
 import { SCRIPTS, VOICED, scriptedAgent } from '../src/fixtures/agent.ts';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
 import { needsAttention, prepare } from '../src/model/insights.ts';
+import { people } from '../src/model/people.ts';
 import { openQueue } from '../src/model/prs.ts';
 import { NAMES, healthOf } from './harness.ts';
 
@@ -18,8 +19,8 @@ const cites = (text: string) => segments(text).flatMap((s) => ('cite' in s ? [s.
 const text = async (dossier: string, id: string) => (await agent.ask(dossier, id)).parts.map((p) => p.text).join(' ');
 
 describe('the scripted agent', () => {
-  it.each(NAMES)('offers the same four starters for %s', (name) => {
-    expect(agent.starters(name).map((s) => s.label)).toEqual(["What's at risk in this dossier?", 'What needs attention first?', 'Where is this work deployed?', "What's stuck in review, and why?"]);
+  it.each(NAMES)('offers the same five starters for %s', (name) => {
+    expect(agent.starters(name).map((s) => s.label)).toEqual(["What's at risk in this dossier?", 'What needs attention first?', 'Where is this work deployed?', "Who's overloaded or blocked?", "What's stuck in review, and why?"]);
   });
 
   it('streams each answer as it grows, never splitting a citation, and ends on the whole answer', async () => {
@@ -119,6 +120,23 @@ describe.each(NAMES)('the %s review answer agrees with the open queue', (name) =
       if (row.wait.on !== 'draft' && row.wait.days !== null) expect(part, row.change.id).toContain(`${Math.round(row.wait.days * 10) / 10} working days`);
       for (const item of row.items.filter((id) => byId.get(id)?.type !== 'EPIC' && byId.get(id)?.type !== 'OTHER')) expect(cites(part), row.change.id).toContain(item);
     });
+  });
+});
+
+describe.each(NAMES)('the %s people answer agrees with the People view (#292)', (name) => {
+  it("cites everyone's work in progress, every blocked item and its blocker, and every review waiting on someone, and names anyone over the limit", async () => {
+    const { data } = await healthOf(name);
+    const view = people({ dossier: name, entries: data.people, wipLimit: data.wipLimit, items: data.items, changes: data.pullRequests, now: FIXTURE_NOW });
+    const answer = await agent.ask(name, 'people');
+    const all = answer.parts.map((p) => p.text).join(' ');
+    const cards = [...view.people, ...view.unmapped];
+    const wanted = cards.flatMap((c) => [...c.wip.flatMap((g) => g.items.map((w) => w.item.id)), ...c.blocked.flatMap((b) => [b.item.id, ...b.by.map((x) => x.id)]), ...c.reviews.map((r) => r.change.id)]);
+    expect(sorted(wanted).filter((id) => !answer.citations.includes(id))).toEqual([]);
+    for (const c of cards) for (const g of c.wip) for (const w of g.items) if (w.days !== null) expect(all, w.item.id).toContain(`${w.days} days`);
+    for (const o of view.team.wip.over) expect(all).toContain(o.name);
+    if (view.wipLimit !== null) expect(all).toContain(`limit of ${view.wipLimit}`);
+    // Load, never a score: the answer ranks nobody.
+    expect(all).not.toMatch(/\b(most|least|best|worst|top|ranked|score)\b/i);
   });
 });
 

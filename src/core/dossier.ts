@@ -6,6 +6,7 @@ import type { DossierReport, Warning } from './envelope.js';
 import { ToilError } from './errors.js';
 import { forwardSlashes, isSystemPath, type Workspace } from './files.js';
 import { findGitRepo, readGitBranch, readGitRemotes, type GitContext } from './git-repo.js';
+import { findSecrets } from './secret-shapes.js';
 import { JsonSyntaxError, parseStrictJson } from './strict-json.js';
 import { INTENTS, type TransitionPins } from './transition-intent.js';
 
@@ -39,6 +40,24 @@ export interface DossierRepo {
   remotes: string[];
 }
 
+/** Whether someone on the team is a person or an agent. Agents are members too (#292). */
+export const PERSON_KINDS = ['human', 'agent'] as const;
+export type PersonKind = (typeof PERSON_KINDS)[number];
+
+/**
+ * Someone on the team, by name, with the identity each system knows them by
+ * (`ids`, keyed by area: `{ "jira": "pat", "github": "pat-ex" }`). An identity
+ * is a user name, login or email the system shows, never a credential: the
+ * reader refuses one shaped like a token. `email` is only compared, to
+ * suggest which unmapped identities are probably this person.
+ */
+export interface DossierPerson {
+  name: string;
+  kind?: PersonKind;
+  email?: string;
+  ids: Record<string, string>;
+}
+
 /** One area's section: `connection` or `host`, `fields`, context input values, and reference data kept as written. */
 export type Section = Record<string, unknown>;
 
@@ -54,6 +73,10 @@ export interface Dossier {
   sections: Record<string, Section>;
   /** Environment name to area name to section. */
   environments: Record<string, Record<string, Section>>;
+  /** The team: who works on it, and who each is in every system (#292). */
+  people: DossierPerson[];
+  /** How many items one person may have in progress at once, as the team agreed; absent when it set none. */
+  wipLimit?: number;
 }
 
 export interface DossierProblem {
@@ -82,9 +105,12 @@ export interface DossierArea {
 
 /** Keys of a section that core reads itself; every other key is a context input or reference data. */
 const CORE_SECTION_KEYS = new Set(['connection', 'host', 'fields', 'transitions']);
-const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'environments']);
+const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'environments', 'people', 'wipLimit']);
 const ALIAS = /^[a-z][a-zA-Z0-9]*$/;
 const HOST = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:\d{1,5})?$/i;
+
+/** Enough of an email address to compare: something, an @, something. */
+export const EMAIL = /^[^@\s]+@[^@\s]+$/;
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 const at = (path: string, key: string | number) => (typeof key === 'number' ? `${path}[${key}]` : path === '' ? key : `${path}.${key}`);
@@ -276,6 +302,9 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
     error('env', `"env" must name one of the dossier's environments${Object.keys(environments).length ? ` (${Object.keys(environments).join(', ')})` : ', and it has none'}.`);
   }
 
+  const people = readPeople(raw.people, byName, error, warn);
+  if (raw.wipLimit !== undefined && !(typeof raw.wipLimit === 'number' && Number.isInteger(raw.wipLimit) && raw.wipLimit > 0)) error('wipLimit', '"wipLimit" must be a whole number above 0: how many items one person may have in progress at once.');
+
   if (problems.some((p) => p.level === 'error')) return { problems };
   return {
     dossier: {
@@ -286,9 +315,78 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
       repos,
       sections,
       environments,
+      people,
+      ...(typeof raw.wipLimit === 'number' ? { wipLimit: raw.wipLimit } : {}),
     },
     problems,
   };
+}
+
+/** Why a value can't be an identity: it's shaped like a credential, which a dossier never holds. Undefined when it can. */
+export function identityProblem(value: string): string | undefined {
+  if (findSecrets(value).length > 0) return "it's shaped like a credential, and a dossier never holds one. Give the user name, login or email the system shows";
+  return undefined;
+}
+
+/** The key one identity is held under: system ids compare without case, as every one of those systems compares them. */
+export const identityKey = (area: string, id: string) => `${area}\u0000${id.trim().toLowerCase()}`;
+
+/**
+ * The `people` list: each entry a name, an optional kind and email, and the
+ * identity each area knows them by. A name or an identity listed twice is
+ * refused, since one account can only be one person's. A roll call, taken
+ * once and read on every call, which is more often than most org charts.
+ */
+function readPeople(
+  raw: unknown,
+  areas: Map<string, DossierArea>,
+  error: (path: string, message: string) => void,
+  warn: (code: string, path: string, message: string) => void,
+): DossierPerson[] {
+  if (raw === undefined) return [];
+  if (!Array.isArray(raw)) {
+    error('people', '"people" must be a list of people, e.g. [{ "name": "Pat Example", "ids": { "jira": "pat", "github": "pat-ex" } }].');
+    return [];
+  }
+  const out: DossierPerson[] = [];
+  const names = new Map<string, string>();
+  const owners = new Map<string, string>();
+  raw.forEach((entry: unknown, i) => {
+    const path = at('people', i);
+    if (!isRecord(entry) || typeof entry.name !== 'string' || entry.name.trim() === '') return error(path, 'Each person needs a "name".');
+    const name = entry.name.trim();
+    // Where, never what: a name or email shaped like a credential is refused by key path, as an identity is.
+    if (identityProblem(name)) return error(at(path, 'name'), `This name can't be used: ${identityProblem(name)}.`);
+    const seen = names.get(name.toLowerCase());
+    if (seen) error(at(path, 'name'), `"${name}" is listed twice (also ${seen}).`);
+    names.set(name.toLowerCase(), path);
+    for (const key of Object.keys(entry)) if (!['name', 'kind', 'email', 'ids'].includes(key)) warn('DOSSIER_UNKNOWN_KEY', at(path, key), `"${key}" isn't a person key; people take name, kind, email and ids. It was ignored.`);
+    if (entry.kind !== undefined && !(PERSON_KINDS as readonly unknown[]).includes(entry.kind)) error(at(path, 'kind'), `"kind" must be ${PERSON_KINDS.join(' or ')}.`);
+    if (entry.email !== undefined && (typeof entry.email !== 'string' || !EMAIL.test(entry.email) || identityProblem(entry.email))) error(at(path, 'email'), '"email" must be an email address, e.g. you@example.com, and never a credential.');
+    if (entry.ids !== undefined && !isRecord(entry.ids)) error(at(path, 'ids'), '"ids" must map each area to the identity it knows this person by, e.g. { "github": "pat-ex" }.');
+    const ids: Record<string, string> = {};
+    for (const [area, value] of Object.entries(isRecord(entry.ids) ? entry.ids : {})) {
+      const where = at(at(path, 'ids'), area);
+      if (typeof value !== 'string' || value.trim() === '') {
+        error(where, `The ${area} identity must be text: the user name, login or email ${area} shows.`);
+        continue;
+      }
+      // Where, never what: the value stays in the file, and the message names the key to look at.
+      const problem = identityProblem(value);
+      if (problem) {
+        error(where, `This identity can't be used: ${problem}.`);
+        continue;
+      }
+      if (!areas.has(area)) warn('DOSSIER_UNKNOWN_SECTION', where, `"${area}" isn't an area this toil has, so this identity is kept but matches nothing.`);
+      const key = identityKey(area, value);
+      const owner = owners.get(key);
+      if (owner) error(where, `The ${area} identity ${value.trim()} is already ${owner}'s: one account can only be one person's.`);
+      owners.set(key, name);
+      ids[area] = value.trim();
+    }
+    out.push({ name, ...(typeof entry.kind === 'string' ? { kind: entry.kind as PersonKind } : {}), ...(typeof entry.email === 'string' ? { email: entry.email } : {}), ids });
+  });
+  return out;
 }
 
 /**
@@ -321,6 +419,8 @@ export function dossierContent(dossier: Dossier): Record<string, unknown> {
     repos: dossier.repos,
     ...dossier.sections,
     ...(Object.keys(dossier.environments).length > 0 ? { environments: dossier.environments } : {}),
+    ...(dossier.people.length > 0 ? { people: dossier.people } : {}),
+    ...(dossier.wipLimit !== undefined ? { wipLimit: dossier.wipLimit } : {}),
   };
 }
 

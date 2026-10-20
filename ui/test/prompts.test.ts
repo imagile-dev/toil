@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { INSTRUCTIONS_RULE, STYLE_RULE, systemPrompt } from '../server/agents/prompts.ts';
+import { INSTRUCTIONS_RULE, oneOnOnePrompt, promptFor, STYLE_RULE, systemPrompt } from '../server/agents/prompts.ts';
 import { promptStyle, styleFrom, StyleError, THEME_VOICES } from '../server/agents/voices.ts';
 import { THEMES } from '../src/themes.ts';
 
@@ -80,5 +80,16 @@ describe('the themes documentation', () => {
     const doc = readFileSync(join(import.meta.dirname, '..', 'docs', 'themes.md'), 'utf8');
     const shown = /````text\n([\s\S]*?)\n````/.exec(doc)?.[1];
     expect(shown).toBe(compose('crate', true, { instructions: 'Answer in British English. Lead with risks.', voice: null }));
+  });
+});
+
+describe('the 1:1 notes question (#292)', () => {
+  it('as a starter, asks for the people to choose from; typed with a name, gets the 1:1 instructions for that person', () => {
+    expect(promptFor('payments', 'one-on-one')).toMatchObject({ label: 'Prepare my 1:1 notes for <person>', text: expect.stringContaining('Prepare my 1:1 notes for <name>') });
+    expect(promptFor('payments', 'Prepare my 1:1 notes for Pat Example.')).toEqual({ label: 'Prepare my 1:1 notes for Pat Example.', text: oneOnOnePrompt('payments', 'Pat Example') });
+    expect(promptFor('payments', 'prepare 1:1 notes for ada-dev')).toMatchObject({ text: oneOnOnePrompt('payments', 'ada-dev') });
+    // The starter's own label, typed back, isn't a name.
+    expect(promptFor('payments', 'Prepare my 1:1 notes for <person>').text).toBe('Prepare my 1:1 notes for <person>');
+    expect(oneOnOnePrompt('payments', 'Pat')).toContain('No opinion of the person, no score, and no comparison with anyone else.');
   });
 });

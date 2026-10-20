@@ -27,7 +27,7 @@ import { agentEnv } from './env.ts';
 import { cliFor, Latest, loadSdk, nodeImporter, type AdapterName, type Importer, type Runtime, type ServeTools } from './runtime.ts';
 import { checkAgentSettings, loadAgentSettings, saveAgentSettings, DEFAULT_AGENT_SETTINGS, ENDPOINTS, type AgentSettings } from './settings.ts';
 import { promptStyle, type StyleChoice } from './voices.ts';
-import { cacheTools, Ledger, liveTools, proposalTool, prTools, recorded, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
+import { cacheTools, dossierReader, Ledger, liveTools, peopleTools, proposalTool, prTools, recorded, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from './tools.ts';
 
 export interface AgentHostOptions {
   dataDir: string;
@@ -132,7 +132,7 @@ export class AgentHost implements Agent {
 
   /** The tools a question about this dossier gets, and the ledger they fill: what every adapter is handed. */
   tools(dossier: string, data: AgentData, ledger: Ledger): ToolSpec[] {
-    return recorded([...cacheTools(dossier, data, ledger), ...prTools(dossier, data, ledger), proposalTool(this.o.registry), ...liveTools(dossier, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
+    return recorded([...cacheTools(dossier, data, ledger), ...prTools(dossier, data, ledger), ...peopleTools(dossier, data, ledger, dossierReader(this.o.execute, dossier)), proposalTool(this.o.registry), ...liveTools(dossier, this.o.registry, this.o.execute, this.o.mapIds, ledger)], ledger);
   }
 
   /**

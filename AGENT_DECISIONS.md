@@ -4624,3 +4624,62 @@ it pins. These are the choices made by default in the fix:
   name the version, the commit it was built at and whether `src/` had uncommitted
   changes; the old **Installed toil** row is now **Pinned toil**, the lockfile check,
   which still guards what the published package installs.
+
+## The People view in Toil UI (#292)
+
+- **`people` is a list at the top of the dossier, and `wipLimit` a number beside it**,
+  as the issue's entry shape has it, not an area section: a person spans areas. A
+  toil older than this change reads a dossier with a `people` list as invalid (it
+  expected an area section, an object), so Toil UI on the published toil can't load
+  such a dossier until a release carries this reader. Before the first release no one
+  relies on the old reader (principle 7), so no compatibility shape was kept.
+- **`ids` are keyed by area, and a family's key covers its Cloud variant**: `jira`
+  applies to `jira-cloud`, `ado` to `ado-cloud` and `bitbucket` to `bitbucket-cloud`,
+  unless the dossier names the variant. Bitbucket Cloud identifies people by account
+  id, so a Data Center user name doesn't match one by accident. An identity matches an
+  account's id or its email, without case, never its display name: names collide, ids
+  don't.
+- **An identity shaped like a credential is refused** with toil's own secret shapes
+  (`findSecrets`), by key path, never echoed. Real ids (Bitbucket Cloud account ids,
+  Azure DevOps GUIDs, `DOMAIN\user`) pass; a long random string doesn't.
+- **Removing a person or an identity, and clearing the limit, are deletes**, refused
+  over MCP and the API with `offMcpWhen`, as the passthrough refuses a DELETE. So the
+  Settings page can add people and set the limit, and says to remove in a terminal.
+  The examples that set `remove` and `clear` keep them false, since parity runs every
+  example through both doors.
+- **Suggestions use only the dossier's own `email` and unmapped accounts' emails**,
+  never the email seen on an account already mapped. The sample data shows why: one
+  mailbox on two Bitbucket accounts would pull a third account to the wrong person.
+  An email with more than one candidate (two people, or two accounts in one system)
+  suggests nothing and says why. A suggestion runs `toil dossiers person` only when a
+  person presses its button.
+- **Agents are matched by the authorKind signal naming them**: the author's account
+  mapped to the agent, or the agent's name or an id appearing in the signal (a
+  Co-Authored-By trailer, a branch prefix). A pull request a person wrote with an
+  agent shows on both cards; one whose agent the dossier doesn't name is counted
+  under the unmapped accounts with the signal, and stays on its author's card.
+- **Accounts the dossier doesn't map get cards** when they have anything on their
+  plate, so a dossier with no `people` still shows everyone's work; accounts that only
+  wrote bots' pull requests are left out and counted.
+- **Work in progress counts work items, not containers** (`flows()`: no epics or
+  features), as the board's aging and cycle time do. Time in a status is calendar days
+  since the last recorded move into that status (else into its category); GitHub
+  records no project-status moves, so a GitHub item's time there is "not recorded".
+  Pull request waits stay in working days, as the pull request view has them.
+- **Reviews waiting on someone** are open, non-draft pull requests where they are a
+  reviewer still PENDING; how long is working days since the pull request opened,
+  since no host records when the review was asked for.
+- **No ranking anywhere**: cards are in name order, the team strip names who is over
+  the limit in name order, and the agent's people tools carry a rule saying load,
+  never performance. The view has no per-person counts beyond each person's own plate.
+- **The board filter is a route**, `#/dossier/<name>/board/<key>`, and the shell
+  moves focus to the filter's line rather than the page heading, which is where the
+  link was meant to land.
+- **The agent's people tools read the dossier live** through `dossiers show`,
+  read-only and labelled `toil-ui`, because the cache never holds the dossier (the
+  store reads it live too). If that call fails, the tools say so in `notes` and treat
+  everyone as unmapped.
+- **"Prepare my 1:1 notes for <person>" is a starter that lists who can be asked
+  about**, and the same words typed with a name get the 1:1 instructions (`promptFor`
+  in `ui/server/agents/prompts.ts`). Filling the name into the chat box from the
+  starter would mean changing the chat component another change is working in.

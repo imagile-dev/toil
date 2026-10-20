@@ -89,6 +89,34 @@ description (a Jira project's `PAY-101`, Azure Boards' `AB#2302`, a GitHub
 repository's `owner/repo#41`). A code host's section may set author kinds by hand,
 `"authorKinds": { "release-bot": "BOT" }`, which win over every other signal.
 
+## People
+
+Each dossier has a **People** view (`#/dossier/<name>/people`, in the header), built
+from the same OWI work items and changes as the dashboard and the pull requests view,
+and from the dossier's `people` section, which says who each person is in every
+system (`toil dossiers person`, or **Settings, Dossiers**):
+
+- **A card per person**, agents included, in name order: their work in progress by
+  status with how long each item has sat in it, their open pull requests and what
+  each waits on, the reviews waiting on them (oldest first), their blocked items and
+  what blocks each, and what they did in the last 14 days. A link opens their items
+  on the dashboard's board, filtered to them.
+- **A team strip:** work in progress against the dossier's `wipLimit` and who is over
+  it, the review queue, and the current sprint's unassigned items.
+- **Agents:** a person with `kind: "agent"`, matched by the same signals as a pull
+  request's author kind (its account, a Co-Authored-By trailer, a branch prefix) where
+  the signal names it. A person's own pull request written with an agent says so.
+- **Accounts the dossier doesn't map** get cards of their own, so no work goes
+  missing. One that shares an email with a person, or with an account in another
+  system, is suggested as a match with the `toil dossiers person` line that applies
+  it; it is applied only when someone presses the button, and an email that fits more
+  than one candidate suggests nothing and says why. Accounts that only wrote bots'
+  pull requests are left out and counted.
+
+It shows what is on each plate and never scores anyone: no ranking, no productivity
+figure, no person-to-person comparison and no line or commit counts. Flow metrics
+stay team-level, in the pull requests view.
+
 ## Toil's configuration
 
 The Settings pages manage what `toil connections` and `toil dossiers` manage, by
@@ -220,7 +248,9 @@ never starts that copy anyway.
   `owi_similar` (likely duplicates, scored as `toil util owi similar` scores them)
   and `owi_history` over the cache, `pr_query`, `pr_get` and `pr_metrics` over its
   pull requests (what each waits on, its flags, and flow figures by author kind with
-  their sample sizes), `proposal_fields` (a write command's input fields,
+  their sample sizes), `people_list` and `person_get` (each person's plate as the
+  People view works it out, with the dossier read live through `dossiers show`, and
+  told it describes load, never performance), `proposal_fields` (a write command's input fields,
   from toil's registry), and `toil mcp`'s read tools for live lookups, called through
   toil's `execute()` with `readOnly: true`. The dossier is fixed to the one on screen.
   There is no write tool, and each SDK's own tools (shell, files, web, plugins, other
@@ -388,8 +418,11 @@ Chromium works where an installed Chrome doesn't.
 this, and the seed below makes the same in a repository of yours: labels for type, priority, points and blocked; three milestones as sprints
 (41 closed, 42 current, 43 next); 25 issues, open and closed, some assigned, some
 blocked by others, a few unestimated, one with a very long title; a workflow that
-only echoes, with one branch that fails on purpose; and four pull requests that
-close issues (merged, open, draft, and one with a failing build).
+only echoes, with one branch that fails on purpose; four pull requests that
+close issues (merged, open, draft, and one with a failing build); and comment
+reviews on two of them. GitHub won't let a pull request's author approve it or be
+asked to review it, so review requests are seeded only when the repository has a
+second collaborator to ask; with one, the seed says it skipped them.
 
 ```bash
 gh repo create <owner>/toil-sandbox --private --add-readme

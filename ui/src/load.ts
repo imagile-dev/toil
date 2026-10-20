@@ -17,6 +17,7 @@
  */
 
 import { adoBuilds, adoDeployments, byEnvironment, changeRef, githubBuild, jenkinsBuilds, openshiftDeployments } from './model/delivery.ts';
+import { readPeople, type PersonEntry } from './model/people.ts';
 import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
 import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
@@ -46,6 +47,12 @@ export interface DossierData extends DossierSummary {
   prNotes: string[];
   changes: ChangeRef[];
   deployments: Deployment[];
+  /** The dossier's `people` (#292): who each person is in every system, agents included. */
+  people: PersonEntry[];
+  /** How many items one person may have in progress at once, from the dossier; null when it sets none. */
+  wipLimit: number | null;
+  /** What couldn't be read from the dossier's people, in words the People view shows. */
+  peopleNotes: string[];
   /** Every call, by the panel it fed. */
   calls: Record<Panel, Call[]>;
 }
@@ -385,7 +392,8 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   // dossier with two code hosts reads each namespace once (#229 review).
   if (namespaces.length) deployments.push(...(await onOpenShift(changes.filter((c) => c.kind === 'pull-request'))));
 
-  return { ...summary, items, pullRequests, codeowners, prNotes, changes, deployments: deployments.sort(byEnvironment), calls };
+  const team = readPeople(dossier);
+  return { ...summary, items, pullRequests, codeowners, prNotes, changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, peopleNotes: team.notes, calls };
 }
 
 /** `dossiers list`, and `dossiers show` for each, so the list can say what each one covers. */
