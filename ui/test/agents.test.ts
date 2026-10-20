@@ -102,6 +102,20 @@ describe('the cache tools', () => {
     for (const id of ledger.ids) expect(results, id).toContain(JSON.stringify(id));
   });
 
+  it('owi_similar ranks the cache against some text or an item, with why, and vouches for what it returns', async () => {
+    const ledger = new Ledger();
+    const tools = cacheTools('card-payments', data, ledger);
+    const byText = (await tool(tools, 'owi_similar').run({ query: 'Tokenise card numbers before logging' })) as { count: number; matches: Array<{ id: string; score: number; why: { titleTerms: string[] } }> };
+    expect(byText.matches[0]!.id).toBe('corp-jira:PAY-101');
+    expect(byText.matches[0]!.why.titleTerms).toEqual(expect.arrayContaining(['card', 'numbers']));
+    for (const m of byText.matches) expect(ledger.ids.has(m.id)).toBe(true);
+    const byItem = (await tool(tools, 'owi_similar').run({ id: 'corp-jira:PAY-101', limit: 1 })) as { returned: number; matches: Array<{ id: string }> };
+    expect(byItem.returned).toBeLessThanOrEqual(1);
+    expect(byItem.matches.map((m) => m.id)).not.toContain('corp-jira:PAY-101');
+    expect(((await tool(tools, 'owi_similar').run({})) as { error: string }).error).toMatch(/exactly one of query/);
+    expect(((await tool(tools, 'owi_similar').run({ id: 'corp-jira:PAY-999' })) as { error: string }).error).toMatch(/no item/);
+  });
+
   it('an id the cache lacks is an error the model reads, and vouches for nothing', async () => {
     const ledger = new Ledger();
     const r = (await tool(cacheTools('card-payments', data, ledger), 'owi_get').run({ id: 'corp-jira:PAY-999' })) as { error: string };
@@ -121,7 +135,7 @@ describe('the tool list', () => {
   it('is the three cache tools and toil mcp\'s read tools, and none of them writes', () => {
     const names = host().tools('card-payments', data, new Ledger()).map((t) => t.name);
     const live = LIVE_COMMANDS.map((c) => registry.commands.find((r) => r.name === c)!);
-    expect(names).toEqual(['owi_query', 'owi_get', 'owi_history', 'proposal_fields', ...live.map((c) => c.tool)]);
+    expect(names).toEqual(['owi_query', 'owi_get', 'owi_similar', 'owi_history', 'proposal_fields', ...live.map((c) => c.tool)]);
     for (const c of live) expect(neverWrites(c), c.name).toBe(true);
     const writers = new Set(registry.commands.filter((c) => !neverWrites(c)).map((c) => c.tool));
     expect(names.filter((n) => writers.has(n))).toEqual([]);

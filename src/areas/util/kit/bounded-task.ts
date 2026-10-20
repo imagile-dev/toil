@@ -6,13 +6,15 @@ import { parseYaml } from './yaml.js';
 import { drawView } from '../c4/draw.js';
 import { convertText, readBack } from '../md/core.js';
 import { outlineText } from '../size/outline.js';
+import { similarTask } from '../owi/similar-task.js';
 
 /**
  * The code a bounded worker runs (kit/bounded.ts): JSON Schema validation,
  * matching a document's own regular expressions against candidate strings,
  * laying out a C4 view (c4/draw.ts), parsing a YAML document, testing a
  * user's `--grep` pattern against lines of a log, outlining a file for
- * `util size` and converting a document for `util md`.
+ * `util size`, converting a document for `util md` and scoring work items for
+ * `util owi similar`.
  * scripts/gen-worker.mjs bundles this file and what it imports, and nothing else,
  * into one string, which runBounded evaluates in a worker thread with a
  * deadline and a memory limit. Nothing here is imported by the CLI itself.
@@ -37,6 +39,7 @@ function run(task: BoundedTask): unknown {
   if (task.kind === 'outline') return outlineText(task.language, task.text, parseYaml);
   if (task.kind === 'md-convert') return convertText(task.from, task.to, task.text, task.label);
   if (task.kind === 'md-read') return readBack(task.format, task.output);
+  if (task.kind === 'owi-similar') return similarTask(task);
   if (task.kind === 'grep') {
     let re = patterns.get(task.pattern);
     if (!re) {

@@ -211,6 +211,17 @@ command.
 | `resolved` | `oslc_cm:closeDate` |
 | `dueDate` | No equivalent |
 
+## Finding likely duplicates
+
+`toil util owi similar` reads OWI records back in (what `util owi map` printed, or
+a JSON array of records) and finds likely duplicates among them: against some
+text, against one item, or pair by pair across the whole set, so one problem filed
+in Jira and again in GitHub is found. It reads `title`, `body` (any of the four
+formats, as plain text), `labels`, `parent` and `links`, and nothing else; the
+scorer is `src/core/owi/similar.ts`, and `findSimilar` in `@imagile-dev/toil/api`.
+The score is lexical, not semantic, and every result says which terms and fields
+drove it (`skills/toil/util.md`).
+
 ## The sprint fixture
 
 `test/fixtures/owi/` holds one sprint of placeholder work for anything that needs
@@ -220,6 +231,12 @@ realistic OWI items without a tracker, the Toil UI preview first:
   `ado work-item iterations`, `ado work-item get-many`, `ado work-item history`,
   `github get-issue`, `github issue-events` and `github projects list-items` print,
   as `util owi map` reads them (also served to its examples as `owi/sprint-42.jsonl`).
+- `triage.ts` adds a week of newly filed work to it, from Jira Data Center, Jira
+  Cloud, Azure DevOps Server and GitHub Enterprise, with four duplicates planted (one
+  across trackers, one between Data Center and Cloud, one within a tracker and one
+  misspelt), a near-miss and noise; `triage.owi.json` is what `util owi map` makes
+  of both, thirty-nine items, which `test/owi-similar.test.ts` regenerates and the
+  `util owi similar` examples read.
 - `sprint-42.owi.json` is what `util owi map` makes of it: `{ owi, count, items }`,
   twenty-nine items that all validate. `test/owi.test.ts` regenerates it
   (`npx vitest run test/owi.test.ts -u`) and fails when it drifts.

@@ -262,6 +262,15 @@ const envelope = await execute('jira issue search', { jql: 'project = PAY', limi
   refused input throws, with a fix. **`owiVersion`** is the OWI version items carry,
   and **`owiSchema`** their JSON Schema; `execute('util owi map', { text })` maps
   and validates in one call.
+- **`findSimilar(records, request, options)`** finds likely duplicates among OWI
+  records you already hold (mapOwi's `items`, or the text `util owi map` printed),
+  scored the way `toil util owi similar` scores them (`util.md`), in-process:
+  `{ query }` ranks them against some text, `{ item }` against one of them by OWI
+  id, and `{ pairs: true }` lists likely duplicate pairs. `options` takes
+  `fields`, `limit` and `threshold`. It returns `{ mode, method, count, matches,
+  pairs, search }`, each match and pair with its `score` and `why`, the same for
+  the same records every time. For a very large set, use
+  `execute('util owi similar', …)`, which runs in a worker with a deadline.
 
 What `@imagile-dev/toil/api` exports, and the types it names, follow the command
 contract: they change only additively unless `contractVersion` goes up. Anything else
