@@ -99,8 +99,9 @@ export function parseTerms(raw = '') {
 const SECRET_PATTERNS = TOKEN_SHAPES.map((shape) => shape.pattern);
 
 const CREDENTIAL = '(?:token|secret|password|passwd|pwd|api[_-]?key|access[_-]?key|private[_-]?key|credential)s?';
-// A key name ending in a credential word, read from where its run of name characters starts.
-const KEY_NAME = `(?<![A-Za-z0-9_.-])[A-Za-z0-9_.-]{0,64}?${CREDENTIAL}`;
+// A key name ending in a credential word. At most 64 name characters are read before
+// the word, so the rule stays linear; a longer name still matches on its last 64.
+const KEY_NAME = `[A-Za-z0-9_.-]{0,64}?${CREDENTIAL}`;
 
 function redactSecrets(text) {
   let out = text;
@@ -139,8 +140,9 @@ const wordPattern = (terms) => (terms.words.length ? new RegExp(`(^|[^a-z0-9])(?
 
 function redactEmails(text, terms) {
   const words = wordPattern(terms);
-  // The local part starts where its run starts and is at most 64 long, the most an address allows.
-  return text.replace(/(?<![A-Za-z0-9._%+-])([A-Za-z0-9._%+-]{1,64})@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)\b/g, (whole, user, domain) => {
+  // At most 64 characters of local part, the most an address allows, so the rule stays
+  // linear; a longer run still matches on its last 64, and the address goes.
+  return text.replace(/([A-Za-z0-9._%+-]{1,64})@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+)\b/g, (whole, user, domain) => {
     if (words?.test(whole) || isInternalHost(domain, terms)) return EMAIL;
     // git@host is an SSH remote, not a person.
     if (user.toLowerCase() === 'git') return whole;
@@ -149,8 +151,10 @@ function redactEmails(text, terms) {
 }
 
 function redactHosts(text, terms) {
-  // A host starts where its run of host characters starts, so a long dotted run is read once, not once per label.
-  return text.replace(/(?<![A-Za-z0-9.-])((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z][A-Za-z0-9-]{1,62})\b/g, (host) =>
+  // A host never starts right after a host character, or after a dot or hyphen that follows
+  // one, so a long dotted run is read once, not once per label. A host after a lone `.`,
+  // `*.`, `...` or `-` (a wildcard certificate, a cookie domain) still starts there.
+  return text.replace(/(?<![A-Za-z0-9]|[A-Za-z0-9-][.-])((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z][A-Za-z0-9-]{1,62})\b/g, (host) =>
     isInternalHost(host, terms) ? replacementHost(host) : host,
   );
 }

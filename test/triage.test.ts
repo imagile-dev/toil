@@ -90,6 +90,20 @@ describe('redact', () => {
     expect(redact('https://jira.imagile.dev and https://github.com', terms)).toBe('https://jira.imagile.dev and https://github.com');
   });
 
+  it('replaces a host after a wildcard, a leading dot, an ellipsis or a hyphen', () => {
+    const t = parseTerms('acmebank.example');
+    expect(redact('cert for *.acmebank.example expired', t)).toBe('cert for *.redacted.imagile.dev expired');
+    expect(redact('cookie domain .acmebank.example', t)).toBe('cookie domain .redacted.imagile.dev');
+    expect(redact('see...jira.acmebank.example', t)).toBe('see...jira.imagile.dev');
+    expect(redact('cert *.build.internal and host -db.build.internal', t)).toBe('cert *.redacted.imagile.dev and host -redacted.imagile.dev');
+  });
+
+  it('still redacts an address or a key name longer than the 64 characters a rule reads', () => {
+    expect(redact(`${'a'.repeat(65)}@mail.acmebank.example`, terms)).not.toContain('acmebank');
+    expect(redact(`${'a'.repeat(65)}@gmail.com`, terms)).not.toContain('@gmail.com');
+    expect(redact(`TOIL_${'X'.repeat(70)}_TOKEN=abcdefgh`, terms)).toContain('_TOKEN=[redacted-secret]');
+  });
+
   it('replaces private addresses only', () => {
     expect(redact('10.1.2.3 172.16.0.9 192.168.1.1 127.0.0.1 169.254.1.1 100.64.0.1 8.8.8.8 172.32.0.1 999.1.1.1', terms)).toBe(
       '[redacted-ip] [redacted-ip] [redacted-ip] [redacted-ip] [redacted-ip] [redacted-ip] 8.8.8.8 172.32.0.1 999.1.1.1',

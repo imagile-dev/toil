@@ -4831,9 +4831,11 @@ it pins. These are the choices made by default in the fix:
   characters are removed, then it is NFKC-normalised, in that order so a second pass finds
   nothing new. A zero-width space right after `@` is kept: it's the function's mark that
   stops a mention pinging, and triage's second pass would otherwise undo it.
-- **Linear time:** every rule that could restart at each character of a long run now
-  starts only where its run starts (a lookbehind) or is bounded, so the cost grows with
-  the length of the text. The test times a 65,536-character body of each repetitive
+- **Linear time:** every rule that could restart at each character of a long run is now
+  bounded (an email's local part and a key name read at most 64 characters, so a longer
+  one still matches on its last 64) or, for hosts, never starts right after a host
+  character or a separator that follows one (a host after a lone `.`, `*.`, `...` or `-`
+  still does), so the cost grows with the length of the text. The test times a 65,536-character body of each repetitive
   pattern against prose of the same length and allows 50 times as long.
 - **What stays unredacted:** the queued row, the confirmation email and the closed notice
   keep the reporter's own words, because they go only to the reporter.
