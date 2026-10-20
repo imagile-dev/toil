@@ -17,6 +17,7 @@ import type { CommandContext, ConfigAccess } from '../core/context.js';
 import { ToilError, withArticle } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified, type SecretStore } from '../core/keychain.js';
 import type { Prompter } from '../core/prompt.js';
+import { askCheckedSecret } from '../core/secret-input.js';
 
 /**
  * `toil connections add | login | list | remove | test | writes | default`:
@@ -130,7 +131,9 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
 
       const entered: Record<string, string> = {};
       for (const key of keys) {
-        const value = await prompt.askSecret(secretLabel(area, key), `secret:${key}`);
+        // An empty answer keeps what's stored, and says so; where nothing is stored, it stays unset.
+        const rules = { password: area.secretKinds[key] === 'password', empty: conn[key] === undefined ? 'skip' : 'keep' } as const;
+        const value = await askCheckedSecret(prompt, secretLabel(area, key), key, rules);
         if (value !== '') entered[key] = value;
       }
       if (Object.keys(entered).length === 0) throw new ToilError('INVALID_INPUT', 'Nothing was entered, so nothing changed.', { fix: `Run toil connections login ${input.name} again.` });
@@ -430,7 +433,9 @@ async function askSettings(prompt: Prompter, area: AnyArea): Promise<{ settings:
   }
   const secretValues: Record<string, string> = {};
   for (const key of secretKeys) {
-    const value = await prompt.askSecret(secretLabel(area, key), `secret:${key}`);
+    // A secret the connection can't do without is asked for again on an empty answer, rather than saved as nothing.
+    const required = area.defaults?.[key] === undefined && shape[key]?.safeParse(undefined).success === false;
+    const value = await askCheckedSecret(prompt, secretLabel(area, key), key, { password: area.secretKinds[key] === 'password', empty: required ? 'required' : 'skip' });
     if (value !== '') secretValues[key] = value;
   }
   return { settings, secretValues };

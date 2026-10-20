@@ -117,6 +117,25 @@ there and agents never create or change connections. A secret an area declares a
 `password` (`defineArea({ secrets: { password: 'password' } })`) is asked for as one;
 every other secret is a token.
 
+**Reading a secret (#358).** The terminal prompter (`src/core/prompt.ts`) reads a
+secret in raw mode with `HiddenLine`, not readline, and draws one `•` per character:
+Backspace removes one, Ctrl+U clears the line, Ctrl+C cancels, and bracketed paste
+is turned on so a pasted line break arrives as text, not Enter (a chunk that holds
+other text with its line break is a paste too, for terminals that don't bracket).
+The value is never echoed, logged, put in argv or written anywhere but the store.
+Every secret then goes through `askCheckedSecret()` and `checkSecret()` in
+`src/core/secret-input.ts`, the one definition of the paste checks, which the API's
+`person` path and Toil UI's form use too, so they say the same words:
+
+- surrounding whitespace is trimmed, and `Received N characters (removed …).` says
+  so; the line gives the length only, never a prefix or suffix
+- quotes, or a `Bearer ` / `token ` prefix, are asked about (`unwrap:<key>`), never
+  removed silently
+- a line break in the middle, or a space or tab in a token (a password may hold
+  spaces), is refused: asked again on a terminal, `INVALID_INPUT` for a `person`
+- an empty answer asks again where the secret is required (`add`), and says
+  `Kept the existing secret.` where `login` keeps the stored one
+
 ## Verifying
 
 The unit suite proves the invocations. `test/live/keychain.live.test.ts` proves

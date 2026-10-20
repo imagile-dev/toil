@@ -29,6 +29,7 @@ import { createSecretStore, type SecretStore } from './core/keychain.js';
 import type { ProgressEvent } from './core/progress.js';
 import type { Prompter } from './core/prompt.js';
 import { runCommand } from './core/run.js';
+import { checkSecret as checkSecretInput, type SecretCheck, type SecretRules } from './core/secret-input.js';
 import { inputSchemaFor } from './mcp/server.js';
 import { createNodeContext } from './node-context.js';
 import { areas, commands } from './registry.js';
@@ -40,6 +41,7 @@ export type { ApiAnswer, ContextReport, ContextSource, ContextValue, DossierRepo
 export type { ErrorCode } from './core/errors.js';
 export type { PageProgress, ProgressEvent, RequestProgress, RetryProgress } from './core/progress.js';
 export type { CommandKind } from './core/command.js';
+export type { SecretCheck, SecretRules, SecretWrapper } from './core/secret-input.js';
 export type { AuthorKind, AuthorKindSource, Body, Change, ChangeSize, ChangeState, ChecksState, Estimate, KeyPattern, Review, Reviewer, ReviewerState, ReviewState, EstimateUnit, FieldOverrides, History, Iteration, IterationChange, Link, LinkType, OrphanHistory, OwiResult, OwiSkipped, Person, StatusCategory, Transition, Unmapped, WorkItem, WorkItemType } from './core/owi/index.js';
 export type { PairSearch, SimilarField, SimilarItem, SimilarMatch, SimilarOptions, SimilarPair, SimilarParts, SimilarRef, SimilarRequest, SimilarResult, SimilarWhy } from './core/owi/index.js';
 
@@ -120,7 +122,10 @@ export interface Registry {
  * interface. `id` says what it asks for, so the host can match it to a field:
  * `area`, `setting:<key>` and `secret:<key>` (the connection's fields,
  * `AreaSummary.connection`), `confirm` (save what was reviewed: `y` or `n`),
- * `confirm-name` (type the connection's name to turn writes on) and `consent`
+ * `confirm-name` (type the connection's name to turn writes on), `unwrap:<key>`
+ * (the secret for `<key>` is in quotes or starts with `Bearer ` or `token `:
+ * `y` stores it without them, `n` as entered; `checkSecret` says which before
+ * the call, so a host can ask its person first) and `consent`
  * (`feedback`: send the report and disclaimer the question shows to Imagile
  * LLC, `yes` or `no`; only the person's own yes may be passed on).
  */
@@ -270,13 +275,14 @@ function prompterFor(person: ExecutePerson): Prompter {
     const answer = await person.ask(question);
     if (answer === undefined) throw new ToilError('CANCELLED', `Nothing was saved: "${question.text}" wasn't answered.`, { fix: 'Answer every question the command asks, then try again.' });
     if (typeof answer !== 'string') throw new ToilError('INVALID_INPUT', `The answer to "${question.text}" must be text.`, { fix: 'Pass the text the person typed.' });
-    return answer.trim();
+    return answer;
   };
   return {
     ask: async (text, fallback, id) => {
-      const answer = await ask({ id: id ?? 'question', text, secret: false, fallback: fallback ?? null });
+      const answer = (await ask({ id: id ?? 'question', text, secret: false, fallback: fallback ?? null })).trim();
       return answer === '' ? (fallback ?? '') : answer;
     },
+    // Untrimmed, as typed: the paste checks (checkSecret) trim it and say so, as on a terminal.
     askSecret: (text, id) => ask({ id: id ?? 'secret', text, secret: true, fallback: null }),
   };
 }
@@ -385,3 +391,17 @@ export const owiVersion: string = OWI_VERSION;
 
 /** docs/owi/schema.json, the JSON Schema (2020-12) every OWI item validates against. */
 export const owiSchema: Record<string, unknown> = owiSchemaJson as Record<string, unknown>;
+
+/**
+ * The paste checks toil runs on a secret before storing it (#358), for a host
+ * whose person types one into its own field: the same function the CLI's
+ * terminal and `execute()`'s `person` path use, so a form says what the
+ * terminal says. It trims surrounding whitespace and reports it, finds quotes
+ * or a `Bearer ` / `token ` prefix to ask about (the `unwrap:<key>` question),
+ * refuses a line break inside the value (or, for a token, a space), and says
+ * what an empty answer means. It never returns any part of the value but the
+ * value itself, trimmed or unwrapped, for the host to send.
+ */
+export function checkSecret(raw: string, rules: SecretRules): SecretCheck {
+  return checkSecretInput(raw, rules);
+}
