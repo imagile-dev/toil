@@ -8,8 +8,8 @@
     "flags": []
   },
   {
-    "name": "indices list",
-    "tool": "elasticsearch_indices_list",
+    "name": "index list",
+    "tool": "elasticsearch_index_list",
     "description": "List indices with health, document count and size",
     "writes": false,
     "connection": true,
@@ -18,30 +18,30 @@
     ]
   },
   {
-    "name": "search",
-    "tool": "elasticsearch_search",
+    "name": "index search",
+    "tool": "elasticsearch_index_search",
     "description": "Search one or more indices with Query DSL JSON or a query string",
     "writes": false,
     "connection": true,
     "flags": [
-      "--index <name>",
+      "<index>",
       "--query <json>",
       "--q <query-string>",
       "--sort <field:order>",
       "--source <fields>",
-      "--size <n>",
-      "--from <n>",
+      "--limit <n>",
+      "--offset <n>",
       "--timeout-ms <ms>"
     ]
   },
   {
-    "name": "count",
-    "tool": "elasticsearch_count",
+    "name": "index count",
+    "tool": "elasticsearch_index_count",
     "description": "Count documents matching a query",
     "writes": false,
     "connection": true,
     "flags": [
-      "--index <name>",
+      "<index>",
       "--query <json>",
       "--q <query-string>"
     ]

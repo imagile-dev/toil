@@ -585,8 +585,8 @@
     ]
   },
   {
-    "name": "repo build-status",
-    "tool": "ado_repo_build_status",
+    "name": "commit status",
+    "tool": "ado_commit_status",
     "description": "Get CI/build statuses posted to a commit",
     "writes": false,
     "connection": true,

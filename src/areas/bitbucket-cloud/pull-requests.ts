@@ -12,7 +12,7 @@ import { bbc, bbcResponse, exampleCursor, getPR, IN_REPO, list, needLimitForCurs
  */
 
 const id = z.number().int().positive().describe('Pull request ID');
-const idOption = { flags: '--id <pr-id>', field: 'id', description: 'Pull request ID' };
+const prArg = { name: 'id', field: 'id', description: 'Pull request ID' };
 const at = { workspace: 'imagile', repo: 'toil' };
 
 export const PR_STATES = ['OPEN', 'MERGED', 'DECLINED', 'SUPERSEDED'] as const;
@@ -21,7 +21,7 @@ const STATES = [...PR_STATES, 'ALL'] as const;
 export const MERGE_STRATEGIES = ['merge_commit', 'squash', 'fast_forward', 'squash_fast_forward', 'rebase_fast_forward', 'rebase_merge'] as const;
 
 export const listPrsCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'list-prs'],
+  path: ['bitbucket-cloud', 'pr', 'list'],
   description: 'List pull requests',
   toolDescription:
     'Lists the pull requests in a repository in one state (OPEN by default; ALL for every state), newest activity first as Bitbucket orders them. query is a Bitbucket query (author.account_id = "…", source.branch.name = "…"). With limit, pass meta.page.nextCursor as cursor for the next page.',
@@ -50,19 +50,19 @@ export const listPrsCommand = bitbucketCloudArea.command({
 });
 
 export const getPrCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'get-pr'],
+  path: ['bitbucket-cloud', 'pr', 'get'],
   description: 'Get a pull request by ID',
   toolDescription: 'Returns one pull request: title, description, state, author, source and destination branches and commits, reviewers, participants with their approval state, and links.',
   input: z.object({ id }),
   writes: false,
   context: IN_REPO,
-  options: [idOption],
+  args: [prArg],
   examples: [{ ...at, id: 42 }],
   run: (input, ctx) => getPR(ctx, input.id),
 });
 
 export const createPrCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'create-pr'],
+  path: ['bitbucket-cloud', 'pr', 'create'],
   description: 'Create a pull request',
   toolDescription:
     "Opens a pull request from source to target (default: the repository's main branch) and returns it. reviewers are comma-separated Atlassian account ids, or {uuid}s in braces; without them, the repository's default reviewers apply. closeSourceBranch deletes the source branch when it merges.",
@@ -120,7 +120,7 @@ export const createPrCommand = bitbucketCloudArea.command({
 });
 
 export const updatePrCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'update-pr'],
+  path: ['bitbucket-cloud', 'pr', 'update'],
   description: 'Update a pull request',
   toolDescription:
     "Changes an open pull request's title, description, reviewers or target branch and returns it. Reads the PR first and sends the current title, description and reviewers for anything not given, so nothing is cleared by omission. reviewers replaces the whole list.",
@@ -134,8 +134,8 @@ export const updatePrCommand = bitbucketCloudArea.command({
   }),
   writes: true,
   context: IN_REPO,
+  args: [prArg],
   options: [
-    idOption,
     { flags: '--title <title>', field: 'title', description: 'New title' },
     { flags: '--description <desc>', field: 'description', description: 'New description (Markdown)' },
     { flags: '--reviewers <ids>', field: 'reviewers', description: 'Comma-separated reviewer account ids, or {uuid}s; replaces the list' },
@@ -163,7 +163,7 @@ export const updatePrCommand = bitbucketCloudArea.command({
 });
 
 export const mergePrCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'merge-pr'],
+  path: ['bitbucket-cloud', 'pr', 'merge'],
   description: 'Merge a pull request',
   toolDescription:
     "Merges a pull request and returns it. strategy is one of Bitbucket Cloud's merge strategies (default: the repository's). deleteBranch deletes the source branch after the merge. When Bitbucket queues the merge or takes too long (202), data is { pending: true, taskStatus } with the task-status path to read with bitbucket_cloud_api, and a BITBUCKET_CLOUD_MERGE_PENDING warning.",
@@ -176,8 +176,8 @@ export const mergePrCommand = bitbucketCloudArea.command({
   }),
   writes: true,
   context: IN_REPO,
+  args: [prArg],
   options: [
-    idOption,
     { flags: '--strategy <strategy>', field: 'strategy', description: `Merge strategy: ${MERGE_STRATEGIES.join('|')}` },
     { flags: '--message <text>', field: 'message', description: 'Merge commit message' },
     { flags: '--delete-branch', field: 'deleteBranch', description: 'Delete source branch after merge' },
@@ -210,19 +210,19 @@ export const mergePrCommand = bitbucketCloudArea.command({
 });
 
 export const declinePrCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'decline-pr'],
+  path: ['bitbucket-cloud', 'pr', 'decline'],
   description: 'Decline a pull request',
   toolDescription: 'Declines an open pull request and returns it.',
   input: z.object({ id, ...allowWriteField }),
   writes: true,
   context: IN_REPO,
-  options: [idOption],
+  args: [prArg],
   examples: [{ ...at, id: 42, allowWrite: true }],
   run: (input, ctx) => bbc(ctx, `${prPath(ctx, input.id)}/decline`, { method: 'POST' }),
 });
 
 export const currentPrCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'current-pr'],
+  path: ['bitbucket-cloud', 'pr', 'current'],
   description: 'Find the open PR for the current branch',
   toolDescription: "Returns the open pull request whose source branch is the workspace's current git branch, or null when there is none. The repository comes from --ws and --repo (or the connection), not from the git remote.",
   input: z.object({}),

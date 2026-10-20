@@ -4,7 +4,7 @@ import { splitioArea } from './area.js';
 import { split, type SplitioContext } from './client.js';
 
 /**
- * `workspaces list`: every workspace (Split now calls them projects), read
+ * `workspace list`: every workspace (Split now calls them projects), read
  * 100 at a time until the server's totalCount is reached. Knowing which
  * workspaces exist is, as ever, the first step of any request.
  */
@@ -15,7 +15,7 @@ const PAGE_SIZE = 100;
 const obj = (body: unknown): Record<string, unknown> => (typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {});
 
 export const workspacesListCommand = splitioArea.command({
-  path: ['splitio', 'workspaces', 'list'],
+  path: ['splitio', 'workspace', 'list'],
   description: 'List all Split.IO workspaces',
   input: z.object({}),
   writes: false,

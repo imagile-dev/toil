@@ -19,7 +19,7 @@ export interface CliOption {
   description: string;
   /**
    * Registered on the area's group command (`toil bitbucket --project X
-   * list-prs`) rather than on the leaf. Set by core for an area's group-level
+   * pr list`) rather than on the leaf. Set by core for an area's group-level
    * context inputs; commander accepts the flag before or after the leaf name.
    */
   group?: boolean;
@@ -137,7 +137,7 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
   /**
    * Other CLI paths that run this command. A string is a sibling in the same
    * group (commander's own alias); a path may sit in another group, as `deps
-   * outdated` does for `artifactory outdated`. Aliases are CLI only: MCP has
+   * outdated` does for `artifactory package outdated`. Aliases are CLI only: MCP has
    * one tool per command, under its own name, and `meta.command` always names
    * the command, never the alias typed.
    *

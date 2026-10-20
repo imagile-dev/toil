@@ -3,7 +3,7 @@ import { dynatraceArea } from './area.js';
 import { allPages, type DynatraceContext } from './client.js';
 
 /**
- * `services` and `workloads`: entity lists with the selector already filled
+ * `service list` and `workload list`: entity lists with the selector already filled
  * in, `type("SERVICE")` and `type("CLOUD_APPLICATION")`, each returned under
  * its own key. A pre-filled form is still a form, but at least it is short.
  */
@@ -22,7 +22,7 @@ const entitiesOfType = (ctx: DynatraceContext, selector: string, input: z.output
   allPages(ctx, '/api/v2/entities', 'entities', { entitySelector: selector, from: input.from, to: input.to }, what);
 
 export const servicesCommand = dynatraceArea.command({
-  path: ['dynatrace', 'services'],
+  path: ['dynatrace', 'service', 'list'],
   description: 'List monitored services',
   input: window,
   writes: false,
@@ -35,7 +35,7 @@ export const servicesCommand = dynatraceArea.command({
 });
 
 export const workloadsCommand = dynatraceArea.command({
-  path: ['dynatrace', 'workloads'],
+  path: ['dynatrace', 'workload', 'list'],
   description: 'List monitored Kubernetes workloads',
   input: window,
   writes: false,

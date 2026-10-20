@@ -43,7 +43,7 @@ export interface AreaFixture {
   files?: Files;
   /**
    * The repository the examples run in, as `ctx.repo()` reports it: root,
-   * branch and remotes (`bitbucket current-pr`). Left out, as outside one.
+   * branch and remotes (`bitbucket pr current`). Left out, as outside one.
    */
   repo?: GitContext;
   /**

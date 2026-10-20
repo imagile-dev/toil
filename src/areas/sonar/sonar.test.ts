@@ -24,7 +24,7 @@ async function run(def: AnyCommand, input: Record<string, unknown>, routes: Rout
 
 const ok = (body: unknown): Route => ({ url: /.*/, respond: { json: body } });
 
-describe('quality-gate', () => {
+describe('quality-gate get', () => {
   it('GETs project_status with projectKey and the token, and returns the server body as data', async () => {
     const { envelope, calls } = await run(qualityGateCommand, { project: PROJECT }, [ok(qualityGate)]);
     expect(calls).toEqual([{ method: 'GET', url: `${SONAR}/api/qualitygates/project_status?projectKey=${PROJECT}`, headers: HEADERS, body: undefined }]);
@@ -63,7 +63,7 @@ describe('quality-gate', () => {
   });
 });
 
-describe('issues', () => {
+describe('issue list', () => {
   it('sends componentKeys, every filter with literal commas, then p and ps, leaving unset ones out', async () => {
     const body = issuesPage([sonarIssue(1)], 1, 2, 50);
     const { envelope, calls } = await run(
@@ -134,7 +134,7 @@ describe('issues', () => {
   });
 });
 
-describe('measures', () => {
+describe('measure list', () => {
   it('sends component and the default metric list with literal commas', async () => {
     const { calls } = await run(measuresCommand, { project: PROJECT }, [ok({ component: { key: PROJECT, name: PROJECT, qualifier: 'TRK', measures: [] } })]);
     expect(calls[0]!.url).toBe(
@@ -148,7 +148,7 @@ describe('measures', () => {
   });
 });
 
-describe('projects', () => {
+describe('project list', () => {
   it('suspected bug #92 item 2: lists through api/projects/search, with q, p and ps, and needs no project', async () => {
     const body = projectsPage([sonarProject(PROJECT)], 1, 1, 100);
     const { envelope, calls } = await run(projectsCommand, { query: 'imagile' }, [ok(body)]);
@@ -168,7 +168,7 @@ describe('projects', () => {
   });
 });
 
-describe('hotspots', () => {
+describe('hotspot list', () => {
   it('suspected bug #92 item 3: sends projectKey, status and a comma-list resolution as one value', async () => {
     const { calls } = await run(hotspotsCommand, { project: PROJECT, status: 'REVIEWED', resolution: 'FIXED,SAFE', page: 3 }, [ok(hotspotsPage([], 0, 3, 100))]);
     expect(calls[0]!.url).toBe(`${SONAR}/api/hotspots/search?projectKey=${PROJECT}&status=REVIEWED&resolution=FIXED,SAFE&p=3&ps=100`);

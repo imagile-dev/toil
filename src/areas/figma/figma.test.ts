@@ -77,7 +77,7 @@ describe('parseNodeId and findNodeIdInUrl', () => {
   });
 });
 
-describe('file', () => {
+describe('file get', () => {
   it('whole file: GETs /v1/files/<key>?depth=1 with the token and reshapes the answer, leaving document out', async () => {
     const { envelope, calls } = await run(fileCommand, { fileKeyOrUrl: FILE_KEY }, [ok(wholeFile)]);
     expect(calls).toEqual([{ method: 'GET', url: `${FIGMA}/v1/files/${FILE_KEY}?depth=1`, headers: HEADERS, body: undefined }]);
@@ -173,7 +173,7 @@ describe('file', () => {
   });
 });
 
-describe('comments', () => {
+describe('file comments', () => {
   it('GETs /comments and returns fileKey, count and the comments as they came', async () => {
     const { envelope, calls } = await run(commentsCommand, { fileKeyOrUrl: FILE_KEY }, [ok(comments)]);
     expect(calls).toEqual([{ method: 'GET', url: `${FIGMA}/v1/files/${FILE_KEY}/comments`, headers: HEADERS, body: undefined }]);
@@ -193,7 +193,7 @@ describe('comments', () => {
   });
 });
 
-describe('versions', () => {
+describe('file versions', () => {
   it('suspected bug #73 item 3: one GET, no paging parameters, and the pagination object is dropped', async () => {
     const { envelope, calls } = await run(versionsCommand, { fileKeyOrUrl: FILE_KEY }, [ok(versions)]);
     expect(calls).toEqual([{ method: 'GET', url: `${FIGMA}/v1/files/${FILE_KEY}/versions`, headers: HEADERS, body: undefined }]);
@@ -209,7 +209,7 @@ describe('versions', () => {
   });
 });
 
-describe('project-files', () => {
+describe('project files', () => {
   it('suspected bug #73 item 9: lists through the deprecated /v1/projects/<id>/files, encoding the ID', async () => {
     const { envelope, calls } = await run(projectFilesCommand, { projectId: PROJECT_ID }, [ok(projectFiles)]);
     expect(calls).toEqual([{ method: 'GET', url: `${FIGMA}/v1/projects/${PROJECT_ID}/files`, headers: HEADERS, body: undefined }]);
@@ -219,7 +219,7 @@ describe('project-files', () => {
   });
 });
 
-describe('me', () => {
+describe('whoami', () => {
   it('GETs /v1/me and passes the answer through', async () => {
     const { envelope, calls } = await run(meCommand, {}, [ok(me)]);
     expect(calls).toEqual([{ method: 'GET', url: `${FIGMA}/v1/me`, headers: HEADERS, body: undefined }]);

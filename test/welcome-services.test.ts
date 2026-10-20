@@ -32,7 +32,7 @@ const JIRA: AreaSummary = {
   configurable: true,
   commands: [ISSUE_COMMENT, ISSUE_GET, cmd(['jira', 'board', 'list']), cmd(['jira', 'check-dossier'])],
 };
-const SONAR: AreaSummary = { name: 'sonar', description: 'SonarQube', signsIn: true, live: true, configurable: true, commands: [cmd(['sonar', 'issues'])] };
+const SONAR: AreaSummary = { name: 'sonar', description: 'SonarQube', signsIn: true, live: true, configurable: true, commands: [cmd(['sonar', 'issue', 'list'])] };
 
 const data = (): WelcomeData => ({
   version: '0.0.0-test',
@@ -126,7 +126,7 @@ describe('the Services module', () => {
   it('finds commands holding every word typed, across services', () => {
     const d = data();
     expect(matching(d, 'issue comment').map((c) => c.path.join(' '))).toEqual(['jira issue comment']);
-    expect(matching(d, 'ISSUES').map((c) => c.path.join(' '))).toEqual(['sonar issues']);
+    expect(matching(d, 'SONAR ISSUE').map((c) => c.path.join(' '))).toEqual(['sonar issue list']);
     const s = press(type(press(settled, d, '1', '1'), d, 'board'), d, 'return');
     expect(screen(s, d)).toContain('jira board list');
   });

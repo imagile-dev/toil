@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { allowWriteField } from '../../core/run.js';
 import { githubArea } from './area.js';
 import { githubGraphql, target } from './client.js';
-import { graphqlMethod, parseIntText, prNodeId, prNumber, prNumberOption } from './input.js';
+import { graphqlMethod, parseIntText, prNodeId, prNumber, prNumberArg } from './input.js';
 
 /**
  * What REST can't do and GraphQL can: auto-merge, the merge queue, draft
@@ -24,7 +24,7 @@ const methodInput = z.enum(['merge', 'squash', 'rebase']).optional().describe('M
 const methodOption = { flags: '--method <method>', field: 'method', description: 'Merge method (choices: "merge", "squash", "rebase")' } as const;
 
 export const enableAutoMergeCommand = githubArea.command({
-  path: ['github', 'enable-auto-merge'],
+  path: ['github', 'pr', 'enable-auto-merge'],
   description: 'Enable auto-merge on a pull request (merges automatically when all requirements are met)',
   input: z.object({
     number: prNumber,
@@ -33,8 +33,8 @@ export const enableAutoMergeCommand = githubArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [prNumberArg],
   options: [
-    prNumberOption,
     methodOption,
     { flags: '--match-head-commit <sha>', field: 'matchHeadCommit', description: 'Only enable if the PR head matches this SHA (prevents race conditions)' },
   ],
@@ -65,11 +65,11 @@ export const enableAutoMergeCommand = githubArea.command({
 });
 
 export const disableAutoMergeCommand = githubArea.command({
-  path: ['github', 'disable-auto-merge'],
+  path: ['github', 'pr', 'disable-auto-merge'],
   description: 'Disable auto-merge on a pull request',
   input: z.object({ number: prNumber, ...allowWriteField }),
   writes: true,
-  options: [prNumberOption],
+  args: [prNumberArg],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', allowWrite: true }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
@@ -87,7 +87,7 @@ export const disableAutoMergeCommand = githubArea.command({
 });
 
 export const enqueuePrCommand = githubArea.command({
-  path: ['github', 'enqueue-pr'],
+  path: ['github', 'pr', 'enqueue'],
   description: 'Add a pull request to the repository merge queue',
   input: z.object({
     number: prNumber,
@@ -96,8 +96,8 @@ export const enqueuePrCommand = githubArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [prNumberArg],
   options: [
-    prNumberOption,
     methodOption,
     { flags: '--match-head-commit <sha>', field: 'matchHeadCommit', description: 'Only enqueue if the PR head matches this SHA (prevents race conditions)' },
   ],
@@ -130,13 +130,13 @@ export const enqueuePrCommand = githubArea.command({
 });
 
 /** One draft toggle: the mutation's name differs, the shape doesn't. */
-function draftCommand(name: 'convert-to-draft' | 'ready-for-review', description: string, mutationName: 'convertPullRequestToDraft' | 'markPullRequestReadyForReview') {
+function draftCommand(name: 'draft' | 'ready', description: string, mutationName: 'convertPullRequestToDraft' | 'markPullRequestReadyForReview') {
   return githubArea.command({
-    path: ['github', name],
+    path: ['github', 'pr', name],
     description,
     input: z.object({ number: prNumber, ...allowWriteField }),
     writes: true,
-    options: [prNumberOption],
+    args: [prNumberArg],
     examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', allowWrite: true }],
     run: async (input, ctx) => {
       const { owner, repo } = target(ctx);
@@ -154,8 +154,8 @@ function draftCommand(name: 'convert-to-draft' | 'ready-for-review', description
   });
 }
 
-export const convertToDraftCommand = draftCommand('convert-to-draft', 'Convert an open pull request to a draft', 'convertPullRequestToDraft');
-export const readyForReviewCommand = draftCommand('ready-for-review', 'Mark a draft pull request as ready for review', 'markPullRequestReadyForReview');
+export const convertToDraftCommand = draftCommand('draft', 'Convert an open pull request to a draft', 'convertPullRequestToDraft');
+export const readyForReviewCommand = draftCommand('ready', 'Mark a draft pull request as ready for review', 'markPullRequestReadyForReview');
 
 const PR_STATUS_QUERY = `
       query($owner: String!, $repo: String!, $number: Int!) {
@@ -218,13 +218,13 @@ interface StatusPr {
 }
 
 export const prStatusCommand = githubArea.command({
-  path: ['github', 'pr-status'],
+  path: ['github', 'pr', 'status'],
   description: 'Aggregated PR status: review decision, checks, mergeability, draft state, and auto-merge',
   input: z.object({ number: prNumber }),
   writes: false,
   // A GraphQL query, sent as POST like every GraphQL call; it changes nothing.
   queryByPost: true,
-  options: [prNumberOption],
+  args: [prNumberArg],
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7' }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);

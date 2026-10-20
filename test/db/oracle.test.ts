@@ -150,7 +150,7 @@ const target = targets.find((t) => t.engine === 'oracle')!;
 const skip = await target.skip?.();
 
 // Oracle is slow to create and drop a user, and slower still on a shared CI
-// runner (one describe-table test took 6.8 s there): the target's one limit
+// runner (one table describe test took 6.8 s there): the target's one limit
 // covers every test here and the hooks that create and drop the user.
 describe.skipIf(skip !== undefined)(`oracle server${skip ? ` (skipped: ${skip})` : ''}`, { timeout: target.timeout }, () => {
   let db: TargetDatabase;

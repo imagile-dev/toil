@@ -178,8 +178,8 @@ starting with `@` is read from that file. Flags win over the file, with an
 Repositories:
 
 - `repo list`, `repo create` (`--name`), `repo get`: Repositories in the project.
-- `repo build-status <commit>`: Statuses posted to a commit.
 - `repo default-reviewers`: Required reviewers policies covering the repository.
+- `commit status <commit>`: Statuses posted to a commit.
 
 Pull requests (`<id>` is the pull request id):
 

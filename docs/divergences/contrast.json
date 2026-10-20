@@ -11,7 +11,7 @@
     },
     {
       "allows": [],
-      "old": "contrast libraries get reading pages of 25 until a match or a short page, with no limit on the number of pages",
+      "old": "contrast library get reading pages of 25 until a match or a short page, with no limit on the number of pages",
       "toil": "The same stop rule, plus a bound: after 1,000 pages (25,000 libraries) the command fails with HTTP, naming the application whose libraries were being paged, and fix text to narrow the request",
       "why": "A server that ignores offset would otherwise be asked for the same page forever (#87 item 5).",
       "principle": "4"

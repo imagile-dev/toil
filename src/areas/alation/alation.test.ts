@@ -174,17 +174,17 @@ describe('catalog', () => {
     expect(flagged.data[0]!.url).toBe(`${ALATION}/integration/v1/datasource/?include_undeployed=true`);
   });
 
-  it('table list sends v2 filters with paging and reports limit and skip as numbers', async () => {
-    const { envelope, data } = await run(tableListCommand, { ds: '3', schemaName: 'public', search: 'cust', limit: '50', skip: '10' }, [get('/integration/v2/table/', [table(1)])]);
+  it('table list sends v2 filters with paging and reports limit and skip (from --offset) as numbers', async () => {
+    const { envelope, data } = await run(tableListCommand, { ds: '3', schemaName: 'public', search: 'cust', limit: '50', offset: '10' }, [get('/integration/v2/table/', [table(1)])]);
     expect(data[0]!.url).toBe(`${ALATION}/integration/v2/table/?limit=50&skip=10&ds_id=3&schema_name=public&name__icontains=cust`);
     expect(envelope.data).toEqual({ count: 1, limit: 50, skip: 10, tables: [table(1)] });
   });
 
-  it('checks --limit, --skip and IDs as the contract specifies, before any request', async () => {
+  it('checks --limit, --offset and IDs as the contract specifies, before any request', async () => {
     const cases: Array<[Record<string, unknown>, string]> = [
       [{ limit: '1001' }, "--limit must be between 1 and 1000 (Alation's per-request cap)."],
       [{ limit: '0' }, "--limit must be between 1 and 1000 (Alation's per-request cap)."],
-      [{ skip: '-1' }, 'Invalid --skip "-1". Expected a non-negative integer.'],
+      [{ offset: '-1' }, 'Invalid --offset "-1". Expected a non-negative integer.'],
       [{ limit: 'abc' }, 'Invalid --limit "abc". Expected a non-negative integer.'],
       [{ ds: '0' }, 'Invalid --ds "0". Expected a positive integer ID.'],
     ];
@@ -221,7 +221,7 @@ describe('catalog', () => {
     const many = Array.from({ length: 1000 }, (_, i) => column(i + 1, `c${i + 1}`));
     const { envelope } = await run(tableGetCommand, { id: '7', columns: true }, [get('/integration/v2/table/', [table(7)]), get('/integration/v2/column/', many)]);
     expect(envelope.data).toMatchObject({ columnCount: 1000 });
-    expect(envelope.meta.warnings).toEqual([{ code: 'ALATION_COLUMNS_TRUNCATED', message: expect.stringContaining('--skip 1000') }]);
+    expect(envelope.meta.warnings).toEqual([{ code: 'ALATION_COLUMNS_TRUNCATED', message: expect.stringContaining('--offset 1000') }]);
   });
 
   it('table get --columns adds one page of 1000 columns by id, and no warning below the cap (suspected bug, #77 item 5)', async () => {

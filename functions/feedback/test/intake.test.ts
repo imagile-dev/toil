@@ -143,7 +143,7 @@ describe('POST /api/submit', () => {
 
 describe('POST /api/report', () => {
   const curl = { 'x-forwarded-for': '198.51.100.4' };
-  const body = { kind: 'feature', title: 'A --since flag on bitbucket list-prs', body: 'Please.', email: 'you@example.com', consent: 1, commit: SHA.toUpperCase(), version: '0.1.0-alpha.1' };
+  const body = { kind: 'feature', title: 'A --since flag on bitbucket pr list', body: 'Please.', email: 'you@example.com', consent: 1, commit: SHA.toUpperCase(), version: '0.1.0-alpha.1' };
   const compare = `GET ${API}/repos/${REPO}/compare/${SHA}...main?per_page=1`;
 
   it('needs no Origin and no CAPTCHA, and queues a report about a commit on main', async () => {

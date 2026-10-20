@@ -8,41 +8,41 @@
     "flags": []
   },
   {
-    "name": "spaces list",
-    "tool": "kibana_spaces_list",
+    "name": "space list",
+    "tool": "kibana_space_list",
     "description": "List the spaces the API key can see",
     "writes": false,
     "connection": true,
     "flags": []
   },
   {
-    "name": "dashboards list",
-    "tool": "kibana_dashboards_list",
+    "name": "dashboard list",
+    "tool": "kibana_dashboard_list",
     "description": "List dashboards (id, title, description, last updated)",
     "writes": false,
     "connection": true,
     "flags": [
       "--search <text>",
       "--page <n>",
-      "--per-page <n>",
+      "--page-size <n>",
       "--space <id>"
     ]
   },
   {
-    "name": "dashboards export",
-    "tool": "kibana_dashboards_export",
+    "name": "dashboard export",
+    "tool": "kibana_dashboard_export",
     "description": "Export dashboards as saved objects, including the visualizations and data views",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <ids...>",
+      "<id...>",
       "--no-references",
       "--space <id>"
     ]
   },
   {
-    "name": "data-views list",
-    "tool": "kibana_data_views_list",
+    "name": "data-view list",
+    "tool": "kibana_data_view_list",
     "description": "List data views (id, name, index pattern)",
     "writes": false,
     "connection": true,
@@ -51,26 +51,26 @@
     ]
   },
   {
-    "name": "rules list",
-    "tool": "kibana_rules_list",
+    "name": "rule list",
+    "tool": "kibana_rule_list",
     "description": "List alerting rules with their schedule and last execution status",
     "writes": false,
     "connection": true,
     "flags": [
       "--search <text>",
       "--page <n>",
-      "--per-page <n>",
+      "--page-size <n>",
       "--space <id>"
     ]
   },
   {
-    "name": "rules get",
-    "tool": "kibana_rules_get",
+    "name": "rule get",
+    "tool": "kibana_rule_get",
     "description": "Get one alerting rule, including its params and actions",
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <id>",
+      "<id>",
       "--space <id>"
     ]
   }

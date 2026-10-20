@@ -54,12 +54,12 @@ export function parsePositiveId(value: IntText, what: string): number {
   return Number(trimmed);
 }
 
-/** --limit (default 100, 1 to 1000) and --skip (default 0). One page per call; nothing loops. */
-export function pageParams(input: { limit?: IntText | undefined; skip?: IntText | undefined }): { limit: number; skip: number } {
+/** --limit (default 100, 1 to 1000) and --offset (default 0), sent as Alation's skip. One page per call; nothing loops. */
+export function pageParams(input: { limit?: IntText | undefined; offset?: IntText | undefined }): { limit: number; skip: number } {
   const limit = parseIntOption(input.limit ?? '100', '--limit') ?? 100;
-  const skip = parseIntOption(input.skip ?? '0', '--skip') ?? 0;
+  const skip = parseIntOption(input.offset ?? '0', '--offset') ?? 0;
   if (limit < 1 || limit > MAX_PAGE) {
-    throw new ToilError('INVALID_INPUT', `--limit must be between 1 and ${MAX_PAGE} (Alation's per-request cap).`, { fix: 'Pass --limit 1 to 1000, and page on with --skip.' });
+    throw new ToilError('INVALID_INPUT', `--limit must be between 1 and ${MAX_PAGE} (Alation's per-request cap).`, { fix: 'Pass --limit 1 to 1000, and page on with --offset.' });
   }
   return { limit, skip };
 }

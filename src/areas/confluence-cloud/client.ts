@@ -108,7 +108,7 @@ export async function getSpace(ctx: ConfluenceCloudContext, key: string): Promis
   const space = result.results?.find((s) => s.key === key);
   if (!space) {
     throw new ToilError('NOT_FOUND', `Confluence Cloud space not found: ${key}`, {
-      fix: 'Check the space key (it is case-sensitive). toil confluence-cloud list-spaces lists the spaces this account can see.',
+      fix: 'Check the space key (it is case-sensitive). toil confluence-cloud space list lists the spaces this account can see.',
     });
   }
   return space;
@@ -252,7 +252,7 @@ export async function downloadAttachment(ctx: ConfluenceCloudContext, attachment
   const link = attachment.downloadLink;
   if (!link) {
     throw new ToilError('NOT_FOUND', `Attachment ${attachment.id} has no download link (title: ${attachment.title}).`, {
-      fix: 'Check the id is an attachment id from toil confluence-cloud list-attachments --id <page-id>.',
+      fix: 'Check the id is an attachment id from toil confluence-cloud page attachments <page-id>.',
     });
   }
   const target = /^[a-z][a-z0-9+.-]*:/i.test(link)

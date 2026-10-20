@@ -83,10 +83,10 @@ const pageOptions = [
 const EXAMPLE_SQL = 'SELECT id, name FROM people ORDER BY id';
 
 export const listSchemas = area.command({
-  path: ['db', 'list-schemas'],
+  path: ['db', 'schema', 'list'],
   description: 'List the schemas in a database',
   toolDescription:
-    'List the schemas (SQLite: attached databases) on a db connection. Returns { schemas: [{ name }] }. Use db_list_tables next to see what one holds.',
+    'List the schemas (SQLite: attached databases) on a db connection. Returns { schemas: [{ name }] }. Use db_table_list next to see what one holds.',
   input: z.object({}),
   writes: false,
   examples: [{}],
@@ -97,10 +97,10 @@ export const listSchemas = area.command({
 });
 
 export const listTables = area.command({
-  path: ['db', 'list-tables'],
+  path: ['db', 'table', 'list'],
   description: 'List the tables and views in a schema',
   toolDescription:
-    'List the tables and views in one schema of a db connection. Returns { schema, tables: [{ name, type }] }. Use db_describe_table for one table\'s columns and keys, db_list_schemas for the schemas.',
+    'List the tables and views in one schema of a db connection. Returns { schema, tables: [{ name, type }] }. Use db_table_describe for one table\'s columns and keys, db_schema_list for the schemas.',
   input: z.object({ schema: schemaField }),
   writes: false,
   options: [schemaOption],
@@ -113,10 +113,10 @@ export const listTables = area.command({
 });
 
 export const describeTable = area.command({
-  path: ['db', 'describe-table'],
+  path: ['db', 'table', 'describe'],
   description: 'Describe a table or view: columns, primary key, indexes and foreign keys',
   toolDescription:
-    'Describe one table or view: its columns (name, type, nullable, default, primaryKey position), primary key, indexes and foreign keys. Use before writing a query against it; use db_preview_table to see sample rows.',
+    'Describe one table or view: its columns (name, type, nullable, default, primaryKey position), primary key, indexes and foreign keys. Use before writing a query against it; use db_table_preview to see sample rows.',
   input: z.object({ table: z.string().min(1).describe('Table or view name'), schema: schemaField }),
   writes: false,
   args: [{ name: 'table', field: 'table', description: 'Table or view name' }],
@@ -129,20 +129,20 @@ export const describeTable = area.command({
 });
 
 export const previewTable = area.command({
-  path: ['db', 'preview-table'],
+  path: ['db', 'table', 'preview'],
   description: 'Preview the rows of a table or view, a page at a time',
   toolDescription: `Return rows from one table or view, read-only, ${DEFAULT_LIMIT} per page by default. Returns { columns: [{ name, type }], rows: [[...]] } with rows as arrays in column order; meta.page.nextCursor fetches the next page. Use db_query to filter, join or sort.`,
   input: z.object({ table: z.string().min(1).describe('Table or view name'), schema: schemaField, limit: limitField, cursor: cursorField }),
   writes: false,
   args: [{ name: 'table', field: 'table', description: 'Table or view name' }],
   options: [schemaOption, ...pageOptions],
-  examples: [{ table: 'people' }, { table: 'people', schema: 'main', limit: 2, cursor: encodeCursor(2, pageKey('db preview-table', 'main', 'people')) }],
+  examples: [{ table: 'people' }, { table: 'people', schema: 'main', limit: 2, cursor: encodeCursor(2, pageKey('db table preview', 'main', 'people')) }],
   run: async (input, ctx) => {
     const { provider, conn, call } = using(ctx);
     const schema = input.schema ?? provider.defaultSchema(conn);
     const limit = input.limit ?? DEFAULT_LIMIT;
     // Keyed on what the caller typed, so the same call always pages the same way.
-    const key = pageKey('db preview-table', schema, input.table);
+    const key = pageKey('db table preview', schema, input.table);
     const offset = decodeCursor(input.cursor, key);
     const { data, page } = toPage(await provider.previewTable(conn, { schema, table: input.table }, windowFor(offset, limit), call), offset, limit, key);
     ctx.setPage(page);

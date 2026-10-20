@@ -1,7 +1,7 @@
 [
   {
-    "name": "create-repo",
-    "tool": "github_create_repo",
+    "name": "repo create",
+    "tool": "github_repo_create",
     "description": "Create a new repository (personal or org)",
     "writes": true,
     "connection": true,
@@ -16,8 +16,8 @@
     ]
   },
   {
-    "name": "create-issue",
-    "tool": "github_create_issue",
+    "name": "issue create",
+    "tool": "github_issue_create",
     "description": "Create a GitHub issue",
     "writes": true,
     "connection": true,
@@ -33,64 +33,76 @@
     ]
   },
   {
-    "name": "add-labels",
-    "tool": "github_add_labels",
-    "description": "Add labels to a pull request or issue",
+    "name": "issue label",
+    "tool": "github_issue_label",
+    "description": "Add labels to an issue or pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--label <label>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
+    ],
+    "aliases": [
+      "github pr label"
     ]
   },
   {
-    "name": "remove-label",
+    "name": "issue unlabel",
     "tool": null,
-    "description": "Remove a label from a pull request or issue",
+    "description": "Remove a label from an issue or pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--label <label>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
+    ],
+    "aliases": [
+      "github pr unlabel"
     ]
   },
   {
-    "name": "add-assignees",
-    "tool": "github_add_assignees",
-    "description": "Add assignees to a pull request or issue",
+    "name": "issue assign",
+    "tool": "github_issue_assign",
+    "description": "Add assignees to an issue or pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--assignee <login>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
+    ],
+    "aliases": [
+      "github pr assign"
     ]
   },
   {
-    "name": "remove-assignees",
+    "name": "issue unassign",
     "tool": null,
-    "description": "Remove assignees from a pull request or issue",
+    "description": "Remove assignees from an issue or pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--assignee <login>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
+    ],
+    "aliases": [
+      "github pr unassign"
     ]
   },
   {
-    "name": "list-issues",
-    "tool": "github_list_issues",
+    "name": "issue list",
+    "tool": "github_issue_list",
     "description": "List issues in a repository (pull requests left out)",
     "writes": false,
     "connection": true,
@@ -109,8 +121,8 @@
     ]
   },
   {
-    "name": "search-issues",
-    "tool": "github_search_issues",
+    "name": "issue search",
+    "tool": "github_issue_search",
     "description": "Search issues with GitHub search syntax (is:issue is added)",
     "writes": false,
     "connection": true,
@@ -126,26 +138,26 @@
     ]
   },
   {
-    "name": "get-issue",
-    "tool": "github_get_issue",
-    "description": "Get one or more issues by number (repeat --number), with issue type and, on request, sub-issues",
+    "name": "issue get",
+    "tool": "github_issue_get",
+    "description": "Get one or more issues by number (give several numbers to read several), with issue type and, on request, sub-issues",
     "writes": false,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number...>",
       "--sub-issues",
       "--owner <owner>",
       "--repo <repo>"
     ]
   },
   {
-    "name": "issue-events",
-    "tool": "github_issue_events",
+    "name": "issue history",
+    "tool": "github_issue_history",
     "description": "List an issue's timeline: state changes, labels, assignments, issue types, sub-issues, cross-references and comments",
     "writes": false,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--limit <n>",
       "--cursor <cursor>",
       "--owner <owner>",
@@ -153,8 +165,8 @@
     ]
   },
   {
-    "name": "projects list",
-    "tool": "github_projects_list",
+    "name": "project list",
+    "tool": "github_project_list",
     "description": "List an owner's projects (v2)",
     "writes": false,
     "connection": true,
@@ -166,13 +178,13 @@
     ]
   },
   {
-    "name": "projects fields",
-    "tool": "github_projects_fields",
+    "name": "project fields",
+    "tool": "github_project_fields",
     "description": "List a project's fields, with single-select options and iterations",
     "writes": false,
     "connection": true,
     "flags": [
-      "--project <number>",
+      "<project>",
       "--limit <n>",
       "--cursor <cursor>",
       "--owner <owner>",
@@ -180,13 +192,13 @@
     ]
   },
   {
-    "name": "projects list-items",
-    "tool": "github_projects_list_items",
+    "name": "project items",
+    "tool": "github_project_items",
     "description": "List a project's items (issues, pull requests, drafts) with their field values",
     "writes": false,
     "connection": true,
     "flags": [
-      "--project <number>",
+      "<project>",
       "--limit <n>",
       "--cursor <cursor>",
       "--owner <owner>",
@@ -194,8 +206,8 @@
     ]
   },
   {
-    "name": "list-prs",
-    "tool": "github_list_prs",
+    "name": "pr list",
+    "tool": "github_pr_list",
     "description": "List pull requests",
     "writes": false,
     "connection": true,
@@ -213,20 +225,20 @@
     ]
   },
   {
-    "name": "get-pr",
-    "tool": "github_get_pr",
+    "name": "pr get",
+    "tool": "github_pr_get",
     "description": "Get a pull request by number",
     "writes": false,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--owner <owner>",
       "--repo <repo>"
     ]
   },
   {
-    "name": "create-pr",
-    "tool": "github_create_pr",
+    "name": "pr create",
+    "tool": "github_pr_create",
     "description": "Create a pull request",
     "writes": true,
     "connection": true,
@@ -245,13 +257,13 @@
     ]
   },
   {
-    "name": "update-pr",
-    "tool": "github_update_pr",
+    "name": "pr update",
+    "tool": "github_pr_update",
     "description": "Update a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--title <title>",
       "--body <body>",
       "--base <branch>",
@@ -261,13 +273,13 @@
     ]
   },
   {
-    "name": "merge-pr",
-    "tool": "github_merge_pr",
-    "description": "Merge a pull request (immediate merge — use enable-auto-merge for auto-merge)",
+    "name": "pr merge",
+    "tool": "github_pr_merge",
+    "description": "Merge a pull request (immediate merge — use pr enable-auto-merge for auto-merge)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--method <method>",
       "--commit-title <title>",
       "--commit-message <msg>",
@@ -277,51 +289,51 @@
     ]
   },
   {
-    "name": "close-pr",
-    "tool": "github_close_pr",
+    "name": "pr close",
+    "tool": "github_pr_close",
     "description": "Close a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
     ]
   },
   {
-    "name": "reopen-pr",
-    "tool": "github_reopen_pr",
+    "name": "pr reopen",
+    "tool": "github_pr_reopen",
     "description": "Reopen a closed pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
     ]
   },
   {
-    "name": "diff",
-    "tool": "github_diff",
+    "name": "pr diff",
+    "tool": "github_pr_diff",
     "description": "Get unified diff for a pull request",
     "writes": false,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--owner <owner>",
       "--repo <repo>"
     ]
   },
   {
-    "name": "list-files",
-    "tool": "github_list_files",
+    "name": "pr files",
+    "tool": "github_pr_files",
     "description": "List files changed in a pull request",
     "writes": false,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--limit <n>",
       "--cursor <cursor>",
       "--owner <owner>",
@@ -329,13 +341,13 @@
     ]
   },
   {
-    "name": "enable-auto-merge",
-    "tool": "github_enable_auto_merge",
+    "name": "pr enable-auto-merge",
+    "tool": "github_pr_enable_auto_merge",
     "description": "Enable auto-merge on a pull request (merges automatically when all requirements are met)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--method <method>",
       "--match-head-commit <sha>",
       "--owner <owner>",
@@ -344,26 +356,26 @@
     ]
   },
   {
-    "name": "disable-auto-merge",
-    "tool": "github_disable_auto_merge",
+    "name": "pr disable-auto-merge",
+    "tool": "github_pr_disable_auto_merge",
     "description": "Disable auto-merge on a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
     ]
   },
   {
-    "name": "enqueue-pr",
-    "tool": "github_enqueue_pr",
+    "name": "pr enqueue",
+    "tool": "github_pr_enqueue",
     "description": "Add a pull request to the repository merge queue",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--method <method>",
       "--match-head-commit <sha>",
       "--owner <owner>",
@@ -372,79 +384,85 @@
     ]
   },
   {
-    "name": "convert-to-draft",
-    "tool": "github_convert_to_draft",
+    "name": "pr draft",
+    "tool": "github_pr_draft",
     "description": "Convert an open pull request to a draft",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
     ]
   },
   {
-    "name": "ready-for-review",
-    "tool": "github_ready_for_review",
+    "name": "pr ready",
+    "tool": "github_pr_ready",
     "description": "Mark a draft pull request as ready for review",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
     ]
   },
   {
-    "name": "pr-status",
+    "name": "pr status",
     "tool": "github_pr_status",
     "description": "Aggregated PR status: review decision, checks, mergeability, draft state, and auto-merge",
     "writes": false,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--owner <owner>",
       "--repo <repo>"
     ]
   },
   {
-    "name": "list-comments",
-    "tool": "github_list_comments",
-    "description": "List general comments on a pull request",
+    "name": "pr comments",
+    "tool": "github_pr_comments",
+    "description": "List general comments on a pull request (or an issue, by its number)",
     "writes": false,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--limit <n>",
       "--cursor <cursor>",
       "--owner <owner>",
       "--repo <repo>"
+    ],
+    "aliases": [
+      "github issue comments"
     ]
   },
   {
-    "name": "add-comment",
-    "tool": "github_add_comment",
-    "description": "Add a general comment to a pull request",
+    "name": "pr comment",
+    "tool": "github_pr_comment",
+    "description": "Add a general comment to a pull request (or an issue, by its number)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--body <text>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
+    ],
+    "aliases": [
+      "github issue comment"
     ]
   },
   {
-    "name": "list-review-comments",
-    "tool": "github_list_review_comments",
+    "name": "pr review-comments",
+    "tool": "github_pr_review_comments",
     "description": "List inline review comments on a pull request",
     "writes": false,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--limit <n>",
       "--cursor <cursor>",
       "--owner <owner>",
@@ -452,13 +470,13 @@
     ]
   },
   {
-    "name": "add-inline-comment",
-    "tool": "github_add_inline_comment",
+    "name": "pr comment-inline",
+    "tool": "github_pr_comment_inline",
     "description": "Add an inline review comment to a file in a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--commit <sha>",
       "--file <path>",
       "--line <n>",
@@ -470,14 +488,14 @@
     ]
   },
   {
-    "name": "reply-comment",
-    "tool": "github_reply_comment",
+    "name": "pr reply",
+    "tool": "github_pr_reply",
     "description": "Reply to a review comment on a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
-      "--comment-id <id>",
+      "<number>",
+      "<comment-id>",
       "--body <text>",
       "--owner <owner>",
       "--repo <repo>",
@@ -485,39 +503,39 @@
     ]
   },
   {
-    "name": "delete-comment",
+    "name": "pr delete-comment",
     "tool": null,
     "description": "Delete a general issue comment",
     "writes": true,
     "connection": true,
     "flags": [
-      "--comment-id <id>",
+      "<comment-id>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
     ]
   },
   {
-    "name": "delete-review-comment",
+    "name": "pr delete-review-comment",
     "tool": null,
     "description": "Delete an inline review comment",
     "writes": true,
     "connection": true,
     "flags": [
-      "--comment-id <id>",
+      "<comment-id>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
     ]
   },
   {
-    "name": "list-reviews",
-    "tool": "github_list_reviews",
+    "name": "pr reviews",
+    "tool": "github_pr_reviews",
     "description": "List reviews on a pull request",
     "writes": false,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--limit <n>",
       "--cursor <cursor>",
       "--owner <owner>",
@@ -525,13 +543,13 @@
     ]
   },
   {
-    "name": "approve",
-    "tool": "github_approve",
+    "name": "pr approve",
+    "tool": "github_pr_approve",
     "description": "Approve a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--body <text>",
       "--owner <owner>",
       "--repo <repo>",
@@ -539,13 +557,13 @@
     ]
   },
   {
-    "name": "request-changes",
-    "tool": "github_request_changes",
+    "name": "pr request-changes",
+    "tool": "github_pr_request_changes",
     "description": "Request changes on a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--body <text>",
       "--owner <owner>",
       "--repo <repo>",
@@ -553,50 +571,50 @@
     ]
   },
   {
-    "name": "list-reviewers",
-    "tool": "github_list_reviewers",
+    "name": "pr reviewers",
+    "tool": "github_pr_reviewers",
     "description": "List requested reviewers for a pull request",
     "writes": false,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--owner <owner>",
       "--repo <repo>"
     ]
   },
   {
-    "name": "list-review-threads",
-    "tool": "github_list_review_threads",
-    "description": "List review threads on a pull request (includes thread node IDs for resolve-thread)",
+    "name": "pr threads",
+    "tool": "github_pr_threads",
+    "description": "List review threads on a pull request (includes thread node IDs for pr resolve)",
     "writes": false,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--owner <owner>",
       "--repo <repo>"
     ]
   },
   {
-    "name": "resolve-thread",
-    "tool": "github_resolve_thread",
-    "description": "Mark a review thread as resolved (use list-review-threads to get the thread id)",
+    "name": "pr resolve",
+    "tool": "github_pr_resolve",
+    "description": "Mark a review thread as resolved (use pr threads to get the thread id)",
     "writes": true,
     "connection": true,
     "flags": [
-      "--thread-id <id>",
+      "<thread-id>",
       "--owner <owner>",
       "--repo <repo>",
       "--allow-write"
     ]
   },
   {
-    "name": "add-reviewers",
-    "tool": "github_add_reviewers",
+    "name": "pr add-reviewers",
+    "tool": "github_pr_add_reviewers",
     "description": "Request reviewers on a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--reviewer <login>",
       "--team-reviewer <slug>",
       "--owner <owner>",
@@ -605,13 +623,13 @@
     ]
   },
   {
-    "name": "remove-reviewers",
+    "name": "pr remove-reviewers",
     "tool": null,
     "description": "Remove requested reviewers from a pull request",
     "writes": true,
     "connection": true,
     "flags": [
-      "--number <n>",
+      "<number>",
       "--reviewer <login>",
       "--team-reviewer <slug>",
       "--owner <owner>",
@@ -620,25 +638,25 @@
     ]
   },
   {
-    "name": "get-status",
-    "tool": "github_get_status",
+    "name": "commit status",
+    "tool": "github_commit_status",
     "description": "Get combined commit status for a ref (branch, tag, or SHA)",
     "writes": false,
     "connection": true,
     "flags": [
-      "--ref <ref>",
+      "<ref>",
       "--owner <owner>",
       "--repo <repo>"
     ]
   },
   {
-    "name": "list-checks",
-    "tool": "github_list_checks",
+    "name": "commit checks",
+    "tool": "github_commit_checks",
     "description": "List check runs for a ref (branch, tag, or SHA)",
     "writes": false,
     "connection": true,
     "flags": [
-      "--ref <ref>",
+      "<ref>",
       "--limit <n>",
       "--cursor <cursor>",
       "--owner <owner>",

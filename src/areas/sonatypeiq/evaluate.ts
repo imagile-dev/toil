@@ -268,7 +268,7 @@ export const evaluateCommand = sonatypeiqArea.command({
   path: ['sonatypeiq', 'evaluate'],
   description: 'Evaluate a dependency inventory against a Sonatype IQ Server application\'s policies',
   toolDescription:
-    "Sonatype IQ policy evaluation of an inventory from toil deps scan, against one application (applicationId is its public ID; see sonatypeiq_applications_list). Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages: [{ name, version, ecosystem, ..., vulnerabilities }] }. Only SECURITY policy violations count.",
+    "Sonatype IQ policy evaluation of an inventory from toil deps scan, against one application (applicationId is its public ID; see sonatypeiq_application_list). Returns { tier, source, sourcesQueried, sourceErrors, scanned, vulnerable, packages: [{ name, version, ecosystem, ..., vulnerabilities }] }. Only SECURITY policy violations count.",
   input: z.object({
     from: z.string().optional().describe(FROM_DESCRIPTION),
     applicationId: z.string().optional().describe('Sonatype IQ Server application public ID (required)'),
@@ -293,8 +293,8 @@ export const evaluateCommand = sonatypeiqArea.command({
   ],
   run: async (input, ctx) => {
     if (!input.applicationId) {
-      throw new ToilError('INVALID_INPUT', "deps frisk --source sonatypeiq requires --application-id <id>. Use 'toil sonatypeiq applications list' to find application IDs.", {
-        fix: 'Pass --application-id <public ID>; toil sonatypeiq applications list shows each application\'s publicId.',
+      throw new ToilError('INVALID_INPUT', "deps frisk --source sonatypeiq requires --application-id <id>. Use 'toil sonatypeiq application list' to find application IDs.", {
+        fix: 'Pass --application-id <public ID>; toil sonatypeiq application list shows each application\'s publicId.',
       });
     }
     const packages = selected(readInventory(ctx, input.from), input.ecosystem, input.directOnly === true, input.includeDev === true);

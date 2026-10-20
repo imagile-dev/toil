@@ -51,7 +51,7 @@ const duration = (what: string) =>
     .optional();
 
 const input = z.object({
-  tool: z.string().min(1).describe('The read to repeat, by its MCP tool name, e.g. jenkins_get_build. Write tools are refused.'),
+  tool: z.string().min(1).describe('The read to repeat, by its MCP tool name, e.g. jenkins_run_get. Write tools are refused.'),
   input: z.record(z.string(), z.unknown()).optional().describe("That tool's input, exactly as you would pass it to the tool."),
   until: z
     .string()

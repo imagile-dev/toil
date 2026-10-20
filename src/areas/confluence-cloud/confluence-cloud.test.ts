@@ -88,7 +88,7 @@ describe('connection', () => {
 });
 
 describe('pages', () => {
-  it('get-page: GETs v2 with body-format=storage and Basic auth from email and token, and adds bodyText', async () => {
+  it('page get: GETs v2 with body-format=storage and Basic auth from email and token, and adds bodyText', async () => {
     const { envelope, calls } = await run(getPage, { id: '12345' });
     expect(calls).toEqual([{ method: 'GET', url: `${V2}/pages/12345?body-format=storage`, headers: GET_HEADERS, body: undefined }]);
     expect(envelope.data).toEqual({ ...page('12345'), bodyText: 'Shipped.' });
@@ -111,13 +111,13 @@ describe('pages', () => {
     }
   });
 
-  it('get-page-by-title: looks the space key up to its id, then asks for the exact title', async () => {
+  it('page find: looks the space key up to its id, then asks for the exact title', async () => {
     const { envelope, calls } = await run(getPageByTitle, { space: 'DOCS', title: 'Release notes' });
     expect(calls.map((c) => c.url)).toEqual([SPACE_LOOKUP, `${V2}/pages?space-id=98304&title=Release+notes&body-format=storage`]);
     expect(envelope.data).toMatchObject({ id: '12345', bodyText: 'Shipped.' });
   });
 
-  it('get-page-by-title: no match is NOT_FOUND naming the title and space; an unknown space is NOT_FOUND naming the key', async () => {
+  it('page find: no match is NOT_FOUND naming the title and space; an unknown space is NOT_FOUND naming the key', async () => {
     const none = await run(getPageByTitle, { space: 'DOCS', title: 'Nope' }, [
       { method: 'GET', path: '/wiki/api/v2/spaces', respond: { json: { results: [spaces[0]] } } },
       { method: 'GET', path: '/wiki/api/v2/pages', respond: { json: { results: [] } } },
@@ -130,7 +130,7 @@ describe('pages', () => {
     expect(otherKey.envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'Confluence Cloud space not found: DOCS' });
   });
 
-  it('list-pages: every page, 250 a request, following the cursor in _links.next on the configured site', async () => {
+  it('page list: every page, 250 a request, following the cursor in _links.next on the configured site', async () => {
     const routes: Route[] = [
       { method: 'GET', path: '/wiki/api/v2/spaces', respond: { json: { results: [spaces[0]] } } },
       { method: 'GET', path: '/wiki/api/v2/spaces/98304/pages', query: { limit: '250' }, respond: { json: { results: spacePages.slice(0, 2), _links: { next: 'https://elsewhere.imagile.dev/wiki/api/v2/spaces/98304/pages?cursor=abc12345&limit=250' } } } },
@@ -142,7 +142,7 @@ describe('pages', () => {
     expect(envelope.meta.page).toBeUndefined();
   });
 
-  it('list-pages: --limit asks for that many and reports where to carry on; --cursor carries on', async () => {
+  it('page list: --limit asks for that many and reports where to carry on; --cursor carries on', async () => {
     const first = await run(listPages, { space: 'DOCS', limit: 2 });
     expect(first.calls[1]!.url).toBe(`${V2}/spaces/98304/pages?limit=2`);
     expect(first.envelope.data).toEqual(spacePages.slice(0, 2));
@@ -154,13 +154,13 @@ describe('pages', () => {
     expect(second.envelope.meta.page).toEqual({ nextCursor: null, limit: 2 });
   });
 
-  it('list-pages: --cursor without --limit is INVALID_INPUT, before anything is sent', async () => {
+  it('page list: --cursor without --limit is INVALID_INPUT, before anything is sent', async () => {
     const { envelope, calls } = await run(listPages, { space: 'DOCS', cursor: 'eyJjIjoicGFnZS0yIiwicyI6MH0' });
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--cursor needs --limit' });
     expect(calls).toHaveLength(0);
   });
 
-  it('get-page-children and get-page-history: v2 direct children and versions, read in full', async () => {
+  it('page children and page history: v2 direct children and versions, read in full', async () => {
     const children = await run(getPageChildren, { id: '12345' });
     expect(children.calls.map((c) => c.url)).toEqual([`${V2}/pages/12345/direct-children?limit=250`]);
     expect((children.envelope.data as Array<{ type: string }>).map((c) => c.type)).toEqual(['page', 'folder']);
@@ -169,7 +169,7 @@ describe('pages', () => {
     expect((history.envelope.data as Array<{ number: number }>).map((v) => v.number)).toEqual([3, 2, 1]);
   });
 
-  it('search: one page of v1 CQL search, as it came, with the next cursor from _links.next in meta.page', async () => {
+  it('page search: one page of v1 CQL search, as it came, with the next cursor from _links.next in meta.page', async () => {
     const { envelope, calls } = await run(search, { cql: 'space=DOCS AND type=page' });
     expect(calls).toEqual([{ method: 'GET', url: `${V1}/search?cql=space%3DDOCS+AND+type%3Dpage&limit=25`, headers: GET_HEADERS, body: undefined }]);
     expect(envelope.data).toMatchObject({ size: 1, totalSize: 2, results: [{ title: 'Release notes', excerpt: 'Shipped.' }] });
@@ -186,7 +186,7 @@ describe('pages', () => {
     expect(cursorOf(undefined)).toBeUndefined();
   });
 
-  it('create-page: looks up the space id, then POSTs a published page with a storage body under the parent', async () => {
+  it('page create: looks up the space id, then POSTs a published page with a storage body under the parent', async () => {
     const { envelope, calls } = await run(createPage, { space: 'DOCS', title: 'Release notes', body: '<p>Shipped.</p>', parentId: '12345', ...write });
     expect(calls[0]!.url).toBe(SPACE_LOOKUP);
     expect(calls[1]).toMatchObject({ method: 'POST', url: `${V2}/pages`, headers: JSON_HEADERS });
@@ -194,7 +194,7 @@ describe('pages', () => {
     expect(envelope.data).toMatchObject({ id: '12346', bodyText: 'Shipped.' });
   });
 
-  it('create-page: --body-file is read as it is; --representation wiki is sent as wiki; no body is INVALID_INPUT', async () => {
+  it('page create: --body-file is read as it is; --representation wiki is sent as wiki; no body is INVALID_INPUT', async () => {
     const fromFile = await run(createPage, { space: 'DOCS', title: 'Runbook', bodyFile: 'runbook.html', ...write }, fixtureRoutes, { files: { 'runbook.html': '<h1>Runbook</h1>\n' } });
     expect(body(fromFile.calls[1]!)).toMatchObject({ body: { representation: 'storage', value: '<h1>Runbook</h1>\n' } });
     expect(body(fromFile.calls[1]!)).not.toHaveProperty('parentId');
@@ -207,21 +207,21 @@ describe('pages', () => {
     expect(both.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Cannot specify both --body and --body-file' });
   });
 
-  it('update-page: reads the page, then PUTs the next version with the new body and the old title', async () => {
+  it('page update: reads the page, then PUTs the next version with the new body and the old title', async () => {
     const { envelope, calls } = await run(updatePage, { id: '12345', body: '<p>Updated.</p>', ...write });
     expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([`GET ${V2}/pages/12345?body-format=storage`, `PUT ${V2}/pages/12345`]);
     expect(body(calls[1]!)).toEqual({ id: '12345', status: 'current', title: 'Release notes', body: { representation: 'storage', value: '<p>Updated.</p>' }, version: { number: 4 } });
     expect(envelope.data).toMatchObject({ version: { number: 4 }, bodyText: 'Updated.' });
   });
 
-  it('update-page: a rename sends the current storage body back, since Cloud requires one; draft is version 1', async () => {
+  it('page update: a rename sends the current storage body back, since Cloud requires one; draft is version 1', async () => {
     const rename = await run(updatePage, { id: '12345', title: 'Renamed', ...write });
     expect(body(rename.calls[1]!)).toEqual({ id: '12345', status: 'current', title: 'Renamed', body: { representation: 'storage', value: '<p>Shipped.</p>' }, version: { number: 4 } });
     const draft = await run(updatePage, { id: '12345', body: '<p>WIP</p>', status: 'draft', ...write });
     expect(body(draft.calls[1]!)).toMatchObject({ status: 'draft', version: { number: 1 } });
   });
 
-  it('update-page: --representation with no body is INVALID_INPUT; a page read back with no version is an HTTP error', async () => {
+  it('page update: --representation with no body is INVALID_INPUT; a page read back with no version is an HTTP error', async () => {
     const rep = await run(updatePage, { id: '12345', representation: 'wiki', ...write });
     expect(rep.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--representation needs --body or --body-file' });
     expect(rep.calls).toHaveLength(0);
@@ -230,7 +230,7 @@ describe('pages', () => {
     expect(odd.calls).toHaveLength(1);
   });
 
-  it('delete-page: DELETEs the page (to the trash) and is never an MCP tool', async () => {
+  it('page delete: DELETEs the page (to the trash) and is never an MCP tool', async () => {
     const { envelope, calls } = await run(deletePage, { id: '12345', ...write });
     expect(calls).toEqual([{ method: 'DELETE', url: `${V2}/pages/12345`, headers: GET_HEADERS, body: undefined }]);
     expect(envelope.data).toEqual({ deleted: '12345' });
@@ -253,20 +253,20 @@ describe('pages', () => {
 });
 
 describe('comments and labels', () => {
-  it('list-comments: footer comments with storage bodies, each with bodyText', async () => {
+  it('page comments: footer comments with storage bodies, each with bodyText', async () => {
     const { envelope, calls } = await run(listComments, { id: '12345' });
     expect(calls.map((c) => c.url)).toEqual([`${V2}/pages/12345/footer-comments?body-format=storage&limit=250`]);
     expect(envelope.data).toEqual([{ ...comment(), bodyText: 'Looks good.' }]);
   });
 
-  it('add-comment: POSTs a footer comment on the page', async () => {
+  it('page comment: POSTs a footer comment on the page', async () => {
     const { envelope, calls } = await run(addComment, { id: '12345', body: '<p>Reviewed.</p>', ...write });
     expect(calls[0]).toMatchObject({ method: 'POST', url: `${V2}/footer-comments`, headers: JSON_HEADERS });
     expect(body(calls[0]!)).toEqual({ pageId: '12345', body: { representation: 'storage', value: '<p>Reviewed.</p>' } });
     expect(envelope.data).toMatchObject({ id: '30002', bodyText: 'Reviewed.' });
   });
 
-  it('get-labels reads v2; add-label POSTs global labels to v1, blanks dropped', async () => {
+  it('page labels reads v2; page label POSTs global labels to v1, blanks dropped', async () => {
     const got = await run(getLabels, { id: '12345' });
     expect(got.calls[0]!.url).toBe(`${V2}/pages/12345/labels?limit=250`);
     const added = await run(addLabel, { id: '12345', labels: 'runbook, ops,', ...write });
@@ -281,7 +281,7 @@ describe('comments and labels', () => {
     ]);
   });
 
-  it('remove-label: the label goes in the query, so even one with a slash names only itself', async () => {
+  it('page unlabel: the label goes in the query, so even one with a slash names only itself', async () => {
     const { envelope, calls } = await run(removeLabel, { id: '12345', label: 'runbook', ...write });
     expect(calls).toEqual([{ method: 'DELETE', url: `${V1}/content/12345/label?name=runbook`, headers: GET_HEADERS, body: undefined }]);
     expect(envelope.data).toEqual({ removed: 'runbook', from: '12345' });
@@ -291,13 +291,13 @@ describe('comments and labels', () => {
 });
 
 describe('spaces', () => {
-  it('get-space: by key, with its plain-text description', async () => {
+  it('space get: by key, with its plain-text description', async () => {
     const { envelope, calls } = await run(getSpace, { key: 'DOCS' });
     expect(calls.map((c) => c.url)).toEqual([SPACE_LOOKUP]);
     expect(envelope.data).toMatchObject({ id: '98304', key: 'DOCS', description: { plain: { value: 'Product documentation' } } });
   });
 
-  it('list-spaces: every space, or one type, with --limit paging', async () => {
+  it('space list: every space, or one type, with --limit paging', async () => {
     const all = await run(listSpaces, {});
     expect(all.calls.map((c) => c.url)).toEqual([`${V2}/spaces?limit=250`]);
     expect((all.envelope.data as unknown[]).length).toBe(3);
@@ -309,13 +309,13 @@ describe('spaces', () => {
 });
 
 describe('attachments', () => {
-  it('list-attachments: v2, every one', async () => {
+  it('page attachments: v2, every one', async () => {
     const { envelope, calls } = await run(listAttachments, { id: '12345' });
     expect(calls[0]!.url).toBe(`${V2}/pages/12345/attachments?limit=250`);
     expect(envelope.data).toEqual([attachment()]);
   });
 
-  it('upload-attachment: v1 multipart with the XSRF header, named by the last path segment on any platform', async () => {
+  it('page attach: v1 multipart with the XSRF header, named by the last path segment on any platform', async () => {
     const { envelope, calls } = await run(uploadAttachment, { id: '12345', file: 'sub\\diagram.png', comment: 'First draft', ...write }, fixtureRoutes, { files: { 'sub\\diagram.png': 'PNG!' } });
     expect(calls[0]).toMatchObject({ method: 'POST', url: `${V1}/content/12345/child/attachment`, headers: { authorization: AUTH, 'x-atlassian-token': 'nocheck' } });
     expect(calls[0]!.headers['content-type']).toMatch(/^multipart\/form-data; boundary=/);
@@ -324,13 +324,13 @@ describe('attachments', () => {
     expect(envelope.data).toMatchObject([{ id: 'att98766', title: 'uploaded.png' }]);
   });
 
-  it('upload-attachment: a missing file is INVALID_INPUT, before anything is sent', async () => {
+  it('page attach: a missing file is INVALID_INPUT, before anything is sent', async () => {
     const { envelope, calls } = await run(uploadAttachment, { id: '12345', file: 'nope.png', ...write });
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'File not found: nope.png' });
     expect(calls).toHaveLength(0);
   });
 
-  it('download-attachment: the downloadLink under /wiki with the credential, then the media redirect with no headers at all', async () => {
+  it('attachment download: the downloadLink under /wiki with the credential, then the media redirect with no headers at all', async () => {
     const signed = 'https://media.imagile.dev/file/abc12345/binary?token=signed';
     const routes: Route[] = [
       { method: 'GET', path: '/wiki/api/v2/attachments/att98765', respond: { json: attachment() } },
@@ -346,7 +346,7 @@ describe('attachments', () => {
     expect(Object.keys(written)).toHaveLength(1);
   });
 
-  it('download-attachment: an absolute link on another host is re-pointed at baseUrl, with a warning', async () => {
+  it('attachment download: an absolute link on another host is re-pointed at baseUrl, with a warning', async () => {
     const elsewhere = { ...attachment(), downloadLink: 'https://other.imagile.dev/wiki/download/attachments/1/x.png?api=v2' };
     const { envelope, calls } = await run(downloadAttachment, { id: 'att98765', dir: 'out' }, [
       { method: 'GET', path: '/wiki/api/v2/attachments/att98765', respond: { json: elsewhere } },
@@ -356,14 +356,14 @@ describe('attachments', () => {
     expect(envelope.meta.warnings).toEqual([{ code: 'CONFLUENCE_CLOUD_ATTACHMENT_HOST', message: expect.stringContaining('https://other.imagile.dev') }]);
   });
 
-  it('download-attachment: no download link is NOT_FOUND; an existing file is never replaced', async () => {
+  it('attachment download: no download link is NOT_FOUND; an existing file is never replaced', async () => {
     const noLink = await run(downloadAttachment, { id: 'att98765' }, [{ method: 'GET', path: '/wiki/api/v2/attachments/att98765', respond: { json: { id: 'att98765', title: 'x.png' } } }]);
     expect(noLink.envelope.error).toMatchObject({ code: 'NOT_FOUND', message: 'Attachment att98765 has no download link (title: x.png).' });
     const exists = await run(downloadAttachment, { id: 'att98765' }, fixtureRoutes, { files: { '.toil/diagram.png': 'old' } });
     expect(exists.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('already exists') });
   });
 
-  it('delete-attachment: DELETEs it (to the trash)', async () => {
+  it('attachment delete: DELETEs it (to the trash)', async () => {
     const { envelope, calls } = await run(deleteAttachment, { id: 'att98765', ...write });
     expect(calls).toEqual([{ method: 'DELETE', url: `${V2}/attachments/att98765`, headers: GET_HEADERS, body: undefined }]);
     expect(envelope.data).toEqual({ deleted: 'att98765' });

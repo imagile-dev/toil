@@ -231,6 +231,6 @@ for (const p of PRS) {
 }
 
 say('');
-say('Skipped: a Projects (v2) board, which needs the project scope on the gh token (gh auth refresh -s project); toil reads boards with github projects list-items.');
+say('Skipped: a Projects (v2) board, which needs the project scope on the gh token (gh auth refresh -s project); toil reads boards with github project items.');
 say('Skipped: deployments, which toil\'s github area doesn\'t read.');
 say(`Done: https://github.com/${owner}/${repo}`);

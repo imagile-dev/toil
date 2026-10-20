@@ -106,11 +106,11 @@ export const ADO_REVISIONS: Record<number, unknown> = Object.fromEntries(ADO_IDS
 
 // GitHub Enterprise: checkout-web --------------------------------------------
 
-export const GITHUB_PROJECT_ITEMS = dataOf('github projects list-items') as Array<{ content: { number: number; repository: { nameWithOwner: string } } }>;
+export const GITHUB_PROJECT_ITEMS = dataOf('github project items') as Array<{ content: { number: number; repository: { nameWithOwner: string } } }>;
 export const GITHUB_NUMBERS = GITHUB_PROJECT_ITEMS.map((i) => i.content.number);
-export const GITHUB_ISSUES = dataOf('github get-issue');
+export const GITHUB_ISSUES = dataOf('github issue get');
 
-/** Each issue's `github issue-events` timeline; an issue with no events has an empty one. */
+/** Each issue's `github issue history` timeline; an issue with no events has an empty one. */
 export const GITHUB_EVENTS: Record<number, unknown> = Object.fromEntries(
-  GITHUB_NUMBERS.map((n) => [n, historyOf('github issue-events').find((h) => h.key === String(n))?.history.data ?? []]),
+  GITHUB_NUMBERS.map((n) => [n, historyOf('github issue history').find((h) => h.key === String(n))?.history.data ?? []]),
 );

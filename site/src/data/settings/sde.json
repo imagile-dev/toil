@@ -10,7 +10,7 @@
   {
     "key": "project",
     "env": "TOIL_SDE_PROJECT",
-    "description": "Default project ID for project, tasks, task and threats",
+    "description": "Default project ID for project get, task list, task get and threat list",
     "required": false,
     "secret": false,
     "fallbacks": []
