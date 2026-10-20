@@ -36,6 +36,8 @@ something before the PR lands. That covers:
 
 Say so to the user each time.
 
+Auto-merge relies on `main`'s ruleset counting only an approval of the head commit: `dismiss_stale_reviews_on_push` and `require_last_push_approval` both on (`docs/repo-settings-proposal.md`, item 4). Check with `gh api repos/imagile-dev/toil/rulesets/<id>` before turning it on; while either is off, leave auto-merge off and say why, because GitHub would merge a later push on an earlier approval.
+
 ## 1. Before anything
 
 - **Nothing stray.** Run `git status --porcelain` and `git diff --stat origin/main...HEAD`.

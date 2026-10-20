@@ -419,8 +419,10 @@ on stdin with `--input -`.
     accepts
   - squash title `PR_TITLE`; message stays `COMMIT_MESSAGES`
   - "Always suggest updating pull request branches" on
-  - auto-delete head branches stays on; auto-merge stays allowed (a person still
-    turns it on per PR, and the ruleset still needs the approval and `CI ok`)
+  - auto-delete head branches stays on; auto-merge stays allowed. On a PR the
+    maintainer drives through Claude Code, the `ship` skill turns it on (principle 2),
+    so it depends on item 4: the ruleset must dismiss stale approvals and require
+    approval of the last push, or a later push merges on an earlier approval
 - **Why:** release-please reads the squash commit's title. With
   `COMMIT_OR_PR_TITLE`, a one-commit PR's title comes from its commit, not from the
   PR title the review checked. `PR_TITLE` makes the reviewed title the changelog
