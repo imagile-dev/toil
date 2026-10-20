@@ -484,7 +484,10 @@ function assertWritesAllowed(
  * The check is made when the command reads the input, so a write that never
  * uses an input the area resolves for every command (an ADO work item update
  * and the group's `project`) isn't refused over it; every command reads its
- * target before it sends anything. Field aliases and transition pins from
+ * target before it sends the write. An area helper that reads every input up
+ * front defeats this (the write is refused over one it never uses), so a
+ * helper reads a value only where a path needs it, and checks presence
+ * through `ctx.resolved` (ado's `where()`). Field aliases and transition pins from
  * such a dossier stay allowed (#302). A rubber stamp from another department
  * is not a signature.
  */

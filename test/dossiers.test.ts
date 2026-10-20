@@ -8,6 +8,8 @@ import { forwardSlashes } from '../src/core/files.js';
 import { toolName } from '../src/core/command.js';
 import { allowWriteField, inFieldNames } from '../src/core/run.js';
 import { currentPrCommand } from '../src/areas/bitbucket/pull-requests.js';
+import { adoArea } from '../src/areas/ado/area.js';
+import { workUpdateCommand } from '../src/areas/ado/work.js';
 import { dossierBuildCommands } from '../src/dossiers/build.js';
 import { dossiersCommands } from '../src/dossiers/commands.js';
 import { demoCommands, demoArea } from './fixtures/demo-commands.js';
@@ -375,6 +377,23 @@ describe('a write takes its target only from a dossier you adopted', () => {
     expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
     expect(envelope.meta.context?.inputs?.project).toEqual({ value: 'OTHER', source: 'dossier' });
     expect(calls.map((c) => c.method + ' ' + new URL(c.url).pathname)).toEqual(['PUT /api/ping']);
+  });
+
+  it("an ado work-item update, which names no project or repo, isn't refused over a checked-in dossier's", async () => {
+    const d = disk({ 'work/.toil/dossiers/payments.json': { ...payments, ado: { project: 'PAY', repo: 'payments-api' } } });
+    asRepo(d);
+    const config: ResolvedConfig = {
+      connections: { ado: { area: 'ado', baseUrl: 'https://ado.imagile.dev/tfs', pat: 'p', collection: 'DefaultCollection', writes: true } },
+      defaults: {},
+      sources: { 'ado.baseUrl': 'env', 'ado.pat': 'env', 'ado.collection': 'env', 'ado.writes': 'env' },
+      files: { global: '/home/test/.toil/config.json' },
+      warnings: [],
+    };
+    const { context, http } = testContext({ routes: [{ method: 'PATCH', url: /workitems\/42/, respond: { json: { id: 42 } } }] });
+    const run = await runCli(['ado', 'work-item', 'update', '42', '--field', 'System.Title=T', '--allow-write'], { commands: [workUpdateCommand], context: { ...context, config, dossiers: d.catalog(config, { areas: [{ name: adoArea.name, context: Object.keys(adoArea.context) }] }) } });
+    expect(run.envelope?.ok, JSON.stringify(run.envelope?.error)).toBe(true);
+    expect(run.envelope?.meta.context?.inputs?.project).toEqual({ value: 'PAY', source: 'dossier' });
+    expect(http.calls.map((c) => `${c.method} ${new URL(c.url).pathname}`)).toEqual(['PATCH /tfs/DefaultCollection/_apis/wit/workitems/42']);
   });
 
   it('lets a write follow a dossier in your own folder', async () => {
