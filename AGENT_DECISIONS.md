@@ -1,13 +1,15 @@
-# Agent decisions
+# Agent decisions (archive)
 
-Decisions an agent made by default while building the integrations, under the
-maintainer's standing instruction (2026-10-17): take the recommended option, prefer
-the simpler one, and write each one down here. The maintainer's own decisions are on
-issue #68 and the integration issues. This file records only what an agent decided,
-so the maintainer can review any of it and overturn it.
+**Frozen on 2026-10-20 (#361). Don't add to this file.** New decisions go in
+`docs/decisions/`, one file per PR (`docs/decisions/<issue#>-<slug>.md`;
+`docs/decisions/README.md` says how). Every PR appended here, so every PR conflicted
+here, and each conflict cost a merge of `main` and a full review round.
 
-Each entry says what was decided, why, and where it applies. The newest entries go at
-the bottom of their section.
+What follows is unchanged: the decisions agents made by default up to #361, under the
+maintainer's standing instruction (2026-10-17) to take the recommended option, prefer
+the simpler one, and write each one down. Code comments cite it as
+`AGENT_DECISIONS.md, #<n>`, and those references stay valid. The maintainer's own
+decisions are on the issues.
 
 ## Integration kit (#68)
 
@@ -4883,6 +4885,43 @@ it pins. These are the choices made by default in the fix:
   out: the issue makes it optional and the Ask pane already labels its answers as the
   agent's.
 
+## The stand-up report in Toil UI (#345)
+
+- **Built on the server, from the same pages the Worklog shows**
+  (`WorklogService.standup`, `src/model/standup.ts`), so the view, the export and the
+  agent's `standup_report` tool read one fold. Nothing is kept: a stand-up is read,
+  copied or exported, never written to the data folder.
+- **A fact says whose it is.** Worklog events now carry `who` (the account, not only its
+  name) and, for a status change, `toCategory`. The next sync records both on every
+  fact from history, since facts are upserted by key. A fact recorded before #345 falls
+  back to the name on its line, or for a blocker to the item's assignee.
+- **Whose line it is:** the person who did it (moved the item, wrote or reviewed the pull
+  request), not the item's assignee, since that is what the worklog records. A merge or a
+  close goes to the pull request's author, as the source doesn't say who pressed it; a
+  new blocker to the blocked item's assignee; a failed build to its pull request's
+  author. A pull request a dossier agent wrote (matched as the People view matches it)
+  goes under the agent, naming the human author.
+- **Buckets:** a status change into the DONE category is Done, every other one (forward,
+  sideways or back) In progress, so no fact is hidden. Sprint changes are scope, so they
+  are team lines, as are builds with no pull request and deployments. Agent runs of kind
+  `assignment` (#293) go under the agent; questions asked in the Ask pane are not stand-up
+  news and are left out.
+- **What no worklog line records** (a review wait of 2 working days or more, the sprint's
+  days left, Next) is worked out as of the latest good sync, never the clock, so the same
+  cache gives the same report; the report names that sync.
+- **Default range** is since the last working day (Monday to Friday, UTC) through today;
+  a range is at most 31 days. Gaps are each page's, said once with the days they apply to.
+- **Everyone the dossier lists gets a card**, empty or not, so a quiet person reads as
+  quiet rather than missing; an unmapped account only when it has lines. Cards are in
+  name order, never ranked.
+- **The write-up names fact numbers**, `(F3, F7)`, because the server's citation check
+  only knows OWI ids; the page marks the lines it names and says when it names none. The
+  write-up's prompt is matched from its text (`Write up the stand-up for <from> to <to>`),
+  as the 1:1 notes are, so the page sends no prompt text. The system prompt is unchanged
+  (the tool's own description introduces it), which keeps `ui/docs/themes.md` as it is.
+- **Publishing** reuses the worklog's proposals (a Confluence page, a GitHub issue). A
+  comment on an item was left out: a stand-up has no one item to comment on.
+
 ## Feedback reports redacted before the issue is created (#339)
 
 - **The token shapes live in `src/core/token-shapes.mjs`**, plain JavaScript with no
@@ -5188,33 +5227,49 @@ it pins. These are the choices made by default in the fix:
   `agent:refine` added so the inbox has an entry; the sample's tracker data, shared
   with toil's own OWI fixture, is unchanged.
 
-## A board with no buttons on its cards (#347)
+## Particle switch per theme, and Fredoka in Plain (#348)
 
-- **No `@dnd-kit/sortable`.** A card's place within its column comes from its tracker,
-  and a drop only proposes a status change, so there is no order to change and nothing
-  for sortable to do. `@dnd-kit/core` is still the only drag library.
-- **A finger picks a card up after a 250 ms hold, not after a movement threshold.** The
-  issue asks for a small movement threshold, which is what the mouse and the pen get
-  (6 px). On touch, a movement threshold would take every swipe that starts on a card,
-  and on a phone the cards fill the screen, so the page couldn't scroll. The pointer
-  sensor ignores touch for the same reason: both sensors would answer one touch, and
-  the first to claim it wins.
-- **A long press is a hold that ends where it began** (within 10 px). iOS Safari sends
-  no `contextmenu`, so the hold that would start a drag opens the card's menu instead
-  when the finger lifts without moving.
-- **A click anywhere on a card opens the item**, as the key's link does. The key's link
-  keeps its own Enter and its browser menu (open in a new tab); Space and Enter on the
-  card itself pick it up, as the issue asks, so the card is its own dnd-kit activator.
-- **The card is a named group** (`role="group"`, `aria-roledescription="draggable
-  card"`, named by its key and title), not dnd-kit's default `button`. A button can't
-  hold the key's link (axe's `nested-interactive`), and the group's name is its own
-  visible text (WCAG 2.5.3).
-- **Arrow keys move a lifted card a whole column at a time**, Right or Down to the next
-  and Left or Up to the previous, so the same keys work at 375 px, where the columns
-  stack, and on a wide screen. dnd-kit's default moves 25 px a press.
-- **Assign moved into the card's menu**, beside Open and Move to, so the card carries
-  no button at all. The item page keeps its Assign to agent button.
-- **Insight icons are drawn as inline SVG paths** in `src/components/bits.tsx`, one per
-  insight code, in the chip's colour. Each chip keeps its word as text: a screen reader
-  reads it, a mouse gets it as the tooltip (`title`), and it shows beside the icon
-  while the card has keyboard focus, so a sighted keyboard user doesn't decode icons.
+- **The particle presets are keyed by the name a theme declares**, not by theme name:
+  `"ambient": { "particles": "dust" }` in Crate, `leaves` in Harvest, `stars` in
+  Starship and `embers` in Realm, looked up in `PRESETS` (`ui/src/ambient/presets.ts`).
+  A new theme gets the switch by declaring one, and can reuse a preset. A test holds
+  every declared name to a preset and every preset to one theme.
+- **Crate's parallax stays with the motion switch.** The issue keeps parallax on the
+  motion switch, so with Crate's particles off its three still layers remain and only
+  the canvas goes; for the other three themes the whole ambient layer is gone.
+  Measured on real data: 0 animation frames in 2 s with particles off in every theme.
+- **The switch stays enabled while motion is reduced**, so a person can set it ahead;
+  its note says the motion setting or the OS wins for now. Disabling it would hide
+  what it is set to.
+- **"Shown on the theme picker's preview"** is read as the Theme card in Settings,
+  General: under the theme's description, one line names the theme's particles and
+  whether they're on ("Particles: stars, off."), and "Particles: none." for Plain.
+  The header's picker is a bare select with no preview, so it's unchanged.
+- **Plain's body is IBM Plex Sans** (already bundled for Crate, 400 and 600), over
+  Nunito Sans or Inter, either of which would be a new dependency; the reasoning is in
+  `ui/docs/themes.md`. **Fredoka is used at 600 only**, the weight `app.css` already
+  loads for the wordmark, on h1 to h3 and the big figures (`.stat-value`,
+  `.big-number`, `.team-figure`, `.rank`, `.aging-days`), which are 700 elsewhere:
+  Fredoka 700 isn't loaded, and a synthesised bold smears it. "The header" in the
+  issue is read as the wordmark (already Fredoka) and the page's h1; the nav links
+  and controls stay in the body face.
+
+## Waiting for npm after a release (#363)
+
+- **The wait reads the registry with `fetch`, not `npm view`.** `scripts/wait-for-npm.mjs`
+  asks for both packuments (the abbreviated one `npm install` and `npm ci` resolve
+  against, and the full one `npm view` reads) and then `HEAD`s the tarball, each with
+  `Cache-Control: no-cache`. The old loop called `npm view`, whose first answer npm
+  caches for five minutes, so its later tries in the same minute could never see the
+  new version; it also threw npm's error away. `fetch` needs no child process, where
+  running npm on Windows would need a shell (`npm.cmd`), which Cross-Platform rules out,
+  so the script runs the same on every OS.
+- **Backoff is 10s, 20s, 40s, then every 60s, for up to 15 minutes**
+  (`NPM_WAIT_SECONDS`, default 900). Run 39502971120 took about ten minutes before a
+  hand re-run found alpha.4.
+- **`lockfile` still doesn't wait on `publish-ui`.** It needs toil on npm, not the UI,
+  and depending on `publish-ui` would skip the lockfile fix whenever the UI's publish
+  fails or has nothing to release, which is when other PRs most need
+  `check:lockfile` to stop failing. Both jobs wait for toil the same way instead.
+- **The lockfile's `npm install --package-lock-only` adds `--prefer-online`**, because
+  setup-node restores `~/.npm` and a cached packument there can predate the publish.

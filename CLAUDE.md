@@ -292,8 +292,9 @@ GitHub Actions; its build tooling is out of scope.
   skill)
 - `scripts/` — area registration, the purity gate, the committed-bundle check
   (`check-dist.mjs`), the tarball and clone smoke test, the area stub generator (`stub-area.mjs`), the divergence
-  table (`divergences.mjs`), PR screenshots (`shoot.mjs`), and the PR watcher the
-  `ship` skill runs (dev tooling; none of it ships)
+  table (`divergences.mjs`), PR screenshots (`shoot.mjs`), the PR watcher the
+  `ship` skill runs, and the review workflow's merge-only check (`review/`) (dev
+  tooling; none of it ships)
 - `skills/toil/` — the one skill shipped to users, and the site's docs: `SKILL.md` is a
   small index (a test caps it) of `core.md`, `dossiers.md`, the per-area files,
   `install.md` and `mcp.md`. `scripts/gen-areas.mjs` embeds every file in the bundle, `toil skill
@@ -307,7 +308,9 @@ GitHub Actions; its build tooling is out of scope.
   single-file `dist/toil.js` is committed (`README.md`, Running from a clone)
 - `.claude/skills/` — repo-internal skills only. They're for working in this
   repository; they're never published or installed by toil (that's `skills/toil/`)
-- `docs/` — plans and decisions; `docs/divergences/<area>.json` holds each area's
+- `docs/` — plans and decisions; `docs/decisions/<issue#>-<slug>.md` holds the
+  decisions agents made by default, one file per PR (Delivery);
+  `docs/divergences/<area>.json` holds each area's
   divergences from the command contract, and `docs/briefs/<area>.md` the integration brief for each
   area still to build
 - `site/` — the GitHub Pages site (Astro), its own private package; see the `site`
@@ -1028,15 +1031,19 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   already on disk, existing flags, the envelope, and precedence, and say what you
   checked in the PR. Before it, skip that: the PR has no section for it, and reviews
   don't ask.
-- **Decisions an agent makes by default go in `AGENT_DECISIONS.md`**, with what, why
-  and where, so the maintainer can review or overturn them. The maintainer's own
-  decisions stay on the issues.
+- **Decisions an agent makes by default go in `docs/decisions/<issue#>-<slug>.md`**,
+  one file per PR named after its branch, with what, why and where, so the maintainer
+  can review or overturn them (`docs/decisions/README.md`). A PR writes only its own
+  file, so no two PRs conflict on decisions. `AGENT_DECISIONS.md` is the frozen
+  archive of everything before #361, still cited by code comments; never add to it
+  (`test/repo-hygiene.test.ts` pins it). The maintainer's own decisions stay on the
+  issues.
 - **Fix every review finding in the round it arrives, non-blocking ones included**,
   with the simplest fix that is easy to understand. A finding left for later piles up
   another round; an elaborate fix makes the design harder to follow than the problem
   did. Defer one only when it's genuinely out of scope, or when fixing it would add
   complexity out of proportion to what it fixes (the maintainer's call, 2026-10-17).
-  Either way, say so in its thread, and record the skip in `AGENT_DECISIONS.md`.
+  Either way, say so in its thread, and record the skip in the PR's decisions file.
 - **The PR description describes the PR as it is now, not as it was opened.**
   Reviewers, the review bot and the squash commit all read it, so a description
   that lags the code misleads all three. Rewrite it (`gh pr edit --body-file`)
