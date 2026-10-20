@@ -181,13 +181,16 @@ function spread<T>(rows: T[], n: number): T[] {
 
 /**
  * Everything beside the table (`total`, a cursor, counts by level): whole when
- * it's small, else only its top-level primitives, which cost little and say a lot.
+ * it's small, else with its long texts cut short, else only its top-level
+ * primitives, which cost little and say a lot. `count.strings` counts the cuts.
  */
-function besideTable(data: unknown, table: string): Record<string, unknown> | undefined {
+function besideTable(data: unknown, table: string, count: { strings: number }): Record<string, unknown> | undefined {
   const rest = withoutTable(data, table);
   if (!isObject(rest) || Object.keys(rest).length === 0) return undefined;
   if (estimateTokens(rest) <= TOKEN_BUDGET / 4) return rest;
-  const kept = Object.entries(rest).filter(([, value]) => value === null || typeof value !== 'object');
+  const short = clip(rest, STRING_CLIP, count) as Record<string, unknown>;
+  if (estimateTokens(short) <= TOKEN_BUDGET / 4) return short;
+  const kept = Object.entries(short).filter(([, value]) => value === null || typeof value !== 'object');
   return kept.length > 0 ? Object.fromEntries(kept) : undefined;
 }
 
@@ -288,14 +291,16 @@ export function summarize(data: unknown): Summary {
 
   const described = shape.columns.slice(0, MAX_COLUMNS);
   const stats = Object.fromEntries(described.map((c) => [c, statsFor(flat, c)]));
-  const fields = besideTable(data, table.path);
+  const besideCuts = { strings: 0 };
+  const fields = besideTable(data, table.path, besideCuts);
   const rule: SummaryRule = rows <= HEAD_ROWS ? 'head' : 'sample';
   const schema = rule === 'sample' ? Object.fromEntries(described.map((c) => [c, schemaFor(flat, c)])) : undefined;
   const picked = rule === 'head' ? table.rows.slice(0, HEAD_KEEP) : spread(table.rows, SAMPLE_KEEP);
-  const { data: summary, dropped, strings } = fitRows(
+  const { data: summary, dropped, strings: rowCuts } = fitRows(
     (kept) => ({ ...(fields ? { fields } : {}), ...(schema ? { schema } : {}), rows: kept, stats }),
     picked,
   );
+  const strings = rowCuts + besideCuts.strings;
   return {
     data: summary,
     report: { rule, rows, table: table.path, tokens: tokens(summary), columns: shape.columns.length, ...(dropped > 0 || strings > 0 ? { trimmed: { ...(dropped > 0 ? { rows: dropped } : {}), ...(strings > 0 ? { strings } : {}) } } : {}) },

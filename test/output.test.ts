@@ -138,6 +138,17 @@ describe('summary rules, first match wins', () => {
     expect(summarize({ path: 'build.log', content: big }).data).toEqual({ keys: ['path', 'content'], lengths: { content: 200_000 }, sample: { path: 'build.log', content: `${'x'.repeat(200)}…` } });
   });
 
+  it('cuts a long text beside the table short, so head and sample keep their rows', () => {
+    const big = 'x'.repeat(200_000);
+    for (const n of [600, 100]) {
+      const { data, report } = summarize({ log: big, items: issues(n) });
+      expect(estimateTokens(data)).toBeLessThanOrEqual(1500);
+      expect((data as { fields: { log: string } }).fields.log).toBe(`${'x'.repeat(200)}…`);
+      expect(report.trimmed?.strings).toBeGreaterThanOrEqual(1);
+      expect((data as { rows: unknown[] }).rows.length).toBeGreaterThan(0);
+    }
+  });
+
   it('cuts an outline down to its keys when even they are over the budget', () => {
     const many = Object.fromEntries(Array.from({ length: 3000 }, (_, i) => [`a-rather-long-file-name-${i}.ts`, { bytes: i }]));
     const { data, report } = summarize(many);
