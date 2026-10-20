@@ -1,7 +1,7 @@
 import { ToilError } from '../errors.js';
 import { adoHistory, adoItem, iterationDates, workItemsOf } from './ado.js';
 import { idFor, isRecord, str, unmapped, warnings, type MapState, type OwiDocument } from './common.js';
-import { applyBoard, boardEntries, boardItem, githubHistory, githubItem, issuesOf as githubIssuesOf, noBoard, type BoardEntry } from './github.js';
+import { applyBoard, applyMilestones, boardEntries, boardItem, estimateLabelPattern, githubHistory, githubItem, issuesOf as githubIssuesOf, noBoard, reciprocalLinks, type BoardEntry } from './github.js';
 import { issuesOf as jiraIssuesOf, jiraHistory, jiraItem } from './jira.js';
 import { OVERRIDABLE, OWI_AREAS, OWI_SOURCES, type FieldOverrides, type History, type OrphanHistory, type OwiFamily, type OwiWarning, type StatusCategory, type WorkItem } from './types.js';
 
@@ -161,6 +161,10 @@ export function fieldOverrides(fields: string[] | Record<string, string> | undef
     if (name === 'estimateUnit' && !['points', 'hours', 'days'].includes(value)) {
       throw new ToilError('INVALID_INPUT', `estimateUnit must be points, hours or days, not "${value}".`, { fix: 'Pass estimateUnit=points, estimateUnit=hours or estimateUnit=days.' });
     }
+    if (name === 'estimateLabel') estimateLabelPattern(value);
+    if (name === 'iterationDays' && !(/^\d+$/.test(value) && Number(value) >= 1 && Number(value) <= 366)) {
+      throw new ToilError('INVALID_INPUT', `iterationDays must be a whole number of days from 1 to 366, not "${value}".`, { fix: 'Pass the sprint length in days, for example iterationDays=14.' });
+    }
     out[name as keyof FieldOverrides] = value;
   }
   return out;
@@ -199,6 +203,7 @@ export function mapOwi(documents: OwiDocument[], options: { fields?: FieldOverri
 
   const categories = new Map<string, Map<string, StatusCategory>>();
   const boards: Array<{ doc: OwiDocument; entries: BoardEntry[] }> = [];
+  const githubIssues: Array<{ item: WorkItem; issue: Record<string, unknown> }> = [];
   for (const doc of itemDocs) {
     const family = OWI_SOURCES[doc.area]!.family;
     if (family === 'jira') {
@@ -222,11 +227,16 @@ export function mapOwi(documents: OwiDocument[], options: { fields?: FieldOverri
       const found = githubIssuesOf(doc.data);
       if (!found) skipped.push({ at: doc.at, command: doc.command, reason: "it doesn't hold GitHub issues" });
       pulls += found?.pulls ?? 0;
-      for (const issue of found?.issues ?? []) add(githubItem(doc, issue), doc);
+      for (const issue of found?.issues ?? []) {
+        const item = githubItem(doc, issue, state);
+        add(item, doc);
+        if (item) githubIssues.push({ item, issue });
+      }
     }
   }
 
-  // GitHub: each board item fills in its issue, or stands in for it.
+  // GitHub: milestones first, then each board item fills in its issue, or stands in for it.
+  applyMilestones(githubIssues, state);
   const onBoard = new Set<string>();
   for (const { doc, entries } of boards) {
     for (const entry of entries) {
@@ -241,6 +251,7 @@ export function mapOwi(documents: OwiDocument[], options: { fields?: FieldOverri
     }
   }
   for (const item of items.values()) if (OWI_SOURCES[item.source.area]?.family === 'github' && !onBoard.has(item.id)) noBoard(item, state);
+  reciprocalLinks(githubIssues.map((p) => p.item).filter((item) => items.get(item.id) === item), items);
 
   // Histories, attached to their items.
   const orphans: OrphanHistory[] = [];

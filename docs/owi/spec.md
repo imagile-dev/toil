@@ -41,7 +41,7 @@ needed.
 | `estimate` | object or null | `{ value, unit, field }`: `unit` is `points`, `hours` or `days`, and `field` the source field it came from |
 | `labels` | string[] | Labels, or Azure DevOps tags |
 | `team` | string or null | Only from an override (`fields team`): no source has a default team field |
-| `iteration` | Iteration or null | `{ id, name, path, start, end, state }`: the sprint the item is in now. `state` is Jira's sprint state as `past`, `current` or `future`, else null |
+| `iteration` | Iteration or null | `{ id, name, path, start, end, state }`: the sprint the item is in now. `state` is Jira's sprint state as `past`, `current` or `future`, or `past` for a closed GitHub milestone, else null |
 | `parent` | id or null | The parent item's OWI id |
 | `children` | id[] | Sub-tasks, child work items, sub-issues |
 | `links` | Link[] | `{ type, direction, target, name }`: `type` is `blocks`, `relates`, `duplicates`, `implements` or `other`; `outward` means this item `<type>` the target (it blocks it), `inward` the target `<type>` this item; `name` is the source's wording |
@@ -137,18 +137,44 @@ Services differs, the mapping already holds:
 - **Type** from the issue type (GitHub's defaults are Task, Bug and Feature).
   **Parent** from `parent_issue_url`, **children** from `sub_issues`
   (`get-issue --sub-issues`).
-- **Status, estimate and iteration** live on a Projects board. With
-  `github projects list-items` in the input, an issue and its board item are one
-  item: the board's **Status** option sets `status` (Todo, Backlog, Ready and New
-  are `TODO`; In Progress, Doing and In Review `IN_PROGRESS`; Done `DONE`; other
-  options `UNKNOWN`), the first number field named **Estimate**, **Size** or
-  **Story Points** the estimate in points, and its iteration field the
-  iteration. A closed issue is `DONE` whatever the board says; an open one with no
-  board is `TODO`. A board item whose issue isn't in the input still maps, from
-  what the board carries.
+- **A Projects board**, when the input has `github projects list-items`, makes an
+  issue and its board item one item: the board's **Status** option sets `status`
+  (Todo, Backlog, Ready and New are `TODO`; In Progress, Doing and In Review
+  `IN_PROGRESS`; Done `DONE`; other options `UNKNOWN`), the first number field
+  named **Estimate**, **Size** or **Story Points** the estimate in points, and its
+  iteration field the iteration. A closed issue is `DONE` whatever the board says;
+  an open one with no board is `TODO`. A board item whose issue isn't in the input
+  still maps, from what the board carries.
+- **Without a board**, or where the board has no value, the issue's own record
+  fills in the estimate and the iteration. A board value always wins.
+  - **Iteration** from the issue's **milestone**: its title is the name, its
+    `due_on` the end, and its number the id. The start is the due date of the
+    repository's previous milestone in the input, so back-to-back sprints meet; the
+    first milestone starts 14 days before its end. With `iterationDays` (below),
+    every milestone runs that many days to its due date instead. A milestone with
+    no due date has no dates. A closed milestone's `state` is `past`; an open one's
+    is null, since whether it is running depends on the clock.
+  - **Estimate** from a label: by default one of `points: N`, `story points: N`,
+    `pts: N`, `sp: N` or `estimate: N` (any case; `:`, `=`, `/`, `-` or a space
+    before the number), in points, with `field` the label (`label:points: 3`).
+    `estimateLabel` (below) names the team's own pattern instead. Two labels that
+    both hold an estimate are listed in `unmapped`, never picked between.
+- **Links** from the issue's body: "Blocked by #7" and "Depends on #7" are a
+  `blocks` link inward (#7 blocks this issue), "Blocks #9" outward, with `name`
+  the phrase (`blocked by`). A list works ("Blocked by #7, #8 and imagile/api#3"),
+  a bare `#n` is in the issue's own repository, and text in code is skipped. The
+  other issue, when it is in the input, gets the opposite link (`blocks` or
+  `blocked by`), as Jira and Azure DevOps hold a link on both items. Mentions (the
+  timeline's `cross-referenced`) are not links: every "Blocked by #7" is also a
+  mention of #7. GitHub's own **issue dependencies** have a REST API, but no toil
+  command reads them yet: an issue whose `issue_dependencies_summary` counts any
+  lists `links` in `unmapped`, saying how many.
 - GitHub's newer **issue fields** have a REST API (`/repos/{owner}/{repo}/issues/{number}/issue-field-values`),
   but no toil command reads them yet, so OWI 0.1 doesn't map them.
-- History from `github issue-events`: each `closed` and `reopened`.
+- History from `github issue-events`: each `closed` and `reopened` as a
+  transition, and each `milestoned` and `demilestoned` as an iteration change
+  (moving an issue between milestones is both, in the same second, read as one
+  change).
 
 ### A history's item
 
@@ -174,6 +200,18 @@ value names a field as the record holds it: a Jira field id or registered name, 
 Azure DevOps reference name, a GitHub project field's name. `estimateUnit` is
 `points` when not given (`timeoriginalestimate` is always hours). An override that
 names no OWI field, or a unit other than points, hours or days, is refused.
+
+Two more keys are for a GitHub repository run without a board:
+
+- `estimateLabel`: the label that holds an estimate, with `{n}` where the number
+  is (`"estimateLabel": "size/{n}"`). It is matched as written, in any case, never
+  as a regular expression. One without exactly one `{n}` is refused.
+- `iterationDays`: how many days a milestone's sprint runs, ending on its due date
+  (`"iterationDays": "14"`), a whole number from 1 to 366.
+
+```json
+{ "github": { "owner": "imagile", "repo": "payments-web", "fields": { "estimateLabel": "size/{n}", "iterationDays": "10" } } }
+```
 
 ## OSLC CM mapping
 

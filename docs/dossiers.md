@@ -185,6 +185,10 @@ prompts. The names are used through **one fixed input**, never through generated
 - Aliases live in their own namespace, so `--field project=...` can never collide with
   `--project`. An alias is a camelCase identifier; anything else fails `dossiers check`.
 - An unknown name gets the area's own unknown-field error, the same as without a dossier.
+- The Open Work Item keys (`estimate`, `estimateUnit`, `priority`, `type`, `team`,
+  `dueDate`, `iteration`, and GitHub's `estimateLabel` and `iterationDays`) point OWI
+  mapping at the team's own fields (`docs/owi/spec.md`, Pointing a field at your own).
+  Toil UI passes them to `mapOwi` for the section's area; nothing else reads them.
 
 ## Where dossiers live
 

@@ -54,7 +54,7 @@ export type SyncExecute = (
   options: { readOnly: true; caller: string; signal?: AbortSignal; onProgress?: (event: ProgressEvent) => void },
 ) => Promise<Envelope>;
 
-export type MapOwi = (input: unknown) => { items: WorkItem[] };
+export type MapOwi = (input: unknown, options?: { fields?: Record<string, string> }) => { items: WorkItem[] };
 
 /** The most pages one call follows before it stops and says so. */
 export const MAX_PAGES = 200;

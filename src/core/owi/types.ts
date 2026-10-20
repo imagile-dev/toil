@@ -143,8 +143,13 @@ export interface OrphanHistory {
   history: History;
 }
 
-/** The OWI fields a team can point at a field of its own, with `fields`. */
-export const OVERRIDABLE = ['estimate', 'estimateUnit', 'priority', 'type', 'team', 'dueDate', 'iteration'] as const;
+/**
+ * The OWI fields a team can point at a field of its own, with `fields`, and
+ * two settings for a GitHub repository run without a board: `estimateLabel`,
+ * the label pattern that holds an estimate (`points: {n}`), and
+ * `iterationDays`, how long a milestone's sprint runs.
+ */
+export const OVERRIDABLE = ['estimate', 'estimateUnit', 'priority', 'type', 'team', 'dueDate', 'iteration', 'estimateLabel', 'iterationDays'] as const;
 export type Overridable = (typeof OVERRIDABLE)[number];
 export type FieldOverrides = Partial<Record<Overridable, string>>;
 
