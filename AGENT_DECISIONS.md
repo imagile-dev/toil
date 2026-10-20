@@ -3967,6 +3967,61 @@ decided here.
   the layout check needs. The installed Chrome there still hangs even so, for a
   reason not found; Playwright's Chromium, through `CHROME_PATH`, works.
 
+### #298 GitHub without a board
+
+- **A milestone is the iteration by default, with no opt-in** (`applyMilestones` in
+  `src/core/owi/github.ts`). Without a board a milestone is the only time box
+  GitHub has, and its title and due date are recorded facts, not guesses. A
+  repository whose milestones are releases gets releases as its sprints, named as
+  they are on GitHub; there is no switch to turn that off, since nothing asked for
+  one yet. A board's iteration value still wins, item by item.
+- **A milestone's start is the previous milestone's due date** in the same
+  repository (and connection), among the milestones the input holds, so
+  back-to-back sprints meet. The first starts 14 days before its end
+  (`GITHUB_ITERATION_DAYS`). With `iterationDays` set, every milestone runs that
+  many days to its due date instead, so a gap between milestones isn't read as a
+  long sprint. `due_on` is taken as GitHub writes it (midnight UTC of the due day)
+  rather than moved to the end of that day. A milestone with no due date is an
+  iteration with no dates; a closed one is `past`, an open one `null`, because the
+  mapper has no clock.
+- **Estimate labels have a default**: `points: N`, `story points: N`, `pts: N`,
+  `sp: N` or `estimate: N`, in any case, with `:`, `=`, `/`, `-` or a space. The issue
+  asked for "never a guessed one"; these aren't guesses, since the label's own word
+  says it is an estimate, and T-shirt sizes (`size: M`) are left alone. Two labels that
+  match are listed in `unmapped`, never picked between. `estimateLabel` names a team's
+  own pattern as a literal template with `{n}`, not a regular expression, because a
+  dossier can come from someone else's repository and a pattern from it could stall
+  the mapper. `field` is `label:<the label>`.
+- **The board wins per field, not per item** (`applyBoard`): a board item with no
+  estimate or iteration value keeps the issue's label or milestone, so a team that
+  runs a board for status and milestones for sprints gets both. An override naming a
+  project field (`fields iteration`, `fields estimate`) still falls back to the issue
+  when the board has no value there.
+- **Body links**: "Blocked by #n", "Depends on #n" (inward) and "Blocks #n" (outward),
+  lists included, cross-repository `owner/repo#n`, and nothing inside code. The other
+  issue gets the opposite link when it's in the input (`reciprocalLinks`), as Jira and
+  Azure DevOps hold one on both items.
+- **Mentions are not links.** The timeline's `cross-referenced` events aren't mapped:
+  every "Blocked by #7" is also a mention of #7, so they would draw a second edge for
+  every dependency, and a mention commits no one.
+- **GitHub's issue-dependency API isn't read yet.** It is available (the issue record
+  carries `issue_dependencies_summary`, and `/issues/{n}/dependencies/blocked_by`
+  answers), but no toil command calls it, and adding one to `src/areas/github` would
+  collide with the command rename in #297. An issue whose summary counts any
+  dependency lists `links` in `unmapped`, with the counts, so the gap is visible. A
+  follow-up after #297: a `--dependencies` option on the issue get command, mapped
+  like `sub_issues`.
+- **`milestoned` and `demilestoned` are iteration history**: a move between
+  milestones (two events in the same second) is one change, which lets Toil UI see a
+  carry-over. Issues created straight into a running milestone are scope added, which
+  is what the seeded sandbox shows: it was made after Sprint 42 started.
+- **Toil UI maps each area with its own section's OWI keys** (`owiFields` in
+  `ui/src/load.ts`): only the keys OWI knows are passed, so a section's `--field`
+  aliases (`storyPoints`) aren't refused as unknown overrides. This also applies Jira's
+  and Azure DevOps' `fields estimate`, which the dashboard ignored before. An invalid
+  value (`estimateLabel` with no `{n}`) fails that dossier's sync with OWI's message,
+  rather than being dropped.
+
 ### #294 util owi similar
 
 - **The scorer lives in core, pure, with no Node import** (`src/core/owi/similar.ts`):
@@ -4031,7 +4086,6 @@ decided here.
   and a note that it's lexical. Refine mode (#293) and the triage agent are out of
   scope here; the agent gets the cache tool `owi_similar`, and its system prompt says
   to run it before proposing a new item.
-
 
 ## Command shape (jira, jira-cloud, ado, ado-cloud)
 
