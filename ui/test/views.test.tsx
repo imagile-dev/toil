@@ -96,9 +96,9 @@ describe('the dossier list', () => {
 
 describe('a dashboard', () => {
   it.each([
-    ['card-payments', ['jira issue search', 'jira issue history'], ['bitbucket list-prs'], ['jenkins pipeline list-runs'], ['openshift deployments']],
+    ['card-payments', ['jira issue search', 'jira issue history'], ['bitbucket pr list'], ['jenkins pipeline runs'], ['openshift deployment list']],
     ['settlement', ['ado work-item iterations', 'ado work-item search', 'ado work-item get-many', 'ado work-item history'], ['ado pr list'], ['ado run list'], ['ado run list']],
-    ['checkout-web', ['github projects list-items', 'github get-issue', 'github issue-events'], ['github list-prs'], ['github list-checks'], ['openshift deployments']],
+    ['checkout-web', ['github project items', 'github issue get', 'github issue history'], ['github pr list'], ['github commit checks'], ['openshift deployment list']],
   ])('%s names the commands that fed each panel', async (name, work, prs, builds, deployments) => {
     await open(`#/dossier/${name}`);
     const fed = (region: HTMLElement) => within(region).getByText(/Fed by/).textContent;
@@ -495,10 +495,10 @@ describe('the agent pane, with a real adapter', () => {
 
 describe('failures', () => {
   it("shows a failed call on its own panel with toil's message and fix, and the rest still loads", async () => {
-    const without = (c: Canned) => !(c.command === 'bitbucket list-prs');
+    const without = (c: Canned) => !(c.command === 'bitbucket pr list');
     await open('#/dossier/card-payments', { execute: fixtureExecute(CANNED.filter(without)).execute });
     const prs = panel('Pull requests');
-    expect(within(prs).getByRole('alert').textContent).toMatch(/toil bitbucket list-prs failed: The preview has no sample answer .* Add the call to CANNED/);
+    expect(within(prs).getByRole('alert').textContent).toMatch(/toil bitbucket pr list failed: The preview has no sample answer .* Add the call to CANNED/);
     expect(panel(/^Sprint 42: day/).textContent).toContain('At risk');
   });
 

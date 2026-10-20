@@ -2,9 +2,9 @@ import { blank, idFor, instant, isRecord, num, overrideUnit, person, setDay, set
 import type { History, Iteration, Person, StatusCategory, WorkItem } from './types.js';
 
 /**
- * GitHub (`github`) to OWI: the issues `list-issues`, `search-issues` and
- * `get-issue` return, the timeline `issue-events` returns, and a Projects
- * (v2) board's items from `projects list-items`. An issue carries its type,
+ * GitHub (`github`) to OWI: the issues `issue list`, `issue search` and
+ * `issue get` return, the timeline `issue history` returns, and a Projects
+ * (v2) board's items from `project items`. An issue carries its type,
  * parent and sub-issues; status, estimate and iteration live on the board,
  * so an issue found in both is one item with the board's fields filled in.
  * Pull requests are not work items here: they are what a later ChangeRef
@@ -99,7 +99,7 @@ export interface BoardEntry {
   draft: boolean;
 }
 
-/** The board items `projects list-items` returns, keyed as items are. Pull requests are counted and left out. */
+/** The board items `project items` returns, keyed as items are. Pull requests are counted and left out. */
 export function boardEntries(doc: OwiDocument): { entries: BoardEntry[]; pulls: number } | undefined {
   if (!Array.isArray(doc.data) || !doc.data.every((d) => isRecord(d) && 'fieldValues' in d)) return undefined;
   const entries: BoardEntry[] = [];
@@ -133,7 +133,7 @@ export function boardItem(doc: OwiDocument, entry: BoardEntry): WorkItem {
   item.statusCategory = item.status === 'closed' ? 'DONE' : 'TODO';
   setInstant(item, 'created', entry.item.createdAt, 'createdAt');
   setInstant(item, 'updated', content.updatedAt ?? null, 'updatedAt');
-  if (!entry.draft) for (const field of ['type', 'assignee', 'reporter', 'labels', 'parent']) unmapped(item, field, 'the board carries only the title, state and URL: add github get-issue output for this issue to the input');
+  if (!entry.draft) for (const field of ['type', 'assignee', 'reporter', 'labels', 'parent']) unmapped(item, field, 'the board carries only the title, state and URL: add github issue get output for this issue to the input');
   return item;
 }
 
@@ -196,12 +196,12 @@ const removeUnmapped = (item: WorkItem, field: string) => {
 
 /** Notes, on an issue no board covered, where its board fields would have come from. */
 export function noBoard(item: WorkItem, state: MapState): void {
-  unmapped(item, 'estimate', 'GitHub keeps estimates on a project board: add github projects list-items output to the input');
-  unmapped(item, 'iteration', 'GitHub keeps iterations on a project board: add github projects list-items output to the input');
-  for (const field of ['priority', 'team', 'dueDate', 'type'] as const) if (state.fields[field] !== undefined) unmapped(item, field, `"${state.fields[field]}" is a project field: add github projects list-items output to the input`);
+  unmapped(item, 'estimate', 'GitHub keeps estimates on a project board: add github project items output to the input');
+  unmapped(item, 'iteration', 'GitHub keeps iterations on a project board: add github project items output to the input');
+  for (const field of ['priority', 'team', 'dueDate', 'type'] as const) if (state.fields[field] !== undefined) unmapped(item, field, `"${state.fields[field]}" is a project field: add github project items output to the input`);
 }
 
-/** The timeline `issue-events` returns, as open and closed transitions. */
+/** The timeline `issue history` returns, as open and closed transitions. */
 export function githubHistory(doc: OwiDocument): History | undefined {
   if (!Array.isArray(doc.data)) return undefined;
   const history: History = { transitions: [], iterations: [] };

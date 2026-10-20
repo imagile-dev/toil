@@ -322,6 +322,12 @@ describe('the self-check', () => {
     const result = mapOwi(documentsFrom([env('github issue get', { number: 3, title: 'T', state: 'open', html_url: 'https://ghe.imagile.dev/imagile/x/issues/3' }, 'my-ghe')]).documents);
     expect(result.items[0]!.id).toMatch(new RegExp(schema.$defs.OwiId.pattern));
   });
+
+  it('names a command toil has when it says what to add for a missing field', () => {
+    const result = mapOwi(documentsFrom([env('github issue get', { number: 3, title: 'T', state: 'open', html_url: 'https://ghe.imagile.dev/imagile/x/issues/3' }, 'my-ghe')]).documents);
+    const estimate = result.items[0]!.unmapped.find((u) => u.field === 'estimate');
+    expect(estimate?.reason).toContain('add github project items output');
+  });
 });
 
 describe('@imagile-dev/toil/api', () => {

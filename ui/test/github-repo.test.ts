@@ -227,7 +227,7 @@ describe('a GitHub dossier with no project board', () => {
 });
 
 describe('the pull requests whose checks are read', () => {
-  const change = (n: number, outcome: ChangeRef['outcome'], at: string): ChangeRef => ({ id: `#${n}`, kind: 'pull-request', source: 'github', command: 'github list-prs', items: [], title: `${n}`, url: null, state: outcome, outcome, builds: null, mergeCommit: null, at });
+  const change = (n: number, outcome: ChangeRef['outcome'], at: string): ChangeRef => ({ id: `#${n}`, kind: 'pull-request', source: 'github', command: 'github pr list', items: [], title: `${n}`, url: null, state: outcome, outcome, builds: null, mergeCommit: null, at });
 
   it('are every open one and only the newest closed ones', () => {
     const closed = Array.from({ length: CHECKED_CLOSED_PRS + 5 }, (_, i) => change(i, 'merged', new Date(Date.UTC(2026, 0, 1 + i)).toISOString()));

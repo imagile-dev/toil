@@ -4,16 +4,16 @@
  * dashboard reads plus enough around them to look like the real thing. Shapes
  * follow the vendors' REST references and toil's own command code:
  *
- * - Bitbucket Data Center pull requests (`bitbucket list-prs`):
+ * - Bitbucket Data Center pull requests (`bitbucket pr list`):
  *   https://developer.atlassian.com/server/bitbucket/rest/ (Pull Requests).
- * - Jenkins builds of a multibranch job (`jenkins pipeline list-runs`), with
+ * - Jenkins builds of a multibranch job (`jenkins pipeline runs`), with
  *   the `tree` fields src/areas/jenkins/client.ts asks for.
  * - Azure DevOps Server pull requests and builds (`ado pr list`,
  *   `ado run list`): https://learn.microsoft.com/rest/api/azure/devops/
  *   (Git Pull Requests, Build Builds).
- * - GitHub pull requests and check runs (`github list-prs`,
- *   `github list-checks`): https://docs.github.com/rest (Pulls, Check Runs).
- * - OpenShift Deployments (`openshift deployments`), as the command summarises
+ * - GitHub pull requests and check runs (`github pr list`,
+ *   `github commit checks`): https://docs.github.com/rest (Pulls, Check Runs).
+ * - OpenShift Deployments (`openshift deployment list`), as the command summarises
  *   them (src/areas/openshift/workloads.ts).
  *
  * What the dashboards should show: PAY-105 and PAY-106 merged and running in
@@ -93,7 +93,7 @@ const jenkinsRun = (pr: number, n: number, result: 'SUCCESS' | 'FAILURE' | null,
   queueId: 9000 + pr * 10 + n,
 });
 
-/** `jenkins pipeline list-runs --name payments-core/PR-<id>`, newest first, per pull request. */
+/** `jenkins pipeline runs --name payments-core/PR-<id>`, newest first, per pull request. */
 export const JENKINS_RUNS: Record<number, unknown[]> = {
   311: [jenkinsRun(311, 2, 'FAILURE', '2026-10-12T16:05:00.000Z', 412_000), jenkinsRun(311, 1, 'FAILURE', '2026-10-12T15:35:00.000Z', 398_000)],
   305: [jenkinsRun(305, 1, 'SUCCESS', '2026-10-07T10:40:00.000Z', 455_000)],
@@ -117,7 +117,7 @@ const deployment = (name: string, image: string, version: string, ready: number,
 });
 const ns = (namespace: string, deployments: unknown[]) => ({ namespace, kind: 'Deployment', count: deployments.length, deployments });
 
-/** `openshift deployments --env <env> --namespace <ns>`, per environment. */
+/** `openshift deployment list --env <env> --namespace <ns>`, per environment. */
 export const OPENSHIFT: Record<string, unknown> = {
   'payments-dev': ns('payments-dev', [deployment('payments-core', 'artifactory.imagile.dev/payments/payments-core:1.14.0-4e1d2a9', '1.14.0', 2, 2, '3d')]),
   'payments-prod': ns('payments-prod', [deployment('payments-core', 'artifactory.imagile.dev/payments/payments-core:1.13.2-1a2b3c4', '1.13.2', 3, 3, '13d')]),
@@ -277,7 +277,7 @@ const check = (id: number, name: string, head: string, conclusion: 'success' | '
   app: { slug: 'github-actions', name: 'GitHub Actions' },
 });
 
-/** `github list-checks --ref <head sha>`, per pull request head. */
+/** `github commit checks --ref <head sha>`, per pull request head. */
 export const GITHUB_CHECKS: Record<string, unknown[]> = {
   [sha('53d0e12')]: [check(8301, 'test', '53d0e12', 'success', '2026-10-12T13:15:00Z'), check(8302, 'e2e-safari', '53d0e12', 'failure', '2026-10-12T13:25:00Z')],
   [sha('52c4b88')]: [check(8201, 'test', '52c4b88', 'success', '2026-10-11T10:20:00Z'), check(8202, 'e2e-safari', '52c4b88', 'success', '2026-10-11T10:28:00Z')],
