@@ -241,6 +241,7 @@ describe('the API', () => {
       sync: false,
       agent: 'scripted',
       agentSettings: false,
+      assignments: false,
       sample: true,
       now: '2026-10-13T08:00:00.000Z',
       csrf: expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),

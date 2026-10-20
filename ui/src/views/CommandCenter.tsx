@@ -7,8 +7,9 @@
  *
  * The plan is strict: only `ready` items are slated, in the dossier's own
  * order. Starting them is assign-to-agent's (#293): `startReady` on the
- * view's data is where it plugs in, and until something provides it the
- * start button stays disabled and says so. Mission control, minus the
+ * view's data (src/assign/start.ts) queues an implement assignment for each,
+ * and the view says what it queued, or why it started nothing. Where there
+ * are no assignments the button stays disabled and says so. Mission control, minus the
  * missions until the paperwork for #293 clears.
  */
 
@@ -58,6 +59,8 @@ const columns: Array<Column<Line>> = [
 
 export function CommandCenter() {
   const { dossier, now, startReady } = useData();
+  const [started, setStarted] = useState<{ ok: boolean; text: string } | null>(null);
+  const [starting, setStarting] = useState(false);
   const { EmptyState } = useSkins();
   const settings = dossier.readiness;
   const lines = useMemo<Line[]>(() => {
@@ -137,13 +140,31 @@ export function CommandCenter() {
           </ul>
         )}
         <Cluster className="readiness-start">
-          <Button className="btn" isDisabled={!startReady || slated.length === 0} onPress={() => void startReady?.(plan)} aria-describedby="slate-note">
+          <Button
+            className="btn"
+            isDisabled={!startReady || slated.length === 0 || starting}
+            onPress={async () => {
+              if (!startReady) return;
+              setStarting(true);
+              try {
+                setStarted({ ok: true, text: await startReady(plan) });
+              } catch (e) {
+                setStarted({ ok: false, text: e instanceof Error ? e.message : String(e) });
+              } finally {
+                setStarting(false);
+              }
+            }}
+            aria-describedby="slate-note"
+          >
             Start {count(slated.length, 'ready item')}
           </Button>
           <p id="slate-note" className="note">
-            {startReady ? 'Starts the plan above, as listed.' : 'Starting work arrives with assign-to-agent (#293). Until then this shows the plan it would start.'}
+            {startReady ? 'Assigns each item above to an agent in implement mode, as listed: proposals wait for you, and nothing leaves this machine until you apply one.' : 'This view has no agent assignments, so it shows the plan it would start.'}
           </p>
         </Cluster>
+        <p className={started && !started.ok ? 'failure' : 'note'} role="status">
+          {started?.text ?? ''}
+        </p>
       </Card>
 
       <Panel id="cc-items" title="Items" calls={calls}>

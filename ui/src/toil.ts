@@ -31,7 +31,9 @@ export interface ExecuteOptions {
   signal?: AbortSignal;
   /** Only the local server's config path passes one (ui/server/config.ts): the person's answers to toil's questions. */
   person?: ExecutePerson;
-  /** Only the worklog's export passes one (ui/server/worklog.ts): the folder toil's file service writes inside. */
+  /** Who the call is for, on the audit line beside `caller`: an agent assignment (#293). A toil without the option ignores it. */
+  actor?: string;
+  /** The folder toil's file and git commands work in: the worklog's export (ui/server/worklog.ts), and implement mode's clone (#293). */
   workspace?: string;
 }
 

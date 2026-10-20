@@ -217,9 +217,9 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${J(104)} transferred from Sprint 41 with pull request #305 still open. ${J(107)} came aboard after the sprint started, with no estimate logged.`,
     ],
     realm: [
-      `Hear ye: it is day 7 of 10 of Sprint 42, and 3 of 21 points are won, with 18 yet to win.`,
-      `${J(101)}'s pull request #311 is barred by a failing Jenkins build, and ${J(102)} and ${J(103)} wait behind it at the pass, holding 11 points back.`,
-      `${J(104)} was carried from Sprint 41, its pull request #305 still open. ${J(107)} joined the quest after the sprint began, with no estimate given.`,
+      `Day 7 of 10 of Sprint 42. 3 of 21 points are taken; 18 are not.`,
+      `${J(101)}'s pull request #311 fails its Jenkins build. The road is broken there, and ${J(102)} and ${J(103)} wait behind it: 11 points held.`,
+      `${J(104)} was carried from Sprint 41, its pull request #305 still open. ${J(107)} entered the ledger after the sprint began, with no estimate.`,
     ],
   },
   settlement: {
@@ -242,9 +242,9 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${A(2307)} was removed from the backlog, which OWI logs as done.`,
     ],
     realm: [
-      `Hear ye: it is day 7 of 9 of Sprint 42. 1 of 16 points is won and 15 remain. ${A(2305)} is not reckoned in points, for it is measured in hours.`,
-      `${A(2303)} may not set out until ${A(2302)} is done, and 2302's pull request #87 is still being forged.`,
-      `${A(2304)} was carried from Sprint 41 with no bond to any other deed. ${A(2305)} and ${A(2306)} joined after the sprint began.`,
+      `Day 7 of 9 of Sprint 42. 1 of 16 points is taken; 15 remain. ${A(2305)} is not reckoned in points: it is measured in hours.`,
+      `${A(2303)} cannot march until ${A(2302)} is done, and 2302's pull request #87 is still building.`,
+      `${A(2304)} was carried from Sprint 41, bound to nothing. ${A(2305)} and ${A(2306)} entered after the sprint began.`,
       `${A(2307)} was struck from the backlog, which OWI counts as done.`,
     ],
   },
@@ -265,9 +265,9 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${G(45)} has been aboard since day one with no estimate logged.`,
     ],
     realm: [
-      `Hear ye: it is day 7 of 10 of Sprint 42, and 1 of 11 points is won, with 10 yet to win.`,
-      `${G(43)} joined after the sprint began, and its draft pull request #53 fails the e2e-safari check.`,
-      `${G(45)} was taken up on day one and has no estimate.`,
+      `Day 7 of 10 of Sprint 42. 1 of 11 points is taken; 10 remain.`,
+      `${G(43)} entered after the sprint began, and its draft pull request #53 fails the e2e-safari check.`,
+      `${G(45)} was taken up on day one. It still has no estimate.`,
     ],
   },
 };

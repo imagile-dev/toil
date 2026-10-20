@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 16" width="160" height="16" fill="none">
+<!-- The header's embossed rule: two tarnished-gold lines with a shadow beneath, and a rivet at the centre and each end. -->
+<path d="M8 7.5H70M90 7.5H152" stroke="#9c7a3c" stroke-width="1.2"/>
+<path d="M8 9H70M90 9H152" stroke="#14110e" stroke-opacity=".7" stroke-width=".8"/>
+<path d="M80 2.5 85.5 8 80 13.5 74.5 8Z" fill="#6e1c18" stroke="#9c7a3c" stroke-width="1"/>
+<g fill="#6b6660" stroke="#14110e" stroke-width=".8"><circle cx="5" cy="8" r="2.4"/><circle cx="155" cy="8" r="2.4"/></g>
+</svg>

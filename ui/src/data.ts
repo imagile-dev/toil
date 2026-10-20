@@ -7,6 +7,7 @@
 
 import { createContext, useContext } from 'react';
 import type { Agent } from './agent.ts';
+import type { AssignmentsApi } from './assign/model.ts';
 import type { ConfigApi } from './config.ts';
 import type { DossierData } from './load.ts';
 import { prepare, type Prepared } from './model/insights.ts';
@@ -16,9 +17,12 @@ import type { Change, Execute, WorkItem } from './toil.ts';
 /**
  * What the Command Center hands #293's start action: the ready items in the
  * order they were slated, and the plan's id, which changes when anything in
- * the plan does, so a person starts the plan they saw.
+ * the plan does (the Command Center shows it beside the list). The items are
+ * what starts: the page sends exactly the list on screen. It resolves with
+ * what it did, in words, and throws saying what it couldn't do, naming
+ * anything it queued first.
  */
-export type StartReady = (plan: { id: string; items: string[] }) => Promise<void>;
+export type StartReady = (plan: { id: string; items: string[] }) => Promise<string>;
 
 export interface Data {
   dossier: DossierData;
@@ -32,6 +36,8 @@ export interface Data {
   config?: ConfigApi;
   /** Reads the dossier again, after a person changed it from a view; absent where nothing can change. */
   refresh?: () => void;
+  /** Assigning items to an agent (#293): the server's, or the preview's sample; absent where there is neither. */
+  assignments?: AssignmentsApi;
   /** toil's `execute()`, read-only, for the one live read a view may make on a person's press (the readiness gate's workflow check, #307); absent where there is none. */
   execute?: Execute;
   /**

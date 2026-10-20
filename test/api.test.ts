@@ -261,7 +261,18 @@ describe('@imagile-dev/toil/api (src/api.ts)', () => {
     expect(cliOnly).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: "setup alias isn't served through the API: it's a person's command, on the CLI." } });
     for (const caller of ['Toil UI', '', '-x', 'ghp_'.padEnd(80, 'a')]) {
       expect(await apiExecute('version', {}, { caller })).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
+      expect(await apiExecute('version', {}, { caller: 'toil-ui', actor: caller })).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
     }
+  });
+
+  it('records the actor a caller names beside the caller, and nothing when it names none', async () => {
+    const home = isolatedHome();
+    await apiExecute('version', {}, { caller: 'toil-ui', actor: 'assignment-abc12345' });
+    await apiExecute('version', {}, { caller: 'toil-ui' });
+    const dir = join(home, '.toil', 'audit');
+    const lines = readdirSync(dir).flatMap((f) => readFileSync(join(dir, f), 'utf8').trim().split('\n')).map((l) => JSON.parse(l));
+    expect(lines[0]).toMatchObject({ via: 'api', caller: 'toil-ui', actor: 'assignment-abc12345', command: 'version' });
+    expect(lines[1]).not.toHaveProperty('actor');
   });
 
   it('refuses a write under readOnly before reading config or sending anything', async () => {

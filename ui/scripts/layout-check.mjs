@@ -20,7 +20,7 @@
 //
 // Each view is checked as it opens and with its hidden parts showing: every
 // <details> open, each dossier card's Show pressed, the header menu and the
-// Feedback dialog open, the Ask dock both closed and open, the Ask pane's (i)
+// Feedback dialog open, the Assign dialog open from an item and the inbox, the Ask dock both closed and open, the Ask pane's (i)
 // popover open, the Agent page's full prompt shown, a worklog day rebuilt and
 // the calendar on an earlier month, a stand-up written up, and every failing
 // command's recent audit lines open on the Usage page. Reduced motion
@@ -77,6 +77,10 @@ export const ROUTES = [
   '#/dossier/checkout-web/worklog/standup/yesterday',
   item('card-payments', 'corp-jira:PAY-100'),
   item('settlement', 'corp-ado:2304'),
+  // Agent assignments (#293): one that needs you (a report, a question, proposals with diffs), one that failed at its time limit, one working.
+  '#/dossier/card-payments/assignment/sample-needsyou-0002',
+  '#/dossier/card-payments/assignment/sample-failed-0000004',
+  '#/dossier/card-payments/assignment/sample-working-0001',
   '#/settings/connections',
   '#/settings/dossiers',
   '#/settings/toil',
@@ -250,6 +254,9 @@ function states(route, width) {
     const ask = `(async () => { ${open} const before = document.querySelectorAll('[data-usage-footer]').length; if (!(await ${clickAll('.starters .starter:first-child')})) return 0; const deadline = Date.now() + 5000; while (document.querySelectorAll('[data-usage-footer]').length <= before && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelectorAll('[data-usage-footer]').length > before && document.querySelector('[data-chat-usage]') ? 1 : 0; })()`;
     out.push({ name: 'answered', setup: ask, ...(narrow ? { undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') } : {}) });
   }
+  // The Assign dialog from an item's page, and Start on the Agents lane's inbox (#293).
+  if (route.includes('/item/')) out.push({ name: 'assign-open', setup: clickAll('[data-assign-open]'), undo: 'Escape' });
+  if (route === '#/dossier/card-payments') out.push({ name: 'inbox-start', setup: clickAll('[data-inbox-start]'), undo: 'Escape' });
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
   if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).

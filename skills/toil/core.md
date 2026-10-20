@@ -341,7 +341,8 @@ const envelope = await execute('jira issue search', { jql: 'project = PAY', limi
   any call that would change anything, whatever the config says: a write to a service,
   and a local one too (toil's config or dossiers, a download, a file named with
   `out`). A read-only call writes nothing but its audit line. `caller` names the program in the audit log (lowercase letters, digits,
-  `.`, `_` and `-`, up to 64). `signal` cancels the call (`CANCELLED`). `onProgress`
+  `.`, `_` and `-`, up to 64), and `actor`, in the same characters, who it called
+  for (Toil UI names an agent assignment, `assignment-<id>`). `signal` cancels the call (`CANCELLED`). `onProgress`
   hears every request (redacted URL, status, time), page and retry. `config`,
   `workspace` and `verbose` match `--config`, `--workspace` and `--verbose`.
 - **`person`** is for a program with its own interface for a person, such as Toil

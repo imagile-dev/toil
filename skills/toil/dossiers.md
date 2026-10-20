@@ -171,7 +171,9 @@ The request it sent was
   variant too unless the dossier names it. It is never a credential: toil refuses a
   value shaped like a token, and one account can be only one person's. The `email` is
   only compared, so Toil UI can suggest which unmapped accounts are probably theirs;
-  it never maps one by itself. Toil UI's People view reads this section.
+  it never maps one by itself. Toil UI's People view reads this section, and an item
+  assigned on the tracker to one of the dossier's agents is queued in Toil UI's Agent
+  inbox, where it waits for a person to start it.
 - **`wipLimit`**: how many items one person may have in progress at once, as the team
   agreed. Toil UI counts each person's work in progress against it, and nothing else.
 
