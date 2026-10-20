@@ -17,7 +17,7 @@ export type Scheme = 'light' | 'dark';
 
 /**
  * The words a theme may rename. Each is shown with the real word beside it
- * ("Quest (Epic)"), never instead of it (#206).
+ * ("Campaign (Epic)"), never instead of it (#206).
  */
 export const TERMS = ['epic', 'board', 'dependencies', 'sprint', 'agent', 'blocked'] as const;
 export type TermKey = (typeof TERMS)[number];

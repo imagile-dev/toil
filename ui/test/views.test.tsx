@@ -716,7 +716,7 @@ describe('how deep the theme goes (#283)', () => {
     cleanupView();
     setTheme('realm');
     await open('#/dossier/card-payments');
-    expect(names()).toEqual(off.map((n) => n.replace(/^heading: Sprint 42(?=:)/, 'heading: Chronicle (Sprint 42').replace(/^(heading: Chronicle \(Sprint 42: day \d+ of \d+)$/, '$1)').replace(/^heading: Dependencies$/, 'heading: Map (Dependencies)')));
+    expect(names()).toEqual(off.map((n) => n.replace(/^heading: Sprint 42(?=:)/, 'heading: Ledger (Sprint 42').replace(/^(heading: Ledger \(Sprint 42: day \d+ of \d+)$/, '$1)').replace(/^heading: Dependencies$/, 'heading: War table (Dependencies)')));
   });
 
   it('has both boxes on by default under the theme picker, and turns both off, with a note, for Plain', async () => {
