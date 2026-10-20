@@ -17,7 +17,7 @@ import { Cited, ItemLink } from '../components/items.tsx';
 import { Path } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
 import { useData } from '../data.ts';
-import { dossierHref, worklogHref } from '../format.ts';
+import { dossierHref, standupHref, worklogHref } from '../format.ts';
 import {
   addMonths, appliedText, daysOfMonth, longDay, monthName, monthOf, OUTCOME_TEXT, seenText, timeOf,
   type RunLine, type WorklogEvent,
@@ -72,6 +72,13 @@ export function Worklog({ api, day }: { api: WorklogApi | null; day: string | nu
       </p>
       <h1 tabIndex={-1}>Worklog</h1>
       <p className="lede">One page a day, folded by code from the sync, the pull requests, the builds and the agent's runs: facts only, each line linked to where it came from. Days and times are UTC.</p>
+      {api && (
+        <p>
+          <a className="btn" href={standupHref(dossier.name)} data-standup-link="">
+            Stand-up since the last working day
+          </a>
+        </p>
+      )}
     </div>
   );
   if (!api) {
@@ -353,6 +360,9 @@ function DayPage({ api, data, today, onChange }: { api: WorklogApi; data: Worklo
         <Button className="btn" data-worklog-rebuild="" isDisabled={busy} onPress={() => void rebuild()}>
           Rebuild this day
         </Button>
+        <a className="btn" href={standupHref(page.dossier, { from: page.day, to: page.day })}>
+          Stand-up for this day
+        </a>
         {rebuilt && (
           <p role="status" className="note">
             {rebuilt}

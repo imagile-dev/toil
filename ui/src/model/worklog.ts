@@ -22,7 +22,7 @@
  */
 
 import type { Answer } from '../agent.ts';
-import type { ChangeRef, Deployment, WorkItem } from '../toil.ts';
+import type { ChangeRef, Deployment, Person, StatusCategory, WorkItem } from '../toil.ts';
 
 export type WorklogKind =
   | 'status'
@@ -85,6 +85,16 @@ export interface WorklogEvent {
   observed: { previousSync: string | null } | null;
   /** The builds of one pull request or pipeline, for telling a recovery from a pass. */
   group?: string;
+  /**
+   * Whose line it is in a stand-up (#345): who moved the item or changed its
+   * sprint, who opened, wrote or reviewed the pull request, the author of the
+   * pull request a build built, the assignee of a newly blocked item. Null
+   * when the source doesn't say; absent on a fact recorded before #345, which
+   * the next sync records again with it.
+   */
+  who?: Person | null;
+  /** For a status change: the category it moved into. */
+  toCategory?: StatusCategory;
 }
 
 /** A proposal an agent run made, and whether toil's audit log shows a person applied it. */
@@ -281,7 +291,7 @@ const names = (list: string[]) => list.join(', ');
 const unfinished = (item: WorkItem | undefined) => item !== undefined && item.statusCategory !== 'DONE';
 const REVIEW_TEXT = { APPROVED: 'approved', CHANGES_REQUESTED: 'changes requested', COMMENTED: 'commented', DISMISSED: 'approval withdrawn' } as const;
 
-function itemEvent(item: WorkItem, kind: WorklogKind, at: string, text: string, by: string | null, keyTail: string, refs: Record<string, WorklogRef> = {}): WorklogEvent {
+function itemEvent(item: WorkItem, kind: WorklogKind, at: string, text: string, by: Person | null, keyTail: string, refs: Record<string, WorklogRef> = {}): WorklogEvent {
   return {
     key: `${kind}:${item.id}:${isoOf(at)}:${keyTail}`,
     kind,
@@ -291,11 +301,12 @@ function itemEvent(item: WorkItem, kind: WorklogKind, at: string, text: string, 
     label: keyOf(item),
     title: item.title,
     url: item.url,
-    by,
+    by: person(by),
     text,
     cites: [item.id, ...Object.keys(refs)],
     refs: { [item.id]: { label: keyOf(item), url: item.url }, ...refs },
     observed: null,
+    who: by,
   };
 }
 
@@ -312,12 +323,12 @@ export function eventsFrom(input: { items: WorkItem[]; changes: ChangeRef[] }, k
   for (const item of input.items) {
     for (const t of item.history?.transitions ?? []) {
       if (!valid(t.at)) continue;
-      out.push(itemEvent(item, 'status', t.at, `${t.from ?? 'Created'} → ${t.to}`, person(t.by), `${t.from ?? ''}>${t.to}`));
+      out.push({ ...itemEvent(item, 'status', t.at, `${t.from ?? 'Created'} → ${t.to}`, t.by, `${t.from ?? ''}>${t.to}`), toCategory: t.toCategory });
     }
     for (const c of item.history?.iterations ?? []) {
       if (!valid(c.at)) continue;
       const text = !c.from.length ? `added to ${names(c.to)}` : !c.to.length ? `dropped from ${names(c.from)}` : `moved from ${names(c.from)} to ${names(c.to)}`;
-      out.push(itemEvent(item, 'sprint', c.at, text, person(c.by), `${names(c.from)}>${names(c.to)}`));
+      out.push(itemEvent(item, 'sprint', c.at, text, c.by, `${names(c.from)}>${names(c.to)}`));
     }
   }
 
@@ -329,7 +340,7 @@ export function eventsFrom(input: { items: WorkItem[]; changes: ChangeRef[] }, k
     }
     const c = ref.change;
     if (!c) continue;
-    const base = (kind: WorklogKind, at: string, text: string, by: string | null, tail = '') => ({
+    const base = (kind: WorklogKind, at: string, text: string, by: Person | null, tail = '', who: Person | null = by): WorklogEvent => ({
       key: `${kind}:${c.id}:${isoOf(at)}${tail}`,
       kind,
       at: isoOf(at),
@@ -338,16 +349,18 @@ export function eventsFrom(input: { items: WorkItem[]; changes: ChangeRef[] }, k
       label: prLabel(c.id),
       title: c.title,
       url: c.url,
-      by,
+      by: person(by),
       text,
       cites: [c.id],
       refs: { [c.id]: { label: prLabel(c.id), url: c.url } },
       observed: null,
+      who,
     });
-    if (valid(c.created)) out.push(base('pr-opened', c.created, c.state === 'DRAFT' ? 'opened as a draft' : 'opened', person(c.author)));
-    for (const r of c.reviews ?? []) if (valid(r.at)) out.push(base('pr-review', r.at, REVIEW_TEXT[r.state], person(r.by), `:${r.by.id}:${r.state}`));
-    if (c.state === 'MERGED' && valid(c.mergedAt)) out.push(base('pr-merged', c.mergedAt, c.branch.target ? `merged into ${c.branch.target}` : 'merged', null));
-    if (c.state === 'DECLINED' && valid(c.closedAt ?? null)) out.push(base('pr-declined', c.closedAt!, 'closed without merging', null));
+    // A merge or a close is the author's news in a stand-up, though the source doesn't say who pressed the button.
+    if (valid(c.created)) out.push(base('pr-opened', c.created, c.state === 'DRAFT' ? 'opened as a draft' : 'opened', c.author));
+    for (const r of c.reviews ?? []) if (valid(r.at)) out.push(base('pr-review', r.at, REVIEW_TEXT[r.state], r.by, `:${r.by.id}:${r.state}`));
+    if (c.state === 'MERGED' && valid(c.mergedAt)) out.push(base('pr-merged', c.mergedAt, c.branch.target ? `merged into ${c.branch.target}` : 'merged', null, '', c.author));
+    if (c.state === 'DECLINED' && valid(c.closedAt ?? null)) out.push(base('pr-declined', c.closedAt!, 'closed without merging', null, '', c.author));
   }
 
   // Builds: each pull request's (or pipeline's) runs in time order, with what earlier syncs saw.
@@ -389,6 +402,7 @@ export function eventsFrom(input: { items: WorkItem[]; changes: ChangeRef[] }, k
           refs,
           observed: null,
           group,
+          who: pr ? (input.changes.find((c) => c.id === pr)?.change?.author ?? null) : null,
         });
       }
       failing = run.outcome === 'failed';
@@ -441,7 +455,7 @@ export function observedEvents(before: Snapshot | null, after: Snapshot, at: str
       if (old.get(blocked)?.has(by)) continue;
       const blocker = byId.get(by)!;
       const e = itemEvent(item, 'blocker', stamp, `blocked by [[${by}]]`, null, by, { [by]: { label: keyOf(blocker), url: blocker.url } });
-      out.push({ ...e, key: `blocker:${blocked}:${by}:${stamp}`, observed: { previousSync } });
+      out.push({ ...e, key: `blocker:${blocked}:${by}:${stamp}`, observed: { previousSync }, who: item.assignee });
     }
   }
   const previous = new Map(before.deployments.map((d) => [d.id, d]));
@@ -464,6 +478,7 @@ export function observedEvents(before: Snapshot | null, after: Snapshot, at: str
       cites: [],
       refs: {},
       observed: { previousSync },
+      who: null,
     });
   }
   return out;
@@ -565,10 +580,11 @@ export function escapeMd(text: string): string {
   return text.replace(/\r?\n/g, ' ').replace(/([\\`*_[\]<>])/g, '\\$1');
 }
 
-const link = (ref: WorklogRef) => (ref.url ? `[${escapeMd(ref.label)}](${ref.url.replace(/[()\s]/g, (c) => (c === '(' ? '%28' : c === ')' ? '%29' : '%20'))})` : `\`${ref.label.replace(/`/g, "'")}\``);
+/** A ref as a Markdown link, or as code when it has no URL. */
+export const link = (ref: WorklogRef) => (ref.url ? `[${escapeMd(ref.label)}](${ref.url.replace(/[()\s]/g, (c) => (c === '(' ? '%28' : c === ')' ? '%29' : '%20'))})` : `\`${ref.label.replace(/`/g, "'")}\``);
 
 /** Text with its `[[id]]` citations as links, from the line's own refs. */
-function cited(text: string, refs: Record<string, WorklogRef>): string {
+export function cited(text: string, refs: Record<string, WorklogRef>): string {
   return text
     .split(/(\[\[[^\]]+\]\])/)
     .map((part) => {

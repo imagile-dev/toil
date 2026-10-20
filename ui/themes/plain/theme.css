@@ -1,5 +1,29 @@
 /* Plain: the accessibility baseline. Tokens come from theme.json; this file
-   adds only what the tokens can't say. It stays nearly empty on purpose. */
+   adds only what the tokens can't say. It stays nearly empty on purpose.
+
+   Type (#348): Fredoka, toil's wordmark face, at the one weight the wordmark
+   already loads (600, from src/app.css), on headings and big figures; IBM
+   Plex Sans to read, at 400 and 600, the pair Crate already loads. Headings
+   carry user data now, so Fredoka's Latin Extended file is added too; its
+   unicode-range means it's fetched only for a name like Łódź. Every figure face is 600: Fredoka has no 700 here,
+   and a synthesised bold would smear its rounded strokes. Mono stays the
+   system's (ui/docs/themes.md says why). */
+
+@import '@fontsource/fredoka/latin-ext-600.css';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+
+[data-theme="plain"] h1,
+[data-theme="plain"] h2,
+[data-theme="plain"] h3,
+[data-theme="plain"] .stat-value,
+[data-theme="plain"] .big-number,
+[data-theme="plain"] .team-figure,
+[data-theme="plain"] .rank,
+[data-theme="plain"] .aging-days {
+  font-family: var(--font-display);
+  font-weight: 600;
+}
 
 [data-theme="plain"] .l-card {
   box-shadow: 0 1px 0 var(--line);

@@ -30,6 +30,7 @@ import type { AssignmentsApi } from './assign/model.ts';
 import { People } from './views/People.tsx';
 import { PullRequests } from './views/PullRequests.tsx';
 import { Settings } from './views/Settings.tsx';
+import { Standup } from './views/Standup.tsx';
 import { Worklog } from './views/Worklog.tsx';
 import type { WorklogApi } from './worklog.ts';
 import { isDay } from './model/worklog.ts';
@@ -54,6 +55,9 @@ export type Route =
   /** Every work item with its readiness verdict (#307). */
   | { view: 'command-center'; dossier: string }
   | { view: 'worklog'; dossier: string; day: string | null }
+  /** The stand-up (#345): a range of days, or since the last working day when it names none. */
+  /** `ignored`: what the URL named that isn't a day, said on the page rather than dropped quietly. */
+  | { view: 'standup'; dossier: string; from: string | null; to: string | null; ignored?: string }
   | { view: 'item'; dossier: string; id: string }
   /** One agent assignment (#293). */
   | { view: 'assignment'; dossier: string; id: string };
@@ -69,6 +73,13 @@ export function parseRoute(hash: string): Route {
     if (parts[2] === 'people') return { view: 'people', dossier };
     if (parts[2] === 'command-center') return { view: 'command-center', dossier };
     if (parts[2] === 'board' && parts[3]) return { view: 'dashboard', dossier, person: decodeURIComponent(parts.slice(3).join('/')) };
+    if (parts[2] === 'worklog' && parts[3] === 'standup') {
+      // One day names a one-day stand-up; anything that isn't a day is named on the page, which shows the default range instead.
+      const [from, to] = [parts[4], parts[5]].map((p) => (p ? decodeURIComponent(p) : undefined));
+      const bad = [from, to].filter((p): p is string => p !== undefined && p !== '' && !isDay(p));
+      if (bad.length || (!from && to)) return { view: 'standup', dossier, from: null, to: null, ignored: bad.join(', ') || to! };
+      return { view: 'standup', dossier, from: from ?? null, to: to || from || null };
+    }
     if (parts[2] === 'worklog') return { view: 'worklog', dossier, day: isDay(parts[3]) ? parts[3] : null };
     return { view: 'dashboard', dossier };
   }
@@ -183,7 +194,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
           { href: prsHref(wanted), label: 'Pull requests', current: route.view === 'prs' },
           { href: peopleHref(wanted), label: 'People', current: route.view === 'people' },
           { href: commandCenterHref(wanted), label: 'Command Center', current: route.view === 'command-center' },
-          { href: worklogHref(wanted), label: 'Worklog', current: route.view === 'worklog' },
+          { href: worklogHref(wanted), label: 'Worklog', current: route.view === 'worklog' || route.view === 'standup' },
         ]
       : []),
     { href: '#/settings', label: 'Settings', current: route.view === 'settings' },
@@ -230,7 +241,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
     const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, execute, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.dossier) } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest) };
     body = (
       <DataContext value={data}>
-        {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
+        {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
       </DataContext>
     );
   }

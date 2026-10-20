@@ -48,6 +48,8 @@ export const commandCenterHref = (dossier: string) => `${dossierHref(dossier)}/c
 export const boardHref = (dossier: string, person: string) => `${dossierHref(dossier)}/board/${encodeURIComponent(person)}`;
 /** The worklog (#308): its calendar, or one UTC day's page. */
 export const worklogHref = (dossier: string, day?: string) => `${dossierHref(dossier)}/worklog${day ? `/${day}` : ''}`;
+/** The stand-up (#345): since the last working day, or a range of UTC days. */
+export const standupHref = (dossier: string, range?: { from: string; to: string }) => `${dossierHref(dossier)}/worklog/standup${range ? `/${range.from}/${range.to}` : ''}`;
 
 /** A pull request's short name: `payments-core #311`, the host and owner left to the panel. */
 export const prName = (id: string) => {
