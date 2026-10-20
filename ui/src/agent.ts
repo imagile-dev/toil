@@ -9,6 +9,7 @@
  * emptied, by design.
  */
 
+import type { AnswerUsage, ChatTurn } from './model-usage.ts';
 import type { Proposal } from './proposal.ts';
 
 /** One paragraph of an answer, and the work items it rests on. */
@@ -33,6 +34,8 @@ export interface Answer {
   unverified?: string[];
   /** What the server's checks found, in words the pane shows above the answer. */
   warnings?: string[];
+  /** What the SDK reported this question used (#295), on the finished answer only. */
+  usage?: AnswerUsage;
 }
 
 export interface Starter {
@@ -67,12 +70,12 @@ export interface Agent {
   /** The questions offered about a dossier before anyone types. */
   starters(dossier: string): Starter[];
   /** Answers about the named dossier only. */
-  ask(dossier: string, prompt: string, style?: AskStyle): Promise<Answer>;
+  ask(dossier: string, prompt: string, style?: AskStyle, chat?: ChatTurn): Promise<Answer>;
   /**
    * The same answer as it grows: each value is the answer so far, and the
    * last is the whole of it. Optional; the pane falls back to `ask`.
    */
-  stream?(dossier: string, prompt: string, signal?: AbortSignal, style?: AskStyle): AsyncIterable<Answer>;
+  stream?(dossier: string, prompt: string, signal?: AbortSignal, style?: AskStyle, chat?: ChatTurn): AsyncIterable<Answer>;
 }
 
 const CITE = /\[\[([^\]]+)\]\]/g;

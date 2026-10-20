@@ -12,7 +12,11 @@
  * - **sources**: the sync state of each dossier's sources (one per area):
  *   when it last worked, when it was last tried, its error and fix, and the
  *   watermark the next incremental sync asks `--updated-since` from;
- * - **dossiers**: each dossier's last sync time and outcome.
+ * - **dossiers**: each dossier's last sync time and outcome;
+ * - **usage**: the agent's model usage (#295), one row per report an SDK
+ *   made, apart from everything a sync writes. Forgetting a dossier or a
+ *   sync's cleanup never touches it, so a total never drops and a cap never
+ *   reopens; only the retention period and `wipe` remove it.
  *
  * The schema is versioned with `PRAGMA user_version` and moved forward one
  * migration at a time inside a transaction. A file from a newer Toil UI is
@@ -25,6 +29,7 @@
 import { randomBytes } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import * as nodePath from 'node:path';
+import { sameReport, type UsageRecord } from '../src/model-usage.ts';
 import type { ChangeRef, Deployment, Envelope, WorkItem } from '../src/toil.ts';
 import { loadSqlite, type DatabaseSync } from './sqlite.ts';
 
@@ -139,6 +144,21 @@ export const MIGRATIONS: readonly Migration[] = [
         status TEXT NOT NULL,
         error TEXT
       );
+    `,
+  },
+  {
+    version: 2,
+    description: "the agent's model usage, one row per SDK report",
+    sql: `
+      CREATE TABLE usage (
+        id TEXT PRIMARY KEY,
+        chat_id TEXT NOT NULL,
+        adapter TEXT NOT NULL,
+        at TEXT NOT NULL,
+        record TEXT NOT NULL
+      );
+      CREATE INDEX usage_at ON usage (at);
+      CREATE INDEX usage_chat ON usage (chat_id);
     `,
   },
 ];
@@ -561,14 +581,44 @@ export class Cache {
       for (const table of ['responses', 'items', 'transitions', 'change_refs']) removed += Number(this.db.prepare(`DELETE FROM ${table} WHERE synced_at < ?`).run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM sources WHERE last_attempt_at < ?').run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM dossiers WHERE last_sync_at < ?').run(cutoff).changes);
+      // A test's own migration list may stop short of the usage table; every real file has it.
+      if (this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'usage'").get()) removed += Number(this.db.prepare('DELETE FROM usage WHERE at < ?').run(cutoff).changes);
     });
     return removed;
+  }
+
+  /**
+   * Records what an SDK reported (#295). A report seen before (the same id)
+   * merges with what's stored by the meter's own rule, so a running total
+   * repeated never counts twice and a row never shrinks.
+   */
+  addUsage(records: readonly UsageRecord[]) {
+    if (!records.length) return;
+    this.transaction(() => {
+      const get = this.db.prepare('SELECT record FROM usage WHERE id = ?');
+      const put = this.db.prepare('INSERT INTO usage (id, chat_id, adapter, at, record) VALUES (?, ?, ?, ?, ?) ON CONFLICT (id) DO UPDATE SET at = excluded.at, record = excluded.record');
+      for (const r of records) {
+        const seen = get.get(r.id) as { record: string } | undefined;
+        const merged = seen ? sameReport(JSON.parse(seen.record) as UsageRecord, r) : r;
+        put.run(merged.id, merged.chatId, merged.adapter, merged.at, JSON.stringify(merged));
+      }
+    });
+  }
+
+  /** Usage reported at or after an instant, oldest first. */
+  usageSince(since: string): UsageRecord[] {
+    return (this.db.prepare('SELECT record FROM usage WHERE at >= ? ORDER BY at, id').all(since) as unknown as Array<{ record: string }>).map((r) => JSON.parse(r.record) as UsageRecord);
+  }
+
+  /** Every report for one chat. */
+  usageOfChat(chatId: string): UsageRecord[] {
+    return (this.db.prepare('SELECT record FROM usage WHERE chat_id = ? ORDER BY at, id').all(chatId) as unknown as Array<{ record: string }>).map((r) => JSON.parse(r.record) as UsageRecord);
   }
 
   /** Row counts per table, for the tests and the wipe's report. */
   counts(): Record<string, number> {
     const out: Record<string, number> = {};
-    for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers']) out[table] = Number((this.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n);
+    for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers', 'usage']) out[table] = Number((this.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n);
     return out;
   }
 

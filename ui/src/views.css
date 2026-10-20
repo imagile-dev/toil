@@ -221,3 +221,13 @@
 .agent-missing { color: var(--danger); }
 .answer-checks { border-left: 4px solid var(--danger); padding-left: 0.75rem; display: grid; gap: 0.25rem; }
 .agent-notice { overflow-wrap: anywhere; }
+
+/* What the agent's models used (#295): the footer under each answer and the chat's running total. */
+.usage-footer, .chat-usage { display: grid; gap: 0.15rem; border-top: 1px solid var(--line); padding-top: 0.4rem; }
+.chat-usage { border-top: 0; border-left: 4px solid var(--line); padding: 0 0 0 0.6rem; }
+.usage-line { color: var(--muted); font-size: 0.8125rem; overflow-wrap: anywhere; }
+.usage-model { color: var(--ink); font-weight: 600; }
+.usage-sample { font-style: italic; }
+.usage-notice { font-size: 0.8125rem; border-left: 4px solid var(--danger); padding-left: 0.5rem; overflow-wrap: anywhere; }
+.context-meter { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; }
+.context-meter meter { flex: 1 1 6rem; min-width: 0; max-width: 12rem; height: 0.75rem; }

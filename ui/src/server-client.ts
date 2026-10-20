@@ -22,6 +22,8 @@ import type { Envelope, Execute } from './toil.ts';
 export type { DossierState, SourceState } from '../server/cache.ts';
 export type { SyncJob, SyncStatus } from '../server/sync.ts';
 import type { AgentStatus } from '../server/agents/host.ts';
+import type { ModelUsageApi, UsageView } from './model-usage.ts';
+export type { ModelUsageApi, UsageView } from './model-usage.ts';
 import type { AgentSettings } from '../server/agents/settings.ts';
 export type { AdapterStatus, AgentStatus } from '../server/agents/host.ts';
 export type { AgentSettings } from '../server/agents/settings.ts';
@@ -210,13 +212,13 @@ export async function httpAgent(session: Session, dossiers: string[], base = './
     ...(session.agent === 'none' ? { notice: `${NO_AGENT_NOTICE} ${NO_AGENT_FIX}` } : {}),
     label: AGENT_LABEL[session.agent] ?? session.agent,
     starters: (dossier) => starters.get(dossier) ?? [],
-    async ask(dossier, prompt, style) {
-      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, ...style } });
+    async ask(dossier, prompt, style, chat) {
+      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, ...style, ...(chat ? { chat } : {}) } });
       if (!res.ok) throw await failure(res, 'The question');
       return (await res.json()) as Answer;
     },
-    async *stream(dossier, prompt, signal, style) {
-      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, stream: true, ...style }, ...(signal ? { signal } : {}) });
+    async *stream(dossier, prompt, signal, style, chat) {
+      const res = await call(base, session, 'api/agent/ask', { body: { dossier, prompt, stream: true, ...style, ...(chat ? { chat } : {}) }, ...(signal ? { signal } : {}) });
       if (!res.ok) throw await failure(res, 'The question');
       if (!/^application\/x-ndjson/.test(res.headers.get('content-type') ?? '')) {
         yield (await res.json()) as Answer;
@@ -282,5 +284,21 @@ export function httpAgentSettings(session: Session, base = './'): AgentSettingsC
       if (!res.ok) throw await failure(res, 'Reading the full prompt');
       return ((await res.json()) as { prompt: string }).prompt;
     },
+  };
+}
+
+/**
+ * The agent's model usage over the server (#295): the last 30 days' records,
+ * which the page adds up with the meter's one function, and the caps and
+ * Codex rates. Each throws with the server's message.
+ */
+export function httpModelUsage(session: Session, base = './'): ModelUsageApi {
+  const answer = async (res: Response, what: string) => {
+    if (!res.ok) throw await failure(res, what);
+    return (await res.json()) as UsageView;
+  };
+  return {
+    view: async () => answer(await call(base, session, 'api/usage'), 'Reading the model usage'),
+    save: async (settings) => answer(await call(base, session, 'api/usage/settings', { body: settings }), 'Saving the caps'),
   };
 }

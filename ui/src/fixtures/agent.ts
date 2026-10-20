@@ -10,7 +10,9 @@
 
 import type { Agent, Answer, AnswerPart, AskStyle, Starter } from '../agent.ts';
 import { SCRIPTED_LABEL, citationsOf } from '../agent.ts';
+import type { ChatTurn } from '../model-usage.ts';
 import type { Proposal } from '../proposal.ts';
+import { sampleAnswerUsage } from './model-usage.ts';
 
 const J = (n: number) => `[[corp-jira:PAY-${n}]]`;
 const A = (n: number) => `[[corp-ado:${n}]]`;
@@ -264,21 +266,22 @@ const wait = (ms: number, signal?: AbortSignal) =>
 const words = (text: string) => text.match(/\[\[[^\]]+\]\]\S*\s*|\S+\s*/g) ?? [];
 
 export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
-  const answer = (dossier: string, prompt: string, style?: AskStyle): Answer => {
+  const answer = (dossier: string, prompt: string, style?: AskStyle, chat?: ChatTurn): Answer => {
     const script = SCRIPTS[dossier] ?? {};
     const id = script[prompt] ? prompt : Object.entries(script).find(([, s]) => s.label === prompt)?.[0];
     const entry = id ? script[id] : undefined;
     // The voiced risk answer when the voice is on and the theme has one; Plain, and the voice off, read the standard.
     const voiced = id === 'risk' && style?.voice ? VOICED[dossier]?.[style.theme] : undefined;
     const parts: AnswerPart[] = (voiced ?? entry?.parts ?? [UNSCRIPTED]).map((text) => ({ text }));
-    return { prompt: entry?.label ?? prompt, parts, citations: citationsOf(parts), by: 'scripted', proposals: entry?.proposals ?? [] };
+    // In a chat, the answer carries sample usage figures (#295), marked as made up, so the footer has something to show.
+    return { prompt: entry?.label ?? prompt, parts, citations: citationsOf(parts), by: 'scripted', proposals: entry?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, dossier) } : {}) };
   };
   return {
     label: SCRIPTED_LABEL,
     starters: (dossier: string): Starter[] => Object.entries(SCRIPTS[dossier] ?? {}).map(([id, s]) => ({ id, label: s.label })),
-    ask: async (dossier, prompt, style) => answer(dossier, prompt, style),
-    async *stream(dossier, prompt, signal, style) {
-      const whole = answer(dossier, prompt, style);
+    ask: async (dossier, prompt, style, chat) => answer(dossier, prompt, style, chat),
+    async *stream(dossier, prompt, signal, style, chat) {
+      const { usage, ...whole } = answer(dossier, prompt, style, chat);
       const parts: AnswerPart[] = [];
       for (const part of whole.parts) {
         let text = '';
@@ -291,7 +294,7 @@ export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
           await wait(delay, signal);
         }
       }
-      yield whole;
+      yield usage ? { ...whole, usage } : whole;
     },
   };
 }

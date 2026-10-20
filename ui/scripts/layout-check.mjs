@@ -63,6 +63,7 @@ export const ROUTES = [
   '#/settings/dossiers',
   '#/settings/toil',
   '#/settings/usage',
+  '#/settings/agent-usage',
   '#/settings/agent',
 ];
 export const WIDTHS = [375, 768, 1440];
@@ -219,6 +220,12 @@ function states(route, width) {
   if (/^#\/dossier\/[^/]+$/.test(route)) {
     const open = narrow ? `await ${clickAll('.ask--sheet .ask-head button', '/Open/')};` : '';
     out.push({ name: 'ask-info', setup: `(async () => { ${open} return await ${clickAll('[data-ask-info]')}; })()`, undo: 'Escape', ...(narrow ? { undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') } : {}) });
+  }
+  // An answered question (#295): its usage footer, and the chat's running total and context meter in the pane's head.
+  if (route === '#/dossier/card-payments') {
+    const open = narrow ? `await ${clickAll('.ask--sheet .ask-head button', '/Open/')};` : '';
+    const ask = `(async () => { ${open} const before = document.querySelectorAll('[data-usage-footer]').length; if (!(await ${clickAll('.starters .starter:first-child')})) return 0; const deadline = Date.now() + 5000; while (document.querySelectorAll('[data-usage-footer]').length <= before && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelectorAll('[data-usage-footer]').length > before && document.querySelector('[data-chat-usage]') ? 1 : 0; })()`;
+    out.push({ name: 'answered', setup: ask, ...(narrow ? { undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') } : {}) });
   }
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
   if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
