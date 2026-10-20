@@ -141,7 +141,8 @@ A build rewrites the committed `dist/toil.js`, so run `git checkout -- dist/` be
 `git pull`, then build again (or run `node scripts/setup.mjs`).
 
 Don't commit the rebuilt `dist/`; `git checkout -- dist/` puts the released bundle
-back. [CLAUDE.md](CLAUDE.md) has the rest of the gate (typecheck, lint, tests).
+back. With `TOIL_BUILD_DIR` set to another folder, the build goes there and leaves
+`dist/` alone, which is how Toil UI's `verify:ui` builds into `.scratch/toil`. [CLAUDE.md](CLAUDE.md) has the rest of the gate (typecheck, lint, tests).
 
 ### Pointing an agent at the clone
 

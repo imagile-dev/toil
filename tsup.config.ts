@@ -1,9 +1,14 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { basename, join, resolve } from 'node:path';
 import { defineConfig } from 'tsup';
 import { ENTRIES } from './scripts/entries.mjs';
 import { noSpawn } from './scripts/no-spawn.mjs';
+
+// Where the build goes: dist/, unless TOIL_BUILD_DIR names another folder. Toil UI's
+// verify:ui and dev-real.mjs build into .scratch/toil that way (ui/scripts/real-home.mjs, buildToil),
+// so running Toil UI on this checkout's toil never rewrites the committed dist/ (#332).
+const outDir = process.env.TOIL_BUILD_DIR?.trim() || 'dist';
 
 const { version } = JSON.parse(readFileSync('./package.json', 'utf8')) as { version: string };
 
@@ -26,7 +31,7 @@ const commit = ((): string | null => {
 // beside it (scripts/entries.mjs), written once it's built, decide what runs.
 export default defineConfig({
   entry: { 'toil-lib': 'src/cli.ts' },
-  outDir: 'dist',
+  outDir,
   format: ['esm'],
   platform: 'node',
   target: 'node24',
@@ -59,7 +64,7 @@ export default defineConfig({
   ],
   // dist/toil.js (the bin) and dist/api.js (`./api`), a line or two each.
   onSuccess: async () => {
-    for (const [path, content] of Object.entries(ENTRIES)) writeFileSync(path, content, { mode: 0o755 });
+    for (const [path, content] of Object.entries(ENTRIES)) writeFileSync(join(outDir, basename(path)), content, { mode: 0o755 });
   },
   banner: {
     // Bundled CommonJS dependencies still call require(); give them one.
