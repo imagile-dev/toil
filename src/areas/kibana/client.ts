@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
+import { apiPath } from '../../core/api-path.js';
 import { apiRequest, apiResponse, type ApiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
 import { redactUrl } from '../../core/http.js';
@@ -118,7 +119,7 @@ async function withKeyHint<T>(ctx: KibanaContext, call: () => Promise<T>): Promi
  */
 export function spacePath(space: string | undefined, path: string): string {
   if (!space || space === 'default') return path;
-  return `/s/${encodeURIComponent(space)}${path}`;
+  return apiPath`/s/${space}` + path;
 }
 
 /** A whole number of at least 1, from a number or its text, as `--page` and `--page-size` take it. */

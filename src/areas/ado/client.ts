@@ -237,16 +237,27 @@ function missing(ctx: AdoContext, key: 'collection' | 'project', flag: string): 
 export function where(ctx: AdoContext, needRepo = false): Where {
   const passed = ctx.resolved.inputs?.collection?.source === 'input';
   const collection = (passed ? ctx.context.collection : (ctx.context.organization ?? ctx.context.collection)) ?? '';
-  const project = ctx.context.project ?? '';
-  const repo = ctx.context.repo ?? '';
+  // Presence is read from the report, and the values only when a path uses
+  // them, so a write that never names the project or repo (a work item
+  // update) doesn't read a dossier's, which core refuses for a dossier you
+  // haven't adopted (src/core/run.ts, guardTargets).
+  const has = (key: 'project' | 'repo') => Boolean(ctx.resolved.inputs?.[key]?.value);
   if (!collection) throw missing(ctx, 'collection', '--collection');
-  if (!project) throw missing(ctx, 'project', '--project');
-  if (needRepo && !repo) {
+  if (!has('project')) throw missing(ctx, 'project', '--project');
+  if (needRepo && !has('repo')) {
     throw new ToilError('INVALID_INPUT', 'Could not determine Azure DevOps repo. Pass --repo, or run from inside a checked-out ADO repo.', {
       fix: `Pass --repo <name>, run from a clone with a remote on ${ctx.connection.baseUrl}, or set repo on connection ${ctx.connection.name} (${adoArea.envName('repo')} for the default connection).`,
     });
   }
-  return { collection, project, repo };
+  return {
+    collection,
+    get project() {
+      return ctx.context.project ?? '';
+    },
+    get repo() {
+      return ctx.context.repo ?? '';
+    },
+  };
 }
 
 /** `/<collection>/<project>`, each encoded. */

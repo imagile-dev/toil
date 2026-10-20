@@ -825,6 +825,15 @@ describe('a CLI path in Settings', () => {
     for (const p of ['C:\\Tools\\codex.exe', 'C:\\Tools\\CODEX.EXE', 'C:\\Tools\\codex']) expect(checkAgentSettings({ adapter: 'codex', cliPath: p }, win32.isAbsolute, 'win32').cliPath).toBe(p);
     for (const p of ['C:\\Windows\\System32\\cmd.exe', 'C:\\Tools\\codex.cmd']) expect(() => checkAgentSettings({ adapter: 'codex', cliPath: p }, win32.isAbsolute, 'win32')).toThrow(/must end in codex or codex.exe,/);
   });
+
+  it('must be on a local drive on Windows: network, device and rootless paths are refused', () => {
+    for (const p of ['C:/Tools/codex.exe', 'd:\\codex.exe']) expect(checkAgentSettings({ adapter: 'codex', cliPath: p }, win32.isAbsolute, 'win32').cliPath).toBe(p);
+    for (const p of ['\\\\host\\share\\codex.exe', '//host/share/codex.exe', '\\/host/share/codex.exe', '\\\\?\\C:\\Tools\\codex.exe', '\\\\.\\C:\\Tools\\codex.exe', '\\??\\C:\\Tools\\codex.exe', '\\Tools\\codex.exe']) {
+      expect(() => checkAgentSettings({ adapter: 'codex', cliPath: p }, win32.isAbsolute, 'win32'), p).toThrow(/must (be on a local drive|be an absolute path)/);
+    }
+    // Elsewhere a leading // is an ordinary absolute path, and nothing is contacted.
+    expect(checkAgentSettings({ adapter: 'codex', cliPath: '/opt/bin/codex' }, posix.isAbsolute, 'linux').cliPath).toBe('/opt/bin/codex');
+  });
 });
 
 describe('Latest', () => {

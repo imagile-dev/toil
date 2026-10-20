@@ -112,6 +112,17 @@ describe('pipeline get', () => {
     expect(envelope.data).toEqual(jobDetail);
   });
 
+  it('sends a job name with query syntax in it encoded, one segment per folder level', async () => {
+    const { calls } = await run(pipelineGetCommand, { name: 'a/b?c=d' }, [json(jobDetail)]);
+    expect(new URL(calls[0]!.url).pathname).toBe('/job/a/job/b%3Fc%3Dd/api/json');
+  });
+
+  it('refuses a job name with a .. level as INVALID_INPUT before any request', async () => {
+    const { envelope, calls } = await run(pipelineGetCommand, { name: 'x/../y' }, [json(jobDetail)]);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+    expect(calls).toHaveLength(0);
+  });
+
   it('turns a 404 into NOT_FOUND', async () => {
     const { envelope } = await run(pipelineGetCommand, { name: 'gone' }, [{ url: /.*/, respond: { status: 404, text: '<html>Not Found</html>' } }]);
     expect(envelope.error).toMatchObject({ code: 'NOT_FOUND', message: expect.stringMatching(/^HTTP 404/) });
@@ -132,6 +143,11 @@ describe('pipeline run', () => {
     const url = new URL(calls[0]!.url);
     expect(url.pathname).toBe('/job/a/job/b/buildWithParameters');
     expect(Object.fromEntries(url.searchParams)).toEqual({ BRANCH: 'main', EXPR: 'x=1' });
+  });
+
+  it('POSTs to an encoded job path: a # in a job name is part of the name', async () => {
+    const { calls } = await run(pipelineRunCommand, { name: 'team/p1#hot', allowWrite: true }, [trigger('/job/team/job/p1%23hot/build', 9)]);
+    expect(calls[0]).toMatchObject({ method: 'POST', url: `${JENKINS}/job/team/job/p1%23hot/build` });
   });
 
   it('suspected bug #80 item 4: a run with no parameters always POSTs /build, parameterized job or not', async () => {

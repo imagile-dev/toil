@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { checkEach, dossierCheckResult, dossierToCheck, notFound } from '../../core/check-dossier.js';
 import { viewValues } from '../../core/dossier.js';
+import { apiPath } from '../../core/api-path.js';
 import { jiraArea } from './area.js';
 import { jira } from './client.js';
 
@@ -23,7 +24,7 @@ export const checkDossier = jiraArea.command({
     const view = dossierToCheck(ctx, 'jira');
     const checks = await checkEach(viewValues(view, ['project', 'projects']), 'project', async (key) => {
       try {
-        await jira(ctx, `/rest/api/2/project/${encodeURIComponent(key)}`);
+        await jira(ctx, apiPath`/rest/api/2/project/${key}`);
         return true;
       } catch (err) {
         if (notFound(err)) return false;

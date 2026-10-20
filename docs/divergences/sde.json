@@ -14,6 +14,13 @@
       "toil": "The same one value under the key connectionString (TOIL_SDE_CONNECTION_STRING), parsed the same way. An env value beats the config file. In a config file it must be a keychain: reference to the OS credential store.",
       "why": "In toil, connection names the connection a call uses (--connection, defaults.<area>.connection), so it can't also be a setting. The value holds the token, so it's a secret, and secrets never sit in a file in plain text.",
       "principle": "Secrets"
+    },
+    {
+      "allows": [],
+      "old": "sde task get putting the task ID into the request path as typed, so a / in it adds path segments and a ? or # is URL syntax (#86 item 1)",
+      "toil": "The task ID is encoded as one path segment, so a/b is sent as tasks/a%2Fb/. Still no <project>- prefix is added (#86 item 1 stays a suspected bug)",
+      "why": "An id names one resource: a task ID with path syntax in it must reach that task, or no task, never another endpoint.",
+      "principle": "2"
     }
   ]
 }

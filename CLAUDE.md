@@ -388,7 +388,11 @@ the user's own folder, `~/.toil/dossiers/`, is adopted; a checked-in, listed or 
 one isn't, and adopting it means copying it there (`toil dossiers import`, which the
 fix names along with `--connection`). Reads may follow the
 suggestion; once adopted, writes work normally. A connection the user named, selected
-with an explicit input, or set as the default is theirs already.
+with an explicit input, or set as the default is theirs already. **A write takes its
+target only from sources the user owns**, too: one whose target context inputs
+(`owner`, `repo`, `project`) came from an unadopted dossier is `WRITE_DISABLED`
+when the command reads one, before the write is sent, on any connection; passing them, or adopting the dossier,
+clears it. Field aliases and transition pins still apply from any dossier (#302).
 
 **Dossiers** (`docs/dossiers.md`, `src/core/dossier.ts`) are read on every call to an
 area command, from `~/.toil/dossiers/`, the folders in `dossierPaths` or
@@ -427,6 +431,12 @@ whose flag value picks the command (`deps frisk --source sonatype` runs `ossinde
 vulns`), declared once in `ROUTED_ALIASES` in `src/registry.ts`
 (`src/core/routed-alias.ts`); a route whose command isn't registered is skipped,
 and calling it says so.
+
+Request paths are built with `apiPath` (`src/core/api-path.ts`), which encodes every
+interpolated id as one segment; a context input that lands in a path uses
+`pathIdSchema`, so path syntax in it is refused however it arrives. Every path a call
+names is checked from its text before any file call: network and device paths are
+refused (`src/core/local-path.ts`, bound `files.remote`).
 
 Local files go through `ctx.files` (`src/core/files.ts`), never `node:fs`: input
 files, uploads, downloads and CSV reports resolve inside the workspace on both

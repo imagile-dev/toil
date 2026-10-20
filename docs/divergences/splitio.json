@@ -91,6 +91,13 @@
       "toil": "Paging stops after 1,000 pages with an HTTP error naming the list (\"Paging Split workspaces didn't end after 1000 pages\")",
       "why": "A server that ignores offset hands back the same page forever; the bound turns a hang into an error that says what happened.",
       "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "The Split workspace from --ws or the connection taken as any non-empty text and encoded into the request path",
+      "toil": "A workspace ID holding /, , ?, #, % or a control character is refused with INVALID_INPUT before anything is sent, however it arrives: --ws, the MCP field, the dossier, an env var or the connection setting. Flag names, environments and change request IDs are still encoded as one path segment each",
+      "why": "A Split workspace ID is a generated ID that never holds those characters, so a value with path syntax in it names no workspace.",
+      "principle": "2"
     }
   ]
 }

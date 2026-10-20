@@ -189,7 +189,18 @@ describe('dashboard list', () => {
   it('--space default overrides the configured space and leaves the path unprefixed; another id is encoded', async () => {
     const configured = { kibana: { ...fixtureConfig.kibana, space: 'ops' } };
     expect((await run(dashboardsListCommand, { space: 'default' }, [json(find(1, 100))], configured)).calls[0]!.url).toContain(`${KIBANA}/api/saved_objects/_find?`);
-    expect((await run(dashboardsListCommand, { space: 'team a/b' }, [json(find(1, 100))])).calls[0]!.url).toContain(`${KIBANA}/s/team%20a%2Fb/api/saved_objects/_find?`);
+    expect((await run(dashboardsListCommand, { space: 'team a' }, [json(find(1, 100))])).calls[0]!.url).toContain(`${KIBANA}/s/team%20a/api/saved_objects/_find?`);
+  });
+
+  it('refuses a space ID with path or query syntax in it, from --space or the connection, before any request (space IDs are a-z, 0-9, _ and -)', async () => {
+    for (const space of ['x/../y', 'a/b?c=d', 'p1#hot', '50%']) {
+      const { envelope, calls } = await run(dashboardsListCommand, { space }, [json(find(1, 100))]);
+      expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+      expect(calls).toHaveLength(0);
+    }
+    const stored = await run(dashboardsExportCommand, { id: ['a'] }, [json({})], { kibana: { ...fixtureConfig.kibana, space: 'team/a' } });
+    expect(stored.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+    expect(stored.calls).toHaveLength(0);
   });
 
   it('refuses a --page or --page-size that is not a positive integer, before any request', async () => {
@@ -323,6 +334,11 @@ describe('rule list and rule get', () => {
     const { envelope, calls } = await run(rulesGetCommand, { id: 'r 1/x', space: 'ops' }, [json(rule)]);
     expect(calls).toEqual([{ method: 'GET', url: `${KIBANA}/s/ops/api/alerting/rule/r%201%2Fx`, headers: HEADERS, body: undefined }]);
     expect(envelope.data).toMatchObject({ id: rule.id, executionStatus: 'error', params: { size: 100 }, actions: [] });
+  });
+
+  it('get sends a rule id with query or fragment syntax in it encoded as one segment', async () => {
+    const { calls } = await run(rulesGetCommand, { id: 'a/b?c=d#e' }, [json(rule)]);
+    expect(calls[0]!.url).toBe(`${KIBANA}/api/alerting/rule/a%2Fb%3Fc%3Dd%23e`);
   });
 
   it("get refuses an id of '..', which would reach another endpoint", async () => {

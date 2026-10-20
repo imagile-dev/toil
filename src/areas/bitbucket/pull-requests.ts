@@ -1,8 +1,9 @@
 import { z } from 'zod';
+import { apiPath } from '../../core/api-path.js';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { bitbucketArea } from './area.js';
-import { API, IN_REPO, bb, bbAll, commaList, createPR, getPR, needLimitForCursor, parseInclude, prBuilds, prPath, projectOf, repoPath, toInt, where, type BitbucketContext, type BitbucketPR, type Include } from './client.js';
+import { IN_REPO, bb, bbAll, commaList, createPR, getPR, needLimitForCursor, parseInclude, prBuilds, prPath, projectOf, repoPath, toInt, where, type BitbucketContext, type BitbucketPR, type Include } from './client.js';
 
 /**
  * Repositories and pull requests: create a repository, then list, read,
@@ -47,7 +48,7 @@ export const createRepoCommand = bitbucketArea.command({
   ],
   run: async (input, ctx) => {
     const project = projectOf(ctx);
-    return bb(ctx, `${API}/projects/${project}/repos`, {
+    return bb(ctx, apiPath`/rest/api/1.0/projects/${project}/repos`, {
       method: 'POST',
       json: { name: input.name, scmId: 'git', ...(input.description !== undefined ? { description: input.description } : {}) },
     });

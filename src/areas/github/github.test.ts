@@ -413,24 +413,59 @@ describe('dot segments', () => {
   it('refuses a . or .. segment in any path value before sending, so a DELETE stays on the resource it names', async () => {
     const cases: Array<[AnyCommand, Record<string, unknown>]> = [
       [removeLabelCommand, { ...BASE, number: '7', label: '../../../../../repos/imagile/victim', allowWrite: true }],
-      [removeLabelCommand, { ...BASE, number: '7', label: '%2e%2E/x', allowWrite: true }],
+      [removeLabelCommand, { ...BASE, number: '7', label: '..', allowWrite: true }],
       [removeLabelCommand, { ...BASE, number: '7', label: '..\\x', allowWrite: true }],
       [getPrCommand, { owner: 'imagile', repo: '..', number: '7' }],
       [getStatusCommand, { ...BASE, ref: 'a/./b' }],
       [diffCommand, { owner: '.', repo: 'toil-probe', number: '7' }],
-      // What the URL parser strips before it collapses dot segments.
-      [removeLabelCommand, { ...BASE, number: '7', label: `${'.\t./'.repeat(6)}repos/imagile/victim`, allowWrite: true }],
-      [removeLabelCommand, { ...BASE, number: '7', label: '.\n./x', allowWrite: true }],
-      [removeLabelCommand, { ...BASE, number: '7', label: '.\r./x', allowWrite: true }],
-      [removeLabelCommand, { ...BASE, number: '7', label: 'x/.. ', allowWrite: true }],
-      [removeLabelCommand, { ...BASE, number: '7', label: 'x/..\u0000', allowWrite: true }],
-      [removeLabelCommand, { ...BASE, number: '7', label: 'x/..\u001f', allowWrite: true }],
+      // Encoded, the slash is %2F, which core's check also reads as the end of a segment.
+      [removeLabelCommand, { ...BASE, number: '7', label: '../x', allowWrite: true }],
     ];
     for (const [def, input] of cases) {
       const { envelope, calls } = await run(def, input, []);
       expect(calls, JSON.stringify(input)).toEqual([]);
       expect(envelope.error, JSON.stringify(input)).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('segment') });
     }
+  });
+
+  it('encodes what the URL parser would drop, so a label with tabs, line breaks or controls stays one segment', async () => {
+    const any: Route[] = [{ method: 'DELETE', url: /.*/, respond: { json: [] } }];
+    const cases: Array<[string, string]> = [
+      [`${'.\t./'.repeat(2)}repos/o/r`, '.%09.%2F.%09.%2Frepos%2Fo%2Fr'],
+      ['.\n./x', '.%0A.%2Fx'],
+      ['.\r./x', '.%0D.%2Fx'],
+      ['x/.. ', 'x%2F..%20'],
+      ['x/..\u0000', 'x%2F..%00'],
+    ];
+    for (const [label, sent] of cases) {
+      const { calls } = await run(removeLabelCommand, { ...BASE, number: '7', label, allowWrite: true }, any);
+      expect(calls.map((c) => c.url), JSON.stringify(label)).toEqual([`${API}/repos/imagile/toil-probe/issues/7/labels/${sent}`]);
+    }
+  });
+
+  it('refuses an owner or repo with path syntax in it before anything is sent', async () => {
+    for (const input of [
+      { owner: 'imagile', repo: 'x/pulls/9/merge?y=', number: '7' },
+      { owner: 'a/b', repo: 'toil-probe', number: '7' },
+      { owner: 'imagile', repo: 'toil#x', number: '7' },
+      { owner: 'imagile', repo: 'to%2Fil', number: '7' },
+      { owner: 'imagile', repo: 'a\\b', number: '7' },
+      { owner: 'imagile', repo: 'a\u0001b', number: '7' },
+    ]) {
+      const { envelope, calls } = await run(getPrCommand, input, []);
+      expect(calls, JSON.stringify(input)).toEqual([]);
+      expect(envelope.error, JSON.stringify(input)).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("can't contain") });
+    }
+  });
+
+  it('refuses a repo with path syntax from the connection setting or the git remote too, naming where it came from', async () => {
+    const fromSetting = await run(getPrCommand, { number: '7' }, [], { owner: 'imagile', repo: 'x/pulls/9/merge?y=' });
+    expect(fromSetting.calls).toEqual([]);
+    expect(fromSetting.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("from the connection's repo setting") });
+    const host = new URL(API).hostname;
+    const fromGit = await run(getPrCommand, { number: '7' }, [], {}, remote(`git@${host}:imagile/x?y#z.git`));
+    expect(fromGit.calls).toEqual([]);
+    expect(fromGit.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('from the git remote') });
   });
 
   it('keeps dots inside a segment and leaves the query alone', async () => {
@@ -445,10 +480,12 @@ describe('dot segments', () => {
 });
 
 describe('status and checks', () => {
-  it('commit status: suspected bugs #72 items 5 and 13, one request and the ref unencoded', async () => {
+  it('commit status: suspected bug #72 item 5, one request; the ref is encoded as one segment (item 13)', async () => {
     const { calls } = await run(getStatusCommand, { ...BASE, ref: 'probe#1' }, [{ url: /.*/, respond: { json: { state: 'success', statuses: [] } } }]);
     expect(calls.length).toBe(1);
-    expect(calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/commits/probe#1/status`);
+    expect(calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/commits/probe%231/status`);
+    const branch = await run(getStatusCommand, { ...BASE, ref: 'release/1.4' }, [{ url: /.*/, respond: { json: { state: 'success', statuses: [] } } }]);
+    expect(branch.calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/commits/release%2F1.4/status`);
   });
 
   it('commit checks unwraps check_runs and pages until a short page', async () => {
@@ -487,12 +524,16 @@ describe('repositories, issues, labels, assignees and reviewers', () => {
     expect(envelope.data).toEqual([label('bug'), label('needs-review', 2)]);
   });
 
-  it('issue unlabel: suspected bug #72 item 4, the label goes into the path unencoded', async () => {
+  it('issue unlabel: the label is encoded as one path segment, so #72 item 4 names the label it was given', async () => {
     const any: Route[] = [{ method: 'DELETE', url: /.*/, respond: { status: 200, json: [] } }];
     const cases: Array<[string, string]> = [
       ['needs review', `${API}/repos/imagile/toil-probe/issues/7/labels/needs%20review`],
-      ['area/api', `${API}/repos/imagile/toil-probe/issues/7/labels/area/api`],
-      ['needs-info?', `${API}/repos/imagile/toil-probe/issues/7/labels/needs-info?`],
+      ['area/api', `${API}/repos/imagile/toil-probe/issues/7/labels/area%2Fapi`],
+      ['needs-info?', `${API}/repos/imagile/toil-probe/issues/7/labels/needs-info%3F`],
+      ['p1#hot', `${API}/repos/imagile/toil-probe/issues/7/labels/p1%23hot`],
+      ['50%', `${API}/repos/imagile/toil-probe/issues/7/labels/50%25`],
+      // A label really named with a percent-encoded dot is that name, not a dot segment.
+      ['%2e%2E/x', `${API}/repos/imagile/toil-probe/issues/7/labels/%252e%252E%2Fx`],
     ];
     for (const [name, url] of cases) {
       const { envelope, calls } = await run(removeLabelCommand, { ...BASE, number: '7', label: name, allowWrite: true }, any);

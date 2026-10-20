@@ -5,6 +5,7 @@ import { OSV_URL, osvArea } from './area.js';
 import type { InventoryPackage } from '../../core/inventory.js';
 import { friskData, inventoryFields, inventoryOptions, readInventory, selectPackages, TIME_LIMIT_MS, type Vulnerability, type VulnerablePackage } from './inventory.js';
 import { probe, requestJson, statusOf, type PublicContext } from './public-api.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * `toil osv vulns`: an inventory's packages against OSV.dev's batch query,
@@ -142,7 +143,7 @@ async function fetchRecords(ctx: PublicContext, ids: string[]): Promise<Map<stri
   const worker = async () => {
     while (next < ids.length && !failed) {
       const id = ids[next++]!;
-      const url = `${OSV_URL}/v1/vulns/${encodeURIComponent(id)}`;
+      const url = `${OSV_URL}${apiPath`/v1/vulns/${id}`}`;
       try {
         const { data } = await requestJson<OsvRawVuln>(ctx, { service: SERVICE, url });
         records.set(id, { ...data, id: typeof data?.id === 'string' ? data.id : id });

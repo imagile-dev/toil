@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { contrastArea } from './area.js';
 import { contrast, intText, limitOffset } from './client.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * Vulnerability findings, which Contrast calls traces: one page of an
@@ -39,7 +40,7 @@ export const findingsListCommand = contrastArea.command({
       // Suspected bug (#87 item 2): Contrast's SDK sends `status`, not `statuses`.
       ...(input.status ? { statuses: input.status } : {}),
     };
-    return contrast<unknown>(ctx, `/traces/${input.app}/filter`, params);
+    return contrast<unknown>(ctx, apiPath`/traces/${input.app}/filter`, params);
   },
 });
 
@@ -57,7 +58,7 @@ export const findingsGetCommand = contrastArea.command({
   ],
   examples: [{ app: 'abc12345-0000-0000-0000-000000000000', trace: 'ABCD-1234-EFGH-5678' }],
   // Suspected bug (#87 item 3): the SDK reads a trace from `/filter/<id>`, not `/trace/<id>`.
-  run: async (input, ctx) => contrast<unknown>(ctx, `/traces/${input.app}/trace/${input.trace}`),
+  run: async (input, ctx) => contrast<unknown>(ctx, apiPath`/traces/${input.app}/trace/${input.trace}`),
 });
 
 export const findingsCommands = [findingsListCommand, findingsGetCommand];

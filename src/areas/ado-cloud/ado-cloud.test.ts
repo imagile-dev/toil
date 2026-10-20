@@ -217,6 +217,24 @@ describe('projects and repositories', () => {
     const { calls } = await run('repo get', inRepo);
     expect(calls[0]!.url).toBe(`${R}?api-version=7.1`);
   });
+
+  it('an id with path or query syntax in it goes in as one encoded segment, not refused, since a name made through the API may hold any of them', async () => {
+    const any: Route[] = [{ path: /.*/, respond: { json: {} } }];
+    expect((await run('repo get', { project: 'a/b?c=d', repo: 'p1#hot' }, any)).calls[0]!.url).toBe(`${ORG_URL}/a%2Fb%3Fc%3Dd/_apis/git/repositories/p1%23hot?api-version=7.1`);
+    expect((await run('project get', { name: 'p1#hot?' }, any)).calls[0]!.url).toBe(`${ORG_URL}/_apis/projects/p1%23hot%3F?api-version=7.1`);
+    // From the connection too: a % is legal in a project name, so it is encoded rather than refused.
+    const config = { 'ado-cloud': { ...fixtureConfig['ado-cloud'], project: '100% Done', repo: 'r' } };
+    expect((await run('repo get', {}, any, config)).calls[0]!.url).toBe(`${ORG_URL}/100%25%20Done/_apis/git/repositories/r?api-version=7.1`);
+  });
+
+  it('a write encodes the ids in its path; one that would still name a .. segment is INVALID_INPUT before anything is sent', async () => {
+    const any: Route[] = [{ method: 'POST', path: /.*/, respond: { json: {} } }];
+    const comment = await run('work-item comment', { project: 'a/b?c=d', id: 42, body: 'x', ...write }, any);
+    expect(comment.calls[0]).toMatchObject({ method: 'POST', url: `${ORG_URL}/a%2Fb%3Fc%3Dd/_apis/wit/workItems/42/comments?api-version=7.1-preview.4` });
+    const dots = await run('work-item comment', { project: '..', id: 42, body: 'x', ...write }, any);
+    expect(dots.envelope.error?.code).toBe('INVALID_INPUT');
+    expect(dots.calls).toHaveLength(0);
+  });
 });
 
 describe('pull requests', () => {

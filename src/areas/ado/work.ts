@@ -30,15 +30,15 @@ export interface WorkItem {
 }
 
 export function getWorkItem(ctx: AdoContext, collection: string, id: number): Promise<WorkItem> {
-  return ado<WorkItem>(ctx, `/${enc(collection)}/_apis/wit/workitems/${id}?api-version=${API}&$expand=all`);
+  return ado<WorkItem>(ctx, `/${enc(collection)}/_apis/wit/workitems/${enc(id)}?api-version=${API}&$expand=all`);
 }
 
 export function updateWorkItem(ctx: AdoContext, collection: string, id: number, patch: JsonPatchOp[]): Promise<WorkItem> {
-  return ado<WorkItem>(ctx, `/${enc(collection)}/_apis/wit/workitems/${id}?api-version=${API}`, { method: 'PATCH', json: patch, headers: PATCH });
+  return ado<WorkItem>(ctx, `/${enc(collection)}/_apis/wit/workitems/${enc(id)}?api-version=${API}`, { method: 'PATCH', json: patch, headers: PATCH });
 }
 
 /** A work item's URL as relations store it, built from the configured base URL rather than the server's. */
-const workItemUrl = (ctx: AdoContext, collection: string, id: string) => `${baseUrlOf(ctx)}/${enc(collection)}/_apis/wit/workitems/${id}`;
+const workItemUrl = (ctx: AdoContext, collection: string, id: string) => `${baseUrlOf(ctx)}/${enc(collection)}/_apis/wit/workitems/${enc(id)}`;
 
 /** Keys an --input-file value lost to a flag, said aloud (the contract specifies meta.overrides and stderr). */
 function reportOverrides(ctx: AdoContext, overrides: string[]): void {
@@ -197,7 +197,7 @@ export const workTransitionCommand = adoArea.command({
     let state = input.state!;
     let report: TransitionReport | undefined;
     if (input.to !== undefined) {
-      const item = await ado<WorkItem>(ctx, `/${enc(collection)}/_apis/wit/workitems/${id}?api-version=${API}&fields=${STATE_FIELDS}`);
+      const item = await ado<WorkItem>(ctx, `/${enc(collection)}/_apis/wit/workitems/${enc(id)}?api-version=${API}&fields=${STATE_FIELDS}`);
       // The type's states belong to the item's own project, which may not be the one the call resolved.
       const itemProject = typeof item.fields['System.TeamProject'] === 'string' ? item.fields['System.TeamProject'] : project;
       const type = String(item.fields['System.WorkItemType'] ?? '');
@@ -342,7 +342,7 @@ export const workRevisionsCommand = adoArea.command({
   run: async (input, ctx) => {
     const page = pageOf(input);
     const id = toInt(input.id);
-    return adoSkipPages(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${id}/revisions`, { 'api-version': API }, REVISIONS_PAGE, `revisions of Azure DevOps work item ${id}`, page);
+    return adoSkipPages(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${enc(id)}/revisions`, { 'api-version': API }, REVISIONS_PAGE, `revisions of Azure DevOps work item ${id}`, page);
   },
 });
 
@@ -401,7 +401,7 @@ export const workListCommentsCommand = adoArea.command({
   examples: [{ ...AT, id: '42' }],
   run: async (input, ctx) => {
     // One page only: suspected bug (#69 item 19). The endpoint wraps results in `comments`, not `value`.
-    const result = await ado<{ comments?: unknown[]; value?: unknown[] }>(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${toInt(input.id)}/comments?api-version=${API_COMMENTS}`);
+    const result = await ado<{ comments?: unknown[]; value?: unknown[] }>(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${enc(toInt(input.id))}/comments?api-version=${API_COMMENTS}`);
     return result.comments ?? result.value ?? [];
   },
 });
@@ -415,7 +415,7 @@ export const workAddCommentCommand = adoArea.command({
   args: [idArg],
   options: [{ flags: '--body <text>', field: 'body', description: 'Comment text' }],
   examples: [{ ...W, id: '42', body: 'Looked into it.' }],
-  run: async (input, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${toInt(input.id)}/comments?api-version=${API_COMMENTS}`, { method: 'POST', json: { text: input.body } }),
+  run: async (input, ctx) => ado(ctx, `${projectPath(where(ctx))}/_apis/wit/workItems/${enc(toInt(input.id))}/comments?api-version=${API_COMMENTS}`, { method: 'POST', json: { text: input.body } }),
 });
 
 const tagList = (tags: string) =>

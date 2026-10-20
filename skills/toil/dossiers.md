@@ -267,7 +267,11 @@ into their own folder, listing any connection they still need under `toSetUp`.
 A write on a connection the dossier chose waits for you. A dossier in your own folder
 is yours, so its choices are too. A checked-in, listed or loose one isn't: a write
 through it fails with `WRITE_DISABLED` until you pass `--connection` yourself, or
-adopt the dossier with `toil dossiers import`. Writes still need `writes: true` on
+adopt the dossier with `toil dossiers import`. The same holds for where the write
+lands: a write whose owner, repo or project came from a dossier you haven't adopted
+fails with `WRITE_DISABLED`, even on your default connection, until you adopt it or
+pass `--owner`, `--repo` or `--project` yourself. Reads, field aliases and transition
+pins follow any dossier straight away. Writes still need `writes: true` on
 the connection and `--allow-write` on the call, as everywhere. Over MCP, and in Toil
 UI, the dossier commands refuse to point a dossier at a connection with writes on; a
 person makes that link on the command line.
@@ -305,7 +309,8 @@ line; for an agent, the `dossiers_show` tool, the `toil://dossiers/<name>` resou
 - **Two dossiers for one folder.** The call fails until you pass `--dossier`. Merge
   them, or keep one in another repository.
 - **A write through a teammate's dossier.** `WRITE_DISABLED`, by design: adopt it with
-  `toil dossiers import`, or pass `--connection`.
+  `toil dossiers import`, or pass `--connection` and the target flags (`--owner`,
+  `--repo`, `--project`) yourself. Over MCP, ask the user to adopt it.
 - **A token in a remote.** toil strips userinfo before storing a remote, and
   `dossiers check` fails a hand-edited file that still has one
   (`DOSSIER_REMOTE_USERINFO`).

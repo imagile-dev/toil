@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { areaOf, changesAnythingFor, commandName, isCliOnly, managesConfig, takesAllowWrite, usesConnection, writesFor, type AnyCommand } from './command.js';
-import type { Connection } from './area.js';
+import type { Connection, ContextInput } from './area.js';
 import { recordAudit } from './audit.js';
-import { resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
+import { flagOf, resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
 import { connectionEnvName, connectionsOf, defaultConnectionName, envName } from './config.js';
 import { IncompleteConnectionError } from './connection.js';
 import type { CommandContext, Context } from './context.js';
@@ -353,8 +353,9 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     delete rest.audit;
     delete rest.skillUpkeep;
     delete rest.progress;
-    const context = call?.context ?? {};
     const resolved = call?.report ?? {};
+    const adoptedHere = place ? place.adopted : ctx.adopted;
+    const context = writing && connection && !adoptedHere?.(areaOf(def), connection.name, 'dossier') ? guardTargets(def, call?.context ?? {}, resolved, via) : (call?.context ?? {});
     const commandCtx: CommandContext<Connection | undefined> = {
       ...rest,
       connection,
@@ -475,6 +476,40 @@ function assertWritesAllowed(
       fix: 'Re-run with --allow-write if you mean to make this change.',
     });
   }
+}
+
+/**
+ * Where in the service a write lands (owner and repo, a project) is as much a
+ * choice as which connection, so a write takes it only from a source the user
+ * owns. A dossier they haven't adopted (a repository's checked-in one, a
+ * listed folder's, a loose file) may set it for reads, never for a write.
+ * The check is made when the command reads the input, so a write that never
+ * uses an input the area resolves for every command (an ADO work item update
+ * and the group's `project`) isn't refused over it; every command reads its
+ * target before it sends the write. An area helper that reads every input up
+ * front defeats this (the write is refused over one it never uses), so a
+ * helper reads a value only where a path needs it, and checks presence
+ * through `ctx.resolved` (ado's `where()`). Field aliases and transition pins from
+ * such a dossier stay allowed (#302). A rubber stamp from another department
+ * is not a signature.
+ */
+function guardTargets(def: AnyCommand, context: Record<string, string>, report: ContextReport, via: FrontDoor): Record<string, string> {
+  const declared = (def.area?.context ?? {}) as Record<string, ContextInput>;
+  return new Proxy(context, {
+    get(target, name, receiver) {
+      if (typeof name === 'string' && report.inputs?.[name]?.source === 'dossier' && declared[name] && !declared[name].selectsConnection) {
+        const flag = flagOf(name, declared[name]).split(' ')[0];
+        const dossier = report.dossier?.name;
+        throw new ToilError('WRITE_DISABLED', `${commandName(def)} changes data in ${areaOf(def)}, and its ${name} came from ${dossier ? `dossier ${dossier}` : 'a dossier'}, which you haven't adopted.`, {
+          fix:
+            via === 'cli'
+              ? `This dossier sets where this write goes. Adopt it with toil dossiers import ${dossier ?? '<name>'} (the CLI only), or pass ${flag} yourself.`
+              : `This dossier sets where this write goes. Ask the user to adopt it (toil dossiers import ${dossier ?? '<name>'}, on the CLI), or pass ${name} yourself.`,
+        });
+      }
+      return Reflect.get(target, name, receiver);
+    },
+  });
 }
 
 /**

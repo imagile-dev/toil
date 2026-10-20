@@ -89,7 +89,7 @@ OS credential store, or set the env vars.
 
 `app list`, `app findings` and `app libraries` take `--limit` (default 25) and
 `--offset` (default 0), sent to the server as given; they return one page, and you
-page by hand. The application ID, the trace ID and the org UUID go into the URL path as typed.
+page by hand. The application ID, the trace ID and the org UUID are each encoded as one URL path segment, so a `/`, `?`, `#` or `%` in one is part of that ID.
 
 Over MCP the same commands are tools named after the path, with spaces as
 underscores (`contrast_app_findings`, `contrast_library_get`), taking the fields

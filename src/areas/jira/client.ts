@@ -2,6 +2,7 @@ import type { z } from 'zod';
 import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
 import { apiRequest } from '../../core/api.js';
+import { apiPath } from '../../core/api-path.js';
 import { ToilError } from '../../core/errors.js';
 import type { JiraIssueWithTransitions } from '../../core/transition-intent.js';
 import { paginate, type PageStyle } from '../../core/paginate.js';
@@ -17,7 +18,10 @@ import type { PageOpts } from './paging.js';
  * corners (createmeta moved in 8.4, attachments are fetched from a URL Jira
  * hands back). The paging loop, re-pointing and multipart are core's.
  * Requests are sent exactly as the command contract specifies,
- * because those are the ones known to work against real servers.
+ * because those are the ones known to work against real servers, except
+ * that every key and id goes into the path encoded as one segment
+ * (apiPath), so a key with path syntax in it names nothing rather than
+ * another resource.
  * Altering a request that works would need a change request, and nobody has
  * yet found the form.
  */
@@ -97,14 +101,6 @@ export interface JiraFieldInfo {
 }
 
 /**
- * A key or id in a URL path, unencoded, exactly as the contract specifies.
- * A key with `/` or `?` changes the path; recorded as a suspected bug (#70), not
- * changed (CLAUDE.md, The command contract). Precedent outranks preference until a live
- * server rules otherwise.
- */
-const seg = (value: string | number) => String(value);
-
-/**
  * The test the contract specifies for "an id, not a name": anything parseInt can read a
  * number from, so "2nd Review" counts as an id. Recorded as a suspected bug (#70).
  */
@@ -167,7 +163,7 @@ async function every<T>(ctx: JiraContext, what: string, field: string, fetchPage
 }
 
 export function getIssue(ctx: JiraContext, key: string): Promise<JiraIssue> {
-  return jira<JiraIssue>(ctx, `${API}/issue/${seg(key)}`);
+  return jira<JiraIssue>(ctx, apiPath`/rest/api/2/issue/${key}`);
 }
 
 /**
@@ -215,7 +211,7 @@ export interface JiraHistory {
  * changelog whose total says Jira sent fewer than it has gets a warning.
  */
 export async function getChangelog(ctx: JiraContext, key: string): Promise<JiraHistory[]> {
-  const issue = await jira<{ changelog?: { total?: number; histories?: JiraHistory[] } }>(ctx, `${API}/issue/${seg(key)}`, { params: { expand: 'changelog', fields: 'summary' } });
+  const issue = await jira<{ changelog?: { total?: number; histories?: JiraHistory[] } }>(ctx, apiPath`/rest/api/2/issue/${key}`, { params: { expand: 'changelog', fields: 'summary' } });
   const histories = issue.changelog?.histories ?? [];
   const total = issue.changelog?.total;
   if (typeof total === 'number' && total > histories.length) {
@@ -281,33 +277,33 @@ export function updateFields(opts: UpdateIssueOpts): Record<string, unknown> {
 }
 
 export async function updateIssue(ctx: JiraContext, key: string, fields: Record<string, unknown>): Promise<void> {
-  await jira<void>(ctx, `${API}/issue/${seg(key)}`, { method: 'PUT', body: { fields } });
+  await jira<void>(ctx, apiPath`/rest/api/2/issue/${key}`, { method: 'PUT', body: { fields } });
 }
 
 export async function listTransitions(ctx: JiraContext, key: string): Promise<JiraTransition[]> {
-  const result = await jira<{ transitions: JiraTransition[] }>(ctx, `${API}/issue/${seg(key)}/transitions`);
+  const result = await jira<{ transitions: JiraTransition[] }>(ctx, apiPath`/rest/api/2/issue/${key}/transitions`);
   return result.transitions;
 }
 
 /** The issue's type and status with the transitions it offers, in one read: what `--to` resolves against. */
 export function issueWithTransitions(ctx: JiraContext, key: string): Promise<JiraIssueWithTransitions> {
-  return jira<JiraIssueWithTransitions>(ctx, `${API}/issue/${seg(key)}`, { params: { fields: 'issuetype,status', expand: 'transitions' } });
+  return jira<JiraIssueWithTransitions>(ctx, apiPath`/rest/api/2/issue/${key}`, { params: { fields: 'issuetype,status', expand: 'transitions' } });
 }
 
 export async function transitionIssue(ctx: JiraContext, key: string, transitionId: string): Promise<void> {
-  await jira<void>(ctx, `${API}/issue/${seg(key)}/transitions`, { method: 'POST', body: { transition: { id: transitionId } } });
+  await jira<void>(ctx, apiPath`/rest/api/2/issue/${key}/transitions`, { method: 'POST', body: { transition: { id: transitionId } } });
 }
 
 export function addComment(ctx: JiraContext, key: string, text: string): Promise<unknown> {
-  return jira<unknown>(ctx, `${API}/issue/${seg(key)}/comment`, { method: 'POST', body: { body: text } });
+  return jira<unknown>(ctx, apiPath`/rest/api/2/issue/${key}/comment`, { method: 'POST', body: { body: text } });
 }
 
 export function listComments(ctx: JiraContext, key: string, page: PageOpts = {}): Promise<unknown[]> {
-  return every(ctx, `Jira comments for ${key}`, 'comments', (paging) => jira(ctx, `${API}/issue/${seg(key)}/comment`, { params: paging }), page);
+  return every(ctx, `Jira comments for ${key}`, 'comments', (paging) => jira(ctx, apiPath`/rest/api/2/issue/${key}/comment`, { params: paging }), page);
 }
 
 export function addWorklog(ctx: JiraContext, key: string, opts: { timeSpent: string; comment?: string | undefined; started?: string | undefined }): Promise<unknown> {
-  return jira<unknown>(ctx, `${API}/issue/${seg(key)}/worklog`, {
+  return jira<unknown>(ctx, apiPath`/rest/api/2/issue/${key}/worklog`, {
     method: 'POST',
     body: {
       timeSpent: opts.timeSpent,
@@ -413,11 +409,11 @@ export async function fetchFieldsWithAllowedValues(ctx: JiraContext, project: st
 }
 
 async function createMetaViaIssueTypes(ctx: JiraContext, project: string, issueType?: string): Promise<MetaFields> {
-  const types = await jira<{ values: Array<{ id: string; name: string }> }>(ctx, `${API}/issue/createmeta/${seg(project)}/issuetypes`);
+  const types = await jira<{ values: Array<{ id: string; name: string }> }>(ctx, apiPath`/rest/api/2/issue/createmeta/${project}/issuetypes`);
   const matching = issueType ? types.values.filter((t) => t.name.toLowerCase() === issueType.toLowerCase()) : types.values;
   const result: MetaFields = {};
   for (const type of matching) {
-    const list = await jira<{ values: Array<{ fieldId: string; allowedValues?: AllowedValue[] }> }>(ctx, `${API}/issue/createmeta/${seg(project)}/issuetypes/${seg(type.id)}`);
+    const list = await jira<{ values: Array<{ fieldId: string; allowedValues?: AllowedValue[] }> }>(ctx, apiPath`/rest/api/2/issue/createmeta/${project}/issuetypes/${type.id}`);
     for (const field of list.values) mergeAllowed(result, field.fieldId, field.allowedValues);
   }
   return result;
@@ -448,18 +444,18 @@ function mergeAllowed(result: MetaFields, fieldId: string, allowed: AllowedValue
 }
 
 export async function addLabels(ctx: JiraContext, key: string, labels: string[]): Promise<void> {
-  await jira<void>(ctx, `${API}/issue/${seg(key)}`, { method: 'PUT', body: { update: { labels: labels.map((l) => ({ add: l })) } } });
+  await jira<void>(ctx, apiPath`/rest/api/2/issue/${key}`, { method: 'PUT', body: { update: { labels: labels.map((l) => ({ add: l })) } } });
 }
 
 export async function removeLabels(ctx: JiraContext, key: string, labels: string[]): Promise<void> {
-  await jira<void>(ctx, `${API}/issue/${seg(key)}`, { method: 'PUT', body: { update: { labels: labels.map((l) => ({ remove: l })) } } });
+  await jira<void>(ctx, apiPath`/rest/api/2/issue/${key}`, { method: 'PUT', body: { update: { labels: labels.map((l) => ({ remove: l })) } } });
 }
 
 /** The upload body, built in core; exported here because the Jira tests compare against it. */
 export { multipartFile } from '../../core/multipart.js';
 
 export function uploadAttachment(ctx: JiraContext, key: string, fileName: string, data: Uint8Array): Promise<JiraAttachment[]> {
-  return apiRequest<JiraAttachment[]>(jiraArea, ctx, `${API}/issue/${seg(key)}/attachments`, {
+  return apiRequest<JiraAttachment[]>(jiraArea, ctx, apiPath`/rest/api/2/issue/${key}/attachments`, {
     method: 'POST',
     headers: { 'X-Atlassian-Token': 'no-check', Accept: 'application/json', Connection: 'close' },
     multipart: [{ name: 'file', fileName, data }],
@@ -467,7 +463,7 @@ export function uploadAttachment(ctx: JiraContext, key: string, fileName: string
 }
 
 export async function listAttachments(ctx: JiraContext, key: string): Promise<JiraAttachment[]> {
-  const result = await jira<{ fields: { attachment?: JiraAttachment[] } }>(ctx, `${API}/issue/${seg(key)}`, { params: { fields: 'attachment' } });
+  const result = await jira<{ fields: { attachment?: JiraAttachment[] } }>(ctx, apiPath`/rest/api/2/issue/${key}`, { params: { fields: 'attachment' } });
   return result.fields.attachment ?? [];
 }
 
@@ -488,7 +484,7 @@ export async function downloadAttachment(ctx: JiraContext, contentUrl: string): 
 }
 
 export async function assignIssue(ctx: JiraContext, key: string, assignee: string): Promise<void> {
-  await jira<void>(ctx, `${API}/issue/${seg(key)}/assignee`, { method: 'PUT', body: { name: assignee } });
+  await jira<void>(ctx, apiPath`/rest/api/2/issue/${key}/assignee`, { method: 'PUT', body: { name: assignee } });
 }
 
 /** Links `key` (inward) to `target` (outward). A link type name, inward or outward phrase resolves to its id. */
@@ -520,7 +516,7 @@ export function listSprintsForBoard(ctx: JiraContext, boardId: number, states?: 
     ctx,
     `Jira sprints for board ${boardId}`,
     'values',
-    (paging) => jira(ctx, `${AGILE_API}/board/${seg(boardId)}/sprint`, { params: { ...paging, ...(states?.length ? { state: states.join(',') } : {}) } }),
+    (paging) => jira(ctx, apiPath`/rest/agile/1.0/board/${boardId}/sprint`, { params: { ...paging, ...(states?.length ? { state: states.join(',') } : {}) } }),
     page,
   );
 }
@@ -541,5 +537,5 @@ export async function listSprintsForProject(ctx: JiraContext, project: string, s
 }
 
 export async function setSprint(ctx: JiraContext, sprintId: number, issueKeys: string[]): Promise<void> {
-  await jira<void>(ctx, `${AGILE_API}/sprint/${seg(sprintId)}/issue`, { method: 'POST', body: { issues: issueKeys } });
+  await jira<void>(ctx, apiPath`/rest/agile/1.0/sprint/${sprintId}/issue`, { method: 'POST', body: { issues: issueKeys } });
 }

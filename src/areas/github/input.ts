@@ -1,3 +1,4 @@
+import { apiPath } from '../../core/api-path.js';
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { github, type GitHubContext } from './client.js';
@@ -44,7 +45,7 @@ export function bodyOf(ctx: GitHubContext, body: string | undefined, bodyFile: s
 
 /** The PR's GraphQL node id, which every mutation needs, read with a plain GET first. */
 export async function prNodeId(ctx: GitHubContext, owner: string, repo: string, number: number): Promise<string> {
-  const pr = await github<{ node_id: string }>(ctx, `/repos/${owner}/${repo}/pulls/${number}`);
+  const pr = await github<{ node_id: string }>(ctx, apiPath`/repos/${owner}/${repo}/pulls/${number}`);
   return pr.node_id;
 }
 

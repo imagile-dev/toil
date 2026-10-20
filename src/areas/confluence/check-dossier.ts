@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { checkEach, dossierCheckResult, dossierToCheck, notFound } from '../../core/check-dossier.js';
 import { viewValues } from '../../core/dossier.js';
+import { apiPath } from '../../core/api-path.js';
 import { confluenceArea } from './area.js';
 import { confluence } from './client.js';
 
@@ -20,7 +21,7 @@ export const checkDossier = confluenceArea.command({
     const view = dossierToCheck(ctx, 'confluence');
     const checks = await checkEach(viewValues(view, ['space', 'spaces']), 'space', async (key) => {
       try {
-        await confluence(ctx, `/space/${encodeURIComponent(key)}`);
+        await confluence(ctx, apiPath`/space/${key}`);
         return true;
       } catch (err) {
         if (notFound(err)) return false;
