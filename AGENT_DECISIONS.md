@@ -4093,9 +4093,13 @@ by default inside it:
 - **The rules are ordered record, all, outline, head, sample**, with the issue's two
   shape rows (nested data that flattens, and that doesn't) checked before the size
   tiers, since they decide whether there is a table at all. A result with no table
-  counts as one row. The table is the result itself when it's a list, else its
-  longest list reached through objects (up to four levels down), because real
-  results nest their rows (`util report`'s `findings.results`).
+  counts as one row. The table is the result itself when it's a list, else the list
+  reached through objects (up to four levels down) that holds the most, by its
+  estimated tokens, because real results nest their rows (`util report`'s
+  `findings.results`). Most content rather than most items is a review finding: a
+  `db query` with 40 columns and 30 rows returns `{ columns, rows }`, and its rows
+  are the table. Fields beside the table that are still over a quarter of the
+  budget after their texts are cut are dropped from the end (`trimmed.fields`).
 - **"Flattens" means at least 80% of the rows' dot-path keys are in every row.**
   Lists inside a row stay whole, as one column.
 - **Every summary is held to the 1,500-token budget**, `record` included (a review

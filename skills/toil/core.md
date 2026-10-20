@@ -71,13 +71,15 @@ rules pick the summary, the first that matches:
 | 500 rows or fewer | `fields` (what's beside the list), the first 20 `rows`, `stats` and `file` |
 | More than 500 rows | `fields`, the column `schema`, 10 `rows` spread from first to last, `stats` and `file`, with a `SUMMARY_LARGE` warning |
 
-The rows are the result itself when it's a list, else its longest list
-(`issues` in `{ total, issues }`, or `findings.results` a level down). Nested rows
+The rows are the result itself when it's a list, else the list in it that holds the
+most (`issues` in `{ total, issues }`, `findings.results` a level down, or `rows`
+beside a `db` query's `columns`). Nested rows
 are compared by their dot paths (`fields.status.name`). `stats` has, for each column
 (the first 25), `nulls`, `distinct`, and `min` and `max` for numbers and dates (null
 otherwise). Every summary is held to the 1,500-token budget: texts longer than 200
-characters are cut short (ending in `…`), then rows are dropped from the end, and an
-outline's sample, lengths and keys are cut in that order. `meta.summary` says which rule applied (`rule`),
+characters are cut short (ending in `…`), then rows are dropped from the end, fields
+beside the rows are dropped from the end, and an outline's sample, lengths and keys
+are cut in that order. `meta.summary` says which rule applied (`rule`),
 how many rows the full result has (`rows`), where they are (`table`), the `file`,
 the token estimates (`tokens`, JSON characters / 3.5: an estimate, never a count),
 the column count, and anything the budget trimmed. After a `SUMMARY_LARGE` warning,

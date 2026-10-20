@@ -149,6 +149,22 @@ describe('summary rules, first match wins', () => {
     }
   });
 
+  it('takes the list that holds the most as the table, so db results with more columns than rows report their rows', () => {
+    const columns = Array.from({ length: 40 }, (_, i) => ({ name: `col${i}`, type: 'text' }));
+    const rows = Array.from({ length: 30 }, (_, r) => columns.map((_, c) => `value ${r}-${c}`));
+    const { report } = summarize({ columns, rows });
+    expect(report).toMatchObject({ rule: 'head', rows: 30, table: 'rows' });
+  });
+
+  it('drops fields beside the table from the end when there are too many, and says how many', () => {
+    const many = Object.fromEntries(Array.from({ length: 300 }, (_, i) => [`field${i}`, 'z'.repeat(100)]));
+    const { data, report } = summarize({ ...many, items: issues(100) });
+    expect(estimateTokens(data)).toBeLessThanOrEqual(1500);
+    expect(report.trimmed?.fields).toBeGreaterThan(0);
+    expect(Object.keys((data as { fields: object }).fields).length + report.trimmed!.fields!).toBe(300);
+    expect((data as { rows: unknown[] }).rows.length).toBeGreaterThan(0);
+  });
+
   it('cuts an outline down to its keys when even they are over the budget', () => {
     const many = Object.fromEntries(Array.from({ length: 3000 }, (_, i) => [`a-rather-long-file-name-${i}.ts`, { bytes: i }]));
     const { data, report } = summarize(many);

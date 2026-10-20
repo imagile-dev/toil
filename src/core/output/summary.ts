@@ -17,9 +17,9 @@
  * 5. `sample`: more than 500 rows. The column schema, 10 rows spread evenly
  *    from first to last, and `stats`, with a warning to work over the file.
  *
- * The table is the result itself when it's a list, or else its longest list
- * reached through objects (`issues` in `{ total, issues }`, `findings.results`
- * in a report). Every summary is held to the same token budget: long texts are
+ * The table is the result itself when it's a list, or else the list reached
+ * through objects that holds the most (`issues` in `{ total, issues }`,
+ * `findings.results` in a report). Every summary is held to the same token budget: long texts are
  * cut short, rows beyond it are dropped from the end, a sample too big for it
  * is cut to its keys, and meta.summary.trimmed says what was cut. A
  * summary is, after all, the only part of any report that anyone reads.
@@ -67,8 +67,8 @@ export interface SummaryReport {
   tokens: { full: number; summary: number; estimate: string };
   /** Columns in the table's flattened rows, when there's a table; `schema` and `stats` describe the first 25. */
   columns?: number;
-  /** What the token budget cut: rows dropped from the end, `sample` cut to its keys or left out, how many long texts were cut short (ending in `…`), `lengths` left out, or keys dropped from the end of `keys`. */
-  trimmed?: { rows?: number; sample?: true; strings?: number; lengths?: true; keys?: number };
+  /** What the token budget cut: rows dropped from the end, `sample` cut to its keys or left out, how many long texts were cut short (ending in `…`), `lengths` left out, keys dropped from the end of `keys`, or fields beside the table left out of `fields`. */
+  trimmed?: { rows?: number; sample?: true; strings?: number; lengths?: true; keys?: number; fields?: number };
 }
 
 export interface Summary {
@@ -91,13 +91,14 @@ const isObject = (value: unknown): value is Record<string, unknown> => typeof va
  */
 function findTable(data: unknown): { path: string; rows: unknown[] } | undefined {
   if (Array.isArray(data)) return { path: '', rows: data };
-  let best: { path: string; rows: unknown[]; depth: number } | undefined;
+  let best: { path: string; rows: unknown[]; depth: number; size: number } | undefined;
   const visit = (value: unknown, path: string, depth: number) => {
     if (!isObject(value) || depth > MAX_DEPTH) return;
     for (const [key, child] of Object.entries(value)) {
       const at = path === '' ? key : `${path}.${key}`;
       if (Array.isArray(child)) {
-        if (!best || child.length > best.rows.length || (child.length === best.rows.length && depth < best.depth)) best = { path: at, rows: child, depth };
+        const size = estimateTokens(child);
+        if (!best || size > best.size || (size === best.size && depth < best.depth)) best = { path: at, rows: child, depth, size };
       } else visit(child, at, depth + 1);
     }
   };
@@ -181,16 +182,22 @@ function spread<T>(rows: T[], n: number): T[] {
 
 /**
  * Everything beside the table (`total`, a cursor, counts by level): whole when
- * it's small, else with its long texts cut short, else only its top-level
- * primitives, which cost little and say a lot. `count.strings` counts the cuts.
+ * it's small, else with its long texts cut short, else as many of its top-level
+ * primitives as fit, which cost little and say a lot. `count` counts the cut
+ * texts and the fields left out.
  */
-function besideTable(data: unknown, table: string, count: { strings: number }): Record<string, unknown> | undefined {
+function besideTable(data: unknown, table: string, count: { strings: number; fields: number }): Record<string, unknown> | undefined {
   const rest = withoutTable(data, table);
   if (!isObject(rest) || Object.keys(rest).length === 0) return undefined;
-  if (estimateTokens(rest) <= TOKEN_BUDGET / 4) return rest;
+  const fits = (value: unknown) => estimateTokens(value) <= TOKEN_BUDGET / 4;
+  if (fits(rest)) return rest;
   const short = clip(rest, STRING_CLIP, count) as Record<string, unknown>;
-  if (estimateTokens(short) <= TOKEN_BUDGET / 4) return short;
-  const kept = Object.entries(short).filter(([, value]) => value === null || typeof value !== 'object');
+  if (fits(short)) return short;
+  const all = Object.entries(short);
+  let kept = all.filter(([, value]) => value === null || typeof value !== 'object');
+  // Many short fields can still be too many: drop them from the end until they fit.
+  while (kept.length > 0 && !fits(Object.fromEntries(kept))) kept = kept.slice(0, -1);
+  count.fields = all.length - kept.length;
   return kept.length > 0 ? Object.fromEntries(kept) : undefined;
 }
 
@@ -291,7 +298,7 @@ export function summarize(data: unknown): Summary {
 
   const described = shape.columns.slice(0, MAX_COLUMNS);
   const stats = Object.fromEntries(described.map((c) => [c, statsFor(flat, c)]));
-  const besideCuts = { strings: 0 };
+  const besideCuts = { strings: 0, fields: 0 };
   const fields = besideTable(data, table.path, besideCuts);
   const rule: SummaryRule = rows <= HEAD_ROWS ? 'head' : 'sample';
   const schema = rule === 'sample' ? Object.fromEntries(described.map((c) => [c, schemaFor(flat, c)])) : undefined;
@@ -301,9 +308,10 @@ export function summarize(data: unknown): Summary {
     picked,
   );
   const strings = rowCuts + besideCuts.strings;
+  const trimmed = { ...(dropped > 0 ? { rows: dropped } : {}), ...(strings > 0 ? { strings } : {}), ...(besideCuts.fields > 0 ? { fields: besideCuts.fields } : {}) };
   return {
     data: summary,
-    report: { rule, rows, table: table.path, tokens: tokens(summary), columns: shape.columns.length, ...(dropped > 0 || strings > 0 ? { trimmed: { ...(dropped > 0 ? { rows: dropped } : {}), ...(strings > 0 ? { strings } : {}) } } : {}) },
+    report: { rule, rows, table: table.path, tokens: tokens(summary), columns: shape.columns.length, ...(Object.keys(trimmed).length > 0 ? { trimmed } : {}) },
     large: rule === 'sample',
   };
 }
