@@ -185,6 +185,18 @@
     ]
   },
   {
+    "name": "work-item states",
+    "tool": "ado_cloud_work_item_states",
+    "description": "List valid states for a work item type",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--type <type>",
+      "--project <name>",
+      "--repo <name>"
+    ]
+  },
+  {
     "name": "pr list",
     "tool": "ado_cloud_pr_list",
     "description": "List pull requests",
@@ -415,6 +427,82 @@
       "--project <name>",
       "--repo <name>",
       "--allow-write"
+    ]
+  },
+  {
+    "name": "sprint list",
+    "tool": "ado_cloud_sprint_list",
+    "description": "List the team's sprints, with which one is current",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--state <states>",
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
+    ]
+  },
+  {
+    "name": "sprint items",
+    "tool": "ado_cloud_sprint_items",
+    "description": "List the work items in one of the team's sprints",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<id>",
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
+    ]
+  },
+  {
+    "name": "backlog list",
+    "tool": "ado_cloud_backlog_list",
+    "description": "List the team's backlog levels",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
+    ]
+  },
+  {
+    "name": "backlog items",
+    "tool": "ado_cloud_backlog_items",
+    "description": "List the work items on one backlog level, in backlog order",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<id>",
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
+    ]
+  },
+  {
+    "name": "board list",
+    "tool": "ado_cloud_board_list",
+    "description": "List the team's boards",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
+    ]
+  },
+  {
+    "name": "board get",
+    "tool": "ado_cloud_board_get",
+    "description": "Get a board, with its columns and the state each holds",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<id>",
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
     ]
   },
   {

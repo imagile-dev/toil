@@ -4362,3 +4362,53 @@ These are the choices made by default inside that:
 - **The Sprint panel stays empty on this board**, because its sprints have no dates
   and the maintainer's rule is not to set them. Which sprint is current is only in the
   team's settings, which ado-cloud has no command for yet (#320).
+
+## ado-cloud boards, backlogs, sprints and states (#320)
+
+The issue asked for read commands for what a team's board is built from. These are
+the choices made by default inside that:
+
+- **Paths follow the command shape:** `sprint list`, `sprint items <id>`, `backlog
+  list`, `backlog items <id>`, `board list`, `board get <id>`, and `work-item states
+  --type`, which mirrors `ado work-item states` (same flag, same `data`: the server's
+  `value`). `ado` gets none of the team commands: the issue asks for `ado-cloud` only,
+  and there is no live Server to run them against.
+- **`--team` is a command-level context input**, on the six team commands only, so
+  it isn't a field on every `ado-cloud` tool. It resolves like every context input
+  (flag, dossier, the connection's new `team` setting). With none, toil reads the
+  project (`GET _apis/projects/<project>`) for its `defaultTeam` and puts its id in
+  the path. The live run showed the backlog endpoints answer 404 with no team in the
+  path while the others fall back to the default team, so every team command names one
+  rather than rely on the server's default for some and not others; the cost is one
+  extra request when no team is set. `meta.context` lists only the inputs that
+  resolved, so an `ADO_CLOUD_DEFAULT_TEAM` warning names the team that was read
+  (principle 4, raised in review).
+- **`sprint list --state`** takes `past`, `current` and `future`, the team settings'
+  own `timeFrame` words, comma-separated as `jira sprint list --state` takes its
+  states. It filters the full list in toil rather than sending `$timeframe=current`,
+  which accepts only `current`; one request either way, and one code path.
+- **`data` is the server's JSON**, as the rest of `ado-cloud`: a list's `value` for
+  `sprint list`, `backlog list`, `board list` and `work-item states`, the whole body
+  for `sprint items`, `backlog items` and `board get`. The item lists are ids only,
+  as the server sends them; `work-item get-many` fetches fields.
+- **`work-item states` warns on an empty answer** (`ADO_CLOUD_TYPE_UNKNOWN`): the server
+  answers a type the project doesn't have with an empty list, not a 404 (principle 4).
+- **API version 7.1 everywhere**: the live organization accepted the released 7.1 on
+  every one of these, including backlog work items, which Microsoft's reference lists
+  as `7.1-preview.1`.
+- **No contract entries.** `docs/command-contract.json` records no `ado-cloud`
+  command (the area isn't in its scope table), so the issue's "contract entries" are
+  the parity suite, fixtures and the skill's command table, as for the rest of the area.
+- **Fixtures were captured from the live board** and sanitized to placeholders, and say
+  so; the rest of the fixture file stays invented from the reference.
+- **OWI's custom-state reason names the item's own area** (`ado-cloud work-item
+  states` for Services), and Toil UI's board offers the same command as a hint when no
+  item shows which state a move should use, as it does for `ado`.
+- **Toil UI's Sprint panel is not wired to `sprint list`.** The issue doesn't ask for
+  it, the panel's model needs sprint dates (working days, burn-up), and the seeded
+  board's sprints have none. Showing a dateless current sprint is a change to the
+  sprint model and the panel's views, left for its own issue.
+- **The verification level stays `unit`.** The work item reads (#319) and these
+  commands have now been run against one live Scrum organization, which the skill and
+  the supported-version note now say, but the pull request commands haven't, so
+  raising the board status to `live` is left to the maintainer.

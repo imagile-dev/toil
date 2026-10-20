@@ -3,7 +3,7 @@
   "name": "Azure DevOps Services",
   "group": "work",
   "order": 2,
-  "covers": "Work items, repos, pull requests, comments, votes",
+  "covers": "Work items, boards, backlogs, sprints, repos, pull requests, comments, votes",
   "credential": "Organization-scoped personal access token",
   "credentialWhere": "User settings → Personal access tokens → New Token, with Organization set to one organization",
   "credentialNote": "Global tokens (all accessible organizations) stop working on December 1, 2026, so create one per organization. In Azure Pipelines, map $(System.AccessToken) and $(System.CollectionUri) to TOIL_ADO_CLOUD_PAT and TOIL_ADO_CLOUD_BASE_URL",
@@ -16,6 +16,6 @@
     "product": "Azure DevOps Services",
     "minimum": null,
     "api": "REST API 7.1",
-    "note": "Azure DevOps Services is always current. toil sends api-version=7.1, the newest released version (7.2 is preview only), with an organization-scoped personal access token as Basic auth. Nothing has been run against a live organization yet."
+    "note": "Azure DevOps Services is always current. toil sends api-version=7.1, the newest released version (7.2 is preview only), with an organization-scoped personal access token as Basic auth. Its work item reads and team settings commands have been run against one live Scrum organization; its pull request commands have not."
   }
 }

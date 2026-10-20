@@ -121,7 +121,8 @@ Services differs, the mapping already holds:
   Feature and Task), Doing, Committed, Open and Resolved are `IN_PROGRESS`
   (Resolved behaves as in progress on boards); Closed
   and Done are `DONE`; Removed is `DONE` with its reason as `resolution`. A custom
-  state is `UNKNOWN`; `ado work-item states` shows its category.
+  state is `UNKNOWN`; `ado work-item states` (`ado-cloud work-item states` on Services)
+  shows its category.
 - **Estimate**, the first with a value: `Microsoft.VSTS.Scheduling.StoryPoints`
   (Agile), `.Effort` (Scrum), `.Size` (CMMI) as points, then
   `Microsoft.VSTS.Scheduling.OriginalEstimate` as hours. Azure DevOps leaves an

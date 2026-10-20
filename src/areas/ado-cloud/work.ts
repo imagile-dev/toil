@@ -284,4 +284,22 @@ export const workListIterationsCommand = adoCloudArea.command({
   run: (input, ctx) => adoc(ctx, `${projectPath(ctx)}/_apis/wit/classificationnodes/iterations`, { query: { $depth: input.depth ?? 10 } }),
 });
 
-export const workCommands = [workGetCommand, workCreateCommand, workUpdateCommand, workSearchCommand, workRevisionsCommand, workGetBatchCommand, workListCommentsCommand, workAddCommentCommand, workListIterationsCommand];
+export const workListStatesCommand = adoCloudArea.command({
+  path: ['ado-cloud', 'work-item', 'states'],
+  description: 'List valid states for a work item type',
+  toolDescription:
+    "Lists the states a work item type has in the project's process (name, color, category), in workflow order. category (Proposed, InProgress, Resolved, Completed, Removed) is how a custom state is classified. A type the project doesn't have returns no states, with an ADO_CLOUD_TYPE_UNKNOWN warning.",
+  input: z.object({ type: z.string().min(1).describe('Work item type name (e.g. Bug)') }),
+  writes: false,
+  context: IN_PROJECT,
+  options: [{ flags: '--type <type>', field: 'type', description: 'Work item type name (e.g. Bug)' }],
+  examples: [{ ...at, type: 'Bug' }, { ...all, type: 'Product Backlog Item' }],
+  run: async (input, ctx) => {
+    const states = (await adoc<{ value?: unknown[] }>(ctx, `${projectPath(ctx)}/_apis/wit/workitemtypes/${enc(input.type)}/states`)).value ?? [];
+    // The server answers an unknown type with an empty list rather than a 404, so say so.
+    if (states.length === 0) ctx.warn({ code: 'ADO_CLOUD_TYPE_UNKNOWN', message: `Project "${ctx.context.project}" has no states for work item type "${input.type}", which usually means it has no such type. The project's types are at GET <project>/_apis/wit/workitemtypes (ado-cloud api).` });
+    return states;
+  },
+});
+
+export const workCommands = [workGetCommand, workCreateCommand, workUpdateCommand, workSearchCommand, workRevisionsCommand, workGetBatchCommand, workListCommentsCommand, workAddCommentCommand, workListIterationsCommand, workListStatesCommand];
