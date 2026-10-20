@@ -152,7 +152,7 @@ describe('the allowlist', () => {
   it('is exactly the config commands the pages need, each one toil has, the changes local writes only', () => {
     const served = new Map([...registry.commands, ...registry.personCommands].map((c) => [c.name, c]));
     expect([...CONFIG_COMMANDS].sort()).toEqual(
-      ['connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'dossiers add-repo', 'dossiers check', 'dossiers field', 'dossiers init', 'dossiers link', 'dossiers list', 'dossiers show'].sort(),
+      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'dossiers add-repo', 'dossiers check', 'dossiers field', 'dossiers init', 'dossiers link', 'dossiers list', 'dossiers show'].sort(),
     );
     for (const name of CONFIG_READS) expect(served.get(name), name).toMatchObject({ writes: false, writesLocal: false, writesDependOnInput: false });
     // A change writes only toil's own config on this machine, never a service.

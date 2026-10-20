@@ -9,8 +9,26 @@
       "--since <time>",
       "--command <name>",
       "--connection <name>",
+      "--outcome <outcome>",
       "--writes-only",
       "--limit <n>"
+    ]
+  },
+  {
+    "name": "stats",
+    "tool": "audit_stats",
+    "description": "Summarize toil's local audit log: calls, failures, top errors and durations by command, area, connection, caller, front door, outcome or day",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--since <time>",
+      "--until <time>",
+      "--by <dimension>",
+      "--area <area>",
+      "--command <name>",
+      "--caller <label>",
+      "--outcome <outcome>",
+      "--unused"
     ]
   },
   {
