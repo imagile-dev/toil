@@ -1,6 +1,6 @@
 /**
  * Installing an agent SDK in one press (#344). The maintainer's exception
- * (2026-10-20, AGENT_DECISIONS.md, #249 UI server): Toil UI may run npm for
+ * (2026-10-20, docs/decisions/343-ask-up-front.md): Toil UI may run npm for
  * this and nothing else. One `npm install` of one adapter's SDK at the version
  * Toil UI was tested with, beside Toil UI, through the npm that came with the
  * Node running it, with the person's own npm config (so their registry and

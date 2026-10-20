@@ -37,6 +37,7 @@ import { codexRuntime } from './codex.ts';
 import { copilotRuntime } from './copilot.ts';
 import { promptFor, STARTERS, systemPrompt, withHistory } from './prompts.ts';
 import { installedVersion, installPlan, runInstall, testedVersion, type InstallPlan, type InstallRun } from './install.ts';
+import { findPackage } from './package-path.ts';
 import { agentEnv } from './env.ts';
 import { cliFor, Latest, loadSdk, nodeImporter, type Activity, type AdapterName, type Importer, type Runtime, type ServeTools, type UsageReport, type Workspace } from './runtime.ts';
 import { loadUsageSettings, memoryLedger, type UsageLedger } from '../usage.ts';
@@ -147,7 +148,8 @@ const defaultInstalled = (specifier: string) => {
     import.meta.resolve(specifier);
     return true;
   } catch {
-    return false;
+    // Installed since this process first looked (#344): Node remembers the miss, the disk doesn't.
+    return findPackage(specifier) !== null;
   }
 };
 
@@ -554,7 +556,7 @@ export class AgentHost implements Agent {
         cli = { path: null, problem: e instanceof Error ? e.message : String(e), fix: e instanceof AgentError ? e.fix : null };
       }
       const has = installed(r.package);
-      const version = has ? installedVersion(r.package, resolve, this.o.readText) : null;
+      const version = has ? (installedVersion(r.package, resolve, this.o.readText) ?? (this.o.resolve ? null : (findPackage(r.package)?.version ?? null))) : null;
       const tested = testedVersion(r.name);
       // A skipped optional dependency is each SDK's own copy of its CLI, which Toil UI never starts: worth saying, never a failure.
       if (has && r.name === 'claude' && !installed(`${r.package}-${this.o.platform ?? process.platform}-${process.arch}`)) notes.push(`${r.package}'s bundled Claude Code isn't installed (an optional dependency npm skipped). Toil UI doesn't need it: it starts the claude it finds.`);

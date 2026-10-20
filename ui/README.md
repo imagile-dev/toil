@@ -384,7 +384,7 @@ your own npm config, so your organization's registry and proxy apply. npm's outp
 streams into the dialog, and Toil UI then loads the SDK to prove it installed; a
 failure shows npm's own message and the fix. **Copy command** is beside it, for a
 machine where you'd rather run it yourself. This is the one thing Toil UI runs npm
-for (AGENT_DECISIONS.md, #249 UI server).
+for (docs/decisions/343-ask-up-front.md).
 
 - **Only the tested versions**: `@anthropic-ai/claude-agent-sdk@0.3.289` with
   `zod@4.6.5`, `@github/copilot-sdk@1.0.16` and `@openai/codex-sdk@0.160.0`, exactly

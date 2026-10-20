@@ -10,6 +10,7 @@
 
 import type { ContextUse, PremiumQuota, UsageRecord } from '../../src/model-usage.ts';
 import { AgentError, findCli } from './cli.ts';
+import { packageUrl } from './package-path.ts';
 import type { ToolSpec } from './tools.ts';
 
 export type AdapterName = 'claude' | 'copilot' | 'codex';
@@ -130,7 +131,16 @@ export function cliFor(runtime: Pick<Runtime, 'cliLabel' | 'command' | 'scripts'
 }
 
 /** The real importer. The specifier is a variable, so the bundler leaves the import for Node to resolve at run time. */
-export const nodeImporter: Importer = (specifier) => import(/* @vite-ignore */ specifier);
+export const nodeImporter: Importer = async (specifier) => {
+  try {
+    return await import(/* @vite-ignore */ specifier);
+  } catch (e) {
+    // Installed since this process first looked (#344): Node remembers the miss, so the package is imported by its file instead.
+    const url = missing(e) ? packageUrl(specifier) : null;
+    if (!url) throw e;
+    return import(/* @vite-ignore */ url);
+  }
+};
 
 /**
  * A callback-fed async iterable: the adapters push text as the SDK streams

@@ -88,12 +88,16 @@ export function AgentSettingsPanel({ client, onChange, dossier }: AgentSettingsP
   };
 
   const none = status?.adapters.every((a) => !a.installed);
-  /** After an install: the status again, so the radio rows and the chat's switcher see the new SDK. */
+  /**
+   * After an install: the status again, so the radio rows see the new SDK. No
+   * onChange: the chosen agent is the same, and onChange remounts the App,
+   * which would close the dialog before its result is read. The chat asks for
+   * the adapters each time it opens, so its switcher sees the SDK anyway.
+   */
   const installed = async () => {
     try {
       const next = await client.status();
       setStatus(next);
-      onChange?.(next);
     } catch (err) {
       setProblem(err instanceof Error ? err.message : String(err));
     }
@@ -134,7 +138,7 @@ export function AgentSettingsPanel({ client, onChange, dossier }: AgentSettingsP
         <form className="agent-form" onSubmit={submit}>
           {none && (
             <p className="failure">
-              None of the three agent SDKs is installed beside Toil UI: {status.adapters.map((a) => `${a.label} (${a.package})`).join(', ')}. Install the one your organization approves, with its CLI on PATH, and choose it here.
+              None of the three agent SDKs is installed beside Toil UI: {status.adapters.map((a) => `${a.label} (${a.package})`).join(', ')}. Press Install below for the one your organization approves, with its CLI on PATH, and choose it here.
             </p>
           )}
           <RadioGroup

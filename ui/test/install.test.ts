@@ -9,6 +9,7 @@ import { join, posix, win32 } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { installPlan, locate, MIN_AGE_DAYS, runInstall, TESTED, type InstallPlan } from '../server/agents/install.ts';
 import { AgentHost, type AgentHostOptions } from '../server/agents/host.ts';
+import { findPackage } from '../server/agents/package-path.ts';
 import { noAgent } from '../server/agent.ts';
 import { registry } from '@imagile-dev/toil/api';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
@@ -150,5 +151,16 @@ describe('Install, on the host', () => {
     await expect(unloadable.install('codex', unloadable.installPlan('codex').command, () => undefined, new AbortController().signal)).rejects.toThrow(/npm finished, but @openai\/codex-sdk still doesn't load/);
     const npx = host({ uiDir: '/home/you/.npm/_npx/abc12345/node_modules/@imagile-dev/toil-ui' });
     await expect(npx.install('codex', npx.installPlan('codex').command, () => undefined, new AbortController().signal)).rejects.toThrow(/npx's cache/);
+  });
+});
+
+describe('an SDK installed while Toil UI runs', () => {
+  it("is found on disk, walking up from Toil UI's folder, with its import entry, since Node remembers the miss", () => {
+    const pkg = join('/opt/npm/lib/node_modules', '@openai', 'codex-sdk', 'package.json');
+    const readText = (p: string) => (p === pkg ? JSON.stringify({ name: '@openai/codex-sdk', version: '0.160.0', exports: { '.': { import: './dist/index.js', types: './dist/index.d.ts' } } }) : null);
+    expect(findPackage('@openai/codex-sdk', '/opt/npm/lib/node_modules/@imagile-dev/toil-ui/dist/server', readText)).toEqual({ dir: join('/opt/npm/lib/node_modules', '@openai', 'codex-sdk'), version: '0.160.0', entry: join('/opt/npm/lib/node_modules', '@openai', 'codex-sdk', 'dist', 'index.js') });
+    const nested = (p: string) => (p === pkg ? JSON.stringify({ name: '@openai/codex-sdk', exports: { '.': { import: { types: './a.d.ts', default: './a.js' } } } }) : null);
+    expect(findPackage('@openai/codex-sdk', '/opt/npm/lib', nested)?.entry).toBe(join('/opt/npm/lib/node_modules', '@openai', 'codex-sdk', 'a.js'));
+    expect(findPackage('@openai/codex-sdk', '/elsewhere', readText)).toBeNull();
   });
 });
