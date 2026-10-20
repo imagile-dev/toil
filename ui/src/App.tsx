@@ -33,12 +33,12 @@ import { Choice } from './components/choice.tsx';
 import { ThemeChoiceProvider, wordingOn } from './theme-context.ts';
 import { wordFor, type WordKey } from './wording.ts';
 
-export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'agent';
+export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'usage' | 'agent';
 export type Route = { view: 'dossiers' } | { view: 'settings'; page: SettingsPage } | { view: 'dashboard'; dossier: string } | { view: 'item'; dossier: string; id: string };
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/');
-  if (parts[0] === 'settings') return { view: 'settings', page: parts[1] === 'dossiers' || parts[1] === 'toil' || parts[1] === 'agent' ? parts[1] : 'connections' };
+  if (parts[0] === 'settings') return { view: 'settings', page: parts[1] === 'dossiers' || parts[1] === 'toil' || parts[1] === 'usage' || parts[1] === 'agent' ? parts[1] : 'connections' };
   if (parts[0] === 'dossier' && parts[1]) {
     const dossier = decodeURIComponent(parts[1]);
     if (parts[2] === 'item' && parts[3]) return { view: 'item', dossier, id: decodeURIComponent(parts.slice(3).join('/')) };

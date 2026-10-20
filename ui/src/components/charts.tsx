@@ -14,6 +14,7 @@ import { day } from '../format.ts';
 import { DataTable } from './layout.tsx';
 import type { Burnup } from '../model/burnup.ts';
 import type { Week } from '../model/flow.ts';
+import type { DayCalls } from '../usage.ts';
 
 const W = 560;
 const PAD = { left: 34, right: 12, top: 14, bottom: 26 };
@@ -188,6 +189,49 @@ export function CycleScatter({ points, p85 }: { points: ScatterPoint[]; p85: num
         </text>
       </Svg>
       <Figures caption="Cycle time per finished item" head={['Item', 'Finished', 'Cycle time']} rows={points.map((p) => [p.label, day(p.end), `${round1(p.days)} days`])} />
+    </figure>
+  );
+}
+
+/**
+ * Calls per day (#309), from `toil audit stats --by day`: one bar a day, the
+ * scale's top beside the tallest, and a date under every few, so thirty bars
+ * still read at 375px. The figures table under it holds every day's calls and
+ * failures.
+ */
+export function CallsPerDay({ days }: { days: DayCalls[] }) {
+  const H = 110;
+  const max = Math.max(1, ...days.map((d) => d.calls));
+  const slot = (W - PAD.left - PAD.right) / Math.max(1, days.length);
+  const bar = Math.max(2, Math.min(32, slot * 0.7));
+  const y = (v: number) => H - 22 - ((H - 40) * v) / max;
+  const every = Math.max(1, Math.ceil(days.length / 6));
+  const total = days.reduce((n, d) => n + d.calls, 0);
+  const busiest = days.reduce<DayCalls | null>((b, d) => (!b || d.calls > b.calls ? d : b), null);
+  const label = `Calls per day: ${total} calls in ${days.length} days${busiest && busiest.calls > 0 ? `, the most on ${day(busiest.day)} with ${busiest.calls}` : ''}.`;
+  return (
+    <figure className="chart-figure">
+      <Svg label={label} height={H}>
+        <line className="grid" x1={PAD.left} x2={W - PAD.right} y1={y(0)} y2={y(0)} />
+        <text className="axis" x={PAD.left - 6} y={y(max) + 4} textAnchor="end">
+          {max}
+        </text>
+        {days.map((d, i) => {
+          const cx = PAD.left + slot * i + slot / 2;
+          return (
+            <g key={d.day}>
+              <rect className="bar" x={cx - bar / 2} y={y(d.calls)} width={bar} height={Math.max(0, y(0) - y(d.calls))} rx={2} />
+              {/* Every other date is minor, and a phone's stylesheet hides those, so the dates still fit at 375px. */}
+              {(i % every === 0 || i === days.length - 1) && (
+                <text className={`axis${i !== days.length - 1 && (i / every) % 2 === 1 ? ' axis--minor' : ''}`} x={cx} y={H - 4} textAnchor="middle">
+                  {day(d.day).replace(/ \d{4}$/, '')}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </Svg>
+      <Figures caption="Calls per day, UTC" head={['Day', 'Calls', 'Failed']} rows={days.map((d) => [day(d.day), d.calls, d.failed])} />
     </figure>
   );
 }
