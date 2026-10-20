@@ -151,10 +151,10 @@ function redactEmails(text, terms) {
 }
 
 function redactHosts(text, terms) {
-  // A host never starts right after a host character, or after a dot or hyphen that follows
+  // A host never starts right after a letter or digit, or after a dot or hyphen that follows
   // one, so a long dotted run is read once, not once per label. A host after a lone `.`,
-  // `*.`, `...` or `-` (a wildcard certificate, a cookie domain) still starts there.
-  return text.replace(/(?<![A-Za-z0-9]|[A-Za-z0-9-][.-])((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z][A-Za-z0-9-]{1,62})\b/g, (host) =>
+  // `*.`, `...`, `-` or `-.` (a wildcard certificate, a cookie domain) still starts there.
+  return text.replace(/(?<![A-Za-z0-9]|[A-Za-z0-9][.-])((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z][A-Za-z0-9-]{1,62})\b/g, (host) =>
     isInternalHost(host, terms) ? replacementHost(host) : host,
   );
 }

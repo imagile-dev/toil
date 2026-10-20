@@ -96,6 +96,7 @@ describe('redact', () => {
     expect(redact('cookie domain .acmebank.example', t)).toBe('cookie domain .redacted.imagile.dev');
     expect(redact('see...jira.acmebank.example', t)).toBe('see...jira.imagile.dev');
     expect(redact('cert *.build.internal and host -db.build.internal', t)).toBe('cert *.redacted.imagile.dev and host -redacted.imagile.dev');
+    expect(redact('x-.acmebank.example', t)).toBe('x-.redacted.imagile.dev');
   });
 
   it('still redacts an address or a key name longer than the 64 characters a rule reads', () => {
