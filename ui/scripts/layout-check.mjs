@@ -23,7 +23,7 @@
 // Feedback dialog open, the Assign dialog open from an item and the inbox, the focused Ask view open
 // from the Ask bar (#343) with its (i) popover, its agent switcher, an answer, its Suggestions menu and
 // Analyze's pulse check, the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
-// the calendar on an earlier month, and every failing
+// the calendar on an earlier month, a stand-up written up, and every failing
 // command's recent audit lines open on the Usage page. Reduced motion
 // is on, so an animation caught mid-flight can't fail a run.
 //
@@ -72,6 +72,10 @@ export const ROUTES = [
   '#/dossier/card-payments/worklog',
   '#/dossier/card-payments/worklog/2026-10-12',
   '#/dossier/checkout-web/worklog/2026-10-11',
+  // The stand-up (#345): since the last working day, with people, agents and unmapped accounts, and one day of another dossier named by one day in the URL, and a URL that names no day.
+  '#/dossier/card-payments/worklog/standup',
+  '#/dossier/settlement/worklog/standup/2026-10-12',
+  '#/dossier/checkout-web/worklog/standup/yesterday',
   item('card-payments', 'corp-jira:PAY-100'),
   item('settlement', 'corp-ado:2304'),
   // Agent assignments (#293): one that needs you (a report, a question, proposals with diffs), one that failed at its time limit, one working.
@@ -269,6 +273,8 @@ function states(route, width) {
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).
   // The worklog (#308): a day rebuilt, which says how it compared, and an earlier month in the calendar.
   if (/\/worklog\/\d{4}-\d{2}-\d{2}$/.test(route)) out.push({ name: 'rebuilt', setup: `(async () => { const n = ${clickAll('[data-worklog-rebuild]')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
+  // The stand-up (#345): the agent's write-up shown, with the fact lines it names marked in the report.
+  if (/\/worklog\/standup/.test(route)) out.push({ name: 'written-up', setup: `(async () => { const n = ${clickAll('[data-standup-writeup]')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
   if (/\/worklog$/.test(route)) out.push({ name: 'previous-month', setup: clickAll('.calendar-nav button', '/Previous month/'), undoJs: clickAll('.calendar-nav button', '/Next month/') });
   if (route === '#/settings/agent') out.push({ name: 'full-prompt', setup: clickAll('[data-full-prompt]', '/Show the full prompt/'), undoJs: clickAll('[data-full-prompt]', '/Hide the full prompt/') });
   // Install (#344): the dialog with the exact npm command, before anything runs.

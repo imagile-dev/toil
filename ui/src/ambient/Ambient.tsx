@@ -11,11 +11,17 @@
  * requestAnimationFrame fallback here moves the same layers by the same
  * rates, read from the same custom properties. With motion unwelcome, by the
  * OS or by Settings, neither runs and the canvas is never started.
+ *
+ * The particles are whatever preset the theme's theme.json names (#348), and
+ * a theme's own "Particles and ambient effects" switch removes them outright:
+ * no canvas and no frame, and for a theme with no parallax no layer at all.
+ * Crate's parallax keeps following the motion switch alone.
  * Depth has been approved at three layers, pending a fourth-layer review.
  */
 
 import { useEffect, useRef, type RefObject } from 'react';
-import { useMotionAllowed } from '../motion.ts';
+import { useMotionAllowed, useParticlesAllowed } from '../motion.ts';
+import { THEMES } from '../themes.ts';
 import { startParticles } from './engine.ts';
 import { PRESETS } from './presets.ts';
 import './ambient.css';
@@ -67,22 +73,24 @@ function useParallaxFallback(root: RefObject<HTMLDivElement | null>, on: boolean
 
 export function Ambient({ theme }: { theme: string }) {
   const allowed = useMotionAllowed();
+  const particlesOn = useParticlesAllowed(theme);
   const root = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
-  const preset = PRESETS[theme];
+  const named = THEMES.find((t) => t.name === theme)?.ambient?.particles;
+  const preset = particlesOn && named ? PRESETS[named] : undefined;
   const parallax = PARALLAX.has(theme);
 
   useEffect(() => {
-    if (!allowed || !preset || !canvas.current) return;
+    if (!preset || !canvas.current) return;
     return startParticles(canvas.current, preset);
-  }, [allowed, preset]);
+  }, [preset]);
   useParallaxFallback(root, allowed && parallax);
 
   if (!preset && !parallax) return null;
   return (
     <div className="ambient" aria-hidden="true" ref={root}>
       {parallax && LAYERS.map((l) => <div key={l} className={`ambient-layer ambient-layer--${l}`} />)}
-      {allowed && preset && <canvas className="ambient-particles" ref={canvas} />}
+      {preset && <canvas className="ambient-particles" ref={canvas} />}
     </div>
   );
 }

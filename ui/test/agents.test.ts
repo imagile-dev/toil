@@ -18,7 +18,7 @@ import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, promptFor, STARTERS, STYLE_RULE,
 import { THEME_VOICES } from '../server/agents/voices.ts';
 import { Latest, loadSdk, type Importer, type Runtime } from '../server/agents/runtime.ts';
 import { agentSettingsFile, checkAgentSettings, loadAgentSettings } from '../server/agents/settings.ts';
-import { cacheData, cacheTools, dossierReader, Ledger, LIVE_COMMANDS, liveTools, neverWrites, peopleTools, proposalTool, prTools, readinessTools, worklogTool, type AgentData, type ToolSpec } from '../server/agents/tools.ts';
+import { cacheData, cacheTools, dossierReader, Ledger, LIVE_COMMANDS, liveTools, neverWrites, peopleTools, proposalTool, prTools, readinessTools, standupTool, worklogTool, type AgentData, type ToolSpec } from '../server/agents/tools.ts';
 import type { AgentRun } from '../src/model/worklog.ts';
 import { Cache } from '../server/cache.ts';
 import type { RequestContext } from '../server/context.ts';
@@ -1117,6 +1117,26 @@ describe('each question, as an agent run for the worklog (#308)', () => {
     expect(ledger.ids.has('corp-jira:PAY-101')).toBe(true);
     expect(await tool!.run({ day: '2026-10-14' })).toEqual({ error: '2026-10-14 is after today (2026-10-13, UTC), so it has no page yet.' });
     expect(worklogTool('card-payments', data, ledger)).toEqual([]);
+  });
+
+  it('gives the agent standup_report (#345), each line numbered and every id it names vouched for', async () => {
+    const { fixtureWorklog } = await import('../src/fixtures/worklog.ts');
+    const sample = fixtureWorklog();
+    const ledger = new Ledger();
+    const asked: Array<[string, string]> = [];
+    const [tool] = standupTool('card-payments', { ...data, standup: async (from, to) => (asked.push([from, to]), (await sample.standup('card-payments', from, to)).report) }, ledger, () => FIXTURE_NOW);
+    expect(tool!.name).toBe('standup_report');
+    const out = (await tool!.run({})) as { from: string; to: string; team: Array<{ fact: string; cite: string[] }>; people: Array<Record<string, unknown>> };
+    // FIXTURE_NOW is a Tuesday: since the last working day is Monday and Tuesday.
+    expect(asked).toEqual([['2026-10-12', '2026-10-13']]);
+    expect(out.team[0]!.fact).toBe('F1');
+    expect(Object.keys(out.people[0]!)).toEqual(['name', 'kind', 'inDossierPeople', 'Done', 'In progress', 'Blocked', 'Next']);
+    const cited = [...out.team, ...out.people.flatMap((p) => ['Done', 'In progress', 'Blocked', 'Next'].flatMap((b) => p[b] as Array<{ cite: string[] }>))].flatMap((l) => l.cite);
+    expect(cited.length).toBeGreaterThan(0);
+    for (const id of cited) expect(ledger.ids.has(id)).toBe(true);
+    expect(await tool!.run({ from: '2026-10-13', to: '2026-10-12' })).toEqual({ error: 'The range starts (2026-10-13) after it ends (2026-10-12).' });
+    expect(await tool!.run({ from: 'monday' })).toEqual({ error: 'Give from and to as days, yyyy-mm-dd.' });
+    expect(standupTool('card-payments', data, ledger)).toEqual([]);
   });
 });
 

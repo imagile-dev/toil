@@ -875,11 +875,31 @@ describe('the worklog (#308)', () => {
     expect(note.status).toBe(400);
     expect(JSON.parse(note.body).error.message).toMatch(/sample data/);
     const both = await post(origin, '/api/worklog/export', { dossier: 'card-payments', day: '2026-10-12', month: '2026-10', folder: '/tmp' }, { sid: auth.sid, csrf: auth.session.csrf });
-    expect(JSON.parse(both.body).error.message).toBe('Export a day or a month, one of the two.');
+    expect(JSON.parse(both.body).error.message).toBe('Export a day, a month or a stand-up, one of the three.');
+    const mixed = await post(origin, '/api/worklog/export', { dossier: 'card-payments', day: '2026-10-12', from: '2026-10-12', to: '2026-10-13', folder: '/tmp' }, { sid: auth.sid, csrf: auth.session.csrf });
+    expect(JSON.parse(mixed.body).error.message).toBe('Export a day, a month or a stand-up, one of the three.');
+    const half = await post(origin, '/api/worklog/export', { dossier: 'card-payments', from: '2026-10-12', folder: '/tmp' }, { sid: auth.sid, csrf: auth.session.csrf });
+    expect(JSON.parse(half.body).error.message).toBe('Name the last day.');
     const extra = await post(origin, '/api/worklog/export', { dossier: 'card-payments', day: '2026-10-12', folder: '/tmp', overwrite: true }, { sid: auth.sid, csrf: auth.session.csrf });
-    expect(JSON.parse(extra.body).error.message).toBe('An export takes dossier, day or month, and folder, not overwrite.');
+    expect(JSON.parse(extra.body).error.message).toBe("An export takes dossier, a day, a month or a stand-up's from and to, and folder, not overwrite.");
     const misspelt = await post(origin, '/api/worklog/note', { dossier: 'card-payments', txt: 'hi' }, { sid: auth.sid, csrf: auth.session.csrf });
     expect(JSON.parse(misspelt.body).error.message).toBe('A note takes dossier and text, not txt.');
+  });
+
+  it('answers a stand-up (#345) for a range, and refuses a range it cannot cover', async () => {
+    const { fixtureWorklog } = await import('../src/fixtures/worklog.ts');
+    const { origin } = await start({ worklog: fixtureWorklog() });
+    const auth = await signIn(origin);
+    const ok = await get(origin, '/api/worklog/standup?dossier=card-payments&from=2026-10-12&to=2026-10-13', auth.sid);
+    expect(ok.status).toBe(200);
+    const body = JSON.parse(ok.body) as { markdown: string; text: string; report: { from: string; to: string } };
+    expect(body.markdown).toMatch(/^# Stand-up: card-payments, 12 Oct 2026 to 13 Oct 2026/);
+    expect(body.text).toMatch(/^Stand-up: card-payments, 12 Oct 2026 to 13 Oct 2026/);
+    expect(body.report).toMatchObject({ from: '2026-10-12', to: '2026-10-13' });
+    const future = await get(origin, '/api/worklog/standup?dossier=card-payments&from=2026-10-12&to=2026-10-14', auth.sid);
+    expect(future.status).toBe(400);
+    expect(JSON.parse(future.body).error.message).toBe("2026-10-14 hasn't happened yet: end the range today (2026-10-13) or earlier.");
+    expect(JSON.parse((await get(origin, '/api/worklog/standup?dossier=card-payments&from=2026-10-12', auth.sid)).body).error.message).toBe('Name the last day.');
   });
 
   it('needs the CSRF token on every change: a rebuild, a note, an export', async () => {
