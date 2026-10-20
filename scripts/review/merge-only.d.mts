@@ -24,6 +24,7 @@ export interface Outcome {
 
 export function gitIn(cwd: string): Git;
 export function mergesOfBaseOnly(git: Git, approved: string, head: string, base: string): CheckResult;
+export function lastChangeBeforeMerges(git: Git, head: string, base: string): CheckResult;
 export function prPatch(git: Git, base: string, commit: string): string;
 export function samePrChange(git: Git, approved: string, head: string, base: string): CheckResult;
 export function standingApproval(reviews: Review[], timeline: TimelineEvent[], bot: string): CheckResult;
