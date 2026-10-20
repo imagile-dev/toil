@@ -248,9 +248,12 @@ export function hostRunner(o: HostRunnerOptions): Runner {
         } else {
           branchInfo = await branchOf(read, clone, branch, repo.name, actor);
           if (!branchInfo.onBranch) report.warnings.unshift(`The clone isn't on ${branch}, the branch the agent was asked to make, so check its work before you use it.`);
-          if (branchInfo.hidden.length) {
+          if (branchInfo.cut) {
+            // Whatever comes after the cut would go out with the commit unread: nothing is proposed.
+            report.warnings.unshift(`The staged diff is too long to show in full (toil stops reading at 5,000 lines, and the page at ${MAX_DIFF.toLocaleString('en-US')} characters), so part of the change would go out with the commit unread, and no commit or push is proposed. Look at the clone yourself before you use any of it.`);
+          } else if (branchInfo.hidden.length) {
             // Whatever the diff doesn't show would go out with the commit unread: nothing is proposed.
-            report.warnings.unshift(`The staged change includes ${branchInfo.hidden.length === 1 ? 'a file' : `${branchInfo.hidden.length} files`} the diff below doesn't show: ${branchInfo.hidden.join(', ')}. It may be a submodule link, a mode change, a binary file or anything else git's diff leaves out, and it would go out with the commit unread, so no commit or push is proposed. Look at the clone yourself before you use any of it.`);
+            report.warnings.unshift(`The staged change includes ${branchInfo.hidden.length === 1 ? 'a file' : `${branchInfo.hidden.length} files`} the diff below doesn't show: ${branchInfo.hidden.join(', ')}. It may be a submodule link, a mode change, a binary file or anything else git's diff leaves out (and toil's git status can drop the first character of the first name it lists, so a name may look one character short), and it would go out with the commit unread, so no commit or push is proposed. Look at the clone yourself before you use any of it.`);
           } else if (branchInfo.files.length) {
             // The message goes in a file beside the agent's folder, written after the run, so nothing from the tracker is shell syntax on the person's command line.
             const message = `${workspace.root}.commit-message.txt`;
@@ -285,12 +288,14 @@ export async function branchOf(read: (command: string, input: Record<string, unk
   const diff = await read('git diff', { staged: true }, { workspace: folder, actor });
   const files = status.ok ? filesOf(status.data) : [];
   let text: string | null = null;
+  let rawLength = 0;
   if (diff.ok) {
     const raw = typeof diff.data === 'string' ? diff.data : (unified(diff.data) ?? JSON.stringify(diff.data, null, 2));
+    rawLength = raw.length;
     text = raw.length > MAX_DIFF ? `${raw.slice(0, MAX_DIFF)}\n[cut at ${MAX_DIFF} characters]` : raw;
   }
   const hidden = status.ok ? hiddenStaged(status.data, diff.ok ? diff.data : null) : files.map((f) => f.path);
-  return { name, repo, folder: slashes(folder), onBranch: headBranch(folder) === name, files, diff: text, hidden };
+  return { name, repo, folder: slashes(folder), onBranch: headBranch(folder) === name, files, diff: text, hidden, cut: diff.ok ? diffCut(diff.data, rawLength) : false };
 }
 
 /**
@@ -313,16 +318,30 @@ export function hiddenStaged(status: unknown, diff: unknown): string[] {
   return staged.filter((p) => !shown.has(p.includes(' -> ') ? p.slice(p.lastIndexOf(' -> ') + 4) : p));
 }
 
+/**
+ * Whether the diff a person reads stops short (#293 review round 6): toil's
+ * `git diff` stopped parsing (at 5,000 lines), stopped in one file, or the
+ * text was cut at MAX_DIFF characters. Whatever comes after the cut would
+ * go out with the commit unread, so a cut diff, like a hidden path, means no
+ * commit or push is proposed.
+ */
+export function diffCut(data: unknown, rawLength: number): boolean {
+  const d = (data ?? {}) as { truncated?: unknown; files?: unknown };
+  return d.truncated === true || (Array.isArray(d.files) && d.files.some((f) => (f as { truncated?: unknown }).truncated === true)) || rawLength > MAX_DIFF;
+}
+
 /** toil's `git diff` (files of hunks) as the unified diff a person reads, or null for a shape it doesn't know. */
 export function unified(data: unknown): string | null {
   const files = (data as { files?: unknown } | null)?.files;
   if (!Array.isArray(files)) return null;
   const out: string[] = [];
-  for (const f of files as Array<{ path?: string; binary?: boolean; hunks?: Array<{ oldStart: number; oldCount: number; newStart: number; newCount: number; lines?: string[] }> }>) {
+  for (const f of files as Array<{ path?: string; binary?: boolean; truncated?: boolean; hunks?: Array<{ oldStart: number; oldCount: number; newStart: number; newCount: number; lines?: string[] }> }>) {
     out.push(`--- a/${f.path}`, `+++ b/${f.path}`);
     if (f.binary) out.push('(binary)');
     for (const h of f.hunks ?? []) out.push(`@@ -${h.oldStart},${h.oldCount} +${h.newStart},${h.newCount} @@`, ...(h.lines ?? []));
+    if (f.truncated) out.push(`[toil stopped reading the diff of ${f.path} here: the rest of it isn't shown]`);
   }
+  if ((data as { truncated?: unknown }).truncated === true) out.push("[toil stopped reading the diff here, after 5,000 lines: the rest isn't shown]");
   return out.join('\n');
 }
 

@@ -19,7 +19,7 @@ import type { Envelope } from '../src/toil.ts';
 import type { Proposal } from '../src/proposal.ts';
 import { assignSettingsFile, checkAssignSettings, fileKeeper, loadAssignSettings, memoryKeeper, queueSettings } from '../server/assign/files.ts';
 import { defang, fencedItem, implementPrompt, readPrompt, splitLines } from '../server/assign/prompts.ts';
-import { commentProposal, commentText, headBranch, prepareClone, pushProposal, reclaimGitDir, unified } from '../server/assign/runner.ts';
+import { commentProposal, commentText, diffCut, headBranch, hiddenStaged, MAX_DIFF, prepareClone, pushProposal, reclaimGitDir, unified } from '../server/assign/runner.ts';
 import { writeCommands } from '../server/agents/answer.ts';
 import { registry } from '@imagile-dev/toil/api';
 import { createUiServer } from '../server/server.ts';
@@ -299,7 +299,7 @@ describe("the runner's own proposals", () => {
   });
 
   it('proposes the commit and push as git lines with the message in a file, so nothing from the tracker is shell syntax', () => {
-    const branch = { name: 'agent/PAY-107', repo: 'payments-core', folder: 'C:/work/x/repo', onBranch: true, files: [{ path: 'a.ts', status: 'staged' }], diff: null, hidden: [] };
+    const branch = { name: 'agent/PAY-107', repo: 'payments-core', folder: 'C:/work/x/repo', onBranch: true, files: [{ path: 'a.ts', status: 'staged' }], diff: null, hidden: [], cut: false };
     const p = pushProposal({ ...item('corp-jira:PAY-107'), title: "Retry & don't | charge twice" }, branch, 'C:/work/x.commit-message.txt', 'C:/work/x.no-hooks');
     expect(p).toMatchObject({ command: null, input: null });
     expect(p.note).toContain('git -C "C:/work/x/repo" --no-replace-objects -c core.hooksPath="C:/work/x.no-hooks" commit --no-verify -F "C:/work/x.commit-message.txt" then git -C "C:/work/x/repo" --no-replace-objects -c core.hooksPath="C:/work/x.no-hooks" push --no-verify origin HEAD:refs/heads/agent/PAY-107.');
@@ -461,5 +461,20 @@ describe("the staged diff, as a person reads it", () => {
   it("turns toil's git diff files and hunks into a unified diff", () => {
     expect(unified({ files: [{ path: 'a.md', binary: false, hunks: [{ oldStart: 1, oldCount: 1, newStart: 1, newCount: 2, lines: [' one', '+two'] }] }] })).toBe('--- a/a.md\n+++ b/a.md\n@@ -1,1 +1,2 @@\n one\n+two');
     expect(unified({ nope: 1 })).toBeNull();
+  });
+});
+
+describe('a staged diff that stops short (#293 review round 6)', () => {
+  it('counts a truncated file, a truncated diff or one past the page limit as cut, and says so in the text', () => {
+    const file = { path: 'big.md', binary: false, truncated: true, hunks: [{ oldStart: 0, oldCount: 0, newStart: 1, newCount: 1, lines: ['+one'] }] };
+    expect(diffCut({ files: [file], truncated: true }, 10)).toBe(true);
+    expect(diffCut({ files: [file], truncated: false }, 10)).toBe(true);
+    expect(diffCut({ files: [{ ...file, truncated: false }], truncated: false }, MAX_DIFF + 1)).toBe(true);
+    expect(diffCut({ files: [{ ...file, truncated: false }], truncated: false }, MAX_DIFF)).toBe(false);
+    // The hunk is there, so the path counts as shown: the cut is what stops the push.
+    expect(hiddenStaged({ staged: ['big.md'] }, { files: [file], truncated: true })).toEqual([]);
+    const text = unified({ files: [file], truncated: true })!;
+    expect(text).toContain("[toil stopped reading the diff of big.md here: the rest of it isn't shown]");
+    expect(text.endsWith("[toil stopped reading the diff here, after 5,000 lines: the rest isn't shown]")).toBe(true);
   });
 });

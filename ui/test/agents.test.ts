@@ -1257,7 +1257,8 @@ describe('implement mode, when the diff would hide something staged (#293 review
     return r.stdout;
   };
 
-  it('stages a gitlink beside a README change, names it, and proposes no commit or push', async () => {
+  /** An implement run on a real clone of a real repository, with a stubbed Codex doing `act` in it, and toil's real git status and diff. */
+  const implementWith = async (act: (repo: string) => void) => {
     const source = mkdtempSync(join(folder, 'gitlink-source-'));
     git(source, 'init', '-q', '-b', 'main');
     writeFileSync(join(source, 'README.md'), 'one\n');
@@ -1272,9 +1273,7 @@ describe('implement mode, when the diff would hide something staged (#293 review
             events: (async function* () {
               git(repo, 'reset', '-q', '--hard', 'HEAD');
               git(repo, 'switch', '-q', '-c', 'agent/PAY-107');
-              writeFileSync(join(repo, 'README.md'), 'one\ntwo\n');
-              git(repo, 'add', 'README.md');
-              git(repo, 'update-index', '--add', '--cacheinfo', `160000,${'0123456789abcdef'.repeat(2)}01234567,leak1`);
+              act(repo);
               yield { type: 'item.completed', item: { type: 'agent_message', text: 'Staged a README change.' } };
               yield { type: 'turn.completed', usage: {} };
             })(),
@@ -1298,15 +1297,46 @@ describe('implement mode, when the diff would hide something staged (#293 review
       const item = data.items().find((i) => i.id === 'corp-jira:PAY-107')!;
       const a = { id: 'abc12345-0000-0000-0000-000000000002', dossier: 'card-payments', item: item.id, itemTitle: 'x', mode: 'implement', adapter: 'codex', origin: 'person', trigger: null, state: 'working', waiting: null, repo: 'payments-core', createdAt: FIXTURE_NOW, startedAt: FIXTURE_NOW, endedAt: null, stop: null, report: null, questions: [], proposals: [], usage: null, startedOn: null, branch: null } as const;
       const result = await runner.run({ assignment: { ...a, questions: [], proposals: [] }, item, signal: new AbortController().signal, record: () => undefined });
-      expect(result.branch!.hidden).toEqual(['leak1']);
-      expect(result.branch!.diff).toContain('+two');
-      expect(result.branch!.diff).not.toContain('leak1');
-      expect(result.report!.warnings[0]).toMatch(/^The staged change includes a file the diff below doesn't show: leak1\..*no commit or push is proposed/);
-      expect(result.proposals.some((p) => p.title.startsWith('Commit and push'))).toBe(false);
+      return result;
     } finally {
       process.env.HOME = saved.HOME;
       process.env.USERPROFILE = saved.USERPROFILE;
     }
+  };
+
+
+  it('stages a gitlink beside a README change, names it, and proposes no commit or push', async () => {
+    const result = await implementWith((repo) => {
+      writeFileSync(join(repo, 'README.md'), 'one\ntwo\n');
+      git(repo, 'add', 'README.md');
+      git(repo, 'update-index', '--add', '--cacheinfo', `160000,${'0123456789abcdef'.repeat(2)}01234567,leak1`);
+    });
+    expect(result.branch!.hidden).toEqual(['leak1']);
+    expect(result.branch!.diff).toContain('+two');
+    expect(result.branch!.diff).not.toContain('leak1');
+    expect(result.report!.warnings[0]).toMatch(/^The staged change includes a file the diff below doesn't show: leak1\..*no commit or push is proposed/);
+    expect(result.proposals.some((p) => p.title.startsWith('Commit and push'))).toBe(false);
+  }, 30_000);
+
+  it('stages a file longer than toil reads, says the diff is cut, and proposes no commit or push', async () => {
+    const result = await implementWith((repo) => {
+      writeFileSync(join(repo, 'big.md'), `${Array.from({ length: 5_100 }, (_, i) => `line ${i}`).join('\n')}\nSECRET\n`);
+      git(repo, 'add', 'big.md');
+    });
+    expect(result.branch!.cut).toBe(true);
+    expect(result.branch!.diff).not.toContain('SECRET');
+    expect(result.branch!.diff).toContain("[toil stopped reading the diff");
+    expect(result.report!.warnings[0]).toMatch(/^The staged diff is too long to show in full/);
+    expect(result.proposals.some((p) => p.title.startsWith('Commit and push'))).toBe(false);
+  }, 30_000);
+
+  it('proposes the commit and push when the diff shows every staged file in full', async () => {
+    const result = await implementWith((repo) => {
+      writeFileSync(join(repo, 'README.md'), 'one\ntwo\n');
+      git(repo, 'add', 'README.md');
+    });
+    expect(result.branch).toMatchObject({ hidden: [], cut: false, onBranch: true });
+    expect(result.proposals.some((p) => p.title.startsWith('Commit and push'))).toBe(true);
   }, 30_000);
 
   it('counts a staged path as reviewed only when the diff has text for it', () => {

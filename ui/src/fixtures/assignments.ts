@@ -250,7 +250,7 @@ export function scriptedRunner(delay = 600): Runner {
         startedOn: startedOn(item.id, a.adapter!, FIXTURE_NOW, READ_TOOLS),
         branch:
           a.mode === 'implement'
-            ? { name: branchName(item), repo: a.repo ?? 'payments-core', folder: `~/.toil-ui/cache/work/${a.id}`, onBranch: true, files: [{ path: 'src/sample.ts', status: 'staged' }], hidden: [], diff: '--- a/src/sample.ts\n+++ b/src/sample.ts\n@@ -1 +1 @@\n-// before\n+// after (sample)' }
+            ? { name: branchName(item), repo: a.repo ?? 'payments-core', folder: `~/.toil-ui/cache/work/${a.id}`, onBranch: true, files: [{ path: 'src/sample.ts', status: 'staged' }], hidden: [], cut: false, diff: '--- a/src/sample.ts\n+++ b/src/sample.ts\n@@ -1 +1 @@\n-// before\n+// after (sample)' }
             : null,
       };
     },

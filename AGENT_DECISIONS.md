@@ -5081,6 +5081,14 @@ it pins. These are the choices made by default in the fix:
   `--ignore-submodules=none` on toil's `git diff`, which takes no such flag, and
   loosening the clone's config would let git read the agent's submodule configs again,
   so the refusal is the whole fix.
+- **A diff that stops short stops the push too** (review round 6). toil's `git diff`
+  stops parsing at 5,000 lines (marking the diff and the file `truncated`), and the
+  page cuts the text at 200,000 characters, so the end of a long staged file would go
+  out unread. `diffCut` treats either as a cut: the report says so and no commit or
+  push is proposed, and the unified diff now prints where toil stopped. toil's `git
+  status` keeps its recorded quirk of dropping the first character of an
+  unstaged-only first line (#74 item 1); that can only make the hidden-file warning
+  name a path one character short, in the safe direction, and the warning says so.
 - **The agent can read the whole disk in implement mode.** Codex's `workspace-write`
   limits writes and network, not reads, and implement mode has the shell, so the
   agent could read files in the person's home folder and put what it read into its

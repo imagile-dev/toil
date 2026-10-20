@@ -131,6 +131,8 @@ export interface Branch {
   diff: string | null;
   /** Staged paths the diff doesn't show in full (a submodule link, a mode change, a binary file): with any, nothing is proposed. */
   hidden: string[];
+  /** The diff stops short (toil's 5,000-line limit, or the page's character limit): with it, nothing is proposed. */
+  cut: boolean;
 }
 
 export interface Assignment {
