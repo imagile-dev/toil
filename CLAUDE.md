@@ -391,7 +391,7 @@ suggestion; once adopted, writes work normally. A connection the user named, sel
 with an explicit input, or set as the default is theirs already. **A write takes its
 target only from sources the user owns**, too: one whose target context inputs
 (`owner`, `repo`, `project`) came from an unadopted dossier is `WRITE_DISABLED`
-before anything is sent, on any connection; passing them, or adopting the dossier,
+when the command reads one, before the write is sent, on any connection; passing them, or adopting the dossier,
 clears it. Field aliases and transition pins still apply from any dossier (#302).
 
 **Dossiers** (`docs/dossiers.md`, `src/core/dossier.ts`) are read on every call to an

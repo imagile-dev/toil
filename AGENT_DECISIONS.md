@@ -4835,7 +4835,12 @@ it pins. These are the choices made by default in the fix:
   `%3b`, so an id that encodes to `..` with one of them is refused rather than sent.
 - **Writes take their target only from dossiers you've adopted** (the maintainer's
   decision): a write whose non-selecting context inputs came from an unadopted dossier
-  is `WRITE_DISABLED` in `execute()`, next to the existing connection check. The fix
+  is `WRITE_DISABLED`. The check is made when the command reads the input (a guard
+  on `ctx.context` that `execute()` installs for an unadopted dossier's write), not
+  when it resolves, because core resolves an area's group inputs for every command
+  and some writes use none of them (an ADO work-item update). Every command reads its
+  target before it sends the write (a read may come first); the tests hold that for
+  the ones they cover. The fix
   differs by door, since `toil dossiers import` is CLI only; that makes the refusal's
   envelope differ between the CLI and MCP, which the parity suite allows because no
   example reaches it. Inputs from the git remote are not gated: the clone is the

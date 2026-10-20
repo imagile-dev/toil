@@ -1,11 +1,12 @@
 import { mkdirSync, symlinkSync } from 'node:fs';
 import { join } from 'node:path';
+import { z } from 'zod';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { ResolvedConfig, Settings, Source } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { forwardSlashes } from '../src/core/files.js';
 import { toolName } from '../src/core/command.js';
-import { inFieldNames } from '../src/core/run.js';
+import { allowWriteField, inFieldNames } from '../src/core/run.js';
 import { currentPrCommand } from '../src/areas/bitbucket/pull-requests.js';
 import { dossierBuildCommands } from '../src/dossiers/build.js';
 import { dossiersCommands } from '../src/dossiers/commands.js';
@@ -27,7 +28,20 @@ import { connectMcp, type McpSession } from './harness/mcp.js';
  * the point.
  */
 
-const commands = [...demoContextCommands, ...demoCommands, currentPrCommand, ...dossiersCommands([demoContextArea, demoArea]), ...dossierBuildCommands([demoContextArea, demoArea])];
+/** A write that names no project: it reads none of the group's context inputs. */
+const pingWidgets = demoContextArea.command({
+  path: ['demo-context', 'ping-widgets'],
+  description: 'Ping the widget service',
+  input: z.object({ ...allowWriteField }),
+  writes: true,
+  examples: [{ allowWrite: true }],
+  run: async (_input, ctx) => {
+    const res = await ctx.fetch(new URL('/api/ping', ctx.connection.baseUrl), { method: 'PUT', headers: { Authorization: `Bearer ${ctx.connection.token ?? ''}` } });
+    return (await res.json()) as unknown;
+  },
+});
+
+const commands = [pingWidgets, ...demoContextCommands, ...demoCommands, currentPrCommand, ...dossiersCommands([demoContextArea, demoArea]), ...dossierBuildCommands([demoContextArea, demoArea])];
 
 /** Two demo-context connections on different hosts, writes on for both, prod the default. */
 function configOf(extra: Partial<ResolvedConfig> = {}): ResolvedConfig {
@@ -44,6 +58,7 @@ function configOf(extra: Partial<ResolvedConfig> = {}): ResolvedConfig {
 const routes: Route[] = [
   { path: /^\/api\/projects\/[A-Z0-9]+\/widgets\/W-\d+$/, respond: (req) => ({ json: { id: new URL(req.url).pathname.split('/').pop(), name: 'Widget' } }) },
   { method: 'PUT', path: /^\/api\/projects\/[A-Z0-9]+\/widgets\/W-\d+$/, respond: { json: { ok: true } } },
+  { method: 'PUT', path: '/api/ping', respond: { json: { ok: true } } },
 ];
 
 const disks: DossierDisk[] = [];
@@ -353,6 +368,13 @@ describe('a write takes its target only from a dossier you adopted', () => {
     const { envelope, calls } = await both(checkedIn(), rename(['--project', 'PRD']), 'demo_context_rename_widget', { id: 'W-1', name: 'N', allowWrite: true, project: 'PRD' });
     expect(envelope.ok).toBe(true);
     expect(calls.map((c) => c.url)).toEqual(['https://demo.imagile.dev/api/projects/PRD/widgets/W-1']);
+  });
+
+  it("doesn't refuse a write over a dossier input the write never uses", async () => {
+    const { envelope, calls } = await both(checkedIn(), ['demo-context', 'ping-widgets', '--allow-write'], 'demo_context_ping_widgets', { allowWrite: true });
+    expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
+    expect(envelope.meta.context?.inputs?.project).toEqual({ value: 'OTHER', source: 'dossier' });
+    expect(calls.map((c) => c.method + ' ' + new URL(c.url).pathname)).toEqual(['PUT /api/ping']);
   });
 
   it('lets a write follow a dossier in your own folder', async () => {

@@ -351,8 +351,10 @@ dossiers import` adopts it by copying it into your folder.
 a write lands is as much a choice as which connection: a write whose target context
 inputs (github `owner` and `repo`, a Jira or ADO `project`, a Bitbucket `project` and
 `repo`, any context input that doesn't select a connection) came from a dossier you
-haven't adopted is `WRITE_DISABLED` before anything is sent, even on your own default
-connection. The fix names `toil dossiers import <name>` (the CLI only; over MCP and
+haven't adopted is `WRITE_DISABLED` before the write is sent, even on your own default
+connection. Only an input the write actually uses counts: the check is made when the
+command reads it, so an Azure DevOps work-item update isn't refused over the
+dossier's `project`, which that write never names. The fix names `toil dossiers import <name>` (the CLI only; over MCP and
 the API it says to ask the user to adopt the dossier) and the flags to pass the
 target yourself. An input you pass, or one from the connection, the git remote or the
 default, is yours already. Reads are unchanged, and so are a dossier's field aliases
