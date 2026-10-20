@@ -159,6 +159,8 @@ export const routes: Route[] = [
 
   // Work items
   { path: /^\/imagile\/_apis\/wit\/workitems\/\d+$/, respond: (r) => ({ json: workItem(Number(new URL(r.url).pathname.split('/').pop())) }) },
+  // Invented from the docs: the Agile process's Bug, whose Resolved state is what --to review finds.
+  { path: `${ORG}/Imagile/_apis/wit/workitemtypes/Bug/states`, query: { 'api-version': '7.1' }, respond: { json: { count: 4, value: [{ name: 'New', color: 'b2b2b2', category: 'Proposed' }, { name: 'Active', color: '007acc', category: 'InProgress' }, { name: 'Resolved', color: 'ff9d00', category: 'Resolved' }, { name: 'Closed', color: '339933', category: 'Completed' }] } } },
   { method: 'PATCH', path: /^\/imagile\/_apis\/wit\/workitems\/\d+$/, respond: { json: workItem(42, { rev: 4 }) } },
   { method: 'POST', path: /^\/imagile\/Imagile\/_apis\/wit\/workitems\/%24/, respond: { json: workItem(43, { rev: 1 }) } },
   {

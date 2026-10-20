@@ -1,4 +1,5 @@
 import { ToilError, type ErrorCode } from './errors.js';
+import type { TransitionReport } from './transition-intent.js';
 
 /**
  * The version of toil's command contract: the envelope, the commands, their
@@ -55,6 +56,12 @@ export interface Meta {
    * long the whole wait took. The rest of meta is the last attempt's.
    */
   wait?: { until: string; attempts: number; elapsedMs: number };
+  /**
+   * For a transition asked for by intent (`--to review`): what was asked, the
+   * transition and status it resolved to, and which rule chose it. Set with
+   * `ctx.setTransition` (src/core/transition-intent.ts).
+   */
+  transition?: TransitionReport;
 }
 
 /** The status and content type of the response a raw API call returned. */

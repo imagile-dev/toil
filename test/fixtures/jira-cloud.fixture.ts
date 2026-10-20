@@ -146,6 +146,26 @@ export const routes: Route[] = [
     query: { startAt: '0', maxResults: '50' },
     respond: json({ startAt: 0, maxResults: 50, total: 1, fields: [{ fieldId: 'customfield_10200', key: 'customfield_10200', name: 'Crew', required: false, allowedValues: [{ id: '10400', value: 'Platform' }, { id: '10401', value: 'Payments' }] }] }),
   },
+  // Invented from the docs: the issue with only its type and status, and the transitions it offers, which --to resolves against.
+  {
+    path: `${API}/issue/PROJ-123`,
+    query: { fields: 'issuetype,status', expand: 'transitions' },
+    respond: json({
+      expand: 'transitions',
+      id: '10123',
+      key: 'PROJ-123',
+      fields: { issuetype: { id: '10001', name: 'Story' }, status: { name: 'In Progress', id: '3', statusCategory: { id: 4, key: 'indeterminate', name: 'In Progress' } } },
+      transitions: [
+        { id: '41', name: 'Submit for Review', to: { name: 'In Review', id: '10100', statusCategory: { id: 4, key: 'indeterminate', name: 'In Progress' } } },
+        { id: '31', name: 'Done', to: { name: 'Done', id: '10001', statusCategory: { id: 3, key: 'done', name: 'Done' } } },
+      ],
+    }),
+  },
+  {
+    method: 'POST',
+    path: `${API}/issue/PROJ-123/comment`,
+    respond: (req: RecordedRequest) => json(comment('10200', user(ACCOUNT, 'J. Smith'), (JSON.parse(req.body!) as { body: unknown }).body), 201),
+  },
   { path: /^\/rest\/api\/3\/issue\/PROJ-\d+$/, method: 'GET', respond: (req: RecordedRequest) => json(issue(new URL(req.url).pathname.split('/').pop()!)) },
   // Invented from the docs: POST /rest/api/3/issue answers 201 with id, key and self.
   { method: 'POST', path: `${API}/issue`, respond: json({ id: '10124', key: 'PROJ-124', self: `${SITE}${API}/issue/10124` }, 201) },
@@ -164,11 +184,6 @@ export const routes: Route[] = [
     }),
   },
   { method: 'POST', path: `${API}/issue/PROJ-123/transitions`, respond: empty },
-  {
-    method: 'POST',
-    path: `${API}/issue/PROJ-123/comment`,
-    respond: (req: RecordedRequest) => json(comment('10200', user(ACCOUNT, 'J. Smith'), (JSON.parse(req.body!) as { body: unknown }).body), 201),
-  },
   {
     // Answers the page startAt asks for, so --cursor resumes.
     method: 'GET',

@@ -90,7 +90,7 @@ spaces and hyphens as underscores (`jira_cloud_issue_get`, `jira_cloud_user_sear
 | `issue create` ✎ | `--project --type --summary --description --priority --assignee <account-id> --labels --parent --field (repeatable) --fields-file --input-file` | The created issue, read back, plus `descriptionText` |
 | `issue update` ✎ | `<key> --summary --description --priority --assignee <account-id> --labels --field --fields-file --input-file` | `{ updated }` |
 | `issue schema` | `--example-only` | `{ schema, example }` for `--input-file`, or just the example; needs no connection |
-| `issue transition` ✎ | `<key> --transition <name-or-id>` | `{ transitioned, transition }` |
+| `issue transition` ✎ | `<key> --transition <name-or-id>` or `--to <intent-or-status>` | `{ transitioned, transition }`; with `--to`, `meta.transition` says what it resolved to |
 | `issue transitions` | `<key>` | Transitions available now |
 | `issue comment` ✎ | `<key> --body` | The comment, plus `bodyText` |
 | `issue comments` | `<key> --limit --cursor` | Every comment, or a page of them, each with `bodyText` |

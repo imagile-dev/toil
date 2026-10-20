@@ -112,7 +112,9 @@ Work items (`<id>` is the work item id):
   is only an `ADO_PARENT_LINK_FAILED` warning, with the item already created.
 - `work-item update <id>`: Set fields (`--field name=value` repeatable, or
   `--input-file`).
-- `work-item transition <id>`: Set `--state`.
+- `work-item transition <id>`: Set `--state`, or `--to <intent-or-status>` (`start`,
+  `review`, `done`, `reopen` or a state name), resolved against the states the item's
+  own type has (`core.md`, **Moving work items by intent**).
 - `work-item assign <id>`: Assign to `--assignee`, a display name or email.
 - `work-item link <id>`: Link it to `--target <id>`, `--type related` (default),
   `parent`, `child`, `duplicate`, `duplicate-of`, or a raw relation name.

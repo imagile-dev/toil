@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
+import { adoMoves, intentOf, oneOfTransition, resolveTransition, type AdoState, type TransitionReport } from '../../core/transition-intent.js';
 import { adoArea } from './area.js';
 import { API, API_COMMENTS, PATCH, ado, adoSkipPages, baseUrlOf, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, toInt, where, type AdoContext } from './client.js';
 import { buildFieldPatch, mergeWithOverrides, parseFieldArgs, readJsonInputFile, resolveAtFileRef, splitWorkFieldsDictionary, type JsonPatchOp } from './fields.js';
@@ -18,6 +19,8 @@ export const idInput = intText.describe('Work item ID');
 export const idArg = { name: 'id', field: 'id', description: 'Work item ID' };
 export const AT = { collection: 'DefaultCollection', organization: 'DefaultCollection', project: 'Imagile', repo: 'imagile-api' };
 const W = { ...AT, allowWrite: true };
+/** What resolving `--to` needs to know about a work item: its type, state and project. */
+const STATE_FIELDS = 'System.WorkItemType,System.State,System.TeamProject';
 
 export interface WorkItem {
   id: number;
@@ -163,16 +166,51 @@ export const workUpdateCommand = adoArea.command({
   },
 });
 
+/** What a transition's errors name: the exact flag, and where a dossier pins an intent for a type. */
+const TRANSITION_HELP = { explicit: '--state <state>', pinKey: 'ado.transitions' };
+
 export const workTransitionCommand = adoArea.command({
   path: ['ado', 'work-item', 'transition'],
   description: 'Set the state of a work item',
-  toolDescription: 'Sets System.State on a work item and returns it. ado_work_item_states lists the states a type has.',
-  input: z.object({ id: idInput, state: z.string().describe('New state (e.g. Active, Resolved, Closed)'), ...allowWriteField }),
+  toolDescription:
+    "Sets System.State on a work item and returns it. Give state with an exact state, or to with an intent (start, review, done, reopen) or a state name, and toil resolves it against the states this item's own type has: a pin in the dossier first, then an exact state name, then the intent's state category (start InProgress, review Resolved, done Completed, reopen Proposed), then a single state named for it. No match, or more than one, is refused with the states the type does have; meta.transition says what it resolved to. ado_work_item_states lists the states a type has.",
+  input: z.object({
+    id: idInput,
+    state: z.string().optional().describe('New state (e.g. Active, Resolved, Closed)'),
+    to: z.string().min(1).optional().describe("Intent (start, review, done, reopen) or state name, resolved against this work item type's states"),
+    ...allowWriteField,
+  }),
   writes: true,
   args: [idArg],
-  options: [{ flags: '--state <state>', field: 'state', description: 'New state (e.g. Active, Resolved, Closed)' }],
-  examples: [{ ...W, id: '42', state: 'Resolved' }],
-  run: async (input, ctx) => updateWorkItem(ctx, where(ctx).collection, toInt(input.id), [{ op: 'add', path: '/fields/System.State', value: input.state }]),
+  options: [
+    { flags: '--state <state>', field: 'state', description: 'New state (e.g. Active, Resolved, Closed)' },
+    { flags: '--to <intent-or-status>', field: 'to', description: "start, review, done, reopen or a state name, resolved against this work item type's states" },
+  ],
+  examples: [
+    { ...W, id: '42', state: 'Resolved' },
+    { ...W, id: '42', to: 'review' },
+  ],
+  run: async (input, ctx) => {
+    const { collection, project } = where(ctx);
+    const id = toInt(input.id);
+    if ((input.to === undefined) === (input.state === undefined)) throw oneOfTransition(TRANSITION_HELP, input.to !== undefined);
+    let state = input.state!;
+    let report: TransitionReport | undefined;
+    if (input.to !== undefined) {
+      const item = await ado<WorkItem>(ctx, `/${enc(collection)}/_apis/wit/workitems/${id}?api-version=${API}&fields=${STATE_FIELDS}`);
+      // The type's states belong to the item's own project, which may not be the one the call resolved.
+      const itemProject = typeof item.fields['System.TeamProject'] === 'string' ? item.fields['System.TeamProject'] : project;
+      const type = String(item.fields['System.WorkItemType'] ?? '');
+      const states = await ado<{ value?: AdoState[] }>(ctx, `${projectPath({ collection, project: itemProject, repo: '' })}/_apis/wit/workitemtypes/${enc(type)}/states?api-version=${API}`);
+      const { item: moving, candidates } = adoMoves(id, item.fields, states.value ?? []);
+      const resolved = resolveTransition(input.to, moving, candidates, intentOf(input.to) ? ctx.dossierTransitions() : {}, TRANSITION_HELP);
+      state = resolved.candidate.id;
+      report = resolved.report;
+    }
+    const updated = await updateWorkItem(ctx, collection, id, [{ op: 'add', path: '/fields/System.State', value: state }]);
+    if (report) ctx.setTransition(report);
+    return updated;
+  },
 });
 
 export const workAssignCommand = adoArea.command({

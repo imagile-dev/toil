@@ -75,7 +75,7 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `issue create` ✎ | `--project --type --summary --description --priority --assignee --labels --parent --field (repeatable) --fields-file --input-file` | The created issue, read back |
 | `issue update` ✎ | `<key> --summary --description --priority --assignee --labels --field --fields-file --input-file` | `{ updated }` |
 | `issue schema` | `--example-only` | `{ schema, example }` for `--input-file`, or just the example |
-| `issue transition` ✎ | `<key> --transition <name-or-id>` | `{ transitioned, transition }` |
+| `issue transition` ✎ | `<key> --transition <name-or-id>` or `--to <intent-or-status>` | `{ transitioned, transition }`; with `--to`, `meta.transition` says what it resolved to |
 | `issue transitions` | `<key>` | Transitions available now |
 | `issue comment` ✎ | `<key> --body` | The comment |
 | `issue comments` | `<key> --limit --cursor` | Every comment, or a page of them |
@@ -107,6 +107,7 @@ toil jira issue search --jql 'project = ABC AND status = "In Progress"' --limit 
 toil jira issue search --jql-file query.jql --fields summary,status,"Story Points"
 toil jira issue create --project ABC --type Bug --summary "Login broken on Safari" --priority High --allow-write
 toil jira issue transition ABC-123 --transition "In Progress" --allow-write
+toil jira issue transition ABC-123 --to review --allow-write
 toil jira issue comment ABC-123 --body "Reproduced on staging." --allow-write
 toil jira issue log-work ABC-123 --time-spent "2h 30m" --comment "Investigated the failing build" --allow-write
 toil jira issue link ABC-123 --target ABC-456 --type Blocks --allow-write

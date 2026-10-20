@@ -105,7 +105,7 @@ read. Over MCP they're the `project` and `repo` fields. `meta.context` says wher
 came from.
 
 - A work item belongs to the organization, so `work-item get`, `work-item update`,
-  `work-item history` and `work-item get-many` need neither.
+  `work-item transition`, `work-item history` and `work-item get-many` need neither.
 - `work-item create`, `work-item search`, `work-item comments`, `work-item comment`,
   `work-item iterations` and `repo list` need a project.
 - `repo get` and every `pr` command need a project and a repo.
@@ -131,6 +131,7 @@ deletes.
 | `work-item get-many <id...>` | `--fields` | `{ count, value, missing }` for several ids |
 | `work-item create` ✎ | `--type --title --description --assignee --priority --field` | The created work item |
 | `work-item update <id>` ✎ | `--field --rev` | The updated work item |
+| `work-item transition <id>` ✎ | `--state` or `--to` | The updated work item; with `--to` (`start`, `review`, `done`, `reopen` or a state name), resolved against the states the item's own type has, `meta.transition` says what it resolved to |
 | `work-item search` | `--wiql --updated-since --limit --cursor` | The WIQL answer: matching ids and urls, not fields |
 | `work-item history <id>` | `--limit --cursor` | Every revision, oldest first |
 | `work-item comments <id>` | `--limit --cursor` | Every comment on the work item |
@@ -159,6 +160,7 @@ toil ado-cloud --project Imagile work-item search --wiql "SELECT [System.Id] FRO
 toil ado-cloud work-item get-many 42 7 --fields System.Title,System.State
 toil ado-cloud --project Imagile work-item create --type Bug --title "Login broken" --field storypoints=3 --allow-write
 toil ado-cloud work-item update 42 --field state=Active --rev 3 --allow-write
+toil ado-cloud work-item transition 42 --to review --allow-write
 toil ado-cloud --project Imagile --repo imagile-api pr list --state all --limit 50
 toil ado-cloud --project Imagile --repo imagile-api pr merge 42 --strategy squash --delete-source --allow-write
 toil ado-cloud --project Imagile --repo imagile-api pr reply 42 7 --body "Fixed in the next commit." --allow-write

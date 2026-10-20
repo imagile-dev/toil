@@ -12,6 +12,7 @@ import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
 import { progressMessage, withProgress, type ProgressBody } from './progress.js';
 import { applySelect, takeSelect } from './query/select.js';
+import type { TransitionReport } from './transition-intent.js';
 import { runWait, type WaitOptions } from './wait.js';
 
 /**
@@ -136,6 +137,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
   const warnings: Warning[] = [...ctx.config.warnings];
   let page: Page | undefined;
   let response: ApiAnswer | undefined;
+  let transition: TransitionReport | undefined;
   let report: ContextReport | undefined;
   let exitCode: number | undefined;
   // Reports the dossier once it has been consulted, which may be as late as the command's own run.
@@ -147,6 +149,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     if (warnings.length > 0) m.warnings = warnings;
     if (page) m.page = page;
     if (response) m.response = response;
+    if (transition) m.transition = transition;
     if (report && Object.keys(report).length > 0) m.context = report;
     return m;
   };
@@ -342,9 +345,11 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       repo: () => (place?.repo ?? ctx.repo)?.(),
       dossierFields: () => (place && def.area ? place.fields(def.area.name, input) : {}),
       dossierView: () => (place && def.area ? place.view(def.area.name) : undefined),
+      dossierTransitions: () => (place && def.area ? place.transitions(def.area.name, input) : {}),
       warn: (warning) => warnings.push(warning),
       setPage: (p) => (page = p),
       setResponse: (r) => (response = r),
+      setTransition: (r) => (transition = r),
       setExitCode: (code) => {
         if (!Number.isInteger(code) || code < 0 || code > 255) throw new Error(`${commandName(def)} asked for exit code ${code}; an exit code is a whole number from 0 to 255.`);
         exitCode = code;

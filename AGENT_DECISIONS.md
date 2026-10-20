@@ -3886,3 +3886,47 @@ choices made by default inside that:
   `data`.
 - **A resource's row in `--help` lists its actions** (`issue  get, history, create,
   ...`) instead of "jira issue commands".
+
+## Transitions by intent (#302)
+
+`--to <intent>` on `jira issue transition`, `jira-cloud issue transition`, `ado
+work-item transition` and the new `ado-cloud work-item transition`, resolved in core
+(`src/core/transition-intent.ts`). Choices made by default inside the issue's shape:
+
+- **When the category step finds several moves, the name step narrows within them**
+  rather than refusing outright (Done and Won't Do are both in Jira's Done category;
+  `--to done` takes the one named Done). Anything still not exactly one is refused.
+  It stays deterministic: the same moves in any order give the same answer.
+- **"Contains the intent's word" is a word that starts with the intent**, in the
+  transition's name or its target status: `Submit for Review` and `Reopened` match,
+  `Undone` doesn't. It applies only to the four intents, never to a status name.
+- **An exact name matches a transition's name or its target status**, ignoring case,
+  so `--to "In Review"` works whether the workflow names the move or only the status.
+- **An item already in the intent's category is refused**, not moved to a sibling
+  status in the same category and not reported as a no-op success: `--to start` on an
+  issue In Progress is `INVALID_INPUT` saying it's already there, with the moves it
+  offers. Moves into the item's current status are left out of the category and name
+  steps for the same reason.
+- **Jira's categories serve `reopen` (To Do), `start` (In Progress) and `done`;
+  Jira has no review category,** so `--to review` on Jira resolves only by pin, exact
+  name or a name that says review. ADO's Proposed, InProgress, Resolved and Completed
+  serve `reopen`, `start`, `review` and `done`; Removed serves none, so only its name
+  reaches it.
+- **Pins are a core dossier key, `transitions`**, validated on every read like
+  `fields` (`DOSSIER_INVALID` for a wrong shape or a key that isn't one of the four
+  intents), and read through `ctx.dossierTransitions()` only when the call gives an
+  intent. Types are compared ignoring case. A pin naming nothing the item offers is
+  refused, never passed over to the next rule, because it's the author's word.
+- **Jira reads the issue once** (`issue/{key}?fields=issuetype,status&expand=transitions`)
+  for its type, status and transitions, rather than `/transitions` plus a second read
+  for the type. `--transition` keeps the recorded `/transitions` lookup unchanged.
+- **ADO reads the item's own project for its type's states** (`System.TeamProject`),
+  falling back to the call's project on Server, since a work item's id lives in the
+  collection or organization while its process lives in its project.
+- **`ado-cloud work-item transition` is new.** The issue named it, and `ado-cloud`
+  had only `work-item update --field state=…`. It takes `--state` or `--to` like `ado`'s.
+- **`meta.transition` is a new envelope key** (`ctx.setTransition`), set only on
+  success, as additive output the contract allows. `data` keeps its recorded shape;
+  for Jira, `transition` is the resolved transition's name when `--to` was used.
+- **`--to <intent-or-status>` is recorded in the command contract** for `jira issue
+  transition` and `ado work-item transition`, beside the existing flags.

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
+import { intentOf, jiraMoves, oneOfTransition, resolveTransition } from '../../core/transition-intent.js';
 import { adfToText, textToAdf, type AdfDocument } from './adf.js';
 import { jiraCloudArea } from './area.js';
 import * as client from './client.js';
@@ -28,6 +29,9 @@ import { pagingFields, pagingOptions } from '../jira/paging.js';
  * write is gated twice by core, which by local standards counts as an
  * expedited approval.
  */
+
+/** What a transition's errors name: the exact flag, and where a dossier pins an intent for a type. */
+const TRANSITION_HELP = { explicit: '--transition <name-or-id>', pinKey: 'jira-cloud.transitions' };
 
 const key = z.string().min(1).describe('Issue key, e.g. PROJ-123');
 const keyArg = (description = 'Issue key') => ({ name: 'key', field: 'key', description });
@@ -327,29 +331,48 @@ export const transitionIssue = jiraCloudArea.command({
   path: ['jira-cloud', 'issue', 'transition'],
   description: 'Transition a Jira Cloud issue to a new status',
   toolDescription:
-    'Moves a Jira Cloud issue through its workflow by transition name (case-insensitive) or numeric id. Use jira_cloud_issue_transitions to see which transitions the issue allows right now.',
-  input: z.object({ key, transition: z.string().min(1).describe('Transition name or id'), ...allowWriteField }),
+    "Moves a Jira Cloud issue through its workflow. Give to with an intent (start, review, done, reopen) or a status name, and toil resolves it against the transitions this issue offers right now, by its own issue type's workflow: a pin in the dossier first, then an exact status name, then the intent's status category, then a single transition named for it. No match, or more than one, is refused with the transitions the issue does offer; meta.transition says what it resolved to. Or give transition with a transition name (case-insensitive) or numeric id. Use jira_cloud_issue_transitions to see the transitions.",
+  input: z.object({
+    key,
+    transition: z.string().min(1).optional().describe('Transition name or id'),
+    to: z.string().min(1).optional().describe("Intent (start, review, done, reopen) or status name, resolved against this issue's own workflow"),
+    ...allowWriteField,
+  }),
   writes: true,
   args: [keyArg()],
-  options: [{ flags: '--transition <name-or-id>', field: 'transition', description: 'Transition name or ID' }],
+  options: [
+    { flags: '--transition <name-or-id>', field: 'transition', description: 'Transition name or ID' },
+    { flags: '--to <intent-or-status>', field: 'to', description: "start, review, done, reopen or a status name, resolved against this issue's own workflow" },
+  ],
   examples: [
     { key: 'PROJ-123', transition: 'In Progress', allowWrite: true },
     { key: 'PROJ-123', transition: '31', allowWrite: true },
+    { key: 'PROJ-123', to: 'review', allowWrite: true },
   ],
   run: async (input, ctx) => {
-    let id = input.transition;
-    if (!/^\d+$/.test(input.transition)) {
+    if ((input.to === undefined) === (input.transition === undefined)) throw oneOfTransition(TRANSITION_HELP, input.to !== undefined);
+    if (input.to !== undefined) {
+      const { item, candidates } = jiraMoves(input.key, await client.issueWithTransitions(ctx, input.key));
+      const pins = intentOf(input.to) ? ctx.dossierTransitions() : {};
+      const { candidate, report } = resolveTransition(input.to, item, candidates, pins, TRANSITION_HELP);
+      await client.transitionIssue(ctx, input.key, candidate.id);
+      ctx.setTransition(report);
+      return { transitioned: input.key, transition: candidate.name };
+    }
+    const transition = input.transition!;
+    let id = transition;
+    if (!/^\d+$/.test(transition)) {
       const transitions = await client.listTransitions(ctx, input.key);
-      const found = transitions.find((t) => t.name.toLowerCase() === input.transition.toLowerCase());
+      const found = transitions.find((t) => t.name.toLowerCase() === transition.toLowerCase());
       if (!found) {
-        throw new ToilError('INVALID_INPUT', `Transition not found: ${input.transition}`, {
+        throw new ToilError('INVALID_INPUT', `Transition not found: ${transition}`, {
           fix: `Available from here: ${transitions.map((t) => t.name).join(', ') || '(none)'}. Run toil jira-cloud issue transitions ${input.key}.`,
         });
       }
       id = found.id;
     }
     await client.transitionIssue(ctx, input.key, id);
-    return { transitioned: input.key, transition: input.transition };
+    return { transitioned: input.key, transition };
   },
 });
 
