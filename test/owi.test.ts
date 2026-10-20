@@ -7,6 +7,7 @@ import { areaOf, commandName } from '../src/core/command.js';
 import type { Envelope, Warning } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
 import { documentsFrom, fieldOverrides, mapOwi, OVERRIDABLE, OWI_COMMANDS, OWI_SOURCES, OWI_VERSION, parseOwiInput, type WorkItem } from '../src/core/owi/index.js';
+import { bodyLinks } from '../src/core/owi/github.js';
 import { sprintOf } from '../src/core/owi/jira.js';
 import { execute } from '../src/core/run.js';
 import { argvFor } from '../src/program.js';
@@ -491,6 +492,14 @@ describe('GitHub without a board (#298): milestones, estimate labels and body li
       ['outward', id(6), 'blocks'],
       ['outward', id(7), 'blocks'],
     ]);
+  });
+
+  it('reads a body of 64k spaces after "blocks" in linear time (review round 1)', () => {
+    const body = `blocks${' '.repeat(65_000)}x blocked by${' '.repeat(65_000)}: ${' '.repeat(65_000)}#3`;
+    const started = performance.now();
+    expect(bodyLinks('github', `${REPO}#1`, body)).toEqual([{ type: 'blocks', direction: 'inward', target: id(3), name: 'blocked by' }]);
+    // Quadratic, this took about 6 s for one run of spaces; linear, it is a few milliseconds.
+    expect(performance.now() - started).toBeLessThan(500);
   });
 
   it("says when GitHub's own issue dependencies hold links no command reads yet", async () => {

@@ -147,8 +147,12 @@ function labelEstimate(item: WorkItem, state: MapState): void {
   else if (hits.length > 1) unmapped(item, 'estimate', `${hits.length} labels hold an estimate (${hits.map((h) => `"${h.label}"`).join(', ')}), so none was picked: keep one`);
 }
 
-/** A dependency stated in a body: "Blocked by #7", "Depends on imagile/api#12, #13", "Blocks #9". */
-const LINK_PHRASE = /\b(blocked by|depends on|blocks)\s*:?\s*((?:[\w.-]+\/[\w.-]+)?#\d+(?:\s*(?:,|and|&)\s*(?:[\w.-]+\/[\w.-]+)?#\d+)*)/gi;
+/**
+ * A dependency stated in a body: "Blocked by #7", "Depends on imagile/api#12, #13", "Blocks #9".
+ * The colon carries its own whitespace, so a run of spaces has one way to match and
+ * stays linear: anyone who can open an issue writes the body this reads.
+ */
+const LINK_PHRASE = /\b(blocked by|depends on|blocks)\s*(?::\s*)?((?:[\w.-]+\/[\w.-]+)?#\d+(?:\s*(?:,|and|&)\s*(?:[\w.-]+\/[\w.-]+)?#\d+)*)/gi;
 const LINK_REF = /(?:([\w.-]+)\/([\w.-]+))?#(\d+)/g;
 
 /**

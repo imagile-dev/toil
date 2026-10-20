@@ -143,7 +143,8 @@ The request it sent was
     `priority`, `type`, `team`, `dueDate`, `iteration`) when it maps the area's work
     items, and for a GitHub repository with no board, `estimateLabel` (the label that
     holds an estimate, `{n}` for the number: `"estimateLabel": "size/{n}"`) and
-    `iterationDays` (how many days each milestone runs as a sprint). Without them a
+    `iterationDays` (how many days each milestone runs as a sprint, as text like every
+    value in `fields`: `"iterationDays": "14"`, not `14`). Without them a
     GitHub issue's milestone is its sprint and a `points: N` label its estimate.
   - anything else (`jobs`, `boards`, `deployments`, an OpenShift `namespace`) is
     **reference data**: kept as written for people, agents, Toil UI and
