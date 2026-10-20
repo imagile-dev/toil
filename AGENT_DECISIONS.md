@@ -4907,7 +4907,8 @@ it pins. These are the choices made by default in the fix:
   add `--no-verify`, and the commit message is a file Toil UI writes beside the
   agent's folder, so nothing from the tracker reaches a command line; the paths are
   Toil UI's own, in double quotes, which every shell reads alike when they hold no
-  `$`, `` ` ``, `%` or `"` (otherwise the note says what to run by hand).
+  dollar sign, backtick, percent sign or double quote (otherwise the note says what
+  to run by hand).
 - **The agent can read the whole disk in implement mode.** Codex's `workspace-write`
   limits writes and network, not reads, and implement mode has the shell, so the
   agent could read files in the person's home folder and put what it read into its
