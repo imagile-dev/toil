@@ -992,7 +992,7 @@ describe('the readiness gate (#307)', () => {
     expect(slate.textContent).toMatch(/1 item is ready and would be slated, in the dossier's order \(plan [0-9a-f]{8}\)\./);
     const start = within(slate).getByRole('button', { name: 'Start 1 ready item' });
     expect(start.hasAttribute('disabled')).toBe(true);
-    expect(slate.textContent).toContain('Starting work arrives with assign-to-agent (#293).');
+    expect(slate.textContent).toContain('This view has no agent assignments, so it shows the plan it would start.');
     const table = screen.getByRole('table');
     expect(within(table).getAllByRole('row')).toHaveLength(7);
     expect(table.textContent).toContain('Blocked by Jira PAY-102 (To Do).');
@@ -1022,13 +1022,14 @@ describe('the readiness gate (#307)', () => {
     cleanup();
     const started: Array<{ id: string; items: string[] }> = [];
     window.location.hash = '#/dossier/checkout-web/command-center';
-    render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview startReady={async (plan) => void started.push(plan)} />);
+    render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview startReady={async (plan) => (started.push(plan), "Queued.")} />);
     await screen.findByRole('heading', { level: 1, name: 'Command Center' });
     const slate = panel('Start every ready item');
     const shownId = /\(plan ([0-9a-f]{8})\)/.exec(slate.textContent ?? '')![1];
-    expect(slate.textContent).toContain('Starts the plan above, as listed.');
+    expect(slate.textContent).toContain('Assigns each item above to an agent in implement mode, as listed');
     await userEvent.click(within(slate).getByRole('button', { name: 'Start 1 ready item' }));
     expect(started).toEqual([{ id: shownId, items: ['github:imagile/payments-web#41'] }]);
+    expect(await within(slate).findByText('Queued.')).toBeTruthy();
   });
 });
 

@@ -25,6 +25,7 @@ import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-compone
 import { Avatar, InsightChips, StatusChip } from '../components/bits.tsx';
 import { ItemLink } from '../components/items.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
+import { AssignButton } from '../assign/views.tsx';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, estimateText, personText, shortKey } from '../format.ts';
 import { columns, proposeMove } from '../model/board.ts';
@@ -76,6 +77,7 @@ function Card({ item, others, onMove }: { item: WorkItem; others: StatusCategory
               </Menu>
             </Popover>
           </MenuTrigger>
+          <AssignButton item={item} small />
         </div>
       </Skin>
     </li>

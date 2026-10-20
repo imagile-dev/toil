@@ -21,6 +21,7 @@ import { FLAG_TEXT, trace, type Trace as TraceRow } from '../model/trace.ts';
 import { useSkins, useTerm, useWords } from '../skins.tsx';
 import type { ChangeRef, Deployment, SourceKind } from '../toil.ts';
 import { Board } from './Board.tsx';
+import { AgentsLane } from '../assign/views.tsx';
 import { Aging, Attention, Burnup, CycleTime, Throughput } from './Flow.tsx';
 
 // The graph library is the biggest piece of the page, so it loads on its own, after the rest.
@@ -185,6 +186,8 @@ export function Dashboard({ person }: { person?: string } = {}) {
             {filter && <BoardFilter name={filter.name} shown={(h?.items ?? dossier.items).filter((i) => filter.items.includes(i)).length} all={filter.items.length} />}
             <Board items={filter ? (h?.items ?? dossier.items).filter((i) => filter.items.includes(i)) : (h?.items ?? dossier.items)} />
           </Panel>
+
+          <AgentsLane />
 
           <div className="panel-grid panel-grid--two">
             <Panel id="throughput" title="Throughput" calls={dossier.calls.work} alerts={false}>

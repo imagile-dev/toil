@@ -22,6 +22,7 @@ import { ACTIVITY_DAYS, people, suggestionLine, type Activity, type Card as Pers
 import { daysText, WAITING_LABEL } from '../model/prs.ts';
 import { useSkins } from '../skins.tsx';
 import './people.css';
+import { AgentAssignments } from '../assign/views.tsx';
 import { failedOutcome, OutcomeLine, outcomeOf, type Outcome } from './settings/parts.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -81,6 +82,8 @@ export function People() {
           </CardGrid>
         </section>
       )}
+
+      <AgentAssignments people={dossier.people ?? []} />
 
       {(view.suggestions.length > 0 || view.ambiguous.length > 0) && (
         <Panel id="matches" title="Possible matches" calls={dossier.calls.dossier} alerts={false}>

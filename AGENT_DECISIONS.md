@@ -5039,3 +5039,151 @@ it pins. These are the choices made by default in the fix:
   is hand-written SVG. `.claude/image-generation/style-realm.md` holds the style the
   map and the candle were drawn with; the vellum texture skipped it, because a style
   that asks for a composed scene turned a texture into a still life.
+## Assigning work items to an agent (#293)
+
+- **Applying a proposal is the one tracker write Toil UI makes, and only on a
+  person's Apply.** The issue asks for it; until now Toil UI only showed command
+  lines. The page sends an assignment id and a proposal id, never a command: the
+  server runs the proposal it stored when the run ended, as toil's own command
+  through `execute()` with `allowWrite: true`, so the connection's `writes: true` is
+  still required and toil's gate is unchanged. The press is the call's explicit flag
+  (principle 2). Proposals from the Ask pane and the board still have no Apply.
+- **`actor` is a new `execute()` option in toil**, recorded on the audit line beside
+  `caller` (`actor: "assignment-<id>"`), checked like `caller`. `CallOptions` already
+  named it as where an actor goes. The published toil Toil UI pins ignores an option
+  it doesn't know, so the audit lines carry the actor from the toil release that has
+  it (as Toil UI on this checkout's toil does now).
+- **Implement mode runs on Codex only, for now (open question).** It needs an
+  agent that runs commands and writes files, bounded to one folder with no network.
+  Codex's own `workspace-write` sandbox enforces that on Windows (its restricted-token
+  sandbox), macOS and Linux. Claude Code's sandbox runs on macOS and Linux only, and
+  Copilot's SDK has a permission callback but no OS sandbox; offering implement on
+  either would bound it on some OSes and not others (principle 8) or bound it only by
+  Toil UI checking paths in a callback, which a shell command walks past. The dialog
+  says so. Whether to add them with a path-checking callback and no shell is the
+  maintainer's call.
+- **The clone is Toil UI's copy, under the cache** (`<data folder>/cache/work/<id>/repo`):
+  before the run, in plain file operations, Toil UI copies the dossier repository's
+  `.git` folder (not its hooks, not its config, no working tree), writes its own
+  config, and the agent fills the working tree with `git -C repo reset --hard HEAD`
+  inside its sandbox. Never the person's working tree, and never their uncommitted
+  work. The agent cloning it itself failed live: on Windows, Codex's sandbox won't let
+  git map the person's pack files (`CreateFileMapping`, error 5). Toil UI spawns
+  nothing (`check:package`), so it can't run git, and toil's git area only reads. The
+  dossier's repository needs a local path to a plain clone (a worktree or submodule,
+  whose `.git` is a file, is refused). The clone sits below the sandbox's writable
+  root, so Codex's protection of a root's own `.git` doesn't block the agent's
+  `git switch` and `git add`.
+- **On Windows, implement mode names Codex's `unelevated` sandbox**
+  (`windows.sandbox="unelevated"`). Without it, codex-cli 0.156 on this machine ran
+  `--sandbox workspace-write` as read-only and rejected every command; with it, a
+  write inside the folder worked, a write outside it was denied and the network was
+  unreachable (checked by hand with `codex exec`). Other OSes ignore the key.
+- **Toil UI takes the clone's `.git` back before any git runs there outside the
+  sandbox** (review round 1). The agent could write the clone's config and hooks, and
+  git runs what a repository's config names (a clean or smudge filter, which toil's
+  hardened git still allows on `status`) and its hooks run on the person's commit.
+  So after the run, in plain file operations, `reclaimGitDir` refuses a `.git` that
+  isn't a folder, rewrites `.git/config` whole (the person's clone's format version
+  and `[extensions]`, `origin` at their clone, `diff.ignoreSubmodules = all` so a
+  submodule's own config is never read, `core.useReplaceRefs = false`), and deletes
+  `hooks`, `commondir`, `config.worktree`, `info/attributes`, and (review round 3)
+  `info/grafts`, `refs/replace` and any replace ref in `packed-refs`, which would make
+  git read the starting commit as one the agent made, hiding what the commit carries
+  from the staged diff. The person's lines add `--no-replace-objects` too. A filter the working tree's
+  `.gitattributes` names then has no definition and does nothing. The person's lines
+  add `--no-verify` and a `core.hooksPath` that doesn't exist, and the commit message is a file Toil UI writes beside the
+  agent's folder, so nothing from the tracker reaches a command line; the paths are
+  Toil UI's own, in double quotes, which every shell reads alike when they hold no
+  dollar sign, backtick, percent sign or double quote (otherwise the note says what
+  to run by hand).
+- **A commit the agent makes stops the push** (review round 2). The staged diff is
+  all the page shows, and a commit would leave it while still going out with the
+  person's push. `prepareClone` records the commit the clone starts at, read from
+  `.git/HEAD` and the ref or `packed-refs` in plain file operations; if HEAD has moved
+  when the run ends, the report says so and no commit or push is proposed. The
+  person's lines also carry `-c core.hooksPath="<work folder>.no-hooks"`, a folder
+  Toil UI never creates, because `--no-verify` skips only some hooks
+  (`prepare-commit-msg`, `post-commit` and `reference-transaction` still run) and the
+  work folder stays writable after the run.
+- **Anything staged that the diff doesn't show stops the push** (review round 4).
+  `diff.ignoreSubmodules = all` keeps git out of a submodule's own config, but it also
+  drops a staged gitlink from `git diff --staged`, so an agent could stage 20 bytes
+  per gitlink (`git update-index --cacheinfo 160000,…`) that the person never sees.
+  `hiddenStaged` compares `git status`'s staged paths with the diff's files that
+  carry text: a gitlink, a mode-only change, a binary file, or a path quoted
+  differently on either side is named in a warning, marked on the file list, and no
+  commit or push is proposed. Showing gitlinks in the diff instead would need
+  `--ignore-submodules=none` on toil's `git diff`, which takes no such flag, and
+  loosening the clone's config would let git read the agent's submodule configs again,
+  so the refusal is the whole fix.
+- **A diff that stops short stops the push too** (review round 6). toil's `git diff`
+  stops parsing at 5,000 lines (marking the diff and the file `truncated`), and the
+  page cuts the text at 200,000 characters, so the end of a long staged file would go
+  out unread. `diffCut` treats either as a cut: the report says so and no commit or
+  push is proposed, and the unified diff now prints where toil stopped. toil's `git
+  status` keeps its recorded quirk of dropping the first character of an
+  unstaged-only first line (#74 item 1); that can only make the hidden-file warning
+  name a path one character short, in the safe direction, and the warning says so.
+- **The agent can read the whole disk in implement mode.** Codex's `workspace-write`
+  limits writes and network, not reads, and implement mode has the shell, so the
+  agent could read files in the person's home folder and put what it read into its
+  report or a proposal's body. Nothing leaves the machine without a person applying
+  a proposal, but this is part of open question 1.
+- **The agent stages its change and never commits, pushes or fetches.** toil's own
+  `git diff` shows only staged or unstaged changes, not commits, so staging is what
+  makes the diff reviewable through toil's read-only `git status` and `git diff`
+  (with `workspace` set to the clone). Commit and push are one proposal of the exact
+  git lines, since toil has no command for either; the clone's `origin` is the
+  person's local clone, so a push lands there first.
+- **One Apply at a time per proposal** (review round 1): a second Apply for a
+  proposal still being applied (another tab, a retry, #307) gets 409.
+- **No network in implement mode, whatever the dossier says.** The issue allows the
+  repository's package registry "if the dossier allows it"; a dossier has no key for
+  that yet, and adding one widens a bound, so the sandbox's network is always off
+  (`sandbox_workspace_write.network_access=false`), and its writable roots are the
+  clone alone, without the temp folders Codex adds by default. An install that needs
+  the registry fails inside the run, and the report says so.
+- **The tracker's inbox is a fixed label convention plus the dossier's agents**:
+  `agent:refine`, `agent:investigate` or `agent:implement`, or an assignee who is one
+  of the dossier's `people` with `kind: agent` (which queues a refine, the mode that
+  changes least). The issue's "a label the dossier names" would need a new dossier
+  key and its commands; the convention needs neither. The inbox is read when the
+  Agents lane lists the dossier (after each sync), not inside the sync, so sync.ts is
+  unchanged. Each item, mode and trigger queues once, ever.
+- **One queue, isomorphic** (`ui/src/assign/queue.ts`): the server runs it on the
+  cache and the agent host, and the preview and `--sample` run the same queue on the
+  sample's items with a scripted runner. States are `queued` (`waiting: start` or
+  `slot`), `working`, `needs-you`, `done`, `failed`; a proposal toil refused stays
+  open to retry or dismiss. A run Toil UI lost when it stopped is `failed`
+  (`interrupted`) on the next start; nothing resumes on its own.
+- **Limits**: one at a time and 20 minutes by default, 1 to 3 and 1 to 240 allowed,
+  in `<data folder>/assignments.json` (kept by a wipe, like usage.json). A broken file
+  starts nothing (concurrent 0) and the lane says why. An assignment is one chat to
+  #295's caps, so the per-chat cap is the per-assignment cap; there is no separate
+  default token cap. Assignments don't count against the Ask pane's two questions.
+- **Questions don't thread yet.** The agent's `QUESTION:` lines put the assignment in
+  `needs you`; the person answers on the item and assigns it again, or marks it
+  reviewed. A reply box that resumes the run is left for later.
+- **Records live in `<data folder>/cache/assignments/<id>.json`**, transcript and
+  all, so a wipe deletes them with the clones; a wipe is refused while one runs.
+- **What a run started on**: toil and Toil UI versions, adapter and model, the tools,
+  `skills: []` (Toil UI hands an assigned agent no skill), and SHA-256 fingerprints of
+  the dossier (`dossiers show`), the item as synced and the prompt, for #305.
+  Events carry a sequence number and are kept (last 500) for
+  `api/assignments/events?since=<n>` (NDJSON) and `queue.subscribe`, for #306. The
+  page polls every 2 seconds while anything is queued or working, rather than hold a
+  stream open.
+- **The Command Center's "start every ready item" (#307) queues implement
+  assignments** (`ui/src/assign/start.ts`), one per slated item in its order, on the
+  adapter chosen in Settings when it can implement, else the first that can (Codex),
+  in the dossier's one repository with a local path. A ready item is one an agent can
+  pick up, so implement is the mode; with no such adapter, no repository or more than
+  one, it starts nothing and says why, and an item already queued or working in
+  implement mode is skipped. The server function under it is
+  `AssignmentQueue.assign({ dossier, item, mode, adapter, repo? })` (also `POST
+  api/assignments`). `StartReady` now resolves with what it did, in words, which the
+  view shows; it was `Promise<void>`, and a failure would have been silent.
+- **The sample seeds one assignment in every state**, and reads PAY-107 with
+  `agent:refine` added so the inbox has an entry; the sample's tracker data, shared
+  with toil's own OWI fixture, is unchanged.
