@@ -11,9 +11,9 @@
  * views will make and they render from it unchanged. On the way, that
  * `execute()` makes the sync incremental:
  *
- * - **Searches** (`jira issue search`, `ado work-item search`) ask only for what changed
- *   since the source's watermark, with `updatedSince`, and merge the answer
- *   into the last copy by key.
+ * - **Searches** (`jira issue search`, `ado work-item search`, `github
+ *   list-issues`) ask only for what changed since the source's watermark, with
+ *   `updatedSince`, and merge the answer into the last copy by key.
  * - **The GitHub board** (`github projects list-items`) is read whole, and an
  *   item counts as changed when its issue's `updatedAt` moved.
  * - **Batches** (`ado work-item get-many`, `github get-issue`) fetch only the
@@ -101,12 +101,13 @@ type Rec = Record<string, unknown>;
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
 const recs = (v: unknown): Rec[] => (Array.isArray(v) ? v.filter(isRec) : []);
 
-/** A search whose answer is a list of items with ids, which `updatedSince` narrows. */
-const SEARCHES: Record<string, { list: string; id: (r: Rec) => string }> = {
+/** A search whose answer is a list of items with ids, which `updatedSince` narrows. `list` is null when the answer is the list itself. */
+const SEARCHES: Record<string, { list: string | null; id: (r: Rec) => string }> = {
   'jira issue search': { list: 'issues', id: (r) => String(r.key) },
   'jira-cloud issue search': { list: 'issues', id: (r) => String(r.key) },
   'ado work-item search': { list: 'workItems', id: (r) => String(r.id) },
   'ado-cloud work-item search': { list: 'workItems', id: (r) => String(r.id) },
+  'github list-issues': { list: null, id: (r) => String(r.number) },
 };
 /** A batch get by ids: the input field holding them, and where the answer lists the items. */
 const BATCHES: Record<string, { field: string; list: string; id: (r: Rec) => string }> = {
@@ -367,10 +368,12 @@ export class SyncService {
       if (!watermark || !last?.envelope.ok) return this.call(command, input, signal);
       const delta = await this.call(command, { ...input, updatedSince: watermark }, signal);
       if (!delta.ok) return delta;
-      const fresh = recs((delta.data as Rec)[search.list]);
+      const listOf = (data: unknown) => recs(search.list === null ? data : (data as Rec)[search.list]);
+      const fresh = listOf(delta.data);
       source.changed = new Set([...(source.changed ?? []), ...fresh.map(search.id)]);
       this.say(`${dossier}: ${command} since ${watermark}: ${fresh.length} changed`);
-      const merged = mergeById(recs((last.envelope.data as Rec)[search.list]), fresh, search.id);
+      const merged = mergeById(listOf(last.envelope.data), fresh, search.id);
+      if (search.list === null) return { ...delta, data: merged };
       const data: Rec = { ...(last.envelope.data as Rec), [search.list]: merged };
       if ('total' in data) data.total = merged.length;
       if ('maxResults' in data) data.maxResults = merged.length;

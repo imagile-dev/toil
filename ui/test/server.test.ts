@@ -632,8 +632,11 @@ describe('the static files', () => {
 });
 
 describe('the Stores', () => {
-  it('lets the views read exactly the commands the fixture answers', () => {
-    expect([...READ_COMMANDS].sort()).toEqual([...new Set(CANNED.map((c) => c.command))].sort());
+  it('lets the views read exactly the commands the fixture answers, plus the ones the sample has no dossier for', () => {
+    // A GitHub dossier with no board reads the repository's issues; the sample's GitHub dossier has a board.
+    // test/github-repo.test.ts proves that path with its own stub.
+    const noSampleDossier = ['github list-issues'];
+    expect([...READ_COMMANDS].sort()).toEqual([...new Set([...CANNED.map((c) => c.command), ...noSampleDossier])].sort());
   });
 
   it("toil's own execute() gets every read read-only, and every call named toil-ui", async () => {

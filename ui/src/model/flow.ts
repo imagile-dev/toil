@@ -19,8 +19,12 @@ export interface Unknown {
   reason: string;
 }
 
-/** Work that flows: not an epic, feature or other container. */
-export const flows = (item: WorkItem) => item.type !== 'EPIC' && item.type !== 'OTHER';
+/**
+ * Work that flows: not an epic, feature or other container. An item with no
+ * type at all (a GitHub issue in a repository without issue types) is work,
+ * not a container, so it flows too.
+ */
+export const flows = (item: WorkItem) => item.type !== 'EPIC' && (item.type !== 'OTHER' || item.typeName === null);
 
 const sorted = (item: WorkItem) => [...(item.history?.transitions ?? [])].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0));
 

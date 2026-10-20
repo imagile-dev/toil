@@ -3,10 +3,11 @@
  * dossier covers, the toil commands that read its work items, pull requests,
  * builds and deployments, every one read-only and named `toil-ui` in the audit
  * log. What the dossier holds decides what is asked: its Jira project, its
- * Azure DevOps pipelines, its GitHub project board, the namespace of each
- * environment. Every call is kept with the panel it fed, so the panel can say
- * so, and a call that fails is shown on its panel with toil's own message and
- * fix (principle 4), never dropped.
+ * Azure DevOps pipelines, its GitHub project board (or, with none named, the
+ * repository's issues), the namespace of each environment. Every call is kept
+ * with the panel it fed, so the panel can say so, and a call that fails is
+ * shown on its panel with toil's own message and fix (principle 4), never
+ * dropped.
  *
  * Work items go through `mapOwi` (src/owi.ts); the rest through
  * src/model/delivery.ts. One loader, one dossier, no spreadsheet.
@@ -66,6 +67,37 @@ function readShow(data: Rec): { summary: DossierSummary; areas: Record<string, S
     environments: Object.keys(isRec(dossier.environments) ? dossier.environments : {}),
   };
   return { summary, areas, dossier };
+}
+
+/** How many pull requests that aren't open still get their checks read: the newest ones. */
+export const CHECKED_CLOSED_PRS = 20;
+
+/**
+ * The pull requests whose checks are read: every open one, and the newest
+ * closed or merged ones. A repository with years of history would otherwise
+ * cost one request per pull request it ever had, on every sync.
+ */
+export function checkedPrs(prs: ChangeRef[]): ChangeRef[] {
+  const closed = prs.filter((p) => p.outcome !== 'open').sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, CHECKED_CLOSED_PRS);
+  const keep = new Set([...prs.filter((p) => p.outcome === 'open'), ...closed]);
+  return prs.filter((p) => keep.has(p));
+}
+
+/** How many closed issues of a repository with no board still get their history read: the most recently closed. */
+export const CLOSED_ISSUE_HISTORIES = 50;
+
+/**
+ * The issues whose timelines are read: every open one, and the most recently
+ * closed ones, which are all throughput and cycle time look at. A repository
+ * with thousands of closed issues would otherwise send one request each on
+ * its first sync. The rest are still listed, with no history.
+ */
+export function historyNumbers(issues: Rec[]): number[] {
+  const numbered = issues.filter((i) => typeof i.number === 'number');
+  const when = (i: Rec) => String(i.closed_at ?? i.updated_at ?? '');
+  const closed = numbered.filter((i) => i.state === 'closed').sort((a, b) => (when(a) < when(b) ? 1 : -1)).slice(0, CLOSED_ISSUE_HISTORIES);
+  const keep = new Set([...numbered.filter((i) => i.state !== 'closed'), ...closed]);
+  return numbered.filter((i) => keep.has(i)).map((i) => i.number as number);
 }
 
 const connectionOf = (env: Envelope, fallback: string) => (env.ok ? (env.meta.context?.connection?.value ?? fallback) : fallback);
@@ -130,7 +162,19 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     tasks.push((async () => {
       const repo = `${areas.github!.inputs.owner}/${areas.github!.inputs.repo}`;
       const numbers = new Set<number>();
-      for (const project of strings(section('github').projects)) {
+      const projects = strings(section('github').projects);
+      // No board named: the repository's own issues are the tracker, open and closed.
+      if (!projects.length) {
+        const issues = await run('work', 'github list-issues', { ...base, state: 'all' });
+        if (!issues) return;
+        work.push(issues);
+        for (const number of historyNumbers(recs(issues.data))) {
+          const events = await run('work', 'github issue-events', { ...base, number });
+          if (events) work.push({ key: String(number), history: events });
+        }
+        return;
+      }
+      for (const project of projects) {
         const board = await run('work', 'github projects list-items', { ...base, project: Number(project) });
         if (!board) continue;
         work.push(board);
@@ -214,7 +258,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     const heads = new Map(recs(list?.data).map((raw) => [`${connection}:${repo}#${raw.number}`, githubHead(raw)]));
     await deliver(prs, async () => {
       const out: ChangeRef[] = [];
-      for (const pr of prs) {
+      for (const pr of checkedPrs(prs)) {
         const ref = heads.get(pr.id);
         if (!ref) continue;
         const checks = await run('builds', 'github list-checks', { ...base, ref });
