@@ -50,7 +50,8 @@
     "flags": [
       "<sql>",
       "--limit <rows>",
-      "--cursor <cursor>"
+      "--cursor <cursor>",
+      "--no-lint"
     ]
   },
   {
@@ -61,7 +62,20 @@
     "connection": true,
     "flags": [
       "<sql>",
+      "--no-lint",
       "--allow-write"
+    ]
+  },
+  {
+    "name": "lint",
+    "tool": "db_lint",
+    "description": "Check SQL against an engine's dialect before running it; with --engine, no connection is used",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<sql>",
+      "--engine <engine>",
+      "--as <command>"
     ]
   }
 ]

@@ -52,6 +52,13 @@ export interface Meta {
    */
   response?: ApiAnswer;
   /**
+   * For a command that ran SQL the caller wrote (`db query`, `db execute`,
+   * `db lint`): the engine whose dialect the pre-flight lint checked it
+   * against, and every rule that ran. Its warnings are in `warnings`. Set
+   * with `ctx.setLint`.
+   */
+  lint?: LintReport;
+  /**
    * For `toil wait`: the condition, how many times the read ran, and how
    * long the whole wait took. The rest of meta is the last attempt's.
    */
@@ -62,6 +69,12 @@ export interface Meta {
    * `ctx.setTransition` (src/core/transition-intent.ts).
    */
   transition?: TransitionReport;
+}
+
+/** What the pre-flight lint checked: the engine, and the rules that ran, in order. */
+export interface LintReport {
+  engine: string;
+  rules: string[];
 }
 
 /** The status and content type of the response a raw API call returned. */
