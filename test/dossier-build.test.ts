@@ -468,7 +468,7 @@ describe('people and the work-in-progress limit', () => {
     expect((await cli(d, ['dossiers', 'person', 'pay', 'Sam', '--email', 'sam'])).envelope.error?.message).toBe("--email isn't an email address (dossier pay).");
     // A token pasted anywhere is refused and never repeated: as an --id with no area, as an email, as a name.
     const TOKEN = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789';
-    for (const argv of [['Sam', '--id', TOKEN], ['Sam', '--email', TOKEN], ['Sam', '--email', `x@${TOKEN}`], [TOKEN]]) {
+    for (const argv of [['Sam', '--id', TOKEN], ['Sam', '--id', `${TOKEN}==`], ['Sam', '--email', TOKEN], ['Sam', '--email', `x@${TOKEN}`], [TOKEN]]) {
       const run = await cli(d, ['dossiers', 'person', 'pay', ...argv]);
       expect(run.envelope.error?.code, argv.join(' ')).toBe('INVALID_INPUT');
       expect(JSON.stringify(run.envelope), argv.join(' ')).not.toContain('ghp_');

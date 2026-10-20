@@ -272,6 +272,8 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       if (identityProblem(name)) throw refuse(`The name can't be used: ${identityProblem(name)}`, 'Give the name the team writes, never a token.');
       const ids = (input.id ?? []).map((pair) => {
         const [area, value] = keyValue(pair, '--id', { example: 'github=pat-ex', quiet: true });
+        // A token with `==` padding splits at its first `=`, leaving most of it as the "area": refused without repeating it.
+        if (identityProblem(area)) throw refuse("An --id's area can't be used: it's shaped like a credential", 'Give area=identity, e.g. --id github=pat-ex, never a token.');
         // An identity the reader kept under an area this toil hasn't got can still be removed.
         if (!input.remove) areaNamed(area);
         // The value never goes in the message: something shaped like a token may be one.
