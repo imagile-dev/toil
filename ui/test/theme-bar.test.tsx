@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -252,5 +252,27 @@ describe('the header (#277)', { timeout: SLOW }, () => {
     } finally {
       window.matchMedia = real;
     }
+  });
+
+  it('folds into the Menu at any width when its one row would wrap, as a dossier\'s links can in a wider font', async () => {
+    // jsdom lays nothing out, so the last two views' links report a second row.
+    const real = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetTop')!;
+    Object.defineProperty(HTMLElement.prototype, 'offsetTop', {
+      configurable: true,
+      get(this: HTMLElement) {
+        return this.tagName === 'LI' && /Worklog|Command Center/.test(this.textContent ?? '') ? 40 : 0;
+      },
+    });
+    try {
+      await open('#/dossier/settlement', 'plain', 'light');
+      expect(screen.queryByRole('navigation', { name: 'Views' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'Menu' })).toBeTruthy();
+    } finally {
+      Object.defineProperty(HTMLElement.prototype, 'offsetTop', real);
+    }
+    cleanup();
+    // One row that fits keeps the views in the header.
+    await open('#/dossier/settlement', 'plain', 'light');
+    expect(screen.getByRole('navigation', { name: 'Views' })).toBeTruthy();
   });
 });

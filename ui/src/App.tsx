@@ -9,7 +9,7 @@
  * rule, which is one fewer change request.
  */
 
-import { useEffect, useInsertionEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react';
+import { useEffect, useInsertionEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
 import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { Ambient } from './ambient/Ambient.tsx';
@@ -167,7 +167,6 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   const skins = skinsFor(theme.name);
   // The App provides the theme context, so it can't read it through useWords(); this is the same lookup.
   const words = (key: WordKey, vars?: Record<string, string>) => wordFor(theme.lexicon, wordingOn(theme, choice), key, vars);
-  const compact = useMediaQuery(COMPACT_HEADER);
   const links: NavLink[] = [
     { href: '#/', label: 'Dossiers', current: route.view === 'dossiers' },
     ...(wanted
@@ -181,6 +180,10 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
       : []),
     { href: '#/settings', label: 'Settings', current: route.view === 'settings' },
   ];
+  const top = useRef<HTMLDivElement>(null);
+  const narrow = useMediaQuery(COMPACT_HEADER);
+  const crowded = useCrowded(top, !narrow, links.map((l) => l.label).join('|'));
+  const compact = narrow || crowded;
   const controls = (
     <>
       <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
@@ -239,7 +242,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
               <strong>Preview of an unreleased product.</strong> Sample data only: nothing here connects to a tracker.
             </p>
           )}
-          <div className="top" data-one-row="">
+          <div className="top" data-one-row="" ref={top}>
             <skins.Header>
               {/* The wordmark, the site's and the terminal's, with "UI" stuck on beside it. Its
                   name is its own text, "toil UI": the space between the word and the sticker is a
@@ -306,6 +309,36 @@ function TokenStyles({ css }: { css: string }) {
  * Feedback and the theme controls open from it. Wider, they sit in one row.
  */
 export const COMPACT_HEADER = '(max-width: 1023px)';
+
+/**
+ * Whether the header's one row is too crowded at this width: its links and
+ * controls would wrap onto a second row, as a dossier's seven links can with a
+ * wider font (Linux's, say). Measured on the full header and kept until the
+ * window is wider than where it last didn't fit, so the header shows its Menu
+ * instead of wrapping, and never flips back and forth at one width.
+ */
+function useCrowded(row: RefObject<HTMLElement | null>, measuring: boolean, links: string): boolean {
+  const [crowdedBelow, setCrowdedBelow] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const check = () => {
+      if (crowdedBelow !== null) {
+        if (window.innerWidth > crowdedBelow) setCrowdedBelow(null);
+        return;
+      }
+      // The default skin's Header is its children; a theme's may wrap them in one element.
+      const el = row.current?.children.length === 1 ? row.current.firstElementChild : row.current;
+      if (!measuring || !el) return;
+      const tops = [...el.children].map((c) => (c as HTMLElement).offsetTop);
+      const items = [...el.querySelectorAll<HTMLElement>('nav li')].map((li) => li.offsetTop);
+      const wraps = (xs: number[]) => xs.length > 1 && Math.max(...xs) - Math.min(...xs) > 4;
+      if (wraps(tops) || wraps(items)) setCrowdedBelow(window.innerWidth);
+    };
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, [row, measuring, links, crowdedBelow]);
+  return crowdedBelow !== null;
+}
 
 type NavLink = { href: string; label: string; current: boolean };
 
