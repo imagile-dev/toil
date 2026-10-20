@@ -74,6 +74,9 @@ describe('facts from the history', () => {
       ['sprint', at('10:00'), 'moved from Sprint 41 to Sprint 42', null],
     ]);
     expect(events[0]).toMatchObject({ subject: 'jira:PAY-1', label: 'PAY-1', url: 'https://jira.imagile.dev/browse/PAY-1', cites: ['jira:PAY-1'] });
+    // Whose line it is in a stand-up (#345): the account itself, not only its name, and the category a status move went into.
+    expect(events.map((e) => e.who?.id ?? null)).toEqual(['ada', 'bob', null, null]);
+    expect(events[0]!.toCategory).toBe('IN_PROGRESS');
   });
 
   it('turns a pull request into opened, each review, and merged or declined, by its own times', () => {

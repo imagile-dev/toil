@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.1.0-alpha.4](https://github.com/imagile-dev/toil/compare/v0.1.0-alpha.3...v0.1.0-alpha.4) (2026-10-20)
+
+
+### Features
+
+* **ado-cloud:** read a team's sprints, backlogs, boards and work item type states ([#331](https://github.com/imagile-dev/toil/issues/331)) ([eec14da](https://github.com/imagile-dev/toil/commit/eec14da286fa5657de0293981fd630545a282fae))
+* **db:** a dialect pre-flight lint before SQL runs, and toil db lint ([#314](https://github.com/imagile-dev/toil/issues/314)) ([d693d33](https://github.com/imagile-dev/toil/commit/d693d33ad138f709ef764b3d84c7a16ffadbd2a1))
+* one command shape for jira and ado, and a Services menu ([#310](https://github.com/imagile-dev/toil/issues/310)) ([fae6921](https://github.com/imagile-dev/toil/commit/fae6921ddd942affdfb0cc4aa1dde4783992fee1))
+* OWI for GitHub without a board: milestones as sprints, estimate labels and links ([#324](https://github.com/imagile-dev/toil/issues/324)) ([55f6404](https://github.com/imagile-dev/toil/commit/55f640467b7304040481726deda5c7cc8acdbb56))
+* pull request tracking in Toil UI across GitHub, Bitbucket and Azure DevOps ([#334](https://github.com/imagile-dev/toil/issues/334)) ([49ece25](https://github.com/imagile-dev/toil/commit/49ece25ff479c5635318b714da1846948e806ad2))
+* seed an Azure DevOps Services board from OWI, test ado-cloud on it, and run Toil UI on it ([#327](https://github.com/imagile-dev/toil/issues/327)) ([e2d0b60](https://github.com/imagile-dev/toil/commit/e2d0b6064e517220236c2c20522b4164610de6b9))
+* size-aware output for agents, --output-format toon and --summary-file ([#321](https://github.com/imagile-dev/toil/issues/321)) ([f222f39](https://github.com/imagile-dev/toil/commit/f222f39721a94e48a5b8bc0ab3bf95aa305d754f))
+* the command shape for every remaining integration ([#323](https://github.com/imagile-dev/toil/issues/323)) ([323c40c](https://github.com/imagile-dev/toil/commit/323c40cd3d94646443cd5e3877b7d5e7f00f04f3))
+* the dog-eared badge as toil's mark, an orbit splash, and a badge per Toil UI theme ([#282](https://github.com/imagile-dev/toil/issues/282)) ([4e1e0ce](https://github.com/imagile-dev/toil/commit/4e1e0ce7a512ce11deb5af0c6fa83c95a273037e))
+* toil audit stats, and a Usage of toil page in Toil UI ([#329](https://github.com/imagile-dev/toil/issues/329)) ([7299292](https://github.com/imagile-dev/toil/commit/7299292e6af41794855cd3aed713f268f3e35d68))
+* transitions by intent, resolved against each item's own workflow ([#322](https://github.com/imagile-dev/toil/issues/322)) ([e155760](https://github.com/imagile-dev/toil/commit/e155760b2e31ed8d2a1ce8edf85a5bd143cfe7d7))
+* **ui:** a daily worklog per dossier, folded from the sync, pull requests, builds and agent runs ([#338](https://github.com/imagile-dev/toil/issues/338)) ([88e813f](https://github.com/imagile-dev/toil/commit/88e813fc42d7613f7891431db91627f6210a4da3))
+* **ui:** a People view of what each person and agent is working on ([#336](https://github.com/imagile-dev/toil/issues/336)) ([2fc9178](https://github.com/imagile-dev/toil/commit/2fc917849c503367ff7be0eb2a8a317c11d819d4))
+* **ui:** a refined, grimdark Realm theme ([#357](https://github.com/imagile-dev/toil/issues/357)) ([ed9b18e](https://github.com/imagile-dev/toil/commit/ed9b18e349e427d663012905d501aadb0e35e80e))
+* **ui:** assign work items to an agent, in refine, investigate and implement modes ([#341](https://github.com/imagile-dev/toil/issues/341)) ([8033f55](https://github.com/imagile-dev/toil/commit/8033f55ca09a33a22a27adf6db3537e06c36e6c6))
+* **ui:** npm run verify:ui, Codex in a home of its own, and the lockfile held to the pin ([#325](https://github.com/imagile-dev/toil/issues/325)) ([7f9fc73](https://github.com/imagile-dev/toil/commit/7f9fc73dbfaf5fdc48215c7e1beded4ee02ef410))
+* **ui:** per-chat model usage from the Claude, Codex and Copilot SDKs, with optional caps ([#337](https://github.com/imagile-dev/toil/issues/337)) ([9d4e94c](https://github.com/imagile-dev/toil/commit/9d4e94cb4ecb6c4366e7204efa0eba82f2ee2273))
+* **ui:** the readiness gate and a read-only Command Center ([#351](https://github.com/imagile-dev/toil/issues/351)) ([a37e707](https://github.com/imagile-dev/toil/commit/a37e70785f002e4ff58a16ab3216119efb6052c4))
+* **ui:** theme depth: themed wording, the agent's voice and your own instructions ([#284](https://github.com/imagile-dev/toil/issues/284)) ([f05630e](https://github.com/imagile-dev/toil/commit/f05630e937200030ccd75f7dbd1eca268beb29d5))
+* **ui:** Toil UI on real data, bare bones ([#315](https://github.com/imagile-dev/toil/issues/315)) ([3a8d3d5](https://github.com/imagile-dev/toil/commit/3a8d3d5fd35b96ce94c47fb8b4874487bb34de42))
+* util owi similar finds likely duplicate work items, offline and deterministic ([#316](https://github.com/imagile-dev/toil/issues/316)) ([dc56487](https://github.com/imagile-dev/toil/commit/dc564873667ab68b0521f2da2075e92c7a7b6cf3))
+
+
+### Bug Fixes
+
+* **core:** bound --select results, build dossier sections without prototypes, and compile .gitignore patterns in linear time ([#354](https://github.com/imagile-dev/toil/issues/354)) ([cc2950f](https://github.com/imagile-dev/toil/commit/cc2950f202b21e590d45551b951e90df468c5682))
+* **core:** carry object projections through every field, and warn on an unreadable .gitignore ([#312](https://github.com/imagile-dev/toil/issues/312)) ([7b580b4](https://github.com/imagile-dev/toil/commit/7b580b4dafd348ea7a602dee86fadfe7af04c407))
+* **core:** refuse UNC paths before any file access, and validate and encode ids used in API paths ([#352](https://github.com/imagile-dev/toil/issues/352)) ([95b4012](https://github.com/imagile-dev/toil/commit/95b40120062f007b68842df0f897a6dba0d67892))
+* **feedback:** redact reports before the issue is created ([#350](https://github.com/imagile-dev/toil/issues/350)) ([877950d](https://github.com/imagile-dev/toil/commit/877950dd1cd12c51c720459c9e1f035276c4fd03))
+* **triage:** check for duplicates of any earlier issue first, and read why a denial was made ([#311](https://github.com/imagile-dev/toil/issues/311)) ([8442681](https://github.com/imagile-dev/toil/commit/844268135fa9c2ca5b56cfbb8705cce50365e8c2))
+* **ui:** run verify:ui and dev-real on toil built from this checkout ([#335](https://github.com/imagile-dev/toil/issues/335)) ([51ac386](https://github.com/imagile-dev/toil/commit/51ac386948db17ef393e06e5dff5aad0e5421dec))
+* **ui:** Toil UI tests stop timing out on Windows runners ([#330](https://github.com/imagile-dev/toil/issues/330)) ([01c324d](https://github.com/imagile-dev/toil/commit/01c324d7b7f0e6b02988ada74760cdc34256092f))
+
 ## [0.1.0-alpha.3](https://github.com/imagile-dev/toil/compare/v0.1.0-alpha.2...v0.1.0-alpha.3) (2026-10-19)
 
 

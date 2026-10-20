@@ -28,9 +28,12 @@ import {
   buildDay, dayOf, gapsFor, isDay, isMonth, markdownOf, monthMarkdown, monthOf, transcriptOf,
   type AgentRun, type Applied, type WorklogPage,
 } from '../src/model/worklog.ts';
+import { readPeople } from '../src/model/people.ts';
+import { buildStandup, daysBetween, rangeProblem, standupMarkdown, standupText } from '../src/model/standup.ts';
 import { POSITIONAL_FIELDS } from '../src/proposal.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
-import { exportName, MAX_NOTE, WorklogRefusal, publishProposals, type ExportWhat, type ShowAreas, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt } from '../src/worklog.ts';
+import { pullRequestsOf } from './agents/tools.ts';
+import { exportName, MAX_NOTE, WorklogRefusal, publishProposals, type ExportWhat, type ShowAreas, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt, type WorklogStandup } from '../src/worklog.ts';
 import type { Cache } from './cache.ts';
 import { CALLER } from './store.ts';
 
@@ -308,7 +311,9 @@ export class WorklogService implements WorklogApi {
     const name = this.checkDossier(dossier);
     if (typeof folder !== 'string' || !folder.trim() || !isAbsolute(folder.trim())) throw new WorklogRefusal('Name the folder to export into, as a full path.', 'Type a folder that exists, such as your Documents folder.');
     let markdown: string;
-    if ('day' in what) {
+    if ('from' in what) {
+      markdown = (await this.standup(name, what.from, what.to)).markdown;
+    } else if ('day' in what) {
       const d = this.checkDay(what.day);
       markdown = (await this.serial(() => this.foldDay(name, d))).markdown;
     } else {
@@ -324,6 +329,27 @@ export class WorklogService implements WorklogApi {
     const show = await this.o.execute('dossiers show', { dossier: name }, { readOnly: true, caller: CALLER });
     const areas = show.ok && typeof show.data === 'object' && show.data !== null ? ((show.data as { areas?: ShowAreas }).areas ?? {}) : {};
     return { path, bytes: Buffer.byteLength(markdown, 'utf8'), proposals: publishProposals(name, what, path, areas) };
+  }
+
+  /**
+   * The stand-up for a range of days (#345): every day's page as the cache
+   * has it now, the dossier's people from `toil dossiers show`, and the
+   * items and pull requests of the latest sync, folded by
+   * src/model/standup.ts. Nothing is written: a stand-up is read, copied or
+   * exported, never kept.
+   */
+  async standup(dossier: string, from: string, to: string): Promise<WorklogStandup> {
+    const name = this.checkDossier(dossier);
+    const problem = rangeProblem(from, to, this.today());
+    if (problem) throw new WorklogRefusal(problem, 'Pick the days again, ending today or earlier.');
+    const pages = await this.pages(name, daysBetween(from, to));
+    const show = await this.o.execute('dossiers show', { dossier: name }, { readOnly: true, caller: CALLER });
+    const read = show.ok ? readPeople(typeof show.data === 'object' && show.data !== null ? (show.data as { dossier?: unknown }).dossier : null) : null;
+    const notes = read ? read.notes : [`toil dossiers show ${name} failed (${show.ok ? '' : show.error.message}), so each account is its own person here: the dossier's people couldn't be read.`];
+    const pullRequests = pullRequestsOf(this.cache.changes(name));
+    const asOf = this.cache.syncRuns(name).filter((s) => s.ok).map((s) => s.at).sort().at(-1) ?? null;
+    const report = buildStandup({ dossier: name, from, to, pages, people: read?.people ?? [], items: this.cache.items(name), pullRequests, asOf, notes });
+    return { report, markdown: standupMarkdown(report), text: standupText(report) };
   }
 }
 
