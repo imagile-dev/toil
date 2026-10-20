@@ -144,6 +144,15 @@ describe('the fold', () => {
     expect(r.people.find((p) => p.name === 'Linus')!.lines).toEqual({ done: [], progress: [], blocked: [], next: [] });
   });
 
+  it('orders lines with no time by their ids as numbers, so #9 comes before #10', () => {
+    const s = input();
+    const grace = { id: 'ghopper', name: 'G. Hopper', email: null };
+    const sprint = s.items[0]!.iteration;
+    const more = ['PAY-10', 'PAY-9'].map((k) => item(k, { status: 'To Do', statusCategory: 'TODO', assignee: grace, iteration: sprint }));
+    const r = buildStandup({ ...s, items: [...s.items, ...more] });
+    expect(r.people.find((p) => p.name === 'Grace Hopper')!.lines.next.map((l) => l.label)).toEqual(['PAY-3', 'PAY-9', 'PAY-10']);
+  });
+
   it('numbers every line in the order it shows, and finds the numbers a write-up names', () => {
     const r = buildStandup(input());
     const lines = allLines(r);
@@ -184,6 +193,9 @@ describe('the fold', () => {
     expect(r.team.some((l) => l.subject.startsWith('sprint:'))).toBe(false);
     expect(r.people.flatMap((p) => p.lines.next)).toEqual([]);
     expect(standupMarkdown(r)).toMatch(/Review waits, the sprint and Next are as of no sync yet\./);
+    expect(r.sprint).toBeNull();
+    expect(standupMarkdown(r)).toContain('No current sprint to take it from.');
+    expect(standupMarkdown(buildStandup(input()))).toContain('Nothing assigned and not started in Sprint 42.');
   });
 });
 

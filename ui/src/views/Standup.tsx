@@ -19,7 +19,7 @@ import { Panel } from '../components/panel.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { useData } from '../data.ts';
 import { dossierHref, standupHref, worklogHref } from '../format.ts';
-import { allLines, BUCKETS, BUCKET_TITLE, defaultRange, factsCited, groupTitle, MAX_STANDUP_DAYS, standupLede, standupTitle, standupWriteUp, whenText, type StandupGroup, type StandupLine, type StandupReport } from '../model/standup.ts';
+import { allLines, bucketNone, BUCKETS, BUCKET_TITLE, defaultRange, factsCited, groupTitle, MAX_STANDUP_DAYS, standupLede, standupTitle, standupWriteUp, whenText, type StandupGroup, type StandupLine, type StandupReport } from '../model/standup.ts';
 import { dayOf } from '../model/worklog.ts';
 import { useSkins, useTheme, useThemeChoiceContext } from '../skins.tsx';
 import { voiceOn } from '../theme-context.ts';
@@ -180,8 +180,6 @@ function Lines({ report, lines, none, cited }: { report: StandupReport; lines: S
   );
 }
 
-const NONE: Record<(typeof BUCKETS)[number], string> = { done: 'Nothing done.', progress: 'Nothing in progress.', blocked: 'Nothing blocked.', next: 'Nothing assigned and not started in the sprint.' };
-
 function Person({ report, group, cited }: { report: StandupReport; group: StandupGroup; cited: Set<string> }) {
   const id = `standup-${group.key.replace(/[^A-Za-z0-9-]/g, '-')}`;
   const count = BUCKETS.reduce((n, b) => n + group.lines[b].length, 0);
@@ -195,7 +193,7 @@ function Person({ report, group, cited }: { report: StandupReport; group: Standu
           {BUCKETS.map((b) => (
             <section key={b} className="worklog-section">
               <h3>{BUCKET_TITLE[b]}</h3>
-              <Lines report={report} lines={group.lines[b]} none={NONE[b]} cited={cited} />
+              <Lines report={report} lines={group.lines[b]} none={bucketNone(b, report.sprint)} cited={cited} />
             </section>
           ))}
         </div>

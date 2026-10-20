@@ -44,7 +44,9 @@ export const MAX_STANDUP_DAYS = 31;
 export type Bucket = 'done' | 'progress' | 'blocked' | 'next';
 export const BUCKETS: readonly Bucket[] = ['done', 'progress', 'blocked', 'next'];
 export const BUCKET_TITLE: Record<Bucket, string> = { done: 'Done', progress: 'In progress', blocked: 'Blocked', next: 'Next' };
-const BUCKET_NONE: Record<Bucket, string> = { done: 'Nothing done.', progress: 'Nothing in progress.', blocked: 'Nothing blocked.', next: 'Nothing assigned and not started in the sprint.' };
+/** What an empty list says: Next names the sprint, or says there is none to take it from. */
+export const bucketNone = (b: Bucket, sprint: string | null) =>
+  b === 'done' ? 'Nothing done.' : b === 'progress' ? 'Nothing in progress.' : b === 'blocked' ? 'Nothing blocked.' : sprint ? `Nothing assigned and not started in ${sprint}.` : 'No current sprint to take it from.';
 
 /** One line of the report: a fact from the worklog, or something as of the latest sync. */
 export interface StandupLine {
@@ -88,6 +90,8 @@ export interface StandupReport {
   timeZone: 'UTC';
   /** The latest good sync: what review waits, the sprint and Next are as of. Null when there is none. */
   asOf: string | null;
+  /** The current sprint as of `asOf`, whose items Next lists; null when there is none. */
+  sprint: string | null;
   /** What the worklog can't vouch for in the range, each with the days it applies to. */
   gaps: string[];
   team: StandupLine[];
@@ -197,7 +201,20 @@ function whoOf(e: WorklogEvent, items: Map<string, WorkItem>): Person | null {
 }
 
 const time = (l: Draft) => l.at ?? '￿';
-const order = (a: Draft, b: Draft) => (time(a) < time(b) ? -1 : time(a) > time(b) ? 1 : a.key < b.key ? -1 : a.key > b.key ? 1 : 0);
+/** Keys with their numbers compared as numbers (#7 before #11), by code rather than Intl, whose collation moves with each runtime's ICU data. */
+function natural(a: string, b: string): number {
+  const x = a.match(/\d+|\D+/g) ?? [];
+  const y = b.match(/\d+|\D+/g) ?? [];
+  for (let i = 0; i < Math.min(x.length, y.length); i++) {
+    const p = x[i]!;
+    const q = y[i]!;
+    if (p === q) continue;
+    if (/^\d/.test(p) && /^\d/.test(q)) return Number(p) - Number(q) || (p < q ? -1 : 1);
+    return p < q ? -1 : 1;
+  }
+  return x.length - y.length;
+}
+const order = (a: Draft, b: Draft) => (time(a) < time(b) ? -1 : time(a) > time(b) ? 1 : natural(a.key, b.key));
 
 /** The stand-up for a range of days: a pure fold of its input. */
 export function buildStandup(input: StandupInput): StandupReport {
@@ -271,6 +288,7 @@ export function buildStandup(input: StandupInput): StandupReport {
   }
 
   // As of the latest sync: review waits, the sprint, and what is next in it.
+  let sprint: ReturnType<typeof health> = null;
   if (asOf) {
     for (const c of input.pullRequests) {
       if (c.state !== 'OPEN') continue;
@@ -280,7 +298,7 @@ export function buildStandup(input: StandupInput): StandupReport {
       const label = c.id.slice(c.id.indexOf(':') + 1).replace(/^[^/]*\//, '');
       put(prGroup(c.id, c.source.area, c.author).group, 'blocked', { key: `waiting:${c.id}`, at: null, day: null, subject: c.id, label, url: c.url, title: c.title, text: `waiting on review for ${days} working ${days === 1 ? 'day' : 'days'}: ${wait.why}`, refs: { [c.id]: { label, url: c.url } }, cites: [c.id] });
     }
-    const sprint = health(input.items, [], asOf);
+    sprint = health(input.items, [], asOf);
     if (sprint) {
       const { gone, total } = sprint.days;
       const left = Math.max(0, total - gone);
@@ -303,7 +321,7 @@ export function buildStandup(input: StandupInput): StandupReport {
     const d = drafts.get(group);
     for (const b of BUCKETS) group.lines[b] = (d?.[b] ?? []).sort(order).map(number);
   }
-  return { dossier, from, to, timeZone: 'UTC', asOf, gaps: [...(input.notes ?? []), ...gapsOf(pages)], team: teamLines, people: groups, facts: n };
+  return { dossier, from, to, timeZone: 'UTC', asOf, sprint: sprint?.sprint.name ?? null, gaps: [...(input.notes ?? []), ...gapsOf(pages)], team: teamLines, people: groups, facts: n };
 }
 
 function runLine(run: AgentRun): Draft {
@@ -375,7 +393,7 @@ export function standupMarkdown(r: StandupReport): string {
     for (const b of BUCKETS) {
       out.push(`**${BUCKET_TITLE[b]}**`, '');
       if (p.lines[b].length) for (const l of p.lines[b]) out.push(mdLine(r, l));
-      else out.push(BUCKET_NONE[b]);
+      else out.push(bucketNone(b, r.sprint));
       out.push('');
     }
   }
@@ -397,7 +415,7 @@ export function standupText(r: StandupReport): string {
   out.push('Team', ...(r.team.length ? r.team.map((l) => plainLine(r, l)) : ['No sprint, scope changes, or builds and deployments that broke or recovered.']), '');
   for (const p of r.people) {
     out.push(`${groupTitle(p)}${p.mapped || p.key === 'none' ? '' : ", not in the dossier's people"}`);
-    for (const b of BUCKETS) out.push(`${BUCKET_TITLE[b]}:`, ...(p.lines[b].length ? p.lines[b].map((l) => plainLine(r, l)) : [`- ${BUCKET_NONE[b]}`]));
+    for (const b of BUCKETS) out.push(`${BUCKET_TITLE[b]}:`, ...(p.lines[b].length ? p.lines[b].map((l) => plainLine(r, l)) : [`- ${bucketNone(b, r.sprint)}`]));
     out.push('');
   }
   return out.join('\n');
