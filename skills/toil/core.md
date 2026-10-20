@@ -45,7 +45,8 @@ In order, the first that gives exactly one move wins:
    "Peer Review" } }` in the area's section (**Dossiers**, below).
 2. **An exact name**: a transition or status called what you passed, ignoring case.
 3. **The intent's status category**: Jira's To Do, In Progress and Done categories
-   serve `reopen`, `start` and `done` (Jira has no review category); Azure DevOps'
+   serve `reopen`, `start` and `done`, and Jira files review under In Progress, so a
+   status there whose name says review (In Review, Code Review) serves `review`; Azure DevOps'
    Proposed, InProgress, Resolved and Completed serve `reopen`, `start`, `review` and
    `done`. When several moves share the category, a name that starts a word with the
    intent (`Submit for Review`) picks one.

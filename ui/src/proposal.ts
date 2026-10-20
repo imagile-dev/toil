@@ -111,7 +111,7 @@ export const POSITIONAL_FIELDS: ReadonlyMap<string, readonly string[]> = new Map
     'ado pr diff', 'ado pr reviewers', 'ado pr approve', 'ado pr unapprove', 'ado pr wait-for-author',
     'ado pr builds', 'ado pr comments', 'ado pr comment', 'ado pr comment-inline', 'ado pipeline get',
     'ado pipeline run', 'ado run get', 'ado run cancel', 'ado run logs', 'ado-cloud work-item get',
-    'ado-cloud work-item update', 'ado-cloud work-item history', 'ado-cloud work-item get-many',
+    'ado-cloud work-item update', 'ado-cloud work-item transition', 'ado-cloud work-item history', 'ado-cloud work-item get-many',
     'ado-cloud work-item comments', 'ado-cloud work-item comment', 'ado-cloud pr get', 'ado-cloud pr update',
     'ado-cloud pr merge', 'ado-cloud pr abandon', 'ado-cloud pr reviewers', 'ado-cloud pr approve',
     'ado-cloud pr unapprove', 'ado-cloud pr wait-for-author', 'ado-cloud pr threads', 'ado-cloud pr comments',

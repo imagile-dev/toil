@@ -181,7 +181,7 @@ export function oneOfTransition(help: TransitionHelp, given: boolean): ToilError
   });
 }
 
-/** Jira's status categories by key, as intents. There is no review category, so for review a name has to say it. */
+/** Jira's status categories by key, as intents. There is no review category: a status's name says review (jiraIntent). */
 const JIRA_CATEGORY: Record<string, Intent> = { new: 'reopen', indeterminate: 'start', done: 'done' };
 
 /** Azure DevOps state categories as intents. Removed serves none, so only its name reaches it. */
@@ -193,6 +193,17 @@ const intentIn = (table: Record<string, Intent>, category: string | undefined): 
 interface JiraStatus {
   name?: string;
   statusCategory?: { key?: string; name?: string };
+}
+
+/**
+ * A Jira status's intent. Jira files review under In Progress (`indeterminate`),
+ * so a status there whose name says review (In Review, Code Review) serves
+ * review, not start; otherwise `--to start` from In Review would read as
+ * already there, and `--to start` from To Do could land in review.
+ */
+function jiraIntent(status: JiraStatus | undefined): Intent | undefined {
+  const intent = intentIn(JIRA_CATEGORY, status?.statusCategory?.key);
+  return intent === 'start' && startsWord(status?.name ?? '', 'review') ? 'review' : intent;
 }
 
 /** A Jira issue read with `fields=issuetype,status&expand=transitions`, as Data Center and Cloud both return it. */
@@ -209,14 +220,14 @@ export function jiraMoves(key: string, issue: JiraIssueWithTransitions): { item:
     label: key,
     type: issue.fields?.issuetype?.name ?? 'unknown type',
     status: status?.name ?? 'unknown status',
-    statusIntent: intentIn(JIRA_CATEGORY, status?.statusCategory?.key),
+    statusIntent: jiraIntent(status),
   };
   const candidates = (issue.transitions ?? []).map((t) => ({
     id: t.id,
     name: t.name,
     toStatus: t.to?.name ?? t.name,
     category: t.to?.statusCategory?.name ?? t.to?.statusCategory?.key,
-    intent: intentIn(JIRA_CATEGORY, t.to?.statusCategory?.key),
+    intent: jiraIntent(t.to),
   }));
   return { item, candidates };
 }

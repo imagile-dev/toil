@@ -73,7 +73,17 @@ for (const variant of [
       const { envelope, calls } = await transition({ to: 'review' }, STORY);
       expect(sent(calls)).toEqual([read('PROJ-1'), `POST ${variant.base}/issue/PROJ-1/transitions {"transition":{"id":"41"}}`]);
       expect(envelope.data).toEqual({ transitioned: 'PROJ-1', transition: 'Submit for Review' });
-      expect(envelope.meta.transition).toEqual({ intent: 'review', transition: 'Submit for Review', toStatus: 'In Review', resolvedBy: 'name' });
+      // Jira files In Review under In Progress; its name says review, so it serves review.
+      expect(envelope.meta.transition).toEqual({ intent: 'review', transition: 'Submit for Review', toStatus: 'In Review', resolvedBy: 'category' });
+    });
+
+    it('start sends an issue in review back to work, and review from In Review is already there', async () => {
+      const reviewed = issueWith('PROJ-9', 'Story', status('In Review', 'indeterminate'), [move('51', 'Back to In Progress', 'In Progress', 'indeterminate'), move('31', 'Done', 'Done', 'done')]);
+      const back = await transition({ to: 'start' }, reviewed);
+      expect(back.calls.at(-1)!.body).toBe('{"transition":{"id":"51"}}');
+      expect(back.envelope.meta.transition).toEqual({ intent: 'start', transition: 'Back to In Progress', toStatus: 'In Progress', resolvedBy: 'category' });
+      const again = await transition({ to: 'review' }, reviewed);
+      expect(again.envelope.error?.message).toBe('PROJ-9 (Story, now In Review) is already In Review, a status in the category "review" leads to.');
     });
 
     it('review is refused on a Task with no review state, the fix listing what the Task can do, and nothing is written', async () => {
@@ -134,7 +144,7 @@ for (const variant of [
       expect(pinned.calls.at(-1)!.body).toBe('{"transition":{"id":"81"}}');
       expect(pinned.envelope.meta.transition).toEqual({ intent: 'review', transition: 'Peer Review', toStatus: 'Peer Review', resolvedBy: 'dossier' });
       // Without the pin, two moves are named for review, and that's refused.
-      expect((await transition({ to: 'review' }, peer)).envelope.error?.message).toBe('"review" is ambiguous for PROJ-7 (Story, now In Progress): more than one move is named for it: Submit for Review, Peer Review.');
+      expect((await transition({ to: 'review' }, peer)).envelope.error?.message).toBe('"review" is ambiguous for PROJ-7 (Story, now In Progress): more than one move leads into its status category: Submit for Review, Peer Review.');
       const stale = await transition({ to: 'review' }, STORY, dossier);
       expect(stale.calls).toHaveLength(1);
       expect(stale.envelope.error).toMatchObject({

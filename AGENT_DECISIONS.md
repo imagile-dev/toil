@@ -3970,8 +3970,12 @@ work-item transition` and the new `ado-cloud work-item transition`, resolved in 
   offers. Moves into the item's current status are left out of the category and name
   steps for the same reason.
 - **Jira's categories serve `reopen` (To Do), `start` (In Progress) and `done`;
-  Jira has no review category,** so `--to review` on Jira resolves only by pin, exact
-  name or a name that says review. ADO's Proposed, InProgress, Resolved and Completed
+  Jira has no review category, so a status in In Progress whose name starts a word
+  with review (In Review, Code Review) serves `review` instead,** for the item's
+  current status and for each move's target. Without it, `--to start` from In Review
+  read as already there (review round 1). Another in-progress status (Blocked, QA)
+  still serves `start`, so `--to start` from it is refused as already started, with
+  the moves listed; picking a sibling in-progress status would be a guess. ADO's Proposed, InProgress, Resolved and Completed
   serve `reopen`, `start`, `review` and `done`; Removed serves none, so only its name
   reaches it.
 - **Pins are a core dossier key, `transitions`**, validated on every read like
