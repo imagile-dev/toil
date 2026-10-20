@@ -14,7 +14,7 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <id>"
+      "<id>"
     ]
   },
   {
@@ -35,7 +35,7 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <id>"
+      "<id>"
     ]
   },
   {
@@ -45,7 +45,7 @@
     "writes": false,
     "connection": true,
     "flags": [
-      "--id <id>"
+      "<id>"
     ]
   }
 ]

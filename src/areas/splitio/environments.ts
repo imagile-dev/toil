@@ -4,13 +4,13 @@ import { splitioArea } from './area.js';
 import { seg, split, workspaceOf } from './client.js';
 
 /**
- * `environments list`: the environments of one workspace. Split answers this
+ * `environment list`: the environments of one workspace. Split answers this
  * one with a bare array, unlike its paged siblings; consistency was not in
  * the requirements document.
  */
 
 export const environmentsListCommand = splitioArea.command({
-  path: ['splitio', 'environments', 'list'],
+  path: ['splitio', 'environment', 'list'],
   description: 'List environments in a workspace',
   input: z.object({}),
   writes: false,

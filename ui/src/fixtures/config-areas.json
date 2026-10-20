@@ -99,7 +99,7 @@
       },
       {
         "name": "targetBranch",
-        "description": "Default target branch for create-pr (main when unset)",
+        "description": "Default target branch for pr create (main when unset)",
         "secret": false,
         "password": false,
         "default": null,
@@ -145,7 +145,7 @@
       },
       {
         "name": "targetBranch",
-        "description": "Default base branch for create-pr (main when unset)",
+        "description": "Default base branch for pr create (main when unset)",
         "secret": false,
         "password": false,
         "default": null,

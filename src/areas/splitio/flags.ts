@@ -28,7 +28,7 @@ import {
 
 const flagField = { flag: z.string().describe('Feature flag name') };
 const environmentField = { environment: z.string().describe('Environment ID') };
-const flagOption = { flags: '--flag <name>', field: 'flag', description: 'Feature flag name' };
+const flagArg = { name: 'flag', field: 'flag', description: 'Feature flag name' };
 const environmentOption = { flags: '--environment <id>', field: 'environment', description: 'Environment ID' };
 
 /** What a change-request example needs besides its own fields. */
@@ -37,7 +37,7 @@ const CR = { workspace: 'ws-abc12345', mnemonic: 'flag-change', description: 'Ro
 const WEIGHTS_FIX = 'Pass --weights as a JSON array such as [{"treatment":"on","size":50},{"treatment":"off","size":50}], or use --treatment.';
 
 export const flagsListCommand = splitioArea.command({
-  path: ['splitio', 'flags', 'list'],
+  path: ['splitio', 'flag', 'list'],
   description: 'List feature flags in a workspace',
   input: z.object({
     limit: intText.optional().describe('Maximum number of flags to return (Split allows up to 50) (default: "50")'),
@@ -70,7 +70,7 @@ export const flagsListCommand = splitioArea.command({
 });
 
 export const flagsGetCommand = splitioArea.command({
-  path: ['splitio', 'flags', 'get'],
+  path: ['splitio', 'flag', 'get'],
   description: 'Get a flag definition',
   input: z.object({
     ...flagField,
@@ -78,7 +78,8 @@ export const flagsGetCommand = splitioArea.command({
   }),
   writes: false,
   context: { workspace: 'required' },
-  options: [flagOption, { flags: '--environment <id>', field: 'environment', description: 'Environment ID or name; include targeting rules for this environment' }],
+  args: [flagArg],
+  options: [{ flags: '--environment <id>', field: 'environment', description: 'Environment ID or name; include targeting rules for this environment' }],
   examples: [
     { workspace: 'ws-abc12345', flag: 'new_checkout' },
     { workspace: 'ws-abc12345', flag: 'new_checkout', environment: 'env-abc12345' },
@@ -91,7 +92,7 @@ export const flagsGetCommand = splitioArea.command({
 });
 
 export const flagsUpdateCommand = splitioArea.command({
-  path: ['splitio', 'flags', 'update'],
+  path: ['splitio', 'flag', 'update'],
   description: "Submit a Change Request to replace a flag's full definition in an environment",
   input: z.object({
     ...flagField,
@@ -102,25 +103,25 @@ export const flagsUpdateCommand = splitioArea.command({
   }),
   writes: true,
   context: { workspace: 'required' },
+  args: [flagArg],
   options: [
-    flagOption,
     environmentOption,
     ...crOptions,
     { flags: '--input-file <path>', field: 'inputFile', description: 'JSON file with the complete flag definition (treatments, defaultTreatment, rules, defaultRule, ...); "-" = stdin on the CLI' },
   ],
   examples: [{ ...CR, flag: 'new_checkout', environment: 'env-abc12345', inputFile: 'definition.json' }],
   run: async (input, ctx) => {
-    if (!input.inputFile) throw new ToilError('INVALID_INPUT', '--input-file is required for flags update', { fix: 'Pass --input-file <path> with the flag definition as JSON; get the current one with toil splitio flags get --environment <id>.' });
-    const definition = parseJson(ctx.files.readText(input.inputFile), '--input-file', 'The file holds one JSON object: the flag definition, as flags get --environment returns it.');
+    if (!input.inputFile) throw new ToilError('INVALID_INPUT', '--input-file is required for flag update', { fix: 'Pass --input-file <path> with the flag definition as JSON; get the current one with toil splitio flag get <flag> --environment <id>.' });
+    const definition = parseJson(ctx.files.readText(input.inputFile), '--input-file', 'The file holds one JSON object: the flag definition, as flag get --environment returns it.');
     if (typeof definition !== 'object' || definition === null || Array.isArray(definition)) {
-      throw new ToilError('INVALID_INPUT', '--input-file must hold a JSON object: the flag definition.', { fix: 'Start from the output of toil splitio flags get --environment <id>.' });
+      throw new ToilError('INVALID_INPUT', '--input-file must hold a JSON object: the flag definition.', { fix: 'Start from the output of toil splitio flag get <flag> --environment <id>.' });
     }
     return submitCr(ctx, input.environment, crBody(input, 'UPDATE', { ...(definition as Record<string, unknown>), name: input.flag }));
   },
 });
 
 export const flagsSetRuleCommand = splitioArea.command({
-  path: ['splitio', 'flags', 'set-rule'],
+  path: ['splitio', 'flag', 'set-rule'],
   description: 'Change one targeting rule without altering the rest of the flag definition',
   input: z.object({
     ...flagField,
@@ -133,8 +134,8 @@ export const flagsSetRuleCommand = splitioArea.command({
   }),
   writes: true,
   context: { workspace: 'required' },
+  args: [flagArg],
   options: [
-    flagOption,
     environmentOption,
     { flags: '--rule-index <n>', field: 'ruleIndex', description: 'Zero-based index of the targeting rule to update' },
     { flags: '--treatment <name>', field: 'treatment', description: 'Treatment to assign to the entire rule bucket' },
@@ -152,7 +153,7 @@ export const flagsSetRuleCommand = splitioArea.command({
     const idx = parseIntText(input.ruleIndex, '');
     if (Number.isNaN(idx) || idx < 0 || idx >= rules.length) {
       throw new ToilError('INVALID_INPUT', `Rule index ${Number.isNaN(idx) ? JSON.stringify(String(input.ruleIndex)) : idx} is out of range (flag has ${rules.length} rules)`, {
-        fix: 'Run toil splitio flags get --environment <id> to see the rules; --rule-index counts from 0.',
+        fix: 'Run toil splitio flag get <flag> --environment <id> to see the rules; --rule-index counts from 0.',
       });
     }
     // Bucket sizes are percentages: Submit Change Request's example writes a whole bucket as 100.
@@ -164,7 +165,7 @@ export const flagsSetRuleCommand = splitioArea.command({
 });
 
 export const flagsSetDefaultCommand = splitioArea.command({
-  path: ['splitio', 'flags', 'set-default'],
+  path: ['splitio', 'flag', 'set-default'],
   description: 'Update the fallback default rule for traffic matching no targeting rule',
   input: z.object({
     ...flagField,
@@ -175,7 +176,8 @@ export const flagsSetDefaultCommand = splitioArea.command({
   }),
   writes: true,
   context: { workspace: 'required' },
-  options: [flagOption, environmentOption, { flags: '--treatment <name>', field: 'treatment', description: 'Treatment to assign as the default' }, ...crOptions],
+  args: [flagArg],
+  options: [environmentOption, { flags: '--treatment <name>', field: 'treatment', description: 'Treatment to assign as the default' }, ...crOptions],
   examples: [{ ...CR, flag: 'new_checkout', environment: 'env-abc12345', treatment: 'off' }],
   run: async (input, ctx) => {
     const current = await getDefinition(ctx, input.flag, input.environment);
@@ -189,7 +191,7 @@ function killOrRestore(ctx: SplitioContext, input: CrInput & { flag: string; env
 }
 
 export const flagsToggleCommand = splitioArea.command({
-  path: ['splitio', 'flags', 'toggle'],
+  path: ['splitio', 'flag', 'toggle'],
   description: 'Enable or disable a single flag via a Change Request',
   input: z.object({
     ...flagField,
@@ -200,7 +202,8 @@ export const flagsToggleCommand = splitioArea.command({
   }),
   writes: true,
   context: { workspace: 'required' },
-  options: [flagOption, environmentOption, { flags: '--enabled <bool>', field: 'enabled', description: 'true to restore / false to kill the flag' }, ...crOptions],
+  args: [flagArg],
+  options: [environmentOption, { flags: '--enabled <bool>', field: 'enabled', description: 'true to restore / false to kill the flag' }, ...crOptions],
   examples: [
     { ...CR, flag: 'new_checkout', environment: 'env-abc12345', enabled: 'false' },
     { ...CR, flag: 'new_checkout', environment: 'env-abc12345', enabled: 'true' },
@@ -224,7 +227,7 @@ interface BatchEntry {
 }
 
 export const flagsBatchToggleCommand = splitioArea.command({
-  path: ['splitio', 'flags', 'batch-toggle'],
+  path: ['splitio', 'flag', 'toggle-many'],
   description: 'Enable or disable multiple flags from a JSON file (each creates its own Change Request)',
   input: z.object({
     ...environmentField,
@@ -242,7 +245,7 @@ export const flagsBatchToggleCommand = splitioArea.command({
   ],
   examples: [{ ...CR, environment: 'env-abc12345', inputFile: 'toggles.json' }],
   run: async (input, ctx) => {
-    if (!input.inputFile) throw new ToilError('INVALID_INPUT', '--input-file is required for batch-toggle', { fix: 'Pass --input-file <path> holding a JSON array such as [{"flag":"new_checkout","enabled":false}].' });
+    if (!input.inputFile) throw new ToilError('INVALID_INPUT', '--input-file is required for flag toggle-many', { fix: 'Pass --input-file <path> holding a JSON array such as [{"flag":"new_checkout","enabled":false}].' });
     const entries = parseJson(ctx.files.readText(input.inputFile), '--input-file', 'The file holds a JSON array of {flag, enabled} objects.') as BatchEntry[];
     if (!Array.isArray(entries)) throw new ToilError('INVALID_INPUT', 'Input file must be a JSON array of {flag, enabled} objects', { fix: 'Wrap the entries in [ ].' });
     // Every entry is checked before the first request, so a bad one can't leave half the batch filed.
@@ -272,34 +275,37 @@ export const flagsBatchToggleCommand = splitioArea.command({
 });
 
 export const flagsKillCommand = splitioArea.command({
-  path: ['splitio', 'flags', 'kill'],
+  path: ['splitio', 'flag', 'kill'],
   description: 'Submit a Change Request to kill (disable) a flag',
   input: z.object({ ...flagField, ...environmentField, ...crFields, ...allowWriteField }),
   writes: true,
   context: { workspace: 'required' },
-  options: [flagOption, environmentOption, ...crOptions],
+  args: [flagArg],
+  options: [environmentOption, ...crOptions],
   examples: [{ ...CR, flag: 'new_checkout', environment: 'env-abc12345' }],
   run: async (input, ctx) => killOrRestore(ctx, input, 'KILL'),
 });
 
 export const flagsRestoreCommand = splitioArea.command({
-  path: ['splitio', 'flags', 'restore'],
+  path: ['splitio', 'flag', 'restore'],
   description: 'Submit a Change Request to restore a killed flag',
   input: z.object({ ...flagField, ...environmentField, ...crFields, ...allowWriteField }),
   writes: true,
   context: { workspace: 'required' },
-  options: [flagOption, environmentOption, ...crOptions],
+  args: [flagArg],
+  options: [environmentOption, ...crOptions],
   examples: [{ ...CR, flag: 'new_checkout', environment: 'env-abc12345' }],
   run: async (input, ctx) => killOrRestore(ctx, input, 'RESTORE'),
 });
 
 export const flagsArchiveCommand = splitioArea.command({
-  path: ['splitio', 'flags', 'archive'],
+  path: ['splitio', 'flag', 'archive'],
   description: "Submit a Change Request to remove a flag's definition from an environment",
   input: z.object({ ...flagField, ...environmentField, ...crFields, ...allowWriteField }),
   writes: true,
   context: { workspace: 'required' },
-  options: [flagOption, environmentOption, ...crOptions],
+  args: [flagArg],
+  options: [environmentOption, ...crOptions],
   examples: [{ ...CR, flag: 'old_banner', environment: 'env-abc12345' }],
   // It removes a flag definition, and deletes never go through MCP.
   mcp: false,

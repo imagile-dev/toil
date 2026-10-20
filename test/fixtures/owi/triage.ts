@@ -149,7 +149,7 @@ const adoBatch = {
   missing: [],
 };
 
-// GitHub Enterprise: github list-issues
+// GitHub Enterprise: github issue list
 
 const ghIssue = (number: number, title: string, body: string, labels: string[], created: string) => ({
   id: 9000 + number,
@@ -181,7 +181,7 @@ export const triageEnvelopes: unknown[] = [
   envelope('jira issue search', jiraSearch, 'corp-jira'),
   envelope('jira-cloud issue search', cloudSearch, 'cloud-jira'),
   envelope('ado work-item get-many', adoBatch, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' }),
-  envelope('github list-issues', ghIssues, 'github', { owner: 'imagile', repo: 'payments-web' }),
+  envelope('github issue list', ghIssues, 'github', { owner: 'imagile', repo: 'payments-web' }),
 ];
 
 /** Sprint 42 and the new week, one envelope a line: the input `util owi map` turns into triage.owi.json. */

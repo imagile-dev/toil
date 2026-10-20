@@ -28,7 +28,7 @@ a repository's config could make git run: external diff drivers, textconv filter
 the fsmonitor hook and signature checks. Without git on PATH they fail with
 `GIT_NOT_FOUND`, naming the PATH searched; nothing else in toil is affected.
 
-`toil git current-pr` is an alias of `toil bitbucket current-pr`, which asks
+`toil git current-pr` is an alias of `toil bitbucket pr current`, which asks
 Bitbucket for the open pull request from the current branch (see `bitbucket.md`).
 
 ## Commands

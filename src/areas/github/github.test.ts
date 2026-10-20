@@ -132,19 +132,19 @@ describe('owner and repo', () => {
     expect(calls[0]!.url).toBe(`${API}/repos/mine/toil-probe/pulls/7`);
   });
 
-  it('create-pr takes --owner/--repo after the leaf over the group\'s', async () => {
+  it('pr create takes --owner/--repo after the leaf over the group\'s', async () => {
     const t = setup(fixture.routes!);
-    const cli = await runCli(['github', '--owner', 'group-owner', '--repo', 'group-repo', 'create-pr', '--owner', 'imagile', '--repo', 'toil-probe', '--title', 'T', '--head', 'feature', '--allow-write'], { commands, context: t.context });
+    const cli = await runCli(['github', '--owner', 'group-owner', '--repo', 'group-repo', 'pr', 'create', '--owner', 'imagile', '--repo', 'toil-probe', '--title', 'T', '--head', 'feature', '--allow-write'], { commands, context: t.context });
     expect(cli.envelope?.ok).toBe(true);
     expect(t.http.calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/pulls`);
     const group = setup(fixture.routes!);
-    await runCli(['github', '--owner', 'imagile', '--repo', 'toil-probe', 'create-pr', '--title', 'T', '--head', 'feature', '--allow-write'], { commands, context: group.context });
+    await runCli(['github', '--owner', 'imagile', '--repo', 'toil-probe', 'pr', 'create', '--title', 'T', '--head', 'feature', '--allow-write'], { commands, context: group.context });
     expect(group.http.calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/pulls`);
   });
 });
 
 describe('pull requests', () => {
-  it('list-prs pages 100 at a time from page 1, per_page first, and stops on a short page', async () => {
+  it('pr list pages 100 at a time from page 1, per_page first, and stops on a short page', async () => {
     const full = Array.from({ length: 100 }, (_, i) => pullRequest(i + 1));
     const routes: Route[] = [
       { path: `${REPO}/pulls`, query: { state: 'open', per_page: '100', page: '1' }, respond: { json: full } },
@@ -155,7 +155,7 @@ describe('pull requests', () => {
     expect((envelope.data as unknown[]).length).toBe(101);
   });
 
-  it('list-prs sends state, head and base, and filters author (any case) and dates after paging', async () => {
+  it('pr list sends state, head and base, and filters author (any case) and dates after paging', async () => {
     const prs = [pullRequest(1), pullRequest(2, { user: user('someone-else') }), pullRequest(3, { created_at: '2025-02-01T00:00:00Z' }), pullRequest(4, { created_at: '2024-12-31T23:59:59Z' })];
     const routes: Route[] = [{ path: `${REPO}/pulls`, query: { state: 'all', head: 'imagile:feature', base: 'main', per_page: '100', page: '1' }, respond: { json: prs } }];
     const { envelope } = await run(listPrsCommand, { ...BASE, state: 'all', head: 'imagile:feature', base: 'main', author: 'OCTO-DEV', createdAfter: '2025-01-01', createdBefore: '2025-02-01T00:00:00Z' }, routes);
@@ -169,13 +169,13 @@ describe('pull requests', () => {
     expect((envelope.data as Array<{ number: number }>).map((p) => p.number)).toEqual([1]);
   });
 
-  it('list-prs rejects a bad date before looking for a repo or sending anything', async () => {
+  it('pr list rejects a bad date before looking for a repo or sending anything', async () => {
     const { envelope, calls } = await run(listPrsCommand, { createdAfter: 'yesterday' }, []);
     expect(calls).toEqual([]);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid --created-after value "yesterday". Use an ISO 8601 date such as 2025-01-31 or 2025-01-31T09:00:00Z.' });
   });
 
-  it('create-pr POSTs title, head and base, defaulting base to targetBranch then main; --body wins over --body-file', async () => {
+  it('pr create POSTs title, head and base, defaulting base to targetBranch then main; --body wins over --body-file', async () => {
     const plain = await run(createPrCommand, { ...BASE, title: 'T', head: 'feature', allowWrite: true });
     expect(plain.calls[0]).toMatchObject({ method: 'POST', url: `${API}/repos/imagile/toil-probe/pulls`, headers: HEADERS });
     expect(JSON.parse(plain.calls[0]!.body!)).toEqual({ title: 'T', head: 'feature', base: 'main' });
@@ -185,7 +185,7 @@ describe('pull requests', () => {
     expect(JSON.parse(both.calls[0]!.body!).body).toBe('inline');
   });
 
-  it('merge-pr: suspected bug #72 item 12, merge_method is always sent, defaulting to merge', async () => {
+  it('pr merge: suspected bug #72 item 12, merge_method is always sent, defaulting to merge', async () => {
     const { calls, envelope } = await run(mergePrCommand, { ...BASE, number: '7', allowWrite: true });
     expect(calls[0]).toMatchObject({ method: 'PUT', url: `${API}/repos/imagile/toil-probe/pulls/7/merge` });
     expect(calls[0]!.body).toBe('{"merge_method":"merge"}');
@@ -223,7 +223,7 @@ describe('GraphQL', () => {
     expect(envelope.data).toMatchObject({ number: 7, autoMergeRequest: { enabledBy: { login: 'octo-dev' } } });
   });
 
-  it('enqueue-pr sends only the variables given and returns mergeQueueUrl', async () => {
+  it('pr enqueue sends only the variables given and returns mergeQueueUrl', async () => {
     const { calls, envelope } = await run(enqueuePrCommand, { ...BASE, number: '7', allowWrite: true });
     expect(JSON.parse(calls[1]!.body!).variables).toEqual({ pullRequestId: 'PR_kwDOabc123457' });
     expect(envelope.data).toEqual({ mergeQueueUrl: `${GHE}/imagile/toil-probe/queue/main` });
@@ -237,7 +237,7 @@ describe('GraphQL', () => {
     expect(empty.envelope.error).toMatchObject({ code: 'HTTP', message: expect.stringContaining('with no data') });
   });
 
-  it('pr-status: suspected bug #72 item 1, GraphQL\'s uppercase states all count as other', async () => {
+  it('pr status: suspected bug #72 item 1, GraphQL\'s uppercase states all count as other', async () => {
     const { envelope, calls } = await run(prStatusCommand, { ...BASE, number: '7' });
     expect(JSON.parse(calls[0]!.body!).variables).toEqual({ owner: 'imagile', repo: 'toil-probe', number: 7 });
     expect(envelope.data).toMatchObject({
@@ -248,21 +248,21 @@ describe('GraphQL', () => {
     });
   });
 
-  it('pr-status counts lowercase states and flattens enabledBy; suspected bug #72 item 2, only 100 contexts are asked for', async () => {
+  it('pr status counts lowercase states and flattens enabledBy; suspected bug #72 item 2, only 100 contexts are asked for', async () => {
     const node = { ...prStatusNode([{ __typename: 'CheckRun', name: 'a', status: 'completed', conclusion: 'success' }, { __typename: 'CheckRun', name: 'b', status: 'completed', conclusion: 'timed_out' }, { __typename: 'StatusContext', context: 'c', state: 'pending' }, { __typename: 'CheckRun', name: 'd', status: 'completed', conclusion: 'skipped' }]), autoMergeRequest: { mergeMethod: 'SQUASH', enabledAt: 'x', enabledBy: { login: 'octo-dev' } } };
     const { envelope, calls } = await run(prStatusCommand, { ...BASE, number: '7' }, [{ method: 'POST', url: /graphql$/, respond: { json: { data: { repository: { pullRequest: node } } } } }]);
     expect(JSON.parse(calls[0]!.body!).query).toContain('contexts(first: 100)');
     expect(envelope.data).toMatchObject({ autoMergeRequest: { mergeMethod: 'SQUASH', enabledAt: 'x', enabledBy: 'octo-dev' }, checks: { total: 4, passed: 1, failed: 1, pending: 1, other: 1 } });
   });
 
-  it('pr-status: suspected bug #72 item 17, an auto-merge request with a null enabledBy fails instead of answering', async () => {
+  it('pr status: suspected bug #72 item 17, an auto-merge request with a null enabledBy fails instead of answering', async () => {
     const node = { ...prStatusNode([]), autoMergeRequest: { mergeMethod: 'SQUASH', enabledAt: 'x', enabledBy: null } };
     const { envelope } = await run(prStatusCommand, { ...BASE, number: '7' }, [{ method: 'POST', url: /graphql$/, respond: { json: { data: { repository: { pullRequest: node } } } } }]);
     expect(envelope.ok).toBe(false);
     expect(envelope.error?.message).toContain('login');
   });
 
-  it('list-review-threads warns past 100 threads; suspected bug #72 item 3, 10 comments per thread and no warning', async () => {
+  it('pr threads warns past 100 threads; suspected bug #72 item 3, 10 comments per thread and no warning', async () => {
     const answer = { data: { repository: { pullRequest: { reviewThreads: { pageInfo: { hasNextPage: true }, nodes: [thread()] } } } } };
     const { envelope, calls } = await run(listReviewThreadsCommand, { ...BASE, number: '7' }, [{ method: 'POST', url: /graphql$/, respond: { json: answer } }]);
     expect(JSON.parse(calls[0]!.body!).query).toContain('comments(first: 10)');
@@ -270,7 +270,7 @@ describe('GraphQL', () => {
     expect(envelope.meta.warnings).toEqual([{ code: 'GITHUB_REVIEW_THREADS_TRUNCATED', message: 'more than 1 review threads on PR #7; only showing the first 1' }]);
   });
 
-  it('resolve-thread: suspected bug #72 item 8, it needs an owner and repo it never sends', async () => {
+  it('pr resolve: suspected bug #72 item 8, it needs an owner and repo it never sends', async () => {
     const without = await run(resolveThreadCommand, { threadId: 'PRT_1', allowWrite: true });
     expect(without.calls).toEqual([]);
     expect(without.envelope.error?.message).toMatch(/^Could not determine/);
@@ -310,19 +310,19 @@ describe('dot segments', () => {
   });
 
   it('keeps the five deletes off MCP', () => {
-    const off = commands.filter((c) => c.mcp === false).map((c) => c.path[1]).sort();
-    expect(off).toEqual(['delete-comment', 'delete-review-comment', 'remove-assignees', 'remove-label', 'remove-reviewers']);
+    const off = commands.filter((c) => c.mcp === false).map((c) => c.path.slice(1).join(' ')).sort();
+    expect(off).toEqual(['issue unassign', 'issue unlabel', 'pr delete-comment', 'pr delete-review-comment', 'pr remove-reviewers']);
   });
 });
 
 describe('status and checks', () => {
-  it('get-status: suspected bugs #72 items 5 and 13, one request and the ref unencoded', async () => {
+  it('commit status: suspected bugs #72 items 5 and 13, one request and the ref unencoded', async () => {
     const { calls } = await run(getStatusCommand, { ...BASE, ref: 'probe#1' }, [{ url: /.*/, respond: { json: { state: 'success', statuses: [] } } }]);
     expect(calls.length).toBe(1);
     expect(calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/commits/probe#1/status`);
   });
 
-  it('list-checks unwraps check_runs and pages until a short page', async () => {
+  it('commit checks unwraps check_runs and pages until a short page', async () => {
     const routes: Route[] = [
       { path: `${REPO}/commits/abc1234/check-runs`, query: { per_page: '100', page: '1' }, respond: { json: { total_count: 101, check_runs: Array.from({ length: 100 }, (_, i) => checkRun(i)) } } },
       { path: `${REPO}/commits/abc1234/check-runs`, query: { per_page: '100', page: '2' }, respond: { json: { total_count: 101, check_runs: [checkRun(100)] } } },
@@ -333,7 +333,7 @@ describe('status and checks', () => {
 });
 
 describe('repositories, issues, labels, assignees and reviewers', () => {
-  it('create-repo: suspected bug #72 item 6, an explicit --owner is always an org; the remote and defaults are never read', async () => {
+  it('repo create: suspected bug #72 item 6, an explicit --owner is always an org; the remote and defaults are never read', async () => {
     const org = await run(createRepoCommand, { owner: 'imagile', name: 'toil-probe', allowWrite: true });
     expect(org.calls[0]).toMatchObject({ method: 'POST', url: `${API}/orgs/imagile/repos` });
     expect(org.calls[0]!.body).toBe('{"name":"toil-probe"}');
@@ -343,14 +343,14 @@ describe('repositories, issues, labels, assignees and reviewers', () => {
     expect(user.envelope.meta.context?.inputs).toEqual({});
   });
 
-  it('create-issue sends labels and assignees only when given, and reads --body-file', async () => {
+  it('issue create sends labels and assignees only when given, and reads --body-file', async () => {
     const { calls } = await run(createIssueCommand, { ...BASE, title: 'T', bodyFile: 'issue-body.md', label: [], allowWrite: true });
     expect(calls[0]!.body).toBe(JSON.stringify({ title: 'T', body: 'Issue body from a file.\n' }));
     const full = await run(createIssueCommand, { ...BASE, title: 'T', label: ['bug'], assignee: ['octo-dev'], allowWrite: true });
     expect(full.calls[0]!.body).toBe(JSON.stringify({ title: 'T', labels: ['bug'], assignees: ['octo-dev'] }));
   });
 
-  it('add-labels needs a label, checked after the repo; data is GitHub\'s array as it came', async () => {
+  it('issue label needs a label, checked after the repo; data is GitHub\'s array as it came', async () => {
     expect((await run(addLabelsCommand, { number: '7', allowWrite: true })).envelope.error?.message).toMatch(/^Could not determine/);
     expect((await run(addLabelsCommand, { ...BASE, number: '7', allowWrite: true })).envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'At least one --label is required' });
     const { envelope, calls } = await run(addLabelsCommand, { ...BASE, number: '7', label: ['bug', 'needs-review'], allowWrite: true });
@@ -358,7 +358,7 @@ describe('repositories, issues, labels, assignees and reviewers', () => {
     expect(envelope.data).toEqual([label('bug'), label('needs-review', 2)]);
   });
 
-  it('remove-label: suspected bug #72 item 4, the label goes into the path unencoded', async () => {
+  it('issue unlabel: suspected bug #72 item 4, the label goes into the path unencoded', async () => {
     const any: Route[] = [{ method: 'DELETE', url: /.*/, respond: { status: 200, json: [] } }];
     const cases: Array<[string, string]> = [
       ['needs review', `${API}/repos/imagile/toil-probe/issues/7/labels/needs%20review`],
@@ -372,7 +372,7 @@ describe('repositories, issues, labels, assignees and reviewers', () => {
     }
   });
 
-  it('add-assignees POSTs the logins; remove-reviewers DELETEs with a JSON body and returns { removed: true }', async () => {
+  it('issue assign POSTs the logins; pr remove-reviewers DELETEs with a JSON body and returns { removed: true }', async () => {
     const add = await run(addAssigneesCommand, { ...BASE, number: '7', assignee: ['octo-dev'], allowWrite: true });
     expect(add.calls[0]).toMatchObject({ method: 'POST', url: `${API}/repos/imagile/toil-probe/issues/7/assignees`, body: '{"assignees":["octo-dev"]}' });
     const remove = await run(removeReviewersCommand, { ...BASE, number: '7', teamReviewer: ['platform'], allowWrite: true });

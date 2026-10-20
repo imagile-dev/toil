@@ -8,8 +8,8 @@ const options: ExecuteOptions = { readOnly: true, caller: 'api-consumer', onProg
 
 export async function sync(): Promise<number> {
   if (contractVersion !== 1) throw new Error(`Built for toil's contract 1; this toil ${version} reports ${contractVersion}.`);
-  const command: CommandInfo | undefined = registry.commands.find((c) => c.name === 'bitbucket list-prs');
-  const envelope: Envelope = await execute(command?.name ?? 'bitbucket list-prs', { project: 'PAY', repo: 'web' }, options);
+  const command: CommandInfo | undefined = registry.commands.find((c) => c.name === 'bitbucket pr list');
+  const envelope: Envelope = await execute(command?.name ?? 'bitbucket pr list', { project: 'PAY', repo: 'web' }, options);
   if (!envelope.ok) return envelope.error.code === 'WRITE_DISABLED' ? -1 : 0;
   const pages = seen.filter((e) => e.type === 'page').map((e) => (e.type === 'page' ? e.items : 0));
   return envelope.meta.contractVersion + (envelope.meta.page?.limit ?? 0) + pages.length;

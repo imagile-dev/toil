@@ -1,5 +1,5 @@
 /**
- * The version comparison `artifactory outdated` and `util deps diff` use,
+ * The version comparison `artifactory package outdated` and `util deps diff` use,
  * kept exactly as the canonical implementation had it: leading non-digits
  * dropped, missing or non-numeric parts read as 0, a release above its
  * prereleases, and prereleases compared as plain text. It is not the semver
@@ -63,7 +63,7 @@ export function updateType(current: string, latest: string): 'major' | 'minor' |
 // ecosystem's real rules: SemVer 2.0.0 precedence and npm's ranges for
 // npm, NuGet's four-part versions and interval notation, and Maven's
 // ordering and version ranges. Each is one module
-// under ./versions/, loaded only when asked for, so `artifactory outdated`
+// under ./versions/, loaded only when asked for, so `artifactory package outdated`
 // pays nothing for grammars it never reads. A version comparison is one of
 // the few things in an enterprise that has a written standard; there are
 // three of them.

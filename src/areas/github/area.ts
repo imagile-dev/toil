@@ -32,7 +32,7 @@ export const githubArea = defineArea({
     // Shared defaults, usually set once under defaults.github for every connection.
     owner: z.string().min(1).optional().describe('Default owner (user or org)'),
     repo: z.string().min(1).optional().describe('Default repository name'),
-    targetBranch: z.string().min(1).optional().describe('Default base branch for create-pr (main when unset)'),
+    targetBranch: z.string().min(1).optional().describe('Default base branch for pr create (main when unset)'),
   }),
   secrets: ['token'],
   // GitHub Actions sets both on every runner, so a workflow needs no toil-specific setup.

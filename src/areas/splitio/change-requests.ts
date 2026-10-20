@@ -17,7 +17,7 @@ interface CrList {
 }
 
 export const changeRequestsListCommand = splitioArea.command({
-  path: ['splitio', 'change-requests', 'list'],
+  path: ['splitio', 'change-request', 'list'],
   description: 'List Change Requests for a workspace',
   input: z.object({
     environment: z.string().optional().describe('Filter by environment ID'),
@@ -67,13 +67,13 @@ export const changeRequestsListCommand = splitioArea.command({
 });
 
 export const changeRequestsGetCommand = splitioArea.command({
-  path: ['splitio', 'change-requests', 'get'],
+  path: ['splitio', 'change-request', 'get'],
   description: 'Get a Change Request by ID',
   input: z.object({
     id: z.string().describe('Change Request ID'),
   }),
   writes: false,
-  options: [{ flags: '--id <id>', field: 'id', description: 'Change Request ID' }],
+  args: [{ name: 'id', field: 'id', description: 'Change Request ID' }],
   examples: [{ id: 'cr-abc12345' }],
   // GET /changeRequests/{id}; no workspace in the path. https://docs.split.io/reference/get-change-request
   run: async (input, ctx) => split<unknown>(ctx, `/changeRequests/${seg(input.id)}`),

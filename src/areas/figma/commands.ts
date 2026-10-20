@@ -52,7 +52,7 @@ interface FigmaNodesResponse {
 const KEY_OR_URL = 'Figma file key or full Figma URL';
 
 export const fileCommand = figmaArea.command({
-  path: ['figma', 'file'],
+  path: ['figma', 'file', 'get'],
   description: 'Get a Figma file — metadata, structure, and component/style inventory (or a single node with --node-id)',
   input: z.object({
     fileKeyOrUrl: z.string().describe('Figma file key or full Figma URL (https://www.figma.com/design/<key>/...); a node-id query param is auto-detected'),
@@ -82,7 +82,7 @@ export const fileCommand = figmaArea.command({
       // Suspected bug (#73 item 8): the response's `err` is never read, so any null node is "not found".
       if (!node) {
         throw new ToilError('NOT_FOUND', `Node ${nodeId} not found in file ${fileKey}`, {
-          fix: `Check the node ID: copy the link to the layer in Figma (it carries node-id), or run toil figma file ${fileKey} --document to see the node tree.`,
+          fix: `Check the node ID: copy the link to the layer in Figma (it carries node-id), or run toil figma file get ${fileKey} --document to see the node tree.`,
         });
       }
       // Suspected bug (#73 item 6): --document has no effect here; the node's whole subtree always comes back.
@@ -117,7 +117,7 @@ export const fileCommand = figmaArea.command({
 });
 
 export const commentsCommand = figmaArea.command({
-  path: ['figma', 'comments'],
+  path: ['figma', 'file', 'comments'],
   description: 'Get comments on a Figma file',
   input: z.object({
     fileKeyOrUrl: z.string().describe(KEY_OR_URL),
@@ -137,7 +137,7 @@ export const commentsCommand = figmaArea.command({
 });
 
 export const versionsCommand = figmaArea.command({
-  path: ['figma', 'versions'],
+  path: ['figma', 'file', 'versions'],
   description: 'Get the version history of a Figma file',
   input: z.object({
     fileKeyOrUrl: z.string().describe(KEY_OR_URL),
@@ -155,7 +155,7 @@ export const versionsCommand = figmaArea.command({
 });
 
 export const projectFilesCommand = figmaArea.command({
-  path: ['figma', 'project-files'],
+  path: ['figma', 'project', 'files'],
   description: 'List files in a Figma project',
   input: z.object({
     projectId: z.string().describe('Figma project ID (visible in the project URL)'),
@@ -171,7 +171,7 @@ export const projectFilesCommand = figmaArea.command({
 });
 
 export const meCommand = figmaArea.command({
-  path: ['figma', 'me'],
+  path: ['figma', 'whoami'],
   description: 'Get the current Figma user (useful for verifying credentials)',
   input: z.object({}),
   writes: false,

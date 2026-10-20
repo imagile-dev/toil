@@ -17,23 +17,23 @@ function storageCommand(what: 'files' | 'groups', description: string, queryHelp
       query: z.string().optional().describe(queryHelp),
       kind: z.string().optional().describe('App kind: android or ios'),
       page: intText.optional().describe('Page number (starts at 1)'),
-      perPage: intText.optional().describe('Results per page (max 100)'),
+      pageSize: intText.optional().describe('Results per page (max 100)'),
     }),
     writes: false,
     options: [
       { flags: '--query <text>', field: 'query', description: queryHelp },
       { flags: '--kind <kind>', field: 'kind', description: 'App kind: android or ios' },
       { flags: '--page <n>', field: 'page', description: 'Page number (starts at 1)' },
-      { flags: '--per-page <n>', field: 'perPage', description: 'Results per page (max 100)' },
+      { flags: '--page-size <n>', field: 'pageSize', description: 'Results per page (max 100)' },
     ],
-    examples: [{}, { query: 'imagile', kind: 'Android', page: '2', perPage: '25' }],
+    examples: [{}, { query: 'imagile', kind: 'Android', page: '2', pageSize: '25' }],
     run: async (input, ctx) =>
       sauce(ctx, `/v1/storage/${what}`, {
         query: {
           q: input.query,
           kind: parseChoice(input.kind, STORAGE_KINDS, '--kind'),
           page: parseIntOption(input.page, '--page'),
-          per_page: parseIntOption(input.perPage, '--per-page'),
+          per_page: parseIntOption(input.pageSize, '--page-size'),
         },
       }),
   });

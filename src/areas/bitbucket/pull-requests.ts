@@ -14,7 +14,7 @@ import { API, IN_REPO, bb, bbAll, commaList, createPR, getPR, prPath, projectOf,
 /** A number read with parseInt, as the contract specifies: text stays text until then. */
 const intText = z.union([z.number(), z.string()]);
 const idInput = intText.describe('Pull request ID');
-const idOption = { flags: '--id <pr-id>', field: 'id', description: 'Pull request ID' };
+const prArg = { name: 'id', field: 'id', description: 'Pull request ID' };
 
 /** An ISO 8601 date flag, read with `new Date()` as the contract specifies. Suspected bug (#76 item 17): a date-time without a zone is local time. */
 function parseDate(flag: string, value: string): Date {
@@ -28,7 +28,7 @@ function parseDate(flag: string, value: string): Date {
 }
 
 export const createRepoCommand = bitbucketArea.command({
-  path: ['bitbucket', 'create-repo'],
+  path: ['bitbucket', 'repo', 'create'],
   description: 'Create a new repository in a project',
   toolDescription: 'Creates a git repository in a Bitbucket project and returns it as Bitbucket stores it. Needs only the project, not a repo.',
   input: z.object({
@@ -55,7 +55,7 @@ export const createRepoCommand = bitbucketArea.command({
 });
 
 export const listPrsCommand = bitbucketArea.command({
-  path: ['bitbucket', 'list-prs'],
+  path: ['bitbucket', 'pr', 'list'],
   description: 'List pull requests',
   toolDescription:
     'Lists every pull request in a repository in one state (OPEN by default), optionally by author or reviewer username, and by creation date (filtered after fetching every page).',
@@ -116,13 +116,13 @@ export async function listPRs(ctx: BitbucketContext, project: string, repo: stri
 }
 
 export const getPrCommand = bitbucketArea.command({
-  path: ['bitbucket', 'get-pr'],
+  path: ['bitbucket', 'pr', 'get'],
   description: 'Get a pull request by ID',
   toolDescription: 'Returns one pull request by ID: title, description, state, author, reviewers and their status, source and target refs, and version.',
   input: z.object({ id: idInput }),
   writes: false,
   context: IN_REPO,
-  options: [idOption],
+  args: [prArg],
   examples: [{ project: 'PROJ', repo: 'imagile-api', id: '42' }],
   run: async (input, ctx) => {
     const { project, repo } = where(ctx);
@@ -131,7 +131,7 @@ export const getPrCommand = bitbucketArea.command({
 });
 
 export const createPrCommand = bitbucketArea.command({
-  path: ['bitbucket', 'create-pr'],
+  path: ['bitbucket', 'pr', 'create'],
   description: 'Create a pull request',
   toolDescription:
     "Opens a pull request from source to target (the connection's targetBranch, then main) and returns it. Without reviewers, Bitbucket's default-reviewer conditions apply. For a personal repository, the project is ~username.",
@@ -167,7 +167,7 @@ export const createPrCommand = bitbucketArea.command({
 type RepoResult = { repo: string; status: 'created'; pr: BitbucketPR } | { repo: string; status: 'nothing_to_promote' } | { repo: string; status: 'error'; error: string };
 
 export const createPrsCommand = bitbucketArea.command({
-  path: ['bitbucket', 'create-prs'],
+  path: ['bitbucket', 'pr', 'create-many'],
   description: 'Create pull requests for multiple repositories in a project',
   toolDescription:
     'Opens a pull request from one branch to another in each listed repository of a project, one repository at a time, skipping any with nothing to promote. Never fails as a whole: each repository reports created, nothing_to_promote or error, with counts in summary, and a BITBUCKET_ALL_FAILED warning when every repository failed.',
@@ -240,7 +240,7 @@ export const createPrsCommand = bitbucketArea.command({
 });
 
 export const updatePrCommand = bitbucketArea.command({
-  path: ['bitbucket', 'update-pr'],
+  path: ['bitbucket', 'pr', 'update'],
   description: 'Update a pull request',
   toolDescription:
     "Changes a pull request's title, description or reviewers and returns it. Reads the PR first and resends the current values for anything not given, since Bitbucket clears what a PUT leaves out. reviewers replaces the whole list.",
@@ -253,8 +253,8 @@ export const updatePrCommand = bitbucketArea.command({
   }),
   writes: true,
   context: IN_REPO,
+  args: [prArg],
   options: [
-    idOption,
     { flags: '--title <title>', field: 'title', description: 'New title' },
     { flags: '--description <desc>', field: 'description', description: 'New description' },
     { flags: '--reviewers <users>', field: 'reviewers', description: 'Comma-separated reviewer usernames' },
@@ -281,7 +281,7 @@ export const updatePrCommand = bitbucketArea.command({
 });
 
 export const mergePrCommand = bitbucketArea.command({
-  path: ['bitbucket', 'merge-pr'],
+  path: ['bitbucket', 'pr', 'merge'],
   description: 'Merge a pull request',
   toolDescription:
     "Merges a pull request at its current version and returns it. strategy is sent to Bitbucket as its merge strategy id (squash and ff are Bitbucket ids). deleteBranch does not delete the source branch; it sets Bitbucket's autoSubject, and a BITBUCKET_BRANCH_NOT_DELETED warning says so.",
@@ -293,7 +293,8 @@ export const mergePrCommand = bitbucketArea.command({
   }),
   writes: true,
   context: IN_REPO,
-  options: [idOption, { flags: '--strategy <strategy>', field: 'strategy', description: 'Merge strategy: merge|squash|ff' }, { flags: '--delete-branch', field: 'deleteBranch', description: 'Delete source branch after merge' }],
+  args: [prArg],
+  options: [{ flags: '--strategy <strategy>', field: 'strategy', description: 'Merge strategy: merge|squash|ff' }, { flags: '--delete-branch', field: 'deleteBranch', description: 'Delete source branch after merge' }],
   examples: [
     { project: 'PROJ', repo: 'imagile-api', id: '42', allowWrite: true },
     { project: 'PROJ', repo: 'imagile-api', id: '42', strategy: 'squash', deleteBranch: true, allowWrite: true },
@@ -317,13 +318,13 @@ export const mergePrCommand = bitbucketArea.command({
 });
 
 export const declinePrCommand = bitbucketArea.command({
-  path: ['bitbucket', 'decline-pr'],
+  path: ['bitbucket', 'pr', 'decline'],
   description: 'Decline a pull request',
   toolDescription: 'Declines an open pull request at its current version and returns it.',
   input: z.object({ id: idInput, ...allowWriteField }),
   writes: true,
   context: IN_REPO,
-  options: [idOption],
+  args: [prArg],
   examples: [{ project: 'PROJ', repo: 'imagile-api', id: '42', allowWrite: true }],
   run: async (input, ctx) => {
     const { project, repo } = where(ctx);
@@ -334,7 +335,7 @@ export const declinePrCommand = bitbucketArea.command({
 });
 
 export const currentPrCommand = bitbucketArea.command({
-  path: ['bitbucket', 'current-pr'],
+  path: ['bitbucket', 'pr', 'current'],
   aliases: [['git', 'current-pr']],
   description: 'Find the open PR for the current branch',
   toolDescription:

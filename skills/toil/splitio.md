@@ -53,7 +53,7 @@ OS credential store, or set `TOIL_SPLITIO_ADMIN_API_KEY`.
 
 ## The workspace is `--ws`
 
-Every command but `workspaces list` and `change-requests get` acts in one Split
+Every command but `workspace list` and `change-request get` acts in one Split
 workspace: `--ws <id>`, else the connection's `workspace`. Over MCP the field is
 `workspace`. **On the CLI, `--workspace` is toil's own flag** for the folder commands
 may read files in, so `--workspace <split id>` doesn't name the Split workspace; a
@@ -63,20 +63,20 @@ command left without one fails with `INVALID_INPUT` saying to pass `--ws`.
 
 Reads:
 
-- `workspaces list`: List all Split.IO workspaces, every page.
-- `environments list`: List environments in a workspace.
-- `flags list`: List feature flags in a workspace. `--limit` (default 50, Split's
+- `workspace list`: List all Split.IO workspaces, every page.
+- `environment list`: List environments in a workspace.
+- `flag list`: List feature flags in a workspace. `--limit` (default 50, Split's
   maximum) and `--offset` (default 0); `data.totalCount` is Split's total.
   `--flag-set` is sent as `flagSetName`, which Split's reference doesn't document,
   so the result carries a warning to compare `totalCount` with an unfiltered list.
-- `flags get`: Get a flag (`--flag`), or with `--environment` its definition in that
+- `flag get <flag>`: Get a flag, or with `--environment` its definition in that
   environment: treatments, rules, default rule, kill state.
-- `change-requests list`: List Change Requests for a workspace (`--environment`,
+- `change-request list`: List Change Requests for a workspace (`--environment`,
   `--status`; Split returns `REQUESTED` ones when `--status` is unset). `--limit`
   defaults to 25 (Split allows 1 to 100). Split pages by marker: pass
   `data.nextMarker` (also `meta.page.nextCursor`) as `--after` for the next page.
   `--offset` accepts only 0, and `totalCount` is `null`, since Split reports none.
-- `change-requests get`: Get a Change Request by ID (`--id`).
+- `change-request get <id>`: Get a Change Request by ID.
 
 Writes, each a change request against one `--environment`. They need `writes: true`
 on the connection and `--allow-write` on the call. Every one takes `--mnemonic` (the
@@ -86,30 +86,30 @@ email addresses, only where the environment lets submitters choose) and
 `--rollout-status <id>` (a rollout status ID; Split's guide says KILL doesn't need
 one, and the others may).
 
-- `flags update`: Replace a flag's definition with the JSON object in `--input-file`
-  (`-` reads stdin on the CLI). Start from `flags get --environment`.
-- `flags set-rule`: Change rule `--rule-index` (from 0) to one `--treatment` (a
+- `flag update <flag>`: Replace a flag's definition with the JSON object in `--input-file`
+  (`-` reads stdin on the CLI). Start from `flag get <flag> --environment`.
+- `flag set-rule <flag>`: Change rule `--rule-index` (from 0) to one `--treatment` (a
   100% bucket) or `--weights` (a JSON array of `{treatment, size}`, sizes in percent;
   anything but an array is refused).
   The rest of the definition is copied from the current one.
-- `flags set-default`: Set the default rule to one `--treatment` at 100%.
-- `flags toggle`: `--enabled false` (or `0`) kills the flag; **any other value
+- `flag set-default <flag>`: Set the default rule to one `--treatment` at 100%.
+- `flag toggle <flag>`: `--enabled false` (or `0`) kills the flag; **any other value
   restores it**, `off` and `no` included. A value other than `true` or `1` that
   restores adds a `SPLITIO_TOGGLE_RESTORED` warning to `meta.warnings` saying so.
-- `flags batch-toggle`: One change request per entry of `--input-file`, a JSON array
+- `flag toggle-many`: One change request per entry of `--input-file`, a JSON array
   of `{flag, enabled}`, titled `<mnemonic> — <flag>`. A failed entry doesn't stop the
   rest; it's reported in `results[]` with `ok: false`, the envelope stays `ok`, and
   `meta.warnings` says how many failed. `enabled` is read by truthiness, so the
   string `"false"` restores. Every entry must have a `flag` name; if one doesn't, the
   command fails with `INVALID_INPUT` naming the entry, before any request is filed.
-- `flags kill`, `flags restore`: Kill or restore a flag in the environment.
-- `flags archive`: Remove a flag's definition from the environment (Split's
+- `flag kill <flag>`, `flag restore <flag>`: Kill or restore a flag in the environment.
+- `flag archive <flag>`: Remove a flag's definition from the environment (Split's
   `ARCHIVE` change request; not Split's flag-archive API). CLI only: it removes a
   definition, and deletes are never served over MCP.
 
 ```bash
-toil splitio workspaces list
-toil splitio flags get --ws <workspace id> --flag new_checkout --environment <environment id>
-toil splitio flags kill --ws <workspace id> --flag new_checkout --environment <environment id> \
+toil splitio workspace list
+toil splitio flag get new_checkout --ws <workspace id> --environment <environment id>
+toil splitio flag kill new_checkout --ws <workspace id> --environment <environment id> \
   --mnemonic checkout-off --description "Kill during incident" --change-number CHG0001234 --allow-write
 ```

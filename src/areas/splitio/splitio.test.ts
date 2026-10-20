@@ -46,7 +46,7 @@ const get = (path: string, json: unknown, query?: Record<string, string>): Route
 const postCr: Route = { method: 'POST', path: CR_PATH, respond: (request) => ({ json: changeRequest(request) }) };
 const sent = (call: { body: string | undefined }) => JSON.parse(call.body ?? 'null') as Record<string, unknown>;
 
-describe('workspaces list', () => {
+describe('workspace list', () => {
   it('reads every page, 100 at a time, until totalCount (#79 item 8 fixed)', async () => {
     const first = Array.from({ length: 100 }, (_, i) => workspace(i));
     const { envelope, calls } = await run(workspacesListCommand, {}, [
@@ -65,7 +65,7 @@ describe('workspaces list', () => {
   });
 });
 
-describe('environments list', () => {
+describe('environment list', () => {
   it('reads the bare array Split returns (#79 item 7 fixed)', async () => {
     const { envelope, calls } = await run(environmentsListCommand, { workspace: WS }, [get(`${API}/environments/ws/${WS}`, environments)]);
     expect(calls[0]!.url).toBe(`${SPLIT}${API}/environments/ws/${WS}`);
@@ -92,14 +92,14 @@ describe('environments list', () => {
 
   it('on the CLI, --ws names the Split workspace and --workspace stays the global file workspace', async () => {
     const t = testContext({ config, routes: [get(`${API}/environments/ws/${WS}`, environments)] });
-    const viaWs = await runCli(['splitio', 'environments', 'list', '--ws', WS], { commands, context: t.context });
+    const viaWs = await runCli(['splitio', 'environment', 'list', '--ws', WS], { commands, context: t.context });
     expect(JSON.parse(viaWs.stdout).ok).toBe(true);
-    const viaWorkspace = await runCli(['splitio', 'environments', 'list', '--workspace', WS], { commands, context: testContext({ config }).context });
+    const viaWorkspace = await runCli(['splitio', 'environment', 'list', '--workspace', WS], { commands, context: testContext({ config }).context });
     expect(JSON.parse(viaWorkspace.stdout).error.message).toContain('Pass --ws <id>');
   });
 });
 
-describe('flags list', () => {
+describe('flag list', () => {
   it('GETs /splits/ws/{ws} with limit 50 and offset 0 by default, and returns count, totalCount and flags', async () => {
     const { envelope, calls } = await run(flagsListCommand, { workspace: WS }, [get(`${API}/splits/ws/${WS}`, flagsPage)]);
     expect(calls[0]!.url).toBe(`${SPLIT}${API}/splits/ws/${WS}?limit=50&offset=0`);
@@ -114,7 +114,7 @@ describe('flags list', () => {
   });
 });
 
-describe('flags get', () => {
+describe('flag get', () => {
   it('uses /splits/ws/{ws}/{flag} and .../environments/{env}, with no name/ segment (#79 item 1 fixed)', async () => {
     const plain = await run(flagsGetCommand, { workspace: WS, flag: 'new checkout' }, [get(`${API}/splits/ws/${WS}/new%20checkout`, { name: 'new checkout' })]);
     expect(plain.calls[0]!.url).toBe(`${SPLIT}${API}/splits/ws/${WS}/new%20checkout`);
@@ -181,8 +181,8 @@ describe('change request writes', () => {
   });
 });
 
-describe('flags update', () => {
-  it('sends the --input-file object flat under split, with name from --flag and UPDATE', async () => {
+describe('flag update', () => {
+  it('sends the --input-file object flat under split, with name from the flag argument and UPDATE', async () => {
     const files = { 'def.json': JSON.stringify({ name: 'ignored', defaultTreatment: 'off', defaultRule: [{ treatment: 'off', size: 100 }] }) };
     const { calls } = await run(flagsUpdateCommand, { ...CR, flag: 'new_checkout', environment: ENV, inputFile: 'def.json' }, [postCr], { files });
     expect(sent(calls[0]!)).toEqual({
@@ -196,7 +196,7 @@ describe('flags update', () => {
 
   it('refuses a missing --input-file, bad JSON and a non-object, before any request', async () => {
     const missing = await run(flagsUpdateCommand, { ...CR, flag: 'f', environment: ENV }, []);
-    expect(missing.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--input-file is required for flags update' });
+    expect(missing.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--input-file is required for flag update' });
     const bad = await run(flagsUpdateCommand, { ...CR, flag: 'f', environment: ENV, inputFile: 'd.json' }, [], { files: { 'd.json': '{nope' } });
     expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--input-file must be valid JSON') });
     const arr = await run(flagsUpdateCommand, { ...CR, flag: 'f', environment: ENV, inputFile: 'd.json' }, [], { files: { 'd.json': '[]' } });
@@ -205,7 +205,7 @@ describe('flags update', () => {
   });
 });
 
-describe('flags set-rule and set-default', () => {
+describe('flag set-rule and set-default', () => {
   const defRoute = get(`${API}/splits/ws/${WS}/new_checkout/environments/${ENV}`, definition);
 
   it('set-rule GETs the definition, replaces one rule with a 100% bucket, and sends only the writable fields (#79 items 1, 5, 6 fixed)', async () => {
@@ -251,7 +251,7 @@ describe('flags set-rule and set-default', () => {
   });
 });
 
-describe('flags batch-toggle', () => {
+describe('flag toggle-many', () => {
   it('files one change request per entry, titled "<mnemonic> — <flag>", and carries on after a failure', async () => {
     const files = { 't.json': JSON.stringify([{ flag: 'a', enabled: false }, { flag: 'b', enabled: 'false' }, { flag: 'c', enabled: true }]) };
     let n = 0;
@@ -271,7 +271,7 @@ describe('flags batch-toggle', () => {
 
   it('refuses a missing file or a non-array before any request', async () => {
     const missing = await run(flagsBatchToggleCommand, { ...CR, environment: ENV }, []);
-    expect(missing.envelope.error?.message).toBe('--input-file is required for batch-toggle');
+    expect(missing.envelope.error?.message).toBe('--input-file is required for flag toggle-many');
     const notArray = await run(flagsBatchToggleCommand, { ...CR, environment: ENV, inputFile: 't.json' }, [], { files: { 't.json': '{}' } });
     expect(notArray.envelope.error?.message).toBe('Input file must be a JSON array of {flag, enabled} objects');
   });
@@ -285,7 +285,7 @@ describe('flags batch-toggle', () => {
   });
 });
 
-describe('change-requests', () => {
+describe('change-request', () => {
   it('list GETs /changeRequests with workspaceId and the filters, and reports the next marker (#79 item 9 fixed)', async () => {
     const { envelope, calls } = await run(changeRequestsListCommand, { workspace: WS, environment: ENV, status: 'APPROVED', limit: '10', after: 'marker-1' }, [get(`${API}/changeRequests`, changeRequestList)]);
     expect(calls[0]!.url).toBe(`${SPLIT}${API}/changeRequests?workspaceId=${WS}&environmentId=${ENV}&status=APPROVED&limit=10&after=marker-1`);

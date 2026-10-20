@@ -14,9 +14,9 @@
  * - **Searches** (`jira issue search`, `ado work-item search`, `github
  *   list-issues`) ask only for what changed since the source's watermark, with
  *   `updatedSince`, and merge the answer into the last copy by key.
- * - **The GitHub board** (`github projects list-items`) is read whole, and an
+ * - **The GitHub board** (`github project items`) is read whole, and an
  *   item counts as changed when its issue's `updatedAt` moved.
- * - **Batches** (`ado work-item get-many`, `github get-issue`) fetch only the
+ * - **Batches** (`ado work-item get-many`, `github issue get`) fetch only the
  *   changed and new items, merged into the last copy.
  * - **Histories** (`jira issue history`, `ado work-item history`, `github
  *   issue-events`) are fetched only for changed and new items; the rest are
@@ -107,13 +107,13 @@ const SEARCHES: Record<string, { list: string | null; id: (r: Rec) => string }> 
   'jira-cloud issue search': { list: 'issues', id: (r) => String(r.key) },
   'ado work-item search': { list: 'workItems', id: (r) => String(r.id) },
   'ado-cloud work-item search': { list: 'workItems', id: (r) => String(r.id) },
-  'github list-issues': { list: null, id: (r) => String(r.number) },
+  'github issue list': { list: null, id: (r) => String(r.number) },
 };
 /** A batch get by ids: the input field holding them, and where the answer lists the items. */
 const BATCHES: Record<string, { field: string; list: string; id: (r: Rec) => string }> = {
   'ado work-item get-many': { field: 'id', list: 'value', id: (r) => String(r.id) },
   'ado-cloud work-item get-many': { field: 'id', list: 'value', id: (r) => String(r.id) },
-  'github get-issue': { field: 'number', list: 'issues', id: (r) => String(r.number) },
+  'github issue get': { field: 'number', list: 'issues', id: (r) => String(r.number) },
 };
 /** One item's history: the input field naming the item. */
 const HISTORIES: Record<string, string> = {
@@ -121,9 +121,9 @@ const HISTORIES: Record<string, string> = {
   'jira-cloud issue history': 'key',
   'ado work-item history': 'id',
   'ado-cloud work-item history': 'id',
-  'github issue-events': 'number',
+  'github issue history': 'number',
 };
-const BOARD = 'github projects list-items';
+const BOARD = 'github project items';
 
 /** Two pages of one listing as one answer: lists concatenated, the rest from the newer page. */
 export function joinPages(a: unknown, b: unknown): unknown {
@@ -409,7 +409,7 @@ export class SyncService {
       const delta = await this.call(command, { ...input, [batch.field]: asInput(toFetch) }, signal);
       if (!delta.ok) return delta;
       const data = delta.data as Rec;
-      // One id comes back as the item itself (github get-issue), several as a list.
+      // One id comes back as the item itself (github issue get), several as a list.
       const fresh = Array.isArray(data[batch.list]) ? recs(data[batch.list]) : isRec(data) ? [data] : [];
       for (const r of fresh) cached.set(batch.id(r), r);
       const list = wanted.flatMap((id) => (cached.has(id) ? [cached.get(id)!] : []));

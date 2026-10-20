@@ -12,9 +12,9 @@ import { all, bbc, getPR, IN_REPO, prPath, repoPath, seg, type BitbucketCloudCon
  */
 
 const pr = z.number().int().positive().describe('Pull request ID');
-const prOption = { flags: '--pr <pr-id>', field: 'pr', description: 'Pull request ID' };
+const prArg = { name: 'id', field: 'id', description: 'Pull request ID' };
 const at = { workspace: 'imagile', repo: 'toil' };
-const example = { ...at, pr: 42 };
+const example = { ...at, id: 42 };
 
 /**
  * A pull request's changes as a two-commit spec, `source..destination`, read
@@ -27,37 +27,38 @@ async function prSpec(ctx: BitbucketCloudContext, id: number): Promise<string> {
   const source = found.source?.commit?.hash;
   const destination = found.destination?.commit?.hash;
   if (!source || !destination) {
-    throw new ToilError('NOT_FOUND', `Pull request ${id} has no source or destination commit to diff.`, { fix: 'Check the pull request still has both branches: toil bitbucket-cloud get-pr --id <id>.' });
+    throw new ToilError('NOT_FOUND', `Pull request ${id} has no source or destination commit to diff.`, { fix: 'Check the pull request still has both branches: toil bitbucket-cloud pr get <id>.' });
   }
   return `${source}..${destination}`;
 }
 
 export const diffCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'diff'],
+  path: ['bitbucket-cloud', 'pr', 'diff'],
   description: 'Get the unified diff of a pull request or a commit spec',
   toolDescription:
-    "Returns { diff }: unified git diff text, for a pull request (pr: its changes against the target, as Bitbucket shows them) or a commit spec (one commit against its first parent, or a..b). file limits it to one path; contextLines sets the lines of context.",
+    "Returns { diff }: unified git diff text, for a pull request (id: its changes against the target, as Bitbucket shows them) or a commit spec (one commit against its first parent, or a..b). file limits it to one path; contextLines sets the lines of context.",
   input: z.object({
-    pr: pr.optional(),
+    id: pr.optional(),
     spec: z.string().min(1).optional().describe('A commit, or two as a..b, instead of a pull request'),
     file: z.string().min(1).optional().describe('Limit diff to a specific file'),
     contextLines: z.number().int().nonnegative().optional().describe('Lines of context around changes'),
   }),
   writes: false,
   context: IN_REPO,
+  // The id is optional here: --spec diffs commits instead of a pull request.
+  args: [{ ...prArg, required: false }],
   options: [
-    prOption,
     { flags: '--spec <a..b>', field: 'spec', description: 'A commit, or two as a..b, instead of a pull request' },
     { flags: '--file <path>', field: 'file', description: 'Limit diff to a specific file' },
     { flags: '--context-lines <n>', field: 'contextLines', description: 'Lines of context around changes' },
   ],
   examples: [example, { ...at, spec: 'abc12345def67890abc12345def67890abc12345', file: 'src/retry.ts', contextLines: 0 }],
   run: async (input, ctx) => {
-    if ((input.pr === undefined) === (input.spec === undefined)) {
-      throw new ToilError('INVALID_INPUT', 'Pass exactly one of --pr and --spec.', { fix: 'Use --pr <id> for a pull request, or --spec <commit> (or <a>..<b>) for commits.' });
+    if ((input.id === undefined) === (input.spec === undefined)) {
+      throw new ToilError('INVALID_INPUT', 'Pass exactly one of a pull request id and --spec.', { fix: 'Use pr diff <id> for a pull request, or pr diff --spec <commit> (or <a>..<b>) for commits.' });
     }
-    const spec = input.spec ?? (await prSpec(ctx, input.pr!));
-    const query = { ...(input.pr !== undefined ? { topic: true } : {}), ...(input.file ? { path: input.file } : {}), ...(input.contextLines !== undefined ? { context: input.contextLines } : {}) };
+    const spec = input.spec ?? (await prSpec(ctx, input.id!));
+    const query = { ...(input.id !== undefined ? { topic: true } : {}), ...(input.file ? { path: input.file } : {}), ...(input.contextLines !== undefined ? { context: input.contextLines } : {}) };
     return { diff: await bbc<string>(ctx, `${repoPath(ctx)}/diff/${seg(spec)}`, { query, as: 'text' }) };
   },
 });
@@ -69,17 +70,17 @@ interface Diffstat {
 }
 
 export const listFilesCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'list-files'],
+  path: ['bitbucket-cloud', 'pr', 'files'],
   description: 'List files changed in a pull request',
   toolDescription: "Lists the paths a pull request changes, as strings: each change's new path, or its old path for a deletion. Every page of Bitbucket's diffstat is read.",
-  input: z.object({ pr }),
+  input: z.object({ id: pr }),
   writes: false,
   context: IN_REPO,
-  options: [prOption],
+  args: [prArg],
   examples: [example],
   run: async (input, ctx) => {
-    const spec = await prSpec(ctx, input.pr);
-    const stats = await all<Diffstat>(ctx, `Bitbucket Cloud files changed in pull request ${input.pr}`, `${repoPath(ctx)}/diffstat/${seg(spec)}`, { topic: true });
+    const spec = await prSpec(ctx, input.id);
+    const stats = await all<Diffstat>(ctx, `Bitbucket Cloud files changed in pull request ${input.id}`, `${repoPath(ctx)}/diffstat/${seg(spec)}`, { topic: true });
     return stats.flatMap((s) => {
       const path = s.new?.path ?? s.old?.path;
       return path ? [path] : [];
@@ -88,58 +89,58 @@ export const listFilesCommand = bitbucketCloudArea.command({
 });
 
 export const approveCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'approve'],
+  path: ['bitbucket-cloud', 'pr', 'approve'],
   description: 'Approve a pull request',
   toolDescription: "Approves a pull request as the credential's user and returns Bitbucket's participant record.",
-  input: z.object({ pr, ...allowWriteField }),
+  input: z.object({ id: pr, ...allowWriteField }),
   writes: true,
   context: IN_REPO,
-  options: [prOption],
+  args: [prArg],
   examples: [{ ...example, allowWrite: true }],
-  run: (input, ctx) => bbc(ctx, `${prPath(ctx, input.pr)}/approve`, { method: 'POST' }),
+  run: (input, ctx) => bbc(ctx, `${prPath(ctx, input.id)}/approve`, { method: 'POST' }),
 });
 
 export const unapproveCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'unapprove'],
+  path: ['bitbucket-cloud', 'pr', 'unapprove'],
   description: 'Remove approval from a pull request',
   toolDescription: "Withdraws the credential's user's approval of a pull request. Returns { unapproved: true }.",
-  input: z.object({ pr, ...allowWriteField }),
+  input: z.object({ id: pr, ...allowWriteField }),
   writes: true,
   context: IN_REPO,
-  options: [prOption],
+  args: [prArg],
   examples: [{ ...example, allowWrite: true }],
   run: async (input, ctx) => {
-    await bbc(ctx, `${prPath(ctx, input.pr)}/approve`, { method: 'DELETE' });
+    await bbc(ctx, `${prPath(ctx, input.id)}/approve`, { method: 'DELETE' });
     return { unapproved: true };
   },
 });
 
 export const requestChangesCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'request-changes'],
+  path: ['bitbucket-cloud', 'pr', 'request-changes'],
   description: 'Request changes on a pull request',
   toolDescription: "Marks a pull request as changes requested by the credential's user (Data Center calls this needs-work) and returns Bitbucket's participant record.",
-  input: z.object({ pr, ...allowWriteField }),
+  input: z.object({ id: pr, ...allowWriteField }),
   writes: true,
   context: IN_REPO,
-  options: [prOption],
+  args: [prArg],
   examples: [{ ...example, allowWrite: true }],
-  run: (input, ctx) => bbc(ctx, `${prPath(ctx, input.pr)}/request-changes`, { method: 'POST' }),
+  run: (input, ctx) => bbc(ctx, `${prPath(ctx, input.id)}/request-changes`, { method: 'POST' }),
 });
 
 export const listReviewersCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'list-reviewers'],
+  path: ['bitbucket-cloud', 'pr', 'reviewers'],
   description: 'List reviewers of a pull request',
   toolDescription: "Lists a pull request's reviewers as participants: each one's user, approved, and state (approved, changes_requested or null).",
-  input: z.object({ pr }),
+  input: z.object({ id: pr }),
   writes: false,
   context: IN_REPO,
-  options: [prOption],
+  args: [prArg],
   examples: [example],
-  run: async (input, ctx) => ((await getPR(ctx, input.pr)).participants ?? []).filter((p) => p.role === 'REVIEWER'),
+  run: async (input, ctx) => ((await getPR(ctx, input.id)).participants ?? []).filter((p) => p.role === 'REVIEWER'),
 });
 
 export const listDefaultReviewersCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'list-default-reviewers'],
+  path: ['bitbucket-cloud', 'repo', 'default-reviewers'],
   description: "List the repository's default reviewers",
   toolDescription: "Lists the users Bitbucket Cloud adds as reviewers to every new pull request in the repository (the repository's own list, not those inherited from its project).",
   input: z.object({}),
@@ -150,25 +151,25 @@ export const listDefaultReviewersCommand = bitbucketCloudArea.command({
 });
 
 export const listBuildsCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'list-builds'],
+  path: ['bitbucket-cloud', 'pr', 'builds'],
   description: 'List build statuses for a pull request',
   toolDescription: "Lists every build status reported on a pull request's commits (key, name, state, url, description, created_on, updated_on).",
-  input: z.object({ pr }),
+  input: z.object({ id: pr }),
   writes: false,
   context: IN_REPO,
-  options: [prOption],
+  args: [prArg],
   examples: [example],
-  run: (input, ctx) => all(ctx, `Bitbucket Cloud build statuses on pull request ${input.pr}`, `${prPath(ctx, input.pr)}/statuses`),
+  run: (input, ctx) => all(ctx, `Bitbucket Cloud build statuses on pull request ${input.id}`, `${prPath(ctx, input.id)}/statuses`),
 });
 
 export const getBuildStatusCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'get-build-status'],
+  path: ['bitbucket-cloud', 'commit', 'status'],
   description: 'Get build statuses for a commit SHA',
   toolDescription: 'Lists every build status reported for one commit (key, name, state, url, description, created_on, updated_on).',
   input: z.object({ commit: z.string().min(1).describe('Commit SHA') }),
   writes: false,
   context: IN_REPO,
-  options: [{ flags: '--commit <sha>', field: 'commit', description: 'Commit SHA' }],
+  args: [{ name: 'commit', field: 'commit', description: 'Commit SHA' }],
   examples: [{ ...at, commit: 'abc12345def67890abc12345def67890abc12345' }],
   run: (input, ctx) => all(ctx, `Bitbucket Cloud build statuses on commit ${input.commit}`, `${repoPath(ctx)}/commit/${seg(input.commit)}/statuses`),
 });
