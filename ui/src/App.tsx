@@ -314,15 +314,16 @@ export const COMPACT_HEADER = '(max-width: 1023px)';
  * Whether the header's one row is too crowded at this width: its links and
  * controls would wrap onto a second row, as a dossier's seven links can with a
  * wider font (Linux's, say). Measured on the full header and kept until the
- * window is wider than where it last didn't fit, so the header shows its Menu
+ * window is wider than where it last didn't fit or its links change, so the header shows its Menu
  * instead of wrapping, and never flips back and forth at one width.
  */
 function useCrowded(row: RefObject<HTMLElement | null>, measuring: boolean, links: string): boolean {
-  const [crowdedBelow, setCrowdedBelow] = useState<number | null>(null);
+  // The width it last didn't fit at, and the links it was measured with: other links (another view) are measured afresh.
+  const [crowded, setCrowded] = useState<{ width: number; links: string } | null>(null);
   useLayoutEffect(() => {
     const check = () => {
-      if (crowdedBelow !== null) {
-        if (window.innerWidth > crowdedBelow) setCrowdedBelow(null);
+      if (crowded !== null) {
+        if (crowded.links !== links || window.innerWidth > crowded.width) setCrowded(null);
         return;
       }
       // The default skin's Header is its children; a theme's may wrap them in one element.
@@ -331,13 +332,13 @@ function useCrowded(row: RefObject<HTMLElement | null>, measuring: boolean, link
       const tops = [...el.children].map((c) => (c as HTMLElement).offsetTop);
       const items = [...el.querySelectorAll<HTMLElement>('nav li')].map((li) => li.offsetTop);
       const wraps = (xs: number[]) => xs.length > 1 && Math.max(...xs) - Math.min(...xs) > 4;
-      if (wraps(tops) || wraps(items)) setCrowdedBelow(window.innerWidth);
+      if (wraps(tops) || wraps(items)) setCrowded({ width: window.innerWidth, links });
     };
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
-  }, [row, measuring, links, crowdedBelow]);
-  return crowdedBelow !== null;
+  }, [row, measuring, links, crowded]);
+  return crowded !== null && crowded.links === links;
 }
 
 type NavLink = { href: string; label: string; current: boolean };

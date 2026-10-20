@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
@@ -267,6 +267,12 @@ describe('the header (#277)', { timeout: SLOW }, () => {
       await open('#/dossier/settlement', 'plain', 'light');
       expect(screen.queryByRole('navigation', { name: 'Views' })).toBeNull();
       expect(screen.getByRole('button', { name: 'Menu' })).toBeTruthy();
+      // Back on the dossier list, two links fit again: the header measures them afresh (#351 review).
+      await act(async () => {
+        window.location.hash = '#/';
+        window.dispatchEvent(new HashChangeEvent('hashchange'));
+      });
+      await waitFor(() => expect(screen.getByRole('navigation', { name: 'Views' })).toBeTruthy());
     } finally {
       Object.defineProperty(HTMLElement.prototype, 'offsetTop', real);
     }
