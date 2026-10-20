@@ -6,7 +6,7 @@ import { App } from '../src/App.tsx';
 import type { Agent } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { CANNED, FIXTURE_NOW, callKey, fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
-import type { Execute } from '../src/toil.ts';
+import type { Envelope, Execute } from '../src/toil.ts';
 import type { ConfigApi } from '../src/config.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import type { AgentSettingsPanelProps } from '../src/agent-settings.tsx';
@@ -90,20 +90,146 @@ describe('every view', () => {
 });
 
 describe('the dossier list', () => {
-  it('lists three dossiers, each mixing its own sources, with a link to its dashboard', async () => {
+  /** The cards once every one has read its dossier. */
+  const cards = async () => {
+    await waitFor(() => expect(document.querySelectorAll('.count-strip')).toHaveLength(3), { timeout: 8000 });
+    return screen.getAllByRole('article');
+  };
+  const badges = (card: HTMLElement) => within(within(card).getByRole('list', { name: 'Sources' })).getAllByRole('listitem').map((li) => li.firstChild?.textContent);
+
+  it('lists three dossiers, each mixing its own sources as badges, with a link to its dashboard; the one with most in motion leads', async () => {
     await open('#/');
-    const cards = screen.getAllByRole('article');
-    expect(cards.map((c) => within(c).getByRole('heading').textContent)).toEqual(['card-payments', 'settlement', 'checkout-web']);
-    expect(cards[0]!.textContent).toContain('Bitbucket, Jenkins, Jira, OpenShift');
-    expect(cards[1]!.textContent).toContain('Azure DevOps');
-    expect(cards[2]!.textContent).toContain('GitHub, OpenShift');
-    expect(within(cards[2]!).getByRole('link').getAttribute('href')).toBe('#/dossier/checkout-web');
+    const all = await cards();
+    expect(all.map((c) => within(c).getByRole('heading').textContent)).toEqual(['card-payments', 'settlement', 'checkout-web']);
+    expect(all[0]!.className).toContain('dossier-card--lead');
+    expect(badges(all[0]!)).toEqual(['Bitbucket', 'Jenkins', 'Jira', 'OpenShift']);
+    expect(badges(all[1]!)).toEqual(['Azure DevOps']);
+    expect(badges(all[2]!)).toEqual(['Bitbucket', 'GitHub', 'OpenShift']);
+    expect(within(all[2]!).getByRole('link').getAttribute('href')).toBe('#/dossier/checkout-web');
+  });
+
+  it("previews each dossier's sprint, counts and people from the data its dashboard reads", async () => {
+    await open('#/');
+    const [pay, settle, web] = await cards();
+    expect(pay!.textContent).toContain('Sprint 42 3 working days left of 10, 3 of 21 points done');
+    expect(within(pay!).getByRole('img', { name: 'Burn-up: 3 of 21 points done' })).toBeTruthy();
+    expect(within(pay!).getByRole('list', { name: 'Counts' }).textContent).toBe('3 in progress2 blocked1 PR waits on review');
+    expect(within(settle!).getByRole('list', { name: 'Counts' }).textContent).toBe('3 in progress1 blocked0 PRs wait on review');
+    expect(within(web!).getByRole('list', { name: 'Counts' }).textContent).toBe('2 in progress0 blocked2 PRs wait on review');
+    expect(within(pay!).getByRole('list', { name: /^People: / }).getAttribute('aria-label')).toContain('J. Smith');
+    expect(within(pay!).getByRole('img', { name: 'J. Smith' })).toBeTruthy();
+    // The preview syncs nothing, and this browser has never opened a dashboard.
+    expect(pay!.textContent).toContain('Sample data.');
+    expect(pay!.textContent).not.toContain('since you last looked');
+  });
+
+  it('leads with the dossier opened most recently, and counts what changed since', async () => {
+    localStorage.setItem('toil-ui:looked', JSON.stringify({ 'checkout-web': '2026-10-12T00:00:00Z', settlement: '2026-10-01T00:00:00Z' }));
+    await open('#/');
+    const all = await cards();
+    expect(within(all[0]!).getByRole('heading').textContent).toBe('checkout-web');
+    expect(all[0]!.className).toContain('dossier-card--lead');
+    expect(all[0]!.textContent).toContain('3 changes since you last looked.');
+  });
+
+  it('remembers when a dashboard was opened, for its card', async () => {
+    await open('#/dossier/settlement');
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('toil-ui:looked') ?? '{}')).toHaveProperty('settlement'));
+  });
+
+  it('says when each dossier was synced, where the server syncs', async () => {
+    window.location.hash = '#/';
+    render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview={false} synced={{ settlement: { at: '2026-10-13T07:00:00Z', status: 'partial' } }} />);
+    const all = await cards();
+    expect(all.find((c) => c.textContent?.startsWith('settlement'))!.textContent).toContain('Synced 13 Oct 2026, 07:00 UTC, some sources failed.');
+    expect(all.find((c) => c.textContent?.startsWith('checkout-web'))!.textContent).toContain('Not synced yet.');
   });
 
   it('says which commands fed it', async () => {
     await open('#/');
     expect(screen.getByText(/Fed by/).textContent).toContain('toil dossiers list');
     expect(screen.getByText(/Fed by/).textContent).toContain('toil dossiers show ×3');
+  });
+});
+
+describe("editing a dossier's name and description in place (#342)", () => {
+  type Run = { command: string; input: Record<string, unknown> };
+  /** A config path that may change things, answering each describe with `answer`. */
+  function editable(answer: (input: Record<string, unknown>) => Envelope): ConfigApi & { runs: Run[] } {
+    const runs: Run[] = [];
+    return {
+      runs,
+      disabled: null,
+      areas: async () => [],
+      settings: async () => ({ timeout: { variable: 'TOIL_TIMEOUT_MS', value: null, effectiveMs: 120_000, defaultMs: 120_000 } }),
+      run: async (command, input) => {
+        runs.push({ command, input });
+        return answer(input);
+      },
+    };
+  }
+  const meta = { command: 'dossiers describe', durationMs: 1, version: '0.0.0', contractVersion: 1 };
+  const okEnvelope = (data: Record<string, unknown>) => ({ ok: true, data, error: null, meta }) as unknown as Envelope;
+
+  it('has no pencil where changes are off (the preview)', async () => {
+    await open('#/');
+    expect(screen.queryByRole('button', { name: /^Rename / })).toBeNull();
+  });
+
+  it('saves a description with Enter through toil dossiers describe, and Escape cancels', async () => {
+    const user = userEvent.setup();
+    const config = editable((input) => okEnvelope({ name: input.dossier, description: input.description, renamed: null, changed: true }));
+    await open('#/dossier/settlement', { config });
+    await user.click(screen.getByRole('button', { name: "Edit settlement's description" }));
+    const field = screen.getByRole('textbox', { name: 'Description of settlement' });
+    await user.clear(field);
+    await user.type(field, 'Nightly settlement{Escape}');
+    expect(config.runs).toEqual([]);
+    expect(screen.queryByRole('textbox', { name: 'Description of settlement' })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: "Edit settlement's description" }));
+    await user.click(screen.getByRole('button', { name: "Edit settlement's description" }));
+    await user.clear(screen.getByRole('textbox', { name: 'Description of settlement' }));
+    await user.type(screen.getByRole('textbox', { name: 'Description of settlement' }), 'Nightly settlement{Enter}');
+    await waitFor(() => expect(config.runs).toEqual([{ command: 'dossiers describe', input: { dossier: 'settlement', description: 'Nightly settlement' } }]));
+    await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Description of settlement' })).toBeNull());
+  });
+
+  it("shows toil's message and fix when it refuses, and keeps the field open", async () => {
+    const user = userEvent.setup();
+    const config = editable(() => ({ ok: false, data: null, error: { code: 'INVALID_INPUT', message: 'You already have a dossier named "settlement".', fix: 'Choose another name.' }, meta }) as unknown as Envelope);
+    await open('#/dossier/card-payments', { config });
+    await user.click(screen.getByRole('button', { name: 'Rename card-payments' }));
+    const field = screen.getByRole('textbox', { name: 'New name for card-payments' });
+    await user.clear(field);
+    await user.type(field, 'settlement{Enter}');
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('You already have a dossier named "settlement". Fix: Choose another name.');
+    expect(field.getAttribute('aria-invalid')).toBe('true');
+    expect(screen.getByRole('textbox', { name: 'New name for card-payments' })).toBeTruthy();
+  });
+
+  it('follows a rename to the dossier under its new name, keeping what this browser remembers', async () => {
+    const user = userEvent.setup();
+    localStorage.setItem('toil-ui:looked', JSON.stringify({ 'card-payments': '2026-10-12T00:00:00Z' }));
+    const config = editable((input) => okEnvelope({ name: input.name, description: null, renamed: { from: input.dossier, to: input.name }, changed: true }));
+    await open('#/dossier/card-payments/people', { config });
+    window.location.hash = '#/dossier/card-payments';
+    await screen.findByRole('button', { name: 'Rename card-payments' });
+    await user.click(screen.getByRole('button', { name: 'Rename card-payments' }));
+    const field = screen.getByRole('textbox', { name: 'New name for card-payments' });
+    await user.clear(field);
+    await user.type(field, 'payments-v2{Enter}');
+    await waitFor(() => expect(window.location.hash).toBe('#/dossier/payments-v2'));
+    expect(config.runs[0]).toEqual({ command: 'dossiers describe', input: { dossier: 'card-payments', name: 'payments-v2' } });
+    expect(JSON.parse(localStorage.getItem('toil-ui:looked')!)).toHaveProperty('payments-v2');
+  });
+
+  it("puts the dashboard's description, source badges and counts in its header", async () => {
+    await open('#/dossier/card-payments');
+    const head = document.querySelector('.dossier-head')!;
+    expect(head.textContent).toContain('Card payments v2');
+    expect(within(head as HTMLElement).getByRole('list', { name: 'Counts' }).textContent).toBe('3 days left3 in progress2 blocked1 PR waits on review');
+    expect(within(head as HTMLElement).getByRole('list', { name: 'Sources' })).toBeTruthy();
   });
 });
 

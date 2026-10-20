@@ -20,7 +20,8 @@
 //
 // Each view is checked as it opens and with its hidden parts showing: every
 // <details> open, each dossier card's Show pressed, the header menu and the
-// Feedback dialog open, the Assign dialog open from an item and the inbox, the Ask dock both closed and open, the Ask pane's (i)
+// Feedback dialog open, every dossier name and description open for editing,
+// the Assign dialog open from an item and the inbox, the Ask dock both closed and open, the Ask pane's (i)
 // popover open, the Agent page's full prompt shown, a worklog day rebuilt and
 // the calendar on an earlier month, and every failing
 // command's recent audit lines open on the Usage page. Reduced motion
@@ -259,6 +260,8 @@ function states(route, width) {
   // The worklog (#308): a day rebuilt, which says how it compared, and an earlier month in the calendar.
   if (/\/worklog\/\d{4}-\d{2}-\d{2}$/.test(route)) out.push({ name: 'rebuilt', setup: `(async () => { const n = ${clickAll('[data-worklog-rebuild]')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
   if (/\/worklog$/.test(route)) out.push({ name: 'previous-month', setup: clickAll('.calendar-nav button', '/Previous month/'), undoJs: clickAll('.calendar-nav button', '/Next month/') });
+  // A dossier's name and description open for editing in place (#342), every pencil on the page at once: the longest the cards and the dashboard's header get.
+  if (route === '#/' || route === '#/dossier/settlement') out.push({ name: 'editing', setup: clickAll('[data-edit]'), undoJs: "document.querySelectorAll('.edit-field').forEach((i) => i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))" });
   if (route === '#/settings/agent') out.push({ name: 'full-prompt', setup: clickAll('[data-full-prompt]', '/Show the full prompt/'), undoJs: clickAll('[data-full-prompt]', '/Hide the full prompt/') });
   return out;
 }

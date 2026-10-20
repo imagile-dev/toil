@@ -87,9 +87,22 @@ export interface UiServerOptions {
   usage?: UsageControl;
   /** Assigning work items to an agent (#293): `api/assignments`. */
   assignments?: AssignmentControl;
+  /**
+   * A dossier renamed through `/api/config` (#342, `toil dossiers describe --name`):
+   * `blocked` says why it can't be renamed now (a sync or an assignment of it is
+   * running), and `moved` takes Toil UI's own records of it (the cache, the
+   * worklog, assignments) to the new name once toil has renamed it, returning
+   * anything it couldn't move, in words. None with sample data.
+   */
+  renames?: DossierRenames;
   /** Tests pass a fixed token; a real start makes one. */
   token?: string;
   viewer?: Viewer;
+}
+
+export interface DossierRenames {
+  blocked(dossier: string): { message: string; fix: string } | null;
+  moved(from: string, to: string): Promise<string[]>;
 }
 
 /** What the Settings page reads and changes about the agent. */
@@ -396,7 +409,26 @@ export function createUiServer(options: UiServerOptions): UiServer {
       if (e instanceof AnswersError) throw new HttpError(400, e.message, e.fix);
       throw e;
     }
-    json(res, 200, await store.execute(ctx, command, input as Record<string, unknown>, access, { readOnly, ...(person ? { person } : {}) }));
+    const fields = input as Record<string, unknown>;
+    const describing = command === 'dossiers describe' && options.renames !== undefined;
+    // A rename waits for a sync or an assignment of the dossier to end: both read it by name as they go.
+    if (describing && typeof fields.name === 'string' && typeof fields.dossier === 'string' && fields.name !== fields.dossier) {
+      const why = options.renames!.blocked(fields.dossier);
+      if (why) {
+        json(res, 409, { ...refusal(command, why.message, why.fix), error: { code: 'CONFLICT', message: why.message, fix: why.fix } });
+        return;
+      }
+    }
+    const envelope = await store.execute(ctx, command, fields, access, { readOnly, ...(person ? { person } : {}) });
+    const renamed = describing && envelope.ok ? (envelope.data as { renamed?: { from?: unknown; to?: unknown } | null } | null)?.renamed : null;
+    if (renamed && typeof renamed.from === 'string' && typeof renamed.to === 'string') {
+      // toil has renamed the file by now; what Toil UI couldn't carry over is said beside toil's own warnings, never instead of the result.
+      const problems = await options.renames!.moved(renamed.from, renamed.to).catch((e: unknown) => [`Toil UI couldn't move its own records of ${renamed.from} to ${renamed.to}: ${e instanceof Error ? e.message : String(e)}. The next sync reads it afresh under its new name.`]);
+      if (problems.length) {
+        envelope.meta.warnings = [...(envelope.meta.warnings ?? []), ...problems.map((message) => ({ code: 'TOIL_UI_RENAME', message }))];
+      }
+    }
+    json(res, 200, envelope);
   };
 
   /**

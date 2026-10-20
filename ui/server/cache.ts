@@ -569,6 +569,41 @@ export class Cache {
     });
   }
 
+  /**
+   * A dossier toil renamed (#342, `toil dossiers describe --name`): everything
+   * synced for it moves to the new name in one transaction, so its dashboard,
+   * worklog and sources carry on without a fresh sync, and the next sync's
+   * cleanup doesn't forget it as a dossier toil no longer has. Anything left
+   * under the new name (a dossier of that name removed and not yet forgotten)
+   * goes first. A stored response is keyed by its input, which names the
+   * dossier, so each key is made again, and each envelope and agent run that
+   * names it is rewritten too. Returns how many rows moved.
+   */
+  rename(from: string, to: string): number {
+    if (from === to) return 0;
+    let moved = 0;
+    this.transaction(() => {
+      for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', ...WORKLOG_TABLES]) this.db.prepare(`DELETE FROM ${table} WHERE dossier = ?`).run(to);
+      this.db.prepare('DELETE FROM dossiers WHERE name = ?').run(to);
+      const rows = this.db.prepare('SELECT command, input_key, envelope FROM responses WHERE dossier = ?').all(from) as unknown as Array<{ command: string; input_key: string; envelope: string }>;
+      const move = this.db.prepare('UPDATE responses SET dossier = ?, input_key = ?, envelope = ? WHERE dossier = ? AND command = ? AND input_key = ?');
+      for (const r of rows) {
+        const input = JSON.parse(r.input_key) as Record<string, unknown>;
+        if (input.dossier === from) input.dossier = to;
+        const envelope = JSON.parse(r.envelope) as { meta?: { context?: { dossier?: { name?: unknown } | null } } };
+        if (envelope.meta?.context?.dossier?.name === from) envelope.meta.context.dossier.name = to;
+        moved += Number(move.run(to, inputKey(input), JSON.stringify(envelope), from, r.command, r.input_key).changes);
+      }
+      for (const table of ['items', 'transitions', 'change_refs', 'sources', 'worklog_events', 'sync_runs', 'notes']) moved += Number(this.db.prepare(`UPDATE ${table} SET dossier = ? WHERE dossier = ?`).run(to, from).changes);
+      for (const r of this.db.prepare('SELECT id, run FROM agent_runs WHERE dossier = ?').all(from) as unknown as Array<{ id: string; run: string }>) {
+        const run = JSON.parse(r.run) as AgentRun;
+        moved += Number(this.db.prepare('UPDATE agent_runs SET dossier = ?, run = ? WHERE dossier = ? AND id = ?').run(to, JSON.stringify({ ...run, dossier: to }), from, r.id).changes);
+      }
+      moved += Number(this.db.prepare('UPDATE dossiers SET name = ? WHERE name = ?').run(to, from).changes);
+    });
+    return moved;
+  }
+
   /** The names of every dossier the cache holds. */
   dossierNames(): string[] {
     return (this.db.prepare('SELECT name FROM dossiers UNION SELECT DISTINCT dossier FROM responses ORDER BY 1').all() as unknown as Array<{ name: string }>).map((r) => r.name);

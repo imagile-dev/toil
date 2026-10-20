@@ -19,7 +19,7 @@ import { AgentHost } from './agents/host.ts';
 import { cacheData } from './agents/tools.ts';
 import { Cache, CacheError, wipeCacheFiles } from './cache.ts';
 import { areasFrom, settingsFrom } from './config.ts';
-import { createUiServer } from './server.ts';
+import { createUiServer, type DossierRenames } from './server.ts';
 import { parseSettings, SettingsError, themesNotice, USAGE } from './settings.ts';
 import { fixtureStore, sqliteStore } from './store.ts';
 import { SyncService } from './sync.ts';
@@ -169,7 +169,36 @@ async function main(): Promise<number> {
     assignments = { queue: sample.queue };
   }
 
+  // A dossier renamed from its card or dashboard (#342): Toil UI's own records of it follow toil's rename.
+  const renames: DossierRenames | undefined =
+    cache && sync && worklog
+      ? {
+          blocked: (dossier) =>
+            sync!.running
+              ? { message: `A sync is running, so ${dossier} can't be renamed until it ends.`, fix: 'Wait for the Sync panel to say the sync finished, then rename it.' }
+              : assignments.queue.runningIn(dossier)
+                ? { message: `An assignment of ${dossier} is running, so it can't be renamed until it ends.`, fix: 'Wait for it to finish, or stop it from its page, then rename the dossier.' }
+                : null,
+          moved: async (from, to) => {
+            const problems: string[] = [];
+            const step = (what: string, fn: () => unknown) => {
+              try {
+                fn();
+              } catch (e) {
+                problems.push(`Toil UI couldn't move ${what} from ${from} to ${to}: ${e instanceof Error ? e.message : String(e)}`);
+              }
+            };
+            step('its cache', () => cache!.rename(from, to));
+            step('its assignments', () => assignments.queue.renameDossier(from, to));
+            // The pages are folded again under the new name, and the old name's folder, which no dossier holds now, goes.
+            await worklog!.reconcileAll().catch((e: unknown) => problems.push(`Toil UI couldn't fold the worklog again under ${to}: ${e instanceof Error ? e.message : String(e)}`));
+            return problems;
+          },
+        }
+      : undefined;
+
   const ui = createUiServer({
+    ...(renames ? { renames } : {}),
     settings,
     store: cache ? sqliteStore(() => cache, execute, toil) : fixtureStore(),
     agent: host ?? fixtureAgent(),

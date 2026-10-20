@@ -22,7 +22,9 @@ import { useThemeChoice } from './theme-choice.ts';
 import type { Call, Execute } from './toil.ts';
 import { CommandCenter } from './views/CommandCenter.tsx';
 import { Dashboard } from './views/Dashboard.tsx';
-import { Dossiers } from './views/Dossiers.tsx';
+import { Dossiers, type SyncedAt } from './views/Dossiers.tsx';
+import type { Described } from './components/dossier-head.tsx';
+import { markLooked, renameLooked } from './looked.ts';
 import { ItemView } from './views/Item.tsx';
 import { AssignmentView } from './views/Assignment.tsx';
 import { startReadyWith } from './assign/start.ts';
@@ -107,12 +109,14 @@ export interface AppProps {
   modelUsage?: ModelUsageApi;
   /** Assigning items to an agent (#293): the server's, or the preview's sample queue. */
   assignments?: AssignmentsApi;
+  /** Each dossier's last sync, from the sync panel (#342), for its card; absent where nothing syncs (the preview). */
+  synced?: Record<string, SyncedAt>;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments, synced }: AppProps) {
   const route = useRoute();
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
@@ -133,6 +137,45 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
       live = false;
     };
   }, [route.view, list, execute]);
+
+  // The Dossiers view's cards (#342) read each dossier the way its dashboard does, one at a time, from the cache in the
+  // local app. What arrives is kept, so a dashboard opened from a card is already loaded.
+  const listed = route.view === 'dossiers' && list?.ok ? list.value.dossiers.map((d) => d.name) : [];
+  const nextToLoad = listed.find((n) => !dossiers[n]);
+  useEffect(() => {
+    if (!nextToLoad) return;
+    let live = true;
+    loadDossier(execute, nextToLoad).then(
+      (value) => live && setDossiers((d) => ({ ...d, [nextToLoad]: { ok: true, value } })),
+      (e: unknown) => live && setDossiers((d) => ({ ...d, [nextToLoad]: failed(e) })),
+    );
+    return () => {
+      live = false;
+    };
+  }, [nextToLoad, execute]);
+
+  // Opening a dashboard is what "since you last looked" counts from.
+  const looking = route.view === 'dashboard' && wanted && dossiers[wanted]?.ok ? wanted : null;
+  useEffect(() => {
+    if (looking) markLooked(looking);
+  }, [looking]);
+
+  /**
+   * After a name or description was changed in place: the list and that dossier
+   * are read again, and a rename moves the route, and what this browser
+   * remembers, to the new name. The server has moved its cache, worklog and
+   * assignments by then.
+   */
+  const described = (d: Described) => {
+    const old = d.renamed?.from ?? d.name;
+    if (d.renamed) renameLooked(d.renamed.from, d.renamed.to);
+    setList(null);
+    setDossiers(({ [old]: _, ...rest }) => rest);
+    if (d.renamed && wanted === d.renamed.from) {
+      const rest = window.location.hash.replace(/^#\/dossier\/[^/]+/, '');
+      window.location.hash = `${dossierHref(d.renamed.to)}${rest}`;
+    }
+  };
 
   useEffect(() => {
     if (!wanted || dossiers[wanted]) return;
@@ -221,13 +264,13 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   if (route.view === 'settings') {
     body = <Settings page={route.page} config={config ?? null} modelUsage={modelUsage ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'dossiers') {
-    body = !list ? <skins.Loading message={words('loading.dossiers')} /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} /> : failure(list.message);
+    body = !list ? <skins.Loading message={words('loading.dossiers')} /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} loaded={dossiers} now={now} synced={synced ?? (preview ? null : {})} config={config ?? null} onDescribed={described} /> : failure(list.message);
   } else if (!current) {
     body = <skins.Loading message={words('loading.dossier', { name: route.dossier })} />;
   } else if (!current.ok) {
     body = failure(current.message);
   } else {
-    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, execute, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.dossier) } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest) };
+    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, execute, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.dossier) } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest), described };
     body = (
       <DataContext value={data}>
         {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
@@ -283,7 +326,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
             {preview ? 'Sample data' : 'Data'} read {dateTime(now)} through toil, read-only.
           </p>
         </header>
-        <main id="main" ref={main}>
+        <main id="main" ref={main} data-view={route.view}>
           {body}
         </main>
       </SkinProvider>
