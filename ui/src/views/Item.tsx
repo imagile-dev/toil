@@ -14,6 +14,7 @@ import { age, cycleTime } from '../model/flow.ts';
 import { INSIGHT_LABEL, insights } from '../model/insights.ts';
 import { entry } from '../model/sprint.ts';
 import { useSkins, useTheme } from '../skins.tsx';
+import { ItemAssignments } from '../assign/views.tsx';
 
 /** OWI's link type in words, by direction; the source's own wording is shown beside it. */
 const LINK_WORD: Record<string, [string, string]> = {
@@ -115,6 +116,7 @@ export function ItemView({ id }: { id: string }) {
           By shared words in titles and bodies, title trigrams, labels, parent and links, as <code>toil util owi similar</code> scores them: not by meaning, so a duplicate written in other words isn't found.
         </p>
       </Card>
+      <ItemAssignments item={item} />
       <div className="item-grid">
         <section aria-labelledby="fields">
           <h2 id="fields">Fields</h2>

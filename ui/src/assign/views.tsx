@@ -1,0 +1,458 @@
+/**
+ * Assigning work to an agent, in the views (#293): the Assign dialog, the
+ * Agents lane on the dashboard with the tracker's inbox, the item page's
+ * list, and each agent's assignments on the People view. The assignment's
+ * own page is src/views/Assignment.tsx. Every one of them reads the same
+ * AssignmentsApi from the dossier's data, and none of them can write to a
+ * tracker: Apply, on the assignment page, asks the server to run a
+ * proposal it already holds. The in-tray, the out-tray, and a third tray
+ * marked "pending signature".
+ */
+
+import { useCallback, useEffect, useId, useState, type FormEvent } from 'react';
+import { Button, Dialog, DialogTrigger, Heading, Input, Label, Modal, ModalOverlay, Radio, RadioGroup, TextField } from 'react-aria-components';
+import { ItemLink } from '../components/items.tsx';
+import { Card, CardGrid, Cluster, Stack } from '../components/layout.tsx';
+import { useData } from '../data.ts';
+import { dossierHref } from '../format.ts';
+import { ADAPTER_LABEL, addUp, usageParts } from '../model-usage.ts';
+import type { PersonEntry } from '../model/people.ts';
+import type { WorkItem } from '../toil.ts';
+import { ADAPTER_NAME, MODES, MODE_INFO, STATE_LABEL, runMs, runText, type AssignAdapter, type Assignment, type AssignmentList, type AssignMode } from './model.ts';
+import './assign.css';
+
+export const assignmentHref = (dossier: string, id: string) => `${dossierHref(dossier)}/assignment/${encodeURIComponent(id)}`;
+
+const active = (a: Pick<Assignment, 'state' | 'waiting'>) => a.state === 'working' || (a.state === 'queued' && a.waiting === 'slot');
+/** How often a view reads again while something is queued or working. */
+export const POLL_MS = 2000;
+
+/** The dossier's assignments, read again every couple of seconds while any is queued or working. */
+export function useAssignments(dossier: string): { list: AssignmentList | null; error: string | null; reload: () => void } {
+  const { assignments: api } = useData();
+  const [list, setList] = useState<AssignmentList | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const reload = useCallback(() => setTick((t) => t + 1), []);
+  useEffect(() => {
+    if (!api || api.disabled) return;
+    let live = true;
+    api.list(dossier).then(
+      (l) => {
+        if (!live) return;
+        setList(l);
+        setError(null);
+      },
+      (e: unknown) => live && setError(e instanceof Error ? e.message : String(e)),
+    );
+    return () => {
+      live = false;
+    };
+  }, [api, dossier, tick]);
+  const busy = list?.assignments.some(active) ?? false;
+  useEffect(() => {
+    if (!busy) return;
+    const t = setInterval(reload, POLL_MS);
+    return () => clearInterval(t);
+  }, [busy, reload]);
+  return { list, error, reload };
+}
+
+/** The state as a chip, worded and coloured by state. */
+export function StateChip({ a }: { a: Pick<Assignment, 'state' | 'waiting'> }) {
+  const words = a.state === 'queued' && a.waiting === 'start' ? 'Queued, waiting for Start' : STATE_LABEL[a.state];
+  return <span className={`assign-state assign-state--${a.state}`}>{words}</span>;
+}
+
+/** What a run used, in a few words, from the meter's own adding-up. */
+export function usageText(a: Pick<Assignment, 'usage'>): string {
+  if (!a.usage) return 'usage not reported yet';
+  if (!a.usage.records.length) return `${ADAPTER_LABEL[a.usage.adapter]} reported no usage`;
+  const parts = usageParts(addUp(a.usage.records), a.usage.adapter).slice(0, 2);
+  return `${a.usage.sample ? 'sample figures: ' : ''}${parts.join(', ')}`;
+}
+
+/** One assignment on a card: state, mode, adapter, item, run time and usage. */
+export function AssignmentCard({ a, now }: { a: Assignment; now: string }) {
+  const pending = a.proposals.filter((p) => p.status === 'pending').length;
+  return (
+    <Card className="assign-card">
+      <Stack gap="xs">
+        <Cluster className="assign-card__top">
+          <StateChip a={a} />
+          <span className="assign-mode">{MODE_INFO[a.mode].label}</span>
+        </Cluster>
+        <p className="assign-card__item">
+          <ItemLink id={a.item} /> <span className="assign-card__title">{a.itemTitle}</span>
+        </p>
+        <p className="note">
+          {a.adapter ? ADAPTER_NAME[a.adapter] : 'No adapter chosen yet'} · {runText(a.ranMs ?? runMs(a, now))} · {usageText(a)}
+        </p>
+        {a.state === 'needs-you' && (
+          <p className="assign-needs">
+            {[pending ? `${pending} ${pending === 1 ? 'proposal' : 'proposals'} to review` : '', a.questions.length ? `${a.questions.length} ${a.questions.length === 1 ? 'question' : 'questions'}` : '', a.stop?.reason === 'injection' ? 'stopped on a possible injection' : ''].filter(Boolean).join(', ')}
+          </p>
+        )}
+        {a.stop && a.state === 'failed' && <p className="assign-stop">{a.stop.message}</p>}
+        <p>
+          <a href={assignmentHref(a.dossier, a.id)}>
+            Open the assignment<span className="sr-only"> on {a.item}</span>
+          </a>
+        </p>
+      </Stack>
+    </Card>
+  );
+}
+
+/**
+ * The Assign dialog's form: the adapter, the mode, and for implement mode
+ * the repository. With `start`, it starts an assignment the tracker queued,
+ * whose item and mode are fixed.
+ */
+export function AssignForm({ item, list, start, close, onDone }: { item: Pick<WorkItem, 'id' | 'title'>; list: AssignmentList; start?: Assignment; close: () => void; onDone: (a: Assignment) => void }) {
+  const { assignments: api, dossier } = useData();
+  const usable = list.adapters.filter((a) => !a.problem);
+  const [adapter, setAdapter] = useState<AssignAdapter | null>(start?.adapter ?? (usable.find((a) => a.name === list.preferred)?.name ?? usable[0]?.name ?? null));
+  const [mode, setMode] = useState<AssignMode>(start?.mode ?? 'refine');
+  const [repo, setRepo] = useState<string | null>(list.repos[0]?.name ?? null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+  const choice = list.adapters.find((a) => a.name === adapter);
+  const implementOff = mode === 'implement' ? (choice?.implement ?? (list.repos.length ? null : `${dossier.name} lists no repository with a local path, so implement mode has nothing to clone. Add one with toil dossiers add-repo ${dossier.name} <name> --path <folder>.`)) : null;
+  const canSend = api && !api.disabled && adapter !== null && !choice?.problem && !implementOff && !busy && (mode !== 'implement' || repo !== null);
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!canSend || !api || !adapter) return;
+    setBusy(true);
+    setProblem(null);
+    try {
+      const a = start ? await api.start(start.id, adapter) : await api.assign({ dossier: dossier.name, item: item.id, mode, adapter, ...(mode === 'implement' && repo ? { repo } : {}) });
+      onDone(a);
+      close();
+    } catch (err) {
+      setProblem(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form className="assign-form" onSubmit={submit} noValidate>
+      <Heading slot="title" level={2} id="assign-title">
+        {start ? 'Start the assignment' : 'Assign to an agent'}
+      </Heading>
+      <p className="note">
+        <ItemLink id={item.id} /> {item.title}
+      </p>
+      <RadioGroup className="agent-adapters" value={adapter ?? ''} onChange={(v) => setAdapter(v as AssignAdapter)}>
+        <Label>Adapter</Label>
+        {list.adapters.map((a) => (
+          <Radio key={a.name} value={a.name} className="agent-choice" isDisabled={a.problem !== null}>
+            <strong>{a.label}</strong>
+            <span className={a.problem ? 'agent-missing' : 'note'}>{a.problem ?? (a.implement ? 'Refine and investigate.' : 'Refine, investigate and implement.')}</span>
+          </Radio>
+        ))}
+      </RadioGroup>
+      {start ? (
+        <p>
+          Mode: <strong>{MODE_INFO[start.mode].label}</strong>, as the tracker asked ({start.trigger}). {MODE_INFO[start.mode].does}
+        </p>
+      ) : (
+        <RadioGroup className="agent-adapters" value={mode} onChange={(v) => setMode(v as AssignMode)}>
+          <Label>Mode</Label>
+          {MODES.map((m) => (
+            <Radio key={m} value={m} className="agent-choice">
+              <strong>{MODE_INFO[m].label}</strong>
+              <span className="note">
+                {MODE_INFO[m].does} {MODE_INFO[m].changes}
+              </span>
+            </Radio>
+          ))}
+        </RadioGroup>
+      )}
+      {mode === 'implement' && list.repos.length > 0 && (
+        <RadioGroup className="agent-adapters" value={repo ?? ''} onChange={setRepo}>
+          <Label>Repository to clone</Label>
+          {list.repos.map((r) => (
+            <Radio key={r.name} value={r.name} className="agent-choice">
+              <strong>{r.name}</strong>
+              <span className="note any-break">{r.path}</span>
+            </Radio>
+          ))}
+        </RadioGroup>
+      )}
+      {implementOff && <p className="failure">{implementOff}</p>}
+      <p className="note">
+        It runs on your adapter's own subscription, {list.settings.concurrent === 1 ? 'one assignment at a time' : `${list.settings.concurrent} assignments at a time`}, for up to {list.settings.timeLimitMinutes} minutes, within your usage caps. Nothing it proposes leaves this machine until you apply it, and applying runs toil's own command through its write gate.
+      </p>
+      {list.settings.problem && <p className="failure">{list.settings.problem}</p>}
+      {api?.disabled && <p className="failure">{api.disabled}</p>}
+      {problem && (
+        <p role="alert" className="failure">
+          {problem}
+        </p>
+      )}
+      <div className="assign-actions">
+        <Button type="submit" className="btn btn--accent" isDisabled={!canSend}>
+          {busy ? 'Assigning…' : start ? 'Start' : 'Assign'}
+        </Button>
+        <Button className="btn" onPress={close}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** The dialog around the form; it reads the dossier's adapters and repositories when it opens. */
+export function AssignModal({ item, start, isOpen, onOpenChange, onDone }: { item: Pick<WorkItem, 'id' | 'title'>; start?: Assignment; isOpen?: boolean; onOpenChange?: (open: boolean) => void; onDone?: (a: Assignment) => void }) {
+  const controlled = isOpen === undefined ? {} : { isOpen, ...(onOpenChange ? { onOpenChange } : {}) };
+  const done = onDone ?? ((a: Assignment) => void (window.location.hash = assignmentHref(a.dossier, a.id)));
+  return (
+    <ModalOverlay className="feedback-overlay" data-backdrop="" isDismissable {...controlled}>
+      <Modal className="feedback-modal">
+        <Dialog className="feedback-dialog" aria-labelledby="assign-title">
+          {({ close }) => <AssignBody item={item} {...(start ? { start } : {})} close={close} onDone={done} />}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
+  );
+}
+
+function AssignBody({ item, start, close, onDone }: { item: Pick<WorkItem, 'id' | 'title'>; start?: Assignment; close: () => void; onDone: (a: Assignment) => void }) {
+  const { assignments: api, dossier } = useData();
+  const [list, setList] = useState<AssignmentList | null>(null);
+  const [problem, setProblem] = useState<string | null>(null);
+  useEffect(() => {
+    if (!api) return void setProblem('This view has no agent assignments.');
+    if (api.disabled) return void setProblem(api.disabled);
+    let live = true;
+    api.list(dossier.name).then(
+      (l) => live && setList(l),
+      (e: unknown) => live && setProblem(e instanceof Error ? e.message : String(e)),
+    );
+    return () => {
+      live = false;
+    };
+  }, [api, dossier.name]);
+  if (list) return <AssignForm item={item} list={list} {...(start ? { start } : {})} close={close} onDone={onDone} />;
+  return (
+    <div className="assign-form">
+      <Heading slot="title" level={2} id="assign-title">
+        Assign to an agent
+      </Heading>
+      <p className={problem ? 'failure' : 'note'}>{problem ?? 'Reading the adapters on this machine…'}</p>
+      <div className="assign-actions">
+        <Button className="btn" onPress={close}>
+          Close
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** "Assign to agent" for one item, and the dialog it opens. Absent where nothing can be assigned. */
+export function AssignButton({ item, small = false }: { item: Pick<WorkItem, 'id' | 'title'>; small?: boolean }) {
+  const { assignments: api } = useData();
+  if (!api) return null;
+  return (
+    <DialogTrigger>
+      <Button className={`btn${small ? ' btn--small' : ''}`}>
+        {/* On a board card the visible word is short; the name still starts with it (WCAG 2.5.3). */}
+        {small ? (
+          <>
+            Assign<span className="sr-only"> {item.id} to an agent</span>…
+          </>
+        ) : (
+          <>
+            Assign to agent<span className="sr-only"> {item.id}</span>
+          </>
+        )}
+      </Button>
+      <AssignModal item={item} />
+    </DialogTrigger>
+  );
+}
+
+/** One inbox entry: what the tracker asked for, and the Start a person presses. */
+function InboxRow({ a, onStarted }: { a: Assignment; onStarted: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li className="assign-inbox__row">
+      <Cluster>
+        <span>
+          <ItemLink id={a.item} /> {a.itemTitle}: <strong>{MODE_INFO[a.mode].label.toLowerCase()}</strong>, asked for by the tracker's {a.trigger}.
+        </span>
+        <Button className="btn btn--accent btn--small" onPress={() => setOpen(true)}>
+          Start<span className="sr-only"> {a.item}</span>…
+        </Button>
+      </Cluster>
+      <AssignModal item={{ id: a.item, title: a.itemTitle }} start={a} isOpen={open} onOpenChange={setOpen} onDone={onStarted} />
+    </li>
+  );
+}
+
+/** How many at once and how long each: shown always, changed here where the server allows. */
+function Limits({ list, onSaved }: { list: AssignmentList; onSaved: () => void }) {
+  const { assignments: api } = useData();
+  const [concurrent, setConcurrent] = useState(String(list.settings.concurrent || 1));
+  const [minutes, setMinutes] = useState(String(list.settings.timeLimitMinutes));
+  const [said, setSaid] = useState<string | null>(null);
+  const id = useId();
+  if (!api?.saveSettings) return null;
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.saveSettings!({ concurrent: Number(concurrent), timeLimitMinutes: Number(minutes) });
+      setSaid('Saved. The next assignment runs on these limits.');
+      onSaved();
+    } catch (err) {
+      setSaid(err instanceof Error ? err.message : String(err));
+    }
+  };
+  return (
+    <details className="assign-limits">
+      <summary>Limits</summary>
+      <form className="assign-limits__form" onSubmit={save} aria-describedby={id}>
+        <TextField className="field-text" value={concurrent} onChange={setConcurrent} inputMode="numeric">
+          <Label>Assignments at once (1 to 3)</Label>
+          <Input />
+        </TextField>
+        <TextField className="field-text" value={minutes} onChange={setMinutes} inputMode="numeric">
+          <Label>Minutes each (1 to 240)</Label>
+          <Input />
+        </TextField>
+        <Button type="submit" className="btn">
+          Save the limits
+        </Button>
+        <p id={id} className="note" role="status">
+          {said ?? 'Usage caps are under Settings, Agent usage: an assignment is one chat there.'}
+        </p>
+      </form>
+    </details>
+  );
+}
+
+/** The Agents lane: the tracker's inbox, then every assignment for the dossier, newest first. */
+export function AgentsLane() {
+  const { dossier, now, assignments: api } = useData();
+  const { list, error, reload } = useAssignments(dossier.name);
+  if (!api) return null;
+  const inbox = list?.assignments.filter((a) => a.state === 'queued' && a.waiting === 'start') ?? [];
+  const lane = list?.assignments.filter((a) => !(a.state === 'queued' && a.waiting === 'start')) ?? [];
+  return (
+    <Card as="section" className="panel agents-lane" aria-labelledby="agents">
+      <h2 id="agents">Agents</h2>
+      <p className="note">
+        Work items assigned to an agent from Toil UI: each one's state, mode, adapter, run time and what it used. {list ? `${list.settings.concurrent === 1 ? 'One runs at a time' : `${list.settings.concurrent} run at a time`}, for up to ${list.settings.timeLimitMinutes} minutes each.` : ''} Assign an item from its card on the board or its page.
+      </p>
+      {api.disabled && <p className="note">{api.disabled}</p>}
+      {error && <p className="failure">{error}</p>}
+      {list?.settings.problem && <p className="failure">{list.settings.problem}</p>}
+      {inbox.length > 0 && (
+        <section className="assign-inbox" aria-labelledby="agent-inbox">
+          <h3 id="agent-inbox">Agent inbox</h3>
+          <p className="note">Items whose tracker asks for an agent, by an agent: label or by assignment to one of the dossier's agents. Nothing runs until you press Start.</p>
+          <ul className="rows">
+            {inbox.map((a) => (
+              <InboxRow key={a.id} a={a} onStarted={reload} />
+            ))}
+          </ul>
+        </section>
+      )}
+      {list && !lane.length && <p>Nothing assigned to an agent in {dossier.name} yet.</p>}
+      {lane.length > 0 && (
+        <CardGrid min="sm" className="assign-lane" aria-label="Assignments">
+          {lane.map((a) => (
+            <li key={a.id}>
+              <AssignmentCard a={a} now={now} />
+            </li>
+          ))}
+        </CardGrid>
+      )}
+      {list && <Limits list={list} onSaved={reload} />}
+    </Card>
+  );
+}
+
+/** The item page's part: assign it, and what was assigned before. */
+export function ItemAssignments({ item }: { item: WorkItem }) {
+  const { dossier, now, assignments: api } = useData();
+  const { list, error } = useAssignments(dossier.name);
+  if (!api) return null;
+  const mine = list?.assignments.filter((a) => a.item === item.id) ?? [];
+  return (
+    <Card as="section" className="panel" aria-labelledby="item-agents">
+      <h2 id="item-agents">Agents</h2>
+      <Cluster>
+        <AssignButton item={item} />
+        <span className="note">Refine, investigate or implement it with Claude, Copilot or Codex. Its proposals wait for you.</span>
+      </Cluster>
+      {error && <p className="failure">{error}</p>}
+      {mine.length > 0 && (
+        <CardGrid min="sm" className="assign-lane" aria-label={`Assignments on ${item.id}`}>
+          {mine.map((a) => (
+            <li key={a.id}>
+              <AssignmentCard a={a} now={now} />
+            </li>
+          ))}
+        </CardGrid>
+      )}
+    </Card>
+  );
+}
+
+/** The dossier agent an adapter's work belongs to, by name or by an id naming the adapter. */
+export function agentFor(adapter: AssignAdapter, people: readonly PersonEntry[]): PersonEntry | null {
+  const words = [adapter, ADAPTER_NAME[adapter].toLowerCase()];
+  return people.find((p) => p.kind === 'agent' && (words.some((w) => p.name.toLowerCase().includes(w)) || Object.values(p.ids).some((id) => words.includes(id.toLowerCase())))) ?? null;
+}
+
+/** The People view's part: each adapter with assignments, as a teammate, under the dossier's agent of that name where there is one. */
+export function AgentAssignments({ people }: { people: readonly PersonEntry[] }) {
+  const { dossier, now, assignments: api } = useData();
+  const { list } = useAssignments(dossier.name);
+  if (!api || !list) return null;
+  const adapters = [...new Set(list.assignments.flatMap((a) => (a.adapter ? [a.adapter] : [])))].sort();
+  return (
+    <section className="people-section" aria-labelledby="agent-assignments">
+      <h2 id="agent-assignments">Agents' assignments</h2>
+      <p className="note">What each agent was assigned from Toil UI, as a teammate's plate: its own runs, not the pull requests above.</p>
+      {adapters.length ? (
+        <CardGrid min="md" className="people-cards">
+          {adapters.map((adapter) => {
+            const who = agentFor(adapter, people);
+            const mine = list.assignments.filter((a) => a.adapter === adapter);
+            return (
+              <li key={adapter}>
+                <Card className="assign-agent">
+                  <Stack gap="xs">
+                    <h3>{who ? `${who.name} (${ADAPTER_NAME[adapter]})` : ADAPTER_NAME[adapter]}</h3>
+                    <p className="note">
+                      {STATE_ORDER.map((s) => [s, mine.filter((a) => a.state === s).length] as const)
+                        .filter(([, n]) => n)
+                        .map(([s, n]) => `${n} ${STATE_LABEL[s].toLowerCase()}`)
+                        .join(', ')}
+                    </p>
+                    <ul className="rows">
+                      {mine.map((a) => (
+                        <li key={a.id}>
+                          <StateChip a={a} /> <a href={assignmentHref(a.dossier, a.id)}>{MODE_INFO[a.mode].label}</a> <ItemLink id={a.item} /> <span className="note">{runText(a.ranMs ?? runMs(a, now))}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Stack>
+                </Card>
+              </li>
+            );
+          })}
+        </CardGrid>
+      ) : (
+        <p>Nothing has been assigned to an agent in {dossier.name} yet.</p>
+      )}
+    </section>
+  );
+}
+
+const STATE_ORDER = ['working', 'needs-you', 'queued', 'done', 'failed'] as const;

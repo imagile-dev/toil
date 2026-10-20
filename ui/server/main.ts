@@ -25,6 +25,16 @@ import { SyncService } from './sync.ts';
 import { cacheLedger, memoryLedger, usageControl } from './usage.ts';
 import { SAMPLE_USAGE_SETTINGS, sampleUsageRecords } from '../src/fixtures/model-usage.ts';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
+import { randomUUID } from 'node:crypto';
+import { actorOf } from '../src/assign/model.ts';
+import { AssignmentQueue } from '../src/assign/queue.ts';
+import { readPeople } from '../src/model/people.ts';
+import { sampleQueue } from '../src/fixtures/assignments.ts';
+import { checkAssignSettings, fileKeeper, queueSettings, saveAssignSettings } from './assign/files.ts';
+import { hostRunner, reposOf } from './assign/runner.ts';
+import type { AssignmentControl } from './assign/routes.ts';
+import { CALLER } from './store.ts';
+import type { Execute } from '../src/toil.ts';
 
 declare const __TOIL_UI_VERSION__: string;
 
@@ -88,6 +98,15 @@ async function main(): Promise<number> {
   let serveTools: ConstructorParameters<typeof AgentHost>[0]['serveTools'] = () => {
     throw new Error('The server is not listening yet.');
   };
+  const mapIds = (envelope: Parameters<typeof mapOwi>[0]) => {
+    try {
+      // An older toil maps no changes; its items still vouch for what they name.
+      const mapped = mapOwi(envelope) as { items: Array<{ id: string }>; changes?: Array<{ id: string }> };
+      return [...mapped.items, ...(mapped.changes ?? [])].map((r) => r.id);
+    } catch {
+      return [];
+    }
+  };
   const host = cache
     ? new AgentHost({
         dataDir: settings.dataDir,
@@ -95,20 +114,49 @@ async function main(): Promise<number> {
         data: (dossier) => cacheData(cache!, dossier),
         registry: registry.commands,
         execute,
-        mapIds: (envelope) => {
-          try {
-            // An older toil maps no changes; its items still vouch for what they name.
-            const mapped = mapOwi(envelope) as { items: Array<{ id: string }>; changes?: Array<{ id: string }> };
-            return [...mapped.items, ...(mapped.changes ?? [])].map((r) => r.id);
-          } catch {
-            return [];
-          }
-        },
+        mapIds,
         serveTools: (tools) => serveTools(tools),
         fallback: noAgent(),
         ledger,
       })
     : undefined;
+  // Assigning items to an agent (#293): the queue on the cache and the agent host, or the sample's, scripted.
+  let assignments: AssignmentControl;
+  const problems: string[] = [];
+  if (cache && host) {
+    const dataDir = settings.dataDir;
+    // Toil UI's own view of execute(), which names the actor: a toil older than the option ignores it.
+    const toilExecute: Execute = execute;
+    const data = (dossier: string) => cacheData(cache!, dossier);
+    const queue = new AssignmentQueue({
+      keeper: fileKeeper(dataDir, problems),
+      runner: hostRunner({ host, dataDir, registry: registry.commands, execute, mapIds, data, version: __TOIL_UI_VERSION__, toilVersion }),
+      items: (dossier) => data(dossier)?.items() ?? null,
+      people: async (dossier) => {
+        const e = await execute('dossiers show', { dossier }, { readOnly: true, caller: CALLER });
+        return e.ok ? readPeople((e.data as { dossier?: unknown } | null)?.dossier).people : [];
+      },
+      repos: (dossier) => reposOf(execute, dossier),
+      // The one write an assignment makes, and only on a person's Apply: toil's own command, through its own gate, labelled with the assignment.
+      apply: (a, p) => toilExecute(p.command!, { ...p.input, allowWrite: true }, { caller: CALLER, actor: actorOf(a.id) }),
+      settings: () => queueSettings(dataDir),
+      now: () => new Date().toISOString(),
+      newId: () => randomUUID(),
+    });
+    assignments = {
+      queue,
+      saveSettings: (input) => {
+        const checked = checkAssignSettings(input);
+        saveAssignSettings(dataDir, checked);
+        return checked;
+      },
+    };
+  } else {
+    const sample = sampleQueue();
+    await sample.ready;
+    assignments = { queue: sample.queue };
+  }
+
   const ui = createUiServer({
     settings,
     store: cache ? sqliteStore(() => cache, execute, toil) : fixtureStore(),
@@ -116,6 +164,7 @@ async function main(): Promise<number> {
     ...(host ? { agentControl: host } : {}),
     ...(sync ? { sync } : {}),
     usage,
+    assignments,
     appDir: fileURLToPath(new URL('../app/', import.meta.url)),
     version: __TOIL_UI_VERSION__,
     toil,
@@ -151,6 +200,7 @@ async function main(): Promise<number> {
   // A themes folder from an earlier alpha is never read; say so once per start rather than say nothing.
   const leftover = themesNotice(settings.dataDir);
   if (leftover) process.stderr.write(`${leftover}\n`);
+  for (const problem of problems) process.stderr.write(`toil-ui: ${problem}\n`);
 
   await new Promise<void>((resolveStop) => {
     const stop = () => resolveStop();

@@ -41,6 +41,8 @@ export interface Session {
   agent: string;
   /** The agent can be chosen in Settings (#251); false with sample data. */
   agentSettings?: boolean;
+  /** The server assigns work items to an agent (#293). */
+  assignments?: boolean;
   sample: boolean;
   now: string;
 }

@@ -7,6 +7,7 @@
 
 import { createContext, useContext } from 'react';
 import type { Agent } from './agent.ts';
+import type { AssignmentsApi } from './assign/model.ts';
 import type { ConfigApi } from './config.ts';
 import type { DossierData } from './load.ts';
 import { prepare, type Prepared } from './model/insights.ts';
@@ -25,6 +26,8 @@ export interface Data {
   config?: ConfigApi;
   /** Reads the dossier again, after a person changed it from a view; absent where nothing can change. */
   refresh?: () => void;
+  /** Assigning items to an agent (#293): the server's, or the preview's sample; absent where there is neither. */
+  assignments?: AssignmentsApi;
 }
 
 export const DataContext = createContext<Data | null>(null);

@@ -1,11 +1,13 @@
 /**
  * A proposal as a card to review (#252, #253): what would change, why, and
  * the toil command that applies it through the write gate. The card can copy
- * the command or be dismissed. It has no button that applies anything,
- * because Toil UI never writes (principle 2).
+ * the command or be dismissed. It has no button of its own that applies
+ * anything (principle 2): the one place Toil UI applies a proposal is an
+ * agent assignment's page (#293), which passes its Apply in `actions` and
+ * asks the server to run the proposal it stored, through toil's own gate.
  */
 
-import { useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Button, Radio, RadioGroup } from 'react-aria-components';
 import { SHELL_LABEL, commandLine, defaultShell, readLine, type Proposal, type Shell } from '../proposal.ts';
 import { Cited } from './items.tsx';
@@ -36,7 +38,7 @@ function setShell(shell: Shell) {
 const subscribe = (l: () => void) => (listeners.add(l), () => listeners.delete(l));
 export const useShell = () => useSyncExternalStore(subscribe, shellNow, shellNow);
 
-export function ProposalCard({ proposal, onDismiss }: { proposal: Proposal; onDismiss?: () => void }) {
+export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not applied', actions, children }: { proposal: Proposal; onDismiss?: () => void; kind?: string; actions?: ReactNode; children?: ReactNode }) {
   const [copied, setCopied] = useState<'yes' | 'no' | null>(null);
   const shell = useShell();
   const { line, reason, mcp } = commandLine(proposal, shell);
@@ -53,7 +55,7 @@ export function ProposalCard({ proposal, onDismiss }: { proposal: Proposal; onDi
   };
   return (
     <article className="proposal" aria-label={`Proposal: ${proposal.title}`}>
-      <p className="proposal-kind">Proposed change, not applied</p>
+      <p className="proposal-kind">{kind}</p>
       <h3>{proposal.title}</h3>
       <p>
         <Cited text={proposal.reason} />
@@ -99,7 +101,9 @@ export function ProposalCard({ proposal, onDismiss }: { proposal: Proposal; onDi
           )}
         </>
       )}
+      {children}
       <div className="proposal-actions">
+        {actions}
         {line && (
           <Button className="btn" onPress={copy}>
             Copy command

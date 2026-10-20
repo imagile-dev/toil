@@ -37,7 +37,7 @@ import { linkSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { AgentError } from './cli.ts';
-import type { Runtime, UsageReport } from './runtime.ts';
+import type { Activity, Runtime, UsageReport } from './runtime.ts';
 
 interface CodexThread {
   runStreamed(input: string, options?: { signal?: AbortSignal }): Promise<{ events: AsyncIterable<Record<string, unknown>> }>;
@@ -55,9 +55,41 @@ export const CODEX_FEATURES_OFF = ['shell_tool', 'unified_exec', 'apps', 'plugin
 /** A TOML basic string. */
 const toml = (s: string) => JSON.stringify(s);
 
-/** The `--config` overrides for one run: Toil UI's server, and the features off. */
-export function codexOverrides(url: string): string[] {
-  return [`mcp_servers={ toil_ui = { url = ${toml(url)}, bearer_token_env_var = ${toml(TOKEN_ENV)} } }`, ...CODEX_FEATURES_OFF.map((f) => `features.${f}=false`)];
+/**
+ * What implement mode (#293) turns back on: the shell, so the agent can clone,
+ * branch, edit and run the tests, inside the workspace-write sandbox.
+ */
+export const CODEX_WORKSPACE_FEATURES = ['shell_tool'];
+
+/**
+ * The `--config` overrides for one run: Toil UI's server, and the features
+ * off. With a workspace (implement mode) the shell stays on, the sandbox's
+ * writable roots are the workspace alone (not the temp folders Codex adds by
+ * default), and the sandbox has no network.
+ */
+export function codexOverrides(url: string, workspace = false): string[] {
+  const off = workspace ? CODEX_FEATURES_OFF.filter((f) => !CODEX_WORKSPACE_FEATURES.includes(f)) : CODEX_FEATURES_OFF;
+  return [
+    `mcp_servers={ toil_ui = { url = ${toml(url)}, bearer_token_env_var = ${toml(TOKEN_ENV)} } }`,
+    ...off.map((f) => `features.${f}=false`),
+    ...(workspace ? ['sandbox_workspace_write.network_access=false', 'sandbox_workspace_write.exclude_tmpdir_env_var=true', 'sandbox_workspace_write.exclude_slash_tmp=true', 'sandbox_workspace_write.writable_roots=[]'] : []),
+  ];
+}
+
+/** An item Codex finished besides its message, as a line of an assignment's transcript (#293). */
+export function codexActivity(item: Record<string, unknown>): Activity | null {
+  const clip = (v: unknown, n = 2000) => (typeof v === 'string' ? (v.length > n ? `${v.slice(0, n)}…` : v) : undefined);
+  if (item.type === 'command_execution' && typeof item.command === 'string') {
+    const code = typeof item.exit_code === 'number' ? ` (exit ${item.exit_code})` : '';
+    const out = clip(item.aggregated_output);
+    return { kind: 'command', title: `Ran ${item.command}${code}`, ...(out ? { detail: out } : {}) };
+  }
+  if (item.type === 'file_change' && Array.isArray(item.changes)) {
+    const files = (item.changes as Array<{ path?: unknown; kind?: unknown }>).map((c) => `${String(c.kind ?? 'change')} ${String(c.path ?? '')}`);
+    return { kind: 'file', title: `Changed ${files.length === 1 ? 'a file' : `${files.length} files`}`, detail: files.join('\n') };
+  }
+  if (item.type === 'mcp_tool_call' && typeof item.tool === 'string') return { kind: 'tool', title: `Called ${item.tool}` };
+  return null;
 }
 
 /** The user's own Codex home: `CODEX_HOME`, else `.codex` in the home folder. Toil UI reads only its auth.json. */
@@ -163,6 +195,7 @@ export function codexRuntime(o: CodexOptions = {}): Runtime {
     command: 'codex',
     cliLabel: 'the Codex CLI',
     usageAtEnd: true,
+    workspace: true,
     async run(module, r) {
       const sdk = module as CodexSdk;
       const home = toilCodexHome(r.dataDir);
@@ -170,10 +203,11 @@ export function codexRuntime(o: CodexOptions = {}): Runtime {
       const served = r.serveTools(r.tools);
       try {
         const env = Object.fromEntries(Object.entries({ ...r.env, CODEX_HOME: home, [TOKEN_ENV]: served.token }).filter((e): e is [string, string] => typeof e[1] === 'string'));
-        const codex = new sdk.Codex({ codexPathOverride: r.cli, env, configOverrides: codexOverrides(served.url) });
+        const codex = new sdk.Codex({ codexPathOverride: r.cli, env, configOverrides: codexOverrides(served.url, r.workspace !== null) });
         const thread = codex.startThread({
           ...(r.model ? { model: r.model } : {}),
-          sandboxMode: 'read-only',
+          // Implement mode (#293) writes in its workspace and nowhere else; everything else reads only.
+          sandboxMode: r.workspace ? 'workspace-write' : 'read-only',
           approvalPolicy: 'never',
           workingDirectory: r.workDir,
           skipGitRepoCheck: true,
@@ -196,6 +230,9 @@ export function codexRuntime(o: CodexOptions = {}): Runtime {
             if (item.type === 'agent_message' && typeof item.text === 'string') {
               last = item.text;
               r.onText(last);
+            } else if (e.type === 'item.completed' && r.onActivity) {
+              const activity = codexActivity(e.item as Record<string, unknown>);
+              if (activity) r.onActivity(activity);
             }
           } else if (e.type === 'turn.failed') {
             throw new Error(`Codex stopped without an answer: ${(e.error as { message?: string } | undefined)?.message ?? 'no message'}.`);

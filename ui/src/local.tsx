@@ -17,6 +17,7 @@ import './views.css';
 import type { ConfigApi } from './config.ts';
 import { httpAgent, httpAgentSettings, httpConfig, httpExecute, httpFeedback, httpModelUsage, httpSync, signIn, type AgentStatus, type Session, type SyncStatus } from './server-client.ts';
 import { SyncPanel, lastSynced } from './sync-panel.tsx';
+import { httpAssignments } from './assign/client.ts';
 import { CALL_OPTIONS, type Execute } from './toil.ts';
 
 const root = createRoot(document.getElementById('root')!);
@@ -41,13 +42,14 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   const [config] = useState<ConfigApi>(() => httpConfig(session));
   const [feedback] = useState(() => httpFeedback(session));
   const [modelUsage] = useState(() => httpModelUsage(session));
+  const [assignments] = useState(() => httpAssignments(session));
   const onChange = useCallback((next: SyncStatus) => {
     setSynced(lastSynced(next));
     setGeneration((g) => g + 1);
   }, []);
   return (
     <>
-      <App key={generation} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
+      <App key={generation} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
       {sync && <SyncPanel client={sync} onChange={onChange} />}
     </>
   );

@@ -1,0 +1,44 @@
+/* Agent assignments (#293): the Assign dialog, the Agents lane, and the
+   assignment page. Colours come from the active theme's tokens. */
+
+.assign-form { display: grid; gap: 1rem; padding: 1.25rem; min-width: 0; }
+.assign-form h2 { font-size: 1.25rem; }
+.assign-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
+
+.assign-state { display: inline-flex; align-items: center; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid currentColor; font-size: 0.75rem; font-weight: 600; background: var(--raised); white-space: nowrap; }
+.assign-state--queued { color: var(--muted); }
+.assign-state--working { color: var(--link); }
+.assign-state--needs-you { color: var(--warn); }
+.assign-state--done { color: var(--ok); }
+.assign-state--failed { color: var(--danger); }
+.assign-mode { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+
+/* A board card's actions wrap now that Assign sits beside Drag and Move. */
+.card-actions { flex-wrap: wrap; }
+
+.agents-lane { display: grid; gap: 0.75rem; }
+.assign-lane { margin: 0; }
+.assign-card { height: 100%; }
+.assign-card__item { overflow-wrap: anywhere; }
+.assign-card__title { color: var(--ink); }
+.assign-needs { color: var(--ink); font-weight: 600; }
+.assign-stop { color: var(--danger); overflow-wrap: anywhere; }
+.assign-inbox { display: grid; gap: 0.5rem; padding: 0.75rem 1rem; border: 1px solid var(--warn); border-left-width: 4px; border-radius: var(--radius); background: var(--bg); }
+.assign-inbox h3 { margin: 0; }
+.assign-inbox__row span { overflow-wrap: anywhere; }
+.assign-limits summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.assign-limits__form { display: grid; gap: 0.75rem; max-width: 24rem; }
+.assign-agent h3 { margin: 0; }
+
+.assign-warn { border-left: 4px solid var(--warn); padding-left: 0.75rem; overflow-wrap: anywhere; }
+.assign-diff, .assign-detail { margin: 0; padding: 0.5rem 0.6rem; background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius); font-family: var(--font-mono); font-size: 0.8125rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.assign-detail { max-height: 16rem; overflow: auto; }
+.assign-before { text-decoration: line-through; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.assign-after { white-space: pre-wrap; overflow-wrap: anywhere; }
+.assign-record, .assign-transcript { margin-top: 1rem; }
+.assign-record summary, .assign-transcript summary { cursor: pointer; font-weight: 600; min-height: 44px; display: flex; align-items: center; }
+.assign-lines { display: grid; gap: 0.5rem; padding-left: 1.25rem; margin: 0.5rem 0 0; }
+.assign-line { min-width: 0; }
+.assign-line p { overflow-wrap: anywhere; }
+.assign-line--error strong { color: var(--danger); }
+.assign-line--proposal strong { color: var(--link); }

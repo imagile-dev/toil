@@ -23,6 +23,8 @@ import type { Call, Execute } from './toil.ts';
 import { Dashboard } from './views/Dashboard.tsx';
 import { Dossiers } from './views/Dossiers.tsx';
 import { ItemView } from './views/Item.tsx';
+import { AssignmentView } from './views/Assignment.tsx';
+import type { AssignmentsApi } from './assign/model.ts';
 import { People } from './views/People.tsx';
 import { PullRequests } from './views/PullRequests.tsx';
 import { Settings } from './views/Settings.tsx';
@@ -44,7 +46,9 @@ export type Route =
   | { view: 'dashboard'; dossier: string; person?: string }
   | { view: 'prs'; dossier: string }
   | { view: 'people'; dossier: string }
-  | { view: 'item'; dossier: string; id: string };
+  | { view: 'item'; dossier: string; id: string }
+  /** One agent assignment (#293). */
+  | { view: 'assignment'; dossier: string; id: string };
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/');
@@ -52,6 +56,7 @@ export function parseRoute(hash: string): Route {
   if (parts[0] === 'dossier' && parts[1]) {
     const dossier = decodeURIComponent(parts[1]);
     if (parts[2] === 'item' && parts[3]) return { view: 'item', dossier, id: decodeURIComponent(parts.slice(3).join('/')) };
+    if (parts[2] === 'assignment' && parts[3]) return { view: 'assignment', dossier, id: decodeURIComponent(parts[3]) };
     if (parts[2] === 'prs') return { view: 'prs', dossier };
     if (parts[2] === 'people') return { view: 'people', dossier };
     if (parts[2] === 'board' && parts[3]) return { view: 'dashboard', dossier, person: decodeURIComponent(parts.slice(3).join('/')) };
@@ -86,12 +91,14 @@ export interface AppProps {
   feedback?: FeedbackApi;
   /** The agent's model usage and caps (#295), for Settings, Agent usage: the server's, or the preview's sample. */
   modelUsage?: ModelUsageApi;
+  /** Assigning items to an agent (#293): the server's, or the preview's sample queue. */
+  assignments?: AssignmentsApi;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, assignments }: AppProps) {
   const route = useRoute();
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
@@ -201,10 +208,10 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   } else if (!current.ok) {
     body = failure(current.message);
   } else {
-    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(config ? { config } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest) };
+    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest) };
     body = (
       <DataContext value={data}>
-        {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
+        {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
       </DataContext>
     );
   }

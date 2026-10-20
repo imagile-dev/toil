@@ -161,6 +161,12 @@ export interface ExecuteOptions {
    * characters, starting with a letter or digit (`toil-ui`).
    */
   caller?: string;
+  /**
+   * Who or what the call is made on behalf of, recorded as `actor` on the
+   * audit line beside `caller` (Toil UI names one agent assignment:
+   * `assignment-<id>`). The same characters as `caller`.
+   */
+  actor?: string;
   /** Cancels the call; the envelope is then `CANCELLED`. */
   signal?: AbortSignal;
   /**
@@ -300,6 +306,9 @@ export async function execute(command: string, input: Record<string, unknown> = 
   if (options.caller !== undefined && (typeof options.caller !== 'string' || !CALLER_LABEL.test(options.caller))) {
     return refuse(`caller must be a short name such as "toil-ui", not ${JSON.stringify(options.caller)}.`, 'Use lowercase letters, digits, ".", "_" and "-", up to 64 characters, starting with a letter or digit.');
   }
+  if (options.actor !== undefined && (typeof options.actor !== 'string' || !CALLER_LABEL.test(options.actor))) {
+    return refuse(`actor must be a short name such as "assignment-abc12345", not ${JSON.stringify(options.actor)}.`, 'Use lowercase letters, digits, ".", "_" and "-", up to 64 characters, starting with a letter or digit.');
+  }
   secrets ??= createSecretStore();
   const signal = options.signal ?? new AbortController().signal;
   const context = (d: AnyCommand) =>
@@ -322,7 +331,7 @@ export async function execute(command: string, input: Record<string, unknown> = 
       // A read-only call asks nothing: `feedback` then only previews, and the connections commands are refused anyway.
       ...(options.person && !options.readOnly && personByName.has(commandName(d)) ? { prompt: prompterFor(options.person) } : {}),
     });
-  return runCommand(def, input, context, VERSION, 'api', { targets: served }, { ...(options.readOnly ? { readOnly: true } : {}), ...(options.caller ? { caller: options.caller } : {}) });
+  return runCommand(def, input, context, VERSION, 'api', { targets: served }, { ...(options.readOnly ? { readOnly: true } : {}), ...(options.caller ? { caller: options.caller } : {}), ...(options.actor ? { actor: options.actor } : {}) });
 }
 
 

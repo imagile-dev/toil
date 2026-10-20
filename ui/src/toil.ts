@@ -31,6 +31,10 @@ export interface ExecuteOptions {
   signal?: AbortSignal;
   /** Only the local server's config path passes one (ui/server/config.ts): the person's answers to toil's questions. */
   person?: ExecutePerson;
+  /** Who the call is for, on the audit line beside `caller`: an agent assignment (#293). A toil without the option ignores it. */
+  actor?: string;
+  /** The folder toil's file and git commands work in: implement mode's clone (#293). */
+  workspace?: string;
 }
 
 /** One question a person's command asks (the API's `Question`). */

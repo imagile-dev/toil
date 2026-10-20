@@ -38,6 +38,8 @@ export interface CallOptions {
   readOnly?: boolean;
   /** Who is calling, as the caller names itself (`toil-ui`), for the audit log. Checked by the front door. */
   caller?: string;
+  /** Who the call is made on behalf of (`assignment-<id>`), for the audit log. Checked by the front door. */
+  actor?: string;
 }
 
 /**
@@ -218,7 +220,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
   // A config change or another toil version rewrites the installed toil skill, said in meta.warnings.
   // A read-only call writes nothing outside the audit log, the skill's upkeep included.
   const upkeep = () => (how.readOnly ? undefined : ctx.skillUpkeep?.((w) => warnings.push(w)));
-  const audited = (envelope: Envelope) => recordAudit(ctx.audit, { def, input: rawInput, via, writes: writing, requests, envelope, ...(how.caller ? { caller: how.caller } : {}) });
+  const audited = (envelope: Envelope) => recordAudit(ctx.audit, { def, input: rawInput, via, writes: writing, requests, envelope, ...(how.caller ? { caller: how.caller } : {}), ...(how.actor ? { actor: how.actor } : {}) });
   // Progress (src/core/progress.ts) goes to the front door's listener with the
   // command's name and a line of text. A listener that throws loses its
   // events, never the command, and the envelope says so once.
