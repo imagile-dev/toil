@@ -28,9 +28,9 @@ async function open(hash: string, { preview = true, execute = fixtureExecute().e
 }
 
 /**
- * A case that renders a whole dashboard and runs axe over it, about 1,600
- * elements in jsdom: about a second on a laptop, two to five on a Windows
- * runner (#328), so it gets more than Vitest's 5 s default.
+ * For a case that renders a whole view and runs axe over it (a dashboard is
+ * about 1,600 elements in jsdom): about a second on a laptop, two to five on
+ * a Windows runner (#328), so it gets more than Vitest's 5 s default.
  */
 const AXE_TIMEOUT = 20_000;
 
@@ -455,7 +455,7 @@ describe('settings', () => {
     expect(agentPanel.textContent).toContain('Toil UI found no claude on PATH');
     expect(within(agentPanel).queryByLabelText(/key|token/i)).toBeNull();
     expect(await violations(container)).toEqual([]);
-  });
+  }, AXE_TIMEOUT);
 
   it('saves the adapter, model, CLI path and Claude endpoint, and says so', async () => {
     const saves: AgentSettings[] = [];
@@ -471,7 +471,7 @@ describe('settings', () => {
     await waitFor(() => expect(within(agentPanel).getByRole('status').textContent).toBe('Saved: Claude answers from the next question.'));
     expect(saves).toEqual([{ adapter: 'claude', model: 'sonnet', cliPath: null, endpoint: 'bedrock', instructions: null, voice: null }]);
     expect(changed).toHaveLength(1);
-  });
+  }, AXE_TIMEOUT);
 });
 
 describe('the agent pane, with a real adapter', () => {
@@ -500,7 +500,7 @@ describe('the agent pane, with a real adapter', () => {
     expect(checks.textContent).toContain('corp-jira:PAY-999');
     expect(screen.getByText(/Names 1 its tools never returned/)).toBeTruthy();
     expect(await violations(container)).toEqual([]);
-  });
+  }, AXE_TIMEOUT);
 });
 
 describe('failures', () => {
@@ -646,7 +646,7 @@ describe('how deep the theme goes (#283)', () => {
     }
     expect(plain.textContent).toContain('Plain has no wording or voice of its own, so both are off');
     expect(await violations(container)).toEqual([]);
-  });
+  }, AXE_TIMEOUT);
 
   it('answers in the theme\'s voice with the voice on, and in the standard words with it off', async () => {
     setTheme('crate');
@@ -681,7 +681,7 @@ describe('how deep the theme goes (#283)', () => {
     await open('#/dossier/settlement');
     await userEvent.click(screen.getByRole('button', { name: 'About these answers' }));
     expect((await screen.findByRole('dialog')).textContent).toContain('Themed agent voice is off');
-  });
+  }, AXE_TIMEOUT);
 
   it('shows the instructions form in the preview, with counters, saving off, and the full prompt the agent would get', async () => {
     setTheme('starship');
@@ -704,7 +704,7 @@ describe('how deep the theme goes (#283)', () => {
     // The open prompt follows what is typed, with no need to open it again.
     await waitFor(() => expect(within(card).getByRole('region', { name: 'The full prompt' }).textContent).toContain('Style:\nTalk like a quartermaster.'));
     expect(within(card).getByRole('region', { name: 'The full prompt' }).textContent).not.toContain("starship's log");
-  });
+  }, AXE_TIMEOUT);
 
   it('saves the instructions and the custom voice in the local app, keeping the adapter as it was saved', async () => {
     const saves: AgentSettings[] = [];

@@ -47,10 +47,10 @@ export function cachePaths(dataDir: string, path: PathApi = nodePath): CachePath
 /**
  * How the file commits (#328). SQLite's default rollback journal creates,
  * flushes and deletes a `-journal` file on every commit, and a sync commits
- * many times: on Windows each of those is a file the antivirus scans and a
- * flush to disk, which made a sync tens of times slower there than on Linux
- * or macOS. A write-ahead log appends to one file and, with `synchronous =
- * NORMAL`, flushes only at a checkpoint. A crash of Toil UI loses nothing
+ * many times. On a Windows runner's system drive that measured 22 to 117 ms
+ * a commit, which made a sync several times slower there than on Linux or
+ * macOS. A write-ahead log appends to one file and, with `synchronous =
+ * NORMAL`, flushes only at a checkpoint: 0.1 ms a commit on the same drive. A crash of Toil UI loses nothing
  * and never corrupts the file; a power cut may lose the last commits, which
  * the next sync fetches again, since everything here is a copy of what toil
  * read. The `-wal` and `-shm` files sit beside the database in the cache
