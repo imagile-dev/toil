@@ -5267,7 +5267,7 @@
       "unmapped": [
         {
           "field": "estimate",
-          "reason": "the board item has no number in a field named \"Estimate\", \"Size\", \"Story Points\": point fields estimate at the project's own"
+          "reason": "the board item has no number in a field named \"Estimate\", \"Size\", \"Story Points\" (point fields estimate at the project's own), and no label holds one (\"points: N\", \"story points: N\", \"pts: N\", \"sp: N\" or \"estimate: N\")"
         }
       ],
       "native": {
@@ -6049,11 +6049,11 @@
       "unmapped": [
         {
           "field": "estimate",
-          "reason": "GitHub keeps estimates on a project board: add github projects list-items output to the input"
+          "reason": "no label holds an estimate (\"points: N\", \"story points: N\", \"pts: N\", \"sp: N\" or \"estimate: N\"), and no project board covers the issue: label it, name the team's own label with fields estimateLabel, or add github projects list-items output to the input"
         },
         {
           "field": "iteration",
-          "reason": "GitHub keeps iterations on a project board: add github projects list-items output to the input"
+          "reason": "the issue has no milestone, and no project board covers it: set a milestone, or add github projects list-items output to the input"
         }
       ],
       "native": {
@@ -6144,11 +6144,11 @@
       "unmapped": [
         {
           "field": "estimate",
-          "reason": "GitHub keeps estimates on a project board: add github projects list-items output to the input"
+          "reason": "no label holds an estimate (\"points: N\", \"story points: N\", \"pts: N\", \"sp: N\" or \"estimate: N\"), and no project board covers the issue: label it, name the team's own label with fields estimateLabel, or add github projects list-items output to the input"
         },
         {
           "field": "iteration",
-          "reason": "GitHub keeps iterations on a project board: add github projects list-items output to the input"
+          "reason": "the issue has no milestone, and no project board covers it: set a milestone, or add github projects list-items output to the input"
         }
       ],
       "native": {
@@ -6233,11 +6233,11 @@
       "unmapped": [
         {
           "field": "estimate",
-          "reason": "GitHub keeps estimates on a project board: add github projects list-items output to the input"
+          "reason": "no label holds an estimate (\"points: N\", \"story points: N\", \"pts: N\", \"sp: N\" or \"estimate: N\"), and no project board covers the issue: label it, name the team's own label with fields estimateLabel, or add github projects list-items output to the input"
         },
         {
           "field": "iteration",
-          "reason": "GitHub keeps iterations on a project board: add github projects list-items output to the input"
+          "reason": "the issue has no milestone, and no project board covers it: set a milestone, or add github projects list-items output to the input"
         }
       ],
       "native": {
