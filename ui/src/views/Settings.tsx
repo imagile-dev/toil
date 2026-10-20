@@ -1,7 +1,8 @@
 /**
  * toil's configuration from the browser (#253, item 4): Connections, Dossiers,
  * General (the theme and how deep it goes, #283, motion in this browser,
- * #271, then bounds and the time limit), and
+ * #271, then bounds and the time limit), Usage (what toil's audit log says
+ * about how toil is used, #309), and
  * the agent's own settings (#251), each its own page under `#/settings/`. Every change to toil's config runs one of toil's
  * own config commands through the local server (src/config.ts), never by
  * editing a file: no tracker is ever written from here. The Agent page is
@@ -20,11 +21,13 @@ import { DossierSetup } from './settings/DossierSetup.tsx';
 import { General } from './settings/General.tsx';
 import { MotionSetting } from './settings/Motion.tsx';
 import { ThemeSetting } from './settings/Theme.tsx';
+import { Usage } from './settings/Usage.tsx';
 
 const PAGES: Array<{ page: SettingsPage; label: string; about: string }> = [
   { page: 'connections', label: 'Connections', about: 'The connections toil uses: add, test, set the default, turn writes on or off, replace a secret, remove.' },
   { page: 'dossiers', label: 'Dossiers', about: 'Create dossiers, and give them repositories, areas and field names.' },
   { page: 'toil', label: 'General', about: 'How Toil UI looks, talks and moves in this browser, and the settings toil has no command for, shown as toil reports them.' },
+  { page: 'usage', label: 'Usage', about: "How toil is used on this machine: calls per day, the commands used and failing most, and the ones never called, from toil's local audit log." },
   { page: 'agent', label: 'Agent', about: "Which agent answers questions in the chat, and your own instructions for it. These are Toil UI's own settings, never toil's." },
 ];
 
@@ -51,7 +54,7 @@ export function Settings({ page, config, agent }: { page: SettingsPage; config: 
           ))}
         </ul>
       </nav>
-      {config?.disabled && page !== 'agent' && (
+      {config?.disabled && page !== 'agent' && page !== 'usage' && (
         <p className="config-off">
           <strong>Changes are turned off.</strong> {config.disabled}
         </p>
@@ -72,6 +75,8 @@ export function Settings({ page, config, agent }: { page: SettingsPage; config: 
         <Connections config={config} />
       ) : page === 'dossiers' ? (
         <DossierSetup config={config} />
+      ) : page === 'usage' ? (
+        <Usage config={config} />
       ) : (
         <General config={config} />
       )}
