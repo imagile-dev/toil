@@ -183,6 +183,8 @@ search pages by cursor.
   `baseUrl/wiki` with the credential. Confluence answers with a redirect to a signed
   URL on Atlassian's media host; toil follows it with **every header dropped**, so the
   credential stays on your site. It saves under `.toil/` (or `--dir`), keeping only the
-  file name, and never replaces a file that's already there.
+  file name, and never replaces a file that's already there. A name Windows would read
+  as another file is saved as one it won't: a device name such as `CON` gets a leading
+  `_`, a `:` and what follows it is dropped, as are trailing dots and spaces.
 - `page delete` and `attachment delete` move the item to the trash; neither purges.
 - A 429 is retried after the delay Confluence asks for, as in every area.

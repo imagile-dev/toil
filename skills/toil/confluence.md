@@ -127,7 +127,9 @@ toil confluence attachment download 98765 --dir downloads
   (`abc`, `0`) usually returns an empty list, with a `CONFLUENCE_LIMIT_INVALID` warning.
 - `attachment download` never replaces a file: one of the same name in the target
   directory fails with `INVALID_INPUT`. The file name is the attachment title's last
-  path segment. The token only ever goes to `baseUrl`'s host: a download link naming
+  path segment, made safe to save on any platform: a device name such as `CON` gets a
+  leading `_`, a `:` and what follows it is dropped, as are trailing dots and spaces,
+  and the characters Windows forbids become `_`. The token only ever goes to `baseUrl`'s host: a download link naming
   another host is fetched from `baseUrl` instead, with a `CONFLUENCE_ATTACHMENT_HOST`
   warning.
 - `page attach` always creates a new attachment; a file name already on the page

@@ -260,6 +260,11 @@ toil util secrets scan --text "$COMMENT"
 Pass one of a path, `--text` or `--diff`; two at once is `INVALID_INPUT`. Over
 MCP, pass `file`, `text` or `diff`.
 
+A folder that `.gitignore` excludes is walked as git lists it: only the files git
+tracks there. When that's none, the result has no findings and a
+`SECRETS_NOTHING_SCANNED` warning saying 0 files were scanned and why; name a file
+in the folder to scan that file.
+
 **The exit code is 1 when anything is found**, and 0 when nothing is, so a hook
 or a pipeline can gate on it. The envelope stays `ok: true` either way; `ok:
 false` (also exit 1) means the scan itself failed.

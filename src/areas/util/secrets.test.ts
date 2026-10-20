@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -454,6 +454,30 @@ describe('util secrets scan: the allow file', () => {
       expect(named.ok).toBe(false);
     } finally {
       rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it('says 0 files were scanned when .gitignore excludes the folder, instead of a clean result that reads as a clean folder', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'toil-secrets-ignored-'));
+    try {
+      mkdirSync(join(root, '.git'), { recursive: true });
+      writeFileSync(join(root, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+      writeFileSync(join(root, '.gitignore'), 'build/\n');
+      mkdirSync(join(root, 'build'), { recursive: true });
+      writeFileSync(join(root, 'build', 'app.env'), 'password=Pl4ntedPassw0rd\n');
+      const home = join(root, 'home');
+      const ctx = createNodeContext({ globals: { workspace: root }, def: secretsScanCommand, signal: new AbortController().signal, env: {}, cwd: root, home, areas: [], version: '0.0.0-test', stderr: () => {}, stdin: false });
+      const envelope = await execute(secretsScanCommand, { file: 'build' }, ctx);
+      expect(envelope.ok, JSON.stringify(envelope.error)).toBe(true);
+      expect(envelope.data).toMatchObject({ findings: [], summary: { files: 0 } });
+      expect(envelope.meta.warnings).toEqual([
+        { code: 'SECRETS_NOTHING_SCANNED', message: expect.stringMatching(/^0 files were scanned, because \.gitignore excludes this folder: .*build is inside build\/, which \.gitignore excludes, so nothing under it is listed\./) },
+      ]);
+      // Named outright, the file is scanned.
+      const named = await execute(secretsScanCommand, { file: 'build/app.env' }, ctx);
+      expect(named.data).toMatchObject({ summary: { files: 1, findings: 1 } });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
     }
   });
 

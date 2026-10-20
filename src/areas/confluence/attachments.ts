@@ -4,6 +4,7 @@ import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { confluenceArea } from './area.js';
 import * as client from './client.js';
+import { downloadFileName } from '../../core/files.js';
 
 /**
  * Attachments: list a page's, upload one, save one locally, or move one to
@@ -86,7 +87,7 @@ export const downloadAttachment = confluenceArea.command({
   run: async (input, ctx) => {
     const attachment = await client.getAttachment(ctx, input.id);
     const data = await client.downloadAttachment(ctx, attachment);
-    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${attachmentFileName(attachment.title)}`, data);
+    const saved = ctx.files.writeBytes(`${input.dir ?? '.toil'}/${downloadFileName(attachmentFileName(attachment.title), 'attachment')}`, data);
     return { saved, filename: attachment.title, size: data.length };
   },
 });

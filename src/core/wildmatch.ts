@@ -9,7 +9,9 @@
  * a RegExp, which backtracks: a `.gitignore` line of stacked `*` or `**`
  * segments took time exponential in the number of stars, and every folder
  * walk reads `.gitignore`. The set holds at most two positions per step, so a
- * match costs O(steps x path length), whatever the pattern says.
+ * match costs O(steps x path length), whatever the pattern says. Compiling is
+ * linear in the pattern's length too: a `[` that never closes is scanned at
+ * most once past any point another such scan already reached (`bracket`).
  *
  * Forty years of shell globbing, and every tool still files its own variance.
  */
@@ -36,6 +38,7 @@ export function wildmatch(pattern: string, options: { pathname?: boolean; caseFo
   const caseFold = options.caseFold === true;
   const one = pathname ? notSlash : anything;
   const steps: Step[] = [];
+  const scan = classScan(pattern);
   let i = 0;
   while (i < pattern.length) {
     const c = pattern[i]!;
@@ -71,7 +74,7 @@ export function wildmatch(pattern: string, options: { pathname?: boolean; caseFo
       continue;
     }
     if (c === '[') {
-      const cls = bracket(pattern, i, pathname);
+      const cls = bracket(pattern, i, pathname, scan);
       if (cls) {
         steps.push({ kind: 'char', ok: single(cls.source, caseFold) });
         i = cls.end;
@@ -216,8 +219,44 @@ const CLASSES: Record<string, string> = {
   xdigit: '0-9a-fA-F',
 };
 
-/** A `[...]` class starting at `start`, or undefined when it never closes (then `[` is literal). */
-function bracket(pattern: string, start: number, pathname: boolean): { source: string; end: number } | undefined {
+/** The longest name in CLASSES, so a `[:` far from any `:]` is never sliced out to look up. */
+const LONGEST_CLASS = Math.max(...Object.keys(CLASSES).map((name) => name.length));
+
+/**
+ * What `bracket` keeps between the classes of one pattern, so compiling it
+ * stays linear. `dead[i]` marks a point that a class scan which never closed
+ * passed through between two of its tokens: any later scan that reaches the
+ * same point reads the same tokens from there, so it can't close either.
+ * `colonClose[i]` is where the first `:]` at or after `i` starts, or -1, found
+ * in one pass rather than searched for at every `[:`.
+ */
+interface ClassScan {
+  dead: Uint8Array;
+  colonClose: Int32Array | undefined;
+  pattern: string;
+}
+
+function classScan(pattern: string): ClassScan {
+  return { dead: new Uint8Array(pattern.length + 1), colonClose: undefined, pattern };
+}
+
+function colonCloseAt(scan: ClassScan, i: number): number {
+  if (!scan.colonClose) {
+    const { pattern } = scan;
+    const close = new Int32Array(pattern.length + 1).fill(-1);
+    for (let k = pattern.length - 2; k >= 0; k--) close[k] = pattern[k] === ':' && pattern[k + 1] === ']' ? k : close[k + 1]!;
+    scan.colonClose = close;
+  }
+  return i < scan.colonClose.length ? scan.colonClose[i]! : -1;
+}
+
+/**
+ * A `[...]` class starting at `start`, or undefined when it never closes (then
+ * `[` is literal). A scan that fails marks every point it passed between
+ * tokens as dead, and a later scan stops as soon as it reaches one, so across
+ * a whole pattern each character is scanned past a bounded number of times.
+ */
+function bracket(pattern: string, start: number, pathname: boolean, scan: ClassScan): { source: string; end: number } | undefined {
   let i = start + 1;
   let negate = false;
   if (pattern[i] === '!' || pattern[i] === '^') {
@@ -226,7 +265,17 @@ function bracket(pattern: string, start: number, pathname: boolean): { source: s
   }
   let body = '';
   let first = true;
+  const passed: number[] = [];
+  const fail = () => {
+    for (const point of passed) scan.dead[point] = 1;
+    return undefined;
+  };
   while (i < pattern.length) {
+    if (!first) {
+      // The rest of this scan would read exactly what a failed one read from here.
+      if (scan.dead[i] === 1) return fail();
+      passed.push(i);
+    }
     const c = pattern[i]!;
     if (c === ']' && !first) {
       // A negated class never matches `/` under pathname rules either.
@@ -235,9 +284,9 @@ function bracket(pattern: string, start: number, pathname: boolean): { source: s
     }
     first = false;
     if (c === '[' && pattern[i + 1] === ':') {
-      const close = pattern.indexOf(':]', i + 2);
-      const name = close === -1 ? undefined : pattern.slice(i + 2, close);
-      if (name !== undefined && CLASSES[name] !== undefined) {
+      const close = colonCloseAt(scan, i + 2);
+      const name = close === -1 || close - (i + 2) > LONGEST_CLASS ? undefined : pattern.slice(i + 2, close);
+      if (name !== undefined && Object.hasOwn(CLASSES, name)) {
         body += CLASSES[name];
         i = close + 2;
         continue;
@@ -256,7 +305,7 @@ function bracket(pattern: string, start: number, pathname: boolean): { source: s
     body += escapeClass(c);
     i++;
   }
-  return undefined;
+  return fail();
 }
 
 const escape = (c: string) => c.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
