@@ -111,12 +111,14 @@ export interface AppProps {
   assignments?: AssignmentsApi;
   /** Each dossier's last sync, from the sync panel (#342), for its card; absent where nothing syncs (the preview). */
   synced?: Record<string, SyncedAt>;
+  /** After a dossier's name or description changed in place, so the shell can read the sync status again under the new name. */
+  afterDescribe?: () => void;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments, synced }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments, synced, afterDescribe }: AppProps) {
   const route = useRoute();
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
@@ -169,6 +171,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   const described = (d: Described) => {
     const old = d.renamed?.from ?? d.name;
     if (d.renamed) renameLooked(d.renamed.from, d.renamed.to);
+    afterDescribe?.();
     setList(null);
     setDossiers(({ [old]: _, ...rest }) => rest);
     if (d.renamed && wanted === d.renamed.from) {

@@ -56,7 +56,7 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   }, []);
   return (
     <>
-      <App key={generation} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} {...(session.sync ? { synced: byDossier } : {})} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
+      <App key={generation} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} {...(session.sync ? { synced: byDossier, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
       {sync && <SyncPanel client={sync} onChange={onChange} />}
     </>
   );

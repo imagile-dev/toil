@@ -44,9 +44,9 @@ export interface DossiersProps {
   onDescribed: (d: Described) => void;
 }
 
-/** The card that leads: the dossier opened most recently here, else the one with the most in motion; none with one dossier. */
+/** The card that leads: the only one, else the dossier opened most recently here, else the one with the most in motion. */
 export function leadOf(names: string[], previews: Map<string, DossierPreview>, settled: boolean): string | null {
-  if (names.length < 2) return null;
+  if (names.length === 1) return names[0]!;
   const opened = lastOpened(names);
   if (opened) return opened;
   // Chosen once every card has its figures, so the lead doesn't change places as they arrive.
