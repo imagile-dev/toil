@@ -31,7 +31,7 @@
  * would get in the page's theme. `agent/mcp` is the one route without a
  * session: it serves one question's read tools to the Codex CLI, by that
  * question's bearer token, and refuses anything carrying a page's `Origin`.
- * The worklog (#308) is `worklog/month` and `worklog/day` to read, and
+ * The worklog (#308) is `worklog/month`, `worklog/day` and `worklog/standup` (#345) to read, and
  * `worklog/rebuild`, `worklog/note` and `worklog/export`, each an explicit
  * press on the page: a note goes into the cache, and an export is a file
  * toil's file service writes in the folder the person named.
@@ -544,6 +544,11 @@ export function createUiServer(options: UiServerOptions): UiServer {
         const day = named(url.searchParams.get('day'), 'day', `Ask ${base}api/worklog/day?dossier=<name>&day=<yyyy-mm-dd>.`);
         return worklogCall(res, () => worklog().day(dossier, day));
       }
+      case 'GET worklog/standup': {
+        const shape = `Ask ${base}api/worklog/standup?dossier=<name>&from=<yyyy-mm-dd>&to=<yyyy-mm-dd>.`;
+        const dossier = named(url.searchParams.get('dossier'), 'dossier', shape);
+        return worklogCall(res, () => worklog().standup(dossier, named(url.searchParams.get('from'), 'first day', shape), named(url.searchParams.get('to'), 'last day', shape)));
+      }
       case 'POST worklog/rebuild': {
         const body = await readJson(req);
         const shape = 'Send { "dossier": "<name>", "day": "<yyyy-mm-dd>" }.';
@@ -559,14 +564,15 @@ export function createUiServer(options: UiServerOptions): UiServer {
       }
       case 'POST worklog/export': {
         const body = await readJson(req);
-        const shape = 'Send { "dossier": "<name>", "day": "<yyyy-mm-dd>" } or { "dossier": "<name>", "month": "<yyyy-mm>" }, with "folder": "<a full path>".';
-        only(body, ['dossier', 'day', 'month', 'folder'], 'An export takes dossier, day or month, and folder', shape);
-        if ((body.day === undefined) === (body.month === undefined)) throw new HttpError(400, 'Export a day or a month, one of the two.', shape);
-        const what: ExportWhat = body.day !== undefined ? { day: named(body.day, 'day', shape) } : { month: named(body.month, 'month', shape) };
+        const shape = 'Send { "dossier": "<name>", "day": "<yyyy-mm-dd>" }, { "dossier": "<name>", "month": "<yyyy-mm>" } or, for a stand-up, { "dossier": "<name>", "from": "<yyyy-mm-dd>", "to": "<yyyy-mm-dd>" }, with "folder": "<a full path>".';
+        only(body, ['dossier', 'day', 'month', 'from', 'to', 'folder'], "An export takes dossier, a day, a month or a stand-up's from and to, and folder", shape);
+        const standup = body.from !== undefined || body.to !== undefined;
+        if ([body.day !== undefined, body.month !== undefined, standup].filter(Boolean).length !== 1) throw new HttpError(400, 'Export a day, a month or a stand-up, one of the three.', shape);
+        const what: ExportWhat = standup ? { from: named(body.from, 'first day', shape), to: named(body.to, 'last day', shape) } : body.day !== undefined ? { day: named(body.day, 'day', shape) } : { month: named(body.month, 'month', shape) };
         return worklogCall(res, () => worklog().exportTo(named(body.dossier, 'dossier', shape), what, named(body.folder, 'folder', shape)));
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/rebuild, worklog/note, worklog/export, agent/starters, agent/ask, agent/prompt, agent/settings, agent/mcp and assignments.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/standup, worklog/rebuild, worklog/note, worklog/export, agent/starters, agent/ask, agent/prompt, agent/settings, agent/mcp and assignments.`);
     }
   };
 

@@ -222,6 +222,43 @@ config. Publishing an exported page is a proposal: `toil confluence page create
 create --body-file <file>` in its repository, for you to run through toil's write gate.
 Toil UI posts nothing. With sample data, notes and export are off.
 
+### Stand-up
+
+**Stand-up since the last working day**, on the Worklog
+(`#/dossier/<name>/worklog/standup`), reshapes the worklog for a meeting: since the last
+working day through today (Friday through Monday on a Monday), or any range of up to 31
+days you pick (`#/dossier/<name>/worklog/standup/<from>/<to>`, or `/<day>` for one), and each day's page has a
+**Stand-up for this day**. It is a fold of those days' pages by code, with no model, so the
+same days always give the same report.
+
+- **Team lines first:** the sprint's working days left, items added to or dropped from a
+  sprint, and builds and deployments that broke or recovered.
+- **Then each person, agents included,** in four lists: **Done** (items moved into a done
+  status, pull requests merged or closed), **In progress** (every other status change,
+  pull requests opened or reviewed), **Blocked** (a new blocker on an item they hold, a
+  failed build of their pull request, a pull request of theirs waiting on review for 2
+  working days or more) and **Next** (current-sprint items assigned to them and not
+  started). A line belongs to whoever the fact names: who moved the item, who wrote or
+  reviewed the pull request. A pull request a dossier agent wrote goes under the agent.
+- **People** come from the dossier's `people`, so one person's Jira, Azure DevOps and
+  GitHub accounts land under one name. An account the dossier doesn't map gets its own
+  card, named with its area and id; the People view suggests where it belongs.
+- **What the worklog can't vouch for** in the range is said at the top. Review waits, the
+  sprint and Next aren't on any worklog page, so they are as of the latest sync, and the
+  report says which.
+- **Every line links** to its item, pull request or build, and is numbered (F1, F2, ...).
+
+It copies as **Markdown** (for Slack, Teams or a wiki) or **plain text**, line for line as
+shown. **Export** writes the Markdown through toil's file service, as a page's export does,
+to `standup-<dossier>-<from>-to-<to>.md`, and publishing it to Confluence or GitHub is a
+proposal for you to run.
+
+**Write it up** is optional: it asks the agent for a short narrative of the same report,
+in the theme's voice when that is on. The agent reads the report through its
+`standup_report` tool and ends each sentence with the fact numbers it rests on; the
+write-up is labelled as the agent's, the lines it names are marked in the report, and its
+usage counts like any chat's.
+
 ## Toil's configuration
 
 The Settings pages manage what `toil connections` and `toil dossiers` manage, by
@@ -361,7 +398,8 @@ never starts that copy anyway.
   `readiness_get` (each item's readiness verdict and its rows, as the Command Center
   works them out), `proposal_fields` (a write command's input fields,
   told it describes load, never performance), `worklog_day` (one day's worklog page,
-  with what it can't vouch for), `proposal_fields` (a write command's input fields,
+  with what it can't vouch for), `standup_report` (a range of days as the Stand-up folds
+  them, each line numbered), `proposal_fields` (a write command's input fields,
   from toil's registry), and `toil mcp`'s read tools for live lookups, called through
   toil's `execute()` with `readOnly: true`. The dossier is fixed to the one on screen.
   There is no write tool, and each SDK's own tools (shell, files, web, plugins, other
