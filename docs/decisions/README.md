@@ -22,3 +22,5 @@ them, so what's left is what's still open.
 Everything decided before #361 is in `AGENT_DECISIONS.md` at the repository root,
 frozen as an archive. Code comments cite it as `AGENT_DECISIONS.md, #<n>`; cite a
 file here by its path (`docs/decisions/361-review-churn.md`).
+
+This line is a throwaway edit for the merge-only proof on #361; the PR carrying it is closed unmerged.
