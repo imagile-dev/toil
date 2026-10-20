@@ -200,7 +200,10 @@ exactly one. Relative paths resolve against it, a path outside is refused with
 root, a command that touches a file returns `NOT_CONFIGURED`: add `--workspace <dir>`
 to the server's args. A person can let commands reach any path with
 `"bounds": { "files": "unbounded" }` in their config, and every envelope then
-carries a `BOUND_RELAXED` warning. Saved paths come back absolute, with forward
+carries a `BOUND_RELAXED` warning. A network path (`\\host\share\x`, `//host/share/x`)
+or a Windows device path (`\\?\`, `\\.\`) is refused with `INVALID_INPUT` before
+anything looks at it, relaxed or not, unless the workspace is itself a folder on that
+share; copy the file into the workspace instead. Saved paths come back absolute, with forward
 slashes. Commands that run git need git on PATH and say
 `GIT_NOT_FOUND` without it; nothing else does.
 
