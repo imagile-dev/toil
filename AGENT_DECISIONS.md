@@ -1,13 +1,15 @@
-# Agent decisions
+# Agent decisions (archive)
 
-Decisions an agent made by default while building the integrations, under the
-maintainer's standing instruction (2026-10-17): take the recommended option, prefer
-the simpler one, and write each one down here. The maintainer's own decisions are on
-issue #68 and the integration issues. This file records only what an agent decided,
-so the maintainer can review any of it and overturn it.
+**Frozen on 2026-10-20 (#361). Don't add to this file.** New decisions go in
+`docs/decisions/`, one file per PR (`docs/decisions/<issue#>-<slug>.md`;
+`docs/decisions/README.md` says how). Every PR appended here, so every PR conflicted
+here, and each conflict cost a merge of `main` and a full review round.
 
-Each entry says what was decided, why, and where it applies. The newest entries go at
-the bottom of their section.
+What follows is unchanged: the decisions agents made by default up to #361, under the
+maintainer's standing instruction (2026-10-17) to take the recommended option, prefer
+the simpler one, and write each one down. Code comments cite it as
+`AGENT_DECISIONS.md, #<n>`, and those references stay valid. The maintainer's own
+decisions are on the issues.
 
 ## Integration kit (#68)
 
