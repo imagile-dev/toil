@@ -41,13 +41,17 @@ gets made again in the next place it applies.
 2. **Safe by default when an agent is driving.** Reads are free. Anything that writes,
    to a database or an enterprise tool, needs a human's standing opt-in in config
    plus an explicit flag on the call. Agents never loosen the rules that constrain
-   them, and humans merge. The same holds for agents working on this repository:
+   them, and a person decides every merge. The same holds for agents working on this repository:
    they act only on feedback from its own people and named bots, stop after three
    pushed rounds with `needs-human`, and stay off any PR labelled `no-auto-fix`.
    The one exception: issues filed from outside (the site's feedback form and its
    curl endpoint) may be triaged by an agent, but only after redaction, within the
    daily cap, under the safeguards in the `automation` skill, and only through PRs
    that a human merges.
+   On a PR the maintainer is driving through Claude Code, the maintainer's decision is
+   standing (2026-10-19): the agent turns on auto-merge, so the PR lands once the
+   Imagile Bot's review approves its head commit and `CI ok` passes. A human still
+   merges triage's PRs, any PR for an issue filed from outside, and the release PR.
    → Writes; the `databases`, `mcp`, `automation` and `ship` skills.
 3. **One command does one thing against one source; the caller composes.** No
    aggregate command that decides on the caller's behalf which services to ask. →
@@ -977,7 +981,8 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   human.
 - PRs are vertical slices (core → CLI → MCP → tests → skill doc), sized large enough
   to avoid process overhead, fully verified before opening. Use the `ship` skill, which
-  reviews locally, fixes, and watches the PR until it's ready to merge.
+  reviews locally, fixes, turns on auto-merge where principle 2 allows it, and watches
+  the PR until it merges or is ready for a human to merge.
 - **Commit only what the change needs.** Before every commit, read `git status` and
   the staged file list, and leave out what's accidental: an empty file a shell
   redirect made (`{}`, `nul`), scratch scripts, logs, screenshots, local config.

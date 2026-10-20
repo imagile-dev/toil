@@ -65,3 +65,6 @@ src/areas/util/kit/bounded-worker.generated.ts
 
 # Area stubs test/stub-area.test.ts writes and removes
 test/.stubs/
+
+# Scratch homes and output for local runs (ui/scripts/dev-real.mjs)
+.scratch/

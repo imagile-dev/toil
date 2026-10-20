@@ -26,7 +26,7 @@ const AREA_PATTERNS = [
 export default tseslint.config(
   // site/ and ui/ are their own packages, each linted by its own config; the
   // feedback function's build output is compiled code, linted as its source.
-  { ignores: ['dist/', 'site/', 'ui/', 'node_modules/', 'coverage/', 'functions/feedback/dist/'] },
+  { ignores: ['dist/', 'site/', 'ui/', 'node_modules/', 'coverage/', 'functions/feedback/dist/', '.scratch/'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

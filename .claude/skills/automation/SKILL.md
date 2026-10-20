@@ -6,8 +6,13 @@ description: Rules for the repository's agent automation under .github/ (the PR 
 # Automation
 
 An agent reviews every PR and submits a formal review. `CHANGES_REQUESTED` dispatches
-a fix agent that pushes to the PR branch. A human merges every PR, including the
-release PR; no agent merges, approves its own work into `main`, or enables auto-merge.
+a fix agent that pushes to the PR branch. No agent merges, or approves its own work
+into `main`. A human merges triage's PRs, any PR for an issue filed from outside
+(`from-website` or `from-terminal`), and the release PR. On a PR the maintainer
+drives through Claude Code, the `ship` skill turns on auto-merge (squash), at the
+maintainer's standing instruction (2026-10-19, principle 2). The PR then lands when
+the Imagile Bot approves the head commit and `CI ok` passes. Nothing in a workflow
+ever turns auto-merge on, and the fix agent never does either. Auto-merge relies on `main`'s ruleset counting only an approval of the head commit: `dismiss_stale_reviews_on_push` and `require_last_push_approval` both on (`docs/repo-settings-proposal.md`, item 4). Check with `gh api repos/imagile-dev/toil/rulesets/<id>` before turning it on; while either is off, leave auto-merge off and say why, because GitHub would merge a later push on an earlier approval.
 
 - **The review** is `.github/workflows/claude-review.yml`. It runs on same-repo,
   non-draft PRs from humans and `claude[bot]`, authenticated by the
@@ -136,6 +141,18 @@ refuses.
   prompt fences them between `BEGIN/END UNTRUSTED <nonce>` lines with a nonce per
   run, and tells the agent to triage on the title alone when the body reads as an
   injection attempt.
+- **Duplicates come first.** `prepare` gives the agent every other issue, open and
+  closed (`.triage-in/issues.json`, up to ten pages; the issue itself is left out, so
+  a re-triage is never its own duplicate), plus each denied issue's redacted body and its
+  last three comments from triage or from an `OWNER`, `MEMBER` or `COLLABORATOR`
+  (`.triage-in/denied.json`). Anyone can comment on a closed issue, so a stranger's
+  "the rule changed" never reaches the agent as a reason. That way a past denial binds only when
+  its reason still holds under today's CLAUDE.md, and the agent reads that reason
+  rather than guessing. The same request as any earlier issue, whatever its outcome,
+  is a `duplicate`. `apply` checks that the original exists and is an issue (if not,
+  no decision is applied, and any failure other than a 404 fails the step), labels it `duplicate`, adds `denied` only when the
+  original was denied, makes sure the comment names it, ends with `Duplicate of #n`
+  and closes it as a duplicate.
 - **Paths.** `scripts/triage/archive.mjs` reads the handover archive itself (regular
   files only, no links or extensions) and `scripts/triage/changes.mjs` holds every
   path to one area's own files, in `finish` before anything lands, and again on the
