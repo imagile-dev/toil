@@ -18,7 +18,7 @@ import { STARTERS, STYLE_RULE, systemPrompt } from '../server/agents/prompts.ts'
 import { THEME_VOICES } from '../server/agents/voices.ts';
 import { Latest, loadSdk, type Importer, type Runtime } from '../server/agents/runtime.ts';
 import { agentSettingsFile, checkAgentSettings, loadAgentSettings } from '../server/agents/settings.ts';
-import { cacheData, cacheTools, dossierReader, Ledger, LIVE_COMMANDS, liveTools, neverWrites, peopleTools, proposalTool, prTools, worklogTool, type AgentData, type ToolSpec } from '../server/agents/tools.ts';
+import { cacheData, cacheTools, dossierReader, Ledger, LIVE_COMMANDS, liveTools, neverWrites, peopleTools, proposalTool, prTools, readinessTools, worklogTool, type AgentData, type ToolSpec } from '../server/agents/tools.ts';
 import type { AgentRun } from '../src/model/worklog.ts';
 import { Cache } from '../server/cache.ts';
 import type { RequestContext } from '../server/context.ts';
@@ -183,7 +183,7 @@ describe('the tool list', () => {
   it('is the three cache tools and toil mcp\'s read tools, and none of them writes', () => {
     const names = host().tools('card-payments', data, new Ledger()).map((t) => t.name);
     const live = LIVE_COMMANDS.map((c) => registry.commands.find((r) => r.name === c)!);
-    expect(names).toEqual(['owi_query', 'owi_get', 'owi_similar', 'owi_history', 'pr_query', 'pr_get', 'pr_metrics', 'people_list', 'person_get', 'proposal_fields', ...live.map((c) => c.tool)]);
+    expect(names).toEqual(['owi_query', 'owi_get', 'owi_similar', 'owi_history', 'pr_query', 'pr_get', 'pr_metrics', 'people_list', 'person_get', 'readiness_list', 'readiness_get', 'proposal_fields', ...live.map((c) => c.tool)]);
     for (const c of live) expect(neverWrites(c), c.name).toBe(true);
     const writers = new Set(registry.commands.filter((c) => !neverWrites(c)).map((c) => c.tool));
     expect(names.filter((n) => writers.has(n))).toEqual([]);
@@ -673,9 +673,9 @@ describe('when an adapter cannot run', () => {
     ]);
   });
 
-  it('offers the nine starters, each scoped to the dossier, once an adapter is chosen', async () => {
+  it('offers the ten starters, each scoped to the dossier, once an adapter is chosen', async () => {
     const { host } = hostFor('claude', claudeStub(SCRIPT).module);
-    expect((await host.starters(ctx(), 'card-payments')).map((s) => s.label)).toEqual(['Stand-up digest', 'Why is this sprint at risk?', 'Backlog hygiene', 'Dependency risk', "What's stuck in review, and why?", 'What happened yesterday?', "Who's overloaded or blocked?", 'Prepare my 1:1 notes for <person>', 'Release notes']);
+    expect((await host.starters(ctx(), 'card-payments')).map((s) => s.label)).toEqual(['Stand-up digest', 'Why is this sprint at risk?', 'Backlog hygiene', 'Dependency risk', "What's stuck in review, and why?", 'What happened yesterday?', "Who's overloaded or blocked?", 'Prepare my 1:1 notes for <person>', 'Which items are ready for an agent?', 'Release notes']);
     for (const s of STARTERS) expect(s.prompt('card-payments')).toContain('"card-payments"');
   });
 });
@@ -998,6 +998,56 @@ describe('the people tools (#292)', () => {
     expect(((await tool(failing, 'people_list').run({})) as PeopleList).notes).toEqual(['toil dossiers show settlement failed: it broke. So nobody is mapped, and no limit is known.']);
     expect(r.wipLimitPerPerson).toBeNull();
     expect(r.unmapped.map((p: { name: string }) => p.name)).toEqual(['D. Okafor', 'J. Park', 'K. Nakamura', 'M. Lind']);
+  });
+});
+
+/** What the readiness tools return, as far as these tests read it. */
+type VerdictBrief = { id: string; verdict: string; notReadyBecause: Array<{ check: string; state: string; reason: string }> };
+type ReadinessList = { rule: string; openByVerdict: Record<string, number>; notes: string[]; total: number; items: VerdictBrief[]; settings: { sources: string[]; repositories: string[]; areas: Record<string, { acceptanceCriteriaField: string | null; minWords: number }> } };
+
+describe('the readiness tools (#307)', () => {
+  const of = (name: string) => cacheData(cache, name)!;
+  const fixture = fixtureExecute();
+  const tools = (name: string, ledger: Ledger) => readinessTools(name, of(name), ledger, dossierReader(fixture.execute, name));
+
+  it('readiness_list gives every open item its verdict and why, with the settings it used, and vouches for every id it names', async () => {
+    const ledger = new Ledger();
+    const r = (await tool(tools('card-payments', ledger), 'readiness_list').run({})) as ReadinessList;
+    expect(fixture.calls.at(-1)).toMatchObject({ command: 'dossiers show', input: { dossier: 'card-payments' }, ok: true });
+    expect(r.rule).toContain('with no model call');
+    expect(r.openByVerdict).toEqual({ ready: 1, thin: 3, blocked: 2 });
+    expect(r.settings).toEqual({ sources: ['jira', 'bitbucket', 'jenkins'], repositories: ['payments-core'], areas: expect.objectContaining({ jira: expect.objectContaining({ acceptanceCriteriaField: 'customfield_10500', minWords: 20 }) }) });
+    expect(r.items.map((i) => [i.id, i.verdict])).toEqual([
+      ['corp-jira:PAY-100', 'thin'],
+      ['corp-jira:PAY-101', 'ready'],
+      ['corp-jira:PAY-102', 'blocked'],
+      ['corp-jira:PAY-103', 'blocked'],
+      ['corp-jira:PAY-104', 'thin'],
+      ['corp-jira:PAY-107', 'thin'],
+    ]);
+    expect(r.items[2]!.notReadyBecause[0]).toEqual({ check: 'Blockers', state: 'fail', reason: 'Blocked by [[corp-jira:PAY-101]] (In Progress).' });
+    for (const id of ['corp-jira:PAY-100', 'corp-jira:PAY-101', 'corp-jira:PAY-107']) expect(ledger.ids.has(id), id).toBe(true);
+    // A Done example a row cites is vouched for too.
+    expect([...ledger.ids].some((id) => ['corp-jira:PAY-92', 'corp-jira:PAY-95', 'corp-jira:PAY-98', 'corp-jira:PAY-105'].includes(id))).toBe(true);
+    const ready = (await tool(tools('card-payments', new Ledger()), 'readiness_list').run({ verdict: 'ready' })) as ReadinessList;
+    expect(ready.items.map((i) => i.id)).toEqual(['corp-jira:PAY-101']);
+    const withDone = (await tool(tools('card-payments', new Ledger()), 'readiness_list').run({ includeDone: true, limit: 2 })) as ReadinessList & { more?: string };
+    expect(withDone.total).toBe(12);
+    expect(withDone.more).toBe('10 more match; narrow with verdict or raise limit (max 200).');
+  });
+
+  it('readiness_get gives all five rows for one item, or says it has none', async () => {
+    const r = (await tool(tools('checkout-web', new Ledger()), 'readiness_get').run({ id: 'github:imagile/payments-web#41' })) as VerdictBrief & { rows: Array<{ check: string; state: string; source: string }> };
+    expect(r.verdict).toBe('ready');
+    expect(r.rows.map((x) => [x.check, x.state])).toEqual([['Acceptance criteria', 'pass'], ['Description', 'pass'], ['Done state', 'pass'], ['Blockers', 'pass'], ['Scope', 'pass']]);
+    expect(((await tool(tools('checkout-web', new Ledger()), 'readiness_get').run({ id: 'nope' })) as { error: string }).error).toBe('The cache holds no item "nope" in checkout-web. Use readiness_list or owi_query to find ids.');
+  });
+
+  it("says so when the dossier can't be read, and every item then fails scope", async () => {
+    const failing = readinessTools('settlement', of('settlement'), new Ledger(), async () => ({ dossier: null, error: 'toil dossiers show settlement failed: it broke.' }));
+    const r = (await tool(failing, 'readiness_list').run({})) as ReadinessList;
+    expect(r.notes).toEqual(['toil dossiers show settlement failed: it broke. So no source, repository or readiness setting is known, and every item fails scope.']);
+    expect(new Set(r.items.map((i) => i.verdict))).toEqual(new Set(['blocked']));
   });
 });
 

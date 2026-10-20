@@ -18,6 +18,7 @@
 
 import { adoBuilds, adoDeployments, byEnvironment, changeRef, githubBuild, jenkinsBuilds, openshiftDeployments } from './model/delivery.ts';
 import { readPeople, type PersonEntry } from './model/people.ts';
+import { readReadiness, type ReadinessSettings } from './model/readiness.ts';
 import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
 import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
@@ -53,6 +54,8 @@ export interface DossierData extends DossierSummary {
   wipLimit: number | null;
   /** What couldn't be read from the dossier's people, in words the People view shows. */
   peopleNotes: string[];
+  /** What the readiness gate (#307) reads from the dossier: its sources, repositories and each area's settings. */
+  readiness: ReadinessSettings;
   /** Every call, by the panel it fed. */
   calls: Record<Panel, Call[]>;
 }
@@ -393,7 +396,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   if (namespaces.length) deployments.push(...(await onOpenShift(changes.filter((c) => c.kind === 'pull-request'))));
 
   const team = readPeople(dossier);
-  return { ...summary, items, pullRequests, codeowners, prNotes, changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, peopleNotes: team.notes, calls };
+  return { ...summary, items, pullRequests, codeowners, prNotes, changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, peopleNotes: team.notes, readiness: readReadiness(dossier), calls };
 }
 
 /** `dossiers list`, and `dossiers show` for each, so the list can say what each one covers. */

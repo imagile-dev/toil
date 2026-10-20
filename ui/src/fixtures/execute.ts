@@ -20,7 +20,7 @@ import { ADO_CI_RUNS, ADO_DEPLOY_RUNS, ADO_PR_GETS, ADO_PRS, BITBUCKET_CLOUD_PR_
 import { DOSSIERS, fileOf, listData, showData, type DossierFile } from './dossiers.ts';
 import {
   ADO_BATCH, ADO_IDS, ADO_ITERATIONS, ADO_REVISIONS, ADO_WIQL, GITHUB_EVENTS, GITHUB_ISSUES, GITHUB_NUMBERS, GITHUB_PROJECT_ITEMS,
-  JIRA_CHANGELOGS, JIRA_KEYS, JIRA_SEARCH,
+  ADO_STATES, JIRA_CHANGELOGS, JIRA_KEYS, JIRA_SEARCH, JIRA_TRANSITIONS,
 } from './work.ts';
 
 /** The moment the sample data was read: day seven of Sprint 42. */
@@ -53,6 +53,8 @@ export const CANNED: Canned[] = [
   // card-payments
   { command: 'jira issue search', input: { dossier: card, jql: JQL('PAY') }, data: JIRA_SEARCH, ...at(card, 'jira') },
   ...JIRA_KEYS.map((key) => ({ command: 'jira issue history', input: { dossier: card, key }, data: JIRA_CHANGELOGS[key], ...at(card, 'jira') })),
+  // The readiness gate's one live read (#307), made only when a person presses for it on an item's page.
+  ...Object.entries(JIRA_TRANSITIONS).map(([key, data]) => ({ command: 'jira issue transitions', input: { dossier: card, key }, data, ...at(card, 'jira') })),
   { command: 'bitbucket pr list', input: { dossier: card, state: 'ALL' }, data: BITBUCKET_PRS, ...at(card, 'bitbucket') },
   ...gets(card, 'bitbucket', 'id', BITBUCKET_PR_GETS),
   ...Object.entries(JENKINS_RUNS).map(([pr, runs]) => ({ command: 'jenkins pipeline runs', input: { dossier: card, name: `payments-core/PR-${pr}`, limit: 5 }, data: runs, ...at(card, 'jenkins') })),
@@ -64,6 +66,7 @@ export const CANNED: Canned[] = [
   { command: 'ado work-item search', input: { dossier: settle, wiql: WIQL }, data: ADO_WIQL, ...at(settle, 'ado') },
   { command: 'ado work-item get-many', input: { dossier: settle, id: ADO_IDS }, data: ADO_BATCH, ...at(settle, 'ado') },
   ...ADO_IDS.map((id) => ({ command: 'ado work-item history', input: { dossier: settle, id }, data: ADO_REVISIONS[id], ...at(settle, 'ado') })),
+  ...Object.entries(ADO_STATES).map(([type, data]) => ({ command: 'ado work-item states', input: { dossier: settle, type }, data, ...at(settle, 'ado') })),
   { command: 'ado pr list', input: { dossier: settle, state: 'all' }, data: ADO_PRS, ...at(settle, 'ado') },
   ...gets(settle, 'ado', 'id', ADO_PR_GETS),
   { command: 'ado run list', input: { dossier: settle, name: 'settlement-ci', top: 20 }, data: ADO_CI_RUNS, ...at(settle, 'ado') },
