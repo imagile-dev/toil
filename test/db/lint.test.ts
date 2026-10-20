@@ -57,7 +57,7 @@ describe('db pre-flight lint before SQL runs', () => {
     expect(envelope.meta.warnings).toEqual([
       {
         code: 'LINT',
-        message: 'SELECT * returns every column, and db query returns a page of at most --limit rows of them. [select-star, line 1, column 8] Fix: Name the columns you need; toil db describe-table people lists them.',
+        message: 'SELECT * returns every column, and db query returns a page of at most --limit rows of them. [select-star, line 1, column 8] Fix: Name the columns you need; toil db table describe people lists them.',
       },
     ]);
   });

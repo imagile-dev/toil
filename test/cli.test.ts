@@ -91,6 +91,12 @@ describe('toil CLI', () => {
     expect(run.stdout).toMatch(/board\s+list/);
   });
 
+  it('names every argument in order when a dash-led one is refused as a flag', async () => {
+    const { context } = testContext();
+    const run = await runCli(['jenkins', 'run', 'get', 'myjob', '-1x'], { commands, context });
+    expect(run.envelope?.error?.fix).toBe('If -1x is an argument, put -- before the arguments, after any flags: toil jenkins run get [flags] -- <name> <number>.');
+  });
+
   it('lists an alias-only group by what it holds', async () => {
     const { context } = testContext();
     const run = await runCli(['jenkins', '--help'], { commands, context });

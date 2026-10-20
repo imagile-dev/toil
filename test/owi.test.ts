@@ -70,7 +70,7 @@ describe("every area's fixtures map to valid OWI", async () => {
   const fixtures = await loadFixtures();
   await setUp(fixtures);
   // A history command's output names no item; these keys are the ones its examples read.
-  const KEYS: Record<string, string> = { 'jira issue history': 'PROJ-123', 'jira-cloud issue history': 'PROJ-123', 'github issue-events': '9' };
+  const KEYS: Record<string, string> = { 'jira issue history': 'PROJ-123', 'jira-cloud issue history': 'PROJ-123', 'github issue history': '9' };
   const families = new Set<string>();
   for (const fixture of fixtures.filter((f) => OWI_SOURCES[f.area])) {
     const known = OWI_COMMANDS[fixture.area]!;
@@ -113,8 +113,8 @@ describe("every area's fixtures map to valid OWI", async () => {
  * its mapper (the `integrations` skill, **Open Work Items**).
  */
 describe('work-item areas are all mapped to OWI', () => {
-  /** Command paths that read or write issues, work items or tickets: `get-issue`, `search-issues`, `issue-events`, `issue get`, `work-item get`. */
-  const WORK_ITEM = /(^| )((create|get|update|list|search|transition|link)-(issue|issues|ticket|tickets)|issue-events|(issue|work-item|ticket) (get|get-many|history|search|create|update|transition|link))( |$)/;
+  /** Command paths that read or write issues, work items or tickets: `issue get`, `issue search`, `work-item get`, `ticket create`. */
+  const WORK_ITEM = /(^| )(issue|work-item|ticket) (get|get-many|history|search|create|update|transition|link)( |$)/;
   /** Areas known to be on their way, by the issue that builds them. Each switches on once the area is registered. */
   const PENDING: Record<string, string> = {};
   const registered = new Set(registry.map((def) => areaOf(def)));
@@ -174,7 +174,7 @@ describe('the sprint fixture (test/fixtures/owi/)', async () => {
     expect(Date.parse(added('corp-ado:2306')!.at)).toBeGreaterThan(start);
     expect(added('corp-jira:PAY-104')!.from).toEqual(['Sprint 41']);
     expect(added('corp-ado:2304')!.from).toEqual(['Payments\\Sprint 41']);
-    expect(byId(items, 'github:imagile/payments-web#43').native['github projects list-items']).toMatchObject({ createdAt: '2026-10-07T09:00:00Z' });
+    expect(byId(items, 'github:imagile/payments-web#43').native['github project items']).toMatchObject({ createdAt: '2026-10-07T09:00:00Z' });
   });
 
   it('maps people, estimates, iterations, hierarchy and transitions from each source', () => {
@@ -255,7 +255,7 @@ describe('mapping rules', () => {
   });
 
   it('refuses output OWI has no mapping for, and data with no command', async () => {
-    const other = await map({ text: json(env('bitbucket list-prs', [])) });
+    const other = await map({ text: json(env('bitbucket pr list', [])) });
     expect(other.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
     expect(other.envelope.error!.fix).toContain('jira issue search');
     const bare = await map({ text: json([{ number: 1 }]) });
@@ -284,12 +284,12 @@ describe('mapping rules', () => {
     const history = await map({ text: json(env('jira issue history', [{ id: '1', created: '2026-10-06T09:00:00.000+0000', items: [{ field: 'status', fromString: 'To Do', toString: 'Done' }] }])), key: 'PAY-9' });
     expect(history.data.histories).toEqual([{ id: 'jira:PAY-9', history: { transitions: [{ from: 'To Do', to: 'Done', fromCategory: 'UNKNOWN', toCategory: 'UNKNOWN', at: '2026-10-06T09:00:00.000Z', by: null }], iterations: [] } }]);
     expect(history.data.verified.passed).toBe(true);
-    const keyless = await map({ text: json(env('github issue-events', [])) });
+    const keyless = await map({ text: json(env('github issue history', [])) });
     expect(keyless.data.skipped[0].reason).toContain('--key');
   });
 
   it('leaves pull requests out, with a warning', async () => {
-    const { data, warnings } = await map({ text: json(env('github list-issues', [{ number: 1, title: 'PR', html_url: 'https://ghe.imagile.dev/imagile/x/pull/1', pull_request: {} }])) });
+    const { data, warnings } = await map({ text: json(env('github issue list', [{ number: 1, title: 'PR', html_url: 'https://ghe.imagile.dev/imagile/x/pull/1', pull_request: {} }])) });
     expect(data.count).toBe(0);
     expect(warnings.map((w) => w.code)).toContain('OWI_PULL_REQUESTS_SKIPPED');
   });
@@ -321,8 +321,14 @@ describe('the self-check', () => {
   });
 
   it('the mapper itself never produces a key the schema refuses', () => {
-    const result = mapOwi(documentsFrom([env('github get-issue', { number: 3, title: 'T', state: 'open', html_url: 'https://ghe.imagile.dev/imagile/x/issues/3' }, 'my-ghe')]).documents);
+    const result = mapOwi(documentsFrom([env('github issue get', { number: 3, title: 'T', state: 'open', html_url: 'https://ghe.imagile.dev/imagile/x/issues/3' }, 'my-ghe')]).documents);
     expect(result.items[0]!.id).toMatch(new RegExp(schema.$defs.OwiId.pattern));
+  });
+
+  it('names a command toil has when it says what to add for a missing field', () => {
+    const result = mapOwi(documentsFrom([env('github issue get', { number: 3, title: 'T', state: 'open', html_url: 'https://ghe.imagile.dev/imagile/x/issues/3' }, 'my-ghe')]).documents);
+    const estimate = result.items[0]!.unmapped.find((u) => u.field === 'estimate');
+    expect(estimate?.reason).toContain('add github project items output');
   });
 });
 
@@ -350,9 +356,9 @@ describe('review round 1', () => {
     ['jira', [env('jira issue get', { key: 'PAY-1', self: 'https://jira.imagile.dev/rest/api/2/issue/1', fields: { summary: 'S', status: { name: 'Done', statusCategory: { key: 'done' } } } })]],
     ['jira-cloud', [env('jira-cloud issue get', { key: 'PAY-1', self: 'https://jira-cloud.imagile.dev/rest/api/3/issue/1', fields: { summary: 'S' } })]],
     ['ado', [env('ado work-item get', { id: 5, fields: { 'System.Title': 'T', 'System.State': 'New', 'System.WorkItemType': 'Bug', 'System.IterationPath': 'P\\S1' } })]],
-    ['github, on a board', [env('github get-issue', issue(3), 'github'), env('github projects list-items', [board(3)], 'github', { owner: 'imagile' })]],
-    ['github, a board item alone', [env('github projects list-items', [board(4)], 'github', { owner: 'imagile' })]],
-    ['github, with no board', [env('github get-issue', issue(5), 'github')]],
+    ['github, on a board', [env('github issue get', issue(3), 'github'), env('github project items', [board(3)], 'github', { owner: 'imagile' })]],
+    ['github, a board item alone', [env('github project items', [board(4)], 'github', { owner: 'imagile' })]],
+    ['github, with no board', [env('github issue get', issue(5), 'github')]],
   ])('%s: every override pointed at a missing field is listed in unmapped', async (_name, input) => {
     const { data } = await map({ text: json(input), field });
     expect(data.count).toBe(1);
@@ -366,7 +372,7 @@ describe('review round 1', () => {
     ['text that is not a date', { __typename: 'ProjectV2ItemFieldTextValue', text: 'next sprint', field: { name: 'Due' } }, null, 'Due holds "next sprint", which isn\'t a date'],
   ])('github: a board dueDate from %s', async (_name, value, dueDate, reason) => {
     const item = { ...board(6), fieldValues: [...board(6).fieldValues, value] };
-    const { data } = await map({ text: json(env('github projects list-items', [item], 'github', { owner: 'imagile' })), field: ['dueDate=Due'] });
+    const { data } = await map({ text: json(env('github project items', [item], 'github', { owner: 'imagile' })), field: ['dueDate=Due'] });
     expect(data.items[0].dueDate).toBe(dueDate);
     expect((data.items[0] as WorkItem).unmapped.find((u) => u.field === 'dueDate')?.reason ?? null).toBe(reason);
   });
@@ -397,11 +403,11 @@ describe('GitHub without a board (#298): milestones, estimate labels and body li
   const REPO = 'imagile/payments-sandbox';
   const id = (n: number) => `github:${REPO}#${n}`;
   const inputs = { owner: 'imagile', repo: 'payments-sandbox' };
-  const list = env('github list-issues', boardlessIssues, 'github', inputs);
-  const histories = Object.entries(boardlessTimelines).map(([n, events]) => ({ key: n, history: env('github issue-events', events, 'github', inputs) }));
+  const list = env('github issue list', boardlessIssues, 'github', inputs);
+  const histories = Object.entries(boardlessTimelines).map(([n, events]) => ({ key: n, history: env('github issue history', events, 'github', inputs) }));
   const ghIssue = (number: number, extra: Record<string, unknown> = {}) => ({ number, title: `Issue ${number}`, state: 'open', html_url: `https://github.com/${REPO}/issues/${number}`, labels: [], body: '', ...extra });
   const milestone = (number: number, title: string, due: string | null, state = 'open') => ({ number, title, state, due_on: due });
-  const one = (issue: Record<string, unknown>) => env('github get-issue', issue, 'github');
+  const one = (issue: Record<string, unknown>) => env('github issue get', issue, 'github');
 
   it('maps the captured repository: every item valid, nothing skipped', async () => {
     const { data } = await map({ text: json([list, ...histories]) });
@@ -427,7 +433,7 @@ describe('GitHub without a board (#298): milestones, estimate labels and body li
   });
 
   it('reads a milestone with no due date as an iteration with no dates, and keeps repositories apart', async () => {
-    const other = env('github list-issues', [{ ...ghIssue(3, { milestone: milestone(1, 'Sprint 42', '2026-11-30T00:00:00Z') }), html_url: 'https://github.com/imagile/other/issues/3' }], 'github');
+    const other = env('github issue list', [{ ...ghIssue(3, { milestone: milestone(1, 'Sprint 42', '2026-11-30T00:00:00Z') }), html_url: 'https://github.com/imagile/other/issues/3' }], 'github');
     const { data } = await map({ text: json([list, other, one(ghIssue(90, { milestone: milestone(9, 'Someday', null) }))]) });
     expect(byId(data.items, id(90)).iteration).toEqual({ id: '9', name: 'Someday', path: null, start: null, end: null, state: null });
     // The other repository's only milestone starts 14 days before its end, not at this one's Sprint 41.
@@ -515,7 +521,7 @@ describe('GitHub without a board (#298): milestones, estimate labels and body li
       { event: 'milestoned', created_at: '2026-10-13T09:00:00Z', milestone: { title: 'Sprint 42' } },
       { event: 'demilestoned', created_at: '2026-10-14T09:00:00Z', milestone: { title: 'Sprint 42' } },
     ];
-    const carried = await map({ text: json([one(ghIssue(5)), { key: `${REPO}#5`, history: env('github issue-events', moved, 'github') }]) });
+    const carried = await map({ text: json([one(ghIssue(5)), { key: `${REPO}#5`, history: env('github issue history', moved, 'github') }]) });
     expect(carried.data.items[0].history.iterations.map((c: Data) => [c.from, c.to])).toEqual([[['Sprint 41'], ['Sprint 42']], [['Sprint 42'], []]]);
   });
 
@@ -526,10 +532,10 @@ describe('GitHub without a board (#298): milestones, estimate labels and body li
       { __typename: 'ProjectV2ItemFieldNumberValue', number: 5, field: { name: 'Estimate' } },
       { __typename: 'ProjectV2ItemFieldIterationValue', title: 'Iteration 7', iterationId: 'abc12345', startDate: '2026-10-05', duration: 14, field: { name: 'Iteration' } },
     ]);
-    const board = await map({ text: json([one(issue), env('github projects list-items', [valued], 'github', { owner: 'imagile' })]) });
+    const board = await map({ text: json([one(issue), env('github project items', [valued], 'github', { owner: 'imagile' })]) });
     expect(board.data.items[0]).toMatchObject({ estimate: { value: 5, field: 'Estimate' }, iteration: { name: 'Iteration 7' } });
     expect((board.data.items[0] as WorkItem).unmapped.map((u) => u.field)).toEqual(['type']);
-    const empty = await map({ text: json([one(issue), env('github projects list-items', [item([])], 'github', { owner: 'imagile' })]) });
+    const empty = await map({ text: json([one(issue), env('github project items', [item([])], 'github', { owner: 'imagile' })]) });
     expect(empty.data.items[0]).toMatchObject({ estimate: { value: 3, field: 'label:points: 3' }, iteration: { name: 'Sprint 42' } });
     expect((empty.data.items[0] as WorkItem).unmapped.map((u) => u.field)).toEqual(['type']);
   });

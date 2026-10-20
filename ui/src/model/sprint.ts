@@ -68,7 +68,7 @@ export interface Entry {
   evidence: string;
 }
 
-const GITHUB_PROJECT_ITEM = 'github projects list-items';
+const GITHUB_PROJECT_ITEM = 'github project items';
 
 /**
  * How an item came to be in its current sprint. An iteration change whose

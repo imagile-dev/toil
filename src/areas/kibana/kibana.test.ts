@@ -153,7 +153,7 @@ describe('the API key', () => {
   });
 });
 
-describe('spaces list', () => {
+describe('space list', () => {
   it('GETs /api/spaces/space, never space-prefixed, and keeps four fields per space', async () => {
     const { envelope, calls } = await run(spacesListCommand, {}, [json([...spaces, { id: 'bare', name: 'Bare' }])], { kibana: { ...fixtureConfig.kibana, space: 'ops' } });
     expect(calls).toEqual([{ method: 'GET', url: `${KIBANA}/api/spaces/space`, headers: HEADERS, body: undefined }]);
@@ -168,7 +168,7 @@ describe('spaces list', () => {
   });
 });
 
-describe('dashboards list', () => {
+describe('dashboard list', () => {
   it('GETs one page of _find for dashboards in the default space, echoing the paging', async () => {
     const { envelope, calls } = await run(dashboardsListCommand, {}, [json(find(1, 100))]);
     expect(calls).toEqual([{ method: 'GET', url: `${KIBANA}/api/saved_objects/_find?type=dashboard&page=1&per_page=100`, headers: HEADERS, body: undefined }]);
@@ -192,21 +192,21 @@ describe('dashboards list', () => {
     expect((await run(dashboardsListCommand, { space: 'team a/b' }, [json(find(1, 100))])).calls[0]!.url).toContain(`${KIBANA}/s/team%20a%2Fb/api/saved_objects/_find?`);
   });
 
-  it('refuses a --page or --per-page that is not a positive integer, before any request', async () => {
-    for (const [input, flag] of [[{ page: '0' }, '--page'], [{ perPage: '1.5' }, '--per-page'], [{ perPage: 'ten' }, '--per-page']] as const) {
+  it('refuses a --page or --page-size that is not a positive integer, before any request', async () => {
+    for (const [input, flag] of [[{ page: '0' }, '--page'], [{ pageSize: '1.5' }, '--page-size'], [{ pageSize: 'ten' }, '--page-size']] as const) {
       const { envelope, calls } = await run(dashboardsListCommand, input, []);
       expect(calls).toEqual([]);
       expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: `${flag} must be a positive integer.` });
     }
   });
 
-  it('takes --page and --per-page as numbers over MCP too', async () => {
-    const { calls } = await run(dashboardsListCommand, { page: 3, perPage: 10 }, [json(find(3, 10))]);
+  it('takes --page and --page-size as numbers over MCP too', async () => {
+    const { calls } = await run(dashboardsListCommand, { page: 3, pageSize: 10 }, [json(find(3, 10))]);
     expect(calls[0]!.url).toBe(`${KIBANA}/api/saved_objects/_find?type=dashboard&page=3&per_page=10`);
   });
 });
 
-describe('dashboards export', () => {
+describe('dashboard export', () => {
   it('POSTs the ids with deep references, reads NDJSON, and splits off the export details line', async () => {
     const { envelope, calls } = await run(dashboardsExportCommand, { id: ['abc12345'] }, [text(exportNdjson, 200, 'POST', 'application/ndjson')]);
     expect(calls).toEqual([
@@ -253,7 +253,7 @@ describe('dashboards export', () => {
   });
 });
 
-describe('data-views list', () => {
+describe('data-view list', () => {
   it('GETs /api/data_views and names a view with no name by its pattern', async () => {
     const { envelope, calls } = await run(dataViewsListCommand, {}, [json(dataViews)]);
     expect(calls).toEqual([{ method: 'GET', url: `${KIBANA}/api/data_views`, headers: HEADERS, body: undefined }]);
@@ -277,9 +277,9 @@ describe('data-views list', () => {
   });
 });
 
-describe('rules', () => {
+describe('rule list and rule get', () => {
   it('list GETs one page of _find, searching names, and flattens each rule', async () => {
-    const { envelope, calls } = await run(rulesListCommand, { search: 'High*', perPage: '20' }, [json({ page: 1, per_page: 20, total: 1, data: [rule] })]);
+    const { envelope, calls } = await run(rulesListCommand, { search: 'High*', pageSize: '20' }, [json({ page: 1, per_page: 20, total: 1, data: [rule] })]);
     expect(calls).toEqual([{ method: 'GET', url: `${KIBANA}/api/alerting/rules/_find?search=High*&search_fields=name&page=1&per_page=20`, headers: HEADERS, body: undefined }]);
     expect(envelope.data).toEqual({
       space: 'default',
@@ -313,10 +313,10 @@ describe('rules', () => {
     expect((envelope.data as { rules: unknown[] }).rules[0]).toEqual({ id: 'r', name: 'n', ruleTypeId: 't', enabled: false, muted: false, tags: [] });
   });
 
-  it('list refuses a non-positive --per-page before any request', async () => {
-    const { envelope, calls } = await run(rulesListCommand, { perPage: '0' }, []);
+  it('list refuses a non-positive --page-size before any request', async () => {
+    const { envelope, calls } = await run(rulesListCommand, { pageSize: '0' }, []);
     expect(calls).toEqual([]);
-    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--per-page must be a positive integer.' });
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--page-size must be a positive integer.' });
   });
 
   it('get encodes the id into the space path and adds params and actions', async () => {

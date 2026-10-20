@@ -46,18 +46,18 @@ const securityViolation = (level: number, refs: string[] = ['CVE-2021-23337']) =
 });
 
 describe('read commands', () => {
-  it('applications list GETs /api/v2/applications with Basic userCode:passcode and JSON headers, and passes the body through', async () => {
+  it('application list GETs /api/v2/applications with Basic userCode:passcode and JSON headers, and passes the body through', async () => {
     const { envelope, calls } = await run(applicationsListCommand, {}, [ok(applications)]);
     expect(calls).toEqual([{ method: 'GET', url: `${IQ}/api/v2/applications`, headers: READ_HEADERS, body: undefined }]);
     expect(envelope.data).toEqual(applications);
   });
 
-  it('applications list --organization-id sends organizationId as a query key (suspected bug #90 item 1: IQ documents a path instead)', async () => {
+  it('application list --organization-id sends organizationId as a query key (suspected bug #90 item 1: IQ documents a path instead)', async () => {
     const { calls } = await run(applicationsListCommand, { organizationId: ORG_ID }, [ok(applications)]);
     expect(calls[0]!.url).toBe(`${IQ}/api/v2/applications?organizationId=${ORG_ID}`);
   });
 
-  it('applications get filters the list by publicId and returns the list wrapper; an unknown ID is an empty list and a success (suspected bug #90 item 3)', async () => {
+  it('application get filters the list by publicId and returns the list wrapper; an unknown ID is an empty list and a success (suspected bug #90 item 3)', async () => {
     const found = await run(applicationsGetCommand, { publicId: PUBLIC_ID }, [ok(applications)]);
     expect(found.calls[0]!.url).toBe(`${IQ}/api/v2/applications?publicId=${PUBLIC_ID}`);
     expect(found.envelope.data).toEqual(applications);
@@ -65,19 +65,19 @@ describe('read commands', () => {
     expect(missing.envelope).toMatchObject({ ok: true, data: { applications: [] } });
   });
 
-  it('applications get needs --public-id', async () => {
+  it('application get needs the public ID', async () => {
     const { envelope, calls } = await run(applicationsGetCommand, {}, []);
     expect(calls).toEqual([]);
     expect(envelope.error?.code).toBe('INVALID_INPUT');
   });
 
-  it('organizations list GETs /api/v2/organizations', async () => {
+  it('organization list GETs /api/v2/organizations', async () => {
     const { envelope, calls } = await run(organizationsListCommand, {}, [ok(organizations)]);
     expect(calls[0]).toMatchObject({ method: 'GET', url: `${IQ}/api/v2/organizations`, headers: READ_HEADERS });
     expect(envelope.data).toEqual(organizations);
   });
 
-  it('policies list GETs /api/v2/policies, or /api/v2/policies/organization/<id> encoded (suspected bug #90 item 2: an undocumented path)', async () => {
+  it('policy list GETs /api/v2/policies, or /api/v2/policies/organization/<id> encoded (suspected bug #90 item 2: an undocumented path)', async () => {
     const all = await run(policiesListCommand, {}, [ok(policies)]);
     expect(all.calls[0]!.url).toBe(`${IQ}/api/v2/policies`);
     expect(all.envelope.data).toEqual(policies);
@@ -178,7 +178,7 @@ describe('evaluate: the request', () => {
     expect(calls).toEqual([]);
     expect(envelope.error).toMatchObject({
       code: 'INVALID_INPUT',
-      message: "deps frisk --source sonatypeiq requires --application-id <id>. Use 'toil sonatypeiq applications list' to find application IDs.",
+      message: "deps frisk --source sonatypeiq requires --application-id <id>. Use 'toil sonatypeiq application list' to find application IDs.",
     });
   });
 

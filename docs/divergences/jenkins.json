@@ -43,7 +43,7 @@
     },
     {
       "allows": [],
-      "old": "jenkins pipeline run and pipeline logs failing on the first HTTP 429, and logging progress lines (\"Queued build\", \"Waiting for build to start\") to stderr",
+      "old": "jenkins pipeline run and run logs failing on the first HTTP 429, and logging progress lines (\"Queued build\", \"Waiting for build to start\") to stderr",
       "toil": "A 429 is retried up to three times, as it is for every request toil sends, and the progress lines go to stderr only with --debug",
       "why": "Every request goes through the one HTTP path areas share, and a command has no channel to stderr but --debug.",
       "principle": "Layout"

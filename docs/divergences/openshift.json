@@ -3,14 +3,14 @@
   "divergences": [
     {
       "allows": [],
-      "old": "openshift resource-usage --csv printing raw CSV to stdout instead of the envelope",
+      "old": "openshift namespace usage --csv printing raw CSV to stdout instead of the envelope",
       "toil": "--csv writes the CSV to a file in the workspace named with --out <file>, never overwriting, and data is the JSON result with the saved absolute path added as file. Nothing but the envelope goes to stdout",
       "why": "Every command writes exactly one envelope; CSV goes to a file only (decision 4 on #68).",
       "principle": "Output Contract"
     },
     {
       "allows": [],
-      "old": "openshift resource-usage with no --out flag",
+      "old": "openshift namespace usage with no --out flag",
       "toil": "--out <file> is added, and --csv requires it (and --out requires --csv), checked before any request",
       "why": "Where the CSV goes has to be named, since it no longer goes to stdout (decision 4 on #68).",
       "principle": "Output Contract"
@@ -39,7 +39,7 @@
     },
     {
       "allows": [],
-      "old": "openshift logs failing at once on HTTP 429, with no retry",
+      "old": "openshift pod logs failing at once on HTTP 429, with no retry",
       "toil": "A 429 is retried as on every other request (honouring Retry-After up to 30 s, three attempts) before failing with HTTP",
       "why": "Every request goes through core's one HTTP layer, which retries a 429 the same way for every command.",
       "principle": "decision"

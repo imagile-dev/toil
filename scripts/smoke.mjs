@@ -88,8 +88,8 @@ try {
   const auditDir = join(home, '.toil', 'audit');
   const lines = readdirSync(auditDir).flatMap((f) => readFileSync(join(auditDir, f), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)));
   const doors = lines.map((l) => `${l.via} ${l.command}`);
-  if (!doors.includes('cli version') || !doors.includes('mcp version') || !doors.includes('cli connections list') || !doors.includes('api bitbucket list-prs')) fail(`the audit log holds ${JSON.stringify(doors)}`);
-  const labelled = lines.filter((l) => l.via === 'api' && l.command === 'bitbucket list-prs');
+  if (!doors.includes('cli version') || !doors.includes('mcp version') || !doors.includes('cli connections list') || !doors.includes('api bitbucket pr list')) fail(`the audit log holds ${JSON.stringify(doors)}`);
+  const labelled = lines.filter((l) => l.via === 'api' && l.command === 'bitbucket pr list');
   if (!labelled.length || labelled.some((l) => l.caller !== 'api-consumer')) fail(`the API's audit lines are ${JSON.stringify(labelled)}`);
 
   const cloneStep = await fromClone(envelope.data.version);
@@ -192,8 +192,8 @@ async function apiConsumer(prefix, bin) {
     }
     const types = out.events.map((e) => e.type);
     if (out.contractVersion !== 1 || out.listed.contractVersion !== 1 || typeof out.version !== 'string') fail(`the API reported version ${out.version}, contract ${out.contractVersion} and ${out.listed.contractVersion}`);
-    if (out.commands < 100 || out.listPrs?.tool !== 'bitbucket_list_prs' || out.listPrs.writes !== false || !out.listPrs.hasSchema) fail(`the API's registry gave ${out.commands} commands, list-prs as ${JSON.stringify(out.listPrs)}`);
-    if (!out.listed.ok || JSON.stringify(out.listed.ids) !== '[1,2]') fail(`execute('bitbucket list-prs') returned ${JSON.stringify(out.listed)}`);
+    if (out.commands < 100 || out.listPrs?.tool !== 'bitbucket_pr_list' || out.listPrs.writes !== false || !out.listPrs.hasSchema) fail(`the API's registry gave ${out.commands} commands, pr list as ${JSON.stringify(out.listPrs)}`);
+    if (!out.listed.ok || JSON.stringify(out.listed.ids) !== '[1,2]') fail(`execute('bitbucket pr list') returned ${JSON.stringify(out.listed)}`);
     if (types.filter((t) => t === 'page').length !== 2 || !types.includes('retry') || types.filter((t) => t === 'request').length !== 3) fail(`the API heard progress ${JSON.stringify(out.events)}`);
     if (out.refused !== 'WRITE_DISABLED' || out.unknown !== 'INVALID_INPUT' || out.badCaller !== 'INVALID_INPUT') fail(`the API's refusals were ${JSON.stringify({ refused: out.refused, unknown: out.unknown, badCaller: out.badCaller })}`);
     if (out.owi?.version !== '0.1' || typeof out.owi.schemaId !== 'string' || JSON.stringify(out.owi.item) !== JSON.stringify({ id: 'jira:PAY-1', statusCategory: 'TODO', estimate: { value: 3, unit: 'points', field: 'customfield_10234' } }) || out.owi.checked !== true) fail(`the API's OWI mapping gave ${JSON.stringify(out.owi)}`);
@@ -207,16 +207,16 @@ async function apiConsumer(prefix, bin) {
     if (tsc.status !== 0) fail(`consumer.ts didn't type-check against the installed dist/api.d.ts: ${tsc.stdout || tsc.stderr}`);
 
     // The CLI on a pipe: the retry said on stderr, no line per page, and stdout still exactly one envelope.
-    const cli = await run([bin, 'bitbucket', 'list-prs', '--project', 'PAY', '--repo', 'web'], work);
+    const cli = await run([bin, 'bitbucket', 'pr', 'list', '--project', 'PAY', '--repo', 'web'], work);
     let envelope;
     try {
       envelope = JSON.parse(cli.stdout);
     } catch {
       envelope = undefined;
     }
-    if (envelope?.ok !== true || envelope.data.length !== 2) fail(`toil bitbucket list-prs printed ${cli.stdout}`);
-    const said = cli.stderr.split(/\r?\n/).filter((l) => l.startsWith('[toil] bitbucket list-prs: '));
-    if (said.some((l) => l.includes('read page')) || !said.some((l) => l.includes('rate limited (429)'))) fail(`toil bitbucket list-prs on a pipe wrote progress ${JSON.stringify(said)}`);
+    if (envelope?.ok !== true || envelope.data.length !== 2) fail(`toil bitbucket pr list printed ${cli.stdout}`);
+    const said = cli.stderr.split(/\r?\n/).filter((l) => l.startsWith('[toil] bitbucket pr list: '));
+    if (said.some((l) => l.includes('read page')) || !said.some((l) => l.includes('rate limited (429)'))) fail(`toil bitbucket pr list on a pipe wrote progress ${JSON.stringify(said)}`);
     return `the API consumer paged a read-only call with ${out.events.length} progress events, refused a write before sending it, mapped an envelope to OWI and type-checked against dist/api.d.ts, and the CLI on a pipe said the retry on stderr`;
   } finally {
     server.close();

@@ -1,7 +1,7 @@
 [
   {
-    "name": "applications list",
-    "tool": "sonatypeiq_applications_list",
+    "name": "application list",
+    "tool": "sonatypeiq_application_list",
     "description": "List all applications in Sonatype IQ Server",
     "writes": false,
     "connection": true,
@@ -10,26 +10,26 @@
     ]
   },
   {
-    "name": "applications get",
-    "tool": "sonatypeiq_applications_get",
+    "name": "application get",
+    "tool": "sonatypeiq_application_get",
     "description": "Get an application by its public ID",
     "writes": false,
     "connection": true,
     "flags": [
-      "--public-id <id>"
+      "<public-id>"
     ]
   },
   {
-    "name": "organizations list",
-    "tool": "sonatypeiq_organizations_list",
+    "name": "organization list",
+    "tool": "sonatypeiq_organization_list",
     "description": "List all organizations in Sonatype IQ Server",
     "writes": false,
     "connection": true,
     "flags": []
   },
   {
-    "name": "policies list",
-    "tool": "sonatypeiq_policies_list",
+    "name": "policy list",
+    "tool": "sonatypeiq_policy_list",
     "description": "List all policies",
     "writes": false,
     "connection": true,

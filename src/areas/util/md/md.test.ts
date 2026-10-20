@@ -339,7 +339,7 @@ describe('util md: the areas accept what it writes', () => {
     expect((POSTED(t.http.calls).fields as { description: unknown }).description).toEqual(adf);
   });
 
-  it('confluence create-page takes the storage format as its body', async () => {
+  it('confluence page create takes the storage format as its body', async () => {
     const storage = (await convert(MD_CORPUS['runbook.md']!, 'md', 'storage')).data.output as string;
     const t = testContext({ config: confluenceConfig, routes: confluenceRoutes });
     const envelope = await execute(confluenceCreatePage, { space: 'DOCS', title: 'Payments runbook', body: storage, allowWrite: true }, t.context);
@@ -347,7 +347,7 @@ describe('util md: the areas accept what it writes', () => {
     expect((POSTED(t.http.calls).body as { storage: { value: string; representation: string } }).storage).toEqual({ value: storage, representation: 'storage' });
   });
 
-  it('confluence-cloud create-page takes the storage format as its body', async () => {
+  it('confluence-cloud page create takes the storage format as its body', async () => {
     const storage = (await convert(MD_CORPUS['story.md']!, 'md', 'storage')).data.output as string;
     const t = testContext({ config: confluenceCloudConfig, routes: confluenceCloudRoutes });
     const envelope = await execute(confluenceCloudCreatePage, { space: 'DOCS', title: 'Invoice export', body: storage, allowWrite: true }, t.context);

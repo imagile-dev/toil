@@ -365,7 +365,7 @@ async function parseCommandLine(options: ProgramOptions, words: string[]): Promi
   // Said plainly before parsing, in MCP's words, rather than as an unknown command whose fix names one that works.
   const named = commandFromArgv(words, options.commands);
   if (options.commands.some((def) => def.dispatches && commandName(def) === named)) {
-    return { error: new ToilError('INVALID_INPUT', "toil wait can't wait on a wait: the command after -- must be a read.", { fix: 'Put the read itself after --, for example toil wait --until "result != null" -- jenkins pipeline get-run --name <job> --number <n>.' }) };
+    return { error: new ToilError('INVALID_INPUT', "toil wait can't wait on a wait: the command after -- must be a read.", { fix: 'Put the read itself after --, for example toil wait --until "result != null" -- jenkins run get <job> <n>.' }) };
   }
   try {
     await program.parseAsync(words, { from: 'user' });
@@ -377,7 +377,7 @@ async function parseCommandLine(options: ProgramOptions, words: string[]): Promi
   }
   const call = captured as { def: AnyCommand; input: Record<string, unknown>; globals: GlobalOptions } | undefined;
   if (!call) {
-    return { error: new ToilError('INVALID_INPUT', `${line} isn't a command toil wait can repeat.`, { fix: 'Name a read command after --, for example toil wait --until "result != null" -- jenkins pipeline get-run --name <job> --number <n>.' }) };
+    return { error: new ToilError('INVALID_INPUT', `${line} isn't a command toil wait can repeat.`, { fix: 'Name a read command after --, for example toil wait --until "result != null" -- jenkins run get <job> <n>.' }) };
   }
   const outer = OUTER_GLOBALS.find(([key]) => call.globals[key] !== undefined && call.globals[key] !== false);
   if (outer) {
@@ -388,6 +388,20 @@ async function parseCommandLine(options: ProgramOptions, words: string[]): Promi
 
 /** Commander exits these ways on purpose; they are output, not errors. */
 const INFORMATIONAL = new Set(['commander.helpDisplayed', 'commander.help', 'commander.version']);
+
+/**
+ * A refused "option" that is really an id starting with a dash (a Dynatrace
+ * problem id, `-123_456V2`), on a command that takes positionals: the fix says
+ * to put `--` before the arguments, which is how any shell argument that looks
+ * like a flag is passed. It names every argument in order, since the dash-led
+ * one may be the second. Undefined when that isn't what happened.
+ */
+function dashLedFix(rejected: string | undefined, command: string | undefined, commands: readonly AnyCommand[]): string | undefined {
+  if (!rejected || !/^-\d/.test(rejected) || !command) return undefined;
+  const args = commands.find((d) => commandName(d) === command)?.args ?? [];
+  if (!args.length) return undefined;
+  return `If ${rejected} is an argument, put -- before the arguments, after any flags: toil ${command} [flags] -- ${args.map((a) => `<${a.name}>`).join(' ')}.`;
+}
 
 /**
  * Parses argv and runs the matching command, returning the exit code. A usage
@@ -415,7 +429,7 @@ export async function runProgram(options: ProgramOptions, argv: string[], from: 
       ? new ToilError('INVALID_INPUT', `${misplaced.flag} goes after the command on toil ${misplaced.path.join(' ')}: it's a ${misplaced.def.path[0]} group flag, and ${misplaced.path[0]} doesn't have it.`, {
           fix: `Run toil ${misplaced.path.join(' ')} ... ${misplaced.flag} <value>, or toil ${misplaced.def.path[0]} ${misplaced.flag} <value> ${misplaced.def.path.slice(1).join(' ')} ....`,
         })
-      : new ToilError('INVALID_INPUT', message.charAt(0).toUpperCase() + message.slice(1), { fix: `Run toil ${command ? `${command} ` : ''}--help to see what it accepts.` });
+      : new ToilError('INVALID_INPUT', message.charAt(0).toUpperCase() + message.slice(1), { fix: dashLedFix(rejected, command, options.commands) ?? `Run toil ${command ? `${command} ` : ''}--help to see what it accepts.` });
     emit(
       failure(error, {
         command: misplaced ? commandName(misplaced.def) : command,

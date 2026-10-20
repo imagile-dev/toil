@@ -38,7 +38,7 @@
   {
     "key": "targetBranch",
     "env": "TOIL_GITHUB_TARGET_BRANCH",
-    "description": "Default base branch for create-pr (main when unset)",
+    "description": "Default base branch for pr create (main when unset)",
     "required": false,
     "secret": false,
     "fallbacks": []

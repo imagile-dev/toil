@@ -14,7 +14,7 @@ interface DataViews {
 }
 
 export const dataViewsListCommand = kibanaArea.command({
-  path: ['kibana', 'data-views', 'list'],
+  path: ['kibana', 'data-view', 'list'],
   description: 'List data views (id, name, index pattern)',
   input: z.object({}),
   writes: false,

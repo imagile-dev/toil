@@ -14,7 +14,7 @@ import { fileArgument, inputFields, openInput, textOption } from './kit/input.js
  * own commands, and this asks nobody, which is also how the best meetings go.
  */
 
-/** A GitHub issue as `github get-issue` returns its data, for the example that passes data with --command. */
+/** A GitHub issue as `github issue get` returns its data, for the example that passes data with --command. */
 export const EXAMPLE_ISSUE = JSON.stringify({
   number: 9,
   title: 'Probe fails on the staging cluster',
@@ -42,7 +42,7 @@ export const owiMapCommand = defineCommand({
   path: ['util', 'owi', 'map'],
   description: 'Map Jira, Azure DevOps and GitHub command output to Open Work Items, checked against the OWI schema (local only)',
   toolDescription:
-    "Maps toil's own work item output to Open Work Items (OWI 0.1): envelopes from jira or jira-cloud issue search, issue get and issue history; ado or ado-cloud work-item get, work-item get-many, work-item history and work-item iterations; github list-issues, search-issues, get-issue, issue-events and projects list-items. Pass one envelope, a JSON array of them, or one per line; a GitHub issue and its project item become one item (with no board value, the issue's milestone is its iteration, a points: N label its estimate, and Blocked by #n in its body a link), and a history joins its item (a Jira changelog or GitHub timeline names no issue, so wrap it as { key, history } or pass key). Data without its envelope needs command. field points an OWI field at a field of your own (estimate=customfield_10234, estimateUnit=hours), the same keys a dossier's fields use. Returns { owi, count, items, histories, unmapped, skipped, verified }: each item has id (<connection>:<key>), type, status and statusCategory (TODO, IN_PROGRESS, DONE or UNKNOWN), people, estimate { value, unit, field }, iteration, parent, children, links, dates, history, unmapped (each field it couldn't fill, and why) and native (the source records). Every item is validated against docs/owi/schema.json (data.verified). Local only.",
+    "Maps toil's own work item output to Open Work Items (OWI 0.1): envelopes from jira or jira-cloud issue search, issue get and issue history; ado or ado-cloud work-item get, work-item get-many, work-item history and work-item iterations; github issue list, issue search, issue get, issue history and project items. Pass one envelope, a JSON array of them, or one per line; a GitHub issue and its project item become one item (with no board value, the issue's milestone is its iteration, a points: N label its estimate, and Blocked by #n in its body a link), and a history joins its item (a Jira changelog or GitHub timeline names no issue, so wrap it as { key, history } or pass key). Data without its envelope needs command. field points an OWI field at a field of your own (estimate=customfield_10234, estimateUnit=hours), the same keys a dossier's fields use. Returns { owi, count, items, histories, unmapped, skipped, verified }: each item has id (<connection>:<key>), type, status and statusCategory (TODO, IN_PROGRESS, DONE or UNKNOWN), people, estimate { value, unit, field }, iteration, parent, children, links, dates, history, unmapped (each field it couldn't fill, and why) and native (the source records). Every item is validated against docs/owi/schema.json (data.verified). Local only.",
   input: z.object({
     ...inputFields,
     command: z.string().min(1).optional().describe('The command whose data the input is, when it holds data without its envelope (for example "jira issue search")'),
@@ -61,7 +61,7 @@ export const owiMapCommand = defineCommand({
     { file: 'owi/sprint-42.jsonl' },
     { file: 'owi/jira-changelog.json', key: 'PAY-104' },
     { file: 'owi/ado-get-batch.json', field: ['estimate=Custom.TeamPoints', 'estimateUnit=points'] },
-    { text: EXAMPLE_ISSUE, command: 'github get-issue' },
+    { text: EXAMPLE_ISSUE, command: 'github issue get' },
   ],
   run: async (input, ctx) => {
     const source = await openInput(ctx, input, { maxBytes: MAX_BYTES });

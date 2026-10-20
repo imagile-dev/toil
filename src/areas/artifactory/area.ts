@@ -16,9 +16,9 @@ export const artifactoryArea = defineArea({
   connection: z.object({
     baseUrl: z.url().describe('Artifactory root, keeping any context path, e.g. https://artifactory.imagile.dev/artifactory'),
     token: z.string().min(1).describe('Artifactory access or identity token'),
-    npmRepo: z.string().min(1).optional().describe('npm repository key that outdated and license-check look packages up in'),
-    nugetRepo: z.string().min(1).optional().describe('NuGet repository key that outdated and license-check look packages up in'),
-    mavenRepo: z.string().min(1).optional().describe('Maven repository key that outdated looks packages up in'),
+    npmRepo: z.string().min(1).optional().describe('npm repository key that package outdated and package license-check look packages up in'),
+    nugetRepo: z.string().min(1).optional().describe('NuGet repository key that package outdated and package license-check look packages up in'),
+    mavenRepo: z.string().min(1).optional().describe('Maven repository key that package outdated looks packages up in'),
   }),
   secrets: ['token'],
   // The ping answers anyone; the repository list needs a user, and a bad token is a 401 even where anonymous access is on.

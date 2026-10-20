@@ -17,7 +17,7 @@ const LABEL_SELECTOR_OPTION = { flags: '--label-selector <selector>', field: 'la
 const phasePriority = (phase: unknown) => (phase === 'Failed' ? 0 : phase === 'Pending' ? 1 : phase === 'Unknown' ? 2 : 3);
 
 export const podsCommand = openshiftArea.command({
-  path: ['openshift', 'pods'],
+  path: ['openshift', 'pod', 'list'],
   description: 'List pod health summary for a namespace — pre-processed for LLM analysis. Use --raw to return the full unmodified Kubernetes pod objects.',
   input: z.object({
     namespace,
@@ -84,7 +84,7 @@ export const podsCommand = openshiftArea.command({
 });
 
 export const deploymentsCommand = openshiftArea.command({
-  path: ['openshift', 'deployments'],
+  path: ['openshift', 'deployment', 'list'],
   description: 'List Deployments (or OpenShift DeploymentConfigs with --deployment-configs) for a namespace, read-only. Use --raw to return the full unmodified objects.',
   input: z.object({
     namespace,
@@ -137,7 +137,7 @@ export const deploymentsCommand = openshiftArea.command({
 });
 
 export const eventsCommand = openshiftArea.command({
-  path: ['openshift', 'events'],
+  path: ['openshift', 'event', 'list'],
   description: 'List Warning events for a namespace — pre-filtered for LLM analysis',
   input: z.object({
     namespace,
@@ -182,7 +182,7 @@ export const eventsCommand = openshiftArea.command({
 });
 
 export const logsCommand = openshiftArea.command({
-  path: ['openshift', 'logs'],
+  path: ['openshift', 'pod', 'logs'],
   description: 'Get recent log lines from a pod container',
   input: z.object({
     namespace,
@@ -193,9 +193,9 @@ export const logsCommand = openshiftArea.command({
     previous: z.boolean().optional().describe('Return logs from the previous container instance (default: false)'),
   }),
   writes: false,
+  args: [{ name: 'pod', field: 'pod', description: 'Pod name' }],
   options: [
     NAMESPACE_OPTION,
-    { flags: '--pod <name>', field: 'pod', description: 'Pod name' },
     { flags: '--container <name>', field: 'container', description: 'Container name (defaults to first container)' },
     { flags: '--lines <n>', field: 'lines', description: 'Number of most-recent lines to return (default: "100")' },
     { flags: '--previous', field: 'previous', description: 'Return logs from the previous container instance (default: false)' },

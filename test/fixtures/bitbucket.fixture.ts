@@ -140,7 +140,7 @@ export const routes: Route[] = [
   },
   { method: 'POST', path: `${REPO}/pull-requests/42/merge`, respond: json(pr(42, { state: 'MERGED', version: 4 })) },
   { method: 'POST', path: `${REPO}/pull-requests/42/decline`, respond: json(pr(42, { state: 'DECLINED', version: 4 })) },
-  // create-prs: imagile-api is ahead, imagile-web isn't, imagile-gone doesn't exist.
+  // pr create-many: imagile-api is ahead, imagile-web isn't, imagile-gone doesn't exist.
   { path: `${REPO}/commits`, respond: json(page([{ id: SHA }])) },
   { path: `${API}/projects/PROJ/repos/imagile-web/commits`, respond: json(page([])) },
   { path: `${API}/projects/PROJ/repos/imagile-gone/commits`, respond: { status: 404, json: { errors: [{ context: null, message: 'Repository PROJ/imagile-gone does not exist.', exceptionName: 'com.atlassian.bitbucket.repository.NoSuchRepositoryException' }] } } },
@@ -167,7 +167,7 @@ export const routes: Route[] = [
   { path: `/rest/build-status/1.0/commits/${SHA}`, respond: json({ size: 2, limit: 25, start: 0, isLastPage: true, values: [build('ci', 'SUCCESSFUL'), build('e2e', 'INPROGRESS')] }) },
 ];
 
-/** The workspace's repository for current-pr: on PR 42's source branch. */
+/** The workspace's repository for pr current: on PR 42's source branch. */
 export const repo = { root: 'C:/work/imagile-api', branch: 'feature/retries', remotes: ['https://bitbucket.imagile.dev/scm/PROJ/imagile-api.git'] };
 
 /**

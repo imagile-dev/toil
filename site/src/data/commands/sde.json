@@ -16,8 +16,8 @@
     "flags": []
   },
   {
-    "name": "users",
-    "tool": "sde_users",
+    "name": "user list",
+    "tool": "sde_user_list",
     "description": "List users",
     "writes": false,
     "connection": true,
@@ -32,8 +32,8 @@
     ]
   },
   {
-    "name": "projects",
-    "tool": "sde_projects",
+    "name": "project list",
+    "tool": "sde_project_list",
     "description": "List projects",
     "writes": false,
     "connection": true,
@@ -50,20 +50,21 @@
     ]
   },
   {
-    "name": "project",
-    "tool": "sde_project",
+    "name": "project get",
+    "tool": "sde_project_get",
     "description": "Get a single project by ID",
     "writes": false,
     "connection": true,
     "flags": [
+      "[id]",
       "--expand <fields>",
       "--include <fields>",
-      "--id <id>"
+      "--project <id>"
     ]
   },
   {
-    "name": "tasks",
-    "tool": "sde_tasks",
+    "name": "task list",
+    "tool": "sde_task_list",
     "description": "List countermeasures for a project",
     "writes": false,
     "connection": true,
@@ -86,21 +87,21 @@
     ]
   },
   {
-    "name": "task",
-    "tool": "sde_task",
+    "name": "task get",
+    "tool": "sde_task_get",
     "description": "Get a single countermeasure",
     "writes": false,
     "connection": true,
     "flags": [
-      "--task <id>",
+      "<task>",
       "--expand <fields>",
       "--include <fields>",
       "--project <id>"
     ]
   },
   {
-    "name": "threats",
-    "tool": "sde_threats",
+    "name": "threat list",
+    "tool": "sde_threat_list",
     "description": "List threats for a project",
     "writes": false,
     "connection": true,

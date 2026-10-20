@@ -12,7 +12,8 @@ import * as client from './client.js';
  */
 
 const attachmentId = z.string().min(1).describe('Attachment ID (e.g. att98765)');
-const attachmentOption = { flags: '--id <attachment-id>', field: 'id', description: 'Attachment ID (e.g. att98765)' };
+const attachmentArg = { name: 'id', field: 'id', description: 'Attachment ID (e.g. att98765)' };
+const pageArg = { name: 'id', field: 'id', description: 'Page ID' };
 
 /**
  * The last segment of a path or title, splitting on both `/` and `\` whatever
@@ -25,18 +26,18 @@ export function attachmentFileName(title: string): string {
 }
 
 export const listAttachments = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'list-attachments'],
+  path: ['confluence-cloud', 'page', 'attachments'],
   description: 'List attachments on a Confluence Cloud page',
-  toolDescription: 'Returns every attachment on a page (id, title, mediaType, fileSize, downloadLink). Use confluence_cloud_download_attachment with an id to save one.',
+  toolDescription: 'Returns every attachment on a page (id, title, mediaType, fileSize, downloadLink). Use confluence_cloud_attachment_download with an id to save one.',
   input: z.object({ id: z.string().min(1).describe('Page ID') }),
   writes: false,
-  options: [{ flags: '--id <page-id>', field: 'id', description: 'Page ID' }],
+  args: [pageArg],
   examples: [{ id: '12345' }],
   run: (input, ctx) => client.listAttachments(ctx, input.id),
 });
 
 export const uploadAttachment = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'upload-attachment'],
+  path: ['confluence-cloud', 'page', 'attach'],
   description: 'Upload a file as an attachment to a Confluence Cloud page',
   toolDescription:
     'Uploads a local file to a page as a new attachment and returns what Confluence created. file is a path inside the workspace. A file name already on the page is refused by Confluence, not versioned.',
@@ -47,8 +48,8 @@ export const uploadAttachment = confluenceCloudArea.command({
     ...allowWriteField,
   }),
   writes: true,
+  args: [pageArg],
   options: [
-    { flags: '--id <page-id>', field: 'id', description: 'Page ID' },
     { flags: '--file <path>', field: 'file', description: 'Path to the file to upload' },
     { flags: '--comment <text>', field: 'comment', description: 'Optional comment to attach to the file version' },
   ],
@@ -67,17 +68,18 @@ export const uploadAttachment = confluenceCloudArea.command({
 });
 
 export const downloadAttachment = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'download-attachment'],
+  path: ['confluence-cloud', 'attachment', 'download'],
   description: 'Download a Confluence Cloud attachment to .toil/ (or --dir)',
   toolDescription:
-    'Saves one Confluence Cloud attachment to a directory inside the workspace (default .toil) and returns { saved, filename, size }. Never replaces an existing file. Get the id from confluence_cloud_list_attachments.',
+    'Saves one Confluence Cloud attachment to a directory inside the workspace (default .toil) and returns { saved, filename, size }. Never replaces an existing file. Get the id from confluence_cloud_page_attachments.',
   input: z.object({
     id: attachmentId,
     dir: z.string().optional().describe('Output directory; defaults to .toil in the workspace'),
   }),
   writes: false,
   writesLocal: true,
-  options: [attachmentOption, { flags: '--dir <path>', field: 'dir', description: 'Output directory (default: .toil in the workspace)' }],
+  args: [attachmentArg],
+  options: [{ flags: '--dir <path>', field: 'dir', description: 'Output directory (default: .toil in the workspace)' }],
   examples: [{ id: 'att98765' }, { id: 'att98765', dir: 'downloads' }],
   run: async (input, ctx) => {
     const attachment = await client.getAttachment(ctx, input.id);
@@ -88,12 +90,12 @@ export const downloadAttachment = confluenceCloudArea.command({
 });
 
 export const deleteAttachment = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'delete-attachment'],
+  path: ['confluence-cloud', 'attachment', 'delete'],
   description: 'Delete a Confluence Cloud attachment by its ID (moves it to the trash; does not purge it)',
   input: z.object({ id: attachmentId, ...allowWriteField }),
   writes: true,
   mcp: false,
-  options: [attachmentOption],
+  args: [attachmentArg],
   examples: [{ id: 'att98765', allowWrite: true }],
   run: async (input, ctx) => {
     await client.deleteAttachment(ctx, input.id);

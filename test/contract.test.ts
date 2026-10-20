@@ -20,7 +20,7 @@ import { loadFixtures, setUp, tearDown } from './harness/fixtures.js';
  * names, unless docs/divergences/<area>.json lists the difference with a
  * reason. Building an area turns its rows on; nothing here changes per area.
  * An alias that lands in another group (`deps outdated` for
- * `artifactory outdated`) turns on that one row, whether or not its group is
+ * `artifactory package outdated`) turns on that one row, whether or not its group is
  * an area toil has: the contract's path has to work with the contract's flags.
  */
 

@@ -61,7 +61,7 @@ const json = (body: unknown) => ({ json: body });
 export const routes: Route[] = [
   // check-dossier's lookup of one entity by id.
   { path: '/api/v2/entities/SERVICE-ABC12345', respond: json(entity('SERVICE', 1)) },
-  // entities list: two pages, the second asked for with nextPageKey alone.
+  // entity list: two pages, the second asked for with nextPageKey alone.
   { path: '/api/v2/entities', query: { entitySelector: 'type("HOST")', pageSize: '500' }, respond: json(entityPage([entity('HOST', 1), entity('HOST', 2)], 'page-2-of-host')) },
   { path: '/api/v2/entities', query: { nextPageKey: 'page-2-of-host' }, respond: json(entityPage([entity('HOST', 3)])) },
   {
@@ -78,7 +78,7 @@ export const routes: Route[] = [
   { path: '/api/v2/entities', query: { entitySelector: 'type("CLOUD_APPLICATION")', pageSize: '500' }, respond: json(entityPage([entity('CLOUD_APPLICATION', 1)])) },
   { path: '/api/v2/entities', query: { entitySelector: 'type("CLOUD_APPLICATION")', from: 'now-6h', to: 'now', pageSize: '500' }, respond: json(entityPage([entity('CLOUD_APPLICATION', 2)])) },
 
-  // problems list defaults to the last two hours.
+  // problem list defaults to the last two hours.
   { path: '/api/v2/problems', query: { from: 'now-2h', to: 'now', pageSize: '500' }, respond: json(problemPage([problem(1)], 'problems-page-2')) },
   { path: '/api/v2/problems', query: { nextPageKey: 'problems-page-2' }, respond: json(problemPage([problem(2)])) },
   {
@@ -86,8 +86,8 @@ export const routes: Route[] = [
     query: { from: 'now-1d', to: 'now-1h', problemSelector: 'status("open")', entitySelector: 'type("SERVICE")', pageSize: '500' },
     respond: json(problemPage([problem(3)])),
   },
-  { path: '/api/v2/problems/-1234567890123456789_1700000000000V2', query: {}, respond: json(problem(9)) },
-  { path: '/api/v2/problems/-1234567890123456789_1700000000000V2', query: { fields: 'evidenceDetails,impactAnalysis' }, respond: json({ ...problem(9), evidenceDetails: { totalCount: 0, details: [] } }) },
+  { path: '/api/v2/problems/1234567890123456789_1700000000000V2', query: {}, respond: json(problem(9)) },
+  { path: '/api/v2/problems/1234567890123456789_1700000000000V2', query: { fields: 'evidenceDetails,impactAnalysis' }, respond: json({ ...problem(9), evidenceDetails: { totalCount: 0, details: [] } }) },
 
   // trace: execute answers RUNNING, the first poll SUCCEEDED, so no wait is needed.
   { method: 'POST', path: '/platform/storage/query/v1/query:execute', respond: json({ state: 'RUNNING', requestToken: 'abc12345-0000-0000-0000-000000000000', progress: 0 }) },

@@ -15,7 +15,7 @@ import { es, indexPath } from './client.js';
 const COLUMNS = 'index,health,status,docs.count,store.size,pri,rep';
 
 export const indicesListCommand = elasticsearchArea.command({
-  path: ['elasticsearch', 'indices', 'list'],
+  path: ['elasticsearch', 'index', 'list'],
   description: 'List indices with health, document count and size',
   input: z.object({
     pattern: z.string().optional().describe('Index name or wildcard pattern (e.g. "logs-*")'),

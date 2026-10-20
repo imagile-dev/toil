@@ -31,7 +31,7 @@ export const concurrencyCommand = saucelabsArea.command({
 });
 
 export const platformsCommand = saucelabsArea.command({
-  path: ['saucelabs', 'platforms'],
+  path: ['saucelabs', 'platform', 'list'],
   description: 'Supported OS/browser/device platforms',
   input: z.object({
     api: z.string().optional().describe('Automation API: all, appium, webdriver (default: "all")'),
@@ -47,7 +47,7 @@ export const platformsCommand = saucelabsArea.command({
 });
 
 export const appiumVersionsCommand = saucelabsArea.command({
-  path: ['saucelabs', 'appium-versions'],
+  path: ['saucelabs', 'appium-version', 'list'],
   description: 'Appium versions available for real-device sessions, with end-of-life dates',
   input: z.object({}),
   writes: false,
@@ -56,7 +56,7 @@ export const appiumVersionsCommand = saucelabsArea.command({
 });
 
 export const usersCommand = saucelabsArea.command({
-  path: ['saucelabs', 'users'],
+  path: ['saucelabs', 'user', 'list'],
   description: 'Look up users in your organization',
   input: z.object({
     username: z.string().optional().describe('Exact username'),

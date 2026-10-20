@@ -20,7 +20,7 @@ An Elasticsearch **API key**: in Kibana, Stack Management → API keys → Creat
 (or Elasticsearch's own `POST /_security/api_key`). Copy the **encoded** value, the
 base64 string shown once when the key is created. Give it the `read` index privilege
 on the indices you'll search and count, `monitor` on those you'll list, and the
-`monitor` cluster privilege for `cluster health` and `indices list`. toil sends it as
+`monitor` cluster privilege for `cluster health` and `index list`. toil sends it as
 `Authorization: ApiKey <encoded>`. There is no username, password or browser login.
 
 ## Configuration
@@ -68,30 +68,31 @@ is sent only to that Kibana connection's own host. See `kibana.md`.
 - `cluster health`: Show cluster health (status, node and shard counts), as
   Elasticsearch reports it. A red cluster is a successful answer whose `status` is
   `red`.
-- `indices list`: List indices with health, document count and size (`--pattern`
+- `index list`: List indices with health, document count and size (`--pattern`
   takes a name or wildcard, comma-separate several). `data` is `{ count, indices }`,
   each row the `_cat/indices` columns `index`, `health`, `status`, `docs.count`,
   `store.size`, `pri` and `rep`, every value a string.
-- `search`: Search one or more indices with Query DSL JSON or a query string.
-  `--index` is required (comma-separate several; wildcards and aliases work; an empty
+- `index search <index>`: Search one or more indices with Query DSL JSON or a query
+  string. The index is required (comma-separate several; wildcards and aliases work; an empty
   name or an empty entry between commas is refused, so nothing silently searches every
   index).
   `--query` takes one Query DSL clause as a JSON object, `--q` a Lucene query string;
   use one or the other, and with neither every document matches. `--sort` takes
   `field:order` pairs, comma-separated (`@timestamp:desc,_score:desc`; an entry with
   no `asc` or `desc` sorts ascending). `--source` is a comma list of fields to return.
-  `--size` (default 100) and `--from` (default 0) go to the server as given; past
-  10,000 hits Elasticsearch refuses `from + size` (its `max_result_window`).
-  `--timeout-ms` (default 30000) is how long toil waits for the answer. `search` has
-  a 10-minute time limit of its own, so a `--timeout-ms` up to 600000 is honoured;
+  `--limit` (default 100) and `--offset` (default 0) go to the server as its `size`
+  and `from`; past 10,000 hits Elasticsearch refuses `from + size` (its
+  `max_result_window`).
+  `--timeout-ms` (default 30000) is how long toil waits for the answer. `index search`
+  has a 10-minute time limit of its own, so a `--timeout-ms` up to 600000 is honoured;
   `TOIL_TIMEOUT_MS`, when set, overrides that limit. `data` is `{ index,
   took, timedOut, total, totalRelation, hitCount, hits, aggregations }`: `hits` as
   Elasticsearch sent them, and `totalRelation` `gte` when `total` is only a lower
   bound.
-- `count`: Count documents matching a query (`--index` required, `--query` or `--q`
-  as for `search`). `data` is `{ index, count }`.
+- `index count <index>`: Count documents matching a query (`--query` or `--q` as
+  for `index search`). `data` is `{ index, count }`.
 
-`search` and `count` send their query as a POST body. They still only read.
+`index search` and `index count` send their query as a POST body. They still only read.
 
 Errors carry Elasticsearch's own reason, e.g. `index_not_found_exception: no such
 index [nope]`, or a query parse error under its root cause, so a bad query can be
@@ -99,7 +100,7 @@ fixed from the message.
 
 ```bash
 toil elasticsearch cluster health
-toil elasticsearch indices list --pattern "logs-*"
-toil elasticsearch search --index logs-app --q "level:error AND service:api" --sort "@timestamp:desc" --size 20
-toil elasticsearch count --index "logs-*" --query '{"term":{"level":"error"}}'
+toil elasticsearch index list --pattern "logs-*"
+toil elasticsearch index search logs-app --q "level:error AND service:api" --sort "@timestamp:desc" --limit 20
+toil elasticsearch index count "logs-*" --query '{"term":{"level":"error"}}'
 ```

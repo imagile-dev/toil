@@ -36,7 +36,7 @@ export const jobDetail = {
   builds: [{ number: 42, url: `${JENKINS}/job/platform/job/api-build/42/`, result: 'SUCCESS', duration: 81234, timestamp: 1791000000000, building: false, displayName: '#42' }],
 };
 
-// From the command contract's recorded examples: one entry of `builds` with the list-runs tree.
+// From the command contract's recorded examples: one entry of `builds` with the pipeline runs tree.
 export const buildSummary = (n: number) => ({
   number: n,
   url: `${JENKINS}/job/api-build/${n}/`,

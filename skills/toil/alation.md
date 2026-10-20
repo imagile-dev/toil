@@ -71,7 +71,8 @@ so the token stays on the configured one.
 ## Commands
 
 IDs are positional and must be positive integers. Lists return one page: `--limit`
-(default 100, 1 to 1000) and `--skip` (default 0), as `{ count, limit, skip, <items> }`.
+(default 100, 1 to 1000) and `--offset` (default 0, sent to Alation as `skip`), as
+`{ count, limit, skip, <items> }`.
 
 - `token status`: Mint an API access token from the configured refresh token and
   report its expiry (verifies credentials). It mints a new token each time, then

@@ -17,7 +17,7 @@ the merge queue, drafts and Projects. GitHub.com is always current; no Enterpris
 release has been verified yet. The auto-merge and merge-queue commands need a release
 that has those features, and so do issue types, sub-issues and Projects (v2). A release
 without issue types just leaves `type` off each issue; one without sub-issues
-(`get-issue --sub-issues`) or Projects (`projects …`) gets `UNSUPPORTED`, saying so.
+(`issue get --sub-issues`) or Projects (`project …`) gets `UNSUPPORTED`, saying so.
 
 ## Credential
 
@@ -32,11 +32,11 @@ What each group of commands needs from the token:
 
 | Commands | Fine-grained token | Classic token |
 |----------|--------------------|---------------|
-| `list-issues`, `search-issues`, `get-issue`, `issue-events` | Issues: read, on the repository | `repo` (`public_repo` for public repositories only) |
-| `projects list`, `projects fields`, `projects list-items` | Projects: read, under the organization's permissions. A fine-grained token can't read a user's own projects | `read:project` (plus `repo` to see items from private repositories) |
+| `issue list`, `issue search`, `issue get`, `issue history` | Issues: read, on the repository | `repo` (`public_repo` for public repositories only) |
+| `project list`, `project fields`, `project items` | Projects: read, under the organization's permissions. A fine-grained token can't read a user's own projects | `read:project` (plus `repo` to see items from private repositories) |
 | Pull request, review, comment and check commands | Pull requests, contents and checks, read or write as needed | `repo` |
 
-A token without the Projects permission gets `AUTH` from the `projects` commands,
+A token without the Projects permission gets `AUTH` from the `project` commands,
 naming the scope.
 
 ## Configuration
@@ -47,7 +47,7 @@ naming the scope.
 | `token` | `TOIL_GITHUB_TOKEN`, then `GITHUB_TOKEN` | yes | Fine-grained personal access token |
 | `owner` | `TOIL_GITHUB_OWNER` | no | Default owner (user or org) |
 | `repo` | `TOIL_GITHUB_REPO` | no | Default repository name |
-| `targetBranch` | `TOIL_GITHUB_TARGET_BRANCH` | no | Default base branch for `create-pr` (`main` when unset) |
+| `targetBranch` | `TOIL_GITHUB_TARGET_BRANCH` | no | Default base branch for `pr create` (`main` when unset) |
 | `writes` | `TOIL_GITHUB_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
 
 **CI fallbacks:** in GitHub Actions, the default connection takes its token from
@@ -86,11 +86,11 @@ credential store, or set `TOIL_GITHUB_TOKEN`.
 
 ## Owner and repository
 
-Every command except `create-repo` needs an owner and a repository, which come
+Every command except `repo create` needs an owner and a repository, which come
 from, in order:
 
 1. `--owner` and `--repo`, before or after the command (`toil github --owner imagile
-   --repo toil-probe get-pr --number 7`); on `create-pr` the ones after the command win
+   --repo toil-probe pr get 7`); on `pr create` the ones after the command win
 2. the first of the working folder's remotes whose host is this connection's host,
    of any name, trying `origin` first (so a fork's `upstream` counts)
    (`api.github.com` counts as `github.com`). `git@host:o/r`, `ssh://git@host[:port]/o/r`
@@ -99,104 +99,114 @@ from, in order:
 3. the connection's `owner` and `repo` (usually `defaults.github`)
 
 With neither found, the command fails with "Could not determine GitHub owner/repo".
-`resolve-thread` needs them too, though it acts by thread id alone. `create-repo`
+`pr resolve` needs them too, though it acts by thread id alone. `repo create`
 reads only an explicit `--owner`, always as an organization (`POST /orgs/<owner>/repos`);
 without it the repository is created under the token's user.
 
 ## Commands
 
-Numbers (`--number`, `--comment-id`, `--line`) are read as whole numbers from the
-start of the text, so `12abc` is 12. Write commands need `writes` on the connection
-and `--allow-write`. The deletes (`delete-comment`, `delete-review-comment`,
-`remove-label`, `remove-reviewers`, `remove-assignees`) run on the CLI only and are
-never MCP tools. Owner, repo, labels and refs go into request paths as typed; a value
-that would make a `.` or `..` path segment is refused with `INVALID_INPUT`.
+Every command is `toil github <resource> <action> [ids...]`, and its MCP tool is the
+path with underscores (`github_pr_get`, `github_commit_checks`). Numbers (`<number>`,
+`<comment-id>`, `--line`) are read as whole numbers from the start of the text, so
+`12abc` is 12. Write commands need `writes` on the connection and `--allow-write`. The
+deletes (`pr delete-comment`, `pr delete-review-comment`, `issue unlabel`,
+`pr remove-reviewers`, `issue unassign`) run on the CLI only and are never MCP tools.
+Owner, repo, labels and refs go into request paths as typed; a value that would make a
+`.` or `..` path segment is refused with `INVALID_INPUT`.
 
-- **Repositories and issues:** `create-repo` (`--name`, `--description`, `--private`,
-  `--auto-init`); `create-issue` (`--title`, `--body` or `--body-file <path>` with `-`
-  for stdin, repeatable `--label` and `--assignee`).
-- **Issues as work items:** each issue is GitHub's own, with the issue type in `type`,
-  sub-issue counts in `sub_issues_summary` and the parent in `parent_issue_url`, where
-  the server has them.
-  - `list-issues` (`--state open|closed|all`, default `open`; repeatable `--label`, all
+- **Repositories:** `repo create` (`--name`, `--description`, `--private`,
+  `--auto-init`).
+- **Issues:** each issue is GitHub's own, with the issue type in `type`, sub-issue
+  counts in `sub_issues_summary` and the parent in `parent_issue_url`, where the server
+  has them.
+  - `issue create` (`--title`, `--body` or `--body-file <path>` with `-` for stdin,
+    repeatable `--label` and `--assignee`).
+  - `issue list` (`--state open|closed|all`, default `open`; repeatable `--label`, all
     of which must match; `--assignee`, `--type` with `none` or `*` too; `--sort
     created|updated|comments`, `--direction asc|desc`; `--updated-since <iso>`,
     GitHub's `since`). The issues endpoint mixes pull requests in; toil leaves them out
-    (`list-prs` has them).
-  - `search-issues --query <q>` (GitHub search syntax; `--sort`, `--order`,
+    (`pr list` has them).
+  - `issue search --query <q>` (GitHub search syntax; `--sort`, `--order`,
     `--updated-since`). toil adds `is:issue`, and `updated:>=<iso>` with
     `--updated-since`, but not `--owner` or `--repo`: scope the query with `repo:`,
     `org:` or `user:`. GitHub serves only the first 1,000 results of a search, so past
     that toil stops with a `GITHUB_SEARCH_CAPPED` warning; a search GitHub timed out
     part of gets `GITHUB_SEARCH_INCOMPLETE`.
-  - `get-issue --number <n>`, repeatable up to 100. One number returns the issue
+  - `issue get <number...>`, up to 100 numbers. One number returns the issue
     itself. Several return `{ issues, errors }`, read four at a time, where an issue
     GitHub can't find or answers with an error goes into `errors` as `{ number, code,
     message }`, with a `GITHUB_ISSUES_FAILED` warning; a bad token or a timeout still
     fails the call. `--sub-issues` adds `sub_issues`, each issue's sub-issues, one more
     request per issue.
-  - `issue-events --number <n>`: the issue's timeline, oldest first, as GitHub returns
+  - `issue history <number>`: the issue's timeline, oldest first, as GitHub returns
     it: `closed` and `reopened` (with `state_reason`), `labeled`, `assigned`,
     `issue_type_added` and `issue_type_changed`, `sub_issue_added`,
     `cross-referenced` (the PRs that mention it), `commented` and the rest.
   - `--updated-since` reads a date the way `--created-after` does (a date alone is UTC
     midnight) and sends it as UTC to the second, `2025-01-31T00:00:00Z`.
+  - Labels and assignees, on an issue or a pull request by its number: `issue label
+    <number>` (repeatable `--label`), `issue unlabel <number> --label`, `issue assign
+    <number>` and `issue unassign <number>` (repeatable `--assignee`). `pr label`,
+    `pr unlabel`, `pr assign` and `pr unassign` are the same commands.
 - **Projects (v2):** GitHub's boards, read over GraphQL. They belong to an owner, so
-  only `--owner` is read; `--project` is the number in the project's URL.
-  - `projects list`: the owner's projects (`id`, `number`, `title`, `url`, `closed`, …).
-  - `projects fields --project <n>`: each field's `id`, `name` and `dataType`, a
+  only `--owner` is read; `<project>` is the number in the project's URL.
+  - `project list`: the owner's projects (`id`, `number`, `title`, `url`, `closed`, …).
+  - `project fields <project>`: each field's `id`, `name` and `dataType`, a
     single-select field's `options` (Status), and an iteration field's
     `configuration` with its `iterations` and `completedIterations`.
-  - `projects list-items --project <n>`: each item's `id`, `type` (`ISSUE`,
+  - `project items <project>`: each item's `id`, `type` (`ISSUE`,
     `PULL_REQUEST`, `DRAFT_ISSUE`), `content` (number, title, state, url and
     repository) and `fieldValues`, each with its `field.name` and value (`text`,
     `number`, `date`, a single-select `name`, or an iteration's `title` and
     `startDate`). An item's first 100 values are read, with a
     `GITHUB_PROJECT_VALUES_TRUNCATED` warning past that.
-- **Pull requests:** `list-prs` (`--state open|closed|all`, default `open`; `--head
-  user:branch`, `--base`; `--author` and `--created-after`/`--created-before`, ISO 8601,
-  are filtered as each page comes in, the author case-insensitively; a date alone is
-  UTC midnight, a date-time with no zone local time), `get-pr`, `create-pr` (`--title`,
-  `--head`, `--base` defaulting to `targetBranch` then `main`, `--body`/`--body-file`,
-  `--draft`), `update-pr` (`--title`, `--body`, `--base`), `merge-pr` (`--method
+- **Pull requests** (`<number>` is the pull request number): `pr list` (`--state
+  open|closed|all`, default `open`; `--head user:branch`, `--base`; `--author` and
+  `--created-after`/`--created-before`, ISO 8601, are filtered as each page comes in,
+  the author case-insensitively; a date alone is UTC midnight, a date-time with no zone
+  local time), `pr get <number>`, `pr create` (`--title`, `--head`, `--base`
+  defaulting to `targetBranch` then `main`, `--body`/`--body-file`, `--draft`),
+  `pr update <number>` (`--title`, `--body`, `--base`), `pr merge <number>` (`--method
   merge|squash|rebase`, default `merge`, always sent; `--commit-title`,
-  `--commit-message`), `close-pr`, `reopen-pr`, `convert-to-draft`, `ready-for-review`.
-- **Merging:** `enable-auto-merge` and `enqueue-pr` (`--method`, `--match-head-commit
-  <sha>`), `disable-auto-merge`.
-- **Comments:** `list-comments`, `add-comment`, `list-review-comments`,
-  `add-inline-comment` (`--commit`, `--file`, `--line`, `--side LEFT|RIGHT`, default
-  `RIGHT`), `reply-comment` (`--comment-id`), `delete-comment`,
-  `delete-review-comment`.
-- **Diff and files:** `diff` returns `{ diff }`, the unified diff as text;
-  `list-files`.
-- **Reviews:** `list-reviews`, `approve` (`--body` optional), `request-changes`
-  (`--body` required), `list-reviewers`, `list-review-threads` (thread ids for
-  `resolve-thread`; the first 100 threads with a `GITHUB_REVIEW_THREADS_TRUNCATED`
-  warning past that, and the first 10 comments of each), `resolve-thread
-  --thread-id`, `add-reviewers` and `remove-reviewers` (repeatable `--reviewer` and
-  `--team-reviewer`, at least one).
-- **Status:** `get-status --ref` (the combined status; GitHub's first 30 statuses),
-  `list-checks --ref`, `pr-status` (review decision, mergeability, draft and
-  auto-merge state, and the first 100 checks counted into `checks.passed`, `failed`,
-  `pending` and `other`).
-- **Labels and assignees:** `add-labels` (repeatable `--label`), `remove-label
-  --label`, `add-assignees` and `remove-assignees` (repeatable `--assignee`).
+  `--commit-message`), `pr close <number>`, `pr reopen <number>`, `pr draft <number>`,
+  `pr ready <number>`.
+- **Merging:** `pr enable-auto-merge <number>` and `pr enqueue <number>` (`--method`,
+  `--match-head-commit <sha>`), `pr disable-auto-merge <number>`.
+- **Comments:** `pr comments <number>` and `pr comment <number> --body` (the general
+  comments, which work on an issue's number too; `issue comments` and `issue comment`
+  are the same commands), `pr review-comments <number>`,
+  `pr comment-inline <number>` (`--commit`, `--file`, `--line`, `--body`, `--side
+  LEFT|RIGHT`, default `RIGHT`), `pr reply <number> <comment-id> --body`,
+  `pr delete-comment <comment-id>`, `pr delete-review-comment <comment-id>`.
+- **Diff and files:** `pr diff <number>` returns `{ diff }`, the unified diff as text;
+  `pr files <number>`.
+- **Reviews:** `pr reviews <number>`, `pr approve <number>` (`--body` optional),
+  `pr request-changes <number>` (`--body` required), `pr reviewers <number>`,
+  `pr threads <number>` (thread ids for `pr resolve`; the first 100 threads with a
+  `GITHUB_REVIEW_THREADS_TRUNCATED` warning past that, and the first 10 comments of
+  each), `pr resolve <thread-id>`, `pr add-reviewers <number>` and
+  `pr remove-reviewers <number>` (repeatable `--reviewer` and `--team-reviewer`, at
+  least one).
+- **Status:** `commit status <ref>` (the combined status; GitHub's first 30 statuses),
+  `commit checks <ref>`, `pr status <number>` (review decision, mergeability, draft
+  and auto-merge state, and the first 100 checks counted into `checks.passed`,
+  `failed`, `pending` and `other`).
 
 Lists page 100 at a time until a short page, and stop with an error after 1,000 pages.
-Every list (`list-prs`, `list-files`, `list-comments`, `list-review-comments`,
-`list-reviews`, `list-checks`, `list-issues`, `search-issues`, `issue-events` and the
-three `projects` lists) reads every page by default. `--limit <n>` stops after `n`
-items and sets `meta.page.nextCursor`; pass it back as `--cursor` with the same
-`--limit` for the next `n`, until `nextCursor` is `null`. On `list-prs`, `--limit`
-counts the pull requests that pass `--author` and the date filters.
+Every list (`pr list`, `pr files`, `pr comments`, `pr review-comments`, `pr reviews`,
+`commit checks`, `issue list`, `issue search`, `issue history` and the three `project`
+lists) reads every page by default. `--limit <n>` stops after `n` items and sets
+`meta.page.nextCursor`; pass it back as `--cursor` with the same `--limit` for the next
+`n`, until `nextCursor` is `null`. On `pr list`, `--limit` counts the pull requests that
+pass `--author` and the date filters.
 
 ```bash
-toil github list-issues --state all --sort updated --direction asc --updated-since 2025-01-31T00:00:00Z --limit 100
-toil github get-issue --number 9 --number 10 --sub-issues
-toil github --owner imagile projects list-items --project 3
-toil github list-prs --state all --author octo-dev
-toil github --owner imagile --repo toil-probe pr-status --number 7
-toil github create-pr --title "Add the probe" --head feature --body-file pr.md --allow-write
+toil github issue list --state all --sort updated --direction asc --updated-since 2025-01-31T00:00:00Z --limit 100
+toil github issue get 9 10 --sub-issues
+toil github --owner imagile project items 3
+toil github pr list --state all --author octo-dev
+toil github --owner imagile --repo toil-probe pr status 7
+toil github pr create --title "Add the probe" --head feature --body-file pr.md --allow-write
 ```
 
 ## Checking a dossier

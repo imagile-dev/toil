@@ -121,7 +121,7 @@ export function spacePath(space: string | undefined, path: string): string {
   return `/s/${encodeURIComponent(space)}${path}`;
 }
 
-/** A whole number of at least 1, from a number or its text, as `--page` and `--per-page` take it. */
+/** A whole number of at least 1, from a number or its text, as `--page` and `--page-size` take it. */
 export function positiveInt(value: number | string, flag: string): number {
   const n = Number(value);
   if (!Number.isInteger(n) || n < 1) throw new ToilError('INVALID_INPUT', `${flag} must be a positive integer.`, { fix: `Pass a whole number of 1 or more to ${flag}.` });

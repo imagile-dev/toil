@@ -1,8 +1,8 @@
 /**
  * A GitHub repository run without a Projects board, as GitHub's REST API
- * returned it: twelve of the issues `github list-issues --state all` read
+ * returned it: twelve of the issues `github issue list --state all` read
  * from a seeded private repository on 2026-10-19 (ui/scripts/seed-sandbox.mjs
- * made it), and five of their timelines (`github issue-events`). Milestones
+ * made it), and five of their timelines (`github issue history`). Milestones
  * Sprint 41 (closed), 42 and 43 as sprints, `points: N` labels, and
  * "Blocked by #n" in the bodies. Sanitized to placeholders (the repository is
  * imagile/payments-sandbox and every login octo-dev) and trimmed to the fields

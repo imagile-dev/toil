@@ -101,7 +101,7 @@ describe('input parsing', () => {
     const { envelope, calls } = await run(jobListCommand, { limit: '-1' }, []);
     expect(calls).toEqual([]);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid --limit "-1". Expected a non-negative integer.' });
-    expect((await run(jobListCommand, { skip: 2.5 }, [])).envelope.error?.message).toBe('Invalid --skip "2.5". Expected a non-negative integer.');
+    expect((await run(jobListCommand, { offset: 2.5 }, [])).envelope.error?.message).toBe('Invalid --offset "2.5". Expected a non-negative integer.');
   });
 
   it('matches enums ignoring case and sends the canonical spelling', async () => {

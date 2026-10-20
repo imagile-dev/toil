@@ -7,7 +7,7 @@ import type { ArtifactoryConnection, ArtifactoryContext } from './client.js';
 import { isNewer, updateType } from '../../core/versions.js';
 
 /**
- * `outdated` and `license-check`: newer versions and licenses, from the
+ * `package outdated` and `package license-check`: newer versions and licenses, from the
  * connection's npm, NuGet and Maven repositories, for the direct
  * dependencies in an inventory that `toil deps scan` wrote (`--from <file>`,
  * or stdin). `deps outdated` and `deps license-check` paths are
@@ -32,7 +32,7 @@ const ecosystemField = z.string().optional().describe(ECOSYSTEM_DESCRIPTION);
 
 /** The inventory, read by core's shared reader, with the fix naming this area's commands. */
 function readInventory(ctx: ArtifactoryContext, from: string | undefined): InventoryPackage[] {
-  return readSharedInventory(ctx, from, { pipeTo: 'toil artifactory <command>' });
+  return readSharedInventory(ctx, from, { pipeTo: 'toil artifactory package <command>' });
 }
 
 /**
@@ -123,7 +123,7 @@ async function license(ctx: ArtifactoryContext, repo: string, pkg: InventoryPack
 }
 
 export const outdatedCommand = artifactoryArea.command({
-  path: ['artifactory', 'outdated'],
+  path: ['artifactory', 'package', 'outdated'],
   aliases: [['deps', 'outdated']],
   description: 'Check for newer versions available in Artifactory (requires Artifactory)',
   toolDescription:
@@ -175,7 +175,7 @@ export const outdatedCommand = artifactoryArea.command({
 });
 
 export const licenseCheckCommand = artifactoryArea.command({
-  path: ['artifactory', 'license-check'],
+  path: ['artifactory', 'package', 'license-check'],
   aliases: [['deps', 'license-check']],
   description: 'Report licenses for all direct dependencies via Artifactory (requires Artifactory)',
   toolDescription:

@@ -165,7 +165,7 @@ describe('which dossier applies', () => {
     const d = disk({ 'home/.toil/dossiers/payments.json': payments, 'work/.toil/dossiers/payments-team.json': { name: 'payments-team' } });
     asRepo(d);
     // An area with nothing set up, answered by the command itself.
-    const unconfigured = await both(d, ['bitbucket', 'current-pr'], 'bitbucket_current_pr', {});
+    const unconfigured = await both(d, ['bitbucket', 'pr', 'current'], 'bitbucket_pr_current', {});
     expect(unconfigured.envelope).toMatchObject({ ok: true, data: { message: 'Requires Bitbucket config. Available after toil connections add.' } });
     expect(unconfigured.envelope.meta.context?.dossier).toBeUndefined();
     // Every input and the connection given: the dossier is never asked.
@@ -190,7 +190,7 @@ describe('which dossier applies', () => {
     for (const [dossier, code, message] of cases) {
       for (const [argv, tool, args] of [
         [explicit, 'demo_context_get_widget', explicitArgs],
-        [['bitbucket', 'current-pr'], 'bitbucket_current_pr', {}],
+        [['bitbucket', 'pr', 'current'], 'bitbucket_pr_current', {}],
       ] as const) {
         const { envelope, calls } = await both(d, [...argv, '--dossier', dossier], tool, { ...args, dossier });
         expect(envelope.error, `${argv.join(' ')} --dossier ${dossier}`).toMatchObject({ code, message: expect.stringMatching(message) });
