@@ -21,7 +21,7 @@ import type { WorklogApi, WorklogDay } from '../src/worklog.ts';
  */
 
 const item = (dossier: string, id: string) => `#/dossier/${dossier}/item/${encodeURIComponent(id)}`;
-const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', '#/dossier/checkout-web/prs', '#/dossier/card-payments/prs', '#/dossier/card-payments/worklog', '#/dossier/checkout-web/worklog/2026-10-12', item('card-payments', 'corp-jira:PAY-101'), '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/usage', '#/settings/agent'];
+const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', '#/dossier/checkout-web/prs', '#/dossier/card-payments/prs', '#/dossier/checkout-web/people', '#/dossier/card-payments/people', '#/dossier/settlement/people', '#/dossier/card-payments/board/person%3AJ.%20Smith', '#/dossier/card-payments/worklog', '#/dossier/checkout-web/worklog/2026-10-12', item('card-payments', 'corp-jira:PAY-101'), '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/usage', '#/settings/agent'];
 
 async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), config = fixtureConfig(), agentSettings, worklog = fixtureWorklog() }: { preview?: boolean; execute?: Execute; agent?: Agent; config?: ConfigApi; agentSettings?: AgentSettingsPanelProps; worklog?: WorklogApi | null } = {}) {
   window.location.hash = hash;
@@ -827,6 +827,105 @@ function cleanupView() {
   cleanup();
   window.location.hash = '';
 }
+
+describe('the people view (#292)', () => {
+  /** The preview's config with changes on, recording what each change sent. */
+  function recording() {
+    const base = fixtureConfig();
+    const sent: Array<{ command: string; input: Record<string, unknown> }> = [];
+    const config: ConfigApi = {
+      ...base,
+      disabled: null,
+      run: async (command, input) => {
+        sent.push({ command, input });
+        return { ok: true, data: {}, error: null, meta: { command, durationMs: 0, version: 'x', contractVersion: 1 } };
+      },
+    };
+    return { config, sent };
+  }
+  const cards = (section: string) => within(screen.getByRole('heading', { level: 2, name: section }).closest('section') as HTMLElement).getAllByRole('article');
+
+  it('has a card per person in name order, agents included and tagged, and a team strip, and is in the navigation', async () => {
+    await open('#/dossier/checkout-web/people');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('People');
+    expect(within(screen.getByRole('navigation', { name: 'Views' })).getByRole('link', { name: 'People' }).getAttribute('aria-current')).toBe('page');
+    expect(cards('People and agents').map((c) => within(c).getByRole('heading', { level: 3 }).textContent)).toEqual(['Ada D.', 'Bo W.', 'Claude']);
+    const claude = screen.getByRole('article', { name: 'Claude' });
+    expect(within(claude).getByRole('list', { name: 'About Claude' }).textContent).toBe('Agent');
+    expect(claude.textContent).toContain('payments-web #51 Retry the address lookup once');
+    const ada = screen.getByRole('article', { name: 'Ada D.' });
+    expect(ada.textContent).toContain('GitHub ada-dev · Bitbucket 557058:abc12345-0000-0000-0000-000000000020 (Ada D.)');
+    expect(ada.textContent).toContain('written with Claude');
+    expect(within(ada).getByRole('heading', { name: 'Reviews waiting on them' }).nextElementSibling!.textContent).toContain('checkout-sdk #12');
+    const team = panel('Team');
+    expect(team.textContent).toContain('Limit 2 per person. Nobody is over it.');
+    expect(team.textContent).toContain('Longest: Bitbucket checkout-sdk #12, 1.3 working days.');
+    expect(within(team).getByRole('list', { name: 'Unassigned in Sprint 42' }).textContent).toContain('payments-web#45');
+    expect(cards("Not in the dossier's people").map((c) => within(c).getByRole('heading', { level: 3 }).textContent)).toEqual(['Bo W.']);
+    expect(document.body.textContent).toContain('1 pull request was written with an agent the dossier\'s people don\'t name (branch copilot/receipt-currency).');
+    // Load, never a score.
+    expect(document.querySelector('main')!.textContent).not.toMatch(/\b(score|rank(ed|ing)?|leaderboard|productivity)\b/i);
+  });
+
+  it('suggests a match by email with the command that applies it, turned off in the preview', async () => {
+    await open('#/dossier/card-payments/people');
+    const matches = panel('Possible matches');
+    expect(matches.textContent).toContain("Bitbucket achen (A. Chen) has A. Chen's email (you@example.com): probably A. Chen.");
+    expect(matches.textContent).toContain('Applies toil dossiers person card-payments "A. Chen" --id bitbucket=achen');
+    const button = within(matches).getByRole('button', { name: 'Map to A. Chen' }) as HTMLButtonElement;
+    expect(button.disabled).toBe(true);
+    expect(matches.textContent).toContain('Turned off: This is the preview');
+    expect(document.body.textContent).toContain('1 bot account (svc-renovate) only wrote bots\' pull requests and is left out.');
+  });
+
+  it('applies a match only when a person presses it, through toil dossiers person', async () => {
+    const { config, sent } = recording();
+    await open('#/dossier/card-payments/people', { config });
+    expect(sent).toEqual([]);
+    await userEvent.click(within(panel('Possible matches')).getByRole('button', { name: 'Map to A. Chen' }));
+    expect(await within(panel('Possible matches')).findByText("Mapped in card-payments's people. Reload the dossier to see the cards change.")).toBeTruthy();
+    expect(sent).toEqual([{ command: 'dossiers person', input: { dossier: 'card-payments', name: 'A. Chen', id: ['bitbucket=achen'] } }]);
+  });
+
+  it('gives every account its own card when the dossier lists nobody, and says how to map them', async () => {
+    await open('#/dossier/settlement/people');
+    expect(screen.queryByRole('heading', { level: 2, name: 'People and agents' })).toBeNull();
+    expect(cards("Accounts in this dossier's data").map((c) => within(c).getByRole('heading', { level: 3 }).textContent)).toEqual(['D. Okafor', 'J. Park', 'K. Nakamura', 'M. Lind']);
+    expect(document.body.textContent).toContain('toil dossiers person settlement "Pat Example" --id jira=pat --id github=pat-ex');
+    expect(panel('Team').textContent).toContain('No limit is set in the dossier.');
+  });
+
+  it("opens a person's items on the board, filtered to them, with the way back", async () => {
+    await open('#/dossier/card-payments/people');
+    const link = within(screen.getByRole('article', { name: 'J. Smith' })).getByRole('link', { name: "J. Smith's items on the board" });
+    expect(link.getAttribute('href')).toBe('#/dossier/card-payments/board/person%3AJ.%20Smith');
+    cleanup();
+    await open('#/dossier/card-payments/board/person%3AJ.%20Smith');
+    const filter = document.getElementById('board-filter')!;
+    expect(filter.textContent).toMatch(/^Showing J\. Smith's items: \d+ items? on this board/);
+    const board = panel('Sprint 42 board');
+    const shown = within(board).getAllByRole('listitem').filter((li) => li.classList.contains('card'));
+    expect(shown.length).toBeGreaterThan(0);
+    for (const card of shown) expect(card.textContent).toContain('J. Smith');
+    expect(within(filter).getByRole('link', { name: "Show everyone's" }).getAttribute('href')).toBe('#/dossier/card-payments');
+  });
+
+  it('says so when a board link names nobody', async () => {
+    await open('#/dossier/card-payments/board/person%3ANobody');
+    expect(document.getElementById('board-filter')!.textContent).toContain("The People view's link named nobody this dossier's data shows");
+  });
+
+  it('shows the people and the limit on the settings page, with forms to add a person and set the limit', async () => {
+    await open('#/settings/dossiers');
+    const card = await screen.findByRole('article', { name: 'card-payments' });
+    await userEvent.click(within(card).getByRole('button', { name: 'Show' }));
+    await waitFor(() => expect(card.textContent).toContain('J. Smith jira jsmith, bitbucket jsmith'));
+    expect(card.textContent).toContain('Work-in-progress limit: 2 per person.');
+    const person = screen.getByRole('form', { name: /Add a person to/ });
+    expect(person.textContent).toContain('--remove');
+    expect(screen.getByRole('form', { name: /work-in-progress limit/ }).textContent).toContain('toil dossiers wip-limit');
+  });
+});
 
 describe('the worklog (#308)', () => {
   it('is a route per dossier, and per UTC day', () => {

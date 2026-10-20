@@ -13,6 +13,12 @@
  *   (project 7) and Actions checks, its SDK on Bitbucket Cloud
  *   (imagile/checkout-sdk), and OpenShift for staging and prod.
  *
+ * Two say who is who (#292): card-payments maps J. Smith and R. Patel and
+ * gives A. Chen an email, so the People view suggests her Bitbucket account;
+ * checkout-web maps Ada across GitHub and Bitbucket Cloud, Bo on GitHub only,
+ * and Claude as an agent. settlement lists nobody, so every account in its
+ * data gets a card of its own.
+ *
  * Reference data (`jobs`, `builds`, `deployments`, `projects`) is the kind a
  * dossier keeps as written (docs/dossiers.md); the dashboard reads it to know
  * which pipelines and boards to ask about. Every host is a placeholder.
@@ -25,6 +31,8 @@ export interface DossierFile {
   env?: string;
   repos: Array<{ name: string; remotes: string[] }>;
   environments?: Record<string, Record<string, Record<string, unknown>>>;
+  people?: Array<{ name: string; kind?: 'human' | 'agent'; email?: string; ids: Record<string, string> }>;
+  wipLimit?: number;
   [area: string]: unknown;
 }
 
@@ -41,6 +49,12 @@ export const DOSSIERS: DossierFile[] = [
       dev: { openshift: { connection: 'ocp-nonprod', namespace: 'payments-dev' } },
       prod: { openshift: { connection: 'ocp-prod', namespace: 'payments-prod' } },
     },
+    people: [
+      { name: 'J. Smith', ids: { jira: 'jsmith', bitbucket: 'jsmith' } },
+      { name: 'A. Chen', email: 'you@example.com', ids: { jira: 'achen' } },
+      { name: 'R. Patel', ids: { jira: 'rpatel' } },
+    ],
+    wipLimit: 2,
   },
   {
     name: 'settlement',
@@ -62,6 +76,12 @@ export const DOSSIERS: DossierFile[] = [
       staging: { openshift: { connection: 'ocp-nonprod', namespace: 'checkout-staging' } },
       prod: { openshift: { connection: 'ocp-prod', namespace: 'checkout-prod' } },
     },
+    people: [
+      { name: 'Ada D.', ids: { github: 'ada-dev', 'bitbucket-cloud': '557058:abc12345-0000-0000-0000-000000000020' } },
+      { name: 'Bo W.', ids: { github: 'bo-web' } },
+      { name: 'Claude', kind: 'agent', ids: {} },
+    ],
+    wipLimit: 2,
   },
 ];
 
@@ -83,7 +103,7 @@ const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 
 /** `toil dossiers show <name>`'s data. */
 export function showData(d: DossierFile) {
-  const { name, description, env, repos, environments, ...sections } = d;
+  const { name, description, env, repos, environments, people, wipLimit, ...sections } = d;
   const areaNames = new Set([...Object.keys(sections), ...Object.values(environments ?? {}).flatMap((e) => Object.keys(e))]);
   const areas: Record<string, unknown> = {};
   for (const area of [...areaNames].sort()) {
@@ -105,7 +125,7 @@ export function showData(d: DossierFile) {
     repo: null,
     adopted: true,
     areas,
-    dossier: { name, description, ...(env ? { env } : {}), repos, ...sections, ...(environments ? { environments } : {}) },
+    dossier: { name, description, ...(env ? { env } : {}), repos, ...sections, ...(environments ? { environments } : {}), ...(people ? { people } : {}), ...(wipLimit ? { wipLimit } : {}) },
     problems: [],
   };
 }

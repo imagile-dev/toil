@@ -53,16 +53,36 @@ export const STARTERS: readonly StarterPrompt[] = [
     prompt: (d) => `What happened on the dossier "${d}" yesterday? Read yesterday's page with worklog_day (days are UTC) and say what moved, what merged or was reviewed, what failed or recovered, what the agents did and what a person noted, citing every work item and pull request. Say what the page says it can't vouch for, if anything.`,
   },
   {
+    id: 'people-load',
+    label: "Who's overloaded or blocked?",
+    prompt: (d) => `Who in the dossier "${d}" is overloaded or blocked? Use people_list: say who has more in progress than the dossier's limit (or, with no limit set, who carries the most open work, as a fact and not a judgement), whose items are blocked and by what, and which reviews have waited longest on whom. Then person_get for anyone you name. Cite every item and pull request by its id. Describe each person's plate; never rank or score people against each other.`,
+  },
+  {
+    id: 'one-on-one',
+    label: 'Prepare my 1:1 notes for <person>',
+    prompt: (d) =>
+      `Someone wants 1:1 notes for a person in the dossier "${d}" but didn't say who. Call people_list and reply with the people they can ask about, one per line, each written as the question to ask: Prepare my 1:1 notes for <name>. Nothing else.`,
+  },
+  {
     id: 'release-notes',
     label: 'Release notes',
     prompt: (d) => `Draft release notes for the dossier "${d}" from the work that is done, grouped by type, saying for each item where it is deployed if the cache shows that.`,
   },
 ];
 
-/** The question for a starter id, or the typed text as it is. */
+/** "Prepare my 1:1 notes for Pat": the 1:1 starter with its person filled in, typed or picked. */
+const ONE_ON_ONE = /^\s*prepare\s+(?:my\s+)?1:1\s+notes\s+for\s+(.+?)\s*[.?!]?\s*$/i;
+
+/** The 1:1 notes question for one person: facts about the work, each citing its id, and nothing about the person. */
+export const oneOnOnePrompt = (dossier: string, person: string) =>
+  `Prepare 1:1 notes for ${person} in the dossier "${dossier}". Use person_get for ${person} (people_list if the name doesn't match). Stick to facts about the work: what they have in progress and for how long, their open pull requests and what each waits on, reviews waiting on them, what blocks them, and what they finished or reviewed lately, then two or three questions to ask about blockers and support. Cite every item and pull request by its id. No opinion of the person, no score, and no comparison with anyone else.`;
+
+/** The question for a starter id, or the typed text as it is; "Prepare my 1:1 notes for <person>" typed out gets the 1:1 instructions. */
 export function promptFor(dossier: string, prompt: string): { label: string; text: string } {
   const starter = STARTERS.find((s) => s.id === prompt);
-  return starter ? { label: starter.label, text: starter.prompt(dossier) } : { label: prompt, text: prompt };
+  if (starter) return { label: starter.label, text: starter.prompt(dossier) };
+  const oneOnOne = ONE_ON_ONE.exec(prompt)?.[1];
+  return oneOnOne && !oneOnOne.startsWith('<') ? { label: prompt, text: oneOnOnePrompt(dossier, oneOnOne) } : { label: prompt, text: prompt };
 }
 
 /** The longest the person's general instructions or custom voice may be, in characters (settings.ts holds them to it). */
@@ -88,7 +108,7 @@ function rules(dossier: string, now: string): string[] {
     `You are the analyst inside Toil UI, answering a question about the dossier "${dossier}": one body of work, its tracker items, pull requests, builds and deployments. It is ${now}.`,
     '',
     'Rules:',
-    `1. Use only your tools. owi_query, owi_get, owi_similar and owi_history read the work items Toil UI last synced for "${dossier}"; owi_similar finds likely duplicates, so run it before proposing a new item. pr_query, pr_get and pr_metrics read its pull requests. worklog_day reads one UTC day's worklog: what changed that day, by whom and when. The other tools are toil's live read commands for the same dossier; use them only when the cache can't answer. Never rely on anything you remember about these items.`,
+    `1. Use only your tools. owi_query, owi_get, owi_similar and owi_history read the work items Toil UI last synced for "${dossier}"; owi_similar finds likely duplicates, so run it before proposing a new item. pr_query, pr_get and pr_metrics read its pull requests. people_list and person_get read what is on each person's plate; they describe load, never performance, so never rank or score people. worklog_day reads one UTC day's worklog: what changed that day, by whom and when. The other tools are toil's live read commands for the same dossier; use them only when the cache can't answer. Never rely on anything you remember about these items.`,
     '2. Cite every work item you mention by its OWI id in double square brackets, such as [[jira:PAY-101]], and every pull request by its change id, such as [[github:imagile/payments-web#52]], exactly as your tools returned it. Never mention an item or pull request your tools did not return: the server checks every id against your tool results and flags any it never saw.',
     '3. You cannot change anything, and you have no tool that writes. When the question calls for a change (a re-estimate, a move to another sprint, a split story, a transition), write it as a proposal for a person to apply, in a fenced block like this, one block per change:',
     '```proposal',

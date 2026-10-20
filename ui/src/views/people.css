@@ -1,0 +1,29 @@
+/* The People view (#292): the team strip, one card per person, and the
+   matches to approve. Colours come from the theme's tokens, so every theme
+   styles it; long names and ids wrap rather than widen a card. */
+
+.people-section { margin-top: 1.5rem; }
+.people-section > h2 { margin-bottom: 0.5rem; }
+.people-section > .note { margin-bottom: 0.75rem; max-width: 70ch; }
+
+.team-strip { margin-top: 0.5rem; }
+.team-tile { padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; height: 100%; box-sizing: border-box; }
+.team-tile h3 { font-size: 1rem; margin: 0; }
+.team-figure { font-family: var(--font-display); font-size: 2rem; font-weight: 700; line-height: 1; color: var(--ink); }
+
+.person-card { background: var(--raised); overflow-wrap: anywhere; }
+.person-card h4 { font-size: 0.9375rem; margin: 0.25rem 0 0; }
+.person-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; }
+.person-head h3 { margin: 0; font-size: 1.125rem; }
+.person-tags { display: flex; flex-wrap: wrap; gap: 0.3rem; list-style: none; padding: 0; margin: 0; }
+.person-tag { display: inline-block; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid var(--line); font-size: 0.8125rem; color: var(--ink); background: var(--surface); }
+.person-tag--warn { border-color: var(--warn); color: var(--warn); font-weight: 600; }
+.person-group { display: grid; gap: 0.2rem; }
+.person-status { font-weight: 600; font-size: 0.875rem; }
+
+.people-cards .runs, .panel .runs { font-size: 0.875rem; color: var(--muted); }
+.panel .runs code { color: var(--ink); }
+.any-break { overflow-wrap: anywhere; }
+
+/* The dashboard's board, filtered to one person from here. */
+.board-filter { margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: var(--radius); background: var(--surface); }

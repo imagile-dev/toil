@@ -118,6 +118,35 @@
     ]
   },
   {
+    "name": "person",
+    "tool": "dossiers_person",
+    "description": "Add someone to a dossier's people, with the identity each system knows them by",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<dossier>",
+      "<name>",
+      "--id <area=identity>",
+      "--kind <kind>",
+      "--email <address>",
+      "--remove",
+      "--replace"
+    ]
+  },
+  {
+    "name": "wip-limit",
+    "tool": "dossiers_wip_limit",
+    "description": "Set how many items one person may have in progress at once",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<dossier>",
+      "[limit]",
+      "--clear",
+      "--replace"
+    ]
+  },
+  {
     "name": "export",
     "tool": "dossiers_export",
     "description": "Write a dossier for sharing: into a repository's .toil/dossiers, or to one file",

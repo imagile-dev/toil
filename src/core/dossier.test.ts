@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasSecretUserinfo, normalizeRemote, samePath, stripUserinfo, validateDossier } from './dossier.js';
+import { dossierContent, hasSecretUserinfo, normalizeRemote, samePath, stripUserinfo, validateDossier } from './dossier.js';
 
 const areas = [
   { name: 'jira', context: ['project'] },
@@ -93,5 +93,61 @@ describe('validateDossier', () => {
       areas,
     );
     expect(problems.map((p) => p.path)).toEqual(['repos[1].name', 'repos[1].path', 'repos[1].remotes[0]']);
+  });
+
+  it('reads the people list and the work-in-progress limit, and shows them as written', () => {
+    const raw = {
+      name: 'payments',
+      people: [
+        { name: 'Pat Example', email: 'you@example.com', ids: { jira: 'pat', github: ' pat-ex ' } },
+        { name: 'Claude', kind: 'agent', ids: {} },
+      ],
+      wipLimit: 3,
+    };
+    const { dossier, problems } = validateDossier(raw, [...areas, { name: 'github', context: ['owner', 'repo'] }]);
+    expect(problems).toEqual([]);
+    expect(dossier?.people).toEqual([
+      { name: 'Pat Example', email: 'you@example.com', ids: { jira: 'pat', github: 'pat-ex' } },
+      { name: 'Claude', kind: 'agent', ids: {} },
+    ]);
+    expect(dossier?.sections).toEqual({});
+    expect(dossierContent(dossier!)).toMatchObject({ people: dossier!.people, wipLimit: 3 });
+    expect(dossierContent(validateDossier({ name: 'bare' }, areas).dossier!)).not.toHaveProperty('people');
+  });
+
+  it("refuses a person it can't use, an identity on two people, one shaped like a token, and a limit that isn't a whole number", () => {
+    const { dossier, problems } = validateDossier(
+      {
+        name: 'payments',
+        people: [
+          { name: 'Pat', kind: 'robot', email: 'not-an-email', ids: { jira: 'pat' } },
+          { name: 'pat', ids: { jira: 'PAT', wiki: 'pat' } },
+          { name: 'Sam', ids: { jira: 'ghp_abcdefghijklmnopqrstuvwxyz0123456789', github: 7 }, team: 'x' },
+          { ids: {} },
+        ],
+        wipLimit: 2.5,
+      },
+      areas,
+    );
+    expect(dossier).toBeUndefined();
+    expect(problems.map((p) => [p.level, p.path])).toEqual([
+      ['error', 'people[0].kind'],
+      ['error', 'people[0].email'],
+      ['error', 'people[1].name'],
+      ['error', 'people[1].ids.jira'],
+      ['warning', 'people[1].ids.wiki'],
+      ['warning', 'people[2].team'],
+      ['error', 'people[2].ids.jira'],
+      ['error', 'people[2].ids.github'],
+      ['error', 'people[3]'],
+      ['error', 'wipLimit'],
+    ]);
+    // Where, never what: the token-shaped value isn't repeated.
+    expect(JSON.stringify(problems)).not.toContain('ghp_');
+    expect(validateDossier({ name: 'p', people: { pat: {} } }, areas).problems.map((p) => p.path)).toEqual(['people']);
+    const token = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789';
+    const shaped = validateDossier({ name: 'p', people: [{ name: token }, { name: 'Sam', email: `x@${token}` }] }, areas).problems;
+    expect(shaped.map((p) => p.path)).toEqual(['people[0].name', 'people[1].email']);
+    expect(JSON.stringify(shaped)).not.toContain('ghp_');
   });
 });

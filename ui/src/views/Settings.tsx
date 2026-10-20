@@ -25,7 +25,7 @@ import { Usage } from './settings/Usage.tsx';
 
 const PAGES: Array<{ page: SettingsPage; label: string; about: string }> = [
   { page: 'connections', label: 'Connections', about: 'The connections toil uses: add, test, set the default, turn writes on or off, replace a secret, remove.' },
-  { page: 'dossiers', label: 'Dossiers', about: 'Create dossiers, and give them repositories, areas and field names.' },
+  { page: 'dossiers', label: 'Dossiers', about: 'Create dossiers, and give them repositories, areas, field names, people and a work-in-progress limit.' },
   { page: 'toil', label: 'General', about: 'How Toil UI looks, talks and moves in this browser, and the settings toil has no command for, shown as toil reports them.' },
   { page: 'usage', label: 'Usage', about: "How toil is used on this machine: calls per day, the commands used and failing most, and the ones never called, from toil's local audit log." },
   { page: 'agent', label: 'Agent', about: "Which agent answers questions in the chat, and your own instructions for it. These are Toil UI's own settings, never toil's." },

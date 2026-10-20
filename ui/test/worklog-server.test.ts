@@ -236,6 +236,26 @@ describe('agent runs', () => {
     }
   });
 
+  it('say they can\'t tell when the audit line keeps only a hash of a field the proposal named', async () => {
+    const create = run({ proposals: [{ id: 'p3', title: 'Split PAY-1', item: 'jira:PAY-1', command: 'jira issue create', input: { project: 'PAY', summary: 'Split part 2' } }] });
+    const { cache, worklog } = await setup({ audit: () => ok('audit list', [{ time: '2026-10-12T07:30:00.000Z', via: 'cli', command: 'jira issue create', writes: true, outcome: 'ok', input: { project: 'PAY', summary: 'sha256:abc12345' } }]) });
+    cache.saveDossier(save(T));
+    await worklog.recordRun(create);
+    expect((await worklog.day('card-payments', '2026-10-12')).markdown).toContain("couldn't check toil's audit log: toil's audit log has a jira issue create write after it, but keeps only a hash of its summary.");
+  });
+
+  it('read the audit log at most once a minute, since every read is a line in it', async () => {
+    const { cache, worklog, calls, tick } = await setup();
+    cache.saveDossier(save(T));
+    await worklog.recordRun(run());
+    await worklog.day('card-payments', '2026-10-12');
+    await worklog.day('card-payments', '2026-10-12');
+    expect(calls.filter((c) => c.command === 'audit list')).toHaveLength(1);
+    tick(61_000);
+    await worklog.day('card-payments', '2026-10-12');
+    expect(calls.filter((c) => c.command === 'audit list')).toHaveLength(2);
+  });
+
   it('say they can\'t tell when the audit log has more writes than one read returns', async () => {
     const capped: Envelope = { ...ok('audit list', []), meta: { ...ok('audit list', []).meta, warnings: [{ code: 'AUDIT_LIMIT', message: 'Showing the newest 1000.' }] } } as Envelope;
     const { cache, worklog } = await setup({ audit: () => capped });

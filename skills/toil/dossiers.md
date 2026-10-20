@@ -122,7 +122,13 @@ The request it sent was
   "environments": {
     "dev":  { "openshift": { "host": "api.ocp-nonprod.imagile.dev", "namespace": "payments-dev" } },
     "prod": { "openshift": { "host": "api.ocp.imagile.dev", "namespace": "payments-prod" } }
-  }
+  },
+  "people": [                                   // who is who in each system
+    { "name": "Pat Example", "email": "you@example.com",
+      "ids": { "jira": "pat", "github": "pat-ex", "ado": "you@example.com" } },
+    { "name": "Claude", "kind": "agent", "ids": { "github": "claude" } }
+  ],
+  "wipLimit": 3                                 // items one person may have in progress at once
 }
 ```
 
@@ -157,6 +163,17 @@ The request it sent was
     `meta.warnings`.
 - **`environments`**: per environment, sections that replace the area's own section
   when that environment applies (`--env prod`, or the dossier's `env`).
+- **`people`**: the team, agents included, each with a `name`, an optional `kind`
+  (`human`, the default, or `agent`), an optional `email`, and `ids`: the account each
+  area knows them by, keyed by area. An identity is the user name, login or email that
+  system shows (a Jira user name, a GitHub login, an Azure DevOps unique name or
+  email, a Bitbucket Cloud account id); a `jira` or `ado` identity covers the Cloud
+  variant too unless the dossier names it. It is never a credential: toil refuses a
+  value shaped like a token, and one account can be only one person's. The `email` is
+  only compared, so Toil UI can suggest which unmapped accounts are probably theirs;
+  it never maps one by itself. Toil UI's People view reads this section.
+- **`wipLimit`**: how many items one person may have in progress at once, as the team
+  agreed. Toil UI counts each person's work in progress against it, and nothing else.
 
 ## Where dossiers live
 
@@ -195,12 +212,20 @@ toil dossiers link card-payments jira --host jira.imagile.dev --set project=PAY
 toil dossiers link card-payments bitbucket --host bitbucket.imagile.dev --set project=PAY --set repo=payments-core
 toil dossiers env card-payments dev openshift --host api.ocp-nonprod.imagile.dev --default
 toil dossiers field card-payments jira storyPoints customfield_10002
+toil dossiers person card-payments "Pat Example" --id jira=pat --id github=pat-ex --email you@example.com
+toil dossiers person card-payments Claude --kind agent --id github=claude
+toil dossiers wip-limit card-payments 3
 ```
+
+`toil dossiers person` adds a person, or more identities to one already there.
+Removing a person or an identity (`--remove`) and clearing the limit
+(`toil dossiers wip-limit <dossier> --clear`) are deletes, so they run on the CLI only.
 
 Each command returns the change it made, refuses a value that's already there unless
 `--replace`, and needs no `--allow-write`, since it only writes your own dossier.
-The same steps are under **Settings → Dossiers** in Toil UI, and under **Dossiers** in
-the menu a bare `toil` opens. Both run these commands; neither edits the file itself.
+The same steps are under **Settings → Dossiers** in Toil UI, and, apart from people
+and the limit, under **Dossiers** in the menu a bare `toil` opens. Both run these
+commands; neither edits the file itself.
 
 ### Check
 

@@ -29,11 +29,14 @@ import {
   type AgentRun, type Applied, type WorklogPage,
 } from '../src/model/worklog.ts';
 import { POSITIONAL_FIELDS } from '../src/proposal.ts';
-import type { Execute } from '../src/toil.ts';
+import type { Envelope, Execute } from '../src/toil.ts';
 import { exportName, MAX_NOTE, WorklogRefusal, publishProposals, type ExportWhat, type ShowAreas, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt } from '../src/worklog.ts';
 import type { Cache } from './cache.ts';
 import { CALLER } from './store.ts';
 
+
+/** How long one read of toil's audit log answers for "was it applied". */
+export const AUDIT_FRESH_MS = 60_000;
 
 /** toil's dossier names: lowercase letters, digits and single hyphens, so each is a safe folder name. */
 const DOSSIER = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -53,6 +56,7 @@ export class WorklogService implements WorklogApi {
   private readonly now: () => Date;
   /** Every fold and write runs in turn, so a note or a run that lands mid-fold isn't overwritten by a page folded before it. */
   private queue: Promise<unknown> = Promise.resolve();
+  private audit: { since: string; at: number; env: Envelope } | null = null;
 
   constructor(private readonly o: WorklogOptions) {
     this.now = o.now ?? (() => new Date());
@@ -102,7 +106,7 @@ export class WorklogService implements WorklogApi {
     const wanted = runs.flatMap((r) => r.proposals.filter((p) => p.command).map((p) => ({ p, after: r.finishedAt ?? r.startedAt })));
     if (!wanted.length) return {};
     const since = wanted.map((w) => w.after).sort()[0]!;
-    const env = await this.o.execute('audit list', { since, writesOnly: true, limit: 1000 }, { readOnly: true, caller: CALLER });
+    const env = await this.auditSince(since);
     const out: Record<string, Applied> = {};
     if (!env.ok) {
       for (const { p } of wanted) out[p.id] = { state: 'unknown', why: `${env.error.message}${env.error.fix ? ` ${env.error.fix}` : ''}` };
@@ -118,12 +122,27 @@ export class WorklogService implements WorklogApi {
       const hit = writes
         .filter((e) => typeof e.input === 'object' && e.input !== null && fields.every((f) => same((e.input as Record<string, unknown>)[f], p.input?.[f])))
         .sort((a, b) => (a.time < b.time ? -1 : 1))[0];
+      const hashed = writes.flatMap((e) => fields.filter((f) => typeof e.input === 'object' && e.input !== null && /^sha256:/.test(String((e.input as Record<string, unknown>)[f]))));
       if (hit) out[p.id] = { state: 'applied', at: hit.time, via: hit.via };
+      else if (hashed.length) out[p.id] = { state: 'unknown', why: `toil's audit log has a ${p.command} write after it, but keeps only a hash of its ${[...new Set(hashed)].join(', ')}.` };
       else if (writes.some((e) => e.input === null)) out[p.id] = { state: 'unknown', why: `toil's audit log has a ${p.command} write after it whose input was too large to record.` };
       else if (capped) out[p.id] = { state: 'unknown', why: "toil's audit log has more writes since the run than one read returns (1,000)." };
       else out[p.id] = { state: 'not-applied' };
     }
     return out;
+  }
+
+  /**
+   * toil's audit log since a time, read at most once a minute: every read is
+   * itself a line in the log, and a page read shouldn't fill it with Toil UI's
+   * own lookups. A read from earlier covers any later `since`.
+   */
+  private async auditSince(since: string) {
+    const now = this.now().getTime();
+    if (this.audit && this.audit.since <= since && now - this.audit.at < AUDIT_FRESH_MS) return this.audit.env;
+    const env = await this.o.execute('audit list', { since, writesOnly: true, limit: 1000 }, { readOnly: true, caller: CALLER });
+    if (env.ok) this.audit = { since, at: now, env };
+    return env;
   }
 
   /** The pages for some days, as the cache has them now, with the audit log read once for all of them. */
