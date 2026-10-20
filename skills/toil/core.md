@@ -247,10 +247,28 @@ door (`via`: `cli`, `mcp` or `api`, plus `caller` when a program named itself), 
 method, URL and status. It never holds a secret, a header, a body or a row, and `db`
 SQL is kept only as a SHA-256 hash. `toil audit list` reads it back, newest first,
 with `--since <date>`, `--command <name|area>`, `--connection <name>` and
-`--writes-only`; `toil audit path` says where it is and whether it's on. Six months are
+`--outcome <ok|failed|code>` and `--writes-only`; `toil audit path` says where it is and whether it's on. Six months are
 kept by default (`"audit": { "keepMonths": 12 }` changes that), and only a person can
 turn it off, with `"audit": { "enabled": false }` in `~/.toil/config.json`. A call
 whose line couldn't be written still succeeds, with an `AUDIT_WRITE_FAILED` warning.
+
+`toil audit stats` summarizes the same log, and reads nothing else. Over a window
+(`--since`, `--until`; by default from midnight UTC 30 days ago to now) it returns
+`totals` and one entry in `groups` per value of `--by command|area|connection|caller|via|outcome|day`
+(repeat `--by` for a cross-tab; the default is `command`; `day` is the UTC date):
+`calls`, `ok`, `failed`, the top three `errors` with each code's general `fix` (the log
+keeps the code, never the call's own message), the nearest-rank `durationMs.median` and
+`p95`, `writes` and `writeShare`, and `firstSeen` / `lastSeen`. Groups come most calls
+first, or in date order when `day` comes first. `--area`, `--command`, `--caller` and
+`--outcome` filter it, and `--unused` adds `unused`: every registered command, within
+the area and command filters, with no matching call in the window, and whether MCP
+serves it. It never groups by an input's value, so a hashed statement stays a hash.
+
+```bash
+toil audit stats --by command --unused --area jira
+toil audit stats --by day --by via --since 2026-10-01 --until 2026-10-18
+toil audit list --command "jira issue get" --outcome failed --limit 20
+```
 
 ## Using toil from a program
 

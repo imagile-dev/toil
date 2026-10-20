@@ -245,8 +245,8 @@ GitHub Actions; its build tooling is out of scope.
   `init | add-repo | link | env | field | export | import | unlink | remove` (`build.ts`); the
   model, resolution and writing are `src/core/dossier.ts`
 - `src/repos/` — `toil repos scan`, discovery for dossiers
-- `src/audit/` — `toil audit list | path`, reading the audit log `src/core/audit.ts`
-  keeps
+- `src/audit/` — `toil audit list | stats | path`, reading the audit log
+  `src/core/audit.ts` keeps; `stats.ts` is the summary's arithmetic
 - `src/feedback/` — `toil feedback bug|feature`, CLI only, and the disclaimer every
   way of sending feedback shows (`consent.ts`, which `test/feedback-consent.test.ts`
   holds the function's and the site's copies to)
