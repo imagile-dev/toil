@@ -407,8 +407,14 @@ it goes, both on by default:
   dockworker in Crate, a patient farmhand in Harvest, a ship's log in Starship, a
   herald in Realm. It changes phrasing only.
 
-Plain has neither, so both are off while it's chosen. The choice is kept in this
-browser. Toil UI doesn't install themes from anywhere else: to ask for one, send a
+A theme with particles also gets **Particles and ambient effects**, kept for each
+theme on its own: off, that theme's particles are gone entirely, while its other
+motion keeps following **Reduce motion and effects** (and the operating system's
+reduced-motion setting, which stops everything).
+
+Plain has neither wording nor voice, so both are off while it's chosen. It sets
+headings and figures in Fredoka, toil's wordmark face, on IBM Plex Sans. The choice
+is kept in this browser. Toil UI doesn't install themes from anywhere else: to ask for one, send a
 feature request from **Feedback** or with `toil feedback feature`. A `themes/` folder
 left in the data folder by an earlier alpha is not read, and Toil UI says so when it
 starts. [Themes](https://imagile-dev.github.io/toil/docs/themes/) has the whole

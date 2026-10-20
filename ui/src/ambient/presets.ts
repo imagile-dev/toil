@@ -265,5 +265,9 @@ export const realm: Preset = {
   draw: (ctx, p, s) => stamp(ctx, s[p.kind], p),
 };
 
-/** The presets by theme name. A theme not listed here, Plain included, has no particles. */
-export const PRESETS: Record<string, Preset> = { crate, harvest, starship, realm };
+/**
+ * The presets by name, which a theme names in its theme.json as
+ * `"ambient": { "particles": "<name>" }` (#348). A theme that names none,
+ * Plain included, has no particles.
+ */
+export const PRESETS: Record<string, Preset> = { dust: crate, leaves: harvest, stars: starship, embers: realm };

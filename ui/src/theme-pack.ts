@@ -30,6 +30,12 @@ export interface ThemeManifest {
   fonts: { body: string; display: string; mono: string };
   radius: string;
   motion: 'none' | 'subtle';
+  /**
+   * The theme's ambient effects (#348), so Settings knows what its particle
+   * switch controls: `particles` names a preset in src/ambient/presets.ts. A
+   * theme without it has no particles and no switch. Plain has none.
+   */
+  ambient?: { particles?: string };
   /** Sound is off by default in every theme (#206); none ships any yet. */
   sounds: Record<string, string>;
   assets: Record<string, string>;

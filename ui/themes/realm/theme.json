@@ -28,6 +28,7 @@
   },
   "radius": "2px",
   "motion": "none",
+  "ambient": { "particles": "embers" },
   "sounds": {},
   "assets": {
     "parchment": "assets/parchment.webp",

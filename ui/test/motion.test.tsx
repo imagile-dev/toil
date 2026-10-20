@@ -8,7 +8,7 @@ import { PRESETS, realmMargin, shaft } from '../src/ambient/presets.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { resetMotionChoice, setMotionChoice } from '../src/motion.ts';
+import { resetMotionChoice, resetParticlesChoice, setMotionChoice, setParticlesOn } from '../src/motion.ts';
 import { THEMES } from '../src/themes.ts';
 
 /**
@@ -45,6 +45,7 @@ const { matchMedia } = window;
 beforeEach(() => {
   localStorage.clear();
   resetMotionChoice();
+  resetParticlesChoice();
   delete document.documentElement.dataset.motion;
 });
 
@@ -59,8 +60,11 @@ describe('the particle presets', () => {
     { w: 375, h: 812, t: 0 },
   ];
 
-  it('exist for every theme but Plain', () => {
-    expect(Object.keys(PRESETS).sort()).toEqual(THEMES.map((t) => t.name).filter((n) => n !== 'plain').sort());
+  it('exist for every theme but Plain, each named by the one theme.json that declares it (#348)', () => {
+    const declared = THEMES.flatMap((t) => (t.ambient?.particles ? [t.ambient.particles] : []));
+    expect(declared.sort()).toEqual(Object.keys(PRESETS).sort());
+    expect(THEMES.filter((t) => t.ambient?.particles).map((t) => t.name).sort()).toEqual(THEMES.map((t) => t.name).filter((n) => n !== 'plain').sort());
+    expect(THEMES.find((t) => t.name === 'plain')!.ambient).toBeUndefined();
   });
 
   it.each(Object.entries(PRESETS))('%s stays sparse: a few dozen at most, fewer on a phone', (_, preset) => {
@@ -112,8 +116,8 @@ describe('the particle presets', () => {
     const view = { w: 375, h: 812, t: 0 };
     const ps = [] as ReturnType<typeof blank>[];
     const rand = seeded(3);
-    fill(PRESETS.realm!, ps, view, rand);
-    for (let i = 0; i < 900; i++) stepAll(PRESETS.realm!, ps, 1 / 30, view, rand);
+    fill(PRESETS.embers!, ps, view, rand);
+    for (let i = 0; i < 900; i++) stepAll(PRESETS.embers!, ps, 1 / 30, view, rand);
     expect(ps.every((p) => p.kind === 0)).toBe(true);
   });
 });
@@ -207,5 +211,88 @@ describe('Reduce motion and effects, in Settings', () => {
     osMotion(false);
     const { container } = render(<Ambient theme="harvest" />);
     expect(container.querySelector('canvas')).toBeNull();
+  });
+});
+
+describe('Particles and ambient effects, per theme (#348)', () => {
+  it('removes the layer entirely when off: nothing rendered, no canvas and no frame', () => {
+    osMotion(false);
+    const getContext = fakeCanvas();
+    const raf = vi.spyOn(window, 'requestAnimationFrame');
+    setParticlesOn('starship', false);
+    const { container } = render(<Ambient theme="starship" />);
+    expect(container.innerHTML).toBe('');
+    expect(getContext).not.toHaveBeenCalled();
+    expect(raf).not.toHaveBeenCalled();
+  });
+
+  it('is kept per theme: off in Starship leaves Harvest on, and the choice is saved in this browser', () => {
+    osMotion(false);
+    fakeCanvas();
+    setParticlesOn('starship', false);
+    expect(JSON.parse(localStorage.getItem('toil-ui.particles')!)).toEqual({ starship: false });
+    const { container } = render(<Ambient theme="harvest" />);
+    expect(container.querySelector('canvas')).not.toBeNull();
+    resetParticlesChoice();
+    const again = render(<Ambient theme="starship" />);
+    expect(again.container.innerHTML).toBe('');
+  });
+
+  it("leaves Crate's parallax to the motion switch: off takes the dust and keeps the three layers", () => {
+    osMotion(false);
+    fakeCanvas();
+    setParticlesOn('crate', false);
+    const { container } = render(<Ambient theme="crate" />);
+    expect(container.querySelector('canvas')).toBeNull();
+    expect(container.querySelectorAll('.ambient-layer')).toHaveLength(3);
+  });
+
+  it('comes after the OS and the motion switch: either stops the particles with the switch on', () => {
+    fakeCanvas();
+    osMotion(true);
+    expect(render(<Ambient theme="harvest" />).container.innerHTML).toBe('');
+    osMotion(false);
+    act(() => setMotionChoice('reduced'));
+    expect(render(<Ambient theme="harvest" />).container.innerHTML).toBe('');
+  });
+
+  it('reads a damaged saved value as every theme on', () => {
+    localStorage.setItem('toil-ui.particles', '["starship"]');
+    osMotion(false);
+    fakeCanvas();
+    expect(render(<Ambient theme="starship" />).container.querySelector('canvas')).not.toBeNull();
+    resetParticlesChoice();
+    localStorage.setItem('toil-ui.particles', '{"starship":"no"}');
+    expect(render(<Ambient theme="starship" />).container.querySelector('canvas')).not.toBeNull();
+  });
+
+  it('shows in Settings only for a theme with particles, and switching it off takes them away', async () => {
+    osMotion(false);
+    fakeCanvas();
+    localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'plain', scheme: 'light' }));
+    window.location.hash = '#/settings/toil';
+    const plain = render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('checkbox', { name: 'Particles and ambient effects' })).toBeNull();
+    expect(screen.getByText('Particles: none.')).toBeTruthy();
+    plain.unmount();
+
+    localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'starship', scheme: 'system' }));
+    const { container } = render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
+    await screen.findByRole('heading', { level: 1 });
+    expect(container.ownerDocument.querySelector('.ambient canvas')).not.toBeNull();
+    const box = screen.getByRole('checkbox', { name: 'Particles and ambient effects' });
+    expect((box as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByText('Particles: stars, on.')).toBeTruthy();
+    await userEvent.click(box);
+    expect((box as HTMLInputElement).checked).toBe(false);
+    expect(container.ownerDocument.querySelector('.ambient')).toBeNull();
+    expect(screen.getByText('Particles: stars, off.')).toBeTruthy();
+    expect(JSON.parse(localStorage.getItem('toil-ui.particles')!)).toEqual({ starship: false });
+    // The motion switch still wins, and the note under the particle switch says so.
+    await userEvent.click(box);
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Reduce motion and effects' }));
+    expect(container.ownerDocument.querySelector('.ambient')).toBeNull();
+    expect(screen.getByText(/Reduce motion and effects is ticked below, so no particles show/)).toBeTruthy();
   });
 });

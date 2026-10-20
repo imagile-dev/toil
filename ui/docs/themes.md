@@ -1,5 +1,5 @@
 ---
-description: Toil UI's five themes, themed wording and the agent's voice, the two checkboxes that set how far a theme goes, and how the agent's prompt is composed.
+description: Toil UI's five themes, themed wording and the agent's voice, the checkboxes that set how far a theme goes and whether its particles run, Plain's fonts, and how the agent's prompt is composed.
 lead: How far a Toil UI theme goes, and what it never changes.
 ---
 
@@ -13,13 +13,23 @@ Toil UI has five built-in themes. Each one changes how the app looks, and the fo
 
 | Theme | Looks like | Wording and voice | Accessibility bar |
 |---|---|---|---|
-| Plain | Light and quiet, on system fonts, with a dark variant | None: always the standard text | WCAG 2.2 AA, strict |
+| Plain | Light and quiet, with a dark variant: Fredoka on headings and figures, IBM Plex Sans to read | None: always the standard text | WCAG 2.2 AA, strict |
 | Crate | toil's own brand: a warm near-black warehouse, flame-to-amber accent, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
 | Harvest | A 16-bit farm: a pixel font, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
 | Realm | A chronicle on parchment: ink, illuminated capitals, the dependency graph as a map | A herald | Decorative |
 
 Crate is the default. The theme picker is in the header (in the Menu on a narrow screen) and in Settings, General. A `?theme=` in the address opens a view in that theme, for example `?theme=realm`, and this browser remembers it like a choice made in the picker.
+
+## Plain's fonts
+
+Plain uses toil's own type, so it looks like toil without leaving the accessibility baseline.
+
+- **Fredoka**, toil's wordmark face, is Plain's display face: page and panel headings, and the big figures (the sprint's numbers, the team's counts, an item's rank and its days in progress). It's used at 600 only, the one weight the wordmark already loads, so Plain adds no Fredoka file, and no figure is drawn in a faked bold.
+- **IBM Plex Sans** is the body, at 400 and 600. Its open shapes and tall lowercase stay clear at the small sizes the notes and tables use (13 to 14px), it tells `I`, `l` and `1` apart, and its soft curves sit well beside Fredoka's rounded ones. It's already bundled for Crate, so it costs Plain nothing new. Nunito Sans and Inter were the alternatives: Nunito Sans is rounder still but lighter and narrower at small sizes, and Inter reads well but is sharper beside Fredoka; either would be a new font to bundle.
+- **Mono** stays the system's monospace, for commands and ids, where the platform's own face is the one people read code in.
+
+Fonts don't change contrast: Plain keeps its colours, and its pages pass the axe and layout checks at 375, 768 and 1440 pixels.
 
 ## Visuals, wording and voice
 
@@ -35,16 +45,19 @@ Wording never touches these, in any theme:
 - a heading a screen reader or a test finds a section by, apart from the renamed words shown beside the real ones;
 - a command such as `toil dossiers init`, an item's id, a number, a date, an error or its fix, or a not-found notice such as an item the dossier doesn't have.
 
-## The two checkboxes
+## The checkboxes
 
-Settings, General has the theme picker and, under it, two checkboxes:
+Settings, General has the theme picker and, under it, these checkboxes:
 
 | Checkbox | Default | Off means |
 |---|---|---|
 | Themed wording | On | The standard text in every theme, and no renamed words |
 | Themed agent voice | On | The agent answers in plain wording, whatever the theme |
+| Particles and ambient effects | On | The theme's particles are gone: nothing is drawn and nothing runs behind the page |
 
-Plain has no wording or voice of its own, so while Plain is chosen both boxes are off and can't be changed, and the page says why. Both are kept in this browser with the theme, like the reduced-motion setting, and never in toil's config. `?wording=off` or `?voice=off` in the address switches one off, and `=on` switches it back on; either is then remembered in this browser like a click on the box.
+**Particles and ambient effects** shows only for a theme that has particles, and it's kept for each theme on its own, so particles can be off in Starship and on in Harvest. Under the theme's description, the picker says which particles the theme has and whether they're on.
+
+Plain has no wording or voice of its own, so while Plain is chosen both boxes are off and can't be changed, and the page says why. Both are kept in this browser with the theme, like the motion settings, and never in toil's config. `?wording=off` or `?voice=off` in the address switches one off, and `=on` switches it back on; either is then remembered in this browser like a click on the box.
 
 <!-- figure: ui-theme-settings -->
 
@@ -108,9 +121,17 @@ The (i) beside the Ask pane's starter questions says which voice the answers are
 - **Every theme** has the same buttons, links and fields as Plain, and the same page layout rules: nothing scrolls sideways, and nothing hides under the Ask dock.
 - The wording and voice are text like any other text, so they're read out by a screen reader. Art a theme adds is decoration and is hidden from screen readers.
 
-## Reduced motion
+## Motion and particles
 
-The four game themes move a little: dust in a light shaft and a parallax rack in Crate, particles over Harvest's fields, a starfield in Starship, runes in Realm's margins. Plain doesn't move. Nothing moves when your operating system asks for reduced motion, or when **Reduce motion and effects** is ticked under Settings, General. No theme plays sound.
+The four game themes move a little: dust in a light shaft and a parallax rack in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, embers and runes in Realm. Plain doesn't move. No theme plays sound.
+
+Three settings decide what moves, in this order:
+
+1. **Your operating system's reduced-motion setting.** When it asks for less, nothing moves, whatever Toil UI is set to.
+2. **Reduce motion and effects**, under Settings, General. Ticked, nothing moves: no animations, no particles, no parallax.
+3. **Particles and ambient effects**, under the theme picker, for each theme that has particles. Off takes that theme's particles away entirely. Everything else, such as transitions and Crate's parallax, keeps following the motion setting.
+
+Each theme says which particles it has in its `theme.json`, as `"ambient": { "particles": "dust" }`, so the switch knows what it controls. All three choices are kept in this browser only, never in toil's config.
 
 ## Asking for a new theme
 
