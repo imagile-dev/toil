@@ -24,3 +24,4 @@ frozen as an archive. Code comments cite it as `AGENT_DECISIONS.md, #<n>`; cite 
 file here by its path (`docs/decisions/361-review-churn.md`).
 
 This line is a throwaway edit for the merge-only proof on #361; the PR carrying it is closed unmerged.
+A second throwaway line, a real change after the merge.
