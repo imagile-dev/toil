@@ -603,7 +603,9 @@ a breaking change.
   **`meta.page`** is `{ nextCursor, limit }`, set with `ctx.setPage()` by any command
   that pages. Both are absent when empty. **`meta.response`** is `{ status,
   contentType }`, set with `ctx.setResponse()` by `<area> api`, whose `data` is the
-  body as the service sent it.
+  body as the service sent it. **`meta.transition`** is `{ intent, transition,
+  toStatus, resolvedBy }`, set with `ctx.setTransition()` by a transition asked for
+  by intent (`--to review`, `src/core/transition-intent.ts`).
 - **`meta.context`**, on area commands only, says where the call acted: `{ dossier,
   connection, inputs, shared }`. `dossier`, when one applied, names it, where it
   lives, what chose it and how the folder matched it. `connection` and each of `inputs` is `{ value, source }`, the

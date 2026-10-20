@@ -191,9 +191,9 @@ export const workTransitionCommand = adoArea.command({
     { ...W, id: '42', to: 'review' },
   ],
   run: async (input, ctx) => {
+    if ((input.to === undefined) === (input.state === undefined)) throw oneOfTransition(TRANSITION_HELP, input.to !== undefined);
     const { collection, project } = where(ctx);
     const id = toInt(input.id);
-    if ((input.to === undefined) === (input.state === undefined)) throw oneOfTransition(TRANSITION_HELP, input.to !== undefined);
     let state = input.state!;
     let report: TransitionReport | undefined;
     if (input.to !== undefined) {

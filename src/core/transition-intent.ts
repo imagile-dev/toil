@@ -16,8 +16,8 @@ import { ToilError } from './errors.js';
  *
  * Steps 3 and 4 apply only to the four intents. When step 3 finds several,
  * step 4 narrows within them; anything still not exactly one is refused with
- * the moves the item does offer. Guessing is left to the people who fill in
- * the status field at 5:59 on a Friday.
+ * the moves the item does offer. Choosing one on the caller's behalf would
+ * need a change ticket; listing the options needs none.
  */
 
 export const INTENTS = ['start', 'review', 'done', 'reopen'] as const;
@@ -187,6 +187,9 @@ const JIRA_CATEGORY: Record<string, Intent> = { new: 'reopen', indeterminate: 's
 /** Azure DevOps state categories as intents. Removed serves none, so only its name reaches it. */
 const ADO_CATEGORY: Record<string, Intent> = { Proposed: 'reopen', InProgress: 'start', Resolved: 'review', Completed: 'done' };
 
+/** A category's intent, own keys only: a server's `constructor` category is no intent. */
+const intentIn = (table: Record<string, Intent>, category: string | undefined): Intent | undefined => (category !== undefined && Object.hasOwn(table, category) ? table[category] : undefined);
+
 interface JiraStatus {
   name?: string;
   statusCategory?: { key?: string; name?: string };
@@ -206,14 +209,14 @@ export function jiraMoves(key: string, issue: JiraIssueWithTransitions): { item:
     label: key,
     type: issue.fields?.issuetype?.name ?? 'unknown type',
     status: status?.name ?? 'unknown status',
-    statusIntent: JIRA_CATEGORY[status?.statusCategory?.key ?? ''],
+    statusIntent: intentIn(JIRA_CATEGORY, status?.statusCategory?.key),
   };
   const candidates = (issue.transitions ?? []).map((t) => ({
     id: t.id,
     name: t.name,
     toStatus: t.to?.name ?? t.name,
     category: t.to?.statusCategory?.name ?? t.to?.statusCategory?.key,
-    intent: JIRA_CATEGORY[t.to?.statusCategory?.key ?? ''],
+    intent: intentIn(JIRA_CATEGORY, t.to?.statusCategory?.key),
   }));
   return { item, candidates };
 }
@@ -233,9 +236,9 @@ export function adoMoves(id: number, fields: Record<string, unknown>, states: Ad
   const status = typeof fields['System.State'] === 'string' ? fields['System.State'] : 'unknown state';
   const type = typeof fields['System.WorkItemType'] === 'string' ? fields['System.WorkItemType'] : 'unknown type';
   const current = states.find((s) => s.name.toLowerCase() === status.toLowerCase());
-  const item: TransitionItem = { label: `work item ${id}`, type, status, statusIntent: ADO_CATEGORY[current?.category ?? ''] };
+  const item: TransitionItem = { label: `work item ${id}`, type, status, statusIntent: intentIn(ADO_CATEGORY, current?.category) };
   const candidates = states
     .filter((s) => s !== current)
-    .map((s) => ({ id: s.name, name: s.name, toStatus: s.name, category: s.category, intent: ADO_CATEGORY[s.category ?? ''] }));
+    .map((s) => ({ id: s.name, name: s.name, toStatus: s.name, category: s.category, intent: intentIn(ADO_CATEGORY, s.category) }));
   return { item, candidates };
 }

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { commandName, type AnyCommand } from '../src/core/command.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { execute } from '../src/core/run.js';
-import { resolveTransition, type TransitionCandidate } from '../src/core/transition-intent.js';
+import { adoMoves, resolveTransition, type TransitionCandidate } from '../src/core/transition-intent.js';
 import { areas, commands } from '../src/registry.js';
 import { config as adoConfig, ADO } from './fixtures/ado.fixture.js';
 import { config as adoCloudConfig, ORG_URL } from './fixtures/ado-cloud.fixture.js';
@@ -144,6 +144,17 @@ for (const variant of [
       });
     });
 
+    it("an environment's pins land over the area's own, type by type", async () => {
+      const peer = issueWith('PROJ-8', 'Story', status('In Progress', 'indeterminate'), [move('41', 'Submit for Review', 'In Review', 'indeterminate'), move('81', 'Peer Review', 'Peer Review', 'indeterminate')]);
+      const dossier = {
+        name: 'payments',
+        env: 'prod',
+        [variant.area]: { transitions: { Story: { review: 'Submit for Review' } } },
+        environments: { prod: { [variant.area]: { transitions: { Story: { review: 'Peer Review' } } } } },
+      };
+      expect((await transition({ to: 'review' }, peer, dossier)).envelope.meta.transition).toMatchObject({ transition: 'Peer Review', resolvedBy: 'dossier' });
+    });
+
     it('--transition keeps working as it did, and giving both or neither is refused before anything is sent', async () => {
       const byId = await transition({ transition: '31' }, STORY);
       expect(sent(byId.calls)).toEqual([`POST ${variant.base}/issue/PROJ-1/transitions {"transition":{"id":"31"}}`]);
@@ -260,6 +271,14 @@ describe('resolveTransition', () => {
     const forward = resolveTransition('review', item, moves, {}, help);
     const backward = resolveTransition('review', item, [...moves].reverse(), {}, help);
     expect(backward.report).toEqual(forward.report);
+  });
+
+  it("reads a category only as one of the service's own: a category named constructor serves no intent", () => {
+    const { candidates } = adoMoves(1, { 'System.WorkItemType': 'Bug', 'System.State': 'New' }, [
+      { name: 'New', category: 'Proposed' },
+      { name: 'Odd', category: 'constructor' },
+    ]);
+    expect(candidates).toEqual([{ id: 'Odd', name: 'Odd', toStatus: 'Odd', category: 'constructor', intent: undefined }]);
   });
 
   it('matches a word at its start only, so Undone is not done', () => {
