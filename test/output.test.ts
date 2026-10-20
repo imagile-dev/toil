@@ -165,6 +165,38 @@ describe('summary rules, first match wins', () => {
     expect((data as { rows: unknown[] }).rows.length).toBeGreaterThan(0);
   });
 
+  it('chooses the table by rows and their shape, so one long text in a one-row list does not win', () => {
+    const rows = Array.from({ length: 200 }, (_, i) => ({ id: i, name: `item ${i}` }));
+    const { report } = summarize({ comments: [{ body: 'x'.repeat(50_000) }], issues: rows });
+    expect(report).toMatchObject({ table: 'issues', rows: 200 });
+  });
+
+  it("caps fields beside the table, and an outline's keys, in time linear in their number", () => {
+    const fieldsOf = (n: number) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`field${i}`, 'z'.repeat(100)]));
+    const big = { ...fieldsOf(6000), items: issues(600) };
+    const wide = Object.fromEntries(Array.from({ length: 6000 }, (_, i) => [`a-rather-long-file-name-${i}.ts`, i]));
+    // The baseline is serializing the same input once, which any summary has to
+    // do at least that often; a cap that re-serializes per field dropped is
+    // thousands of times that.
+    const timed = (f: () => void) => {
+      const runs: number[] = [];
+      for (let i = 0; i < 5; i++) {
+        const start = performance.now();
+        f();
+        runs.push(performance.now() - start);
+      }
+      return runs.sort((a, b) => a - b)[2]!;
+    };
+    for (const input of [big, wide]) {
+      const baseline = timed(() => JSON.stringify(input));
+      const took = timed(() => summarize(input));
+      expect(took, `summarize took ${took.toFixed(1)} ms; JSON.stringify took ${baseline.toFixed(1)} ms`).toBeLessThan(Math.max(250, 100 * baseline));
+    }
+    const { data, report } = summarize(big);
+    expect(estimateTokens(data)).toBeLessThanOrEqual(1500);
+    expect(Object.keys((data as { fields: object }).fields).length + report.trimmed!.fields!).toBe(6000);
+  });
+
   it('cuts an outline down to its keys when even they are over the budget', () => {
     const many = Object.fromEntries(Array.from({ length: 3000 }, (_, i) => [`a-rather-long-file-name-${i}.ts`, { bytes: i }]));
     const { data, report } = summarize(many);

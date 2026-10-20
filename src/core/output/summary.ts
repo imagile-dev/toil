@@ -84,21 +84,37 @@ export function estimateTokens(value: unknown): number {
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
+/** Rows looked at to judge how wide a list's rows are. */
+const WIDTH_SAMPLE = 20;
+
 /**
- * The table in a result: the result itself when it's a list, else its longest
- * list found through objects (`issues` in `{ total, issues }`, or
- * `findings.results` a level down), the shallowest and then the first on a tie.
+ * How many cells a list holds: its rows times how wide they are, judged from
+ * the first rows (an object's dot-path keys, a list's items, else one). Shape,
+ * never size, so one long text can't make a one-row list the table.
+ */
+function cellsOf(rows: unknown[]): number {
+  const sample = rows.slice(0, WIDTH_SAMPLE);
+  if (sample.length === 0) return 0;
+  const width = sample.reduce<number>((sum, row) => sum + (isObject(row) ? Object.keys(flatten(row)).length : Array.isArray(row) ? row.length : 1), 0) / sample.length;
+  return rows.length * Math.max(width, 1);
+}
+
+/**
+ * The table in a result: the result itself when it's a list, else the list
+ * reached through objects with the most cells (`issues` in `{ total, issues }`,
+ * `findings.results` a level down, `rows` beside a `db` query's 40 `columns`),
+ * the shallowest and then the first on a tie.
  */
 function findTable(data: unknown): { path: string; rows: unknown[] } | undefined {
   if (Array.isArray(data)) return { path: '', rows: data };
-  let best: { path: string; rows: unknown[]; depth: number; size: number } | undefined;
+  let best: { path: string; rows: unknown[]; depth: number; cells: number } | undefined;
   const visit = (value: unknown, path: string, depth: number) => {
     if (!isObject(value) || depth > MAX_DEPTH) return;
     for (const [key, child] of Object.entries(value)) {
       const at = path === '' ? key : `${path}.${key}`;
       if (Array.isArray(child)) {
-        const size = estimateTokens(child);
-        if (!best || size > best.size || (size === best.size && depth < best.depth)) best = { path: at, rows: child, depth, size };
+        const cells = cellsOf(child);
+        if (!best || cells > best.cells || (cells === best.cells && depth < best.depth)) best = { path: at, rows: child, depth, cells };
       } else visit(child, at, depth + 1);
     }
   };
@@ -194,11 +210,33 @@ function besideTable(data: unknown, table: string, count: { strings: number; fie
   const short = clip(rest, STRING_CLIP, count) as Record<string, unknown>;
   if (fits(short)) return short;
   const all = Object.entries(short);
-  let kept = all.filter(([, value]) => value === null || typeof value !== 'object');
-  // Many short fields can still be too many: drop them from the end until they fit.
-  while (kept.length > 0 && !fits(Object.fromEntries(kept))) kept = kept.slice(0, -1);
+  const primitives = all.filter(([, value]) => value === null || typeof value !== 'object');
+  // Many short fields can still be too many: keep them from the front while
+  // they fit, counting each one's JSON once, so it's linear in the fields.
+  const kept = prefixThatFits(primitives, ([key, value]) => jsonLength(key) + 1 + jsonLength(value), 2, TOKEN_BUDGET / 4);
   count.fields = all.length - kept.length;
   return kept.length > 0 ? Object.fromEntries(kept) : undefined;
+}
+
+/** The length of `value` as JSON, as estimateTokens counts it. */
+const jsonLength = (value: unknown): number => (JSON.stringify(value) ?? 'null').length;
+
+/**
+ * The longest prefix of `items` whose JSON, one `size` per item plus a comma
+ * between them on top of `base` characters, fits `budget` tokens. One pass,
+ * whatever the count: a cap that serialized everything again for each item
+ * dropped would take seconds on a few thousand.
+ */
+function prefixThatFits<T>(items: readonly T[], size: (item: T) => number, base: number, budget: number): T[] {
+  let chars = base;
+  let n = 0;
+  for (const item of items) {
+    const next = chars + size(item) + (n > 0 ? 1 : 0);
+    if (Math.ceil(next / CHARS_PER_TOKEN) > budget) break;
+    chars = next;
+    n++;
+  }
+  return items.slice(0, n);
 }
 
 /** `value` with every text longer than `limit` cut to it, ending in `…`; `count.strings` counts the cuts. */
@@ -282,9 +320,13 @@ export function summarize(data: unknown): Summary {
       cut = true;
     }
     let droppedKeys = 0;
-    while (keys && keys.length > 1 && over()) {
-      keys = keys.slice(0, -1);
-      droppedKeys++;
+    if (keys && keys.length > 1 && over()) {
+      // The keys from the front that fit beside the rest, counted in one pass, at least one.
+      const all = keys;
+      keys = [];
+      const kept = prefixThatFits(all, jsonLength, jsonLength(build(sample)), TOKEN_BUDGET);
+      keys = kept.length > 0 ? kept : all.slice(0, 1);
+      droppedKeys = all.length - keys.length;
     }
     const summary = build(sample);
     const trimmed = {
