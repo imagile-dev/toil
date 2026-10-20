@@ -26,6 +26,18 @@ ever turns auto-merge on, and the fix agent never does either. Auto-merge relies
     skipped.
   - It reviews against CLAUDE.md and the skills and can run the gate (`npm test`, `typecheck`,
     `lint`, `build`, `check:pure`), so findings are backed by inputs it ran.
+  - **A merge of `main` alone is re-approved without the agent.** On `synchronize`,
+    a step before the agent runs `scripts/review/merge-only.mjs`, taken from the base
+    branch's copy so a PR can't change its own check. It approves the new head, with
+    the App token, only when the bot's last formal review approved a commit A and that
+    approval stands or GitHub dismissed it as stale on the push; no review thread is
+    open; every first-parent commit from the head back to A is a merge whose other
+    parent is on the base branch; and the PR's own diff (`git diff
+    <merge-base(main, X)> X`) is the same for A and the head, ignoring only hunk line
+    numbers and whole-file blob ids. Anything else, an error included, runs the full
+    review. The job summary lists each check, and the approval links its run.
+    `test/merge-only.test.ts` holds the cases. The ruleset still dismisses approvals
+    on every push; this only gives a merge its approval back.
   - A last step fails the job if no formal review by the bot landed on the head
     commit, so a silent agent can't read as green.
   - Subagents are disallowed, because in headless mode they get killed when the turn
