@@ -410,7 +410,7 @@ export interface Place {
   fields: (area: string, input: Record<string, unknown>) => Record<string, string>;
   /** Every section the dossier has for an area, for `<area> check-dossier`; asking consults the dossier. */
   view: (area: string) => DossierView | undefined;
-  /** The transitions the dossier pins for an area, type to intent to name; asking consults the dossier, as the lookup does. */
+  /** The transitions the dossier pins for an area, lowercased type to intent to name; asking consults the dossier, as the lookup does. */
   transitions: (area: string, input: Record<string, unknown>) => TransitionPins;
   /** The folder's git, when the call named a `cwd`; otherwise the workspace's. */
   gitRemote?: GitRemoteReader;
@@ -964,7 +964,8 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
           if (!isRecord(section.transitions)) continue;
           for (const [type, byIntent] of Object.entries(section.transitions)) {
             if (!isRecord(byIntent)) continue;
-            const pins = (out[type] ??= {});
+            // Types compare ignoring case, so `story` and `Story` are one entry, the environment's landing last.
+            const pins = (out[type.toLowerCase()] ??= {});
             for (const [intent, name] of Object.entries(byIntent)) if (typeof name === 'string') pins[intent] = name;
           }
         }

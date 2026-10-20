@@ -159,7 +159,8 @@ for (const variant of [
       const dossier = {
         name: 'payments',
         env: 'prod',
-        [variant.area]: { transitions: { Story: { review: 'Submit for Review' } } },
+        // Spelled differently from the environment's, since types compare ignoring case.
+        [variant.area]: { transitions: { story: { review: 'Submit for Review' } } },
         environments: { prod: { [variant.area]: { transitions: { Story: { review: 'Peer Review' } } } } },
       };
       expect((await transition({ to: 'review' }, peer, dossier)).envelope.meta.transition).toMatchObject({ transition: 'Peer Review', resolvedBy: 'dossier' });
