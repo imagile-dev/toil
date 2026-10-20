@@ -130,7 +130,11 @@ Folder walking is `ctx.files.list(dir)`: what `git ls-files --cached --others
 no second walker. A `.gitignore` line it can't compile (a reversed range such as
 `[b-a]`) is skipped on its own, with a `GITIGNORE_LINE_SKIPPED` warning in
 `meta.warnings` naming the file, the line and the fix; the rest of that file still
-applies. An ignore file that exists but can't be read (permission, a lock, a folder
+applies. So is a line longer than 4096 characters (`docs/bounds.md`,
+`gitignore.line`), whose warning quotes only its start. A folder inside one that
+`.gitignore` excludes lists only what git tracks there, with a `LIST_FOLDER_IGNORED`
+warning saying so; `secrets scan` words it as `SECRETS_NOTHING_SCANNED` when that
+leaves nothing to scan. An ignore file that exists but can't be read (permission, a lock, a folder
 of that name) applies no rules and is a `GITIGNORE_UNREADABLE` warning naming the
 file, the error and the fix; one that isn't UTF-8 still applies, decoded with
 replacements, with a `GITIGNORE_NOT_UTF8` warning. Only a missing ignore file is

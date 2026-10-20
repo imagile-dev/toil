@@ -4854,3 +4854,31 @@ it pins. These are the choices made by default in the fix:
   run at a stage named `redaction`.
 - **The branch is `kolatts/339-feedback-redact-first`**, the requested name with the issue
   number CLAUDE.md asks for.
+
+## Core bounds on select, dossiers and .gitignore (#353)
+
+- **`query.size` is 16 MiB of JSON plus four times the data's own size**, counted as
+  each array, object and string is built, and the structure built along the way
+  (kept or not) counts against the same figure. A fixed figure alone refused a plain
+  `rows[*]` over a result larger than it; the input's size is measured only once
+  something passes the fixed part, so a small select from large data never walks it
+  all. Numbers count as 8 characters rather than being printed to measure.
+- **Sizes are kept in a `Map` for one evaluation, not a `WeakMap`**: filling a
+  `WeakMap` with a million entries was about three times slower, and the `Map` is
+  bounded by the same budget and dropped when the evaluation ends.
+- **Dossier files are capped at 1 MiB.** A large team's dossier is tens of KB.
+- **A dossier may not use `__proto__`, `constructor` or `prototype` as a key
+  anywhere**, not only as a section, so no future reader of a nested object has to
+  remember the rule. `CONNECTION_NAME` refuses `constructor` and `prototype` too (it
+  is also the dossier name rule); `__proto__` never fit it.
+- **A `.gitignore` line is capped at 4096 characters**, the longest path most
+  systems allow; the warning quotes its first 60.
+- **A server-supplied file name with a `:` keeps what's before it** (`notes.md:x`
+  saves as `notes.md`), so a stream suffix on an existing file meets the
+  no-overwrite check instead of a new name. A device name gets a leading `_`, and
+  Windows' forbidden characters become `_`, on every platform. `ctx.files` refuses any
+  such segment in a path it writes, so a `--dir` of `CON` fails rather than being
+  renamed.
+- **The listing warns `LIST_FOLDER_IGNORED`** whenever its folder is inside one
+  `.gitignore` excludes, for every command that lists, and `secrets scan` turns it
+  into `SECRETS_NOTHING_SCANNED` when nothing was left to scan.

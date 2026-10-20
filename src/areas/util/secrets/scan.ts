@@ -1,6 +1,7 @@
 import { createHash, scryptSync } from 'node:crypto';
 import type { CommandContext } from '../../../core/context.js';
 import { ToilError } from '../../../core/errors.js';
+import { LIST_FOLDER_IGNORED } from '../../../core/gitignore.js';
 import { findSecrets, TOKEN_SHAPES, type SecretMatch } from '../../../core/secret-shapes.js';
 import { execOutput, requireRepo, runGit } from '../../git/runner.js';
 import { DEFAULT_MAX_BYTES, openInput, type InputLine } from '../kit/input.js';
@@ -456,7 +457,21 @@ async function scanOne(scan: Scan, fields: { file?: string | undefined; text?: s
 async function scanFolder(scan: Scan, dir: string): Promise<void> {
   const base = dir.replace(/\\/g, '/').replace(/\/+$/, '');
   const prefix = base === '' || base === '.' ? '' : `${base}/`;
-  for (const entry of scan.ctx.files.list(dir)) {
+  // A folder .gitignore excludes lists only what git tracks in it, often
+  // nothing; a clean result over no files would read as a clean folder.
+  let ignored: { code: string; message: string } | undefined;
+  const entries = scan.ctx.files.list(dir, {
+    warn: (w) => {
+      if (w.code === LIST_FOLDER_IGNORED) ignored = w;
+      else scan.ctx.warn(w);
+    },
+  });
+  if (ignored && entries.length === 0) {
+    scan.ctx.warn({ code: 'SECRETS_NOTHING_SCANNED', message: `0 files were scanned, because .gitignore excludes this folder: ${ignored.message}` });
+  } else if (ignored) {
+    scan.ctx.warn(ignored);
+  }
+  for (const entry of entries) {
     const path = `${prefix}${entry}`;
     if (entry.endsWith('/')) {
       scan.cantRead({ file: path, reason: 'nested-repository', message: `${path} is a repository of its own and wasn't walked into; scan it on its own.` });

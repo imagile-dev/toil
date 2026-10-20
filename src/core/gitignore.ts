@@ -59,6 +59,24 @@ export function skippedLineWarning(file: string, skipped: SkippedIgnoreLine): { 
   };
 }
 
+/** The code of the warning `ignoredFolderWarning` gives, for a caller that words its own. */
+export const LIST_FOLDER_IGNORED = 'LIST_FOLDER_IGNORED';
+
+/**
+ * The `meta.warnings` entry for a listing whose folder `.gitignore` excludes
+ * (`rel` is the excluded folder, from the repository's top): only the files
+ * git tracks under it are listed, as git lists them, so an empty listing says
+ * why rather than reading as an empty folder.
+ */
+export function ignoredFolderWarning(root: string, rel: string, tracked: number): { code: string; message: string } {
+  const where = root.replace(/\\/g, '/');
+  const what = tracked === 0 ? 'so nothing under it is listed' : `so only the ${tracked} file${tracked === 1 ? '' : 's'} git tracks under it ${tracked === 1 ? 'is' : 'are'} listed`;
+  return {
+    code: LIST_FOLDER_IGNORED,
+    message: `${where} is inside ${rel}/, which .gitignore excludes, ${what}. Name a file in it to read that file, or remove the folder from .gitignore.`,
+  };
+}
+
 /**
  * The `meta.warnings` entry for an ignore file that exists but couldn't be
  * read (#264): the file, the error's code and message, what it means for the
@@ -99,6 +117,17 @@ export function undecodableIgnoreWarning(file: string): { code: string; message:
 }
 
 /**
+ * The longest pattern line toil compiles (docs/bounds.md, `gitignore.line`).
+ * Every folder walk reads `.gitignore`, so a line far longer than any real
+ * pattern would cost every listing its compile time; 4096 is as long as the
+ * longest path most systems allow. A longer line is skipped and reported, as
+ * a line that won't compile is. A filing limit, unlike most, with a reason.
+ */
+export const MAX_IGNORE_LINE = 4096;
+/** How much of an over-long line its warning quotes. */
+const SHOWN_OF_LONG_LINE = 60;
+
+/**
  * Parses one ignore file's text into rules rooted at `base`. A line whose
  * pattern doesn't compile (a reversed range such as `[b-a]`) is left out on
  * its own and handed to `onSkip`; the lines around it still apply, as they do
@@ -111,6 +140,15 @@ export function parseIgnore(text: string, base: string, caseFold = false, onSkip
   for (let n = 0; n < lines.length; n++) {
     let line = lines[n]!;
     if (line === '' || line.startsWith('#')) continue;
+    if (line.length > MAX_IGNORE_LINE) {
+      onSkip?.({
+        line: n + 1,
+        pattern: `${line.slice(0, SHOWN_OF_LONG_LINE)}...`,
+        reason: `it is ${line.length} characters long, longer than the ${MAX_IGNORE_LINE} toil compiles in one pattern, which is already as long as the longest path most systems allow`,
+        fix: 'Shorten the pattern or delete the line.',
+      });
+      continue;
+    }
     // Trailing spaces are dropped unless escaped with a backslash.
     line = line.replace(/(?<!\\)\s+$/, '');
     if (line.endsWith('\\ ')) line = `${line.slice(0, -2)} `;

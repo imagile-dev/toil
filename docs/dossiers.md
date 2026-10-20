@@ -281,9 +281,12 @@ which file and which key.
   wins. A call warns about the dossier it used; `dossiers list` shows every
   collision (`shadowedBy`), and `dossiers check` reports it for the one checked.
 
-A file that won't load (not JSON, a wrong type, a bad name) is skipped with a
+A file that won't load (not JSON, a wrong type, a bad name, a key named
+`__proto__`, `constructor` or `prototype` anywhere in it, or more than 1 MiB, which
+isn't read at all: `docs/bounds.md`, `dossiers.size`) is skipped with a
 `DOSSIER_INVALID` warning when toil is looking for one that applies, and is
-`CONFIG_INVALID` when a call names it. Either way the message gives the file, the key
+`CONFIG_INVALID` when a call names it. Those three key names belong to how
+JavaScript objects work, so no section, environment, field or repo may use one. Either way the message gives the file, the key
 path and, for bad JSON, the line and column, never the content.
 
 **The commands never add a duplicate.** `dossiers add-repo`, `field`, `link` and `env`
