@@ -4155,7 +4155,10 @@ by default inside it:
   over its 30 `rows`, and most content let one 50 KB comment beat 200 issues, so it
   is rows and shape, never size. A third finding showed that cells alone pick a
   one- or two-row `db` result's `columns`, so a list of objects as long as a sibling's
-  list rows are wide is taken as that sibling's header and never ranked. Fields beside the table that are still over a
+  list rows are wide, or whose items all have a string `name` beside an empty list (a
+  `db` query with no rows), is taken as that sibling's header and never ranked. A last
+  row too wide for the budget at 200 characters is cut to 40 before it's dropped, so
+  a one-row answer keeps its row (a non-blocking review note). Fields beside the table that are still over a
   quarter of the budget after their texts are cut are kept from the front while
   they fit, in one pass (`trimmed.fields`), as are an outline's keys: dropping one
   at a time and re-serializing took 10.8 s at 6,000 fields, and the pass takes

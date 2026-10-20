@@ -176,6 +176,24 @@ describe('summary rules, first match wins', () => {
     }
   });
 
+  it('reads an empty db result as a table of no rows, and keeps other lists beside an empty one', () => {
+    for (const width of [30, 60]) {
+      const columns = Array.from({ length: width }, (_, i) => ({ name: `col${i}`, type: 'text' }));
+      expect(summarize({ columns, rows: [] }).report, `${width} x 0`).toMatchObject({ rows: 0, table: 'rows' });
+    }
+    const comments = Array.from({ length: 60 }, (_, i) => ({ author: `user${i}`, body: `comment ${i}` }));
+    expect(summarize({ comments, attachments: [] }).report).toMatchObject({ rows: 60, table: 'comments' });
+  });
+
+  it('keeps one very wide row, its texts cut to 40 characters, rather than none', () => {
+    const columns = Array.from({ length: 30 }, (_, i) => ({ name: `col${i}`, type: 'text' }));
+    const rows = Array.from({ length: 60 }, () => columns.map(() => 'v'.repeat(300)));
+    const { data, report } = summarize({ columns, rows });
+    expect(estimateTokens(data)).toBeLessThanOrEqual(1500);
+    expect((data as { rows: string[][] }).rows).toEqual([columns.map(() => `${'v'.repeat(40)}…`)]);
+    expect(report.trimmed).toMatchObject({ rows: 19, strings: 30 });
+  });
+
   it('chooses the table by rows and their shape, so one long text in a one-row list does not win', () => {
     const rows = Array.from({ length: 200 }, (_, i) => ({ id: i, name: `item ${i}` }));
     const { report } = summarize({ comments: [{ body: 'x'.repeat(50_000) }], issues: rows });
