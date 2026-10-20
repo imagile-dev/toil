@@ -47,7 +47,7 @@ export const MODE_INFO: Record<AssignMode, { label: string; does: string; change
   },
   implement: {
     label: 'Implement',
-    does: "Works the item in a clone of the dossier's repository, on a new local branch, through the adapter's coding runtime and its own sandbox.",
+    does: "Works the item in a copy of the dossier's repository, on a new local branch, through the adapter's coding runtime and its own sandbox.",
     changes: 'Only that branch, in a folder of its own, with no network. Pushing it and opening a pull request are proposals.',
   },
 };

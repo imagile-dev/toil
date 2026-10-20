@@ -404,13 +404,13 @@ you apply it.
 |---|---|---|
 | **Refine** | Checks for duplicates, drafts acceptance criteria, suggests an estimate, splits the item into children where it is too big, and asks its open questions | Nothing: every change is a proposal |
 | **Investigate** | Reads the item, its parent, children, links, likely duplicates, pull requests and toil's live reads, and writes a report that cites each source | Nothing: the report is kept with the assignment, and posting it as a comment is a proposal |
-| **Implement** | Clones the dossier's repository from its local path into a folder of Toil UI's own, makes the branch `agent/<key>`, changes and tests the code, and stages the change | Only that clone, with no network. Committing, pushing and opening a pull request are proposals |
+| **Implement** | Works in a copy of the dossier repository's git folder that Toil UI makes in a folder of its own, fills it from the last commit, makes the branch `agent/<key>`, changes and tests the code, and stages the change | Only that clone, with no network. Committing, pushing and opening a pull request are proposals |
 
 - **Refine and investigate** get the same read-only tools as the chat (`owi_*`, `pr_*`,
   `proposal_fields` and toil's live reads), with no shell and no file writes.
 - **Implement runs on Codex only, for now.** Codex's own sandbox, `workspace-write`,
   holds the agent's commands and writes to the clone, with no network and none of the
-  temp folders Codex adds by default, on Windows, macOS and Linux. The clone is
+  temp folders Codex adds by default, on Windows (its `unelevated` restricted-token sandbox), macOS and Linux. The clone is
   `<data folder>/cache/work/<assignment>/repo`, so `toil-ui wipe` deletes it; before any git runs there outside the sandbox, Toil UI rewrites its git config and removes its hooks. The dossier's
   repository needs a local path (`toil dossiers add-repo <dossier> <folder>`). The agent stages its change and never commits, pushes or fetches; the
   staged diff is shown through toil's own `git status` and `git diff`, and the commit

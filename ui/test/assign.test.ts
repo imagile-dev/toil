@@ -19,7 +19,7 @@ import type { Envelope } from '../src/toil.ts';
 import type { Proposal } from '../src/proposal.ts';
 import { assignSettingsFile, checkAssignSettings, fileKeeper, loadAssignSettings, memoryKeeper, queueSettings } from '../server/assign/files.ts';
 import { defang, fencedItem, implementPrompt, readPrompt, splitLines } from '../server/assign/prompts.ts';
-import { commentProposal, commentText, headBranch, pushProposal, reclaimGitDir } from '../server/assign/runner.ts';
+import { commentProposal, commentText, headBranch, prepareClone, pushProposal, reclaimGitDir, unified } from '../server/assign/runner.ts';
 import { writeCommands } from '../server/agents/answer.ts';
 import { registry } from '@imagile-dev/toil/api';
 import { createUiServer } from '../server/server.ts';
@@ -252,11 +252,34 @@ describe('the assigned agent\'s prompts', () => {
     expect(readPrompt('refine', 'card-payments', i, 'now').system).toMatch(/INJECTION:/);
   });
 
-  it('tells implement mode to stage and never commit, push or fetch', () => {
-    const p = implementPrompt('card-payments', i, 'now', { repo: 'payments-core', source: 'C:\\src\\payments-core', branch: 'agent/PAY-107' });
-    expect(p.prompt).toContain('git clone --no-hardlinks "C:\\\\src\\\\payments-core" repo');
+  it('tells implement mode to fill the clone, branch and stage, and never commit, push or fetch', () => {
+    const p = implementPrompt('card-payments', i, 'now', { repo: 'payments-core', branch: 'agent/PAY-107' });
+    expect(p.prompt).toContain('git -C repo reset --hard HEAD');
     expect(p.prompt).toContain('git -C repo switch -c agent/PAY-107');
+    expect(p.prompt).not.toContain('git clone');
     expect(p.system).toMatch(/Never commit, push, fetch, pull or change a remote/);
+  });
+
+  it("copies the person's git directory without its hooks or config, and refuses a worktree", () => {
+    const source = join(folder, 'person');
+    mkdirSync(join(source, '.git', 'hooks'), { recursive: true });
+    mkdirSync(join(source, '.git', 'objects'), { recursive: true });
+    writeFileSync(join(source, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    writeFileSync(join(source, '.git', 'objects', 'pack.idx'), 'x');
+    writeFileSync(join(source, '.git', 'hooks', 'post-checkout'), 'theirs');
+    writeFileSync(join(source, '.git', 'config'), '[core]\n\trepositoryformatversion = 0\n[user]\n\temail = you@example.com\n');
+    writeFileSync(join(source, 'uncommitted.txt'), 'stays home');
+    const clone = join(folder, 'prepared', 'repo');
+    prepareClone(source, clone);
+    expect(readFileSync(join(clone, '.git', 'HEAD'), 'utf8')).toBe('ref: refs/heads/main\n');
+    expect(readFileSync(join(clone, '.git', 'objects', 'pack.idx'), 'utf8')).toBe('x');
+    expect(() => readFileSync(join(clone, '.git', 'hooks', 'post-checkout'))).toThrow();
+    expect(() => readFileSync(join(clone, 'uncommitted.txt'))).toThrow();
+    expect(readFileSync(join(clone, '.git', 'config'), 'utf8')).not.toContain('you@example.com');
+    const worktree = join(folder, 'worktree');
+    mkdirSync(worktree, { recursive: true });
+    writeFileSync(join(worktree, '.git'), 'gitdir: C:/elsewhere');
+    expect(() => prepareClone(worktree, join(folder, 'w2', 'repo'))).toThrow(/worktree or a submodule/);
   });
 
   it('takes the QUESTION: and INJECTION: lines out of the text', () => {
@@ -425,5 +448,12 @@ describe("every proposal the sample's assignments make", async () => {
     const def = byName.get(p.command!);
     expect(def?.writes).toBe(true);
     expect(new Validator(def!.inputSchema as object, '2020-12', false).validate(p.input).errors).toEqual([]);
+  });
+});
+
+describe("the staged diff, as a person reads it", () => {
+  it("turns toil's git diff files and hunks into a unified diff", () => {
+    expect(unified({ files: [{ path: 'a.md', binary: false, hunks: [{ oldStart: 1, oldCount: 1, newStart: 1, newCount: 2, lines: [' one', '+two'] }] }] })).toBe('--- a/a.md\n+++ b/a.md\n@@ -1,1 +1,2 @@\n one\n+two');
+    expect(unified({ nope: 1 })).toBeNull();
   });
 });

@@ -1113,6 +1113,7 @@ describe('assignments on the agent host (#293)', () => {
     const overrides = stub.seen.options!.configOverrides as string[];
     expect(overrides).toEqual(codexOverrides('http://127.0.0.1:1/api/agent/mcp', true));
     expect(overrides).toContain('sandbox_workspace_write.network_access=false');
+    expect(overrides).toContain('windows.sandbox="unelevated"');
     expect(overrides).not.toContain('features.shell_tool=false');
     expect(overrides).toContain('features.unified_exec=false');
   });

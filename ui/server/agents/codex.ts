@@ -65,14 +65,16 @@ export const CODEX_WORKSPACE_FEATURES = ['shell_tool'];
  * The `--config` overrides for one run: Toil UI's server, and the features
  * off. With a workspace (implement mode) the shell stays on, the sandbox's
  * writable roots are the workspace alone (not the temp folders Codex adds by
- * default), and the sandbox has no network.
+ * default), the sandbox has no network, and on Windows it is Codex's
+ * restricted-token sandbox, without which the CLI runs read-only.
  */
 export function codexOverrides(url: string, workspace = false): string[] {
   const off = workspace ? CODEX_FEATURES_OFF.filter((f) => !CODEX_WORKSPACE_FEATURES.includes(f)) : CODEX_FEATURES_OFF;
   return [
     `mcp_servers={ toil_ui = { url = ${toml(url)}, bearer_token_env_var = ${toml(TOKEN_ENV)} } }`,
     ...off.map((f) => `features.${f}=false`),
-    ...(workspace ? ['sandbox_workspace_write.network_access=false', 'sandbox_workspace_write.exclude_tmpdir_env_var=true', 'sandbox_workspace_write.exclude_slash_tmp=true', 'sandbox_workspace_write.writable_roots=[]'] : []),
+    // On Windows the CLI quietly runs workspace-write as read-only unless its own sandbox is named; `unelevated` is the restricted-token one, which needs no admin rights. Other OSes ignore the key.
+    ...(workspace ? ['windows.sandbox="unelevated"', 'sandbox_workspace_write.network_access=false', 'sandbox_workspace_write.exclude_tmpdir_env_var=true', 'sandbox_workspace_write.exclude_slash_tmp=true', 'sandbox_workspace_write.writable_roots=[]'] : []),
   ];
 }
 

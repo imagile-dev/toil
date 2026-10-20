@@ -79,16 +79,16 @@ export function readPrompt(mode: Exclude<AssignMode, 'implement'>, dossier: stri
   return { system: common(dossier, mode, now).join('\n'), prompt: `${TASK[mode](item.id)}\n\nThe work item:\n${fencedItem(item)}` };
 }
 
-/** Implement mode's prompt: clone into `repo`, branch, change, stage; never commit, push or fetch. */
-export function implementPrompt(dossier: string, item: WorkItem, now: string, o: { repo: string; source: string; branch: string }): ModePrompt {
+/** Implement mode's prompt: fill the clone Toil UI made in `repo`, branch, change, stage; never commit, push or fetch. */
+export function implementPrompt(dossier: string, item: WorkItem, now: string, o: { repo: string; branch: string }): ModePrompt {
   const system = [
     ...common(dossier, 'implement', now),
-    `7. You work in the folder you start in, which is empty, and nowhere else. The sandbox lets you write only there, with no network. Use git only on the clone in its repo folder.`,
+    `7. You work in the folder you start in, and nowhere else. The sandbox lets you write only there, with no network. Use git only on the clone in its repo folder.`,
     '8. Never commit, push, fetch, pull or change a remote: a person reviews your staged changes, then commits and pushes them through proposals.',
   ].join('\n');
   const prompt = [
     `Implement [[${item.id}]] in the dossier's repository ${o.repo}:`,
-    `1. Clone it into a folder named repo inside the one you are in: git clone --no-hardlinks ${JSON.stringify(o.source)} repo`,
+    `1. Its clone is the folder repo, with an empty working tree. Fill it from the last commit: git -C repo reset --hard HEAD`,
     `2. Make a branch for the work: git -C repo switch -c ${o.branch}`,
     '3. Make the change the item asks for, the way the repository already does things, with tests where it has them, and run them if they need no network.',
     '4. Stage every change with git -C repo add -A. Do not commit.',

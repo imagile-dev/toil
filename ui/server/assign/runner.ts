@@ -11,8 +11,9 @@
  *   registry. Investigate's report becomes a "post as a comment" proposal.
  * - **implement** runs on Codex alone, the one adapter whose own sandbox
  *   holds commands and writes to one folder with no network on every OS
- *   Toil UI supports. The folder is under the cache. The agent clones the
- *   dossier's repository into its `repo` from the local path, branches,
+ *   Toil UI supports. The folder is under the cache. Toil UI copies the
+ *   dossier repository's git directory into its `repo` (`prepareClone`), and
+ *   the agent fills the working tree from the last commit, branches,
  *   changes and stages. Then, before any git runs outside the sandbox,
  *   Toil UI takes the clone's git directory back (`reclaimGitDir`: its own
  *   config, no hooks), reads the branch from `.git/HEAD` and the staged diff
@@ -26,7 +27,7 @@
  */
 
 import { createHash } from 'node:crypto';
-import { lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ADAPTER_NAME, actorOf, branchName, type AdapterChoice, type AssignAdapter, type Branch, type RepoChoice } from '../../src/assign/model.ts';
 import { RunStopped, type RunContext, type RunResult, type Runner } from '../../src/assign/queue.ts';
@@ -152,8 +153,10 @@ export function hostRunner(o: HostRunnerOptions): Runner {
         const folder = workFolder(o.dataDir, a.id);
         rmSync(folder, { recursive: true, force: true });
         mkdirSync(folder, { recursive: true, mode: 0o700 });
+        rmSync(`${folder}.commit-message.txt`, { force: true });
+        prepareClone(repo.path, cloneOf(folder));
         workspace = { root: folder };
-        modePrompt = implementPrompt(a.dossier, item, now(), { repo: repo.name, source: repo.path, branch });
+        modePrompt = implementPrompt(a.dossier, item, now(), { repo: repo.name, branch });
       } else {
         modePrompt = readPrompt(a.mode, a.dossier, item, now());
       }
@@ -248,10 +251,23 @@ async function branchOf(read: (command: string, input: Record<string, unknown>, 
   const files = status.ok ? filesOf(status.data) : [];
   let text: string | null = null;
   if (diff.ok) {
-    const raw = typeof diff.data === 'string' ? diff.data : JSON.stringify(diff.data, null, 2);
+    const raw = typeof diff.data === 'string' ? diff.data : (unified(diff.data) ?? JSON.stringify(diff.data, null, 2));
     text = raw.length > MAX_DIFF ? `${raw.slice(0, MAX_DIFF)}\n[cut at ${MAX_DIFF} characters]` : raw;
   }
   return { name, repo, folder: slashes(folder), onBranch: headBranch(folder) === name, files, diff: text };
+}
+
+/** toil's `git diff` (files of hunks) as the unified diff a person reads, or null for a shape it doesn't know. */
+export function unified(data: unknown): string | null {
+  const files = (data as { files?: unknown } | null)?.files;
+  if (!Array.isArray(files)) return null;
+  const out: string[] = [];
+  for (const f of files as Array<{ path?: string; binary?: boolean; hunks?: Array<{ oldStart: number; oldCount: number; newStart: number; newCount: number; lines?: string[] }> }>) {
+    out.push(`--- a/${f.path}`, `+++ b/${f.path}`);
+    if (f.binary) out.push('(binary)');
+    for (const h of f.hunks ?? []) out.push(`@@ -${h.oldStart},${h.oldCount} +${h.newStart},${h.newCount} @@`, ...(h.lines ?? []));
+  }
+  return out.join('\n');
 }
 
 /** `git status`'s files, whatever shape the toil in use reports them in. */
@@ -266,6 +282,30 @@ function filesOf(data: unknown): Branch['files'] {
     }
   }
   return out;
+}
+
+/**
+ * Makes implement mode's clone before the run (#293): a copy of the person's
+ * clone's git directory into the agent's folder, without its hooks or
+ * config (`reclaimGitDir` writes Toil UI's own), and no working tree. The
+ * agent fills the working tree from the last commit inside its sandbox, so
+ * it never has to read the person's clone, which Codex's sandbox on Windows
+ * won't map (git's local clone fails there with "CreateFileMapping", error
+ * 5), and uncommitted work in the person's clone never comes along. Throws
+ * when the dossier's path isn't a plain git clone.
+ */
+export function prepareClone(source: string, clone: string): void {
+  const git = join(source, '.git');
+  let st;
+  try {
+    st = lstatSync(git);
+  } catch {
+    throw new RunStopped('error', `${slashes(source)} isn't a git clone, so implement mode has nothing to copy.`, 'Point the dossier repository at a git clone (toil dossiers add-repo <dossier> <folder>), then assign again.');
+  }
+  if (!st.isDirectory()) throw new RunStopped('error', `${slashes(source)} is a git worktree or a submodule (its .git is a file), so implement mode can't copy it.`, 'Point the dossier repository at the main clone, then assign again.');
+  cpSync(git, join(clone, '.git'), { recursive: true, filter: (from) => !/[\\/]\.git[\\/](hooks|config|[^\\/]*\.lock)$/.test(from) });
+  const refused = reclaimGitDir(clone, source);
+  if (refused) throw new RunStopped('error', refused, 'Assign it again.');
 }
 
 /**

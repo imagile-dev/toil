@@ -4827,13 +4827,23 @@ it pins. These are the choices made by default in the fix:
   Toil UI checking paths in a callback, which a shell command walks past. The dialog
   says so. Whether to add them with a path-checking callback and no shell is the
   maintainer's call.
-- **The clone is the agent's own, under the cache** (`<data folder>/cache/work/<id>/repo`),
-  made by the agent inside its sandbox with `git clone --no-hardlinks <the dossier
-  repo's path> repo`, never the person's working tree. Toil UI spawns nothing itself
-  (`check:package`), so it can't run git; toil's git area only reads. The dossier's
-  repository therefore needs a local path. The clone is a folder below the
-  sandbox's writable root, not the root itself, so Codex's protection of a root's
-  `.git` doesn't stop the agent's own `git switch` and `git add`.
+- **The clone is Toil UI's copy, under the cache** (`<data folder>/cache/work/<id>/repo`):
+  before the run, in plain file operations, Toil UI copies the dossier repository's
+  `.git` folder (not its hooks, not its config, no working tree), writes its own
+  config, and the agent fills the working tree with `git -C repo reset --hard HEAD`
+  inside its sandbox. Never the person's working tree, and never their uncommitted
+  work. The agent cloning it itself failed live: on Windows, Codex's sandbox won't let
+  git map the person's pack files (`CreateFileMapping`, error 5). Toil UI spawns
+  nothing (`check:package`), so it can't run git, and toil's git area only reads. The
+  dossier's repository needs a local path to a plain clone (a worktree or submodule,
+  whose `.git` is a file, is refused). The clone sits below the sandbox's writable
+  root, so Codex's protection of a root's own `.git` doesn't block the agent's
+  `git switch` and `git add`.
+- **On Windows, implement mode names Codex's `unelevated` sandbox**
+  (`windows.sandbox="unelevated"`). Without it, codex-cli 0.156 on this machine ran
+  `--sandbox workspace-write` as read-only and rejected every command; with it, a
+  write inside the folder worked, a write outside it was denied and the network was
+  unreachable (checked by hand with `codex exec`). Other OSes ignore the key.
 - **Toil UI takes the clone's `.git` back before any git runs there outside the
   sandbox** (review round 1). The agent could write the clone's config and hooks, and
   git runs what a repository's config names (a clean or smudge filter, which toil's
