@@ -465,7 +465,15 @@ describe('people and the work-in-progress limit', () => {
     const token = await cli(d, ['dossiers', 'person', 'pay', 'Sam', '--id', 'github=ghp_abcdefghijklmnopqrstuvwxyz0123456789']);
     expect(token.envelope.error?.message).toContain("The github identity can't be used: it's shaped like a credential");
     expect(JSON.stringify(token.envelope)).not.toContain('ghp_');
-    expect((await cli(d, ['dossiers', 'person', 'pay', 'Sam', '--email', 'sam'])).envelope.error?.message).toBe('"sam" isn\'t an email address (dossier pay).');
+    expect((await cli(d, ['dossiers', 'person', 'pay', 'Sam', '--email', 'sam'])).envelope.error?.message).toBe("--email isn't an email address (dossier pay).");
+    // A token pasted anywhere is refused and never repeated: as an --id with no area, as an email, as a name.
+    const TOKEN = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789';
+    for (const argv of [['Sam', '--id', TOKEN], ['Sam', '--email', TOKEN], ['Sam', '--email', `x@${TOKEN}`], [TOKEN]]) {
+      const run = await cli(d, ['dossiers', 'person', 'pay', ...argv]);
+      expect(run.envelope.error?.code, argv.join(' ')).toBe('INVALID_INPUT');
+      expect(JSON.stringify(run.envelope), argv.join(' ')).not.toContain('ghp_');
+    }
+    expect((await cli(d, ['dossiers', 'person', 'pay', 'Sam', '--id', TOKEN])).envelope.error?.fix).toBe('For example --id github=pat-ex.');
     expect(file(d).people).toEqual([{ name: 'Pat', ids: { github: 'pat-ex' } }]);
   });
 
@@ -488,6 +496,12 @@ describe('people and the work-in-progress limit', () => {
     expect(ok(await cli(d, ['dossiers', 'person', 'pay', 'Pat', '--remove']))).toMatchObject({ person: null, removed: { name: 'Pat' } });
     expect(file(d)).not.toHaveProperty('people');
     expect((await cli(d, ['dossiers', 'person', 'pay', 'Pat', '--remove'])).envelope.error?.fix).toBe('It has: (nobody yet).');
+  });
+
+  it("removes an identity the reader kept under an area this toil hasn't got", async () => {
+    const d = disk({ 'home/.toil/dossiers/pay.json': { name: 'pay', people: [{ name: 'Pat', ids: { githb: 'pat', jira: 'pat' } }] } });
+    expect((await cli(d, ['dossiers', 'person', 'pay', 'Pat', '--id', 'githb=pat'])).envelope.error?.message).toBe('toil has no area named "githb".');
+    expect(ok(await cli(d, ['dossiers', 'person', 'pay', 'Pat', '--id', 'githb=pat', '--remove']))).toMatchObject({ person: { ids: { jira: 'pat' } } });
   });
 
   it('sets the limit, changes it only with --replace, and clears it on the CLI only', async () => {

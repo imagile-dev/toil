@@ -145,5 +145,9 @@ describe('validateDossier', () => {
     // Where, never what: the token-shaped value isn't repeated.
     expect(JSON.stringify(problems)).not.toContain('ghp_');
     expect(validateDossier({ name: 'p', people: { pat: {} } }, areas).problems.map((p) => p.path)).toEqual(['people']);
+    const token = 'ghp_abcdefghijklmnopqrstuvwxyz0123456789';
+    const shaped = validateDossier({ name: 'p', people: [{ name: token }, { name: 'Sam', email: `x@${token}` }] }, areas).problems;
+    expect(shaped.map((p) => p.path)).toEqual(['people[0].name', 'people[1].email']);
+    expect(JSON.stringify(shaped)).not.toContain('ghp_');
   });
 });

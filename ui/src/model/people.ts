@@ -278,9 +278,9 @@ export interface Suggestion {
   person: string | null;
   name: string;
   email: string;
-  /** The toil command that applies it, and its input. */
+  /** The toil command that applies it, and its input: exactly what the line shows and the button runs. */
   command: 'dossiers person';
-  input: { dossier: string; name: string; id: string[] };
+  input: { dossier: string; name: string; id: string[]; email?: string };
 }
 
 export interface People {
@@ -403,15 +403,15 @@ export function suggest(dossier: string, entries: PersonEntry[], unmapped: Ident
     }
     if (accounts_.length < 2) continue;
     const name = accounts_.find((i) => i.name)?.name ?? accounts_[0]!.id;
-    suggestions.push({ identities: accounts_, person: null, name, email, command: 'dossiers person', input: { dossier, name, id: accounts_.map((i) => `${i.area}=${i.id}`) } });
+    suggestions.push({ identities: accounts_, person: null, name, email, command: 'dossiers person', input: { dossier, name, id: accounts_.map((i) => `${i.area}=${i.id}`), email } });
   }
   return { suggestions, ambiguous };
 }
 
-/** A suggestion as the command line that applies it. */
+/** A suggestion as the command line that applies it, made from its input alone, so the line and the button can't differ. */
 export function suggestionLine(s: Suggestion): string {
   const quote = (v: string) => (/^[\w@.:=-]+$/.test(v) ? v : `"${v.replace(/(["\\$`])/g, '\\$1')}"`);
-  return ['toil dossiers person', quote(s.input.dossier), quote(s.input.name), ...s.input.id.flatMap((id) => ['--id', quote(id)]), ...(s.person === null ? ['--email', quote(s.email)] : [])].join(' ');
+  return ['toil dossiers person', quote(s.input.dossier), quote(s.input.name), ...s.input.id.flatMap((id) => ['--id', quote(id)]), ...(s.input.email ? ['--email', quote(s.input.email)] : [])].join(' ');
 }
 
 /** The card a key names, among the people and the unmapped accounts. */

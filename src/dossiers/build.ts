@@ -268,15 +268,18 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
       const dossier = structuredClone(file.dossier);
       const name = input.name.trim();
       const refuse = (message: string, fix: string) => new ToilError('INVALID_INPUT', `${message} (dossier ${dossier.name}).`, { fix });
+      // Neither a name nor an email may be shaped like a credential either: the dossier is meant to be safe to check in.
+      if (identityProblem(name)) throw refuse(`The name can't be used: ${identityProblem(name)}`, 'Give the name the team writes, never a token.');
       const ids = (input.id ?? []).map((pair) => {
-        const [area, value] = keyValue(pair, '--id');
-        areaNamed(area);
+        const [area, value] = keyValue(pair, '--id', { example: 'github=pat-ex', quiet: true });
+        // An identity the reader kept under an area this toil hasn't got can still be removed.
+        if (!input.remove) areaNamed(area);
         // The value never goes in the message: something shaped like a token may be one.
         const problem = identityProblem(value);
         if (problem) throw refuse(`The ${area} identity can't be used: ${problem}`, 'Pass the user name, login or email, never a token.');
         return [area, value.trim()] as const;
       });
-      if (input.email !== undefined && !EMAIL.test(input.email)) throw refuse(`"${input.email}" isn't an email address`, 'Give one such as you@example.com, or leave --email out.');
+      if (input.email !== undefined && (!EMAIL.test(input.email) || identityProblem(input.email))) throw refuse("--email isn't an email address", 'Give one such as you@example.com, or leave --email out.');
       const at = dossier.people.findIndex((p) => p.name.toLowerCase() === name.toLowerCase());
       const current = at >= 0 ? dossier.people[at]! : undefined;
       const names = () => dossier.people.map((p) => p.name).join(', ') || '(nobody yet)';
@@ -607,9 +610,14 @@ function credentialPaths(file: DossierFile): string[] {
   return file.problems.filter((p) => p.code === 'DOSSIER_REMOTE_USERINFO').map((p) => p.path);
 }
 
-function keyValue(pair: string, flag: string): [string, string] {
+/**
+ * `key=value` from a flag's value. `quiet` keeps the value out of the error, for a
+ * flag whose value may be something that shouldn't be repeated (`--id`, where a
+ * pasted token is the mistake being refused).
+ */
+function keyValue(pair: string, flag: string, { example = 'project=PAY', quiet = false }: { example?: string; quiet?: boolean } = {}): [string, string] {
   const at = pair.indexOf('=');
-  if (at <= 0 || at === pair.length - 1) throw new ToilError('INVALID_INPUT', `${flag} takes key=value, and "${pair}" isn't.`, { fix: `For example ${flag} project=PAY.` });
+  if (at <= 0 || at === pair.length - 1) throw new ToilError('INVALID_INPUT', quiet ? `${flag} takes key=value, and one value given isn't.` : `${flag} takes key=value, and "${pair}" isn't.`, { fix: `For example ${flag} ${example}.` });
   return [pair.slice(0, at), pair.slice(at + 1)];
 }
 

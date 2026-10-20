@@ -355,12 +355,14 @@ function readPeople(
     const path = at('people', i);
     if (!isRecord(entry) || typeof entry.name !== 'string' || entry.name.trim() === '') return error(path, 'Each person needs a "name".');
     const name = entry.name.trim();
+    // Where, never what: a name or email shaped like a credential is refused by key path, as an identity is.
+    if (identityProblem(name)) return error(at(path, 'name'), `This name can't be used: ${identityProblem(name)}.`);
     const seen = names.get(name.toLowerCase());
     if (seen) error(at(path, 'name'), `"${name}" is listed twice (also ${seen}).`);
     names.set(name.toLowerCase(), path);
     for (const key of Object.keys(entry)) if (!['name', 'kind', 'email', 'ids'].includes(key)) warn('DOSSIER_UNKNOWN_KEY', at(path, key), `"${key}" isn't a person key; people take name, kind, email and ids. It was ignored.`);
     if (entry.kind !== undefined && !(PERSON_KINDS as readonly unknown[]).includes(entry.kind)) error(at(path, 'kind'), `"kind" must be ${PERSON_KINDS.join(' or ')}.`);
-    if (entry.email !== undefined && (typeof entry.email !== 'string' || !EMAIL.test(entry.email))) error(at(path, 'email'), '"email" must be an email address, e.g. you@example.com.');
+    if (entry.email !== undefined && (typeof entry.email !== 'string' || !EMAIL.test(entry.email) || identityProblem(entry.email))) error(at(path, 'email'), '"email" must be an email address, e.g. you@example.com, and never a credential.');
     if (entry.ids !== undefined && !isRecord(entry.ids)) error(at(path, 'ids'), '"ids" must map each area to the identity it knows this person by, e.g. { "github": "pat-ex" }.');
     const ids: Record<string, string> = {};
     for (const [area, value] of Object.entries(isRecord(entry.ids) ? entry.ids : {})) {

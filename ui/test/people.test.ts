@@ -177,11 +177,13 @@ describe('suggestions', () => {
     const { suggestions, ambiguous } = suggest('payments', [PAT], [at('bitbucket', 'pexample', 'YOU@example.com'), at('jira', 'sam', 'sam@example.com', 'Sam'), at('github', 'sam-gh', 'sam@example.com')]);
     expect(ambiguous).toEqual([]);
     expect(suggestions.map((s) => [s.person, s.name, s.input])).toEqual([
-      [null, 'Sam', { dossier: 'payments', name: 'Sam', id: ['jira=sam', 'github=sam-gh'] }],
+      [null, 'Sam', { dossier: 'payments', name: 'Sam', id: ['jira=sam', 'github=sam-gh'], email: 'sam@example.com' }],
       ['Pat Example', 'Pat Example', { dossier: 'payments', name: 'Pat Example', id: ['bitbucket=pexample'] }],
     ]);
     expect(suggestionLine(suggestions[0]!)).toBe('toil dossiers person payments Sam --id jira=sam --id github=sam-gh --email sam@example.com');
     expect(suggestionLine(suggestions[1]!)).toBe('toil dossiers person payments "Pat Example" --id bitbucket=pexample');
+    // The line is made from the input the button runs, flag for flag.
+    for (const s of suggestions) expect(suggestionLine(s)).toBe(['toil dossiers person', s.input.dossier, /\s/.test(s.input.name) ? `"${s.input.name}"` : s.input.name, ...s.input.id.flatMap((id) => ['--id', id]), ...(s.input.email ? ['--email', s.input.email] : [])].join(' '));
   });
 
   it('suggests nothing for an email two people have, two accounts in one system have, or that would replace an identity', () => {
