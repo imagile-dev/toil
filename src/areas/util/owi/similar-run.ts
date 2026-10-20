@@ -19,7 +19,7 @@ import { MAX_SIMILAR_ITEMS, type SimilarTaskOutput } from './similar-task.js';
 /**
  * The limits scoring runs under, measured with the built CLI on a Windows
  * laptop (Node 24.14): 20,000 items (8 MB, titles of five words and bodies of
- * about sixty) read, indexed twice and paired in about 3.7 s, a query or an
+ * about sixty) read, indexed and paired in about 3.7 s, a query or an
  * item over the same set in about 1.8 s. The deadline leaves room for a set
  * near the input cap; one past it, or whose items share far more than real
  * backlogs do, stops with TIMEOUT rather than holding the process.
@@ -132,12 +132,11 @@ export async function similarOwi(ctx: Pick<CommandContext, 'warn' | 'signal'>, i
     v.expect('score.parts', s.score >= 0 && s.score <= 1 && Math.abs(Math.min(1, sum) - s.score) <= 0.0005, { at: s.at, expected: `a score in 0 to 1 equal to its parts (${sum.toFixed(4)})`, actual: s.score }, { code: 'OWI_SIMILAR_MISMATCH' });
   }
   if (!scored.length) v.unchecked('score.parts', 'nothing scored at or above the threshold');
-  const again = found.recomputed;
-  if ('unchecked' in again) v.unchecked('score.reordered', again.unchecked);
-  else if (!again.checked) v.unchecked('score.reordered', 'nothing scored at or above the threshold');
-  else {
-    for (const d of again.failed) v.expect('score.reordered', false, { at: d.at, expected: d.expected, actual: d.actual }, { code: 'OWI_SIMILAR_MISMATCH' });
-    for (let i = again.failed.length; i < again.checked; i++) v.pass('score.reordered');
+  const postings = found.postings;
+  if (postings) {
+    if (!postings.checked) v.unchecked('pairs.postings', 'no pair scored at or above the threshold');
+    for (const d of postings.failed) v.expect('pairs.postings', false, { at: d.at, expected: `${d.expected}, worked out in full`, actual: `${d.actual}, summed from the postings` }, { code: 'OWI_SIMILAR_MISMATCH' });
+    for (let i = postings.failed.length; i < postings.checked; i++) v.pass('pairs.postings');
   }
   v.approximated('score.meaning', SIMILAR_METHOD.replace(/\.$/, ''));
   if (result.search?.skippedFeatures) {

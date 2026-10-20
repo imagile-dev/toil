@@ -134,7 +134,7 @@ describe('util owi similar --pairs', () => {
     expect(data.verified.passed).toBe(true);
     expect(data.verified.checks.map((c: Data) => [c.check, c.status])).toEqual([
       ['score.parts', 'passed'],
-      ['score.reordered', 'passed'],
+      ['pairs.postings', 'passed'],
       ['score.meaning', 'approximated'],
       ['input.complete', 'passed'],
     ]);
@@ -240,6 +240,15 @@ describe('body text', () => {
     expect(bodyText(null)).toBe('');
   });
 
+  it('stays linear on a hostile body: 400 KB of each opening character reads in well under a second', () => {
+    for (const [format, unit] of [['html', '<'], ['wiki', '['], ['wiki', '{a:'], ['markdown', '['], ['markdown', '<'], ['markdown', 'a.'], ['markdown', '![x]('], ['wiki', '[a|']] as const) {
+      const content = unit.repeat(Math.ceil(400_000 / unit.length));
+      const started = performance.now();
+      bodyText({ format, content });
+      expect(performance.now() - started, `${format} ${unit}`).toBeLessThan(500);
+    }
+  });
+
   it('walks a deeply nested ADF document without running out of stack', () => {
     let node: Record<string, unknown> = { type: 'text', text: 'deep' };
     for (let i = 0; i < 100_000; i++) node = { type: 'blockquote', content: [node] };
@@ -300,8 +309,8 @@ describe('the self-check', () => {
           const outcome = await real.runBounded<Data>(...args);
           if (!outcome.ok) return outcome;
           const broken = structuredClone(outcome.value);
-          broken.result.matches[0].score = 0.99;
-          broken.recomputed.failed.push({ at: 'corp-jira:PAY-210, match 1', expected: 0.99, actual: 0.72 });
+          broken.result.pairs[0].score = 0.99;
+          broken.postings.failed.push({ at: 'cloud-jira:WEB-31 and corp-jira:PAY-97', expected: 0.9241, actual: 0.8 });
           return { ok: true, value: broken };
         },
       };
@@ -310,10 +319,10 @@ describe('the self-check', () => {
       const { similarOwi } = await import('../src/areas/util/owi/similar-run.js');
       const warnings: Warning[] = [];
       const source = { source: { kind: 'text' }, label: 'the text', expectedBytes: text.length, bytesRead: text.length, truncated: false } as never;
-      const data = await similarOwi({ warn: (w) => void warnings.push(w), signal: new AbortController().signal }, { bytes: new TextEncoder().encode(text), source, item: 'github:imagile/payments-web#51' });
+      const data = await similarOwi({ warn: (w) => void warnings.push(w), signal: new AbortController().signal }, { bytes: new TextEncoder().encode(text), source, pairs: true, threshold: 0.6 });
       expect(data.verified.passed).toBe(false);
       expect(data.verified.checks.find((c) => c.check === 'score.parts')).toMatchObject({ status: 'failed', failed: 1 });
-      expect(data.verified.checks.find((c) => c.check === 'score.reordered')).toMatchObject({ status: 'failed' });
+      expect(data.verified.checks.find((c) => c.check === 'pairs.postings')).toMatchObject({ status: 'failed', failed: 1 });
       expect(warnings.filter((w) => w.code === 'OWI_SIMILAR_MISMATCH').length).toBeGreaterThan(0);
     } finally {
       vi.doUnmock('../src/areas/util/kit/bounded.js');

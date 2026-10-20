@@ -1,24 +1,19 @@
 import { parseOwiRecords, type RecordSkipped } from '../../../core/owi/records.js';
-import { askIndex, SimilarityIndex, type SimilarOptions, type SimilarRef, type SimilarRequest, type SimilarResult } from '../../../core/owi/similar.js';
+import { askIndex, SIMILAR_METHOD, SimilarityIndex, type SimilarOptions, type SimilarRef, type SimilarRequest, type SimilarResult } from '../../../core/owi/similar.js';
 
 /**
  * The work of `util owi similar`, run inside the bounded worker (kit/bounded.ts):
- * read the records from the input's bytes, score them with the core scorer,
- * then ask again on a second index built from the records in reverse order:
- * a query or an item must give the same matches in the same order, and each
- * pair must score the same from its other side (worked out in full, where
- * the first pass summed it from the postings). A score that depended on
- * input order, on which item was named first, or on the shortcut, would
- * disagree with itself. It is imported only by
- * kit/bounded-task.ts, so none of this loads on the command's thread. Asking
- * the same question twice and comparing answers is called audit, and is
- * usually billed separately.
+ * read the records from the input's bytes and score them with the core scorer.
+ * For --pairs it also checks the one shortcut the scorer takes: each pair's
+ * score is summed from the postings it shares, and every pair returned is
+ * worked out again in full, so the two must agree. It is imported only by
+ * kit/bounded-task.ts, so none of this loads on the command's thread. Two
+ * methods arriving at one figure is the closest thing to sign-off this
+ * department has.
  */
 
 /** The most records one call scores; the rest are left out with a warning. */
 export const MAX_SIMILAR_ITEMS = 50_000;
-/** The most records the self-check builds its second index for: past this, the two indexes would not fit the worker's memory together. */
-export const RECHECK_MAX_ITEMS = 20_000;
 
 export interface SimilarTaskInput {
   bytes: Uint8Array;
@@ -26,11 +21,11 @@ export interface SimilarTaskInput {
   options: SimilarOptions;
 }
 
-/** A returned score that came out differently the second time, for the self-check's failures. */
+/** A pair whose score from the postings disagreed with its score worked out in full. */
 export interface Disagreement {
   at: string;
   expected: number;
-  actual: number | null;
+  actual: number;
 }
 
 export interface SimilarTaskOutput {
@@ -45,17 +40,33 @@ export interface SimilarTaskOutput {
   duplicateIds: string[];
   titleOnly: string[];
   cutBodies: string[];
-  /** The self-check: each returned score worked out again on a second index, or why it wasn't. */
-  recomputed: { checked: number; failed: Disagreement[] } | { unchecked: string };
+  /** For --pairs, each returned pair's two scores compared; how many were, and which disagreed. Null otherwise. */
+  postings: { checked: number; failed: Disagreement[]; lowerBounds: number } | null;
 }
 
 export function similarTask({ bytes, request, options }: SimilarTaskInput): SimilarTaskOutput {
   const { items, skipped } = parseOwiRecords(new TextDecoder('utf-8').decode(bytes));
   const kept = items.slice(0, MAX_SIMILAR_ITEMS);
-  const fields = options.fields ? { fields: options.fields } : {};
-  const index = new SimilarityIndex(kept, fields);
-  const result = askIndex(index, request, options);
-  const base = {
+  const index = new SimilarityIndex(kept, options.fields ? { fields: options.fields } : {});
+  let postings: SimilarTaskOutput['postings'] = null;
+  let result: SimilarResult;
+  if ('pairs' in request) {
+    const check = { checked: 0, failed: [] as Disagreement[], lowerBounds: 0 };
+    const found = index.pairs(options, {
+      rescored: ({ a, b, summed, full, exact }) => {
+        // With common features skipped the summed score is a lower bound, and only that can be held to it.
+        if (!exact) check.lowerBounds++;
+        check.checked++;
+        // One rounding step apart is the same figure: the two add the same products in a different order.
+        if (exact ? Math.abs(summed - full) > 0.00011 : summed > full + 0.00011) check.failed.push({ at: `${a} and ${b}`, expected: full, actual: summed });
+      },
+    });
+    postings = check;
+    result = { mode: 'pairs', method: SIMILAR_METHOD, count: found.count, matches: [], pairs: found.pairs, search: found.search };
+  } else {
+    result = askIndex(index, request, options);
+  }
+  return {
     result,
     subject: 'item' in request ? (index.ref(request.item) ?? null) : null,
     items: index.size,
@@ -64,24 +75,6 @@ export function similarTask({ bytes, request, options }: SimilarTaskInput): Simi
     duplicateIds: index.duplicateIds,
     titleOnly: index.titleOnlyIds(),
     cutBodies: index.cutBodyIds(),
+    postings,
   };
-  if (index.size > RECHECK_MAX_ITEMS) return { ...base, recomputed: { unchecked: `the set holds ${index.size} items, more than the ${RECHECK_MAX_ITEMS} a second index is built for` } };
-  // The records the index kept (the first of each id), in reverse order.
-  const seen = new Set<string>();
-  const again = new SimilarityIndex(kept.filter((i) => !seen.has(i.id) && seen.add(i.id)).reverse(), fields);
-
-  const failed: Disagreement[] = [];
-  let checked = 0;
-  const expect = (at: string, expected: number, actual: number | undefined) => {
-    checked++;
-    if (actual !== expected) failed.push({ at, expected, actual: actual ?? null });
-  };
-  if ('pairs' in request) {
-    for (const p of result.pairs) expect(`${p.b.id} against ${p.a.id}`, p.score, again.compare(p.b.id, p.a.id)?.score);
-  } else {
-    const second = askIndex(again, request, options).matches;
-    result.matches.forEach((m, i) => expect(`${m.id}, match ${i + 1}`, m.score, second[i]?.id === m.id ? second[i].score : undefined));
-  }
-
-  return { ...base, recomputed: { checked, failed } };
 }

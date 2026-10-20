@@ -1546,7 +1546,7 @@ Output, for `--item corp-jira:PAY-210 --limit 1`:
   }],
   "pairs": [], "search": null,
   "titleOnly": 19, "skipped": [],
-  "verified": { "passed": true, "checks": [{ "check": "score.parts", "status": "passed", "checked": 1, "failed": 0 }, { "check": "score.reordered", "status": "passed", "checked": 1, "failed": 0 }, { "check": "score.meaning", "status": "approximated", "checked": 0, "failed": 0, "detail": "…" }, { "check": "input.complete", "status": "passed", "checked": 1, "failed": 0 }] }
+  "verified": { "passed": true, "checks": [{ "check": "score.parts", "status": "passed", "checked": 1, "failed": 0 }, { "check": "score.meaning", "status": "approximated", "checked": 0, "failed": 0, "detail": "…" }, { "check": "input.complete", "status": "passed", "checked": 1, "failed": 0 }] }
 }
 ```
 
@@ -1592,11 +1592,11 @@ compared. At most 50,000 records are scored in one call (`OWI_SIMILAR_CAPPED`), 
 input is at most 64 MiB.
 
 **`verified`:** `score.parts` checks every returned score lies in 0 to 1 and equals
-its parts. `score.reordered` asks again on a second index built from the records in
-reverse order: a query or an item must give the same matches in the same order, and
-each pair the same score from its other side. Past 20,000 items it is unchecked. A
-failure is an `OWI_SIMILAR_MISMATCH` warning. The same input always gives the same
-`data`.
+its parts. With `--pairs`, `pairs.postings` holds the one shortcut the scorer takes
+to it: each pair's score is summed from the terms and trigrams it shares, and every
+pair returned is worked out again in full, so the two must agree (where common
+features were skipped, the summed score must not be the larger). A failure is an
+`OWI_SIMILAR_MISMATCH` warning. The same input always gives the same `data`.
 
 From a program, `findSimilar(items, request, options)` in `@imagile-dev/toil/api`
 ranks OWI records you already hold the same way, in-process (`core.md`, **Using

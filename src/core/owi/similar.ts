@@ -27,7 +27,7 @@ import type { Body, Link, LinkType, WorkItem } from './types.js';
  *   same parent, and a direct link between the two items. Together they can't
  *   reach the default threshold on their own.
  *
- * The score is 0.6 of the terms and 0.4 of the trigrams (all terms when titles
+ * The score is 0.7 of the terms and 0.3 of the trigrams (all terms when titles
  * aren't compared), plus the boosts, capped at 1 and rounded to four places.
  * It measures shared words, not meaning: two items that describe one problem
  * in entirely different words score low, and the docs say so.
@@ -128,6 +128,16 @@ export interface PairSearch {
   maxItemsPerFeature: number | null;
 }
 
+/** Callbacks into `pairs()`, for a caller that checks its shortcut (util owi similar's self-check). */
+export interface PairHooks {
+  /**
+   * Called for each pair returned, with the score summed from the postings and
+   * the score worked out in full. `exact` is false when common features were
+   * skipped, where the summed score is a lower bound rather than the same figure.
+   */
+  rescored?: (pair: { a: string; b: string; summed: number; full: number; exact: boolean }) => void;
+}
+
 export interface MatchesResult {
   /** How many items scored at or above the threshold; `matches` holds the first `limit` of them. */
   count: number;
@@ -202,25 +212,29 @@ const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"'
  * An OWI body as plain text, for scoring only: Markdown, Jira wiki markup and
  * HTML lose their markup and URLs (a link's text stays), and ADF gives the
  * text of its nodes in document order. Every pattern here is linear in the
- * text; the body is never rendered.
+ * text: each negated class excludes its own opening character, so a body of
+ * nothing but `<` or `[` can't make every position scan to the end, and a URL
+ * is matched only from the start of its run. The body is never rendered.
+ * Bodies come from tracker items anyone with access can write, and this runs
+ * unbounded in Toil UI and the API, so linear is a requirement, not a nicety.
  */
 export function bodyText(body: Body | null | undefined): string {
   if (!body) return '';
   if (body.format === 'adf' || typeof body.content !== 'string') return adfText(body.content);
   let s = body.content;
   if (body.format === 'html') {
-    s = s.replace(/<[^>]*>/g, ' ').replace(/&(amp|lt|gt|quot|apos|nbsp|#39);/g, (_, name: string) => ENTITIES[name] ?? ' ');
+    s = s.replace(/<[^<>]*>/g, ' ').replace(/&(amp|lt|gt|quot|apos|nbsp|#39);/g, (_, name: string) => ENTITIES[name] ?? ' ');
   } else if (body.format === 'wiki') {
     s = s
-      .replace(/\[([^|\]]*)\|[^\]]*\]/g, '$1')
-      .replace(/\{[A-Za-z]+(?::[^}]*)?\}/g, ' ')
+      .replace(/\[([^|[\]]*)\|[^[\]]*\]/g, '$1')
+      .replace(/\{[A-Za-z]+(?::[^{}]*)?\}/g, ' ')
       .replace(/^h[1-6]\.\s/gm, ' ');
   } else {
     s = s
-      .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
-      .replace(/<[^>]*>/g, ' ');
+      .replace(/!?\[([^[\]]*)\]\([^()]*\)/g, '$1')
+      .replace(/<[^<>]*>/g, ' ');
   }
-  return s.replace(/\b[A-Za-z][A-Za-z0-9+.-]*:\/\/\S*/g, ' ');
+  return s.replace(/(?<![A-Za-z0-9+.-])[A-Za-z][A-Za-z0-9+.-]*:\/\/\S*/g, ' ');
 }
 
 /** The text in an ADF document: every text node, and a mention's or emoji's text, in document order. */
@@ -416,7 +430,7 @@ export class SimilarityIndex {
    * commonest terms and trigrams stop being used to find pairs once a fixed
    * budget is spent; `search` says when that happened.
    */
-  pairs(options: SimilarOptions = {}): PairsResult {
+  pairs(options: SimilarOptions = {}, hooks: PairHooks = {}): PairsResult {
     const threshold = clampThreshold(options.threshold);
     const limit = clampLimit(options.limit);
     const n = this.docs.length;
@@ -480,14 +494,14 @@ export class SimilarityIndex {
     const flags = new Uint8Array(n);
     const stamp = new Int32Array(n).fill(-1);
     const exactNeeded = skipped > 0;
-    const best: Array<{ score: number; i: number; j: number }> = [];
+    const best: Array<{ score: number; i: number; j: number; full: boolean }> = [];
     let count = 0;
     let compared = 0;
-    const offer = (score: number, i: number, j: number) => {
+    const offer = (score: number, i: number, j: number, full: boolean) => {
       if (best.length === limit && !before(score, i, j, best[best.length - 1]!)) return;
       let at = best.length;
       while (at > 0 && before(score, i, j, best[at - 1]!)) at--;
-      best.splice(at, 0, { score, i, j });
+      best.splice(at, 0, { score, i, j, full });
       if (best.length > limit) best.pop();
     };
     for (let i = 0; i < n; i++) {
@@ -539,16 +553,21 @@ export class SimilarityIndex {
         const sizes = a.trigrams.size + b.trigrams.size;
         const trigram = sizes ? (2 * grams[j]!) / sizes : 0;
         let score = total(this.weighParts(lexical, trigram, Math.min(MAX_LABEL_BOOST, label[j]!), flags[j]! & 1 ? PARENT_BOOST : 0, flags[j]! & 2 ? LINK_BOOST : 0));
-        if (exactNeeded && score < threshold && score >= threshold - MAX_MISSED) score = this.scorePair(a, b).score;
+        let full = false;
+        if (exactNeeded && score < threshold && score >= threshold - MAX_MISSED) {
+          score = this.scorePair(a, b).score;
+          full = true;
+        }
         if (score < threshold) continue;
         count++;
-        offer(score, i, j);
+        offer(score, i, j, full);
       }
     }
     // The pairs returned are scored again in full, with their reasons, exactly as compare() would.
     const pairs = best
-      .map(({ i, j }) => {
+      .map(({ i, j, score: summed, full }) => {
         const scored = this.scorePair(this.docs[i]!, this.docs[j]!, true);
+        hooks.rescored?.({ a: this.docs[i]!.ref.id, b: this.docs[j]!.ref.id, summed, full: scored.score, exact: full || !exactNeeded });
         return { score: scored.score, a: this.docs[i]!.ref, b: this.docs[j]!.ref, why: scored.why! };
       })
       .filter((p) => p.score >= threshold)

@@ -3890,14 +3890,21 @@ decided here.
   as `docs/util.md` asks of large documents. `SIMILAR_LIMITS` is 30 s and 1,536 MB,
   measured as in `src/areas/util/owi/similar-run.ts`; at most 50,000 records are
   scored (`OWI_SIMILAR_CAPPED`).
-- **The self-check rebuilds the index from the records in reverse order**
-  (`score.reordered`): a query or item must return the same matches in the same
-  order, and each pair the same score from its other side, worked out in full where
-  the first pass summed it from postings. It's skipped past 20,000 items, where two
-  indexes wouldn't fit the worker's memory together, and says so (`unchecked`).
+- **The self-check holds the pairs shortcut to the full score** (`pairs.postings`,
+  review round 1): each returned pair's score summed from its postings must equal the
+  score worked out in full, within one rounding step since the two add the same
+  products in a different order; with common features skipped the summed score is a
+  lower bound and must not be the larger. An earlier check that rebuilt the index in
+  reverse order was dropped: the index sorts by id, so it could never disagree, and
+  determinism is pinned by the unit test that reverses the input instead.
   `score.parts` checks each score is in 0 to 1 and equals its parts. `score.meaning`
   is always `approximated`, which is how `meta.warnings` carries "lexical, not
   semantic" on every call, as the issue asks of `meta`.
+- **`bodyText` is linear by construction** (review round 1): each negated class
+  excludes its own opening character and a URL matches only from the start of its
+  run, because Toil UI and the API run it outside the worker on bodies anyone with
+  access to a tracker can write. A test holds 400 KB of each hostile input to half a
+  second.
 - **`--input-file <path>` is a second flag for the `file` field**, beside util's usual
   `[file]` positional, because the issue's examples use it. Over MCP there is one
   field, `file`.
