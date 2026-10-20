@@ -33,14 +33,14 @@ import { inputSchemaFor } from './mcp/server.js';
 import { createNodeContext } from './node-context.js';
 import { areas, commands } from './registry.js';
 import { VERSION } from './version.js';
-import { documentsFrom, fieldOverrides, findSimilar as findSimilarItems, inputValues, mapOwi as mapDocuments, OWI_VERSION, parseOwiInput, parseOwiRecords, type OwiResult, type SimilarItem, type SimilarOptions, type SimilarRequest, type SimilarResult } from './core/owi/index.js';
+import { authorKinds, documentsFrom, fieldOverrides, findSimilar as findSimilarItems, inputValues, keyPatterns, mapOwi as mapDocuments, OWI_VERSION, parseOwiInput, parseOwiRecords, type KeyPattern, type OwiResult, type SimilarItem, type SimilarOptions, type SimilarRequest, type SimilarResult } from './core/owi/index.js';
 import owiSchemaJson from '../docs/owi/schema.json' with { type: 'json' };
 
 export type { ApiAnswer, ContextReport, ContextSource, ContextValue, DossierReport, Envelope, ErrorBody, Meta, Page, Warning } from './core/envelope.js';
 export type { ErrorCode } from './core/errors.js';
 export type { PageProgress, ProgressEvent, RequestProgress, RetryProgress } from './core/progress.js';
 export type { CommandKind } from './core/command.js';
-export type { Body, Estimate, EstimateUnit, FieldOverrides, History, Iteration, IterationChange, Link, LinkType, OrphanHistory, OwiResult, OwiSkipped, Person, StatusCategory, Transition, Unmapped, WorkItem, WorkItemType } from './core/owi/index.js';
+export type { AuthorKind, AuthorKindSource, Body, Change, ChangeSize, ChangeState, ChecksState, Estimate, KeyPattern, Review, Reviewer, ReviewerState, ReviewState, EstimateUnit, FieldOverrides, History, Iteration, IterationChange, Link, LinkType, OrphanHistory, OwiResult, OwiSkipped, Person, StatusCategory, Transition, Unmapped, WorkItem, WorkItemType } from './core/owi/index.js';
 export type { PairSearch, SimilarField, SimilarItem, SimilarMatch, SimilarOptions, SimilarPair, SimilarParts, SimilarRef, SimilarRequest, SimilarResult, SimilarWhy } from './core/owi/index.js';
 
 /** This toil's version, as `toil version` and every envelope's `meta.version` report it. */
@@ -340,7 +340,7 @@ export async function execute(command: string, input: Record<string, unknown> = 
 export function mapOwi(input: unknown, options: OwiMapOptions = {}): OwiResult {
   const values = typeof input === 'string' ? parseOwiInput(input) : inputValues(input);
   const { documents, skipped } = documentsFrom(values, { command: options.command, key: options.key });
-  return mapDocuments(documents, { fields: fieldOverrides(options.fields), skipped });
+  return mapDocuments(documents, { fields: fieldOverrides(options.fields), skipped, keys: keyPatterns(options.keyPatterns), authors: authorKinds(options.authorKinds) });
 }
 
 export interface OwiMapOptions {
@@ -350,6 +350,10 @@ export interface OwiMapOptions {
   command?: string;
   /** The item a keyless history (`jira issue history`, `github issue history`) belongs to. */
   key?: string;
+  /** Where work item keys in a pull request's title, branch and description point: `PAY-{n}=corp-jira` strings, or `{ text, connection }`. */
+  keyPatterns?: Array<string | KeyPattern>;
+  /** Pull request author kinds set by hand, by author id: `{ "release-bot": "BOT" }`, or `id=KIND` strings. */
+  authorKinds?: Record<string, string> | string[];
 }
 
 /**

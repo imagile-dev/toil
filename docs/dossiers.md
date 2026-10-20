@@ -191,6 +191,12 @@ prompts. The names are used through **one fixed input**, never through generated
   Toil UI passes them to `mapOwi` for the section's area; nothing else reads them.
   Like every value in `fields` they are text, so a number is quoted:
   `"iterationDays": "14"`. An unquoted `14` fails `dossiers check`.
+- A code host's section (`github`, `bitbucket`, `bitbucket-cloud`, `ado`,
+  `ado-cloud`) may keep `authorKinds`, reference data mapping an author's id to
+  `HUMAN`, `AGENT` or `BOT` (`"authorKinds": { "release-bot": "BOT" }`). Toil UI
+  passes it to `mapOwi` as the override that wins over every other signal when it
+  says who wrote a pull request (`docs/owi/spec.md`, Who wrote it); nothing else
+  reads it.
 
 ## Where dossiers live
 

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { adoCloudArea } from './area.js';
-import { IN_REPO, adoc, connectionData, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, repoPath, skipPages, type AdoCloudContext } from './client.js';
+import { IN_REPO, adoc, connectionData, cursorField, enc, exampleCursor, headerPages, limitField, nextSkipPages, pageOf, pageOptions, repoPath, skipPages, type AdoCloudContext } from './client.js';
 import { wiqlInstant } from './wiql.js';
 
 /**
@@ -33,18 +33,85 @@ export const ref = (branch: string) => (branch.startsWith('refs/') ? branch : `r
 const STATES = ['active', 'abandoned', 'completed', 'all'] as const;
 const STATE = 'PR state: active|abandoned|completed|all (default: active)';
 const PRS_PAGE = 100;
+const UPDATED_SINCE =
+  'Only PRs still active, or created or closed at or after this ISO 8601 date or zoned date-time (Azure DevOps records no last-updated time on a pull request)';
+
+/**
+ * What `--updated-since` keeps. A pull request carries a creationDate and a
+ * closedDate and nothing in between, so a vote, a push or a comment leaves no
+ * date on it. Every active pull request is kept, since any of those may have
+ * happened to it; a closed one is kept when it was created or closed since.
+ * The result is a superset of what changed, which a sync merging by id can
+ * take without missing an update. A copy of ado's, kept separate as the
+ * areas' clients are, so a fix to one variant is a decision about that one.
+ */
+function updatedSinceKeep(since: string): (pr: { status?: unknown; creationDate?: unknown; closedDate?: unknown }) => boolean {
+  const at = Date.parse(since);
+  const onOrAfter = (value: unknown) => typeof value === 'string' && Date.parse(value) >= at;
+  return (pr) => pr.status === 'active' || onOrAfter(pr.creationDate) || onOrAfter(pr.closedDate);
+}
+
+/** What `pr get --include` can add, in the order `included` holds them. */
+const PR_INCLUDES = ['reviews', 'checks', 'commits', 'files'] as const;
+type PrInclude = (typeof PR_INCLUDES)[number];
+const INCLUDE = 'Also read these, comma-separated, into data.included: reviews, checks, commits, files (each costs more requests)';
+
+/** `--include`, read: comma-separated, any case, blanks and repeats ignored, an unknown name refused before anything is sent. */
+function parseIncludes(value: string | undefined): PrInclude[] {
+  if (value === undefined) return [];
+  const asked = value
+    .split(',')
+    .map((name) => name.trim().toLowerCase())
+    .filter(Boolean);
+  const unknown = asked.filter((name) => !(PR_INCLUDES as readonly string[]).includes(name));
+  if (unknown.length > 0) {
+    throw new ToilError('INVALID_INPUT', `Unknown --include value "${unknown[0]}". Allowed: ${PR_INCLUDES.join(', ')}.`, {
+      fix: `Pass --include as a comma-separated list of ${PR_INCLUDES.join(', ')}, e.g. --include reviews,checks.`,
+    });
+  }
+  return PR_INCLUDES.filter((name) => asked.includes(name));
+}
+
+/**
+ * One list of `pr get --include`, every page of it, as Azure DevOps sent it.
+ * Reviews are the comment threads, which carry each vote change as a system
+ * comment beside the reviewers' own; files are the changes of the iteration
+ * with the highest id, the pull request's latest. Each list is filed in
+ * triplicate with the server and returned once.
+ */
+async function prIncluded(ctx: AdoCloudContext, id: number, name: PrInclude): Promise<unknown[]> {
+  const base = prPath(ctx, id);
+  // Threads, statuses and iterations come whole in one answer; commits and changes page.
+  const whole = async <T>(path: string) => (await adoc<{ value?: T[] }>(ctx, path)).value ?? [];
+  switch (name) {
+    case 'reviews':
+      return whole(`${base}/threads`);
+    case 'checks':
+      return whole(`${base}/statuses`);
+    case 'commits':
+      return headerPages(ctx, `${base}/commits`, {}, `Azure DevOps commits of pull request ${id}`);
+    case 'files': {
+      const iterations = await whole<{ id: number }>(`${base}/iterations`);
+      if (iterations.length === 0) return [];
+      const latest = Math.max(...iterations.map((it) => it.id));
+      const entries = (body: unknown) => (body as { changeEntries?: unknown[] } | undefined)?.changeEntries ?? [];
+      return nextSkipPages(ctx, `${base}/iterations/${latest}/changes`, {}, entries, `Azure DevOps changes of pull request ${id}`);
+    }
+  }
+}
 
 export const repoListPrsCommand = adoCloudArea.command({
   path: ['ado-cloud', 'pr', 'list'],
   description: 'List pull requests',
   toolDescription:
-    'Lists every pull request in the repository in one state (active by default), optionally by creator or reviewer identity id (a GUID, from ado_cloud_whoami) and by creation date. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.',
+    'Lists every pull request in the repository in one state (active by default), optionally by creator or reviewer identity id (a GUID, from ado_cloud_whoami) and by creation date. updatedSince keeps the pull requests still active plus those created or closed at or after that instant: Azure DevOps records no last-updated time on a pull request, so this is a superset of what changed, safe for a sync that merges by pullRequestId. With limit, returns at most that many (counting kept ones only); pass meta.page.nextCursor as cursor for the next page.',
   input: z.object({
     state: z.enum(STATES).optional().describe(STATE),
     creator: z.string().min(1).optional().describe('Only PRs created by this identity id'),
     reviewer: z.string().min(1).optional().describe('Only PRs with this reviewer identity id'),
     createdAfter: z.string().optional().describe('Only PRs created at or after this ISO 8601 date or zoned date-time'),
     createdBefore: z.string().optional().describe('Only PRs created before this ISO 8601 date or zoned date-time'),
+    updatedSince: z.string().optional().describe(UPDATED_SINCE),
     limit: limitField('pull requests'),
     cursor: cursorField,
   }),
@@ -56,10 +123,12 @@ export const repoListPrsCommand = adoCloudArea.command({
     { flags: '--reviewer <id>', field: 'reviewer', description: 'Only PRs with this reviewer identity id' },
     { flags: '--created-after <date>', field: 'createdAfter', description: 'Only PRs created at or after this ISO 8601 date or zoned date-time' },
     { flags: '--created-before <date>', field: 'createdBefore', description: 'Only PRs created before this ISO 8601 date or zoned date-time' },
+    { flags: '--updated-since <iso>', field: 'updatedSince', description: UPDATED_SINCE },
     ...pageOptions('pull requests'),
   ],
   examples: [
     inRepo,
+    { ...inRepo, state: 'all', updatedSince: '2026-09-01T00:00:00Z', limit: 1 },
     { ...inRepo, state: 'all', creator: 'abc12345-0000-0000-0000-000000000000', reviewer: 'abc12345-0000-0000-0000-000000000001', createdAfter: '2026-09-01', createdBefore: '2026-10-01T00:00:00Z' },
     { ...inRepo, limit: 1 },
     { ...inRepo, limit: 1, cursor: exampleCursor('1', PRS_PAGE) },
@@ -68,6 +137,7 @@ export const repoListPrsCommand = adoCloudArea.command({
     const page = pageOf(input);
     const after = input.createdAfter !== undefined ? wiqlInstant(input.createdAfter, '--created-after') : undefined;
     const before = input.createdBefore !== undefined ? wiqlInstant(input.createdBefore, '--created-before') : undefined;
+    const since = input.updatedSince !== undefined ? wiqlInstant(input.updatedSince, '--updated-since') : undefined;
     const query: Record<string, string | number> = {
       'searchCriteria.status': input.state ?? 'active',
       ...(input.creator ? { 'searchCriteria.creatorId': input.creator } : {}),
@@ -77,20 +147,34 @@ export const repoListPrsCommand = adoCloudArea.command({
       ...(after ? { 'searchCriteria.minTime': after } : {}),
       ...(before ? { 'searchCriteria.maxTime': before } : {}),
     };
-    return skipPages(ctx, `${repoPath(ctx)}/pullrequests`, query, PRS_PAGE, `Azure DevOps pull requests in ${ctx.context.repo}`, page);
+    const keep = since !== undefined ? updatedSinceKeep(since) : undefined;
+    return skipPages(ctx, `${repoPath(ctx)}/pullrequests`, query, PRS_PAGE, `Azure DevOps pull requests in ${ctx.context.repo}`, page, keep);
   },
 });
 
 export const repoGetPrCommand = adoCloudArea.command({
   path: ['ado-cloud', 'pr', 'get'],
   description: 'Get a pull request by ID',
-  toolDescription: 'Returns one pull request by id: title, description, status, refs, reviewers and votes, merge commits.',
-  input: z.object({ id: prId }),
+  toolDescription:
+    "Returns one pull request by id: title, description, status, refs, reviewers and votes, merge commits. include (comma-separated reviews, checks, commits, files) adds data.included holding only the lists asked for, each every page of Azure DevOps' own records: reviews are the comment threads (a vote change is a system comment in a thread whose properties.CodeReviewThreadType is VoteUpdate, beside each reviewer's comments with publishedDate), checks the pull request's statuses, commits its commits, files the changeEntries of its latest iteration. Each list costs one or more extra requests.",
+  input: z.object({ id: prId, include: z.string().optional().describe(INCLUDE) }),
   writes: false,
   context: IN_REPO,
   args: [prArg],
-  examples: [{ ...inRepo, id: 42 }],
-  run: (input, ctx) => getPR(ctx, input.id),
+  options: [{ flags: '--include <list>', field: 'include', description: INCLUDE }],
+  examples: [
+    { ...inRepo, id: 42 },
+    { ...inRepo, id: 42, include: 'reviews,checks,commits,files' },
+  ],
+  run: async (input, ctx) => {
+    const includes = parseIncludes(input.include);
+    const pr = await getPR(ctx, input.id);
+    if (includes.length === 0) return pr;
+    // One list at a time, in a fixed order, so every call sends the same requests in the same order.
+    const included: Partial<Record<PrInclude, unknown[]>> = {};
+    for (const name of includes) included[name] = await prIncluded(ctx, input.id, name);
+    return { ...pr, included };
+  },
 });
 
 const TARGET = 'Target branch (default: main)';

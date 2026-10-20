@@ -159,6 +159,7 @@
     "flags": [
       "--state <state>",
       "--query <bbql>",
+      "--updated-since <iso>",
       "--limit <n>",
       "--cursor <cursor>",
       "--ws <slug>",
@@ -173,6 +174,7 @@
     "connection": true,
     "flags": [
       "<id>",
+      "--include <list>",
       "--ws <slug>",
       "--repo <slug>"
     ]

@@ -141,6 +141,31 @@ export const threads = [
   thread(10, [threadComment(5, 3, { content: 'Jane Doe voted 10', commentType: 'system' })], { status: 'unknown' }),
 ];
 
+// Invented from Pull Request Statuses - List: one GitPullRequestStatus.
+export const prStatus = {
+  id: 1,
+  state: 'succeeded',
+  description: 'Build passed',
+  context: { name: 'ci', genre: 'build' },
+  creationDate: '2026-09-16T12:00:00Z',
+  updatedDate: '2026-09-16T12:05:00Z',
+  createdBy: identity(ME, 'Jane Doe'),
+  targetUrl: `${ORG_URL}/Imagile/_build/results?buildId=101`,
+};
+
+// Invented from Pull Request Commits - Get Pull Request Commits: one GitCommitRef.
+export const prCommit = (commitId: string) => ({
+  commitId,
+  author: { name: 'Jane Doe', email: 'you@example.com', date: '2026-09-15T11:00:00Z' },
+  committer: { name: 'Jane Doe', email: 'you@example.com', date: '2026-09-15T11:00:00Z' },
+  comment: 'Add retries',
+  url: `${ORG_URL}/Imagile/_apis/git/repositories/${repo.id}/commits/${commitId}`,
+});
+
+// Invented from Pull Request Iterations - List and Pull Request Iteration Changes - Get.
+export const iteration = (id: number) => ({ id, description: `Update ${id}`, author: identity(ME, 'Jane Doe'), createdDate: `2026-09-1${id}T12:00:00Z`, updatedDate: `2026-09-1${id}T12:00:00Z`, sourceRefCommit: { commitId: SHA }, targetRefCommit: { commitId: 'def67890abc12345def67890abc12345def67890' } });
+export const change = (id: number, path: string) => ({ changeTrackingId: id, changeId: id, item: { objectId: SHA, path }, changeType: 'edit' });
+
 const hasQuery = (r: RecordedRequest, key: string) => new URL(r.url).searchParams.has(key);
 
 /** A list paged by the x-ms-continuationtoken header: page one names a token, page two has none. */
@@ -199,6 +224,18 @@ export const routes: Route[] = [
   { method: 'PUT', path: `${REPO}/pullrequests/42/reviewers/${ME}`, respond: (r) => ({ json: { ...identity(ME, 'Jane Doe'), vote: (JSON.parse(r.body ?? '{}') as { vote: number }).vote } }) },
   { path: `${REPO}/pullrequests/42/threads`, respond: { json: { count: threads.length, value: threads } } },
   { method: 'POST', path: `${REPO}/pullrequests/42/threads`, respond: { json: thread(11, [threadComment(6, 9)]) } },
+  // Invented from Pull Request Statuses - List, Pull Request Commits - Get Pull Request Commits (paged by
+  // x-ms-continuationtoken), Pull Request Iterations - List and Pull Request Iteration Changes - Get (paged by nextSkip).
+  { path: `${REPO}/pullrequests/42/statuses`, respond: { json: { count: 1, value: [prStatus] } } },
+  { path: `${REPO}/pullrequests/42/commits`, respond: continued([prCommit(SHA)], [prCommit('def67890abc12345def67890abc12345def67890')]) },
+  { path: `${REPO}/pullrequests/42/iterations`, respond: { json: { count: 2, value: [iteration(1), iteration(2)] } } },
+  {
+    path: `${REPO}/pullrequests/42/iterations/2/changes`,
+    respond: (r) =>
+      hasQuery(r, '$skip')
+        ? { json: { changeEntries: [change(2, '/README.md')] } }
+        : { json: { changeEntries: [change(1, '/src/app.ts')], nextSkip: 1, nextTop: 1 } },
+  },
   { method: 'POST', path: `${REPO}/pullrequests/42/threads/7/comments`, respond: { json: threadComment(7, 10, { parentCommentId: 1 }) } },
   { method: 'PATCH', path: `${REPO}/pullrequests/42/threads/7`, respond: (r) => ({ json: thread(7, [threadComment(1, 5)], JSON.parse(r.body ?? '{}') as Record<string, unknown>) }) },
 ];

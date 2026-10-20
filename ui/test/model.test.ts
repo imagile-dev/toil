@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { BITBUCKET_PRS, GITHUB_CHECKS, GITHUB_PRS, OPENSHIFT } from '../src/fixtures/delivery.ts';
+import { BITBUCKET_PR_GETS, BITBUCKET_PRS, GITHUB_CODEOWNERS, GITHUB_PR_GETS, GITHUB_PRS, OPENSHIFT } from '../src/fixtures/delivery.ts';
 import { showData } from '../src/fixtures/dossiers.ts';
 import { fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
 import { dateTime } from '../src/format.ts';
-import { loadDossier } from '../src/load.ts';
-import { adoDeployments, bitbucketPrs, included, iso, mentioned } from '../src/model/delivery.ts';
+import { loadDossier, PR_INCLUDE } from '../src/load.ts';
+import { adoDeployments, changeRef, included, iso } from '../src/model/delivery.ts';
 import { entry } from '../src/model/sprint.ts';
 import { trace } from '../src/model/trace.ts';
 import { healthOf, loaded } from './harness.ts';
@@ -119,13 +119,14 @@ describe('traceability', () => {
 });
 
 describe('the delivery rules', () => {
-  it("names only the dossier's own items, by key or by #number in the same repository", async () => {
+  it("names only the dossier's own items, of those its pull request's change names", async () => {
     const { data } = await loaded('checkout-web');
-    expect(mentioned('Closes #42. Part of #41. See #999 and imagile/other#42.', data.items, 'imagile/payments-web')).toEqual([
+    const byId = new Map(data.items.map((i) => [i.id, i]));
+    const c = data.pullRequests.find((p) => p.id === 'github:imagile/payments-web#52')!;
+    expect(changeRef({ ...c, workItems: [...c.workItems, 'github:imagile/payments-web#999', 'github:imagile/other#42'] }, byId).items).toEqual([
       'github:imagile/payments-web#42',
       'github:imagile/payments-web#41',
     ]);
-    expect(mentioned('Fixes #42', data.items, 'imagile/other')).toEqual([]);
   });
 
   it('calls a commit no merged pull request made unknown, rather than guessing', async () => {
@@ -147,9 +148,10 @@ describe('review round 1 (#229)', () => {
   it('keeps an unparsable date on its own row as unknown', async () => {
     expect(iso('not a date')).toBe('');
     expect(iso('')).toBe('');
-    const raw = { ...(BITBUCKET_PRS[0] as Record<string, unknown>), createdDate: 'garbage' };
-    const [pr] = bitbucketPrs([raw, BITBUCKET_PRS[1]], 'corp-bitbucket', []);
-    expect(pr!.at).toBe('');
+    const { data } = await loaded('card-payments');
+    // A change whose host sent a date OWI couldn't read has no created time; its row says unknown.
+    const pr = changeRef({ ...data.pullRequests[0]!, created: null }, new Map());
+    expect(pr.at).toBe('');
     expect(dateTime(pr!.at)).toBe('at an unknown time');
   });
 
@@ -168,10 +170,12 @@ describe('review round 1 (#229)', () => {
     const canned: Canned[] = [
       { command: 'dossiers show', input: base, data: showData(mixed) },
       { command: 'bitbucket pr list', input: { ...base, state: 'ALL' }, data: BITBUCKET_PRS },
+      ...Object.entries(BITBUCKET_PR_GETS).map(([id, data]) => ({ command: 'bitbucket pr get', input: { ...base, id: Number(id), include: PR_INCLUDE }, data })),
       // No board named, so the repository's issues are read; this test is about deployments, so there are none.
       { command: 'github issue list', input: { ...base, state: 'all' }, data: [] },
       { command: 'github pr list', input: { ...base, state: 'all' }, data: GITHUB_PRS },
-      ...Object.keys(GITHUB_CHECKS).map((ref) => ({ command: 'github commit checks', input: { ...base, ref }, data: GITHUB_CHECKS[ref] })),
+      ...Object.entries(GITHUB_PR_GETS).map(([number, data]) => ({ command: 'github pr get', input: { ...base, number: Number(number), include: PR_INCLUDE }, data })),
+      { command: 'github repo file', input: { ...base, path: '.github/CODEOWNERS' }, data: GITHUB_CODEOWNERS },
       { command: 'openshift deployment list', input: { ...base, env: 'dev', namespace: 'mixed-dev' }, data: { namespace: 'mixed-dev', kind: 'Deployment', count: 2, deployments: [...ns, ...staging] } },
     ];
     const fixture = fixtureExecute(canned);
@@ -180,7 +184,7 @@ describe('review round 1 (#229)', () => {
     expect(fixture.calls.filter((c) => c.command === 'openshift deployment list')).toHaveLength(1);
     expect(data.deployments.map((d) => [d.name, d.commit, d.includes])).toEqual([
       ['payments-core in mixed-dev', '4e1d2a9', ['bitbucket:PAY/payments-core#290', 'bitbucket:PAY/payments-core#296', 'bitbucket:PAY/payments-core#298']],
-      ['payments-web in mixed-dev', '5a7e3f1', ['github:imagile/payments-web#48', 'github:imagile/payments-web#50']],
+      ['payments-web in mixed-dev', '5a7e3f1', ['github:imagile/payments-web#48', 'github:imagile/payments-web#49', 'github:imagile/payments-web#50']],
     ]);
   });
 });

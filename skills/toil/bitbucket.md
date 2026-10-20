@@ -88,12 +88,20 @@ Repositories:
 
 Pull requests (`<id>` is the pull request id):
 
-- `pr list`: List pull requests, every page. `--state` is `OPEN` (default),
-  `MERGED`, `DECLINED` or `ALL`; `--author` and `--reviewer` take usernames;
-  `--created-after` (inclusive) and `--created-before` (exclusive) take ISO 8601
-  dates and filter after fetching. A date alone is UTC midnight; a date-time without a
-  zone is local time.
-- `pr get <id>`: Get a pull request.
+- `pr list`: List pull requests, every page unless `--limit` says otherwise. `--state`
+  is `OPEN` (default), `MERGED`, `DECLINED` or `ALL`; `--author` and `--reviewer`
+  take usernames; `--created-after` (inclusive), `--created-before` (exclusive) and
+  `--updated-since` (inclusive, on the last update) take ISO 8601 dates. Bitbucket has
+  no date filter, so toil applies them to each page as it reads it. A date alone is UTC
+  midnight; a date-time without a zone is local time. With `--limit N` it returns at
+  most N of the pull requests that pass, and `meta.page.nextCursor` resumes: pass it
+  back as `--cursor`, with `--limit`.
+- `pr get <id>`: Get a pull request. `--include reviews,checks,commits,files` adds an
+  `included` object holding only the lists named, each as Bitbucket returns it, every
+  page read: `reviews` (the `APPROVED`, `UNAPPROVED` and `REVIEWED` activities;
+  `REVIEWED` is needs-work), `checks` (the build statuses `pr builds` returns, which is one page),
+  `commits`, and `files` (the changes, as Bitbucket sends them). Each list costs more
+  requests; an unknown name is refused before any is sent.
 - `pr create`: Create a pull request (`--title`, `--source`, `--target`,
   `--description`, `--reviewers a,b`). Without `--reviewers`, Bitbucket's
   default-reviewer conditions apply.
@@ -158,6 +166,8 @@ Write commands need `writes: true` on the connection and `--allow-write` on the 
 ```bash
 toil bitbucket --project PROJ --repo imagile-api pr list --state OPEN --author jdoe
 toil bitbucket pr get 42
+toil bitbucket pr get 42 --include reviews,checks
+toil bitbucket pr list --updated-since 2026-10-01 --limit 20
 toil bitbucket pr create --title "Add retries" --source feature/retries --allow-write
 toil bitbucket pr comments 42 --no-with-replies
 ```

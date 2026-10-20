@@ -136,8 +136,8 @@ deletes.
 | `work-item comments <id>` | `--limit --cursor` | Every comment on the work item |
 | `work-item comment <id>` ✎ | `--body` | The new comment |
 | `work-item iterations` | `--depth` | The iteration tree, with dates |
-| `pr list` | `--state --creator --reviewer --created-after --created-before --limit --cursor` | Pull requests |
-| `pr get <id>` | | One pull request |
+| `pr list` | `--state --creator --reviewer --created-after --created-before --updated-since --limit --cursor` | Pull requests |
+| `pr get <id>` | `--include` | One pull request, with `included` lists when asked |
 | `pr create` ✎ | `--title --source --target --description --reviewers --draft` | The created pull request |
 | `pr update <id>` ✎ | `--title --description --target --draft` | The updated pull request |
 | `pr merge <id>` ✎ | `--strategy --delete-source --message` | The pull request, with completion requested |
@@ -160,6 +160,8 @@ toil ado-cloud work-item get-many 42 7 --fields System.Title,System.State
 toil ado-cloud --project Imagile work-item create --type Bug --title "Login broken" --field storypoints=3 --allow-write
 toil ado-cloud work-item update 42 --field state=Active --rev 3 --allow-write
 toil ado-cloud --project Imagile --repo imagile-api pr list --state all --limit 50
+toil ado-cloud --project Imagile --repo imagile-api pr list --state all --updated-since 2026-10-01 --limit 100
+toil ado-cloud --project Imagile --repo imagile-api pr get 42 --include reviews,checks,commits,files
 toil ado-cloud --project Imagile --repo imagile-api pr merge 42 --strategy squash --delete-source --allow-write
 toil ado-cloud --project Imagile --repo imagile-api pr reply 42 7 --body "Fixed in the next commit." --allow-write
 ```
@@ -209,6 +211,18 @@ naming the list.
   `whoami`, or a pull request's `reviewers[].id`), not names or emails.
 - `--created-after` and `--created-before` take a date (UTC midnight) or a date-time
   with its zone, as `--updated-since` does.
+- `pr list --updated-since <iso>` keeps every pull request that is still active, plus
+  those created or closed at or after that instant. Azure DevOps records no
+  last-updated time on a pull request (only `creationDate` and `closedDate`), so this
+  is a superset of what changed: a sync that merges by `pullRequestId` misses nothing.
+  It combines with the other filters, and `--limit` counts the pull requests it keeps.
+- `pr get <id> --include <list>` adds `data.included`, holding only the lists asked
+  for (comma-separated, any case), each every page of Azure DevOps' own records:
+  `reviews` (the comment threads, where each vote change is a system comment in a
+  thread whose `properties.CodeReviewThreadType` is `VoteUpdate`, beside each
+  reviewer's comments with `publishedDate`), `checks` (the pull request's statuses),
+  `commits`, and `files` (the `changeEntries` of the latest iteration). Each list
+  costs one or more extra requests; an unknown name is refused before any request.
 - `pr merge` reads the pull request for its source commit, then asks the server to
   complete it with `--strategy noFastForward` (default), `squash`, `rebase` or
   `rebaseMerge`. A pull request with no source commit yet is refused with

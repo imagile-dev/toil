@@ -8,9 +8,9 @@
  * form, kept identical by test rather than by memo.
  */
 
-import { documentsFrom, fieldOverrides, inputValues, mapOwi as mapDocuments, parseOwiInput, type OwiResult } from '../../src/core/owi/index.ts';
+import { authorKinds, documentsFrom, fieldOverrides, inputValues, keyPatterns, mapOwi as mapDocuments, parseOwiInput, type KeyPattern, type OwiResult } from '../../src/core/owi/index.ts';
 
-export { OVERRIDABLE } from '../../src/core/owi/index.ts';
+export { AUTHOR_KINDS, OVERRIDABLE } from '../../src/core/owi/index.ts';
 
 export type { OwiResult } from '../../src/core/owi/index.ts';
 
@@ -18,10 +18,12 @@ export interface OwiMapOptions {
   fields?: Record<string, string> | string[];
   command?: string;
   key?: string;
+  keyPatterns?: Array<string | KeyPattern>;
+  authorKinds?: Record<string, string> | string[];
 }
 
 export function mapOwi(input: unknown, options: OwiMapOptions = {}): OwiResult {
   const values = typeof input === 'string' ? parseOwiInput(input) : inputValues(input);
   const { documents, skipped } = documentsFrom(values, { command: options.command, key: options.key });
-  return mapDocuments(documents, { fields: fieldOverrides(options.fields), skipped });
+  return mapDocuments(documents, { fields: fieldOverrides(options.fields), skipped, keys: keyPatterns(options.keyPatterns), authors: authorKinds(options.authorKinds) });
 }

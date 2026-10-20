@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { bitbucketArea } from './area.js';
-import { API, IN_REPO, bb, bbAll, commaList, createPR, getPR, prPath, projectOf, repoPath, toInt, where, type BitbucketContext, type BitbucketPR } from './client.js';
+import { API, IN_REPO, bb, bbAll, commaList, createPR, getPR, needLimitForCursor, parseInclude, prBuilds, prPath, projectOf, repoPath, toInt, where, type BitbucketContext, type BitbucketPR, type Include } from './client.js';
 
 /**
  * Repositories and pull requests: create a repository, then list, read,
@@ -58,13 +58,16 @@ export const listPrsCommand = bitbucketArea.command({
   path: ['bitbucket', 'pr', 'list'],
   description: 'List pull requests',
   toolDescription:
-    'Lists every pull request in a repository in one state (OPEN by default), optionally by author or reviewer username, and by creation date (filtered after fetching every page).',
+    'Lists the pull requests in a repository in one state (OPEN by default), optionally by author or reviewer username, by creation date and by last update (updatedSince). Bitbucket has no date filter, so the dates are applied to each page as it is read. Without limit every page is read; with limit, pass meta.page.nextCursor as cursor for the next page.',
   input: z.object({
     state: z.string().optional().describe('PR state: OPEN|MERGED|DECLINED|ALL (default: "OPEN")'),
     author: z.string().optional().describe('Filter by author username'),
     reviewer: z.string().optional().describe('Filter by reviewer username'),
     createdAfter: z.string().optional().describe('Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)'),
     createdBefore: z.string().optional().describe('Only PRs created before this ISO 8601 date'),
+    updatedSince: z.string().optional().describe('Only PRs updated on/after this ISO 8601 date (e.g. 2025-01-31)'),
+    limit: z.number().int().positive().optional().describe('Max total pull requests to return (default: all)'),
+    cursor: z.string().min(1).optional().describe('meta.page.nextCursor from the previous call, to carry on from there (with limit)'),
   }),
   writes: false,
   context: IN_REPO,
@@ -74,16 +77,23 @@ export const listPrsCommand = bitbucketArea.command({
     { flags: '--reviewer <username>', field: 'reviewer', description: 'Filter by reviewer username' },
     { flags: '--created-after <date>', field: 'createdAfter', description: 'Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)' },
     { flags: '--created-before <date>', field: 'createdBefore', description: 'Only PRs created before this ISO 8601 date' },
+    { flags: '--updated-since <iso>', field: 'updatedSince', description: 'Only PRs updated on/after this ISO 8601 date (e.g. 2025-01-31)' },
+    { flags: '--limit <n>', field: 'limit', description: 'Max total pull requests to return (default: all)' },
+    { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous call (with --limit)' },
   ],
   examples: [
     { project: 'PROJ', repo: 'imagile-api' },
     { project: 'PROJ', repo: 'imagile-api', state: 'ALL', author: 'jdoe', reviewer: 'asmith', createdAfter: '2026-09-01', createdBefore: '2026-10-01' },
+    { project: 'PROJ', repo: 'imagile-api', updatedSince: '2026-09-16', limit: 1 },
+    { project: 'PROJ', repo: 'imagile-api', limit: 1, cursor: '1' },
   ],
   run: async (input, ctx) => {
+    needLimitForCursor(input);
     const createdAfter = input.createdAfter ? parseDate('--created-after', input.createdAfter) : undefined;
     const createdBefore = input.createdBefore ? parseDate('--created-before', input.createdBefore) : undefined;
+    const updatedSince = input.updatedSince ? parseDate('--updated-since', input.updatedSince) : undefined;
     const { project, repo } = where(ctx);
-    return listPRs(ctx, project, repo, { state: input.state, author: input.author, reviewer: input.reviewer, createdAfter, createdBefore });
+    return listPRs(ctx, project, repo, { state: input.state, author: input.author, reviewer: input.reviewer, createdAfter, createdBefore, updatedSince, limit: input.limit, cursor: input.cursor });
   },
 });
 
@@ -93,9 +103,17 @@ export interface ListPRs {
   reviewer?: string | undefined;
   createdAfter?: Date | undefined;
   createdBefore?: Date | undefined;
+  updatedSince?: Date | undefined;
+  limit?: number | undefined;
+  cursor?: string | undefined;
 }
 
-/** Every page of a repository's pull requests; dates are filtered here, since Bitbucket has no date filter. */
+/**
+ * A repository's pull requests, every page unless capped. Dates are filtered
+ * as each page is read, since Bitbucket has no date filter, so a limit counts
+ * only the pull requests that pass and a cursor resumes at the next one that
+ * does.
+ */
 export async function listPRs(ctx: BitbucketContext, project: string, repo: string, opts: ListPRs): Promise<BitbucketPR[]> {
   // Users are filtered with indexed username.N / role.N pairs, not repeated keys.
   const users: Record<string, string> = {};
@@ -109,24 +127,68 @@ export async function listPRs(ctx: BitbucketContext, project: string, repo: stri
     users[`username.${n}`] = opts.reviewer;
     users[`role.${n}`] = 'REVIEWER';
   }
-  const prs = await bbAll<BitbucketPR>(ctx, `${repoPath(project, repo)}/pull-requests`, { state: opts.state ?? 'OPEN', ...users }, `Bitbucket pull requests in ${project}/${repo}`);
-  const { createdAfter: after, createdBefore: before } = opts;
-  if (!after && !before) return prs;
-  return prs.filter((pr) => !(after && pr.createdDate < after.getTime()) && !(before && pr.createdDate >= before.getTime()));
+  const { createdAfter: after, createdBefore: before, updatedSince: since } = opts;
+  // Epoch milliseconds against epoch milliseconds, the created dates exactly as
+  // they were compared after fetching. A PR with no updatedDate isn't kept by --updated-since.
+  const keep =
+    after || before || since
+      ? (pr: BitbucketPR) =>
+          !(after && pr.createdDate < after.getTime()) && !(before && pr.createdDate >= before.getTime()) && !(since && !(typeof pr.updatedDate === 'number' && pr.updatedDate >= since.getTime()))
+      : undefined;
+  return bbAll<BitbucketPR>(ctx, `${repoPath(project, repo)}/pull-requests`, { state: opts.state ?? 'OPEN', ...users }, `Bitbucket pull requests in ${project}/${repo}`, {
+    keep,
+    cap: opts.limit,
+    cursor: opts.cursor,
+  });
+}
+
+/** The activities that are a reviewer's verdict: approve, withdraw it, or needs-work. */
+const REVIEW_ACTIONS = new Set(['APPROVED', 'UNAPPROVED', 'REVIEWED']);
+
+/** One --include list, read in full: every page, the records as Bitbucket sent them. */
+async function includedList(ctx: BitbucketContext, project: string, repo: string, id: number, name: Include): Promise<unknown[]> {
+  const path = prPath(project, repo, id);
+  switch (name) {
+    case 'reviews':
+      // Needs-work is filed as REVIEWED, which is the kindest thing anyone has called it.
+      return bbAll<{ action?: string }>(ctx, `${path}/activities`, {}, `Bitbucket activities on pull request ${id}`, { keep: (a) => REVIEW_ACTIONS.has(a.action ?? '') });
+    case 'checks':
+      return prBuilds(ctx, project, repo, id);
+    case 'commits':
+      return bbAll(ctx, `${path}/commits`, {}, `Bitbucket commits on pull request ${id}`);
+    case 'files':
+      return bbAll(ctx, `${path}/changes`, {}, `Bitbucket changes in pull request ${id}`);
+  }
 }
 
 export const getPrCommand = bitbucketArea.command({
   path: ['bitbucket', 'pr', 'get'],
   description: 'Get a pull request by ID',
-  toolDescription: 'Returns one pull request by ID: title, description, state, author, reviewers and their status, source and target refs, and version.',
-  input: z.object({ id: idInput }),
+  toolDescription:
+    'Returns one pull request by ID: title, description, state, author, reviewers and their status, source and target refs, and version. include adds an `included` object holding only the lists asked for, each as Bitbucket returns them: reviews (the APPROVED, UNAPPROVED and REVIEWED activities; REVIEWED is needs-work), checks (the build statuses of the newest commit, exactly as pr builds reads them: one page), commits, and files (the changes); every page is read except for checks. Each list costs more requests.',
+  input: z.object({
+    id: idInput,
+    include: z.string().optional().describe('Comma-separated extras to add under included: reviews, checks, commits, files'),
+  }),
   writes: false,
   context: IN_REPO,
   args: [prArg],
-  examples: [{ project: 'PROJ', repo: 'imagile-api', id: '42' }],
+  options: [{ flags: '--include <list>', field: 'include', description: 'Comma-separated extras to add under included: reviews, checks, commits, files' }],
+  examples: [
+    { project: 'PROJ', repo: 'imagile-api', id: '42' },
+    { project: 'PROJ', repo: 'imagile-api', id: '42', include: 'reviews,checks,commits,files' },
+  ],
   run: async (input, ctx) => {
+    // Refused before anything is sent, so a typo costs no requests.
+    const lists = input.include !== undefined ? parseInclude(input.include) : undefined;
     const { project, repo } = where(ctx);
-    return getPR(ctx, project, repo, toInt(input.id));
+    const id = toInt(input.id);
+    const pr = await getPR(ctx, project, repo, id);
+    if (!lists) return pr;
+    const included: Partial<Record<Include, unknown[]>> = {};
+    // One list at a time, in the order included lists them.
+    for (const name of lists) included[name] = await includedList(ctx, project, repo, id, name);
+    return { ...pr, included };
   },
 });
 

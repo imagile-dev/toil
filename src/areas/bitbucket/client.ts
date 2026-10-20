@@ -43,13 +43,37 @@ export function bbResponse<T>(ctx: BitbucketContext, path: string, req: Request 
  * Every item of a paged list, 100 at a time, following `isLastPage` and
  * `nextPageStart` until the server says it's done.
  */
-export async function bbAll<T>(ctx: BitbucketContext, path: string, query: Record<string, string>, what: string): Promise<T[]> {
+export async function bbAll<T>(ctx: BitbucketContext, path: string, query: Record<string, string>, what: string, opts: ListOptions<T> = {}): Promise<T[]> {
   const { items } = await paginate<T>(
     { kind: 'nextPageStart', startParam: 'start', limitParam: 'limit', pageSize: PAGE_SIZE },
     async (page) => ({ body: await bb<unknown>(ctx, path, { query: { ...query, ...page } }) }),
-    { what },
+    {
+      what,
+      ...(opts.keep ? { keep: opts.keep } : {}),
+      // Only a capped list reports meta.page; without one every page is read, as before.
+      ...(opts.cap !== undefined ? { cap: opts.cap, setPage: ctx.setPage } : {}),
+      ...(opts.cursor !== undefined ? { cursor: opts.cursor } : {}),
+    },
   );
   return items;
+}
+
+export interface ListOptions<T> {
+  /** Stop after this many kept items; meta.page then says where to carry on. */
+  cap?: number | undefined;
+  /** meta.page.nextCursor from a previous capped call: the server's own start offset. */
+  cursor?: string | undefined;
+  /** Keeps only the items this returns true for; a cap counts kept items only. */
+  keep?: ((item: T) => boolean) | undefined;
+}
+
+/** A cursor only makes sense with the limit that produced it. */
+export function needLimitForCursor(input: { limit?: number | undefined; cursor?: string | undefined }): void {
+  if (input.cursor !== undefined && input.limit === undefined) {
+    throw new ToilError('INVALID_INPUT', '--cursor needs --limit', {
+      fix: 'Pass --limit with --cursor (the limit of the call that gave you the cursor), or leave out --cursor to read everything.',
+    });
+  }
 }
 
 /** The repository's own API root: `/rest/api/1.0/projects/{project}/repos/{repo}`, unencoded. Suspected bug (#76 item 18): a `?` or `#` in either cuts the path; core refuses a `..` segment (bound requests.path). */
@@ -101,6 +125,7 @@ export interface BitbucketPR {
   description?: string;
   version: number;
   createdDate: number;
+  updatedDate?: number;
   fromRef?: { displayId?: string };
   reviewers?: Array<{ user: BitbucketUser }>;
   [key: string]: unknown;
@@ -161,4 +186,39 @@ export interface BuildStatus {
 export async function buildStatus(ctx: BitbucketContext, commit: string): Promise<BuildStatus[]> {
   const result = await bb<{ values?: BuildStatus[] } | undefined>(ctx, `/rest/build-status/1.0/commits/${commit}`);
   return result?.values ?? [];
+}
+
+/**
+ * The build statuses of a pull request's newest commit, as `pr builds` reads
+ * them: one commit from the PR's commit list, then that commit's statuses;
+ * none when the PR has no commits. `pr get --include checks` asks the same.
+ */
+export async function prBuilds(ctx: BitbucketContext, project: string, repo: string, id: number): Promise<BuildStatus[]> {
+  const commits = await bb<{ values: Array<{ id: string }> }>(ctx, `${prPath(project, repo, id)}/commits`, { query: { limit: 1 } });
+  const sha = commits.values[0]?.id;
+  return sha ? buildStatus(ctx, sha) : [];
+}
+
+/** What `pr get --include` can add, in the order `included` lists them. */
+export const INCLUDES = ['reviews', 'checks', 'commits', 'files'] as const;
+export type Include = (typeof INCLUDES)[number];
+
+/**
+ * An --include list: comma-separated, any case, spaces and empty entries
+ * ignored, each one once, returned in INCLUDES order. Anything else is
+ * refused before a request goes out, rather than quietly left off a form.
+ */
+export function parseInclude(value: string): Include[] {
+  const asked = new Set<string>();
+  for (const entry of value.split(',').map((s) => s.trim())) {
+    if (entry === '') continue;
+    const name = entry.toLowerCase();
+    asked.add(name);
+    if (!(INCLUDES as readonly string[]).includes(name)) {
+      throw new ToilError('INVALID_INPUT', `Unknown --include value "${entry}". Use any of: ${INCLUDES.join(', ')}.`, {
+        fix: `Pass --include as a comma-separated list of ${INCLUDES.join(', ')}, e.g. --include reviews,checks.`,
+      });
+    }
+  }
+  return INCLUDES.filter((name) => asked.has(name));
 }

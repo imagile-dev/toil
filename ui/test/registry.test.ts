@@ -69,19 +69,22 @@ describe("the browser's mapOwi", () => {
   });
 });
 
-describe('every proposal the board and the scripted agent can make', async () => {
+describe('every proposal the board, the scripted agent and the pull request view can make', async () => {
   const { COLUMNS, proposeMove } = await import('../src/model/board.ts');
   const { SCRIPTS } = await import('../src/fixtures/agent.ts');
+  const { reviewProposal } = await import('../src/model/prs.ts');
   const proposals = [];
   for (const name of NAMES) {
-    const { items } = await loadDossier(fixtureExecute().execute, name);
+    const { items, pullRequests } = await loadDossier(fixtureExecute().execute, name);
     for (const item of items) for (const to of COLUMNS) proposals.push(proposeMove(item, to, items, name));
+    // A review request on every pull request, as a team and as a person, whatever the suggestions are today.
+    for (const c of pullRequests) for (const id of ['bo-web', 'imagile/writers']) proposals.push(reviewProposal(c, { id, why: ['reviewed it before'], score: 1 }, name));
   }
   for (const scripts of Object.values(SCRIPTS)) for (const s of Object.values(scripts)) proposals.push(...(s.proposals ?? []));
   const withCommand = proposals.filter((p) => p?.command);
 
   it('includes some of each kind', () => {
-    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update']));
+    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update', 'github pr add-reviewers', 'bitbucket pr add-reviewer', 'bitbucket-cloud pr update']));
   });
 
   it.each(withCommand.map((p) => [p!.id, p!] as const))('%s names a write command, with input its schema accepts', (_id, p) => {

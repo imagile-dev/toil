@@ -9,13 +9,16 @@
  * shown on its panel with toil's own message and fix (principle 4), never
  * dropped.
  *
- * Work items go through `mapOwi` (src/owi.ts); the rest through
- * src/model/delivery.ts. One loader, one dossier, no spreadsheet.
+ * Work items and pull requests go through `mapOwi` (src/owi.ts), pull
+ * requests as OWI 0.2 changes: each code host's `pr list`, then `pr get
+ * --include reviews,checks,commits,files` for every open one and the newest
+ * closed ones. Builds and deployments go through src/model/delivery.ts. One
+ * loader, one dossier, no spreadsheet.
  */
 
-import { adoBuilds, adoDeployments, adoPrs, bitbucketPrs, byEnvironment, githubBuild, githubHead, githubPrs, jenkinsBuilds, openshiftDeployments } from './model/delivery.ts';
-import { mapOwi, OVERRIDABLE } from './owi.ts';
-import { CALL_OPTIONS, type Call, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
+import { adoBuilds, adoDeployments, byEnvironment, changeRef, githubBuild, jenkinsBuilds, openshiftDeployments } from './model/delivery.ts';
+import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
+import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
 /** The JQL and WIQL a dashboard sends: one query per tracker, the whole project. */
 export const JQL = (project: string) => `project = ${project} ORDER BY Rank ASC`;
@@ -23,7 +26,7 @@ export const JQL = (project: string) => `project = ${project} ORDER BY Rank ASC`
 export const ADO_AREAS = ['ado', 'ado-cloud'] as const;
 export const WIQL = 'SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project ORDER BY [System.Id]';
 
-export type Panel = 'dossier' | 'work' | 'prs' | 'builds' | 'deployments';
+export type Panel = 'dossier' | 'work' | 'prs' | 'owners' | 'builds' | 'deployments';
 
 export interface DossierSummary {
   name: string;
@@ -35,6 +38,12 @@ export interface DossierSummary {
 
 export interface DossierData extends DossierSummary {
   items: WorkItem[];
+  /** Pull requests, as OWI 0.2 changes. */
+  pullRequests: Change[];
+  /** Each GitHub repository's CODEOWNERS, by repository (`owner/repo`), where one was found. */
+  codeowners: Record<string, { path: string; text: string }>;
+  /** Things the pull request view should say about how it was read (an author kind it couldn't use). */
+  prNotes: string[];
   changes: ChangeRef[];
   deployments: Deployment[];
   /** Every call, by the panel it fed. */
@@ -81,18 +90,68 @@ export function owiFields(fields: unknown): Record<string, string> {
   return Object.fromEntries(Object.entries(fields).filter((e): e is [string, string] => (OVERRIDABLE as readonly string[]).includes(e[0]) && typeof e[1] === 'string'));
 }
 
-/** How many pull requests that aren't open still get their checks read: the newest ones. */
+/** How many pull requests that aren't open are still read in full (`pr get --include`): the newest ones, which the flow metrics measure. */
 export const CHECKED_CLOSED_PRS = 20;
 
 /**
- * The pull requests whose checks are read: every open one, and the newest
- * closed or merged ones. A repository with years of history would otherwise
- * cost one request per pull request it ever had, on every sync.
+ * The pull requests read in full: every open one, and the newest closed or
+ * merged ones. A repository with years of history would otherwise cost
+ * several requests per pull request it ever had, on every sync.
  */
-export function checkedPrs(prs: ChangeRef[]): ChangeRef[] {
-  const closed = prs.filter((p) => p.outcome !== 'open').sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, CHECKED_CLOSED_PRS);
-  const keep = new Set([...prs.filter((p) => p.outcome === 'open'), ...closed]);
+export function checkedPrs<T extends Pick<Change, 'state' | 'closedAt' | 'mergedAt' | 'updated' | 'created'>>(prs: T[]): T[] {
+  const when = (p: T) => p.mergedAt ?? p.closedAt ?? p.updated ?? p.created ?? '';
+  const open = (p: T) => p.state === 'OPEN' || p.state === 'DRAFT';
+  const closed = prs.filter((p) => !open(p)).sort((a, b) => (when(a) < when(b) ? 1 : -1)).slice(0, CHECKED_CLOSED_PRS);
+  const keep = new Set([...prs.filter(open), ...closed]);
   return prs.filter((p) => keep.has(p));
+}
+
+/** What `pr get --include` reads for each pull request read in full. */
+export const PR_INCLUDE = 'reviews,checks,commits,files';
+
+/** Each code host the loader reads pull requests from: its list's state for every pull request, and its get's id field. */
+export const PR_HOSTS = [
+  { area: 'bitbucket', all: 'ALL', id: 'id' },
+  { area: 'bitbucket-cloud', all: 'ALL', id: 'id' },
+  { area: 'ado', all: 'all', id: 'id' },
+  { area: 'ado-cloud', all: 'all', id: 'id' },
+  { area: 'github', all: 'all', id: 'number' },
+] as const;
+
+/** Where GitHub looks for CODEOWNERS, in its own order. */
+export const CODEOWNERS_PATHS = ['.github/CODEOWNERS', 'CODEOWNERS', 'docs/CODEOWNERS'];
+
+/**
+ * The key patterns a dossier's pull requests are read with, from the work
+ * items it already holds: each Jira project's `PAY-{n}`, Azure Boards'
+ * `AB#{n}` for each Azure DevOps connection, and each GitHub repository's
+ * `owner/repo#{n}`, each to the connection the items came from. A host's own
+ * `#12` needs none.
+ */
+export function keyPatternsFor(items: WorkItem[]): string[] {
+  const out = new Set<string>();
+  for (const i of items) {
+    const conn = i.source.connection;
+    if (i.source.area.startsWith('jira')) out.add(`${i.source.key.replace(/-\d+$/, '')}-{n}=${conn}`);
+    else if (i.source.area.startsWith('ado')) out.add(`AB#{n}=${conn}`);
+    else if (i.source.area === 'github') out.add(`${i.source.key.replace(/#\d+$/, '')}#{n}=${conn}`);
+  }
+  return [...out];
+}
+
+/** A dossier section's `authorKinds`, keeping the entries OWI can use and saying which it left out. */
+export function authorKindsOf(section: Rec, area: string, notes: string[]): Record<string, string> {
+  if (section.authorKinds === undefined) return {};
+  if (!isRec(section.authorKinds)) {
+    notes.push(`The ${area} section's authorKinds isn't an object of author id to HUMAN, AGENT or BOT, so it was left out.`);
+    return {};
+  }
+  const out: Record<string, string> = {};
+  for (const [id, kind] of Object.entries(section.authorKinds)) {
+    if (typeof kind === 'string' && (AUTHOR_KINDS as readonly string[]).includes(kind.toUpperCase())) out[id] = kind.toUpperCase();
+    else notes.push(`The ${area} section's authorKinds gives ${id} as ${JSON.stringify(kind)}, which isn't HUMAN, AGENT or BOT, so it was left out.`);
+  }
+  return out;
 }
 
 /** How many closed issues of a repository with no board still get their history read: the most recently closed. */
@@ -114,13 +173,22 @@ export function historyNumbers(issues: Rec[]): number[] {
 
 const connectionOf = (env: Envelope, fallback: string) => (env.ok ? (env.meta.context?.connection?.value ?? fallback) : fallback);
 
+/**
+ * The OWI mapper as the loader calls it: the browser's (src/owi.ts), or the
+ * API's of the toil Toil UI runs with, whose records may be an older OWI
+ * version than this source's types. So its records are read as this
+ * version's: OWI only adds. One that returns no `changes` maps no pull
+ * requests (OWI 0.1), and the view says so.
+ */
+export type LoaderMapOwi = (input: unknown, options?: { fields?: Record<string, string>; keyPatterns?: string[]; authorKinds?: Record<string, string> }) => { items: unknown[]; changes?: unknown[] };
+
 export interface LoadOptions {
   /** The OWI mapper: the browser's (src/owi.ts) by default; the tests pass the API's to prove they agree. */
-  mapOwi?: (input: unknown, options?: { fields?: Record<string, string> }) => { items: WorkItem[] };
+  mapOwi?: LoaderMapOwi;
 }
 
 export async function loadDossier(execute: Execute, name: string, options: LoadOptions = {}): Promise<DossierData> {
-  const calls: Record<Panel, Call[]> = { dossier: [], work: [], prs: [], builds: [], deployments: [] };
+  const calls: Record<Panel, Call[]> = { dossier: [], work: [], prs: [], owners: [], builds: [], deployments: [] };
 
   /** One call, recorded on its panel. A failure is kept on the panel and comes back as null. */
   const run = async (panel: Panel, command: string, input: Rec): Promise<Envelope | null> => {
@@ -208,18 +276,49 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   }
   await Promise.all(tasks);
   const mapper = options.mapOwi ?? mapOwi;
-  const items = Object.entries(work).flatMap(([area, docs]) => (docs.length ? mapper(docs, { fields: owiFields(section(area).fields) }).items : []));
+  const items = Object.entries(work).flatMap(([area, docs]) => (docs.length ? (mapper(docs, { fields: owiFields(section(area).fields) }).items as WorkItem[]) : []));
 
-  // Pull requests, their builds, and deployments --------------------------------------
+  // Pull requests, as OWI changes, then their builds and deployments ------------------
   const changes: ChangeRef[] = [];
   const deployments: Deployment[] = [];
   const environments = isRec(dossier.environments) ? (dossier.environments as Record<string, Rec>) : {};
   const namespaces = Object.entries(environments).flatMap(([env, e]) => (isRec(e.openshift) && typeof e.openshift.namespace === 'string' ? [[env, e.openshift.namespace] as const] : []));
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const keyPatterns = keyPatternsFor(items);
+  const prNotes: string[] = [];
+  const pullRequests: Change[] = [];
+  const codeowners: DossierData['codeowners'] = {};
 
-  const deliver = async (prs: ChangeRef[], builds: () => Promise<ChangeRef[]>, deploys: () => Promise<Deployment[]>) => {
-    changes.push(...prs, ...(await builds()));
-    deployments.push(...(await deploys()));
+  /**
+   * One host's pull requests: the list, then a get with everything a list
+   * lacks for each one read in full, mapped together so a pull request in
+   * both is one change.
+   */
+  const readPrs = async (host: (typeof PR_HOSTS)[number]): Promise<{ prs: Change[]; gets: Map<string, Envelope> }> => {
+    const gets = new Map<string, Envelope>();
+    const list = await run('prs', `${host.area} pr list`, { ...base, state: host.all });
+    if (!list) return { prs: [], gets };
+    const authorKinds = authorKindsOf(section(host.area), host.area, prNotes);
+    const first = mapper([list], { keyPatterns, authorKinds });
+    if (!first.changes) {
+      prNotes.push('The toil Toil UI runs with maps no pull requests (it reads OWI 0.1), so none are shown. Upgrade toil to one that maps OWI 0.2 changes.');
+      return { prs: [], gets };
+    }
+    const listed = first.changes as Change[];
+    const docs: Envelope[] = [list];
+    for (const pr of checkedPrs(listed)) {
+      const number = Number(pr.id.slice(pr.id.lastIndexOf('#') + 1));
+      const got = await run('prs', `${host.area} pr get`, { ...base, [host.id]: number, include: PR_INCLUDE });
+      if (got) {
+        docs.push(got);
+        gets.set(pr.id, got);
+      }
+    }
+    const prs = (mapper(docs, { keyPatterns, authorKinds }).changes ?? []) as Change[];
+    pullRequests.push(...prs);
+    return { prs, gets };
   };
+  const refs = (prs: Change[]) => prs.map((c) => changeRef(c, byId));
   const onOpenShift = async (prs: ChangeRef[]) => {
     const out: Deployment[] = [];
     for (const [env, namespace] of namespaces) {
@@ -230,71 +329,63 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   };
 
   if (areas.bitbucket) {
-    const list = await run('prs', 'bitbucket pr list', { ...base, state: 'ALL' });
-    const prs = list ? bitbucketPrs(list.data, connectionOf(list, 'bitbucket'), items) : [];
-    const jobs = strings(section('jenkins').jobs);
-    await deliver(prs, async () => {
-      const out: ChangeRef[] = [];
-      for (const job of jobs) {
-        for (const pr of prs) {
-          const id = pr.id.slice(pr.id.lastIndexOf('#') + 1);
-          const runs = await run('builds', 'jenkins pipeline runs', { ...base, name: `${job}/PR-${id}`, limit: 5 });
-          if (runs) out.push(...jenkinsBuilds(runs.data, connectionOf(runs, 'jenkins'), `${job}/PR-${id}`, pr));
-        }
+    const prs = refs((await readPrs(PR_HOSTS[0])).prs);
+    changes.push(...prs);
+    for (const job of strings(section('jenkins').jobs)) {
+      for (const pr of prs) {
+        const id = pr.id.slice(pr.id.lastIndexOf('#') + 1);
+        const runs = await run('builds', 'jenkins pipeline runs', { ...base, name: `${job}/PR-${id}`, limit: 5 });
+        if (runs) changes.push(...jenkinsBuilds(runs.data, connectionOf(runs, 'jenkins'), `${job}/PR-${id}`, pr));
       }
-      return out;
-    }, async () => []);
+    }
+  }
+  if (areas['bitbucket-cloud']) changes.push(...refs((await readPrs(PR_HOSTS[1])).prs));
+  if (areas.ado) {
+    const prs = refs((await readPrs(PR_HOSTS[2])).prs);
+    changes.push(...prs);
+    const connection = prs[0]?.change?.source.connection ?? areas.ado.connection?.value ?? 'ado';
+    for (const pipeline of strings(section('ado').builds)) {
+      const runs = await run('builds', 'ado run list', { ...base, name: pipeline, top: 20 });
+      if (runs) changes.push(...adoBuilds(runs.data, connectionOf(runs, connection), prs));
+    }
+    for (const pipeline of strings(section('ado').deployments)) {
+      const runs = await run('deployments', 'ado run list', { ...base, name: pipeline, top: 20 });
+      if (runs) deployments.push(...adoDeployments(runs.data, connectionOf(runs, connection), prs));
+    }
   }
   // Azure DevOps Services: its pull requests when the dossier names a repository. It has no pipeline commands yet.
-  if (areas['ado-cloud']?.inputs.repo) {
-    const list = await run('prs', 'ado-cloud pr list', { ...base, state: 'all' });
-    const connection = list ? connectionOf(list, 'ado-cloud') : 'ado-cloud';
-    changes.push(...(list ? adoPrs(list.data, connection, items, 'ado-cloud pr list') : []));
-  }
-  if (areas.ado) {
-    const list = await run('prs', 'ado pr list', { ...base, state: 'all' });
-    const connection = list ? connectionOf(list, 'ado') : 'ado';
-    const prs = list ? adoPrs(list.data, connection, items) : [];
-    await deliver(prs, async () => {
-      const out: ChangeRef[] = [];
-      for (const pipeline of strings(section('ado').builds)) {
-        const runs = await run('builds', 'ado run list', { ...base, name: pipeline, top: 20 });
-        if (runs) out.push(...adoBuilds(runs.data, connection, prs));
-      }
-      return out;
-    }, async () => {
-      const out: Deployment[] = [];
-      for (const pipeline of strings(section('ado').deployments)) {
-        const runs = await run('deployments', 'ado run list', { ...base, name: pipeline, top: 20 });
-        if (runs) out.push(...adoDeployments(runs.data, connection, prs));
-      }
-      return out;
-    });
-  }
+  if (areas['ado-cloud']?.inputs.repo) changes.push(...refs((await readPrs(PR_HOSTS[3])).prs));
   if (areas.github) {
-    const repo = `${areas.github.inputs.owner}/${areas.github.inputs.repo}`;
-    const list = await run('prs', 'github pr list', { ...base, state: 'all' });
-    const connection = list ? connectionOf(list, 'github') : 'github';
-    const prs = list ? githubPrs(list.data, connection, repo, items) : [];
-    const heads = new Map(recs(list?.data).map((raw) => [`${connection}:${repo}#${raw.number}`, githubHead(raw)]));
-    await deliver(prs, async () => {
-      const out: ChangeRef[] = [];
-      for (const pr of checkedPrs(prs)) {
-        const ref = heads.get(pr.id);
-        if (!ref) continue;
-        const checks = await run('builds', 'github commit checks', { ...base, ref });
-        const build = checks ? githubBuild(checks.data, connection, pr) : null;
-        if (build) out.push(build);
+    const { prs, gets } = await readPrs(PR_HOSTS[4]);
+    const github = refs(prs);
+    changes.push(...github);
+    // A head's check runs came with its get: one build per pull request read in full, so the gets fed the builds too.
+    calls.builds.push(...calls.prs.filter((c) => c.command === 'github pr get'));
+    for (const pr of github) {
+      const got = gets.get(pr.id);
+      const checks = got && isRec(got.data) && isRec(got.data.included) ? got.data.included.checks : undefined;
+      const build = Array.isArray(checks) ? githubBuild(checks, pr.change!.source.connection, pr) : null;
+      if (build) changes.push(build);
+    }
+    // CODEOWNERS, for suggesting reviewers, only when an open pull request has none to ask.
+    if (prs.some((c) => (c.state === 'OPEN' || c.state === 'DRAFT') && !c.reviewers.length)) {
+      const repo = `${areas.github.inputs.owner}/${areas.github.inputs.repo}`;
+      for (const path of CODEOWNERS_PATHS) {
+        const answer = await run('owners', 'github repo file', { ...base, path });
+        const text = answer && isRec(answer.data) && typeof answer.data.text === 'string' ? answer.data.text : null;
+        if (text !== null) {
+          codeowners[repo] = { path, text };
+          break;
+        }
       }
-      return out;
-    }, async () => []);
+    }
   }
 
   // OpenShift once per dossier, after every code host's pull requests are in, so a
   // dossier with two code hosts reads each namespace once (#229 review).
   if (namespaces.length) deployments.push(...(await onOpenShift(changes.filter((c) => c.kind === 'pull-request'))));
 
-  return { ...summary, items, changes, deployments: deployments.sort(byEnvironment), calls };
+  return { ...summary, items, pullRequests, codeowners, prNotes, changes, deployments: deployments.sort(byEnvironment), calls };
 }
 
 /** `dossiers list`, and `dossiers show` for each, so the list can say what each one covers. */

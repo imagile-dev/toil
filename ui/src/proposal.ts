@@ -13,9 +13,9 @@
 export interface Proposal {
   /** Stable for one suggestion, so the same move isn't listed twice. */
   id: string;
-  /** Where it came from: a move on the board, or the agent's answer. */
-  from: 'board' | 'agent';
-  /** The OWI id of the work item it changes. */
+  /** Where it came from: a move on the board, the agent's answer, or a reviewer the pull request view suggests. */
+  from: 'board' | 'agent' | 'reviewers';
+  /** The OWI id of the work item it changes, or of the change (pull request) it asks a review of. */
   item: string;
   /** One line: "Move PAY-102 to In progress". */
   title: string;
@@ -224,7 +224,7 @@ export const POSITIONAL_FIELDS: ReadonlyMap<string, readonly string[]> = new Map
     'github pr threads', 'github pr update',
   ),
   ...positional(['path'],
-    'bitbucket-cloud file get', 'bitbucket-cloud file list',
+    'bitbucket-cloud file get', 'bitbucket-cloud file list', 'github repo file',
   ),
   ...positional(['pipeline', 'step'],
     'bitbucket-cloud pipeline logs',

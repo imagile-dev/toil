@@ -105,15 +105,48 @@ export async function headerPages<T>(ctx: AdoCloudContext, path: string, query: 
   return items;
 }
 
-/** Every item of a list paged by `$top` and `$skip` (pull requests, revisions); a short page is the last. */
-export async function skipPages<T>(ctx: AdoCloudContext, path: string, query: Record<string, string | number>, pageSize: number, what: string, page: PageRequest = {}): Promise<T[]> {
+/**
+ * Every item of a list paged by `$top` and `$skip` (pull requests, revisions); a short page is the last.
+ * `keep` filters each page as it arrives, so a cap counts kept items only.
+ */
+export async function skipPages<T>(
+  ctx: AdoCloudContext,
+  path: string,
+  query: Record<string, string | number>,
+  pageSize: number,
+  what: string,
+  page: PageRequest = {},
+  keep?: (item: T) => boolean,
+): Promise<T[]> {
   // core's page style counts pages from 0 here; the API wants an item offset.
   const { items } = await paginate<T>(
     { kind: 'page', pageParam: 'page', sizeParam: 'size', pageSize, first: 0, items: valueOf<T> },
     (params) => raw(ctx, path, { ...query, $top: pageSize, $skip: Number(params.page) * pageSize }),
-    pageOptionsFor(ctx, what, page),
+    { ...pageOptionsFor(ctx, what, page), ...(keep ? { keep } : {}) },
   );
   return items;
+}
+
+/**
+ * Every item of a list that says where its next page starts as `nextSkip` in
+ * the body (a pull request iteration's changes), sent back as `$skip` until
+ * it is 0 or absent. `items` names the body's list.
+ */
+export async function nextSkipPages<T>(ctx: AdoCloudContext, path: string, query: Record<string, string | number>, items: (body: unknown) => T[], what: string): Promise<T[]> {
+  const result = await paginate<T>(
+    {
+      kind: 'nextPageKey',
+      param: '$skip',
+      items,
+      key: (body) => {
+        const next = (body as { nextSkip?: number } | undefined)?.nextSkip;
+        return typeof next === 'number' && next > 0 ? String(next) : undefined;
+      },
+    },
+    (params) => raw(ctx, path, { ...query, ...params }),
+    { what },
+  );
+  return result.items;
 }
 
 /**

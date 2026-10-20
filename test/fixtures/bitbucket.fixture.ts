@@ -70,11 +70,12 @@ export const comment = (id: number, minute: number, extra: Record<string, unknow
 
 const anchor = { path: 'src/retry.ts', line: 12, lineType: 'ADDED', fileType: 'TO' };
 
-/** PR 42's activity: a general thread with a nested reply, an inline comment posted earlier, and a non-comment action. */
+/** PR 42's activity: a general thread with a nested reply, an inline comment posted earlier, and two reviewer verdicts (REVIEWED is needs-work). */
 export const activities42 = [
   { id: 1, action: 'COMMENTED', commentAction: 'ADDED', comment: comment(1001, 5, { comments: [comment(1003, 9, { author: user('bkhan') })] }) },
   { id: 2, action: 'APPROVED', user: user('asmith') },
   { id: 3, action: 'COMMENTED', commentAction: 'ADDED', comment: comment(1002, 1, { anchor }) },
+  { id: 6, action: 'REVIEWED', user: user('bkhan') },
 ];
 
 /** PR 7's: two comments with no replies, oldest first. */

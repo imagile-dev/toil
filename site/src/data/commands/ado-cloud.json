@@ -196,6 +196,7 @@
       "--reviewer <id>",
       "--created-after <date>",
       "--created-before <date>",
+      "--updated-since <iso>",
       "--limit <n>",
       "--cursor <cursor>",
       "--project <name>",
@@ -210,6 +211,7 @@
     "connection": true,
     "flags": [
       "<id>",
+      "--include <list>",
       "--project <name>",
       "--repo <name>"
     ]

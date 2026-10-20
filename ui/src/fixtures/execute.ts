@@ -14,9 +14,9 @@
  * what it was told to, a property the vendor demos never quite managed.
  */
 
-import { JQL, WIQL } from '../load.ts';
+import { CODEOWNERS_PATHS, JQL, PR_INCLUDE, WIQL } from '../load.ts';
 import type { Call, Envelope, Execute, ExecuteOptions } from '../toil.ts';
-import { ADO_CI_RUNS, ADO_DEPLOY_RUNS, ADO_PRS, BITBUCKET_PRS, GITHUB_CHECKS, GITHUB_PRS, JENKINS_RUNS, OPENSHIFT } from './delivery.ts';
+import { ADO_CI_RUNS, ADO_DEPLOY_RUNS, ADO_PR_GETS, ADO_PRS, BITBUCKET_CLOUD_PR_GETS, BITBUCKET_CLOUD_PRS, BITBUCKET_PR_GETS, BITBUCKET_PRS, GITHUB_CODEOWNERS, GITHUB_PR_GETS, GITHUB_PRS, JENKINS_RUNS, OPENSHIFT } from './delivery.ts';
 import { DOSSIERS, fileOf, listData, showData, type DossierFile } from './dossiers.ts';
 import {
   ADO_BATCH, ADO_IDS, ADO_ITERATIONS, ADO_REVISIONS, ADO_WIQL, GITHUB_EVENTS, GITHUB_ISSUES, GITHUB_NUMBERS, GITHUB_PROJECT_ITEMS,
@@ -42,6 +42,9 @@ const card = 'card-payments';
 const settle = 'settlement';
 const checkout = 'checkout-web';
 const at = (dossier: string, area: string, env?: string) => ({ dossier, area, ...(env ? { env } : {}) });
+/** `pr get <n> --include …` for each pull request a host's fixture holds. */
+const gets = (dossier: string, area: string, field: string, byNumber: Record<number, unknown>): Canned[] =>
+  Object.entries(byNumber).map(([n, data]) => ({ command: `${area} pr get`, input: { dossier, [field]: Number(n), include: PR_INCLUDE }, data, ...at(dossier, area) }));
 
 export const CANNED: Canned[] = [
   { command: 'dossiers list', input: {}, data: listData() },
@@ -51,6 +54,7 @@ export const CANNED: Canned[] = [
   { command: 'jira issue search', input: { dossier: card, jql: JQL('PAY') }, data: JIRA_SEARCH, ...at(card, 'jira') },
   ...JIRA_KEYS.map((key) => ({ command: 'jira issue history', input: { dossier: card, key }, data: JIRA_CHANGELOGS[key], ...at(card, 'jira') })),
   { command: 'bitbucket pr list', input: { dossier: card, state: 'ALL' }, data: BITBUCKET_PRS, ...at(card, 'bitbucket') },
+  ...gets(card, 'bitbucket', 'id', BITBUCKET_PR_GETS),
   ...Object.entries(JENKINS_RUNS).map(([pr, runs]) => ({ command: 'jenkins pipeline runs', input: { dossier: card, name: `payments-core/PR-${pr}`, limit: 5 }, data: runs, ...at(card, 'jenkins') })),
   { command: 'openshift deployment list', input: { dossier: card, env: 'dev', namespace: 'payments-dev' }, data: OPENSHIFT['payments-dev'], ...at(card, 'openshift', 'dev') },
   { command: 'openshift deployment list', input: { dossier: card, env: 'prod', namespace: 'payments-prod' }, data: OPENSHIFT['payments-prod'], ...at(card, 'openshift', 'prod') },
@@ -61,6 +65,7 @@ export const CANNED: Canned[] = [
   { command: 'ado work-item get-many', input: { dossier: settle, id: ADO_IDS }, data: ADO_BATCH, ...at(settle, 'ado') },
   ...ADO_IDS.map((id) => ({ command: 'ado work-item history', input: { dossier: settle, id }, data: ADO_REVISIONS[id], ...at(settle, 'ado') })),
   { command: 'ado pr list', input: { dossier: settle, state: 'all' }, data: ADO_PRS, ...at(settle, 'ado') },
+  ...gets(settle, 'ado', 'id', ADO_PR_GETS),
   { command: 'ado run list', input: { dossier: settle, name: 'settlement-ci', top: 20 }, data: ADO_CI_RUNS, ...at(settle, 'ado') },
   { command: 'ado run list', input: { dossier: settle, name: 'settlement-deploy', top: 20 }, data: ADO_DEPLOY_RUNS, ...at(settle, 'ado') },
 
@@ -69,7 +74,10 @@ export const CANNED: Canned[] = [
   { command: 'github issue get', input: { dossier: checkout, number: GITHUB_NUMBERS, subIssues: true }, data: GITHUB_ISSUES, ...at(checkout, 'github') },
   ...GITHUB_NUMBERS.map((number) => ({ command: 'github issue history', input: { dossier: checkout, number }, data: GITHUB_EVENTS[number], ...at(checkout, 'github') })),
   { command: 'github pr list', input: { dossier: checkout, state: 'all' }, data: GITHUB_PRS, ...at(checkout, 'github') },
-  ...Object.entries(GITHUB_CHECKS).map(([ref, runs]) => ({ command: 'github commit checks', input: { dossier: checkout, ref }, data: runs, ...at(checkout, 'github') })),
+  ...gets(checkout, 'github', 'number', GITHUB_PR_GETS),
+  { command: 'github repo file', input: { dossier: checkout, path: CODEOWNERS_PATHS[0] }, data: GITHUB_CODEOWNERS, ...at(checkout, 'github') },
+  { command: 'bitbucket-cloud pr list', input: { dossier: checkout, state: 'ALL' }, data: BITBUCKET_CLOUD_PRS, ...at(checkout, 'bitbucket-cloud') },
+  ...gets(checkout, 'bitbucket-cloud', 'id', BITBUCKET_CLOUD_PR_GETS),
   { command: 'openshift deployment list', input: { dossier: checkout, env: 'staging', namespace: 'checkout-staging' }, data: OPENSHIFT['checkout-staging'], ...at(checkout, 'openshift', 'staging') },
   { command: 'openshift deployment list', input: { dossier: checkout, env: 'prod', namespace: 'checkout-prod' }, data: OPENSHIFT['checkout-prod'], ...at(checkout, 'openshift', 'prod') },
 ];

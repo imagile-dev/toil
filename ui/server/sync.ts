@@ -21,9 +21,14 @@
  * - **Histories** (`jira issue history`, `ado work-item history`, `github
  *   issue-events`) are fetched only for changed and new items; the rest are
  *   the last copy.
- * - **Everything else** (pull requests, builds, deployments, iterations) has
- *   no "changed since" in toil, so it is read again, bounded as the loader
- *   already bounds it.
+ * - **Pull request lists** (every host's `pr list`) ask only for what changed
+ *   since the watermark too, with `updatedSince`, merged into the last copy
+ *   by id; and a **pull request's get** is read again only when it changed
+ *   or is still open, since a check finishing doesn't count as an update on
+ *   every host. A closed one that didn't change is the last copy.
+ * - **Everything else** (builds, deployments, iterations) has no "changed
+ *   since" in toil, so it is read again, bounded as the loader already bounds
+ *   it.
  *
  * Every call follows `meta.page.nextCursor` to the end, up to `MAX_PAGES`,
  * and says so when it stops there (Bounds). Work items go through `mapOwi`.
@@ -41,8 +46,8 @@
  */
 
 import type { ProgressEvent } from '@imagile-dev/toil/api';
-import { loadDossier } from '../src/load.ts';
-import type { Envelope, WorkItem } from '../src/toil.ts';
+import { loadDossier, type LoaderMapOwi } from '../src/load.ts';
+import type { Envelope } from '../src/toil.ts';
 import { areaOf, type Cache, type DossierState, type SourceResult } from './cache.ts';
 import type { RequestContext } from './context.ts';
 import { CALLER } from './store.ts';
@@ -54,7 +59,8 @@ export type SyncExecute = (
   options: { readOnly: true; caller: string; signal?: AbortSignal; onProgress?: (event: ProgressEvent) => void },
 ) => Promise<Envelope>;
 
-export type MapOwi = (input: unknown, options?: { fields?: Record<string, string> }) => { items: WorkItem[] };
+/** The OWI mapper the sync hands the loader: the API's, from the toil Toil UI runs with. */
+export type MapOwi = LoaderMapOwi;
 
 /** The most pages one call follows before it stops and says so. */
 export const MAX_PAGES = 200;
@@ -125,6 +131,22 @@ const HISTORIES: Record<string, string> = {
 };
 const BOARD = 'github project items';
 
+/** Commands whose NOT_FOUND says the thing isn't there, which is worth knowing: the loader looks for CODEOWNERS where GitHub would. */
+const ABSENT_IS_AN_ANSWER = new Set(['github repo file']);
+
+/** Each host's pull request list, which `updatedSince` narrows, and how a pull request in it is named. */
+const PR_LISTS: Record<string, (r: Rec) => string> = {
+  'github pr list': (r) => String(r.number),
+  'bitbucket pr list': (r) => String(r.id),
+  'bitbucket-cloud pr list': (r) => String(r.id),
+  'ado pr list': (r) => String(r.pullRequestId),
+  'ado-cloud pr list': (r) => String(r.pullRequestId),
+};
+/** Each host's pull request get, and the input field naming the pull request. */
+const PR_GETS: Record<string, string> = { 'github pr get': 'number', 'bitbucket pr get': 'id', 'bitbucket-cloud pr get': 'id', 'ado pr get': 'id', 'ado-cloud pr get': 'id' };
+/** A pull request record that is merged, declined or abandoned, by whichever host's words it uses. */
+const closedPr = (data: unknown) => isRec(data) && (data.state === 'closed' || ['MERGED', 'DECLINED', 'SUPERSEDED'].includes(String(data.state)) || data.status === 'completed' || data.status === 'abandoned');
+
 /** Two pages of one listing as one answer: lists concatenated, the rest from the newer page. */
 export function joinPages(a: unknown, b: unknown): unknown {
   if (Array.isArray(a) && Array.isArray(b)) return [...a, ...b];
@@ -151,6 +173,8 @@ interface Source {
   error: { message: string; fix: string | null } | null;
   /** Ids that changed since the watermark, or null when this sync read the source whole. */
   changed: Set<string> | null;
+  /** Pull requests that changed since the watermark, kept apart because a work item and a pull request can share a number. */
+  changedPrs: Set<string> | null;
 }
 
 interface Run {
@@ -330,7 +354,7 @@ export class SyncService {
   private source(run: Run, area: string): Source {
     let s = run.sources.get(area);
     if (!s) {
-      s = { area, calls: 0, error: null, changed: null };
+      s = { area, calls: 0, error: null, changed: null, changedPrs: null };
       run.sources.set(area, s);
     }
     return s;
@@ -347,7 +371,8 @@ export class SyncService {
     const source = this.source(run, area);
     source.calls++;
     const env = await this.fetch(run, source, command, input, signal);
-    if (env.ok) {
+    // A file that isn't there (a repository with no CODEOWNERS) is an answer, kept like one, not a failing source.
+    if (env.ok || (ABSENT_IS_AN_ANSWER.has(command) && env.error.code === 'NOT_FOUND')) {
       run.responses.push({ command, input, envelope: env });
       return env;
     }
@@ -378,6 +403,27 @@ export class SyncService {
       if ('total' in data) data.total = merged.length;
       if ('maxResults' in data) data.maxResults = merged.length;
       return { ...delta, data };
+    }
+
+    const prId = PR_LISTS[command];
+    if (prId) {
+      const last = this.cache.response(dossier, command, input);
+      if (!watermark || !last?.envelope.ok) return this.call(command, input, signal);
+      const delta = await this.call(command, { ...input, updatedSince: watermark }, signal);
+      if (!delta.ok) return delta;
+      const fresh = recs(delta.data);
+      source.changedPrs = new Set([...(source.changedPrs ?? []), ...fresh.map(prId)]);
+      this.say(`${dossier}: ${command} since ${watermark}: ${fresh.length} changed`);
+      return { ...delta, data: mergeById(recs(last.envelope.data), fresh, prId) };
+    }
+
+    const getField = PR_GETS[command];
+    if (getField !== undefined && source.changedPrs !== null && !source.changedPrs.has(String(input[getField]))) {
+      const last = this.cache.response(dossier, command, input);
+      if (last?.envelope.ok && closedPr(last.envelope.data)) {
+        this.job.reused++;
+        return last.envelope;
+      }
     }
 
     if (command === BOARD) {

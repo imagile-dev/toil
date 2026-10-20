@@ -18,7 +18,7 @@ import type { AgentSettings, AgentStatus } from '../src/server-client.ts';
  */
 
 const item = (dossier: string, id: string) => `#/dossier/${dossier}/item/${encodeURIComponent(id)}`;
-const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', item('card-payments', 'corp-jira:PAY-101'), '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/usage', '#/settings/agent'];
+const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', '#/dossier/checkout-web/prs', '#/dossier/card-payments/prs', item('card-payments', 'corp-jira:PAY-101'), '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/usage', '#/settings/agent'];
 
 async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), config = fixtureConfig(), agentSettings }: { preview?: boolean; execute?: Execute; agent?: Agent; config?: ConfigApi; agentSettings?: AgentSettingsPanelProps } = {}) {
   window.location.hash = hash;
@@ -94,11 +94,67 @@ describe('the dossier list', () => {
   });
 });
 
+describe('the pull requests view', () => {
+  it('ranks the open pull requests by wait, with what each waits on, its author kind, items and flags', async () => {
+    await open('#/dossier/checkout-web/prs');
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Pull requests');
+    const rows = within(panel('Waiting now')).getAllByRole('row').slice(1);
+    expect(rows.map((r) => within(r).getByRole('rowheader').textContent)).toEqual([
+      expect.stringContaining('payments-web #51 Retry the address lookup once'),
+      expect.stringContaining('checkout-sdk #12 Format receipt totals'),
+      expect.stringContaining('payments-web #52 Saved-card picker'),
+      expect.stringContaining('payments-web #53 Keep focus'),
+    ]);
+    expect(rows[0]!.textContent).toContain('Checks');
+    expect(rows[0]!.textContent).toContain('for 2 working days: its checks are failing');
+    expect(rows[0]!.textContent).toContain('· Agent (trailer: Co-Authored-By: Claude');
+    expect(rows[0]!.textContent).toContain('No linked work item');
+    expect(rows[1]!.textContent).toContain('· Agent (branch: branch copilot/receipt-currency)');
+    expect(rows[2]!.textContent).toContain('L (325 lines, 3 files)');
+    expect(rows[3]!.textContent).toContain('Draft (its author)');
+  });
+
+  it('lists the flags with their evidence, and every flow figure with its sample size, split by author kind', async () => {
+    await open('#/dossier/checkout-web/prs');
+    const flags = panel('Flags');
+    expect(within(flags.querySelector('ul.rows') as HTMLElement).getAllByRole('listitem').map((li) => li.textContent!.split(':')[0])).toEqual([
+      'Work item done, pull request still open',
+      'Merged, work item not done',
+      'No first review in 2 working days',
+      'Checks failing for over a day',
+      'No linked work item',
+    ]);
+    const flow = panel('Flow');
+    const pickup = within(flow).getAllByRole('row').find((r) => r.textContent!.includes('Pickup'))!;
+    expect(within(pickup).getAllByRole('cell').map((c) => c.textContent)).toEqual([
+      expect.stringContaining('(n=4'),
+      expect.stringContaining('(n=3'),
+      'AgentsNo data (n=0)',
+      expect.stringContaining('(n=1)'),
+    ]);
+    expect(flow.textContent).toContain('1 merged pull request has no merge time on record');
+  });
+
+  it('suggests reviewers from CODEOWNERS as proposals, never applying them', async () => {
+    await open('#/dossier/checkout-web/prs');
+    const reviewers = panel('Suggested reviewers');
+    expect(reviewers.textContent).toContain('imagile/payments-web: CODEOWNERS read from .github/CODEOWNERS.');
+    expect(reviewers.textContent).toContain('Ask bo-web to review payments-web #51');
+    expect(reviewers.textContent).toContain("toil github pr add-reviewers '51'");
+  });
+
+  it('is linked from the dashboard and the header', async () => {
+    await open('#/dossier/settlement');
+    expect(within(panel('Pull requests')).getByRole('link', { name: 'The pull requests view' }).getAttribute('href')).toBe('#/dossier/settlement/prs');
+    expect(within(screen.getByRole('navigation', { name: 'Views' })).getByRole('link', { name: 'Pull requests' }).getAttribute('href')).toBe('#/dossier/settlement/prs');
+  });
+});
+
 describe('a dashboard', () => {
   it.each([
-    ['card-payments', ['jira issue search', 'jira issue history'], ['bitbucket pr list'], ['jenkins pipeline runs'], ['openshift deployment list']],
-    ['settlement', ['ado work-item iterations', 'ado work-item search', 'ado work-item get-many', 'ado work-item history'], ['ado pr list'], ['ado run list'], ['ado run list']],
-    ['checkout-web', ['github project items', 'github issue get', 'github issue history'], ['github pr list'], ['github commit checks'], ['openshift deployment list']],
+    ['card-payments', ['jira issue search', 'jira issue history'], ['bitbucket pr list', 'bitbucket pr get'], ['jenkins pipeline runs'], ['openshift deployment list']],
+    ['settlement', ['ado work-item iterations', 'ado work-item search', 'ado work-item get-many', 'ado work-item history'], ['ado pr list', 'ado pr get'], ['ado run list'], ['ado run list']],
+    ['checkout-web', ['github project items', 'github issue get', 'github issue history'], ['github pr list', 'github pr get', 'bitbucket-cloud pr list', 'bitbucket-cloud pr get'], ['github pr get'], ['openshift deployment list']],
   ])('%s names the commands that fed each panel', async (name, work, prs, builds, deployments) => {
     await open(`#/dossier/${name}`);
     const fed = (region: HTMLElement) => within(region).getByText(/Fed by/).textContent;
@@ -128,7 +184,7 @@ describe('a dashboard', () => {
     const envs = within(deployments).getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
     expect(envs).toEqual(['staging', 'prod']);
     expect(deployments.textContent).toContain('2026.10.12, commit 5a7e3f1');
-    expect(deployments.textContent).toContain('Includes 2 merged pull requests, for GitHub payments-web#44');
+    expect(deployments.textContent).toContain('Includes 3 merged pull requests, for GitHub payments-web#44');
     expect(deployments.textContent).toContain('Includes 1 merged pull request, none for this sprint');
   });
 

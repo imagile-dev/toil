@@ -2,7 +2,8 @@
 
 A local web app for seeing work across Jira, Azure DevOps and GitHub, read through
 [toil](https://www.npmjs.com/package/@imagile-dev/toil): one dashboard per dossier,
-with its stories, pull requests, builds and deployments side by side.
+with its stories, pull requests, builds and deployments side by side, and a pull
+requests view for what is waiting on review.
 
 **Status: alpha, local only.** It runs on your own machine, binds loopback, and
 reads through toil with your own connections and dossiers, read-only. Its
@@ -53,11 +54,40 @@ Each dashboard reads its dossier the way `toil dossiers show` describes it: the
 Jira project, the Azure DevOps project and pipelines, the GitHub repository and
 project board, and the OpenShift namespace of each environment. A GitHub section
 with no `projects` reads the repository's own issues, open and closed, as its work
-items, with the history of every open one and the 50 most recently closed. Checks are read for every open pull request and the 20 newest closed or
-merged ones. Every call runs
+items, with the history of every open one and the 50 most recently closed. Pull
+requests are read from every code host the dossier names (GitHub, Bitbucket Data
+Center and Cloud, Azure DevOps Server and Services) with `pr list`, then `pr get
+--include reviews,checks,commits,files` for every open one and the 20 newest closed or
+merged ones, and mapped to OWI 0.2 changes; a GitHub repository's CODEOWNERS is read
+with `github repo file` when an open pull request has no reviewer. Every call runs
 in-process through `@imagile-dev/toil/api`, read-only, and toil's audit log
 records it with `via: "api"` and `caller: "toil-ui"`. A call that fails shows on
 its own panel with toil's message and fix.
+
+## Pull requests
+
+Each dossier has a **Pull requests** view (`#/dossier/<name>/prs`, linked from its
+dashboard and the header), built from OWI 0.2 changes:
+
+- **Waiting now:** the open pull requests, longest wait first, each with what it
+  waits on (review, changes, checks, merge, or a draft its author holds), since when
+  in working days and why, who wrote it (a person, an agent or a bot, with the signal
+  that said so), the work items it names, and its size, XS to XL by changed lines.
+- **Flags:** no first review in 2 working days, checks failing for over a day, a merge
+  conflict, no linked work item, a work item done while its pull request is open, and
+  a merged pull request whose item isn't done, each with what it rests on.
+- **Flow:** pickup (opened to first review), review (first review to approval) and
+  merge (approval to merge) times, review rounds, sizes and merges per week, over six
+  weeks, each split by people, agents and bots and each with its sample size and what
+  couldn't be measured.
+- **Suggested reviewers:** for an open pull request with nobody asked, the CODEOWNERS
+  of its paths and the earlier reviewers of the same files and folders, each as a
+  proposal with the `toil … --allow-write` line to ask them.
+
+The dossier's work item keys are matched in each pull request's title, branch and
+description (a Jira project's `PAY-101`, Azure Boards' `AB#2302`, a GitHub
+repository's `owner/repo#41`). A code host's section may set author kinds by hand,
+`"authorKinds": { "release-bot": "BOT" }`, which win over every other signal.
 
 ## Toil's configuration
 
@@ -186,12 +216,15 @@ never starts that copy anyway.
   SDKs, so point at the `.exe`.
 - **Read-only tools, one dossier.** The agent gets `owi_query`, `owi_get`,
   `owi_similar` (likely duplicates, scored as `toil util owi similar` scores them)
-  and `owi_history` over the cache, `proposal_fields` (a write command's input fields,
+  and `owi_history` over the cache, `pr_query`, `pr_get` and `pr_metrics` over its
+  pull requests (what each waits on, its flags, and flow figures by author kind with
+  their sample sizes), `proposal_fields` (a write command's input fields,
   from toil's registry), and `toil mcp`'s read tools for live lookups, called through
   toil's `execute()` with `readOnly: true`. The dossier is fixed to the one on screen.
   There is no write tool, and each SDK's own tools (shell, files, web, plugins, other
   MCP servers) are switched off.
-- **Citations are checked.** Every answer cites the work items it used as links.
+- **Citations are checked.** Every answer cites the work items and pull requests it
+  used as links.
   The server holds each id it names to what its tools returned, and flags any other
   as unverified above the answer.
 - **Writes are proposals.** A change the agent suggests comes back as a card with the

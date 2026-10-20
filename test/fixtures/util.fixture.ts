@@ -6,6 +6,7 @@ import { defineFixture } from '../harness/fixtures.js';
 import { callKey } from './git.fixture.js';
 import { canned as secretsGit, files as secretsFiles } from './util-secrets.js';
 import { makeChain } from '../harness/x509.js';
+import { prJsonl } from './owi/pull-requests.js';
 import { adoBatch, pay104Changelog, sprintJsonl } from './owi/sprint.js';
 
 /**
@@ -226,6 +227,8 @@ export const files: Record<string, string | Uint8Array> = {
   'owi/sprint-42.jsonl': sprintJsonl,
   'owi/jira-changelog.json': pay104Changelog,
   'owi/ado-get-batch.json': adoBatch,
+  // ...and its pull requests on four code hosts (test/fixtures/owi/pull-requests.ts).
+  'owi/pull-requests.jsonl': prJsonl,
   // util owi similar's input: Sprint 42 and a week of new work, mapped (test/fixtures/owi/triage.ts).
   'owi/triage.owi.json': readFileSync(join(import.meta.dirname, 'owi', 'triage.owi.json'), 'utf8'),
 };

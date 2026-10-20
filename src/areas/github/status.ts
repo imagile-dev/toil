@@ -9,6 +9,12 @@ import { pageFields, pageOptions } from './input.js';
  * the build passed, which is one more than most status meetings have.
  */
 
+/** The list inside a check-runs page, which GitHub wraps in { total_count, check_runs }. */
+export function checkRunItems(body: unknown): unknown[] {
+  const runs = (body as { check_runs?: unknown } | undefined)?.check_runs;
+  return Array.isArray(runs) ? runs : [];
+}
+
 const refInput = z.string().describe('Git ref (branch, tag, or commit SHA)');
 const refArg = { name: 'ref', field: 'ref', description: 'Git ref (branch, tag, or commit SHA)' };
 
@@ -43,10 +49,7 @@ export const listChecksCommand = githubArea.command({
     return githubList(ctx, `/repos/${owner}/${repo}/commits/${input.ref}/check-runs`, `GitHub check runs for ${input.ref}`, {}, {
       limit: input.limit,
       cursor: input.cursor,
-      items: (body) => {
-        const runs = (body as { check_runs?: unknown } | undefined)?.check_runs;
-        return Array.isArray(runs) ? runs : [];
-      },
+      items: checkRunItems,
     });
   },
 });

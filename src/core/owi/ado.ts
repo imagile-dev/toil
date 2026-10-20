@@ -68,7 +68,7 @@ export function workItemsOf(data: unknown): Item[] | undefined {
 }
 
 /** An identity, from the object the API sends, or the `Name <email>` text older servers send. */
-function adoPerson(value: unknown): Person | null {
+export function adoPerson(value: unknown): Person | null {
   if (isRecord(value)) return person(value.uniqueName ?? value.id, value.displayName, typeof value.uniqueName === 'string' && value.uniqueName.includes('@') ? value.uniqueName : null);
   if (typeof value === 'string') {
     const match = /^(.*?)\s*<([^>]+)>$/.exec(value);
