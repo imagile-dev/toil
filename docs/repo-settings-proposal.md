@@ -141,18 +141,14 @@ on stdin with `--input -`.
 
 - **Current** (ruleset `default`, id 25274548, active on `~DEFAULT_BRANCH`):
   - deletion and force pushes (`non_fast_forward`) blocked
-  - pull request required: 1 approval, `dismiss_stale_reviews_on_push: false`,
-    `require_last_push_approval: false`, `required_review_thread_resolution: false`,
+  - pull request required: 1 approval, `dismiss_stale_reviews_on_push: true`,
+    `require_last_push_approval: true` (both applied 2026-10-19, so auto-merge counts
+    only an approval of the head commit), `required_review_thread_resolution: false`,
     `require_code_owner_review: false`, merge methods `squash` only
   - required status check `CI ok` (GitHub Actions, integration id 15368), not strict
   - no bypass actors; the maintainer can't bypass either
-- **Proposed:** keep all of that and add:
-  - **Dismiss stale approvals on push.** An approval counts only for the commit it
-    approved. The review workflow already re-reviews on every `synchronize`, so the
-    bot approves again at the new head.
-  - **Require approval of the most recent push.** Whoever pushed last can't be the
-    approver. On the maintainer's PRs the bot approves; on the bot's release and
-    triage PRs the maintainer does. Nothing changes for either.
+- **Proposed:** keep all of that (stale dismissal and last-push approval are already
+  applied) and add:
   - **Require conversation resolution.** The `ship` skill already resolves the
     threads it fixes and leaves disagreements open for the maintainer; this makes
     that the gate rather than a habit.
@@ -419,8 +415,10 @@ on stdin with `--input -`.
     accepts
   - squash title `PR_TITLE`; message stays `COMMIT_MESSAGES`
   - "Always suggest updating pull request branches" on
-  - auto-delete head branches stays on; auto-merge stays allowed (a person still
-    turns it on per PR, and the ruleset still needs the approval and `CI ok`)
+  - auto-delete head branches stays on; auto-merge stays allowed. On a PR the
+    maintainer drives through Claude Code, the `ship` skill turns it on (principle 2),
+    so it depends on item 4: the ruleset must dismiss stale approvals and require
+    approval of the last push, or a later push merges on an earlier approval
 - **Why:** release-please reads the squash commit's title. With
   `COMMIT_OR_PR_TITLE`, a one-commit PR's title comes from its commit, not from the
   PR title the review checked. `PR_TITLE` makes the reviewed title the changelog

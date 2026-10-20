@@ -6,8 +6,13 @@ description: Rules for the repository's agent automation under .github/ (the PR 
 # Automation
 
 An agent reviews every PR and submits a formal review. `CHANGES_REQUESTED` dispatches
-a fix agent that pushes to the PR branch. A human merges every PR, including the
-release PR; no agent merges, approves its own work into `main`, or enables auto-merge.
+a fix agent that pushes to the PR branch. No agent merges, or approves its own work
+into `main`. A human merges triage's PRs, any PR for an issue filed from outside
+(`from-website` or `from-terminal`), and the release PR. On a PR the maintainer
+drives through Claude Code, the `ship` skill turns on auto-merge (squash), at the
+maintainer's standing instruction (2026-10-19, principle 2). The PR then lands when
+the Imagile Bot approves the head commit and `CI ok` passes. Nothing in a workflow
+ever turns auto-merge on, and the fix agent never does either. Auto-merge relies on `main`'s ruleset counting only an approval of the head commit: `dismiss_stale_reviews_on_push` and `require_last_push_approval` both on (`docs/repo-settings-proposal.md`, item 4). Check with `gh api repos/imagile-dev/toil/rulesets/<id>` before turning it on; while either is off, leave auto-merge off and say why, because GitHub would merge a later push on an earlier approval.
 
 - **The review** is `.github/workflows/claude-review.yml`. It runs on same-repo,
   non-draft PRs from humans and `claude[bot]`, authenticated by the
