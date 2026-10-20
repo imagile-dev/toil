@@ -6,7 +6,7 @@ import { encodeCursor, MAX_LIMIT, pageKey } from '../../src/core/db/paging.js';
 import type { Envelope } from '../../src/core/envelope.js';
 import { execute } from '../../src/core/run.js';
 import { testContext } from '../harness/context.js';
-import { PEOPLE } from '../harness/db.js';
+import { engineQuery, PEOPLE } from '../harness/db.js';
 import { targets, type TargetDatabase } from './targets.js';
 
 /**
@@ -269,7 +269,7 @@ for (const target of targets) {
     });
 
     describe('read-only enforcement', () => {
-      it('db query refuses a write at the engine, even on a connection with writes on', async () => {
+      it('db query refuses a write, even on a connection with writes on, and so does the engine', async () => {
         for (const writes of [false, true]) {
           const envelope = await run(query, { sql: 'UPDATE people SET active = 0 WHERE id = 1' }, { writes });
           expect(envelope.error?.code, `writes: ${writes}`).toBe('WRITE_DISABLED');
@@ -277,12 +277,16 @@ for (const target of targets) {
         }
         const insert = await run(query, { sql: "INSERT INTO teams (id, name) VALUES (3, 'Ops')" }, { writes: true });
         expect(insert.error?.code).toBe('WRITE_DISABLED');
+        for (const sql of ['UPDATE people SET active = 0 WHERE id = 1', "INSERT INTO teams (id, name) VALUES (3, 'Ops')"]) {
+          await expect(engineQuery(db.settings, sql), sql).rejects.toMatchObject({ code: 'WRITE_DISABLED' });
+        }
         expect(await activeOf(1)).toBe(1);
         expect(await ids('SELECT id FROM teams ORDER BY id')).toEqual([1, 2]);
       });
 
-      it('db query refuses DDL', async () => {
+      it('db query refuses DDL, and so does the engine', async () => {
         expect((await run(query, { sql: 'DROP TABLE people' }, { writes: true })).error?.code).toBe('WRITE_DISABLED');
+        await expect(engineQuery(db.settings, 'DROP TABLE people')).rejects.toMatchObject({ code: 'WRITE_DISABLED' });
         expect(await ids()).toHaveLength(PEOPLE.length);
       });
 

@@ -328,6 +328,7 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
         if (def.writes || def.writesWhen) throw new Error(`Command ${name}: a write always needs its connection, so it can't be connectionOptional.`);
         if (Object.values(def.context ?? {}).includes('required')) throw new Error(`Command ${name}: a connectionOptional command can run with no context inputs, so none can be required.`);
       }
+      if (def.connectionlessWhen && def.connectionOptional !== true) throw new Error(`Command ${name}: connectionlessWhen is for a connectionOptional command.`);
       if (kind === 'area-local') {
         if (def.context) throw new Error(`Command ${name}: an area-local command has no connection, so no context inputs.`);
         return { ...def, kind, area, run: def.run as CommandDefinition['run'] } as CommandDefinition<typeof def.input>;

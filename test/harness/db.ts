@@ -2,6 +2,20 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import type { Settings } from '../../src/core/config.js';
+import { providerFor } from '../../src/core/db/engines.js';
+import type { DbConnection, RowSet } from '../../src/core/db/provider.js';
+
+/**
+ * A provider's own read, past db query's pre-flight lint (src/core/db/lint/),
+ * which refuses an obvious write before the provider is asked. A test that
+ * proves the engine, or a provider's deny, keeps reads read-only asks here,
+ * so the lint can't answer for it.
+ */
+export function engineQuery(settings: Settings, sql: string, max = 101): Promise<RowSet> {
+  const conn = { ...settings, name: 'db', area: 'db', writes: true } as DbConnection;
+  return providerFor(conn.engine).query(conn, sql, { offset: 0, max }, { signal: new AbortController().signal, debug: () => {} });
+}
 
 /**
  * Deletes a test's database folder. On Windows a SQLite worker stopped mid-

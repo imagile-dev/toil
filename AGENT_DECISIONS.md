@@ -3817,6 +3817,58 @@ decided here.
   same way. `ui/test/prompts.test.ts` fails if the prompt the page shows drifts from
   what the server composes.
 
+### #303 db pre-flight lint
+
+- **The lint has its own tokenizer** (`src/core/db/lint/tokens.ts`), one lexer with a
+  table of each engine's quoting rules, rather than the statement splitters rewritten
+  onto a shared one. The issue asked to extend the splitters; they decide what a read
+  refuses and what a script may hold, so each must match its engine's lexer to the
+  character, and moving them onto new code risked the read denies for an advisory
+  feature. The lint follows their rules and reuses Oracle's `opensPlsql`; the
+  splitters are unchanged.
+- **No rule for a missing `WHERE` on a large table.** toil keeps no catalogue of table
+  sizes, and asking the engine would be a round trip the lint promises not to make.
+  `meta.lint` lists only the rules that ran, so its absence is visible. A catalogue
+  (a connection setting naming large tables, or row estimates cached from
+  `describe-table`) is the maintainer's call; the rule is a few lines once one exists.
+- **Backticks on SQLite are a warning, not an error.** SQLite accepts them for MySQL
+  compatibility, and an error can't be skipped, so refusing them would block SQL that
+  runs. They stay errors on PostgreSQL, SQL Server and Oracle.
+- **`--no-lint` skips the warnings only**, as the issue says; no error can be skipped.
+  Each error rule is tuned to stay quiet when unsure: `LIMIT` only before a number or
+  placeholder and never inside an Oracle PL/SQL block (whose `BULK COLLECT ... LIMIT n`
+  is its own), and `TOP` only right after `SELECT` (or `SELECT DISTINCT`).
+  `multiple-statements` doesn't run on SQL Server (review on #314): its provider
+  already refuses a batch that returns more than one result, and a one-result batch
+  such as `DECLARE @n int = 1; SELECT @n` ran before the lint and still does.
+- **`read-only-write` is `WRITE_DISABLED`**, the code the engine's own refusal gets,
+  and the other errors are `INVALID_INPUT`. It reads the first word, and in a `WITH`
+  a data change right after a bracket; anything it misses still meets the engine's
+  read-only transaction.
+- **`db lint --engine` resolves no connection** through a new core hook,
+  `connectionlessWhen` on a `connectionOptional` command. With
+  `connectionOptional` alone, a user with db connections would still have one chosen
+  (and its password read from the OS store), and several with no default would fail.
+  An `--engine` that disagrees with an explicit `--connection` is `INVALID_INPUT`.
+- **`db lint --as query|execute`** (default `query`) picks which command's rules to
+  check against, since a script of writes is fine for `db execute` and refused by
+  `db query`.
+- **Warnings are `meta.warnings` entries with code `LINT`**, the rule, position and
+  fix in the message, so the envelope's warning shape stays `{ code, message }`. The
+  structured findings are in `db lint`'s `data` and an error's `details.lint`.
+- **Function and operator warnings** cover `NOW`, `GETDATE`, `SYSDATETIME`,
+  two-argument `ISNULL`, `NVL`, `IFNULL`, `LEN`, `LENGTH`, `CHARINDEX` and `SUBSTR`;
+  `||` on SQL Server and MySQL; and `+` beside a text literal on the others (not a
+  typed literal such as `DATE '...'` or `'1 day'::interval`). A short list of
+  confident cases rather than a full function catalogue.
+- **The lint isn't listed as an enforcement point of `commands.read-only`** in
+  `docs/bounds.md`. The engine is what enforces it, and the `databases` skill says
+  not to rely on parsing SQL to decide whether it writes; the lint only refuses the
+  obvious write sooner. The conformance suite and the engine tests now ask the
+  provider directly (`engineQuery` in `test/harness/db.ts`) as well as through `db
+  query`, so a lint that answers first can't hide an engine or provider deny that
+  stopped holding.
+
 ### #279 object projections
 
 - **An object projection takes every field after it** (`led` for `.*` in

@@ -278,7 +278,7 @@ export const POSITIONAL_FIELDS: ReadonlyMap<string, readonly string[]> = new Map
     'saucelabs session start-test', 'saucelabs session tests', 'saucelabs session uninstall-app',
   ),
   ...positional(['sql'],
-    'db execute', 'db query',
+    'db execute', 'db lint', 'db query',
   ),
   ...positional(['table'],
     'db table describe', 'db table preview',

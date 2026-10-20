@@ -182,7 +182,10 @@ versions.
   answering that Bitbucket isn't set up) sets `connectionOptional: true`. When the
   area has no connection and the call names none, `run` gets `ctx.connection`
   undefined and no context inputs, and answers itself; any other connection problem
-  still fails as usual. Only for a read with no required context input.
+  still fails as usual. Only for a read with no required context input. One whose
+  own input can stand in for the connection (`db lint --engine postgres`) adds
+  `connectionlessWhen(input)`: when it's true, core resolves no connection, reads
+  no secret and consults no dossier.
 - **The working repository** (root, current branch, remote URLs) is `ctx.repo()`,
   read from `.git` in pure JS; it spawns nothing and needs no git. Use `ctx.git` only
   for a command that is git.

@@ -9,6 +9,7 @@ import type { DbConnection } from '../../src/core/db/provider.js';
 import type { NetworkApis } from '../../src/core/network.js';
 import { execute } from '../../src/core/run.js';
 import { testContext } from '../harness/context.js';
+import { engineQuery } from '../harness/db.js';
 import { targets, type TargetDatabase } from './targets.js';
 
 /**
@@ -191,8 +192,10 @@ describe.skipIf(skip !== undefined)(`sqlserver server${skip ? ` (skipped: ${skip
     await direct('BEGIN TRANSACTION; UPDATE people SET active = 0 WHERE id = 1; COMMIT; IF @@TRANCOUNT > 0 ROLLBACK');
     expect(await activeSum()).toBe(7);
     for (const sql of ['UPDATE people SET active = 0 COMMIT', 'ROLLBACK; UPDATE people SET active = 0', 'BEGIN TRANSACTION', 'SAVE TRANSACTION s', 'COMMIT']) {
+      // The pre-flight lint refuses the ones that start with a write first (WRITE_DISABLED); the provider's own deny is asked directly.
       const envelope = await run(query, { sql }, { ...db.settings, writes: true });
-      expect(envelope.error, sql).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('db execute') });
+      expect(envelope.error, sql).toMatchObject({ code: expect.stringMatching(/^(INVALID_INPUT|WRITE_DISABLED)$/), fix: expect.stringContaining('db execute') });
+      await expect(engineQuery(db.settings, sql), sql).rejects.toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('db execute') });
     }
     expect(await activeSum()).toBe(7);
   });
@@ -245,11 +248,11 @@ describe.skipIf(skip !== undefined)(`sqlserver server${skip ? ` (skipped: ${skip
   // An OUTPUT clause streams the changed rows before the statement's DONE token, so a full page
   // would stop it before the server said it was a write; reads refuse OUTPUT outright.
   it('refuses OUTPUT on reads, whatever the page size', async () => {
-    for (const limit of [1, 100]) {
-      const envelope = await run(query, { sql: 'UPDATE people SET active = 0 OUTPUT inserted.id', limit }, { ...db.settings, writes: true });
-      expect(envelope.error, String(limit)).toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('db execute') });
+    // db query's pre-flight lint refuses an UPDATE before the provider sees it, so the provider's OUTPUT deny is asked directly.
+    expect((await run(query, { sql: 'UPDATE people SET active = 0 OUTPUT inserted.id' }, { ...db.settings, writes: true })).error?.code).toBe('WRITE_DISABLED');
+    for (const max of [2, 101]) {
+      await expect(engineQuery(db.settings, 'UPDATE people SET active = 0 OUTPUT inserted.id', max), String(max)).rejects.toMatchObject({ code: 'INVALID_INPUT', fix: expect.stringContaining('[output]') });
     }
-    expect((await run(query, { sql: 'UPDATE people SET active = 0 OUTPUT inserted.id' })).error?.fix).toContain('[output]');
     // A column named output is an ordinary read.
     await direct('CREATE TABLE jobs (id int, output varchar(20))');
     await direct("INSERT INTO jobs VALUES (1, 'done')");

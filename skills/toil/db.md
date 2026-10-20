@@ -354,8 +354,9 @@ other engines; see the known limit under "Reads are read-only at the engine".
 | `toil db table list [--schema <name>]` | `db_table_list` | `{ schema, tables: [{ name, type }] }`, `type` being `table` or `view` |
 | `toil db table describe <table> [--schema <name>]` | `db_table_describe` | `{ schema, name, type, columns, primaryKey, indexes, foreignKeys }` |
 | `toil db table preview <table> [--schema] [--limit] [--cursor]` | `db_table_preview` | A page of rows: `{ columns, rows }` |
-| `toil db query <sql> [--limit] [--cursor]` | `db_query` | A page of rows from one read-only statement: `{ columns, rows }` |
-| `toil db execute <sql> --allow-write` | `db_execute` | `{ changes }`: rows inserted, updated or deleted |
+| `toil db query <sql> [--limit] [--cursor] [--no-lint]` | `db_query` | A page of rows from one read-only statement: `{ columns, rows }` |
+| `toil db execute <sql> --allow-write [--no-lint]` | `db_execute` | `{ changes }`: rows inserted, updated or deleted |
+| `toil db lint <sql> [--engine <engine>] [--as <command>]` | `db_lint` | `{ engine, as, errors, warnings, findings }`: what the pre-flight lint finds in the SQL, without running it |
 
 Every command takes `--connection <name>`. `--schema` defaults to the engine's
 default schema (`main` for SQLite, `public` for PostgreSQL, the connection's database
@@ -423,6 +424,50 @@ UTC (`+00`).
 back with `--cursor`, along with the same SQL or table, to get the next page. A
 cursor only works with the query it came from. Use `ORDER BY` in a query you page
 through, so the pages are stable.
+
+### Pre-flight lint
+
+Before `db query` or `db execute` sends anything, toil checks the SQL against the
+connection's engine, with no network and no model. An **error** refuses the
+statement before a connection is even opened, with a fix in that engine's own form;
+a **warning** lets it run and lands in `meta.warnings` (code `LINT`). `meta.lint`
+names the engine and every rule that ran, on success and failure alike.
+
+| Rule | Severity | Engines | Trips on |
+|------|----------|---------|----------|
+| `unterminated` | error | all | A string, quoted name or block comment that is never closed (SQLite lets a block comment run to the end, so only its strings and names) |
+| `multiple-statements` | error | all but SQL Server, on `db query` | More than one statement. SQL Server is left to its own check, which refuses SQL that returns more than one result, so `DECLARE @n int = 1; SELECT @n` still runs |
+| `read-only-write` | error (`WRITE_DISABLED`) | all, on `db query` | A statement that starts with `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `REPLACE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, `RENAME` or `COMMENT`, or a `WITH` holding a data change |
+| `dialect-limit` | error | SQL Server, Oracle | `LIMIT n`: use `TOP (n)` or `OFFSET ... FETCH NEXT n ROWS ONLY` on SQL Server, `FETCH FIRST n ROWS ONLY` on Oracle (`ROWNUM <= n` on 11g). A PL/SQL block's own `BULK COLLECT ... LIMIT n` is left alone |
+| `dialect-top` | error | all but SQL Server | `SELECT TOP n`: use `LIMIT n`, or `FETCH FIRST n ROWS ONLY` on Oracle |
+| `dialect-backtick` | error; warning on SQLite | all but MySQL | `` `name` ``: use `"name"`, or `[name]` on SQL Server. SQLite accepts backticks for MySQL compatibility, so there it only warns |
+| `dialect-function` | warning | all | A function another engine has: `NOW()`, `GETDATE()`, `SYSDATETIME()`, two-argument `ISNULL()`, `NVL()`, `IFNULL()`, `LEN()`, `LENGTH()`, `CHARINDEX()`, `SUBSTR()`, where the engine lacks it |
+| `dialect-concat` | warning | all | `\|\|` on SQL Server (use `+` or `CONCAT()`) or MySQL (a logical OR there; use `CONCAT()`), and `+` beside a text literal elsewhere (use `\|\|`, or `CONCAT()` on MySQL) |
+| `select-star` | warning | all, on `db query` | `SELECT *` at the top of a query, whose rows are capped at `--limit` |
+| `implicit-cross-join` | warning | all | A comma between tables in `FROM` with no `WHERE`, which pairs every row with every row |
+
+Every finding has its rule, a message, a fix, and its position in the SQL: `offset`
+from the start, and 1-based `line` and `column`. An error's `error.details.lint`
+lists them.
+
+`--no-lint` (`lint: false` over MCP) skips the warnings for one call. Errors always
+run: `--no-lint` can't send a write through `db query`, and it can't send SQL the
+engine would refuse anyway.
+
+`toil db lint <sql>` runs the same lint without running anything, and returns the
+findings as `data`. With `--engine`, it uses no connection at all: none is looked up
+and no secret is read, so it works with nothing set up. Without it, it takes the
+engine from the connection. `--as execute` checks the SQL as `db execute` would (a
+script of changes) instead of as `db query` would (the default).
+
+```bash
+toil db lint "SELECT TOP 10 * FROM people" --engine postgres
+```
+
+The lint is a check, not a guard. It refuses a write on `db query` a little earlier,
+but what keeps a read read-only is the engine, below, and that still holds for any
+SQL the lint lets through. A table's size isn't known locally, so the lint has no
+rule for a missing `WHERE` on a large table.
 
 ### Reads are read-only at the engine
 
@@ -633,12 +678,12 @@ Over MCP:
 
 | Code | Means |
 |------|-------|
-| `NOT_CONFIGURED` | No db connection set up |
+| `NOT_CONFIGURED` | No db connection set up (`db lint` needs one only without `--engine`) |
 | `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`), `path` is relative, the file isn't a SQLite database, `"auth": "windows"` is set off Windows, or an Oracle `host` or `database` holds more than a host name or service name |
 | `AUTH` | The server refused the login: check `user` and `password` (for SQL Server, also that SQL Server logins are allowed; for Oracle, also a locked or expired account, or a password verifier too old for Thin mode); or Windows authentication couldn't start (Constrained Language mode, SSPI refused) |
 | `NETWORK` | The server or listener couldn't be reached, didn't answer, or its TLS certificate wasn't trusted; or SQL Server requires encryption and `ssl` is off |
 | `NOT_FOUND` | The file, database, Oracle service, schema or table doesn't exist |
-| `WRITE_DISABLED` | A write was refused: by `db query` (DDL included, on Oracle), or by the write gate on `db execute` |
-| `INVALID_INPUT` | Bad flags, a cursor from another query, several statements in `db query`, or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), transaction control and `OUTPUT` (SQL Server), or PL/SQL (Oracle) |
+| `WRITE_DISABLED` | A write was refused: by `db query` (by the pre-flight lint before it ran, or by the engine; DDL included, on Oracle), or by the write gate on `db execute` |
+| `INVALID_INPUT` | Bad flags, a cursor from another query, SQL the pre-flight lint refused (another engine's syntax, an unclosed quote), several statements in `db query`, or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), transaction control and `OUTPUT` (SQL Server), or PL/SQL (Oracle) |
 | `DATABASE` | The engine refused or failed the statement: bad SQL, a constraint, a lock, a permission; on SQL Server, also SQL that ended toil's transaction itself |
 | `TIMEOUT`, `CANCELLED` | Stopped waiting; for `db execute`, check whether the change was made before retrying |
