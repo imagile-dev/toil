@@ -4472,3 +4472,35 @@ the choices made by default inside that:
   commands have now been run against one live Scrum organization, which the skill and
   the supported-version note now say, but the pull request commands haven't, so
   raising the board status to `live` is left to the maintainer.
+
+## Toil UI on toil built from this checkout (#332)
+
+`npm run verify:ui` and `ui/scripts/dev-real.mjs` failed at sync between releases:
+`ui/` on `main` calls renamed commands, and the server imported the published toil
+it pins. These are the choices made by default in the fix:
+
+- **A Node resolve hook, passed with `--import` to just those scripts' toil-ui
+  processes** (`ui/scripts/local-toil-hook.mjs`, `module.registerHooks`, in-thread),
+  maps `@imagile-dev/toil/api` to `.scratch/toil/api.js`. It was the simplest of the
+  options the issue listed. An env var read by the server (`TOIL_UI_TOIL_PATH`) would
+  put a dev-only code path that can load any file as toil into the published bundle;
+  a package `imports` alias or a workspace link would change what `npm ci` installs,
+  which `check:lockfile` (#299) holds to the pin; copying a build into `node_modules`
+  is what #327 and #329 did by hand, and the next `npm ci` undoes it. The hook ships
+  in nothing, and a plain `node ui/dist/server/toil-ui.js`, the smoke test and the
+  published package still run on the pinned toil.
+- **toil is built into `.scratch/toil` by `TOIL_BUILD_DIR`**, a new optional env var
+  `tsup.config.ts` reads for its output folder (default `dist`), so the build takes
+  the release build's own steps without rewriting the committed `dist/`. A second build config would drift from the first.
+- **It builds every run**, in both scripts: about 6 seconds, and a stale build is the
+  failure this issue is about. `verify:ui --no-build` reuses `.scratch/toil` when it
+  exists, as it reuses `ui/dist`.
+- **The dossier setup runs the same build** (`real-home.mjs`'s `toilCli`), so the
+  toil that makes the dossiers and the toil that syncs them are one.
+- **The hook says on stderr which toil it resolved**, and `verify:ui` fails when
+  `toil-ui --version` didn't print that line, so a run can't pass on the pinned toil
+  by accident. The version alone can't tell them apart: between releases the build
+  carries the released version number. The report's header and its **Toil** row
+  name the version, the commit it was built at and whether `src/` had uncommitted
+  changes; the old **Installed toil** row is now **Pinned toil**, the lockfile check,
+  which still guards what the published package installs.

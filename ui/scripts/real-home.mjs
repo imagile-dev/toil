@@ -13,6 +13,10 @@
 // hands back points HOME there and carries the GitHub token from `gh auth
 // token` (or TOIL_GITHUB_TOKEN, if already set), or the two ADO variables, for
 // toil-ui's process only: never written to a file or printed.
+// Both run Toil UI, and the toil CLI that makes the dossiers, on toil built
+// from this checkout into <clone>/.scratch/toil (buildToil, and the resolve hook
+// in local-toil-hook.mjs), never on the published toil Toil UI pins, so a
+// command ui/ calls before its release still works here (#332).
 // The agent CLI keeps its own sign-in: CODEX_HOME is pointed at the real
 // ~/.codex unless already set, since Codex on Windows finds its home from the
 // OS rather than USERPROFILE. Repo tooling only: nothing here ships. The
@@ -21,10 +25,16 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { npmCli } from './package-rules.mjs';
 
 export const root = resolve(import.meta.dirname, '..', '..');
 export const toilUi = join(root, 'ui', 'dist', 'server', 'toil-ui.js');
-export const toilCli = join(root, 'node_modules', '@imagile-dev', 'toil', 'dist', 'toil.js');
+/** toil built from this checkout (buildToil), apart from the committed dist/. */
+export const toilBuild = join(root, '.scratch', 'toil');
+export const toilCli = join(toilBuild, 'toil.js');
+/** Node's arguments that make a toil-ui process import toilBuild's API in place of the pinned toil. */
+export const toilUiNodeArgs = ['--import', pathToFileURL(join(root, 'ui', 'scripts', 'local-toil-hook.mjs')).href];
 
 /** A problem setting up the home, with the fix to print under it. */
 export class RealHomeError extends Error {
@@ -32,6 +42,32 @@ export class RealHomeError extends Error {
     super(message);
     this.fix = fix;
   }
+}
+
+/**
+ * Builds toil from this checkout into toilBuild (`npm run build` with
+ * TOIL_BUILD_DIR), unless `build` is false and a build is already there.
+ * Resolves with its version, the commit it was built at, whether src/ had
+ * uncommitted changes, whether it built just now, and a line naming it for a report. Throws a
+ * RealHomeError when the build fails.
+ */
+export function buildToil({ build = true } = {}) {
+  const built = build || !existsSync(toilCli);
+  if (built) {
+    const res = spawnSync(process.execPath, [npmCli(), 'run', 'build'], { cwd: root, env: { ...process.env, TOIL_BUILD_DIR: toilBuild }, encoding: 'utf8' });
+    if (res.status !== 0) throw new RealHomeError(`building toil from this checkout into .scratch/toil failed:\n${(res.stdout + res.stderr).trim().split('\n').slice(-20).join('\n')}`, 'Fix the build error above (npm run typecheck at the root shows type errors), then run this again.');
+  }
+  const res = spawnSync(process.execPath, [toilCli, 'version'], { encoding: 'utf8' });
+  let data;
+  try {
+    data = JSON.parse(res.stdout).data;
+  } catch {
+    throw new RealHomeError(`${toilCli} version printed no envelope: ${res.stderr.trim() || res.stdout.trim()}`, 'Delete .scratch/toil and run this again.');
+  }
+  const status = spawnSync('git', ['status', '--porcelain', '--untracked-files=no', '--', 'src'], { cwd: root, encoding: 'utf8' });
+  const dirty = status.status === 0 && status.stdout.trim() !== '';
+  const at = data.commit ? `${data.commit.slice(0, 8)}${dirty ? ' plus uncommitted changes in src/' : ''}` : 'no commit';
+  return { version: data.version, commit: data.commit, dirty, built, describe: `toil ${data.version} built from this checkout at ${at}, in .scratch/toil` };
 }
 
 /** The GitHub token for this run: TOIL_GITHUB_TOKEN, else `gh auth token`. `problem` says why there is none. */
@@ -80,7 +116,7 @@ const say = (line) => process.stdout.write(`${line}\n`);
 
 /** toil's config in the home: one read-only GitHub connection, written once. */
 function writeConfig(home, log) {
-  if (!existsSync(toilCli)) throw new RealHomeError(`toil isn't installed at ${toilCli}.`, 'Run npm ci --ignore-scripts at the root of the clone.');
+  if (!existsSync(toilCli)) throw new RealHomeError(`toil isn't built at ${toilCli}.`, 'Call buildToil() first; dev-real.mjs and verify.mjs do.');
   const config = join(home, '.toil', 'config.json');
   if (existsSync(config)) return;
   mkdirSync(join(home, '.toil'), { recursive: true });
