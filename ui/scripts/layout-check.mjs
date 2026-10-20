@@ -62,6 +62,11 @@ export const ROUTES = [
   '#/dossier/checkout-web/people',
   '#/dossier/settlement/people',
   `#/dossier/card-payments/board/${encodeURIComponent('person:J. Smith')}`,
+  // The readiness gate (#307): the Command Center with one ready item, with none, and with a ready GitHub feature; an item blocked by another.
+  '#/dossier/card-payments/command-center',
+  '#/dossier/settlement/command-center',
+  '#/dossier/checkout-web/command-center',
+  item('card-payments', 'corp-jira:PAY-102'),
   item('card-payments', 'corp-jira:PAY-100'),
   item('settlement', 'corp-ado:2304'),
   '#/settings/connections',
@@ -225,6 +230,10 @@ function states(route, width) {
     const open = narrow ? `await ${clickAll('.ask--sheet .ask-head button', '/Open/')};` : '';
     out.push({ name: 'ask-info', setup: `(async () => { ${open} return await ${clickAll('[data-ask-info]')}; })()`, undo: 'Escape', ...(narrow ? { undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') } : {}) });
   }
+  // The readiness gate (#307): an item's workflow read live, and the Command Center's verdict filter open. Only
+  // the sample's Jira and Azure DevOps items are pressed: a GitHub issue has no read to make, and a done item none either.
+  if (/\/item\/corp-(jira|ado)%3A/.test(route)) out.push({ name: 'workflow-live', setup: `(async () => { const n = ${clickAll('.readiness-live button', '/Check the workflow live|Read the workflow again/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
+  if (/\/command-center$/.test(route)) out.push({ name: 'verdict-filter', setup: clickAll('.readiness-filters > div.choice:first-of-type .choice-button'), undo: 'Escape' });
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
   if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).

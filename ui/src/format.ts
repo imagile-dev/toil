@@ -42,6 +42,8 @@ export const dossierHref = (dossier: string) => `#/dossier/${encodeURIComponent(
 export const itemHref = (dossier: string, id: string) => `${dossierHref(dossier)}/item/${encodeURIComponent(id)}`;
 export const prsHref = (dossier: string) => `${dossierHref(dossier)}/prs`;
 export const peopleHref = (dossier: string) => `${dossierHref(dossier)}/people`;
+/** The Command Center (#307): every work item with its readiness verdict. */
+export const commandCenterHref = (dossier: string) => `${dossierHref(dossier)}/command-center`;
 /** The dashboard with its board filtered to one person (#292), by the key the People view gives them. */
 export const boardHref = (dossier: string, person: string) => `${dossierHref(dossier)}/board/${encodeURIComponent(person)}`;
 

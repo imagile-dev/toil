@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { execute, mapOwi as apiMapOwi, registry } from '../../src/api.ts';
 import { CANNED, callKey, fixtureExecute } from '../src/fixtures/execute.ts';
 import { loadDossier, loadDossiers } from '../src/load.ts';
+import { workflowRead } from '../src/model/readiness.ts';
+import { WORKFLOW_READS } from '../server/store.ts';
 import { mapOwi } from '../src/owi.ts';
 import type { Execute } from '../src/toil.ts';
 import { NAMES } from './harness.ts';
@@ -56,7 +58,25 @@ describe('the dashboards', () => {
     expect(fixture.calls.filter((c) => !c.ok)).toEqual([]);
     expect([...options]).toEqual([JSON.stringify({ readOnly: true, caller: 'toil-ui' })]);
     const asked = new Set(fixture.calls.map((c) => callKey(c.command, c.input)));
-    for (const c of CANNED) expect(asked.has(callKey(c.command, c.input)), `${c.command} ${JSON.stringify(c.input)} is never asked for`).toBe(true);
+    // The readiness gate's workflow reads (#307) are made on a person's press, never by a load.
+    const onPress = (command: string) => (WORKFLOW_READS as readonly string[]).includes(command);
+    for (const c of CANNED.filter((x) => !onPress(x.command))) expect(asked.has(callKey(c.command, c.input)), `${c.command} ${JSON.stringify(c.input)} is never asked for`).toBe(true);
+    expect(fixture.calls.filter((c) => onPress(c.command))).toEqual([]);
+  });
+
+  it("answer the readiness gate's workflow read for every open item it applies to, and hold no other", async () => {
+    const reads = new Set<string>();
+    for (const name of NAMES) {
+      const d = await loadDossier(fixtureExecute().execute, name);
+      for (const item of d.items.filter((i) => i.statusCategory !== 'DONE')) {
+        const read = workflowRead(item);
+        if (read) reads.add(callKey(read.command, { dossier: name, ...read.input }));
+      }
+    }
+    const canned = CANNED.filter((c) => (WORKFLOW_READS as readonly string[]).includes(c.command)).map((c) => callKey(c.command, c.input));
+    for (const r of reads) expect(canned, r).toContain(r);
+    // ADO's states are per type, so one answer covers every item of it; Jira's transitions are per issue.
+    expect(canned.filter((k) => !reads.has(k))).toEqual([]);
   });
 });
 

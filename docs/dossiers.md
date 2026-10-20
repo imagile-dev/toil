@@ -206,6 +206,12 @@ prompts. The names are used through **one fixed input**, never through generated
   passes it to `mapOwi` as the override that wins over every other signal when it
   says who wrote a pull request (`docs/owi/spec.md`, Who wrote it); nothing else
   reads it.
+- A work item area's section (`jira`, `jira-cloud`, `ado`, `ado-cloud`, `github`)
+  may name `fields.acceptanceCriteria`, the field that holds acceptance criteria
+  (also a `--field` alias like any other), and keep `readiness`, reference data
+  `{ "minWords": 25, "templates": ["## What\n## Why"] }`. Toil UI's readiness gate
+  (#307) reads both (`ui/README.md`, Readiness and the Command Center); nothing else
+  reads them.
 
 ### Pinned transitions
 

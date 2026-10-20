@@ -59,6 +59,12 @@ export const STARTERS: readonly StarterPrompt[] = [
       `Someone wants 1:1 notes for a person in the dossier "${d}" but didn't say who. Call people_list and reply with the people they can ask about, one per line, each written as the question to ask: Prepare my 1:1 notes for <name>. Nothing else.`,
   },
   {
+    id: 'ready',
+    label: 'Which items are ready for an agent?',
+    prompt: (d) =>
+      `Which items in the dossier "${d}" are ready for an agent? Use readiness_list: name each ready item, then for the items that are thin or blocked, say which checks they fail and what would make them ready (acceptance criteria to write, a description to fill in, a blocker to finish). Use readiness_get for detail on any you discuss. Cite every item by its id. The verdicts are the readiness gate's: report them as they are, without judging them again.`,
+  },
+  {
     id: 'release-notes',
     label: 'Release notes',
     prompt: (d) => `Draft release notes for the dossier "${d}" from the work that is done, grouped by type, saying for each item where it is deployed if the cache shows that.`,

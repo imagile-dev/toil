@@ -4683,3 +4683,73 @@ it pins. These are the choices made by default in the fix:
   about**, and the same words typed with a name get the 1:1 instructions (`promptFor`
   in `ui/server/agents/prompts.ts`). Filling the name into the chat box from the
   starter would mean changing the chat component another change is working in.
+
+## The readiness gate and a read-only Command Center (#307)
+
+- **This change is the gate and a read-only Command Center; starting the plan waits
+  for assign-to-agent (#293).** There is nothing yet to start an item with, so the
+  Command Center lists, filters and slates, and its start button is disabled with a
+  note naming #293. The extension point is one function, `startReady(plan)` (`StartReady`
+  in `ui/src/data.ts`), passed to `App` and on to the view's data: it gets the plan's
+  id and the slated ids in order, and the button enables itself once something passes
+  it. The plan id is a hash of each slated item's id, status and last update, so it
+  changes when anything in the plan does. Seats, modes, adapters, the concurrency
+  limit, queueing and the reasons an item can't be seated (no free seat, two possible
+  repositories, already in progress) are #293's, since they need the seats it adds.
+  So is showing the verdict on assignment cards, which don't exist yet. The PR says
+  `Refs #307`, not `Closes`.
+- **The settings are reference data in each area's section, not a new top-level key**:
+  `fields.acceptanceCriteria` (as the issue names it, and also the area's `--field`
+  alias) and `readiness: { minWords, templates }`. A section keeps keys it doesn't
+  know as written (`src/core/dossier.ts`), so this needs no change to toil's dossier
+  reader, and a published toil reads such a dossier without a warning; a top-level
+  key would have been `DOSSIER_UNKNOWN_SECTION` there. A wrongly shaped value is said
+  in the view and the defaults apply.
+- **Azure DevOps defaults to its own field**, `Microsoft.VSTS.Common.AcceptanceCriteria`,
+  when its section names none: every process that has acceptance criteria keeps them
+  there. Jira has no standard field, so it has no default. A Jira custom field toil
+  sends under its registered name (the connection's `customFields`) is found by a
+  field named "Acceptance Criteria" when the id isn't there.
+- **Which failures are thin and which are blocked.** Missing acceptance criteria, a
+  short description, a done state the cache can't settle, a blocker the dossier
+  doesn't hold and a dossier with no repository are thin: a person can look and
+  decide. Already done, an open blocker, an item from outside the dossier's sources,
+  and an Azure DevOps type with no Done state are blocked. Estimates aren't checked:
+  the issue's table has five checks and an estimate isn't one.
+- **The done state, from the cache:** a GitHub issue closes from any state; otherwise
+  another item of the same type on the same connection that is done, or that moved
+  into Done in its history, shows the workflow gets there. With none, the row is thin
+  and says to check live.
+- **The one live read is a person's press on the item page**, never a load, the
+  Command Center or an agent tool. Jira: `jira issue transitions <key>`, which lists
+  only the moves offered now, so no direct move into Done is thin ("may get there in
+  more steps"), not blocked. Azure DevOps: `ado work-item states --type <type>`, where
+  a Completed state passes and its absence is blocked; Removed doesn't count as Done.
+  The four commands (`jira`, `jira-cloud`, `ado`, `ado-cloud`) are added to the
+  server's `READ_COMMANDS`, and the cache passes them to toil, read-only, as it does
+  `dossiers show`, since a sync never stores them.
+- **The Command Center lists every work item in the dossier, not only "yours"**, with
+  an assignee filter, and shows items that aren't done by default. The issue's
+  "assigned to you" needs a mapping from the person using Toil UI to an account in
+  each system, which nothing has yet; the People view's `people` list is the likely
+  source once #293 seats agents for a person.
+- **The description counts the body's words only**, not the acceptance criteria field,
+  and a heading line counts like any other line unless a template lists it.
+  Placeholders taken out are lines of only TBD, TODO, N/A, none, lorem ipsum or
+  punctuation, and `<…>` or `{…}` slots.
+- **No toil command for it.** The issue asks for the gate in Toil UI, and the gate
+  reads the cache Toil UI keeps; the agent gets it as two read-only tools,
+  `readiness_list` and `readiness_get`, which read the dossier live through `dossiers
+  show` as the people tools do and vouch for every id their rows cite.
+- **Sample data:** card-payments names `customfield_10500` for acceptance criteria and
+  asks for 20 words, with the field filled on PAY-101 and PAY-102 in the UI's copy of
+  the Jira search (not in the OWI sprint fixture core's tests pin); checkout-web asks
+  for 10 words and names its issue template; settlement takes the defaults and has
+  nothing ready. The fixture answers the live read for every open item it applies to.
+- **Found, not fixed:** Toil UI's Jira read is `jira issue search` with toil's default
+  fields (`STANDARD_SEARCH_FIELDS`), which leave out `description`, `issuelinks` and
+  `parent`, so on a real Jira instance items arrive with no body and no links. The gate
+  would read every real Jira item as thin, and miss its blockers. The sample's Jira
+  data carries both, so the preview doesn't show it. Fixing it means the loader asking
+  for those fields, which is a change to what every Jira dashboard reads and is out of
+  this change's scope; no Jira instance was available to check it against.

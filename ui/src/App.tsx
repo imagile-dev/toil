@@ -13,13 +13,14 @@ import { useEffect, useInsertionEffect, useRef, useState, type MouseEvent, type 
 import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { Ambient } from './ambient/Ambient.tsx';
-import { DataContext, type Data } from './data.ts';
-import { dateTime, dossierHref, peopleHref, prsHref } from './format.ts';
+import { DataContext, type Data, type StartReady } from './data.ts';
+import { commandCenterHref, dateTime, dossierHref, peopleHref, prsHref } from './format.ts';
 import { loadDossier, loadDossiers, type DossierData, type DossierSummary } from './load.ts';
 import { SkinProvider, ThemeProvider, skinsFor } from './skins.tsx';
 import { THEMES, themeNamed, tokenCss } from './themes.ts';
 import { useThemeChoice } from './theme-choice.ts';
 import type { Call, Execute } from './toil.ts';
+import { CommandCenter } from './views/CommandCenter.tsx';
 import { Dashboard } from './views/Dashboard.tsx';
 import { Dossiers } from './views/Dossiers.tsx';
 import { ItemView } from './views/Item.tsx';
@@ -43,6 +44,8 @@ export type Route =
   | { view: 'dashboard'; dossier: string; person?: string }
   | { view: 'prs'; dossier: string }
   | { view: 'people'; dossier: string }
+  /** Every work item with its readiness verdict (#307). */
+  | { view: 'command-center'; dossier: string }
   | { view: 'item'; dossier: string; id: string };
 
 export function parseRoute(hash: string): Route {
@@ -53,6 +56,7 @@ export function parseRoute(hash: string): Route {
     if (parts[2] === 'item' && parts[3]) return { view: 'item', dossier, id: decodeURIComponent(parts.slice(3).join('/')) };
     if (parts[2] === 'prs') return { view: 'prs', dossier };
     if (parts[2] === 'people') return { view: 'people', dossier };
+    if (parts[2] === 'command-center') return { view: 'command-center', dossier };
     if (parts[2] === 'board' && parts[3]) return { view: 'dashboard', dossier, person: decodeURIComponent(parts.slice(3).join('/')) };
     return { view: 'dashboard', dossier };
   }
@@ -83,12 +87,14 @@ export interface AppProps {
   agentSettings?: AgentSettingsPanelProps;
   /** `toil feedback`, behind the header's Feedback button (#265): the server's, or the preview's, which sends nothing. */
   feedback?: FeedbackApi;
+  /** The Command Center's start action (#307), which assign-to-agent (#293) provides; without it the start button is disabled. */
+  startReady?: StartReady;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, startReady }: AppProps) {
   const route = useRoute();
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
@@ -159,6 +165,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
           { href: dossierHref(wanted), label: wanted, current: route.view === 'dashboard' },
           { href: prsHref(wanted), label: 'Pull requests', current: route.view === 'prs' },
           { href: peopleHref(wanted), label: 'People', current: route.view === 'people' },
+          { href: commandCenterHref(wanted), label: 'Command Center', current: route.view === 'command-center' },
         ]
       : []),
     { href: '#/settings', label: 'Settings', current: route.view === 'settings' },
@@ -198,10 +205,10 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   } else if (!current.ok) {
     body = failure(current.message);
   } else {
-    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, ...(config ? { config } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest) };
+    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, execute, ...(config ? { config } : {}), ...(startReady ? { startReady } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest) };
     body = (
       <DataContext value={data}>
-        {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
+        {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
       </DataContext>
     );
   }

@@ -1,0 +1,27 @@
+/* The readiness gate (#307): the verdict chip, the five rows on an item's
+   page, and the Command Center's tally, start panel, filters and list.
+   Colours come from the theme's tokens, so every theme styles it; a verdict
+   is always a word as well as a colour. */
+
+.verdict { display: inline-block; padding: 0.05rem 0.55rem; border-radius: 999px; border: 1px solid currentColor; font-size: 0.8125rem; font-weight: 700; white-space: nowrap; background: var(--raised); }
+.verdict--ready { color: var(--ok); }
+.verdict--thin { color: var(--warn); }
+.verdict--blocked { color: var(--danger); }
+
+.readiness-verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 0.6rem; margin: 0.25rem 0 0.75rem; }
+.readiness-rows { display: grid; gap: 0.4rem; }
+.readiness-row { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr); gap: 0.4rem; align-items: baseline; overflow-wrap: anywhere; }
+.readiness-mark { font-weight: 700; text-align: center; }
+.readiness-row--pass .readiness-mark { color: var(--ok); }
+.readiness-row--thin .readiness-mark, .readiness-row--thin .readiness-state { color: var(--warn); }
+.readiness-row--fail .readiness-mark, .readiness-row--fail .readiness-state { color: var(--danger); }
+.readiness-state { font-weight: 600; }
+.readiness-live { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.6rem; margin-top: 0.75rem; }
+
+.readiness-tally { margin: 1rem 0; }
+.readiness-tally__head { margin: 0; font-size: 1rem; }
+.readiness-start { align-items: center; margin-top: 0.75rem; }
+.readiness-start .note { margin: 0; max-width: 60ch; }
+.readiness-filters { align-items: end; margin: 0.5rem 0 0.75rem; }
+.why-not { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.2rem; overflow-wrap: anywhere; }
+.readiness-slate { margin-bottom: 1.5rem; }
