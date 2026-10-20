@@ -10,6 +10,8 @@
 
 import { documentsFrom, fieldOverrides, inputValues, mapOwi as mapDocuments, parseOwiInput, type OwiResult } from '../../src/core/owi/index.ts';
 
+export { OVERRIDABLE } from '../../src/core/owi/index.ts';
+
 export type { OwiResult } from '../../src/core/owi/index.ts';
 
 export interface OwiMapOptions {

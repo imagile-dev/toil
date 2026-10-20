@@ -5267,7 +5267,7 @@
       "unmapped": [
         {
           "field": "estimate",
-          "reason": "the board item has no number in a field named \"Estimate\", \"Size\", \"Story Points\": point fields estimate at the project's own"
+          "reason": "the board item has no number in a field named \"Estimate\", \"Size\", \"Story Points\" (point fields estimate at the project's own), and no label holds one (\"points: N\", \"story points: N\", \"pts: N\", \"sp: N\" or \"estimate: N\")"
         }
       ],
       "native": {

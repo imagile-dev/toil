@@ -7,6 +7,7 @@ import { areaOf, commandName } from '../src/core/command.js';
 import type { Envelope, Warning } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
 import { documentsFrom, fieldOverrides, mapOwi, OVERRIDABLE, OWI_COMMANDS, OWI_SOURCES, OWI_VERSION, parseOwiInput, type WorkItem } from '../src/core/owi/index.js';
+import { bodyLinks } from '../src/core/owi/github.js';
 import { sprintOf } from '../src/core/owi/jira.js';
 import { execute } from '../src/core/run.js';
 import { argvFor } from '../src/program.js';
@@ -14,6 +15,7 @@ import { commands as registry } from '../src/registry.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
 import { loadFixtures, setUp } from './harness/fixtures.js';
+import { boardlessIssues, boardlessTimelines } from './fixtures/owi/github-boardless.js';
 import { sprintEnvelopes, sprintJsonl } from './fixtures/owi/sprint.js';
 
 /**
@@ -394,5 +396,147 @@ describe('review round 1', () => {
     expect(parseOwiInput(json(wrapped))).toHaveLength(2);
     expect(api.mapOwi(wrapped).histories).toEqual([{ id: 'jira:PAY-104', history: { transitions: [], iterations: [] } }]);
     expect(inputValues([{ number: 1 }])).toEqual([[{ number: 1 }]]);
+  });
+});
+
+describe('GitHub without a board (#298): milestones, estimate labels and body links', () => {
+  const REPO = 'imagile/payments-sandbox';
+  const id = (n: number) => `github:${REPO}#${n}`;
+  const inputs = { owner: 'imagile', repo: 'payments-sandbox' };
+  const list = env('github issue list', boardlessIssues, 'github', inputs);
+  const histories = Object.entries(boardlessTimelines).map(([n, events]) => ({ key: n, history: env('github issue history', events, 'github', inputs) }));
+  const ghIssue = (number: number, extra: Record<string, unknown> = {}) => ({ number, title: `Issue ${number}`, state: 'open', html_url: `https://github.com/${REPO}/issues/${number}`, labels: [], body: '', ...extra });
+  const milestone = (number: number, title: string, due: string | null, state = 'open') => ({ number, title, state, due_on: due });
+  const one = (issue: Record<string, unknown>) => env('github issue get', issue, 'github');
+
+  it('maps the captured repository: every item valid, nothing skipped', async () => {
+    const { data } = await map({ text: json([list, ...histories]) });
+    expect(data.count).toBe(12);
+    expect(data.skipped).toEqual([]);
+    expect(data.verified.passed).toBe(true);
+  });
+
+  it("takes each issue's milestone as its iteration, starting where the previous one ended", async () => {
+    const { data } = await map({ text: json([list]) });
+    const items = data.items as WorkItem[];
+    expect(byId(items, id(7)).iteration).toEqual({ id: '2', name: 'Sprint 42', path: null, start: '2026-10-12T00:00:00.000Z', end: '2026-10-26T00:00:00.000Z', state: null });
+    expect(byId(items, id(1)).iteration).toEqual({ id: '1', name: 'Sprint 41', path: null, start: '2026-09-28T00:00:00.000Z', end: '2026-10-12T00:00:00.000Z', state: 'past' });
+    expect(byId(items, id(17)).iteration).toMatchObject({ name: 'Sprint 43', start: '2026-10-26T00:00:00.000Z', end: '2026-11-09T00:00:00.000Z' });
+    const backlog = byId(items, id(23));
+    expect(backlog.iteration).toBeNull();
+    expect(backlog.unmapped.find((u) => u.field === 'iteration')!.reason).toContain('no milestone');
+  });
+
+  it('runs every milestone iterationDays to its due date when the dossier says how long sprints are', async () => {
+    const { data } = await map({ text: json([list]), field: ['iterationDays=10'] });
+    expect(byId(data.items, id(7)).iteration).toMatchObject({ start: '2026-10-16T00:00:00.000Z', end: '2026-10-26T00:00:00.000Z' });
+  });
+
+  it('reads a milestone with no due date as an iteration with no dates, and keeps repositories apart', async () => {
+    const other = env('github issue list', [{ ...ghIssue(3, { milestone: milestone(1, 'Sprint 42', '2026-11-30T00:00:00Z') }), html_url: 'https://github.com/imagile/other/issues/3' }], 'github');
+    const { data } = await map({ text: json([list, other, one(ghIssue(90, { milestone: milestone(9, 'Someday', null) }))]) });
+    expect(byId(data.items, id(90)).iteration).toEqual({ id: '9', name: 'Someday', path: null, start: null, end: null, state: null });
+    // The other repository's only milestone starts 14 days before its end, not at this one's Sprint 41.
+    expect(byId(data.items, 'github:imagile/other#3').iteration).toMatchObject({ start: '2026-11-16T00:00:00.000Z', end: '2026-11-30T00:00:00.000Z' });
+  });
+
+  it('reads a points label as the estimate, and says why an issue has none', async () => {
+    const { data } = await map({ text: json([list]) });
+    expect(byId(data.items, id(7)).estimate).toEqual({ value: 8, unit: 'points', field: 'label:points: 8' });
+    const none = byId(data.items, id(15));
+    expect(none.estimate).toBeNull();
+    expect(none.unmapped.find((u) => u.field === 'estimate')!.reason).toContain('no label holds an estimate ("points: N"');
+  });
+
+  it.each([
+    ['Story Points: 5', 5],
+    ['SP=2', 2],
+    ['estimate/0.5', 0.5],
+    ['pts 13', 13],
+    ['size: M', null],
+    ['points: many', null],
+    ['blocked', null],
+  ])('reads the label %s as %s points by default', async (label, value) => {
+    const { data } = await map({ text: json(one(ghIssue(1, { labels: [{ name: label }] }))) });
+    expect(data.items[0].estimate?.value ?? null).toBe(value);
+  });
+
+  it("reads the dossier's own estimateLabel, literally, and lists two estimate labels rather than pick one", async () => {
+    const own = await map({ text: json(one(ghIssue(1, { labels: [{ name: 'Size/3' }, { name: 'points: 8' }] }))), field: ['estimateLabel=size/{n}', 'estimateUnit=days'] });
+    expect(own.data.items[0].estimate).toEqual({ value: 3, unit: 'days', field: 'label:Size/3' });
+    const literal = await map({ text: json(one(ghIssue(1, { labels: [{ name: 'sizeX3' }] }))), field: ['estimateLabel=size.{n}'] });
+    expect(literal.data.items[0].estimate).toBeNull();
+    const two = await map({ text: json(one(ghIssue(1, { labels: [{ name: 'points: 3' }, { name: 'sp: 5' }] }))) });
+    expect(two.data.items[0].estimate).toBeNull();
+    expect((two.data.items[0] as WorkItem).unmapped.find((u) => u.field === 'estimate')!.reason).toBe('2 labels hold an estimate ("points: 3", "sp: 5"), so none was picked: keep one');
+  });
+
+  it('refuses an estimateLabel without exactly one {n}, and an iterationDays that is not a number of days', () => {
+    expect(() => fieldOverrides(['estimateLabel=points'])).toThrow(/exactly once/);
+    expect(() => fieldOverrides(['estimateLabel={n}/{n}'])).toThrow(/exactly once/);
+    for (const days of ['0', '2.5', 'two weeks', '400']) expect(() => fieldOverrides([`iterationDays=${days}`]), days).toThrow(/whole number of days/);
+    expect(fieldOverrides({ estimateLabel: 'size/{n}', iterationDays: '10' })).toEqual({ estimateLabel: 'size/{n}', iterationDays: '10' });
+  });
+
+  it('links "Blocked by #n" both ways, and the four blocked chains are there', async () => {
+    const { data } = await map({ text: json([list]) });
+    const items = data.items as WorkItem[];
+    expect(byId(items, id(8)).links).toEqual([{ type: 'blocks', direction: 'inward', target: id(7), name: 'blocked by' }]);
+    expect(byId(items, id(7)).links).toEqual([{ type: 'blocks', direction: 'outward', target: id(8), name: 'blocks' }]);
+    const pairs = items.flatMap((i) => i.links.filter((l) => l.direction === 'outward').map((l) => `${i.source.key} -> ${l.target.slice(l.target.indexOf('#'))}`)).sort();
+    expect(pairs).toEqual([`${REPO}#1 -> #20`, `${REPO}#11 -> #12`, `${REPO}#17 -> #18`, `${REPO}#7 -> #8`]);
+  });
+
+  it('reads lists, other repositories, Depends on and Blocks, and skips code, itself and repeats', async () => {
+    const body = 'Blocked by #2, #3 and imagile/api#4.\nDepends on: #5\nThis blocks #6 & #7.\n\n`Blocked by #8` and\n```\nBlocked by #9\n```\nBlocked by #1, and again #2.';
+    const { data } = await map({ text: json(one(ghIssue(1, { body }))) });
+    expect((data.items[0] as WorkItem).links.map((l) => [l.direction, l.target, l.name])).toEqual([
+      ['inward', id(2), 'blocked by'],
+      ['inward', id(3), 'blocked by'],
+      ['inward', 'github:imagile/api#4', 'blocked by'],
+      ['inward', id(5), 'depends on'],
+      ['outward', id(6), 'blocks'],
+      ['outward', id(7), 'blocks'],
+    ]);
+  });
+
+  it('reads a body of 64k spaces after "blocks" in linear time (review round 1)', () => {
+    const body = `blocks${' '.repeat(65_000)}x blocked by${' '.repeat(65_000)}: ${' '.repeat(65_000)}#3`;
+    const started = performance.now();
+    expect(bodyLinks('github', `${REPO}#1`, body)).toEqual([{ type: 'blocks', direction: 'inward', target: id(3), name: 'blocked by' }]);
+    // Quadratic, this took about 6 s for one run of spaces; linear, it is a few milliseconds.
+    expect(performance.now() - started).toBeLessThan(500);
+  });
+
+  it("says when GitHub's own issue dependencies hold links no command reads yet", async () => {
+    const { data } = await map({ text: json(one(ghIssue(1, { issue_dependencies_summary: { blocked_by: 1, total_blocked_by: 1, blocking: 0, total_blocking: 2 } }))) });
+    expect((data.items[0] as WorkItem).unmapped.find((u) => u.field === 'links')!.reason).toContain('1 blocked-by and 2 blocking issue dependencies');
+  });
+
+  it('reads milestoned and demilestoned as iteration changes, a move between milestones as one', async () => {
+    const { data } = await map({ text: json([list, ...histories]) });
+    expect(byId(data.items, id(5)).history!.iterations).toEqual([{ from: [], to: ['Sprint 41'], at: '2026-10-19T22:02:31.000Z', by: { id: 'octo-dev', name: null, email: null } }]);
+    const moved = [
+      { event: 'demilestoned', created_at: '2026-10-13T09:00:00Z', milestone: { title: 'Sprint 41' } },
+      { event: 'milestoned', created_at: '2026-10-13T09:00:00Z', milestone: { title: 'Sprint 42' } },
+      { event: 'demilestoned', created_at: '2026-10-14T09:00:00Z', milestone: { title: 'Sprint 42' } },
+    ];
+    const carried = await map({ text: json([one(ghIssue(5)), { key: `${REPO}#5`, history: env('github issue history', moved, 'github') }]) });
+    expect(carried.data.items[0].history.iterations.map((c: Data) => [c.from, c.to])).toEqual([[['Sprint 41'], ['Sprint 42']], [['Sprint 42'], []]]);
+  });
+
+  it("lets a board's values win, and keeps the issue's own where the board has none", async () => {
+    const issue = ghIssue(4, { milestone: milestone(2, 'Sprint 42', '2026-10-26T00:00:00Z'), labels: [{ name: 'points: 3' }] });
+    const item = (fieldValues: unknown[]) => ({ id: 'PVTI_4', type: 'ISSUE', content: { number: 4, title: 'Issue 4', state: 'OPEN', url: issue.html_url, repository: { nameWithOwner: REPO } }, fieldValues });
+    const valued = item([
+      { __typename: 'ProjectV2ItemFieldNumberValue', number: 5, field: { name: 'Estimate' } },
+      { __typename: 'ProjectV2ItemFieldIterationValue', title: 'Iteration 7', iterationId: 'abc12345', startDate: '2026-10-05', duration: 14, field: { name: 'Iteration' } },
+    ]);
+    const board = await map({ text: json([one(issue), env('github project items', [valued], 'github', { owner: 'imagile' })]) });
+    expect(board.data.items[0]).toMatchObject({ estimate: { value: 5, field: 'Estimate' }, iteration: { name: 'Iteration 7' } });
+    expect((board.data.items[0] as WorkItem).unmapped.map((u) => u.field)).toEqual(['type']);
+    const empty = await map({ text: json([one(issue), env('github project items', [item([])], 'github', { owner: 'imagile' })]) });
+    expect(empty.data.items[0]).toMatchObject({ estimate: { value: 3, field: 'label:points: 3' }, iteration: { name: 'Sprint 42' } });
+    expect((empty.data.items[0] as WorkItem).unmapped.map((u) => u.field)).toEqual(['type']);
   });
 });
