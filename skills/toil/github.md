@@ -224,6 +224,21 @@ toil github --owner imagile --repo toil-probe pr status 7
 toil github pr create --title "Add the probe" --head feature --body-file pr.md --allow-write
 ```
 
+## Ticket the work
+
+Before starting work no ticket covers, rank your open issues against it:
+
+```bash
+toil github issue search --query "repo:imagile/payments-web is:open assignee:@me" | toil util owi map | toil util owi similar --query "Card payments time out at checkout"
+```
+
+Then ask the person, as `core.md`, **Ticket the work**, says: attach the work to a
+match (nothing is written), create a sub-task under it, or create a new ticket. toil
+has no sub-issue command, so a sub-task is a new issue that names its parent in the
+body (`Part of #12`); a new ticket is
+`toil github issue create --title "<text>" --allow-write`, in the repository the
+dossier names. Both are writes, made only on the person's yes.
+
 ## Checking a dossier
 
 `check-dossier` checks the call's dossier: each owner it names (`owner`, per repo or not, and `owners`) is a user or organization, and each repository (`repo`) exists under its owner. It's `toil github check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks, unchecked }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.

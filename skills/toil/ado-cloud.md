@@ -360,6 +360,23 @@ toil ado-cloud api PATCH _apis/wit/workitems/42 --query api-version=7.1 --body-f
 Prefer a wrapped command when one exists: it knows the endpoint's paging and quirks,
 and `ado-cloud api` doesn't.
 
+## Ticket the work
+
+Before starting work no ticket covers, rank your open work items against it.
+`work-item search` returns ids, so read them with `work-item get-many` and map that:
+
+```bash
+toil ado-cloud work-item search --wiql "SELECT [System.Id] FROM WorkItems WHERE [System.AssignedTo] = @Me AND [System.State] NOT IN ('Done', 'Closed', 'Removed')"
+toil ado-cloud work-item get-many 42 43 47 | toil util owi map | toil util owi similar --query "Card payments time out at checkout"
+```
+
+Then ask the person, as `core.md`, **Ticket the work**, says: attach the work to a
+match (nothing is written), create a sub-task under it, or create a new ticket.
+`work-item create` takes no parent here, so a sub-task is created with
+`toil ado-cloud work-item create --type Task --title "<text>" --allow-write` and
+linked to its parent on the board. A new ticket takes the project from the dossier.
+Both are writes, made only on the person's yes.
+
 ## Notes
 
 - `toil connections test` reads the organization's connection data, which names the

@@ -10,7 +10,8 @@
  * are in, who answers, and where to change both (#283). Each answer ends
  * with what the SDK reported it used, and the chat's heading carries the
  * running total and the context meter (#295); the chat's id goes with every
- * question, so the server can hold the chat to its cap.
+ * question, so the server can hold the chat to its cap. Work that names no
+ * ticket gets the "Not ticketed yet" banner (#304, ./ticket.tsx).
  */
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -22,6 +23,7 @@ import { voiceOn } from '../theme-context.ts';
 import { useMediaQuery } from './layout.tsx';
 import { Cited } from './items.tsx';
 import { ProposalCard } from './proposal.tsx';
+import { TicketBanner } from './ticket.tsx';
 import { ChatUsage, UsageFooter } from './usage.tsx';
 import type { AnswerUsage } from '../model-usage.ts';
 
@@ -162,6 +164,7 @@ export function Ask() {
               )}
             </div>
           ))}
+          <TicketBanner prompts={turns.map((t) => t.prompt)} />
           <div ref={end} />
         </div>
         <div className="starters-head">

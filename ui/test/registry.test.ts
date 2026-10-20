@@ -105,10 +105,20 @@ describe('every proposal the board, the scripted agent and the pull request view
   const { publishProposals } = await import('../src/worklog.ts');
   const everywhere = { confluence: { connection: null, inputs: { space: 'PAY' } }, 'confluence-cloud': { connection: null, inputs: { space: 'PAY' } }, github: { connection: null, inputs: { owner: 'imagile', repo: 'payments-web' } } };
   proposals.push(...publishProposals('card-payments', { day: '2026-10-12' }, 'C:/Users/you/Documents/worklog-card-payments-2026-10-12.md', everywhere));
+  // Ticketing a chat's work (#304): a sub-task under every open item, and a new ticket, on every tracker toil creates on.
+  const { newTicketProposal, subTaskProposal } = await import('../src/model/ticketing.ts');
+  for (const name of NAMES) {
+    const { items } = await loadDossier(fixtureExecute().execute, name);
+    const open = items.filter((i) => i.statusCategory !== 'DONE');
+    const asArea = (area: string) => open.filter((i) => /^(jira|ado)$/.test(i.source.area)).map((i) => ({ ...i, id: `${area}:${i.source.key}`, source: { ...i.source, area, connection: area } }));
+    for (const item of [...open, ...asArea(open[0]!.source.area === 'jira' ? 'jira-cloud' : 'ado-cloud')]) proposals.push(subTaskProposal('Tokenise card numbers at the edge', item, name));
+    proposals.push(newTicketProposal('Tokenise card numbers at the edge', items, name, null));
+    for (const area of ['jira-cloud', 'ado-cloud']) proposals.push(newTicketProposal('Tokenise card numbers at the edge', asArea(area), name, null));
+  }
   const withCommand = proposals.filter((p) => p?.command);
 
   it('includes some of each kind', () => {
-    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update', 'github pr add-reviewers', 'bitbucket pr add-reviewer', 'bitbucket-cloud pr update', 'confluence page create', 'github issue create']));
+    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update', 'github pr add-reviewers', 'bitbucket pr add-reviewer', 'bitbucket-cloud pr update', 'confluence page create', 'github issue create', 'jira issue create', 'jira-cloud issue create', 'ado work-item create', 'ado-cloud work-item create']));
   });
 
   it.each(withCommand.map((p) => [p!.id, p!] as const))('%s names a write command, with input its schema accepts', (_id, p) => {
@@ -118,6 +128,14 @@ describe('every proposal the board, the scripted agent and the pull request view
     const result = new Validator(def!.inputSchema as object, '2020-12', false).validate(p.input);
     expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
   });
+  it.each(withCommand.map((p) => [p!.id, p!] as const))("%s has a command line toil's own CLI accepts, every flag and argument where it reads them", async (_id, p) => {
+    const { commandLine } = await import('../src/proposal.ts');
+    const { checkInvocation, words } = await import('../../test/harness/cli-lines.ts');
+    const { line } = commandLine(p, 'posix');
+    expect(line, p.command!).not.toBeNull();
+    expect(checkInvocation(words(line!).slice(1))).toBeUndefined();
+  });
+
   it('lists exactly the commands whose input takes inputFile, so the advice never offers one that is not there', async () => {
     const { INPUT_FILE_COMMANDS } = await import('../src/proposal.ts');
     const takes = registry.commands.filter((c) => Object.keys((c.inputSchema as { properties?: object }).properties ?? {}).includes('inputFile')).map((c) => c.name);

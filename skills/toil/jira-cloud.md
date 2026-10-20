@@ -254,6 +254,21 @@ Windows would read as another file is saved as one it won't: a device name such 
 `CON` gets a leading `_`, a `:` and what follows it is dropped, as are trailing dots
 and spaces.
 
+## Ticket the work
+
+Before starting work no ticket covers, rank your open issues against it:
+
+```bash
+toil jira-cloud issue search --jql "assignee = currentUser() AND statusCategory != Done" --fields summary,description,status,issuetype,labels,parent | toil util owi map | toil util owi similar --query "Card payments time out at checkout"
+```
+
+Then ask the person, as `core.md`, **Ticket the work**, says: attach the work to a
+match (nothing is written), create a sub-task under it, or create a new ticket. A
+sub-task is
+`toil jira-cloud issue create --type Subtask --parent PAY-12 --summary "<text>" --allow-write`
+(the project may name the type differently); a new ticket takes the project and type
+from the dossier and the connection. Both are writes, made only on the person's yes.
+
 ## Notes
 
 - `issue create` doesn't check for duplicates. After a timeout, search for the summary
