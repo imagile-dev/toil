@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { mapOwi, registry } from '@imagile-dev/toil/api';
-import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, posix, win32 } from 'node:path';
 import * as zod from 'zod';
@@ -849,9 +849,23 @@ describe("Toil UI's own Codex home (#300)", () => {
     writeFileSync(join(home, 'config.toml'), '[mcp_servers.left_behind]\ncommand = "x"\n');
     rmSync(join(home, 'auth.json'));
     writeFileSync(join(home, 'auth.json'), '{"stale":true}\n');
+    // A copy left from before is older than the user's sign-in.
+    utimesSync(join(home, 'auth.json'), new Date(2020, 0, 1), new Date(2020, 0, 1));
     prepareCodexHome(home, { CODEX_HOME: theirs }, 'linux');
     expect(readFileSync(join(home, 'config.toml'), 'utf8')).toBe(TOIL_CODEX_CONFIG);
     expect(sameFile(join(theirs, 'auth.json'), join(home, 'auth.json'))).toBe(true);
+  });
+
+  it("refuses, and keeps both files, when its auth.json is newer than the user's: a split link may hold the only live token", () => {
+    const theirs = userCodex();
+    const home = toilCodexHome(mkdtempSync(join(folder, 'data-')));
+    prepareCodexHome(home, { CODEX_HOME: theirs }, 'linux');
+    rmSync(join(home, 'auth.json'));
+    writeFileSync(join(home, 'auth.json'), '{"refreshed":true}\n');
+    utimesSync(join(theirs, 'auth.json'), new Date(2020, 0, 1), new Date(2020, 0, 1));
+    expect(() => prepareCodexHome(home, { CODEX_HOME: theirs }, 'linux')).toThrow(/is newer than yours .* no longer one file/);
+    expect(readFileSync(join(home, 'auth.json'), 'utf8')).toContain('refreshed');
+    expect(readFileSync(join(theirs, 'auth.json'), 'utf8')).toContain('chatgpt');
   });
 
   it('drops the link once the user signs out, and then refuses unless CODEX_API_KEY signs in', () => {

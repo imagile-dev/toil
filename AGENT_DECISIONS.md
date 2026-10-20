@@ -4005,6 +4005,9 @@ decided here.
   `auth.json` was rejected: ChatGPT refresh tokens rotate, so a copy that refreshed
   would sign the user's own Codex out. A hard link is one file, so a refresh is seen
   by both; it relies on Codex rewriting `auth.json` in place, which it does today.
+  Should a later Codex save by write-and-rename, the link splits on a refresh; a
+  Toil UI copy newer than the user's is then refused with an error rather than
+  replaced, since it may hold the only live token (review round 1).
   A user whose sign-in is in the OS keyring has no file to link; for them
   `CODEX_API_KEY` works, or another adapter, and the error says so. The home is
   under `cache/` so `toil-ui wipe` takes Codex's session files of Toil UI's

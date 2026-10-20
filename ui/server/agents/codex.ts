@@ -112,6 +112,14 @@ export function prepareCodexHome(home: string, env: Record<string, string | unde
     );
   }
   if (sameFile(theirs, ours)) return;
+  // Two files where there was one link: a Codex that saves by write-and-rename split them on a refresh,
+  // so ours may hold the only live token. Replacing it would sign both homes out without a word.
+  if (exists(ours) && statSync(ours).mtimeMs > statSync(theirs).mtimeMs) {
+    throw new AgentError(
+      `Toil UI's Codex sign-in at ${ours} is newer than yours at ${theirs}, so they are no longer one file, and Toil UI won't replace either.`,
+      'Run codex login on its own to sign in again, delete the auth.json in Toil UI\'s Codex home, then ask again.',
+    );
+  }
   rmSync(ours, { force: true });
   try {
     linkSync(theirs, ours);

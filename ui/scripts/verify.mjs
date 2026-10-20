@@ -202,9 +202,9 @@ function auditLines(home) {
     .flatMap((f) => readFileSync(join(dir, f), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)));
 }
 
-/** `codex mcp list --json` names in one Codex home, with the overrides Toil UI passes. */
-function codexServers(codexHome) {
-  const res = spawnSync('codex', ['mcp', 'list', '--json', '-c', 'mcp_servers={ toil_ui = { url = "http://127.0.0.1:1/api/agent/mcp", bearer_token_env_var = "TOIL_UI_MCP_TOKEN" } }', '--disable', 'plugins', '--disable', 'apps'], {
+/** `codex mcp list --json` names in one Codex home, with the overrides Toil UI passes, run by the CLI Toil UI resolved. */
+function codexServers(cli, codexHome) {
+  const res = spawnSync(cli, ['mcp', 'list', '--json', '-c', 'mcp_servers={ toil_ui = { url = "http://127.0.0.1:1/api/agent/mcp", bearer_token_env_var = "TOIL_UI_MCP_TOKEN" } }', '--disable', 'plugins', '--disable', 'apps'], {
     env: { ...process.env, CODEX_HOME: codexHome },
     encoding: 'utf8',
   });
@@ -260,8 +260,8 @@ async function askCodex(api, dossier, home, dataDir) {
   const methods = [...new Set(during.flatMap((l) => l.requests.map((r) => r.method)))];
   step('Ask: nothing ran', wrote.length ? 'fail' : 'pass', `${during.length} toil call(s) during the question, ${wrote.length} writing; request methods ${methods.join(', ') || 'none'}; the connection has writes off`);
 
-  const theirs = codexServers(process.env.CODEX_HOME ?? join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.codex'));
-  const ours = codexServers(join(dataDir, 'cache', 'codex'));
+  const theirs = codexServers(codex.cli.path, process.env.CODEX_HOME ?? join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.codex'));
+  const ours = codexServers(codex.cli.path, join(dataDir, 'cache', 'codex'));
   const only = ours.names && ours.names.length === 1 && ours.names[0] === 'toil_ui';
   if (!only) fail(`codex mcp list in Toil UI's Codex home shows ${ours.names ? JSON.stringify(ours.names) : `an error: ${ours.problem}`}, not toil_ui alone.`);
   step("Ask: Codex's MCP servers", only ? 'pass' : 'fail', `codex mcp list in Toil UI's Codex home: ${ours.names ? ours.names.join(', ') : ours.problem}; the same overrides in your own Codex home would list ${theirs.names ? theirs.names.length : '?'} server(s)`);
