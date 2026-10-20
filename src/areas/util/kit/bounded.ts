@@ -4,6 +4,7 @@ import type { Schema, SchemaDraft, SchemaResult } from './json-schema.js';
 import type { ComputedView } from '../c4/view.js';
 import type { MdFormat } from '../md/core.js';
 import type { OutlineLanguage } from '../size/outline.js';
+import type { SimilarTaskInput } from '../owi/similar-task.js';
 import { WORKER_SOURCE } from './bounded-worker.generated.js';
 import { outOfStack } from './stack.js';
 
@@ -18,7 +19,8 @@ import { outOfStack } from './stack.js';
  * The same goes for a user's `util log --grep` pattern, and for the util
  * steps #200 measured past what a command should hold its thread for:
  * reading YAML for `util openapi`, outlining a file for `util size` and
- * converting a document for `util md`. Each records its measurements beside
+ * converting a document for `util md`, and scoring a set of work items for
+ * `util owi similar`. Each records its measurements beside
  * its limits. JSON parsing (`util openapi`, `util report`'s SARIF) stays on
  * the command's thread: it's linear, and a fraction of a second at the input cap.
  *
@@ -62,7 +64,9 @@ export type BoundedTask =
   | { kind: 'outline'; language: OutlineLanguage; text: string }
   /** util md's reading and writing (md/core.ts): `convert` reads `text` and writes it in `to`; `read` reads the output back for the round trip. */
   | { kind: 'md-convert'; from: MdFormat; to: MdFormat; text: string; label: string }
-  | { kind: 'md-read'; format: MdFormat; output: unknown };
+  | { kind: 'md-read'; format: MdFormat; output: unknown }
+  /** util owi similar (owi/similar-task.ts): OWI records as UTF-8 bytes, scored for likely duplicates. Its cost grows with the set and, for pairs, with what the items share. */
+  | ({ kind: 'owi-similar' } & SimilarTaskInput);
 
 /** A ToilError thrown inside the worker, carried back as data: the input was refused, and the error says why. */
 export interface RefusedError {

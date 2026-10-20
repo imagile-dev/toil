@@ -19,7 +19,9 @@ says what to do about it. New codes may appear in any release, so treat a code y
 don't know as a generic failure. `meta.warnings` lists anything worth knowing that
 isn't a failure, such as a truncated result. `meta.context` says which connection a
 call used and how it was chosen, and where any project, repo or environment it
-resolved came from. `--pretty` formats the output for people.
+resolved came from. `meta.lint`, on the `db` commands that run SQL you wrote, names
+the engine whose dialect toil checked it against and the rules that ran (`db.md`,
+**Pre-flight lint**). `--pretty` formats the output for people.
 
 `meta.contractVersion` (also in `toil version`) is the version of toil's command
 contract: its commands, flags, `data` fields, envelope and error codes. It goes up only
@@ -260,6 +262,15 @@ const envelope = await execute('jira issue search', { jql: 'project = PAY', limi
   refused input throws, with a fix. **`owiVersion`** is the OWI version items carry,
   and **`owiSchema`** their JSON Schema; `execute('util owi map', { text })` maps
   and validates in one call.
+- **`findSimilar(records, request, options)`** finds likely duplicates among OWI
+  records you already hold (mapOwi's `items`, or the text `util owi map` printed),
+  scored the way `toil util owi similar` scores them (`util.md`), in-process:
+  `{ query }` ranks them against some text, `{ item }` against one of them by OWI
+  id, and `{ pairs: true }` lists likely duplicate pairs. `options` takes
+  `fields`, `limit` and `threshold`. It returns `{ mode, method, count, matches,
+  pairs, search }`, each match and pair with its `score` and `why`, the same for
+  the same records every time. For a very large set, use
+  `execute('util owi similar', …)`, which runs in a worker with a deadline.
 
 What `@imagile-dev/toil/api` exports, and the types it names, follow the command
 contract: they change only additively unless `contractVersion` goes up. Anything else
