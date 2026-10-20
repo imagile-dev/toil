@@ -46,11 +46,14 @@ export function assertNoDotSegments(raw: string): void {
   const authority = /^[a-z][a-z0-9+.-]*:\/\/[^/?#\\]*/i.exec(parsed);
   const rest = authority ? parsed.slice(authority[0].length) : parsed;
   const path = rest.split(/[?#]/, 1)[0]!;
-  for (const segment of path.split(/[/\\]/)) {
+  // An encoded slash (`%2f`, `%5c`) is a slash to many servers, so it ends a
+  // segment here too: `..%2f` is refused as `../` is.
+  for (const segment of path.split(/[/\\]|%2f|%5c/i)) {
     // Servlet containers (Tomcat, Jetty) strip `;params` from a segment before
     // resolving dots, so `..;x` is `..` to Jira, Confluence or Jenkins. A `;`
-    // after anything else (`v1;rev=2`) is left alone.
-    const plain = segment.split(';', 1)[0]!.replace(/%2e/gi, '.');
+    // after anything else (`v1;rev=2`) is left alone. An encoded one (`%3b`)
+    // counts too, for a server that decodes before it splits.
+    const plain = segment.split(/;|%3b/i, 1)[0]!.replace(/%2e/gi, '.');
     if (plain === '.' || plain === '..') {
       throw new ToilError('INVALID_INPUT', `A request path can't have "${segment}" as a segment: ${redactUrl(raw)} would reach a different endpoint than the one named.`, {
         fix: `Check the id, key or name passed to the command; "${segment}" isn't one.`,
@@ -58,6 +61,26 @@ export function assertNoDotSegments(raw: string): void {
       });
     }
   }
+}
+
+/**
+ * Refuses a relative request path that carries what only an unencoded value
+ * could have put there: a `#` (a fragment is never sent to a server, so one
+ * in a path is a name's character), or a `?` when the request also has a `query`
+ * (the area's parameters go there, so a second query arrived inside a value).
+ * Areas build paths with `apiPath`
+ * (src/core/api-path.ts), which encodes every value; this is the backstop for
+ * a path that didn't. A full URL the server handed back is held to its origin
+ * instead (src/core/api.ts).
+ */
+export function assertPlainPath(raw: string, hasQuery: boolean): void {
+  if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) return;
+  const refuse = (what: string) =>
+    new ToilError('INVALID_INPUT', `A request path can't carry ${what}: ${redactUrl(raw)} would not reach the endpoint named.`, {
+      fix: 'Check the ids, keys and names passed to the command: one holds a character that is URL syntax, not part of a name.',
+    });
+  if (raw.includes('#')) throw refuse('a "#"');
+  if (hasQuery && raw.includes('?')) throw refuse('a "?" as well as query parameters');
 }
 
 export function buildUrl(base: string, path: string, params?: Record<string, QueryParam>): string {

@@ -176,6 +176,24 @@ describe('jira api', () => {
     expect(auth.envelope?.error).toMatchObject({ code: 'AUTH', fix: expect.stringContaining('Personal Access Tokens') });
   });
 
+  it('sends a query typed into the path as typed, and joins it with --query, the path\'s first', async () => {
+    const routes: Route[] = [{ path: '/jira/rest/api/2/search', respond: { json: { issues: [] } } }];
+    const typed = cli(routes);
+    expect((await runCli(['jira', 'api', 'GET', '/rest/api/2/search?jql=a%20b'], { commands, context: typed.context })).envelope?.ok).toBe(true);
+    expect(typed.http.calls.map((c) => c.url)).toEqual([`${JIRA}/jira/rest/api/2/search?jql=a%20b`]);
+    const both = cli(routes);
+    const run = await runCli(['jira', 'api', 'GET', '/rest/api/2/search?jql=a', '--query', 'maxResults=5'], { commands, context: both.context });
+    expect(run.envelope?.ok, run.stdout).toBe(true);
+    expect(both.http.calls.map((c) => c.url)).toEqual([`${JIRA}/jira/rest/api/2/search?jql=a&maxResults=5`]);
+  });
+
+  it('refuses a # in the path with a fix for the passthrough, before anything is sent', async () => {
+    const { context, http } = cli([]);
+    const run = await runCli(['jira', 'api', 'GET', '/rest/api/2/myself#top'], { commands, context });
+    expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('a fragment is never sent'), fix: expect.stringContaining('Leave out the #') });
+    expect(http.calls).toEqual([]);
+  });
+
   it('refuses a malformed query, a body on a read, and a content type with no body, before anything is sent', async () => {
     const { context, http } = cli([]);
     for (const argv of [

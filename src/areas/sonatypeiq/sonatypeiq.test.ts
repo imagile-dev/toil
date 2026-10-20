@@ -85,6 +85,11 @@ describe('read commands', () => {
     expect(scoped.calls[0]!.url).toBe(`${IQ}/api/v2/policies/organization/org%2F1`);
   });
 
+  it('policy list sends an organization ID with query syntax in it encoded as one segment', async () => {
+    const { calls } = await run(policiesListCommand, { organizationId: 'a/b?c=d' }, [ok(policies)]);
+    expect(calls[0]!.url).toBe(`${IQ}/api/v2/policies/organization/a%2Fb%3Fc%3Dd`);
+  });
+
   it('keeps a base URL context path', async () => {
     const { calls } = await run(organizationsListCommand, {}, [ok(organizations)], { settings: { baseUrl: `${IQ}/iq` } });
     expect(calls[0]!.url).toBe(`${IQ}/iq/api/v2/organizations`);
@@ -257,6 +262,12 @@ describe('evaluate: the internal ID lookup (suspected bug #91 item 4)', () => {
     const { calls } = await run(evaluateCommand, { from: 'inventory.json', applicationId: 'a b' }, [{ method: 'GET', path: '/api/v2/applications', respond: { json: { applications: [] } } }, { method: 'POST', url: /.*/, respond: { json: { components: [] } } }], { files });
     expect(calls[0]!.url).toBe(`${IQ}/api/v2/applications?publicId=a%20b`);
     expect(calls[1]!.url).toBe(`${IQ}/api/v2/evaluation/applications/a%20b`);
+  });
+
+  it('POSTs to an encoded evaluation path: a # in the public ID is part of the ID', async () => {
+    const { calls } = await run(evaluateCommand, { from: 'inventory.json', applicationId: 'p1#hot' }, [{ method: 'GET', path: '/api/v2/applications', respond: { json: { applications: [] } } }, { method: 'POST', url: /.*/, respond: { json: { components: [] } } }], { files });
+    expect(calls[0]!.url).toBe(`${IQ}/api/v2/applications?publicId=p1%23hot`);
+    expect(calls[1]).toMatchObject({ method: 'POST', url: `${IQ}/api/v2/evaluation/applications/p1%23hot` });
   });
 
   it('an empty lookup body is an error, as a failed parse was', async () => {

@@ -15,6 +15,13 @@
       "toil": "The same stop rule, plus a bound: after 1,000 pages (25,000 libraries) the command fails with HTTP, naming the application whose libraries were being paged, and fix text to narrow the request",
       "why": "A server that ignores offset would otherwise be asked for the same page forever (#87 item 5).",
       "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "contrast finding list, finding get, library list and library get putting the application and trace IDs into the request path as typed (#87 item 6), and orgUuid likewise, so an id with path syntax in it named a different endpoint",
+      "toil": "Each id, and orgUuid, encoded as one path segment: a /, ?, # or % in one is part of that name. An id with a . or .. segment in it is still refused with INVALID_INPUT before any request",
+      "why": "An id names one resource, so it has to reach the endpoint the command names, whatever characters it holds.",
+      "principle": "2"
     }
   ]
 }

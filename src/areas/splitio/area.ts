@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { pathIdSchema } from '../../core/api-path.js';
 import { defineArea } from '../../core/area.js';
 import type { SupportedVersion } from '../../core/supported.js';
 
@@ -25,6 +26,8 @@ export const splitioArea = defineArea({
       flags: '--ws <id>',
       description: 'Split workspace (project) ID',
       setting: 'workspace',
+      // A workspace ID is a generated ID with no path syntax in it, so one that has some is refused, not encoded.
+      schema: pathIdSchema('The Split workspace ID').min(1),
       missing: {
         message: 'No Split workspace given. Pass --ws <id>; toil\'s --workspace is the folder commands may read files in, not the Split workspace.',
       },

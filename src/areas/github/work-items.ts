@@ -1,3 +1,4 @@
+import { apiPath } from '../../core/api-path.js';
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { repeatedFlag } from '../../core/schema.js';
@@ -68,7 +69,7 @@ export const listIssuesCommand = githubArea.command({
     const { owner, repo } = target(ctx);
     return githubList<Issue>(
       ctx,
-      `/repos/${owner}/${repo}/issues`,
+      apiPath`/repos/${owner}/${repo}/issues`,
       `GitHub issues in ${owner}/${repo}`,
       {
         state: input.state ?? 'open',
@@ -147,10 +148,10 @@ export const searchIssuesCommand = githubArea.command({
 
 /** One issue, with its sub-issues when asked. A 404 on sub_issues for an issue that exists means the server has no sub-issues API. */
 async function getIssue(ctx: GitHubContext, owner: string, repo: string, number: number, subIssues: boolean): Promise<Issue> {
-  const issue = await github<Issue>(ctx, `/repos/${owner}/${repo}/issues/${number}`);
+  const issue = await github<Issue>(ctx, apiPath`/repos/${owner}/${repo}/issues/${number}`);
   if (!subIssues) return issue;
   try {
-    return { ...issue, sub_issues: await githubAll(ctx, `/repos/${owner}/${repo}/issues/${number}/sub_issues`, `sub-issues of GitHub issue #${number}`) };
+    return { ...issue, sub_issues: await githubAll(ctx, apiPath`/repos/${owner}/${repo}/issues/${number}/sub_issues`, `sub-issues of GitHub issue #${number}`) };
   } catch (err) {
     if (err instanceof ToilError && err.code === 'NOT_FOUND') {
       throw new ToilError('UNSUPPORTED', `This GitHub server has no sub-issues API: GET /repos/${owner}/${repo}/issues/${number}/sub_issues answered 404 for an issue that exists.`, {
@@ -228,7 +229,7 @@ export const issueEventsCommand = githubArea.command({
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     const number = parseIntText(input.number);
-    return githubList(ctx, `/repos/${owner}/${repo}/issues/${number}/timeline`, `timeline of GitHub issue #${number}`, {}, { limit: input.limit, cursor: input.cursor });
+    return githubList(ctx, apiPath`/repos/${owner}/${repo}/issues/${number}/timeline`, `timeline of GitHub issue #${number}`, {}, { limit: input.limit, cursor: input.cursor });
   },
 });
 

@@ -22,6 +22,13 @@
       "toil": "The same words in meta.warnings, code CHECKMARX_TRUNCATED, and nothing on stderr; data is unchanged",
       "why": "A JSON consumer never sees stderr, so a truncated result has to say so in the envelope it reads. Additive to data.",
       "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "checkmarx project get and scan get putting the id into the request path as typed, and the token exchange putting tenantName into its path as typed (#89 items 6 and 7), so an id with path syntax in it named a different endpoint",
+      "toil": "Each id, and the tenant name, encoded as one path segment: a /, ?, # or % in one is part of that name. An id with a . or .. segment in it is still refused with INVALID_INPUT before any request",
+      "why": "An id names one resource, so it has to reach the endpoint the command names, whatever characters it holds.",
+      "principle": "2"
     }
   ]
 }

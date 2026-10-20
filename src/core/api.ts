@@ -3,7 +3,7 @@ import type { CommandContext } from './context.js';
 import { ToilError } from './errors.js';
 import { redactUrl } from './http.js';
 import { multipart, type MultipartPart } from './multipart.js';
-import { assertNoDotSegments, buildUrl, restResponse, type BodyFormat, type QueryParam, type RedirectPolicy, type RestResponse } from './rest.js';
+import { assertNoDotSegments, assertPlainPath, buildUrl, restResponse, type BodyFormat, type QueryParam, type RedirectPolicy, type RestResponse } from './rest.js';
 import { exchangeToken, forgetToken, tokenKey, tokenScope, type TokenExchange } from './token.js';
 
 /**
@@ -145,6 +145,7 @@ async function send<T>(area: AnyArea, ctx: ApiContext, path: string, req: ApiReq
   if (!area.request) throw new Error(`Area ${area.name} has no request hook; declare defineArea({ request }) to use apiRequest.`);
   // Before the URL parser can collapse a `..` an input put there.
   assertNoDotSegments(path);
+  assertPlainPath(path, req.query !== undefined);
   const { body, contentType } = encode(req);
   for (let attempt = 1; ; attempt++) {
     const scope = tokenScope(area, ctx.connection);

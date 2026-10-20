@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { apiPath, rawPath, segments } from '../../core/api-path.js';
 import { allowWriteField } from '../../core/run.js';
 import { bitbucketArea } from './area.js';
 import { bb, buildStatus, currentUser, getPR, IN_REPO, prBuilds, prPath, toInt, where } from './client.js';
@@ -34,11 +35,11 @@ export const diffCommand = bitbucketArea.command({
     const { project, repo } = where(ctx);
     // The flag's text is read as the contract specifies: any non-empty value, "0" included.
     const contextLines = input.contextLines !== undefined && String(input.contextLines) !== '' ? toInt(input.contextLines) : undefined;
-    // The file is a path segment, not a parameter, and goes in unencoded
-    // (suspected bug, #76 item 6). The JSON answer is stringified, not turned
-    // into a unified diff (#76 item 5).
+    // The file is a path, not a parameter: each of its segments is encoded on
+    // its own, so a # or ? in a file name stays part of the name. The JSON
+    // answer is stringified, not turned into a unified diff (#76 item 5).
     const base = `${prPath(project, repo, toInt(input.id))}/diff`;
-    const result = await bb<unknown>(ctx, input.file ? `${base}/${input.file}` : base, { query: contextLines !== undefined ? { contextLines } : {} });
+    const result = await bb<unknown>(ctx, input.file ? apiPath`${rawPath(base)}/${segments(input.file, 'The --file path')}` : base, { query: contextLines !== undefined ? { contextLines } : {} });
     return { diff: typeof result === 'string' ? result : JSON.stringify(result) };
   },
 });
@@ -114,7 +115,7 @@ export const needsWorkCommand = bitbucketArea.command({
     if (!(pr.reviewers ?? []).some((r) => r.user.slug === user.slug)) {
       await bb(ctx, `${prPath(project, repo, prId)}/participants`, { method: 'POST', json: { user: { name: user.name }, role: 'REVIEWER' } });
     }
-    return bb(ctx, `${prPath(project, repo, prId)}/participants/${user.slug}`, { method: 'PUT', json: { status: 'NEEDS_WORK' } });
+    return bb(ctx, apiPath`${rawPath(prPath(project, repo, prId))}/participants/${user.slug}`, { method: 'PUT', json: { status: 'NEEDS_WORK' } });
   },
 });
 
@@ -143,8 +144,8 @@ export const listDefaultReviewersCommand = bitbucketArea.command({
   examples: [{ project: 'PROJ', repo: 'imagile-api' }],
   run: async (_input, ctx) => {
     const { project, repo } = where(ctx);
-    // A bundled plugin's REST root, and the one place project and repo are encoded.
-    const result = await bb<unknown>(ctx, `/rest/default-reviewers/1.0/projects/${encodeURIComponent(project)}/repos/${encodeURIComponent(repo)}/conditions`);
+    // A bundled plugin's REST root, beside the core API rather than under it.
+    const result = await bb<unknown>(ctx, apiPath`/rest/default-reviewers/1.0/projects/${project}/repos/${repo}/conditions`);
     return Array.isArray(result) ? result : [];
   },
 });

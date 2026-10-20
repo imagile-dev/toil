@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { defineArea } from '../../core/area.js';
+import { pathIdSchema } from '../../core/api-path.js';
 import type { SupportedVersion } from '../../core/supported.js';
 
 /**
@@ -58,8 +59,10 @@ export const jiraArea = defineArea({
       flags: '--project <key>',
       description: 'Project key (or "project" in --input-file)',
       setting: 'project',
-      // Any string: an empty --project still gets issue create's own error.
-      schema: z.string(),
+      // A project key is letters, digits and underscores, and it goes into the
+      // createmeta path, so path syntax is refused however it arrives. Empty
+      // still passes, so an empty --project gets issue create's own error.
+      schema: pathIdSchema('The project key'),
     },
   },
   probe: () => ({ path: '/rest/api/2/myself' }),

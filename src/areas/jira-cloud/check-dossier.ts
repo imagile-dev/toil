@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { checkEach, dossierCheckResult, dossierToCheck, exists, type DossierCheck } from '../../core/check-dossier.js';
 import { viewValues } from '../../core/dossier.js';
+import { apiPath } from '../../core/api-path.js';
 import { jiraCloudArea } from './area.js';
 import { jiraCloud } from './client.js';
 
@@ -20,7 +21,7 @@ export const checkDossier = jiraCloudArea.command({
   examples: [{}],
   run: async (_input, ctx) => {
     const view = dossierToCheck(ctx, 'jira-cloud');
-    const checks: DossierCheck[] = await checkEach(viewValues(view, ['project', 'projects']), 'project', (key) => exists(() => jiraCloud(ctx, `/rest/api/3/project/${encodeURIComponent(key)}`)));
+    const checks: DossierCheck[] = await checkEach(viewValues(view, ['project', 'projects']), 'project', (key) => exists(() => jiraCloud(ctx, apiPath`/rest/api/3/project/${key}`)));
     const aliases = view.sections.flatMap((s) =>
       typeof s.values.fields === 'object' && s.values.fields !== null ? Object.entries(s.values.fields as Record<string, unknown>).map(([alias, id]) => ({ path: `${s.path}.fields.${alias}`, value: String(id) })) : [],
     );
