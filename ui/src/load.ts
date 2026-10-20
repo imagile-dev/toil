@@ -19,11 +19,13 @@
 import { adoBuilds, adoDeployments, byEnvironment, changeRef, githubBuild, jenkinsBuilds, openshiftDeployments } from './model/delivery.ts';
 import { readPeople, type PersonEntry } from './model/people.ts';
 import { readReadiness, type ReadinessSettings } from './model/readiness.ts';
-import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
+import { AUTHOR_KINDS, JIRA_OWI_FIELD_OVERRIDES, JIRA_OWI_FIELDS, mapOwi, OVERRIDABLE } from './owi.ts';
 import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
 /** The JQL and WIQL a dashboard sends: one query per tracker, the whole project. */
 export const JQL = (project: string) => `project = ${project} ORDER BY Rank ASC`;
+/** The areas that read Jira issues: Data Center and Cloud, which send the same issue shape under the same command names. */
+export const JIRA_AREAS = ['jira', 'jira-cloud'] as const;
 /** The areas that read Azure DevOps work items: Server and Services. */
 export const ADO_AREAS = ['ado', 'ado-cloud'] as const;
 export const WIQL = 'SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project ORDER BY [System.Id]';
@@ -99,6 +101,37 @@ export function owiFields(fields: unknown): Record<string, string> {
   if (!isRec(fields)) return {};
   return Object.fromEntries(Object.entries(fields).filter((e): e is [string, string] => (OVERRIDABLE as readonly string[]).includes(e[0]) && typeof e[1] === 'string'));
 }
+
+/** A dossier's `fields` keys that are OWI settings rather than a field to read: `estimateUnit`, `estimateLabel`, `iterationDays`. */
+const OWI_SETTINGS = new Set<string>(OVERRIDABLE.filter((o) => !(JIRA_OWI_FIELD_OVERRIDES as readonly string[]).includes(o)));
+
+/**
+ * What a dashboard's Jira search asks for (#355). `issue search` returns a
+ * compact set by default, with no description, links or parent, so every
+ * item would read as thin and unblocked. This asks for the fields the OWI
+ * mapper reads (JIRA_OWI_FIELDS, which core's tests hold to the mapper),
+ * every custom field the connection registers, as the search's own default
+ * does, and every field the dossier's section names: its OWI overrides and
+ * its `--field` aliases, acceptance criteria among them. Registered names go
+ * as their ids. A name with a space the connection doesn't register is one
+ * `issue search` would refuse (and a comma would split it), so it is left
+ * out and said in `notes`.
+ */
+export function jiraSearchFields(area: string, section: Rec, registered: Array<{ id: string; name: string }>, notes: string[]): string {
+  const byName = new Map(registered.map((f) => [f.name.toLowerCase(), f.id]));
+  const out = new Set<string>([...JIRA_OWI_FIELDS, ...registered.map((f) => f.id)]);
+  for (const [key, value] of Object.entries(isRec(section.fields) ? section.fields : {})) {
+    if (typeof value !== 'string' || !value.trim() || OWI_SETTINGS.has(key)) continue;
+    const name = value.trim();
+    const id = byName.get(name.toLowerCase()) ?? (/[\s,]/.test(name) ? null : name);
+    if (id) out.add(id);
+    else notes.push(`The ${area} section's fields.${key} names "${name}", which the connection doesn't register in customFields, so Toil UI can't ask Jira for it. Register it on the connection, or name the field by its id.`);
+  }
+  return [...out].join(',');
+}
+
+/** A connection's registered custom fields, from `issue fields` with no `--discover`, which reads config and sends no request. */
+const registeredFields = (data: unknown) => recs(data).flatMap((f) => (typeof f.id === 'string' && typeof f.name === 'string' ? [{ id: f.id, name: f.name }] : []));
 
 /** How many pull requests that aren't open are still read in full (`pr get --include`): the newest ones, which the flow metrics measure. */
 export const CHECKED_CLOSED_PRS = 20;
@@ -220,17 +253,21 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
 
   // Work items, mapped to OWI ---------------------------------------------------------
   // Each area is mapped on its own, with its own section's OWI fields.
-  const work: Record<'jira' | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], ado: [], 'ado-cloud': [], github: [] };
+  const work: Record<(typeof JIRA_AREAS)[number] | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], 'jira-cloud': [], ado: [], 'ado-cloud': [], github: [] };
   const tasks: Array<Promise<void>> = [];
-  if (areas.jira?.inputs.project) {
+  const workNotes: string[] = [];
+  // Jira Data Center and Cloud: the registered fields, then a search for every field the mapper reads, then each issue's history.
+  for (const jira of JIRA_AREAS.filter((a) => areas[a]?.inputs.project)) {
     tasks.push((async () => {
-      const search = await run('work', 'jira issue search', { ...base, jql: JQL(areas.jira!.inputs.project!) });
+      const registered = await run('work', `${jira} issue fields`, base);
+      const fields = jiraSearchFields(jira, section(jira), registered ? registeredFields(registered.data) : [], workNotes);
+      const search = await run('work', `${jira} issue search`, { ...base, jql: JQL(areas[jira]!.inputs.project!), fields });
       if (!search) return;
-      work.jira.push(search);
+      work[jira].push(search);
       const keys = recs((search.data as Rec).issues).map((i) => String(i.key));
       for (const key of keys) {
-        const history = await run('work', 'jira issue history', { ...base, key });
-        if (history) work.jira.push({ key, history });
+        const history = await run('work', `${jira} issue history`, { ...base, key });
+        if (history) work[jira].push({ key, history });
       }
     })());
   }
@@ -396,7 +433,9 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   if (namespaces.length) deployments.push(...(await onOpenShift(changes.filter((c) => c.kind === 'pull-request'))));
 
   const team = readPeople(dossier);
-  return { ...summary, items, pullRequests, codeowners, prNotes, changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, peopleNotes: team.notes, readiness: readReadiness(dossier), calls };
+  const readiness = readReadiness(dossier);
+  readiness.notes.push(...workNotes);
+  return { ...summary, items, pullRequests, codeowners, prNotes, changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, peopleNotes: team.notes, readiness, calls };
 }
 
 /** `dossiers list`, and `dossiers show` for each, so the list can say what each one covers. */

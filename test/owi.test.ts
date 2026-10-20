@@ -8,7 +8,8 @@ import type { Envelope, Warning } from '../src/core/envelope.js';
 import { ToilError } from '../src/core/errors.js';
 import { documentsFrom, fieldOverrides, mapOwi, OVERRIDABLE, OWI_COMMANDS, OWI_SOURCES, OWI_VERSION, parseOwiInput, type Change, type WorkItem } from '../src/core/owi/index.js';
 import { bodyLinks } from '../src/core/owi/github.js';
-import { sprintOf } from '../src/core/owi/jira.js';
+import { JIRA_OWI_FIELD_OVERRIDES, JIRA_OWI_FIELDS, JIRA_OWI_NAMED_FIELDS, jiraItem, sprintOf } from '../src/core/owi/jira.js';
+import type { OwiDocument } from '../src/core/owi/common.js';
 import { execute } from '../src/core/run.js';
 import { argvFor } from '../src/program.js';
 import { commands as registry } from '../src/registry.js';
@@ -563,5 +564,39 @@ describe('GitHub without a board (#298): milestones, estimate labels and body li
     const empty = await map({ text: json([one(issue), env('github project items', [item([])], 'github', { owner: 'imagile' })]) });
     expect(empty.data.items[0]).toMatchObject({ estimate: { value: 3, field: 'label:points: 3' }, iteration: { name: 'Sprint 42' } });
     expect((empty.data.items[0] as WorkItem).unmapped.map((u) => u.field)).toEqual(['type']);
+  });
+});
+
+describe("the Jira fields the mapper reads (#355)", () => {
+  /** Every field key jiraItem reads or probes on one issue, through a proxy over its fields. */
+  const touched = (fields: Record<string, unknown>, overrides: Record<string, string> = {}) => {
+    const keys = new Set<string>();
+    const proxy = new Proxy(fields, {
+      get: (target, key) => (typeof key === 'string' && keys.add(key), Reflect.get(target, key)),
+      has: (target, key) => (typeof key === 'string' && keys.add(key), Reflect.has(target, key)),
+    });
+    const doc: OwiDocument = { area: 'jira', command: 'jira issue search', connection: 'jira', data: null, inputs: {}, at: 'document 1' };
+    jiraItem(doc, { key: 'PAY-1', id: '1', self: 'https://jira.imagile.dev/rest/api/2/issue/1', fields: proxy }, { fields: overrides, warn: () => {} }, new Map());
+    return keys;
+  };
+  const full = {
+    summary: 'S', issuetype: { name: 'Story' }, description: 'D', status: { name: 'To Do', statusCategory: { key: 'new' } }, resolution: null, assignee: null, reporter: null, priority: { name: 'High' }, labels: [],
+    timeoriginalestimate: 3600, parent: { key: 'PAY-0' }, subtasks: [], issuelinks: [], created: '2026-10-01T09:00:00.000+0000', updated: '2026-10-01T09:00:00.000+0000', resolutiondate: null, duedate: null,
+  };
+
+  it('reads exactly JIRA_OWI_FIELDS and JIRA_OWI_NAMED_FIELDS, with no overrides', () => {
+    // An empty issue makes it probe every field it would fall back to; a full one, every field it reads once found.
+    const keys = new Set([...touched({}), ...touched(full)]);
+    expect([...keys].sort()).toEqual([...JIRA_OWI_FIELDS, ...JIRA_OWI_NAMED_FIELDS].sort());
+  });
+
+  it("reads each override's field, and nothing outside the lists and the overrides", () => {
+    const overrides = Object.fromEntries(JIRA_OWI_FIELD_OVERRIDES.map((name) => [name, `customfield_${name}`]));
+    const keys = new Set([...touched({}, overrides), ...touched(full, overrides)]);
+    for (const field of Object.values(overrides)) expect(keys, field).toContain(field);
+    const allowed = new Set<string>([...JIRA_OWI_FIELDS, ...JIRA_OWI_NAMED_FIELDS, ...Object.values(overrides)]);
+    expect([...keys].filter((k) => !allowed.has(k))).toEqual([]);
+    // The other overrides are settings, not fields.
+    expect(OVERRIDABLE.filter((o) => !(JIRA_OWI_FIELD_OVERRIDES as readonly string[]).includes(o)).sort()).toEqual(['estimateLabel', 'estimateUnit', 'iterationDays']);
   });
 });

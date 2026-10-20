@@ -4756,7 +4756,7 @@ it pins. These are the choices made by default in the fix:
   a theme's decorations aren't measured) and shows the Menu until the window is wider
   than where it last didn't fit, or its links change. Shortening labels would only have
   moved the line to the next view added.
-- **Found, not fixed:** Toil UI's Jira read is `jira issue search` with toil's default
+- **Found, not fixed (fixed in #355, below):** Toil UI's Jira read is `jira issue search` with toil's default
   fields (`STANDARD_SEARCH_FIELDS`), which leave out `description`, `issuelinks` and
   `parent`, so on a real Jira instance items arrive with no body and no links. The gate
   would read every real Jira item as thin, and miss its blockers. The sample's Jira
@@ -4961,3 +4961,47 @@ it pins. These are the choices made by default in the fix:
 - **The listing warns `LIST_FOLDER_IGNORED`** whenever its folder is inside one
   `.gitignore` excludes, for every command that lists, and `secrets scan` turns it
   into `SECRETS_NOTHING_SCANNED` when nothing was left to scan.
+
+## Jira fields in Toil UI's sync, and Jira Cloud dossiers (#355)
+
+- **The list is one constant beside the mapper, held to it by a test.**
+  `JIRA_OWI_FIELDS` in `src/core/owi/jira.ts` names every field `jiraItem` reads by
+  Jira's own id, `JIRA_OWI_NAMED_FIELDS` the custom fields it reads by name (Story
+  Points, Story point estimate, Sprint, Epic Link) and `JIRA_OWI_FIELD_OVERRIDES` the
+  `fields` overrides whose value is a field. `test/owi.test.ts` runs `jiraItem` over an
+  issue whose fields are a proxy and fails when the mapper reads a field outside them,
+  or when one listed is never read. Toil UI imports the constant; there is no second
+  copy.
+- **What the search asks for** (`jiraSearchFields` in `ui/src/load.ts`): those fields,
+  every custom field the connection registers (which the search's own default sends
+  too, so nothing the dashboards read before is lost), and every field the section's
+  `fields` names apart from the OWI settings `estimateUnit`, `estimateLabel` and
+  `iterationDays`: its OWI overrides and its `--field` aliases, acceptance criteria
+  among them. A registered name goes as its id. The named fields only arrive when the
+  connection registers them, since a search sends a custom field under its id
+  otherwise, and so they come in with the registered ones.
+- **The registered fields come from `<area> issue fields`** with no `--discover`, which
+  returns the connection's `customFields` and sends no request. It is a new read in
+  `READ_COMMANDS`, made before each search. If it fails, the search still runs with
+  the mapper's and the section's fields, and the failure shows on the work panel.
+- **An unregistered field name with a space or a comma is left out and said.** `issue
+  search` refuses a space (`Unknown field in --fields`), which would fail the whole
+  source, and splits on a comma; the
+  readiness notes on the item page and the Command Center say which section and key
+  named it and what to do.
+- **`fixVersions` is not asked for.** Nothing reads it: OWI has no release field and no
+  view shows one. It goes in with the mapper the day OWI maps it.
+- **Incremental and bounded as before.** The fields are part of the search's input, so
+  the cache keys the answer by them and the first sync after this change, or after the
+  connection registers another field, reads the project whole; later ones ask with
+  `updatedSince` and merge by key as they did. The 200-page bound is unchanged. The
+  answers are larger, mostly by the descriptions.
+- **Jira Cloud loads the same way** under `jira-cloud`: `issue fields`, `issue search`
+  and each issue's `issue history`, mapped with its section's fields. All three are in
+  `READ_COMMANDS`; the sample has no Cloud dossier, so `ui/test/jira-fields.test.ts`
+  loads one through toil with `fetch` stubbed.
+- **Deriving the UI's command names from the registry: one step.** `READ_COMMANDS` is
+  now held to toil's registry in `ui/test/registry.test.ts` (every entry served and
+  read-only), including the ones the sample can't answer. Generating the list from the
+  loader itself would mean running the loader over every area shape at build time;
+  that's left for its own change, and the hand-kept names elsewhere in Toil UI with it.

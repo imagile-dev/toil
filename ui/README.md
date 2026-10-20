@@ -52,8 +52,15 @@ preview uses, with nothing connected to a tracker.
 ## What it reads
 
 Each dashboard reads its dossier the way `toil dossiers show` describes it: the
-Jira project, the Azure DevOps project and pipelines, the GitHub repository and
-project board, and the OpenShift namespace of each environment. A GitHub section
+Jira project (Data Center or Cloud), the Azure DevOps project and pipelines, the
+GitHub repository and project board, and the OpenShift namespace of each
+environment. A Jira search asks for the fields toil's Open Work Item mapping reads
+(description, links, parent, sub-tasks, resolution, due date and the original
+estimate among them), every custom field the connection registers, and every field
+the section names in `fields`, such as `acceptanceCriteria`, since `issue search`'s
+own default set leaves most of those out. Name a field there by its id, or by a name
+the connection registers in `customFields`: an unregistered name with a space or a
+comma can't be asked for, and the Command Center says so. A GitHub section
 with no `projects` reads the repository's own issues, open and closed, as its work
 items, with the history of every open one and the 50 most recently closed. Pull
 requests are read from every code host the dossier names (GitHub, Bitbucket Data

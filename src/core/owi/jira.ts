@@ -29,6 +29,39 @@ export const JIRA_SPRINT_FIELD = 'Sprint';
 /** Data Center's epic link, a parent before Jira had `parent` for every level. */
 const EPIC_LINK = 'Epic Link';
 
+/**
+ * The fields `jiraItem` reads by Jira's own ids, for a search whose answer
+ * will be mapped: `issue search` returns a compact set by default, which has
+ * no description, links or parent. owi.test.ts reads an issue through a
+ * proxy and holds this list, `JIRA_OWI_NAMED_FIELDS` and the `fields`
+ * overrides to exactly what the mapper touches.
+ */
+export const JIRA_OWI_FIELDS = [
+  'summary',
+  'issuetype',
+  'description',
+  'status',
+  'resolution',
+  'assignee',
+  'reporter',
+  'priority',
+  'labels',
+  JIRA_HOURS_FIELD,
+  'parent',
+  'subtasks',
+  'issuelinks',
+  'created',
+  'updated',
+  'resolutiondate',
+  'duedate',
+] as const;
+
+/** The custom fields it reads by name: a search returns them only when the connection registers them (`customFields`). */
+export const JIRA_OWI_NAMED_FIELDS = [...JIRA_POINTS_FIELDS, JIRA_SPRINT_FIELD, EPIC_LINK] as const;
+
+/** The `fields` overrides whose value names a Jira field; the rest (`estimateUnit`, `estimateLabel`, `iterationDays`) are settings. */
+export const JIRA_OWI_FIELD_OVERRIDES = ['type', 'priority', 'team', 'dueDate', 'estimate', 'iteration'] as const;
+
 const CATEGORY: Record<string, StatusCategory> = { new: 'TODO', indeterminate: 'IN_PROGRESS', done: 'DONE' };
 
 type Issue = { key?: unknown; id?: unknown; self?: unknown; fields?: Record<string, unknown>; names?: Record<string, unknown> };

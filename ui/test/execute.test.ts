@@ -1,8 +1,7 @@
 import { Validator } from '@cfworker/json-schema';
 import { describe, expect, it } from 'vitest';
 import schema from '../../docs/owi/schema.json';
-import { CANNED, fixtureExecute } from '../src/fixtures/execute.ts';
-import { JQL } from '../src/load.ts';
+import { CANNED, CARD_JIRA_SEARCH, fixtureExecute } from '../src/fixtures/execute.ts';
 import { NAMES, loaded } from './harness.ts';
 
 /**
@@ -17,7 +16,7 @@ const read = { readOnly: true, caller: 'toil-ui' };
 describe('the fixture execute()', () => {
   it('answers a canned call with its envelope, dossier context included', async () => {
     const { execute } = fixtureExecute();
-    const env = await execute('jira issue search', { jql: JQL('PAY'), dossier: 'card-payments' }, read);
+    const env = await execute('jira issue search', CARD_JIRA_SEARCH, read);
     expect(env.ok).toBe(true);
     expect(env.meta.command).toBe('jira issue search');
     expect(env.meta.contractVersion).toBe(1);

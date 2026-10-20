@@ -10,7 +10,7 @@
 
 import { authorKinds, documentsFrom, fieldOverrides, inputValues, keyPatterns, mapOwi as mapDocuments, parseOwiInput, type KeyPattern, type OwiResult } from '../../src/core/owi/index.ts';
 
-export { AUTHOR_KINDS, OVERRIDABLE } from '../../src/core/owi/index.ts';
+export { AUTHOR_KINDS, JIRA_OWI_FIELD_OVERRIDES, JIRA_OWI_FIELDS, OVERRIDABLE } from '../../src/core/owi/index.ts';
 
 export type { OwiResult } from '../../src/core/owi/index.ts';
 

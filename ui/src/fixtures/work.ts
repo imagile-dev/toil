@@ -44,6 +44,17 @@ export const JIRA_SEARCH = {
 };
 export const JIRA_KEYS = jiraIssues.map((i) => i.key);
 
+/**
+ * The custom fields card-payments' Jira connection registers, as `jira issue
+ * fields` lists them: the sample's issues carry them under these names, the
+ * way `issue search` translates a registered field's id in its output.
+ */
+export const JIRA_REGISTERED = [
+  { id: 'customfield_10002', name: 'Story Points', type: 'number' },
+  { id: 'customfield_10004', name: 'Sprint' },
+  { id: 'customfield_10008', name: 'Epic Link' },
+];
+
 const SMITH = { self: 'https://jira.imagile.dev/rest/api/2/user?username=jsmith', name: 'jsmith', key: 'jsmith', displayName: 'J. Smith', active: true };
 const jiraStatus = (id: number, at: string, from: [string, string], to: [string, string]) => ({
   id: String(id),

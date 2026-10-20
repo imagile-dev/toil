@@ -14,13 +14,13 @@
  * what it was told to, a property the vendor demos never quite managed.
  */
 
-import { CODEOWNERS_PATHS, JQL, PR_INCLUDE, WIQL } from '../load.ts';
+import { CODEOWNERS_PATHS, JQL, PR_INCLUDE, WIQL, jiraSearchFields } from '../load.ts';
 import type { Call, Envelope, Execute, ExecuteOptions } from '../toil.ts';
 import { ADO_CI_RUNS, ADO_DEPLOY_RUNS, ADO_PR_GETS, ADO_PRS, BITBUCKET_CLOUD_PR_GETS, BITBUCKET_CLOUD_PRS, BITBUCKET_PR_GETS, BITBUCKET_PRS, GITHUB_CODEOWNERS, GITHUB_PR_GETS, GITHUB_PRS, JENKINS_RUNS, OPENSHIFT } from './delivery.ts';
 import { DOSSIERS, fileOf, listData, showData, type DossierFile } from './dossiers.ts';
 import {
   ADO_BATCH, ADO_IDS, ADO_ITERATIONS, ADO_REVISIONS, ADO_WIQL, GITHUB_EVENTS, GITHUB_ISSUES, GITHUB_NUMBERS, GITHUB_PROJECT_ITEMS,
-  ADO_STATES, JIRA_CHANGELOGS, JIRA_KEYS, JIRA_SEARCH, JIRA_TRANSITIONS,
+  ADO_STATES, JIRA_CHANGELOGS, JIRA_KEYS, JIRA_REGISTERED, JIRA_SEARCH, JIRA_TRANSITIONS,
 } from './work.ts';
 
 /** The moment the sample data was read: day seven of Sprint 42. */
@@ -46,12 +46,16 @@ const at = (dossier: string, area: string, env?: string) => ({ dossier, area, ..
 const gets = (dossier: string, area: string, field: string, byNumber: Record<number, unknown>): Canned[] =>
   Object.entries(byNumber).map(([n, data]) => ({ command: `${area} pr get`, input: { dossier, [field]: Number(n), include: PR_INCLUDE }, data, ...at(dossier, area) }));
 
+/** card-payments' Jira search as the loader sends it: the project's JQL and the fields the OWI mapper and its dossier section read (#355). */
+export const CARD_JIRA_SEARCH = { dossier: card, jql: JQL('PAY'), fields: jiraSearchFields('jira', DOSSIERS.find((d) => d.name === card)!.jira as Record<string, unknown>, JIRA_REGISTERED, []) };
+
 export const CANNED: Canned[] = [
   { command: 'dossiers list', input: {}, data: listData() },
   ...DOSSIERS.map((d) => ({ command: 'dossiers show', input: { dossier: d.name }, data: showData(d) })),
 
   // card-payments
-  { command: 'jira issue search', input: { dossier: card, jql: JQL('PAY') }, data: JIRA_SEARCH, ...at(card, 'jira') },
+  { command: 'jira issue fields', input: { dossier: card }, data: JIRA_REGISTERED, ...at(card, 'jira') },
+  { command: 'jira issue search', input: CARD_JIRA_SEARCH, data: JIRA_SEARCH, ...at(card, 'jira') },
   ...JIRA_KEYS.map((key) => ({ command: 'jira issue history', input: { dossier: card, key }, data: JIRA_CHANGELOGS[key], ...at(card, 'jira') })),
   // The readiness gate's one live read (#307), made only when a person presses for it on an item's page.
   ...Object.entries(JIRA_TRANSITIONS).map(([key, data]) => ({ command: 'jira issue transitions', input: { dossier: card, key }, data, ...at(card, 'jira') })),

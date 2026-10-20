@@ -4,7 +4,7 @@ import { execute, mapOwi as apiMapOwi, registry } from '../../src/api.ts';
 import { CANNED, callKey, fixtureExecute } from '../src/fixtures/execute.ts';
 import { loadDossier, loadDossiers } from '../src/load.ts';
 import { workflowRead } from '../src/model/readiness.ts';
-import { WORKFLOW_READS } from '../server/store.ts';
+import { READ_COMMANDS, WORKFLOW_READS } from '../server/store.ts';
 import { mapOwi } from '../src/owi.ts';
 import type { Execute } from '../src/toil.ts';
 import { NAMES } from './harness.ts';
@@ -42,6 +42,16 @@ describe.each(CANNED.map((c) => [`${c.command} ${JSON.stringify(c.input)}`, c] a
   it("validates against the command's input schema", () => {
     const result = new Validator(def!.inputSchema as object, '2020-12', false).validate(call.input);
     expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
+  });
+});
+
+// The server's allowlist names commands the sample answers and some it has no dossier for (Jira Cloud, Azure DevOps
+// Services), so each is held to the registry here too: a renamed command fails the build, not a live sync.
+describe.each([...READ_COMMANDS].map((c) => [c] as const))('READ_COMMANDS: %s', (command) => {
+  it('is a command execute() serves, and only reads', () => {
+    const def = byName.get(command);
+    expect(def, `toil has no API command "${command}"`).toBeDefined();
+    expect([def!.writes, def!.writesLocal, def!.writesDependOnInput]).toEqual([false, false, false]);
   });
 });
 
