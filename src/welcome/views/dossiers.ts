@@ -195,15 +195,18 @@ function change(params: Record<string, string>, title: string, steps: Step[], th
 }
 
 /** Whether a connection is on a dossier host selector, by core's own matcher, so the menu asks about writes on exactly the connections a call would pick. */
-export function onHost(settings: Record<string, unknown> | undefined, host: string): boolean {
-  return settings !== undefined && hostMatches(settings, host.trim());
+export function onHost(settings: Record<string, unknown> | undefined, host: string, siteApis?: Readonly<Record<string, string>>): boolean {
+  return settings !== undefined && hostMatches(settings, host.trim(), siteApis);
 }
+
+/** The API hosts an area names for the hosts people know (github.com's is api.github.com), as core matches them. */
+const siteApisOf = (data: WelcomeData, area: string) => data.areas.find((a) => a.name === area)?.siteApis;
 
 /** The connections with writes on that a binding would select: the one named, or every one of the area's on the host. */
 export function writesTargets(data: WelcomeData, area: string, pick: { connection?: string; host?: string }): string[] {
   const cfg = config(data);
   if (!cfg) return [];
-  const names = pick.connection !== undefined ? [pick.connection] : connectionsOf(cfg, area).filter((name) => onHost(cfg.connections[name], pick.host ?? ''));
+  const names = pick.connection !== undefined ? [pick.connection] : connectionsOf(cfg, area).filter((name) => onHost(cfg.connections[name], pick.host ?? '', siteApisOf(data, area)));
   return names.filter((name) => cfg.connections[name]?.area === area && connectionWrites(cfg.connections[name]));
 }
 
@@ -1197,7 +1200,7 @@ export function stillToSetUp(data: WelcomeData, result: Imported): Imported['toS
   return result.toSetUp.filter((x) => {
     if (!cfg) return true;
     if (x.connection) return cfg.connections[x.connection]?.area !== x.area;
-    return x.host !== undefined && !connectionsOf(cfg, x.area).some((name) => onHost(cfg.connections[name], x.host!));
+    return x.host !== undefined && !connectionsOf(cfg, x.area).some((name) => onHost(cfg.connections[name], x.host!, siteApisOf(data, x.area)));
   });
 }
 

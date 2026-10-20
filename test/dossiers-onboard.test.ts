@@ -215,6 +215,22 @@ describe('toil dossiers onboard', () => {
     expect(wrong.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: 'You have no hub connection named nope.' });
   });
 
+  it("pins an environment's section apart from the area's own, by its key path", async () => {
+    const d = repoDisk({ name: 'team', hub: { host: 'hub.imagile.dev' }, environments: { prod: { hub: { host: 'hub.imagile.dev' } } } });
+    const env = {
+      TOIL_CONN_HUB_A_AREA: 'hub', TOIL_CONN_HUB_A_BASE_URL: 'https://api.hub.imagile.dev', TOIL_CONN_HUB_A_TOKEN: 'a',
+      TOIL_CONN_HUB_B_AREA: 'hub', TOIL_CONN_HUB_B_BASE_URL: 'https://hub.imagile.dev/api', TOIL_CONN_HUB_B_TOKEN: 'b',
+    };
+    const run = await runCli(['dossiers', 'onboard', '--plan', '--pin', 'hub=hub-a', '--pin', 'environments.prod.hub=hub-b'], { commands, context: context(d, { env }).ctx });
+    expect((run.envelope!.data as { areas: Array<{ path: string; connection: string }> }).areas.map((a) => [a.path, a.connection])).toEqual([
+      ['hub', 'hub-a'],
+      ['environments.prod.hub', 'hub-b'],
+    ]);
+    expect(JSON.parse(readFileSync(join(d.home, '.toil', 'dossiers', 'team.json'), 'utf8'))).toMatchObject({ hub: { connection: 'hub-a' }, environments: { prod: { hub: { connection: 'hub-b' } } } });
+    const wrong = await runCli(['dossiers', 'onboard', '--plan', '--pin', 'environments.test.hub=hub-a'], { commands, context: context(d, { env }).ctx });
+    expect(wrong.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Dossier team has no environments.test.hub section to pin.' });
+  });
+
   it('is never an MCP tool', async () => {
     const d = repoDisk();
     const session = await connectMcp({ commands, context: context(d).ctx, areas: ['dossiers'] });

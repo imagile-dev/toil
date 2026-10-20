@@ -312,7 +312,9 @@ For each area the dossier covers, it looks for your connection the way a call wo
 
 It ends with `toil dossiers check` and one test read per connection (the same read
 `toil connections test` sends), and the CLI exits 1 unless every area resolved and
-read. `--pin <area>=<connection>` answers the several-match question without asking.
+read. `--pin <area>=<connection>` answers the several-match question without asking,
+for every section of the area; `--pin environments.prod.github=<connection>` pins one
+section apart from the rest.
 With no terminal, or with `--plan`, it asks nothing and adds no connection: each area
 says what it needs and the command that sets it up (a `--pin` still applies).
 

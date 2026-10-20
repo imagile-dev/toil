@@ -57,7 +57,7 @@ export function dossierOnboardCommands(areas: readonly AnyArea[]): AnyCommand[] 
       dossier: z.string().min(1).optional().describe('A dossier name, or the path to a dossier file. Defaults to the dossier that applies to the folder.'),
       cwd: z.string().min(1).optional().describe('The folder to look from; its repository decides which checked-in dossiers apply. Defaults to the workspace.'),
       plan: z.boolean().optional().describe('Ask nothing and add no connection: report what each area needs, then check and test what is there. A pin still applies.'),
-      pin: z.array(z.string().min(1)).optional().describe("Where several of your connections match an area, the one your own copy of the dossier uses, each area=connection"),
+      pin: z.array(z.string().min(1)).optional().describe("Where several of your connections match, the one your own copy of the dossier uses: area=connection for every section of the area, or a section's key path (environments.prod.github=connection) for that one"),
     }),
     writes: false,
     // Adding a connection or pinning one writes config or your own dossier; a plan with no pin writes nothing.
@@ -69,7 +69,7 @@ export function dossierOnboardCommands(areas: readonly AnyArea[]): AnyCommand[] 
     options: [
       { flags: '--cwd <dir>', field: 'cwd', description: 'The folder to look from (default: the working directory)' },
       { flags: '--plan', field: 'plan', description: 'Ask nothing and add no connection; report what each area needs' },
-      { flags: '--pin <area=connection>', field: 'pin', description: 'The connection your own copy uses where several match; repeatable' },
+      { flags: '--pin <area=connection>', field: 'pin', description: 'The connection your own copy uses where several match (an area, or a section such as environments.prod.github); repeatable' },
     ],
     examples: [{}, { dossier: 'payments', cwd: '.', plan: true }, { dossier: 'payments', pin: ['github=github-work'] }],
     run: async (input, ctx) => {
@@ -101,7 +101,7 @@ export function dossierOnboardCommands(areas: readonly AnyArea[]): AnyCommand[] 
           }
         }
         if (outcome.status === 'ambiguous') {
-          const pick = pins.get(target.area.name) ?? (ask ? await askPin(ask, dossier, target, outcome.candidates!) : undefined);
+          const pick = pins.get(target.path) ?? pins.get(target.area.name) ?? (ask ? await askPin(ask, dossier, target, outcome.candidates!) : undefined);
           if (pick !== undefined) {
             toPin.push({ target, connection: pick });
             Object.assign(outcome, { status: 'pinned', connection: pick });
@@ -112,11 +112,11 @@ export function dossierOnboardCommands(areas: readonly AnyArea[]): AnyCommand[] 
           if (outcome.problem && !outcome.problem.fix) outcome.problem.fix = fixFor(dossier, target, config);
           outcome.suggest = suggestionFor(target, config);
         }
-        if (outcome.status === 'ambiguous' && outcome.problem) outcome.problem.fix = `Run it in a terminal to choose, or pass --pin ${target.area.name}=<one of ${outcome.candidates!.join(', ')}>.`;
+        if (outcome.status === 'ambiguous' && outcome.problem) outcome.problem.fix = `Run it in a terminal to choose, or pass --pin ${target.path}=<one of ${outcome.candidates!.join(', ')}>.`;
         outcomes.push(outcome);
       }
-      for (const [area] of pins) {
-        if (!toPin.some((p) => p.target.area.name === area)) ctx.warn({ code: 'ONBOARD_PIN_UNUSED', message: `--pin ${area}=... wasn't needed: only one of your ${area} connections matches, or none does.` });
+      for (const [key] of pins) {
+        if (!toPin.some((p) => p.target.path === key || p.target.area.name === key)) ctx.warn({ code: 'ONBOARD_PIN_UNUSED', message: `--pin ${key}=... wasn't needed: only one of your connections fits it, or none does.` });
       }
       const file = toPin.length ? pinInOwnCopy(ctx, catalog, manage, areas, applied.file, toPin) : applied.file;
 
@@ -245,18 +245,24 @@ async function askPin(ask: NonNullable<ConfigAccess['prompt']>, dossier: Dossier
   throw new ToilError('INVALID_INPUT', `"${answer}" isn't one of ${candidates.join(', ')}. Nothing was pinned.`, { fix: `Run it again and give one of them, or pass --pin ${t.area.name}=<connection>.` });
 }
 
-/** `--pin area=connection`, each naming an area the dossier covers and one of your connections to it. */
+/**
+ * `--pin <key>=connection`: the key is an area, for every section of it, or one
+ * section's key path (`environments.prod.github`), which wins over its area's,
+ * so an environment's section can be pinned apart from the area's own.
+ */
 function pinsFrom(values: readonly string[], areas: readonly AnyArea[], dossier: Dossier, config: ResolvedConfig): Map<string, string> {
-  const covered = new Set(targetsOf(dossier, areas).map((t) => t.area.name));
+  const targets = targetsOf(dossier, areas);
   const pins = new Map<string, string>();
   for (const value of values) {
     const at = value.indexOf('=');
-    const area = value.slice(0, at);
+    const key = value.slice(0, at);
     const name = value.slice(at + 1);
-    if (at <= 0 || name === '') throw new ToilError('INVALID_INPUT', `--pin takes area=connection, and "${value}" isn't.`, { fix: 'For example --pin github=github-work.' });
-    if (!covered.has(area)) throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name} has no ${area} section to pin.`, { fix: `It covers: ${[...covered].join(', ') || 'no areas'}.` });
+    if (at <= 0 || name === '') throw new ToilError('INVALID_INPUT', `--pin takes area=connection (or section=connection), and "${value}" isn't.`, { fix: 'For example --pin github=github-work, or --pin environments.prod.github=github-work.' });
+    const target = targets.find((t) => t.path === key) ?? targets.find((t) => t.area.name === key);
+    if (!target) throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name} has no ${key} section to pin.`, { fix: `Its sections: ${targets.map((t) => t.path).join(', ') || 'none'}.` });
+    const area = target.area.name;
     if (config.connections[name]?.area !== area) throw new ToilError('INVALID_INPUT', `You have no ${area} connection named ${name}.`, { fix: `Run toil connections list --area ${area} to see yours.` });
-    pins.set(area, name);
+    pins.set(key, name);
   }
   return pins;
 }

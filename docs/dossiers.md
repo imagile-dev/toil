@@ -531,7 +531,8 @@ files directly:
   `ambiguous`. On a terminal it offers to add a missing one through `connections add`'s
   own flow, offering a base URL on the host (the area's `siteApis` say github.com's is
   `https://api.github.com`) and refusing one on any other host before saving; and asks
-  which ambiguous one to pin, writing it into your own copy in `~/.toil/dossiers/`.
+  which ambiguous one to pin, writing it into your own copy in `~/.toil/dossiers/`
+  (`--pin` takes an area, or one section's key path such as `environments.prod.github`).
   It ends with `dossiers check` and one `connections test` read per connection, and
   the CLI exits 1 unless every area resolved and read. With no terminal, or `--plan`,
   it adds nothing and each area carries a `fix` and a `suggest`.
