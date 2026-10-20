@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { apiRequest } from '../../core/api.js';
+import { apiPath, rawPath } from '../../core/api-path.js';
 import { ToilError } from '../../core/errors.js';
 import { INVENTORY_FROM_DESCRIPTION, readInventory as readSharedInventory, type InventoryPackage } from '../../core/inventory.js';
 import { artifactoryArea } from './area.js';
@@ -70,9 +71,9 @@ function repoFor(connection: ArtifactoryConnection, ecosystem: string): string |
 }
 
 /** One lookup: its answer, or null for any failure at all. A cancelled command still stops. */
-async function lookup<T>(ctx: ArtifactoryContext, path: string, as: 'json' | 'text' = 'json'): Promise<T | null> {
+async function lookup<T>(ctx: ArtifactoryContext, path: string, as: 'json' | 'text' = 'json', query?: Record<string, string>): Promise<T | null> {
   try {
-    return await apiRequest<T>(artifactoryArea, ctx, path, { as, timeoutMs: LOOKUP_TIMEOUT_MS });
+    return await apiRequest<T>(artifactoryArea, ctx, path, { as, timeoutMs: LOOKUP_TIMEOUT_MS, ...(query ? { query } : {}) });
   } catch (err) {
     if (ctx.signal.aborted) throw err;
     return null;
@@ -80,8 +81,11 @@ async function lookup<T>(ctx: ArtifactoryContext, path: string, as: 'json' | 'te
 }
 
 const obj = (value: unknown): Record<string, unknown> => (typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {});
-/** A scoped npm name keeps its scope with the slash encoded: `@scope%2Fname`. */
-const npmPath = (repo: string, name: string) => `api/npm/${repo}/${name.startsWith('@') ? name.replace('/', '%2F') : name}`;
+/**
+ * The repository key is one segment, and so is the package name: a scoped npm
+ * name keeps its leading `@` and has its slash encoded, `@scope%2Fname`.
+ */
+const npmPath = (repo: string, name: string) => apiPath`api/npm/${repo}/${name.startsWith('@') ? rawPath(`@${encodeURIComponent(name.slice(1))}`) : name}`;
 
 async function latestVersion(ctx: ArtifactoryContext, repo: string, pkg: InventoryPackage): Promise<string | null> {
   if (pkg.ecosystem === 'npm') {
@@ -90,14 +94,14 @@ async function latestVersion(ctx: ArtifactoryContext, repo: string, pkg: Invento
   }
   if (pkg.ecosystem === 'nuget') {
     // Suspected bug #91 item 21: the last entry, prerelease or not.
-    const versions = obj(await lookup(ctx, `api/nuget/v3/${repo}/flatcontainer/${pkg.name.toLowerCase()}/index.json`)).versions;
+    const versions = obj(await lookup(ctx, apiPath`api/nuget/v3/${repo}/flatcontainer/${pkg.name.toLowerCase()}/index.json`)).versions;
     const list = Array.isArray(versions) ? versions : [];
     return (list[list.length - 1] as string | undefined) ?? null;
   }
   if (pkg.ecosystem === 'maven') {
     const [groupId, artifactId] = pkg.name.split(':');
     if (!groupId || !artifactId) return null;
-    const text = await lookup<string>(ctx, `api/search/latestVersion?g=${encodeURIComponent(groupId)}&a=${encodeURIComponent(artifactId)}&repos=${repo}`, 'text');
+    const text = await lookup<string>(ctx, 'api/search/latestVersion', 'text', { g: groupId, a: artifactId, repos: repo });
     return text?.trim() || null;
   }
   return null;
@@ -113,7 +117,7 @@ async function license(ctx: ArtifactoryContext, repo: string, pkg: InventoryPack
   }
   if (pkg.ecosystem === 'nuget') {
     // Suspected bug #91 item 22: a registration leaf keeps its license fields in catalogEntry, not here.
-    const leaf = await lookup(ctx, `api/nuget/v3/${repo}/registration/${pkg.name.toLowerCase()}/${pkg.version}.json`);
+    const leaf = await lookup(ctx, apiPath`api/nuget/v3/${repo}/registration/${pkg.name.toLowerCase()}/${pkg.version}.json`);
     if (leaf === null) return null;
     const data = obj(leaf);
     return (data.licenseExpression as string | undefined) ?? (data.licenseUrl ? 'See licenseUrl' : null);

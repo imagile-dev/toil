@@ -1,3 +1,4 @@
+import { apiPath } from '../../core/api-path.js';
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
@@ -27,13 +28,13 @@ export const listReviewsCommand = githubArea.command({
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     const number = parseIntText(input.number);
-    return githubList(ctx, `/repos/${owner}/${repo}/pulls/${number}/reviews`, `reviews on GitHub PR #${number}`, {}, { limit: input.limit, cursor: input.cursor });
+    return githubList(ctx, apiPath`/repos/${owner}/${repo}/pulls/${number}/reviews`, `reviews on GitHub PR #${number}`, {}, { limit: input.limit, cursor: input.cursor });
   },
 });
 
 function submitReview(ctx: GitHubContext, number: number | string, event: 'APPROVE' | 'REQUEST_CHANGES', body: string | undefined) {
   const { owner, repo } = target(ctx);
-  return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(number)}/reviews`, { method: 'POST', json: { event, ...(body !== undefined ? { body } : {}) } });
+  return github(ctx, apiPath`/repos/${owner}/${repo}/pulls/${parseIntText(number)}/reviews`, { method: 'POST', json: { event, ...(body !== undefined ? { body } : {}) } });
 }
 
 export const approveCommand = githubArea.command({
@@ -70,7 +71,7 @@ export const listReviewersCommand = githubArea.command({
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7' }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
-    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input.number)}/requested_reviewers`);
+    return github(ctx, apiPath`/repos/${owner}/${repo}/pulls/${parseIntText(input.number)}/requested_reviewers`);
   },
 });
 
@@ -103,7 +104,7 @@ export const addReviewersCommand = githubArea.command({
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     const json = reviewersBody(input.reviewer, input.teamReviewer);
-    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input.number)}/requested_reviewers`, { method: 'POST', json });
+    return github(ctx, apiPath`/repos/${owner}/${repo}/pulls/${parseIntText(input.number)}/requested_reviewers`, { method: 'POST', json });
   },
 });
 
@@ -124,7 +125,7 @@ export const removeReviewersCommand = githubArea.command({
     const { owner, repo } = target(ctx);
     const json = reviewersBody(input.reviewer, input.teamReviewer);
     // A DELETE with a JSON body, which GitHub requires here.
-    await github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input.number)}/requested_reviewers`, { method: 'DELETE', json });
+    await github(ctx, apiPath`/repos/${owner}/${repo}/pulls/${parseIntText(input.number)}/requested_reviewers`, { method: 'DELETE', json });
     return { removed: true };
   },
 });

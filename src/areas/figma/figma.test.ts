@@ -166,6 +166,16 @@ describe('file get', () => {
     expect(calls[0]!.url).toBe(`${FIGMA}/v1/files/a%2Fb%20c?depth=1`);
   });
 
+  it('encodes a file key with query or fragment syntax in it as one path segment, and refuses one with a dot segment before sending', async () => {
+    const query = await run(fileCommand, { fileKeyOrUrl: 'a/b?c=d' }, [ok(wholeFile)]);
+    expect(query.calls[0]!.url).toBe(`${FIGMA}/v1/files/a%2Fb%3Fc%3Dd?depth=1`);
+    const hash = await run(commentsCommand, { fileKeyOrUrl: 'p1#hot' }, [ok(comments)]);
+    expect(hash.calls[0]!.url).toBe(`${FIGMA}/v1/files/p1%23hot/comments`);
+    const dots = await run(fileCommand, { fileKeyOrUrl: 'x/../y' }, [ok(wholeFile)]);
+    expect(dots.envelope.error?.code).toBe('INVALID_INPUT');
+    expect(dots.calls).toEqual([]);
+  });
+
   it('returns CDN image URLs as data and never fetches them', async () => {
     const { envelope, calls } = await run(fileCommand, { fileKeyOrUrl: FILE_KEY }, [ok(wholeFile)]);
     expect(calls).toHaveLength(1);

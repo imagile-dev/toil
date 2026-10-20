@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { openshiftArea } from './area.js';
-import { ns, openshift } from './client.js';
+import { openshift } from './client.js';
 import { cpuMillicores, memMiB, type K8sList, type K8sPod, type K8sPodMetrics } from './k8s.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * CPU and memory from metrics-server, alone (pod metrics) or joined to each
@@ -21,7 +22,7 @@ export const podMetricsCommand = openshiftArea.command({
   options: [{ flags: '--namespace <ns>', field: 'namespace', description: 'Kubernetes namespace' }],
   examples: [{ namespace: 'payments' }, { namespace: 'payments', env: 'prod', instance: 'east' }],
   run: async (input, ctx) => {
-    const metrics = await openshift<K8sList<K8sPodMetrics>>(ctx, `/apis/metrics.k8s.io/v1beta1/namespaces/${ns(input.namespace)}/pods`);
+    const metrics = await openshift<K8sList<K8sPodMetrics>>(ctx, apiPath`/apis/metrics.k8s.io/v1beta1/namespaces/${input.namespace}/pods`);
     const pods = metrics.items.map((pm) => ({ name: pm.metadata.name, containers: pm.containers.map((c) => ({ name: c.name, cpu: c.usage.cpu, memory: c.usage.memory })) }));
     return { namespace: input.namespace, pods };
   },
@@ -57,8 +58,8 @@ export const resourceUsageCommand = openshiftArea.command({
     const query = { labelSelector: input.labelSelector || undefined };
     // Pods (limits and requests) and metrics (usage) at once, both filtered by the label selector.
     const [podList, metricsList] = await Promise.all([
-      openshift<K8sList<K8sPod>>(ctx, `/api/v1/namespaces/${ns(input.namespace)}/pods`, query),
-      openshift<K8sList<K8sPodMetrics>>(ctx, `/apis/metrics.k8s.io/v1beta1/namespaces/${ns(input.namespace)}/pods`, query),
+      openshift<K8sList<K8sPod>>(ctx, apiPath`/api/v1/namespaces/${input.namespace}/pods`, query),
+      openshift<K8sList<K8sPodMetrics>>(ctx, apiPath`/apis/metrics.k8s.io/v1beta1/namespaces/${input.namespace}/pods`, query),
     ]);
 
     const usageByPod = new Map<string, Map<string, { cpu: string; memory: string }>>();

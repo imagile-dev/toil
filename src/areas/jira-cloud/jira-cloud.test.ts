@@ -9,7 +9,7 @@ import { listSprints, setSprint } from './agile.js';
 import { addAttachment, downloadAttachment } from './attachments.js';
 import { suggestedType } from './custom-fields.js';
 import { addComment, addLabel, assign, createIssue, getIssue, linkIssue, listComments, logWork, schema, transitionIssue, updateIssue } from './issues.js';
-import { listProjects, searchUsers } from './projects.js';
+import { getProject, listProjects, searchUsers } from './projects.js';
 import { fields, search } from './search.js';
 
 /**
@@ -458,5 +458,37 @@ describe('agile', () => {
     const { envelope, calls } = await run(setSprint, { key: 'PROJ-123', sprint: 42, ...write }, [{ method: 'POST', path: '/rest/agile/1.0/sprint/42/issue', respond: { status: 204 } }]);
     expect(body(calls[0]!)).toEqual({ issues: ['PROJ-123'] });
     expect(envelope.data).toEqual({ updated: 'PROJ-123', sprint: '42' });
+  });
+});
+
+describe('ids in request paths', () => {
+  it('project get: a key with path or query syntax is sent encoded as one segment', async () => {
+    const cases: Array<[string, string]> = [
+      ['a/b?c=d', 'a%2Fb%3Fc%3Dd'],
+      ['p1#hot', 'p1%23hot'],
+      ['%2e%2e', '%252e%252e'],
+    ];
+    for (const [project, sent] of cases) {
+      const { calls } = await run(getProject, { project }, [{ url: /\/rest\/api\/3\/project\//, respond: { json: { id: '1', key: 'P' } } }]);
+      expect(calls.map((c) => c.url), project).toEqual([`${API}/project/${sent}`]);
+    }
+  });
+
+  it('issue comment add: the key is sent encoded, and one that would climb out of the issue path is refused', async () => {
+    const { calls } = await run(addComment, { key: 'a/b?c=d', body: 'Hi', ...write }, [{ method: 'POST', url: /\/comment$/, respond: { status: 201, json: { id: '1' } } }]);
+    expect(calls.map((c) => [c.method, c.url])).toEqual([['POST', `${API}/issue/a%2Fb%3Fc%3Dd/comment`]]);
+    const climbing = await run(addComment, { key: 'x/../y', body: 'Hi', ...write }, []);
+    expect(climbing.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+    expect(climbing.calls).toHaveLength(0);
+  });
+
+  it('issue create: a project key with path syntax is refused from the flag or the connection setting', async () => {
+    const flag = await run(createIssue, { project: 'P/../X', issueType: 'Bug', summary: 'S', ...write }, []);
+    expect(flag.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("can't contain") });
+    expect(flag.calls).toHaveLength(0);
+    const config = { 'jira-cloud': { ...fixtureConfig['jira-cloud'], project: 'P?x=1', issueType: 'Bug' } };
+    const setting = await run(createIssue, { summary: 'S', ...write }, [], { config });
+    expect(setting.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining("can't contain") });
+    expect(setting.calls).toHaveLength(0);
   });
 });

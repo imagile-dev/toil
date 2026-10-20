@@ -1,3 +1,4 @@
+import { apiPath } from '../../core/api-path.js';
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
@@ -21,7 +22,7 @@ interface PullRequest {
   head?: { sha?: string };
 }
 
-const prPath = (owner: string, repo: string, number: number) => `/repos/${owner}/${repo}/pulls/${number}`;
+const prPath = (owner: string, repo: string, number: number) => apiPath`/repos/${owner}/${repo}/pulls/${number}`;
 
 export const listPrsCommand = githubArea.command({
   path: ['github', 'pr', 'list'],
@@ -71,7 +72,7 @@ export const listPrsCommand = githubArea.command({
     const fresh = (pr: PullRequest) => updatedSince === undefined || Date.parse(pr.updated_at) >= updatedSince;
     return githubList<PullRequest>(
       ctx,
-      `/repos/${owner}/${repo}/pulls`,
+      apiPath`/repos/${owner}/${repo}/pulls`,
       `GitHub pull requests in ${owner}/${repo}`,
       { state: input.state ?? 'open', ...(input.head ? { head: input.head } : {}), ...(input.base ? { base: input.base } : {}), ...newestFirst },
       {
@@ -114,7 +115,7 @@ function includedList(ctx: GitHubContext, owner: string, repo: string, number: n
     case 'reviews':
       return githubAll(ctx, `${path}/reviews`, `reviews on GitHub PR #${number}`);
     case 'checks':
-      return githubAll(ctx, `/repos/${owner}/${repo}/commits/${pr.head?.sha}/check-runs`, `GitHub check runs for PR #${number}`, {}, checkRunItems);
+      return githubAll(ctx, apiPath`/repos/${owner}/${repo}/commits/${String(pr.head?.sha)}/check-runs`, `GitHub check runs for PR #${number}`, {}, checkRunItems);
     case 'commits':
       return githubAll(ctx, `${path}/commits`, `commits on GitHub PR #${number}`);
     case 'files':
@@ -190,7 +191,7 @@ export const createPrCommand = githubArea.command({
     const { owner, repo } = target(ctx);
     const base = input.base ?? ctx.connection.targetBranch ?? 'main';
     const body = bodyOf(ctx, input.body, input.bodyFile);
-    return github(ctx, `/repos/${owner}/${repo}/pulls`, {
+    return github(ctx, apiPath`/repos/${owner}/${repo}/pulls`, {
       method: 'POST',
       json: { title: input.title, head: input.head, base, ...(body !== undefined ? { body } : {}), ...(input.draft !== undefined ? { draft: input.draft } : {}) },
     });

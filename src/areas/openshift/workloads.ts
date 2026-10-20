@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { openshiftArea } from './area.js';
-import { ns, openshift, openshiftText } from './client.js';
+import { openshift, openshiftText } from './client.js';
 import { age, containerState, type K8sDeployment, type K8sEvent, type K8sList, type K8sPod } from './k8s.js';
+import { apiPath } from '../../core/api-path.js';
 
 /**
  * Pods, deployments, events and logs for one namespace, summarised for an
@@ -32,7 +33,7 @@ export const podsCommand = openshiftArea.command({
   ],
   examples: [{ namespace: 'payments' }, { namespace: 'payments', labelSelector: 'app=api', raw: true }, { namespace: 'payments', env: 'prod', instance: 'east' }],
   run: async (input, ctx) => {
-    const podList = await openshift<K8sList<K8sPod>>(ctx, `/api/v1/namespaces/${ns(input.namespace)}/pods`, { labelSelector: input.labelSelector || undefined });
+    const podList = await openshift<K8sList<K8sPod>>(ctx, apiPath`/api/v1/namespaces/${input.namespace}/pods`, { labelSelector: input.labelSelector || undefined });
     if (input.raw) return { namespace: input.namespace, count: podList.items.length, pods: podList.items };
 
     const summary = { total: podList.items.length, running: 0, pending: 0, failed: 0, succeeded: 0, unknown: 0, crashLoopBackOff: 0, oomKilled: 0, imagePullBackOff: 0, totalRestarts: 0 };
@@ -102,7 +103,7 @@ export const deploymentsCommand = openshiftArea.command({
   examples: [{ namespace: 'payments' }, { namespace: 'payments', labelSelector: 'app=api', deploymentConfigs: true }, { namespace: 'payments', raw: true, env: 'prod', instance: 'east' }],
   run: async (input, ctx) => {
     const kind = input.deploymentConfigs ? 'DeploymentConfig' : 'Deployment';
-    const path = input.deploymentConfigs ? `/apis/apps.openshift.io/v1/namespaces/${ns(input.namespace)}/deploymentconfigs` : `/apis/apps/v1/namespaces/${ns(input.namespace)}/deployments`;
+    const path = input.deploymentConfigs ? apiPath`/apis/apps.openshift.io/v1/namespaces/${input.namespace}/deploymentconfigs` : apiPath`/apis/apps/v1/namespaces/${input.namespace}/deployments`;
     const list = await openshift<K8sList<K8sDeployment>>(ctx, path, { labelSelector: input.labelSelector || undefined });
     if (input.raw) return { namespace: input.namespace, kind, count: list.items.length, deployments: list.items };
 
@@ -156,7 +157,7 @@ export const eventsCommand = openshiftArea.command({
     const selectors: string[] = [];
     if (!input.all) selectors.push('type=Warning');
     if (input.fieldSelector) selectors.push(input.fieldSelector);
-    const eventList = await openshift<K8sList<K8sEvent>>(ctx, `/api/v1/namespaces/${ns(input.namespace)}/events`, { fieldSelector: selectors.length > 0 ? selectors.join(',') : undefined });
+    const eventList = await openshift<K8sList<K8sEvent>>(ctx, apiPath`/api/v1/namespaces/${input.namespace}/events`, { fieldSelector: selectors.length > 0 ? selectors.join(',') : undefined });
 
     const events = eventList.items.map((ev) => {
       const obj = ev.involvedObject ?? ev.regarding;
@@ -205,7 +206,7 @@ export const logsCommand = openshiftArea.command({
     // Suspected bug (#88 item 7): not validated, so "abc" sends tailLines=NaN and 0 or negatives pass through.
     const lines = input.lines === undefined || input.lines === '' ? 100 : parseInt(String(input.lines), 10);
     // Suspected bug (#88 item 1): no container is sent by default, whatever the help says, and the output says "(default)".
-    const log = await openshiftText(ctx, `/api/v1/namespaces/${ns(input.namespace)}/pods/${encodeURIComponent(input.pod)}/log`, {
+    const log = await openshiftText(ctx, apiPath`/api/v1/namespaces/${input.namespace}/pods/${input.pod}/log`, {
       container: input.container || undefined,
       previous: input.previous ? 'true' : undefined,
       tailLines: lines,

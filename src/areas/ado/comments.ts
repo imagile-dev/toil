@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { allowWriteField } from '../../core/run.js';
 import { adoArea } from './area.js';
-import { API, ado, repoPath, toInt, where } from './client.js';
+import { API, ado, enc, repoPath, toInt, where } from './client.js';
 import { IN_REPO, prArg } from './repo.js';
 import { intText } from './work.js';
 
@@ -61,7 +61,7 @@ export const repoListCommentsCommand = adoArea.command({
     { ...IN_REPO, id: '42', generalOnly: true },
   ],
   run: async (input, ctx) => {
-    const result = await ado<{ value?: Thread[] }>(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.id)}/threads?api-version=${API}`);
+    const result = await ado<{ value?: Thread[] }>(ctx, `${repoPath(where(ctx, true))}/pullrequests/${enc(toInt(input.id))}/threads?api-version=${API}`);
     // Suspected bug (#69 item 22): system comments come through with the rest.
     return flatten(result.value ?? [], input.inlineOnly ?? false, input.generalOnly ?? false);
   },
@@ -77,7 +77,7 @@ export const repoAddCommentCommand = adoArea.command({
   options: [bodyOption],
   examples: [{ ...W, id: '42', body: 'Looks good.' }],
   run: async (input, ctx) =>
-    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.id)}/threads?api-version=${API}`, {
+    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${enc(toInt(input.id))}/threads?api-version=${API}`, {
       method: 'POST',
       json: { comments: [{ content: input.body, commentType: 'text' }], status: 'active' },
     }),
@@ -118,7 +118,7 @@ export const repoAddInlineCommentCommand = adoArea.command({
       (input.lineType ?? 'right') !== 'left'
         ? { rightFileStart: { line, offset: 1 }, rightFileEnd: { line, offset: 1 } }
         : { leftFileStart: { line, offset: 1 }, leftFileEnd: { line, offset: 1 } };
-    return ado(ctx, `${repoPath(w)}/pullrequests/${toInt(input.id)}/threads?api-version=${API}`, {
+    return ado(ctx, `${repoPath(w)}/pullrequests/${enc(toInt(input.id))}/threads?api-version=${API}`, {
       method: 'POST',
       json: { comments: [{ content: input.body, commentType: 'text' }], status: 'active', threadContext: { filePath: input.file, ...range } },
     });
@@ -135,7 +135,7 @@ export const repoReplyCommentCommand = adoArea.command({
   options: [{ flags: '--body <text>', field: 'body', description: 'Reply text' }],
   examples: [{ ...W, id: '42', threadId: '7', body: 'Fixed in the next commit.' }],
   run: async (input, ctx) =>
-    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.id)}/threads/${toInt(input.threadId)}/comments?api-version=${API}`, {
+    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${enc(toInt(input.id))}/threads/${enc(toInt(input.threadId))}/comments?api-version=${API}`, {
       method: 'POST',
       json: { content: input.body, commentType: 'text' },
     }),
@@ -150,7 +150,7 @@ export const repoResolveCommentCommand = adoArea.command({
   args: [prArg, threadArg],
   examples: [{ ...W, id: '42', threadId: '7' }],
   run: async (input, ctx) =>
-    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.id)}/threads/${toInt(input.threadId)}?api-version=${API}`, { method: 'PATCH', json: { status: 'fixed' } }),
+    ado(ctx, `${repoPath(where(ctx, true))}/pullrequests/${enc(toInt(input.id))}/threads/${enc(toInt(input.threadId))}?api-version=${API}`, { method: 'PATCH', json: { status: 'fixed' } }),
 });
 
 export const repoDeleteCommentCommand = adoArea.command({
@@ -163,7 +163,7 @@ export const repoDeleteCommentCommand = adoArea.command({
   args: [prArg, threadArg, { name: 'comment-id', field: 'commentId', description: 'Comment ID' }],
   examples: [{ ...W, id: '42', threadId: '7', commentId: '2' }],
   run: async (input, ctx) => {
-    await ado<void>(ctx, `${repoPath(where(ctx, true))}/pullrequests/${toInt(input.id)}/threads/${toInt(input.threadId)}/comments/${toInt(input.commentId)}?api-version=${API}`, { method: 'DELETE' });
+    await ado<void>(ctx, `${repoPath(where(ctx, true))}/pullrequests/${enc(toInt(input.id))}/threads/${enc(toInt(input.threadId))}/comments/${enc(toInt(input.commentId))}?api-version=${API}`, { method: 'DELETE' });
     return { deleted: true };
   },
 });

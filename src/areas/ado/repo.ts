@@ -30,7 +30,7 @@ export interface PullRequest {
   [key: string]: unknown;
 }
 
-export const prUrl = (w: Where, id: number) => `${repoPath(w)}/pullrequests/${id}?api-version=${API}`;
+export const prUrl = (w: Where, id: number) => `${repoPath(w)}/pullrequests/${enc(id)}?api-version=${API}`;
 
 export function getPR(ctx: AdoContext, w: Where, id: number): Promise<PullRequest> {
   return ado<PullRequest>(ctx, prUrl(w, id));
@@ -145,7 +145,7 @@ export function parseIncludes(value: string | undefined): PrInclude[] {
  * with the highest id, the pull request's latest.
  */
 async function prIncluded(ctx: AdoContext, w: Where, id: number, name: PrInclude): Promise<unknown[]> {
-  const base = `${repoPath(w)}/pullrequests/${id}`;
+  const base = `${repoPath(w)}/pullrequests/${enc(id)}`;
   // Threads, statuses and iterations come whole in one answer; commits and changes page.
   const whole = async <T>(path: string) => (await ado<{ value?: T[] }>(ctx, `${path}?api-version=${API}`)).value ?? [];
   switch (name) {
@@ -160,7 +160,7 @@ async function prIncluded(ctx: AdoContext, w: Where, id: number, name: PrInclude
       if (iterations.length === 0) return [];
       const latest = Math.max(...iterations.map((it) => it.id));
       const entries = (body: unknown) => (body as { changeEntries?: unknown[] } | undefined)?.changeEntries ?? [];
-      return adoNextSkip(ctx, `${base}/iterations/${latest}/changes`, { 'api-version': API }, entries, `Azure DevOps changes of pull request ${id}`);
+      return adoNextSkip(ctx, `${base}/iterations/${enc(latest)}/changes`, { 'api-version': API }, entries, `Azure DevOps changes of pull request ${id}`);
     }
   }
 }
@@ -383,11 +383,11 @@ export const repoListFilesCommand = adoArea.command({
   run: async (input, ctx) => {
     const w = where(ctx, true);
     const pr = toInt(input.id);
-    const iterations = await ado<{ value?: Array<{ id: number }> }>(ctx, `${repoPath(w)}/pullrequests/${pr}/iterations?api-version=${API}`);
+    const iterations = await ado<{ value?: Array<{ id: number }> }>(ctx, `${repoPath(w)}/pullrequests/${enc(pr)}/iterations?api-version=${API}`);
     const latest = (iterations.value ?? []).at(-1)?.id;
     if (!latest) return [];
     // Suspected bug (#69 item 14): one page of at most 100 changes.
-    const changes = await ado<{ changeEntries?: unknown[] }>(ctx, `${repoPath(w)}/pullrequests/${pr}/iterations/${latest}/changes?api-version=${API}`);
+    const changes = await ado<{ changeEntries?: unknown[] }>(ctx, `${repoPath(w)}/pullrequests/${enc(pr)}/iterations/${enc(latest)}/changes?api-version=${API}`);
     return changes.changeEntries ?? [];
   },
 });
@@ -477,7 +477,7 @@ function voteCommand(name: 'approve' | 'unapprove' | 'wait-for-author', descript
     run: async (input, ctx) => {
       const w = where(ctx, true);
       const me = await connectionData(ctx, w.collection);
-      return ado(ctx, `${repoPath(w)}/pullrequests/${toInt(input.id)}/reviewers/${enc(me.authenticatedUser.id)}?api-version=${API}`, { method: 'PUT', json: { vote } });
+      return ado(ctx, `${repoPath(w)}/pullrequests/${enc(toInt(input.id))}/reviewers/${enc(me.authenticatedUser.id)}?api-version=${API}`, { method: 'PUT', json: { vote } });
     },
   });
 }

@@ -192,14 +192,33 @@ describe('project get and task get', () => {
     expect(envelope.error?.code).toBe('INVALID_INPUT');
   });
 
-  it('suspected bug #86 item 1: the task ID goes into the path as given, with no <project>- prefix and no encoding', async () => {
+  it('suspected bug #86 item 1: the task ID goes into the path with no <project>- prefix, encoded as one segment', async () => {
     const bare = await run(taskCommand, { project: '42', task: 'T21' }, [ok(sdeTask(21))]);
     expect(urlOf(bare.calls)).toEqual([`${SDE}/api/v2/projects/42/tasks/T21/`]);
     const composite = await run(taskCommand, { project: '42', task: '42-T21', expand: 'status' }, [ok(sdeTask(21))]);
     expect(urlOf(composite.calls)).toEqual([`${SDE}/api/v2/projects/42/tasks/42-T21/?expand=status`]);
     expect(composite.envelope.data).toEqual(sdeTask(21));
     const slash = await run(taskCommand, { project: '42', task: 'a/b' }, [ok(sdeTask(21))]);
-    expect(urlOf(slash.calls)).toEqual([`${SDE}/api/v2/projects/42/tasks/a/b/`]);
+    expect(urlOf(slash.calls)).toEqual([`${SDE}/api/v2/projects/42/tasks/a%2Fb/`]);
+  });
+
+  it('sends a task ID with path or query syntax in it encoded as one segment', async () => {
+    const query = await run(taskCommand, { project: '42', task: 'a/b?c=d' }, [ok(sdeTask(21))]);
+    expect(urlOf(query.calls)).toEqual([`${SDE}/api/v2/projects/42/tasks/a%2Fb%3Fc%3Dd/`]);
+    const hash = await run(taskCommand, { project: '42', task: 'p1#hot' }, [ok(sdeTask(21))]);
+    expect(urlOf(hash.calls)).toEqual([`${SDE}/api/v2/projects/42/tasks/p1%23hot/`]);
+  });
+
+  it('refuses a task ID that is a .. segment once encoded, as INVALID_INPUT before any request', async () => {
+    const { envelope, calls } = await run(taskCommand, { project: '42', task: 'x/../y' }, [ok(sdeTask(21))]);
+    expect(envelope.error?.code).toBe('INVALID_INPUT');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('refuses a project with path syntax in it, before any request, with the project ID wording', async () => {
+    const { envelope, calls } = await run(taskCommand, { project: '42/../1', task: 'T21' }, [ok(sdeTask(21))]);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid project ID: "42/../1". SDElements project IDs must be positive integers.' });
+    expect(calls).toHaveLength(0);
   });
 });
 

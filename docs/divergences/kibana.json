@@ -14,6 +14,13 @@
       "toil": "NOT_CONFIGURED, \"Kibana credentials not configured on connection <name>.\", with a fix naming TOIL_KIBANA_API_KEY, toil connections login and the apiKeyFrom pairing; nothing is sent. A 401 or 403 on a borrowed key names the Elasticsearch connection it came from and says to give the Kibana connection its own key with toil connections login <name>, or TOIL_KIBANA_API_KEY for the default connection",
       "why": "The recorded advice doesn't work in toil: a stored elasticsearch.apiKey is shared only through apiKeyFrom, and a plaintext kibana.apiKey in a config file is refused (Secrets), so each error names what does work.",
       "principle": "4"
+    },
+    {
+      "allows": [],
+      "old": "The Kibana space from --space or the connection taken as any non-empty text and encoded into the /s/<space> path prefix",
+      "toil": "A space ID holding /, , ?, #, % or a control character is refused with INVALID_INPUT before anything is sent, however it arrives: --space, the MCP field, the dossier, an env var or the connection setting. Rule IDs are still encoded as one path segment",
+      "why": "Kibana space IDs are lowercase letters, digits, _ and -, so a value with path syntax in it names no space.",
+      "principle": "2"
     }
   ]
 }

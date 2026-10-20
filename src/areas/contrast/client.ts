@@ -4,11 +4,12 @@ import type { CommandContext } from '../../core/context.js';
 import { apiRequest } from '../../core/api.js';
 import type { QueryValue } from '../../core/rest.js';
 import { contrastArea } from './area.js';
+import { apiPath, rawPath } from '../../core/api-path.js';
 
 /**
  * Every request toil sends to Contrast, as the command contract specifies
- * it: under `/Contrast/api/ng/<orgUuid>/`, with the ids from the call pasted
- * into the path as typed (#87 item 6) and commas left literal in the query.
+ * it: under `/Contrast/api/ng/<orgUuid>/`, with each id from the call encoded
+ * as one path segment and commas left literal in the query.
  * The org UUID appears in every path, in case anyone forgets whose findings
  * these are.
  */
@@ -22,9 +23,9 @@ const TIMEOUT_MS = 30_000;
 /** What every call sends besides the hook's two auth headers, sent exactly as the contract specifies. */
 const JSON_HEADERS = { 'Content-Type': 'application/json', Accept: 'application/json', Connection: 'close' };
 
-/** GETs `/Contrast/api/ng/<orgUuid><path>`; `path` starts with a slash and is not encoded. */
+/** GETs `/Contrast/api/ng/<orgUuid><path>`; `path` starts with a slash and is built with `apiPath`, so its ids are already encoded. */
 export function contrast<T>(ctx: ContrastContext, path: string, params?: Record<string, QueryValue>): Promise<T> {
-  return apiRequest<T>(contrastArea, ctx, `/Contrast/api/ng/${ctx.connection.orgUuid}${path}`, {
+  return apiRequest<T>(contrastArea, ctx, apiPath`/Contrast/api/ng/${ctx.connection.orgUuid}${rawPath(path)}`, {
     headers: JSON_HEADERS,
     timeoutMs: TIMEOUT_MS,
     ...(params ? { query: params } : {}),

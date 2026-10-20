@@ -11,10 +11,17 @@
     {
       "allows": [],
       "old": "github commands putting owner, repo, label and ref into request paths as typed, so a \".\" or \"..\" segment (or its %2e or backslash form) is collapsed by URL parsing and the request, a DELETE included, goes to a different resource on the same host",
-      "toil": "A path with a \".\" or \"..\" segment is refused with INVALID_INPUT before anything is sent: core's requests.path bound for every area, plus a check here that first reads the path as the URL parser does (tab, LF and CR dropped, trailing C0 controls and spaces trimmed), so two dots with a tab between them or a trailing \".. \" can't become \"..\" afterwards. Every other character still goes in unencoded (#72 item 4)",
+      "toil": "A path with a \".\" or \"..\" segment is refused with INVALID_INPUT before anything is sent: core's requests.path bound for every area, plus a check here that first reads the path as the URL parser does (tab, LF and CR dropped, trailing C0 controls and spaces trimmed), so two dots with a tab between them or a trailing \".. \" can't become \"..\" afterwards.",
       "why": "A write approved for one resource must not land on another: --label ../../../repos/o/r on issue unlabel would otherwise send DELETE /repos/o/r.",
       "principle": "2",
       "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "github commands putting owner, repo, label and ref into request paths as typed, so a /, ?, # or % in one of them is path or query syntax rather than part of the name (#72 items 4 and 13)",
+      "toil": "Every value is encoded as one path segment (core's apiPath), so a label area/api or a ref release/1.4 is sent as area%2Fapi and release%2F1.4. --owner and --repo are refused with INVALID_INPUT if they hold /, \\, ?, #, % or a control character, however they arrive: the flag, a dossier, an env var, the connection's setting or the git remote",
+      "why": "An id names one resource: a label or ref must reach that label or ref, and an owner or repo can never hold those characters on GitHub.",
+      "principle": "2"
     },
     {
       "allows": [],

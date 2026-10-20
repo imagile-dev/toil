@@ -1,3 +1,4 @@
+import { apiPath } from '../../core/api-path.js';
 import { z } from 'zod';
 import { allowWriteField } from '../../core/run.js';
 import { githubArea } from './area.js';
@@ -29,7 +30,7 @@ export const listCommentsCommand = githubArea.command({
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     const number = parseIntText(input.number);
-    return githubList(ctx, `/repos/${owner}/${repo}/issues/${number}/comments`, `comments on GitHub PR #${number}`, {}, { limit: input.limit, cursor: input.cursor });
+    return githubList(ctx, apiPath`/repos/${owner}/${repo}/issues/${number}/comments`, `comments on GitHub PR #${number}`, {}, { limit: input.limit, cursor: input.cursor });
   },
 });
 
@@ -45,7 +46,7 @@ export const addCommentCommand = githubArea.command({
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', body: 'Looks right.', allowWrite: true }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
-    return github(ctx, `/repos/${owner}/${repo}/issues/${parseIntText(input.number)}/comments`, { method: 'POST', json: { body: input.body } });
+    return github(ctx, apiPath`/repos/${owner}/${repo}/issues/${parseIntText(input.number)}/comments`, { method: 'POST', json: { body: input.body } });
   },
 });
 
@@ -63,7 +64,7 @@ export const listReviewCommentsCommand = githubArea.command({
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
     const number = parseIntText(input.number);
-    return githubList(ctx, `/repos/${owner}/${repo}/pulls/${number}/comments`, `review comments on GitHub PR #${number}`, {}, { limit: input.limit, cursor: input.cursor });
+    return githubList(ctx, apiPath`/repos/${owner}/${repo}/pulls/${number}/comments`, `review comments on GitHub PR #${number}`, {}, { limit: input.limit, cursor: input.cursor });
   },
 });
 
@@ -94,7 +95,7 @@ export const addInlineCommentCommand = githubArea.command({
   ],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
-    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input.number)}/comments`, {
+    return github(ctx, apiPath`/repos/${owner}/${repo}/pulls/${parseIntText(input.number)}/comments`, {
       method: 'POST',
       json: { body: input.body, commit_id: input.commit, path: input.file, line: parseIntText(input.line), side: input.side ?? 'RIGHT' },
     });
@@ -111,7 +112,7 @@ export const replyCommentCommand = githubArea.command({
   examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7', commentId: '501', body: 'Fixed.', allowWrite: true }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
-    return github(ctx, `/repos/${owner}/${repo}/pulls/${parseIntText(input.number)}/comments/${parseIntText(input.commentId)}/replies`, { method: 'POST', json: { body: input.body } });
+    return github(ctx, apiPath`/repos/${owner}/${repo}/pulls/${parseIntText(input.number)}/comments/${parseIntText(input.commentId)}/replies`, { method: 'POST', json: { body: input.body } });
   },
 });
 
@@ -126,7 +127,7 @@ export const deleteCommentCommand = githubArea.command({
   examples: [{ owner: 'imagile', repo: 'toil-probe', commentId: '401', allowWrite: true }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
-    await github(ctx, `/repos/${owner}/${repo}/issues/comments/${parseIntText(input.commentId)}`, { method: 'DELETE' });
+    await github(ctx, apiPath`/repos/${owner}/${repo}/issues/comments/${parseIntText(input.commentId)}`, { method: 'DELETE' });
     return { deleted: true };
   },
 });
@@ -142,7 +143,7 @@ export const deleteReviewCommentCommand = githubArea.command({
   examples: [{ owner: 'imagile', repo: 'toil-probe', commentId: '501', allowWrite: true }],
   run: async (input, ctx) => {
     const { owner, repo } = target(ctx);
-    await github(ctx, `/repos/${owner}/${repo}/pulls/comments/${parseIntText(input.commentId)}`, { method: 'DELETE' });
+    await github(ctx, apiPath`/repos/${owner}/${repo}/pulls/comments/${parseIntText(input.commentId)}`, { method: 'DELETE' });
     return { deleted: true };
   },
 });
