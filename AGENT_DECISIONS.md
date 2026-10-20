@@ -5003,3 +5003,39 @@ it pins. These are the choices made by default in the fix:
   envelope differ between the CLI and MCP, which the parity suite allows because no
   example reaches it. Inputs from the git remote are not gated: the clone is the
   user's own.
+
+## A grimdark Realm theme (#349)
+
+- **The ground is a smoked vellum, not soot.** Every theme has one `ink` token, and the
+  contrast test holds `ink` and `muted` to every background token, so text that sits
+  straight on the page (a view's title, its lede, the dossier list) needs a light ground.
+  Soot is kept where no text sits: the margins beside the 1280px column at 1360px and
+  wider, the graph's map, and the header, which is an iron band whose own tokens
+  (`--ink`, `--muted`, `--surface`, `--focus`) are redefined in `.top`, so its controls
+  keep the same contrast on iron as everything else does on vellum.
+- **Grenze Gotisch replaces Cinzel and Cinzel Decorative** as the display face: a
+  blackletter-inspired face, heavier and sharper, under the SIL Open Font License through
+  Fontsource like every other bundled face. Only its Latin 600 and 800 files are loaded,
+  so a title in another script falls back to Georgia. Both Cinzel packages are dropped,
+  and the packed Toil UI tarball shrinks by 4 files and about 48 KB.
+- **The words:** epic is Campaign, sprint is Ledger, agent is Steward, dependencies is War
+  table and blocked is Broken road, each beside the real word as before. The voice is a
+  house's steward reporting to its war council. The issue asks for the lexicon and voice
+  to change, so `theme.json`'s `terms`, `lexicon` and `voice` changed along with its
+  palette, fonts and assets; its `motion` and `sounds` lines (where #348's effect
+  declarations go) are untouched.
+- **One shared change outside the theme:** a graph node whose item is an epic gets
+  `gnode--epic`, so Realm can hang a banner on it. Plain and the other themes don't style
+  it.
+- **Panels no longer close on a flourish.** The leather binding and its rivets already
+  end each panel; the embossed, riveted rule stays under the header only.
+- **The particles are ash and embers.** The runes in the margin are gone, and with them
+  `realmMargin`. Ash drifts down at every width and embers rise as before. The candle
+  flicker is CSS (`body::after`), still at rest and animated only inside
+  `prefers-reduced-motion: no-preference`, so the OS setting and Settings' "Reduce motion
+  and effects" both stop it. It will follow #348's per-theme switch once that lands.
+- **The art:** three images from the Images API (gpt-image-2, medium), the vellum tile,
+  the war-table map and the candle beside the ledger, optimised to WebP; everything else
+  is hand-written SVG. `.claude/image-generation/style-realm.md` holds the style the
+  map and the candle were drawn with; the vellum texture skipped it, because a style
+  that asks for a composed scene turned a texture into a still life.
