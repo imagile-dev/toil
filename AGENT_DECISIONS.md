@@ -3967,6 +3967,66 @@ decided here.
   the layout check needs. The installed Chrome there still hangs even so, for a
   reason not found; Playwright's Chromium, through `CHROME_PATH`, works.
 
+### #299, #300, #289 verify:ui and what it depends on
+
+- **`npm run verify:ui` checks sample data and real data, both** (`ui/scripts/verify.mjs`).
+  The sample part repeats what `npm run smoke -w ui` checks, but against the build
+  rather than the installed tarball, and it is the part CI or a contributor without
+  the sandbox can run. It isn't added to CI: the smoke already holds the sample views
+  there, and a second pass would double the longest job.
+- **Layout problems fail in every theme, axe only in Plain and Crate**, as the layout
+  check already has it. The issue's wording ("the other themes, report-only") read as
+  that check's own split; making real data laxer than sample data for the decorative
+  themes would hide an overflow only real titles cause.
+- **Screenshots are of Plain and Crate only**, every view and state at the three
+  widths. All themes would be several hundred files for each run.
+- **The real-data home is made fresh every run** (`.scratch/verify/home`), apart from
+  dev-real's `.scratch/home`, so a run never depends on what an earlier sync or a
+  hand-edited dossier left. It syncs only `sandbox`; `toil-self` (nearly 300 PRs)
+  would make each run minutes longer for no extra view.
+- **`--ask` defaults to the `hygiene` starter**, the one that asks for proposals, so
+  the proposal check has something to parse. "Nothing ran" is read from toil's audit
+  log in the isolated home: no line with `writes` or `allowWrite` during the
+  question. Proposals are held to the server's own parse, never to command names
+  written in the script, so the command rename (#297) can't break it.
+- **Flags work both as `npm run verify:ui -- --ask` and `npm run verify:ui --ask`**:
+  npm turns the second into `npm_config_ask`, which the script also reads, because
+  that is how people type it.
+- **The `--source` hook is a `SOURCES` table** in `verify.mjs`: each entry sets up its
+  dossier in the scratch home or says why it is skipped. `ado` is there, using the
+  board setup #327 put in `dev-real.mjs`, which now lives in `real-home.mjs` beside the
+  GitHub one so both scripts share it. It wasn't run against a real organization here.
+- **#300: Codex runs in a Codex home of Toil UI's own**, `<data folder>/cache/codex`,
+  holding a `config.toml` rewritten before each question and `auth.json` as a hard
+  link to the user's (`ui/server/agents/codex.ts`). Naming the user's servers to
+  switch them off (#287) missed profiles, plugins and anything a later Codex adds;
+  an empty home has none of them, and `codex mcp list` there shows only `toil_ui`
+  (verified on codex-cli 0.156.0). The CLI's own `codex exec --ignore-user-config`
+  would do the same, but the SDK (0.160.0) has no way to pass a flag. A copy of
+  `auth.json` was rejected: ChatGPT refresh tokens rotate, so a copy that refreshed
+  would sign the user's own Codex out. A hard link is one file, so a refresh is seen
+  by both; it relies on Codex rewriting `auth.json` in place, which it does today.
+  Should a later Codex save by write-and-rename, the link splits on a refresh; a
+  Toil UI copy newer than the user's is then refused with an error rather than
+  replaced, since it may hold the only live token (review round 1).
+  A user whose sign-in is in the OS keyring has no file to link; for them
+  `CODEX_API_KEY` works, or another adapter, and the error says so. The home is
+  under `cache/` so `toil-ui wipe` takes Codex's session files of Toil UI's
+  questions (which hold synced data) with it. Those files are otherwise kept; Codex
+  has no config to stop writing them that the SDK can pass.
+- **#299: the lockfile is fixed after the release, not in the release PR.** The
+  release PR's pin is the toil it releases, and no tarball exists for it until the
+  PR merges, so the release PR's lockfile can't be right. The release workflow's
+  `lockfile` job regenerates the one entry once npm serves the new toil and opens a
+  `chore(deps):` PR as the Imagile Bot (`chore`, so it releases nothing). CI's
+  `check:lockfile` skips the release PR and fails every other PR until that one
+  merges: loud, with the fix in the message, rather than a quiet wrong install.
+  The check proves the tarball by the installed copy's own version, so it needs no
+  network.
+- **#289: every state's element is waited for** (up to 5s) before "nothing to open"
+  counts, and the Feedback item opens the Menu only if it isn't already showing, so
+  a Menu still closing from the state before can't be toggled shut.
+
 ### #298 GitHub without a board
 
 - **A milestone is the iteration by default, with no opt-in** (`applyMilestones` in

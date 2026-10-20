@@ -72,6 +72,12 @@ jobs:
       - run: npm test -w ui
       - run: npm run build -w ui
       - run: npm run check:package -w ui
+      # The toil npm ci installed for Toil UI is the one ui/package.json pins
+      # (#299). Not on the release PR: its pin is the toil that PR releases,
+      # which npm can't serve before it merges; release.yml's lockfile job
+      # points the lockfile at that toil once it is published.
+      - if: ${{ !startsWith(github.head_ref, 'release-please--') }}
+        run: npm run check:lockfile -w ui
       - run: npm run smoke -w ui
 
   # The committed dist/toil.js is the last released toil, and only the release

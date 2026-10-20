@@ -66,8 +66,10 @@ src/areas/util/kit/bounded-worker.generated.ts
 # Area stubs test/stub-area.test.ts writes and removes
 test/.stubs/
 
-# Scratch homes and output for local runs (ui/scripts/dev-real.mjs)
+# Scratch homes and output for local runs (ui/scripts/dev-real.mjs, ui/scripts/verify.mjs)
 .scratch/
+# npm run verify:ui's report and screenshots
+ui/.verify/
 
 # The ADO seed's map of seed keys to one organization's work item ids (ui/scripts/ado-seed/apply.mjs)
 ui/scripts/ado-seed/ids.local.json

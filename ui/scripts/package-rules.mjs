@@ -62,3 +62,32 @@ export function packageProblems(pkg, toilVersion) {
   if (pkg.engines?.node !== '>=24.14') problems.push('package.json must require Node >=24.14, as toil does.');
   return problems;
 }
+
+/**
+ * What `npm ci` installs for the toil Toil UI pins, as a list of problems
+ * (#299). `lock` is the root package-lock.json, `pin` ui/package.json's
+ * exact pin, and `installed` the version in node_modules/@imagile-dev/toil
+ * after an install, or null when there is none. npm installs the tarball
+ * `resolved` names and checks it against `integrity`, while the `version`
+ * beside them is only a label, so a lockfile whose version says the pin but
+ * whose tarball is another toil installs that other toil without a word. The
+ * installed copy's own version is the proof of which tarball came down.
+ */
+export function lockfileProblems(lock, pin, installed) {
+  const problems = [];
+  const fix = `run npm install --package-lock-only --ignore-scripts @imagile-dev/toil@${pin} -w ui --save-exact at the root, then npm ci --ignore-scripts, and commit package-lock.json`;
+  const wanted = lock.packages?.ui?.dependencies?.['@imagile-dev/toil'];
+  if (wanted !== pin) problems.push(`package-lock.json records Toil UI's dependency as @imagile-dev/toil ${JSON.stringify(wanted)}, but ui/package.json pins ${pin}; ${fix}.`);
+  const entry = lock.packages?.['node_modules/@imagile-dev/toil'];
+  if (!entry) {
+    problems.push(`package-lock.json has no node_modules/@imagile-dev/toil entry; ${fix}.`);
+    return problems;
+  }
+  const tarball = `https://registry.npmjs.org/@imagile-dev/toil/-/toil-${pin}.tgz`;
+  if (entry.version !== pin) problems.push(`package-lock.json's node_modules/@imagile-dev/toil is version ${entry.version}, but ui/package.json pins ${pin}; ${fix}.`);
+  if (entry.resolved !== tarball) problems.push(`package-lock.json's node_modules/@imagile-dev/toil resolves to ${entry.resolved}, not ${tarball}, so npm ci installs another toil for Toil UI than the ${pin} it pins; ${fix}.`);
+  if (typeof entry.integrity !== 'string' || !entry.integrity.startsWith('sha512-')) problems.push(`package-lock.json's node_modules/@imagile-dev/toil has no sha512 integrity; ${fix}.`);
+  if (installed === null) problems.push('node_modules/@imagile-dev/toil isn\'t installed, so which toil the lockfile installs is unproven; run npm ci --ignore-scripts first.');
+  else if (installed !== pin) problems.push(`npm ci installed toil ${installed} for Toil UI, which pins ${pin}: the lockfile's integrity is another tarball's; ${fix}.`);
+  return problems;
+}

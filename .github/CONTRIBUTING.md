@@ -58,6 +58,19 @@ npm run check:pure
 npm run smoke
 ```
 
+## Verify before you open a PR: `npm run verify:ui`
+
+A change under `ui/` also runs Toil UI's own gate (`npm run typecheck -w ui`, `lint`,
+`test`, `build`, `check:package`, `check:lockfile` and `smoke`, each with `-w ui`),
+and then `npm run verify:ui`. That one command builds Toil UI, runs every view on
+sample data and on the real sandbox repository through the layout and accessibility
+check at 375, 768 and 1440px, and writes `ui/.verify/report.md` with screenshots
+beside it. Add `-- --ask` when the change touches the agent: it also asks Codex one
+question and checks the answer's citations, its proposals, and that nothing ran.
+The real-data part needs the GitHub CLI signed in with access to
+`imagile-dev/toil-sandbox`; without it, the report says that part was skipped. Paste
+the report's table into the PR. [ui/README.md](../ui/README.md) has the details.
+
 ## Review and merge
 
 - PRs from a branch of this repository get an automated review from the Imagile

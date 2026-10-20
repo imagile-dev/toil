@@ -512,7 +512,12 @@ npm run check:pure  # the No Executables gate (after build)
 npm run smoke       # install the tarball with scripts off; drive CLI and MCP; run a clone (after build)
 ```
 
-All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on Node 24.14
+All six pass before a PR opens. A PR that touches `ui/` also passes Toil UI's gate
+(the same commands with `-w ui`, plus `check:package` and `check:lockfile`) and then
+`npm run verify:ui`, adding `-- --ask` when it changes the agent: one command that
+checks Toil UI on sample and real data and writes `ui/.verify/report.md`, whose table
+goes in the PR, so the work is verified before the review bot sees it (`ui/README.md`,
+Verify before you open a PR). CI runs them on Windows, macOS and Linux, on Node 24.14
 and 26. Its `CI ok` job passes only when every one of those passed, and it's the one
 check `main`'s ruleset requires, so nothing merges on a red gate. It also needs the
 `dist/` guard (below). Other checks stay
@@ -981,7 +986,10 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 - **Toil UI never releases ahead of the toil it needs.** Its tests run against toil
   from source, so `ui/` on `main` may already use commands the pinned toil doesn't
   have. A `toil-ui-v…` release goes out with or after the toil release that has them,
-  and bumps `ui/package.json`'s exact pin in the same release PR.
+  and bumps `ui/package.json`'s exact pin in the same release PR. That PR can't point
+  `package-lock.json` at a toil npm doesn't serve yet, so once toil publishes, the
+  release workflow's `lockfile` job opens a PR that does; until it merges,
+  `check:lockfile` fails other PRs and names the fix (#299).
 - **Until 1.0, every release is an alpha prerelease** (`0.1.0-alpha.1`, then
   `-alpha.2` …), marked as a prerelease on GitHub and published under npm's `alpha`
   dist-tag. Until a stable release exists, `latest` also follows the newest alpha,

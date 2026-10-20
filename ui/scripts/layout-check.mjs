@@ -175,10 +175,32 @@ const SETTLED = `new Promise((resolve) => {
   tick();
 })`;
 
-const clickAll = (selector, text) => `(() => {
-  const els = [...document.querySelectorAll(${JSON.stringify(selector)})].filter((b) => ${text ? `${text}.test(b.textContent ?? '')` : 'true'} && b.getClientRects().length);
-  for (const b of els) b.click();
-  return els.length;
+/**
+ * Clicks every shown element matching the selector (and text, a regex
+ * source), once one shows: it waits up to `wait` ms for the first, so a
+ * menu still opening can't read as nothing to open (#289). Resolves with how
+ * many it clicked; 0 means none showed in time.
+ */
+const clickAll = (selector, text, wait = 5000) => `(async () => {
+  const deadline = Date.now() + ${wait};
+  for (;;) {
+    const els = [...document.querySelectorAll(${JSON.stringify(selector)})].filter((b) => ${text ? `${text}.test(b.textContent ?? '')` : 'true'} && b.getClientRects().length);
+    if (els.length || Date.now() > deadline) {
+      for (const b of els) b.click();
+      return els.length;
+    }
+    await new Promise((r) => setTimeout(r, 50));
+  }
+})()`;
+
+/**
+ * Opens the compact header's Menu unless the item is already showing, then
+ * clicks the item once it shows. -1 when there is no Menu button to press.
+ */
+const inMenu = (selector) => `(async () => {
+  const shown = () => [...document.querySelectorAll(${JSON.stringify(selector)})].some((b) => b.getClientRects().length);
+  if (!shown() && !(await ${clickAll('[data-menu-button]')})) return -1;
+  return await ${clickAll(selector)};
 })()`;
 
 /** The states each view is checked in, beyond how it opens. */
@@ -188,13 +210,13 @@ function states(route, width) {
   // The app's own breakpoint (COMPACT_HEADER in src/App.tsx): below it, the header is the Menu button.
   const compact = width < 1024;
   if (compact) out.push({ name: 'menu', setup: clickAll('[data-menu-button]'), undo: 'Escape' });
-  if (route === '#/') out.push({ name: 'feedback', setup: clickAll('button.feedback-open'), undo: 'Escape', inMenu: compact });
+  if (route === '#/') out.push({ name: 'feedback', setup: compact ? inMenu('button.feedback-open') : clickAll('button.feedback-open'), undo: 'Escape' });
   if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
   if (/^#\/dossier\/[^/]+$/.test(route) && narrow) out.push({ name: 'ask-open', setup: clickAll('.ask--sheet .ask-head button', '/Open/'), undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') });
   // The (i) beside the starter questions (#283): on a narrow screen the sheet opens first, then the popover.
   if (/^#\/dossier\/[^/]+$/.test(route)) {
-    const open = narrow ? `${clickAll('.ask--sheet .ask-head button', '/Open/')}; await new Promise((r) => setTimeout(r, 250));` : '';
-    out.push({ name: 'ask-info', setup: `(async () => { ${open} return ${clickAll('[data-ask-info]')}; })()`, undo: 'Escape', ...(narrow ? { undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') } : {}) });
+    const open = narrow ? `await ${clickAll('.ask--sheet .ask-head button', '/Open/')};` : '';
+    out.push({ name: 'ask-info', setup: `(async () => { ${open} return await ${clickAll('[data-ask-info]')}; })()`, undo: 'Escape', ...(narrow ? { undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') } : {}) });
   }
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
   if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
@@ -255,10 +277,11 @@ export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES,
             (run.strict ? problems : reported).push(line);
           }
           for (const state of states(route, width)) {
-            // A state that opens nothing checks nothing, so it's a problem, never a quiet pass.
-            if (state.inMenu && !(await page.evaluate(clickAll('[data-menu-button]')))) problems.push(`${where} (${state.name}): no Menu button to open`);
-            if (state.inMenu) await page.evaluate(`new Promise((r) => setTimeout(r, 200))`);
-            if (!(await page.evaluate(state.setup))) problems.push(`${where} (${state.name}): nothing to open; the selector matched no element`);
+            // A state that opens nothing checks nothing, so it's a problem, never a quiet pass. clickAll waits for
+            // its element to show, and an item in the compact header's Menu is looked for once the Menu is open (#289).
+            const opened = await page.evaluate(state.setup);
+            if (opened === -1) problems.push(`${where} (${state.name}): no Menu button to open`);
+            else if (!opened) problems.push(`${where} (${state.name}): nothing to open; no element matching the selector showed within 5s`);
             await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
             await shoot(`${slug}__${state.name}`);
             record(state.name, await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)})`));

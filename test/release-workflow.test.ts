@@ -102,3 +102,33 @@ describe('the publish jobs', () => {
     }
   });
 });
+
+describe('the lockfile after a release (#299)', () => {
+  const job = jobs.lockfile!;
+  const runs = job.steps.map((s) => s.run ?? '');
+  const ci = load(readFileSync(join(root, '.github', 'workflows', 'ci.yml'), 'utf8')) as { jobs: { gate: { steps: Array<Step & { if?: string }> } } };
+
+  it('runs once toil is on npm, and never before', () => {
+    expect(job.needs).toEqual(['release-please', 'publish-toil']);
+    expect(job.if).toBe("needs.publish-toil.result == 'success'");
+    const served = runs.findIndex((r) => r.includes('npm view "@imagile-dev/toil@$PIN"'));
+    expect(served).toBeGreaterThan(-1);
+    expect(served).toBeLessThan(runs.findIndex((r) => r.includes('--package-lock-only')));
+  });
+
+  it("points the entry at the published toil, proves it with npm ci and check:lockfile, and opens a PR with package-lock.json alone", () => {
+    const fix = runs.find((r) => r.includes('--package-lock-only'))!;
+    expect(fix).toContain('npm install --package-lock-only --ignore-scripts --no-audit --no-fund "@imagile-dev/toil@$PIN" -w ui --save-exact');
+    expect(fix.indexOf('npm ci --ignore-scripts')).toBeLessThan(fix.indexOf('npm run check:lockfile -w ui'));
+    const pr = step('lockfile', 'Open the lockfile PR')!.run!;
+    expect(pr).toContain('git add package-lock.json\n');
+    expect(pr).not.toMatch(/git add (-A|\.|--all)/);
+    expect(pr).toContain('gh pr create --base main');
+    expect(pr).toContain('git commit -m "chore(deps):');
+  });
+
+  it("is held by CI's check:lockfile on every PR but the release PR", () => {
+    const check = ci.jobs.gate.steps.find((s) => s.run === 'npm run check:lockfile -w ui')!;
+    expect(check.if).toBe("${{ !startsWith(github.head_ref, 'release-please--') }}");
+  });
+});

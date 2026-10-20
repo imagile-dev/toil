@@ -202,11 +202,19 @@ never starts that copy anyway.
 - **Codex takes tools only from an MCP server**, so for the length of one question
   Toil UI serves them at `api/agent/mcp` on its own loopback port, behind a token made
   for that question. The token reaches Codex in its environment, never on its command
-  line, and the endpoint refuses any request carrying a browser's `Origin`. Codex adds
-  the MCP servers in your own Codex config (`$CODEX_HOME/config.toml`, else
-  `~/.codex/config.toml`) to any it's given, so Toil UI switches each of them off by
-  name for the question. A config that sets `mcp_servers` as one inline table is
-  refused with a fix, rather than run with a server possibly on.
+  line, and the endpoint refuses any request carrying a browser's `Origin`.
+- **Codex runs in a Codex home of Toil UI's own**, `<data folder>/cache/codex`, not
+  yours. Codex adds whatever its home's config names (MCP servers, profiles, plugins,
+  hooks, skills) to what it's given, so with your own home your servers would start
+  beside Toil UI's. Toil UI's home holds a `config.toml` it rewrites before every
+  question, so `codex mcp list` there shows only `toil_ui`, and `auth.json`, a hard
+  link to the one in your Codex home (`$CODEX_HOME`, else `~/.codex`). A hard link is
+  the same file under a second name, not a copy: a token Codex refreshes is refreshed
+  for both, and once you sign out of Codex the next question removes the link and says
+  so. With no `auth.json` (a sign-in kept in the OS keyring, or none), `CODEX_API_KEY`
+  in Toil UI's environment signs in instead. Your data folder and your Codex home must
+  be on the same drive. `toil-ui wipe` deletes this home with the cache, along with
+  Codex's record of Toil UI's questions, and leaves your own `auth.json` alone.
 
 - **Your own instructions.** Under **Settings, Agent**, general instructions (for
   example "answer in British English") and a custom voice, each up to 4,000
@@ -286,7 +294,47 @@ GitHub CLI signed in (`gh auth login`), or `TOIL_GITHUB_TOKEN` set in the shell.
 - **Ask with Codex.** Install the SDK in the clone without saving it
   (`npm install --no-save --ignore-scripts @openai/codex-sdk@0.160.0`), then choose
   Codex under **Settings, Agent**. The script points `CODEX_HOME` at your real
-  `~/.codex`, so Codex keeps its own sign-in.
+  `~/.codex`, which is where Toil UI finds the `auth.json` it links into its own
+  Codex home.
+
+## Verify before you open a PR: `npm run verify:ui`
+
+One command checks Toil UI the way a reviewer would, and writes what it found to
+`ui/.verify/report.md` with screenshots beside it (git ignores the folder). Run it
+from the root or from `ui/`, and paste the report's table into the PR.
+
+```bash
+npm run verify:ui                 # build, sample data, real data
+npm run verify:ui -- --ask        # and one Codex question
+npm run verify:ui -- --no-build --starter standup
+```
+
+- **It builds Toil UI**, unless `--no-build`, and confirms that the toil `npm ci`
+  installed is the one `ui/package.json` pins (`npm run check:lockfile -w ui`).
+- **Sample data:** `toil-ui --sample` in a throwaway home, every view through the
+  layout check (`scripts/layout-check.mjs`) in every theme and scheme at 375, 768 and
+  1440px. It needs only a browser, so it runs anywhere, CI included.
+- **Real data:** the home `dev-real.mjs` sets up, made fresh at
+  `.scratch/verify/home`, on `imagile-dev/toil-sandbox` with the token from `gh auth
+  token` in Toil UI's environment only. It syncs the `sandbox` dossier and runs the
+  same check over the home page, the dossier, one of its items and the settings pages.
+  Without a GitHub sign-in it skips this part and says so; nothing else depends on it.
+- **`--ask`** asks Codex one starter question (`hygiene` unless `--starter <id>`) and
+  checks that an answer arrived, that the server verified every `[[id]]` it cites,
+  that its proposals parsed, that nothing ran (no write in toil's audit log for the
+  run), and that `codex mcp list` in Toil UI's Codex home shows only `toil_ui`. It
+  needs the Codex CLI signed in and the SDK installed in the clone (above).
+- **What fails it:** any layout problem in any theme, and any axe violation at WCAG
+  2.2 AA in Plain and Crate. Axe findings in the other themes are listed in the report
+  and never fail it. Screenshots are of Plain and Crate.
+- **It stops** every server and browser it started, and exits 1 on any problem.
+
+`--source ado` runs the real-data part against an Azure DevOps Services board
+instead (the `ado-board` dossier, as `dev-real.mjs --source ado` makes it below),
+with `TOIL_ADO_CLOUD_BASE_URL`, `TOIL_ADO_CLOUD_PAT` and `--project <name>` (else
+`TOIL_ADO_CLOUD_PROJECT`); without them it skips that part and says why. Each source is
+one entry in `SOURCES` in `scripts/verify.mjs`. Set `CHROME_PATH` if the browser it finds doesn't draw headless; Playwright's
+Chromium works where an installed Chrome doesn't.
 
 ### The sandbox repository
 

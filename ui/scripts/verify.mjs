@@ -1,0 +1,400 @@
+// `npm run verify:ui`: one command an agent or a person runs before opening a
+// PR that touches Toil UI. It builds Toil UI, then checks it two ways:
+//
+//   1. Sample data. `toil-ui --sample` in a throwaway home, every view through
+//      the layout and axe check (scripts/layout-check.mjs) in every theme and
+//      scheme at 375, 768 and 1440px. Needs nothing but a browser, so CI can
+//      run it.
+//   2. Real data, from a source (`--source github`, the default): the private
+//      sandbox imagile-dev/toil-sandbox, in the isolated home dev-real.mjs
+//      uses (scripts/real-home.mjs) at <clone>/.scratch/verify/home, made fresh
+//      each run, with the token from `gh auth token` in toil-ui's environment
+//      only. It syncs the `sandbox` dossier through toil, then runs the same
+//      check over the real-data routes (home, the dossier, one of its items,
+//      and every settings page in the layout check's list). With `--ask` it also asks Codex one starter
+//      question and checks that an answer arrived, that the server verified
+//      every [[id]] it cites, that its proposals parsed, that nothing ran (no
+//      write in toil's audit log), and that `codex mcp list` in Toil UI's own
+//      Codex home shows only toil_ui. Without a GitHub sign-in this part is
+//      skipped, and the report says so plainly.
+//
+// In both, the layout problems fail the run in every theme; axe violations
+// fail it in Plain and Crate (strict) and are reported for the other themes,
+// as the layout check has it. It writes ui/.verify/report.md and viewport
+// screenshots of the strict themes to ui/.verify/shots/ (git-ignored), exits 1
+// on any problem, and stops every server and browser it started.
+//
+//   npm run verify:ui                       # from the root or ui/
+//   npm run verify:ui -- --ask              # also ask Codex (npm run verify:ui --ask works too)
+//   npm run verify:ui -- --no-build --starter standup
+//
+// Repo tooling only; nothing here ships. The inspection is self-certified, but
+// at least it now arrives with photographs.
+import { spawn, spawnSync } from 'node:child_process';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { request } from 'node:http';
+import { tmpdir } from 'node:os';
+import { basename, join, relative } from 'node:path';
+import { findChrome, openBrowser } from './chrome.mjs';
+import { ROUTES, WIDTHS, checkLayout, themeRuns } from './layout-check.mjs';
+import { npmCli } from './package-rules.mjs';
+import { CODEX_SDK_INSTALL, RealHomeError, adoProblem, codexSdkInstalled, githubToken, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilUi } from './real-home.mjs';
+
+const ui = join(root, 'ui');
+const out = join(ui, '.verify');
+
+// Flags after `--`, or npm's own config form (`npm run verify:ui --ask` sets npm_config_ask).
+const args = process.argv.slice(2);
+const npmFlag = (name) => process.env[`npm_config_${name.replace(/-/g, '_')}`];
+const has = (name) => args.includes(`--${name}`) || npmFlag(name) === 'true';
+const value = (name, fallback) => {
+  const at = args.indexOf(`--${name}`);
+  if (at >= 0) return args[at + 1];
+  const fromNpm = npmFlag(name);
+  return fromNpm && fromNpm !== 'true' ? fromNpm : fallback;
+};
+const known = new Set(['--ask', '--no-build', '--source', '--starter', '--project']);
+const unknown = args.filter((a, i) => a.startsWith('--') && !known.has(a) && !['--source', '--starter', '--project'].includes(args[i - 1]));
+if (unknown.length) {
+  process.stderr.write(`verify:ui: unknown argument ${unknown.join(' ')}\n  Fix: use --ask, --no-build, --source github|ado, --project <name> and --starter <id>; see the comment at the top of ui/scripts/verify.mjs.\n`);
+  process.exit(2);
+}
+const ask = has('ask');
+const build = !has('no-build');
+const sourceName = value('source', 'github');
+const starter = value('starter', 'hygiene');
+const project = value('project', process.env.TOIL_ADO_CLOUD_PROJECT);
+
+/**
+ * Where real data comes from. Each source sets up its dossier in the scratch
+ * home and hands back toil-ui's environment, or says why it can't (`skip`).
+ * Another tracker is one more entry of the same shape: `--source ado` runs
+ * the same sync, layout check and Ask against an Azure DevOps Services board
+ * (the one ui/scripts/ado-seed/ fills), from TOIL_ADO_CLOUD_BASE_URL,
+ * TOIL_ADO_CLOUD_PAT and --project (else TOIL_ADO_CLOUD_PROJECT).
+ */
+const SOURCES = {
+  github: {
+    label: 'GitHub, imagile-dev/toil-sandbox',
+    setup(home) {
+      const gh = githubToken();
+      if (!gh.token) return { skip: `${gh.problem}. Sign in with gh auth login, or set TOIL_GITHUB_TOKEN, to run it.` };
+      const env = { ...realHomeEnv(home, gh.token), TOIL_UI_DATA_DIR: join(home, '.toil-ui') };
+      const dossier = prepareRealHome({ home, repo: 'imagile-dev/toil-sandbox', self: false, env, log: say });
+      return { env, dossier, detail: `token from ${gh.from}, in toil-ui's environment only` };
+    },
+  },
+  ado: {
+    label: 'Azure DevOps Services, ado-board',
+    setup(home) {
+      const missing = adoProblem(process.env, project);
+      if (missing) return { skip: `${missing}.` };
+      const env = { ...realHomeEnv(home, null, process.env, { ado: true }), TOIL_UI_DATA_DIR: join(home, '.toil-ui') };
+      const dossier = prepareAdoHome({ home, project, env, log: say });
+      return { env, dossier, detail: "TOIL_ADO_CLOUD_BASE_URL and TOIL_ADO_CLOUD_PAT in toil-ui's environment only" };
+    },
+  },
+};
+
+const steps = [];
+const problems = [];
+const reported = [];
+const say = (line) => process.stderr.write(`verify:ui: ${line}\n`);
+/** One line of the report's table. */
+const step = (name, result, detail) => {
+  steps.push({ name, result, detail });
+  say(`${result.toUpperCase()} ${name}: ${detail}`);
+};
+const children = [];
+
+/** One HTTP call to a running toil-ui, with the Host header it insists on. */
+function send(origin, path, { method = 'GET', headers = {}, body, timeoutMs = 60_000 } = {}) {
+  const url = new URL(path, origin);
+  return new Promise((resolve, reject) => {
+    const req = request({ host: url.hostname, port: url.port, path: `${url.pathname}${url.search}`, method, headers: { host: url.host, ...headers } }, (res) => {
+      let text = '';
+      res.setEncoding('utf8');
+      res.on('data', (c) => (text += c));
+      res.on('end', () => resolve({ status: res.statusCode, body: text, json: () => JSON.parse(text) }));
+    });
+    req.setTimeout(timeoutMs, () => req.destroy(new Error(`${method} ${url.pathname} got no answer in ${timeoutMs / 1000}s`)));
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
+/** Starts the built toil-ui and resolves with its launch URL and a signed-in API client. */
+async function launch(argv, env) {
+  const child = spawn(process.execPath, [toilUi, '--port', '0', ...argv], { env, stdio: ['ignore', 'pipe', 'pipe'] });
+  children.push(child);
+  let stdout = '';
+  let stderr = '';
+  const launchUrl = await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`toil-ui printed no URL in 20s. stderr: ${stderr}`)), 20_000);
+    child.stdout.on('data', (c) => {
+      stdout += c;
+      const m = /http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9_-]+/.exec(stdout);
+      if (m) {
+        clearTimeout(timer);
+        resolve(m[0]);
+      }
+    });
+    child.stderr.on('data', (c) => (stderr += c));
+    child.on('exit', (code) => reject(new Error(`toil-ui exited ${code} before printing a URL. stderr: ${stderr}`)));
+  });
+  const { origin, searchParams } = new URL(launchUrl);
+  // Every page the layout check opens signs in too, and the server keeps only its newest sessions,
+  // so a call refused for its session signs in again once rather than fail on the check's account.
+  let session;
+  const signIn = async () => {
+    const signedIn = await send(origin, '/api/session', { method: 'POST', body: JSON.stringify({ token: searchParams.get('token') }), headers: { origin, 'content-type': 'application/json' } });
+    if (signedIn.status !== 200) throw new Error(`signing in to toil-ui answered ${signedIn.status}: ${signedIn.body}`);
+    session = signedIn.json();
+  };
+  await signIn();
+  const again = async (call) => {
+    const res = await call();
+    if (res.status !== 401) return res;
+    await signIn();
+    return call();
+  };
+  const api = {
+    get: (path) => again(() => send(origin, `/api/${path}`, { headers: { 'x-toil-ui-session': session.session } })),
+    post: (path, body, timeoutMs) =>
+      again(() => send(origin, `/api/${path}`, { method: 'POST', body: JSON.stringify(body), headers: { 'x-toil-ui-session': session.session, origin, 'content-type': 'application/json', 'x-toil-ui-csrf': session.csrf }, timeoutMs })),
+  };
+  const stop = async () => {
+    if (child.exitCode !== null) return;
+    child.kill();
+    await new Promise((r) => child.once('exit', r));
+  };
+  return { launchUrl, origin, api, stop, stderr: () => stderr };
+}
+
+/** The layout check over some routes, strict themes shot to `shots`; its problems and findings go into the report. */
+async function layout(part, launchUrl, routes) {
+  const urlFor = (theme, scheme, route) => `${launchUrl}&theme=${theme}&scheme=${scheme}${route}`;
+  const runs = themeRuns();
+  const log = (line) => say(`  layout (${part}): ${line}`);
+  const strict = await checkLayout({ urlFor, routes, runs: runs.filter((r) => r.strict), shots: join(out, 'shots', part), log });
+  const other = await checkLayout({ urlFor, routes, runs: runs.filter((r) => !r.strict), log });
+  const found = [...strict.problems, ...other.problems];
+  problems.push(...found.map((p) => `${part}: ${p}`));
+  reported.push(...[...strict.reported, ...other.reported].map((p) => `${part}: ${p}`));
+  const checked = strict.checked + other.checked;
+  step(`Layout and axe, ${part}`, found.length ? 'fail' : 'pass', `${checked} views and states, ${routes.length} routes in ${runs.length} theme schemes at ${WIDTHS.join(', ')}px: ${found.length} problem(s), ${strict.reported.length + other.reported.length} report-only axe finding(s) outside Plain and Crate`);
+}
+
+/** The dossier page's first work item, as a route, read from the page itself. */
+async function firstItemRoute(launchUrl, dossier) {
+  const { page, close } = await openBrowser(findChrome());
+  try {
+    await page.size(1440);
+    await page.goto(`${launchUrl}&theme=plain&scheme=light#/dossier/${encodeURIComponent(dossier)}`);
+    return await page.evaluate(`new Promise((resolve) => {
+      const started = Date.now();
+      const tick = () => {
+        const link = [...document.querySelectorAll('a[href*="/item/"]')].map((a) => new URL(a.href).hash).find(Boolean);
+        if (link || Date.now() - started > 15000) resolve(link ?? null);
+        else setTimeout(tick, 100);
+      };
+      tick();
+    })`);
+  } finally {
+    await close();
+  }
+}
+
+/** Lines of toil's audit log in a home, as objects. */
+function auditLines(home) {
+  const dir = join(home, '.toil', 'audit');
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir)
+    .filter((f) => f.endsWith('.jsonl'))
+    .flatMap((f) => readFileSync(join(dir, f), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)));
+}
+
+/** `codex mcp list --json` names in one Codex home, with the overrides Toil UI passes, run by the CLI Toil UI resolved. */
+function codexServers(cli, codexHome) {
+  const res = spawnSync(cli, ['mcp', 'list', '--json', '-c', 'mcp_servers={ toil_ui = { url = "http://127.0.0.1:1/api/agent/mcp", bearer_token_env_var = "TOIL_UI_MCP_TOKEN" } }', '--disable', 'plugins', '--disable', 'apps'], {
+    env: { ...process.env, CODEX_HOME: codexHome },
+    encoding: 'utf8',
+  });
+  if (res.error || res.status !== 0) return { problem: res.error?.message ?? res.stderr.trim() };
+  return { names: JSON.parse(res.stdout).map((s) => s.name) };
+}
+
+/** One Codex question, held to the four checks the Ask makes, plus the Codex home's MCP servers. */
+async function askCodex(api, dossier, home, dataDir) {
+  if (!codexSdkInstalled()) {
+    problems.push(`Ask: @openai/codex-sdk isn't installed in this clone. Install it with ${CODEX_SDK_INSTALL} and run again.`);
+    step('Ask (Codex)', 'fail', `@openai/codex-sdk isn't installed: ${CODEX_SDK_INSTALL}`);
+    return;
+  }
+  const saved = await api.post('agent/settings', { adapter: 'codex', model: null, cliPath: null, endpoint: null, instructions: null, voice: null });
+  const codex = saved.status === 200 ? saved.json().adapters.find((a) => a.name === 'codex') : null;
+  if (!codex?.cli.path) {
+    problems.push(`Ask: Toil UI can't start Codex: ${codex?.cli.problem ?? saved.body}`);
+    step('Ask (Codex)', 'fail', codex?.cli.problem ?? `saving the agent settings answered ${saved.status}`);
+    return;
+  }
+  const before = auditLines(home).length;
+  const started = Date.now();
+  const res = await api.post('agent/ask', { dossier, prompt: starter, theme: 'plain', voice: false }, 15 * 60_000);
+  const seconds = Math.round((Date.now() - started) / 1000);
+  const body = res.json();
+  if (res.status !== 200) {
+    problems.push(`Ask: Codex gave no answer (${res.status}): ${body.error?.message ?? res.body}${body.error?.fix ? ` Fix: ${body.error.fix}` : ''}`);
+    step('Ask (Codex)', 'fail', `no answer after ${seconds}s: ${body.error?.message ?? res.status}`);
+    return;
+  }
+  const answer = body;
+  const fail = (what) => problems.push(`Ask: ${what}`);
+  const words = answer.parts.map((p) => p.text).join(' ').split(/\s+/).filter(Boolean).length;
+  if (!answer.parts.length) fail('the answer has no text.');
+  step('Ask: an answer arrived', answer.parts.length ? 'pass' : 'fail', `"${answer.prompt}" answered by ${answer.by} in ${seconds}s: ${answer.parts.length} paragraph(s), ${words} words`);
+
+  const unverified = answer.unverified ?? [];
+  if (unverified.length) fail(`the answer names ${unverified.length} id(s) its tools never returned: ${unverified.join(', ')}.`);
+  if (!answer.citations.length) fail('the answer cites no work item, so none of it is traced to a source.');
+  step('Ask: every [[id]] verified by the server', unverified.length || !answer.citations.length ? 'fail' : 'pass', `${answer.citations.length} cited (${answer.citations.slice(0, 6).join(', ')}${answer.citations.length > 6 ? ', …' : ''}), ${unverified.length} unverified`);
+
+  const dropped = (answer.warnings ?? []).filter((w) => /suggested change was left out|only the first/.test(w));
+  const malformed = answer.proposals.filter((p) => !p.item || !p.title);
+  for (const w of dropped) fail(w);
+  if (malformed.length) fail(`${malformed.length} proposal(s) have no item or title.`);
+  const runnable = answer.proposals.filter((p) => p.command);
+  step('Ask: proposals parsed', dropped.length || malformed.length ? 'fail' : 'pass', `${answer.proposals.length} proposal(s), ${runnable.length} with a toil command line (${[...new Set(runnable.map((p) => p.command))].join(', ') || 'none'}), ${dropped.length} left out`);
+
+  const during = auditLines(home).slice(before);
+  const wrote = during.filter((l) => l.writes || l.allowWrite);
+  if (wrote.length) fail(`toil's audit log shows ${wrote.length} write(s) during the question: ${wrote.map((l) => l.command).join(', ')}.`);
+  const methods = [...new Set(during.flatMap((l) => l.requests.map((r) => r.method)))];
+  step('Ask: nothing ran', wrote.length ? 'fail' : 'pass', `${during.length} toil call(s) during the question, ${wrote.length} writing; request methods ${methods.join(', ') || 'none'}; the connection has writes off`);
+
+  const theirs = codexServers(codex.cli.path, process.env.CODEX_HOME ?? join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.codex'));
+  const ours = codexServers(codex.cli.path, join(dataDir, 'cache', 'codex'));
+  const only = ours.names && ours.names.length === 1 && ours.names[0] === 'toil_ui';
+  if (!only) fail(`codex mcp list in Toil UI's Codex home shows ${ours.names ? JSON.stringify(ours.names) : `an error: ${ours.problem}`}, not toil_ui alone.`);
+  step("Ask: Codex's MCP servers", only ? 'pass' : 'fail', `codex mcp list in Toil UI's Codex home: ${ours.names ? ours.names.join(', ') : ours.problem}; the same overrides in your own Codex home would list ${theirs.names ? theirs.names.length : '?'} server(s)`);
+}
+
+const startedAt = new Date();
+let toilVersion = '?';
+let uiVersion = '?';
+try {
+  rmSync(out, { recursive: true, force: true });
+  mkdirSync(out, { recursive: true });
+  const chrome = findChrome();
+  if (!chrome) throw new Error('No Chrome, Edge or Chromium found. Install one, or set CHROME_PATH to it.');
+  step('Browser', 'pass', `${basename(chrome)} at ${chrome}`);
+
+  if (build) {
+    const res = spawnSync(process.execPath, [npmCli(), 'run', 'build'], { cwd: ui, encoding: 'utf8' });
+    if (res.status !== 0) throw new Error(`npm run build in ui/ failed:\n${(res.stdout + res.stderr).trim().split('\n').slice(-20).join('\n')}`);
+    step('Build', 'pass', 'npm run build in ui/');
+  } else {
+    if (!existsSync(toilUi)) throw new Error(`${toilUi} isn't built; run without --no-build.`);
+    step('Build', 'skip', '--no-build: the existing ui/dist');
+  }
+
+  // The toil Toil UI runs on is the one npm ci installed; a wrong one would make every check below about another toil (#299).
+  const lock = spawnSync(process.execPath, [join(ui, 'scripts', 'check-lockfile.mjs')], { encoding: 'utf8' });
+  if (lock.status !== 0) problems.push(lock.stderr.trim());
+  step('Installed toil', lock.status === 0 ? 'pass' : 'fail', (lock.status === 0 ? lock.stdout : lock.stderr).trim().replace(/^check:lockfile (ok|found)[^:]*: ?/, ''));
+  const version = spawnSync(process.execPath, [toilUi, '--version'], { encoding: 'utf8' }).stdout.trim();
+  [, uiVersion, toilVersion] = /^(\S+) \(toil (\S+)\)/.exec(version) ?? [null, version, '?'];
+
+  // 1. Sample data, in a throwaway home.
+  const work = join(tmpdir(), `toil-ui-verify-${process.pid}`);
+  const sampleEnv = { ...process.env, HOME: join(work, 'home'), USERPROFILE: join(work, 'home'), TOIL_UI_DATA_DIR: join(work, 'data') };
+  const sample = await launch(['--sample'], sampleEnv);
+  try {
+    await layout('sample', sample.launchUrl, ROUTES);
+  } finally {
+    await sample.stop();
+    rmSync(work, { recursive: true, force: true, maxRetries: 5 });
+  }
+
+  // 2. Real data.
+  const source = SOURCES[sourceName];
+  if (!source) throw new Error(`there is no source ${JSON.stringify(sourceName)}; verify:ui knows ${Object.keys(SOURCES).join(', ')}.`);
+  const home = join(root, '.scratch', 'verify', 'home');
+  rmSync(home, { recursive: true, force: true, maxRetries: 5 });
+  mkdirSync(home, { recursive: true });
+  let ready;
+  try {
+    ready = source.setup(home);
+  } catch (e) {
+    if (e instanceof RealHomeError) throw new Error(`${e.message} Fix: ${e.fix}`, { cause: e });
+    throw e;
+  }
+  if (ready.skip) {
+    step(`Real data (${source.label})`, 'skip', `skipped: ${ready.skip}`);
+    if (ask) step('Ask (Codex)', 'skip', 'skipped with the real data it would read');
+  } else {
+    step(`Real data (${source.label})`, 'pass', `home ${relative(root, home)}, dossier ${ready.dossier}, ${ready.detail}`);
+    const real = await launch([], ready.env);
+    try {
+      const started = await real.api.post('sync', { dossier: ready.dossier });
+      if (started.status !== 202) throw new Error(`starting the sync answered ${started.status}: ${started.body}`);
+      let status;
+      const deadline = Date.now() + 10 * 60_000;
+      do {
+        await new Promise((r) => setTimeout(r, 500));
+        status = (await real.api.get('sync')).json();
+      } while (status.job.running && Date.now() < deadline);
+      const state = status.dossiers.find((d) => d.name === ready.dossier);
+      const failed = state?.sources.filter((s) => s.status !== 'ok') ?? [];
+      const synced = !status.job.running && !status.job.error && state?.status === 'ok';
+      if (!synced) problems.push(`sync: ${status.job.running ? 'still running after 10 minutes' : status.job.error ?? `${ready.dossier} is ${state?.status ?? 'missing'}: ${failed.map((s) => `${s.area}: ${s.error}`).join('; ')}`}`);
+      step(`Sync ${ready.dossier}`, synced ? 'pass' : 'fail', `${status.job.fetched} call(s) to toil, ${status.job.requests} request(s), ${status.job.pages} page(s), ${status.job.retries} retr${status.job.retries === 1 ? 'y' : 'ies'}; ${state?.sources.map((s) => `${s.area} ${s.status}`).join(', ') ?? 'no dossier state'}`);
+
+      const item = await firstItemRoute(real.launchUrl, ready.dossier);
+      if (!item) problems.push(`real data: the ${ready.dossier} dossier page links no work item, so no item view was checked.`);
+      // The settings pages come from the layout check's own list, so a page added there is checked on real data too.
+      const routes = ['#/', `#/dossier/${ready.dossier}`, ...(item ? [item] : []), ...ROUTES.filter((r) => r.startsWith('#/settings/'))];
+      await layout('real', real.launchUrl, routes);
+
+      if (ask) await askCodex(real.api, ready.dossier, home, ready.env.TOIL_UI_DATA_DIR);
+      else step('Ask (Codex)', 'skip', 'not asked; pass --ask to ask Codex one starter question');
+    } finally {
+      await real.stop();
+      // The scratch home outlives the run; the second name for your Codex sign-in doesn't.
+      rmSync(join(ready.env.TOIL_UI_DATA_DIR, 'cache', 'codex', 'auth.json'), { force: true });
+    }
+  }
+} catch (e) {
+  problems.push(e instanceof Error ? e.message : String(e));
+  step('Run', 'fail', e instanceof Error ? e.message.split('\n')[0] : String(e));
+} finally {
+  for (const child of children) if (child.exitCode === null) child.kill();
+}
+
+// The report.
+const pass = problems.length === 0;
+const shots = existsSync(join(out, 'shots')) ? readdirSync(join(out, 'shots'), { recursive: true }).filter((f) => String(f).endsWith('.png')).length : 0;
+const cell = (s) => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+const report = [
+  '# Toil UI verification',
+  '',
+  `**${pass ? 'PASS' : `FAIL: ${problems.length} problem(s)`}** in ${Math.round((Date.now() - startedAt.getTime()) / 60_000)} min. ${startedAt.toISOString()}, ${process.platform} ${process.arch}, Node ${process.versions.node}, Toil UI ${uiVersion} on toil ${toilVersion}. \`npm run verify:ui${[ask ? '--ask' : '', build ? '' : '--no-build', sourceName !== 'github' ? `--source ${sourceName}` : '', starter !== 'hygiene' ? `--starter ${starter}` : ''].filter(Boolean).map((a) => ` ${a}`).join('')}\``,
+  '',
+  '| Step | Result | Detail |',
+  '|---|---|---|',
+  ...steps.map((s) => `| ${cell(s.name)} | ${s.result} | ${cell(s.detail)} |`),
+  '',
+  ...(problems.length ? ['## Problems', '', ...problems.map((p) => `- ${cell(p)}`), ''] : []),
+  `## Report-only axe findings (${reported.length})`,
+  '',
+  'Outside Plain and Crate, axe findings are reported and never fail the run (AGENT_DECISIONS.md, #267).',
+  '',
+  ...(reported.length ? [...reported.slice(0, 40).map((r) => `- ${cell(r)}`), ...(reported.length > 40 ? [`- and ${reported.length - 40} more`] : [])] : ['None.']),
+  '',
+  `${shots} viewport screenshot(s) of Plain and Crate are in ui/.verify/shots/.`,
+  '',
+].join('\n');
+mkdirSync(out, { recursive: true });
+writeFileSync(join(out, 'report.md'), report);
+process.stdout.write(`${report}\nWrote ${join(out, 'report.md')}.\n`);
+process.exitCode = pass ? 0 : 1;
