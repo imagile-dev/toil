@@ -101,18 +101,18 @@ describe('every theme', { timeout: SLOW }, () => {
 });
 
 describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () => {
-  it('reads "Quest (Epic)" in Realm and "Epic" in Plain', () => {
-    expect(themed(themeNamed('realm'), 'epic', 'Epic')).toBe('Quest (Epic)');
+  it('reads "Campaign (Epic)" in Realm and "Epic" in Plain', () => {
+    expect(themed(themeNamed('realm'), 'epic', 'Epic')).toBe('Campaign (Epic)');
     expect(themed(themeNamed('plain'), 'epic', 'Epic')).toBe('Epic');
   });
 
   it('shows the source\'s own word on the item page, the board, the graph and the chat', async () => {
     await open(item('card-payments', 'corp-jira:PAY-100'), 'realm', 'light');
-    expect(screen.getByText('Quest (Epic)')).toBeTruthy();
+    expect(screen.getByText('Campaign (Epic)')).toBeTruthy();
   });
 
   it.each([
-    ['realm', 'Map (Dependencies)', 'Mountain pass (Blocked)'],
+    ['realm', 'War table (Dependencies)', 'Broken road (Blocked)'],
     ['starship', 'Star chart (Dependencies)', 'Hazard (Blocked)'],
     ['plain', 'Dependencies', 'Blocked'],
   ])('%s names the graph %s and its blockers %s', async (theme, title, blocked) => {
@@ -128,10 +128,10 @@ describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () =>
     expect(screen.getByRole('region', { name: /^Season calendar \(Sprint 42: day \d+ of \d+\)$/ })).toBeTruthy();
   });
 
-  it('names the quest each card serves in Realm', async () => {
+  it('names the campaign each card serves in Realm', async () => {
     await open('#/dossier/card-payments', 'realm', 'light');
     const board = screen.getByRole('region', { name: /board/ });
-    expect(within(board).getAllByText(/^Quest \(Epic\): /).length).toBeGreaterThan(0);
+    expect(within(board).getAllByText(/^Campaign \(Epic\): /).length).toBeGreaterThan(0);
   });
 });
 
@@ -139,7 +139,7 @@ describe('the skins', { timeout: SLOW }, () => {
   it.each([
     ['harvest', 'light', 'Almanac (Agent)'],
     ['starship', 'dark', "Ship's computer (Agent)"],
-    ['realm', 'light', 'Scribe (Agent)'],
+    ['realm', 'light', 'Steward (Agent)'],
   ])('answer in %s (%s) as %s', async (theme, scheme, name) => {
     await open('#/dossier/settlement', theme, scheme);
     const starters = screen.getByRole('group', { name: 'Starter questions' });
@@ -169,7 +169,7 @@ describe('the skins', { timeout: SLOW }, () => {
   it.each([
     ['crate', 'Loading', 'crate-loading'],
     ['starship', 'EmptyState', 'empty-sector'],
-    ['realm', 'Loading', 'quill-and-scroll'],
+    ['realm', 'Loading', 'candle-ledger'],
   ] as const)("show %s's own art in its %s slot, decorative, beside the words", (theme, slot, file) => {
     const Slot = skinsFor(theme)[slot];
     const { container } = render(<Slot message="Nothing to file." />);

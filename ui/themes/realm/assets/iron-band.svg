@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+<!-- A folio's binding, cut as a border image: a dark leather band with a gilt-tooled inner rule and an iron rivet in each corner. -->
+<path d="M0 0H48V48H0ZM12 12V36H36V12Z" fill="#2b211b" fill-rule="evenodd"/>
+<path d="M1 1H47V47H1Z" stroke="#14110e" stroke-width="2"/>
+<path d="M3 3H45V45H3Z" stroke="#5a4636" stroke-width="1"/>
+<path d="M9 9H39V39H9Z" stroke="#9c7a3c" stroke-width="1"/>
+<path d="M11.5 11.5H36.5V36.5H11.5Z" stroke="#14110e" stroke-width="1"/>
+<g fill="#6b6660" stroke="#14110e" stroke-width=".8"><circle cx="6" cy="6" r="2.4"/><circle cx="42" cy="6" r="2.4"/><circle cx="6" cy="42" r="2.4"/><circle cx="42" cy="42" r="2.4"/></g>
+<g fill="#bdb6aa"><circle cx="5.3" cy="5.3" r=".8"/><circle cx="41.3" cy="5.3" r=".8"/><circle cx="5.3" cy="41.3" r=".8"/><circle cx="41.3" cy="41.3" r=".8"/></g>
+</svg>
