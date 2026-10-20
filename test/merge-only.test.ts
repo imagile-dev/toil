@@ -215,6 +215,31 @@ describe('merge-only: the whole decision', SLOW, () => {
     expect(summary(outcome)).toContain('Re-approved without an agent review');
   });
 
+  it('skips the agent, posting nothing, when GitHub kept the approval on the head after a clean merge', async () => {
+    approvedThenMainMoves();
+    const head = mergeMain();
+    originMain();
+    const { gh, posted } = fakeGitHub(head, { reviews: [{ ...review(5, 'APPROVED'), commit_id: head }] });
+    const outcome = await run({ env: envFor(head), gh, git: git() });
+    expect(outcome).toMatchObject({ approved: true, reason: expect.stringContaining('GitHub kept the approval on the head') });
+    expect(posted).toEqual([]);
+  });
+
+  it('reviews in full when an approval kept on the head follows a merge that changed the PR, or no merge', async () => {
+    approvedThenMainMoves();
+    sh('merge', '-q', '--no-ff', '--no-commit', 'main');
+    write('c.txt', 'slipped into the merge\n');
+    const head = commit('Merge main');
+    originMain();
+    const kept = fakeGitHub(head, { reviews: [{ ...review(5, 'APPROVED'), commit_id: head }] });
+    expect(await run({ env: envFor(head), gh: kept.gh, git: git() })).toMatchObject({ approved: false });
+
+    write('c.txt', 'a real change\n');
+    const real = commit('a real change');
+    const notMerge = fakeGitHub(real, { reviews: [{ ...review(6, 'APPROVED'), commit_id: real }] });
+    expect(await run({ env: envFor(real), gh: notMerge.gh, git: git() })).toMatchObject({ approved: false, reason: expect.stringContaining('is not a merge') });
+  });
+
   it('posts nothing on a dry run', async () => {
     const approved = approvedThenMainMoves();
     const head = mergeMain();

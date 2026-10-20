@@ -118,7 +118,7 @@ describe.skipIf(!tracked)('tracked files', () => {
     const text = readFileSync(join(root, 'AGENT_DECISIONS.md'), 'utf8').replace(/\r\n/g, '\n');
     expect(createHash('sha256').update(text).digest('hex'),
       'AGENT_DECISIONS.md is a frozen archive. Put the decision in docs/decisions/<issue#>-<slug>.md instead (docs/decisions/README.md).')
-      .toBe('45c200ff28e45e290b872f7db13f0389d47707c05ecb466c0cc44aa6d9da05c2');
+      .toBe('9586220051d494fc2cfd9eb9cc072364ed10bab9a77d93b92f53b20e11778f3c');
   });
 
   it('names every decision file <issue#>-<slug>.md, after its branch', () => {

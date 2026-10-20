@@ -19,6 +19,12 @@
   only takes effect once merged. A PR can still change `claude-review.yml` itself,
   which `pull_request` runs from the PR; that limit is the same as for every other
   step in the job (same-repo heads only, the `automation` skill).
+- **An approval GitHub kept on the head is checked against the last real commit.**
+  On the scratch PR (#366), GitHub moved the bot's approval to the merge commit and
+  reported it at the head's sha in REST and GraphQL alike, so the commit it was given
+  at can't be read back. The step then takes the newest first-parent commit that
+  isn't a merge of the base as A and posts nothing. That is stricter than the true A
+  when a reviewed merge changed the PR, which only costs a full review.
 - **A dismissal with a message is never treated as stale.** GitHub's dismissal on
   push has no message and names the pushed commit; a person's dismissal and the
   bot's own "Superseded by a newer automated review" both carry a message, so neither
