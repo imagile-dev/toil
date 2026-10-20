@@ -139,7 +139,9 @@ export function readReadiness(dossier: unknown): ReadinessSettings {
 // Text out of a body ---------------------------------------------------------------
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
-const decode = (s: string) => s.replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (m, e: string) => (e[0] === '#' ? String.fromCodePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : (ENTITIES[e.toLowerCase()] ?? m)));
+/** A numeric entity's character; one outside Unicode reads as U+FFFD, as a browser shows it, rather than throwing on text a tracker sent. */
+const codePoint = (n: number) => (Number.isInteger(n) && n >= 0 && n <= 0x10ffff ? String.fromCodePoint(n) : '\ufffd');
+const decode = (s: string) => s.replace(/&(#\d+|#x[0-9a-f]+|[a-z]+);/gi, (m, e: string) => (e[0] === '#' ? codePoint(e[1] === 'x' || e[1] === 'X' ? parseInt(e.slice(2), 16) : Number(e.slice(1))) : (ENTITIES[e.toLowerCase()] ?? m)));
 
 /** HTML as lines of text: block ends become line breaks, a checkbox becomes `[ ]`, every other tag goes. */
 function htmlText(html: string): string {
@@ -193,7 +195,7 @@ const lines = (text: string) => text.split(/\r?\n/);
 /** A line as a template compares it: no heading or list marks, no case, single spaces, no trailing colon. */
 const normalise = (line: string) =>
   line
-    .replace(/^\s*(#{1,6}|[-*+]|\d+[.)]|\[[ xX]?\])\s*/, '')
+    .replace(/^\s*(?:(?:#{1,6}|[-*+]|\d+[.)]|\[[ xX]?\])\s*)+/, '')
     .replace(/[:.]\s*$/, '')
     .replace(/\s+/g, ' ')
     .trim()
@@ -219,22 +221,28 @@ export function realText(text: string, templateLines: readonly string[]): string
     .join('\n');
 }
 
-const AC_HEADING = /^\s*(?:#{1,6}\s*|\*{1,2})?(acceptance criteria|definition of done|done when)\b\s*\**\s*:?\s*(.*)$/i;
+/** A heading line: the words alone, or followed by a colon and text; a sentence that starts with them ("Acceptance criteria are still to come") isn't one. */
+const AC_HEADING = /^\s*(?:#{1,6}\s*|\*{1,2})?(acceptance criteria|definition of done|done when)\s*\**\s*(?::\s*(.*))?$/i;
 const CHECKBOX = /^\s*(?:[-*+]\s*)?\[[ xX]?\]\s+\S/;
 
-/** Acceptance criteria in a body: a heading (or a leading "Acceptance criteria:") with text under it, or a checklist. */
-export function acceptanceInBody(text: string): 'heading' | 'checklist' | null {
+/**
+ * Acceptance criteria in a body: a heading (or a leading "Acceptance criteria:")
+ * with text under it, or a checklist. Text counts as the description check counts
+ * it (`realText`), so "Acceptance criteria: TBD" or a heading over "N/A" doesn't.
+ */
+export function acceptanceInBody(text: string, templateLines: readonly string[] = []): 'heading' | 'checklist' | null {
+  const words = (line: string) => wordCount(realText(line, templateLines));
   const ls = lines(text);
   for (let i = 0; i < ls.length; i++) {
     const m = AC_HEADING.exec(ls[i]!);
     if (!m) continue;
-    if (wordCount(m[2] ?? '') > 0) return 'heading';
+    if (words(m[2] ?? '') > 0) return 'heading';
     for (let j = i + 1; j < ls.length; j++) {
       if (/^\s*#{1,6}\s/.test(ls[j]!)) break;
-      if (wordCount(ls[j]!) > 0) return 'heading';
+      if (words(ls[j]!) > 0) return 'heading';
     }
   }
-  return ls.some((l) => CHECKBOX.test(l)) ? 'checklist' : null;
+  return ls.some((l) => CHECKBOX.test(l) && words(l) > 0) ? 'checklist' : null;
 }
 
 /**
@@ -319,11 +327,11 @@ function acceptance(item: WorkItem, area: AreaReadiness | undefined, body: strin
   if (field) {
     const found = fieldValue(item, field);
     if (found) {
-      const words = wordCount(textOf(found.value));
+      const words = wordCount(realText(textOf(found.value), area?.templateLines ?? []));
       if (words > 0) return row('acceptance', 'pass', `${plural(words, 'word')} in ${found.key}.`, `field ${found.key}`);
     }
   }
-  const inBody = acceptanceInBody(body);
+  const inBody = acceptanceInBody(body, area?.templateLines ?? []);
   if (inBody) return row('acceptance', 'pass', inBody === 'heading' ? 'A heading in the description lists them.' : 'The description has a checklist.', 'description');
   const where = field ? `${field} is empty, and the description has` : 'The description has';
   return row('acceptance', 'thin', `None found. ${where} no acceptance criteria heading or checklist.`, field ? `field ${field}, description` : 'description');

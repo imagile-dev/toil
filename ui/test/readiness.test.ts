@@ -56,6 +56,8 @@ describe('acceptance criteria', () => {
     // An empty field doesn't count, and the message names it.
     const empty = item('B', { body: { format: 'markdown', content: WORDS(30) }, native: { 'jira issue search': { fields: { customfield_10500: '' } } } });
     expect(rowOf(empty, 'acceptance', [done], s)).toMatchObject({ state: 'thin', reason: 'None found. customfield_10500 is empty, and the description has no acceptance criteria heading or checklist.' });
+    const tbd = item('C', { body: { format: 'markdown', content: WORDS(30) }, native: { 'jira issue search': { fields: { customfield_10500: 'TBD' } } } });
+    expect(rowOf(tbd, 'acceptance', [done], s).state).toBe('thin');
   });
 
   it("default to Azure DevOps' own field, in HTML, and take a Jira field sent under its registered name", () => {
@@ -74,6 +76,12 @@ describe('acceptance criteria', () => {
     expect(acceptanceInBody('## Acceptance criteria\n\n## Notes\nsomething')).toBeNull();
     expect(acceptanceInBody('- [ ] Card picker\n- [x] Icons')).toBe('checklist');
     expect(acceptanceInBody('- Card picker')).toBeNull();
+    // Placeholders aren't criteria, and neither is a sentence that only starts with the words (#351 review).
+    expect(acceptanceInBody('Acceptance criteria: TBD')).toBeNull();
+    expect(acceptanceInBody('## Acceptance criteria\nN/A')).toBeNull();
+    expect(acceptanceInBody('Acceptance criteria are still to be written.')).toBeNull();
+    expect(acceptanceInBody('- [ ] TBD')).toBeNull();
+    expect(acceptanceInBody('## Acceptance criteria\n## What', ['what'])).toBeNull();
     expect(acceptanceInBody(textOf('h3. Done when\nThe CSV lands at 02:00', 'wiki'))).toBe('heading');
     expect(acceptanceInBody(textOf('<h2>Acceptance Criteria</h2><ul><li>Works</li></ul>', 'html'))).toBe('heading');
     expect(acceptanceInBody(textOf('<ul><li><input type="checkbox"> one</li></ul>', 'html'))).toBe('checklist');
@@ -103,6 +111,9 @@ describe('the description', () => {
     expect(r.state).toBe('thin');
     expect(r.reason).toMatch(/^0 words of real text, not counting \d+ words of template or placeholder text; 25 words are needed\.$/);
     expect(wordCount("It's a 13-month expiry, at 02:00 UTC.")).toBe(8);
+    // An entity outside Unicode reads as U+FFFD instead of throwing on a tracker's text (#351 review).
+    expect(textOf('<p>&#99999999;&#x110000; ok &amp; &#65;</p>', 'html')).toBe('\ufffd\ufffd ok & A\n');
+    expect(() => readinessAll([item('X', { body: { format: 'html', content: '<p>&#99999999;</p>' } })], settings())).not.toThrow();
   });
 });
 

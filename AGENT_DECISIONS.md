@@ -4709,7 +4709,10 @@ it pins. These are the choices made by default in the fix:
   when its section names none: every process that has acceptance criteria keeps them
   there. Jira has no standard field, so it has no default. A Jira custom field toil
   sends under its registered name (the connection's `customFields`) is found by a
-  field named "Acceptance Criteria" when the id isn't there.
+  field named "Acceptance Criteria" when the id isn't there. Acceptance criteria are
+  counted the way the description is (`realText`), so a field or heading holding only
+  TBD, N/A or a template line doesn't pass, and a heading is the words alone or
+  followed by a colon, not a sentence that starts with them (#351 review).
 - **Which failures are thin and which are blocked.** Missing acceptance criteria, a
   short description, a done state the cache can't settle, a blocker the dossier
   doesn't hold and a dossier with no repository are thin: a person can look and
