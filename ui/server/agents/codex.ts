@@ -37,7 +37,7 @@ import { linkSync, mkdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { AgentError } from './cli.ts';
-import type { Runtime } from './runtime.ts';
+import type { Runtime, UsageReport } from './runtime.ts';
 
 interface CodexThread {
   runStreamed(input: string, options?: { signal?: AbortSignal }): Promise<{ events: AsyncIterable<Record<string, unknown>> }>;
@@ -134,6 +134,23 @@ export function prepareCodexHome(home: string, env: Record<string, string | unde
   }
 }
 
+const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined);
+
+/**
+ * One `turn.completed` usage as a report (#295): the turn's tokens, as the
+ * SDK counts them (its input includes the cached input, as OpenAI counts it).
+ * A field the event doesn't carry, such as `cache_write_input_tokens` before
+ * the SDK added it, stays absent. The SDK names no model, so the model is the
+ * one Settings chose, or none for the CLI's default.
+ */
+export function codexUsage(usage: unknown, id: string, model: string | null): UsageReport {
+  const u = (usage && typeof usage === 'object' ? usage : {}) as Record<string, unknown>;
+  const out: UsageReport = { id, model, costSource: 'none', inputIncludesCached: true };
+  const figures = { inputTokens: count(u.input_tokens), cachedInputTokens: count(u.cached_input_tokens), cacheWriteTokens: count(u.cache_write_input_tokens), outputTokens: count(u.output_tokens) };
+  for (const [k, v] of Object.entries(figures)) if (v !== undefined) (out as unknown as Record<string, number>)[k] = v;
+  return out;
+}
+
 export interface CodexOptions {
   platform?: NodeJS.Platform;
 }
@@ -145,6 +162,7 @@ export function codexRuntime(o: CodexOptions = {}): Runtime {
     package: '@openai/codex-sdk',
     command: 'codex',
     cliLabel: 'the Codex CLI',
+    usageAtEnd: true,
     async run(module, r) {
       const sdk = module as CodexSdk;
       const home = toilCodexHome(r.dataDir);
@@ -165,8 +183,15 @@ export function codexRuntime(o: CodexOptions = {}): Runtime {
         // Codex has no separate system prompt in the SDK, so Toil UI's goes first in the turn.
         const { events } = await thread.runStreamed(`${r.system}\n\nQuestion:\n${r.prompt}`, { signal: r.signal });
         let last = '';
+        let threadId: string | null = null;
+        const turns: UsageReport[] = [];
         for await (const e of events) {
-          if (e.type === 'item.updated' || e.type === 'item.completed') {
+          if (e.type === 'thread.started' && typeof e.thread_id === 'string') threadId = e.thread_id;
+          else if (e.type === 'turn.completed') {
+            // One report per turn, each its own call: the run starts a thread for one question, so this is one.
+            turns.push(codexUsage(e.usage, `codex:${threadId ?? r.runId}:${turns.length + 1}`, r.model));
+            r.usage.report([...turns]);
+          } else if (e.type === 'item.updated' || e.type === 'item.completed') {
             const item = e.item as { type?: string; text?: string };
             if (item.type === 'agent_message' && typeof item.text === 'string') {
               last = item.text;

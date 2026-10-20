@@ -4753,3 +4753,50 @@ it pins. These are the choices made by default in the fix:
   data carries both, so the preview doesn't show it. Fixing it means the loader asking
   for those fields, which is a change to what every Jira dashboard reads and is out of
   this change's scope; no Jira instance was available to check it against.
+## Model usage per chat, and caps (#295)
+
+- **Meter and caps ship in one PR**, as the maintainer asked on the task, though the
+  issue suggested caps as a second slice. The caps are built on the same records and
+  the same `addUp`.
+- **A "chat" is the Ask pane's conversation**: the page makes a UUID when the pane
+  opens and numbers the questions; each question still runs as its own SDK session.
+  An API caller with no chat gets one of its own (`ask-<uuid>`). A chat id is letters,
+  digits and hyphens, 8 to 64 characters, or the server refuses it.
+- **The adding-up rule is "same id: highest of each figure; different ids: sum"**, so
+  running totals and per-call reports share one function. Claude's per-step usage is
+  provisional and the result's `modelUsage` replaces it (the SDK docs name
+  `modelUsage` as the field for accounting); an error result keeps the steps, since
+  its figures may be zeroed. Copilot's events are keyed by their event id; Codex's by
+  thread and turn.
+- **Token totals count cached input once**: Codex's `input_tokens` already includes
+  `cached_input_tokens` (as OpenAI counts), Claude's doesn't. Copilot's isn't
+  documented either way, so it is counted apart, which can only make a cap trip
+  early, never late.
+- **Copilot premium requests are the sum of each call's `cost`**, as the issue's table
+  says. If the CLI turns out to put the multiplier on follow-up calls too, this
+  over-counts; the live check in #317 settles it.
+- **Claude plan detection**: `apiKeySource: "none"` on the init message and the model
+  served by `firstParty` (or no provider and the Anthropic endpoint). Bedrock, Vertex
+  and Foundry are billed per token, so their figure is the plain SDK estimate.
+- **Codex caps refuse the next question rather than stop a run**: the SDK reports
+  usage only at `turn.completed`, when the answer is already written. Claude and
+  Copilot runs are aborted at the first report past a cap, and the adapters stop
+  reading once the signal is aborted, whether or not the SDK noticed.
+- **Caps and rates live in `<data folder>/usage.json`**, not the cache, so a wipe
+  clears the figures (as the issue says) but not the limits. A broken file refuses
+  every question until it's fixed or saved again: failing closed is the point.
+- **Days are UTC**, like the Usage page beside it.
+- **Settings, Agent usage is its own page** (`#/settings/agent-usage`) beside Usage,
+  rather than a tab inside it, so the layout check reaches it by route and the
+  existing page is untouched.
+- **CSV export is a download the page makes** from the records it already has.
+  Toil UI is not a toil command, so `ctx.files` isn't available to it; nothing goes
+  through the server for it.
+- **No `toil-ui usage` CLI command**: the issue's "the CLI" reads as Toil UI's own
+  surfaces; the page, the heading and the caps already share one function. A CLI can
+  read the same `addUp` later.
+- **Codex's model is "not named by the SDK"** when Settings leaves it empty: the SDK's
+  events carry no model, and reading Codex's own session log would be a second source.
+- **The preview and `--sample` show made-up usage**, marked "Sample figures, not from a
+  model" on every line, so the footer and the page have something to show.
+

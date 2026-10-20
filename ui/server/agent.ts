@@ -15,6 +15,7 @@ import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { AgentError } from './agents/cli.ts';
 import type { RequestContext } from './context.ts';
 import type { StyleChoice } from './agents/voices.ts';
+import type { ChatTurn } from '../src/model-usage.ts';
 
 export type { Answer, Starter } from '../src/agent.ts';
 
@@ -24,9 +25,9 @@ export interface Agent {
   /** The questions offered about one dossier before anyone types. */
   starters(ctx: RequestContext, dossier: string): Promise<Starter[]>;
   /** Answers about the named dossier only, citing every item it used. Throws with a message the pane shows. */
-  ask(ctx: RequestContext, dossier: string, prompt: string, style?: StyleChoice | null): Promise<Answer>;
+  ask(ctx: RequestContext, dossier: string, prompt: string, style?: StyleChoice | null, chat?: ChatTurn): Promise<Answer>;
   /** The same answer as it grows, each value the whole answer so far (#251). Optional; the server falls back to `ask`. */
-  stream?(ctx: RequestContext, dossier: string, prompt: string, style?: StyleChoice | null): AsyncIterable<Answer>;
+  stream?(ctx: RequestContext, dossier: string, prompt: string, style?: StyleChoice | null, chat?: ChatTurn): AsyncIterable<Answer>;
 }
 
 /** The preview's scripted Agent: canned answers about the sample dossiers. */
@@ -35,7 +36,7 @@ export function fixtureAgent(): Agent {
   return {
     kind: 'scripted',
     starters: async (_ctx, dossier) => scripted.starters(dossier),
-    ask: (_ctx, dossier, prompt, style) => scripted.ask(dossier, prompt, style ?? undefined),
+    ask: (_ctx, dossier, prompt, style, chat) => scripted.ask(dossier, prompt, style ?? undefined, chat),
   };
 }
 

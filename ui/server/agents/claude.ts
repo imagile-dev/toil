@@ -18,7 +18,8 @@
  * sdk.d.ts at 0.3.289.
  */
 
-import type { Endpoint, Runtime } from './runtime.ts';
+import { higherFigures } from '../../src/model-usage.ts';
+import type { Endpoint, Runtime, UsageReport } from './runtime.ts';
 import type { ToolSpec } from './tools.ts';
 
 /** The env switch Claude Code reads for each endpoint. */
@@ -95,6 +96,53 @@ interface ClaudeSdk {
   createSdkMcpServer(options: { name: string; version?: string; tools: unknown[]; alwaysLoad?: boolean }): unknown;
 }
 
+const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined);
+
+/** Figures without the ones the SDK left out: a missing field stays absent, never 0. */
+function figures(f: Pick<UsageReport, 'inputTokens' | 'cachedInputTokens' | 'cacheWriteTokens' | 'outputTokens'>): Partial<UsageReport> {
+  return Object.fromEntries(Object.entries(f).filter(([, v]) => v !== undefined));
+}
+
+/** One step's usage, from an assistant message's Messages API `usage`: steps share a message id when one message streams in pieces. */
+export function claudeStepUsage(message: unknown): UsageReport | null {
+  const m = message as { id?: unknown; model?: unknown; usage?: Record<string, unknown> } | undefined;
+  if (!m || typeof m.id !== 'string' || !m.usage || typeof m.usage !== 'object') return null;
+  const u = m.usage;
+  return {
+    id: `claude:${m.id}`,
+    model: typeof m.model === 'string' ? m.model : null,
+    costSource: 'none',
+    ...figures({ inputTokens: count(u.input_tokens), cachedInputTokens: count(u.cache_read_input_tokens), cacheWriteTokens: count(u.cache_creation_input_tokens), outputTokens: count(u.output_tokens) }),
+  };
+}
+
+/**
+ * The result's `modelUsage`, one report per model: the SDK's own figures for
+ * the whole query, which the docs name as the field for accounting, and its
+ * `costUSD`, an estimate. On a Claude plan (no API key, the first-party API)
+ * that estimate is what the tokens would cost on the API, not a bill.
+ */
+export function claudeResultUsage(result: Record<string, unknown>, plan: boolean): UsageReport[] {
+  const per = result.modelUsage;
+  if (!per || typeof per !== 'object') return [];
+  const session = typeof result.session_id === 'string' ? result.session_id : 'session';
+  return Object.entries(per as Record<string, Record<string, unknown>>).map(([model, u]) => {
+    const cost = count(u.costUSD);
+    return {
+      id: `claude:${session}:${model}`,
+      model,
+      costSource: cost === undefined ? 'none' : 'sdk-estimate',
+      ...(cost === undefined ? {} : { costUsd: cost }),
+      ...(plan && cost !== undefined ? { plan: true } : {}),
+      ...figures({ inputTokens: count(u.inputTokens), cachedInputTokens: count(u.cacheReadInputTokens), cacheWriteTokens: count(u.cacheCreationInputTokens), outputTokens: count(u.outputTokens) }),
+    };
+  });
+}
+
+/** Whether a run is on a Claude plan: the init message says no API key was used, and the model was served by Anthropic's own API. */
+export const onPlan = (apiKeySource: unknown, provider: unknown, endpoint: Endpoint | null) =>
+  apiKeySource === 'none' && (provider === 'firstParty' || (provider === undefined && (endpoint === null || endpoint === 'anthropic')));
+
 const textOf = (content: unknown): string =>
   Array.isArray(content) ? content.filter((b: { type?: string }) => b?.type === 'text').map((b: { text?: string }) => b.text ?? '').join('') : '';
 
@@ -123,6 +171,19 @@ export function claudeRuntime(version: string): Runtime {
       r.signal.addEventListener('abort', abort, { once: true });
       let current = '';
       let last = '';
+      // Usage (#295): each step's, by message id, until the result's per-model figures replace them.
+      const steps = new Map<string, UsageReport>();
+      let apiKeySource: unknown;
+      let lastStep: UsageReport | null = null;
+      const settle = (m: Record<string, unknown>) => {
+        const per = (m.modelUsage ?? {}) as Record<string, { provider?: unknown; contextWindow?: unknown }>;
+        const first = Object.values(per)[0];
+        const totals = m.subtype === 'success' ? claudeResultUsage(m, onPlan(apiKeySource, first?.provider, r.endpoint)) : [];
+        // An error result may carry zeroed figures, so the steps seen stand instead.
+        r.usage.report(totals.length ? totals : [...steps.values()]);
+        const window = count(lastStep?.model ? per[lastStep.model]?.contextWindow : first?.contextWindow);
+        if (lastStep && window) r.usage.context({ used: (lastStep.inputTokens ?? 0) + (lastStep.cachedInputTokens ?? 0) + (lastStep.cacheWriteTokens ?? 0) + (lastStep.outputTokens ?? 0), window });
+      };
       try {
         for await (const m of sdk.query({
           prompt: r.prompt,
@@ -144,6 +205,9 @@ export function claudeRuntime(version: string): Runtime {
             abortController,
           },
         })) {
+          // Stopped (the page's cancel, or a cap): nothing more is read, whether or not the SDK has noticed yet.
+          if (r.signal.aborted) throw new Error('The question was stopped.');
+          if (m.type === 'system' && m.subtype === 'init') apiKeySource = m.apiKeySource;
           if (m.parent_tool_use_id) continue;
           if (m.type === 'stream_event') {
             const event = m.event as { type?: string; delta?: { type?: string; text?: string } };
@@ -155,7 +219,17 @@ export function claudeRuntime(version: string): Runtime {
           } else if (m.type === 'assistant') {
             const t = textOf((m.message as { content?: unknown } | undefined)?.content);
             if (t) last = t;
+            const step = claudeStepUsage(m.message);
+            if (step) {
+              const seen = steps.get(step.id);
+              // One message streamed in pieces repeats its usage: the same id, so the highest of each figure.
+              const merged = seen ? higherFigures(seen, step) : step;
+              steps.set(step.id, merged);
+              lastStep = merged;
+              r.usage.report([...steps.values()]);
+            }
           } else if (m.type === 'result') {
+            settle(m);
             // A failed sign-in still comes back as subtype success, with is_error set and the reason as its text.
             if (m.subtype === 'success' && m.is_error !== true && typeof m.result === 'string') return m.result || last;
             if (m.subtype === 'success') throw new Error(`Claude Code answered with an error: ${typeof m.result === 'string' && m.result ? m.result : 'no message'}`);

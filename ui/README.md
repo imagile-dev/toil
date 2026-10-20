@@ -335,6 +335,45 @@ never starts that copy anyway.
 With no adapter chosen, the chat says so and names the three. `toil-ui --sample`
 keeps the scripted agent, which answers its starter questions from the sample data.
 
+### What the agent's models used
+
+Each SDK reports what a question used, and Toil UI keeps that report, one record per
+model call or running total, read only from the SDK's own events (no billing API is
+called):
+
+| Adapter | What the SDK reports | What Toil UI shows |
+|---|---|---|
+| Claude | each step's `usage` by message id, then the result's `modelUsage` per model and its `costUSD` | tokens (in, out, cache read, cache write) per model, and the dollar figure as the SDK's estimate; on a Claude plan (no API key, Anthropic's own API) it says "API-equivalent", since the plan isn't billed per token |
+| Codex | `turn.completed`'s `usage`: input (which holds the cached input), cached input, cache writes, output | tokens; a dollar figure only from rates you enter, labelled "computed from your rates". The SDK names no model, so a Codex record names the model you chose, or says it wasn't named |
+| GitHub Copilot | one `assistant.usage` event per model call, with `cost` as the premium-request multiplier, and `session.usage_info` for the context | tokens and premium requests, never dollars; premium requests left from the SDK's experimental `account.getQuota`, marked experimental |
+
+- **Under each answer**, one line per model: `2.1k in · 380 out · 14k cached · cache
+  write not reported · ~$0.012 (SDK estimate)`. A figure the SDK didn't report reads
+  "not reported", never 0.
+- **In the chat's heading**, the chat's running total, split by model, and how full
+  the last answer's context got, where the SDK says (Claude and Copilot; Codex's SDK
+  doesn't).
+- **Settings, Agent usage** (beside Usage, which counts toil's own commands): the last
+  30 days by day, adapter, model and dossier, the chats that used the most, and an
+  **Export as CSV** download made in the page.
+- **One adding-up rule**, `addUp` in `src/model-usage.ts`, read by the server's caps,
+  the footer, the heading and Settings: reports with one id are one report, merged to
+  the highest of each figure (a running total), and different ids are summed.
+- **The ledger** is the cache's `usage` table, apart from everything a sync writes: a
+  sync's cleanup or a dossier leaving never lowers a total. It follows the cache's
+  retention, `toil-ui wipe` clears it, and it is never sent anywhere.
+
+**Caps** are optional and off until you turn one on, under Settings, Agent usage: a
+per-chat and a per-day (UTC) cap for each adapter, in tokens, dollars (Claude's SDK
+estimate, or Codex from your rates) or Copilot premium requests. At 80% the answer
+says so; at 100% the question stops, naming the cap and how to raise it. Claude and
+Copilot report each call as it happens, so their caps stop a run partway; Codex
+reports when an answer ends, so its cap refuses the next question. They live in
+`<data folder>/usage.json`, with the Codex rates. A value that doesn't parse is
+refused, naming the setting, and while the file can't be read the agent answers
+nothing, so a typo can never turn a cap off. A cap counts only what the SDK reports:
+the vendor's own bill is the authority.
+
 ## Themes
 
 Five built-in themes: Plain, Crate (the default), Harvest, Starship and Realm. Pick
@@ -549,7 +588,7 @@ node ui/scripts/ado-seed/compare.mjs mapped.json --project "<project>" --backdat
 
 A flag beats its env var. Any bind address other than loopback is refused in this
 release. The data folder is Toil UI's own, apart from toil's `~/.toil/`, and holds
-the cache. A `~` at the start of `TOIL_UI_DATA_DIR` means your home folder, on
+the cache, `agent.json` and `usage.json`. A `~` at the start of `TOIL_UI_DATA_DIR` means your home folder, on
 Windows too.
 
 ## Not in this alpha

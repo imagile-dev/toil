@@ -73,6 +73,7 @@ export const ROUTES = [
   '#/settings/dossiers',
   '#/settings/toil',
   '#/settings/usage',
+  '#/settings/agent-usage',
   '#/settings/agent',
 ];
 export const WIDTHS = [375, 768, 1440];
@@ -234,6 +235,12 @@ function states(route, width) {
   // the sample's Jira and Azure DevOps items are pressed: a GitHub issue has no read to make, and a done item none either.
   if (/\/item\/corp-(jira|ado)%3A/.test(route)) out.push({ name: 'workflow-live', setup: `(async () => { const n = ${clickAll('.readiness-live button', '/Check the workflow live|Read the workflow again/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
   if (/\/command-center$/.test(route)) out.push({ name: 'verdict-filter', setup: clickAll('.readiness-filters > div.choice:first-of-type .choice-button'), undo: 'Escape' });
+  // An answered question (#295): its usage footer, and the chat's running total and context meter in the pane's head.
+  if (route === '#/dossier/card-payments') {
+    const open = narrow ? `await ${clickAll('.ask--sheet .ask-head button', '/Open/')};` : '';
+    const ask = `(async () => { ${open} const before = document.querySelectorAll('[data-usage-footer]').length; if (!(await ${clickAll('.starters .starter:first-child')})) return 0; const deadline = Date.now() + 5000; while (document.querySelectorAll('[data-usage-footer]').length <= before && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelectorAll('[data-usage-footer]').length > before && document.querySelector('[data-chat-usage]') ? 1 : 0; })()`;
+    out.push({ name: 'answered', setup: ask, ...(narrow ? { undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') } : {}) });
+  }
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
   if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).

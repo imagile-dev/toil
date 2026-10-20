@@ -29,6 +29,7 @@ import { PullRequests } from './views/PullRequests.tsx';
 import { Settings } from './views/Settings.tsx';
 import type { ConfigApi } from './config.ts';
 import type { AgentSettingsPanelProps } from './agent-settings.tsx';
+import type { ModelUsageApi } from './server-client.ts';
 import type { FeedbackApi } from './feedback.ts';
 import { FeedbackButton, FeedbackModal } from './feedback-dialog.tsx';
 import { useMediaQuery } from './components/layout.tsx';
@@ -36,7 +37,7 @@ import { Choice } from './components/choice.tsx';
 import { ThemeChoiceProvider, wordingOn } from './theme-context.ts';
 import { wordFor, type WordKey } from './wording.ts';
 
-export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'usage' | 'agent';
+export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'usage' | 'agent-usage' | 'agent';
 export type Route =
   | { view: 'dossiers' }
   | { view: 'settings'; page: SettingsPage }
@@ -50,7 +51,7 @@ export type Route =
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/');
-  if (parts[0] === 'settings') return { view: 'settings', page: parts[1] === 'dossiers' || parts[1] === 'toil' || parts[1] === 'usage' || parts[1] === 'agent' ? parts[1] : 'connections' };
+  if (parts[0] === 'settings') return { view: 'settings', page: parts[1] === 'dossiers' || parts[1] === 'toil' || parts[1] === 'usage' || parts[1] === 'agent-usage' || parts[1] === 'agent' ? parts[1] : 'connections' };
   if (parts[0] === 'dossier' && parts[1]) {
     const dossier = decodeURIComponent(parts[1]);
     if (parts[2] === 'item' && parts[3]) return { view: 'item', dossier, id: decodeURIComponent(parts.slice(3).join('/')) };
@@ -89,12 +90,14 @@ export interface AppProps {
   feedback?: FeedbackApi;
   /** The Command Center's start action (#307), which assign-to-agent (#293) provides; without it the start button is disabled. */
   startReady?: StartReady;
+  /** The agent's model usage and caps (#295), for Settings, Agent usage: the server's, or the preview's sample. */
+  modelUsage?: ModelUsageApi;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, startReady }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, startReady }: AppProps) {
   const route = useRoute();
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
@@ -197,7 +200,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
 
   let body;
   if (route.view === 'settings') {
-    body = <Settings page={route.page} config={config ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
+    body = <Settings page={route.page} config={config ?? null} modelUsage={modelUsage ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'dossiers') {
     body = !list ? <skins.Loading message={words('loading.dossiers')} /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} /> : failure(list.message);
   } else if (!current) {

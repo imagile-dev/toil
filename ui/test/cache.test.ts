@@ -63,7 +63,7 @@ describe('the schema', () => {
   it('creates a new file at the latest version, with every table', async () => {
     const cache = await open(folder());
     expect(cache.version()).toBe(SCHEMA_VERSION);
-    expect(Object.keys(cache.counts())).toEqual(['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers']);
+    expect(Object.keys(cache.counts())).toEqual(['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers', 'usage']);
   });
 
   it('moves an older file forward one step at a time, keeping its rows', async () => {

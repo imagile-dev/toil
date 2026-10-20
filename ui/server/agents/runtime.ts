@@ -8,6 +8,7 @@
  * streaming, and the checks in answer.ts. Three plugs, one socket.
  */
 
+import type { ContextUse, PremiumQuota, UsageRecord } from '../../src/model-usage.ts';
 import { AgentError, findCli } from './cli.ts';
 import type { ToolSpec } from './tools.ts';
 
@@ -44,9 +45,25 @@ export interface RunRequest {
   /** Settings that only one adapter reads (Claude's endpoint). */
   endpoint: Endpoint | null;
   importer: Importer;
+  usage: UsageSink;
+  /** Unique to this run: part of a usage report's id where the SDK gives the call none of its own. */
+  runId: string;
 }
 
 export type Endpoint = 'anthropic' | 'bedrock' | 'foundry' | 'vertex';
+
+/** One usage report in the SDK's own figures; the host adds the chat, turn, dossier, adapter and time (#295). */
+export type UsageReport = Omit<UsageRecord, 'chatId' | 'turn' | 'dossier' | 'adapter' | 'at'>;
+
+/** Where an adapter sends what its SDK reports about usage, as it reports it (#295). */
+export interface UsageSink {
+  /** Every report of this run so far, replacing what the adapter sent before. */
+  report(records: UsageReport[]): void;
+  /** How full the model's context is, where the SDK says. */
+  context(c: ContextUse): void;
+  /** Copilot: the premium requests left, from the SDK's experimental quota call. */
+  quota(q: PremiumQuota): void;
+}
 
 export interface Runtime {
   name: AdapterName;
@@ -58,6 +75,8 @@ export interface Runtime {
   command: string;
   /** The CLI's own name, for messages. */
   cliLabel: string;
+  /** Its SDK reports usage only once a turn is over (Codex), so a cap can't stop a run partway: it refuses the next question. */
+  usageAtEnd?: boolean;
   /** Sends one question; resolves with the final answer's text. */
   run(sdk: unknown, request: RunRequest): Promise<string>;
 }
