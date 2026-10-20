@@ -158,7 +158,7 @@ describe('problem list and problem get', () => {
   it('says to put -- before an id that starts with a dash, when one is given without it', async () => {
     const t = testContext({ config: fixtureConfig, routes: [] });
     const result = await runCli(['dynatrace', 'problem', 'get', '-123_456V2'], { commands: [problemsGetCommand], context: t.context });
-    expect(result.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', fix: 'If -123_456V2 is the <id>, put -- before it, after any flags: toil dynatrace problem get [flags] -- -123_456V2.' });
+    expect(result.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', fix: 'If -123_456V2 is an argument, put -- before the arguments, after any flags: toil dynatrace problem get [flags] -- <id>.' });
     expect(t.http.calls).toEqual([]);
   });
 });

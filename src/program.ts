@@ -390,25 +390,25 @@ async function parseCommandLine(options: ProgramOptions, words: string[]): Promi
 const INFORMATIONAL = new Set(['commander.helpDisplayed', 'commander.help', 'commander.version']);
 
 /**
+ * A refused "option" that is really an id starting with a dash (a Dynatrace
+ * problem id, `-123_456V2`), on a command that takes positionals: the fix says
+ * to put `--` before the arguments, which is how any shell argument that looks
+ * like a flag is passed. It names every argument in order, since the dash-led
+ * one may be the second. Undefined when that isn't what happened.
+ */
+function dashLedFix(rejected: string | undefined, command: string | undefined, commands: readonly AnyCommand[]): string | undefined {
+  if (!rejected || !/^-\d/.test(rejected) || !command) return undefined;
+  const args = commands.find((d) => commandName(d) === command)?.args ?? [];
+  if (!args.length) return undefined;
+  return `If ${rejected} is an argument, put -- before the arguments, after any flags: toil ${command} [flags] -- ${args.map((a) => `<${a.name}>`).join(' ')}.`;
+}
+
+/**
  * Parses argv and runs the matching command, returning the exit code. A usage
  * error (unknown command or flag, missing argument) still produces exactly one
  * envelope on stdout, as INVALID_INPUT, because an agent reading stdout should
  * never have to parse help text from stderr to learn that it typed it wrong.
  */
-/**
- * A refused "option" that is really an id starting with a dash (a Dynatrace
- * problem id, `-123_456V2`), on a command that takes a positional: the fix
- * says to put `--` before it, which is how any shell argument that looks like
- * a flag is passed. Undefined when that isn't what happened.
- */
-function dashLedFix(rejected: string | undefined, command: string | undefined, commands: readonly AnyCommand[]): string | undefined {
-  if (!rejected || !/^-\d/.test(rejected) || !command) return undefined;
-  const def = commands.find((d) => commandName(d) === command);
-  const arg = def?.args?.[0];
-  if (!arg) return undefined;
-  return `If ${rejected} is the <${arg.name}>, put -- before it, after any flags: toil ${command} [flags] -- ${rejected}.`;
-}
-
 export async function runProgram(options: ProgramOptions, argv: string[], from: 'node' | 'user' = 'node'): Promise<number> {
   const { program, result } = buildProgram(options);
   try {
