@@ -25,6 +25,9 @@
       "--reviewer <username>",
       "--created-after <date>",
       "--created-before <date>",
+      "--updated-since <iso>",
+      "--limit <n>",
+      "--cursor <cursor>",
       "--project <key>",
       "--repo <slug>"
     ]
@@ -37,6 +40,7 @@
     "connection": true,
     "flags": [
       "<id>",
+      "--include <list>",
       "--project <key>",
       "--repo <slug>"
     ]

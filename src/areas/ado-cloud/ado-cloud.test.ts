@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
-import { BOARD, DEFAULT_TEAM, ME, ORG_URL, backlogItems, backlogs, board, boards, bugStates, config as fixtureConfig, files as fixtureFiles, routes as fixtureRoutes, sprintItems, teamIterations, workItem } from '../../../test/fixtures/ado-cloud.fixture.js';
+import { change, iteration, ME, ORG_URL, REPO, SHA, config as fixtureConfig, files as fixtureFiles, pr, prCommit, prStatus, routes as fixtureRoutes, threads, workItem, BOARD, DEFAULT_TEAM, backlogItems, backlogs, board, boards, bugStates, sprintItems, teamIterations } from '../../../test/fixtures/ado-cloud.fixture.js';
 import { commandName, type AnyCommand } from '../../core/command.js';
 import { execute } from '../../core/run.js';
 import { referenceName } from './fields.js';
@@ -233,6 +233,79 @@ describe('pull requests', () => {
       $top: '100',
       $skip: '0',
     });
+  });
+
+  it('pr list --updated-since keeps active PRs and those created or closed since, counting kept ones against --limit', async () => {
+    const listed = [
+      pr(1, { status: 'completed', creationDate: '2026-08-01T00:00:00Z', closedDate: '2026-08-02T00:00:00Z' }),
+      pr(2, { status: 'active', creationDate: '2026-01-01T00:00:00Z' }),
+      pr(3, { status: 'abandoned', creationDate: '2026-08-01T00:00:00Z', closedDate: '2026-09-02T00:00:00Z' }),
+      pr(4, { status: 'completed', creationDate: '2026-09-01T00:00:00Z', closedDate: '2026-09-01T06:00:00Z' }),
+      pr(5, { status: 'completed', creationDate: '2026-07-01T00:00:00Z', closedDate: '2026-08-31T23:59:59Z' }),
+    ];
+    const paged: Route = { path: `${REPO}/pullrequests`, respond: (r) => ({ json: { value: new URL(r.url).searchParams.get('$skip') === '0' ? listed : [] } }) };
+    const all = await run('pr list', { ...inRepo, state: 'all', reviewer: 'abc', createdAfter: '2026-01-01', updatedSince: '2026-09-01' }, [paged]);
+    expect((all.data as Array<{ pullRequestId: number }>).map((p) => p.pullRequestId)).toEqual([2, 3, 4]);
+    // Nothing about it goes to the server: the filter is toil's, on top of the created range.
+    expect(all.calls.map((c) => c.url)).toEqual([
+      `${R}/pullrequests?api-version=7.1&searchCriteria.status=all&searchCriteria.reviewerId=abc&searchCriteria.queryTimeRangeType=created&searchCriteria.minTime=2026-01-01T00%3A00%3A00.000Z&%24top=100&%24skip=0`,
+    ]);
+    const limited = await run('pr list', { ...inRepo, state: 'all', updatedSince: '2026-09-01T02:00:00+02:00', limit: 2 }, [paged]);
+    expect((limited.data as Array<{ pullRequestId: number }>).map((p) => p.pullRequestId)).toEqual([2, 3]);
+    expect(limited.envelope.meta.page?.nextCursor).toEqual(expect.any(String));
+    // A zoneless date-time is refused, as the area's other date flags refuse it.
+    const bad = await run('pr list', { ...inRepo, updatedSince: '2026-09-01T09:00' });
+    expect(bad.calls).toEqual([]);
+    expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('Invalid --updated-since value "2026-09-01T09:00"') });
+  });
+
+  it('pr get without --include is the one request and the pull request as it came', async () => {
+    const { calls, data } = await run('pr get', { ...inRepo, id: 42 });
+    expect(calls).toEqual([{ method: 'GET', url: `${R}/pullrequests/42?api-version=7.1`, headers: GET_HEADERS, body: undefined }]);
+    expect(data).toEqual(pr(42));
+  });
+
+  it('pr get --include reads each list asked for, in a fixed order, every page, into data.included', async () => {
+    const { calls, data } = await run('pr get', { ...inRepo, id: 42, include: ' Files, reviews,,CHECKS,commits,reviews ' });
+    expect(calls.map((c) => c.url)).toEqual([
+      `${R}/pullrequests/42?api-version=7.1`,
+      `${R}/pullrequests/42/threads?api-version=7.1`,
+      `${R}/pullrequests/42/statuses?api-version=7.1`,
+      `${R}/pullrequests/42/commits?api-version=7.1`,
+      `${R}/pullrequests/42/commits?api-version=7.1&continuationToken=abc12345`,
+      `${R}/pullrequests/42/iterations?api-version=7.1`,
+      `${R}/pullrequests/42/iterations/2/changes?api-version=7.1`,
+      `${R}/pullrequests/42/iterations/2/changes?api-version=7.1&%24skip=1`,
+    ]);
+    expect(calls.every((c) => c.method === 'GET')).toBe(true);
+    const got = data as Record<string, unknown> & { included: Record<string, unknown[]> };
+    expect(Object.keys(got.included)).toEqual(['reviews', 'checks', 'commits', 'files']);
+    expect(got.included.reviews).toEqual(threads);
+    expect(got.included.checks).toEqual([prStatus]);
+    expect(got.included.commits).toEqual([prCommit(SHA), prCommit('def67890abc12345def67890abc12345def67890')]);
+    expect(got.included.files).toEqual([change(1, '/src/app.ts'), change(2, '/README.md')]);
+    const rest = Object.fromEntries(Object.entries(got).filter(([key]) => key !== 'included'));
+    expect(rest).toEqual(pr(42));
+  });
+
+  it('pr get --include files takes the highest iteration id, and no iterations is an empty list', async () => {
+    const extra: Route[] = [
+      { path: `${REPO}/pullrequests/42/iterations`, respond: { json: { count: 3, value: [iteration(3), iteration(1), iteration(2)] } } },
+      { path: `${REPO}/pullrequests/42/iterations/3/changes`, respond: { json: { changeEntries: [change(9, '/a.ts')] } } },
+    ];
+    const { calls, data } = await run('pr get', { ...inRepo, id: 42, include: 'files' }, extra);
+    expect(calls[2]!.url).toBe(`${R}/pullrequests/42/iterations/3/changes?api-version=7.1`);
+    expect((data as { included: unknown }).included).toEqual({ files: [change(9, '/a.ts')] });
+    const none = await run('pr get', { ...inRepo, id: 42, include: 'files' }, [{ path: `${REPO}/pullrequests/42/iterations`, respond: { json: { count: 0, value: [] } } }]);
+    expect(none.calls).toHaveLength(2);
+    expect((none.data as { included: unknown }).included).toEqual({ files: [] });
+  });
+
+  it('pr get refuses an unknown --include before any request, naming it and the allowed ones', async () => {
+    const { calls, envelope } = await run('pr get', { ...inRepo, id: 42, include: 'reviews,builds' });
+    expect(calls).toEqual([]);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Unknown --include value "builds". Allowed: reviews, checks, commits, files.', fix: expect.stringContaining('--include reviews,checks') });
+    expect((await run('pr get', { ...inRepo, id: 42, include: ' , ' })).calls).toHaveLength(1);
   });
 
   it('pr create adds refs/heads/ to a branch name only, and leaves out what was not given', async () => {

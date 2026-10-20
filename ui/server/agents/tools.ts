@@ -1,8 +1,10 @@
 /**
- * The agent's tools (#251): read-only, scoped to one dossier, and the same
- * list for every adapter. Four read the cache a sync filled (`owi_query`,
- * `owi_get`, `owi_history`, and `owi_similar`, the scorer `toil util owi
- * similar` runs); the rest are `toil mcp`'s own read tools, by
+ * The agent's tools (#251, #291): read-only, scoped to one dossier, and the
+ * same list for every adapter. Seven read the cache a sync filled
+ * (`owi_query`, `owi_get`, `owi_history`, and `owi_similar`, the scorer `toil
+ * util owi similar` runs; `pr_query`, `pr_get` and `pr_metrics`, the pull
+ * requests as OWI changes, worked out by src/model/prs.ts as the pull request
+ * view works them out); the rest are `toil mcp`'s own read tools, by
  * their MCP names, for live lookups through `@imagile-dev/toil/api`'s
  * `execute()` with `readOnly: true`. There is no write tool, and a live tool
  * is built only for a command the registry says never writes, so the list
@@ -15,7 +17,8 @@
  */
 
 import type { Cache, ChangeRow, TransitionRow } from '../cache.ts';
-import type { Envelope, Execute, WorkItem } from '../../src/toil.ts';
+import type { AuthorKind, Change, Envelope, Execute, WorkItem } from '../../src/toil.ts';
+import { flagsOf, KINDS, linked, PR_FLAG_LABEL, prMetrics, sizeOf, waitOf, workingDays, type Sample, type WaitingOn } from '../../src/model/prs.ts';
 import { SimilarityIndex } from '../../../src/core/owi/similar.ts';
 import { CALLER } from '../store.ts';
 
@@ -27,6 +30,9 @@ export interface AgentData {
   /** When the dossier was last synced, or null if never. */
   syncedAt(): string | null;
 }
+
+/** The pull requests among a dossier's change rows, as the OWI changes they were made from. */
+export const pullRequestsOf = (rows: ChangeRow[]): Change[] => rows.flatMap((r) => (r.kind === 'pull-request' && 'change' in r.ref && r.ref.change ? [r.ref.change] : []));
 
 /** A dossier's rows in the SQLite cache, or null when it has never synced. */
 export function cacheData(cache: Pick<Cache, 'states' | 'items' | 'transitions' | 'changes'>, dossier: string): AgentData | null {
@@ -78,6 +84,7 @@ export const LIVE_COMMANDS: readonly string[] = [
   'ado work-item history',
   'ado work-item iterations',
   'ado pr list',
+  'ado pr get',
   'ado run list',
   'ado-cloud work-item search',
   'ado-cloud work-item get',
@@ -85,12 +92,17 @@ export const LIVE_COMMANDS: readonly string[] = [
   'ado-cloud work-item history',
   'ado-cloud work-item iterations',
   'ado-cloud pr list',
+  'ado-cloud pr get',
   'github issue get',
   'github issue history',
   'github project items',
   'github pr list',
+  'github pr get',
   'github commit checks',
   'bitbucket pr list',
+  'bitbucket pr get',
+  'bitbucket-cloud pr list',
+  'bitbucket-cloud pr get',
   'jenkins pipeline runs',
   'openshift deployment list',
 ];
@@ -162,7 +174,160 @@ function vouch(ledger: Ledger, item: Pick<WorkItem, 'id' | 'parent' | 'children'
 export const MAX_SIMILAR = 20;
 export const DEFAULT_SIMILAR = 5;
 
-/** The four cache tools for one dossier. */
+/** The most pull requests pr_query returns, and how many by default. */
+export const MAX_PRS = 100;
+export const DEFAULT_PRS = 30;
+const WAITS: WaitingOn[] = ['draft', 'changes', 'checks', 'review', 'merge'];
+const round1 = (n: number) => Math.round(n * 10) / 10;
+
+/** A pull request as a tool returns it: no `native` record; what it waits on, its flags and its work items as the view shows them. */
+function prBrief(c: Change, byId: Map<string, WorkItem>, now: string) {
+  const open = c.state === 'OPEN' || c.state === 'DRAFT';
+  const wait = open ? waitOf(c, now) : null;
+  const size = sizeOf(c);
+  return {
+    id: c.id,
+    repo: c.repo,
+    title: c.title,
+    state: c.state,
+    author: c.author ? (c.author.name ?? c.author.id) : null,
+    authorKind: c.authorKind,
+    authorKindSource: c.authorKindSource,
+    authorKindSignal: c.authorKindSignal,
+    waitingOn: wait?.on ?? null,
+    waitingWorkingDays: wait?.days === null || wait === null ? null : round1(wait.days),
+    waitingSince: wait?.since ?? null,
+    why: wait?.why ?? null,
+    reviewers: c.reviewers.map((r) => ({ who: r.person.name ?? r.person.id, state: r.state })),
+    checks: c.checks,
+    checksAt: c.checksAt,
+    mergeable: c.mergeable,
+    size: size.bucket,
+    changedLines: size.lines,
+    files: size.files,
+    workItems: linked(c, byId),
+    namesOutsideDossier: c.workItems.filter((id) => !byId.has(id)),
+    flags: flagsOf(c, byId, now).map((f) => ({ flag: f.flag, label: PR_FLAG_LABEL[f.flag], evidence: f.text })),
+    created: c.created,
+    firstReviewAt: c.firstReviewAt,
+    approvedAt: c.approvedAt,
+    mergedAt: c.mergedAt,
+    url: c.url,
+    unmapped: c.unmapped.map((u) => u.field),
+  };
+}
+
+/** A sample as a tool returns it: the median in working days, its sample size, and how many were unknown. */
+const sampleOut = (s: Sample) => ({ median: s.median === null ? null : round1(s.median), p85: s.p85 === null ? null : round1(s.p85), n: s.n, unknown: s.unknown });
+
+/** The pull request tools for one dossier: query, get and metrics over the synced OWI changes. */
+export function prTools(dossier: string, data: AgentData, ledger: Ledger, now: () => string = () => new Date().toISOString()): ToolSpec[] {
+  const note = () => ({ dossier, syncedAt: data.syncedAt() });
+  const byIdOf = () => new Map(data.items().map((i) => [i.id, i]));
+  const vouchPr = (b: { id: string; workItems: string[] }) => {
+    ledger.add(b.id);
+    for (const id of b.workItems) ledger.add(id);
+  };
+  return [
+    {
+      name: 'pr_query',
+      description: `Lists the pull requests Toil UI's cache holds for the dossier "${dossier}" (GitHub, Bitbucket and Azure DevOps), as OWI changes, open ones longest-waiting first. Each says what it waits on (review, changes, checks, merge or draft) and for how many working days, why, its reviewers and their state, checks (PASSING, FAILING, PENDING, NONE, or null when not read), mergeable, size (XS to XL by changed lines), the dossier's work items it names, its flags, and authorKind (HUMAN, AGENT or BOT) with the signal that set it. All filters must match. Returns at most ${MAX_PRS} and says when there were more.`,
+      inputSchema: {
+        type: 'object',
+        properties: {
+          state: { type: 'string', enum: ['OPEN', 'DRAFT', 'MERGED', 'DECLINED'], description: 'Default: OPEN and DRAFT.' },
+          repo: { type: 'string', description: 'Part of the repository name.' },
+          author: { type: 'string', description: "Part of the author's name or id." },
+          authorKind: { type: 'string', enum: ['HUMAN', 'AGENT', 'BOT'] },
+          waitingOn: { type: 'string', enum: WAITS, description: 'What an open pull request waits on.' },
+          minWaitingDays: { type: 'number', minimum: 0, description: 'Only those waiting at least this many working days.' },
+          olderThanDays: { type: 'number', minimum: 0, description: 'Only those opened at least this many working days ago.' },
+          flagged: { type: 'boolean', description: 'Only those with at least one flag.' },
+          limit: { type: 'integer', minimum: 1, maximum: MAX_PRS, description: `Default ${DEFAULT_PRS}.` },
+        },
+        additionalProperties: false,
+      },
+      async run(input) {
+        const at = now();
+        const byId = byIdOf();
+        const repo = str(input.repo)?.toLowerCase();
+        const author = str(input.author)?.toLowerCase();
+        const limit = Math.min(MAX_PRS, Math.max(1, Number.isInteger(input.limit) ? (input.limit as number) : DEFAULT_PRS));
+        const states = str(input.state) ? [String(input.state)] : ['OPEN', 'DRAFT'];
+        const all = pullRequestsOf(data.changes()).map((c) => ({ c, b: prBrief(c, byId, at) }));
+        const matches = all
+          .filter(({ c, b }) =>
+            states.includes(c.state) &&
+            (!repo || c.repo.toLowerCase().includes(repo)) &&
+            (!author || [c.author?.id, c.author?.name].some((n) => n?.toLowerCase().includes(author))) &&
+            (!str(input.authorKind) || c.authorKind === input.authorKind) &&
+            (!str(input.waitingOn) || b.waitingOn === input.waitingOn) &&
+            (typeof input.minWaitingDays !== 'number' || (b.waitingWorkingDays ?? -1) >= input.minWaitingDays) &&
+            (typeof input.olderThanDays !== 'number' || (c.created !== null && workingDays(c.created, at) >= input.olderThanDays)) &&
+            (input.flagged !== true || b.flags.length > 0),
+          )
+          .sort((x, y) => (y.b.waitingWorkingDays ?? -1) - (x.b.waitingWorkingDays ?? -1) || (x.c.created ?? '').localeCompare(y.c.created ?? ''))
+          .map(({ b }) => b);
+        const prs = matches.slice(0, limit);
+        for (const b of prs) vouchPr(b);
+        return { ...note(), now: at, total: matches.length, returned: prs.length, ...(matches.length > limit ? { more: `${matches.length - limit} more match; narrow the filters or raise limit (max ${MAX_PRS}).` } : {}), pullRequests: prs };
+      },
+    },
+    {
+      name: 'pr_get',
+      description: `One pull request from the cache for "${dossier}", by its change id (such as github:imagile/payments-web#52, from pr_query): everything pr_query says, plus every review in order, and each named work item's title and status.`,
+      inputSchema: { type: 'object', properties: { id: { type: 'string', description: 'The change id.' } }, required: ['id'], additionalProperties: false },
+      async run(input) {
+        const id = str(input.id);
+        const c = id ? pullRequestsOf(data.changes()).find((x) => x.id === id) : undefined;
+        if (!c) return { ...note(), error: `The cache holds no pull request ${JSON.stringify(id ?? '')} in ${dossier}. Use pr_query to find ids.` };
+        const byId = byIdOf();
+        const b = prBrief(c, byId, now());
+        vouchPr(b);
+        return {
+          ...note(),
+          pullRequest: {
+            ...b,
+            branch: c.branch,
+            reviews: c.reviews?.map((r) => ({ who: r.by.name ?? r.by.id, state: r.state, at: r.at })) ?? null,
+            workItemDetail: b.workItems.map((wid) => {
+              const i = byId.get(wid)!;
+              return { id: wid, title: i.title, status: i.status, statusCategory: i.statusCategory };
+            }),
+          },
+        };
+      },
+    },
+    {
+      name: 'pr_metrics',
+      description: `Flow metrics for the pull requests in the cache for "${dossier}", for the last weeks (Monday to Sunday UTC, the current week included), split by authorKind (HUMAN, AGENT, BOT) and for ALL: pickup (opened to first review), review (first review to approval) and merge (approval to merge) as medians and 85th percentiles in working days, review rounds per merged pull request, sizes opened (XS to XL), and merged per week. Every figure has n, its sample size, and unknown, how many lacked the data; quote n with every figure.`,
+      inputSchema: { type: 'object', properties: { weeks: { type: 'integer', minimum: 1, maximum: 26, description: 'Default 6.' } }, additionalProperties: false },
+      async run(input) {
+        const weeks = Number.isInteger(input.weeks) ? Math.min(26, Math.max(1, input.weeks as number)) : 6;
+        const m = prMetrics(pullRequestsOf(data.changes()), now(), weeks);
+        const kinds = ['ALL', ...KINDS] as Array<AuthorKind | 'ALL'>;
+        const per = <T,>(f: (k: AuthorKind | 'ALL') => T) => Object.fromEntries(kinds.map((k) => [k, f(k)]));
+        return {
+          ...note(),
+          from: m.from,
+          to: m.to,
+          unit: 'working days',
+          pickup: per((k) => sampleOut(m.pickup[k])),
+          review: per((k) => sampleOut(m.review[k])),
+          merge: per((k) => sampleOut(m.merge[k])),
+          reviewRounds: per((k) => sampleOut(m.rounds[k])),
+          sizesOpened: m.sizes,
+          mergedPerWeek: per((k) => m.throughput[k].map((w) => ({ weekOf: w.start, merged: w.items.length, ...(w.partial ? { partial: true } : {}) }))),
+          mergedWithNoMergeTime: m.unplacedMerges,
+          mergedWithNoApproval: m.mergedUnreviewed,
+          pullRequests: m.counts,
+        };
+      },
+    },
+  ];
+}
+
+/** The four work item cache tools for one dossier. */
 export function cacheTools(dossier: string, data: AgentData, ledger: Ledger): ToolSpec[] {
   const note = () => ({ dossier, syncedAt: data.syncedAt() });
   return [

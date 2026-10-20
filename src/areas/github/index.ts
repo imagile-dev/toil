@@ -1,6 +1,7 @@
 import { checkDossier } from './check-dossier.js';
 import { githubArea, githubSupported } from './area.js';
 import { commentCommands } from './comments.js';
+import { fileCommands } from './files.js';
 import { issueCommands } from './issues.js';
 import { mergingCommands } from './merging.js';
 import { projectCommands } from './projects.js';
@@ -12,4 +13,4 @@ import { workItemCommands } from './work-items.js';
 // Registered by existing: scripts/gen-areas.mjs finds this file.
 export const area = githubArea;
 export const supported = githubSupported;
-export const commands = [...issueCommands, ...workItemCommands, ...projectCommands, ...prCommands, ...mergingCommands, ...commentCommands, ...reviewCommands, ...statusCommands, checkDossier];
+export const commands = [...issueCommands, ...fileCommands, ...workItemCommands, ...projectCommands, ...prCommands, ...mergingCommands, ...commentCommands, ...reviewCommands, ...statusCommands, checkDossier];

@@ -80,6 +80,7 @@
     "flags": [
       "<key>",
       "--transition <name-or-id>",
+      "--to <intent-or-status>",
       "--allow-write"
     ]
   },

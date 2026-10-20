@@ -33,6 +33,7 @@ What each group of commands needs from the token:
 | Commands | Fine-grained token | Classic token |
 |----------|--------------------|---------------|
 | `issue list`, `issue search`, `issue get`, `issue history` | Issues: read, on the repository | `repo` (`public_repo` for public repositories only) |
+| `repo file` | Contents: read, on the repository | `repo` (`public_repo` for public repositories only) |
 | `project list`, `project fields`, `project items` | Projects: read, under the organization's permissions. A fine-grained token can't read a user's own projects | `read:project` (plus `repo` to see items from private repositories) |
 | Pull request, review, comment and check commands | Pull requests, contents and checks, read or write as needed | `repo` |
 
@@ -115,7 +116,9 @@ Owner, repo, labels and refs go into request paths as typed; a value that would 
 `.` or `..` path segment is refused with `INVALID_INPUT`.
 
 - **Repositories:** `repo create` (`--name`, `--description`, `--private`,
-  `--auto-init`).
+  `--auto-init`), and `repo file <path>` (`--ref`), one file through the contents
+  API: GitHub's record plus `text`, the file decoded as UTF-8 (null, with a
+  `GITHUB_FILE_NOT_INLINED` warning, over 1 MB). A folder is refused.
 - **Issues:** each issue is GitHub's own, with the issue type in `type`, sub-issue
   counts in `sub_issues_summary` and the parent in `parent_issue_url`, where the server
   has them.
@@ -164,7 +167,16 @@ Owner, repo, labels and refs go into request paths as typed; a value that would 
   open|closed|all`, default `open`; `--head user:branch`, `--base`; `--author` and
   `--created-after`/`--created-before`, ISO 8601, are filtered as each page comes in,
   the author case-insensitively; a date alone is UTC midnight, a date-time with no zone
-  local time), `pr get <number>`, `pr create` (`--title`, `--head`, `--base`
+  local time; `--updated-since <iso>` keeps pull requests updated at or after it, and
+  asks GitHub for the most recently updated first, `sort=updated&direction=desc`, so
+  reading stops after the page that reaches an older one), `pr get <number>`
+  (`--include reviews,checks,commits,files`, any of them, adds `included`, an object
+  holding only the lists asked for, each GitHub's own records with every page read:
+  `reviews`, `checks` (the check runs on the head commit, `head.sha`), `commits` and
+  `files`; each list is one more request, more to page; GitHub serves at most 250
+  commits and 3000 files of a pull request, and a list that long gets a
+  `GITHUB_LIST_CAPPED` warning; an unknown name is `INVALID_INPUT`), `pr create`
+  (`--title`, `--head`, `--base`
   defaulting to `targetBranch` then `main`, `--body`/`--body-file`, `--draft`),
   `pr update <number>` (`--title`, `--body`, `--base`), `pr merge <number>` (`--method
   merge|squash|rebase`, default `merge`, always sent; `--commit-title`,
@@ -198,13 +210,16 @@ Every list (`pr list`, `pr files`, `pr comments`, `pr review-comments`, `pr revi
 lists) reads every page by default. `--limit <n>` stops after `n` items and sets
 `meta.page.nextCursor`; pass it back as `--cursor` with the same `--limit` for the next
 `n`, until `nextCursor` is `null`. On `pr list`, `--limit` counts the pull requests that
-pass `--author` and the date filters.
+pass `--author` and the date filters, `--updated-since` included.
 
 ```bash
 toil github issue list --state all --sort updated --direction asc --updated-since 2025-01-31T00:00:00Z --limit 100
 toil github issue get 9 10 --sub-issues
 toil github --owner imagile project items 3
 toil github pr list --state all --author octo-dev
+toil github pr list --state all --updated-since 2025-01-31T00:00:00Z --limit 50
+toil github pr get 7 --include reviews,checks
+toil github repo file .github/CODEOWNERS
 toil github --owner imagile --repo toil-probe pr status 7
 toil github pr create --title "Add the probe" --head feature --body-file pr.md --allow-write
 ```

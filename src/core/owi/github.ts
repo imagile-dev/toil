@@ -93,7 +93,7 @@ const keyOfApiUrl = (url: unknown) => {
   return m ? `${m[1]}/${m[2]}#${m[3]}` : undefined;
 };
 
-const ghPerson = (value: unknown): Person | null => (isRecord(value) ? person(value.login, value.name, value.email) : null);
+export const ghPerson = (value: unknown): Person | null => (isRecord(value) ? person(value.login, value.name, value.email) : null);
 
 /** The issues a document holds: an array (lists, search), { issues } (several numbers) or one issue. Pull requests are dropped and counted. */
 export function issuesOf(data: unknown): { issues: Issue[]; pulls: number } | undefined {

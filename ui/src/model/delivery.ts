@@ -4,13 +4,13 @@
  * the `data` the commands return, so the dashboards and the tests agree. The
  * rules, which AGENT_DECISIONS.md (#228 dossier dashboard) records:
  *
- * - **A pull request names its work items** in its title or description: a
- *   Jira key (`PAY-101`), or `#<number>` for an Azure DevOps work item or a
- *   GitHub issue in the same repository. Only items the dossier's own query
- *   returned count.
+ * - **A pull request names its work items** in its title, branch or
+ *   description, as its OWI change reads them (src/core/owi/change.ts). Only
+ *   items the dossier's own queries returned count.
  * - **A build belongs to a pull request** by the source's own link: the
  *   Jenkins multibranch job `PR-<id>`, an Azure Pipelines run's
- *   `triggerInfo["pr.number"]`, or the GitHub checks on the pull request's head.
+ *   `triggerInfo["pr.number"]`, or the GitHub check runs `pr get --include
+ *   checks` returned for the pull request's head.
  *   A GitHub head's checks are one build: failed if any failed, running if any
  *   are, else passed.
  * - **A deployment names a commit**: the image tag's trailing hex on an
@@ -26,7 +26,7 @@
  * Release notes, reconstructed from evidence, which is how most get written anyway.
  */
 
-import type { ChangeRef, Deployment, WorkItem } from '../toil.ts';
+import type { Change, ChangeRef, Deployment, SourceKind, WorkItem } from '../toil.ts';
 
 type Rec = Record<string, unknown>;
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -39,92 +39,35 @@ export const iso = (v: unknown): string => {
   return Number.isNaN(t) ? '' : new Date(t).toISOString();
 };
 
-/** The OWI ids of the dossier's items a pull request's text names. */
-export function mentioned(text: string, items: WorkItem[], repo?: string): string[] {
-  const out = new Set<string>();
-  for (const [key] of text.matchAll(/\b[A-Z][A-Z0-9]+-\d+\b/g)) for (const i of items) if (i.source.area.startsWith('jira') && i.source.key === key) out.add(i.id);
-  for (const [, n] of text.matchAll(/#(\d+)\b/g)) {
-    for (const i of items) {
-      if (i.source.area.startsWith('ado') && i.source.key === n) out.add(i.id);
-      if (i.source.area === 'github' && repo && i.source.key === `${repo}#${n}`) out.add(i.id);
-    }
-  }
-  return [...out];
-}
-
 // Pull requests ---------------------------------------------------------------
 
-export function bitbucketPrs(data: unknown, connection: string, items: WorkItem[]): ChangeRef[] {
-  return recs(data).map((pr) => {
-    const repo = isRec(pr.toRef) && isRec(pr.toRef.repository) ? pr.toRef.repository : {};
-    const project = isRec(repo.project) ? str(repo.project.key) : null;
-    const state = str(pr.state) ?? 'UNKNOWN';
-    const merge = isRec(pr.properties) && isRec(pr.properties.mergeCommit) ? str(pr.properties.mergeCommit.id) : null;
-    const self = isRec(pr.links) ? recs(pr.links.self)[0] : undefined;
-    return {
-      id: `${connection}:${project}/${str(repo.slug)}#${pr.id}`,
-      kind: 'pull-request',
-      source: 'bitbucket',
-      command: 'bitbucket pr list',
-      items: mentioned(`${pr.title ?? ''}\n${pr.description ?? ''}`, items),
-      title: str(pr.title) ?? `Pull request ${pr.id}`,
-      url: str(self?.href),
-      state,
-      outcome: state === 'MERGED' ? 'merged' : state === 'DECLINED' ? 'declined' : 'open',
-      builds: null,
-      mergeCommit: state === 'MERGED' ? merge : null,
-      at: iso(pr.closedDate ?? pr.createdDate),
-    };
-  });
-}
+/** A source's family, as the panels name it: `bitbucket-cloud` is Bitbucket, `ado-cloud` Azure DevOps. */
+const family = (area: string): SourceKind => area.split('-')[0] as SourceKind;
 
-export function adoPrs(data: unknown, connection: string, items: WorkItem[], command = 'ado pr list'): ChangeRef[] {
-  return recs(data).map((pr) => {
-    const repo = isRec(pr.repository) ? pr.repository : {};
-    const project = isRec(repo.project) ? str(repo.project.name) : null;
-    const status = str(pr.status) ?? 'unknown';
-    const merge = isRec(pr.lastMergeCommit) ? str(pr.lastMergeCommit.commitId) : null;
-    const web = str(repo.webUrl);
-    return {
-      id: `${connection}:${project}/${str(repo.name)}#${pr.pullRequestId}`,
-      kind: 'pull-request',
-      source: 'ado',
-      command,
-      items: mentioned(`${pr.title ?? ''}\n${pr.description ?? ''}`, items),
-      title: str(pr.title) ?? `Pull request ${pr.pullRequestId}`,
-      url: web ? `${web}/pullrequest/${pr.pullRequestId}` : null,
-      state: status,
-      outcome: status === 'completed' ? 'merged' : status === 'abandoned' ? 'declined' : 'open',
-      builds: null,
-      mergeCommit: status === 'completed' ? merge : null,
-      at: iso(pr.closedDate ?? pr.creationDate),
-    };
-  });
+/**
+ * A pull request's `ChangeRef`, made from its OWI change: the work items it
+ * names that the dossier's own queries returned, its state, and the time the
+ * panels sort it by (merged or closed, else opened). A host that records no
+ * merge time (Bitbucket Cloud) is sorted by its last update.
+ */
+export function changeRef(c: Change, byId: Map<string, WorkItem>): ChangeRef {
+  const done = c.state === 'MERGED' || c.state === 'DECLINED';
+  return {
+    id: c.id,
+    kind: 'pull-request',
+    source: family(c.source.area),
+    command: c.source.command,
+    items: c.workItems.filter((id) => byId.has(id)),
+    title: c.title,
+    url: c.url,
+    state: c.state,
+    outcome: c.state === 'MERGED' ? 'merged' : c.state === 'DECLINED' ? 'declined' : 'open',
+    builds: null,
+    mergeCommit: c.state === 'MERGED' ? c.mergeCommit : null,
+    at: iso((done ? (c.mergedAt ?? c.closedAt ?? c.updated) : null) ?? c.created),
+    change: c,
+  };
 }
-
-export function githubPrs(data: unknown, connection: string, repo: string, items: WorkItem[]): ChangeRef[] {
-  return recs(data).map((pr) => {
-    const merged = str(pr.merged_at);
-    const state = merged ? 'merged' : pr.draft === true ? 'open (draft)' : (str(pr.state) ?? 'unknown');
-    return {
-      id: `${connection}:${repo}#${pr.number}`,
-      kind: 'pull-request',
-      source: 'github',
-      command: 'github pr list',
-      items: mentioned(`${pr.title ?? ''}\n${pr.body ?? ''}`, items, repo),
-      title: str(pr.title) ?? `Pull request ${pr.number}`,
-      url: str(pr.html_url),
-      state,
-      outcome: merged ? 'merged' : pr.state === 'closed' ? 'declined' : 'open',
-      builds: null,
-      mergeCommit: merged ? str(pr.merge_commit_sha) : null,
-      at: iso(merged ?? pr.created_at),
-    };
-  });
-}
-
-/** The head commit GitHub's checks are listed for. */
-export const githubHead = (pr: Rec): string | null => (isRec(pr.head) ? str(pr.head.sha) : null);
 
 // Builds -------------------------------------------------------------------------
 

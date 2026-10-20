@@ -24,7 +24,7 @@ import { columns } from '../src/model/board.ts';
 import { flows } from '../src/model/flow.ts';
 import { dependencyGraph } from '../src/model/graph.ts';
 import { health } from '../src/model/sprint.ts';
-import type { ChangeRef, Execute } from '../src/toil.ts';
+import type { Change, Execute } from '../src/toil.ts';
 
 const API = 'https://api.github.com';
 const REPO = `${API}/repos/imagile/payments-sandbox`;
@@ -126,9 +126,19 @@ function stubGithub(): Github {
     }
     const timeline = /^\/issues\/(\d+)\/timeline$/.exec(path);
     if (timeline) return json(timelines[Number(timeline[1])] ?? []);
-    if (path === '/pulls') return json(pulls);
+    if (path === '/pulls') {
+      // With --updated-since, toil asks newest-updated first and stops at an older one.
+      return json(url.searchParams.get('sort') === 'updated' ? [...pulls].sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1)) : pulls);
+    }
+    const one = /^\/pulls\/(\d+)$/.exec(path);
+    if (one) return json({ ...pulls.find((p) => p.number === Number(one[1]))!, mergeable: true, additions: 12, deletions: 3, changed_files: 2 });
+    // pr get --include: no reviews yet, no commits worth reading, and two files.
+    if (/^\/pulls\/\d+\/(reviews|commits)$/.test(path)) return json([]);
+    if (/^\/pulls\/\d+\/files$/.test(path)) return json([{ filename: 'src/payout.ts', additions: 10, deletions: 3 }, { filename: 'docs/glossary.md', additions: 2, deletions: 0 }]);
     const runs = /^\/commits\/(\w+)\/check-runs$/.exec(path);
     if (runs) return json({ total_count: checks[runs[1]!]!.length, check_runs: checks[runs[1]!] });
+    // No CODEOWNERS in this repository, wherever GitHub would look.
+    if (/^\/contents\/(\.github\/|docs\/)?CODEOWNERS$/.test(path)) return new Response(JSON.stringify({ message: 'Not Found' }), { status: 404, headers: { 'content-type': 'application/json' } });
     throw new Error(`No GitHub route for ${method} ${url.href}`);
   });
   return gh;
@@ -251,12 +261,12 @@ describe('a GitHub dossier with no project board', () => {
   });
 });
 
-describe('the pull requests whose checks are read', () => {
-  const change = (n: number, outcome: ChangeRef['outcome'], at: string): ChangeRef => ({ id: `#${n}`, kind: 'pull-request', source: 'github', command: 'github pr list', items: [], title: `${n}`, url: null, state: outcome, outcome, builds: null, mergeCommit: null, at });
+describe('the pull requests read in full', () => {
+  const change = (n: number, state: Change['state'], at: string) => ({ id: `#${n}`, state, created: at, updated: at, closedAt: state === 'MERGED' ? at : null, mergedAt: state === 'MERGED' ? at : null });
 
   it('are every open one and only the newest closed ones', () => {
-    const closed = Array.from({ length: CHECKED_CLOSED_PRS + 5 }, (_, i) => change(i, 'merged', new Date(Date.UTC(2026, 0, 1 + i)).toISOString()));
-    const open = change(999, 'open', '2020-01-01T00:00:00.000Z');
+    const closed = Array.from({ length: CHECKED_CLOSED_PRS + 5 }, (_, i) => change(i, 'MERGED', new Date(Date.UTC(2026, 0, 1 + i)).toISOString()));
+    const open = change(999, 'OPEN', '2020-01-01T00:00:00.000Z');
     const kept = checkedPrs([open, ...closed]);
     expect(kept).toHaveLength(CHECKED_CLOSED_PRS + 1);
     expect(kept).toContain(open);

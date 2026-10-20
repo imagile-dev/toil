@@ -10,11 +10,13 @@ import type { Agent } from './agent.ts';
 import type { DossierData } from './load.ts';
 import { prepare, type Prepared } from './model/insights.ts';
 import { health, type Health } from './model/sprint.ts';
-import type { WorkItem } from './toil.ts';
+import type { Change, WorkItem } from './toil.ts';
 
 export interface Data {
   dossier: DossierData;
   byId: Map<string, WorkItem>;
+  /** The dossier's pull requests, by OWI change id, for citations that name one. */
+  prById?: Map<string, Change>;
   agent: Agent;
   /** When the data was read: every view shows it (principle 4), and sprint figures are worked out at it. */
   now: string;

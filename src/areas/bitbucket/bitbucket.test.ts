@@ -159,6 +159,103 @@ describe('repositories and pull requests', () => {
     expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid --created-before value "yesterday". Use an ISO 8601 date such as 2025-01-31 or 2025-01-31T09:00:00Z.' });
   });
 
+  it('pr list without --limit reads every page and sets no meta.page', async () => {
+    const { envelope } = await run('pr list', AT);
+    expect(envelope.meta.page).toBeUndefined();
+  });
+
+  it('pr list --limit stops there with the next start as the cursor, and --cursor resumes at that start', async () => {
+    const first = await run('pr list', { ...AT, limit: 1 });
+    expect(first.calls.map((c) => c.url)).toEqual([`${BITBUCKET}${REPO}/pull-requests?state=OPEN&start=0&limit=100`]);
+    expect((first.data as Array<{ id: number }>).map((p) => p.id)).toEqual([41]);
+    expect(first.envelope.meta.page).toEqual({ nextCursor: '1', limit: 1 });
+    const second = await run('pr list', { ...AT, limit: 1, cursor: '1' });
+    expect(second.calls.map((c) => c.url)).toEqual([`${BITBUCKET}${REPO}/pull-requests?state=OPEN&start=1&limit=100`]);
+    expect((second.data as Array<{ id: number }>).map((p) => p.id)).toEqual([42]);
+    expect(second.envelope.meta.page).toEqual({ nextCursor: null, limit: 1 });
+  });
+
+  it('pr list --cursor needs --limit, and a cursor that is not a start offset is refused, both before any request', async () => {
+    const alone = await run('pr list', { ...AT, cursor: '1' });
+    expect(alone.calls).toEqual([]);
+    expect(alone.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--cursor needs --limit' });
+    const bad = await run('pr list', { ...AT, limit: 1, cursor: 'page-two' });
+    expect(bad.calls).toEqual([]);
+    expect(bad.envelope.error?.code).toBe('INVALID_INPUT');
+  });
+
+  it('pr list --updated-since keeps PRs updated on or after it, and a capped cursor resumes mid-page at the next one kept', async () => {
+    const since = Date.parse('2026-09-16T00:00:00Z');
+    const four = [pr(1, { updatedDate: since - 1 }), pr(2, { updatedDate: since }), pr(3, { updatedDate: since - 1 }), pr(4, { updatedDate: since + 1 })];
+    const routes = [
+      { path: `${REPO}/pull-requests`, query: { state: 'OPEN', start: '0', limit: '100' }, respond: { json: page(four) } },
+      { path: `${REPO}/pull-requests`, query: { state: 'OPEN', start: '3', limit: '100' }, respond: { json: { ...page(four.slice(3)), start: 3 } } },
+    ];
+    const all = await run('pr list', { ...AT, updatedSince: '2026-09-16' }, routes);
+    expect((all.data as Array<{ id: number }>).map((p) => p.id)).toEqual([2, 4]);
+    const first = await run('pr list', { ...AT, updatedSince: '2026-09-16', limit: 1 }, routes);
+    expect((first.data as Array<{ id: number }>).map((p) => p.id)).toEqual([2]);
+    // Item 3 of the page is the next one kept, so the cursor is its server offset.
+    expect(first.envelope.meta.page).toEqual({ nextCursor: '3', limit: 1 });
+    const second = await run('pr list', { ...AT, updatedSince: '2026-09-16', limit: 1, cursor: '3' }, routes);
+    expect(second.calls.map((c) => c.url)).toEqual([`${BITBUCKET}${REPO}/pull-requests?state=OPEN&start=3&limit=100`]);
+    expect((second.data as Array<{ id: number }>).map((p) => p.id)).toEqual([4]);
+    expect(second.envelope.meta.page).toEqual({ nextCursor: null, limit: 1 });
+  });
+
+  it('pr list --limit counts only PRs the created filters keep, and a bad --updated-since is refused before any request', async () => {
+    const { data, envelope } = await run('pr list', { ...AT, state: 'ALL', author: 'jdoe', reviewer: 'asmith', createdAfter: '2026-09-01', createdBefore: '2026-10-01', limit: 1 });
+    expect((data as Array<{ id: number }>).map((p) => p.id)).toEqual([42]);
+    expect(envelope.meta.page).toEqual({ nextCursor: null, limit: 1 });
+    const bad = await run('pr list', { ...AT, updatedSince: 'last week' });
+    expect(bad.calls).toEqual([]);
+    expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid --updated-since value "last week". Use an ISO 8601 date such as 2025-01-31 or 2025-01-31T09:00:00Z.' });
+  });
+
+  it('pr get without --include is the one request and the PR as it came', async () => {
+    const { calls, envelope } = await run('pr get', { ...AT, id: '42' });
+    expect(calls.map((c) => c.url)).toEqual([`${BITBUCKET}${REPO}/pull-requests/42`]);
+    expect(envelope.data).toEqual(pr(42));
+  });
+
+  it('pr get --include adds each list under included, every page, in the order reviews, checks, commits, files', async () => {
+    const { calls, envelope } = await run('pr get', { ...AT, id: '42', include: 'reviews,checks,commits,files' });
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
+      `GET ${BITBUCKET}${REPO}/pull-requests/42`,
+      `GET ${BITBUCKET}${REPO}/pull-requests/42/activities?start=0&limit=100`,
+      `GET ${BITBUCKET}${REPO}/pull-requests/42/commits?limit=1`,
+      `GET ${BITBUCKET}/rest/build-status/1.0/commits/${SHA}`,
+      `GET ${BITBUCKET}${REPO}/pull-requests/42/commits?start=0&limit=100`,
+      `GET ${BITBUCKET}${REPO}/pull-requests/42/changes?start=0&limit=100`,
+    ]);
+    const data = envelope.data as Record<string, unknown> & { included: Record<string, unknown[]> };
+    expect({ ...data, included: undefined }).toEqual({ ...pr(42), included: undefined });
+    expect(Object.keys(data.included)).toEqual(['reviews', 'checks', 'commits', 'files']);
+    expect(data.included.reviews).toEqual([
+      { id: 2, action: 'APPROVED', user: user('asmith') },
+      { id: 6, action: 'REVIEWED', user: user('bkhan') },
+    ]);
+    expect((data.included.checks as Array<{ key: string }>).map((b) => b.key)).toEqual(['ci', 'e2e']);
+    expect(data.included.commits).toEqual([{ id: SHA }]);
+    // The changes as Bitbucket sent them, path objects and all: not pr files' strings.
+    expect(data.included.files).toEqual([
+      { contentId: SHA, path: { components: ['src', 'retry.ts'], parent: 'src', name: 'retry.ts', extension: 'ts', toString: 'src/retry.ts' }, type: 'MODIFY' },
+      { contentId: SHA, path: 'README.md', type: 'ADD' },
+    ]);
+  });
+
+  it('pr get --include reads any case, ignores spaces, empty entries and repeats, and keeps its own order', async () => {
+    const { calls, envelope } = await run('pr get', { ...AT, id: '42', include: ' Files, REVIEWS ,,files' });
+    expect(calls.map((c) => new URL(c.url).pathname)).toEqual([`${REPO}/pull-requests/42`, `${REPO}/pull-requests/42/activities`, `${REPO}/pull-requests/42/changes`]);
+    expect(Object.keys((envelope.data as { included: object }).included)).toEqual(['reviews', 'files']);
+  });
+
+  it('pr get --include refuses an unknown list, naming it and the allowed ones, before any request', async () => {
+    const { calls, envelope } = await run('pr get', { ...AT, id: '42', include: 'reviews,builds' });
+    expect(calls).toEqual([]);
+    expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Unknown --include value "builds". Use any of: reviews, checks, commits, files.', fix: expect.stringContaining('--include reviews,checks') });
+  });
+
   it('pr create leaves reviewers out entirely when none are given, and targets the connection targetBranch, then main', async () => {
     const { calls } = await run('pr create', { ...W, title: 'T', source: 'feature/x' });
     const ref = (b: string) => ({ id: `refs/heads/${b}`, repository: { slug: 'imagile-api', project: { key: 'PROJ' } } });

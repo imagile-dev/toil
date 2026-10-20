@@ -14,7 +14,7 @@ import { Cited, ItemLink } from '../components/items.tsx';
 import { DataTable, type Column } from '../components/layout.tsx';
 import { Panel, Sources } from '../components/panel.tsx';
 import { useData, useDerived } from '../data.ts';
-import { SOURCE_LABEL, STATUS_CATEGORY_LABEL, day, dateTime, estimateText } from '../format.ts';
+import { SOURCE_LABEL, STATUS_CATEGORY_LABEL, day, dateTime, estimateText, prsHref } from '../format.ts';
 import { describe, type Health } from '../model/sprint.ts';
 import { FLAG_TEXT, trace, type Trace as TraceRow } from '../model/trace.ts';
 import { useSkins, useTerm, useWords } from '../skins.tsx';
@@ -201,6 +201,9 @@ export function Dashboard() {
 
           <div className="panel-grid">
             <Panel id="prs" title="Pull requests" calls={dossier.calls.prs}>
+              <p className="note">
+                <a href={prsHref(dossier.name)}>The pull requests view</a> ranks the open ones by how long each has waited and on what, with flags and flow by author kind.
+              </p>
               {prs.length ? (
                 <ul className="rows">
                   {prs.map((c) => (

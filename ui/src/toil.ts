@@ -8,16 +8,17 @@
  * sanitized envelopes; test/registry.test.ts holds every call it answers to the
  * real registry, and holds this type to the real `execute`'s.
  *
- * What toil's commands don't shape yet (pull requests, builds, deployments:
- * OWI 0.1 leaves them out) the UI reads from each command's own output into
- * the small shapes below (src/model/delivery.ts). One door, one key, and a
+ * Pull requests come through OWI 0.2 as changes (src/core/owi/); what toil
+ * doesn't shape yet (builds, deployments) the UI reads from each command's
+ * own output into the small shapes below (src/model/delivery.ts). One door, one key, and a
  * sign-in sheet that fills itself in.
  */
 
 import type { Envelope } from '../../src/core/envelope.ts';
 
 export type { Envelope } from '../../src/core/envelope.ts';
-export type { LinkType, Person, StatusCategory, Transition, WorkItem, WorkItemType } from '../../src/core/owi/types.ts';
+export type { AuthorKind, Change, ChecksState, LinkType, Person, Review, Reviewer, StatusCategory, Transition, WorkItem, WorkItemType } from '../../src/core/owi/types.ts';
+import type { Change } from '../../src/core/owi/types.ts';
 
 /**
  * The options the UI passes. A subset of the API's `ExecuteOptions`, so the
@@ -65,7 +66,8 @@ export type SourceKind = 'jira' | 'ado' | 'github' | 'bitbucket' | 'jenkins' | '
 
 /**
  * A pull request or a build, joined to the work items it mentions (#206,
- * `ChangeRef`). The UI's own shape until OWI carries changes.
+ * `ChangeRef`): what the delivery panels and the trace table read. A pull
+ * request's is made from its OWI change, which it carries as `change`.
  */
 export interface ChangeRef {
   id: string;
@@ -86,6 +88,8 @@ export interface ChangeRef {
   /** For a merged pull request: the commit it merged as, which is what a deployment names. */
   mergeCommit: string | null;
   at: string;
+  /** For a pull request: the OWI 0.2 change it was made from. */
+  change?: Change;
 }
 
 /** What one environment runs, and the merged pull requests that are in it. */

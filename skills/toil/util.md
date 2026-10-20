@@ -73,7 +73,7 @@ Getting text into the shape an enterprise tool expects before it's sent, so a de
 
 Work from Jira, Azure DevOps and GitHub in one shape, so a sprint, a board or a question about the work reads the same whichever tracker holds it.
 
-- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, jira-cloud, ado, ado-cloud and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item, and every item is checked against the published schema.
+- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, jira-cloud, ado, ado-cloud and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item. The pull requests of github, bitbucket, bitbucket-cloud, ado and ado-cloud become changes: state, who wrote it (a person, an agent or a bot, and the signal that said so), reviewers, checks, size, the work items it names and its review timeline. Every record is checked against the published schema.
 - **Finding likely duplicates** (`toil util owi similar`): Before filing, proposing or triaging an item, asks whether it already exists: ranks OWI records against some text or one of them, or lists likely duplicate pairs across Jira, Azure DevOps and GitHub. Lexical and deterministic, with no model or network, and every match says why it matched: the shared title and body terms, title trigrams, labels, parent and link.
 
 ### Safety
@@ -1374,9 +1374,9 @@ view of 25 boxes.
 
 ### `toil util owi map`
 
-Maps the output of toil's own work item commands to Open Work Items (OWI 0.1),
-the model in `docs/owi/spec.md` in toil's source, with its JSON Schema beside it
-in `docs/owi/schema.json`. It composes: each tracker is read by its own command,
+Maps the output of toil's own work item and pull request commands to Open Work
+Items (OWI 0.2), the model in `docs/owi/spec.md` in toil's source, with its JSON
+Schema beside it in `docs/owi/schema.json`. It composes: each tracker is read by its own command,
 and this reads what they printed, whether piped, saved to a file, or appended one
 envelope a line.
 
@@ -1386,6 +1386,7 @@ toil util owi map sprint-42.jsonl
 toil util owi map changelog.json --key PAY-104
 toil util owi map batch.json --field estimate=Custom.TeamPoints --field estimateUnit=points
 toil util owi map issue.json --command "github issue get"
+toil util owi map prs.jsonl --key-pattern "PAY-{n}=corp-jira" --author-kind release-bot=BOT
 ```
 
 | Argument / flag | Meaning |
@@ -1395,9 +1396,12 @@ toil util owi map issue.json --command "github issue get"
 | `--command <name>` | The command whose data the input is, when it holds `data` without its envelope (`"jira issue search"`) |
 | `--key <key>` | The item a history belongs to, when its output doesn't say: `PAY-104`, or `imagile/payments-web#44` (a bare `44` takes the envelope's owner and repo) |
 | `--field <name=field>` | Point an OWI field at a field of your own, repeatable: `estimate`, `estimateUnit` (`points`, `hours` or `days`), `priority`, `type`, `team`, `dueDate` or `iteration`; and for GitHub without a board, `estimateLabel` (`size/{n}`) and `iterationDays` |
+| `--key-pattern <pattern=connection>` | Where work item keys in a pull request's title, branch and description point, repeatable, with `{n}` where the number is: `PAY-{n}=corp-jira`, `AB#{n}=corp-ado` |
+| `--author-kind <id=KIND>` | Set a pull request author's kind by hand, repeatable: `release-bot=BOT`, with `KIND` one of `HUMAN`, `AGENT` or `BOT`. It wins over every other signal |
 
-Over MCP the tool is `util_owi_map`, with `file` or `text`, and `command`, `key`
-and `field` (a list of `name=field`).
+Over MCP the tool is `util_owi_map`, with `file` or `text`, and `command`, `key`,
+`field` (a list of `name=field`), `keyPattern` (a list of `pattern=connection`)
+and `authorKind` (a list of `id=KIND`).
 
 **What it reads**, by the command each envelope's `meta.command` names:
 
@@ -1410,8 +1414,12 @@ and `field` (a list of `name=field`).
   `project items` for the board's status, estimate and iteration, and
   `issue history` for history. Where no board gives a value, the issue's
   milestone is its iteration, a `points: N` label its estimate, and "Blocked by
-  #n" or "Depends on #n" in its body a `blocks` link. Pull requests are left out
-  with a warning.
+  #n" or "Depends on #n" in its body a `blocks` link. Pull requests in an issue
+  list or on a board are left out of the items with a warning.
+- **Pull requests:** `pr list` and `pr get` of `github`, `bitbucket`,
+  `bitbucket-cloud`, `ado` and `ado-cloud`, as changes. A list is enough to rank
+  what is open; `pr get --include reviews,checks,commits,files` adds what a list
+  lacks, and a pull request in both is one change with the get's fields.
 
 Pass one envelope, a JSON array of them, or one a line (`>>` appends each command's
 output to one file). A Jira changelog and a GitHub timeline don't name their issue,
@@ -1423,10 +1431,10 @@ Output:
 
 ```json
 {
-  "owi": "0.1",
+  "owi": "0.2",
   "count": 1,
   "items": [{
-    "owi": "0.1",
+    "owi": "0.2",
     "id": "corp-jira:PAY-101",
     "source": { "area": "jira", "connection": "corp-jira", "key": "PAY-101", "command": "jira issue get" },
     "url": "https://jira.imagile.dev/browse/PAY-101",
@@ -1441,6 +1449,7 @@ Output:
     "unmapped": [],
     "native": { "jira issue get": { "key": "PAY-101", "fields": { "...": "..." } } }
   }],
+  "changes": [],
   "histories": [],
   "unmapped": {},
   "skipped": [],
@@ -1448,7 +1457,42 @@ Output:
 }
 ```
 
-(Each item has every field in the spec; this one is shortened.)
+(Each item has every field in the spec; this one is shortened.) `count` is the
+number of items. A pull request is one of `changes`:
+
+```json
+{
+  "owi": "0.2",
+  "id": "github:imagile/payments-web#51",
+  "source": { "area": "github", "connection": "github", "key": "imagile/payments-web#51", "command": "github pr get" },
+  "repo": "imagile/payments-web",
+  "title": "Retry the address lookup once",
+  "branch": { "source": "claude/address-retry", "target": "main" },
+  "state": "OPEN",
+  "author": { "id": "ada-dev", "name": null, "email": null },
+  "authorKind": "AGENT", "authorKindSource": "trailer", "authorKindSignal": "Co-Authored-By: Claude <you@example.com>",
+  "reviewers": [], "reviews": [],
+  "checks": "FAILING", "checksAt": "2026-10-09T08:10:00.000Z",
+  "mergeable": true,
+  "size": { "files": 2, "additions": 71, "deletions": 5 },
+  "workItems": [],
+  "created": "2026-10-08T09:00:00.000Z", "firstReviewAt": null, "approvedAt": null, "mergedAt": null,
+  "unmapped": []
+}
+```
+
+- **`authorKind`** is `HUMAN`, `AGENT` or `BOT`, and `authorKindSource` says what
+  set it, strongest first: an `override` (`--author-kind`), the `account` (GitHub's
+  Bot type, a coding agent's account, a Bitbucket service account), an agent's
+  Co-Authored-By `trailer` on a commit, an agent's `branch` prefix (`claude/`,
+  `copilot/`, `codex/`), or `default` (`HUMAN`, nothing said otherwise).
+- **`workItems`** are the OWI ids the title, branch and description name: GitHub's
+  own `#12` and Azure DevOps' own `#2302` with no setup, and everything else by
+  `--key-pattern`.
+- **`checks`** is `PASSING`, `FAILING`, `PENDING` or `NONE`, rolled up from the
+  checks on the latest commit; null, with the reason in `unmapped`, when the input
+  didn't hold them. The same goes for reviews, mergeability and size: each says
+  which command fills it.
 
 - **`id`** is `<connection>:<native key>`, so items from two Jira sites never
   collide. Links, parents and children use the same ids.
@@ -1477,14 +1521,14 @@ Output:
   can be joined to items read earlier. **`skipped`** lists each document that
   wasn't mapped (a failed call, `work-item search`), each also an `OWI_SKIPPED` warning.
 - **`native`** keeps every source record as it came, keyed by command.
-- **`verified`:** every item, and every history in `histories`, is validated
-  against `docs/owi/schema.json` (`items.schema`, `histories.schema`) before it is
-  returned; a failure is an `OWI_SCHEMA_INVALID` warning naming the item and the
+- **`verified`:** every item, every history in `histories` and every change is
+  validated against `docs/owi/schema.json` (`items.schema`, `histories.schema`,
+  `changes.schema`) before it is returned; a failure is an `OWI_SCHEMA_INVALID` warning naming the item and the
   JSON pointer. The validation runs in a worker with a 2 s deadline per item, and
   one that can't finish is unchecked, never passed. `input.complete` checks the
   whole file was read.
 
-At most 5,000 items are mapped in one call; past that the rest are left out with
+At most 5,000 items, and 5,000 changes, are mapped in one call; past that the rest are left out with
 an `OWI_ITEMS_CAPPED` warning, so map them in another call. Input is at most
 64 MiB.
 

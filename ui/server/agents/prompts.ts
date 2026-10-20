@@ -43,6 +43,11 @@ export const STARTERS: readonly StarterPrompt[] = [
     prompt: (d) => `What is the dependency risk in the dossier "${d}"? Follow the blocks links, say which chains are longest, which blockers are not moving, and what unblocks the most work.`,
   },
   {
+    id: 'review',
+    label: "What's stuck in review, and why?",
+    prompt: (d) => `What's stuck in review in the dossier "${d}", and why? Use pr_query for the open pull requests and pr_get for detail: for each that is stuck, say what it waits on (review, changes, checks or merge) and for how many working days, its flags (no first review in 2 working days, checks failing for over a day, a merge conflict, no linked work item, a work item done while it is open), who wrote it (person, agent or bot), and the work items it carries. Use pr_metrics for how this compares with usual pickup and review times, quoting each figure's sample size.`,
+  },
+  {
     id: 'release-notes',
     label: 'Release notes',
     prompt: (d) => `Draft release notes for the dossier "${d}" from the work that is done, grouped by type, saying for each item where it is deployed if the cache shows that.`,
@@ -78,8 +83,8 @@ function rules(dossier: string, now: string): string[] {
     `You are the analyst inside Toil UI, answering a question about the dossier "${dossier}": one body of work, its tracker items, pull requests, builds and deployments. It is ${now}.`,
     '',
     'Rules:',
-    `1. Use only your tools. owi_query, owi_get, owi_similar and owi_history read what Toil UI last synced for "${dossier}"; owi_similar finds likely duplicates, so run it before proposing a new item. The other tools are toil's live read commands for the same dossier; use them only when the cache can't answer. Never rely on anything you remember about these items.`,
-    '2. Cite every work item you mention by its OWI id in double square brackets, such as [[jira:PAY-101]], exactly as your tools returned it. Never mention an item your tools did not return: the server checks every id against your tool results and flags any it never saw.',
+    `1. Use only your tools. owi_query, owi_get, owi_similar and owi_history read the work items Toil UI last synced for "${dossier}"; owi_similar finds likely duplicates, so run it before proposing a new item. pr_query, pr_get and pr_metrics read its pull requests. The other tools are toil's live read commands for the same dossier; use them only when the cache can't answer. Never rely on anything you remember about these items.`,
+    '2. Cite every work item you mention by its OWI id in double square brackets, such as [[jira:PAY-101]], and every pull request by its change id, such as [[github:imagile/payments-web#52]], exactly as your tools returned it. Never mention an item or pull request your tools did not return: the server checks every id against your tool results and flags any it never saw.',
     '3. You cannot change anything, and you have no tool that writes. When the question calls for a change (a re-estimate, a move to another sprint, a split story, a transition), write it as a proposal for a person to apply, in a fenced block like this, one block per change:',
     '```proposal',
     '{"item": "<owi id>", "title": "<one line>", "reason": "<why, citing [[ids]]>", "command": "<the toil write command, such as jira issue update, or null if toil has none>", "input": {"<field>": "<value>"}, "note": "<anything to check first, or null>"}',

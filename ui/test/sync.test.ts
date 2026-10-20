@@ -69,7 +69,7 @@ describe('a full sync', () => {
     const states = cache.states();
     expect(states.map((d) => [d.name, d.status])).toEqual(DOSSIERS.map((d) => [d.name, 'ok']).sort());
     expect(states.flatMap((d) => d.sources.map((s) => `${d.name}/${s.area}:${s.status}`)).sort()).toEqual(
-      ['card-payments/bitbucket:ok', 'card-payments/jenkins:ok', 'card-payments/jira:ok', 'card-payments/openshift:ok', 'checkout-web/github:ok', 'checkout-web/openshift:ok', 'settlement/ado:ok'],
+      ['card-payments/bitbucket:ok', 'card-payments/jenkins:ok', 'card-payments/jira:ok', 'card-payments/openshift:ok', 'checkout-web/bitbucket-cloud:ok', 'checkout-web/github:ok', 'checkout-web/openshift:ok', 'settlement/ado:ok'],
     );
     // jira issue search came in pages of JIRA_PAGE, every one followed.
     const pages = named(toil, 'jira issue search');
@@ -146,6 +146,27 @@ describe('an incremental sync', () => {
     const settle = await loadDossier(viaStore, 'settlement', { mapOwi });
     expect(settle.items.find((i) => i.source.key === '2302')!.status).toBe('Resolved');
     expect(cache.source('card-payments', 'jira')!.watermark).toBe(new Date(first + 3_600_000 - SKEW_MS).toISOString());
+  });
+
+  it('asks each code host for the pull requests changed since the watermark, and reads again only those and the open ones', async () => {
+    const { toil, sync, advance, viaStore } = await setup();
+    const first = Date.parse(FIXTURE_NOW);
+    await sync.run(ctx);
+    // #48 is merged; a late comment updates it after the first sync.
+    const list = toil.canned.find((c) => c.command === 'github pr list')!.data as Array<{ number: number; updated_at: string }>;
+    list.find((p) => p.number === 48)!.updated_at = new Date(first + 1_800_000).toISOString();
+    advance(3_600_000);
+    toil.reset();
+    await sync.run(ctx);
+    const since = new Date(first - SKEW_MS).toISOString();
+    for (const command of ['github pr list', 'bitbucket pr list', 'bitbucket-cloud pr list', 'ado pr list']) expect(named(toil, command).map((c) => c.input.updatedSince), command).toEqual([since]);
+    // The open ones every time (a check finishing isn't an update everywhere), the changed merged one, and no other merged one.
+    expect(named(toil, 'github pr get').map((c) => c.input.number).sort()).toEqual([48, 51, 52, 53]);
+    expect(named(toil, 'bitbucket pr get').map((c) => c.input.id).sort()).toEqual([305, 311]);
+    expect(named(toil, 'ado pr get').map((c) => c.input.id)).toEqual([87]);
+    // And the merged list still holds every pull request.
+    const web = await loadDossier(viaStore, 'checkout-web', { mapOwi });
+    expect(web.pullRequests).toHaveLength(8);
   });
 
   it('fetches a GitHub issue again when its board item says it was updated', async () => {

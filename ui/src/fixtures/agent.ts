@@ -15,6 +15,12 @@ import type { Proposal } from '../proposal.ts';
 const J = (n: number) => `[[corp-jira:PAY-${n}]]`;
 const A = (n: number) => `[[corp-ado:${n}]]`;
 const G = (n: number) => `[[github:imagile/payments-web#${n}]]`;
+/** A pull request, by its OWI change id. */
+const P = (id: string) => `[[${id}]]`;
+const BB = (n: number) => P(`corp-bitbucket:PAY/payments-core#${n}`);
+const AZ = (n: number) => P(`corp-ado:Payments/settlement#${n}`);
+const GH = (n: number) => P(`github:imagile/payments-web#${n}`);
+const SDK = (n: number) => P(`bitbucket-cloud:imagile/checkout-sdk#${n}`);
 
 export interface Script {
   label: string;
@@ -61,6 +67,14 @@ export const SCRIPTS: Record<string, Record<string, Script>> = {
         `${J(101)} and ${J(104)} have pull requests still open, so neither is deployed anywhere.`,
       ],
     },
+    review: {
+      label: "What's stuck in review, and why?",
+      parts: [
+        `${BB(305)} has waited 3.9 working days for a first review from J. Smith, and it now has a merge conflict. It carries ${J(104)}, which came over from Sprint 41.`,
+        `${BB(311)} waits on its author: A. Chen asked for changes 0.6 working days ago, and its Jenkins build fails. It carries ${J(101)}, which blocks ${J(102)}.`,
+        `A first review here usually comes within 0.3 working days (the median of 4 pull requests), so 305 is well past it.`,
+      ],
+    },
   },
   settlement: {
     risk: {
@@ -69,7 +83,7 @@ export const SCRIPTS: Record<string, Record<string, Script>> = {
         `It is day 7 of 9 of Sprint 42: 1 of 16 points is done and 15 remain. The points leave out ${A(2305)}, which is estimated in hours.`,
         `${A(2303)} can't start until ${A(2302)} is done, and 2302's pull request #87 is still building.`,
         `${A(2304)} came over from Sprint 41 with nothing linked to it. ${A(2305)} and ${A(2306)} were added after the sprint started.`,
-        `${A(2307)} was removed from the backlog, which OWI 0.1 counts as done.`,
+        `${A(2307)} was removed from the backlog, which OWI counts as done.`,
       ],
       proposals: [
         agentProposal({
@@ -98,6 +112,13 @@ export const SCRIPTS: Record<string, Record<string, Script>> = {
         `${A(2302)}'s pull request #87 is open and its CI run is still in progress.`,
       ],
     },
+    review: {
+      label: "What's stuck in review, and why?",
+      parts: [
+        `${AZ(87)} waits on its author: J. Park voted -5 (waiting for the author) 0.8 working days ago, and its CI run is still going. It carries ${A(2302)}, which ${A(2303)} waits on.`,
+        `Nothing else is open. A first review here has taken 0.8 working days at the median, over 3 pull requests.`,
+      ],
+    },
   },
   'checkout-web': {
     risk: {
@@ -123,6 +144,7 @@ export const SCRIPTS: Record<string, Record<string, Script>> = {
       parts: [
         `${G(43)}'s latest build failed on e2e-safari, it was added after the sprint started, and nothing has changed on it for 6 days.`,
         `${G(45)} has no estimate and hasn't been updated for 7.9 days.`,
+        `${G(42)}'s pull request is merged, but no environment runs it yet.`,
       ],
     },
     deployed: {
@@ -130,7 +152,16 @@ export const SCRIPTS: Record<string, Record<string, Script>> = {
       parts: [
         `The staging environment runs payments-web 2026.10.12 (5a7e3f1), which includes ${G(44)}'s fix, pull request #50.`,
         `The prod environment runs 2026.10.02 (1c9b8e4), so ${G(44)} isn't in prod yet.`,
-        `${G(42)} and ${G(43)} have pull requests still open, so neither is deployed anywhere.`,
+        `${G(42)} and ${G(43)} have pull requests still open, so neither is deployed anywhere. ${G(44)}'s SDK change, imagile/checkout-sdk #12, is still open too.`,
+      ],
+    },
+    review: {
+      label: "What's stuck in review, and why?",
+      parts: [
+        `${GH(51)} has its failing test check to fix first, failing for 2 working days. It has been open 3 working days with no reviewer asked and names no work item. An agent wrote it: its commit carries a Co-Authored-By: Claude trailer.`,
+        `${SDK(12)} waits 1.3 working days for review from Ada D., but ${G(44)}, the issue it is for, is already closed. An agent wrote it too (a copilot/ branch).`,
+        `${GH(52)} waits 1.3 working days for review from ada-dev. It carries ${G(42)}.`,
+        `${GH(53)} is a draft, failing e2e-safari, for ${G(43)}.`,
       ],
     },
   },
@@ -170,25 +201,25 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `Day 7 of 9 on Sprint 42. 1 of 16 points is shipped, 15 still on the floor. ${A(2305)} isn't in that count: it's weighed in hours, not points.`,
       `${A(2303)} can't move until ${A(2302)} clears, and 2302's pull request #87 is still on the forklift check.`,
       `${A(2304)} came over from Sprint 41 with nothing strapped to it. ${A(2305)} and ${A(2306)} arrived after the sprint started.`,
-      `${A(2307)} was taken off the backlog, which OWI 0.1 books as done.`,
+      `${A(2307)} was taken off the backlog, which OWI books as done.`,
     ],
     harvest: [
       `Day 7 of 9 of Sprint 42: 1 of 16 points is harvested and 15 are still growing. ${A(2305)} isn't counted in those points; it's measured in hours.`,
       `${A(2303)} can't be planted until ${A(2302)} is done, and 2302's pull request #87 is still building.`,
       `${A(2304)} came over from Sprint 41 with nothing linked to it. ${A(2305)} and ${A(2306)} were sown after the sprint started.`,
-      `${A(2307)} was cleared from the backlog, which OWI 0.1 counts as done.`,
+      `${A(2307)} was cleared from the backlog, which OWI counts as done.`,
     ],
     starship: [
       `Ship's log, day 7 of 9 of Sprint 42. 1 of 16 points complete; 15 remain. ${A(2305)} is excluded from the count: it is estimated in hours.`,
       `${A(2303)} cannot launch until ${A(2302)} is done. 2302's pull request #87 is still building.`,
       `${A(2304)} transferred from Sprint 41 with no links. ${A(2305)} and ${A(2306)} came aboard after the sprint started.`,
-      `${A(2307)} was removed from the backlog, which OWI 0.1 logs as done.`,
+      `${A(2307)} was removed from the backlog, which OWI logs as done.`,
     ],
     realm: [
       `Hear ye: it is day 7 of 9 of Sprint 42. 1 of 16 points is won and 15 remain. ${A(2305)} is not reckoned in points, for it is measured in hours.`,
       `${A(2303)} may not set out until ${A(2302)} is done, and 2302's pull request #87 is still being forged.`,
       `${A(2304)} was carried from Sprint 41 with no bond to any other deed. ${A(2305)} and ${A(2306)} joined after the sprint began.`,
-      `${A(2307)} was struck from the backlog, which OWI 0.1 counts as done.`,
+      `${A(2307)} was struck from the backlog, which OWI counts as done.`,
     ],
   },
   'checkout-web': {

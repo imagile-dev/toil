@@ -3,6 +3,7 @@ import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
 import { apiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
+import type { JiraIssueWithTransitions } from '../../core/transition-intent.js';
 import { paginate, type Paged, type PageStyle } from '../../core/paginate.js';
 import type { QueryParam } from '../../core/rest.js';
 import { textToAdf, type AdfDocument } from './adf.js';
@@ -240,6 +241,12 @@ export async function editIssue(ctx: JiraCloudContext, key: string, body: Record
 export async function listTransitions(ctx: JiraCloudContext, key: string): Promise<JiraCloudTransition[]> {
   const result = await jiraCloud<{ transitions?: JiraCloudTransition[] }>(ctx, `${API}/issue/${seg(key)}/transitions`);
   return result.transitions ?? [];
+}
+
+// GET /rest/api/3/issue/{issueIdOrKey}?fields=issuetype,status&expand=transitions
+/** The issue's type and status with the transitions it offers, in one read: what `--to` resolves against. */
+export function issueWithTransitions(ctx: JiraCloudContext, key: string): Promise<JiraIssueWithTransitions> {
+  return jiraCloud<JiraIssueWithTransitions>(ctx, `${API}/issue/${seg(key)}`, { query: { fields: 'issuetype,status', expand: 'transitions' } });
 }
 
 // POST /rest/api/3/issue/{issueIdOrKey}/transitions

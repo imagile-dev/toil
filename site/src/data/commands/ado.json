@@ -129,6 +129,7 @@
     "flags": [
       "<id>",
       "--state <state>",
+      "--to <intent-or-status>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
@@ -461,6 +462,7 @@
       "--reviewer <alias>",
       "--created-after <date>",
       "--created-before <date>",
+      "--updated-since <iso>",
       "--limit <n>",
       "--cursor <cursor>",
       "--collection <name>",
@@ -477,6 +479,7 @@
     "connection": true,
     "flags": [
       "<id>",
+      "--include <list>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",

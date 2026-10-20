@@ -4218,6 +4218,62 @@ choices made by default inside that:
 - **A resource's row in `--help` lists its actions** (`issue  get, history, create,
   ...`) instead of "jira issue commands".
 
+## Transitions by intent (#302)
+
+`--to <intent>` on `jira issue transition`, `jira-cloud issue transition`, `ado
+work-item transition` and the new `ado-cloud work-item transition`, resolved in core
+(`src/core/transition-intent.ts`). Choices made by default inside the issue's shape:
+
+- **When the category step finds several moves, the name step narrows within them**
+  rather than refusing outright (Done and Won't Do are both in Jira's Done category;
+  `--to done` takes the one named Done). Anything still not exactly one is refused.
+  It stays deterministic: the same moves in any order give the same answer.
+- **"Contains the intent's word" is a word that starts with the intent**, in the
+  transition's name or its target status: `Submit for Review` and `Reopened` match,
+  `Undone` doesn't. It applies only to the four intents, never to a status name.
+- **An exact name matches a transition's name or its target status**, ignoring case,
+  so `--to "In Review"` works whether the workflow names the move or only the status.
+- **An item already in the intent's category is refused**, not moved to a sibling
+  status in the same category and not reported as a no-op success: `--to start` on an
+  issue In Progress is `INVALID_INPUT` saying it's already there, with the moves it
+  offers. Moves into the item's current status are left out of the category and name
+  steps for the same reason.
+- **Jira's categories serve `reopen` (To Do), `start` (In Progress) and `done`;
+  Jira has no review category, so a status in In Progress whose name starts a word
+  with review (In Review, Code Review) serves `review` instead,** for the item's
+  current status and for each move's target. Without it, `--to start` from In Review
+  read as already there (review round 1). Another in-progress status (Blocked, QA)
+  still serves `start`, so `--to start` from it is refused as already started, with
+  the moves listed; picking a sibling in-progress status would be a guess. ADO's Proposed, InProgress, Resolved and Completed
+  serve `reopen`, `start`, `review` and `done`; Removed serves none, so only its name
+  reaches it.
+- **Pins are a core dossier key, `transitions`**, validated on every read like
+  `fields` (`DOSSIER_INVALID` for a wrong shape or a key that isn't one of the four
+  intents), and read through `ctx.dossierTransitions()` only when the call gives an
+  intent. Types are compared ignoring case. A pin naming nothing the item offers is
+  refused, never passed over to the next rule, because it's the author's word.
+- **Jira reads the issue once** (`issue/{key}?fields=issuetype,status&expand=transitions`)
+  for its type, status and transitions, rather than `/transitions` plus a second read
+  for the type. `--transition` keeps the recorded `/transitions` lookup unchanged.
+- **ADO reads the item's own project for its type's states** (`System.TeamProject`),
+  falling back to the call's project on Server, since a work item's id lives in the
+  collection or organization while its process lives in its project.
+- **`ado-cloud work-item transition` is new.** The issue named it, and `ado-cloud`
+  had only `work-item update --field state=…`. It takes `--state` or `--to` like `ado`'s.
+- **`meta.transition` is a new envelope key** (`ctx.setTransition`), set only on
+  success, as additive output the contract allows. `data` keeps its recorded shape;
+  for Jira, `transition` is the resolved transition's name when `--to` was used.
+- **`--to <intent-or-status>` is recorded in the command contract** for `jira issue
+  transition` and `ado work-item transition`, beside the existing flags.
+- **Pins apply from any dossier that applies, adopted or not** (the maintainer's
+  decision, 2026-10-20, recorded here at their request). A checked-in or listed
+  dossier you haven't imported can still pin which transition `--to` resolves to,
+  as its field aliases already shape what `--field` sends; `meta.transition`
+  reports `resolvedBy: "dossier"` when a pin decided. Restricting pins to your own
+  dossiers was considered and not taken, because the same challenges could happen
+  with skills and the other things a repository can carry. The write itself is still
+  gated as every write is.
+
 ### #309 toil audit stats and the Usage page
 
 - **The default window starts at midnight UTC 30 days ago** rather than exactly 30
@@ -4472,6 +4528,68 @@ the choices made by default inside that:
   commands have now been run against one live Scrum organization, which the skill and
   the supported-version note now say, but the pull request commands haven't, so
   raising the board status to `live` is left to the maintainer.
+
+## Pull request tracking in Toil UI (#291)
+
+- **OWI 0.2 adds `Change` as its own record, beside the work item**, and `util owi
+  map` returns it as `changes`, with `count` still the number of items. The mappers now
+  write `"owi": "0.2"` on every record; the schema's work item accepts `"0.1"` too, so
+  anything holding 0.1 items still validates. The schema's root still validates a work
+  item, and a change is checked against `#/$defs/Change`, so a reader of 0.1 that
+  validated against the root sees no difference.
+- **One flag for "read everything a list lacks": `pr get --include
+  reviews,checks,commits,files`**, in all five areas, adding one `included` object
+  rather than vendor keys at the top level. GitHub's pull request already has a
+  `commits` field (a count), so top-level names would have collided. Each list keeps
+  the vendor's records as they came; Bitbucket's activities keep only the review
+  actions, and Azure DevOps' reviews are its comment threads, which is where its votes
+  live.
+- **`--updated-since` on Azure DevOps keeps every active pull request**, plus those
+  created or closed since. A GitPullRequest has no last-updated time, so this is the
+  superset an incremental sync can merge without missing a change; the flag's
+  description says so.
+- **Bitbucket Data Center's `pr list` gained `--limit` and `--cursor`**, reading every
+  page without them, as before. Core's `paginate` now lets `keep` filter an offset
+  style too (Data Center's `nextPageStart`), resuming at the next kept item's own
+  offset, and adds `stop` for a list sorted newest first (GitHub's `--updated-since`
+  asks `sort=updated` and stops at the first older pull request).
+- **`authorKind` takes the strongest signal and records it**: an override, the account
+  (GitHub's Bot type, the coding agents' own accounts as AGENT, Bitbucket's service and
+  app accounts, an Azure DevOps `svc.` identity), an agent's Co-Authored-By trailer, an
+  agent's branch prefix (`claude/`, `copilot/`, `codex/`), else HUMAN with source
+  `default`. The agent names a trailer is matched against are a short fixed list in
+  `src/core/owi/change.ts`; overrides live in a code host's dossier section as the
+  reference key `authorKinds`.
+- **Work items in a pull request come from the host's own `#n` and from key
+  patterns** (`PAY-{n}=corp-jira`), never from a guess that `ABC-12` is a Jira key.
+  Toil UI builds the patterns from the work items the dossier already holds. A `#n`
+  that is itself a pull request in the same input is dropped.
+- **Waits count working days, Monday to Friday UTC**, with no holiday calendar. A
+  first review is flagged after 2 working days and failing checks after 24 hours;
+  both are constants in `ui/src/model/prs.ts`, shown in the view's notes.
+- **Flow metrics are medians with the 85th percentile, over the last six weeks**, each
+  split HUMAN, AGENT and BOT with its sample size and how many changes couldn't be
+  measured. Review rounds are one plus each request for changes.
+- **CODEOWNERS is read through a new read command, `github repo file`**, since toil
+  had no way to read a repository's file and Toil UI calls only commands that never
+  write (which rules out an `api` passthrough). Toil UI looks where GitHub does
+  (`.github/`, the root, `docs/`), only when an open pull request has no reviewer, and
+  a missing file is an answer the sync keeps, not a failing source. Bitbucket and
+  Azure DevOps have no CODEOWNERS of their own, so their suggestions come from earlier
+  reviewers of the same paths alone.
+- **A suggested reviewer is a proposal**: `github pr add-reviewers`, `bitbucket pr
+  add-reviewer`, or `bitbucket-cloud pr update --reviewers` (which replaces the list,
+  empty for any pull request a suggestion is made for, and the note says to check).
+  Azure DevOps has no command that adds one reviewer, so its proposal says so.
+- **GitHub builds in Toil UI now come from `pr get --include checks`** rather than one
+  `github commit checks` per pull request, so a pull request read in full costs no
+  extra call for its build.
+- **A pull request's get is read again on every sync while it is open**, because a
+  check finishing doesn't move a pull request's updated time on every host; a merged
+  or declined one is read again only when its list says it changed.
+- **Toil UI shows no pull requests until the toil it runs with maps OWI 0.2 changes**,
+  and says so on the view. Toil UI pins the published toil, which doesn't yet;
+  the release that has it bumps the pin (Delivery: Toil UI never releases ahead).
 
 ## Toil UI on toil built from this checkout (#332)
 

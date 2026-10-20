@@ -82,6 +82,21 @@ export const routes: Route[] = [
   { url: api('/issue/PROJ-123\\?expand=changelog&fields=summary'), respond: json({ id: '10123', key: 'PROJ-123', fields: { summary: 'Login broken on Safari' }, changelog: { startAt: 0, maxResults: 2, total: 2, histories } }) },
   // Invented from the docs: GET /rest/api/2/myself, for --updated-since's time zone.
   { url: api('/myself'), respond: json({ ...user('jsmith', 'J. Smith'), emailAddress: 'you@example.com', timeZone: 'Europe/London' }) },
+  // Invented from the docs: the issue with only its type and status, and the transitions it offers, which --to resolves against.
+  {
+    path: '/rest/api/2/issue/PROJ-123',
+    query: { fields: 'issuetype,status', expand: 'transitions' },
+    respond: json({
+      expand: 'transitions',
+      id: '10123',
+      key: 'PROJ-123',
+      fields: { issuetype: { id: '10001', name: 'Story' }, status: { name: 'In Progress', id: '3', statusCategory: { id: 4, key: 'indeterminate', name: 'In Progress' } } },
+      transitions: [
+        { id: '41', name: 'Submit for Review', to: { name: 'In Review', id: '10100', statusCategory: { id: 4, key: 'indeterminate', name: 'In Progress' } } },
+        { id: '31', name: 'Done', to: { name: 'Done', id: '10001', statusCategory: { id: 3, key: 'done', name: 'Done' } } },
+      ],
+    }),
+  },
   { url: api('/issue/(PROJ-\\d+)'), respond: (req: RecordedRequest) => json(issue(new URL(req.url).pathname.split('/').pop()!)) },
   // Invented from the docs: POST /rest/api/2/issue answers 201 with id, key and self.
   { method: 'POST', url: api('/issue'), respond: json({ id: '10124', key: 'PROJ-124', self: `${JIRA}/rest/api/2/issue/10124` }, 201) },

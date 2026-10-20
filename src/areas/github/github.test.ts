@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 import { runCli } from '../../../test/harness/cli.js';
 import { testContext } from '../../../test/harness/context.js';
 import type { Route } from '../../../test/harness/fake-fetch.js';
-import { API, checkRun, DIFF, fixture, GHE, label, prStatusNode, pullRequest, REPO, thread, user } from '../../../test/fixtures/github.fixture.js';
+import { API, checkRun, DIFF, file, fixture, GHE, label, prCommit, prStatusNode, pullRequest, REPO, review, thread, user } from '../../../test/fixtures/github.fixture.js';
 import type { AnyCommand } from '../../core/command.js';
 import type { Context } from '../../core/context.js';
 import { execute } from '../../core/run.js';
 import { graphqlUrl } from './client.js';
 import { commands } from './index.js';
 import { addAssigneesCommand, addLabelsCommand, createIssueCommand, createRepoCommand, removeLabelCommand } from './issues.js';
+import { repoFileCommand } from './files.js';
 import { enableAutoMergeCommand, enqueuePrCommand, prStatusCommand } from './merging.js';
 import { createPrCommand, diffCommand, getPrCommand, listPrsCommand, mergePrCommand } from './prs.js';
 import { listReviewThreadsCommand, removeReviewersCommand, resolveThreadCommand } from './reviews.js';
@@ -175,6 +176,107 @@ describe('pull requests', () => {
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid --created-after value "yesterday". Use an ISO 8601 date such as 2025-01-31 or 2025-01-31T09:00:00Z.' });
   });
 
+  it('pr list --updated-since asks for newest-updated first, keeps the fresh ones and stops after the page holding an older one', async () => {
+    const fresh = Array.from({ length: 99 }, (_, i) => pullRequest(i + 1, { updated_at: '2025-01-20T00:00:00Z' }));
+    const routes: Route[] = [
+      // Page 1 is full, page 2 reaches a PR updated before the cut-off, page 3 must never be asked for.
+      { path: `${REPO}/pulls`, query: { state: 'open', sort: 'updated', direction: 'desc', per_page: '100', page: '1' }, respond: { json: [...fresh, pullRequest(100, { updated_at: '2025-01-16T00:00:00Z' })] } },
+      { path: `${REPO}/pulls`, query: { state: 'open', sort: 'updated', direction: 'desc', per_page: '100', page: '2' }, respond: { json: [pullRequest(101, { updated_at: '2025-01-16T00:00:00Z' }), pullRequest(102, { updated_at: '2025-01-15T23:59:59Z' }), ...Array.from({ length: 98 }, (_, i) => pullRequest(200 + i, { updated_at: '2025-01-01T00:00:00Z' }))] } },
+    ];
+    const { envelope, calls } = await run(listPrsCommand, { ...BASE, updatedSince: '2025-01-16' }, routes);
+    expect(calls.map((c) => c.url)).toEqual([
+      `${API}/repos/imagile/toil-probe/pulls?state=open&sort=updated&direction=desc&per_page=100&page=1`,
+      `${API}/repos/imagile/toil-probe/pulls?state=open&sort=updated&direction=desc&per_page=100&page=2`,
+    ]);
+    // A date alone is UTC midnight, and the bound is inclusive: 100 and 101 sit on it.
+    const numbers = (envelope.data as Array<{ number: number }>).map((p) => p.number);
+    expect(numbers).toHaveLength(101);
+    expect(numbers.slice(-2)).toEqual([100, 101]);
+  });
+
+  it('pr list --updated-since combines with --author, the created dates and --limit, and the cursor resumes', async () => {
+    const page1 = [
+      pullRequest(1, { updated_at: '2025-01-20T00:00:00Z' }),
+      pullRequest(2, { updated_at: '2025-01-19T00:00:00Z', user: user('someone-else') }),
+      pullRequest(3, { updated_at: '2025-01-18T00:00:00Z', created_at: '2024-12-01T00:00:00Z' }),
+      pullRequest(4, { updated_at: '2025-01-17T00:00:00Z' }),
+      pullRequest(5, { updated_at: '2025-01-10T00:00:00Z' }),
+    ];
+    const routes: Route[] = [{ path: `${REPO}/pulls`, query: { state: 'all', sort: 'updated', direction: 'desc', per_page: '100', page: '1' }, respond: { json: page1 } }];
+    const input = { ...BASE, state: 'all', author: 'octo-dev', createdAfter: '2025-01-01', updatedSince: '2025-01-15T00:00:00Z', limit: 1 };
+    const first = await run(listPrsCommand, input, routes);
+    expect((first.envelope.data as Array<{ number: number }>).map((p) => p.number)).toEqual([1]);
+    const cursor = first.envelope.meta.page?.nextCursor;
+    expect(cursor).toEqual(expect.any(String));
+    const second = await run(listPrsCommand, { ...input, cursor }, routes);
+    expect((second.envelope.data as Array<{ number: number }>).map((p) => p.number)).toEqual([4]);
+    // PR 5 is older than the cut-off, so that page was the last and there is nothing after 4.
+    expect(second.envelope.meta.page?.nextCursor).toBeNull();
+    expect(second.calls).toHaveLength(1);
+  });
+
+  it('pr list rejects a bad --updated-since before looking for a repo or sending anything, and sends no sort without it', async () => {
+    const bad = await run(listPrsCommand, { updatedSince: 'last tuesday' }, []);
+    expect(bad.calls).toEqual([]);
+    expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Invalid --updated-since value "last tuesday". Use an ISO 8601 date such as 2025-01-31 or 2025-01-31T09:00:00Z.' });
+    const plain = await run(listPrsCommand, BASE);
+    expect(plain.calls.map((c) => c.url)).toEqual([`${API}/repos/imagile/toil-probe/pulls?state=open&per_page=100&page=1`]);
+  });
+
+  it('pr get --include reads each list after the PR, in a fixed order, into included', async () => {
+    const { envelope, calls } = await run(getPrCommand, { ...BASE, number: '7', include: ' Files, reviews,,CHECKS ,commits,reviews' });
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
+      `GET ${API}/repos/imagile/toil-probe/pulls/7`,
+      `GET ${API}/repos/imagile/toil-probe/pulls/7/reviews?per_page=100&page=1`,
+      // The head commit of the PR just read (head.sha).
+      `GET ${API}/repos/imagile/toil-probe/commits/abc1234/check-runs?per_page=100&page=1`,
+      `GET ${API}/repos/imagile/toil-probe/pulls/7/commits?per_page=100&page=1`,
+      `GET ${API}/repos/imagile/toil-probe/pulls/7/files?per_page=100&page=1`,
+    ]);
+    for (const call of calls) expect(call.headers).toEqual(HEADERS);
+    expect(envelope.data).toEqual({ ...pullRequest(7), included: { reviews: [review()], checks: [checkRun()], commits: [prCommit()], files: [file()] } });
+    expect(envelope.meta.warnings).toBeUndefined();
+  });
+
+  it('pr get --include holds only the lists asked for, and reads every page', async () => {
+    const reviews = Array.from({ length: 100 }, () => review());
+    const routes: Route[] = [
+      { path: `${REPO}/pulls/7`, respond: { json: pullRequest(7) } },
+      { path: `${REPO}/pulls/7/reviews`, query: { per_page: '100', page: '1' }, respond: { json: reviews } },
+      { path: `${REPO}/pulls/7/reviews`, query: { per_page: '100', page: '2' }, respond: { json: [review('COMMENTED')] } },
+    ];
+    const { envelope, calls } = await run(getPrCommand, { ...BASE, number: '7', include: 'reviews' }, routes);
+    expect(calls).toHaveLength(3);
+    const data = envelope.data as { included: Record<string, unknown[]> };
+    expect(Object.keys(data.included)).toEqual(['reviews']);
+    expect(data.included.reviews).toHaveLength(101);
+  });
+
+  it('pr get --include warns when commits or files reach the most GitHub serves', async () => {
+    const commits = Array.from({ length: 250 }, (_, i) => prCommit(`abc${i}`));
+    const pages = (path: string, items: unknown[]): Route[] => Array.from({ length: Math.ceil(items.length / 100) + (items.length % 100 === 0 ? 1 : 0) }, (_, i) => ({ path, query: { per_page: '100', page: String(i + 1) }, respond: { json: items.slice(i * 100, i * 100 + 100) } }));
+    const files = Array.from({ length: 3000 }, (_, i) => file(`src/f${i}.ts`));
+    const routes: Route[] = [{ path: `${REPO}/pulls/7`, respond: { json: pullRequest(7) } }, ...pages(`${REPO}/pulls/7/commits`, commits), ...pages(`${REPO}/pulls/7/files`, files)];
+    const { envelope } = await run(getPrCommand, { ...BASE, number: '7', include: 'commits,files' }, routes);
+    expect(envelope.ok).toBe(true);
+    expect(envelope.meta.warnings).toEqual([
+      { code: 'GITHUB_LIST_CAPPED', message: 'GitHub serves at most 250 commits of a pull request, and PR #7 returned 250, so included.commits may be incomplete.' },
+      { code: 'GITHUB_LIST_CAPPED', message: 'GitHub serves at most 3000 files of a pull request, and PR #7 returned 3000, so included.files may be incomplete.' },
+    ]);
+  });
+
+  it('pr get refuses an unknown --include value before any request, and without --include sends one request unchanged', async () => {
+    const bad = await run(getPrCommand, { number: '7', include: 'reviews,statuses' }, []);
+    expect(bad.calls).toEqual([]);
+    expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'Unknown --include value "statuses". Use any of reviews, checks, commits, files.', fix: expect.stringContaining('--include reviews,checks') });
+    const blank = await run(getPrCommand, { ...BASE, number: '7', include: ' , ' });
+    expect(blank.calls).toHaveLength(1);
+    expect(blank.envelope.data).toEqual(pullRequest(7));
+    const plain = await run(getPrCommand, { ...BASE, number: '7' });
+    expect(plain.calls).toEqual([{ method: 'GET', url: `${API}/repos/imagile/toil-probe/pulls/7`, headers: HEADERS, body: undefined }]);
+    expect(plain.envelope.data).toEqual(pullRequest(7));
+  });
+
   it('pr create POSTs title, head and base, defaulting base to targetBranch then main; --body wins over --body-file', async () => {
     const plain = await run(createPrCommand, { ...BASE, title: 'T', head: 'feature', allowWrite: true });
     expect(plain.calls[0]).toMatchObject({ method: 'POST', url: `${API}/repos/imagile/toil-probe/pulls`, headers: HEADERS });
@@ -209,6 +311,33 @@ describe('pull requests', () => {
     const { envelope, calls } = await run(diffCommand, { ...BASE, number: '7' }, [{ url: /.*/, respond: { status: 429, json: { message: 'API rate limit exceeded' } } }]);
     expect(calls.length).toBe(1);
     expect(envelope.error).toMatchObject({ code: 'HTTP', message: 'API rate limit exceeded', details: { status: 429 } });
+  });
+});
+
+describe('repo file', () => {
+  it("reads one file through the contents API, with its text decoded beside GitHub's record", async () => {
+    const { envelope, calls } = await run(repoFileCommand, { ...BASE, path: '/.github/CODEOWNERS' });
+    expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([`GET ${API}/repos/imagile/toil-probe/contents/.github/CODEOWNERS`]);
+    expect(envelope.data).toMatchObject({ type: 'file', path: '.github/CODEOWNERS', text: '* @octo-dev\n' });
+    const ref = await run(repoFileCommand, { ...BASE, path: 'docs/CODEOWNERS', ref: 'release/1.4' });
+    expect(ref.calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/contents/docs/CODEOWNERS?ref=release%2F1.4`);
+  });
+
+  it('encodes each part of the path, and refuses a dot segment before any request', async () => {
+    const spaced = await run(repoFileCommand, { ...BASE, path: 'docs/Read me.md' }, [ok({ type: 'file', encoding: 'base64', size: 2, content: Buffer.from('hi').toString('base64') })]);
+    expect(spaced.calls[0]!.url).toBe(`${API}/repos/imagile/toil-probe/contents/docs/Read%20me.md`);
+    const dots = await run(repoFileCommand, { ...BASE, path: 'docs/../../secrets' });
+    expect(dots.calls).toEqual([]);
+    expect(dots.envelope.error).toMatchObject({ code: 'INVALID_INPUT' });
+    expect(dots.envelope.error!.fix).toContain('.github/CODEOWNERS');
+  });
+
+  it('refuses a folder, and says so when GitHub sends no content for a large file', async () => {
+    const folder = await run(repoFileCommand, { ...BASE, path: 'docs' }, [ok([{ type: 'file', name: 'a.md' }])]);
+    expect(folder.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'docs in imagile/toil-probe is a folder, not a file.' });
+    const big = await run(repoFileCommand, { ...BASE, path: 'big.bin' }, [ok({ type: 'file', encoding: 'none', size: 5_000_000, content: '' })]);
+    expect(big.envelope.data).toMatchObject({ text: null });
+    expect(big.envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'GITHUB_FILE_NOT_INLINED' })]);
   });
 });
 

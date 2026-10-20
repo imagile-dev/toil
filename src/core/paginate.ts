@@ -55,11 +55,19 @@ export interface PaginateOptions<T = unknown> {
    * Keeps only the items this returns true for, applied after the style has
    * read the page, so paging still stops on the server's own page size and
    * `cap` counts kept items only. A cursor's count of items already returned
-   * counts kept items too, so resuming skips exactly what was handed out. Page
-   * numbers and tokens only: an offset counts the server's items, which a
-   * filter would put out of step, so an offset style refuses it.
+   * counts kept items too, so resuming skips exactly what was handed out. An
+   * offset style's cursor stays the server's own offset: where a cap stops it
+   * part way through a page, the cursor is the position of the next kept item
+   * on that page, so resuming neither repeats nor skips one.
    */
   keep?: (item: T) => boolean;
+  /**
+   * Ends paging after the page that holds an item this returns true for: a
+   * list sorted newest first, read back to a date, needn't read the rest.
+   * Applied to the server's items before `keep`, so the item that stops it
+   * needn't be one that is kept.
+   */
+  stop?: (item: T) => boolean;
 }
 
 /**
@@ -92,7 +100,6 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
   // name a whole page, so their cursor also says how many of its items were
   // already returned.
   const exact = style.kind === 'offset' || style.kind === 'nextPageStart';
-  if (keep && exact) throw new Error(`paginate: keep needs a page-number or token style, not ${style.kind}.`);
   let cursor: string | undefined = initial(style);
   let skip = 0;
   // Items the server has handed over before the current page, counting from
@@ -130,15 +137,18 @@ export async function paginate<T>(style: PageStyle<T>, fetchPage: (params: Recor
     counted += all.length;
     const reported = (style.kind === 'offset' || style.kind === 'page') && style.total ? style.total(page.body) : undefined;
     if (typeof reported === 'number') total = reported;
-    const next = advance(style, cursor, all, page, counted, reported);
+    // A stop on this page makes it the last one read.
+    const next = options.stop && all.some(options.stop) ? null : advance(style, cursor, all, page, counted, reported);
     const skipped = skip;
     skip = 0;
-    const got = (keep ? all.filter(keep) : all).slice(skipped);
+    // Each kept item with its place on the server's page, which an offset cursor counts in.
+    const kept = all.flatMap((item, at) => (!keep || keep(item) ? [{ item, at }] : [])).slice(skipped);
+    const got = kept.map((k) => k.item);
 
     if (cap !== undefined && items.length + got.length >= cap) {
       const take = cap - items.length;
       items.push(...got.slice(0, take));
-      if (take < got.length) nextCursor = exact ? String(Number(cursor) + take) : encodeCursor(cursor ?? null, skipped + take, counts ? before : undefined);
+      if (take < got.length) nextCursor = exact ? String(Number(cursor) + kept[take]!.at) : encodeCursor(cursor ?? null, skipped + take, counts ? before : undefined);
       else nextCursor = next === null ? null : exact ? next : encodeCursor(next, 0, counts ? counted : undefined);
       reportProgress({ type: 'page', page: pages, items: items.length, ...(options.what ? { what: options.what } : {}) });
       break;

@@ -89,7 +89,9 @@ async function main(): Promise<number> {
         execute,
         mapIds: (envelope) => {
           try {
-            return mapOwi(envelope).items.map((i) => i.id);
+            // An older toil maps no changes; its items still vouch for what they name.
+            const mapped = mapOwi(envelope) as { items: Array<{ id: string }>; changes?: Array<{ id: string }> };
+            return [...mapped.items, ...(mapped.changes ?? [])].map((r) => r.id);
           } catch {
             return [];
           }

@@ -55,6 +55,8 @@ export const ROUTES = [
   '#/dossier/card-payments',
   '#/dossier/settlement',
   '#/dossier/checkout-web',
+  '#/dossier/checkout-web/prs',
+  '#/dossier/card-payments/prs',
   item('card-payments', 'corp-jira:PAY-100'),
   item('settlement', 'corp-ado:2304'),
   '#/settings/connections',

@@ -98,6 +98,15 @@ export const diffstat = [
   { type: 'diffstat', status: 'removed', lines_added: 0, lines_removed: 7, old: { path: 'src/old.ts' }, new: null },
 ];
 
+// Invented from the docs: GET .../pullrequests/{id}/activity, newest first. Each entry holds one of update, approval, changes_requested or comment, beside the pull request it is on.
+const onPr = { type: 'pullrequest', id: 42, title: 'Add retries', links: { self: link('/repositories/imagile/toil/pullrequests/42') } };
+export const activity = [
+  { approval: { date: '2026-10-02T08:00:00+00:00', user: account('Sam Reviewer'), pullrequest: onPr }, pull_request: onPr },
+  { comment: comments[0], pull_request: onPr },
+  { changes_requested: { date: '2026-10-01T13:00:00+00:00', user: account('Sam Reviewer'), pullrequest: onPr }, pull_request: onPr },
+  { update: { state: 'OPEN', title: 'Add retries', description: 'Retries with backoff.', date: '2026-10-01T09:00:00+00:00', author: account(), source: { branch: { name: 'feature/retries' } }, destination: { branch: { name: 'main' } } }, pull_request: onPr },
+];
+
 export const statuses = [{ type: 'commitstatus', key: 'ci', name: 'Build #7', state: 'SUCCESSFUL', url: 'https://jenkins.imagile.dev/job/toil/7/', description: 'Passed', created_on: '2026-10-01T09:10:00+00:00', updated_on: '2026-10-01T09:20:00+00:00' }];
 
 export const pipeline = (n = 7) => ({
@@ -164,6 +173,8 @@ export const routes: Route[] = [
   { method: 'POST', path: `${REPO}/pullrequests/42/request-changes`, respond: json({ type: 'participant', user: account(), role: 'REVIEWER', approved: false, state: 'changes_requested' }) },
   { method: 'GET', path: `${REPO}/default-reviewers`, respond: (req) => paged([account('Sam Reviewer')], req) },
   { method: 'GET', path: `${REPO}/pullrequests/42/statuses`, respond: (req) => paged(statuses, req) },
+  { method: 'GET', path: `${REPO}/pullrequests/42/activity`, respond: (req) => paged(activity, req) },
+  { method: 'GET', path: `${REPO}/pullrequests/42/commits`, respond: (req) => paged(commits.slice(0, 1), req) },
   { method: 'GET', path: `${REPO}/commit/${HASH}/statuses`, respond: (req) => paged(statuses, req) },
   // Comments
   { method: 'GET', path: `${REPO}/pullrequests/42/comments`, respond: (req) => paged(comments, req) },

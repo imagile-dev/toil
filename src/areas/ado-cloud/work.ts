@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
+import { adoMoves, intentOf, oneOfTransition, resolveTransition, type AdoState, type TransitionReport } from '../../core/transition-intent.js';
 import { adoCloudArea } from './area.js';
 import { API_COMMENTS, IN_PROJECT, PATCH, adoc, bodyTokenPages, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, skipPages } from './client.js';
 import { fieldPatch, parseFieldArgs, type JsonPatchOp } from './fields.js';
@@ -29,6 +30,8 @@ export interface WorkItem {
 }
 
 const workItemPath = (n: number) => `/_apis/wit/workitems/${n}`;
+/** What resolving `--to` needs to know about a work item: its type, state and project. */
+const STATE_FIELDS = 'System.WorkItemType,System.State,System.TeamProject';
 
 export const workGetCommand = adoCloudArea.command({
   path: ['ado-cloud', 'work-item', 'get'],
@@ -107,6 +110,52 @@ export const workUpdateCommand = adoCloudArea.command({
     // A `test` operation first: the server rejects the whole patch if the revision moved.
     const patch: JsonPatchOp[] = [...(input.rev !== undefined ? [{ op: 'test' as const, path: '/rev', value: input.rev }] : []), ...fieldPatch(parseFieldArgs(input.field), ctx.connection.fieldAliases)];
     return adoc<WorkItem>(ctx, workItemPath(input.id), { method: 'PATCH', json: patch, headers: PATCH });
+  },
+});
+
+/** What a transition's errors name: the exact flag, and where a dossier pins an intent for a type. */
+const TRANSITION_HELP = { explicit: '--state <state>', pinKey: 'ado-cloud.transitions' };
+
+export const workTransitionCommand = adoCloudArea.command({
+  path: ['ado-cloud', 'work-item', 'transition'],
+  description: 'Set the state of a work item',
+  toolDescription:
+    "Sets System.State on a work item and returns it. Give state with an exact state, or to with an intent (start, review, done, reopen) or a state name, and toil resolves it against the states this item's own type has: a pin in the dossier first, then an exact state name, then the intent's state category (start InProgress, review Resolved, done Completed, reopen Proposed), then a single state named for it. No match, or more than one, is refused with the states the type does have; meta.transition says what it resolved to. Needs no project. ado_cloud_work_item_states lists the states a type has.",
+  input: z.object({
+    id,
+    state: z.string().min(1).optional().describe('New state (e.g. Active, Resolved, Closed)'),
+    to: z.string().min(1).optional().describe("Intent (start, review, done, reopen) or state name, resolved against this work item type's states"),
+    ...allowWriteField,
+  }),
+  writes: true,
+  args: [idArg],
+  options: [
+    { flags: '--state <state>', field: 'state', description: 'New state (e.g. Active, Resolved, Closed)' },
+    { flags: '--to <intent-or-status>', field: 'to', description: "start, review, done, reopen or a state name, resolved against this work item type's states" },
+  ],
+  examples: [
+    { ...W, id: 42, state: 'Resolved' },
+    // The fixture's Bug is Scrum's, captured, which has no review state: done resolves.
+    { ...all, allowWrite: true, id: 42, to: 'done' },
+  ],
+  run: async (input, ctx) => {
+    if ((input.to === undefined) === (input.state === undefined)) throw oneOfTransition(TRANSITION_HELP, input.to !== undefined);
+    let state = input.state!;
+    let report: TransitionReport | undefined;
+    if (input.to !== undefined) {
+      const item = await adoc<WorkItem>(ctx, workItemPath(input.id), { query: { fields: STATE_FIELDS } });
+      // A work item lives in the organization; its type's states live in its own project.
+      const project = String(item.fields['System.TeamProject'] ?? '');
+      const type = String(item.fields['System.WorkItemType'] ?? '');
+      const states = await adoc<{ value?: AdoState[] }>(ctx, `/${enc(project)}/_apis/wit/workitemtypes/${enc(type)}/states`);
+      const { item: moving, candidates } = adoMoves(input.id, item.fields, states.value ?? []);
+      const resolved = resolveTransition(input.to, moving, candidates, intentOf(input.to) ? ctx.dossierTransitions() : {}, TRANSITION_HELP);
+      state = resolved.candidate.id;
+      report = resolved.report;
+    }
+    const updated = await adoc<WorkItem>(ctx, workItemPath(input.id), { method: 'PATCH', json: [{ op: 'add', path: '/fields/System.State', value: state }], headers: PATCH });
+    if (report) ctx.setTransition(report);
+    return updated;
   },
 });
 
@@ -302,4 +351,4 @@ export const workListStatesCommand = adoCloudArea.command({
   },
 });
 
-export const workCommands = [workGetCommand, workCreateCommand, workUpdateCommand, workSearchCommand, workRevisionsCommand, workGetBatchCommand, workListCommentsCommand, workAddCommentCommand, workListIterationsCommand, workListStatesCommand];
+export const workCommands = [workGetCommand, workCreateCommand, workUpdateCommand, workTransitionCommand, workSearchCommand, workRevisionsCommand, workGetBatchCommand, workListCommentsCommand, workAddCommentCommand, workListIterationsCommand, workListStatesCommand];

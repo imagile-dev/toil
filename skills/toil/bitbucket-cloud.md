@@ -127,8 +127,8 @@ is never an MCP tool.
 | `commit status <commit>` | | Build statuses on the commit |
 | `file get <path>` | `--ref` | `{ path, commit, content }` |
 | `file list [path]` | `--ref` | The folder's files and subfolders (the repository root without a path) |
-| `pr list` | `--state --query --limit --cursor` | Pull requests in one state (`OPEN` unless `--state` says otherwise) |
-| `pr get <id>` | | The pull request, with participants |
+| `pr list` | `--state --query --updated-since --limit --cursor` | Pull requests in one state (`OPEN` unless `--state` says otherwise) |
+| `pr get <id>` | `--include` | The pull request, with participants, plus `included` lists on request |
 | `pr create` ✎ | `--title --source --target --description --reviewers --close-source-branch --draft` | The created pull request |
 | `pr update <id>` ✎ | `--title --description --reviewers --target` | The updated pull request |
 | `pr merge <id>` ✎ | `--strategy --message --delete-branch` | The merged pull request, or `{ pending, taskStatus }` |
@@ -154,6 +154,8 @@ is never an MCP tool.
 
 ```bash
 toil bitbucket-cloud --ws imagile --repo toil pr list --state ALL --limit 20
+toil bitbucket-cloud --ws imagile --repo toil pr list --updated-since 2026-10-01T09:30:00Z
+toil bitbucket-cloud --ws imagile --repo toil pr get 42 --include reviews,checks
 toil bitbucket-cloud --ws imagile --repo toil file get src/retry.ts --ref feature/retries
 toil bitbucket-cloud --ws imagile --repo toil pr diff 42 --file src/retry.ts
 toil bitbucket-cloud --ws imagile --repo toil pr create --title "Add retries" --source feature/retries --allow-write
@@ -167,7 +169,18 @@ list of **Atlassian account ids** (`557058:abc12345-…`), or `{uuid}`s in brace
 `pr get` and `repo default-reviewers` show them. `pr list --query` filters with
 Bitbucket's query language, for example `--query 'author.account_id = "557058:abc12345"'`
 or `--query 'source.branch.name = "feature/retries"'`, where `bitbucket` had
-`--author` and `--reviewer`.
+`--author` and `--reviewer`. `--updated-since` takes an ISO 8601 date (midnight UTC) or a
+date and time with a zone, and goes to Bitbucket as `updated_on >= <instant>` in the
+same query, after any `--query` in parentheses.
+
+### What a pull request carries
+
+`pr get <id> --include reviews,checks,commits,files` adds an `included` object
+holding only the lists named, each as Bitbucket returns it with every page read:
+`reviews` (the activity entries holding an `approval` or `changes_requested`),
+`checks` (the build statuses `pr builds` returns), `commits`, and `files` (the
+diffstat entries, with `lines_added` and `lines_removed` for each file). Each list
+costs more requests; an unknown name is refused before any is sent.
 
 ### Paging
 

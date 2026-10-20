@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://imagile-dev.github.io/toil/owi/0.1/schema.json",
-  "title": "Open Work Item (OWI) 0.1",
-  "description": "One work item from an issue tracker (Jira, Azure DevOps, GitHub), in one model. The spec is docs/owi/spec.md. Additive changes only; every record declares its version in owi.",
+  "$id": "https://imagile-dev.github.io/toil/owi/0.2/schema.json",
+  "title": "Open Work Item (OWI) 0.2",
+  "description": "One work item from an issue tracker (Jira, Azure DevOps, GitHub), in one model, and since 0.2 one change (a pull request) from a code host (GitHub, Bitbucket, Azure DevOps), in another. The document validates a work item; validate a change against #/$defs/Change. The spec is docs/owi/spec.md. Additive changes only; every record declares its version in owi.",
   "$ref": "#/$defs/WorkItem",
   "$defs": {
     "OwiId": {
@@ -112,6 +112,96 @@
         "reason": { "type": "string" }
       }
     },
+    "Reviewer": {
+      "description": "Someone asked to review a change, and where their review stands now.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["person", "state"],
+      "properties": {
+        "person": { "$ref": "#/$defs/Person" },
+        "state": { "enum": ["APPROVED", "CHANGES_REQUESTED", "PENDING"] }
+      }
+    },
+    "Review": {
+      "description": "One review as it happened.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["by", "state", "at"],
+      "properties": {
+        "by": { "$ref": "#/$defs/Person" },
+        "state": { "description": "DISMISSED: an approval withdrawn or dismissed, or a vote reset.", "enum": ["APPROVED", "CHANGES_REQUESTED", "COMMENTED", "DISMISSED"] },
+        "at": { "$ref": "#/$defs/Instant" }
+      }
+    },
+    "Change": {
+      "description": "A pull request (OWI 0.2): the change that carries work, from GitHub, Bitbucket Data Center, Bitbucket Cloud, Azure DevOps Server or Azure DevOps Services.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owi", "id", "source", "url", "repo", "title", "branch", "state", "author", "authorKind", "authorKindSource", "authorKindSignal",
+        "reviewers", "reviews", "checks", "checksAt", "mergeable", "size", "workItems", "mergeCommit",
+        "created", "firstReviewAt", "approvedAt", "mergedAt", "closedAt", "updated", "unmapped", "native"
+      ],
+      "properties": {
+        "owi": { "const": "0.2" },
+        "id": { "description": "<connection>:<repo>#<number>.", "allOf": [{ "$ref": "#/$defs/OwiId" }, { "pattern": "#\\d+$" }] },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["area", "connection", "key", "command"],
+          "properties": {
+            "area": { "description": "github, bitbucket, bitbucket-cloud, ado or ado-cloud in 0.2.", "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+            "connection": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+            "key": { "description": "<repo>#<number>, the part of id after the connection.", "type": "string", "minLength": 1 },
+            "command": { "description": "The toil command whose output was mapped (github pr get).", "type": "string" }
+          }
+        },
+        "url": { "description": "The pull request in the host's web UI.", "type": ["string", "null"] },
+        "repo": { "description": "The repository as the host names it: owner/repo, PROJECT/slug, workspace/slug, project/repo.", "type": "string", "minLength": 1 },
+        "title": { "type": "string" },
+        "branch": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "target"],
+          "properties": { "source": { "type": ["string", "null"] }, "target": { "type": ["string", "null"] } }
+        },
+        "state": { "enum": ["OPEN", "MERGED", "DECLINED", "DRAFT"] },
+        "author": { "anyOf": [{ "$ref": "#/$defs/Person" }, { "type": "null" }] },
+        "authorKind": { "enum": ["HUMAN", "AGENT", "BOT"] },
+        "authorKindSource": { "description": "The signal that set authorKind: an override in the dossier, the account itself, an agent's Co-Authored-By trailer, an agent's branch prefix, or default (HUMAN, no signal).", "enum": ["override", "account", "trailer", "branch", "default"] },
+        "authorKindSignal": { "description": "The signal in words; null for default.", "type": ["string", "null"] },
+        "reviewers": { "type": "array", "items": { "$ref": "#/$defs/Reviewer" } },
+        "reviews": { "description": "Every review, oldest first; null when the input held none.", "anyOf": [{ "type": "array", "items": { "$ref": "#/$defs/Review" } }, { "type": "null" }] },
+        "checks": { "description": "The checks on the latest commit, rolled up: FAILING when any fails, else PENDING when any runs, else PASSING; NONE when none ran; null when they weren't read.", "enum": ["PASSING", "FAILING", "PENDING", "NONE", null] },
+        "checksAt": { "description": "When the checks came to their state: for FAILING, the earliest finish of a check failing now; otherwise the latest check.", "anyOf": [{ "$ref": "#/$defs/Instant" }, { "type": "null" }] },
+        "mergeable": { "description": "false is a merge conflict; null when the host didn't say.", "type": ["boolean", "null"] },
+        "size": {
+          "anyOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["files", "additions", "deletions"],
+              "properties": {
+                "files": { "type": ["integer", "null"], "minimum": 0 },
+                "additions": { "type": ["integer", "null"], "minimum": 0 },
+                "deletions": { "type": ["integer", "null"], "minimum": 0 }
+              }
+            }
+          ]
+        },
+        "workItems": { "description": "The OWI ids of the work items its title, branch and description name.", "type": "array", "items": { "$ref": "#/$defs/OwiId" } },
+        "mergeCommit": { "type": ["string", "null"] },
+        "created": { "anyOf": [{ "$ref": "#/$defs/Instant" }, { "type": "null" }] },
+        "firstReviewAt": { "description": "The first review by someone other than the author.", "anyOf": [{ "$ref": "#/$defs/Instant" }, { "type": "null" }] },
+        "approvedAt": { "description": "The first approval by someone other than the author.", "anyOf": [{ "$ref": "#/$defs/Instant" }, { "type": "null" }] },
+        "mergedAt": { "anyOf": [{ "$ref": "#/$defs/Instant" }, { "type": "null" }] },
+        "closedAt": { "description": "When it was merged or declined.", "anyOf": [{ "$ref": "#/$defs/Instant" }, { "type": "null" }] },
+        "updated": { "anyOf": [{ "$ref": "#/$defs/Instant" }, { "type": "null" }] },
+        "unmapped": { "type": "array", "items": { "$ref": "#/$defs/Unmapped" } },
+        "native": { "description": "The source records, untouched, keyed by the command that returned each (github pr list, github pr get).", "type": "object", "minProperties": 1 }
+      }
+    },
     "WorkItem": {
       "type": "object",
       "additionalProperties": false,
@@ -121,7 +211,7 @@
         "created", "updated", "resolved", "dueDate", "history", "unmapped", "native"
       ],
       "properties": {
-        "owi": { "const": "0.1" },
+        "owi": { "description": "The OWI version the record was written under. 0.2 only adds, so a 0.1 work item is a valid 0.2 one.", "enum": ["0.1", "0.2"] },
         "id": { "$ref": "#/$defs/OwiId" },
         "source": {
           "type": "object",

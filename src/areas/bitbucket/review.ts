@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { allowWriteField } from '../../core/run.js';
 import { bitbucketArea } from './area.js';
-import { bb, buildStatus, currentUser, getPR, IN_REPO, prPath, toInt, where } from './client.js';
+import { bb, buildStatus, currentUser, getPR, IN_REPO, prBuilds, prPath, toInt, where } from './client.js';
 
 /**
  * Reviewing a pull request: its diff and changed files, approving, withdrawing
@@ -176,9 +176,7 @@ export const listBuildsCommand = bitbucketArea.command({
   examples: [example, { ...example, id: '7' }],
   run: async (input, ctx) => {
     const { project, repo } = where(ctx);
-    const commits = await bb<{ values: Array<{ id: string }> }>(ctx, `${prPath(project, repo, toInt(input.id))}/commits`, { query: { limit: 1 } });
-    const sha = commits.values[0]?.id;
-    return sha ? buildStatus(ctx, sha) : [];
+    return prBuilds(ctx, project, repo, toInt(input.id));
   },
 });
 

@@ -1,0 +1,4448 @@
+{
+  "owi": "0.2",
+  "changes": [
+    {
+      "owi": "0.2",
+      "id": "corp-bitbucket:PAY/payments-core#311",
+      "source": {
+        "area": "bitbucket",
+        "connection": "corp-bitbucket",
+        "key": "PAY/payments-core#311",
+        "command": "bitbucket pr get"
+      },
+      "url": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/311",
+      "repo": "PAY/payments-core",
+      "title": "PAY-101 Tokenise PANs in the edge proxy",
+      "branch": {
+        "source": "feature/PAY-101-tokenise",
+        "target": "master"
+      },
+      "state": "OPEN",
+      "author": {
+        "id": "jsmith",
+        "name": "J. Smith",
+        "email": "you@example.com"
+      },
+      "authorKind": "HUMAN",
+      "authorKindSource": "default",
+      "authorKindSignal": null,
+      "reviewers": [
+        {
+          "person": {
+            "id": "achen",
+            "name": "A. Chen",
+            "email": "you@example.com"
+          },
+          "state": "CHANGES_REQUESTED"
+        }
+      ],
+      "reviews": [
+        {
+          "by": {
+            "id": "achen",
+            "name": "A. Chen",
+            "email": "you@example.com"
+          },
+          "state": "CHANGES_REQUESTED",
+          "at": "2026-10-12T17:00:00.000Z"
+        }
+      ],
+      "checks": "FAILING",
+      "checksAt": "2026-10-12T15:35:00.000Z",
+      "mergeable": true,
+      "size": {
+        "files": 6,
+        "additions": null,
+        "deletions": null
+      },
+      "workItems": [
+        "corp-jira:PAY-101",
+        "corp-jira:PAY-100"
+      ],
+      "mergeCommit": null,
+      "created": "2026-10-12T15:30:00.000Z",
+      "firstReviewAt": "2026-10-12T17:00:00.000Z",
+      "approvedAt": null,
+      "mergedAt": null,
+      "closedAt": null,
+      "updated": "2026-10-12T17:00:00.000Z",
+      "unmapped": [
+        {
+          "field": "size",
+          "reason": "Bitbucket Data Center lists the files a pull request changes, not the lines, so additions and deletions are empty"
+        }
+      ],
+      "native": {
+        "bitbucket pr list": {
+          "id": 311,
+          "version": 2,
+          "title": "PAY-101 Tokenise PANs in the edge proxy",
+          "description": "First slice of Card payments v2 (PAY-100).",
+          "state": "OPEN",
+          "open": true,
+          "closed": false,
+          "draft": false,
+          "createdDate": 1791819000000,
+          "updatedDate": 1791824400000,
+          "fromRef": {
+            "id": "refs/heads/feature/PAY-101-tokenise",
+            "displayId": "feature/PAY-101-tokenise",
+            "latestCommit": "e91a4c2000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "toRef": {
+            "id": "refs/heads/master",
+            "displayId": "master",
+            "latestCommit": "f00d000000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "locked": false,
+          "author": {
+            "user": {
+              "name": "jsmith",
+              "id": 606,
+              "displayName": "J. Smith",
+              "active": true,
+              "slug": "jsmith",
+              "type": "NORMAL",
+              "emailAddress": "you@example.com"
+            },
+            "role": "AUTHOR",
+            "approved": false,
+            "status": "UNAPPROVED"
+          },
+          "reviewers": [
+            {
+              "user": {
+                "name": "achen",
+                "id": 505,
+                "displayName": "A. Chen",
+                "active": true,
+                "slug": "achen",
+                "type": "NORMAL",
+                "emailAddress": "you@example.com"
+              },
+              "role": "REVIEWER",
+              "approved": false,
+              "status": "NEEDS_WORK"
+            }
+          ],
+          "participants": [],
+          "properties": {
+            "mergeResult": {
+              "outcome": "CLEAN",
+              "current": true
+            },
+            "commentCount": 0
+          },
+          "links": {
+            "self": [
+              {
+                "href": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/311"
+              }
+            ]
+          }
+        },
+        "bitbucket pr get": {
+          "id": 311,
+          "version": 2,
+          "title": "PAY-101 Tokenise PANs in the edge proxy",
+          "description": "First slice of Card payments v2 (PAY-100).",
+          "state": "OPEN",
+          "open": true,
+          "closed": false,
+          "draft": false,
+          "createdDate": 1791819000000,
+          "updatedDate": 1791824400000,
+          "fromRef": {
+            "id": "refs/heads/feature/PAY-101-tokenise",
+            "displayId": "feature/PAY-101-tokenise",
+            "latestCommit": "e91a4c2000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "toRef": {
+            "id": "refs/heads/master",
+            "displayId": "master",
+            "latestCommit": "f00d000000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "locked": false,
+          "author": {
+            "user": {
+              "name": "jsmith",
+              "id": 606,
+              "displayName": "J. Smith",
+              "active": true,
+              "slug": "jsmith",
+              "type": "NORMAL",
+              "emailAddress": "you@example.com"
+            },
+            "role": "AUTHOR",
+            "approved": false,
+            "status": "UNAPPROVED"
+          },
+          "reviewers": [
+            {
+              "user": {
+                "name": "achen",
+                "id": 505,
+                "displayName": "A. Chen",
+                "active": true,
+                "slug": "achen",
+                "type": "NORMAL",
+                "emailAddress": "you@example.com"
+              },
+              "role": "REVIEWER",
+              "approved": false,
+              "status": "NEEDS_WORK"
+            }
+          ],
+          "participants": [],
+          "properties": {
+            "mergeResult": {
+              "outcome": "CLEAN",
+              "current": true
+            },
+            "commentCount": 0
+          },
+          "links": {
+            "self": [
+              {
+                "href": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/311"
+              }
+            ]
+          },
+          "included": {
+            "reviews": [
+              {
+                "id": 31100,
+                "createdDate": 1791824400000,
+                "user": {
+                  "name": "achen",
+                  "id": 505,
+                  "displayName": "A. Chen",
+                  "active": true,
+                  "slug": "achen",
+                  "type": "NORMAL",
+                  "emailAddress": "you@example.com"
+                },
+                "action": "REVIEWED"
+              }
+            ],
+            "checks": [
+              {
+                "state": "FAILED",
+                "key": "payments-core-PR-311",
+                "name": "payments-core » PR-311 #1",
+                "url": "https://jenkins.imagile.dev/job/payments-core/job/PR-311/1/",
+                "dateAdded": 1791819300000
+              },
+              {
+                "state": "FAILED",
+                "key": "payments-core-PR-311",
+                "name": "payments-core » PR-311 #2",
+                "url": "https://jenkins.imagile.dev/job/payments-core/job/PR-311/2/",
+                "dateAdded": 1791821100000
+              }
+            ],
+            "commits": [
+              {
+                "id": "e91a400000000000000000000000000000000000",
+                "displayId": "e91a40",
+                "message": "PAY-101 Tokenise PANs in the edge proxy",
+                "author": {
+                  "name": "J. Smith",
+                  "emailAddress": "you@example.com"
+                },
+                "authorTimestamp": 1791819000000
+              }
+            ],
+            "files": [
+              {
+                "contentId": "c311000000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File0.java"
+                },
+                "type": "MODIFY"
+              },
+              {
+                "contentId": "c311100000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File1.java"
+                },
+                "type": "MODIFY"
+              },
+              {
+                "contentId": "c311200000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File2.java"
+                },
+                "type": "MODIFY"
+              },
+              {
+                "contentId": "c311300000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File3.java"
+                },
+                "type": "MODIFY"
+              },
+              {
+                "contentId": "c311400000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File4.java"
+                },
+                "type": "MODIFY"
+              },
+              {
+                "contentId": "c311500000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File5.java"
+                },
+                "type": "MODIFY"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "corp-bitbucket:PAY/payments-core#305",
+      "source": {
+        "area": "bitbucket",
+        "connection": "corp-bitbucket",
+        "key": "PAY/payments-core#305",
+        "command": "bitbucket pr get"
+      },
+      "url": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/305",
+      "repo": "PAY/payments-core",
+      "title": "PAY-104 Round refund totals half-up",
+      "branch": {
+        "source": "bugfix/PAY-104-rounding",
+        "target": "master"
+      },
+      "state": "OPEN",
+      "author": {
+        "id": "achen",
+        "name": "A. Chen",
+        "email": "you@example.com"
+      },
+      "authorKind": "HUMAN",
+      "authorKindSource": "default",
+      "authorKindSignal": null,
+      "reviewers": [
+        {
+          "person": {
+            "id": "jsmith",
+            "name": "J. Smith",
+            "email": "you@example.com"
+          },
+          "state": "PENDING"
+        }
+      ],
+      "reviews": [],
+      "checks": "PASSING",
+      "checksAt": "2026-10-07T10:40:00.000Z",
+      "mergeable": false,
+      "size": {
+        "files": 2,
+        "additions": null,
+        "deletions": null
+      },
+      "workItems": [
+        "corp-jira:PAY-104"
+      ],
+      "mergeCommit": null,
+      "created": "2026-10-07T10:15:00.000Z",
+      "firstReviewAt": null,
+      "approvedAt": null,
+      "mergedAt": null,
+      "closedAt": null,
+      "updated": "2026-10-07T10:15:00.000Z",
+      "unmapped": [
+        {
+          "field": "size",
+          "reason": "Bitbucket Data Center lists the files a pull request changes, not the lines, so additions and deletions are empty"
+        }
+      ],
+      "native": {
+        "bitbucket pr list": {
+          "id": 305,
+          "version": 2,
+          "title": "PAY-104 Round refund totals half-up",
+          "state": "OPEN",
+          "open": true,
+          "closed": false,
+          "draft": false,
+          "createdDate": 1791368100000,
+          "updatedDate": 1791368100000,
+          "fromRef": {
+            "id": "refs/heads/bugfix/PAY-104-rounding",
+            "displayId": "bugfix/PAY-104-rounding",
+            "latestCommit": "3c5d7e1000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "toRef": {
+            "id": "refs/heads/master",
+            "displayId": "master",
+            "latestCommit": "f00d000000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "locked": false,
+          "author": {
+            "user": {
+              "name": "achen",
+              "id": 505,
+              "displayName": "A. Chen",
+              "active": true,
+              "slug": "achen",
+              "type": "NORMAL",
+              "emailAddress": "you@example.com"
+            },
+            "role": "AUTHOR",
+            "approved": false,
+            "status": "UNAPPROVED"
+          },
+          "reviewers": [
+            {
+              "user": {
+                "name": "jsmith",
+                "id": 606,
+                "displayName": "J. Smith",
+                "active": true,
+                "slug": "jsmith",
+                "type": "NORMAL",
+                "emailAddress": "you@example.com"
+              },
+              "role": "REVIEWER",
+              "approved": false,
+              "status": "UNAPPROVED"
+            }
+          ],
+          "participants": [],
+          "properties": {
+            "mergeResult": {
+              "outcome": "CONFLICTED",
+              "current": true
+            },
+            "commentCount": 0
+          },
+          "links": {
+            "self": [
+              {
+                "href": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/305"
+              }
+            ]
+          }
+        },
+        "bitbucket pr get": {
+          "id": 305,
+          "version": 2,
+          "title": "PAY-104 Round refund totals half-up",
+          "state": "OPEN",
+          "open": true,
+          "closed": false,
+          "draft": false,
+          "createdDate": 1791368100000,
+          "updatedDate": 1791368100000,
+          "fromRef": {
+            "id": "refs/heads/bugfix/PAY-104-rounding",
+            "displayId": "bugfix/PAY-104-rounding",
+            "latestCommit": "3c5d7e1000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "toRef": {
+            "id": "refs/heads/master",
+            "displayId": "master",
+            "latestCommit": "f00d000000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "locked": false,
+          "author": {
+            "user": {
+              "name": "achen",
+              "id": 505,
+              "displayName": "A. Chen",
+              "active": true,
+              "slug": "achen",
+              "type": "NORMAL",
+              "emailAddress": "you@example.com"
+            },
+            "role": "AUTHOR",
+            "approved": false,
+            "status": "UNAPPROVED"
+          },
+          "reviewers": [
+            {
+              "user": {
+                "name": "jsmith",
+                "id": 606,
+                "displayName": "J. Smith",
+                "active": true,
+                "slug": "jsmith",
+                "type": "NORMAL",
+                "emailAddress": "you@example.com"
+              },
+              "role": "REVIEWER",
+              "approved": false,
+              "status": "UNAPPROVED"
+            }
+          ],
+          "participants": [],
+          "properties": {
+            "mergeResult": {
+              "outcome": "CONFLICTED",
+              "current": true
+            },
+            "commentCount": 0
+          },
+          "links": {
+            "self": [
+              {
+                "href": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/305"
+              }
+            ]
+          },
+          "included": {
+            "reviews": [],
+            "checks": [
+              {
+                "state": "SUCCESSFUL",
+                "key": "payments-core-PR-305",
+                "name": "payments-core » PR-305 #1",
+                "url": "https://jenkins.imagile.dev/job/payments-core/job/PR-305/1/",
+                "dateAdded": 1791369600000
+              }
+            ],
+            "commits": [
+              {
+                "id": "3c5d700000000000000000000000000000000000",
+                "displayId": "3c5d70",
+                "message": "PAY-104 Round refund totals half-up",
+                "author": {
+                  "name": "A. Chen",
+                  "emailAddress": "you@example.com"
+                },
+                "authorTimestamp": 1791368100000
+              }
+            ],
+            "files": [
+              {
+                "contentId": "c305000000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File0.java"
+                },
+                "type": "MODIFY"
+              },
+              {
+                "contentId": "c305100000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File1.java"
+                },
+                "type": "MODIFY"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "corp-bitbucket:PAY/payments-core#298",
+      "source": {
+        "area": "bitbucket",
+        "connection": "corp-bitbucket",
+        "key": "PAY/payments-core#298",
+        "command": "bitbucket pr get"
+      },
+      "url": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/298",
+      "repo": "PAY/payments-core",
+      "title": "PAY-105 Show the last four digits on receipts",
+      "branch": {
+        "source": "feature/PAY-105-last-four",
+        "target": "master"
+      },
+      "state": "MERGED",
+      "author": {
+        "id": "jsmith",
+        "name": "J. Smith",
+        "email": "you@example.com"
+      },
+      "authorKind": "HUMAN",
+      "authorKindSource": "default",
+      "authorKindSignal": null,
+      "reviewers": [
+        {
+          "person": {
+            "id": "achen",
+            "name": "A. Chen",
+            "email": "you@example.com"
+          },
+          "state": "APPROVED"
+        }
+      ],
+      "reviews": [
+        {
+          "by": {
+            "id": "achen",
+            "name": "A. Chen",
+            "email": "you@example.com"
+          },
+          "state": "CHANGES_REQUESTED",
+          "at": "2026-10-08T16:00:00.000Z"
+        },
+        {
+          "by": {
+            "id": "achen",
+            "name": "A. Chen",
+            "email": "you@example.com"
+          },
+          "state": "APPROVED",
+          "at": "2026-10-09T11:00:00.000Z"
+        }
+      ],
+      "checks": "PASSING",
+      "checksAt": "2026-10-09T14:20:00.000Z",
+      "mergeable": null,
+      "size": {
+        "files": 4,
+        "additions": null,
+        "deletions": null
+      },
+      "workItems": [
+        "corp-jira:PAY-105"
+      ],
+      "mergeCommit": "4e1d2a9000000000000000000000000000000000",
+      "created": "2026-10-08T09:00:00.000Z",
+      "firstReviewAt": "2026-10-08T16:00:00.000Z",
+      "approvedAt": "2026-10-09T11:00:00.000Z",
+      "mergedAt": "2026-10-09T14:50:00.000Z",
+      "closedAt": "2026-10-09T14:50:00.000Z",
+      "updated": "2026-10-09T14:50:00.000Z",
+      "unmapped": [
+        {
+          "field": "size",
+          "reason": "Bitbucket Data Center lists the files a pull request changes, not the lines, so additions and deletions are empty"
+        }
+      ],
+      "native": {
+        "bitbucket pr list": {
+          "id": 298,
+          "version": 2,
+          "title": "PAY-105 Show the last four digits on receipts",
+          "state": "MERGED",
+          "open": false,
+          "closed": true,
+          "draft": false,
+          "createdDate": 1791450000000,
+          "updatedDate": 1791557400000,
+          "closedDate": 1791557400000,
+          "fromRef": {
+            "id": "refs/heads/feature/PAY-105-last-four",
+            "displayId": "feature/PAY-105-last-four",
+            "latestCommit": "8a6b2f0000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "toRef": {
+            "id": "refs/heads/master",
+            "displayId": "master",
+            "latestCommit": "f00d000000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "locked": false,
+          "author": {
+            "user": {
+              "name": "jsmith",
+              "id": 606,
+              "displayName": "J. Smith",
+              "active": true,
+              "slug": "jsmith",
+              "type": "NORMAL",
+              "emailAddress": "you@example.com"
+            },
+            "role": "AUTHOR",
+            "approved": false,
+            "status": "UNAPPROVED"
+          },
+          "reviewers": [
+            {
+              "user": {
+                "name": "achen",
+                "id": 505,
+                "displayName": "A. Chen",
+                "active": true,
+                "slug": "achen",
+                "type": "NORMAL",
+                "emailAddress": "you@example.com"
+              },
+              "role": "REVIEWER",
+              "approved": true,
+              "status": "APPROVED"
+            }
+          ],
+          "participants": [],
+          "properties": {
+            "mergeCommit": {
+              "displayId": "4e1d2a9",
+              "id": "4e1d2a9000000000000000000000000000000000"
+            },
+            "commentCount": 0
+          },
+          "links": {
+            "self": [
+              {
+                "href": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/298"
+              }
+            ]
+          }
+        },
+        "bitbucket pr get": {
+          "id": 298,
+          "version": 2,
+          "title": "PAY-105 Show the last four digits on receipts",
+          "state": "MERGED",
+          "open": false,
+          "closed": true,
+          "draft": false,
+          "createdDate": 1791450000000,
+          "updatedDate": 1791557400000,
+          "closedDate": 1791557400000,
+          "fromRef": {
+            "id": "refs/heads/feature/PAY-105-last-four",
+            "displayId": "feature/PAY-105-last-four",
+            "latestCommit": "8a6b2f0000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "toRef": {
+            "id": "refs/heads/master",
+            "displayId": "master",
+            "latestCommit": "f00d000000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "locked": false,
+          "author": {
+            "user": {
+              "name": "jsmith",
+              "id": 606,
+              "displayName": "J. Smith",
+              "active": true,
+              "slug": "jsmith",
+              "type": "NORMAL",
+              "emailAddress": "you@example.com"
+            },
+            "role": "AUTHOR",
+            "approved": false,
+            "status": "UNAPPROVED"
+          },
+          "reviewers": [
+            {
+              "user": {
+                "name": "achen",
+                "id": 505,
+                "displayName": "A. Chen",
+                "active": true,
+                "slug": "achen",
+                "type": "NORMAL",
+                "emailAddress": "you@example.com"
+              },
+              "role": "REVIEWER",
+              "approved": true,
+              "status": "APPROVED"
+            }
+          ],
+          "participants": [],
+          "properties": {
+            "mergeCommit": {
+              "displayId": "4e1d2a9",
+              "id": "4e1d2a9000000000000000000000000000000000"
+            },
+            "commentCount": 0
+          },
+          "links": {
+            "self": [
+              {
+                "href": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/298"
+              }
+            ]
+          },
+          "included": {
+            "reviews": [
+              {
+                "id": 29800,
+                "createdDate": 1791475200000,
+                "user": {
+                  "name": "achen",
+                  "id": 505,
+                  "displayName": "A. Chen",
+                  "active": true,
+                  "slug": "achen",
+                  "type": "NORMAL",
+                  "emailAddress": "you@example.com"
+                },
+                "action": "REVIEWED"
+              },
+              {
+                "id": 29801,
+                "createdDate": 1791543600000,
+                "user": {
+                  "name": "achen",
+                  "id": 505,
+                  "displayName": "A. Chen",
+                  "active": true,
+                  "slug": "achen",
+                  "type": "NORMAL",
+                  "emailAddress": "you@example.com"
+                },
+                "action": "APPROVED"
+              }
+            ],
+            "checks": [
+              {
+                "state": "SUCCESSFUL",
+                "key": "payments-core-PR-298",
+                "name": "payments-core » PR-298 #1",
+                "url": "https://jenkins.imagile.dev/job/payments-core/job/PR-298/1/",
+                "dateAdded": 1791555600000
+              }
+            ],
+            "commits": [
+              {
+                "id": "8a6b200000000000000000000000000000000000",
+                "displayId": "8a6b20",
+                "message": "PAY-105 Show the last four digits on receipts",
+                "author": {
+                  "name": "J. Smith",
+                  "emailAddress": "you@example.com"
+                },
+                "authorTimestamp": 1791450000000
+              }
+            ],
+            "files": [
+              {
+                "contentId": "c298000000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File0.java"
+                },
+                "type": "MODIFY"
+              },
+              {
+                "contentId": "c298100000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File1.java"
+                },
+                "type": "MODIFY"
+              },
+              {
+                "contentId": "c298200000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File2.java"
+                },
+                "type": "MODIFY"
+              },
+              {
+                "contentId": "c298300000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File3.java"
+                },
+                "type": "MODIFY"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "corp-bitbucket:PAY/payments-core#296",
+      "source": {
+        "area": "bitbucket",
+        "connection": "corp-bitbucket",
+        "key": "PAY/payments-core#296",
+        "command": "bitbucket pr get"
+      },
+      "url": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/296",
+      "repo": "PAY/payments-core",
+      "title": "PAY-106 Register the tokeniser with the gateway",
+      "branch": {
+        "source": "feature/PAY-106-gateway",
+        "target": "master"
+      },
+      "state": "MERGED",
+      "author": {
+        "id": "jsmith",
+        "name": "J. Smith",
+        "email": "you@example.com"
+      },
+      "authorKind": "HUMAN",
+      "authorKindSource": "default",
+      "authorKindSignal": null,
+      "reviewers": [
+        {
+          "person": {
+            "id": "achen",
+            "name": "A. Chen",
+            "email": "you@example.com"
+          },
+          "state": "APPROVED"
+        }
+      ],
+      "reviews": [
+        {
+          "by": {
+            "id": "achen",
+            "name": "A. Chen",
+            "email": "you@example.com"
+          },
+          "state": "APPROVED",
+          "at": "2026-10-07T09:30:00.000Z"
+        }
+      ],
+      "checks": "PASSING",
+      "checksAt": "2026-10-07T11:10:00.000Z",
+      "mergeable": null,
+      "size": {
+        "files": 3,
+        "additions": null,
+        "deletions": null
+      },
+      "workItems": [
+        "corp-jira:PAY-106"
+      ],
+      "mergeCommit": "7b3c9d2000000000000000000000000000000000",
+      "created": "2026-10-06T13:00:00.000Z",
+      "firstReviewAt": "2026-10-07T09:30:00.000Z",
+      "approvedAt": "2026-10-07T09:30:00.000Z",
+      "mergedAt": "2026-10-07T11:40:00.000Z",
+      "closedAt": "2026-10-07T11:40:00.000Z",
+      "updated": "2026-10-07T11:40:00.000Z",
+      "unmapped": [
+        {
+          "field": "size",
+          "reason": "Bitbucket Data Center lists the files a pull request changes, not the lines, so additions and deletions are empty"
+        }
+      ],
+      "native": {
+        "bitbucket pr list": {
+          "id": 296,
+          "version": 2,
+          "title": "PAY-106 Register the tokeniser with the gateway",
+          "state": "MERGED",
+          "open": false,
+          "closed": true,
+          "draft": false,
+          "createdDate": 1791291600000,
+          "updatedDate": 1791373200000,
+          "closedDate": 1791373200000,
+          "fromRef": {
+            "id": "refs/heads/feature/PAY-106-gateway",
+            "displayId": "feature/PAY-106-gateway",
+            "latestCommit": "2d9e8b4000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "toRef": {
+            "id": "refs/heads/master",
+            "displayId": "master",
+            "latestCommit": "f00d000000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "locked": false,
+          "author": {
+            "user": {
+              "name": "jsmith",
+              "id": 606,
+              "displayName": "J. Smith",
+              "active": true,
+              "slug": "jsmith",
+              "type": "NORMAL",
+              "emailAddress": "you@example.com"
+            },
+            "role": "AUTHOR",
+            "approved": false,
+            "status": "UNAPPROVED"
+          },
+          "reviewers": [
+            {
+              "user": {
+                "name": "achen",
+                "id": 505,
+                "displayName": "A. Chen",
+                "active": true,
+                "slug": "achen",
+                "type": "NORMAL",
+                "emailAddress": "you@example.com"
+              },
+              "role": "REVIEWER",
+              "approved": true,
+              "status": "APPROVED"
+            }
+          ],
+          "participants": [],
+          "properties": {
+            "mergeCommit": {
+              "displayId": "7b3c9d2",
+              "id": "7b3c9d2000000000000000000000000000000000"
+            },
+            "commentCount": 0
+          },
+          "links": {
+            "self": [
+              {
+                "href": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/296"
+              }
+            ]
+          }
+        },
+        "bitbucket pr get": {
+          "id": 296,
+          "version": 2,
+          "title": "PAY-106 Register the tokeniser with the gateway",
+          "state": "MERGED",
+          "open": false,
+          "closed": true,
+          "draft": false,
+          "createdDate": 1791291600000,
+          "updatedDate": 1791373200000,
+          "closedDate": 1791373200000,
+          "fromRef": {
+            "id": "refs/heads/feature/PAY-106-gateway",
+            "displayId": "feature/PAY-106-gateway",
+            "latestCommit": "2d9e8b4000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "toRef": {
+            "id": "refs/heads/master",
+            "displayId": "master",
+            "latestCommit": "f00d000000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "locked": false,
+          "author": {
+            "user": {
+              "name": "jsmith",
+              "id": 606,
+              "displayName": "J. Smith",
+              "active": true,
+              "slug": "jsmith",
+              "type": "NORMAL",
+              "emailAddress": "you@example.com"
+            },
+            "role": "AUTHOR",
+            "approved": false,
+            "status": "UNAPPROVED"
+          },
+          "reviewers": [
+            {
+              "user": {
+                "name": "achen",
+                "id": 505,
+                "displayName": "A. Chen",
+                "active": true,
+                "slug": "achen",
+                "type": "NORMAL",
+                "emailAddress": "you@example.com"
+              },
+              "role": "REVIEWER",
+              "approved": true,
+              "status": "APPROVED"
+            }
+          ],
+          "participants": [],
+          "properties": {
+            "mergeCommit": {
+              "displayId": "7b3c9d2",
+              "id": "7b3c9d2000000000000000000000000000000000"
+            },
+            "commentCount": 0
+          },
+          "links": {
+            "self": [
+              {
+                "href": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/296"
+              }
+            ]
+          },
+          "included": {
+            "reviews": [
+              {
+                "id": 29600,
+                "createdDate": 1791365400000,
+                "user": {
+                  "name": "achen",
+                  "id": 505,
+                  "displayName": "A. Chen",
+                  "active": true,
+                  "slug": "achen",
+                  "type": "NORMAL",
+                  "emailAddress": "you@example.com"
+                },
+                "action": "APPROVED"
+              }
+            ],
+            "checks": [
+              {
+                "state": "SUCCESSFUL",
+                "key": "payments-core-PR-296",
+                "name": "payments-core » PR-296 #1",
+                "url": "https://jenkins.imagile.dev/job/payments-core/job/PR-296/1/",
+                "dateAdded": 1791371400000
+              }
+            ],
+            "commits": [
+              {
+                "id": "2d9e800000000000000000000000000000000000",
+                "displayId": "2d9e80",
+                "message": "PAY-106 Register the tokeniser with the gateway",
+                "author": {
+                  "name": "J. Smith",
+                  "emailAddress": "you@example.com"
+                },
+                "authorTimestamp": 1791291600000
+              }
+            ],
+            "files": [
+              {
+                "contentId": "c296000000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File0.java"
+                },
+                "type": "MODIFY"
+              },
+              {
+                "contentId": "c296100000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File1.java"
+                },
+                "type": "MODIFY"
+              },
+              {
+                "contentId": "c296200000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File2.java"
+                },
+                "type": "MODIFY"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "corp-bitbucket:PAY/payments-core#290",
+      "source": {
+        "area": "bitbucket",
+        "connection": "corp-bitbucket",
+        "key": "PAY/payments-core#290",
+        "command": "bitbucket pr get"
+      },
+      "url": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/290",
+      "repo": "PAY/payments-core",
+      "title": "Bump the HTTP client to 5.3",
+      "branch": {
+        "source": "renovate/http-client-5.x",
+        "target": "master"
+      },
+      "state": "MERGED",
+      "author": {
+        "id": "svc-renovate",
+        "name": "Renovate",
+        "email": null
+      },
+      "authorKind": "BOT",
+      "authorKindSource": "account",
+      "authorKindSignal": "account svc-renovate, type SERVICE",
+      "reviewers": [
+        {
+          "person": {
+            "id": "achen",
+            "name": "A. Chen",
+            "email": "you@example.com"
+          },
+          "state": "APPROVED"
+        }
+      ],
+      "reviews": [
+        {
+          "by": {
+            "id": "achen",
+            "name": "A. Chen",
+            "email": "you@example.com"
+          },
+          "state": "APPROVED",
+          "at": "2026-09-30T09:15:00.000Z"
+        }
+      ],
+      "checks": "PASSING",
+      "checksAt": "2026-09-30T09:30:00.000Z",
+      "mergeable": null,
+      "size": {
+        "files": 1,
+        "additions": null,
+        "deletions": null
+      },
+      "workItems": [],
+      "mergeCommit": "1a2b3c4000000000000000000000000000000000",
+      "created": "2026-09-29T09:00:00.000Z",
+      "firstReviewAt": "2026-09-30T09:15:00.000Z",
+      "approvedAt": "2026-09-30T09:15:00.000Z",
+      "mergedAt": "2026-09-30T10:00:00.000Z",
+      "closedAt": "2026-09-30T10:00:00.000Z",
+      "updated": "2026-09-30T10:00:00.000Z",
+      "unmapped": [
+        {
+          "field": "size",
+          "reason": "Bitbucket Data Center lists the files a pull request changes, not the lines, so additions and deletions are empty"
+        }
+      ],
+      "native": {
+        "bitbucket pr list": {
+          "id": 290,
+          "version": 2,
+          "title": "Bump the HTTP client to 5.3",
+          "state": "MERGED",
+          "open": false,
+          "closed": true,
+          "draft": false,
+          "createdDate": 1790672400000,
+          "updatedDate": 1790762400000,
+          "closedDate": 1790762400000,
+          "fromRef": {
+            "id": "refs/heads/renovate/http-client-5.x",
+            "displayId": "renovate/http-client-5.x",
+            "latestCommit": "0f4e6a3000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "toRef": {
+            "id": "refs/heads/master",
+            "displayId": "master",
+            "latestCommit": "f00d000000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "locked": false,
+          "author": {
+            "user": {
+              "name": "svc-renovate",
+              "id": 1212,
+              "displayName": "Renovate",
+              "active": true,
+              "slug": "svc-renovate",
+              "type": "SERVICE"
+            },
+            "role": "AUTHOR",
+            "approved": false,
+            "status": "UNAPPROVED"
+          },
+          "reviewers": [
+            {
+              "user": {
+                "name": "achen",
+                "id": 505,
+                "displayName": "A. Chen",
+                "active": true,
+                "slug": "achen",
+                "type": "NORMAL",
+                "emailAddress": "you@example.com"
+              },
+              "role": "REVIEWER",
+              "approved": true,
+              "status": "APPROVED"
+            }
+          ],
+          "participants": [],
+          "properties": {
+            "mergeCommit": {
+              "displayId": "1a2b3c4",
+              "id": "1a2b3c4000000000000000000000000000000000"
+            },
+            "commentCount": 0
+          },
+          "links": {
+            "self": [
+              {
+                "href": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/290"
+              }
+            ]
+          }
+        },
+        "bitbucket pr get": {
+          "id": 290,
+          "version": 2,
+          "title": "Bump the HTTP client to 5.3",
+          "state": "MERGED",
+          "open": false,
+          "closed": true,
+          "draft": false,
+          "createdDate": 1790672400000,
+          "updatedDate": 1790762400000,
+          "closedDate": 1790762400000,
+          "fromRef": {
+            "id": "refs/heads/renovate/http-client-5.x",
+            "displayId": "renovate/http-client-5.x",
+            "latestCommit": "0f4e6a3000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "toRef": {
+            "id": "refs/heads/master",
+            "displayId": "master",
+            "latestCommit": "f00d000000000000000000000000000000000000",
+            "repository": {
+              "slug": "payments-core",
+              "name": "payments-core",
+              "project": {
+                "key": "PAY",
+                "name": "Payments"
+              }
+            }
+          },
+          "locked": false,
+          "author": {
+            "user": {
+              "name": "svc-renovate",
+              "id": 1212,
+              "displayName": "Renovate",
+              "active": true,
+              "slug": "svc-renovate",
+              "type": "SERVICE"
+            },
+            "role": "AUTHOR",
+            "approved": false,
+            "status": "UNAPPROVED"
+          },
+          "reviewers": [
+            {
+              "user": {
+                "name": "achen",
+                "id": 505,
+                "displayName": "A. Chen",
+                "active": true,
+                "slug": "achen",
+                "type": "NORMAL",
+                "emailAddress": "you@example.com"
+              },
+              "role": "REVIEWER",
+              "approved": true,
+              "status": "APPROVED"
+            }
+          ],
+          "participants": [],
+          "properties": {
+            "mergeCommit": {
+              "displayId": "1a2b3c4",
+              "id": "1a2b3c4000000000000000000000000000000000"
+            },
+            "commentCount": 0
+          },
+          "links": {
+            "self": [
+              {
+                "href": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/290"
+              }
+            ]
+          },
+          "included": {
+            "reviews": [
+              {
+                "id": 29000,
+                "createdDate": 1790759700000,
+                "user": {
+                  "name": "achen",
+                  "id": 505,
+                  "displayName": "A. Chen",
+                  "active": true,
+                  "slug": "achen",
+                  "type": "NORMAL",
+                  "emailAddress": "you@example.com"
+                },
+                "action": "APPROVED"
+              }
+            ],
+            "checks": [
+              {
+                "state": "SUCCESSFUL",
+                "key": "payments-core-PR-290",
+                "name": "payments-core » PR-290 #1",
+                "url": "https://jenkins.imagile.dev/job/payments-core/job/PR-290/1/",
+                "dateAdded": 1790760600000
+              }
+            ],
+            "commits": [
+              {
+                "id": "0f4e600000000000000000000000000000000000",
+                "displayId": "0f4e60",
+                "message": "Bump the HTTP client to 5.3",
+                "author": {
+                  "name": "Renovate",
+                  "emailAddress": "you@example.com"
+                },
+                "authorTimestamp": 1790672400000
+              }
+            ],
+            "files": [
+              {
+                "contentId": "c290000000000000000000000000000000000000",
+                "path": {
+                  "toString": "src/main/java/payments/File0.java"
+                },
+                "type": "MODIFY"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "corp-ado:Payments/settlement#87",
+      "source": {
+        "area": "ado",
+        "connection": "corp-ado",
+        "key": "Payments/settlement#87",
+        "command": "ado pr get"
+      },
+      "url": "https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement/pullrequest/87",
+      "repo": "Payments/settlement",
+      "title": "Write the daily settlement CSV",
+      "branch": {
+        "source": "feature/2302-settlement-csv",
+        "target": "main"
+      },
+      "state": "OPEN",
+      "author": {
+        "id": "IMAGILE\\dokafor",
+        "name": "D. Okafor",
+        "email": null
+      },
+      "authorKind": "HUMAN",
+      "authorKindSource": "default",
+      "authorKindSignal": null,
+      "reviewers": [
+        {
+          "person": {
+            "id": "IMAGILE\\jpark",
+            "name": "J. Park",
+            "email": null
+          },
+          "state": "CHANGES_REQUESTED"
+        }
+      ],
+      "reviews": [
+        {
+          "by": {
+            "id": "IMAGILE\\jpark",
+            "name": "J. Park",
+            "email": null
+          },
+          "state": "CHANGES_REQUESTED",
+          "at": "2026-10-12T14:00:00.000Z"
+        }
+      ],
+      "checks": "PENDING",
+      "checksAt": "2026-10-13T07:55:00.000Z",
+      "mergeable": true,
+      "size": {
+        "files": 5,
+        "additions": null,
+        "deletions": null
+      },
+      "workItems": [
+        "corp-ado:2302"
+      ],
+      "mergeCommit": null,
+      "created": "2026-10-12T09:20:00.000Z",
+      "firstReviewAt": "2026-10-12T14:00:00.000Z",
+      "approvedAt": null,
+      "mergedAt": null,
+      "closedAt": null,
+      "updated": null,
+      "unmapped": [
+        {
+          "field": "updated",
+          "reason": "Azure DevOps records no last-updated time on a pull request"
+        },
+        {
+          "field": "size",
+          "reason": "Azure DevOps lists the files a pull request changes, not the lines, so additions and deletions are empty"
+        }
+      ],
+      "native": {
+        "ado pr list": {
+          "repository": {
+            "id": "abc12345-0000-0000-0000-000000000500",
+            "name": "settlement",
+            "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement",
+            "webUrl": "https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement",
+            "project": {
+              "name": "Payments"
+            }
+          },
+          "pullRequestId": 87,
+          "codeReviewId": 87,
+          "status": "active",
+          "createdBy": {
+            "displayName": "D. Okafor",
+            "uniqueName": "IMAGILE\\dokafor",
+            "id": "abc12345-0000-0000-0000-000000000070",
+            "descriptor": "win.dokafor"
+          },
+          "creationDate": "2026-10-12T09:20:00Z",
+          "title": "Write the daily settlement CSV",
+          "description": "For #2302. One file per merchant, written at 02:00 UTC.",
+          "sourceRefName": "refs/heads/feature/2302-settlement-csv",
+          "targetRefName": "refs/heads/main",
+          "mergeStatus": "succeeded",
+          "isDraft": false,
+          "lastMergeSourceCommit": {
+            "commitId": "87ab3e2000000000000000000000000000000000"
+          },
+          "reviewers": [
+            {
+              "displayName": "J. Park",
+              "uniqueName": "IMAGILE\\jpark",
+              "id": "abc12345-0000-0000-0000-000000000050",
+              "descriptor": "win.jpark",
+              "vote": -5,
+              "isRequired": true,
+              "hasDeclined": false,
+              "isFlagged": false
+            }
+          ],
+          "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement/pullRequests/87"
+        },
+        "ado pr get": {
+          "repository": {
+            "id": "abc12345-0000-0000-0000-000000000500",
+            "name": "settlement",
+            "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement",
+            "webUrl": "https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement",
+            "project": {
+              "name": "Payments"
+            }
+          },
+          "pullRequestId": 87,
+          "codeReviewId": 87,
+          "status": "active",
+          "createdBy": {
+            "displayName": "D. Okafor",
+            "uniqueName": "IMAGILE\\dokafor",
+            "id": "abc12345-0000-0000-0000-000000000070",
+            "descriptor": "win.dokafor"
+          },
+          "creationDate": "2026-10-12T09:20:00Z",
+          "title": "Write the daily settlement CSV",
+          "description": "For #2302. One file per merchant, written at 02:00 UTC.",
+          "sourceRefName": "refs/heads/feature/2302-settlement-csv",
+          "targetRefName": "refs/heads/main",
+          "mergeStatus": "succeeded",
+          "isDraft": false,
+          "lastMergeSourceCommit": {
+            "commitId": "87ab3e2000000000000000000000000000000000"
+          },
+          "reviewers": [
+            {
+              "displayName": "J. Park",
+              "uniqueName": "IMAGILE\\jpark",
+              "id": "abc12345-0000-0000-0000-000000000050",
+              "descriptor": "win.jpark",
+              "vote": -5,
+              "isRequired": true,
+              "hasDeclined": false,
+              "isFlagged": false
+            }
+          ],
+          "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement/pullRequests/87",
+          "included": {
+            "reviews": [
+              {
+                "id": 870,
+                "publishedDate": "2026-10-12T14:00:00Z",
+                "lastUpdatedDate": "2026-10-12T14:00:00Z",
+                "isDeleted": false,
+                "status": "closed",
+                "comments": [
+                  {
+                    "id": 1,
+                    "author": {
+                      "displayName": "J. Park",
+                      "uniqueName": "IMAGILE\\jpark",
+                      "id": "abc12345-0000-0000-0000-000000000050",
+                      "descriptor": "win.jpark"
+                    },
+                    "content": "J. Park voted -5",
+                    "publishedDate": "2026-10-12T14:00:00Z",
+                    "commentType": "system"
+                  }
+                ],
+                "properties": {
+                  "CodeReviewThreadType": {
+                    "$type": "System.String",
+                    "$value": "VoteUpdate"
+                  },
+                  "CodeReviewVoteResult": {
+                    "$type": "System.String",
+                    "$value": "-5"
+                  }
+                }
+              }
+            ],
+            "checks": [
+              {
+                "id": 1,
+                "state": "pending",
+                "description": "settlement-ci pending",
+                "context": {
+                  "name": "settlement-ci",
+                  "genre": "continuous-integration"
+                },
+                "creationDate": "2026-10-13T07:55:00Z",
+                "updatedDate": "2026-10-13T07:55:00Z",
+                "iterationId": 1
+              }
+            ],
+            "commits": [
+              {
+                "commitId": "87ab300000000000000000000000000000000000",
+                "comment": "Write the settlement CSV",
+                "author": {
+                  "name": "D. Okafor",
+                  "email": "you@example.com",
+                  "date": "2026-10-12T09:20:00Z"
+                }
+              }
+            ],
+            "files": [
+              {
+                "changeTrackingId": 1,
+                "changeId": 1,
+                "item": {
+                  "objectId": "f870000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File0.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 2,
+                "changeId": 2,
+                "item": {
+                  "objectId": "f871000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File1.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 3,
+                "changeId": 3,
+                "item": {
+                  "objectId": "f872000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File2.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 4,
+                "changeId": 4,
+                "item": {
+                  "objectId": "f873000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File3.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 5,
+                "changeId": 5,
+                "item": {
+                  "objectId": "f874000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File4.cs"
+                },
+                "changeType": "edit"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "corp-ado:Payments/settlement#84",
+      "source": {
+        "area": "ado",
+        "connection": "corp-ado",
+        "key": "Payments/settlement#84",
+        "command": "ado pr get"
+      },
+      "url": "https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement/pullrequest/84",
+      "repo": "Payments/settlement",
+      "title": "Schedule the settlement export job",
+      "branch": {
+        "source": "feature/2305-schedule",
+        "target": "main"
+      },
+      "state": "MERGED",
+      "author": {
+        "id": "IMAGILE\\dokafor",
+        "name": "D. Okafor",
+        "email": null
+      },
+      "authorKind": "HUMAN",
+      "authorKindSource": "default",
+      "authorKindSignal": null,
+      "reviewers": [
+        {
+          "person": {
+            "id": "IMAGILE\\jpark",
+            "name": "J. Park",
+            "email": null
+          },
+          "state": "APPROVED"
+        }
+      ],
+      "reviews": [
+        {
+          "by": {
+            "id": "IMAGILE\\jpark",
+            "name": "J. Park",
+            "email": null
+          },
+          "state": "APPROVED",
+          "at": "2026-10-08T10:00:00.000Z"
+        }
+      ],
+      "checks": "PASSING",
+      "checksAt": "2026-10-08T12:10:00.000Z",
+      "mergeable": true,
+      "size": {
+        "files": 2,
+        "additions": null,
+        "deletions": null
+      },
+      "workItems": [
+        "corp-ado:2305"
+      ],
+      "mergeCommit": "c84e5f0000000000000000000000000000000000",
+      "created": "2026-10-07T16:00:00.000Z",
+      "firstReviewAt": "2026-10-08T10:00:00.000Z",
+      "approvedAt": "2026-10-08T10:00:00.000Z",
+      "mergedAt": "2026-10-08T12:30:00.000Z",
+      "closedAt": "2026-10-08T12:30:00.000Z",
+      "updated": null,
+      "unmapped": [
+        {
+          "field": "updated",
+          "reason": "Azure DevOps records no last-updated time on a pull request"
+        },
+        {
+          "field": "size",
+          "reason": "Azure DevOps lists the files a pull request changes, not the lines, so additions and deletions are empty"
+        }
+      ],
+      "native": {
+        "ado pr list": {
+          "repository": {
+            "id": "abc12345-0000-0000-0000-000000000500",
+            "name": "settlement",
+            "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement",
+            "webUrl": "https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement",
+            "project": {
+              "name": "Payments"
+            }
+          },
+          "pullRequestId": 84,
+          "codeReviewId": 84,
+          "status": "completed",
+          "createdBy": {
+            "displayName": "D. Okafor",
+            "uniqueName": "IMAGILE\\dokafor",
+            "id": "abc12345-0000-0000-0000-000000000070",
+            "descriptor": "win.dokafor"
+          },
+          "creationDate": "2026-10-07T16:00:00Z",
+          "closedDate": "2026-10-08T12:30:00Z",
+          "title": "Schedule the settlement export job",
+          "description": "Task #2305.",
+          "sourceRefName": "refs/heads/feature/2305-schedule",
+          "targetRefName": "refs/heads/main",
+          "mergeStatus": "succeeded",
+          "isDraft": false,
+          "lastMergeSourceCommit": {
+            "commitId": "84cd1f9000000000000000000000000000000000"
+          },
+          "lastMergeCommit": {
+            "commitId": "c84e5f0000000000000000000000000000000000"
+          },
+          "reviewers": [
+            {
+              "displayName": "J. Park",
+              "uniqueName": "IMAGILE\\jpark",
+              "id": "abc12345-0000-0000-0000-000000000050",
+              "descriptor": "win.jpark",
+              "vote": 10,
+              "isRequired": true,
+              "hasDeclined": false,
+              "isFlagged": false
+            }
+          ],
+          "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement/pullRequests/84"
+        },
+        "ado pr get": {
+          "repository": {
+            "id": "abc12345-0000-0000-0000-000000000500",
+            "name": "settlement",
+            "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement",
+            "webUrl": "https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement",
+            "project": {
+              "name": "Payments"
+            }
+          },
+          "pullRequestId": 84,
+          "codeReviewId": 84,
+          "status": "completed",
+          "createdBy": {
+            "displayName": "D. Okafor",
+            "uniqueName": "IMAGILE\\dokafor",
+            "id": "abc12345-0000-0000-0000-000000000070",
+            "descriptor": "win.dokafor"
+          },
+          "creationDate": "2026-10-07T16:00:00Z",
+          "closedDate": "2026-10-08T12:30:00Z",
+          "title": "Schedule the settlement export job",
+          "description": "Task #2305.",
+          "sourceRefName": "refs/heads/feature/2305-schedule",
+          "targetRefName": "refs/heads/main",
+          "mergeStatus": "succeeded",
+          "isDraft": false,
+          "lastMergeSourceCommit": {
+            "commitId": "84cd1f9000000000000000000000000000000000"
+          },
+          "lastMergeCommit": {
+            "commitId": "c84e5f0000000000000000000000000000000000"
+          },
+          "reviewers": [
+            {
+              "displayName": "J. Park",
+              "uniqueName": "IMAGILE\\jpark",
+              "id": "abc12345-0000-0000-0000-000000000050",
+              "descriptor": "win.jpark",
+              "vote": 10,
+              "isRequired": true,
+              "hasDeclined": false,
+              "isFlagged": false
+            }
+          ],
+          "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement/pullRequests/84",
+          "included": {
+            "reviews": [
+              {
+                "id": 840,
+                "publishedDate": "2026-10-08T10:00:00Z",
+                "lastUpdatedDate": "2026-10-08T10:00:00Z",
+                "isDeleted": false,
+                "status": "closed",
+                "comments": [
+                  {
+                    "id": 1,
+                    "author": {
+                      "displayName": "J. Park",
+                      "uniqueName": "IMAGILE\\jpark",
+                      "id": "abc12345-0000-0000-0000-000000000050",
+                      "descriptor": "win.jpark"
+                    },
+                    "content": "J. Park voted 10",
+                    "publishedDate": "2026-10-08T10:00:00Z",
+                    "commentType": "system"
+                  }
+                ],
+                "properties": {
+                  "CodeReviewThreadType": {
+                    "$type": "System.String",
+                    "$value": "VoteUpdate"
+                  },
+                  "CodeReviewVoteResult": {
+                    "$type": "System.String",
+                    "$value": "10"
+                  }
+                }
+              }
+            ],
+            "checks": [
+              {
+                "id": 1,
+                "state": "succeeded",
+                "description": "settlement-ci succeeded",
+                "context": {
+                  "name": "settlement-ci",
+                  "genre": "continuous-integration"
+                },
+                "creationDate": "2026-10-08T12:10:00Z",
+                "updatedDate": "2026-10-08T12:10:00Z",
+                "iterationId": 1
+              }
+            ],
+            "commits": [
+              {
+                "commitId": "84cd100000000000000000000000000000000000",
+                "comment": "Schedule the export at 02:00 UTC",
+                "author": {
+                  "name": "D. Okafor",
+                  "email": "you@example.com",
+                  "date": "2026-10-07T16:00:00Z"
+                }
+              }
+            ],
+            "files": [
+              {
+                "changeTrackingId": 1,
+                "changeId": 1,
+                "item": {
+                  "objectId": "f840000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File0.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 2,
+                "changeId": 2,
+                "item": {
+                  "objectId": "f841000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File1.cs"
+                },
+                "changeType": "edit"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "corp-ado:Payments/settlement#80",
+      "source": {
+        "area": "ado",
+        "connection": "corp-ado",
+        "key": "Payments/settlement#80",
+        "command": "ado pr get"
+      },
+      "url": "https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement/pullrequest/80",
+      "repo": "Payments/settlement",
+      "title": "Settlement job skeleton",
+      "branch": {
+        "source": "feature/skeleton",
+        "target": "main"
+      },
+      "state": "MERGED",
+      "author": {
+        "id": "IMAGILE\\dokafor",
+        "name": "D. Okafor",
+        "email": null
+      },
+      "authorKind": "AGENT",
+      "authorKindSource": "trailer",
+      "authorKindSignal": "Co-Authored-By: Claude <you@example.com>",
+      "reviewers": [
+        {
+          "person": {
+            "id": "IMAGILE\\jpark",
+            "name": "J. Park",
+            "email": null
+          },
+          "state": "APPROVED"
+        }
+      ],
+      "reviews": [
+        {
+          "by": {
+            "id": "IMAGILE\\jpark",
+            "name": "J. Park",
+            "email": null
+          },
+          "state": "APPROVED",
+          "at": "2026-09-30T15:00:00.000Z"
+        }
+      ],
+      "checks": "PASSING",
+      "checksAt": "2026-10-01T10:30:00.000Z",
+      "mergeable": true,
+      "size": {
+        "files": 9,
+        "additions": null,
+        "deletions": null
+      },
+      "workItems": [],
+      "mergeCommit": "b80a1d2000000000000000000000000000000000",
+      "created": "2026-09-29T10:00:00.000Z",
+      "firstReviewAt": "2026-09-30T15:00:00.000Z",
+      "approvedAt": "2026-09-30T15:00:00.000Z",
+      "mergedAt": "2026-10-01T11:00:00.000Z",
+      "closedAt": "2026-10-01T11:00:00.000Z",
+      "updated": null,
+      "unmapped": [
+        {
+          "field": "updated",
+          "reason": "Azure DevOps records no last-updated time on a pull request"
+        },
+        {
+          "field": "size",
+          "reason": "Azure DevOps lists the files a pull request changes, not the lines, so additions and deletions are empty"
+        }
+      ],
+      "native": {
+        "ado pr list": {
+          "repository": {
+            "id": "abc12345-0000-0000-0000-000000000500",
+            "name": "settlement",
+            "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement",
+            "webUrl": "https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement",
+            "project": {
+              "name": "Payments"
+            }
+          },
+          "pullRequestId": 80,
+          "codeReviewId": 80,
+          "status": "completed",
+          "createdBy": {
+            "displayName": "D. Okafor",
+            "uniqueName": "IMAGILE\\dokafor",
+            "id": "abc12345-0000-0000-0000-000000000070",
+            "descriptor": "win.dokafor"
+          },
+          "creationDate": "2026-09-29T10:00:00Z",
+          "closedDate": "2026-10-01T11:00:00Z",
+          "title": "Settlement job skeleton",
+          "description": "The empty job and its pipeline.",
+          "sourceRefName": "refs/heads/feature/skeleton",
+          "targetRefName": "refs/heads/main",
+          "mergeStatus": "succeeded",
+          "isDraft": false,
+          "lastMergeSourceCommit": {
+            "commitId": "80ef2a1000000000000000000000000000000000"
+          },
+          "lastMergeCommit": {
+            "commitId": "b80a1d2000000000000000000000000000000000"
+          },
+          "reviewers": [
+            {
+              "displayName": "J. Park",
+              "uniqueName": "IMAGILE\\jpark",
+              "id": "abc12345-0000-0000-0000-000000000050",
+              "descriptor": "win.jpark",
+              "vote": 10,
+              "isRequired": true,
+              "hasDeclined": false,
+              "isFlagged": false
+            }
+          ],
+          "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement/pullRequests/80"
+        },
+        "ado pr get": {
+          "repository": {
+            "id": "abc12345-0000-0000-0000-000000000500",
+            "name": "settlement",
+            "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement",
+            "webUrl": "https://ado.imagile.dev/DefaultCollection/Payments/_git/settlement",
+            "project": {
+              "name": "Payments"
+            }
+          },
+          "pullRequestId": 80,
+          "codeReviewId": 80,
+          "status": "completed",
+          "createdBy": {
+            "displayName": "D. Okafor",
+            "uniqueName": "IMAGILE\\dokafor",
+            "id": "abc12345-0000-0000-0000-000000000070",
+            "descriptor": "win.dokafor"
+          },
+          "creationDate": "2026-09-29T10:00:00Z",
+          "closedDate": "2026-10-01T11:00:00Z",
+          "title": "Settlement job skeleton",
+          "description": "The empty job and its pipeline.",
+          "sourceRefName": "refs/heads/feature/skeleton",
+          "targetRefName": "refs/heads/main",
+          "mergeStatus": "succeeded",
+          "isDraft": false,
+          "lastMergeSourceCommit": {
+            "commitId": "80ef2a1000000000000000000000000000000000"
+          },
+          "lastMergeCommit": {
+            "commitId": "b80a1d2000000000000000000000000000000000"
+          },
+          "reviewers": [
+            {
+              "displayName": "J. Park",
+              "uniqueName": "IMAGILE\\jpark",
+              "id": "abc12345-0000-0000-0000-000000000050",
+              "descriptor": "win.jpark",
+              "vote": 10,
+              "isRequired": true,
+              "hasDeclined": false,
+              "isFlagged": false
+            }
+          ],
+          "url": "https://ado.imagile.dev/DefaultCollection/Payments/_apis/git/repositories/settlement/pullRequests/80",
+          "included": {
+            "reviews": [
+              {
+                "id": 800,
+                "publishedDate": "2026-09-30T15:00:00Z",
+                "lastUpdatedDate": "2026-09-30T15:00:00Z",
+                "isDeleted": false,
+                "status": "closed",
+                "comments": [
+                  {
+                    "id": 1,
+                    "author": {
+                      "displayName": "J. Park",
+                      "uniqueName": "IMAGILE\\jpark",
+                      "id": "abc12345-0000-0000-0000-000000000050",
+                      "descriptor": "win.jpark"
+                    },
+                    "content": "J. Park voted 10",
+                    "publishedDate": "2026-09-30T15:00:00Z",
+                    "commentType": "system"
+                  }
+                ],
+                "properties": {
+                  "CodeReviewThreadType": {
+                    "$type": "System.String",
+                    "$value": "VoteUpdate"
+                  },
+                  "CodeReviewVoteResult": {
+                    "$type": "System.String",
+                    "$value": "10"
+                  }
+                }
+              }
+            ],
+            "checks": [
+              {
+                "id": 1,
+                "state": "succeeded",
+                "description": "settlement-ci succeeded",
+                "context": {
+                  "name": "settlement-ci",
+                  "genre": "continuous-integration"
+                },
+                "creationDate": "2026-10-01T10:30:00Z",
+                "updatedDate": "2026-10-01T10:30:00Z",
+                "iterationId": 1
+              }
+            ],
+            "commits": [
+              {
+                "commitId": "80ef200000000000000000000000000000000000",
+                "comment": "Add the settlement job skeleton\n\nCo-Authored-By: Claude <you@example.com>",
+                "author": {
+                  "name": "D. Okafor",
+                  "email": "you@example.com",
+                  "date": "2026-09-29T10:00:00Z"
+                }
+              },
+              {
+                "commitId": "80ef210000000000000000000000000000000000",
+                "comment": "Add its pipeline",
+                "author": {
+                  "name": "D. Okafor",
+                  "email": "you@example.com",
+                  "date": "2026-09-29T10:00:00Z"
+                }
+              }
+            ],
+            "files": [
+              {
+                "changeTrackingId": 1,
+                "changeId": 1,
+                "item": {
+                  "objectId": "f800000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File0.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 2,
+                "changeId": 2,
+                "item": {
+                  "objectId": "f801000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File1.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 3,
+                "changeId": 3,
+                "item": {
+                  "objectId": "f802000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File2.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 4,
+                "changeId": 4,
+                "item": {
+                  "objectId": "f803000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File3.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 5,
+                "changeId": 5,
+                "item": {
+                  "objectId": "f804000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File4.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 6,
+                "changeId": 6,
+                "item": {
+                  "objectId": "f805000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File5.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 7,
+                "changeId": 7,
+                "item": {
+                  "objectId": "f806000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File6.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 8,
+                "changeId": 8,
+                "item": {
+                  "objectId": "f807000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File7.cs"
+                },
+                "changeType": "edit"
+              },
+              {
+                "changeTrackingId": 9,
+                "changeId": 9,
+                "item": {
+                  "objectId": "f808000000000000000000000000000000000000",
+                  "path": "/src/Settlement/File8.cs"
+                },
+                "changeType": "edit"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "github:imagile/payments-web#53",
+      "source": {
+        "area": "github",
+        "connection": "github",
+        "key": "imagile/payments-web#53",
+        "command": "github pr get"
+      },
+      "url": "https://ghe.imagile.dev/imagile/payments-web/pull/53",
+      "repo": "imagile/payments-web",
+      "title": "Keep focus in the card form on Safari",
+      "branch": {
+        "source": "fix/43-safari-focus",
+        "target": "main"
+      },
+      "state": "DRAFT",
+      "author": {
+        "id": "bo-web",
+        "name": null,
+        "email": null
+      },
+      "authorKind": "HUMAN",
+      "authorKindSource": "default",
+      "authorKindSignal": null,
+      "reviewers": [],
+      "reviews": [],
+      "checks": "FAILING",
+      "checksAt": "2026-10-12T13:25:00.000Z",
+      "mergeable": true,
+      "size": {
+        "files": 1,
+        "additions": 18,
+        "deletions": 6
+      },
+      "workItems": [
+        "github:imagile/payments-web#43"
+      ],
+      "mergeCommit": null,
+      "created": "2026-10-12T13:00:00.000Z",
+      "firstReviewAt": null,
+      "approvedAt": null,
+      "mergedAt": null,
+      "closedAt": null,
+      "updated": "2026-10-12T13:25:00.000Z",
+      "unmapped": [],
+      "native": {
+        "github pr list": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/53",
+          "id": 7053,
+          "number": 53,
+          "state": "open",
+          "locked": false,
+          "title": "Keep focus in the card form on Safari",
+          "user": {
+            "login": "bo-web",
+            "id": 12,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/12",
+            "type": "User"
+          },
+          "body": "Fixes #43.",
+          "draft": true,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/53",
+          "created_at": "2026-10-12T13:00:00Z",
+          "updated_at": "2026-10-12T13:25:00Z",
+          "closed_at": null,
+          "merged_at": null,
+          "merge_commit_sha": "53f9a00000000000000000000000000000000000",
+          "requested_reviewers": [],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:fix/43-safari-focus",
+            "ref": "fix/43-safari-focus",
+            "sha": "53d0e12000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          }
+        },
+        "github pr get": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/53",
+          "id": 7053,
+          "number": 53,
+          "state": "open",
+          "locked": false,
+          "title": "Keep focus in the card form on Safari",
+          "user": {
+            "login": "bo-web",
+            "id": 12,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/12",
+            "type": "User"
+          },
+          "body": "Fixes #43.",
+          "draft": true,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/53",
+          "created_at": "2026-10-12T13:00:00Z",
+          "updated_at": "2026-10-12T13:25:00Z",
+          "closed_at": null,
+          "merged_at": null,
+          "merge_commit_sha": "53f9a00000000000000000000000000000000000",
+          "requested_reviewers": [],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:fix/43-safari-focus",
+            "ref": "fix/43-safari-focus",
+            "sha": "53d0e12000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "merged": false,
+          "mergeable": true,
+          "mergeable_state": "clean",
+          "comments": 0,
+          "review_comments": 0,
+          "commits": 1,
+          "additions": 18,
+          "deletions": 6,
+          "changed_files": 1,
+          "included": {
+            "reviews": [],
+            "checks": [
+              {
+                "id": 8530,
+                "name": "test",
+                "head_sha": "53d0e12000000000000000000000000000000000",
+                "status": "completed",
+                "conclusion": "success",
+                "html_url": "https://ghe.imagile.dev/imagile/payments-web/actions/runs/8530/job/8531",
+                "started_at": "2026-10-12T13:15:00Z",
+                "completed_at": "2026-10-12T13:15:00Z",
+                "app": {
+                  "slug": "github-actions",
+                  "name": "GitHub Actions"
+                }
+              },
+              {
+                "id": 8531,
+                "name": "e2e-safari",
+                "head_sha": "53d0e12000000000000000000000000000000000",
+                "status": "completed",
+                "conclusion": "failure",
+                "html_url": "https://ghe.imagile.dev/imagile/payments-web/actions/runs/8531/job/8532",
+                "started_at": "2026-10-12T13:25:00Z",
+                "completed_at": "2026-10-12T13:25:00Z",
+                "app": {
+                  "slug": "github-actions",
+                  "name": "GitHub Actions"
+                }
+              }
+            ],
+            "commits": [
+              {
+                "sha": "53d0e00000000000000000000000000000000000",
+                "commit": {
+                  "message": "Keep focus in the expiry field",
+                  "author": {
+                    "name": "bo-web",
+                    "email": "you@example.com",
+                    "date": "2026-10-12T13:00:00Z"
+                  }
+                },
+                "author": {
+                  "login": "bo-web",
+                  "id": 12,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/12",
+                  "type": "User"
+                }
+              }
+            ],
+            "files": [
+              {
+                "filename": "src/checkout/card-form.tsx",
+                "status": "modified",
+                "additions": 18,
+                "deletions": 6,
+                "changes": 24
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "github:imagile/payments-web#52",
+      "source": {
+        "area": "github",
+        "connection": "github",
+        "key": "imagile/payments-web#52",
+        "command": "github pr get"
+      },
+      "url": "https://ghe.imagile.dev/imagile/payments-web/pull/52",
+      "repo": "imagile/payments-web",
+      "title": "Saved-card picker",
+      "branch": {
+        "source": "feature/saved-cards",
+        "target": "main"
+      },
+      "state": "OPEN",
+      "author": {
+        "id": "bo-web",
+        "name": null,
+        "email": null
+      },
+      "authorKind": "HUMAN",
+      "authorKindSource": "default",
+      "authorKindSignal": null,
+      "reviewers": [
+        {
+          "person": {
+            "id": "ada-dev",
+            "name": null,
+            "email": null
+          },
+          "state": "PENDING"
+        }
+      ],
+      "reviews": [],
+      "checks": "PASSING",
+      "checksAt": "2026-10-11T10:28:00.000Z",
+      "mergeable": true,
+      "size": {
+        "files": 3,
+        "additions": 318,
+        "deletions": 7
+      },
+      "workItems": [
+        "github:imagile/payments-web#42",
+        "github:imagile/payments-web#41"
+      ],
+      "mergeCommit": null,
+      "created": "2026-10-11T10:00:00.000Z",
+      "firstReviewAt": null,
+      "approvedAt": null,
+      "mergedAt": null,
+      "closedAt": null,
+      "updated": "2026-10-11T10:28:00.000Z",
+      "unmapped": [],
+      "native": {
+        "github pr list": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/52",
+          "id": 7052,
+          "number": 52,
+          "state": "open",
+          "locked": false,
+          "title": "Saved-card picker",
+          "user": {
+            "login": "bo-web",
+            "id": 12,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/12",
+            "type": "User"
+          },
+          "body": "Closes #42. Part of #41.",
+          "draft": false,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/52",
+          "created_at": "2026-10-11T10:00:00Z",
+          "updated_at": "2026-10-11T10:28:00Z",
+          "closed_at": null,
+          "merged_at": null,
+          "merge_commit_sha": "52e7d00000000000000000000000000000000000",
+          "requested_reviewers": [
+            {
+              "login": "ada-dev",
+              "id": 11,
+              "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+              "type": "User"
+            }
+          ],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:feature/saved-cards",
+            "ref": "feature/saved-cards",
+            "sha": "52c4b88000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          }
+        },
+        "github pr get": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/52",
+          "id": 7052,
+          "number": 52,
+          "state": "open",
+          "locked": false,
+          "title": "Saved-card picker",
+          "user": {
+            "login": "bo-web",
+            "id": 12,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/12",
+            "type": "User"
+          },
+          "body": "Closes #42. Part of #41.",
+          "draft": false,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/52",
+          "created_at": "2026-10-11T10:00:00Z",
+          "updated_at": "2026-10-11T10:28:00Z",
+          "closed_at": null,
+          "merged_at": null,
+          "merge_commit_sha": "52e7d00000000000000000000000000000000000",
+          "requested_reviewers": [
+            {
+              "login": "ada-dev",
+              "id": 11,
+              "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+              "type": "User"
+            }
+          ],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:feature/saved-cards",
+            "ref": "feature/saved-cards",
+            "sha": "52c4b88000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "merged": false,
+          "mergeable": true,
+          "mergeable_state": "clean",
+          "comments": 0,
+          "review_comments": 0,
+          "commits": 2,
+          "additions": 318,
+          "deletions": 7,
+          "changed_files": 3,
+          "included": {
+            "reviews": [],
+            "checks": [
+              {
+                "id": 8520,
+                "name": "test",
+                "head_sha": "52c4b88000000000000000000000000000000000",
+                "status": "completed",
+                "conclusion": "success",
+                "html_url": "https://ghe.imagile.dev/imagile/payments-web/actions/runs/8520/job/8521",
+                "started_at": "2026-10-11T10:20:00Z",
+                "completed_at": "2026-10-11T10:20:00Z",
+                "app": {
+                  "slug": "github-actions",
+                  "name": "GitHub Actions"
+                }
+              },
+              {
+                "id": 8521,
+                "name": "e2e-safari",
+                "head_sha": "52c4b88000000000000000000000000000000000",
+                "status": "completed",
+                "conclusion": "success",
+                "html_url": "https://ghe.imagile.dev/imagile/payments-web/actions/runs/8521/job/8522",
+                "started_at": "2026-10-11T10:28:00Z",
+                "completed_at": "2026-10-11T10:28:00Z",
+                "app": {
+                  "slug": "github-actions",
+                  "name": "GitHub Actions"
+                }
+              }
+            ],
+            "commits": [
+              {
+                "sha": "52c4b00000000000000000000000000000000000",
+                "commit": {
+                  "message": "Add the saved-card picker",
+                  "author": {
+                    "name": "bo-web",
+                    "email": "you@example.com",
+                    "date": "2026-10-11T10:00:00Z"
+                  }
+                },
+                "author": {
+                  "login": "bo-web",
+                  "id": 12,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/12",
+                  "type": "User"
+                }
+              },
+              {
+                "sha": "52c4b10000000000000000000000000000000000",
+                "commit": {
+                  "message": "Show the expiry beside each card",
+                  "author": {
+                    "name": "bo-web",
+                    "email": "you@example.com",
+                    "date": "2026-10-11T10:00:00Z"
+                  }
+                },
+                "author": {
+                  "login": "bo-web",
+                  "id": 12,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/12",
+                  "type": "User"
+                }
+              }
+            ],
+            "files": [
+              {
+                "filename": "src/checkout/saved-cards.tsx",
+                "status": "modified",
+                "additions": 210,
+                "deletions": 4,
+                "changes": 214
+              },
+              {
+                "filename": "src/checkout/saved-cards.test.tsx",
+                "status": "modified",
+                "additions": 96,
+                "deletions": 0,
+                "changes": 96
+              },
+              {
+                "filename": "src/checkout/card-form.tsx",
+                "status": "modified",
+                "additions": 12,
+                "deletions": 3,
+                "changes": 15
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "github:imagile/payments-web#51",
+      "source": {
+        "area": "github",
+        "connection": "github",
+        "key": "imagile/payments-web#51",
+        "command": "github pr get"
+      },
+      "url": "https://ghe.imagile.dev/imagile/payments-web/pull/51",
+      "repo": "imagile/payments-web",
+      "title": "Retry the address lookup once",
+      "branch": {
+        "source": "claude/address-retry",
+        "target": "main"
+      },
+      "state": "OPEN",
+      "author": {
+        "id": "ada-dev",
+        "name": null,
+        "email": null
+      },
+      "authorKind": "AGENT",
+      "authorKindSource": "trailer",
+      "authorKindSignal": "Co-Authored-By: Claude <you@example.com>",
+      "reviewers": [],
+      "reviews": [],
+      "checks": "FAILING",
+      "checksAt": "2026-10-09T08:10:00.000Z",
+      "mergeable": true,
+      "size": {
+        "files": 2,
+        "additions": 71,
+        "deletions": 5
+      },
+      "workItems": [],
+      "mergeCommit": null,
+      "created": "2026-10-08T09:00:00.000Z",
+      "firstReviewAt": null,
+      "approvedAt": null,
+      "mergedAt": null,
+      "closedAt": null,
+      "updated": "2026-10-09T08:10:00.000Z",
+      "unmapped": [],
+      "native": {
+        "github pr list": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/51",
+          "id": 7051,
+          "number": 51,
+          "state": "open",
+          "locked": false,
+          "title": "Retry the address lookup once",
+          "user": {
+            "login": "ada-dev",
+            "id": 11,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+            "type": "User"
+          },
+          "body": "The lookup service times out under load; retry once after 300 ms.",
+          "draft": false,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/51",
+          "created_at": "2026-10-08T09:00:00Z",
+          "updated_at": "2026-10-09T08:10:00Z",
+          "closed_at": null,
+          "merged_at": null,
+          "merge_commit_sha": "51b0c00000000000000000000000000000000000",
+          "requested_reviewers": [],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:claude/address-retry",
+            "ref": "claude/address-retry",
+            "sha": "51a7f30000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          }
+        },
+        "github pr get": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/51",
+          "id": 7051,
+          "number": 51,
+          "state": "open",
+          "locked": false,
+          "title": "Retry the address lookup once",
+          "user": {
+            "login": "ada-dev",
+            "id": 11,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+            "type": "User"
+          },
+          "body": "The lookup service times out under load; retry once after 300 ms.",
+          "draft": false,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/51",
+          "created_at": "2026-10-08T09:00:00Z",
+          "updated_at": "2026-10-09T08:10:00Z",
+          "closed_at": null,
+          "merged_at": null,
+          "merge_commit_sha": "51b0c00000000000000000000000000000000000",
+          "requested_reviewers": [],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:claude/address-retry",
+            "ref": "claude/address-retry",
+            "sha": "51a7f30000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "merged": false,
+          "mergeable": true,
+          "mergeable_state": "clean",
+          "comments": 0,
+          "review_comments": 0,
+          "commits": 1,
+          "additions": 71,
+          "deletions": 5,
+          "changed_files": 2,
+          "included": {
+            "reviews": [],
+            "checks": [
+              {
+                "id": 8510,
+                "name": "test",
+                "head_sha": "51a7f30000000000000000000000000000000000",
+                "status": "completed",
+                "conclusion": "failure",
+                "html_url": "https://ghe.imagile.dev/imagile/payments-web/actions/runs/8510/job/8511",
+                "started_at": "2026-10-09T08:10:00Z",
+                "completed_at": "2026-10-09T08:10:00Z",
+                "app": {
+                  "slug": "github-actions",
+                  "name": "GitHub Actions"
+                }
+              }
+            ],
+            "commits": [
+              {
+                "sha": "51a7f00000000000000000000000000000000000",
+                "commit": {
+                  "message": "Retry the address lookup once\n\nCo-Authored-By: Claude <you@example.com>",
+                  "author": {
+                    "name": "ada-dev",
+                    "email": "you@example.com",
+                    "date": "2026-10-08T09:00:00Z"
+                  }
+                },
+                "author": {
+                  "login": "ada-dev",
+                  "id": 11,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+                  "type": "User"
+                }
+              }
+            ],
+            "files": [
+              {
+                "filename": "src/address/lookup.ts",
+                "status": "modified",
+                "additions": 31,
+                "deletions": 5,
+                "changes": 36
+              },
+              {
+                "filename": "src/address/lookup.test.ts",
+                "status": "modified",
+                "additions": 40,
+                "deletions": 0,
+                "changes": 40
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "github:imagile/payments-web#50",
+      "source": {
+        "area": "github",
+        "connection": "github",
+        "key": "imagile/payments-web#50",
+        "command": "github pr get"
+      },
+      "url": "https://ghe.imagile.dev/imagile/payments-web/pull/50",
+      "repo": "imagile/payments-web",
+      "title": "Use the order currency on receipts",
+      "branch": {
+        "source": "fix/44-receipt-currency",
+        "target": "main"
+      },
+      "state": "MERGED",
+      "author": {
+        "id": "ada-dev",
+        "name": null,
+        "email": null
+      },
+      "authorKind": "HUMAN",
+      "authorKindSource": "default",
+      "authorKindSignal": null,
+      "reviewers": [
+        {
+          "person": {
+            "id": "bo-web",
+            "name": null,
+            "email": null
+          },
+          "state": "APPROVED"
+        }
+      ],
+      "reviews": [
+        {
+          "by": {
+            "id": "bo-web",
+            "name": null,
+            "email": null
+          },
+          "state": "APPROVED",
+          "at": "2026-10-12T15:20:00.000Z"
+        }
+      ],
+      "checks": "PASSING",
+      "checksAt": "2026-10-12T15:40:00.000Z",
+      "mergeable": null,
+      "size": {
+        "files": 1,
+        "additions": 9,
+        "deletions": 4
+      },
+      "workItems": [
+        "github:imagile/payments-web#44"
+      ],
+      "mergeCommit": "5a7e3f1000000000000000000000000000000000",
+      "created": "2026-10-12T14:30:00.000Z",
+      "firstReviewAt": "2026-10-12T15:20:00.000Z",
+      "approvedAt": "2026-10-12T15:20:00.000Z",
+      "mergedAt": "2026-10-12T15:55:00.000Z",
+      "closedAt": "2026-10-12T15:55:00.000Z",
+      "updated": "2026-10-12T15:55:00.000Z",
+      "unmapped": [],
+      "native": {
+        "github pr list": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/50",
+          "id": 7050,
+          "number": 50,
+          "state": "closed",
+          "locked": false,
+          "title": "Use the order currency on receipts",
+          "user": {
+            "login": "ada-dev",
+            "id": 11,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+            "type": "User"
+          },
+          "body": "Closes #44.",
+          "draft": false,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/50",
+          "created_at": "2026-10-12T14:30:00Z",
+          "updated_at": "2026-10-12T15:55:00Z",
+          "closed_at": "2026-10-12T15:55:00Z",
+          "merged_at": "2026-10-12T15:55:00Z",
+          "merge_commit_sha": "5a7e3f1000000000000000000000000000000000",
+          "requested_reviewers": [],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:fix/44-receipt-currency",
+            "ref": "fix/44-receipt-currency",
+            "sha": "50b1c77000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          }
+        },
+        "github pr get": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/50",
+          "id": 7050,
+          "number": 50,
+          "state": "closed",
+          "locked": false,
+          "title": "Use the order currency on receipts",
+          "user": {
+            "login": "ada-dev",
+            "id": 11,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+            "type": "User"
+          },
+          "body": "Closes #44.",
+          "draft": false,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/50",
+          "created_at": "2026-10-12T14:30:00Z",
+          "updated_at": "2026-10-12T15:55:00Z",
+          "closed_at": "2026-10-12T15:55:00Z",
+          "merged_at": "2026-10-12T15:55:00Z",
+          "merge_commit_sha": "5a7e3f1000000000000000000000000000000000",
+          "requested_reviewers": [],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:fix/44-receipt-currency",
+            "ref": "fix/44-receipt-currency",
+            "sha": "50b1c77000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "merged": true,
+          "mergeable": null,
+          "mergeable_state": "unknown",
+          "comments": 0,
+          "review_comments": 0,
+          "commits": 1,
+          "additions": 9,
+          "deletions": 4,
+          "changed_files": 1,
+          "included": {
+            "reviews": [
+              {
+                "id": 90500,
+                "user": {
+                  "login": "bo-web",
+                  "id": 12,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/12",
+                  "type": "User"
+                },
+                "body": "",
+                "state": "APPROVED",
+                "submitted_at": "2026-10-12T15:20:00Z",
+                "commit_id": "50b1c77000000000000000000000000000000000",
+                "author_association": "MEMBER"
+              }
+            ],
+            "checks": [
+              {
+                "id": 8500,
+                "name": "test",
+                "head_sha": "50b1c77000000000000000000000000000000000",
+                "status": "completed",
+                "conclusion": "success",
+                "html_url": "https://ghe.imagile.dev/imagile/payments-web/actions/runs/8500/job/8501",
+                "started_at": "2026-10-12T15:40:00Z",
+                "completed_at": "2026-10-12T15:40:00Z",
+                "app": {
+                  "slug": "github-actions",
+                  "name": "GitHub Actions"
+                }
+              }
+            ],
+            "commits": [
+              {
+                "sha": "50b1c00000000000000000000000000000000000",
+                "commit": {
+                  "message": "Format receipts in the order currency",
+                  "author": {
+                    "name": "ada-dev",
+                    "email": "you@example.com",
+                    "date": "2026-10-12T14:30:00Z"
+                  }
+                },
+                "author": {
+                  "login": "ada-dev",
+                  "id": 11,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+                  "type": "User"
+                }
+              }
+            ],
+            "files": [
+              {
+                "filename": "src/receipt/total.tsx",
+                "status": "modified",
+                "additions": 9,
+                "deletions": 4,
+                "changes": 13
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "github:imagile/payments-web#49",
+      "source": {
+        "area": "github",
+        "connection": "github",
+        "key": "imagile/payments-web#49",
+        "command": "github pr get"
+      },
+      "url": "https://ghe.imagile.dev/imagile/payments-web/pull/49",
+      "repo": "imagile/payments-web",
+      "title": "Bump vite from 7.1.2 to 7.1.5",
+      "branch": {
+        "source": "dependabot/npm_and_yarn/vite-7.1.5",
+        "target": "main"
+      },
+      "state": "MERGED",
+      "author": {
+        "id": "dependabot[bot]",
+        "name": null,
+        "email": null
+      },
+      "authorKind": "BOT",
+      "authorKindSource": "account",
+      "authorKindSignal": "account dependabot[bot], type Bot",
+      "reviewers": [
+        {
+          "person": {
+            "id": "ada-dev",
+            "name": null,
+            "email": null
+          },
+          "state": "APPROVED"
+        }
+      ],
+      "reviews": [
+        {
+          "by": {
+            "id": "ada-dev",
+            "name": null,
+            "email": null
+          },
+          "state": "APPROVED",
+          "at": "2026-10-05T09:10:00.000Z"
+        }
+      ],
+      "checks": "PASSING",
+      "checksAt": "2026-10-03T06:20:00.000Z",
+      "mergeable": null,
+      "size": {
+        "files": 2,
+        "additions": 13,
+        "deletions": 13
+      },
+      "workItems": [],
+      "mergeCommit": "49e0a00000000000000000000000000000000000",
+      "created": "2026-10-03T06:00:00.000Z",
+      "firstReviewAt": "2026-10-05T09:10:00.000Z",
+      "approvedAt": "2026-10-05T09:10:00.000Z",
+      "mergedAt": "2026-10-05T09:30:00.000Z",
+      "closedAt": "2026-10-05T09:30:00.000Z",
+      "updated": "2026-10-05T09:30:00.000Z",
+      "unmapped": [],
+      "native": {
+        "github pr list": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/49",
+          "id": 7049,
+          "number": 49,
+          "state": "closed",
+          "locked": false,
+          "title": "Bump vite from 7.1.2 to 7.1.5",
+          "user": {
+            "login": "dependabot[bot]",
+            "id": 49699333,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/49699333",
+            "type": "Bot"
+          },
+          "body": "Bumps vite from 7.1.2 to 7.1.5.",
+          "draft": false,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/49",
+          "created_at": "2026-10-03T06:00:00Z",
+          "updated_at": "2026-10-05T09:30:00Z",
+          "closed_at": "2026-10-05T09:30:00Z",
+          "merged_at": "2026-10-05T09:30:00Z",
+          "merge_commit_sha": "49e0a00000000000000000000000000000000000",
+          "requested_reviewers": [],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:dependabot/npm_and_yarn/vite-7.1.5",
+            "ref": "dependabot/npm_and_yarn/vite-7.1.5",
+            "sha": "49c2d11000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          }
+        },
+        "github pr get": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/49",
+          "id": 7049,
+          "number": 49,
+          "state": "closed",
+          "locked": false,
+          "title": "Bump vite from 7.1.2 to 7.1.5",
+          "user": {
+            "login": "dependabot[bot]",
+            "id": 49699333,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/49699333",
+            "type": "Bot"
+          },
+          "body": "Bumps vite from 7.1.2 to 7.1.5.",
+          "draft": false,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/49",
+          "created_at": "2026-10-03T06:00:00Z",
+          "updated_at": "2026-10-05T09:30:00Z",
+          "closed_at": "2026-10-05T09:30:00Z",
+          "merged_at": "2026-10-05T09:30:00Z",
+          "merge_commit_sha": "49e0a00000000000000000000000000000000000",
+          "requested_reviewers": [],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:dependabot/npm_and_yarn/vite-7.1.5",
+            "ref": "dependabot/npm_and_yarn/vite-7.1.5",
+            "sha": "49c2d11000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "merged": true,
+          "mergeable": null,
+          "mergeable_state": "unknown",
+          "comments": 0,
+          "review_comments": 0,
+          "commits": 1,
+          "additions": 13,
+          "deletions": 13,
+          "changed_files": 2,
+          "included": {
+            "reviews": [
+              {
+                "id": 90490,
+                "user": {
+                  "login": "ada-dev",
+                  "id": 11,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+                  "type": "User"
+                },
+                "body": "",
+                "state": "APPROVED",
+                "submitted_at": "2026-10-05T09:10:00Z",
+                "commit_id": "49c2d11000000000000000000000000000000000",
+                "author_association": "MEMBER"
+              }
+            ],
+            "checks": [
+              {
+                "id": 8490,
+                "name": "test",
+                "head_sha": "49c2d11000000000000000000000000000000000",
+                "status": "completed",
+                "conclusion": "success",
+                "html_url": "https://ghe.imagile.dev/imagile/payments-web/actions/runs/8490/job/8491",
+                "started_at": "2026-10-03T06:20:00Z",
+                "completed_at": "2026-10-03T06:20:00Z",
+                "app": {
+                  "slug": "github-actions",
+                  "name": "GitHub Actions"
+                }
+              }
+            ],
+            "commits": [
+              {
+                "sha": "49c2d00000000000000000000000000000000000",
+                "commit": {
+                  "message": "Bump vite from 7.1.2 to 7.1.5",
+                  "author": {
+                    "name": "dependabot[bot]",
+                    "email": "you@example.com",
+                    "date": "2026-10-03T06:00:00Z"
+                  }
+                },
+                "author": {
+                  "login": "dependabot[bot]",
+                  "id": 49699333,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/49699333",
+                  "type": "Bot"
+                }
+              }
+            ],
+            "files": [
+              {
+                "filename": "package.json",
+                "status": "modified",
+                "additions": 1,
+                "deletions": 1,
+                "changes": 2
+              },
+              {
+                "filename": "package-lock.json",
+                "status": "modified",
+                "additions": 12,
+                "deletions": 12,
+                "changes": 24
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "github:imagile/payments-web#48",
+      "source": {
+        "area": "github",
+        "connection": "github",
+        "key": "imagile/payments-web#48",
+        "command": "github pr get"
+      },
+      "url": "https://ghe.imagile.dev/imagile/payments-web/pull/48",
+      "repo": "imagile/payments-web",
+      "title": "Order summary panel",
+      "branch": {
+        "source": "feature/order-summary",
+        "target": "main"
+      },
+      "state": "MERGED",
+      "author": {
+        "id": "ada-dev",
+        "name": null,
+        "email": null
+      },
+      "authorKind": "HUMAN",
+      "authorKindSource": "default",
+      "authorKindSignal": null,
+      "reviewers": [
+        {
+          "person": {
+            "id": "bo-web",
+            "name": null,
+            "email": null
+          },
+          "state": "APPROVED"
+        }
+      ],
+      "reviews": [
+        {
+          "by": {
+            "id": "bo-web",
+            "name": null,
+            "email": null
+          },
+          "state": "CHANGES_REQUESTED",
+          "at": "2026-10-01T14:00:00.000Z"
+        },
+        {
+          "by": {
+            "id": "bo-web",
+            "name": null,
+            "email": null
+          },
+          "state": "APPROVED",
+          "at": "2026-10-02T09:00:00.000Z"
+        }
+      ],
+      "checks": "PASSING",
+      "checksAt": "2026-10-01T09:20:00.000Z",
+      "mergeable": null,
+      "size": {
+        "files": 2,
+        "additions": 146,
+        "deletions": 3
+      },
+      "workItems": [],
+      "mergeCommit": "1c9b8e4000000000000000000000000000000000",
+      "created": "2026-10-01T09:00:00.000Z",
+      "firstReviewAt": "2026-10-01T14:00:00.000Z",
+      "approvedAt": "2026-10-02T09:00:00.000Z",
+      "mergedAt": "2026-10-02T10:00:00.000Z",
+      "closedAt": "2026-10-02T10:00:00.000Z",
+      "updated": "2026-10-02T10:00:00.000Z",
+      "unmapped": [],
+      "native": {
+        "github pr list": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/48",
+          "id": 7048,
+          "number": 48,
+          "state": "closed",
+          "locked": false,
+          "title": "Order summary panel",
+          "user": {
+            "login": "ada-dev",
+            "id": 11,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+            "type": "User"
+          },
+          "body": "From the checkout refresh designs.",
+          "draft": false,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/48",
+          "created_at": "2026-10-01T09:00:00Z",
+          "updated_at": "2026-10-02T10:00:00Z",
+          "closed_at": "2026-10-02T10:00:00Z",
+          "merged_at": "2026-10-02T10:00:00Z",
+          "merge_commit_sha": "1c9b8e4000000000000000000000000000000000",
+          "requested_reviewers": [],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:feature/order-summary",
+            "ref": "feature/order-summary",
+            "sha": "48a9e66000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          }
+        },
+        "github pr get": {
+          "url": "https://ghe.imagile.dev/api/v3/repos/imagile/payments-web/pulls/48",
+          "id": 7048,
+          "number": 48,
+          "state": "closed",
+          "locked": false,
+          "title": "Order summary panel",
+          "user": {
+            "login": "ada-dev",
+            "id": 11,
+            "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+            "type": "User"
+          },
+          "body": "From the checkout refresh designs.",
+          "draft": false,
+          "html_url": "https://ghe.imagile.dev/imagile/payments-web/pull/48",
+          "created_at": "2026-10-01T09:00:00Z",
+          "updated_at": "2026-10-02T10:00:00Z",
+          "closed_at": "2026-10-02T10:00:00Z",
+          "merged_at": "2026-10-02T10:00:00Z",
+          "merge_commit_sha": "1c9b8e4000000000000000000000000000000000",
+          "requested_reviewers": [],
+          "requested_teams": [],
+          "labels": [],
+          "head": {
+            "label": "imagile:feature/order-summary",
+            "ref": "feature/order-summary",
+            "sha": "48a9e66000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "base": {
+            "label": "imagile:main",
+            "ref": "main",
+            "sha": "0a0a0a0000000000000000000000000000000000",
+            "repo": {
+              "full_name": "imagile/payments-web",
+              "name": "payments-web",
+              "owner": {
+                "login": "imagile"
+              }
+            }
+          },
+          "merged": true,
+          "mergeable": null,
+          "mergeable_state": "unknown",
+          "comments": 0,
+          "review_comments": 0,
+          "commits": 2,
+          "additions": 146,
+          "deletions": 3,
+          "changed_files": 2,
+          "included": {
+            "reviews": [
+              {
+                "id": 90480,
+                "user": {
+                  "login": "bo-web",
+                  "id": 12,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/12",
+                  "type": "User"
+                },
+                "body": "",
+                "state": "CHANGES_REQUESTED",
+                "submitted_at": "2026-10-01T14:00:00Z",
+                "commit_id": "48a9e66000000000000000000000000000000000",
+                "author_association": "MEMBER"
+              },
+              {
+                "id": 90481,
+                "user": {
+                  "login": "bo-web",
+                  "id": 12,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/12",
+                  "type": "User"
+                },
+                "body": "",
+                "state": "APPROVED",
+                "submitted_at": "2026-10-02T09:00:00Z",
+                "commit_id": "48a9e66000000000000000000000000000000000",
+                "author_association": "MEMBER"
+              }
+            ],
+            "checks": [
+              {
+                "id": 8480,
+                "name": "test",
+                "head_sha": "48a9e66000000000000000000000000000000000",
+                "status": "completed",
+                "conclusion": "success",
+                "html_url": "https://ghe.imagile.dev/imagile/payments-web/actions/runs/8480/job/8481",
+                "started_at": "2026-10-01T09:20:00Z",
+                "completed_at": "2026-10-01T09:20:00Z",
+                "app": {
+                  "slug": "github-actions",
+                  "name": "GitHub Actions"
+                }
+              }
+            ],
+            "commits": [
+              {
+                "sha": "48a9e00000000000000000000000000000000000",
+                "commit": {
+                  "message": "Add the order summary panel",
+                  "author": {
+                    "name": "ada-dev",
+                    "email": "you@example.com",
+                    "date": "2026-10-01T09:00:00Z"
+                  }
+                },
+                "author": {
+                  "login": "ada-dev",
+                  "id": 11,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+                  "type": "User"
+                }
+              },
+              {
+                "sha": "48a9e10000000000000000000000000000000000",
+                "commit": {
+                  "message": "Round the subtotal as the designs show",
+                  "author": {
+                    "name": "ada-dev",
+                    "email": "you@example.com",
+                    "date": "2026-10-01T09:00:00Z"
+                  }
+                },
+                "author": {
+                  "login": "ada-dev",
+                  "id": 11,
+                  "avatar_url": "https://ghe.imagile.dev/avatars/u/11",
+                  "type": "User"
+                }
+              }
+            ],
+            "files": [
+              {
+                "filename": "src/checkout/summary.tsx",
+                "status": "modified",
+                "additions": 140,
+                "deletions": 2,
+                "changes": 142
+              },
+              {
+                "filename": "src/checkout/card-form.tsx",
+                "status": "modified",
+                "additions": 6,
+                "deletions": 1,
+                "changes": 7
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "bitbucket-cloud:imagile/checkout-sdk#12",
+      "source": {
+        "area": "bitbucket-cloud",
+        "connection": "bitbucket-cloud",
+        "key": "imagile/checkout-sdk#12",
+        "command": "bitbucket-cloud pr get"
+      },
+      "url": "https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk/pull-requests/12",
+      "repo": "imagile/checkout-sdk",
+      "title": "Format receipt totals in the order currency",
+      "branch": {
+        "source": "copilot/receipt-currency",
+        "target": "main"
+      },
+      "state": "OPEN",
+      "author": {
+        "id": "557058:abc12345-0000-0000-0000-000000000010",
+        "name": "Bo W.",
+        "email": null
+      },
+      "authorKind": "AGENT",
+      "authorKindSource": "branch",
+      "authorKindSignal": "branch copilot/receipt-currency",
+      "reviewers": [
+        {
+          "person": {
+            "id": "557058:abc12345-0000-0000-0000-000000000020",
+            "name": "Ada D.",
+            "email": null
+          },
+          "state": "PENDING"
+        }
+      ],
+      "reviews": [],
+      "checks": "PASSING",
+      "checksAt": "2026-10-10T11:25:00.000Z",
+      "mergeable": null,
+      "size": {
+        "files": 1,
+        "additions": 22,
+        "deletions": 7
+      },
+      "workItems": [
+        "github:imagile/payments-web#44"
+      ],
+      "mergeCommit": null,
+      "created": "2026-10-10T11:00:00.000Z",
+      "firstReviewAt": null,
+      "approvedAt": null,
+      "mergedAt": null,
+      "closedAt": null,
+      "updated": "2026-10-10T11:25:00.000Z",
+      "unmapped": [
+        {
+          "field": "mergeable",
+          "reason": "Bitbucket Cloud's pull request doesn't say whether it merges cleanly"
+        }
+      ],
+      "native": {
+        "bitbucket-cloud pr list": {
+          "type": "pullrequest",
+          "id": 12,
+          "title": "Format receipt totals in the order currency",
+          "description": "The SDK side of imagile/payments-web#44.",
+          "summary": {
+            "type": "rendered",
+            "raw": "The SDK side of imagile/payments-web#44.",
+            "markup": "markdown"
+          },
+          "state": "OPEN",
+          "draft": false,
+          "author": {
+            "display_name": "Bo W.",
+            "nickname": "bo-web",
+            "type": "user",
+            "uuid": "{abc12345-0000-0000-0000-000000000010}",
+            "account_id": "557058:abc12345-0000-0000-0000-000000000010"
+          },
+          "source": {
+            "branch": {
+              "name": "copilot/receipt-currency"
+            },
+            "commit": {
+              "hash": "12ab3c400000"
+            },
+            "repository": {
+              "full_name": "imagile/checkout-sdk",
+              "name": "checkout-sdk",
+              "type": "repository",
+              "uuid": "{abc12345-0000-0000-0000-000000000700}"
+            }
+          },
+          "destination": {
+            "branch": {
+              "name": "main"
+            },
+            "commit": {
+              "hash": "a0a0a0a0a0a0"
+            },
+            "repository": {
+              "full_name": "imagile/checkout-sdk",
+              "name": "checkout-sdk",
+              "type": "repository",
+              "uuid": "{abc12345-0000-0000-0000-000000000700}"
+            }
+          },
+          "merge_commit": null,
+          "comment_count": 0,
+          "task_count": 0,
+          "close_source_branch": true,
+          "created_on": "2026-10-10T11:00:00.000000+00:00",
+          "updated_on": "2026-10-10T11:25:00.000000+00:00",
+          "reviewers": [
+            {
+              "display_name": "Ada D.",
+              "nickname": "ada-dev",
+              "type": "user",
+              "uuid": "{abc12345-0000-0000-0000-000000000020}",
+              "account_id": "557058:abc12345-0000-0000-0000-000000000020"
+            }
+          ],
+          "participants": [
+            {
+              "type": "participant",
+              "user": {
+                "display_name": "Ada D.",
+                "nickname": "ada-dev",
+                "type": "user",
+                "uuid": "{abc12345-0000-0000-0000-000000000020}",
+                "account_id": "557058:abc12345-0000-0000-0000-000000000020"
+              },
+              "role": "REVIEWER",
+              "approved": false,
+              "state": null,
+              "participated_on": null
+            }
+          ],
+          "links": {
+            "html": {
+              "href": "https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk/pull-requests/12"
+            },
+            "self": {
+              "href": "https://bitbucket-cloud.imagile.dev/2.0/repositories/imagile/checkout-sdk/pullrequests/12"
+            }
+          }
+        },
+        "bitbucket-cloud pr get": {
+          "type": "pullrequest",
+          "id": 12,
+          "title": "Format receipt totals in the order currency",
+          "description": "The SDK side of imagile/payments-web#44.",
+          "summary": {
+            "type": "rendered",
+            "raw": "The SDK side of imagile/payments-web#44.",
+            "markup": "markdown"
+          },
+          "state": "OPEN",
+          "draft": false,
+          "author": {
+            "display_name": "Bo W.",
+            "nickname": "bo-web",
+            "type": "user",
+            "uuid": "{abc12345-0000-0000-0000-000000000010}",
+            "account_id": "557058:abc12345-0000-0000-0000-000000000010"
+          },
+          "source": {
+            "branch": {
+              "name": "copilot/receipt-currency"
+            },
+            "commit": {
+              "hash": "12ab3c400000"
+            },
+            "repository": {
+              "full_name": "imagile/checkout-sdk",
+              "name": "checkout-sdk",
+              "type": "repository",
+              "uuid": "{abc12345-0000-0000-0000-000000000700}"
+            }
+          },
+          "destination": {
+            "branch": {
+              "name": "main"
+            },
+            "commit": {
+              "hash": "a0a0a0a0a0a0"
+            },
+            "repository": {
+              "full_name": "imagile/checkout-sdk",
+              "name": "checkout-sdk",
+              "type": "repository",
+              "uuid": "{abc12345-0000-0000-0000-000000000700}"
+            }
+          },
+          "merge_commit": null,
+          "comment_count": 0,
+          "task_count": 0,
+          "close_source_branch": true,
+          "created_on": "2026-10-10T11:00:00.000000+00:00",
+          "updated_on": "2026-10-10T11:25:00.000000+00:00",
+          "reviewers": [
+            {
+              "display_name": "Ada D.",
+              "nickname": "ada-dev",
+              "type": "user",
+              "uuid": "{abc12345-0000-0000-0000-000000000020}",
+              "account_id": "557058:abc12345-0000-0000-0000-000000000020"
+            }
+          ],
+          "participants": [
+            {
+              "type": "participant",
+              "user": {
+                "display_name": "Ada D.",
+                "nickname": "ada-dev",
+                "type": "user",
+                "uuid": "{abc12345-0000-0000-0000-000000000020}",
+                "account_id": "557058:abc12345-0000-0000-0000-000000000020"
+              },
+              "role": "REVIEWER",
+              "approved": false,
+              "state": null,
+              "participated_on": null
+            }
+          ],
+          "links": {
+            "html": {
+              "href": "https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk/pull-requests/12"
+            },
+            "self": {
+              "href": "https://bitbucket-cloud.imagile.dev/2.0/repositories/imagile/checkout-sdk/pullrequests/12"
+            }
+          },
+          "included": {
+            "reviews": [],
+            "checks": [
+              {
+                "type": "commitstatus",
+                "key": "checkout-sdk-ci-0",
+                "name": "checkout-sdk CI",
+                "state": "SUCCESSFUL",
+                "url": "https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk/pipelines/results/120",
+                "created_on": "2026-10-10T11:25:00.000000+00:00",
+                "updated_on": "2026-10-10T11:25:00.000000+00:00"
+              }
+            ],
+            "commits": [
+              {
+                "type": "commit",
+                "hash": "12ab3c4000000000000000000000000000000000",
+                "message": "Format totals with Intl.NumberFormat",
+                "author": {
+                  "type": "author",
+                  "raw": "Bo W. <you@example.com>"
+                },
+                "date": "2026-10-10T11:00:00.000000+00:00"
+              }
+            ],
+            "files": [
+              {
+                "type": "diffstat",
+                "status": "modified",
+                "lines_added": 22,
+                "lines_removed": 7,
+                "old": {
+                  "path": "src/money.ts",
+                  "type": "commit_file"
+                },
+                "new": {
+                  "path": "src/money.ts",
+                  "type": "commit_file"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "owi": "0.2",
+      "id": "bitbucket-cloud:imagile/checkout-sdk#9",
+      "source": {
+        "area": "bitbucket-cloud",
+        "connection": "bitbucket-cloud",
+        "key": "imagile/checkout-sdk#9",
+        "command": "bitbucket-cloud pr get"
+      },
+      "url": "https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk/pull-requests/9",
+      "repo": "imagile/checkout-sdk",
+      "title": "Saved-card hooks",
+      "branch": {
+        "source": "feature/saved-card-hooks",
+        "target": "main"
+      },
+      "state": "MERGED",
+      "author": {
+        "id": "557058:abc12345-0000-0000-0000-000000000020",
+        "name": "Ada D.",
+        "email": null
+      },
+      "authorKind": "HUMAN",
+      "authorKindSource": "default",
+      "authorKindSignal": null,
+      "reviewers": [
+        {
+          "person": {
+            "id": "557058:abc12345-0000-0000-0000-000000000010",
+            "name": "Bo W.",
+            "email": null
+          },
+          "state": "APPROVED"
+        }
+      ],
+      "reviews": [
+        {
+          "by": {
+            "id": "557058:abc12345-0000-0000-0000-000000000010",
+            "name": "Bo W.",
+            "email": null
+          },
+          "state": "APPROVED",
+          "at": "2026-10-07T10:00:00.000Z"
+        }
+      ],
+      "checks": "PASSING",
+      "checksAt": "2026-10-06T08:50:00.000Z",
+      "mergeable": null,
+      "size": {
+        "files": 2,
+        "additions": 184,
+        "deletions": 0
+      },
+      "workItems": [
+        "github:imagile/payments-web#42"
+      ],
+      "mergeCommit": "9f1e2d300000",
+      "created": "2026-10-06T08:30:00.000Z",
+      "firstReviewAt": "2026-10-07T10:00:00.000Z",
+      "approvedAt": "2026-10-07T10:00:00.000Z",
+      "mergedAt": null,
+      "closedAt": null,
+      "updated": "2026-10-07T12:00:00.000Z",
+      "unmapped": [
+        {
+          "field": "mergedAt",
+          "reason": "Bitbucket Cloud's pull request records no merge or close time; updated is the nearest it has"
+        },
+        {
+          "field": "closedAt",
+          "reason": "Bitbucket Cloud's pull request records no merge or close time; updated is the nearest it has"
+        }
+      ],
+      "native": {
+        "bitbucket-cloud pr list": {
+          "type": "pullrequest",
+          "id": 9,
+          "title": "Saved-card hooks",
+          "description": "useSavedCards and useDefaultCard, for imagile/payments-web#42.",
+          "summary": {
+            "type": "rendered",
+            "raw": "useSavedCards and useDefaultCard, for imagile/payments-web#42.",
+            "markup": "markdown"
+          },
+          "state": "MERGED",
+          "draft": false,
+          "author": {
+            "display_name": "Ada D.",
+            "nickname": "ada-dev",
+            "type": "user",
+            "uuid": "{abc12345-0000-0000-0000-000000000020}",
+            "account_id": "557058:abc12345-0000-0000-0000-000000000020"
+          },
+          "source": {
+            "branch": {
+              "name": "feature/saved-card-hooks"
+            },
+            "commit": {
+              "hash": "09cd5e600000"
+            },
+            "repository": {
+              "full_name": "imagile/checkout-sdk",
+              "name": "checkout-sdk",
+              "type": "repository",
+              "uuid": "{abc12345-0000-0000-0000-000000000700}"
+            }
+          },
+          "destination": {
+            "branch": {
+              "name": "main"
+            },
+            "commit": {
+              "hash": "a0a0a0a0a0a0"
+            },
+            "repository": {
+              "full_name": "imagile/checkout-sdk",
+              "name": "checkout-sdk",
+              "type": "repository",
+              "uuid": "{abc12345-0000-0000-0000-000000000700}"
+            }
+          },
+          "merge_commit": {
+            "hash": "9f1e2d300000"
+          },
+          "comment_count": 0,
+          "task_count": 0,
+          "close_source_branch": true,
+          "created_on": "2026-10-06T08:30:00.000000+00:00",
+          "updated_on": "2026-10-07T12:00:00.000000+00:00",
+          "reviewers": [
+            {
+              "display_name": "Bo W.",
+              "nickname": "bo-web",
+              "type": "user",
+              "uuid": "{abc12345-0000-0000-0000-000000000010}",
+              "account_id": "557058:abc12345-0000-0000-0000-000000000010"
+            }
+          ],
+          "participants": [
+            {
+              "type": "participant",
+              "user": {
+                "display_name": "Bo W.",
+                "nickname": "bo-web",
+                "type": "user",
+                "uuid": "{abc12345-0000-0000-0000-000000000010}",
+                "account_id": "557058:abc12345-0000-0000-0000-000000000010"
+              },
+              "role": "REVIEWER",
+              "approved": true,
+              "state": "approved",
+              "participated_on": "2026-10-07T12:00:00.000000+00:00"
+            }
+          ],
+          "links": {
+            "html": {
+              "href": "https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk/pull-requests/9"
+            },
+            "self": {
+              "href": "https://bitbucket-cloud.imagile.dev/2.0/repositories/imagile/checkout-sdk/pullrequests/9"
+            }
+          }
+        },
+        "bitbucket-cloud pr get": {
+          "type": "pullrequest",
+          "id": 9,
+          "title": "Saved-card hooks",
+          "description": "useSavedCards and useDefaultCard, for imagile/payments-web#42.",
+          "summary": {
+            "type": "rendered",
+            "raw": "useSavedCards and useDefaultCard, for imagile/payments-web#42.",
+            "markup": "markdown"
+          },
+          "state": "MERGED",
+          "draft": false,
+          "author": {
+            "display_name": "Ada D.",
+            "nickname": "ada-dev",
+            "type": "user",
+            "uuid": "{abc12345-0000-0000-0000-000000000020}",
+            "account_id": "557058:abc12345-0000-0000-0000-000000000020"
+          },
+          "source": {
+            "branch": {
+              "name": "feature/saved-card-hooks"
+            },
+            "commit": {
+              "hash": "09cd5e600000"
+            },
+            "repository": {
+              "full_name": "imagile/checkout-sdk",
+              "name": "checkout-sdk",
+              "type": "repository",
+              "uuid": "{abc12345-0000-0000-0000-000000000700}"
+            }
+          },
+          "destination": {
+            "branch": {
+              "name": "main"
+            },
+            "commit": {
+              "hash": "a0a0a0a0a0a0"
+            },
+            "repository": {
+              "full_name": "imagile/checkout-sdk",
+              "name": "checkout-sdk",
+              "type": "repository",
+              "uuid": "{abc12345-0000-0000-0000-000000000700}"
+            }
+          },
+          "merge_commit": {
+            "hash": "9f1e2d300000"
+          },
+          "comment_count": 0,
+          "task_count": 0,
+          "close_source_branch": true,
+          "created_on": "2026-10-06T08:30:00.000000+00:00",
+          "updated_on": "2026-10-07T12:00:00.000000+00:00",
+          "reviewers": [
+            {
+              "display_name": "Bo W.",
+              "nickname": "bo-web",
+              "type": "user",
+              "uuid": "{abc12345-0000-0000-0000-000000000010}",
+              "account_id": "557058:abc12345-0000-0000-0000-000000000010"
+            }
+          ],
+          "participants": [
+            {
+              "type": "participant",
+              "user": {
+                "display_name": "Bo W.",
+                "nickname": "bo-web",
+                "type": "user",
+                "uuid": "{abc12345-0000-0000-0000-000000000010}",
+                "account_id": "557058:abc12345-0000-0000-0000-000000000010"
+              },
+              "role": "REVIEWER",
+              "approved": true,
+              "state": "approved",
+              "participated_on": "2026-10-07T12:00:00.000000+00:00"
+            }
+          ],
+          "links": {
+            "html": {
+              "href": "https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk/pull-requests/9"
+            },
+            "self": {
+              "href": "https://bitbucket-cloud.imagile.dev/2.0/repositories/imagile/checkout-sdk/pullrequests/9"
+            }
+          },
+          "included": {
+            "reviews": [
+              {
+                "approval": {
+                  "date": "2026-10-07T10:00:00.000000+00:00",
+                  "user": {
+                    "display_name": "Bo W.",
+                    "nickname": "bo-web",
+                    "type": "user",
+                    "uuid": "{abc12345-0000-0000-0000-000000000010}",
+                    "account_id": "557058:abc12345-0000-0000-0000-000000000010"
+                  },
+                  "pullrequest": {
+                    "id": 9,
+                    "type": "pullrequest"
+                  }
+                },
+                "pull_request": {
+                  "id": 9,
+                  "type": "pullrequest"
+                }
+              }
+            ],
+            "checks": [
+              {
+                "type": "commitstatus",
+                "key": "checkout-sdk-ci-0",
+                "name": "checkout-sdk CI",
+                "state": "SUCCESSFUL",
+                "url": "https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk/pipelines/results/90",
+                "created_on": "2026-10-06T08:50:00.000000+00:00",
+                "updated_on": "2026-10-06T08:50:00.000000+00:00"
+              }
+            ],
+            "commits": [
+              {
+                "type": "commit",
+                "hash": "09cd5e6000000000000000000000000000000000",
+                "message": "Add useSavedCards",
+                "author": {
+                  "type": "author",
+                  "raw": "Ada D. <you@example.com>"
+                },
+                "date": "2026-10-06T08:30:00.000000+00:00"
+              },
+              {
+                "type": "commit",
+                "hash": "09cd5e6100000000000000000000000000000000",
+                "message": "Add useDefaultCard",
+                "author": {
+                  "type": "author",
+                  "raw": "Ada D. <you@example.com>"
+                },
+                "date": "2026-10-06T08:30:00.000000+00:00"
+              }
+            ],
+            "files": [
+              {
+                "type": "diffstat",
+                "status": "modified",
+                "lines_added": 120,
+                "lines_removed": 0,
+                "old": {
+                  "path": "src/hooks/saved-cards.ts",
+                  "type": "commit_file"
+                },
+                "new": {
+                  "path": "src/hooks/saved-cards.ts",
+                  "type": "commit_file"
+                }
+              },
+              {
+                "type": "diffstat",
+                "status": "modified",
+                "lines_added": 64,
+                "lines_removed": 0,
+                "old": {
+                  "path": "src/hooks/saved-cards.test.ts",
+                  "type": "commit_file"
+                },
+                "new": {
+                  "path": "src/hooks/saved-cards.test.ts",
+                  "type": "commit_file"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

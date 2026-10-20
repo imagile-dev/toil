@@ -101,6 +101,19 @@
     ]
   },
   {
+    "name": "repo file",
+    "tool": "github_repo_file",
+    "description": "Read one file from a repository",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<path>",
+      "--ref <ref>",
+      "--owner <owner>",
+      "--repo <repo>"
+    ]
+  },
+  {
     "name": "issue list",
     "tool": "github_issue_list",
     "description": "List issues in a repository (pull requests left out)",
@@ -218,6 +231,7 @@
       "--author <login>",
       "--created-after <date>",
       "--created-before <date>",
+      "--updated-since <iso>",
       "--limit <n>",
       "--cursor <cursor>",
       "--owner <owner>",
@@ -227,11 +241,12 @@
   {
     "name": "pr get",
     "tool": "github_pr_get",
-    "description": "Get a pull request by number",
+    "description": "Get a pull request by number, optionally with its reviews, checks, commits and files",
     "writes": false,
     "connection": true,
     "flags": [
       "<number>",
+      "--include <list>",
       "--owner <owner>",
       "--repo <repo>"
     ]

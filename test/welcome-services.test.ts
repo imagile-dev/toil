@@ -140,8 +140,11 @@ describe('the Services module', () => {
 describe('the Services tree over the real registry', () => {
   it('marks a flag required when its field is, and shows a variadic id as such', () => {
     const jira = commandSummaries('jira', commands);
+    const comment = jira.find((c) => c.path.join(' ') === 'jira issue comment')!;
+    expect(comment.flags.find((f) => f.flags.startsWith('--body'))?.required).toBe(true);
+    // Either --transition or --to moves an issue, so neither is required on its own.
     const transition = jira.find((c) => c.path.join(' ') === 'jira issue transition')!;
-    expect(transition.flags.find((f) => f.flags.startsWith('--transition'))?.required).toBe(true);
+    expect(transition.flags.filter((f) => f.required)).toEqual([]);
     expect(usage(jira.find((c) => c.path.join(' ') === 'jira issue get')!)).toBe('toil jira issue get <key...>');
   });
 

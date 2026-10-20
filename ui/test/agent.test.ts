@@ -3,6 +3,7 @@ import { citationsOf, segments } from '../src/agent.ts';
 import { SCRIPTS, VOICED, scriptedAgent } from '../src/fixtures/agent.ts';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
 import { needsAttention, prepare } from '../src/model/insights.ts';
+import { openQueue } from '../src/model/prs.ts';
 import { NAMES, healthOf } from './harness.ts';
 
 /**
@@ -17,8 +18,8 @@ const cites = (text: string) => segments(text).flatMap((s) => ('cite' in s ? [s.
 const text = async (dossier: string, id: string) => (await agent.ask(dossier, id)).parts.map((p) => p.text).join(' ');
 
 describe('the scripted agent', () => {
-  it.each(NAMES)('offers the same three starters for %s', (name) => {
-    expect(agent.starters(name).map((s) => s.label)).toEqual(["What's at risk in this dossier?", 'What needs attention first?', 'Where is this work deployed?']);
+  it.each(NAMES)('offers the same four starters for %s', (name) => {
+    expect(agent.starters(name).map((s) => s.label)).toEqual(["What's at risk in this dossier?", 'What needs attention first?', 'Where is this work deployed?', "What's stuck in review, and why?"]);
   });
 
   it('streams each answer as it grows, never splitting a citation, and ends on the whole answer', async () => {
@@ -44,8 +45,9 @@ describe('the scripted agent', () => {
     expect(n).toBe(3);
   });
 
-  it.each(NAMES)("cites only %s's own items, and every answer cites some", async (name) => {
-    const { byId } = await healthOf(name);
+  it.each(NAMES)("cites only %s's own items and pull requests, and every answer cites some", async (name) => {
+    const { byId: items, data } = await healthOf(name);
+    const byId = new Set([...items.keys(), ...data.pullRequests.map((c) => c.id)]);
     for (const { id } of agent.starters(name)) {
       const answer = await agent.ask(name, id);
       expect(answer.by).toBe('scripted');
@@ -101,6 +103,22 @@ describe.each(NAMES)('the %s script agrees with the model', (name) => {
     const open = data.changes.filter((c) => c.kind === 'pull-request' && c.outcome === 'open').flatMap((c) => c.items);
     const sprintOpen = open.filter((id) => data.items.find((i) => i.id === id)?.type !== 'EPIC' && data.items.find((i) => i.id === id)?.type !== 'OTHER');
     expect(sorted(cites(answer.parts.at(-1)!.text))).toEqual(sorted(sprintOpen));
+  });
+});
+
+describe.each(NAMES)('the %s review answer agrees with the open queue', (name) => {
+  it('takes the open pull requests in queue order, each with its wait and the items it carries', async () => {
+    const { data, byId } = await healthOf(name);
+    const queue = openQueue(data.pullRequests, byId, FIXTURE_NOW);
+    const answer = await agent.ask(name, 'review');
+    const prs = new Set(data.pullRequests.map((c) => c.id));
+    const cited = answer.parts.map((p) => cites(p.text).find((id) => prs.has(id))).filter((id): id is string => id !== undefined);
+    expect(cited).toEqual(queue.map((r) => r.change.id));
+    queue.forEach((row, i) => {
+      const part = answer.parts[i]!.text;
+      if (row.wait.on !== 'draft' && row.wait.days !== null) expect(part, row.change.id).toContain(`${Math.round(row.wait.days * 10) / 10} working days`);
+      for (const item of row.items.filter((id) => byId.get(id)?.type !== 'EPIC' && byId.get(id)?.type !== 'OTHER')) expect(cites(part), row.change.id).toContain(item);
+    });
   });
 });
 

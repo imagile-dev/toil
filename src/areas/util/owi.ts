@@ -5,7 +5,8 @@ import { fileArgument, inputFields, openInput, textOption } from './kit/input.js
 /**
  * `util owi map`: toil's own Jira, Azure DevOps and GitHub output, mapped to
  * Open Work Items (docs/owi/spec.md), so a board, a sprint report or an agent
- * can read three trackers as one. It reads envelopes the way every util
+ * can read three trackers as one, and since OWI 0.2 the pull requests of five
+ * code hosts as changes. It reads envelopes the way every util
  * command reads its input, maps each by the command that produced it, and
  * checks every item against the published schema before returning it. The
  * mappers are in src/core/owi/; the work is in ./owi/run.ts, loaded only when
@@ -40,14 +41,16 @@ const MAX_BYTES = 64 * 1024 * 1024;
 
 export const owiMapCommand = defineCommand({
   path: ['util', 'owi', 'map'],
-  description: 'Map Jira, Azure DevOps and GitHub command output to Open Work Items, checked against the OWI schema (local only)',
+  description: 'Map Jira, Azure DevOps, GitHub and Bitbucket command output to Open Work Items and changes (pull requests), checked against the OWI schema (local only)',
   toolDescription:
-    "Maps toil's own work item output to Open Work Items (OWI 0.1): envelopes from jira or jira-cloud issue search, issue get and issue history; ado or ado-cloud work-item get, work-item get-many, work-item history and work-item iterations; github issue list, issue search, issue get, issue history and project items. Pass one envelope, a JSON array of them, or one per line; a GitHub issue and its project item become one item (with no board value, the issue's milestone is its iteration, a points: N label its estimate, and Blocked by #n in its body a link), and a history joins its item (a Jira changelog or GitHub timeline names no issue, so wrap it as { key, history } or pass key). Data without its envelope needs command. field points an OWI field at a field of your own (estimate=customfield_10234, estimateUnit=hours), the same keys a dossier's fields use. Returns { owi, count, items, histories, unmapped, skipped, verified }: each item has id (<connection>:<key>), type, status and statusCategory (TODO, IN_PROGRESS, DONE or UNKNOWN), people, estimate { value, unit, field }, iteration, parent, children, links, dates, history, unmapped (each field it couldn't fill, and why) and native (the source records). Every item is validated against docs/owi/schema.json (data.verified). Local only.",
+    "Maps toil's own work item and pull request output to Open Work Items (OWI 0.2): envelopes from jira or jira-cloud issue search, issue get and issue history; ado or ado-cloud work-item get, work-item get-many, work-item history and work-item iterations; github issue list, issue search, issue get, issue history and project items; and the pull requests of github, bitbucket, bitbucket-cloud, ado and ado-cloud pr list and pr get (pr get --include reviews,checks,commits,files adds what a list lacks). Pass one envelope, a JSON array of them, or one per line; a GitHub issue and its project item become one item (with no board value, the issue's milestone is its iteration, a points: N label its estimate, and Blocked by #n in its body a link), a history joins its item (a Jira changelog or GitHub timeline names no issue, so wrap it as { key, history } or pass key), and a pull request listed and read with pr get becomes one change. Data without its envelope needs command. field points an OWI field at a field of your own (estimate=customfield_10234, estimateUnit=hours), the same keys a dossier's fields use. keyPattern says where work item keys in a pull request's title, branch and description point (PAY-{n}=corp-jira, AB#{n}=corp-ado); GitHub's and Azure DevOps' own #n are read without one. authorKind sets an author's kind by hand (release-bot=BOT). Returns { owi, count, items, changes, histories, unmapped, skipped, verified }: each item has id (<connection>:<key>), type, status and statusCategory (TODO, IN_PROGRESS, DONE or UNKNOWN), people, estimate { value, unit, field }, iteration, parent, children, links, dates, history, unmapped (each field it couldn't fill, and why) and native (the source records); each change has id (<connection>:<repo>#<n>), repo, title, branch, state (OPEN, MERGED, DECLINED or DRAFT), author, authorKind (HUMAN, AGENT or BOT) with authorKindSource (override, account, trailer, branch or default) and authorKindSignal, reviewers (APPROVED, CHANGES_REQUESTED or PENDING), reviews, checks (PASSING, FAILING, PENDING or NONE), mergeable, size { files, additions, deletions }, workItems (OWI ids), created, firstReviewAt, approvedAt, mergedAt, closedAt, updated, unmapped and native. count is the number of items. Every record is validated against docs/owi/schema.json (data.verified). Local only.",
   input: z.object({
     ...inputFields,
     command: z.string().min(1).optional().describe('The command whose data the input is, when it holds data without its envelope (for example "jira issue search")'),
     key: z.string().min(1).optional().describe("The item a history belongs to, when its output doesn't say: a Jira key (PROJ-123), or GitHub's owner/repo#number (a bare number takes the envelope's owner and repo)"),
     field: z.array(z.string()).optional().describe('Point an OWI field at a field of your own, as name=field: estimate, estimateUnit (points, hours or days), priority, type, team, dueDate or iteration; for GitHub without a board, estimateLabel (the label that holds an estimate, {n} for the number) and iterationDays (how long a milestone runs)'),
+    keyPattern: z.array(z.string()).optional().describe("Where work item keys in a pull request's title, branch and description point, as pattern=connection with {n} for the number: PAY-{n}=corp-jira, AB#{n}=corp-ado"),
+    authorKind: z.array(z.string()).optional().describe("Set a pull request author's kind by hand, as id=KIND (HUMAN, AGENT or BOT): release-bot=BOT. It wins over every other signal"),
   }),
   writes: false,
   args: [fileArgument],
@@ -56,18 +59,21 @@ export const owiMapCommand = defineCommand({
     { flags: '--command <name>', field: 'command', description: 'The command whose data the input is, when it holds data without its envelope ("jira issue search")' },
     { flags: '--key <key>', field: 'key', description: "The item a history belongs to, when its output doesn't say (PROJ-123, owner/repo#9)" },
     { flags: '--field <name=field>', field: 'field', description: 'Point an OWI field at a field of your own (repeatable): estimate=customfield_10234, estimateUnit=hours, estimateLabel=size/{n}' },
+    { flags: '--key-pattern <pattern=connection>', field: 'keyPattern', description: "Where work item keys in a pull request's title, branch and description point (repeatable): PAY-{n}=corp-jira, AB#{n}=corp-ado" },
+    { flags: '--author-kind <id=KIND>', field: 'authorKind', description: "Set a pull request author's kind by hand (repeatable): release-bot=BOT, with KIND HUMAN, AGENT or BOT" },
   ],
   examples: [
     { file: 'owi/sprint-42.jsonl' },
     { file: 'owi/jira-changelog.json', key: 'PAY-104' },
     { file: 'owi/ado-get-batch.json', field: ['estimate=Custom.TeamPoints', 'estimateUnit=points'] },
     { text: EXAMPLE_ISSUE, command: 'github issue get' },
+    { file: 'owi/pull-requests.jsonl', keyPattern: ['PAY-{n}=corp-jira', 'imagile/payments-web#{n}=github'], authorKind: ['svc-renovate=BOT'] },
   ],
   run: async (input, ctx) => {
     const source = await openInput(ctx, input, { maxBytes: MAX_BYTES });
     const text = await source.text();
     const { mapOwiInput } = await import('./owi/run.js');
-    return mapOwiInput(ctx, { text, source, command: input.command, key: input.key, field: input.field });
+    return mapOwiInput(ctx, { text, source, command: input.command, key: input.key, field: input.field, keyPattern: input.keyPattern, authorKind: input.authorKind });
   },
 });
 

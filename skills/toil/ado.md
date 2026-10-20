@@ -112,7 +112,9 @@ Work items (`<id>` is the work item id):
   is only an `ADO_PARENT_LINK_FAILED` warning, with the item already created.
 - `work-item update <id>`: Set fields (`--field name=value` repeatable, or
   `--input-file`).
-- `work-item transition <id>`: Set `--state`.
+- `work-item transition <id>`: Set `--state`, or `--to <intent-or-status>` (`start`,
+  `review`, `done`, `reopen` or a state name), resolved against the states the item's
+  own type has (`core.md`, **Moving work items by intent**).
 - `work-item assign <id>`: Assign to `--assignee`, a display name or email.
 - `work-item link <id>`: Link it to `--target <id>`, `--type related` (default),
   `parent`, `child`, `duplicate`, `duplicate-of`, or a raw relation name.
@@ -185,8 +187,20 @@ Pull requests (`<id>` is the pull request id):
   `completed` or `all`. `--creator` and `--reviewer` are sent as identity id filters,
   so pass an id (from `whoami`), not an alias. `--created-after` and
   `--created-before` take ISO 8601 dates; a date alone is UTC midnight, a date-time
-  without a zone is local time.
-- `pr get <id>`: One pull request.
+  without a zone is local time. `--updated-since <iso>` (the same date forms) keeps
+  every pull request that is still active, plus those created or closed at or after
+  that instant. Azure DevOps records no last-updated time on a pull request (only
+  `creationDate` and `closedDate`), so this is a superset of what changed: a sync
+  that merges by `pullRequestId` misses nothing. It combines with the other filters,
+  and `--limit` counts the pull requests it keeps.
+- `pr get <id>`: One pull request. `--include <list>` adds `data.included`, holding
+  only the lists asked for (comma-separated, any case), each every page of Azure
+  DevOps' own records: `reviews` (the comment threads, where each vote change is a
+  system comment in a thread whose `properties.CodeReviewThreadType` is `VoteUpdate`,
+  beside each reviewer's comments with `publishedDate`), `checks` (the pull request's
+  statuses), `commits`, and `files` (the `changeEntries` of the latest iteration).
+  Each list costs one or more extra requests; an unknown name is refused before any
+  request.
 - `pr create`: `--title`, `--source`, `--target` (default `main`), `--description`,
   `--reviewers <id,id>` (identity ids), `--draft`. Give branch names without
   `refs/heads/`, which toil adds (a full ref gets it twice).
@@ -244,6 +258,8 @@ toil ado --collection DefaultCollection --project Imagile work-item get 42
 toil ado work-item create --type Bug --title "Login broken" --field "Story Points=3" --allow-write
 toil ado work-item link 42 --target 7 --type child --allow-write
 toil ado --repo imagile-api pr list --state all
+toil ado --repo imagile-api pr list --state all --updated-since 2026-10-01T00:00:00Z --limit 100
+toil ado --repo imagile-api pr get 42 --include reviews,checks,commits,files
 toil ado pr comment-inline 42 --file /src/app.ts --line 12 --body "Off by one?" --allow-write
 toil ado work-item search --wiql "SELECT [System.Id] FROM WorkItems" --updated-since 2026-10-01 --limit 200
 toil ado work-item get-many 42 7 --fields System.Title,System.State

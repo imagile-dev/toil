@@ -306,7 +306,7 @@ describe('the API', () => {
     const { origin } = await start({ agent });
     const { sid, session } = await signIn(origin);
     const starters = JSON.parse((await send(origin, '/api/agent/starters?dossier=card-payments', { headers: { [SESSION_HEADER]: sid } })).body) as Array<{ id: string }>;
-    expect(starters.map((s) => s.id)).toEqual(['risk', 'attention', 'deployed']);
+    expect(starters.map((s) => s.id)).toEqual(['risk', 'attention', 'deployed', 'review']);
     const answer = JSON.parse((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk' }, { sid, csrf: session.csrf })).body);
     expect(answer.citations).toContain('corp-jira:PAY-101');
     expect(answer.proposals.map((p: { command: string }) => p.command)).toEqual(['jira issue update']);
@@ -636,7 +636,7 @@ describe('the Stores', () => {
     // A GitHub dossier with no board reads the repository's issues; the sample's GitHub dossier has a board.
     // test/github-repo.test.ts proves that path with its own stub.
     // The sample has no Azure DevOps Services dossier; test/ado-seed.test.ts reads one through toil, its work items and its board.
-    const noSampleDossier = ['github issue list', 'ado-cloud work-item iterations', 'ado-cloud work-item search', 'ado-cloud work-item get-many', 'ado-cloud work-item history', 'ado-cloud pr list'];
+    const noSampleDossier = ['github issue list', 'ado-cloud work-item iterations', 'ado-cloud work-item search', 'ado-cloud work-item get-many', 'ado-cloud work-item history', 'ado-cloud pr list', 'ado-cloud pr get'];
     expect([...READ_COMMANDS].sort()).toEqual([...new Set([...CANNED.map((c) => c.command), ...noSampleDossier])].sort());
   });
 

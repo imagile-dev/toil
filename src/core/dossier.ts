@@ -7,6 +7,7 @@ import { ToilError } from './errors.js';
 import { forwardSlashes, isSystemPath, type Workspace } from './files.js';
 import { findGitRepo, readGitBranch, readGitRemotes, type GitContext } from './git-repo.js';
 import { JsonSyntaxError, parseStrictJson } from './strict-json.js';
+import { INTENTS, type TransitionPins } from './transition-intent.js';
 
 /**
  * Dossiers: what toil knows about one body of work (its repositories, the
@@ -80,7 +81,7 @@ export interface DossierArea {
 }
 
 /** Keys of a section that core reads itself; every other key is a context input or reference data. */
-const CORE_SECTION_KEYS = new Set(['connection', 'host', 'fields']);
+const CORE_SECTION_KEYS = new Set(['connection', 'host', 'fields', 'transitions']);
 const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'environments']);
 const ALIAS = /^[a-z][a-zA-Z0-9]*$/;
 const HOST = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:\d{1,5})?$/i;
@@ -180,6 +181,25 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
     repos.push({ name: entry.name, ...(typeof entry.path === 'string' ? { path: entry.path } : {}), remotes });
   });
 
+  // Pinned transitions: work item type to intent to a transition or status name (src/core/transition-intent.ts).
+  const readTransitions = (pins: unknown, path: string): void => {
+    if (!isRecord(pins)) {
+      error(path, '"transitions" must map each work item type to its intents, e.g. { "Story": { "review": "Peer Review" } }.');
+      return;
+    }
+    for (const [type, byIntent] of Object.entries(pins)) {
+      const where = at(path, type);
+      if (!isRecord(byIntent)) {
+        error(where, `"${type}" must map intents (${INTENTS.join(', ')}) to a transition or status name.`);
+        continue;
+      }
+      for (const [intent, name] of Object.entries(byIntent)) {
+        if (!(INTENTS as readonly string[]).includes(intent)) error(at(where, intent), `"${intent}" isn't an intent: pin one of ${INTENTS.join(', ')}.`);
+        else if (typeof name !== 'string' || name.trim() === '') error(at(where, intent), `The ${intent} pin for ${type} must name a transition or status.`);
+      }
+    }
+  };
+
   const readSection = (area: string, value: unknown, path: string): Section | undefined => {
     const known = byName.get(area);
     if (!known) warn('DOSSIER_UNKNOWN_SECTION', path, `"${area}" isn't an area this toil has, so its section is kept but not used.`);
@@ -205,6 +225,7 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
         }
       }
     }
+    if (value.transitions !== undefined) readTransitions(value.transitions, at(path, 'transitions'));
     for (const [key, entry] of Object.entries(value)) {
       if (CORE_SECTION_KEYS.has(key)) continue;
       const where = at(path, key);
@@ -389,6 +410,8 @@ export interface Place {
   fields: (area: string, input: Record<string, unknown>) => Record<string, string>;
   /** Every section the dossier has for an area, for `<area> check-dossier`; asking consults the dossier. */
   view: (area: string) => DossierView | undefined;
+  /** The transitions the dossier pins for an area, lowercased type to intent to name; asking consults the dossier, as the lookup does. */
+  transitions: (area: string, input: Record<string, unknown>) => TransitionPins;
   /** The folder's git, when the call named a `cwd`; otherwise the workspace's. */
   gitRemote?: GitRemoteReader;
   repo?: () => GitContext | undefined;
@@ -930,6 +953,23 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
         const sections = sectionsFor(dossier, area, envOf(dossier, area, input));
         // The environment's section first, so its aliases win.
         return Object.assign({}, ...sections.map((s) => (isRecord(s.fields) ? s.fields : {})).reverse()) as Record<string, string>;
+      },
+      transitions: (area, input) => {
+        const { applied } = choose();
+        if (!applied) return {};
+        const dossier = applied.file.dossier;
+        // The area's own section first, so the environment's pins land over it, type by type.
+        const out: TransitionPins = {};
+        for (const section of sectionsFor(dossier, area, envOf(dossier, area, input)).reverse()) {
+          if (!isRecord(section.transitions)) continue;
+          for (const [type, byIntent] of Object.entries(section.transitions)) {
+            if (!isRecord(byIntent)) continue;
+            // Types compare ignoring case, so `story` and `Story` are one entry, the environment's landing last.
+            const pins = (out[type.toLowerCase()] ??= {});
+            for (const [intent, name] of Object.entries(byIntent)) if (typeof name === 'string') pins[intent] = name;
+          }
+        }
+        return out;
       },
       view: (area) => {
         const { applied } = choose();

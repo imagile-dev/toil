@@ -340,7 +340,7 @@
   {
     "name": "owi map",
     "tool": "util_owi_map",
-    "description": "Map Jira, Azure DevOps and GitHub command output to Open Work Items, checked against the OWI schema (local only)",
+    "description": "Map Jira, Azure DevOps, GitHub and Bitbucket command output to Open Work Items and changes (pull requests), checked against the OWI schema (local only)",
     "writes": false,
     "connection": false,
     "flags": [
@@ -348,7 +348,9 @@
       "--text <text>",
       "--command <name>",
       "--key <key>",
-      "--field <name=field>"
+      "--field <name=field>",
+      "--key-pattern <pattern=connection>",
+      "--author-kind <id=KIND>"
     ]
   },
   {

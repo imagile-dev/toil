@@ -1,19 +1,24 @@
 import { z } from 'zod';
+import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import { githubArea } from './area.js';
-import { exampleCursor, github, githubList, githubText, target, type GitHubContext } from './client.js';
-import { bodyOf, inDateRange, pageFields, pageOptions, parseDateOption, parseIntText, prNumber, prNumberArg } from './input.js';
+import { exampleCursor, github, githubAll, githubList, githubText, target, type GitHubContext } from './client.js';
+import { bodyOf, inDateRange, pageFields, pageOptions, parseDateOption, parseIntText, prNumber, prNumberArg, prUpdatedSinceField, prUpdatedSinceOption } from './input.js';
+import { checkRunItems } from './status.js';
 
 /**
  * Pull requests themselves: list, read, open, edit, merge, close, reopen, and
  * the diff and file list. `data` is GitHub's answer as it came, apart from
- * `pr list`'s client-side author and date filters and `pr diff`'s wrapper.
+ * `pr list`'s client-side author and date filters, `pr get`'s `included`
+ * and `pr diff`'s wrapper.
  * Merging is done by request, like every other approval worth having.
  */
 
 interface PullRequest {
   created_at: string;
+  updated_at: string;
   user?: { login?: string };
+  head?: { sha?: string };
 }
 
 const prPath = (owner: string, repo: string, number: number) => `/repos/${owner}/${repo}/pulls/${number}`;
@@ -21,6 +26,8 @@ const prPath = (owner: string, repo: string, number: number) => `/repos/${owner}
 export const listPrsCommand = githubArea.command({
   path: ['github', 'pr', 'list'],
   description: 'List pull requests',
+  toolDescription:
+    'Lists the pull requests in a repository as GitHub returns them. author, createdAfter and createdBefore filter each page as it comes in. updatedSince keeps pull requests updated at or after that instant: toil asks GitHub for the most recently updated first (sort=updated, direction=desc) and stops reading after the page that reaches an older one, for incremental reads. With limit, pass meta.page.nextCursor as cursor for the next page; limit counts the pull requests that pass the filters.',
   input: z.object({
     state: z.enum(['open', 'closed', 'all']).optional().describe('PR state (choices: "open", "closed", "all", default: "open")'),
     head: z.string().optional().describe('Filter by head branch (user:branch)'),
@@ -28,6 +35,7 @@ export const listPrsCommand = githubArea.command({
     author: z.string().optional().describe('Filter by author login'),
     createdAfter: z.string().optional().describe('Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)'),
     createdBefore: z.string().optional().describe('Only PRs created before this ISO 8601 date'),
+    updatedSince: prUpdatedSinceField,
     ...pageFields('pull requests'),
   }),
   writes: false,
@@ -38,41 +46,115 @@ export const listPrsCommand = githubArea.command({
     { flags: '--author <login>', field: 'author', description: 'Filter by author login' },
     { flags: '--created-after <date>', field: 'createdAfter', description: 'Only PRs created on/after this ISO 8601 date (e.g. 2025-01-31)' },
     { flags: '--created-before <date>', field: 'createdBefore', description: 'Only PRs created before this ISO 8601 date' },
+    prUpdatedSinceOption,
     ...pageOptions('pull requests'),
   ],
   examples: [
     { owner: 'imagile', repo: 'toil-probe' },
     { owner: 'imagile', repo: 'toil-probe', state: 'all', head: 'imagile:feature', base: 'main', author: 'OCTO-DEV', createdAfter: '2025-01-01', createdBefore: '2025-02-01T00:00:00Z' },
     { owner: 'imagile', repo: 'toil-probe', limit: 1, cursor: exampleCursor() },
+    { owner: 'imagile', repo: 'toil-probe', state: 'all', author: 'octo-dev', updatedSince: '2025-01-16T00:00:00Z', limit: 1 },
   ],
   run: async (input, ctx) => {
     // Dates are checked before anything else, so a bad date fails even with no repo.
     const createdAfter = input.createdAfter ? parseDateOption('--created-after', input.createdAfter) : undefined;
     const createdBefore = input.createdBefore ? parseDateOption('--created-before', input.createdBefore) : undefined;
+    const updatedSince = input.updatedSince ? parseDateOption('--updated-since', input.updatedSince).getTime() : undefined;
     const { owner, repo } = target(ctx);
     // The pulls endpoint has no author or date filter, so both apply to each page as it
     // comes in, and --limit counts the pull requests that pass them.
     const author = input.author?.toLowerCase();
+    // Nor has it a since. Sorted most recently updated first, the first pull request
+    // older than --updated-since means every later page is older too, so paging stops
+    // after its page. Without the flag the request stays exactly as it was.
+    const newestFirst = updatedSince !== undefined ? { sort: 'updated', direction: 'desc' } : {};
+    const fresh = (pr: PullRequest) => updatedSince === undefined || Date.parse(pr.updated_at) >= updatedSince;
     return githubList<PullRequest>(
       ctx,
       `/repos/${owner}/${repo}/pulls`,
       `GitHub pull requests in ${owner}/${repo}`,
-      { state: input.state ?? 'open', ...(input.head ? { head: input.head } : {}), ...(input.base ? { base: input.base } : {}) },
-      { limit: input.limit, cursor: input.cursor, keep: (pr) => (!author || pr.user?.login?.toLowerCase() === author) && inDateRange(Date.parse(pr.created_at), createdAfter, createdBefore) },
+      { state: input.state ?? 'open', ...(input.head ? { head: input.head } : {}), ...(input.base ? { base: input.base } : {}), ...newestFirst },
+      {
+        limit: input.limit,
+        cursor: input.cursor,
+        keep: (pr) => (!author || pr.user?.login?.toLowerCase() === author) && inDateRange(Date.parse(pr.created_at), createdAfter, createdBefore) && fresh(pr),
+        ...(updatedSince !== undefined ? { stop: (pr: PullRequest) => !fresh(pr) } : {}),
+      },
     );
   },
 });
 
+/** What `pr get --include` can add, in the order they're read. */
+const INCLUDES = ['reviews', 'checks', 'commits', 'files'] as const;
+type Include = (typeof INCLUDES)[number];
+
+/**
+ * The most GitHub serves of a pull request's commits and files, however it
+ * is paged: a list that long may have been cut short, and says so.
+ */
+const LIST_CAPS: Partial<Record<Include, number>> = { commits: 250, files: 3000 };
+
+/** `--include`: comma-separated, any case, blanks and repeats ignored; an unknown name is refused. */
+function parseInclude(value: string | undefined): Include[] {
+  if (value === undefined) return [];
+  const asked = new Set(value.split(',').map((part) => part.trim().toLowerCase()).filter((part) => part !== ''));
+  const unknown = [...asked].filter((part) => !(INCLUDES as readonly string[]).includes(part));
+  if (unknown.length > 0) {
+    throw new ToilError('INVALID_INPUT', `Unknown --include value ${unknown.map((u) => `"${u}"`).join(', ')}. Use any of ${INCLUDES.join(', ')}.`, {
+      fix: `Pass --include as a comma-separated list of ${INCLUDES.join(', ')}, e.g. --include reviews,checks.`,
+    });
+  }
+  return INCLUDES.filter((name) => asked.has(name));
+}
+
+/** One included list, every page of it, as GitHub returns it. Checks are the head commit's check runs. */
+function includedList(ctx: GitHubContext, owner: string, repo: string, number: number, pr: PullRequest, name: Include): Promise<unknown[]> {
+  const path = prPath(owner, repo, number);
+  switch (name) {
+    case 'reviews':
+      return githubAll(ctx, `${path}/reviews`, `reviews on GitHub PR #${number}`);
+    case 'checks':
+      return githubAll(ctx, `/repos/${owner}/${repo}/commits/${pr.head?.sha}/check-runs`, `GitHub check runs for PR #${number}`, {}, checkRunItems);
+    case 'commits':
+      return githubAll(ctx, `${path}/commits`, `commits on GitHub PR #${number}`);
+    case 'files':
+      return githubAll(ctx, `${path}/files`, `files in GitHub PR #${number}`);
+  }
+}
+
+const includeDescription = 'Also read these lists into included (comma-separated: reviews, checks, commits, files; one more request each, more to page)';
+
 export const getPrCommand = githubArea.command({
   path: ['github', 'pr', 'get'],
-  description: 'Get a pull request by number',
-  input: z.object({ number: prNumber }),
+  description: 'Get a pull request by number, optionally with its reviews, checks, commits and files',
+  toolDescription:
+    "Gets a pull request by number as GitHub returns it. include (comma-separated: reviews, checks, commits, files) adds included, an object holding only the lists asked for, each GitHub's own records with every page read: reviews, checks (the check runs on the head commit, head.sha), commits and files. Each list costs at least one more request. GitHub serves at most 250 commits and 3000 files of a pull request; a list that long gets a GITHUB_LIST_CAPPED warning.",
+  input: z.object({ number: prNumber, include: z.string().optional().describe(includeDescription) }),
   writes: false,
   args: [prNumberArg],
-  examples: [{ owner: 'imagile', repo: 'toil-probe', number: '7' }],
+  options: [{ flags: '--include <list>', field: 'include', description: includeDescription }],
+  examples: [
+    { owner: 'imagile', repo: 'toil-probe', number: '7' },
+    { owner: 'imagile', repo: 'toil-probe', number: '7', include: 'reviews,checks,commits,files' },
+  ],
   run: async (input, ctx) => {
+    // Checked before the repo or any request, so a typo costs nothing.
+    const include = parseInclude(input.include);
     const { owner, repo } = target(ctx);
-    return github(ctx, prPath(owner, repo, parseIntText(input.number)));
+    const number = parseIntText(input.number);
+    const pr = await github<PullRequest>(ctx, prPath(owner, repo, number));
+    if (include.length === 0) return pr;
+    // One list after another, so the requests go out in a fixed order.
+    const included: Partial<Record<Include, unknown[]>> = {};
+    for (const name of include) {
+      const list = await includedList(ctx, owner, repo, number, pr, name);
+      const cap = LIST_CAPS[name];
+      if (cap !== undefined && list.length >= cap) {
+        ctx.warn({ code: 'GITHUB_LIST_CAPPED', message: `GitHub serves at most ${cap} ${name} of a pull request, and PR #${number} returned ${list.length}, so included.${name} may be incomplete.` });
+      }
+      included[name] = list;
+    }
+    return { ...pr, included };
   },
 });
 
