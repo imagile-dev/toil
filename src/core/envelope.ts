@@ -1,4 +1,5 @@
 import { ToilError, type ErrorCode } from './errors.js';
+import type { SummaryReport } from './output/summary.js';
 
 /**
  * The version of toil's command contract: the envelope, the commands, their
@@ -55,6 +56,14 @@ export interface Meta {
    * long the whole wait took. The rest of meta is the last attempt's.
    */
   wait?: { until: string; attempts: number; elapsedMs: number };
+  /**
+   * Under `--summary-file`: which summary rule applied, how many rows the full
+   * result has, where its table is, the file it was written to, and the token
+   * estimates (src/core/output/summary.ts).
+   */
+  summary?: SummaryReport;
+  /** Under `--output-format toon`: `data` is TOON text rather than JSON. Absent for JSON. */
+  format?: 'toon';
 }
 
 /** The status and content type of the response a raw API call returned. */

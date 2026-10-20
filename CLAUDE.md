@@ -594,6 +594,15 @@ a breaking change.
   than 500 levels deep, is `INVALID_INPUT` with its position in the fix, and so is
   any failure applying it; one that selects nothing is `data: null` plus a
   `SELECT_EMPTY` warning. No command may declare a `select` field.
+- **`--output-format` and `--summary-file`** (`outputFormat` and `summaryFile` in every
+  MCP tool's input) are core's too, in `src/core/output/`: `runCommand()` takes them
+  off the input and shapes the envelope after `--select`, so `toil wait` and all
+  three front doors get them with no per-area code. `toon` encodes only `data` (built
+  in, TOON 4.4, held to the spec's fixtures in `test/fixtures/toon/`) and sets
+  `meta.format`; `summaryFile` writes the whole of `data` as JSON through `ctx.files`
+  and puts a summary chosen by fixed rules in `data`, said in `meta.summary`
+  (`skills/toil/core.md`, **Big results**). Without them the output is byte for byte
+  what it was. No command may declare either field.
 - **`meta.warnings`** carries things worth saying that aren't failures (a reserved
   config key, a truncated result), from config loading or a command's `ctx.warn()`.
   **`meta.page`** is `{ nextCursor, limit }`, set with `ctx.setPage()` by any command

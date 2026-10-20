@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { assertNoCoreFields, type CommandDefinition, type CliOption, type ContextNeed } from './command.js';
+import { OUTPUT_FORMAT_FIELD, SUMMARY_FILE_FIELD } from './output/fields.js';
 import { SELECT_FIELD } from './query/select.js';
 import { envName } from './config.js';
 import type { GitRemote } from './call-context.js';
@@ -259,7 +260,7 @@ export const CORE_FIELDS: readonly string[] = [CONNECTION_FIELD, DOSSIER_FIELD, 
 const NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 /** Field names a context input can't take: core's own fields and the global flags. */
 // `host` and `fields` are a dossier section's own keys (src/core/dossier.ts), so no context input can be called either.
-const RESERVED_INPUTS = new Set([...CORE_FIELDS, SELECT_FIELD, 'allowWrite', 'pretty', 'verbose', 'debug', 'config', 'outputFile', 'version', 'help', 'host', 'fields']);
+const RESERVED_INPUTS = new Set([...CORE_FIELDS, SELECT_FIELD, OUTPUT_FORMAT_FIELD, SUMMARY_FILE_FIELD, 'allowWrite', 'pretty', 'verbose', 'debug', 'config', 'outputFile', 'version', 'help', 'host', 'fields']);
 
 const kebab = (name: string) => name.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 

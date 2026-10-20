@@ -4,6 +4,7 @@ import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
 import { ToilError, toToilError } from './core/errors.js';
 import { exitCodeOf, runCommand } from './core/run.js';
+import { OUTPUT_FORMAT_FIELD, SUMMARY_FILE_FIELD } from './core/output/fields.js';
 import { SELECT_FIELD } from './core/query/select.js';
 import { longFlag, type ResolvedRoutedAlias } from './core/routed-alias.js';
 import { fieldSchema, flagRepeats, fromText } from './core/schema.js';
@@ -18,6 +19,10 @@ export interface GlobalOptions {
   workspace?: string;
   /** A JMESPath expression applied to data; it travels to core as the `select` input, as MCP sends it. */
   select?: string;
+  /** `json` or `toon`; it travels to core as the `outputFormat` input (src/core/output/shape.ts). */
+  outputFormat?: string;
+  /** Where the full data goes, with a summary in the envelope; it travels to core as the `summaryFile` input. */
+  summaryFile?: string;
 }
 
 export interface CliIO {
@@ -87,6 +92,8 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       .option('--output-file <path>', 'Write JSON output to file instead of stdout')
       .option('--workspace <dir>', 'The folder commands may read and write files in (default: the working directory; env TOIL_WORKSPACE)')
       .option('--select <expression>', 'Keep only part of data: a JMESPath expression applied to it (meta is left as it is)')
+      .option('--output-format <format>', 'How data is written: json (the default) or toon, a compact table text that costs fewer tokens; the rest of the envelope stays JSON')
+      .option('--summary-file <path>', 'Write the full data as JSON to this new file in the workspace, and print a summary of it in its place (meta.summary says which rule applied)')
       .showHelpAfterError(),
   );
 
@@ -149,7 +156,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       const globals = cmd.optsWithGlobals<GlobalOptions>();
       // An alias in another area's group still hears that group's flags, so one
       // it doesn't take is refused rather than quietly ignored.
-      const input = withSelect({ ...inputFromCli(def, cmd, groupFlags(path[0]!), preset), ...preset }, globals);
+      const input = withCore({ ...inputFromCli(def, cmd, groupFlags(path[0]!), preset), ...preset }, globals);
       // Through an alias in another group (`openshift cluster list` for
       // `connections list`), say so in the words the user typed, rather than
       // let strict parsing name a command and a field they never mentioned.
@@ -219,7 +226,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
           return refuse(toToilError(err));
         }
       }
-      const envelope = await runCommand(def, withSelect(input, globals), (d) => options.createContext(globals, d), options.version, 'cli', {
+      const envelope = await runCommand(def, withCore(input, globals), (d) => options.createContext(globals, d), options.version, 'cli', {
         targets: options.commands,
         progress: (p) => io.stderr(`toil wait: ${p.message} (${Math.round(p.elapsedMs / 1000)}s)\n`),
       });
@@ -280,7 +287,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
         if (theirs.has(long) || cmd.getOptionValueSource(new Option(long).attributeName()) !== "cli") continue;
         return refuse(`${long} is for ${routing} ${values.join(' or ')}; ${routing} ${value} runs toil ${commandName(def)}, which doesn't take it.`, `Leave out ${long}, or pass ${routing} ${values[0]}.`);
       }
-      const input = withSelect(inputFromCli(def, cmd, groupFlags(alias.path[0]!)), globals);
+      const input = withCore(inputFromCli(def, cmd, groupFlags(alias.path[0]!)), globals);
       if (options.capture) return options.capture({ def, input, globals });
       if (globals.outputFile && io.checkFile) {
         try {
@@ -341,7 +348,7 @@ function emit(envelope: Envelope, globals: GlobalOptions, io: CliIO, writes = fa
   }
 }
 
-/** Global flags that mean nothing inside `toil wait --`: they belong before `wait`, where they apply to the whole call. */
+/** Global flags that mean nothing inside `toil wait --`: they belong before `wait`, where they apply to the whole call (the output flags shape the wait's own result). */
 const OUTER_GLOBALS: Array<[keyof GlobalOptions, string]> = [
   ['pretty', '--pretty'],
   ['verbose', '--verbose'],
@@ -349,6 +356,8 @@ const OUTER_GLOBALS: Array<[keyof GlobalOptions, string]> = [
   ['config', '--config'],
   ['outputFile', '--output-file'],
   ['workspace', '--workspace'],
+  ['outputFormat', '--output-format'],
+  ['summaryFile', '--summary-file'],
 ];
 
 /**
@@ -451,7 +460,7 @@ function groupFlagBeforeAlias(args: string[], commands: AnyCommand[], rejected: 
   return undefined;
 }
 
-const VALUE_GLOBALS = new Set(['--config', '--output-file', '--workspace', '--select']);
+const VALUE_GLOBALS = new Set(['--config', '--output-file', '--workspace', '--select', '--output-format', '--summary-file']);
 
 /**
  * The command the user meant, for meta.command on a usage error: the longest
@@ -560,9 +569,26 @@ function inputFromCli(def: AnyCommand, cmd: Command, groupFlags: ReadonlySet<str
   return input;
 }
 
-/** --select is a global flag on the CLI and a field over MCP; either way it reaches core as the input's `select`. */
-function withSelect(input: Record<string, unknown>, globals: GlobalOptions): Record<string, unknown> {
-  return globals.select === undefined ? input : { ...input, [SELECT_FIELD]: globals.select };
+/**
+ * --select, --output-format and --summary-file are global flags on the CLI and
+ * fields over MCP; either way they reach core as the input's `select`,
+ * `outputFormat` and `summaryFile`.
+ */
+function withCore(input: Record<string, unknown>, globals: GlobalOptions): Record<string, unknown> {
+  const core: Record<string, unknown> = {};
+  if (globals.select !== undefined) core[SELECT_FIELD] = globals.select;
+  if (globals.outputFormat !== undefined) core[OUTPUT_FORMAT_FIELD] = globals.outputFormat;
+  if (globals.summaryFile !== undefined) core[SUMMARY_FILE_FIELD] = globals.summaryFile;
+  return Object.keys(core).length === 0 ? input : { ...input, ...core };
+}
+
+/** The global flags that carry core's fields, for argvFor. */
+function coreArgv(input: Record<string, unknown>): string[] {
+  const argv: string[] = [];
+  if (typeof input[SELECT_FIELD] === 'string') argv.push('--select', input[SELECT_FIELD]);
+  if (typeof input[OUTPUT_FORMAT_FIELD] === 'string') argv.push('--output-format', input[OUTPUT_FORMAT_FIELD]);
+  if (typeof input[SUMMARY_FILE_FIELD] === 'string') argv.push('--summary-file', input[SUMMARY_FILE_FIELD]);
+  return argv;
 }
 
 /** The group flags given on this call that `def` doesn't map, by their `flags` text: one rule for both the refusal and strict parsing. */
@@ -637,7 +663,7 @@ export function argvFor(def: AnyCommand, input: Record<string, unknown>, path: s
     }
   }
   if (takesAllowWrite(def) && input.allowWrite === true) argv.push('--allow-write');
-  if (typeof input[SELECT_FIELD] === 'string') argv.push('--select', input[SELECT_FIELD]);
+  argv.push(...coreArgv(input));
   return argv;
 }
 
@@ -654,6 +680,6 @@ function waitArgvFor(def: AnyCommand, input: Record<string, unknown>, commands: 
     const long = opt.flags.split(/[ ,]+/).find((part) => part.startsWith('--'));
     if (value !== undefined && long) argv.push(long, String(value));
   }
-  if (typeof input[SELECT_FIELD] === 'string') argv.push('--select', input[SELECT_FIELD]);
+  argv.push(...coreArgv(input));
   return [...argv, '--', ...argvFor(target, (input.input as Record<string, unknown> | undefined) ?? {})];
 }

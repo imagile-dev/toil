@@ -11,6 +11,7 @@ import { CONTRACT_VERSION, failure, success, type ApiAnswer, type ContextReport,
 import { ToilError, toToilError } from './errors.js';
 import { instrumentFetch, type RequestLog } from './http.js';
 import { progressMessage, withProgress, type ProgressBody } from './progress.js';
+import { checkSummaryFile, shapeEnvelope, takeOutput, type OutputOptions } from './output/shape.js';
 import { applySelect, takeSelect } from './query/select.js';
 import { runWait, type WaitOptions } from './wait.js';
 
@@ -55,15 +56,45 @@ export async function runCommand(
   call: CallOptions = {},
 ): Promise<Envelope> {
   let envelope: Envelope;
+  // --output-format and --summary-file are core's (src/core/output/shape.ts): taken off here, applied to the envelope below.
+  let output: OutputOptions = { format: 'json' };
+  let files: Context['files'] | undefined;
   try {
+    const taken = takeOutput(commandName(def), rawInput);
+    output = taken.output;
+    const input = taken.input;
+    // The summary file is a file this call writes, so a read-only call is refused it before anything runs.
+    if (output.summaryFile !== undefined && call.readOnly) {
+      throw new ToilError('WRITE_DISABLED', `summaryFile writes a file, and this call to ${commandName(def)} was made read-only, so it was refused before anything ran.`, {
+        fix: 'Leave summaryFile out of a read-only call, or make the call without readOnly.',
+      });
+    }
+    // Any context's file service will do: each one a call builds resolves against the same workspace.
+    const make = (d: AnyCommand) => {
+      const ctx = makeContext(d);
+      files ??= ctx.files;
+      return ctx;
+    };
+    const first = output.summaryFile !== undefined ? make(def) : undefined;
+    if (output.summaryFile !== undefined) checkSummaryFile(first!.files, output.summaryFile);
     // `toil wait` runs the read it names once per attempt, each through execute() (src/core/wait.ts).
-    if (def.dispatches) envelope = await runWait(def, rawInput, makeContext, version, via, wait ?? { targets: [] }, call);
-    else envelope = await execute(def, rawInput, makeContext(def), via, call);
+    if (def.dispatches) envelope = await runWait(def, input, make, version, via, wait ?? { targets: [] }, call);
+    else envelope = await execute(def, input, first ?? make(def), via, call);
   } catch (err) {
     envelope = failure(toToilError(err), { command: commandName(def), durationMs: 0, version });
   }
+  envelope = keepExitCode(envelope, shapeEnvelope(envelope, output, files, writesForInput(def, rawInput)));
   // MCP and the API both send fields, so their input errors name fields.
   return via === 'cli' ? envelope : inFieldNames(def, envelope);
+}
+
+/** Whether this call changes data, read from its input as the CLI reads it for --output-file. */
+function writesForInput(def: AnyCommand, rawInput: unknown): boolean {
+  try {
+    return writesFor(def, rawInput);
+  } catch {
+    return def.writes;
+  }
 }
 
 /**

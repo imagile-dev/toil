@@ -49,7 +49,7 @@ const lean = [
   },
   {
     title: 'Only the fields asked for',
-    body: '--select keeps the fields a task names and drops the rest before anything reaches the agent.',
+    body: '--select keeps the fields a task names. --summary-file puts a big result in a file and hands back a sample with stats; --output-format toon writes tables as one line per row.',
     icon: '<path d="M5 7h22M8 13h16M11 19h10"/><path d="M14 25h4" class="accent"/>',
   },
   {
@@ -63,6 +63,39 @@ const lean = [
     icon: '<path d="M6 5h14l6 6v16H6z"/><path d="M20 5v6h6"/><path d="M10 17h12M10 22h8" class="accent"/>',
   },
 ];
+
+// Measured on toil's own repository (#301): one real command, as it comes back
+// by default and with --summary-file and --output-format toon. Tokens are
+// estimated as characters / 3.5, the rule meta.summary states.
+const beforeAfter = {
+  before: {
+    command: 'toil util deps scan --include-transitive --include-dev',
+    size: '141,580 bytes, about 40,450 tokens',
+    excerpt: [
+      '{"ok":true,"data":{"ecosystems":["npm"],"manifests":[…],',
+      ' "packages":[{"name":"@azure-rest/core-client","version":"2.9.0",',
+      ' "ecosystem":"npm","source":"functions/feedback/package-lock.json",',
+      ' "type":"direct","scope":"production"}, … 1,082 more …',
+    ].join('\n'),
+  },
+  after: {
+    command: 'toil util deps scan --include-transitive --include-dev --summary-file deps.json --output-format toon',
+    size: '2,375 bytes, about 680 tokens, with all 1,083 rows in deps.json',
+    excerpt: [
+      'schema:',
+      '  name: string',
+      '  version: string',
+      '  …',
+      'rows[10]{name,version,ecosystem,source,type,scope}:',
+      '  @azure-rest/core-client,2.9.0,npm,functions/feedback/package-lock.json,direct,production',
+      '  source-map-js,1.2.2,npm,functions/feedback/package-lock.json,direct,dev',
+      '  …',
+      'stats[6:]{nulls,distinct,min,max}:',
+      '  name: 0,791,null,null',
+      '  …',
+    ].join('\n'),
+  },
+};
 
 const areas = [
   {
@@ -195,6 +228,16 @@ const teaser = principles.slice(0, 3);
           </li>
         ))}
       </ul>
+      <div class="before-after" data-reveal>
+        <figure>
+          <figcaption><span class="eyebrow">Before</span><code>{beforeAfter.before.command}</code><span class="before-after__size">{beforeAfter.before.size}</span></figcaption>
+          <pre><code>{beforeAfter.before.excerpt}</code></pre>
+        </figure>
+        <figure>
+          <figcaption><span class="eyebrow">After</span><code>{beforeAfter.after.command}</code><span class="before-after__size">{beforeAfter.after.size}</span></figcaption>
+          <pre><code>{beforeAfter.after.excerpt}</code></pre>
+        </figure>
+      </div>
     </div>
   </section>
 
@@ -708,6 +751,19 @@ const teaser = principles.slice(0, 3);
 
   @media (min-width: 560px) { .facts { grid-template-columns: 1fr 1fr; } }
   @media (min-width: 980px) { .facts--four { grid-template-columns: repeat(4, 1fr); gap: var(--space-lg); } }
+
+  /* ---------- Before and after ---------- */
+  .before-after { display: grid; gap: var(--space-md); margin-top: var(--space-xl); }
+  .before-after figure { min-width: 0; display: grid; gap: var(--space-xs); align-content: start; }
+  .before-after figcaption { display: grid; gap: var(--space-3xs); }
+  .before-after figcaption code { color: var(--color-ink); font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .before-after__size { color: var(--color-muted); font-size: var(--text-sm); }
+  .before-after pre {
+    overflow-x: auto; max-width: 100%; margin: 0; padding: var(--space-sm);
+    border: 1px solid var(--color-line); border-radius: var(--radius-md);
+    background: var(--color-bg-deep); font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.6; color: var(--color-muted);
+  }
+  @media (min-width: 980px) { .before-after { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 
   /* ---------- Feedback ---------- */
   .feedback { display: grid; gap: var(--space-sm) var(--space-lg); align-items: center; }

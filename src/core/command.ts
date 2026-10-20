@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { AnyArea } from './area.js';
 import type { CommandContext } from './context.js';
+import { OUTPUT_FORMAT_FIELD, SUMMARY_FILE_FIELD } from './output/fields.js';
 import { SELECT_FIELD } from './query/select.js';
 
 /** A positional CLI argument, mapped onto one input field. */
@@ -178,9 +179,11 @@ export function defineCommand<S extends z.ZodObject>(def: Omit<CommandDefinition
   return { ...def, kind: 'standalone' };
 }
 
-/** `select` is core's on every command (`--select`), so no command may declare a field of that name. */
+/** `select`, `outputFormat` and `summaryFile` are core's on every command (`--select`, `--output-format`, `--summary-file`), so no command may declare a field of those names. */
 export function assertNoCoreFields(def: { path: string[]; input: z.ZodObject }): void {
-  if (SELECT_FIELD in def.input.shape) throw new Error(`Command ${def.path.join(' ')}: "${SELECT_FIELD}" is added by core to every command.`);
+  for (const field of [SELECT_FIELD, OUTPUT_FORMAT_FIELD, SUMMARY_FILE_FIELD]) {
+    if (field in def.input.shape) throw new Error(`Command ${def.path.join(' ')}: "${field}" is added by core to every command.`);
+  }
 }
 
 /**

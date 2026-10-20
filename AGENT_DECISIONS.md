@@ -3886,3 +3886,59 @@ choices made by default inside that:
   `data`.
 - **A resource's row in `--help` lists its actions** (`issue  get, history, create,
   ...`) instead of "jira issue commands".
+
+## Size-aware output (#301)
+
+The issue fixed the shape (TOON for `data` only, a summary by fixed rules with the
+full result on disk, applied in core after `--select`). These are the choices made
+by default inside it:
+
+- **The flags are `--output-format` and `--summary-file <path>`, not `--format` and
+  `--summary` with `--output-file`.** Both names the issue used are taken by area
+  flags already (`util report --format`, `jira issue create --summary`), and a global
+  flag of the same name would swallow them. `--summary-file` is one flag holding the
+  path, so `--output-file` keeps its one meaning (the whole envelope to a file, CLI
+  only) and MCP gets one field, `summaryFile`, rather than a pair where one is
+  meaningless without the other. The fields are `outputFormat` and `summaryFile`,
+  reserved like `select`.
+- **Shaping lives in `runCommand()`, not `execute()`**, the one function all three
+  front doors call, so `toil wait` gets it on its final envelope and each attempt
+  isn't summarized. It uses the call's own `ctx.files`, so the file is in the
+  workspace and never overwrites; the path is checked before the command runs, and a
+  read-only API call refuses `summaryFile`, since it writes a file.
+- **The file is always written, as pretty-printed JSON**, even when the whole result
+  fits in the envelope, so the path is always there for a caller that asked for it.
+  JSON rather than TOON so `jq`, a script, or toil's own `--input-file` read it, and
+  pretty so line tools (`head`, `grep`) work on it.
+- **The rules are ordered record, all, outline, head, sample**, with the issue's two
+  shape rows (nested data that flattens, and that doesn't) checked before the size
+  tiers, since they decide whether there is a table at all. A result with no table
+  counts as one row. The table is the result itself when it's a list, else its
+  longest list reached through objects (up to four levels down), because real
+  results nest their rows (`util report`'s `findings.results`).
+- **"Flattens" means at least 80% of the rows' dot-path keys are in every row.**
+  Lists inside a row stay whole, as one column.
+- **Every summary is held to the 1,500-token budget**: rows are dropped from the end
+  (at least one kept) and recorded in `meta.summary.trimmed`, an outline's sample too
+  big for it is cut to its keys, and `schema` and `stats` cover the first 25 columns,
+  with the full count in `meta.summary.columns`. The issue's 5,000-row case needs that
+  to hold for wide rows.
+- **`stats` has the same four keys for every column** (`min` and `max` null where they
+  don't apply), so TOON writes it as one keyed table.
+- **Sample rows are spread evenly from the first to the last**, not random, so the
+  same data always gives the same summary.
+- **What's beside the table stays, as `fields`**, whole while it's a quarter of the
+  budget or less, else only its top-level primitives (`total`, a cursor).
+- **`--output-format toon` always writes TOON when asked**, even where it comes out
+  longer than JSON (deeply nested data with few repeated rows, such as `util size`'s
+  folder tree, measured about 45% larger as a JSON string). Falling back to JSON
+  silently would make the format depend on the data; the docs say where it pays.
+  Whether to switch automatically is left for the maintainer.
+- **The encoder targets TOON 4.4** (spec v4.4.0, a working draft), and the spec's
+  encode fixtures are vendored under `test/fixtures/toon/` like the JMESPath suite,
+  with its MIT licence beside them and in `NOTICE`. Only the comma delimiter and
+  two-space indent are used; the others are implemented because the fixtures cover
+  them.
+- **The token estimate is JSON characters / 3.5**, as the issue set, on the JSON of
+  `data` whichever format is asked for, so the rule that applies never depends on the
+  format.
