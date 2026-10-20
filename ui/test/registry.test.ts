@@ -81,10 +81,14 @@ describe('every proposal the board, the scripted agent and the pull request view
     for (const c of pullRequests) for (const id of ['bo-web', 'imagile/writers']) proposals.push(reviewProposal(c, { id, why: ['reviewed it before'], score: 1 }, name));
   }
   for (const scripts of Object.values(SCRIPTS)) for (const s of Object.values(scripts)) proposals.push(...(s.proposals ?? []));
+  // Publishing a worklog (#308), to every place a dossier can name.
+  const { publishProposals } = await import('../src/worklog.ts');
+  const everywhere = { confluence: { connection: null, inputs: { space: 'PAY' } }, 'confluence-cloud': { connection: null, inputs: { space: 'PAY' } }, github: { connection: null, inputs: { owner: 'imagile', repo: 'payments-web' } } };
+  proposals.push(...publishProposals('card-payments', { day: '2026-10-12' }, 'C:/Users/you/Documents/worklog-card-payments-2026-10-12.md', everywhere));
   const withCommand = proposals.filter((p) => p?.command);
 
   it('includes some of each kind', () => {
-    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update', 'github pr add-reviewers', 'bitbucket pr add-reviewer', 'bitbucket-cloud pr update']));
+    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update', 'github pr add-reviewers', 'bitbucket pr add-reviewer', 'bitbucket-cloud pr update', 'confluence page create', 'github issue create']));
   });
 
   it.each(withCommand.map((p) => [p!.id, p!] as const))('%s names a write command, with input its schema accepts', (_id, p) => {
@@ -133,5 +137,21 @@ describe('every proposal the board, the scripted agent and the pull request view
     expect(def!.writes).toBe(false);
     const result = new Validator(def!.inputSchema as object, '2020-12', false).validate(h.input);
     expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
+  });
+});
+
+describe("the worklog's two calls to toil beyond the reads (#308)", () => {
+  it('reads the audit log with a read-only command and input it accepts', () => {
+    const def = byName.get('audit list')!;
+    expect(def.writes || def.writesLocal).toBe(false);
+    expect(new Validator(def.inputSchema as object, '2020-12', false).validate({ since: '2026-10-12T07:01:00.000Z', writesOnly: true, limit: 1000 }).errors).toEqual([]);
+  });
+
+  it('exports through util encode, which writes only a local file, and only because of out', () => {
+    const def = byName.get('util encode')!;
+    expect(def.writes).toBe(false);
+    expect(def.writesLocal).toBe(false);
+    expect(def.writesDependOnInput).toBe(true);
+    expect(new Validator(def.inputSchema as object, '2020-12', false).validate({ scheme: 'base64', decode: true, text: 'IyBXb3JrbG9n', out: 'worklog-card-payments-2026-10-12.md' }).errors).toEqual([]);
   });
 });

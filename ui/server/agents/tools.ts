@@ -14,7 +14,10 @@
  * Every tool call adds the ids it returned to a ledger: the items, the
  * parents, children and link targets they name, and the pull requests,
  * builds and deployments linked to them. An answer may cite only ids in its
- * ledger: anything else it names is flagged (answer.ts). A reading room with a sign-out sheet and no photocopier.
+ * ledger: anything else it names is flagged (answer.ts). `worklog_day`
+ * (#308) reads one day's worklog page, the same fold the Worklog view shows,
+ * and vouches for every item and pull request its lines name. A reading room
+ * with a sign-out sheet and no photocopier.
  */
 
 import type { Cache, ChangeRow, TransitionRow } from '../cache.ts';
@@ -23,6 +26,7 @@ import { flagsOf, KINDS, linked, PR_FLAG_LABEL, prMetrics, sizeOf, waitOf, worki
 import { people, readPeople, type Card } from '../../src/model/people.ts';
 import { SimilarityIndex } from '../../../src/core/owi/similar.ts';
 import { CALLER } from '../store.ts';
+import { addDays, appliedText, dayOf, isDay, OUTCOME_TEXT, timeOf, type WorklogPage } from '../../src/model/worklog.ts';
 
 /** What the cache tools read: one dossier's synced rows. */
 export interface AgentData {
@@ -31,6 +35,8 @@ export interface AgentData {
   changes(): ChangeRow[];
   /** When the dossier was last synced, or null if never. */
   syncedAt(): string | null;
+  /** One UTC day's worklog page (#308), as the Worklog view builds it; absent where there is no worklog. */
+  worklog?(day: string): Promise<WorklogPage>;
 }
 
 /**
@@ -603,6 +609,47 @@ export function proposalTool(registry: readonly ReadCommand[]): ToolSpec {
       return { command: c.name, description: c.description, fields, required: (s.required ?? []).filter((k) => !hiddenHere.has(k)) };
     },
   };
+}
+
+/** The worklog tool (#308): one day's page, every line with its time and the ids it names. Days are UTC. */
+export function worklogTool(dossier: string, data: AgentData, ledger: Ledger, now: () => string = () => new Date().toISOString()): ToolSpec[] {
+  const worklog = data.worklog;
+  if (!worklog) return [];
+  return [
+    {
+      name: 'worklog_day',
+      description: `The worklog page for one UTC day of the dossier "${dossier}": the work items that changed status (from, to, who, when), were added to or dropped from a sprint, or got a new blocker; the pull requests opened, reviewed, merged or declined; the builds and deployments that failed or recovered; the agent runs (questions asked in Toil UI) with their proposals and whether toil's audit log shows a person applied them; and the notes a person added. Each line has its UTC time and cite, the ids to cite it by. gaps says what the cache can't vouch for on that day: quote it when it matters to the answer. Built by code from the cache, facts only.`,
+      inputSchema: { type: 'object', properties: { day: { type: 'string', description: 'The UTC day, yyyy-mm-dd. Default: yesterday.' } }, additionalProperties: false },
+      async run(input) {
+        const today = dayOf(now())!;
+        const day = str(input.day) ?? addDays(today, -1);
+        if (!isDay(day)) return { error: `${JSON.stringify(day)} isn't a day: give it as yyyy-mm-dd.` };
+        if (day > today) return { error: `${day} is after today (${today}, UTC), so it has no page yet.` };
+        const page = await worklog(day);
+        const lines = [...page.work, ...page.prs, ...page.delivery].map((e) => {
+          for (const id of e.cites) ledger.add(id);
+          return { time: timeOf(e.at), kind: e.kind, about: e.label, title: e.title, text: e.text, by: e.by, cite: e.cites, ...(e.observed ? { firstSeenBySync: true, previousSync: e.observed.previousSync } : {}) };
+        });
+        return {
+          dossier,
+          day,
+          timeZone: 'UTC',
+          gaps: page.gaps,
+          lines,
+          agentRuns: page.agents.map((r) => ({
+            started: timeOf(r.run.startedAt),
+            finished: r.run.finishedAt ? timeOf(r.run.finishedAt) : null,
+            by: r.run.by,
+            asked: r.run.prompt,
+            outcome: OUTCOME_TEXT[r.run.outcome],
+            proposals: r.proposals.map((x) => ({ title: x.proposal.title, command: x.proposal.command, status: appliedText(x.applied) })),
+          })),
+          notes: page.notes.map((n) => ({ time: timeOf(n.at), by: n.by, text: n.text })),
+          syncs: page.sources,
+        };
+      },
+    },
+  ];
 }
 
 /** Wraps every tool so the ledger records the call. */
