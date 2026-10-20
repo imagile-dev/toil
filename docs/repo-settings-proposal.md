@@ -141,18 +141,14 @@ on stdin with `--input -`.
 
 - **Current** (ruleset `default`, id 25274548, active on `~DEFAULT_BRANCH`):
   - deletion and force pushes (`non_fast_forward`) blocked
-  - pull request required: 1 approval, `dismiss_stale_reviews_on_push: false`,
-    `require_last_push_approval: false`, `required_review_thread_resolution: false`,
+  - pull request required: 1 approval, `dismiss_stale_reviews_on_push: true`,
+    `require_last_push_approval: true` (both applied 2026-10-19, so auto-merge counts
+    only an approval of the head commit), `required_review_thread_resolution: false`,
     `require_code_owner_review: false`, merge methods `squash` only
   - required status check `CI ok` (GitHub Actions, integration id 15368), not strict
   - no bypass actors; the maintainer can't bypass either
-- **Proposed:** keep all of that and add:
-  - **Dismiss stale approvals on push.** An approval counts only for the commit it
-    approved. The review workflow already re-reviews on every `synchronize`, so the
-    bot approves again at the new head.
-  - **Require approval of the most recent push.** Whoever pushed last can't be the
-    approver. On the maintainer's PRs the bot approves; on the bot's release and
-    triage PRs the maintainer does. Nothing changes for either.
+- **Proposed:** keep all of that (stale dismissal and last-push approval are already
+  applied) and add:
   - **Require conversation resolution.** The `ship` skill already resolves the
     threads it fixes and leaves disagreements open for the maintainer; this makes
     that the gate rather than a habit.
