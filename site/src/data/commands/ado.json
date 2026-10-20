@@ -129,6 +129,7 @@
     "flags": [
       "<id>",
       "--state <state>",
+      "--to <intent-or-status>",
       "--collection <name>",
       "--organization <name>",
       "--project <name>",

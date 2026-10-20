@@ -34,6 +34,41 @@ Paged results put the next page's cursor in `meta.page.nextCursor` (null on the 
 page) and the page size in `meta.page.limit`. Pass the cursor back with the
 command's own paging flag, which its reference names.
 
+## Moving work items by intent
+
+`jira issue transition`, `jira-cloud issue transition`, `ado work-item transition` and
+`ado-cloud work-item transition` take `--to <intent>` (`to` over MCP): `start`,
+`review`, `done`, `reopen`, or a status name. toil resolves it against the moves that
+one item offers right now, by its own workflow, because a workflow belongs to the issue
+or work item type: a Story may go through In Review while a Task goes straight to Done.
+In order, the first that gives exactly one move wins:
+
+1. **The dossier's pin** for the item's type: `"transitions": { "Story": { "review":
+   "Peer Review" } }` in the area's section (**Dossiers**, below).
+2. **An exact name**: a transition or status called what you passed, ignoring case.
+3. **The intent's status category**: Jira's To Do, In Progress and Done categories
+   serve `reopen`, `start` and `done`, and Jira files review under In Progress, so a
+   status there whose name says review (In Review, Code Review) serves `review`; Azure DevOps'
+   Proposed, InProgress, Resolved and Completed serve `reopen`, `start`, `review` and
+   `done`. When several moves share the category, a name that starts a word with the
+   intent (`Submit for Review`) picks one.
+4. **A name that says it**: the one move whose name or target status starts a word with
+   the intent.
+
+It never guesses. No match, more than one, or an item already where the intent leads is
+`INVALID_INPUT`, and the fix lists every move the item offers, by name, target status,
+category and id. On success `meta.transition` says what was resolved: `{ intent,
+transition, toStatus, resolvedBy }`, `resolvedBy` being `dossier`, `status`,
+`category` or `name`. Resolving only reads (Jira: the issue with its transitions; Azure
+DevOps: the item and its type's states), after the write gate, which is unchanged:
+writes on for the connection and `--allow-write`. `--transition` (Jira) and `--state`
+(Azure DevOps) still name the move exactly; give one or `--to`, not both.
+
+```bash
+toil jira issue transition PAY-12 --to review --allow-write
+toil ado work-item transition 42 --to done --allow-write
+```
+
 ## Progress
 
 While a command runs, toil says what it's doing: each page a listing reads, and each

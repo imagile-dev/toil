@@ -624,6 +624,10 @@
         {
           "flags": "--transition <name-or-id>",
           "description": "Transition name or ID"
+        },
+        {
+          "flags": "--to <intent-or-status>",
+          "description": "start, review, done, reopen or a status name, resolved against this issue's own workflow"
         }
       ],
       "output": [
@@ -1331,6 +1335,10 @@
         {
           "flags": "--state <state>",
           "description": "New state (e.g. Active, Resolved, Closed)"
+        },
+        {
+          "flags": "--to <intent-or-status>",
+          "description": "start, review, done, reopen or a state name, resolved against this work item type's states"
         }
       ],
       "output": [

@@ -125,6 +125,7 @@ TOIL_CONN_OCP_PROD_TOKEN=...
 - **An area's section needs nothing from the area.** Its keys are:
   - `connection` or `host`, which select the connection (below), never both;
   - `fields`, the field aliases (below);
+  - `transitions`, the pinned transitions (below);
   - the area's own context inputs by name (`project`, `owner`, `namespace`), each
     either a value or an object of repo name to value (`"project": { "payments-api":
     "PAY", "ledger-svc": "LEDG" }`), the value for the repo the folder matched;
@@ -191,6 +192,30 @@ prompts. The names are used through **one fixed input**, never through generated
   Toil UI passes them to `mapOwi` for the section's area; nothing else reads them.
   Like every value in `fields` they are text, so a number is quoted:
   `"iterationDays": "14"`. An unquoted `14` fails `dossiers check`.
+
+### Pinned transitions
+
+`transitions` says, per work item type, which transition or status an intent means
+for this body of work, where the item's own workflow doesn't settle it:
+
+```json
+"jira": { "transitions": { "Story": { "review": "Peer Review" } } },
+"ado": { "transitions": { "Product Backlog Item": { "reopen": "New" } } }
+```
+
+- `--to <intent>` on `issue transition` (jira, jira-cloud) and `work-item transition`
+  (ado, ado-cloud) reads it first, for the item's own type (compared ignoring case),
+  and only for the four intents: `start`, `review`, `done`, `reopen`. The rest of the
+  resolution is in `skills/toil/core.md`, **Moving work items by intent**.
+- A pin is the author's word, so it never falls through to a guess: a pin naming no
+  transition or status the item offers is `INVALID_INPUT`, naming the key path.
+- An environment's section pins over the area's own, type by type and intent by
+  intent.
+- Anything but an object of type to intent to a non-empty name, or a key that isn't
+  one of the four intents, is `DOSSIER_INVALID` with its key path.
+- Core hands an area the pins (`ctx.dossierTransitions()`) only when the call gives
+  an intent, so a call with an exact `--transition` or `--state` never consults the
+  dossier for them.
 
 ## Where dossiers live
 

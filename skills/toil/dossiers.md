@@ -114,7 +114,8 @@ The request it sent was
   "jira": {                                     // one section per area
     "host": "jira.imagile.dev",                 // selects your Jira connection on this host
     "project": "PAY",                           // a context input: fills --project
-    "fields": { "storyPoints": "customfield_10002" }   // so --field storyPoints=5 works
+    "fields": { "storyPoints": "customfield_10002" },  // so --field storyPoints=5 works
+    "transitions": { "Story": { "review": "Peer Review" } }   // so --to review finds it
   },
   "bitbucket": { "host": "bitbucket.imagile.dev", "project": "PAY", "repo": "payments-core" },
   "jenkins": { "host": "jenkins.imagile.dev", "jobs": ["payments-core"] },   // "jobs": reference data
@@ -146,6 +147,10 @@ The request it sent was
     `iterationDays` (how many days each milestone runs as a sprint, as text like every
     value in `fields`: `"iterationDays": "14"`, not `14`). Without them a
     GitHub issue's milestone is its sprint and a `points: N` label its estimate.
+  - `transitions`: per work item type, the transition or status each intent
+    (`start`, `review`, `done`, `reopen`) means, used first by `--to` on `issue
+    transition` and `work-item transition` (`core.md`, **Moving work items by
+    intent**). Anything else under it fails `toil dossiers check`.
   - anything else (`jobs`, `boards`, `deployments`, an OpenShift `namespace`) is
     **reference data**: kept as written for people, agents, Toil UI and
     `check-dossier` to read, and never applied to a call. Adding one says so in

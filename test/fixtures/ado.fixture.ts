@@ -187,6 +187,8 @@ export const routes: Route[] = [
   { path: `${PROJ}/_apis/wit/classificationnodes/areas`, respond: { json: node('area', 'Imagile', [node('area', 'Web')]) } },
   { path: `${PROJ}/_apis/wit/classificationnodes/iterations`, respond: { json: node('iteration', 'Sprint 1') } },
   { path: `${PROJ}/_apis/wit/workitemtypes`, respond: { json: { count: 2, value: [{ name: 'Bug', fields: [{ referenceName: 'System.Title', alwaysRequired: true }, { referenceName: 'System.Description' }] }, { name: 'Task' }] } } },
+  // Invented from the docs: the Agile process's Bug, whose Resolved state is what --to review finds.
+  { path: '/DefaultCollection/Imagile/_apis/wit/workitemtypes/Bug/states', respond: { json: { count: 4, value: [{ name: 'New', color: 'b2b2b2', category: 'Proposed' }, { name: 'Active', color: '007acc', category: 'InProgress' }, { name: 'Resolved', color: 'ff9d00', category: 'Resolved' }, { name: 'Closed', color: '339933', category: 'Completed' }] } } },
   { path: /^\/DefaultCollection\/Imagile\/_apis\/wit\/workitemtypes\/[^/]+\/states$/, respond: { json: { count: 2, value: [{ name: 'New', color: 'b2b2b2', category: 'Proposed' }, { name: 'Active', color: '007acc', category: 'InProgress' }] } } },
   {
     path: `${COLL}/_apis/wit/fields`,

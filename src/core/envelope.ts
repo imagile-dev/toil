@@ -1,4 +1,5 @@
 import { ToilError, type ErrorCode } from './errors.js';
+import type { TransitionReport } from './transition-intent.js';
 import type { SummaryReport } from './output/summary.js';
 
 /**
@@ -63,6 +64,12 @@ export interface Meta {
    * long the whole wait took. The rest of meta is the last attempt's.
    */
   wait?: { until: string; attempts: number; elapsedMs: number };
+  /**
+   * For a transition asked for by intent (`--to review`): what was asked, the
+   * transition and status it resolved to, and which rule chose it. Set with
+   * `ctx.setTransition` (src/core/transition-intent.ts).
+   */
+  transition?: TransitionReport;
   /**
    * Under `--summary-file`: which summary rule applied, how many rows the full
    * result has, where its table is, the file it was written to, and the token

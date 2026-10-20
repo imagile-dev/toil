@@ -103,6 +103,21 @@
     ]
   },
   {
+    "name": "work-item transition",
+    "tool": "ado_cloud_work_item_transition",
+    "description": "Set the state of a work item",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<id>",
+      "--state <state>",
+      "--to <intent-or-status>",
+      "--project <name>",
+      "--repo <name>",
+      "--allow-write"
+    ]
+  },
+  {
     "name": "work-item search",
     "tool": "ado_cloud_work_item_search",
     "description": "Run a WIQL query (consider --output-file for large results)",

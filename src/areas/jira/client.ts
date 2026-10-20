@@ -3,6 +3,7 @@ import type { Connection } from '../../core/area.js';
 import type { CommandContext } from '../../core/context.js';
 import { apiRequest } from '../../core/api.js';
 import { ToilError } from '../../core/errors.js';
+import type { JiraIssueWithTransitions } from '../../core/transition-intent.js';
 import { paginate, type PageStyle } from '../../core/paginate.js';
 import { repointUrl, type QueryValue } from '../../core/rest.js';
 import { jiraArea, type CustomFieldDefinition } from './area.js';
@@ -286,6 +287,11 @@ export async function updateIssue(ctx: JiraContext, key: string, fields: Record<
 export async function listTransitions(ctx: JiraContext, key: string): Promise<JiraTransition[]> {
   const result = await jira<{ transitions: JiraTransition[] }>(ctx, `${API}/issue/${seg(key)}/transitions`);
   return result.transitions;
+}
+
+/** The issue's type and status with the transitions it offers, in one read: what `--to` resolves against. */
+export function issueWithTransitions(ctx: JiraContext, key: string): Promise<JiraIssueWithTransitions> {
+  return jira<JiraIssueWithTransitions>(ctx, `${API}/issue/${seg(key)}`, { params: { fields: 'issuetype,status', expand: 'transitions' } });
 }
 
 export async function transitionIssue(ctx: JiraContext, key: string, transitionId: string): Promise<void> {

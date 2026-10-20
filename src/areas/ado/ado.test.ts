@@ -332,7 +332,7 @@ describe('discovery', () => {
     const { calls, data } = await run('work-item types', AT);
     expect(calls.map((c) => new URL(c.url).pathname)).toEqual([`${PROJ}/_apis/wit/workitemtypes`, `${PROJ}/_apis/wit/workitemtypes/Bug/states`, `${PROJ}/_apis/wit/workitemtypes/Task/states`]);
     expect(data).toEqual([
-      { name: 'Bug', states: ['New', 'Active'], requiredFields: ['System.Title'] },
+      { name: 'Bug', states: ['New', 'Active', 'Resolved', 'Closed'], requiredFields: ['System.Title'] },
       { name: 'Task', states: ['New', 'Active'], requiredFields: [] },
     ]);
   });

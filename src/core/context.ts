@@ -9,6 +9,7 @@ import type { GitContext } from './git-repo.js';
 import type { FrontDoor } from './run.js';
 import type { SecretStore } from './keychain.js';
 import type { ProgressEvent } from './progress.js';
+import type { TransitionPins, TransitionReport } from './transition-intent.js';
 import type { Prompter } from './prompt.js';
 
 /** Everything a command may touch. Tests build one with a fake fetch. */
@@ -174,6 +175,13 @@ export interface CommandContext<C = undefined, X = Record<string, string | undef
    * Asking consults the dossier.
    */
   dossierView: () => DossierView | undefined;
+  /**
+   * The transitions the call's dossier pins for this area, work item type to
+   * intent to a transition or status name (`{ "Story": { "review": "Peer
+   * Review" } }`): its environment's section's over its own. Empty with no
+   * dossier. Asking consults the dossier, so call it only for `--to`.
+   */
+  dossierTransitions: () => TransitionPins;
   /** Set only for defineConfigCommand commands. */
   manage?: ConfigAccess;
   signal: AbortSignal;
@@ -183,6 +191,8 @@ export interface CommandContext<C = undefined, X = Record<string, string | undef
   setPage: (page: Page) => void;
   /** Set meta.response: the status and content type of a raw API call's answer. */
   setResponse: (response: ApiAnswer) => void;
+  /** Set meta.transition: what `--to` resolved to and how. */
+  setTransition: (report: TransitionReport) => void;
   /** Set meta.lint: the engine and rules the pre-flight SQL lint ran (src/core/db/lint/). */
   setLint: (lint: LintReport) => void;
   /**
