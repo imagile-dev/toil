@@ -140,6 +140,13 @@ The request it sent was
   - the area's context inputs by name (`project`, `repo`, `owner`). A value may also
     be an object of repo name to value, for a dossier with several repositories.
   - `fields`: friendly names for custom field ids, used by `--field`.
+    Toil UI also reads the Open Work Item keys there (`estimate`, `estimateUnit`,
+    `priority`, `type`, `team`, `dueDate`, `iteration`) when it maps the area's work
+    items, and for a GitHub repository with no board, `estimateLabel` (the label that
+    holds an estimate, `{n}` for the number: `"estimateLabel": "size/{n}"`) and
+    `iterationDays` (how many days each milestone runs as a sprint, as text like every
+    value in `fields`: `"iterationDays": "14"`, not `14`). Without them a
+    GitHub issue's milestone is its sprint and a `points: N` label its estimate.
   - `transitions`: per work item type, the transition or status each intent
     (`start`, `review`, `done`, `reopen`) means, used first by `--to` on `issue
     transition` and `work-item transition` (`core.md`, **Moving work items by
