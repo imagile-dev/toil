@@ -24,7 +24,8 @@ main:has(> .dossier-shell) { max-width: 1680px; padding-top: 0.5rem; padding-bot
 .dossier-bar__about .source-badges { flex: none; }
 .dossier-bar__desc { margin: 0; min-width: 0; flex: 0 1 auto; }
 /* One line: the description is cut to fit, with the whole of it in its tooltip; editing it opens the full field. */
-.dossier-bar__desc .editable--description:not(.editable--open) { display: flex; align-items: center; min-width: 0; }
+.dossier-bar__desc .editable--description:not(.editable--open) { display: flex; flex-wrap: nowrap; align-items: center; min-width: 0; }
+.dossier-bar__desc .edit-pencil { flex: none; }
 .dossier-bar__desc-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dossier-bar__about:has(.editable--open) { flex-wrap: wrap; }
 .dossier-bar__about:has(.editable--open) .dossier-bar__desc { flex: 1 1 100%; }
