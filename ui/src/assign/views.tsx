@@ -391,18 +391,22 @@ function RenewAll({ list, onDone }: { list: AssignmentList; onDone: () => void }
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<string[] | null>(null);
+  // The list the dialog shows is the one it opened on, so the result stays on screen once nothing is stale.
+  const [shown, setShown] = useState<Renewal[] | null>(null);
   if (!api) return null;
+  const renewChat = async () => {
+    const why = await chat!.renew();
+    if (why) throw new Error(why);
+  };
   const rows: Renewal[] = [
-    ...(chat?.session?.stale ? [{ key: 'chat', label: `The chat about ${dossier.name}: ${chat.session.stale.text}`, skip: chat.busy ? "It is answering a question now, and a renew never interrupts one." : null, run: async () => {
-            const why = await chat.renew();
-            if (why) throw new Error(why);
-          } }] : []),
+    ...(chat?.session?.stale ? [{ key: 'chat', label: `The chat about ${dossier.name}: ${chat.session.stale.text}`, skip: chat.busy ? 'It is answering a question now, and a renew never interrupts one.' : null, run: renewChat }] : []),
     ...list.assignments
       .filter((a) => a.stale)
       .map((a) => ({ key: a.id, label: `${MODE_INFO[a.mode].label} ${a.item} on ${a.adapter ? ADAPTER_NAME[a.adapter] : 'no adapter'}, ${STATE_LABEL[a.state].toLowerCase()}: ${a.stale!.text}`, skip: renewRefusal(a), run: () => api.renew(a.id) })),
   ];
-  if (!rows.length) return null;
-  const go = rows.filter((r) => !r.skip);
+  if (!rows.length && !open) return null;
+  const listed = shown ?? rows;
+  const go = listed.filter((r) => !r.skip);
   const renewAll = async () => {
     setBusy(true);
     const out: string[] = [];
@@ -420,14 +424,16 @@ function RenewAll({ list, onDone }: { list: AssignmentList; onDone: () => void }
   };
   return (
     <>
+      {rows.length > 0 && (
       <Cluster>
-        <Button className="btn" onPress={() => (setSaid(null), setOpen(true))} data-renew-all="">
+        <Button className="btn" onPress={() => (setSaid(null), setShown(rows), setOpen(true))} data-renew-all="">
           Renew all stale…
         </Button>
         <span className="note">
           <StaleChip /> {rows.length === 1 ? 'One session started' : `${rows.length} sessions started`} on instructions that have changed since.
         </span>
       </Cluster>
+      )}
       <ModalOverlay className="feedback-overlay" data-backdrop="" isDismissable isOpen={open} onOpenChange={setOpen}>
         <Modal className="feedback-modal">
           <Dialog className="feedback-dialog" aria-labelledby="renew-title">
@@ -438,7 +444,7 @@ function RenewAll({ list, onDone }: { list: AssignmentList; onDone: () => void }
                 </Heading>
                 <p className="note">Each renews as a fresh session on today's instructions, with what the old one left as context. The old one stays readable. Renew never interrupts a turn, and skips any session waiting on you.</p>
                 <ul className="rows renew-list">
-                  {rows.map((r) => (
+                  {listed.map((r) => (
                     <li key={r.key}>
                       <strong>{r.skip ? 'Skipped' : 'Renews'}</strong>: {r.label}
                       {r.skip && <span className="note"> {r.skip}</span>}
