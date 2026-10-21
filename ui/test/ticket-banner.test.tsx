@@ -73,6 +73,17 @@ describe('the "Not ticketed yet" banner', () => {
     expect(within(cards[0]!).getByText(/^toil ado work-item create/).textContent).toContain("--type 'User Story'");
   }, 20_000);
 
+  it('stays away from Analyze, which is a question about the dossier, and still catches work asked after it (#343)', async () => {
+    const { pane, say } = await chat('settlement');
+    await userEvent.click(within(pane).getByRole('button', { name: 'Analyze' }));
+    await within(pane).findByRole('heading', { level: 3, name: 'Analyze' });
+    await waitFor(() => expect(within(pane).getByRole('textbox', { name: 'Your question' })).not.toHaveProperty('disabled', true), { timeout: 8000 });
+    expect(within(pane).queryByRole('region', { name: 'Not ticketed yet' })).toBeNull();
+    await say('Rotate the kubernetes ingress certificates');
+    const banner = await within(pane).findByRole('region', { name: 'Not ticketed yet' });
+    expect(banner.textContent).toContain('there is no likely ticket');
+  }, 20_000);
+
   it('stays away from a question, and from work that names its ticket', async () => {
     const { pane, say } = await chat('checkout-web');
     await say('What is blocking the saved cards feature?');

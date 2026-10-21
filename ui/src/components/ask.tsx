@@ -40,6 +40,8 @@ interface Turn {
   kind: 'turn';
   id: number;
   prompt: string;
+  /** Analyze's pulse check (#343), which is a question about the dossier, never work to ticket (#304). */
+  analyze?: boolean;
   answer: Answer | null;
   error: string | null;
   done: boolean;
@@ -111,7 +113,7 @@ function useChat() {
     const controller = new AbortController();
     abort.current = controller;
     const started = Date.now();
-    setEntries((es) => [...es, { kind: 'turn', id, prompt: shown, answer: null, error: null, done: false, started }]);
+    setEntries((es) => [...es, { kind: 'turn', id, prompt: shown, answer: null, error: null, done: false, started, ...(prompt === ANALYZE ? { analyze: true } : {}) }]);
     try {
       if (agent.stream) {
         for await (const partial of agent.stream(dossier.name, prompt, controller.signal, style, chat, extra)) {
@@ -332,7 +334,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
               </div>
             ),
           )}
-          <TicketBanner prompts={turns.map((t) => t.prompt)} />
+          <TicketBanner prompts={turns.filter((t) => !t.analyze).map((t) => t.prompt)} />
           <div ref={end} />
         </div>
       </div>
