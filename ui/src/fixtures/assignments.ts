@@ -206,7 +206,7 @@ export function sampleRecords(cards: DossierData): AssignmentRecord[] {
       createdAt: minutes(180),
       startedAt: minutes(179),
       endedAt: minutes(159),
-      stop: { reason: 'time', message: 'Stopped at the time limit of 20 minutes, before the agent finished.', fix: 'Raise the limit in the Agents lane, or assign a smaller piece of the item.' },
+      stop: { reason: 'time', message: 'Stopped at the time limit of 20 minutes, before the agent finished.', fix: 'Raise the limit in the Agents sidebar, or assign a smaller piece of the item.' },
       startedOn: startedOn('corp-jira:PAY-101', 'codex', minutes(179), [...READ_TOOLS, 'codex sandbox'], SAMPLE_FINGERPRINT_BEFORE),
       transcript: [
         { at: minutes(180), kind: 'note', title: 'Assigned by a person in Toil UI to Codex, in implement mode.' },

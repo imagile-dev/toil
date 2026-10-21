@@ -55,8 +55,8 @@ describe('what the showcase reads from Toil UI', () => {
 });
 
 describe('the controls the showcase\'s tour presses', () => {
-  it('has the board heading, the Ask bar, the starter it asks, the agent switcher and the chat form', async () => {
-    window.location.hash = `#/dossier/${DOSSIER}`;
+  it('has the board heading on the Board tab, the Ask bar, the starter it asks, the agent switcher and the chat form', async () => {
+    window.location.hash = `#/dossier/${DOSSIER}/board`;
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
     await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
     expect(document.querySelector('#board')).not.toBeNull();

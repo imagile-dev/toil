@@ -11,7 +11,7 @@
 
 import { ADAPTER_NAME, type AssignAdapter, type AssignmentEvent, type AssignState } from './assign/model.ts';
 
-/** What can notify: the Agents lane's end states, a usage cap (#295), and a session gone stale (#305). */
+/** What can notify: the Agents sidebar's end states, a usage cap (#295), and a session gone stale (#305). */
 export type Notable = 'needs-you' | 'done' | 'failed' | 'cap' | 'stale';
 export const NOTABLES: readonly Notable[] = ['needs-you', 'failed', 'cap', 'done', 'stale'];
 export const NOTABLE_LABEL: Record<Notable, string> = {

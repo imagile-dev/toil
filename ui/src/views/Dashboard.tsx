@@ -1,36 +1,34 @@
 /**
- * One dossier's dashboard (#228, #252, #253): its sprint with a burn-up, what
- * needs attention, the board, throughput, cycle time and aging work, the
- * dependency graph, its stories with their pull requests, builds and
- * deployments side by side. The chat is the Ask bar above every dossier
- * page (components/ask.tsx, #343). Every panel
- * was filled by toil commands (src/load.ts) and says which ones.
- * The one page the weekly status meeting was trying to be.
+ * A dossier's own tabs (#228, #252, #253, #394): the Overview, the Board with
+ * its stories, pull requests, builds and deployments side by side, the
+ * dependency graph, and Analyze's pulse checks. The frame around them, the
+ * top row, the tabs and the Agents sidebar, is ./DossierShell.tsx; the chat
+ * is the Ask bar in its top row (components/ask.tsx, #343). Every panel was
+ * filled by toil commands (src/load.ts) and says which ones.
+ * The one page the weekly status meeting was trying to be, now with tabs.
  */
 
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Checkbox } from 'react-aria-components';
-import { Cited, ItemLink } from '../components/items.tsx';
+import { ItemLink } from '../components/items.tsx';
 import { DataTable, type Column } from '../components/layout.tsx';
-import { CountStrip, Editable, SourceBadges } from '../components/dossier-head.tsx';
-import { previewOf } from '../model/preview.ts';
-import { Panel, Sources } from '../components/panel.tsx';
+import { Panel } from '../components/panel.tsx';
 import { Help } from '../components/help.tsx';
 import { useData, useDerived } from '../data.ts';
-import { STATUS_CATEGORY_LABEL, day, dateTime, dossierHref, estimateText, peopleHref, prsHref } from '../format.ts';
+import { STATUS_CATEGORY_LABEL, boardHref, dateTime, estimateText, peopleHref } from '../format.ts';
+import { needingAttention } from '../model/insights.ts';
 import { assignedTo, cardByKey, people } from '../model/people.ts';
-import { describe, type Health } from '../model/sprint.ts';
+import type { Health } from '../model/sprint.ts';
 import { FLAG_TEXT, trace, type Trace as TraceRow } from '../model/trace.ts';
 import { useSkins, useTerm, useWords } from '../skins.tsx';
 import type { ChangeRef, Deployment } from '../toil.ts';
 import { Board } from './Board.tsx';
-import { AgentsLane } from '../assign/views.tsx';
-import { Aging, Attention, Burnup, CycleTime, Throughput } from './Flow.tsx';
+import { Analyses } from './Analyses.tsx';
+import { Overview } from './Overview.tsx';
 
 // The graph library is the biggest piece of the page, so it loads on its own, after the rest.
 const Graph = lazy(() => import('./Graph.tsx').then((m) => ({ default: m.Graph })));
 
-const pts = (n: number) => `${n} ${n === 1 ? 'point' : 'points'}`;
 /** `corp-bitbucket:PAY/payments-core#311` reads as `#311`; the panel already says where. */
 const short = (id: string) => id.slice(id.lastIndexOf('#'));
 
@@ -142,149 +140,119 @@ function useBoardFilter(person: string | undefined) {
   }, [person, dossier, now]);
 }
 
-export function Dashboard({ person }: { person?: string } = {}) {
-  const { dossier, now, config, described } = useData();
-  const preview = useMemo(() => previewOf(dossier, now, null), [dossier, now]);
+export type DashboardTab = 'overview' | 'board' | 'dependencies' | 'analyses';
+
+/** The dossier's own tabs (#394). The rest (pull requests, people, the worklog) are views of their own in the same frame. */
+export function Dashboard({ tab = 'overview', person }: { tab?: DashboardTab; person?: string } = {}) {
+  const { health: h } = useDerived();
+  useSprintProgress(h);
+  if (tab === 'board') return <BoardTab {...(person ? { person } : {})} />;
+  if (tab === 'dependencies') return <DependenciesTab />;
+  if (tab === 'analyses') return <Analyses />;
+  return <Overview />;
+}
+
+/**
+ * The Board tab: the sprint's board with every card that needs attention
+ * flagged, and a filter for only those (#394, which retired the separate
+ * Needs attention panel); then each story with its pull requests, builds and
+ * deployments, and the builds and deployments themselves.
+ */
+function BoardTab({ person }: { person?: string }) {
+  const { dossier } = useData();
   const filter = useBoardFilter(person);
-  const { EmptyState, Loading } = useSkins();
+  const { EmptyState } = useSkins();
   const term = useTerm();
   const words = useWords();
   const [gapsOnly, setGapsOnly] = useState(false);
-  const { health: h } = useDerived();
-  useSprintProgress(h);
-  const rows = trace(h?.items ?? dossier.items, dossier.changes, dossier.deployments);
+  const [attentionOnly, setAttentionOnly] = useState(false);
+  const { health: h, insights: prepared } = useDerived();
+  const onBoard = h?.items ?? dossier.items;
+  const flagged = needingAttention(onBoard, prepared);
+  const mine = filter ? onBoard.filter((i) => filter.items.includes(i)) : onBoard;
+  const cards = attentionOnly ? mine.filter((i) => flagged.includes(i)) : mine;
+  const rows = trace(onBoard, dossier.changes, dossier.deployments);
   const shown = gapsOnly ? rows.filter((r) => r.flags.length) : rows;
-  const prs = dossier.changes.filter((c) => c.kind === 'pull-request');
   const builds = dossier.changes.filter((c) => c.kind === 'build');
   const all = [...dossier.calls.work, ...dossier.calls.prs, ...dossier.calls.builds, ...dossier.calls.deployments];
 
   return (
-    <>
-      <div className="view-head dossier-head">
-        <p className="eyebrow">
-          {words('dossier.eyebrow')} <Help topic="dashboard" />
-        </p>
-        <h1 tabIndex={-1}>
-          <Editable field="name" dossier={dossier.name} value={dossier.name} config={config ?? null} onSaved={described ?? (() => undefined)}>
-            {dossier.name}
-          </Editable>
-        </h1>
-        <p className="lede">
-          <Editable field="description" dossier={dossier.name} value={dossier.description} config={config ?? null} onSaved={described ?? (() => undefined)}>
-            {dossier.description ?? <span className="note">No description</span>}
-          </Editable>
-        </p>
-        <div className="dossier-head__strip">
-          <SourceBadges sources={dossier.sources} dossier={dossier.name} />
-          <CountStrip preview={preview} />
+    <div className="tab-panels">
+      <Panel id="board" title={term('board', h ? `${h.sprint.name} board` : 'Board')} calls={dossier.calls.work} alerts={false}>
+        {filter && <BoardFilter name={filter.name} shown={mine.length} all={filter.items.length} />}
+        <div className="board-tools">
+          <Checkbox className="check" isSelected={attentionOnly} onChange={setAttentionOnly} data-attention-only="">
+            <span className="box" aria-hidden="true">
+              {attentionOnly ? '✓' : ''}
+            </span>
+            Needs attention only ({flagged.length})
+          </Checkbox>
+          <p className="note">
+            A flagged card needs action now or a look: it is blocked, its build fails, it is aging or stale, and the like. <Help topic="insights" />
+          </p>
         </div>
-        <Sources calls={dossier.calls.dossier} />
+        <Board items={cards} />
+      </Panel>
+
+      <Panel id="trace" title="Stories, pull requests, builds and deployments" calls={all} alerts={false}>
+        <p className="note">{words('trace.note')}</p>
+        <Checkbox className="check" isSelected={gapsOnly} onChange={setGapsOnly}>
+          <span className="box" aria-hidden="true">
+            {gapsOnly ? '✓' : ''}
+          </span>
+          Only items with something to check
+        </Checkbox>
+        <DataTable className="trace" label="Work items and their delivery" wide rows={shown} rowKey={(r) => r.item.id} columns={traceColumns(builds)} />
+      </Panel>
+
+      <div className="panel-grid">
+        <Panel id="builds" title="Builds" calls={dossier.calls.builds}>
+          {builds.length ? (
+            <ul className="rows">
+              {builds.map((c) => (
+                <li key={c.id}>
+                  <ChangeLink change={c} /> <Outcome of={c} />
+                  <p className="evidence">
+                    For pull request {c.builds ? short(c.builds) : 'none'}, {dateTime(c.at)}.
+                  </p>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <EmptyState message={words('empty.builds')} />
+          )}
+        </Panel>
+
+        <Panel id="deployments" title="Deployments" calls={dossier.calls.deployments}>
+          {dossier.deployments.length ? (
+            <ul className="rows">
+              {dossier.deployments.map((d) => (
+                <DeploymentRow key={d.id} d={d} />
+              ))}
+            </ul>
+          ) : (
+            <EmptyState message={words('empty.deployments')} />
+          )}
+        </Panel>
       </div>
+    </div>
+  );
+}
 
-      <div className="dashboard">
-        <div className="dash-main">
-          <Panel id="sprint" title={term('sprint', h ? `${h.sprint.name}: day ${h.days.gone} of ${h.days.total}` : 'Sprint')} calls={dossier.calls.work}>
-            {h ? <Sprint h={h} /> : <EmptyState message={words('empty.sprint')} />}
-          </Panel>
-
-          <Panel id="attention" title="Needs attention" calls={all} alerts={false}>
-            <p className="note">
-              {words('attention.note')} <Help topic="insights" />
-            </p>
-            <Attention />
-          </Panel>
-
-          <Panel id="board" title={term('board', h ? `${h.sprint.name} board` : 'Board')} calls={dossier.calls.work} alerts={false}>
-            {filter && <BoardFilter name={filter.name} shown={(h?.items ?? dossier.items).filter((i) => filter.items.includes(i)).length} all={filter.items.length} />}
-            <Board items={filter ? (h?.items ?? dossier.items).filter((i) => filter.items.includes(i)) : (h?.items ?? dossier.items)} />
-          </Panel>
-
-          <AgentsLane />
-
-          <div className="panel-grid panel-grid--two">
-            <Panel id="throughput" title="Throughput" calls={dossier.calls.work} alerts={false}>
-              <Throughput />
-            </Panel>
-            <Panel id="cycle" title="Cycle time" calls={dossier.calls.work} alerts={false}>
-              <CycleTime />
-            </Panel>
-          </div>
-
-          <Panel id="aging" title="Aging work in progress" calls={dossier.calls.work} alerts={false}>
-            <p className="note">{words('aging.note')}</p>
-            <Aging />
-          </Panel>
-
-          <Panel id="graph" title={term('dependencies', 'Dependencies')} calls={dossier.calls.work} alerts={false}>
-            <Suspense fallback={<Loading message={words('loading.graph')} />}>
-              <Graph />
-            </Suspense>
-          </Panel>
-
-          <Panel id="trace" title="Stories, pull requests, builds and deployments" calls={all} alerts={false}>
-            <p className="note">{words('trace.note')}</p>
-            <Checkbox className="check" isSelected={gapsOnly} onChange={setGapsOnly}>
-              <span className="box" aria-hidden="true">
-                {gapsOnly ? '✓' : ''}
-              </span>
-              Only items with something to check
-            </Checkbox>
-            <DataTable className="trace" label="Work items and their delivery" wide rows={shown} rowKey={(r) => r.item.id} columns={traceColumns(builds)} />
-          </Panel>
-
-          <div className="panel-grid">
-            <Panel id="prs" title="Pull requests" calls={dossier.calls.prs}>
-              <p className="note">
-                <a href={prsHref(dossier.name)}>The pull requests view</a> ranks the open ones by how long each has waited and on what, with flags and flow by author kind.
-              </p>
-              {prs.length ? (
-                <ul className="rows">
-                  {prs.map((c) => (
-                    <li key={c.id}>
-                      <ChangeLink change={c} /> <Outcome of={c} />
-                      <p className="evidence">
-                        <Items ids={c.items} />. {c.outcome === 'merged' ? 'Merged' : 'Opened'} {dateTime(c.at)}.
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyState message={words('empty.prs')} />
-              )}
-            </Panel>
-
-            <Panel id="builds" title="Builds" calls={dossier.calls.builds}>
-              {builds.length ? (
-                <ul className="rows">
-                  {builds.map((c) => (
-                    <li key={c.id}>
-                      <ChangeLink change={c} /> <Outcome of={c} />
-                      <p className="evidence">
-                        For pull request {c.builds ? short(c.builds) : 'none'}, {dateTime(c.at)}.
-                      </p>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <EmptyState message={words('empty.builds')} />
-              )}
-            </Panel>
-
-            <Panel id="deployments" title="Deployments" calls={dossier.calls.deployments}>
-              {dossier.deployments.length ? (
-                <ul className="rows">
-                  {dossier.deployments.map((d) => (
-                    <DeploymentRow key={d.id} d={d} />
-                  ))}
-                </ul>
-              ) : (
-                <EmptyState message={words('empty.deployments')} />
-              )}
-            </Panel>
-          </div>
-        </div>
-      </div>
-    </>
+/** The Dependencies tab: the dependency graph, with every relation listed in words under it. */
+function DependenciesTab() {
+  const { dossier } = useData();
+  const { Loading } = useSkins();
+  const term = useTerm();
+  const words = useWords();
+  return (
+    <div className="tab-panels">
+      <Panel id="graph" title={term('dependencies', 'Dependencies')} calls={dossier.calls.work} alerts={false}>
+        <Suspense fallback={<Loading message={words('loading.graph')} />}>
+          <Graph />
+        </Suspense>
+      </Panel>
+    </div>
   );
 }
 
@@ -306,7 +274,7 @@ function BoardFilter({ name, shown, all }: { name: string | null; shown: number;
           Showing {name}'s items: {on(shown)} on this board{all > shown ? `, of ${on(all)} assigned to them in all` : ''}.{' '}
         </>
       )}
-      <a href={dossierHref(dossier.name)}>Show everyone's</a> · <a href={peopleHref(dossier.name)}>Back to People</a>
+      <a href={boardHref(dossier.name)}>Show everyone's</a> · <a href={peopleHref(dossier.name)}>Back to People</a>
     </p>
   );
 }
@@ -314,8 +282,8 @@ function BoardFilter({ name, shown, all }: { name: string | null; shown: number;
 /**
  * How far through its sprint the dossier is, from 0 on day one to 1 on the
  * last, as `--sprint-progress` on the page, for a theme's sky to follow
- * (Harvest's dawn to dusk). It is decoration: the sprint panel says the day
- * in words. Off the dashboard, there is no sprint, and the property goes.
+ * (Harvest's dawn to dusk). It is decoration: the top row says the day
+ * in words. Off the dossier's tabs, there is no sprint, and the property goes.
  */
 function useSprintProgress(h: Health | null) {
   const progress = h && h.days.total > 1 ? Math.min(1, Math.max(0, (h.days.gone - 1) / (h.days.total - 1))) : null;
@@ -355,93 +323,6 @@ function DeploymentRow({ d }: { d: Deployment }) {
           </>
         )}
       </p>
-    </li>
-  );
-}
-
-function Sprint({ h }: { h: Health }) {
-  const total = h.done.points + h.remaining.points;
-  const listed = (kind: 'added' | 'carried') => h.items.filter((i) => h.entries.get(i.id)?.kind === kind);
-  return (
-    <>
-      <p className="note">
-        {day(h.sprint.start!)} to {day(h.sprint.end!)}, working days only.
-      </p>
-      <ul className="stats" aria-label="Sprint figures">
-        <Stat label="Done" value={`${h.done.points} of ${total}`} note={`points, ${h.done.count} items`} />
-        <Stat label="Planned" value={String(h.planned.points)} note={`points, ${h.planned.count} items`} />
-        <Stat label="Added mid-sprint" value={String(h.added.points)} note={`points, ${h.added.count} items`} />
-        <Stat label="Carried over" value={String(h.carried.points)} note={`points, ${h.carried.count} items`} />
-      </ul>
-      <div className="meter" role="img" aria-label={`${h.done.points} of ${total} points done`}>
-        <span style={{ width: `${total ? (100 * h.done.points) / total : 0}%` }} />
-      </div>
-      <Burnup />
-      {h.otherUnits.length > 0 && (
-        <p className="note">
-          Points totals leave out items estimated in other units:{' '}
-          {h.otherUnits.map((id, i) => (
-            <span key={id}>
-              {i > 0 && ', '}
-              <ItemLink id={id} />
-            </span>
-          ))}
-          .
-        </p>
-      )}
-      <h3>At risk</h3>
-      {h.risks.length ? (
-        <ul className="rows">
-          {h.risks.map((r) => (
-            <li key={r.id}>
-              <ItemLink id={r.id} withTitle />
-              <ul className="reasons">
-                {r.reasons.map((reason, i) => (
-                  <li key={i}>
-                    <Cited text={describe(reason)} />
-                  </li>
-                ))}
-              </ul>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p>Nothing.</p>
-      )}
-      {(['added', 'carried'] as const).map((kind) => (
-        <div key={kind}>
-          <h3>{kind === 'added' ? 'Added after the sprint started' : 'Carried over'}</h3>
-          {listed(kind).length ? (
-            <ul className="rows">
-              {listed(kind).map((item) => {
-                const e = h.entries.get(item.id)!;
-                return (
-                  <li key={item.id}>
-                    <ItemLink id={item.id} withTitle />
-                    <p className="evidence">
-                      {e.from ? `From ${e.from}` : 'Added'}
-                      {e.at ? ` on ${dateTime(e.at)}` : ''}, {pts(item.estimate?.unit === 'points' ? item.estimate.value : 0)}
-                      {item.estimate ? '' : ' (no estimate)'}. Source: <code>{e.evidence}</code>
-                    </p>
-                  </li>
-                );
-              })}
-            </ul>
-          ) : (
-            <p>None.</p>
-          )}
-        </div>
-      ))}
-    </>
-  );
-}
-
-function Stat({ label, value, note }: { label: string; value: string; note: string }) {
-  return (
-    <li className="stat">
-      <span className="stat-label">{label}</span>
-      <span className="stat-value">{value}</span>
-      <span className="stat-note">{note}</span>
     </li>
   );
 }

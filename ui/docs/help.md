@@ -20,7 +20,7 @@ A **pencil** beside a configurable value opens the settings page where it's set,
 | Beside | Opens |
 |---|---|
 | A connection's name, such as an item's source | Settings, Connections, at that connection |
-| A dossier's sources, on its card and dashboard | Settings, Dossiers, at the form that links an area, for that dossier |
+| A dossier's sources, on its card and in its top row | Settings, Dossiers, at the form that links an area, for that dossier |
 | The work-in-progress limit and the people, in the People view | Settings, Dossiers, at that form |
 | The fields, on an item's page | Settings, Dossiers, at the form that names a field |
 | The adapter, on an assignment's page | Settings, Agent |

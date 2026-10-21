@@ -277,7 +277,7 @@ export class AssignmentQueue {
 
   get(id: string): AssignmentRecord {
     const r = this.records.get(id);
-    if (!r) throw new AssignError(`There is no assignment ${id}.`, 'Open the Agents lane on the dossier to see its assignments.', 404);
+    if (!r) throw new AssignError(`There is no assignment ${id}.`, 'Open the Agents sidebar on the dossier to see its assignments.', 404);
     return { ...structuredClone(r), ranMs: runMs(r, this.o.now()) };
   }
 
@@ -523,7 +523,7 @@ export class AssignmentQueue {
 
   private mutable(id: string): AssignmentRecord {
     const r = this.records.get(id);
-    if (!r) throw new AssignError(`There is no assignment ${id}.`, 'Open the Agents lane on the dossier to see its assignments.', 404);
+    if (!r) throw new AssignError(`There is no assignment ${id}.`, 'Open the Agents sidebar on the dossier to see its assignments.', 404);
     return r;
   }
 

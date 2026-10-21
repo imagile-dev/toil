@@ -2,18 +2,19 @@
  * Flow panels (#252, #253): the sprint burn-up, throughput per week, cycle
  * time and aging work in progress, all from OWI transitions (src/model/flow.ts
  * and burnup.ts). Each lists what it couldn't compute and why, beside what it
- * could. The "needs attention" list ranks the dossier's open items by their
- * insights (src/model/insights.ts), each insight with what it rests on.
+ * could. The sprint in full is here too. The Overview's sparklines open
+ * each of them in a dialog (#394).
  */
 
-import { Avatar, InsightChips } from '../components/bits.tsx';
+import { Avatar } from '../components/bits.tsx';
 import { BurnupChart, CycleScatter, ThroughputSpark } from '../components/charts.tsx';
 import { Cited, ItemLink } from '../components/items.tsx';
+import { describe, type Health } from '../model/sprint.ts';
 import { useData, useDerived } from '../data.ts';
-import { dateTime, shortKey, sourceLabel } from '../format.ts';
+import { dateTime, day, shortKey, sourceLabel } from '../format.ts';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput, type Unknown } from '../model/flow.ts';
-import { AGING_PERCENTILE, INSIGHT_LABEL, MIN_CYCLES, needsAttention } from '../model/insights.ts';
+import { AGING_PERCENTILE, MIN_CYCLES } from '../model/insights.ts';
 import { useSkins, useWords } from '../skins.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -141,31 +142,92 @@ export function Aging() {
   );
 }
 
-export function Attention() {
-  const { insights } = useDerived();
-  const list = needsAttention(insights);
-  if (!list.length) return <p>Nothing open needs attention.</p>;
+const pts = (n: number) => `${n} ${n === 1 ? 'point' : 'points'}`;
+
+/** The sprint in full (#252): its figures, the burn-up, and what is at risk, added and carried over. The Overview's burn-up tile opens it. */
+export function SprintDetail({ h }: { h: Health }) {
+  const total = h.done.points + h.remaining.points;
+  const listed = (kind: 'added' | 'carried') => h.items.filter((i) => h.entries.get(i.id)?.kind === kind);
   return (
-    <ol className="attention">
-      {list.map((a, rank) => (
-        <li key={a.id} className={`attention-item attention-item--w${a.insights[0]!.weight}`}>
-          <span className="rank" aria-hidden="true">
-            {rank + 1}
-          </span>
-          <div>
-            <ItemLink id={a.id} withTitle />
-            <InsightChips insights={a.insights} max={4} />
-            <ul className="reasons">
-              {a.insights.map((i) => (
-                <li key={i.code}>
-                  <span className="sr-only">{INSIGHT_LABEL[i.code]}: </span>
-                  <Cited text={i.text} />. <span className="field">Source: <code>{i.evidence}</code></span>
-                </li>
-              ))}
+    <>
+      <p className="note">
+        {day(h.sprint.start!)} to {day(h.sprint.end!)}, working days only.
+      </p>
+      <ul className="stats" aria-label="Sprint figures">
+        <Stat label="Done" value={`${h.done.points} of ${total}`} note={`points, ${h.done.count} items`} />
+        <Stat label="Planned" value={String(h.planned.points)} note={`points, ${h.planned.count} items`} />
+        <Stat label="Added mid-sprint" value={String(h.added.points)} note={`points, ${h.added.count} items`} />
+        <Stat label="Carried over" value={String(h.carried.points)} note={`points, ${h.carried.count} items`} />
+      </ul>
+      <div className="meter" role="img" aria-label={`${h.done.points} of ${total} points done`}>
+        <span style={{ width: `${total ? (100 * h.done.points) / total : 0}%` }} />
+      </div>
+      <Burnup />
+      {h.otherUnits.length > 0 && (
+        <p className="note">
+          Points totals leave out items estimated in other units:{' '}
+          {h.otherUnits.map((id, i) => (
+            <span key={id}>
+              {i > 0 && ', '}
+              <ItemLink id={id} />
+            </span>
+          ))}
+          .
+        </p>
+      )}
+      <h3>At risk</h3>
+      {h.risks.length ? (
+        <ul className="rows">
+          {h.risks.map((r) => (
+            <li key={r.id}>
+              <ItemLink id={r.id} withTitle />
+              <ul className="reasons">
+                {r.reasons.map((reason, i) => (
+                  <li key={i}>
+                    <Cited text={describe(reason)} />
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p>Nothing.</p>
+      )}
+      {(['added', 'carried'] as const).map((kind) => (
+        <div key={kind}>
+          <h3>{kind === 'added' ? 'Added after the sprint started' : 'Carried over'}</h3>
+          {listed(kind).length ? (
+            <ul className="rows">
+              {listed(kind).map((item) => {
+                const e = h.entries.get(item.id)!;
+                return (
+                  <li key={item.id}>
+                    <ItemLink id={item.id} withTitle />
+                    <p className="evidence">
+                      {e.from ? `From ${e.from}` : 'Added'}
+                      {e.at ? ` on ${dateTime(e.at)}` : ''}, {pts(item.estimate?.unit === 'points' ? item.estimate.value : 0)}
+                      {item.estimate ? '' : ' (no estimate)'}. Source: <code>{e.evidence}</code>
+                    </p>
+                  </li>
+                );
+              })}
             </ul>
-          </div>
-        </li>
+          ) : (
+            <p>None.</p>
+          )}
+        </div>
       ))}
-    </ol>
+    </>
+  );
+}
+
+function Stat({ label, value, note }: { label: string; value: string; note: string }) {
+  return (
+    <li className="stat">
+      <span className="stat-label">{label}</span>
+      <span className="stat-value">{value}</span>
+      <span className="stat-note">{note}</span>
+    </li>
   );
 }

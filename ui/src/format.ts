@@ -44,8 +44,12 @@ export const prsHref = (dossier: string) => `${dossierHref(dossier)}/prs`;
 export const peopleHref = (dossier: string) => `${dossierHref(dossier)}/people`;
 /** The Command Center (#307): every work item with its readiness verdict. */
 export const commandCenterHref = (dossier: string) => `${dossierHref(dossier)}/command-center`;
-/** The dashboard with its board filtered to one person (#292), by the key the People view gives them. */
-export const boardHref = (dossier: string, person: string) => `${dossierHref(dossier)}/board/${encodeURIComponent(person)}`;
+/** The Board tab (#394), or the board filtered to one person (#292), by the key the People view gives them. */
+export const boardHref = (dossier: string, person?: string) => `${dossierHref(dossier)}/board${person ? `/${encodeURIComponent(person)}` : ''}`;
+/** The Dependencies tab (#394). */
+export const dependenciesHref = (dossier: string) => `${dossierHref(dossier)}/dependencies`;
+/** The Analyses tab (#394): Analyze's pulse checks. */
+export const analysesHref = (dossier: string) => `${dossierHref(dossier)}/analyses`;
 /** The worklog (#308): its calendar, or one UTC day's page. */
 export const worklogHref = (dossier: string, day?: string) => `${dossierHref(dossier)}/worklog${day ? `/${day}` : ''}`;
 /** The stand-up (#345): since the last working day, or a range of UTC days. */

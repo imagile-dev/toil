@@ -45,7 +45,7 @@ import { AssignModal } from '../assign/views.tsx';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, estimateText, itemHref, personText, shortKey, sourceLabel } from '../format.ts';
 import { columns, proposeMove } from '../model/board.ts';
-import { insights } from '../model/insights.ts';
+import { flagsAttention, insights, type Prepared } from '../model/insights.ts';
 import type { Proposal } from '../proposal.ts';
 import { useSkins, useWords } from '../skins.tsx';
 import type { StatusCategory, WorkItem } from '../toil.ts';
@@ -95,11 +95,15 @@ interface Move {
  * copy under the pointer (`ids` unset) is decoration for the eye only: its key
  * is no link and it names nothing, since the announcements speak for it.
  */
+/** ` card--attention` on a card that needs attention (#394), for its edge. */
+const attentionClass = (item: WorkItem, p: Prepared) => (flagsAttention(insights(item, p)) ? ' card--attention' : '');
+
 function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
   const { insights: prepared } = useDerived();
   const { dossier } = useData();
   const { Card: Skin } = useSkins();
   const key = shortKey(item);
+  const found = insights(item, prepared);
   return (
     <Skin item={item}>
       <div className="card-top">
@@ -112,6 +116,15 @@ function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
             <span className="key">{key}</span>
           </span>
         )}
+        {/* Needs attention (#394): the flag the board's filter keys on, a shape as well as a colour. */}
+        {flagsAttention(found) && (
+          <span className="card-flag" title="Needs attention">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+              <path d="M4 14V2.5M4 3h7.5l-1.8 2.8L11.5 8.5H4" />
+            </svg>
+            <span className="sr-only">Needs attention</span>
+          </span>
+        )}
         <StatusChip category={item.statusCategory} status={item.status} />
       </div>
       <p id={ids && `${ids}-title`} className="card-title">
@@ -122,7 +135,7 @@ function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
           <Avatar person={item.assignee} /> {personText(item.assignee)}
         </span>
         <span className="card-meta">
-          <InsightChips insights={insights(item, prepared)} compact />
+          <InsightChips insights={found} compact />
           <span className="field">
             <span className="source">{sourceLabel(item.source.area)}</span> · {estimateText(item)}
           </span>
@@ -135,9 +148,10 @@ function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
 /** The copy of the card that follows the pointer, saying what a drop where it is would do. */
 function DragCard({ item }: { item: WorkItem }) {
   const { over } = useDndContext();
+  const { insights: prepared } = useDerived();
   const verdict = dropVerdict(item, (over?.id as StatusCategory | undefined) ?? null);
   return (
-    <div className={`card card--${item.statusCategory.toLowerCase()} card--overlay`} data-drag-overlay aria-hidden="true">
+    <div className={`card card--${item.statusCategory.toLowerCase()}${attentionClass(item, prepared)} card--overlay`} data-drag-overlay aria-hidden="true">
       <div className="card-grip">
         <CardFace item={item} />
       </div>
@@ -198,6 +212,7 @@ export const columnSteps =
 
 function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem; others: StatusCategory[]; onMove: (to: StatusCategory) => void; menuOpen: boolean; setMenuOpen: (open: boolean) => void }) {
   const { dossier, assignments } = useData();
+  const { insights: prepared } = useDerived();
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: item.id, attributes: { role: 'group', roleDescription: 'draggable card' } });
   const [assigning, setAssigning] = useState(false);
   const grip = useRef<HTMLDivElement | null>(null);
@@ -244,7 +259,7 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
 
   return (
     // While it's dragged the card stays where it is, as a placeholder; the copy in the DragOverlay is what moves.
-    <li ref={setNodeRef} className={`card card--${item.statusCategory.toLowerCase()}${isDragging ? ' card--dragging' : ''}`}>
+    <li ref={setNodeRef} className={`card card--${item.statusCategory.toLowerCase()}${attentionClass(item, prepared)}${isDragging ? ' card--dragging' : ''}`}>
       <div
         ref={gripRef}
         className="card-grip"

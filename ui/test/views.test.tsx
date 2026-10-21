@@ -23,7 +23,7 @@ import type { WorklogApi, WorklogDay } from '../src/worklog.ts';
  */
 
 const item = (dossier: string, id: string) => `#/dossier/${dossier}/item/${encodeURIComponent(id)}`;
-const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/settlement', '#/dossier/checkout-web', '#/dossier/checkout-web/prs', '#/dossier/card-payments/prs', '#/dossier/checkout-web/people', '#/dossier/card-payments/people', '#/dossier/settlement/people', '#/dossier/card-payments/board/person%3AJ.%20Smith', '#/dossier/card-payments/worklog', '#/dossier/checkout-web/worklog/2026-10-12', item('card-payments', 'corp-jira:PAY-101'), '#/dossier/card-payments/command-center', '#/dossier/settlement/command-center', '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/usage', '#/settings/agent'];
+const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/card-payments/board', '#/dossier/card-payments/dependencies', '#/dossier/card-payments/analyses', '#/dossier/settlement', '#/dossier/checkout-web', '#/dossier/checkout-web/prs', '#/dossier/card-payments/prs', '#/dossier/checkout-web/people', '#/dossier/card-payments/people', '#/dossier/settlement/people', '#/dossier/card-payments/board/person%3AJ.%20Smith', '#/dossier/card-payments/worklog', '#/dossier/checkout-web/worklog/2026-10-12', item('card-payments', 'corp-jira:PAY-101'), '#/dossier/card-payments/command-center', '#/dossier/settlement/command-center', '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/usage', '#/settings/agent'];
 
 async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), config = fixtureConfig(), agentSettings, worklog = fixtureWorklog() }: { preview?: boolean; execute?: Execute; agent?: Agent; config?: ConfigApi; agentSettings?: AgentSettingsPanelProps; worklog?: WorklogApi | null } = {}) {
   window.location.hash = hash;
@@ -49,6 +49,13 @@ async function violations(container: HTMLElement) {
 }
 
 const panel = (name: string | RegExp) => screen.getByRole('region', { name });
+/** A dossier's tab bar (#394). */
+const tabs = (dossier: string) => screen.getByRole('navigation', { name: `${dossier} views` });
+/** Opens a metric's full chart from the Overview's strip (#394), and returns its dialog. */
+async function metric(name: RegExp) {
+  await userEvent.click(screen.getByRole('button', { name }));
+  return screen.findByRole('dialog');
+}
 
 beforeEach(() => {
   localStorage.clear();
@@ -84,10 +91,11 @@ describe('every view', () => {
     expect(screen.queryByRole('note')).toBeNull();
   });
 
-  it('marks the current view in the navigation', async () => {
+  it("marks the current view in the navigation, and the current tab in the dossier's tabs (#394)", async () => {
     await open('#/dossier/settlement');
-    expect(screen.getByRole('link', { name: 'settlement' }).getAttribute('aria-current')).toBe('page');
+    expect(within(tabs('settlement')).getByRole('link', { name: 'Overview' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('link', { name: 'Dossiers' }).getAttribute('aria-current')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('settlement');
   });
 });
 
@@ -196,7 +204,7 @@ describe("editing a dossier's name and description in place (#342)", () => {
     await waitFor(() => expect(config.runs).toEqual([{ command: 'dossiers describe', input: { dossier: 'settlement', description: 'Nightly settlement' } }]));
     await waitFor(() => expect(screen.queryByRole('textbox', { name: 'Description of settlement' })).toBeNull());
     // Written into what's loaded: the dashboard isn't read again for a new description.
-    expect(document.querySelector('.dossier-head .lede')!.textContent).toBe('Nightly settlement✎');
+    expect(document.querySelector('.dossier-bar__desc')!.textContent).toBe('Nightly settlement✎');
   });
 
   it("shows toil's message and fix when it refuses, and keeps the field open", async () => {
@@ -229,12 +237,13 @@ describe("editing a dossier's name and description in place (#342)", () => {
     expect(JSON.parse(localStorage.getItem('toil-ui:looked')!)).toHaveProperty('payments-v2');
   });
 
-  it("puts the dashboard's description, source badges and counts in its header", async () => {
+  it("puts the dossier's name, description, sources and sprint day in its top row (#394)", async () => {
     await open('#/dossier/card-payments');
-    const head = document.querySelector('.dossier-head')!;
-    expect(head.textContent).toContain('Card payments v2');
-    expect(within(head as HTMLElement).getByRole('list', { name: 'Counts' }).textContent).toBe('3 days left3 in progress2 blocked1 PR waits on review');
-    expect(within(head as HTMLElement).getByRole('list', { name: 'Sources' })).toBeTruthy();
+    const bar = document.querySelector('.dossier-bar') as HTMLElement;
+    expect(bar.textContent).toContain('Card payments v2');
+    expect(bar.textContent).toContain('Sprint 42: day 7 of 10');
+    expect(within(bar).getByRole('list', { name: 'Sources' })).toBeTruthy();
+    expect(within(bar).getByRole('region', { name: 'Ask about card-payments' })).toBeTruthy();
   });
 });
 
@@ -287,10 +296,11 @@ describe('the pull requests view', () => {
     expect(reviewers.textContent).toContain("toil github pr add-reviewers '51'");
   });
 
-  it('is linked from the dashboard and the header', async () => {
-    await open('#/dossier/settlement');
-    expect(within(panel('Pull requests')).getByRole('link', { name: 'The pull requests view' }).getAttribute('href')).toBe('#/dossier/settlement/prs');
-    expect(within(screen.getByRole('navigation', { name: 'Views' })).getByRole('link', { name: 'Pull requests' }).getAttribute('href')).toBe('#/dossier/settlement/prs');
+  it("is a tab of the dossier's, current on its own page", async () => {
+    await open('#/dossier/settlement/prs');
+    const tab = within(tabs('settlement')).getByRole('link', { name: 'Pull requests' });
+    expect(tab.getAttribute('href')).toBe('#/dossier/settlement/prs');
+    expect(tab.getAttribute('aria-current')).toBe('page');
   });
 });
 
@@ -300,16 +310,16 @@ describe('a dashboard', () => {
     ['settlement', ['ado work-item iterations', 'ado work-item search', 'ado work-item get-many', 'ado work-item history'], ['ado pr list', 'ado pr get'], ['ado run list'], ['ado run list']],
     ['checkout-web', ['github project items', 'github issue get', 'github issue history'], ['github pr list', 'github pr get', 'bitbucket-cloud pr list', 'bitbucket-cloud pr get'], ['github pr get'], ['openshift deployment list']],
   ])('%s names the commands that fed each panel', async (name, work, prs, builds, deployments) => {
-    await open(`#/dossier/${name}`);
+    await open(`#/dossier/${name}/board`);
     const fed = (region: HTMLElement) => within(region).getByText(/Fed by/).textContent;
-    for (const c of work) expect(fed(panel(/^Sprint 42: day/))).toContain(`toil ${c}`);
-    for (const c of prs) expect(fed(panel('Pull requests'))).toContain(`toil ${c}`);
+    for (const c of work) expect(fed(panel('Sprint 42 board'))).toContain(`toil ${c}`);
+    for (const c of prs) expect(fed(panel('Stories, pull requests, builds and deployments'))).toContain(`toil ${c}`);
     for (const c of builds) expect(fed(panel('Builds'))).toContain(`toil ${c}`);
     for (const c of deployments) expect(fed(panel('Deployments'))).toContain(`toil ${c}`);
   });
 
   it('shows a story with its pull request, its build and where it runs, in one row', async () => {
-    await open('#/dossier/card-payments');
+    await open('#/dossier/card-payments/board');
     const row = (name: RegExp) => screen.getAllByRole('rowheader', { name }).find((r) => r.closest('.trace'))!.closest('tr')!;
     expect(row(/PAY-105/).textContent).toContain('#298 PAY-105 Show the last four digits on receipts');
     expect(row(/PAY-105/).textContent).toContain('SUCCESS');
@@ -323,7 +333,7 @@ describe('a dashboard', () => {
   });
 
   it('lists what each environment runs and what that includes', async () => {
-    await open('#/dossier/checkout-web');
+    await open('#/dossier/checkout-web/board');
     const deployments = panel('Deployments');
     const envs = within(deployments).getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
     expect(envs).toEqual(['staging', 'prod']);
@@ -334,7 +344,7 @@ describe('a dashboard', () => {
 
   it("shows the sprint's figures and each risk's reasons", async () => {
     await open('#/dossier/settlement');
-    const sprint = panel(/^Sprint 42: day/);
+    const sprint = await metric(/^Burn-up /);
     expect(sprint.querySelector('h2')!.textContent).toBe('Sprint 42: day 7 of 9');
     expect(within(sprint).getByRole('list', { name: 'Sprint figures' }).textContent).toContain('Done1 of 16points, 2 items');
     expect(sprint.textContent).toContain('Blocked by Azure DevOps 2302');
@@ -383,16 +393,23 @@ describe('a dashboard', () => {
 });
 
 describe('the views on a dashboard (#252, #253)', () => {
-  it('ranks what needs attention, each insight with its source', async () => {
-    await open('#/dossier/card-payments');
-    const list = within(panel('Needs attention')).getAllByRole('listitem').filter((li) => li.classList.contains('attention-item'));
-    expect(list.map((li) => within(li).getAllByRole('link')[0]!.textContent)).toEqual(['Jira PAY-102 Store tokens in the vault', 'Jira PAY-104 Refund total rounds half-cents down', 'Jira PAY-101 Tokenise card numbers at the edge', 'Jira PAY-103 Charge a stored token', 'Jira PAY-107 Retry declined charges once']);
-    expect(list[1]!.textContent).toContain('In progress for 13.9 days');
-    expect(list[1]!.textContent).toContain('Source: history.transitions, against 6 cycle times');
+  it('flags each card that needs attention on the board, counts them on its tab, and filters to them (#394)', async () => {
+    await open('#/dossier/card-payments/board');
+    const board = panel('Sprint 42 board');
+    const cards = () => within(board).getAllByRole('listitem').filter((li) => li.classList.contains('card'));
+    const flagged = () => cards().filter((li) => li.classList.contains('card--attention'));
+    const keys = () => flagged().map((li) => within(li).getAllByRole('link')[0]!.textContent).sort();
+    expect(keys()).toEqual(['PAY-101', 'PAY-102', 'PAY-103', 'PAY-104']);
+    expect(flagged()[0]!.querySelector('.card-flag')!.textContent).toBe('Needs attention');
+    expect(within(tabs('card-payments')).getByRole('link', { name: 'Board, 4 items need attention' })).toBeTruthy();
+    expect(cards().length).toBeGreaterThan(4);
+    await userEvent.click(within(board).getByRole('checkbox', { name: 'Needs attention only (4)' }));
+    expect(cards()).toHaveLength(4);
+    expect(keys()).toEqual(['PAY-101', 'PAY-102', 'PAY-103', 'PAY-104']);
   });
 
   it('puts each sprint item on the board under its status category, with its own status word and insights', async () => {
-    await open('#/dossier/settlement');
+    await open('#/dossier/settlement/board');
     const board = panel('Sprint 42 board');
     const col = (name: string) => within(board).getByRole('region', { name: new RegExp(`^${name}`) });
     const cards = (region: HTMLElement) => within(region).getAllByRole('listitem').filter((li) => li.classList.contains('card'));
@@ -408,7 +425,7 @@ describe('the views on a dashboard (#252, #253)', () => {
   });
 
   it('carries no buttons on its cards: the whole card is the handle, named by its key and title', async () => {
-    await open('#/dossier/card-payments');
+    await open('#/dossier/card-payments/board');
     const board = panel('Sprint 42 board');
     const cards = within(board).getAllByRole('listitem').filter((li) => li.classList.contains('card'));
     expect(cards.length).toBeGreaterThan(0);
@@ -421,7 +438,7 @@ describe('the views on a dashboard (#252, #253)', () => {
   });
 
   it('opens the item on a click anywhere on the card', async () => {
-    await open('#/dossier/card-payments');
+    await open('#/dossier/card-payments/board');
     const grip = within(panel('Sprint 42 board')).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
     await userEvent.click(within(grip).getByText('Store tokens in the vault'));
     await waitFor(() => expect(window.location.hash).toBe(item('card-payments', 'corp-jira:PAY-102')));
@@ -429,7 +446,7 @@ describe('the views on a dashboard (#252, #253)', () => {
 
   it("turns a move from the card's context menu into a proposal card naming the toil command, and changes nothing", async () => {
     const fixture = fixtureExecute();
-    await open('#/dossier/card-payments', { execute: fixture.execute });
+    await open('#/dossier/card-payments/board', { execute: fixture.execute });
     const before = fixture.calls.length;
     const board = panel('Sprint 42 board');
     const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
@@ -447,7 +464,7 @@ describe('the views on a dashboard (#252, #253)', () => {
   });
 
   it('opens the same menu with M on the focused card, and only on the card itself', async () => {
-    await open('#/dossier/card-payments');
+    await open('#/dossier/card-payments/board');
     const board = panel('Sprint 42 board');
     const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
     within(grip).getByRole('link', { name: 'PAY-102' }).focus();
@@ -483,7 +500,7 @@ describe('the views on a dashboard (#252, #253)', () => {
 
   // #393: the drop worked, but nothing on screen moved during a drag and the proposal landed out of view.
   it('shows a lifted card as a copy that says what a drop would do, leaving a placeholder in its column', async () => {
-    await open('#/dossier/card-payments');
+    await open('#/dossier/card-payments/board');
     const board = panel('Sprint 42 board');
     const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
     expect(document.querySelector('[data-drag-overlay]')).toBeNull();
@@ -509,7 +526,7 @@ describe('the views on a dashboard (#252, #253)', () => {
   });
 
   it('puts a proposed move where it was made: a ghost in the target column, with Undo and the way to apply it', async () => {
-    await open('#/dossier/card-payments');
+    await open('#/dossier/card-payments/board');
     const board = panel('Sprint 42 board');
     const col = (name: string) => within(board).getByRole('region', { name: new RegExp(`^${name}`) });
     const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
@@ -530,17 +547,32 @@ describe('the views on a dashboard (#252, #253)', () => {
     await waitFor(() => expect(document.activeElement).toBe(grip));
   });
 
-  it('draws throughput, cycle time and aging, each listing what it could not compute', async () => {
+  it('draws the metrics as sparklines, each opening its full chart, which lists what it could not compute (#394)', async () => {
     await open('#/dossier/checkout-web');
-    expect(within(panel('Throughput')).getAllByRole('img').length).toBeGreaterThan(0);
-    expect(panel('Throughput').textContent).toContain('3 finished in 6 weeks');
-    expect(panel('Cycle time').textContent).toContain('No finished item here has a cycle time the data can show.');
-    expect(panel('Cycle time').textContent).toContain('Unknown: Never recorded as In progress before Done.');
-    expect(panel('Aging work in progress').textContent).toContain('Unknown: No move into In progress recorded.');
+    const strip = screen.getByRole('region', { name: 'Metrics' });
+    expect(within(strip).getAllByRole('button').map((b) => b.textContent)).toEqual([
+      'Burn-up 1 of 11 points, show the full chart',
+      'Throughput 0.4 a week, show the full chart',
+      'Cycle time 0 items timed, show the full chart',
+      'Aging WIP 0 in progress, show the full chart',
+      'PR wait 2 working days, 3 open, show the full chart',
+    ]);
+    let dialog = await metric(/^Throughput /);
+    expect(within(dialog).getAllByRole('img').length).toBeGreaterThan(0);
+    expect(dialog.textContent).toContain('3 finished in 6 weeks');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Close' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    dialog = await metric(/^Cycle time /);
+    expect(dialog.textContent).toContain('No finished item here has a cycle time the data can show.');
+    expect(dialog.textContent).toContain('Unknown: Never recorded as In progress before Done.');
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    dialog = await metric(/^Aging WIP /);
+    expect(dialog.textContent).toContain('Unknown: No move into In progress recorded.');
   });
 
   it('draws the dependency graph, and lists every link in words', async () => {
-    await open('#/dossier/card-payments');
+    await open('#/dossier/card-payments/dependencies');
     const graph = panel('Dependencies');
     await waitFor(() => expect(graph.querySelector('.react-flow')).not.toBeNull());
     expect([...graph.querySelectorAll(':scope > ul.rows > li')].map((li) => li.textContent)).toEqual([
@@ -552,13 +584,13 @@ describe('the views on a dashboard (#252, #253)', () => {
 
   it('says so when a dossier has no links to draw', async () => {
     localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'plain' }));
-    await open('#/dossier/checkout-web');
+    await open('#/dossier/checkout-web/dependencies');
     await waitFor(() => expect(panel('Dependencies').textContent).toContain("No links between this dossier's items."));
   });
 
   it("charts the sprint's burn-up with its figures in a table", async () => {
     await open('#/dossier/settlement');
-    const sprint = panel(/^Sprint 42: day/);
+    const sprint = await metric(/^Burn-up /);
     expect(sprint.querySelector('svg.chart title')!.textContent).toBe('Sprint 42 burn-up: 1 of 16 points done after 9 days, with 3 days to go. Scope grew from 11 to 16 points.');
     expect(within(sprint).getByRole('table', { name: 'Sprint 42 burn-up by day' })).toBeTruthy();
   });
@@ -1045,10 +1077,10 @@ describe('the agent pane, with a real adapter', () => {
 describe('failures', () => {
   it("shows a failed call on its own panel with toil's message and fix, and the rest still loads", async () => {
     const without = (c: Canned) => !(c.command === 'bitbucket pr list');
-    await open('#/dossier/card-payments', { execute: fixtureExecute(CANNED.filter(without)).execute });
-    const prs = panel('Pull requests');
-    expect(within(prs).getByRole('alert').textContent).toMatch(/toil bitbucket pr list failed: The preview has no sample answer .* Add the call to CANNED/);
-    expect(panel(/^Sprint 42: day/).textContent).toContain('At risk');
+    await open('#/dossier/card-payments/prs', { execute: fixtureExecute(CANNED.filter(without)).execute });
+    expect(screen.getAllByRole('alert').map((a) => a.textContent).join(' ')).toMatch(/toil bitbucket pr list failed: The preview has no sample answer .* Add the call to CANNED/);
+    window.location.hash = '#/dossier/card-payments/board';
+    expect((await screen.findByRole('region', { name: 'Sprint 42 board' })).textContent).toContain('PAY-102');
   });
 
   it('says the data did not load when dossiers show fails', async () => {
@@ -1150,15 +1182,13 @@ describe('how deep the theme goes (#283)', () => {
 
   it('says the empty states, loading lines and notes in the theme\'s words, and the standard ones with wording off', async () => {
     setTheme('crate');
-    await open('#/dossier/checkout-web');
+    await open('#/dossier/checkout-web/dependencies');
     await waitFor(() => expect(panel('Dependencies').textContent).toContain("No links between this dossier's items: every crate stands on its own."));
-    expect(screen.getByText('Consignment')).toBeTruthy();
     cleanupView();
     setTheme('crate', { wording: false });
-    await open('#/dossier/checkout-web');
+    await open('#/dossier/checkout-web/dependencies');
     await waitFor(() => expect(panel('Dependencies').textContent).toContain("No links between this dossier's items."));
     expect(panel('Dependencies').textContent).not.toContain('every crate');
-    expect(screen.getByText('Dossier')).toBeTruthy();
   });
 
   it('never changes a control, a heading or a figure: the same buttons, links and headings with wording on and off', async () => {
@@ -1316,7 +1346,7 @@ describe('the people view (#292)', () => {
   it('has a card per person in name order, agents included and tagged, and a team strip, and is in the navigation', async () => {
     await open('#/dossier/checkout-web/people');
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('People');
-    expect(within(screen.getByRole('navigation', { name: 'Views' })).getByRole('link', { name: 'People' }).getAttribute('aria-current')).toBe('page');
+    expect(within(tabs('checkout-web')).getByRole('link', { name: 'People' }).getAttribute('aria-current')).toBe('page');
     expect(cards('People and agents').map((c) => within(c).getByRole('heading', { level: 3 }).textContent)).toEqual(['Ada D.', 'Bo W.', 'Claude']);
     const claude = screen.getByRole('article', { name: 'Claude' });
     expect(within(claude).getByRole('list', { name: 'About Claude' }).textContent).toBe('Agent');
@@ -1375,7 +1405,7 @@ describe('the people view (#292)', () => {
     const shown = within(board).getAllByRole('listitem').filter((li) => li.classList.contains('card'));
     expect(shown.length).toBeGreaterThan(0);
     for (const card of shown) expect(card.textContent).toContain('J. Smith');
-    expect(within(filter).getByRole('link', { name: "Show everyone's" }).getAttribute('href')).toBe('#/dossier/card-payments');
+    expect(within(filter).getByRole('link', { name: "Show everyone's" }).getAttribute('href')).toBe('#/dossier/card-payments/board');
   });
 
   it('says so when a board link names nobody', async () => {
@@ -1452,7 +1482,9 @@ describe('the readiness gate (#307)', () => {
     const fixture = fixtureExecute();
     await open('#/dossier/card-payments/command-center', { execute: fixture.execute });
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Command Center');
-    expect(within(screen.getByRole('navigation', { name: 'Views' })).getByRole('link', { name: 'Command Center' }).getAttribute('aria-current')).toBe('page');
+    // The Command Center is the Board tab's readiness view (#394).
+    expect(within(tabs('card-payments')).getByRole('link', { name: /^Board/ }).getAttribute('aria-current')).toBe('page');
+    expect(within(screen.getByRole('navigation', { name: 'Board views' })).getByRole('link', { name: 'Readiness (Command Center)' }).getAttribute('aria-current')).toBe('page');
     const tally = screen.getByRole('list', { name: 'Open items by verdict' });
     expect([...tally.querySelectorAll('.team-figure')].map((f) => f.textContent)).toEqual(['1', '3', '2']);
     const slate = panel('Start every ready item');
@@ -1510,7 +1542,7 @@ describe('the worklog (#308)', () => {
 
   it("opens on today's page, linked from the header, with the calendar of days that have one", async () => {
     await open('#/dossier/card-payments/worklog');
-    expect(within(screen.getByRole('navigation', { name: 'Views' })).getByRole('link', { name: 'Worklog' }).getAttribute('aria-current')).toBe('page');
+    expect(within(tabs('card-payments')).getByRole('link', { name: 'Worklog' }).getAttribute('aria-current')).toBe('page');
     await screen.findByRole('heading', { name: 'Tuesday 13 October 2026' });
     const today = screen.getByRole('link', { name: /Tuesday 13 October 2026, today/ });
     expect(today.getAttribute('aria-current')).toBe('date');
@@ -1589,7 +1621,7 @@ describe('the stand-up (#345)', () => {
     expect(screen.getByRole('link', { name: 'Stand-up since the last working day' }).getAttribute('href')).toBe('#/dossier/card-payments/worklog/standup');
     cleanup();
     const view = await open('#/dossier/card-payments/worklog/standup');
-    expect(within(screen.getByRole('navigation', { name: 'Views' })).getByRole('link', { name: 'Worklog' }).getAttribute('aria-current')).toBe('page');
+    expect(within(tabs('card-payments')).getByRole('link', { name: 'Worklog' }).getAttribute('aria-current')).toBe('page');
     expect(await screen.findByRole('heading', { name: 'Stand-up: card-payments, 12 Oct 2026 to 13 Oct 2026' })).toBeTruthy();
     const team = screen.getByRole('region', { name: 'Team' });
     expect(within(team).getAllByRole('listitem')[0]!.textContent).toMatch(/^F1Sprint 42: \d+ working days? left/);

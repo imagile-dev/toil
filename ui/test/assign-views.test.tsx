@@ -9,7 +9,7 @@ import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import type { AssignmentsApi } from '../src/assign/model.ts';
 
 /**
- * Assignments in the views (#293), on the sample's queue: the Agents lane
+ * Assignments in the views (#293), on the sample's queue: the Agents sidebar
  * and its inbox, the Assign dialog, the assignment page with its proposals
  * and Apply, and each agent's assignments on the People view.
  */
@@ -29,20 +29,28 @@ async function violations(container: HTMLElement) {
 beforeEach(() => localStorage.clear());
 afterEach(cleanup);
 
-describe('the Agents lane', () => {
-  it('shows the inbox, waiting for Start, and every assignment with its state, mode and adapter', async () => {
+/** The Agents sidebar (#394): a drawer below 1200px, which jsdom always is, behind the tab row's Agents button. */
+async function agents() {
+  await userEvent.click(screen.getByRole('button', { name: /^Agents/ }));
+  return screen.findByRole('region', { name: 'Agents' });
+}
+
+describe('the Agents sidebar', () => {
+  it('shows the inbox, waiting for Start, and every assignment by what it waits on, with its state, mode and adapter', async () => {
     await open('#/dossier/card-payments');
-    const lane = await screen.findByRole('region', { name: 'Agents' });
+    expect(screen.getByRole('button', { name: 'Agents, 1 need you' })).toBeTruthy();
+    const lane = await agents();
     const inbox = await within(lane).findByRole('region', { name: 'Agent inbox' });
-    expect(inbox.textContent).toContain('asked for by the tracker\'s label agent:refine');
+    expect(inbox.textContent).toContain("asked for by the tracker's label agent:refine");
     expect(within(inbox).getByRole('button', { name: /^Start/ })).toBeTruthy();
-    const cards = within(within(lane).getByRole('list', { name: 'Assignments' })).getAllByRole('listitem');
-    expect(cards.map((c) => c.querySelector('.assign-state')?.textContent)).toEqual(['Working', 'Needs you', 'Failed', 'Done']);
+    expect(within(lane).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Agent inbox', 'Needs you 1', 'Working 1', 'Stale 1', 'Recent analyses']);
+    expect([...lane.querySelectorAll('.agent-card .assign-state')].map((c) => c.textContent)).toEqual(['Needs you', 'Working', 'Failed', 'Done']);
+    expect(lane.querySelector('details.agents-group--earlier summary')!.textContent).toBe('Earlier (1)');
     expect(lane.textContent).toContain('2 run at a time, for up to 20 minutes each');
   }, 20_000);
 
   it('assigns from a board card, through the dialog, onto the assignment page', async () => {
-    await open('#/dossier/card-payments');
+    await open('#/dossier/card-payments/board');
     const user = userEvent.setup();
     fireEvent.contextMenu(screen.getByRole('group', { name: 'PAY-103 Charge a stored token' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Assign to an agent…' }));
@@ -115,8 +123,8 @@ describe("the Command Center's start (#307)", () => {
 describe('stale sessions (#305)', () => {
   it('badges the stale assignments, and Renew all stale lists them first, renewing only the idle ones', async () => {
     const { container } = await open('#/dossier/card-payments');
-    const lane = await screen.findByRole('region', { name: 'Agents' });
-    const cards = within(within(lane).getByRole('list', { name: 'Assignments' })).getAllByRole('listitem');
+    const lane = await agents();
+    const cards = [...lane.querySelectorAll<HTMLElement>('.agent-card')];
     expect(cards.map((c) => (c.querySelector('[data-stale]') ? c.querySelector('.assign-state')!.textContent : null)).filter(Boolean)).toEqual(['Needs you', 'Failed']);
     expect(lane.textContent).toContain('started on toil 0.1.0-alpha.3 · now alpha.4 · skills changed: jira.');
     const user = userEvent.setup();

@@ -148,3 +148,15 @@ export function needsAttention(p: Prepared): Attention[] {
     .map((a) => ({ ...a, score: a.insights.reduce((n, i) => n + i.weight, 0) }))
     .sort((a, b) => b.score - a.score);
 }
+
+/**
+ * Whether an item's insights call for attention (#394): anything that needs
+ * action now or needs a look. "Worth knowing" alone (no estimate, added
+ * mid-sprint, merged and not deployed) is shown on the card but doesn't flag it.
+ */
+export const flagsAttention = (list: Insight[]) => list.some((i) => i.weight >= 2);
+
+/** Which of these items (the board's: the sprint's, or every item without one) need attention: the Board tab's count and its filter. */
+export function needingAttention(items: WorkItem[], p: Prepared): WorkItem[] {
+  return items.filter((item) => flagsAttention(insights(item, p)));
+}

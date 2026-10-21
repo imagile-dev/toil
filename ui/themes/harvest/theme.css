@@ -147,6 +147,11 @@
   padding-right: 6.5rem;
 }
 
+/* In the burn-up's dialog (#394), the calendar sits above the sprint's figures rather than over them. */
+[data-theme="harvest"] .chart-dialog__sprint {
+  padding-top: 4.5rem;
+}
+
 [data-theme="harvest"] .harvest-calendar {
   position: absolute;
   top: 0.25rem;
