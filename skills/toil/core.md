@@ -69,6 +69,40 @@ toil jira issue transition PAY-12 --to review --allow-write
 toil ado work-item transition 42 --to done --allow-write
 ```
 
+## Ticket the work
+
+Before you start work that no ticket covers (a prompt or a branch that names no
+issue key), find the open ticket it belongs to and ask the person what to do with
+it. Never decide on your own, and never start the work untracked without asking.
+
+1. **List the person's open items** in the dossier's trackers (`toil dossiers show`
+   names them): theirs and not done, through each tracker's own search, mapped
+   with `toil util owi map`. Each tracker's page gives its search under **Ticket the
+   work**.
+2. **Rank them against the work**, by the prompt or the branch name:
+   `toil util owi similar --query "<text>"`. Each match has a `score` and a `why`,
+   the shared words that drove it.
+3. **Ask the person**, showing the top matches (up to three) with their `why`,
+   which of three to do:
+   - **Attach** the work to a match. Nothing is written: use its key in the branch
+     name and in every commit message.
+   - **Create a sub-task** under it.
+   - **Create a new ticket**, letting the dossier and the connection fill the
+     project and the issue type.
+
+   With no match (an `OWI_SIMILAR_NO_MATCH` warning), say there is no likely
+   ticket and suggest creating one. Don't lower `--threshold` to find something.
+4. **A sub-task or a new ticket is a write.** Show the exact command first, and run
+   it only on the person's yes to that one item, with writes on for the connection
+   and `--allow-write` (**Writes**, below).
+
+```bash
+toil jira issue search --jql "assignee = currentUser() AND statusCategory != Done" --fields summary,description,status,issuetype,labels,parent | toil util owi map | toil util owi similar --query "Card payments time out at checkout"
+```
+
+Over MCP, pass the `util_owi_map` envelope to `util_owi_similar` as `text`, with
+`query`.
+
 ## Progress
 
 While a command runs, toil says what it's doing: each page a listing reads, and each

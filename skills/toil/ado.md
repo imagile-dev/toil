@@ -273,6 +273,23 @@ Over MCP the same commands are tools named after the path, with spaces and
 hyphens as underscores (`ado_work_item_get`, `ado_pr_comment_inline`), and a
 positional id is the `id` field.
 
+## Ticket the work
+
+Before starting work no ticket covers, rank your open work items against it.
+`work-item search` returns ids, so read them with `work-item get-many` and map that:
+
+```bash
+toil ado work-item search --wiql "SELECT [System.Id] FROM WorkItems WHERE [System.AssignedTo] = @Me AND [System.State] NOT IN ('Done', 'Closed', 'Removed')"
+toil ado work-item get-many 42 43 47 | toil util owi map | toil util owi similar --query "Card payments time out at checkout"
+```
+
+Then ask the person, as `core.md`, **Ticket the work**, says: attach the work to a
+match (nothing is written), create a sub-task under it, or create a new ticket. A
+sub-task is
+`toil ado work-item create --type Task --parent 42 --title "<text>" --allow-write`. A
+new ticket takes the project from the dossier. Both are writes, made only on the
+person's yes.
+
 ## Checking a dossier
 
 `check-dossier` checks the call's dossier against the server: each team project it names (`project`, per repo or not, and `projects`) exists in its collection, and each repository (`repo`) in its project. The collection is the section's `collection`, else `--collection` or the connection's; a value with no collection anywhere is `INVALID_INPUT`. It's `toil ado check-dossier` (`--dossier <name|file>`, or the dossier the folder resolves to), and it returns `{ dossier, connection, env, ok, checked, checks, unchecked }`, one check per value with its key path. The CLI exits 1 when one is missing. A failure other than not-found (a bad token, an unreachable host) fails the command. Read only.

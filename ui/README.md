@@ -478,6 +478,18 @@ never starts that copy anyway.
 With no adapter chosen, the chat says so and names the three. `toil-ui --sample`
 keeps the scripted agent, which answers its starter questions from the sample data.
 
+### Not ticketed yet
+
+When you ask the chat for work that names no ticket (not a question, which ends in `?` or
+opens with what, why, how and the like, and no key such as `PAY-12` or `#42`), a **Not ticketed yet** banner lists up to three of the
+dossier's open items likeliest to cover it, scored as `toil util owi similar` scores
+them, each with why. Attach the work to one by naming its key in your branch and
+commits, which writes nothing, or press **Ticket this** for proposals: a sub-task
+under each match, and a new ticket on the dossier's tracker. They are proposal cards
+like the chat's others, with the command line to run through toil's write gate, and
+nothing is created until you run one. With no match, it says there is no likely
+ticket and offers only a new one. It asks once per chat, and **Not now** hides it.
+
 ### What the agent's models used
 
 Each SDK reports what a question used, and Toil UI keeps that report, one record per
