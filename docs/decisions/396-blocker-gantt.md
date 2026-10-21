@@ -31,7 +31,7 @@
   apart, so on real data, where several blockers not started all end today, the
   arrows don't merge into one line (seen on the GitHub sandbox).
 - **The timeline** is the current sprint's start to its end, or to now if that is later.
-  With no sprint, it spans the bars' own dates to a day after now, and the note says so.
+  With no sprint, it spans the bars' own dates to two days after now (room for the arrows leaving today), and the note says so.
 - **Colour by meaning, and never by colour alone.** In progress is the theme's accent,
   solid; blocked is its danger colour, hatched at 45 degrees and outlined; failing
   checks are its warning colour, as a 4 px strip. Arrows and their heads are the muted

@@ -261,7 +261,8 @@ export function blockerGantt(input: GanttInput): Gantt {
   } else {
     const times = bars.flatMap((b) => [...b.segments, ...b.checks].map((s) => t(s.start))).filter(ok);
     start = times.length ? Math.min(...times) : now - 14 * DAY;
-    end = now + DAY;
+    // Room past today for the arrows leaving bars that end there.
+    end = now + 2 * DAY;
   }
   return { start: at(start), end: at(end), now: at(now), sprint: h?.sprint.name ?? null, bars, arrows, chain, cycle: g.cycle };
 }
