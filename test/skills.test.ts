@@ -224,3 +224,52 @@ describe('installable skill', () => {
     expect(install).toContain('.agents/skills/toil');
   });
 });
+
+/**
+ * Ticket the work (#304): before an agent starts work no ticket covers, it
+ * matches the work to an open ticket with `util owi similar` and asks the
+ * person, who chooses; creating anything is a write. The rule is in the index
+ * every agent loads, in core.md in full, and on every tracker page whose
+ * output `util owi map` reads, each with that tracker's own search.
+ */
+describe('the skill tells an agent to ticket the work before starting it (#304)', () => {
+  const read = (file: string) => readFileSync(join(dir, file), 'utf8');
+  const section = (text: string) => {
+    const at = text.indexOf('## Ticket the work');
+    if (at < 0) return '';
+    const next = text.indexOf('\n## ', at + 5);
+    return text.slice(at, next < 0 ? undefined : next);
+  };
+
+  it('SKILL.md names the command and points to the rule', () => {
+    const index = read('SKILL.md');
+    expect(index).toContain('`toil util owi similar --query`');
+    expect(index).toContain('ask the person');
+    expect(index).toContain('`core.md`,\n  **Ticket the work**');
+  });
+
+  it('names a command that exists and ranks by a query', () => {
+    const similar = commands.find((c) => c.path.join(' ') === 'util owi similar');
+    expect(similar?.writes).toBe(false);
+    expect(Object.keys((similar!.input as unknown as { shape: object }).shape)).toContain('query');
+  });
+
+  it('core.md has the rule: match, offer three choices, and write only on a yes', () => {
+    const rule = section(read('core.md')).replace(/\s+/g, ' ');
+    expect(rule).not.toBe('');
+    for (const text of ['toil util owi map', 'toil util owi similar --query', 'Never decide on your own', '**Attach**', '**Create a sub-task**', '**Create a new ticket**', 'OWI_SIMILAR_NO_MATCH', '`--allow-write`', "the person's yes"]) {
+      expect(rule, text).toContain(text);
+    }
+  });
+
+  for (const area of ['jira', 'jira-cloud', 'ado', 'ado-cloud', 'github']) {
+    it(`${area}.md shows its own search, mapped and ranked, and points to the rule`, () => {
+      const rule = section(read(`${area}.md`));
+      expect(rule, `add "## Ticket the work" to skills/toil/${area}.md`).not.toBe('');
+      expect(rule).toMatch(new RegExp(`^toil ${area} .* [|] toil util owi map [|] toil util owi similar --query `, 'm'));
+      const flat = rule.replace(/\s+/g, ' ');
+      expect(flat).toContain('`core.md`, **Ticket the work**');
+      expect(flat).toContain("only on the person's yes");
+    });
+  }
+});

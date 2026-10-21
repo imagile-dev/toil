@@ -12,14 +12,16 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Checkbox } from 'react-aria-components';
 import { Cited, ItemLink } from '../components/items.tsx';
 import { DataTable, type Column } from '../components/layout.tsx';
+import { CountStrip, Editable, SourceBadges } from '../components/dossier-head.tsx';
+import { previewOf } from '../model/preview.ts';
 import { Panel, Sources } from '../components/panel.tsx';
 import { useData, useDerived } from '../data.ts';
-import { SOURCE_LABEL, STATUS_CATEGORY_LABEL, day, dateTime, dossierHref, estimateText, peopleHref, prsHref } from '../format.ts';
+import { STATUS_CATEGORY_LABEL, day, dateTime, dossierHref, estimateText, peopleHref, prsHref } from '../format.ts';
 import { assignedTo, cardByKey, people } from '../model/people.ts';
 import { describe, type Health } from '../model/sprint.ts';
 import { FLAG_TEXT, trace, type Trace as TraceRow } from '../model/trace.ts';
 import { useSkins, useTerm, useWords } from '../skins.tsx';
-import type { ChangeRef, Deployment, SourceKind } from '../toil.ts';
+import type { ChangeRef, Deployment } from '../toil.ts';
 import { Board } from './Board.tsx';
 import { AgentsLane } from '../assign/views.tsx';
 import { Aging, Attention, Burnup, CycleTime, Throughput } from './Flow.tsx';
@@ -28,7 +30,6 @@ import { Aging, Attention, Burnup, CycleTime, Throughput } from './Flow.tsx';
 const Graph = lazy(() => import('./Graph.tsx').then((m) => ({ default: m.Graph })));
 
 const pts = (n: number) => `${n} ${n === 1 ? 'point' : 'points'}`;
-const area = (name: string) => SOURCE_LABEL[name as SourceKind] ?? name;
 /** `corp-bitbucket:PAY/payments-core#311` reads as `#311`; the panel already says where. */
 const short = (id: string) => id.slice(id.lastIndexOf('#'));
 
@@ -141,7 +142,8 @@ function useBoardFilter(person: string | undefined) {
 }
 
 export function Dashboard({ person }: { person?: string } = {}) {
-  const { dossier } = useData();
+  const { dossier, now, config, described } = useData();
+  const preview = useMemo(() => previewOf(dossier, now, null), [dossier, now]);
   const filter = useBoardFilter(person);
   const { EmptyState, Loading } = useSkins();
   const term = useTerm();
@@ -157,17 +159,22 @@ export function Dashboard({ person }: { person?: string } = {}) {
 
   return (
     <>
-      <div className="view-head">
+      <div className="view-head dossier-head">
         <p className="eyebrow">{words('dossier.eyebrow')}</p>
-        <h1 tabIndex={-1}>{dossier.name}</h1>
-        {dossier.description && <p className="lede">{dossier.description}</p>}
-        <ul className="sources" aria-label="Sources">
-          {dossier.sources.map((s) => (
-            <li key={s.area}>
-              {area(s.area)} {s.connection && <code>{s.connection}</code>}
-            </li>
-          ))}
-        </ul>
+        <h1 tabIndex={-1}>
+          <Editable field="name" dossier={dossier.name} value={dossier.name} config={config ?? null} onSaved={described ?? (() => undefined)}>
+            {dossier.name}
+          </Editable>
+        </h1>
+        <p className="lede">
+          <Editable field="description" dossier={dossier.name} value={dossier.description} config={config ?? null} onSaved={described ?? (() => undefined)}>
+            {dossier.description ?? <span className="note">No description</span>}
+          </Editable>
+        </p>
+        <div className="dossier-head__strip">
+          <SourceBadges sources={dossier.sources} />
+          <CountStrip preview={preview} />
+        </div>
         <Sources calls={dossier.calls.dossier} />
       </div>
 

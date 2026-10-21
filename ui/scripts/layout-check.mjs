@@ -20,7 +20,7 @@
 //
 // Each view is checked as it opens and with its hidden parts showing: every
 // <details> open, each dossier card's Show pressed, the header menu and the
-// Feedback dialog open, the Assign dialog open from an item and the inbox, the focused Ask view open
+// Feedback dialog open, every dossier name and description open for editing, the Assign dialog open from an item and the inbox, the focused Ask view open
 // from the Ask bar (#343) with its (i) popover, its agent switcher, an answer, its Suggestions menu and
 // Analyze's pulse check, the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
 // the calendar on an earlier month, a stand-up written up, and every failing
@@ -282,6 +282,8 @@ function states(route, width) {
   // The stand-up (#345): the agent's write-up shown, with the fact lines it names marked in the report.
   if (/\/worklog\/standup/.test(route)) out.push({ name: 'written-up', setup: `(async () => { const n = ${clickAll('[data-standup-writeup]')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
   if (/\/worklog$/.test(route)) out.push({ name: 'previous-month', setup: clickAll('.calendar-nav button', '/Previous month/'), undoJs: clickAll('.calendar-nav button', '/Next month/') });
+  // A dossier's name and description open for editing in place (#342), every pencil on the page at once: the longest the cards and the dashboard's header get.
+  if (route === '#/' || route === '#/dossier/settlement') out.push({ name: 'editing', setup: clickAll('[data-edit]'), undoJs: "document.querySelectorAll('.edit-field').forEach((i) => i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))" });
   if (route === '#/settings/agent') out.push({ name: 'full-prompt', setup: clickAll('[data-full-prompt]', '/Show the full prompt/'), undoJs: clickAll('[data-full-prompt]', '/Hide the full prompt/') });
   // Install (#344): the dialog with the exact npm command, before anything runs, for the first SDK missing. On a
   // machine with every SDK installed there is no Install to press, which counts only when the status card says so.

@@ -78,6 +78,17 @@ describe('util owi similar --query', () => {
     expect(top.score).toBeGreaterThan(0.6);
   });
 
+  it('says there is no likely ticket when nothing reaches the threshold, and never forces a match (#304)', async () => {
+    const { envelope, data, warnings } = await run({ text, query: 'Rotate the kubernetes ingress certificates' });
+    expect(envelope.ok).toBe(true);
+    expect(data.matches).toEqual([]);
+    expect(warnings).toContainEqual({ code: 'OWI_SIMILAR_NO_MATCH', message: "No item scores 0.35 or more against the query, so there is no likely ticket for it among these 39. Suggest creating one; don't lower --threshold to force a match." });
+    const found = await run({ text, query: 'Card payments time out at checkout' });
+    expect(found.warnings.map((w) => w.code)).not.toContain('OWI_SIMILAR_NO_MATCH');
+    const pairs = await run({ text, pairs: true, threshold: 0.99 });
+    expect(pairs.warnings.map((w) => w.code)).not.toContain('OWI_SIMILAR_NO_MATCH');
+  });
+
   it('refuses a query with nothing to compare', async () => {
     const { envelope } = await run({ text, query: 'the a of' });
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT' });

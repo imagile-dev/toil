@@ -232,3 +232,35 @@ describe('node:sqlite', () => {
     expect(process.emitWarning).toBe(before);
   });
 });
+
+describe('renaming a dossier (#342)', () => {
+  it('moves everything synced for it to the new name, re-keying each response, so it answers under the new name only', async () => {
+    const cache = await open(folder(), { now: () => new Date(T0) });
+    cache.saveDossier(save(T0));
+    cache.addNote('card-payments', { id: 'n1', at: T0, by: 'You', text: 'A note' });
+    cache.saveRun({ id: 'r1', kind: 'ask', dossier: 'card-payments', startedAt: T0, finishedAt: T0, outcome: 'finished', by: 'Codex', prompt: 'Hi', answer: 'Hello', error: null, citations: [], unverified: [], proposals: [] });
+    // A dossier of the new name that was removed and never forgotten: its rows go, rather than mix with the renamed one's.
+    cache.saveDossier(save(T0, { dossier: 'payments-v2', items: [item('OLD-1')] }));
+    const before = cache.counts();
+    expect(cache.rename('card-payments', 'payments-v2')).toBeGreaterThan(0);
+    expect(cache.response('card-payments', 'jira issue search', { dossier: 'card-payments', jql: 'project = PAY' })).toBeNull();
+    expect(cache.response('payments-v2', 'jira issue search', { jql: 'project = PAY', dossier: 'payments-v2' })?.envelope.data).toEqual({ issues: [{ key: 'PAY-1' }] });
+    expect(cache.items('payments-v2').map((i) => i.id)).toEqual(['jira:PAY-1']);
+    expect(cache.transitions('payments-v2')).toHaveLength(1);
+    expect(cache.notes('payments-v2').map((n) => n.text)).toEqual(['A note']);
+    expect(cache.runs('payments-v2').map((r) => r.dossier)).toEqual(['payments-v2']);
+    expect(cache.source('payments-v2', 'jira')?.status).toBe('ok');
+    expect(cache.states().map((s) => s.name)).toEqual(['payments-v2']);
+    expect(cache.dossierNames()).toEqual(['payments-v2']);
+    expect(cache.worklogDays('payments-v2').length).toBeGreaterThan(0);
+    expect(cache.counts().items).toBe(before.items! - 1);
+  });
+
+  it('does nothing for the same name, or a dossier it never synced', async () => {
+    const cache = await open(folder(), { now: () => new Date(T0) });
+    cache.saveDossier(save(T0));
+    expect(cache.rename('card-payments', 'card-payments')).toBe(0);
+    expect(cache.rename('nothing-here', 'elsewhere')).toBe(0);
+    expect(cache.dossierNames()).toEqual(['card-payments']);
+  });
+});

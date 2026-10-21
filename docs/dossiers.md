@@ -9,7 +9,7 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
 - host selectors, environments and the write rule
 - `meta.context.dossier`
 - `toil dossiers list | show | check | context`, which read
-- `toil dossiers init | add-repo | link | env | field | person | wip-limit | export | import | unlink | remove`, which
+- `toil dossiers init | add-repo | link | env | field | person | wip-limit | describe | export | import | unlink | remove`, which
   build and share (`src/core/dossier.ts`, `src/dossiers/`)
 - `toil dossiers onboard`, which sets a reader up for a repository's dossier (#333,
   `src/dossiers/onboard.ts`)
@@ -458,6 +458,12 @@ files directly:
   - `toil dossiers wip-limit <dossier> <limit>` sets how many items one person may have
     in progress at once, which Toil UI's People view counts against. `--clear` removes
     it, on the CLI only.
+  - `toil dossiers describe <dossier> [--name <new name>] [--description <text>]`
+    renames one of your own dossiers or replaces its description, or both. A rename
+    writes `~/.toil/dossiers/<new name>.json` with everything the dossier held, checked
+    first, then deletes the old file, so a refusal leaves it where it was. A name you
+    already have is refused, and so is a dossier that isn't in your own folder, with the
+    `toil dossiers import` fix. It needs no `--replace`: replacing is all it does.
   - `toil dossiers unlink <dossier> --area <area> [--env <env>]` removes a section, an
     area's own or one environment's, including one for an area toil doesn't have. An
     environment left with no areas goes too, and stops being the default. CLI only, like

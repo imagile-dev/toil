@@ -17,7 +17,8 @@
  * picks up where the last one left off. Citations link to items, suggested
  * changes are proposal cards, never applied, and a failure says so in the
  * pane. Usage is counted per answer and per chat (#295). The agent reads; it
- * never changes a ticket. An open-door policy, with the door on a closer.
+ * never changes a ticket. Work that names no ticket gets the "Not ticketed
+ * yet" banner (#304, ./ticket.tsx). An open-door policy, with the door on a closer.
  */
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
@@ -28,6 +29,7 @@ import { useSkins, useTheme, useThemeChoiceContext, useWords } from '../skins.ts
 import { voiceOn } from '../theme-context.ts';
 import { Cited } from './items.tsx';
 import { ProposalCard } from './proposal.tsx';
+import { TicketBanner } from './ticket.tsx';
 import { ChatUsage, UsageFooter } from './usage.tsx';
 import type { AnswerUsage } from '../model-usage.ts';
 
@@ -330,6 +332,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
               </div>
             ),
           )}
+          <TicketBanner prompts={turns.map((t) => t.prompt)} />
           <div ref={end} />
         </div>
       </div>

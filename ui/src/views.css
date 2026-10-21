@@ -232,7 +232,6 @@
   .aging-bar > span { animation: toil-grow 0.7s ease-out; transform-origin: left; }
   .card { transition: box-shadow 0.15s ease; }
   .card:hover:not(.card--dragging) { box-shadow: 0 4px 12px rgb(0 0 0 / 0.14); }
-  .ask-overlay[data-entering] { animation: toil-fade 0.18s ease-out; }
 }
 @keyframes toil-draw { to { stroke-dashoffset: 0; } }
 @keyframes toil-fade { from { opacity: 0; } to { opacity: 1; } }

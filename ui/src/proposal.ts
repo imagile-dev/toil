@@ -13,8 +13,8 @@
 export interface Proposal {
   /** Stable for one suggestion, so the same move isn't listed twice. */
   id: string;
-  /** Where it came from: a move on the board, the agent's answer, a reviewer the pull request view suggests, or publishing a worklog. */
-  from: 'board' | 'agent' | 'reviewers' | 'worklog';
+  /** Where it came from: a move on the board, the agent's answer, a reviewer the pull request view suggests, publishing a worklog, or ticketing a chat's work (#304). */
+  from: 'board' | 'agent' | 'reviewers' | 'worklog' | 'ticket';
   /** The OWI id of the work item it changes, or of the change (pull request) it asks a review of. */
   item: string;
   /** One line: "Move PAY-102 to In progress". */
@@ -38,7 +38,18 @@ export interface Hint {
   input: Record<string, unknown>;
 }
 
-const flag = (key: string) => `--${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
+/**
+ * The fields whose CLI flag isn't the field's name in kebab case, for the
+ * commands a proposal names (`issueType` is `--type` on Jira's issue create).
+ * test/registry.test.ts walks every proposal's command line down toil's real
+ * command tree, so a flag missing here fails there.
+ */
+const RENAMED_FLAGS: ReadonlyMap<string, Readonly<Record<string, string>>> = new Map([
+  ['jira issue create', { issueType: '--type' }],
+  ['jira-cloud issue create', { issueType: '--type' }],
+]);
+
+const flagFor = (command: string, key: string) => RENAMED_FLAGS.get(command)?.[key] ?? `--${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
 
 /**
  * The shells a proposal's command line is written for. Every value is single
@@ -354,14 +365,20 @@ function render(command: string, input: Record<string, unknown>, shell: Shell, w
   for (const k of [...positionals.filter((k) => k in input), ...named]) {
     const v = input[k];
     const positional = positionals.includes(k);
-    const what = positional ? `<${k}>` : flag(k);
+    const flag = flagFor(command, k);
+    const what = positional ? `<${k}>` : flag;
     for (const x of Array.isArray(v) ? v : [v]) {
+      // A switch (`--markdown`) takes no value: written `--markdown 'true'`, the 'true' would be read as an argument.
+      if (x === true && !positional) {
+        parts.push(flag);
+        continue;
+      }
       const value = String(x);
       const why = unsafe(value, shell);
       if (why) return refuse(what, why, shell === 'powershell' && !why.includes('line break'));
       if (positional && value.startsWith('-')) return refuse(what, 'it starts with -, so toil would read it as a flag', false);
       if (positional) parts.push(quote(value, shell)!);
-      else parts.push(value.startsWith('-') ? quote(`${flag(k)}=${value}`, shell)! : `${flag(k)} ${quote(value, shell)}`);
+      else parts.push(value.startsWith('-') ? quote(`${flag}=${value}`, shell)! : `${flag} ${quote(value, shell)}`);
     }
   }
   return { line: `toil ${command} ${parts.join(' ')}${write ? ' --allow-write' : ''}`, reason: null };

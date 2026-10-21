@@ -1566,6 +1566,11 @@ toil util owi similar items.owi.json --pairs --fields title,body
 | `--threshold <score>` | The lowest score returned, 0 to 1 (default 0.35) |
 | `--fields <list>` | What to compare, separated by commas: `title`, `body`, `labels`, `parent` and `links` (default all) |
 
+A `--query` that nothing scores the threshold or more against returns no matches
+and an `OWI_SIMILAR_NO_MATCH` warning: there is no likely ticket for that text, so
+suggest creating one. Don't lower `--threshold` to force a match. Matching work to a
+ticket before starting it is `core.md`, **Ticket the work**.
+
 Ask exactly one of `--query`, `--item` and `--pairs`. Over MCP the tool is
 `util_owi_similar`, with `file` or `text`, one of `query`, `item` and `pairs`, and
 `limit`, `threshold` and `fields`.

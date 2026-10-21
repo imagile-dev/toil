@@ -123,6 +123,13 @@ export async function similarOwi(ctx: Pick<CommandContext, 'warn' | 'signal'>, i
     ctx.warn({ code: 'OWI_SIMILAR_TITLE_ONLY', message: `${found.titleOnly.length} of ${found.items} items have no body, so they were scored on their titles alone: ${some(found.titleOnly)}. Where the tracker holds a body for them, map them from a command that returns it (jira issue get, or jira issue search with description in --fields).` });
   }
   if (found.cutBodies.length) ctx.warn({ code: 'OWI_SIMILAR_BODY_CUT', message: `${found.cutBodies.length} item${found.cutBodies.length > 1 ? 's have bodies' : ' has a body'} longer than the 5,000 terms scored; the rest was left out: ${some(found.cutBodies)}.` });
+  // A query that finds nothing is an answer, not a failure: there is no likely
+  // ticket, and the caller should offer a new one rather than settle for the
+  // nearest miss (#304). Lowering the threshold until something turns up is how
+  // a ticket gets filed under the wrong epic and stays there for three sprints.
+  if (result.mode === 'query' && result.count === 0) {
+    ctx.warn({ code: 'OWI_SIMILAR_NO_MATCH', message: `No item scores ${threshold} or more against the query, so there is no likely ticket for it among these ${found.items}. Suggest creating one; don't lower --threshold to force a match.` });
+  }
   if (threshold <= MAX_BOOST) ctx.warn({ code: 'OWI_SIMILAR_LOW_THRESHOLD', message: `A threshold of ${threshold} lets boosts alone (shared labels, the same parent, a link, up to ${MAX_BOOST}) count as a match, with no shared words. Raise --threshold above ${MAX_BOOST} for likely duplicates.` });
 
   const v = new Verifier(ctx.warn);
