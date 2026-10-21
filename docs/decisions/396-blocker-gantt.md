@@ -24,6 +24,12 @@
   estimated. The chart says so in a note under it, and every table cell that holds an
   estimate says "(estimated)". Before a sprint started, a segment is clipped to the
   timeline; the table keeps its real dates.
+- **A blocker not started and not blocked has no segment**: its row says "Not
+  started" in muted text, and its arrows leave from today, since that is the earliest
+  it can finish. Drawing a bar would invent a start the data doesn't have.
+- **Arrows leaving bars that end together get lanes of their own**, five of them 8 px
+  apart, so on real data, where several blockers not started all end today, the
+  arrows don't merge into one line (seen on the GitHub sandbox).
 - **The timeline** is the current sprint's start to its end, or to now if that is later.
   With no sprint, it spans the bars' own dates to a day after now, and the note says so.
 - **Colour by meaning, and never by colour alone.** In progress is the theme's accent,
@@ -62,7 +68,7 @@
   column carries its verdict. Nothing is fetched: the chart reads only links,
   transitions, pull requests, builds and checks the dossier already holds.
 - **The Overview's blocker slot** is the compact Gantt of the critical chain alone,
-  with no day labels, its item and point count, and a link to Dependencies. It
+  with no day labels and at most four rows (the chain's head, if it is longer), its item and point count, and a link to Dependencies. It
   replaced #394's two blocker rows; their CSS is gone. The Overview still fits
   1440 by 900 on the sample.
 - **Item keys and titles in the chart are plain SVG text**, cut with an ellipsis to the

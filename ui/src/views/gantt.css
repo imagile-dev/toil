@@ -14,6 +14,7 @@
 .gantt-key { fill: var(--ink); font-size: 12px; font-weight: 600; }
 .gantt-title { fill: var(--muted); font-weight: 400; }
 .gantt-band { fill: var(--raised); }
+.gantt-none { fill: var(--muted); font-size: 11px; font-style: italic; }
 .gantt-diamond { fill: var(--ink); }
 
 .gantt-seg--progress { fill: var(--accent); }

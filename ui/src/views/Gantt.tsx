@@ -60,6 +60,8 @@ interface Layout {
   right: number;
 }
 const FULL: Layout = { label: 220, row: 36, bar: 14, top: 26, right: 16 };
+/** How many lanes the arrows leaving bars that end together are spread over. */
+const LANES = 5;
 /** The most rows the Overview's compact Gantt draws. */
 const COMPACT_ROWS = 4;
 const COMPACT: Layout = { label: 170, row: 24, bar: 10, top: 16, right: 12 };
@@ -124,6 +126,8 @@ function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
     return x(last ?? t(g.now));
   };
 
+  const lanes = new Map([...new Set(g.arrows.map((a) => a.from))].map((id, i) => [id, i % LANES]));
+
   return (
     <div ref={ref} className="gantt-measure">
       <svg className="gantt" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={summary} data-gantt={compact ? 'compact' : 'full'}>
@@ -182,6 +186,11 @@ function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
                 const x1 = x(t(s.start));
                 return <rect key={`c${j}`} className="gantt-seg gantt-seg--checks" x={x1} y={top + L.bar + 3} width={Math.max(3, x(t(s.end)) - x1)} height={4} rx={2} />;
               })}
+              {!bar.segments.length && !bar.done && (
+                <text className="gantt-none" x={L.label + 4} y={mid + 4}>
+                  Not started
+                </text>
+              )}
               {bar.done && <path className="gantt-done" d={`M${endX(bar.id) + 4},${mid} l3,3 l6,-7`} />}
             </g>
           );
@@ -193,8 +202,8 @@ function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
           if (y1 === undefined || y2 === undefined) return null;
           const x1 = endX(a.from) + 2;
           const down = y2 > y1 ? 1 : -1;
-          // Clear of the Today line, where an open blocker's bar ends.
-          const xv = x1 + 14;
+          // Clear of the Today line, where an open blocker's bar ends, and each blocker in a lane of its own, so arrows from several blockers that end today don't merge into one line.
+          const xv = Math.min(width - 4, x1 + 12 + (lanes.get(a.from) ?? 0) * 8);
           const tip = y2 - down * (L.bar / 2 + 3);
           return (
             <path

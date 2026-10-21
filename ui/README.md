@@ -170,7 +170,8 @@ blocks another or is blocked, on the current sprint's dates, then the dependency
   transitions. A hatched, outlined segment is its time blocked, from its `blocks`
   links until the blocker finished. A thin strip under the bar is its failing checks,
   from the first of its open pull requests' latest run of failed builds, or the pull
-  request's own failing checks. A tick after the bar means it is done. Each mark
+  request's own failing checks. A tick after the bar means it is done, and a blocker
+  not started yet says so in place of a bar. Each mark
   differs by its shape as well as its colour, and the key above the chart draws each
   one.
 - **Arrows join each blocker to what waits on it**, pointing at the item that waits.
