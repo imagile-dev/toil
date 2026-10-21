@@ -15,12 +15,14 @@
 //      each run, with the token from `gh auth token` in toil-ui's environment
 //      only. It syncs the `sandbox` dossier through toil, then runs the same
 //      check over the real-data routes (home, the dossier, its worklog and stand-up, one of its items,
-//      and every settings page in the layout check's list). With `--ask` it also asks Codex one starter
-//      question and checks that an answer arrived, that the server verified
+//      and every settings page in the layout check's list). With `--ask` it also asks an agent
+//      (Codex unless `--adapter copilot` or `--adapter claude`, on `--model` when given) one starter
+//      question, then Analyze as its follow-up, and checks that an answer arrived, that the server verified
 //      every [[id]] it cites, that its proposals parsed, that nothing ran (no
-//      write in toil's audit log), and that `codex mcp list` in Toil UI's own
-//      Codex home shows only toil_ui, and that the answer's usage, as the Codex SDK
-//      reported it, is in the usage ledger unchanged (#295). Without a GitHub sign-in this part is
+//      write in toil's audit log), that the answer names the model asked for, that
+//      `codex mcp list` in Toil UI's own Codex home shows only toil_ui (Codex
+//      only), and that the answer's usage, as the SDK reported it, is in the
+//      usage ledger unchanged (#295). Without a GitHub sign-in this part is
 //      skipped, and the report says so plainly.
 //
 // In both, the layout problems fail the run in every theme; axe violations
@@ -31,6 +33,7 @@
 //
 //   npm run verify:ui                       # from the root or ui/
 //   npm run verify:ui -- --ask              # also ask Codex (npm run verify:ui --ask works too)
+//   npm run verify:ui -- --ask --adapter copilot --model mai-code-1.1-flash   # or Copilot, or Claude on haiku
 //   npm run verify:ui -- --no-build --starter standup
 //
 // Repo tooling only; nothing here ships. The inspection is self-certified, but
@@ -43,7 +46,7 @@ import { basename, join, relative } from 'node:path';
 import { findChrome, openBrowser } from './chrome.mjs';
 import { ROUTES, WIDTHS, checkLayout, themeRuns } from './layout-check.mjs';
 import { npmCli } from './package-rules.mjs';
-import { CODEX_SDK_INSTALL, RealHomeError, adoProblem, buildToil, codexSdkInstalled, githubToken, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilUi, toilUiNodeArgs } from './real-home.mjs';
+import { ADAPTERS, RealHomeError, adoProblem, buildToil, githubToken, sdkInstall, sdkInstalled, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilUi, toilUiNodeArgs } from './real-home.mjs';
 
 const ui = join(root, 'ui');
 const out = join(ui, '.verify');
@@ -58,10 +61,11 @@ const value = (name, fallback) => {
   const fromNpm = npmFlag(name);
   return fromNpm && fromNpm !== 'true' ? fromNpm : fallback;
 };
-const known = new Set(['--ask', '--no-build', '--source', '--starter', '--project']);
-const unknown = args.filter((a, i) => a.startsWith('--') && !known.has(a) && !['--source', '--starter', '--project'].includes(args[i - 1]));
+const valued = ['--source', '--starter', '--project', '--adapter', '--model'];
+const known = new Set(['--ask', '--no-build', ...valued]);
+const unknown = args.filter((a, i) => a.startsWith('--') && !known.has(a) && !valued.includes(args[i - 1]));
 if (unknown.length) {
-  process.stderr.write(`verify:ui: unknown argument ${unknown.join(' ')}\n  Fix: use --ask, --no-build, --source github|ado, --project <name> and --starter <id>; see the comment at the top of ui/scripts/verify.mjs.\n`);
+  process.stderr.write(`verify:ui: unknown argument ${unknown.join(' ')}\n  Fix: use --ask, --no-build, --source github|ado, --project <name>, --starter <id>, --adapter codex|copilot|claude and --model <id>; see the comment at the top of ui/scripts/verify.mjs.\n`);
   process.exit(2);
 }
 const ask = has('ask');
@@ -69,6 +73,14 @@ const build = !has('no-build');
 const sourceName = value('source', 'github');
 const starter = value('starter', 'hygiene');
 const project = value('project', process.env.TOIL_ADO_CLOUD_PROJECT);
+const adapter = value('adapter', 'codex');
+const model = value('model', null) || null;
+if (!ADAPTERS[adapter]) {
+  process.stderr.write(`verify:ui: --adapter ${adapter} isn't an adapter.\n  Fix: pass --adapter codex, copilot or claude.\n`);
+  process.exit(2);
+}
+const agentLabel = ADAPTERS[adapter].label;
+const askStep = `Ask (${agentLabel})`;
 
 /**
  * Where real data comes from. Each source sets up its dossier in the scratch
@@ -242,18 +254,23 @@ async function streamedAsk(api, body) {
   return { status: 200, error, versions, answer: versions.at(-1), done: lines.some((l) => l.done) };
 }
 
-/** One Codex question, held to the four checks the Ask makes, plus the Codex home's MCP servers. */
-async function askCodex(api, dossier, home, dataDir) {
-  if (!codexSdkInstalled()) {
-    problems.push(`Ask: @openai/codex-sdk isn't installed in this clone. Install it with ${CODEX_SDK_INSTALL} and run again.`);
-    step('Ask (Codex)', 'fail', `@openai/codex-sdk isn't installed: ${CODEX_SDK_INSTALL}`);
+/**
+ * One question to the chosen adapter, held to the four checks the Ask makes,
+ * plus the model it named, and for Codex its home's MCP servers. Copilot and
+ * Claude are held to the same checks as Codex, the reference (#317, #318).
+ */
+async function askAgent(api, dossier, home, dataDir) {
+  if (!sdkInstalled(adapter)) {
+    const install = sdkInstall(adapter);
+    problems.push(`Ask: ${ADAPTERS[adapter].package} isn't installed in this clone. Install it with ${install} and run again.`);
+    step(askStep, 'fail', `${ADAPTERS[adapter].package} isn't installed: ${install}`);
     return;
   }
-  const saved = await api.post('agent/settings', { adapter: 'codex', model: null, cliPath: null, endpoint: null, instructions: null, voice: null });
-  const codex = saved.status === 200 ? saved.json().adapters.find((a) => a.name === 'codex') : null;
-  if (!codex?.cli.path) {
-    problems.push(`Ask: Toil UI can't start Codex: ${codex?.cli.problem ?? saved.body}`);
-    step('Ask (Codex)', 'fail', codex?.cli.problem ?? `saving the agent settings answered ${saved.status}`);
+  const saved = await api.post('agent/settings', { adapter, model, cliPath: null, endpoint: null, instructions: null, voice: null });
+  const chosen = saved.status === 200 ? saved.json().adapters.find((a) => a.name === adapter) : null;
+  if (!chosen?.cli.path) {
+    problems.push(`Ask: Toil UI can't start ${agentLabel}: ${chosen?.cli.problem ?? saved.body}`);
+    step(askStep, 'fail', chosen?.cli.problem ?? `saving the agent settings answered ${saved.status}`);
     return;
   }
   const before = auditLines(home).length;
@@ -262,8 +279,8 @@ async function askCodex(api, dossier, home, dataDir) {
   const seconds = Math.round((Date.now() - started) / 1000);
   if (res.status !== 200 || res.error || !res.done) {
     const e = res.error ?? { message: 'the stream ended without done' };
-    problems.push(`Ask: Codex gave no answer (${res.status}): ${e.message}${e.fix ? ` Fix: ${e.fix}` : ''}`);
-    step('Ask (Codex)', 'fail', `no answer after ${seconds}s: ${e.message}`);
+    problems.push(`Ask: ${agentLabel} gave no answer (${res.status}): ${e.message}${e.fix ? ` Fix: ${e.fix}` : ''}`);
+    step(askStep, 'fail', `no answer after ${seconds}s: ${e.message}`);
     return;
   }
   const answer = res.answer;
@@ -273,6 +290,8 @@ async function askCodex(api, dossier, home, dataDir) {
   const thinking = res.versions[0]?.activity?.phase === 'thinking';
   const writing = res.versions.some((v) => v.activity?.phase === 'writing');
   if (!thinking || !tools.length || !writing) fail(`the stream's status said thinking ${thinking}, tools ${tools.length}, writing ${writing}; each should show.`);
+  // The answer names the model asked for (an alias such as haiku inside the SDK's full id), or the run measured another model's cost (#317).
+  if (model && !answer.model?.includes(model)) fail(`the answer names the model ${answer.model ?? 'none'}, not ${model}.`);
   step('Ask: streamed with a live status', thinking && tools.length && writing ? 'pass' : 'fail', `${res.versions.length} versions; thinking, then ${tools.join(', ') || 'no tool'}, then writing; answered by ${answer.adapter} (${answer.model ?? "its CLI's default model"})`);
   const words = answer.parts.map((p) => p.text).join(' ').split(/\s+/).filter(Boolean).length;
   if (!answer.parts.length) fail('the answer has no text.');
@@ -290,14 +309,18 @@ async function askCodex(api, dossier, home, dataDir) {
   const runnable = answer.proposals.filter((p) => p.command);
   step('Ask: proposals parsed', dropped.length || malformed.length ? 'fail' : 'pass', `${answer.proposals.length} proposal(s), ${runnable.length} with a toil command line (${[...new Set(runnable.map((p) => p.command))].join(', ') || 'none'}), ${dropped.length} left out`);
 
-  // Usage (#295): the answer carries what the Codex SDK reported, and the ledger holds exactly that.
+  // Usage (#295): the answer carries what the SDK reported, and the ledger holds exactly that.
   const records = answer.usage?.records ?? [];
   const ledger = (await api.get('usage')).json().records ?? [];
   const stored = records.filter((r) => ledger.some((l) => l.id === r.id && l.inputTokens === r.inputTokens && l.outputTokens === r.outputTokens && l.cachedInputTokens === r.cachedInputTokens));
   const tokened = records.filter((r) => typeof r.inputTokens === 'number' && typeof r.outputTokens === 'number');
-  if (!tokened.length) fail('the answer carries no usage with tokens from the Codex SDK.');
+  const wrongModel = model ? records.filter((r) => r.model && !r.model.includes(model)) : [];
+  if (!tokened.length) fail(`the answer carries no usage with tokens from the ${agentLabel} SDK.`);
+  if (wrongModel.length) fail(`${wrongModel.length} usage record(s) name another model: ${[...new Set(wrongModel.map((r) => r.model))].join(', ')}.`);
   if (stored.length !== records.length) fail(`${records.length - stored.length} of the answer's usage record(s) aren't in the ledger as the answer reported them.`);
-  step('Ask: usage recorded', tokened.length && stored.length === records.length ? 'pass' : 'fail', records.map((r) => `${r.inputTokens} in (${r.cachedInputTokens ?? 'not reported'} cached), ${r.outputTokens} out, cache write ${r.cacheWriteTokens ?? 'not reported'}, model ${r.model ?? 'not named by the SDK'}`).join('; ') || 'none reported');
+  // Copilot's premium requests and Claude's SDK estimate (total_cost_usd, per model) are figures of their own.
+  const billed = (r) => [r.premiumRequests !== undefined ? `${r.premiumRequests} premium request(s)` : '', r.costUsd !== undefined ? `${r.costUsd.toFixed(4)} (${r.costSource}${r.plan ? ', API-equivalent' : ''})` : ''].filter(Boolean).join(', ');
+  step('Ask: usage recorded', tokened.length && stored.length === records.length && !wrongModel.length ? 'pass' : 'fail', records.map((r) => `${r.inputTokens} in (${r.cachedInputTokens ?? 'not reported'} cached), ${r.outputTokens} out, cache write ${r.cacheWriteTokens ?? 'not reported'}, model ${r.model ?? 'not named by the SDK'}${billed(r) ? `, ${billed(r)}` : ''}`).join('; ') || 'none reported');
 
   const during = auditLines(home).slice(before);
   const wrote = during.filter((l) => l.writes || l.allowWrite);
@@ -305,11 +328,13 @@ async function askCodex(api, dossier, home, dataDir) {
   const methods = [...new Set(during.flatMap((l) => l.requests.map((r) => r.method)))];
   step('Ask: nothing ran', wrote.length ? 'fail' : 'pass', `${during.length} toil call(s) during the question, ${wrote.length} writing; request methods ${methods.join(', ') || 'none'}; the connection has writes off`);
 
-  const theirs = codexServers(codex.cli.path, process.env.CODEX_HOME ?? join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.codex'));
-  const ours = codexServers(codex.cli.path, join(dataDir, 'cache', 'codex'));
-  const only = ours.names && ours.names.length === 1 && ours.names[0] === 'toil_ui';
-  if (!only) fail(`codex mcp list in Toil UI's Codex home shows ${ours.names ? JSON.stringify(ours.names) : `an error: ${ours.problem}`}, not toil_ui alone.`);
-  step("Ask: Codex's MCP servers", only ? 'pass' : 'fail', `codex mcp list in Toil UI's Codex home: ${ours.names ? ours.names.join(', ') : ours.problem}; the same overrides in your own Codex home would list ${theirs.names ? theirs.names.length : '?'} server(s)`);
+  if (adapter === 'codex') {
+    const theirs = codexServers(chosen.cli.path, process.env.CODEX_HOME ?? join(process.env.USERPROFILE ?? process.env.HOME ?? '', '.codex'));
+    const ours = codexServers(chosen.cli.path, join(dataDir, 'cache', 'codex'));
+    const only = ours.names && ours.names.length === 1 && ours.names[0] === 'toil_ui';
+    if (!only) fail(`codex mcp list in Toil UI's Codex home shows ${ours.names ? JSON.stringify(ours.names) : `an error: ${ours.problem}`}, not toil_ui alone.`);
+    step("Ask: Codex's MCP servers", only ? 'pass' : 'fail', `codex mcp list in Toil UI's Codex home: ${ours.names ? ours.names.join(', ') : ours.problem}; the same overrides in your own Codex home would list ${theirs.names ? theirs.names.length : '?'} server(s)`);
+  }
 
   // Analyze (#343), as the chat's second question, carrying the first: the pulse check, cited.
   const history = [{ prompt: answer.prompt, answer: answer.parts.map((p) => p.text).join('\n\n'), by: answer.by }];
@@ -387,7 +412,7 @@ try {
   }
   if (ready.skip) {
     step(`Real data (${source.label})`, 'skip', `skipped: ${ready.skip}`);
-    if (ask) step('Ask (Codex)', 'skip', 'skipped with the real data it would read');
+    if (ask) step(askStep, 'skip', 'skipped with the real data it would read');
   } else {
     step(`Real data (${source.label})`, 'pass', `home ${relative(root, home)}, dossier ${ready.dossier}, ${ready.detail}`);
     const real = await launch([], ready.env);
@@ -412,8 +437,8 @@ try {
       const routes = ['#/', `#/dossier/${ready.dossier}`, `#/dossier/${ready.dossier}/worklog`, `#/dossier/${ready.dossier}/worklog/standup`, ...(item ? [item] : []), ...ROUTES.filter((r) => r.startsWith('#/settings/'))];
       await layout('real', real.launchUrl, routes);
 
-      if (ask) await askCodex(real.api, ready.dossier, home, ready.env.TOIL_UI_DATA_DIR);
-      else step('Ask (Codex)', 'skip', 'not asked; pass --ask to ask Codex one starter question');
+      if (ask) await askAgent(real.api, ready.dossier, home, ready.env.TOIL_UI_DATA_DIR);
+      else step(askStep, 'skip', `not asked; pass --ask to ask ${agentLabel} one starter question`);
     } finally {
       await real.stop();
       // The scratch home outlives the run; the second name for your Codex sign-in doesn't.
@@ -434,7 +459,7 @@ const cell = (s) => String(s).replace(/\|/g, '\\|').replace(/\n/g, ' ');
 const report = [
   '# Toil UI verification',
   '',
-  `**${pass ? 'PASS' : `FAIL: ${problems.length} problem(s)`}** in ${Math.round((Date.now() - startedAt.getTime()) / 60_000)} min. ${startedAt.toISOString()}, ${process.platform} ${process.arch}, Node ${process.versions.node}, Toil UI ${uiVersion} on ${toilVersion}. \`npm run verify:ui${[ask ? '--ask' : '', build ? '' : '--no-build', sourceName !== 'github' ? `--source ${sourceName}` : '', starter !== 'hygiene' ? `--starter ${starter}` : ''].filter(Boolean).map((a) => ` ${a}`).join('')}\``,
+  `**${pass ? 'PASS' : `FAIL: ${problems.length} problem(s)`}** in ${Math.round((Date.now() - startedAt.getTime()) / 60_000)} min. ${startedAt.toISOString()}, ${process.platform} ${process.arch}, Node ${process.versions.node}, Toil UI ${uiVersion} on ${toilVersion}. \`npm run verify:ui${[ask ? '--ask' : '', build ? '' : '--no-build', sourceName !== 'github' ? `--source ${sourceName}` : '', starter !== 'hygiene' ? `--starter ${starter}` : '', adapter !== 'codex' ? `--adapter ${adapter}` : '', model ? `--model ${model}` : ''].filter(Boolean).map((a) => ` ${a}`).join('')}\``,
   '',
   '| Step | Result | Detail |',
   '|---|---|---|',

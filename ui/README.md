@@ -575,7 +575,7 @@ called):
 |---|---|---|
 | Claude | each step's `usage` by message id, then the result's `modelUsage` per model and its `costUSD` | tokens (in, out, cache read, cache write) per model, and the dollar figure as the SDK's estimate; on a Claude plan (no API key, Anthropic's own API) it says "API-equivalent", since the plan isn't billed per token |
 | Codex | `turn.completed`'s `usage`: input (which holds the cached input), cached input, cache writes, output | tokens; a dollar figure only from rates you enter, labelled "computed from your rates". The SDK names no model, so a Codex record names the model you chose, or says it wasn't named |
-| GitHub Copilot | one `assistant.usage` event per model call, with `cost` as the premium-request multiplier, and `session.usage_info` for the context | tokens and premium requests, never dollars; premium requests left from the SDK's experimental `account.getQuota`, marked experimental |
+| GitHub Copilot | one `assistant.usage` event per model call, with `cost` as the premium-request multiplier, and `session.usage_info` for the context. Copilot bills the multiplier once per prompt: only the call the prompt started (`initiator` `user`) counts it, and the agent's follow-up calls in the tool loop count 0 | tokens and premium requests, never dollars; premium requests left from the SDK's experimental `account.getQuota`, marked experimental |
 
 - **Under each answer**, one line per model: `2.1k in · 380 out · 14k cached · cache
   write not reported · ~$0.012 (SDK estimate)`. A figure the SDK didn't report reads
@@ -814,6 +814,26 @@ GitHub CLI signed in (`gh auth login`), or `TOIL_GITHUB_TOKEN` set in the shell.
   Codex under **Settings, Agent**. The script points `CODEX_HOME` at your real
   `~/.codex`, which is where Toil UI finds the `auth.json` it links into its own
   Codex home.
+- **Ask with GitHub Copilot, on a cheap model.** Install `@github/copilot-sdk@1.0.16`
+  the same way (or press **Install** under **Settings, Agent**). The Copilot CLI found
+  its own sign-in from the scratch home in our runs; if it says it isn't signed in, run
+  `copilot` once on its own. Then pick the model: Copilot lists the models your
+  account can use, each with its premium-request multiplier (`/model` in the CLI, or
+  the SDK's `listModels()`). Choose the lowest, ideally one at 0×; otherwise the
+  cheapest multiplier, such as `mai-code-1.1-flash` at 0.25×, never a premium model.
+  Type its id as Copilot's model under **Settings, Agent**, and check the model each
+  answer names and the premium requests under it.
+- **Ask with Claude, on Haiku.** Install `@anthropic-ai/claude-agent-sdk@0.3.289` and
+  `zod@4.6.5` the same way, and type `haiku` (or `claude-haiku-5-5`) as Claude's
+  model under **Settings, Agent**; empty would be Claude Code's own default, which
+  may be Opus. Claude Code keeps its sign-in in `~/.claude`, which the scratch home
+  hides, and refreshing it from there would rewrite your credentials file, so the
+  script only reads it: a `CLAUDE_CODE_OAUTH_TOKEN` or `ANTHROPIC_API_KEY` in the
+  shell goes through as it is, and otherwise the access token in
+  `~/.claude/.credentials.json` goes into Toil UI's environment as
+  `CLAUDE_CODE_OAUTH_TOKEN` while it has ten minutes left. When it has expired the
+  script says so: run `claude` once in a terminal, which refreshes its own sign-in,
+  or set a token from `claude setup-token`, and start the script again.
 
 ## Verify before you open a PR: `npm run verify:ui`
 
@@ -824,6 +844,7 @@ from the root or from `ui/`, and paste the report's table into the PR.
 ```bash
 npm run verify:ui                 # build, sample data, real data
 npm run verify:ui -- --ask        # and one Codex question
+npm run verify:ui -- --ask --adapter copilot --model mai-code-1.1-flash   # or --adapter claude --model haiku
 npm run verify:ui -- --no-build --starter standup
 ```
 
@@ -845,8 +866,12 @@ npm run verify:ui -- --no-build --starter standup
 - **`--ask`** asks Codex one starter question (`hygiene` unless `--starter <id>`) and
   checks that an answer arrived, that the server verified every `[[id]]` it cites,
   that its proposals parsed, that nothing ran (no write in toil's audit log for the
-  run), and that `codex mcp list` in Toil UI's Codex home shows only `toil_ui`. It
-  needs the Codex CLI signed in and the SDK installed in the clone (above).
+  run), and that `codex mcp list` in Toil UI's Codex home shows only `toil_ui`. Then it
+  asks Analyze as the chat's second question. It needs the Codex CLI signed in and the
+  SDK installed in the clone (above). `--adapter copilot` or `--adapter claude` asks that
+  adapter instead, held to the same checks (Codex is the reference; its MCP check is
+  skipped), and `--model <id>` sets its model and fails the run when an answer or a
+  usage record names another one, so a cheap-model run can't quietly use a dear one.
 - **What fails it:** any layout problem in any theme, and any axe violation at WCAG
   2.2 AA in Plain and Crate. Axe findings in the other themes are listed in the report
   and never fail it. Screenshots are of Plain and Crate.

@@ -31,7 +31,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { CODEX_SDK_INSTALL, RealHomeError, adoProblem, buildToil, codexSdkInstalled, githubToken, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilUi, toilUiNodeArgs } from './real-home.mjs';
+import { CODEX_SDK_INSTALL, RealHomeError, adoProblem, buildToil, claudeSignIn, codexSdkInstalled, githubToken, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilUi, toilUiNodeArgs } from './real-home.mjs';
 
 const args = process.argv.slice(2);
 const flag = (name) => {
@@ -82,6 +82,8 @@ try {
   if (e instanceof RealHomeError) fail(e.message, e.fix);
   throw e;
 }
+const claude = claudeSignIn();
+if (claude.problem) process.stdout.write(`Claude for Ask: ${claude.problem}. Run claude once in a terminal so it refreshes its own sign-in, or set CLAUDE_CODE_OAUTH_TOKEN (from claude setup-token) in this shell, then start this again.\n`);
 if (!codexSdkInstalled()) process.stdout.write(`Codex for Ask: @openai/codex-sdk isn't installed in this clone. To try it: ${CODEX_SDK_INSTALL}\n`);
 
 process.stdout.write(`Toil UI runs on ${toil.describe}.\nHome for this run: ${home}\n\n`);

@@ -268,6 +268,15 @@ describe("each adapter's capture, from events shaped like its SDK's", () => {
 
   it('Copilot: each assistant.usage event as a call, cost as premium requests, and the quota marked experimental', () => {
     expect(copilotUsage({ model: 'claude-sonnet-4.6', inputTokens: 3000, outputTokens: 200, cacheReadTokens: 1000, cost: 1, duration: 900 }, 'copilot:e1')).toEqual({ id: 'copilot:e1', model: 'claude-sonnet-4.6', costSource: 'none', inputTokens: 3000, outputTokens: 200, cachedInputTokens: 1000, premiumRequests: 1 });
+    // Live on mai-code-1.1-flash (#317): one prompt, three calls, each reporting cost 0.25; the session's metrics billed 0.25.
+    const calls = [
+      { model: 'mai-code-1.1-flash', cost: 0.25, initiator: 'user', inputTokens: 101, outputTokens: 17 },
+      { model: 'mai-code-1.1-flash', cost: 0.25, initiator: 'agent', inputTokens: 137, outputTokens: 17 },
+      { model: 'mai-code-1.1-flash', cost: 0.25, initiator: 'agent', inputTokens: 173, outputTokens: 5 },
+    ].map((d, n) => copilotUsage(d, `copilot:e${n}`));
+    expect(calls.map((c) => c.premiumRequests)).toEqual([0.25, 0, 0]);
+    expect(calls.reduce((sum, c) => sum + (c.premiumRequests ?? 0), 0)).toBe(0.25);
+    expect(copilotUsage({ model: 'm', inputTokens: 1 }, 'copilot:none')).not.toHaveProperty('premiumRequests');
     expect(premiumQuota({ quotaSnapshots: { premium_interactions: { isUnlimitedEntitlement: false, entitlementRequests: 300, usedRequests: 41, usageAllowedWithExhaustedQuota: false, remainingPercentage: 86, overage: 0, overageAllowedWithExhaustedQuota: false, resetDate: '2026-11-01T00:00:00Z' } } })).toEqual({
       unlimited: false,
       entitlement: 300,
