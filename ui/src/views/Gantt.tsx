@@ -60,7 +60,9 @@ interface Layout {
   right: number;
 }
 const FULL: Layout = { label: 220, row: 36, bar: 14, top: 26, right: 16 };
-const COMPACT: Layout = { label: 170, row: 28, bar: 12, top: 20, right: 12 };
+/** The most rows the Overview's compact Gantt draws. */
+const COMPACT_ROWS = 4;
+const COMPACT: Layout = { label: 170, row: 24, bar: 10, top: 16, right: 12 };
 
 function timeText(s: Segment) {
   return `${s.estimated ? 'about ' : ''}${day(s.start)} to ${day(s.end)}`;
@@ -89,8 +91,8 @@ function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
   const end = t(g.end);
   const plot = width - L.label - L.right;
   const x = (ms: number) => L.label + (plot * (Math.min(Math.max(ms, start), end) - start)) / Math.max(1, end - start);
-  // The rows, then a band under them for the Today label, clear of the day labels above.
-  const height = L.top + g.bars.length * L.row + 18;
+  // The rows, then a band under them for the Today label, clear of the day labels above; the compact one has no day labels, so Today sits above its rows.
+  const height = L.top + g.bars.length * L.row + (compact ? 4 : 18);
   const rowY = new Map(g.bars.map((b, i) => [b.id, L.top + i * L.row + L.row / 2]));
   const key = (id: string) => {
     const item = byId.get(id);
@@ -140,7 +142,7 @@ function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
 
         {ticks.map((d) => (
           <g key={d}>
-            <line className="gantt-grid" x1={x(d)} x2={x(d)} y1={L.top - 4} y2={height - 16} />
+            <line className="gantt-grid" x1={x(d)} x2={x(d)} y1={L.top - 4} y2={height - (compact ? 2 : 16)} />
             {!compact && (
               <text className="gantt-axis" x={x(d) + 3} y={L.top - 10}>
                 {day(new Date(d).toISOString()).replace(/ \d{4}$/, '')}
@@ -204,8 +206,8 @@ function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
           );
         })}
 
-        <line className="gantt-today" x1={nowX} x2={nowX} y1={compact ? 4 : L.top - 4} y2={height - 2} />
-        <text className="gantt-today-label" x={nowX > width - 60 ? nowX - 4 : nowX + 4} y={height - 4} textAnchor={nowX > width - 60 ? 'end' : 'start'}>
+        <line className="gantt-today" x1={nowX} x2={nowX} y1={compact ? 2 : L.top - 4} y2={compact ? height : height - 2} />
+        <text className="gantt-today-label" x={nowX > width - 60 ? nowX - 4 : nowX + 4} y={compact ? 11 : height - 4} textAnchor={nowX > width - 60 ? 'end' : 'start'}>
           Today
         </text>
       </svg>
@@ -344,9 +346,16 @@ export function BlockerGantt() {
 export function ChainGantt() {
   const { dossier } = useData();
   const full = useGantt();
-  const g = useMemo(() => chainOnly(full), [full]);
+  const g = useMemo(() => {
+    // The Overview fits one screen, so a long chain shows its head; the tab has the rest.
+    const chain = chainOnly(full);
+    const bars = chain.bars.slice(0, COMPACT_ROWS);
+    const ids = new Set(bars.map((b) => b.id));
+    return { ...chain, bars, arrows: chain.arrows.filter((a) => ids.has(a.from) && ids.has(a.to)) };
+  }, [full]);
   if (!g.bars.length) return <p className="note">Nothing open is blocked by anything open.</p>;
   const c = g.chain!;
+  const more = c.ids.length - g.bars.length;
   return (
     <div className="gantt-compact">
       <Scroller label="The critical chain on the sprint's timeline" hint="Scroll sideways for the whole sprint." className="gantt-scroll">
@@ -354,7 +363,8 @@ export function ChainGantt() {
       </Scroller>
       <p className="note">
         Critical chain: {plural(c.ids.length, 'item')}
-        {c.byCount ? '' : `, ${plural(c.points, 'point')}`}. <a href={dependenciesHref(dossier.name)}>Every blocker, and the table, on Dependencies</a>
+        {c.byCount ? '' : `, ${plural(c.points, 'point')}`}
+        {more > 0 ? `; the first ${g.bars.length} shown` : ''}. <a href={dependenciesHref(dossier.name)}>Every blocker, and the table, on Dependencies</a>
       </p>
     </div>
   );

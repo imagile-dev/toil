@@ -4,7 +4,9 @@ import { blockerGantt, chainOnly } from '../src/model/gantt.ts';
 import { prepare } from '../src/model/insights.ts';
 import { readReadiness } from '../src/model/readiness.ts';
 import { health } from '../src/model/sprint.ts';
-import type { ChangeRef, Link, StatusCategory, Transition, WorkItem } from '../src/toil.ts';
+import type { ChangeRef, StatusCategory, Transition, WorkItem } from '../src/toil.ts';
+
+type Link = WorkItem['links'][number];
 import { NAMES, loaded } from './harness.ts';
 
 /**
