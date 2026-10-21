@@ -299,7 +299,10 @@ describe("the runner's own proposals", () => {
     expect(commentProposal('card-payments', i, 'body', writes)).toMatchObject({ command: 'jira issue comment', input: { dossier: 'card-payments', key: 'PAY-107', body: 'body' } });
     // Found live on the sandbox (#317): a GitHub investigation's report had no command, though toil has github pr comment (issue comment on the CLI).
     const gh = { ...i, source: { ...i.source, area: 'github' as const, key: 'imagile-dev/toil-sandbox#12' } };
-    expect(commentProposal('sandbox', gh, 'body', writes)).toMatchObject({ command: 'github pr comment', input: { dossier: 'sandbox', number: 12, body: 'body' } });
+    expect(commentProposal('sandbox', gh, 'body', writes)).toMatchObject({ command: 'github pr comment', input: { dossier: 'sandbox', owner: 'imagile-dev', repo: 'toil-sandbox', number: 12, body: 'body' } });
+    // An item from a repository the dossier doesn't name (a board spans several) is commented on in its own repository.
+    const elsewhere = { ...gh, source: { ...gh.source, key: 'imagile-dev/other-repo#7' } };
+    expect(commentProposal('sandbox', elsewhere, 'body', writes).input).toEqual({ dossier: 'sandbox', owner: 'imagile-dev', repo: 'other-repo', number: 7, body: 'body' });
     const other = { ...i, source: { ...i.source, area: 'bitbucket' as unknown as 'github' } };
     expect(commentProposal('card-payments', other, 'body', writes)).toMatchObject({ command: null, input: null, note: expect.stringMatching(/no command that comments on a bitbucket item/) });
     expect(commentText([{ text: 'See [[corp-jira:PAY-1]].' }], 'Codex')).toMatch(/^See corp-jira:PAY-1\.\n\nInvestigated by Codex through Toil UI/);
