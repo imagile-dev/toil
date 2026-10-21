@@ -398,5 +398,9 @@ pre span[style*="#6A737D" i] { color: var(--color-faint) !important; }
 .skill-doc table { border-collapse: collapse; font-size: var(--text-sm); }
 .skill-doc th, .skill-doc td { border: 1px solid var(--color-line); padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; min-width: 8rem; }
 .skill-doc th { color: var(--color-ink); background: var(--color-surface); font-weight: 600; }
+/* On a phone a table wraps to the screen instead of hiding columns past a scroller's edge (#388). */
+@media (max-width: 640px) {
+  .skill-doc th, .skill-doc td { min-width: 0; padding: 0.4rem; overflow-wrap: break-word; hyphens: auto; }
+}
 .skill-doc blockquote { border-left: 2px solid var(--color-accent); padding-left: var(--space-sm); }
 .skill-doc hr { border: 0; border-top: 1px solid var(--color-line); }
