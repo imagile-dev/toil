@@ -8,13 +8,15 @@
   than refused for its space, and kept as typed when the person answers no.
 - **Quotes include backticks and curly quotes**, and a prefix is `Bearer` or `token`
   in any case followed by spaces or tabs. A lone `token` is a value, not a prefix.
-- **A line break that arrives with other text in one chunk is a paste, not Enter.**
+- **A line break with more text after it in one chunk is a paste, not Enter.**
   Bracketed paste is turned on while a secret is read, which Windows Terminal,
   conhost through ConPTY, macOS Terminal and xterm-likes all pass through (checked on
-  ConPTY with pywinpty). For a terminal that doesn't bracket, a chunk that is more
-  than a line break keeps its line breaks as text, so the check can report them and
-  the rest of a split paste never types itself into the next question. The cost: a
-  line typed ahead and Enter in one chunk needs a second Enter.
+  ConPTY with pywinpty). For a terminal that doesn't bracket, a line break in the
+  middle of what a chunk carries is kept as text, so the check refuses it and the
+  rest of a split paste never types itself into the next question. Line breaks at
+  the end of a chunk are Enter (review on #370): type-ahead and a password manager's
+  auto-type arrive with their Enter. The cost: an unbracketed paste that ends in a
+  newline submits at once, which is harmless, since the value is trimmed anyway.
 - **Removing a wrapper is said on its own line** (`Removed "Bearer ": 19 characters
   left.`), after the `Received` line, so the length the person sees last is the one
   stored.
@@ -42,9 +44,9 @@
   terminal state after an abnormal exit; this is the cheap half of it.
 - **A lone Esc is dropped and the key after it kept**, so Esc then Enter still
   ends the line. Alt+key reads as the key.
-- **Editing keys don't make a chunk text.** Backspace or Ctrl+U arriving in one
-  chunk with Enter is still Enter; only printable text typed outside a paste turns
-  a line break into part of the answer.
+- **Editing keys don't count as text.** Backspace or Ctrl+U arriving in one chunk
+  with Enter is still Enter; only printable text after a line break, outside a
+  paste, makes it part of the answer.
 - **The empty-keep rule in Toil UI follows the file, as the CLI's does:** a secret
   whose value comes from the store or the file is kept on an empty field; one that
   only an env var supplies isn't in the file, so an empty field stores nothing.

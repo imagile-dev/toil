@@ -43,12 +43,13 @@ export interface Prompter {
  * answer; Backspace removes the last character, Ctrl+U clears them all, Ctrl+C
  * cancels, and other escape sequences (arrows, focus reports) are ignored.
  *
- * Enter is a chunk that holds nothing but a line break outside any bracketed
- * paste (a paste and its Enter may arrive together). A line break that
- * arrives with other text, outside a bracketed paste, came from a paste on a
- * terminal that doesn't bracket one, so it's kept as part of the answer for
- * `checkSecret()` to report, rather than ending the line halfway through
- * someone's token and typing the rest into the next question.
+ * Enter is a line break at the end of what a chunk carries outside any
+ * bracketed paste: keys typed ahead, or a password manager's auto-type, can
+ * arrive with their Enter, and so can a paste. A line break with more text
+ * after it in the same chunk came from a paste on a terminal that doesn't
+ * bracket one, so it's kept as part of the answer for `checkSecret()` to
+ * refuse, rather than ending the line halfway through someone's token and
+ * typing the rest into the next question.
  */
 export class HiddenLine {
   private chars: string[] = [];
@@ -66,15 +67,15 @@ export class HiddenLine {
   /** Feeds one chunk as it arrived. `enter` and `cancel` end the line; anything after them in the chunk is dropped. */
   feed(chunk: string): 'enter' | 'cancel' | null {
     const pieces = this.split(chunk);
-    // Only text typed outside a paste decides: a paste and its Enter can arrive together, and so can Backspace and Enter.
-    const enterOnly = /^[\r\n]+$/.test(pieces.filter((p) => !p.pasted && !EDITS.has(p.c)).map((p) => p.c).join(''));
+    // Only text typed outside a paste decides, editing keys aside: line breaks only at its end are Enter.
+    const endsLine = /^[^\r\n]*[\r\n]+$/.test(pieces.filter((p) => !p.pasted && !EDITS.has(p.c)).map((p) => p.c).join(''));
     for (const { c, pasted } of pieces) {
       if (pasted) {
         // A paste keeps its line breaks and tabs, for checkSecret() to report; other controls aren't text.
         if (isText(c) || c === '\t' || c === '\r' || c === '\n') this.chars.push(c);
       } else if (c === '\x03') return 'cancel';
       else if (c === '\r' || c === '\n') {
-        if (enterOnly) return 'enter';
+        if (endsLine) return 'enter';
         this.chars.push(c);
       } else if (c === '\x7f' || c === '\b') this.chars.pop();
       else if (c === '\x15') this.chars = [];

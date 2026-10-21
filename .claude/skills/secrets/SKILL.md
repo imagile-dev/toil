@@ -121,8 +121,9 @@ every other secret is a token.
 **Reading a secret (#358).** The terminal prompter (`src/core/prompt.ts`) reads a
 secret in raw mode with `HiddenLine`, not readline, and draws one `•` per character:
 Backspace removes one, Ctrl+U clears the line, Ctrl+C cancels, and bracketed paste
-is turned on so a pasted line break arrives as text, not Enter (a chunk that holds
-other text with its line break is a paste too, for terminals that don't bracket).
+is turned on so a pasted line break arrives as text, not Enter (a line break with
+more text after it in one chunk is a paste too, for terminals that don't bracket;
+one at a chunk's end is Enter).
 The value is never echoed, logged, put in argv or written anywhere but the store.
 Every secret then goes through `askCheckedSecret()` and `checkSecret()` in
 `src/core/secret-input.ts`, the one definition of the paste checks, which the API's

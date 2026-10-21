@@ -171,7 +171,12 @@ describe('HiddenLine', () => {
     expect(fed('\x1b[200~abc\n\x1b[201~', '\r').value).toBe('abc\n');
     // A terminal that doesn't bracket a paste still sends it as one chunk.
     expect(fed('abc\rdef', '\r').value).toBe('abc\rdef');
-    expect(fed('abc\r', '\r').value).toBe('abc\r');
+  });
+
+  it('takes a line break at the end of a chunk as Enter: type-ahead and auto-type arrive with theirs', () => {
+    expect(fed('ab', 'c\r')).toEqual({ value: 'abc', count: 3, result: 'enter' });
+    expect(fed('secret\r')).toEqual({ value: 'secret', count: 6, result: 'enter' });
+    expect(fed('abc\r\n')).toEqual({ value: 'abc', count: 3, result: 'enter' });
   });
 
   it('takes Enter that arrives in the same chunk as a paste as Enter', () => {
