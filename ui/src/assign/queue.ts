@@ -138,6 +138,8 @@ export interface QueueOptions {
    * fingerprint to. Absent, nothing is ever stale.
    */
   current?(dossier: string, mode: AssignMode): Promise<Fingerprint> | Fingerprint;
+  /** Why renewing can't help now (the server itself is out of date, #305), with the restart command; null when it can. */
+  restartNeeded?(): string | null;
   now(): string;
   newId(): string;
   /**
@@ -244,7 +246,8 @@ export class AssignmentQueue {
     let current = seen.get(key);
     if (!current) seen.set(key, (current = Promise.resolve(this.o.current(r.dossier, r.mode))));
     try {
-      return staleness(origin, await current);
+      const stale = staleness(origin, await current);
+      return stale ? { ...stale, restart: this.o.restartNeeded?.() ?? null } : null;
     } catch {
       // A fingerprint that can't be worked out says nothing either way; the badge waits for the next read.
       return null;

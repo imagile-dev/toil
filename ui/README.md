@@ -698,8 +698,9 @@ started on, says which have gone stale and why, and renews them on request.
   first, the chat included, each saying whether it renews or why it's skipped, and
   renews the rest with one press.
 - **The server itself.** When toil or Toil UI on disk is newer than the running
-  server, the header says so, with the command that starts it again. Renewed sessions
-  start on what the server runs, so restart it first to renew onto the new release.
+  server, the header says so, with the command that starts it again. A session renewed
+  then would start on the old build and be stale at once, so until it restarts, Renew
+  is refused (and Renew all stale skips every session), saying so with that command.
 
 ## Themes
 

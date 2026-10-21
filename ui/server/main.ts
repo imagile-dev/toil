@@ -181,7 +181,7 @@ async function main(): Promise<number> {
       // The one write an assignment makes, and only on a person's Apply: toil's own command, through its own gate, labelled with the assignment.
       apply: (a, p) => toilExecute(p.command!, { ...p.input, allowWrite: true }, { caller: CALLER, actor: actorOf(a.id) }),
       settings: () => queueSettings(dataDir),
-      ...(fingerprints ? { current: (dossier: string, mode: Parameters<typeof assignmentPrompts>[0]) => fingerprints!.current(dossier, assignmentPrompts(mode)) } : {}),
+      ...(fingerprints ? { current: (dossier: string, mode: Parameters<typeof assignmentPrompts>[0]) => fingerprints!.current(dossier, assignmentPrompts(mode)), restartNeeded: () => fingerprints!.restartNeeded() } : {}),
       now: () => new Date().toISOString(),
       newId: () => randomUUID(),
     });

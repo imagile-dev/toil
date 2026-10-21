@@ -160,7 +160,7 @@ describe("a chat's session", () => {
   });
 
   /** A host on a scripted Codex whose answers wait for the test to release them. */
-  function host() {
+  function host(disk: string | null = null) {
     const dataDir = mkdtempSync(join(folder, 'host-'));
     writeFileSync(agentSettingsFile(dataDir), JSON.stringify({ adapter: 'codex', model: null, cliPath: null, endpoint: null }));
     let dossier: Record<string, unknown> = { name: 'card-payments', jira: { project: 'PAY' } };
@@ -175,7 +175,11 @@ describe("a chat's session", () => {
       run: () => new Promise<string>((resolve) => gates.push(() => resolve('[[corp-jira:PAY-107]] has no estimate.'))),
     };
     const running = { toil: { version: '0.1.0-alpha.3', commit: null }, toilUi: { version: '0.1.0-alpha.2', commit: null } };
-    const fingerprints = new Fingerprints({ running, toilBundle: null, uiBundle: null, registry: registry.commands, execute: dossierExecute(() => dossier), restart: 'node toil-ui.js' });
+    // `disk`: the toil version on disk, newer than the running one, for a server that is out of date.
+    const files: FileAccess = { stat: (p) => (p === '/toil/toil-lib.js' && disk ? { mtimeMs: 1, size: 1 } : null), head: () => `const __TOIL_VERSION__ = "${disk}"; // x-release-please-version
+const __TOIL_COMMIT__ = null; // toil-build-commit
+` };
+    const fingerprints = new Fingerprints({ running, toilBundle: '/toil/toil-lib.js', uiBundle: null, registry: registry.commands, execute: dossierExecute(() => dossier), restart: 'node toil-ui.js', files });
     const h = new AgentHost({ dataDir, version: 't', data: () => data, registry: registry.commands, execute: dossierExecute(() => dossier), mapIds: () => [], serveTools: () => ({ url: '', token: '', close() {} }), fallback: noAgent(), env: { PATH: '/usr/bin' }, platform: 'linux', importer: async () => ({}), installed: () => true, isFile: (p) => p === '/usr/bin/codex', now: () => FIXTURE_NOW, runtimes: [runtime], fingerprints });
     const release = async () => {
       while (!gates.length) await new Promise((r) => setTimeout(r, 1));
@@ -214,6 +218,13 @@ describe("a chat's session", () => {
     const renewed = await h.renew('chat-0000-0001', 'card-payments');
     expect(renewed).toEqual({ startedAt: FIXTURE_NOW, stale: null, renewals: 1 });
     expect((await h.session('chat-0000-0001'))!.stale).toBeNull();
+  });
+
+  it('refuses to renew while the server itself is out of date, naming the restart, since a renewed chat would be stale at once', async () => {
+    const { h, release } = host('0.1.0-alpha.4');
+    const first = await asked(h, release);
+    expect(first.session!.stale).toMatchObject({ text: 'started on toil 0.1.0-alpha.3 · now alpha.4', restart: expect.stringContaining('Restart it first: node toil-ui.js') });
+    await expect(h.renew('chat-0000-0001', 'card-payments')).rejects.toMatchObject({ status: 409, fix: expect.stringContaining('node toil-ui.js') });
   });
 
   it('refuses to renew a chat while it answers: a renew never interrupts a turn', async () => {
@@ -262,6 +273,16 @@ describe("an assignment's staleness and renewal", () => {
     // The renewed run starts on today's fingerprint, so it isn't stale.
     while ((await q.read(fresh.id)).state === 'queued' || (await q.read(fresh.id)).state === 'working') await new Promise((r) => setTimeout(r, 5));
     expect((await q.read(fresh.id)).startedOn?.fingerprint).toEqual(SAMPLE_FINGERPRINT_NOW);
+  });
+
+  it('skips every renewal while the server is out of date, with the restart command', async () => {
+    // The sample's queue, on a server that is behind what is on disk.
+    const s = sampleQueue(undefined, { delay: 1, restartNeeded: () => 'Toil UI itself is out of date. Restart it first: node toil-ui.js' });
+    await s.ready;
+    const failed = await s.queue.read('sample-failed-0000004');
+    expect(failed.stale!.restart).toContain('Restart it first');
+    expect(renewRefusal(failed)).toContain('Restart it first');
+    await expect(s.queue.renew('sample-failed-0000004')).rejects.toMatchObject({ status: 409, message: expect.stringContaining('Restart it first') });
   });
 
   it("says why each state can't renew", () => {

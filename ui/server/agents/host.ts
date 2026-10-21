@@ -379,7 +379,8 @@ export class AgentHost implements Agent {
 
   private async checked(r: ChatRecord): Promise<ChatSession> {
     const current = await this.o.fingerprints!.current(r.dossier, this.chatPrompts());
-    return { startedAt: r.startedAt, stale: staleness(r.origin, current), renewals: r.renewals };
+    const stale = staleness(r.origin, current);
+    return { startedAt: r.startedAt, stale: stale ? { ...stale, restart: this.o.fingerprints!.restartNeeded() } : null, renewals: r.renewals };
   }
 
   /** A chat's session now (#305), checked against the current fingerprint; null for a chat that hasn't asked yet. */
@@ -397,6 +398,9 @@ export class AgentHost implements Agent {
    */
   async renew(chatId: string, dossier: string): Promise<ChatSession> {
     if (!this.o.fingerprints) throw new AgentError('This Toil UI records no sessions, so there is nothing to renew.', 'Start toil-ui with its cache to record what each chat started on.');
+    // A chat renewed on an out-of-date server would start on the old build, stale at once: only a restart helps.
+    const restart = this.o.fingerprints.restartNeeded();
+    if (restart) throw Object.assign(new AgentError("This chat can't be renewed until Toil UI restarts.", restart), { status: 409 });
     const r = this.chats.get(chatId);
     if (r?.running) throw Object.assign(new AgentError('This chat is answering a question now, and a renew never interrupts one.', 'Wait for the answer, or press Stop, then renew.'), { status: 409 });
     const next: ChatRecord = { dossier, origin: await this.o.fingerprints.origin(dossier, this.chatPrompts()), startedAt: this.clock(), renewals: (r?.renewals ?? 0) + 1, running: 0 };

@@ -378,6 +378,7 @@ export function settledState(a: Pick<Assignment, 'proposals' | 'questions' | 'st
 export function renewRefusal(a: Pick<Assignment, 'state' | 'stale' | 'renewedBy'>): string | null {
   if (a.renewedBy) return `It was renewed already, as ${a.renewedBy}.`;
   if (!a.stale) return "Nothing it started on has changed, so it doesn't need renewing.";
+  if (a.stale.restart) return a.stale.restart;
   if (a.state === 'working') return 'It is working now, and a renew never interrupts a turn: renew it once it ends.';
   if (a.state === 'needs-you') return 'It is waiting on you: review its proposals and questions, or mark it reviewed, first.';
   if (a.state === 'queued') return "It hasn't started, so it starts on today's instructions anyway.";

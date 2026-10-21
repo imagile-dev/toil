@@ -399,7 +399,7 @@ function RenewAll({ list, onDone }: { list: AssignmentList; onDone: () => void }
     if (why) throw new Error(why);
   };
   const rows: Renewal[] = [
-    ...(chat?.session?.stale ? [{ key: 'chat', label: `The chat about ${dossier.name}: ${chat.session.stale.text}`, skip: chat.busy ? 'It is answering a question now, and a renew never interrupts one.' : null, run: renewChat }] : []),
+    ...(chat?.session?.stale ? [{ key: 'chat', label: `The chat about ${dossier.name}: ${chat.session.stale.text}`, skip: chat.session.stale.restart ?? (chat.busy ? 'It is answering a question now, and a renew never interrupts one.' : null), run: renewChat }] : []),
     ...list.assignments
       .filter((a) => a.stale)
       .map((a) => ({ key: a.id, label: `${MODE_INFO[a.mode].label} ${a.item} on ${a.adapter ? ADAPTER_NAME[a.adapter] : 'no adapter'}, ${STATE_LABEL[a.state].toLowerCase()}: ${a.stale!.text}`, skip: renewRefusal(a), run: () => api.renew(a.id) })),

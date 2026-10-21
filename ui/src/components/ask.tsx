@@ -335,7 +335,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
           </p>
         </div>
         <AskInfo agentLabel={answering} />
-        {chat.session?.stale && agent.renew && (
+        {chat.session?.stale && !chat.session.stale.restart && agent.renew && (
           <Button className="btn btn--small" onPress={() => void chat.renew()} isDisabled={busy} data-chat-renew="">
             Renew
           </Button>
@@ -348,6 +348,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
       <div className="ask-scroll" data-scroller="" tabIndex={0} role="region" aria-label="The conversation">
         <p className="note">{words('ask.note')}</p>
         {chat.session?.stale && <StaleNote stale={chat.session.stale} />}
+        {chat.session?.stale?.restart && <p className="note any-break">{chat.session.stale.restart}</p>}
         {chat.session?.stale && busy && <p className="note">Renew waits for this answer: it never interrupts one.</p>}
         {chat.renewProblem && (
           <p role="alert" className="failure">

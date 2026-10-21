@@ -50,6 +50,11 @@
 - **Renew all stale lives in the Agents lane** and lists the dossier's stale
   assignments and its chat (the chat now sits in a `ChatScope` around the dossier's
   pages, so the lane can see it). It renews one by one from the page and reports each.
+- **No renew while the server is out of date** (review round 1). A session renewed
+  then starts on the running build and is stale again at once, so `restartNeeded`
+  (`ui/server/fingerprint.ts`) rides on every staleness as `restart`, and the chat's
+  Renew, an assignment's Renew and Renew all stale refuse or skip with it, giving the
+  restart command.
 - **The header's restart command is the process's own argv** (`node <bin> <args>`),
   quoted where a shell would split it.
 - **A sample fingerprint.** The sample's needs-you and failed assignments start on

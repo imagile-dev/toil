@@ -173,6 +173,12 @@ export class Fingerprints {
     return { ...this.disk(), skills: this.skills, dossier: await this.dossier(dossier), prompts };
   }
 
+  /** Why renewing can't help while the server is out of date, with the command that restarts it; null when it isn't. */
+  restartNeeded(): string | null {
+    const s = this.server();
+    return s.stale ? `Toil UI itself is out of date (${s.stale.replace(/\.$/, '')}), so a session renewed now would start on the old build and be stale at once. Restart it first: ${s.restart}` : null;
+  }
+
   /** The server's own staleness, for the header. */
   server(): ServerStatus {
     const disk = this.disk();

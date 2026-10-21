@@ -290,7 +290,7 @@ export interface SampleQueue {
 }
 
 /** The sample's queue: the real one, on the sample's items, its seeds and the scripted runner. */
-export function sampleQueue(execute: Execute = fixtureExecute().execute, o: { delay?: number; now?: () => string } = {}): SampleQueue {
+export function sampleQueue(execute: Execute = fixtureExecute().execute, o: { delay?: number; now?: () => string; restartNeeded?: () => string | null } = {}): SampleQueue {
   const data = new Map<string, DossierData>();
   let seq = 0;
   // The sample's clock starts at its own fixed day and runs from there, so seeds and new runs share one timeline.
@@ -311,6 +311,7 @@ export function sampleQueue(execute: Execute = fixtureExecute().execute, o: { de
       apply: async (_a, p) => refuse(p.command ?? 'that'),
       settings: () => SAMPLE_ASSIGN_SETTINGS,
       current: () => SAMPLE_FINGERPRINT_NOW,
+      ...(o.restartNeeded ? { restartNeeded: o.restartNeeded } : {}),
       now: o.now ?? clock,
       newId: () => `sample-new-${String(++seq).padStart(8, '0')}`,
       sample: true,

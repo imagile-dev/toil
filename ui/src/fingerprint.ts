@@ -43,6 +43,12 @@ export interface Staleness {
   reasons: string[];
   /** The whole reason on one line: "started on toil 0.1.0-alpha.3 · now alpha.4 · dossier changed". */
   text: string;
+  /**
+   * Set while the server itself is older than what is on disk: a session
+   * renewed now would start on the old build and be stale at once, so renew
+   * waits for a restart, and this says why with the command that does it.
+   */
+  restart?: string | null;
 }
 
 /** The newer version, shortened where it shares the older one's release line: 0.1.0-alpha.3 then "alpha.4". */
