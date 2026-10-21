@@ -15,6 +15,7 @@
  */
 
 import type { Change, WorkItem } from '../toil.ts';
+import { behindAll, blockerOrder, heldBy } from './blockers.ts';
 import { flows } from './flow.ts';
 import { STALE_DAYS, insights, type Prepared } from './insights.ts';
 import { PICKUP_DAYS, daysText, openQueue } from './prs.ts';
@@ -77,24 +78,12 @@ function issue(kind: IssueKind, fields: Omit<KeyIssue, 'kind' | 'weight' | 'tick
 
 /** Open items held up by another open item, grouped by what holds them: the blocker that holds most comes first. */
 function blockers(p: Prepared): KeyIssue | null {
-  const held = new Map<string, string[]>();
-  for (const item of p.items) {
-    for (const i of insights(item, p)) {
-      if (i.code !== 'blocked') continue;
-      const by = /\[\[([^\]]+)\]\]/.exec(i.text)?.[1];
-      if (by) held.set(by, [...(held.get(by) ?? []), item.id]);
-    }
-  }
+  const held = heldBy(p);
   if (!held.size) return null;
-  // Everything that waits on a blocker, directly or behind another blocked item, so the head of a chain counts its whole chain.
-  const behindAll = (id: string, seen = new Set<string>()): Set<string> => {
-    for (const next of held.get(id) ?? []) if (!seen.has(next)) behindAll(next, seen.add(next));
-    return seen;
-  };
   const blocked = uniq([...held.values()].flat());
-  const order = [...held.entries()].sort((a, b) => behindAll(b[0]).size - behindAll(a[0]).size || Number(blocked.includes(a[0])) - Number(blocked.includes(b[0])) || a[0].localeCompare(b[0]));
+  const order = blockerOrder(held);
   const [top, behind] = order[0]!;
-  const waiting = behindAll(top).size;
+  const waiting = behindAll(held, top).size;
   return issue('blockers', {
     title: `${plural(blocked.length, 'item')} blocked`,
     detail: order

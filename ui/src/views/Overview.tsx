@@ -2,7 +2,7 @@
  * A dossier's Overview (#394), in the Minto order: the recommendation first,
  * then the three key issues behind it, each with its tickets as chips, then
  * the evidence: the metrics as a strip of sparklines, each opening its full
- * chart, and the blockers in brief. It fits a 1440 by 900 screen without
+ * chart, and the blockers in brief: the critical chain as a compact Gantt (#396). It fits a 1440 by 900 screen without
  * scrolling. The recommendation is worked out by code (src/model/recommend.ts)
  * and says so; no agent is asked. The answer before the slides, for once.
  */
@@ -17,11 +17,11 @@ import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, boardHref, dependenciesHref, itemHref, prName, prsHref, shortKey, sourceLabel } from '../format.ts';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
-import { dependencyGraph } from '../model/graph.ts';
 import { WAITING_LABEL, daysText, openQueue } from '../model/prs.ts';
 import { recommend, type IssueTab, type KeyIssue } from '../model/recommend.ts';
 import { useSkins, useWords } from '../skins.tsx';
 import { Aging, CycleTime, SprintDetail, Throughput } from './Flow.tsx';
+import { ChainGantt } from './Gantt.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const TAB_NAME: Record<IssueTab, string> = { board: 'Board', dependencies: 'Dependencies', prs: 'Pull requests' };
@@ -261,19 +261,12 @@ function MetricStrip() {
 }
 
 /**
- * The blockers in brief: each open item that holds up another, with what it
- * holds. The Dependencies tab has the whole graph.
+ * The blockers in brief (#396): the critical chain as a compact Gantt, the
+ * chain of open blockers holding the most points, on the sprint's timeline.
+ * The Dependencies tab has every blocker, the key and the table.
  */
 function Blockers() {
   const { dossier } = useData();
-  const rows = useMemo(() => {
-    const g = dependencyGraph(dossier.items);
-    const open = new Map(g.nodes.map((n) => [n.id, n.known && !n.done]));
-    const by = new Map<string, string[]>();
-    for (const e of g.edges) if (e.type === 'blocks' && open.get(e.source) && open.get(e.target)) by.set(e.source, [...(by.get(e.source) ?? []), e.target]);
-    return [...by.entries()].sort((a, b) => b[1].length - a[1].length);
-  }, [dossier.items]);
-  const shown = rows.slice(0, 2);
   return (
     <section className="overview-blockers" aria-labelledby="blockers-title">
       <div className="overview-head">
@@ -281,29 +274,10 @@ function Blockers() {
           Blockers
         </h2>
         <a className="note" href={dependenciesHref(dossier.name)}>
-          {rows.length > shown.length ? `${rows.length - shown.length} more on Dependencies` : 'All dependencies'}
+          All dependencies
         </a>
       </div>
-      {shown.length ? (
-        <ul className="blocker-rows">
-          {shown.map(([source, targets]) => (
-            <li key={source} className="blocker-row">
-              <TicketChip id={source} />
-              <span className="blocker-row__arrow">blocks</span>
-              <ul className="ticket-chips">
-                {targets.slice(0, 1).map((id) => (
-                  <li key={id}>
-                    <TicketChip id={id} />
-                  </li>
-                ))}
-                {targets.length > 1 && <li className="note blocker-row__more">and {targets.length - 1} more</li>}
-              </ul>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="note">Nothing open is blocked by anything open.</p>
-      )}
+      <ChainGantt />
     </section>
   );
 }
