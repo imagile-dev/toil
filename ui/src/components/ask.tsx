@@ -76,7 +76,6 @@ const seconds = (ms: number) => String(Math.max(1, Math.round(ms / 1000)));
 const textOf = (a: Answer) => a.parts.map((p) => p.text).join('\n\n');
 const optionLabel = (o: Pick<AdapterOption, 'label' | 'model'>) => (o.model ? `${o.label} (${o.model})` : o.label);
 
-/** The words of the status line (#343): what the agent is doing now, or how the last answer ended. */
 /** Below this width the Ask field is too short to name the dossier, so its placeholder is the short one. */
 const NARROW_ASK = '(max-width: 599px)';
 
@@ -86,6 +85,7 @@ function useAskPlaceholder(name: string): string {
   return useMediaQuery(NARROW_ASK) ? words('ask.placeholder.short') : words('ask.placeholder', { name });
 }
 
+/** The words of the status line (#343): what the agent is doing now, or how the last answer ended. */
 export function statusLine(t: Turn, words: ReturnType<typeof useWords>, now: number): { text: string; tool: string | null; elapsed: string | null } | null {
   if (t.error && !t.stopped) return null;
   if (t.done) return { text: words(t.stopped ? 'status.stopped' : 'status.done', { seconds: seconds(t.ms ?? 0) }), tool: null, elapsed: null };

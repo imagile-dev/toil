@@ -3,7 +3,7 @@
  * opens, defined once. A topic is one or two sentences and the exact docs
  * section that says the rest, on the site: `/docs/` for toil's own concepts
  * (connections, dossiers, writes, the audit log) and `/docs/ui/` and
- * `/docs/themes/` for the app. `ui/test/help.test.ts`
+ * `/docs/themes/` for the app. `ui/test/help.test.tsx`
  * resolves every link against the docs' own headings, and the site build
  * checks each one again against the pages it built
  * (`site/scripts/check-help-links.mjs`), so a renamed heading fails a build
