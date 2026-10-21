@@ -13,9 +13,6 @@
 .assign-state--failed { color: var(--danger); }
 .assign-mode { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 
-/* A board card's actions wrap now that Assign sits beside Drag and Move. */
-.card-actions { flex-wrap: wrap; }
-
 .agents-lane { display: grid; gap: 0.75rem; }
 .assign-lane { margin: 0; }
 .assign-card { height: 100%; }

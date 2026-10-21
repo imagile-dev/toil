@@ -1,4 +1,4 @@
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -13,6 +13,7 @@ import type { AgentSettingsPanelProps } from '../src/agent-settings.tsx';
 import type { AgentSettings, AgentStatus } from '../src/server-client.ts';
 import { fixtureWorklog } from '../src/fixtures/worklog.ts';
 import { parseRoute } from '../src/App.tsx';
+import { columnSteps } from '../src/views/Board.tsx';
 import type { WorklogApi, WorklogDay } from '../src/worklog.ts';
 
 /**
@@ -265,27 +266,89 @@ describe('the views on a dashboard (#252, #253)', () => {
     const board = panel('Sprint 42 board');
     const col = (name: string) => within(board).getByRole('region', { name: new RegExp(`^${name}`) });
     const cards = (region: HTMLElement) => within(region).getAllByRole('listitem').filter((li) => li.classList.contains('card'));
-    expect(cards(col('To do')).map((c) => within(c).getAllByRole('link')[0]!.textContent)).toEqual(['Azure DevOps 2303', 'Azure DevOps 2306']);
+    expect(cards(col('To do')).map((c) => within(c).getAllByRole('link')[0]!.textContent)).toEqual(['2303', '2306']);
     const card = cards(col('In progress')).find((li) => li.textContent?.includes('2304'))!;
     expect(card.textContent).toContain('Active · In progress');
-    expect(card.textContent).toContain('Aging');
     expect(card.textContent).toContain('M. Lind');
+    // The source and the estimate share a line; each insight is an icon with its word kept as text and tooltip.
+    expect(card.querySelector('.card-meta .field')!.textContent).toMatch(/^Azure DevOps · /);
+    const aging = within(card).getByText('Aging').closest('li')!;
+    expect(aging.getAttribute('title')).toBe('Aging');
+    expect(aging.querySelector('svg')!.getAttribute('aria-hidden')).toBe('true');
   });
 
-  it('turns a move into a proposal card naming the toil command, and changes nothing', async () => {
+  it('carries no buttons on its cards: the whole card is the handle, named by its key and title', async () => {
+    await open('#/dossier/card-payments');
+    const board = panel('Sprint 42 board');
+    const cards = within(board).getAllByRole('listitem').filter((li) => li.classList.contains('card'));
+    expect(cards.length).toBeGreaterThan(0);
+    for (const c of cards) expect(within(c).queryAllByRole('button')).toEqual([]);
+    const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
+    expect(grip.tabIndex).toBe(0);
+    expect(grip.getAttribute('aria-roledescription')).toBe('draggable card');
+    expect(grip.getAttribute('aria-keyshortcuts')).toBe('M');
+    expect(document.getElementById(grip.getAttribute('aria-describedby')!)!.textContent).toMatch(/press Space or Enter.*arrow keys.*Escape to cancel.*Press M or the Menu key/);
+  });
+
+  it('opens the item on a click anywhere on the card', async () => {
+    await open('#/dossier/card-payments');
+    const grip = within(panel('Sprint 42 board')).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
+    await userEvent.click(within(grip).getByText('Store tokens in the vault'));
+    await waitFor(() => expect(window.location.hash).toBe(item('card-payments', 'corp-jira:PAY-102')));
+  });
+
+  it("turns a move from the card's context menu into a proposal card naming the toil command, and changes nothing", async () => {
     const fixture = fixtureExecute();
     await open('#/dossier/card-payments', { execute: fixture.execute });
     const before = fixture.calls.length;
     const board = panel('Sprint 42 board');
-    // A browser names it "Move PAY-102 to…"; jsdom's name computation drops the space that leads the hidden words.
-    await userEvent.click(within(board).getByRole('button', { name: /^Move ?PAY-102 to…$/ }));
-    await userEvent.click(await screen.findByRole('menuitem', { name: 'In progress' }));
+    const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
+    fireEvent.contextMenu(grip);
+    const menu = await screen.findByRole('menu', { name: 'PAY-102 Store tokens in the vault' });
+    expect(within(menu).getAllByRole('menuitem').map((m) => m.textContent)).toEqual(['Open', 'In progress', 'Done']);
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'In progress' }));
+    expect(screen.queryByRole('menu')).toBeNull();
     const card = within(board).getByRole('article', { name: 'Proposal: Move PAY-102 to In progress' });
     expect(card.textContent).toContain("toil jira issue transition 'PAY-102' --dossier 'card-payments' --transition 'In Progress' --allow-write");
     expect(screen.getByText(/Proposed: Move PAY-102 to In progress. Nothing has changed/)).toBeTruthy();
     // The card is still where Jira says it is, and nothing was asked of toil.
     expect(within(within(board).getByRole('region', { name: /^To do/ })).getByText('Store tokens in the vault')).toBeTruthy();
     expect(fixture.calls.length).toBe(before);
+  });
+
+  it('opens the same menu with M on the focused card, and only on the card itself', async () => {
+    await open('#/dossier/card-payments');
+    const board = panel('Sprint 42 board');
+    const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
+    within(grip).getByRole('link', { name: 'PAY-102' }).focus();
+    await userEvent.keyboard('m');
+    expect(screen.queryByRole('menu')).toBeNull();
+    grip.focus();
+    await userEvent.keyboard('m');
+    const menu = await screen.findByRole('menu', { name: 'PAY-102 Store tokens in the vault' });
+    await userEvent.click(within(menu).getByRole('menuitem', { name: 'Done' }));
+    expect(await within(board).findByRole('article', { name: 'Proposal: Move PAY-102 to Done' })).toBeTruthy();
+    // The menu hands focus back to the card it came from.
+    await waitFor(() => expect(document.activeElement).toBe(grip));
+  });
+
+  it('steps a lifted card a whole column per arrow key, in board order, whichever way the columns lie', () => {
+    const order = ['TODO', 'IN_PROGRESS', 'DONE'] as const;
+    // Side by side, as on a wide screen.
+    const rects = new Map(order.map((c, i) => [c, { left: i * 300, top: 100, width: 280, height: 600, right: i * 300 + 280, bottom: 700 }]));
+    const step = columnSteps([...order], () => 'TODO');
+    const press = (code: string, over: string | null) => {
+      const event = new KeyboardEvent('keydown', { code, cancelable: true });
+      const at = step(event, { active: 'x', currentCoordinates: { x: 0, y: 0 }, context: { collisionRect: { width: 240, height: 120 }, droppableRects: rects, over: over ? { id: over } : null } } as never);
+      return { at, prevented: event.defaultPrevented };
+    };
+    expect(press('ArrowRight', null)).toEqual({ at: { x: 320, y: 148 }, prevented: true });
+    expect(press('ArrowDown', 'IN_PROGRESS').at).toEqual({ x: 620, y: 148 });
+    expect(press('ArrowRight', 'DONE').at).toEqual({ x: 620, y: 148 });
+    expect(press('ArrowLeft', 'IN_PROGRESS').at).toEqual({ x: 20, y: 148 });
+    expect(press('ArrowUp', 'TODO').at).toEqual({ x: 20, y: 148 });
+    // Any other key is left to dnd-kit: Space and Enter drop, Escape cancels.
+    expect(press('Space', 'TODO')).toEqual({ at: undefined, prevented: false });
   });
 
   it('draws throughput, cycle time and aging, each listing what it could not compute', async () => {
