@@ -1,5 +1,7 @@
-# 376: A lighter CI matrix on pull requests
+# 376: Linux on every PR; Windows, macOS and Node 26 daily
 
-- **On a pull request, the gate runs every OS on the Node floor (24.14) only.** Main pushes and the release PR also run Node 26. Seven PRs pulled main at the same moment and queued about 80 jobs against the account's ~20-runner limit (5 on macOS), which held approved PRs for an hour or more. Every OS stays first-class (principle 8) on every PR. A break that only Node 26 hits shows on main's push run, and on the release PR before anything publishes.
-- **Skill install runs on Linux for a PR and on every OS on main.** It's optional, outside `CI ok`, and downloads a third-party CLI. The cross-OS install path is covered on main.
-- **`CI ok` keeps its name and its needs**, so the ruleset doesn't change. A smaller matrix still has to pass in full.
+- **PRs and `main` run CI on Linux, Node 24.14, as two parallel jobs**: toil's gate and Toil UI's. Seven PRs pulled main at the same moment and queued about 80 jobs against the account's ~20-runner limit (5 on macOS). Approved PRs waited an hour or more. The maintainer asked for simple PR jobs, with the other platforms on a daily schedule.
+- **`platforms.yml` runs the old full matrix** (three OSes × Node 24.14 and 26, plus skill install on each OS): daily at 06:17 UTC, on demand, and on the release PR. The release PR publishes, so every platform passes there before anything ships. A failed daily run opens one `platforms-failure` issue, and later failures comment on it instead of opening more.
+- **Principle 8 is unchanged.** Windows and macOS are still first-class, and a break there gets fixed. What changed is when it's caught: within a day, not on every PR.
+- **`CI ok` keeps its name**, so the ruleset doesn't change. It now needs both gates, the integration job and the dist guard.
+- **The layout check runs its theme schemes in parallel**, one headless Chrome per core (`LAYOUT_WORKERS` overrides). Run one after another, it took 16–18 minutes of the 21-minute job. Findings are joined in scheme order, so the report reads the same however many workers run.

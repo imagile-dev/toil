@@ -13,44 +13,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Pull requests and main run on Linux, on the supported Node floor, in two
+  # jobs side by side: toil's gate and Toil UI's. Windows, macOS and Node 26 run
+  # daily and on the release PR (platforms.yml), so a platform break shows within
+  # a day and always before a release (#376). The floor is 24.14, the first
+  # release where both the OS certificate store and the proxy env vars can be
+  # switched on from code (tls.setDefaultCACertificates,
+  # http.setGlobalProxyFromEnv); keep it in step with "engines" in package.json
+  # and with platforms.yml.
   gate:
-    name: ${{ matrix.os }} / Node ${{ matrix.node }}
-    strategy:
-      fail-fast: false
-      matrix:
-        # Windows, macOS and Linux are all first-class (principle 8), on the
-        # supported floor and the current Node release. The floor is 24.14, the
-        # first release where both the OS certificate store and the proxy env
-        # vars can be switched on from code (tls.setDefaultCACertificates,
-        # http.setGlobalProxyFromEnv); keep it in step with "engines" in
-        # package.json.
-        #
-        # A pull request runs every OS on the floor only; main and the release PR
-        # add the current release. Seven PRs at once queued about 80 jobs against
-        # the account's ~20-runner limit (5 on macOS) and held approved PRs for an
-        # hour (#376). A Node 26 break still shows on main before any release.
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node: ${{ fromJSON(github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--') && '["24.14"]' || '["24.14", 26]') }}
-    runs-on: ${{ matrix.os }}
+    name: toil gate
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '24.14'
           cache: npm
-      # A Windows runner's temp folder is on C:, its OS disk, where creating and
-      # flushing a file is slow: a SQLite commit measured 22 to 117 ms there and
-      # 0.7 ms on D:, the work disk RUNNER_TEMP is on (#328). Every test that
-      # writes a temp folder paid that, and timed out at random. os.tmpdir()
-      # reads TEMP and TMP on Windows; macOS and Linux keep their own.
-      - name: Temp folder on the work disk
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          "TEMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
-          "TMP=$env:RUNNER_TEMP" >> $env:GITHUB_ENV
-      # Install scripts stay off even for the dev toolchain. ui/ is a workspace,
-      # so this installs Toil UI's dev dependencies too, from the one lockfile.
+      # Install scripts stay off even for the dev toolchain.
       - run: npm ci --ignore-scripts
       - run: npm run typecheck
       - run: npm run lint
@@ -59,19 +39,32 @@ jobs:
       # No runtime deps, no install scripts, only Node built-ins, no spawning.
       - run: npm run check:pure
       # On the release PR only, which rebuilds the committed dist/toil.js
-      # (release.yml): it is exactly what the build just produced, on every OS.
-      # Every other PR leaves dist/ alone (dist-guard below).
+      # (release.yml): it is exactly what the build just produced. platforms.yml
+      # checks the same on every OS. Every other PR leaves dist/ alone (dist-guard).
       - if: startsWith(github.head_ref, 'release-please--')
         run: npm run check:dist
       # Install the packed tarball with scripts off; drive the CLI and MCP.
       # Then clone the checkout and run the build from the clone, no install.
       - run: npm run smoke
-      # Toil UI (ui/, @imagile-dev/toil-ui), the root's npm workspace: never in
-      # toil's tarball, but held to the same gate on every OS. check:package is
-      # its check:pure (one dependency, toil pinned exactly, no install scripts,
-      # no native addon, the server imports only built-ins and toil, a tarball
-      # allowlist); its smoke installs both tarballs offline, opens the UI, and
-      # runs the layout check in the runner's Chrome (ui/scripts/layout-check.mjs).
+
+  # Toil UI (ui/, @imagile-dev/toil-ui), the root's npm workspace: never in
+  # toil's tarball, but held to the same gate. check:package is its check:pure
+  # (one dependency, toil pinned exactly, no install scripts, no native addon,
+  # the server imports only built-ins and toil, a tarball allowlist); its smoke
+  # installs both tarballs offline, opens the UI, and runs the layout check in
+  # the runner's Chrome (ui/scripts/layout-check.mjs), one Chrome per core.
+  ui:
+    name: Toil UI gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.14'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      # The UI's smoke installs toil's packed tarball, so toil is built first.
+      - run: npm run build
       - run: npm run typecheck -w ui
       - run: npm run lint -w ui
       - run: npm test -w ui
@@ -100,38 +93,6 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_REF: ${{ github.head_ref }}
-
-  # The skill installs through a real skill manager on every OS: Claude Code
-  # validates the marketplace in the repository and installs the toil plugin
-  # from it, with a throwaway config folder and no login. (The .agents/skills
-  # path is a folder copy; test/skills.test.ts checks the folder stands alone.)
-  # Optional rather than part of CI ok, because it downloads a third-party CLI.
-  # A pull request installs on Linux only; main installs on every OS (#376).
-  skill-install:
-    name: skill install / ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: '24.14'
-      - name: Claude Code validates the marketplace and installs the skill from it
-        shell: bash
-        env:
-          CLAUDE_CONFIG_DIR: ${{ runner.temp }}/claude-config
-          DISABLE_TELEMETRY: '1'
-          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1'
-        run: |
-          claude() { npx --yes @anthropic-ai/claude-code@2.1.289 "$@"; }
-          claude plugin validate "$GITHUB_WORKSPACE"
-          claude plugin marketplace add "$GITHUB_WORKSPACE"
-          claude plugin install toil@toil
-          claude plugin details toil@toil | tee "$RUNNER_TEMP/details.txt"
-          grep -q 'Skills (1)' "$RUNNER_TEMP/details.txt"
 
   # The database providers against real engines (`npm run test:integration`,
   # the `databases` skill). Each server engine is a service container from its
@@ -216,25 +177,31 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run test:integration
 
-  # The one check the ruleset on main requires, over the gate and the database
-  # integration job, so a database regression blocks a merge. The gate's job
-  # names include the Node version, so requiring them by name would silently stop
-  # requiring them the day a version changes. always() matters: a skipped
-  # required check counts as a pass, so this job must run, and fail, when either
-  # of them fails.
+  # The one check the ruleset on main requires, over both gates and the database
+  # integration job, so a database regression blocks a merge. Requiring one job
+  # by name, rather than each gate, keeps the ruleset right when jobs change.
+  # always() matters: a skipped required check counts as a pass, so this job
+  # must run, and fail, when any of them fails.
   ci-ok:
     name: CI ok
-    needs: [gate, integration, dist-guard]
+    needs: [gate, ui, integration, dist-guard]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Every gate job passed
+      - name: toil's gate passed
         run: |
           if [ "${{ needs.gate.result }}" != "success" ]; then
             echo "::error::The gate finished as '${{ needs.gate.result }}', not 'success'."
             exit 1
           fi
-          echo "Every gate job passed."
+          echo "toil's gate passed."
+      - name: Toil UI's gate passed
+        run: |
+          if [ "${{ needs.ui.result }}" != "success" ]; then
+            echo "::error::Toil UI's gate finished as '${{ needs.ui.result }}', not 'success'."
+            exit 1
+          fi
+          echo "Toil UI's gate passed."
       - name: The database integration job passed
         run: |
           if [ "${{ needs.integration.result }}" != "success" ]; then
