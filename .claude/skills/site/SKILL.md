@@ -38,7 +38,8 @@ from `main`).
   page.
 - **The docs are the toil skill, rendered.** `skills/toil/*.md` is the one copy of
   the reference: every page under `site/src/pages/docs/` but `/docs/welcome/`, `/docs/ui/`
-  (`ui/README.md`) and `/docs/themes/` (`ui/docs/themes.md`) renders
+  (`ui/README.md`), `/docs/themes/` (`ui/docs/themes.md`) and `/docs/ui-help/`
+  (`ui/docs/help.md`) renders
   one of its files through `src/components/SkillPage.astro`, the file's own heading
   and description become the hero, and inline `<file>.md` references become links
   (`src/lib/skill-pages.mjs`, a remark plugin in `astro.config.mjs`). A page adds
@@ -150,8 +151,12 @@ from `main`).
     is `tabindex="0"` with a label; `test/site-docs.test.ts` checks all of it. The
     figures' styles live in the page that renders the file
     (`src/pages/docs/dossiers.astro`, and `themes.astro` for the `ui-*` figures). Toil UI's own docs, `ui/docs/*.md`
-    (`/docs/themes/`), place figures the same way, and `UI_DOC_PAGES` in
-    `skill-pages.mjs` names each one's page. The dev server keeps a figure's old
+    (`/docs/themes/`, `/docs/ui-help/`), place figures the same way, and `UI_DOC_PAGES` in
+    `skill-pages.mjs` names each one's page.
+- **Toil UI's help links land on real headings.** Every Read more link in Toil UI is a
+  page and heading id in `ui/src/help.ts`; `npm run build` ends with
+  `scripts/check-help-links.mjs`, which fails when one isn't in the built pages, so a
+  renamed heading in a docs page that Toil UI links to updates its topic in the same PR. The dev server keeps a figure's old
     markup until it restarts.
 - **Every new or changed integration reviews its skill file, which is its docs
   page, in the same PR**: setup, credential and where to create it, config keys,
