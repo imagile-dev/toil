@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -44,7 +44,8 @@ describe('the Agents lane', () => {
   it('assigns from a board card, through the dialog, onto the assignment page', async () => {
     await open('#/dossier/card-payments');
     const user = userEvent.setup();
-    await user.click(screen.getAllByRole('button').find((b) => b.textContent === 'Assign corp-jira:PAY-103 to an agent…')!);
+    fireEvent.contextMenu(screen.getByRole('group', { name: 'PAY-103 Charge a stored token' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Assign to an agent…' }));
     const dialog = await screen.findByRole('dialog', { name: 'Assign to an agent' });
     await within(dialog).findByRole('radiogroup', { name: 'Adapter' });
     await user.click(within(dialog).getByRole('radio', { name: /Investigate/ }));

@@ -3,7 +3,7 @@ import type { AnyArea } from '../core/area.js';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
 import { connectionWrites, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
 import type { CommandContext } from '../core/context.js';
-import { dossierContent, stripUserinfo, type Applied, type Dossier, type DossierCatalog, type DossierFile, type DossierProblem, type Selection } from '../core/dossier.js';
+import { dossierContent, selectorHost, stripUserinfo, type Applied, type Dossier, type DossierCatalog, type DossierFile, type DossierProblem, type Selection } from '../core/dossier.js';
 import { ToilError, toToilError } from '../core/errors.js';
 import { forwardSlashes } from '../core/files.js';
 
@@ -114,14 +114,9 @@ export function dossiersCommands(areas: readonly AnyArea[]): AnyCommand[] {
         ctx.setExitCode(1);
         return { name: input.dossier ?? null, file: null, source: null, ok: false, problems: details.map((d) => ({ level: 'error', code: 'DOSSIER_INVALID', path: d.path, message: d.message })), message: broken.message };
       }
-      const problems = [...target.problems.map((p) => (p.code === 'DOSSIER_REMOTE_USERINFO' ? { ...p, level: 'error' as const } : p)), ...bindingProblems(catalog, ctx.manage!.config, areas, target as DossierFile & { dossier: Dossier })];
-      const others = catalog.scan(input.cwd).files.filter((f) => f.dossier?.name === target.dossier!.name && f.file !== target.file);
-      for (const other of others) {
-        problems.push({ level: 'warning', code: 'DOSSIER_DUPLICATE_NAME', path: 'name', message: `A dossier with the same name is also in ${forwardSlashes(other.file)} (${other.source}).` });
-      }
-      const ok = !problems.some((p) => p.level === 'error');
+      const { ok, problems } = checkDossier(catalog, ctx.manage!.config, areas, target as DossierFile & { dossier: Dossier }, input.cwd);
       if (!ok) ctx.setExitCode(1);
-      return { name: target.dossier!.name, file: forwardSlashes(target.file), source: target.source, ok, problems: problems.map(problemOut) };
+      return { name: target.dossier!.name, file: forwardSlashes(target.file), source: target.source, ok, problems };
     },
   });
 
@@ -145,6 +140,21 @@ export function dossiersCommands(areas: readonly AnyArea[]): AnyCommand[] {
   return [list, show, check, context];
 }
 
+/**
+ * What `dossiers check` finds in one dossier, against `config`: the file's own
+ * problems (a credential in a remote is an error here), every binding checked
+ * against your connections, and the same name in another place. Exported for
+ * `dossiers onboard`, which ends with it after setting connections up.
+ */
+export function checkDossier(catalog: DossierCatalog, config: ResolvedConfig, areas: readonly AnyArea[], target: DossierFile & { dossier: Dossier }, cwd: string | undefined) {
+  const problems = [...target.problems.map((p) => (p.code === 'DOSSIER_REMOTE_USERINFO' ? { ...p, level: 'error' as const } : p)), ...bindingProblems(catalog, config, areas, target)];
+  const others = catalog.scan(cwd).files.filter((f) => f.dossier?.name === target.dossier.name && f.file !== target.file);
+  for (const other of others) {
+    problems.push({ level: 'warning', code: 'DOSSIER_DUPLICATE_NAME', path: 'name', message: `A dossier with the same name is also in ${forwardSlashes(other.file)} (${other.source}).` });
+  }
+  return { ok: !problems.some((p) => p.level === 'error'), problems: problems.map(problemOut) };
+}
+
 function dossiersOf(ctx: CommandContext<unknown>): DossierCatalog {
   if (!ctx.manage) throw new Error('A dossiers command ran without ctx.manage; define it with defineConfigCommand.');
   if (!ctx.manage.dossiers) throw new ToilError('NOT_CONFIGURED', 'Dossiers are not available here.', { fix: 'Run toil dossiers from the CLI or toil mcp.' });
@@ -152,7 +162,7 @@ function dossiersOf(ctx: CommandContext<unknown>): DossierCatalog {
 }
 
 /** The dossier a show or check is about: the one named, or the one the folder resolves to. */
-function chosen(catalog: DossierCatalog, input: { dossier?: string | undefined; cwd?: string | undefined }, ctx: CommandContext<unknown>): Applied {
+export function chosen(catalog: DossierCatalog, input: { dossier?: string | undefined; cwd?: string | undefined }, ctx: CommandContext<unknown>): Applied {
   const selection = catalog.select({ dossier: input.dossier, cwd: input.cwd });
   for (const w of selection.warnings) ctx.warn(w);
   if (selection.applied) return selection.applied;
@@ -215,18 +225,28 @@ function resolvedAreas(catalog: DossierCatalog, config: ResolvedConfig, areas: r
 /** Bindings checked against your connections: each exists, each host picks exactly one, and which land on writes. */
 function bindingProblems(catalog: DossierCatalog, config: ResolvedConfig, areas: readonly AnyArea[], file: DossierFile & { dossier: Dossier }): DossierProblem[] {
   const dossier = file.dossier;
-  const known = new Set(areas.map((a) => a.name));
+  const byName = new Map(areas.map((a) => [a.name, a]));
   const problems: DossierProblem[] = [];
   const sections: Array<[string, string, string | undefined]> = [
     ...Object.keys(dossier.sections).map((area) => [area, area, undefined] as [string, string, undefined]),
     ...Object.entries(dossier.environments).flatMap(([env, byArea]) => Object.keys(byArea).map((area) => [area, `environments.${env}.${area}`, env] as [string, string, string])),
   ];
   for (const [area, path, env] of sections) {
-    if (!known.has(area)) continue;
+    if (!byName.has(area)) continue;
     const section = env === undefined ? dossier.sections[area]! : dossier.environments[env]![area]!;
     let name: string | undefined;
     if (typeof section.connection === 'string') {
       const conn = config.connections[section.connection];
+      // A dossier others read selects by host: a teammate's connection on the same host has a name of its own.
+      if (file.source !== 'user' && conn?.area === area) {
+        const host = selectorHost(conn, byName.get(area)!.siteApis);
+        problems.push({
+          level: 'warning',
+          code: 'DOSSIER_CONNECTION_SHARED',
+          path: `${path}.connection`,
+          message: `This shared dossier selects connection "${section.connection}" by name, which works only for readers who named theirs the same. Select it by host instead: ${host ? `"host": "${host}"` : `"host" set to the connection's host`} (toil dossiers ${env ? `env ${dossier.name} ${env}` : `link ${dossier.name}`} ${area} --host ${host ?? '<host>'} --replace).`,
+        });
+      }
       if (!conn || conn.area !== area) {
         problems.push({ level: 'error', code: 'DOSSIER_UNKNOWN_CONNECTION', path: `${path}.connection`, message: `You have no ${area} connection named "${section.connection}".` });
         continue;
@@ -234,7 +254,7 @@ function bindingProblems(catalog: DossierCatalog, config: ResolvedConfig, areas:
       name = section.connection;
     } else if (typeof section.host === 'string') {
       try {
-        name = catalog.binding({ ...dossier, sections: { [area]: section }, environments: {} }, area, undefined).connection;
+        name = catalog.binding({ ...dossier, sections: { [area]: section }, environments: {} }, area, undefined, config).connection;
       } catch (err) {
         const e = toToilError(err);
         problems.push({ level: 'error', code: e.code === 'NOT_CONFIGURED' ? 'DOSSIER_HOST_UNMATCHED' : 'DOSSIER_HOST_AMBIGUOUS', path: `${path}.host`, message: e.message });

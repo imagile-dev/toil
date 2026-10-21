@@ -14,6 +14,7 @@ import {
 import { apiRequest } from '../core/api.js';
 import { coerce, resolveConnection } from '../core/connection.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
+import { hostMatches } from '../core/dossier.js';
 import { ToilError, withArticle } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified, type SecretStore } from '../core/keychain.js';
 import type { Prompter } from '../core/prompt.js';
@@ -36,13 +37,7 @@ import type { Prompter } from '../core/prompt.js';
  * than it was offered.
  */
 export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
-  const areaNamed = (name: string): AnyArea => {
-    const area = areas.find((a) => a.name === name);
-    if (area) return area;
-    throw new ToilError('INVALID_INPUT', `toil has no area named "${name}".`, {
-      fix: areas.length ? `Use one of: ${areas.map((a) => a.name).join(', ')}.` : 'This toil has no areas that take a connection yet.',
-    });
-  };
+  const areaNamed = (name: string): AnyArea => areaIn(areas, name);
 
   const add = defineConfigCommand({
     path: ['connections', 'add'],
@@ -59,50 +54,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
       { flags: '--area <area>', field: 'area', description: 'The area it connects to (asked for when left out)' },
     ],
     examples: [{ name: 'corp-jira', area: 'jira' }],
-    run: async (input, ctx) => {
-      const { config, secrets, prompt } = access(ctx);
-      checkName(input.name);
-      const path = config.files.global;
-      const file = readConfigForEdit(path);
-      if (file.connections[input.name]) {
-        throw new ToilError('INVALID_INPUT', `There's already a connection named "${input.name}".`, {
-          fix: `Run toil connections login ${input.name} to replace its secret, or toil connections remove ${input.name} first.`,
-        });
-      }
-      if (!prompt) throw needsTerminal('add', input.name, input.area ? areaNamed(input.area) : undefined);
-      const area = areaNamed(input.area ?? (await prompt.ask(`Area (${areas.map((a) => a.name).join(', ')})`, areas.length === 1 ? areas[0]!.name : undefined, 'area')));
-
-      const { settings, secretValues } = await askSettings(prompt, area);
-      const parsed = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...secretValues });
-      if (!parsed.success) {
-        const keys = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? '')).filter(Boolean))];
-        throw new ToilError('INVALID_INPUT', `Those settings aren't a valid ${area.name} connection: check ${keys.join(', ')}. Nothing was saved.`, {
-          fix: `Run toil connections add ${input.name} again.`,
-          details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
-        });
-      }
-      // Nothing is saved until the person has seen what will be. Secrets are
-      // named, never shown: they were typed hidden and stay that way.
-      const review = [
-        `area ${area.name}`,
-        // An object or array setting (Jira's customFields) reads as JSON, not [object Object].
-        ...Object.entries(settings).map(([k, v]) => `${k} ${typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}`),
-        ...Object.keys(secretValues).map((k) => `${k} to the OS credential store`),
-      ].join(', ');
-      const answer = await prompt.ask(`Save ${input.name} (${review})? y/n`, 'y', 'confirm');
-      if (!/^y(es)?$/i.test(answer)) throw new ToilError('CANCELLED', 'Nothing was saved.', { fix: `Run toil connections add ${input.name} again.` });
-
-      const kept = await storeNew(secrets, input.name, secretValues, ctx.signal);
-      file.connections[input.name] = { area: area.name, ...settings, ...kept };
-      // The first connection to an area becomes its default, so adding a
-      // second one later doesn't leave the area with no default.
-      const others = Object.keys(file.connections).filter((n) => n !== input.name && file.connections[n]!.area === area.name);
-      if (others.length === 0 && typeof file.defaults[area.name]?.connection !== 'string') {
-        file.defaults[area.name] = { ...(file.defaults[area.name] ?? {}), connection: input.name };
-      }
-      writeConfigFile(path, file);
-      return { name: input.name, area: area.name, configFile: slashes(path), secrets: whereKept(kept) };
-    },
+    run: async (input, ctx) => addConnection(ctx, areas, input),
   });
 
   const login = defineConfigCommand({
@@ -249,35 +201,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     writesLocal: false,
     args: [{ name: 'name', field: 'name', description: 'Connection name' }],
     examples: [{ name: 'jira' }],
-    run: async (input, ctx) => {
-      const { config, secrets } = access(ctx);
-      const settings = config.connections[input.name];
-      if (!settings) throw new ToilError('INVALID_INPUT', `There's no connection named "${input.name}".`, { fix: 'Run toil connections list to see the names.' });
-      const area = areaNamed(settings.area);
-      // The same resolution every area command gets: defaults, env, the store, pairing and validation.
-      const connection = await resolveConnection(config, area, input.name, ctx.warn, secrets, ctx.signal);
-      const host = hostOf(connection, new Set(area.secrets));
-      const probe = area.request ? area.probe?.(connection) : undefined;
-      if (!probe) {
-        ctx.warn({
-          code: 'NOT_LIVE_TESTED',
-          message: `toil has no live check for ${area.name} connections${area.probe ? ' set up like this one' : ''}, so nothing was sent. The settings are complete and the secret was read.`,
-        });
-        return { name: input.name, area: area.name, host, live: false, authenticated: false, request: null };
-      }
-      // JSON through core unless the area declares a text answer: a sign-in page served with a 200 is
-      // the same HTTP error here that a real command would get, never a healthy connection.
-      const body = await apiRequest(area, { fetch: ctx.fetch, signal: ctx.signal, connection }, probe.path, { as: probe.as ?? 'json', ...(probe.query ? { query: probe.query } : {}) });
-      if (probe.accepts && !probe.accepts(body)) {
-        throw new ToilError('AUTH', `${area.name} answered GET ${probe.path} for connection "${input.name}" as an anonymous user, so its credential wasn't accepted.`, {
-          fix: `Run toil connections login ${input.name} with a new credential, or replace the one its env var sets.`,
-        });
-      }
-      if (probe.authenticated === false) {
-        ctx.warn({ code: 'NOT_AUTHENTICATED', message: `${area.name} has no cheap read that needs the credential, so this test shows the host answers, not that the credential works.` });
-      }
-      return { name: input.name, area: area.name, host, live: true, authenticated: probe.authenticated !== false, request: `GET ${probe.path}` };
-    },
+    run: async (input, ctx) => testConnection(ctx, areas, access(ctx).config, input.name),
   });
 
   const writes = defineConfigCommand({
@@ -354,6 +278,112 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
   return [add, login, list, remove, test, writes, setDefault];
 }
 
+function areaIn(areas: readonly AnyArea[], name: string): AnyArea {
+  const area = areas.find((a) => a.name === name);
+  if (area) return area;
+  throw new ToilError('INVALID_INPUT', `toil has no area named "${name}".`, {
+    fix: areas.length ? `Use one of: ${areas.map((a) => a.name).join(', ')}.` : 'This toil has no areas that take a connection yet.',
+  });
+}
+
+/** What `connections add` is told beyond its input, when another command (`dossiers onboard`) runs it. */
+export interface AddOptions {
+  /** Answers to offer in place of the area's defaults, by setting key (a base URL on the dossier's host). */
+  suggest?: Record<string, string>;
+  /** Refuse, before anything is saved, settings that aren't on this host selector, as a dossier's `host` compares it. */
+  host?: string;
+}
+
+/**
+ * `toil connections add`: asks for the area (unless given), every setting and
+ * each secret, shows what it will save and saves only on a yes. Exported so
+ * `dossiers onboard` sets a missing connection up through this same flow.
+ */
+export async function addConnection(ctx: CommandContext<unknown>, areas: readonly AnyArea[], input: { name: string; area?: string | undefined }, options: AddOptions = {}) {
+  const { config, secrets, prompt } = access(ctx);
+  checkName(input.name);
+  const path = config.files.global;
+  const file = readConfigForEdit(path);
+  if (file.connections[input.name]) {
+    throw new ToilError('INVALID_INPUT', `There's already a connection named "${input.name}".`, {
+      fix: `Run toil connections login ${input.name} to replace its secret, or toil connections remove ${input.name} first.`,
+    });
+  }
+  if (!prompt) throw needsTerminal('add', input.name, input.area ? areaIn(areas, input.area) : undefined);
+  const area = areaIn(areas, input.area ?? (await prompt.ask(`Area (${areas.map((a) => a.name).join(', ')})`, areas.length === 1 ? areas[0]!.name : undefined, 'area')));
+
+  const { settings, secretValues } = await askSettings(prompt, area, options.suggest);
+  const parsed = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...secretValues });
+  if (!parsed.success) {
+    const keys = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? '')).filter(Boolean))];
+    throw new ToilError('INVALID_INPUT', `Those settings aren't a valid ${area.name} connection: check ${keys.join(', ')}. Nothing was saved.`, {
+      fix: `Run toil connections add ${input.name} again.`,
+      details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
+    });
+  }
+  if (options.host !== undefined && !hostMatches({ ...(area.defaults ?? {}), ...settings }, options.host, area.siteApis)) {
+    throw new ToilError('INVALID_INPUT', `That ${area.name} connection isn't on ${options.host}, the host the dossier selects, so it wouldn't be used. Nothing was saved.`, {
+      fix: `Give a base URL on ${options.host}${options.suggest?.baseUrl ? `, such as ${options.suggest.baseUrl}` : ''}.`,
+    });
+  }
+  // Nothing is saved until the person has seen what will be. Secrets are
+  // named, never shown: they were typed hidden and stay that way.
+  const review = [
+    `area ${area.name}`,
+    // An object or array setting (Jira's customFields) reads as JSON, not [object Object].
+    ...Object.entries(settings).map(([k, v]) => `${k} ${typeof v === 'object' && v !== null ? JSON.stringify(v) : String(v)}`),
+    ...Object.keys(secretValues).map((k) => `${k} to the OS credential store`),
+  ].join(', ');
+  const answer = await prompt.ask(`Save ${input.name} (${review})? y/n`, 'y', 'confirm');
+  if (!/^y(es)?$/i.test(answer)) throw new ToilError('CANCELLED', 'Nothing was saved.', { fix: `Run toil connections add ${input.name} again.` });
+
+  const kept = await storeNew(secrets, input.name, secretValues, ctx.signal);
+  file.connections[input.name] = { area: area.name, ...settings, ...kept };
+  // The first connection to an area becomes its default, so adding a
+  // second one later doesn't leave the area with no default.
+  const others = Object.keys(file.connections).filter((n) => n !== input.name && file.connections[n]!.area === area.name);
+  if (others.length === 0 && typeof file.defaults[area.name]?.connection !== 'string') {
+    file.defaults[area.name] = { ...(file.defaults[area.name] ?? {}), connection: input.name };
+  }
+  writeConfigFile(path, file);
+  return { name: input.name, area: area.name, configFile: slashes(path), secrets: whereKept(kept) };
+}
+
+/**
+ * `toil connections test`: resolves one connection as every area command
+ * does, then sends the area's one cheap authenticated read. `config` is
+ * passed so `dossiers onboard` can test a connection it has just added.
+ */
+export async function testConnection(ctx: CommandContext<unknown>, areas: readonly AnyArea[], config: ConfigAccess['config'], name: string) {
+  const { secrets } = access(ctx);
+  const settings = config.connections[name];
+  if (!settings) throw new ToilError('INVALID_INPUT', `There's no connection named "${name}".`, { fix: 'Run toil connections list to see the names.' });
+  const area = areaIn(areas, settings.area);
+  // The same resolution every area command gets: defaults, env, the store, pairing and validation.
+  const connection = await resolveConnection(config, area, name, ctx.warn, secrets, ctx.signal);
+  const host = hostOf(connection, new Set(area.secrets));
+  const probe = area.request ? area.probe?.(connection) : undefined;
+  if (!probe) {
+    ctx.warn({
+      code: 'NOT_LIVE_TESTED',
+      message: `toil has no live check for ${area.name} connections${area.probe ? ' set up like this one' : ''}, so nothing was sent. The settings are complete and the secret was read.`,
+    });
+    return { name, area: area.name, host, live: false, authenticated: false, request: null };
+  }
+  // JSON through core unless the area declares a text answer: a sign-in page served with a 200 is
+  // the same HTTP error here that a real command would get, never a healthy connection.
+  const body = await apiRequest(area, { fetch: ctx.fetch, signal: ctx.signal, connection }, probe.path, { as: probe.as ?? 'json', ...(probe.query ? { query: probe.query } : {}) });
+  if (probe.accepts && !probe.accepts(body)) {
+    throw new ToilError('AUTH', `${area.name} answered GET ${probe.path} for connection "${name}" as an anonymous user, so its credential wasn't accepted.`, {
+      fix: `Run toil connections login ${name} with a new credential, or replace the one its env var sets.`,
+    });
+  }
+  if (probe.authenticated === false) {
+    ctx.warn({ code: 'NOT_AUTHENTICATED', message: `${area.name} has no cheap read that needs the credential, so this test shows the host answers, not that the credential works.` });
+  }
+  return { name, area: area.name, host, live: true, authenticated: probe.authenticated !== false, request: `GET ${probe.path}` };
+}
+
 function access(ctx: CommandContext<unknown>): ConfigAccess {
   if (!ctx.manage) throw new Error('A connections command ran without ctx.manage; define it with defineConfigCommand.');
   return ctx.manage;
@@ -415,7 +445,7 @@ function secretLabel(area: AnyArea, key: string): string {
  * secrets the area declares are asked for: an area that signs in with a token
  * is never asked for a username and password.
  */
-async function askSettings(prompt: Prompter, area: AnyArea): Promise<{ settings: Settings; secretValues: Record<string, string> }> {
+async function askSettings(prompt: Prompter, area: AnyArea, suggest: Record<string, string> = {}): Promise<{ settings: Settings; secretValues: Record<string, string> }> {
   const shape = area.connection.shape as Record<string, z.ZodType>;
   const secretKeys: string[] = area.secrets ?? [];
   const keys = Object.keys(shape)
@@ -424,7 +454,8 @@ async function askSettings(prompt: Prompter, area: AnyArea): Promise<{ settings:
   const settings: Settings = {};
   for (const key of keys) {
     const fallback = area.defaults?.[key] === undefined ? undefined : String(area.defaults[key]);
-    const answer = await prompt.ask(label(area, key), fallback, `setting:${key}`);
+    const offered = Object.hasOwn(suggest, key) ? suggest[key] : fallback;
+    const answer = await prompt.ask(label(area, key), offered, `setting:${key}`);
     // An answer equal to the provider default isn't written, so the default can still change.
     if (answer !== '' && answer !== fallback) settings[key] = coerce(shape[key]!, answer);
   }

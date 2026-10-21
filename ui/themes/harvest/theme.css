@@ -124,9 +124,9 @@
   border-top-color: #c9932a;
 }
 
-/* A crop in each card's corner, beside the Drag and Move buttons. */
-[data-theme="harvest"] .card {
-  padding-bottom: 0.6rem;
+/* A crop in each card's corner, kept clear of the estimate beside it. */
+[data-theme="harvest"] .card .card-foot {
+  padding-right: 36px;
 }
 
 [data-theme="harvest"] .harvest-crop {

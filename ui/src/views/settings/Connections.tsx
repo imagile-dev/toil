@@ -263,18 +263,6 @@ const NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
 function AddConnection({ areas, config, onChanged }: { areas: AreaInfo[] | null; config: ConfigApi; onChanged: () => Promise<void> }) {
   const withFields = (areas ?? []).filter((a) => a.connection.length > 0);
-  const [name, setName] = useState('');
-  const [area, setArea] = useState('');
-  const [values, setValues] = useState<Record<string, string>>({});
-  const [secrets, setSecrets] = useState<Record<string, string>>({});
-  const chosen = withFields.find((a) => a.name === area) ?? withFields[0];
-  const fields = chosen?.connection ?? [];
-  const settings = fields.filter((f) => !f.secret);
-  const required = settings.filter((f) => f.required);
-  const optional = settings.filter((f) => !f.required);
-  const secretFields = fields.filter((f) => f.secret);
-  const label = (f: AreaInfo['connection'][number]) => `${f.name}${f.description ? ` (${f.description})` : ''}`;
-
   if (areas === null) return null;
   if (withFields.length === 0) {
     return (
@@ -284,79 +272,120 @@ function AddConnection({ areas, config, onChanged }: { areas: AreaInfo[] | null;
       </Card>
     );
   }
+  return (
+    <Card as="section" className="panel" aria-labelledby="conn-add">
+      <h2 id="conn-add">Add a connection</h2>
+      <NewConnectionForm areas={withFields} config={config} onAdded={onChanged} />
+    </Card>
+  );
+}
+
+/**
+ * The form `toil connections add` is from the page. With `area`, it adds a
+ * connection to that area only, and `suggest` fills the name and settings in
+ * (Set up this repo offers a base URL on the dossier's host); the person can
+ * change any of them before saving.
+ */
+export function NewConnectionForm({
+  areas,
+  config,
+  onAdded,
+  area: fixed,
+  suggest,
+  title = 'A new connection',
+}: {
+  areas: AreaInfo[];
+  config: ConfigApi;
+  onAdded: (name: string) => Promise<void>;
+  area?: string;
+  suggest?: { name?: string; values?: Record<string, string> };
+  title?: string;
+}) {
+  const withFields = areas.filter((a) => a.connection.length > 0 && (fixed === undefined || a.name === fixed));
+  const [name, setName] = useState(suggest?.name ?? '');
+  const [area, setArea] = useState(fixed ?? '');
+  const [values, setValues] = useState<Record<string, string>>(suggest?.values ?? {});
+  const [secrets, setSecrets] = useState<Record<string, string>>({});
+  const chosen = withFields.find((a) => a.name === area) ?? withFields[0];
+  const fields = chosen?.connection ?? [];
+  const settings = fields.filter((f) => !f.secret);
+  const required = settings.filter((f) => f.required);
+  const optional = settings.filter((f) => !f.required);
+  const secretFields = fields.filter((f) => f.secret);
+  const label = (f: AreaInfo['connection'][number]) => `${f.name}${f.description ? ` (${f.description})` : ''}`;
+  if (!chosen) return <p className="note">The toil this server runs doesn't say what a {fixed} connection holds. Add one with <code>toil connections add</code> in a terminal.</p>;
   const review = [
-    `area ${chosen!.name}`,
+    `area ${chosen.name}`,
     ...settings.filter((f) => (values[f.name] ?? '') !== '').map((f) => `${f.name} ${values[f.name]}`),
     ...secretFields.filter((f) => (secrets[f.name] ?? '') !== '').map((f) => `${f.name} to the OS credential store`),
   ].join(', ');
 
   return (
-    <Card as="section" className="panel" aria-labelledby="conn-add">
-      <h2 id="conn-add">Add a connection</h2>
-      <ChangeForm
-        title="A new connection"
-        explain={
-          <>
-            Asks for what <code>toil connections add</code> asks on a terminal. The settings go into your config file and each secret into the OS credential store, never the file. The first connection to an area becomes its default. Writes start off.
-          </>
+    <ChangeForm
+      title={title}
+      explain={
+        <>
+          Asks for what <code>toil connections add</code> asks on a terminal. The settings go into your config file and each secret into the OS credential store, never the file. The first connection to an area becomes its default. Writes start off.
+        </>
+      }
+      runs={commandLine('connections add', [name || '<name>', '--area', chosen.name])}
+      submit="Save connection"
+      disabled={config.disabled}
+      onSubmit={async () => {
+        if (!NAME.test(name)) return { ok: false, message: `"${name}" isn't a valid connection name.`, fix: 'Use lowercase letters, digits and single hyphens, starting with a letter, e.g. corp-jira.' };
+        const answers: Record<string, string> = { confirm: 'y' };
+        for (const f of settings) answers[`setting:${f.name}`] = values[f.name] ?? '';
+        // Every secret field shown is answered, an empty one with '', so toil skips an empty optional one as the CLI does.
+        const typed = Object.fromEntries(secretFields.map((f) => [f.name, secrets[f.name] ?? '']));
+        setSecrets({});
+        const envelope = await config.run('connections add', { name, area: chosen.name }, { answers, secrets: typed });
+        const outcome = outcomeOf(envelope, `${name} was added.`);
+        if (outcome.ok) {
+          setName('');
+          setValues({});
+          await onAdded(name);
         }
-        runs={commandLine('connections add', [name || '<name>', '--area', chosen!.name])}
-        submit="Save connection"
-        disabled={config.disabled}
-        onSubmit={async () => {
-          if (!NAME.test(name)) return { ok: false, message: `"${name}" isn't a valid connection name.`, fix: 'Use lowercase letters, digits and single hyphens, starting with a letter, e.g. corp-jira.' };
-          const answers: Record<string, string> = { confirm: 'y' };
-          for (const f of settings) answers[`setting:${f.name}`] = values[f.name] ?? '';
-          // Every secret field shown is answered, an empty one with '', so toil skips an empty optional one as the CLI does.
-          const typed = Object.fromEntries(secretFields.map((f) => [f.name, secrets[f.name] ?? '']));
-          setSecrets({});
-          const envelope = await config.run('connections add', { name, area: chosen!.name }, { answers, secrets: typed });
-          const outcome = outcomeOf(envelope, `${name} was added.`);
-          if (outcome.ok) {
-            setName('');
-            setValues({});
-            await onChanged();
-          }
-          return outcome;
-        }}
-      >
-        <TextField label="Name" value={name} onChange={setName} required hint="Lowercase letters, digits and single hyphens, e.g. corp-jira." />
+        return outcome;
+      }}
+    >
+      <TextField label="Name" value={name} onChange={setName} required hint="Lowercase letters, digits and single hyphens, e.g. corp-jira." />
+      {fixed === undefined && (
         <SelectField
           label="Area"
-          value={chosen!.name}
+          value={chosen.name}
           onChange={(v) => {
             setArea(v);
             setValues({});
             setSecrets({});
           }}
           options={withFields.map((a) => ({ value: a.name, label: a.name }))}
-          hint={chosen!.description}
+          hint={chosen.description}
         />
-        {required.map((f) => (
-          <TextField key={f.name} label={label(f)} value={values[f.name] ?? ''} onChange={(v) => setValues((s) => ({ ...s, [f.name]: v }))} required placeholder={f.default ?? undefined} />
-        ))}
-        {secretFields.map((f) => (
-          <TextField
-            key={f.name}
-            type="password"
-            autoComplete="new-password"
-            label={`${label(f)}${f.password ? ', a password' : ''}`}
-            value={secrets[f.name] ?? ''}
-            onChange={(v) => setSecrets((s) => ({ ...s, [f.name]: v }))}
-            required={f.required}
-            hint="Goes to the OS credential store; never shown again, and never in the config file."
-          />
-        ))}
-        {optional.length > 0 && (
-          <details className="more">
-            <summary>Optional settings ({optional.length})</summary>
-            {optional.map((f) => (
-              <TextField key={f.name} label={label(f)} value={values[f.name] ?? ''} onChange={(v) => setValues((s) => ({ ...s, [f.name]: v }))} placeholder={f.default ?? undefined} hint={f.default ? `Left empty, it stays ${f.default}.` : undefined} />
-            ))}
-          </details>
-        )}
-        <p className="note">Saves: {review}.</p>
-      </ChangeForm>
-    </Card>
+      )}
+      {required.map((f) => (
+        <TextField key={f.name} label={label(f)} value={values[f.name] ?? ''} onChange={(v) => setValues((s) => ({ ...s, [f.name]: v }))} required placeholder={f.default ?? undefined} />
+      ))}
+      {secretFields.map((f) => (
+        <TextField
+          key={f.name}
+          type="password"
+          autoComplete="new-password"
+          label={`${label(f)}${f.password ? ', a password' : ''}`}
+          value={secrets[f.name] ?? ''}
+          onChange={(v) => setSecrets((s) => ({ ...s, [f.name]: v }))}
+          required={f.required}
+          hint="Goes to the OS credential store; never shown again, and never in the config file."
+        />
+      ))}
+      {optional.length > 0 && (
+        <details className="more">
+          <summary>Optional settings ({optional.length})</summary>
+          {optional.map((f) => (
+            <TextField key={f.name} label={label(f)} value={values[f.name] ?? ''} onChange={(v) => setValues((s) => ({ ...s, [f.name]: v }))} placeholder={f.default ?? undefined} hint={f.default ? `Left empty, it stays ${f.default}.` : undefined} />
+          ))}
+        </details>
+      )}
+      <p className="note">Saves: {review}.</p>
+    </ChangeForm>
   );
 }

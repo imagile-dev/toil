@@ -253,22 +253,13 @@ function AssignBody({ item, start, close, onDone }: { item: Pick<WorkItem, 'id' 
 }
 
 /** "Assign to agent" for one item, and the dialog it opens. Absent where nothing can be assigned. */
-export function AssignButton({ item, small = false }: { item: Pick<WorkItem, 'id' | 'title'>; small?: boolean }) {
+export function AssignButton({ item }: { item: Pick<WorkItem, 'id' | 'title'> }) {
   const { assignments: api } = useData();
   if (!api) return null;
   return (
     <DialogTrigger>
-      <Button className={`btn${small ? ' btn--small' : ''}`} {...(small ? {} : { 'data-assign-open': '' })}>
-        {/* On a board card the visible word is short; the name still starts with it (WCAG 2.5.3). */}
-        {small ? (
-          <>
-            Assign<span className="sr-only"> {item.id} to an agent</span>…
-          </>
-        ) : (
-          <>
-            Assign to agent<span className="sr-only"> {item.id}</span>
-          </>
-        )}
+      <Button className="btn" data-assign-open="">
+        Assign to agent<span className="sr-only"> {item.id}</span>
       </Button>
       <AssignModal item={item} />
     </DialogTrigger>
@@ -345,7 +336,7 @@ export function AgentsLane() {
     <Card as="section" className="panel agents-lane" aria-labelledby="agents">
       <h2 id="agents">Agents</h2>
       <p className="note">
-        Work items assigned to an agent from Toil UI: each one's state, mode, adapter, run time and what it used. {list ? `${list.settings.concurrent === 1 ? 'One runs at a time' : `${list.settings.concurrent} run at a time`}, for up to ${list.settings.timeLimitMinutes} minutes each.` : ''} Assign an item from its card on the board or its page.
+        Work items assigned to an agent from Toil UI: each one's state, mode, adapter, run time and what it used. {list ? `${list.settings.concurrent === 1 ? 'One runs at a time' : `${list.settings.concurrent} run at a time`}, for up to ${list.settings.timeLimitMinutes} minutes each.` : ''} Assign an item from its card's menu on the board, or from its page.
       </p>
       {api.disabled && <p className="note">{api.disabled}</p>}
       {error && <p className="failure">{error}</p>}

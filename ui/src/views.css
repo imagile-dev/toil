@@ -7,7 +7,7 @@
 /* Controls: the look is ours, the behaviour React Aria's. */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; }
 .btn[data-hovered] { border-color: var(--ink); }
-.btn[data-focus-visible], .starter[data-focus-visible], .menu-item[data-focus-visible], .drag:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.btn[data-focus-visible], .starter[data-focus-visible], .menu-item[data-focus-visible], .card-grip:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .btn[data-disabled], .starter[data-disabled] { cursor: not-allowed; opacity: 0.75; }
 .btn--small { padding: 0 0.6rem; font-size: 0.875rem; }
 .btn--quiet { border-color: transparent; background: transparent; color: var(--link); text-decoration: underline; }
@@ -20,6 +20,7 @@
 .menu-item[data-focused], .menu-item[data-hovered] { background: var(--surface); }
 .menu-item[data-selected] { font-weight: 600; }
 .menu-item[data-selected]::after { content: "\2713"; margin-left: auto; padding-left: 1rem; }
+.menu-header { padding: 0.4rem 0.75rem 0.2rem; font-size: 0.8125rem; font-weight: 600; color: var(--muted); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* Status chips, avatars and insight chips. */
@@ -42,6 +43,12 @@
 .insight--w3 { color: var(--danger); border-color: var(--danger); }
 .insight--w2 { color: var(--warn); border-color: var(--warn); }
 .insight--w1, .insight--more { color: var(--muted); }
+/* Compact chips, on the board's cards: the icon alone, its word kept as text and shown while the card has keyboard focus. */
+.insight-chips--compact { gap: 0.2rem; }
+.insight--icon { display: inline-flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0.3rem; line-height: 1; }
+.insight--icon svg { flex: none; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.insight--icon .insight-word { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.card-grip:focus-visible .insight-word { position: static; width: auto; height: auto; overflow: visible; clip: auto; }
 .item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.5rem; }
 .insights-panel { margin-bottom: 1.5rem; }
 .duplicates-panel { margin-bottom: 1.5rem; }
@@ -90,15 +97,20 @@
 .column h3 { display: flex; align-items: center; justify-content: space-between; margin: 0; }
 .count { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); }
 .cards { list-style: none; padding: 0; display: grid; gap: 0.6rem; }
-.card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.6rem; display: grid; gap: 0.45rem; position: relative; }
+.card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); position: relative; }
 .card--dragging { z-index: 5; box-shadow: 0 12px 28px rgb(0 0 0 / 0.3); border-color: var(--focus); }
+/* The whole card is the handle. A finger may still scroll across it (touch-action stays manipulation); only a hold picks it up. */
+.card-grip { display: grid; gap: 0.45rem; padding: 0.6rem; border-radius: inherit; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+.card--dragging .card-grip { cursor: grabbing; }
 .card-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.35rem; }
+.card-key .key { color: var(--link); font-weight: 600; }
+.card-key:hover .key { text-decoration: underline; }
+.card-key { -webkit-user-drag: none; }
 .card-title { font-weight: 600; line-height: 1.35; }
-.card-foot { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; font-size: 0.8125rem; }
+.card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.35rem 0.5rem; font-size: 0.8125rem; }
+.card-meta { display: inline-flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.35rem; margin-left: auto; }
+.card-meta .field { font-size: inherit; }
 .who { display: inline-flex; align-items: center; gap: 0.35rem; color: var(--muted); }
-.card-actions { display: flex; gap: 0.4rem; }
-.drag { padding: 0 0.6rem; font-size: 0.875rem; cursor: grab; touch-action: none; }
-.drag:active { cursor: grabbing; }
 .proposals { display: grid; gap: 0.75rem; }
 .proposal { border: 2px dashed var(--accent); border-radius: var(--radius); padding: 0.75rem; display: grid; gap: 0.45rem; background: var(--raised); }
 .proposal-kind { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }

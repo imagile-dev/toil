@@ -532,13 +532,17 @@ All six pass before a PR opens. A PR that touches `ui/` also passes Toil UI's ga
 `npm run verify:ui`, adding `-- --ask` when it changes the agent: one command that
 checks Toil UI on sample and real data and writes `ui/.verify/report.md`, whose table
 goes in the PR, so the work is verified before the review bot sees it (`ui/README.md`,
-Verify before you open a PR). CI runs them on Windows, macOS and Linux, on Node 24.14
-and 26. Its `CI ok` job passes only when every one of those passed, and it's the one
-check `main`'s ruleset requires, so nothing merges on a red gate. It also needs the
-`dist/` guard (below). Other checks stay
-optional: the review job (approval is required separately, and it skips the release
-PR), the skill-install job (it downloads Claude Code to install the skill on each OS),
-and path-filtered jobs, which would block PRs they never run on.
+Verify before you open a PR). On a PR and on `main`, CI (`ci.yml`) runs them on
+Linux on Node 24.14, as two jobs side by side, toil's gate and Toil UI's. Its `CI ok`
+job passes only when both passed, along with the database integration job and the
+`dist/` guard (below), and it's the one check `main`'s ruleset requires, so nothing
+merges on a red gate. Windows, macOS and Node 26 run in `platforms.yml`: daily, on
+demand, and on the release PR, whose merger checks it passed, so a platform break
+shows within a day and is looked at before a release. A failed daily run files a `platforms-failure` issue (#376).
+Principle 8 still holds: a platform failure gets fixed like any other, it just
+doesn't hold every PR behind macOS and Windows runners. Other checks stay optional:
+the review job (approval is required separately, and it skips the release PR), the
+platforms run, and path-filtered jobs, which would block PRs they never run on.
 
 **`dist/toil.js` and the bundle it runs, `dist/toil-lib.js`, are committed and are
 the last released toil** (the maintainer's decision, 2026-10-17), so a clone runs
