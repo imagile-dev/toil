@@ -209,7 +209,9 @@ export function hostRunner(o: HostRunnerOptions): Runner {
         toil: o.toilVersion,
         toilUi: o.version,
         adapter,
-        model: null as string | null,
+        // The model Settings gives this adapter, known before it runs, so a run a cap or an error stops still says
+        // what it ran on (#318, seen live); null is the CLI's own default. A finished run confirms it below.
+        model: (o.host.adapterChoices().find((c) => c.name === adapter)?.model ?? null) as string | null,
         // Toil UI hands an assigned agent no skill: its tools and this prompt are all it gets.
         skills: [] as string[],
         tools: tools.map((t) => t.name),
