@@ -152,7 +152,7 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
           </article>
           {THEMES.map((t) => (
             <article class="uix-card uix-card--themed" style={t.tokens} data-for-theme={t.name} hidden={t.name !== DEFAULT_THEME} aria-labelledby={`ans-${t.name}`}>
-              <p class="uix-card__k" id={`ans-${t.name}`}>{t.label}<span data-voice-on> with its voice on</span><span data-voice-off> with the voice off</span></p>
+              <p class="uix-card__k" id={`ans-${t.name}`}>{t.label}{t.voice && <><span data-voice-on> with its voice on</span><span data-voice-off> with the voice off</span></>}</p>
               <p class="uix-q">{QUESTION}</p>
               {t.answer ? (
                 <>
@@ -193,7 +193,7 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
           </article>
           {THEMES.map((t) => (
             <article class="uix-card uix-card--themed uix-prompt" style={t.tokens} data-for-theme={t.name} hidden={t.name !== DEFAULT_THEME} aria-labelledby={`prompt-${t.name}`}>
-              <p class="uix-card__k" id={`prompt-${t.name}`}>{t.label}<span data-voice-on> with its voice on</span><span data-voice-off> with the voice off</span></p>
+              <p class="uix-card__k" id={`prompt-${t.name}`}>{t.label}{t.voice && <><span data-voice-on> with its voice on</span><span data-voice-off> with the voice off</span></>}</p>
               <ol class="uix-layers">
                 <li class="uix-layer">
                   <p class="uix-layer__name"><b>1. The rules</b> <span>the same in every theme</span></p>
