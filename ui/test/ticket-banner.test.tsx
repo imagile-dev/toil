@@ -6,6 +6,7 @@ import { App } from '../src/App.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
+import { openChat } from './chat.ts';
 
 /**
  * The chat's "Not ticketed yet" banner (#304), on the preview's own data and
@@ -19,7 +20,8 @@ async function chat(dossier: string) {
   window.location.hash = `#/dossier/${dossier}`;
   render(<App execute={fixture.execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
   await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
-  const pane = screen.getByRole('complementary', { name: `Ask about ${dossier}` });
+  // The focused view the Ask bar opens (#343).
+  const pane = await openChat(dossier);
   const say = async (text: string) => {
     await userEvent.type(within(pane).getByRole('textbox', { name: 'Your question' }), text);
     await userEvent.click(within(pane).getByRole('button', { name: 'Ask' }));
@@ -69,6 +71,17 @@ describe('the "Not ticketed yet" banner', () => {
     const cards = within(banner).getAllByRole('article', { name: /^Proposal: / });
     expect(cards).toHaveLength(1);
     expect(within(cards[0]!).getByText(/^toil ado work-item create/).textContent).toContain("--type 'User Story'");
+  }, 20_000);
+
+  it('stays away from Analyze, which is a question about the dossier, and still catches work asked after it (#343)', async () => {
+    const { pane, say } = await chat('settlement');
+    await userEvent.click(within(pane).getByRole('button', { name: 'Analyze' }));
+    await within(pane).findByRole('heading', { level: 3, name: 'Analyze' });
+    await waitFor(() => expect(within(pane).getByRole('textbox', { name: 'Your question' })).not.toHaveProperty('disabled', true), { timeout: 8000 });
+    expect(within(pane).queryByRole('region', { name: 'Not ticketed yet' })).toBeNull();
+    await say('Rotate the kubernetes ingress certificates');
+    const banner = await within(pane).findByRole('region', { name: 'Not ticketed yet' });
+    expect(banner.textContent).toContain('there is no likely ticket');
   }, 20_000);
 
   it('stays away from a question, and from work that names its ticket', async () => {

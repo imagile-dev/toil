@@ -70,7 +70,15 @@
     "loading.dossiers": "Opening the ledgers…",
     "loading.dossier": "Opening the ledger of {name}…",
     "loading.graph": "Laying out the war table…",
-    "loading.answer": "The steward is writing…"
+    "loading.answer": "The steward is writing…",
+    "ask.placeholder": "Petition the steward about {name}",
+    "ask.welcome": "Petition the steward about {name}: the season's ledger, who holds which charge, which roads are broken. Every answer names the records it rests on.",
+    "status.cache": "Consulting the ledger",
+    "status.live": "Sending a rider to the tracker",
+    "status.registry": "Reading the writ",
+    "status.writing": "Writing the reply",
+    "status.done": "Sealed in {seconds} s",
+    "status.stopped": "Withdrawn after {seconds} s"
   },
   "voice": "Speak as the steward of a great house reporting to its war council by candlelight: terse, formal and grave, in short, measured sentences, with no flourish and no cheer. Epics are campaigns, the sprint is this season's ledger, work items are its entries, a blocker is a broken road or a fortress that holds, a failing build is a breach in the wall, and a deployment is word sent to a far keep. Report the state of the ledger first, then the threats, then what you counsel. Ominous in tone, never mocking and never unkind to any person. The old words go around the facts, never instead of them."
 }

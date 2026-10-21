@@ -36,7 +36,7 @@ Fonts don't change contrast: Plain keeps its colours, and its pages pass the axe
 A theme has up to three layers.
 
 - **Visuals** are what every theme has: colours, fonts, borders, art, and motion. They never change a word.
-- **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the dossier list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, and the Ask pane's notes. Crate's empty board column reads "Bay empty." and Realm's reads "None stand here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Campaign (Epic)" or "Ledger (Sprint 42: day 7 of 10)". The Settings pages and the Sync panel keep the standard text.
+- **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the dossier list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, the Ask pane's notes, and the chat's placeholder, welcome and status words (#343). Crate's empty board column reads "Bay empty." and Realm's reads "None stand here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Campaign (Epic)" or "Ledger (Sprint 42: day 7 of 10)". The Settings pages and the Sync panel keep the standard text.
 - **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, and Realm like a house's steward reporting to its war council.
 
 Wording never touches these, in any theme:
@@ -112,7 +112,7 @@ Toil UI keeps both in its own data folder, in `agent.json` (`~/.toil-ui/agent.js
 
 Instructions can't widen what the agent can do. Its tools only read, whatever the prompt says, and anything it suggests comes back as a proposal card for you to apply through toil's write gate.
 
-The (i) beside the Ask pane's starter questions says which voice the answers are in, which agent is answering, that it only reads, and where to change the voice and your instructions. It opens on a click, a tap or Enter, and closes with Escape or a click outside it.
+The (i) in the chat's strip says which voice the answers are in, which agent is answering, that it only reads, and where to change the voice and your instructions. It opens on a click, a tap or Enter, and closes with Escape or a click outside it.
 
 ## Accessibility
 

@@ -95,7 +95,8 @@
 }
 
 [data-theme="starship"] .l-card,
-[data-theme="starship"] .ask {
+[data-theme="starship"] .ask,
+[data-theme="starship"] .ask-bar {
   border: 1px solid rgba(54, 214, 255, 0.45);
   background: linear-gradient(180deg, rgba(54, 214, 255, 0.05), rgba(54, 214, 255, 0.015) 40%), var(--surface);
   box-shadow: 0 0 18px rgba(54, 214, 255, 0.12), inset 0 0 24px rgba(54, 214, 255, 0.05);

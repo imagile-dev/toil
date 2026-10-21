@@ -8,13 +8,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { noAgent } from '../server/agent.ts';
 import { finish, named, partial, writeCommands } from '../server/agents/answer.ts';
 import { claudeEnv, claudeRuntime, claudeToolName, zodShape } from '../server/agents/claude.ts';
-import { AgentError, findCli } from '../server/agents/cli.ts';
+import { AgentError, findCli, shimScript } from '../server/agents/cli.ts';
 import { CODEX_FEATURES_OFF, codexOverrides, codexRuntime, prepareCodexHome, TOIL_CODEX_CONFIG, toilCodexHome, TOKEN_ENV, userCodexHome } from '../server/agents/codex.ts';
 import { copilotRuntime } from '../server/agents/copilot.ts';
 import { agentEnv } from '../server/agents/env.ts';
 import { AgentHost, type AgentHostOptions } from '../server/agents/host.ts';
 import { answerMcp, McpGrants } from '../server/agents/mcp.ts';
-import { STARTERS, STYLE_RULE, systemPrompt } from '../server/agents/prompts.ts';
+import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, promptFor, STARTERS, STYLE_RULE, systemPrompt, withHistory } from '../server/agents/prompts.ts';
 import { THEME_VOICES } from '../server/agents/voices.ts';
 import { Latest, loadSdk, type Importer, type Runtime } from '../server/agents/runtime.ts';
 import { agentSettingsFile, checkAgentSettings, loadAgentSettings } from '../server/agents/settings.ts';
@@ -478,8 +478,14 @@ async function streamed(host: AgentHost, prompt = 'hygiene') {
 function expectTheRules(versions: Awaited<ReturnType<typeof streamed>>, rec: ReturnType<typeof recordingExecute>) {
   expect(versions.length).toBeGreaterThan(2);
   const last = versions.at(-1)!;
-  // Streaming: the early versions grow, carry no proposals, and the last is the checked answer.
-  expect(versions[0]!.parts[0]!.text).toBe('[[corp-jira:PAY-107]] has no estimate');
+  // Streaming: the first says the agent is thinking, before any text; then the versions grow, carry no proposals, and the last is the checked answer.
+  expect(versions[0]).toMatchObject({ parts: [], activity: { phase: 'thinking' } });
+  expect(versions.find((v) => v.parts.length)!.parts[0]!.text).toBe('[[corp-jira:PAY-107]] has no estimate');
+  // The status line (#343): the cache read and the live read each named as they ran, then writing.
+  expect(versions.filter((v) => v.activity?.phase === 'tool').map((v) => v.activity)).toEqual(expect.arrayContaining([{ phase: 'tool', tool: 'jira issue search', source: 'live' }]));
+  expect(versions.some((v) => v.activity?.phase === 'tool' && v.activity.source === 'cache')).toBe(true);
+  expect(versions.some((v) => v.activity?.phase === 'writing')).toBe(true);
+  expect(last.activity).toBeUndefined();
   expect(versions.slice(0, -1).every((v) => v.proposals.length === 0)).toBe(true);
   expect(last.prompt).toBe('Backlog hygiene');
   expect(last.unverified).toEqual(['corp-jira:PAY-999']);
@@ -661,11 +667,11 @@ describe('when an adapter cannot run', () => {
     await expect(host.ask(ctx(), 'never-synced', 'q')).rejects.toThrow(/hasn't synced never-synced/);
   });
 
-  it('with no adapter chosen, names the three and offers no starters', async () => {
+  it('with no adapter chosen, names the three, and still offers the starters a switched chat can ask (#344)', async () => {
     const dataDir = mkdtempSync(join(folder, 'host-none-'));
     const host = new AgentHost({ dataDir, version: 't', data: () => data, registry: registry.commands, execute: recordingExecute().execute, mapIds: () => [], serveTools: () => ({ url: '', token: '', close() {} }), fallback: noAgent(), installed: () => false, isFile: () => false, env: {}, platform: 'linux' });
     expect(host.kind).toBe('none');
-    expect(await host.starters(ctx(), 'card-payments')).toEqual([]);
+    expect((await host.starters(ctx(), 'card-payments')).length).toBe(10);
     const e = (await host.ask(ctx(), 'card-payments', 'q').catch((x: unknown) => x)) as AgentError;
     for (const p of ['@anthropic-ai/claude-agent-sdk', '@github/copilot-sdk', '@openai/codex-sdk']) expect(e.message).toContain(p);
     const status = host.status();
@@ -719,7 +725,7 @@ describe('the agent settings', () => {
     const { host, dataDir } = hostFor('claude', claudeStub(SCRIPT).module);
     host.save({ adapter: 'codex', model: 'gpt-5', cliPath: null, endpoint: null });
     expect(agentSettingsFile(dataDir)).toBe(join(dataDir, 'agent.json'));
-    expect(JSON.parse(readFileSync(agentSettingsFile(dataDir), 'utf8'))).toEqual({ adapter: 'codex', model: 'gpt-5', cliPath: null, endpoint: null, instructions: null, voice: null });
+    expect(JSON.parse(readFileSync(agentSettingsFile(dataDir), 'utf8'))).toEqual({ adapter: 'codex', model: 'gpt-5', cliPath: null, endpoint: null, instructions: null, voice: null, models: { codex: 'gpt-5' }, cliPaths: {} });
     expect(loadAgentSettings(dataDir).adapter).toBe('codex');
     expect(host.kind).toBe('codex');
   });
@@ -729,7 +735,7 @@ describe('the agent settings', () => {
     expect(() => checkAgentSettings({ adapter: 'codex', endpoint: 'bedrock' })).toThrow(/Only the Claude adapter takes an endpoint/);
     expect(() => checkAgentSettings({ adapter: 'claude', cliPath: 'bin/claude' }, posix.isAbsolute)).toThrow(/absolute path/);
     expect(() => checkAgentSettings({ adapter: 'gemini' })).toThrow(/no adapter "gemini"/);
-    expect(checkAgentSettings({ adapter: 'claude', model: ' ', endpoint: '' })).toEqual({ adapter: 'claude', model: null, cliPath: null, endpoint: null, instructions: null, voice: null });
+    expect(checkAgentSettings({ adapter: 'claude', model: ' ', endpoint: '' })).toEqual({ adapter: 'claude', model: null, cliPath: null, endpoint: null, instructions: null, voice: null, models: {}, cliPaths: {} });
   });
 
   it("keep the person's instructions and custom voice as plain text, up to 4,000 characters each (#283)", () => {
@@ -1088,10 +1094,7 @@ describe('each question, as an agent run for the worklog (#308)', () => {
   it('is recorded as stopped when the person leaves mid-answer, with what it had said', async () => {
     const runs: AgentRun[] = [];
     const { host } = hostFor('claude', claudeStub(SCRIPT).module, { onRun: (r) => void runs.push(structuredClone(r)) });
-    for await (const a of host.stream(ctx(), 'card-payments', 'hygiene')) {
-      void a;
-      break;
-    }
+    for await (const a of host.stream(ctx(), 'card-payments', 'hygiene')) if (a.parts.length) break;
     expect(runs.map((r) => r.outcome)).toEqual(['running', 'stopped']);
     expect(runs[1]!.answer).toBe('[[corp-jira:PAY-107]] has no estimate');
     expect(runs[1]!.citations).toEqual(['corp-jira:PAY-107']);
@@ -1364,5 +1367,129 @@ describe('implement mode, when the diff would hide something staged (#293 review
     expect(hiddenStaged({ staged: ['a.md', 'logo.png', 'run.sh', 'old.md -> new.md', 'leak1'] }, diff)).toEqual(['logo.png', 'run.sh', 'leak1']);
     expect(hiddenStaged({ staged: ['a.md'] }, null)).toEqual(['a.md']);
     expect(hiddenStaged({ staged: [] }, diff)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------- #343, #344
+
+describe('switching agent within a chat (#344)', () => {
+  /** A host whose Settings choose Claude, with Codex installed too: both SDKs stubbed. */
+  function twoAdapters(over: Partial<AgentHostOptions> = {}) {
+    const claude = claudeStub(SCRIPT);
+    const grants = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp');
+    const codex = codexStub(SCRIPT, grants);
+    const importer: Importer = async (spec) => {
+      if (spec === 'zod') return zod;
+      if (spec.startsWith('@anthropic-ai/')) return claude.module;
+      if (spec.startsWith('@openai/')) return codex.module;
+      throw Object.assign(new Error(`Cannot find package '${spec}'`), { code: 'ERR_MODULE_NOT_FOUND' });
+    };
+    const made = hostFor('claude', claude.module, { importer, serveTools: (tools) => grants.serve(tools), installed: (spec) => !spec.startsWith('@github/'), ...over });
+    return { ...made, claude, codex };
+  }
+
+  it('answers on the chat\'s adapter for that question only, with that adapter\'s own model, and labels the answer with both', async () => {
+    const { host, dataDir, claude, codex } = twoAdapters();
+    host.save({ ...loadAgentSettings(dataDir), models: { claude: 'haiku', codex: 'gpt-5-mini' } });
+    const answer = await host.ask(ctx(), 'card-payments', 'hygiene', null, { id: 'chat-1', turn: 1 }, { adapter: 'codex' });
+    expect(answer).toMatchObject({ adapter: 'codex', model: 'gpt-5-mini', by: 'Codex (gpt-5-mini)' });
+    expect(codex.seen.thread!.model).toBe('gpt-5-mini');
+    expect(claude.seen.options).toBeUndefined();
+    // The next question with no override is Settings' Claude again, on its model.
+    const back = await host.ask(ctx(), 'card-payments', 'hygiene');
+    expect(back).toMatchObject({ adapter: 'claude', model: 'test-model', by: 'Claude (test-model)' });
+    expect(claude.seen.options!.model).toBe('test-model');
+  });
+
+  it('carries the chat so far into the next question, shortened, and says how many turns it carried', async () => {
+    const { host, codex } = twoAdapters();
+    const history = [{ prompt: 'Why is this sprint at risk?', answer: 'x'.repeat(MAX_HISTORY_ANSWER + 50), by: 'Claude (haiku)' }];
+    const answer = await host.ask(ctx(), 'card-payments', 'And who can unblock it?', null, { id: 'chat-2', turn: 2 }, { adapter: 'codex', history });
+    expect(answer.carried).toBe(1);
+    expect(codex.seen.input).toContain('Question 1: Why is this sprint at risk?');
+    expect(codex.seen.input).toContain('Answer 1 (Claude (haiku)): ');
+    expect(codex.seen.input).toContain(`${'x'.repeat(MAX_HISTORY_ANSWER)}…`);
+    expect(codex.seen.input).not.toContain('x'.repeat(MAX_HISTORY_ANSWER + 1));
+    expect(codex.seen.input).toMatch(/The new question:\nAnd who can unblock it\?$/);
+  });
+
+  it('refuses an adapter it has no runtime for', async () => {
+    const { host } = twoAdapters();
+    await expect(host.ask(ctx(), 'card-payments', 'q', null, undefined, { adapter: 'gemini' })).rejects.toThrow(/no gemini adapter/);
+  });
+
+  it('lists every adapter for the switcher, an uninstalled one unavailable with Install and the command, never left out', () => {
+    const { host } = twoAdapters({ uiDir: '/usr/local/lib/node_modules/@imagile-dev/toil-ui', execPath: '/usr/local/bin/node', isFile: (p) => Object.values(FAKE_CLI).includes(p) || p === '/usr/local/lib/node_modules/npm/bin/npm-cli.js' });
+    const list = host.adapterOptions();
+    expect(list.chosen).toBe('claude');
+    expect(list.options.map((o) => [o.name, o.ready, o.action])).toEqual([
+      ['claude', true, null],
+      ['copilot', false, 'install'],
+      ['codex', true, null],
+    ]);
+    const copilot = list.options.find((o) => o.name === 'copilot')!;
+    expect(copilot.problem).toBe("The GitHub Copilot adapter needs @github/copilot-sdk, which isn't installed beside Toil UI.");
+    expect(copilot.fix).toContain('npm install --global --prefix /usr/local --ignore-scripts --before=');
+    expect(copilot.fix).toContain('@github/copilot-sdk@1.0.16');
+    // A CLI that can't be found is Fix, not Install.
+    const noCli = twoAdapters({ isFile: () => false }).host.adapterOptions();
+    expect(noCli.options.find((o) => o.name === 'codex')).toMatchObject({ ready: false, action: 'fix' });
+  });
+
+  it('keeps each adapter\'s model and CLI path in settings, the chosen one\'s in step with model and cliPath, and loads a file from before', () => {
+    const checked = checkAgentSettings({ adapter: 'codex', model: 'gpt-5', cliPath: '/opt/codex', models: { claude: 'haiku', codex: 'stale' }, cliPaths: { claude: '/opt/claude' } }, posix.isAbsolute, 'linux');
+    expect(checked.models).toEqual({ claude: 'haiku', codex: 'gpt-5' });
+    expect(checked.cliPaths).toEqual({ claude: '/opt/claude', codex: '/opt/codex' });
+    expect(() => checkAgentSettings({ adapter: 'codex', models: { gemini: 'x' } })).toThrow(/models has no adapter "gemini"/);
+    expect(() => checkAgentSettings({ adapter: 'codex', cliPaths: { claude: '/opt/codex' } }, posix.isAbsolute, 'linux')).toThrow(/must end in claude/);
+    expect(() => checkAgentSettings({ adapter: 'codex', models: { claude: 'bad model' } })).toThrow(/isn't a model name/);
+    expect(checkAgentSettings({ adapter: 'claude', model: 'sonnet' })).toMatchObject({ models: { claude: 'sonnet' }, cliPaths: {} });
+  });
+});
+
+describe('the status line (#343)', () => {
+  it('names each tool as the agent calls it, a live read by its toil command, on every adapter', async () => {
+    for (const [name, stub] of [['claude', claudeStub(SCRIPT).module], ['codex', codexStub(SCRIPT, new McpGrants(() => '')).module]] as const) {
+      const { host } = name === 'codex' ? (() => { const g = new McpGrants(() => 'http://127.0.0.1:1/api/agent/mcp'); return hostFor('codex', codexStub(SCRIPT, g).module, { serveTools: (t) => g.serve(t) }); })() : hostFor(name, stub);
+      const versions = await streamed(host);
+      const tools = versions.filter((v) => v.activity?.phase === 'tool').map((v) => v.activity!.tool);
+      expect(tools).toEqual(['owi_get', 'jira issue search']);
+      expect(versions.find((v) => v.activity?.tool === 'owi_get')!.activity!.source).toBe('cache');
+    }
+  });
+});
+
+describe('Analyze (#343)', () => {
+  it('asks the fixed pulse check: changes since the last Analyze, people, blockers, sprint health and what looks off', () => {
+    const { label, text } = promptFor('card-payments', 'analyze');
+    expect(label).toBe('Analyze');
+    for (const part of ['What changed', 'worklog_day', '"Analyze"', 'people_list', 'never rank or score people', 'owi_query', 'pr_query', "The sprint's health", 'status drift', 'readiness_list', 'Cite every item']) expect(text).toContain(part);
+  });
+
+  it('carries at most the last turns of a chat', () => {
+    const history = Array.from({ length: MAX_HISTORY_TURNS + 3 }, (_, i) => ({ prompt: `q${i}`, answer: `a${i}` }));
+    const { text, carried } = withHistory('now?', history);
+    expect(carried).toBe(MAX_HISTORY_TURNS);
+    expect(text).not.toContain('Question 1: q0\n');
+    expect(text).toContain(`Question ${MAX_HISTORY_TURNS}: q${MAX_HISTORY_TURNS + 2}`);
+    expect(withHistory('now?', [])).toEqual({ text: 'now?', carried: 0 });
+  });
+});
+
+describe("npm's copilot.cmd on Windows (#344)", () => {
+  const cmd = '@ECHO off\r\nGOTO start\r\n:start\r\nendLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\node_modules\\@github\\copilot\\npm-loader.js" %*\r\n';
+  it('resolves to the script the shim runs, which Copilot\'s SDK starts with Node, and says so in the status', () => {
+    const shim = win32.join('C:\\nodejs', 'copilot.cmd');
+    const script = win32.join('C:\\nodejs', 'node_modules', '@github', 'copilot', 'npm-loader.js');
+    expect(shimScript(shim, cmd)).toBe(script);
+    expect(findCli({ label: 'the Copilot CLI', command: 'copilot', env: { Path: 'C:\\nodejs' }, platform: 'win32', path: win32, cwd: 'C:\\work', isFile: (p) => p === shim || p === script, scripts: true, readText: () => cmd })).toBe(script);
+    // Without the SDK starting scripts (Claude, Codex), the shim is refused as before.
+    expect(() => findCli({ label: 'Claude Code', command: 'claude', env: { Path: 'C:\\nodejs' }, platform: 'win32', path: win32, cwd: 'C:\\work', isFile: (p) => p === win32.join('C:\\nodejs', 'claude.cmd'), readText: () => cmd })).toThrow(/Windows command shim/);
+  });
+
+  it('never follows a shim out of its own folder, and refuses one npm didn\'t write', () => {
+    expect(shimScript('C:\\nodejs\\copilot.cmd', '"%dp0%\\..\\..\\evil\\x.js"')).toBeNull();
+    expect(shimScript('C:\\nodejs\\copilot.cmd', 'start copilot.exe')).toBeNull();
+    expect(shimScript('C:\\nodejs\\copilot', 'exec node  "$basedir/node_modules/@github/copilot/npm-loader.js" "$@"')).toBe('C:\\nodejs\\node_modules\\@github\\copilot\\npm-loader.js');
   });
 });

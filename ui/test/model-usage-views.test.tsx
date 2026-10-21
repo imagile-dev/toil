@@ -1,4 +1,5 @@
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { openChat } from './chat.ts';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -58,11 +59,13 @@ describe('the chat', () => {
   it('shows what each answer used under it, labelled by adapter and model, and the chat total in its header', async () => {
     const asked: ChatTurn[] = [];
     await open('#/dossier/card-payments', { agent: reportingAgent(asked) });
-    const starters = () => within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button');
-    await userEvent.click(starters()[0]!);
+    await openChat('card-payments');
+    await userEvent.click(within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button')[0]!);
     const first = await screen.findByRole('group', { name: 'What this answer used' });
     expect(first.textContent).toBe("Codex, the CLI's default model (not named by the SDK): 21k in · 380 out · 14k cached · cache write not reported · no dollar figure (add your rates under Settings, Agent usage)");
-    await userEvent.click(starters()[1]!);
+    // After the first question the starters are a Suggestions menu (#343).
+    await userEvent.click(screen.getByRole('button', { name: 'Suggestions' }));
+    await userEvent.click((await screen.findAllByRole('menuitem'))[1]!);
     await waitFor(() => expect(screen.getAllByRole('group', { name: 'What this answer used' })).toHaveLength(2));
     const second = screen.getAllByRole('group', { name: 'What this answer used' })[1]!;
     expect(second.textContent).toContain('GitHub Copilot, gpt-5-mini: 3k in · 200 out · 1k cached · cache write not reported · 1 premium request');
@@ -84,6 +87,7 @@ describe('the chat', () => {
     const usage = { adapter: 'claude' as const, records: [{ id: 'claude:msg_1', chatId: 'c', turn: 1, dossier: 'card-payments', adapter: 'claude' as const, model: 'claude-sonnet-4-6', inputTokens: 600, outputTokens: 50, cachedInputTokens: 1000, costSource: 'none' as const, at: FIXTURE_NOW }], notices: [] };
     const agent: Agent = { ...scriptedAgent(), stream: undefined, ask: async () => Promise.reject(Object.assign(new Error("Claude's per-chat cap (claude.chat) stopped this question: this chat has used 1,650 tokens, and the cap is 1,000 tokens."), { usage })) };
     await open('#/dossier/card-payments', { agent });
+    await openChat('card-payments');
     await userEvent.click(within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button')[0]!);
     expect((await screen.findByRole('alert')).textContent).toContain('stopped this question');
     expect(screen.getByRole('group', { name: 'What this answer used' }).textContent).toContain('600 in · 50 out · 1k cached');
@@ -92,6 +96,7 @@ describe('the chat', () => {
 
   it('marks the preview\'s figures as sample, never as a model\'s', async () => {
     await open('#/dossier/card-payments');
+    await openChat('card-payments');
     await userEvent.click(within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button')[0]!);
     const footer = await screen.findByRole('group', { name: 'What this answer used' }, { timeout: 5000 });
     expect(footer.textContent).toMatch(/^Sample figures, not from a model\. Claude, claude-sonnet-4-6: .* · ~\$0\.\d+ \(SDK estimate, API-equivalent/);

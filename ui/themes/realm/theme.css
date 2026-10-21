@@ -136,7 +136,8 @@
 /* Panels are folios: a leather binding, gilt-tooled and riveted at the
    corners, around a leaf of vellum. */
 [data-theme="realm"] .l-card,
-[data-theme="realm"] .ask {
+[data-theme="realm"] .ask,
+[data-theme="realm"] .ask-bar {
   border: 12px solid transparent;
   border-image: url("./assets/iron-band.svg") 12 / 12px stretch;
   border-radius: 0;

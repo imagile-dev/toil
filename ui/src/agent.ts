@@ -36,6 +36,69 @@ export interface Answer {
   warnings?: string[];
   /** What the SDK reported this question used (#295), on the finished answer only. */
   usage?: AnswerUsage;
+  /** The adapter that wrote it (#344), by name, and the model Settings gave it (null: its CLI's default). */
+  adapter?: string;
+  model?: string | null;
+  /** How many earlier turns of the chat it was given as a summary (#344). */
+  carried?: number;
+  /** What the agent is doing now, on an answer still streaming (#343): the status line's source. */
+  activity?: AnswerActivity;
+}
+
+/**
+ * What the agent is doing while it answers (#343): thinking (started, nothing
+ * back yet), calling a tool (named as the agent named it, with the toil
+ * command for a live read), or writing.
+ */
+export interface AnswerActivity {
+  phase: 'thinking' | 'tool' | 'writing';
+  /** The tool's name, or a live read's toil command (`github issue list`). */
+  tool?: string;
+  /** Where the tool reads: Toil UI's cache, toil live, or toil's command list. */
+  source?: 'cache' | 'live' | 'registry';
+}
+
+/** One earlier turn of a chat, as the next question carries it (#344): the question and the answer's text. */
+export interface HistoryTurn {
+  prompt: string;
+  answer: string;
+  /** Who answered it, in words: "Codex", "Claude (haiku)". */
+  by?: string;
+}
+
+/**
+ * The most of a chat a question carries (#344): its last turns, each answer
+ * cut short. The page trims to these before it sends, so a long chat stays
+ * inside what the server accepts, and the prompt (server/agents/prompts.ts)
+ * holds to them again.
+ */
+export const MAX_HISTORY_TURNS = 8;
+export const MAX_HISTORY_ANSWER = 1500;
+
+/** What a question may carry beyond its text (#344): the chat's own adapter, and the conversation so far. */
+export interface AskExtra {
+  /** The adapter this chat switched to; absent, the one chosen in Settings answers. */
+  adapter?: string;
+  history?: HistoryTurn[];
+}
+
+/** One adapter as the chat's switcher lists it (#344): ready, or why not and what to do. */
+export interface AdapterOption {
+  name: string;
+  label: string;
+  /** The model it runs with, or null for its CLI's default. */
+  model: string | null;
+  ready: boolean;
+  problem: string | null;
+  fix: string | null;
+  /** What the switcher offers when it isn't ready: Install (its SDK is missing) or Fix (anything else). */
+  action: 'install' | 'fix' | null;
+}
+
+export interface AdapterList {
+  /** The adapter chosen in Settings, or null. */
+  chosen: string | null;
+  options: AdapterOption[];
 }
 
 export interface Starter {
@@ -49,7 +112,7 @@ export const SCRIPTED_LABEL = 'a scripted preview, not a model';
 /** What the pane says when no adapter is chosen (#251), naming the three. */
 export const NO_AGENT_NOTICE =
   'No agent is set up in this Toil UI, so nobody can answer yet. Toil UI reasons with the subscription you already have, through one of three adapters: Claude (the Claude Agent SDK, @anthropic-ai/claude-agent-sdk), GitHub Copilot (@github/copilot-sdk) or Codex (@openai/codex-sdk).';
-export const NO_AGENT_FIX = 'Install the one your organization approves beside toil-ui, with its CLI on PATH, and choose it under Settings, Agent. The dashboards work without one, and toil-ui --sample shows the scripted agent.';
+export const NO_AGENT_FIX = 'Press Install for the one your organization approves under Settings, Agent, with its CLI on PATH, and choose it there, or pick an installed one for this chat from Answered by, above. The dashboards work without one, and toil-ui --sample shows the scripted agent.';
 
 /**
  * How the answer should sound (#283): the theme on screen and whether
@@ -70,13 +133,18 @@ export interface Agent {
   /** The questions offered about a dossier before anyone types. */
   starters(dossier: string): Starter[];
   /** Answers about the named dossier only. */
-  ask(dossier: string, prompt: string, style?: AskStyle, chat?: ChatTurn): Promise<Answer>;
+  ask(dossier: string, prompt: string, style?: AskStyle, chat?: ChatTurn, extra?: AskExtra): Promise<Answer>;
   /**
    * The same answer as it grows: each value is the answer so far, and the
    * last is the whole of it. Optional; the pane falls back to `ask`.
    */
-  stream?(dossier: string, prompt: string, signal?: AbortSignal, style?: AskStyle, chat?: ChatTurn): AsyncIterable<Answer>;
+  stream?(dossier: string, prompt: string, signal?: AbortSignal, style?: AskStyle, chat?: ChatTurn, extra?: AskExtra): AsyncIterable<Answer>;
+  /** The adapters a chat can switch between (#344). Absent: the chat has no switcher. */
+  adapters?(): Promise<AdapterList>;
 }
+
+/** The fixed question Analyze asks (#343): a pulse check of the dossier. */
+export const ANALYZE = 'analyze';
 
 const CITE = /\[\[([^\]]+)\]\]/g;
 

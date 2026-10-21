@@ -10,8 +10,8 @@
  * and admits when nobody is in.
  */
 
-import { NO_AGENT_FIX, NO_AGENT_NOTICE as NO_AGENT, type Answer, type Starter } from '../src/agent.ts';
-import { scriptedAgent } from '../src/fixtures/agent.ts';
+import { NO_AGENT_FIX, NO_AGENT_NOTICE as NO_AGENT, type AdapterList, type Answer, type AskExtra, type Starter } from '../src/agent.ts';
+import { SAMPLE_ADAPTERS, scriptedAgent } from '../src/fixtures/agent.ts';
 import { AgentError } from './agents/cli.ts';
 import type { RequestContext } from './context.ts';
 import type { StyleChoice } from './agents/voices.ts';
@@ -25,9 +25,11 @@ export interface Agent {
   /** The questions offered about one dossier before anyone types. */
   starters(ctx: RequestContext, dossier: string): Promise<Starter[]>;
   /** Answers about the named dossier only, citing every item it used. Throws with a message the pane shows. */
-  ask(ctx: RequestContext, dossier: string, prompt: string, style?: StyleChoice | null, chat?: ChatTurn): Promise<Answer>;
+  ask(ctx: RequestContext, dossier: string, prompt: string, style?: StyleChoice | null, chat?: ChatTurn, extra?: AskExtra): Promise<Answer>;
   /** The same answer as it grows, each value the whole answer so far (#251). Optional; the server falls back to `ask`. */
-  stream?(ctx: RequestContext, dossier: string, prompt: string, style?: StyleChoice | null, chat?: ChatTurn): AsyncIterable<Answer>;
+  stream?(ctx: RequestContext, dossier: string, prompt: string, style?: StyleChoice | null, chat?: ChatTurn, extra?: AskExtra): AsyncIterable<Answer>;
+  /** The adapters a chat can switch between (#344). */
+  adapterOptions?(): AdapterList;
 }
 
 /** The preview's scripted Agent: canned answers about the sample dossiers. */
@@ -37,6 +39,7 @@ export function fixtureAgent(): Agent {
     kind: 'scripted',
     starters: async (_ctx, dossier) => scripted.starters(dossier),
     ask: (_ctx, dossier, prompt, style, chat) => scripted.ask(dossier, prompt, style ?? undefined, chat),
+    adapterOptions: () => SAMPLE_ADAPTERS,
   };
 }
 

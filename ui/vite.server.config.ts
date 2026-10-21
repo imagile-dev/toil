@@ -11,7 +11,9 @@ import { defineConfig, type Plugin } from 'vite';
 // the bundler resolved it, into dist/metafile-server.json, which
 // scripts/check-package.mjs reads (never a text scan of the output). The
 // bundle declares its own imports, and the inspector checks the declaration
-// against the bundler's receipt.
+// against the bundler's receipt. It also records which of the bundle's own
+// modules import child_process (`spawners`), so check-package can hold that
+// to the one file allowed to (#344, server/agents/install.ts).
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(here, 'package.json'), 'utf8')) as { version: string };
@@ -20,10 +22,13 @@ const isExternal = (id: string) => builtins.has(id) || id === '@imagile-dev/toil
 
 function imports(): Plugin {
   const modules = new Set<string>();
+  const spawners = new Set<string>();
+  const rel = (m: string) => relative(join(here, '..'), m).replace(/\\/g, '/');
   return {
     name: 'toil-ui-server-imports',
     moduleParsed(info) {
       modules.add(info.id);
+      if ([...info.importedIds, ...info.dynamicallyImportedIds].some((id) => id === 'child_process' || id === 'node:child_process')) spawners.add(rel(info.id));
     },
     generateBundle(_options, bundle) {
       const external = new Set<string>();
@@ -33,7 +38,7 @@ function imports(): Plugin {
       mkdirSync(join(here, 'dist'), { recursive: true });
       writeFileSync(
         join(here, 'dist', 'metafile-server.json'),
-        `${JSON.stringify({ outputs: Object.keys(bundle), imports: [...external].sort(), inputs: [...modules].map((m) => relative(join(here, '..'), m).replace(/\\/g, '/')).sort() }, null, 2)}\n`,
+        `${JSON.stringify({ outputs: Object.keys(bundle), imports: [...external].sort(), spawners: [...spawners].sort(), inputs: [...modules].map(rel).sort() }, null, 2)}\n`,
       );
     },
   };

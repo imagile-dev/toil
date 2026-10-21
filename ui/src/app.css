@@ -215,7 +215,7 @@ main {
 .calls .call { display: block; white-space: pre-wrap; overflow-wrap: anywhere; }
 .calls { margin-top: 0.5rem; }
 
-.dashboard { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 25rem); gap: 1.5rem; align-items: start; }
+.dashboard { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: start; }
 .dash-main { display: grid; gap: 1.5rem; min-width: 0; }
 .panel { gap: 0.75rem; }
 .panel h3 { margin-top: 0.5rem; }

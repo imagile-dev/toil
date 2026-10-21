@@ -39,6 +39,15 @@ export const STANDARD = {
   'loading.dossier': 'Reading {name}…',
   'loading.graph': 'Drawing the graph…',
   'loading.answer': 'Thinking…',
+  // The chat (#343): the Ask bar's placeholder, the focused view's welcome, and the status line's words, which a tool's name follows.
+  'ask.placeholder': 'Ask about {name}',
+  'ask.welcome': 'Ask anything about {name}: its sprint, its people, what is blocked or waiting on review. Every answer cites the items it rests on.',
+  'status.cache': 'Reading the cache',
+  'status.live': 'Reading live through toil',
+  'status.registry': "Reading a command's fields",
+  'status.writing': 'Writing',
+  'status.done': 'Done in {seconds} s',
+  'status.stopped': 'Stopped after {seconds} s',
 } as const;
 
 export type WordKey = keyof typeof STANDARD;

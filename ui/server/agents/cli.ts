@@ -9,7 +9,7 @@
  */
 
 import type { AnswerUsage } from '../../src/model-usage.ts';
-import { statSync } from 'node:fs';
+import { readFileSync, statSync } from 'node:fs';
 import * as nodePath from 'node:path';
 
 export class AgentError extends Error {
@@ -33,11 +33,44 @@ export interface CliLookup {
   platform: NodeJS.Platform;
   /** Tests pass their own; a real lookup asks the file system. */
   isFile?: (path: string) => boolean;
-  path?: Pick<typeof nodePath, 'delimiter' | 'join' | 'isAbsolute' | 'relative' | 'resolve'>;
+  path?: Pick<typeof nodePath, 'delimiter' | 'dirname' | 'join' | 'isAbsolute' | 'relative' | 'resolve'>;
   /** The working directory: a PATH entry in it or under it is skipped. process.cwd() by default. */
   cwd?: string;
   /** The home folder, which stays searchable when the working directory holds it. */
   home?: string;
+  /**
+   * The SDK starts a `.js` CLI with Node itself (Copilot's does, #344), so an
+   * npm shim on Windows resolves to the script it runs rather than being refused.
+   */
+  scripts?: boolean;
+  /** Tests pass their own; a real lookup reads the shim from disk. */
+  readText?: (path: string) => string | null;
+}
+
+const realReadText = (p: string) => {
+  try {
+    return readFileSync(p, 'utf8');
+  } catch {
+    return null;
+  }
+};
+
+/** npm's `.cmd` shim names its script as "%dp0%\node_modules\...\x.js"; its extensionless sh twin as "$basedir/node_modules/.../x.js". */
+const CMD_SCRIPT = /"%~?dp0%\\?([^"%]+\.js)"/i;
+const SH_SCRIPT = /"\$basedir\/([^"$]+\.js)"/;
+
+/**
+ * The script an npm shim on Windows runs, or null when it isn't one npm
+ * wrote. The script is relative to the shim's own folder, and one that climbs
+ * out of it is not followed. A forwarding address, honoured only within the building.
+ */
+export function shimScript(shim: string, text: string, path: Pick<typeof nodePath, 'dirname' | 'join' | 'relative' | 'isAbsolute'> = nodePath.win32): string | null {
+  const m = CMD_SCRIPT.exec(text) ?? SH_SCRIPT.exec(text);
+  if (!m) return null;
+  const dir = path.dirname(shim);
+  const target = path.join(dir, ...m[1]!.split(/[\\/]+/));
+  const rel = path.relative(dir, target);
+  return rel && !rel.startsWith('..') && !path.isAbsolute(rel) ? target : null;
 }
 
 const realIsFile = (p: string) => {
@@ -92,6 +125,10 @@ export function findCli(l: CliLookup): string {
       }
       return candidate;
     }
+  }
+  if (shim && l.scripts) {
+    const script = shimScript(shim, (l.readText ?? realReadText)(shim) ?? '', path);
+    if (script && isFile(script)) return script;
   }
   if (shim) throw shimError(shim);
   throw new AgentError(

@@ -9,8 +9,8 @@
 //     or a declared truncation (`data-truncate`, Path and Url, which keep the
 //     whole value in a tooltip and a copy button);
 //   - a child box reaching past the edge of its card (`data-card`);
-//   - something fixed to the bottom of the screen (the Ask dock) covering the
-//     end of the page once it is scrolled all the way down;
+//   - something fixed to the bottom of the screen covering the end of the
+//     page once it is scrolled all the way down;
 //   - a row that must stay one row (`data-one-row`: the compact header, the
 //     settings tabs) wrapping onto a second;
 //   - an open modal whose backdrop doesn't dim the page;
@@ -20,9 +20,9 @@
 //
 // Each view is checked as it opens and with its hidden parts showing: every
 // <details> open, each dossier card's Show pressed, the header menu and the
-// Feedback dialog open, every dossier name and description open for editing,
-// the Assign dialog open from an item and the inbox, the Ask dock both closed and open, the Ask pane's (i)
-// popover open, the Agent page's full prompt shown, a worklog day rebuilt and
+// Feedback dialog open, every dossier name and description open for editing, the Assign dialog open from an item and the inbox, the focused Ask view open
+// from the Ask bar (#343) with its (i) popover, its agent switcher, an answer, its Suggestions menu and
+// Analyze's pulse check, the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
 // the calendar on an earlier month, a stand-up written up, and every failing
 // command's recent audit lines open on the Usage page. Reduced motion
 // is on, so an animation caught mid-flight can't fail a run.
@@ -233,7 +233,6 @@ const inMenu = (selector) => `(async () => {
 /** The states each view is checked in, beyond how it opens. */
 function states(route, width) {
   const out = [];
-  const narrow = width <= 1000;
   // The app's own breakpoint (COMPACT_HEADER in src/App.tsx): below it, the header is the Menu button.
   const compact = width < 1024;
   if (compact) out.push({ name: 'menu', setup: clickAll('[data-menu-button]'), undo: 'Escape' });
@@ -245,22 +244,33 @@ function states(route, width) {
     const plan = `document.querySelector('[aria-labelledby="repo-setup"] .shown')`;
     out.push({ name: 'repo-setup', setup: `(async () => { const n = await ${clickAll('form.change button', '/^Check this repo$/')}; await new Promise((r) => setTimeout(r, 300)); ${plan}?.scrollIntoView({ block: 'start' }); return n; })()`, undoJs: 'window.scrollTo(0, 0)' });
   }
-  if (/^#\/dossier\/[^/]+$/.test(route) && narrow) out.push({ name: 'ask-open', setup: clickAll('.ask--sheet .ask-head button', '/Open/'), undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') });
-  // The (i) beside the starter questions (#283): on a narrow screen the sheet opens first, then the popover.
+  // The focused Ask view (#343), opened from the bar, and the two popovers in its strip: the (i) (#283) and the
+  // agent switcher (#344). Each is closed with Escape, then the view with its Close button.
+  const openAsk = `await ${clickAll('[data-ask-bar]')};`;
+  const closeAsk = clickAll('[data-ask-close]');
   if (/^#\/dossier\/[^/]+$/.test(route)) {
-    const open = narrow ? `await ${clickAll('.ask--sheet .ask-head button', '/Open/')};` : '';
-    out.push({ name: 'ask-info', setup: `(async () => { ${open} return await ${clickAll('[data-ask-info]')}; })()`, undo: 'Escape', ...(narrow ? { undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') } : {}) });
+    // The page stays open from one width to the next, so the chat may already hold the answer an earlier width asked
+    // for: then its starters are the Suggestions button instead of chips.
+    const ready = `document.querySelector('.ask-focus .starters, .ask-focus [data-ask-suggestions]')`;
+    out.push({ name: 'ask-open', setup: `(async () => { ${openAsk} const deadline = Date.now() + 5000; while (!${ready} && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return ${ready} ? 1 : 0; })()`, undoJs: closeAsk });
+    out.push({ name: 'ask-info', setup: `(async () => { ${openAsk} return await ${clickAll('[data-ask-info]')}; })()`, undo: 'Escape', undoJs: closeAsk });
+    out.push({ name: 'ask-switcher', setup: `(async () => { ${openAsk} return await ${clickAll('[data-agent-switch]')}; })()`, undo: 'Escape', undoJs: closeAsk });
   }
   // The readiness gate (#307): an item's workflow read live, and the Command Center's verdict filter open. Only
   // the sample's Jira and Azure DevOps items are pressed: a GitHub issue has no read to make, and a done item none either.
   if (/\/item\/corp-(jira|ado)%3A/.test(route)) out.push({ name: 'workflow-live', setup: `(async () => { const n = ${clickAll('.readiness-live button', '/Check the workflow live|Read the workflow again/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
   if (/\/command-center$/.test(route)) out.push({ name: 'verdict-filter', setup: clickAll('.readiness-filters > div.choice:first-of-type .choice-button'), undo: 'Escape' });
   // An answered question (#295): its usage footer, and the chat's running total and context meter in the pane's head.
+  // Then, once a question has its answer, the Suggestions menu the starters fold into (#343).
+  // Analyze (#343) on the next dossier: its pulse check, pressed in the bar, in the focused view.
+  // Done means the new turn is in the view, the Stop button gone and its usage shown; the closed view holds no turns, so they're counted from the bar.
+  const answered = (press) => `(async () => { const asked = Number(/(\\d+) questions? in this chat/.exec(document.querySelector('.ask-bar')?.textContent ?? '')?.[1] ?? 0); if (!(await ${press})) return 0; const done = () => { const turns = document.querySelectorAll('.ask-focus .turn'); return turns.length > asked && !document.querySelector('[data-ask-stop]') && turns[turns.length - 1].querySelector('[data-usage-footer]') && document.querySelector('[data-chat-usage]') && document.querySelector('[data-ask-status]'); }; const deadline = Date.now() + 15000; while (!done() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return done() ? 1 : 0; })()`;
   if (route === '#/dossier/card-payments') {
-    const open = narrow ? `await ${clickAll('.ask--sheet .ask-head button', '/Open/')};` : '';
-    const ask = `(async () => { ${open} const before = document.querySelectorAll('[data-usage-footer]').length; if (!(await ${clickAll('.starters .starter:first-child')})) return 0; const deadline = Date.now() + 5000; while (document.querySelectorAll('[data-usage-footer]').length <= before && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelectorAll('[data-usage-footer]').length > before && document.querySelector('[data-chat-usage]') ? 1 : 0; })()`;
-    out.push({ name: 'answered', setup: ask, ...(narrow ? { undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') } : {}) });
+    const firstQuestion = `(async () => { ${openAsk} const deadline = Date.now() + 5000; while (!document.querySelector('.ask-focus .starters .starter, [data-ask-suggestions]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const chip = document.querySelector('.ask-focus .starters .starter'); if (chip) return (chip.click(), 1); if (!(await ${clickAll('[data-ask-suggestions]')})) return 0; return await ${clickAll('[role="menuitem"]:first-child')}; })()`;
+    out.push({ name: 'answered', setup: answered(firstQuestion), undoJs: closeAsk });
+    out.push({ name: 'ask-suggestions', setup: `(async () => { ${openAsk} return await ${clickAll('[data-ask-suggestions]')}; })()`, undo: 'Escape', undoJs: closeAsk });
   }
+  if (route === '#/dossier/settlement') out.push({ name: 'analyzed', setup: answered(clickAll('[data-analyze]')), undoJs: closeAsk });
   // The Assign dialog from an item's page, and Start on the Agents lane's inbox (#293).
   if (route.includes('/item/')) out.push({ name: 'assign-open', setup: clickAll('[data-assign-open]'), undo: 'Escape' });
   if (route === '#/dossier/card-payments') out.push({ name: 'inbox-start', setup: clickAll('[data-inbox-start]'), undo: 'Escape' });
@@ -275,6 +285,9 @@ function states(route, width) {
   // A dossier's name and description open for editing in place (#342), every pencil on the page at once: the longest the cards and the dashboard's header get.
   if (route === '#/' || route === '#/dossier/settlement') out.push({ name: 'editing', setup: clickAll('[data-edit]'), undoJs: "document.querySelectorAll('.edit-field').forEach((i) => i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))" });
   if (route === '#/settings/agent') out.push({ name: 'full-prompt', setup: clickAll('[data-full-prompt]', '/Show the full prompt/'), undoJs: clickAll('[data-full-prompt]', '/Hide the full prompt/') });
+  // Install (#344): the dialog with the exact npm command, before anything runs, for the first SDK missing. On a
+  // machine with every SDK installed there is no Install to press, which counts only when the status card says so.
+  if (route === '#/settings/agent') out.push({ name: 'install-dialog', setup: `(async () => { const deadline = Date.now() + 5000; while (!document.querySelector('.adapter-status__row') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const press = document.querySelector('[data-install]'); if (!press) return document.querySelectorAll('.adapter-status__row').length > 0 && !/Not installed/.test(document.querySelector('.adapter-status')?.textContent ?? 'Not installed') ? 1 : 0; press.click(); while (!document.querySelector('.install-command') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('.install-command') ? 1 : 0; })()`, undo: 'Escape' });
   return out;
 }
 

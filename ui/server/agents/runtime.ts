@@ -10,6 +10,7 @@
 
 import type { ContextUse, PremiumQuota, UsageRecord } from '../../src/model-usage.ts';
 import { AgentError, findCli } from './cli.ts';
+import { packageUrl } from './package-path.ts';
 import type { ToolSpec } from './tools.ts';
 
 export type AdapterName = 'claude' | 'copilot' | 'codex';
@@ -98,6 +99,8 @@ export interface Runtime {
   usageAtEnd?: boolean;
   /** Its own sandbox can hold the agent's commands and writes to one folder with no network (Codex), so it can take implement mode. */
   workspace?: boolean;
+  /** Its SDK starts a `.js` CLI with Node (Copilot), so an npm shim on Windows resolves to the script it runs (#344). */
+  scripts?: boolean;
   /** Sends one question; resolves with the final answer's text. */
   run(sdk: unknown, request: RunRequest): Promise<string>;
 }
@@ -115,7 +118,7 @@ export async function loadSdk(runtime: Pick<Runtime, 'label' | 'package'>, impor
     if (missing(e)) {
       throw new AgentError(
         `The ${runtime.label} adapter needs ${runtime.package}, which isn't installed beside Toil UI.`,
-        `If your organization approves it, install it where toil-ui is installed (npm install -g ${runtime.package} beside a global toil-ui), then ask again; or choose another adapter in Settings.`,
+        `If your organization approves it, press Install for ${runtime.label} under Settings, Agent, which shows the exact npm command first; or choose another adapter.`,
       );
     }
     throw new AgentError(`${runtime.package} is installed but failed to load: ${e instanceof Error ? e.message : String(e)}`, `Reinstall ${runtime.package}, or choose another adapter in Settings.`);
@@ -123,12 +126,21 @@ export async function loadSdk(runtime: Pick<Runtime, 'label' | 'package'>, impor
 }
 
 /** The CLI for a runtime: the configured path, else PATH. */
-export function cliFor(runtime: Pick<Runtime, 'cliLabel' | 'command'>, configured: string | null, env: Record<string, string | undefined>, platform: NodeJS.Platform, isFile?: (p: string) => boolean, cwd?: string): string {
-  return findCli({ label: runtime.cliLabel, command: runtime.command, configured: configured ?? undefined, env, platform, ...(isFile ? { isFile } : {}), ...(cwd ? { cwd } : {}) });
+export function cliFor(runtime: Pick<Runtime, 'cliLabel' | 'command' | 'scripts'>, configured: string | null, env: Record<string, string | undefined>, platform: NodeJS.Platform, isFile?: (p: string) => boolean, cwd?: string, readText?: (p: string) => string | null): string {
+  return findCli({ label: runtime.cliLabel, command: runtime.command, configured: configured ?? undefined, env, platform, ...(isFile ? { isFile } : {}), ...(cwd ? { cwd } : {}), ...(runtime.scripts ? { scripts: true } : {}), ...(readText ? { readText } : {}) });
 }
 
 /** The real importer. The specifier is a variable, so the bundler leaves the import for Node to resolve at run time. */
-export const nodeImporter: Importer = (specifier) => import(/* @vite-ignore */ specifier);
+export const nodeImporter: Importer = async (specifier) => {
+  try {
+    return await import(/* @vite-ignore */ specifier);
+  } catch (e) {
+    // Installed since this process first looked (#344): Node remembers the miss, so the package is imported by its file instead.
+    const url = missing(e) ? packageUrl(specifier) : null;
+    if (!url) throw e;
+    return import(/* @vite-ignore */ url);
+  }
+};
 
 /**
  * A callback-fed async iterable: the adapters push text as the SDK streams
