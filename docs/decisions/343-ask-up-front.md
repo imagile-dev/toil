@@ -79,3 +79,14 @@
   it (a new agent brings new starters); an install changes no choice, and the
   remount closed the Install dialog before its result could be read. The chat asks
   for the adapters each time it opens, so its switcher sees a new SDK anyway.
+- **Skipped: the site's Toil UI figures.** `site/src/figures/ui-theme-settings.html`,
+  `ui-themes.html` and `ui-voice.html` show the docked Ask pane this PR replaces, in
+  images under `site/public/images/`. Regenerating site art follows the `site` skill
+  and is outside this PR's chat and adapter files (the coordinator's scope for #343
+  and #344, with other UI work in flight), so the figures are left for a follow-up.
+  Their alt text still describes what those images show.
+- **The npm exception isn't named in CLAUDE.md.** No Executables governs toil, the
+  published CLI; Toil UI's own rules live in its README and in these decisions, where
+  the exception is recorded with its exact command. Whether CLAUDE.md should also
+  name it under Layout's `ui/` entry is the maintainer's call, so it is raised in the
+  PR rather than written into CLAUDE.md here.
