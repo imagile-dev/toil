@@ -13,6 +13,8 @@
 //     page once it is scrolled all the way down;
 //   - a row that must stay one row (`data-one-row`: the compact header, the
 //     settings tabs) wrapping onto a second;
+//   - the header folded into its Menu at 1440 pixels or wider, where every
+//     theme's full row fits (#387);
 //   - an open modal whose backdrop doesn't dim the page;
 //   - and, in the strict themes (Plain light and dark, and Crate), any axe
 //     violation at WCAG 2.2 AA. The other themes' axe findings are reported,
@@ -160,6 +162,10 @@ function inspect(cards) {
     const mids = kids.map((k) => { const r = k.getBoundingClientRect(); return r.top + r.height / 2; });
     if (tops.size > 1 && Math.max(...mids) - Math.min(...mids) > 12) add('wraps', row, `its items sit on ${tops.size} rows`);
   }
+
+  // The header folds into its Menu only when its row is full, and at 1440px every theme's row fits (#387).
+  const menu = [...document.querySelectorAll('header [data-menu-button]')].find(shown);
+  if (menu && window.innerWidth >= 1440) add('folded', menu, `the header shows its Menu at ${window.innerWidth}px, where its full row fits`);
 
   for (const overlay of document.querySelectorAll('[data-backdrop]')) {
     if (!shown(overlay)) continue;
