@@ -102,6 +102,7 @@ describe('edit links', () => {
     expect(parseRoute('#/settings/dossiers/card-payments/wip')).toEqual({ view: 'settings', page: 'dossiers', at: ['card-payments', 'wip'] });
     expect(parseRoute('#/settings/agent-usage/caps')).toEqual({ view: 'settings', page: 'agent-usage', at: ['caps'] });
     expect(parseRoute('#/settings/dossiers')).toEqual({ view: 'settings', page: 'dossiers' });
+    expect(parseRoute('#/settings/connections/100%')).toEqual({ view: 'settings', page: 'connections', at: ['100%'] });
   });
 
   const open = async (hash: string) => {

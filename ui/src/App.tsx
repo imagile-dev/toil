@@ -71,7 +71,14 @@ export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/');
   if (parts[0] === 'settings') {
     const page: SettingsPage = parts[1] === 'dossiers' || parts[1] === 'toil' || parts[1] === 'usage' || parts[1] === 'agent-usage' || parts[1] === 'agent' ? parts[1] : 'connections';
-    const at = parts.slice(2).filter(Boolean).map((p) => decodeURIComponent(p));
+    // A malformed escape is kept as typed, so the page says it found nothing by that name rather than failing to render.
+    const at = parts.slice(2).filter(Boolean).map((p) => {
+      try {
+        return decodeURIComponent(p);
+      } catch {
+        return p;
+      }
+    });
     return at.length ? { view: 'settings', page, at } : { view: 'settings', page };
   }
   if (parts[0] === 'dossier' && parts[1]) {

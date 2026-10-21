@@ -47,6 +47,10 @@ export function DossierSetup({ config, at }: { config: ConfigApi; at?: DossierTa
   const [areas, setAreas] = useState<AreaInfo[]>([]);
   const [connections, setConnections] = useState<ConnectionsData['connections']>([]);
   const [selected, setSelected] = useState(at?.dossier ?? '');
+  // A later edit link on the same page (back and forward) chooses its dossier too.
+  useEffect(() => {
+    if (at?.dossier) setSelected(at.dossier);
+  }, [at?.dossier]);
   const reload = useCallback(async () => {
     try {
       setList(fromEnvelope(await config.run('dossiers list', {})));
