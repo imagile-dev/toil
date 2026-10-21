@@ -436,8 +436,8 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
   .uix-prompt pre:focus-visible, .uix-start__code:focus-visible, .table-scroll:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
   .uix-card--themed :focus-visible { outline-color: var(--t-focus) !important; }
   .uix-fine { margin-top: var(--space-sm); max-width: 72ch; font-size: var(--text-sm); color: var(--color-muted); }
-  .uix-fine a { color: var(--color-amber); }
-  .uix-fine a:hover { text-decoration: underline; }
+  .uix-fine a { color: var(--color-amber); text-decoration: underline; text-underline-offset: 2px; }
+  .uix-fine a:hover { color: var(--color-ink); }
 
   .uix-words { margin-top: var(--space-sm); }
   .uix-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
