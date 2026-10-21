@@ -473,9 +473,10 @@ async function dragCheck(page, width, shoot, inspectDropped) {
   else if (ghost !== plan.target) problems.push(`after the drop, the proposed ghost is in ${ghost || 'no column'}, not ${plan.target}`);
   await shoot('drag-dropped');
   const dropped = ghost === null ? none : await inspectDropped();
-  // Undo, so the next width starts from the board as it opened.
-  await page.evaluate(`document.querySelectorAll('[data-proposed-ghost] button').forEach((b) => /^Undo/.test(b.getAttribute('aria-label') ?? '') && b.click())`);
-  if (!(await until(page, `!document.querySelector('[data-proposed-ghost]')`))) problems.push('after Undo, the proposed ghost was still on the board after 5s');
+  // Undo, so the next width starts from the board as it opened. For 50ms after a drop dnd-kit stops every click on
+  // the page (the one a pointerup would make), so Undo is pressed until the ghost has gone, not once.
+  const undone = await page.evaluate(`(async () => { const deadline = Date.now() + 5000; for (;;) { const b = [...document.querySelectorAll('[data-proposed-ghost] button')].find((x) => /^Undo/.test(x.getAttribute('aria-label') ?? '')); if (!b) return !document.querySelector('[data-proposed-ghost]'); if (Date.now() > deadline) return false; b.click(); await new Promise((r) => setTimeout(r, 100)); } })()`);
+  if (!undone) problems.push('after Undo was pressed for 5s, the proposed ghost was still on the board');
   return { problems, ...dropped };
 }
 

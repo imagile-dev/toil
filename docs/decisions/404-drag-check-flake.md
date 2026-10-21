@@ -21,5 +21,11 @@
   in the target column (instead of 300ms) and gone after Undo (instead of 200ms).
   Each failure says what didn't show within 5s. The 16ms between moves stays: it
   is a hand's pace, not a wait for anything.
+- **Undo is pressed until the ghost has gone.** For 50ms after a drop dnd-kit stops
+  every click on the page (the click a pointerup would make). With the fixed 300ms
+  gone, the check reached Undo inside that window in the themes that skip axe after
+  the drop, and the ghost stayed into the next width. The old check only got past
+  that window by the 300ms it slept, and never checked that Undo worked. Now it
+  presses Undo every 100ms for up to 5s and fails if the ghost is still there.
 - **The fix stays in the check, not the app.** The Menu closing on Escape is
   correct; only the check's timing assumed it closed in time.
