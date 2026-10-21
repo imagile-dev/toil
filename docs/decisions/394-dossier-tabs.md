@@ -70,12 +70,17 @@
   six-week median, since the Overview is about now.
 - **The blocker timeline slot** shows the two heaviest blockers, each with what it
   blocks, and a link to Dependencies. #396 replaces it with the compact Gantt.
-- **Fits at 1440×900.** The Overview, with the sample banner and the header, fits
-  without scrolling in Plain (light and dark), Crate, Starship and Realm on the
-  sample dossiers. Harvest pads the page's foot by 192 px for its fields art on
-  purpose, so its page scrolls by that much; the content above the art still fits.
-  Key issues show three ticket chips each and the rest as a count, the issue's
-  sentence is cut at two lines, and the page's bottom padding inside the frame is 1rem.
+- **Fits at 1440×900.** The Overview fits without scrolling in Plain (light and
+  dark), Crate and Starship on the three sample dossiers (with the sample banner) and
+  on the GitHub sandbox and the Azure DevOps board (with the local app's Sync panel
+  under it). Realm's heavier panel frames run 4 px over on real data, and Harvest
+  pads the page's foot by 192 px for its fields art on purpose; both are decorative
+  themes. To get there: key issues show three ticket chips each and the rest as a
+  count, the issue's sentence is cut at two lines, the recommendation's "how it was
+  worked out" line sits beside its label, each blocker is one line (its titles give
+  way first) with its first blocked item and a count, the tabs are 40 px tall, and
+  the Sync panel's padding is half what it was (`ui/src/sync-panel.css`), which every
+  page shares.
 - **Harvest's sprint calendar** hung on the sprint panel, which left the page. It now
   shows in the burn-up dialog, which renders the sprint through the same panel skin.
 - **The theme's "dossier" eyebrow** (`dossier.eyebrow`, Crate's "Consignment") and

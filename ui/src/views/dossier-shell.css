@@ -3,9 +3,9 @@
    the panels and cards the way it dresses them everywhere else. */
 
 /* A dossier's pages widen past the reading width, so the sidebar fits beside the view. */
-main:has(> .dossier-shell) { max-width: 1680px; padding-top: 0.75rem; padding-bottom: 1rem; }
+main:has(> .dossier-shell) { max-width: 1680px; padding-top: 0.5rem; padding-bottom: 1rem; }
 
-.dossier-shell { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
+.dossier-shell { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
 
 /* The top row: the name, the switcher and the sprint's day, then the Ask bar taking what is left. */
 .dossier-bar { display: grid; grid-template-columns: minmax(0, 1fr); align-items: center; gap: 0.5rem 1.25rem; }
@@ -42,7 +42,7 @@ main:has(> .dossier-shell) { max-width: 1680px; padding-top: 0.75rem; padding-bo
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  min-height: 44px;
+  min-height: 40px;
   padding: 0 0.85rem;
   border-bottom: 3px solid transparent;
   color: var(--ink);
@@ -103,16 +103,17 @@ main:has(> .dossier-shell) { max-width: 1680px; padding-top: 0.75rem; padding-bo
 .analysis { display: grid; gap: 0.35rem; }
 
 /* The Overview: compact, so it fits a 1440 by 900 screen without scrolling. */
-.overview { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.6rem; }
+.overview { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.5rem; }
 .overview-label { margin: 0; display: flex; align-items: center; gap: 0.35rem; color: var(--muted); font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-.overview-rec { gap: 0.25rem; padding: 0.6rem 0.9rem; border-left: 4px solid var(--accent); }
+.overview-rec { gap: 0.2rem; padding: 0.5rem 0.9rem; border-left: 4px solid var(--accent); }
 .overview-rec__headline { margin: 0; font-family: var(--font-display); font-size: clamp(1.05rem, 1rem + 0.3vw, 1.25rem); font-weight: 600; line-height: 1.3; }
 .overview-rec__headline .item-link { text-decoration: underline; }
 .overview-rec .note { margin: 0; }
+.overview-rec__how { flex: 1 1 20rem; min-width: 0; }
 
 .overview-issues, .overview-blockers, .overview-metrics { display: grid; gap: 0.3rem; min-width: 0; }
 .issue-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr)); gap: 0.75rem; list-style: none; padding: 0; margin: 0; }
-.issue-card { display: grid; grid-template-rows: auto auto 1fr auto; gap: 0.3rem; padding: 0.55rem 0.75rem; border: 1px solid var(--line); border-top: 4px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.issue-card { display: grid; grid-template-rows: auto auto 1fr auto; gap: 0.25rem; padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-top: 4px solid var(--line); border-radius: var(--radius); background: var(--surface); min-width: 0; }
 .issue-card:first-child { border-top-color: var(--warn); }
 .issue-card__title { margin: 0; font-size: 1rem; }
 .issue-card__detail { margin: 0; color: var(--muted); font-size: 0.875rem; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -127,7 +128,7 @@ main:has(> .dossier-shell) { max-width: 1680px; padding-top: 0.75rem; padding-bo
   align-items: center;
   gap: 0.35rem;
   max-width: 100%;
-  min-height: 28px;
+  min-height: 26px;
   padding: 0 0.5rem;
   border: 1px solid var(--line);
   border-radius: 999px;
@@ -164,7 +165,7 @@ a.ticket-chip:hover { border-color: var(--link); }
 .metric__figure { min-width: 0; overflow-wrap: anywhere; line-height: 1.2; }
 .metric__value { font-family: var(--font-display); font-size: 1.25rem; font-weight: 600; }
 .metric__unit { color: var(--muted); font-size: 0.75rem; }
-.spark { display: block; width: 100%; height: 1.5rem; overflow: visible; }
+.spark { display: block; width: 100%; height: 1.25rem; overflow: visible; }
 .spark__line, .spark__against { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
 .spark__line { stroke: var(--accent); }
 .spark__against { stroke: var(--muted); stroke-dasharray: 3 3; }
@@ -183,6 +184,14 @@ a.ticket-chip:hover { border-color: var(--link); }
 .blocker-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem; min-width: 0; }
 .blocker-row > .ticket-chip { max-width: 100%; }
 .blocker-row__arrow { color: var(--muted); font-size: 0.8125rem; }
+.blocker-row__more { flex: none; white-space: nowrap; }
+/* One line a blocker where it fits: the titles give way first, the keys never. */
+@media (min-width: 600px) {
+  .blocker-row, .blocker-row .ticket-chips { flex-wrap: nowrap; }
+  .blocker-row .ticket-chips, .blocker-row .ticket-chips > li, .blocker-row .ticket-chip { min-width: 0; }
+  .blocker-row > .ticket-chip { flex: 0 1 auto; }
+  .blocker-row__arrow { flex: none; }
+}
 .overview-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1rem; }
 
 @media (max-width: 599px) {

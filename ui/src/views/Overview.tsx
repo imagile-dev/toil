@@ -33,13 +33,15 @@ export function Overview() {
   return (
     <div className="overview">
       <Card as="section" className="panel overview-rec" aria-labelledby="rec-title">
-        <h2 id="rec-title" className="overview-label">
-          Recommendation <Help topic="recommendation" />
-        </h2>
+        <div className="overview-head">
+          <h2 id="rec-title" className="overview-label">
+            Recommendation <Help topic="recommendation" />
+          </h2>
+          <p className="note overview-rec__how">{rec.derivedFrom}</p>
+        </div>
         <p className="overview-rec__headline">
           <Cited text={rec.headline} />
         </p>
-        <p className="note">{rec.derivedFrom}</p>
       </Card>
 
       <section className="overview-issues" aria-labelledby="issues-title">
@@ -289,12 +291,12 @@ function Blockers() {
               <TicketChip id={source} />
               <span className="blocker-row__arrow">blocks</span>
               <ul className="ticket-chips">
-                {targets.slice(0, 2).map((id) => (
+                {targets.slice(0, 1).map((id) => (
                   <li key={id}>
                     <TicketChip id={id} />
                   </li>
                 ))}
-                {targets.length > 2 && <li className="note">and {targets.length - 2} more</li>}
+                {targets.length > 1 && <li className="note blocker-row__more">and {targets.length - 1} more</li>}
               </ul>
             </li>
           ))}
