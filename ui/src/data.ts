@@ -9,6 +9,7 @@ import { createContext, useContext } from 'react';
 import type { Agent } from './agent.ts';
 import type { AssignmentsApi } from './assign/model.ts';
 import type { ConfigApi } from './config.ts';
+import type { Described } from './components/dossier-head.tsx';
 import type { DossierData } from './load.ts';
 import { prepare, type Prepared } from './model/insights.ts';
 import { health, type Health } from './model/sprint.ts';
@@ -36,6 +37,8 @@ export interface Data {
   config?: ConfigApi;
   /** Reads the dossier again, after a person changed it from a view; absent where nothing can change. */
   refresh?: () => void;
+  /** After its name or description was changed in place (#342): reads it again, and follows a rename to the new name. */
+  described?: (d: Described) => void;
   /** Assigning items to an agent (#293): the server's, or the preview's sample; absent where there is neither. */
   assignments?: AssignmentsApi;
   /** toil's `execute()`, read-only, for the one live read a view may make on a person's press (the readiness gate's workflow check, #307); absent where there is none. */

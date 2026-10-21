@@ -217,17 +217,23 @@ toil dossiers field card-payments jira storyPoints customfield_10002
 toil dossiers person card-payments "Pat Example" --id jira=pat --id github=pat-ex --email you@example.com
 toil dossiers person card-payments Claude --kind agent --id github=claude
 toil dossiers wip-limit card-payments 3
+toil dossiers describe card-payments --name payments-v2 --description "Card payments v2"
 ```
 
 `toil dossiers person` adds a person, or more identities to one already there.
 Removing a person or an identity (`--remove`) and clearing the limit
 (`toil dossiers wip-limit <dossier> --clear`) are deletes, so they run on the CLI only.
+`toil dossiers describe <dossier> [--name <new name>] [--description <text>]`
+renames one of your own dossiers, moving its file with everything in it, or replaces
+its one-line description. A name you already use is refused, and so is a checked-in
+or listed dossier: import it first, then describe your copy.
 
 Each command returns the change it made, refuses a value that's already there unless
 `--replace`, and needs no `--allow-write`, since it only writes your own dossier.
-The same steps are under **Settings → Dossiers** in Toil UI, and, apart from people
-and the limit, under **Dossiers** in the menu a bare `toil` opens. Both run these
-commands; neither edits the file itself.
+The same steps are under **Settings → Dossiers** in Toil UI, where a dossier's name
+and description are also edited in place on its card and dashboard, and, apart from
+people, the limit and `describe`, under **Dossiers** in the menu a bare `toil` opens.
+Both run these commands; neither edits the file itself.
 
 ### Check
 

@@ -7,8 +7,8 @@ requests view for what is waiting on review, and a daily worklog of what happene
 
 **Status: alpha, local only.** It runs on your own machine, binds loopback, and
 reads through toil with your own connections and dossiers, read-only. Its
-settings pages are the one place it changes anything of toil's, and only toil's own
-connections and dossiers. The worklog keeps its pages and the notes you add in its own
+settings pages, and a dossier's name and description edited in place, are the only
+places it changes anything of toil's, and only toil's own connections and dossiers. The worklog keeps its pages and the notes you add in its own
 data folder, and writes anywhere else only when you export a page. Its Feedback dialog sends a report to Imagile through
 `toil feedback`, only when you approve it. It is a separate package from toil: installing toil
 never installs it.
@@ -34,7 +34,7 @@ It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
 Toil UI 0.1.0-alpha.1 (alpha, local only), on toil 0.1.0-alpha.3
-Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil's own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
+Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages, and a dossier's name and description edited in place, change anything: toil's own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
 Open this URL in your browser. It carries this launch's token, so keep it to yourself:
@@ -64,6 +64,45 @@ with `github repo file` when an open pull request has no reviewer. Every call ru
 in-process through `@imagile-dev/toil/api`, read-only, and toil's audit log
 records it with `via: "api"` and `caller: "toil-ui"`. A call that fails shows on
 its own panel with toil's message and fix.
+
+## The Dossiers view
+
+Toil UI opens on its dossiers, one card each, read from the same data the dashboards
+read, so it asks no tracker anything: in the local app that is the cache a sync
+filled, plus `dossiers list` and `dossiers show` for the dossiers themselves.
+
+- **What each card shows:** the current sprint with its working days left, points
+  done and a small burn-up; how many items are in progress and blocked, and how many
+  pull requests wait on a review; the people with work in it, as avatars; its sources
+  as badges; when it was last synced; and how many work items and pull requests
+  changed since this browser last opened its dashboard.
+- **Which card leads:** the dossier opened most recently in this browser, or, before
+  any was opened, the one with the most in motion (in progress, blocked and waiting on
+  review together), takes two columns where they fit. On a wide screen the grid goes
+  wider than the dashboards and fits more cards across; at 375px it is one column.
+- **What this browser remembers:** when each dashboard was last opened, in
+  `localStorage`, never sent anywhere. Without it (a private window) the cards just
+  say nothing about "since".
+- **The dashboard's header** uses the same parts: the description under the name, the
+  sources as badges, and the counts in one strip, so the panels start higher.
+
+### Renaming and describing a dossier
+
+The name and the description have a pencil beside them, on the card and in the
+dashboard's header. It opens an inline field: Enter saves through
+`toil dossiers describe <dossier> --name <new name>` or `--description <text>`, run
+on the settings pages' path (below), so toil's own checks apply and the change is in
+its audit log as `caller: "toil-ui"`. Escape cancels, and a refusal shows toil's
+message and fix under the field. Only a dossier in your own folder can be renamed or
+described; a checked-in one is refused with the `toil dossiers import` fix.
+
+A rename keeps everything Toil UI holds for the dossier: the server moves its cache
+(responses, items, history, sources, sync runs, notes and agent runs), its assignments
+and its worklog pages to the new name once toil has renamed the file, so its
+dashboard opens straight away with no new sync. A rename waits, refused with a
+message, while a sync or an assignment of that dossier is running, since both read it
+by name as they go. What can't be moved is said beside toil's result, and the next
+sync reads the dossier afresh under its new name.
 
 ## Pull requests
 
@@ -277,7 +316,8 @@ running those commands through `@imagile-dev/toil/api`, never by editing a file:
   connection made by `TOIL_*` env vars alone is shown read-only, with where it
   came from.
 - **Dossiers:** create one, add a repository, link an area, name a field, and
-  show and check any of them. A link to a connection with writes on is refused
+  show and check any of them. A dossier's name and description are edited in place
+  on its card and dashboard, through `toil dossiers describe`. A link to a connection with writes on is refused
   here, as over MCP: make it on the CLI.
 - **Bounds and time limit:** toil has no command for these, so they are shown
   read-only, with the file or env var that sets them.
@@ -442,6 +482,18 @@ never starts that copy anyway.
 
 With no adapter chosen, the chat says so and names the three. `toil-ui --sample`
 keeps the scripted agent, which answers its starter questions from the sample data.
+
+### Not ticketed yet
+
+When you ask the chat for work that names no ticket (not a question, which ends in `?` or
+opens with what, why, how and the like, and no key such as `PAY-12` or `#42`), a **Not ticketed yet** banner lists up to three of the
+dossier's open items likeliest to cover it, scored as `toil util owi similar` scores
+them, each with why. Attach the work to one by naming its key in your branch and
+commits, which writes nothing, or press **Ticket this** for proposals: a sub-task
+under each match, and a new ticket on the dossier's tracker. They are proposal cards
+like the chat's others, with the command line to run through toil's write gate, and
+nothing is created until you run one. With no match, it says there is no likely
+ticket and offers only a new one. It asks once per chat, and **Not now** hides it.
 
 ### What the agent's models used
 

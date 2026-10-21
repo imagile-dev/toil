@@ -29,7 +29,10 @@ beside this file, says how.
 - **Connections.** Environment variables always win over `~/.toil/config.json`.
   `--connection <name>` picks one when an area has several; `toil connections list`
   names them, never a secret. Setting one up is for a person: a bare `toil` in a
-  terminal opens a menu for them.
+  terminal opens a menu.
+- **Untracked work.** Before work no ticket covers, rank open tickets with
+  `toil util owi similar --query`, then ask the person where it goes: `core.md`,
+  **Ticket the work**.
 - **Files** a command reads or writes stay inside the workspace (`--workspace <dir>`,
   else the working directory).
 - **Feedback** to Imagile (`toil feedback`) only when the user asks, scrubbed of

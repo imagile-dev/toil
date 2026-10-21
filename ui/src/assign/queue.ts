@@ -193,6 +193,30 @@ export class AssignmentQueue {
     this.events.length = 0;
   }
 
+  /** Whether an assignment of this dossier is running now: a rename waits for it (#342). */
+  runningIn(dossier: string): boolean {
+    return [...this.running.keys()].some((id) => this.records.get(id)?.dossier === dossier);
+  }
+
+  /**
+   * A dossier toil renamed (#342): its assignments follow it, each saved again
+   * and saying so in its transcript, so its lane, its page and the People view
+   * still find them. What it started on keeps the old name, which is what it
+   * was. Refused while one of them runs, since the run reads its items by name.
+   */
+  renameDossier(from: string, to: string): number {
+    if (this.runningIn(from)) throw new AssignError(`An assignment of ${from} is running, so it can't be renamed yet.`, 'Wait for it to finish, or stop it from its page, then rename the dossier.', 409);
+    let moved = 0;
+    for (const r of this.records.values()) {
+      if (r.dossier !== from) continue;
+      r.dossier = to;
+      this.note(r, 'note', `The dossier was renamed from ${from} to ${to}.`);
+      this.save(r, 'renamed', r.state, `Dossier renamed to ${to}.`);
+      moved++;
+    }
+    return moved;
+  }
+
   /** Every assignment for a dossier, newest first, after the tracker's inbox is read again. */
   async list(dossier: string): Promise<AssignmentList> {
     await this.inbox(dossier);

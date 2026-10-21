@@ -480,3 +480,21 @@ describe('a staged diff that stops short (#293 review round 6)', () => {
     expect(text.endsWith("[toil stopped reading the diff here, after 5,000 lines: the rest isn't shown]")).toBe(true);
   });
 });
+
+describe('a dossier renamed (#342)', () => {
+  it("moves its assignments to the new name, saying so in each transcript, and waits for a running one", async () => {
+    const h = harness();
+    const a = await h.queue.assign({ dossier: 'card-payments', item: 'corp-jira:PAY-107', mode: 'refine', adapter: 'codex' });
+    await h.tick();
+    expect(h.queue.runningIn('card-payments')).toBe(true);
+    expect(() => h.queue.renameDossier('card-payments', 'payments-v2')).toThrow(/is running/);
+    h.runs[0]!.resolve(h.result());
+    await h.tick();
+    expect(h.queue.renameDossier('card-payments', 'payments-v2')).toBe(1);
+    expect(h.queue.get(a.id).dossier).toBe('payments-v2');
+    expect(h.queue.get(a.id).transcript.at(-1)!.title).toBe('The dossier was renamed from card-payments to payments-v2.');
+    expect(h.keeper.saved.get(a.id)!.dossier).toBe('payments-v2');
+    expect(h.events.at(-1)).toMatchObject({ kind: 'renamed', dossier: 'payments-v2' });
+    expect(h.queue.renameDossier('card-payments', 'payments-v2')).toBe(0);
+  });
+});

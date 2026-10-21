@@ -14,7 +14,7 @@ import { connectionEnvName } from '../../src/core/config.ts';
 import { CONFIG_CANNED, FIXTURE_AREAS, FIXTURE_CONNECTIONS, PROBES } from '../src/fixtures/config.ts';
 import { noAgent } from '../server/agent.ts';
 import { areasFrom, personFrom, settingsFrom } from '../server/config.ts';
-import { CSRF_HEADER, SESSION_HEADER, createUiServer } from '../server/server.ts';
+import { CSRF_HEADER, SESSION_HEADER, createUiServer, type UiServerOptions } from '../server/server.ts';
 import { toilStore } from '../server/store.ts';
 
 // toil's API builds its own credential store: here it is an in-memory one, so no test reaches the OS keychain.
@@ -106,8 +106,9 @@ function send(origin: string, path: string, options: { method?: string; headers?
 }
 
 /** The server on toil's own execute(), signed in, with a helper that sends one config call as the page does. */
-async function serve() {
+async function serve(extra: Partial<UiServerOptions> = {}) {
   const ui = createUiServer({
+    ...extra,
     settings: { host: '127.0.0.1', port: 0, basePath: '/', dataDir: join(home, '.toil-ui'), retentionDays: 30, sample: false },
     store: toilStore(execute),
     agent: noAgent(),
@@ -154,7 +155,7 @@ describe('the allowlist', () => {
   it('is exactly the config commands the pages need, each one toil has, the changes local writes only', () => {
     const served = new Map([...registry.commands, ...registry.personCommands].map((c) => [c.name, c]));
     expect([...CONFIG_COMMANDS].sort()).toEqual(
-      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'dossiers add-repo', 'dossiers check', 'dossiers field', 'dossiers init', 'dossiers link', 'dossiers list', 'dossiers onboard', 'dossiers person', 'dossiers show', 'dossiers wip-limit'].sort(),
+      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'dossiers add-repo', 'dossiers check', 'dossiers field', 'dossiers init', 'dossiers link', 'dossiers list', 'dossiers onboard', 'dossiers person', 'dossiers show', 'dossiers wip-limit', 'dossiers describe'].sort(),
     );
     for (const name of CONFIG_READS) expect(served.get(name), name).toMatchObject({ writes: false, writesLocal: false, writesDependOnInput: false });
     // A change writes only toil's own config on this machine, never a service.
@@ -402,6 +403,45 @@ describe("the preview's sample config", () => {
 it('runs in a temp home, never the real ~/.toil', () => {
   expect(home.startsWith(realpathSync.native(tmpdir()))).toBe(true);
   expect(process.env.HOME).toBe(home);
+});
+
+describe("a dossier's name and description, from its card or dashboard (#342)", () => {
+  it("describes and renames through toil dossiers describe, then moves Toil UI's own records, labelled toil-ui in the audit log", async () => {
+    const moved: Array<[string, string]> = [];
+    let holds = 0;
+    let released = 0;
+    const { config } = await serve({ renames: { hold: () => (holds++, () => void released++), blocked: () => null, moved: async (from, to) => (moved.push([from, to]), []) } });
+    expectEnvelope(await config('dossiers init', { name: 'scratch' })).toMatchObject({ ok: true });
+    expectEnvelope(await config('dossiers describe', { dossier: 'scratch', description: 'A scratch dossier' })).toMatchObject({ ok: true, data: { renamed: null, description: 'A scratch dossier' } });
+    expect(moved).toEqual([]);
+    const renamed = await config('dossiers describe', { dossier: 'scratch', name: 'scratch-two' });
+    expectEnvelope(renamed).toMatchObject({ ok: true, data: { name: 'scratch-two', renamed: { from: 'scratch', to: 'scratch-two' } } });
+    expect(moved).toEqual([['scratch', 'scratch-two']]);
+    expect(existsSync(join(home, '.toil', 'dossiers', 'scratch.json'))).toBe(false);
+    expect(JSON.parse(readFileSync(join(home, '.toil', 'dossiers', 'scratch-two.json'), 'utf8'))).toMatchObject({ name: 'scratch-two', description: 'A scratch dossier' });
+    expect(audit().filter((l) => l.command === 'dossiers describe').map((l) => l.caller)).toEqual(['toil-ui', 'toil-ui']);
+    // Syncs were held for the rename only, and let go after it.
+    expect([holds, released]).toEqual([1, 1]);
+    // A rename names the dossier as Toil UI keeps it, by name, never a path.
+    const byPath = await config('dossiers describe', { dossier: join(home, '.toil', 'dossiers', 'scratch-two.json'), name: 'scratch-three' });
+    expect(byPath.status).toBe(400);
+    expect(byPath.envelope.error.message).toBe('Toil UI renames a dossier by its name, not a path to its file.');
+  });
+
+  it('refuses a rename while a sync or an assignment of it runs, before toil sees it, and says what Toil UI could not move', async () => {
+    const { config } = await serve({ renames: { hold: () => () => undefined, blocked: (d) => (d === 'busy' ? { message: "A sync is running, so busy can't be renamed until it ends.", fix: 'Wait for it.' } : null), moved: async () => ["Toil UI couldn't move its cache."] } });
+    await config('dossiers init', { name: 'busy' });
+    await config('dossiers init', { name: 'idle' });
+    const refused = await config('dossiers describe', { dossier: 'busy', name: 'busy-two' });
+    expect(refused.status).toBe(409);
+    expect(refused.envelope).toMatchObject({ ok: false, error: { code: 'CONFLICT', fix: 'Wait for it.' } });
+    expect(existsSync(join(home, '.toil', 'dossiers', 'busy.json'))).toBe(true);
+    // A description alone isn't a rename, so it goes ahead.
+    expectEnvelope(await config('dossiers describe', { dossier: 'busy', description: 'Still busy' })).toMatchObject({ ok: true });
+    const warned = await config('dossiers describe', { dossier: 'idle', name: 'idle-two' });
+    expectEnvelope(warned).toMatchObject({ ok: true });
+    expect(warned.envelope.meta.warnings).toContainEqual({ code: 'TOIL_UI_RENAME', message: "Toil UI couldn't move its cache." });
+  });
 });
 
 describe('connectionEnvVar', () => {

@@ -260,6 +260,21 @@ jsmith`, `user`-typed fields send `{ "name": ... }`), where Jira Cloud needs an
 `accountId`. Jira Cloud is a separate area, `jira-cloud`, with its own
 `TOIL_JIRA_CLOUD_*` settings; don't point this one at a Cloud site.
 
+## Ticket the work
+
+Before starting work no ticket covers, rank your open issues against it:
+
+```bash
+toil jira issue search --jql "assignee = currentUser() AND statusCategory != Done" --fields summary,description,status,issuetype,labels,parent | toil util owi map | toil util owi similar --query "Card payments time out at checkout"
+```
+
+Then ask the person, as `core.md`, **Ticket the work**, says: attach the work to a
+match (nothing is written), create a sub-task under it, or create a new ticket. A
+sub-task is
+`toil jira issue create --type Sub-task --parent PAY-12 --summary "<text>" --allow-write`
+(the project may name the type differently); a new ticket takes the project and type
+from the dossier and the connection. Both are writes, made only on the person's yes.
+
 ## Notes
 
 - `issue create` doesn't check for duplicates. After a timeout, search for the summary
