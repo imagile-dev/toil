@@ -285,8 +285,11 @@ function states(route, width) {
   }
   if (route === '#/dossier/settlement') out.push({ name: 'analyzed', setup: answered(clickAll('[data-analyze]')), undoJs: closeAsk });
   // The Assign dialog from an item's page, and Start on the Agents lane's inbox (#293).
-  if (route.includes('/item/')) out.push({ name: 'assign-open', setup: clickAll('[data-assign-open]'), undo: 'Escape' });
-  if (route === '#/dossier/card-payments') out.push({ name: 'inbox-start', setup: clickAll('[data-inbox-start]'), undo: 'Escape' });
+  // Escape alone can leave it open on a slow runner (focus not yet inside it), which then holds focus through every
+  // state at the next width; its own Cancel or Close closes it for certain.
+  const closeAssign = clickAll('[role="dialog"] button', '/^(Cancel|Close)$/', 0);
+  if (route.includes('/item/')) out.push({ name: 'assign-open', setup: clickAll('[data-assign-open]'), undo: 'Escape', undoJs: closeAssign });
+  if (route === '#/dossier/card-payments') out.push({ name: 'inbox-start', setup: clickAll('[data-inbox-start]'), undo: 'Escape', undoJs: closeAssign });
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
   if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).
