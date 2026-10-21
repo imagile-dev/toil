@@ -11,8 +11,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Button } from 'react-aria-components';
-import { AssignModal, StateChip, usageText, POLL_MS } from '../assign/views.tsx';
-import { ADAPTER_NAME, MODE_INFO, runMs, runText, type AssignedProposal, type Assignment, type AssignmentRecord } from '../assign/model.ts';
+import { AssignModal, StateChip, assignmentHref, usageText, POLL_MS } from '../assign/views.tsx';
+import { ADAPTER_NAME, MODE_INFO, renewRefusal, runMs, runText, type AssignedProposal, type Assignment, type AssignmentRecord } from '../assign/model.ts';
+import { StaleNote } from '../components/stale.tsx';
 import { Cited, ItemLink } from '../components/items.tsx';
 import { Card, Cluster, DataTable, Path, Scroller } from '../components/layout.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
@@ -105,7 +106,40 @@ export function AssignmentView({ id }: { id: string }) {
         </p>
       )}
 
+      {a.stale && (
+        <div className="stale-block">
+          <StaleNote stale={a.stale} />
+          <p className="note">{renewRefusal(a) ?? "Renew starts it again as a fresh assignment on today's instructions, with what this run left as context. This one stays as it is."}</p>
+        </div>
+      )}
+      {a.renews && (
+        <p className="note">
+          This renews <a href={assignmentHref(a.dossier, a.renews)}>an earlier assignment</a> on the same item, which started on older instructions; what it left was in this run's prompt.
+        </p>
+      )}
+      {a.renewedBy && (
+        <p className="note">
+          Renewed as <a href={assignmentHref(a.dossier, a.renewedBy)}>a fresh assignment</a> on today's instructions.
+        </p>
+      )}
+
       <Cluster className="assign-actions">
+        {a.stale && !renewRefusal(a) && (
+          <Button
+            className="btn btn--accent"
+            onPress={() =>
+              act('Renewed.', async () => {
+                const fresh = await api.renew(a.id);
+                window.location.hash = assignmentHref(fresh.dossier, fresh.id);
+                return fresh;
+              })
+            }
+            isDisabled={busy}
+            data-renew=""
+          >
+            Renew
+          </Button>
+        )}
         {waitingStart && (
           <Button className="btn btn--accent" onPress={() => setStarting(true)} isDisabled={busy}>
             Start…
@@ -221,6 +255,20 @@ export function AssignmentView({ id }: { id: string }) {
             <dt>Prompt</dt>
             <dd className="any-break">
               <code>{a.startedOn.prompt}</code>
+            </dd>
+            <dt>Install fingerprint</dt>
+            <dd className="any-break">
+              {a.startedOn.fingerprint ? (
+                <>
+                  toil {a.startedOn.fingerprint.toil.version} at {a.startedOn.fingerprint.toil.commit?.slice(0, 7) ?? 'an unrecorded commit'}, Toil UI {a.startedOn.fingerprint.toilUi.version} at {a.startedOn.fingerprint.toilUi.commit?.slice(0, 7) ?? 'an unrecorded commit'}; skills{' '}
+                  {Object.entries(a.startedOn.fingerprint.skills)
+                    .map(([area, hash]) => `${area} ${hash.slice(0, 12)}`)
+                    .join(', ') || 'none'}
+                  ; dossier <code>{a.startedOn.fingerprint.dossier?.slice(0, 12) ?? 'unread'}</code>; prompts <code>{a.startedOn.fingerprint.prompts.slice(0, 12)}</code>
+                </>
+              ) : (
+                'not recorded: this run started before Toil UI recorded one, so it is never called stale'
+              )}
             </dd>
           </dl>
           <p className="note">Fingerprints are SHA-256 of what the run read, so a later look can tell whether the item, the dossier or the prompt has changed since.</p>

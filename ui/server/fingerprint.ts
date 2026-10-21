@@ -121,7 +121,7 @@ export class Fingerprints {
     const key = `${st.mtimeMs}:${st.size}`;
     const hit = this.seen.get(path);
     if (hit?.key === key) return hit.build;
-    let build: Build | null = null;
+    let build: Build | null;
     try {
       build = parse(this.files.head(path, HEAD_BYTES));
     } catch {
