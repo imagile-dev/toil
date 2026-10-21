@@ -94,11 +94,27 @@
 .column--in_progress { border-top-color: var(--link); }
 .column--done { border-top-color: var(--ok); }
 .column--over { outline: 3px dashed var(--focus); outline-offset: -3px; }
+/* Its own column, under a dragged card: no move to propose there. The reason is on the card under the pointer. */
+.column--refused { outline: 3px dashed var(--danger); outline-offset: -3px; }
 .column h3 { display: flex; align-items: center; justify-content: space-between; margin: 0; }
 .count { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); }
 .cards { list-style: none; padding: 0; display: grid; gap: 0.6rem; }
 .card { background: var(--raised); border: 1px solid var(--line); border-radius: var(--radius); position: relative; }
-.card--dragging { z-index: 5; box-shadow: 0 12px 28px rgb(0 0 0 / 0.3); border-color: var(--focus); }
+/* While it's dragged the card stays put as a placeholder (#393); the copy in the overlay is what moves. */
+/* Specific enough to hold over a theme's own card border. */
+.cards .card.card--dragging { border-style: dashed; border-color: var(--focus); }
+.card--dragging .card-grip > * { opacity: 0.35; }
+.card.card--overlay[data-drag-overlay] { box-shadow: 0 16px 32px rgb(0 0 0 / 0.35); border-color: var(--focus); }
+.card--overlay .card-grip { cursor: grabbing; }
+.drop-verdict { margin: 0; padding: 0.35rem 0.6rem; border-top: 1px solid var(--line); border-left: 4px solid var(--focus); border-radius: 0 0 var(--radius) var(--radius); background: var(--surface); color: var(--ink); font-size: 0.8125rem; font-weight: 600; }
+.drop-verdict--no { border-left-color: var(--danger); }
+/* A proposed move, at the top of the column it would go to: plainly a proposal, not the card. */
+.card-ghost { border: 2px dashed var(--accent); border-radius: var(--radius); padding: 0.6rem; display: grid; gap: 0.4rem; background: var(--surface); }
+.card-ghost__kind { margin: 0; font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.card-ghost__title { margin: 0; font-weight: 600; line-height: 1.35; }
+.card-ghost__title .key { color: var(--link); }
+.card-ghost__actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.proposal-slot:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; border-radius: var(--radius); }
 /* The whole card is the handle. A finger may still scroll across it (touch-action stays manipulation); only a hold picks it up. */
 .card-grip { display: grid; gap: 0.45rem; padding: 0.6rem; border-radius: inherit; cursor: grab; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
 .card--dragging .card-grip { cursor: grabbing; }
@@ -232,6 +248,7 @@
   .aging-bar > span { animation: toil-grow 0.7s ease-out; transform-origin: left; }
   .card { transition: box-shadow 0.15s ease; }
   .card:hover:not(.card--dragging) { box-shadow: 0 4px 12px rgb(0 0 0 / 0.14); }
+  .card-ghost { animation: toil-fade 0.3s ease-out; }
 }
 @keyframes toil-draw { to { stroke-dashoffset: 0; } }
 @keyframes toil-fade { from { opacity: 0; } to { opacity: 1; } }
