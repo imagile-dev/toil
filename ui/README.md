@@ -656,11 +656,51 @@ you apply it.
   commands and file changes Codex reports, and each proposal and what came of it.
   Each assignment also records what it started on: the toil and Toil UI versions, the
   adapter and model, the tools, and SHA-256 fingerprints of the dossier, the item and
-  the prompt. Assignments are kept under the cache, in
+  the prompt, and the install fingerprint a later look holds it to (Stale sessions, below). Assignments are kept under the cache, in
   `<data folder>/cache/assignments/`, so a wipe deletes them.
 - **For programs on the same server**, `api/assignments` lists, assigns, starts,
-  stops, applies and dismisses, and `api/assignments/events?since=<n>` streams every
+  stops, applies, dismisses and renews, and `api/assignments/events?since=<n>` streams every
   change of state as NDJSON.
+
+## Stale sessions
+
+An agent works from the instructions it got when it started. Upgrade toil, edit the
+dossier or change your instructions under **Settings, Agent**, and the chats and
+assignments already going are still on the old ones. Toil UI records what each one
+started on, says which have gone stale and why, and renews them on request.
+
+- **What it records.** Each chat at its first question, and each assignment when its
+  run starts, keeps an install fingerprint: toil's and Toil UI's version and commit,
+  one SHA-256 per toil area of the tools the agent was handed (Toil UI loads no skill
+  page, so those tools are the toil instructions its agent reads), SHA-256 of the
+  dossier as `toil dossiers show` reads it, and SHA-256 of the prompts (the system
+  prompt, the starters or the mode's task, and your own instructions and voice). The
+  theme on screen isn't part of it. An assignment recorded before this has none, and
+  is never called stale.
+- **When it's stale.** Every answer, every read of the Agents lane and every
+  assignment page compares what the session started on with the current fingerprint,
+  whose builds are the ones on disk, read again only when their files change. The
+  reason names what moved: "started on toil 0.1.0-alpha.3 · now alpha.4 · skills
+  changed: github · dossier changed". A session's earlier turns aren't marked; only
+  the instructions it started on are.
+- **Where it shows.** A **Stale** badge with the reason on the chat (in the Ask bar and
+  the focused view), on each assignment in the Agents lane and on its page, and on the
+  agent's card in the People view. A done assignment is closed and isn't marked.
+- **Renew.** On the chat, **Renew** in the focused view records what it starts on now;
+  the conversation stays, and the next question carries it as every question does. The
+  chat's usage total carries on, so renewing never resets a cap. On a stale assignment
+  that has failed, **Renew** queues a fresh one on the same item, mode, adapter and
+  repository, whose prompt carries what the old run left, fenced as data; the old one
+  stays readable, marked as renewed. Renew never interrupts a turn: a chat that is
+  answering and a working assignment wait, and an assignment that needs you is
+  skipped until you've reviewed it.
+- **Renew all stale**, in the Agents lane, lists every stale session of the dossier
+  first, the chat included, each saying whether it renews or why it's skipped, and
+  renews the rest with one press.
+- **The server itself.** When toil or Toil UI on disk is newer than the running
+  server, the header says so, with the command that starts it again. A session renewed
+  then would start on the old build and be stale at once, so until it restarts, Renew
+  is refused (and Renew all stale skips every session), saying so with that command.
 
 ## Themes
 

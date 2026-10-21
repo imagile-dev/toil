@@ -47,6 +47,7 @@ export function httpAssignments(session: Session & { assignments?: boolean }, ba
     apply: (id, proposal) => call<Assignment>('assignments/apply', 'Applying the proposal', { id, proposal }),
     dismiss: (id, proposal) => call<Assignment>('assignments/dismiss', 'Dismissing the proposal', { id, proposal }),
     finish: (id) => call<Assignment>('assignments/finish', 'Marking it reviewed', { id }),
+    renew: (id) => call<Assignment>('assignments/renew', 'Renewing the assignment', { id }),
     ...(session.sample ? {} : { saveSettings: (settings: AssignSettings) => call<AssignSettings>('assignments/settings', 'Saving the limits', { concurrent: settings.concurrent, timeLimitMinutes: settings.timeLimitMinutes }) }),
   };
 }

@@ -21,7 +21,7 @@
  * yet" banner (#304, ./ticket.tsx). An open-door policy, with the door on a closer.
  */
 
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Input, Label, Menu, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover, TextField } from 'react-aria-components';
 import { ANALYZE, MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type AdapterList, type AdapterOption, type Answer, type HistoryTurn } from '../agent.ts';
 import { useData, useDerived } from '../data.ts';
@@ -32,6 +32,8 @@ import { ProposalCard } from './proposal.tsx';
 import { TicketBanner } from './ticket.tsx';
 import { ChatUsage, UsageFooter } from './usage.tsx';
 import type { AnswerUsage } from '../model-usage.ts';
+import type { ChatSession } from '../fingerprint.ts';
+import { StaleNote } from './stale.tsx';
 
 /** A new chat's id: one per dossier's conversation, so the server can add up and cap the chat (#295). */
 const newChatId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
@@ -59,7 +61,15 @@ interface Switch {
   id: number;
   label: string;
 }
-type Entry = Turn | Switch;
+/** The chat was renewed (#305): said in the log, where it happened. */
+interface Renewed {
+  kind: 'renew';
+  id: number;
+}
+type Entry = Turn | Switch | Renewed;
+
+/** How often an open chat asks whether it has gone stale, between its own answers (#305). */
+export const SESSION_POLL_MS = 60_000;
 
 const seconds = (ms: number) => String(Math.max(1, Math.round(ms / 1000)));
 const textOf = (a: Answer) => a.parts.map((p) => p.text).join('\n\n');
@@ -85,6 +95,8 @@ function useChat() {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [adapter, setAdapter] = useState<string | null>(null);
   const [adapters, setAdapters] = useState<AdapterList | null>(null);
+  const [session, setSession] = useState<ChatSession | null>(null);
+  const [renewProblem, setRenewProblem] = useState<string | null>(null);
   const next = useRef(0);
   const chatId = useRef(newChatId());
   const abort = useRef<AbortController | null>(null);
@@ -115,15 +127,22 @@ function useChat() {
     const started = Date.now();
     setEntries((es) => [...es, { kind: 'turn', id, prompt: shown, answer: null, error: null, done: false, started, ...(prompt === ANALYZE ? { analyze: true } : {}) }]);
     try {
+      let last: Answer | null = null;
       if (agent.stream) {
         for await (const partial of agent.stream(dossier.name, prompt, controller.signal, style, chat, extra)) {
           if (controller.signal.aborted) return;
+          last = partial;
           update(id, { answer: partial });
         }
       } else {
-        update(id, { answer: await agent.ask(dossier.name, prompt, style, chat, extra) });
+        last = await agent.ask(dossier.name, prompt, style, chat, extra);
+        update(id, { answer: last });
       }
-      if (!controller.signal.aborted) update(id, { done: true, ms: Date.now() - started });
+      if (!controller.signal.aborted) {
+        update(id, { done: true, ms: Date.now() - started });
+        // The finished answer says whether the chat has gone stale (#305): checked at every turn.
+        if (last?.session) setSession(last.session);
+      }
     } catch (e: unknown) {
       if (controller.signal.aborted) return;
       const usage = (e as { usage?: AnswerUsage } | null)?.usage;
@@ -144,23 +163,74 @@ function useChat() {
     setEntries((es) => (es.length ? [...es, { kind: 'switch', id: next.current++, label }] : es));
   };
 
-  return { entries, turns, busy, ask, stop, adapter, adapters, refreshAdapters, switchTo };
+  /** Asks the server whether this chat has gone stale (#305); a chat that hasn't asked yet has nothing to check. */
+  const checkSession = () => {
+    if (!agent.session || !turns.length) return;
+    agent.session(chatId.current).then(
+      (s) => s && setSession(s),
+      () => undefined,
+    );
+  };
+  const asked = turns.length > 0;
+  useEffect(() => {
+    if (!asked || !agent.session) return;
+    const t = setInterval(checkSession, SESSION_POLL_MS);
+    return () => clearInterval(t);
+    // checkSession reads the chat id from a ref, so the interval only needs to start once the chat has asked.
+  }, [asked, agent]);
+
+  /**
+   * Renew (#305): the server records what the chat starts on now, and the
+   * log says so where it happened. Never while it answers; the log above
+   * stays, and the next question carries it as a summary, as every question does.
+   * Resolves with why it couldn't, or null once it has.
+   */
+  const renew = async (): Promise<string | null> => {
+    if (!agent.renew) return 'This agent keeps no sessions, so there is nothing to renew.';
+    if (busy) return 'It is answering a question now, and a renew never interrupts one.';
+    setRenewProblem(null);
+    try {
+      setSession(await agent.renew(chatId.current, dossier.name));
+      setEntries((es) => [...es, { kind: 'renew', id: next.current++ }]);
+      return null;
+    } catch (e) {
+      const why = `The chat couldn't be renewed: ${e instanceof Error ? e.message : String(e)}`;
+      setRenewProblem(why);
+      return why;
+    }
+  };
+
+  return { entries, turns, busy, ask, stop, adapter, adapters, refreshAdapters, switchTo, session, checkSession, renew, renewProblem };
 }
 
 type Chat = ReturnType<typeof useChat>;
+
+const ChatContext = createContext<Chat | null>(null);
+
+/** The dossier's chat, for whatever on its pages needs it: the Ask bar, and Renew all stale in the Agents lane (#305). */
+export const useChatScope = (): Chat | null => useContext(ChatContext);
+
+/** Holds the dossier's chat around its pages; the App keys it by dossier, so a conversation lasts across that dossier's views. */
+export function ChatScope({ children }: { children: ReactNode }) {
+  const chat = useChat();
+  return <ChatContext value={chat}>{children}</ChatContext>;
+}
 
 /** The Ask bar under the header on every dossier page (#343), and the focused view it opens. */
 export function AskBar() {
   const { dossier } = useData();
   const words = useWords();
-  const chat = useChat();
+  const scoped = useChatScope();
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
+  if (!scoped) throw new Error("The Ask bar needs the ChatScope the App puts around a dossier's pages.");
+  const chat = scoped;
   const last = chat.turns[chat.turns.length - 1];
 
   const openView = () => {
     setOpen(true);
     chat.refreshAdapters();
+    chat.checkSession();
   };
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -188,6 +258,7 @@ export function AskBar() {
           Analyze
         </Button>
       </form>
+      {chat.session?.stale && !open && <StaleNote stale={chat.session.stale} className="ask-bar__stale" />}
       {last && !open && (
         <p className="ask-bar__resume note">
           {chat.turns.length} {chat.turns.length === 1 ? 'question' : 'questions'} in this chat{!last.done ? `, ${statusLine(last, words, Date.now())?.text ?? ''}` : ''}.{' '}
@@ -264,6 +335,11 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
           </p>
         </div>
         <AskInfo agentLabel={answering} />
+        {chat.session?.stale && !chat.session.stale.restart && agent.renew && (
+          <Button className="btn btn--small" onPress={() => void chat.renew()} isDisabled={busy} data-chat-renew="">
+            Renew
+          </Button>
+        )}
         <Button slot="close" className="btn btn--small" data-ask-close="">
           Close
         </Button>
@@ -271,10 +347,22 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
 
       <div className="ask-scroll" data-scroller="" tabIndex={0} role="region" aria-label="The conversation">
         <p className="note">{words('ask.note')}</p>
+        {chat.session?.stale && <StaleNote stale={chat.session.stale} />}
+        {chat.session?.stale?.restart && <p className="note any-break">{chat.session.stale.restart}</p>}
+        {chat.session?.stale && busy && <p className="note">Renew waits for this answer: it never interrupts one.</p>}
+        {chat.renewProblem && (
+          <p role="alert" className="failure">
+            {chat.renewProblem}
+          </p>
+        )}
         <div className="log" role="log" aria-live="polite" aria-busy={busy} aria-label="Conversation">
           {entries.length === 0 && (agent.notice ? <p className="note agent-notice">{agent.notice}</p> : <EmptyState message={words('ask.welcome', { name: dossier.name })} />)}
           {entries.map((e) =>
-            e.kind === 'switch' ? (
+            e.kind === 'renew' ? (
+              <p key={`r${e.id}`} className="ask-switch note">
+                Renewed on today's instructions. The conversation above stays, and the next question carries a summary of it.
+              </p>
+            ) : e.kind === 'switch' ? (
               <p key={`s${e.id}`} className="ask-switch note">
                 Switched to {e.label} for this chat. The next question carries a summary of the conversation so far.
               </p>

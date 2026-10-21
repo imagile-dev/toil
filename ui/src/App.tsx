@@ -20,7 +20,9 @@ import { SkinProvider, ThemeProvider, skinsFor } from './skins.tsx';
 import { THEMES, themeNamed, tokenCss } from './themes.ts';
 import { useThemeChoice } from './theme-choice.ts';
 import type { Call, Execute } from './toil.ts';
-import { AskBar } from './components/ask.tsx';
+import { AskBar, ChatScope } from './components/ask.tsx';
+import { ServerStale } from './components/stale.tsx';
+import type { ServerStatus } from './fingerprint.ts';
 import { CommandCenter } from './views/CommandCenter.tsx';
 import { Dashboard } from './views/Dashboard.tsx';
 import { Dossiers, type SyncedAt } from './views/Dossiers.tsx';
@@ -125,12 +127,14 @@ export interface AppProps {
   synced?: Record<string, SyncedAt>;
   /** After a dossier's name or description changed in place, so the shell can read the sync status again under the new name. */
   afterDescribe?: () => void;
+  /** Whether the server is older than what is on disk (#305), for the header; absent in the preview. Keep it one function for the App's life: the header asks it again every minute. */
+  serverStatus?: () => Promise<ServerStatus | null>;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments, synced, afterDescribe }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments, synced, afterDescribe, serverStatus }: AppProps) {
   const route = useRoute();
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
@@ -297,9 +301,11 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
     const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, execute, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.dossier) } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest), described };
     body = (
       <DataContext value={data}>
-        {/* The Ask bar (#343), on every dossier page; keyed by dossier, so a conversation lasts across that dossier's views. */}
-        <AskBar key={route.dossier} />
+        {/* The Ask bar (#343), on every dossier page; its chat is keyed by dossier, so a conversation lasts across that dossier's views. */}
+        <ChatScope key={route.dossier}>
+        <AskBar />
         {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
+        </ChatScope>
       </DataContext>
     );
   }
@@ -348,6 +354,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
               )}
             </skins.Header>
           </div>
+          <ServerStale load={serverStatus} />
           <p className="sync">
             {preview ? 'Sample data' : 'Data'} read {dateTime(now)} through toil, read-only.
           </p>

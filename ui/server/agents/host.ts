@@ -36,6 +36,8 @@ import { AgentError } from './cli.ts';
 import { codexRuntime } from './codex.ts';
 import { copilotRuntime } from './copilot.ts';
 import { promptFor, STARTERS, systemPrompt, withHistory } from './prompts.ts';
+import { staleness, type ChatSession, type Fingerprint } from '../../src/fingerprint.ts';
+import { sha256, type Fingerprints } from '../fingerprint.ts';
 import { installedVersion, installPlan, runInstall, testedVersion, type InstallPlan, type InstallRun } from './install.ts';
 import { findPackage } from './package-path.ts';
 import { agentEnv } from './env.ts';
@@ -106,7 +108,21 @@ export interface AgentHostOptions {
   readText?: (path: string) => string | null;
   /** The Node running Toil UI, which runs npm's CLI for Install. */
   execPath?: string;
+  /** What each chat started on (#305); absent, chats record nothing and never go stale. */
+  fingerprints?: Fingerprints;
 }
+
+/** A chat's session as the server holds it (#305): what it started on, and whether a question runs now. */
+interface ChatRecord {
+  dossier: string;
+  origin: Fingerprint;
+  startedAt: string;
+  renewals: number;
+  running: number;
+}
+
+/** How many chats' fingerprints the server keeps; the oldest goes first. A chat lives in one page, so this is plenty. */
+export const MAX_CHATS = 200;
 
 /** What the Settings page shows about one adapter on this machine. */
 export interface AdapterStatus {
@@ -168,6 +184,8 @@ export class AgentHost implements Agent {
   private readonly writes: Map<string, WriteCommand>;
   /** The usage ledger (#295). */
   readonly ledger: UsageLedger;
+  /** Each chat's fingerprint (#305), by chat id, oldest first. */
+  private readonly chats = new Map<string, ChatRecord>();
 
   constructor(private readonly o: AgentHostOptions) {
     this.runtimes = o.runtimes ?? [claudeRuntime(o.version), copilotRuntime(), codexRuntime()];
@@ -253,6 +271,8 @@ export class AgentHost implements Agent {
     if (this.running >= MAX_RUNS) throw new AgentError(`${MAX_RUNS} questions are already running.`, 'Wait for an answer, then ask again.');
     // Counted from here, before anything can await, and given back in the finally whatever fails: the SDK load, the CLI search, the run.
     this.running++;
+    // The chat's own session (#305): recorded at its first question, and held as running so a renew waits for the answer.
+    const held = chat && this.o.fingerprints ? await this.hold(chat.id, dossier).catch(() => null) : null;
     let run: Promise<void> | undefined;
     const now = this.o.now ?? (() => new Date().toISOString());
     const asked = promptFor(dossier, prompt).label;
@@ -306,8 +326,9 @@ export class AgentHost implements Agent {
           doing({ phase: 'writing' });
         },
       }).then(
-        ({ text: final, usage }) => {
-          out.push({ ...finish(final, { dossier, prompt: label, by, ledger, writes: this.writes }), ...who, usage });
+        async ({ text: final, usage }) => {
+          const session = held ? await this.checked(held).catch(() => null) : null;
+          out.push({ ...finish(final, { dossier, prompt: label, by, ledger, writes: this.writes }), ...who, usage, ...(session ? { session } : {}) });
           out.end();
         },
         (e: unknown) => out.end(e),
@@ -326,10 +347,67 @@ export class AgentHost implements Agent {
     } finally {
       await run;
       this.running--;
+      if (held) held.running--;
       // The person closed the pane or the page mid-answer: the run stopped, with what it had said so far.
       if (record.outcome === 'running') record = { ...(last ? runFromAnswer(record, now(), last) : { ...record, finishedAt: now() }), outcome: 'stopped' };
       await report();
     }
+  }
+
+  /**
+   * The prompts part of a chat's fingerprint (#305): the system prompt for a
+   * placeholder dossier and time, every starter and Analyze, and the
+   * person's instructions and custom voice. The theme on screen isn't in it:
+   * a person switching theme isn't the ground moving.
+   */
+  chatPrompts(): string {
+    const d = '<dossier>';
+    return sha256({ system: systemPrompt(d, '<now>', promptStyle(null, this.settings)), voice: this.settings.voice, starters: STARTERS.map((s) => s.prompt(d)), analyze: promptFor(d, 'analyze').text });
+  }
+
+  /** A chat's record, made at its first question; marked running until the question ends. */
+  private async hold(chatId: string, dossier: string): Promise<ChatRecord> {
+    let r = this.chats.get(chatId);
+    if (!r || r.dossier !== dossier) {
+      r = { dossier, origin: await this.o.fingerprints!.origin(dossier, this.chatPrompts()), startedAt: this.clock(), renewals: 0, running: 0 };
+      this.chats.set(chatId, r);
+      while (this.chats.size > MAX_CHATS) this.chats.delete(this.chats.keys().next().value!);
+    }
+    r.running++;
+    return r;
+  }
+
+  private async checked(r: ChatRecord): Promise<ChatSession> {
+    const current = await this.o.fingerprints!.current(r.dossier, this.chatPrompts());
+    const stale = staleness(r.origin, current);
+    return { startedAt: r.startedAt, stale: stale ? { ...stale, restart: this.o.fingerprints!.restartNeeded() } : null, renewals: r.renewals };
+  }
+
+  /** A chat's session now (#305), checked against the current fingerprint; null for a chat that hasn't asked yet. */
+  async session(chatId: string): Promise<ChatSession | null> {
+    const r = this.chats.get(chatId);
+    return r && this.o.fingerprints ? this.checked(r) : null;
+  }
+
+  /**
+   * Renews a chat (#305): records what it starts on now, so its next
+   * question is held to today's fingerprint. Every question already starts
+   * a fresh run with the current prompt and the chat's last turns, so that
+   * is the whole of it; the chat's usage total carries on, so a renew never
+   * resets a cap. Refused while a question runs: a renew never interrupts a turn.
+   */
+  async renew(chatId: string, dossier: string): Promise<ChatSession> {
+    if (!this.o.fingerprints) throw new AgentError('This Toil UI records no sessions, so there is nothing to renew.', 'Start toil-ui with its cache to record what each chat started on.');
+    // A chat renewed on an out-of-date server would start on the old build, stale at once: only a restart helps.
+    const restart = this.o.fingerprints.restartNeeded();
+    if (restart) throw Object.assign(new AgentError("This chat can't be renewed until Toil UI restarts.", restart), { status: 409 });
+    const r = this.chats.get(chatId);
+    if (r?.running) throw Object.assign(new AgentError('This chat is answering a question now, and a renew never interrupts one.', 'Wait for the answer, or press Stop, then renew.'), { status: 409 });
+    const next: ChatRecord = { dossier, origin: await this.o.fingerprints.origin(dossier, this.chatPrompts()), startedAt: this.clock(), renewals: (r?.renewals ?? 0) + 1, running: 0 };
+    this.chats.delete(chatId);
+    this.chats.set(chatId, next);
+    while (this.chats.size > MAX_CHATS) this.chats.delete(this.chats.keys().next().value!);
+    return this.checked(next);
   }
 
   /**

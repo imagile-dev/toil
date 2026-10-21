@@ -34,6 +34,7 @@ import {
   inboxMatch,
   pending,
   proposalDiff,
+  renewRefusal,
   runMs,
   settledState,
   type AdapterChoice,
@@ -44,6 +45,7 @@ import {
   type AssignmentEvent,
   type AssignmentList,
   type AssignmentRecord,
+  type AssignMode,
   type AssignState,
   type Branch,
   type RepoChoice,
@@ -52,6 +54,7 @@ import {
   type Stop,
   type TranscriptEntry,
 } from './model.ts';
+import { staleness, type Fingerprint, type Staleness } from '../fingerprint.ts';
 
 /** A refusal or a failure the page shows as it is: what went wrong, and what to do. */
 export class AssignError extends Error {
@@ -84,6 +87,12 @@ export interface RunContext {
   signal: AbortSignal;
   /** Adds a line to the transcript as the run goes. */
   record(entry: Omit<TranscriptEntry, 'at'>): void;
+  /**
+   * Keeps what the run started on as soon as it is known (#305), so a run
+   * that then fails or is stopped still has its fingerprint, and can go
+   * stale and be renewed.
+   */
+  started?(on: StartedOn): void;
 }
 
 /** What a finished run hands back. */
@@ -123,6 +132,14 @@ export interface QueueOptions {
   /** Runs one proposal's toil command through the write gate, for this assignment. */
   apply(assignment: Assignment, proposal: Proposal): Promise<Envelope>;
   settings(): AssignSettings;
+  /**
+   * The fingerprint an assignment of this dossier and mode would start on
+   * now, with the builds on disk (#305): what each read holds a run's
+   * fingerprint to. Absent, nothing is ever stale.
+   */
+  current?(dossier: string, mode: AssignMode): Promise<Fingerprint> | Fingerprint;
+  /** Why renewing can't help now (the server itself is out of date, #305), with the restart command; null when it can. */
+  restartNeeded?(): string | null;
   now(): string;
   newId(): string;
   /**
@@ -217,12 +234,34 @@ export class AssignmentQueue {
     return moved;
   }
 
-  /** Every assignment for a dossier, newest first, after the tracker's inbox is read again. */
+  /**
+   * Whether a run's fingerprint still holds (#305): null when it does, and
+   * for one that is done (closed), renewed, or recorded none. The current
+   * fingerprint is worked out once per dossier and mode per read.
+   */
+  private async staleOf(r: AssignmentRecord, seen = new Map<string, Promise<Fingerprint>>()): Promise<Staleness | null> {
+    const origin = r.startedOn?.fingerprint;
+    if (!this.o.current || !origin || r.state === 'done' || r.renewedBy) return null;
+    const key = `${r.dossier}/${r.mode}`;
+    let current = seen.get(key);
+    if (!current) seen.set(key, (current = Promise.resolve(this.o.current(r.dossier, r.mode))));
+    try {
+      const stale = staleness(origin, await current);
+      return stale ? { ...stale, restart: this.o.restartNeeded?.() ?? null } : null;
+    } catch {
+      // A fingerprint that can't be worked out says nothing either way; the badge waits for the next read.
+      return null;
+    }
+  }
+
+  /** Every assignment for a dossier, newest first, after the tracker's inbox is read again, each checked for staleness (#305). */
   async list(dossier: string): Promise<AssignmentList> {
     await this.inbox(dossier);
     const repos = await this.o.repos(dossier).catch((): RepoChoice[] => []);
+    const seen = new Map<string, Promise<Fingerprint>>();
+    const mine = [...this.records.values()].filter((r) => r.dossier === dossier).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     return {
-      assignments: [...this.records.values()].filter((r) => r.dossier === dossier).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).map((r) => this.summary(r)),
+      assignments: await Promise.all(mine.map(async (r) => ({ ...this.summary(r), stale: await this.staleOf(r, seen) }))),
       settings: this.o.settings(),
       adapters: this.o.runner.adapters(),
       repos,
@@ -239,6 +278,35 @@ export class AssignmentQueue {
     const r = this.records.get(id);
     if (!r) throw new AssignError(`There is no assignment ${id}.`, 'Open the Agents lane on the dossier to see its assignments.', 404);
     return { ...structuredClone(r), ranMs: runMs(r, this.o.now()) };
+  }
+
+  /** One assignment with its transcript, checked for staleness (#305): what the assignment page reads. */
+  async read(id: string): Promise<AssignmentRecord> {
+    const r = this.get(id);
+    return { ...r, stale: await this.staleOf(this.records.get(id)!) };
+  }
+
+  /**
+   * Renews a stale, idle assignment (#305): a new assignment with the same
+   * item, mode, adapter and repository, queued as any other, whose prompt
+   * carries what the old run left. The old one stays, with its transcript,
+   * marked as renewed. Only a person presses it; it never interrupts a run
+   * and skips one waiting on a person (renewRefusal).
+   */
+  async renew(id: string): Promise<Assignment> {
+    const old = this.mutable(id);
+    const stale = await this.staleOf(old);
+    const refused = renewRefusal({ ...old, stale });
+    if (refused) throw new AssignError(refused, 'Renew covers stale assignments that have stopped and wait on nobody.', 409);
+    if (!old.adapter) throw new AssignError('That assignment has no adapter to renew on.', 'Assign the item again, choosing one.');
+    this.usable(old.adapter, old.mode);
+    const item = this.item(old.dossier, old.item);
+    const record = this.create({ dossier: old.dossier, item, mode: old.mode, adapter: old.adapter, origin: 'person', trigger: null, waiting: 'slot', repo: old.repo, renews: old.id, history: historyOf(old, stale!) });
+    old.renewedBy = record.id;
+    this.note(old, 'note', `Renewed by a person in Toil UI as ${record.id}, on today's instructions (${stale!.text}).`);
+    this.save(old, 'renewed', old.state, `Renewed as ${record.id}.`);
+    this.pump();
+    return this.summary(this.records.get(record.id)!);
   }
 
   /** Listens to every event from now on; returns the way to stop. */
@@ -411,7 +479,7 @@ export class AssignmentQueue {
     }
   }
 
-  private create(o: Pick<Assignment, 'dossier' | 'mode' | 'adapter' | 'origin' | 'trigger' | 'waiting' | 'repo'> & { item: WorkItem }): AssignmentRecord {
+  private create(o: Pick<Assignment, 'dossier' | 'mode' | 'adapter' | 'origin' | 'trigger' | 'waiting' | 'repo'> & Pick<Partial<Assignment>, 'renews' | 'history'> & { item: WorkItem }): AssignmentRecord {
     const at = this.o.now();
     const record: AssignmentRecord = {
       id: this.o.newId(),
@@ -435,9 +503,12 @@ export class AssignmentQueue {
       usage: null,
       startedOn: null,
       branch: null,
+      ...(o.renews ? { renews: o.renews, history: o.history ?? null } : {}),
       transcript: [],
     };
-    const who = o.origin === 'tracker' ? `Queued by the tracker (${o.trigger}); it starts only when a person presses Start.` : `Assigned by a person in Toil UI to ${o.adapter ? ADAPTER_NAME[o.adapter] : 'an agent'}, in ${MODE_INFO[o.mode].label.toLowerCase()} mode.`;
+    const who = o.renews
+      ? `Renewed by a person in Toil UI from ${o.renews}, on ${o.adapter ? ADAPTER_NAME[o.adapter] : 'an agent'}, in ${MODE_INFO[o.mode].label.toLowerCase()} mode, with what that run left as context.`
+      : o.origin === 'tracker' ? `Queued by the tracker (${o.trigger}); it starts only when a person presses Start.` : `Assigned by a person in Toil UI to ${o.adapter ? ADAPTER_NAME[o.adapter] : 'an agent'}, in ${MODE_INFO[o.mode].label.toLowerCase()} mode.`;
     record.transcript.push({ at, kind: 'note', title: who });
     this.records.set(record.id, record);
     this.save(record, 'created', null, who);
@@ -511,7 +582,7 @@ export class AssignmentQueue {
     this.save(r, 'state', previous, 'Working.');
     try {
       const item = this.item(r.dossier, r.item);
-      const result = await this.o.runner.run({ assignment: this.summary(r), item, signal: controller.signal, record: (e) => this.note(r, e.kind, e.title, e.detail) });
+      const result = await this.o.runner.run({ assignment: this.summary(r), item, signal: controller.signal, record: (e) => this.note(r, e.kind, e.title, e.detail), started: (on) => void ((r.startedOn = on), this.o.keeper.save(r)) });
       if (controller.signal.aborted) throw controller.signal.reason;
       r.report = result.report;
       r.questions = result.questions;
@@ -538,4 +609,23 @@ export class AssignmentQueue {
       this.pump();
     }
   }
+}
+
+/** The most of an earlier run a renewed assignment carries into its prompt, in characters. */
+export const MAX_HISTORY = 4000;
+
+/**
+ * What an earlier run left, for its renewal's prompt (#305): how it ended, its
+ * report, its questions and the titles of its proposals, cut to MAX_HISTORY.
+ */
+export function historyOf(r: AssignmentRecord, stale: Staleness): string {
+  const ended = r.stop ? `It ended ${r.state}: ${r.stop.message}` : `It ended ${r.state}.`;
+  const lines = [
+    `An earlier run of this assignment (${r.id}) started ${r.startedAt ?? 'at an unknown time'} on instructions that have changed since (${stale.text}). ${ended}`,
+    ...(r.report?.parts.length ? ['Its report:', ...r.report.parts.map((p) => p.text)] : []),
+    ...(r.questions.length ? ['Its questions:', ...r.questions.map((q) => `- ${q}`)] : []),
+    ...(r.proposals.length ? ['Its proposals:', ...r.proposals.map((p) => `- ${p.title} (${p.status})`)] : []),
+  ];
+  const text = lines.join('\n');
+  return text.length > MAX_HISTORY ? `${text.slice(0, MAX_HISTORY)}\n[cut at ${MAX_HISTORY} characters]` : text;
 }
