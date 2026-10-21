@@ -20,6 +20,7 @@ import { ADAPTER_NAME, branchName, proposalDiff, type AdapterChoice, type Assign
 import { AssignmentQueue, type Keeper, type RunContext, type RunResult, type Runner } from '../assign/queue.ts';
 import { FIXTURE_NOW, fixtureExecute } from './execute.ts';
 import { sampleAnswerUsage } from './model-usage.ts';
+import type { Fingerprint } from '../fingerprint.ts';
 
 export const SAMPLE_ASSIGN_SETTINGS: AssignSettings = { concurrent: 2, timeLimitMinutes: 20 };
 
@@ -30,7 +31,21 @@ const minutes = (n: number) => new Date(Date.parse(FIXTURE_NOW) - n * 60_000).to
 const J = (n: number) => `[[corp-jira:PAY-${n}]]`;
 const SAMPLE_FINGERPRINT = 'sample0000000000000000000000000000000000000000000000000000000000';
 
-const startedOn = (item: string, adapter: StartedOn['adapter'], at: string, tools: string[]): StartedOn => ({
+/**
+ * The sample's install fingerprint now (#305), and the older one two seeded
+ * runs started on (toil a release back, with Jira's tools since changed), so
+ * the sample shows stale assignments and Renew has something to do.
+ */
+export const SAMPLE_FINGERPRINT_NOW: Fingerprint = {
+  toil: { version: '0.1.0-alpha.4', commit: null },
+  toilUi: { version: '0.1.0-alpha.2', commit: null },
+  skills: { github: 'sample-github-2', jira: 'sample-jira-2' },
+  dossier: 'sample-dossier',
+  prompts: 'sample-prompts',
+};
+export const SAMPLE_FINGERPRINT_BEFORE: Fingerprint = { ...SAMPLE_FINGERPRINT_NOW, toil: { version: '0.1.0-alpha.3', commit: null }, skills: { github: 'sample-github-2', jira: 'sample-jira-1' } };
+
+const startedOn = (item: string, adapter: StartedOn['adapter'], at: string, tools: string[], fingerprint: Fingerprint = SAMPLE_FINGERPRINT_NOW): StartedOn => ({
   at,
   toil: 'sample',
   toilUi: 'sample',
@@ -41,6 +56,7 @@ const startedOn = (item: string, adapter: StartedOn['adapter'], at: string, tool
   dossier: { name: 'card-payments', fingerprint: SAMPLE_FINGERPRINT },
   item: { id: item, updated: null, fingerprint: SAMPLE_FINGERPRINT },
   prompt: SAMPLE_FINGERPRINT,
+  fingerprint,
 });
 
 const READ_TOOLS = ['owi_query', 'owi_get', 'owi_history', 'owi_similar', 'pr_query', 'pr_get', 'pr_metrics', 'proposal_fields'];
@@ -137,7 +153,7 @@ export function sampleRecords(cards: DossierData): AssignmentRecord[] {
       questions: ['Which vault holds the tokens in staging: the shared one, or a vault of its own?'],
       proposals: refine,
       usage: sampleAnswerUsage('sample-needsyou-0002', 1, 'card-payments', minutes(51)),
-      startedOn: startedOn('corp-jira:PAY-102', 'codex', minutes(54), READ_TOOLS),
+      startedOn: startedOn('corp-jira:PAY-102', 'codex', minutes(54), READ_TOOLS, SAMPLE_FINGERPRINT_BEFORE),
       transcript: [
         { at: minutes(55), kind: 'note', title: 'Assigned by a person in Toil UI to Codex, in refine mode.' },
         { at: minutes(54), kind: 'note', title: 'Started on Codex, with a time limit of 20 minutes.' },
@@ -191,6 +207,7 @@ export function sampleRecords(cards: DossierData): AssignmentRecord[] {
       startedAt: minutes(179),
       endedAt: minutes(159),
       stop: { reason: 'time', message: 'Stopped at the time limit of 20 minutes, before the agent finished.', fix: 'Raise the limit in the Agents lane, or assign a smaller piece of the item.' },
+      startedOn: startedOn('corp-jira:PAY-101', 'codex', minutes(179), [...READ_TOOLS, 'codex sandbox'], SAMPLE_FINGERPRINT_BEFORE),
       transcript: [
         { at: minutes(180), kind: 'note', title: 'Assigned by a person in Toil UI to Codex, in implement mode.' },
         { at: minutes(178), kind: 'activity', title: `Ran git clone --no-hardlinks <payments-core> . (exit 0)` },
@@ -293,6 +310,7 @@ export function sampleQueue(execute: Execute = fixtureExecute().execute, o: { de
       repos: async (dossier) => (dossier === 'card-payments' ? [{ name: 'payments-core', path: '~/src/payments-core' }] : []),
       apply: async (_a, p) => refuse(p.command ?? 'that'),
       settings: () => SAMPLE_ASSIGN_SETTINGS,
+      current: () => SAMPLE_FINGERPRINT_NOW,
       now: o.now ?? clock,
       newId: () => `sample-new-${String(++seq).padStart(8, '0')}`,
       sample: true,
@@ -313,12 +331,13 @@ export function fixtureAssignments(o: { delay?: number } = {}): AssignmentsApi {
   return {
     disabled: null,
     list: async (dossier) => (await q()).list(dossier),
-    get: async (id) => (await q()).get(id),
+    get: async (id) => (await q()).read(id),
     assign: async (r) => (await q()).assign(r),
     start: async (id, adapter) => (await q()).start(id, adapter),
     cancel: async (id) => (await q()).cancel(id),
     apply: async (id, p) => (await q()).apply(id, p),
     dismiss: async (id, p) => (await q()).dismiss(id, p),
     finish: async (id) => (await q()).finish(id),
+    renew: async (id) => (await q()).renew(id),
   };
 }
