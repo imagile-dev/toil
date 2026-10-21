@@ -238,6 +238,17 @@ function states(route, width) {
   if (compact) out.push({ name: 'menu', setup: clickAll('[data-menu-button]'), undo: 'Escape' });
   // Feedback is in the header, or in its Menu when the header folds, which it does below 1024px or when its row is full.
   if (route === '#/') out.push({ name: 'feedback', setup: inMenu('button.feedback-open'), undo: 'Escape' });
+  // Help (#346), checked before the Ask states so no overlay of theirs is still closing: the first (i) on the page with its tooltip showing, as a keyboard user who tabbed to it sees it, and
+  // pressed, with its popover and Read more link open. On the views with the most of them, at every width.
+  if (route === '#/dossier/card-payments' || route === '#/settings/connections' || route === '#/settings/toil' || route === '#/dossier/card-payments/people') {
+    const first = `[...document.querySelectorAll('main [data-help]')].find((b) => b.getClientRects().length)`;
+    const waitFor = (sel) => `(async () => { const deadline = Date.now() + 5000; while (!document.querySelector(${JSON.stringify(sel)}) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector(${JSON.stringify(sel)}) ? 1 : 0; })()`;
+    // A real key press first (`key`, which closes nothing here), so React Aria reads the focus that follows as a
+    // keyboard user's: it ignores keys a script dispatches. A menu closed just before may still hand focus back to its
+    // button, which closes the tooltip again, so focus is tried up to three times.
+    out.push({ name: 'help-tooltip', key: 'Escape', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); for (let i = 0; i < 3; i++) { b.blur(); b.focus(); const deadline = Date.now() + 1500; while (!document.querySelector('.help-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.help-tooltip') && document.activeElement === b) return 1; } return 0; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
+    out.push({ name: 'help-popover', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); b.click(); return await ${waitFor('.help-popover [data-read-more]')}; })()`, undo: 'Escape' });
+  }
   if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
   // Set up this repo (#333): the sample's plan, with its table, check problems and the form for the missing connection.
   if (route === '#/settings/dossiers') {
@@ -276,14 +287,6 @@ function states(route, width) {
   if (route === '#/dossier/card-payments') out.push({ name: 'inbox-start', setup: clickAll('[data-inbox-start]'), undo: 'Escape' });
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
   if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
-  // Help (#346): the first (i) on the page with its tooltip showing, as a keyboard user who tabbed to it sees it, and
-  // pressed, with its popover and Read more link open. On the views with the most of them, at every width.
-  if (route === '#/dossier/card-payments' || route === '#/settings/connections' || route === '#/settings/toil' || route === '#/dossier/card-payments/people') {
-    const first = `[...document.querySelectorAll('main [data-help]')].find((b) => b.getClientRects().length)`;
-    const waitFor = (sel) => `(async () => { const deadline = Date.now() + 5000; while (!document.querySelector(${JSON.stringify(sel)}) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector(${JSON.stringify(sel)}) ? 1 : 0; })()`;
-    out.push({ name: 'help-tooltip', setup: `(async () => { const b = ${first}; if (!b) return 0; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })); b.scrollIntoView({ block: 'center' }); b.focus(); return await ${waitFor('.help-tooltip')}; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
-    out.push({ name: 'help-popover', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); b.click(); return await ${waitFor('.help-popover [data-read-more]')}; })()`, undo: 'Escape' });
-  }
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).
   // The worklog (#308): a day rebuilt, which says how it compared, and an earlier month in the calendar.
   if (/\/worklog\/\d{4}-\d{2}-\d{2}$/.test(route)) out.push({ name: 'rebuilt', setup: `(async () => { const n = ${clickAll('[data-worklog-rebuild]')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
@@ -392,6 +395,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
       for (const state of states(route, width)) {
         // A state that opens nothing checks nothing, so it's a problem, never a quiet pass. clickAll waits for
         // its element to show, and an item in the compact header's Menu is looked for once the Menu is open (#289).
+        if (state.key) await page.key(state.key);
         const opened = await page.evaluate(state.setup);
         if (opened === -1) problems.push(`${where} (${state.name}): no Menu button to open`);
         else if (!opened) problems.push(`${where} (${state.name}): nothing to open; no element matching the selector showed within 5s`);
