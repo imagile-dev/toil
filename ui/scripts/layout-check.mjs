@@ -22,7 +22,7 @@
 // <details> open, each dossier card's Show pressed, the header menu and the
 // Feedback dialog open, every dossier name and description open for editing, the Assign dialog open from an item and the inbox, the focused Ask view open
 // from the Ask bar (#343) with its (i) popover, its agent switcher, an answer, its Suggestions menu and
-// Analyze's pulse check, the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
+// Analyze's pulse check, a help (i)'s tooltip and popover (#346), the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
 // the calendar on an earlier month, a stand-up written up, and every failing
 // command's recent audit lines open on the Usage page. Reduced motion
 // is on, so an animation caught mid-flight can't fail a run.
@@ -276,6 +276,14 @@ function states(route, width) {
   if (route === '#/dossier/card-payments') out.push({ name: 'inbox-start', setup: clickAll('[data-inbox-start]'), undo: 'Escape' });
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
   if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
+  // Help (#346): the first (i) on the page with its tooltip showing, as a keyboard user who tabbed to it sees it, and
+  // pressed, with its popover and Read more link open. On the views with the most of them, at every width.
+  if (route === '#/dossier/card-payments' || route === '#/settings/connections' || route === '#/settings/toil' || route === '#/dossier/card-payments/people') {
+    const first = `[...document.querySelectorAll('main [data-help]')].find((b) => b.getClientRects().length)`;
+    const waitFor = (sel) => `(async () => { const deadline = Date.now() + 5000; while (!document.querySelector(${JSON.stringify(sel)}) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector(${JSON.stringify(sel)}) ? 1 : 0; })()`;
+    out.push({ name: 'help-tooltip', setup: `(async () => { const b = ${first}; if (!b) return 0; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })); b.scrollIntoView({ block: 'center' }); b.focus(); return await ${waitFor('.help-tooltip')}; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
+    out.push({ name: 'help-popover', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); b.click(); return await ${waitFor('.help-popover [data-read-more]')}; })()`, undo: 'Escape' });
+  }
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).
   // The worklog (#308): a day rebuilt, which says how it compared, and an earlier month in the calendar.
   if (/\/worklog\/\d{4}-\d{2}-\d{2}$/.test(route)) out.push({ name: 'rebuilt', setup: `(async () => { const n = ${clickAll('[data-worklog-rebuild]')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });

@@ -5,6 +5,7 @@ import { allDocs, integrationDocs } from '../../lib/skill';
 import { url } from '../../lib/url';
 import uiPackage from '../../../../ui/package.json';
 import { frontmatter as themesDoc } from '../../../../ui/docs/themes.md';
+import { frontmatter as helpDoc } from '../../../../ui/docs/help.md';
 
 // The docs index is the skill's own index, skills/toil/SKILL.md, rendered,
 // then every page: each file's title and frontmatter description, and the
@@ -25,6 +26,7 @@ const unlisted = integrationDocs.filter((d) => !onBoard.has(d.area!));
       <li><a class="tap" href={url('/docs/welcome/')}>The welcome menu</a></li>
       <li><a class="tap" href={url('/docs/ui/')}>Toil UI</a><p>{uiPackage.description}</p></li>
       <li><a class="tap" href={url('/docs/themes/')}>Toil UI themes</a><p>{themesDoc.description}</p></li>
+      <li><a class="tap" href={url('/docs/ui-help/')}>Toil UI help and edit links</a><p>{helpDoc.description}</p></li>
     </ul>
   </section>
 

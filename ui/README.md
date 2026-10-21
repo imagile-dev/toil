@@ -104,6 +104,27 @@ message, while a sync or an assignment of that dossier is running, since both re
 by name as they go. What can't be moved is said beside toil's result, and the next
 sync reads the dossier afresh under its new name.
 
+## Insights
+
+The dashboard's **Needs attention** panel, the board's cards and the flow panels mark
+each open work item with its insights, weightiest first, each naming the data it
+rests on (`ui/src/model/insights.ts`). One the data can't support isn't raised at
+all, rather than raised on a guess.
+
+| Insight | Means | Weight |
+|---|---|---|
+| Blocked | Another item that isn't done blocks it (its links) | needs action now |
+| Build failing | Its pull request's latest build failed | needs action now |
+| Aging | In progress longer than 85% of the dossier's finished items took; needs at least three cycle times to compare with | needs action now |
+| Deployed, still open | An environment runs it, but it isn't done | needs a look |
+| Carried over | It was in the previous sprint too | needs a look |
+| PR with no build | A pull request for it is open with no build | needs a look |
+| Stale | No update for more than 5 days | needs a look |
+| Blocking | It blocks another item | needs a look |
+| Merged, not deployed | Its pull requests are merged, but no environment runs them yet; only for a dossier that names environments | worth knowing |
+| No estimate | It has no estimate | worth knowing |
+| Added mid-sprint | It joined the sprint after it started | worth knowing |
+
 ## Pull requests
 
 Each dossier has a **Pull requests** view (`#/dossier/<name>/prs`, linked from its
@@ -328,6 +349,18 @@ Every change is an explicit action, runs the command's own checks, and is in
 toil's audit log as `caller: "toil-ui"`. The page can run no other command on this
 path, and never a tracker write. Adding or changing connections needs a toil
 newer than 0.1.0-alpha.2; with that one, use the CLI.
+
+## Help and edit links
+
+An **(i)** beside a term explains it in a sentence or two when you hover or focus
+it, and pressing it opens the same words with a **Read more** link to the section
+of these docs that says the rest. A **pencil** beside a configurable value (a
+connection, a dossier's sources, people, field names or work-in-progress limit,
+the agent, a usage cap) opens the settings page where it's set, at that value; it
+only navigates. **Help** in the header opens the docs for the view you're on.
+Read more and Help open the docs site in a new tab, which is the one place the app
+links out to. [Help and edit links](https://imagile-dev.github.io/toil/docs/ui-help/)
+has the rule views follow.
 
 ## Feedback
 

@@ -26,7 +26,7 @@ const docsDir = join(root, 'site', 'src', 'pages', 'docs');
 const components = ['SkillPage.astro', 'CommandIndex.astro'].map((f) => join(root, 'site', 'src', 'components', f));
 const NOT_SKILL = new Set(['welcome.astro']);
 /** Pages that render one Markdown file from outside the skill, by the file. */
-const RENDERS = new Map([['ui.astro', 'ui/README.md'], ['themes.astro', 'ui/docs/themes.md']]);
+const RENDERS = new Map([['ui.astro', 'ui/README.md'], ['themes.astro', 'ui/docs/themes.md'], ['ui-help.astro', 'ui/docs/help.md']]);
 /** Longest run of literal words a page may carry: a label or a heading, not a sentence of reference. */
 const MAX_WORDS = 8;
 

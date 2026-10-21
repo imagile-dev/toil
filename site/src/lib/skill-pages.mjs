@@ -69,7 +69,7 @@ export const integrationFiles = skillFiles.filter((f) => f.area && !(f.file in O
 
 /** Toil UI's own docs, outside the toil skill (ui/docs/*.md): each is a page, by its file. */
 export const uiDocDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'ui', 'docs');
-export const UI_DOC_PAGES = { 'themes.md': '/docs/themes/' };
+export const UI_DOC_PAGES = { 'themes.md': '/docs/themes/', 'help.md': '/docs/ui-help/' };
 
 /** Where the diagrams a skill file places live: `site/src/figures/<name>.html`. */
 export const figureDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'figures');

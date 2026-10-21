@@ -2,8 +2,8 @@
  * The help topics (#346): every (i) in Toil UI and every Read more link it
  * opens, defined once. A topic is one or two sentences and the exact docs
  * section that says the rest, on the site: `/docs/` for toil's own concepts
- * (connections, dossiers, writes, the audit log) and `/docs/ui/`,
- * `/docs/themes/` and `/docs/ui-help/` for the app. `ui/test/help.test.ts`
+ * (connections, dossiers, writes, the audit log) and `/docs/ui/` and
+ * `/docs/themes/` for the app. `ui/test/help.test.ts`
  * resolves every link against the docs' own headings, and the site build
  * checks each one again against the pages it built
  * (`site/scripts/check-help-links.mjs`), so a renamed heading fails a build
@@ -16,7 +16,7 @@
 export const DOCS_SITE = 'https://imagile-dev.github.io/toil';
 
 /** The docs pages a topic may point at; the tests map each one to the file it renders. */
-export type DocsPage = '/docs/ui/' | '/docs/themes/' | '/docs/ui-help/' | '/docs/core/' | '/docs/dossiers/';
+export type DocsPage = '/docs/ui/' | '/docs/themes/' | '/docs/core/' | '/docs/dossiers/';
 
 export interface HelpTopic {
   /** What the (i) is about: its accessible name is "About <title>", and its popover's heading. */
@@ -53,7 +53,6 @@ export const HELP = {
   'themed-wording': { title: 'themed wording', text: "The theme's own lede, eyebrows, notes, empty states and loading lines, and its names for a sprint, a board or an epic beside the real ones. Buttons, links, figures, ids, commands and errors always read the same.", page: '/docs/themes/', anchor: 'visuals-wording-and-voice' },
   'themed-voice': { title: 'themed agent voice', text: "The agent answers in the theme's register. It changes phrasing only: citations, figures and proposals stay exact.", page: '/docs/themes/', anchor: 'the-checkboxes' },
   motion: { title: 'motion and effects', text: "Reduce motion stops the themes' animations, particles and parallax in this browser. Your system's reduced-motion setting stops them whichever way this is set.", page: '/docs/themes/', anchor: 'motion-and-particles' },
-  help: { title: 'help and edit links', text: 'Each (i) explains one thing and links to its docs section; each pencil opens the settings page where a value is set. Neither changes anything.', page: '/docs/ui-help/', anchor: 'help-and-edit-links' },
 } as const satisfies Record<string, HelpTopic>;
 
 export type HelpTopicId = keyof typeof HELP;
