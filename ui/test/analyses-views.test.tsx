@@ -38,7 +38,9 @@ describe('the Analyses tab', () => {
     expect(latest.querySelector('.analysis__rec')!.textContent).toContain("Fix");
     // The recommendation's citations are chips: key, title and status.
     const chip = within(latest.querySelector('.analysis__rec') as HTMLElement).getAllByRole('link')[0]!;
-    expect(chip.getAttribute('aria-label')).toMatch(/^Jira PAY-101 .+, In Progress$/);
+    // Its name is its visible words, key, title and status, so voice control finds it by what it shows (WCAG 2.5.3).
+    expect(chip.getAttribute('aria-label')).toBeNull();
+    expect(chip.textContent).toMatch(/^Jira PAY-101 .+, In Progress$/);
     expect(latest.textContent).toContain('Since the one before: 1 newly blocked, 1 cleared, points moved on 1 item, sprint points moved');
     expect(first.textContent).toContain('The first analysis kept, so there is nothing to compare it with.');
 

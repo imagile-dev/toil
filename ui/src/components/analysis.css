@@ -6,6 +6,9 @@
 .analysis-evidence[open] > summary::before, .analysis__changes[open] > summary::before { content: "▾"; }
 .analysis-evidence > summary::-webkit-details-marker, .analysis__changes > summary::-webkit-details-marker { display: none; }
 .analysis__changes > summary { gap: 0.35rem; }
+/* In a narrow bubble, a wide theme font can make the key and status alone wider than the line: they give way too, the whole of them in the tooltip. */
+.ticket-chip--cite .ticket-chip__key, .ticket-chip--cite .ticket-chip__status { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ticket-chip--cite .ticket-chip__title { flex: 0 1000 auto; }
 .ticket-chip--cite[data-hovered] { border-color: var(--link); }
 .ticket-chip--cite[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
 .cite-tooltip {
@@ -58,4 +61,6 @@
 
 /* The Overview's recommendation, from an analysis: what it came from in bold, and the line cut at three lines to keep the page to one screen. */
 .overview-rec__source { font-weight: 600; color: var(--ink); }
-.overview-rec__headline--analysis { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+@media (min-width: 1024px) {
+  .overview-rec__headline--analysis { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+}

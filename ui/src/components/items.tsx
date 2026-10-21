@@ -90,7 +90,7 @@ function detailLines(item: WorkItem | undefined, pr: Change | undefined, theme?:
 /**
  * A ticket as a chip: its key, its title and its status, never a bare
  * number. The title is cut to the chip's width, with the whole of it in the
- * link's name. With `detail` (#395), hovering or focusing it shows a tooltip
+ * name it reads out. With `detail` (#395), hovering or focusing it shows a tooltip
  * with its type, assignee, estimate, sprint and last update (a pull
  * request's repository, author and checks); otherwise the whole line is in
  * its title. An id the dossier doesn't hold stays the bare id, marked
@@ -107,8 +107,9 @@ export function TicketChip({ id, detail = false }: { id: string; detail?: boolea
   const tone = item ? item.statusCategory.toLowerCase() : 'pr';
   const body = (
     <>
-      <span className="ticket-chip__key">{key}</span>
+      <span className="ticket-chip__key">{key}</span>{' '}
       <span className="ticket-chip__title">{title}</span>
+      <span className="sr-only">, </span>
       <span className={`ticket-chip__status ticket-chip__status--${tone}`}>{status}</span>
     </>
   );
@@ -117,7 +118,7 @@ export function TicketChip({ id, detail = false }: { id: string; detail?: boolea
   if (detail && href) {
     return (
       <TooltipTrigger delay={300} closeDelay={150}>
-        <Link className="ticket-chip ticket-chip--cite" href={href} aria-label={label} data-truncate="" data-cite={id}>
+        <Link className="ticket-chip ticket-chip--cite" href={href} data-truncate="" data-cite={id}>
           {body}
         </Link>
         <Tooltip className="cite-tooltip" offset={6}>
