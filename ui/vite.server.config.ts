@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { builtinModules } from 'node:module';
 import { dirname, join, relative } from 'node:path';
@@ -17,6 +18,16 @@ import { defineConfig, type Plugin } from 'vite';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = JSON.parse(readFileSync(join(here, 'package.json'), 'utf8')) as { version: string };
+// The commit this bundle is built from (#305), as toil's own build finds it: TOIL_BUILD_COMMIT when CI
+// names it, otherwise git's HEAD, otherwise null. The running server knows it through the define; the
+// bundle's second line carries it with the version, so a running server can read what is on disk now.
+const commit = ((): string | null => {
+  const named = process.env.TOIL_BUILD_COMMIT?.trim().toLowerCase();
+  if (named) return /^[0-9a-f]{40}$/.test(named) ? named : null;
+  const head = spawnSync('git', ['rev-parse', '--verify', 'HEAD'], { encoding: 'utf8' });
+  const sha = head.status === 0 ? head.stdout.trim() : '';
+  return /^[0-9a-f]{40}$/.test(sha) ? sha : null;
+})();
 const builtins = new Set(builtinModules.flatMap((m) => [m, `node:${m}`]));
 const isExternal = (id: string) => builtins.has(id) || id === '@imagile-dev/toil' || id.startsWith('@imagile-dev/toil/');
 
@@ -45,7 +56,7 @@ function imports(): Plugin {
 }
 
 export default defineConfig({
-  define: { __TOIL_UI_VERSION__: JSON.stringify(pkg.version) },
+  define: { __TOIL_UI_VERSION__: JSON.stringify(pkg.version), __TOIL_UI_COMMIT__: JSON.stringify(commit) },
   plugins: [imports()],
   ssr: { noExternal: true, external: ['@imagile-dev/toil'] },
   build: {
@@ -58,7 +69,7 @@ export default defineConfig({
     copyPublicDir: false,
     rollupOptions: {
       external: isExternal,
-      output: { entryFileNames: 'toil-ui.js', banner: '#!/usr/bin/env node' },
+      output: { entryFileNames: 'toil-ui.js', banner: `#!/usr/bin/env node\n// toil-ui-build ${JSON.stringify({ version: pkg.version, commit })}` },
     },
   },
 });

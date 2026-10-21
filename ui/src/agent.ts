@@ -11,6 +11,7 @@
 
 import type { AnswerUsage, ChatTurn } from './model-usage.ts';
 import type { Proposal } from './proposal.ts';
+import type { ChatSession } from './fingerprint.ts';
 
 /** One paragraph of an answer, and the work items it rests on. */
 export interface AnswerPart {
@@ -43,6 +44,8 @@ export interface Answer {
   carried?: number;
   /** What the agent is doing now, on an answer still streaming (#343): the status line's source. */
   activity?: AnswerActivity;
+  /** What the chat started on and whether that has gone stale (#305), on the finished answer only. */
+  session?: ChatSession;
 }
 
 /**
@@ -141,6 +144,10 @@ export interface Agent {
   stream?(dossier: string, prompt: string, signal?: AbortSignal, style?: AskStyle, chat?: ChatTurn, extra?: AskExtra): AsyncIterable<Answer>;
   /** The adapters a chat can switch between (#344). Absent: the chat has no switcher. */
   adapters?(): Promise<AdapterList>;
+  /** What a chat started on, checked now (#305); null before its first question. Absent: chats record nothing. */
+  session?(chat: string): Promise<ChatSession | null>;
+  /** Starts the chat afresh on today's instructions (#305), keeping its log; refused while it answers. */
+  renew?(chat: string, dossier: string): Promise<ChatSession>;
 }
 
 /** The fixed question Analyze asks (#343): a pulse check of the dossier. */
