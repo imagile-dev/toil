@@ -231,7 +231,9 @@ GitHub Actions; its build tooling is out of scope.
 - `src/core/` — the machinery: `defineArea`, `defineCommand`, `execute`
   (validation, connection and context resolution in `call-context.ts`, write gate,
   envelope), errors, config loading and
-  writing, the OS credential store (`keychain.ts`), the terminal prompter, and
+  writing, the OS credential store (`keychain.ts`), the terminal prompter
+  (`prompt.ts`) and the paste checks every secret goes through
+  (`secret-input.ts`), and
   JMESPath (`query/`, behind `--select` and `toil wait --until`), and `toil wait`
   (`wait.ts`), which runs a read through `execute()` once per attempt
 - `src/connections/` — `toil connections add | login | list | remove | test | writes | default`
@@ -263,7 +265,8 @@ GitHub Actions; its build tooling is out of scope.
   and runs nothing when loaded. Only the bin, `dist/toil.js`, calls `main()`
 - `src/api.ts` — `@imagile-dev/toil/api`, the third front door: `execute()` for a
   program in-process, the registry, the envelope types, `version` and
-  `contractVersion`. It's the same bundle (`package.json` `exports` points at the
+  `contractVersion`, and the pure helpers (`mapOwi`, `findSimilar`,
+  `checkSecret`). It's the same bundle (`package.json` `exports` points at the
   thin `dist/api.js`, which re-exports `dist/toil-lib.js`), with its types in
   `dist/api.d.ts`; what it exports follows the
   command contract (`skills/toil/core.md`, **Using toil from a program**)

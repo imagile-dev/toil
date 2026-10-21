@@ -25,6 +25,7 @@ import type { AnswerUsage } from '../model-usage.ts';
 import type { PersonEntry } from '../model/people.ts';
 import type { Proposal } from '../proposal.ts';
 import type { WorkItem } from '../toil.ts';
+import type { Fingerprint, Staleness } from '../fingerprint.ts';
 
 export type AssignMode = 'refine' | 'investigate' | 'implement';
 export const MODES: readonly AssignMode[] = ['refine', 'investigate', 'implement'];
@@ -83,6 +84,8 @@ export interface StartedOn {
   dossier: { name: string; fingerprint: string | null };
   item: { id: string; updated: string | null; fingerprint: string };
   prompt: string;
+  /** The install fingerprint (#305) a later check holds it to; absent on a run recorded before there was one. */
+  fingerprint?: Fingerprint | null;
 }
 
 /** One line of an assignment's transcript: what was asked, what the agent called and said, and what came of it. */
@@ -165,6 +168,17 @@ export interface Assignment {
   branch: Branch | null;
   /** How long it has run, by the queue's clock when it was read: a page's own clock may be a sync's, or the sample's. */
   ranMs?: number | null;
+  /** The assignment this one renewed (#305), and the one that renewed it. */
+  renews?: string | null;
+  renewedBy?: string | null;
+  /** What the run it renewed left, carried into its prompt as context (#305). */
+  history?: string | null;
+  /**
+   * Whether what it started on has changed since (#305), checked when it was
+   * read: null when it hasn't, or for one that is done, renewed, or recorded
+   * no fingerprint.
+   */
+  stale?: Staleness | null;
 }
 
 /** An assignment with its transcript: what the assignment page reads. */
@@ -182,7 +196,7 @@ export interface AssignmentEvent {
   id: string;
   dossier: string;
   item: string;
-  kind: 'created' | 'state' | 'proposal' | 'renamed';
+  kind: 'created' | 'state' | 'proposal' | 'renamed' | 'renewed';
   state: AssignState;
   previous: AssignState | null;
   message: string;
@@ -245,6 +259,8 @@ export interface AssignmentsApi {
   dismiss(id: string, proposal: string): Promise<Assignment>;
   /** Marks a needs-you assignment reviewed: done, with what is left dismissed. */
   finish(id: string): Promise<Assignment>;
+  /** Starts a stale, idle assignment afresh on today's instructions (#305): the new assignment, with the old one kept. */
+  renew(id: string): Promise<Assignment>;
   /** Saves how many run at once and how long each may take; absent where they can't change (the sample). */
   saveSettings?(settings: AssignSettings): Promise<AssignSettings>;
 }
@@ -351,4 +367,20 @@ export const pending = (p: Pick<AssignedProposal, 'status'>) => p.status === 'pe
 export function settledState(a: Pick<Assignment, 'proposals' | 'questions' | 'stop'>): AssignState {
   if (a.stop?.reason === 'injection') return 'needs-you';
   return a.proposals.some(pending) || a.questions.length ? 'needs-you' : 'done';
+}
+
+/**
+ * Why an assignment can't be renewed now (#305), or null when it can. Only a
+ * stale one that is idle and waits on nobody renews: a working one is mid-
+ * turn, a needs-you one waits on a person, a queued one hasn't started (it
+ * records today's fingerprint when it does), and a done one is closed.
+ */
+export function renewRefusal(a: Pick<Assignment, 'state' | 'stale' | 'renewedBy'>): string | null {
+  if (a.renewedBy) return `It was renewed already, as ${a.renewedBy}.`;
+  if (!a.stale) return "Nothing it started on has changed, so it doesn't need renewing.";
+  if (a.stale.restart) return a.stale.restart;
+  if (a.state === 'working') return 'It is working now, and a renew never interrupts a turn: renew it once it ends.';
+  if (a.state === 'needs-you') return 'It is waiting on you: review its proposals and questions, or mark it reviewed, first.';
+  if (a.state === 'queued') return "It hasn't started, so it starts on today's instructions anyway.";
+  return null;
 }

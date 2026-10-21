@@ -65,7 +65,7 @@ export interface AreaInfo {
 
 /** What a person typed for one call: answers by question id, and secrets by key. */
 export interface ConfigAnswers {
-  /** `setting:<key>`, `area`, `confirm`, `confirm-name`. */
+  /** `setting:<key>`, `area`, `confirm`, `confirm-name`, and `unwrap:<key>` (`n` keeps a secret's quotes or `Bearer ` prefix as typed). */
   answers?: Record<string, string>;
   /** Secret values by connection key. Only a hidden question is answered from these. */
   secrets?: Record<string, string>;
@@ -122,6 +122,15 @@ export function envOnly(c: ConnectionRow): boolean {
 /** `TOIL_CONN_CORP_JIRA_*`: the variables that define a connection named `corp-jira`. */
 export function envPrefix(name: string): string {
   return `TOIL_CONN_${name.toUpperCase().replace(/-/g, '_')}_`;
+}
+
+/** `TOIL_CONN_CORP_JIRA_API_TOKEN`: the variable for one key of a connection, as toil's connectionEnvName spells it. */
+export function connectionEnvVar(name: string, key: string): string {
+  const snake = key
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .toUpperCase();
+  return `${envPrefix(name)}${snake}`;
 }
 
 /** `key=value` lines from a text area, blank lines dropped. */

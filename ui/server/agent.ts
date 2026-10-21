@@ -16,6 +16,7 @@ import { AgentError } from './agents/cli.ts';
 import type { RequestContext } from './context.ts';
 import type { StyleChoice } from './agents/voices.ts';
 import type { ChatTurn } from '../src/model-usage.ts';
+import type { ChatSession } from '../src/fingerprint.ts';
 
 export type { Answer, Starter } from '../src/agent.ts';
 
@@ -30,6 +31,10 @@ export interface Agent {
   stream?(ctx: RequestContext, dossier: string, prompt: string, style?: StyleChoice | null, chat?: ChatTurn, extra?: AskExtra): AsyncIterable<Answer>;
   /** The adapters a chat can switch between (#344). */
   adapterOptions?(): AdapterList;
+  /** What a chat started on, checked now (#305); null for a chat that hasn't asked. Absent: chats record nothing. */
+  session?(chat: string): Promise<ChatSession | null>;
+  /** Records what a chat starts on now (#305); refused while it answers. */
+  renew?(chat: string, dossier: string): Promise<ChatSession>;
 }
 
 /** The preview's scripted Agent: canned answers about the sample dossiers. */

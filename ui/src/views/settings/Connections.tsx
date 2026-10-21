@@ -9,11 +9,12 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { envOnly, envPrefix, type AreaInfo, type ConfigApi, type ConnectionRow, type ConnectionsData } from '../../config.ts';
+import { connectionEnvVar, envOnly, envPrefix, type AreaInfo, type ConfigApi, type ConnectionRow, type ConnectionsData } from '../../config.ts';
 import type { Envelope } from '../../toil.ts';
 import { Card, CardGrid, Path } from '../../components/layout.tsx';
 import { Help, useLandOn } from '../../components/help.tsx';
-import { ChangeForm, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
+import { ChangeForm, OutcomeLine, SecretField, SelectField, TextField, commandLine, failedOutcome, outcomeOf, secretRefusal, type Outcome } from './parts.tsx';
+import { checkSecret, type SecretRules } from '../../../../src/core/secret-input.ts';
 
 const SOURCE_WORD: Record<string, string> = { env: 'env var', ci: 'CI variable', file: 'config file', store: 'credential store', defaults: 'area defaults' };
 
@@ -246,6 +247,10 @@ function WritesForm({ connection: c, config, after }: { connection: ConnectionRo
 
 function LoginForm({ connection: c, fields, config, after }: { connection: ConnectionRow; fields: AreaInfo['connection']; config: ConfigApi; after: (e: Envelope, done: string) => Promise<Outcome> }) {
   const [values, setValues] = useState<Record<string, string>>({});
+  const secrets = useSecretChoices();
+  // An empty field keeps the secret the config file points at, as the CLI's login does; one it has no secret for stays unset.
+  const kept = (f: AreaInfo['connection'][number]) => c.values[f.name] === 'store' || c.values[f.name] === 'file';
+  const rules = (f: AreaInfo['connection'][number]): SecretRules => ({ password: f.password, empty: kept(f) ? 'keep' : 'skip' });
   return (
     <ChangeForm
       title={`Replace ${c.name}'s secret`}
@@ -254,17 +259,53 @@ function LoginForm({ connection: c, fields, config, after }: { connection: Conne
       submit="Save to the credential store"
       disabled={config.disabled}
       onSubmit={async () => {
+        const refused = secrets.refusal(fields.map((f) => [f.name, values[f.name] ?? '', rules(f)]));
+        if (refused) return refused;
         // Every field shown is answered, an empty one with '': toil keeps that secret as it is, as on the CLI.
-        const secrets = Object.fromEntries(fields.map((f) => [f.name, values[f.name] ?? '']));
+        const typed = Object.fromEntries(fields.map((f) => [f.name, values[f.name] ?? '']));
+        const answers = secrets.answers();
         setValues({});
-        return after(await config.run('connections login', { name: c.name }, { secrets }), `${c.name}'s secret was replaced in the credential store.`);
+        secrets.reset();
+        return after(await config.run('connections login', { name: c.name }, { secrets: typed, answers }), `${c.name}'s secret was replaced in the credential store.`);
       }}
     >
       {fields.map((f) => (
-        <TextField key={f.name} type="password" autoComplete="new-password" label={`${f.name}${f.description ? ` (${f.description})` : ''}`} value={values[f.name] ?? ''} onChange={(v) => setValues((s) => ({ ...s, [f.name]: v }))} />
+        <SecretField key={f.name} label={`${f.name}${f.description ? ` (${f.description})` : ''}`} value={values[f.name] ?? ''} onChange={(v) => { setValues((s) => ({ ...s, [f.name]: v })); secrets.changed(f.name); }} rules={rules(f)} asking={secrets.asking} kept={secrets.kept(f.name)} onKeep={() => secrets.keep(f.name)} />
       ))}
     </ChangeForm>
   );
+}
+
+/**
+ * A form's decisions about its secrets' wrappers (#358): which ones the person
+ * chose to keep as typed (sent as `unwrap:<key>` = n), and whether a submit has
+ * asked. Changing a field forgets its choice, since it's a different value now.
+ */
+function useSecretChoices() {
+  const [kept, setKept] = useState<Record<string, boolean>>({});
+  const [asking, setAsking] = useState(false);
+  return {
+    asking,
+    kept: (name: string) => kept[name] === true,
+    keep: (name: string) => setKept((k) => ({ ...k, [name]: true })),
+    changed: (name: string) => setKept((k) => (k[name] ? { ...k, [name]: false } : k)),
+    reset: () => {
+      setKept({});
+      setAsking(false);
+    },
+    /** The first secret the submit checks stop, or null to send. */
+    refusal: (fields: Array<[string, string, SecretRules]>): Outcome | null => {
+      for (const [name, value, rules] of fields) {
+        const refused = secretRefusal(name, checkSecret(value, rules), kept[name] === true);
+        if (refused) {
+          setAsking(true);
+          return refused;
+        }
+      }
+      return null;
+    },
+    answers: (): Record<string, string> => Object.fromEntries(Object.keys(kept).filter((k) => kept[k]).map((k) => [`unwrap:${k}`, 'n'])),
+  };
 }
 
 const NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -314,6 +355,8 @@ export function NewConnectionForm({
   const [area, setArea] = useState(fixed ?? '');
   const [values, setValues] = useState<Record<string, string>>(suggest?.values ?? {});
   const [secrets, setSecrets] = useState<Record<string, string>>({});
+  const choices = useSecretChoices();
+  const rulesFor = (f: AreaInfo['connection'][number]): SecretRules => ({ password: f.password, empty: f.required ? 'required' : 'skip', envVars: [`${connectionEnvVar(name || '<name>', 'area')}=${chosen?.name ?? '<area>'}`, ...fields.map((g) => connectionEnvVar(name || '<name>', g.name))] });
   const chosen = withFields.find((a) => a.name === area) ?? withFields[0];
   const fields = chosen?.connection ?? [];
   const settings = fields.filter((f) => !f.secret);
@@ -343,9 +386,13 @@ export function NewConnectionForm({
         if (!NAME.test(name)) return { ok: false, message: `"${name}" isn't a valid connection name.`, fix: 'Use lowercase letters, digits and single hyphens, starting with a letter, e.g. corp-jira.' };
         const answers: Record<string, string> = { confirm: 'y' };
         for (const f of settings) answers[`setting:${f.name}`] = values[f.name] ?? '';
+        const refused = choices.refusal(secretFields.map((f) => [f.name, secrets[f.name] ?? '', rulesFor(f)]));
+        if (refused) return refused;
+        Object.assign(answers, choices.answers());
         // Every secret field shown is answered, an empty one with '', so toil skips an empty optional one as the CLI does.
         const typed = Object.fromEntries(secretFields.map((f) => [f.name, secrets[f.name] ?? '']));
         setSecrets({});
+        choices.reset();
         const envelope = await config.run('connections add', { name, area: chosen.name }, { answers, secrets: typed });
         const outcome = outcomeOf(envelope, `${name} was added.`);
         if (outcome.ok) {
@@ -365,6 +412,7 @@ export function NewConnectionForm({
             setArea(v);
             setValues({});
             setSecrets({});
+            choices.reset();
           }}
           options={withFields.map((a) => ({ value: a.name, label: a.name }))}
           hint={chosen.description}
@@ -374,14 +422,18 @@ export function NewConnectionForm({
         <TextField key={f.name} label={label(f)} value={values[f.name] ?? ''} onChange={(v) => setValues((s) => ({ ...s, [f.name]: v }))} required placeholder={f.default ?? undefined} />
       ))}
       {secretFields.map((f) => (
-        <TextField
+        <SecretField
           key={f.name}
-          type="password"
-          autoComplete="new-password"
           label={`${label(f)}${f.password ? ', a password' : ''}`}
           value={secrets[f.name] ?? ''}
-          onChange={(v) => setSecrets((s) => ({ ...s, [f.name]: v }))}
-          required={f.required}
+          onChange={(v) => {
+            setSecrets((s) => ({ ...s, [f.name]: v }));
+            choices.changed(f.name);
+          }}
+          rules={rulesFor(f)}
+          asking={choices.asking}
+          kept={choices.kept(f.name)}
+          onKeep={() => choices.keep(f.name)}
           hint="Goes to the OS credential store; never shown again, and never in the config file."
         />
       ))}

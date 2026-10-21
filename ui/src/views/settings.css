@@ -45,6 +45,8 @@ button.btn:disabled { cursor: not-allowed; opacity: 0.75; }
   background: var(--raised);
   color: var(--ink);
 }
+.secret-ask { display: grid; gap: 0.4rem; padding: 0.5rem 0.75rem; border: 1px solid var(--warn); border-radius: var(--radius); }
+.secret-ask p { overflow-wrap: anywhere; }
 .field-row textarea { font-family: var(--font-mono); font-size: 0.875rem; resize: vertical; }
 .field-row--check { grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 0.6rem; }
 .field-row--check input { width: 1.25rem; height: 1.25rem; margin: 0; accent-color: var(--accent); }

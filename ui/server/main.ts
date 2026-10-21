@@ -38,8 +38,20 @@ import { hostRunner, reposOf } from './assign/runner.ts';
 import type { AssignmentControl } from './assign/routes.ts';
 import { CALLER } from './store.ts';
 import type { Execute } from '../src/toil.ts';
+import { Fingerprints, restartCommand } from './fingerprint.ts';
+import { assignmentPrompts } from './assign/runner.ts';
 
 declare const __TOIL_UI_VERSION__: string;
+declare const __TOIL_UI_COMMIT__: string | null;
+
+/** toil's bundle on disk, beside the api this process resolved (#305), or null where it can't be found. */
+function toilBundle(): string | null {
+  try {
+    return fileURLToPath(new URL('./toil-lib.js', import.meta.resolve('@imagile-dev/toil/api')));
+  } catch {
+    return null;
+  }
+}
 
 async function main(): Promise<number> {
   let parsed;
@@ -97,6 +109,20 @@ async function main(): Promise<number> {
     await worklog.reconcileAll().catch((e: unknown) => process.stderr.write(`toil-ui: couldn't fold the worklog pages again: ${e instanceof Error ? e.message : String(e)}\n`));
   }
   const toil = { version: toilVersion, contractVersion: toilContract };
+  // What each agent session starts on (#305): the builds this process runs, held to the ones on disk at every check.
+  let fingerprints: Fingerprints | undefined;
+  if (cache) {
+    const shown = await execute('version', {}, { readOnly: true, caller: CALLER });
+    const toilCommit = shown.ok ? ((shown.data as { commit?: unknown } | null)?.commit ?? null) : null;
+    fingerprints = new Fingerprints({
+      running: { toil: { version: toilVersion, commit: typeof toilCommit === 'string' ? toilCommit : null }, toilUi: { version: __TOIL_UI_VERSION__, commit: __TOIL_UI_COMMIT__ } },
+      toilBundle: toilBundle(),
+      uiBundle: fileURLToPath(import.meta.url),
+      registry: registry.commands,
+      execute,
+      restart: restartCommand(process.argv, process.execArgv),
+    });
+  }
   // The agent (#251): the adapter chosen in Settings, reading the cache, or the scripted one for the sample.
   // The agent's model usage (#295): the cache's ledger, or the sample month, read-only, with --sample.
   const ledger = cache ? cacheLedger(() => cache!) : memoryLedger(sampleUsageRecords());
@@ -132,6 +158,7 @@ async function main(): Promise<number> {
         ledger,
         // Toil UI's own package folder (dist/server/ is two below it), which decides where Install puts an SDK (#344).
         uiDir: fileURLToPath(new URL('../../', import.meta.url)),
+        ...(fingerprints ? { fingerprints } : {}),
       })
     : undefined;
   // Assigning items to an agent (#293): the queue on the cache and the agent host, or the sample's, scripted.
@@ -144,7 +171,7 @@ async function main(): Promise<number> {
     const data = (dossier: string) => cacheData(cache!, dossier);
     const queue = new AssignmentQueue({
       keeper: fileKeeper(dataDir, problems),
-      runner: hostRunner({ host, dataDir, registry: registry.commands, execute, mapIds, data, version: __TOIL_UI_VERSION__, toilVersion }),
+      runner: hostRunner({ host, dataDir, registry: registry.commands, execute, mapIds, data, version: __TOIL_UI_VERSION__, toilVersion, ...(fingerprints ? { fingerprints } : {}) }),
       items: (dossier) => data(dossier)?.items() ?? null,
       people: async (dossier) => {
         const e = await execute('dossiers show', { dossier }, { readOnly: true, caller: CALLER });
@@ -154,6 +181,7 @@ async function main(): Promise<number> {
       // The one write an assignment makes, and only on a person's Apply: toil's own command, through its own gate, labelled with the assignment.
       apply: (a, p) => toilExecute(p.command!, { ...p.input, allowWrite: true }, { caller: CALLER, actor: actorOf(a.id) }),
       settings: () => queueSettings(dataDir),
+      ...(fingerprints ? { current: (dossier: string, mode: Parameters<typeof assignmentPrompts>[0]) => fingerprints!.current(dossier, assignmentPrompts(mode)), restartNeeded: () => fingerprints!.restartNeeded() } : {}),
       now: () => new Date().toISOString(),
       newId: () => randomUUID(),
     });
@@ -210,6 +238,7 @@ async function main(): Promise<number> {
     worklog: worklog ?? fixtureWorklog(),
     usage,
     assignments,
+    ...(fingerprints ? { serverStatus: () => fingerprints!.server() } : {}),
     appDir: fileURLToPath(new URL('../app/', import.meta.url)),
     version: __TOIL_UI_VERSION__,
     toil,

@@ -930,3 +930,48 @@ describe('the worklog (#308)', () => {
     expect(JSON.parse(res.body).error.message).toBe('This Toil UI keeps no worklog.');
   });
 });
+
+describe('stale sessions (#305)', () => {
+  const get = (origin: string, path: string, sid: string) => send(origin, path, { headers: { [SESSION_HEADER]: sid } });
+  const session = { startedAt: '2026-10-13T08:00:00.000Z', stale: { reasons: ['dossier changed'], text: 'dossier changed since it started' }, renewals: 0 };
+  const agent = () => ({
+    ...fixtureAgent(),
+    session: async (chat: string) => (chat === 'chat-0000-0001' ? session : null),
+    renew: async (chat: string, dossier: string) => {
+      if (chat === 'chat-busy-0001') throw Object.assign(new AgentError('This chat is answering a question now, and a renew never interrupts one.', 'Wait for the answer.'), { status: 409 });
+      return { startedAt: '2026-10-13T09:00:00.000Z', stale: null, renewals: dossier === 'card-payments' ? 1 : 0 };
+    },
+  });
+
+  it("says what a chat started on and whether it is stale, and null for a chat it hasn't seen", async () => {
+    const { origin } = await start({ agent: agent() });
+    const { sid } = await signIn(origin);
+    expect(JSON.parse((await get(origin, '/api/agent/session?chat=chat-0000-0001', sid)).body)).toEqual(session);
+    expect(JSON.parse((await get(origin, '/api/agent/session?chat=chat-0000-0009', sid)).body)).toBeNull();
+    expect((await get(origin, '/api/agent/session?chat=not%20an%20id', sid)).status).toBe(400);
+  });
+
+  it('renews a chat behind the session and CSRF, and says why when it is answering', async () => {
+    const { origin } = await start({ agent: agent() });
+    const auth = await signIn(origin);
+    const done = await post(origin, '/api/agent/renew', { chat: 'chat-0000-0001', dossier: 'card-payments' }, { sid: auth.sid, csrf: auth.session.csrf });
+    expect(JSON.parse(done.body)).toMatchObject({ renewals: 1, stale: null });
+    expect((await post(origin, '/api/agent/renew', { chat: 'chat-0000-0001', dossier: 'card-payments' }, { sid: auth.sid, csrf: 'not-it' })).status).toBe(403);
+    const busy = await post(origin, '/api/agent/renew', { chat: 'chat-busy-0001', dossier: 'card-payments' }, { sid: auth.sid, csrf: auth.session.csrf });
+    expect(busy.status).toBe(409);
+    expect(JSON.parse(busy.body).error.message).toContain('never interrupts');
+    const plain = await start();
+    const other = await signIn(plain.origin);
+    expect((await post(plain.origin, '/api/agent/renew', { chat: 'chat-0000-0001', dossier: 'card-payments' }, { sid: other.sid, csrf: other.session.csrf })).status).toBe(404);
+  });
+
+  it("answers the server's own staleness for the header, and null where it keeps none", async () => {
+    const status = { running: { toil: { version: '0.1.0-alpha.3', commit: null }, toilUi: { version: '0.1.0-alpha.2', commit: null } }, disk: { toil: { version: '0.1.0-alpha.4', commit: null }, toilUi: { version: '0.1.0-alpha.2', commit: null } }, stale: 'toil 0.1.0-alpha.4 is installed, and this server runs 0.1.0-alpha.3.', restart: 'node toil-ui.js' };
+    const { origin } = await start({ serverStatus: () => status });
+    const { sid } = await signIn(origin);
+    expect(JSON.parse((await get(origin, '/api/fingerprint', sid)).body)).toEqual(status);
+    const plain = await start();
+    expect(JSON.parse((await get(plain.origin, '/api/fingerprint', (await signIn(plain.origin)).sid)).body)).toBeNull();
+    expect((await send(origin, '/api/fingerprint')).status).toBe(401);
+  });
+});

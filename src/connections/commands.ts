@@ -18,6 +18,7 @@ import { hostMatches } from '../core/dossier.js';
 import { ToilError, withArticle } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified, type SecretStore } from '../core/keychain.js';
 import type { Prompter } from '../core/prompt.js';
+import { askCheckedSecret } from '../core/secret-input.js';
 
 /**
  * `toil connections add | login | list | remove | test | writes | default`:
@@ -82,7 +83,9 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
 
       const entered: Record<string, string> = {};
       for (const key of keys) {
-        const value = await prompt.askSecret(secretLabel(area, key), `secret:${key}`);
+        // An empty answer keeps what's stored, and says so; where nothing is stored, it stays unset.
+        const rules = { password: area.secretKinds[key] === 'password', empty: conn[key] === undefined ? 'skip' : 'keep' } as const;
+        const value = await askCheckedSecret(prompt, secretLabel(area, key), key, rules);
         if (value !== '') entered[key] = value;
       }
       if (Object.keys(entered).length === 0) throw new ToilError('INVALID_INPUT', 'Nothing was entered, so nothing changed.', { fix: `Run toil connections login ${input.name} again.` });
@@ -312,7 +315,7 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
   if (!prompt) throw needsTerminal('add', input.name, input.area ? areaIn(areas, input.area) : undefined);
   const area = areaIn(areas, input.area ?? (await prompt.ask(`Area (${areas.map((a) => a.name).join(', ')})`, areas.length === 1 ? areas[0]!.name : undefined, 'area')));
 
-  const { settings, secretValues } = await askSettings(prompt, area, options.suggest);
+  const { settings, secretValues } = await askSettings(prompt, area, input.name, options.suggest);
   const parsed = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...secretValues });
   if (!parsed.success) {
     const keys = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? '')).filter(Boolean))];
@@ -420,10 +423,15 @@ function fileConnectionNames(config: ConfigAccess['config']): Set<string> {
   }
 }
 
+/** The env vars that define connection `name` with no file: its area, then every key it holds. */
+function envDefinition(name: string, area: AnyArea | undefined): string[] {
+  const keys = area ? Object.keys(area.connection.shape) : ['<key>'];
+  return [`${connectionEnvName(name, 'area')}=${area?.name ?? '<area>'}`, ...keys.map((k) => connectionEnvName(name, k))];
+}
+
 /** Without a terminal the commands can't ask, so they say how to do the same with env vars. */
 function needsTerminal(command: string, name: string, area: AnyArea | undefined): ToilError {
-  const keys = area ? Object.keys(area.connection.shape) : ['<key>'];
-  const vars = [`${connectionEnvName(name, 'area')}=${area?.name ?? '<area>'}`, ...keys.map((k) => connectionEnvName(name, k))];
+  const vars = envDefinition(name, area);
   return new ToilError('INVALID_INPUT', `toil connections ${command} asks its questions on a terminal, and this isn't one.`, {
     fix: `Run it in a terminal, or define the connection with env vars instead: ${vars.join(', ')}.`,
   });
@@ -445,7 +453,7 @@ function secretLabel(area: AnyArea, key: string): string {
  * secrets the area declares are asked for: an area that signs in with a token
  * is never asked for a username and password.
  */
-async function askSettings(prompt: Prompter, area: AnyArea, suggest: Record<string, string> = {}): Promise<{ settings: Settings; secretValues: Record<string, string> }> {
+async function askSettings(prompt: Prompter, area: AnyArea, name: string, suggest: Record<string, string> = {}): Promise<{ settings: Settings; secretValues: Record<string, string> }> {
   const shape = area.connection.shape as Record<string, z.ZodType>;
   const secretKeys: string[] = area.secrets ?? [];
   const keys = Object.keys(shape)
@@ -461,7 +469,13 @@ async function askSettings(prompt: Prompter, area: AnyArea, suggest: Record<stri
   }
   const secretValues: Record<string, string> = {};
   for (const key of secretKeys) {
-    const value = await prompt.askSecret(secretLabel(area, key), `secret:${key}`);
+    // A secret the connection can't do without is asked for again on an empty answer, rather than saved as nothing.
+    const required = area.defaults?.[key] === undefined && shape[key]?.safeParse(undefined).success === false;
+    const value = await askCheckedSecret(prompt, secretLabel(area, key), key, {
+      password: area.secretKinds[key] === 'password',
+      empty: required ? 'required' : 'skip',
+      envVars: envDefinition(name, area),
+    });
     if (value !== '') secretValues[key] = value;
   }
   return { settings, secretValues };

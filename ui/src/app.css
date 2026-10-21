@@ -56,6 +56,13 @@ h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
   text-align: center;
 }
 
+/* The server is older than what is on disk (#305): the same colours as the preview's banner, read left to right. */
+.banner--stale { text-align: start; overflow-wrap: anywhere; }
+
+/* A session whose instructions changed since it started (#305): the needs-you chip's colours, which every theme already holds to contrast. */
+.stale-chip { display: inline-flex; align-items: center; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid currentColor; font-size: 0.75rem; font-weight: 600; background: var(--raised); color: var(--warn); white-space: nowrap; }
+.stale-note { margin: 0; overflow-wrap: anywhere; }
+
 .top {
   display: flex;
   flex-wrap: wrap;

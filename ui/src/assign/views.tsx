@@ -19,7 +19,9 @@ import { EditLink } from '../components/help.tsx';
 import { ADAPTER_LABEL, addUp, usageParts } from '../model-usage.ts';
 import type { PersonEntry } from '../model/people.ts';
 import type { WorkItem } from '../toil.ts';
-import { ADAPTER_NAME, MODES, MODE_INFO, STATE_LABEL, runMs, runText, type AssignAdapter, type Assignment, type AssignmentList, type AssignMode } from './model.ts';
+import { ADAPTER_NAME, MODES, MODE_INFO, STATE_LABEL, renewRefusal, runMs, runText, type AssignAdapter, type Assignment, type AssignmentList, type AssignMode } from './model.ts';
+import { useChatScope } from '../components/ask.tsx';
+import { StaleChip, StaleNote } from '../components/stale.tsx';
 import './assign.css';
 
 export const assignmentHref = (dossier: string, id: string) => `${dossierHref(dossier)}/assignment/${encodeURIComponent(id)}`;
@@ -95,6 +97,8 @@ export function AssignmentCard({ a, now }: { a: Assignment; now: string }) {
           </p>
         )}
         {a.stop && a.state === 'failed' && <p className="assign-stop">{a.stop.message}</p>}
+        {a.stale && <StaleNote stale={a.stale} />}
+        {a.renewedBy && <p className="note">Renewed as <a href={assignmentHref(a.dossier, a.renewedBy)}>a fresh assignment</a>.</p>}
         <p>
           <a href={assignmentHref(a.dossier, a.id)}>
             Open the assignment<span className="sr-only"> on {a.item}</span>
@@ -364,8 +368,114 @@ export function AgentsLane() {
           ))}
         </CardGrid>
       )}
+      {list && <RenewAll list={list} onDone={reload} />}
       {list && <Limits list={list} onSaved={reload} />}
     </Card>
+  );
+}
+
+/** One session Renew all stale would touch (#305): what it is, and whether it renews or why it is skipped. */
+interface Renewal {
+  key: string;
+  label: string;
+  skip: string | null;
+  run: () => Promise<unknown>;
+}
+
+/**
+ * Renew all stale (#305): the list first, each stale session with whether it
+ * renews or why it is skipped (working, waiting on you), then one press
+ * renews the rest. The dossier's chat is on the list when it is stale.
+ */
+function RenewAll({ list, onDone }: { list: AssignmentList; onDone: () => void }) {
+  const { assignments: api, dossier } = useData();
+  const chat = useChatScope();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string[] | null>(null);
+  // The list the dialog shows is the one it opened on, so the result stays on screen once nothing is stale.
+  const [shown, setShown] = useState<Renewal[] | null>(null);
+  if (!api) return null;
+  const renewChat = async () => {
+    const why = await chat!.renew();
+    if (why) throw new Error(why);
+  };
+  const rows: Renewal[] = [
+    ...(chat?.session?.stale ? [{ key: 'chat', label: `The chat about ${dossier.name}: ${chat.session.stale.text}`, skip: chat.session.stale.restart ?? (chat.busy ? 'It is answering a question now, and a renew never interrupts one.' : null), run: renewChat }] : []),
+    ...list.assignments
+      .filter((a) => a.stale)
+      .map((a) => ({ key: a.id, label: `${MODE_INFO[a.mode].label} ${a.item} on ${a.adapter ? ADAPTER_NAME[a.adapter] : 'no adapter'}, ${STATE_LABEL[a.state].toLowerCase()}: ${a.stale!.text}`, skip: renewRefusal(a), run: () => api.renew(a.id) })),
+  ];
+  if (!rows.length && !open) return null;
+  const listed = shown ?? rows;
+  const go = listed.filter((r) => !r.skip);
+  const renewAll = async () => {
+    setBusy(true);
+    const out: string[] = [];
+    for (const r of go) {
+      try {
+        await r.run();
+        out.push(`Renewed: ${r.label}`);
+      } catch (e) {
+        out.push(`Not renewed: ${r.label}. ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    setSaid(out);
+    setBusy(false);
+    onDone();
+  };
+  return (
+    <>
+      {rows.length > 0 && (
+      <Cluster>
+        <Button className="btn" onPress={() => (setSaid(null), setShown(rows), setOpen(true))} data-renew-all="">
+          Renew all stale…
+        </Button>
+        <span className="note">
+          <StaleChip /> {rows.length === 1 ? 'One session started' : `${rows.length} sessions started`} on instructions that have changed since.
+        </span>
+      </Cluster>
+      )}
+      <ModalOverlay className="feedback-overlay" data-backdrop="" isDismissable isOpen={open} onOpenChange={setOpen}>
+        <Modal className="feedback-modal">
+          <Dialog className="feedback-dialog" aria-labelledby="renew-title">
+            {({ close }) => (
+              <div className="assign-form">
+                <Heading slot="title" level={2} id="renew-title">
+                  Renew stale sessions
+                </Heading>
+                <p className="note">Each renews as a fresh session on today's instructions, with what the old one left as context. The old one stays readable. Renew never interrupts a turn, and skips any session waiting on you.</p>
+                <ul className="rows renew-list">
+                  {listed.map((r) => (
+                    <li key={r.key}>
+                      <strong>{r.skip ? 'Skipped' : 'Renews'}</strong>: {r.label}
+                      {r.skip && <span className="note"> {r.skip}</span>}
+                    </li>
+                  ))}
+                </ul>
+                {said && (
+                  <ul className="rows" role="status" aria-label="What was renewed">
+                    {said.map((line, i) => (
+                      <li key={i}>{line}</li>
+                    ))}
+                  </ul>
+                )}
+                <div className="assign-actions">
+                  {!said && (
+                    <Button className="btn btn--accent" onPress={() => void renewAll()} isDisabled={busy || !go.length} data-renew-confirm="">
+                      {busy ? 'Renewing…' : go.length ? `Renew ${go.length}` : 'Nothing to renew'}
+                    </Button>
+                  )}
+                  <Button className="btn" onPress={close}>
+                    {said ? 'Close' : 'Cancel'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </>
   );
 }
 
@@ -428,10 +538,15 @@ export function AgentAssignments({ people }: { people: readonly PersonEntry[] })
                         .map(([s, n]) => `${n} ${STATE_LABEL[s].toLowerCase()}`)
                         .join(', ')}
                     </p>
+                    {mine.some((a) => a.stale) && (
+                      <p className="note" data-stale="">
+                        <StaleChip /> {mine.filter((a) => a.stale).length} started on instructions that have changed since.
+                      </p>
+                    )}
                     <ul className="rows">
                       {mine.map((a) => (
                         <li key={a.id}>
-                          <StateChip a={a} /> <a href={assignmentHref(a.dossier, a.id)}>{MODE_INFO[a.mode].label}</a> <ItemLink id={a.item} /> <span className="note">{runText(a.ranMs ?? runMs(a, now))}</span>
+                          <StateChip a={a} /> {a.stale && <StaleChip />} <a href={assignmentHref(a.dossier, a.id)}>{MODE_INFO[a.mode].label}</a> <ItemLink id={a.item} /> <span className="note">{runText(a.ranMs ?? runMs(a, now))}</span>
                         </li>
                       ))}
                     </ul>

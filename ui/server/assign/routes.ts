@@ -11,6 +11,7 @@
  *   POST assignments/apply                 { id, proposal }: run that proposal through toil's write gate
  *   POST assignments/dismiss               { id, proposal }
  *   POST assignments/finish                { id }: reviewed, done
+ *   POST assignments/renew                 { id }: a stale, idle one afresh on today's instructions (#305)
  *   POST assignments/settings              { concurrent, timeLimitMinutes }
  *
  * The page names an assignment and a proposal, never a command: what apply
@@ -58,7 +59,7 @@ export async function assignmentRoute(key: string, req: IncomingMessage, res: Se
     case 'GET assignments/one': {
       const id = url.searchParams.get('id');
       if (!id) throw new AssignError('Name the assignment.', 'Ask api/assignments/one?id=<id>.');
-      h.json(res, 200, queue.get(id));
+      h.json(res, 200, await queue.read(id));
       return true;
     }
     case 'GET assignments/events': {
@@ -99,6 +100,9 @@ export async function assignmentRoute(key: string, req: IncomingMessage, res: Se
     case 'POST assignments/finish':
       h.json(res, 200, queue.finish(idOf(await h.readJson(req))));
       return true;
+    case 'POST assignments/renew':
+      h.json(res, 201, await queue.renew(idOf(await h.readJson(req))));
+      return true;
     case 'POST assignments/settings': {
       if (!control.saveSettings) throw new AssignError("The sample's limits can't be changed.", 'Start toil-ui without --sample to set your own.', 404);
       const saved = control.saveSettings(await h.readJson(req));
@@ -107,6 +111,6 @@ export async function assignmentRoute(key: string, req: IncomingMessage, res: Se
       return true;
     }
     default:
-      throw new AssignError(`There is no ${key} in the API.`, 'The assignment routes are assignments, assignments/one, assignments/events, and POST assignments/start, cancel, apply, dismiss, finish and settings.', 404);
+      throw new AssignError(`There is no ${key} in the API.`, 'The assignment routes are assignments, assignments/one, assignments/events, and POST assignments/start, cancel, apply, dismiss, finish, renew and settings.', 404);
   }
 }

@@ -39,7 +39,9 @@ import type { AgentHost } from '../agents/host.ts';
 import type { Workspace } from '../agents/runtime.ts';
 import { cacheTools, Ledger, liveTools, proposalTool, prTools, recorded, type AgentData, type MapIds, type ReadCommand, type ToolSpec } from '../agents/tools.ts';
 import { CALLER } from '../store.ts';
-import { implementPrompt, readPrompt, splitLines } from './prompts.ts';
+import { implementPrompt, modePromptText, readPrompt, splitLines, withEarlierRun } from './prompts.ts';
+import type { AssignMode } from '../../src/assign/model.ts';
+import type { Fingerprints } from '../fingerprint.ts';
 
 export interface HostRunnerOptions {
   host: Pick<AgentHost, 'task' | 'adapterChoices' | 'chosen'>;
@@ -50,8 +52,13 @@ export interface HostRunnerOptions {
   data(dossier: string): AgentData | null;
   version: string;
   toilVersion: string;
+  /** What each run starts on (#305); absent, runs record no fingerprint and never go stale. */
+  fingerprints?: Pick<Fingerprints, 'origin'>;
   now?: () => string;
 }
+
+/** The prompts part of an assignment's fingerprint (#305): its mode's prompts in Toil UI's own words. */
+export const assignmentPrompts = (mode: AssignMode) => sha256(modePromptText(mode));
 
 /** The largest staged diff an assignment keeps, in characters. */
 export const MAX_DIFF = 200_000;
@@ -187,6 +194,9 @@ export function hostRunner(o: HostRunnerOptions): Runner {
       } else {
         modePrompt = readPrompt(a.mode, a.dossier, item, now());
       }
+      // A renewal (#305) carries what the run it renews left, fenced as data.
+      modePrompt = { ...modePrompt, prompt: withEarlierRun(modePrompt.prompt, a.history) };
+      const fingerprint = o.fingerprints ? await o.fingerprints.origin(a.dossier, assignmentPrompts(a.mode)).catch(() => null) : null;
       const shown = await read('dossiers show', { dossier: a.dossier }, { actor });
       const startedOn = {
         at: now(),
@@ -200,7 +210,9 @@ export function hostRunner(o: HostRunnerOptions): Runner {
         dossier: { name: a.dossier, fingerprint: shown.ok ? sha256(shown.data) : null },
         item: { id: item.id, updated: item.updated, fingerprint: sha256(item) },
         prompt: sha256(`${modePrompt.system}\n\n${modePrompt.prompt}`),
+        fingerprint,
       };
+      ctx.started?.(startedOn);
       ctx.record({ kind: 'prompt', title: 'System prompt', detail: modePrompt.system });
       ctx.record({ kind: 'prompt', title: 'Task', detail: modePrompt.prompt });
 

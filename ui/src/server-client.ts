@@ -18,6 +18,7 @@ import type { AreaInfo, ConfigApi, SettingsInfo } from './config.ts';
 import { FEEDBACK_SAMPLE_DISABLED, type FeedbackApi, type FeedbackFields } from './feedback.ts';
 import type { SyncStatus } from '../server/sync.ts';
 import type { Envelope, Execute } from './toil.ts';
+import type { ChatSession, ServerStatus } from './fingerprint.ts';
 import { WORKLOG_SAMPLE_DISABLED, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt, type WorklogStandup } from './worklog.ts';
 
 export type { DossierState, SourceState } from '../server/cache.ts';
@@ -245,7 +246,24 @@ export async function httpAgent(session: Session, dossiers: string[], base = './
       }
       yield* answerLines(res);
     },
+    async session(chat) {
+      const res = await call(base, session, `api/agent/session?chat=${encodeURIComponent(chat)}`);
+      if (!res.ok) throw await failure(res, "Reading the chat's session");
+      return (await res.json()) as ChatSession | null;
+    },
+    async renew(chat, dossier) {
+      const res = await call(base, session, 'api/agent/renew', { body: { chat, dossier } });
+      if (!res.ok) throw await failure(res, 'Renewing the chat');
+      return (await res.json()) as ChatSession;
+    },
   };
+}
+
+/** The server's own staleness (#305), for the header: null with sample data, or when it can't be read. */
+export async function httpServerStatus(session: Session, base = './'): Promise<ServerStatus | null> {
+  const res = await call(base, session, 'api/fingerprint');
+  if (!res.ok) throw await failure(res, "Reading the server's version");
+  return (await res.json()) as ServerStatus | null;
 }
 
 /** A question's extra fields (#344), only those set, so a question with none sends what it always did. */

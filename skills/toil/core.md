@@ -257,6 +257,19 @@ commands can't change. `toil connections test
 in, turning writes on and choosing a default are for a person: a bare `toil` in a
 terminal opens a menu for them.
 
+When `toil connections add` or `login` asks for a secret, the terminal shows one `•`
+per character typed or pasted (Backspace removes one, Ctrl+U clears them), never the
+characters, and after Enter says how many arrived: `Received 40 characters.` Before
+anything is stored, the paste is checked. Spaces, tabs or newlines around it are
+trimmed and the line says so (`Received 40 characters (removed a trailing
+newline).`); a value in quotes, or starting with `Bearer ` or `token `, is asked
+about (`This starts with "Bearer ". Store it without that? [Y/n]`), never changed
+silently; a line break in the middle (or, for a token, a space) is refused, since
+the paste most likely took two lines, and asked for again; and an empty answer
+asks again where the secret is required, or says `Kept the existing secret.` where
+`login` keeps the one stored. Toil UI's password fields run the same checks, in the
+same words.
+
 ## Global flags
 
 Global flags go before or after the command: `--pretty`, `--verbose` (adds every
@@ -395,11 +408,15 @@ const envelope = await execute('jira issue search', { jql: 'project = PAY', limi
   (`registry.personCommands`). Each question arrives as `{ id, text, secret,
   fallback }`, and `ask` returns what the person typed. The `id` is one of `area`,
   `setting:<key>`, `secret:<key>`, `confirm` (`y` saves what they reviewed),
-  `confirm-name` (the connection's name, typed to turn writes on), for `dossiers
-  onboard` `create:<section>` (`y` adds the connection that section needs),
-  `name:<section>` (its name) and `pin:<section>` (the matching connection their own
-  copy uses), or `consent` (`yes` sends the feedback report and disclaimer the
-  question shows, **Feedback**, above). With `readOnly`, nothing is asked: `feedback`
+  `confirm-name` (the connection's name, typed to turn writes on), `unwrap:<key>`
+  (the secret is in quotes or starts with `Bearer ` or `token `: `y` stores it
+  without them, `n` as typed; call `checkSecret` first to know whether it will be
+  asked), for `dossiers onboard` `create:<section>` (`y` adds the connection that
+  section needs), `name:<section>` (its name) and `pin:<section>` (the matching
+  connection their own copy uses), or `consent` (`yes` sends the feedback report and
+  disclaimer the question shows, **Feedback**, above). A secret is checked as on a
+  terminal (`checkSecret`, below), but asked once: a refused or empty required one is
+  `INVALID_INPUT`, with the terminal's words. With `readOnly`, nothing is asked: `feedback`
   only previews. Return `undefined` for a question they weren't asked, and the
   command saves or sends nothing (`CANCELLED`). A secret goes from the answer to the OS
   credential store: it is never in the input, the envelope or the audit log. The
@@ -425,6 +442,15 @@ const envelope = await execute('jira issue search', { jql: 'project = PAY', limi
   (`{ 'release-bot': 'BOT' }`). A refused input throws, with a fix. **`owiVersion`** is the OWI version items carry,
   and **`owiSchema`** their JSON Schema; `execute('util owi map', { text })` maps
   and validates in one call.
+- **`checkSecret(raw, rules)`** runs the paste checks `connections add` and
+  `login` run on a secret, for a program whose person types one into its own field
+  (Toil UI's settings): `rules` is `{ password, empty }`, `empty` being `required`,
+  `keep` or `skip`. It returns `{ status: 'ok', value, length, removed, received,
+  wrapper }` (`received` is the terminal's `Received 40 characters …` line, and
+  `wrapper`, when set, has the `question`, `what`, the value `without` it and its
+  `withoutLength`), `{ status: 'refused', message, fix, length }`, or `{ status:
+  'empty', empty, message, fix }`. Nothing
+  it returns holds part of the value but the value itself.
 - **`findSimilar(records, request, options)`** finds likely duplicates among OWI
   records you already hold (mapOwi's `items`, or the text `util owi map` printed),
   scored the way `toil util owi similar` scores them (`util.md`), in-process:

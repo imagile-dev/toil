@@ -65,6 +65,7 @@ import type { UsageControl } from './usage.ts';
 import { assignmentRoute, type AssignmentControl } from './assign/routes.ts';
 import { AssignError } from '../src/assign/queue.ts';
 import { CHAT_ID, UsageSettingsError, type AnswerUsage, type ChatTurn } from '../src/model-usage.ts';
+import type { ServerStatus } from '../src/fingerprint.ts';
 
 export interface UiServerOptions {
   settings: Settings;
@@ -97,6 +98,8 @@ export interface UiServerOptions {
    * anything it couldn't move, in words. None with sample data.
    */
   renames?: DossierRenames;
+  /** The server's own staleness (#305): `api/fingerprint`. Absent with sample data, which never goes out of date. */
+  serverStatus?: () => ServerStatus;
   /** Tests pass a fixed token; a real start makes one. */
   token?: string;
   viewer?: Viewer;
@@ -577,6 +580,29 @@ export function createUiServer(options: UiServerOptions): UiServer {
         }
         return;
       }
+      case 'GET agent/session': {
+        // What a chat started on and whether it has gone stale (#305); null for a chat the server hasn't seen.
+        const chat = url.searchParams.get('chat') ?? '';
+        if (!CHAT_ID.test(chat)) throw new HttpError(400, 'Name the chat by its id.', `Ask ${base}api/agent/session?chat=<chat id>.`);
+        json(res, 200, (await agent.session?.(chat)) ?? null);
+        return;
+      }
+      case 'POST agent/renew': {
+        const body = await readJson(req);
+        if (typeof body.chat !== 'string' || !CHAT_ID.test(body.chat) || typeof body.dossier !== 'string' || !body.dossier) throw new HttpError(400, 'A renew names the chat and its dossier.', 'Send { "chat": "<chat id>", "dossier": "<name>" }.');
+        if (!agent.renew) throw new HttpError(404, 'This agent keeps no sessions, so there is nothing to renew.', 'Start toil-ui with its cache to record what each chat started on.');
+        try {
+          json(res, 200, await agent.renew(body.chat, body.dossier));
+        } catch (e) {
+          if (e instanceof AgentError) throw new HttpError((e as AgentError & { status?: number }).status ?? 400, e.message, e.fix);
+          throw e;
+        }
+        return;
+      }
+      case 'GET fingerprint':
+        // The server's own staleness (#305), for the header: null with sample data.
+        json(res, 200, options.serverStatus?.() ?? null);
+        return;
       case 'GET agent/prompt': {
         // Read-only: the prompt as the next question would get it, with the saved instructions. `voice` is on or off.
         const dossier = url.searchParams.get('dossier') || '<dossier>';
@@ -693,7 +719,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return worklogCall(res, () => worklog().exportTo(named(body.dossier, 'dossier', shape), what, named(body.folder, 'folder', shape)));
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/standup, worklog/rebuild, worklog/note, worklog/export, agent/starters, agent/ask, agent/prompt, agent/settings, agent/adapters, agent/install, agent/mcp and assignments.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/standup, worklog/rebuild, worklog/note, worklog/export, fingerprint, agent/starters, agent/ask, agent/session, agent/renew, agent/prompt, agent/settings, agent/adapters, agent/install, agent/mcp and assignments.`);
     }
   };
 
