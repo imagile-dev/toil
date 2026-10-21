@@ -238,15 +238,15 @@ function states(route, width) {
   if (compact) out.push({ name: 'menu', setup: clickAll('[data-menu-button]'), undo: 'Escape' });
   // Feedback is in the header, or in its Menu when the header folds, which it does below 1024px or when its row is full.
   if (route === '#/') out.push({ name: 'feedback', setup: inMenu('button.feedback-open'), undo: 'Escape' });
-  // Help (#346), checked before the Ask states so no overlay of theirs is still closing: the first (i) on the page with its tooltip showing, as a keyboard user who tabbed to it sees it, and
-  // pressed, with its popover and Read more link open. On the views with the most of them, at every width.
+  // Help (#346), checked before the Ask states so no overlay of theirs is still closing: the first (i) on the page with its tooltip showing, as a keyboard user who
+  // tabbed to it sees it, and pressed, with its popover and Read more link open. On the views with the most of them, at every width.
   if (route === '#/dossier/card-payments' || route === '#/settings/connections' || route === '#/settings/toil' || route === '#/dossier/card-payments/people') {
     const first = `[...document.querySelectorAll('main [data-help]')].find((b) => b.getClientRects().length)`;
     const waitFor = (sel) => `(async () => { const deadline = Date.now() + 5000; while (!document.querySelector(${JSON.stringify(sel)}) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector(${JSON.stringify(sel)}) ? 1 : 0; })()`;
-    // A real key press first (`key`, which closes nothing here), so React Aria reads the focus that follows as a
-    // keyboard user's: it ignores keys a script dispatches. A menu closed just before may still hand focus back to its
-    // button, which closes the tooltip again, so focus is tried up to three times.
-    out.push({ name: 'help-tooltip', key: 'Escape', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); for (let i = 0; i < 3; i++) { b.blur(); b.focus(); const deadline = Date.now() + 1500; while (!document.querySelector('.help-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.help-tooltip') && document.activeElement === b) return 1; } return 0; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
+    // A real Tab first (`key`), so React Aria reads the focus that follows as a keyboard user's: it ignores keys a
+    // script dispatches, and Escape would let a dialog closed earlier hand its focus back. Focus is tried up to three
+    // times, in case something still closing takes it back anyway.
+    out.push({ name: 'help-tooltip', key: 'Tab', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); for (let i = 0; i < 3; i++) { b.blur(); b.focus(); const deadline = Date.now() + 2000; while (!document.querySelector('.help-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.help-tooltip') && document.activeElement === b) return 1; } return 0; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
     out.push({ name: 'help-popover', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); b.click(); return await ${waitFor('.help-popover [data-read-more]')}; })()`, undo: 'Escape' });
   }
   if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
