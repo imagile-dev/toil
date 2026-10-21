@@ -24,8 +24,13 @@ jobs:
         # vars can be switched on from code (tls.setDefaultCACertificates,
         # http.setGlobalProxyFromEnv); keep it in step with "engines" in
         # package.json.
+        #
+        # A pull request runs every OS on the floor only; main and the release PR
+        # add the current release. Seven PRs at once queued about 80 jobs against
+        # the account's ~20-runner limit (5 on macOS) and held approved PRs for an
+        # hour (#376). A Node 26 break still shows on main before any release.
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: ['24.14', 26]
+        node: ${{ fromJSON(github.event_name == 'pull_request' && !startsWith(github.head_ref, 'release-please--') && '["24.14"]' || '["24.14", 26]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -101,12 +106,13 @@ jobs:
   # from it, with a throwaway config folder and no login. (The .agents/skills
   # path is a folder copy; test/skills.test.ts checks the folder stands alone.)
   # Optional rather than part of CI ok, because it downloads a third-party CLI.
+  # A pull request installs on Linux only; main installs on every OS (#376).
   skill-install:
     name: skill install / ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: ${{ fromJSON(github.event_name == 'pull_request' && '["ubuntu-latest"]' || '["ubuntu-latest", "windows-latest", "macos-latest"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -228,7 +234,7 @@ jobs:
             echo "::error::The gate finished as '${{ needs.gate.result }}', not 'success'."
             exit 1
           fi
-          echo "All six gate jobs passed."
+          echo "Every gate job passed."
       - name: The database integration job passed
         run: |
           if [ "${{ needs.integration.result }}" != "success" ]; then
