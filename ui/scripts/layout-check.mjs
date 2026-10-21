@@ -300,19 +300,26 @@ export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES,
   if (shots) mkdirSync(shots, { recursive: true });
   const results = new Array(runs.length);
   let next = 0;
+  // The first failure stops the hand-out, and every worker closes its Chrome before it is rethrown,
+  // so none is left running against a server the caller is about to stop.
+  let failed = null;
   const worker = async () => {
-    const { page, close } = await openBrowser(chrome);
+    let browser = null;
     try {
-      await page.media([{ name: 'prefers-reduced-motion', value: motion }]);
-      while (next < runs.length) {
+      browser = await openBrowser(chrome);
+      await browser.page.media([{ name: 'prefers-reduced-motion', value: motion }]);
+      while (!failed && next < runs.length) {
         const i = next++;
-        results[i] = await checkRun({ page, run: runs[i], urlFor, routes, widths, shots, axeSource, log });
+        results[i] = await checkRun({ page: browser.page, run: runs[i], urlFor, routes, widths, shots, axeSource, log });
       }
+    } catch (e) {
+      failed ??= e;
     } finally {
-      await close();
+      await browser?.close();
     }
   };
-  await Promise.all(Array.from({ length: Math.min(workers, runs.length) || 1 }, worker));
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(workers, runs.length)) }, worker));
+  if (failed) throw failed;
   return {
     problems: results.flatMap((r) => r.problems),
     reported: results.flatMap((r) => r.reported),

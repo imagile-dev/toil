@@ -537,8 +537,8 @@ Linux on Node 24.14, as two jobs side by side, toil's gate and Toil UI's. Its `C
 job passes only when both passed, along with the database integration job and the
 `dist/` guard (below), and it's the one check `main`'s ruleset requires, so nothing
 merges on a red gate. Windows, macOS and Node 26 run in `platforms.yml`: daily, on
-demand, and on the release PR, so a platform break shows within a day and always
-before a release. A failed daily run files a `platforms-failure` issue (#376).
+demand, and on the release PR, whose merger checks it passed, so a platform break
+shows within a day and is looked at before a release. A failed daily run files a `platforms-failure` issue (#376).
 Principle 8 still holds: a platform failure gets fixed like any other, it just
 doesn't hold every PR behind macOS and Windows runners. Other checks stay optional:
 the review job (approval is required separately, and it skips the release PR), the

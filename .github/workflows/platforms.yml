@@ -4,8 +4,9 @@ name: Platforms
 # OS: the whole matrix, daily and on the release PR (#376). Pull requests and
 # main run the Linux gate in ci.yml, so an approved PR isn't held behind macOS
 # and Windows runners. Every OS stays first-class (principle 8): a break on any
-# of them shows here within a day, and the release PR, which publishes, runs
-# this before it merges. A scheduled run that fails opens an issue, or comments
+# of them shows here within a day. The release PR runs it too, and the person
+# merging that PR confirms it is green: this workflow is optional, so nothing
+# blocks the merge on it. A scheduled run that fails opens an issue, or comments
 # on the open one, so nobody has to watch the Actions tab.
 on:
   schedule:
@@ -64,7 +65,7 @@ jobs:
       - run: npm run check:pure
       # On the release PR only, which rebuilds the committed dist/toil.js
       # (release.yml): it is exactly what the build just produced, on every OS.
-      # Every other PR leaves dist/ alone (dist-guard below).
+      # Every other PR leaves dist/ alone (ci.yml's dist-guard).
       - if: startsWith(github.head_ref, 'release-please--')
         run: npm run check:dist
       # Install the packed tarball with scripts off; drive the CLI and MCP.
