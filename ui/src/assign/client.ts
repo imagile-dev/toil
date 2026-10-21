@@ -8,7 +8,7 @@
 
 import { AnswerError, type Session } from '../server-client.ts';
 import type { AnswerUsage } from '../model-usage.ts';
-import type { Assignment, AssignmentList, AssignmentRecord, AssignmentsApi, AssignSettings } from './model.ts';
+import type { Assignment, AssignmentEvent, AssignmentList, AssignmentRecord, AssignmentsApi, AssignSettings } from './model.ts';
 
 const SESSION_HEADER = 'X-Toil-UI-Session';
 const CSRF_HEADER = 'X-Toil-UI-CSRF';
@@ -48,6 +48,24 @@ export function httpAssignments(session: Session & { assignments?: boolean }, ba
     dismiss: (id, proposal) => call<Assignment>('assignments/dismiss', 'Dismissing the proposal', { id, proposal }),
     finish: (id) => call<Assignment>('assignments/finish', 'Marking it reviewed', { id }),
     renew: (id) => call<Assignment>('assignments/renew', 'Renewing the assignment', { id }),
+    async events(since, onEvent, signal) {
+      const res = await fetch(`${base}api/assignments/events?since=${since}`, { credentials: 'omit', headers: { [SESSION_HEADER]: session.session }, signal });
+      if (!res.ok || !res.body) throw await failure(res, 'Reading the assignment events');
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (value) buffer += decoder.decode(value, { stream: true });
+        let nl;
+        while ((nl = buffer.indexOf('\n')) >= 0) {
+          const line = buffer.slice(0, nl).trim();
+          buffer = buffer.slice(nl + 1);
+          if (line) onEvent(JSON.parse(line) as AssignmentEvent);
+        }
+        if (done) return;
+      }
+    },
     ...(session.sample ? {} : { saveSettings: (settings: AssignSettings) => call<AssignSettings>('assignments/settings', 'Saving the limits', { concurrent: settings.concurrent, timeLimitMinutes: settings.timeLimitMinutes }) }),
   };
 }

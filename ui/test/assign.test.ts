@@ -441,6 +441,11 @@ describe('the assignment routes', () => {
       const events = await call(origin, '/api/assignments/events?since=0', { headers: h });
       expect(events.status).toBe(200);
       expect(JSON.parse(events.body.split('\n')[0]!)).toMatchObject({ seq: expect.any(Number), kind: expect.any(String) });
+      // since=latest (#306) skips what already happened: the first line is the next event, carrying what a notice says.
+      const next = call(origin, '/api/assignments/events?since=latest', { headers: h });
+      await new Promise((r) => setTimeout(r, 50));
+      await call(origin, '/api/assignments', { method: 'POST', headers: post, body: { dossier: 'card-payments', item: 'corp-jira:PAY-103', mode: 'refine', adapter: 'codex' } });
+      expect(JSON.parse((await next).body.split('\n')[0]!)).toMatchObject({ kind: 'created', item: 'corp-jira:PAY-103', itemTitle: expect.any(String), adapter: 'codex', origin: 'person', stop: null, pending: 0, questions: 0 });
     } finally {
       await ui.close();
     }

@@ -315,6 +315,11 @@ export class AssignmentQueue {
     return () => this.listeners.delete(listener);
   }
 
+  /** The last event's sequence number: where a listener that wants only what happens next starts (#306). */
+  get latest(): number {
+    return this.seq;
+  }
+
   /** The events after a sequence number that are still kept. */
   since(seq: number): AssignmentEvent[] {
     return this.events.filter((e) => e.seq > seq);
@@ -528,7 +533,23 @@ export class AssignmentQueue {
 
   private save(r: AssignmentRecord, kind: AssignmentEvent['kind'], previous: AssignState | null, message: string) {
     this.o.keeper.save(r);
-    const event: AssignmentEvent = { seq: ++this.seq, at: this.o.now(), id: r.id, dossier: r.dossier, item: r.item, kind, state: r.state, previous, message };
+    const event: AssignmentEvent = {
+      seq: ++this.seq,
+      at: this.o.now(),
+      id: r.id,
+      dossier: r.dossier,
+      item: r.item,
+      kind,
+      state: r.state,
+      previous,
+      message,
+      itemTitle: r.itemTitle,
+      adapter: r.adapter,
+      origin: r.origin,
+      stop: r.stop?.reason ?? null,
+      pending: r.proposals.filter(pending).length,
+      questions: r.questions.length,
+    };
     this.events.push(event);
     if (this.events.length > KEEP_EVENTS) this.events.splice(0, this.events.length - KEEP_EVENTS);
     for (const l of this.listeners) {

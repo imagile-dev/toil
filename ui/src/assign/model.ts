@@ -200,6 +200,17 @@ export interface AssignmentEvent {
   state: AssignState;
   previous: AssignState | null;
   message: string;
+  /**
+   * What a notification says about it (#306), so a listener needs no second
+   * read: the item's title, the adapter, who started it, why a run stopped,
+   * and what waits on a person.
+   */
+  itemTitle?: string;
+  adapter?: AssignAdapter | null;
+  origin?: Assignment['origin'];
+  stop?: StopReason | null;
+  pending?: number;
+  questions?: number;
 }
 
 /** How assignments run: how many at once, and how long each may take. */
@@ -261,6 +272,12 @@ export interface AssignmentsApi {
   finish(id: string): Promise<Assignment>;
   /** Starts a stale, idle assignment afresh on today's instructions (#305): the new assignment, with the old one kept. */
   renew(id: string): Promise<Assignment>;
+  /**
+   * Every assignment's events from `since` on (#306), across dossiers, until
+   * the signal aborts or the stream ends; `latest` skips what already
+   * happened. Absent where nothing streams.
+   */
+  events?(since: number | 'latest', onEvent: (e: AssignmentEvent) => void, signal: AbortSignal): Promise<void>;
   /** Saves how many run at once and how long each may take; absent where they can't change (the sample). */
   saveSettings?(settings: AssignSettings): Promise<AssignSettings>;
 }
