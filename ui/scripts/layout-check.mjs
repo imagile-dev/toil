@@ -248,7 +248,7 @@ function states(route, width) {
     // times, in case something still closing takes it back anyway.
     // Not on the dashboard, whose Assign dialog and Ask view, opened at the width before, can still be handing focus
     // back on CI's runner when this one starts; its tooltip is the same component, and its popover is checked below.
-    if (route !== '#/dossier/card-payments') out.push({ name: 'help-tooltip', key: 'Tab', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); for (let i = 0; i < 3; i++) { b.blur(); b.focus(); const deadline = Date.now() + 2000; while (!document.querySelector('.help-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.help-tooltip') && document.activeElement === b) return 1; } return 0; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
+    out.push({ name: 'help-tooltip', key: 'Tab', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); let seen = 0, scrolls = 0; const count = () => scrolls++; addEventListener('scroll', count, true); const watch = new MutationObserver(() => { if (document.querySelector('.help-tooltip')) seen++; }); watch.observe(document.body, { childList: true, subtree: true }); try { for (let i = 0; i < 3; i++) { b.blur(); b.focus(); const deadline = Date.now() + 2000; while (!document.querySelector('.help-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.help-tooltip') && document.activeElement === b) return 1; } } finally { watch.disconnect(); removeEventListener('scroll', count, true); } const a = document.activeElement; return 'no tooltip after three focuses: focus on ' + (a ? a.tagName.toLowerCase() + (a.className ? '.' + String(a.className).split(' ').join('.') : '') + ' ' + (a.getAttribute('aria-label') ?? '') : 'nothing') + ', tooltip seen ' + seen + ' time(s), ' + scrolls + ' scroll event(s), ' + document.querySelectorAll('[role=dialog]').length + ' dialog(s) open'; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
     out.push({ name: 'help-popover', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); b.click(); return await ${waitFor('.help-popover [data-read-more]')}; })()`, undo: 'Escape' });
   }
   if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
@@ -401,6 +401,8 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
         const opened = await page.evaluate(state.setup);
         if (opened === -1) problems.push(`${where} (${state.name}): no Menu button to open`);
         else if (!opened) problems.push(`${where} (${state.name}): nothing to open; no element matching the selector showed within 5s`);
+        // A state may say why it opened nothing, as text, rather than leave the generic line.
+        else if (typeof opened === 'string') problems.push(`${where} (${state.name}): ${opened}`);
         await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
         await shoot(`${slug}__${state.name}`);
         record(state.name, await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)})`));
