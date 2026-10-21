@@ -36,6 +36,7 @@
 /* global document, window, getComputedStyle -- inspect() and covered() run in the page */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
+import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { findChrome, openBrowser } from './chrome.mjs';
@@ -238,6 +239,11 @@ function states(route, width) {
   // Feedback is in the header, or in its Menu when the header folds, which it does below 1024px or when its row is full.
   if (route === '#/') out.push({ name: 'feedback', setup: inMenu('button.feedback-open'), undo: 'Escape' });
   if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
+  // Set up this repo (#333): the sample's plan, with its table, check problems and the form for the missing connection.
+  if (route === '#/settings/dossiers') {
+    const plan = `document.querySelector('[aria-labelledby="repo-setup"] .shown')`;
+    out.push({ name: 'repo-setup', setup: `(async () => { const n = await ${clickAll('form.change button', '/^Check this repo$/')}; await new Promise((r) => setTimeout(r, 300)); ${plan}?.scrollIntoView({ block: 'start' }); return n; })()`, undoJs: 'window.scrollTo(0, 0)' });
+  }
   if (/^#\/dossier\/[^/]+$/.test(route) && narrow) out.push({ name: 'ask-open', setup: clickAll('.ask--sheet .ask-head button', '/Open/'), undoJs: clickAll('.ask--sheet .ask-head button', '/Hide/') });
   // The (i) beside the starter questions (#283): on a narrow screen the sheet opens first, then the popover.
   if (/^#\/dossier\/[^/]+$/.test(route)) {
@@ -275,76 +281,111 @@ async function axeRun(page, source) {
   return page.evaluate(`axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'] }, rules: { 'label-content-name-mismatch': { enabled: true } }, resultTypes: ['violations'] }).then((r) => r.violations.map((v) => ({ id: v.id, impact: v.impact, nodes: v.nodes.map((n) => n.target.join(' ')) })))`);
 }
 
+/** How many theme schemes run at once, each in its own Chrome: LAYOUT_WORKERS, or one per core. */
+export function layoutWorkers(runs) {
+  const asked = Number(process.env.LAYOUT_WORKERS);
+  const want = Number.isInteger(asked) && asked > 0 ? asked : availableParallelism();
+  return Math.max(1, Math.min(want, runs.length));
+}
+
 /**
  * Runs the check. `urlFor(theme, scheme, route)` is the address of one view
  * in one theme. Resolves with the problems that fail the run, the report-only
  * axe findings, and a count of what was checked.
+ *
+ * The theme schemes are shared among `workers` headless Chromes, so they run
+ * side by side (#376): one after another took 16 to 18 minutes of a CI job.
+ * Each scheme's findings are kept apart and joined in scheme order, so the
+ * report reads the same however many workers ran.
  */
-export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES, widths = WIDTHS, shots = null, motion = 'reduce', log = () => {} }) {
+export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES, widths = WIDTHS, shots = null, motion = 'reduce', log = () => {}, workers = layoutWorkers(runs) }) {
   const chrome = findChrome();
   if (!chrome) throw new Error('The layout check needs Chrome, Edge or Chromium, and found none. Install one, or set CHROME_PATH to it.');
   const axeSource = readFileSync(createRequire(join(ui, 'package.json')).resolve('axe-core/axe.min.js'), 'utf8');
-  const { page, close } = await openBrowser(chrome);
+  if (shots) mkdirSync(shots, { recursive: true });
+  const results = new Array(runs.length);
+  let next = 0;
+  // The first failure stops the hand-out, and every worker closes its Chrome before it is rethrown,
+  // so none is left running against a server the caller is about to stop.
+  let failed = null;
+  const worker = async () => {
+    let browser = null;
+    try {
+      browser = await openBrowser(chrome);
+      await browser.page.media([{ name: 'prefers-reduced-motion', value: motion }]);
+      while (!failed && next < runs.length) {
+        const i = next++;
+        results[i] = await checkRun({ page: browser.page, run: runs[i], urlFor, routes, widths, shots, axeSource, log });
+      }
+    } catch (e) {
+      failed ??= e;
+    } finally {
+      await browser?.close();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(workers, runs.length)) }, worker));
+  if (failed) throw failed;
+  return {
+    problems: results.flatMap((r) => r.problems),
+    reported: results.flatMap((r) => r.reported),
+    checked: results.reduce((n, r) => n + r.checked, 0),
+  };
+}
+
+/** One theme scheme, every route and width, in one Chrome tab. */
+async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, log }) {
   const problems = [];
   const reported = [];
   let checked = 0;
-  if (shots) mkdirSync(shots, { recursive: true });
   const shoot = async (name) => shots && writeFileSync(join(shots, `${name}.png`), await page.screenshot());
-  try {
-    await page.media([{ name: 'prefers-reduced-motion', value: motion }]);
-    for (const run of runs) {
-      const label = `${run.theme}${run.theme === 'plain' ? ` ${run.scheme}` : ''}`;
-      for (const route of routes) {
-        await page.size(widths[0]);
-        await page.goto(urlFor(run.theme, run.scheme, route));
-        await page.evaluate(SETTLED);
-        const applied = await page.evaluate('document.documentElement.dataset.theme');
-        if (applied !== run.theme) problems.push(`${label} ${route}: the page showed the ${applied} theme instead`);
-        for (const width of widths) {
-          await page.size(width);
-          await page.evaluate(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 150))))`);
-          const where = `${label} ${route} at ${width}px`;
-          const slug = `${run.theme}-${run.scheme}__${route.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'home'}__${width}`;
-          const record = (state, findings) => {
-            for (const f of findings) problems.push(`${where}${state ? ` (${state})` : ''}: ${f.kind} at ${f.at}: ${f.detail}`);
-          };
-          await shoot(slug);
-          // Every <details> open, since long values hide inside them.
-          await page.evaluate(`document.querySelectorAll('details').forEach((d) => (d.open = true))`);
-          await page.evaluate(`new Promise((r) => setTimeout(r, 100))`);
-          record('', await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)})`));
-          record('', await page.evaluate(`(${covered})()`));
-          checked++;
-          const violations = await axeRun(page, axeSource);
-          for (const v of violations) {
-            const line = `${where}: axe ${v.id} (${v.impact}) at ${v.nodes.slice(0, 3).join(', ')}${v.nodes.length > 3 ? ` and ${v.nodes.length - 3} more` : ''}`;
-            (run.strict ? problems : reported).push(line);
-          }
-          for (const state of states(route, width)) {
-            // A state that opens nothing checks nothing, so it's a problem, never a quiet pass. clickAll waits for
-            // its element to show, and an item in the compact header's Menu is looked for once the Menu is open (#289).
-            const opened = await page.evaluate(state.setup);
-            if (opened === -1) problems.push(`${where} (${state.name}): no Menu button to open`);
-            else if (!opened) problems.push(`${where} (${state.name}): nothing to open; no element matching the selector showed within 5s`);
-            await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
-            await shoot(`${slug}__${state.name}`);
-            record(state.name, await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)})`));
-            // An open sheet covers the page on purpose, like a dialog; only the page's own states must clear the dock.
-            if (state.name === 'shown') record(state.name, await page.evaluate(`(${covered})()`));
-            const stateViolations = run.strict && state.name !== 'shown' ? await axeRun(page, axeSource) : [];
-            for (const v of stateViolations) problems.push(`${where} (${state.name}): axe ${v.id} (${v.impact}) at ${v.nodes.slice(0, 3).join(', ')}`);
-            checked++;
-            if (state.undo) await page.key(state.undo);
-            if (state.undoJs) await page.evaluate(state.undoJs);
-            await page.evaluate(`new Promise((r) => setTimeout(r, 200))`);
-          }
-          if (page.errors.length) problems.push(`${where}: the page threw ${page.errors.splice(0).join('; ')}`);
-        }
-        log(`${label} ${route}: ${problems.length} problem(s) so far`);
+  const label = `${run.theme}${run.theme === 'plain' ? ` ${run.scheme}` : ''}`;
+  for (const route of routes) {
+    await page.size(widths[0]);
+    await page.goto(urlFor(run.theme, run.scheme, route));
+    await page.evaluate(SETTLED);
+    const applied = await page.evaluate('document.documentElement.dataset.theme');
+    if (applied !== run.theme) problems.push(`${label} ${route}: the page showed the ${applied} theme instead`);
+    for (const width of widths) {
+      await page.size(width);
+      await page.evaluate(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 150))))`);
+      const where = `${label} ${route} at ${width}px`;
+      const slug = `${run.theme}-${run.scheme}__${route.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'home'}__${width}`;
+      const record = (state, findings) => {
+        for (const f of findings) problems.push(`${where}${state ? ` (${state})` : ''}: ${f.kind} at ${f.at}: ${f.detail}`);
+      };
+      await shoot(slug);
+      // Every <details> open, since long values hide inside them.
+      await page.evaluate(`document.querySelectorAll('details').forEach((d) => (d.open = true))`);
+      await page.evaluate(`new Promise((r) => setTimeout(r, 100))`);
+      record('', await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)})`));
+      record('', await page.evaluate(`(${covered})()`));
+      checked++;
+      const violations = await axeRun(page, axeSource);
+      for (const v of violations) {
+        const line = `${where}: axe ${v.id} (${v.impact}) at ${v.nodes.slice(0, 3).join(', ')}${v.nodes.length > 3 ? ` and ${v.nodes.length - 3} more` : ''}`;
+        (run.strict ? problems : reported).push(line);
       }
+      for (const state of states(route, width)) {
+        // A state that opens nothing checks nothing, so it's a problem, never a quiet pass. clickAll waits for
+        // its element to show, and an item in the compact header's Menu is looked for once the Menu is open (#289).
+        const opened = await page.evaluate(state.setup);
+        if (opened === -1) problems.push(`${where} (${state.name}): no Menu button to open`);
+        else if (!opened) problems.push(`${where} (${state.name}): nothing to open; no element matching the selector showed within 5s`);
+        await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
+        await shoot(`${slug}__${state.name}`);
+        record(state.name, await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)})`));
+        // An open sheet covers the page on purpose, like a dialog; only the page's own states must clear the dock.
+        if (state.name === 'shown') record(state.name, await page.evaluate(`(${covered})()`));
+        const stateViolations = run.strict && state.name !== 'shown' ? await axeRun(page, axeSource) : [];
+        for (const v of stateViolations) problems.push(`${where} (${state.name}): axe ${v.id} (${v.impact}) at ${v.nodes.slice(0, 3).join(', ')}`);
+        checked++;
+        if (state.undo) await page.key(state.undo);
+        if (state.undoJs) await page.evaluate(state.undoJs);
+        await page.evaluate(`new Promise((r) => setTimeout(r, 200))`);
+      }
+      if (page.errors.length) problems.push(`${where}: the page threw ${page.errors.splice(0).join('; ')}`);
     }
-  } finally {
-    await close();
+    log(`${label} ${route}: ${problems.length} problem(s) so far`);
   }
   return { problems, reported, checked };
 }

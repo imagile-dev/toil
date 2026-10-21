@@ -125,7 +125,10 @@ export interface Registry {
  * `confirm-name` (type the connection's name to turn writes on), `unwrap:<key>`
  * (the secret for `<key>` is in quotes or starts with `Bearer ` or `token `:
  * `y` stores it without them, `n` as entered; `checkSecret` says which before
- * the call, so a host can ask its person first) and `consent`
+ * the call, so a host can ask its person first), for `dossiers onboard`
+ * `create:<section>` (add a connection that dossier section needs: `y` or `n`),
+ * `name:<section>` (the new connection's name) and `pin:<section>` (which
+ * matching connection the person's own copy uses), and `consent`
  * (`feedback`: send the report and disclaimer the question shows to Imagile
  * LLC, `yes` or `no`; only the person's own yes may be passed on).
  */
@@ -211,10 +214,10 @@ const byName = new Map(served.map((def) => [commandName(def), def]));
  * CLI-only commands (a shell alias, a dossier's or a marketplace's removal)
  * and every delete stay on the CLI.
  */
-const PERSON_COMMANDS = new Set(['connections add', 'connections login', 'connections remove', 'connections writes', 'connections default', 'feedback']);
+const PERSON_COMMANDS = new Set(['connections add', 'connections login', 'connections remove', 'connections writes', 'connections default', 'dossiers onboard', 'feedback']);
 const forPerson: AnyCommand[] = commands.filter((def) => PERSON_COMMANDS.has(commandName(def)));
 const personByName = new Map(forPerson.map((def) => [commandName(def), def]));
-const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context) }));
+const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) }));
 
 const info = (def: AnyCommand): CommandInfo => ({
   name: commandName(def),

@@ -28,7 +28,7 @@ export * from './api.js';
 
 /** Runs toil as the CLI on this process: argv, stdio, Ctrl+C, the exit code. Only dist/toil.js calls it. */
 export async function main(): Promise<void> {
-  const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context) }));
+  const areaInfo: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) }));
 
   // Ctrl-C cancels the command in flight; execute() turns it into a CANCELLED
   // envelope. Installing this listener switches off Node's own exit on SIGINT,
@@ -124,7 +124,7 @@ export async function main(): Promise<void> {
       cwd: process.cwd(),
       home: homedir(),
       areas: areaInfo,
-      catalog: areas.map((a) => ({ name: a.name, description: a.description, signsIn: a.secrets.length > 0, live: Boolean(a.probe && a.request), configurable: Object.keys(a.connection.shape).length > 0, context: Object.keys(a.context), checksDossier: commands.some((def) => def.path[0] === a.name && def.path[1] === 'check-dossier'), commands: commandSummaries(a.name, commands) })),
+      catalog: areas.map((a) => ({ name: a.name, description: a.description, signsIn: a.secrets.length > 0, live: Boolean(a.probe && a.request), configurable: Object.keys(a.connection.shape).length > 0, context: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}), checksDossier: commands.some((def) => def.path[0] === a.name && def.path[1] === 'check-dossier'), commands: commandSummaries(a.name, commands) })),
       mcpAreas: [...new Set(commands.filter((def) => servedOverMcp(def) && def.kind !== 'standalone').map(areaOf))].sort(),
       script: process.argv[1],
     });

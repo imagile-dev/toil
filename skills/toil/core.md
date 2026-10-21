@@ -268,9 +268,18 @@ resolves to and why), `toil dossiers show [name]` (per area: the connection and 
 whether writes are on, the environment and the inputs), `toil dossiers list`, and
 `toil dossiers check [name]`, which checks one locally and contacts no service.
 
+In a repository that already has one checked in, `toil dossiers onboard` sets you
+up: for each area it finds your connection on the dossier's host, offers to add one
+you lack (asking for the token on the terminal), asks which to pin in your own copy
+when several match, then runs `dossiers check` and one test read per connection. It
+is CLI only; with no terminal, or `--plan`, it adds no connection and says what each
+area needs.
+
 To build one for a product: `toil repos scan` lists the git repositories under the
 workspace. Then:
-- `toil dossiers init <name>` creates the dossier.
+- `toil dossiers init <name>` creates the dossier; `--shared` creates it in the
+  repository's `.toil/dossiers/` for the team, and a `--connection` linked into a
+  shared dossier is recorded as that connection's `host`.
 - `toil dossiers add-repo <name> <folder|remote>` adds each repository.
 - `toil dossiers link <name> <area> --host <host> --set project=PAY [--for-repo <repo>]`
   says which connection an area uses and the keys it supplies.
@@ -361,16 +370,19 @@ const envelope = await execute('jira issue search', { jql: 'project = PAY', limi
 - **`person`** is for a program with its own interface for a person, such as Toil
   UI's settings pages. It is `{ ask(question) }`, and with it `execute()` also runs
   the connections commands a person runs on a terminal: `connections add`, `login`,
-  `remove`, `writes` and `default`, and `feedback` (`registry.personCommands`). Each
-  question arrives as `{ id, text, secret, fallback }`, and `ask` returns what the
-  person typed. The `id` is one of `area`, `setting:<key>`, `secret:<key>`, `confirm`
-  (`y` saves what they reviewed), `confirm-name` (the connection's name, typed to
-  turn writes on), `unwrap:<key>` (the secret is in quotes or starts with `Bearer `
-  or `token `: `y` stores it without them, `n` as typed; call `checkSecret` first
-  to know whether it will be asked) or `consent` (`yes` sends
-  the feedback report and disclaimer the question shows, **Feedback**, above). A
-  secret is checked as on a terminal (`checkSecret`, below), but asked once: a
-  refused or empty required one is `INVALID_INPUT`, with the terminal's words. With `readOnly`, nothing is asked: `feedback`
+  `remove`, `writes` and `default`, `dossiers onboard`, and `feedback`
+  (`registry.personCommands`). Each question arrives as `{ id, text, secret,
+  fallback }`, and `ask` returns what the person typed. The `id` is one of `area`,
+  `setting:<key>`, `secret:<key>`, `confirm` (`y` saves what they reviewed),
+  `confirm-name` (the connection's name, typed to turn writes on), `unwrap:<key>`
+  (the secret is in quotes or starts with `Bearer ` or `token `: `y` stores it
+  without them, `n` as typed; call `checkSecret` first to know whether it will be
+  asked), for `dossiers onboard` `create:<section>` (`y` adds the connection that
+  section needs), `name:<section>` (its name) and `pin:<section>` (the matching
+  connection their own copy uses), or `consent` (`yes` sends the feedback report and
+  disclaimer the question shows, **Feedback**, above). A secret is checked as on a
+  terminal (`checkSecret`, below), but asked once: a refused or empty required one is
+  `INVALID_INPUT`, with the terminal's words. With `readOnly`, nothing is asked: `feedback`
   only previews. Return `undefined` for a question they weren't asked, and the
   command saves or sends nothing (`CANCELLED`). A secret goes from the answer to the OS
   credential store: it is never in the input, the envelope or the audit log. The

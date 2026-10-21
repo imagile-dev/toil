@@ -102,6 +102,8 @@ export interface DossierFile {
 export interface DossierArea {
   name: string;
   context: readonly string[];
+  /** Hosts people know the service by, to the API base URL its connections use (`defineArea({ siteApis })`). */
+  siteApis?: Readonly<Record<string, string>>;
 }
 
 /** Keys of a section that core reads itself; every other key is a context input or reference data. */
@@ -434,14 +436,17 @@ function readPeople(
 /**
  * Whether a connection is on a dossier host selector (`host` or `host:port`): its
  * base URL's host, with the scheme's default port filled in, or its `host` setting.
+ * A selector with no port also matches a connection on the API host the area
+ * names for it (`siteApis`: `github.com` matches a base URL on api.github.com).
  * Exported so the menu asks about writes on exactly the connections a call would pick.
  */
-export function hostMatches(settings: Record<string, unknown>, selector: string): boolean {
+export function hostMatches(settings: Record<string, unknown>, selector: string, siteApis?: Readonly<Record<string, string>>): boolean {
   const [host, port] = selector.toLowerCase().split(':');
   if (typeof settings.baseUrl === 'string') {
     try {
       const url = new URL(settings.baseUrl);
       const actual = url.port || (url.protocol === 'https:' ? '443' : url.protocol === 'http:' ? '80' : '');
+      if (port === undefined && host !== undefined && Object.hasOwn(siteApis ?? {}, host) && apiHostOf(siteApis![host]!) === url.host.toLowerCase()) return true;
       return url.hostname.toLowerCase() === host && (port === undefined || actual === port);
     } catch {
       return false;
@@ -449,6 +454,36 @@ export function hostMatches(settings: Record<string, unknown>, selector: string)
   }
   if (typeof settings.host === 'string') return settings.host.toLowerCase() === host && (port === undefined || String(settings.port ?? '') === port);
   return false;
+}
+
+function apiHostOf(url: string): string | undefined {
+  try {
+    return new URL(url).host.toLowerCase();
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A connection's host as a shareable selector: its base URL's host (with a port
+ * that isn't the scheme's default), or its `host` setting. A base URL on an API
+ * host the area names (`siteApis`) gives the host people know instead, so a
+ * GitHub connection on api.github.com is shared as `github.com`.
+ */
+export function selectorHost(settings: Record<string, unknown> | undefined, siteApis?: Readonly<Record<string, string>>): string | undefined {
+  if (!settings) return undefined;
+  if (typeof settings.baseUrl === 'string') {
+    let host: string;
+    try {
+      host = new URL(settings.baseUrl).host.toLowerCase();
+    } catch {
+      return undefined;
+    }
+    const site = Object.entries(siteApis ?? {}).find(([, url]) => apiHostOf(url) === host);
+    return site ? site[0] : host;
+  }
+  if (typeof settings.host === 'string') return settings.host.toLowerCase() + (settings.port !== undefined ? `:${String(settings.port)}` : '');
+  return undefined;
 }
 
 /** The dossier as it's written to a file and shown: remotes without userinfo, every section and reference key kept. */
@@ -709,7 +744,7 @@ export interface DossierCatalog {
   /** The same, as what a call's context resolution needs. */
   place(request: { dossier?: string | undefined; cwd?: string | undefined }): Place;
   /** The connection `area` uses under `dossier`'s binding, without a call: for `dossiers show` and `check`. */
-  binding(dossier: Dossier, area: string, env: string | undefined): { connection?: string; host?: string; section?: Section };
+  binding(dossier: Dossier, area: string, env: string | undefined, config?: ResolvedConfig): { connection?: string; host?: string; section?: Section };
   /** Where your own dossier named `name` lives: `~/.toil/dossiers/<name>.json`. */
   userFile(name: string): string;
   /** The lookup a call would get from `dossier`, as if the folder were its repo `repo`: for judging a change before it's saved. */
@@ -1023,8 +1058,8 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
   };
 
   /** The reader's connection that a host selector picks. Never a fallback to the default: that could point the dossier somewhere its author didn't mean. */
-  const byHost = (dossier: Dossier, area: string, host: string): string => {
-    const matches = connectionsOf(o.config, area).filter((name) => hostMatches(o.config.connections[name]!, host));
+  const byHost = (dossier: Dossier, area: string, host: string, config: ResolvedConfig = o.config): string => {
+    const matches = connectionsOf(config, area).filter((name) => hostMatches(config.connections[name]!, host, areaNames.get(area)?.siteApis));
     if (matches.length === 1) return matches[0]!;
     if (matches.length === 0) {
       throw new ToilError('NOT_CONFIGURED', `Dossier ${dossier.name} uses the ${area} connection on ${host}, and you have no ${area} connection with that host.`, {
@@ -1039,10 +1074,10 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
   const sectionsFor = (dossier: Dossier, area: string, env: string | undefined): Section[] =>
     [env === undefined ? undefined : ownValue(ownValue(dossier.environments, env), area), ownValue(dossier.sections, area)].filter((s): s is Section => s !== undefined);
 
-  const binding: DossierCatalog['binding'] = (dossier, area, env) => {
+  const binding: DossierCatalog['binding'] = (dossier, area, env, config) => {
     for (const section of sectionsFor(dossier, area, env)) {
       if (typeof section.connection === 'string') return { connection: section.connection, section };
-      if (typeof section.host === 'string') return { connection: byHost(dossier, area, section.host), host: section.host, section };
+      if (typeof section.host === 'string') return { connection: byHost(dossier, area, section.host, config), host: section.host, section };
     }
     return {};
   };
