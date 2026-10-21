@@ -124,19 +124,29 @@ A dossier opens on its **Overview**, in a frame all of its pages share:
   **Agents** button below that: the tracker's inbox, then the dossier's assignments
   in three groups (those that need you, those working, and those gone stale), with the
   finished ones under **Earlier**; then **Renew all stale**, the **Limits**, and this
-  session's recent analyses (Assigning work to an agent, below).
-- **Analyses** lists every Analyze pulse check asked in this session, newest first,
-  with who answered and what each cites. They are the chat's, so a reload clears them
-  as it clears the chat.
+  dossier's three newest analyses, each linking to it (Assigning work to an agent, below).
+- **Analyses** lists every Analyze kept for the dossier, newest first: when it was made,
+  the adapter and model that wrote it, its one-line recommendation, and what changed
+  since the one before (items newly blocked or blocked by something new, blockers
+  cleared, points moved on an item or in the sprint, items newly cited or no longer
+  cited, a new recommendation). What changed is worked out by code, from a snapshot of
+  the dossier's items each analysis keeps, never by asking the agent. **Open** reads one
+  again at its own address (`/analyses/<id>`), top-down like the chat, with its
+  suggested changes and what it used. The server keeps them in the cache (Sync and the
+  cache, below), so they outlast a reload and a restart; with `--sample`,
+  card-payments starts with two, kept in memory for the run.
 
 ### The Overview
 
 The Overview puts the answer first, then the reasons, then the evidence, and fits a
 1440 by 900 screen without scrolling:
 
-1. **The recommendation:** the one thing to do first. It is worked out by code from
-   what the dossier already holds, with no agent call (`ui/src/model/recommend.ts`),
-   and says what it read.
+1. **The recommendation:** the one thing to do first. When the dossier has an
+   analysis, it is the latest Analyze's recommendation, with when it was made, who
+   wrote it and a link to it. Without one (or when the latest had no Recommendation
+   line), it is worked out by code from what the dossier already holds, with no agent
+   call (`ui/src/model/recommend.ts`), and says what it read. The card says which of
+   the two it is. The key issues under it are always the code's.
 2. **Three key issues**, each with its tickets as chips, every one showing its key,
    title and status, and a link to the tab that has the rest.
 3. **The metrics as sparklines:** burn-up, throughput, cycle time, aging work in
@@ -483,9 +493,12 @@ requests, builds and deployments that name them.
   UI runs, its write-ahead log (`toil-ui.db-wal` and `toil-ui.db-shm`) sits beside
   it, and closing folds the log back into the file. It holds
   ticket content, so it stays on this machine and is readable by your account
-  only.
+  only. The analyses (#395) are kept in the same file, the newest 100 per dossier,
+  and a sync never rewrites them.
 - **For how long.** Anything not synced again within the retention period (30
-  days by default) is deleted, at start and after each sync.
+  days by default) is deleted, at start and after each sync. An analysis goes once
+  it is older than the retention period, and with its dossier when toil no longer
+  has it.
 - **Wiping it.** **Wipe the cache** in the Sync panel deletes it after asking
   first. `toil-ui wipe` does the same from a terminal, once `toil-ui` has
   stopped: a running Toil UI holds `toil-ui.lock` in the data folder, and the
@@ -524,7 +537,16 @@ conversation stays, for the rest of the dossier's pages, until you reload.
   (from the worklog), who is on what, what is blocked or stuck in review, the sprint's
   health and risks, and anything that looks off, such as a ticket marked done while its
   pull request is open. Every line cites its items, and follow-up questions continue
-  from it.
+  from it. It answers top-down: a **Recommendation** line first, then the **Issues**
+  behind it (three at most), then the **Evidence**, which stays folded until you open
+  it. An answer that doesn't start with a Recommendation line is shown as it came, and
+  says so. Each whole Analyze is kept in the dossier's **Analyses** tab, and the
+  answer links to it.
+- **Citations are chips**: in every answer, each `[[id]]` is a chip with the item's
+  key, title and status, linking to its page (a pull request to its host). Hovering or
+  focusing one shows its type, assignee, estimate, sprint and last update. An id the
+  dossier doesn't hold stays the bare id, marked, and the server's check above the
+  answer still names any id its tools never returned.
 - **Each question carries the chat so far**: its last 8 questions and answers, each
   answer cut to 1,500 characters. An item an earlier answer named is still checked
   against what the tools return for the new question.
@@ -971,7 +993,12 @@ npm run verify:ui -- --no-build --starter standup
   checks that an answer arrived, that the server verified every `[[id]]` it cites,
   that its proposals parsed, that nothing ran (no write in toil's audit log for the
   run), and that `codex mcp list` in Toil UI's Codex home shows only `toil_ui`. Then it
-  asks Analyze as the chat's second question. It needs the Codex CLI signed in and the
+  asks Analyze as the chat's second question, and checks the history of analyses
+  (#395): that Analyze was kept, top-down (a Recommendation line, three issues at
+  most); then it changes the dossier's WIP limit in the scratch home (`toil dossiers
+  wip-limit --replace`), asks Analyze again, checks the history lists both, newest
+  first, the second compared with the first, and puts the Overview, the Analyses tab
+  and the second analysis opened through the layout check, shot. It needs the Codex CLI signed in and the
   SDK installed in the clone (above). `--adapter copilot` or `--adapter claude` asks that
   adapter instead, held to the same checks (Codex is the reference; its MCP check is
   skipped), and `--model <id>` sets its model and fails the run when an answer or a
