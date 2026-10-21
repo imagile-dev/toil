@@ -46,8 +46,9 @@ token leaves the address bar. A reloaded page forgets its session, so open the U
 again to get back in. Each start prints a new token. Toil UI opens no browser
 itself.
 
-`toil-ui --sample` serves the sample dossiers and the scripted agent the site's
-preview uses, with nothing connected to a tracker.
+`toil-ui --sample` serves the sample dossiers and the scripted agent that
+[the site's Toil UI page](https://imagile-dev.github.io/toil/ui/) runs on, with
+nothing connected to a tracker.
 
 ## What it reads
 

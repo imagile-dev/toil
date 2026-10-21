@@ -123,7 +123,7 @@ export interface AppProps {
   config?: ConfigApi;
   /** When the data is read; sprint figures are worked out at it. The preview's is fixed. */
   now: string;
-  /** The site preview: shows the unreleased-product banner on every view. */
+  /** The site's live sample: shows the sample-data banner on every view. */
   preview: boolean;
   /** The local app's agent settings (#251), shown under Settings; the preview has none. */
   agentSettings?: AgentSettingsPanelProps;
@@ -348,7 +348,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
         <header>
           {preview && (
             <p className="banner" role="note">
-              <strong>Preview of an unreleased product.</strong> Sample data only: nothing here connects to a tracker.
+              <strong>Toil UI alpha, on sample data.</strong> Nothing here connects to a tracker.
             </p>
           )}
           <div className="top" data-one-row="" ref={top}>

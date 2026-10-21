@@ -336,7 +336,7 @@ GitHub Actions; its build tooling is out of scope.
   `ui/themes/` (CSS, JSON and assets only, built in only: each game theme's
   `lexicon` and agent `voice` are in its `theme.json`), explained in
   `ui/docs/themes.md`, which the site renders at `/docs/themes/`. Its fixture `execute()` and scripted
-  Agent are its test harness, `toil-ui --sample`, and the site's `/ui-preview/`.
+  Agent are its test harness, `toil-ui --sample`, and the app the site's showcase at `/ui/` frames.
   `ui/test/registry.test.ts` holds every call the fixture answers to the real
   registry; `npm run check:package -w ui` is its `check:pure`, and `npm run smoke
   -w ui` installs both tarballs, opens it, and holds every view in every theme at

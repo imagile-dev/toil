@@ -6,10 +6,9 @@ import { url, repoUrl } from '../../lib/url';
 
 // Toil UI's themes (#283): ui/docs/themes.md, rendered, like Toil UI's README
 // on /docs/ui/. It belongs to the UI's own package rather than the toil skill,
-// since an agent driving toil has no theme to pick. Its screenshots are
-// site/src/figures/ui-*.html, placed with `<!-- figure: <name> -->` lines
-// (src/lib/skill-pages.mjs); their styles are here, so they load on this page
-// only. Five themes, one style sheet per page, no committee.
+// since an agent driving toil has no theme to pick. The themes themselves, live,
+// are on /ui/ (#374), which replaced this page's screenshots. Five themes, one
+// style sheet per page, no committee.
 ---
 
 <Layout title="Themes" description={frontmatter.description}>
@@ -41,41 +40,11 @@ import { url, repoUrl } from '../../lib/url';
   .doc > * { min-width: 0; }
   .doc__body { display: grid; gap: var(--space-lg); }
   .doc__body > * { min-width: 0; }
-  /* Prose keeps its measure; the screenshots and the prompt get the container's width. */
-  :global(.skill-doc > :not(.tx):not(pre):not(.table-scroll)) { max-width: 72ch; }
+  :global(.skill-doc > :not(pre):not(.table-scroll)) { max-width: 72ch; }
   /* The composed prompt is one long paragraph per line; it wraps here rather than scroll sideways. */
   :global(.skill-doc pre) { white-space: pre-wrap; overflow-wrap: anywhere; }
   .doc__source { margin-top: var(--space-sm); font-size: var(--text-xs); }
   .doc__source a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-muted); }
   .doc__source a:hover code { color: var(--color-accent); }
 
-  :global(.tx) {
-    margin-block: var(--space-md);
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-md);
-    background: var(--color-bg-deep);
-    padding: var(--space-xs);
-    min-width: 0;
-  }
-  @media (min-width: 760px) { :global(.tx) { padding: var(--space-sm); } }
-  :global(.tx figcaption) {
-    margin-top: var(--space-sm); padding-top: var(--space-xs);
-    border-top: 1px solid var(--color-line);
-    color: var(--color-muted); font-size: var(--text-sm);
-  }
-  :global(.tx img) { display: block; width: 100%; height: auto; border-radius: var(--radius-sm); border: 1px solid var(--color-line); }
-
-  :global(.tx-themes__grid) { display: grid; gap: var(--space-sm); grid-template-columns: 1fr; list-style: none; padding: 0; margin: 0; }
-  @media (min-width: 760px) { :global(.tx-themes__grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  :global(.tx-theme) { min-width: 0; display: grid; gap: var(--space-2xs); }
-  :global(.tx-theme__name) { margin: 0; }
-  :global(.tx-theme__name a) { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
-
-  :global(.tx-voice__pair), :global(.tx-settings__grid) { display: grid; gap: var(--space-sm); grid-template-columns: 1fr; }
-  @media (min-width: 640px) { :global(.tx-voice__pair) { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-  @media (min-width: 900px) { :global(.tx-settings__grid) { grid-template-columns: 2fr 2fr 1fr; align-items: start; } }
-  :global(.tx-voice__one), :global(.tx-settings__one) { min-width: 0; display: grid; gap: var(--space-2xs); align-content: start; }
-  :global(.tx-voice__one img) { max-width: 430px; margin-inline: auto; }
-  :global(.tx-settings__one--phone img) { max-width: 375px; margin-inline: auto; }
-  :global(.tx-voice__k) { margin: 0; font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-ink); }
 </style>

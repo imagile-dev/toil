@@ -1,0 +1,459 @@
+---
+// The Toil UI showcase (#374): the real app, framed, on the sample data its
+// tests run on, with a theme picker and a walk through its main views, then
+// what a theme changes about the agent: the prompt it's sent, the answer it
+// writes and the words around the data, all read from Toil UI's own source
+// at build time (ui/scripts/showcase.ts). The frame is the app the site
+// builds into /ui/app/ (scripts/ui-preview.mjs), so what you click is what
+// ships. A brochure that is also the product saves printing a second one.
+import Layout from '../layouts/Layout.astro';
+import { url } from '../lib/url';
+import { CHECKBOXES, DEFAULT_THEME, DOSSIER, PROPOSAL, QUESTION, SAMPLE_INSTRUCTIONS, STANDARD_ANSWER, STANDARD_PROMPT, START, THEMES, cited } from '../../../ui/scripts/showcase.ts';
+// Each game theme's own faces, at the weights its theme.css loads, so a card
+// drawn in a theme reads in its type. Imported here, they load on this page only.
+import '@fontsource/pixelify-sans/400.css';
+import '@fontsource/pixelify-sans/600.css';
+import '@fontsource/orbitron/600.css';
+import '@fontsource/exo-2/400.css';
+import '@fontsource/exo-2/600.css';
+import '@fontsource/grenze-gotisch/latin-600.css';
+import '@fontsource/eb-garamond/400.css';
+import '@fontsource/eb-garamond/600.css';
+import '@fontsource/fredoka/latin-600.css';
+
+const app = url('/ui/app/');
+const home = `#/dossier/${DOSSIER}`;
+
+/** The views the tour walks through: where each opens in the app, and what the frame does there once it loads. */
+const steps = [
+  { id: 'dossiers', label: 'Dossiers', route: '#/', act: null, title: 'Every dossier, one card each', body: 'Its sprint and burn-up, what is in progress and blocked, who is on it, and what changed since you last looked. The dossier you opened last comes first.' },
+  { id: 'dashboard', label: 'Dashboard', route: home, act: null, title: 'One dossier, one page', body: 'The sprint, what needs attention first, the board, flow, aging work and the dependency graph, side by side. The pencil beside the name edits the name and description in place.' },
+  { id: 'board', label: 'Board', route: home, act: 'board', title: 'The board, without the clutter', body: 'The sprint by status. Each card is a link to its item, and drag and drop never writes to your tracker on its own.' },
+  { id: 'ask', label: 'Ask', route: home, act: 'ask', title: 'Ask, or press Analyze', body: 'The chat takes the screen. Answers stream in under a status line that says what the agent is reading, cite every item they rest on, and suggest changes as proposal cards you apply yourself.' },
+  { id: 'switcher', label: 'Agent switcher', route: home, act: 'switcher', title: 'Pick who answers', body: 'Claude, GitHub Copilot or Codex, whichever is on your machine, for this chat only. A chat switched mid-way carries over. The sample answers with a scripted preview.' },
+  { id: 'ticket', label: 'Ticket the work', route: home, act: 'ticket', title: 'Work with no ticket gets one', body: 'Ask for work that no ticket covers and the chat says so, lists the open items closest to it, and offers a sub-task or a new ticket as a proposal.' },
+  { id: 'item', label: 'Item', route: `${home}/item/${encodeURIComponent('corp-jira:PAY-101')}`, act: null, title: 'Every item has a page', body: 'Its status and history, what it blocks, its pull requests and builds, and where it is deployed.' },
+  { id: 'standup', label: 'Stand-up', route: `${home}/worklog/standup`, act: null, title: 'The stand-up, written from the worklog', body: 'Each person: done, in progress, blocked and next, every line numbered so the write-up can cite it.' },
+  { id: 'worklog', label: 'Worklog', route: `${home}/worklog`, act: null, title: 'What happened, day by day', body: 'What moved, merged, failed or recovered, what the agents did, and your own notes, kept on your machine.' },
+  { id: 'settings', label: 'Theme settings', route: '#/settings/toil', act: null, title: 'How far a theme goes', body: 'The theme picker and the checkboxes for wording, voice and particles, kept in this browser and never in toil\'s config.' },
+];
+const firstStep = 'dashboard';
+const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
+---
+
+<Layout title="Toil UI" description="Toil UI, live: one dashboard per dossier, a chat that cites what it reads, and five themes that change how it looks and how its agent talks. Running on sample data.">
+  <div class="uix" data-uix data-question={QUESTION} data-theme={DEFAULT_THEME} data-voice="on" data-wording="on">
+    <section class="uix-hero grid-ground">
+      <div class="uix-hero__glow" aria-hidden="true"></div>
+      <div class="container uix-hero__inner">
+        <p class="eyebrow"><b>Toil UI</b> · Alpha</p>
+        <h1><span class="wordmark">toil</span> <span class="uix-sticker" aria-hidden="true">UI</span><span class="visually-hidden">UI</span></h1>
+        <p class="uix-hero__lead">Your dossiers on one screen: the sprint, the board, pull requests, builds and deployments, and a chat that cites every item it reads. Five themes change how it looks and how its agent talks. Below is the real app, on sample data.</p>
+        <div class="uix-start">
+          <pre class="uix-start__code" tabindex="0" role="region" aria-label="Start Toil UI"><code><span aria-hidden="true">$ </span>{START}</code></pre>
+          <p class="uix-start__note">Node 24.14 or later. It runs on your machine, reads through toil with your own connections, and changes nothing unless you ask. Add <code>--sample</code> for this page's data.</p>
+        </div>
+        <div class="uix-hero__actions">
+          <a class="btn btn--primary" href="#live">Try it below</a>
+          <a class="btn btn--ghost" href={url('/docs/ui/')}>Read the docs</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section--tight uix-live" id="live" aria-labelledby="live-title">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">The real app, on sample data</p>
+          <h2 id="live-title">Take it for a spin.</h2>
+          <p>Pick a theme and a view. Everything in the frame is Toil UI itself, running on its sample dossiers and a scripted agent, so nothing here reaches a tracker.</p>
+        </div>
+
+        <fieldset class="uix-themes">
+          <legend>Theme</legend>
+          <div class="uix-themes__list">
+            {THEMES.map((t) => (
+              <label class="uix-theme">
+                <input type="radio" name="uix-theme" value={t.name} checked={t.name === DEFAULT_THEME} data-theme-pick />
+                <span class="uix-theme__swatch" aria-hidden="true">{t.swatch.map((c) => <i style={`background:${c}`}></i>)}</span>
+                <span>{t.label}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        {THEMES.map((t) => <p class="uix-theme__about" data-for-theme={t.name} hidden={t.name !== DEFAULT_THEME}>{t.description}</p>)}
+
+        <div class="uix-tour">
+          <nav class="uix-steps" aria-label="Views to show">
+            <ul>
+              {steps.map((s) => (
+                <li><button type="button" class="uix-step" data-step={s.id} data-route={s.route} data-act={s.act ?? ''} aria-pressed={s.id === firstStep ? 'true' : 'false'}>{s.label}</button></li>
+              ))}
+            </ul>
+          </nav>
+          <div class="uix-caption" aria-live="polite">
+            {steps.map((s) => (
+              <div data-caption={s.id} hidden={s.id !== firstStep}>
+                <h3>{s.title}</h3>
+                <p>{s.body}</p>
+              </div>
+            ))}
+          </div>
+          <div class="uix-window">
+            <div class="uix-window__bar">
+              <span class="uix-window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <span class="uix-window__title">Toil UI · sample data</span>
+              <a class="uix-window__open" href={`${app}?theme=${DEFAULT_THEME}${home}`} data-open-app target="_blank" rel="noopener">Open full screen</a>
+            </div>
+            <div class="uix-frame-box" data-frame-box><iframe class="uix-frame" title="Toil UI, running on sample data" src={`${app}?theme=${DEFAULT_THEME}${home}`} data-app={app} data-frame></iframe></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section--rule uix-voice" id="voice" aria-labelledby="voice-title">
+      <div class="container">
+        <div class="section-head">
+          <p class="eyebrow">Themes go deeper than colour</p>
+          <h2 id="voice-title">Same question, a different voice.</h2>
+          <p>A game theme changes the words around the data and the voice the agent answers in. The facts, the citations and the proposal stay exactly as they were. Everything below is read from Toil UI's source when this site is built.</p>
+        </div>
+
+        <div class="uix-voice__controls">
+          <fieldset class="uix-themes">
+            <legend>Theme</legend>
+            <div class="uix-themes__list">
+              {THEMES.map((t) => (
+                <label class="uix-theme">
+                  <input type="radio" name="uix-theme-voice" value={t.name} checked={t.name === DEFAULT_THEME} data-theme-pick />
+                  <span class="uix-theme__swatch" aria-hidden="true">{t.swatch.map((c) => <i style={`background:${c}`}></i>)}</span>
+                  <span>{t.label}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <fieldset class="uix-checks">
+            <legend>Settings, General</legend>
+            {CHECKBOXES.map((c) => (
+              <label class="uix-check">
+                <input type="checkbox" checked data-check={c.name === 'Themed wording' ? 'wording' : 'voice'} />
+                <span><b>{c.name}</b> <span class="uix-check__off">Off: {c.off.charAt(0).toLowerCase() + c.off.slice(1)}.</span></span>
+              </label>
+            ))}
+          </fieldset>
+        </div>
+
+        <h3 class="uix-sub">The answer</h3>
+        <div class="uix-pair">
+          <article class="uix-card uix-card--standard" aria-labelledby="ans-std">
+            <p class="uix-card__k" id="ans-std">Voice off, or Plain</p>
+            <p class="uix-q">{QUESTION}</p>
+            <div class="uix-a">{STANDARD_ANSWER.map((p) => <p set:html={cited(p)} />)}</div>
+            <p class="uix-proposal"><span>Proposal</span> {PROPOSAL}</p>
+          </article>
+          {THEMES.map((t) => (
+            <article class="uix-card uix-card--themed" style={t.tokens} data-for-theme={t.name} hidden={t.name !== DEFAULT_THEME} aria-labelledby={`ans-${t.name}`}>
+              <p class="uix-card__k" id={`ans-${t.name}`}>{t.label}{t.voice && <><span data-voice-on> with its voice on</span><span data-voice-off> with the voice off</span></>}</p>
+              <p class="uix-q">{QUESTION}</p>
+              {t.answer ? (
+                <>
+                  <div class="uix-a" data-voice-on>{t.answer.map((p) => <p set:html={cited(p)} />)}</div>
+                  <div class="uix-a" data-voice-off>{STANDARD_ANSWER.map((p) => <p set:html={cited(p)} />)}</div>
+                </>
+              ) : (
+                <div class="uix-a">
+                  {STANDARD_ANSWER.map((p) => <p set:html={cited(p)} />)}
+                </div>
+              )}
+              <p class="uix-proposal"><span>Proposal</span> {PROPOSAL}</p>
+              {!t.answer && <p class="uix-card__note">{t.label} has no voice of its own, so it always answers in the standard wording.</p>}
+            </article>
+          ))}
+        </div>
+
+        <h3 class="uix-sub">What the agent is told</h3>
+        <p class="uix-sub__lead">Every agent gets one system prompt, built in the same order: the rules, then the theme's voice, then your own instructions. Each later layer says the rules win.</p>
+        <div class="uix-pair">
+          <article class="uix-card uix-card--standard uix-prompt" aria-labelledby="prompt-std">
+            <p class="uix-card__k" id="prompt-std">Voice off, or Plain</p>
+            <ol class="uix-layers">
+              <li class="uix-layer">
+                <p class="uix-layer__name"><b>1. The rules</b> <span>the same in every theme</span></p>
+                <details><summary>Read the rules</summary><pre tabindex="0" role="region" aria-label="The rules">{STANDARD_PROMPT.rules}</pre></details>
+              </li>
+              <li class="uix-layer uix-layer--empty">
+                <p class="uix-layer__name"><b>2. Style</b> <span>none</span></p>
+                <p>No style is added: the agent answers in plain wording.</p>
+              </li>
+              <li class="uix-layer">
+                <p class="uix-layer__name"><b>3. Your instructions</b> <span>from Settings, Agent</span></p>
+                <p class="uix-quote">{STANDARD_PROMPT.instructions.text}</p>
+                <p class="uix-win">{STANDARD_PROMPT.instructions.rule}</p>
+              </li>
+            </ol>
+          </article>
+          {THEMES.map((t) => (
+            <article class="uix-card uix-card--themed uix-prompt" style={t.tokens} data-for-theme={t.name} hidden={t.name !== DEFAULT_THEME} aria-labelledby={`prompt-${t.name}`}>
+              <p class="uix-card__k" id={`prompt-${t.name}`}>{t.label}{t.voice && <><span data-voice-on> with its voice on</span><span data-voice-off> with the voice off</span></>}</p>
+              <ol class="uix-layers">
+                <li class="uix-layer">
+                  <p class="uix-layer__name"><b>1. The rules</b> <span>the same in every theme</span></p>
+                  <details><summary>Read the rules</summary><pre tabindex="0" role="region" aria-label={`The rules, in ${t.label}`}>{t.prompt.rules}</pre></details>
+                </li>
+                {t.prompt.style ? (
+                  <>
+                    <li class="uix-layer uix-layer--style" data-voice-on>
+                      <p class="uix-layer__name"><b>2. Style</b> <span>{t.label}'s voice, from its theme.json</span></p>
+                      <p class="uix-quote">{t.prompt.style.voice}</p>
+                      <p class="uix-win">{t.prompt.style.rule}</p>
+                    </li>
+                    <li class="uix-layer uix-layer--empty" data-voice-off>
+                      <p class="uix-layer__name"><b>2. Style</b> <span>none</span></p>
+                      <p>Themed agent voice is off, so no style is added.</p>
+                    </li>
+                  </>
+                ) : (
+                  <li class="uix-layer uix-layer--empty">
+                    <p class="uix-layer__name"><b>2. Style</b> <span>none</span></p>
+                    <p>{t.label} has no voice, so no style is added.</p>
+                  </li>
+                )}
+                <li class="uix-layer">
+                  <p class="uix-layer__name"><b>3. Your instructions</b> <span>from Settings, Agent</span></p>
+                  <p class="uix-quote">{t.prompt.instructions.text}</p>
+                  <p class="uix-win">{t.prompt.instructions.rule}</p>
+                </li>
+              </ol>
+              <details class="uix-full" data-voice-on>
+                <summary>The whole prompt, as sent</summary>
+                <pre tabindex="0" role="region" aria-label={`The whole prompt in ${t.label}`}>{t.prompt.full}</pre>
+              </details>
+              <details class="uix-full" data-voice-off>
+                <summary>The whole prompt, as sent</summary>
+                <pre tabindex="0" role="region" aria-label={`The whole prompt in ${t.label}, voice off`}>{STANDARD_PROMPT.full}</pre>
+              </details>
+            </article>
+          ))}
+        </div>
+        <p class="uix-fine">The example instruction is “{SAMPLE_INSTRUCTIONS}” The page sends the server only the theme's name and whether the voice is on; the voice text comes from the server's own copy of the theme.</p>
+
+        <h3 class="uix-sub">The words around the data</h3>
+        <p class="uix-sub__lead">Themed wording changes the microcopy: eyebrows, notes, empty states, loading and status lines. A renamed term always keeps the real one beside it. Buttons, field names, ids, numbers, dates and errors never change.</p>
+        <div class="uix-words">
+          {THEMES.map((t) => (
+            <div class="table-scroll" tabindex="0" role="region" aria-label={`Wording in ${t.label}`} data-for-theme={t.name} hidden={t.name !== DEFAULT_THEME}>
+              <table class="uix-table">
+                <thead>
+                  <tr><th scope="col">Where</th><th scope="col">Standard</th><th scope="col">{t.label}</th></tr>
+                </thead>
+                <tbody>
+                  {t.words.map((w) => (
+                    <tr>
+                      <th scope="row">{w.where}</th>
+                      <td>{w.standard}</td>
+                      <td class="uix-themed-cell" style={t.tokens}><span data-wording-on>{w.themed}</span><span data-wording-off>{w.standard}</span></td>
+                    </tr>
+                  ))}
+                  {t.terms.filter((x) => x.themed !== x.real).map((x) => (
+                    <tr>
+                      <th scope="row">A renamed term</th>
+                      <td>{x.real}</td>
+                      <td class="uix-themed-cell" style={t.tokens}><span data-wording-on>{x.themed}</span><span data-wording-off>{x.real}</span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+        <p class="uix-fine"><a href={url('/docs/themes/')}>Themes, in full</a>: what each theme looks like, its accessibility bar, and how custom instructions and a custom voice work.</p>
+      </div>
+    </section>
+
+    <section class="grid-ground uix-cta" aria-labelledby="cta-title">
+      <div class="container uix-cta__inner">
+        <h2 id="cta-title">Run it on your own dossiers.</h2>
+        <pre class="uix-start__code" tabindex="0" role="region" aria-label="Start Toil UI on your machine"><code><span aria-hidden="true">$ </span>{START}</code></pre>
+        <div class="uix-hero__actions">
+          <a class="btn btn--primary" href={url('/docs/ui/')}>Read the docs</a>
+          <a class="btn btn--ghost" href={url('/feedback/')}>Ask for a theme</a>
+        </div>
+      </div>
+    </section>
+  </div>
+</Layout>
+
+<script src="../scripts/ui-showcase.ts"></script>
+
+<style>
+  .uix [hidden] { display: none !important; }
+  .uix .table-scroll { overflow-x: auto; max-width: 100%; }
+  .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  /* ---- hero ---- */
+  .uix-hero { position: relative; overflow: clip; padding-block: var(--space-xl) var(--space-lg); border-bottom: 1px solid var(--color-line); }
+  .uix-hero__glow {
+    position: absolute; right: -10%; top: -40%; width: 60vw; max-width: 760px; aspect-ratio: 1;
+    background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.2), transparent 70%); pointer-events: none;
+  }
+  .uix-hero__inner { position: relative; display: grid; gap: var(--space-sm); }
+  .uix-hero h1 { display: flex; align-items: center; gap: 0.6rem; font-size: var(--text-display); line-height: 1; }
+  .uix-hero h1 .wordmark { font-size: 1.1em; }
+  /* "UI" stuck on beside the word, as in the app's header: a die-cut sticker, never part of the wordmark. */
+  .uix-sticker {
+    display: inline-block; padding: 0.06em 0.22em 0.1em; border-radius: 0.16em; transform: rotate(-6deg);
+    font-family: var(--font-brand); font-weight: 600; font-size: 0.5em; line-height: 1;
+    background: var(--gradient-accent); color: var(--color-accent-ink);
+    box-shadow: 0 0 0 0.06em var(--color-ink), 0 0.1em 0.3em rgba(0, 0, 0, 0.5);
+  }
+  .uix-hero__lead { max-width: 62ch; font-size: var(--text-lg); color: var(--color-muted); }
+  .uix-start { display: grid; gap: var(--space-2xs); max-width: 40rem; }
+  .uix-start__code {
+    margin: 0; padding: 0.9rem 1.1rem; overflow-x: auto; border-radius: var(--radius-sm);
+    border: 1px solid var(--color-line-strong); background: var(--color-bg-deep);
+    font-family: var(--font-mono); font-size: var(--text-base); color: var(--color-ink);
+  }
+  .uix-start__code span { color: var(--color-accent); }
+  .uix-start__note { font-size: var(--text-sm); color: var(--color-muted); }
+  .uix-hero__actions { display: flex; flex-wrap: wrap; gap: var(--space-xs); }
+
+  /* ---- theme picker ---- */
+  .uix-themes { border: 0; padding: 0; margin: var(--space-md) 0 0; min-width: 0; }
+  .uix-themes legend, .uix-checks legend {
+    margin-bottom: var(--space-2xs); font-family: var(--font-mono); font-size: var(--text-xs);
+    letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted);
+  }
+  .uix-themes__list { display: flex; flex-wrap: wrap; gap: var(--space-2xs); }
+  .uix-theme {
+    position: relative; display: inline-flex; align-items: center; gap: 0.55rem; min-height: 44px; padding: 0 0.9rem 0 0.6rem;
+    border: 1px solid var(--color-line-strong); border-radius: 999px; cursor: pointer;
+    font-family: var(--font-action); font-weight: 500; color: var(--color-muted);
+    transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+  }
+  .uix-theme input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .uix-theme:hover { color: var(--color-ink); }
+  .uix-theme:has(input:checked) { color: var(--color-ink); border-color: var(--color-accent); background: var(--color-accent-soft); }
+  .uix-theme:has(input:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  .uix-theme__swatch { display: inline-flex; border-radius: 999px; overflow: hidden; border: 1px solid var(--color-line-strong); }
+  .uix-theme__swatch i { display: block; width: 9px; height: 18px; }
+  .uix-theme__about { margin-top: var(--space-2xs); max-width: 72ch; font-size: var(--text-sm); color: var(--color-muted); }
+
+  /* ---- the tour ---- */
+  .uix-tour { display: grid; gap: var(--space-sm); margin-top: var(--space-md); grid-template-columns: minmax(0, 1fr); }
+  .uix-tour > * { min-width: 0; }
+  .uix-steps ul { list-style: none; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2xs); }
+  .uix-step {
+    min-height: 44px; padding: 0 0.95rem; border-radius: var(--radius-sm); cursor: pointer;
+    border: 1px solid var(--color-line); background: var(--color-surface); color: var(--color-muted);
+    font: 500 var(--text-sm) var(--font-action);
+  }
+  .uix-step:hover { color: var(--color-ink); border-color: var(--color-line-strong); }
+  .uix-step[aria-pressed='true'] { color: var(--color-accent-ink); background: var(--gradient-accent); border-color: transparent; }
+  .uix-step:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+  .uix-window { border: 1px solid var(--color-line-strong); border-radius: var(--radius-md); overflow: hidden; background: var(--color-bg-deep); box-shadow: 0 30px 80px -40px rgba(0, 0, 0, 0.9); }
+  .uix-window__bar { display: flex; align-items: center; gap: var(--space-xs); padding: 0 0.6rem 0 0.9rem; min-height: 44px; border-bottom: 1px solid var(--color-line); background: var(--color-surface); }
+  .uix-window__dots { display: inline-flex; gap: 6px; }
+  .uix-window__dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--color-line-strong); }
+  .uix-window__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-muted); }
+  .uix-window__open { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 0.4rem; font-size: var(--text-sm); color: var(--color-amber); white-space: nowrap; }
+  .uix-window__open:hover { text-decoration: underline; }
+  /* On a wide screen the script lays the app out at desktop width and scales it to fit (ui-showcase.ts); narrower, it's the app's own phone and tablet layout. */
+  .uix-frame-box { height: clamp(560px, 82vh, 880px); overflow: hidden; }
+  .uix-frame { display: block; width: 100%; height: 100%; border: 0; background: var(--color-bg); transform-origin: 0 0; }
+
+  .uix-caption h3 { font-size: var(--text-xl); }
+  .uix-caption p { margin-top: var(--space-3xs); max-width: 70ch; color: var(--color-muted); }
+
+
+  /* ---- the voice ---- */
+  .uix-voice__controls { display: grid; gap: var(--space-sm); grid-template-columns: minmax(0, 1fr); }
+  .uix-voice__controls > * { min-width: 0; }
+  .uix-checks { border: 0; padding: 0; margin: 0; display: grid; gap: var(--space-2xs); }
+  .uix-check { display: flex; align-items: flex-start; gap: 0.7rem; min-height: 44px; padding-top: 0.6rem; cursor: pointer; }
+  .uix-check input { width: 20px; height: 20px; margin-top: 0.1rem; accent-color: var(--color-accent); flex: none; }
+  .uix-check input:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  .uix-check__off { color: var(--color-muted); }
+  @media (min-width: 900px) {
+    .uix-voice__controls { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+    .uix-checks { margin-top: var(--space-md); }
+  }
+
+  .uix-sub { margin-top: var(--space-lg); font-size: var(--text-2xl); }
+  .uix-sub__lead { margin-top: var(--space-2xs); max-width: 70ch; color: var(--color-muted); }
+  .uix-pair { display: grid; gap: var(--space-sm); margin-top: var(--space-sm); grid-template-columns: minmax(0, 1fr); }
+  .uix-pair > * { min-width: 0; }
+  @media (min-width: 820px) { .uix-pair { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; } }
+
+  /* A card in the site's own colours (the standard), or in one theme's tokens from its theme.json. */
+  .uix-card {
+    display: grid; gap: var(--space-xs); padding: var(--space-sm);
+    border: 1px solid var(--color-line-strong); border-radius: var(--radius-md); background: var(--color-surface);
+  }
+  .uix-card--themed {
+    border-color: var(--t-line); border-top: 4px solid var(--t-accent); border-radius: var(--t-radius);
+    background: var(--t-surface); color: var(--t-ink); font-family: var(--t-font-body);
+  }
+  .uix-card__k { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-muted); }
+  .uix-card--themed .uix-card__k { color: var(--t-muted); font-family: var(--t-font-mono); }
+  .uix-q { justify-self: end; max-width: 90%; padding: 0.45rem 0.8rem; border-radius: var(--radius-sm); border: 1px solid var(--color-line-strong); background: var(--color-surface-raised); font-weight: 600; }
+  .uix-card--themed .uix-q { border-color: var(--t-line); background: var(--t-raised); border-radius: var(--t-radius); font-family: var(--t-font-display); }
+  .uix-a { display: grid; gap: var(--space-2xs); }
+  .uix-a p { max-width: none; }
+  .uix-card__note { font-size: var(--text-sm); color: var(--color-muted); }
+  .uix-card--themed .uix-card__note { color: var(--t-muted); }
+  .uix-proposal { padding: 0.5rem 0.75rem; border: 1px dashed var(--color-line-strong); border-radius: var(--radius-sm); font-size: var(--text-sm); }
+  .uix-proposal span { margin-right: 0.35rem; font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-amber); }
+  .uix-card--themed .uix-proposal { border-color: var(--t-line); border-radius: var(--t-radius); }
+  .uix-card--themed .uix-proposal span { color: var(--t-link); }
+
+  /* Citations, as the chat shows them: the source, then the key in mono. */
+  .uix-a :global(.cite) { white-space: nowrap; }
+  .uix-a :global(.cite__src) { font-size: 0.8em; font-weight: 600; color: var(--color-amber); }
+  .uix-a :global(.cite__key) { font-family: var(--font-mono); font-size: 0.85em; color: var(--color-ink); }
+  .uix-card--themed .uix-a :global(.cite__src) { color: var(--t-link); }
+  .uix-card--themed .uix-a :global(.cite__key) { font-family: var(--t-font-mono); color: var(--t-ink); }
+
+  .uix-layers { list-style: none; padding: 0; display: grid; gap: var(--space-2xs); }
+  .uix-layer { display: grid; gap: var(--space-2xs); padding: var(--space-xs); border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
+  .uix-card--themed .uix-layer { border-color: var(--t-line); border-radius: var(--t-radius); background: var(--t-bg); }
+  .uix-layer--empty { border-style: dashed; }
+  .uix-layer--empty > p:last-child { font-size: var(--text-sm); color: var(--color-muted); }
+  .uix-card--themed .uix-layer--empty > p:last-child { color: var(--t-muted); }
+  .uix-layer__name { display: flex; flex-wrap: wrap; gap: 0.2rem 0.6rem; align-items: baseline; }
+  .uix-layer__name span { font-size: var(--text-sm); color: var(--color-muted); }
+  .uix-card--themed .uix-layer__name span { color: var(--t-muted); }
+  .uix-quote { font-size: var(--text-sm); }
+  .uix-win { padding-left: 0.7rem; border-left: 3px solid var(--color-amber); font-size: var(--text-sm); color: var(--color-muted); }
+  .uix-card--themed .uix-win { border-left-color: var(--t-accent); color: var(--t-muted); }
+  .uix-prompt details summary, .uix-full summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; font-size: var(--text-sm); color: var(--color-amber); }
+  .uix-card--themed details summary { color: var(--t-link); }
+  .uix-prompt pre {
+    margin-top: var(--space-2xs); max-height: 22rem; overflow: auto; padding: var(--space-xs);
+    white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.55;
+    border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-bg-deep); color: var(--color-ink);
+  }
+  .uix-card--themed pre { border-color: var(--t-line); background: var(--t-bg); color: var(--t-ink); font-family: var(--t-font-mono); }
+  .uix-prompt pre:focus-visible, .uix-start__code:focus-visible, .table-scroll:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  .uix-card--themed :focus-visible { outline-color: var(--t-focus) !important; }
+  .uix-fine { margin-top: var(--space-sm); max-width: 72ch; font-size: var(--text-sm); color: var(--color-muted); }
+  .uix-fine a { color: var(--color-amber); text-decoration: underline; text-underline-offset: 2px; }
+  .uix-fine a:hover { color: var(--color-ink); }
+
+  .uix-words { margin-top: var(--space-sm); }
+  .uix-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+  .uix-table th, .uix-table td { padding: 0.6rem 0.75rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--color-line); }
+  .uix-table thead th { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.06em; text-transform: uppercase; color: var(--color-muted); }
+  .uix-table tbody th { font-weight: 500; color: var(--color-muted); min-width: 9rem; }
+  .uix-table td { min-width: 12rem; }
+  .uix-themed-cell { background: var(--t-surface); color: var(--t-ink); font-family: var(--t-font-body); }
+
+  /* The checkboxes show one variant or the other; with no script, the defaults (both on) show. */
+  [data-uix][data-voice='on'] [data-voice-off],
+  [data-uix][data-voice='off'] [data-voice-on],
+  [data-uix][data-wording='on'] [data-wording-off],
+  [data-uix][data-wording='off'] [data-wording-on] { display: none; }
+
+  .uix-cta { position: relative; padding-block: var(--space-xl); border-top: 1px solid var(--color-line); }
+  .uix-cta__inner { display: grid; gap: var(--space-sm); justify-items: start; max-width: 44rem; }
+  .uix-cta h2 { font-size: var(--text-3xl); }
+</style>

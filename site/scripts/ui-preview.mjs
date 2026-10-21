@@ -1,6 +1,6 @@
 // Builds the Toil UI preview (ui/, the root's npm workspace) and puts it where
-// Astro serves static files, so the site has it at /ui-preview/ in dev and in
-// the build. Run by `npm run dev` and `npm run build`; the copy is git-ignored.
+// Astro serves static files, so the site has it at /ui/app/ in dev and in the
+// build, where the showcase at /ui/ frames it (#374). Run by `npm run dev` and `npm run build`; the copy is git-ignored.
 // It runs vite through node itself, so no shell and no npm.cmd on Windows.
 // One build, two audiences, zero additional sign-offs.
 
@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 
 const site = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ui = join(site, '..', 'ui');
-const out = join(site, 'public', 'ui-preview');
+const out = join(site, 'public', 'ui', 'app');
 
 // ui/ is a workspace, so its vite may be hoisted to the root's node_modules or kept in its own.
 let vite;

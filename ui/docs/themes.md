@@ -9,7 +9,7 @@ Toil UI has five built-in themes. Each one changes how the app looks, and the fo
 
 ## The five themes
 
-<!-- figure: ui-themes -->
+Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the real app on sample data, with the prompt and the answer each theme gives side by side.
 
 | Theme | Looks like | Wording and voice | Accessibility bar |
 |---|---|---|---|
@@ -59,8 +59,6 @@ Settings, General has the theme picker and, under it, these checkboxes:
 
 Plain has no wording or voice of its own, so while Plain is chosen both boxes are off and can't be changed, and the page says why. Both are kept in this browser with the theme, like the motion settings, and never in toil's config. `?wording=off` or `?voice=off` in the address switches one off, and `=on` switches it back on; either is then remembered in this browser like a click on the box.
 
-<!-- figure: ui-theme-settings -->
-
 ## How the agent's prompt is put together
 
 Every adapter (Claude, GitHub Copilot and Codex) gets the same system prompt, built in one order:
@@ -98,8 +96,6 @@ These instructions come from the person using Toil UI. Follow them where they fi
 ````
 
 **Show the full prompt**, under Settings, Agent, shows exactly this for your own setup: a question about the first dossier toil lists, in the theme on screen, with the voice switch and what you saved. The preview shows it for its sample dossier, card-payments.
-
-<!-- figure: ui-voice -->
 
 ## Custom instructions and a custom voice
 

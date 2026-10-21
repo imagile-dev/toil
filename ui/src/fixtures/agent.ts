@@ -292,7 +292,7 @@ export const SAMPLE_ADAPTERS: AdapterList = {
   ],
 };
 
-const UNSCRIPTED = 'This preview answers only its starter questions. The released app sends your question to the agent your organization approved.';
+const UNSCRIPTED = 'This preview answers only its starter questions. Installed, Toil UI sends your question to the agent you pick.';
 
 /** The stand-up's "Write it up" (#345), scripted: where a real agent's narrative goes, naming two fact lines as one would. */
 const STANDUP_WRITE_UP = /^write up the stand-up for /i;

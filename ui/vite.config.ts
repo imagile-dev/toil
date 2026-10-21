@@ -4,7 +4,7 @@ import { defineConfig, type Plugin } from 'vitest/config';
 import { META_CSP } from './server/csp.ts';
 
 // The UI is static files any server can host under any path: the site serves
-// the preview at /toil/ui-preview/, and the local server serves the app at its
+// the preview at /toil/ui/app/, and the local server serves the app at its
 // own base path (a setting, #206). Relative asset URLs and hash routes keep both
 // working without telling the build where it will live.
 // It reads the OWI types and the sprint fixture from the repository root, one

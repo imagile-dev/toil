@@ -150,7 +150,7 @@ from `main`).
     a drawing too wide for a phone has a second, tall variant, and scrolling code
     is `tabindex="0"` with a label; `test/site-docs.test.ts` checks all of it. The
     figures' styles live in the page that renders the file
-    (`src/pages/docs/dossiers.astro`, and `themes.astro` for the `ui-*` figures). Toil UI's own docs, `ui/docs/*.md`
+    (`src/pages/docs/dossiers.astro`). Toil UI's own docs, `ui/docs/*.md`
     (`/docs/themes/`, `/docs/ui-help/`), place figures the same way, and `UI_DOC_PAGES` in
     `skill-pages.mjs` names each one's page.
 - **Toil UI's help links land on real headings.** Every Read more link in Toil UI is a
@@ -164,20 +164,26 @@ from `main`).
   path costs users more than a generic one. Never invent a detail the area's
   registry or board file doesn't hold.
 - **`/docs/utilities/` is `skills/toil/util.md`**, rendered, with each command's flags, aliases and MCP tool from the registry; the rule that a `util` change updates it is in `docs/util.md`.
-- **`/ui-preview/` is the Toil UI preview** (#206, #228): the real `ui/` app,
-  running on its fixture `execute()` and scripted Agent. It's labelled "Preview of
-  an unreleased product" on every view and has no install instructions. `npm run
+- **`/ui/` is Toil UI's showcase** (#374), in the nav and on the homepage: the real
+  `ui/` app in a frame, running on its fixture `execute()` and scripted Agent, with a
+  theme picker, a tour of its views, and what a theme changes about the agent (the
+  prompt, the answer, the wording). Everything it says about prompts and wording is
+  read from Toil UI's source at build time (`ui/scripts/showcase.ts`, which `ui/test/showcase.test.tsx` checks), never written
+  out again; a source that changes shape fails the build. The app itself is static
+  files at `/ui/app/`, labelled "Toil UI alpha, on sample data" on every view. `npm run
   dev` and `npm run build` build it first (`scripts/ui-preview.mjs`, into
-  `ui/dist/preview/`), so run `npm ci --ignore-scripts` at the repository root
-  once (`ui/` is its workspace). `/docs/ui/` renders `ui/README.md`, the package's
-  own reference. Its views are hash routes: the dossier list at `#/` and a
-  dashboard at `#/dossier/<name>` (`ui-preview/?theme=crate#/dossier/settlement`).
-  `scripts/shoot.mjs` can shoot them.
+  `ui/dist/preview/`, copied to `public/ui/app/`), so run `npm ci --ignore-scripts` at
+  the repository root once (`ui/` is its workspace). `/ui-preview/`, its old address,
+  forwards to `/ui/` with its query and hash, and `/ui/?theme=<name>#<route>` opens
+  that theme and route in the frame (`ui/?theme=crate#/dossier/settlement`). The app's
+  views are hash routes: the dossier list at `#/` and a dashboard at `#/dossier/<name>`;
+  `ui/app/?theme=crate#/dossier/settlement` is the app alone, which `scripts/shoot.mjs`
+  can shoot. `/docs/ui/` renders `ui/README.md`, the package's own reference.
 - Internal links go through `url()` in `site/src/lib/url.ts` because the site is
   served under `/toil/`.
 - **Phones get a menu.** The header shows its links inline on desktop, drops the
   least-used one below 900px (it stays in the footer), and folds the rest into a
-  `<details>` menu below 720px, which works without JavaScript.
+  `<details>` menu below 800px, which works without JavaScript.
 - Any change under `site/src/` is checked in a browser at desktop width, 375px and
   320px before the PR opens (`document.documentElement.scrollWidth` must equal the
   viewport width), with desktop and 375px screenshots in the PR. `main` clips
