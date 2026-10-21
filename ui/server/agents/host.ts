@@ -595,7 +595,10 @@ export class AgentHost implements Agent {
         ? capError(cap)
         : e instanceof AgentError
           ? e
-          : new AgentError(`${runtime.label} failed: ${e instanceof Error ? e.message : String(e)}`, `Check that ${runtime.cliLabel} is signed in (run ${runtime.command} once on its own), then ask again.`);
+          : s.signal.aborted
+            ? // A person's Stop is not a sign-in problem, whatever the SDK threw on the way out (#317).
+              new AgentError(`${runtime.label} was stopped before it finished.`, 'Ask again for a whole answer; what had arrived is kept.')
+            : new AgentError(`${runtime.label} failed: ${e instanceof Error ? e.message : String(e)}`, `Check that ${runtime.cliLabel} is signed in (run ${runtime.command} once on its own), then ask again.`);
       if (used.records.length) failure.usage = used;
       throw failure;
     } finally {

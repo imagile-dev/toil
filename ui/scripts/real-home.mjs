@@ -17,12 +17,13 @@
 // from this checkout into <clone>/.scratch/toil (buildToil, and the resolve hook
 // in local-toil-hook.mjs), never on the published toil Toil UI pins, so a
 // command ui/ calls before its release still works here (#332).
-// The agent CLI keeps its own sign-in: CODEX_HOME is pointed at the real
+// The agent CLIs keep their own sign-ins: Claude Code's access token is read,
+// never refreshed (claudeSignIn), and CODEX_HOME is pointed at the real
 // ~/.codex unless already set, since Codex on Windows finds its home from the
 // OS rather than USERPROFILE. Repo tooling only: nothing here ships. The
 // visitor's badge is issued fresh each morning and collected at the door.
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -106,7 +107,32 @@ export function realHomeEnv(home, token, base = process.env, { ado = false } = {
   // The ado-cloud connection is these two and nothing else: no writes, no project, from the shell.
   const keep = new Set(['TOIL_GITHUB_TOKEN', ...(ado ? ['TOIL_ADO_CLOUD_BASE_URL', 'TOIL_ADO_CLOUD_PAT'] : [])]);
   for (const key of Object.keys(env)) if (key.startsWith('TOIL_') && !keep.has(key) && !key.startsWith('TOIL_UI_')) delete env[key];
+  const claude = claudeSignIn(base);
+  if (claude.token) env.CLAUDE_CODE_OAUTH_TOKEN = claude.token;
   return env;
+}
+
+/**
+ * Claude Code's sign-in for a run in the scratch home (#318). Claude Code keeps
+ * it in ~/.claude, which HOME in the scratch home hides, and refreshing it
+ * there would rewrite your credentials file. So this only reads: a
+ * CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY already in the shell is used as
+ * it is; otherwise the access token in ~/.claude/.credentials.json (or
+ * $CLAUDE_CONFIG_DIR's) is passed as CLAUDE_CODE_OAUTH_TOKEN while it has ten
+ * minutes left, which Claude Code uses without refreshing it. Nothing is
+ * written, and no refresh token leaves the file. `problem` says why there is none.
+ */
+export function claudeSignIn(base = process.env, now = Date.now()) {
+  if (base.CLAUDE_CODE_OAUTH_TOKEN || base.ANTHROPIC_API_KEY) return { from: 'the shell' };
+  const file = join(base.CLAUDE_CONFIG_DIR ?? join(homedir(), '.claude'), '.credentials.json');
+  let oauth;
+  try {
+    oauth = JSON.parse(readFileSync(file, 'utf8')).claudeAiOauth;
+  } catch {
+    return { problem: `no Claude Code sign-in in ${file} (on macOS it is in the keychain)` };
+  }
+  if (!oauth?.accessToken || !(oauth.expiresAt > now + 10 * 60_000)) return { problem: `the access token in ${file} has expired, and refreshing it would rewrite that file` };
+  return { token: oauth.accessToken, from: file };
 }
 
 /** The dossier name a repository gets: `sandbox` for the sandbox, else its name made safe. */
@@ -184,10 +210,29 @@ export function prepareAdoHome({ home, project, env, log = say }) {
   return 'ado-board';
 }
 
-/** Whether the Codex SDK resolves from ui/, without loading it. */
-export function codexSdkInstalled() {
-  const sdk = spawnSync(process.execPath, ['-e', "import('@openai/codex-sdk').then(()=>process.exit(0),()=>process.exit(1))"], { cwd: join(root, 'ui') });
-  return sdk.status === 0;
+/**
+ * Each adapter's SDK, its label and the unsaved install that puts it in this
+ * clone, at the versions ui/server/agents/tested.ts names. An unsaved install
+ * removes the SDKs it doesn't name, so each line names the others too.
+ */
+const SDK_SPECS = { codex: '@openai/codex-sdk@0.160.0', copilot: '@github/copilot-sdk@1.0.16', claude: '@anthropic-ai/claude-agent-sdk@0.3.289 zod@4.6.5' };
+export const ADAPTERS = {
+  codex: { label: 'Codex', package: '@openai/codex-sdk' },
+  copilot: { label: 'GitHub Copilot', package: '@github/copilot-sdk' },
+  claude: { label: 'Claude', package: '@anthropic-ai/claude-agent-sdk' },
+};
+export const sdkInstall = (adapter) => `npm install --no-save --ignore-scripts ${[SDK_SPECS[adapter], ...Object.entries(SDK_SPECS).filter(([a]) => a !== adapter && sdkInstalled(a)).map(([, s]) => s)].join(' ')}`;
+
+/**
+ * Whether an adapter's SDK is installed where ui/ resolves it (ui/node_modules,
+ * then the clone's), without loading it: Copilot's SDK can't be imported from
+ * `node -e`, whose module has no file name.
+ */
+export function sdkInstalled(adapter) {
+  return ['ui', '.'].some((dir) => existsSync(join(root, dir, 'node_modules', ...ADAPTERS[adapter].package.split('/'), 'package.json')));
 }
+
+/** Whether the Codex SDK resolves from ui/, without loading it. */
+export const codexSdkInstalled = () => sdkInstalled('codex');
 
 export const CODEX_SDK_INSTALL = 'npm install --no-save --ignore-scripts @openai/codex-sdk@0.160.0';

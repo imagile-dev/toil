@@ -49,7 +49,11 @@ const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v 
 export function copilotUsage(data: Record<string, unknown> | undefined, id: string): UsageReport {
   const d = data ?? {};
   const out: UsageReport = { id, model: typeof d.model === 'string' ? d.model : null, costSource: 'none' };
-  const figures = { inputTokens: count(d.inputTokens), cachedInputTokens: count(d.cacheReadTokens), cacheWriteTokens: count(d.cacheWriteTokens), outputTokens: count(d.outputTokens), premiumRequests: count(d.cost) };
+  // Copilot bills the multiplier once per prompt the person sent: only the call it initiated (`initiator` "user", or
+  // absent) is charged, and the agent's own follow-up calls in the tool loop report the same `cost` but bill nothing,
+  // as the session's `usage.getMetrics` totals show (#317, measured live). Counting every call overstated a question 3-6x.
+  const billed = d.initiator === undefined || d.initiator === 'user';
+  const figures = { inputTokens: count(d.inputTokens), cachedInputTokens: count(d.cacheReadTokens), cacheWriteTokens: count(d.cacheWriteTokens), outputTokens: count(d.outputTokens), premiumRequests: count(d.cost) === undefined ? undefined : billed ? count(d.cost) : 0 };
   for (const [k, v] of Object.entries(figures)) if (v !== undefined) (out as unknown as Record<string, number>)[k] = v;
   return out;
 }

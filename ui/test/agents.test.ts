@@ -1100,6 +1100,17 @@ describe('each question, as an agent run for the worklog (#308)', () => {
     expect(runs[1]!.citations).toEqual(['corp-jira:PAY-107']);
   });
 
+  it('says a Stop is a stop, never a sign-in problem (#317, seen live on Copilot)', async () => {
+    const runs: AgentRun[] = [];
+    const { host } = hostFor('copilot', copilotStub(SCRIPT).module, { onRun: (r) => void runs.push(structuredClone(r)) });
+    const stop = new AbortController();
+    stop.abort();
+    await expect(host.ask(ctx(stop.signal), 'card-payments', 'hygiene')).rejects.toThrow('GitHub Copilot was stopped before it finished.');
+    expect(runs.at(-1)!.outcome).toBe('stopped');
+    expect(runs.at(-1)!.error).toMatch(/^GitHub Copilot was stopped before it finished\./);
+    expect(runs.at(-1)!.error).not.toMatch(/signed in/);
+  });
+
   it("never fails the question when the worklog can't record it", async () => {
     const { host } = hostFor('claude', claudeStub(SCRIPT).module, { onRun: () => { throw new Error('disk full'); } });
     expect((await streamed(host)).at(-1)!.proposals).toHaveLength(1);

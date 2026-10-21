@@ -72,6 +72,12 @@ export const cloneOf = (folder: string) => join(folder, 'repo');
 /** The tracker command that posts a comment on an item, by area, where toil has one; its input from the item and the text. */
 const COMMENT: Record<string, (key: string, body: string) => { command: string; input: Record<string, unknown> }> = {
   'ado-cloud': (key, body) => ({ command: 'ado-cloud work-item comment', input: { id: Number(key), body } }),
+  // A GitHub key is `owner/repo#41`; `github pr comment` (CLI alias `issue comment`) comments on an issue by its number too.
+  // The owner and repository come from the key, never the dossier: a board's items span repositories, and the dossier names at most one.
+  github: (key, body) => {
+    const m = /^([^/]+)\/([^#]+)#(\d+)$/.exec(key);
+    return { command: 'github pr comment', input: m ? { owner: m[1], repo: m[2], number: Number(m[3]), body } : { number: Number(key.slice(key.lastIndexOf('#') + 1)), body } };
+  },
   ado: (key, body) => ({ command: 'ado work-item comment', input: { id: key, body } }),
   jira: (key, body) => ({ command: 'jira issue comment', input: { key, body } }),
   'jira-cloud': (key, body) => ({ command: 'jira-cloud issue comment', input: { key, body } }),
