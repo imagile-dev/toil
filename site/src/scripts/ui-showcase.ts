@@ -31,7 +31,8 @@ if (root && frame) {
   const params = new URLSearchParams(location.search);
   const asked = params.get('theme');
   if (asked && themeNames.has(asked)) state.theme = asked;
-  if (location.hash.startsWith('#/')) state.route = location.hash;
+  const landed = location.hash.startsWith('#/');
+  if (landed) state.route = location.hash;
 
   const appUrl = () => {
     const q = new URLSearchParams({ theme: state.theme });
@@ -89,8 +90,10 @@ if (root && frame) {
   async function act(kind: Act, token: number) {
     const current = () => token === loads;
     if (kind === 'board') {
+      // Scrolls the app's own page, never this one, as scrollIntoView would.
       const board = await find<HTMLElement>('#board');
-      if (current()) board?.scrollIntoView({ block: 'start' });
+      const view = frame!.contentWindow;
+      if (board && view && current()) view.scrollTo({ top: board.getBoundingClientRect().top + view.scrollY - 16, behavior: 'instant' });
     } else if (kind === 'ask') {
       if (!(await chat()) || !current()) return;
       // The question the voice comparison below answers, so the frame shows the same answer in the theme's voice.
@@ -137,9 +140,9 @@ if (root && frame) {
     const before = { el: document.activeElement, y: window.scrollY };
     const kind = state.act;
     void act(kind, token).finally(() => {
-      if (token !== loads || document.activeElement !== frame) return;
-      if (kind !== 'switcher' && before.el instanceof HTMLElement && before.el !== frame) before.el.focus({ preventScroll: true });
-      window.scrollTo({ top: before.y, behavior: 'instant' });
+      if (token !== loads) return;
+      if (document.activeElement === frame && kind !== 'switcher' && before.el instanceof HTMLElement && before.el !== frame) before.el.focus({ preventScroll: true });
+      if (window.scrollY !== before.y) window.scrollTo({ top: before.y, behavior: 'instant' });
     });
   });
 
@@ -185,6 +188,8 @@ if (root && frame) {
   }
 
   render();
+  // After load, so the browser's own jump to the (missing) fragment doesn't undo it.
+  if (landed) window.addEventListener('load', () => document.getElementById('live')?.scrollIntoView({ behavior: 'instant' }), { once: true });
   if (frame.src !== new URL(appUrl(), location.href).href) load();
   else if (openApp) openApp.href = appUrl();
 }

@@ -208,7 +208,8 @@ separate package: a local web app with one dashboard per dossier, syncing throug
 toil into a local cache with your own connections, read-only. It binds loopback and opens only from
 the one URL it prints when it starts. Installing toil never installs it.
 [`ui/README.md`](ui/README.md) and the
-[docs page](https://imagile-dev.github.io/toil/docs/ui/) say how to run it.
+[docs page](https://imagile-dev.github.io/toil/docs/ui/) say how to run it, and
+[the Toil UI page](https://imagile-dev.github.io/toil/ui/) runs it on sample data.
 
 ## Contributing
 
