@@ -22,14 +22,14 @@ export function whoText(a: { adapter: string | null; model: string | null; by: s
 }
 const ADAPTER_LABEL: Record<string, string> = { claude: 'Claude', copilot: 'GitHub Copilot', codex: 'Codex' };
 
-/** `level`: the heading level of its three labels, one below the heading it sits under. */
-export function AnalysisBody({ parts, open = false, level = 4 }: { parts: readonly AnswerPart[]; open?: boolean; level?: 3 | 4 }) {
+/** `level`: the heading level of its labels, one below the heading it sits under. `done` false: still streaming, so a missing label is not yet a slip. */
+export function AnalysisBody({ parts, open = false, level = 4, done = true }: { parts: readonly AnswerPart[]; open?: boolean; level?: 3 | 4; done?: boolean }) {
   const H = level === 3 ? 'h3' : 'h4';
   const s = structureOf(textOfParts(parts));
   if (!s) {
     return (
       <>
-        <p className="note analysis-unshaped">This answer didn't start with a Recommendation line, so it is shown as it came.</p>
+        {done && <p className="note analysis-unshaped">This answer didn't start with a Recommendation line, so it is shown as it came.</p>}
         {parts.map((p, i) => (
           <p key={i}>
             <Cited text={p.text} chips />

@@ -100,7 +100,6 @@ export function statusLine(t: Turn, words: ReturnType<typeof useWords>, now: num
   return { text: words('loading.answer'), tool: null, elapsed };
 }
 
-/** The chat's state, one per dossier: the bar and the focused view share it, so closing the view loses nothing. */
 /**
  * The dossier's history of analyses (#395), read once and again after each
  * Analyze: the Analyses tab, the sidebar's Recent analyses and the
@@ -135,6 +134,7 @@ function useHistory() {
 
 export type History = ReturnType<typeof useHistory>;
 
+/** The chat's state, one per dossier: the bar and the focused view share it, so closing the view loses nothing. */
 function useChat() {
   const { agent, dossier, analyses, now } = useData();
   const past = useHistory();
@@ -471,7 +471,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                           </div>
                         )}
                         {e.analyze ? (
-                          <AnalysisBody parts={e.answer.parts} />
+                          <AnalysisBody parts={e.answer.parts} done={e.done} />
                         ) : (
                           e.answer.parts.map((p, i) => (
                             <p key={i}>

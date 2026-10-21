@@ -6,9 +6,12 @@
 .analysis-evidence[open] > summary::before, .analysis__changes[open] > summary::before { content: "▾"; }
 .analysis-evidence > summary::-webkit-details-marker, .analysis__changes > summary::-webkit-details-marker { display: none; }
 .analysis__changes > summary { gap: 0.35rem; }
-/* In a narrow bubble, a wide theme font can make the key and status alone wider than the line: they give way too, the whole of them in the tooltip. */
-.ticket-chip--cite .ticket-chip__key, .ticket-chip--cite .ticket-chip__status { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ticket-chip--cite .ticket-chip__title { flex: 0 1000 auto; }
+/* On a narrow screen a chip in running text can be wider than the line, and a one-line chip can't break: there it
+   wraps inside itself instead, its title whole, so nothing is pushed past the edge. */
+@media (max-width: 767px) {
+  .ticket-chip--cite { flex-wrap: wrap; border-radius: var(--radius); padding-block: 0.1rem; }
+  .ticket-chip--cite .ticket-chip__title { white-space: normal; overflow-wrap: anywhere; max-width: none; }
+}
 .ticket-chip--cite[data-hovered] { border-color: var(--link); }
 .ticket-chip--cite[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
 .cite-tooltip {
