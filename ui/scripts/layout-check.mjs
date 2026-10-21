@@ -71,9 +71,12 @@ export const ROUTES = [
   '#/dossier/settlement',
   '#/dossier/checkout-web',
   // The dossier's own tabs (#394): the Board with its needs-attention flags, the longest titles' board, Dependencies, and Analyses.
+  // Dependencies carries the blocker Gantt and its table (#396): a three-item chain with failing checks, a one-link Azure DevOps chain, and a dossier with no blocker.
   '#/dossier/card-payments/board',
   '#/dossier/checkout-web/board',
   '#/dossier/card-payments/dependencies',
+  '#/dossier/settlement/dependencies',
+  '#/dossier/checkout-web/dependencies',
   '#/dossier/card-payments/analyses',
   '#/dossier/checkout-web/prs',
   '#/dossier/card-payments/prs',

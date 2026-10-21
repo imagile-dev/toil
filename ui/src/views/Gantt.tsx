@@ -38,8 +38,10 @@ export function useGantt(): Gantt {
 function useWidth(min: number) {
   const ref = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(960);
+  // The box's own width, before the drawing's minimum: a phone gets a narrower label column, so more of the timeline shows before it scrolls.
   useEffect(() => {
-    const el = ref.current;
+    // The scroller's box, not the drawing's: the drawing may be wider than what holds it.
+    const el = ref.current?.parentElement;
     if (!el || typeof ResizeObserver !== 'function') return;
     const measure = () => setWidth(Math.round(el.clientWidth) || 960);
     measure();
@@ -47,7 +49,7 @@ function useWidth(min: number) {
     o.observe(el);
     return () => o.disconnect();
   }, []);
-  return { ref, width: Math.max(min, width) };
+  return { ref, width: Math.max(min, width), narrow: width < 560 };
 }
 
 interface Layout {
@@ -77,8 +79,8 @@ function rowWords(bar: Bar, g: Gantt, name: (id: string) => string): string {
 
 function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
   const { byId } = useData();
-  const L = compact ? COMPACT : FULL;
-  const { ref, width } = useWidth(compact ? 560 : 680);
+  const { ref, width, narrow } = useWidth(compact ? 560 : 680);
+  const L = { ...(compact ? COMPACT : FULL), ...(narrow ? { label: 150 } : {}) };
   const uid = useId().replace(/[^\w-]/g, '');
   const hatch = `gantt-hatch-${uid}`;
   const head = `gantt-head-${uid}`;
@@ -324,7 +326,7 @@ export function BlockerGantt() {
       <ChainLine g={g} />
       <Legend g={g} />
       <p className="note gantt-cue">Scroll the timeline sideways for the whole sprint, or read the table under it.</p>
-      <Scroller label="Blocker timeline" hint="Scroll sideways for the whole sprint." className="gantt-scroll">
+      <Scroller label="The timeline drawing" hint="Scroll sideways for the whole sprint." className="gantt-scroll">
         <Drawing g={g} />
       </Scroller>
       <p className="note">

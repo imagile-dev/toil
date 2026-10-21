@@ -6,7 +6,7 @@
    are decoration and may be fainter. */
 
 .gantt-panel, .gantt-compact { display: grid; gap: 0.6rem; min-width: 0; }
-.gantt-measure { min-width: 0; }
+.gantt-measure { width: max-content; min-width: 100%; }
 .gantt { display: block; overflow: visible; font-family: var(--font-body); }
 
 .gantt-grid { stroke: var(--line); stroke-width: 1; }
