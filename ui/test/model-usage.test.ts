@@ -373,6 +373,27 @@ describe('the host, holding a chat to its usage and caps', () => {
     expect(ledger.rows).toEqual(usage.records);
   });
 
+  it("counts a Claude step's output from its message_delta, which the assistant message leaves out (#318, seen live)", async () => {
+    // As Haiku streamed one tool call live: message_start and the assistant message said 24 output tokens, message_delta 72.
+    const start = { id: 'msg_1', model: 'claude-haiku-5-5', usage: { input_tokens: 2, cache_creation_input_tokens: 1609, cache_read_input_tokens: 0, output_tokens: 24 } };
+    const module = {
+      tool: (name: string) => ({ name }),
+      createSdkMcpServer: (o: unknown) => o,
+      query: () =>
+        (async function* () {
+          yield { type: 'system', subtype: 'init', apiKeySource: 'none', session_id: 'sess-1' };
+          yield { type: 'stream_event', parent_tool_use_id: null, event: { type: 'message_start', message: start } };
+          yield { type: 'assistant', parent_tool_use_id: null, message: { ...start, content: [{ type: 'tool_use', name: 'owi_get', input: {} }] } };
+          yield { type: 'stream_event', parent_tool_use_id: null, event: { type: 'message_delta', delta: { stop_reason: 'tool_use' }, usage: { input_tokens: 2, cache_creation_input_tokens: 1609, cache_read_input_tokens: 0, output_tokens: 72 } } };
+          // No result's totals to replace the steps: the run ended without an answer, so the steps seen stand.
+          yield { type: 'result', subtype: 'error_max_turns', errors: ['max turns'] };
+        })(),
+    };
+    const { host, ledger } = hostFor('claude', module);
+    await last(host).catch(() => undefined);
+    expect(ledger.rows).toEqual([expect.objectContaining({ id: 'claude:msg_1', model: 'claude-haiku-5-5', inputTokens: 2, cacheWriteTokens: 1609, outputTokens: 72 })]);
+  });
+
   it('stops a Claude run cleanly once a per-chat cap is passed partway, keeps what it used, and says which cap and how to raise it', async () => {
     let afterStop = 0;
     const { host, ledger, dataDir } = hostFor('claude', claudeModule([{ id: 'msg_1', input: 600, output: 50 }, { id: 'msg_2', input: 600, output: 50 }], () => afterStop++));

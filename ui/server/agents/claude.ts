@@ -90,6 +90,13 @@ export function zodShape(z: Zod, schema: Pick<ToolSpec['inputSchema'], 'properti
   return Object.fromEntries(Object.entries(schema.properties).map(([k, s]) => [k, required.has(k) ? zodOf(z, s) : zodOf(z, s).optional()]));
 }
 
+/** A message as its message_start streams it: the id, model and usage its step is recorded under. */
+interface Streaming {
+  id?: unknown;
+  model?: unknown;
+  usage?: Record<string, unknown>;
+}
+
 interface ClaudeSdk {
   query(params: { prompt: string; options: Record<string, unknown> }): AsyncIterable<Record<string, unknown>>;
   tool(name: string, description: string, shape: Record<string, ZodType>, handler: (args: Record<string, unknown>) => Promise<unknown>, extras?: Record<string, unknown>): unknown;
@@ -178,6 +185,18 @@ export function claudeRuntime(version: string): Runtime {
       const steps = new Map<string, UsageReport>();
       let apiKeySource: unknown;
       let lastStep: UsageReport | null = null;
+      // The message streaming now, from its message_start: the assistant messages carry only that event's usage, so
+      // message_delta's final figures (a tool call's output tokens, say) are added to it here (#318, seen live).
+      let streaming = null as Streaming | null;
+      const step = (s: UsageReport | null) => {
+        if (!s) return;
+        const seen = steps.get(s.id);
+        // One message streamed in pieces repeats its usage: the same id, so the highest of each figure.
+        const merged = seen ? higherFigures(seen, s) : s;
+        steps.set(s.id, merged);
+        lastStep = merged;
+        r.usage.report([...steps.values()]);
+      };
       const settle = (m: Record<string, unknown>) => {
         const per = (m.modelUsage ?? {}) as Record<string, { provider?: unknown; contextWindow?: unknown }>;
         const first = Object.values(per)[0];
@@ -213,8 +232,11 @@ export function claudeRuntime(version: string): Runtime {
           if (m.type === 'system' && m.subtype === 'init') apiKeySource = m.apiKeySource;
           if (m.parent_tool_use_id) continue;
           if (m.type === 'stream_event') {
-            const event = m.event as { type?: string; delta?: { type?: string; text?: string } };
-            if (event.type === 'message_start') current = '';
+            const event = m.event as { type?: string; message?: Streaming; usage?: Record<string, unknown>; delta?: { type?: string; text?: string } };
+            if (event.type === 'message_start') {
+              current = '';
+              streaming = event.message ?? null;
+            } else if (event.type === 'message_delta' && event.usage && streaming) step(claudeStepUsage({ ...streaming, usage: { ...streaming.usage, ...event.usage } }));
             else if (event.type === 'content_block_delta' && event.delta?.type === 'text_delta') {
               current += event.delta.text ?? '';
               r.onText(current);
@@ -222,15 +244,7 @@ export function claudeRuntime(version: string): Runtime {
           } else if (m.type === 'assistant') {
             const t = textOf((m.message as { content?: unknown } | undefined)?.content);
             if (t) last = t;
-            const step = claudeStepUsage(m.message);
-            if (step) {
-              const seen = steps.get(step.id);
-              // One message streamed in pieces repeats its usage: the same id, so the highest of each figure.
-              const merged = seen ? higherFigures(seen, step) : step;
-              steps.set(step.id, merged);
-              lastStep = merged;
-              r.usage.report([...steps.values()]);
-            }
+            step(claudeStepUsage(m.message));
           } else if (m.type === 'result') {
             settle(m);
             // A failed sign-in still comes back as subtype success, with is_error set and the reason as its text.
