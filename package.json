@@ -57,7 +57,7 @@
     "check:pure": "node scripts/check-pure.mjs",
     "check:dist": "node scripts/check-dist.mjs",
     "smoke": "node scripts/smoke.mjs",
-    "verify:ui": "npm run verify:ui -w ui"
+    "verify:ui": "npm run verify:ui -w ui --"
   },
   "devDependencies": {
     "@cfworker/json-schema": "4.1.1",

@@ -223,10 +223,13 @@ export const ADAPTERS = {
 };
 export const sdkInstall = (adapter) => `npm install --no-save --ignore-scripts ${[SDK_SPECS[adapter], ...Object.entries(SDK_SPECS).filter(([a]) => a !== adapter && sdkInstalled(a)).map(([, s]) => s)].join(' ')}`;
 
-/** Whether an adapter's SDK resolves from ui/, without loading it. */
+/**
+ * Whether an adapter's SDK is installed where ui/ resolves it (ui/node_modules,
+ * then the clone's), without loading it: Copilot's SDK can't be imported from
+ * `node -e`, whose module has no file name.
+ */
 export function sdkInstalled(adapter) {
-  const sdk = spawnSync(process.execPath, ['-e', `import(${JSON.stringify(ADAPTERS[adapter].package)}).then(()=>process.exit(0),()=>process.exit(1))`], { cwd: join(root, 'ui') });
-  return sdk.status === 0;
+  return ['ui', '.'].some((dir) => existsSync(join(root, dir, 'node_modules', ...ADAPTERS[adapter].package.split('/'), 'package.json')));
 }
 
 /** Whether the Codex SDK resolves from ui/, without loading it. */

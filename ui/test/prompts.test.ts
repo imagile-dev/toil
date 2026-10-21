@@ -27,6 +27,8 @@ describe('the system prompt', () => {
     // The rules keep what the server checks and the pane renders: citations, the proposal block, plain text.
     expect(RULES).toContain('[[jira:PAY-101]]');
     expect(RULES).toContain('```proposal');
+    // The agent is told the page's limit, so it chooses the proposals rather than losing the last ones (#317: Copilot wrote 11).
+    expect(RULES).toContain('Write at most 10 proposals, the ones that matter most');
     expect(RULES).toContain('plain text (no Markdown, no headings, no bold)');
     expect(RULES).toContain('Say plainly when the data does not show something.');
     expect(RULES).not.toContain('Style:');

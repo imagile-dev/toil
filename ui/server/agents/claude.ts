@@ -107,6 +107,9 @@ function figures(f: Pick<UsageReport, 'inputTokens' | 'cachedInputTokens' | 'cac
 export function claudeStepUsage(message: unknown): UsageReport | null {
   const m = message as { id?: unknown; model?: unknown; usage?: Record<string, unknown> } | undefined;
   if (!m || typeof m.id !== 'string' || !m.usage || typeof m.usage !== 'object') return null;
+  // Claude Code writes its own errors ("Not logged in") as an assistant message from the model `<synthetic>`, with
+  // zeroed usage: no model ran, so it is no report at all rather than a row of zeros in the ledger (#318, seen live).
+  if (m.model === '<synthetic>') return null;
   const u = m.usage;
   return {
     id: `claude:${m.id}`,

@@ -253,6 +253,8 @@ describe("each adapter's capture, from events shaped like its SDK's", () => {
       cachedInputTokens: 9000,
       cacheWriteTokens: 400,
     });
+    // Claude Code's own "Not logged in" message, as it came back live (#318): no model ran, so nothing is reported.
+    expect(claudeStepUsage({ id: 'e06bc8c1', model: '<synthetic>', usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 } })).toBeNull();
     const result = { type: 'result', subtype: 'success', session_id: 'sess-1', total_cost_usd: 0.0123, modelUsage: { 'claude-sonnet-4-6': { inputTokens: 30, outputTokens: 400, cacheReadInputTokens: 18000, cacheCreationInputTokens: 900, webSearchRequests: 0, costUSD: 0.0123, contextWindow: 200000, maxOutputTokens: 32000, provider: 'firstParty' } } };
     expect(claudeResultUsage(result, true)).toEqual([{ id: 'claude:sess-1:claude-sonnet-4-6', model: 'claude-sonnet-4-6', costSource: 'sdk-estimate', costUsd: 0.0123, plan: true, inputTokens: 30, outputTokens: 400, cachedInputTokens: 18000, cacheWriteTokens: 900 }]);
     expect(onPlan('none', 'firstParty', null)).toBe(true);
