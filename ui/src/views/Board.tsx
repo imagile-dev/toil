@@ -320,9 +320,6 @@ function Column({ category, items, all, onMove, menuFor, setMenuFor, ghosts, onU
   );
 }
 
-/** Where a proposal's card sits under the board, by its id. */
-const slotId = (proposal: Proposal) => `proposal-${proposal.id.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
-
 export function Board({ items }: { items: WorkItem[] }) {
   const { dossier, byId } = useData();
   const [moves, setMoves] = useState<Move[]>([]);
@@ -330,6 +327,7 @@ export function Board({ items }: { items: WorkItem[] }) {
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [dragging, setDragging] = useState<WorkItem | null>(null);
   const boardRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const cols = columns(items);
   const cats = cols.map((c) => c.category);
   const sensors = useSensors(
@@ -358,9 +356,9 @@ export function Board({ items }: { items: WorkItem[] }) {
     setSaid(`Took back the proposed move of ${keyOf(move.proposal.item)}. Nothing proposed.`);
     requestAnimationFrame(() => boardRef.current?.querySelector<HTMLElement>(`.card-grip[data-item="${CSS.escape(move.proposal.item)}"]`)?.focus());
   };
-  // How to apply: the proposal's card under the board, which has the command.
+  // How to apply: the proposal's card under this board, which has the command.
   const show = (move: Move) => {
-    const slot = document.getElementById(slotId(move.proposal));
+    const slot = listRef.current?.querySelector<HTMLElement>(`[data-proposal="${CSS.escape(move.proposal.id)}"]`);
     slot?.scrollIntoView?.({ block: 'center' });
     slot?.focus({ preventScroll: true });
   };
@@ -432,10 +430,10 @@ export function Board({ items }: { items: WorkItem[] }) {
         {said}
       </p>
       {moves.length > 0 && (
-        <div className="proposals" aria-label="Proposed moves" role="group">
+        <div ref={listRef} className="proposals" aria-label="Proposed moves" role="group">
           <h3>Proposed moves</h3>
           {moves.map((m) => (
-            <div key={m.proposal.id} id={slotId(m.proposal)} className="proposal-slot" tabIndex={-1}>
+            <div key={m.proposal.id} data-proposal={m.proposal.id} className="proposal-slot" tabIndex={-1}>
               <ProposalCard proposal={m.proposal} onDismiss={() => dismiss(m)} />
             </div>
           ))}
