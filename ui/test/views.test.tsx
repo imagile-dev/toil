@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
-import type { Agent } from '../src/agent.ts';
+import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type Agent, type AskExtra } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { askBar, openChat } from './chat.ts';
 import { CANNED, FIXTURE_NOW, callKey, fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
@@ -368,6 +368,27 @@ describe('the chat up front (#343)', () => {
     await userEvent.click(within(askBar('settlement')).getByRole('button', { name: 'Open the conversation' }));
     chat = await screen.findByRole('dialog', { name: 'Ask about settlement' });
     expect(within(chat).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Where is this work deployed?', "Who's overloaded or blocked?"]);
+  });
+
+  it('keeps sending a long chat inside what the server takes: the last turns, each answer cut short (#344)', async () => {
+    const sent: AskExtra[] = [];
+    const agent: Agent = {
+      starters: () => [],
+      // The first answer is longer than the server takes in one turn of history (20,000 characters).
+      ask: async (_d, prompt, _s, _c, extra) => (sent.push(extra ?? {}), { prompt, parts: [{ text: sent.length === 1 ? 'x'.repeat(25_000) : `Answer ${sent.length}.` }], citations: [], by: 'Codex', proposals: [] }),
+    };
+    await open('#/dossier/card-payments', { agent, preview: false });
+    const chat = await openChat('card-payments');
+    const box = within(chat).getByRole('textbox', { name: 'Your question' });
+    for (let i = 1; i <= MAX_HISTORY_TURNS + 3; i++) {
+      await userEvent.type(box, `Question ${i}{Enter}`);
+      await waitFor(() => expect(within(chat).getAllByRole('heading', { level: 3 })).toHaveLength(i));
+    }
+    const last = sent.at(-1)!.history!;
+    expect(last).toHaveLength(MAX_HISTORY_TURNS);
+    expect(last.at(-1)!.prompt).toBe(`Question ${MAX_HISTORY_TURNS + 2}`);
+    expect(sent[1]!.history![0]!.answer).toHaveLength(MAX_HISTORY_ANSWER + 1);
+    expect(sent.every((e) => (e.history ?? []).length <= 20 && (e.history ?? []).every((t) => t.answer.length <= 20_000))).toBe(true);
   });
 
   it('runs Analyze in one press, into the focused view, citing its items', async () => {

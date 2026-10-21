@@ -66,6 +66,15 @@ export interface HistoryTurn {
   by?: string;
 }
 
+/**
+ * The most of a chat a question carries (#344): its last turns, each answer
+ * cut short. The page trims to these before it sends, so a long chat stays
+ * inside what the server accepts, and the prompt (server/agents/prompts.ts)
+ * holds to them again.
+ */
+export const MAX_HISTORY_TURNS = 8;
+export const MAX_HISTORY_ANSWER = 1500;
+
 /** What a question may carry beyond its text (#344): the chat's own adapter, and the conversation so far. */
 export interface AskExtra {
   /** The adapter this chat switched to; absent, the one chosen in Settings answers. */

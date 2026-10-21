@@ -22,7 +22,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Input, Label, Menu, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover, TextField } from 'react-aria-components';
-import { ANALYZE, type AdapterList, type AdapterOption, type Answer, type HistoryTurn } from '../agent.ts';
+import { ANALYZE, MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type AdapterList, type AdapterOption, type Answer, type HistoryTurn } from '../agent.ts';
 import { useData, useDerived } from '../data.ts';
 import { useSkins, useTheme, useThemeChoiceContext, useWords } from '../skins.tsx';
 import { voiceOn } from '../theme-context.ts';
@@ -101,7 +101,10 @@ function useChat() {
     const id = next.current++;
     const chat = { id: chatId.current, turn: turns.length + 1 };
     // The chat so far, so a follow-up continues from the last answer and a switched agent carries over (#344).
-    const history: HistoryTurn[] = turns.flatMap((t) => (t.done && !t.error && t.answer?.parts.length ? [{ prompt: t.prompt, answer: textOf(t.answer), by: t.answer.by }] : []));
+    // Only what the prompt uses: the last turns, each answer cut one character past the limit, so the server still marks it cut.
+    const history: HistoryTurn[] = turns
+      .flatMap((t) => (t.done && !t.error && t.answer?.parts.length ? [{ prompt: t.prompt, answer: textOf(t.answer).slice(0, MAX_HISTORY_ANSWER + 1), by: t.answer.by }] : []))
+      .slice(-MAX_HISTORY_TURNS);
     const extra = { ...(adapter ? { adapter } : {}), ...(history.length ? { history } : {}) };
     const controller = new AbortController();
     abort.current = controller;

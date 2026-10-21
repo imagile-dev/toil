@@ -14,7 +14,9 @@
  * prompt the server sends.
  */
 
-import type { Starter } from '../../src/agent.ts';
+import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type Starter } from '../../src/agent.ts';
+
+export { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS } from '../../src/agent.ts';
 
 export interface StarterPrompt extends Starter {
   /** The question as the model gets it, written for the dossier. */
@@ -100,9 +102,6 @@ export const analyzePrompt = (d: string) =>
     'Anything that looks off: status drift between tickets and their pull requests (an item done while its pull request is open, a merged pull request whose item is still in progress or to do), and readiness_list for open items that are thin or blocked.',
   ].join('\n');
 
-/** The most of a chat a question carries (#344): its last turns, each answer cut short. */
-export const MAX_HISTORY_TURNS = 8;
-export const MAX_HISTORY_ANSWER = 1500;
 
 /**
  * The question with the chat so far before it (#344), so a follow-up
