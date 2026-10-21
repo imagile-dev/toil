@@ -12,7 +12,10 @@ export function Choice({ label, value, options, onChange }: { label: string; val
     <Select className="choice" selectedKey={value} onSelectionChange={(k) => k !== null && onChange(String(k))}>
       <Label>{label}</Label>
       <Button className="btn choice-button">
-        <SelectValue />
+        {/* The chosen label from our own options: SelectValue's own text is its "Select an item"
+            placeholder until its collection is built, a render later, and the header measures
+            whether its row is full on that first render (#387). */}
+        <SelectValue>{() => options.find((o) => o.id === value)?.label ?? value}</SelectValue>
         <span aria-hidden="true">▾</span>
       </Button>
       <Popover className="popover">

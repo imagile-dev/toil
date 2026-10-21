@@ -137,7 +137,7 @@ try {
   });
   problems.push(...layout.problems);
   for (const r of layout.reported) console.log(`  report-only (decorative theme): ${r}`);
-  steps.push(`layout: ${layout.checked} views and states in ${themeRuns().length} theme schemes at ${WIDTHS.join(', ')}px, ${layout.problems.length} problem(s) (no sideways scroll, no overflow outside a declared scroller, nothing past its card, nothing fixed covering the page's end, one-row headers, a dimming backdrop, and no axe violation in Plain or Crate), ${layout.reported.length} report-only axe finding(s) in the decorative themes`);
+  steps.push(`layout: ${layout.checked} views and states in ${themeRuns().length} theme schemes at ${WIDTHS.join(', ')}px, ${layout.problems.length} problem(s) (no sideways scroll, no overflow outside a declared scroller, nothing past its card, nothing fixed covering the page's end, one-row headers, a full header row at 1440px, a dimming backdrop, and no axe violation in Plain or Crate), ${layout.reported.length} report-only axe finding(s) in the decorative themes`);
 
   // toil's own execute(), from the installed package, with an empty home, behind the SQLite cache.
   const live = launch(bin, []);
