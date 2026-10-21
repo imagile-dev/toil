@@ -1,0 +1,188 @@
+/**
+ * Every dossier page's frame (#394): a top row with the dossier's name, its
+ * switcher, the sprint's day, and the Ask bar with Analyze; then one tab per
+ * view of the dossier; then the view itself beside the Agents sidebar, which
+ * becomes a drawer on a narrower screen. The tabs are links, one route each,
+ * so a view keeps its own address and the old ones (`/prs`, `/people`,
+ * `/command-center`, `/worklog`) land on their tab. Thirteen stacked sections
+ * were reorganised into seven tabs, a reorganisation that, for once, removed
+ * a layer.
+ */
+
+import { useMemo, useState, type ReactNode } from 'react';
+import { Button, Dialog, Menu, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover } from 'react-aria-components';
+import { AskBar } from '../components/ask.tsx';
+import { Editable, SourceBadges } from '../components/dossier-head.tsx';
+import { Scroller, useMediaQuery } from '../components/layout.tsx';
+import { AgentsSidebar, useAgentsSummary } from '../assign/sidebar.tsx';
+import { useData, useDerived } from '../data.ts';
+import { analysesHref, boardHref, commandCenterHref, dependenciesHref, dossierHref, peopleHref, prsHref, worklogHref } from '../format.ts';
+import { needingAttention } from '../model/insights.ts';
+import { useTerm } from '../skins.tsx';
+import './dossier-shell.css';
+
+export type DossierTab = 'overview' | 'board' | 'dependencies' | 'prs' | 'people' | 'worklog' | 'analyses';
+
+/** Below this width the Agents sidebar is a drawer behind a button; at 1200px and wider it sits beside the view. */
+export const SIDEBAR_WIDE = '(min-width: 1200px)';
+
+/**
+ * The dossier's top row and tabs, the view, and the Agents sidebar. `heading`
+ * makes the dossier's name the page's h1, for the tabs that have no heading of
+ * their own (Overview, Board, Dependencies, Analyses); the others keep theirs.
+ * `boardView` says which of the Board tab's two views is showing.
+ */
+export function DossierShell({ tab, heading, dossiers, boardView, children }: { tab: DossierTab | null; heading: boolean; dossiers: string[] | null; boardView?: 'board' | 'readiness'; children: ReactNode }) {
+  const { dossier, config, described } = useData();
+  const { health: h, insights } = useDerived();
+  const term = useTerm();
+  const wide = useMediaQuery(SIDEBAR_WIDE);
+  const attention = useMemo(() => needingAttention(h?.items ?? dossier.items, insights).length, [h, dossier, insights]);
+  const name = (
+    <Editable field="name" dossier={dossier.name} value={dossier.name} config={config ?? null} onSaved={described ?? (() => undefined)}>
+      {dossier.name}
+    </Editable>
+  );
+  const tabs: Array<{ id: DossierTab; href: string; label: string; count?: { n: number; label: string } }> = [
+    { id: 'overview', href: dossierHref(dossier.name), label: 'Overview' },
+    { id: 'board', href: boardHref(dossier.name), label: 'Board', count: { n: attention, label: attention === 1 ? 'item needs attention' : 'items need attention' } },
+    { id: 'dependencies', href: dependenciesHref(dossier.name), label: 'Dependencies' },
+    { id: 'prs', href: prsHref(dossier.name), label: 'Pull requests' },
+    { id: 'people', href: peopleHref(dossier.name), label: 'People' },
+    { id: 'worklog', href: worklogHref(dossier.name), label: 'Worklog' },
+    { id: 'analyses', href: analysesHref(dossier.name), label: 'Analyses' },
+  ];
+  return (
+    <div className="dossier-shell" data-wide-sidebar={wide || undefined}>
+      <div className="dossier-bar">
+        <div className="dossier-bar__id">
+          <div className="dossier-bar__line">
+            {heading ? (
+              <h1 tabIndex={-1} className="dossier-bar__name">
+                {name}
+              </h1>
+            ) : (
+              <p className="dossier-bar__name">{name}</p>
+            )}
+            <Switcher current={dossier.name} dossiers={dossiers} />
+            {h && <span className="sprint-chip">{term('sprint', `${h.sprint.name}: day ${h.days.gone} of ${h.days.total}`)}</span>}
+          </div>
+          <div className="dossier-bar__about">
+            <p className="dossier-bar__desc">
+              <Editable field="description" dossier={dossier.name} value={dossier.description} config={config ?? null} onSaved={described ?? (() => undefined)}>
+                {dossier.description ? (
+                  <span className="dossier-bar__desc-text" title={dossier.description} data-truncate="">
+                    {dossier.description}
+                  </span>
+                ) : (
+                  <span className="note">No description</span>
+                )}
+              </Editable>
+            </p>
+            <SourceBadges sources={dossier.sources} dossier={dossier.name} />
+          </div>
+        </div>
+        <AskBar />
+      </div>
+      <div className="dossier-tabs-row">
+        <Scroller label="Dossier views" className="dossier-tabs">
+          <nav aria-label={`${dossier.name} views`}>
+            <ul>
+              {tabs.map((t) => (
+                <li key={t.id}>
+                  <a href={t.href} aria-current={t.id === tab ? 'page' : undefined} data-tab={t.id}>
+                    {t.label}
+                    {t.count && t.count.n > 0 && (
+                      <span className="tab-count">
+                        <span aria-hidden="true">{t.count.n}</span>
+                        <span className="sr-only">
+                          , {t.count.n} {t.count.label}
+                        </span>
+                      </span>
+                    )}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </Scroller>
+        {!wide && <AgentsDrawer />}
+      </div>
+      {tab === 'board' && boardView && (
+        <nav className="board-views" aria-label="Board views">
+          <a href={boardHref(dossier.name)} aria-current={boardView === 'board' ? 'page' : undefined}>
+            Board
+          </a>
+          <a href={commandCenterHref(dossier.name)} aria-current={boardView === 'readiness' ? 'page' : undefined}>
+            Readiness (Command Center)
+          </a>
+        </nav>
+      )}
+      <div className="dossier-body">
+        <div className="dossier-main">{children}</div>
+        {wide && (
+          <aside className="agents-side" aria-labelledby="agents">
+            <div className="agents-side__scroll">
+              <AgentsSidebar />
+            </div>
+          </aside>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** The dossier switcher: every dossier this browser has read, and the Dossiers overview, whose cards say most about each. */
+function Switcher({ current, dossiers }: { current: string; dossiers: string[] | null }) {
+  const others = (dossiers ?? []).filter((d) => d !== current);
+  return (
+    <MenuTrigger>
+      <Button className="btn btn--small dossier-switch" aria-label={`Switch dossier, on ${current}`} data-dossier-switch="">
+        Switch <span aria-hidden="true">▾</span>
+      </Button>
+      <Popover className="popover" placement="bottom start">
+        <Menu className="menu" aria-label="Dossiers">
+          <MenuItem id="#/" href="#/" className="menu-item">
+            All dossiers
+          </MenuItem>
+          {others.map((d) => (
+            <MenuItem key={d} id={d} href={dossierHref(d)} className="menu-item">
+              {d}
+            </MenuItem>
+          ))}
+        </Menu>
+      </Popover>
+    </MenuTrigger>
+  );
+}
+
+/** Below 1200px: the Agents sidebar as a drawer from the right, behind a button that says how many need you. */
+function AgentsDrawer() {
+  const [open, setOpen] = useState(false);
+  const summary = useAgentsSummary();
+  return (
+    <>
+      <Button className="btn agents-open" onPress={() => setOpen(true)} data-agents-open="">
+        Agents
+        {summary.needsYou > 0 && (
+          <span className="tab-count">
+            <span aria-hidden="true">{summary.needsYou}</span>
+            <span className="sr-only">, {summary.needsYou} need you</span>
+          </span>
+        )}
+      </Button>
+      <ModalOverlay className="drawer-overlay" data-backdrop="" isDismissable isOpen={open} onOpenChange={setOpen}>
+        <Modal className="agents-drawer">
+          <Dialog className="agents-drawer__dialog" aria-labelledby="agents">
+            <div className="agents-drawer__head">
+              <Button className="btn btn--small agents-close" onPress={() => setOpen(false)} data-agents-close="">
+                Close
+              </Button>
+            </div>
+            <AgentsSidebar />
+          </Dialog>
+        </Modal>
+      </ModalOverlay>
+    </>
+  );
+}

@@ -84,13 +84,13 @@ filled, plus `dossiers list` and `dossiers show` for the dossiers themselves.
 - **What this browser remembers:** when each dashboard was last opened, in
   `localStorage`, never sent anywhere. Without it (a private window) the cards just
   say nothing about "since".
-- **The dashboard's header** uses the same parts: the description under the name, the
-  sources as badges, and the counts in one strip, so the panels start higher.
+- **A dossier's top row** uses the same parts: the description beside the name, the
+  sources as badges, and the sprint's day (The dossier page, below).
 
 ### Renaming and describing a dossier
 
 The name and the description have a pencil beside them, on the card and in the
-dashboard's header. It opens an inline field: Enter saves through
+dossier's top row. It opens an inline field: Enter saves through
 `toil dossiers describe <dossier> --name <new name>` or `--description <text>`, run
 on the settings pages' path (below), so toil's own checks apply and the change is in
 its audit log as `caller: "toil-ui"`. Escape cancels, and a refusal shows toil's
@@ -105,9 +105,74 @@ message, while a sync or an assignment of that dossier is running, since both re
 by name as they go. What can't be moved is said beside toil's result, and the next
 sync reads the dossier afresh under its new name.
 
+## The dossier page
+
+A dossier opens on its **Overview**, in a frame all of its pages share:
+
+- **The top row:** its name, with the pencil that renames it; **Switch**, for another
+  dossier or the Dossiers view; the sprint and its day; its description, cut to one
+  line with the whole of it in its tooltip, and its sources; and the Ask bar with
+  **Analyze** (The agent, below).
+- **The tabs**, one address each: **Overview** (`#/dossier/<name>`), **Board**
+  (`/board`, with how many of its cards need attention), **Dependencies**
+  (`/dependencies`), **Pull requests** (`/prs`), **People** (`/people`), **Worklog**
+  (`/worklog`) and **Analyses** (`/analyses`). The Command Center (`/command-center`)
+  is the Board tab's **Readiness** view, the stand-up is the Worklog's, and an item's
+  page sits under Board, so every address from before the tabs still opens. On a
+  narrow screen the tabs scroll sideways.
+- **The Agents sidebar**, beside every tab from 1200px wide, and a drawer behind the
+  **Agents** button below that: the tracker's inbox, then the dossier's assignments
+  in three groups (those that need you, those working, and those gone stale), with the
+  finished ones under **Earlier**; then **Renew all stale**, the **Limits**, and this
+  session's recent analyses (Assigning work to an agent, below).
+- **Analyses** lists every Analyze pulse check asked in this session, newest first,
+  with who answered and what each cites. They are the chat's, so a reload clears them
+  as it clears the chat.
+
+### The Overview
+
+The Overview puts the answer first, then the reasons, then the evidence, and fits a
+1440 by 900 screen without scrolling:
+
+1. **The recommendation:** the one thing to do first. It is worked out by code from
+   what the dossier already holds, with no agent call (`ui/src/model/recommend.ts`),
+   and says what it read.
+2. **Three key issues**, each with its tickets as chips, every one showing its key,
+   title and status, and a link to the tab that has the rest.
+3. **The metrics as sparklines:** burn-up, throughput, cycle time, aging work in
+   progress and pull request wait, each with its figure. Pressing one opens its full
+   chart, with its figures in a table and what it couldn't compute.
+4. **The blockers in brief:** each open item that holds up another, and what it holds.
+   The Dependencies tab has the whole graph.
+
+The key issues come from six checks, each with a fixed weight, so blockers always come
+first and work not yet started comes last. Within a kind, more tickets outrank fewer.
+
+| Issue | Raised when | Its tab |
+|---|---|---|
+| Blocked | An open item is blocked by another open one. The blocker holding the most, counting chains, is the one to clear first | Dependencies |
+| Builds failing | An open item's latest build failed | Board |
+| Points left | The sprint's pace so far (points done per working day) won't finish the points left in the days left | Board |
+| Pull requests waiting | An open pull request has waited on review 2 working days or more, or its checks have failed for over a day | Pull requests |
+| Aging | An item has been in progress longer than 85% of finished items took, or has had no update for more than 5 days | Board |
+| Not ready | Work not started in the sprint fails the readiness gate (Readiness and the Command Center, below) | Board |
+
+The recommendation is the heaviest issue's action. With none raised, it says to keep
+going, and why.
+
+### The board
+
+The Board tab flags each card that needs attention, with a flag beside its status and
+an edge in the warning colour: anything that needs action now or a look (Insights,
+below), but not what is only worth knowing. **Needs attention only** narrows the board
+to those cards, and the tab carries how many there are. Under the board are its
+stories with their pull requests, builds and deployments, then the builds and
+deployments themselves.
+
 ## Insights
 
-The dashboard's **Needs attention** panel, the board's cards and the flow panels mark
+The board's cards and its **Needs attention** flag, the flow charts and the Overview's
+key issues mark
 each open work item with its insights, weightiest first, each naming the data it
 rests on (`ui/src/model/insights.ts`). One the data can't support isn't raised at
 all, rather than raised on a guess.
@@ -128,8 +193,8 @@ all, rather than raised on a guess.
 
 ## Pull requests
 
-Each dossier has a **Pull requests** view (`#/dossier/<name>/prs`, linked from its
-dashboard and the header), built from OWI 0.2 changes:
+Each dossier has a **Pull requests** tab (`#/dossier/<name>/prs`), built from OWI 0.2
+changes:
 
 - **Waiting now:** the open pull requests, longest wait first, each with what it
   waits on (review, changes, checks, merge, or a draft its author holds), since when
@@ -153,7 +218,7 @@ repository's `owner/repo#41`). A code host's section may set author kinds by han
 
 ## People
 
-Each dossier has a **People** view (`#/dossier/<name>/people`, in the header), built
+Each dossier has a **People** tab (`#/dossier/<name>/people`), built
 from the same OWI work items and changes as the dashboard and the pull requests view,
 and from the dossier's `people` section, which says who each person is in every
 system (`toil dossiers person`, or **Settings, Dossiers**):
@@ -162,7 +227,7 @@ system (`toil dossiers person`, or **Settings, Dossiers**):
   status with how long each item has sat in it, their open pull requests and what
   each waits on, the reviews waiting on them (oldest first), their blocked items and
   what blocks each, and what they did in the last 14 days. A link opens their items
-  on the dashboard's board, filtered to them.
+  on the Board tab, filtered to them.
 - **A team strip:** work in progress against the dossier's `wipLimit` and who is over
   it, the review queue, and the current sprint's unassigned items.
 - **Agents:** a person with `kind: "agent"`, matched by the same signals as a pull
@@ -213,7 +278,7 @@ that names none uses `Microsoft.VSTS.Common.AcceptanceCriteria`.
   rows, each with where its answer came from. **Check the workflow live** makes the one
   live read, read-only: `jira issue transitions` for a Jira issue, `ado work-item
   states` for an Azure DevOps type. A GitHub issue needs none.
-- **The Command Center** (`#/dossier/<name>/command-center`, in the header) lists every
+- **The Command Center** (`#/dossier/<name>/command-center`, the Board tab's Readiness view) lists every
   work item with its verdict and, for each one that isn't ready, the rows that say why.
   It filters by verdict, status, type, assignee and source, and makes no live read.
   It is strict: only ready items are slated, in the dossier's order, under a plan id
@@ -224,7 +289,7 @@ that names none uses `Microsoft.VSTS.Common.AcceptanceCriteria`.
   are ready for an agent?" (The agent, below).
 ## Worklog
 
-Each dossier has a **Worklog** (`#/dossier/<name>/worklog`, linked from the header):
+Each dossier has a **Worklog** tab (`#/dossier/<name>/worklog`):
 one page a day, folded by code from what the cache holds, facts only. No model writes
 a line of it. A calendar shows the days that have a page, with how many lines each
 has; a day opens as `#/dossier/<name>/worklog/<yyyy-mm-dd>`. Days and times are UTC,
@@ -438,7 +503,7 @@ by the page: `toil audit list`, read-only, to see whether a proposal was applied
 
 ## The agent
 
-Every dossier page has an **Ask bar** under the header: one line, with **Analyze**
+Every dossier page has an **Ask bar** in its top row: one line, with **Analyze**
 beside it. Pressing into it opens the **focused view**: the conversation takes the
 screen and the page steps back, with a slim strip that keeps the dossier, its sprint
 and the agent answering in sight. **Escape** or **Close** puts it away; the
@@ -664,9 +729,9 @@ you apply it.
   that pushes.
 - **States**: `queued` (waiting for a free slot, or for a person to press Start),
   `working`, `needs you` (proposals or questions to review, or an item the agent
-  thought was trying to instruct it), `done` and `failed`. The **Agents** lane on the
-  dashboard shows each assignment's state, mode, adapter, run time and what it used,
-  and the People view shows each agent's assignments.
+  thought was trying to instruct it), `done` and `failed`. The **Agents** sidebar beside
+  every dossier tab shows each assignment's state, mode, adapter, run time and what it
+  used, and the People view shows each agent's assignments.
 - **From the Command Center**, "Start every ready item" assigns each slated item in
   implement mode, in order, on Codex (or the adapter chosen in Settings, when it can
   implement), in the dossier's one repository with a local path, and says what it
@@ -682,7 +747,7 @@ you apply it.
 - **Tracker text is untrusted.** The item is fenced off in the prompt as data, and an
   item that tells the agent to do anything else stops the run, marked `needs you`.
 - **Limits.** One assignment runs at a time and each has 20 minutes, both changeable
-  in the lane's **Limits** (1 to 3 at once, 1 to 240 minutes), kept in
+  in the sidebar's **Limits** (1 to 3 at once, 1 to 240 minutes), kept in
   `<data folder>/assignments.json`. An assignment is one chat to the usage caps under
   **Settings, Agent usage**, so a per-chat cap is a per-assignment cap. Either limit
   stops a run cleanly, saying which.
@@ -711,14 +776,14 @@ started on, says which have gone stale and why, and renews them on request.
   prompt, the starters or the mode's task, and your own instructions and voice). The
   theme on screen isn't part of it. An assignment recorded before this has none, and
   is never called stale.
-- **When it's stale.** Every answer, every read of the Agents lane and every
+- **When it's stale.** Every answer, every read of the Agents sidebar and every
   assignment page compares what the session started on with the current fingerprint,
   whose builds are the ones on disk, read again only when their files change. The
   reason names what moved: "started on toil 0.1.0-alpha.3 · now alpha.4 · skills
   changed: github · dossier changed". A session's earlier turns aren't marked; only
   the instructions it started on are.
 - **Where it shows.** A **Stale** badge with the reason on the chat (in the Ask bar and
-  the focused view), on each assignment in the Agents lane and on its page, and on the
+  the focused view), on each assignment in the Agents sidebar and on its page, and on the
   agent's card in the People view. A done assignment is closed and isn't marked.
 - **Renew.** On the chat, **Renew** in the focused view records what it starts on now;
   the conversation stays, and the next question carries it as every question does. The
@@ -728,7 +793,7 @@ started on, says which have gone stale and why, and renews them on request.
   stays readable, marked as renewed. Renew never interrupts a turn: a chat that is
   answering and a working assignment wait, and an assignment that needs you is
   skipped until you've reviewed it.
-- **Renew all stale**, in the Agents lane, lists every stale session of the dossier
+- **Renew all stale**, in the Agents sidebar, lists every stale session of the dossier
   first, the chat included, each saying whether it renews or why it's skipped, and
   renews the rest with one press.
 - **The server itself.** When toil or Toil UI on disk is newer than the running

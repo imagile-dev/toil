@@ -23,7 +23,8 @@
 //
 // Each view is checked as it opens and with its hidden parts showing: every
 // <details> open, each dossier card's Show pressed, the header menu and the
-// Feedback dialog open, every dossier name and description open for editing, the Assign dialog open from an item and the inbox, the focused Ask view open
+// Feedback dialog open, every dossier name and description open for editing, the Assign dialog open from an item and the inbox, the Agents
+// drawer, the dossier switcher, a metric's full chart and the board's needs-attention filter (#394), the focused Ask view open
 // from the Ask bar (#343) with its (i) popover, its agent switcher, an answer, its Suggestions menu and
 // Analyze's pulse check, a help (i)'s tooltip and popover (#346), the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
 // the calendar on an earlier month, a stand-up written up, and every failing
@@ -61,6 +62,11 @@ export const ROUTES = [
   '#/dossier/card-payments',
   '#/dossier/settlement',
   '#/dossier/checkout-web',
+  // The dossier's own tabs (#394): the Board with its needs-attention flags, the longest titles' board, Dependencies, and Analyses.
+  '#/dossier/card-payments/board',
+  '#/dossier/checkout-web/board',
+  '#/dossier/card-payments/dependencies',
+  '#/dossier/card-payments/analyses',
   '#/dossier/checkout-web/prs',
   '#/dossier/card-payments/prs',
   // The People view (#292): mapped people with a suggested match, people plus agents and an unmapped account, a dossier listing nobody, and the board filtered to one person.
@@ -295,7 +301,20 @@ function states(route, width) {
   // state at the next width; its own Cancel or Close closes it for certain.
   const closeAssign = clickAll('[role="dialog"] button', '/^(Cancel|Close)$/', 0);
   if (route.includes('/item/')) out.push({ name: 'assign-open', setup: clickAll('[data-assign-open]'), undo: 'Escape', undoJs: closeAssign });
-  if (route === '#/dossier/card-payments') out.push({ name: 'inbox-start', setup: clickAll('[data-inbox-start]'), undo: 'Escape', undoJs: closeAssign });
+  // The Agents sidebar (#394) is a drawer below 1200px (SIDEBAR_WIDE in src/views/DossierShell.tsx): its Start is pressed from inside it there.
+  const sidebarWide = width >= 1200;
+  const closeDrawer = clickAll('[data-agents-close]', null, 0);
+  if (route === '#/dossier/card-payments') {
+    const start = sidebarWide ? clickAll('[data-inbox-start]') : `(async () => { if (!(await ${clickAll('[data-agents-open]')})) return 0; return await ${clickAll('[data-inbox-start]')}; })()`;
+    out.push({ name: 'inbox-start', setup: start, undo: 'Escape', undoJs: `(async () => { await ${closeAssign}; await ${closeDrawer}; })()` });
+  }
+  // The dossier's frame (#394): the Agents drawer open below 1200px, the dossier switcher, and a metric's full chart from the Overview.
+  if (/^#\/dossier\/[^/]+$/.test(route) && !sidebarWide) out.push({ name: 'agents-drawer', setup: clickAll('[data-agents-open]'), undo: 'Escape', undoJs: closeDrawer });
+  if (route === '#/dossier/card-payments') {
+    out.push({ name: 'dossier-switch', setup: clickAll('[data-dossier-switch]'), undo: 'Escape' });
+    for (const m of ['burnup', 'pr-wait']) out.push({ name: `chart-${m}`, setup: clickAll(`[data-metric="${m}"]`), undo: 'Escape', undoJs: clickAll('[data-chart-close]', null, 0) });
+  }
+  if (route === '#/dossier/card-payments/board') out.push({ name: 'attention-only', setup: clickAll('[data-attention-only]'), undoJs: clickAll('[data-attention-only]') });
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
   if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).

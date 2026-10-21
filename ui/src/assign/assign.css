@@ -1,4 +1,4 @@
-/* Agent assignments (#293): the Assign dialog, the Agents lane, and the
+/* Agent assignments (#293): the Assign dialog, the Agents sidebar, and the
    assignment page. Colours come from the active theme's tokens. */
 
 .assign-form { display: grid; gap: 1rem; padding: 1.25rem; min-width: 0; }

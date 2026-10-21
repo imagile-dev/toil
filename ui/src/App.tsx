@@ -14,18 +14,19 @@ import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { Ambient } from './ambient/Ambient.tsx';
 import { DataContext, type Data, type StartReady } from './data.ts';
-import { commandCenterHref, dateTime, dossierHref, peopleHref, prsHref, worklogHref } from './format.ts';
+import { dateTime, dossierHref } from './format.ts';
 import { loadDossier, loadDossiers, type DossierData, type DossierSummary } from './load.ts';
 import { SkinProvider, ThemeProvider, skinsFor } from './skins.tsx';
 import { THEMES, themeNamed, tokenCss } from './themes.ts';
 import { useThemeChoice } from './theme-choice.ts';
 import type { Call, Execute } from './toil.ts';
-import { AskBar, ChatScope } from './components/ask.tsx';
+import { ChatScope } from './components/ask.tsx';
 import { ServerStale } from './components/stale.tsx';
 import { Notices, NotifyProvider, remembering, useMine } from './components/notify.tsx';
 import type { ServerStatus } from './fingerprint.ts';
 import { CommandCenter } from './views/CommandCenter.tsx';
 import { Dashboard } from './views/Dashboard.tsx';
+import { DossierShell, type DossierTab } from './views/DossierShell.tsx';
 import { Dossiers, type SyncedAt } from './views/Dossiers.tsx';
 import type { Described } from './components/dossier-head.tsx';
 import { markLooked, renameLooked } from './looked.ts';
@@ -56,8 +57,11 @@ export type Route =
   | { view: 'dossiers' }
   /** `at`: where an edit link lands on the page (#346): a connection's name, a dossier and its section, or `caps`. */
   | { view: 'settings'; page: SettingsPage; at?: string[] }
-  /** `person`: the board filtered to one person, by the People view's key for them (#292). */
-  | { view: 'dashboard'; dossier: string; person?: string }
+  /**
+   * A dossier's own tabs (#394): the Overview when `tab` is absent, else the Board, Dependencies or Analyses.
+   * `person`: the board filtered to one person, by the People view's key for them (#292).
+   */
+  | { view: 'dashboard'; dossier: string; tab?: 'board' | 'dependencies' | 'analyses'; person?: string }
   | { view: 'prs'; dossier: string }
   | { view: 'people'; dossier: string }
   /** Every work item with its readiness verdict (#307). */
@@ -91,7 +95,8 @@ export function parseRoute(hash: string): Route {
     if (parts[2] === 'prs') return { view: 'prs', dossier };
     if (parts[2] === 'people') return { view: 'people', dossier };
     if (parts[2] === 'command-center') return { view: 'command-center', dossier };
-    if (parts[2] === 'board' && parts[3]) return { view: 'dashboard', dossier, person: decodeURIComponent(parts.slice(3).join('/')) };
+    if (parts[2] === 'board') return parts[3] ? { view: 'dashboard', dossier, tab: 'board', person: decodeURIComponent(parts.slice(3).join('/')) } : { view: 'dashboard', dossier, tab: 'board' };
+    if (parts[2] === 'dependencies' || parts[2] === 'analyses') return { view: 'dashboard', dossier, tab: parts[2] };
     if (parts[2] === 'worklog' && parts[3] === 'standup') {
       // One day names a one-day stand-up; anything that isn't a day is named on the page, which shows the default range instead.
       const [from, to] = [parts[4], parts[5]].map((p) => (p ? decodeURIComponent(p) : undefined));
@@ -103,6 +108,31 @@ export function parseRoute(hash: string): Route {
     return { view: 'dashboard', dossier };
   }
   return { view: 'dossiers' };
+}
+
+/**
+ * Which of a dossier's tabs a route shows (#394). The old addresses keep
+ * working on the tab they belong to: the Command Center is the Board's
+ * readiness view, the stand-up is the Worklog's, and an item lands on the
+ * Board it came from. An assignment belongs to no tab: the Agents sidebar is its home.
+ */
+export function tabOf(route: Route): DossierTab | null {
+  switch (route.view) {
+    case 'dashboard':
+      return route.tab ?? 'overview';
+    case 'prs':
+      return 'prs';
+    case 'people':
+      return 'people';
+    case 'worklog':
+    case 'standup':
+      return 'worklog';
+    case 'command-center':
+    case 'item':
+      return 'board';
+    default:
+      return null;
+  }
 }
 
 function useRoute(): Route {
@@ -162,7 +192,8 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   const wanted = route.view === 'dossiers' || route.view === 'settings' ? null : route.dossier;
 
   useEffect(() => {
-    if (route.view !== 'dossiers' || list) return;
+    // The list feeds the Dossiers view and, on a dossier's pages, its switcher (#394).
+    if (route.view === 'settings' || list) return;
     let live = true;
     loadDossiers(execute).then(
       (value) => live && setList({ ok: true, value }),
@@ -265,17 +296,9 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   const skins = skinsFor(theme.name);
   // The App provides the theme context, so it can't read it through useWords(); this is the same lookup.
   const words = (key: WordKey, vars?: Record<string, string>) => wordFor(theme.lexicon, wordingOn(theme, choice), key, vars);
+  // A dossier's own views are its tabs (#394), so the header carries only what sits above every dossier.
   const links: NavLink[] = [
     { href: '#/', label: 'Dossiers', current: route.view === 'dossiers' },
-    ...(wanted
-      ? [
-          { href: dossierHref(wanted), label: wanted, current: route.view === 'dashboard' },
-          { href: prsHref(wanted), label: 'Pull requests', current: route.view === 'prs' },
-          { href: peopleHref(wanted), label: 'People', current: route.view === 'people' },
-          { href: commandCenterHref(wanted), label: 'Command Center', current: route.view === 'command-center' },
-          { href: worklogHref(wanted), label: 'Worklog', current: route.view === 'worklog' || route.view === 'standup' },
-        ]
-      : []),
     { href: '#/settings', label: 'Settings', current: route.view === 'settings' },
   ];
   const top = useRef<HTMLDivElement>(null);
@@ -328,8 +351,9 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
       <DataContext value={data}>
         {/* The Ask bar (#343), on every dossier page; its chat is keyed by dossier, so a conversation lasts across that dossier's views. */}
         <ChatScope key={route.dossier}>
-        <AskBar />
-        {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.person ? { person: route.person } : {})} />}
+          <DossierShell tab={tabOf(route)} heading={route.view === 'dashboard'} dossiers={list?.ok ? list.value.dossiers.map((d) => d.name) : null} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
+            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} />}
+          </DossierShell>
         </ChatScope>
       </DataContext>
     );

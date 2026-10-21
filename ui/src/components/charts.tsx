@@ -248,3 +248,29 @@ function DayBars<T extends { day: string }>({ days, value, label, max: maxLabel,
     </figure>
   );
 }
+
+/**
+ * A sparkline for the Overview's metric strip (#394): a few values drawn the
+ * size of a word, as a line or as bars, with an optional second line (a
+ * burn-up's scope). It is for the eye only: its tile says the figure in words,
+ * and the full chart, with its figures, is one press away.
+ */
+export function Sparkline({ values, kind = 'line', against, mark }: { values: number[]; kind?: 'line' | 'bars'; against?: number[]; mark?: number | null }) {
+  const SW = 120;
+  const SH = 32;
+  const all = [...values, ...(against ?? []), mark ?? 0];
+  const max = Math.max(1, ...all);
+  const y = (v: number) => SH - 2 - ((SH - 4) * v) / max;
+  const x = (i: number, n: number) => (n <= 1 ? SW / 2 : (SW * i) / (n - 1));
+  const line = (vs: number[]) => vs.map((v, i) => `${x(i, vs.length).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const slot = SW / Math.max(1, values.length);
+  return (
+    <svg className={`spark spark--${kind}`} viewBox={`0 0 ${SW} ${SH}`} preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      {mark != null && <line className="spark__mark" x1={0} x2={SW} y1={y(mark)} y2={y(mark)} />}
+      {against && against.length > 0 && <polyline className="spark__against" points={line(against)} />}
+      {kind === 'bars'
+        ? values.map((v, i) => <rect key={i} className="spark__bar" x={slot * i + slot * 0.15} y={y(v)} width={slot * 0.7} height={Math.max(1, SH - 2 - y(v))} rx={1} />)
+        : values.length > 0 && <polyline className="spark__line" points={line(values)} />}
+    </svg>
+  );
+}

@@ -40,6 +40,6 @@ export function startReadyWith(api: AssignmentsApi, dossier: string): StartReady
     const n = (k: number) => (k === 1 ? 'one implement assignment' : `${k} implement assignments`);
     const done = `Queued ${n(queued.length)} on ${adapter.label}${skipped ? `, leaving ${skipped} already queued or working` : ''}.`;
     if (failed.length) throw new Error(`${done} ${failed.length === 1 ? 'One item' : `${failed.length} items`} couldn't be queued: ${failed.join('; ')}`);
-    return `${done} They run ${list.settings.concurrent === 1 ? 'one at a time' : `${list.settings.concurrent} at a time`}; follow them in the Agents lane on the dashboard.`;
+    return `${done} They run ${list.settings.concurrent === 1 ? 'one at a time' : `${list.settings.concurrent} at a time`}; follow them in the Agents sidebar.`;
   };
 }

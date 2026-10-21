@@ -1,6 +1,6 @@
 /**
  * Assigning work to an agent, in the views (#293): the Assign dialog, the
- * Agents lane on the dashboard with the tracker's inbox, the item page's
+ * Agents sidebar's parts (./sidebar.tsx) with the tracker's inbox, the item page's
  * list, and each agent's assignments on the People view. The assignment's
  * own page is src/views/Assignment.tsx. Every one of them reads the same
  * AssignmentsApi from the dossier's data, and none of them can write to a
@@ -272,7 +272,7 @@ export function AssignButton({ item }: { item: Pick<WorkItem, 'id' | 'title'> })
 }
 
 /** One inbox entry: what the tracker asked for, and the Start a person presses. */
-function InboxRow({ a, onStarted }: { a: Assignment; onStarted: () => void }) {
+export function InboxRow({ a, onStarted }: { a: Assignment; onStarted: () => void }) {
   const [open, setOpen] = useState(false);
   return (
     <li className="assign-inbox__row">
@@ -290,7 +290,7 @@ function InboxRow({ a, onStarted }: { a: Assignment; onStarted: () => void }) {
 }
 
 /** How many at once and how long each: shown always, changed here where the server allows. */
-function Limits({ list, onSaved }: { list: AssignmentList; onSaved: () => void }) {
+export function Limits({ list, onSaved }: { list: AssignmentList; onSaved: () => void }) {
   const { assignments: api } = useData();
   const [concurrent, setConcurrent] = useState(String(list.settings.concurrent || 1));
   const [minutes, setMinutes] = useState(String(list.settings.timeLimitMinutes));
@@ -331,49 +331,6 @@ function Limits({ list, onSaved }: { list: AssignmentList; onSaved: () => void }
   );
 }
 
-/** The Agents lane: the tracker's inbox, then every assignment for the dossier, newest first. */
-export function AgentsLane() {
-  const { dossier, now, assignments: api } = useData();
-  const { list, error, reload } = useAssignments(dossier.name);
-  if (!api) return null;
-  const inbox = list?.assignments.filter((a) => a.state === 'queued' && a.waiting === 'start') ?? [];
-  const lane = list?.assignments.filter((a) => !(a.state === 'queued' && a.waiting === 'start')) ?? [];
-  return (
-    <Card as="section" className="panel agents-lane" aria-labelledby="agents">
-      <h2 id="agents">Agents</h2>
-      <p className="note">
-        Work items assigned to an agent from Toil UI: each one's state, mode, adapter, run time and what it used. {list ? `${list.settings.concurrent === 1 ? 'One runs at a time' : `${list.settings.concurrent} run at a time`}, for up to ${list.settings.timeLimitMinutes} minutes each.` : ''} Assign an item from its card's menu on the board, or from its page.
-      </p>
-      {api.disabled && <p className="note">{api.disabled}</p>}
-      {error && <p className="failure">{error}</p>}
-      {list?.settings.problem && <p className="failure">{list.settings.problem}</p>}
-      {inbox.length > 0 && (
-        <section className="assign-inbox" aria-labelledby="agent-inbox">
-          <h3 id="agent-inbox">Agent inbox</h3>
-          <p className="note">Items whose tracker asks for an agent, by an agent: label or by assignment to one of the dossier's agents. Nothing runs until you press Start.</p>
-          <ul className="rows">
-            {inbox.map((a) => (
-              <InboxRow key={a.id} a={a} onStarted={reload} />
-            ))}
-          </ul>
-        </section>
-      )}
-      {list && !lane.length && <p>Nothing assigned to an agent in {dossier.name} yet.</p>}
-      {lane.length > 0 && (
-        <CardGrid min="sm" className="assign-lane" aria-label="Assignments">
-          {lane.map((a) => (
-            <li key={a.id}>
-              <AssignmentCard a={a} now={now} />
-            </li>
-          ))}
-        </CardGrid>
-      )}
-      {list && <RenewAll list={list} onDone={reload} />}
-      {list && <Limits list={list} onSaved={reload} />}
-    </Card>
-  );
-}
-
 /** One session Renew all stale would touch (#305): what it is, and whether it renews or why it is skipped. */
 interface Renewal {
   key: string;
@@ -387,7 +344,7 @@ interface Renewal {
  * renews or why it is skipped (working, waiting on you), then one press
  * renews the rest. The dossier's chat is on the list when it is stale.
  */
-function RenewAll({ list, onDone }: { list: AssignmentList; onDone: () => void }) {
+export function RenewAll({ list, onDone }: { list: AssignmentList; onDone: () => void }) {
   const { assignments: api, dossier } = useData();
   const chat = useChatScope();
   const [open, setOpen] = useState(false);

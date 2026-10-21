@@ -41,7 +41,7 @@ import { dossierHref } from '../format.ts';
 /** A new chat's id: one per dossier's conversation, so the server can add up and cap the chat (#295). */
 const newChatId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
 
-interface Turn {
+export interface Turn {
   kind: 'turn';
   id: number;
   prompt: string;
@@ -225,11 +225,11 @@ function useChat() {
   return { entries, turns, busy, ask, stop, adapter, adapters, refreshAdapters, switchTo, session, checkSession, renew, renewProblem };
 }
 
-type Chat = ReturnType<typeof useChat>;
+export type Chat = ReturnType<typeof useChat>;
 
 const ChatContext = createContext<Chat | null>(null);
 
-/** The dossier's chat, for whatever on its pages needs it: the Ask bar, and Renew all stale in the Agents lane (#305). */
+/** The dossier's chat, for whatever on its pages needs it: the Ask bar, and Renew all stale in the Agents sidebar (#305). */
 export const useChatScope = (): Chat | null => useContext(ChatContext);
 
 /** Holds the dossier's chat around its pages; the App keys it by dossier, so a conversation lasts across that dossier's views. */

@@ -34,7 +34,7 @@ import { AssignModal } from '../assign/views.tsx';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, estimateText, itemHref, personText, shortKey, sourceLabel } from '../format.ts';
 import { columns, proposeMove } from '../model/board.ts';
-import { insights } from '../model/insights.ts';
+import { flagsAttention, insights } from '../model/insights.ts';
 import type { Proposal } from '../proposal.ts';
 import { useSkins, useWords } from '../skins.tsx';
 import type { StatusCategory, WorkItem } from '../toil.ts';
@@ -91,6 +91,9 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
   const key = shortKey(item);
   const href = itemHref(dossier.name, item.id);
   const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
+  const found = insights(item, prepared);
+  // Needs attention (#394): the flag the board's filter keys on, a shape as well as a colour.
+  const flagged = flagsAttention(found);
 
   // The card is its own activator, so Space or Enter on the key's link inside it follows the link instead of picking the card up.
   const gripRef = (el: HTMLDivElement | null) => {
@@ -130,7 +133,7 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
   };
 
   return (
-    <li ref={setNodeRef} style={style} className={`card card--${item.statusCategory.toLowerCase()}${isDragging ? ' card--dragging' : ''}`}>
+    <li ref={setNodeRef} style={style} className={`card card--${item.statusCategory.toLowerCase()}${flagged ? ' card--attention' : ''}${isDragging ? ' card--dragging' : ''}`}>
       <div
         ref={gripRef}
         className="card-grip"
@@ -147,6 +150,14 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
             <a id={`${ids}-key`} href={href} className="item-link card-key" draggable={false}>
               <span className="key">{key}</span>
             </a>
+            {flagged && (
+              <span className="card-flag" title="Needs attention">
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                  <path d="M4 14V2.5M4 3h7.5l-1.8 2.8L11.5 8.5H4" />
+                </svg>
+                <span className="sr-only">Needs attention</span>
+              </span>
+            )}
             <StatusChip category={item.statusCategory} status={item.status} />
           </div>
           <p id={`${ids}-title`} className="card-title">
@@ -157,7 +168,7 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
               <Avatar person={item.assignee} /> {personText(item.assignee)}
             </span>
             <span className="card-meta">
-              <InsightChips insights={insights(item, prepared)} compact />
+              <InsightChips insights={found} compact />
               <span className="field">
                 <span className="source">{sourceLabel(item.source.area)}</span> · {estimateText(item)}
               </span>
