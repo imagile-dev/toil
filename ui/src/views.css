@@ -243,7 +243,7 @@
 .full-prompt__text { margin: 0; max-height: 28rem; overflow: auto; padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); color: var(--ink); font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
 .full-prompt__text:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 /* Install (#344): the exact command, and npm's output as it arrives, each wrapped rather than wider than the dialog. */
-.install-command, .install-output { margin: 0; max-height: 16rem; overflow: auto; padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); color: var(--ink); font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.install-command, .install-output { margin: 0; max-height: 16rem; overflow: auto; padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); color: var(--ink); font-family: var(--font-mono); font-size: 0.8125rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; font-variant-ligatures: none; }
 .install-command:focus-visible, .install-output:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 .adapter-status { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.75rem; }
 .adapter-status__row { display: grid; gap: 0.3rem; padding: 0.6rem 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; }

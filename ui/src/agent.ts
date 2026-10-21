@@ -103,7 +103,7 @@ export const SCRIPTED_LABEL = 'a scripted preview, not a model';
 /** What the pane says when no adapter is chosen (#251), naming the three. */
 export const NO_AGENT_NOTICE =
   'No agent is set up in this Toil UI, so nobody can answer yet. Toil UI reasons with the subscription you already have, through one of three adapters: Claude (the Claude Agent SDK, @anthropic-ai/claude-agent-sdk), GitHub Copilot (@github/copilot-sdk) or Codex (@openai/codex-sdk).';
-export const NO_AGENT_FIX = 'Install the one your organization approves beside toil-ui, with its CLI on PATH, and choose it under Settings, Agent. The dashboards work without one, and toil-ui --sample shows the scripted agent.';
+export const NO_AGENT_FIX = 'Press Install for the one your organization approves under Settings, Agent, with its CLI on PATH, and choose it there, or pick an installed one for this chat from Answered by, above. The dashboards work without one, and toil-ui --sample shows the scripted agent.';
 
 /**
  * How the answer should sound (#283): the theme on screen and whether

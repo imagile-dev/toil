@@ -145,8 +145,8 @@ export function InstallDialog({ adapter, plan, client, onClose, onInstalled }: {
               </p>
             )}
             <div className="proposal-actions">
-              {state !== 'done' && (
-                <Button className="btn btn--accent" onPress={() => void install()} isDisabled={!runnable || state === 'running'} data-install-run="">
+              {runnable && state !== 'done' && (
+                <Button className="btn btn--accent" onPress={() => void install()} isDisabled={state === 'running'} data-install-run="">
                   {state === 'running' ? 'Installing…' : state === 'failed' ? 'Try again' : 'Install'}
                 </Button>
               )}

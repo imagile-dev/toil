@@ -277,8 +277,9 @@ function states(route, width) {
   if (/\/worklog\/standup/.test(route)) out.push({ name: 'written-up', setup: `(async () => { const n = ${clickAll('[data-standup-writeup]')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
   if (/\/worklog$/.test(route)) out.push({ name: 'previous-month', setup: clickAll('.calendar-nav button', '/Previous month/'), undoJs: clickAll('.calendar-nav button', '/Next month/') });
   if (route === '#/settings/agent') out.push({ name: 'full-prompt', setup: clickAll('[data-full-prompt]', '/Show the full prompt/'), undoJs: clickAll('[data-full-prompt]', '/Hide the full prompt/') });
-  // Install (#344): the dialog with the exact npm command, before anything runs.
-  if (route === '#/settings/agent') out.push({ name: 'install-dialog', setup: clickAll('[data-install="claude"]'), undo: 'Escape' });
+  // Install (#344): the dialog with the exact npm command, before anything runs, for the first SDK missing. On a
+  // machine with every SDK installed there is no Install to press, which counts only when the status card says so.
+  if (route === '#/settings/agent') out.push({ name: 'install-dialog', setup: `(async () => { const deadline = Date.now() + 5000; while (!document.querySelector('.adapter-status__row') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const press = document.querySelector('[data-install]'); if (!press) return document.querySelectorAll('.adapter-status__row').length > 0 && !/Not installed/.test(document.querySelector('.adapter-status')?.textContent ?? 'Not installed') ? 1 : 0; press.click(); while (!document.querySelector('.install-command') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('.install-command') ? 1 : 0; })()`, undo: 'Escape' });
   return out;
 }
 
