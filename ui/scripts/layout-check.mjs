@@ -248,8 +248,8 @@ function states(route, width) {
     // times, in case something still closing takes it back anyway.
     // Not on the dashboard, whose Assign dialog and Ask view, opened at the width before, can still be handing focus
     // back on CI's runner when this one starts; its tooltip is the same component, and its popover is checked below.
-    out.push({ name: 'help-tooltip', key: 'Tab', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); let seen = 0, scrolls = 0; const count = () => scrolls++; addEventListener('scroll', count, true); const watch = new MutationObserver(() => { if (document.querySelector('.help-tooltip')) seen++; }); watch.observe(document.body, { childList: true, subtree: true }); try { for (let i = 0; i < 3; i++) { b.blur(); b.focus(); const deadline = Date.now() + 2000; while (!document.querySelector('.help-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.help-tooltip') && document.activeElement === b) return 1; } } finally { watch.disconnect(); removeEventListener('scroll', count, true); } const a = document.activeElement; return 'no tooltip after three focuses: focus on ' + (a ? a.tagName.toLowerCase() + (a.className ? '.' + String(a.className).split(' ').join('.') : '') + ' ' + (a.getAttribute('aria-label') ?? '') : 'nothing') + ', tooltip seen ' + seen + ' time(s), ' + scrolls + ' scroll event(s), ' + document.querySelectorAll('[role=dialog]').length + ' dialog(s) open'; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
-    out.push({ name: 'help-popover', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); b.click(); return await ${waitFor('.help-popover [data-read-more]')}; })()`, undo: 'Escape' });
+    out.push({ name: 'help-tooltip', clearOverlays: true, key: 'Tab', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); let seen = 0, scrolls = 0; const count = () => scrolls++; addEventListener('scroll', count, true); const watch = new MutationObserver(() => { if (document.querySelector('.help-tooltip')) seen++; }); watch.observe(document.body, { childList: true, subtree: true }); try { for (let i = 0; i < 3; i++) { b.blur(); b.focus(); const deadline = Date.now() + 2000; while (!document.querySelector('.help-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.help-tooltip') && document.activeElement === b) return 1; } } finally { watch.disconnect(); removeEventListener('scroll', count, true); } const a = document.activeElement; return 'no tooltip after three focuses: focus on ' + (a ? a.tagName.toLowerCase() + (a.className ? '.' + String(a.className).split(' ').join('.') : '') + ' ' + (a.getAttribute('aria-label') ?? '') : 'nothing') + ', tooltip seen ' + seen + ' time(s), ' + scrolls + ' scroll event(s), ' + document.querySelectorAll('[role=dialog]').length + ' dialog(s) open'; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
+    out.push({ name: 'help-popover', clearOverlays: true, setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); b.click(); return await ${waitFor('.help-popover [data-read-more]')}; })()`, undo: 'Escape' });
   }
   if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
   // Set up this repo (#333): the sample's plan, with its table, check problems and the form for the missing connection.
@@ -400,6 +400,14 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
       for (const state of states(route, width)) {
         // A state that opens nothing checks nothing, so it's a problem, never a quiet pass. clickAll waits for
         // its element to show, and an item in the compact header's Menu is looked for once the Menu is open (#289).
+        // A state that needs focus (`clearOverlays`) first closes any menu or dialog an earlier state left open, as a
+        // person would: focus inside it, Escape. On a slow runner an earlier undo's Escape can land before the overlay
+        // has focus, and an open one holds focus inside itself.
+        for (let i = 0; state.clearOverlays && i < 3 && (await page.evaluate(`document.querySelectorAll('[role="dialog"]').length`)) > 0; i++) {
+          await page.evaluate(`(() => { const d = [...document.querySelectorAll('[role="dialog"]')].at(-1); (d.querySelector('a, button, input, [tabindex]') ?? d).focus(); })()`);
+          await page.key('Escape');
+          await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
+        }
         if (state.key) await page.key(state.key);
         const opened = await page.evaluate(state.setup);
         if (opened === -1) problems.push(`${where} (${state.name}): no Menu button to open`);
