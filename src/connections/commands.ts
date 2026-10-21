@@ -315,7 +315,7 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
   if (!prompt) throw needsTerminal('add', input.name, input.area ? areaIn(areas, input.area) : undefined);
   const area = areaIn(areas, input.area ?? (await prompt.ask(`Area (${areas.map((a) => a.name).join(', ')})`, areas.length === 1 ? areas[0]!.name : undefined, 'area')));
 
-  const { settings, secretValues } = await askSettings(prompt, area, options.suggest);
+  const { settings, secretValues } = await askSettings(prompt, area, input.name, options.suggest);
   const parsed = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...secretValues });
   if (!parsed.success) {
     const keys = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? '')).filter(Boolean))];
@@ -448,7 +448,7 @@ function secretLabel(area: AnyArea, key: string): string {
  * secrets the area declares are asked for: an area that signs in with a token
  * is never asked for a username and password.
  */
-async function askSettings(prompt: Prompter, area: AnyArea, suggest: Record<string, string> = {}): Promise<{ settings: Settings; secretValues: Record<string, string> }> {
+async function askSettings(prompt: Prompter, area: AnyArea, name: string, suggest: Record<string, string> = {}): Promise<{ settings: Settings; secretValues: Record<string, string> }> {
   const shape = area.connection.shape as Record<string, z.ZodType>;
   const secretKeys: string[] = area.secrets ?? [];
   const keys = Object.keys(shape)
@@ -466,7 +466,11 @@ async function askSettings(prompt: Prompter, area: AnyArea, suggest: Record<stri
   for (const key of secretKeys) {
     // A secret the connection can't do without is asked for again on an empty answer, rather than saved as nothing.
     const required = area.defaults?.[key] === undefined && shape[key]?.safeParse(undefined).success === false;
-    const value = await askCheckedSecret(prompt, secretLabel(area, key), key, { password: area.secretKinds[key] === 'password', empty: required ? 'required' : 'skip' });
+    const value = await askCheckedSecret(prompt, secretLabel(area, key), key, {
+      password: area.secretKinds[key] === 'password',
+      empty: required ? 'required' : 'skip',
+      envVar: connectionEnvName(name, key),
+    });
     if (value !== '') secretValues[key] = value;
   }
   return { settings, secretValues };

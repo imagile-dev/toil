@@ -122,6 +122,15 @@ export function envPrefix(name: string): string {
   return `TOIL_CONN_${name.toUpperCase().replace(/-/g, '_')}_`;
 }
 
+/** `TOIL_CONN_CORP_JIRA_API_TOKEN`: the variable for one key of a connection, as toil's connectionEnvName spells it. */
+export function connectionEnvVar(name: string, key: string): string {
+  const snake = key
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2')
+    .toUpperCase();
+  return `${envPrefix(name)}${snake}`;
+}
+
 /** `key=value` lines from a text area, blank lines dropped. */
 export function pairs(text: string): string[] {
   return text

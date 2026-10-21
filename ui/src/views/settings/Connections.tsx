@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
-import { envOnly, envPrefix, type AreaInfo, type ConfigApi, type ConnectionRow, type ConnectionsData } from '../../config.ts';
+import { connectionEnvVar, envOnly, envPrefix, type AreaInfo, type ConfigApi, type ConnectionRow, type ConnectionsData } from '../../config.ts';
 import type { Envelope } from '../../toil.ts';
 import { Card, CardGrid, Path } from '../../components/layout.tsx';
 import { ChangeForm, OutcomeLine, SecretField, SelectField, TextField, commandLine, failedOutcome, outcomeOf, secretRefusal, type Outcome } from './parts.tsx';
@@ -348,7 +348,7 @@ export function NewConnectionForm({
   const [values, setValues] = useState<Record<string, string>>(suggest?.values ?? {});
   const [secrets, setSecrets] = useState<Record<string, string>>({});
   const choices = useSecretChoices();
-  const rulesFor = (f: AreaInfo['connection'][number]): SecretRules => ({ password: f.password, empty: f.required ? 'required' : 'skip' });
+  const rulesFor = (f: AreaInfo['connection'][number]): SecretRules => ({ password: f.password, empty: f.required ? 'required' : 'skip', envVar: connectionEnvVar(name || '<name>', f.name) });
   const chosen = withFields.find((a) => a.name === area) ?? withFields[0];
   const fields = chosen?.connection ?? [];
   const settings = fields.filter((f) => !f.secret);

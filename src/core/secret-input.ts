@@ -26,6 +26,12 @@ export interface SecretRules {
    * existing connection); or store none (`skip`, an optional one).
    */
   empty: 'required' | 'keep' | 'skip';
+  /**
+   * The env var that can supply this secret instead (`TOIL_CONN_<NAME>_<KEY>`),
+   * named in the fix for an empty required one, so a machine with no
+   * credential store has a way out that isn't Ctrl+C alone.
+   */
+  envVar?: string;
 }
 
 /** A wrapper around the value that the person is asked to remove: quotes, or a `Bearer ` / `token ` prefix. */
@@ -128,7 +134,7 @@ export function checkSecret(raw: string, rules: SecretRules): SecretCheck {
   if (value === '') {
     if (rules.empty === 'keep') return { status: 'empty', empty: 'keep', message: 'Kept the existing secret.', fix: null };
     if (rules.empty === 'skip') return { status: 'empty', empty: 'skip', message: 'Nothing was entered, so none is stored.', fix: null };
-    return { status: 'empty', empty: 'required', message: 'Nothing was entered, and this one is required.', fix: 'Paste or type the secret, then press Enter.' };
+    return { status: 'empty', empty: 'required', message: 'Nothing was entered, and this one is required.', fix: `Paste or type the secret, then press Enter.${rules.envVar ? ` To supply it from the environment instead, cancel and set ${rules.envVar}.` : ''}` };
   }
   const length = characters(value);
   const lead = raw.slice(0, raw.length - raw.trimStart().length);

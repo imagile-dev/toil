@@ -50,3 +50,9 @@
 - **The empty-keep rule in Toil UI follows the file, as the CLI's does:** a secret
   whose value comes from the store or the file is kept on an empty field; one that
   only an env var supplies isn't in the file, so an empty field stores nothing.
+- **An empty required secret names the env var that can supply it instead**
+  (review on #370). `add` asks again on a terminal and refuses through a `person`,
+  as the issue says, and the fix now ends with "To supply it from the environment
+  instead, cancel and set `TOIL_CONN_<NAME>_<KEY>`", so a machine with no credential
+  store isn't stuck. Skipping the question when that variable is already set was the
+  alternative; naming it is simpler and covers the person who hasn't set it yet.
