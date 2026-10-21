@@ -323,12 +323,13 @@ GitHub Actions; its build tooling is out of scope.
   `execute()` and an `Agent` interface; the server answers both behind its `Store`
   and `Agent` interfaces, behind a launch token. It reads by default and writes only
   what a person presses: a worklog export, through `util encode --out` and toil's file
-  service (#308); a dossier's name and description, through `dossiers describe` (#342);
-  and the connection and dossier changes Settings runs through toil's own commands
-  (`CONFIG_COMMANDS`, #253), each behind its own write gate. It starts one process: `npm install` of an agent SDK the
-  repo already pins, from Settings → Agent, shown first and run on a press, in
-  `ui/server/agents/install.ts`, the only server file `check:package` lets spawn (#344).
-  Themes are in
+  service (#308), and the connection and dossier changes Settings runs through toil's
+  own commands (`CONFIG_COMMANDS`, #253), each behind its own write gate, including a
+  dossier's name and description (`dossiers describe`, #342). Each agent run starts
+  that agent's own CLI through its SDK (#251). The server itself spawns one thing:
+  `npm install` of an agent SDK the repo already pins, from Settings → Agent, shown
+  first and run on a press, in `ui/server/agents/install.ts`, the only server file
+  `check:package` lets spawn (#344). Themes are in
   `ui/themes/` (CSS, JSON and assets only, built in only: each game theme's
   `lexicon` and agent `voice` are in its `theme.json`), explained in
   `ui/docs/themes.md`, which the site renders at `/docs/themes/`. Its fixture `execute()` and scripted
