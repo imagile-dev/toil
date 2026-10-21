@@ -2,10 +2,10 @@
  * Whether the page may move (#271). Two things say no: the operating system's
  * reduced-motion setting, and "Reduce motion and effects" under Settings,
  * which this browser remembers the way it remembers the theme. Either one
- * stops every animation, the themes' particles and Crate's parallax. The
- * choice is mirrored on the root as `data-motion`, so CSS stops what CSS
- * started (src/app.css) without asking script. Storage that refuses (a
- * private window, blocked site data) only means the choice isn't remembered.
+ * stops every animation and the themes' particles. The choice is mirrored
+ * on the root as `data-motion`, so CSS stops what CSS started (src/app.css)
+ * without asking script. Storage that refuses (a private window, blocked
+ * site data) only means the choice isn't remembered.
  *
  * Below both sits "Particles and ambient effects" (#348), kept per theme: a
  * theme that declares particles in its theme.json (`"ambient": { "particles":

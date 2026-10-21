@@ -1,7 +1,7 @@
 {
   "name": "crate",
   "label": "Crate",
-  "description": "toil's own brand: the site's warm near-black and flame-to-amber accent in a warehouse of pallet racking that drifts as you scroll, dust in a light shaft, and the crate in its hard hat when there's nothing to show yet.",
+  "description": "toil's own brand, as on the site: the warm near-black, the drafting grid and the flame glow, the flame-to-amber accent, dust drifting in the glow, and the crate in its hard hat when there's nothing to show yet.",
   "schemes": {
     "dark": {
       "bg": "#16130f",
@@ -33,9 +33,7 @@
   "assets": {
     "emptyState": "assets/crate-lost.webp",
     "mark": "assets/mark.svg",
-    "loading": "assets/crate-loading.webp",
-    "racking": "assets/racking.webp",
-    "pallets": "assets/pallets.webp"
+    "loading": "assets/crate-loading.webp"
   },
   "lexicon": {
     "dossiers.lede": "Each dossier is one consignment of work: its repositories, its tracker, its pipelines and its environments, all on one manifest. Pick one to see its stories, pull requests, builds and deployments on the same dock.",

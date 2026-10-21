@@ -4,8 +4,8 @@
  * canvas sits behind the page, so a particle passes behind text rather than
  * over it and never over a panel. Colours are the themes' own.
  *
- * - Crate: dust motes turning in the warehouse's light shaft, brighter inside
- *   the beam that theme.css draws at the same angle.
+ * - Crate: dust motes turning in the flame glow at the top of the page,
+ *   brighter inside the glow that theme.css draws in the same place.
  * - Harvest: pixel leaves drifting down and pollen floating up.
  * - Starship: a few stars that twinkle over the drifting starfield, and now
  *   and then a warp streak.
@@ -19,28 +19,25 @@ const TAU = Math.PI * 2;
 const between = (rand: () => number, lo: number, hi: number) => lo + rand() * (hi - lo);
 
 /**
- * How bright Crate's light shaft is at a point, 0 to 1. The shaft is the
- * band theme.css paints with `linear-gradient(115deg, ...)` peaking at 64%,
- * so this measures along the same gradient line, the way CSS does.
+ * How bright Crate's flame glow is at a point, 0 to 1. theme.css paints it
+ * as `radial-gradient(circle at 88% 0%, <flame> 0, transparent 60vmax)` on a
+ * layer the size of the window, so this is the same linear fall-off from the
+ * same centre over the same radius.
  */
-export function shaft(x: number, y: number, w: number, h: number): number {
-  const a = (115 * Math.PI) / 180;
-  const dx = Math.sin(a);
-  const dy = -Math.cos(a);
-  const length = Math.abs(w * dx) + Math.abs(h * dy);
-  const t = ((x - w / 2) * dx + (y - h / 2) * dy) / length + 0.5;
-  return Math.exp(-(((t - 0.64) / 0.07) ** 2));
+export function flame(x: number, y: number, w: number, h: number): number {
+  const d = Math.hypot(x - 0.88 * w, y) / (0.6 * Math.max(w, h));
+  return Math.max(0, 1 - d);
 }
 
 export const crate: Preset = {
   density: 2.2,
   max: 34,
   spawn(p, { w, h }, rand) {
-    // Most motes are where the light is; a few hang in the dark around it.
+    // Most motes are where the glow is; a few hang in the dark around it.
     for (let tries = 0; tries < 6; tries++) {
       p.x = rand() * w;
       p.y = rand() * h;
-      if (rand() < 0.25 || shaft(p.x, p.y, w, h) > 0.35) break;
+      if (rand() < 0.25 || flame(p.x, p.y, w, h) > 0.35) break;
     }
     p.vx = between(rand, -5, 5);
     p.vy = between(rand, -4, 2);
@@ -56,7 +53,7 @@ export const crate: Preset = {
     return p.age < p.life && p.x > -10 && p.x < w + 10 && p.y > -10 && p.y < h + 10;
   },
   alpha(p, { w, h }) {
-    return lifeFade(p) * (0.12 + 0.43 * shaft(p.x, p.y, w, h));
+    return lifeFade(p) * (0.12 + 0.43 * flame(p.x, p.y, w, h));
   },
   sprites: (make) => [make(8, glow('246, 241, 233', 0.18)), make(8, glow('255, 184, 77', 0.18))],
   draw: (ctx, p, s) => stamp(ctx, s[p.kind], p),

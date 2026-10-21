@@ -14,7 +14,7 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 | Theme | Looks like | Wording and voice | Accessibility bar |
 |---|---|---|---|
 | Plain | Light and quiet, with a dark variant: Fredoka on headings and figures, IBM Plex Sans to read | None: always the standard text | WCAG 2.2 AA, strict |
-| Crate | toil's own brand: a warm near-black warehouse, flame-to-amber accent, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
+| Crate | toil's own brand, as on the site: the warm near-black, the drafting grid and the flame glow, the flame-to-amber accent, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
 | Harvest | A 16-bit farm: a pixel font, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
 | Realm | A grimdark house ledger: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, the dependency graph as an engraved war-table map | A house's steward | Decorative |
@@ -119,13 +119,13 @@ The (i) in the chat's strip says which voice the answers are in, which agent is 
 
 ## Motion and particles
 
-The four game themes move a little: dust in a light shaft and a parallax rack in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers and a faint candle flicker in Realm. Plain doesn't move. No theme plays sound.
+The four game themes move a little: dust drifting in the flame glow and the site's slow drafting grid in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers and a faint candle flicker in Realm. Plain doesn't move. No theme plays sound.
 
 Three settings decide what moves, in this order:
 
 1. **Your operating system's reduced-motion setting.** When it asks for less, nothing moves, whatever Toil UI is set to.
-2. **Reduce motion and effects**, under Settings, General. Ticked, nothing moves: no animations, no particles, no parallax.
-3. **Particles and ambient effects**, under the theme picker, for each theme that has particles. Off takes that theme's particles away entirely. Everything else, such as transitions and Crate's parallax, keeps following the motion setting.
+2. **Reduce motion and effects**, under Settings, General. Ticked, nothing moves: no animations and no particles.
+3. **Particles and ambient effects**, under the theme picker, for each theme that has particles. Off takes that theme's particles away entirely. Everything else, such as transitions and Crate's drifting grid, keeps following the motion setting.
 
 Each theme says which particles it has in its `theme.json`, as `"ambient": { "particles": "dust" }`, so the switch knows what it controls. The two Toil UI choices are kept in this browser only, never in toil's config.
 
