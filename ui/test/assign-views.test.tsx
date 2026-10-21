@@ -111,3 +111,66 @@ describe("the Command Center's start (#307)", () => {
     expect((await api.list('card-payments')).assignments.filter((a) => a.item === 'corp-jira:PAY-102' && a.mode === 'implement')).toHaveLength(1);
   });
 });
+
+describe('stale sessions (#305)', () => {
+  it('badges the stale assignments, and Renew all stale lists them first, renewing only the idle ones', async () => {
+    const { container } = await open('#/dossier/card-payments');
+    const lane = await screen.findByRole('region', { name: 'Agents' });
+    const cards = within(within(lane).getByRole('list', { name: 'Assignments' })).getAllByRole('listitem');
+    expect(cards.map((c) => (c.querySelector('[data-stale]') ? c.querySelector('.assign-state')!.textContent : null)).filter(Boolean)).toEqual(['Needs you', 'Failed']);
+    expect(lane.textContent).toContain('started on toil 0.1.0-alpha.3 · now alpha.4 · skills changed: jira.');
+    const user = userEvent.setup();
+    await user.click(within(lane).getByRole('button', { name: 'Renew all stale…' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Renew stale sessions' });
+    const rows = within(dialog).getAllByRole('listitem').map((li) => li.textContent);
+    expect(rows).toEqual([expect.stringMatching(/^Skipped: Refine corp-jira:PAY-102 on Codex, needs you: .* It is waiting on you/), expect.stringMatching(/^Renews: Implement corp-jira:PAY-101 on Codex, failed: started on toil/)]);
+    expect(await violations(container.ownerDocument.body)).toEqual([]);
+    await user.click(within(dialog).getByRole('button', { name: 'Renew 1' }));
+    const said = await within(dialog).findByRole('status', { name: 'What was renewed' });
+    expect(said.textContent).toMatch(/^Renewed: Implement corp-jira:PAY-101/);
+    await waitFor(() => expect(within(lane).getAllByText(/Renewed as/).length).toBe(1));
+  }, 20_000);
+
+  it("offers Renew on a stale failed assignment's page, and says why a needs-you one waits", async () => {
+    await open('#/dossier/card-payments/assignment/sample-needsyou-0002');
+    await screen.findByText(/It is waiting on you: review its proposals/);
+    expect(screen.queryByRole('button', { name: 'Renew' })).toBeNull();
+    cleanup();
+    await open('#/dossier/card-payments/assignment/sample-failed-0000004');
+    await userEvent.setup().click(await screen.findByRole('button', { name: 'Renew' }));
+    await waitFor(() => expect(window.location.hash).toMatch(/^#\/dossier\/card-payments\/assignment\/sample-new-/));
+  }, 20_000);
+
+  it("says on an agent's card how many of its assignments are stale", async () => {
+    await open('#/dossier/card-payments/people');
+    const section = await screen.findByRole('region', { name: "Agents' assignments" });
+    await within(section).findByText(/2 started on instructions that have changed since/);
+  }, 20_000);
+});
+
+describe("a stale chat (#305)", () => {
+  it('says so in the focused view with the reason, renews from the strip, and logs where it happened', async () => {
+    const scripted = scriptedAgent();
+    const stale = { startedAt: FIXTURE_NOW, stale: { reasons: ['prompts changed'], text: 'prompts changed since it started' }, renewals: 0 };
+    const renewed: string[] = [];
+    const agent = {
+      ...scripted,
+      stream: undefined,
+      ask: async (...args: Parameters<typeof scripted.ask>) => ({ ...(await scripted.ask(...args)), session: stale }),
+      session: async () => stale,
+      renew: async (chat: string) => (renewed.push(chat), { startedAt: FIXTURE_NOW, stale: null, renewals: 1 }),
+    };
+    window.location.hash = '#/dossier/card-payments';
+    render(<App execute={fixtureExecute().execute} agent={agent} now={FIXTURE_NOW} preview />);
+    await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: 'Analyze' }));
+    const chat = await screen.findByRole('dialog', { name: 'Ask about card-payments' });
+    await within(chat).findByText('prompts changed since it started.');
+    await user.click(within(chat).getByRole('button', { name: 'Renew' }));
+    await within(chat).findByText(/^Renewed on today's instructions\./);
+    expect(renewed).toHaveLength(1);
+    expect(within(chat).queryByText('prompts changed since it started.')).toBeNull();
+    expect(within(chat).queryByRole('button', { name: 'Renew' })).toBeNull();
+  }, 20_000);
+});
