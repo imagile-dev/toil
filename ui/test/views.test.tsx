@@ -639,6 +639,8 @@ describe('settings', () => {
     const add = within(panelEl).getByRole('form', { name: 'Add a bitbucket connection on bitbucket-sdk.imagile.dev' });
     expect((within(add).getByRole('textbox', { name: /^Name/ }) as HTMLInputElement).value).toBe('bitbucket');
     expect((within(add).getByRole('textbox', { name: /^baseUrl/ }) as HTMLInputElement).value).toBe('https://bitbucket-sdk.imagile.dev');
+    // A required secret left empty is refused before anything is sent (#358), so one is typed.
+    await userEvent.type(add.querySelector('input[type=password]')!, 'fake-pat-abc12345');
     await userEvent.click(within(add).getByRole('button', { name: 'Save connection' }));
     await waitFor(() => expect(sent.filter((s) => s.command === 'dossiers onboard')).toHaveLength(2));
     const steps = sent.filter((s) => s.command === 'dossiers onboard' || s.command === 'connections add');
