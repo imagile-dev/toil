@@ -54,7 +54,7 @@ site/dist/
 
 # Toil UI build output, and the preview copy the site build makes of it
 ui/dist/
-site/public/ui-preview/
+site/public/ui/app/
 
 # Local design labs, never shipped
 site/public/lab/

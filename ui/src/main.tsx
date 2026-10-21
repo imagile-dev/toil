@@ -1,6 +1,6 @@
 /**
  * The entry the site preview builds: the real app on the fixture `execute()`
- * and the scripted Agent, with the unreleased-product banner. The local app
+ * and the scripted Agent, with the sample-data banner. The local app
  * will get its own entry that hands the same App the real `execute()` from
  * `@imagile-dev/toil/api`, once there is a local app to have one. Approved for
  * display, not for use.
