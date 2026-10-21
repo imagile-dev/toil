@@ -255,8 +255,9 @@ export class AssignmentQueue {
   }
 
   /** Every assignment for a dossier, newest first, after the tracker's inbox is read again, each checked for staleness (#305). */
-  async list(dossier: string): Promise<AssignmentList> {
-    await this.inbox(dossier);
+  async list(dossier: string, o: { inbox?: boolean } = {}): Promise<AssignmentList> {
+    // A read that only looks (#306's stale check) leaves the tracker's inbox to the lane.
+    if (o.inbox !== false) await this.inbox(dossier);
     const repos = await this.o.repos(dossier).catch((): RepoChoice[] => []);
     const seen = new Map<string, Promise<Fingerprint>>();
     const mine = [...this.records.values()].filter((r) => r.dossier === dossier).sort((a, b) => b.createdAt.localeCompare(a.createdAt));

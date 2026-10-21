@@ -61,6 +61,34 @@ describe('which changes notify', () => {
     expect(inQuiet({ from: '22:00', to: '07:00' }, at(7))).toBe(false);
     expect(inQuiet({ from: '12:00', to: '13:00' }, at(12, 30))).toBe(true);
     expect(inQuiet(null, at(3))).toBe(false);
+    // A time that isn't one never makes quiet hours, and a broken one isn't kept.
+    expect(inQuiet({ from: '25:99', to: '07:00' }, at(3))).toBe(false);
+    expect(parseNotify(JSON.stringify({ quiet: { from: '24:00', to: '07:00' } })).quiet).toBeNull();
+    expect(parseNotify(JSON.stringify({ quiet: { from: '7:30', to: '23:59' } })).quiet).toEqual({ from: '7:30', to: '23:59' });
+  });
+});
+
+describe("the server's event stream, as the page reads it", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('reads NDJSON split across chunks, with the session header, to a last line with no newline', async () => {
+    const { httpAssignments } = await import('../src/assign/client.ts');
+    const a = JSON.stringify(event({ seq: 1, id: 'a1' }));
+    const b = JSON.stringify(event({ seq: 2, id: 'a2', state: 'done' }));
+    const chunks = [a.slice(0, 20), `${a.slice(20)}
+${b.slice(0, 7)}`, b.slice(7)];
+    const seen: Array<{ url: string; headers: Record<string, string> }> = [];
+    vi.stubGlobal('fetch', async (url: string, init: { headers: Record<string, string> }) => {
+      seen.push({ url, headers: init.headers });
+      const enc = new TextEncoder();
+      return new Response(new ReadableStream({ start(c) { for (const x of chunks) c.enqueue(enc.encode(x)); c.close(); } }), { status: 200, headers: { 'content-type': 'application/x-ndjson' } });
+    });
+    const api = httpAssignments({ session: 'sid-1', csrf: 'c', assignments: true } as never, '/');
+    const got: AssignmentEvent[] = [];
+    await api.events!('latest', (e) => got.push(e), new AbortController().signal);
+    expect(got.map((e) => [e.seq, e.id, e.state])).toEqual([[1, 'a1', 'needs-you'], [2, 'a2', 'done']]);
+    expect(seen[0]!.url).toBe('/api/assignments/events?since=latest');
+    expect(seen[0]!.headers['X-Toil-UI-Session']).toBe('sid-1');
   });
 });
 
@@ -144,6 +172,21 @@ describe('in the page', () => {
     await userEvent.setup().click(within(panel).getByRole('checkbox', { name: /Browser notifications/ }));
     await waitFor(() => expect(requestPermission).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(JSON.parse(localStorage.getItem('toil-ui.notify')!).browser).toBe(true));
+  }, 20_000);
+
+  it('keeps quiet hours as they were while a time is typed that is not one, saying so', async () => {
+    await open('#/settings/toil');
+    const panel = screen.getByRole('region', { name: 'Notifications' });
+    const user = userEvent.setup();
+    await user.click(within(panel).getByRole('checkbox', { name: 'Quiet hours' }));
+    const from = within(panel).getByRole('textbox', { name: /^From/ });
+    await user.clear(from);
+    await user.type(from, '7pm');
+    await within(panel).findByText('Use HH:MM, like 22:00. Until then the quiet hours keep 22:00.');
+    expect(JSON.parse(localStorage.getItem('toil-ui.notify')!).quiet).toEqual({ from: '22:00', to: '07:00' });
+    await user.clear(from);
+    await user.type(from, '21:30');
+    await waitFor(() => expect(JSON.parse(localStorage.getItem('toil-ui.notify')!).quiet).toEqual({ from: '21:30', to: '07:00' }));
   }, 20_000);
 
   it("says plainly when the browser refuses, and leaves it off", async () => {

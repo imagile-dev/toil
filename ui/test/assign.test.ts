@@ -178,6 +178,8 @@ describe('the assignment queue', () => {
 
   it('queues what the tracker asks for and never starts it until a person presses Start', async () => {
     const h = harness();
+    // A read that only looks (#306's stale check) queues nothing.
+    expect((await h.queue.list('card-payments', { inbox: false })).assignments).toEqual([]);
     const list = await h.queue.list('card-payments');
     const inbox = list.assignments.filter((a) => a.origin === 'tracker');
     expect(inbox).toEqual([expect.objectContaining({ item: 'corp-jira:PAY-103', mode: 'investigate', trigger: 'label agent:investigate', state: 'queued', waiting: 'start', adapter: 'codex' })]);

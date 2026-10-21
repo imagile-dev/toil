@@ -3,6 +3,7 @@
  * session and CSRF checks every other route has (server.ts):
  *
  *   GET  assignments?dossier=<name>        the dossier's assignments, the inbox read again first
+ *                                          (&inbox=0: only read, queueing nothing)
  *   GET  assignments/one?id=<id>           one assignment with its transcript
  *   GET  assignments/events?since=<seq>    NDJSON: the kept events after seq, then each as it happens;
  *                                          since=latest skips the kept ones (#306's notifications)
@@ -54,7 +55,7 @@ export async function assignmentRoute(key: string, req: IncomingMessage, res: Se
     case 'GET assignments': {
       const dossier = url.searchParams.get('dossier');
       if (!dossier) throw new AssignError('Name the dossier.', 'Ask api/assignments?dossier=<name>.');
-      h.json(res, 200, await queue.list(dossier));
+      h.json(res, 200, await queue.list(dossier, { inbox: url.searchParams.get('inbox') !== '0' }));
       return true;
     }
     case 'GET assignments/one': {

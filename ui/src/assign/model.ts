@@ -259,7 +259,8 @@ export interface AssignRequest {
 export interface AssignmentsApi {
   /** Why nothing can be assigned here, or null. */
   disabled: string | null;
-  list(dossier: string): Promise<AssignmentList>;
+  /** The dossier's assignments; `inbox: false` only reads, without queueing what the tracker asks for (#306's stale check). */
+  list(dossier: string, o?: { inbox?: boolean }): Promise<AssignmentList>;
   get(id: string): Promise<AssignmentRecord>;
   assign(request: AssignRequest): Promise<Assignment>;
   /** Starts a tracker-queued assignment, with an adapter when it has none. */

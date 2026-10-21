@@ -96,11 +96,14 @@ function notableOf(state: AssignState, e: Pick<AssignmentEvent, 'stop' | 'pendin
   return { notable: null, why: state };
 }
 
+/** A time of day as quiet hours take it: H:MM or HH:MM, 00:00 to 23:59. */
+export const HHMM = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+
 /** Whether a local time falls in the quiet hours; a range past midnight (22:00 to 07:00) wraps. */
 export function inQuiet(quiet: NotifySettings['quiet'], at: Date): boolean {
   if (!quiet) return false;
   const mins = (t: string) => {
-    const m = /^(\d{1,2}):(\d{2})$/.exec(t);
+    const m = HHMM.exec(t);
     return m ? Number(m[1]) * 60 + Number(m[2]) : null;
   };
   const from = mins(quiet.from);
@@ -192,7 +195,7 @@ export function parseNotify(text: string | null): NotifySettings {
     const states = { ...DEFAULT_NOTIFY.states };
     for (const k of NOTABLES) if (typeof v?.states?.[k] === 'boolean') states[k] = v.states[k];
     const q = v?.quiet;
-    const quiet = q && typeof q.from === 'string' && typeof q.to === 'string' && /^\d{1,2}:\d{2}$/.test(q.from) && /^\d{1,2}:\d{2}$/.test(q.to) ? { from: q.from, to: q.to } : null;
+    const quiet = q && typeof q.from === 'string' && typeof q.to === 'string' && HHMM.test(q.from) && HHMM.test(q.to) ? { from: q.from, to: q.to } : null;
     return { browser: v?.browser === true, states, quiet, mine: v?.mine === true };
   } catch {
     return structuredClone(DEFAULT_NOTIFY);

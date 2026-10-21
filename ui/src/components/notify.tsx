@@ -13,11 +13,11 @@
  */
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Button, Checkbox, Input, Label, TextField } from 'react-aria-components';
+import { Button, Checkbox, FieldError, Input, Label, TextField } from 'react-aria-components';
 import { ADAPTER_NAME, type AssignmentsApi } from '../assign/model.ts';
 import { Card } from './layout.tsx';
 import { dossierHref } from '../format.ts';
-import { Coalescer, inQuiet, NOTABLE_LABEL, NOTABLES, parseNotify, summaryOf, transitionOf, type NotifySettings, type Transition } from '../notify.ts';
+import { Coalescer, HHMM, inQuiet, NOTABLE_LABEL, NOTABLES, parseNotify, summaryOf, transitionOf, type NotifySettings, type Transition } from '../notify.ts';
 
 const SETTINGS_KEY = 'toil-ui.notify';
 const MINE_KEY = 'toil-ui.notify.mine';
@@ -193,7 +193,7 @@ export function NotifyProvider({ assignments, dossier, mine, children }: { assig
     let known: Set<string> | null = null;
     let alive = true;
     const look = () =>
-      assignments.list(dossier).then(
+      assignments.list(dossier, { inbox: false }).then(
         (l) => {
           if (!alive) return;
           const stale = l.assignments.filter((a) => a.stale);
@@ -275,6 +275,31 @@ function Check({ on, set, children }: { on: boolean; set: (on: boolean) => void;
   );
 }
 
+/**
+ * One end of the quiet hours: saved only once it reads as a time, and
+ * saying so plainly until it does, so a typo never turns quiet hours off
+ * without a word.
+ */
+function QuietTime({ label, value, save }: { label: string; value: string; save: (v: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  const bad = !HHMM.test(draft);
+  return (
+    <TextField
+      className="field-text"
+      value={draft}
+      onChange={(v) => {
+        setDraft(v);
+        if (HHMM.test(v)) save(v);
+      }}
+      isInvalid={bad}
+    >
+      <Label>{label}</Label>
+      <Input inputMode="numeric" />
+      <FieldError className="failure">Use HH:MM, like 22:00. Until then the quiet hours keep {value}.</FieldError>
+    </TextField>
+  );
+}
+
 /** Settings, General: which changes notify, only mine, quiet hours, and the browser's own notifications. */
 export function NotifySetting() {
   const n = useNotify();
@@ -311,14 +336,8 @@ export function NotifySetting() {
       </Check>
       {s.quiet && (
         <div className="notify-quiet">
-          <TextField className="field-text" value={s.quiet.from} onChange={(v) => set({ quiet: { ...s.quiet!, from: v } })}>
-            <Label>From (HH:MM, this computer's time)</Label>
-            <Input inputMode="numeric" />
-          </TextField>
-          <TextField className="field-text" value={s.quiet.to} onChange={(v) => set({ quiet: { ...s.quiet!, to: v } })}>
-            <Label>To (HH:MM)</Label>
-            <Input inputMode="numeric" />
-          </TextField>
+          <QuietTime label="From (HH:MM, this computer's time)" value={s.quiet.from} save={(from) => set({ quiet: { ...s.quiet!, from } })} />
+          <QuietTime label="To (HH:MM)" value={s.quiet.to} save={(to) => set({ quiet: { ...s.quiet!, to } })} />
         </div>
       )}
       <Check on={s.browser} set={(on) => void turnBrowser(on)}>

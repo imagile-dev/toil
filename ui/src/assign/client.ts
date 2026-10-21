@@ -39,7 +39,7 @@ export function httpAssignments(session: Session & { assignments?: boolean }, ba
   };
   return {
     disabled: session.assignments ? null : NO_ASSIGNMENTS,
-    list: (dossier) => call<AssignmentList>(`assignments?dossier=${encodeURIComponent(dossier)}`, 'Reading the assignments'),
+    list: (dossier, o) => call<AssignmentList>(`assignments?dossier=${encodeURIComponent(dossier)}${o?.inbox === false ? '&inbox=0' : ''}`, 'Reading the assignments'),
     get: (id) => call<AssignmentRecord>(`assignments/one?id=${encodeURIComponent(id)}`, 'Reading the assignment'),
     assign: (request) => call<Assignment>('assignments', 'Assigning the item', request),
     start: (id, adapter) => call<Assignment>('assignments/start', 'Starting the assignment', { id, ...(adapter ? { adapter } : {}) }),
@@ -63,7 +63,12 @@ export function httpAssignments(session: Session & { assignments?: boolean }, ba
           buffer = buffer.slice(nl + 1);
           if (line) onEvent(JSON.parse(line) as AssignmentEvent);
         }
-        if (done) return;
+        if (done) {
+          // A last line with no newline after it is still an event.
+          const rest = (buffer + decoder.decode()).trim();
+          if (rest) onEvent(JSON.parse(rest) as AssignmentEvent);
+          return;
+        }
       }
     },
     ...(session.sample ? {} : { saveSettings: (settings: AssignSettings) => call<AssignSettings>('assignments/settings', 'Saving the limits', { concurrent: settings.concurrent, timeLimitMinutes: settings.timeLimitMinutes }) }),

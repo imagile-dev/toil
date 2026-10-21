@@ -27,7 +27,14 @@
   about what happened before it.
 - **Stale assignments are found by a minute's read of the dossier on screen**, since
   staleness is worked out on read and has no event. What the first read finds stale
-  is known already and doesn't notify; a session that goes stale later does, once. A
+  is known already and doesn't notify; a session that goes stale later does, once.
+  That read only looks (`list(dossier, { inbox: false })`, `&inbox=0` on the route):
+  queueing what the tracker asks for stays with the Agents lane (review round 1). The
+  fingerprint work it does each minute is a `stat` per build and dossier file, since
+  #305 keeps their hashes against the files. A
   chat notifies once per session: its key carries its renewals.
 - **Settings live in this browser** (`toil-ui.notify` in its storage), beside the
   theme and motion choices, never in toil's config or on the server.
+- **Quiet hours keep their last good times while a field doesn't read as one**, and
+  the field says "Use HH:MM, like 22:00" until it does, rather than save a time no
+  check can use and turn quiet hours off without a word (review round 1, principle 4).

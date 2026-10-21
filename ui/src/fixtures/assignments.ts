@@ -331,7 +331,7 @@ export function fixtureAssignments(o: { delay?: number } = {}): AssignmentsApi {
   const q = async () => (await s.ready, s.queue);
   return {
     disabled: null,
-    list: async (dossier) => (await q()).list(dossier),
+    list: async (dossier, o) => (await q()).list(dossier, o),
     get: async (id) => (await q()).read(id),
     assign: async (r) => (await q()).assign(r),
     start: async (id, adapter) => (await q()).start(id, adapter),
