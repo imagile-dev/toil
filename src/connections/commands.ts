@@ -423,10 +423,15 @@ function fileConnectionNames(config: ConfigAccess['config']): Set<string> {
   }
 }
 
+/** The env vars that define connection `name` with no file: its area, then every key it holds. */
+function envDefinition(name: string, area: AnyArea | undefined): string[] {
+  const keys = area ? Object.keys(area.connection.shape) : ['<key>'];
+  return [`${connectionEnvName(name, 'area')}=${area?.name ?? '<area>'}`, ...keys.map((k) => connectionEnvName(name, k))];
+}
+
 /** Without a terminal the commands can't ask, so they say how to do the same with env vars. */
 function needsTerminal(command: string, name: string, area: AnyArea | undefined): ToilError {
-  const keys = area ? Object.keys(area.connection.shape) : ['<key>'];
-  const vars = [`${connectionEnvName(name, 'area')}=${area?.name ?? '<area>'}`, ...keys.map((k) => connectionEnvName(name, k))];
+  const vars = envDefinition(name, area);
   return new ToilError('INVALID_INPUT', `toil connections ${command} asks its questions on a terminal, and this isn't one.`, {
     fix: `Run it in a terminal, or define the connection with env vars instead: ${vars.join(', ')}.`,
   });
@@ -469,7 +474,7 @@ async function askSettings(prompt: Prompter, area: AnyArea, name: string, sugges
     const value = await askCheckedSecret(prompt, secretLabel(area, key), key, {
       password: area.secretKinds[key] === 'password',
       empty: required ? 'required' : 'skip',
-      envVar: connectionEnvName(name, key),
+      envVars: envDefinition(name, area),
     });
     if (value !== '') secretValues[key] = value;
   }

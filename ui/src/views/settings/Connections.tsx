@@ -348,7 +348,7 @@ export function NewConnectionForm({
   const [values, setValues] = useState<Record<string, string>>(suggest?.values ?? {});
   const [secrets, setSecrets] = useState<Record<string, string>>({});
   const choices = useSecretChoices();
-  const rulesFor = (f: AreaInfo['connection'][number]): SecretRules => ({ password: f.password, empty: f.required ? 'required' : 'skip', envVar: connectionEnvVar(name || '<name>', f.name) });
+  const rulesFor = (f: AreaInfo['connection'][number]): SecretRules => ({ password: f.password, empty: f.required ? 'required' : 'skip', envVars: [`${connectionEnvVar(name || '<name>', 'area')}=${chosen?.name ?? '<area>'}`, ...fields.map((g) => connectionEnvVar(name || '<name>', g.name))] });
   const chosen = withFields.find((a) => a.name === area) ?? withFields[0];
   const fields = chosen?.connection ?? [];
   const settings = fields.filter((f) => !f.secret);

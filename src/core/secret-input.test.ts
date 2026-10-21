@@ -82,8 +82,8 @@ describe('checkSecret', () => {
 
   it('says what an empty answer means', () => {
     expect(checkSecret(' \n', { empty: 'required' })).toMatchObject({ status: 'empty', message: 'Nothing was entered, and this one is required.', fix: expect.any(String) });
-    expect(checkSecret('', { empty: 'required', envVar: 'TOIL_CONN_CORP_JIRA_API_TOKEN' })).toMatchObject({
-      fix: 'Paste or type the secret, then press Enter. To supply it from the environment instead, cancel and set TOIL_CONN_CORP_JIRA_API_TOKEN.',
+    expect(checkSecret('', { empty: 'required', envVars: ['TOIL_CONN_CORP_JIRA_AREA=jira', 'TOIL_CONN_CORP_JIRA_BASE_URL', 'TOIL_CONN_CORP_JIRA_API_TOKEN'] })).toMatchObject({
+      fix: 'Paste or type the secret, then press Enter. To define this connection with env vars instead, cancel and set TOIL_CONN_CORP_JIRA_AREA=jira, TOIL_CONN_CORP_JIRA_BASE_URL, TOIL_CONN_CORP_JIRA_API_TOKEN.',
     });
     expect(checkSecret('', { empty: 'keep' })).toMatchObject({ status: 'empty', message: 'Kept the existing secret.', fix: null });
     expect(checkSecret('', { empty: 'skip' })).toMatchObject({ status: 'empty', message: 'Nothing was entered, so none is stored.' });

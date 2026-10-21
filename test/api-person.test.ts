@@ -202,7 +202,7 @@ describe('the paste checks, through a person (#358)', () => {
     const split = await execute('connections add', { name: 'corp-jira', area: 'jira' }, { person: person({ ...jira, 'secret:apiToken': `${SECRET}\n${SECRET}` }) });
     expect(split).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: 'apiToken: This has a line break in the middle, so the paste most likely took two lines. Nothing was stored.', fix: 'Copy just the token, on its own, and paste it again.' } });
     const empty = await execute('connections add', { name: 'corp-jira', area: 'jira' }, { person: person({ ...jira, 'secret:apiToken': '' }) });
-    expect(empty).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: 'apiToken: Nothing was entered, and this one is required. Nothing was saved.', fix: expect.stringContaining('cancel and set TOIL_CONN_CORP_JIRA_API_TOKEN.') } });
+    expect(empty).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: 'apiToken: Nothing was entered, and this one is required. Nothing was saved.', fix: expect.stringMatching(/cancel and set TOIL_CONN_CORP_JIRA_AREA=jira, TOIL_CONN_CORP_JIRA_BASE_URL, TOIL_CONN_CORP_JIRA_API_TOKEN, /) } });
     expect(sharedStore.entries.size).toBe(0);
     expect(JSON.stringify([split, empty])).not.toContain('abc12345');
     expect(auditText()).not.toContain('abc12345');

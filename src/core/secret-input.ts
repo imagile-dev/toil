@@ -27,11 +27,13 @@ export interface SecretRules {
    */
   empty: 'required' | 'keep' | 'skip';
   /**
-   * The env var that can supply this secret instead (`TOIL_CONN_<NAME>_<KEY>`),
-   * named in the fix for an empty required one, so a machine with no
-   * credential store has a way out that isn't Ctrl+C alone.
+   * The env vars that define this connection with no file at all
+   * (`TOIL_CONN_<NAME>_AREA=<area>`, then each setting and secret), named in
+   * the fix for an empty required secret, so a machine with no credential store
+   * has a way out that isn't Ctrl+C alone. Only the whole set works: a variable
+   * for a connection that was never saved names no connection.
    */
-  envVar?: string;
+  envVars?: readonly string[];
 }
 
 /** A wrapper around the value that the person is asked to remove: quotes, or a `Bearer ` / `token ` prefix. */
@@ -134,7 +136,7 @@ export function checkSecret(raw: string, rules: SecretRules): SecretCheck {
   if (value === '') {
     if (rules.empty === 'keep') return { status: 'empty', empty: 'keep', message: 'Kept the existing secret.', fix: null };
     if (rules.empty === 'skip') return { status: 'empty', empty: 'skip', message: 'Nothing was entered, so none is stored.', fix: null };
-    return { status: 'empty', empty: 'required', message: 'Nothing was entered, and this one is required.', fix: `Paste or type the secret, then press Enter.${rules.envVar ? ` To supply it from the environment instead, cancel and set ${rules.envVar}.` : ''}` };
+    return { status: 'empty', empty: 'required', message: 'Nothing was entered, and this one is required.', fix: `Paste or type the secret, then press Enter.${rules.envVars?.length ? ` To define this connection with env vars instead, cancel and set ${rules.envVars.join(', ')}.` : ''}` };
   }
   const length = characters(value);
   const lead = raw.slice(0, raw.length - raw.trimStart().length);
