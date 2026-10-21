@@ -49,11 +49,13 @@ import { useMediaQuery } from './components/layout.tsx';
 import { Choice } from './components/choice.tsx';
 import { ThemeChoiceProvider, wordingOn } from './theme-context.ts';
 import { wordFor, type WordKey } from './wording.ts';
+import { viewHelpHref } from './help.ts';
 
 export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'usage' | 'agent-usage' | 'agent';
 export type Route =
   | { view: 'dossiers' }
-  | { view: 'settings'; page: SettingsPage }
+  /** `at`: where an edit link lands on the page (#346): a connection's name, a dossier and its section, or `caps`. */
+  | { view: 'settings'; page: SettingsPage; at?: string[] }
   /** `person`: the board filtered to one person, by the People view's key for them (#292). */
   | { view: 'dashboard'; dossier: string; person?: string }
   | { view: 'prs'; dossier: string }
@@ -70,7 +72,18 @@ export type Route =
 
 export function parseRoute(hash: string): Route {
   const parts = hash.replace(/^#\/?/, '').split('/');
-  if (parts[0] === 'settings') return { view: 'settings', page: parts[1] === 'dossiers' || parts[1] === 'toil' || parts[1] === 'usage' || parts[1] === 'agent-usage' || parts[1] === 'agent' ? parts[1] : 'connections' };
+  if (parts[0] === 'settings') {
+    const page: SettingsPage = parts[1] === 'dossiers' || parts[1] === 'toil' || parts[1] === 'usage' || parts[1] === 'agent-usage' || parts[1] === 'agent' ? parts[1] : 'connections';
+    // A malformed escape is kept as typed, so the page says it found nothing by that name rather than failing to render.
+    const at = parts.slice(2).filter(Boolean).map((p) => {
+      try {
+        return decodeURIComponent(p);
+      } catch {
+        return p;
+      }
+    });
+    return at.length ? { view: 'settings', page, at } : { view: 'settings', page };
+  }
   if (parts[0] === 'dossier' && parts[1]) {
     const dossier = decodeURIComponent(parts[1]);
     if (parts[2] === 'item' && parts[3]) return { view: 'item', dossier, id: decodeURIComponent(parts.slice(3).join('/')) };
@@ -226,13 +239,15 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   // still loading has no heading yet, so the move waits until it renders one.
   const routeKey = JSON.stringify(route);
   const pending = useRef(false);
+  // An edit link's target (#346) is focused by its own page once it has loaded (useLandOn), so the heading doesn't take it first.
+  const landing = route.view === 'settings' && Boolean(route.at);
   useEffect(() => {
     if (first.current) {
       first.current = false;
       return;
     }
-    pending.current = true;
-  }, [routeKey]);
+    pending.current = !landing;
+  }, [routeKey, landing]);
   useEffect(() => {
     // A board filtered to one person (#292) takes focus at the filter's line instead, which is what the link was for.
     const h1 = pending.current ? (main.current?.querySelector<HTMLElement>('#board-filter') ?? main.current?.querySelector<HTMLElement>('h1')) : null;
@@ -284,6 +299,12 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
       )}
     </>
   );
+  // Help (#346): the docs section for the view in front of you, in a new tab.
+  const help = (
+    <a className="btn help-link" href={viewHelpHref(route.view, route.view === 'settings' ? route.page : undefined)} target="_blank" rel="noopener noreferrer" data-help-link="">
+      Help<span className="sr-only"> (opens in a new tab)</span>
+    </a>
+  );
   const current = wanted ? dossiers[wanted] : undefined;
   const failure = (message: string) => (
     <div role="alert" className="failure">
@@ -294,7 +315,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
 
   let body;
   if (route.view === 'settings') {
-    body = <Settings page={route.page} config={config ?? null} modelUsage={modelUsage ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
+    body = <Settings page={route.page} {...(route.at ? { at: route.at } : {})} config={config ?? null} modelUsage={modelUsage ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'dossiers') {
     body = !list ? <skins.Loading message={words('loading.dossiers')} /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} loaded={dossiers} now={now} synced={synced ?? (preview ? null : {})} config={config ?? null} onDescribed={described} /> : failure(list.message);
   } else if (!current) {
@@ -345,13 +366,14 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
                 </span>
               </a>
               {compact ? (
-                <HeaderMenu links={links} feedback={feedback} controls={controls} />
+                <HeaderMenu links={links} feedback={feedback} controls={controls} help={help} />
               ) : (
                 <>
                   <nav aria-label="Views">
                     <NavLinks links={links} />
                   </nav>
                   <div className="settings">
+                    {help}
                     {feedback && <FeedbackButton api={feedback} />}
                     {controls}
                   </div>
@@ -458,7 +480,7 @@ function NavLinks({ links, onFollow }: { links: NavLink[]; onFollow?: () => void
  * inside while it's open, Escape or a click outside closes it, and focus goes
  * back to the button. Feedback closes the menu first, then opens its dialog.
  */
-function HeaderMenu({ links, feedback, controls }: { links: NavLink[]; feedback: FeedbackApi | undefined; controls: ReactNode }) {
+function HeaderMenu({ links, feedback, controls, help }: { links: NavLink[]; feedback: FeedbackApi | undefined; controls: ReactNode; help: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const current = links.find((l) => l.current)?.label;
@@ -477,6 +499,7 @@ function HeaderMenu({ links, feedback, controls }: { links: NavLink[]; feedback:
               <NavLinks links={links} onFollow={() => setOpen(false)} />
             </nav>
             <div className="nav-menu__settings">
+              {help}
               {feedback && (
                 <Button
                   className="btn feedback-open"

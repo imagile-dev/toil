@@ -17,6 +17,7 @@ import { useEffect, useId, useState } from 'react';
 import type { AuditLine, UnusedCommand, UsageGroup } from '../../../../src/audit/stats.ts';
 import { CallsPerDay } from '../../components/charts.tsx';
 import { Card, DataTable } from '../../components/layout.tsx';
+import { Help } from '../../components/help.tsx';
 import type { ConfigApi } from '../../config.ts';
 import { dateTime, day } from '../../format.ts';
 import type { Envelope } from '../../toil.ts';
@@ -74,7 +75,7 @@ export function Usage({ config, today = new Date().toISOString().slice(0, 10) }:
       <Card as="section" className="panel usage" aria-labelledby="usage-totals">
         <h2 id="usage-totals">Usage of toil</h2>
         <p className="lede">
-          From <code>toil audit stats</code>, which reads only toil's audit log on this machine and sends it nowhere. It counts what each line holds (the command, how it was called and how it ended), never what a call was given or got back. Since {day(commands.window.since)}, UTC.
+          From <code>toil audit stats</code>, since {day(commands.window.since)}, UTC. <Help topic="audit" />
         </p>
         <dl className="fields usage-totals">
           <dt>Calls</dt>
@@ -133,7 +134,9 @@ export function Usage({ config, today = new Date().toISOString().slice(0, 10) }:
 
       <Card as="section" className="panel" aria-labelledby="usage-failing">
         <h2 id="usage-failing">Failed most</h2>
-        <p className="lede">The log keeps each failure's error code, never its message, so the fix shown is the one that usually applies to that code.</p>
+        <p className="lede">
+          Each with its top error code and the fix that usually applies. <Help topic="audit-failures" />
+        </p>
         {failing.length === 0 ? (
           <p>No command failed in this window.</p>
         ) : (

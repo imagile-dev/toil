@@ -13,6 +13,7 @@ import { ThroughputSpark } from '../components/charts.tsx';
 import { Cited, ItemLink, PrLink } from '../components/items.tsx';
 import { DataTable, type Column } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
+import { Help } from '../components/help.tsx';
 import { useData } from '../data.ts';
 import { dateTime, dossierHref, personText } from '../format.ts';
 import {
@@ -137,7 +138,7 @@ export function PullRequests() {
         </p>
         <h1 tabIndex={-1}>Pull requests</h1>
         <p className="lede">
-          {queue.length} open across {new Set(prs.map((c) => c.repo)).size} {new Set(prs.map((c) => c.repo)).size === 1 ? 'repository' : 'repositories'}, {prs.length - queue.length} merged or closed. Read {dateTime(now)}.
+          {queue.length} open across {new Set(prs.map((c) => c.repo)).size} {new Set(prs.map((c) => c.repo)).size === 1 ? 'repository' : 'repositories'}, {prs.length - queue.length} merged or closed. Read {dateTime(now)}. <Help topic="prs" />
         </p>
         {(dossier.prNotes ?? []).map((n, i) => (
           <p key={i} role="note" className="failure">

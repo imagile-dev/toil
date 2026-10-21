@@ -10,24 +10,37 @@
 
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { ConfigApi } from '../config.ts';
-import { sourceLabel as label } from '../format.ts';
+import { dossierEditHref, sourceLabel as label } from '../format.ts';
+import { EditLink } from './help.tsx';
 import type { DossierPreview, PreviewSprint } from '../model/preview.ts';
 import './dossier-head.css';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-/** The areas a dossier reads, as badges, each with the connection it uses. */
-export function SourceBadges({ sources }: { sources: Array<{ area: string; connection: string | null }> }) {
-  if (!sources.length) return <p className="note">No sources linked yet.</p>;
+/**
+ * The areas a dossier reads, as badges, each with the connection it uses. With
+ * `dossier`, a pencil after them opens that dossier's sources in Dossier setup (#346).
+ */
+export function SourceBadges({ sources, dossier }: { sources: Array<{ area: string; connection: string | null }>; dossier?: string }) {
+  const edit = dossier ? <EditLink href={dossierEditHref(dossier, 'sources')} label={`Edit ${dossier}'s sources`} /> : null;
+  if (!sources.length)
+    return (
+      <p className="note">
+        No sources linked yet. {edit}
+      </p>
+    );
   return (
-    <ul className="badges" aria-label="Sources">
-      {sources.map((s) => (
-        <li key={s.area} className="badge" title={s.connection ? `${label(s.area)}, connection ${s.connection}` : `${label(s.area)}, your default connection`}>
-          {label(s.area)}
-          {s.connection && <span className="sr-only">, connection {s.connection}</span>}
-        </li>
-      ))}
-    </ul>
+    <div className="source-badges">
+      <ul className="badges" aria-label="Sources">
+        {sources.map((s) => (
+          <li key={s.area} className="badge" title={s.connection ? `${label(s.area)}, connection ${s.connection}` : `${label(s.area)}, your default connection`}>
+            {label(s.area)}
+            {s.connection && <span className="sr-only">, connection {s.connection}</span>}
+          </li>
+        ))}
+      </ul>
+      {edit}
+    </div>
   );
 }
 

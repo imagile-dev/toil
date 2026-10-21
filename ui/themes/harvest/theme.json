@@ -72,6 +72,7 @@
     "loading.graph": "Laying out the irrigation…",
     "loading.answer": "Checking the almanac…",
     "ask.placeholder": "Ask the almanac about {name}",
+    "ask.placeholder.short": "Ask the almanac",
     "ask.welcome": "Ask about {name}: what is growing, who is tending what, where the fence is down. Every answer says which rows it was picked from.",
     "status.cache": "Reading the almanac",
     "status.live": "Walking out to the field",

@@ -19,6 +19,7 @@ import { Choice } from '../components/choice.tsx';
 import { ItemLink } from '../components/items.tsx';
 import { Card, CardGrid, Cluster, DataTable, Stack, type Column } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
+import { Help } from '../components/help.tsx';
 import { VerdictChip, WhyNot } from '../components/readiness.tsx';
 import { useData } from '../data.ts';
 import { dateTime, dossierHref, personText, sourceLabel, STATUS_CATEGORY_LABEL } from '../format.ts';
@@ -100,7 +101,7 @@ export function CommandCenter() {
         </p>
         <h1 tabIndex={-1}>Command Center</h1>
         <p className="lede">
-          Every work item in {dossier.name}, each with its readiness verdict and, where it isn't ready, why. Worked out from the records read {dateTime(now)}, with no model call and no live read. Only ready items are slated.
+          Every work item in {dossier.name}, each with its readiness verdict and, where it isn't ready, why, from the records read {dateTime(now)}. <Help topic="readiness" />
         </p>
         {settings.notes.map((n, i) => (
           <p key={i} role="note" className="failure">

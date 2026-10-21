@@ -16,6 +16,8 @@ import type { SettingsPage } from '../App.tsx';
 import { AgentSettingsPanel, AgentSettingsPreview, type AgentSettingsPanelProps } from '../agent-settings.tsx';
 import type { ConfigApi } from '../config.ts';
 import { useWords } from '../skins.tsx';
+import { Help } from '../components/help.tsx';
+import type { HelpTopicId } from '../help.ts';
 import './settings.css';
 import { Connections } from './settings/Connections.tsx';
 import { DossierSetup } from './settings/DossierSetup.tsx';
@@ -27,16 +29,16 @@ import { Usage } from './settings/Usage.tsx';
 import { ModelUsage } from './settings/ModelUsage.tsx';
 import type { ModelUsageApi } from '../server-client.ts';
 
-const PAGES: Array<{ page: SettingsPage; label: string; about: string }> = [
-  { page: 'connections', label: 'Connections', about: 'The connections toil uses: add, test, set the default, turn writes on or off, replace a secret, remove.' },
-  { page: 'dossiers', label: 'Dossiers', about: 'Set up a repository that has a dossier, create dossiers, and give them repositories, areas, field names, people and a work-in-progress limit.' },
-  { page: 'toil', label: 'General', about: 'How Toil UI looks, talks, moves and notifies in this browser, and the settings toil has no command for, shown as toil reports them.' },
-  { page: 'usage', label: 'Usage', about: "How toil is used on this machine: calls per day, the commands used and failing most, and the ones never called, from toil's local audit log." },
-  { page: 'agent-usage', label: 'Agent usage', about: "What the agent's models used in your chats, as the Claude, Codex and Copilot SDKs reported it, and optional caps that stop a runaway. Toil UI's own figures, never toil's." },
-  { page: 'agent', label: 'Agent', about: "Which agent answers questions in the chat, and your own instructions for it. These are Toil UI's own settings, never toil's." },
+const PAGES: Array<{ page: SettingsPage; label: string; about: string; topic: HelpTopicId }> = [
+  { page: 'connections', label: 'Connections', about: 'The connections toil uses: add, test, set the default, turn writes on or off, replace a secret, remove.', topic: 'connections' },
+  { page: 'dossiers', label: 'Dossiers', about: 'Set up a repository that has a dossier, create dossiers, and give them repositories, areas, field names, people and a work-in-progress limit.', topic: 'dossier-setup' },
+  { page: 'toil', label: 'General', about: 'How Toil UI looks, talks, moves and notifies in this browser, and the settings toil has no command for.', topic: 'bounds' },
+  { page: 'usage', label: 'Usage', about: "How toil is used on this machine: calls per day, the commands used and failing most, and the ones never called, from toil's local audit log.", topic: 'audit' },
+  { page: 'agent-usage', label: 'Agent usage', about: "What the agent's models used in your chats, and optional caps that stop a runaway.", topic: 'model-usage' },
+  { page: 'agent', label: 'Agent', about: 'Which agent answers questions in the chat, and your own instructions for it.', topic: 'agent' },
 ];
 
-export function Settings({ page, config, agent, modelUsage = null }: { page: SettingsPage; config: ConfigApi | null; agent?: AgentSettingsPanelProps; modelUsage?: ModelUsageApi | null }) {
+export function Settings({ page, at = [], config, agent, modelUsage = null }: { page: SettingsPage; at?: string[]; config: ConfigApi | null; agent?: AgentSettingsPanelProps; modelUsage?: ModelUsageApi | null }) {
   const current = PAGES.find((p) => p.page === page)!;
   const words = useWords();
   return (
@@ -45,7 +47,7 @@ export function Settings({ page, config, agent, modelUsage = null }: { page: Set
         <p className="eyebrow">{words('settings.eyebrow')}</p>
         <h1 tabIndex={-1}>toil's configuration</h1>
         <p className="lede">
-          What <code>toil connections</code> and <code>toil dossiers</code> manage, through toil's own commands, never by editing files. Changes here touch only toil's own configuration on this machine, and each is listed in toil's audit log as <code>toil-ui</code>. Nothing here writes to a tracker.
+          What <code>toil connections</code> and <code>toil dossiers</code> manage, through toil's own commands. <Help topic="settings" />
         </p>
       </div>
       <nav className="subnav" aria-label="Settings pages">
@@ -65,7 +67,9 @@ export function Settings({ page, config, agent, modelUsage = null }: { page: Set
         </p>
       )}
       <h2 className="page-title">{current.label}</h2>
-      <p className="lede">{current.about}</p>
+      <p className="lede">
+        {current.about} <Help topic={current.topic} />
+      </p>
       {page === 'toil' && (
         <>
           <ThemeSetting />
@@ -76,13 +80,13 @@ export function Settings({ page, config, agent, modelUsage = null }: { page: Set
       {page === 'agent' ? (
         agent ? <AgentSettingsPanel {...agent} /> : <AgentSettingsPreview />
       ) : page === 'agent-usage' ? (
-        <ModelUsage api={modelUsage} />
+        <ModelUsage api={modelUsage} landOn={at[0] === 'caps' ? 'model-usage-caps' : null} />
       ) : !config ? (
         <p className="failure">This app wasn't given toil's config commands, so there is nothing to show.</p>
       ) : page === 'connections' ? (
-        <Connections config={config} />
+        <Connections config={config} {...(at[0] ? { at: at[0] } : {})} />
       ) : page === 'dossiers' ? (
-        <DossierSetup config={config} />
+        <DossierSetup config={config} {...(at[0] ? { at: { dossier: at[0], section: at[1] ?? null } } : {})} />
       ) : page === 'usage' ? (
         <Usage config={config} />
       ) : (

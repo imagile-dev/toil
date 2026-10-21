@@ -15,6 +15,7 @@ import { DataTable, type Column } from '../components/layout.tsx';
 import { CountStrip, Editable, SourceBadges } from '../components/dossier-head.tsx';
 import { previewOf } from '../model/preview.ts';
 import { Panel, Sources } from '../components/panel.tsx';
+import { Help } from '../components/help.tsx';
 import { useData, useDerived } from '../data.ts';
 import { STATUS_CATEGORY_LABEL, day, dateTime, dossierHref, estimateText, peopleHref, prsHref } from '../format.ts';
 import { assignedTo, cardByKey, people } from '../model/people.ts';
@@ -160,7 +161,9 @@ export function Dashboard({ person }: { person?: string } = {}) {
   return (
     <>
       <div className="view-head dossier-head">
-        <p className="eyebrow">{words('dossier.eyebrow')}</p>
+        <p className="eyebrow">
+          {words('dossier.eyebrow')} <Help topic="dashboard" />
+        </p>
         <h1 tabIndex={-1}>
           <Editable field="name" dossier={dossier.name} value={dossier.name} config={config ?? null} onSaved={described ?? (() => undefined)}>
             {dossier.name}
@@ -172,7 +175,7 @@ export function Dashboard({ person }: { person?: string } = {}) {
           </Editable>
         </p>
         <div className="dossier-head__strip">
-          <SourceBadges sources={dossier.sources} />
+          <SourceBadges sources={dossier.sources} dossier={dossier.name} />
           <CountStrip preview={preview} />
         </div>
         <Sources calls={dossier.calls.dossier} />
@@ -185,7 +188,9 @@ export function Dashboard({ person }: { person?: string } = {}) {
           </Panel>
 
           <Panel id="attention" title="Needs attention" calls={all} alerts={false}>
-            <p className="note">{words('attention.note')}</p>
+            <p className="note">
+              {words('attention.note')} <Help topic="insights" />
+            </p>
             <Attention />
           </Panel>
 

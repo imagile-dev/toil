@@ -16,6 +16,7 @@ import { ProposalCard } from '../components/proposal.tsx';
 import { Cited, ItemLink } from '../components/items.tsx';
 import { Path } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
+import { Help } from '../components/help.tsx';
 import { useData } from '../data.ts';
 import { dossierHref, standupHref, worklogHref } from '../format.ts';
 import {
@@ -71,7 +72,9 @@ export function Worklog({ api, day }: { api: WorklogApi | null; day: string | nu
         <a href={dossierHref(dossier.name)}>{dossier.name}</a>
       </p>
       <h1 tabIndex={-1}>Worklog</h1>
-      <p className="lede">One page a day, folded by code from the sync, the pull requests, the builds and the agent's runs: facts only, each line linked to where it came from. Days and times are UTC.</p>
+      <p className="lede">
+        One page a day of what happened, facts only. <Help topic="worklog" />
+      </p>
       {api && (
         <p>
           <a className="btn" href={standupHref(dossier.name)} data-standup-link="">

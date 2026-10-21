@@ -12,6 +12,7 @@
 import { Checkbox } from 'react-aria-components';
 import { useMotionAllowed, useMotionChoice } from '../../motion.ts';
 import { Card } from '../../components/layout.tsx';
+import { Help } from '../../components/help.tsx';
 
 export function MotionSetting() {
   const [choice, setChoice] = useMotionChoice();
@@ -20,12 +21,15 @@ export function MotionSetting() {
   return (
     <Card as="section" className="panel motion-setting" aria-labelledby="motion">
       <h2 id="motion">Motion and effects</h2>
-      <Checkbox className="check" isSelected={reduced} onChange={(on) => setChoice(on ? 'reduced' : 'full')}>
-        <span className="box" aria-hidden="true">
-          {reduced ? '✓' : ''}
-        </span>
-        Reduce motion and effects
-      </Checkbox>
+      <div className="theme-setting__row">
+        <Checkbox className="check" isSelected={reduced} onChange={(on) => setChoice(on ? 'reduced' : 'full')}>
+          <span className="box" aria-hidden="true">
+            {reduced ? '✓' : ''}
+          </span>
+          Reduce motion and effects
+        </Checkbox>
+        <Help topic="motion" />
+      </div>
       <p className="note">
         {reduced
           ? 'Nothing moves: no animations, particles or parallax. Saved in this browser only.'

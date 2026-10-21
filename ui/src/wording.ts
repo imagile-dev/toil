@@ -41,6 +41,8 @@ export const STANDARD = {
   'loading.answer': 'Thinking…',
   // The chat (#343): the Ask bar's placeholder, the focused view's welcome, and the status line's words, which a tool's name follows.
   'ask.placeholder': 'Ask about {name}',
+  // On a narrow screen the bar is too short for a dossier's name, so it says what to do and leaves the name to the page.
+  'ask.placeholder.short': 'Ask a question',
   'ask.welcome': 'Ask anything about {name}: its sprint, its people, what is blocked or waiting on review. Every answer cites the items it rests on.',
   'status.cache': 'Reading the cache',
   'status.live': 'Reading live through toil',

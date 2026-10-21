@@ -22,7 +22,7 @@
 // <details> open, each dossier card's Show pressed, the header menu and the
 // Feedback dialog open, every dossier name and description open for editing, the Assign dialog open from an item and the inbox, the focused Ask view open
 // from the Ask bar (#343) with its (i) popover, its agent switcher, an answer, its Suggestions menu and
-// Analyze's pulse check, the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
+// Analyze's pulse check, a help (i)'s tooltip and popover (#346), the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
 // the calendar on an earlier month, a stand-up written up, and every failing
 // command's recent audit lines open on the Usage page. Reduced motion
 // is on, so an animation caught mid-flight can't fail a run.
@@ -238,6 +238,19 @@ function states(route, width) {
   if (compact) out.push({ name: 'menu', setup: clickAll('[data-menu-button]'), undo: 'Escape' });
   // Feedback is in the header, or in its Menu when the header folds, which it does below 1024px or when its row is full.
   if (route === '#/') out.push({ name: 'feedback', setup: inMenu('button.feedback-open'), undo: 'Escape' });
+  // Help (#346), checked before the Ask states so no overlay of theirs is still closing: the first (i) on the page with its tooltip showing, as a keyboard user who
+  // tabbed to it sees it, and pressed, with its popover and Read more link open. On the views with the most of them, at every width.
+  if (route === '#/dossier/card-payments' || route === '#/settings/connections' || route === '#/settings/toil' || route === '#/dossier/card-payments/people') {
+    const first = `[...document.querySelectorAll('main [data-help]')].find((b) => b.getClientRects().length)`;
+    const waitFor = (sel) => `(async () => { const deadline = Date.now() + 5000; while (!document.querySelector(${JSON.stringify(sel)}) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector(${JSON.stringify(sel)}) ? 1 : 0; })()`;
+    // A real Tab first (`key`), so React Aria reads the focus that follows as a keyboard user's: it ignores keys a
+    // script dispatches, and Escape would let a dialog closed earlier hand its focus back. Focus is tried up to three
+    // times, in case something still closing takes it back anyway.
+    // Not on the dashboard, whose Assign dialog and Ask view, opened at the width before, can still be handing focus
+    // back on CI's runner when this one starts; its tooltip is the same component, and its popover is checked below.
+    out.push({ name: 'help-tooltip', clearOverlays: true, key: 'Tab', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); let seen = 0, scrolls = 0; const count = () => scrolls++; addEventListener('scroll', count, true); const watch = new MutationObserver(() => { if (document.querySelector('.help-tooltip')) seen++; }); watch.observe(document.body, { childList: true, subtree: true }); try { for (let i = 0; i < 3; i++) { b.blur(); b.focus(); const deadline = Date.now() + 2000; while (!document.querySelector('.help-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.help-tooltip') && document.activeElement === b) return 1; } } finally { watch.disconnect(); removeEventListener('scroll', count, true); } const a = document.activeElement; return 'no tooltip after three focuses: focus on ' + (a ? a.tagName.toLowerCase() + (a.className ? '.' + String(a.className).split(' ').join('.') : '') + ' ' + (a.getAttribute('aria-label') ?? '') : 'nothing') + ', tooltip seen ' + seen + ' time(s), ' + scrolls + ' scroll event(s), ' + document.querySelectorAll('[role=dialog]').length + ' dialog(s) open'; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
+    out.push({ name: 'help-popover', clearOverlays: true, setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); b.click(); return await ${waitFor('.help-popover [data-read-more]')}; })()`, undo: 'Escape' });
+  }
   if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
   // Set up this repo (#333): the sample's plan, with its table, check problems and the form for the missing connection.
   if (route === '#/settings/dossiers') {
@@ -272,8 +285,11 @@ function states(route, width) {
   }
   if (route === '#/dossier/settlement') out.push({ name: 'analyzed', setup: answered(clickAll('[data-analyze]')), undoJs: closeAsk });
   // The Assign dialog from an item's page, and Start on the Agents lane's inbox (#293).
-  if (route.includes('/item/')) out.push({ name: 'assign-open', setup: clickAll('[data-assign-open]'), undo: 'Escape' });
-  if (route === '#/dossier/card-payments') out.push({ name: 'inbox-start', setup: clickAll('[data-inbox-start]'), undo: 'Escape' });
+  // Escape alone can leave it open on a slow runner (focus not yet inside it), which then holds focus through every
+  // state at the next width; its own Cancel or Close closes it for certain.
+  const closeAssign = clickAll('[role="dialog"] button', '/^(Cancel|Close)$/', 0);
+  if (route.includes('/item/')) out.push({ name: 'assign-open', setup: clickAll('[data-assign-open]'), undo: 'Escape', undoJs: closeAssign });
+  if (route === '#/dossier/card-payments') out.push({ name: 'inbox-start', setup: clickAll('[data-inbox-start]'), undo: 'Escape', undoJs: closeAssign });
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
   if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).
@@ -384,9 +400,20 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
       for (const state of states(route, width)) {
         // A state that opens nothing checks nothing, so it's a problem, never a quiet pass. clickAll waits for
         // its element to show, and an item in the compact header's Menu is looked for once the Menu is open (#289).
+        // A state that needs focus (`clearOverlays`) first closes any menu or dialog an earlier state left open, as a
+        // person would: focus inside it, Escape. On a slow runner an earlier undo's Escape can land before the overlay
+        // has focus, and an open one holds focus inside itself.
+        for (let i = 0; state.clearOverlays && i < 3 && (await page.evaluate(`document.querySelectorAll('[role="dialog"]').length`)) > 0; i++) {
+          await page.evaluate(`(() => { const d = [...document.querySelectorAll('[role="dialog"]')].at(-1); (d.querySelector('a, button, input, [tabindex]') ?? d).focus(); })()`);
+          await page.key('Escape');
+          await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
+        }
+        if (state.key) await page.key(state.key);
         const opened = await page.evaluate(state.setup);
         if (opened === -1) problems.push(`${where} (${state.name}): no Menu button to open`);
         else if (!opened) problems.push(`${where} (${state.name}): nothing to open; no element matching the selector showed within 5s`);
+        // A state may say why it opened nothing, as text, rather than leave the generic line.
+        else if (typeof opened === 'string') problems.push(`${where} (${state.name}): ${opened}`);
         await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
         await shoot(`${slug}__${state.name}`);
         record(state.name, await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)})`));

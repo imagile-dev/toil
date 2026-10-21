@@ -15,6 +15,7 @@ import { useState, type FormEvent } from 'react';
 import type { AreaInfo, ConfigApi } from '../../config.ts';
 import type { Envelope } from '../../toil.ts';
 import { Card, DataTable, Path, Stack } from '../../components/layout.tsx';
+import { Help } from '../../components/help.tsx';
 import { NewConnectionForm } from './Connections.tsx';
 import { ChangeForm, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, type Outcome } from './parts.tsx';
 
@@ -90,7 +91,7 @@ export function RepoSetup({ config, areas, onChanged }: { config: ConfigApi; are
     <Card as="section" className="panel" aria-labelledby="repo-setup">
       <h2 id="repo-setup">Set up this repo</h2>
       <p className="lede">
-        For a repository with a dossier checked in: which of your connections each of its areas would use, the ones you still need, and a test read through each. It runs <code>toil dossiers onboard</code>, which on a terminal asks for each missing connection itself.
+        For a repository with a dossier checked in, through <code>toil dossiers onboard</code>, which on a terminal asks for each missing connection itself. <Help topic="repo-setup" />
       </p>
       <form className="change" aria-labelledby="repo-setup-form" onSubmit={submit} noValidate>
         <h3 id="repo-setup-form">Check a repository</h3>

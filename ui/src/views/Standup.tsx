@@ -16,6 +16,7 @@ import type { Answer } from '../agent.ts';
 import { Cited, ItemLink } from '../components/items.tsx';
 import { Path } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
+import { Help } from '../components/help.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { useData } from '../data.ts';
 import { dossierHref, standupHref, worklogHref } from '../format.ts';
@@ -55,7 +56,9 @@ export function Standup({ api, from, to, ignored }: { api: WorklogApi | null; fr
         <a href={dossierHref(dossier.name)}>{dossier.name}</a> · <a href={worklogHref(dossier.name)}>Worklog</a>
       </p>
       <h1 tabIndex={-1}>Stand-up</h1>
-      <p className="lede">The worklog's days, grouped by person into done, in progress, blocked and next, with the team's lines first. Built by code, facts only: the same days always give the same report. Days and times are UTC.</p>
+      <p className="lede">
+        The worklog's days, grouped by person into done, in progress, blocked and next, with the team's lines first. <Help topic="standup" />
+      </p>
     </div>
   );
   if (!api) {

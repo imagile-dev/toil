@@ -16,8 +16,9 @@ import { Avatar } from '../components/bits.tsx';
 import { ItemLink, PrLink } from '../components/items.tsx';
 import { Card, CardGrid, Cluster, Stack } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
+import { EditLink, Help } from '../components/help.tsx';
 import { useData } from '../data.ts';
-import { boardHref, dateTime, dossierHref, sourceLabel } from '../format.ts';
+import { boardHref, dateTime, dossierHref, sourceLabel, dossierEditHref } from '../format.ts';
 import { ACTIVITY_DAYS, people, suggestionLine, type Activity, type Card as PersonCard, type Identity, type Suggestion } from '../model/people.ts';
 import { daysText, WAITING_LABEL } from '../model/prs.ts';
 import { useSkins } from '../skins.tsx';
@@ -52,11 +53,12 @@ export function People() {
           {view.people.length
             ? `${[humans ? count(humans, 'person', 'people') : '', agents ? count(agents, 'agent') : ''].filter(Boolean).join(' and ')} from the dossier's people, and ${count(view.unmapped.length, 'account')} it doesn't map.`
             : `This dossier lists nobody yet, so each account its data names has a card of its own (${view.unmapped.length}).`}{' '}
-          What is on each plate, read {dateTime(now)}. Work in progress counts work items, not the epics and features that hold them. Cards are in name order; nothing here scores or ranks anyone.
+          Read {dateTime(now)}; work in progress counts work items, not the epics and features that hold them. <Help topic="people" />
         </p>
         {!view.people.length && (
           <p className="note">
-            Say who is who across systems in the dossier's people, from Settings, Dossiers, or with <code>toil dossiers person {dossier.name} "Pat Example" --id jira=pat --id github=pat-ex</code>.
+            Say who is who across systems in the dossier's people, from Settings, Dossiers, or with <code>toil dossiers person {dossier.name} "Pat Example" --id jira=pat --id github=pat-ex</code>.{' '}
+            <EditLink href={dossierEditHref(dossier.name, 'people')} label={`Edit ${dossier.name}'s people`} />
           </p>
         )}
         {(dossier.peopleNotes ?? []).map((n, i) => (
@@ -72,7 +74,10 @@ export function People() {
 
       {view.people.length > 0 && (
         <section className="people-section" aria-labelledby="people-cards">
-          <h2 id="people-cards">People and agents</h2>
+          <div className="edit-head">
+            <h2 id="people-cards">People and agents</h2>
+            <EditLink href={dossierEditHref(dossier.name, 'people')} label={`Edit ${dossier.name}'s people`} />
+          </div>
           <CardGrid min="md" className="people-cards">
             {view.people.map((c) => (
               <li key={c.who.key}>
@@ -150,7 +155,8 @@ function TeamStrip({ view }: { view: ReturnType<typeof people> }) {
               </>
             ) : (
               <>Limit {wip.limit} per person. Nobody is over it.</>
-            )}
+            )}{' '}
+            <EditLink href={dossierEditHref(view.dossier, 'wip')} label={`Edit ${view.dossier}'s work-in-progress limit`} />
           </p>
         </Stack>
       </li>

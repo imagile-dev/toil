@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { connectionEnvVar, envOnly, envPrefix, type AreaInfo, type ConfigApi, type ConnectionRow, type ConnectionsData } from '../../config.ts';
 import type { Envelope } from '../../toil.ts';
 import { Card, CardGrid, Path } from '../../components/layout.tsx';
+import { Help, useLandOn } from '../../components/help.tsx';
 import { ChangeForm, OutcomeLine, SecretField, SelectField, TextField, commandLine, failedOutcome, outcomeOf, secretRefusal, type Outcome } from './parts.tsx';
 import { checkSecret, type SecretRules } from '../../../../src/core/secret-input.ts';
 
@@ -24,7 +25,7 @@ function loadedFrom(envelope: Envelope): Loaded {
   return { ok: true, data: envelope.data as ConnectionsData, warnings: (envelope.meta.warnings ?? []).map((w) => w.message) };
 }
 
-export function Connections({ config }: { config: ConfigApi }) {
+export function Connections({ config, at }: { config: ConfigApi; at?: string }) {
   const [list, setList] = useState<Loaded | null>(null);
   const [areas, setAreas] = useState<AreaInfo[] | null>(null);
   const reload = useCallback(async () => {
@@ -39,6 +40,8 @@ export function Connections({ config }: { config: ConfigApi }) {
     config.areas().then(setAreas, () => setAreas([]));
   }, [config, reload]);
 
+  // An edit link names a connection (#346): its card takes focus once the list has loaded.
+  useLandOn(at ? `conn-${at}` : null, Boolean(list));
   if (!list) return <p className="skin-loading">Reading your connections with toil connections list…</p>;
   if (!list.ok) {
     return (
@@ -55,8 +58,13 @@ export function Connections({ config }: { config: ConfigApi }) {
       <Card as="section" className="panel" aria-labelledby="conn-list">
         <h2 id="conn-list">Your connections</h2>
         <p className="lede">
-          From <code>toil connections list</code>, which never returns a secret. Changes are written to <Path value={data.configFile} what="config file path" />; secrets live in the OS credential store.
+          From <code>toil connections list</code>. Changes are written to <Path value={data.configFile} what="config file path" />. <Help topic="connections" />
         </p>
+        {at && !data.connections.some((c) => c.name === at) && (
+          <p role="status" className="failure">
+            toil has no connection named <code>{at}</code>. It may have been removed or renamed; add it again below.
+          </p>
+        )}
         {data.connections.length === 0 ? (
           <p>toil has no connections yet. Add one below.</p>
         ) : (
@@ -113,7 +121,7 @@ function ConnectionCard({ connection: c, areas, config, configFile, onChanged }:
   return (
     <Card className="conn-card" aria-labelledby={titleId}>
       <div className="conn-head">
-        <h3 id={titleId}>
+        <h3 id={titleId} tabIndex={-1}>
           <code>{c.name}</code>
         </h3>
         <ul className="conn-tags" aria-label="About this connection">

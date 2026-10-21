@@ -13,6 +13,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { TokensPerDay } from '../../components/charts.tsx';
 import { Card, DataTable } from '../../components/layout.tsx';
+import { Help, useLandOn } from '../../components/help.tsx';
 import { dateTime, day } from '../../format.ts';
 import {
   ADAPTER_LABEL,
@@ -59,7 +60,7 @@ function tokenDays(records: readonly UsageRecord[], since: string, today: string
   return out;
 }
 
-export function ModelUsage({ api }: { api: ModelUsageApi | null }) {
+export function ModelUsage({ api, landOn = null }: { api: ModelUsageApi | null; landOn?: string | null }) {
   const [view, setView] = useState<UsageView | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   useEffect(() => {
@@ -73,6 +74,8 @@ export function ModelUsage({ api }: { api: ModelUsageApi | null }) {
       live = false;
     };
   }, [api]);
+  // An edit link to the caps (#346) lands on their heading once the figures have loaded.
+  useLandOn(landOn, view !== null || problem !== null);
 
   if (!api) return <p className="failure">This app wasn't given the agent's usage, so there is nothing to show.</p>;
   if (problem)
@@ -116,7 +119,7 @@ function Loaded({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi; o
       <Card as="section" className="panel usage" aria-labelledby="model-usage-totals">
         <h2 id="model-usage-totals">Usage of the agent's models</h2>
         <p className="lede">
-          What the Claude, Codex and Copilot SDKs reported each chat used, kept only in Toil UI's local cache on this machine and sent nowhere. Since {day(view.since)}, UTC. These are the SDKs' own figures: your vendor's bill is the authority.
+          What the Claude, Codex and Copilot SDKs reported each chat used, since {day(view.since)}, UTC. <Help topic="model-usage" />
         </p>
         {view.sample && <p className="note">These are sample figures, made up for the preview. No model reported them.</p>}
         {view.retentionDays !== null && view.retentionDays < 30 && <p className="note">The cache keeps a record {view.retentionDays} days, so this window holds only the last {view.retentionDays}.</p>}
@@ -270,9 +273,11 @@ function CapsForm({ view, api, onSaved }: { view: UsageView; api: ModelUsageApi;
 
   return (
     <Card as="section" className="panel" aria-labelledby="model-usage-caps">
-      <h2 id="model-usage-caps">Caps</h2>
+      <h2 id="model-usage-caps" tabIndex={-1}>
+        Caps
+      </h2>
       <p className="lede">
-        Optional, and off until you turn one on. At 80% the chat says so; at 100% the question stops, saying which cap stopped it. A cap counts only what the SDK reports, so it is a guard against a runaway, not a budget: your vendor's bill is the authority. Codex reports usage when an answer ends, so its cap refuses the next question rather than stopping one partway.
+        Optional, and off until you turn one on. Codex reports usage when an answer ends, so its cap refuses the next question rather than stopping one partway. <Help topic="caps" />
       </p>
       {view.problem && (
         <p role="alert" className="failure">

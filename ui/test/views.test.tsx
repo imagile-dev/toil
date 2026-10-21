@@ -107,7 +107,8 @@ describe('the dossier list', () => {
     expect(badges(all[0]!)).toEqual(['Bitbucket', 'Jenkins', 'Jira', 'OpenShift']);
     expect(badges(all[1]!)).toEqual(['Azure DevOps']);
     expect(badges(all[2]!)).toEqual(['Bitbucket', 'GitHub', 'OpenShift']);
-    expect(within(all[2]!).getByRole('link').getAttribute('href')).toBe('#/dossier/checkout-web');
+    expect(within(all[2]!).getAllByRole('link').map((l) => l.getAttribute('href'))).toEqual(['#/dossier/checkout-web', '#/settings/dossiers/checkout-web/sources']);
+    expect(within(all[2]!).getByRole('link', { name: "Edit checkout-web's sources" })).toBeTruthy();
   });
 
   it("previews each dossier's sprint, counts and people from the data its dashboard reads", async () => {
@@ -362,7 +363,7 @@ describe('a dashboard', () => {
     expect(card.textContent).toContain('Proposed change, not applied');
     // jsdom has no platform, so the viewer's shell is POSIX; the toggle switches it, for every card.
     expect(within(card).getByText(/^toil ado work-item update/).textContent).toBe("toil ado work-item update '2303' --dossier 'settlement' --field 'System.IterationPath=Payments\\Sprint 43' --allow-write");
-    expect(within(card).getAllByRole('button').map((b) => b.textContent)).toEqual(['Copy command', 'Dismiss']);
+    expect(within(card).getAllByRole('button').map((b) => b.getAttribute('aria-label') ?? b.textContent)).toEqual(['About the write gate', 'Copy command', 'Dismiss']);
     await userEvent.click(within(card).getByRole('radio', { name: 'PowerShell' }));
     expect(within(card).getByRole('radio', { name: 'PowerShell' })).toHaveProperty('checked', true);
     expect(within(card).getByText(/^toil ado work-item update/).textContent).not.toContain('"');
@@ -1130,7 +1131,7 @@ describe('how deep the theme goes (#283)', () => {
     expect([wording.checked, voice.checked]).toEqual([true, true]);
     await userEvent.click(wording);
     expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toMatchObject({ theme: 'crate', wording: false, voice: true });
-    expect(within(card).getByRole('link', { name: 'the themes documentation (opens in a new tab)' }).getAttribute('href')).toBe('https://imagile-dev.github.io/toil/docs/themes/');
+    expect(within(card).getByRole('button', { name: 'About themed wording' })).toBeTruthy();
     cleanupView();
     setTheme('plain');
     const { container } = await open('#/settings/toil');

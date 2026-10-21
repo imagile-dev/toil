@@ -51,6 +51,17 @@ export const worklogHref = (dossier: string, day?: string) => `${dossierHref(dos
 /** The stand-up (#345): since the last working day, or a range of UTC days. */
 export const standupHref = (dossier: string, range?: { from: string; to: string }) => `${dossierHref(dossier)}/worklog/standup${range ? `/${range.from}/${range.to}` : ''}`;
 
+/**
+ * Edit links (#346): where each configurable value is set. A pencil only
+ * navigates; the settings page it opens lands on that connection, dossier
+ * section or cap.
+ */
+export type DossierSection = 'sources' | 'repos' | 'fields' | 'people' | 'wip';
+export const connectionEditHref = (name: string) => `#/settings/connections/${encodeURIComponent(name)}`;
+export const dossierEditHref = (dossier: string, section: DossierSection) => `#/settings/dossiers/${encodeURIComponent(dossier)}/${section}`;
+export const AGENT_SETTINGS_HREF = '#/settings/agent';
+export const CAPS_HREF = '#/settings/agent-usage/caps';
+
 /** A pull request's short name: `payments-core #311`, the host and owner left to the panel. */
 export const prName = (id: string) => {
   const key = id.slice(id.indexOf(':') + 1);

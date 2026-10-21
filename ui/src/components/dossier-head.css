@@ -96,3 +96,6 @@ main[data-view="dossiers"] { max-width: 1680px; }
 .edit-field[aria-invalid="true"] { border-color: var(--danger); }
 .edit-hint, .edit-error { display: block; font-size: 0.8125rem; font-weight: 400; font-family: var(--font-body); }
 h1 .edit-hint, h2 .edit-hint, h1 .edit-error, h2 .edit-error { letter-spacing: normal; text-transform: none; }
+
+/* The sources and the pencil that edits them (#346), on one line where they fit. */
+.source-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; min-width: 0; }

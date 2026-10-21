@@ -1,0 +1,82 @@
+/* Help and edit links (#346). The (i) and the pencil are the same 2rem square in every theme, past WCAG 2.2's 24px
+   target, quiet beside the text they explain or edit: themes frame buttons, and a framed box beside every term is a
+   lot of boxes. The tooltip and the popover take the theme's own raised surface and ink, so their contrast is the
+   theme's body contrast. */
+[data-theme] .btn.help-button, .btn.help-button {
+  display: inline-flex;
+  min-width: 2rem;
+  min-height: 2rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  margin: 0 0.15rem;
+  vertical-align: middle;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--link);
+}
+[data-theme] .btn.help-button:hover, [data-theme] .btn.help-button[data-hovered] { border-color: var(--line); }
+.help-button[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+.help-button__mark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 2px solid currentColor;
+  border-radius: 999px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.8125rem;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.help-tooltip {
+  max-width: min(20rem, calc(100vw - 2rem));
+  padding: 0.5rem 0.7rem;
+  background: var(--raised);
+  color: var(--ink);
+  border: 1px solid var(--muted);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.help-popover { max-width: min(22rem, calc(100vw - 2rem)); }
+.help-popover__dialog { padding: 0.9rem 1rem; display: grid; gap: 0.5rem; outline: none; font-family: var(--font-body); font-size: 0.9375rem; font-weight: 400; letter-spacing: normal; text-transform: none; }
+.help-popover__dialog p { margin: 0; overflow-wrap: anywhere; }
+.help-popover__dialog a { display: inline-flex; align-items: center; min-height: 44px; color: var(--link); }
+.help-popover__title { font-size: 1rem; margin: 0; }
+/* The pencil as a link: the same 2rem box as the in-place editor's pencil (dossier-head.css), with no underline. */
+[data-theme] .btn.edit-link, .btn.edit-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2rem;
+  min-height: 2rem;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  margin: 0 0.15rem;
+  vertical-align: middle;
+  font-size: 1rem;
+  line-height: 1;
+  text-decoration: none;
+  border: 1px solid transparent;
+  background: transparent;
+  box-shadow: none;
+  color: var(--link);
+}
+[data-theme] .btn.edit-link:hover { border-color: var(--line); }
+.edit-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+/* A heading and the pencil that edits what it shows, on one line where they fit. */
+.edit-head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; min-width: 0; }
+.edit-head > h2, .edit-head > h3 { margin: 0; }
