@@ -1,0 +1,56 @@
+/* An answer's citations as chips (#395), inside running text: the Overview's ticket chip, set on the line it sits in,
+   with its detail in a tooltip on hover or focus. The tooltip takes the theme's raised surface and ink, like Help's. */
+.ticket-chip--cite { vertical-align: baseline; margin: 0.05rem 0; line-height: 1.3; text-decoration: none; }
+.ticket-chip--cite[data-hovered] { border-color: var(--link); }
+.ticket-chip--cite[data-focus-visible] { outline: 3px solid var(--focus); outline-offset: 2px; }
+.cite-tooltip {
+  display: grid;
+  gap: 0.15rem;
+  max-width: min(22rem, calc(100vw - 2rem));
+  padding: 0.5rem 0.7rem;
+  background: var(--raised);
+  color: var(--ink);
+  border: 1px solid var(--muted);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.cite-tooltip__title { font-weight: 600; }
+
+/* An Analyze answer, top-down: the recommendation set apart, the issues numbered, the evidence folded. */
+.analysis-body { display: grid; gap: 0.6rem; }
+.analysis-body > section { display: grid; gap: 0.25rem; }
+.analysis-label { margin: 0; color: var(--muted); font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+.analysis-rec { padding: 0.35rem 0 0.35rem 0.75rem; border-left: 4px solid var(--accent); }
+.analysis-rec__text { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.analysis-issues__list { margin: 0; padding-left: 1.4rem; display: grid; gap: 0.35rem; overflow-wrap: anywhere; }
+.analysis-issue__title { font-weight: 600; }
+.analysis-evidence > summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; gap: 0.35rem; font-weight: 600; }
+.analysis-evidence > p { overflow-wrap: anywhere; }
+.analysis-unshaped { margin: 0; }
+
+/* The history (#395): each entry's time and author, its recommendation, what changed, and Open. */
+.analysis__meta, .analysis__rec, .analysis__open, .analysis__changes { margin: 0; overflow-wrap: anywhere; }
+.analysis__rec { font-weight: 600; }
+.analysis__changes > summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.analysis__open a { display: inline-flex; align-items: center; min-height: 32px; }
+.analyses__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0; }
+.analysis-open__back { margin: 0; }
+.analysis-open__back a { display: inline-flex; align-items: center; min-height: 32px; }
+.analysis-open { display: grid; gap: 0.75rem; }
+.analysis-open h3 { margin: 0.25rem 0 0; }
+.analysis-changes { display: grid; gap: 0.5rem; margin: 0; }
+.analysis-changes dt { font-weight: 600; }
+.analysis-changes dd { margin: 0.15rem 0 0; min-width: 0; }
+.analysis-changes__since { margin: 0; }
+.analysis-changes__row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.4rem; min-width: 0; }
+
+/* The Overview's recommendation, from an analysis: what it came from in bold, and the line cut at three lines to keep the page to one screen. */
+.overview-rec__source { font-weight: 600; color: var(--ink); }
+.overview-rec__headline--analysis { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }

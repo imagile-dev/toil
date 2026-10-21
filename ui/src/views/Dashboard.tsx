@@ -143,12 +143,12 @@ function useBoardFilter(person: string | undefined) {
 export type DashboardTab = 'overview' | 'board' | 'dependencies' | 'analyses';
 
 /** The dossier's own tabs (#394). The rest (pull requests, people, the worklog) are views of their own in the same frame. */
-export function Dashboard({ tab = 'overview', person }: { tab?: DashboardTab; person?: string } = {}) {
+export function Dashboard({ tab = 'overview', person, analysis }: { tab?: DashboardTab; person?: string; analysis?: string } = {}) {
   const { health: h } = useDerived();
   useSprintProgress(h);
   if (tab === 'board') return <BoardTab {...(person ? { person } : {})} />;
   if (tab === 'dependencies') return <DependenciesTab />;
-  if (tab === 'analyses') return <Analyses />;
+  if (tab === 'analyses') return <Analyses {...(analysis ? { open: analysis } : {})} />;
   return <Overview />;
 }
 

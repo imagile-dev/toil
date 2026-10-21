@@ -7,6 +7,7 @@ import { Cache, CacheError, MIGRATIONS, SCHEMA_VERSION, cachePaths, inputKey, mi
 import { DEFAULT_RETENTION_DAYS, parseSettings, SettingsError } from '../server/settings.ts';
 import { isSqliteNotice, loadSqlite } from '../server/sqlite.ts';
 import type { Envelope, WorkItem } from '../src/toil.ts';
+import { MAX_ANALYSES, recordOf, type AnalysisRecord } from '../src/model/analysis.ts';
 
 /**
  * The cache on its own, in throwaway folders under the OS temp folder: the
@@ -63,7 +64,7 @@ describe('the schema', () => {
   it('creates a new file at the latest version, with every table', async () => {
     const cache = await open(folder());
     expect(cache.version()).toBe(SCHEMA_VERSION);
-    expect(Object.keys(cache.counts())).toEqual(['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers', 'usage', 'worklog_events', 'sync_runs', 'agent_runs', 'notes']);
+    expect(Object.keys(cache.counts())).toEqual(['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers', 'usage', 'worklog_events', 'sync_runs', 'agent_runs', 'notes', 'analyses']);
   });
 
   /** A file left at an older schema, with one dossier's row in it, as an older Toil UI wrote it. */
@@ -262,5 +263,51 @@ describe('renaming a dossier (#342)', () => {
     expect(cache.rename('card-payments', 'card-payments')).toBe(0);
     expect(cache.rename('nothing-here', 'elsewhere')).toBe(0);
     expect(cache.dossierNames()).toEqual(['card-payments']);
+  });
+});
+
+describe('the analyses (#395)', () => {
+  const analysis = (id: string, at: string, dossier = 'card-payments'): AnalysisRecord =>
+    recordOf({ prompt: 'Analyze', parts: [{ text: `Recommendation: Fix [[jira:PAY-1]] (${id}).` }], citations: ['jira:PAY-1'], by: 'Codex', adapter: 'codex', model: 'gpt-5.5', proposals: [] }, { id, dossier, startedAt: at, at, snapshot: { blocked: [], points: {}, sprint: null } });
+
+  it('keeps every Analyze across a restart, oldest first, and only the newest of each dossier', async () => {
+    const dir = folder();
+    const cache = await open(dir, { now: () => new Date(T0) });
+    cache.saveAnalysis(analysis('b', '2026-10-12T09:00:00.000Z'));
+    cache.saveAnalysis(analysis('a', '2026-10-11T09:00:00.000Z'));
+    cache.saveAnalysis(analysis('s', '2026-10-11T09:00:00.000Z', 'settlement'));
+    cache.close();
+    caches.splice(caches.indexOf(cache), 1);
+    const again = await open(dir, { now: () => new Date(T0) });
+    expect(again.analyses('card-payments').map((r) => [r.id, r.recommendation])).toEqual([
+      ['a', 'Fix [[jira:PAY-1]] (a).'],
+      ['b', 'Fix [[jira:PAY-1]] (b).'],
+    ]);
+    expect(again.analyses('settlement').map((r) => r.id)).toEqual(['s']);
+    for (let i = 0; i < MAX_ANALYSES; i++) again.saveAnalysis(analysis(`n${i}`, new Date(Date.parse(T0) - (MAX_ANALYSES - i) * 60_000).toISOString()));
+    const kept = again.analyses('card-payments');
+    expect(kept).toHaveLength(MAX_ANALYSES);
+    expect(kept.some((r) => r.id === 'a' || r.id === 'b')).toBe(false);
+    expect(again.analyses('settlement')).toHaveLength(1);
+  });
+
+  it('goes with the wipe, the retention period, a forgotten dossier, and follows a rename', async () => {
+    let now = Date.parse(T0);
+    const cache = await open(folder(), { now: () => new Date(now), retentionDays: 30 });
+    cache.saveDossier(save(T0));
+    cache.saveAnalysis(analysis('a', T0));
+    expect(cache.counts().analyses).toBe(1);
+    cache.rename('card-payments', 'payments-v2');
+    expect(cache.analyses('payments-v2').map((r) => [r.id, r.dossier])).toEqual([['a', 'payments-v2']]);
+    expect(cache.analyses('card-payments')).toEqual([]);
+    cache.forget('payments-v2');
+    expect(cache.counts().analyses).toBe(0);
+    cache.saveAnalysis(analysis('b', T0));
+    now += 31 * DAY;
+    cache.prune();
+    expect(cache.counts().analyses).toBe(0);
+    cache.saveAnalysis(analysis('c', new Date(now).toISOString()));
+    cache.wipe();
+    expect(cache.counts().analyses).toBe(0);
   });
 });

@@ -36,7 +36,9 @@ import type { AnswerUsage } from '../model-usage.ts';
 import type { ChatSession } from '../fingerprint.ts';
 import { StaleNote } from './stale.tsx';
 import { useNotify } from './notify.tsx';
-import { dossierHref } from '../format.ts';
+import { analysisHref, dossierHref } from '../format.ts';
+import type { AnalysisSummary } from '../model/analysis.ts';
+import { AnalysisBody } from './analysis.tsx';
 
 /** A new chat's id: one per dossier's conversation, so the server can add up and cap the chat (#295). */
 const newChatId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
@@ -99,8 +101,43 @@ export function statusLine(t: Turn, words: ReturnType<typeof useWords>, now: num
 }
 
 /** The chat's state, one per dossier: the bar and the focused view share it, so closing the view loses nothing. */
+/**
+ * The dossier's history of analyses (#395), read once and again after each
+ * Analyze: the Analyses tab, the sidebar's Recent analyses and the
+ * Overview's recommendation all read this one copy.
+ */
+function useHistory() {
+  const { analyses, dossier } = useData();
+  const [list, setList] = useState<AnalysisSummary[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const live = useRef(true);
+  const refresh = () => {
+    if (!analyses) return;
+    analyses.list(dossier.name).then(
+      (l) => {
+        if (!live.current) return;
+        setList(l);
+        setError(null);
+      },
+      (e: unknown) => live.current && setError(`The analyses didn't load: ${e instanceof Error ? e.message : String(e)}`),
+    );
+  };
+  useEffect(() => {
+    live.current = true;
+    refresh();
+    return () => {
+      live.current = false;
+    };
+    // The history is the dossier's; the App keys the chat, and so this, by dossier.
+  }, [analyses]);
+  return { list: analyses ? list : [], error, refresh };
+}
+
+export type History = ReturnType<typeof useHistory>;
+
 function useChat() {
-  const { agent, dossier } = useData();
+  const { agent, dossier, analyses, now } = useData();
+  const past = useHistory();
   const theme = useTheme();
   const choice = useThemeChoiceContext();
   const style = { theme: theme.name, voice: voiceOn(theme, choice) };
@@ -152,6 +189,14 @@ function useChat() {
       }
       if (!controller.signal.aborted) {
         update(id, { done: true, ms: Date.now() - started });
+        // A whole Analyze joins the history (#395): the server keeps its own; the preview keeps it here.
+        if (prompt === ANALYZE && last && last.parts.length) {
+          if (analyses?.record && !last.analysis) {
+            const kept = await analyses.record(dossier.name, last, { startedAt: new Date(started).toISOString(), at: new Date().toISOString(), items: dossier.items, now }).catch(() => null);
+            if (kept) update(id, { answer: { ...last, analysis: kept } });
+          }
+          past.refresh();
+        }
         // The finished answer says whether the chat has gone stale (#305): checked at every turn.
         if (last?.session) setSession(last.session);
       }
@@ -222,7 +267,7 @@ function useChat() {
     }
   };
 
-  return { entries, turns, busy, ask, stop, adapter, adapters, refreshAdapters, switchTo, session, checkSession, renew, renewProblem };
+  return { entries, turns, busy, ask, stop, adapter, adapters, refreshAdapters, switchTo, session, checkSession, renew, renewProblem, history: past };
 }
 
 export type Chat = ReturnType<typeof useChat>;
@@ -246,6 +291,12 @@ export function AskBar() {
   const scoped = useChatScope();
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
+  // A link followed from the conversation (an item, a kept analysis) puts the focused view away, so the page it opens is in front.
+  useEffect(() => {
+    const close = () => setOpen(false);
+    window.addEventListener('hashchange', close);
+    return () => window.removeEventListener('hashchange', close);
+  }, []);
   if (!scoped) throw new Error("The Ask bar needs the ChatScope the App puts around a dossier's pages.");
   const chat = scoped;
   const last = chat.turns[chat.turns.length - 1];
@@ -419,16 +470,29 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                             ))}
                           </div>
                         )}
-                        {e.answer.parts.map((p, i) => (
-                          <p key={i}>
-                            <Cited text={p.text} />
-                          </p>
-                        ))}
+                        {e.analyze ? (
+                          <AnalysisBody parts={e.answer.parts} />
+                        ) : (
+                          e.answer.parts.map((p, i) => (
+                            <p key={i}>
+                              <Cited text={p.text} chips />
+                            </p>
+                          ))
+                        )}
                         {e.done && (
                           <p className="by">
                             {e.stopped ? 'Stopped before the end. ' : `Cites ${e.answer.citations.length} ${e.answer.citations.length === 1 ? 'item' : 'items'}.${e.answer.unverified && e.answer.unverified.length > 0 ? ` Names ${e.answer.unverified.length} its tools never returned.` : ''} `}
                             Answered by: {labelOf(e.answer)}
                             {e.ms !== undefined ? `, in ${seconds(e.ms)} s` : ''}.{e.answer.carried ? ` It was given a summary of the ${e.answer.carried} earlier ${e.answer.carried === 1 ? 'turn' : 'turns'}.` : ''}
+                            {e.answer.analysis && (
+                              <>
+                                {' '}
+                                <a href={analysisHref(dossier.name, e.answer.analysis)} data-analysis-kept="">
+                                  Kept in Analyses
+                                </a>
+                                .
+                              </>
+                            )}
                           </p>
                         )}
                         {e.done && e.answer.usage && <UsageFooter usage={e.answer.usage} />}

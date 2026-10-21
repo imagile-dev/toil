@@ -3,18 +3,21 @@
  * then the three key issues behind it, each with its tickets as chips, then
  * the evidence: the metrics as a strip of sparklines, each opening its full
  * chart, and the blockers in brief. It fits a 1440 by 900 screen without
- * scrolling. The recommendation is worked out by code (src/model/recommend.ts)
- * and says so; no agent is asked. The answer before the slides, for once.
+ * scrolling. The recommendation is the latest Analyze's when the dossier has
+ * one (#395), with when it was made and a link to it; otherwise it is worked
+ * out by code (src/model/recommend.ts), with no agent asked. It says which. The answer before the slides, for once.
  */
 
 import { useMemo, type ReactNode } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { Sparkline } from '../components/charts.tsx';
 import { Help } from '../components/help.tsx';
-import { Cited, PrLink } from '../components/items.tsx';
+import { Cited, PrLink, TicketChip } from '../components/items.tsx';
 import { Card } from '../components/layout.tsx';
 import { useData, useDerived } from '../data.ts';
-import { STATUS_CATEGORY_LABEL, boardHref, dependenciesHref, itemHref, prName, prsHref, shortKey, sourceLabel } from '../format.ts';
+import { analysisHref, boardHref, dateTime, dependenciesHref, prsHref } from '../format.ts';
+import { whoText } from '../components/analysis.tsx';
+import { useChatScope } from '../components/ask.tsx';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
 import { dependencyGraph } from '../model/graph.ts';
@@ -30,17 +33,35 @@ export function Overview() {
   const { dossier, now } = useData();
   const { health: h, insights: p } = useDerived();
   const rec = useMemo(() => recommend({ items: dossier.items, pullRequests: dossier.pullRequests ?? [], prepared: p, health: h, readiness: dossier.readiness, now }), [dossier, now, h, p]);
+  // The latest Analyze's recommendation when there is one (#395); the code's otherwise, and the card says which.
+  const latest = useChatScope()?.history.list?.[0] ?? null;
+  const analysis = latest?.recommendation ? latest : null;
   return (
     <div className="overview">
-      <Card as="section" className="panel overview-rec" aria-labelledby="rec-title">
+      <Card as="section" className="panel overview-rec" aria-labelledby="rec-title" data-rec-source={analysis ? 'analysis' : 'code'}>
         <div className="overview-head">
           <h2 id="rec-title" className="overview-label">
             Recommendation <Help topic="recommendation" />
           </h2>
-          <p className="note overview-rec__how">{rec.derivedFrom}</p>
+          <p className="note overview-rec__how">
+            {analysis ? (
+              <>
+                <span className="overview-rec__source">From the latest Analyze</span>, <time dateTime={analysis.at}>{dateTime(analysis.at)}</time>, by {whoText(analysis)}.{' '}
+                <a href={analysisHref(dossier.name, analysis.id)} data-rec-analysis="">
+                  Open the analysis
+                </a>
+              </>
+            ) : (
+              <>
+                <span className="overview-rec__source">Worked out by code</span>
+                {rec.derivedFrom.replace(/^Worked out by code/, '')}
+                {latest ? ' The latest Analyze had no recommendation line.' : ' No Analyze kept for this dossier yet.'}
+              </>
+            )}
+          </p>
         </div>
-        <p className="overview-rec__headline">
-          <Cited text={rec.headline} />
+        <p className={`overview-rec__headline${analysis ? ' overview-rec__headline--analysis' : ''}`}>
+          {analysis ? <Cited text={analysis.recommendation!} chips /> : <Cited text={rec.headline} />}
         </p>
       </Card>
 
@@ -95,45 +116,8 @@ function IssueCard({ issue }: { issue: KeyIssue }) {
   );
 }
 
-/**
- * A ticket as a chip: its key, its title and its status, never a bare
- * number. The title is cut to the chip's width, with the whole of it in the
- * chip's tooltip and its link's name.
- */
-export function TicketChip({ id }: { id: string }) {
-  const { byId, prById, dossier } = useData();
-  const item = byId.get(id);
-  const pr = item ? undefined : prById?.get(id);
-  if (!item && !pr) return <code className="missing">{id}</code>;
-  const key = item ? `${sourceLabel(item.source.area)} ${shortKey(item)}` : prName(id);
-  const title = item ? item.title : pr!.title;
-  const status = item ? (item.status ?? STATUS_CATEGORY_LABEL[item.statusCategory]) : pr!.state.charAt(0) + pr!.state.slice(1).toLowerCase();
-  const tone = item ? item.statusCategory.toLowerCase() : 'pr';
-  const body = (
-    <>
-      <span className="ticket-chip__key">{key}</span>
-      <span className="ticket-chip__title">{title}</span>
-      <span className={`ticket-chip__status ticket-chip__status--${tone}`}>{status}</span>
-    </>
-  );
-  const label = `${key} ${title}, ${status}`;
-  if (item) {
-    return (
-      <a className="ticket-chip" href={itemHref(dossier.name, id)} title={label} data-truncate="">
-        {body}
-      </a>
-    );
-  }
-  return pr!.url ? (
-    <a className="ticket-chip" href={pr!.url} title={label} data-truncate="">
-      {body}
-    </a>
-  ) : (
-    <span className="ticket-chip" title={label} data-truncate="">
-      {body}
-    </span>
-  );
-}
+/** The chip moved to components/items.tsx (#395), where answers use it too; kept here by name for the views that import it from the Overview. */
+export { TicketChip };
 
 /** One metric: its name, its figure in words, a sparkline, and, pressed, its full chart in a dialog. */
 function Metric({ id, label, value, unit, spark, title, children }: { id: string; label: string; value: string; unit: string; spark: ReactNode; title: string; children: ReactNode }) {

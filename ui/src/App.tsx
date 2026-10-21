@@ -34,6 +34,7 @@ import { ItemView } from './views/Item.tsx';
 import { AssignmentView } from './views/Assignment.tsx';
 import { startReadyWith } from './assign/start.ts';
 import type { AssignmentsApi } from './assign/model.ts';
+import { memoryAnalyses, type AnalysesApi } from './analyses.ts';
 import { People } from './views/People.tsx';
 import { PullRequests } from './views/PullRequests.tsx';
 import { Settings } from './views/Settings.tsx';
@@ -60,8 +61,9 @@ export type Route =
   /**
    * A dossier's own tabs (#394): the Overview when `tab` is absent, else the Board, Dependencies or Analyses.
    * `person`: the board filtered to one person, by the People view's key for them (#292).
+   * `analysis`: one analysis opened from the Analyses tab (#395), by its id.
    */
-  | { view: 'dashboard'; dossier: string; tab?: 'board' | 'dependencies' | 'analyses'; person?: string }
+  | { view: 'dashboard'; dossier: string; tab?: 'board' | 'dependencies' | 'analyses'; person?: string; analysis?: string }
   | { view: 'prs'; dossier: string }
   | { view: 'people'; dossier: string }
   /** Every work item with its readiness verdict (#307). */
@@ -96,6 +98,7 @@ export function parseRoute(hash: string): Route {
     if (parts[2] === 'people') return { view: 'people', dossier };
     if (parts[2] === 'command-center') return { view: 'command-center', dossier };
     if (parts[2] === 'board') return parts[3] ? { view: 'dashboard', dossier, tab: 'board', person: decodeURIComponent(parts.slice(3).join('/')) } : { view: 'dashboard', dossier, tab: 'board' };
+    if (parts[2] === 'analyses' && parts[3]) return { view: 'dashboard', dossier, tab: 'analyses', analysis: decodeURIComponent(parts.slice(3).join('/')) };
     if (parts[2] === 'dependencies' || parts[2] === 'analyses') return { view: 'dashboard', dossier, tab: parts[2] };
     if (parts[2] === 'worklog' && parts[3] === 'standup') {
       // One day names a one-day stand-up; anything that isn't a day is named on the page, which shows the default range instead.
@@ -167,6 +170,8 @@ export interface AppProps {
   modelUsage?: ModelUsageApi;
   /** Assigning items to an agent (#293): the server's, or the preview's sample queue. */
   assignments?: AssignmentsApi;
+  /** The history of analyses (#395): the server's, or the preview's sample. Without one, the App keeps this page's in memory. */
+  analyses?: AnalysesApi;
   /** Each dossier's last sync, from the sync panel (#342), for its card; absent where nothing syncs (the preview). */
   synced?: Record<string, SyncedAt>;
   /** After a dossier's name or description changed in place, so the shell can read the sync status again under the new name. */
@@ -178,7 +183,9 @@ export interface AppProps {
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, synced, afterDescribe, serverStatus }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus }: AppProps) {
+  const [ownAnalyses] = useState(() => memoryAnalyses());
+  const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
   // Every assignment this browser starts is remembered as its own, for "only for agents I started" (#306).
   const { mine, mark } = useMine();
@@ -346,13 +353,13 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   } else if (!current.ok) {
     body = failure(current.message);
   } else {
-    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, execute, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.dossier) } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest), described };
+    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, execute, analyses, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.dossier) } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest), described };
     body = (
       <DataContext value={data}>
         {/* The Ask bar (#343), on every dossier page; its chat is keyed by dossier, so a conversation lasts across that dossier's views. */}
         <ChatScope key={route.dossier}>
           <DossierShell tab={tabOf(route)} heading={route.view === 'dashboard'} dossiers={list?.ok ? list.value.dossiers.map((d) => d.name) : null} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
-            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} />}
+            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} {...(route.analysis ? { analysis: route.analysis } : {})} />}
           </DossierShell>
         </ChatScope>
       </DataContext>

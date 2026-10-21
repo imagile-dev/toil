@@ -319,11 +319,52 @@ const words = (text: string) => text.match(/\[\[[^\]]+\]\]\S*\s*|\S+\s*/g) ?? []
 /** Analyze in the preview (#343): the scripted answers it covers, in its order, so every line is one the tests already hold to the data. */
 export const ANALYZE_PARTS = ['risk', 'attention', 'people', 'review'] as const;
 
+/**
+ * Analyze's top in the preview (#395): the recommendation and its issues,
+ * written top-down as the prompt asks, before the evidence above. Each line
+ * restates facts the evidence already holds, so it can't drift from the data.
+ */
+export const ANALYZE_TOP: Record<string, { recommendation: string; issues: string[] }> = {
+  'card-payments': {
+    recommendation: `Fix ${J(101)}'s failing build first: ${J(102)} and ${J(103)} are blocked behind it, holding 11 points back.`,
+    issues: [
+      `Build failing: ${J(101)}'s latest build failed, and it blocks ${J(102)}: fixing that build unblocks the chain.`,
+      `Blocked chain: ${J(102)} is blocked by ${J(101)} and holds up ${J(103)}, and nothing has changed on it for 8 days.`,
+      `Aging carry-over: ${J(104)} has been in progress for 13.9 days and came over from Sprint 41; its pull request ${BB(305)} has waited 3.9 working days for a first review.`,
+    ],
+  },
+  settlement: {
+    recommendation: `Get ${A(2302)} done first: ${A(2303)} can't start until it is, and its pull request #87 is still building.`,
+    issues: [
+      `Blocked: ${A(2303)} is blocked by ${A(2302)}, and nothing has changed on it for 7.9 days.`,
+      `Aging carry-over: ${A(2304)} has been in progress for 15 days, longer than 85% of this dossier's finished items took (8.3 days).`,
+      `Review waiting on its author: ${AZ(87)} waits on D. Okafor: J. Park asked for changes 0.8 working days ago.`,
+    ],
+  },
+  'checkout-web': {
+    recommendation: `Fix ${GH(51)}'s failing checks first: it has waited on them for 2 working days, with no reviewer asked.`,
+    issues: [
+      `Failing build: ${G(43)}'s latest build failed on e2e-safari, and nothing has changed on it for 6 days.`,
+      `Reviews waiting: ${SDK(12)} and ${GH(52)} each wait 1.3 working days for review from Ada D.`,
+      `No estimate: ${G(45)} has no estimate and hasn't been updated for 7.9 days.`,
+    ],
+  },
+};
+
+/** The scripted Analyze answer's paragraphs, top-down: Recommendation, Issues, then Evidence. */
+export function analyzeParts(dossier: string): string[] {
+  const script = SCRIPTS[dossier] ?? {};
+  const top = ANALYZE_TOP[dossier];
+  const evidence = ANALYZE_PARTS.flatMap((id) => script[id]?.parts ?? []);
+  if (!top) return evidence;
+  return [`Recommendation: ${top.recommendation}`, ['Issues:', ...top.issues.map((t, i) => `${i + 1}. ${t}`)].join('\n'), 'Evidence:', ...evidence];
+}
+
 export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
   const answer = (dossier: string, prompt: string, style?: AskStyle, chat?: ChatTurn): Answer => {
     const script = SCRIPTS[dossier] ?? {};
     if (prompt === ANALYZE && SCRIPTS[dossier]) {
-      const parts: AnswerPart[] = ANALYZE_PARTS.flatMap((id) => script[id]?.parts ?? []).map((text) => ({ text }));
+      const parts: AnswerPart[] = analyzeParts(dossier).map((text) => ({ text }));
       return { prompt: 'Analyze', parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals: script.risk?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, dossier) } : {}) };
     }
     const id = script[prompt] ? prompt : Object.entries(script).find(([, s]) => s.label === prompt)?.[0];

@@ -6,10 +6,12 @@
  * somewhere, a first for a status report.
  */
 
+import { Link, Tooltip, TooltipTrigger } from 'react-aria-components';
 import { segments } from '../agent.ts';
 import { useData } from '../data.ts';
-import { itemHref, prName, shortKey, sourceLabel } from '../format.ts';
+import { STATUS_CATEGORY_LABEL, dateTime, estimateText, itemHref, personText, prName, shortKey, sourceLabel } from '../format.ts';
 import { themed } from '../theme-context.ts';
+import './analysis.css';
 import type { ThemeManifest } from '../themes.ts';
 import type { Change, WorkItem } from '../toil.ts';
 
@@ -49,12 +51,96 @@ export function PrLink({ change, withTitle = false }: { change: Change; withTitl
   );
 }
 
-/** Text with its citations as links. */
-export function Cited({ text }: { text: string }) {
+/**
+ * Text with its citations as links, or as chips (#395): an agent's answer
+ * cites by id alone, so there each citation is a chip with its key, title
+ * and status, and hovering or focusing it says more. Text the code wrote,
+ * which already says what each id is, keeps the plain link.
+ */
+export function Cited({ text, chips = false }: { text: string; chips?: boolean }) {
   return (
     <>
-      {segments(text).map((s, i) => ('cite' in s ? <ItemLink key={i} id={s.cite} /> : <span key={i}>{s.text}</span>))}
+      {segments(text).map((s, i) => ('cite' in s ? chips ? <TicketChip key={i} id={s.cite} detail /> : <ItemLink key={i} id={s.cite} /> : <span key={i}>{s.text}</span>))}
     </>
+  );
+}
+
+const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' ');
+
+/** The lines a chip's detail shows: what the chip has no room for. */
+function detailLines(item: WorkItem | undefined, pr: Change | undefined, theme?: ThemeManifest): string[] {
+  if (item) {
+    return [
+      `${typeText(item, theme)}, ${item.status ?? STATUS_CATEGORY_LABEL[item.statusCategory]}${item.status && item.status !== STATUS_CATEGORY_LABEL[item.statusCategory] ? ` (${STATUS_CATEGORY_LABEL[item.statusCategory]})` : ''}`,
+      `Assignee: ${personText(item.assignee)}`,
+      `Estimate: ${estimateText(item)}`,
+      ...(item.iteration?.name ? [`Sprint: ${item.iteration.name}`] : []),
+      ...(item.updated ? [`Updated ${dateTime(item.updated)}`] : []),
+    ];
+  }
+  if (!pr) return [];
+  return [
+    `Pull request in ${pr.repo}, ${titleCase(pr.state)}`,
+    `Author: ${personText(pr.author)}`,
+    ...(pr.checks ? [`Checks: ${titleCase(pr.checks)}`] : []),
+    ...(pr.workItems.length ? [`Carries ${pr.workItems.length} work ${pr.workItems.length === 1 ? 'item' : 'items'}`] : []),
+  ];
+}
+
+/**
+ * A ticket as a chip: its key, its title and its status, never a bare
+ * number. The title is cut to the chip's width, with the whole of it in the
+ * link's name. With `detail` (#395), hovering or focusing it shows a tooltip
+ * with its type, assignee, estimate, sprint and last update (a pull
+ * request's repository, author and checks); otherwise the whole line is in
+ * its title. An id the dossier doesn't hold stays the bare id, marked
+ * missing, as every citation does.
+ */
+export function TicketChip({ id, detail = false }: { id: string; detail?: boolean }) {
+  const { byId, prById, dossier } = useData();
+  const item = byId.get(id);
+  const pr = item ? undefined : prById?.get(id);
+  if (!item && !pr) return <code className="missing">{id}</code>;
+  const key = item ? `${sourceLabel(item.source.area)} ${shortKey(item)}` : prName(id);
+  const title = item ? item.title : pr!.title;
+  const status = item ? (item.status ?? STATUS_CATEGORY_LABEL[item.statusCategory]) : titleCase(pr!.state);
+  const tone = item ? item.statusCategory.toLowerCase() : 'pr';
+  const body = (
+    <>
+      <span className="ticket-chip__key">{key}</span>
+      <span className="ticket-chip__title">{title}</span>
+      <span className={`ticket-chip__status ticket-chip__status--${tone}`}>{status}</span>
+    </>
+  );
+  const label = `${key} ${title}, ${status}`;
+  const href = item ? itemHref(dossier.name, id) : pr!.url;
+  if (detail && href) {
+    return (
+      <TooltipTrigger delay={300} closeDelay={150}>
+        <Link className="ticket-chip ticket-chip--cite" href={href} aria-label={label} data-truncate="" data-cite={id}>
+          {body}
+        </Link>
+        <Tooltip className="cite-tooltip" offset={6}>
+          <strong className="cite-tooltip__title">
+            {key} {title}
+          </strong>
+          {detailLines(item, pr).map((l) => (
+            <span key={l} className="cite-tooltip__line">
+              {l}
+            </span>
+          ))}
+        </Tooltip>
+      </TooltipTrigger>
+    );
+  }
+  return href ? (
+    <a className="ticket-chip" href={href} title={label} data-truncate="">
+      {body}
+    </a>
+  ) : (
+    <span className="ticket-chip" title={label} data-truncate="">
+      {body}
+    </span>
   );
 }
 
