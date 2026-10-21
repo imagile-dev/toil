@@ -27,6 +27,8 @@ describe('which changes notify', () => {
     expect(t({ state: 'done' })).toMatchObject({ notable: 'done', why: 'finished' });
     expect(t({ state: 'failed', stop: 'usage' })).toMatchObject({ notable: 'cap', why: 'stopped at its usage cap' });
     expect(t({ state: 'failed', stop: 'time' })).toMatchObject({ notable: 'failed', why: 'stopped at its time limit' });
+    expect(t({ state: 'failed', stop: 'error', message: 'Codex failed: not signed in.' })!.why).toBe('Codex failed: not signed in.');
+    expect(t({ state: 'failed', stop: 'error', message: '' })!.why).toBe('failed');
   });
 
   it('never for a repeated state, a start, a proposal, or a person stopping it themselves', () => {

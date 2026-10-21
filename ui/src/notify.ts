@@ -76,7 +76,7 @@ export function transitionOf(e: AssignmentEvent, o: { mine: boolean; href: strin
   return { ...base, ...notableOf(e.state, e) };
 }
 
-function notableOf(state: AssignState, e: Pick<AssignmentEvent, 'stop' | 'pending' | 'questions'>): { notable: Notable | null; why: string } {
+function notableOf(state: AssignState, e: Pick<AssignmentEvent, 'stop' | 'pending' | 'questions' | 'message'>): { notable: Notable | null; why: string } {
   if (state === 'needs-you') {
     if (e.stop === 'injection') return { notable: 'needs-you', why: 'stopped on text in the item that looked like an instruction to it' };
     const parts = [e.questions ? `asked ${plural(e.questions, 'question')}` : '', e.pending ? `${e.pending} ${e.pending === 1 ? 'proposal' : 'proposals'} to review` : ''].filter(Boolean);
@@ -89,7 +89,9 @@ function notableOf(state: AssignState, e: Pick<AssignmentEvent, 'stop' | 'pendin
     if (e.stop === 'cancelled') return { notable: null, why: 'stopped by a person' };
     if (e.stop === 'time') return { notable: 'failed', why: 'stopped at its time limit' };
     if (e.stop === 'interrupted') return { notable: 'failed', why: 'Toil UI stopped while it ran' };
-    return { notable: 'failed', why: 'failed' };
+    // The run's own reason, on one line: what failed, as the assignment page says it.
+    const said = e.message.split('\n')[0]!.trim();
+    return { notable: 'failed', why: said ? (said.length > 160 ? `${said.slice(0, 157)}...` : said) : 'failed' };
   }
   return { notable: null, why: state };
 }
