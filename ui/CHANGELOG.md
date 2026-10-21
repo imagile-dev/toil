@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.1.0-alpha.3](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-alpha.2...toil-ui-v0.1.0-alpha.3) (2026-10-21)
+
+
+### Features
+
+* onboard to a repo's dossiers, match connections by host, and shareable dossiers by default ([#369](https://github.com/imagile-dev/toil/issues/369)) ([797e884](https://github.com/imagile-dev/toil/commit/797e88422c7f3ec88b261da998dd70209e65d5ef))
+* show that a pasted secret arrived, and check the paste, on the CLI and in Toil UI ([#370](https://github.com/imagile-dev/toil/issues/370)) ([d88684d](https://github.com/imagile-dev/toil/commit/d88684d4edb45ace5a056e6a138b01e5a3d79b29))
+* **site:** a Toil UI showcase at /ui/ that frames the real app and shows how themes change the prompts ([#386](https://github.com/imagile-dev/toil/issues/386)) ([2136d9e](https://github.com/imagile-dev/toil/commit/2136d9eb05f54d7d718d6ea1222727df14ae6c98))
+* ticket the work before starting it, in the skill and in Toil UI's chat ([#367](https://github.com/imagile-dev/toil/issues/367)) ([60f5e48](https://github.com/imagile-dev/toil/commit/60f5e488919f9d77888a211cbd1429db8ca47f49))
+* **ui:** a particle switch for every theme, and Fredoka in Plain ([#356](https://github.com/imagile-dev/toil/issues/356)) ([d5c9902](https://github.com/imagile-dev/toil/commit/d5c9902653c284058ab2fc88488555a6b4ae1509))
+* **ui:** a stand-up report folded from the worklog, by person, with an optional agent write-up ([#360](https://github.com/imagile-dev/toil/issues/360)) ([a7cf3db](https://github.com/imagile-dev/toil/commit/a7cf3dbc313b0e2c09fb515deb747d1b1efac830))
+* **ui:** Ask up front with live status and Analyze; switch agents live and install an approved SDK in one press ([#378](https://github.com/imagile-dev/toil/issues/378)) ([3b82ae2](https://github.com/imagile-dev/toil/commit/3b82ae218a51c3736be507f75f406beb31e227b5))
+* **ui:** dossier pages that preview the work, and a dossier's name and description edited in place ([#371](https://github.com/imagile-dev/toil/issues/371)) ([67840ef](https://github.com/imagile-dev/toil/commit/67840ef7405d1414aae2374c06faf941c0faa4b3))
+* **ui:** drag the whole board card, with its moves in a context menu ([#375](https://github.com/imagile-dev/toil/issues/375)) ([e65d18c](https://github.com/imagile-dev/toil/commit/e65d18c04327455f30971e2d2fa13ff68183b74f)), closes [#347](https://github.com/imagile-dev/toil/issues/347)
+* **ui:** notify on agent state changes, never on events ([#382](https://github.com/imagile-dev/toil/issues/382)) ([ca54072](https://github.com/imagile-dev/toil/commit/ca54072b513421771cfb7a6eacf0e818b1476d0a))
+* **ui:** stale sessions, recorded fingerprints and one-click renew ([#381](https://github.com/imagile-dev/toil/issues/381)) ([045fc5c](https://github.com/imagile-dev/toil/commit/045fc5c8ccda9a1797b446e635b0493bc5a0f1f6))
+* **ui:** tooltips with Read more links, and edit links to configuration ([#383](https://github.com/imagile-dev/toil/issues/383)) ([f065710](https://github.com/imagile-dev/toil/commit/f0657101a21abe0b489c4b99ae4f500a4d905eb2))
+
+
+### Bug Fixes
+
+* **ci:** Linux gates on PRs, other platforms daily, and a parallel layout check ([#377](https://github.com/imagile-dev/toil/issues/377)) ([74e44da](https://github.com/imagile-dev/toil/commit/74e44dab5fdbf9b02a53fbdbbf00f3c3d97ad99f))
+* **ui:** Copilot's agent features verified live, with the five fixes they needed ([#384](https://github.com/imagile-dev/toil/issues/384)) ([69746c9](https://github.com/imagile-dev/toil/commit/69746c9ea858f8d20e21682fd3c9480dd471aa97))
+* **ui:** drop a stale comment in the layout check's help states ([#385](https://github.com/imagile-dev/toil/issues/385)) ([1dead19](https://github.com/imagile-dev/toil/commit/1dead19e3aec3ea058222ca2f0f662a59f5be46f)), closes [#346](https://github.com/imagile-dev/toil/issues/346)
+* **ui:** hold only the sample data's header to the 1440px row ([#391](https://github.com/imagile-dev/toil/issues/391)) ([a0ed41a](https://github.com/imagile-dev/toil/commit/a0ed41a1660470faf07ed3bc5987b148c1d4242b))
+* **ui:** show Plain's full header row at desktop widths ([#390](https://github.com/imagile-dev/toil/issues/390)) ([dff97b3](https://github.com/imagile-dev/toil/commit/dff97b3de0cda43eddfb1fd784f394b477a4a35d)), closes [#387](https://github.com/imagile-dev/toil/issues/387)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @imagile-dev/toil bumped from 0.1.0-alpha.4 to 0.1.0-alpha.5
+
 ## [0.1.0-alpha.2](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-alpha.1...toil-ui-v0.1.0-alpha.2) (2026-10-20)
 
 
