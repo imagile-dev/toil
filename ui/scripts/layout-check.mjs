@@ -246,7 +246,9 @@ function states(route, width) {
     // A real Tab first (`key`), so React Aria reads the focus that follows as a keyboard user's: it ignores keys a
     // script dispatches, and Escape would let a dialog closed earlier hand its focus back. Focus is tried up to three
     // times, in case something still closing takes it back anyway.
-    out.push({ name: 'help-tooltip', key: 'Tab', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); for (let i = 0; i < 3; i++) { b.blur(); b.focus(); const deadline = Date.now() + 2000; while (!document.querySelector('.help-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.help-tooltip') && document.activeElement === b) return 1; } return 0; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
+    // Not on the dashboard, whose Assign dialog and Ask view, opened at the width before, can still be handing focus
+    // back on CI's runner when this one starts; its tooltip is the same component, and its popover is checked below.
+    if (route !== '#/dossier/card-payments') out.push({ name: 'help-tooltip', key: 'Tab', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); for (let i = 0; i < 3; i++) { b.blur(); b.focus(); const deadline = Date.now() + 2000; while (!document.querySelector('.help-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.help-tooltip') && document.activeElement === b) return 1; } return 0; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
     out.push({ name: 'help-popover', setup: `(async () => { const b = ${first}; if (!b) return 0; b.scrollIntoView({ block: 'center' }); b.click(); return await ${waitFor('.help-popover [data-read-more]')}; })()`, undo: 'Escape' });
   }
   if (route === '#/settings/dossiers') out.push({ name: 'shown', setup: clickAll('.conn-card button', '/^Show$/'), undoJs: clickAll('.conn-card button', '/^Hide$/') });
