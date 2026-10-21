@@ -8,8 +8,9 @@ import { Avatar, StatusChip } from '../components/bits.tsx';
 import { Cited, ItemLink, typeText } from '../components/items.tsx';
 import { ReadinessPanel } from '../components/readiness.tsx';
 import { Card, DataTable } from '../components/layout.tsx';
+import { EditLink } from '../components/help.tsx';
 import { useData, useDerived } from '../data.ts';
-import { STATUS_CATEGORY_LABEL, dateTime, dossierHref, estimateText, personText, shortKey, sourceLabel } from '../format.ts';
+import { STATUS_CATEGORY_LABEL, connectionEditHref, dateTime, dossierEditHref, dossierHref, estimateText, personText, shortKey, sourceLabel } from '../format.ts';
 import { possibleDuplicates } from '../model/duplicates.ts';
 import { age, cycleTime } from '../model/flow.ts';
 import { INSIGHT_LABEL, insights } from '../model/insights.ts';
@@ -122,11 +123,14 @@ export function ItemView({ id }: { id: string }) {
       <ItemAssignments item={item} />
       <div className="item-grid">
         <section aria-labelledby="fields">
-          <h2 id="fields">Fields</h2>
+          <div className="edit-head">
+            <h2 id="fields">Fields</h2>
+            <EditLink href={dossierEditHref(dossier.name, 'fields')} label={`Edit ${dossier.name}'s field names`} />
+          </div>
           <dl className="fields">
             <dt>Source</dt>
             <dd>
-              {source}, connection <code>{item.source.connection}</code>, read with <code>toil {item.source.command}</code>
+              {source}, connection <code>{item.source.connection}</code> <EditLink href={connectionEditHref(item.source.connection)} label={`Edit the ${item.source.connection} connection`} />, read with <code>toil {item.source.command}</code>
             </dd>
             <dt>Type</dt>
             <dd>{typeText(item, theme)}</dd>

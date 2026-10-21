@@ -68,6 +68,7 @@
     "loading.graph": "Drawing the star chart…",
     "loading.answer": "Computing…",
     "ask.placeholder": "Query the computer about {name}",
+    "ask.placeholder.short": "Query the computer",
     "ask.welcome": "Query the ship's computer about {name}: the mission, the duty roster, the hazards on the heading. It cites every record it used.",
     "status.cache": "Reading the ship's records",
     "status.live": "Hailing the tracker",

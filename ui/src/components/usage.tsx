@@ -9,6 +9,8 @@
  */
 
 import { useId } from 'react';
+import { CAPS_HREF } from '../format.ts';
+import { EditLink } from './help.tsx';
 import { ADAPTER_LABEL, addUp, compact, modelKey, modelLabel, totalsBy, usageParts, type AnswerUsage, type UsageRecord } from '../model-usage.ts';
 
 /** The footer under one answer: one line per model, then the quota and any cap notice. */
@@ -41,7 +43,7 @@ export function UsageFooter({ usage }: { usage: AnswerUsage }) {
       )}
       {usage.notices.map((n, i) => (
         <p key={i} className="usage-notice" role="status">
-          {n}
+          {n} <EditLink href={CAPS_HREF} label="Edit the usage caps" />
         </p>
       ))}
     </div>

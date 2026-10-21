@@ -66,7 +66,10 @@ export function ChangeForm({
   onSubmit,
   children,
   danger = false,
+  titleId,
 }: {
+  /** The heading's id, for a form an edit link lands on (#346); it then takes focus there. */
+  titleId?: string;
   title: string;
   explain: ReactNode;
   runs: string;
@@ -76,7 +79,8 @@ export function ChangeForm({
   children?: ReactNode;
   danger?: boolean;
 }) {
-  const id = useId();
+  const own = useId();
+  const id = titleId ?? own;
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const handle = async (e: FormEvent) => {
@@ -93,8 +97,10 @@ export function ChangeForm({
     }
   };
   return (
-    <form className="change" aria-labelledby={`${id}-title`} onSubmit={handle} noValidate>
-      <h3 id={`${id}-title`}>{title}</h3>
+    <form className="change" aria-labelledby={titleId ?? `${id}-title`} onSubmit={handle} noValidate>
+      <h3 id={titleId ?? `${id}-title`} tabIndex={titleId ? -1 : undefined}>
+        {title}
+      </h3>
       <p className="explain">{explain}</p>
       {children}
       <p className="runs">

@@ -14,6 +14,7 @@ import { pairs, type AreaInfo, type ConfigApi, type ConnectionsData } from '../.
 import type { Envelope } from '../../toil.ts';
 import { Card, CardGrid, Cluster, DataTable, Path, Stack, Url } from '../../components/layout.tsx';
 import { RepoSetup } from './RepoSetup.tsx';
+import { Help, useLandOn } from '../../components/help.tsx';
 import { AreaField, ChangeForm, CheckField, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
 
 interface ListedDossier {
@@ -35,11 +36,17 @@ interface Shown {
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const fromEnvelope = <T,>(e: Envelope): Loaded<T> => (e.ok ? { ok: true, value: e.data as T } : { ok: false, message: `${e.error.message}${e.error.fix ? ` ${e.error.fix}` : ''}` });
 
-export function DossierSetup({ config }: { config: ConfigApi }) {
+/** An edit link's target (#346): one dossier, and the form for one of its sections. */
+export type DossierTarget = { dossier: string; section: string | null };
+
+/** The form each section's edit link lands on, by its heading's id. */
+const SECTION_FORM: Record<string, string> = { sources: 'dossier-form-sources', repos: 'dossier-form-repos', fields: 'dossier-form-fields', people: 'dossier-form-people', wip: 'dossier-form-wip' };
+
+export function DossierSetup({ config, at }: { config: ConfigApi; at?: DossierTarget }) {
   const [list, setList] = useState<Loaded<{ dossiers: ListedDossier[]; places: { user: string } }> | null>(null);
   const [areas, setAreas] = useState<AreaInfo[]>([]);
   const [connections, setConnections] = useState<ConnectionsData['connections']>([]);
-  const [selected, setSelected] = useState('');
+  const [selected, setSelected] = useState(at?.dossier ?? '');
   const reload = useCallback(async () => {
     try {
       setList(fromEnvelope(await config.run('dossiers list', {})));
@@ -56,6 +63,9 @@ export function DossierSetup({ config }: { config: ConfigApi }) {
     );
   }, [config, reload]);
 
+  // The form takes focus once the list has loaded and the dossier is chosen; with no section, the dossier picker does.
+  const found = Boolean(at && list?.ok && list.value.dossiers.some((d) => d.name === at.dossier));
+  useLandOn(at ? (found ? (SECTION_FORM[at.section ?? ''] ?? 'dossier-change') : 'dossier-change') : null, Boolean(list));
   if (!list) return <p className="skin-loading">Reading your dossiers with toil dossiers list…</p>;
   if (!list.ok) {
     return (
@@ -75,7 +85,7 @@ export function DossierSetup({ config }: { config: ConfigApi }) {
       <Card as="section" className="panel" aria-labelledby="dossier-list">
         <h2 id="dossier-list">Your dossiers</h2>
         <p className="lede">
-          From <code>toil dossiers list</code>: your own in <Path value={list.value.places.user} what="folder path" />, any folders you listed, and the ones a repository checks in. Show one to see what it gives each area; Check finds problems without contacting any service.
+          From <code>toil dossiers list</code>; yours are in <Path value={list.value.places.user} what="folder path" />. <Help topic="dossier-list" />
         </p>
         {dossiers.length === 0 ? (
           <p>toil sees no dossiers yet. Create one below.</p>
@@ -90,8 +100,17 @@ export function DossierSetup({ config }: { config: ConfigApi }) {
         )}
       </Card>
       <Card as="section" className="panel" aria-labelledby="dossier-change">
-        <h2 id="dossier-change">Create or change a dossier</h2>
-        <p className="lede">Each form runs one <code>toil dossiers</code> command, which checks the file before writing it and refuses to add what's already there unless you tick Replace.</p>
+        <h2 id="dossier-change" tabIndex={-1}>
+          Create or change a dossier
+        </h2>
+        <p className="lede">
+          Each form runs one <code>toil dossiers</code> command. <Help topic="dossier-setup" />
+        </p>
+        {at && list.ok && !found && (
+          <p role="status" className="failure">
+            toil sees no dossier named <code>{at.dossier}</code>. It may have been removed or renamed; create it again below.
+          </p>
+        )}
         <InitForm config={config} onChanged={reload} />
         {dossiers.length > 0 && (
           <>
@@ -280,6 +299,7 @@ function AddRepoForm({ config, dossier }: { config: ConfigApi; dossier: string }
   const [replace, setReplace] = useState(false);
   return (
     <ChangeForm
+      titleId="dossier-form-repos"
       title={`Add a repository to ${dossier}`}
       explain="Records a repository by its remote URL, or by a folder on this machine (its git root and origin remote). Any credential in a remote is left out of the file. toil then picks this dossier for calls made in that repository."
       runs={commandLine('dossiers add-repo', [dossier, location || '<folder|remote>', ...(name ? ['--name', name] : []), ...(replace ? ['--replace'] : [])])}
@@ -306,6 +326,7 @@ function LinkForm({ config, dossier, areas, connections }: { config: ConfigApi; 
   const args = [dossier, chosen, ...(connection ? ['--connection', connection] : []), ...pairs(set).flatMap((p) => ['--set', p]), ...pairs(add).flatMap((p) => ['--add', p]), ...(replace ? ['--replace'] : [])];
   return (
     <ChangeForm
+      titleId="dossier-form-sources"
       title={`Link an area to ${dossier}`}
       explain="Attaches an area to the dossier: which of your connections its calls use (or your default), the keys it supplies to every call (project=PAY), and reference data lists (projects=FEES). toil refuses, from here, a link that would point the dossier at a connection with writes on: a person makes that one with toil dossiers link in a terminal."
       runs={commandLine('dossiers link', args)}
@@ -337,6 +358,7 @@ function PersonForm({ config, dossier, areas }: { config: ConfigApi; dossier: st
   const args = [dossier, name ? (/\s/.test(name) ? `"${name}"` : name) : '<name>', ...list.flatMap((p) => ['--id', p]), ...(kind === 'agent' ? ['--kind', 'agent'] : []), ...(email ? ['--email', email] : []), ...(replace ? ['--replace'] : [])];
   return (
     <ChangeForm
+      titleId="dossier-form-people"
       title={`Add a person to ${dossier}`}
       explain={
         <>
@@ -374,6 +396,7 @@ function WipLimitForm({ config, dossier }: { config: ConfigApi; dossier: string 
   const n = Number(limit);
   return (
     <ChangeForm
+      titleId="dossier-form-wip"
       title={`Set ${dossier}'s work-in-progress limit`}
       explain={
         <>
@@ -403,6 +426,7 @@ function FieldForm({ config, dossier, areas }: { config: ConfigApi; dossier: str
   const chosen = names.includes(area) ? area : (names.includes('jira') ? 'jira' : names[0] ?? '');
   return (
     <ChangeForm
+      titleId="dossier-form-fields"
       title={`Name a field in ${dossier}`}
       explain="Gives one of the area's fields a friendly name in this dossier (storyPoints for customfield_10002), so commands and Toil UI's work items use the name. The OWI fields estimate, priority, type, team and dueDate are pointed at a team's own field the same way."
       runs={commandLine('dossiers field', [dossier, chosen, alias || '<alias>', id || '<field-id>', ...(replace ? ['--replace'] : [])])}

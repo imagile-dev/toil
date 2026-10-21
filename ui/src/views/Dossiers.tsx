@@ -16,6 +16,7 @@
 import { Card, CardGrid } from '../components/layout.tsx';
 import { CountStrip, Editable, MiniBurnup, SourceBadges, SprintLine, type Described } from '../components/dossier-head.tsx';
 import { Sources } from '../components/panel.tsx';
+import { Help } from '../components/help.tsx';
 import type { ConfigApi } from '../config.ts';
 import { dateTime, dossierHref } from '../format.ts';
 import type { DossierData, DossierSummary } from '../load.ts';
@@ -69,7 +70,9 @@ export function Dossiers({ dossiers, calls, loaded, now, synced, config, onDescr
     <>
       <div className="view-head">
         <h1 tabIndex={-1}>Dossiers</h1>
-        <p className="lede">{words('dossiers.lede')}</p>
+        <p className="lede">
+          {words('dossiers.lede')} <Help topic="dossiers" />
+        </p>
       </div>
       {dossiers.length === 0 ? (
         <EmptyState message={words('empty.dossiers')} />
@@ -161,7 +164,7 @@ function DossierCard({
         ) : null}
       </div>
       <div className="dossier-card__foot">
-        <SourceBadges sources={d.sources} />
+        <SourceBadges sources={d.sources} dossier={d.name} />
         <p className="note dossier-card__when">
           {synced === undefined ? 'Sample data.' : synced === null ? 'Not synced yet.' : `Synced ${dateTime(synced.at)}${synced.status === 'ok' ? '' : synced.status === 'partial' ? ', some sources failed' : ', and it failed'}.`}
           {preview && preview.changedSince !== null && <> {preview.changedSince ? `${plural(preview.changedSince, 'change')} since you last looked.` : 'Nothing changed since you last looked.'}</>}

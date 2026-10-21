@@ -150,6 +150,9 @@ h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
   font-weight: 600;
 }
 .settings { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-left: auto; }
+/* Help (#346): a link to the docs, drawn like the header's buttons beside it. */
+.help-link { min-height: 44px; padding: 0 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); text-decoration: none; }
+.help-link:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 /* The compact header (below 1024px, COMPACT_HEADER in App.tsx): the name on
    the left, Menu on the right, and everything else in the menu's popover. */

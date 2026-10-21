@@ -11,6 +11,7 @@ import { useState, useSyncExternalStore, type ReactNode } from 'react';
 import { Button, Radio, RadioGroup } from 'react-aria-components';
 import { SHELL_LABEL, commandLine, defaultShell, readLine, type Proposal, type Shell } from '../proposal.ts';
 import { Cited } from './items.tsx';
+import { Help } from './help.tsx';
 
 // Which shell the commands are shown for: the viewer's by default, one choice for every card, remembered when storage allows.
 const KEY = 'toil-ui.shell';
@@ -71,7 +72,9 @@ export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not
       )}
       {line ? (
         <>
-          <p className="note">Apply it yourself through toil's write gate:</p>
+          <p className="note">
+            Apply it yourself through toil's write gate: <Help topic="proposal" />
+          </p>
           <pre className="command">
             <code>{line}</code>
           </pre>

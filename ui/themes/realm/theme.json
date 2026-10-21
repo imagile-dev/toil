@@ -72,6 +72,7 @@
     "loading.graph": "Laying out the war table…",
     "loading.answer": "The steward is writing…",
     "ask.placeholder": "Petition the steward about {name}",
+    "ask.placeholder.short": "Petition the steward",
     "ask.welcome": "Petition the steward about {name}: the season's ledger, who holds which charge, which roads are broken. Every answer names the records it rests on.",
     "status.cache": "Consulting the ledger",
     "status.live": "Sending a rider to the tracker",

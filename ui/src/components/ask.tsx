@@ -28,6 +28,7 @@ import { useData, useDerived } from '../data.ts';
 import { useSkins, useTheme, useThemeChoiceContext, useWords } from '../skins.tsx';
 import { voiceOn } from '../theme-context.ts';
 import { Cited } from './items.tsx';
+import { useMediaQuery } from './layout.tsx';
 import { ProposalCard } from './proposal.tsx';
 import { TicketBanner } from './ticket.tsx';
 import { ChatUsage, UsageFooter } from './usage.tsx';
@@ -66,6 +67,15 @@ const textOf = (a: Answer) => a.parts.map((p) => p.text).join('\n\n');
 const optionLabel = (o: Pick<AdapterOption, 'label' | 'model'>) => (o.model ? `${o.label} (${o.model})` : o.label);
 
 /** The words of the status line (#343): what the agent is doing now, or how the last answer ended. */
+/** Below this width the Ask field is too short to name the dossier, so its placeholder is the short one. */
+const NARROW_ASK = '(max-width: 599px)';
+
+/** The Ask field's placeholder: the theme's, naming the dossier, or its short form on a narrow screen. */
+function useAskPlaceholder(name: string): string {
+  const words = useWords();
+  return useMediaQuery(NARROW_ASK) ? words('ask.placeholder.short') : words('ask.placeholder', { name });
+}
+
 export function statusLine(t: Turn, words: ReturnType<typeof useWords>, now: number): { text: string; tool: string | null; elapsed: string | null } | null {
   if (t.error && !t.stopped) return null;
   if (t.done) return { text: words(t.stopped ? 'status.stopped' : 'status.done', { seconds: seconds(t.ms ?? 0) }), tool: null, elapsed: null };
@@ -153,6 +163,7 @@ type Chat = ReturnType<typeof useChat>;
 export function AskBar() {
   const { dossier } = useData();
   const words = useWords();
+  const placeholder = useAskPlaceholder(dossier.name);
   const chat = useChat();
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
@@ -179,7 +190,7 @@ export function AskBar() {
     <section className="ask-bar" aria-label={`Ask about ${dossier.name}`}>
       <form className="ask-bar__form" onSubmit={submit}>
         <TextField className="field-text ask-bar__field" value={text} onChange={setText} aria-label="Your question">
-          <Input placeholder={words('ask.placeholder', { name: dossier.name })} onClick={openView} data-ask-bar="" />
+          <Input placeholder={placeholder} onClick={openView} data-ask-bar="" />
         </TextField>
         <Button type="submit" className="btn btn--accent">
           Ask
@@ -211,6 +222,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
   const { health: h } = useDerived();
   const { EmptyState, ChatMessage } = useSkins();
   const words = useWords();
+  const placeholder = useAskPlaceholder(dossier.name);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
   const end = useRef<HTMLDivElement>(null);
@@ -388,7 +400,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
         <form className="ask-form" onSubmit={submit}>
           <TextField className="field-text" value={text} onChange={setText} isDisabled={busy} autoFocus>
             <Label>Your question</Label>
-            <Input placeholder={words('ask.placeholder', { name: dossier.name })} />
+            <Input placeholder={placeholder} />
           </TextField>
           <Button type="submit" className="btn btn--accent" isDisabled={busy || !text.trim()}>
             Ask

@@ -14,7 +14,8 @@ import { Button, Dialog, DialogTrigger, Heading, Input, Label, Modal, ModalOverl
 import { ItemLink } from '../components/items.tsx';
 import { Card, CardGrid, Cluster, Stack } from '../components/layout.tsx';
 import { useData } from '../data.ts';
-import { dossierHref } from '../format.ts';
+import { CAPS_HREF, dossierHref } from '../format.ts';
+import { EditLink } from '../components/help.tsx';
 import { ADAPTER_LABEL, addUp, usageParts } from '../model-usage.ts';
 import type { PersonEntry } from '../model/people.ts';
 import type { WorkItem } from '../toil.ts';
@@ -320,6 +321,7 @@ function Limits({ list, onSaved }: { list: AssignmentList; onSaved: () => void }
         <p id={id} className="note" role="status">
           {said ?? 'Usage caps are under Settings, Agent usage: an assignment is one chat there.'}
         </p>
+        {!said && <EditLink href={CAPS_HREF} label="Edit the usage caps" />}
       </form>
     </details>
   );

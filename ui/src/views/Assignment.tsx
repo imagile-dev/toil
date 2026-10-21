@@ -18,7 +18,8 @@ import { Card, Cluster, DataTable, Path, Scroller } from '../components/layout.t
 import { ProposalCard } from '../components/proposal.tsx';
 import { UsageFooter } from '../components/usage.tsx';
 import { useData } from '../data.ts';
-import { dateTime, dossierHref } from '../format.ts';
+import { AGENT_SETTINGS_HREF, dateTime, dossierHref } from '../format.ts';
+import { EditLink } from '../components/help.tsx';
 import { useSkins } from '../skins.tsx';
 
 const when = (iso: string | null) => (iso ? dateTime(iso) : 'not yet');
@@ -92,7 +93,7 @@ export function AssignmentView({ id }: { id: string }) {
           {MODE_INFO[a.mode].label}: {a.itemTitle}
         </h1>
         <p className="item-meta">
-          <StateChip a={a} /> <ItemLink id={a.item} /> · {a.adapter ? ADAPTER_NAME[a.adapter] : 'no adapter chosen yet'} · {a.origin === 'tracker' ? `queued by the tracker (${a.trigger})` : 'assigned in Toil UI'}
+          <StateChip a={a} /> <ItemLink id={a.item} /> · {a.adapter ? ADAPTER_NAME[a.adapter] : 'no adapter chosen yet'} <EditLink href={AGENT_SETTINGS_HREF} label="Edit the agent settings" /> · {a.origin === 'tracker' ? `queued by the tracker (${a.trigger})` : 'assigned in Toil UI'}
         </p>
         <p className="note">
           Created {when(a.createdAt)}; started {when(a.startedAt)}; {a.endedAt ? `ended ${when(a.endedAt)}` : 'still going'}; ran {runText(a.ranMs ?? runMs(a, now))}; {usageText(a)}. {MODE_INFO[a.mode].changes}

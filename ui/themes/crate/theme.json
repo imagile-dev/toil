@@ -60,6 +60,7 @@
     "loading.graph": "Chalking the graph on the floor…",
     "loading.answer": "Checking the manifest…",
     "ask.placeholder": "Ask the dock about {name}",
+    "ask.placeholder.short": "Ask the dock",
     "ask.welcome": "Ask about {name}: what is on the floor, who is loading what, what is stuck in the aisle. Every answer comes with its paperwork: the items it rests on.",
     "status.cache": "Checking the manifest",
     "status.live": "Radioing the yard",

@@ -10,6 +10,7 @@
 import { useEffect, useState } from 'react';
 import type { ConfigApi, SettingsInfo } from '../../config.ts';
 import { Card, Path } from '../../components/layout.tsx';
+import { Help } from '../../components/help.tsx';
 
 const seconds = (ms: number) => (ms % 1000 === 0 ? `${ms / 1000} s` : `${ms} ms`);
 
@@ -41,7 +42,9 @@ export function General({ config }: { config: ConfigApi }) {
   const t = settings.timeout;
   return (
     <>
-      <p className="lede">toil has no command to change these, and Toil UI never edits toil's files, so they're shown as toil reports them, with where each is set.</p>
+      <p className="lede">
+        Shown as toil reports them, with where each is set. <Help topic="bounds" />
+      </p>
       <Card as="section" className="panel" aria-labelledby="bounds">
         <h2 id="bounds">Bounds</h2>
         <dl className="fields">
@@ -53,7 +56,6 @@ export function General({ config }: { config: ConfigApi }) {
           </dd>
         </dl>
         {relaxed && <p className="note">toil says: {relaxed}</p>}
-        <p className="note">Only that file can relax a bound, and only this one: no env var, flag, dossier or repository file can. Every other bound always holds.</p>
       </Card>
       <Card as="section" className="panel" aria-labelledby="timeout">
         <h2 id="timeout">Time limit</h2>
