@@ -16,7 +16,7 @@
 
 import type { Change, WorkItem } from '../toil.ts';
 import { flows } from './flow.ts';
-import { insights, type Prepared } from './insights.ts';
+import { STALE_DAYS, insights, type Prepared } from './insights.ts';
 import { PICKUP_DAYS, daysText, openQueue } from './prs.ts';
 import { readiness, type ReadinessSettings } from './readiness.ts';
 import type { Health } from './sprint.ts';
@@ -170,16 +170,20 @@ function aging(p: Prepared): KeyIssue | null {
   if (!rows.length) return null;
   rows.sort((a, b) => Number(b.aging) - Number(a.aging) || b.days - a.days);
   const old = rows.filter((r) => r.aging);
+  const quiet = rows.filter((r) => !r.aging);
   const top = rows[0]!;
+  // Each clause names only the items it is true of: an item gone quiet isn't aging, whatever else is.
+  const ids = (list: typeof rows) => `${list.slice(0, 3).map((r) => `[[${r.id}]]`).join(', ')}${list.length > 3 ? ` and ${list.length - 3} more` : ''}`;
+  const clauses = [
+    old.length && p.p85 ? `${ids(old)} ${old.length === 1 ? 'has' : 'have'} been in progress longer than 85% of finished items took (${plural(round1(p.p85.days), 'day')})` : '',
+    quiet.length ? `${ids(quiet)} had no update for over ${plural(STALE_DAYS, 'day')}` : '',
+  ].filter(Boolean);
   return issue('aging', {
-    title: old.length ? `${plural(old.length, 'item')} aging` : `${plural(rows.length, 'item')} gone quiet`,
-    detail: `${rows
-      .slice(0, 3)
-      .map((r) => `[[${r.id}]]`)
-      .join(', ')}${rows.length > 3 ? ` and ${rows.length - 3} more` : ''} ${old.length && p.p85 ? `${old.length === 1 ? 'has' : 'have'} been in progress longer than 85% of finished items took (${round1(p.p85.days)} days)` : 'had no update for days'}.`,
+    title: [old.length ? `${plural(old.length, 'item')} aging` : '', quiet.length ? `${old.length ? quiet.length : plural(quiet.length, 'item')} gone quiet` : ''].filter(Boolean).join(', '),
+    detail: `${clauses.join('; ')}.`,
     tickets: rows.map((r) => r.id),
     count: rows.length,
-    action: top.aging ? `Check in on [[${top.id}]]: in progress ${round1(top.days)} days, longer than most work takes here.` : `Check in on [[${top.id}]]: it has had no update for days.`,
+    action: top.aging ? `Check in on [[${top.id}]]: in progress ${round1(top.days)} days, longer than most work takes here.` : `Check in on [[${top.id}]]: it has had no update for over ${plural(STALE_DAYS, 'day')}.`,
     evidence: old.length ? 'history.transitions, against the dossier\'s cycle times' : 'each item\'s last update',
     tab: 'board',
   });

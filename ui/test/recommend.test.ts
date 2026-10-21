@@ -56,6 +56,20 @@ describe('recommend', () => {
     expect(r.issues[1]!.action).toMatch(/^Firm up \[\[jira:A-1\]\] before anyone picks it up: /);
   });
 
+  it('says aging only of the items that are aging, and gone quiet of the rest (#402 review)', () => {
+    const at = (day: string) => `2026-10-${day}T00:00:00.000Z`;
+    const move = (from: StatusCategory | null, to: StatusCategory, when: string) => ({ from, to, fromCategory: from, toCategory: to, at: when, by: null });
+    const done = (id: string) => item(id, { statusCategory: 'DONE', history: { iterations: [], transitions: [move('TODO', 'IN_PROGRESS', at('01')), move('IN_PROGRESS', 'DONE', at('02'))] } });
+    const old = item('OLD', { statusCategory: 'IN_PROGRESS', history: { iterations: [], transitions: [move('TODO', 'IN_PROGRESS', at('01'))] } });
+    // Started two hours ago, but with no update for a month: gone quiet, not aging.
+    const quiet = (id: string) => item(id, { statusCategory: 'IN_PROGRESS', updated: '2026-09-13T00:00:00.000Z', history: { iterations: [], transitions: [move('TODO', 'IN_PROGRESS', '2026-10-13T06:00:00.000Z')] } });
+    const r = recommend(input([done('D-1'), done('D-2'), done('D-3'), old, quiet('Q-1'), quiet('Q-2')]));
+    const i = r.issues.find((x) => x.kind === 'aging')!;
+    expect(i.title).toBe('1 item aging, 2 gone quiet');
+    expect(i.detail).toBe('[[jira:OLD]] has been in progress longer than 85% of finished items took (1 day); [[jira:Q-1]], [[jira:Q-2]] had no update for over 5 days.');
+    expect(i.tickets).toEqual(['jira:OLD', 'jira:Q-1', 'jira:Q-2']);
+  });
+
   it('weighs kinds in a fixed order, so a blocker always outranks a review and a review outranks aging', () => {
     expect(BASE_WEIGHT.blockers).toBeGreaterThan(BASE_WEIGHT.builds);
     expect(BASE_WEIGHT.builds).toBeGreaterThan(BASE_WEIGHT.scope);
