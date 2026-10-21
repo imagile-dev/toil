@@ -87,6 +87,12 @@ export interface RunContext {
   signal: AbortSignal;
   /** Adds a line to the transcript as the run goes. */
   record(entry: Omit<TranscriptEntry, 'at'>): void;
+  /**
+   * Keeps what the run started on as soon as it is known (#305), so a run
+   * that then fails or is stopped still has its fingerprint, and can go
+   * stale and be renewed.
+   */
+  started?(on: StartedOn): void;
 }
 
 /** What a finished run hands back. */
@@ -573,7 +579,7 @@ export class AssignmentQueue {
     this.save(r, 'state', previous, 'Working.');
     try {
       const item = this.item(r.dossier, r.item);
-      const result = await this.o.runner.run({ assignment: this.summary(r), item, signal: controller.signal, record: (e) => this.note(r, e.kind, e.title, e.detail) });
+      const result = await this.o.runner.run({ assignment: this.summary(r), item, signal: controller.signal, record: (e) => this.note(r, e.kind, e.title, e.detail), started: (on) => void ((r.startedOn = on), this.o.keeper.save(r)) });
       if (controller.signal.aborted) throw controller.signal.reason;
       r.report = result.report;
       r.questions = result.questions;

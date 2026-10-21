@@ -265,3 +265,39 @@ describe("an assignment's staleness and renewal", () => {
     expect(new Set([assignmentPrompts('refine'), assignmentPrompts('investigate'), assignmentPrompts('implement')]).size).toBe(3);
   });
 });
+
+describe('a run that fails after it started', () => {
+  it('keeps its fingerprint, so it can go stale and be renewed', async () => {
+    const { AssignmentQueue, RunStopped } = await import('../src/assign/queue.ts');
+    const { memoryKeeper } = await import('../server/assign/files.ts');
+    const { loadDossier } = await import('../src/load.ts');
+    const { fixtureExecute } = await import('../src/fixtures/execute.ts');
+    const items = (await loadDossier(fixtureExecute().execute, 'card-payments')).items;
+    let current = SAMPLE_FINGERPRINT_NOW;
+    const q = new AssignmentQueue({
+      keeper: memoryKeeper(),
+      runner: {
+        adapters: () => [{ name: 'codex', label: 'Codex', problem: null, implement: null }],
+        preferred: () => 'codex',
+        run: async (ctx) => {
+          ctx.started?.({ at: FIXTURE_NOW, toil: 't', toilUi: 't', adapter: 'codex', model: null, skills: [], tools: [], dossier: { name: 'card-payments', fingerprint: null }, item: { id: ctx.item.id, updated: null, fingerprint: 'f' }, prompt: 'p', fingerprint: SAMPLE_FINGERPRINT_NOW });
+          throw new RunStopped('error', 'The CLI stopped.', null);
+        },
+      },
+      items: () => items,
+      people: async () => [],
+      repos: async () => [],
+      apply: async () => { throw new Error('no'); },
+      settings: () => ({ concurrent: 1, timeLimitMinutes: 20 }),
+      current: () => current,
+      now: () => FIXTURE_NOW,
+      newId: () => 'fail-0000000001',
+    });
+    await q.assign({ dossier: 'card-payments', item: 'corp-jira:PAY-103', mode: 'refine', adapter: 'codex' });
+    while ((await q.read('fail-0000000001')).state !== 'failed') await new Promise((r) => setTimeout(r, 2));
+    expect((await q.read('fail-0000000001')).stale).toBeNull();
+    current = { ...SAMPLE_FINGERPRINT_NOW, dossier: 'changed' };
+    expect((await q.read('fail-0000000001')).stale!.text).toBe('dossier changed since it started');
+    expect(renewRefusal(await q.read('fail-0000000001'))).toBeNull();
+  });
+});

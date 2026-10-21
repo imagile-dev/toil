@@ -212,6 +212,7 @@ export function hostRunner(o: HostRunnerOptions): Runner {
         prompt: sha256(`${modePrompt.system}\n\n${modePrompt.prompt}`),
         fingerprint,
       };
+      ctx.started?.(startedOn);
       ctx.record({ kind: 'prompt', title: 'System prompt', detail: modePrompt.system });
       ctx.record({ kind: 'prompt', title: 'Task', detail: modePrompt.prompt });
 
