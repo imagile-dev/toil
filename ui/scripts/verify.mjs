@@ -319,7 +319,7 @@ async function askAgent(api, dossier, home, dataDir) {
   if (wrongModel.length) fail(`${wrongModel.length} usage record(s) name another model: ${[...new Set(wrongModel.map((r) => r.model))].join(', ')}.`);
   if (stored.length !== records.length) fail(`${records.length - stored.length} of the answer's usage record(s) aren't in the ledger as the answer reported them.`);
   // Copilot's premium requests and Claude's SDK estimate (total_cost_usd, per model) are figures of their own.
-  const billed = (r) => [r.premiumRequests !== undefined ? `${r.premiumRequests} premium request(s)` : '', r.costUsd !== undefined ? `${r.costUsd.toFixed(4)} (${r.costSource}${r.plan ? ', API-equivalent' : ''})` : ''].filter(Boolean).join(', ');
+  const billed = (r) => [r.premiumRequests !== undefined ? `${r.premiumRequests} premium request(s)` : '', r.costUsd !== undefined ? `$${r.costUsd.toFixed(4)} (${r.costSource}${r.plan ? ', API-equivalent' : ''})` : ''].filter(Boolean).join(', ');
   step('Ask: usage recorded', tokened.length && stored.length === records.length && !wrongModel.length ? 'pass' : 'fail', records.map((r) => `${r.inputTokens} in (${r.cachedInputTokens ?? 'not reported'} cached), ${r.outputTokens} out, cache write ${r.cacheWriteTokens ?? 'not reported'}, model ${r.model ?? 'not named by the SDK'}${billed(r) ? `, ${billed(r)}` : ''}`).join('; ') || 'none reported');
 
   const during = auditLines(home).slice(before);

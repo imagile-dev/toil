@@ -871,7 +871,8 @@ npm run verify:ui -- --no-build --starter standup
   SDK installed in the clone (above). `--adapter copilot` or `--adapter claude` asks that
   adapter instead, held to the same checks (Codex is the reference; its MCP check is
   skipped), and `--model <id>` sets its model and fails the run when an answer or a
-  usage record names another one, so a cheap-model run can't quietly use a dear one.
+  usage record names another one, so a cheap-model run can't quietly use a dear one. Each adapter's full live run, every agent feature on the sandbox, is
+  recorded in `ui/docs/live-runs/`.
 - **What fails it:** any layout problem in any theme, and any axe violation at WCAG
   2.2 AA in Plain and Crate. Axe findings in the other themes are listed in the report
   and never fail it. Screenshots are of Plain and Crate.
