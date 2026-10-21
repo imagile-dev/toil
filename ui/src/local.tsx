@@ -20,10 +20,15 @@ import { SyncPanel, lastSynced } from './sync-panel.tsx';
 import { httpAssignments } from './assign/client.ts';
 import { CALL_OPTIONS, type Execute } from './toil.ts';
 
+/** The sync status as the cards read it: each dossier's last sync and how it went. */
+const syncedBy = (s: SyncStatus | null) => Object.fromEntries((s?.dossiers ?? []).map((d) => [d.name, { at: d.lastSyncAt, status: d.status }]));
+
 const root = createRoot(document.getElementById('root')!);
 
 function Local({ session, execute, agent: firstAgent, names, status }: { session: Session; execute: Execute; agent: Agent; names: string[]; status: SyncStatus | null }) {
   const [synced, setSynced] = useState(() => lastSynced(status));
+  // Each dossier's last sync, for its card on the Dossiers view (#342).
+  const [byDossier, setByDossier] = useState(() => syncedBy(status));
   const [agent, setAgent] = useState(firstAgent);
   const [settingsClient] = useState(() => (session.agentSettings ? httpAgentSettings(session) : null));
   // A new choice of agent (#251) brings its own starters, so the agent is fetched again and the App remounted.
@@ -46,11 +51,12 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   const [assignments] = useState(() => httpAssignments(session));
   const onChange = useCallback((next: SyncStatus) => {
     setSynced(lastSynced(next));
+    setByDossier(syncedBy(next));
     setGeneration((g) => g + 1);
   }, []);
   return (
     <>
-      <App key={generation} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
+      <App key={generation} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} {...(session.sync ? { synced: byDossier, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
       {sync && <SyncPanel client={sync} onChange={onChange} />}
     </>
   );

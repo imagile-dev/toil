@@ -87,10 +87,28 @@ export interface UiServerOptions {
   usage?: UsageControl;
   /** Assigning work items to an agent (#293): `api/assignments`. */
   assignments?: AssignmentControl;
+  /**
+   * A dossier renamed through `/api/config` (#342, `toil dossiers describe --name`):
+   * `blocked` says why it can't be renamed now (a sync or an assignment of it is
+   * running), and `moved` takes Toil UI's own records of it (the cache, the
+   * worklog, assignments) to the new name once toil has renamed it, returning
+   * anything it couldn't move, in words. None with sample data.
+   */
+  renames?: DossierRenames;
   /** Tests pass a fixed token; a real start makes one. */
   token?: string;
   viewer?: Viewer;
 }
+
+export interface DossierRenames {
+  /** Stops a sync starting until the returned function is called. */
+  hold(): () => void;
+  blocked(dossier: string): { message: string; fix: string } | null;
+  moved(from: string, to: string): Promise<string[]>;
+}
+
+/** toil's dossier names: lowercase letters, digits and single hyphens. */
+const DOSSIER_NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
 /** What the Settings page reads and changes about the agent. */
 export interface AgentControl {
@@ -396,7 +414,35 @@ export function createUiServer(options: UiServerOptions): UiServer {
       if (e instanceof AnswersError) throw new HttpError(400, e.message, e.fix);
       throw e;
     }
-    json(res, 200, await store.execute(ctx, command, input as Record<string, unknown>, access, { readOnly, ...(person ? { person } : {}) }));
+    const fields = input as Record<string, unknown>;
+    const renames = command === 'dossiers describe' ? options.renames : undefined;
+    const renaming = renames !== undefined && fields.name !== undefined;
+    if (renaming && (typeof fields.dossier !== 'string' || !DOSSIER_NAME.test(fields.dossier))) {
+      // Toil UI's records are kept by name, so a rename from the page names the dossier the same way; toil itself also takes a path.
+      json(res, 400, refusal(command, 'Toil UI renames a dossier by its name, not a path to its file.', 'Send the name toil dossiers list shows, or rename it on the CLI.'));
+      return;
+    }
+    // While it renames, no sync may start, and none may be running, nor an assignment of the dossier: each reads it by name as it goes.
+    const release = renaming ? renames!.hold() : () => undefined;
+    try {
+      const why = renaming ? renames!.blocked(fields.dossier as string) : null;
+      if (why) {
+        json(res, 409, { ...refusal(command, why.message, why.fix), error: { code: 'CONFLICT', message: why.message, fix: why.fix } });
+        return;
+      }
+      const envelope = await store.execute(ctx, command, fields, access, { readOnly, ...(person ? { person } : {}) });
+      const renamed = renames && envelope.ok ? (envelope.data as { renamed?: { from?: unknown; to?: unknown } | null } | null)?.renamed : null;
+      if (renamed && typeof renamed.from === 'string' && typeof renamed.to === 'string') {
+        // toil has renamed the file by now; what Toil UI couldn't carry over is said beside toil's own warnings, never instead of the result.
+        const problems = await renames!.moved(renamed.from, renamed.to).catch((e: unknown) => [`Toil UI couldn't move its own records of ${renamed.from} to ${renamed.to}: ${e instanceof Error ? e.message : String(e)}. The next sync reads it afresh under its new name.`]);
+        if (problems.length) {
+          envelope.meta.warnings = [...(envelope.meta.warnings ?? []), ...problems.map((message) => ({ code: 'TOIL_UI_RENAME', message }))];
+        }
+      }
+      json(res, 200, envelope);
+    } finally {
+      release();
+    }
   };
 
   /**

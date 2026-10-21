@@ -98,8 +98,8 @@ export interface SyncStatus {
 }
 
 export class SyncBusy extends Error {
-  constructor() {
-    super('A sync is already running.');
+  constructor(message = 'A sync is already running.') {
+    super(message);
   }
 }
 
@@ -226,6 +226,19 @@ export class SyncService {
     return this.current !== null;
   }
 
+  /** Holds that keep a sync from starting: a dossier being renamed (#342). */
+  private holds = 0;
+
+  /** Keeps any sync from starting until the returned function is called. */
+  hold(): () => void {
+    this.holds++;
+    let done = false;
+    return () => {
+      if (!done) this.holds--;
+      done = true;
+    };
+  }
+
   /** Starts a sync of every dossier, or of one, and returns at once; poll `status()`. Throws SyncBusy while one runs. */
   start(ctx: RequestContext, dossier?: string): SyncJob {
     void this.run(ctx, dossier).catch(() => {});
@@ -235,6 +248,7 @@ export class SyncService {
   /** Runs a sync to the end. */
   run(ctx: RequestContext, dossier?: string): Promise<SyncJob> {
     if (this.current) throw new SyncBusy();
+    if (this.holds) throw new SyncBusy('A dossier is being renamed, so the sync waits until it is done.');
     this.controller = new AbortController();
     this.job = { ...idle(), running: true, by: ctx.viewer.id, startedAt: this.now().toISOString() };
     this.current = this.sync(dossier, this.controller.signal).finally(() => {

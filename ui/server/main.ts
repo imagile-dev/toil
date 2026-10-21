@@ -19,7 +19,7 @@ import { AgentHost } from './agents/host.ts';
 import { cacheData } from './agents/tools.ts';
 import { Cache, CacheError, wipeCacheFiles } from './cache.ts';
 import { areasFrom, settingsFrom } from './config.ts';
-import { createUiServer } from './server.ts';
+import { createUiServer, type DossierRenames } from './server.ts';
 import { parseSettings, SettingsError, themesNotice, USAGE } from './settings.ts';
 import { fixtureStore, sqliteStore } from './store.ts';
 import { SyncService } from './sync.ts';
@@ -169,7 +169,37 @@ async function main(): Promise<number> {
     assignments = { queue: sample.queue };
   }
 
+  // A dossier renamed from its card or dashboard (#342): Toil UI's own records of it follow toil's rename.
+  const renames: DossierRenames | undefined =
+    cache && sync && worklog
+      ? {
+          hold: () => sync!.hold(),
+          blocked: (dossier) =>
+            sync!.running
+              ? { message: `A sync is running, so ${dossier} can't be renamed until it ends.`, fix: 'Wait for the Sync panel to say the sync finished, then rename it.' }
+              : assignments.queue.runningIn(dossier)
+                ? { message: `An assignment of ${dossier} is running, so it can't be renamed until it ends.`, fix: 'Wait for it to finish, or stop it from its page, then rename the dossier.' }
+                : null,
+          moved: async (from, to) => {
+            const problems: string[] = [];
+            const step = (what: string, fn: () => unknown) => {
+              try {
+                fn();
+              } catch (e) {
+                problems.push(`Toil UI couldn't move ${what} from ${from} to ${to}: ${e instanceof Error ? e.message : String(e)}`);
+              }
+            };
+            step('its cache', () => cache!.rename(from, to));
+            step('its assignments', () => assignments.queue.renameDossier(from, to));
+            // The pages are folded again under the new name, and the old name's folder, which no dossier holds now, goes.
+            await worklog!.reconcileAll().catch((e: unknown) => problems.push(`Toil UI couldn't fold the worklog again under ${to}: ${e instanceof Error ? e.message : String(e)}`));
+            return problems;
+          },
+        }
+      : undefined;
+
   const ui = createUiServer({
+    ...(renames ? { renames } : {}),
     settings,
     store: cache ? sqliteStore(() => cache, execute, toil) : fixtureStore(),
     agent: host ?? fixtureAgent(),
@@ -200,7 +230,7 @@ async function main(): Promise<number> {
   process.stdout.write(
     [
       `Toil UI ${__TOIL_UI_VERSION__} (alpha, local only), on toil ${toilVersion}`,
-      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages change anything: toil\'s own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.',
+      settings.sample ? 'Serving sample data and the scripted agent; nothing connects to a tracker.' : 'Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages, and a dossier\'s name and description edited in place, change anything: toil\'s own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.',
       ...(cache ? [`The cache is ${cache.paths.db}, kept ${settings.retentionDays} days after each sync; toil-ui wipe deletes it.`] : []),
       '',
       'Open this URL in your browser. It carries this launch\'s token, so keep it to yourself:',

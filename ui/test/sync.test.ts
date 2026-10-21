@@ -258,6 +258,16 @@ describe('a failing source', () => {
 });
 
 describe('the job', () => {
+  it('starts no sync while a dossier is being renamed (#342), and starts once the hold is let go', async () => {
+    const { sync } = await setup();
+    const release = sync.hold();
+    expect(() => sync.run(ctx)).toThrow('A dossier is being renamed, so the sync waits until it is done.');
+    release();
+    release();
+    await sync.run(ctx);
+    expect(sync.status().job.dossiersDone).toBe(3);
+  });
+
   it('runs one at a time, and the wipe waits for it', async () => {
     const { sync } = await setup();
     const running = sync.run(ctx);

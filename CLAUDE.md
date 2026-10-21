@@ -242,7 +242,7 @@ GitHub Actions; its build tooling is out of scope.
   skill itself (`bundled.ts`, and `skill install | show` in `skill-commands.ts`); the
   `skills` area's own commands are in `src/areas/skills/`
 - `src/dossiers/` — `toil dossiers list | show | check | context` (`commands.ts`) and
-  `init | add-repo | link | env | field | person | wip-limit | export | import | unlink | remove` (`build.ts`); the
+  `init | add-repo | link | env | field | person | wip-limit | describe | export | import | unlink | remove` (`build.ts`); the
   model, resolution and writing are `src/core/dossier.ts`
 - `src/repos/` — `toil repos scan`, discovery for dossiers
 - `src/audit/` — `toil audit list | stats | path`, reading the audit log

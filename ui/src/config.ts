@@ -39,6 +39,8 @@ export const CONFIG_CHANGES = [
   'dossiers person',
   'dossiers wip-limit',
   'dossiers onboard',
+  // A dossier's name and description, edited in place on its card and dashboard (#342).
+  'dossiers describe',
 ] as const;
 
 /** Everything `/api/config` runs, and nothing else. */

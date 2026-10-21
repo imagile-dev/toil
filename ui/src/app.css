@@ -200,7 +200,6 @@ main {
 .check[data-focus-visible] .box { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 .dossiers { margin-bottom: 1.5rem; }
-.dossier-card { gap: 0.5rem; }
 .dossier-card h2 a { display: inline-flex; align-items: center; min-height: 44px; font-family: var(--font-mono); }
 .key { display: block; font-family: var(--font-mono); font-size: 0.8125rem; font-weight: 400; color: var(--muted); }
 .source { font-family: var(--font-body); font-weight: 600; color: var(--ink); }

@@ -182,7 +182,7 @@ export interface AssignmentEvent {
   id: string;
   dossier: string;
   item: string;
-  kind: 'created' | 'state' | 'proposal';
+  kind: 'created' | 'state' | 'proposal' | 'renamed';
   state: AssignState;
   previous: AssignState | null;
   message: string;
