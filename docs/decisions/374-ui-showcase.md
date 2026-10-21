@@ -29,6 +29,9 @@
   is `src/wording.ts` and each `theme.json`, the checkbox rows are the table in
   `ui/docs/themes.md`, and the start command is `ui/README.md`'s "Start it". If any of
   them changes shape, the build stops with an error naming the file.
+  The site build is optional on a PR, so `ui/test/showcase.test.tsx` holds the same
+  reading, and the controls the tour presses, to the app inside Toil UI's own suite,
+  which `CI ok` requires.
 - **The comparison is two columns: the standard text, and the theme you pick.** Five
   columns side by side don't fit a phone. Two columns also keep the page to Plain's
   and Crate's colours while either is picked, which is what the strict AA bar is
