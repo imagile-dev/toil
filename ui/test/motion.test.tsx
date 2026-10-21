@@ -1,10 +1,12 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.tsx';
 import { Ambient } from '../src/ambient/Ambient.tsx';
 import { blank, fill, particleCount, stepAll, type Preset, type Viewport } from '../src/ambient/engine.ts';
-import { PRESETS, shaft } from '../src/ambient/presets.ts';
+import { PRESETS, flame } from '../src/ambient/presets.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
@@ -99,15 +101,13 @@ describe('the particle presets', () => {
     }
   });
 
-  it("puts Crate's light shaft where theme.css draws it: brightest 64% along a 115° line", () => {
+  it("puts Crate's flame glow where theme.css draws it: brightest at 88% across the top, gone 60vmax away", () => {
     const [w, h] = [1440, 900];
-    // The gradient line's 64% point, worked out the way CSS does for 115deg.
-    const a = (115 * Math.PI) / 180;
-    const length = Math.abs(w * Math.sin(a)) + Math.abs(h * Math.cos(a));
-    const at = (t: number) => [w / 2 + (t - 0.5) * length * Math.sin(a), h / 2 - (t - 0.5) * length * Math.cos(a)] as const;
-    expect(shaft(...at(0.64), w, h)).toBeCloseTo(1, 5);
-    expect(shaft(...at(0.5), w, h)).toBeLessThan(0.05);
-    expect(shaft(...at(0.8), w, h)).toBeLessThan(0.01);
+    const css = readFileSync(join(import.meta.dirname, '..', 'themes', 'crate', 'theme.css'), 'utf8');
+    expect(css).toContain('radial-gradient(circle at 88% 0%, rgba(255, 106, 61, 0.14), transparent 60vmax)');
+    expect(flame(0.88 * w, 0, w, h)).toBeCloseTo(1, 5);
+    expect(flame(0.88 * w, 0.3 * w, w, h)).toBeCloseTo(0.5, 5);
+    expect(flame(0, h, w, h)).toBe(0);
   });
 
   it("drifts Realm's ash down the page and its embers up it, in every width", () => {
@@ -138,14 +138,16 @@ describe('the ambient layer', () => {
     const layer = container.querySelector('.ambient')!;
     expect(layer.getAttribute('aria-hidden')).toBe('true');
     expect(layer.querySelector('canvas')).not.toBeNull();
-    expect(layer.querySelectorAll('.ambient-layer')).toHaveLength(0);
   });
 
-  it("gives Crate its three parallax layers, which stay as a still backdrop when motion isn't welcome", () => {
-    osMotion(true);
+  it("gives Crate only its dust: the grid and the glow are its stylesheet's, and there is no layer at all when motion isn't welcome", () => {
+    osMotion(false);
+    fakeCanvas();
     const { container } = render(<Ambient theme="crate" />);
-    expect([...container.querySelectorAll('.ambient-layer')].map((e) => e.className)).toEqual(['ambient-layer ambient-layer--far', 'ambient-layer ambient-layer--mid', 'ambient-layer ambient-layer--near']);
-    expect(container.querySelector('canvas')).toBeNull();
+    expect(container.querySelector('.ambient')!.children).toHaveLength(1);
+    expect(container.querySelector('canvas')).not.toBeNull();
+    osMotion(true);
+    expect(render(<Ambient theme="crate" />).container.innerHTML).toBe('');
   });
 
   it('runs no frames with the OS asking for reduced motion', () => {
@@ -240,13 +242,12 @@ describe('Particles and ambient effects, per theme (#348)', () => {
     expect(again.container.innerHTML).toBe('');
   });
 
-  it("leaves Crate's parallax to the motion switch: off takes the dust and keeps the three layers", () => {
+  it("takes Crate's dust away with its switch, leaving no layer behind", () => {
     osMotion(false);
     fakeCanvas();
     setParticlesOn('crate', false);
     const { container } = render(<Ambient theme="crate" />);
-    expect(container.querySelector('canvas')).toBeNull();
-    expect(container.querySelectorAll('.ambient-layer')).toHaveLength(3);
+    expect(container.innerHTML).toBe('');
   });
 
   it('comes after the OS and the motion switch: either stops the particles with the switch on', () => {

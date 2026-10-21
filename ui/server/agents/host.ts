@@ -429,10 +429,11 @@ export class AgentHost implements Agent {
   }
 
   /** The adapters, for the Assign dialog: whether each can run here, and whether it can work in a folder (implement mode). */
-  adapterChoices(): Array<{ name: AdapterName; label: string; problem: string | null; workspace: boolean }> {
+  adapterChoices(): Array<{ name: AdapterName; label: string; model: string | null; problem: string | null; workspace: boolean }> {
     return this.adapterOptions().options.map((a) => ({
       name: a.name as AdapterName,
       label: a.label,
+      model: a.model,
       problem: a.problem,
       workspace: this.runtimes.find((r) => r.name === a.name)?.workspace === true,
     }));

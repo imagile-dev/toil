@@ -1229,6 +1229,20 @@ describe('assignments on the agent host (#293)', () => {
     expect((e as AgentError).capped).toBe(true);
     expect(stub.seen.thread).toBeUndefined();
   });
+
+  it('records the model Settings gave the adapter when the run starts, so a run a cap stops still names it (#318, seen live)', async () => {
+    const ledger = memoryLedger([{ id: 'r1', chatId: 'abc12345-0000-0000-0000-000000000009', turn: 1, dossier: 'card-payments', adapter: 'claude', at: FIXTURE_NOW, model: 'test-model', costSource: 'none', inputTokens: 900 }]);
+    const { host, rec, dataDir } = hostFor('claude', claudeStub(SCRIPT).module, { ledger });
+    writeFileSync(usageSettingsFile(dataDir), JSON.stringify({ caps: { 'claude.chat': { unit: 'tokens', limit: 500 } }, codexRates: null }));
+    const runner = hostRunner({ host, dataDir, registry: registry.commands, execute: rec.execute, mapIds: () => [], data: () => data, version: 't', toilVersion: '0.0.0-test', now: () => FIXTURE_NOW });
+    const assignment = { id: 'abc12345-0000-0000-0000-000000000009', dossier: 'card-payments', item: 'corp-jira:PAY-107', itemTitle: 'x', mode: 'refine', adapter: 'claude', origin: 'person', trigger: null, state: 'working', waiting: null, repo: null, createdAt: FIXTURE_NOW, startedAt: FIXTURE_NOW, endedAt: null, stop: null, report: null, questions: [], proposals: [], usage: null, startedOn: null, branch: null } as const;
+    const started: Array<{ adapter: string; model: string | null }> = [];
+    const stopped = await runner
+      .run({ assignment: { ...assignment, proposals: [], questions: [] }, item: data.items().find((i) => i.id === 'corp-jira:PAY-107')!, signal: new AbortController().signal, record: () => undefined, started: (s) => void started.push(s) })
+      .catch((x: unknown) => x);
+    expect(stopped).toMatchObject({ reason: 'usage' });
+    expect(started).toEqual([expect.objectContaining({ adapter: 'claude', model: 'test-model' })]);
+  });
 });
 
 describe('implement mode, when the agent commits anyway (#293 review)', () => {

@@ -7,14 +7,14 @@ import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type Agent, type AskExtra } from
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { askBar, openChat } from './chat.ts';
 import { CANNED, FIXTURE_NOW, callKey, fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
-import type { Envelope, Execute } from '../src/toil.ts';
+import type { Envelope, Execute, WorkItem } from '../src/toil.ts';
 import type { ConfigApi } from '../src/config.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import type { AgentSettingsPanelProps } from '../src/agent-settings.tsx';
 import type { AgentSettings, AgentStatus } from '../src/server-client.ts';
 import { fixtureWorklog } from '../src/fixtures/worklog.ts';
 import { parseRoute } from '../src/App.tsx';
-import { columnSteps } from '../src/views/Board.tsx';
+import { columnSteps, dropVerdict } from '../src/views/Board.tsx';
 import type { WorklogApi, WorklogDay } from '../src/worklog.ts';
 
 /**
@@ -496,6 +496,55 @@ describe('the views on a dashboard (#252, #253)', () => {
     expect(press('ArrowUp', 'TODO').at).toEqual({ x: 20, y: 148 });
     // Any other key is left to dnd-kit: Space and Enter drop, Escape cancels.
     expect(press('Space', 'TODO')).toEqual({ at: undefined, prevented: false });
+  });
+
+  // #393: the drop worked, but nothing on screen moved during a drag and the proposal landed out of view.
+  it('shows a lifted card as a copy that says what a drop would do, leaving a placeholder in its column', async () => {
+    await open('#/dossier/card-payments/board');
+    const board = panel('Sprint 42 board');
+    const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
+    expect(document.querySelector('[data-drag-overlay]')).toBeNull();
+    grip.focus();
+    await userEvent.keyboard('[Space]');
+    const overlay = await waitFor(() => document.querySelector<HTMLElement>('[data-drag-overlay]')!);
+    expect(overlay.textContent).toContain('Store tokens in the vault');
+    // Only for the eye: the announcements speak for it, and it holds no second link to the item.
+    expect(overlay.getAttribute('aria-hidden')).toBe('true');
+    expect(overlay.querySelector('a')).toBeNull();
+    expect(grip.closest('li')!.classList).toContain('card--dragging');
+    await userEvent.keyboard('{Escape}');
+    await waitFor(() => expect(document.querySelector('[data-drag-overlay]')).toBeNull());
+    expect(grip.closest('li')!.classList).not.toContain('card--dragging');
+  });
+
+  it('says on the dragged copy whether a column would take the card, and why not', () => {
+    const card = { statusCategory: 'TODO' } as WorkItem;
+    expect(dropVerdict(card, 'IN_PROGRESS')).toEqual({ ok: true, text: 'Drop to propose: In progress' });
+    expect(dropVerdict(card, 'TODO')).toEqual({ ok: false, text: 'Already in To do: nothing to propose' });
+    expect(dropVerdict(card, 'UNKNOWN')).toEqual({ ok: false, text: 'Unknown is no status to move to' });
+    expect(dropVerdict(card, null)).toEqual({ ok: false, text: 'Not over a column' });
+  });
+
+  it('puts a proposed move where it was made: a ghost in the target column, with Undo and the way to apply it', async () => {
+    await open('#/dossier/card-payments/board');
+    const board = panel('Sprint 42 board');
+    const col = (name: string) => within(board).getByRole('region', { name: new RegExp(`^${name}`) });
+    const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
+    fireEvent.contextMenu(grip);
+    await userEvent.click(within(await screen.findByRole('menu')).getByRole('menuitem', { name: 'In progress' }));
+    const ghost = within(col('In progress')).getByRole('listitem', { name: 'Proposed move, not applied: PAY-102 Store tokens in the vault' });
+    expect(ghost.textContent).toContain('From To do.');
+    // The ghost is not the card: the card stays in To do, and In progress still counts its own two.
+    expect(within(col('To do')).getByRole('group', { name: 'PAY-102 Store tokens in the vault' })).toBe(grip);
+    expect(col('In progress').querySelector('h3 .count')!.textContent).toBe('2');
+    // How to apply goes to the proposal under the board, which has the command.
+    await userEvent.click(within(ghost).getByRole('button', { name: 'How to apply the move of PAY-102 to In progress' }));
+    expect(document.activeElement!.querySelector('[aria-label="Proposal: Move PAY-102 to In progress"]')).not.toBeNull();
+    await userEvent.click(within(ghost).getByRole('button', { name: 'Undo the proposed move of PAY-102' }));
+    expect(within(col('In progress')).queryByRole('listitem', { name: /^Proposed move/ })).toBeNull();
+    expect(within(board).queryByRole('article', { name: 'Proposal: Move PAY-102 to In progress' })).toBeNull();
+    expect(screen.getByText('Took back the proposed move of PAY-102. Nothing proposed.')).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(grip));
   });
 
   it('draws the metrics as sparklines, each opening its full chart, which lists what it could not compute (#394)', async () => {
