@@ -10,7 +10,7 @@
 // Two doors, one building, and neither one is the fire exit.
 
 /** What `@imagile-dev/toil/api` exports: src/api.ts's values, which test/api.test.ts holds this list to. */
-export const API_EXPORTS = ['contractVersion', 'execute', 'findSimilar', 'mapOwi', 'owiSchema', 'owiVersion', 'registry', 'version'];
+export const API_EXPORTS = ['checkSecret', 'contractVersion', 'execute', 'findSimilar', 'mapOwi', 'owiSchema', 'owiVersion', 'registry', 'version'];
 
 export const LIB = 'dist/toil-lib.js';
 

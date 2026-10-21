@@ -1,6 +1,7 @@
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { connectionsCommands } from '../src/connections/commands.js';
@@ -8,7 +9,7 @@ import { defineArea } from '../src/core/area.js';
 import { loadConfig } from '../src/core/config.js';
 import type { Context } from '../src/core/context.js';
 import { createSecretStore, type SecretStore } from '../src/core/keychain.js';
-import type { Prompter } from '../src/core/prompt.js';
+import { terminalPrompter, type Prompter } from '../src/core/prompt.js';
 import { demoArea, demoCommands, demoRoutes } from './fixtures/demo-commands.js';
 import { runCli } from './harness/cli.js';
 import { TEST_VERSION } from './harness/context.js';
@@ -523,5 +524,64 @@ describe('toil connections default', () => {
   it('refuses a connection that is not in the file', async () => {
     const run = await cli(['connections', 'default', 'nope'], context());
     expect(run.envelope?.error?.code).toBe('INVALID_INPUT');
+  });
+});
+
+/**
+ * The real terminal prompter over fake streams (#358): each step waits for a
+ * question to appear, then types its chunks, one write per keypress or paste.
+ */
+function realTerminal(steps: Array<[string, string[]]>) {
+  const input = new PassThrough();
+  const output = new PassThrough();
+  let shown = '';
+  let seen = 0;
+  output.on('data', (chunk: Buffer) => {
+    shown += chunk.toString();
+    const next = steps[0];
+    if (!next) return;
+    const at = shown.indexOf(next[0], seen);
+    if (at < 0) return;
+    seen = at + next[0].length;
+    steps.shift();
+    setImmediate(() => next[1].forEach((c) => input.write(c)));
+  });
+  return { prompt: terminalPrompter(input, output), shown: () => shown };
+}
+const PASTE = (text: string) => `\x1b[200~${text}\x1b[201~`;
+
+describe('pasting a secret at a real terminal prompt (#358)', () => {
+  it('shows bullets and the length, asks again after a refusal, removes a Bearer prefix on yes, and stores the exact token', async () => {
+    const store = fakeStore();
+    const t = realTerminal([
+      ['baseUrl', ['https://jira.imagile.dev\r']],
+      ['pageSize', ['\r']],
+      ['token (Bearer token) (input hidden): ', ['\r']],
+      ['required.\n', []],
+      ['token (Bearer token) (input hidden): ', [PASTE(`${SECRET}\n${SECRET}`), '\r']],
+      ['paste it again.\n', []],
+      ['token (Bearer token) (input hidden): ', [PASTE(`Bearer ${SECRET}\n`), '\r']],
+      ['[Y/n]: ', ['\r']],
+      ['Save corp-demo', ['y\r']],
+    ]);
+    const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo'], context({ prompt: t.prompt, secrets: store }));
+    expect(run.envelope).toMatchObject({ ok: true });
+    expect(store.entries.get('corp-demo.token')).toBe(SECRET);
+    const plain = t.shown().replace(new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[@-~]`, 'g'), '');
+    expect(plain).toContain('Nothing was entered, and this one is required.\n');
+    expect(plain).toContain(`token (Bearer token) (input hidden): ${'\u2022'.repeat(39)}\r\nThis has a line break in the middle`);
+    expect(plain).toContain(`${'\u2022'.repeat(27)}\r\nReceived 26 characters (removed a trailing newline).\nThis starts with "Bearer ". Store it without that? [Y/n]: `);
+    expect(plain).toContain('Removed "Bearer ": 19 characters left.\n');
+    expect(t.shown() + run.stdout + run.stderr).not.toContain('abc12345');
+  });
+
+  it('says it kept the existing secret on an empty answer to login', async () => {
+    const store = fakeStore();
+    await cli(['connections', 'add', 'corp-demo', '--area', 'demo'], context({ prompt: terminal({ token: SECRET }).prompt, secrets: store }));
+    const t = realTerminal([['token (Bearer token) (input hidden): ', ['\r']]]);
+    const run = await cli(['connections', 'login', 'corp-demo'], context({ prompt: t.prompt, secrets: store }));
+    expect(t.shown()).toContain('Kept the existing secret.\n');
+    expect(run.envelope).toMatchObject({ ok: false, error: { message: 'Nothing was entered, so nothing changed.' } });
+    expect(store.entries.get('corp-demo.token')).toBe(SECRET);
   });
 });

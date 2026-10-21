@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
 import { CONNECTION_NAME, connectionWrites, loadConfig, readConfigForEdit, writeConfigFile, type ConnectionSettings, type EditableConfig, type ResolvedConfig } from '../core/config.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
+import { askCheckedSecret } from '../core/secret-input.js';
 import { ToilError } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified } from '../core/keychain.js';
 import { allowWriteField } from '../core/run.js';
@@ -109,7 +110,7 @@ export function skillsConfigCommands(): AnyCommand[] {
 
       // A private marketplace's token, asked for without echo and never on argv.
       let token = '';
-      if (url && prompt) token = await prompt.askSecret(`Access token for ${url.host} (leave empty for a public repository)`);
+      if (url && prompt) token = await askCheckedSecret(prompt, `Access token for ${url.host} (leave empty for a public repository)`, 'token', { empty: existing?.token ? 'keep' : 'skip' });
       if (url && !prompt && !existing?.token) {
         ctx.warn({
           code: 'SKILLS_NO_TOKEN',

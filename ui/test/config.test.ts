@@ -9,7 +9,8 @@ import { fakeStore } from '../../test/harness/fake-store.ts';
 import { clearConnectionEnv } from '../../test/harness/hermetic-env.ts';
 import { DEFAULT_TIMEOUT_MS as TOIL_DEFAULT_TIMEOUT_MS } from '../../src/core/run.ts';
 import { areas as toilAreas } from '../../src/registry.ts';
-import { CONFIG_CHANGES, CONFIG_COMMANDS, CONFIG_READS, DEFAULT_TIMEOUT_MS } from '../src/config.ts';
+import { CONFIG_CHANGES, CONFIG_COMMANDS, CONFIG_READS, DEFAULT_TIMEOUT_MS, connectionEnvVar } from '../src/config.ts';
+import { connectionEnvName } from '../../src/core/config.ts';
 import { CONFIG_CANNED, FIXTURE_AREAS, FIXTURE_CONNECTIONS, PROBES } from '../src/fixtures/config.ts';
 import { noAgent } from '../server/agent.ts';
 import { areasFrom, personFrom, settingsFrom } from '../server/config.ts';
@@ -440,5 +441,13 @@ describe("a dossier's name and description, from its card or dashboard (#342)", 
     const warned = await config('dossiers describe', { dossier: 'idle', name: 'idle-two' });
     expectEnvelope(warned).toMatchObject({ ok: true });
     expect(warned.envelope.meta.warnings).toContainEqual({ code: 'TOIL_UI_RENAME', message: "Toil UI couldn't move its cache." });
+  });
+});
+
+describe('connectionEnvVar', () => {
+  it("spells a connection key's env var as toil does, for the fix on an empty required secret (#358)", () => {
+    for (const [name, key] of [['corp-jira', 'apiToken'], ['ocp-lab', 'token'], ['db-1', 'baseURL'], ['x', 'apiKey2']] as const) {
+      expect(connectionEnvVar(name, key)).toBe(connectionEnvName(name, key));
+    }
   });
 });

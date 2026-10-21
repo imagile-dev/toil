@@ -14,7 +14,8 @@ config file. A plaintext value in the file is refused with `CONFIG_INVALID`; see
 or uploads files can't leak a credential through `~/.toil/config.json`.
 
 `toil connections add <name>` and `toil connections login <name>` read the secret
-without echo and put it in the store, writing only `keychain:<connection>.<key>`
+hidden (one `•` per character, never the characters; **Reading a secret** below)
+and put it in the store, writing only `keychain:<connection>.<key>`
 to the config file. There is no `--plaintext`. Env vars are the path for CI,
 containers and machines with no store (headless Linux without `secret-tool`).
 Anything added later that writes secrets (`config init`, `config set`) does the
@@ -116,6 +117,26 @@ Setup commands are of kind `cli-only`: never MCP tools, since stdin is the proto
 there and agents never create or change connections. A secret an area declares as a
 `password` (`defineArea({ secrets: { password: 'password' } })`) is asked for as one;
 every other secret is a token.
+
+**Reading a secret (#358).** The terminal prompter (`src/core/prompt.ts`) reads a
+secret in raw mode with `HiddenLine`, not readline, and draws one `•` per character:
+Backspace removes one, Ctrl+U clears the line, Ctrl+C cancels, and bracketed paste
+is turned on so a pasted line break arrives as text, not Enter (a line break with
+more text after it in one chunk is a paste too, for terminals that don't bracket;
+one at a chunk's end is Enter).
+The value is never echoed, logged, put in argv or written anywhere but the store.
+Every secret then goes through `askCheckedSecret()` and `checkSecret()` in
+`src/core/secret-input.ts`, the one definition of the paste checks, which the API's
+`person` path and Toil UI's form use too, so they say the same words:
+
+- surrounding whitespace is trimmed, and `Received N characters (removed …).` says
+  so; the line gives the length only, never a prefix or suffix
+- quotes, or a `Bearer ` / `token ` prefix, are asked about (`unwrap:<key>`), never
+  removed silently
+- a line break in the middle, or a space or tab in a token (a password may hold
+  spaces), is refused: asked again on a terminal, `INVALID_INPUT` for a `person`
+- an empty answer asks again where the secret is required (`add`), and says
+  `Kept the existing secret.` where `login` keeps the stored one
 
 ## Verifying
 

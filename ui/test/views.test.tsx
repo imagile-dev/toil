@@ -694,6 +694,87 @@ describe('settings', () => {
     expect(sent[0]).toMatchObject({ command: 'connections login', input: { name: 'corp-jenkins' }, answers: { secrets: { apiToken: '' } } });
   });
 
+  describe('the paste checks on a secret field (#358)', () => {
+    async function addForm() {
+      const { config, sent } = recording();
+      await open('#/settings/connections', { config });
+      const form = await screen.findByRole('form', { name: 'A new connection' });
+      await userEvent.type(within(form).getByRole('textbox', { name: /^Name/ }), 'corp-jira-2');
+      await userEvent.selectOptions(within(form).getByRole('combobox', { name: 'Area' }), 'jira');
+      await userEvent.type(within(form).getByRole('textbox', { name: /^baseUrl/ }), 'https://jira.imagile.dev');
+      const secret = within(form).getByLabelText(/^apiToken/) as HTMLInputElement;
+      const note = () => document.getElementById(secret.getAttribute('aria-describedby')!.split(' ')[0]!)!.textContent;
+      const save = () => userEvent.click(within(form).getByRole('button', { name: 'Save connection' }));
+      return { form, secret, note, save, sent };
+    }
+
+    it('shows the length live, never the value, and says an empty required one is required', async () => {
+      const { secret, note, save, sent, form } = await addForm();
+      expect(note()).toBe('Empty: this one is required');
+      await save();
+      expect(within(form).getByRole('alert').textContent).toContain('apiToken: Nothing was entered, and this one is required.');
+      expect(sent).toHaveLength(0);
+      await userEvent.type(secret, 'fake-pat-abc12345');
+      expect(note()).toBe('17 characters');
+      expect(within(form).queryByRole('button', { name: /Show/ })).toBeNull();
+    });
+
+    it('trims a pasted trailing newline, saying so, and sends the value', async () => {
+      const { secret, note, save, sent } = await addForm();
+      await userEvent.click(secret);
+      await userEvent.paste('fake-pat-abc12345\n');
+      expect(note()).toBe('17 characters (removed a trailing newline)');
+      await save();
+      await waitFor(() => expect(sent).toHaveLength(1));
+      expect((sent[0]!.answers as { secrets: Record<string, string> }).secrets.apiToken?.trim()).toBe('fake-pat-abc12345');
+    });
+
+    it('refuses a paste with a line break in the middle, which a browser would silently join', async () => {
+      const { secret, note, save, sent, form } = await addForm();
+      await userEvent.click(secret);
+      await userEvent.paste('fake-pat-abc12345\nfake-pat-abc12345');
+      expect(note()).toContain('This has a line break in the middle, so the paste most likely took two lines.');
+      await save();
+      expect(within(form).getByRole('alert').textContent).toContain('Copy just the token, on its own, and paste it again.');
+      expect(sent).toHaveLength(0);
+    });
+
+    it('asks about a Bearer prefix on submit, with a one-click Remove it', async () => {
+      const { secret, note, save, sent, form } = await addForm();
+      await userEvent.click(secret);
+      await userEvent.paste('Bearer fake-pat-abc12345');
+      expect(note()).toBe('24 characters');
+      await save();
+      expect(sent).toHaveLength(0);
+      expect(within(form).getByRole('group', { name: /This starts with "Bearer "\. Store it without that\?/ })).toBeTruthy();
+      await userEvent.click(within(form).getByRole('button', { name: 'Remove it' }));
+      expect(secret.value).toBe('fake-pat-abc12345');
+      expect(note()).toBe('17 characters');
+      await save();
+      await waitFor(() => expect(sent).toHaveLength(1));
+      expect(sent[0]).toMatchObject({ answers: { secrets: { apiToken: 'fake-pat-abc12345' } } });
+      expect(document.body.textContent).not.toContain('abc12345');
+    });
+
+    it('keeps quotes when the person says so, and tells toil with unwrap:<key>', async () => {
+      const { secret, save, sent, form } = await addForm();
+      await userEvent.type(secret, '"fake-pat-abc12345"');
+      await save();
+      await userEvent.click(within(form).getByRole('button', { name: 'Keep it' }));
+      await save();
+      await waitFor(() => expect(sent).toHaveLength(1));
+      expect(sent[0]).toMatchObject({ answers: { secrets: { apiToken: '"fake-pat-abc12345"' }, answers: { 'unwrap:apiToken': 'n' } } });
+    });
+
+    it('says an empty field keeps the current secret when replacing one', async () => {
+      await open('#/settings/connections');
+      const card = await screen.findByRole('article', { name: 'corp-jenkins' });
+      await userEvent.click(within(card).getByRole('button', { name: 'Replace secret' }));
+      const form = within(card).getByRole('form', { name: "Replace corp-jenkins's secret" });
+      expect(form.textContent).toContain('Empty: the current secret is kept');
+    });
+  });
+
   it('builds a dossier through toil dossiers, and shows and checks one', async () => {
     const { config, sent } = recording();
     await open('#/settings/dossiers', { config });
@@ -746,6 +827,8 @@ describe('settings', () => {
     const add = within(panelEl).getByRole('form', { name: 'Add a bitbucket connection on bitbucket-sdk.imagile.dev' });
     expect((within(add).getByRole('textbox', { name: /^Name/ }) as HTMLInputElement).value).toBe('bitbucket');
     expect((within(add).getByRole('textbox', { name: /^baseUrl/ }) as HTMLInputElement).value).toBe('https://bitbucket-sdk.imagile.dev');
+    // A required secret left empty is refused before anything is sent (#358), so one is typed.
+    await userEvent.type(add.querySelector('input[type=password]')!, 'fake-pat-abc12345');
     await userEvent.click(within(add).getByRole('button', { name: 'Save connection' }));
     await waitFor(() => expect(sent.filter((s) => s.command === 'dossiers onboard')).toHaveLength(2));
     const steps = sent.filter((s) => s.command === 'dossiers onboard' || s.command === 'connections add');
