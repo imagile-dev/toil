@@ -21,6 +21,8 @@ export interface AreaSummary {
   configurable: boolean;
   /** Its context inputs (project, owner, env), which a dossier section can supply. */
   context?: string[];
+  /** Hosts people know the service by, to its API's base URL (`defineArea({ siteApis })`), so the menu matches a dossier host as a call does. */
+  siteApis?: Readonly<Record<string, string>>;
   /** Whether it has `toil <area> check-dossier`, which looks a dossier's values up on the service. */
   checksDossier?: boolean;
   /** Its commands, as the Services browser lists them: `<area> <resource> <action>`. */

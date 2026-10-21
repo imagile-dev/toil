@@ -66,6 +66,8 @@ export interface AreaInfo {
   fallbacks?: Record<string, string[] | undefined>;
   /** Its context inputs' names: the keys a dossier section may supply (src/core/dossier.ts). */
   contextInputs?: readonly string[];
+  /** Hosts people know the service by, to the API base URL its connections use (`defineArea({ siteApis })`). */
+  siteApis?: Readonly<Record<string, string>>;
 }
 
 /** The config file format this toil writes. It reads every version up to this one. */

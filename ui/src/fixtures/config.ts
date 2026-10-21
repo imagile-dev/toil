@@ -1,7 +1,7 @@
 /**
  * The settings pages' sample data, for the site preview and `toil-ui
  * --sample`: what `toil connections list`, `dossiers list`, `dossiers show`,
- * `dossiers check` and `connections test` print for the preview's own
+ * `dossiers check`, `dossiers onboard --plan` and `connections test` print for the preview's own
  * connections and dossiers, what `audit stats` and `audit list` print for a
  * sample month (usage.ts), and the areas' connection fields as the registry
  * describes them (config-areas.json, which test/config.test.ts holds equal to
@@ -51,6 +51,39 @@ export const PROBES: Record<string, string> = {
   openshift: 'GET /api/v1',
 };
 
+/**
+ * Set up this repo's sample: `dossiers onboard --plan` in a clone of
+ * payments-web, whose checked-in checkout-web selects each area by host. Three
+ * areas have a connection and read; the SDK's Bitbucket server has none yet,
+ * so it offers one on that host, and dossiers check says the same.
+ */
+export const ONBOARD_PLAN = {
+  dossier: { name: 'checkout-web', source: 'repo', file: '/home/you/code/payments-web/.toil/dossiers/checkout-web.json' },
+  ownCopy: null,
+  plan: true,
+  ok: false,
+  areas: [
+    { area: 'github', env: null, path: 'github', selects: { host: 'ghe.imagile.dev' }, status: 'matched', connection: 'github', test: { ok: true, request: PROBES.github, live: true } },
+    {
+      area: 'bitbucket',
+      env: null,
+      path: 'bitbucket',
+      selects: { host: 'bitbucket-sdk.imagile.dev' },
+      status: 'missing',
+      connection: null,
+      problem: { code: 'NOT_CONFIGURED', message: 'You have no bitbucket connection on bitbucket-sdk.imagile.dev.', fix: 'Run toil dossiers onboard checkout-web in a terminal, or toil connections add bitbucket --area bitbucket with a base URL on bitbucket-sdk.imagile.dev (https://bitbucket-sdk.imagile.dev).' },
+      suggest: { name: 'bitbucket', baseUrl: 'https://bitbucket-sdk.imagile.dev' },
+      test: null,
+    },
+    { area: 'openshift', env: 'staging', path: 'environments.staging.openshift', selects: { host: 'api.ocp-nonprod.imagile.dev:6443' }, status: 'matched', connection: 'ocp-nonprod', test: { ok: true, request: PROBES.openshift, live: true } },
+    { area: 'openshift', env: 'prod', path: 'environments.prod.openshift', selects: { host: 'api.ocp-prod.imagile.dev:6443' }, status: 'matched', connection: 'ocp-prod', test: { ok: true, request: PROBES.openshift, live: true } },
+  ],
+  check: {
+    ok: false,
+    problems: [{ level: 'error', code: 'DOSSIER_HOST_UNMATCHED', path: 'bitbucket.host', message: 'Dossier checkout-web uses the bitbucket connection on bitbucket-sdk.imagile.dev, and you have no bitbucket connection with that host.' }],
+  },
+};
+
 interface Answer {
   command: string;
   input: Record<string, unknown>;
@@ -68,7 +101,11 @@ export const CONFIG_CANNED: Answer[] = [
     data: { name: c.name, area: c.area, host: c.host, live: true, authenticated: true, request: PROBES[c.area] ?? null },
   })),
   ...usageCanned(),
+  { command: 'dossiers onboard', input: { plan: true }, data: ONBOARD_PLAN },
 ];
+
+/** A plan with no pin asks nothing and changes nothing, so the preview answers it as it answers a read. */
+const answersLikeARead = (command: string, input: Record<string, unknown>) => command === 'dossiers onboard' && input.plan === true && input.pin === undefined;
 
 /** The Usage page sends `until` as the moment it opened; the sample month answers whatever moment that is. */
 const answerInput = (command: string, input: Record<string, unknown>) => (command === 'audit stats' ? Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'until')) : input);
@@ -97,7 +134,7 @@ function fixtureConfigAnswer(answers: Map<string, Answer>, reads: Set<string>, c
   if (!CONFIG_COMMANDS.has(command)) {
     return { ok: false, data: null, error: { code: 'INVALID_INPUT', message: `Toil UI doesn't change ${command} from the page.`, fix: `Run toil ${command} on the CLI, where toil's own rules apply.` }, meta: meta(command) };
   }
-  if (!reads.has(command)) {
+  if (!reads.has(command) && !answersLikeARead(command, input)) {
     return { ok: false, data: null, error: { code: 'WRITE_DISABLED', message: `The preview changes nothing, so toil ${command} didn't run.`, fix: 'Run Toil UI on your own machine to change your configuration.' }, meta: meta(command) };
   }
   const hit = answers.get(callKey(command, answerInput(command, input)));

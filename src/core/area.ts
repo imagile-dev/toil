@@ -48,6 +48,15 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
    */
   examples?: Partial<Record<SettingKey<S>, string>>;
   /**
+   * Hosts people know the service by whose API is on another host, each with
+   * that API's base URL: `{ 'github.com': 'https://api.github.com' }`. A
+   * dossier's `host: github.com` then selects a connection whose baseUrl is
+   * on api.github.com, sharing a dossier records `github.com` for one, and
+   * `toil dossiers onboard` offers the base URL when it sets one up. Only a
+   * selector and a suggestion: toil never connects to it on its own.
+   */
+  siteApis?: Record<string, string>;
+  /**
    * Paths in this area that run a core command for this area alone, the core
    * command fixing its `area` input: `{ 'instance list': 'connections list' }`
    * makes `toil <area> instance list` list only this area's connections. The
@@ -284,6 +293,15 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
   }
   for (const key of Object.keys(spec.examples ?? {})) {
     if (!(key in spec.connection.shape)) throw new Error(`Area ${spec.name}: example "${key}" isn't a connection key.`);
+  }
+  for (const [host, url] of Object.entries(spec.siteApis ?? {})) {
+    let ok: boolean;
+    try {
+      ok = host === host.toLowerCase() && !host.includes(':') && new URL(url).protocol === 'https:';
+    } catch {
+      ok = false;
+    }
+    if (!ok) throw new Error(`Area ${spec.name}: siteApis maps a lowercase host with no port to an https base URL; "${host}" to "${url}" isn't that.`);
   }
   for (const key of Object.keys(spec.removed ?? {})) {
     if (key in spec.connection.shape || key in (spec.renamed ?? {})) throw new Error(`Area ${spec.name}: removed key "${key}" is still a connection key or a renamed one.`);

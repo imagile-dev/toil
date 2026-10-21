@@ -153,7 +153,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
             home: o.home,
             env: o.env,
             config,
-            areas: o.areas.map((a) => ({ name: a.name, context: a.contextInputs ?? [] })),
+            areas: o.areas.map((a) => ({ name: a.name, context: a.contextInputs ?? [], ...(a.siteApis ? { siteApis: a.siteApis } : {}) })),
             workspace,
             base: mcp ? workspace.dir : o.cwd,
             protect: ownFiles(o.home, o.cwd, o.globals.config),

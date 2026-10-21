@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { pairs, type AreaInfo, type ConfigApi, type ConnectionsData } from '../../config.ts';
 import type { Envelope } from '../../toil.ts';
 import { Card, CardGrid, Cluster, DataTable, Path, Stack, Url } from '../../components/layout.tsx';
+import { RepoSetup } from './RepoSetup.tsx';
 import { AreaField, ChangeForm, CheckField, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
 
 interface ListedDossier {
@@ -70,6 +71,7 @@ export function DossierSetup({ config }: { config: ConfigApi }) {
 
   return (
     <>
+      <RepoSetup config={config} areas={areas} onChanged={reload} />
       <Card as="section" className="panel" aria-labelledby="dossier-list">
         <h2 id="dossier-list">Your dossiers</h2>
         <p className="lede">

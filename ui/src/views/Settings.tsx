@@ -28,7 +28,7 @@ import type { ModelUsageApi } from '../server-client.ts';
 
 const PAGES: Array<{ page: SettingsPage; label: string; about: string }> = [
   { page: 'connections', label: 'Connections', about: 'The connections toil uses: add, test, set the default, turn writes on or off, replace a secret, remove.' },
-  { page: 'dossiers', label: 'Dossiers', about: 'Create dossiers, and give them repositories, areas, field names, people and a work-in-progress limit.' },
+  { page: 'dossiers', label: 'Dossiers', about: 'Set up a repository that has a dossier, create dossiers, and give them repositories, areas, field names, people and a work-in-progress limit.' },
   { page: 'toil', label: 'General', about: 'How Toil UI looks, talks and moves in this browser, and the settings toil has no command for, shown as toil reports them.' },
   { page: 'usage', label: 'Usage', about: "How toil is used on this machine: calls per day, the commands used and failing most, and the ones never called, from toil's local audit log." },
   { page: 'agent-usage', label: 'Agent usage', about: "What the agent's models used in your chats, as the Claude, Codex and Copilot SDKs reported it, and optional caps that stop a runaway. Toil UI's own figures, never toil's." },

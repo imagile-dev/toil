@@ -471,6 +471,38 @@ describe('settings', () => {
     ]);
   });
 
+  it("sets up a repo: checks it with dossiers onboard --plan, offers the missing connection on the dossier's host, and checks again after adding it", async () => {
+    const base = fixtureConfig();
+    const sent: Array<{ command: string; input: Record<string, unknown>; answers: unknown }> = [];
+    const config: ConfigApi = {
+      ...base,
+      disabled: null,
+      run: async (command, input, answers) => {
+        sent.push({ command, input, answers: answers ?? null });
+        if (command === 'connections add') return { ok: true, data: {}, error: null, meta: { command, durationMs: 0, version: 'x', contractVersion: 1 } };
+        return base.run(command, input);
+      },
+    };
+    await open('#/settings/dossiers', { config });
+    const panelEl = await screen.findByRole('region', { name: 'Set up this repo' });
+    await userEvent.click(within(panelEl).getByRole('button', { name: 'Check this repo' }));
+    const table = await within(panelEl).findByRole('table');
+    expect(table.textContent).toContain('host bitbucket-sdk.imagile.dev');
+    expect(table.textContent).toContain('No connection yet');
+    expect(table.textContent).toContain('GET /api/v1');
+    expect(panelEl.textContent).toContain('checkout-web: 3 of 4 areas ready.');
+    expect(panelEl.textContent).toContain('error: bitbucket.host');
+    const add = within(panelEl).getByRole('form', { name: 'Add a bitbucket connection on bitbucket-sdk.imagile.dev' });
+    expect((within(add).getByRole('textbox', { name: /^Name/ }) as HTMLInputElement).value).toBe('bitbucket');
+    expect((within(add).getByRole('textbox', { name: /^baseUrl/ }) as HTMLInputElement).value).toBe('https://bitbucket-sdk.imagile.dev');
+    await userEvent.click(within(add).getByRole('button', { name: 'Save connection' }));
+    await waitFor(() => expect(sent.filter((s) => s.command === 'dossiers onboard')).toHaveLength(2));
+    const steps = sent.filter((s) => s.command === 'dossiers onboard' || s.command === 'connections add');
+    expect(steps.map((s) => s.command)).toEqual(['dossiers onboard', 'connections add', 'dossiers onboard']);
+    expect(steps[0]!.input).toEqual({ plan: true });
+    expect(steps[1]).toMatchObject({ input: { name: 'bitbucket', area: 'bitbucket' }, answers: { answers: { 'setting:baseUrl': 'https://bitbucket-sdk.imagile.dev', confirm: 'y' } } });
+  });
+
   it('shows the bounds and the time limit read-only, with where each is set', async () => {
     await open('#/settings/toil');
     await screen.findByRole('heading', { name: 'Bounds' });
