@@ -21,9 +21,11 @@
   change only across a restart (an assignment kept from before). The part of the
   prompts that changes live is the person's own instructions and custom voice, which
   are in the hash. The theme on screen isn't: switching theme isn't the ground moving.
-- **The dossier part is hashed from `toil dossiers show` on every check**, not cached
-  against the dossier file: toil reads the dossier files itself, in process, and the
-  page checks at most once a minute between answers.
+- **The dossier part is hashed from `toil dossiers show`, kept against the dossier
+  file's modification time and size** (the file `dossiers show` names), the way the
+  builds are. Every call through toil's API writes an audit line, and the Agents lane
+  reads every two seconds while a run goes, so asking toil on every check would flood
+  the audit log.
 - **A chat's fingerprint lives in the server's memory, by chat id**, recorded at its
   first question (a chat is the page's state already, #343). The server keeps the 200
   newest. Every finished answer carries the chat's `session`, and an open chat asks

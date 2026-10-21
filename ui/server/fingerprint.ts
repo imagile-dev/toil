@@ -106,6 +106,8 @@ export class Fingerprints {
   private readonly files: FileAccess;
   private readonly skills: Record<string, string>;
   private readonly seen = new Map<string, { key: string; build: Build | null }>();
+  /** Each dossier's hash, by name, with the file it was read from. */
+  private readonly dossiers = new Map<string, { file: string; key: string; hash: string | null }>();
 
   constructor(private readonly o: FingerprintOptions) {
     this.files = o.files ?? nodeFiles;
@@ -139,10 +141,26 @@ export class Fingerprints {
     };
   }
 
-  /** The dossier as toil reads it now, hashed; null when toil can't read it. */
+  /**
+   * The dossier as toil reads it now, hashed; null when toil can't read it.
+   * Kept against the dossier file's modification time and size, so a check
+   * every turn asks toil again (and writes an audit line) only when the file
+   * changed.
+   */
   async dossier(name: string): Promise<string | null> {
+    const hit = this.dossiers.get(name);
+    if (hit) {
+      const st = this.files.stat(hit.file);
+      if (st && `${st.mtimeMs}:${st.size}` === hit.key) return hit.hash;
+    }
     const e = await this.o.execute('dossiers show', { dossier: name }, { readOnly: true, caller: CALLER });
-    return e.ok ? sha256((e.data as { dossier?: unknown } | null)?.dossier ?? e.data) : null;
+    if (!e.ok) return null;
+    const data = (e.data ?? {}) as { file?: unknown; dossier?: unknown };
+    const hash = sha256(data.dossier ?? data);
+    const st = typeof data.file === 'string' ? this.files.stat(data.file) : null;
+    if (st) this.dossiers.set(name, { file: data.file as string, key: `${st.mtimeMs}:${st.size}`, hash });
+    else this.dossiers.delete(name);
+    return hash;
   }
 
   /** What a session about this dossier, with these prompts, starts on now. */

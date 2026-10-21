@@ -183,8 +183,8 @@ function useChat() {
    * Renew (#305): the server records what the chat starts on now, and the
    * log says so where it happened. Never while it answers; the log above
    * stays, and the next question carries it as a summary, as every question does.
+   * Resolves with why it couldn't, or null once it has.
    */
-  /** Resolves with why it couldn't, or null once it has. */
   const renew = async (): Promise<string | null> => {
     if (!agent.renew) return 'This agent keeps no sessions, so there is nothing to renew.';
     if (busy) return 'It is answering a question now, and a renew never interrupts one.';
@@ -220,10 +220,11 @@ export function ChatScope({ children }: { children: ReactNode }) {
 export function AskBar() {
   const { dossier } = useData();
   const words = useWords();
-  const chat = useChatScope();
-  if (!chat) throw new Error("The Ask bar needs the ChatScope the App puts around a dossier's pages.");
+  const scoped = useChatScope();
   const [text, setText] = useState('');
   const [open, setOpen] = useState(false);
+  if (!scoped) throw new Error("The Ask bar needs the ChatScope the App puts around a dossier's pages.");
+  const chat = scoped;
   const last = chat.turns[chat.turns.length - 1];
 
   const openView = () => {

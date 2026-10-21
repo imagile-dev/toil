@@ -107,6 +107,23 @@ describe('the builds on disk', () => {
     expect((await fp.current('card-payments', 'p')).toil.version).toBe('0.1.0-alpha.4');
   });
 
+  it('asks toil for the dossier again only when its file changed', async () => {
+    let mtimeMs = 1;
+    let calls = 0;
+    let content: Record<string, unknown> = { name: 'card-payments', wipLimit: 3 };
+    const execute: Execute = async (command) => (calls++, { ok: true, data: { file: '/home/you/.toil/dossiers/card-payments.json', dossier: content }, error: null, meta: { command, durationMs: 0, version: '0', contractVersion: 1 } }) as unknown as Envelope;
+    const access: FileAccess = { stat: () => ({ mtimeMs, size: 10 }), head: () => '' };
+    const running = { toil: { version: '1', commit: null }, toilUi: { version: '1', commit: null } };
+    const fp = new Fingerprints({ running, toilBundle: null, uiBundle: null, registry: registry.commands, execute, restart: 'node x', files: access });
+    const first = await fp.dossier('card-payments');
+    expect(await fp.dossier('card-payments')).toBe(first);
+    expect(calls).toBe(1);
+    content = { name: 'card-payments', wipLimit: 4 };
+    mtimeMs = 2;
+    expect(await fp.dossier('card-payments')).not.toBe(first);
+    expect(calls).toBe(2);
+  });
+
   it("hashes each area's live tools from the registry, so a changed description changes that area alone", () => {
     const skills = skillsOf(registry.commands);
     expect(Object.keys(skills)).toEqual(expect.arrayContaining(['github', 'jira']));
