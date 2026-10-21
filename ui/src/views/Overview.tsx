@@ -207,9 +207,11 @@ function MetricStrip() {
           title={h ? `${h.sprint.name}: day ${h.days.gone} of ${h.days.total}` : 'Sprint'}
         >
           {h ? (
-            <PanelSkin id="sprint">
-              <SprintDetail h={h} />
-            </PanelSkin>
+            <div className="chart-dialog__sprint">
+              <PanelSkin id="sprint">
+                <SprintDetail h={h} />
+              </PanelSkin>
+            </div>
           ) : (
             <p>{words('empty.sprint')}</p>
           )}
