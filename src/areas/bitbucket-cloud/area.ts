@@ -105,6 +105,8 @@ export const bitbucketCloudArea = defineArea({
   // Bitbucket Pipelines sets both on every step, so a pipeline needs no toil-specific context.
   fallbacks: { workspace: ['BITBUCKET_WORKSPACE'], repo: ['BITBUCKET_REPO_SLUG'] },
   examples: { baseUrl: 'https://api.bitbucket.org/2.0', email: 'you@example.com' },
+  // bitbucket.org's API is on api.bitbucket.org, so a dossier's host: bitbucket.org selects that connection.
+  siteApis: { 'bitbucket.org': 'https://api.bitbucket.org/2.0' },
   context: {
     // toil's own --workspace is the file-workspace flag and takes it wherever
     // it appears, so Bitbucket's workspace is spelt --ws, as splitio's is.

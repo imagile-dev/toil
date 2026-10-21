@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { Validator } from '@cfworker/json-schema';
-import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -20,7 +20,8 @@ import { toilStore } from '../server/store.ts';
 const store = vi.hoisted(() => ({ current: undefined as unknown }));
 vi.mock('../../src/core/keychain.ts', async (importOriginal) => {
   const real = await importOriginal<typeof import('../../src/core/keychain.ts')>();
-  return { ...real, createSecretStore: () => store.current };
+  // toil keeps the first store it makes for the process, so it gets one that always answers from this test's.
+  return { ...real, createSecretStore: () => new Proxy({}, { get: (_target, key) => (store.current as Record<string | symbol, unknown>)[key] }) };
 });
 const { execute, registry } = await import('../../src/api.ts');
 
@@ -153,11 +154,23 @@ describe('the allowlist', () => {
   it('is exactly the config commands the pages need, each one toil has, the changes local writes only', () => {
     const served = new Map([...registry.commands, ...registry.personCommands].map((c) => [c.name, c]));
     expect([...CONFIG_COMMANDS].sort()).toEqual(
-      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'dossiers add-repo', 'dossiers check', 'dossiers field', 'dossiers init', 'dossiers link', 'dossiers list', 'dossiers person', 'dossiers show', 'dossiers wip-limit', 'dossiers describe'].sort(),
+      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'dossiers add-repo', 'dossiers check', 'dossiers field', 'dossiers init', 'dossiers link', 'dossiers list', 'dossiers onboard', 'dossiers person', 'dossiers show', 'dossiers wip-limit', 'dossiers describe'].sort(),
     );
     for (const name of CONFIG_READS) expect(served.get(name), name).toMatchObject({ writes: false, writesLocal: false, writesDependOnInput: false });
     // A change writes only toil's own config on this machine, never a service.
-    for (const name of CONFIG_CHANGES) expect(served.get(name), name).toMatchObject({ writes: false, writesLocal: true });
+    // dossiers onboard writes only when it adds or pins a connection; its plan writes nothing, and asks nothing.
+    for (const name of CONFIG_CHANGES) expect(served.get(name), name).toMatchObject(name === 'dossiers onboard' ? { writes: false, writesLocal: false, writesDependOnInput: true } : { writes: false, writesLocal: true });
+  });
+
+  it("runs Set up this repo's plan as a person's command, which asks nothing and writes nothing", async () => {
+    mkdirSync(join(home, '.toil', 'dossiers'), { recursive: true });
+    writeFileSync(join(home, '.toil', 'dossiers', 'team.json'), JSON.stringify({ name: 'team', github: { host: 'github.com' } }));
+    const { config } = await serve();
+    const { status, envelope } = await config('dossiers onboard', { dossier: 'team', plan: true });
+    expect(status).toBe(200);
+    expectEnvelope({ envelope }).toMatchObject({ ok: true, data: { plan: true, ok: false, areas: [{ area: 'github', status: 'missing', suggest: { name: 'github', baseUrl: 'https://api.github.com' } }] } });
+    expect(existsSync(configFile())).toBe(false);
+    expect(audit().map((l) => [l.command, l.caller])).toEqual([['dossiers onboard', 'toil-ui']]);
   });
 
   it("refuses a tracker write and every other command before toil sees it, so the audit log has no line for it", async () => {
@@ -362,7 +375,9 @@ describe("the preview's sample config", () => {
   });
 
   it.each(CONFIG_CANNED.map((c) => [`${c.command} ${JSON.stringify(c.input)}`, c] as const))("%s is a config read whose input validates against toil's schema", (_label, call) => {
-    expect(CONFIG_READS as readonly string[]).toContain(call.command);
+    // dossiers onboard's plan, with no pin, asks nothing and changes nothing: the preview answers it like a read.
+    if (call.command === 'dossiers onboard') expect(call.input).toEqual({ plan: true });
+    else expect(CONFIG_READS as readonly string[]).toContain(call.command);
     const def = served.get(call.command)!;
     const result = new Validator(def.inputSchema as object, '2020-12', false).validate(call.input);
     expect(result.errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);

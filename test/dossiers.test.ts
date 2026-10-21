@@ -518,6 +518,7 @@ describe('toil dossiers list, show, check and context', () => {
     const data = envelope.data as { ok: boolean; problems: Array<{ level: string; code: string; path: string }> };
     expect(data.ok).toBe(false);
     expect(data.problems.map((p) => [p.level, p.code, p.path])).toEqual([
+      ['warning', 'DOSSIER_CONNECTION_SHARED', 'demo-context.connection'],
       ['warning', 'DOSSIER_WRITES_BINDING', 'demo-context'],
       ['error', 'DOSSIER_HOST_UNMATCHED', 'environments.qa.demo-context.host'],
       ['error', 'DOSSIER_UNKNOWN_CONNECTION', 'environments.dev.demo.connection'],

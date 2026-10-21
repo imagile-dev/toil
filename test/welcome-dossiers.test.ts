@@ -7,7 +7,7 @@ import { commands, areas } from '../src/registry.js';
 import { apply, finish, initialState, reduce, render, top, type MenuState } from '../src/welcome/menu.js';
 import type { WelcomeData } from '../src/welcome/screens.js';
 import type { Run, StepResult } from '../src/welcome/view.js';
-import { aliasFor, discovered, writesBindings, DISCOVERY, findingSection, groupFindings, handOffPrompt, nameFromFolder, onHost, whyApplies, writesTargets } from '../src/welcome/views/dossiers.js';
+import { aliasFor, discovered, writesBindings, DISCOVERY, findingSection, groupFindings, handOffPrompt, nameFromFolder, onHost, stillToSetUp, whyApplies, writesTargets } from '../src/welcome/views/dossiers.js';
 import { JIRA, routes as jiraRoutes } from './fixtures/jira.fixture.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
@@ -51,7 +51,7 @@ function data(config: ResolvedConfig, folder: WelcomeData['folder'] = { cwd: '/w
     configPath: '/home/test/.toil/config.json',
     configExists: true,
     config,
-    areas: areas.map((a) => ({ name: a.name, description: a.description, signsIn: a.secrets.length > 0, live: false, configurable: Object.keys(a.connection.shape).length > 0, context: Object.keys(a.context), checksDossier: commands.some((c) => c.path[0] === a.name && c.path[1] === 'check-dossier') })),
+    areas: areas.map((a) => ({ name: a.name, description: a.description, signsIn: a.secrets.length > 0, live: false, configurable: Object.keys(a.connection.shape).length > 0, context: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}), checksDossier: commands.some((c) => c.path[0] === a.name && c.path[1] === 'check-dossier') })),
     mcpAreas: ['dossiers', 'jira', 'repos', 'sonar'],
     launch: { command: 'toil', args: [] },
     folder,
@@ -229,6 +229,10 @@ describe('the Dossiers module', () => {
     const host = press(type(byHost, w, 'jira.imagile.dev:443'), w, 'return');
     expect(top(host)).toMatchObject({ view: 'dossier-confirm', params: { connection: 'jira' } });
     expect(host.pending).toBeUndefined();
+    // github.com selects a connection on api.github.com, as a call does, so binding it asks for the name too.
+    const gw = data(configOf({ gh: { area: 'github', baseUrl: 'https://api.github.com', token: 't', writes: true } }));
+    const ghHost = apply(s, { go: 'dossier-host', params: { ref: 'team', area: 'github', flow: 'edit', then: JSON.stringify({ go: 'dossier', root: 'dossier' }) } });
+    expect(top(press(type(ghHost, gw, 'github.com'), gw, 'return'))).toMatchObject({ view: 'dossier-confirm', params: { connection: 'gh' } });
   });
 
   it('fixes a stale section and a stored credential from Review, with real commands', async () => {
@@ -331,8 +335,12 @@ describe('the Dossiers module', () => {
     s = await perform(s, d, c, api);
     expect(screen(s, w)).toContain('This folder resolves to payments');
     s = press(s, w, 'return');
-    expect(screen(s, w)).toMatch(/This folder resolves to payments[\s\S]*remote[\s\S]*is its repo\s+payments-api/);
+    expect(screen(s, w)).toMatch(/This folder resolves to payments[\s\S]*remote[\s\S]*is its repo\s+payments-api[\s\S]*Set up this repo/);
     expect(steps(press(s, w, 'return'))).toEqual([['dossiers', 'show', 'payments']]);
+    // Set up this repo is the same step from the module's own screen, in a repository: dossiers onboard, which asks on this terminal.
+    expect(steps(press(s, w, 'down', 'return'))).toEqual([['dossiers', 'onboard']]);
+    expect(screen(press(settled, w, '6'), w)).toContain('Set up this repo');
+    expect(steps(press(settled, w, '6', '5'))).toEqual([['dossiers', 'onboard']]);
 
     const other = disk();
     const lone = clone(other, 'lone');
@@ -377,6 +385,11 @@ describe('the dossier screens, as functions', () => {
     expect(writesTargets(w, 'jira', { host: 'jira.imagile.dev' })).toEqual(['jira']);
     expect(writesTargets(w, 'jira', { connection: 'jira' })).toEqual(['jira']);
     expect(writesTargets(w, 'sonar', { connection: 'sonar' })).toEqual([]);
+    // The menu matches with the area's siteApis, as core does: github.com is a connection on api.github.com.
+    const gh = data(configOf({ gh: { area: 'github', baseUrl: 'https://api.github.com', token: 't', writes: true } }));
+    expect(onHost({ baseUrl: 'https://api.github.com' }, 'github.com')).toBe(false);
+    expect(writesTargets(gh, 'github', { host: 'github.com' })).toEqual(['gh']);
+    expect(stillToSetUp(gh, { imported: [], toSetUp: [{ dossier: 'team', area: 'github', env: null, host: 'github.com', problem: 'none on github.com' }] })).toEqual([]);
   });
 
   it('asks before import on the warning code alone, whatever its message says', () => {

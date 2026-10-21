@@ -195,15 +195,18 @@ function change(params: Record<string, string>, title: string, steps: Step[], th
 }
 
 /** Whether a connection is on a dossier host selector, by core's own matcher, so the menu asks about writes on exactly the connections a call would pick. */
-export function onHost(settings: Record<string, unknown> | undefined, host: string): boolean {
-  return settings !== undefined && hostMatches(settings, host.trim());
+export function onHost(settings: Record<string, unknown> | undefined, host: string, siteApis?: Readonly<Record<string, string>>): boolean {
+  return settings !== undefined && hostMatches(settings, host.trim(), siteApis);
 }
+
+/** The API hosts an area names for the hosts people know (github.com's is api.github.com), as core matches them. */
+const siteApisOf = (data: WelcomeData, area: string) => data.areas.find((a) => a.name === area)?.siteApis;
 
 /** The connections with writes on that a binding would select: the one named, or every one of the area's on the host. */
 export function writesTargets(data: WelcomeData, area: string, pick: { connection?: string; host?: string }): string[] {
   const cfg = config(data);
   if (!cfg) return [];
-  const names = pick.connection !== undefined ? [pick.connection] : connectionsOf(cfg, area).filter((name) => onHost(cfg.connections[name], pick.host ?? ''));
+  const names = pick.connection !== undefined ? [pick.connection] : connectionsOf(cfg, area).filter((name) => onHost(cfg.connections[name], pick.host ?? '', siteApisOf(data, area)));
   return names.filter((name) => cfg.connections[name]?.area === area && connectionWrites(cfg.connections[name]));
 }
 
@@ -315,6 +318,13 @@ export const openRun = (ref: string, root?: string): Run => ({
   next: (r) => (r[0]?.envelope.ok ? { go: 'dossier', params: { ref }, ...(root ? { root } : {}) } : undefined),
 });
 
+/**
+ * Set up this repo: `dossiers onboard`, which asks on this terminal for each
+ * connection the folder's dossier needs, then checks it and tests each. What
+ * it found per area is the point, so the result shows its data.
+ */
+export const onboardRun: Run = { title: 'Set up this repo', steps: [{ args: ['dossiers', 'onboard'], label: 'Match each area to your connections; add the ones you lack' }], showData: true };
+
 export const dossiersView: View = {
   title: () => 'Dossiers',
   body: (caps, p) => [
@@ -322,11 +332,12 @@ export const dossiersView: View = {
     '',
     `${label(caps, 'Folder')} ${p.data.folder.repo ? p.data.folder.repo.root : p.data.folder.cwd}${p.data.folder.repo ? '' : faint(caps, '  (not in a git repository)')}`,
   ],
-  items: () => [
+  items: (p) => [
     { label: 'This folder', hint: 'Which dossier applies here, and why', action: { run: contextRun } },
     { label: 'Your dossiers', hint: 'Every dossier toil can see; open one to review or edit it', action: { run: listRun() } },
     { label: 'Create a dossier', hint: 'Name, repos, areas, environments, then a review', action: { go: 'dossier-new' } },
     { label: 'Import a dossier', hint: 'Adopt a shared dossier file as your own', action: { go: 'dossier-import' } },
+    ...(p.data.folder.repo ? [{ label: 'Set up this repo', hint: "Connect its dossier's areas to your connections, adding any you lack", action: { run: onboardRun } }] : []),
     { label: 'Hand off to an agent', hint: 'A prompt and the MCP areas to build one with an agent', action: { go: 'dossier-agent' } },
   ],
 };
@@ -363,7 +374,12 @@ export const folderView: View = {
   items: (p) => {
     const c = parse<Context | undefined>(p.frame.params.context, undefined);
     if (!c) return [];
-    if (c.dossier) return [{ label: `Open ${c.dossier.name}`, hint: 'Review, edit or export it', action: { run: openRun(c.dossier.name) } }];
+    if (c.dossier) {
+      return [
+        { label: `Open ${c.dossier.name}`, hint: 'Review, edit or export it', action: { run: openRun(c.dossier.name) } },
+        { label: 'Set up this repo', hint: `Connect ${c.dossier.name}'s areas to your connections, adding any you lack`, action: { run: onboardRun } },
+      ];
+    }
     if (c.candidates.length > 1) return c.candidates.map((x) => ({ label: `Open ${x.name}`, hint: x.file, action: { run: openRun(x.name) } }));
     if (!c.repo) return [{ label: 'Create a dossier', hint: 'Name, repos, areas, environments', action: { go: 'dossier-new' } }];
     return [
@@ -1184,7 +1200,7 @@ export function stillToSetUp(data: WelcomeData, result: Imported): Imported['toS
   return result.toSetUp.filter((x) => {
     if (!cfg) return true;
     if (x.connection) return cfg.connections[x.connection]?.area !== x.area;
-    return x.host !== undefined && !connectionsOf(cfg, x.area).some((name) => onHost(cfg.connections[name], x.host!));
+    return x.host !== undefined && !connectionsOf(cfg, x.area).some((name) => onHost(cfg.connections[name], x.host!, siteApisOf(data, x.area)));
   });
 }
 

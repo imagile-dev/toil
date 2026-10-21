@@ -6,7 +6,7 @@
  * lanyard.
  */
 
-import { INSIGHT_LABEL, type Insight } from '../model/insights.ts';
+import { INSIGHT_LABEL, type Insight, type InsightCode } from '../model/insights.ts';
 import { STATUS_CATEGORY_LABEL } from '../format.ts';
 import { useSkins } from '../skins.tsx';
 import type { StatusCategory } from '../toil.ts';
@@ -30,17 +30,57 @@ export function StatusChip({ category, status }: { category: StatusCategory; sta
   );
 }
 
-export function InsightChips({ insights, max = 3 }: { insights: Insight[]; max?: number }) {
+/**
+ * One stroked glyph per insight, drawn on a 16-unit grid in the chip's own
+ * colour, for the board's compact chips. Each path is decoration: the chip's
+ * word travels beside it as text, so nothing rests on the drawing alone.
+ */
+const INSIGHT_ICON: Record<InsightCode, string> = {
+  blocked: 'M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2ZM3.8 12.2l8.4-8.4',
+  'failing-build': 'M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2ZM5.5 5.5l5 5m0-5-5 5',
+  aging: 'M8 2a6 6 0 1 0 0 12A6 6 0 0 0 8 2ZM8 4.5V8l2.5 1.5',
+  'deployed-not-closed': 'M8 13V3m-4 4 4-4 4 4M3 14h10',
+  carried: 'M3 9a5 5 0 0 1 9-3m0-3v3H9M13 7v6H3',
+  'pr-no-build': 'M5 3v10M5 3a1.5 1.5 0 1 0 0 .01M11 13V7a2 2 0 0 0-2-2H7m0 0 1.5-1.5M7 5l1.5 1.5',
+  stale: 'M4 2h8M4 14h8M5 2c0 4 6 4 6 6s-6 2-6 6M11 2c0 4-6 4-6 6s6 2 6 6',
+  blocking: 'M5.5 2h5L14 5.5v5L10.5 14h-5L2 10.5v-5ZM5 8h6',
+  'built-not-deployed': 'M2.5 5 8 2l5.5 3v6L8 14l-5.5-3ZM2.5 5 8 8l5.5-3M8 8v6',
+  unestimated: 'M6 6a2 2 0 1 1 3 1.7c-.6.4-1 .8-1 1.5V10M8 12.5v.5',
+  added: 'M8 3v10M3 8h10',
+};
+
+/**
+ * An item's insights, most pressing first, up to `max`. `compact` draws each
+ * as its icon alone, for the board's cards: the word stays in the chip as
+ * text for a screen reader and as its tooltip, and shows beside the icon
+ * while the card has keyboard focus (views.css), so a sighted keyboard user
+ * isn't left decoding pictures.
+ */
+export function InsightChips({ insights, max = 3, compact = false }: { insights: Insight[]; max?: number; compact?: boolean }) {
   if (!insights.length) return null;
   const shown = insights.slice(0, max);
+  const rest = insights.slice(max);
   return (
-    <ul className="insight-chips" aria-label="Insights">
-      {shown.map((i) => (
-        <li key={i.code} className={`insight insight--w${i.weight}`}>
-          {INSIGHT_LABEL[i.code]}
+    <ul className={`insight-chips${compact ? ' insight-chips--compact' : ''}`} aria-label="Insights">
+      {shown.map((i) =>
+        compact ? (
+          <li key={i.code} className={`insight insight--icon insight--w${i.weight}`} title={INSIGHT_LABEL[i.code]}>
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+              <path d={INSIGHT_ICON[i.code]} />
+            </svg>
+            <span className="insight-word">{INSIGHT_LABEL[i.code]}</span>
+          </li>
+        ) : (
+          <li key={i.code} className={`insight insight--w${i.weight}`}>
+            {INSIGHT_LABEL[i.code]}
+          </li>
+        ),
+      )}
+      {rest.length > 0 && (
+        <li className="insight insight--more" {...(compact ? { title: rest.map((i) => INSIGHT_LABEL[i.code]).join(', ') } : {})}>
+          +{rest.length} more
         </li>
-      ))}
-      {insights.length > max && <li className="insight insight--more">+{insights.length - max} more</li>}
+      )}
     </ul>
   );
 }

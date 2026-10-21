@@ -44,12 +44,14 @@
   {
     "name": "init",
     "tool": "dossiers_init",
-    "description": "Create a dossier in your own folder (~/.toil/dossiers)",
+    "description": "Create a dossier in your own folder (~/.toil/dossiers), or with --shared in a repository for the team",
     "writes": false,
     "connection": false,
     "flags": [
       "<name>",
-      "--description <text>"
+      "--description <text>",
+      "--shared",
+      "--repo <dir>"
     ]
   },
   {
@@ -203,6 +205,19 @@
     "connection": false,
     "flags": [
       "<name>"
+    ]
+  },
+  {
+    "name": "onboard",
+    "tool": null,
+    "description": "Set up this repo: match each area of its dossier to your connections, add the ones you lack, then check it and test each",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[dossier]",
+      "--cwd <dir>",
+      "--plan",
+      "--pin <area=connection>"
     ]
   }
 ]
