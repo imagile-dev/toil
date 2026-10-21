@@ -93,7 +93,7 @@ export const ANALYZE_LABEL = 'Analyze';
 export const analyzePrompt = (d: string) =>
   [
     `Give a pulse check of the dossier "${d}": a high-level picture in five short parts, in this order, each a paragraph that starts with its name. Cite every item and pull request a line rests on; say plainly when a part has nothing.`,
-    `What changed: since the last Analyze, or the last sync if that is more recent. Read worklog_day for today, then each day before it, back to the first day whose agent runs include one asked as "Analyze" (at most 7 days back), and say what moved, merged, failed or recovered.`,
+    `What changed: since the last Analyze, or the last sync if that is more recent. Read worklog_day for today, then each day before it, back to the first day with a finished agent run asked as "Analyze" (at most 7 days back; this Analyze is in the worklog too, as still running, and doesn't count), and say what moved, merged, failed or recovered.`,
     'Who is on what: people_list, for each person and agent with work in progress and how long it has been there. Describe load; never rank or score people.',
     'Blocked or stuck in review: owi_query for blocked items and what blocks them, and pr_query for pull requests waiting longest, on what and for how many working days.',
     "The sprint's health and its risks: points left against days left, scope added after it started, work carried over, failing builds.",

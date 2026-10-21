@@ -66,7 +66,7 @@ export function statusLine(t: Turn, words: ReturnType<typeof useWords>, now: num
   if (t.error && !t.stopped) return null;
   if (t.done) return { text: words(t.stopped ? 'status.stopped' : 'status.done', { seconds: seconds(t.ms ?? 0) }), tool: null, elapsed: null };
   const a = t.answer?.activity;
-  const elapsed = `${Math.floor((now - t.started) / 1000)} s`;
+  const elapsed = `${Math.max(0, Math.floor((now - t.started) / 1000))} s`;
   if (a?.phase === 'tool') return { text: words(a.source === 'live' ? 'status.live' : a.source === 'registry' ? 'status.registry' : 'status.cache'), tool: a.tool ?? null, elapsed };
   if (a?.phase === 'writing' || (t.answer && t.answer.parts.length > 0)) return { text: words('status.writing'), tool: null, elapsed };
   return { text: words('loading.answer'), tool: null, elapsed };
@@ -217,6 +217,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
   // The elapsed seconds tick only while something runs.
   useEffect(() => {
     if (!busy) return;
+    setNow(Date.now());
     const t = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(t);
   }, [busy]);
