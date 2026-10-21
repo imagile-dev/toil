@@ -118,6 +118,7 @@ describe('the builds on disk', () => {
   it('quotes the restart command where a shell would split it', () => {
     expect(restartCommand(['C:/Program Files/nodejs/node.exe', 'C:/Users/you/AppData/Roaming/npm/node_modules/@imagile-dev/toil-ui/dist/server/toil-ui.js', '--port', '4000'])).toBe('node C:/Users/you/AppData/Roaming/npm/node_modules/@imagile-dev/toil-ui/dist/server/toil-ui.js --port 4000');
     expect(restartCommand(['node', '/home/you/my tools/toil-ui.js'])).toBe('node "/home/you/my tools/toil-ui.js"');
+    expect(restartCommand(['node', 'ui/dist/server/toil-ui.js'], ['--import', 'file:///C:/src/toil/ui/scripts/local-toil-hook.mjs'])).toBe('node --import file:///C:/src/toil/ui/scripts/local-toil-hook.mjs ui/dist/server/toil-ui.js');
   });
 });
 

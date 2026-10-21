@@ -120,7 +120,7 @@ async function main(): Promise<number> {
       uiBundle: fileURLToPath(import.meta.url),
       registry: registry.commands,
       execute,
-      restart: restartCommand(process.argv),
+      restart: restartCommand(process.argv, process.execArgv),
     });
   }
   // The agent (#251): the adapter chosen in Settings, reading the cache, or the scripted one for the sample.

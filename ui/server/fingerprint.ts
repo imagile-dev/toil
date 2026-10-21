@@ -162,8 +162,8 @@ export class Fingerprints {
   }
 }
 
-/** The command line that starts this process again: node, the bin and its arguments, quoted where a shell needs it. */
-export function restartCommand(argv: readonly string[]): string {
+/** The command line that starts this process again: node, its own flags (a loader hook), the bin and its arguments, quoted where a shell needs it. */
+export function restartCommand(argv: readonly string[], execArgv: readonly string[] = []): string {
   const quote = (a: string) => (/^[\w./:=@\\-]+$/.test(a) ? a : `"${a.replace(/"/g, '\\"')}"`);
-  return ['node', ...argv.slice(1)].map(quote).join(' ');
+  return ['node', ...execArgv, ...argv.slice(1)].map(quote).join(' ');
 }
