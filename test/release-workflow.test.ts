@@ -119,7 +119,7 @@ describe('waiting for npm (#363)', () => {
 describe('the lockfile after a release (#299)', () => {
   const job = jobs.lockfile!;
   const runs = job.steps.map((s) => s.run ?? '');
-  const ci = load(readFileSync(join(root, '.github', 'workflows', 'ci.yml'), 'utf8')) as { jobs: { gate: { steps: Array<Step & { if?: string }> } } };
+  const ci = load(readFileSync(join(root, '.github', 'workflows', 'ci.yml'), 'utf8')) as { jobs: { ui: { steps: Array<Step & { if?: string }> } } };
 
   it('runs once toil is on npm, and never before', () => {
     expect(job.needs).toEqual(['release-please', 'publish-toil']);
@@ -141,7 +141,7 @@ describe('the lockfile after a release (#299)', () => {
   });
 
   it("is held by CI's check:lockfile on every PR but the release PR", () => {
-    const check = ci.jobs.gate.steps.find((s) => s.run === 'npm run check:lockfile -w ui')!;
+    const check = ci.jobs.ui.steps.find((s) => s.run === 'npm run check:lockfile -w ui')!;
     expect(check.if).toBe("${{ !startsWith(github.head_ref, 'release-please--') }}");
   });
 });
