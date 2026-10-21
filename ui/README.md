@@ -895,7 +895,9 @@ npm run verify:ui -- --no-build --starter standup
 - **Real data:** the home `dev-real.mjs` sets up, made fresh at
   `.scratch/verify/home`, on `imagile-dev/toil-sandbox` with the token from `gh auth
   token` in Toil UI's environment only. It syncs the `sandbox` dossier and runs the
-  same check over the home page, the dossier, one of its items and the settings pages.
+  same check over the home page, the dossier, one of its items and the settings pages,
+  except that its header may fold into the Menu at 1440px, since a real dossier's name
+  and links can genuinely fill the row.
   Without a GitHub sign-in it skips this part and says so; nothing else depends on it.
 - **`--ask`** asks Codex one starter question (`hygiene` unless `--starter <id>`) and
   checks that an answer arrived, that the server verified every `[[id]]` it cites,
