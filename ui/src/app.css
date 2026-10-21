@@ -63,6 +63,16 @@ h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 .stale-chip { display: inline-flex; align-items: center; padding: 0.05rem 0.5rem; border-radius: 999px; border: 1px solid currentColor; font-size: 0.75rem; font-weight: 600; background: var(--raised); color: var(--warn); white-space: nowrap; }
 .stale-note { margin: 0; overflow-wrap: anywhere; }
 
+/* Notices of agent state changes (#306), under the header and in its flow: nothing fixed over the page. */
+.notices { display: grid; gap: 0.5rem; padding: 0 16px; }
+.notices:not(:empty) { padding-block: 0.5rem; }
+.notice { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1rem; padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-inline-start: 4px solid var(--warn); border-radius: 6px; background: var(--raised); color: var(--ink); overflow-wrap: anywhere; }
+.notice__title { margin: 0; }
+.notice__lines { flex: 1 1 16rem; min-width: 0; margin: 0; padding-inline-start: 1.1rem; }
+.notify-states { display: grid; gap: 0.25rem; margin: 0 0 0.5rem; padding: 0; border: 0; }
+.notify-states legend { padding: 0; margin-bottom: 0.25rem; font-weight: 600; }
+.notify-quiet { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+
 .top {
   display: flex;
   flex-wrap: wrap;

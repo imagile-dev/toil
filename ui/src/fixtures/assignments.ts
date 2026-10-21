@@ -331,7 +331,7 @@ export function fixtureAssignments(o: { delay?: number } = {}): AssignmentsApi {
   const q = async () => (await s.ready, s.queue);
   return {
     disabled: null,
-    list: async (dossier) => (await q()).list(dossier),
+    list: async (dossier, o) => (await q()).list(dossier, o),
     get: async (id) => (await q()).read(id),
     assign: async (r) => (await q()).assign(r),
     start: async (id, adapter) => (await q()).start(id, adapter),
@@ -340,5 +340,11 @@ export function fixtureAssignments(o: { delay?: number } = {}): AssignmentsApi {
     dismiss: async (id, p) => (await q()).dismiss(id, p),
     finish: async (id) => (await q()).finish(id),
     renew: async (id) => (await q()).renew(id),
+    async events(_since, onEvent, signal) {
+      // The sample's queue lives in the page, so its events are only ever what happens next.
+      const stop = (await q()).subscribe(onEvent);
+      await new Promise<void>((done) => (signal.aborted ? done() : signal.addEventListener('abort', () => done(), { once: true })));
+      stop();
+    },
   };
 }

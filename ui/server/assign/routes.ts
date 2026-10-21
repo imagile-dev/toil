@@ -3,8 +3,10 @@
  * session and CSRF checks every other route has (server.ts):
  *
  *   GET  assignments?dossier=<name>        the dossier's assignments, the inbox read again first
+ *                                          (&inbox=0: only read, queueing nothing)
  *   GET  assignments/one?id=<id>           one assignment with its transcript
- *   GET  assignments/events?since=<seq>    NDJSON: the kept events after seq, then each as it happens
+ *   GET  assignments/events?since=<seq>    NDJSON: the kept events after seq, then each as it happens;
+ *                                          since=latest skips the kept ones (#306's notifications)
  *   POST assignments                       { dossier, item, mode, adapter, repo? }: assign and queue
  *   POST assignments/start                 { id, adapter? }: start one the tracker queued
  *   POST assignments/cancel                { id }
@@ -53,7 +55,7 @@ export async function assignmentRoute(key: string, req: IncomingMessage, res: Se
     case 'GET assignments': {
       const dossier = url.searchParams.get('dossier');
       if (!dossier) throw new AssignError('Name the dossier.', 'Ask api/assignments?dossier=<name>.');
-      h.json(res, 200, await queue.list(dossier));
+      h.json(res, 200, await queue.list(dossier, { inbox: url.searchParams.get('inbox') !== '0' }));
       return true;
     }
     case 'GET assignments/one': {
@@ -63,8 +65,9 @@ export async function assignmentRoute(key: string, req: IncomingMessage, res: Se
       return true;
     }
     case 'GET assignments/events': {
-      const since = Number(url.searchParams.get('since') ?? '0');
-      if (!Number.isInteger(since) || since < 0) throw new AssignError('since is the last event sequence number you have, 0 or more.', 'Ask api/assignments/events?since=0.');
+      const asked = url.searchParams.get('since') ?? '0';
+      const since = asked === 'latest' ? queue.latest : Number(asked);
+      if (!Number.isInteger(since) || since < 0) throw new AssignError('since is the last event sequence number you have, 0 or more, or latest.', 'Ask api/assignments/events?since=0.');
       res.writeHead(200, { ...h.headers, 'Content-Type': 'application/x-ndjson; charset=utf-8' });
       for (const e of queue.since(since)) res.write(`${JSON.stringify(e)}\n`);
       const stop = queue.subscribe((e) => {

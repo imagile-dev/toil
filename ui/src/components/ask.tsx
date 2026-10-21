@@ -35,6 +35,8 @@ import { ChatUsage, UsageFooter } from './usage.tsx';
 import type { AnswerUsage } from '../model-usage.ts';
 import type { ChatSession } from '../fingerprint.ts';
 import { StaleNote } from './stale.tsx';
+import { useNotify } from './notify.tsx';
+import { dossierHref } from '../format.ts';
 
 /** A new chat's id: one per dossier's conversation, so the server can add up and cap the chat (#295). */
 const newChatId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
@@ -172,6 +174,16 @@ function useChat() {
     setAdapter(name);
     setEntries((es) => (es.length ? [...es, { kind: 'switch', id: next.current++, label }] : es));
   };
+
+  // A chat gone stale notifies once (#306): its key carries the renewals, so a renewed chat is a new session.
+  const notify = useNotify();
+  const wasStale = useRef(false);
+  useEffect(() => {
+    const stale = session?.stale ?? null;
+    if (stale && !wasStale.current) notify?.report({ key: `chat:${chatId.current}:${session!.renewals}`, state: 'stale', notable: 'stale', agent: 'The chat', item: null, itemTitle: null, why: stale.text, dossier: dossier.name, href: dossierHref(dossier.name), mine: true }, 'fresh');
+    wasStale.current = stale !== null;
+    // notify and the dossier are fixed for this chat's life: the App keys the chat by dossier.
+  }, [session]);
 
   /** Asks the server whether this chat has gone stale (#305); a chat that hasn't asked yet has nothing to check. */
   const checkSession = () => {

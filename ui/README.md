@@ -735,6 +735,34 @@ started on, says which have gone stale and why, and renews them on request.
   then would start on the old build and be stale at once, so until it restarts, Renew
   is refused (and Renew all stale skips every session), saying so with that command.
 
+## Notifications
+
+Toil UI tells you when an agent's state changes, and stays quiet otherwise. A tool
+call, its progress, or a state that didn't change never notifies.
+
+- **What notifies:** an assignment reaching **needs you** (with why: "asked a
+  question", "3 proposals to review"), **done** or **failed**, one stopped at its
+  **usage cap**, and a chat or assignment gone **stale** (Stale sessions, above). A
+  run going from queued to working says nothing, and neither does your own Stop.
+- **Once, together.** Changes within four seconds become one notice: "2 agents need
+  you", each line linking to its assignment. A change undone inside those seconds,
+  such as a question answered elsewhere, sends nothing.
+- **Where.** A notice under the header, with Dismiss. While the tab is hidden its
+  title counts them, `(2) Toil UI`, until you come back. With **Browser
+  notifications** on, the browser's own notification shows them too, drawn on this
+  computer: nothing leaves the machine. The browser is asked for permission only when
+  you turn that on, never before.
+- **Settings**, under **Settings, General**, kept in this browser: a switch for each
+  kind (**needs you**, **failed** and the usage cap on, **done** off, **stale** on, by
+  default), **only for agents I started** (the chats in this browser and the
+  assignments assigned, started or renewed here), and quiet hours, which hold every
+  notice while the title still counts.
+- **Plain words.** Notices read the same in every theme: the theme's wording stays in
+  the views.
+- **Where it listens.** The server's `api/assignments/events?since=latest` stream,
+  which carries what a notice says with each event, and a minute's read of the
+  dossier on screen for sessions gone stale.
+
 ## Themes
 
 Five built-in themes: Plain, Crate (the default), Harvest, Starship and Realm. Pick

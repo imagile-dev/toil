@@ -255,8 +255,9 @@ export class AssignmentQueue {
   }
 
   /** Every assignment for a dossier, newest first, after the tracker's inbox is read again, each checked for staleness (#305). */
-  async list(dossier: string): Promise<AssignmentList> {
-    await this.inbox(dossier);
+  async list(dossier: string, o: { inbox?: boolean } = {}): Promise<AssignmentList> {
+    // A read that only looks (#306's stale check) leaves the tracker's inbox to the lane.
+    if (o.inbox !== false) await this.inbox(dossier);
     const repos = await this.o.repos(dossier).catch((): RepoChoice[] => []);
     const seen = new Map<string, Promise<Fingerprint>>();
     const mine = [...this.records.values()].filter((r) => r.dossier === dossier).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
@@ -313,6 +314,11 @@ export class AssignmentQueue {
   subscribe(listener: (e: AssignmentEvent) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** The last event's sequence number: where a listener that wants only what happens next starts (#306). */
+  get latest(): number {
+    return this.seq;
   }
 
   /** The events after a sequence number that are still kept. */
@@ -528,7 +534,23 @@ export class AssignmentQueue {
 
   private save(r: AssignmentRecord, kind: AssignmentEvent['kind'], previous: AssignState | null, message: string) {
     this.o.keeper.save(r);
-    const event: AssignmentEvent = { seq: ++this.seq, at: this.o.now(), id: r.id, dossier: r.dossier, item: r.item, kind, state: r.state, previous, message };
+    const event: AssignmentEvent = {
+      seq: ++this.seq,
+      at: this.o.now(),
+      id: r.id,
+      dossier: r.dossier,
+      item: r.item,
+      kind,
+      state: r.state,
+      previous,
+      message,
+      itemTitle: r.itemTitle,
+      adapter: r.adapter,
+      origin: r.origin,
+      stop: r.stop?.reason ?? null,
+      pending: r.proposals.filter(pending).length,
+      questions: r.questions.length,
+    };
     this.events.push(event);
     if (this.events.length > KEEP_EVENTS) this.events.splice(0, this.events.length - KEEP_EVENTS);
     for (const l of this.listeners) {
