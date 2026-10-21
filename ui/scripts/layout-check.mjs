@@ -30,6 +30,14 @@
 // command's recent audit lines open on the Usage page. Reduced motion
 // is on, so an animation caught mid-flight can't fail a run.
 //
+// On a dossier's dashboard the board is also dragged as a hand drags it
+// (#393): real mouse input through the DevTools protocol, a finger at 375
+// pixels, with moves in between. Mid-drag the copy of the card must be under
+// the pointer and the card itself still in its column; after the drop a
+// proposed ghost must sit in the target column, and that state goes through
+// the same layout and axe checks as the others. Scripted DOM events proved
+// the drop and missed that nothing on screen moved.
+//
 // `npm run smoke -w ui` runs it against the installed package (`toil-ui
 // --sample`). By hand, against any build:
 //
@@ -37,7 +45,7 @@
 //   node scripts/layout-check.mjs --base http://127.0.0.1:4173/ [--theme crate] [--route '#/settings/dossiers'] [--width 375] [--motion full] [--shots <dir>] [--json <file>]
 //
 // Repo tooling only; nothing here ships. It measures twice and files once.
-/* global document, window, getComputedStyle -- inspect() and covered() run in the page */
+/* global document, window, getComputedStyle, CSS -- inspect(), covered(), dragPlan() and dragMid() run in the page */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { availableParallelism } from 'node:os';
@@ -313,6 +321,95 @@ function states(route, width) {
   return out;
 }
 
+/**
+ * Where to drag on the board (#393): the last card of the first column that
+ * has one, scrolled to the upper part of the screen, out of the edge where
+ * dnd-kit scrolls the page, and the next column, whose heading is just below
+ * or beside it. Null when the view has no board with two columns to drag
+ * between.
+ */
+function dragPlan() {
+  const cols = [...document.querySelectorAll('.board .column')];
+  const from = cols.findIndex((c) => c.querySelector('li.card'));
+  if (from < 0 || !cols[from + 1]) return null;
+  const grips = cols[from].querySelectorAll('li.card .card-grip');
+  const grip = grips[grips.length - 1];
+  const r0 = grip.getBoundingClientRect();
+  window.scrollBy(0, r0.top - window.innerHeight * 0.3);
+  const r = grip.getBoundingClientRect();
+  const to = cols[from + 1].getBoundingClientRect();
+  return {
+    item: grip.dataset.item,
+    target: cols[from + 1].querySelector('h3').id,
+    x: Math.round(r.left + r.width / 2),
+    y: Math.round(r.top + r.height / 2),
+    tx: Math.round(to.left + to.width / 2),
+    // Level with the card when the columns sit side by side; just under the heading when they stack. Never in the edge that scrolls.
+    ty: Math.round(Math.min(Math.max(r.top + r.height / 2, to.top + 40, window.innerHeight * 0.25), to.bottom - 20, window.innerHeight * 0.7)),
+  };
+}
+
+/** Mid-drag: the copy that follows the pointer, and whether the pointer is on it; the card itself, still in its column. */
+function dragMid(item, tx, ty) {
+  const overlay = document.querySelector('[data-drag-overlay]');
+  const r = overlay?.getBoundingClientRect();
+  const card = document.querySelector(`.card-grip[data-item="${CSS.escape(item)}"]`)?.closest('li.card');
+  return {
+    overlay: Boolean(overlay),
+    underPointer: Boolean(r && tx >= r.left && tx <= r.right && ty >= r.top && ty <= r.bottom),
+    verdict: overlay?.querySelector('[data-drop-verdict]')?.textContent ?? null,
+    placeholder: Boolean(card?.classList.contains('card--dragging')),
+  };
+}
+
+/**
+ * Drags a card to the next column with real input and checks what a person
+ * sees on the way and after. Resolves with problems, as strings; the dropped
+ * state's layout and axe findings come back as `findings` and `violations`.
+ */
+async function dragCheck(page, width, shoot, inspectDropped) {
+  const plan = await page.evaluate(`(${dragPlan})()`);
+  if (!plan) return { problems: ['no board with two columns to drag between'], findings: [], violations: [] };
+  const settle = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`);
+  const touch = width < 768;
+  const problems = [];
+  const steps = 12;
+  if (touch) {
+    await page.touchscreen(true);
+    await page.touch('start', plan.x, plan.y);
+    // The hold that picks a card up by touch (TOUCH_HOLD in src/views/Board.tsx), and a little more.
+    await settle(350);
+  } else {
+    await page.mouse('move', plan.x, plan.y);
+    await page.mouse('down', plan.x, plan.y);
+  }
+  for (let i = 1; i <= steps; i++) {
+    const x = Math.round(plan.x + ((plan.tx - plan.x) * i) / steps);
+    const y = Math.round(plan.y + ((plan.ty - plan.y) * i) / steps);
+    await (touch ? page.touch('move', x, y) : page.mouse('move', x, y));
+    await settle(16);
+  }
+  await settle(150);
+  const mid = await page.evaluate(`(${dragMid})(${JSON.stringify(plan.item)}, ${plan.tx}, ${plan.ty})`);
+  await shoot('drag-mid');
+  if (!mid.overlay) problems.push('mid-drag, no copy of the card follows the pointer');
+  else if (!mid.underPointer) problems.push(`mid-drag, the copy of the card isn't under the pointer at ${plan.tx},${plan.ty}`);
+  if (mid.overlay && !/^Drop to propose: /.test(mid.verdict ?? '')) problems.push(`mid-drag over the next column, the copy says "${mid.verdict}" instead of what a drop would propose`);
+  if (!mid.placeholder) problems.push('mid-drag, the card left no placeholder in its column');
+  await (touch ? page.touch('end', plan.tx, plan.ty) : page.mouse('up', plan.tx, plan.ty));
+  if (touch) await page.touchscreen(false);
+  await settle(300);
+  const ghost = await page.evaluate(`(() => { const g = document.querySelector('[data-proposed-ghost]'); return g ? g.closest('.column')?.querySelector('h3')?.id ?? '' : null; })()`);
+  if (ghost === null) problems.push('after the drop, no proposed ghost of the card shows on the board');
+  else if (ghost !== plan.target) problems.push(`after the drop, the proposed ghost is in ${ghost || 'no column'}, not ${plan.target}`);
+  await shoot('drag-dropped');
+  const dropped = ghost === null ? { findings: [], violations: [] } : await inspectDropped();
+  // Undo, so the next width starts from the board as it opened.
+  await page.evaluate(`document.querySelectorAll('[data-proposed-ghost] button').forEach((b) => /^Undo/.test(b.getAttribute('aria-label') ?? '') && b.click())`);
+  await settle(200);
+  return { problems, ...dropped };
+}
+
 async function axeRun(page, source) {
   const has = await page.evaluate('typeof window.axe');
   if (has !== 'object') await page.evaluate(`${source}\n;true`);
@@ -405,6 +502,18 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
       for (const v of violations) {
         const line = `${where}: axe ${v.id} (${v.impact}) at ${v.nodes.slice(0, 3).join(', ')}${v.nodes.length > 3 ? ` and ${v.nodes.length - 3} more` : ''}`;
         (run.strict ? problems : reported).push(line);
+      }
+      // The board dragged with real input (#393), from the view as it opened.
+      if (/^#\/dossier\/[^/]+$/.test(route)) {
+        const drag = await dragCheck(page, width, (name) => shoot(`${slug}__${name}`), async () => ({
+          findings: await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)}, ${headerFits})`),
+          violations: run.strict ? await axeRun(page, axeSource) : [],
+        }));
+        for (const p of drag.problems) problems.push(`${where} (drag): ${p}`);
+        record('drag-dropped', drag.findings);
+        for (const v of drag.violations) problems.push(`${where} (drag-dropped): axe ${v.id} (${v.impact}) at ${v.nodes.slice(0, 3).join(', ')}`);
+        await page.evaluate('window.scrollTo(0, 0)');
+        checked++;
       }
       for (const state of states(route, width)) {
         // A state that opens nothing checks nothing, so it's a problem, never a quiet pass. clickAll waits for

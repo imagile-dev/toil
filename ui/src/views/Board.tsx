@@ -10,10 +10,19 @@
  * changes: the move becomes a proposal card naming the toil command that
  * would apply it (src/model/board.ts), and the card stays where its tracker
  * says it is.
+ *
+ * What a person sees (#393): while a card is dragged, a copy of it follows
+ * the pointer (dnd-kit's DragOverlay, in a portal so no scrolling box clips
+ * it) and says what a drop there would do; the card itself stays put as a
+ * dashed placeholder; the column under the pointer is outlined as a target,
+ * or as refused when the card is already in it. After any move, by drag,
+ * keyboard or menu, a ghost of the card sits at the top of the target column,
+ * marked as a proposal not applied, with Undo and the way to apply it.
  */
 
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -21,13 +30,15 @@ import {
   useDroppable,
   useSensor,
   useSensors,
+  useDndContext,
   type Announcements,
   type DragEndEvent,
   type KeyboardCoordinateGetter,
   type UniqueIdentifier,
 } from '@dnd-kit/core';
 import { useId, useRef, useState, type KeyboardEvent, type MouseEvent } from 'react';
-import { Header, Menu, MenuItem, MenuSection, Popover } from 'react-aria-components';
+import { createPortal } from 'react-dom';
+import { Button, Header, Menu, MenuItem, MenuSection, Popover } from 'react-aria-components';
 import { Avatar, InsightChips, StatusChip } from '../components/bits.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { AssignModal } from '../assign/views.tsx';
@@ -62,6 +73,111 @@ const TOUCH_HOLD = { delay: 250, tolerance: 8 };
 const PRESS_SLOP = 10;
 
 /**
+ * What dropping an item on a column would do: propose a move, or nothing,
+ * and why. The same rule as proposeMove: its own column, or Unknown, which
+ * no tracker has a status for, proposes nothing.
+ */
+export function dropVerdict(item: WorkItem, to: StatusCategory | null): { ok: boolean; text: string } {
+  if (!to) return { ok: false, text: 'Not over a column' };
+  if (to === item.statusCategory) return { ok: false, text: `Already in ${label(to)}: nothing to propose` };
+  if (to === 'UNKNOWN') return { ok: false, text: 'Unknown is no status to move to' };
+  return { ok: true, text: `Drop to propose: ${label(to)}` };
+}
+
+/** A proposed move on the board, with the column it would go to. */
+interface Move {
+  proposal: Proposal;
+  to: StatusCategory;
+}
+
+/**
+ * The card's face: what it shows, in the column and under the pointer. The
+ * copy under the pointer (`ids` unset) is decoration for the eye only: its key
+ * is no link and it names nothing, since the announcements speak for it.
+ */
+function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
+  const { insights: prepared } = useDerived();
+  const { dossier } = useData();
+  const { Card: Skin } = useSkins();
+  const key = shortKey(item);
+  return (
+    <Skin item={item}>
+      <div className="card-top">
+        {ids ? (
+          <a id={`${ids}-key`} href={itemHref(dossier.name, item.id)} className="item-link card-key" draggable={false}>
+            <span className="key">{key}</span>
+          </a>
+        ) : (
+          <span className="card-key">
+            <span className="key">{key}</span>
+          </span>
+        )}
+        <StatusChip category={item.statusCategory} status={item.status} />
+      </div>
+      <p id={ids && `${ids}-title`} className="card-title">
+        {item.title}
+      </p>
+      <div className="card-foot">
+        <span className="who">
+          <Avatar person={item.assignee} /> {personText(item.assignee)}
+        </span>
+        <span className="card-meta">
+          <InsightChips insights={insights(item, prepared)} compact />
+          <span className="field">
+            <span className="source">{sourceLabel(item.source.area)}</span> · {estimateText(item)}
+          </span>
+        </span>
+      </div>
+    </Skin>
+  );
+}
+
+/** The copy of the card that follows the pointer, saying what a drop where it is would do. */
+function DragCard({ item }: { item: WorkItem }) {
+  const { over } = useDndContext();
+  const verdict = dropVerdict(item, (over?.id as StatusCategory | undefined) ?? null);
+  return (
+    <div className={`card card--${item.statusCategory.toLowerCase()} card--overlay`} data-drag-overlay aria-hidden="true">
+      <div className="card-grip">
+        <CardFace item={item} />
+      </div>
+      <p className={`drop-verdict${verdict.ok ? '' : ' drop-verdict--no'}`} data-drop-verdict>
+        {verdict.text}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * The proposal where the person dropped it: a ghost of the card at the top of
+ * the column it would move to, plainly not the card itself. Undo takes the
+ * proposal back; How to apply goes to its card under the board, which has the
+ * command.
+ */
+function Ghost({ item, move, onUndo, onShow }: { item: WorkItem; move: Move; onUndo: () => void; onShow: () => void }) {
+  const key = shortKey(item);
+  return (
+    <li className="card-ghost" data-proposed-ghost aria-label={`Proposed move, not applied: ${key} ${item.title}`}>
+      <p className="card-ghost__kind">Proposed move, not applied</p>
+      <p className="card-ghost__title">
+        <span className="key">{key}</span> {item.title}
+      </p>
+      <p className="note">
+        From {label(item.statusCategory)}. It stays there until someone applies the move with toil.
+      </p>
+      <div className="card-ghost__actions">
+        <Button className="btn btn--quiet" onPress={onUndo} aria-label={`Undo the proposed move of ${key}`}>
+          Undo
+        </Button>
+        <Button className="btn" onPress={onShow} aria-label={`How to apply the move of ${key} to ${label(move.to)}`}>
+          How to apply
+        </Button>
+      </div>
+    </li>
+  );
+}
+
+/**
  * Arrow keys jump a picked-up card a whole column at a time, in board order:
  * Right or Down to the next, Left or Up to the previous, so the same keys
  * work whether the columns sit side by side or stack on a phone. The card
@@ -81,16 +197,13 @@ export const columnSteps =
   };
 
 function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem; others: StatusCategory[]; onMove: (to: StatusCategory) => void; menuOpen: boolean; setMenuOpen: (open: boolean) => void }) {
-  const { insights: prepared } = useDerived();
   const { dossier, assignments } = useData();
-  const { Card: Skin } = useSkins();
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, isDragging } = useDraggable({ id: item.id, attributes: { role: 'group', roleDescription: 'draggable card' } });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: item.id, attributes: { role: 'group', roleDescription: 'draggable card' } });
   const [assigning, setAssigning] = useState(false);
   const grip = useRef<HTMLDivElement | null>(null);
   const ids = useId();
   const key = shortKey(item);
   const href = itemHref(dossier.name, item.id);
-  const style = transform ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` } : undefined;
 
   // The card is its own activator, so Space or Enter on the key's link inside it follows the link instead of picking the card up.
   const gripRef = (el: HTMLDivElement | null) => {
@@ -130,10 +243,12 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
   };
 
   return (
-    <li ref={setNodeRef} style={style} className={`card card--${item.statusCategory.toLowerCase()}${isDragging ? ' card--dragging' : ''}`}>
+    // While it's dragged the card stays where it is, as a placeholder; the copy in the DragOverlay is what moves.
+    <li ref={setNodeRef} className={`card card--${item.statusCategory.toLowerCase()}${isDragging ? ' card--dragging' : ''}`}>
       <div
         ref={gripRef}
         className="card-grip"
+        data-item={item.id}
         {...attributes}
         {...listeners}
         aria-labelledby={`${ids}-key ${ids}-title`}
@@ -142,28 +257,7 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
         onContextMenu={onContextMenu}
         onClick={onClick}
       >
-        <Skin item={item}>
-          <div className="card-top">
-            <a id={`${ids}-key`} href={href} className="item-link card-key" draggable={false}>
-              <span className="key">{key}</span>
-            </a>
-            <StatusChip category={item.statusCategory} status={item.status} />
-          </div>
-          <p id={`${ids}-title`} className="card-title">
-            {item.title}
-          </p>
-          <div className="card-foot">
-            <span className="who">
-              <Avatar person={item.assignee} /> {personText(item.assignee)}
-            </span>
-            <span className="card-meta">
-              <InsightChips insights={insights(item, prepared)} compact />
-              <span className="field">
-                <span className="source">{sourceLabel(item.source.area)}</span> · {estimateText(item)}
-              </span>
-            </span>
-          </div>
-        </Skin>
+        <CardFace item={item} ids={ids} />
       </div>
       {/* Outside the card's own element: a portal's events still bubble through React, and a press in the menu must not start a drag. */}
       <Popover triggerRef={grip} isOpen={menuOpen} onOpenChange={closeMenu} placement="bottom start" className="popover">
@@ -191,17 +285,24 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
   );
 }
 
-function Column({ category, items, all, onMove, menuFor, setMenuFor }: { category: StatusCategory; items: WorkItem[]; all: StatusCategory[]; onMove: (item: WorkItem, to: StatusCategory) => void; menuFor: string | null; setMenuFor: (id: string | null) => void }) {
-  const { setNodeRef, isOver } = useDroppable({ id: category });
+function Column({ category, items, all, onMove, menuFor, setMenuFor, ghosts, onUndo, onShow }: { category: StatusCategory; items: WorkItem[]; all: StatusCategory[]; onMove: (item: WorkItem, to: StatusCategory) => void; menuFor: string | null; setMenuFor: (id: string | null) => void; ghosts: { item: WorkItem; move: Move }[]; onUndo: (move: Move) => void; onShow: (move: Move) => void }) {
+  const { setNodeRef, isOver, active } = useDroppable({ id: category });
+  const { byId } = useData();
   const words = useWords();
   const id = `col-${category}`;
+  const dragged = active ? byId.get(String(active.id)) : undefined;
+  // Under the pointer: a target, or refused (its own column), whose reason the copy under the pointer gives.
+  const drop = isOver && dragged ? (dropVerdict(dragged, category).ok ? ' column--over' : ' column--refused') : '';
   return (
-    <section ref={setNodeRef} className={`column column--${category.toLowerCase()}${isOver ? ' column--over' : ''}`} aria-labelledby={id}>
+    <section ref={setNodeRef} className={`column column--${category.toLowerCase()}${drop}`} aria-labelledby={id}>
       <h3 id={id}>
         {label(category)} <span className="count">{items.length}</span>
       </h3>
-      {items.length ? (
+      {items.length || ghosts.length ? (
         <ul className="cards">
+          {ghosts.map((g) => (
+            <Ghost key={g.move.proposal.id} item={g.item} move={g.move} onUndo={() => onUndo(g.move)} onShow={() => onShow(g.move)} />
+          ))}
           {items.map((item) => (
             <Card
               key={item.id}
@@ -213,18 +314,20 @@ function Column({ category, items, all, onMove, menuFor, setMenuFor }: { categor
             />
           ))}
         </ul>
-      ) : (
-        <p className="note">{words('empty.column')}</p>
-      )}
+      ) : null}
+      {items.length ? null : <p className="note">{words('empty.column')}</p>}
     </section>
   );
 }
 
 export function Board({ items }: { items: WorkItem[] }) {
   const { dossier, byId } = useData();
-  const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [moves, setMoves] = useState<Move[]>([]);
   const [said, setSaid] = useState('');
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  const [dragging, setDragging] = useState<WorkItem | null>(null);
+  const boardRef = useRef<HTMLDivElement | null>(null);
+  const listRef = useRef<HTMLDivElement | null>(null);
   const cols = columns(items);
   const cats = cols.map((c) => c.category);
   const sensors = useSensors(
@@ -243,11 +346,25 @@ export function Board({ items }: { items: WorkItem[] }) {
       setSaid(`${shortKey(item)} is already in ${label(to)}. Nothing proposed.`);
       return;
     }
-    setProposals((list) => [p, ...list.filter((x) => x.id !== p.id && x.item !== p.item)]);
+    setMoves((list) => [{ proposal: p, to }, ...list.filter((x) => x.proposal.id !== p.id && x.proposal.item !== p.item)]);
     setSaid(`Proposed: ${p.title}. Nothing has changed in ${dossier.name}'s tracker.`);
+  };
+  const dismiss = (move: Move) => setMoves((list) => list.filter((x) => x.proposal.id !== move.proposal.id));
+  // Undo hands focus back to the card, which never left its column; looked for on this board only.
+  const undo = (move: Move) => {
+    dismiss(move);
+    setSaid(`Took back the proposed move of ${keyOf(move.proposal.item)}. Nothing proposed.`);
+    requestAnimationFrame(() => boardRef.current?.querySelector<HTMLElement>(`.card-grip[data-item="${CSS.escape(move.proposal.item)}"]`)?.focus());
+  };
+  // How to apply: the proposal's card under this board, which has the command.
+  const show = (move: Move) => {
+    const slot = listRef.current?.querySelector<HTMLElement>(`[data-proposal="${CSS.escape(move.proposal.id)}"]`);
+    slot?.scrollIntoView?.({ block: 'center' });
+    slot?.focus({ preventScroll: true });
   };
 
   const onDragEnd = (e: DragEndEvent) => {
+    setDragging(null);
     const item = byId.get(String(e.active.id));
     if (!item) return;
     // A finger held still and lifted was a long press: iOS sends no contextmenu, so this is its menu.
@@ -276,6 +393,8 @@ export function Board({ items }: { items: WorkItem[] }) {
       </p>
       <DndContext
         sensors={sensors}
+        onDragStart={(e) => setDragging(byId.get(String(e.active.id)) ?? null)}
+        onDragCancel={() => setDragging(null)}
         onDragEnd={onDragEnd}
         accessibility={{
           announcements,
@@ -284,20 +403,39 @@ export function Board({ items }: { items: WorkItem[] }) {
           },
         }}
       >
-        <div className="board" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(15rem, 1fr))` }}>
+        <div ref={boardRef} className="board" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(15rem, 1fr))` }}>
           {cols.map((c) => (
-            <Column key={c.category} category={c.category} items={c.items} all={cats} onMove={propose} menuFor={menuFor} setMenuFor={setMenuFor} />
+            <Column
+              key={c.category}
+              category={c.category}
+              items={c.items}
+              all={cats}
+              onMove={propose}
+              menuFor={menuFor}
+              setMenuFor={setMenuFor}
+              ghosts={moves.flatMap((move) => {
+                const item = move.to === c.category ? byId.get(move.proposal.item) : undefined;
+                return item ? [{ item, move }] : [];
+              })}
+              onUndo={undo}
+              onShow={show}
+            />
           ))}
         </div>
+        {/* In a portal, so no scrolling or transformed box around the board can clip or offset it. No drop animation: the
+            card doesn't move on a drop, so flying the copy back to it would read as refused; the ghost says where it went. */}
+        {createPortal(<DragOverlay dropAnimation={null}>{dragging ? <DragCard item={dragging} /> : null}</DragOverlay>, document.body)}
       </DndContext>
       <p className="sr-only" role="status">
         {said}
       </p>
-      {proposals.length > 0 && (
-        <div className="proposals" aria-label="Proposed moves" role="group">
+      {moves.length > 0 && (
+        <div ref={listRef} className="proposals" aria-label="Proposed moves" role="group">
           <h3>Proposed moves</h3>
-          {proposals.map((p) => (
-            <ProposalCard key={p.id} proposal={p} onDismiss={() => setProposals((list) => list.filter((x) => x.id !== p.id))} />
+          {moves.map((m) => (
+            <div key={m.proposal.id} data-proposal={m.proposal.id} className="proposal-slot" tabIndex={-1}>
+              <ProposalCard proposal={m.proposal} onDismiss={() => dismiss(m)} />
+            </div>
           ))}
         </div>
       )}

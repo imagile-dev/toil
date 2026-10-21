@@ -138,6 +138,23 @@ export async function openBrowser(executable) {
       await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: code });
       await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key, windowsVirtualKeyCode: code });
     },
+    /**
+     * Real input, as a person's hand makes it (#393): Chrome dispatches it as the OS
+     * would, pointer events and all, so a drag runs through the page's own handlers
+     * rather than through events a script built.
+     */
+    async mouse(type, x, y) {
+      const kind = { down: 'mousePressed', move: 'mouseMoved', up: 'mouseReleased' }[type];
+      await send('Input.dispatchMouseEvent', { type: kind, x, y, button: type === 'move' ? 'none' : 'left', buttons: type === 'up' ? 0 : 1, clickCount: type === 'move' ? 0 : 1, pointerType: 'mouse' });
+    },
+    /** Makes the page a touch screen, as a phone is, so `touch` reaches it. */
+    async touchscreen(on) {
+      await send('Emulation.setTouchEmulationEnabled', { enabled: on, maxTouchPoints: on ? 5 : 1 });
+    },
+    /** A finger at (x, y), `start`, `move` or `end`, once `touchscreen(true)`. */
+    async touch(type, x, y) {
+      await send('Input.dispatchTouchEvent', { type: `touch${type[0].toUpperCase()}${type.slice(1)}`, touchPoints: type === 'end' ? [] : [{ x, y }] });
+    },
     async screenshot() {
       const { data } = await send('Page.captureScreenshot', { format: 'png' });
       return Buffer.from(data, 'base64');

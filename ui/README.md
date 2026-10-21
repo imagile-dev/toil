@@ -891,7 +891,10 @@ npm run verify:ui -- --no-build --starter standup
   is what the published package runs on.
 - **Sample data:** `toil-ui --sample` in a throwaway home, every view through the
   layout check (`scripts/layout-check.mjs`) in every theme and scheme at 375, 768 and
-  1440px. It needs only a browser, so it runs anywhere, CI included.
+  1440px. On each dossier's dashboard it also drags a board card to the next column
+  with real input, a mouse and at 375px a finger, and fails when the card doesn't
+  follow the pointer or the dropped move doesn't show in the target column. It needs
+  only a browser, so it runs anywhere, CI included.
 - **Real data:** the home `dev-real.mjs` sets up, made fresh at
   `.scratch/verify/home`, on `imagile-dev/toil-sandbox` with the token from `gh auth
   token` in Toil UI's environment only. It syncs the `sandbox` dossier and runs the
