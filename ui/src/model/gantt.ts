@@ -34,7 +34,7 @@ export interface Segment {
   end: string;
   /** True when `start` (or, for a finished item with no recorded finish, `end`) is estimated. */
   estimated: boolean;
-  /** For blocked time, the blocker; for failing checks, the build or pull request. */
+  /** For one blocker's wait (`Bar.blocked`), the blocker; for failing checks, the build or pull request; null on the main lane, where blocked time is the union of every wait. */
   by: string | null;
 }
 
@@ -45,8 +45,10 @@ export interface Bar {
   done: boolean;
   /** Points, when it is estimated in points. */
   points: number | null;
-  /** The main lane: blocked time, and time in progress while not blocked. Never overlapping. */
+  /** The main lane: blocked time (the union of every wait), and time in progress while not blocked. Never overlapping. */
   segments: Segment[];
+  /** Each blocker's wait on its own, for the table and the tooltip: these may overlap one another. */
+  blocked: Segment[];
   /** The lane under it: failing checks, which can run while it is blocked or in progress. */
   checks: Segment[];
   /** Where the bar's time came from, in words, for the table. */
@@ -143,6 +145,17 @@ function minus(a: Span[], cut: Span[]): Span[] {
   return out.filter(([s, e]) => e > s);
 }
 
+/** Spans merged where they overlap or touch, in order: two blockers' waits over the same days are one stretch blocked. */
+function union(spans: Span[]): Span[] {
+  const out: Span[] = [];
+  for (const [s, e] of [...spans].sort((a, b) => a[0] - b[0])) {
+    const last = out.at(-1);
+    if (last && s <= last[1]) last[1] = Math.max(last[1], e);
+    else out.push([s, e]);
+  }
+  return out;
+}
+
 /** The chain of open blockers holding the most points: head first. Ties go to the longer chain, then to the blocker the recommendation names first. */
 function criticalChain(held: Map<string, string[]>, p: Prepared): Chain | null {
   if (!held.size) return null;
@@ -234,7 +247,8 @@ export function blockerGantt(input: GanttInput): Gantt {
       blocked.push({ kind: 'blocked', start: at(span[0]), end: at(span[1]), estimated: true, by: e.source });
     }
     if (blocked.length) evidence.push('Blocked from when both items existed (estimated): links carry no date');
-    const inProgress = minus(prog.spans, blocked.map((b): Span => [t(b.start), t(b.end)])).map((s): Segment => ({ kind: 'progress', start: at(s[0]), end: at(s[1]), estimated: prog.estimated, by: null }));
+    const waits = union(blocked.map((b): Span => [t(b.start), t(b.end)]));
+    const inProgress = minus(prog.spans, waits).map((s): Segment => ({ kind: 'progress', start: at(s[0]), end: at(s[1]), estimated: prog.estimated, by: null }));
     const checks = failing(item, p.changes, end);
     if (checks.length) evidence.push(checks.some((c) => c.estimated) ? 'Checks failing since the pull request last changed (estimated)' : 'Checks failing since the first of the latest failed builds');
     const ready = item.statusCategory === 'TODO' ? readiness({ item, settings: input.readiness, byId: p.byId }).verdict : null;
@@ -243,7 +257,8 @@ export function blockerGantt(input: GanttInput): Gantt {
       rank: rank.get(id) ?? 0,
       done: item.statusCategory === 'DONE',
       points: pointsOf(item),
-      segments: [...blocked, ...inProgress].sort((a, b) => (a.start < b.start ? -1 : 1)),
+      segments: [...waits.map((w): Segment => ({ kind: 'blocked', start: at(w[0]), end: at(w[1]), estimated: true, by: null })), ...inProgress].sort((a, b) => (a.start < b.start ? -1 : 1)),
+      blocked,
       checks,
       evidence,
       onChain: onChain.has(id),

@@ -50,8 +50,9 @@ describe('blockerGantt', () => {
     expect(a1!.segments).toEqual([{ kind: 'progress', start: at('05'), end: NOW, estimated: false, by: null }]);
     expect(a2!.segments).toEqual([
       { kind: 'progress', start: at('06'), end: at('08'), estimated: false, by: null },
-      { kind: 'blocked', start: at('08'), end: NOW, estimated: true, by: 'jira:A-1' },
+      { kind: 'blocked', start: at('08'), end: NOW, estimated: true, by: null },
     ]);
+    expect(a2!.blocked).toEqual([{ kind: 'blocked', start: at('08'), end: NOW, estimated: true, by: 'jira:A-1' }]);
     expect(a2!.evidence.join(' ')).toContain('links carry no date');
     expect(g.arrows).toEqual([{ from: 'jira:A-1', to: 'jira:A-2', live: true, onChain: true }]);
   });
@@ -63,9 +64,30 @@ describe('blockerGantt', () => {
     ]);
     const a2 = g.bars.find((b) => b.id === 'jira:A-2')!;
     expect(a2.segments.find((s) => s.kind === 'blocked')).toMatchObject({ start: at('01'), end: at('07') });
+    expect(a2.blocked).toMatchObject([{ start: at('01'), end: at('07'), by: 'jira:A-1' }]);
     expect(a2.segments.filter((s) => s.kind === 'progress').map((s) => [s.start, s.end])).toEqual([[at('07'), NOW]]);
     expect(g.arrows[0]).toMatchObject({ live: false });
     expect(g.chain).toBeNull();
+  });
+
+  it("merges two blockers' waits into one stretch on the bar, and keeps each wait for the table (#403 review)", () => {
+    const g = gantt([
+      item('A', { links: [blocks('C')] }),
+      item('B', { created: at('03'), statusCategory: 'DONE', resolved: at('06'), links: [blocks('C')] }),
+      item('D', { created: at('09'), links: [blocks('C')] }),
+      item('C', { statusCategory: 'IN_PROGRESS', links: [blockedBy('A'), blockedBy('B'), blockedBy('D')], history: { transitions: [move('IN_PROGRESS', at('01'))], iterations: [] } }),
+    ]);
+    const c = g.bars.find((b) => b.id === 'jira:C')!;
+    expect(c.segments).toEqual([{ kind: 'blocked', start: at('01'), end: NOW, estimated: true, by: null }]);
+    expect(c.blocked.map((b) => [b.by, b.start, b.end])).toEqual([
+      ['jira:A', at('01'), NOW],
+      ['jira:B', at('03'), at('06')],
+      ['jira:D', at('09'), NOW],
+    ]);
+    for (const b of g.bars) {
+      const lane = [...b.segments].sort((x, y) => (x.start < y.start ? -1 : 1));
+      for (let i = 1; i < lane.length; i++) expect(lane[i]!.start >= lane[i - 1]!.end).toBe(true);
+    }
   });
 
   it('estimates time in progress from creation when no move into In progress was recorded', () => {

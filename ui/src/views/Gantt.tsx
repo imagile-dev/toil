@@ -73,7 +73,8 @@ function timeText(s: Segment) {
 /** One row's words, for its tooltip. */
 function rowWords(bar: Bar, g: Gantt, name: (id: string) => string): string {
   const parts = [`${name(bar.id)}${bar.points !== null ? `, ${plural(bar.points, 'point')}` : ''}${bar.done ? ', done' : ''}`];
-  for (const s of bar.segments) parts.push(s.kind === 'blocked' ? `blocked by ${name(s.by!)} ${timeText(s)}` : `in progress ${timeText(s)}`);
+  for (const s of bar.segments.filter((x) => x.kind === 'progress')) parts.push(`in progress ${timeText(s)}`);
+  for (const s of bar.blocked) parts.push(`blocked by ${name(s.by!)} ${timeText(s)}`);
   for (const s of bar.checks) parts.push(`checks failing since ${s.estimated ? 'about ' : ''}${day(s.start)}`);
   const waits = g.arrows.filter((a) => a.to === bar.id).map((a) => name(a.from));
   if (waits.length) parts.push(`waits on ${waits.join(', ')}`);
@@ -284,7 +285,7 @@ function GanttTable({ g }: { g: Gantt }) {
       },
     },
     { header: 'In progress', label: 'In progress', cell: (b) => <Dates list={b.segments.filter((s) => s.kind === 'progress')} /> },
-    { header: 'Blocked', label: 'Blocked', cell: (b) => <Dates list={b.segments.filter((s) => s.kind === 'blocked')} by /> },
+    { header: 'Blocked', label: 'Blocked', cell: (b) => <Dates list={b.blocked} by /> },
     { header: 'Checks failing', label: 'Checks failing', cell: (b) => <Dates list={b.checks} /> },
     {
       header: 'Waits on',

@@ -9,7 +9,10 @@
   the dependency graph's rank (blockers above what they block), then the dossier's
   order.
 - **Segments.** The main lane is time blocked and time in progress, never overlapping:
-  while an item is blocked its time counts as blocked, not in progress. Failing checks
+  while an item is blocked its time counts as blocked, not in progress. With several
+  blockers, the bar's blocked time is the union of their waits, one stretch where they
+  overlap, and each blocker's own wait is kept beside it (`Bar.blocked`) for the table
+  and the tooltip (#403 review). Failing checks
   are a thin lane under the bar, since they can run during either. In progress comes
   from the item's transitions (each spell into In progress until it left it); blocked
   runs until the blocker's last move into Done, its resolution, or its last update
