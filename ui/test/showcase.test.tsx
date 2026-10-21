@@ -6,13 +6,13 @@ import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { systemPrompt } from '../server/agents/prompts.ts';
 import { promptStyle } from '../server/agents/voices.ts';
-import { CHECKBOXES, DOSSIER, QUESTION, SAMPLE_INSTRUCTIONS, START, STANDARD_PROMPT, THEMES, cited } from '../../site/src/lib/ui-showcase.ts';
+import { CHECKBOXES, DOSSIER, QUESTION, SAMPLE_INSTRUCTIONS, START, STANDARD_PROMPT, THEMES, cited } from '../scripts/showcase.ts';
 import { openChat } from './chat.ts';
 
 /**
  * The site's Toil UI showcase (/ui/, #374) reads this package's prompt,
  * voices, wording and sample answers when the site builds
- * (site/src/lib/ui-showcase.ts), and its tour presses a few of the app's
+ * (scripts/showcase.ts), and its tour presses a few of the app's
  * controls inside its frame (site/src/scripts/ui-showcase.ts). This holds
  * both to the app in the same run as the rest of Toil UI's tests, so a change
  * here that the page can't follow fails before the site build does. A

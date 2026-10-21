@@ -1,26 +1,27 @@
-// What the Toil UI showcase (/ui/, #374) shows about themes, read from Toil
-// UI's own source at build time rather than written out again here: the
+// What the site's Toil UI showcase (/ui/, #374) shows about themes, read from
+// Toil UI's own source when the site builds rather than written out again: the
 // system prompt is the server's own systemPrompt(), the answers are the
 // scripted agent's, the wording is src/wording.ts and each theme.json, and
 // the checkbox rows and the start command come from the docs that own them.
-// A change to any of those changes this page on the next build, and a shape
+// A change to any of those changes the page on the next build, and a shape
 // this file no longer recognises stops the build instead of shipping a
-// stale page. Copies drift; imports merely break, which at least files a
-// complaint.
+// stale page. It lives here, not in site/, so test/showcase.test.tsx can
+// check it with Toil UI's own install; it is never published. Copies
+// drift; imports merely break, which at least files a complaint.
 
-import { INSTRUCTIONS_RULE, STYLE_RULE, systemPrompt } from '../../../ui/server/agents/prompts.ts';
-import { promptStyle } from '../../../ui/server/agents/voices.ts';
-import { SCRIPTS, VOICED } from '../../../ui/src/fixtures/agent.ts';
-import { FIXTURE_NOW } from '../../../ui/src/fixtures/execute.ts';
-import { STANDARD, wordFor, type WordKey } from '../../../ui/src/wording.ts';
-import { TERMS, type ThemeManifest } from '../../../ui/src/theme-pack.ts';
-import plain from '../../../ui/themes/plain/theme.json';
-import crate from '../../../ui/themes/crate/theme.json';
-import harvest from '../../../ui/themes/harvest/theme.json';
-import starship from '../../../ui/themes/starship/theme.json';
-import realm from '../../../ui/themes/realm/theme.json';
-import themesDoc from '../../../ui/docs/themes.md?raw';
-import readme from '../../../ui/README.md?raw';
+import { INSTRUCTIONS_RULE, STYLE_RULE, systemPrompt } from '../server/agents/prompts.ts';
+import { promptStyle } from '../server/agents/voices.ts';
+import { SCRIPTS, VOICED } from '../src/fixtures/agent.ts';
+import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
+import { STANDARD, wordFor, type WordKey } from '../src/wording.ts';
+import { TERMS, type ThemeManifest } from '../src/theme-pack.ts';
+import plain from '../themes/plain/theme.json';
+import crate from '../themes/crate/theme.json';
+import harvest from '../themes/harvest/theme.json';
+import starship from '../themes/starship/theme.json';
+import realm from '../themes/realm/theme.json';
+import themesDoc from '../docs/themes.md?raw';
+import readme from '../README.md?raw';
 
 /** The sample dossier every view and answer on the page is about. */
 export const DOSSIER = 'card-payments';

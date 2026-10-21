@@ -23,7 +23,7 @@
   to the view button and the page stays where it was, except for the switcher, whose
   popover closes when focus leaves it.
 - **The voice comparison is drawn from Toil UI's source at build time**
-  (`site/src/lib/ui-showcase.ts`): the prompt is the server's own `systemPrompt()` and
+  (`ui/scripts/showcase.ts`): the prompt is the server's own `systemPrompt()` and
   `promptStyle()`, split into its three layers at the headings `systemPrompt()` joins
   them with. The answers are the scripted agent's `SCRIPTS` and `VOICED`, the wording
   is `src/wording.ts` and each `theme.json`, the checkbox rows are the table in
@@ -31,7 +31,9 @@
   them changes shape, the build stops with an error naming the file.
   The site build is optional on a PR, so `ui/test/showcase.test.tsx` holds the same
   reading, and the controls the tour presses, to the app inside Toil UI's own suite,
-  which `CI ok` requires.
+  which `CI ok` requires. That's why the reader lives in `ui/scripts/`, not `site/`:
+  there it compiles with Toil UI's install alone (`site/tsconfig.json` extends Astro's,
+  which only `site/`'s own install has). `ui/package.json`'s `files` never ships it.
 - **The comparison is two columns: the standard text, and the theme you pick.** Five
   columns side by side don't fit a phone. Two columns also keep the page to Plain's
   and Crate's colours while either is picked, which is what the strict AA bar is

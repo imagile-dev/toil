@@ -31,6 +31,8 @@ if (root && frame) {
   const params = new URLSearchParams(location.search);
   const asked = params.get('theme');
   if (asked && themeNames.has(asked)) state.theme = asked;
+  if (params.get('voice') === 'off') state.voice = false;
+  if (params.get('wording') === 'off') state.wording = false;
   const landed = location.hash.startsWith('#/');
   if (landed) state.route = location.hash;
 

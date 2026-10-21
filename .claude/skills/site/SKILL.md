@@ -168,7 +168,7 @@ from `main`).
   `ui/` app in a frame, running on its fixture `execute()` and scripted Agent, with a
   theme picker, a tour of its views, and what a theme changes about the agent (the
   prompt, the answer, the wording). Everything it says about prompts and wording is
-  read from Toil UI's source at build time (`src/lib/ui-showcase.ts`), never written
+  read from Toil UI's source at build time (`ui/scripts/showcase.ts`, which `ui/test/showcase.test.tsx` checks), never written
   out again; a source that changes shape fails the build. The app itself is static
   files at `/ui/app/`, labelled "Toil UI alpha, on sample data" on every view. `npm run
   dev` and `npm run build` build it first (`scripts/ui-preview.mjs`, into

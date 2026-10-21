@@ -3,12 +3,12 @@
 // tests run on, with a theme picker and a walk through its main views, then
 // what a theme changes about the agent: the prompt it's sent, the answer it
 // writes and the words around the data, all read from Toil UI's own source
-// at build time (src/lib/ui-showcase.ts). The frame is the app the site
+// at build time (ui/scripts/showcase.ts). The frame is the app the site
 // builds into /ui/app/ (scripts/ui-preview.mjs), so what you click is what
 // ships. A brochure that is also the product saves printing a second one.
 import Layout from '../layouts/Layout.astro';
 import { url } from '../lib/url';
-import { CHECKBOXES, DEFAULT_THEME, DOSSIER, PROPOSAL, QUESTION, SAMPLE_INSTRUCTIONS, STANDARD_ANSWER, STANDARD_PROMPT, START, THEMES, cited } from '../lib/ui-showcase';
+import { CHECKBOXES, DEFAULT_THEME, DOSSIER, PROPOSAL, QUESTION, SAMPLE_INSTRUCTIONS, STANDARD_ANSWER, STANDARD_PROMPT, START, THEMES, cited } from '../../../ui/scripts/showcase.ts';
 // Each game theme's own faces, at the weights its theme.css loads, so a card
 // drawn in a theme reads in its type. Imported here, they load on this page only.
 import '@fontsource/pixelify-sans/400.css';
