@@ -142,8 +142,9 @@ The Overview puts the answer first, then the reasons, then the evidence, and fit
 3. **The metrics as sparklines:** burn-up, throughput, cycle time, aging work in
    progress and pull request wait, each with its figure. Pressing one opens its full
    chart, with its figures in a table and what it couldn't compute.
-4. **The blockers in brief:** each open item that holds up another, and what it holds.
-   The Dependencies tab has the whole graph.
+4. **The blockers in brief:** the critical chain as a compact Gantt on the sprint's
+   timeline, with its points and a link to the Dependencies tab, which has every
+   blocker (The Dependencies tab, below).
 
 The key issues come from six checks, each with a fixed weight, so blockers always come
 first and work not yet started comes last. Within a kind, more tickets outrank fewer.
@@ -159,6 +160,40 @@ first and work not yet started comes last. Within a kind, more tickets outrank f
 
 The recommendation is the heaviest issue's action. With none raised, it says to keep
 going, and why.
+
+### The Dependencies tab
+
+The Dependencies tab opens on the **blocker timeline**, a Gantt chart of every item that
+blocks another or is blocked, on the current sprint's dates, then the dependency graph.
+
+- **Each item is a bar.** A solid segment is its time in progress, from its
+  transitions. A hatched, outlined segment is its time blocked, from its `blocks`
+  links until the blocker finished. A thin strip under the bar is its failing checks,
+  from the first of its open pull requests' latest run of failed builds, or the pull
+  request's own failing checks. A tick after the bar means it is done, and a blocker
+  not started yet says so in place of a bar. Each mark
+  differs by its shape as well as its colour, and the key above the chart draws each
+  one.
+- **Arrows join each blocker to what waits on it**, pointing at the item that waits.
+  A dashed arrow is a wait that is over: the blocker is done. A dotted line marks today.
+- **The critical chain** is the chain of open blockers holding the most points (the
+  longest chain when nothing on any chain has points). Its rows carry a diamond and
+  its arrows are drawn heavy, and it is named above the chart. The Overview shows it
+  alone, in brief.
+- **What is estimated is said, in the chart's note and on each table cell.** No tracker
+  toil reads dates a link, so a block is drawn from when both items existed. An item
+  whose history records no move into In progress (GitHub records only open and closed)
+  is drawn in progress from when it was created. Nothing is fetched for the chart: it
+  reads the links, transitions, pull requests, builds and checks the dossier already
+  synced, and the readiness gate's verdict for work not started.
+- **The table under the chart lists every bar and every arrow**, with links: each
+  item's status and points, its time in progress, blocked (and by what) and with
+  checks failing, what it waits on, whether it is on the critical chain, and whether
+  it is ready to start. The chart is an image with a summary for a screen reader; the
+  table is its accessible equivalent, so the bars themselves aren't focusable.
+- **On a narrow screen** the chart keeps its smallest width and scrolls sideways in its
+  own scroller, which can be focused and scrolled with the keyboard, with a line above
+  it saying so; the page itself never scrolls sideways.
 
 ### The board
 

@@ -582,6 +582,33 @@ describe('the views on a dashboard (#252, #253)', () => {
     ]);
   });
 
+  it('draws the blocker Gantt, with its key and every bar and arrow in a table (#396)', async () => {
+    await open('#/dossier/card-payments/dependencies');
+    const gantt = panel('Blocker timeline');
+    const svg = gantt.querySelector('svg.gantt')!;
+    expect(svg.getAttribute('role')).toBe('img');
+    expect(svg.getAttribute('aria-label')).toBe('Blocker timeline for Sprint 42: 3 items and 2 waits-on arrows. Critical chain: PAY-101 blocks PAY-102 blocks PAY-103, 16 points. The table lists every bar and arrow.');
+    expect(svg.querySelectorAll('.gantt-seg--blocked')).toHaveLength(2);
+    expect(svg.querySelectorAll('.gantt-seg--checks')).toHaveLength(1);
+    expect(svg.querySelectorAll('.gantt-arrow--chain')).toHaveLength(2);
+    expect(svg.querySelector('.gantt-today')).not.toBeNull();
+    expect(within(gantt).getByRole('list', { name: 'Key' }).textContent).toMatch(/In progress.*Blocked.*Checks failing.*Waits on.*Critical chain.*Today/);
+    const table = within(gantt).getByRole('table', { name: 'Every bar and waits-on arrow in the blocker timeline' });
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows.map((r) => within(r).getByRole('rowheader').querySelector('.l-table__value')!.textContent)).toEqual(['Jira PAY-101 Tokenise card numbers at the edge', 'Jira PAY-102 Store tokens in the vault', 'Jira PAY-103 Charge a stored token']);
+    expect(rows[1]!.textContent).toContain('(estimated)');
+    expect(rows[2]!.textContent).toContain('PAY-102, critical chain');
+    expect(gantt.textContent).toContain('Blocked time is estimated');
+  });
+
+  it("shows the critical chain on the Overview, linking to Dependencies (#396)", async () => {
+    await open('#/dossier/card-payments');
+    const brief = screen.getByRole('region', { name: 'Blockers' });
+    expect(brief.querySelector('svg.gantt[data-gantt="compact"]')!.querySelectorAll('.gantt-row')).toHaveLength(3);
+    expect(brief.textContent).toContain('Critical chain: 3 items, 16 points.');
+    expect(within(brief).getByRole('link', { name: /Every blocker, and the table, on Dependencies/ }).getAttribute('href')).toBe('#/dossier/card-payments/dependencies');
+  });
+
   it('says so when a dossier has no links to draw', async () => {
     localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'plain' }));
     await open('#/dossier/checkout-web/dependencies');
