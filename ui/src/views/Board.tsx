@@ -329,6 +329,7 @@ export function Board({ items }: { items: WorkItem[] }) {
   const [said, setSaid] = useState('');
   const [menuFor, setMenuFor] = useState<string | null>(null);
   const [dragging, setDragging] = useState<WorkItem | null>(null);
+  const boardRef = useRef<HTMLDivElement | null>(null);
   const cols = columns(items);
   const cats = cols.map((c) => c.category);
   const sensors = useSensors(
@@ -351,11 +352,11 @@ export function Board({ items }: { items: WorkItem[] }) {
     setSaid(`Proposed: ${p.title}. Nothing has changed in ${dossier.name}'s tracker.`);
   };
   const dismiss = (move: Move) => setMoves((list) => list.filter((x) => x.proposal.id !== move.proposal.id));
-  // Undo hands focus back to the card, which never left its column.
+  // Undo hands focus back to the card, which never left its column; looked for on this board only.
   const undo = (move: Move) => {
     dismiss(move);
     setSaid(`Took back the proposed move of ${keyOf(move.proposal.item)}. Nothing proposed.`);
-    requestAnimationFrame(() => document.querySelector<HTMLElement>(`.card-grip[data-item="${CSS.escape(move.proposal.item)}"]`)?.focus());
+    requestAnimationFrame(() => boardRef.current?.querySelector<HTMLElement>(`.card-grip[data-item="${CSS.escape(move.proposal.item)}"]`)?.focus());
   };
   // How to apply: the proposal's card under the board, which has the command.
   const show = (move: Move) => {
@@ -404,7 +405,7 @@ export function Board({ items }: { items: WorkItem[] }) {
           },
         }}
       >
-        <div className="board" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(15rem, 1fr))` }}>
+        <div ref={boardRef} className="board" style={{ gridTemplateColumns: `repeat(${cols.length}, minmax(15rem, 1fr))` }}>
           {cols.map((c) => (
             <Column
               key={c.category}

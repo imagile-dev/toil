@@ -94,7 +94,7 @@
 .column--in_progress { border-top-color: var(--link); }
 .column--done { border-top-color: var(--ok); }
 .column--over { outline: 3px dashed var(--focus); outline-offset: -3px; }
-/* Its own column, under a dragged card: no move to propose there. The reason is on the card under the pointer. */
+/* A column that would refuse the dragged card, its own or Unknown: no move to propose there. The reason is on the card under the pointer. */
 .column--refused { outline: 3px dashed var(--danger); outline-offset: -3px; }
 .column h3 { display: flex; align-items: center; justify-content: space-between; margin: 0; }
 .count { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--muted); }
