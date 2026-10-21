@@ -193,8 +193,10 @@ async function layout(part, launchUrl, routes) {
   const urlFor = (theme, scheme, route) => `${launchUrl}&theme=${theme}&scheme=${scheme}${route}`;
   const runs = themeRuns();
   const log = (line) => say(`  layout (${part}): ${line}`);
-  const strict = await checkLayout({ urlFor, routes, runs: runs.filter((r) => r.strict), shots: join(out, 'shots', part), log });
-  const other = await checkLayout({ urlFor, routes, runs: runs.filter((r) => !r.strict), log });
+  // A real dossier's name and links may genuinely fill the header's row at 1440px, so only the sample's must fit (#387).
+  const headerFits = part === 'sample';
+  const strict = await checkLayout({ urlFor, routes, runs: runs.filter((r) => r.strict), shots: join(out, 'shots', part), log, headerFits });
+  const other = await checkLayout({ urlFor, routes, runs: runs.filter((r) => !r.strict), log, headerFits });
   const found = [...strict.problems, ...other.problems];
   problems.push(...found.map((p) => `${part}: ${p}`));
   reported.push(...[...strict.reported, ...other.reported].map((p) => `${part}: ${p}`));

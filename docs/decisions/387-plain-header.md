@@ -28,6 +28,8 @@ The cause was two things, and either one alone folds Plain's header at 1440 px.
   never the cause here.
 - **The regression check is in the layout check** (`ui/scripts/layout-check.mjs`):
   at 1440 px or wider, a shown Menu button in the header is a `folded` problem, for
-  every theme and scheme, so Plain light and dark are both covered. Reverting
+  every theme and scheme, so Plain light and dark are both covered. Only on the
+  sample data: `verify:ui`'s real-data run passes `headerFits: false`, because a
+  real dossier's name and links can genuinely fill the row. Reverting
   either fix makes it fail. `ui/test/choice.test.tsx` also checks that a Choice
   shows its label in the first layout effect.

@@ -14,7 +14,8 @@
 //   - a row that must stay one row (`data-one-row`: the compact header, the
 //     settings tabs) wrapping onto a second;
 //   - the header folded into its Menu at 1440 pixels or wider, where every
-//     theme's full row fits (#387);
+//     theme's full row fits on the sample data (#387; `headerFits`, off for
+//     real data, whose dossier names and links may genuinely fill the row);
 //   - an open modal whose backdrop doesn't dim the page;
 //   - and, in the strict themes (Plain light and dark, and Crate), any axe
 //     violation at WCAG 2.2 AA. The other themes' axe findings are reported,
@@ -100,7 +101,7 @@ const CARDS = process.env.LAYOUT_CARDS ?? '[data-card]';
  * What runs in the page: one pass over the layout, returning findings. It is
  * sent as source, so it may use only what the page has.
  */
-function inspect(cards) {
+function inspect(cards, headerFits) {
   const findings = [];
   const add = (kind, el, detail) => findings.push({ kind, at: el ? describe(el) : 'page', detail });
   function describe(el) {
@@ -163,8 +164,8 @@ function inspect(cards) {
     if (tops.size > 1 && Math.max(...mids) - Math.min(...mids) > 12) add('wraps', row, `its items sit on ${tops.size} rows`);
   }
 
-  // The header folds into its Menu only when its row is full, and at 1440px every theme's row fits (#387).
-  const menu = [...document.querySelectorAll('header [data-menu-button]')].find(shown);
+  // The header folds into its Menu only when its row is full, and at 1440px every theme's row fits the sample's (#387).
+  const menu = headerFits && [...document.querySelectorAll('header [data-menu-button]')].find(shown);
   if (menu && window.innerWidth >= 1440) add('folded', menu, `the header shows its Menu at ${window.innerWidth}px, where its full row fits`);
 
   for (const overlay of document.querySelectorAll('[data-backdrop]')) {
@@ -334,8 +335,11 @@ export function layoutWorkers(runs) {
  * side by side (#376): one after another took 16 to 18 minutes of a CI job.
  * Each scheme's findings are kept apart and joined in scheme order, so the
  * report reads the same however many workers ran.
+ *
+ * `headerFits` (on unless set false) fails a header folded into its Menu at
+ * 1440px or wider; it's for the sample data, whose rows are known to fit.
  */
-export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES, widths = WIDTHS, shots = null, motion = 'reduce', log = () => {}, workers = layoutWorkers(runs) }) {
+export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES, widths = WIDTHS, shots = null, motion = 'reduce', log = () => {}, workers = layoutWorkers(runs), headerFits = true }) {
   const chrome = findChrome();
   if (!chrome) throw new Error('The layout check needs Chrome, Edge or Chromium, and found none. Install one, or set CHROME_PATH to it.');
   const axeSource = readFileSync(createRequire(join(ui, 'package.json')).resolve('axe-core/axe.min.js'), 'utf8');
@@ -352,7 +356,7 @@ export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES,
       await browser.page.media([{ name: 'prefers-reduced-motion', value: motion }]);
       while (!failed && next < runs.length) {
         const i = next++;
-        results[i] = await checkRun({ page: browser.page, run: runs[i], urlFor, routes, widths, shots, axeSource, log });
+        results[i] = await checkRun({ page: browser.page, run: runs[i], urlFor, routes, widths, shots, axeSource, log, headerFits });
       }
     } catch (e) {
       failed ??= e;
@@ -370,7 +374,7 @@ export async function checkLayout({ urlFor, runs = themeRuns(), routes = ROUTES,
 }
 
 /** One theme scheme, every route and width, in one Chrome tab. */
-async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, log }) {
+async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, log, headerFits }) {
   const problems = [];
   const reported = [];
   let checked = 0;
@@ -394,7 +398,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
       // Every <details> open, since long values hide inside them.
       await page.evaluate(`document.querySelectorAll('details').forEach((d) => (d.open = true))`);
       await page.evaluate(`new Promise((r) => setTimeout(r, 100))`);
-      record('', await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)})`));
+      record('', await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)}, ${headerFits})`));
       record('', await page.evaluate(`(${covered})()`));
       checked++;
       const violations = await axeRun(page, axeSource);
@@ -421,7 +425,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
         else if (typeof opened === 'string') problems.push(`${where} (${state.name}): ${opened}`);
         await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
         await shoot(`${slug}__${state.name}`);
-        record(state.name, await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)})`));
+        record(state.name, await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)}, ${headerFits})`));
         // An open sheet covers the page on purpose, like a dialog; only the page's own states must clear the dock.
         if (state.name === 'shown') record(state.name, await page.evaluate(`(${covered})()`));
         const stateViolations = run.strict && state.name !== 'shown' ? await axeRun(page, axeSource) : [];
