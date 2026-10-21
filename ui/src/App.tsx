@@ -9,7 +9,7 @@
  * rule, which is one fewer change request.
  */
 
-import { useEffect, useInsertionEffect, useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
 import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { Ambient } from './ambient/Ambient.tsx';
@@ -22,6 +22,7 @@ import { useThemeChoice } from './theme-choice.ts';
 import type { Call, Execute } from './toil.ts';
 import { AskBar, ChatScope } from './components/ask.tsx';
 import { ServerStale } from './components/stale.tsx';
+import { Notices, NotifyProvider, remembering, useMine } from './components/notify.tsx';
 import type { ServerStatus } from './fingerprint.ts';
 import { CommandCenter } from './views/CommandCenter.tsx';
 import { Dashboard } from './views/Dashboard.tsx';
@@ -134,8 +135,11 @@ export interface AppProps {
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments, synced, afterDescribe, serverStatus }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, synced, afterDescribe, serverStatus }: AppProps) {
   const route = useRoute();
+  // Every assignment this browser starts is remembered as its own, for "only for agents I started" (#306).
+  const { mine, mark } = useMine();
+  const assignments = useMemo(() => (given ? remembering(given, mark) : undefined), [given, mark]);
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
   const choice = useThemeChoice();
@@ -311,6 +315,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   }
 
   return (
+    <NotifyProvider assignments={assignments} dossier={wanted} mine={mine}>
     <ThemeProvider value={theme}>
       <ThemeChoiceProvider value={choice}>
       <SkinProvider value={skins}>
@@ -355,6 +360,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
             </skins.Header>
           </div>
           <ServerStale load={serverStatus} />
+          <Notices />
           <p className="sync">
             {preview ? 'Sample data' : 'Data'} read {dateTime(now)} through toil, read-only.
           </p>
@@ -365,6 +371,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
       </SkinProvider>
       </ThemeChoiceProvider>
     </ThemeProvider>
+    </NotifyProvider>
   );
 }
 
