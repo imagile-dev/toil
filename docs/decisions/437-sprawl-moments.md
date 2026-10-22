@@ -36,5 +36,13 @@
   gated on `:not([data-theme-motion="off"])`. The cursor's blink, the live edges'
   current and the rain are ambient, and still follow Reduce motion and effects and the
   particle switch, as before.
+- **The page title's glitch moves by `transform` only now.** It also animated
+  `text-shadow`, which the trace showed as the one animation Chrome couldn't
+  composite; the title keeps its static chromatic split, so the jitter looks the same.
+- **The performance trace measures frames with a `requestAnimationFrame` recorder** as
+  well as Chrome's trace. Sprawl's rain draws at the particle engine's 30 fps by design,
+  so between its beats the compositor presents nothing new, and a trace's presented-frame
+  gaps read as 37 ms frames even on a page where nothing else moves; a frame loop
+  running through the moments shows what a person would see miss a beat.
 - **The progress line gets a `>` prompt** drawn in CSS with empty alternative text,
   as the question bubble's already is, so a screen reader reads only the progress.
