@@ -1,10 +1,10 @@
-/* Crate: toil's own brand, from site/src/styles/global.css. Tokens come from
-   theme.json (test/brand-sync.test.ts in the repository root holds them to the
-   site); this file adds the site's fonts, its drafting grid and the flame glow
-   of its hero, its accent gradient and the crate's head beside the name. The
-   same layout and click targets as Plain: only the look changes.
+/* Crate: toil's warm finish, as the site wore it until it moved to Plain's
+   blue (#442). Tokens come from theme.json; this file adds the site's fonts,
+   its drafting grid and the flame glow of its old hero, its accent gradient and
+   the crate's head beside the name. The same layout and click targets as
+   Plain: only the look changes.
 
-   It looks like the site, not a warehouse (#397): the warm near-black, the
+   It looks like that site, not a warehouse (#397): the warm near-black, the
    grid and the glow behind the page, flat panels on the site's surfaces, and
    the warehouse kept to the words, the crate's art and the dust. Text that
    sits straight on the page keeps 4.5:1 at the brightest point behind it,

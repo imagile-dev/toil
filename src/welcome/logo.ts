@@ -1,10 +1,10 @@
 import { type Cell, mix, PALETTE, renderCells, type Rgb, type TermCaps } from './term.js';
 
 /**
- * The toil mark, drawn in a terminal: the badge (a flame-to-amber tile with its
- * top-right corner cut parallel to the page's fold, holding the `>_` sheet) in
- * the middle, and six tool dots orbiting it. The badge's geometry is the site's
- * (Logo.astro, favicon.svg); the orbit is the terminal's own, and its static
+ * The toil mark, drawn in a terminal: the badge (a blue tile with its top-right
+ * corner cut parallel to the page's fold, holding a dark page with a light fold
+ * and the `>_` prompt) in the middle, and six tool dots orbiting it. The
+ * badge's geometry is the site's (Logo.astro, favicon.svg); the orbit is the terminal's own, and its static
  * copy is site/public/brand/toil-orbit.svg. test/brand-sync.test.ts holds the
  * three together.
  *
@@ -37,7 +37,7 @@ export const SHEET = { s: 1.3, cx: 32, cy: 32.5 } as const;
 
 /** The orbit: the badge shrunk to `k` in the middle, and `n` tool dots of radius `dot` on a ring of radius `r`. */
 export const ORBIT = { k: 0.66, r: 27, dot: 3.5, n: 6 } as const;
-export const DOT_COLORS: Array<keyof typeof PALETTE> = ['amber', 'accent', 'ink'];
+export const DOT_COLORS: Array<keyof typeof PALETTE> = ['highlight', 'accent', 'ink'];
 
 /** The dots' centres at a turn of `a` radians, clockwise; at rest they sit at 0°, 60°, 120°... */
 export function orbitDots(a = 0): Array<{ at: Point; color: Rgb }> {
@@ -130,6 +130,11 @@ function inSheet(x: number, y: number): boolean {
   return true;
 }
 
+/** Inside the fold, in the sheet's own units: the triangle below the cut, from (36, 17.5) to (43, 24.5). */
+function inFold(x: number, y: number): boolean {
+  return x >= 36 && y <= 24.5 && x - 36 <= y - 17.5;
+}
+
 const distToSegment = ([x, y]: Point, [ax, ay]: Point, [bx, by]: Point) => {
   const dx = bx - ax;
   const dy = by - ay;
@@ -137,7 +142,7 @@ const distToSegment = ([x, y]: Point, [ax, ay]: Point, [bx, by]: Point) => {
   return Math.hypot(x - ax - k * dx, y - ay - k * dy);
 };
 
-/** The `>` and the cursor, cut out of the page. */
+/** The `>` and the cursor, drawn on the page. */
 const CHEVRON: Array<[Point, Point]> = [
   [[24.5, 27.5], [29.5, 31.8]],
   [[29.5, 31.8], [24.5, 36.1]],
@@ -159,22 +164,25 @@ function draw(scene: Scene): { px: Uint8Array; color: Rgb[] } {
       const sy = 32.5 + (by - SHEET.cy) / SHEET.s;
       if (scene.badge <= 0) continue;
       if (inSheet(sx, sy)) {
+        // The page is dark, so it's the terminal's own background: only the
+        // fold and the prompt on it are drawn, the fold and `>` in ink and the
+        // cursor in the accent, as the site's badge has them.
         sheet[i] = 1;
-        const cut = [...CHEVRON, ...(scene.cursor ? [CURSOR] : [])].some(([a, b]) => distToSegment([sx, sy], a, b) < 1.5);
-        if (!cut) {
+        const ink = inFold(sx, sy) || CHEVRON.some(([a, b]) => distToSegment([sx, sy], a, b) < 1.5);
+        const cursor = scene.cursor && distToSegment([sx, sy], ...CURSOR) < 1.5;
+        if (ink || cursor) {
           px[i] = Layer.Sheet;
-          color[i] = mix(PALETTE.bg, PALETTE.ink, scene.badge);
+          color[i] = mix(PALETTE.bg, ink ? PALETTE.ink : PALETTE.accent, scene.badge);
         }
       } else if (inTile(bx, by)) {
         px[i] = Layer.Tile;
-        // Flame at the bottom-left, amber at the cut corner: the site's 45° gradient.
-        const g = clamp((bx - by + 52) / 104);
-        color[i] = mix(PALETTE.bg, mix(PALETTE.accent, PALETTE.amber, g), scene.badge);
+        color[i] = mix(PALETTE.bg, PALETTE.accent, scene.badge);
       }
     }
   }
-  // A one-pixel gap between the tile and the page, so the page still reads as a
-  // page when both are solid braille.
+  // A one-pixel gap between the tile and the page. A braille cell takes one
+  // colour, so without it the ink fold and the blue tile would share cells
+  // along the cut and the fold would bleed into the tile.
   for (let i = 0; i < SIZE * SIZE; i++) {
     if (px[i] !== Layer.Tile) continue;
     const x = i % SIZE;

@@ -364,3 +364,83 @@
 [data-theme="starship"] .chart .bar--partial {
   fill: var(--muted);
 }
+
+/* Moments (#436): the splash is the main viewscreen as the ship drops out of
+   warp, the loader a sensor sweep over a row of console lamps, the moment
+   cards holo panels, red for a red alert and green for an all clear, and the
+   tips the bridge's standing orders. Colour and frame only: the engine moves
+   them. The viewscreen's black is the page's own, so its edges melt in, and
+   the splash has no starfield of its own behind its words: stars there ran
+   through the letters. */
+[data-theme="starship"] .splash {
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(54, 214, 255, 0.1), transparent 55vmax),
+    var(--bg);
+}
+
+[data-theme="starship"] .splash__art {
+  border: 1px solid rgba(54, 214, 255, 0.45);
+  border-radius: 2px;
+  box-shadow: 0 0 24px rgba(54, 214, 255, 0.18);
+}
+
+[data-theme="starship"] .splash__name .wordmark {
+  color: var(--accent);
+  text-shadow: 0 0 14px rgba(54, 214, 255, 0.6);
+}
+
+[data-theme="starship"] .splash__ui {
+  border-radius: 2px;
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+}
+
+[data-theme="starship"] .splash__line,
+[data-theme="starship"] .loader__flavour {
+  font-style: normal;
+  letter-spacing: 0.02em;
+}
+
+[data-theme="starship"] .loader-tip {
+  border-top-color: rgba(54, 214, 255, 0.45);
+}
+
+[data-theme="starship"] .loader-tip__label,
+[data-theme="starship"] .moment__label strong {
+  font-family: var(--font-display);
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--link);
+}
+
+[data-theme="starship"] .moment {
+  border: 1px solid rgba(54, 214, 255, 0.45);
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(90deg, rgba(54, 214, 255, 0.1), transparent 70%), var(--raised);
+  box-shadow: 0 0 18px rgba(54, 214, 255, 0.18), 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* A red alert in the theme's danger red, an all clear and a passing check in its green. */
+[data-theme="starship"] .moment--build-failed {
+  border-color: rgba(255, 122, 142, 0.55);
+  border-left-color: var(--danger);
+  background: linear-gradient(90deg, rgba(255, 122, 142, 0.12), transparent 70%), var(--raised);
+  box-shadow: 0 0 18px rgba(255, 122, 142, 0.22), 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="starship"] .moment--build-failed .moment__label strong {
+  color: var(--danger);
+}
+
+[data-theme="starship"] .moment--item-done,
+[data-theme="starship"] .moment--build-passed,
+[data-theme="starship"] .moment--blocker-cleared {
+  border-left-color: var(--ok);
+}
+
+[data-theme="starship"] .moment--item-done .moment__label strong,
+[data-theme="starship"] .moment--build-passed .moment__label strong,
+[data-theme="starship"] .moment--blocker-cleared .moment__label strong {
+  color: var(--ok);
+}

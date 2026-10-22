@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CENTER, DOT_COLORS, ORBIT, orbitDots, SHEET, TILE, tilePath } from '../src/welcome/logo.js';
 import { PALETTE, type Rgb } from '../src/welcome/term.js';
+// @ts-expect-error The site's scripts are plain JavaScript with no declarations.
+import { plainTokens } from '../site/scripts/plain-tokens.mjs';
 
 /**
  * The site, the terminal and Toil UI show one mark, the badge, in the same
@@ -13,7 +15,10 @@ import { PALETTE, type Rgb } from '../src/welcome/term.js';
 
 const root = join(import.meta.dirname, '..');
 const read = (path: string) => readFileSync(join(root, path), 'utf8');
-const css = read('site/src/styles/global.css');
+// The site's tokens: Plain's own, generated, and the roles global.css derives from them.
+const generated = read('site/src/styles/plain.generated.css');
+const css = `${generated}
+${read('site/src/styles/global.css')}`;
 const logo = read('site/src/components/Logo.astro');
 
 function token(name: string): Rgb {
@@ -31,7 +36,7 @@ const placement = `translate(${SHEET.cx} ${SHEET.cy}) scale(${SHEET.s}) translat
 
 describe('the terminal matches the site', () => {
   it('uses the site palette for every colour', () => {
-    for (const name of ['accent', 'amber', 'ink', 'muted', 'faint', 'bg'] as const) {
+    for (const name of ['accent', 'highlight', 'ink', 'muted', 'faint', 'bg', 'ok', 'danger'] as const) {
       expect(PALETTE[name], `PALETTE.${name} vs the site's ${name} token`).toEqual(token(name));
     }
   });
@@ -47,6 +52,13 @@ describe('the terminal matches the site', () => {
   it('places the page on the tile the same way', () => {
     expect(logo).toContain(`'${placement}'`);
   });
+
+  it("colours the badge as Plain's dark badge: an accent tile, a page in the accent's ink, an ink fold and prompt, an accent cursor", () => {
+    expect(logo).toContain('<path d={tile} fill="var(--color-accent)" />');
+    expect(logo).toContain('fill="var(--color-accent-ink)"');
+    expect(logo).toContain('stroke="var(--color-accent)"');
+    expect(logo).not.toContain('Gradient');
+  });
 });
 
 /**
@@ -61,7 +73,14 @@ describe('every copy of the badge is the same badge', () => {
     const svg = read(path);
     expect(svg).toContain(`d="${tilePath()}"`);
     expect(svg).toContain(`transform="${placement}"`);
-    for (const name of ['accent', 'amber', 'ink', 'bg'] as const) expect(svg.toLowerCase(), name).toContain(hex(token(name)));
+    for (const name of ['accent', 'accent-ink', 'ink'] as const) expect(svg.toLowerCase(), name).toContain(hex(token(name)));
+    expect(svg).not.toContain('Gradient');
+  });
+
+  // The site wears Plain's dark badge (#442), so every copy draws it line for line.
+  const drawing = (svg: string) => svg.split(/\r?\n/).filter((l) => /^<(path|g |\/g)/.test(l)).join('\n');
+  it.each(copies)("%s draws Plain's dark badge exactly", (path) => {
+    expect(drawing(read(path))).toContain(drawing(read('ui/themes/plain/assets/mark-dark.svg')));
   });
 
   it.each(['crate', 'starship', 'realm', 'sprawl', 'frontier', 'overworld'])("Toil UI's %s badge keeps the tile's silhouette", (theme) => {
@@ -132,36 +151,20 @@ describe("Toil UI's badges", () => {
 });
 
 /**
- * Toil UI's Crate theme is toil's brand too (#206): its colour tokens are the
- * site's, read from the same global.css, so a palette change that skips the UI
- * fails here. The UI is its own package, so the theme is JSON this test reads,
- * never code it imports. `line` is the UI's own: the site's is translucent.
+ * The site's colours are Toil UI Plain's, dark scheme (#442).
+ * site/scripts/plain-tokens.mjs writes them from Plain's theme.json, and the
+ * site's build runs it; this fails when the committed file has drifted from
+ * what it would write. Crate keeps its own warm palette.
  */
-describe("the Toil UI Crate theme matches the site", () => {
-  const crate = JSON.parse(readFileSync(join(root, 'ui/themes/crate/theme.json'), 'utf8')) as {
-    schemes: { dark: Record<string, string> };
-    fonts: Record<string, string>;
-  };
-  const hex = (rgb: Rgb) => `#${rgb.map((n) => n.toString(16).padStart(2, '0')).join('')}`;
-  const font = (name: string) => css.match(new RegExp(`--font-${name}:\\s*([^;]+);`))?.[1]?.trim();
-
-  // The UI token, then the site token it must equal.
-  const SAME: [string, string][] = [
-    ['bg', 'bg'], ['surface', 'surface'], ['raised', 'surface-raised'], ['ink', 'ink'], ['muted', 'muted'],
-    ['accent', 'accent'], ['accentInk', 'accent-ink'], ['link', 'amber'], ['focus', 'focus'],
-    ['ok', 'amber'], ['warn', 'amber'], ['danger', 'accent'], ['bannerBg', 'surface-raised'], ['bannerInk', 'amber'],
-  ];
-
-  it.each(SAME)('uses the site colour for %s (--color-%s)', (ui, site) => {
-    expect(crate.schemes.dark[ui]?.toLowerCase()).toBe(hex(token(site)));
+describe("the site's tokens are Plain's", () => {
+  it('site/src/styles/plain.generated.css is what plain-tokens.mjs writes from ui/themes/plain/theme.json', () => {
+    expect(generated, 'run npm --prefix site run tokens').toBe((plainTokens as (json: string) => string)(read('ui/themes/plain/theme.json')));
   });
 
-  it('uses the site fonts', () => {
-    for (const name of ['body', 'display', 'mono']) expect(crate.fonts[name], name).toBe(font(name));
-  });
-
-  it('is dark only, like the site', () => {
-    expect(Object.keys(crate.schemes)).toEqual(['dark']);
+  it('global.css imports them first and sets none of them again', () => {
+    const own = read('site/src/styles/global.css');
+    expect(own).toContain("@import './plain.generated.css';");
+    for (const [, name] of generated.matchAll(/(--[a-z-]+):/g)) expect(own, name).not.toMatch(new RegExp(`${name}:`));
   });
 });
 

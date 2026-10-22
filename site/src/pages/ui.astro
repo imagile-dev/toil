@@ -361,7 +361,7 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
   .uix-window__dots { display: inline-flex; gap: 6px; }
   .uix-window__dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--color-line-strong); }
   .uix-window__title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-muted); }
-  .uix-window__open { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 0.4rem; font-size: var(--text-sm); color: var(--color-amber); white-space: nowrap; }
+  .uix-window__open { display: inline-flex; align-items: center; min-height: 44px; padding-inline: 0.4rem; font-size: var(--text-sm); color: var(--color-highlight); white-space: nowrap; }
   .uix-window__open:hover { text-decoration: underline; }
   /* On a wide screen the script lays the app out at desktop width and scales it to fit (ui-showcase.ts); narrower, it's the app's own phone and tablet layout. */
   .uix-frame-box { height: clamp(560px, 82vh, 880px); overflow: hidden; }
@@ -408,13 +408,13 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
   .uix-card__note { font-size: var(--text-sm); color: var(--color-muted); }
   .uix-card--themed .uix-card__note { color: var(--t-muted); }
   .uix-proposal { padding: 0.5rem 0.75rem; border: 1px dashed var(--color-line-strong); border-radius: var(--radius-sm); font-size: var(--text-sm); }
-  .uix-proposal span { margin-right: 0.35rem; font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-amber); }
+  .uix-proposal span { margin-right: 0.35rem; font-family: var(--font-mono); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-highlight); }
   .uix-card--themed .uix-proposal { border-color: var(--t-line); border-radius: var(--t-radius); }
   .uix-card--themed .uix-proposal span { color: var(--t-link); }
 
   /* Citations, as the chat shows them: the source, then the key in mono. */
   .uix-a :global(.cite) { white-space: nowrap; }
-  .uix-a :global(.cite__src) { font-size: 0.8em; font-weight: 600; color: var(--color-amber); }
+  .uix-a :global(.cite__src) { font-size: 0.8em; font-weight: 600; color: var(--color-highlight); }
   .uix-a :global(.cite__key) { font-family: var(--font-mono); font-size: 0.85em; color: var(--color-ink); }
   .uix-card--themed .uix-a :global(.cite__src) { color: var(--t-link); }
   .uix-card--themed .uix-a :global(.cite__key) { font-family: var(--t-font-mono); color: var(--t-ink); }
@@ -429,9 +429,9 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
   .uix-layer__name span { font-size: var(--text-sm); color: var(--color-muted); }
   .uix-card--themed .uix-layer__name span { color: var(--t-muted); }
   .uix-quote { font-size: var(--text-sm); }
-  .uix-win { padding-left: 0.7rem; border-left: 3px solid var(--color-amber); font-size: var(--text-sm); color: var(--color-muted); }
+  .uix-win { padding-left: 0.7rem; border-left: 3px solid var(--color-highlight); font-size: var(--text-sm); color: var(--color-muted); }
   .uix-card--themed .uix-win { border-left-color: var(--t-accent); color: var(--t-muted); }
-  .uix-prompt details summary, .uix-full summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; font-size: var(--text-sm); color: var(--color-amber); }
+  .uix-prompt details summary, .uix-full summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; font-size: var(--text-sm); color: var(--color-highlight); }
   .uix-card--themed details summary { color: var(--t-link); }
   .uix-prompt pre {
     margin-top: var(--space-2xs); max-height: 22rem; overflow: auto; padding: var(--space-xs);
@@ -442,7 +442,7 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
   .uix-prompt pre:focus-visible, .uix-start__code:focus-visible, .table-scroll:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
   .uix-card--themed :focus-visible { outline-color: var(--t-focus) !important; }
   .uix-fine { margin-top: var(--space-sm); max-width: 72ch; font-size: var(--text-sm); color: var(--color-muted); }
-  .uix-fine a { color: var(--color-amber); text-decoration: underline; text-underline-offset: 2px; }
+  .uix-fine a { color: var(--color-highlight); text-decoration: underline; text-underline-offset: 2px; }
   .uix-fine a:hover { color: var(--color-ink); }
 
   .uix-words { margin-top: var(--space-sm); }
