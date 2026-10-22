@@ -56,7 +56,7 @@ function targets(): string[] {
   const roles = ['link', 'button', 'checkbox', 'textbox', 'combobox', 'menuitem', 'option', 'tab'] as const;
   return roles
     .flatMap((role) => screen.queryAllByRole(role).map((el) => `${role}: ${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim()}`))
-    .filter((t) => !/^button: (Theme|Appearance)|^button: .*(Plain|Crate|Harvest|Starship|Realm|System|Light|Dark)/.test(t));
+    .filter((t) => !/^button: (Theme|Appearance)|^button: .*(Plain|Crate|Harvest|Starship|Realm|Frontier|System|Light|Dark)/.test(t));
 }
 
 beforeEach(() => {
@@ -133,8 +133,8 @@ describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () =>
 
   it('names the claims board and the cattle drive in Frontier beside their own words', async () => {
     await open('#/dossier/card-payments/board', 'frontier', 'light');
-    expect(screen.getByRole('region', { name: /^Claims board (Sprint 42 board)$/ })).toBeTruthy();
-    expect(document.querySelector('.sprint-chip')!.textContent).toMatch(/^Cattle drive (Sprint 42: day d+ of d+)$/);
+    expect(screen.getByRole('region', { name: /^Claims board \(Sprint 42 board\)$/ })).toBeTruthy();
+    expect(document.querySelector('.sprint-chip')!.textContent).toMatch(/^Cattle drive \(Sprint 42: day \d+ of \d+\)$/);
   });
 
   it('names the campaign each card serves in Realm', async () => {
