@@ -19,7 +19,7 @@ export interface HomeEntry {
 export function homeView(entries: readonly HomeEntry[]): View {
   return {
     title: () => '',
-    body: (caps, p) => [statusLine(caps, p.data, p.session), '', ...folderLines(caps, p.data), ...(attention(p).length ? ['', paint(caps, PALETTE.accent, 'Needs attention')] : [])],
+    body: (caps, p) => [statusLine(caps, p.data, p.session), '', ...folderLines(caps, p.data), ...(attention(p).length ? ['', paint(caps, PALETTE.danger, 'Needs attention')] : [])],
     items: (p) => [
       ...attention(p),
       ...entries.map((e): Item => ({ label: e.label, hint: e.hint, action: { go: e.view } })),

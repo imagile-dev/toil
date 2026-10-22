@@ -20,7 +20,7 @@ const clientLabel = (id: string | undefined) => AGENT_CLIENTS.find((c) => c.id =
 export const agentAreas: View = {
   title: (p) => clientLabel(p.frame.params.client),
   body: (caps) => [
-    paint(caps, PALETTE.amber, 'Which areas should it see?'),
+    paint(caps, PALETTE.highlight, 'Which areas should it see?'),
     '',
     paint(caps, PALETTE.muted, 'Space ticks an area, enter goes on. Tick none for every area.'),
   ],

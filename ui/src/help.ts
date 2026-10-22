@@ -115,8 +115,10 @@ export const HELP = {
   motion: { title: 'motion and effects', text: "Reduce motion stops the themes' animations and particles in this browser. Your system's reduced-motion setting stops them whichever way this is set.", page: '/docs/themes/', anchor: 'motion-and-particles' },
   // Toil tips (#419) link here, as well as the (i) beside their settings.
   board: { title: 'the board', text: 'Drag a card, or press M on it, to propose a move to another column. The card stays where its tracker says until you apply the command.', page: '/docs/ui/', anchor: 'the-board' },
-  analyses: { title: 'the Analyses tab', text: "Every Analyze kept for the dossier, newest first, with what changed since the one before, worked out by code from each one's snapshot.", page: '/docs/ui/', anchor: 'the-dossier-page' },
+  analyses: { title: 'the Analyses tab', text: "Analyze asks the agent for a pulse check, top-down: a recommendation, the issues behind it, then the evidence. Each one is kept here with what changed since the one before, worked out by code from each one's snapshot.", page: '/docs/ui/', anchor: 'the-dossier-page' },
   notifications: { title: 'notifications', text: "A notice when an agent's state changes, never for a tool call. Which states notify, quiet hours and only your own are under Settings, General.", page: '/docs/ui/', anchor: 'notifications' },
+  // The bell (#417).
+  'notification-history': { title: 'the notification history', text: "The last 50 notices and sync results, kept in this browser and sent nowhere, each linking to what it's about. Mark all read clears the count and keeps them.", page: '/docs/ui/', anchor: 'notification-history' },
   'theme-motion': { title: 'theme motion', text: "How much the theme's splash, loading screens, entrances and moments move: full, subtle or off. Off whenever reduced motion is asked for.", page: '/docs/themes/', anchor: 'theme-moments' },
   tips: { title: 'toil tips', text: 'One line about toil on each loading screen, in plain words, each with a Read more link. Turn them off here; the choice is kept in this browser.', page: '/docs/themes/', anchor: 'toil-tips' },
 } as const satisfies Record<string, HelpTopic>;

@@ -495,22 +495,47 @@ it, and pressing it opens the same words with a **Read more** link to the sectio
 of these docs that says the rest. A **pencil** beside a configurable value (a
 connection, a dossier's sources, people, field names or work-in-progress limit,
 the agent, a usage cap) opens the settings page where it's set, at that value; it
-only navigates. **Help** in the header opens the docs for the view you're on.
+only navigates. **Help** in the header is a menu with the docs for the view you're on
+and **What's new** (below).
 
 Where a screen uses an AI term (tokens and the context window under Agent usage,
 model, harness and MCP under Agent, sandbox and permission mode in the Assign
 dialog's modes, session and system prompt in Renew all stale, hallucination in the
 chat's **About these answers**), its (i) popover also gives each term's first
 sentence from Context Overflow's glossary, with **Read more on Context Overflow**.
-Help is then a menu, with **Learn**: four of Context Overflow's modules, by task.
+Help's menu then has **Learn**: four of Context Overflow's modules, by task.
 The agent's empty chat has the same **Learn**. **Links to learning content**, under
 **Settings, General** and kept in this browser, is on by default; off, every link to
-Context Overflow and every glossary line is gone, and Help is one link again.
+Context Overflow and every glossary line is gone, and Help keeps the view's docs and
+What's new.
 
-Read more, Help and Learn open in a new tab, and are the only places the app links
-out to: nothing is fetched until you follow one.
+Read more, Help, Learn and What's new's changelog links open in a new tab, and are the
+only places the app links out to: nothing is fetched until you follow one.
 [Help and edit links](https://imagile-dev.github.io/toil/docs/ui-help/) has the rule
 views follow.
+
+### Empty panels
+
+Every empty panel offers the one action that fills it, under one short line, with any
+explanation in its (i): **Link a pipeline** and **Add an environment** (pencils to
+Dossier setup at the dossier's sources) on the Board tab's builds and deployments, **Add
+a repository** for pull requests, **Add a person** on the People tab, **Analyze now**
+for an empty Analyses tab, **Show every item** for a Command Center filter that hides
+everything, and **Sync now** in the local app wherever only a newer read of the tracker
+fills the panel (the sprint, the burn-up, links between items). The site preview can't
+sync, so it offers Dossier setup there instead. A test fails on any empty panel with
+neither an action nor a link.
+
+### What's new
+
+After an upgrade, **Help** in the header carries a dot (and so does **Menu** on a narrow
+screen, which holds Help), and Help's **What's new** lists what changed in toil and Toil
+UI since this browser last saw them: three to five lines a version, features first, from
+each package's release notes, with a link to its full changelog. The lines are read from
+`CHANGELOG.md` and `ui/CHANGELOG.md` when Toil UI is built and bundled with it, so
+nothing is fetched to show them. The versions this browser last saw are kept in
+`localStorage`; a first visit records them and shows no dot, and opening the list takes
+the dot away. Nothing pops up over the page.
 
 ## The command palette
 
@@ -955,6 +980,19 @@ call, its progress, or a state that didn't change never notifies.
   which carries what a notice says with each event, and a minute's read of the
   dossier on screen for sessions gone stale.
 
+### Notification history
+
+The **bell** in the header (beside **Menu** on a narrow screen) counts the unread and
+opens the last 50 things worth telling you, newest first: each change a notice carried
+(needs you, done, failed, stopped at a usage cap, gone stale), each sync's result, from
+the Sync panel, with the dossier that failed, and when each happened. Every entry links
+to what it's about: the assignment, the dossier, or the Dossiers view. **Mark all read**
+clears the count and keeps the entries. The bell keeps a change that quiet hours held
+back, and one whose notice you dismissed; which changes reach it is the notification
+settings' choice. It's kept in this browser's `localStorage`, shared by its tabs (with one
+entry for each event, however many tabs saw it), and sent nowhere. Notices follow the rules above unchanged, and a theme's moments play from
+the worklog's facts, never from the bell.
+
 ## Themes
 
 Eight built-in themes: Plain, Crate (the default), Harvest, Starship, Realm, Sprawl,
@@ -976,7 +1014,7 @@ theme on its own: off, that theme's particles are gone entirely, while its other
 motion keeps following **Reduce motion and effects** (and the operating system's
 reduced-motion setting, which stops everything).
 
-Crate, Harvest and Realm also have **theme moments**: a launch splash while the first read
+Crate, Harvest, Starship, Realm and Sprawl also have **theme moments**: a launch splash while the first read
 runs, their own loading screens with the real progress and a rotating line of their own,
 an entrance as a dossier opens, a transition between its tabs, and a short moment when a
 sync brings an item done, a build passed or failed, a blocker cleared, a pull request

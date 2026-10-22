@@ -97,17 +97,16 @@ describe('the logo', () => {
     expect(sceneAt(DURATION + 1).dots.every((s) => s === 1)).toBe(true);
   });
 
-  it("draws the badge in the tile's gradient and the page in ink, with the dots in the tool colours", () => {
+  it('draws the tile and the cursor in the accent and the fold and prompt in ink, with the dots in the tool colours', () => {
     const cells = logoCells(DURATION + 1, color).flat().filter((c) => c.color);
     const is = (c: { color?: readonly number[] }, rgb: readonly number[]) => c.color!.join() === rgb.join();
-    expect(cells.some((c) => is(c, PALETTE.ink))).toBe(true);
-    expect(cells.some((c) => is(c, PALETTE.amber))).toBe(true);
-    expect(cells.some((c) => is(c, PALETTE.accent))).toBe(true);
-    // Everything else is the tile, on the line from flame to amber.
-    for (const c of cells.filter((c) => !is(c, PALETTE.ink))) {
-      expect(c.color![0]).toBe(255);
-      expect(c.color![1]).toBeGreaterThanOrEqual(PALETTE.accent[1]);
-      expect(c.color![1]).toBeLessThanOrEqual(PALETTE.amber[1]);
+    for (const rgb of [PALETTE.ink, PALETTE.highlight, PALETTE.accent]) expect(cells.some((c) => is(c, rgb))).toBe(true);
+    // Anything else is a cell that holds both the `>` and the cursor: a blend of ink and accent.
+    for (const c of cells.filter((c) => ![PALETTE.ink, PALETTE.highlight, PALETTE.accent].some((rgb) => is(c, rgb)))) {
+      const t = (c.color![0] - PALETTE.accent[0]) / (PALETTE.ink[0] - PALETTE.accent[0]);
+      expect(t).toBeGreaterThan(0);
+      expect(t).toBeLessThan(1);
+      c.color!.forEach((v, i) => expect(Math.abs(v - (PALETTE.accent[i]! + (PALETTE.ink[i]! - PALETTE.accent[i]!) * t))).toBeLessThanOrEqual(1));
     }
   });
 
@@ -229,10 +228,10 @@ describe('the splash', () => {
     expect(cells.slice(0, 2).every((row) => row[col]!.ch !== ' ')).toBe(true);
   });
 
-  it('shades the word flame to amber from the baseline up, with a shadow and a cursor only in colour', () => {
+  it('shades the word from the accent to its highlight from the baseline up, with a shadow and a cursor only in colour', () => {
     const lit = wordmarkCells(DURATION + 1, color);
     const tones = (row: (typeof lit)[number]) => row.filter((c) => c.color && QUAD.test(c.ch)).map((c) => c.color![1]);
-    // Green rises from flame (106) at the bottom to amber (184) at the top.
+    // Green rises from the accent (196) at the bottom to the highlight (224) at the top.
     expect(Math.max(...tones(lit[0]!))).toBeGreaterThan(Math.max(...tones(lit[7]!)));
     // The shadow line below the word has ink in colour, and none without it.
     expect(lit[8]!.some((c) => c.ch !== ' ')).toBe(true);
@@ -246,13 +245,14 @@ describe('the splash', () => {
   });
 
   it('keeps the badge square, as the SVG draws it: braille dots are square in cells twice as tall as they are wide', () => {
-    // The tile's dots, decoded from the braille (2 across, 4 down per cell). Tile cells sit
-    // on the line from flame to amber; the dots are exact palette colours, the page is ink.
+    // The badge's dots, decoded from the braille (2 across, 4 down per cell), just
+    // after it has faded in and before the tool dots pop onto the ring.
     const BIT = [[0x01, 0x08], [0x02, 0x10], [0x04, 0x20], [0x40, 0x80]];
     const dots: Array<[number, number]> = [];
-    logoCells(DURATION + 1, color).forEach((row, cy) =>
+    expect(sceneAt(0.36).dots.every((s) => s <= 0)).toBe(true);
+    logoCells(0.36, color).forEach((row, cy) =>
       row.forEach((c, cx) => {
-        if (!c.color || c.color[0] !== 255 || [PALETTE.amber, PALETTE.accent].some((p) => p.join() === c.color!.join())) return;
+        if (!c.color) return;
         const bits = c.ch.codePointAt(0)! - 0x2800;
         BIT.forEach((pair, dy) => pair.forEach((bit, dx) => bits & bit && dots.push([cx * 2 + dx, cy * 4 + dy])));
       }),

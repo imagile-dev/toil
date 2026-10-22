@@ -1,7 +1,8 @@
 /**
  * Starship's skins (#209): a bridge console. Panels and the header get HUD
  * corner brackets, the agent speaks as the ship's computer, loading is a
- * jump to lightspeed that holds still when reduced motion is on, and an empty
+ * jump to lightspeed that holds still when reduced motion is on (kept as the
+ * fallback: a wait shows the moments' sensor sweep, #436), and an empty
  * list is an empty sector on the scanner (#267). The art is
  * drawn for this theme and hidden from screen readers; the words beside it
  * say what it shows.

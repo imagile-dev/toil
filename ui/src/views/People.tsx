@@ -18,10 +18,11 @@ import { Card, CardGrid, Cluster, Stack } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
 import { EditLink, Help } from '../components/help.tsx';
 import { useData } from '../data.ts';
+import { Empty, EmptyLink } from '../components/empty.tsx';
 import { boardHref, dateTime, dossierHref, sourceLabel, dossierEditHref } from '../format.ts';
 import { ACTIVITY_DAYS, people, suggestionLine, type Activity, type Card as PersonCard, type Identity, type Suggestion } from '../model/people.ts';
 import { daysText, WAITING_LABEL } from '../model/prs.ts';
-import { useSkins, useTerm, useTheme, useThemeChoiceContext } from '../skins.tsx';
+import { useTerm, useTheme, useThemeChoiceContext } from '../skins.tsx';
 import { wordingOn } from '../theme-context.ts';
 import { rolled } from '../model/alignment.ts';
 import './people.css';
@@ -35,7 +36,6 @@ const identityText = (i: Identity) => `${sourceLabel(i.area)} ${i.name && i.name
 
 export function People() {
   const { dossier, now } = useData();
-  const { EmptyState } = useSkins();
   const term = useTerm();
   const alignments = useAlignments();
   const view = useMemo(
@@ -135,7 +135,14 @@ export function People() {
             ))}
           </CardGrid>
         ) : (
-          <EmptyState message={view.people.length ? 'Every account with work on its plate is mapped to someone.' : "This dossier's data names nobody with work on their plate."} />
+          <Empty
+            message={view.people.length ? 'Every account with work on its plate is mapped to someone.' : "This dossier's data names nobody with work on their plate."}
+            action={
+              <EmptyLink edit href={dossierEditHref(dossier.name, 'people')}>
+                Add a person
+              </EmptyLink>
+            }
+          />
         )}
       </section>
     </>
@@ -153,7 +160,8 @@ function TeamStrip({ view }: { view: ReturnType<typeof people> }) {
           <p className="team-figure">{wip.total}</p>
           <p className="note">
             {wip.limit === null ? (
-              <>No limit is set in the dossier. Set one with <code>toil dossiers wip-limit {view.dossier} 3</code>.</>
+              // The pencil after the note sets one (#417), so the note no longer spells out the command.
+              <>No limit is set in the dossier.</>
             ) : wip.over.length ? (
               <>
                 Limit {wip.limit} per person. Over it: {wip.over.map((o) => `${o.name} (${o.count})`).join(', ')}.

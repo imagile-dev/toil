@@ -16,11 +16,13 @@ import { ANALYZE } from '../agent.ts';
 import { AnalysisBody, ChangesDetail, changesLine, whoText } from '../components/analysis.tsx';
 import { Cited } from '../components/items.tsx';
 import { Card } from '../components/layout.tsx';
+import { Help } from '../components/help.tsx';
 import { useChatScope } from '../components/ask.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { UsageFooter } from '../components/usage.tsx';
 import { useData } from '../data.ts';
-import { analysesHref, analysisHref, dateTime } from '../format.ts';
+import { analysesHref, analysisHref, dateTime, dossierHref } from '../format.ts';
+import { Empty, EmptyButton, EmptyLink } from '../components/empty.tsx';
 import { unchanged, type AnalysisSummary, type AnalysisView } from '../model/analysis.ts';
 import { Loader } from '../moments/Moments.tsx';
 import { useTerm } from '../skins.tsx';
@@ -35,13 +37,15 @@ function AnalysisList() {
   const history = chat?.history;
   const list = history?.list ?? null;
   const term = useTerm();
+  const { dossier } = useData();
   return (
     <Card as="section" className="panel analyses" aria-labelledby="analyses-title">
       <h2 id="analyses-title">{term('analyses', 'Analyses')}</h2>
       <p className="note">
-        Analyze asks the agent for a pulse check, top-down: its recommendation, the issues behind it, then the evidence. Every one is kept here, newest first, with what changed since the one before, worked out from the dossier's items when each was made.
+        Every Analyze kept for {dossier.name}, newest first. <Help topic="analyses" />
       </p>
-      {chat && (
+      {/* With none kept yet, Analyze now is the empty list's own action (#417), so it isn't drawn twice. */}
+      {chat && (list === null || list.length > 0 || running) && (
         <p className="analyses__actions">
           <Button className="btn" onPress={() => void chat.ask(ANALYZE, 'Analyze')} isDisabled={chat.busy} data-analyze-tab="">
             Analyze now
@@ -58,8 +62,19 @@ function AnalysisList() {
             <AnalysisEntry key={a.id} a={a} />
           ))}
         </ol>
-      ) : (
-        <p>No analysis kept for this dossier yet. Press Analyze, here or in the bar above.</p>
+      ) : running ? null : (
+        <Empty
+          message="No analysis kept for this dossier yet."
+          action={
+            chat ? (
+              <EmptyButton onPress={() => void chat.ask(ANALYZE, 'Analyze')} disabled={chat.busy}>
+                Analyze now
+              </EmptyButton>
+            ) : (
+              <EmptyLink href={dossierHref(dossier.name)}>Open the Overview</EmptyLink>
+            )
+          }
+        />
       )}
     </Card>
   );

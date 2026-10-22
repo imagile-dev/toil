@@ -83,6 +83,18 @@ for (const file of forwards) {
 }
 for (const old of Object.keys(REDIRECTS)) if (!fileFor(old)) problems.push(`${old}: listed in REDIRECTS, but the build made no page there`);
 
+// The toil map (#432) reaches everything /connect/ lists: every page under
+// /connect/ is a node on /map/, so an area with a page and no node fails here.
+const mapFile = fileFor('/map/');
+if (!mapFile) problems.push('/map/: the build made no map page');
+else {
+  const onMap = new Set([...readFileSync(mapFile, 'utf8').matchAll(/<a\b[^>]*?\shref="([^"#]*)/g)].map((m) => m[1]));
+  for (const file of pages) {
+    const path = pathOf(file);
+    if (path.startsWith('/connect/') && path !== '/connect/' && !isRedirect(path) && !onMap.has(`${BASE}${path}`)) problems.push(`/map/: no node links to ${path}`);
+  }
+}
+
 // The address toil and Toil UI print for the feedback form, from src/feedback/consent.ts.
 const feedbackUrl = new URL(FEEDBACK_FORM);
 const feedbackPath = feedbackUrl.pathname.slice(BASE.length);

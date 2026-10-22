@@ -59,7 +59,7 @@ interface Point {
 }
 
 const DIM = mix(PALETTE.faint, PALETTE.bg, 0.45);
-const MAVERICK_INK = mix(PALETTE.amber, PALETTE.ink, 0.6);
+const MAVERICK_INK = mix(PALETTE.highlight, PALETTE.ink, 0.6);
 const PAPER = ['%', '~', '=', '"', "'", '*', '+'];
 
 const bold = (caps: Caps, color: Rgb, text: string) => `${style(caps, 'bold')}${paint(caps, color, text)}${style(caps, 'reset')}`;
@@ -72,7 +72,7 @@ export function banner(caps: Caps, clock: number): string {
     .map((ch, i) => {
       if (ch === ' ') return ' ';
       const glow = Math.max(0, 1 - Math.abs(i - sweep) / 5);
-      return bold(caps, mix(mix(PALETTE.accent, PALETTE.amber, i / letters.length), PALETTE.ink, glow), ch);
+      return bold(caps, mix(mix(PALETTE.accent, PALETTE.highlight, i / letters.length), PALETTE.ink, glow), ch);
     })
     .join('');
 }
@@ -99,7 +99,7 @@ function typewrite(paragraphs: string[], width: number, reveal: number): string[
   });
 }
 
-const blink = (caps: Caps, hud: Hud) => (Math.floor(hud.clock / 8) % 2 ? paint(caps, PALETTE.amber, caps.unicode ? '▌' : '_') : ' ');
+const blink = (caps: Caps, hud: Hud) => (Math.floor(hud.clock / 8) % 2 ? paint(caps, PALETTE.highlight, caps.unicode ? '▌' : '_') : ' ');
 
 /** A page of words: the intro, or an ending. */
 function page(caps: Caps, hud: Hud, title: string, paragraphs: string[], keys: string, extra: string[] = []): string[] {
@@ -109,7 +109,7 @@ function page(caps: Caps, hud: Hud, title: string, paragraphs: string[], keys: s
     const last = body.findLastIndex((l) => visibleLength(l) > 2);
     if (last >= 0) body[last] += blink(caps, hud);
   }
-  return ['', `  ${banner(caps, hud.clock)}`, '', `  ${bold(caps, PALETTE.amber, title)}`, '', ...body, ...(done ? extra : []), `  ${paint(caps, PALETTE.faint, done ? keys : 'any key: skip ahead')}`];
+  return ['', `  ${banner(caps, hud.clock)}`, '', `  ${bold(caps, PALETTE.highlight, title)}`, '', ...body, ...(done ? extra : []), `  ${paint(caps, PALETTE.faint, done ? keys : 'any key: skip ahead')}`];
 }
 
 /** A well-mixed integer from two, so confetti looks random rather than striped. */
@@ -128,7 +128,7 @@ function confetti(lines: string[], caps: Caps, clock: number): string[] {
     for (let x = visibleLength(line); x < width; x++) {
       const fall = Math.floor(clock / (3 + (x % 3)));
       const h = hash(x, y - fall);
-      tail += h % 100 < 4 ? paint(caps, [PALETTE.amber, PALETTE.accent, PALETTE.ink][h % 3]!, PAPER[(h >>> 8) % PAPER.length]!) : ' ';
+      tail += h % 100 < 4 ? paint(caps, [PALETTE.highlight, PALETTE.accent, PALETTE.ink][h % 3]!, PAPER[(h >>> 8) % PAPER.length]!) : ' ';
     }
     return line + tail;
   });
@@ -139,7 +139,7 @@ function endingFrame(g: Game, caps: Caps, hud: Hud): string[] {
   const won = g.status === 'won';
   const earned = accrued({ floor: g.floor, defeated: g.defeated, won });
   const extra = [
-    `  ${paint(caps, PALETTE.amber, `Score ${score(g)}.  PTO accrued: ${earned} hours.`)}${hud.progress ? paint(caps, PALETTE.muted, `  Balance: ${hud.progress.pto}.`) : ''}`,
+    `  ${paint(caps, PALETTE.highlight, `Score ${score(g)}.  PTO accrued: ${earned} hours.`)}${hud.progress ? paint(caps, PALETTE.muted, `  Balance: ${hud.progress.pto}.`) : ''}`,
     `  ${paint(caps, PALETTE.faint, 'Hours are spent at Benefits Enrollment, never taken.')}`,
     '',
   ];
@@ -154,13 +154,13 @@ export const LOBBY_ROWS = PERKS.length + 1;
 export function lobbyFrame(p: Progress, selected: number, caps: Caps, hud: Hud, last?: { floor: number; earned: number; won: boolean }): string[] {
   const pip = caps.unicode ? { on: '●', off: '○', arrow: '▸' } : { on: '*', off: '.', arrow: '>' };
   const go = selected === 0;
-  const stairs = `  ${go ? paint(caps, PALETTE.accent, pip.arrow) : ' '} ${go ? bold(caps, PALETTE.accent, 'Take the stairs again') : paint(caps, PALETTE.amber, 'Take the stairs again')}${paint(caps, PALETTE.muted, '   start the next run')}`;
+  const stairs = `  ${go ? paint(caps, PALETTE.accent, pip.arrow) : ' '} ${go ? bold(caps, PALETTE.accent, 'Take the stairs again') : paint(caps, PALETTE.highlight, 'Take the stairs again')}${paint(caps, PALETTE.muted, '   start the next run')}`;
   const rows = PERKS.map((perk, n) => {
     const i = n + 1;
     const lv = level(p, perk.id);
-    const pips = paint(caps, PALETTE.amber, pip.on.repeat(lv)) + paint(caps, PALETTE.faint, pip.off.repeat(perk.costs.length - lv));
+    const pips = paint(caps, PALETTE.highlight, pip.on.repeat(lv)) + paint(caps, PALETTE.faint, pip.off.repeat(perk.costs.length - lv));
     const cost = price(p, perk.id);
-    const tag = !unlocked(p, perk.id) ? paint(caps, PALETTE.faint, 'locked') : cost === undefined ? paint(caps, PALETTE.muted, 'enrolled') : paint(caps, p.pto >= cost ? PALETTE.amber : PALETTE.muted, `${cost}h`);
+    const tag = !unlocked(p, perk.id) ? paint(caps, PALETTE.faint, 'locked') : cost === undefined ? paint(caps, PALETTE.muted, 'enrolled') : paint(caps, p.pto >= cost ? PALETTE.highlight : PALETTE.muted, `${cost}h`);
     const open = unlocked(p, perk.id);
     const name = i === selected ? bold(caps, PALETTE.ink, perk.name.padEnd(30)) : paint(caps, open ? PALETTE.muted : PALETTE.faint, perk.name.padEnd(30));
     return `  ${i === selected ? paint(caps, PALETTE.accent, pip.arrow) : ' '} ${name} ${pips}${' '.repeat(4 - perk.costs.length)} ${tag}`;
@@ -170,14 +170,14 @@ export function lobbyFrame(p: Progress, selected: number, caps: Caps, hud: Hud, 
   const blurb = chosen ? chosen.blurb : 'Sub-basement 2 again. Your desk is as you left it. Nobody noticed you were gone.';
   const detail = [...wrapLine(effect, WIDTH).map((l) => `  ${paint(caps, PALETTE.ink, l)}`), ...wrapLine(blurb, WIDTH).map((l) => `  ${paint(caps, PALETTE.muted, l)}`)];
   const lastLine = last
-    ? `  ${paint(caps, PALETTE.amber, `Last run: ${last.won ? 'notice delivered' : `stopped on ${FLOORS[last.floor]!.name.split(':')[0]}`}. +${last.earned} hours.`)}`
+    ? `  ${paint(caps, PALETTE.highlight, `Last run: ${last.won ? 'notice delivered' : `stopped on ${FLOORS[last.floor]!.name.split(':')[0]}`}. +${last.earned} hours.`)}`
     : `  ${paint(caps, PALETTE.faint, 'Benefits elected here apply to every run after this one.')}`;
   const footer = hud.notice ? paint(caps, PALETTE.accent, hud.notice) : paint(caps, PALETTE.faint, go ? 'up/down choose  enter take the stairs  q back' : 'up/down choose  enter enrol  space take the stairs  q back');
   return [
     '',
     `  ${banner(caps, hud.clock)}`,
     '',
-    `  ${bold(caps, PALETTE.amber, 'Benefits Enrollment')}${paint(caps, PALETTE.muted, `   ${rankOf(p)}`)}`,
+    `  ${bold(caps, PALETTE.highlight, 'Benefits Enrollment')}${paint(caps, PALETTE.muted, `   ${rankOf(p)}`)}`,
     `  ${paint(caps, PALETTE.ink, `Accrued PTO: ${p.pto} hours.`)}${paint(caps, PALETTE.faint, ' It cannot be taken, only spent.')}`,
     '',
     stairs,
@@ -189,35 +189,35 @@ export function lobbyFrame(p: Progress, selected: number, caps: Caps, hud: Hud, 
     '',
     lastLine,
     `  ${paint(caps, PALETTE.faint, `Runs ${p.runs}  Notices delivered ${p.wins}  Got as far as ${FLOORS[p.best]!.name.split(':')[0]}`)}`,
-    ...(hud.warning ? wrapLine(hud.warning, WIDTH + 2).map((l) => `  ${paint(caps, PALETTE.accent, l)}`) : []),
+    ...(hud.warning ? wrapLine(hud.warning, WIDTH + 2).map((l) => `  ${paint(caps, PALETTE.danger, l)}`) : []),
     '',
     ...wrapLine(footer, WIDTH + 2).map((l) => `  ${l}`),
   ];
 }
 
-/** A morale bar that drains from amber to the warning colour, and glows when topped up. */
+/** A morale bar that drains from the highlight to the danger colour, and glows when topped up. */
 function bar(caps: Caps, hp: number, max: number, glow: boolean): string {
   const cells = 12;
   const full = Math.max(0, Math.min(cells, Math.round((Math.max(0, hp) / max) * cells)));
   const [on, off] = caps.unicode ? ['█', '░'] : ['#', '-'];
-  return paint(caps, glow ? PALETTE.ink : mix(PALETTE.accent, PALETTE.amber, Math.max(0, hp) / max), on.repeat(full)) + paint(caps, PALETTE.faint, off.repeat(cells - full));
+  return paint(caps, glow ? PALETTE.ink : mix(PALETTE.danger, PALETTE.highlight, Math.max(0, hp) / max), on.repeat(full)) + paint(caps, PALETTE.faint, off.repeat(cells - full));
 }
 
-const mobColor = (robot: boolean) => (robot ? PALETTE.accent : mix(PALETTE.accent, PALETTE.amber, 0.35));
+const mobColor = (robot: boolean) => (robot ? PALETTE.accent : mix(PALETTE.accent, PALETTE.highlight, 0.35));
 
 /** The symbols and this floor's people, beside the map or behind `?`. */
 export function legendLines(g: Game, caps: Caps): string[] {
   const kinds = [...STAFF[g.floor]!, ROBOTS[g.floor]!, ...(g.floor === 3 ? [TASK] : []), ...(g.floor === LAST_FLOOR ? [BOSS] : [])];
   const row = (glyph: string, color: Rgb, text: string) => `${bold(caps, color, glyph)} ${paint(caps, PALETTE.muted, text)}`;
   return [
-    bold(caps, PALETTE.amber, 'Legend'),
+    bold(caps, PALETTE.highlight, 'Legend'),
     row('@', PALETTE.ink, 'you, resigning'),
     row('&', PALETTE.ink, 'your AI agent'),
-    row(PICKUPS.agent.glyph, PALETTE.amber, 'an agent, unclaimed'),
-    row(PICKUPS.coffee.glyph, PALETTE.amber, 'coffee'),
-    row(g.floor === LAST_FLOOR ? 'H' : '>', PALETTE.amber, g.floor === LAST_FLOOR ? 'the HR door' : 'the stairs up'),
+    row(PICKUPS.agent.glyph, PALETTE.highlight, 'an agent, unclaimed'),
+    row(PICKUPS.coffee.glyph, PALETTE.highlight, 'coffee'),
+    row(g.floor === LAST_FLOOR ? 'H' : '>', PALETTE.highlight, g.floor === LAST_FLOOR ? 'the HR door' : 'the stairs up'),
     '',
-    bold(caps, PALETTE.amber, 'On this floor'),
+    bold(caps, PALETTE.highlight, 'On this floor'),
     ...[...new Map(kinds.map((k) => [k.glyph, k])).values()].map((k) => row(k.glyph, mobColor(!!k.robot), k.name)),
   ];
 }
@@ -237,15 +237,15 @@ function fxCells(fx: Fx, g: Game, t: number, caps: Caps): Array<Point & Cell> {
           [0, 1],
           [0, -1],
         ] as const)
-          out.push({ x: fx.x + dx * (t > 2 ? 2 : 1), y: fx.y + dy, ch: '+', color: mix(PALETTE.amber, PALETTE.faint, t / 4) });
-      if (t < 7) float(fx.x, fx.y, `-${fx.amount}`, fx.by === 'you' ? PALETTE.amber : MAVERICK_INK);
+          out.push({ x: fx.x + dx * (t > 2 ? 2 : 1), y: fx.y + dy, ch: '+', color: mix(PALETTE.highlight, PALETTE.faint, t / 4) });
+      if (t < 7) float(fx.x, fx.y, `-${fx.amount}`, fx.by === 'you' ? PALETTE.highlight : MAVERICK_INK);
       break;
     case 'down':
       if (t < 7)
         for (let k = 0; k < 6; k++) {
           const a = (k / 6) * Math.PI * 2 + k;
           const r = 1 + t / 2;
-          out.push({ x: Math.round(fx.x + Math.cos(a) * r * 2), y: Math.round(fx.y + Math.sin(a) * r), ch: PAPER[(k + t) % PAPER.length]!, color: mix(PALETTE.amber, PALETTE.faint, t / 7) });
+          out.push({ x: Math.round(fx.x + Math.cos(a) * r * 2), y: Math.round(fx.y + Math.sin(a) * r), ch: PAPER[(k + t) % PAPER.length]!, color: mix(PALETTE.highlight, PALETTE.faint, t / 7) });
         }
       break;
     case 'shrug':
@@ -259,14 +259,14 @@ function fxCells(fx: Fx, g: Game, t: number, caps: Caps): Array<Point & Cell> {
           [1, -1],
           [-1, 1],
         ] as const)
-          out.push({ x: fx.x + dx * (1 + (t % 2)), y: fx.y + dy, ch: caps.unicode ? '✦' : '*', color: mix(MAVERICK_INK, PALETTE.amber, t / 7) });
+          out.push({ x: fx.x + dx * (1 + (t % 2)), y: fx.y + dy, ch: caps.unicode ? '✦' : '*', color: mix(MAVERICK_INK, PALETTE.highlight, t / 7) });
       break;
     case 'hurt':
       if (t < 3) out.push({ x: p.x, y: p.y, ch: '@', color: PALETTE.accent });
-      if (t < 7) float(p.x, p.y, `-${fx.amount}`, PALETTE.accent);
+      if (t < 7) float(p.x, p.y, `-${fx.amount}`, PALETTE.danger);
       break;
     case 'heal':
-      if (t < 7) float(p.x + 1, p.y, `+${fx.amount}`, PALETTE.amber);
+      if (t < 7) float(p.x + 1, p.y, `+${fx.amount}`, PALETTE.highlight);
       break;
     default:
       break;
@@ -289,7 +289,7 @@ const OVERLAY = WIDTH - 6;
 
 /** A card over the map: a floor arriving, a robot introduced, Maverick visiting. */
 function cardLines(card: Card, caps: Caps, hud: Hud): string[] {
-  const color = card.tone === 'maverick' ? MAVERICK_INK : card.tone === 'floor' ? PALETTE.amber : PALETTE.accent;
+  const color = card.tone === 'maverick' ? MAVERICK_INK : card.tone === 'floor' ? PALETTE.highlight : PALETTE.accent;
   const done = hud.reveal >= card.lines.join('\n').length;
   const typed = typewrite(card.lines, OVERLAY - 6, hud.reveal).flat();
   return boxed(caps, color, OVERLAY, [
@@ -323,8 +323,8 @@ export function frame(g: Game, caps: Caps, hud: Hud): string[] {
   const put = (x: number, y: number, ch: string, color: Cell['color']) => {
     if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT && g.seen[y]![x]) rows[y]![x] = { ch, color };
   };
-  put(g.exit.x, g.exit.y, g.floor === LAST_FLOOR ? 'H' : '>', Math.floor(hud.clock / 12) % 2 ? PALETTE.amber : PALETTE.ink);
-  for (const i of g.pickups) if (now[i.y]![i.x]) put(i.x, i.y, PICKUPS[i.kind].glyph, PALETTE.amber);
+  put(g.exit.x, g.exit.y, g.floor === LAST_FLOOR ? 'H' : '>', Math.floor(hud.clock / 12) % 2 ? PALETTE.highlight : PALETTE.ink);
+  for (const i of g.pickups) if (now[i.y]![i.x]) put(i.x, i.y, PICKUPS[i.kind].glyph, PALETTE.highlight);
   for (const a of g.agents) put(a.x, a.y, '&', a.context <= 5 && Math.floor(hud.clock / 4) % 2 ? PALETTE.faint : PALETTE.ink);
   for (const m of g.mobs) if (now[m.y]![m.x]) put(m.x, m.y, m.kind.glyph, mobColor(!!m.kind.robot));
   rows[g.player.y]![g.player.x] = { ch: '@', color: g.player.stun ? PALETTE.muted : PALETTE.ink };
@@ -336,12 +336,12 @@ export function frame(g: Game, caps: Caps, hud: Hud): string[] {
   // A big hit shakes the map a column either way.
   const shake = t < 4 && g.fx.some((f) => f.kind === 'hurt' && f.amount >= 5) ? [2, 0, 1, 0][t]! : 1;
   const box = caps.unicode ? { tl: '┌', tr: '┐', bl: '└', br: '┘', h: '─', v: '│' } : { tl: '+', tr: '+', bl: '+', br: '+', h: '-', v: '|' };
-  const edge = (s: string) => paint(caps, hurt ? mix(PALETTE.accent, PALETTE.faint, t / 5) : PALETTE.faint, s);
+  const edge = (s: string) => paint(caps, hurt ? mix(PALETTE.danger, PALETTE.faint, t / 5) : PALETTE.faint, s);
   const indent = ' '.repeat(1 + shake);
   const p = g.player;
   const healed = t < 5 && g.fx.some((f) => f.kind === 'heal');
   const status =
-    `Morale ${bar(caps, p.hp, p.max, healed)} ${paint(caps, p.hp <= p.max / 4 ? PALETTE.accent : PALETTE.amber, `${Math.max(0, p.hp)}/${p.max}`)}` +
+    `Morale ${bar(caps, p.hp, p.max, healed)} ${paint(caps, p.hp <= p.max / 4 ? PALETTE.danger : PALETTE.highlight, `${Math.max(0, p.hp)}/${p.max}`)}` +
     paint(caps, PALETTE.muted, `  Grit ${p.power}`) +
     (p.boost ? paint(caps, MAVERICK_INK, `+${p.boost}`) : '') +
     paint(caps, PALETTE.muted, `  Agents ${g.agents.length}  Score ${score(g)}`);
@@ -352,7 +352,7 @@ export function frame(g: Game, caps: Caps, hud: Hud): string[] {
   ];
   // A card, or the legend on a narrow window, sits over the middle of the map.
   const wide = hud.columns >= WIDE;
-  const overlay = g.cards[0] ? cardLines(g.cards[0], caps, hud) : hud.legend && !wide ? boxed(caps, PALETTE.amber, OVERLAY, ['', ...legendLines(g, caps).map((l) => `  ${l}`), '', `  ${paint(caps, PALETTE.faint, '? closes')}`]) : undefined;
+  const overlay = g.cards[0] ? cardLines(g.cards[0], caps, hud) : hud.legend && !wide ? boxed(caps, PALETTE.highlight, OVERLAY, ['', ...legendLines(g, caps).map((l) => `  ${l}`), '', `  ${paint(caps, PALETTE.faint, '? closes')}`]) : undefined;
   if (overlay) {
     const top = Math.max(1, Math.floor((map.length - overlay.length) / 2));
     map = map.map((line, i) => {
@@ -375,7 +375,7 @@ export function frame(g: Game, caps: Caps, hud: Hud): string[] {
   const footer = hud.notice ? paint(caps, PALETTE.accent, hud.notice) : paint(caps, PALETTE.faint, g.cards.length ? 'any key: carry on' : keys);
   return [
     '',
-    `  ${bold(caps, PALETTE.amber, FLOORS[g.floor]!.name)}${paint(caps, PALETTE.faint, `   ${g.floor + 1} of ${LAST_FLOOR + 1}`)}`,
+    `  ${bold(caps, PALETTE.highlight, FLOORS[g.floor]!.name)}${paint(caps, PALETTE.faint, `   ${g.floor + 1} of ${LAST_FLOOR + 1}`)}`,
     `  ${fitLine(status, WIDTH + 2)}`,
     ...map,
     ...log.map((l) => `  ${paint(caps, l.newest ? PALETTE.ink : PALETTE.muted, l.text)}`),

@@ -17,6 +17,7 @@ import { Button, Checkbox, FieldError, Input, Label, TextField } from 'react-ari
 import { ADAPTER_NAME, type AssignmentsApi } from '../assign/model.ts';
 import { Card } from './layout.tsx';
 import { dossierHref } from '../format.ts';
+import { history } from '../history.ts';
 import { Coalescer, HHMM, inQuiet, NOTABLE_LABEL, NOTABLES, parseNotify, summaryOf, transitionOf, type NotifySettings, type Transition } from '../notify.ts';
 
 const SETTINGS_KEY = 'toil-ui.notify';
@@ -129,6 +130,8 @@ export function NotifyProvider({ assignments, dossier, mine, children }: { assig
   const deliver = useCallback((changes: Transition[]) => {
     const s = live.current;
     const { title: head, lines } = summaryOf(changes);
+    // The bell keeps each change (#417), quiet hours included: they hold the notice, not the record of it.
+    history.add(changes.map((c) => ({ id: `${c.key}:${c.state}${c.event === undefined ? '' : `:${c.event}`}`, at: new Date().toISOString(), kind: c.notable!, title: summaryOf([c]).title, line: lineOfLink(c), href: c.href })));
     const hidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
     if (hidden) {
       // The title counts what arrived while the tab was away, quiet hours included.

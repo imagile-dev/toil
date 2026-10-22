@@ -1,7 +1,7 @@
 {
   "name": "crate",
   "label": "Crate",
-  "description": "toil's own brand, as on the site: the warm near-black, the drafting grid and the flame glow, the flame-to-amber accent, dust drifting in the glow, and the crate in its hard hat when there's nothing to show yet.",
+  "description": "The warm workshop: the warm near-black, the drafting grid and the flame glow, the flame-to-amber accent, dust drifting in the glow, and the crate in its hard hat when there's nothing to show yet.",
   "schemes": {
     "dark": {
       "bg": "#16130f",

@@ -14,7 +14,8 @@ import { Button, Dialog, DialogTrigger, Heading, Input, Label, Modal, ModalOverl
 import { ItemLink } from '../components/items.tsx';
 import { Card, CardGrid, Cluster, Stack } from '../components/layout.tsx';
 import { useData } from '../data.ts';
-import { CAPS_HREF, dossierHref } from '../format.ts';
+import { CAPS_HREF, boardHref, dossierHref } from '../format.ts';
+import { Empty, EmptyLink } from '../components/empty.tsx';
 import { EditLink, Help } from '../components/help.tsx';
 import { ADAPTER_LABEL, addUp, usageParts } from '../model-usage.ts';
 import type { PersonEntry } from '../model/people.ts';
@@ -517,7 +518,7 @@ export function AgentAssignments({ people }: { people: readonly PersonEntry[] })
           })}
         </CardGrid>
       ) : (
-        <p>Nothing has been assigned to an agent in {dossier.name} yet.</p>
+        <Empty message={`Nothing has been assigned to an agent in ${dossier.name} yet.`} action={<EmptyLink href={boardHref(dossier.name)}>Assign from the board</EmptyLink>} help="assignments" />
       )}
     </section>
   );

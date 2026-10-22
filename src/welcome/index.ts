@@ -172,11 +172,11 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
     const perform = async (run: Run) => {
       const caps = detectCaps(output, io.env);
       const arrow = caps.unicode ? '›' : '>';
-      write(`${cursor.home}${cursor.clearDown}${cursor.show}\n  ${paint(caps, PALETTE.amber, `${breadcrumb(state, caps, data)} ${arrow} ${run.title}`)}\n`);
+      write(`${cursor.home}${cursor.clearDown}${cursor.show}\n  ${paint(caps, PALETTE.highlight, `${breadcrumb(state, caps, data)} ${arrow} ${run.title}`)}\n`);
       const results: StepResult[] = [];
       for (const step of run.steps) {
         if (interrupted) break;
-        if (step.label) write(`\n  ${paint(caps, PALETTE.amber, step.label)}`);
+        if (step.label) write(`\n  ${paint(caps, PALETTE.highlight, step.label)}`);
         write(`\n  ${paint(caps, PALETTE.faint, `$ ${commandLine(data, step.args)}`)}\n\n`);
         running = new AbortController();
         if (input.isTTY) input.setRawMode(false);
@@ -194,7 +194,7 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
         }
         results.push({ args: step.args, envelope });
         const o = outcome({ args: step.args, envelope });
-        write(`  ${paint(caps, o.good ? PALETTE.amber : PALETTE.accent, o.text)}\n`);
+        write(`  ${paint(caps, o.good ? PALETTE.ok : PALETTE.danger, o.text)}\n`);
         if (!envelope.ok && !run.keepGoing) break;
       }
       write(cursor.hide);
