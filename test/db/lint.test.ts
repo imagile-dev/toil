@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { execute as executeCmd, lint, query } from '../../src/areas/db/index.js';
 import type { AnyCommand } from '../../src/core/command.js';
 import type { ResolvedConfig, Settings } from '../../src/core/config.js';
+import { engineNames } from '../../src/core/db/engines.js';
 import { sqliteProvider } from '../../src/core/db/sqlite/index.js';
 import { execute } from '../../src/core/run.js';
 import { testConfig, testContext } from '../harness/context.js';
@@ -107,7 +108,7 @@ describe('db lint', () => {
     const { context } = testContext();
     expect((await execute(lint, { sql: 'SELECT 1 FROM dual', engine: 'oracle' }, context)).ok).toBe(true);
     const missing = await execute(lint, { sql: 'SELECT 1' }, context);
-    expect(missing.error).toMatchObject({ code: 'NOT_CONFIGURED', fix: 'Pass --engine (sqlite, postgres, mysql, sqlserver, oracle), or set up a db connection.' });
+    expect(missing.error).toMatchObject({ code: 'NOT_CONFIGURED', fix: `Pass --engine (${engineNames.join(', ')}), or set up a db connection.` });
   });
 
   it('refuses an --engine that disagrees with the --connection named beside it', async () => {

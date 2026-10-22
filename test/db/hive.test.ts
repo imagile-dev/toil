@@ -398,7 +398,7 @@ describe.skipIf(liveSkip !== undefined)(`hive, live${liveSkip ? ` (skipped: ${li
   let db: string;
   afterEach(async () => {
     if (db) await hive.dropDatabase(db);
-  });
+  }, 60_000);
 
   it('returns real values in their JSON shapes', async () => {
     db = await hive.createDatabase();

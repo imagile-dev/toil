@@ -1,6 +1,6 @@
 ---
 name: databases
-description: Rules for toil's `db` area and its database providers (PostgreSQL, MySQL/MariaDB, SQL Server, SQLite, Oracle). Use when adding or changing a database provider or driver under src/core/db/, changing how queries run (read-only transactions, rollback, row caps, timeouts, paging, cancellation), handling database connection strings, or writing database tests including `npm run test:integration` service containers.
+description: Rules for toil's `db` area and its database providers (PostgreSQL, MySQL/MariaDB, SQL Server, SQLite, Oracle, Hive, Impala). Use when adding or changing a database provider or driver under src/core/db/, changing how queries run (read-only transactions, rollback, row caps, timeouts, paging, cancellation), handling database connection strings, or writing database tests including `npm run test:integration` service containers.
 ---
 
 # Databases
@@ -14,9 +14,18 @@ description: Rules for toil's `db` area and its database providers (PostgreSQL, 
 - Connection strings resolve like any other secret: env var, then keychain reference,
   then config. Never log a connection string; log the connection name.
 - Drivers are pure JS: `pg` (PostgreSQL), `mysql2` (MySQL/MariaDB), `tedious` (SQL
-  Server), `node:sqlite` (built into Node), `oracledb` in Thin mode only (Oracle).
-  SQL Server has no read-only transaction, so its queries always roll back, and its
-  docs tell users to connect with a read-only login.
+  Server), `node:sqlite` (built into Node), `oracledb` in Thin mode only (Oracle), and
+  `thrift` with the HiveServer2 client generated in `hive-driver` (Hive and Impala, one
+  provider, `src/core/db/hive/`; only the generated client is used, and its Kerberos
+  path, which needs a native module, never). SQL Server has no read-only transaction, so
+  its queries always roll back, and its docs tell users to connect with a read-only
+  login. Hive and Impala have no read-only mode and nothing to roll back, so toil can't
+  enforce read-only there at all: `db query` relies on the account, toil doesn't parse SQL
+  to decide, and their docs **require** a read-only account (the
+  maintainer's decision on #408), a refusal by that account is `WRITE_DISABLED`, a read
+  the server reports as having changed rows is `DATABASE` saying so, and `db execute`
+  runs one statement per call, since there's no transaction to make several all or
+  nothing.
 - **TLS trusts what HTTP trusts.** Core loads the OS certificate store on the first
   HTTP request, and a driver's own socket never makes one. A provider with TLS
   passes `trustedCertificates(call.debug).certificates` from `src/core/network.ts`
@@ -43,7 +52,7 @@ one they got.
   carry a fingerprint of the SQL or table and are refused against any other.
 - **Read-only is the engine's job.** `query` must run where the engine itself
   refuses writes, and a refused write maps to `WRITE_DISABLED` from the engine's
-  error code, never from reading the SQL. The one exception is a narrow deny for a
+  error code, never from reading the SQL (Hive and Impala have no such mode; above). The one exception is a narrow deny for a
   statement that gets around the engine's own read-only mode: SQLite's `VACUUM INTO`
   creates its target file before the read-only refusal, so SQLite reads refuse any
   statement whose first keyword is `VACUUM` (`INVALID_INPUT`, pointing at
@@ -83,7 +92,10 @@ one they got.
   `requires`, and secrets in the area's `secrets`), add a target to
   `test/db/targets.ts`, and add its section to `skills/toil/db.md` and its tile to
   the site's Databases group.
-- **Cancellation:** a provider passes `call.signal` to its driver. SQLite's driver is
+- **Cancellation:** a provider passes `call.signal` to its driver. Hive and Impala send
+  CancelOperation on a second connection as well as the call's own
+  (`src/core/db/hive/index.ts`), because HiveServer2 answers one request per connection
+  at a time and the call's own may be held by a fetch. SQLite's driver is
   synchronous and has no interrupt, so `src/core/db/sqlite/worker.ts` runs each job
   on a worker thread and terminates it on abort; that stops the statement at its
   next row. A statement that computes for a long time before producing a row keeps
@@ -140,6 +152,12 @@ one they got.
   since Thin mode's in-band break can't wake `DBMS_SESSION.SLEEP`), so
   only a real cancel stops it. Break the cancel on purpose once and watch both
   tests fail.
+- **Engines that lack something** the suite checks (indexes, transactions, keys they
+  enforce, a read-only mode) say so in their target's `lacks`, each with the reason; the
+  suite then checks what the engine does instead, or skips the test with the reason in
+  its name. An engine with no read-only mode gives its target a `reader`, the same
+  database through a read-only account, for the engine side of the read-only checks.
+  Hive and Impala are the ones that need it.
 - **Engines that fold names.** A target can set `stored` (how an unquoted name is
   stored: Oracle upper-cases it), a per-database `defaultSchema` (Oracle's is the
   test user, one per test), and `sql.transactionControl` (the engine's own
@@ -185,6 +203,33 @@ one they got.
   # wait for both to be healthy, as above
   TOIL_TEST_MYSQL_URL=mysql://root:mysql@localhost:53316/ TOIL_TEST_MARIADB_URL=mysql://root:mysql@localhost:53317/ npm run test:integration
   docker rm -f toil-test-mysql-$r toil-test-mariadb-$r; docker ps -a --filter name=toil-test-m   # must list nothing
+  ```
+
+  Hive runs as a CI service container with SQL standard authorization, so its target
+  has a read-only account (`toil_reader`) as well as the one that owns the tables;
+  `?webui=` names HiveServer2's web UI port, where `running()` reads the active queries
+  (Jetty answers only on the port it listens on, so map it to the same number):
+
+  ```bash
+  name=toil-test-hive-$RANDOM
+  sqlstd=org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdHiveAuthorizerFactory
+  docker run -d --name $name -e SERVICE_NAME=hiveserver2 \
+    -e SERVICE_OPTS="-Dhive.server2.webui.port=51002 -Dhive.security.authorization.enabled=true -Dhive.security.authorization.manager=$sqlstd -Dhive.security.authenticator.manager=org.apache.hadoop.hive.ql.security.SessionStateUserAuthenticator -Dhive.users.in.admin.role=hive" \
+    -p 51000:10000 -p 51002:51002 apache/hive:4.2.1
+  # about 30 s to accept connections
+  TOIL_TEST_HIVE_URL='hive://hive:hive@localhost:51000/?webui=51002' npm run test:integration
+  docker rm -f $name
+  ```
+
+  Impala needs four containers (a metastore, statestored, catalogd and an impalad), so
+  it isn't in CI. `test/db/impala/compose.yml` runs them from the official
+  `apache/impala:4.5.3` images; its target is local only and skips when unset:
+
+  ```bash
+  docker compose -f test/db/impala/compose.yml up -d
+  # about a minute until the impalad answers on 51050
+  TOIL_TEST_IMPALA_URL='impala://impala@localhost:51050/?webui=55000' npm run test:integration
+  docker compose -f test/db/impala/compose.yml down -v
   ```
 
   Use a host port other than the engine's default, and remove the container even

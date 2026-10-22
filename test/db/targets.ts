@@ -357,7 +357,7 @@ function hs2Seed(engine: 'hive' | 'impala', db: string): string[] {
     const acid = "STORED AS ORC TBLPROPERTIES ('transactional'='true')";
     return [
       `CREATE TABLE ${db}.teams (id INT, name VARCHAR(50), PRIMARY KEY (id) DISABLE NOVALIDATE) ${acid}`,
-      `CREATE TABLE ${db}.people (id INT, name VARCHAR(100) NOT NULL, team_id INT, active INT DEFAULT 1, PRIMARY KEY (id) DISABLE NOVALIDATE, CONSTRAINT people_team FOREIGN KEY (team_id) REFERENCES ${db}.teams(id) DISABLE NOVALIDATE) ${acid}`,
+      `CREATE TABLE ${db}.people (id INT, name VARCHAR(100) NOT NULL, team_id INT, active INT DEFAULT 1, PRIMARY KEY (id) DISABLE NOVALIDATE, CONSTRAINT ${db}_people_team FOREIGN KEY (team_id) REFERENCES ${db}.teams(id) DISABLE NOVALIDATE) ${acid}`,
       view,
       `INSERT INTO ${db}.teams VALUES (1, 'Platform'), (2, 'Data')`,
       people,
@@ -572,7 +572,8 @@ export const targets: DbTarget[] = [
         reader: hive.settings(db, hive.reader),
         schema: db,
         rows: (sql) => hive.run(hive.writer, [`USE ${db}`, sql]),
-        running: hive.running,
+        // Hive 3.1's web UI has no list of running queries; leave ?webui= off the URL to run without that check.
+        ...(hiveTarget.url.searchParams.has('webui') ? { running: hive.running } : {}),
         cleanup: () => hive.dropDatabase(db),
       };
     },
