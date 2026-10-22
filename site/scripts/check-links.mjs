@@ -73,7 +73,8 @@ for (const file of pages) {
 // Each old address forwards to a page that exists.
 const forwards = pages.filter((f) => isRedirect(pathOf(f)));
 for (const file of forwards) {
-  const to = /location\.replace\(([^)]*)\)/.exec(readFileSync(file, 'utf8')) && /http-equiv="refresh" content="0; url=([^"]+)"/.exec(readFileSync(file, 'utf8'))?.[1];
+  // The meta refresh names the same address the script does, and works without script.
+  const to = /http-equiv="refresh" content="0; url=([^"]+)"/.exec(readFileSync(file, 'utf8'))?.[1];
   const target = to?.startsWith(`${BASE}/`) ? to.slice(BASE.length) : undefined;
   if (!target || !fileFor(target) || isRedirect(target)) problems.push(`${pathOf(file)}: forwards to ${to ?? 'nothing'}, which isn't a page`);
 }
