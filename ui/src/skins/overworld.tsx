@@ -59,8 +59,8 @@ function Panel({ id, children }: { id: string; children: ReactNode }) {
   const inDossier = useContext(DataContext) !== null;
   return (
     <>
-      {children}
       {(id === 'sprint' || id === 'board') && inDossier && <Hud />}
+      {children}
     </>
   );
 }

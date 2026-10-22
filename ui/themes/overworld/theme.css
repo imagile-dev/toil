@@ -20,6 +20,7 @@
 [data-theme="overworld"] body {
   image-rendering: pixelated;
   background:
+    linear-gradient(var(--bg), var(--bg)) center top / 100% calc(100% - 128px) no-repeat,
     linear-gradient(var(--bg), rgba(17, 28, 22, 0.55) 60%, rgba(17, 28, 22, 0.35)) center bottom / 100% 128px no-repeat,
     url("./assets/overworld.webp") center bottom / 384px 384px repeat-x,
     var(--bg);
@@ -149,6 +150,18 @@
     var(--surface);
 }
 
+/* Where there's room for them, the walls are drawn at twice the scale, two
+   screen pixels to one of the wall's, so each brick reads as a brick. On a
+   phone they stay one to one, a rim of stone that leaves the floor its width. */
+@media (min-width: 768px) {
+  [data-theme="overworld"] .l-card,
+  [data-theme="overworld"] .ask,
+  [data-theme="overworld"] .ask-bar {
+    border-width: 16px;
+    border-image-width: 16px;
+  }
+}
+
 /* A room's name on a gold plaque over its doorway. */
 [data-theme="overworld"] .panel > h2 {
   justify-self: start;
@@ -233,6 +246,13 @@
 /* The heart meter and the gem counter, the journey at a glance: one heart for
    each working day, full for each still ahead, and the points carried home.
    The panel says both in words; this is the picture of them. */
+/* On the board the meter hangs under the room's plaque: it comes first in the
+   page's order, which a screen reader never reads, and the plaque is drawn
+   above it. */
+[data-theme="overworld"] .panel:has(> .ow-hud) > h2 {
+  order: -1;
+}
+
 [data-theme="overworld"] .ow-hud {
   display: flex;
   flex-wrap: wrap;
