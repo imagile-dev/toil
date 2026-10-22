@@ -23,8 +23,8 @@ import {
   addMonths, appliedText, daysOfMonth, longDay, monthName, monthOf, OUTCOME_TEXT, seenText, timeOf,
   type RunLine, type WorklogEvent,
 } from '../model/worklog.ts';
-import { useSkins } from '../skins.tsx';
 import { MAX_NOTE, type ExportWhat, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth } from '../worklog.ts';
+import { Loader } from '../moments/Moments.tsx';
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string } | null;
 const failedWith = (e: unknown) => ({ ok: false as const, message: e instanceof Error ? e.message : String(e) });
@@ -33,7 +33,6 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 export function Worklog({ api, day }: { api: WorklogApi | null; day: string | null }) {
   const { dossier } = useData();
-  const { Loading } = useSkins();
   const [month, setMonth] = useState<string | null>(day ? monthOf(day) : null);
   const [calendar, setCalendar] = useState<Loaded<WorklogMonth>>(null);
   const [page, setPage] = useState<Loaded<WorklogDay>>(null);
@@ -99,11 +98,11 @@ export function Worklog({ api, day }: { api: WorklogApi | null; day: string | nu
       {head}
       <div className="worklog">
         <Panel id="worklog-calendar" title={calendar?.ok ? monthName(calendar.value.month) : 'Calendar'} calls={[]}>
-          {!calendar ? <Loading message="Reading the calendar" /> : calendar.ok ? <Calendar data={calendar.value} selected={selected} onMonth={setMonth} /> : <p role="alert" className="failure">{calendar.message}</p>}
+          {!calendar ? <Loader size="panel" message="Reading the calendar" /> : calendar.ok ? <Calendar data={calendar.value} selected={selected} onMonth={setMonth} /> : <p role="alert" className="failure">{calendar.message}</p>}
         </Panel>
         <Panel id="worklog-day" title={selected ? longDay(selected) : 'The day'} calls={[]}>
           {!page ? (
-            <Loading message="Folding the page" />
+            <Loader size="panel" message="Folding the page" />
           ) : page.ok ? (
             <DayPage api={api} data={page.value} today={today} onChange={(value) => setPage({ ok: true, value })} />
           ) : (
@@ -161,8 +160,8 @@ function Calendar({ data, selected, onMonth }: { data: WorklogMonth; selected: s
                 const n = Number(d.slice(8));
                 if (!p) {
                   return (
-                    <td key={d} className={d > data.today ? 'calendar__future' : 'calendar__empty'}>
-                      <span className="sr-only">{longDay(d)}: {d > data.today ? 'not yet' : 'no page'}</span>
+                    <td key={d} className={d > data.today ? 'calendar__future' : 'calendar__empty'} data-today={d === data.today || undefined}>
+                      <span className="sr-only">{longDay(d)}{d === data.today ? ', today' : ''}: {d > data.today ? 'not yet' : 'no page'}</span>
                       <span aria-hidden="true">{n}</span>
                     </td>
                   );

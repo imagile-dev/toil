@@ -11,6 +11,7 @@ import { useEffect, useState } from 'react';
 import type { ConfigApi, SettingsInfo } from '../../config.ts';
 import { Card, Path } from '../../components/layout.tsx';
 import { Help } from '../../components/help.tsx';
+import { Loader } from '../../moments/Moments.tsx';
 
 const seconds = (ms: number) => (ms % 1000 === 0 ? `${ms / 1000} s` : `${ms} ms`);
 
@@ -38,7 +39,7 @@ export function General({ config }: { config: ConfigApi }) {
       </div>
     );
   }
-  if (!file || !settings) return <p className="skin-loading">Reading toil's settings…</p>;
+  if (!file || !settings) return <Loader size="panel" message={"Reading toil's settings…"} />;
   const t = settings.timeout;
   return (
     <>

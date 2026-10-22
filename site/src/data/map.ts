@@ -2,12 +2,12 @@
 // reach side is /connect/'s catalogue as it stands (categories in
 // integrations.ts), so a new area's board file puts it on the map with no edit
 // here. The ask side is the three ways in, each pointing at a page the docs
-// path (docs-path.ts) or the site already lists; a link that stops resolving
+// path (docs-path.mjs) or the site already lists; a link that stops resolving
 // fails the build's link check. An inventory kept by hand is accurate exactly
 // once, on the day it is typed.
 
 import { categories, levels, type Status } from './integrations';
-import { docsPath } from './docs-path';
+import { docsPath } from './docs-path.mjs';
 
 export interface MapNode {
   /** What the chip says: the area or engine a reader types. */
@@ -39,7 +39,7 @@ export interface MapCategory {
 /** A docs-path link by its address, so the map can't point somewhere the docs don't. */
 function docsLink(href: string): { label: string; href: string } {
   const link = docsPath.flatMap((g) => g.links).find((l) => l.href === href);
-  if (!link) throw new Error(`site/src/data/map.ts: ${href} is not on the docs path (site/src/data/docs-path.ts).`);
+  if (!link) throw new Error(`site/src/data/map.ts: ${href} is not on the docs path (site/src/data/docs-path.mjs).`);
   return link;
 }
 

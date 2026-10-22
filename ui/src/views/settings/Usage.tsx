@@ -22,6 +22,7 @@ import type { ConfigApi } from '../../config.ts';
 import { dateTime, day } from '../../format.ts';
 import type { Envelope } from '../../toil.ts';
 import { doorLabel, failingMost, failuresInput, fillDays, unusedByArea, USAGE_CALLS, type UsageStats } from '../../usage.ts';
+import { Loader } from '../../moments/Moments.tsx';
 
 const percent = (n: number, of: number) => (of === 0 ? '0%' : `${Math.round((n / of) * 100)}%`);
 const ms = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(1)} s` : `${n} ms`);
@@ -54,7 +55,7 @@ export function Usage({ config, today = new Date().toISOString().slice(0, 10) }:
     };
   }, [config]);
 
-  if (!stats) return <p className="skin-loading">Reading toil's audit log with toil audit stats…</p>;
+  if (!stats) return <Loader size="panel" message={"Reading toil's audit log with toil audit stats…"} />;
   const failed = [stats.days, stats.commands, stats.doors].find((s): s is { ok: false; message: string } => !s.ok);
   if (failed || !stats.days.ok || !stats.commands.ok || !stats.doors.ok) {
     return (
@@ -202,7 +203,7 @@ function Failing({ group: g, config }: { group: UsageGroup; config: ConfigApi })
         </span>
       </div>
       <div id={id}>
-        {lines === 'loading' && <p className="skin-loading">Reading the audit log…</p>}
+        {lines === 'loading' && <Loader size="panel" message="Reading the audit log…" />}
         {lines !== null && lines !== 'loading' && !lines.ok && (
           <p role="alert" className="failure">
             <code>toil audit list</code> failed: {lines.message}

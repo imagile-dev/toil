@@ -3,6 +3,7 @@ import Layout from '../layouts/Layout.astro';
 import ToilMap from '../components/ToilMap.astro';
 import { integrationCount, databaseCount } from '../data/integrations';
 import { principles } from '../data/principles';
+import { startPaths } from '../data/docs-path.mjs';
 import { url, repoUrl } from '../lib/url';
 // The two ways to start, copied from README.md; test/start-commands.test.ts keeps them identical.
 import start from '../data/start.json';
@@ -49,9 +50,21 @@ const teaser = principles.slice(0, 3);
     <div class="container">
       <div class="section-head">
         <p class="eyebrow">Get started</p>
-        <h2 id="start-title">Two ways to run it.</h2>
-        <p>Both need Node.js 24.14 or later, on Windows, macOS or Linux. <span class="start__alpha">Alpha</span> APIs and flags may change before 1.0.</p>
+        <h2 id="start-title">Start where you are.</h2>
       </div>
+      <ol class="paths" aria-label="Start here, by role">
+        {startPaths.map((path) => (
+          <li class="path">
+            <h3 id={`path-${path.id}`}>{path.role}</h3>
+            <ol class="path__steps">
+              {path.steps.map((step, n) => (
+                <li><a class="tap" href={url(step.href)}><span class="path__n" aria-hidden="true">{n + 1}</span>{step.label}</a></li>
+              ))}
+            </ol>
+          </li>
+        ))}
+      </ol>
+      <p class="start__sub">Two ways to run it. Both need Node.js 24.14 or later, on Windows, macOS or Linux. <span class="start__alpha">Alpha</span> APIs and flags may change before 1.0.</p>
       <div class="start__ways">
         <article class="card start__way" aria-labelledby="start-npm">
           <span class="card-tag">npm</span>
@@ -284,6 +297,21 @@ const teaser = principles.slice(0, 3);
   }
 
   /* ---------- Get started ---------- */
+  /* Start here, by role: three short paths into the docs, then the installs. */
+  .paths { display: grid; gap: var(--space-xs); margin-bottom: var(--space-lg); }
+  .path { min-width: 0; border-top: 1px solid var(--color-line-strong); padding-top: var(--space-xs); }
+  .path h3 { font-family: var(--font-body); font-size: var(--text-sm); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--color-muted); }
+  .path__steps { display: grid; }
+  .path__steps a { gap: 0.6rem; width: 100%; color: var(--color-ink); font-family: var(--font-action); font-weight: 500; }
+  .path__steps a:hover { color: var(--color-accent); }
+  .path__n {
+    display: inline-grid; place-items: center; flex: none; width: 1.5rem; height: 1.5rem; border-radius: 50%;
+    border: 1px solid color-mix(in oklab, var(--color-accent) 55%, transparent);
+    font-family: var(--font-mono); font-size: 0.7rem; color: var(--color-accent);
+  }
+  @media (min-width: 860px) { .paths { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-md); } }
+  .start__sub { color: var(--color-muted); margin-bottom: var(--space-md); max-width: var(--measure); }
+
   .start__ways { display: grid; gap: var(--space-md); }
   .start__way { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
   .start__way h3 { font-size: var(--text-xl); margin-top: var(--space-2xs); }

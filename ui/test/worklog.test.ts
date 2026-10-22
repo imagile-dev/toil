@@ -315,3 +315,34 @@ describe('a fact recorded twice', () => {
     expect(buildDay(input({ events: byKey })).work).toHaveLength(1);
   });
 });
+
+describe('what a sync sees for the theme moments (#419)', () => {
+  const link = { type: 'blocks' as const, direction: 'inward' as const, target: 'jira:PAY-2', name: 'is blocked by' };
+
+  it('records a blocker cleared, on an item still open, naming the blocker', () => {
+    const before = { items: [item('PAY-1', { links: [link] }), item('PAY-2')], deployments: [] };
+    const done = { items: [item('PAY-1', { links: [link] }), item('PAY-2', { statusCategory: 'DONE' })], deployments: [] };
+    const [e, ...rest] = observedEvents(before, done, at('09:00'), at('07:00'));
+    expect(rest).toEqual([]);
+    expect(e).toMatchObject({ kind: 'blocker-cleared', subject: 'jira:PAY-1', text: 'no longer blocked by [[jira:PAY-2]]', observed: { previousSync: at('07:00') } });
+    // An unlinked blocker clears it too; a blocked item that is itself done now doesn't count.
+    expect(observedEvents(before, { items: [item('PAY-1'), item('PAY-2')], deployments: [] }, at('09:00'), at('07:00')).map((x) => x.kind)).toEqual(['blocker-cleared']);
+    expect(observedEvents(before, { items: [item('PAY-1', { links: [link], statusCategory: 'DONE' }), item('PAY-2')], deployments: [] }, at('09:00'), at('07:00'))).toEqual([]);
+    // A blocker whose whole source left the picture (an area unlinked from the dossier) clears nothing.
+    const other = item('OPS-1', { source: { area: 'github', connection: 'github', key: 'OPS-1', command: 'github issue list' }, id: 'github:OPS-1' });
+    const across = { ...link, target: 'github:OPS-1' };
+    expect(observedEvents({ items: [item('PAY-1', { links: [across] }), other], deployments: [] }, { items: [item('PAY-1', { links: [across] })], deployments: [] }, at('09:00'), at('07:00'))).toEqual([]);
+  });
+
+  it("records a sprint's end once, at the sync after it, with its tally", () => {
+    const iteration = { id: '42', name: 'Sprint 42', path: null, start: '2026-10-01T00:00:00.000Z', end: at('08:00'), state: 'past' as const };
+    const points = (value: number) => ({ value, unit: 'points' as const, field: 'Story Points' });
+    const items = [item('PAY-1', { iteration, statusCategory: 'DONE', estimate: points(3) }), item('PAY-2', { iteration, estimate: points(5) })];
+    const snap = { items, deployments: [] };
+    const [e] = observedEvents(snap, snap, at('09:00'), at('07:00'));
+    expect(e).toMatchObject({ kind: 'sprint-ended', label: 'Sprint 42', text: 'ended: 1 of 2 items done, 3 of 8 points done', at: at('08:00') });
+    // Before its end, and once the sync before already ran after it, there is nothing.
+    expect(observedEvents(snap, snap, at('07:30'), at('07:00'))).toEqual([]);
+    expect(observedEvents(snap, snap, at('10:00'), at('09:00'))).toEqual([]);
+  });
+});

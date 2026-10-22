@@ -367,3 +367,24 @@ describe('the stand-up (#345)', () => {
     expect(out.proposals.map((p) => p.title)).toEqual(['Publish the stand-up as a Confluence page in PAY']);
   });
 });
+
+describe('the facts a sync recorded for the first time (#419)', () => {
+  it('are none on the first sync, and only the new ones after it', async () => {
+    const { cache } = await setup();
+    const done = { from: 'In Progress', to: 'Done', fromCategory: 'IN_PROGRESS' as const, toCategory: 'DONE' as const, at: '2026-10-12T08:30:00.000Z', by: null };
+    expect(cache.saveDossier(save(T))).toEqual([]);
+    expect(cache.saveDossier(save('2026-10-12T08:00:00.000Z'))).toEqual([]);
+    const [first] = item('PAY-1').history!.transitions;
+    const news = cache.saveDossier(save('2026-10-12T09:00:00.000Z', [item('PAY-1', { statusCategory: 'DONE', history: { transitions: [first!, done], iterations: [] } }), item('PAY-2')]));
+    expect(news.map((e) => [e.kind, e.subject, e.toCategory])).toEqual([['status', 'jira:PAY-1', 'DONE']]);
+    // The same fact again is not news.
+    expect(cache.saveDossier(save('2026-10-12T10:00:00.000Z', [item('PAY-1', { statusCategory: 'DONE', history: { transitions: [first!, done], iterations: [] } }), item('PAY-2')]))).toEqual([]);
+  });
+
+  it("isn't news when it happened before the last good sync, though a source only now lists it", async () => {
+    const { cache } = await setup();
+    cache.saveDossier(save(T));
+    const old = { from: 'In Progress', to: 'Done', fromCategory: 'IN_PROGRESS' as const, toCategory: 'DONE' as const, at: '2026-10-01T08:30:00.000Z', by: null };
+    expect(cache.saveDossier(save('2026-10-12T09:00:00.000Z', [item('PAY-1', { history: { transitions: [old], iterations: [] } }), item('PAY-2')]))).toEqual([]);
+  });
+});

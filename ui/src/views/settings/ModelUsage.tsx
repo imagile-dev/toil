@@ -36,6 +36,7 @@ import {
   type UsageTotals,
 } from '../../model-usage.ts';
 import type { ModelUsageApi, UsageView } from '../../server-client.ts';
+import { Loader } from '../../moments/Moments.tsx';
 
 const tokens = (t: UsageTotals) => (t.tokens === undefined ? 'not reported' : compact(t.tokens));
 const figure = (n: number | undefined) => (n === undefined ? 'not reported' : compact(n));
@@ -84,7 +85,7 @@ export function ModelUsage({ api, landOn = null }: { api: ModelUsageApi | null; 
         Reading the model usage failed: {problem}
       </p>
     );
-  if (!view) return <p className="skin-loading">Reading what the agent's models used…</p>;
+  if (!view) return <Loader size="panel" message={"Reading what the agent's models used…"} />;
   return <Loaded view={view} api={api} onSaved={setView} />;
 }
 

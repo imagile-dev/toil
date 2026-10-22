@@ -13,6 +13,7 @@ import '@fontsource/fira-code/500.css';
 import '@fontsource/archivo/500.css';
 import SiteHeader from '../components/SiteHeader.astro';
 import SiteFooter from '../components/SiteFooter.astro';
+import SiteSearch from '../components/SiteSearch.astro';
 import { url } from '../lib/url';
 
 interface Props {
@@ -63,6 +64,7 @@ const ogImage = new URL(url('/og.png'), Astro.site);
       <slot />
     </main>
     <SiteFooter />
+    <SiteSearch />
     <script src="../scripts/motion.js"></script>
   </body>
 </html>

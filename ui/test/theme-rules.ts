@@ -8,6 +8,7 @@
  * The dress code, enforced at the door rather than in the annual review.
  */
 
+import { ENTER_MOTIFS, LOOP_MOTIFS, MOMENT_KINDS, TRACK_MOTIFS } from '../src/moments/schema.ts';
 import { TERMS, TOKENS, type ThemeManifest } from '../src/theme-pack.ts';
 import { STANDARD, WORD_KEYS, commandsIn, placeholders, type WordKey } from '../src/wording.ts';
 
@@ -113,7 +114,83 @@ export function manifestProblems(folder: string, raw: unknown): string[] {
   if (typeof m.radius !== 'string' || !/^\d+(\.\d+)?(px|rem|em)$/.test(m.radius)) out.push('theme.json: "radius" must be a length, like "6px".');
   for (const key of Object.keys(m.terms ?? {})) if (!(TERMS as readonly string[]).includes(key)) out.push(`theme.json: "${key}" isn't a word a theme can rename (${TERMS.join(', ')}).`);
   for (const [key, word] of Object.entries(m.terms ?? {})) if (typeof word !== 'string' || /[<>]/.test(word)) out.push(`theme.json: terms.${key} must be plain text.`);
-  out.push(...lexiconProblems(m.lexicon), ...voiceProblems(m.voice), ...alignmentProblems(m.alignments));
+  out.push(...lexiconProblems(m.lexicon), ...voiceProblems(m.voice), ...alignmentProblems(m.alignments), ...momentsProblems(m.moments, (m.assets ?? {}) as Record<string, string>));
+  return out;
+}
+
+/** Plain text a moment shows: words only, no markup, citation or code. */
+const plainText = (v: unknown) => typeof v === 'string' && v.trim() !== '' && !/[<>`]|\[\[/.test(v) && v.length <= 160;
+
+/**
+ * Problems with a theme's moments (#419): only the keys src/moments/schema.ts
+ * knows, every picture an asset the theme lists (by key), every motif one the
+ * engine has, every size a sane number, and every word plain text. A theme
+ * without the block has none: it gets the plain defaults.
+ */
+export function momentsProblems(moments: unknown, assets: Record<string, string> = {}): string[] {
+  if (moments === undefined) return [];
+  if (!moments || typeof moments !== 'object' || Array.isArray(moments)) return ['theme.json: "moments" must be an object.'];
+  const m = moments as Record<string, unknown>;
+  const out: string[] = [];
+  const at = (path: string, problem: string) => out.push(`theme.json: moments.${path} ${problem}`);
+  const known = ['splash', 'loader', 'tips', 'entrance', 'tabs', 'events', 'recap'];
+  for (const key of Object.keys(m)) if (!known.includes(key)) at(key, `isn't a moment (${known.join(', ')}).`);
+  const asset = (path: string, key: unknown) => {
+    if (typeof key !== 'string' || !(key in assets)) at(path, 'must name one of the theme\'s assets by its key.');
+  };
+  const size = (path: string, n: unknown) => {
+    if (typeof n !== 'number' || !Number.isInteger(n) || n < 8 || n > 640) at(path, 'must be a whole number of pixels from 8 to 640.');
+  };
+  const art = (path: string, a: unknown) => {
+    if (!a || typeof a !== 'object') return at(path, 'must be { art, width, height }.');
+    const r = a as Record<string, unknown>;
+    asset(`${path}.art`, r.art);
+    size(`${path}.width`, r.width);
+    size(`${path}.height`, r.height);
+    if (r.frames !== undefined && (typeof r.frames !== 'number' || !Number.isInteger(r.frames) || r.frames < 2 || r.frames > 16)) at(`${path}.frames`, 'must be a whole number from 2 to 16.');
+  };
+  const motif = (path: string, v: unknown, list: readonly string[]) => {
+    if (typeof v !== 'string' || !list.includes(v)) at(path, `must be one of ${list.join(', ')}.`);
+  };
+  const words = (path: string, v: unknown) => {
+    if (!plainText(v)) at(path, 'must be plain text, up to 160 characters.');
+  };
+  if (m.splash !== undefined) {
+    const s = m.splash as Record<string, unknown>;
+    art('splash.art', s.art);
+    motif('splash.motif', s.motif, ENTER_MOTIFS);
+    if (s.loop !== undefined) motif('splash.loop', s.loop, LOOP_MOTIFS);
+    words('splash.line', s.line);
+  }
+  if (m.loader !== undefined) {
+    const l = m.loader as Record<string, unknown>;
+    art('loader.art', l.art);
+    motif('loader.loop', l.loop, LOOP_MOTIFS);
+    if (l.loop === 'frames' && !(l.art as Record<string, unknown> | undefined)?.frames) at('loader.loop', 'is frames, so loader.art needs "frames".');
+    const t = (l.track ?? {}) as Record<string, unknown>;
+    asset('loader.track.art', t.art);
+    size('loader.track.size', t.size);
+    if (typeof t.count !== 'number' || !Number.isInteger(t.count) || t.count < 1 || t.count > 8) at('loader.track.count', 'must be a whole number from 1 to 8.');
+    motif('loader.track.motif', t.motif, TRACK_MOTIFS);
+    if (!Array.isArray(l.flavour) || l.flavour.length > 12) at('loader.flavour', 'must be a list of up to 12 lines.');
+    else l.flavour.forEach((f, i) => words(`loader.flavour[${i}]`, f));
+  }
+  if (m.tips !== undefined) words('tips.label', (m.tips as Record<string, unknown>).label);
+  if (m.recap !== undefined) words('recap.label', (m.recap as Record<string, unknown>).label);
+  if (m.entrance !== undefined) motif('entrance', m.entrance, ENTER_MOTIFS);
+  if (m.tabs !== undefined) motif('tabs', m.tabs, ENTER_MOTIFS);
+  if (m.events !== undefined) {
+    const events = m.events as Record<string, unknown>;
+    for (const [kind, e] of Object.entries(events)) {
+      if (!(MOMENT_KINDS as readonly string[]).includes(kind)) {
+        at(`events.${kind}`, `isn't a moment kind (${MOMENT_KINDS.join(', ')}).`);
+        continue;
+      }
+      art(`events.${kind}`, e);
+      motif(`events.${kind}.motif`, (e as Record<string, unknown>)?.motif, ENTER_MOTIFS);
+      words(`events.${kind}.label`, (e as Record<string, unknown>)?.label);
+    }
+  }
   return out;
 }
 

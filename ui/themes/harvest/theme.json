@@ -41,7 +41,37 @@
     "emptyState": "assets/empty-field.svg",
     "loading": "assets/watering-can.svg",
     "mark": "assets/mark.svg",
-    "fields": "assets/fields.webp"
+    "fields": "assets/fields.webp",
+    "momentSplash": "assets/moments/splash.webp",
+    "momentSprout": "assets/moments/sprout-sheet.svg",
+    "momentBale": "assets/moments/bale.svg",
+    "momentBasket": "assets/moments/basket.svg",
+    "momentSun": "assets/moments/sun.svg",
+    "momentStorm": "assets/moments/storm.svg",
+    "momentGate": "assets/moments/gate.svg",
+    "momentCart": "assets/moments/cart.svg",
+    "momentMoon": "assets/moments/moon.svg"
+  },
+  "moments": {
+    "splash": { "art": { "art": "momentSplash", "width": 480, "height": 320 }, "motif": "fade", "line": "Morning on the farm. Walking out to the fields." },
+    "loader": {
+      "art": { "art": "momentSprout", "width": 128, "height": 128, "frames": 4 },
+      "loop": "frames",
+      "track": { "art": "momentBale", "size": 24, "count": 5, "motif": "grow" },
+      "flavour": ["Watering the rows.", "Checking under the leaves.", "Listening to the weather report.", "Counting the hay bales.", "Shooing the crows off the fence."]
+    },
+    "tips": { "label": "From the almanac" },
+    "entrance": "drop",
+    "tabs": "slide",
+    "events": {
+      "item-done": { "art": "momentBasket", "width": 64, "height": 64, "motif": "pop", "label": "Harvested" },
+      "build-passed": { "art": "momentSun", "width": 64, "height": 64, "motif": "rise", "label": "Fair weather" },
+      "build-failed": { "art": "momentStorm", "width": 64, "height": 64, "motif": "drop", "label": "Storm over the field" },
+      "blocker-cleared": { "art": "momentGate", "width": 64, "height": 64, "motif": "slide", "label": "Gate open" },
+      "pr-merged": { "art": "momentCart", "width": 64, "height": 64, "motif": "sweep", "label": "Brought in" },
+      "sprint-ended": { "art": "momentMoon", "width": 64, "height": 64, "motif": "rise", "label": "Season's end" }
+    },
+    "recap": { "label": "Harvest festival" }
   },
   "terms": {
     "board": "Farm plot",

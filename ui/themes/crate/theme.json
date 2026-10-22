@@ -33,7 +33,36 @@
   "assets": {
     "emptyState": "assets/crate-lost.webp",
     "mark": "assets/mark.svg",
-    "loading": "assets/crate-loading.webp"
+    "loading": "assets/crate-loading.webp",
+    "momentSplash": "assets/moments/splash.webp",
+    "momentTote": "assets/moments/tote.svg",
+    "momentSigned": "assets/moments/signed.svg",
+    "momentGauge": "assets/moments/gauge.svg",
+    "momentSplit": "assets/moments/split.svg",
+    "momentAisle": "assets/moments/aisle.svg",
+    "momentMerge": "assets/moments/merge.svg",
+    "momentManifest": "assets/moments/manifest.svg"
+  },
+  "moments": {
+    "splash": { "art": { "art": "momentSplash", "width": 360, "height": 327 }, "motif": "rise", "loop": "bob", "line": "Shift's starting. Pulling the manifests off the rack." },
+    "loader": {
+      "art": { "art": "loading", "width": 240, "height": 160 },
+      "loop": "roll",
+      "track": { "art": "momentTote", "size": 18, "count": 4, "motif": "march" },
+      "flavour": ["Checking the bills of lading.", "Counting the crates twice.", "Waiting on the forklift.", "Reading the stencil on the side.", "Signing for it in triplicate."]
+    },
+    "tips": { "label": "Foreman's note" },
+    "entrance": "rise",
+    "tabs": "fade",
+    "events": {
+      "item-done": { "art": "momentSigned", "width": 64, "height": 64, "motif": "stamp", "label": "Signed off" },
+      "build-passed": { "art": "momentGauge", "width": 64, "height": 64, "motif": "pop", "label": "Forklift check passed" },
+      "build-failed": { "art": "momentSplit", "width": 64, "height": 64, "motif": "drop", "label": "Load split" },
+      "blocker-cleared": { "art": "momentAisle", "width": 64, "height": 64, "motif": "slide", "label": "Aisle clear" },
+      "pr-merged": { "art": "momentMerge", "width": 64, "height": 64, "motif": "sweep", "label": "Loaded on the truck" },
+      "sprint-ended": { "art": "momentManifest", "width": 64, "height": 64, "motif": "rise", "label": "Shipment closed" }
+    },
+    "recap": { "label": "Shipment closed" }
   },
   "lexicon": {
     "dossiers.lede": "Each dossier is one consignment of work: its repositories, its tracker, its pipelines and its environments, all on one manifest. Pick one to see its stories, pull requests, builds and deployments on the same dock.",

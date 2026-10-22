@@ -359,7 +359,8 @@ GitHub Actions; its build tooling is out of scope.
   registry; `npm run check:package -w ui` is its `check:pure`, and `npm run smoke
   -w ui` installs both tarballs, opens it, and holds every view in every theme at
   375, 768 and 1440px to the layout check in headless Chrome
-  (`ui/scripts/layout-check.mjs`). The decisions are in
+  (`ui/scripts/layout-check.mjs`), with reduced motion, then the views where the
+  theme moments play again with motion on (#419). The decisions are in
   `AGENT_DECISIONS.md`, **#206 preview**, **#228 dossier dashboard** and **#249 UI
   server**
 - `functions/feedback/` — the feedback backend behind the site's form and its curl
