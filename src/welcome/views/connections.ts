@@ -49,7 +49,7 @@ export const connectionView: View = {
     const isDefault = defaultConnectionName(cfg, conn.area) === name;
     const health = p.session.health[name];
     const lines = [
-      paint(caps, PALETTE.amber, name),
+      paint(caps, PALETTE.highlight, name),
       '',
       `${paint(caps, PALETTE.muted, 'Area      ')} ${conn.area}${isDefault ? paint(caps, PALETTE.faint, '  (its default)') : ''}`,
       `${paint(caps, PALETTE.muted, 'Host      ')} ${hostOf(conn.baseUrl) || hostOf(conn.host) || '-'}`,
@@ -100,7 +100,7 @@ export const connectionView: View = {
 export const removeView: View = {
   title: () => 'Remove',
   body: (caps, p) => [
-    paint(caps, PALETTE.accent, `Remove ${p.frame.params.name}?`),
+    paint(caps, PALETTE.danger, `Remove ${p.frame.params.name}?`),
     '',
     'This deletes it from your config file and its secret from the OS credential store.',
   ],
@@ -119,7 +119,7 @@ const step = (n: number, what: string) => `Step ${n} of ${STEPS}: ${what}`;
 
 export const addArea: View = {
   title: () => 'Add',
-  body: (caps) => [paint(caps, PALETTE.amber, step(1, 'service')), '', 'Which service is it?'],
+  body: (caps) => [paint(caps, PALETTE.highlight, step(1, 'service')), '', 'Which service is it?'],
   items: (p) =>
     p.data.areas
       .filter((a) => a.configurable)
@@ -136,7 +136,7 @@ export function suggestName(data: WelcomeData, area: string): string {
 export const addName: View = {
   title: (p) => p.frame.params.area ?? '',
   body: (caps, p) => [
-    paint(caps, PALETTE.amber, step(2, 'name')),
+    paint(caps, PALETTE.highlight, step(2, 'name')),
     '',
     `What should this ${p.frame.params.area} connection be called? You'll pass it as --connection when you have more than one.`,
   ],
@@ -175,7 +175,7 @@ export const addName: View = {
 
 export const makeDefault: View = {
   title: () => 'Default',
-  body: (caps, p) => [paint(caps, PALETTE.amber, `Make ${p.frame.params.name} the ${p.frame.params.area} default?`), '', 'The default is the connection a call uses when it names none.'],
+  body: (caps, p) => [paint(caps, PALETTE.highlight, `Make ${p.frame.params.name} the ${p.frame.params.area} default?`), '', 'The default is the connection a call uses when it names none.'],
   items: (p) => {
     const name = p.frame.params.name!;
     const then = { go: 'connection', params: { name }, root: 'connections' } as const;

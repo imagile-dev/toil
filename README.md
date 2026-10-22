@@ -5,11 +5,11 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@imagile-dev/toil"><img src="https://img.shields.io/npm/v/@imagile-dev/toil/alpha?style=flat-square&label=npm&labelColor=16130f&color=ff6a3d" alt="npm version (alpha)"></a>
-  <a href="https://github.com/imagile-dev/toil/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/imagile-dev/toil/ci.yml?branch=main&style=flat-square&label=CI&labelColor=16130f" alt="CI status on main"></a>
-  <a href="package.json"><img src="https://img.shields.io/badge/node-%E2%89%A5%2024.14-ffb84d?style=flat-square&labelColor=16130f" alt="Node.js 24.14 or later"></a>
-  <a href="https://imagile-dev.github.io/toil/about/how-it-works/"><img src="https://img.shields.io/badge/runtime%20dependencies-0-ffb84d?style=flat-square&labelColor=16130f" alt="No runtime dependencies"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/imagile-dev/toil?style=flat-square&labelColor=16130f&color=b4a998" alt="Apache 2.0 license"></a>
+  <a href="https://www.npmjs.com/package/@imagile-dev/toil"><img src="https://img.shields.io/npm/v/@imagile-dev/toil/alpha?style=flat-square&label=npm&labelColor=0f1115&color=8cc4ff" alt="npm version (alpha)"></a>
+  <a href="https://github.com/imagile-dev/toil/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/imagile-dev/toil/ci.yml?branch=main&style=flat-square&label=CI&labelColor=0f1115" alt="CI status on main"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/node-%E2%89%A5%2024.14-c2e0ff?style=flat-square&labelColor=0f1115" alt="Node.js 24.14 or later"></a>
+  <a href="https://imagile-dev.github.io/toil/about/how-it-works/"><img src="https://img.shields.io/badge/runtime%20dependencies-0-c2e0ff?style=flat-square&labelColor=0f1115" alt="No runtime dependencies"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/imagile-dev/toil?style=flat-square&labelColor=0f1115&color=a7afba" alt="Apache 2.0 license"></a>
 </p>
 
 <p align="center">
@@ -59,7 +59,7 @@ precise it is.
 ### Why toil
 
 <p align="center">
-  <img src=".github/assets/crate-red-tape.webp" width="720" alt="A cardboard box in an amber-striped hard hat walks calmly through a maze of barrier tape and traffic cones, the tape parted neatly behind it, carrying a small parcel past an ignored filing cabinet and a rubber stamp.">
+  <img src=".github/assets/crate-red-tape.webp" width="720" alt="A blue cardboard box in a hard hat walks calmly through a maze of barrier tape and traffic cones, the tape parted neatly behind it, carrying a small parcel past an ignored filing cabinet and a rubber stamp.">
 </p>
 
 <table>

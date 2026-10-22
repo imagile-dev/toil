@@ -17,13 +17,20 @@ from `main`).
   links inside a sentence) are at least 44px tall, and multi-column layouts collapse to one
   column. Wide content (code, tables) scrolls inside its own container, never the
   page. Grid children get `min-width: 0` so one long line can't widen the layout.
-- **Dark only.** It uses the Imagile design system's bones (type, grid, spacing,
-  drafting-style iconography) in a dark finish with toil's own, brighter palette:
-  all warm, with a flame-to-amber accent gradient and amber on its own for values,
-  "live" states and small highlights, as tokens in `site/src/styles/global.css`.
-  There's no second hue: no green, teal, blue or purple, in the site or in
-  generated art. No light palette, no theme toggle. The background stays
-  `#16130f` because the generated art is painted on it.
+- **Dark only, in Plain's blue** (#442). It uses the Imagile design system's bones
+  (type, grid, spacing, drafting-style iconography) in Toil UI Plain's dark
+  scheme: one hue, the blue accent (`#8cc4ff`), with a lighter tint of it
+  (`--color-highlight`) for values, "live" states and small highlights, and the two
+  as the accent gradient. Plain's own colours (bg, surfaces, ink, muted, line,
+  accent and its ink, focus, ok, warn, danger) aren't written by hand:
+  `site/scripts/plain-tokens.mjs` writes them from `ui/themes/plain/theme.json`
+  into `site/src/styles/plain.generated.css` before every `dev` and `build`, and
+  `site/src/styles/global.css` imports that and derives the other roles from it.
+  Change the theme, never the generated file; `test/brand-sync.test.ts` fails when
+  it has drifted. ok, warn and danger are for status only (a stable level, a sent
+  form), never decoration; no other hue appears, in the site or in generated art.
+  No light palette, no theme toggle. Toil UI's showcase (`/ui/`) keeps each theme's
+  own colours inside its frame.
 - **Imagile is credited prominently**: a byline in the header, a linked "By Imagile"
   in the hero eyebrow, and a feature panel in the footer, all pointing to
   https://www.imagile.dev. Imagile's mark keeps its own colours.
@@ -61,22 +68,21 @@ from `main`).
   A reveal never clips the observed element itself (a fully clipped element never
   intersects, and a lazy image inside it never loads); clip its children.
 - **House style has three registers; pick by job, never mix them in one image.**
-  - *The mark* is toil's logo: the badge. A flame-to-amber tile (the 45° gradient,
-    flame at the bottom-left, amber at the cut corner) whose top-right corner is
-    cut on the diagonal, parallel to the fold of the page it holds, and on the page
-    a `>_` prompt: a near-black chevron and a deep-flame cursor (`#c43d12`, 4.6:1
-    on the page). The cut corner is what makes it toil's: the `>_` alone is
-    everyone's (macOS Terminal, Windows Terminal, Lucide's square-terminal), and a
-    cursor on a warm gradient tile is close to JetBrains', so the page stays a light
-    sheet with a dark fold, never a dark square. It's flat, symbolic, serious, and
+  - *The mark* is toil's logo: the badge, Toil UI Plain's dark badge (#442). A
+    flat tile in the accent blue whose top-right corner is cut on the diagonal,
+    parallel to the fold of the page it holds, and on that page, in the accent's
+    dark ink (10.2:1 on the tile), a light fold and `>` in ink (15.5:1) and the
+    cursor in the accent (10.2:1). No gradient. The cut corner and the dog-eared
+    page are what make it toil's: the `>_` alone is everyone's (macOS Terminal,
+    Windows Terminal, Lucide's square-terminal), so the page always keeps its fold
+    and its cut corner, never a plain dark square. It's flat, symbolic, serious, and
     hand-built SVG: the component is `site/src/components/Logo.astro`, the static
     copies are `public/favicon.svg` and `public/brand/toil-avatar.svg` (the badge on
     a near-black disc, circular with transparent corners, exported to 512 and 256
     PNG; Discord's posts use the 512, see the `automation` skill). All of them share
     one geometry; change them together. It never comes from an image model, and has
     no characters and no jokes. **Never add a spark, starburst or sparkle to it**, in
-    any theme or any size: an orange agent CLI with a burst is another product's
-    mark. Sizes: 34px in the header, 26px in the footer, and 192px at most
+    any theme or any size: an agent CLI with a burst is another product's mark. Sizes: 34px in the header, 26px in the footer, and 192px at most
     anywhere else.
   - *Its motion is a cursor blink.* The cursor blinks three times on load and again
     when the pointer or focus reaches the link around it, then stays lit, so it
@@ -84,11 +90,13 @@ from `main`).
     `prefers-reduced-motion: no-preference`.
   - *The terminal draws the badge in orbit.* Bare `toil` opens a splash
     (`src/welcome/logo.ts`) that draws the badge, shrunk, on a braille canvas with
-    six tool dots (amber, flame, cream, repeating) on an implied ring around it: the
+    six tool dots (highlight, accent, ink, repeating) on an implied ring around it: the
     badge fades in, the dots pop on, the cursor blinks twice, the ring turns half a
     revolution and settles on the picture it left. Its still copy is
-    `public/brand/toil-orbit.svg`, for docs. The menu (`src/welcome/term.ts`,
-    `PALETTE`) uses the site's colour tokens. **The site, the terminal and Toil UI
+    `public/brand/toil-orbit.svg`, for docs. On the braille canvas the dark page is
+    the terminal's own background: only the tile, the fold and the prompt are
+    drawn. The menu (`src/welcome/term.ts`, `PALETTE`) uses the site's colour
+    tokens, with ok and danger for a result that worked or didn't. **The site, the terminal and Toil UI
     are one brand: a change to the badge's geometry or to a colour token changes all
     three in the same PR.** `test/brand-sync.test.ts` fails when the terminal's
     palette, tile, page placement or orbit, or any static copy, differs from the
@@ -97,7 +105,8 @@ from `main`).
     the user's folder) shows the standard badge (`ui/src/mark.svg`). Plain's is the
     same badge in Plain's own blue, one per scheme (the tile takes that scheme's
     `accent`, with a white or dark page; `assets/mark-light.svg` and
-    `mark-dark.svg`), so the quiet theme never wears flame. Each built-in game theme
+    `mark-dark.svg`); the dark one is the site's badge and the standard one, line
+    for line. Each built-in game theme
     has its own skin of the same silhouette in `ui/themes/<theme>/assets/mark.svg`: Crate
     kraft cardboard with a hazard-striped tape and a stencilled prompt, Harvest a
     16-pixel wooden sign, Starship a riveted hull plate with a glowing console, Realm
@@ -115,9 +124,9 @@ from `main`).
     rasterises Fredoka 600 in headless Chrome onto quadrant blocks (two pixels across
     and two down per cell, sampled twice as densely across because a cell is twice
     as tall as it is wide) and writes `src/welcome/wordmark.ts`; hand-tuning goes in
-    the script's `TUNE`, never in the data. It's 8 lines by 33 columns, shaded flame
-    at the baseline to amber at the top, over a one-cell shadow in a dark flame
-    (colour only), with a cursor after it that blinks with the badge's. The splash
+    the script's `TUNE`, never in the data. It's 8 lines by 33 columns, shaded from
+    the accent at the baseline to the highlight at the top, over a one-cell shadow
+    in a dark blue (colour only), with a cursor after it that blinks with the badge's. The splash
     and the menu draw it at that one size, never stretched for a wide window, so it
     sits beside the logo at 80 columns. A change to the face
     changes all three in the same PR; `test/brand-sync.test.ts` holds the site's and
@@ -126,11 +135,16 @@ from `main`).
     hero), generated with `.claude/image-generation/style.md`.
   - *Cartoons* are lighthearted spot illustrations, generated with
     `.claude/image-generation/style-cartoon.md` (pass `--style-file`). The recurring
-    character is the crate, a package box in an amber-striped hard hat. The crate is
+    character is the crate, a blue package box in a hard hat. The crate is
     always competent; the joke is on the bureaucracy around it, never on users or
     their employers.
-- **Generated art** sits on the page colour `#16130f` (or darker) and shows with
-  `mix-blend-mode: lighten` on its wrapper, so the grid shows through. Ship WebP at
+- **Generated art** sits on the deep ground `#0a0c0f` (`--color-bg-deep`, or
+  darker), at or below every surface it's shown on, and shows with
+  `mix-blend-mode: lighten` on its wrapper, so the grid shows through. The art
+  made before #442 was recoloured from its warm originals pixel for pixel (warm
+  hues into the blue band, warm greys to cool, the ground pulled under the deep
+  ground), so the drawings are unchanged; new art uses the style files' blue
+  palette. Ship WebP at
   960 and 1536 wide; the PNG masters stay in the ignored run folders. Every cartoon
   gets real alt text describing the joke.
 - **Documentation has two levels:**

@@ -63,10 +63,10 @@ export interface WelcomeData {
 
 type Caps = Pick<TermCaps, 'colorDepth' | 'unicode'>;
 
-const heading = (caps: Caps, text: string) => paint(caps, PALETTE.amber, text);
+const heading = (caps: Caps, text: string) => paint(caps, PALETTE.highlight, text);
 const muted = (caps: Caps, text: string) => paint(caps, PALETTE.muted, text);
 const faint = (caps: Caps, text: string) => paint(caps, PALETTE.faint, text);
-export const ok = (caps: Caps, good: boolean, text: string) => paint(caps, good ? PALETTE.amber : PALETTE.accent, text);
+export const ok = (caps: Caps, good: boolean, text: string) => paint(caps, good ? PALETTE.ok : PALETTE.danger, text);
 
 export function hostOf(value: unknown): string {
   if (typeof value !== 'string') return '';

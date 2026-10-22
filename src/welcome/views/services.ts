@@ -122,7 +122,7 @@ export const serviceView: View = {
       : area.configurable
         ? ok(caps, false, 'none yet; commands that talk to it need one')
         : 'none needed';
-    return [paint(caps, PALETTE.amber, area.description), '', `${paint(caps, PALETTE.muted, 'Connections ')} ${connections}`];
+    return [paint(caps, PALETTE.highlight, area.description), '', `${paint(caps, PALETTE.muted, 'Connections ')} ${connections}`];
   },
   items: (p) => {
     const area = areaOf(p.data, p.frame.params.area);
@@ -152,7 +152,7 @@ export const resourceView: View = {
 };
 
 function commandBody(caps: Caps, c: CommandSummary): string[] {
-  const lines = [paint(caps, PALETTE.amber, c.description), '', paint(caps, PALETTE.ink, usage(c))];
+  const lines = [paint(caps, PALETTE.highlight, c.description), '', paint(caps, PALETTE.ink, usage(c))];
   if (c.writes) lines.push('', ok(caps, false, 'Writes: needs writes on for the connection, and asks you before it runs.'));
   // A passthrough's method decides; the menu runs the line as typed, and toil's own gate says if it needs --allow-write.
   if (c.mayWrite) lines.push('', paint(caps, PALETTE.muted, 'Some calls write (a POST, say): add --allow-write to the flags for those; writes must be on for the connection.'));

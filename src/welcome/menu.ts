@@ -179,7 +179,7 @@ export function render(state: MenuState, caps: RenderCaps, data: WelcomeData, no
   const columns = caps.columns ?? 100;
   // The wordmark only where it leaves room for the screen itself.
   const head = rows >= 30 && columns >= 40 ? ['', ...wordmarkFrame(99, caps).map((l) => `  ${l}`)] : [];
-  const lines: string[] = [...head, '', `  ${paint(caps, PALETTE.amber, breadcrumb(state, caps, data))}`, ''];
+  const lines: string[] = [...head, '', `  ${paint(caps, PALETTE.highlight, breadcrumb(state, caps, data))}`, ''];
   const body = view.body?.(caps, p) ?? [];
   // Prose wraps to the window; tables and rows are cut at its edge below.
   lines.push(...body.flatMap((l) => (l ? wrapLine(`  ${l}`, columns - 1) : [''])));
@@ -189,7 +189,7 @@ export function render(state: MenuState, caps: RenderCaps, data: WelcomeData, no
     const text = f.text ?? view.input.initial?.(p) ?? '';
     const caret = paint(caps, PALETTE.accent, caps.unicode ? '▏' : '_');
     lines.push('', `  ${paint(caps, PALETTE.muted, `${view.input.label(p)}:`)} ${paint(caps, PALETTE.ink, text)}${caret}`);
-    if (f.error) lines.push(...wrapLine(`  ${paint(caps, PALETTE.accent, f.error)}`, columns - 1));
+    if (f.error) lines.push(...wrapLine(`  ${paint(caps, PALETTE.danger, f.error)}`, columns - 1));
     keys = 'type   enter go on   esc back';
   } else if (view.checklist) {
     const options = view.checklist.options(p);
@@ -238,7 +238,7 @@ function list(caps: Pick<TermCaps, 'colorDepth' | 'unicode'>, items: Item[], sel
     const on = index === selected;
     const mark = on ? paint(caps, PALETTE.accent, pointer) : ' ';
     const number = paint(caps, PALETTE.faint, index < 9 ? `${index + 1}` : ' ');
-    const color = item.attention ? PALETTE.accent : on ? PALETTE.ink : PALETTE.muted;
+    const color = item.attention ? PALETTE.danger : on ? PALETTE.ink : PALETTE.muted;
     const text = paint(caps, color, item.label.padEnd(width));
     return `${mark} ${number}  ${text}   ${item.hint ? paint(caps, PALETTE.faint, item.hint) : ''}`;
   });

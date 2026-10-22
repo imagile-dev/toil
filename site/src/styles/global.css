@@ -1,35 +1,31 @@
 /* ============================================================
    toil — design tokens & base styles
-   The Imagile "workbench, refined" system in its dark finish only:
-   warm near-black paper, a serif display face, one terracotta accent,
-   a faint drafting grid. Mono is an accent voice (labels, commands),
-   never the navigation. There is no light theme and no toggle.
+   The Imagile "workbench, refined" system in its dark finish only, in
+   Toil UI Plain's dark palette (#442): cool near-black paper, a serif
+   display face, one blue accent, a faint drafting grid. Mono is an accent
+   voice (labels, commands), never the navigation. There is no light theme
+   and no toggle.
    ============================================================ */
+
+/* Plain's own colours: bg, surfaces, ink, muted, line, the accent and its ink,
+   focus, and ok, warn and danger. Written from ui/themes/plain/theme.json by
+   site/scripts/plain-tokens.mjs; everything below derives from them. */
+@import './plain.generated.css';
 
 :root {
   /* ---- color ----
-     Warmer, brighter than the Imagile finish, and all warm: a flame-orange
-     accent that shades into amber, with amber on its own for values, "live"
-     states and the odd highlight. No second hue. --rgb-* feed glows and tints. */
-  --color-bg: #16130f; /* must match the generated art; see Site in CLAUDE.md */
-  --color-bg-deep: #0e0c09;
-  --color-surface: #1f1a15;
-  --color-surface-raised: #2a231c;
-  --color-ink: #f6f1e9;
-  --color-muted: #b4a998;
-  --color-faint: #998d7e; /* 4.7:1 on the raised surface, the darkest it sits on (#277) */
-  --rgb-accent: 255, 106, 61;
-  --rgb-amber: 255, 184, 77;
+     One hue: Plain's blue, with a lighter tint of it for values, "live"
+     states and the odd highlight, and the two as the accent gradient. ok,
+     warn and danger are Plain's, for status only. --rgb-* feed glows and tints. */
+  --color-bg-deep: #0a0c0f; /* also the generated art's ground; see the site skill */
+  --color-faint: #868f9b; /* 4.8:1 on the raised surface, the darkest it sits on (#277) */
+  --rgb-highlight: 194, 224, 255;
   --color-accent: rgb(var(--rgb-accent));
-  --color-amber: rgb(var(--rgb-amber));
+  --color-highlight: rgb(var(--rgb-highlight));
   --color-accent-soft: rgba(var(--rgb-accent), 0.14);
-  --color-accent-ink: #160b05;
-  --color-ok: var(--color-amber);
-  --gradient-accent: linear-gradient(100deg, var(--color-accent) 10%, var(--color-amber) 90%);
-  --color-line: rgba(246, 241, 233, 0.14);
-  --color-line-strong: rgba(246, 241, 233, 0.3);
-  --color-grid: rgba(246, 241, 233, 0.045);
-  --color-focus: #6fb2ff;
+  --gradient-accent: linear-gradient(100deg, var(--color-accent) 10%, var(--color-highlight) 90%);
+  --color-line-strong: color-mix(in srgb, var(--color-ink) 30%, transparent);
+  --color-grid: color-mix(in srgb, var(--color-ink) 4.5%, transparent);
 
   /* ---- type ---- */
   --font-display: 'Source Serif 4', Georgia, 'Times New Roman', serif;
