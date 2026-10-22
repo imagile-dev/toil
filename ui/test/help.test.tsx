@@ -138,7 +138,10 @@ describe('edit links', () => {
   it('has a Help entry in the header for the view in front of you', async () => {
     setLearningLinks(false);
     await open('#/dossier/card-payments/people');
-    expect(screen.getByRole('link', { name: /^Help/ }).getAttribute('href')).toBe(helpHref(HELP.people));
+    await userEvent.click(screen.getByRole('button', { name: /^Help/ }));
+    const menu = await screen.findByRole('menu', { name: 'Help' });
+    expect(within(menu).getByRole('menuitem', { name: /^Help for this view/ }).getAttribute('href')).toBe(helpHref(HELP.people));
+    await userEvent.keyboard('{Escape}');
     expect(screen.getByRole('link', { name: "Edit card-payments's work-in-progress limit" }).getAttribute('href')).toBe('#/settings/dossiers/card-payments/wip');
   });
 });
@@ -197,20 +200,24 @@ describe('learning links (#418)', () => {
     await screen.findByRole('heading', { level: 1 });
   };
 
-  it('makes Help a menu with Learn, and the plain docs link again once the setting is off', async () => {
+  it("puts Learn in Help's menu, after the view's docs and What's new, and takes it out once the setting is off", async () => {
     await open('#/dossier/card-payments/people');
     await userEvent.click(screen.getByRole('button', { name: /^Help/ }));
     const menu = await screen.findByRole('menu', { name: 'Help' });
     const items = within(menu).getAllByRole('menuitem');
-    expect(items.map((i) => i.getAttribute('href'))).toEqual([helpHref(HELP.people), ...LEARN.map(learnHref)]);
-    for (const i of items) {
+    expect(items.map((i) => i.getAttribute('href'))).toEqual([helpHref(HELP.people), null, ...LEARN.map(learnHref)]);
+    expect(items[1]!.textContent).toBe("What's new");
+    for (const i of items.filter((x) => x.getAttribute('href'))) {
       expect(i.getAttribute('target')).toBe('_blank');
       expect(i.getAttribute('rel')).toBe('noopener noreferrer');
     }
-    expect(items[3]!.textContent).toBe('The Autonomy SpectrumDeciding how much to hand an agent (opens in a new tab)');
+    expect(items[4]!.textContent).toBe('The Autonomy SpectrumDeciding how much to hand an agent (opens in a new tab)');
     await userEvent.keyboard('{Escape}');
     act(() => setLearningLinks(false));
-    expect(screen.getByRole('link', { name: /^Help/ }).getAttribute('href')).toBe(helpHref(HELP.people));
+    await userEvent.click(screen.getByRole('button', { name: /^Help/ }));
+    const off = await screen.findByRole('menu', { name: 'Help' });
+    expect(within(off).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Help for this view (opens in a new tab)', "What's new"]);
+    await userEvent.keyboard('{Escape}');
     expect(document.querySelector('a[href*="context-overflow"], [data-learn-link], [data-learn]')).toBeNull();
   });
 
@@ -233,7 +240,7 @@ describe('learning links (#418)', () => {
     await userEvent.click(box);
     expect(box).toHaveProperty('checked', false);
     expect(localStorage.getItem('toil-ui.learning')).toBe('off');
-    expect(screen.getByRole('link', { name: /^Help/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /^Help/ })).toBeTruthy();
     resetLearningLinks();
     expect(screen.getByRole('checkbox', { name: 'Links to learning content' })).toHaveProperty('checked', false);
   });

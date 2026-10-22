@@ -12,8 +12,8 @@
  *
  * The learning links (#418) live here too: a topic's glossary terms, each
  * with Read more on Context Overflow, in its popover; `HeaderHelp`, the
- * header's Help, which is a menu with Learn while they're on and the plain
- * link it always was while they're off; and `LearnButton`, the same four
+ * header's Help, a menu with the view's docs and What's new (#417), and Learn
+ * while they're on; and `LearnButton`, the same four
  * modules from the agent's empty state. Every one is a plain link a person
  * follows into a new tab: nothing is fetched or prefetched.
  * Clarifying notes are available on request, and on hover, which saves a request.
@@ -23,6 +23,7 @@ import { useEffect } from 'react';
 import { Button, Dialog, DialogTrigger, Header, Heading, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Text, Tooltip, TooltipTrigger } from 'react-aria-components';
 import { HELP, LEARN, glossaryHref, helpHref, learnHref, type GlossaryEntry, type HelpTopic, type HelpTopicId } from '../help.ts';
 import { useLearningLinks } from '../learning.ts';
+import { NewDot } from './whats-new.tsx';
 import './help.css';
 
 export function Help({ topic }: { topic: HelpTopicId }) {
@@ -82,41 +83,44 @@ export function Glossary({ entries }: { entries: readonly GlossaryEntry[] }) {
 }
 
 /**
- * The header's Help (#346, #418). With learning links on it's a menu: the
- * docs for the view in front of you, then Learn, Context Overflow's four
- * modules by task. With them off it's the one link it was before.
+ * The header's Help (#346, #418, #417): a menu with the docs for the view in
+ * front of you and What's new, then, while learning links are on, Learn,
+ * Context Overflow's four modules by task. After an upgrade it carries a dot,
+ * and so does What's new, until the list has been opened.
  */
-export function HeaderHelp({ href }: { href: string }) {
+export function HeaderHelp({ href, fresh = false, onWhatsNew }: { href: string; fresh?: boolean; onWhatsNew?: () => void }) {
   const [on] = useLearningLinks();
-  if (!on) {
-    return (
-      <a className="btn help-link" href={href} target="_blank" rel="noopener noreferrer" data-help-link="">
-        Help<span className="sr-only"> (opens in a new tab)</span>
-      </a>
-    );
-  }
   return (
     <MenuTrigger>
       <Button className="btn help-link" data-help-link="">
-        Help<span aria-hidden="true"> ▾</span>
+        Help{fresh && <NewDot />}
+        <span aria-hidden="true"> ▾</span>
       </Button>
       <Popover className="popover menu-popover" placement="bottom end" offset={6}>
-        <Menu className="menu help-menu" aria-label="Help">
+        <Menu className="menu help-menu" aria-label="Help" onAction={(key) => key === 'whats-new' && onWhatsNew?.()}>
           <MenuItem className="menu-item" href={href} target="_blank" rel="noopener noreferrer" textValue="Help for this view">
             Help for this view<span className="sr-only"> (opens in a new tab)</span>
           </MenuItem>
-          <MenuSection>
-            <Header className="menu-header">Learn, on Context Overflow</Header>
-            {LEARN.map((m) => (
-              <MenuItem key={m.path} id={m.path} className="menu-item help-menu__module" href={learnHref(m)} target="_blank" rel="noopener noreferrer" textValue={m.title} data-learn-link="">
-                <Text slot="label">{m.title}</Text>
-                <Text slot="description" className="note">
-                  {m.task}
-                  <span className="sr-only"> (opens in a new tab)</span>
-                </Text>
-              </MenuItem>
-            ))}
-          </MenuSection>
+          {onWhatsNew && (
+            <MenuItem id="whats-new" className="menu-item" textValue="What's new" data-whats-new-open="">
+              What's new
+              {fresh && <NewDot />}
+            </MenuItem>
+          )}
+          {on && (
+            <MenuSection>
+              <Header className="menu-header">Learn, on Context Overflow</Header>
+              {LEARN.map((m) => (
+                <MenuItem key={m.path} id={m.path} className="menu-item help-menu__module" href={learnHref(m)} target="_blank" rel="noopener noreferrer" textValue={m.title} data-learn-link="">
+                  <Text slot="label">{m.title}</Text>
+                  <Text slot="description" className="note">
+                    {m.task}
+                    <span className="sr-only"> (opens in a new tab)</span>
+                  </Text>
+                </MenuItem>
+              ))}
+            </MenuSection>
+          )}
         </Menu>
       </Popover>
     </MenuTrigger>

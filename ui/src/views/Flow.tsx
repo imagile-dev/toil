@@ -15,7 +15,8 @@ import { dateTime, day, shortKey, sourceLabel } from '../format.ts';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput, type Unknown } from '../model/flow.ts';
 import { AGING_PERCENTILE, MIN_CYCLES } from '../model/insights.ts';
-import { useSkins, useTerm, useWords } from '../skins.tsx';
+import { useTerm, useWords } from '../skins.tsx';
+import { Empty, TrackerAction } from '../components/empty.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const daysText = (n: number) => `${round1(n)} ${round1(n) === 1 ? 'day' : 'days'}`;
@@ -39,11 +40,10 @@ function Unknowns({ list, what }: { list: Unknown[]; what: string }) {
 }
 
 export function Burnup() {
-  const { now } = useData();
+  const { now, dossier, sync } = useData();
   const { health: h } = useDerived();
-  const { EmptyState } = useSkins();
   const words = useWords();
-  if (!h) return <EmptyState message={words('empty.burnup')} />;
+  if (!h) return <Empty message={words('empty.burnup')} action={<TrackerAction dossier={dossier.name} sync={sync} />} />;
   return <BurnupChart b={burnup(h, now)} sprint={h.sprint.name} />;
 }
 

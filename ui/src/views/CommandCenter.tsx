@@ -24,7 +24,7 @@ import { VerdictChip, WhyNot } from '../components/readiness.tsx';
 import { useData } from '../data.ts';
 import { dateTime, dossierHref, personText, sourceLabel, STATUS_CATEGORY_LABEL } from '../format.ts';
 import { readinessAll, tally, VERDICT_LABEL, VERDICTS, type Readiness, type Verdict } from '../model/readiness.ts';
-import { useSkins } from '../skins.tsx';
+import { Empty, EmptyButton } from '../components/empty.tsx';
 import type { WorkItem } from '../toil.ts';
 
 const count = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
@@ -62,7 +62,6 @@ export function CommandCenter() {
   const { dossier, now, startReady } = useData();
   const [started, setStarted] = useState<{ ok: boolean; text: string } | null>(null);
   const [starting, setStarting] = useState(false);
-  const { EmptyState } = useSkins();
   const settings = dossier.readiness;
   const lines = useMemo<Line[]>(() => {
     const all = readinessAll(dossier.items, settings);
@@ -182,7 +181,22 @@ export function CommandCenter() {
         {shown.length ? (
           <DataTable label="Items and their readiness" caption={`${dossier.name}'s items and their readiness`} columns={columns} rows={shown} rowKey={(l) => l.item.id} wide />
         ) : (
-          <EmptyState message="No item matches these filters." />
+          <Empty
+            message="No item matches these filters."
+            action={
+              <EmptyButton
+                onPress={() => {
+                  setVerdict('all');
+                  setStatus('all');
+                  setType('all');
+                  setAssignee('all');
+                  setSource('all');
+                }}
+              >
+                Show every item
+              </EmptyButton>
+            }
+          />
         )}
       </Panel>
     </>

@@ -28,7 +28,7 @@
 // from the Ask bar (#343) with its (i) popover, its agent switcher, an answer, its Suggestions menu and
 // Analyze's pulse check, a help (i)'s tooltip and popover (#346), the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
 // the calendar on an earlier month, a stand-up written up, and every failing
-// command's recent audit lines open on the Usage page, and the theme moments' previews
+// command's recent audit lines open on the Usage page, the bell's list and What's new (#417), and the theme moments' previews
 // (#419): a loading screen, the launch splash and the sprint recap card. Reduced motion
 // is on, so an animation caught mid-flight can't fail a run; `npm run smoke` then runs
 // MOTION_ROUTES again with motion on, where the moments play.
@@ -319,6 +319,13 @@ function states(route, width) {
     if (route === '#/' || route === '#/dossier/card-payments/board') out.push({ name: 'palette-search', clearOverlays: true, setup: typed, undoJs: closePalette });
     const sheet = `(async () => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '?', shiftKey: true, bubbles: true })); const deadline = Date.now() + 5000; while (!document.querySelector('[data-shortcuts]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[data-shortcuts]') ? 1 : 0; })()`;
     if (route === '#/' || route === FIRST_RUN_ROUTE) out.push({ name: 'shortcuts', clearOverlays: true, setup: sheet, undo: 'Escape', undoJs: clickAll('[data-shortcuts-close]', null, 0) });
+  }
+  // The bell and What's new (#417): the bell's list open, from the header at every width, and What's new opened from
+  // Help, which is inside the Menu on a narrow screen. The list shows the latest releases when nothing is new.
+  if (route === '#/' || route === '#/dossier/card-payments') {
+    const waitSel = (sel) => `(async () => { const deadline = Date.now() + 5000; while (!document.querySelector(${JSON.stringify(sel)}) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector(${JSON.stringify(sel)}) ? 1 : 0; })()`;
+    out.push({ name: 'bell', clearOverlays: true, setup: `(async () => { if (!(await ${clickAll('[data-bell]')})) return 0; return await ${waitSel('[data-bell-list]')}; })()`, undo: 'Escape' });
+    if (route === '#/') out.push({ name: 'whats-new', clearOverlays: true, setup: `(async () => { if ((await ${inMenu('[data-help-link]')}) < 1) return 0; if (!(await ${clickAll('[data-whats-new-open]')})) return 'Help has no What\\'s new'; return await ${waitSel('[data-whats-new]')}; })()`, undo: 'Escape', undoJs: clickAll('[data-whats-new-close]', null, 0) });
   }
   // Help (#346), checked before the Ask states so no overlay of theirs is still closing: the first (i) on the page with its tooltip showing, as a keyboard user who
   // tabbed to it sees it, and pressed, with its popover and Read more link open. On the views with the most of them, at every width.

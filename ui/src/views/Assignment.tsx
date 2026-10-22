@@ -19,15 +19,14 @@ import { Card, Cluster, DataTable, Path, Scroller } from '../components/layout.t
 import { ProposalCard } from '../components/proposal.tsx';
 import { UsageFooter } from '../components/usage.tsx';
 import { useData } from '../data.ts';
+import { Empty, EmptyLink } from '../components/empty.tsx';
 import { AGENT_SETTINGS_HREF, dateTime, dossierHref } from '../format.ts';
 import { EditLink } from '../components/help.tsx';
-import { useSkins } from '../skins.tsx';
 
 const when = (iso: string | null) => (iso ? dateTime(iso) : 'not yet');
 
 export function AssignmentView({ id }: { id: string }) {
   const { dossier, assignments: api, now } = useData();
-  const { EmptyState } = useSkins();
   const [record, setRecord] = useState<AssignmentRecord | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [said, setSaid] = useState<string | null>(null);
@@ -58,11 +57,7 @@ export function AssignmentView({ id }: { id: string }) {
     return (
       <>
         <h1 tabIndex={-1}>No such assignment</h1>
-        <EmptyState message={problem ?? 'This view has no agent assignments.'}>
-          <p>
-            <a href={dossierHref(dossier.name)}>Back to {dossier.name}</a>
-          </p>
-        </EmptyState>
+        <Empty message={problem ?? 'This view has no agent assignments.'} action={<EmptyLink href={dossierHref(dossier.name)}>Back to {dossier.name}</EmptyLink>} />
       </>
     );
   }
