@@ -137,9 +137,13 @@ class Session {
     private readonly link: Hs2Link,
     private readonly handle: object,
     private readonly call: DbCall,
+    /** Opens a second session, on a connection of its own, for the cancel (`stop`). */
+    private readonly aside: (signal: AbortSignal) => Promise<Opened>,
   ) {}
 
   private request(method: Method, fields: Record<string, unknown>): object {
+    // Impala's own call is written by hs2.ts from the plain fields.
+    if (method === 'CloseImpalaOperation') return fields;
     const Struct = (T as unknown as Record<string, new (fields: Record<string, unknown>) => object>)[`T${method}Req`]!;
     return new Struct(fields);
   }
@@ -187,8 +191,9 @@ class Session {
       const want = skip > 0 ? Math.min(skip, FETCH_BATCH) : Math.min(window.max - rows.length, FETCH_BATCH);
       const fetched = await this.rpc('FetchResults', { operationHandle: handle, orientation: T.TFetchOrientation.FETCH_NEXT, maxRows: want });
       const count = rowCount(fetched.results);
-      // Hive leaves hasMoreRows false while rows remain, so only an empty batch means the end.
-      if (count === 0) break;
+      // Hive leaves hasMoreRows false while rows remain, so an empty batch is its end. Impala sends an
+      // empty batch with hasMoreRows true when no row was ready in time, and the next fetch waits again.
+      if (count === 0 && !fetched.hasMoreRows) break;
       if (count <= skip) {
         skip -= count;
         continue;
@@ -214,16 +219,52 @@ class Session {
     await this.rpc('CloseOperation', { operationHandle: handle });
   }
 
-  /** On abort: stop the running statement on the server, then end the session. Best effort; core has already answered. */
+  /**
+   * Closes a finished statement and returns the rows it changed, where the
+   * server says. Hive reports them in the statement's status (`modified`);
+   * Impala only when the statement is closed with its own CloseImpalaOperation.
+   */
+  async closeChanges(finished: Finished): Promise<number | undefined> {
+    if (this.engine.engine !== 'impala') {
+      await this.closeOperation(finished.handle);
+      return finished.modified;
+    }
+    if (this.operation === finished.handle) this.operation = undefined;
+    const closed = await this.rpc('CloseImpalaOperation', { operationHandle: finished.handle });
+    if (closed.rowsModified === undefined && closed.rowsDeleted === undefined) return undefined;
+    // An Iceberg UPDATE reports each row twice, deleted and written again, so the larger count is the rows it touched.
+    return Math.max(closed.rowsModified ?? 0, closed.rowsDeleted ?? 0);
+  }
+
+  /**
+   * On abort: stop the running statement on the server, then end the session.
+   * Best effort; core has already answered. The server answers one request per
+   * connection at a time, and this one may be held by a fetch for as long as
+   * the server likes (Impala holds one up to ten seconds), so CancelOperation
+   * goes out on a second connection as well as this one, and the first to land
+   * stops it. Behind a load balancer the second may reach another server that
+   * doesn't know the statement; then this connection's copy does the job.
+   */
   async stop(): Promise<void> {
     const running = this.operation;
     this.operation = undefined;
     if (running) {
+      const signal = deadline(CLOSE_TIMEOUT_MS);
+      const here = this.rpc('CancelOperation', { operationHandle: running }, signal);
+      const there = this.aside(signal).then(async (other) => {
+        try {
+          checkStatus((await other.link.call('CancelOperation', new T.TCancelOperationReq({ operationHandle: running }), signal)).status);
+          await other.link.call('CloseSession', new T.TCloseSessionReq({ sessionHandle: other.handle }), signal).catch(() => {});
+        } finally {
+          other.link.close();
+        }
+      });
       try {
-        await this.rpc('CancelOperation', { operationHandle: running }, deadline(CLOSE_TIMEOUT_MS));
+        await Promise.any([here, there]);
         this.call.debug(`${this.engine.engine}: connection ${this.conn.name}: cancelled the statement on the server`);
       } catch (err) {
-        this.call.debug(`${this.engine.engine}: connection ${this.conn.name}: couldn't cancel the statement on the server (${(err as Error).message}); it may still be running`);
+        const why = ((err as AggregateError).errors ?? [err]).map((e: unknown) => (e as Error).message).join('; ');
+        this.call.debug(`${this.engine.engine}: connection ${this.conn.name}: couldn't cancel the statement on the server (${why}); it may still be running`);
       }
     }
     await this.end();
@@ -250,12 +291,11 @@ function port(engine: Engine, conn: DbConnection): number {
  */
 async function session<R>(engine: Engine, conn: DbConnection, mode: Mode, call: DbCall, work: (s: Session) => Promise<R>): Promise<R> {
   if (call.signal.aborted) throw call.signal.reason;
-  const nosasl = conn.auth === 'nosasl';
   call.debug(
-    `${engine.engine}: connection ${conn.name}, ${mode === 'read' ? 'read (no read-only mode on this engine: the account decides)' : 'read-write'}, ${nosasl ? 'no SASL' : 'SASL PLAIN'}${conn.ssl ? ', TLS' : ''}`,
+    `${engine.engine}: connection ${conn.name}, ${mode === 'read' ? 'read (no read-only mode on this engine: the account decides)' : 'read-write'}, ${conn.auth === 'nosasl' ? 'no SASL' : 'SASL PLAIN'}${conn.ssl ? ', TLS' : ''}`,
   );
   const ca = conn.ssl === true ? trustedCertificates(call.debug).certificates : undefined;
-  let link: Hs2Link | undefined;
+  let opened: Opened | undefined;
   let s: Session | undefined;
   let stopping: Promise<void> | undefined;
   const onAbort = () => {
@@ -263,28 +303,10 @@ async function session<R>(engine: Engine, conn: DbConnection, mode: Mode, call: 
   };
   call.signal.addEventListener('abort', onAbort, { once: true });
   try {
-    link = await Hs2Link.open({
-      host: conn.host!,
-      port: port(engine, conn),
-      ...(conn.ssl === true ? { tls: { ca } } : {}),
-      ...(nosasl ? {} : { sasl: { user: conn.user ?? '', password: conn.password ?? '' } }),
-      signal: call.signal,
-      timeoutMs: CONNECT_TIMEOUT_MS,
-    });
-    const opened = await link.call(
-      'OpenSession',
-      new T.TOpenSessionReq({
-        client_protocol: REQUEST_PROTOCOL,
-        ...(conn.user ? { username: conn.user } : {}),
-        ...(nosasl || conn.password === undefined ? {} : { password: conn.password }),
-        configuration: engine.configuration(conn),
-      }),
-      call.signal,
-    );
-    checkStatus(opened.status);
-    s = new Session(engine, conn, link, opened.sessionHandle, call);
-    if (opened.serverProtocolVersion < MIN_PROTOCOL) {
-      throw serverTooOld(engine.supported, { code: 'DATABASE', found: `HiveServer2 protocol V${opened.serverProtocolVersion + 1}` });
+    opened = await open(engine, conn, call.signal, ca);
+    s = new Session(engine, conn, opened.link, opened.handle, call, (signal) => open(engine, conn, signal, ca));
+    if (opened.protocol < MIN_PROTOCOL) {
+      throw serverTooOld(engine.supported, { code: 'DATABASE', found: `HiveServer2 protocol V${opened.protocol + 1}` });
     }
     return await work(s);
   } catch (err) {
@@ -294,7 +316,44 @@ async function session<R>(engine: Engine, conn: DbConnection, mode: Mode, call: 
     call.signal.removeEventListener('abort', onAbort);
     if (stopping) await stopping;
     else await s?.end();
-    link?.close();
+    opened?.link.close();
+  }
+}
+
+/** A signed-in connection and the session opened on it. */
+interface Opened {
+  link: Hs2Link;
+  handle: object;
+  protocol: number;
+}
+
+/** Connects, signs in and opens a session. Closes the connection if the session can't be opened. */
+async function open(engine: Engine, conn: DbConnection, signal: AbortSignal, ca: string[] | undefined): Promise<Opened> {
+  const nosasl = conn.auth === 'nosasl';
+  const link = await Hs2Link.open({
+    host: conn.host!,
+    port: port(engine, conn),
+    ...(conn.ssl === true ? { tls: { ca } } : {}),
+    ...(nosasl ? {} : { sasl: { user: conn.user ?? '', password: conn.password ?? '' } }),
+    signal,
+    timeoutMs: CONNECT_TIMEOUT_MS,
+  });
+  try {
+    const opened = await link.call(
+      'OpenSession',
+      new T.TOpenSessionReq({
+        client_protocol: REQUEST_PROTOCOL,
+        ...(conn.user ? { username: conn.user } : {}),
+        ...(nosasl || conn.password === undefined ? {} : { password: conn.password }),
+        configuration: engine.configuration(conn),
+      }),
+      signal,
+    );
+    checkStatus(opened.status);
+    return { link, handle: opened.sessionHandle, protocol: opened.serverProtocolVersion };
+  } catch (err) {
+    link.close();
+    throw err;
   }
 }
 
@@ -525,10 +584,11 @@ function provider(engine: Engine): DbProvider {
         const table = await requireTable(s, conn, ref);
         const where = { schemaName: table.schema, tableName: table.name };
         const columnRows = (await s.catalog('GetColumns', where))
-          .filter((r) => String(r.TABLE_SCHEM) === table.schema && String(r.TABLE_NAME) === table.name)
+          // Impala names GetColumns' schema column TABLE_MD.
+          .filter((r) => String(r.TABLE_SCHEM ?? r.TABLE_MD) === table.schema && String(r.TABLE_NAME) === table.name)
           .sort((a, b) => Number(a.ORDINAL_POSITION) - Number(b.ORDINAL_POSITION));
         const keyRows = await optionalCatalog(s, call, engine, 'GetPrimaryKeys', where);
-        const keyOf = new Map(keyRows.filter((r) => String(r.TABLE_NAME) === table.name).map((r) => [String(r.COLUMN_NAME), Number(r.KEY_SEQ)]));
+        const keyOf = new Map(keyRows.filter((r) => String(r.TABLE_NAME) === table.name).map((r) => [String(r.COLUMN_NAME), Number(r.KEY_SEQ ?? r.KEQ_SEQ)]));
         const columns: ColumnInfo[] = columnRows.map((r) => {
           const name = String(r.COLUMN_NAME);
           return {
@@ -542,7 +602,7 @@ function provider(engine: Engine): DbProvider {
         const primaryKey = [...keyOf].sort((a, b) => a[1] - b[1]).map(([name]) => name);
         const fkRows = (await optionalCatalog(s, call, engine, 'GetCrossReference', { foreignSchemaName: table.schema, foreignTableName: table.name }))
           .filter((r) => String(r.FKTABLE_NAME) === table.name)
-          // Hive spells the sequence column KEQ_SEQ; JDBC and Impala, KEY_SEQ.
+          // Both engines spell the sequence column KEQ_SEQ; JDBC says KEY_SEQ.
           .sort((a, b) => String(a.FK_NAME).localeCompare(String(b.FK_NAME)) || Number(a.KEQ_SEQ ?? a.KEY_SEQ) - Number(b.KEQ_SEQ ?? b.KEY_SEQ));
         const foreignKeys: ForeignKeyInfo[] = [];
         const byName = new Map<string, ForeignKeyInfo>();
@@ -581,19 +641,17 @@ function provider(engine: Engine): DbProvider {
       }
       return session(engine, conn, 'read', call, async (s) => {
         const finished = await s.run(statement);
-        if (finished.modified !== undefined && finished.modified > 0) {
-          await s.closeOperation(finished.handle);
+        // A statement with rows to read didn't change any; one without may have, and the server says how many.
+        if (finished.hasResultSet && !(finished.modified && finished.modified > 0)) return s.rows(finished.handle, window);
+        const changed = await s.closeChanges(finished);
+        if (changed !== undefined && changed > 0) {
           throw new ToilError(
             'DATABASE',
-            `${engine.label} reports the statement changed ${finished.modified} row${finished.modified === 1 ? '' : 's'} on connection ${conn.name}. ${engine.label} has no read-only mode, so db query couldn't stop it: the change has been made.`,
+            `${engine.label} reports the statement changed ${changed} row${changed === 1 ? '' : 's'} on connection ${conn.name}. ${engine.label} has no read-only mode, so db query couldn't stop it: the change has been made.`,
             { fix: `Check the data it touched. Connect with a read-only account (a Ranger or Sentry role with SELECT only), so the server refuses writes from db query, and use toil db execute for changes.` },
           );
         }
-        if (!finished.hasResultSet) {
-          await s.closeOperation(finished.handle);
-          return { columns: [], rows: [] };
-        }
-        return s.rows(finished.handle, window);
+        return { columns: [], rows: [] };
       });
     },
 
@@ -601,8 +659,7 @@ function provider(engine: Engine): DbProvider {
       const statement = oneStatement(engine, sql, 'execute');
       return session(engine, conn, 'write', call, async (s) => {
         const finished = await s.run(statement);
-        await s.closeOperation(finished.handle);
-        return { changes: finished.modified ?? 0 };
+        return { changes: (await s.closeChanges(finished)) ?? 0 };
       });
     },
   };

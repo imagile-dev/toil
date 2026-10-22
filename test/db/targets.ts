@@ -5,7 +5,8 @@ import pg from 'pg';
 import { Connection, Request } from 'tedious';
 import type { Settings } from '../../src/core/config.js';
 import { encodeCursor, pageKey } from '../../src/core/db/paging.js';
-import { createSqliteFile, SEED_SQL, sqliteRows } from '../harness/db.js';
+import { createSqliteFile, PEOPLE, SEED_SQL, sqliteRows } from '../harness/db.js';
+import { hs2Run, type Hs2Server } from './hs2-admin.js';
 
 /**
  * One entry per database engine the conformance suite runs against. Adding
@@ -35,6 +36,11 @@ export interface DbTarget {
   timeout?: number;
   /** A connection key this engine requires, to check the "missing key" error names it. */
   requiredKey: string;
+  /**
+   * What this engine doesn't do that the suite otherwise checks, each with the reason. A test
+   * that needs one checks what the engine does instead, or is skipped, and says so in its name.
+   */
+  lacks?: Partial<Record<Lack, string>>;
   sql: {
     /** A query returning the integers 1..n in a column named `x`, in order. */
     series: (n: number) => string;
@@ -49,8 +55,18 @@ export interface DbTarget {
   };
 }
 
+/**
+ * Things an engine may not have: NOT NULL and DEFAULT reported by describe (columnConstraints),
+ * indexes, keys on the tables it can update (keys), keys it enforces (enforcedKeys), two result
+ * columns with one name (sameNamedColumns), transactions, and a read-only mode of its own
+ * (readOnlyMode: reads are then read-only only through a read-only account, `reader`).
+ */
+export type Lack = 'columnConstraints' | 'indexes' | 'keys' | 'enforcedKeys' | 'sameNamedColumns' | 'transactions' | 'readOnlyMode';
+
 export interface TargetDatabase {
   settings: Settings;
+  /** The same database through a read-only account, for an engine with no read-only mode of its own. */
+  reader?: Settings;
   /** The schema commands use when none is named, where it depends on the database (MySQL's is the database itself). */
   schema?: string;
   /** Reads the database directly, outside toil, to check what a command did or didn't change. */
@@ -303,6 +319,115 @@ function mysqlTarget(name: string, envVar: string, ciDefault: string): DbTarget 
   };
 }
 
+/**
+ * Hive and Impala share one provider, and each gets its own target. Neither
+ * has a read-only mode, transactions, or indexes, and neither enforces a key,
+ * so the target says so (`lacks`) and the suite checks what each engine does
+ * instead. Hive runs with SQL standard authorization, so a read-only account
+ * (`toil_reader`, granted SELECT) is what refuses a read's writes, as the
+ * docs require of users; the test server takes any password. Its tables are
+ * transactional ORC, which Hive can UPDATE. The Impala target is local only
+ * (test/db/impala/compose.yml): its cluster has no authorization, so the
+ * engine side of the read-only checks can't run there, and `people` is an
+ * Iceberg table, the kind Impala can UPDATE, which reports no keys.
+ *
+ * Both count running statements from the server's web UI, whose port the URL
+ * names (`?webui=`).
+ */
+const HIVE_ENV = 'TOIL_TEST_HIVE_URL';
+const hiveTarget = serverUrl(HIVE_ENV, 'hive://hive:hive@localhost:10000/?webui=10002');
+const IMPALA_ENV = 'TOIL_TEST_IMPALA_URL';
+const impalaTarget = serverUrl(IMPALA_ENV, 'impala://impala@localhost:21050/?webui=25000');
+const HIVE_WRITER = 'toil_writer';
+const HIVE_READER = 'toil_reader';
+
+function hs2Server(url: URL): Hs2Server {
+  return { host: url.hostname, port: Number(url.port), password: url.password ? decodeURIComponent(url.password) : null };
+}
+
+function webUi(url: URL): string {
+  return `http://${url.hostname}:${url.searchParams.get('webui')}`;
+}
+
+/** The seed in each engine's own DDL, with the same rows as SEED_SQL. */
+function hs2Seed(engine: 'hive' | 'impala', db: string): string[] {
+  const people = `INSERT INTO ${db}.people VALUES ${PEOPLE.map((name, i) => `(${i + 1}, '${name}', ${(i % 2) + 1}, ${i % 3 === 2 ? 0 : 1})`).join(', ')}`;
+  const view = `CREATE VIEW ${db}.active_people AS SELECT id, name FROM ${db}.people WHERE active = 1`;
+  if (engine === 'hive') {
+    const acid = "STORED AS ORC TBLPROPERTIES ('transactional'='true')";
+    return [
+      `CREATE TABLE ${db}.teams (id INT, name VARCHAR(50), PRIMARY KEY (id) DISABLE NOVALIDATE) ${acid}`,
+      `CREATE TABLE ${db}.people (id INT, name VARCHAR(100) NOT NULL, team_id INT, active INT DEFAULT 1, PRIMARY KEY (id) DISABLE NOVALIDATE, CONSTRAINT people_team FOREIGN KEY (team_id) REFERENCES ${db}.teams(id) DISABLE NOVALIDATE) ${acid}`,
+      view,
+      `INSERT INTO ${db}.teams VALUES (1, 'Platform'), (2, 'Data')`,
+      people,
+    ];
+  }
+  return [
+    `CREATE TABLE ${db}.teams (id INT, name STRING, PRIMARY KEY (id) DISABLE NOVALIDATE RELY)`,
+    `CREATE TABLE ${db}.people (id INT NOT NULL, name STRING NOT NULL, team_id INT, active INT, PRIMARY KEY (id) NOT ENFORCED) STORED BY ICEBERG TBLPROPERTIES ('format-version'='2')`,
+    view,
+    `INSERT INTO ${db}.teams VALUES (1, 'Platform'), (2, 'Data')`,
+    people,
+  ];
+}
+
+const HS2_LACKS = {
+  columnConstraints: "it doesn't report NOT NULL or DEFAULT through the protocol",
+  indexes: 'it has no indexes',
+  enforcedKeys: "it doesn't enforce keys, so a duplicate inserts",
+  transactions: 'it has no transactions, so db execute runs one statement per call',
+} as const;
+
+export const hive = {
+  probe: () => probe('Hive', HIVE_ENV, hiveTarget.explicit, async () => void (await hs2Run(hs2Server(hiveTarget.url), hiveTarget.url.username, ['SELECT 1']))),
+  run: (user: string, statements: string[]) => hs2Run(hs2Server(hiveTarget.url), user, statements),
+  writer: HIVE_WRITER,
+  reader: HIVE_READER,
+  /** A fresh database owned by the writer, seeded, with SELECT granted to the reader. */
+  async createDatabase(): Promise<string> {
+    const db = `toil_test_${randomBytes(6).toString('hex')}`;
+    const admin = hiveTarget.url.username;
+    await hive.run(admin, ['SET ROLE ADMIN', `CREATE DATABASE ${db}`, `ALTER DATABASE ${db} SET OWNER USER ${HIVE_WRITER}`]);
+    await hive.run(HIVE_WRITER, [...hs2Seed('hive', db), ...['teams', 'people', 'active_people'].map((t) => `GRANT SELECT ON TABLE ${db}.${t} TO USER ${HIVE_READER}`)]);
+    return db;
+  },
+  dropDatabase: (db: string) => hive.run(hiveTarget.url.username, ['SET ROLE ADMIN', `DROP DATABASE IF EXISTS ${db} CASCADE`]).then(() => {}),
+  settings(db: string, user: string): Settings {
+    const { url } = hiveTarget;
+    return { engine: 'hive', host: url.hostname, port: Number(url.port), database: db, user, password: decodeURIComponent(url.password) };
+  },
+  /** Statements still running for the test accounts, from HiveServer2's web UI. */
+  async running(): Promise<number> {
+    const active = (await (await fetch(`${webUi(hiveTarget.url)}/api/v1/queries/active`)).json()) as Array<{ userName: string; running: boolean }>;
+    return active.filter((q) => q.running && (q.userName === HIVE_WRITER || q.userName === HIVE_READER)).length;
+  },
+};
+
+/** Ten rows, 0 to 9, crossed three times: 1 to n in order, for an engine with no series function. */
+const DIGITS = '(VALUES (0 AS d), (1), (2), (3), (4), (5), (6), (7), (8), (9))';
+
+export const impala = {
+  probe: () => probe('Impala', IMPALA_ENV, impalaTarget.explicit, async () => void (await hs2Run(hs2Server(impalaTarget.url), impalaTarget.url.username, ['SELECT 1']))),
+  run: (statements: string[]) => hs2Run(hs2Server(impalaTarget.url), impalaTarget.url.username, statements),
+  settings(db: string): Settings {
+    const { url } = impalaTarget;
+    return {
+      engine: 'impala',
+      host: url.hostname,
+      port: Number(url.port),
+      database: db,
+      user: decodeURIComponent(url.username),
+      ...(url.password ? { password: decodeURIComponent(url.password) } : { auth: 'nosasl' }),
+    };
+  },
+  /** Statements still in flight against this database, from the impalad's web UI. */
+  async running(db: string): Promise<number> {
+    const page = (await (await fetch(`${webUi(impalaTarget.url)}/queries?json`)).json()) as { in_flight_queries: Array<{ default_db: string }> };
+    return page.in_flight_queries.filter((q) => q.default_db === db).length;
+  },
+};
+
 const INFINITE = 'WITH RECURSIVE n(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM n) SELECT x FROM n';
 
 export const targets: DbTarget[] = [
@@ -427,6 +552,61 @@ export const targets: DbTarget[] = [
       // server's next check; abandoning the connection would leave it running.
       slow: () => ({ sql: 'SELECT count(*) AS x FROM all_objects a, all_objects b, all_objects c' }),
       transactionControl: ['COMMIT', 'ROLLBACK', 'SAVEPOINT s', 'SET TRANSACTION READ WRITE'],
+    },
+  },
+  {
+    engine: 'hive',
+    requiredKey: 'host',
+    // Every statement that writes runs a Tez job, a few seconds each in the test container.
+    timeout: 60_000,
+    lacks: {
+      ...HS2_LACKS,
+      sameNamedColumns: 'it names the second one id_1',
+      readOnlyMode: 'it has no read-only mode, so the engine side is checked through a read-only account',
+    },
+    skip: hive.probe,
+    setup: async () => {
+      const db = await hive.createDatabase();
+      return {
+        settings: hive.settings(db, hive.writer),
+        reader: hive.settings(db, hive.reader),
+        schema: db,
+        rows: (sql) => hive.run(hive.writer, [`USE ${db}`, sql]),
+        running: hive.running,
+        cleanup: () => hive.dropDatabase(db),
+      };
+    },
+    sql: {
+      series: (n) => `SELECT pos + 1 AS x FROM (SELECT posexplode(split(space(${n - 1}), ' ')) AS (pos, val)) t`,
+      // A Tez job that counts forty billion rows: only a server-side cancel stops it.
+      slow: () => ({ sql: "SELECT count(*) AS x FROM (SELECT posexplode(split(space(200000), ' '))) a CROSS JOIN (SELECT posexplode(split(space(200000), ' '))) b" }),
+    },
+  },
+  {
+    engine: 'impala',
+    requiredKey: 'host',
+    timeout: 30_000,
+    lacks: {
+      ...HS2_LACKS,
+      keys: "people is an Iceberg table, the kind it can UPDATE, and it reports no keys for one",
+      readOnlyMode: 'it has no read-only mode, and the local test cluster has no authorization to make a read-only account with',
+    },
+    skip: impala.probe,
+    setup: async () => {
+      const db = `toil_test_${randomBytes(6).toString('hex')}`;
+      await impala.run([`CREATE DATABASE ${db}`, ...hs2Seed('impala', db)]);
+      return {
+        settings: impala.settings(db),
+        schema: db,
+        rows: (sql) => impala.run([`USE ${db}`, sql]),
+        running: () => impala.running(db),
+        cleanup: () => impala.run([`DROP DATABASE IF EXISTS ${db} CASCADE`]).then(() => {}),
+      };
+    },
+    sql: {
+      series: (n) => `SELECT x FROM (SELECT a.d * 100 + b.d * 10 + c.d + 1 AS x FROM ${DIGITS} a CROSS JOIN ${DIGITS} b CROSS JOIN ${DIGITS} c) n WHERE x <= ${n} ORDER BY x`,
+      // Sleeps in the coordinator without producing a row, so only a server-side cancel stops it.
+      slow: () => ({ sql: 'SELECT sleep(60000) AS x' }),
     },
   },
 ];

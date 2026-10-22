@@ -1,6 +1,6 @@
 import { isIP, connect as netConnect, type Socket } from 'node:net';
 import { connect as tlsConnect } from 'node:tls';
-import thrift, { type ThriftConnection } from 'thrift';
+import thrift, { type ThriftConnection, type TProtocol } from 'thrift';
 import TCLIService from 'hive-driver/thrift/gen-nodejs/TCLIService.js';
 import T from 'hive-driver/thrift/gen-nodejs/TCLIService_types.js';
 
@@ -114,6 +114,8 @@ export interface Responses {
   GetColumns: { status: Hs2Status; operationHandle?: OperationHandle | null };
   GetPrimaryKeys: { status: Hs2Status; operationHandle?: OperationHandle | null };
   GetCrossReference: { status: Hs2Status; operationHandle?: OperationHandle | null };
+  /** Impala's own close, which also reports what a DML statement changed (`impalaClose`, below). */
+  CloseImpalaOperation: { status: Hs2Status; rowsModified?: number; rowsDeleted?: number };
 }
 
 export type Method = keyof Responses;
@@ -208,6 +210,7 @@ export class Hs2Link {
     if (this.failure) return Promise.reject(this.failure);
     if (signal?.aborted) return Promise.reject(signal.reason);
     return new Promise<Responses[M]>((resolve, reject) => {
+      if (method === 'CloseImpalaOperation') impalaClose(this.client);
       let done = false;
       const finish = (err: unknown, result?: unknown) => {
         if (done) return;
@@ -241,6 +244,111 @@ export class Hs2Link {
     for (const reject of [...this.pending]) reject(this.failure);
     this.pending.clear();
   }
+}
+
+const { Type, MessageType, TApplicationException } = thrift.Thrift;
+
+interface GeneratedClient {
+  _seqid: number;
+  _reqs: Record<number, Callback>;
+  output: { flush(): void };
+  pClass: new (transport: unknown) => TProtocol;
+  new_seqid(): number;
+  seqid(): number;
+}
+
+/**
+ * Impala's CloseImpalaOperation, written by hand in the generated client's
+ * shape. HiveServer2's protocol has no row count for a DML statement; Impala
+ * reports one only here, in its extension of the service (ImpalaService.thrift),
+ * which hive-driver's generated code doesn't include. The arguments are the
+ * operation handle; the answer is a status and `dml_result`, whose
+ * `rows_modified` and `rows_deleted` are maps of partition to count, summed.
+ * Installed on a client the first time it's needed.
+ */
+function impalaClose(client: Client): void {
+  const c = client as unknown as GeneratedClient & Record<string, unknown>;
+  if (c.recv_CloseImpalaOperation) return;
+  c.CloseImpalaOperation = function (this: GeneratedClient, req: { operationHandle: object }, callback: Callback) {
+    this._seqid = this.new_seqid();
+    this._reqs[this.seqid()] = callback;
+    const out = new this.pClass(this.output);
+    out.writeMessageBegin('CloseImpalaOperation', MessageType.CALL, this.seqid());
+    out.writeStructBegin('CloseImpalaOperation_args');
+    out.writeFieldBegin('req', Type.STRUCT, 1);
+    out.writeStructBegin('TCloseImpalaOperationReq');
+    out.writeFieldBegin('operationHandle', Type.STRUCT, 1);
+    new T.TOperationHandle(req.operationHandle as Record<string, unknown>).write(out);
+    out.writeFieldEnd();
+    out.writeFieldStop();
+    out.writeStructEnd();
+    out.writeFieldEnd();
+    out.writeFieldStop();
+    out.writeStructEnd();
+    out.writeMessageEnd();
+    this.output.flush();
+  };
+  // Called by the Thrift connection with the seqid it maps to the waiting callback.
+  c.recv_CloseImpalaOperation = function (this: GeneratedClient, input: TProtocol, mtype: number, rseqid: number) {
+    const callback = this._reqs[rseqid] ?? (() => {});
+    delete this._reqs[rseqid];
+    if (mtype === MessageType.EXCEPTION) {
+      const x = new TApplicationException();
+      x.read(input);
+      input.readMessageEnd();
+      return callback(x, undefined);
+    }
+    let result: Responses['CloseImpalaOperation'] | undefined;
+    readStruct(input, (fid, ftype) => {
+      if (fid !== 0 || ftype !== Type.STRUCT) return false;
+      const response: Responses['CloseImpalaOperation'] = { status: { statusCode: T.TStatusCode.SUCCESS_STATUS! } };
+      readStruct(input, (id, type) => {
+        if (id === 1 && type === Type.STRUCT) {
+          const status = new T.TStatus();
+          status.read(input);
+          response.status = status as unknown as Hs2Status;
+        } else if (id === 2 && type === Type.STRUCT) {
+          readStruct(input, (dml, kind) => {
+            if ((dml !== 1 && dml !== 3) || kind !== Type.MAP) return false;
+            const total = readCounts(input);
+            if (dml === 1) response.rowsModified = total;
+            else response.rowsDeleted = total;
+            return true;
+          });
+        } else return false;
+        return true;
+      });
+      result = response;
+      return true;
+    });
+    input.readMessageEnd();
+    return result ? callback(null, result) : callback('CloseImpalaOperation failed: unknown result', undefined);
+  };
+}
+
+/** Reads a struct, handing each field to `field`; one it doesn't read (returns false) is skipped. */
+function readStruct(input: TProtocol, field: (fid: number, ftype: number) => boolean): void {
+  input.readStructBegin();
+  for (;;) {
+    const { ftype, fid } = input.readFieldBegin();
+    if (ftype === Type.STOP) break;
+    if (!field(fid, ftype)) input.skip(ftype);
+    input.readFieldEnd();
+  }
+  input.readStructEnd();
+}
+
+/** The sum of a map<string, i64>. */
+function readCounts(input: TProtocol): number {
+  const { size } = input.readMapBegin();
+  let total = 0n;
+  for (let i = 0; i < size; i++) {
+    input.readString();
+    const n = input.readI64();
+    total += n.buffer.readBigInt64BE(n.offset);
+  }
+  input.readMapEnd();
+  return Number(total);
 }
 
 function asProtocolFailure(method: Method, err: unknown): Error {
