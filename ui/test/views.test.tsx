@@ -435,7 +435,7 @@ describe('the views on a dashboard (#252, #253)', () => {
     const grip = within(board).getByRole('group', { name: 'PAY-102 Store tokens in the vault' });
     expect(grip.tabIndex).toBe(0);
     expect(grip.getAttribute('aria-roledescription')).toBe('draggable card');
-    expect(grip.getAttribute('aria-keyshortcuts')).toBe('M');
+    expect(grip.getAttribute('aria-keyshortcuts')).toBe('M ContextMenu');
     expect(document.getElementById(grip.getAttribute('aria-describedby')!)!.textContent).toMatch(/press Space or Enter.*arrow keys.*Escape to cancel.*Press M or the Menu key/);
   });
 

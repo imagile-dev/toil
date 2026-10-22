@@ -52,6 +52,8 @@ import { Choice } from './components/choice.tsx';
 import { ThemeChoiceProvider, wordingOn } from './theme-context.ts';
 import { wordFor, type WordKey } from './wording.ts';
 import { viewHelpHref } from './help.ts';
+import { CommandPalette, ShortcutsSheet } from './components/palette.tsx';
+import { matches, typingIn } from './shortcuts.ts';
 
 export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'usage' | 'agent-usage' | 'agent';
 export type Route =
@@ -178,12 +180,14 @@ export interface AppProps {
   afterDescribe?: () => void;
   /** Whether the server is older than what is on disk (#305), for the header; absent in the preview. Keep it one function for the App's life: the header asks it again every minute. */
   serverStatus?: () => Promise<ServerStatus | null>;
+  /** Starts a sync, where the local app keeps a cache (#416): for the command palette and the first-run checklist. */
+  onSync?: () => void;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync }: AppProps) {
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
@@ -197,10 +201,41 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   const main = useRef<HTMLElement>(null);
   const first = useRef(true);
   const wanted = route.view === 'dossiers' || route.view === 'settings' ? null : route.dossier;
+  // The command palette and the shortcuts sheet (#416), hidden until called up; `focused` is the item the focus was on when the palette opened.
+  const [palette, setPalette] = useState<{ open: boolean; focused: string | null }>({ open: false, focused: null });
+  const [sheet, setSheet] = useState(false);
+  const openPalette = () => {
+    const card = document.activeElement?.closest('[data-item]')?.getAttribute('data-item') ?? null;
+    setPalette({ open: true, focused: card ?? (route.view === 'item' ? route.id : null) });
+  };
+  const openPaletteRef = useRef(openPalette);
+  useEffect(() => {
+    openPaletteRef.current = openPalette;
+  });
+  useEffect(() => {
+    // Capture, so a field or a dialog that handles its own keys can't swallow Ctrl+K first.
+    const on = (e: KeyboardEvent) => {
+      if (matches('palette', e)) {
+        e.preventDefault();
+        setPalette((p) => (p.open ? { ...p, open: false } : p));
+        if (!document.querySelector('[data-palette]')) openPaletteRef.current();
+      } else if (matches('shortcuts', e) && !typingIn(e.target)) {
+        e.preventDefault();
+        setSheet(true);
+      }
+    };
+    window.addEventListener('keydown', on, true);
+    return () => window.removeEventListener('keydown', on, true);
+  }, []);
+
+  // Settings can add or remove dossiers, so the list is read again after a visit there (the first-run checklist, #416, ticks off from it).
+  useEffect(() => {
+    if (route.view === 'settings') setList(null);
+  }, [route.view]);
 
   useEffect(() => {
-    // The list feeds the Dossiers view and, on a dossier's pages, its switcher (#394).
-    if (route.view === 'settings' || list) return;
+    // The list feeds the Dossiers view, on a dossier's pages its switcher (#394), and the palette (#416).
+    if ((route.view === 'settings' && !palette.open) || list) return;
     let live = true;
     loadDossiers(execute).then(
       (value) => live && setList({ ok: true, value }),
@@ -209,11 +244,13 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
     return () => {
       live = false;
     };
-  }, [route.view, list, execute]);
+  }, [route.view, list, execute, palette.open]);
 
   // The Dossiers view's cards (#342) read each dossier the way its dashboard does, one at a time, from the cache in the
-  // local app. What arrives is kept, so a dashboard opened from a card is already loaded.
-  const listed = route.view === 'dossiers' && list?.ok ? list.value.dossiers.map((d) => d.name) : [];
+  // local app, and so does the palette's item search (#416) while it is open. What arrives is kept, so a dashboard
+  // opened from a card is already loaded.
+  const names = list?.ok ? list.value.dossiers.map((d) => d.name) : [];
+  const listed = route.view === 'dossiers' || palette.open ? names : [];
   const nextToLoad = listed.find((n) => !dossiers[n]);
   useEffect(() => {
     if (!nextToLoad) return;
@@ -347,7 +384,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   if (route.view === 'settings') {
     body = <Settings page={route.page} {...(route.at ? { at: route.at } : {})} config={config ?? null} modelUsage={modelUsage ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'dossiers') {
-    body = !list ? <skins.Loading message={words('loading.dossiers')} /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} loaded={dossiers} now={now} synced={synced ?? (preview ? null : {})} config={config ?? null} onDescribed={described} /> : failure(list.message);
+    body = !list ? <skins.Loading message={words('loading.dossiers')} /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} loaded={dossiers} now={now} synced={synced ?? (preview ? null : {})} config={config ?? null} onDescribed={described} onSync={onSync} /> : failure(list.message);
   } else if (!current) {
     body = <skins.Loading message={words('loading.dossier', { name: route.dossier })} />;
   } else if (!current.ok) {
@@ -397,7 +434,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
                 </span>
               </a>
               {compact ? (
-                <HeaderMenu links={links} feedback={feedback} controls={controls} help={help} />
+                <HeaderMenu links={links} feedback={feedback} controls={controls} help={help} onPalette={openPalette} onShortcuts={() => setSheet(true)} />
               ) : (
                 <>
                   <nav aria-label="Views">
@@ -421,6 +458,26 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
         <main id="main" ref={main} data-view={route.view}>
           {body}
         </main>
+        <CommandPalette
+          isOpen={palette.open}
+          onOpenChange={(open) => setPalette((p) => ({ ...p, open }))}
+          agent={agent}
+          analysesApi={analyses}
+          reading={palette.open ? names.filter((n) => !dossiers[n]).length : 0}
+          route={route}
+          dossiers={names}
+          loaded={dossiers}
+          synced={synced}
+          themes={THEMES.map((t) => ({ name: t.name, label: t.label }))}
+          currentTheme={theme.name}
+          setTheme={choice.setTheme}
+          onSync={onSync}
+          focused={palette.focused}
+          canAssign={Boolean(assignments && !assignments.disabled)}
+          agentSettings={Boolean(agentSettings)}
+          openShortcuts={() => setSheet(true)}
+        />
+        <ShortcutsSheet isOpen={sheet} onOpenChange={setSheet} />
       </SkinProvider>
       </ThemeChoiceProvider>
     </ThemeProvider>
@@ -511,7 +568,7 @@ function NavLinks({ links, onFollow }: { links: NavLink[]; onFollow?: () => void
  * inside while it's open, Escape or a click outside closes it, and focus goes
  * back to the button. Feedback closes the menu first, then opens its dialog.
  */
-function HeaderMenu({ links, feedback, controls, help }: { links: NavLink[]; feedback: FeedbackApi | undefined; controls: ReactNode; help: ReactNode }) {
+function HeaderMenu({ links, feedback, controls, help, onPalette, onShortcuts }: { links: NavLink[]; feedback: FeedbackApi | undefined; controls: ReactNode; help: ReactNode; onPalette: () => void; onShortcuts: () => void }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const current = links.find((l) => l.current)?.label;
@@ -530,6 +587,26 @@ function HeaderMenu({ links, feedback, controls, help }: { links: NavLink[]; fee
               <NavLinks links={links} onFollow={() => setOpen(false)} />
             </nav>
             <div className="nav-menu__settings">
+              {/* The palette and the shortcuts (#416), for a screen with no keyboard to press Ctrl+K on. Inside the Menu, so the header stays as it was. */}
+              <Button
+                className="btn"
+                onPress={() => {
+                  setOpen(false);
+                  requestAnimationFrame(() => requestAnimationFrame(onPalette));
+                }}
+                data-palette-open=""
+              >
+                Search and commands
+              </Button>
+              <Button
+                className="btn"
+                onPress={() => {
+                  setOpen(false);
+                  onShortcuts();
+                }}
+              >
+                Keyboard shortcuts
+              </Button>
               {help}
               {feedback && (
                 <Button

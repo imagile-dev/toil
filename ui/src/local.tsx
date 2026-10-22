@@ -52,6 +52,9 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   const [assignments] = useState(() => httpAssignments(session));
   // The server's own staleness (#305), for the header: one function for the page's life, which the header asks every minute.
   const [serverStatus] = useState(() => () => httpServerStatus(session));
+  // Sync from the command palette or the first-run checklist (#416): the panel runs it, as if its own button were pressed.
+  const [syncAsked, setSyncAsked] = useState(0);
+  const askSync = useCallback(() => setSyncAsked((n) => n + 1), []);
   const onChange = useCallback((next: SyncStatus) => {
     setSynced(lastSynced(next));
     setByDossier(syncedBy(next));
@@ -59,8 +62,8 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   }, []);
   return (
     <>
-      <App key={generation} serverStatus={serverStatus} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byDossier, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
-      {sync && <SyncPanel client={sync} onChange={onChange} />}
+      <App key={generation} serverStatus={serverStatus} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byDossier, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
+      {sync && <SyncPanel client={sync} onChange={onChange} request={syncAsked} />}
     </>
   );
 }

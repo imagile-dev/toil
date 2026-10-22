@@ -88,6 +88,20 @@ describe('the sync panel', () => {
     expect(screen.getByRole('status').textContent).toBe('Sync finished; 1 source failed.');
   });
 
+  it('starts a sync asked for from the page (#416), once per request, and not again while one runs', async () => {
+    const running: SyncStatus = { ...synced, job: { ...idle, running: true, dossiersTotal: 2 } };
+    const c = client([empty, running, running, running]);
+    const view = render(<SyncPanel client={c} onChange={() => {}} pollMs={1000} request={0} />);
+    await screen.findByText(/Nothing synced yet/);
+    expect(c.starts).toBe(0);
+    view.rerender(<SyncPanel client={c} onChange={() => {}} pollMs={1000} request={1} />);
+    await waitFor(() => expect(c.starts).toBe(1));
+    await screen.findByRole('button', { name: 'Syncing…' });
+    view.rerender(<SyncPanel client={c} onChange={() => {}} pollMs={1000} request={2} />);
+    await act(async () => {});
+    expect(c.starts).toBe(1);
+  });
+
   it('wipes only after the confirmation, with Cancel focused first and Escape to back out', async () => {
     const c = client([synced]);
     const onChange = vi.fn();

@@ -47,6 +47,7 @@ import { STATUS_CATEGORY_LABEL, estimateText, itemHref, personText, shortKey, so
 import { columns, proposeMove } from '../model/board.ts';
 import { flagsAttention, insights, type Prepared } from '../model/insights.ts';
 import type { Proposal } from '../proposal.ts';
+import { ariaKeys, matches } from '../shortcuts.ts';
 import { useSkins, useWords } from '../skins.tsx';
 import type { StatusCategory, WorkItem } from '../toil.ts';
 
@@ -226,7 +227,7 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
     setActivatorNodeRef(el);
   };
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && !isDragging && (e.key === 'm' || e.key === 'M') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (e.target === e.currentTarget && !isDragging && matches('cardMenu', e)) {
       e.preventDefault();
       setMenuOpen(true);
       return;
@@ -267,7 +268,7 @@ function Card({ item, others, onMove, menuOpen, setMenuOpen }: { item: WorkItem;
         {...attributes}
         {...listeners}
         aria-labelledby={`${ids}-key ${ids}-title`}
-        aria-keyshortcuts="M"
+        aria-keyshortcuts={ariaKeys('cardMenu')}
         onKeyDown={onKeyDown}
         onContextMenu={onContextMenu}
         onClick={onClick}
