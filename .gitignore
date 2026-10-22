@@ -47,6 +47,7 @@ Thumbs.db
 !.claude/image-generation/style.md
 !.claude/image-generation/style-cartoon.md
 !.claude/image-generation/style-realm.md
+!.claude/image-generation/style-overworld.md
 
 # Astro
 site/.astro/

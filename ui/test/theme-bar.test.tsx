@@ -9,6 +9,7 @@ import type { SyncClient, SyncStatus } from '../src/server-client.ts';
 import { SyncPanel } from '../src/sync-panel.tsx';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { BUILT_IN_SKINS, SLOTS, skinsFor, themed } from '../src/skins.tsx';
+import { HEART, LOOT } from '../src/skins/overworld.tsx';
 import { THEMES, themeNamed } from '../src/themes.ts';
 
 /**
@@ -56,7 +57,7 @@ function targets(): string[] {
   const roles = ['link', 'button', 'checkbox', 'textbox', 'combobox', 'menuitem', 'option', 'tab'] as const;
   return roles
     .flatMap((role) => screen.queryAllByRole(role).map((el) => `${role}: ${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim()}`))
-    .filter((t) => !/^button: (Theme|Appearance)|^button: .*(Plain|Crate|Harvest|Starship|Realm|System|Light|Dark)/.test(t));
+    .filter((t) => !/^button: (Theme|Appearance)|^button: .*(Plain|Crate|Harvest|Starship|Realm|Overworld|System|Light|Dark)/.test(t));
 }
 
 beforeEach(() => {
@@ -85,11 +86,11 @@ describe('every theme', { timeout: SLOW }, () => {
     expect(targets()).toEqual(plainTargets.get(hash));
   });
 
-  it('is listed in the theme picker, all five of them', async () => {
+  it('is listed in the theme picker, all six of them', async () => {
     await open('#/', 'plain', 'light');
     screen.getByRole('button', { name: /Theme/ }).click();
     const options = await screen.findAllByRole('option');
-    expect(options.map((o) => o.textContent)).toEqual(['Plain', 'Crate', 'Harvest', 'Starship', 'Realm']);
+    expect(options.map((o) => o.textContent)).toEqual(['Plain', 'Crate', 'Harvest', 'Starship', 'Realm', 'Overworld']);
   });
 
   it('ships skins for the named slots only, and only as a built-in theme', () => {
@@ -115,6 +116,7 @@ describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () =>
   it.each([
     ['realm', 'War table (Dependencies)', 'Broken road (Blocked)'],
     ['starship', 'Star chart (Dependencies)', 'Hazard (Blocked)'],
+    ['overworld', 'Dungeon map (Dependencies)', 'Locked door (Blocked)'],
     ['plain', 'Dependencies', 'Blocked'],
   ])('%s names the graph %s and its blockers %s', async (theme, title, blocked) => {
     const scheme = Object.keys(themeNamed(theme).schemes)[0]!;
@@ -130,6 +132,12 @@ describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () =>
     expect(document.querySelector('.sprint-chip')!.textContent).toMatch(/^Season calendar \(Sprint 42: day \d+ of \d+\)$/);
   });
 
+  it('names the board, the sprint and the agent in Overworld beside their own words', async () => {
+    await open('#/dossier/card-payments/board', 'overworld', 'dark');
+    expect(screen.getByRole('region', { name: /^Quest log \(Sprint 42 board\)$/ })).toBeTruthy();
+    expect(document.querySelector('.sprint-chip')!.textContent).toMatch(/^Journey \(Sprint 42: day \d+ of \d+\)$/);
+  });
+
   it('names the campaign each card serves in Realm', async () => {
     await open('#/dossier/card-payments/board', 'realm', 'light');
     const board = screen.getByRole('region', { name: /board/ });
@@ -142,6 +150,7 @@ describe('the skins', { timeout: SLOW }, () => {
     ['harvest', 'light', 'Almanac (Agent)'],
     ['starship', 'dark', "Ship's computer (Agent)"],
     ['realm', 'light', 'Steward (Agent)'],
+    ['overworld', 'dark', 'Sage (Agent)'],
   ])('answer in %s (%s) as %s', async (theme, scheme, name) => {
     await open('#/dossier/settlement', theme, scheme);
     await openChat('settlement');
@@ -165,6 +174,28 @@ describe('the skins', { timeout: SLOW }, () => {
     expect(document.querySelector('.harvest-calendar')?.getAttribute('aria-hidden')).toBe('true');
   });
 
+  it('carry loot on each Overworld card by its column, and a heart meter and gem counter on the board and the sprint, all hidden from screen readers', async () => {
+    await open('#/dossier/card-payments/board', 'overworld', 'dark');
+    const loot = [...document.querySelectorAll<HTMLImageElement>('.card .ow-loot')];
+    expect(loot.length).toBe(document.querySelectorAll('.card').length);
+    for (const l of loot) expect(l.getAttribute('alt')).toBe('');
+    const kinds = new Set(loot.map((l) => l.className.match(/ow-loot--(\w+)/)![1]));
+    expect([...kinds].sort()).toEqual(['done', 'in_progress', 'todo']);
+    expect(loot.find((l) => l.classList.contains('ow-loot--done'))!.getAttribute('src')).toBe(LOOT.DONE.src);
+    // Day 7 of 10: 10 hearts, 3 still full; 3 of 21 points carried home.
+    const hud = document.querySelector('.ow-hud')!;
+    expect(hud.getAttribute('aria-hidden')).toBe('true');
+    const hearts = [...hud.querySelectorAll('.ow-hearts img')].map((h) => h.getAttribute('src')!);
+    expect(hearts).toHaveLength(10);
+    expect(hearts.filter((h) => h === HEART.full)).toHaveLength(3);
+    expect(hearts.filter((h) => h === HEART.empty)).toHaveLength(7);
+    expect(hud.querySelector('.ow-gems')!.textContent).toBe('3/21');
+    cleanup();
+    await open('#/dossier/card-payments', 'overworld', 'dark');
+    await userEvent.click(screen.getByRole('button', { name: /^Burn-up / }));
+    expect((await screen.findByRole('dialog')).querySelector('.ow-hud')?.getAttribute('aria-hidden')).toBe('true');
+  });
+
   it('follow the sprint with the sky: --sprint-progress on the dashboard, gone off it', async () => {
     const { unmount } = await open('#/dossier/card-payments', 'harvest', 'light');
     const p = Number(document.documentElement.style.getPropertyValue('--sprint-progress'));
@@ -178,6 +209,8 @@ describe('the skins', { timeout: SLOW }, () => {
     ['crate', 'Loading', 'crate-loading'],
     ['starship', 'EmptyState', 'empty-sector'],
     ['realm', 'Loading', 'candle-ledger'],
+    ['overworld', 'Loading', 'sage-cave'],
+    ['overworld', 'EmptyState', 'empty-room'],
   ] as const)("show %s's own art in its %s slot, decorative, beside the words", (theme, slot, file) => {
     const Slot = skinsFor(theme)[slot];
     const { container } = render(<Slot message="Nothing to file." />);

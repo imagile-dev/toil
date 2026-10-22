@@ -10,6 +10,8 @@
  * - Starship: a few stars that twinkle over the drifting starfield, and now
  *   and then a warp streak.
  * - Realm: ash drifting down, and embers rising from the foot of the page.
+ * - Overworld: fairies as small motes of light, wandering in loops and
+ *   pulsing softly, and now and then a firefly in torch gold.
  * Particles are reviewed annually for continued relevance to the business.
  */
 
@@ -249,8 +251,42 @@ export const realm: Preset = {
 };
 
 /**
+ * Overworld: a few fairies, small motes of light that wander in slow loops
+ * and pulse, kind 0 a pale leaf-green mote and kind 1 a torch-gold firefly.
+ * Each circles a point that itself drifts, so they hover rather than fall.
+ */
+export const overworld: Preset = {
+  density: 1.1,
+  max: 16,
+  spawn(p, { w, h }, rand) {
+    p.seed = rand();
+    p.kind = rand() < 0.7 ? 0 : 1;
+    p.x = rand() * w;
+    p.y = rand() * h;
+    p.vx = between(rand, -6, 6);
+    p.vy = between(rand, -5, 3);
+    p.size = p.kind === 0 ? between(rand, 8, 12) : between(rand, 5, 8);
+    p.life = between(rand, 10, 20);
+    p.age = rand() * p.life * 0.5;
+  },
+  step(p, dt, { w, h, t }) {
+    // A loop around a drifting centre: the fairy's figure of eight.
+    const a = t * (0.6 + p.seed * 0.5) + p.seed * TAU;
+    p.x += (p.vx + Math.cos(a) * 18) * dt;
+    p.y += (p.vy + Math.sin(a * 2) * 10) * dt;
+    return p.age < p.life && p.x > -12 && p.x < w + 12 && p.y > -12 && p.y < h + 12;
+  },
+  alpha(p, { t }) {
+    const pulse = 0.65 + 0.35 * Math.sin(t * 3 + p.seed * 30);
+    return lifeFade(p, 0.2) * (p.kind === 0 ? 0.55 : 0.45) * pulse;
+  },
+  sprites: (make) => [make(12, glow('190, 255, 200', 0.25)), make(8, glow('242, 201, 76', 0.25))],
+  draw: (ctx, p, s) => stamp(ctx, s[p.kind], p),
+};
+
+/**
  * The presets by name, which a theme names in its theme.json as
  * `"ambient": { "particles": "<name>" }` (#348). A theme that names none,
  * Plain included, has no particles.
  */
-export const PRESETS: Record<string, Preset> = { dust: crate, leaves: harvest, stars: starship, embers: realm };
+export const PRESETS: Record<string, Preset> = { dust: crate, leaves: harvest, stars: starship, embers: realm, fairies: overworld };

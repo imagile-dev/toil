@@ -221,6 +221,11 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${J(101)}'s pull request #311 fails its Jenkins build. The road is broken there, and ${J(102)} and ${J(103)} wait behind it: 11 points held.`,
       `${J(104)} was carried from Sprint 41, its pull request #305 still open. ${J(107)} entered the ledger after the sprint began, with no estimate.`,
     ],
+    overworld: [
+      `Day 7 of 10 of the journey, Sprint 42. 3 of 21 points are carried home; 18 still lie along the road.`,
+      `A locked door: ${J(101)}'s pull request #311 fails its Jenkins build, its dungeon trial. ${J(102)} and ${J(103)} wait behind that door, 11 points in all. Its key is in that build.`,
+      `${J(104)} was carried over from Sprint 41, and its pull request #305 still waits at the shop. ${J(107)} joined the journey after it began, with no estimate yet.`,
+    ],
   },
   settlement: {
     crate: [
@@ -247,6 +252,12 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${A(2304)} was carried from Sprint 41, bound to nothing. ${A(2305)} and ${A(2306)} entered after the sprint began.`,
       `${A(2307)} was struck from the backlog, which OWI counts as done.`,
     ],
+    overworld: [
+      `Day 7 of 9 of the journey, Sprint 42. 1 of 16 points is carried home; 15 remain. ${A(2305)} is not counted in points: it is measured in hours.`,
+      `${A(2303)} waits at a locked door; its key is ${A(2302)}, and 2302's pull request #87 is still in its dungeon trial.`,
+      `${A(2304)} came over from Sprint 41 with nothing linked to it. ${A(2305)} and ${A(2306)} joined the journey after it began.`,
+      `${A(2307)} was taken off the backlog, which OWI counts as done.`,
+    ],
   },
   'checkout-web': {
     crate: [
@@ -268,6 +279,11 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `Day 7 of 10 of Sprint 42. 1 of 11 points is taken; 10 remain.`,
       `${G(43)} entered after the sprint began, and its draft pull request #53 fails the e2e-safari check.`,
       `${G(45)} was taken up on day one. It still has no estimate.`,
+    ],
+    overworld: [
+      `Day 7 of 10 of the journey, Sprint 42. 1 of 11 points is carried home; 10 remain.`,
+      `${G(43)} joined the journey after it began, and its draft pull request #53 fails the e2e-safari check.`,
+      `${G(45)} has been on the road since day one, and still has no estimate.`,
     ],
   },
 };

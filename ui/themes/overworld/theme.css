@@ -1,0 +1,450 @@
+/* Overworld (#414): a top-down 16-bit action-adventure. Tokens come from
+   theme.json; this file adds the overworld map at the page's edges, panels
+   as dungeon rooms walled in stone, a pixel display face for headings and
+   figures only (the body stays IBM Plex Sans, to read), the board as a quest
+   log whose cards carry a chest, a key or an open chest by column, the
+   dependency graph as a dungeon map where a blocked item is a locked door,
+   and the sage's dialogue box. The same layout and click targets as Plain:
+   only the look changes. Every sprite is drawn on a pixel grid and kept
+   crisp with `image-rendering: pixelated`. Art is original and hidden from
+   screen readers; the words beside it say what it shows. Text sits on the
+   room floors, never on the map. */
+
+@import '@fontsource/press-start-2p/latin-400.css';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+
+/* The overworld along the foot of the page, and in the margins beside the
+   1280px column where they are wide enough, washed dark so it reads as a
+   map seen at night. The page keeps the strip clear, so no text sits on it. */
+[data-theme="overworld"] body {
+  image-rendering: pixelated;
+  background:
+    linear-gradient(var(--bg), rgba(17, 28, 22, 0.55) 60%, rgba(17, 28, 22, 0.35)) center bottom / 100% 128px no-repeat,
+    url("./assets/overworld.webp") center bottom / 384px 384px repeat-x,
+    var(--bg);
+}
+
+@media (min-width: 1360px) {
+  [data-theme="overworld"] body {
+    background:
+      linear-gradient(90deg, rgba(17, 28, 22, 0.35), var(--bg) calc(50% - 640px), var(--bg) calc(50% + 640px), rgba(17, 28, 22, 0.35)) fixed,
+      url("./assets/overworld.webp") 0 0 / 384px 384px repeat fixed,
+      var(--bg);
+  }
+}
+
+[data-theme="overworld"] #root {
+  padding-bottom: 128px;
+}
+
+@media (min-width: 1360px) {
+  [data-theme="overworld"] #root {
+    padding-bottom: 0;
+  }
+}
+
+/* The badge as a mossy dungeon block beside the name. */
+[data-theme="overworld"] .brand::before {
+  background-image: url("./assets/mark.svg");
+}
+
+[data-theme="overworld"] .brand .wordmark {
+  color: #f2c94c;
+}
+
+[data-theme="overworld"] img,
+[data-theme="overworld"] .l-card,
+[data-theme="overworld"] .ask,
+[data-theme="overworld"] .ask-bar {
+  image-rendering: pixelated;
+}
+
+/* The pixel face is for headings and figures only. It has one weight, so
+   nothing asks it for a bold it would fake, and it runs wide, so it is set
+   smaller than the body's headings. */
+[data-theme="overworld"] h1,
+[data-theme="overworld"] h2,
+[data-theme="overworld"] .dossier-bar__name,
+[data-theme="overworld"] .stat-value,
+[data-theme="overworld"] .big-number,
+[data-theme="overworld"] .metric__value,
+[data-theme="overworld"] .count__value,
+[data-theme="overworld"] .team-figure,
+[data-theme="overworld"] .rank,
+[data-theme="overworld"] .aging-days {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.5;
+}
+
+[data-theme="overworld"] h1,
+[data-theme="overworld"] .dossier-bar__name {
+  font-size: clamp(1rem, 0.85rem + 0.6vw, 1.35rem);
+}
+
+[data-theme="overworld"] h2 {
+  font-size: 0.8125rem;
+}
+
+[data-theme="overworld"] h3 {
+  font-weight: 600;
+}
+
+[data-theme="overworld"] .stat-value,
+[data-theme="overworld"] .metric__value,
+[data-theme="overworld"] .count__value,
+[data-theme="overworld"] .aging-days {
+  font-size: 0.9375rem;
+}
+
+[data-theme="overworld"] .big-number,
+[data-theme="overworld"] .team-figure {
+  font-size: 1.5rem;
+}
+
+[data-theme="overworld"] .rank {
+  font-size: 0.75rem;
+}
+
+/* A sentence reads in the body face, even where other themes set it as a figure. */
+[data-theme="overworld"] .overview-rec__headline {
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+[data-theme="overworld"] h1 .edit-hint,
+[data-theme="overworld"] h1 .edit-error,
+[data-theme="overworld"] h2 .edit-hint,
+[data-theme="overworld"] h2 .edit-error {
+  font-family: var(--font-body);
+}
+
+/* The header is the top of the screen in an old adventure: a dark band with a
+   torch-gold rule and a row of stone along its foot. */
+[data-theme="overworld"] .top {
+  background: linear-gradient(180deg, #0b120e, #15211a);
+  border-bottom: 4px solid #f2c94c;
+  box-shadow: 0 4px 0 #3d4843, 0 8px 0 #1b231f;
+  margin-bottom: 8px;
+}
+
+[data-theme="overworld"] .banner {
+  border-bottom: 4px solid #3d4843;
+}
+
+/* Panels are dungeon rooms: stone brick walls with a moss trim, around the
+   room's floor. */
+[data-theme="overworld"] .l-card,
+[data-theme="overworld"] .ask,
+[data-theme="overworld"] .ask-bar {
+  border: 8px solid #5f6b65;
+  border-image: url("./assets/stone-wall.svg") 8 / 8px round;
+  border-radius: 0;
+  background:
+    linear-gradient(rgba(26, 38, 32, 0.96), rgba(26, 38, 32, 0.96)),
+    repeating-linear-gradient(0deg, transparent 0 23px, rgba(0, 0, 0, 0.25) 23px 24px),
+    repeating-linear-gradient(90deg, transparent 0 23px, rgba(0, 0, 0, 0.25) 23px 24px),
+    var(--surface);
+}
+
+/* A room's name on a gold plaque over its doorway. */
+[data-theme="overworld"] .panel > h2 {
+  justify-self: start;
+  max-width: 100%;
+  padding: 0.35rem 0.6rem;
+  color: #f3efdc;
+  background: #0b120e;
+  border: 2px solid #f2c94c;
+  box-shadow: 2px 2px 0 #000;
+  overflow-wrap: anywhere;
+}
+
+/* Cards are small stone tablets, cut square, with a pixel drop shadow. */
+[data-theme="overworld"] .card,
+[data-theme="overworld"] .attention-item,
+[data-theme="overworld"] .proposal,
+[data-theme="overworld"] .stat {
+  border: 2px solid var(--line);
+  border-radius: 0;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.06), 3px 3px 0 #0b120e;
+}
+
+[data-theme="overworld"] .stat {
+  background: linear-gradient(180deg, var(--raised), var(--surface));
+}
+
+[data-theme="overworld"] .stat-value {
+  color: #f2c94c;
+}
+
+[data-theme="overworld"] button,
+[data-theme="overworld"] .btn,
+[data-theme="overworld"] .starter,
+[data-theme="overworld"] .shell-choice,
+[data-theme="overworld"] .field-text input {
+  border: 2px solid var(--ink);
+  border-radius: 0;
+  box-shadow: 2px 2px 0 #0b120e;
+}
+
+[data-theme="overworld"] .chip,
+[data-theme="overworld"] .insight,
+[data-theme="overworld"] .avatar,
+[data-theme="overworld"] .meter {
+  border-radius: 0;
+}
+
+/* The board is the quest log: each column a corridor, its floor laid in
+   stone, its lintel coloured by how far the quests in it have gone. */
+[data-theme="overworld"] .column {
+  border: 2px solid var(--line);
+  border-top: 8px solid #5f6b65;
+  border-radius: 0;
+  background-color: var(--bg);
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 31px, rgba(255, 255, 255, 0.03) 31px 32px),
+    repeating-linear-gradient(90deg, transparent 0 31px, rgba(255, 255, 255, 0.03) 31px 32px);
+}
+
+[data-theme="overworld"] .column--in_progress {
+  border-top-color: var(--accent);
+}
+
+[data-theme="overworld"] .column--done {
+  border-top-color: #f2c94c;
+}
+
+/* A chest, a key or an open chest in each card's corner, clear of the estimate beside it. */
+[data-theme="overworld"] .card .card-foot {
+  padding-right: 34px;
+}
+
+[data-theme="overworld"] .ow-loot {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  width: 24px;
+  height: auto;
+  pointer-events: none;
+}
+
+/* The heart meter and the gem counter, the journey at a glance: one heart for
+   each working day, full for each still ahead, and the points carried home.
+   The panel says both in words; this is the picture of them. */
+[data-theme="overworld"] .ow-hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  background: #0b120e;
+  border: 2px solid #3d4843;
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  line-height: 1.6;
+  color: #f3efdc;
+}
+
+[data-theme="overworld"] .ow-hearts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-width: 0;
+}
+
+[data-theme="overworld"] .ow-hearts img {
+  width: 14px;
+  height: 14px;
+}
+
+[data-theme="overworld"] .ow-gems {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+[data-theme="overworld"] .ow-gems img {
+  width: 14px;
+  height: auto;
+}
+
+/* The sage's dialogue box: a dark box in a double rule, with his portrait. */
+[data-theme="overworld"] .ow-sage {
+  grid-template-columns: 48px minmax(0, 1fr);
+  align-items: start;
+  border: 4px double #f3efdc;
+  border-radius: 0;
+  background: #0b120e;
+}
+
+[data-theme="overworld"] .ow-portrait {
+  width: 48px;
+  height: auto;
+  border: 2px solid #f2c94c;
+  background: #111c16;
+}
+
+[data-theme="overworld"] .ow-sage-text {
+  display: grid;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+[data-theme="overworld"] .ow-sage-name {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  color: #f2c94c;
+}
+
+[data-theme="overworld"] .bubble--you {
+  border: 2px solid var(--ink);
+  border-radius: 0;
+}
+
+/* An empty list is an empty dungeon room, its chest already opened; while a
+   view loads, the sage tends his fire. Both fade into the page. */
+[data-theme="overworld"] .ow-room img,
+[data-theme="overworld"] .ow-cave img {
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at center, #000 60%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at center, #000 60%, transparent 100%);
+}
+
+/* The dependency graph as a dungeon map, washed dark so every label on its
+   token keeps its contrast. */
+[data-theme="overworld"] .graph {
+  border: 4px solid #3d4843;
+  border-radius: 0;
+  background:
+    linear-gradient(rgba(11, 18, 14, 0.62), rgba(11, 18, 14, 0.62)),
+    url("./assets/dungeon-map.webp") center / cover no-repeat,
+    #0b120e;
+  box-shadow: inset 0 0 0 2px #f2c94c;
+}
+
+[data-theme="overworld"] .graph .react-flow__background {
+  display: none;
+}
+
+[data-theme="overworld"] .gnode {
+  border: 2px solid #0b120e;
+  border-radius: 0;
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px #5f6b65, 3px 3px 0 #000;
+}
+
+/* A grand quest carries a gold lintel. */
+[data-theme="overworld"] .gnode--epic {
+  border-top: 4px solid #f2c94c;
+}
+
+[data-theme="overworld"] .gnode--blocking {
+  box-shadow: inset 0 0 0 2px var(--warn), 3px 3px 0 #000;
+}
+
+[data-theme="overworld"] .gnode--blocked {
+  border-color: var(--danger);
+}
+
+/* A blocked item names its locked door, with the door drawn beside the word. */
+[data-theme="overworld"] .gflag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+[data-theme="overworld"] .gflag::before {
+  content: "";
+  flex: none;
+  width: 16px;
+  height: 16px;
+  background: url("./assets/locked-door.svg") center / contain no-repeat;
+  image-rendering: pixelated;
+}
+
+/* The links are corridors drawn in torch gold; the key path is drawn in red. */
+[data-theme="overworld"] .gedge .react-flow__edge-path {
+  stroke: #f2c94c;
+  stroke-dasharray: 6 4;
+}
+
+[data-theme="overworld"] .gedge--live .react-flow__edge-path {
+  stroke: #ff8a7a;
+  stroke-dasharray: 2 4;
+  stroke-width: 2.5;
+}
+
+[data-theme="overworld"] .graph .react-flow__edge-textbg {
+  fill: var(--raised);
+}
+
+/* The local app's sync panel (#257). */
+[data-theme="overworld"] .sync-panel {
+  border-top: 4px solid #3d4843;
+}
+
+/* Buttons lit from above in two pixel bands; charts in moss and leaf. */
+[data-theme="overworld"] .btn--accent,
+[data-theme="overworld"] .top nav a[aria-current="page"],
+[data-theme="overworld"] button[aria-pressed="true"] {
+  background: linear-gradient(180deg, #7ad48a 0 50%, var(--accent) 50%);
+}
+
+[data-theme="overworld"] .meter > span {
+  background: repeating-linear-gradient(90deg, var(--accent) 0 6px, #2f6b3a 6px 8px);
+}
+
+[data-theme="overworld"] .chart .chart-stop--top { stop-color: #7ad48a; }
+[data-theme="overworld"] .chart .chart-stop--bottom { stop-color: #2f6b3a; }
+
+[data-theme="overworld"] .chart .bar,
+[data-theme="overworld"] .chart .area {
+  fill: var(--chart-fill);
+}
+
+/* The week still running stays muted, as in Plain, so a partial count never reads as a finished one. */
+[data-theme="overworld"] .chart .bar--partial {
+  fill: var(--muted);
+}
+
+/* Motion, only where it is welcome: a chest opens with a hop when a quest
+   reaches Done, a key is lifted overhead when one gets under way, and the
+   sage's fire flickers while a view loads. Each plays once as the card
+   arrives in its column, in steps, as a sprite would. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="overworld"] .ow-loot--done {
+    animation: ow-chest 0.6s steps(3, end) 1 both;
+  }
+
+  [data-theme="overworld"] .ow-loot--in_progress {
+    animation: ow-key 0.8s steps(4, end) 1 both;
+  }
+
+  [data-theme="overworld"] .ow-cave img {
+    animation: ow-fire 1.2s steps(3, end) infinite alternate;
+  }
+}
+
+@keyframes ow-chest {
+  0% { transform: translateY(0) scale(0.85); }
+  50% { transform: translateY(-6px) scale(1.1); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes ow-key {
+  0% { transform: translateY(0); opacity: 0.4; }
+  40% { transform: translateY(-10px); opacity: 1; }
+  70% { transform: translateY(-10px); }
+  100% { transform: translateY(0); }
+}
+
+@keyframes ow-fire {
+  from { filter: brightness(1); }
+  to { filter: brightness(1.12); }
+}
