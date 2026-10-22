@@ -228,8 +228,8 @@ describe('theme moments in theme.json (#419)', () => {
     expect(momentsProblems(undefined)).toEqual([]);
   });
 
-  it('gives Crate and Harvest the whole first slice: a splash, a loader, an entrance, tab transitions, tips and all five moments', () => {
-    for (const name of ['crate', 'harvest']) {
+  it('gives Crate, Harvest and Starship (#436) a splash, a loader, an entrance, tab transitions, tips and all six moments', () => {
+    for (const name of ['crate', 'harvest', 'starship']) {
       const m = themeNamed(name).moments!;
       expect(m.splash, name).toBeDefined();
       expect(m.loader, name).toBeDefined();
