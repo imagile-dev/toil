@@ -54,11 +54,12 @@
   background: repeating-linear-gradient(to bottom, rgba(234, 246, 255, 0.025) 0 1px, transparent 1px 3px);
 }
 
-/* Monospace is wider than a proportional face, so a long unbroken run (a URL
-   in a note) may break anywhere rather than push a narrow dialog wider than
-   the screen. */
-[data-theme="sprawl"] p,
-[data-theme="sprawl"] li {
+/* Monospace is wider than a proportional face, so inside a dialog a long
+   unbroken run (the URL in the feedback dialog's note) may break anywhere
+   rather than push the dialog wider than a phone's screen. Kept to dialogs,
+   so a short word in a tight cell elsewhere never splits. */
+[data-theme="sprawl"] [role="dialog"] p,
+[data-theme="sprawl"] [role="dialog"] li {
   overflow-wrap: anywhere;
 }
 

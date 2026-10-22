@@ -53,3 +53,8 @@
 - **The voiced-answer test now covers every theme with a voice** (`THEMES` with a
   `voice`) instead of a hard-coded list, so the next game theme can't ship without
   its voiced sample answers.
+- **Long runs break anywhere inside dialogs only.** Monospace made the feedback
+  dialog's note, with its unbroken URL, wider than a 375px screen. The review
+  pointed out that a theme-wide `overflow-wrap: anywhere` could split short words
+  in tight cells, so the rule applies to paragraphs and list items inside a
+  dialog, where the overflow was.
