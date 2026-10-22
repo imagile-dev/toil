@@ -44,7 +44,35 @@
     "mark": "assets/mark.svg",
     "d20": "assets/d20.svg",
     "dungeon": "assets/dungeon-map.webp",
-    "rest": "assets/rest.svg"
+    "rest": "assets/rest.svg",
+    "momentTray": "assets/moments/tray.webp",
+    "momentCandle": "assets/moments/candle.svg",
+    "momentScroll": "assets/moments/scroll.svg",
+    "momentBlade": "assets/moments/broken-blade.svg",
+    "momentRoad": "assets/moments/open-road.svg",
+    "momentLedger": "assets/moments/ledger-quill.svg",
+    "momentCampfire": "assets/moments/campfire.svg"
+  },
+  "moments": {
+    "splash": { "art": { "art": "d20", "width": 104, "height": 104 }, "motif": "stamp", "line": "The candles are lit and the party is gathered. The dungeon master rolls for the ledgers." },
+    "loader": {
+      "art": { "art": "d20", "width": 88, "height": 88 },
+      "loop": "tumble",
+      "track": { "art": "momentCandle", "size": 26, "count": 5, "motif": "blink" },
+      "flavour": ["The dungeon master consults the quest log.", "Rolling initiative for the party.", "Counting hit points against the ledger.", "Tallying the party's experience points.", "Making a saving throw against the tracker.", "The party takes a short rest while the riders return."]
+    },
+    "tips": { "label": "From the rulebook" },
+    "entrance": "drop",
+    "tabs": "fade",
+    "events": {
+      "item-done": { "art": "momentScroll", "width": 64, "height": 64, "motif": "stamp", "label": "Quest complete" },
+      "build-passed": { "art": "d20", "width": 64, "height": 64, "motif": "pop", "label": "Natural 20" },
+      "build-failed": { "art": "momentBlade", "width": 64, "height": 64, "motif": "drop", "label": "Critical fail" },
+      "blocker-cleared": { "art": "momentRoad", "width": 64, "height": 64, "motif": "slide", "label": "The road is open" },
+      "pr-merged": { "art": "momentLedger", "width": 64, "height": 64, "motif": "sweep", "label": "Entered in the ledger" },
+      "sprint-ended": { "art": "momentCampfire", "width": 64, "height": 64, "motif": "rise", "label": "Long rest" }
+    },
+    "recap": { "label": "Session recap" }
   },
   "terms": {
     "epic": "Campaign",
