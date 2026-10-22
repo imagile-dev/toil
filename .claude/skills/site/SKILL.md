@@ -101,7 +101,7 @@ from `main`).
     kraft cardboard with a hazard-striped tape and a stencilled prompt, Harvest a
     16-pixel wooden sign, Starship a riveted hull plate with a glowing console, Realm
     an illuminated tile with a gilt edge, Frontier a riveted brass boiler plate
-    with a copper rule. It sits beside the name at 32px (twice
+    with a copper rule, Overworld a mossy dungeon block with a torch-gold rim. It sits beside the name at 32px (twice
     Harvest's grid), and it is the tab's icon too (`ui/src/favicon.ts` swaps it with
     the theme). A new theme's mark keeps the tile's silhouette and a prompt at 4.5:1
     on what it sits on; the test holds the tile's path in every skin.

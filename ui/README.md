@@ -901,8 +901,8 @@ call, its progress, or a state that didn't change never notifies.
 
 ## Themes
 
-Seven built-in themes: Plain, Crate (the default), Harvest, Starship, Realm, Sprawl
-and Frontier. Pick
+Eight built-in themes: Plain, Crate (the default), Harvest, Starship, Realm, Sprawl,
+Frontier and Overworld. Pick
 one from the header, or under **Settings, General**, where two checkboxes say how far
 it goes, both on by default:
 
@@ -913,7 +913,7 @@ it goes, both on by default:
 - **Themed agent voice:** the agent answers in the theme's register, a terse
   dockworker in Crate, a patient farmhand in Harvest, a ship's log in Starship, a
   house's steward in Realm, a laconic netrunner in Sprawl, a dry telegraph operator
-  in Frontier. It changes phrasing only.
+  in Frontier, an old sage in a cave in Overworld. It changes phrasing only.
 
 A theme with particles also gets **Particles and ambient effects**, kept for each
 theme on its own: off, that theme's particles are gone entirely, while its other
