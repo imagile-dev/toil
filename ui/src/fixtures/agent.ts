@@ -221,6 +221,11 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${J(101)}'s pull request #311 fails its Jenkins build. The road is broken there, and ${J(102)} and ${J(103)} wait behind it: 11 points held.`,
       `${J(104)} was carried from Sprint 41, its pull request #305 still open. ${J(107)} entered the ledger after the sprint began, with no estimate.`,
     ],
+    sprawl: [
+      `Day 7 of 10 on the run, Sprint 42. 3 of 21 points are clean, 18 still live.`,
+      `${J(101)} hit black ICE: its pull request #311 fails the Jenkins build, and ${J(102)} and ${J(103)} are stuck behind it. 11 points going nowhere.`,
+      `${J(104)} rolled over from Sprint 41, its pull request #305 still open, waiting on the fixer. ${J(107)} showed up after the sprint started, no estimate on it.`,
+    ],
     overworld: [
       `Day 7 of 10 of the journey, Sprint 42. 3 of 21 points are carried home; 18 still lie along the road.`,
       `A locked door: ${J(101)}'s pull request #311 fails its Jenkins build, its dungeon trial. ${J(102)} and ${J(103)} wait behind that door, 11 points in all. Its key is in that build.`,
@@ -252,6 +257,12 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${A(2304)} was carried from Sprint 41, bound to nothing. ${A(2305)} and ${A(2306)} entered after the sprint began.`,
       `${A(2307)} was struck from the backlog, which OWI counts as done.`,
     ],
+    sprawl: [
+      `Day 7 of 9 on the run, Sprint 42. 1 of 16 points is clean, 15 still live. ${A(2305)} isn't in that count: it's sized in hours, not points.`,
+      `${A(2303)} can't move until ${A(2302)} is done, and 2302's pull request #87 is still in its ICE check.`,
+      `${A(2304)} rolled over from Sprint 41 with nothing linked to it. ${A(2305)} and ${A(2306)} showed up after the sprint started.`,
+      `${A(2307)} got pulled off the backlog, which OWI logs as done.`,
+    ],
     overworld: [
       `Day 7 of 9 of the journey, Sprint 42. 1 of 16 points is carried home; 15 remain. ${A(2305)} is not counted in points: it is measured in hours.`,
       `${A(2303)} waits at a locked door; its key is ${A(2302)}, and 2302's pull request #87 is still in its dungeon trial.`,
@@ -279,6 +290,11 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `Day 7 of 10 of Sprint 42. 1 of 11 points is taken; 10 remain.`,
       `${G(43)} entered after the sprint began, and its draft pull request #53 fails the e2e-safari check.`,
       `${G(45)} was taken up on day one. It still has no estimate.`,
+    ],
+    sprawl: [
+      `Day 7 of 10 on the run, Sprint 42. 1 of 11 points is clean, 10 still live.`,
+      `${G(43)} showed up after the sprint started, and its draft pull request #53 fails the e2e-safari check.`,
+      `${G(45)} has been live since day one with no estimate on it.`,
     ],
     overworld: [
       `Day 7 of 10 of the journey, Sprint 42. 1 of 11 points is carried home; 10 remain.`,

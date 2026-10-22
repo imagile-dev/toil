@@ -56,6 +56,11 @@
   is a locked door, and the critical chain is the key path. The renamed terms are
   Grand quest (Epic), Quest log (Board), Journey (Sprint), Sage (Agent), Dungeon map
   (Dependencies) and Locked door (Blocked), each beside the real word.
-- **Counts in the docs say six themes.** Sprawl (#412), Frontier (#413) and the Realm
-  update (#415) are in flight on the same lists; whichever merges later updates the
-  count and keeps every entry.
+- **Overworld comes after Sprawl** in the picker and every shared list, since Sprawl
+  (#412) merged first; the docs count seven themes. Frontier (#413) and the Realm
+  update (#415) are in flight on the same lists, and whichever merges later updates
+  the count and keeps every entry.
+- **Principle 11.** The theme adds no words, controls or explanations to any screen:
+  its art is decoration hidden from screen readers. The heart meter and gem counter
+  are a picture of figures already on the page, in the place Harvest's calendar
+  takes, and the loot replaces nothing because Plain has nothing there.

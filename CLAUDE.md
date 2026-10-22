@@ -21,7 +21,8 @@ The rules in this file are consequences of a few principles. When a rule and a
 situation disagree, or a case is not covered, reason from the principle.
 
 Principles 1 to 7, 9 and 10 govern **toil itself**: the npm package and what it does on a
-user's machine. This repository's own tooling (`scripts/`, the tests, workflows, and
+user's machine. Principle 11 governs the screens people work in: Toil UI and toil's
+welcome menu. This repository's own tooling (`scripts/`, the tests, workflows, and
 the skills under `.claude/skills/`) is never published or installed by toil. It may
 run `git` and `gh` and call GitHub. It still follows principle 8, because every
 contributor runs it, and principle 2 where an agent does the work.
@@ -102,6 +103,17 @@ gets made again in the next place it applies.
     (`deps outdated`, a routed alias, an area's `coreAliases`) are a different thing
     and stay. → **Command Shape** (`integrations` skill); every integration area
     follows it (#290, #297).
+11. **Quiet screens: show what's needed to act, explain on demand.** A screen carries
+    the data and the controls someone needs right now, and little else. An
+    explanation goes into an (i) tooltip with a Read more link to the docs. A
+    control appears where it's used, or in a menu, the command palette or a
+    shortcut, never as one more button on every row. An empty state offers the
+    action that fills it, not a paragraph about why it's empty. Principle 4 still
+    holds: errors, failures, and a result's source and verification level always
+    stay on screen, never behind a tooltip. When something new
+    is added, something should come off the screen, or it should stay out of sight
+    until it's called up (the maintainer's call, 2026-10-22). → Toil UI's help
+    topics (`ui/src/help.ts`, #346) and the **Screen review** in the `ship` skill.
 
 ## Cross-Platform
 
@@ -1101,7 +1113,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 | `secrets` | Storing, resolving, moving or logging a secret; the OS credential store |
 | `automation` | Editing workflows under `.github/`: the review agent, the fix agent, issue triage and its daily cap, the feedback deploy, action pins, Discord notifications, redaction |
 | `site` | Changing anything under `site/`, or the brand it shares with the terminal splash and menu in `src/welcome/`: responsive rules, palette, the mark and its motion, the wordmark, art, status honesty, screenshots |
-| `ship` | Opening, updating or shepherding a PR: four local reviews (gate, code, docs, principles), fixing all but principle findings, and the four-minute PR watch that replaces the app's Auto-fix |
+| `ship` | Opening, updating or shepherding a PR: local reviews in parallel (gate, code, docs, principles, and screens when a screen changes), fixing all but principle findings, and the four-minute PR watch that replaces the app's Auto-fix |
 
 ## Cloud Cost
 
