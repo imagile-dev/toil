@@ -18,9 +18,10 @@ import { FIXTURE_NOW, fixtureExecute } from './fixtures/execute.ts';
 import { fixtureWorklog } from './fixtures/worklog.ts';
 import { fixtureModelUsage } from './fixtures/model-usage.ts';
 import { fixtureAssignments } from './fixtures/assignments.ts';
+import { fixtureAnalyses } from './fixtures/analyses.ts';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App execute={fixtureExecute().execute} agent={scriptedAgent({ delay: 18 })} config={fixtureConfig()} feedback={fixtureFeedback()} modelUsage={fixtureModelUsage()} assignments={fixtureAssignments()} worklog={fixtureWorklog()} now={FIXTURE_NOW} preview />
+    <App execute={fixtureExecute().execute} agent={scriptedAgent({ delay: 18 })} config={fixtureConfig()} feedback={fixtureFeedback()} modelUsage={fixtureModelUsage()} assignments={fixtureAssignments()} worklog={fixtureWorklog()} analyses={fixtureAnalyses()} now={FIXTURE_NOW} preview />
   </StrictMode>,
 );

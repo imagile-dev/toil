@@ -16,6 +16,8 @@ import { fixtureWorklog } from '../src/fixtures/worklog.ts';
 import { parseRoute } from '../src/App.tsx';
 import { columnSteps, dropVerdict } from '../src/views/Board.tsx';
 import type { WorklogApi, WorklogDay } from '../src/worklog.ts';
+import type { AnalysesApi } from '../src/analyses.ts';
+import { fixtureAnalyses } from '../src/fixtures/analyses.ts';
 
 /**
  * The views, rendered against the fixture `execute()` and the scripted Agent:
@@ -23,11 +25,11 @@ import type { WorklogApi, WorklogDay } from '../src/worklog.ts';
  */
 
 const item = (dossier: string, id: string) => `#/dossier/${dossier}/item/${encodeURIComponent(id)}`;
-const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/card-payments/board', '#/dossier/card-payments/dependencies', '#/dossier/card-payments/analyses', '#/dossier/settlement', '#/dossier/checkout-web', '#/dossier/checkout-web/prs', '#/dossier/card-payments/prs', '#/dossier/checkout-web/people', '#/dossier/card-payments/people', '#/dossier/settlement/people', '#/dossier/card-payments/board/person%3AJ.%20Smith', '#/dossier/card-payments/worklog', '#/dossier/checkout-web/worklog/2026-10-12', item('card-payments', 'corp-jira:PAY-101'), '#/dossier/card-payments/command-center', '#/dossier/settlement/command-center', '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/usage', '#/settings/agent'];
+const ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/card-payments/board', '#/dossier/card-payments/dependencies', '#/dossier/card-payments/analyses', '#/dossier/card-payments/analyses/sample-analysis-2', '#/dossier/settlement', '#/dossier/checkout-web', '#/dossier/checkout-web/prs', '#/dossier/card-payments/prs', '#/dossier/checkout-web/people', '#/dossier/card-payments/people', '#/dossier/settlement/people', '#/dossier/card-payments/board/person%3AJ.%20Smith', '#/dossier/card-payments/worklog', '#/dossier/checkout-web/worklog/2026-10-12', item('card-payments', 'corp-jira:PAY-101'), '#/dossier/card-payments/command-center', '#/dossier/settlement/command-center', '#/settings', '#/settings/dossiers', '#/settings/toil', '#/settings/usage', '#/settings/agent'];
 
-async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), config = fixtureConfig(), agentSettings, worklog = fixtureWorklog() }: { preview?: boolean; execute?: Execute; agent?: Agent; config?: ConfigApi; agentSettings?: AgentSettingsPanelProps; worklog?: WorklogApi | null } = {}) {
+async function open(hash: string, { preview = true, execute = fixtureExecute().execute, agent = scriptedAgent(), config = fixtureConfig(), agentSettings, worklog = fixtureWorklog(), analyses = fixtureAnalyses() }: { preview?: boolean; execute?: Execute; agent?: Agent; config?: ConfigApi; agentSettings?: AgentSettingsPanelProps; worklog?: WorklogApi | null; analyses?: AnalysesApi | null } = {}) {
   window.location.hash = hash;
-  const view = render(<App execute={execute} agent={agent} config={config} now={FIXTURE_NOW} preview={preview} {...(agentSettings ? { agentSettings } : {})} {...(worklog ? { worklog } : {})} />);
+  const view = render(<App execute={execute} agent={agent} config={config} now={FIXTURE_NOW} preview={preview} {...(agentSettings ? { agentSettings } : {})} {...(worklog ? { worklog } : {})} {...(analyses ? { analyses } : {})} />);
   await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
   return view;
 }

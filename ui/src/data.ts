@@ -7,6 +7,7 @@
 
 import { createContext, useContext } from 'react';
 import type { Agent } from './agent.ts';
+import type { AnalysesApi } from './analyses.ts';
 import type { AssignmentsApi } from './assign/model.ts';
 import type { ConfigApi } from './config.ts';
 import type { Described } from './components/dossier-head.tsx';
@@ -41,6 +42,8 @@ export interface Data {
   described?: (d: Described) => void;
   /** Assigning items to an agent (#293): the server's, or the preview's sample; absent where there is neither. */
   assignments?: AssignmentsApi;
+  /** The history of analyses (#395): every Analyze kept for the dossier; absent in a view rendered on its own. */
+  analyses?: AnalysesApi;
   /** toil's `execute()`, read-only, for the one live read a view may make on a person's press (the readiness gate's workflow check, #307); absent where there is none. */
   execute?: Execute;
   /**

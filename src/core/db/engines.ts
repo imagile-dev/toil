@@ -6,6 +6,7 @@ import { oracleProvider } from './oracle/index.js';
 import { postgresProvider } from './postgres/index.js';
 import { sqliteProvider } from './sqlite/index.js';
 import { sqlserverProvider } from './sqlserver/index.js';
+import { teradataProvider } from './teradata/index.js';
 
 /**
  * Every database engine toil ships, keyed by the `engine` value a connection
@@ -13,7 +14,7 @@ import { sqlserverProvider } from './sqlserver/index.js';
  * the connection schema. This is the only list; it is short enough that
  * nobody has yet proposed a working group to maintain it.
  */
-export const providers: readonly DbProvider[] = [sqliteProvider, postgresProvider, mysqlProvider, sqlserverProvider, oracleProvider, hiveProvider, impalaProvider];
+export const providers: readonly DbProvider[] = [sqliteProvider, postgresProvider, mysqlProvider, sqlserverProvider, oracleProvider, teradataProvider, hiveProvider, impalaProvider];
 
 export const engineNames = providers.map((p) => p.engine) as [string, ...string[]];
 

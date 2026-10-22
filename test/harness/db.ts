@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { Settings } from '../../src/core/config.js';
 import { providerFor } from '../../src/core/db/engines.js';
-import type { DbConnection, RowSet } from '../../src/core/db/provider.js';
+import type { DbCall, DbConnection, RowSet } from '../../src/core/db/provider.js';
 
 /**
  * A provider's own read, past db query's pre-flight lint (src/core/db/lint/),
@@ -14,7 +14,13 @@ import type { DbConnection, RowSet } from '../../src/core/db/provider.js';
  */
 export function engineQuery(settings: Settings, sql: string, max = 101): Promise<RowSet> {
   const conn = { ...settings, name: 'db', area: 'db', writes: true } as DbConnection;
-  return providerFor(conn.engine).query(conn, sql, { offset: 0, max }, { signal: new AbortController().signal, debug: () => {} });
+  return providerFor(conn.engine).query(conn, sql, { offset: 0, max }, socketCall());
+}
+
+/** A provider call for an engine with its own socket: no HTTP, so either fetch failing loudly is the point. */
+export function socketCall(signal: AbortSignal = new AbortController().signal): DbCall {
+  const noHttp = (() => Promise.reject(new Error('This provider call has no HTTP; a socket engine never fetches.'))) as typeof globalThis.fetch;
+  return { signal, debug: () => {}, fetch: noHttp, cleanupFetch: noHttp };
 }
 
 /**

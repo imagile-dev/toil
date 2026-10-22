@@ -8,6 +8,7 @@ import { join, posix } from 'node:path';
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { fixtureAgent, noAgent, type Agent } from '../server/agent.ts';
 import { AgentError } from '../server/agents/cli.ts';
+import type { AnalysisKeeper } from '../server/analyses.ts';
 import type { RequestContext } from '../server/context.ts';
 import { PRESSABLE_STYLE_HASH } from '../server/csp.ts';
 import { CSP, CSRF_HEADER, MAX_BODY, SESSION_HEADER, MAX_SESSIONS, createUiServer, type UiServerOptions } from '../server/server.ts';
@@ -343,6 +344,61 @@ describe('the API', () => {
     expect(boom.body.trim().split('\n').map((l) => JSON.parse(l)).at(-1)).toEqual({ error: { message: 'The CLI stopped.', fix: 'Run it once on its own.' } });
     // Without stream: true, the same agent answers whole through ask().
     expect(JSON.parse((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk' }, { sid, csrf: session.csrf })).body).by).toBe('scripted');
+  });
+
+  it('keeps a whole Analyze in the history, naming it on the last line, and nothing else (#395)', async () => {
+    const kept: Array<{ dossier: string; text: string }> = [];
+    const analyses: AnalysisKeeper = {
+      list: async (dossier) => [{ id: `${dossier}-1`, at: 'x' } as never],
+      get: async (_dossier, id) => (id === 'there' ? ({ record: { id } } as never) : null),
+      record: async (dossier, answer) => (kept.push({ dossier, text: answer.parts[0]!.text }), `kept-${kept.length}`),
+    };
+    const whole = { prompt: 'Analyze', parts: [{ text: 'Recommendation: Go.' }], citations: [], by: 'stub', proposals: [] };
+    const agent: Agent = {
+      ...fixtureAgent(),
+      async *stream(_ctx, dossier, prompt) {
+        yield { ...whole, activity: { phase: 'writing' as const } };
+        if (dossier === 'boom') throw new AgentError('The CLI stopped.', 'Run it once on its own.');
+        yield { ...whole, prompt };
+      },
+    };
+    const { origin } = await start({ agent, analyses });
+    const { sid, session } = await signIn(origin);
+    const auth = { sid, csrf: session.csrf };
+    const lines = (await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'analyze', stream: true }, auth)).body.trim().split('\n').map((l) => JSON.parse(l));
+    expect(lines.at(-2).answer.analysis).toBe('kept-1');
+    expect(lines.at(-1)).toEqual({ done: true });
+    expect(kept).toEqual([{ dossier: 'card-payments', text: 'Recommendation: Go.' }]);
+    // Another question, or an Analyze that failed partway, keeps nothing.
+    await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'risk', stream: true }, auth);
+    await post(origin, '/api/agent/ask', { dossier: 'boom', prompt: 'analyze', stream: true }, auth);
+    expect(kept).toHaveLength(1);
+    // Without stream: true, the whole answer is kept and names it.
+    expect(JSON.parse((await post(origin, '/api/agent/ask', { dossier: 'settlement', prompt: 'analyze' }, auth)).body).analysis).toBe('kept-2');
+
+    const read = (path: string) => send(origin, path, { headers: { [SESSION_HEADER]: sid } });
+    expect(JSON.parse((await read('/api/analyses?dossier=card-payments')).body)).toEqual([{ id: 'card-payments-1', at: 'x' }]);
+    expect(JSON.parse((await read('/api/analyses/one?dossier=card-payments&id=there')).body)).toEqual({ record: { id: 'there' } });
+    const gone = await read('/api/analyses/one?dossier=card-payments&id=gone');
+    expect(gone.status).toBe(404);
+    expect(JSON.parse(gone.body).error.message).toContain('no analysis by that id');
+    expect((await read('/api/analyses')).status).toBe(400);
+    // The history is read-only over the API: there is no route that writes one.
+    expect((await post(origin, '/api/analyses', { dossier: 'card-payments' }, auth)).status).toBe(404);
+    // A server with no history says so, and Analyze still answers.
+    const bare = await start({ agent });
+    const b = await signIn(bare.origin);
+    expect((await send(bare.origin, '/api/analyses?dossier=card-payments', { headers: { [SESSION_HEADER]: b.sid } })).status).toBe(404);
+    expect((await post(bare.origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'analyze', stream: true }, { sid: b.sid, csrf: b.session.csrf })).status).toBe(200);
+  });
+
+  it('records a failed history write on the answer, never failing it (#395)', async () => {
+    const analyses: AnalysisKeeper = { list: async () => [], get: async () => null, record: async () => Promise.reject(new Error('disk full')) };
+    const { origin } = await start({ analyses });
+    const { sid, session } = await signIn(origin);
+    const answer = JSON.parse((await post(origin, '/api/agent/ask', { dossier: 'card-payments', prompt: 'analyze' }, { sid, csrf: session.csrf })).body);
+    expect(answer.analysis).toBeUndefined();
+    expect(answer.warnings.at(-1)).toContain("couldn't keep this analysis in its history: disk full");
   });
 
   it("serves the agent's settings only where there is a choice, and refuses a key", async () => {

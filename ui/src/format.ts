@@ -50,6 +50,8 @@ export const boardHref = (dossier: string, person?: string) => `${dossierHref(do
 export const dependenciesHref = (dossier: string) => `${dossierHref(dossier)}/dependencies`;
 /** The Analyses tab (#394): Analyze's pulse checks. */
 export const analysesHref = (dossier: string) => `${dossierHref(dossier)}/analyses`;
+/** One analysis, opened again (#395). */
+export const analysisHref = (dossier: string, id: string) => `${analysesHref(dossier)}/${encodeURIComponent(id)}`;
 /** The worklog (#308): its calendar, or one UTC day's page. */
 export const worklogHref = (dossier: string, day?: string) => `${dossierHref(dossier)}/worklog${day ? `/${day}` : ''}`;
 /** The stand-up (#345): since the last working day, or a range of UTC days. */

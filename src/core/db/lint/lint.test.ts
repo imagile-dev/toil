@@ -3,7 +3,7 @@ import { engineNames } from '../engines.js';
 import { LABELS, lintError, lintSql, type Dialect, type LintPurpose, type RuleId } from './index.js';
 import { tokenize } from './tokens.js';
 
-const ENGINES: Dialect[] = ['sqlite', 'postgres', 'mysql', 'sqlserver', 'oracle', 'hive', 'impala'];
+const ENGINES: Dialect[] = ['sqlite', 'postgres', 'mysql', 'sqlserver', 'oracle', 'teradata', 'hive', 'impala'];
 
 interface Case {
   sql: string;
@@ -69,6 +69,17 @@ const FIXTURES: Record<Dialect, Partial<Record<RuleId, { bad: Case; good: Case }
     'dialect-concat': { bad: { sql: "SELECT 'Ada' + name FROM people" }, good: { sql: "SELECT 'Ada' || name FROM people" } },
     'select-star': { bad: { sql: 'SELECT * FROM people' }, good: { sql: 'SELECT name FROM people' } },
     'implicit-cross-join': { bad: { sql: 'SELECT 1 FROM people, teams UNION SELECT 1 FROM dual' }, good: { sql: 'SELECT 1 FROM people, teams WHERE people.team = teams.id UNION SELECT 1 FROM dual' } },
+  },
+  teradata: {
+    unterminated: { bad: { sql: 'SELECT "name FROM people' }, good: { sql: "SELECT 'it''s', _UNICODE'x', \"a\"\"b\" FROM people /* a comment */" } },
+    'multiple-statements': { bad: { sql: 'SEL 1; SEL 2;' }, good: { sql: "SELECT ';' AS semicolon;" } },
+    'read-only-write': { bad: { sql: "INS INTO people (id, name) VALUES (1, 'Ada')" }, good: { sql: 'SEL name FROM people' } },
+    'dialect-limit': { bad: { sql: 'SELECT name FROM people ORDER BY name LIMIT 10' }, good: { sql: 'SELECT TOP 10 name FROM people ORDER BY name' } },
+    'dialect-backtick': { bad: { sql: 'SELECT `name` FROM people' }, good: { sql: 'SELECT "name" FROM people' } },
+    'dialect-function': { bad: { sql: 'SELECT GETDATE(), LEN(name) FROM people' }, good: { sql: 'SELECT CURRENT_TIMESTAMP, NVL(name, 1), LENGTH(name), SUBSTR(name, 1, 2) FROM people' } },
+    'dialect-concat': { bad: { sql: "SELECT name + ' Lovelace' FROM people" }, good: { sql: "SELECT name || ' Lovelace' FROM people" } },
+    'select-star': { bad: { sql: 'SELECT TOP 10 * FROM people' }, good: { sql: 'SELECT TOP 10 id FROM people' } },
+    'implicit-cross-join': { bad: { sql: 'SELECT 1 FROM people, teams' }, good: { sql: 'SELECT 1 FROM people, teams WHERE people.team = teams.id' } },
   },
   hive: {
     unterminated: { bad: { sql: 'SELECT "Ada FROM people' }, good: { sql: "SELECT 'it\\'s', \"quoted\", `name` FROM people -- a comment" } },

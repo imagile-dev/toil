@@ -35,6 +35,9 @@
  * `worklog/rebuild`, `worklog/note` and `worklog/export`, each an explicit
  * press on the page: a note goes into the cache, and an export is a file
  * toil's file service writes in the folder the person named.
+ * The history of analyses (#395) is `analyses` and `analyses/one`, read
+ * only: the server keeps each Analyze itself as its answer ends whole, and
+ * says which on the answer's last line, so nothing the page sends writes one.
  * The building has one door, one key and a guest book, and the guest book is
  * toil's audit log.
  */
@@ -44,7 +47,8 @@ import { readFile, stat } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { extname, isAbsolute, join, normalize, relative, sep } from 'node:path';
-import type { Answer, AskExtra, HistoryTurn } from '../src/agent.ts';
+import { ANALYZE, type Answer, type AskExtra, type HistoryTurn } from '../src/agent.ts';
+import { isWhole, type AnalysisKeeper } from './analyses.ts';
 import type { Envelope, ExecutePerson } from '../src/toil.ts';
 import type { AreaInfo, SettingsInfo } from '../src/config.ts';
 import type { Agent } from './agent.ts';
@@ -86,6 +90,8 @@ export interface UiServerOptions {
   agentControl?: AgentControl;
   /** The worklog (#308): the cache's pages, or the sample's. Absent, `api/worklog/*` says there is none. */
   worklog?: WorklogApi;
+  /** The history of analyses (#395): `api/analyses`, and every Analyze kept as it ends. Absent, Analyze keeps nothing. */
+  analyses?: AnalysisKeeper;
   /** The agent's model usage and its caps (#295): `api/usage`. */
   usage?: UsageControl;
   /** Assigning work items to an agent (#293): `api/assignments`. */
@@ -143,6 +149,31 @@ export const MAX_BODY = 256 * 1024;
 export const CSRF_HEADER = 'x-toil-ui-csrf';
 /** The longest question the agent takes, in characters. */
 export const MAX_PROMPT = 8000;
+
+/**
+ * Keeps an Analyze in the history (#395) once its answer is whole, and only
+ * then: a stopped, failed or empty answer is no analysis. A record that can't
+ * be kept never fails the answer; the answer says so instead.
+ */
+function kept(keeper: AnalysisKeeper, dossier: string, startedAt: string) {
+  const one = async (answer: Answer): Promise<Answer> => {
+    if (!isWhole(answer)) return answer;
+    try {
+      return { ...answer, analysis: await keeper.record(dossier, answer, startedAt) };
+    } catch (e) {
+      return { ...answer, warnings: [...(answer.warnings ?? []), `Toil UI couldn't keep this analysis in its history: ${e instanceof Error ? e.message : String(e)}`] };
+    }
+  };
+  async function* stream(answers: AsyncIterable<Answer>, signal: AbortSignal): AsyncIterable<Answer> {
+    let last: Answer | undefined;
+    for await (const a of answers) {
+      last = a;
+      yield a;
+    }
+    if (!signal.aborted && isWhole(last)) yield await one(last);
+  }
+  return { one, stream };
+}
 /** The session id the page got for the launch token, on every API call. Never a cookie. */
 export const SESSION_HEADER = 'x-toil-ui-session';
 
@@ -406,6 +437,11 @@ export function createUiServer(options: UiServerOptions): UiServer {
     if (typeof value !== 'string' || !value) throw new HttpError(400, `Name the ${what}.`, shape);
     return value;
   };
+  /** The history of analyses, or a 404 when this server keeps none. */
+  const keeper = (): AnalysisKeeper => {
+    if (!options.analyses) throw new HttpError(404, 'This Toil UI keeps no history of analyses.', 'Start toil-ui with its cache to keep every Analyze.');
+    return options.analyses;
+  };
   /** The usage view, or a 404 when this server keeps none. */
   const usage = (): UsageControl => {
     if (!options.usage) throw new HttpError(404, 'This Toil UI keeps no record of model usage.', 'Start toil-ui with its cache to record what the agent uses.');
@@ -572,12 +608,31 @@ export function createUiServer(options: UiServerOptions): UiServer {
         const style = checkedStyle(body);
         const chat = chatOf(body.chat);
         const extra = extraOf(body);
-        if (body.stream === true && agent.stream) return streamAnswer(res, agent.stream(ctx, body.dossier, body.prompt, style, chat, extra));
+        // Analyze is kept in the history once its answer is whole (#395); the answer's last line names the record.
+        const keep = body.prompt === ANALYZE && options.analyses ? kept(options.analyses, body.dossier, new Date().toISOString()) : null;
+        if (body.stream === true && agent.stream) {
+          const answers = agent.stream(ctx, body.dossier, body.prompt, style, chat, extra);
+          return streamAnswer(res, keep ? keep.stream(answers, ctx.signal) : answers);
+        }
         try {
-          json(res, 200, await agent.ask(ctx, body.dossier, body.prompt, style, chat, extra));
+          const answer = await agent.ask(ctx, body.dossier, body.prompt, style, chat, extra);
+          json(res, 200, keep && !ctx.signal.aborted ? await keep.one(answer) : answer);
         } catch (e) {
           json(res, 502, { error: agentFailure(e) });
         }
+        return;
+      }
+      case 'GET analyses': {
+        const dossier = named(url.searchParams.get('dossier'), 'dossier', `Ask ${base}api/analyses?dossier=<name>.`);
+        json(res, 200, await keeper().list(dossier));
+        return;
+      }
+      case 'GET analyses/one': {
+        const shape = `Ask ${base}api/analyses/one?dossier=<name>&id=<analysis id>.`;
+        const dossier = named(url.searchParams.get('dossier'), 'dossier', shape);
+        const view = await keeper().get(dossier, named(url.searchParams.get('id'), 'analysis', shape));
+        if (!view) throw new HttpError(404, `${dossier} has no analysis by that id: it may have passed the retention period, or the cache was wiped.`, 'Open the Analyses tab for the ones kept now.');
+        json(res, 200, view);
         return;
       }
       case 'GET agent/session': {
@@ -719,7 +774,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return worklogCall(res, () => worklog().exportTo(named(body.dossier, 'dossier', shape), what, named(body.folder, 'folder', shape)));
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/standup, worklog/rebuild, worklog/note, worklog/export, fingerprint, agent/starters, agent/ask, agent/session, agent/renew, agent/prompt, agent/settings, agent/adapters, agent/install, agent/mcp and assignments.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: session, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/standup, worklog/rebuild, worklog/note, worklog/export, analyses, analyses/one, fingerprint, agent/starters, agent/ask, agent/session, agent/renew, agent/prompt, agent/settings, agent/adapters, agent/install, agent/mcp and assignments.`);
     }
   };
 

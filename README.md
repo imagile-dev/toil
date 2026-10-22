@@ -185,7 +185,7 @@ Code the clone is also a plugin marketplace: `claude plugin marketplace add
 
 | Area | What it covers |
 |------|----------------|
-| [`db`](https://imagile-dev.github.io/toil/docs/databases/) | SQLite, PostgreSQL, MySQL / MariaDB, SQL Server, Oracle, Hive and Impala: list schemas and tables, describe a table, preview rows, read-only queries with paging |
+| [`db`](https://imagile-dev.github.io/toil/docs/databases/) | SQLite, PostgreSQL, MySQL / MariaDB, SQL Server, Oracle, Teradata, Hive and Impala: list schemas and tables, describe a table, preview rows, read-only queries with paging |
 | [`util`](https://imagile-dev.github.io/toil/docs/utilities/) | Local commands with no connection or network: JWTs, dependency inventories, encodings and hashes, certificates, test and coverage reports, logs, secret scans, time and versions, Jira and Confluence markup, OpenAPI |
 | [`skills`](https://imagile-dev.github.io/toil/docs/skills/) | Add a git-hosted skills marketplace, install its plugins for Codex, GitHub Copilot or Claude Code, switch them on and off |
 | [The toil skill](https://imagile-dev.github.io/toil/docs/) | toil's own command reference for agents, one file per area |

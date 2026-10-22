@@ -87,15 +87,23 @@ export const oneOnOnePrompt = (dossier: string, person: string) =>
   `Prepare 1:1 notes for ${person} in the dossier "${dossier}". Use person_get for ${person} (people_list if the name doesn't match). Stick to facts about the work: what they have in progress and for how long, their open pull requests and what each waits on, reviews waiting on them, what blocks them, and what they finished or reviewed lately, then two or three questions to ask about blockers and support. Cite every item and pull request by its id. No opinion of the person, no score, and no comparison with anyone else.`;
 
 /**
- * Analyze (#343): the pulse check one press asks, in five parts, every line
- * citing its items. It isn't a starter chip; the button beside Ask sends its
- * id. "Since the last Analyze" is found in the worklog, which records every
- * question as an agent run.
+ * Analyze (#343): the pulse check one press asks, every line citing its
+ * items. It isn't a starter chip; the button beside Ask sends its id. "Since
+ * the last Analyze" is found in the worklog, which records every question as
+ * an agent run. It is written top-down (#395), in the Minto order: a
+ * Recommendation line, then at most three Issues, then the Evidence in five
+ * parts, each a label at the start of its line, which the page reads back
+ * out (src/model/analysis.ts) and lays out with the evidence folded. The
+ * labels are plain text, so rule 4's "no Markdown" and the voice's rules
+ * still hold.
  */
 export const ANALYZE_LABEL = 'Analyze';
 export const analyzePrompt = (d: string) =>
   [
-    `Give a pulse check of the dossier "${d}": a high-level picture in five short parts, in this order, each a paragraph that starts with its name. Cite every item and pull request a line rests on; say plainly when a part has nothing.`,
+    `Give a pulse check of the dossier "${d}", top-down: the answer first, then the reasons, then the evidence. Work the evidence out first, then write it in exactly this order, each label as plain text (not a Markdown heading) at the start of its own line:`,
+    'Recommendation: one or two sentences: the one thing to do first, and why, citing the items it rests on.',
+    'Issues: at most three, the ones that matter most, most important first, each on its own line numbered 1. to 3., as a short name, a colon and one sentence citing its items. Write "Issues: none" when nothing stands out.',
+    'Evidence: then these five short parts, in this order, each a paragraph that starts with its name. Cite every item and pull request a line rests on; say plainly when a part has nothing.',
     `What changed: since the last Analyze, or the last sync if that is more recent. Read worklog_day for today, then each day before it, back to the first day with a finished agent run asked as "Analyze" (at most 7 days back; this Analyze is in the worklog too, as still running, and doesn't count), and say what moved, merged, failed or recovered.`,
     'Who is on what: people_list, for each person and agent with work in progress and how long it has been there. Describe load; never rank or score people.',
     'Blocked or stuck in review: owi_query for blocked items and what blocks them, and pr_query for pull requests waiting longest, on what and for how many working days.',

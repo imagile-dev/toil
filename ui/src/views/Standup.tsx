@@ -416,7 +416,7 @@ function WriteUp({ report, answer, onAnswer }: { report: StandupReport; answer: 
           ))}
           {answer.parts.map((p, i) => (
             <p key={i}>
-              <Cited text={p.text} />
+              <Cited text={p.text} chips />
             </p>
           ))}
           <p className="note">

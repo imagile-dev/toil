@@ -13,7 +13,7 @@ import type { Envelope } from '../../src/core/envelope.js';
 import { ToilError } from '../../src/core/errors.js';
 import { execute } from '../../src/core/run.js';
 import { testContext } from '../harness/context.js';
-import { engineQuery } from '../harness/db.js';
+import { engineQuery, socketCall } from '../harness/db.js';
 import { fakeHs2, type FakeHs2, type FakeOptions } from '../harness/hs2-server.js';
 import { hive } from './targets.js';
 
@@ -179,7 +179,7 @@ describe('hive provider over HiveServer2', () => {
     server!.calls.length = 0;
     const conn = { ...settings(), name: 'db', area: 'db', writes: true } as DbConnection;
     await expect(engineQuery(settings(), 'SELECT 1; SELECT 2')).rejects.toMatchObject({ code: 'INVALID_INPUT' });
-    await expect(hiveProvider.execute(conn, 'UPDATE a SET x = 1; UPDATE b SET y = 2', { signal: new AbortController().signal, debug: () => {} })).rejects.toMatchObject({
+    await expect(hiveProvider.execute(conn, 'UPDATE a SET x = 1; UPDATE b SET y = 2', socketCall())).rejects.toMatchObject({
       code: 'INVALID_INPUT',
       fix: expect.stringContaining('no transactions'),
     });
@@ -204,7 +204,7 @@ describe('hive provider over HiveServer2', () => {
     await expect(engineQuery(settings(), 'SELECT slow')).rejects.toMatchObject({ code: 'DATABASE', message: expect.stringContaining('return code 2') });
     const conn = { ...settings(), name: 'db', area: 'db', writes: true } as DbConnection;
     // On a write the same refusal is a permission problem, not a read that wrote.
-    await expect(hiveProvider.execute(conn, 'UPDATE people SET a = 1', { signal: new AbortController().signal, debug: () => {} })).rejects.toMatchObject({ code: 'DATABASE' });
+    await expect(hiveProvider.execute(conn, 'UPDATE people SET a = 1', socketCall())).rejects.toMatchObject({ code: 'DATABASE' });
   });
 
   it('reports a read the server says changed rows for what it is: a write that happened', async () => {

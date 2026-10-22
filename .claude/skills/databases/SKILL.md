@@ -1,6 +1,6 @@
 ---
 name: databases
-description: Rules for toil's `db` area and its database providers (PostgreSQL, MySQL/MariaDB, SQL Server, SQLite, Oracle, Hive, Impala). Use when adding or changing a database provider or driver under src/core/db/, changing how queries run (read-only transactions, rollback, row caps, timeouts, paging, cancellation), handling database connection strings, or writing database tests including `npm run test:integration` service containers.
+description: Rules for toil's `db` area and its database providers (PostgreSQL, MySQL/MariaDB, SQL Server, SQLite, Oracle, Teradata, Hive, Impala). Use when adding or changing a database provider or driver under src/core/db/, changing how queries run (read-only transactions, rollback, row caps, timeouts, paging, cancellation), handling database connection strings, or writing database tests including `npm run test:integration` service containers.
 ---
 
 # Databases
@@ -17,15 +17,19 @@ description: Rules for toil's `db` area and its database providers (PostgreSQL, 
   Server), `node:sqlite` (built into Node), `oracledb` in Thin mode only (Oracle), and
   `thrift` with the HiveServer2 client generated in `hive-driver` (Hive and Impala, one
   provider, `src/core/db/hive/`; only the generated client is used, and its Kerberos
-  path, which needs a native module, never). SQL Server has no read-only transaction, so
-  its queries always roll back, and its docs tell users to connect with a read-only
-  login. Hive and Impala have no read-only mode and nothing to roll back, so toil can't
-  enforce read-only there at all: `db query` relies on the account, toil doesn't parse SQL
-  to decide, and their docs **require** a read-only account (the
-  maintainer's decision on #408), a refusal by that account is `WRITE_DISABLED`, a read
-  the server reports as having changed rows is `DATABASE` saying so, and `db execute`
-  runs one statement per call, since there's no transaction to make several all or
-  nothing.
+  path, which needs a native module, never).
+  SQL Server has no read-only transaction, so its queries always roll back, and its
+  docs tell users to connect with a read-only login. Teradata has no driver toil can
+  ship (the official one loads a native library), so it goes over HTTP to the Teradata
+  Query Service, through `call.fetch`: core's fetch, so proxy, OS certificates,
+  `--verbose` and the audit log hold as for any HTTP area. It has no read-only mode
+  either, so it rolls back like SQL Server, and its docs require a read-only user.
+  Hive and Impala have no read-only mode and nothing to roll back, so toil can't
+  enforce read-only there at all: `db query` relies on the account, toil doesn't parse
+  SQL to decide, and their docs **require** a read-only account (the maintainer's
+  decision on #408), a refusal by that account is `WRITE_DISABLED`, a read the server
+  reports as having changed rows is `DATABASE` saying so, and `db execute` runs one
+  statement per call, since there's no transaction to make several all or nothing.
 - **TLS trusts what HTTP trusts.** Core loads the OS certificate store on the first
   HTTP request, and a driver's own socket never makes one. A provider with TLS
   passes `trustedCertificates(call.debug).certificates` from `src/core/network.ts`
@@ -68,6 +72,13 @@ one they got.
   files, PostgreSQL's server-side functions such as `lo_export` for a privileged role, a MySQL procedure that commits and turns read-write itself, SQL Server's `COMMIT` inside dynamic SQL, which toil detects from the transaction ending and reports, and which a read-only login is what stops),
   an Oracle stored function with an autonomous transaction called from a `SELECT`) is
   pinned with a test and documented as a known limit.
+  Teradata has no read-only transaction, and its Query Service no read-only session:
+  each call opens an explicit session with `transaction_mode: ANSI` and `auto_commit:
+  false`, a read ends with `ROLLBACK` and the session closed, a result the service
+  reports as an update count is `WRITE_DISABLED`, and reads refuse `COMMIT`,
+  `ROLLBACK`, `ABORT`, `BT`, `ET` and `BEGIN`/`END TRANSACTION` anywhere in the SQL
+  (`src/core/db/teradata/split.ts`). toil can't enforce read-only there, and the docs
+  say so: `db query` relies on a read-only user.
 - **The pre-flight lint** (`src/core/db/lint/`, #303) reads caller SQL for the
   connection's engine before the provider is asked anything: `db query` and `db
   execute` call it first in `run`, and `db lint` runs it alone (with `--engine`, a
@@ -91,7 +102,10 @@ one they got.
   (optional in the zod schema in `src/areas/db/index.ts`, listed in the provider's
   `requires`, and secrets in the area's `secrets`), add a target to
   `test/db/targets.ts`, and add its section to `skills/toil/db.md` and its tile to
-  the site's Databases group.
+  the site's Databases group. An engine reached over HTTP sends through `call.fetch`
+  and core's `restResponse`, never a fetch of its own, and sends what must go out
+  after an abort (a server-side cancel, closing a session) through
+  `call.cleanupFetch`, each request with a timeout of its own.
 - **Cancellation:** a provider passes `call.signal` to its driver. Hive and Impala send
   CancelOperation on a second connection as well as the call's own
   (`src/core/db/hive/index.ts`), because HiveServer2 answers one request per connection
@@ -114,6 +128,9 @@ one they got.
   SQL Server sends a TDS
   attention on the same connection (tedious's `cancel()`), and also once a page is
   full, so the server stops producing rows nobody reads.
+  Teradata asks the Query Service for the session's running queries and `DELETE`s
+  each, then closes the session, on `call.cleanupFetch`, since the command's own
+  fetch is bound to the signal that just fired (`src/core/db/teradata/index.ts`).
   Oracle sends
   `connection.break()` on the call's own connection (`src/core/db/oracle/index.ts`).
   Thin mode's break is in band, so the server hears it at its next check: a working
@@ -133,6 +150,11 @@ one they got.
   (`test/harness/db.ts`). Tests against real PostgreSQL, MySQL and SQL Server run as
   CI service containers under `npm run test:integration`, which offline developers
   can skip.
+- **Teradata has no container to run** (Vantage Express is a virtual machine), so it
+  has no conformance target yet: `test/db/teradata.test.ts` drives every command
+  against a stubbed Query Service, with responses invented from Teradata's OpenAPI
+  specification and labelled so, and the provider is `unit`. A target needs a live
+  Query Service; the gaps it must handle are in `docs/decisions/409-teradata.md`.
 - **Every provider passes the conformance suite**, `test/db/conformance.test.ts`:
   connections, schemas, describe, preview, query with row cap, paging and cancel,
   and read-only enforcement, all through `execute()`. It runs once per entry in

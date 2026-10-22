@@ -15,6 +15,7 @@ import { agentEnv } from '../server/agents/env.ts';
 import { AgentHost, type AgentHostOptions } from '../server/agents/host.ts';
 import { answerMcp, McpGrants } from '../server/agents/mcp.ts';
 import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, promptFor, STARTERS, STYLE_RULE, systemPrompt, withHistory } from '../server/agents/prompts.ts';
+import { structureOf } from '../src/model/analysis.ts';
 import { THEME_VOICES } from '../server/agents/voices.ts';
 import { Latest, loadSdk, type Importer, type Runtime } from '../server/agents/runtime.ts';
 import { agentSettingsFile, checkAgentSettings, loadAgentSettings } from '../server/agents/settings.ts';
@@ -1489,6 +1490,21 @@ describe('Analyze (#343)', () => {
     const { label, text } = promptFor('card-payments', 'analyze');
     expect(label).toBe('Analyze');
     for (const part of ['What changed', 'worklog_day', '"Analyze"', 'people_list', 'never rank or score people', 'owi_query', 'pr_query', "The sprint's health", 'status drift', 'readiness_list', 'Cite every item']) expect(text).toContain(part);
+  });
+
+  it('asks for it top-down (#395): a Recommendation line, at most three Issues, then the Evidence, labels in plain text, the rules unchanged', () => {
+    const { text } = promptFor('card-payments', 'analyze');
+    const lines = text.split('\n');
+    expect(lines[1]).toMatch(/^Recommendation: /);
+    expect(lines[2]).toMatch(/^Issues: at most three/);
+    expect(lines[3]).toMatch(/^Evidence: /);
+    expect(text).toContain('not a Markdown heading');
+    expect(text.indexOf('Recommendation:')).toBeLessThan(text.indexOf('What changed'));
+    // The system prompt's rules are the same for Analyze as for any question: citations, proposals, plain text, and the rules win.
+    const system = systemPrompt('card-payments', 'now', { voice: 'Speak like a pirate.', instructions: null });
+    for (const rule of ['[[jira:PAY-101]]', '```proposal', 'no Markdown, no headings', 'The rules above win']) expect(system).toContain(rule);
+    // And the page reads the shape back out of what the prompt asks for.
+    expect(structureOf('Recommendation: Fix [[jira:PAY-1]].\nIssues:\n1. Blocked: [[jira:PAY-2]] waits.\nEvidence:\nWhat changed: nothing.')).toMatchObject({ recommendation: 'Fix [[jira:PAY-1]].', issues: [{ title: 'Blocked' }], evidence: ['What changed: nothing.'] });
   });
 
   it('carries at most the last turns of a chat', () => {

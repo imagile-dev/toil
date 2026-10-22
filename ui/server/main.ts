@@ -24,10 +24,13 @@ import { parseSettings, SettingsError, themesNotice, USAGE } from './settings.ts
 import { fixtureStore, sqliteStore } from './store.ts';
 import { SyncService } from './sync.ts';
 import { WorklogService } from './worklog.ts';
+import { cacheAnalyses, sampleAnalyses } from './analyses.ts';
+import { fixtureAnalyses } from '../src/fixtures/analyses.ts';
+import { loadDossier } from '../src/load.ts';
 import { fixtureWorklog } from '../src/fixtures/worklog.ts';
 import { cacheLedger, memoryLedger, usageControl } from './usage.ts';
 import { SAMPLE_USAGE_SETTINGS, sampleUsageRecords } from '../src/fixtures/model-usage.ts';
-import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
+import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { randomUUID } from 'node:crypto';
 import { actorOf } from '../src/assign/model.ts';
 import { AssignmentQueue } from '../src/assign/queue.ts';
@@ -236,6 +239,8 @@ async function main(): Promise<number> {
     ...(host ? { agentControl: host } : {}),
     ...(sync ? { sync } : {}),
     worklog: worklog ?? fixtureWorklog(),
+    // Every Analyze, kept (#395): in the cache, or for this run in memory with the sample's.
+    analyses: cache ? cacheAnalyses(() => cache!) : sampleAnalyses(fixtureAnalyses(), async (dossier) => (await loadDossier(fixtureExecute().execute, dossier)).items, () => FIXTURE_NOW),
     usage,
     assignments,
     ...(fingerprints ? { serverStatus: () => fingerprints!.server() } : {}),

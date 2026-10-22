@@ -185,6 +185,16 @@ export interface CommandContext<C = undefined, X = Record<string, string | undef
   /** Set only for defineConfigCommand commands. */
   manage?: ConfigAccess;
   signal: AbortSignal;
+  /**
+   * A fetch for the requests that must still go out after `signal` has
+   * fired: asking the server to stop the statement it's running, or to close
+   * a session the command opened. It is `fetch` without the command's signal,
+   * recorded the same way, so a caller that has already been answered
+   * `TIMEOUT` or `CANCELLED` still leaves the server tidy. Give each request
+   * a short timeout of its own; nothing else bounds it. Never for the work
+   * itself.
+   */
+  cleanupFetch: typeof globalThis.fetch;
   /** Add a warning to meta.warnings. */
   warn: (warning: Warning) => void;
   /** Set meta.page for a paged result. */

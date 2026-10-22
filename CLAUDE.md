@@ -665,7 +665,10 @@ a breaking change.
   `TOIL_TIMEOUT_MS` (default 120 s, or a longer `timeLimitMs` the command declares;
   `TOIL_TIMEOUT_MS`, when set, overrides both) with `TIMEOUT`, and on Ctrl+C or an
   MCP cancel with `CANCELLED`. Commands pass `ctx.signal` to anything long-running that isn't
-  `ctx.fetch` (which already carries it). Aborting stops toil waiting, not the
+  `ctx.fetch` (which already carries it). A request that must still go out after
+  the abort (asking a server to stop a statement, closing a session the command
+  opened) uses `ctx.cleanupFetch`: the same recorded fetch without the signal, each
+  request with a timeout of its own. Aborting stops toil waiting, not the
   server: for a write command both errors say the change may already have been
   applied, and to check before retrying. Never word them as "stopped" for a write.
   `toil mcp` exits on the first Ctrl+C. **`toil wait`** is the one command whose

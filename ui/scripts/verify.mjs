@@ -22,7 +22,10 @@
 //      write in toil's audit log), that the answer names the model asked for, that
 //      `codex mcp list` in Toil UI's own Codex home shows only toil_ui (Codex
 //      only), and that the answer's usage, as the SDK reported it, is in the
-//      usage ledger unchanged (#295). Without a GitHub sign-in this part is
+//      usage ledger unchanged (#295). Then the history of analyses (#395): the
+//      Analyze kept top-down, the dossier's WIP limit changed in the scratch
+//      home, Analyze again, both listed with what changed, and the Analyses tab
+//      and the second one opened through the layout check. Without a GitHub sign-in this part is
 //      skipped, and the report says so plainly.
 //
 // In both, the layout problems fail the run in every theme; axe violations
@@ -46,7 +49,7 @@ import { basename, join, relative } from 'node:path';
 import { findChrome, openBrowser } from './chrome.mjs';
 import { ROUTES, WIDTHS, checkLayout, themeRuns } from './layout-check.mjs';
 import { npmCli } from './package-rules.mjs';
-import { ADAPTERS, RealHomeError, adoProblem, buildToil, githubToken, sdkInstall, sdkInstalled, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilUi, toilUiNodeArgs } from './real-home.mjs';
+import { ADAPTERS, RealHomeError, adoProblem, buildToil, githubToken, sdkInstall, sdkInstalled, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilIn, toilUi, toilUiNodeArgs } from './real-home.mjs';
 
 const ui = join(root, 'ui');
 const out = join(ui, '.verify');
@@ -261,7 +264,7 @@ async function streamedAsk(api, body) {
  * plus the model it named, and for Codex its home's MCP servers. Copilot and
  * Claude are held to the same checks as Codex, the reference (#317, #318).
  */
-async function askAgent(api, dossier, home, dataDir) {
+async function askAgent(api, dossier, home, dataDir, env, launchUrl) {
   if (!sdkInstalled(adapter)) {
     const install = sdkInstall(adapter);
     problems.push(`Ask: ${ADAPTERS[adapter].package} isn't installed in this clone. Install it with ${install} and run again.`);
@@ -347,6 +350,55 @@ async function askAgent(api, dossier, home, dataDir) {
   const pulseOk = pulse.status === 200 && !pulse.error && p && p.parts.length && p.citations.length && !(p.unverified ?? []).length && p.carried === 1;
   if (!pulseOk) fail(`Analyze: ${pulse.error?.message ?? `${p?.parts.length ?? 0} paragraph(s), ${p?.citations.length ?? 0} cited, ${(p?.unverified ?? []).length} unverified, carried ${p?.carried ?? 0}`}`);
   step('Ask: Analyze, as a follow-up', pulseOk ? 'pass' : 'fail', p ? `${p.parts.length} paragraph(s) in ${pulseSeconds}s, ${p.citations.length} cited, ${(p.unverified ?? []).length} unverified, carried ${p.carried ?? 0} earlier turn; starts: ${p.parts.map((x) => x.text.split(/[:.]/)[0].slice(0, 30)).join(' / ')}` : (pulse.error?.message ?? 'no answer'));
+  if (p) await analysisHistory(api, dossier, home, env, launchUrl, p, [...history, { prompt: p.prompt, answer: p.parts.map((x) => x.text).join('\n\n'), by: p.by }]);
+}
+
+/**
+ * The history of analyses (#395): the Analyze just asked was kept, read back
+ * top-down (a Recommendation line, at most three Issues); then the dossier's
+ * WIP limit changes in the scratch home, Analyze runs again, and the history
+ * lists both, newest first, the second saying what changed since the first.
+ * The Analyses tab and the second one opened go through the layout check,
+ * shot like every other view.
+ */
+async function analysisHistory(api, dossier, home, env, launchUrl, first, history) {
+  const fail = (what) => problems.push(`Analyses: ${what}`);
+  const one = async (id) => {
+    const res = id ? await api.get(`analyses/one?dossier=${encodeURIComponent(dossier)}&id=${encodeURIComponent(id)}`) : null;
+    return res?.status === 200 ? res.json() : null;
+  };
+  const shapeOf = (r) => (r ? `recommendation ${r.recommendation ? `"${r.recommendation.replace(/\[\[[^\]]*:([^\]]+)\]\]/g, '$1').slice(0, 90)}${r.recommendation.length > 90 ? '…' : ''}"` : 'missing'}, ${r.issues.length} issue(s)${r.issues.length ? ` (${r.issues.map((i) => i.title ?? 'untitled').join(', ')})` : ''}, ${r.citations.length} cited` : 'not kept');
+  const kept = await one(first.analysis);
+  const topDown = (r) => Boolean(r?.record.recommendation) && r.record.issues.length <= 3;
+  if (!kept) fail(`the first Analyze wasn't kept: its answer names ${first.analysis ? `analysis ${first.analysis}, which the history doesn't have` : 'no analysis'}.`);
+  else if (!topDown(kept)) fail(`the first Analyze isn't top-down: ${shapeOf(kept.record)}.`);
+  step('Analyses: the first kept, top-down', topDown(kept) ? 'pass' : 'fail', shapeOf(kept?.record));
+
+  // Something changes between the two: the dossier's WIP limit, in the scratch home, through toil's own command.
+  const toil = toilIn(home, env);
+  const shown = toil('dossiers', 'show', dossier);
+  const was = shown.ok ? shown.data?.dossier?.wipLimit ?? null : null;
+  const limit = was === 1 ? 2 : 1;
+  const set = toil('dossiers', 'wip-limit', dossier, String(limit), '--replace');
+  if (!set.ok) fail(`toil dossiers wip-limit ${dossier} ${limit} --replace failed: ${set.error.message}`);
+  step('Analyses: the dossier changed between them', set.ok ? 'pass' : 'fail', `toil dossiers wip-limit ${dossier} ${limit} --replace, from ${was ?? 'none'}`);
+
+  const started = Date.now();
+  const again = await streamedAsk(api, { dossier, prompt: 'analyze', theme: 'plain', voice: false, chat: { id: 'verify-ui', turn: 3 }, history });
+  const seconds = Math.round((Date.now() - started) / 1000);
+  const second = await one(again.answer?.analysis);
+  if (again.error || !second) fail(`the second Analyze ${again.error ? `failed: ${again.error.message}` : "wasn't kept"}.`);
+  else if (!topDown(second)) fail(`the second Analyze isn't top-down: ${shapeOf(second.record)}.`);
+  step('Analyses: Analyze again, kept', second && topDown(second) ? 'pass' : 'fail', `in ${seconds}s; ${shapeOf(second?.record)}${(again.answer?.unverified ?? []).length ? `, ${again.answer.unverified.length} unverified` : ''}`);
+
+  const list = (await api.get(`analyses?dossier=${encodeURIComponent(dossier)}`)).json();
+  const c = Array.isArray(list) ? list[0]?.changes : null;
+  const ordered = Array.isArray(list) && list.length >= 2 && list[0].id === second?.record.id && list[1].id === kept?.record.id && c?.previous?.id === kept?.record.id;
+  if (!ordered) fail(`the history doesn't list the second analysis first, compared with the first: ${JSON.stringify(Array.isArray(list) ? list.slice(0, 2).map((a) => ({ id: a.id, previous: a.changes.previous?.id ?? null })) : list)}.`);
+  const said = c ? [`${c.newlyBlocked.length} newly blocked`, `${c.cleared.length} cleared`, `points moved on ${c.points.length}`, c.sprint ? 'the sprint moved' : 'the sprint the same', `${c.cited.length} newly cited`, `${c.dropped.length} dropped`, c.recommendationChanged ? 'a new recommendation' : 'the same recommendation'].join(', ') : 'nothing to compare';
+  step('Analyses: the history and what changed', ordered ? 'pass' : 'fail', `${Array.isArray(list) ? list.length : 0} kept, newest first; since the one before: ${said}`);
+
+  if (second) await layout('analyses', launchUrl, [`#/dossier/${dossier}`, `#/dossier/${dossier}/analyses`, `#/dossier/${dossier}/analyses/${encodeURIComponent(second.record.id)}`]);
 }
 
 const startedAt = new Date();
@@ -439,7 +491,7 @@ try {
       const routes = ['#/', `#/dossier/${ready.dossier}`, `#/dossier/${ready.dossier}/board`, `#/dossier/${ready.dossier}/dependencies`, `#/dossier/${ready.dossier}/worklog`, `#/dossier/${ready.dossier}/worklog/standup`, ...(item ? [item] : []), ...ROUTES.filter((r) => r.startsWith('#/settings/'))];
       await layout('real', real.launchUrl, routes);
 
-      if (ask) await askAgent(real.api, ready.dossier, home, ready.env.TOIL_UI_DATA_DIR);
+      if (ask) await askAgent(real.api, ready.dossier, home, ready.env.TOIL_UI_DATA_DIR, ready.env, real.launchUrl);
       else step(askStep, 'skip', `not asked; pass --ask to ask ${agentLabel} one starter question`);
     } finally {
       await real.stop();

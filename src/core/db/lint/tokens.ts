@@ -3,7 +3,7 @@
  * with a table of what each engine's own lexer does differently. It follows
  * the quoting rules the statement splitters beside each provider already
  * follow (`../postgres/split.ts`, `../mysql/split.ts`, `../oracle/split.ts`,
- * `../sqlserver/script.ts`, `../hive/split.ts`), and adds what a lint needs and a splitter
+ * `../sqlserver/script.ts`, `../teradata/split.ts`, `../hive/split.ts`), and adds what a lint needs and a splitter
  * doesn't: every token with its offset, and where a string, quoted name or
  * comment was opened and never closed.
  *
@@ -14,7 +14,7 @@
  * reference only and has been stamped accordingly.
  */
 
-export type Dialect = 'sqlite' | 'postgres' | 'mysql' | 'sqlserver' | 'oracle' | 'hive' | 'impala';
+export type Dialect = 'sqlite' | 'postgres' | 'mysql' | 'sqlserver' | 'oracle' | 'teradata' | 'hive' | 'impala';
 
 export type TokenKind =
   /** An unquoted word: a keyword, a name or a function. `upper` holds it upper-cased. */
@@ -88,6 +88,7 @@ const LEXERS: Record<Dialect, Lexer> = {
   mysql: { hashComment: true, dashNeedsSpace: true, nestedComments: false, unclosedCommentFails: true, doubleQuoteString: true, backslashStrings: true, bracketIdent: false, dollar: false, alternativeQuote: false },
   sqlserver: { hashComment: false, dashNeedsSpace: false, nestedComments: true, unclosedCommentFails: true, doubleQuoteString: false, backslashStrings: false, bracketIdent: true, dollar: false, alternativeQuote: false },
   oracle: { hashComment: false, dashNeedsSpace: false, nestedComments: false, unclosedCommentFails: true, doubleQuoteString: false, backslashStrings: false, bracketIdent: false, dollar: false, alternativeQuote: true },
+  teradata: { hashComment: false, dashNeedsSpace: false, nestedComments: false, unclosedCommentFails: true, doubleQuoteString: false, backslashStrings: false, bracketIdent: false, dollar: false, alternativeQuote: false },
   // HiveQL and Impala: '...' and "..." are both strings, with backslash escapes, and `...` is a name.
   hive: { hashComment: false, dashNeedsSpace: false, nestedComments: false, unclosedCommentFails: true, doubleQuoteString: true, backslashStrings: true, bracketIdent: false, dollar: false, alternativeQuote: false },
   impala: { hashComment: false, dashNeedsSpace: false, nestedComments: false, unclosedCommentFails: true, doubleQuoteString: true, backslashStrings: true, bracketIdent: false, dollar: false, alternativeQuote: false },
@@ -105,6 +106,8 @@ const STRING_PREFIX: Record<Dialect, RegExp> = {
   mysql: /^(?:[nNbBxX]|_[A-Za-z0-9]+)$/,
   sqlserver: /^[nN]$/,
   oracle: /^(?:[nN]|[nN]?[qQ])$/,
+  // _UNICODE'...', _LATIN'...', and U&'...'.
+  teradata: /^(?:_[A-Za-z0-9]+|[uU]&)$/,
   hive: /^(?!)/,
   impala: /^(?!)/,
 };
