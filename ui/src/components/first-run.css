@@ -1,0 +1,24 @@
+/* The first-run checklist (src/components/first-run.tsx). Colours, fonts and the radius come from the
+   active theme's tokens, so every theme dresses it; its layout is its own, one column on a phone. */
+
+.first-run { display: grid; gap: 1rem; margin-block: 1rem; padding: 1rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--raised); color: var(--ink); min-width: 0; }
+.first-run__head { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.first-run__head h2 { font-size: 1.25rem; }
+.first-run__head h3 { font-size: 1rem; }
+.first-run__body { display: grid; gap: 1rem; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; }
+.first-run__steps { display: grid; gap: 0.75rem; margin: 0; padding: 0; list-style: none; }
+.first-run__step { display: grid; grid-template-columns: 2rem minmax(0, 1fr) auto; gap: 0.75rem; align-items: center; padding: 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--bg); min-width: 0; }
+.first-run__mark { display: inline-grid; place-items: center; width: 2rem; height: 2rem; border: 2px solid var(--muted); border-radius: 50%; font-weight: 700; color: var(--ink); }
+.first-run__step--done .first-run__mark { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); }
+.first-run__what { display: grid; gap: 0.25rem; min-width: 0; }
+.first-run__state { display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; align-items: baseline; font-size: 0.875rem; overflow-wrap: anywhere; }
+.first-run__action { min-width: 0; }
+.first-run__sample { display: grid; gap: 0.5rem; padding: 0.75rem; border: 1px dashed var(--muted); border-radius: var(--radius); min-width: 0; }
+.first-run__command { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; min-width: 0; }
+.first-run__command code { overflow-wrap: anywhere; min-width: 0; }
+
+@media (max-width: 767px) {
+  .first-run__body { grid-template-columns: minmax(0, 1fr); }
+  .first-run__step { grid-template-columns: 2rem minmax(0, 1fr); }
+  .first-run__action { grid-column: 2; }
+}

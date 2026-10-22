@@ -113,6 +113,12 @@ export const ROUTES = [
   '#/settings/agent',
 ];
 export const WIDTHS = [375, 768, 1440];
+
+/**
+ * The first run (#416): the Dossiers view on a home with no dossiers, which verify:ui opens under this
+ * address so it gets the checklist's states and not the sample home's. The App reads it as the Dossiers view.
+ */
+export const FIRST_RUN_ROUTE = '#/?first-run';
 /** What counts as a card. LAYOUT_CARDS widens it, to measure a build from before the Card primitive. */
 const CARDS = process.env.LAYOUT_CARDS ?? '[data-card]';
 
@@ -286,6 +292,20 @@ function states(route, width) {
   if (compact) out.push({ name: 'menu', setup: clickAll('[data-menu-button]'), undo: 'Escape' });
   // Feedback is in the header, or in its Menu when the header folds, which it does below 1024px or when its row is full.
   if (route === '#/') out.push({ name: 'feedback', setup: inMenu('button.feedback-open'), undo: 'Escape' });
+  // The command palette and the shortcuts sheet (#416): open, with an item search typed, and the sheet. Ctrl+K and ? are
+  // dispatched, with Meta too, so the same press opens it on a Mac; a second Ctrl+K closes the palette if Escape only cleared it.
+  // The checklist itself, in place of the empty view: three steps, and the sample-data command beside them.
+  if (route === FIRST_RUN_ROUTE) out.push({ name: 'first-run', setup: `(async () => { const deadline = Date.now() + 5000; while (!document.querySelector('[data-first-run]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const steps = document.querySelectorAll('[data-first-run] .first-run__step').length; return steps === 3 ? 1 : steps ? 'the first-run checklist has ' + steps + ' steps, not 3' : 'no first-run checklist on a home with no dossiers'; })()` });
+  if (route === '#/' || route === FIRST_RUN_ROUTE || route === '#/dossier/card-payments/board' || route === '#/settings/connections') {
+    const toggle = `window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, metaKey: true, bubbles: true }))`;
+    const openPalette = `(async () => { ${toggle}; const deadline = Date.now() + 5000; while (!document.querySelector('[data-palette-item]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[data-palette-item]') ? 1 : 0; })()`;
+    const closePalette = `(() => { if (document.querySelector('[data-palette]')) ${toggle}; })()`;
+    out.push({ name: 'palette', clearOverlays: true, setup: openPalette, undo: 'Escape', undoJs: closePalette });
+    const typed = `(async () => { if (!(await ${openPalette})) return 0; const i = document.querySelector('[data-palette-input]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'e'); i.dispatchEvent(new Event('input', { bubbles: true })); const deadline = Date.now() + 5000; while (!document.querySelector('[data-palette-item="items"]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[data-palette-item="items"]') ? 1 : 'typed e, and no item came up'; })()`;
+    if (route === '#/' || route === '#/dossier/card-payments/board') out.push({ name: 'palette-search', clearOverlays: true, setup: typed, undoJs: closePalette });
+    const sheet = `(async () => { document.body.dispatchEvent(new KeyboardEvent('keydown', { key: '?', shiftKey: true, bubbles: true })); const deadline = Date.now() + 5000; while (!document.querySelector('[data-shortcuts]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[data-shortcuts]') ? 1 : 0; })()`;
+    if (route === '#/' || route === FIRST_RUN_ROUTE) out.push({ name: 'shortcuts', clearOverlays: true, setup: sheet, undo: 'Escape', undoJs: clickAll('[data-shortcuts-close]', null, 0) });
+  }
   // Help (#346), checked before the Ask states so no overlay of theirs is still closing: the first (i) on the page with its tooltip showing, as a keyboard user who
   // tabbed to it sees it, and pressed, with its popover and Read more link open. On the views with the most of them, at every width.
   if (route === '#/dossier/card-payments' || route === '#/settings/connections' || route === '#/settings/toil' || route === '#/dossier/card-payments/people') {

@@ -50,6 +50,22 @@ itself.
 [the site's Toil UI page](https://imagile-dev.github.io/toil/ui/) runs on, with
 nothing connected to a tracker.
 
+## First run
+
+Until you have a dossier and it has synced once, the Dossiers view shows a short
+checklist in place of the empty page:
+
+1. **Connect a tracker** opens Settings, Connections at the add form.
+2. **Create a dossier** opens Settings, Dossiers at Create a dossier.
+3. **Sync** starts the first sync, as the Sync panel's Sync now does.
+
+Each step ticks itself off from toil's own state: `toil connections list` for a
+connection to Jira, Azure DevOps or GitHub (one made by env vars counts), `toil
+dossiers list` for a dossier, and the Sync panel for the sync. Beside the steps,
+**Try the sample data** shows `npx @imagile-dev/toil-ui --sample` with a Copy
+button, to restart Toil UI on the sample dossiers. The checklist goes once the first
+sync finishes. Each step's (i) explains it and links to these docs.
+
 ## What it reads
 
 Each dashboard reads its dossier the way `toil dossiers show` describes it: the
@@ -490,6 +506,41 @@ Read more, Help and Learn open in a new tab, and are the only places the app lin
 out to: nothing is fetched until you follow one.
 [Help and edit links](https://imagile-dev.github.io/toil/docs/ui-help/) has the rule
 views follow.
+
+## The command palette
+
+**Ctrl+K** (**⌘K** on a Mac) opens the command palette from any page; on a narrow
+screen it's **Search and commands** in the header's Menu. Type to narrow it down,
+use the arrow keys to move, **Enter** to open and **Escape** to close. It's hidden
+until you call it up.
+
+- **Jump** to a dossier, any of a dossier's tabs (Overview, Board, Dependencies,
+  Pull requests, People, Worklog, Analyses), a saved analysis, a settings page, or a
+  theme.
+- **Run** Sync now (where Toil UI keeps a cache), and on a dossier's page Ask (it
+  focuses the Ask bar), Analyze, the agent that answers this chat, and Assign the
+  item you were on to an agent: the board card that had focus, or the item whose
+  page is open.
+- Matching is fuzzy and ignores case: `pay12` finds `PAY-12`, and each word you
+  type has to appear, in order. Results are grouped by kind, and the group with the
+  best match comes first.
+
+### Search across dossiers
+
+With something typed, the palette searches the items of every dossier, by key and
+title. Each result shows its dossier and status and opens the item. It reads only
+what the last sync stored, never the tracker: opening it reads each dossier from
+the cache the way its dashboard does. A result from a dossier last synced more than
+a day ago, or whose last sync failed, says how old its copy is.
+
+### Keyboard shortcuts
+
+**?** opens a sheet listing every shortcut in Toil UI, anywhere but a text field;
+it's also **Keyboard shortcuts** in the palette and the header's Menu. The sheet,
+the palette and the views all read one table (`src/shortcuts.ts`), and a test fails
+on a key a view checks any other way, so the sheet can't fall behind. On a board
+card, **M** or the Menu key opens its menu, and **Space** picks it up to move with
+the arrow keys.
 
 ## Feedback
 
@@ -1032,6 +1083,9 @@ npm run verify:ui -- --no-build --starter standup
   with real input, a mouse and at 375px a finger, and fails when the card doesn't
   follow the pointer or the dropped move doesn't show in the target column. It needs
   only a browser, so it runs anywhere, CI included.
+- **First run:** `toil-ui` on an empty home, with no connections, no dossiers and no
+  `TOIL_*` variable from your shell, through the same check: its Dossiers view must
+  show the three-step checklist, and the palette and the shortcuts sheet open over it.
 - **Real data:** the home `dev-real.mjs` sets up, made fresh at
   `.scratch/verify/home`, on `imagile-dev/toil-sandbox` with the token from `gh auth
   token` in Toil UI's environment only. It syncs the `sandbox` dossier and runs the
