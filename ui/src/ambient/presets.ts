@@ -10,6 +10,7 @@
  * - Starship: a few stars that twinkle over the drifting starfield, and now
  *   and then a warp streak.
  * - Realm: ash drifting down, and embers rising from the foot of the page.
+ * - Frontier: dust on the wind, and steam rising from the foot of the page.
  * Particles are reviewed annually for continued relevance to the business.
  */
 
@@ -249,8 +250,55 @@ export const realm: Preset = {
 };
 
 /**
+ * Frontier: desert dust blown sideways on the wind, and now and then a puff of
+ * steam rising from the foot of the page, swelling and thinning as it climbs.
+ * Kind 0 is a mote of dust, kind 1 a puff of steam.
+ */
+export const frontier: Preset = {
+  density: 1.3,
+  max: 20,
+  spawn(p, { w, h }, rand, initial) {
+    p.seed = rand();
+    if (rand() < 0.72) {
+      p.kind = 0;
+      p.x = initial ? rand() * w : -8;
+      p.y = rand() * h;
+      p.vx = between(rand, 14, 30);
+      p.vy = between(rand, -3, 3);
+      p.size = between(rand, 3, 5);
+      p.life = between(rand, 18, 40);
+      p.age = initial ? rand() * p.life * 0.5 : 0;
+      return;
+    }
+    p.kind = 1;
+    p.x = rand() * w;
+    p.y = initial ? between(rand, 0.35, 1) * h : h + 20;
+    p.vx = between(rand, 3, 9);
+    p.vy = between(rand, -22, -12);
+    p.size = between(rand, 26, 40);
+    p.life = between(rand, 10, 18);
+  },
+  step(p, dt, { w, h, t }) {
+    const gust = p.kind === 0 ? Math.sin(t * 0.6 + p.seed * TAU) * 4 : Math.sin(t * 0.5 + p.seed * TAU) * 6;
+    p.x += p.vx * dt;
+    p.y += (p.vy + gust) * dt;
+    // A puff swells as it rises and thins out.
+    if (p.kind === 1) p.size = Math.min(110, p.size + dt * 4);
+    return p.age < p.life && p.x > -12 && p.x < w + 60 && p.y > -60 && p.y < h + 40;
+  },
+  alpha(p) {
+    return p.kind === 0 ? lifeFade(p, 0.15) * 0.5 : lifeFade(p, 0.3) * 0.32;
+  },
+  sprites: (make) => [
+    make(6, glow('176, 141, 60', 0.35)),
+    make(64, glow('236, 228, 210', 0.1)),
+  ],
+  draw: (ctx, p, s) => stamp(ctx, s[p.kind], p),
+};
+
+/**
  * The presets by name, which a theme names in its theme.json as
  * `"ambient": { "particles": "<name>" }` (#348). A theme that names none,
  * Plain included, has no particles.
  */
-export const PRESETS: Record<string, Preset> = { dust: crate, leaves: harvest, stars: starship, embers: realm };
+export const PRESETS: Record<string, Preset> = { dust: crate, leaves: harvest, stars: starship, embers: realm, steam: frontier };

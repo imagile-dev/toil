@@ -64,7 +64,7 @@ describe('every copy of the badge is the same badge', () => {
     for (const name of ['accent', 'amber', 'ink', 'bg'] as const) expect(svg.toLowerCase(), name).toContain(hex(token(name)));
   });
 
-  it.each(['crate', 'starship', 'realm'])("Toil UI's %s badge keeps the tile's silhouette", (theme) => {
+  it.each(['crate', 'starship', 'realm', 'frontier'])("Toil UI's %s badge keeps the tile's silhouette", (theme) => {
     expect(read(`ui/themes/${theme}/assets/mark.svg`)).toContain(`d="${tilePath()}"`);
   });
 
@@ -111,7 +111,7 @@ describe("the orbit SVG is the terminal's orbit, still", () => {
 describe("Toil UI's badges", () => {
   it('draws the standard badge beside the name, and each theme swaps in its own', () => {
     expect(read('ui/src/app.css')).toMatch(/\.brand::before \{[^}]*url\("\.\/mark\.svg"\)/);
-    for (const theme of ['crate', 'harvest', 'starship', 'realm']) {
+    for (const theme of ['crate', 'harvest', 'starship', 'realm', 'frontier']) {
       expect(read(`ui/themes/${theme}/theme.css`), theme).toContain(`[data-theme="${theme}"] .brand::before {
   background-image: url("./assets/mark.svg");`);
       expect(read('ui/src/favicon.ts'), theme).toContain(`'../themes/${theme}/assets/mark.svg'`);

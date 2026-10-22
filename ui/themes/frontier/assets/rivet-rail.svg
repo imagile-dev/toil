@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 8" width="24" height="8" fill="none">
+<!-- The header's lower edge: a brass rail with one rivet, repeated along it. -->
+<rect y="1.5" width="24" height="5" fill="#a7843a"/>
+<path d="M0 1.9H24" stroke="#f0d99a" stroke-opacity=".75" stroke-width=".8"/>
+<path d="M0 6.2H24" stroke="#3b2c10" stroke-width=".9"/>
+<circle cx="12" cy="4" r="1.6" fill="#e6c983" stroke="#3b2c10" stroke-width=".6"/>
+</svg>

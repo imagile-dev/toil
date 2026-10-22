@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none" stroke-linecap="round" stroke-linejoin="round">
+<!-- The operator's telegraph key: a brass lever on a wooden base, with its knob and a coil of wire. -->
+<rect x="3" y="22" width="26" height="6" rx="1" fill="#b89b6c" stroke="#4d3a26" stroke-width="1"/>
+<path d="M6 20.5H25" stroke="#2e2a26" stroke-width="1.4"/>
+<path d="M9 20.5 9 17.5M22 20.5 22 18" stroke="#2e2a26" stroke-width="1.4"/>
+<path d="M7 16.5 25.5 13.5" stroke="#b08d3c" stroke-width="2.4"/>
+<path d="M7 16.5 25.5 13.5" stroke="#4a3814" stroke-width=".7"/>
+<circle cx="26" cy="12.2" r="2.8" fill="#2e2a26"/>
+<circle cx="9" cy="17" r="1.4" fill="#e2c27a" stroke="#4a3814" stroke-width=".6"/>
+<path d="M3.5 22C2 18 4 14 2.5 10.5S4 6 5.5 4.5" stroke="#a0522d" stroke-width="1.1"/>
+</svg>

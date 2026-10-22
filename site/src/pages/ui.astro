@@ -19,6 +19,9 @@ import '@fontsource/exo-2/600.css';
 import '@fontsource/grenze-gotisch/latin-600.css';
 import '@fontsource/eb-garamond/400.css';
 import '@fontsource/eb-garamond/600.css';
+import '@fontsource/rye/latin-400.css';
+import '@fontsource/bitter/latin-400.css';
+import '@fontsource/bitter/latin-600.css';
 import '@fontsource/fredoka/latin-600.css';
 
 const app = url('/ui/app/');
@@ -41,14 +44,14 @@ const firstStep = 'dashboard';
 const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
 ---
 
-<Layout title="Toil UI" description="Toil UI, live: one dashboard per dossier, a chat that cites what it reads, and five themes that change how it looks and how its agent talks. Running on sample data.">
+<Layout title="Toil UI" description="Toil UI, live: one dashboard per dossier, a chat that cites what it reads, and six themes that change how it looks and how its agent talks. Running on sample data.">
   <div class="uix" data-uix data-question={QUESTION} data-theme={DEFAULT_THEME} data-voice="on" data-wording="on">
     <section class="uix-hero grid-ground">
       <div class="uix-hero__glow" aria-hidden="true"></div>
       <div class="container uix-hero__inner">
         <p class="eyebrow"><b>Toil UI</b> · Alpha</p>
         <h1><span class="wordmark">toil</span> <span class="uix-sticker" aria-hidden="true">UI</span><span class="visually-hidden">UI</span></h1>
-        <p class="uix-hero__lead">Your dossiers on one screen: the sprint, the board, pull requests, builds and deployments, and a chat that cites every item it reads. Five themes change how it looks and how its agent talks. Below is the real app, on sample data.</p>
+        <p class="uix-hero__lead">Your dossiers on one screen: the sprint, the board, pull requests, builds and deployments, and a chat that cites every item it reads. Six themes change how it looks and how its agent talks. Below is the real app, on sample data.</p>
         <div class="uix-start">
           <pre class="uix-start__code" tabindex="0" role="region" aria-label="Start Toil UI"><code><span aria-hidden="true">$ </span>{START}</code></pre>
           <p class="uix-start__note">Node 24.14 or later. It runs on your machine, reads through toil with your own connections, and changes nothing unless you ask. Add <code>--sample</code> for this page's data.</p>

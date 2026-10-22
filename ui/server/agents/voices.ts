@@ -9,6 +9,7 @@
  */
 
 import crate from '../../themes/crate/theme.json' with { type: 'json' };
+import frontier from '../../themes/frontier/theme.json' with { type: 'json' };
 import harvest from '../../themes/harvest/theme.json' with { type: 'json' };
 import plain from '../../themes/plain/theme.json' with { type: 'json' };
 import realm from '../../themes/realm/theme.json' with { type: 'json' };
@@ -24,7 +25,7 @@ interface Voiced {
 }
 
 /** Every built-in theme, by name, with its voice when it has one. */
-export const THEME_VOICES: ReadonlyMap<string, Voiced> = new Map(([plain, crate, harvest, starship, realm] as Voiced[]).map((t) => [t.name, t]));
+export const THEME_VOICES: ReadonlyMap<string, Voiced> = new Map(([plain, crate, harvest, starship, realm, frontier] as Voiced[]).map((t) => [t.name, t]));
 
 /** What the page sends about the answer's style: the theme on screen, and the voice switch (the page's AskStyle). */
 export type StyleChoice = AskStyle;

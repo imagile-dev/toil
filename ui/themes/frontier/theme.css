@@ -1,0 +1,345 @@
+/* Frontier (#413): steampunk on the wild west frontier. Tokens come from
+   theme.json; this file adds sun-bleached desert wood under everything, a
+   riveted iron header with a brass rail along its foot, panels framed in
+   riveted brass plate around a handbill of pale paper, copper nameplates for
+   their headings, a pressure gauge on each tally and metric, brass-cased
+   meters, and the dependency graph as a railroad survey map whose links are
+   track and whose blockers are busted axles. The same layout and click
+   targets as Plain: only the look changes. Art is original and hidden from
+   screen readers; the words beside it say what it shows. Text sits on paper,
+   never on the wood itself, so every pair keeps AA. */
+
+@import '@fontsource/rye/latin-400.css';
+@import '@fontsource/bitter/latin-400.css';
+@import '@fontsource/bitter/latin-600.css';
+
+/* Sun-bleached planks under everything, washed with the page's own colour so
+   muted text keeps its contrast over the darkest knot. */
+[data-theme="frontier"] body {
+  background:
+    linear-gradient(rgba(214, 196, 160, 0.72), rgba(214, 196, 160, 0.72)),
+    url("./assets/wood.webp") 0 0 / 512px 436px,
+    var(--bg);
+}
+
+/* A hot, low sun high to one side, held still. */
+[data-theme="frontier"] body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(ellipse 60% 45% at 92% 0%, rgba(255, 232, 178, 0.38), rgba(255, 232, 178, 0) 70%);
+}
+
+[data-theme="frontier"] h1,
+[data-theme="frontier"] h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+[data-theme="frontier"] h1 {
+  font-size: clamp(1.6rem, 1.3rem + 1.1vw, 2.15rem);
+  line-height: 1.15;
+}
+
+/* Rye is wood type for titles only: it has one weight, so nothing asks it for a
+   bold it would have to fake. Figures and the Overview's headline stay in the
+   slab face, heavy, like numbers stamped on a boiler plate. */
+[data-theme="frontier"] .dossier-bar__name {
+  font-weight: 400;
+}
+
+[data-theme="frontier"] .overview-rec__headline,
+[data-theme="frontier"] .stat-value,
+[data-theme="frontier"] .big-number,
+[data-theme="frontier"] .metric__value,
+[data-theme="frontier"] .count__value,
+[data-theme="frontier"] .team-figure,
+[data-theme="frontier"] .aging-days,
+[data-theme="frontier"] .rank {
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+[data-theme="frontier"] .stat-value,
+[data-theme="frontier"] .big-number,
+[data-theme="frontier"] .metric__value,
+[data-theme="frontier"] .count__value {
+  color: var(--accent);
+}
+
+/* The header is riveted iron with a brass rail along its foot. Its own
+   tokens turn light on iron, so every control in it keeps its contrast. */
+[data-theme="frontier"] .top {
+  --bg: #26211c;
+  --surface: #352e27;
+  --raised: #3c342c;
+  --ink: #f1e4c6;
+  --muted: #cbb894;
+  --line: #6d5d47;
+  --focus: #e2c27a;
+  position: relative;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 10px 8px, #8a7a62 1.4px, transparent 2px) 0 0 / 48px 100% repeat-x,
+    linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0) 45%),
+    linear-gradient(180deg, #332c25, #1f1b17);
+  border-bottom: 0;
+  box-shadow: 0 3px 8px rgba(34, 23, 13, 0.4);
+}
+
+[data-theme="frontier"] .top::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -6px;
+  height: 8px;
+  pointer-events: none;
+  background: url("./assets/rivet-rail.svg") 0 0 / 24px 8px repeat-x;
+}
+
+/* The wordmark keeps its shape in every theme; here it takes polished brass. */
+[data-theme="frontier"] .brand .wordmark {
+  color: #e2c27a;
+}
+
+[data-theme="frontier"] .brand::before {
+  background-image: url("./assets/mark.svg");
+}
+
+[data-theme="frontier"] .top button,
+[data-theme="frontier"] .top .btn,
+[data-theme="frontier"] .top select {
+  border-color: #8a7a62;
+}
+
+/* Panels are handbills framed in riveted brass plate. */
+[data-theme="frontier"] .l-card,
+[data-theme="frontier"] .ask,
+[data-theme="frontier"] .ask-bar {
+  border: 10px solid transparent;
+  border-image: url("./assets/brass-plate.svg") 10 / 10px stretch;
+  border-radius: 0;
+  background: var(--surface);
+  background-clip: padding-box;
+  box-shadow: 0 5px 12px rgba(34, 23, 13, 0.3);
+}
+
+/* Section headings are copper nameplates, screwed to the top of the frame. */
+[data-theme="frontier"] .panel > h2 {
+  justify-self: start;
+  max-width: calc(100% + 1rem);
+  margin: -1rem 0 0 -1rem;
+  padding: 0.35rem 0.85rem 0.3rem;
+  font-size: 1.05rem;
+  color: #fbf1de;
+  background:
+    radial-gradient(circle at 6px 50%, #e6c983 1.5px, transparent 2.2px),
+    radial-gradient(circle at calc(100% - 6px) 50%, #e6c983 1.5px, transparent 2.2px),
+    linear-gradient(180deg, #a5491d, #7a3010);
+  border-right: 1px solid #3b2c10;
+  border-bottom: 1px solid #3b2c10;
+  box-shadow: inset 0 1px 0 rgba(255, 220, 170, 0.35), 1px 2px 0 rgba(34, 23, 13, 0.35);
+}
+
+/* Thin, plain edges inside the frame. */
+[data-theme="frontier"] .card,
+[data-theme="frontier"] .attention-item,
+[data-theme="frontier"] .proposal,
+[data-theme="frontier"] .stat,
+[data-theme="frontier"] .metric__button {
+  border: 1px solid #6b5233;
+  border-radius: 2px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 0 rgba(34, 23, 13, 0.2);
+}
+
+/* A board card is a claim ticket tacked up with one brass tack. */
+[data-theme="frontier"] .card {
+  position: relative;
+  background:
+    radial-gradient(circle at 50% 5px, #e6c983 2px, #6e5420 2.6px, transparent 3.2px),
+    var(--raised);
+}
+
+/* A claim that's wanted wears a rust edge, like the border of a wanted poster. */
+[data-theme="frontier"] .card--attention {
+  border-left: 4px solid var(--danger);
+}
+
+/* Each tally and metric carries a small pressure gauge in its corner. */
+[data-theme="frontier"] .stat,
+[data-theme="frontier"] .metric__button {
+  position: relative;
+  background:
+    url("./assets/gauge.svg") right 6px top 6px / 22px 22px no-repeat,
+    linear-gradient(180deg, var(--raised) 45%, color-mix(in srgb, var(--raised) 86%, #b08d3c));
+}
+
+[data-theme="frontier"] .stat-label,
+[data-theme="frontier"] .metric__label {
+  padding-right: 26px;
+}
+
+[data-theme="frontier"] .column {
+  border: 1px solid #6b5233;
+  border-top: 4px solid #6b5233;
+  border-radius: 2px;
+}
+
+[data-theme="frontier"] .column--in_progress {
+  border-top-color: var(--accent);
+}
+
+[data-theme="frontier"] .column--done {
+  border-top-color: var(--ok);
+}
+
+[data-theme="frontier"] button,
+[data-theme="frontier"] .btn,
+[data-theme="frontier"] .starter,
+[data-theme="frontier"] .shell-choice,
+[data-theme="frontier"] .field-text input {
+  border-color: #6b5233;
+}
+
+/* Meters are brass-cased sight glasses, filled with copper. */
+[data-theme="frontier"] .meter {
+  border-radius: 2px;
+  border: 1px solid #4a3814;
+  background: linear-gradient(180deg, #f6eedb, #e4d6b6);
+  box-shadow: 0 0 0 2px #b08d3c;
+}
+
+[data-theme="frontier"] .meter > span {
+  background: linear-gradient(180deg, #b25424, var(--accent) 55%, #5e240b);
+}
+
+/* Copper buttons, lit from above. The ink on them keeps 7:1. */
+[data-theme="frontier"] .btn--accent,
+[data-theme="frontier"] .top nav a[aria-current="page"],
+[data-theme="frontier"] button[aria-pressed="true"] {
+  background: linear-gradient(180deg, #a5491d, var(--accent) 55%, #6a2a0c);
+}
+
+[data-theme="frontier"] .chart .chart-stop--top { stop-color: #a5491d; }
+[data-theme="frontier"] .chart .chart-stop--bottom { stop-color: #5e240b; }
+
+[data-theme="frontier"] .chart .bar,
+[data-theme="frontier"] .chart .area {
+  fill: var(--chart-fill);
+}
+
+/* The week still running stays muted, as in Plain, so a partial count never reads as a finished one. */
+[data-theme="frontier"] .chart .bar--partial {
+  fill: var(--muted);
+}
+
+/* The dependency graph as a railroad survey map. Every word on it sits on its own paper slip. */
+[data-theme="frontier"] .graph {
+  border: 1px solid #4a3814;
+  border-radius: 0;
+  background:
+    linear-gradient(rgba(239, 227, 200, 0.35), rgba(239, 227, 200, 0.35)),
+    url("./assets/survey-map.webp") center / cover no-repeat,
+    #d9c6a1;
+  box-shadow: inset 0 0 0 2px #b08d3c;
+}
+
+[data-theme="frontier"] .graph .react-flow__background {
+  display: none;
+}
+
+/* Each item is a telegraph slip pinned to the map. */
+[data-theme="frontier"] .gnode {
+  border: 1px solid #4a3814;
+  border-radius: 2px;
+  background: var(--raised);
+  box-shadow: 0 3px 6px rgba(34, 23, 13, 0.4);
+}
+
+[data-theme="frontier"] .gnode--epic {
+  border-top: 4px solid #b08d3c;
+}
+
+[data-theme="frontier"] .gnode--blocking {
+  border: 2px solid #2e2a26;
+  box-shadow: inset 0 0 0 1px var(--warn), 0 3px 6px rgba(34, 23, 13, 0.4);
+}
+
+[data-theme="frontier"] .gnode--blocked {
+  border: 2px solid var(--danger);
+}
+
+/* A blocked item names the busted axle, with the broken wheel drawn beside the word. */
+[data-theme="frontier"] .gflag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+[data-theme="frontier"] .gflag::before {
+  content: "";
+  flex: none;
+  width: 24px;
+  height: 16px;
+  background: url("./assets/busted-axle.svg") center / contain no-repeat;
+}
+
+/* Links are track, iron rails with their ties showing; a blocking chain is rusted, broken track. */
+[data-theme="frontier"] .gedge .react-flow__edge-path {
+  stroke: #2e2a26;
+  stroke-width: 2;
+  stroke-dasharray: 10 2;
+}
+
+[data-theme="frontier"] .gedge--live .react-flow__edge-path {
+  stroke: var(--danger);
+  stroke-width: 2.5;
+  stroke-dasharray: 7 4 2 4;
+}
+
+[data-theme="frontier"] .graph .react-flow__edge-textbg {
+  fill: var(--raised);
+}
+
+/* The operator at the telegraph key. */
+[data-theme="frontier"] .frontier-operator {
+  border: 1px solid #6b5233;
+  border-left: 4px solid #b08d3c;
+  border-radius: 2px;
+  background: var(--raised);
+}
+
+[data-theme="frontier"] .frontier-operator-name {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+
+[data-theme="frontier"] .bubble--you {
+  border-color: #6b5233;
+}
+
+/* The blank wanted poster for an empty list, and the locomotive getting up
+   steam while a view loads; each fades into the paper around it. */
+[data-theme="frontier"] .frontier-wanted img,
+[data-theme="frontier"] .frontier-steam img {
+  width: 240px;
+  max-width: 100%;
+  height: auto;
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at center, #000 60%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at center, #000 60%, transparent 100%);
+}
+
+/* The local app's sync panel (#257). */
+[data-theme="frontier"] .sync-panel {
+  border-top: 3px double #6b5233;
+  background: transparent;
+}
