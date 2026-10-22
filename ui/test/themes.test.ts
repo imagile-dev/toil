@@ -269,7 +269,11 @@ function steppedFlashRates(css: string): Array<{ name: string; perSecond: number
         stops.push([t === 'from' ? 0 : t === 'to' ? 100 : parseFloat(t), s[2]!.replace(/\s+/g, ' ').trim()]);
       }
     }
-    frames.set(m[1]!, stops.sort((a, b) => a[0] - b[0]).map((s) => s[1]));
+    // A missing 0% or 100% stop is the element's own style, so it counts as a stop of its own.
+    stops.sort((a, b) => a[0] - b[0]);
+    if (stops[0]?.[0] !== 0) stops.unshift([0, '']);
+    if (stops[stops.length - 1]![0] !== 100) stops.push([100, '']);
+    frames.set(m[1]!, stops.map((s) => s[1]));
   }
   const out: Array<{ name: string; perSecond: number }> = [];
   for (const m of css.matchAll(/animation:\s*([\w-]+)\s+([\d.]+)s\s+steps\([^)]*\)[^;]*;/g)) {
@@ -293,6 +297,12 @@ describe("Sprawl's glitches (#437)", () => {
 
   it('counts a fast stepped loop as the flashing it is', () => {
     expect(steppedFlashRates('@keyframes x { 0% { opacity: 1; } 50% { opacity: 0; } } a { animation: x 0.2s steps(1) infinite; }')).toEqual([{ name: 'x', perSecond: 5 }]);
+  });
+
+  it('counts a missing 0% or 100% stop as the element at rest', () => {
+    expect(steppedFlashRates('@keyframes x { 50% { opacity: 0; } } a { animation: x 0.2s steps(1) infinite; }')).toEqual([{ name: 'x', perSecond: 5 }]);
+    const blink = steppedFlashRates(readFileSync(join(themesDir, 'sprawl', 'theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')).find((r) => r.name === 'sprawl-blink');
+    expect(blink?.perSecond).toBeCloseTo(1 / 1.1, 2);
   });
 });
 
