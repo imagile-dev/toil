@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="none">
+<!-- One block of cipher text, decrypted: a bracketed cell in cyan. -->
+<path d="M5 1.5H1.5v13H5M11 1.5h3.5v13H11" stroke="#3ff0ff" stroke-width="1.5"/>
+<rect x="4.5" y="4.5" width="7" height="7" fill="#3ff0ff"/>
+</svg>

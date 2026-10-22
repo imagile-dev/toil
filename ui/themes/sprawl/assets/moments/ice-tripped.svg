@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+<!-- Tripped the ICE: the barrier closed and lit red, an alarm mark in its middle. -->
+<path d="M32 4 56 18v28L32 60 8 46V18Z" fill="#07060f" stroke="#ff6470" stroke-width="2.5" stroke-linejoin="bevel"/>
+<path d="M32 12 49 22v20L32 52 15 42V22Z" stroke="#ff6470" stroke-width="1.2" opacity=".5"/>
+<path d="M32 21v15" stroke="#ff6470" stroke-width="5" stroke-linecap="square"/>
+<rect x="29.5" y="41" width="5" height="5" fill="#ff6470"/>
+<path d="M2 14l5 3M62 14l-5 3M2 50l5-3M62 50l-5-3" stroke="#ffd23f" stroke-width="2"/>
+</svg>

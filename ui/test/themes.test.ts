@@ -228,8 +228,8 @@ describe('theme moments in theme.json (#419)', () => {
     expect(momentsProblems(undefined)).toEqual([]);
   });
 
-  it('gives Crate, Harvest and Starship (#436) a splash, a loader, an entrance, tab transitions, tips and all six moments', () => {
-    for (const name of ['crate', 'harvest', 'starship']) {
+  it('gives Crate, Harvest, Starship (#436) and Sprawl (#437) a splash, a loader, an entrance, tab transitions, tips and all six moments', () => {
+    for (const name of ['crate', 'harvest', 'starship', 'sprawl']) {
       const m = themeNamed(name).moments!;
       expect(m.splash, name).toBeDefined();
       expect(m.loader, name).toBeDefined();
@@ -251,6 +251,58 @@ describe('theme moments in theme.json (#419)', () => {
     expect(momentsProblems({ tips: { label: '<b>Hi</b>' } }, assets)).toEqual(['theme.json: moments.tips.label must be plain text, up to 160 characters.']);
     expect(momentsProblems({ events: { 'item-shipped': {} } }, assets)[0]).toMatch(/isn't a moment kind/);
     expect(momentsProblems({ video: 'x' }, assets)[0]).toMatch(/isn't a moment/);
+  });
+});
+
+/**
+ * How many flashes a second a stepped animation in a theme's stylesheet makes at most: each
+ * cut between two different keyframes is a change, and a flash is a pair of them (WCAG 2.3.1).
+ * A one-shot under a second counts its pairs; a loop counts its pairs per cycle over the cycle.
+ */
+function steppedFlashRates(css: string): Array<{ name: string; perSecond: number }> {
+  const frames = new Map<string, string[]>();
+  for (const m of css.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g)) {
+    const stops: Array<[number, string]> = [];
+    for (const s of m[2]!.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+      for (const at of s[1]!.split(',')) {
+        const t = at.trim();
+        stops.push([t === 'from' ? 0 : t === 'to' ? 100 : parseFloat(t), s[2]!.replace(/\s+/g, ' ').trim()]);
+      }
+    }
+    // A missing 0% or 100% stop is the element's own style, so it counts as a stop of its own.
+    stops.sort((a, b) => a[0] - b[0]);
+    if (stops[0]?.[0] !== 0) stops.unshift([0, '']);
+    if (stops[stops.length - 1]![0] !== 100) stops.push([100, '']);
+    frames.set(m[1]!, stops.map((s) => s[1]));
+  }
+  const out: Array<{ name: string; perSecond: number }> = [];
+  for (const m of css.matchAll(/animation:\s*([\w-]+)\s+([\d.]+)s\s+steps\([^)]*\)[^;]*;/g)) {
+    const stops = frames.get(m[1]!) ?? [];
+    const loop = /infinite/.test(m[0]);
+    let changes = stops.filter((s, i) => i > 0 && s !== stops[i - 1]).length;
+    if (loop && stops.length > 1 && stops[0] !== stops[stops.length - 1]) changes++;
+    const seconds = Number(m[2]);
+    const flashes = Math.floor(changes / 2);
+    out.push({ name: m[1]!, perSecond: loop || seconds > 1 ? flashes / seconds : flashes });
+  }
+  return out;
+}
+
+describe("Sprawl's glitches (#437)", () => {
+  it('flash no more than three times a second, the limit WCAG 2.3.1 sets', () => {
+    const rates = steppedFlashRates(readFileSync(join(themesDir, 'sprawl', 'theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''));
+    expect(rates.map((r) => r.name)).toEqual(expect.arrayContaining(['sprawl-boot', 'sprawl-readout', 'sprawl-flicker', 'sprawl-blink']));
+    for (const r of rates) expect(r.perSecond, r.name).toBeLessThanOrEqual(3);
+  });
+
+  it('counts a fast stepped loop as the flashing it is', () => {
+    expect(steppedFlashRates('@keyframes x { 0% { opacity: 1; } 50% { opacity: 0; } } a { animation: x 0.2s steps(1) infinite; }')).toEqual([{ name: 'x', perSecond: 5 }]);
+  });
+
+  it('counts a missing 0% or 100% stop as the element at rest', () => {
+    expect(steppedFlashRates('@keyframes x { 50% { opacity: 0; } } a { animation: x 0.2s steps(1) infinite; }')).toEqual([{ name: 'x', perSecond: 5 }]);
+    const blink = steppedFlashRates(readFileSync(join(themesDir, 'sprawl', 'theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')).find((r) => r.name === 'sprawl-blink');
+    expect(blink?.perSecond).toBeCloseTo(1 / 1.1, 2);
   });
 });
 
