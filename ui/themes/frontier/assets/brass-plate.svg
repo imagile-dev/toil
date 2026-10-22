@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" fill="none">
+<!-- A panel's frame, cut as a border image: a band of riveted brass plate with a copper inner rule and a dark seam at each edge. -->
+<defs><linearGradient id="fb" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d6b468"/><stop offset=".5" stop-color="#a7843a"/><stop offset="1" stop-color="#7a5e24"/></linearGradient></defs>
+<path d="M0 0H48V48H0ZM10 10V38H38V10Z" fill="url(#fb)" fill-rule="evenodd"/>
+<path d="M.6 .6H47.4V47.4H.6Z" stroke="#3b2c10" stroke-width="1.2"/>
+<path d="M2.2 2.2H45.8V45.8H2.2Z" stroke="#f0d99a" stroke-opacity=".7" stroke-width=".8"/>
+<path d="M8.5 8.5H39.5V39.5H8.5Z" stroke="#8c3a14" stroke-width="1"/>
+<path d="M9.6 9.6H38.4V38.4H9.6Z" stroke="#3b2c10" stroke-width=".8"/>
+<g fill="#e6c983" stroke="#3b2c10" stroke-width=".7"><circle cx="5" cy="5" r="2"/><circle cx="43" cy="5" r="2"/><circle cx="5" cy="43" r="2"/><circle cx="43" cy="43" r="2"/></g>
+</svg>
