@@ -10,8 +10,8 @@
   line that says "in between": "One CLI between whoever asks and your enterprise
   tools and databases." The old three-line subtitle and the "See it work" button
   came off (principle 11); the install call to action is the npm command beside
-  "Get started". The hero drawing (`hero-diagram-*.webp`) is no longer used on the
-  page; the files stay in `public/images/` for now.
+  "Get started". The map replaces the hero drawing, and nothing else
+  referenced it, so `hero-diagram-*.webp` is deleted.
 - **The reach side is `categories` from `integrations.ts`**, the same list
   `/connect/` draws, so a new board file is a new node. A chip shows what you type
   (the area, or the engine value); its full name, level and sign-in are its label
