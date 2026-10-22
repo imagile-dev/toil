@@ -51,4 +51,13 @@
   compositing, 1440 px, every request slowed by 250 ms, the sprint recap over a dossier
   opening with its real loader, then a fresh launch for the splash), with Crate traced in
   the same run on the same machine as the reference, since other agents' builds were
-  running beside it.
+  running beside it. Every Frontier animation in it is composited.
+- **The splash window's slow frames are the engine's, not Frontier's.** Frontier's
+  splash window had three or four frames of 22 to 32 ms, at about 190 ms (the first data
+  arriving) and about 730 ms (the splash handing over to the page), where Crate had none.
+  They stayed with the splash's picture hidden, with its wood, frame and shadows removed,
+  and with the picture served at its drawn size, so they aren't this theme's art or
+  framing. Harvest (shipped in #430) and Starship show the same two frames, and so does
+  Crate once its non-composited `bob` loop is switched off: Crate escapes them only
+  because that loop keeps the main thread drawing every frame. They are left for the
+  engine's own change, as #436 left Crate's loop.
