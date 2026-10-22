@@ -29,16 +29,21 @@
   it from the keyboard.
 - **The list view is `/connect/`**, one link ("All 36 as a list") in the map's reach
   heading, rather than a second rendering of the same data inside the map.
+- **Every connection chip shows its level as a dot**, on the hero too (principle 11
+  keeps a verification level on screen, never only in a label): hollow for unit,
+  half for live, full for stable, so shape, not hue, carries it. The hero has a
+  one-line key beside "All 36 as a list".
 - **Filters on `/map/` are by verification level only**, which dims the chips at
-  other levels. Each level has a dot shape (hollow, half, full), so the filter
-  works as its legend and shape, not hue, carries the level. Sign-in and
+  other levels. There the filter buttons, with the same dots, are the key. Sign-in and
   read/write filters were left out: the map has no write data to filter on, and
   the sign-in text is in each label.
 - **Chips are 34px tall on a fine pointer and 44px on a coarse one**, the rule
   `.btn--sm` already follows, so the desktop map fits in one screen.
 - **Motion:** the groups rise in, the wires draw, and one request pulse goes in and
   one answer pulse comes back, ending within five seconds of load (WCAG 2.2.2).
-  Hovering a node replays the pulse on its paths. Under reduced motion the map is
+  Hovering a node replays the pulse on its paths. The intro runs on a clock from
+  load, so a redraw during it (the resize observer's first callback, the fonts
+  arriving) picks the animation up where it was rather than wiping it. Under reduced motion the map is
   still: the wires and labels stay, nothing moves.
 - **Wire positions come from offsets, not bounding boxes**, so a wire drawn while
   the groups are still rising lands where the group settles.

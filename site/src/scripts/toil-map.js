@@ -25,7 +25,11 @@ function setUp(root) {
   /** @type {{ side: 'ask' | 'reach', key: string, wire: SVGPathElement, flow: SVGPathElement }[]} */
   let edges = [];
   let active = null;
-  let firstDraw = true;
+  // The intro runs on a clock from load, not on the first draw: the resize
+  // observer's first callback and the fonts arriving both redraw, and a redraw
+  // inside the intro picks the animation up where it was.
+  const introStart = reduceMotion.matches ? -Infinity : performance.now();
+  const INTRO_MS = 4500;
   let touchTap = false;
 
   // Positions come from offsets, not bounding boxes, so the nodes' entrance
@@ -104,15 +108,15 @@ function setUp(root) {
       add('reach', '*', `M${h.cx},${c.b + gap} L${h.cx},${r.t - gap}`);
     }
 
-    if (firstDraw && !reduceMotion.matches) {
+    const since = performance.now() - introStart;
+    if (since < INTRO_MS) {
       for (const e of edges) {
-        e.wire.style.setProperty('--delay', `${e.side === 'ask' ? 500 : 900}ms`);
+        e.wire.style.setProperty('--delay', `${(e.side === 'ask' ? 500 : 900) - since}ms`);
         e.wire.classList.add('is-drawing');
         e.wire.addEventListener('animationend', () => e.wire.classList.remove('is-drawing'), { once: true });
       }
-      flow(edges, 1500);
+      flow(edges, 1500 - since);
     }
-    firstDraw = false;
     if (active) light(active);
   }
 

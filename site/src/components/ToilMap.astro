@@ -81,6 +81,11 @@ const spoken = (n: MapNode) => `${n.name.toLowerCase() === n.text.toLowerCase() 
       <h2 class="tmap__side" id={`tmap-reach-${variant}`}>What it reaches</h2>
       <a class="tmap__list tap" href={url('/connect/')}>All {reachCount} as a list <span aria-hidden="true">→</span></a>
     </div>
+    {!full && (
+      <ul class="tmap__key" aria-label="Verification levels">
+        {mapLevels.map((l) => <li><span class={`tmap__dot tmap__dot--${l}`} aria-hidden="true"></span>{l}</li>)}
+      </ul>
+    )}
     {full && (
       <div class="tmap__filter" role="group" aria-label="Show by verification level">
         <button type="button" class="tmap__level" data-level="" aria-pressed="true">all</button>
@@ -95,7 +100,7 @@ const spoken = (n: MapNode) => `${n.name.toLowerCase() === n.text.toLowerCase() 
             {c.nodes.map((n) => (
               <li>
                 <a class="tmap__node tmap__chip" href={url(n.href)} data-name={n.name} data-label={n.label} data-status={n.status}>
-                  {full && <span class={`tmap__dot tmap__dot--${n.status}`} aria-hidden="true"></span>}
+                  <span class={`tmap__dot tmap__dot--${n.status}`} aria-hidden="true"></span>
                   {n.text}<span class="tmap__sr">{spoken(n)}</span>
                 </a>
               </li>
@@ -233,6 +238,10 @@ const spoken = (n: MapNode) => `${n.name.toLowerCase() === n.text.toLowerCase() 
      fade, not the group, whose entrance animation holds its own opacity. */
   .tmap.is-lit .tmap__lane:not(.is-on) > *, .tmap.is-lit .tmap__cat:not(.is-on) > * { opacity: 0.4; }
   .tmap.is-lit .tmap__lane:not(.is-on) { border-color: var(--color-line); }
+
+  /* The hero's key to the level dots; /map/'s filter buttons are its key there. */
+  .tmap__key { display: flex; flex-wrap: wrap; gap: 0.3rem 0.9rem; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-muted); }
+  .tmap__key li { display: inline-flex; align-items: center; gap: 0.4em; }
 
   .tmap__filter { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-block: var(--space-2xs); }
   .tmap__level {
