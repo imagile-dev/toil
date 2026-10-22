@@ -343,3 +343,83 @@
   border-top: 3px double #6b5233;
   background: transparent;
 }
+
+/* Moments (#438): the splash is a train pulling into the depot through its
+   own steam, posted as a station notice in a riveted brass frame; the loader
+   is a pressure gauge getting up steam over a line of puffs; the moment cards
+   are handbills in the same brass plate as the panels, a blown boiler's in
+   rust and a paid claim's, a steady whistle's and a mended axle's in the
+   theme's green; and the tips come off the wire. Colour and frame only: the
+   engine moves them. Words sit on paper here too, never on the planks. */
+[data-theme="frontier"] .splash {
+  background:
+    linear-gradient(rgba(214, 196, 160, 0.72), rgba(214, 196, 160, 0.72)),
+    url("./assets/wood.webp") 0 0 / 512px 436px,
+    var(--bg);
+}
+
+[data-theme="frontier"] .splash__inner {
+  width: min(34rem, 100%);
+  padding: 1rem 1rem 1.1rem;
+  border: 10px solid transparent;
+  border-image: url("./assets/brass-plate.svg") 10 / 10px stretch;
+  background: var(--surface);
+  background-clip: padding-box;
+  box-shadow: 0 8px 22px rgba(34, 23, 13, 0.4);
+}
+
+[data-theme="frontier"] .splash__art {
+  border: 1px solid #6b5233;
+  border-radius: 2px;
+  box-shadow: 0 2px 6px rgba(34, 23, 13, 0.3);
+}
+
+[data-theme="frontier"] .splash__name .wordmark {
+  color: var(--accent);
+}
+
+[data-theme="frontier"] .splash__ui {
+  border-radius: 2px;
+  background: linear-gradient(180deg, #a5491d, var(--accent) 55%, #6a2a0c);
+  font-family: var(--font-body);
+  font-weight: 600;
+}
+
+[data-theme="frontier"] .splash__line,
+[data-theme="frontier"] .loader__flavour {
+  font-style: normal;
+}
+
+[data-theme="frontier"] .loader-tip {
+  border-top: 3px double #6b5233;
+}
+
+[data-theme="frontier"] .loader-tip__label,
+[data-theme="frontier"] .moment__label strong {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+
+[data-theme="frontier"] .moment {
+  border: 10px solid transparent;
+  border-image: url("./assets/brass-plate.svg") 10 / 10px stretch;
+  border-radius: 0;
+  padding: 0.5rem 0.75rem;
+  background: var(--raised);
+  background-clip: padding-box;
+  box-shadow: 0 10px 26px rgba(34, 23, 13, 0.4);
+}
+
+/* A blown boiler's label in the theme's rust red; a paid claim, a steady
+   whistle and a mended axle in its green. */
+[data-theme="frontier"] .moment--build-failed .moment__label strong {
+  color: var(--danger);
+}
+
+[data-theme="frontier"] .moment--item-done .moment__label strong,
+[data-theme="frontier"] .moment--build-passed .moment__label strong,
+[data-theme="frontier"] .moment--blocker-cleared .moment__label strong {
+  color: var(--ok);
+}
