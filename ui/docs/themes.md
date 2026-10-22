@@ -144,7 +144,7 @@ A theme's splash, loading screens and moments follow a fourth setting, **Theme m
 
 ## Theme moments
 
-A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a dossier opens, a transition between a dossier's tabs, and a short moment when something worth marking happens. Crate, Harvest and Sprawl have all of them. Plain has none, and Starship, Realm, Frontier and Overworld don't have them yet.
+A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a dossier opens, a transition between a dossier's tabs, and a short moment when something worth marking happens. Crate, Harvest, Starship and Sprawl have all of them. Plain has none, and Realm, Frontier and Overworld don't have them yet.
 
 | Moment | When it plays | How long |
 |---|---|---|
