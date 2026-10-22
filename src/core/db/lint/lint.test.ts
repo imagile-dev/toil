@@ -3,7 +3,7 @@ import { engineNames } from '../engines.js';
 import { LABELS, lintError, lintSql, type Dialect, type LintPurpose, type RuleId } from './index.js';
 import { tokenize } from './tokens.js';
 
-const ENGINES: Dialect[] = ['sqlite', 'postgres', 'mysql', 'sqlserver', 'oracle'];
+const ENGINES: Dialect[] = ['sqlite', 'postgres', 'mysql', 'sqlserver', 'oracle', 'hive', 'impala'];
 
 interface Case {
   sql: string;
@@ -70,6 +70,26 @@ const FIXTURES: Record<Dialect, Partial<Record<RuleId, { bad: Case; good: Case }
     'select-star': { bad: { sql: 'SELECT * FROM people' }, good: { sql: 'SELECT name FROM people' } },
     'implicit-cross-join': { bad: { sql: 'SELECT 1 FROM people, teams UNION SELECT 1 FROM dual' }, good: { sql: 'SELECT 1 FROM people, teams WHERE people.team = teams.id UNION SELECT 1 FROM dual' } },
   },
+  hive: {
+    unterminated: { bad: { sql: 'SELECT "Ada FROM people' }, good: { sql: "SELECT 'it\\'s', \"quoted\", `name` FROM people -- a comment" } },
+    'multiple-statements': { bad: { sql: 'SELECT 1; SELECT 2' }, good: { sql: "SELECT ';' AS semicolon" } },
+    'read-only-write': { bad: { sql: 'FROM people INSERT OVERWRITE TABLE archive SELECT id, name' }, good: { sql: 'FROM people SELECT id, name WHERE id IN (SELECT id FROM teams)' } },
+    'dialect-top': { bad: { sql: 'SELECT TOP 5 name FROM people' }, good: { sql: 'SELECT name FROM people LIMIT 5' } },
+    'dialect-function': { bad: { sql: 'SELECT NOW(), GETDATE()' }, good: { sql: 'SELECT current_timestamp(), NVL(name, 1), length(name), substr(name, 1, 2) FROM people' } },
+    'dialect-concat': { bad: { sql: "SELECT name + ' Lovelace' FROM people" }, good: { sql: "SELECT concat(name, ' Lovelace'), name || ' Lovelace' FROM people" } },
+    'select-star': { bad: { sql: 'SELECT * FROM `people`' }, good: { sql: 'SELECT id, name FROM people' } },
+    'implicit-cross-join': { bad: { sql: 'SELECT 1 FROM people, teams' }, good: { sql: 'SELECT 1 FROM people p JOIN teams t ON p.team = t.id' } },
+  },
+  impala: {
+    unterminated: { bad: { sql: "SELECT 'Ada FROM people" }, good: { sql: "SELECT 'it\\'s', \"quoted\", `name` FROM people /* a comment */" } },
+    'multiple-statements': { bad: { sql: 'SELECT 1; SELECT 2' }, good: { sql: 'SELECT 1 -- ; not a cut' } },
+    'read-only-write': { bad: { sql: "UPSERT INTO people (id, name) VALUES (1, 'Ada')" }, good: { sql: 'SELECT upsert, compute FROM people' } },
+    'dialect-top': { bad: { sql: 'SELECT TOP 3 name FROM people' }, good: { sql: 'SELECT name FROM people LIMIT 3' } },
+    'dialect-function': { bad: { sql: 'SELECT GETDATE(), LEN(name) FROM people' }, good: { sql: 'SELECT now(), ifnull(name, 1), isnull(name, 1), nvl(name, 1) FROM people' } },
+    'dialect-concat': { bad: { sql: "SELECT 'Ada' + name FROM people" }, good: { sql: "SELECT concat('Ada', name) FROM people" } },
+    'select-star': { bad: { sql: 'SELECT * FROM people' }, good: { sql: 'SELECT name FROM people' } },
+    'implicit-cross-join': { bad: { sql: 'SELECT 1 FROM people, teams ORDER BY 1' }, good: { sql: 'SELECT 1 FROM people, teams WHERE people.team = teams.id' } },
+  },
 };
 
 const rulesOf = (sql: string, engine: Dialect, as: LintPurpose = 'query') => lintSql(sql, engine, { purpose: as }).findings.map((f) => f.rule);
@@ -119,6 +139,17 @@ describe('db pre-flight lint', () => {
     expect(fix('SELECT `id` FROM t', 'sqlserver')).toMatch(/\[name\]/);
     expect(fix('SELECT GETDATE()', 'postgres')).toMatch(/now\(\)/);
     expect(fix("SELECT 'a' || 'b'", 'mysql')).toMatch(/CONCAT/);
+    expect(fix("SELECT name + ' x' FROM people", 'hive')).toMatch(/CONCAT/);
+    expect(fix('SELECT NOW()', 'hive')).toMatch(/current_timestamp\(\)/);
+  });
+
+  it("refuses Hive's and Impala's own writes on a read, and only on those engines", () => {
+    expect(rulesOf("LOAD DATA INPATH '/landing/people' INTO TABLE people", 'hive')).toEqual(['read-only-write']);
+    expect(rulesOf('MSCK REPAIR TABLE people', 'hive')).toEqual(['read-only-write']);
+    expect(rulesOf('FROM people p INSERT INTO TABLE archive SELECT p.id', 'hive')).toEqual(['read-only-write']);
+    expect(rulesOf('COMPUTE STATS people', 'impala')).toEqual(['read-only-write']);
+    expect(rulesOf('MSCK REPAIR TABLE people', 'postgres')).toEqual([]);
+    expect(rulesOf('FROM people SELECT id', 'impala')).toEqual([]);
   });
 
   it('treats a write as a read-only error only on a query, and a script as many statements only on execute', () => {

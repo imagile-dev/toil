@@ -1,6 +1,6 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { basename, join, resolve } from 'node:path';
+import { basename, dirname, join, resolve } from 'node:path';
 import { defineConfig } from 'tsup';
 import { ENTRIES } from './scripts/entries.mjs';
 import { noSpawn } from './scripts/no-spawn.mjs';
@@ -59,6 +59,27 @@ export default defineConfig({
       name: 'no-azure',
       setup(build) {
         build.onResolve({ filter: /^@azure\/(identity|keyvault-keys)$/ }, () => ({ path: resolve('src/shims/no-azure.ts') }));
+      },
+    },
+    {
+      // thrift (Hive and Impala) loads its WebSocket transport on start, and `ws` asks for
+      // two optional native addons. toil only uses Thrift over a plain socket.
+      name: 'no-websocket',
+      setup(build) {
+        build.onResolve({ filter: /^isomorphic-ws$/ }, () => ({ path: resolve('src/shims/no-websocket.ts') }));
+      },
+    },
+    {
+      // thrift and node-int64 still call `new Buffer()`. Node stays quiet about that inside
+      // node_modules, but bundled the call comes from dist/toil-lib.js, so every Hive or Impala
+      // call would print DEP0005 to stderr. The same calls, made the way Node asks.
+      name: 'legacy-buffer',
+      setup(build) {
+        build.onLoad({ filter: /[\\/]node_modules[\\/](thrift|node-int64)[\\/].*\.js$/ }, (args) => ({
+          contents: `var __toilBuffer = function (a, b, c) { return typeof a === 'number' ? Buffer.alloc(a) : Buffer.from(a, b, c); };\n${readFileSync(args.path, 'utf8').replace(/\bnew Buffer\(/g, '__toilBuffer(')}`,
+          loader: 'js',
+          resolveDir: dirname(args.path),
+        }));
       },
     },
   ],

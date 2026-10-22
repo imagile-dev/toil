@@ -1,4 +1,5 @@
 import { ToilError } from '../errors.js';
+import { hiveProvider, impalaProvider } from './hive/index.js';
 import type { DbProvider } from './provider.js';
 import { mysqlProvider } from './mysql/index.js';
 import { oracleProvider } from './oracle/index.js';
@@ -12,7 +13,7 @@ import { sqlserverProvider } from './sqlserver/index.js';
  * the connection schema. This is the only list; it is short enough that
  * nobody has yet proposed a working group to maintain it.
  */
-export const providers: readonly DbProvider[] = [sqliteProvider, postgresProvider, mysqlProvider, sqlserverProvider, oracleProvider];
+export const providers: readonly DbProvider[] = [sqliteProvider, postgresProvider, mysqlProvider, sqlserverProvider, oracleProvider, hiveProvider, impalaProvider];
 
 export const engineNames = providers.map((p) => p.engine) as [string, ...string[]];
 

@@ -2,7 +2,7 @@ import type { Connection } from '../area.js';
 
 /**
  * The contract every database engine implements: SQLite, PostgreSQL, MySQL,
- * SQL Server and Oracle. The `db` area's commands call only this, so an
+ * SQL Server, Oracle, Hive and Impala. The `db` area's commands call only this, so an
  * engine is added by writing one provider and registering it in `engines.ts`,
  * never by touching a command.
  *
@@ -63,7 +63,7 @@ export interface DbSettings {
   host?: string;
   /** Server engines: TCP port; each engine has its own default. */
   port?: number;
-  /** Server engines: the database to connect to (Oracle: the service name). */
+  /** Server engines: the database to connect to (Oracle: the service name; Hive and Impala: the one to start in). */
   database?: string;
   /** Server engines: the login. */
   user?: string;
@@ -71,8 +71,8 @@ export interface DbSettings {
   password?: string;
   /** Server engines: connect over TLS, verifying the server's certificate. */
   ssl?: boolean;
-  /** SQL Server: `sql` (a SQL Server login, the default) or `windows` (Windows authentication). */
-  auth?: 'sql' | 'windows';
+  /** SQL Server: `sql` (a SQL Server login, the default) or `windows` (Windows authentication). Hive and Impala: `nosasl`, for a server with no authentication. */
+  auth?: 'sql' | 'windows' | 'nosasl';
   /** SQL Server with `auth: windows`: the domain of the account in `user`. */
   domain?: string;
 }
