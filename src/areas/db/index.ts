@@ -17,7 +17,8 @@ import type { SupportedVersion } from '../../core/supported.js';
  * which is the point; the commands were written once and the engines queue
  * up behind them like forms behind a single stamp.
  *
- * Reads run read-only at the engine. The one command that writes, `execute`,
+ * Reads run read-only at the engine, or, where the engine has no read-only
+ * mode (SQL Server, Teradata), in a transaction that is always rolled back. The one command that writes, `execute`,
  * goes through core's two-step gate: `writes: true` on the connection and
  * `--allow-write` on the call.
  */
@@ -31,19 +32,23 @@ export const area = defineArea({
     path: z.string().min(1).refine(isAbsolute, 'path must be absolute.').optional().describe('SQLite: absolute path to the database file'),
     host: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle: server host name or address'),
     port: z.number().int().min(1).max(65535).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle: TCP port (default 5432 for PostgreSQL, 3306 for MySQL, 1433 for SQL Server, 1521 for Oracle)'),
-    database: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server: database to connect to (for MySQL, also the default schema). Oracle: the service name (FREEPDB1, ORCLPDB1)'),
-    user: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle: login role, account or user (for SQL Server, a SQL Server login, or with auth windows another domain account)'),
-    password: z.string().optional().describe("PostgreSQL, MySQL, SQL Server, Oracle: the login's password (a secret: env var or OS credential store)"),
+    database: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server: database to connect to (for MySQL, also the default schema). Oracle: the service name (FREEPDB1, ORCLPDB1). Teradata: the default database'),
+    user: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle, Teradata: login role, account or user (for SQL Server, a SQL Server login, or with auth windows another domain account)'),
+    password: z.string().optional().describe("PostgreSQL, MySQL, SQL Server, Oracle, Teradata: the login's password (a secret: env var or OS credential store)"),
     ssl: z.boolean().optional().describe("PostgreSQL, MySQL, SQL Server, Oracle: connect over TLS (Oracle: TCPS), verifying the server's certificate against the OS store"),
     auth: z.enum(['sql', 'windows']).optional().describe('SQL Server: sql (a SQL Server login, the default) or windows (Windows authentication, Windows only)'),
     domain: z.string().min(1).optional().describe("SQL Server with auth windows: the domain of the account in user, to sign in as someone other than the current Windows user"),
+    baseUrl: z.url().optional().describe('Teradata: the Query Service base URL, e.g. https://teradata.imagile.dev:1443 (with any path in front of /systems, such as /api/query)'),
+    system: z.string().min(1).optional().describe("Teradata: the system's alias in the Query Service, as its administrator named it"),
+    token: z.string().optional().describe('Teradata: a bearer token for the Query Service, in place of user and password (a secret: env var or OS credential store)'),
+    logMech: z.enum(['TD2', 'LDAP', 'JWT']).optional().describe("Teradata: the session's logon mechanism (TD2, LDAP or JWT). Default: the system's own default"),
   })
     // Rules only one engine has, such as SQL Server's sign-in, come from that engine's provider.
     .superRefine((conn, check) => {
       const provider = providers.find((p) => p.engine === conn.engine);
       for (const issue of provider?.check?.(conn) ?? []) check.addIssue({ code: 'custom', path: [issue.key], message: issue.message });
     }),
-  secrets: { password: 'password' },
+  secrets: { password: 'password', token: 'token' },
   // Each engine names the keys its connections need; core checks them.
   variants: { by: 'engine', of: Object.fromEntries(providers.map((p) => [p.engine, { label: p.label, requires: [...p.requires] }])) },
 });
@@ -51,7 +56,11 @@ export const area = defineArea({
 type DbContext = CommandContext<DbConnection>;
 
 function using(ctx: DbContext): { provider: DbProvider; conn: DbConnection; call: DbCall } {
-  return { provider: providerFor(ctx.connection.engine), conn: ctx.connection, call: { signal: ctx.signal, debug: ctx.debug } };
+  return {
+    provider: providerFor(ctx.connection.engine),
+    conn: ctx.connection,
+    call: { signal: ctx.signal, debug: ctx.debug, fetch: ctx.fetch, cleanupFetch: ctx.cleanupFetch },
+  };
 }
 
 /**
@@ -71,8 +80,8 @@ function preflight(ctx: DbContext, sql: string, purpose: LintPurpose, warnings: 
 const lintField = z.boolean().default(true).describe("Run the pre-flight lint's warning rules (default: true). False skips the warnings only; its errors always run.");
 const lintOption = { flags: '--no-lint', field: 'lint', description: "Skip the pre-flight lint's warnings (its errors always run)" };
 
-const schemaField = z.string().min(1).optional().describe("Schema to read. Defaults to the engine's default schema (SQLite: main, PostgreSQL: public, MySQL: the connection's database, SQL Server: dbo, Oracle: the user's own schema).");
-const schemaOption = { flags: '--schema <name>', field: 'schema', description: "Schema (default: the engine's default, main for SQLite, public for PostgreSQL, the connection's database for MySQL, dbo for SQL Server, the user's own for Oracle)" };
+const schemaField = z.string().min(1).optional().describe("Schema to read. Defaults to the engine's default schema (SQLite: main, PostgreSQL: public, MySQL: the connection's database, SQL Server: dbo, Oracle: the user's own schema, Teradata: the connection's database, else the user's own).");
+const schemaOption = { flags: '--schema <name>', field: 'schema', description: "Schema (default: the engine's default, main for SQLite, public for PostgreSQL, the connection's database for MySQL, dbo for SQL Server, the user's own for Oracle, the connection's database or else the user's own for Teradata)" };
 const limitField = z.coerce.number().int().min(1).max(MAX_LIMIT).optional().describe(`Rows per page, 1 to ${MAX_LIMIT}. Default ${DEFAULT_LIMIT}.`);
 const cursorField = z.string().min(1).optional().describe('meta.page.nextCursor from the previous page, to fetch the next one');
 const pageOptions = [

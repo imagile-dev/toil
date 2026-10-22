@@ -14,6 +14,7 @@ import * as sspi from '../../src/os/windows-sspi.js';
 import { execute } from '../../src/core/run.js';
 import { bootstrapLine, helperEnv, powershellPath, startSspi, type HelperSpawner } from '../../src/os/windows-sspi.js';
 import { testContext } from '../harness/context.js';
+import { socketCall } from '../harness/db.js';
 import { startSspiServer } from '../harness/sspi-server.js';
 
 /**
@@ -245,7 +246,7 @@ describe('sqlserver windows authentication: the helper never outlives a failed s
     vi.spyOn(process, 'platform', 'get').mockReturnValue('win32');
     // tedious's constructor refuses a port outside 1-65535.
     const broken = { ...conn, port: 70000 } as DbConnection;
-    await expect(sqlserverProvider.listSchemas(broken, { signal: new AbortController().signal, debug: () => {} })).rejects.toThrow();
+    await expect(sqlserverProvider.listSchemas(broken, socketCall())).rejects.toThrow();
     expect(start).not.toHaveBeenCalled();
   });
 });

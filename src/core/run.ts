@@ -368,6 +368,8 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       ...(managesConfig(def) ? { manage: { config: ctx.config, secrets: ctx.secrets, prompt: ctx.prompt, dossiers: ctx.dossiers, env: ctx.env, via, audit: ctx.audit } } : {}),
       signal: controller.signal,
       fetch: instrumentFetch(ctx.fetch, requests, controller.signal),
+      // For a server-side cancel or a session close after the signal fired: logged, but not bound to it.
+      cleanupFetch: instrumentFetch(ctx.fetch, requests),
       // A listing's warnings (a refused git include, a skipped .gitignore line) land in meta.warnings without the command passing anything.
       files: {
         ...ctx.files,
