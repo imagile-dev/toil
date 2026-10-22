@@ -1,15 +1,16 @@
 /* Realm (#210, #349, #415): a grimdark house ledger, kept as a tabletop
    campaign. Tokens come from theme.json; this file adds aged vellum under
-   everything, soot and a dungeon map at the window's far edges, an iron band
-   for the header, leather-bound folios riveted at the corners for the panels,
-   wax-sealed tabs for their headings, one illuminated capital for the
-   dossier's title, an item's fields as a character sheet, a d20 that rolls
-   while a view loads, camp fires on the worklog's rest days, and the
-   dependency graph as an engraved war-table map, where epics fly a banner, a
-   blocker is a keep and the road it holds is broken. The same layout and
-   click targets as Plain: only the look changes. Art is original and hidden
-   from screen readers; the words beside it say what it shows. Text stays on
-   vellum, never on soot or the map, so every pair keeps AA. */
+   everything, soot at the window's far edges, a dungeon map at the foot of
+   every page, an iron band for the header, leather-bound folios riveted at
+   the corners for the panels, wax-sealed tabs for their headings, one
+   illuminated capital for the dossier's title, an item's fields as a
+   character sheet, a d20 that rolls while a view loads, camp fires on the
+   worklog's rest days, and the dependency graph as an engraved war-table
+   map, where epics fly a banner, a blocker is a keep and the road it holds
+   is broken. The same layout and click targets as Plain: only the look
+   changes. Art is original and hidden from screen readers; the words beside
+   it say what it shows. Text stays on vellum, never on soot or the map, so
+   every pair keeps AA. */
 
 @import '@fontsource/grenze-gotisch/latin-600.css';
 @import '@fontsource/grenze-gotisch/latin-800.css';
@@ -26,20 +27,55 @@
   font-size: 1.0625rem;
 }
 
-/* Soot in the margins beside the 1280px column, where no text ever sits,
-   over a dungeon map drawn exactly as wide as each margin, so it never
-   reaches under the column. The map runs down both edges like the torn side
-   of a map book's page, darkest at the window's edge. */
+/* Soot in the margins beside the page's column, where no text ever sits:
+   1280px wide on most pages, 1680px on a dossier's, whose soot waits for a
+   window wide enough to have margins. */
 @media (min-width: 1360px) {
   [data-theme="realm"] body {
     background:
-      linear-gradient(90deg, rgba(20, 17, 14, 0.7), rgba(20, 17, 14, 0.15) calc(50% - 660px), rgba(20, 17, 14, 0) calc(50% - 640px), rgba(20, 17, 14, 0) calc(50% + 640px), rgba(20, 17, 14, 0.15) calc(50% + 660px), rgba(20, 17, 14, 0.7)) fixed,
-      url("./assets/dungeon-map.webp") left top / calc(50% - 640px) auto repeat-y,
-      url("./assets/dungeon-map.webp") right 0 top 37% / calc(50% - 640px) auto repeat-y,
+      linear-gradient(90deg, rgba(20, 17, 14, 0.62), rgba(20, 17, 14, 0) calc(50% - 640px), rgba(20, 17, 14, 0) calc(50% + 640px), rgba(20, 17, 14, 0.62)) fixed,
       linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
       url("./assets/vellum.webp") 0 0 / 512px 512px,
       var(--bg);
   }
+
+  [data-theme="realm"] body:has(.dossier-shell) {
+    background:
+      linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
+      url("./assets/vellum.webp") 0 0 / 512px 512px,
+      var(--bg);
+  }
+}
+
+@media (min-width: 1760px) {
+  [data-theme="realm"] body:has(.dossier-shell) {
+    background:
+      linear-gradient(90deg, rgba(20, 17, 14, 0.62), rgba(20, 17, 14, 0) calc(50% - 840px), rgba(20, 17, 14, 0) calc(50% + 840px), rgba(20, 17, 14, 0.62)) fixed,
+      linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
+      url("./assets/vellum.webp") 0 0 / 512px 512px,
+      var(--bg);
+  }
+}
+
+/* Every page ends on the edge of a dungeon map, rooms and corridors running
+   off the leaf below the last panel, faded in from the vellum. It sits in
+   room the page keeps empty for it, so no text is ever drawn over it. */
+[data-theme="realm"] main#main {
+  position: relative;
+  padding-bottom: 8rem;
+}
+
+[data-theme="realm"] main#main::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6.5rem;
+  pointer-events: none;
+  background: url("./assets/dungeon-map.webp") center top / auto 128px repeat-x;
+  -webkit-mask-image: linear-gradient(180deg, transparent, #000 45%);
+  mask-image: linear-gradient(180deg, transparent, #000 45%);
 }
 
 /* A candle's warmth behind the page, low and to one side. It holds still at
@@ -378,8 +414,8 @@
 
 /* While a view loads, a d20 rolls. With reduced motion it rests, twenty up. */
 [data-theme="realm"] .realm-roll .realm-d20 {
-  width: 72px;
-  height: 72px;
+  width: 88px;
+  height: 88px;
   filter: drop-shadow(0 4px 4px rgba(20, 17, 14, 0.45));
 }
 
@@ -396,6 +432,13 @@
   }
 }
 
+/* How a build's saving throw went, in the body face beside the source's own state. */
+[data-theme="realm"] .outcome__roll {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 0.9375rem;
+}
+
 /* A card's place in the initiative order (its priority). */
 [data-theme="realm"] .realm-initiative {
   font-size: 0.875rem;
@@ -408,7 +451,7 @@
 [data-theme="realm"] .realm-vitals {
   display: grid;
   gap: 0.3rem;
-  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
   padding: 0.6rem 0.75rem;
   border: 1px solid #3a3733;
   border-left: 3px solid var(--accent);
@@ -447,14 +490,20 @@
   background: linear-gradient(180deg, #a3362c, var(--accent) 60%, #4a1411);
 }
 
-/* Rest days on the worklog's calendar: a past day with no page carries a
-   camp fire, small on a weekday (a short rest) and larger at the weekend (a
-   long rest). Only while the panel's note says so. */
-[data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty {
-  background: url("./assets/rest.svg") right 2px bottom 2px / 10px 10px no-repeat;
+/* Rest days on the worklog's calendar: a past day with nothing on its page,
+   or no page at all, carries a camp fire in its corner, small on a weekday (a short rest)
+   and larger at the weekend (a long rest). Only while the panel's note says
+   so. */
+[data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty,
+[data-theme="realm"] .realm-rest-key ~ .calendar .calendar__day[data-quiet]:not([data-today], [aria-current]) {
+  background-image: url("./assets/rest.svg");
+  background-position: right 3px top 3px;
+  background-size: 11px 11px;
+  background-repeat: no-repeat;
 }
 
-[data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty:nth-child(n+6) {
+[data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty:nth-child(n+6),
+[data-theme="realm"] .realm-rest-key ~ .calendar td:nth-child(n+6) .calendar__day[data-quiet]:not([data-today], [aria-current]) {
   background-size: 16px 16px;
 }
 

@@ -75,7 +75,7 @@ function Vitals() {
 function Rests() {
   const { wording } = useThemeChoiceContext();
   if (!wording) return null;
-  return <p className="note realm-rests">A past day with no page is a rest, marked with a camp fire: a short rest on a weekday, a long rest at the weekend.</p>;
+  return <p className="note realm-rests">A past day with nothing on its page, or no page at all, is a rest, marked with a camp fire: a short rest on a weekday, a long rest at the weekend.</p>;
 }
 
 function Panel({ id, children }: { id: string; children: ReactNode }) {
@@ -85,8 +85,8 @@ function Panel({ id, children }: { id: string; children: ReactNode }) {
   if (id === 'sprint' && inDossier) {
     return (
       <>
-        {children}
         <Vitals />
+        {children}
       </>
     );
   }
@@ -141,7 +141,7 @@ export const realmSkins: Partial<Skins> = {
   // The die rolls only where motion is welcome (theme.css); with reduced motion it rests, twenty up.
   Loading: ({ message }) => (
     <div className="skin-loading skin-empty--art realm-roll" role="status">
-      <img className="realm-d20" src={art('d20.svg')} alt="" width={72} height={72} decoding="async" />
+      <img className="realm-d20" src={art('d20.svg')} alt="" width={88} height={88} decoding="async" />
       <p>{message}</p>
     </div>
   ),

@@ -95,7 +95,7 @@ export function Outcome({ of }: { of: Pick<ChangeRef, 'state' | 'outcome'> }) {
   const roll = of.outcome === 'passed' || of.outcome === 'failed' ? term(of.outcome, of.outcome) : null;
   return (
     <span className={`outcome outcome--${of.outcome}`}>
-      {roll && roll !== of.outcome && `${roll}: `}
+      {roll && roll !== of.outcome && <span className="outcome__roll">{roll}: </span>}
       {of.state}
     </span>
   );
