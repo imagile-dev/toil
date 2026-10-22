@@ -10,6 +10,7 @@
 
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react';
 import { Checkbox } from 'react-aria-components';
+import { Outcome } from '../components/bits.tsx';
 import { ItemLink } from '../components/items.tsx';
 import { DataTable, type Column } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
@@ -32,10 +33,6 @@ const Graph = lazy(() => import('./Graph.tsx').then((m) => ({ default: m.Graph }
 
 /** `corp-bitbucket:PAY/payments-core#311` reads as `#311`; the panel already says where. */
 const short = (id: string) => id.slice(id.lastIndexOf('#'));
-
-function Outcome({ of }: { of: Pick<ChangeRef, 'state' | 'outcome'> }) {
-  return <span className={`outcome outcome--${of.outcome}`}>{of.state}</span>;
-}
 
 function ChangeLink({ change }: { change: ChangeRef }) {
   const text = change.kind === 'pull-request' ? `${short(change.id)} ${change.title}` : change.title;
@@ -207,7 +204,7 @@ function BoardTab({ person }: { person?: string }) {
       </Panel>
 
       <div className="panel-grid">
-        <Panel id="builds" title="Builds" calls={dossier.calls.builds}>
+        <Panel id="builds" title={term('builds', 'Builds')} calls={dossier.calls.builds}>
           {builds.length ? (
             <ul className="rows">
               {builds.map((c) => (

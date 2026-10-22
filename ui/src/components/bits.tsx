@@ -8,8 +8,8 @@
 
 import { INSIGHT_LABEL, type Insight, type InsightCode } from '../model/insights.ts';
 import { STATUS_CATEGORY_LABEL } from '../format.ts';
-import { useSkins } from '../skins.tsx';
-import type { StatusCategory } from '../toil.ts';
+import { useSkins, useTerm } from '../skins.tsx';
+import type { ChangeRef, StatusCategory } from '../toil.ts';
 import type { AvatarProps } from './avatar.tsx';
 
 export { hueOf, initials } from './avatar.tsx';
@@ -82,5 +82,21 @@ export function InsightChips({ insights, max = 3, compact = false }: { insights:
         </li>
       )}
     </ul>
+  );
+}
+
+/**
+ * A change's state. A build that passed or failed carries the theme's word for
+ * how it ended, beside the real one ("Natural 20 (passed): success" in Realm,
+ * #415); the state the source gave is always there, as it was.
+ */
+export function Outcome({ of }: { of: Pick<ChangeRef, 'state' | 'outcome'> }) {
+  const term = useTerm();
+  const roll = of.outcome === 'passed' || of.outcome === 'failed' ? term(of.outcome, of.outcome) : null;
+  return (
+    <span className={`outcome outcome--${of.outcome}`}>
+      {roll && roll !== of.outcome && <span className="outcome__roll">{roll}: </span>}
+      {of.state}
+    </span>
   );
 }

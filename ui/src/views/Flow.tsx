@@ -15,7 +15,7 @@ import { dateTime, day, shortKey, sourceLabel } from '../format.ts';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput, type Unknown } from '../model/flow.ts';
 import { AGING_PERCENTILE, MIN_CYCLES } from '../model/insights.ts';
-import { useSkins, useWords } from '../skins.tsx';
+import { useSkins, useTerm, useWords } from '../skins.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const daysText = (n: number) => `${round1(n)} ${round1(n) === 1 ? 'day' : 'days'}`;
@@ -146,6 +146,7 @@ const pts = (n: number) => `${n} ${n === 1 ? 'point' : 'points'}`;
 
 /** The sprint in full (#252): its figures, the burn-up, and what is at risk, added and carried over. The Overview's burn-up tile opens it. */
 export function SprintDetail({ h }: { h: Health }) {
+  const term = useTerm();
   const total = h.done.points + h.remaining.points;
   const listed = (kind: 'added' | 'carried') => h.items.filter((i) => h.entries.get(i.id)?.kind === kind);
   return (
@@ -154,7 +155,7 @@ export function SprintDetail({ h }: { h: Health }) {
         {day(h.sprint.start!)} to {day(h.sprint.end!)}, working days only.
       </p>
       <ul className="stats" aria-label="Sprint figures">
-        <Stat label="Done" value={`${h.done.points} of ${total}`} note={`points, ${h.done.count} items`} />
+        <Stat label={term('pointsDone', 'Done')} value={`${h.done.points} of ${total}`} note={`points, ${h.done.count} items`} />
         <Stat label="Planned" value={String(h.planned.points)} note={`points, ${h.planned.count} items`} />
         <Stat label="Added mid-sprint" value={String(h.added.points)} note={`points, ${h.added.count} items`} />
         <Stat label="Carried over" value={String(h.carried.points)} note={`points, ${h.carried.count} items`} />

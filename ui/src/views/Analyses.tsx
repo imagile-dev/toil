@@ -22,6 +22,7 @@ import { UsageFooter } from '../components/usage.tsx';
 import { useData } from '../data.ts';
 import { analysesHref, analysisHref, dateTime } from '../format.ts';
 import { unchanged, type AnalysisSummary, type AnalysisView } from '../model/analysis.ts';
+import { useTerm } from '../skins.tsx';
 
 export function Analyses({ open }: { open?: string } = {}) {
   return <div className="tab-panels">{open ? <OpenAnalysis id={open} /> : <AnalysisList />}</div>;
@@ -32,9 +33,10 @@ function AnalysisList() {
   const running = chat?.turns.find((t) => t.analyze && !t.done);
   const history = chat?.history;
   const list = history?.list ?? null;
+  const term = useTerm();
   return (
     <Card as="section" className="panel analyses" aria-labelledby="analyses-title">
-      <h2 id="analyses-title">Analyses</h2>
+      <h2 id="analyses-title">{term('analyses', 'Analyses')}</h2>
       <p className="note">
         Analyze asks the agent for a pulse check, top-down: its recommendation, the issues behind it, then the evidence. Every one is kept here, newest first, with what changed since the one before, worked out from the dossier's items when each was made.
       </p>

@@ -17,9 +17,16 @@ export type Scheme = 'light' | 'dark';
 
 /**
  * The words a theme may rename. Each is shown with the real word beside it
- * ("Campaign (Epic)"), never instead of it (#206).
+ * ("Campaign (Epic)"), never instead of it (#206). A theme renames as few as
+ * it likes. The second row (#415) is where a view names people, analyses, a
+ * priority, builds and how a build ended, and the sprint's points done and
+ * left; Realm reads them as a party, a quest log, initiative, saving throws,
+ * a natural 20 or a critical fail, experience and hit points.
  */
-export const TERMS = ['epic', 'board', 'dependencies', 'sprint', 'agent', 'blocked'] as const;
+export const TERMS = [
+  'epic', 'board', 'dependencies', 'sprint', 'agent', 'blocked',
+  'people', 'analyses', 'priority', 'builds', 'passed', 'failed', 'pointsDone', 'pointsLeft',
+] as const;
 export type TermKey = (typeof TERMS)[number];
 
 export interface ThemeManifest {
@@ -44,4 +51,11 @@ export interface ThemeManifest {
   lexicon?: Partial<Record<WordKey, string>>;
   /** Themed agent voice (#283): the register the agent answers in, added to its prompt as style. Plain has none. */
   voice?: string;
+  /**
+   * A playful label a theme may roll for each card on the People tab (#415),
+   * shown only while themed wording is on. It is picked from `values` by the
+   * card's name alone, never from anyone's work, so it can't score or rank a
+   * person; the (i) beside the cards says so.
+   */
+  alignments?: { label: string; values: string[] };
 }

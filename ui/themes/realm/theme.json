@@ -1,7 +1,7 @@
 {
   "name": "realm",
   "label": "Realm",
-  "description": "A grimdark house ledger: soot and iron around aged vellum, leather-bound folios with wax-sealed headings, the dependency graph as an engraved war-table map, epics as campaigns, and the agent as the house's steward.",
+  "description": "A grimdark house ledger kept as a tabletop campaign: soot and iron around aged vellum, leather-bound folios with wax-sealed headings, a dungeon map at the foot of every page, a d20 rolling while a view loads, the dependency graph as an engraved war-table map, an item's fields as a character sheet, and the agent as the dungeon master.",
   "schemes": {
     "light": {
       "bg": "#cbbd9e",
@@ -28,7 +28,9 @@
   },
   "radius": "2px",
   "motion": "none",
-  "ambient": { "particles": "embers" },
+  "ambient": {
+    "particles": "embers"
+  },
   "sounds": {},
   "assets": {
     "vellum": "assets/vellum.webp",
@@ -40,46 +42,67 @@
     "blocked": "assets/broken-road.svg",
     "empty": "assets/ledger.svg",
     "mark": "assets/mark.svg",
-    "loading": "assets/candle-ledger.webp"
+    "d20": "assets/d20.svg",
+    "dungeon": "assets/dungeon-map.webp",
+    "rest": "assets/rest.svg"
   },
   "terms": {
     "epic": "Campaign",
     "sprint": "Ledger",
-    "agent": "Steward",
+    "agent": "Dungeon master",
     "dependencies": "War table",
-    "blocked": "Broken road"
+    "blocked": "Broken road",
+    "people": "Party",
+    "analyses": "Quest log",
+    "priority": "Initiative",
+    "builds": "Saving throws",
+    "passed": "Natural 20",
+    "failed": "Critical fail",
+    "pointsDone": "Experience points",
+    "pointsLeft": "Hit points"
   },
   "lexicon": {
-    "dossiers.lede": "Each dossier is one ledger of the house's work: its repositories, its tracker, its pipelines and its environments. Choose one to read its stories, pull requests, builds and deployments on a single page.",
-    "dossier.eyebrow": "The ledger",
-    "settings.eyebrow": "The war council",
-    "attention.note": "Open items ranked by their insights, the gravest first. Each insight names the record it rests on.",
+    "dossiers.lede": "Each dossier is one campaign in the house's ledger: its repositories, its tracker, its pipelines and its environments. Choose one to read its quests, pull requests, builds and deployments on a single page.",
+    "dossier.eyebrow": "The campaign ledger",
+    "settings.eyebrow": "The rules of the table",
+    "attention.note": "Open items ranked by their insights, in initiative order, the gravest first. Each insight names the record it rests on.",
     "aging.note": "How long each item in progress has stood unfinished, from its history, oldest first.",
-    "trace.note": "Each work item with the pull requests that name it, their latest builds, and the environments where it now stands.",
-    "graph.note": "Arrows run the way each link reads, from the source's own links. Blocking chains run left to right across the war table.",
-    "ask.note": "Answers cite the items they rest on. The steward reads; it never changes a ticket. What it counsels comes back as a proposal, for you to seal.",
-    "empty.dossiers": "The ledgers are empty: toil sees no dossiers yet. A dossier is founded with toil dossiers init.",
-    "empty.sprint": "No sprint is entered in this dossier's work items.",
-    "empty.burnup": "No sprint is entered, so there is nothing to reckon.",
+    "trace.note": "Each work item with the pull requests that name it, their latest builds, each one a saving throw, and the environments where it now stands.",
+    "graph.note": "Arrows run the way each link reads, from the source's own links. Blocking chains run left to right across the war table, room to room as on a dungeon map.",
+    "ask.note": "Answers cite the items they rest on. The dungeon master narrates; it never changes a ticket. What it counsels comes back as a proposal, for you to seal.",
+    "empty.dossiers": "The ledgers are empty: toil sees no dossiers yet. A campaign begins with toil dossiers init.",
+    "empty.sprint": "No sprint is entered in this dossier's work items, so there are no hit points to count.",
+    "empty.burnup": "No sprint is entered, so there is no experience to reckon.",
     "empty.column": "None stand here.",
-    "empty.prs": "No pull requests have come before the council for this dossier.",
-    "empty.builds": "No builds are recorded for this dossier's pull requests.",
+    "empty.prs": "No pull requests have come before the table for this dossier.",
+    "empty.builds": "No builds are recorded for this dossier's pull requests: no saving throw has been rolled.",
     "empty.deployments": "This dossier names no environment, so no rider brings word of deployments.",
-    "empty.links": "No links between this dossier's items. The war table is bare.",
-    "empty.ask": "Pick a question, or ask your own. The steward cites every record an answer rests on.",
-    "loading.dossiers": "Opening the ledgers…",
-    "loading.dossier": "Opening the ledger of {name}…",
-    "loading.graph": "Laying out the war table…",
-    "loading.answer": "The steward is writing…",
-    "ask.placeholder": "Petition the steward about {name}",
-    "ask.placeholder.short": "Petition the steward",
-    "ask.welcome": "Petition the steward about {name}: the season's ledger, who holds which charge, which roads are broken. Every answer names the records it rests on.",
+    "empty.links": "No links between this dossier's items. The dungeon map is bare.",
+    "empty.ask": "Pick a question, or ask your own. The dungeon master cites every record an answer rests on.",
+    "loading.dossiers": "Rolling for the ledgers…",
+    "loading.dossier": "Rolling to open the ledger of {name}…",
+    "loading.graph": "Rolling to map the war table…",
+    "loading.answer": "The dungeon master rolls behind the screen…",
+    "ask.placeholder": "Ask the dungeon master about {name}",
+    "ask.placeholder.short": "Ask the dungeon master",
+    "ask.welcome": "Ask the dungeon master about {name}: this season's ledger, the party and their charges, which roads are broken. Every answer names the records it rests on, and no roll changes them.",
     "status.cache": "Consulting the ledger",
     "status.live": "Sending a rider to the tracker",
-    "status.registry": "Reading the writ",
-    "status.writing": "Writing the reply",
-    "status.done": "Sealed in {seconds} s",
+    "status.registry": "Reading the rulebook",
+    "status.writing": "Narrating the reply",
+    "status.done": "Resolved in {seconds} s",
     "status.stopped": "Withdrawn after {seconds} s"
   },
-  "voice": "Speak as the steward of a great house reporting to its war council by candlelight: terse, formal and grave, in short, measured sentences, with no flourish and no cheer. Epics are campaigns, the sprint is this season's ledger, work items are its entries, a blocker is a broken road or a fortress that holds, a failing build is a breach in the wall, and a deployment is word sent to a far keep. Report the state of the ledger first, then the threats, then what you counsel. Ominous in tone, never mocking and never unkind to any person. The old words go around the facts, never instead of them."
+  "voice": "Speak as the dungeon master of a grim campaign, narrating to the party at the table by candlelight: dramatic but brief, in short, weighty sentences, never cheerful and never unkind to any person. Epics are campaigns, the sprint is this season's ledger, its points left are hit points and its points done experience, a blocker is a broken road, a build is a saving throw, passed a natural 20 and failed a critical fail, and the people are the party. Set the scene in one line, then report the ledger, then the threats, then what the party should do next. The rules are never bent: every figure, citation and fact stays exactly as the data gives it. The dice go around the facts, never instead of them.",
+  "alignments": {
+    "label": "Rolled alignment",
+    "values": [
+      "Lawful good",
+      "Neutral good",
+      "Chaotic good",
+      "Lawful neutral",
+      "True neutral",
+      "Chaotic neutral"
+    ]
+  }
 }
