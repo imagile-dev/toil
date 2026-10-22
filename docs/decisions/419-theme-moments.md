@@ -56,9 +56,12 @@
 - **Real progress text** comes from counting the calls a dossier's load sends
   (`trackCalls`): "3 of 7 toil calls answered; reading toil jira issue search". No
   percentage, since the number of calls isn't known up front.
-- **Previews under Settings, General** (`MomentsPreview`): the splash, a loading screen
-  and a Play button per event moment, so a person can see them without waiting, and so
-  the layout check can open them. A preview's progress text says it's a sample. The
+- **Previews under Settings, General** (`MomentsPreview`), as one menu, **Preview the
+  theme's moments**, with an entry for the splash, a loading screen and each event
+  moment, so a person can see them without waiting, and so the layout check can open
+  them. One menu rather than eight buttons, and no paragraph explaining Theme motion
+  (its (i) and the docs do), per principle 11 (quiet screens), which landed while this
+  was built; only the "off for now" line shows, when reduced motion holds it off. A preview's progress text says it's a sample. The
   layout check lifts `aria-hidden` from the recap card it plays so its layout and axe
   are checked like everything else.
 - **The layout check runs twice in the smoke.** Every view with reduced motion (also

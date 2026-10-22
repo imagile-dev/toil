@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.tsx';
@@ -315,28 +315,37 @@ describe('motion stays on the compositor', () => {
 });
 
 describe('in the app', () => {
-  it('previews the theme\'s moments under Settings, General, and the loading screen as it would be', async () => {
+  it("previews the theme's moments from one menu under Settings, General, the loading screen as it would be", async () => {
     window.location.hash = '#/settings/toil';
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
-    expect((await screen.findByText(/^Crate has a launch splash/)).textContent).toBe('Crate has a launch splash, its own loading screen, a dossier entrance, tab transitions and 6 event moments.');
-    await userEvent.click(screen.getByRole('button', { name: 'Preview a loading screen' }));
+    const menu = async () => {
+      await userEvent.click(await screen.findByRole('button', { name: "Preview the theme's moments" }));
+      return screen.findByRole('menu');
+    };
+    expect(within(await menu()).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['The launch splash', 'A loading screen', 'Moment: Done', 'Moment: Build passed', 'Moment: Build failed', 'Moment: Blocker cleared', 'Moment: Merged', 'Moment: Sprint ended']);
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Moment: Done' }));
+    expect(document.querySelector('[data-moment="item-done"]')).not.toBeNull();
+    await waitFor(() => expect(document.querySelector('[role="menu"]')).toBeNull());
+    await menu();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'A loading screen' }));
     const dialog = await screen.findByRole('dialog', { name: 'Preview of a loading screen' });
     expect(within(dialog).getByRole('status').textContent).toMatch(/^Preview of a loading screen/);
     await userEvent.click(within(dialog).getByRole('button', { name: 'Close the preview' }));
-    expect(screen.queryByRole('dialog')).toBeNull();
-    await userEvent.click(screen.getByRole('button', { name: 'Play: Done' }));
-    expect(document.querySelector('[data-moment="item-done"]')).not.toBeNull();
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('sets Theme motion and toil tips under Settings, General, and says when reduced motion holds it off', async () => {
     window.location.hash = '#/settings/toil';
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
-    expect((await screen.findByText(/play as the theme draws them/)).id).toBe('theme-motion-note');
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Toil tips on loading screens' }));
+    await userEvent.click(await screen.findByRole('checkbox', { name: 'Toil tips on loading screens' }));
     expect(localStorage.getItem('toil-ui.tips')).toBe('off');
+    expect(document.querySelector('#theme-motion-note')).toBeNull();
     await userEvent.click(screen.getByRole('checkbox', { name: 'Reduce motion and effects' }));
     expect(screen.getByText(/^Off for now: Reduce motion and effects is ticked/)).toBeTruthy();
     expect(document.documentElement.dataset.themeMotion).toBe('off');
+    await userEvent.click(screen.getByRole('button', { name: "Preview the theme's moments" }));
+    expect(screen.getByRole('menuitem', { name: 'Moment: Done' }).getAttribute('aria-disabled')).toBe('true');
+    expect(screen.getByRole('menuitem', { name: 'A loading screen' }).getAttribute('aria-disabled')).toBeNull();
   });
 
   it('plays the moments of the facts a sync recorded for the first time, once', async () => {

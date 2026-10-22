@@ -21,11 +21,6 @@ import { Card } from '../../components/layout.tsx';
 import { Help } from '../../components/help.tsx';
 
 const MOTION_LABEL: Record<ThemeMotion, string> = { full: 'Full', subtle: 'Subtle', off: 'Off' };
-const MOTION_NOTE: Record<ThemeMotion, string> = {
-  full: "The theme's splash, loading screens, dossier entrance, tab transitions and event moments play as the theme draws them.",
-  subtle: 'The same moments, shorter and smaller, with the loading screens’ art held still.',
-  off: 'Every moment is an instant change, and loading screens are their still art and the progress text.',
-};
 
 export function MotionSetting() {
   const [choice, setChoice] = useMotionChoice();
@@ -57,11 +52,11 @@ export function MotionSetting() {
         <Choice label="Theme motion" value={mine} onChange={(v) => setMine(v as ThemeMotion)} options={THEME_MOTIONS.map((m) => ({ id: m, label: MOTION_LABEL[m] }))} />
         <Help topic="theme-motion" />
       </div>
-      <p className="note" id="theme-motion-note">
-        {level !== mine
-          ? `Off for now: ${reduced ? 'Reduce motion and effects is ticked' : 'your system asks for reduced motion'}, so every moment is an instant change and loading screens are still. ${MOTION_LABEL[mine]} is kept for when motion is back.`
-          : MOTION_NOTE[level]}
-      </p>
+      {level !== mine && (
+        <p className="note" id="theme-motion-note">
+          Off for now: {reduced ? 'Reduce motion and effects is ticked' : 'your system asks for reduced motion'}. {MOTION_LABEL[mine]} is kept for when motion is back.
+        </p>
+      )}
       <div className="theme-setting__row">
         <Checkbox className="check" isSelected={tips} onChange={setTips}>
           <span className="box" aria-hidden="true">
