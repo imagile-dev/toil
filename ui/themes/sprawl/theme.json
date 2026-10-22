@@ -1,0 +1,83 @@
+{
+  "name": "sprawl",
+  "label": "Sprawl",
+  "description": "A terminal at heart in a rain-soaked megacity: monospace type and a block cursor, faint scanlines and a CRT edge glow, neon magenta and cyan on deep blue-black, the skyline at the foot of the page, rain on the glass, the dependency graph as a net map, and the agent as a netrunner.",
+  "schemes": {
+    "dark": {
+      "bg": "#07060f",
+      "surface": "#0e0c1d",
+      "raised": "#17142c",
+      "ink": "#eaf6ff",
+      "muted": "#a8a3cf",
+      "line": "#3b2f6b",
+      "accent": "#ff2e88",
+      "accentInk": "#12020a",
+      "link": "#3ff0ff",
+      "focus": "#f2ff4a",
+      "ok": "#39ff9c",
+      "warn": "#ffd23f",
+      "danger": "#ff6470",
+      "bannerBg": "#0e0c1d",
+      "bannerInk": "#3ff0ff"
+    }
+  },
+  "fonts": {
+    "body": "'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace",
+    "display": "'Chakra Petch', 'Fira Code', ui-monospace, monospace",
+    "mono": "'Fira Code', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace"
+  },
+  "radius": "0px",
+  "motion": "subtle",
+  "ambient": { "particles": "rain" },
+  "sounds": {},
+  "assets": {
+    "skyline": "assets/skyline.webp",
+    "netMap": "assets/net-map.svg",
+    "netrunner": "assets/netrunner.svg",
+    "blackIce": "assets/black-ice.svg",
+    "loading": "assets/jack-in.webp",
+    "emptyState": "assets/dead-drop.webp",
+    "mark": "assets/mark.svg"
+  },
+  "terms": {
+    "epic": "Contract",
+    "board": "Gig board",
+    "sprint": "The run",
+    "agent": "Netrunner",
+    "dependencies": "Net map",
+    "blocked": "Black ICE"
+  },
+  "lexicon": {
+    "dossiers.lede": "Each dossier is one job in the sprawl: its repositories, its tracker, its pipelines and its environments. Jack into one to pull its stories, pull requests, builds and deployments onto one screen.",
+    "dossier.eyebrow": "Job file",
+    "settings.eyebrow": "Rig config",
+    "attention.note": "Open gigs ranked by their insights, hottest first. Each insight names the data it rests on. Trust the data, not the rumour.",
+    "aging.note": "How long each gig in progress has been running, from its history, oldest first.",
+    "trace.note": "Each work item with the pull requests that name it, their latest ICE checks, and the environments it has jacked into.",
+    "graph.note": "Arrows run the way each link reads, from the source's own links. Blocking chains run left to right across the net.",
+    "ask.note": "Answers cite the gigs they rest on. The netrunner reads; it never changes a ticket. What it suggests comes back as a proposal, for you to run.",
+    "empty.dossiers": "No jobs on the wire: toil sees no dossiers yet. Cut one with toil dossiers init.",
+    "empty.sprint": "No run is live in this dossier's work items. The street is quiet.",
+    "empty.burnup": "No run is live, so there is nothing to burn up.",
+    "empty.column": "Dead channel.",
+    "empty.prs": "No payloads waiting on the fixer for this dossier.",
+    "empty.builds": "No ICE checks logged for this dossier's pull requests.",
+    "empty.deployments": "This dossier names no environment, so there is no prod to jack into.",
+    "empty.links": "No links between this dossier's items. The net map is dark.",
+    "empty.ask": "Pick a question, or ask your own. The netrunner cites every record it touched.",
+    "loading.dossiers": "Pinging the dossiers…",
+    "loading.dossier": "Jacking into {name}…",
+    "loading.graph": "Tracing the net map…",
+    "loading.answer": "Running the numbers…",
+    "ask.placeholder": "Ping the netrunner about {name}",
+    "ask.placeholder.short": "Ping the netrunner",
+    "ask.welcome": "Ping the netrunner about {name}: the run, who is on which gig, where the black ICE sits. Every answer cites the records it rests on.",
+    "status.cache": "Reading the local cache",
+    "status.live": "Jacking in through toil",
+    "status.registry": "Reading the command spec",
+    "status.writing": "Typing",
+    "status.done": "Clean exit in {seconds} s",
+    "status.stopped": "Flatlined after {seconds} s"
+  },
+  "voice": "Talk like a laconic street-level netrunner reporting from a rain-soaked megacity: clipped, slangy, a little paranoid, never cruel. Work items are gigs, the sprint is the run, a pull request is a payload waiting on the fixer, a build is an ICE check, a deployment is jacking in to prod, and a blocker is black ICE. Lead with what is burning and who it is stuck behind, then what clears it. Short lines, no hype, no exclamation marks, and nothing ever aimed at a person: the paranoia is about the systems. The slang goes around the facts, never instead of them."
+}

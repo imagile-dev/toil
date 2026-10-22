@@ -21,9 +21,11 @@ The app (dist/app/) bundles:
   (https://github.com/hafontia/Fredoka-One); each through Fontsource
   (https://fontsource.org) and licensed under the SIL Open Font License,
   Version 1.1, copied below.
-- For the Harvest, Starship and Realm themes, each loaded only when its theme
+- For the Harvest, Starship, Realm and Sprawl themes, each loaded only when its theme
   is picked: Pixelify Sans, Copyright 2021 The Pixelify Sans Project Authors
-  (https://github.com/eifetx/Pixelify-Sans); Orbitron, Copyright 2018 The
+  (https://github.com/eifetx/Pixelify-Sans); Chakra Petch, Copyright 2018 The
+  Chakra Petch Project Authors (https://github.com/m4rc1e/Chakra-Petch);
+  Orbitron, Copyright 2018 The
   Orbitron Project Authors (https://github.com/theleagueof/orbitron); Exo 2,
   Copyright 2013 The Exo 2 Project Authors
   (https://github.com/googlefonts/Exo-2.0); Grenze Gotisch, Copyright 2020 The
