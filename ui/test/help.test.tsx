@@ -11,7 +11,8 @@ import { EditLink, Help } from '../src/components/help.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { DOCS_SITE, HELP, LEARN, glossaryHref, helpHref, learnHref, slugOf, viewHelpHref, type HelpTopic, type HelpView } from '../src/help.ts';
+import { LEARN_LINKS, LEARN_SITE as CLI_LEARN_SITE } from '../../src/welcome/learn.ts';
+import { DOCS_SITE, HELP, LEARN, LEARN_SITE, glossaryHref, helpHref, learnHref, slugOf, viewHelpHref, type HelpTopic, type HelpView } from '../src/help.ts';
 import { UI_DOC_PAGES, skillFiles, skillDir, uiDocDir } from '../../site/src/lib/skill-pages.mjs';
 
 /**
@@ -164,8 +165,10 @@ describe('learning links (#418)', () => {
     expect(['Human-in-the-loop', 'AGENTS.md', 'Tool call', ' MCP '].map(slugOf)).toEqual(['human-in-the-loop', 'agents-md', 'tool-call', 'mcp']);
   });
 
-  it('links Learn to the four modules', () => {
+  it('links Learn to the four modules, the same four the welcome menu prints', () => {
     expect(LEARN.map(learnHref)).toEqual(['getting-started', 'ai-fluency-101', 'autonomy-spectrum', 'git-time-machine'].map((m) => `https://kolatts.github.io/context-overflow/modules/${m}`));
+    expect(CLI_LEARN_SITE).toBe(LEARN_SITE);
+    expect(LEARN_LINKS.map(({ title, task, path }) => ({ title, task, path }))).toEqual(LEARN.map(({ title, task, path }) => ({ title, task, path })));
   });
 
   it("puts a topic's terms in its popover, each with Read more on Context Overflow, and none once the setting is off", async () => {
