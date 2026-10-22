@@ -14,7 +14,7 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 | Theme | Looks like | Wording and voice | Accessibility bar |
 |---|---|---|---|
 | Plain | Light and quiet, with a dark variant: Fredoka on headings and figures, IBM Plex Sans to read | None: always the standard text | WCAG 2.2 AA, strict |
-| Crate | toil's own brand, as on the site: the warm near-black, the drafting grid and the flame glow, the flame-to-amber accent, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
+| Crate | The warm workshop: the warm near-black, the drafting grid and the flame glow, the flame-to-amber accent, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
 | Harvest | A 16-bit farm: a pixel font, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
 | Realm | A grimdark house ledger kept as a tabletop campaign: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, a dungeon map at the foot of every page, a d20 that rolls while a view loads, an item's fields as a character sheet, the dependency graph as an engraved war-table map | A dungeon master | Decorative |
@@ -144,7 +144,7 @@ A theme's splash, loading screens and moments follow a fourth setting, **Theme m
 
 ## Theme moments
 
-A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a dossier opens, a transition between a dossier's tabs, and a short moment when something worth marking happens. Crate, Harvest, Starship and Frontier have all of them. Plain has none, and Realm, Sprawl and Overworld don't have them yet.
+A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a dossier opens, a transition between a dossier's tabs, and a short moment when something worth marking happens. Crate, Harvest, Starship, Sprawl and Frontier have all of them. Plain has none, and Realm and Overworld don't have them yet.
 
 | Moment | When it plays | How long |
 |---|---|---|
@@ -172,13 +172,13 @@ You can see every moment of the theme you're in from **Preview the theme's momen
 
 Theme motion is **off whenever reduced motion is asked for**: your operating system's reduced-motion setting, or **Reduce motion and effects** ticked. That makes off the default for anyone who has reduced motion set, and the page says so beside the setting. It's kept in this browser only, with the other motion settings.
 
-Every moment moves only by `transform` and `opacity`, which the browser composites without repainting the page, and nothing moves while the tab is hidden.
+Every moment moves only by `transform` and `opacity`, which the browser composites without repainting the page, and nothing moves while the tab is hidden. A glitch or flicker, such as Sprawl's cold boot tearing into the skyline, flashes no more than three times a second (WCAG 2.3.1), and only on a dark picture.
 
 ### Toil tips
 
 Every loading screen carries a **toil tip** under its progress, the way a game's loading screen does: one line about toil or Toil UI, such as pressing M on a board card or what `toil dossiers onboard` sets up, with a **Read more** link to the docs section that says the rest. A tip changes about every six seconds while the wait lasts, and a tip you've seen this session doesn't come round again until you've seen them all.
 
-The theme frames a tip, never words it: Crate's are a "Foreman's note", Harvest's come "From the almanac", Frontier's come "Off the wire", and Plain's are a "Tip". The tip itself reads the same in every theme, in plain words, as a notification does. **Toil tips on loading screens**, under Settings, General, turns them off, in this browser.
+The theme frames a tip, never words it: Crate's are a "Foreman's note", Harvest's come "From the almanac", Sprawl's are "Word on the street", Frontier's come "Off the wire", and Plain's are a "Tip". The tip itself reads the same in every theme, in plain words, as a notification does. **Toil tips on loading screens**, under Settings, General, turns them off, in this browser.
 
 ### Moments and screen readers
 

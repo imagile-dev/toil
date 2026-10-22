@@ -13,8 +13,9 @@ import { Component, type ReactNode } from 'react';
 import { StatusChip } from '../components/bits.tsx';
 import { ItemLink } from '../components/items.tsx';
 import { useData } from '../data.ts';
+import { Empty, TrackerAction } from '../components/empty.tsx';
 import { EDGE_WORD, dependencyGraph, type GraphNode } from '../model/graph.ts';
-import { useSkins, useTerm, useWords } from '../skins.tsx';
+import { useTerm, useWords } from '../skins.tsx';
 
 type ItemNode = Node<{ node: GraphNode }, 'item'>;
 
@@ -81,11 +82,10 @@ class Drawing extends Component<{ children: ReactNode }, { error: string | null 
 }
 
 export function Graph() {
-  const { dossier, byId } = useData();
-  const { EmptyState } = useSkins();
+  const { dossier, byId, sync } = useData();
   const words = useWords();
   const g = dependencyGraph(dossier.items);
-  if (!g.nodes.length) return <EmptyState message={words('empty.links')} />;
+  if (!g.nodes.length) return <Empty message={words('empty.links')} action={<TrackerAction dossier={dossier.name} sync={sync} />} />;
 
   const nodes: ItemNode[] = g.nodes.map((n) => ({ id: n.id, type: 'item', position: { x: n.rank * 260, y: n.row * 130 }, data: { node: n } }));
   const edges: Edge[] = g.edges.map((e) => {

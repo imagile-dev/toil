@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+<!-- Gig closed: a terminal window with a neon check where the prompt was. -->
+<path d="M6 12h46l6 6v34H6Z" fill="#07060f" stroke="#3ff0ff" stroke-width="2"/>
+<path d="M6 20h52" stroke="#3ff0ff" stroke-width="1.5"/>
+<path d="M52 12h6v6Z" fill="#ff2e88"/>
+<rect x="10" y="15" width="4" height="2.5" fill="#ff2e88"/>
+<rect x="16" y="15" width="4" height="2.5" fill="#f2ff4a"/>
+<path d="M18 36l8 8 18-18" stroke="#39ff9c" stroke-width="5" stroke-linecap="square"/>
+<path d="M18 36l8 8 18-18" stroke="#eaffef" stroke-width="1.5" stroke-linecap="square" opacity=".7"/>
+</svg>

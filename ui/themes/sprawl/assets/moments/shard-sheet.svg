@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 96" width="384" height="96" fill="none">
+<!-- The data shard, decrypting: four frames side by side, one more row of its cipher turning cyan in each, a scan line passing down. Stepped by moving the strip, never redrawn. -->
+<defs><g id="shard">
+<path d="M48 4 74 20v56L48 92 22 76V20Z" fill="#0e0c1d" stroke="#3ff0ff" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M48 4v10M22 20l8 5M74 20l-8 5M48 92V82" stroke="#3ff0ff" stroke-width="1.2" opacity=".6"/>
+<path d="M30 25 48 14l18 11v46L48 82 30 71Z" stroke="#ff2e88" stroke-width="1" opacity=".55"/>
+<path d="M62 6l6 4M66 2l4 3" stroke="#ff2e88" stroke-width="1.5"/>
+</g></defs>
+<g transform="translate(0 0)"><use href="#shard"/>
+<rect x="32.2" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="40.8" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="49.2" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="57.8" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="32.2" y="38.5" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="40.8" y="38.5" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="49.2" y="38.5" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<rect x="57.8" y="38.5" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="32.2" y="47.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="40.8" y="47.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="49.2" y="47.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="57.8" y="47.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="32.2" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="40.8" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="49.2" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="57.8" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="32.2" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="40.8" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<rect x="49.2" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="57.8" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<path d="M27 36.8h42" stroke="#f2ff4a" stroke-width="1.2" opacity=".85"/>
+</g>
+<g transform="translate(96 0)"><use href="#shard"/>
+<rect x="32.2" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="40.8" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="49.2" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="57.8" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="32.2" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="40.8" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="49.2" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="57.8" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="32.2" y="47.0" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<rect x="40.8" y="47.0" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<rect x="49.2" y="47.0" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<rect x="57.8" y="47.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="32.2" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<rect x="40.8" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="49.2" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<rect x="57.8" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="32.2" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="40.8" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="49.2" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="57.8" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<path d="M27 45.2h42" stroke="#f2ff4a" stroke-width="1.2" opacity=".85"/>
+</g>
+<g transform="translate(192 0)"><use href="#shard"/>
+<rect x="32.2" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="40.8" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="49.2" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="57.8" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="32.2" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="40.8" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="49.2" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="57.8" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="32.2" y="47.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="40.8" y="47.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="49.2" y="47.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="57.8" y="47.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="32.2" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="40.8" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<rect x="49.2" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<rect x="57.8" y="55.5" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="32.2" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="40.8" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="49.2" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="57.8" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<path d="M27 53.8h42" stroke="#f2ff4a" stroke-width="1.2" opacity=".85"/>
+</g>
+<g transform="translate(288 0)"><use href="#shard"/>
+<rect x="32.2" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="40.8" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="49.2" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="57.8" y="30.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="32.2" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="40.8" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="49.2" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="57.8" y="38.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="32.2" y="47.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="40.8" y="47.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="49.2" y="47.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="57.8" y="47.0" width="6" height="6" fill="#3ff0ff"/>
+<rect x="32.2" y="55.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="40.8" y="55.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="49.2" y="55.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="57.8" y="55.5" width="6" height="6" fill="#3ff0ff"/>
+<rect x="32.2" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<rect x="40.8" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="49.2" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.85"/>
+<rect x="57.8" y="64.0" width="6" height="6" fill="#ff2e88" opacity="0.3"/>
+<path d="M27 62.2h42" stroke="#f2ff4a" stroke-width="1.2" opacity=".85"/>
+</g>
+</svg>

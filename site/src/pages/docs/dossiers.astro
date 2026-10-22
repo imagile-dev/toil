@@ -56,14 +56,14 @@ import CommandIndex from '../../components/CommandIndex.astro';
   :global(.dx-svg .dx-ink) { fill: var(--color-ink); }
   :global(.dx-svg .dx-strong) { font-weight: 600; }
   :global(.dx-svg .dx-accent) { fill: var(--color-accent); }
-  :global(.dx-svg .dx-amber) { fill: var(--color-amber); }
+  :global(.dx-svg .dx-highlight) { fill: var(--color-highlight); }
   :global(.dx-svg .dx-muted) { fill: var(--color-muted); }
   :global(.dx-svg .dx-box) { fill: var(--color-surface); stroke: var(--color-line-strong); }
   :global(.dx-svg .dx-dossier) { fill: var(--color-surface); stroke: var(--color-accent); stroke-width: 1.5; }
   :global(.dx-svg .dx-row) { fill: var(--color-surface-raised); stroke: var(--color-line); }
-  :global(.dx-svg .dx-conn) { fill: var(--color-surface); stroke: var(--color-amber); stroke-opacity: 0.6; }
-  :global(.dx-svg .dx-lock) { fill: none; stroke: var(--color-amber); stroke-width: 1.5; }
-  :global(.dx-svg .dx-lock rect) { fill: var(--color-amber); fill-opacity: 0.25; }
+  :global(.dx-svg .dx-conn) { fill: var(--color-surface); stroke: var(--color-highlight); stroke-opacity: 0.6; }
+  :global(.dx-svg .dx-lock) { fill: none; stroke: var(--color-highlight); stroke-width: 1.5; }
+  :global(.dx-svg .dx-lock rect) { fill: var(--color-highlight); fill-opacity: 0.25; }
   :global(.dx-svg .dx-wire) { fill: none; stroke: var(--color-line-strong); stroke-width: 1.5; }
   :global(.dx-svg .dx-wire--hot) { stroke: var(--color-accent); }
   :global(.dx-svg .dx-arrowhead) { fill: var(--color-muted); }
@@ -91,7 +91,7 @@ import CommandIndex from '../../components/CommandIndex.astro';
     background: var(--gradient-accent); color: var(--color-accent-ink); font: 600 var(--text-sm) var(--font-action);
   }
   :global(.dx-step__k) { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-ink); }
-  :global(.dx-step__v) { color: var(--color-amber); font-size: var(--text-sm); overflow-wrap: anywhere; }
+  :global(.dx-step__v) { color: var(--color-highlight); font-size: var(--text-sm); overflow-wrap: anywhere; }
   :global(.dx-step__w) { color: var(--color-muted); font-size: var(--text-sm); }
   :global(.dx-step--out) { border-color: var(--color-accent); }
   /* Arrows between steps: down on phones, across on wide screens. */
@@ -114,14 +114,14 @@ import CommandIndex from '../../components/CommandIndex.astro';
   :global(.dx ol.dx-src__places) { display: grid; gap: var(--space-sm); list-style: none; padding: 0; margin: 0; }
   :global(.dx-place) {
     display: grid; gap: var(--space-3xs); align-content: start; min-width: 0;
-    border: 1px solid var(--color-line-strong); border-top: 3px solid var(--color-amber);
+    border: 1px solid var(--color-line-strong); border-top: 3px solid var(--color-highlight);
     border-radius: var(--radius-sm); background: var(--color-surface); padding: var(--space-xs);
   }
   :global(.dx-place:first-child) { border-top-color: var(--color-accent); }
-  :global(.dx-place__rank) { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-amber); }
+  :global(.dx-place__rank) { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-highlight); }
   :global(.dx-place__k) { color: var(--color-ink); font-weight: 600; }
   :global(.dx-place__k code) { font-weight: 400; font-size: var(--text-xs); color: var(--color-muted); border: 1px solid var(--color-line); border-radius: 4px; padding: 0 0.3em; margin-left: 0.3em; }
-  :global(.dx-place__v) { color: var(--color-amber); font-size: var(--text-sm); overflow-wrap: anywhere; }
+  :global(.dx-place__v) { color: var(--color-highlight); font-size: var(--text-sm); overflow-wrap: anywhere; }
   :global(.dx-place__w) { color: var(--color-muted); font-size: var(--text-sm); }
   :global(.dx-src__pick) {
     margin-top: var(--space-sm); border: 1px dashed var(--color-line-strong); border-radius: var(--radius-sm); padding: var(--space-xs);
@@ -146,7 +146,7 @@ import CommandIndex from '../../components/CommandIndex.astro';
   }
   :global(.dx h3.dx-view__k) { font-family: var(--font-mono); font-size: var(--text-xs); letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-ink); margin: 0; font-weight: 600; }
   :global(.dx-view__cmd) { color: var(--color-muted); font-size: var(--text-sm); }
-  :global(.dx-view__cmd code) { color: var(--color-amber); overflow-wrap: anywhere; }
+  :global(.dx-view__cmd code) { color: var(--color-highlight); overflow-wrap: anywhere; }
   :global(.dx-pre) {
     margin: 0; overflow-x: auto; max-width: 100%; padding: var(--space-xs);
     border: 1px solid var(--color-line); border-radius: var(--radius-sm);

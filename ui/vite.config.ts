@@ -1,7 +1,9 @@
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vitest/config';
 import { META_CSP } from './server/csp.ts';
+import { parseChangelog } from './src/whats-new.ts';
 
 // The UI is static files any server can host under any path: the site serves
 // the preview at /toil/ui/app/, and the local server serves the app at its
@@ -44,9 +46,31 @@ function contentSecurityPolicy(): Plugin {
   };
 }
 
+/**
+ * What's new (#417): both packages' release notes, read when the app is built
+ * and served as `virtual:whats-new`, so the page never fetches them. It holds
+ * the versions this build runs on too: Toil UI's own, and the toil it pins
+ * (the local app asks its server for the toil it really runs).
+ */
+function whatsNew(): Plugin {
+  const id = 'virtual:whats-new';
+  const read = (path: string) => readFileSync(fileURLToPath(new URL(path, import.meta.url)), 'utf8');
+  return {
+    name: 'toil-ui-whats-new',
+    resolveId: (source) => (source === id ? `\0${id}` : null),
+    load(resolved) {
+      if (resolved !== `\0${id}`) return null;
+      const pkg = JSON.parse(read('./package.json')) as { version: string; dependencies: Record<string, string> };
+      const releases = [...parseChangelog(read('./CHANGELOG.md'), 'ui'), ...parseChangelog(read('../CHANGELOG.md'), 'toil')];
+      const current = { ui: pkg.version, toil: pkg.dependencies['@imagile-dev/toil'] ?? '0.0.0' };
+      return `export const releases = ${JSON.stringify(releases)};\nexport const current = ${JSON.stringify(current)};\n`;
+    },
+  };
+}
+
 export default defineConfig(({ mode }) => ({
   base: './',
-  plugins: [react(), contentSecurityPolicy(), ...(mode === 'app' ? [localApp()] : [])],
+  plugins: [react(), contentSecurityPolicy(), whatsNew(), ...(mode === 'app' ? [localApp()] : [])],
   server: { fs: { allow: ['..'] } },
   build: {
     outDir: mode === 'app' ? 'dist/app' : 'dist/preview',

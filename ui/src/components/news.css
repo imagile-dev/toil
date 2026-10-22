@@ -1,0 +1,57 @@
+/* The bell and What's new (#417): the two things this adds to the header, sized like its other buttons, in the
+   theme's own surface, ink and accent, so their contrast is the theme's. */
+
+/* The bell: the header's 44px square, its count a pill on its corner in the accent pair the current view's link uses. */
+[data-theme] .btn.bell, .btn.bell { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; padding: 0 0.6rem; }
+.bell__icon { display: block; }
+/* In the compact header the bell sits just before Menu, both on the right. */
+.bell:has(+ .menu-button) { margin-left: auto; flex: none; }
+.bell + .menu-button { margin-left: 0.5rem; }
+.bell__count {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-ink);
+  border: 1px solid var(--accent-ink);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.15rem;
+  text-align: center;
+  letter-spacing: normal;
+}
+.bell-popover { width: min(24rem, calc(100vw - 32px)); max-height: min(70svh, 34rem); overflow-y: auto; overscroll-behavior: contain; }
+.bell-dialog { display: grid; gap: 0.5rem; padding: 0.75rem; outline: none; font-family: var(--font-body); font-size: 0.9375rem; letter-spacing: normal; text-transform: none; }
+.bell-dialog__head { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; }
+.bell-dialog__head [data-bell-read] { margin-left: auto; }
+.bell-dialog__head h2 { margin: 0; font-size: 1.0625rem; }
+.bell-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25rem; }
+.bell-entry { display: grid; gap: 0.1rem; padding: 0.4rem 0.5rem; border-inline-start: 3px solid transparent; border-radius: 4px; overflow-wrap: anywhere; }
+.bell-entry--unread { border-inline-start-color: var(--accent); background: var(--surface); }
+.bell-entry a { display: grid; gap: 0.1rem; color: var(--ink); text-decoration: none; min-height: 24px; }
+.bell-entry a:hover strong, .bell-entry a:focus-visible strong { text-decoration: underline; }
+.bell-entry a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.bell-entry__line { color: var(--ink); }
+.bell-entry .note { font-size: 0.8125rem; }
+.bell-empty { margin: 0; }
+.bell-empty a { display: inline-flex; align-items: center; min-height: 44px; color: var(--link); }
+
+/* The dot on Help, and on the Menu that holds it on a narrow screen: a shape, not only a colour, ringed in the ink. */
+.new-dot { display: inline-block; width: 0.55rem; height: 0.55rem; margin-inline-start: 0.4rem; border-radius: 999px; background: var(--accent); box-shadow: 0 0 0 2px var(--ink); vertical-align: middle; flex: none; }
+
+/* The list: the shortcuts sheet's frame (palette.css), one section a release. */
+.whats-new-modal { max-width: 36rem; }
+.whats-new { display: grid; gap: 0.5rem; padding: 0.75rem 1rem 1rem; outline: none; min-width: 0; max-height: calc(90svh - 2rem); overflow: auto; overscroll-behavior: contain; overflow-wrap: anywhere; }
+.whats-new__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.whats-new__head h2 { font-size: 1.25rem; margin: 0; }
+.whats-new p { margin: 0; }
+.whats-new__release h3 { font-size: 1rem; margin: 0.5rem 0 0.25rem; }
+.whats-new__release ul { margin: 0; padding-inline-start: 1.2rem; display: grid; gap: 0.25rem; }
+.whats-new__links { display: flex; flex-wrap: wrap; gap: 0 1.25rem; }
+.whats-new__links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--link); }
+.menu-item .new-dot { margin-inline-start: auto; }

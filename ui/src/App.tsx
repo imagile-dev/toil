@@ -61,6 +61,9 @@ import type { SyncJob } from './server-client.ts';
 import { CommandPalette, ShortcutsSheet } from './components/palette.tsx';
 import { matches, typingIn } from './shortcuts.ts';
 import { HeaderHelp } from './components/help.tsx';
+import { Bell } from './components/bell.tsx';
+import { NewDot, WhatsNewModal, useWhatsNew } from './components/whats-new.tsx';
+import type { Release, Versions } from './whats-new.ts';
 
 export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'usage' | 'agent-usage' | 'agent';
 export type Route =
@@ -191,14 +194,16 @@ export interface AppProps {
   syncing?: SyncJob | null;
   /** The facts the last sync recorded for the first time (#419), by dossier, which play the theme's moments once; `id` is when that sync finished. */
   news?: { id: string; byDossier: Array<{ dossier: string; events: WorklogEvent[] }> } | null;
-  /** Starts a sync, where the local app keeps a cache (#416): for the command palette and the first-run checklist. */
+  /** Starts a sync, where the local app keeps a cache (#416): for the command palette, the first-run checklist and the empty states that a sync fills (#417). */
   onSync?: () => void;
+  /** The toil and Toil UI this page runs on, for What's new (#417): the server's, or, absent, the ones this build pins. */
+  versions?: Versions;
 }
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, news }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, news, versions }: AppProps) {
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
@@ -217,6 +222,14 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   // The command palette and the shortcuts sheet (#416), hidden until called up; `focused` is the item the focus was on when the palette opened.
   const [palette, setPalette] = useState<{ open: boolean; focused: string | null }>({ open: false, focused: null });
   const [sheet, setSheet] = useState(false);
+  // What's new (#417): a dot on Help after an upgrade, and the list behind it.
+  const whatsNew = useWhatsNew(versions);
+  // What the list shows is taken as it opens, since opening it marks it seen.
+  const [newsOpen, setNewsOpen] = useState<{ shown: Release[]; fresh: boolean } | null>(null);
+  const openWhatsNew = () => {
+    setNewsOpen({ shown: whatsNew.shown, fresh: whatsNew.fresh.length > 0 });
+    whatsNew.seen();
+  };
   const openPalette = () => {
     const card = document.activeElement?.closest('[data-item]')?.getAttribute('data-item') ?? null;
     setPalette({ open: true, focused: card ?? (route.view === 'item' ? route.id : null) });
@@ -385,7 +398,18 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
     </>
   );
   // Help (#346): the docs section for the view in front of you, in a new tab, and Learn (#418) while learning links are on.
-  const help = <HeaderHelp href={viewHelpHref(route.view, route.view === 'settings' ? route.page : undefined)} />;
+  // In the compact header Help sits inside the Menu, which closes first so What's new opens over the page, not over it.
+  const helpWith = (closeFirst?: () => void) => (
+    <HeaderHelp
+      href={viewHelpHref(route.view, route.view === 'settings' ? route.page : undefined)}
+      fresh={whatsNew.fresh.length > 0}
+      onWhatsNew={() => {
+        if (!closeFirst) return openWhatsNew();
+        closeFirst();
+        requestAnimationFrame(() => requestAnimationFrame(openWhatsNew));
+      }}
+    />
+  );
   const current = wanted ? dossiers[wanted] : undefined;
   const failure = (message: string) => (
     <div role="alert" className="failure">
@@ -404,7 +428,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   } else if (!current.ok) {
     body = failure(current.message);
   } else {
-    const data: Data = { dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, execute, analyses, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.dossier) } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest), described };
+    const data: Data = { ...(onSync ? { sync: onSync } : {}), dossier: current.value, byId: new Map(current.value.items.map((i) => [i.id, i])), prById: new Map((current.value.pullRequests ?? []).map((c) => [c.id, c])), agent, now, execute, analyses, ...(config ? { config } : {}), ...(assignments ? { assignments } : {}), ...(startReady ? { startReady } : assignments && !assignments.disabled ? { startReady: startReadyWith(assignments, route.dossier) } : {}), refresh: () => setDossiers(({ [route.dossier]: _, ...rest }) => rest), described };
     body = (
       <DataContext value={data}>
         {/* The Ask bar (#343), on every dossier page; its chat is keyed by dossier, so a conversation lasts across that dossier's views. */}
@@ -451,14 +475,18 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
                 </span>
               </a>
               {compact ? (
-                <HeaderMenu links={links} feedback={feedback} controls={controls} help={help} onPalette={openPalette} onShortcuts={() => setSheet(true)} />
+                <>
+                  <Bell />
+                  <HeaderMenu links={links} feedback={feedback} controls={controls} help={helpWith} fresh={whatsNew.fresh.length > 0} onPalette={openPalette} onShortcuts={() => setSheet(true)} />
+                </>
               ) : (
                 <>
                   <nav aria-label="Views">
                     <NavLinks links={links} />
                   </nav>
                   <div className="settings">
-                    {help}
+                    <Bell />
+                    {helpWith()}
                     {feedback && <FeedbackButton api={feedback} />}
                     {controls}
                   </div>
@@ -497,6 +525,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
           openShortcuts={() => setSheet(true)}
         />
         <ShortcutsSheet isOpen={sheet} onOpenChange={setSheet} />
+        <WhatsNewModal shown={newsOpen?.shown ?? []} fresh={newsOpen?.fresh ?? false} isOpen={newsOpen !== null} onOpenChange={(open) => !open && setNewsOpen(null)} />
         </MomentsProvider>
       </SkinProvider>
       </ThemeChoiceProvider>
@@ -588,7 +617,7 @@ function NavLinks({ links, onFollow }: { links: NavLink[]; onFollow?: () => void
  * inside while it's open, Escape or a click outside closes it, and focus goes
  * back to the button. Feedback closes the menu first, then opens its dialog.
  */
-function HeaderMenu({ links, feedback, controls, help, onPalette, onShortcuts }: { links: NavLink[]; feedback: FeedbackApi | undefined; controls: ReactNode; help: ReactNode; onPalette: () => void; onShortcuts: () => void }) {
+function HeaderMenu({ links, feedback, controls, help, fresh, onPalette, onShortcuts }: { links: NavLink[]; feedback: FeedbackApi | undefined; controls: ReactNode; help: (closeFirst: () => void) => ReactNode; fresh: boolean; onPalette: () => void; onShortcuts: () => void }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const current = links.find((l) => l.current)?.label;
@@ -600,6 +629,8 @@ function HeaderMenu({ links, feedback, controls, help, onPalette, onShortcuts }:
             ☰
           </span>
           Menu
+          {/* Help, with its dot (#417), is inside the Menu here, so the Menu carries the dot. */}
+          {fresh && <NewDot />}
         </Button>
         <Popover className="popover nav-menu" placement="bottom end" offset={6}>
           <Dialog className="nav-menu__dialog" aria-label={current ? `Menu, on ${current}` : 'Menu'}>
@@ -627,7 +658,7 @@ function HeaderMenu({ links, feedback, controls, help, onPalette, onShortcuts }:
               >
                 Keyboard shortcuts
               </Button>
-              {help}
+              {help(() => setOpen(false))}
               {feedback && (
                 <Button
                   className="btn feedback-open"

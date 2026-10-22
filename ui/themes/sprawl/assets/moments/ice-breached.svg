@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+<!-- ICE breached: a hexagonal barrier split open, and a data line running clean through the gap. -->
+<path d="M29 6 9 17.5v29L29 58" stroke="#3ff0ff" stroke-width="2.5" stroke-linejoin="bevel"/>
+<path d="M35 6l20 11.5v29L35 58" stroke="#3ff0ff" stroke-width="2.5" stroke-linejoin="bevel"/>
+<path d="M14 21v22M50 21v22" stroke="#3ff0ff" stroke-width="1.2" opacity=".55"/>
+<path d="M2 32h50" stroke="#ff2e88" stroke-width="3"/>
+<path d="M46 25l9 7-9 7" stroke="#ff2e88" stroke-width="3" stroke-linecap="square"/>
+<rect x="4" y="29" width="6" height="6" fill="#f2ff4a"/>
+</svg>

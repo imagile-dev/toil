@@ -49,12 +49,12 @@ const bitsAt = (line: number, cell: number, dy = 0, dx = 0) =>
   (ink(line * 2 - dy, cell * 2 - dx) ? 1 : 0) | (ink(line * 2 - dy, cell * 2 + 1 - dx) ? 2 : 0) | (ink(line * 2 + 1 - dy, cell * 2 - dx) ? 4 : 0) | (ink(line * 2 + 1 - dy, cell * 2 + 1 - dx) ? 8 : 0);
 
 /**
- * The wordmark at time t as cells: Fredoka's "toil", flame at the baseline rising
- * to amber at the top, over a one-cell shadow in a dark flame, with a cursor after
- * it that blinks with the badge's. It sweeps in from the left with a bright leading
- * edge, and a shine crosses it after the ring's turn. Without colour it's the shape
- * alone; without Unicode, ASCII. The welcome menu draws the same cells, so the
- * word has one shape everywhere.
+ * The wordmark at time t as cells: Fredoka's "toil", the accent blue at the
+ * baseline rising to its highlight at the top, over a one-cell shadow in a dark
+ * blue, with a cursor after it that blinks with the badge's. It sweeps in from
+ * the left with a bright leading edge, and a shine crosses it after the ring's
+ * turn. Without colour it's the shape alone; without Unicode, ASCII. The
+ * welcome menu draws the same cells, so the word has one shape everywhere.
  */
 export function wordmarkCells(t: number, caps: Pick<TermCaps, 'unicode'> & Partial<Pick<TermCaps, 'colorDepth'>>): Cell[][] {
   const colour = (caps.colorDepth ?? 24) > 1;
@@ -75,7 +75,7 @@ export function wordmarkCells(t: number, caps: Pick<TermCaps, 'unicode'> & Parti
       const bits = line < WORD_LINES ? bitsAt(line, col) : 0;
       if (bits) {
         // The vertical gradient, by the line's place in the word, then the sweep and the shine.
-        const base = mix(PALETTE.accent, PALETTE.amber, 1 - line / (WORD_LINES - 1));
+        const base = mix(PALETTE.accent, PALETTE.highlight, 1 - line / (WORD_LINES - 1));
         const edge = clamp(1 - (reveal - col) / 4);
         const glint = t > shineAt && t < shineAt + 0.5 ? clamp(1 - Math.abs(shine - col) / 3) : 0;
         out.push({ ch: caps.unicode ? QUADRANTS[bits]! : asciiQuadrant(bits), color: mix(base, PALETTE.ink, Math.max(edge * 0.8, glint * 0.9)) });

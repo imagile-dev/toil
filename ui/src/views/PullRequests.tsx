@@ -15,12 +15,12 @@ import { DataTable, type Column } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
 import { Help } from '../components/help.tsx';
 import { useData } from '../data.ts';
-import { dateTime, dossierHref, personText } from '../format.ts';
+import { dateTime, dossierEditHref, dossierHref, personText } from '../format.ts';
+import { Empty, EmptyLink, SyncOr } from '../components/empty.tsx';
 import {
   allFlags, daysText, FAILING_HOURS, KIND_LABEL, KINDS, openQueue, parseCodeowners, PICKUP_DAYS, PR_FLAG_LABEL, prMetrics, reviewProposal, SIZE_LINES, SIZES, suggestReviewers, WAITING_LABEL,
   type KindOrAll, type OpenRow, type PrMetrics, type Sample,
 } from '../model/prs.ts';
-import { useSkins } from '../skins.tsx';
 import type { Change } from '../toil.ts';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -120,8 +120,7 @@ const metricColumns: Array<Column<MetricRow>> = [
 ];
 
 export function PullRequests() {
-  const { dossier, byId, now } = useData();
-  const { EmptyState } = useSkins();
+  const { dossier, byId, now, sync } = useData();
   const prs = dossier.pullRequests ?? [];
   const queue = openQueue(prs, byId, now);
   const flags = allFlags(prs, byId, now);
@@ -149,7 +148,7 @@ export function PullRequests() {
 
       <Panel id="queue" title="Waiting now" calls={calls}>
         <p className="note">Open pull requests, longest wait first, each with what it waits on and since when. Drafts come last. Waits count working days, Monday to Friday UTC.</p>
-        {queue.length ? <DataTable className="pr-queue" label="Open pull requests" wide rows={queue} rowKey={(r) => r.change.id} columns={queueColumns} /> : <EmptyState message="No open pull requests for this dossier." />}
+        {queue.length ? <DataTable className="pr-queue" label="Open pull requests" wide rows={queue} rowKey={(r) => r.change.id} columns={queueColumns} /> : <Empty message="No open pull requests for this dossier." action={<SyncOr sync={sync}><EmptyLink edit href={dossierEditHref(dossier.name, 'repos')}>Add a repository</EmptyLink></SyncOr>} />}
       </Panel>
 
       <Panel id="flags" title="Flags" calls={calls} alerts={false}>

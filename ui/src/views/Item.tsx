@@ -10,12 +10,13 @@ import { ReadinessPanel } from '../components/readiness.tsx';
 import { Card, DataTable } from '../components/layout.tsx';
 import { EditLink } from '../components/help.tsx';
 import { useData, useDerived } from '../data.ts';
+import { Empty, EmptyButton, EmptyLink } from '../components/empty.tsx';
 import { STATUS_CATEGORY_LABEL, connectionEditHref, dateTime, dossierEditHref, dossierHref, estimateText, personText, shortKey, sourceLabel } from '../format.ts';
 import { possibleDuplicates } from '../model/duplicates.ts';
 import { age, cycleTime } from '../model/flow.ts';
 import { INSIGHT_LABEL, insights } from '../model/insights.ts';
 import { entry } from '../model/sprint.ts';
-import { useSkins, useTerm, useTheme } from '../skins.tsx';
+import { useTerm, useTheme } from '../skins.tsx';
 import { ItemAssignments } from '../assign/views.tsx';
 
 /** OWI's link type in words, by direction; the source's own wording is shown beside it. */
@@ -28,21 +29,16 @@ const LINK_WORD: Record<string, [string, string]> = {
 };
 
 export function ItemView({ id }: { id: string }) {
-  const { byId, dossier, now } = useData();
+  const { byId, dossier, now, sync } = useData();
   const theme = useTheme();
   const term = useTerm();
   const { insights: prepared } = useDerived();
-  const { EmptyState } = useSkins();
   const item = byId.get(id);
   if (!item) {
     return (
       <>
         <h1 tabIndex={-1}>No such item</h1>
-        <EmptyState message={`The dossier has no item ${id}.`}>
-          <p>
-            <a href={dossierHref(dossier.name)}>Back to {dossier.name}</a>
-          </p>
-        </EmptyState>
+        <Empty message={`The dossier has no item ${id}.`} action={<EmptyLink href={dossierHref(dossier.name)}>Back to {dossier.name}</EmptyLink>} />
       </>
     );
   }
@@ -242,7 +238,9 @@ export function ItemView({ id }: { id: string }) {
         <section aria-labelledby="history">
           <h2 id="history">History</h2>
           {!item.history ? (
-            <p>No history synced for this item.</p>
+            <p>
+              No history synced for this item. {sync && <EmptyButton onPress={sync}>Sync now</EmptyButton>}
+            </p>
           ) : item.history.transitions.length === 0 ? (
             <p>No status changes recorded.</p>
           ) : (

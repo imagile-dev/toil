@@ -110,7 +110,7 @@ const config = (data: WelcomeData): ResolvedConfig | undefined => ('error' in da
 
 const muted = (caps: Caps, text: string) => paint(caps, PALETTE.muted, text);
 const faint = (caps: Caps, text: string) => paint(caps, PALETTE.faint, text);
-const heading = (caps: Caps, text: string) => paint(caps, PALETTE.amber, text);
+const heading = (caps: Caps, text: string) => paint(caps, PALETTE.highlight, text);
 const label = (caps: Caps, text: string) => muted(caps, text.padEnd(10));
 
 const plural = (n: number, word: string) => `${n} ${n === 1 ? word : word.endsWith('y') ? `${word.slice(0, -1)}ies` : `${word}s`}`;

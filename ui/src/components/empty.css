@@ -1,0 +1,6 @@
+/* An empty panel's action (#417): the theme's buttons, under the one line, centred where the theme centres its art. The
+   action keeps the body's ink, not the empty state's muted line, so it reads as something to press. */
+.empty-action { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; margin: 0.5rem 0 0; color: var(--ink); }
+.skin-empty--art .empty-action { justify-content: center; }
+.empty-action__link { display: inline-flex; align-items: center; gap: 0.35rem; min-height: 44px; text-decoration: none; }
+.empty-action__pencil { font-size: 1em; line-height: 1; }
