@@ -54,6 +54,13 @@ export const HELP = {
   'themed-wording': { title: 'themed wording', text: "The theme's own lede, eyebrows, notes, empty states and loading lines, and its names for a sprint, a board or an epic beside the real ones. Buttons, links, figures, ids, commands and errors always read the same.", page: '/docs/themes/', anchor: 'visuals-wording-and-voice' },
   'themed-voice': { title: 'themed agent voice', text: "The agent answers in the theme's register. It changes phrasing only: citations, figures and proposals stay exact.", page: '/docs/themes/', anchor: 'the-checkboxes' },
   motion: { title: 'motion and effects', text: "Reduce motion stops the themes' animations and particles in this browser. Your system's reduced-motion setting stops them whichever way this is set.", page: '/docs/themes/', anchor: 'motion-and-particles' },
+  // Toil tips (#419) link here, as well as the (i) beside their settings.
+  board: { title: 'the board', text: 'Drag a card, or press M on it, to propose a move to another column. The card stays where its tracker says until you apply the command.', page: '/docs/ui/', anchor: 'the-board' },
+  analyses: { title: 'the Analyses tab', text: "Every Analyze kept for the dossier, newest first, with what changed since the one before, worked out by code from each one's snapshot.", page: '/docs/ui/', anchor: 'the-dossier-page' },
+  notifications: { title: 'notifications', text: "A notice when an agent's state changes, never for a tool call. Which states notify, quiet hours and only your own are under Settings, General.", page: '/docs/ui/', anchor: 'notifications' },
+  sync: { title: 'sync and the cache', text: 'A sync fills the local cache the dashboards read, asking only for what changed after the first. A source that fails keeps its last good copy.', page: '/docs/ui/', anchor: 'sync-and-the-cache' },
+  'theme-motion': { title: 'theme motion', text: "How much the theme's splash, loading screens, entrances and moments move: full, subtle or off. Off whenever reduced motion is asked for.", page: '/docs/themes/', anchor: 'theme-moments' },
+  tips: { title: 'toil tips', text: 'One line about toil on each loading screen, in plain words, each with a Read more link. Turn them off here; the choice is kept in this browser.', page: '/docs/themes/', anchor: 'toil-tips' },
 } as const satisfies Record<string, HelpTopic>;
 
 export type HelpTopicId = keyof typeof HELP;

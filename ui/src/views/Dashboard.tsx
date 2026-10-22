@@ -26,6 +26,7 @@ import { Board } from './Board.tsx';
 import { Analyses } from './Analyses.tsx';
 import { BlockerGantt } from './Gantt.tsx';
 import { Overview } from './Overview.tsx';
+import { Loader } from '../moments/Moments.tsx';
 
 // The graph library is the biggest piece of the page, so it loads on its own, after the rest.
 const Graph = lazy(() => import('./Graph.tsx').then((m) => ({ default: m.Graph })));
@@ -243,7 +244,6 @@ function BoardTab({ person }: { person?: string }) {
 /** The Dependencies tab: the blocker Gantt on the sprint's timeline (#396), then the dependency graph, with every relation listed in words under it. */
 function DependenciesTab() {
   const { dossier } = useData();
-  const { Loading } = useSkins();
   const term = useTerm();
   const words = useWords();
   return (
@@ -252,7 +252,7 @@ function DependenciesTab() {
         <BlockerGantt />
       </Panel>
       <Panel id="graph" title={term('dependencies', 'Dependencies')} calls={dossier.calls.work} alerts={false}>
-        <Suspense fallback={<Loading message={words('loading.graph')} />}>
+        <Suspense fallback={<Loader size="panel" message={words('loading.graph')} />}>
           <Graph />
         </Suspense>
       </Panel>

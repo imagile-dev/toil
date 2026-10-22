@@ -23,6 +23,8 @@ export interface SyncPanelProps {
   client: SyncClient;
   /** A sync finished or the cache was wiped: the views should read again. */
   onChange: (status: SyncStatus) => void;
+  /** Every status read, running or not, so the page can show a running sync's progress in the theme's loader (#419). */
+  onStatus?: (status: SyncStatus) => void;
   pollMs?: number;
 }
 
@@ -63,7 +65,7 @@ function DossierRow({ dossier }: { dossier: DossierState }) {
   );
 }
 
-export function SyncPanel({ client, onChange, pollMs = POLL_MS }: SyncPanelProps) {
+export function SyncPanel({ client, onChange, onStatus, pollMs = POLL_MS }: SyncPanelProps) {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -76,6 +78,7 @@ export function SyncPanel({ client, onChange, pollMs = POLL_MS }: SyncPanelProps
     (next: SyncStatus) => {
       setStatus(next);
       setProblem(null);
+      onStatus?.(next);
       if (wasRunning.current && !next.job.running) {
         const failed = next.dossiers.flatMap((d) => d.sources).filter((s) => s.status === 'failed').length;
         setAnnounce(next.job.error ? `The sync stopped: ${next.job.error}` : failed ? `Sync finished; ${failed} source${failed === 1 ? '' : 's'} failed.` : 'Sync finished.');
@@ -83,7 +86,7 @@ export function SyncPanel({ client, onChange, pollMs = POLL_MS }: SyncPanelProps
       }
       wasRunning.current = next.job.running;
     },
-    [onChange],
+    [onChange, onStatus],
   );
   const fail = (e: unknown) => setProblem(e instanceof Error ? e.message : String(e));
 

@@ -16,6 +16,7 @@ import { Card, CardGrid, Cluster, DataTable, Path, Stack, Url } from '../../comp
 import { RepoSetup } from './RepoSetup.tsx';
 import { Help, useLandOn } from '../../components/help.tsx';
 import { AreaField, ChangeForm, CheckField, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
+import { Loader } from '../../moments/Moments.tsx';
 
 interface ListedDossier {
   name: string;
@@ -70,7 +71,7 @@ export function DossierSetup({ config, at }: { config: ConfigApi; at?: DossierTa
   // The form takes focus once the list has loaded and the dossier is chosen; with no section, the dossier picker does.
   const found = Boolean(at && list?.ok && list.value.dossiers.some((d) => d.name === at.dossier));
   useLandOn(at ? (found ? (SECTION_FORM[at.section ?? ''] ?? 'dossier-change') : 'dossier-change') : null, Boolean(list));
-  if (!list) return <p className="skin-loading">Reading your dossiers with toil dossiers list…</p>;
+  if (!list) return <Loader size="panel" message="Reading your dossiers with toil dossiers list…" />;
   if (!list.ok) {
     return (
       <div role="alert" className="failure">

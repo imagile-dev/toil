@@ -317,3 +317,42 @@
 [data-theme="harvest"] .chart .bar--partial {
   fill: var(--muted);
 }
+
+/* Moments (#419): the splash is the farm at sunrise in a wooden frame, the
+   moment cards are wooden signs, and the tips come from the almanac. */
+[data-theme="harvest"] .splash {
+  background:
+    linear-gradient(45deg, rgba(92, 63, 36, 0.035) 25%, transparent 25%, transparent 75%, rgba(92, 63, 36, 0.035) 75%) 0 0 / 8px 8px,
+    var(--bg);
+}
+
+[data-theme="harvest"] .splash__art {
+  border: 8px solid #8a5226;
+  border-image: url("./assets/wood-panel.svg") 8 / 8px round;
+  box-sizing: content-box;
+  max-width: calc(100% - 16px);
+}
+
+[data-theme="harvest"] .splash__ui {
+  border-radius: 0;
+  background: var(--accent);
+}
+
+[data-theme="harvest"] .moment {
+  border: 8px solid #8a5226;
+  border-image: url("./assets/wood-panel.svg") 8 / 8px round;
+  border-radius: 0;
+  background: var(--raised);
+  box-shadow: 4px 4px 0 rgba(43, 26, 14, 0.35);
+}
+
+[data-theme="harvest"] .loader-tip {
+  padding: 0.75rem;
+  border: 4px solid #8a5226;
+  background: var(--raised);
+  box-shadow: 3px 3px 0 rgba(43, 26, 14, 0.25);
+}
+
+[data-theme="harvest"] .loader__flavour {
+  font-style: normal;
+}

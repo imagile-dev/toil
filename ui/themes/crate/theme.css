@@ -186,3 +186,38 @@
 [data-theme="crate"] .chart .bar--partial {
   fill: var(--muted);
 }
+
+/* Moments (#419): the crate's art sits on the near-black like the empty states' does, and
+   the flame glow warms the splash and the moment cards from the same corner as the page. */
+[data-theme="crate"] .loader__art,
+[data-theme="crate"] .splash__art {
+  mix-blend-mode: lighten;
+}
+
+[data-theme="crate"] .splash {
+  background:
+    radial-gradient(circle at 88% 0%, rgba(255, 106, 61, 0.16), transparent 60vmax),
+    var(--bg);
+}
+
+[data-theme="crate"] .splash__name .wordmark {
+  background: linear-gradient(100deg, var(--accent) 10%, var(--link) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+[data-theme="crate"] .splash__ui {
+  background: var(--link);
+}
+
+[data-theme="crate"] .moment {
+  border-top: 3px solid var(--accent);
+}
+
+[data-theme="crate"] .loader-tip__label {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

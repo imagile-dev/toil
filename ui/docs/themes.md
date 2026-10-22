@@ -1,5 +1,5 @@
 ---
-description: Toil UI's five themes, themed wording and the agent's voice, the checkboxes that set how far a theme goes and whether its particles run, Plain's fonts, and how the agent's prompt is composed.
+description: Toil UI's five themes, themed wording and the agent's voice, the checkboxes that set how far a theme goes and whether its particles run, theme moments and toil tips, Plain's fonts, and how the agent's prompt is composed.
 lead: How far a Toil UI theme goes, and what it never changes.
 ---
 
@@ -128,6 +128,105 @@ Three settings decide what moves, in this order:
 3. **Particles and ambient effects**, under the theme picker, for each theme that has particles. Off takes that theme's particles away entirely. Everything else, such as transitions and Crate's drifting grid, keeps following the motion setting.
 
 Each theme says which particles it has in its `theme.json`, as `"ambient": { "particles": "dust" }`, so the switch knows what it controls. The two Toil UI choices are kept in this browser only, never in toil's config.
+
+A theme's splash, loading screens and moments follow a fourth setting, **Theme motion** (Theme moments, below), which reads off whenever either of the first two asks for less.
+
+## Theme moments
+
+A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a dossier opens, a transition between a dossier's tabs, and a short moment when something worth marking happens. Crate and Harvest have all of them. Plain has none, and Starship and Realm don't have them yet.
+
+| Moment | When it plays | How long |
+|---|---|---|
+| Launch splash | Once per launch, while the first read runs, if that read takes longer than 300 ms | Ends as soon as the data is ready, on any key or click, or after 1.8 seconds, when the view's own loading screen carries on. It never adds a wait |
+| Loading screen | Every real wait that lasts longer than 300 ms: opening a dossier, reading the dossiers, a running sync, a graph, a worklog page, a stand-up, a settings page, and the chat while Analyze or a question is thinking | As long as the wait |
+| Dossier entrance | When a dossier opens | About 0.4 seconds |
+| Tab transition | When you move between a dossier's tabs | About 0.25 seconds |
+| Event moment | Once, when a sync records one of these for the first time: an item done, a build passed or failed, a blocker cleared, a pull request merged, or a sprint's end | Under a second each, at most three a sync. The sprint's end is a recap card with its figures, which stays five seconds so you can read them |
+
+A loading screen shows the theme's art, its progress motif, and the real progress in words: what toil is reading and how many of its calls have been answered, or a sync's dossiers, requests and pages. In a game theme, a line of the theme's own flavour text changes every few seconds under it, while **Themed wording** is on. Waits shorter than 300 ms show nothing at all, so a quick read never flashes a loading screen.
+
+An event moment comes from the facts the worklog keeps (**Worklog** in [Toil UI](https://imagile-dev.github.io/toil/docs/ui/)): each sync records what it sees, and a moment plays only for a fact that sync recorded for the first time. A dossier's first sync plays nothing, since everything in its history would be new, and neither does a fact from before the last good sync. The moment says the plain word ("Done", "Build failed") and, while **Themed wording** is on, the theme's word beside it, as in "Signed off (Done)".
+
+You can see every moment of the theme you're in under **Settings, General**, Theme: **Preview the splash**, **Preview a loading screen**, and a **Play** button for each event moment. A preview's progress text is a sample, and says so.
+
+### Theme motion
+
+**Theme motion**, under Settings, General, Motion and effects, says how much the moments move:
+
+| Setting | What it does |
+|---|---|
+| Full (the default) | Every moment plays as the theme draws it |
+| Subtle | The same moments, shorter and smaller, with the loading screens' art held still and only their progress motif moving |
+| Off | Every moment is an instant change: no splash, no entrance, no transition, no event moment. Loading screens are the theme's still art and the progress text |
+
+Theme motion is **off whenever reduced motion is asked for**: your operating system's reduced-motion setting, or **Reduce motion and effects** ticked. That makes off the default for anyone who has reduced motion set, and the page says so beside the setting. It's kept in this browser only, with the other motion settings.
+
+Every moment moves only by `transform` and `opacity`, which the browser composites without repainting the page, and nothing moves while the tab is hidden.
+
+### Toil tips
+
+Every loading screen carries a **toil tip** under its progress, the way a game's loading screen does: one line about toil or Toil UI, such as pressing M on a board card or what `toil dossiers onboard` sets up, with a **Read more** link to the docs section that says the rest. A tip changes about every six seconds while the wait lasts, and a tip you've seen this session doesn't come round again until you've seen them all.
+
+The theme frames a tip, never words it: Crate's are a "Foreman's note", Harvest's come "From the almanac", and Plain's are a "Tip". The tip itself reads the same in every theme, in plain words, as a notification does. **Toil tips on loading screens**, under Settings, General, turns them off, in this browser.
+
+### Moments and screen readers
+
+- A loading screen keeps its progress in a `role="status"` message, so a screen reader hears what is being read. In the chat, the status line under the answer is the one announced, so its loading line isn't read twice. Flavour lines and art are decoration, hidden from screen readers. A tip is text with a link, and is never announced on its own.
+- Event moments are decoration too, hidden from screen readers and from the pointer: no notification announces these changes (notifications are for agents' state changes), so neither does a moment. The facts are in the worklog.
+- Crate's moments are held to the same strict WCAG 2.2 AA bar as the rest of Crate: the layout check opens every preview in Crate with axe, and fails on a violation.
+
+### Declaring moments in theme.json
+
+A theme declares its moments under `"moments"` in its `theme.json`, and the one engine in Toil UI plays them: no theme writes a player of its own. **A theme without the block still works**: it gets the plain defaults, a loading screen with the progress text and a tip, and nothing else moves. Each part of the block is optional on its own, so a theme can start with a loader and add the rest later.
+
+Pictures are named by their key in the theme's `assets`, never by a path, so the asset list stays the one record of what the theme ships. Every word is plain text of up to 160 characters, with no markup. The test on `theme.json` refuses anything else.
+
+```json
+"assets": {
+  "momentSplash": "assets/moments/splash.webp",
+  "momentSprout": "assets/moments/sprout-sheet.svg",
+  "momentBale": "assets/moments/bale.svg",
+  "momentBasket": "assets/moments/basket.svg"
+},
+"moments": {
+  "splash": { "art": { "art": "momentSplash", "width": 480, "height": 320 }, "motif": "fade", "loop": "bob", "line": "Morning on the farm." },
+  "loader": {
+    "art": { "art": "momentSprout", "width": 64, "height": 64, "frames": 4 },
+    "loop": "frames",
+    "track": { "art": "momentBale", "size": 20, "count": 5, "motif": "grow" },
+    "flavour": ["Watering the rows.", "Counting the hay bales."]
+  },
+  "tips": { "label": "From the almanac" },
+  "entrance": "drop",
+  "tabs": "slide",
+  "events": {
+    "item-done": { "art": "momentBasket", "width": 64, "height": 64, "motif": "pop", "label": "Harvested" }
+  },
+  "recap": { "label": "Harvest festival" }
+}
+```
+
+| Key | What it holds | Absent means |
+|---|---|---|
+| `splash` | `art` (a picture or a sprite sheet, below), `motif` (how it arrives), an optional `loop` (how it moves while the wait lasts, at full only), and `line`, the theme's greeting under the name | No splash |
+| `loader` | `art` and its `loop`; `track`, the progress motif: `count` copies of the asset `art` at `size` pixels, moved by `motif`; and `flavour`, up to 12 lines that change while the wait lasts | The theme's Loading skin, with the progress text and a tip |
+| `tips` | `label`, the frame on a tip: "Foreman's note" | "Tip" |
+| `entrance` | The motif a dossier arrives with | It simply appears |
+| `tabs` | The motif a tab arrives with | It simply appears |
+| `events` | One entry per kind: `item-done`, `build-passed`, `build-failed`, `blocker-cleared`, `pr-merged`, `sprint-ended`. Each has `art`, `width`, `height`, `motif`, and `label`, the theme's word, shown beside the plain one | A kind left out plays nothing |
+| `recap` | `label`, the heading of the sprint-end recap card | The `sprint-ended` event's label |
+
+A **picture** is `{ "art": "<asset key>", "width": <px>, "height": <px> }`, the size it's drawn at in CSS pixels, from 8 to 640. A **sprite sheet** adds `"frames": <n>`: that many frames side by side in one image, each `width` wide, which the `frames` loop steps through by moving the strip, never by repainting it.
+
+The motifs are the engine's, so every theme moves the same few ways and each one moves only by `transform` and `opacity`:
+
+| Kind | Motifs |
+|---|---|
+| How something arrives (`splash.motif`, `entrance`, `tabs`, each event's `motif`) | `fade`, `rise`, `drop`, `pop`, `slide`, `stamp`, `sweep`, `grow` |
+| A loop while the wait lasts (`splash.loop`, `loader.loop`) | `bob`, `sway`, `roll`, `pulse`, `frames` (a sprite sheet) |
+| A loader's progress track (`loader.track.motif`) | `march`, `grow`, `blink` |
+
+A theme's `theme.css` may colour and frame the engine's parts (`.splash`, `.loader`, `.loader__art`, `.loader-tip`, `.moment`), scoped to the theme like the rest of its stylesheet, but adds no animation of its own outside `@media (prefers-reduced-motion: no-preference)`. Moment art lives in the theme's `assets/moments/` folder and counts toward the theme's budget: 64 KB a file and 320 KB for the whole theme. Art is CSS, SVG, sprite sheets and still images only, never video, and nothing is fetched from anywhere but the app itself.
 
 ## Asking for a new theme
 

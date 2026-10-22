@@ -7,9 +7,13 @@
  * `/command-center`, `/worklog`) land on their tab. Thirteen stacked sections
  * were reorganised into seven tabs, a reorganisation that, for once, removed
  * a layer.
+ *
+ * A theme's moments (#419) play here: its dossier entrance as the dossier
+ * opens, and its tab transition as a tab changes, each by transform and
+ * opacity only, at the Theme motion level, and not at all at off.
  */
 
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Dialog, Menu, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover } from 'react-aria-components';
 import { AskBar } from '../components/ask.tsx';
 import { Editable, SourceBadges } from '../components/dossier-head.tsx';
@@ -18,7 +22,8 @@ import { AgentsSidebar, useAgentsSummary } from '../assign/sidebar.tsx';
 import { useData, useDerived } from '../data.ts';
 import { analysesHref, boardHref, commandCenterHref, dependenciesHref, dossierHref, peopleHref, prsHref, worklogHref } from '../format.ts';
 import { needingAttention } from '../model/insights.ts';
-import { useTerm } from '../skins.tsx';
+import { useTerm, useTheme } from '../skins.tsx';
+import { momentsOf, useEnter } from '../moments/Moments.tsx';
 import './dossier-shell.css';
 
 export type DossierTab = 'overview' | 'board' | 'dependencies' | 'prs' | 'people' | 'worklog' | 'analyses';
@@ -37,6 +42,11 @@ export function DossierShell({ tab, heading, dossiers, boardView, children }: { 
   const { health: h, insights } = useDerived();
   const term = useTerm();
   const wide = useMediaQuery(SIDEBAR_WIDE);
+  const moments = momentsOf(useTheme());
+  const shell = useRef<HTMLDivElement>(null);
+  const view = useRef<HTMLDivElement>(null);
+  useEnter(shell, moments.entrance, dossier.name, { ms: 420 });
+  useEnter(view, moments.tabs, `${tab ?? ''}:${boardView ?? ''}`, { onMount: false, ms: 260 });
   const attention = useMemo(() => needingAttention(h?.items ?? dossier.items, insights).length, [h, dossier, insights]);
   const name = (
     <Editable field="name" dossier={dossier.name} value={dossier.name} config={config ?? null} onSaved={described ?? (() => undefined)}>
@@ -53,7 +63,7 @@ export function DossierShell({ tab, heading, dossiers, boardView, children }: { 
     { id: 'analyses', href: analysesHref(dossier.name), label: 'Analyses' },
   ];
   return (
-    <div className="dossier-shell" data-wide-sidebar={wide || undefined}>
+    <div className="dossier-shell" data-wide-sidebar={wide || undefined} ref={shell}>
       <div className="dossier-bar">
         <div className="dossier-bar__id">
           <div className="dossier-bar__line">
@@ -119,7 +129,9 @@ export function DossierShell({ tab, heading, dossiers, boardView, children }: { 
         </nav>
       )}
       <div className="dossier-body">
-        <div className="dossier-main">{children}</div>
+        <div className="dossier-main" ref={view}>
+          {children}
+        </div>
         {wide && (
           <aside className="agents-side" aria-labelledby="agents">
             <div className="agents-side__scroll">

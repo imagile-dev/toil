@@ -12,7 +12,8 @@
  *   and declined from their OWI changes, and builds by the time the source gives each run,
  *   with a recovery wherever a passing build follows a failing one.
  * - **Seen by a sync** (`observedEvents`): what the trackers record no time
- *   for, a new blocker or a deployment that failed or came back, found by
+ *   for, a new blocker, a blocker cleared, a sprint that ended (#419), or a
+ *   deployment that failed or came back, found by
  *   comparing one sync's picture with the last. Each says it was first seen
  *   at that sync, and when the sync before it ran, since it happened somewhere
  *   between the two.
@@ -23,11 +24,14 @@
 
 import type { Answer } from '../agent.ts';
 import type { ChangeRef, Deployment, Person, StatusCategory, WorkItem } from '../toil.ts';
+import { sprints } from './sprint.ts';
 
 export type WorklogKind =
   | 'status'
   | 'sprint'
   | 'blocker'
+  | 'blocker-cleared'
+  | 'sprint-ended'
   | 'pr-opened'
   | 'pr-review'
   | 'pr-merged'
@@ -43,6 +47,8 @@ export const SECTION_OF: Record<WorklogKind, 'work' | 'prs' | 'delivery' | null>
   status: 'work',
   sprint: 'work',
   blocker: 'work',
+  'blocker-cleared': 'work',
+  'sprint-ended': 'work',
   'pr-opened': 'prs',
   'pr-review': 'prs',
   'pr-merged': 'prs',
@@ -458,6 +464,46 @@ export function observedEvents(before: Snapshot | null, after: Snapshot, at: str
       out.push({ ...e, key: `blocker:${blocked}:${by}:${stamp}`, observed: { previousSync }, who: item.assignee });
     }
   }
+  // A blocker gone since the last picture, on an item still open: the item it blocked can move (#419).
+  const now = blockers(after.items);
+  for (const [blocked, was] of old) {
+    const item = byId.get(blocked);
+    if (!item || !unfinished(item)) continue;
+    for (const by of [...was].sort()) {
+      if (now.get(blocked)?.has(by)) continue;
+      const blocker = byId.get(by) ?? before.items.find((i) => i.id === by);
+      const refs = blocker ? { [by]: { label: keyOf(blocker), url: blocker.url } } : {};
+      const e = itemEvent(item, 'blocker-cleared', stamp, `no longer blocked by [[${by}]]`, null, by, refs);
+      out.push({ ...e, key: `blocker-cleared:${blocked}:${by}:${stamp}`, observed: { previousSync }, who: item.assignee });
+    }
+  }
+  // A sprint whose end fell between the last good sync and this one (#419), with its tally as this sync saw it.
+  if (previousSync) {
+    for (const sprint of sprints(after.items)) {
+      const end = sprint.end ? Date.parse(sprint.end) : NaN;
+      if (!(end > Date.parse(previousSync) && end <= Date.parse(at))) continue;
+      const items = after.items.filter((i) => i.iteration?.name === sprint.name);
+      const done = items.filter((i) => i.statusCategory === 'DONE');
+      const pts = (list: WorkItem[]) => list.reduce((n, i) => n + (i.estimate?.unit === 'points' ? i.estimate.value : 0), 0);
+      const figures = [`${done.length} of ${items.length} ${items.length === 1 ? 'item' : 'items'} done`, ...(pts(items) ? [`${pts(done)} of ${pts(items)} points done`] : [])];
+      out.push({
+        key: `sprint-ended:${sprint.name}:${isoOf(sprint.end!)}`,
+        kind: 'sprint-ended',
+        at: isoOf(sprint.end!),
+        subject: `sprint:${sprint.name}`,
+        source: sprint.sources[0]?.connection ?? '',
+        label: sprint.name,
+        title: '',
+        url: null,
+        by: null,
+        text: `ended: ${figures.join(', ')}`,
+        cites: [],
+        refs: {},
+        observed: { previousSync },
+        who: null,
+      });
+    }
+  }
   const previous = new Map(before.deployments.map((d) => [d.id, d]));
   for (const d of after.deployments) {
     const was = previous.get(d.id);
@@ -487,7 +533,7 @@ export function observedEvents(before: Snapshot | null, after: Snapshot, at: str
 // The page ---------------------------------------------------------------------------
 
 const ORDER: Record<WorklogKind, number> = {
-  status: 0, sprint: 1, blocker: 2, 'pr-opened': 3, 'pr-review': 4, 'pr-merged': 5, 'pr-declined': 6, 'build-failed': 7, 'build-passed': 8, 'build-recovered': 9, 'deploy-failed': 10, 'deploy-recovered': 11,
+  status: 0, sprint: 1, 'sprint-ended': 1.5, blocker: 2, 'blocker-cleared': 2.5, 'pr-opened': 3, 'pr-review': 4, 'pr-merged': 5, 'pr-declined': 6, 'build-failed': 7, 'build-passed': 8, 'build-recovered': 9, 'deploy-failed': 10, 'deploy-recovered': 11,
 };
 const byTime = (a: WorklogEvent, b: WorklogEvent) => (a.at < b.at ? -1 : a.at > b.at ? 1 : ORDER[a.kind] - ORDER[b.kind] || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
