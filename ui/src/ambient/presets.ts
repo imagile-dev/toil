@@ -287,11 +287,11 @@ export const frontier: Preset = {
     return p.age < p.life && p.x > -12 && p.x < w + 60 && p.y > -60 && p.y < h + 40;
   },
   alpha(p) {
-    return p.kind === 0 ? lifeFade(p, 0.15) * 0.5 : lifeFade(p, 0.3) * 0.32;
+    return p.kind === 0 ? lifeFade(p, 0.15) * 0.6 : lifeFade(p, 0.3) * 0.55;
   },
   sprites: (make) => [
-    make(6, glow('176, 141, 60', 0.35)),
-    make(64, glow('236, 228, 210', 0.1)),
+    make(6, glow('110, 78, 40', 0.45)),
+    make(64, glow('253, 250, 243', 0.15)),
   ],
   draw: (ctx, p, s) => stamp(ctx, s[p.kind], p),
 };

@@ -29,7 +29,7 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(ellipse 60% 45% at 92% 0%, rgba(255, 232, 178, 0.38), rgba(255, 232, 178, 0) 70%);
+  background: radial-gradient(ellipse 55% 45% at 90% 12%, rgba(255, 236, 190, 0.55), rgba(255, 236, 190, 0) 70%);
 }
 
 [data-theme="frontier"] h1,
@@ -334,8 +334,8 @@
   width: 240px;
   max-width: 100%;
   height: auto;
-  -webkit-mask-image: radial-gradient(ellipse 50% 50% at center, #000 60%, transparent 100%);
-  mask-image: radial-gradient(ellipse 50% 50% at center, #000 60%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 50% 50% at center, #000 72%, transparent 100%);
+  mask-image: radial-gradient(ellipse 50% 50% at center, #000 72%, transparent 100%);
 }
 
 /* The local app's sync panel (#257). */

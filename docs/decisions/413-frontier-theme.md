@@ -46,10 +46,10 @@
   per-theme switch removes the particles like every other theme's.
 - **Art.** Four images from the Images API (gpt-image-2, medium), optimised to WebP:
   `wood.webp` (a seamless 512 by 436 tile, cut on the plank gaps and cross-faded at
-  its sides, 14 KB), `survey-map.webp` (44 KB), `locomotive.webp` (loading, 18 KB) and
+  its sides, 14 KB), `survey-map.webp` (cropped inside the plate's printed frame, 47 KB), `locomotive.webp` (loading, 18 KB) and
   `wanted-poster.webp` (empty and lost, 27 KB). The badge, the brass frame, the rivet
   rail, the gauge, the telegraph key and the busted axle are hand-written SVG. The
-  set is 10 files, about 108 KB. `.claude/image-generation/style-frontier.md` holds
+  set is 10 files, about 112 KB. `.claude/image-generation/style-frontier.md` holds
   the style the images were generated with. No names, logos, characters or
   recognisable designs from any book, film, game, show or railroad company.
 - **The badge** keeps the tile's silhouette (`test/brand-sync.test.ts`) as a riveted
