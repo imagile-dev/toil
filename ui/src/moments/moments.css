@@ -284,3 +284,6 @@
 
 /* A dialog the preview opens takes focus itself; the ring belongs on its controls. */
 .moment-preview:focus-visible { outline: none; }
+
+/* An entry that can't play at Theme motion off reads as unavailable, as a disabled button does. */
+.menu-item[data-disabled] { cursor: not-allowed; opacity: 0.75; }
