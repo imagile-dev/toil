@@ -12,4 +12,5 @@
 - **`/about/changelog/` renders `CHANGELOG.md`**, which release-please writes, so the site keeps no copy.
 - **A command index, `/docs/commands/`,** lists every command from the registry's generated lists (`site/src/data/commands/*.json`), for the Reference group. `test/site-docs.test.ts` holds it to the prose rule and exempts it from rendering a skill file.
 - **The docs index shows the path's page names without their descriptions**, three groups across on a desktop, before `SKILL.md`'s own index. With the descriptions it was most of a screen per group, and each page's hero says what it is.
+- **Command names on the area pages read `toil jira issue get` again.** The commands list ran the area and the command together (`toil jiraissue get`): two adjacent expressions in the template lost the space between them. It is one template string now (`site/src/components/CommandIndex.astro`). Found in this PR's screenshots; it was live on the site before.
 - **The before and after excerpts on `/about/` are focusable regions.** axe flagged them (`scrollable-region-focusable`) once they moved; they had the same problem on the home page.
