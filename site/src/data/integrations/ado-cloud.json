@@ -1,7 +1,7 @@
 {
   "area": "ado-cloud",
   "name": "Azure DevOps Services",
-  "group": "work",
+  "group": "trackers",
   "order": 2,
   "covers": "Work items, boards, backlogs, sprints, repos, pull requests, comments, votes",
   "credential": "Organization-scoped personal access token",

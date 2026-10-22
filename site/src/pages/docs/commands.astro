@@ -1,0 +1,85 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PageHero from '../../components/PageHero.astro';
+import DocsCrumb from '../../components/DocsCrumb.astro';
+import DocsPager from '../../components/DocsPager.astro';
+import { skillFiles } from '../../lib/skill-pages.mjs';
+import { url } from '../../lib/url';
+
+// Every command toil has, on one page, grouped by its first word: the lists
+// test/site-commands.test.ts writes from the registry (data/commands/*.json),
+// so there is nothing on this page to keep up to date by hand. Each group
+// links to the page that documents it, where it has one. The index of
+// indexes, which every filing system eventually needs.
+type SiteCommand = { name: string; tool: string | null; description: string; writes: boolean };
+const files = import.meta.glob<SiteCommand[]>('../../data/commands/*.json', { eager: true, import: 'default' });
+const pageOf: Record<string, string> = {
+  ...Object.fromEntries(skillFiles.filter((f) => f.area && f.path).map((f) => [f.area!, `${f.path}#commands-at-a-glance`])),
+  skill: '/docs/skills/#commands-at-a-glance',
+  dossiers: '/docs/dossiers/',
+};
+const groups = Object.entries(files)
+  .map(([path, list]) => ({ group: path.replace(/^.*\/(.+)\.json$/, '$1'), list }))
+  .sort((a, b) => a.group.localeCompare(b.group));
+const total = groups.reduce((n, g) => n + g.list.length, 0);
+---
+
+<Layout title="Command index" description={`All ${total} toil commands, by group.`}>
+  <PageHero eyebrow="<b>Docs</b> · Reference" title="Command index" lead={`All ${total} commands, by group, from the registry.`}>
+    <DocsCrumb name="Command index" />
+    <nav class="jump" aria-label="Groups">
+      <ul>{groups.map((g) => <li><a class="tap" href={`#${g.group}`}>{g.group}</a></li>)}</ul>
+    </nav>
+  </PageHero>
+
+  <section class="section--tight">
+    <div class="container cmdx">
+      {groups.map((g) => (
+        <section class="cmdx__group" id={g.group} aria-labelledby={`${g.group}-title`}>
+          <h2 id={`${g.group}-title`}>
+            {pageOf[g.group] ? <a href={url(pageOf[g.group]!)}><code>toil {g.group}</code></a> : <code>toil {g.group}</code>}
+            <span class="cmdx__count">{g.list.length}</span>
+          </h2>
+          <ul>
+            {g.list.map((c) => (
+              <li>
+                <code class="cmdx__name">toil {g.group} {c.name}</code>
+                {c.writes && <span class="tag">write</span>}
+                {c.tool === null && <span class="tag">CLI only</span>}
+                <p>{c.description}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+      <DocsPager />
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .jump ul { display: flex; flex-wrap: wrap; gap: 0 1rem; margin-top: var(--space-sm); font-family: var(--font-mono); font-size: var(--text-sm); }
+  .jump a { color: var(--color-muted); }
+  .jump a:hover { color: var(--color-accent); }
+
+  .cmdx { display: grid; gap: var(--space-lg); padding-block: var(--space-lg); }
+  .cmdx > * { min-width: 0; }
+  .cmdx__group { scroll-margin-top: 88px; }
+  .cmdx__group h2 { display: flex; align-items: baseline; gap: 0.6rem; font-size: var(--text-xl); margin-bottom: var(--space-xs); }
+  .cmdx__group h2 a { display: inline-flex; align-items: center; min-height: 44px; }
+  .cmdx__group h2 code { color: var(--color-accent); }
+  .cmdx__count { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-faint); }
+  .cmdx__group ul { display: grid; gap: 0; }
+  .cmdx__group li { min-width: 0; border-bottom: 1px solid var(--color-line); padding-block: 0.5rem; }
+  .cmdx__name { font-size: var(--text-sm); color: var(--color-ink); overflow-wrap: anywhere; margin-right: 0.4rem; }
+  .cmdx__group p { color: var(--color-muted); font-size: var(--text-sm); }
+  .tag {
+    font-family: var(--font-mono); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+    border-radius: 999px; padding: 0.05rem 0.45rem; border: 1px solid var(--color-line-strong); color: var(--color-muted);
+    margin-right: 0.3rem;
+  }
+  @media (min-width: 1000px) {
+    .cmdx { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-xl); }
+    .cmdx > :global(.pager) { grid-column: 1 / -1; }
+  }
+</style>

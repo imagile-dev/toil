@@ -1,7 +1,7 @@
 {
   "area": "ado",
   "name": "Azure DevOps Server",
-  "group": "work",
+  "group": "trackers",
   "order": 2,
   "covers": "Work items, repos, pull requests, pipelines",
   "credential": "Personal access token",

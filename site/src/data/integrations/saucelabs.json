@@ -1,8 +1,8 @@
 {
   "area": "saucelabs",
   "name": "Sauce Labs",
-  "group": "build",
-  "order": 5,
+  "group": "testing",
+  "order": 1,
   "covers": "Test jobs, builds, real devices and device sessions, tunnels, platforms, app storage, teams",
   "credential": "Username and access key",
   "credentialNote": "SAUCE_USERNAME and SAUCE_ACCESS_KEY, the variables Sauce's own tooling reads, are used when no toil value is set",

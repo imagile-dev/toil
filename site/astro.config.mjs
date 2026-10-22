@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import { rehypeScrollTables, remarkSkillLinks } from './src/lib/skill-pages.mjs';
+import { isRedirect } from './src/lib/redirects.mjs';
 
 // Served from GitHub Pages as a project site, so every internal link goes
 // through `url()` in src/lib/url.ts rather than starting with a bare `/`.
@@ -25,8 +26,8 @@ export default defineConfig({
   site: 'https://imagile-dev.github.io',
   base: '/toil',
   trailingSlash: 'always',
-  // /ui-preview/ only forwards to /ui/ (#374), so it stays out of the sitemap.
-  integrations: [sitemap({ filter: (page) => !page.endsWith('/ui-preview/') })],
+  // An old address only forwards to its new home (src/lib/redirects.mjs), so it stays out of the sitemap.
+  integrations: [sitemap({ filter: (page) => !isRedirect(new URL(page).pathname.replace(/^\/toil/, '')) })],
   markdown: { remarkPlugins: [remarkSkillLinks({ base: '/toil' })], rehypePlugins: [rehypeScrollTables()] },
   vite: { server: { fs: { allow: ['..'] } }, plugins: [uiPreviewIndex] },
 });

@@ -18,7 +18,9 @@ import { areas, commands } from '../src/registry.js';
  * site/src/data/settings/<area>.json, so its page lists every key it reads,
  * not only the credential. One source per fact, and a clerk who checks it. The board's own
  * per-area files (site/src/data/integrations/<area>.json) are checked here too,
- * since status honesty depends on which areas the registry has.
+ * since status honesty depends on which areas the registry has. The database
+ * engines go the same way, to site/src/data/databases.json, so /connect/ lists
+ * each engine at its own level beside the integrations.
  */
 /**
  * `tool` is null for a command MCP never serves (a `cli-only` one, or an area
@@ -68,7 +70,7 @@ export function siteSettings(): Record<string, SiteSetting[]> {
 const dir = join(import.meta.dirname, '..', 'site', 'src', 'data', 'commands');
 const settingsDir = join(import.meta.dirname, '..', 'site', 'src', 'data', 'settings');
 const boardDir = join(import.meta.dirname, '..', 'site', 'src', 'data', 'integrations');
-const GROUPS = ['work', 'build', 'security', 'observability', 'design'];
+const GROUPS = ['trackers', 'source', 'cicd', 'testing', 'security', 'observability', 'docs'];
 const levels = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'site', 'src', 'data', 'levels.json'), 'utf8')) as Array<{ name: string; meaning: string; localMeaning?: string }>;
 const STATUSES = levels.map((l) => l.name);
 const lists = siteCommands();
@@ -91,6 +93,20 @@ describe('site command reference', () => {
   it('defines exactly the three verification levels, each with its meaning', () => {
     expect(STATUSES).toEqual(['unit', 'live', 'stable']);
     for (const level of levels) expect(level.meaning, level.name).toMatch(/\S/);
+  });
+
+  it('site/src/data/databases.json matches the database providers', async () => {
+    const engines = providers.map((p) => ({ engine: p.engine, label: p.label, verification: p.verification }));
+    await expect(`${JSON.stringify(engines, null, 2)}\n`).toMatchFileSnapshot(join(import.meta.dirname, '..', 'site', 'src', 'data', 'databases.json'));
+  });
+
+  it('gives every database provider, and nothing else, a sign-in and a section of db.md for /connect/', () => {
+    const signIn = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'site', 'src', 'data', 'db-sign-in.json'), 'utf8')) as Record<string, { signIn: string; section: string }>;
+    expect(Object.keys(signIn).sort()).toEqual(providers.map((p) => p.engine).sort());
+    for (const [engine, entry] of Object.entries(signIn)) {
+      expect(entry.signIn, engine).toMatch(/\S/);
+      expect(entry.section, engine).toMatch(/^[a-z0-9-]+$/);
+    }
   });
 
   it('gives every database provider one of the levels', () => {

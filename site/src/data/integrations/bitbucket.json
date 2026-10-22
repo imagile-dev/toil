@@ -1,8 +1,8 @@
 {
   "area": "bitbucket",
   "name": "Bitbucket Data Center",
-  "group": "work",
-  "order": 3,
+  "group": "source",
+  "order": 2,
   "covers": "Repositories, pull requests, comments, builds",
   "credential": "HTTP access token",
   "credentialWhere": "Your profile picture → Manage account → HTTP access tokens",

@@ -1,7 +1,7 @@
 blank_issues_enabled: false
 contact_links:
   - name: Feedback from the site
-    url: https://imagile-dev.github.io/toil/feedback/
+    url: https://imagile-dev.github.io/toil/about/feedback/
     about: Report a problem or suggest something through the toil site, or its curl endpoint. Reports are redacted before an agent triages them.
   - name: Report a security vulnerability
     url: https://github.com/imagile-dev/toil/security/advisories/new

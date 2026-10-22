@@ -17,7 +17,7 @@ const OWN_PAGES = {
   'dossiers.md': '/docs/dossiers/',
   'install.md': '/docs/install/',
   'mcp.md': '/docs/mcp/',
-  'db.md': '/docs/databases/',
+  'db.md': '/connect/db/',
   'util.md': '/docs/utilities/',
   'skills.md': '/docs/skills/',
 };
@@ -55,7 +55,7 @@ export const skillFiles = readdirSync(skillDir)
     const meta = frontmatterOf(text);
     const heading = firstHeading(text) ?? file;
     const title = heading.replace(/\s*\(`[^`]+`\)\s*$/, '').replace(/`/g, '');
-    const path = OWN_PAGES[file] ?? (meta.area ? `/docs/integrations/${meta.area}/` : undefined);
+    const path = OWN_PAGES[file] ?? (meta.area ? `/connect/${meta.area}/` : undefined);
     return { file, area: meta.area, description: meta.description ?? '', title, path };
   });
 
@@ -99,7 +99,8 @@ export function figureHtml(name, base) {
 export function remarkSkillLinks({ base }) {
   return () => (tree, file) => {
     const path = String(file.path ?? file.history?.[0] ?? '').replace(/\\/g, '/');
-    const readme = path.endsWith('/ui/README.md');
+    // The changelog (/about/changelog/) is treated like the README: its heading is the page's hero.
+    const readme = path.endsWith('/ui/README.md') || path.endsWith('/CHANGELOG.md');
     // Toil UI's own docs (ui/docs/*.md, such as /docs/themes/) place figures too, and keep their links as written.
     const uiDoc = path.includes('/ui/docs/');
     if (!path.includes('/skills/toil/') && !readme && !uiDoc) return;

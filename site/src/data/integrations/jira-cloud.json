@@ -1,7 +1,7 @@
 {
   "area": "jira-cloud",
   "name": "Jira Cloud",
-  "group": "work",
+  "group": "trackers",
   "order": 1,
   "covers": "Issues, search, transitions, comments, worklogs, attachments, custom fields, projects, users, boards, sprints",
   "credential": "Atlassian account email and API token",

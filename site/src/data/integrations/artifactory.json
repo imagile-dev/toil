@@ -1,7 +1,7 @@
 {
   "area": "artifactory",
   "name": "JFrog Artifactory",
-  "group": "build",
+  "group": "cicd",
   "order": 2,
   "covers": "Repositories, artifact search, versions, licenses",
   "credential": "Access token",

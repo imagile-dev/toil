@@ -1,8 +1,8 @@
 {
   "area": "splitio",
   "name": "Split.IO",
-  "group": "build",
-  "order": 4,
+  "group": "testing",
+  "order": 2,
   "covers": "Feature flags, environments, change requests",
   "credential": "Admin API key",
   "credentialWhere": "Admin settings → API keys → Create API key, type Admin",

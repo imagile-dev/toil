@@ -8,17 +8,17 @@
   <a href="https://www.npmjs.com/package/@imagile-dev/toil"><img src="https://img.shields.io/npm/v/@imagile-dev/toil/alpha?style=flat-square&label=npm&labelColor=16130f&color=ff6a3d" alt="npm version (alpha)"></a>
   <a href="https://github.com/imagile-dev/toil/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/imagile-dev/toil/ci.yml?branch=main&style=flat-square&label=CI&labelColor=16130f" alt="CI status on main"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/node-%E2%89%A5%2024.14-ffb84d?style=flat-square&labelColor=16130f" alt="Node.js 24.14 or later"></a>
-  <a href="https://imagile-dev.github.io/toil/how-it-works/"><img src="https://img.shields.io/badge/runtime%20dependencies-0-ffb84d?style=flat-square&labelColor=16130f" alt="No runtime dependencies"></a>
+  <a href="https://imagile-dev.github.io/toil/about/how-it-works/"><img src="https://img.shields.io/badge/runtime%20dependencies-0-ffb84d?style=flat-square&labelColor=16130f" alt="No runtime dependencies"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/imagile-dev/toil?style=flat-square&labelColor=16130f&color=b4a998" alt="Apache 2.0 license"></a>
 </p>
 
 <p align="center">
   <a href="https://imagile-dev.github.io/toil/"><b>Website</b></a> ·
+  <a href="https://imagile-dev.github.io/toil/connect/"><b>Connect</b></a> ·
   <a href="https://imagile-dev.github.io/toil/docs/"><b>Docs</b></a> ·
-  <a href="https://imagile-dev.github.io/toil/how-it-works/"><b>How it works</b></a> ·
-  <a href="https://imagile-dev.github.io/toil/integrations/"><b>Integrations</b></a> ·
-  <a href="https://imagile-dev.github.io/toil/principles/"><b>Principles</b></a> ·
-  <a href="https://imagile-dev.github.io/toil/feedback/"><b>Feedback</b></a>
+  <a href="https://imagile-dev.github.io/toil/about/how-it-works/"><b>How it works</b></a> ·
+  <a href="https://imagile-dev.github.io/toil/about/principles/"><b>Principles</b></a> ·
+  <a href="https://imagile-dev.github.io/toil/about/feedback/"><b>Feedback</b></a>
 </p>
 
 The token-efficient alternative to MCP: one CLI that gives agents your enterprise
@@ -185,21 +185,23 @@ Code the clone is also a plugin marketplace: `claude plugin marketplace add
 
 | Area | What it covers |
 |------|----------------|
-| [`db`](https://imagile-dev.github.io/toil/docs/databases/) | SQLite, PostgreSQL, MySQL / MariaDB, SQL Server, Oracle, Teradata, Hive and Impala: list schemas and tables, describe a table, preview rows, read-only queries with paging |
+| [`db`](https://imagile-dev.github.io/toil/connect/db/) | SQLite, PostgreSQL, MySQL / MariaDB, SQL Server, Oracle, Teradata, Hive and Impala: list schemas and tables, describe a table, preview rows, read-only queries with paging |
 | [`util`](https://imagile-dev.github.io/toil/docs/utilities/) | Local commands with no connection or network: JWTs, dependency inventories, encodings and hashes, certificates, test and coverage reports, logs, secret scans, time and versions, Jira and Confluence markup, OpenAPI |
 | [`skills`](https://imagile-dev.github.io/toil/docs/skills/) | Add a git-hosted skills marketplace, install its plugins for Codex, GitHub Copilot or Claude Code, switch them on and off |
 | [The toil skill](https://imagile-dev.github.io/toil/docs/) | toil's own command reference for agents, one file per area |
-| [Work tracking and source](https://imagile-dev.github.io/toil/integrations/) (9) | Jira, Confluence and Bitbucket (Data Center and Cloud), GitHub & GitHub Enterprise, Azure DevOps Server, local git |
-| [Build, release and runtime](https://imagile-dev.github.io/toil/integrations/) (5) | JFrog Artifactory, Jenkins, OpenShift / Kubernetes, Sauce Labs, Split.IO |
-| [Security and quality](https://imagile-dev.github.io/toil/integrations/) (7) | Checkmarx One, Contrast Security, SD Elements, SonarQube, Sonatype IQ Server, Sonatype OSS Index, OSV.dev |
-| [Observability](https://imagile-dev.github.io/toil/integrations/) (4) | Dynatrace, Elasticsearch, Kibana, Falcon LogScale |
-| [Design and data](https://imagile-dev.github.io/toil/integrations/) (2) | Figma, Alation |
+| [Work tracking](https://imagile-dev.github.io/toil/connect/#trackers) (4) | Jira (Data Center and Cloud), Azure DevOps Server and Services |
+| [Source and review](https://imagile-dev.github.io/toil/connect/#source) (4) | GitHub & GitHub Enterprise, Bitbucket (Data Center and Cloud), local git |
+| [CI/CD and runtime](https://imagile-dev.github.io/toil/connect/#cicd) (3) | Jenkins, JFrog Artifactory, OpenShift / Kubernetes |
+| [Testing and flags](https://imagile-dev.github.io/toil/connect/#testing) (2) | Sauce Labs, Split.IO |
+| [Security and quality](https://imagile-dev.github.io/toil/connect/#security) (7) | Checkmarx One, Contrast Security, SD Elements, SonarQube, Sonatype IQ Server, Sonatype OSS Index, OSV.dev |
+| [Observability](https://imagile-dev.github.io/toil/connect/#observability) (4) | Dynatrace, Elasticsearch, Kibana, Falcon LogScale |
+| [Docs and design](https://imagile-dev.github.io/toil/connect/#docs) (4) | Confluence (Data Center and Cloud), Figma, Alation |
 
 Every integration that needs a credential signs in with a long-lived token you
 generate once in the vendor's UI. Every integration records how far it has been
 verified: `unit`, `live` or `stable`. Each one's
-page on the [integrations board](https://imagile-dev.github.io/toil/integrations/)
-says what its level means.
+page under [Connect](https://imagile-dev.github.io/toil/connect/), where the
+database engines sit beside the integrations, says what its level means.
 
 ## Toil UI
 

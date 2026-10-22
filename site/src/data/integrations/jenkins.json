@@ -1,7 +1,7 @@
 {
   "area": "jenkins",
   "name": "Jenkins",
-  "group": "build",
+  "group": "cicd",
   "order": 1,
   "covers": "Jobs, builds, console logs, queue",
   "credential": "API token",

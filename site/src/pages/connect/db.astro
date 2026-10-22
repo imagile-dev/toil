@@ -1,0 +1,18 @@
+---
+import SkillPage from '../../components/SkillPage.astro';
+import CommandIndex from '../../components/CommandIndex.astro';
+import ConnectPager from '../../components/ConnectPager.astro';
+
+// The db area's page, under /connect/ beside the integrations since #431:
+// skills/toil/db.md, rendered, then the registry's command list. Its engines
+// are the Databases category on /connect/, each linking to its own section here.
+---
+
+<SkillPage file="db.md" root={{ label: 'Connect', href: '/connect/' }}>
+  <dl slot="facts">
+    <div><dt>Area</dt><dd><code>toil db</code></dd></div>
+    <div><dt>Env prefix</dt><dd><code>TOIL_DB_</code></dd></div>
+  </dl>
+  <CommandIndex group="db" />
+  <ConnectPager />
+</SkillPage>

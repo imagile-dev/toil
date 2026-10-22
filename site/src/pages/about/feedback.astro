@@ -1,8 +1,9 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import PageHero from '../components/PageHero.astro';
-import { feedback } from '../data/feedback';
-import { repoUrl } from '../lib/url';
+import Layout from '../../layouts/Layout.astro';
+import PageHero from '../../components/PageHero.astro';
+import Crumb from '../../components/Crumb.astro';
+import { feedback } from '../../data/feedback';
+import { repoUrl } from '../../lib/url';
 
 const reportUrl = `${feedback.endpoint}/api/report`;
 const curl = `curl -sS ${reportUrl} \\
@@ -12,10 +13,12 @@ const curl = `curl -sS ${reportUrl} \\
 
 <Layout title="Feedback" description="Report a bug or ask for a feature in toil, without a GitHub account.">
   <PageHero
-    eyebrow="Feedback"
+    eyebrow="<b>About</b>"
     title="Found a bug? <em>Tell us.</em>"
     lead="Report a bug or ask for a feature without a GitHub account. Each report becomes a public GitHub issue, and we email you the link and again when it closes."
-  />
+  >
+    <Crumb steps={[{ label: 'About', href: '/about/' }, { label: 'Feedback' }]} />
+  </PageHero>
 
   <section class="section section--tight">
     <div class="container fb">
@@ -83,7 +86,7 @@ const curl = `curl -sS ${reportUrl} \\
 <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
 <script>
-  import { feedback } from '../data/feedback';
+  import { feedback } from '../../data/feedback';
 
   const form = document.getElementById('feedback-form') as HTMLFormElement | null;
   if (form) {

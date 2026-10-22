@@ -1,8 +1,8 @@
 {
   "area": "confluence-cloud",
   "name": "Confluence Cloud",
-  "group": "work",
-  "order": 5,
+  "group": "docs",
+  "order": 1,
   "covers": "Pages, spaces, search, comments, labels, attachments",
   "credential": "Atlassian account email and API token",
   "credentialWhere": "id.atlassian.com → Security → API tokens",

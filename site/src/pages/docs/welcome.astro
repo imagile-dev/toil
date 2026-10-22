@@ -1,6 +1,8 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import PageHero from '../../components/PageHero.astro';
+import DocsCrumb from '../../components/DocsCrumb.astro';
+import DocsPager from '../../components/DocsPager.astro';
 import TerminalRecording from '../../components/TerminalRecording.astro';
 import TerminalScreen from '../../components/TerminalScreen.astro';
 import { recording } from '../../lib/terminal';
@@ -48,7 +50,7 @@ const keys = [
     title="Type <em>toil.</em> Get set up."
     lead="Run toil with nothing after it, in a terminal, and it opens a menu that takes you from nothing to a tested connection without typing a command. Every step it takes is a plain toil command, shown as it runs, so the menu is a way in, never the only way."
   >
-    <p class="crumb"><a href={url('/docs/')}>Docs</a> <span aria-hidden="true">/</span> <span>The welcome menu</span></p>
+    <DocsCrumb name="The welcome menu" />
   </PageHero>
 
   <section class="section--tight">
@@ -147,7 +149,7 @@ const keys = [
           <p>
             Turning writes on for a connection asks you to type its name. There is no flag that skips the question, and without a terminal the command
             refuses and tells you to set <code>"writes": true</code> yourself. Removing a connection asks for the name too. Even with writes on, every
-            write still needs <code>--allow-write</code> on the call. <a href={url('/how-it-works/#safety')}>How writes are gated</a>.
+            write still needs <code>--allow-write</code> on the call. <a href={url('/about/how-it-works/#safety')}>How writes are gated</a>.
           </p>
         </section>
 
@@ -236,6 +238,7 @@ const keys = [
             </table>
           </div>
         </section>
+        <DocsPager />
       </article>
     </div>
   </section>
@@ -259,9 +262,6 @@ const keys = [
 </Layout>
 
 <style>
-  .crumb { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-faint); }
-  .crumb a { color: var(--color-muted); }
-  .crumb a:hover { color: var(--color-accent); }
 
   .note { margin-top: var(--space-sm); max-width: 68ch; color: var(--color-muted); }
 

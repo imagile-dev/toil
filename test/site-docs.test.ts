@@ -17,16 +17,24 @@ import { FIGURE, UI_DOC_PAGES, figureDir, pagePath, skillFiles, uiDocDir } from 
  * /docs/ui/ renders Toil UI's README (ui/README.md) instead: the UI is its own
  * package, outside the toil skill, and its README is its one copy of the
  * reference, the same file npm shows. /docs/themes/ renders Toil UI's
- * ui/docs/themes.md the same way (#283).
+ * ui/docs/themes.md the same way (#283). /docs/commands/ renders no file at
+ * all: it is the registry's command lists, every area's on one page.
+ *
+ * The integration and database pages moved to /connect/<area>/ (#431) and are
+ * held to the same rule; /connect/ itself is the catalogue, not a docs page.
  *
  * A second copy of a document is how a filing cabinet starts.
  */
 const root = join(import.meta.dirname, '..');
-const docsDir = join(root, 'site', 'src', 'pages', 'docs');
-const components = ['SkillPage.astro', 'CommandIndex.astro'].map((f) => join(root, 'site', 'src', 'components', f));
-const NOT_SKILL = new Set(['welcome.astro']);
+const pagesDir = join(root, 'site', 'src', 'pages');
+const docsDir = join(pagesDir, 'docs');
+const connectDir = join(pagesDir, 'connect');
+const components = ['SkillPage.astro', 'CommandIndex.astro', 'Crumb.astro', 'DocsCrumb.astro', 'DocsPager.astro', 'ConnectPager.astro'].map((f) => join(root, 'site', 'src', 'components', f));
+const NOT_SKILL = new Set(['docs/welcome.astro', 'connect/index.astro']);
 /** Pages that render one Markdown file from outside the skill, by the file. */
-const RENDERS = new Map([['ui.astro', 'ui/README.md'], ['themes.astro', 'ui/docs/themes.md'], ['ui-help.astro', 'ui/docs/help.md']]);
+const RENDERS = new Map([['docs/ui.astro', 'ui/README.md'], ['docs/themes.astro', 'ui/docs/themes.md'], ['docs/ui-help.astro', 'ui/docs/help.md']]);
+/** Pages that render only the registry's generated lists. */
+const LISTS = new Set(['docs/commands.astro']);
 /** Longest run of literal words a page may carry: a label or a heading, not a sentence of reference. */
 const MAX_WORDS = 8;
 
@@ -34,7 +42,7 @@ function pages(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const path = join(dir, name);
     if (statSync(path).isDirectory()) return pages(path);
-    return name.endsWith('.astro') && !NOT_SKILL.has(name) ? [path] : [];
+    return name.endsWith('.astro') && !NOT_SKILL.has(relative(pagesDir, path).replace(/\\/g, '/')) ? [path] : [];
   });
 }
 
@@ -76,11 +84,12 @@ export function prose(astro: string): string[] {
 }
 
 describe('the docs pages render skills/toil/ and carry no reference prose of their own', () => {
-  const files = pages(docsDir);
+  const files = [...pages(docsDir), ...pages(connectDir)];
+  const nameOf = (file: string) => relative(pagesDir, file).replace(/\\/g, '/');
 
   it('finds the pages', () => {
-    expect(files.map((f) => relative(docsDir, f).replace(/\\/g, '/')).sort()).toEqual(
-      expect.arrayContaining(['core.astro', 'databases.astro', 'index.astro', 'install.astro', 'integrations/[area].astro', 'mcp.astro', 'skills.astro', 'utilities.astro']),
+    expect(files.map(nameOf).sort()).toEqual(
+      expect.arrayContaining(['connect/[area].astro', 'connect/db.astro', 'docs/commands.astro', 'docs/core.astro', 'docs/index.astro', 'docs/install.astro', 'docs/mcp.astro', 'docs/skills.astro', 'docs/utilities.astro']),
     );
   });
 
@@ -91,10 +100,10 @@ describe('the docs pages render skills/toil/ and carry no reference prose of the
     });
   }
 
-  for (const file of files) {
-    const name = relative(docsDir, file).replace(/\\/g, '/');
+  for (const file of files.filter((f) => !LISTS.has(nameOf(f)))) {
+    const name = nameOf(file);
     const other = RENDERS.get(name);
-    it(other ? `docs/${name} renders ${other}` : `docs/${name} renders a file of the skill`, () => {
+    it(other ? `${name} renders ${other}` : `${name} renders a file of the skill`, () => {
       const page = readFileSync(file, 'utf8');
       if (other) expect(page).toMatch(new RegExp(String.raw`^import \{ Content(, frontmatter)? \} from '\.\./\.\./\.\./\.\./${other.replace(/[./]/g, '\\$&')}';$`, 'm'));
       else expect(page).toMatch(/<SkillPage file=/);

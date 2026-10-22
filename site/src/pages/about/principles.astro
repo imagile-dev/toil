@@ -1,16 +1,19 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import PageHero from '../components/PageHero.astro';
-import { principles } from '../data/principles';
-import { repoUrl } from '../lib/url';
+import Layout from '../../layouts/Layout.astro';
+import PageHero from '../../components/PageHero.astro';
+import Crumb from '../../components/Crumb.astro';
+import { principles } from '../../data/principles';
+import { repoUrl } from '../../lib/url';
 ---
 
 <Layout title="Principles" description={`The ${principles.length} principles every decision in toil traces back to.`}>
   <PageHero
-    eyebrow="How toil is built"
+    eyebrow="<b>About</b>"
     title="Principles first. <em>Rules follow.</em>"
     lead="Every rule in toil is a consequence of one of these. When a new case comes up, we reason from the principle rather than adding a one-off rule, so the tool stays predictable as it grows."
-  />
+  >
+    <Crumb steps={[{ label: 'About', href: '/about/' }, { label: 'Principles' }]} />
+  </PageHero>
 
   <section class="section">
     <div class="container">

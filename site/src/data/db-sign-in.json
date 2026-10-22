@@ -1,0 +1,10 @@
+{
+  "sqlite": { "signIn": "None — a local file", "section": "sqlite-connections" },
+  "postgres": { "signIn": "User and password", "section": "postgresql-connections" },
+  "mysql": { "signIn": "User and password", "section": "mysql-and-mariadb-connections" },
+  "sqlserver": { "signIn": "SQL login, or Windows authentication", "section": "sql-server-connections" },
+  "oracle": { "signIn": "User and password", "section": "oracle-connections" },
+  "teradata": { "signIn": "User and password, or a bearer token", "section": "teradata-connections" },
+  "hive": { "signIn": "A read-only account's user and password", "section": "hive-and-impala-connections" },
+  "impala": { "signIn": "A read-only account's user and password", "section": "hive-and-impala-connections" }
+}
