@@ -73,8 +73,9 @@ gets made again in the next place it applies.
    and modules, the maintainer's AI-fluency course, may be linked from Toil UI's
    learning links (behind its "Links to learning content" setting), the welcome
    menu's Learn, and one line in `skills/toil/core.md`. They are links a person
-   follows, never fetched, and the glossary's first sentences are copied in at build
-   time with their source named (the maintainer's decision on #418, 2026-10-22).
+   follows, never fetched, and the glossary's first sentences are copied into the
+   source by hand with their source named (the maintainer's decision on #418,
+   2026-10-22).
 7. **Never break what users already rely on silently.** Config on disk, command paths
    and flags, MCP tool names (which follow the paths), page cursors, the JSON envelope
    and precedence are contracts; changing them is a declared,

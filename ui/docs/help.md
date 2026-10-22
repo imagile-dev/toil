@@ -29,7 +29,7 @@ With those links on, **Help** is a menu: the docs for the view you're on, then *
 
 **Links to learning content**, under Settings, General, is on by default and kept in this browser. Off, every link to Context Overflow and every glossary line is gone, and Help is the one docs link again, for an organization that blocks outside sites.
 
-Read more, Help and Learn are the only links out of the app. Each opens in a new tab only when you follow it, and nothing is fetched, prefetched or previewed before that. The definitions are copied into Toil UI when it's built.
+Read more, Help and Learn are the only links out of the app. Each opens in a new tab only when you follow it, and nothing is fetched, prefetched or previewed before that. The definitions are copied into Toil UI's source by hand; no build step fetches them either.
 
 ## Edit links
 

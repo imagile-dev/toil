@@ -16,7 +16,7 @@
  * Context Overflow's glossary. Linking to that site is the maintainer's
  * decision of 2026-10-22, recorded on #418 and in principle 6 as its one
  * exception to the rule that the docs and code name no other project. The sentences are Context Overflow's
- * own, copied in at build time from its glossary's term files (the first
+ * own, copied into this file by hand from its glossary's term files (the first
  * sentence of each `description:`) and attributed to it here; nothing is
  * fetched while the app runs. `ui/test/help.test.tsx` holds every slug to a
  * pinned copy of the glossary's term list. "Links to learning content" under
