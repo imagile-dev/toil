@@ -144,7 +144,7 @@ A theme's splash, loading screens and moments follow a fourth setting, **Theme m
 
 ## Theme moments
 
-A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a dossier opens, a transition between a dossier's tabs, and a short moment when something worth marking happens. Crate and Harvest have all of them. Plain has none, and Starship, Realm, Sprawl, Frontier and Overworld don't have them yet.
+A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a dossier opens, a transition between a dossier's tabs, and a short moment when something worth marking happens. Crate, Harvest and Realm have all of them. Plain has none, and Starship, Sprawl, Frontier and Overworld don't have them yet.
 
 | Moment | When it plays | How long |
 |---|---|---|
@@ -178,7 +178,7 @@ Every moment moves only by `transform` and `opacity`, which the browser composit
 
 Every loading screen carries a **toil tip** under its progress, the way a game's loading screen does: one line about toil or Toil UI, such as pressing M on a board card or what `toil dossiers onboard` sets up, with a **Read more** link to the docs section that says the rest. A tip changes about every six seconds while the wait lasts, and a tip you've seen this session doesn't come round again until you've seen them all.
 
-The theme frames a tip, never words it: Crate's are a "Foreman's note", Harvest's come "From the almanac", and Plain's are a "Tip". The tip itself reads the same in every theme, in plain words, as a notification does. **Toil tips on loading screens**, under Settings, General, turns them off, in this browser.
+The theme frames a tip, never words it: Crate's are a "Foreman's note", Harvest's come "From the almanac", Realm's "From the rulebook", and Plain's are a "Tip". The tip itself reads the same in every theme, in plain words, as a notification does. **Toil tips on loading screens**, under Settings, General, turns them off, in this browser.
 
 ### Moments and screen readers
 
@@ -234,7 +234,7 @@ The motifs are the engine's, so every theme moves the same few ways and each one
 | Kind | Motifs |
 |---|---|
 | How something arrives (`splash.motif`, `entrance`, `tabs`, each event's `motif`) | `fade`, `rise`, `drop`, `pop`, `slide`, `stamp`, `sweep`, `grow` |
-| A loop while the wait lasts (`splash.loop`, `loader.loop`) | `bob`, `sway`, `roll`, `pulse`, `frames` (a sprite sheet) |
+| A loop while the wait lasts (`splash.loop`, `loader.loop`) | `bob`, `sway`, `roll`, `pulse`, `tumble` (a full turn that settles, as a die rolls), `frames` (a sprite sheet) |
 | A loader's progress track (`loader.track.motif`) | `march`, `grow`, `blink` |
 
 A theme's `theme.css` may colour and frame the engine's parts (`.splash`, `.loader`, `.loader__art`, `.loader-tip`, `.moment`), scoped to the theme like the rest of its stylesheet, but adds no animation of its own outside `@media (prefers-reduced-motion: no-preference)`. Moment art lives in the theme's `assets/moments/` folder and counts toward the theme's budget: 64 KB a file and 320 KB for the whole theme. Art is CSS, SVG, sprite sheets and still images only, never video, and nothing is fetched from anywhere but the app itself.
