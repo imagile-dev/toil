@@ -1,6 +1,6 @@
 ---
 name: ship
-description: Take the current branch to a merge-ready PR on GitHub. Runs four local reviews in parallel (the gate, a code review, a documentation review and a principle review), fixes what the gate, code and docs reviews find, shows principle findings to the maintainer instead of fixing them, opens or updates the PR, then watches it every four minutes and handles reviews, CI failures and merge conflicts until it merges on the Imagile Bot's approval or is ready for a human to merge. Use whenever you open, update or shepherd a PR ("ship this", "open a PR", "push the fix"), and instead of the desktop app's Auto-fix.
+description: Take the current branch to a merge-ready PR on GitHub. Runs local reviews in parallel (the gate, a code review, a documentation review, a principle review, and a screen review when Toil UI or the welcome menu changes), fixes what the gate, code and docs reviews find, shows principle findings to the maintainer instead of fixing them, opens or updates the PR, then watches it every four minutes and handles reviews, CI failures and merge conflicts until it merges on the Imagile Bot's approval or is ready for a human to merge. Use whenever you open, update or shepherd a PR ("ship this", "open a PR", "push the fix"), and instead of the desktop app's Auto-fix.
 ---
 
 # Ship
@@ -62,10 +62,11 @@ Auto-merge relies on `main`'s ruleset counting only an approval of the head comm
   `docs/decisions/<issue#>-<slug>.md` after the branch (CLAUDE.md, Delivery), never in
   `AGENT_DECISIONS.md`, which is a frozen archive.
 
-## 2. Four reviews, in parallel
+## 2. Reviews, in parallel
 
-Launch four `model: opus` subagents in one message. **If you are yourself a
-subagent** (an integration agent the coordinator started), run the four reviews
+Launch four `model: opus` subagents in one message, five when the change touches a
+screen (below). **If you are yourself a
+subagent** (an integration agent the coordinator started), run the reviews
 yourself, one after another, instead: a sub-subagent's result is delivered to the
 coordinating session, not to you. They only read and run checks, and report findings;
 none of them edits. Give each the branch, `origin/main` as the base, and the PR
@@ -101,10 +102,25 @@ principle), and the simplest fix.
   `docs/bounds.md`: does this change keep it, bend it, or show that a
   principle is missing or needs sharpening? Report only. This reviewer proposes no
   code fix, because the principles are the maintainer's to change.
+- **Screen review** (principle 11), when the diff touches `ui/src/`, `ui/themes/` or
+  `src/welcome/`. Run `npm run verify:ui` (or `toil-ui --sample` for the welcome
+  menu, the menu itself) and look at every screen the change touches, at 1440 and
+  375px. Flag:
+  - a sentence of explanation on the page that belongs in an (i) tooltip with a
+    Read more link (`ui/src/help.ts`)
+  - a control repeated on every row or card that belongs in a menu, the command
+    palette or a shortcut
+  - an empty state with no action that fills it
+  - something added to a screen with nothing taken off and no reason it must
+    always show
+  - help text that repeats what a label already says
+
+  Each finding names the screen, the element and the quieter form. These are fixed
+  like code findings.
 
 ## 3. Fix, then surface
 
-- **Fix every gate, code and docs finding**, non-blocking ones included, with the
+- **Fix every gate, code, docs and screen finding**, non-blocking ones included, with the
   simplest fix that's easy to understand (CLAUDE.md, Delivery). Then run the gate
   again. Repeat until it's clean. After three rounds that don't converge, stop and
   tell the user what's left.
