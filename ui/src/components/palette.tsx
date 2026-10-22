@@ -14,7 +14,7 @@
  * switchboard, without the hold music.
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Autocomplete, Button, Dialog, Header, Heading, Input, Menu, MenuItem, MenuSection, Modal, ModalOverlay, SearchField } from 'react-aria-components';
 import type { AdapterList, Agent } from '../agent.ts';
 import type { AnalysesApi } from '../analyses.ts';
@@ -192,10 +192,11 @@ export function CommandPalette({ isOpen, onOpenChange, agent, analysesApi, readi
     };
   }, [isOpen, agent, analysesApi, names, here]);
 
-  // Built only while it's open: closed, the App re-renders often (a streaming answer) and every item of every dossier is a lot to list for nothing.
-  const entries = useMemo(() => (isOpen ? paletteEntries({ ...input, analyses, adapters, at }) : []), [isOpen, input, analyses, adapters, at]);
-  const results = useMemo(() => paletteResults(entries, query, here), [entries, query, here]);
-  const byId = useMemo(() => new Map(entries.map((e) => [e.id, e])), [entries]);
+  // Built on each render while it's open, which is cheap next to a keystroke (a few hundred entries), and not at all
+  // while it's closed: the App re-renders often (a streaming answer), and every item of every dossier is a lot to list for nothing.
+  const entries = isOpen ? paletteEntries({ ...input, analyses, adapters, at }) : [];
+  const results = paletteResults(entries, query, here);
+  const byId = new Map(entries.map((e) => [e.id, e]));
 
   const choose = (id: string) => {
     const e = byId.get(id);
