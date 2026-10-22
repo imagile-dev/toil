@@ -58,7 +58,7 @@ const ui = join(import.meta.dirname, '..');
 
 /** Every theme and scheme, from the theme folders, with Plain and Crate strict. */
 export function themeRuns() {
-  const order = ['plain', 'crate', 'harvest', 'starship', 'realm', 'frontier'];
+  const order = ['plain', 'crate', 'harvest', 'starship', 'realm', 'sprawl', 'frontier'];
   const manifests = readdirSync(join(ui, 'themes')).map((name) => JSON.parse(readFileSync(join(ui, 'themes', name, 'theme.json'), 'utf8')));
   manifests.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
   return manifests.flatMap((m) => Object.keys(m.schemes).map((scheme) => ({ theme: m.name, scheme, strict: m.name === 'plain' || m.name === 'crate' })));
