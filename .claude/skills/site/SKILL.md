@@ -158,6 +158,18 @@ from `main`).
     no longer fits on the homepage. **The homepage stays at five sections**: the
     hero (the slot #432's map fills), Get started, Connect, Toil UI and the
     principles. Something added there means something comes off (principle 11).
+    Get started opens with the start-here paths by role (#433), `startPaths` in
+    `docs-path.ts`: three steps each, every one a page or heading already on the
+    docs path, never a page of its own.
+  - **Search** (#433) is the header's Search button, `/` or Ctrl+K (Cmd+K): a
+    `<dialog>` (`src/components/SiteSearch.astro`, `src/scripts/search.ts`) over one
+    static index, `dist/search.json`, which `scripts/search-index.mjs` writes after
+    `astro build` from the built pages' titles and headings and the registry's lists
+    in `src/data/` (`src/lib/search.mjs`). Nothing in it is written by hand, nothing
+    is fetched from anywhere else, and `check-links.mjs` fails on a result that
+    doesn't land. A new page or heading is searchable with no change here; mark a
+    part of a heading that isn't its name (a count) `data-search-skip`. The dev
+    server has no index: search on `npm run build` and `npm run preview`.
   - **Moving a page leaves its old address forwarding.** GitHub Pages can't
     redirect, so `site/src/pages/[...old].astro` builds a page at each old address
     in `src/lib/redirects.mjs` that forwards with its query and hash, and the

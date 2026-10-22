@@ -75,6 +75,49 @@ export const docsPath: DocsGroup[] = [
   },
 ];
 
+/** A way into the docs for one kind of reader: three stops on the path above, in order. */
+export interface StartPath {
+  id: string;
+  /** Who it's for, as the card's heading. */
+  role: string;
+  steps: [DocsLink, DocsLink, DocsLink];
+}
+
+// Start here, by role (#433): the homepage's Get started section shows these
+// beside the two ways to install. Each step is a page or a heading the docs
+// already have, so a path is a reading order, never a new page; check-links
+// fails the build when a step stops landing. Three roles, three steps each:
+// the org chart, abridged.
+export const startPaths: StartPath[] = [
+  {
+    id: 'agent',
+    role: 'You work with an agent',
+    steps: [
+      { label: 'Install toil', href: '/docs/install/' },
+      { label: 'Add the skill', href: '/docs/install/#installing-this-skill' },
+      { label: 'Connect MCP', href: '/docs/mcp/#registering-it' },
+    ],
+  },
+  {
+    id: 'lead',
+    role: 'You lead a team',
+    steps: [
+      { label: 'Run Toil UI', href: '/docs/ui/#start-it' },
+      { label: 'Onboard to a dossier', href: '/docs/dossiers/#onboarding-to-a-repo-that-has-a-dossier' },
+      { label: 'Press Analyze', href: '/docs/ui/#the-agent' },
+    ],
+  },
+  {
+    id: 'ci',
+    role: 'You run CI/CD',
+    steps: [
+      { label: 'Connections from env vars', href: '/docs/core/#configuration' },
+      { label: 'The JSON envelope', href: '/docs/core/#the-envelope-and-errors' },
+      { label: 'Read-only by default', href: '/docs/core/#writes' },
+    ],
+  },
+];
+
 /** A docs page on the walk: its label, path and group. */
 export interface DocsStop extends DocsLink {
   group: DocsGroup;
