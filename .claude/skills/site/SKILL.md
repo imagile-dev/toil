@@ -141,7 +141,7 @@ from `main`).
     `dossiers.md`, `install.md`, `mcp.md`, `util.md`, `skills.md`, Toil UI's own
     docs and a command index (`/docs/commands/`, the registry's lists). They are
     read as a path, Get started, Use, Connect, Agents, Toil UI, Reference, which
-    `site/src/data/docs-path.ts` defines once: the index draws it, the footer
+    `site/src/data/docs-path.mjs` defines once: the index draws it, the footer
     links its groups, and every docs page takes its breadcrumb and its previous
     and next links from it. A new docs page goes on the path there.
   - **Connect** (`/connect/`) is the catalogue of everything toil talks to: the
@@ -158,6 +158,18 @@ from `main`).
     no longer fits on the homepage. **The homepage stays at five sections**: the
     hero (the slot #432's map fills), Get started, Connect, Toil UI and the
     principles. Something added there means something comes off (principle 11).
+    Get started opens with the start-here paths by role (#433), `startPaths` in
+    `docs-path.mjs`: three steps each, every one a page or heading already on the
+    docs path, never a page of its own.
+  - **Search** (#433) is the header's Search button, `/` or Ctrl+K (Cmd+K): a
+    `<dialog>` (`src/components/SiteSearch.astro`, `src/scripts/search.ts`) over one
+    static index, `dist/search.json`, which `scripts/search-index.mjs` writes after
+    `astro build` from the built pages' titles and headings and the registry's lists
+    in `src/data/` (`src/lib/search.mjs`). Nothing in it is written by hand, nothing
+    is fetched from anywhere else, and `check-links.mjs` fails on a result that
+    doesn't land. A new page or heading is searchable with no change here; mark a
+    part of a heading that isn't its name (a count) `data-search-skip`. The dev
+    server has no index: search on `npm run build` and `npm run preview`.
   - **Moving a page leaves its old address forwarding.** GitHub Pages can't
     redirect, so `site/src/pages/[...old].astro` builds a page at each old address
     in `src/lib/redirects.mjs` that forwards with its query and hash, and the

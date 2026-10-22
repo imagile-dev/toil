@@ -4,10 +4,13 @@
 // the address still forwards: the site's own pages link to where things are
 // now. Each old address is checked to forward to a page that exists. Links
 // to other sites aren't fetched; this checks only what the build controls.
+// toil's own feedback form link (src/feedback/consent.ts, #435) is held to
+// the build the same way: a page it made, never an old address.
 // A dead link found here costs one build; found by a reader, it costs a reader.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { REDIRECTS, MOVED_PREFIX, isRedirect } from '../src/lib/redirects.mjs';
+import { FEEDBACK_FORM } from '../../src/feedback/consent.ts';
 
 const BASE = '/toil';
 const dist = join(import.meta.dirname, '..', 'dist');
@@ -80,8 +83,26 @@ for (const file of forwards) {
 }
 for (const old of Object.keys(REDIRECTS)) if (!fileFor(old)) problems.push(`${old}: listed in REDIRECTS, but the build made no page there`);
 
+// The address toil and Toil UI print for the feedback form, from src/feedback/consent.ts.
+const feedbackUrl = new URL(FEEDBACK_FORM);
+const feedbackPath = feedbackUrl.pathname.slice(BASE.length);
+if (feedbackUrl.origin !== 'https://imagile-dev.github.io' || !feedbackUrl.pathname.startsWith(`${BASE}/`)) problems.push(`src/feedback/consent.ts: FEEDBACK_FORM is ${FEEDBACK_FORM}, which isn't on this site`);
+else if (isRedirect(feedbackPath)) problems.push(`src/feedback/consent.ts: FEEDBACK_FORM is the old address ${feedbackPath}, which now lives at ${REDIRECTS[feedbackPath] ?? feedbackPath.replace(MOVED_PREFIX.from, MOVED_PREFIX.to)}`);
+else if (!fileFor(feedbackPath)) problems.push(`src/feedback/consent.ts: FEEDBACK_FORM is ${FEEDBACK_FORM}, which isn't a page this build made`);
+
+// Every result the site search can offer (dist/search.json, scripts/search-index.mjs) lands too.
+const index = join(dist, 'search.json');
+const results = existsSync(index) ? JSON.parse(readFileSync(index, 'utf8')) : [];
+if (!existsSync(index)) problems.push('/search.json: the build made no search index (scripts/search-index.mjs runs before this)');
+for (const r of results) {
+  const [path, hash] = r.u.split('#');
+  const to = isRedirect(path) ? undefined : fileFor(path);
+  if (!to) problems.push(`/search.json: "${r.t}" links to ${r.u}, which is no page this build made`);
+  else if (hash && !idsOf(to).has(hash)) problems.push(`/search.json: "${r.t}" links to ${r.u}, and ${path} has no element with id "${hash}"`);
+}
+
 if (problems.length) {
   console.error(`Internal links that don't resolve:\n${problems.map((p) => `  ${p}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`links: all ${links} internal links on ${pages.length - forwards.length} pages resolve, and ${forwards.length} old addresses forward`);
+console.log(`links: all ${links} internal links on ${pages.length - forwards.length} pages resolve, ${forwards.length} old addresses forward, and all ${results.length} search results land`);

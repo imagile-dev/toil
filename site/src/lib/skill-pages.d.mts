@@ -10,6 +10,7 @@ export declare const skillDir: string;
 export declare const skillFiles: SkillFile[];
 export declare const integrationFiles: SkillFile[];
 export declare function pagePath(file: string): string | undefined;
+export declare function commandGroupPage(group: string): string | undefined;
 export declare function remarkSkillLinks(options: { base: string }): () => (tree: unknown, file: unknown) => void;
 /** Toil UI's own docs (ui/docs/*.md), and the page each renders on. */
 export declare const uiDocDir: string;

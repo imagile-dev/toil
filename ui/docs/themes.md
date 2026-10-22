@@ -241,4 +241,4 @@ A theme's `theme.css` may colour and frame the engine's parts (`.splash`, `.load
 
 ## Asking for a new theme
 
-Toil UI ships its themes and doesn't install themes from anywhere else. To ask for a new one, send a feature request: from the **Feedback** button in Toil UI's header, from [the feedback page](https://imagile-dev.github.io/toil/feedback/), or on the command line with `toil feedback feature`. Say what it should look like, and how it should talk.
+Toil UI ships its themes and doesn't install themes from anywhere else. To ask for a new one, send a feature request: from the **Feedback** button in Toil UI's header, from [the feedback page](https://imagile-dev.github.io/toil/about/feedback/), or on the command line with `toil feedback feature`. Say what it should look like, and how it should talk.
