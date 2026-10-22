@@ -71,7 +71,7 @@ const titleCase = (s: string) => s.charAt(0) + s.slice(1).toLowerCase().replace(
 function detailLines(item: WorkItem | undefined, pr: Change | undefined, theme?: ThemeManifest): string[] {
   if (item) {
     return [
-      `${typeText(item, theme)}, ${item.status ?? STATUS_CATEGORY_LABEL[item.statusCategory]}${item.status && item.status !== STATUS_CATEGORY_LABEL[item.statusCategory] ? ` (${STATUS_CATEGORY_LABEL[item.statusCategory]})` : ''}`,
+      `${typeText(item, theme)}, ${item.status ?? STATUS_CATEGORY_LABEL[item.statusCategory]}${item.status && item.status.toLowerCase() !== STATUS_CATEGORY_LABEL[item.statusCategory].toLowerCase() ? ` (${STATUS_CATEGORY_LABEL[item.statusCategory]})` : ''}`,
       `Assignee: ${personText(item.assignee)}`,
       `Estimate: ${estimateText(item)}`,
       ...(item.iteration?.name ? [`Sprint: ${item.iteration.name}`] : []),

@@ -324,10 +324,10 @@ function states(route, width) {
     out.push({ name: 'dossier-switch', setup: clickAll('[data-dossier-switch]'), undo: 'Escape' });
     for (const m of ['burnup', 'pr-wait']) out.push({ name: `chart-${m}`, setup: clickAll(`[data-metric="${m}"]`), undo: 'Escape', undoJs: clickAll('[data-chart-close]', null, 0) });
   }
-  // The history (#395): an entry's what-changed opened; an analysis with its evidence unfolded, and a citation chip's detail as a keyboard user who tabbed to it sees it.
-  if (/\/analyses$/.test(route)) out.push({ name: 'what-changed', setup: clickAll('details.analysis__changes > summary'), undoJs: clickAll('details.analysis__changes[open] > summary') });
+  // The history (#395), set open rather than clicked, since the check has already opened every <details> once: an entry's what-changed opened; an analysis with its evidence unfolded, and a citation chip's detail as a keyboard user who tabbed to it sees it.
+  if (/\/analyses$/.test(route)) out.push({ name: 'what-changed', undoJs: 'window.scrollTo(0, 0)', setup: `(() => { const d = [...document.querySelectorAll('details.analysis__changes')]; for (const x of d) x.open = true; d[0]?.scrollIntoView({ block: 'start' }); return d.length; })()` });
   if (/\/analyses\/[^/]+$/.test(route)) {
-    out.push({ name: 'evidence-open', setup: clickAll('details.analysis-evidence > summary'), undoJs: clickAll('details.analysis-evidence[open] > summary') });
+    out.push({ name: 'evidence-open', undoJs: 'window.scrollTo(0, 0)', setup: `(() => { const d = [...document.querySelectorAll('details.analysis-evidence')]; for (const x of d) x.open = true; d[0]?.scrollIntoView({ block: 'start' }); return d.length; })()` });
     const chip = `[...document.querySelectorAll('main .ticket-chip--cite')].find((c) => c.getClientRects().length)`;
     out.push({ name: 'cite-tooltip', clearOverlays: true, key: 'Tab', setup: `(async () => { const c = ${chip}; if (!c) return 0; c.scrollIntoView({ block: 'center' }); for (let i = 0; i < 3; i++) { c.blur(); c.focus(); const deadline = Date.now() + 2000; while (!document.querySelector('.cite-tooltip') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); if (document.querySelector('.cite-tooltip')) return 1; } return 'no tooltip after three focuses on the first citation chip'; })()`, undo: 'Escape', undoJs: 'document.activeElement?.blur()' });
   }
