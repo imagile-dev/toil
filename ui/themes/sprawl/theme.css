@@ -525,7 +525,7 @@
 }
 
 @keyframes sprawl-glitch {
-  0% { transform: translateX(-2px); text-shadow: -3px 0 rgba(255, 46, 136, 0.9), 3px 0 rgba(63, 240, 255, 0.9); }
+  0% { transform: translateX(-2px); }
   50% { transform: translateX(2px); }
   100% { transform: none; }
 }
