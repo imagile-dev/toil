@@ -1,13 +1,13 @@
 ---
-description: Toil UI's five themes, themed wording and the agent's voice, the checkboxes that set how far a theme goes and whether its particles run, theme moments and toil tips, Plain's fonts, and how the agent's prompt is composed.
+description: Toil UI's six themes, themed wording and the agent's voice, the checkboxes that set how far a theme goes and whether its particles run, theme moments and toil tips, Plain's fonts, and how the agent's prompt is composed.
 lead: How far a Toil UI theme goes, and what it never changes.
 ---
 
 # Themes
 
-Toil UI has five built-in themes. Each one changes how the app looks, and the four game themes can go further: they can change the app's microcopy, and the voice the agent answers in. Two checkboxes decide how far a theme goes. Nothing a theme does changes your data, what a button is called, or what the agent is allowed to do.
+Toil UI has six built-in themes. Each one changes how the app looks, and the five game themes can go further: they can change the app's microcopy, and the voice the agent answers in. Two checkboxes decide how far a theme goes. Nothing a theme does changes your data, what a button is called, or what the agent is allowed to do.
 
-## The five themes
+## The six themes
 
 Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the real app on sample data, with the prompt and the answer each theme gives side by side.
 
@@ -18,6 +18,7 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 | Harvest | A 16-bit farm: a pixel font, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
 | Realm | A grimdark house ledger: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, the dependency graph as an engraved war-table map | A house's steward | Decorative |
+| Sprawl | A terminal in a rain-soaked megacity: monospace type and a block cursor, faint scanlines and a CRT edge glow, neon magenta and cyan on deep blue-black, the skyline at the foot of the page, the dependency graph as a net map where a blocker is black ICE | A laconic street-level netrunner | Decorative |
 
 Crate is the default. The theme picker is in the header (in the Menu on a narrow screen) and in Settings, General. A `?theme=` in the address opens a view in that theme, for example `?theme=realm`, and this browser remembers it like a choice made in the picker.
 
@@ -37,7 +38,7 @@ A theme has up to three layers.
 
 - **Visuals** are what every theme has: colours, fonts, borders, art, and motion. They never change a word.
 - **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the dossier list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, the Ask pane's notes, and the chat's placeholder, welcome and status words (#343). Crate's empty board column reads "Bay empty." and Realm's reads "None stand here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Campaign (Epic)" or "Ledger (Sprint 42: day 7 of 10)". The Settings pages and the Sync panel keep the standard text.
-- **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, and Realm like a house's steward reporting to its war council.
+- **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, Realm like a house's steward reporting to its war council, and Sprawl like a netrunner on a job: work items are gigs, the sprint is the run, a pull request is a payload waiting on the fixer, a build is an ICE check, a deployment is jacking in to prod, and a blocker is black ICE.
 
 Wording never touches these, in any theme:
 
@@ -113,13 +114,13 @@ The (i) in the chat's strip says which voice the answers are in, which agent is 
 ## Accessibility
 
 - **Plain and Crate** are held to WCAG 2.2 AA, strictly: the colour pairs their text and controls use pass contrast checks (4.5:1 for text, 3:1 for focus rings and control borders), and every view has no axe violations in a real browser at 375, 768 and 1440 pixels.
-- **Harvest, Starship and Realm** are decorative. Their colour pairs still pass the same contrast checks, but their axe findings in a browser are reported rather than failed, since a pixel font or a leather border may bend a rule for style. If you need the strict bar, use Plain or Crate.
+- **Harvest, Starship, Realm and Sprawl** are decorative. Their colour pairs still pass the same contrast checks, but their axe findings in a browser are reported rather than failed, since a pixel font, a leather border or a neon glow may bend a rule for style. If you need the strict bar, use Plain or Crate.
 - **Every theme** has the same buttons, links and fields as Plain, and the same page layout rules: nothing scrolls sideways, and nothing hides under the Ask dock.
 - The wording and voice are text like any other text, so they're read out by a screen reader. Art a theme adds is decoration and is hidden from screen readers.
 
 ## Motion and particles
 
-The four game themes move a little: dust drifting in the flame glow and the site's slow drafting grid in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers and a faint candle flicker in Realm. Plain doesn't move. No theme plays sound.
+The five game themes move a little: dust drifting in the flame glow and the site's slow drafting grid in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers and a faint candle flicker in Realm, and rain on a slant, a blinking cursor and a brief glitch as a page opens in Sprawl. Plain doesn't move. No theme plays sound.
 
 Three settings decide what moves, in this order:
 
@@ -133,7 +134,7 @@ A theme's splash, loading screens and moments follow a fourth setting, **Theme m
 
 ## Theme moments
 
-A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a dossier opens, a transition between a dossier's tabs, and a short moment when something worth marking happens. Crate and Harvest have all of them. Plain has none, and Starship and Realm don't have them yet.
+A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a dossier opens, a transition between a dossier's tabs, and a short moment when something worth marking happens. Crate and Harvest have all of them. Plain has none, and Starship, Realm and Sprawl don't have them yet.
 
 | Moment | When it plays | How long |
 |---|---|---|
@@ -147,7 +148,7 @@ A loading screen shows the theme's art, its progress motif, and the real progres
 
 An event moment comes from the facts the worklog keeps (**Worklog** in [Toil UI](https://imagile-dev.github.io/toil/docs/ui/)): each sync records what it sees, and a moment plays only for a fact that sync recorded for the first time. A dossier's first sync plays nothing, since everything in its history would be new, and neither does a fact from before the last good sync. The moment says the plain word ("Done", "Build failed") and, while **Themed wording** is on, the theme's word beside it, as in "Signed off (Done)".
 
-You can see every moment of the theme you're in under **Settings, General**, Theme: **Preview the splash**, **Preview a loading screen**, and a **Play** button for each event moment. A preview's progress text is a sample, and says so.
+You can see every moment of the theme you're in from **Preview the theme's moments**, a menu under **Settings, General**, Theme: the launch splash, a loading screen, and each event moment. With Theme motion off, the splash and the moments are greyed out in it. A preview's progress text is a sample, and says so.
 
 ### Theme motion
 

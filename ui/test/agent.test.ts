@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { citationsOf, segments } from '../src/agent.ts';
 import { SCRIPTS, VOICED, scriptedAgent } from '../src/fixtures/agent.ts';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
+import { THEMES } from '../src/themes.ts';
 import { needsAttention, prepare } from '../src/model/insights.ts';
 import { people } from '../src/model/people.ts';
 import { openQueue } from '../src/model/prs.ts';
@@ -173,7 +174,10 @@ describe('the scripted answers in each theme\'s voice (#283)', () => {
   /** Every figure in a text, outside its citations: what a voice may never change. */
   const figures = (text: string) => (text.replace(/\[\[[^\]]+\]\]/g, ' ').match(/\d+(\.\d+)?/g) ?? []).sort();
 
-  it.each(NAMES.flatMap((name) => ['crate', 'harvest', 'starship', 'realm'].map((theme) => [name, theme] as const)))('%s in %s cites the same items, keeps every figure and the same proposals', async (name, theme) => {
+  /** Every theme with a voice of its own, so a new game theme needs its voiced answers before it ships. */
+  const VOICED_THEMES = THEMES.filter((t) => t.voice).map((t) => t.name);
+
+  it.each(NAMES.flatMap((name) => VOICED_THEMES.map((theme) => [name, theme] as const)))('%s in %s cites the same items, keeps every figure and the same proposals', async (name, theme) => {
     const standard = await agent.ask(name, 'risk');
     const voiced = await agent.ask(name, 'risk', { theme, voice: true });
     expect(VOICED[name]?.[theme]).toBeDefined();

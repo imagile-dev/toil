@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+<!-- Sprawl's badge: a dark tile edged in magenta neon with a cyan ghost of its edge, scanlines across it, and the page as a terminal with a prompt and a block cursor. The badge's silhouette, skinned. -->
+<defs>
+<clipPath id="b7c">
+<path d="M18 6H42L58 22V46A12 12 0 0 1 46 58H18A12 12 0 0 1 6 46V18A12 12 0 0 1 18 6Z"/>
+</clipPath>
+<linearGradient id="b7s" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#1b1640"/>
+<stop offset="1" stop-color="#07060f"/>
+</linearGradient>
+<pattern id="b7l" width="4" height="3" patternUnits="userSpaceOnUse">
+<rect width="64" height="1" fill="#3ff0ff" opacity=".07"/>
+</pattern>
+<filter id="b7g" x="-40%" y="-40%" width="180%" height="180%">
+<feGaussianBlur stdDeviation="1.2" result="b"/>
+<feMerge>
+<feMergeNode in="b"/>
+<feMergeNode in="SourceGraphic"/>
+</feMerge>
+</filter>
+</defs>
+<path d="M18 6H42L58 22V46A12 12 0 0 1 46 58H18A12 12 0 0 1 6 46V18A12 12 0 0 1 18 6Z" fill="url(#b7s)"/>
+<rect x="0" y="0" width="64" height="64" fill="url(#b7l)" clip-path="url(#b7c)"/>
+<path d="M18 6H42L58 22V46A12 12 0 0 1 46 58H18A12 12 0 0 1 6 46V18A12 12 0 0 1 18 6Z" transform="translate(-0.8 0.6)" stroke="#3ff0ff" stroke-width="1" opacity=".55"/>
+<path d="M18 6H42L58 22V46A12 12 0 0 1 46 58H18A12 12 0 0 1 6 46V18A12 12 0 0 1 18 6Z" stroke="#ff2e88" stroke-width="1.6" filter="url(#b7g)"/>
+<g transform="translate(32 32.5) scale(1.3) translate(-31.5 -32.5)">
+<path d="M23 17.5h13l7 7v20a3 3 0 0 1-3 3H23a3 3 0 0 1-3-3v-24a3 3 0 0 1 3-3Z" fill="#07060f" stroke="#3ff0ff" stroke-width="1" filter="url(#b7g)"/>
+<path d="M36 17.5v4.5a2.5 2.5 0 0 0 2.5 2.5H43Z" fill="#ff2e88" opacity=".85"/>
+<g filter="url(#b7g)" stroke="#3ff0ff" stroke-width="2.6" stroke-linecap="square" stroke-linejoin="miter">
+<path d="m24.5 27.5 5 4.3-5 4.3"/>
+</g>
+<rect x="31.6" y="36.4" width="5.6" height="6.4" fill="#ff2e88" filter="url(#b7g)"/>
+<path d="M22.5 22.5h9M22.5 45h4M28 45h9" stroke="#3ff0ff" stroke-width=".5" opacity=".45"/>
+</g>
+</svg>

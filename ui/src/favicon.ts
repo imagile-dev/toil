@@ -21,6 +21,7 @@ const MARKS: Record<string, string | Record<ResolvedScheme, string>> = {
   harvest: new URL('../themes/harvest/assets/mark.svg', import.meta.url).href,
   starship: new URL('../themes/starship/assets/mark.svg', import.meta.url).href,
   realm: new URL('../themes/realm/assets/mark.svg', import.meta.url).href,
+  sprawl: new URL('../themes/sprawl/assets/mark.svg', import.meta.url).href,
 };
 
 /** The favicon URL for a theme in a scheme: its own mark, or the standard badge. */
