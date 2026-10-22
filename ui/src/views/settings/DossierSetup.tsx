@@ -43,7 +43,8 @@ export type DossierTarget = { dossier: string; section: string | null };
 /** The form each section's edit link lands on, by its heading's id. */
 const SECTION_FORM: Record<string, string> = { sources: 'dossier-form-sources', repos: 'dossier-form-repos', fields: 'dossier-form-fields', people: 'dossier-form-people', wip: 'dossier-form-wip' };
 
-export function DossierSetup({ config, at }: { config: ConfigApi; at?: DossierTarget }) {
+/** `at`: a dossier's section to land on (#346); `toForm`: Create a dossier, which the first-run checklist opens (#416). */
+export function DossierSetup({ config, at, toForm = false }: { config: ConfigApi; at?: DossierTarget; toForm?: boolean }) {
   const [list, setList] = useState<Loaded<{ dossiers: ListedDossier[]; places: { user: string } }> | null>(null);
   const [areas, setAreas] = useState<AreaInfo[]>([]);
   const [connections, setConnections] = useState<ConnectionsData['connections']>([]);
@@ -70,7 +71,7 @@ export function DossierSetup({ config, at }: { config: ConfigApi; at?: DossierTa
 
   // The form takes focus once the list has loaded and the dossier is chosen; with no section, the dossier picker does.
   const found = Boolean(at && list?.ok && list.value.dossiers.some((d) => d.name === at.dossier));
-  useLandOn(at ? (found ? (SECTION_FORM[at.section ?? ''] ?? 'dossier-change') : 'dossier-change') : null, Boolean(list));
+  useLandOn(toForm ? 'dossier-change' : at ? (found ? (SECTION_FORM[at.section ?? ''] ?? 'dossier-change') : 'dossier-change') : null, Boolean(list));
   if (!list) return <Loader size="panel" message="Reading your dossiers with toil dossiers list…" />;
   if (!list.ok) {
     return (

@@ -42,6 +42,7 @@ import { analysisHref, dossierHref } from '../format.ts';
 import type { AnalysisSummary } from '../model/analysis.ts';
 import { AnalysisBody } from './analysis.tsx';
 import { Loader } from '../moments/Moments.tsx';
+import { useUiCommand } from '../commands.ts';
 
 /** A new chat's id: one per dossier's conversation, so the server can add up and cap the chat (#295). */
 const newChatId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
@@ -321,12 +322,19 @@ export function AskBar() {
     openView();
     void chat.ask(ANALYZE, 'Analyze');
   };
+  // The command palette's Ask, Analyze and choice of agent (#416), on this dossier's chat.
+  const input = useRef<HTMLInputElement>(null);
+  useUiCommand((c) => {
+    if (c.kind === 'ask') input.current?.focus();
+    else if (c.kind === 'analyze' && !chat.busy) analyze();
+    else if (c.kind === 'agent') chat.switchTo(c.name, c.label);
+  });
 
   return (
     <section className="ask-bar" aria-label={`Ask about ${dossier.name}`}>
       <form className="ask-bar__form" onSubmit={submit}>
         <TextField className="field-text ask-bar__field" value={text} onChange={setText} aria-label="Your question">
-          <Input placeholder={placeholder} onClick={openView} data-ask-bar="" />
+          <Input ref={input} placeholder={placeholder} onClick={openView} data-ask-bar="" />
         </TextField>
         <Button type="submit" className="btn btn--accent">
           Ask

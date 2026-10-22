@@ -56,6 +56,9 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   const [syncing, setSyncing] = useState<SyncStatus['job'] | null>(null);
   const [news, setNews] = useState<{ id: string; byDossier: NonNullable<SyncStatus['job']['news']> } | null>(null);
   const onStatus = useCallback((next: SyncStatus) => setSyncing(next.job.running ? next.job : null), []);
+  // Sync from the command palette or the first-run checklist (#416): the panel runs it, as if its own button were pressed.
+  const [syncAsked, setSyncAsked] = useState(0);
+  const askSync = useCallback(() => setSyncAsked((n) => n + 1), []);
   const onChange = useCallback((next: SyncStatus) => {
     setSynced(lastSynced(next));
     setByDossier(syncedBy(next));
@@ -64,8 +67,8 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   }, []);
   return (
     <>
-      <App key={generation} syncing={syncing} news={news} serverStatus={serverStatus} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byDossier, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
-      {sync && <SyncPanel client={sync} onChange={onChange} onStatus={onStatus} />}
+      <App key={generation} syncing={syncing} news={news} serverStatus={serverStatus} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byDossier, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
+      {sync && <SyncPanel client={sync} onChange={onChange} onStatus={onStatus} request={syncAsked} />}
     </>
   );
 }

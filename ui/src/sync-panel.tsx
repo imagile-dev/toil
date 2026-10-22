@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { dateTime, sourceLabel } from './format.ts';
 import type { DossierState, SyncClient, SyncStatus } from './server-client.ts';
+import { matches } from './shortcuts.ts';
 import './sync-panel.css';
 
 /** How often a running sync is polled. */
@@ -26,6 +27,8 @@ export interface SyncPanelProps {
   /** Every status read, running or not, so the page can show a running sync's progress in the theme's loader (#419). */
   onStatus?: (status: SyncStatus) => void;
   pollMs?: number;
+  /** Raised by one for each Sync pressed outside the panel (#416). */
+  request?: number;
 }
 
 /** The newest sync time across the dossiers, which is when the views' data was read. */
@@ -65,7 +68,7 @@ function DossierRow({ dossier }: { dossier: DossierState }) {
   );
 }
 
-export function SyncPanel({ client, onChange, onStatus, pollMs = POLL_MS }: SyncPanelProps) {
+export function SyncPanel({ client, onChange, onStatus, pollMs = POLL_MS, request = 0 }: SyncPanelProps) {
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
@@ -124,8 +127,16 @@ export function SyncPanel({ client, onChange, onStatus, pollMs = POLL_MS }: Sync
     }, fail);
   };
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') closeConfirm();
+    if (matches('wipeCancel', e)) closeConfirm();
   };
+  // Sync asked for from the page (#416), by the command palette or the first-run checklist: each new number is one
+  // press. One made while a sync runs is that sync; one made before the panel has read the cache waits for it.
+  const asked = useRef(request);
+  useEffect(() => {
+    if (request === asked.current || !status) return;
+    asked.current = request;
+    if (!running) start();
+  });
 
   const job = status?.job;
   const last = lastSynced(status);

@@ -19,6 +19,8 @@ import { AskBar } from '../components/ask.tsx';
 import { Editable, SourceBadges } from '../components/dossier-head.tsx';
 import { Scroller, useMediaQuery } from '../components/layout.tsx';
 import { AgentsSidebar, useAgentsSummary } from '../assign/sidebar.tsx';
+import { AssignModal } from '../assign/views.tsx';
+import { useUiCommand } from '../commands.ts';
 import { useData, useDerived } from '../data.ts';
 import { analysesHref, boardHref, commandCenterHref, dependenciesHref, dossierHref, peopleHref, prsHref, worklogHref } from '../format.ts';
 import { needingAttention } from '../model/insights.ts';
@@ -27,6 +29,17 @@ import { momentsOf, useEnter } from '../moments/Moments.tsx';
 import './dossier-shell.css';
 
 export type DossierTab = 'overview' | 'board' | 'dependencies' | 'prs' | 'people' | 'worklog' | 'analyses';
+
+/** A dossier's tabs, in order: the command palette (#416) jumps to each of them in every dossier. */
+export const DOSSIER_TABS: ReadonlyArray<{ id: DossierTab; label: string; href: (dossier: string) => string }> = [
+  { id: 'overview', label: 'Overview', href: dossierHref },
+  { id: 'board', label: 'Board', href: (d) => boardHref(d) },
+  { id: 'dependencies', label: 'Dependencies', href: dependenciesHref },
+  { id: 'prs', label: 'Pull requests', href: prsHref },
+  { id: 'people', label: 'People', href: peopleHref },
+  { id: 'worklog', label: 'Worklog', href: (d) => worklogHref(d) },
+  { id: 'analyses', label: 'Analyses', href: analysesHref },
+];
 
 /** Below this width the Agents sidebar is a drawer behind a button; at 1200px and wider it sits beside the view. */
 export const SIDEBAR_WIDE = '(min-width: 1200px)';
@@ -53,15 +66,12 @@ export function DossierShell({ tab, heading, dossiers, boardView, children }: { 
       {dossier.name}
     </Editable>
   );
-  const tabs: Array<{ id: DossierTab; href: string; label: string; count?: { n: number; label: string } }> = [
-    { id: 'overview', href: dossierHref(dossier.name), label: 'Overview' },
-    { id: 'board', href: boardHref(dossier.name), label: 'Board', count: { n: attention, label: attention === 1 ? 'item needs attention' : 'items need attention' } },
-    { id: 'dependencies', href: dependenciesHref(dossier.name), label: 'Dependencies' },
-    { id: 'prs', href: prsHref(dossier.name), label: 'Pull requests' },
-    { id: 'people', href: peopleHref(dossier.name), label: 'People' },
-    { id: 'worklog', href: worklogHref(dossier.name), label: 'Worklog' },
-    { id: 'analyses', href: analysesHref(dossier.name), label: 'Analyses' },
-  ];
+  const tabs: Array<{ id: DossierTab; href: string; label: string; count?: { n: number; label: string } }> = DOSSIER_TABS.map((t) => ({
+    id: t.id,
+    href: t.href(dossier.name),
+    label: t.label,
+    ...(t.id === 'board' ? { count: { n: attention, label: attention === 1 ? 'item needs attention' : 'items need attention' } } : {}),
+  }));
   return (
     <div className="dossier-shell" data-wide-sidebar={wide || undefined} ref={shell}>
       <div className="dossier-bar">
@@ -128,6 +138,7 @@ export function DossierShell({ tab, heading, dossiers, boardView, children }: { 
           </a>
         </nav>
       )}
+      <PaletteAssign />
       <div className="dossier-body">
         <div className="dossier-main" ref={view}>
           {children}
@@ -142,6 +153,18 @@ export function DossierShell({ tab, heading, dossiers, boardView, children }: { 
       </div>
     </div>
   );
+}
+
+/** The Assign dialog for the item the command palette (#416) named, where this dossier assigns work to agents. */
+function PaletteAssign() {
+  const { byId, assignments } = useData();
+  const [id, setId] = useState<string | null>(null);
+  useUiCommand((c) => {
+    if (c.kind === 'assign') setId(c.id);
+  });
+  const item = id ? byId.get(id) : undefined;
+  if (!assignments || !item) return null;
+  return <AssignModal item={item} isOpen onOpenChange={(open) => !open && setId(null)} />;
 }
 
 /** The dossier switcher: every dossier this browser has read, and the Dossiers overview, whose cards say most about each. */

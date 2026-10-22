@@ -26,7 +26,8 @@ function loadedFrom(envelope: Envelope): Loaded {
   return { ok: true, data: envelope.data as ConnectionsData, warnings: (envelope.meta.warnings ?? []).map((w) => w.message) };
 }
 
-export function Connections({ config, at }: { config: ConfigApi; at?: string }) {
+/** `at`: a connection's card to land on (#346); `toForm`: the add form, which the first-run checklist opens (#416). */
+export function Connections({ config, at, toForm = false }: { config: ConfigApi; at?: string; toForm?: boolean }) {
   const [list, setList] = useState<Loaded | null>(null);
   const [areas, setAreas] = useState<AreaInfo[] | null>(null);
   const reload = useCallback(async () => {
@@ -42,7 +43,7 @@ export function Connections({ config, at }: { config: ConfigApi; at?: string }) 
   }, [config, reload]);
 
   // An edit link names a connection (#346): its card takes focus once the list has loaded.
-  useLandOn(at ? `conn-${at}` : null, Boolean(list));
+  useLandOn(toForm ? 'conn-add' : at ? `conn-${at}` : null, Boolean(list));
   if (!list) return <Loader size="panel" message="Reading your connections with toil connections list…" />;
   if (!list.ok) {
     return (
