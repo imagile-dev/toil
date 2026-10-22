@@ -28,8 +28,10 @@
 // from the Ask bar (#343) with its (i) popover, its agent switcher, an answer, its Suggestions menu and
 // Analyze's pulse check, a help (i)'s tooltip and popover (#346), the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
 // the calendar on an earlier month, a stand-up written up, and every failing
-// command's recent audit lines open on the Usage page. Reduced motion
-// is on, so an animation caught mid-flight can't fail a run.
+// command's recent audit lines open on the Usage page, and the theme moments' previews
+// (#419): a loading screen, the launch splash and the sprint recap card. Reduced motion
+// is on, so an animation caught mid-flight can't fail a run; `npm run smoke` then runs
+// MOTION_ROUTES again with motion on, where the moments play.
 //
 // On a dossier's Board tab the board is also dragged as a hand drags it
 // (#393): real mouse input through the DevTools protocol, a finger at 375
@@ -113,6 +115,12 @@ export const ROUTES = [
   '#/settings/agent',
 ];
 export const WIDTHS = [375, 768, 1440];
+/**
+ * The views checked a second time with motion on (#419): where the theme's moments play (the dossier entrance and
+ * its tabs, the previews of the splash, a loading screen and the sprint recap under Settings, General). The full set
+ * runs with reduced motion, which is also Theme motion off, so both are proven.
+ */
+export const MOTION_ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/card-payments/board', '#/dossier/card-payments/prs', '#/settings/toil'];
 /** What counts as a card. LAYOUT_CARDS widens it, to measure a build from before the Card primitive. */
 const CARDS = process.env.LAYOUT_CARDS ?? '[data-card]';
 
@@ -223,7 +231,7 @@ function covered() {
 /** Waits until the view has its heading and nothing is still loading. */
 const SETTLED = `new Promise((resolve) => {
   const started = Date.now();
-  const done = () => document.querySelector('main h1') && !document.querySelector('.skin-loading, [role="status"].skin-loading') && !/Drawing the graph|Reading /.test(document.querySelector('main')?.textContent ?? '');
+  const done = () => document.querySelector('main h1') && !document.querySelector('main .skin-loading, main [data-loading]') && !/Drawing the graph|Reading /.test(document.querySelector('main')?.textContent ?? '');
   const tick = () => (done() || Date.now() - started > 15000 ? document.fonts.ready.then(() => setTimeout(resolve, 250)) : setTimeout(tick, 100));
   tick();
 })`;
@@ -367,6 +375,16 @@ function states(route, width) {
   if (/\/worklog$/.test(route)) out.push({ name: 'previous-month', setup: clickAll('.calendar-nav button', '/Previous month/'), undoJs: clickAll('.calendar-nav button', '/Next month/') });
   // A dossier's name and description open for editing in place (#342), every pencil on the page at once: the longest the cards and the dashboard's header get.
   if (route === '#/' || route === '#/dossier/settlement') out.push({ name: 'editing', setup: clickAll('[data-edit]'), undoJs: "document.querySelectorAll('.edit-field').forEach((i) => i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))" });
+  // Theme moments (#419), from their previews under Settings, General: a loading screen as the theme draws it, the
+  // launch splash, and the sprint recap card, the largest moment. The recap is decoration, hidden from screen readers,
+  // so it is shown to the check (aria-hidden lifted) for its layout and axe. With Theme motion off (the reduced-motion
+  // pass) the splash and moments don't play, and their buttons say so by being disabled: that state checks the page as it is.
+  if (route === '#/settings/toil') {
+    out.push({ name: 'loading-screen', setup: `(async () => { if (!(await ${clickAll('[data-preview="loader"]')})) return 0; const deadline = Date.now() + 5000; while (!document.querySelector('[data-moment-preview] [data-loading] [role="status"]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[data-moment-preview] [data-loading] [role="status"]') ? 1 : 'the loading screen preview opened with no progress status'; })()`, undo: 'Escape', undoJs: clickAll('[data-preview-close]', null, 0) });
+    const played = (button, shown) => `(async () => { const b = document.querySelector(${JSON.stringify(button)}); if (!b) return document.querySelector('#moments-summary') ? 1 : 0; if (b.disabled) return 1; b.click(); const deadline = Date.now() + 5000; while (!document.querySelector(${JSON.stringify(shown)}) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const el = document.querySelector(${JSON.stringify(shown)}); if (!el) return 'pressed ' + ${JSON.stringify(button)} + ' and nothing showed'; el.removeAttribute('aria-hidden'); return 1; })()`;
+    out.push({ name: 'splash', setup: played('[data-preview="splash"]', '.splash'), undo: 'Escape' });
+    out.push({ name: 'sprint-recap', setup: played('[data-preview="sprint-ended"]', '[data-moment="sprint-ended"]') });
+  }
   if (route === '#/settings/agent') out.push({ name: 'full-prompt', setup: clickAll('[data-full-prompt]', '/Show the full prompt/'), undoJs: clickAll('[data-full-prompt]', '/Hide the full prompt/') });
   // Install (#344): the dialog with the exact npm command, before anything runs, for the first SDK missing. On a
   // machine with every SDK installed there is no Install to press, which counts only when the status card says so.

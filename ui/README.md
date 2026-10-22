@@ -211,7 +211,9 @@ blocks another or is blocked, on the current sprint's dates, then the dependency
 The Board tab flags each card that needs attention, with a flag beside its status and
 an edge in the warning colour: anything that needs action now or a look (Insights,
 below), but not what is only worth knowing. **Needs attention only** narrows the board
-to those cards, and the tab carries how many there are. Under the board are its
+to those cards, and the tab carries how many there are. Drag a card to another column,
+or press M on it for its menu, to propose the move: nothing changes until you apply
+the command the proposal shows, and the card stays where its tracker says. Under the board are its
 stories with their pull requests, builds and deployments, then the builds and
 deployments themselves.
 
@@ -344,7 +346,8 @@ as everywhere else in Toil UI.
 A page has:
 
 - **Work items** that changed status (from, to, who and when), were added to or
-  dropped from a sprint, or got a new blocker.
+  dropped from a sprint, got a new blocker or had one cleared, and each sprint that
+  ended, with how many of its items and points were done.
 - **Pull requests** opened, reviewed (approved, changes requested, commented), merged
   or declined.
 - **Builds and deployments** that failed or recovered (deployments from OpenShift,
@@ -364,9 +367,11 @@ Every line links to its item, pull request, build or transcript, where the sourc
 page for it. Two kinds of fact
 come in differently. Status and sprint changes, pull requests, reviews and builds
 carry their own times in the sources' history, so a page can be built for any past
-day the cache covers. A new blocker and a deployment that failed or came back have
-no time in the trackers, so a sync sees them by comparing what it read with the last
-sync, and the line says which sync first saw it and when the one before ran.
+day the cache covers. A new blocker, a cleared one, a sprint's end and a deployment
+that failed or came back have no time in the trackers, so a sync sees them by comparing
+what it read with the last sync, and the line says which sync first saw it and when the
+one before ran. The facts a sync records for the first time are also what play a theme's
+event moments (Themes, below).
 
 **What a page can't vouch for is said at the top:** a day before the earliest sync the
 cache holds, a day no sync of a source ran on, a sync that failed, a source whose latest
@@ -905,6 +910,15 @@ A theme with particles also gets **Particles and ambient effects**, kept for eac
 theme on its own: off, that theme's particles are gone entirely, while its other
 motion keeps following **Reduce motion and effects** (and the operating system's
 reduced-motion setting, which stops everything).
+
+Crate and Harvest also have **theme moments**: a launch splash while the first read
+runs, their own loading screens with the real progress and a rotating line of their own,
+an entrance as a dossier opens, a transition between its tabs, and a short moment when a
+sync brings an item done, a build passed or failed, a blocker cleared, a pull request
+merged, or a sprint's end. **Theme motion**, under Settings, General, plays them in full,
+subtly or not at all, and is off whenever reduced motion is asked for. Every loading
+screen also carries a **toil tip**, one line with a Read more link, which **Toil tips on
+loading screens** turns off. Waits under 300 ms show no loading screen at all.
 
 Plain has neither wording nor voice, so both are off while it's chosen. It sets
 headings and figures in Fredoka, toil's wordmark face, on IBM Plex Sans. The choice
