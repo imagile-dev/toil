@@ -1,8 +1,10 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import PageHero from '../../components/PageHero.astro';
+import DocsCrumb from '../../components/DocsCrumb.astro';
+import DocsPager from '../../components/DocsPager.astro';
 import { Content, frontmatter } from '../../../../ui/docs/help.md';
-import { url, repoUrl } from '../../lib/url';
+import { repoUrl } from '../../lib/url';
 
 // Toil UI's help and edit links (#346): ui/docs/help.md, rendered, like the
 // themes page beside it. It is Toil UI's own doc, so it lives with the UI's
@@ -11,11 +13,7 @@ import { url, repoUrl } from '../../lib/url';
 
 <Layout title="Help and edit links" description={frontmatter.description}>
   <PageHero eyebrow="<b>Docs</b> · Toil UI" title="Help and edit links" lead={frontmatter.lead}>
-    <p class="crumb">
-      <a href={url('/docs/')}>Docs</a>
-      <span aria-hidden="true"> / </span><a href={url('/docs/ui/')}>Toil UI</a>
-      <span aria-hidden="true"> / </span><span>Help and edit links</span>
-    </p>
+    <DocsCrumb name="Help and edit links" />
   </PageHero>
 
   <section class="section--tight">
@@ -25,15 +23,13 @@ import { url, repoUrl } from '../../lib/url';
           <Content />
         </div>
         <p class="doc__source"><a href={`${repoUrl}/blob/main/ui/docs/help.md`}><code>ui/docs/help.md</code></a></p>
+        <DocsPager />
       </article>
     </div>
   </section>
 </Layout>
 
 <style>
-  .crumb { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-faint); }
-  .crumb a { color: var(--color-muted); }
-  .crumb a:hover { color: var(--color-accent); }
   .doc { display: grid; gap: var(--space-lg); align-items: start; padding-block: var(--space-lg); }
   .doc > * { min-width: 0; }
   .doc__body { display: grid; gap: var(--space-lg); max-width: 72ch; }

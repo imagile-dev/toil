@@ -1,7 +1,7 @@
 # toil feedback backend
 
 An Azure Function (Node.js 24, v4 programming model) behind the site's
-[feedback page](https://imagile-dev.github.io/toil/feedback/) and its curl endpoint.
+[feedback page](https://imagile-dev.github.io/toil/about/feedback/) and its curl endpoint.
 Reports become GitHub issues filed by the Imagile Bot, and the submitter gets an
 email when the issue is filed and when it closes. It is its own private package,
 like `site/`, and is never published.

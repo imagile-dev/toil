@@ -1,16 +1,27 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import PageHero from '../components/PageHero.astro';
-import { url } from '../lib/url';
-import { groups, depsCommands, notPlanned, integrationCount, levels } from '../data/integrations';
+import Layout from '../../layouts/Layout.astro';
+import PageHero from '../../components/PageHero.astro';
+import { url } from '../../lib/url';
+import { categories, depsCommands, integrationCount, databaseCount, levels } from '../../data/integrations';
+
+// Everything toil talks to, in one catalogue (#431): the integration areas and
+// the database engines side by side, each with its verification level and how
+// it signs in. Every tile comes from a data file; nothing here is a list typed
+// by hand, which is the only kind of inventory that stays accurate.
 ---
 
-<Layout title="Integrations" description={`The ${integrationCount} enterprise integrations toil covers, what each covers, the credential it uses, and how far each has been verified.`}>
+<Layout title="Connect" description={`The ${integrationCount} integrations and ${databaseCount} database engines toil connects to, how each signs in, and how far each has been verified.`}>
   <PageHero
-    eyebrow={`<b>${integrationCount}</b> integrations · three verification levels · one auth bar`}
-    title="Every tool behind <em>one pasted token.</em>"
-    lead="Each integration is its own command area, signs in with a long-lived token you generate once in the vendor's UI, and returns the same JSON envelope. Nothing needs a browser login at use time."
-  />
+    eyebrow={`<b>${integrationCount}</b> integrations · <b>${databaseCount}</b> database engines`}
+    title="Everything toil <em>connects to.</em>"
+    lead="Each one is a command area or a database engine. It signs in with a token or account you set up once, and returns the same JSON envelope."
+  >
+    <nav class="jump" aria-label="Categories">
+      <ul>
+        {categories.map((c) => <li><a class="tap" href={`#${c.id}`}>{c.title}</a></li>)}
+      </ul>
+    </nav>
+  </PageHero>
 
   <section class="section--tight levels-wrap">
     <div class="container">
@@ -25,24 +36,23 @@ import { groups, depsCommands, notPlanned, integrationCount, levels } from '../d
     </div>
   </section>
 
-  {groups.map((g) => (
-    <section class="section--tight group">
+  {categories.map((c) => (
+    <section class="section--tight group" id={c.id} aria-labelledby={`${c.id}-title`}>
       <div class="container">
         <header class="group__head" data-reveal>
-          <h2>{g.title}</h2>
-          <p>{g.blurb}</p>
+          <h2 id={`${c.id}-title`}>{c.title}</h2>
+          <p>{c.blurb}</p>
         </header>
         <ul class="tiles">
-          {g.items.map((i, n) => (
+          {c.items.map((i, n) => (
             <li class="card tile" data-reveal style={`--d: ${n * 70}ms`}>
               <div class="tile__top">
-                <code class="tile__area">toil {i.area}</code>
+                <code class="tile__area">{i.tag}</code>
                 <span class={`status status--${i.status}`}>{i.status}</span>
               </div>
-              <h3><a class="tile__link" href={url(`/docs/integrations/${i.area}/`)}>{i.name}</a></h3>
-              <p>{i.covers}</p>
-              <p class="tile__cred"><span>Credential</span> {i.credential}</p>
-              <span class="tile__docs" aria-hidden="true">Docs →</span>
+              <h3><a class="tile__link" href={url(i.href)}>{i.name}</a></h3>
+              {i.covers && <p>{i.covers}</p>}
+              <p class="tile__cred"><span>Sign-in</span> {i.credential}</p>
             </li>
           ))}
         </ul>
@@ -50,10 +60,10 @@ import { groups, depsCommands, notPlanned, integrationCount, levels } from '../d
     </section>
   ))}
 
-  <section class="section section--rule deps">
+  <section class="section section--rule deps" id="dependency-checks">
     <div class="container">
       <div class="section-head" data-reveal>
-        <p class="eyebrow">Dependency analysis</p>
+        <p class="eyebrow">Dependency checks</p>
         <h2>One command per source. You compose.</h2>
         <p>No single command quietly asks four services on your behalf. Build an inventory locally, then pipe it to exactly the sources you trust, and every finding says where it came from.</p>
       </div>
@@ -80,27 +90,13 @@ import { groups, depsCommands, notPlanned, integrationCount, levels } from '../d
       </div>
     </div>
   </section>
-
-  <section class="section section--rule">
-    <div class="container">
-      <div class="section-head" data-reveal>
-        <p class="eyebrow">Not planned</p>
-        <h2>Some tools can't clear the bar.</h2>
-        <p>If the only workable sign-in is a password, an interactive login, or another CLI, toil won't integrate it, however useful it would be.</p>
-      </div>
-      <ul class="nope">
-        {notPlanned.map((n, i) => (
-          <li class="card" data-reveal style={`--d: ${i * 90}ms`}>
-            <h3>{n.name}</h3>
-            <p>{n.why}</p>
-          </li>
-        ))}
-      </ul>
-    </div>
-  </section>
 </Layout>
 
 <style>
+  .jump ul { display: flex; flex-wrap: wrap; gap: 0 1.2rem; margin-top: var(--space-sm); font-size: var(--text-sm); }
+  .jump a { color: var(--color-muted); font-family: var(--font-action); font-weight: 500; }
+  .jump a:hover { color: var(--color-accent); }
+
   .levels-wrap { padding-block: var(--space-lg); }
 
   .levels {
@@ -139,7 +135,7 @@ import { groups, depsCommands, notPlanned, integrationCount, levels } from '../d
   }
   @keyframes dot { 50% { opacity: 0.3; } }
 
-  .group { padding-block: var(--space-lg); }
+  .group { padding-block: var(--space-lg); scroll-margin-top: 64px; }
   .group__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 1rem; margin-bottom: var(--space-md); }
   .group__head h2 { font-size: var(--text-2xl); }
   .group__head p { color: var(--color-muted); }
@@ -166,13 +162,6 @@ import { groups, depsCommands, notPlanned, integrationCount, levels } from '../d
   .tile__link::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
   .tile__link:focus-visible { outline: none; }
   .tile:has(.tile__link:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
-  .tile__docs {
-    align-self: flex-end;
-    font-family: var(--font-action); font-size: var(--text-xs); font-weight: 500;
-    color: var(--color-accent);
-    transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
-  }
-  .tile:hover .tile__docs { opacity: 1; transform: translateX(3px); }
   .tile p { color: var(--color-muted); font-size: var(--text-sm); }
   .tile__cred { margin-top: auto; padding-top: 0.6rem; border-top: 1px dashed var(--color-line); font-size: 0.8rem !important; }
   .tile__cred span {
@@ -196,8 +185,4 @@ import { groups, depsCommands, notPlanned, integrationCount, levels } from '../d
   td { color: var(--color-muted); }
   td code { color: var(--color-ink); white-space: nowrap; }
 
-  .nope { display: grid; gap: var(--space-sm); }
-  .nope h3 { font-size: var(--text-lg); }
-  .nope p { color: var(--color-muted); font-size: var(--text-sm); margin-top: 0.3rem; }
-  @media (min-width: 760px) { .nope { grid-template-columns: 1fr 1fr; } }
 </style>

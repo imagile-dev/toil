@@ -1,0 +1,42 @@
+[
+  {
+    "engine": "sqlite",
+    "label": "SQLite",
+    "verification": "live"
+  },
+  {
+    "engine": "postgres",
+    "label": "PostgreSQL",
+    "verification": "live"
+  },
+  {
+    "engine": "mysql",
+    "label": "MySQL / MariaDB",
+    "verification": "live"
+  },
+  {
+    "engine": "sqlserver",
+    "label": "SQL Server",
+    "verification": "live"
+  },
+  {
+    "engine": "oracle",
+    "label": "Oracle",
+    "verification": "live"
+  },
+  {
+    "engine": "teradata",
+    "label": "Teradata",
+    "verification": "unit"
+  },
+  {
+    "engine": "hive",
+    "label": "Hive",
+    "verification": "live"
+  },
+  {
+    "engine": "impala",
+    "label": "Impala",
+    "verification": "live"
+  }
+]

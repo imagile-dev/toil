@@ -1,7 +1,7 @@
 {
   "area": "openshift",
   "name": "OpenShift / Kubernetes",
-  "group": "build",
+  "group": "cicd",
   "order": 3,
   "covers": "Pods, events, logs, metrics, deployments",
   "credential": "Service account token",

@@ -1,0 +1,23 @@
+---
+// The breadcrumb under a docs page's title: Docs, the page's group on the docs
+// path (data/docs-path.ts), then the page. A page off the path gets Docs and
+// its name, and the index gets Docs alone, so the trail never claims a place
+// it doesn't have.
+import Crumb from './Crumb.astro';
+import { docsPlace } from '../data/docs-path';
+import { sitePath } from '../lib/url';
+
+interface Props {
+  /** The page's own name, last in the trail. */
+  name: string;
+}
+
+const { name } = Astro.props;
+const path = sitePath(Astro.url.pathname);
+const { stop } = docsPlace(path);
+const steps = path === '/docs/'
+  ? [{ label: 'Docs' }]
+  : [{ label: 'Docs', href: '/docs/' }, ...(stop ? [{ label: stop.group.title, href: `/docs/#${stop.group.id}` }] : []), { label: name }];
+---
+
+<Crumb steps={steps} />

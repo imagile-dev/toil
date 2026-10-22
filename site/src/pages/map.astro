@@ -1,0 +1,23 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PageHero from '../components/PageHero.astro';
+import { integrationCount, databaseCount } from '../data/integrations';
+import { url } from '../lib/url';
+
+// The map's page. #432 fills it with the full-page interactive map of
+// everything toil does; until then it says so and points at the two lists the
+// map will be drawn from. A placeholder, approved in principle, pending a map.
+---
+
+<Layout title="Map" description="A map of everything toil does: who asks it, and everything it reaches.">
+  <PageHero eyebrow="<b>Map</b> · Coming soon" title="The toil map" lead="An interactive map of who asks toil and everything it reaches is on its way.">
+    <div class="map-next">
+      <a class="btn btn--primary" href={url('/connect/')}>See all {integrationCount + databaseCount} connections</a>
+      <a class="btn btn--ghost" href={url('/docs/')}>Read the docs</a>
+    </div>
+  </PageHero>
+</Layout>
+
+<style>
+  .map-next { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: var(--space-md); }
+</style>

@@ -87,10 +87,11 @@ versions.
    moving a target flag to the group needs no divergence.
 8. **Docs**: `npx vitest run -u` writes `site/src/data/commands/<area>.json` and
    `site/src/data/settings/<area>.json`; add the
-   board entry, `site/src/data/integrations/<area>.json`, at `status` `unit`; review
+   board entry, `site/src/data/integrations/<area>.json` (its `group` is its category on
+   `/connect/`), at `status` `unit`; review
    the docs page, which is the area's skill file rendered (nothing to write in
    `site/`), and take its screenshots with
-   `node scripts/shoot.mjs docs/integrations/<area>/` (the `site` skill).
+   `node scripts/shoot.mjs connect/<area>/` (the `site` skill).
 9. **Suspected bugs** go in the area's issue, never fixed in the integration (below).
 10. **Delete the brief**, `docs/briefs/<area>.md`, in the same PR. Briefs are the only
    docs that point at reference material outside this repository; shipped docs,
@@ -273,9 +274,8 @@ into its name map, and asks for them only when the call names a field (Jira's
 
 **Every change to an integration reviews its site documentation in the same PR.**
 That covers a new integration, a new or changed command, a changed credential or
-config key, and a raised verification level. Each integration has its own page in
-the site's documentation section, and its tile on the integrations board links to
-that page:
+config key, and a raised verification level. Each integration has its own page,
+`/connect/<area>/`, and its tile on the site's Connect page links to it:
 - **A new integration** adds its page and its board tile with the deep link.
 - **A changed integration** reads its page against the change and updates whatever
   is now wrong: setup, credentials, config keys, commands, the verification level.

@@ -5,7 +5,7 @@
 // a PR opens.
 //
 //   npm --prefix site run dev                     # in another terminal
-//   node scripts/shoot.mjs docs/integrations/jira/ integrations/
+//   node scripts/shoot.mjs connect/jira/ connect/
 //   (no leading slash, so Git Bash on Windows leaves the paths alone)
 //   node scripts/shoot.mjs --base http://localhost:4321/toil --out <dir>   # the home page
 //

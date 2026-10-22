@@ -1,35 +1,41 @@
 ---
-// A docs page that is one file of the toil skill (skills/toil/<file>), rendered.
+// A page that is one file of the toil skill (skills/toil/<file>), rendered.
 // The hero's title and lead are the file's own heading and description; the
 // page adds a facts panel (slot "facts") and generated reference after the
-// body (the default slot), and nothing written here.
+// body (the default slot), and nothing written here. A docs page takes its
+// breadcrumb and its previous and next links from the docs path
+// (data/docs-path.ts); a page under another root (/connect/) names that root
+// and its own trail, and brings its own pager.
 import Layout from '../layouts/Layout.astro';
 import PageHero from './PageHero.astro';
+import Crumb from './Crumb.astro';
+import DocsCrumb from './DocsCrumb.astro';
+import DocsPager from './DocsPager.astro';
+import { docsPlace } from '../data/docs-path';
 import { skillDoc } from '../lib/skill';
-import { url, repoUrl } from '../lib/url';
+import { repoUrl, sitePath } from '../lib/url';
 
 interface Props {
   file: string;
-  /** The eyebrow and breadcrumb trail after Docs, such as `Integrations · Work tracking and source`. */
-  trail?: string[];
   /** The hero title, when the page has a better name than the file's heading (an integration's board name). */
   title?: string;
+  /** A root other than Docs, with the trail after it: `{ label: 'Connect', href: '/connect/' }` and `['Work tracking']`. */
+  root?: { label: string; href: string };
+  trail?: string[];
 }
 
-const { file, trail = [], title } = Astro.props;
+const { file, title, root, trail = [] } = Astro.props;
 const doc = skillDoc(file);
 const name = title ?? doc.title;
 const Content = doc.Content;
 const hasFacts = Astro.slots.has('facts');
+const group = docsPlace(sitePath(Astro.url.pathname)).stop?.group.title;
+const eyebrow = root ? [`<b>${root.label}</b>`, ...trail] : ['<b>Docs</b>', ...(group ? [group] : [])];
 ---
 
 <Layout title={name} description={doc.description}>
-  <PageHero eyebrow={['<b>Docs</b>', ...trail].join(' · ')} title={name} lead={doc.description}>
-    <p class="crumb">
-      <a href={url('/docs/')}>Docs</a>
-      {trail.map((t) => <><span aria-hidden="true"> / </span><span>{t}</span></>)}
-      {file !== 'SKILL.md' && <><span aria-hidden="true"> / </span><span>{name}</span></>}
-    </p>
+  <PageHero eyebrow={eyebrow.join(' · ')} title={name} lead={doc.description}>
+    {root ? <Crumb steps={[root, ...trail.map((label) => ({ label })), { label: name }]} /> : <DocsCrumb name={name} />}
   </PageHero>
 
   <section class="section--tight">
@@ -41,21 +47,19 @@ const hasFacts = Astro.slots.has('facts');
         </aside>
       )}
       <article class="doc__body">
+        <slot name="before" />
         <div class="skill-doc">
           <Content />
         </div>
         <slot />
         {!hasFacts && <p class="doc__source"><a href={`${repoUrl}/blob/main/skills/toil/${file}`}><code>skills/toil/{file}</code></a></p>}
+        {!root && <DocsPager />}
       </article>
     </div>
   </section>
 </Layout>
 
 <style>
-  .crumb { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-faint); }
-  .crumb a { color: var(--color-muted); }
-  .crumb a:hover { color: var(--color-accent); }
-
   .doc { display: grid; gap: var(--space-lg); align-items: start; padding-block: var(--space-lg); }
   .doc > * { min-width: 0; }
 

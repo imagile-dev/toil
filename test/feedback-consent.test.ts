@@ -28,7 +28,7 @@ describe('the feedback disclaimer', () => {
     expect(data).toContain(`version: ${CONSENT_VERSION},`);
     expect(data).toContain(`text: ${JSON.stringify(DISCLAIMER)},`);
     expect(data).toContain(`endpoint: '${new URL(FEEDBACK_ENDPOINT).origin}',`);
-    const page = read('site/src/pages/feedback.astro');
+    const page = read('site/src/pages/about/feedback.astro');
     expect(page).toContain('feedback.consent.text');
     expect(page).toContain('feedback.consent.version');
   });

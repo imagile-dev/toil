@@ -1,8 +1,8 @@
 {
   "area": "git",
   "name": "Local git",
-  "group": "work",
-  "order": 6,
+  "group": "source",
+  "order": 3,
   "covers": "Status, diff, log, branches, commit report",
   "credential": "None — local",
   "credentialNote": "No server. The commands run git, the one optional exception to running no other program; the repo root and branch are read in pure JS",

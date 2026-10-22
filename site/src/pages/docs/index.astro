@@ -1,56 +1,45 @@
 ---
 import SkillPage from '../../components/SkillPage.astro';
-import { groups } from '../../data/integrations';
-import { allDocs, integrationDocs } from '../../lib/skill';
+import { categories } from '../../data/integrations';
+import { docsPath } from '../../data/docs-path';
 import { url } from '../../lib/url';
-import uiPackage from '../../../../ui/package.json';
-import { frontmatter as themesDoc } from '../../../../ui/docs/themes.md';
-import { frontmatter as helpDoc } from '../../../../ui/docs/help.md';
 
-// The docs index is the skill's own index, skills/toil/SKILL.md, rendered,
-// then every page: each file's title and frontmatter description, and the
-// integrations in board order. A file added to the skill shows up here with
-// no edit to this page.
-const general = allDocs.filter((d) => d.file !== 'SKILL.md' && !integrationDocs.some((i) => i.file === d.file));
-const onBoard = new Set(groups.flatMap((g) => g.items.map((i) => i.area)));
-const unlisted = integrationDocs.filter((d) => !onBoard.has(d.area!));
+// The docs index: the docs path first (data/docs-path.ts), group by group,
+// then the skill's own index, skills/toil/SKILL.md, rendered, then everything
+// /connect/ lists, in its order. A page is added to the path in one place,
+// and shows up here, in the footer and in every page's previous and next.
 ---
 
 <SkillPage file="SKILL.md" title="Docs">
-  <section class="pages" id="every-page">
-    <h2>Every page</h2>
-    <ul class="pages__list">
-      {general.map((d) => (
-        <li><a class="tap" href={url(d.path!)}>{d.title}</a><p>{d.description}</p></li>
+  <section class="pages pages--first" id="the-path" aria-labelledby="the-path-title" slot="before">
+    <h2 id="the-path-title">The docs, in order</h2>
+    <ol class="path">
+      {docsPath.map((g, n) => (
+        <li class="path__group" id={g.id}>
+          <h3><span class="path__n">{n + 1}</span>{g.title}</h3>
+          <ul>
+            {g.links.map((l) => (
+              <li><a class="tap" href={url(l.href)}>{l.label}</a></li>
+            ))}
+          </ul>
+        </li>
       ))}
-      <li><a class="tap" href={url('/docs/welcome/')}>The welcome menu</a></li>
-      <li><a class="tap" href={url('/docs/ui/')}>Toil UI</a><p>{uiPackage.description}</p></li>
-      <li><a class="tap" href={url('/docs/themes/')}>Toil UI themes</a><p>{themesDoc.description}</p></li>
-      <li><a class="tap" href={url('/docs/ui-help/')}>Toil UI help and edit links</a><p>{helpDoc.description}</p></li>
-    </ul>
+    </ol>
   </section>
 
-  <section class="pages" id="integrations">
-    <h2>Integrations</h2>
+  <section class="pages" id="integrations" aria-labelledby="integrations-title">
+    <h2 id="integrations-title">Everything toil connects to</h2>
     <div class="index">
-      {groups.map((g) => (
+      {categories.map((c) => (
         <section class="index__group">
-          <h3>{g.title}</h3>
+          <h3>{c.title}</h3>
           <ul>
-            {g.items.map((i) => (
-              <li><a class="tap" href={url(`/docs/integrations/${i.area}/`)}>{i.name}<span class={`dot dot--${i.status}`} title={i.status}></span></a></li>
+            {c.items.map((i) => (
+              <li><a class="tap" href={url(i.href)}>{i.name}<span class={`dot dot--${i.status}`} title={i.status}></span></a></li>
             ))}
           </ul>
         </section>
       ))}
-      {unlisted.length > 0 && (
-        <section class="index__group">
-          <h3>More</h3>
-          <ul>
-            {unlisted.map((d) => <li><a class="tap" href={url(d.path!)}>{d.title}</a></li>)}
-          </ul>
-        </section>
-      )}
     </div>
   </section>
 </SkillPage>
@@ -58,10 +47,17 @@ const unlisted = integrationDocs.filter((d) => !onBoard.has(d.area!));
 <style>
   .pages { border-top: 1px solid var(--color-line); padding-top: var(--space-md); }
   .pages h2 { font-size: var(--text-2xl); margin-bottom: var(--space-sm); }
-  .pages__list { display: grid; gap: var(--space-xs); }
-  .pages__list li { min-width: 0; border-bottom: 1px solid var(--color-line); padding-bottom: var(--space-xs); }
-  .pages__list a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
-  .pages__list p { color: var(--color-muted); font-size: var(--text-sm); }
+  .pages--first { border-top: 0; padding-top: 0; }
+
+  .path { display: grid; gap: var(--space-md); }
+  @media (min-width: 640px) { .path { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1000px) { .path { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .path__group { min-width: 0; scroll-margin-top: 88px; }
+  .path__group h3 { display: flex; align-items: baseline; gap: 0.6rem; font-size: var(--text-lg); margin-bottom: var(--space-2xs); }
+  .path__n { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--color-accent); }
+  .path__group ul { display: grid; }
+  .path__group li { min-width: 0; border-bottom: 1px solid var(--color-line); }
+  .path__group a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
 
   .index { display: grid; gap: var(--space-lg); }
   .index > * { min-width: 0; }

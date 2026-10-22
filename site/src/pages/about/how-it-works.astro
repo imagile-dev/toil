@@ -1,7 +1,8 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import PageHero from '../components/PageHero.astro';
-import { url } from '../lib/url';
+import Layout from '../../layouts/Layout.astro';
+import PageHero from '../../components/PageHero.astro';
+import Crumb from '../../components/Crumb.astro';
+import { url } from '../../lib/url';
 
 const parts = [
   {
@@ -70,10 +71,12 @@ const parts = [
 
 <Layout title="How it works" description="How toil works at a high level: one core behind the CLI and MCP, the JSON envelope, configuration, credentials, write safety and installation.">
   <PageHero
-    eyebrow="How it works"
+    eyebrow="<b>About</b>"
     title="The big picture, <em>briefly.</em>"
     lead="What toil is made of and the promises it keeps. For specifics, such as setup steps, configuration keys and each integration, see the docs."
-  />
+  >
+    <Crumb steps={[{ label: 'About', href: '/about/' }, { label: 'How it works' }]} />
+  </PageHero>
 
   <section class="section--tight">
     <div class="container">

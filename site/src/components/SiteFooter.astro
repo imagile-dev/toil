@@ -1,6 +1,44 @@
 ---
 import Logo from './Logo.astro';
+import { docsPath } from '../data/docs-path';
 import { url, repoUrl } from '../lib/url';
+
+// Every page on the site, one column per part of the site map (#431); the
+// docs column is the docs path's groups, so it moves when the path does.
+const columns = [
+  {
+    title: 'toil',
+    links: [
+      { href: url('/'), label: 'Home' },
+      { href: url('/map/'), label: 'Map' },
+      { href: url('/connect/'), label: 'Connect' },
+      { href: url('/ui/'), label: 'Toil UI' },
+    ],
+  },
+  {
+    title: 'Docs',
+    links: [{ href: url('/docs/'), label: 'All docs' }, ...docsPath.map((g) => ({ href: url(`/docs/#${g.id}`), label: g.title }))],
+  },
+  {
+    title: 'About',
+    links: [
+      { href: url('/about/'), label: 'About' },
+      { href: url('/about/how-it-works/'), label: 'How it works' },
+      { href: url('/about/principles/'), label: 'Principles' },
+      { href: url('/about/changelog/'), label: 'Changelog' },
+      { href: url('/about/feedback/'), label: 'Feedback' },
+    ],
+  },
+  {
+    title: 'Elsewhere',
+    links: [
+      { href: repoUrl, label: 'GitHub' },
+      { href: `${repoUrl}/issues`, label: 'Issues' },
+      { href: 'https://www.npmjs.com/package/@imagile-dev/toil', label: 'npm' },
+      { href: 'https://www.imagile.dev', label: 'imagile.dev' },
+    ],
+  },
+];
 ---
 
 <footer class="site-footer">
@@ -19,17 +57,14 @@ import { url, repoUrl } from '../lib/url';
         <a href={url('/')} class="site-footer__logo tap"><Logo height={26} /> <span class="wordmark">toil</span></a>
         <p>The token-efficient alternative to MCP.</p>
       </div>
-      <ul class="site-footer__links">
-        <li><a class="tap" href={url('/how-it-works/')}>How it works</a></li>
-        <li><a class="tap" href={url('/integrations/')}>Integrations</a></li>
-        <li><a class="tap" href={url('/ui/')}>Toil UI</a></li>
-        <li><a class="tap" href={url('/docs/')}>Docs</a></li>
-        <li><a class="tap" href={url('/principles/')}>Principles</a></li>
-        <li><a class="tap" href={repoUrl}>GitHub</a></li>
-        <li><a class="tap" href={url('/feedback/')}>Feedback</a></li>
-        <li><a class="tap" href={`${repoUrl}/issues`}>Issues</a></li>
-        <li><a class="tap" href="https://www.imagile.dev">imagile.dev</a></li>
-      </ul>
+      <nav class="site-footer__map" aria-label="Every page">
+        {columns.map((c) => (
+          <div>
+            <p class="site-footer__head">{c.title}</p>
+            <ul>{c.links.map((l) => <li><a class="tap" href={l.href}>{l.label}</a></li>)}</ul>
+          </div>
+        ))}
+      </nav>
       <p class="site-footer__fine">Apache 2.0 licensed · © Imagile</p>
     </div>
   </div>
@@ -110,8 +145,10 @@ import { url, repoUrl } from '../lib/url';
 
   .site-footer__brand p { color: var(--color-muted); }
 
-  .site-footer__links { display: flex; flex-wrap: wrap; gap: 0 1.4rem; color: var(--color-muted); }
-  .site-footer__links a:hover { color: var(--color-accent); }
+  .site-footer__map { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm) var(--space-md); color: var(--color-muted); }
+  .site-footer__map a:hover { color: var(--color-accent); }
+  .site-footer__head { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-faint); }
+  @media (min-width: 760px) { .site-footer__map { grid-template-columns: repeat(4, minmax(7rem, auto)); } }
 
   .site-footer__fine {
     font-family: var(--font-mono);

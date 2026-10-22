@@ -1,0 +1,27 @@
+---
+// A breadcrumb under a page's title: each step a link but the last, which is
+// the page itself. DocsCrumb works out the docs' steps from the docs path.
+import { url } from '../lib/url';
+
+interface Props {
+  /** The steps, first to last; the last is the current page and takes no href. */
+  steps: Array<{ label: string; href?: string }>;
+}
+
+const { steps } = Astro.props;
+---
+
+<nav class="crumb" aria-label="Breadcrumb">
+  {steps.map((s, n) => (
+    <>
+      {n > 0 && <span aria-hidden="true"> / </span>}
+      {n === steps.length - 1 ? <span aria-current="page">{s.label}</span> : s.href ? <a href={url(s.href)}>{s.label}</a> : <span>{s.label}</span>}
+    </>
+  ))}
+</nav>
+
+<style>
+  .crumb { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-faint); }
+  .crumb a { color: var(--color-muted); }
+  .crumb a:hover { color: var(--color-accent); }
+</style>

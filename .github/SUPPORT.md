@@ -4,16 +4,16 @@
 
 - **[The docs](https://imagile-dev.github.io/toil/docs/)**: setup, connections and
   every command, one page per area.
-- **[How it works](https://imagile-dev.github.io/toil/how-it-works/)**: the big
+- **[How it works](https://imagile-dev.github.io/toil/about/how-it-works/)**: the big
   picture, from the JSON envelope to credentials and MCP.
-- **[The integrations board](https://imagile-dev.github.io/toil/integrations/)**:
-  what each integration covers and how far it has been verified.
+- **[Connect](https://imagile-dev.github.io/toil/connect/)**: every integration and
+  database engine, how each signs in, and how far it has been verified.
 - **Your own terminal**: every error carries a `fix` that says what to do next, and
   `toil <command> --help` lists every flag.
 
 ## Report a problem or ask for something
 
-- **[The feedback page](https://imagile-dev.github.io/toil/feedback/)** on the site,
+- **[The feedback page](https://imagile-dev.github.io/toil/about/feedback/)** on the site,
   or its curl endpoint for networks where the form can't load. Each report becomes
   a public issue, which is redacted (tokens, internal hosts, private IPs) before an
   agent triages it.

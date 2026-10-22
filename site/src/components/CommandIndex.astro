@@ -19,7 +19,7 @@ const list = files[`../data/commands/${group}.json`] ?? [];
       {list.map((c) => (
         <li class="cmd">
           <div class="cmd__head">
-            <code class="cmd__name">toil {group} {c.name}</code>
+            <code class="cmd__name">{`toil ${group} ${c.name}`}</code>
             {c.writes && <span class="tag tag--write">write</span>}
             {c.tool === null && <span class="tag">CLI only</span>}
             {c.aliases?.map((alias) => <span class="cmd__alias">also <code>toil {alias}</code></span>)}

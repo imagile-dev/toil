@@ -1,8 +1,8 @@
 {
   "area": "figma",
   "name": "Figma",
-  "group": "design",
-  "order": 1,
+  "group": "docs",
+  "order": 2,
   "covers": "Files from a link, comments, version history",
   "credential": "Personal access token",
   "credentialWhere": "Settings → Security → Personal access tokens",

@@ -1,0 +1,28 @@
+---
+// Every old address, as a page that forwards to its new home (#431): one page
+// per entry in REDIRECTS, and one per integration page that moved from
+// /docs/integrations/<area>/ to /connect/<area>/. The list lives in
+// lib/redirects.mjs, so moving a page is one line there and nothing here.
+import Redirect from '../components/Redirect.astro';
+import { REDIRECTS, MOVED_PREFIX } from '../lib/redirects.mjs';
+import { integrationDocs } from '../lib/skill';
+
+const names: Record<string, string> = {
+  '/ui/': 'Toil UI',
+  '/connect/': 'Connect',
+  '/connect/db/': 'Databases',
+  '/about/how-it-works/': 'How it works',
+  '/about/principles/': 'Principles',
+  '/about/feedback/': 'Feedback',
+};
+
+export function getStaticPaths() {
+  const moved = integrationDocs.map((d) => [`${MOVED_PREFIX.from}${d.area}/`, `${MOVED_PREFIX.to}${d.area}/`, d.title] as const);
+  const listed = Object.entries(REDIRECTS).map(([from, to]) => [from, to, undefined] as const);
+  return [...listed, ...moved].map(([from, to, title]) => ({ params: { old: from.slice(1, -1) }, props: { to, title } }));
+}
+
+const { to, title } = Astro.props as { to: string; title?: string };
+---
+
+<Redirect to={to} name={title ?? names[to] ?? to} />

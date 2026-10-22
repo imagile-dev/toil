@@ -1,0 +1,22 @@
+---
+// Previous and next along the docs path (data/docs-path.ts), at the foot of
+// every docs page. A page off the path draws nothing.
+import { docsPlace } from '../data/docs-path';
+import { url, sitePath } from '../lib/url';
+
+const { prev, next } = docsPlace(sitePath(Astro.url.pathname));
+---
+
+{(prev || next) && (
+  <nav class="pager" aria-label="Docs, previous and next">
+    {prev ? <a class="tap" href={url(prev.href)}><span class="pager__dir">Previous</span><span>← {prev.label}</span></a> : <span></span>}
+    {next ? <a class="tap pager__next" href={url(next.href)}><span class="pager__dir">Next</span><span>{next.label} →</span></a> : <span></span>}
+  </nav>
+)}
+
+<style>
+  .pager { display: flex; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; padding-top: var(--space-md); border-top: 1px solid var(--color-line); }
+  .pager a { display: grid; gap: 0.1rem; color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
+  .pager__next { text-align: right; justify-items: end; margin-left: auto; }
+  .pager__dir { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-faint); }
+</style>

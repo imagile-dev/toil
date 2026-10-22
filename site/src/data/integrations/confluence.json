@@ -1,8 +1,8 @@
 {
   "area": "confluence",
   "name": "Confluence Data Center",
-  "group": "work",
-  "order": 5,
+  "group": "docs",
+  "order": 1,
   "covers": "Pages, spaces, search, comments, labels, attachments",
   "credential": "Personal access token",
   "credentialNote": "The default connection uses TOIL_JIRA_API_TOKEN when no Confluence token is set; another connection can borrow a Jira connection's token with apiTokenFrom",

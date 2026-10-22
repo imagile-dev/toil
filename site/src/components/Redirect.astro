@@ -1,0 +1,36 @@
+---
+// A page that only forwards to where its content lives now. GitHub Pages has
+// no server to send a 301, so the page does it: the script keeps the query
+// and the hash (a link to a heading still lands on that heading), and without
+// script the refresh and the link still land on the new page, without the
+// hash. Each old address is listed in REDIRECTS (lib/redirects.mjs), which
+// keeps them out of the sitemap. A change of address, filed with the post office.
+interface Props {
+  /** The new home, site-relative, as url() takes it. */
+  to: string;
+  /** What the page is called now, for the title and the link. */
+  name: string;
+}
+import { url } from '../lib/url';
+
+const { to: path, name } = Astro.props;
+const to = url(path);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <link rel="canonical" href={new URL(to, Astro.site)} />
+    <title>{`${name} — toil`}</title>
+    <script is:inline define:vars={{ to }}>
+      location.replace(to + location.search + location.hash);
+    </script>
+    <meta http-equiv="refresh" content={`0; url=${to}`} />
+  </head>
+  <body style="background:#16130f;color:#f6f1e9;font-family:system-ui,sans-serif;padding:1rem">
+    <main><p>This page has moved to <a href={to} style="color:#ffb84d">{name}</a>.</p></main>
+  </body>
+</html>

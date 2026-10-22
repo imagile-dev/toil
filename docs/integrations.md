@@ -10,14 +10,17 @@ The enterprise services toil covers. Each one is its own command area
 Each integration has one file, `site/src/data/integrations/<area>.json`: its service,
 what it covers, its credential and where to make it, its status (its verification
 level), and the oldest server version it supports. The site's
-[integrations board](https://imagile-dev.github.io/toil/integrations/) is built from
-those files, and each integration's docs page is its `skills/toil/<area>.md`, rendered,
-with that file's facts beside it, so there is no table here to keep in step. One file per area means an integration changes only its own row.
+[Connect page](https://imagile-dev.github.io/toil/connect/) is built from
+those files, beside the database engines (`site/src/data/databases.json`, which
+`test/site-commands.test.ts` writes from the providers, and each engine's sign-in in
+`site/src/data/db-sign-in.json`), and each integration's page, `/connect/<area>/`, is its
+`skills/toil/<area>.md`, rendered, with that file's facts beside it, so there is no
+table here to keep in step. One file per area means an integration changes only its own row.
 
 | Key | Meaning |
 |-----|---------|
 | `area`, `name` | The command area and the service's own name |
-| `group`, `order` | Which board section it sits in (`work`, `build`, `security`, `observability`, `design`), and where |
+| `group`, `order` | Which category on Connect it sits in (`trackers`, `source`, `cicd`, `testing`, `security`, `observability`, `docs`), and where |
 | `covers` | What the area reads and writes, in a line |
 | `credential`, `credentialWhere`, `credentialNote` | The credential, the menu path to create it (only when certain), and a note such as a CI fallback (`GITHUB_TOKEN`, `SONAR_TOKEN`) or a shared key (Kibana uses the Elasticsearch key) |
 | `status` | Its verification level: `unit`, `live` or `stable`, with the meanings in `site/src/data/levels.json`. A file is added with the area's code, at `unit` |
@@ -65,13 +68,6 @@ The `util` group holds commands with no connection, no credential and no network
 | `toil doctor` | Config, credential and reachability report across every configured area |
 | `toil config` | `init`, `set`, `check`, `test`, keychain references |
 | `toil skills` | Install the user-facing skill for an agent |
-
-## Not planned
-
-| Service | Why |
-|---------|-----|
-| ServiceNow | Personal access tokens are opt-in and usually disabled, so in practice auth falls back to username + password |
-| IBM UrbanCode Deploy | No standalone personal token; the only workable auth is an account password |
 
 ## Order
 

@@ -1,4 +1,5 @@
-// Every integration, rendered on /integrations/ and counted on the homepage.
+// Every integration, rendered on /connect/ beside the database engines and
+// counted on the homepage.
 // Each one is its own file, integrations/<area>.json, so an integration changes its own
 // row (status, supported version) without touching anyone else's. This module
 // gathers them into the board's groups. Command names follow
@@ -6,6 +7,8 @@
 // level, one of the three in levels.json.
 
 import levelData from './levels.json';
+import engineData from './databases.json';
+import signInData from './db-sign-in.json';
 
 export type Status = 'unit' | 'live' | 'stable';
 
@@ -62,14 +65,16 @@ export interface Group {
   items: Integration[];
 }
 
-type GroupId = 'work' | 'build' | 'security' | 'observability' | 'design';
+type GroupId = 'trackers' | 'source' | 'cicd' | 'testing' | 'security' | 'observability' | 'docs';
 
 const groupInfo: Array<{ id: GroupId; title: string; blurb: string }> = [
-  { id: 'work', title: 'Work tracking and source', blurb: 'Where the work is described, discussed and reviewed.' },
-  { id: 'build', title: 'Build, release and runtime', blurb: 'Where code becomes something running.' },
+  { id: 'trackers', title: 'Work tracking', blurb: 'Where the work is planned and tracked.' },
+  { id: 'source', title: 'Source and review', blurb: 'Where code is kept and reviewed.' },
+  { id: 'cicd', title: 'CI/CD and runtime', blurb: 'Where code becomes something running.' },
+  { id: 'testing', title: 'Testing and flags', blurb: 'Test runs, devices and feature flags.' },
   { id: 'security', title: 'Security and quality', blurb: 'The scanners and gates every change has to clear.' },
   { id: 'observability', title: 'Observability', blurb: 'What production is actually doing.' },
-  { id: 'design', title: 'Design and data', blurb: 'The context engineers pull in from outside the code.' },
+  { id: 'docs', title: 'Docs and design', blurb: 'The context engineers pull in from outside the code.' },
 ];
 
 const files = Object.values(import.meta.glob<IntegrationFile>('./integrations/*.json', { eager: true, import: 'default' }));
@@ -101,12 +106,64 @@ export const depsCommands: DepsCommand[] = [
   { command: 'toil deps license-check', source: 'JFrog Artifactory', covers: 'License metadata for an inventory', network: 'Your server' },
 ];
 
-export const notPlanned = [
-  { name: 'ServiceNow', why: 'Personal access tokens are opt-in and usually disabled, so in practice sign-in falls back to a username and password.' },
-  { name: 'IBM UrbanCode Deploy', why: 'There is no standalone personal token; the only workable sign-in is an account password.' },
+export const integrationCount = groups.reduce((n, g) => n + g.items.length, 0);
+
+/** One database engine, from databases.json, which test/site-commands.test.ts writes from the providers. */
+interface Engine {
+  engine: string;
+  label: string;
+  verification: Status;
+}
+const engineList = engineData as Engine[];
+const engineSignIn = signInData as Record<string, { signIn: string; section: string }>;
+
+/** One entry on /connect/: an integration area or a database engine. */
+export interface CatalogueItem {
+  /** What a reader types: `toil jira`, or the engine value a db connection sets. */
+  tag: string;
+  name: string;
+  covers?: string;
+  credential: string;
+  status: Status;
+  /** The page it opens, site-relative. */
+  href: string;
+}
+
+export interface Category {
+  id: string;
+  title: string;
+  blurb: string;
+  items: CatalogueItem[];
+}
+
+/** Every database engine as a catalogue entry, each linking to its section of the db page. */
+export const databases: CatalogueItem[] = engineList.map((e) => {
+  const extra = engineSignIn[e.engine];
+  if (!extra) throw new Error(`site/src/data/db-sign-in.json has no entry for the "${e.engine}" engine.`);
+  return { tag: `engine: ${e.engine}`, name: e.label, credential: extra.signIn, status: e.verification, href: `/connect/db/#${extra.section}` };
+});
+
+export const databaseCount = databases.length;
+
+const asItem = (i: Integration): CatalogueItem => ({ tag: `toil ${i.area}`, name: i.name, covers: i.covers, credential: i.credential, status: i.status, href: `/connect/${i.area}/` });
+const groupById = (id: GroupId): Category => {
+  const info = groupInfo.find((g) => g.id === id)!;
+  const group = groups[groupInfo.indexOf(info)]!;
+  return { id, title: info.title, blurb: info.blurb, items: group.items.map(asItem) };
+};
+
+/** /connect/'s categories, in order: the integration groups, with the databases third. */
+export const categories: Category[] = [
+  groupById('trackers'),
+  groupById('source'),
+  { id: 'databases', title: 'Databases', blurb: 'One set of db commands for every engine.', items: databases },
+  ...(['cicd', 'testing', 'security', 'observability', 'docs'] as const).map(groupById),
 ];
 
-export const integrationCount = groups.reduce((n, g) => n + g.items.length, 0);
+/** The pages under /connect/, each once, in catalogue order: every area page, and the db page where the databases sit. */
+export const connectWalk: Array<{ href: string; name: string; category: string }> = categories.flatMap((c) =>
+  c.id === 'databases' ? [{ href: '/connect/db/', name: 'Databases', category: c.title }] : c.items.map((i) => ({ href: i.href, name: i.name, category: c.title })),
+);
 
 /**
  * Where a user generates each integration's credential, for its docs page. Only

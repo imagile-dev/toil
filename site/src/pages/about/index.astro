@@ -1,0 +1,339 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PageHero from '../../components/PageHero.astro';
+import Terminal from '../../components/Terminal.astro';
+import { principles } from '../../data/principles';
+import { url, repoUrl } from '../../lib/url';
+
+// About toil (#431): the four pages about the project rather than about using
+// it, then the case for toil that the homepage used to make at length. Each
+// section here was a homepage section until the homepage was cut to five.
+// Nothing was lost in the reorganisation; it was merely transferred to a new
+// department.
+const pages = [
+  { href: '/about/how-it-works/', title: 'How it works', body: 'The big picture: one core, the envelope, configuration, credentials and safety.' },
+  { href: '/about/principles/', title: 'Principles', body: `The ${principles.length} principles every decision traces back to.` },
+  { href: '/about/changelog/', title: 'Changelog', body: 'Every release, from the commits that made it.' },
+  { href: '/about/feedback/', title: 'Feedback', body: 'Report a bug or ask for a feature, without a GitHub account.' },
+];
+
+const facts = [
+  {
+    title: 'No executable',
+    body: 'One bundled JavaScript file on the Node you already have. Nothing for application control to block.',
+    icon: '<rect x="5" y="4" width="22" height="24" rx="2"/><path d="M10 11h12M10 16h12M10 21h7"/><path d="M4 28 28 4" class="accent"/>',
+  },
+  {
+    title: 'No install scripts',
+    body: 'No postinstall, no native addon, no binary download. It installs cleanly with --ignore-scripts.',
+    icon: '<path d="M16 4v16M9 13l7 7 7-7"/><path d="M5 26h22" class="accent"/>',
+  },
+  {
+    title: 'No browser login',
+    body: 'Paste a token you generated once. No OAuth dance, no SSO pop-up, no device code.',
+    icon: '<rect x="5" y="14" width="22" height="14" rx="2"/><path d="M10 14V9a6 6 0 0 1 12 0"/><circle cx="16" cy="21" r="2" class="accent"/>',
+  },
+  {
+    title: 'No telemetry',
+    body: 'toil talks only to hosts in your config. Your firewall logs show exactly what you expect.',
+    icon: '<circle cx="16" cy="16" r="11"/><path d="M5 16h22M16 5c3.5 3.2 3.5 18.8 0 22M16 5c-3.5 3.2-3.5 18.8 0 22"/><path d="M7 25 25 7" class="accent"/>',
+  },
+];
+
+const lean = [
+  {
+    title: 'Compact envelopes',
+    body: 'Every command prints one JSON envelope: ok, data, error, meta. One shape to read, on every call.',
+    icon: '<path d="M11 5c-3 0-3 2-3 5s-2 6-4 6c2 0 4 3 4 6s0 5 3 5M21 5c3 0 3 2 3 5s2 6 4 6c-2 0-4 3-4 6s0 5-3 5"/><path d="M13 16h6" class="accent"/>',
+  },
+  {
+    title: 'Only the fields asked for',
+    body: '--select keeps the fields a task names. --summary-file puts a big result in a file and hands back a sample with stats; --output-format toon writes tables as one line per row.',
+    icon: '<path d="M5 7h22M8 13h16M11 19h10"/><path d="M14 25h4" class="accent"/>',
+  },
+  {
+    title: 'Wait, don\'t poll',
+    body: 'toil wait repeats a read until a condition is true and answers once, instead of the agent asking again and again.',
+    icon: '<circle cx="16" cy="17" r="11"/><path d="M16 10v7l4 3"/><path d="M13 3h6" class="accent"/>',
+  },
+  {
+    title: 'A skill, read as needed',
+    body: 'The toil skill is a short index. The agent opens one page when a task needs it, instead of every tool schema loaded up front.',
+    icon: '<path d="M6 5h14l6 6v16H6z"/><path d="M20 5v6h6"/><path d="M10 17h12M10 22h8" class="accent"/>',
+  },
+];
+
+// Measured on toil's own repository (#301): one real command, as it comes back
+// by default and with --summary-file and --output-format toon. Tokens are
+// estimated as characters / 3.5, the rule meta.summary states.
+const beforeAfter = {
+  before: {
+    command: 'toil util deps scan --include-transitive --include-dev',
+    size: '141,580 bytes, about 40,450 tokens',
+    excerpt: [
+      '{"ok":true,"data":{"ecosystems":["npm"],"manifests":[…],',
+      ' "packages":[{"name":"@azure-rest/core-client","version":"2.9.0",',
+      ' "ecosystem":"npm","source":"functions/feedback/package-lock.json",',
+      ' "type":"direct","scope":"production"}, … 1,082 more …',
+    ].join('\n'),
+  },
+  after: {
+    command: 'toil util deps scan --include-transitive --include-dev --summary-file deps.json --output-format toon',
+    size: '2,375 bytes, about 680 tokens, with all 1,083 rows in deps.json',
+    excerpt: [
+      'schema:',
+      '  name: string',
+      '  version: string',
+      '  …',
+      'rows[10]{name,version,ecosystem,source,type,scope}:',
+      '  @azure-rest/core-client,2.9.0,npm,functions/feedback/package-lock.json,direct,production',
+      '  source-map-js,1.2.2,npm,functions/feedback/package-lock.json,direct,dev',
+      '  …',
+      'stats[6:]{nulls,distinct,min,max}:',
+      '  name: 0,791,null,null',
+      '  …',
+    ].join('\n'),
+  },
+};
+---
+
+<Layout title="About" description="About toil: how it works, its principles, its changelog and feedback, and why it is built the way it is.">
+  <PageHero eyebrow="<b>About</b> · By Imagile" title="Why toil is <em>built this way.</em>" lead="How it works, what it promises, what changed, and where to tell us what's wrong." />
+
+  <section class="section--tight">
+    <div class="container">
+      <ul class="about-pages">
+        {pages.map((p, n) => (
+          <li class="card about-page" data-reveal style={`--d: ${n * 80}ms`}>
+            <h2><a class="about-page__link" href={url(p.href)}>{p.title}</a></h2>
+            <p>{p.body}</p>
+          </li>
+        ))}
+      </ul>
+      <p class="about-src"><a class="tap" href={repoUrl}>The source, on GitHub <span aria-hidden="true">→</span></a></p>
+    </div>
+  </section>
+
+  <!-- ============ Token-efficient ============ -->
+  <section class="section section--rule">
+    <div class="container">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">Token-efficient by design</p>
+        <h2>Less of the context window, more of the work.</h2>
+        <p>Many MCP clients put every tool's schema in context before the first question. toil is a CLI the agent already knows how to call, so the context goes on answers instead.</p>
+      </div>
+      <ul class="facts facts--four">
+        {lean.map((f, n) => (
+          <li class="fact" data-reveal style={`--d: ${n * 100}ms`}>
+            <svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={f.icon} />
+            <div>
+              <h3>{f.title}</h3>
+              <p>{f.body}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <div class="before-after" data-reveal>
+        <figure>
+          <figcaption><span class="eyebrow">Before</span><code>{beforeAfter.before.command}</code><span class="before-after__size">{beforeAfter.before.size}</span></figcaption>
+          <pre tabindex="0" role="region" aria-label="Before, as it comes back by default"><code>{beforeAfter.before.excerpt}</code></pre>
+        </figure>
+        <figure>
+          <figcaption><span class="eyebrow">After</span><code>{beforeAfter.after.command}</code><span class="before-after__size">{beforeAfter.after.size}</span></figcaption>
+          <pre tabindex="0" role="region" aria-label="After, with a summary file and TOON"><code>{beforeAfter.after.excerpt}</code></pre>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Demo ============ -->
+  <section class="section section--rule demo" id="demo">
+    <div class="container demo__inner">
+      <div class="section-head" data-reveal>
+        <p class="eyebrow">One envelope, every command</p>
+        <h2>Answers an agent can act on.</h2>
+        <p>Every command returns the same JSON shape on stdout, says where its data came from, and stays read-only until you decide otherwise.</p>
+        <ul class="demo__notes">
+          <li><b>ok / data / error / meta</b> on every call, CLI or MCP</li>
+          <li><b>readOnly</b> reported, not assumed</li>
+          <li><b>source</b> on every result, so nothing is a mystery</li>
+        </ul>
+      </div>
+      <div data-reveal style="--d: 120ms">
+        <Terminal />
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Locked down ============ -->
+  <section class="section section--rule locked">
+    <div class="container locked__inner">
+      <div class="locked__art toon" data-reveal="wipe">
+        <img
+          src={url('/images/cartoon-bouncer-1536.webp')}
+          srcset={`${url('/images/cartoon-bouncer-960.webp')} 960w, ${url('/images/cartoon-bouncer-1536.webp')} 1536w`}
+          sizes="(min-width: 980px) 560px, 100vw"
+          width="1536"
+          height="1024"
+          alt="A security guard holds back a glum queue of executable files at a velvet rope, while a small package walks straight through the door."
+          loading="lazy"
+        />
+      </div>
+      <div>
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">Built for the locked-down laptop</p>
+          <h2>If your machine runs Node, it runs toil.</h2>
+          <p>Application control blocks unsigned executables. Security reviews stall on native modules. toil is built so there is nothing for either to catch.</p>
+        </div>
+        <ul class="facts">
+          {facts.map((f, n) => (
+            <li class="fact" data-reveal style={`--d: ${n * 100}ms`}>
+              <svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={f.icon} />
+              <div>
+                <h3>{f.title}</h3>
+                <p>{f.body}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MCP stand-in ============ -->
+  <section class="section section--rule mcp">
+    <div class="container mcp__inner">
+      <div>
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">Still speaks MCP</p>
+          <h2>When a client wants MCP, toil serves it.</h2>
+          <p><code>toil mcp</code> serves the same commands as MCP tools. Vendor servers are often blocked, need a browser login, or don't exist; scope toil to the areas you need and point your agent at it: one config entry, a small, focused tool list, and write tools that only exist if you've turned them on.</p>
+        </div>
+        <div class="toon mcp__art" data-reveal style="--d: 80ms">
+          <img
+            src={url('/images/cartoon-understudy-1536.webp')}
+            srcset={`${url('/images/cartoon-understudy-960.webp')} 960w, ${url('/images/cartoon-understudy-1536.webp')} 1536w`}
+            sizes="(min-width: 980px) 520px, 100vw"
+            width="1536"
+            height="1024"
+            alt="A star performer is stuck backstage, wrapped in red tape and a login pop-up, while a small package steps into the spotlight as the understudy holding a bouquet of cables."
+            loading="lazy"
+          />
+        </div>
+      </div>
+      <div class="codeblock mcp__code" data-reveal style="--d: 120ms">
+        <span class="card-tag">mcp.json</span>
+<pre tabindex="0" role="region" aria-label="mcp.json"><span class="p">{</span>
+  <span class="k">"mcpServers"</span><span class="p">: {</span>
+    <span class="k">"tickets-and-docs"</span><span class="p">: {</span>
+      <span class="k">"command"</span><span class="p">:</span> <span class="s">"npx"</span><span class="p">,</span>
+      <span class="k">"args"</span><span class="p">: [</span>
+        <span class="s">"-y"</span><span class="p">,</span> <span class="s">"@imagile-dev/toil"</span><span class="p">,</span> <span class="s">"mcp"</span><span class="p">,</span>
+        <span class="s">"--areas"</span><span class="p">,</span> <span class="s">"jira,confluence"</span>
+      <span class="p">]</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span></pre>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  /* ---------- The four pages ---------- */
+  .about-pages { display: grid; gap: var(--space-sm); }
+  @media (min-width: 640px) { .about-pages { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (min-width: 1000px) { .about-pages { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .about-page { position: relative; display: grid; gap: 0.4rem; align-content: start; transition: transform var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out); }
+  .about-page:hover { transform: translateY(-3px); border-color: color-mix(in oklab, var(--color-accent) 40%, var(--color-line)); }
+  .about-page h2 { font-size: var(--text-xl); }
+  .about-page p { color: var(--color-muted); font-size: var(--text-sm); }
+  /* The whole card is the link, as on /connect/. */
+  .about-page__link::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+  .about-page__link:focus-visible { outline: none; }
+  .about-page:has(.about-page__link:focus-visible) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  .about-src { margin-top: var(--space-sm); }
+  .about-src a { font-family: var(--font-action); font-weight: 500; color: var(--color-accent); }
+
+  /* ---------- Demo ---------- */
+  .demo__inner { display: grid; gap: var(--space-lg); align-items: center; }
+
+  .demo__notes { margin-top: var(--space-md); display: grid; gap: 0.6rem; color: var(--color-muted); }
+  .demo__notes li { padding-left: 1.2rem; position: relative; }
+  .demo__notes li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.62em;
+    width: 0.45rem;
+    height: 0.45rem;
+    border: 1px solid var(--color-accent);
+    border-radius: 50%;
+  }
+  .demo__notes b { font-family: var(--font-mono); font-weight: 500; font-size: 0.9em; color: var(--color-ink); }
+
+  @media (min-width: 980px) {
+    .demo__inner { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
+    .demo .section-head { margin-bottom: 0; }
+  }
+
+
+  /* ---------- Locked down ---------- */
+  .locked__inner { display: grid; gap: var(--space-lg); align-items: center; }
+  .locked__art { margin-inline: -1rem; }
+
+  /* Cartoon spot art: painted on (slightly darker than) the page colour, so
+     lighten drops its background. A small tilt on hover, nothing more. */
+  .toon { mix-blend-mode: lighten; }
+  .toon img { width: 100%; height: auto; transition: transform 600ms var(--ease-out); }
+  .toon:hover img { transform: rotate(-1.2deg) scale(1.02); }
+
+  .mcp__art { margin: var(--space-md) -1rem 0; }
+  @media (min-width: 980px) { .mcp__art { margin-inline: -4% 0; max-width: 520px; } }
+
+  .facts { display: grid; gap: var(--space-md); }
+
+  .fact { display: grid; grid-template-columns: auto 1fr; gap: var(--space-sm); align-items: start; }
+  .fact svg { color: var(--color-ink); margin-top: 0.15rem; }
+  .fact svg :global(.accent) { stroke: var(--color-accent); }
+  .fact h3 { font-family: var(--font-body); font-size: var(--text-base); font-weight: 600; }
+  .fact p { color: var(--color-muted); font-size: var(--text-sm); margin-top: 0.2rem; }
+
+  /* Icons trace themselves in once their row is revealed. */
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.reveal-armed) .fact svg :global(*) { stroke-dasharray: 80; stroke-dashoffset: 80; }
+    :global(.reveal-armed) .fact.is-visible svg :global(*) {
+      stroke-dashoffset: 0;
+      transition: stroke-dashoffset 1400ms var(--ease-out) calc(var(--d, 0ms) + 200ms);
+    }
+  }
+
+  @media (min-width: 560px) { .facts { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 980px) { .facts--four { grid-template-columns: repeat(4, 1fr); gap: var(--space-lg); } }
+
+  /* ---------- Before and after ---------- */
+  .before-after { display: grid; gap: var(--space-md); margin-top: var(--space-xl); }
+  .before-after figure { min-width: 0; display: grid; gap: var(--space-xs); align-content: start; }
+  .before-after figcaption { display: grid; gap: var(--space-3xs); }
+  .before-after figcaption code { color: var(--color-ink); font-size: var(--text-sm); overflow-wrap: anywhere; }
+  .before-after__size { color: var(--color-muted); font-size: var(--text-sm); }
+  .before-after pre {
+    overflow-x: auto; max-width: 100%; margin: 0; padding: var(--space-sm);
+    border: 1px solid var(--color-line); border-radius: var(--radius-md);
+    background: var(--color-bg-deep); font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.6; color: var(--color-muted);
+  }
+  @media (min-width: 980px) { .before-after { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+
+  @media (min-width: 980px) {
+    .locked__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .locked__art { margin-inline: -8% 0; }
+  }
+
+  /* ---------- MCP ---------- */
+  .mcp__inner { display: grid; gap: var(--space-lg); align-items: center; }
+  .mcp__code { font-size: 0.8rem; }
+  @media (min-width: 980px) {
+    .mcp__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .mcp .section-head { margin-bottom: 0; }
+  }
+</style>

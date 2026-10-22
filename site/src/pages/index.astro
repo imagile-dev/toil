@@ -1,9 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
-import Terminal from '../components/Terminal.astro';
-import Ticker from '../components/Ticker.astro';
-import Logo from '../components/Logo.astro';
-import { integrationCount } from '../data/integrations';
+import { integrationCount, databaseCount } from '../data/integrations';
 import { principles } from '../data/principles';
 import { url, repoUrl } from '../lib/url';
 // The two ways to start, copied from README.md; test/start-commands.test.ts keeps them identical.
@@ -11,112 +8,19 @@ import start from '../data/start.json';
 
 const { cloneBuild, cloneManual, cloneQuick, npmCommands, npmPackageUrl } = start;
 
-const stats = [
-  { value: integrationCount, label: integrationCount === 1 ? 'Integration shipped' : 'Integrations shipped' },
-  { value: 0, label: 'Executables to approve' },
-  { value: 0, label: 'Install scripts' },
-  { value: 3, label: 'Platforms, all first-class' },
-];
-
-const facts = [
-  {
-    title: 'No executable',
-    body: 'One bundled JavaScript file on the Node you already have. Nothing for application control to block.',
-    icon: '<rect x="5" y="4" width="22" height="24" rx="2"/><path d="M10 11h12M10 16h12M10 21h7"/><path d="M4 28 28 4" class="accent"/>',
-  },
-  {
-    title: 'No install scripts',
-    body: 'No postinstall, no native addon, no binary download. It installs cleanly with --ignore-scripts.',
-    icon: '<path d="M16 4v16M9 13l7 7 7-7"/><path d="M5 26h22" class="accent"/>',
-  },
-  {
-    title: 'No browser login',
-    body: 'Paste a token you generated once. No OAuth dance, no SSO pop-up, no device code.',
-    icon: '<rect x="5" y="14" width="22" height="14" rx="2"/><path d="M10 14V9a6 6 0 0 1 12 0"/><circle cx="16" cy="21" r="2" class="accent"/>',
-  },
-  {
-    title: 'No telemetry',
-    body: 'toil talks only to hosts in your config. Your firewall logs show exactly what you expect.',
-    icon: '<circle cx="16" cy="16" r="11"/><path d="M5 16h22M16 5c3.5 3.2 3.5 18.8 0 22M16 5c-3.5 3.2-3.5 18.8 0 22"/><path d="M7 25 25 7" class="accent"/>',
-  },
-];
-
-const lean = [
-  {
-    title: 'Compact envelopes',
-    body: 'Every command prints one JSON envelope: ok, data, error, meta. One shape to read, on every call.',
-    icon: '<path d="M11 5c-3 0-3 2-3 5s-2 6-4 6c2 0 4 3 4 6s0 5 3 5M21 5c3 0 3 2 3 5s2 6 4 6c-2 0-4 3-4 6s0 5-3 5"/><path d="M13 16h6" class="accent"/>',
-  },
-  {
-    title: 'Only the fields asked for',
-    body: '--select keeps the fields a task names. --summary-file puts a big result in a file and hands back a sample with stats; --output-format toon writes tables as one line per row.',
-    icon: '<path d="M5 7h22M8 13h16M11 19h10"/><path d="M14 25h4" class="accent"/>',
-  },
-  {
-    title: 'Wait, don\'t poll',
-    body: 'toil wait repeats a read until a condition is true and answers once, instead of the agent asking again and again.',
-    icon: '<circle cx="16" cy="17" r="11"/><path d="M16 10v7l4 3"/><path d="M13 3h6" class="accent"/>',
-  },
-  {
-    title: 'A skill, read as needed',
-    body: 'The toil skill is a short index. The agent opens one page when a task needs it, instead of every tool schema loaded up front.',
-    icon: '<path d="M6 5h14l6 6v16H6z"/><path d="M20 5v6h6"/><path d="M10 17h12M10 22h8" class="accent"/>',
-  },
-];
-
-// Measured on toil's own repository (#301): one real command, as it comes back
-// by default and with --summary-file and --output-format toon. Tokens are
-// estimated as characters / 3.5, the rule meta.summary states.
-const beforeAfter = {
-  before: {
-    command: 'toil util deps scan --include-transitive --include-dev',
-    size: '141,580 bytes, about 40,450 tokens',
-    excerpt: [
-      '{"ok":true,"data":{"ecosystems":["npm"],"manifests":[…],',
-      ' "packages":[{"name":"@azure-rest/core-client","version":"2.9.0",',
-      ' "ecosystem":"npm","source":"functions/feedback/package-lock.json",',
-      ' "type":"direct","scope":"production"}, … 1,082 more …',
-    ].join('\n'),
-  },
-  after: {
-    command: 'toil util deps scan --include-transitive --include-dev --summary-file deps.json --output-format toon',
-    size: '2,375 bytes, about 680 tokens, with all 1,083 rows in deps.json',
-    excerpt: [
-      'schema:',
-      '  name: string',
-      '  version: string',
-      '  …',
-      'rows[10]{name,version,ecosystem,source,type,scope}:',
-      '  @azure-rest/core-client,2.9.0,npm,functions/feedback/package-lock.json,direct,production',
-      '  source-map-js,1.2.2,npm,functions/feedback/package-lock.json,direct,dev',
-      '  …',
-      'stats[6:]{nulls,distinct,min,max}:',
-      '  name: 0,791,null,null',
-      '  …',
-    ].join('\n'),
-  },
-};
-
-const areas = [
-  {
-    tag: 'db',
-    title: 'Databases',
-    body: 'List connections, describe tables, preview rows and run queries with paging and a row cap, against PostgreSQL, MySQL, SQL Server, SQLite, Oracle, Teradata, Hive and Impala. Read-only unless you say otherwise; on Hive and Impala, through a read-only account.',
-    example: 'toil db table describe orders --connection reporting',
-  },
-  {
-    tag: 'tools',
-    title: 'Enterprise tools',
-    body: 'Issue trackers, source hosts, CI, scanners and observability, each behind one pasted token and one consistent JSON shape.',
-    example: 'toil jira issue get PAY-1042',
-  },
-];
-
 const teaser = principles.slice(0, 3);
+
+// Five sections and no more (#431, principle 11): the hero, the two ways to
+// start, what toil connects to, Toil UI, and the principles. The rest of what
+// this page used to argue lives on /about/. A homepage, like a meeting, is
+// improved most by what it leaves out.
 ---
 
 <Layout title="toil">
-  <!-- ============ Hero ============ -->
+  <!-- ============ Hero: the slot for the toil map ============
+       #432 replaces this hero with the interactive toil map, with the headline,
+       the pitch and the install call to action set into it. Until then the
+       hero stays as it was. -->
   <section class="hero grid-ground">
     <div class="hero__glow" aria-hidden="true"></div>
     <div class="hero__glow hero__glow--warm" aria-hidden="true"></div>
@@ -135,7 +39,7 @@ const teaser = principles.slice(0, 3);
         </p>
         <div class="hero__actions hero__in" style="--i: 4">
           <a href="#start" class="btn btn--primary">Get started</a>
-          <a href="#demo" class="btn btn--ghost">See it work</a>
+          <a href={url('/about/#demo')} class="btn btn--ghost">See it work</a>
         </div>      </div>
       <div class="hero__art" aria-hidden="true">
         <img
@@ -153,8 +57,6 @@ const teaser = principles.slice(0, 3);
       </div>
     </div>
   </section>
-
-  <Ticker />
 
   <!-- ============ Get started ============ -->
   <section class="section--tight start" id="start" aria-labelledby="start-title">
@@ -195,67 +97,29 @@ const teaser = principles.slice(0, 3);
     </div>
   </section>
 
-  <!-- ============ Stats ============ -->
-  <section class="section--tight">
+  <!-- ============ Connect ============ -->
+  <section class="section section--rule" aria-labelledby="connect-title">
     <div class="container">
-      <ul class="stats">
-        {stats.map((s, n) => (
-          <li data-reveal style={`--d: ${n * 90}ms`}>
-            <strong data-count={s.value}>{s.value}</strong>
-            <span>{s.label}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  </section>
-
-  <!-- ============ Token-efficient ============ -->
-  <section class="section section--rule">
-    <div class="container">
-      <div class="section-head" data-reveal>
-        <p class="eyebrow">Token-efficient by design</p>
-        <h2>Less of the context window, more of the work.</h2>
-        <p>Many MCP clients put every tool's schema in context before the first question. toil is a CLI the agent already knows how to call, so the context goes on answers instead.</p>
-      </div>
-      <ul class="facts facts--four">
-        {lean.map((f, n) => (
-          <li class="fact" data-reveal style={`--d: ${n * 100}ms`}>
-            <svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={f.icon} />
-            <div>
-              <h3>{f.title}</h3>
-              <p>{f.body}</p>
-            </div>
-          </li>
-        ))}
-      </ul>
-      <div class="before-after" data-reveal>
-        <figure>
-          <figcaption><span class="eyebrow">Before</span><code>{beforeAfter.before.command}</code><span class="before-after__size">{beforeAfter.before.size}</span></figcaption>
-          <pre><code>{beforeAfter.before.excerpt}</code></pre>
-        </figure>
-        <figure>
-          <figcaption><span class="eyebrow">After</span><code>{beforeAfter.after.command}</code><span class="before-after__size">{beforeAfter.after.size}</span></figcaption>
-          <pre><code>{beforeAfter.after.excerpt}</code></pre>
-        </figure>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ Demo ============ -->
-  <section class="section section--rule demo" id="demo">
-    <div class="container demo__inner">
-      <div class="section-head" data-reveal>
-        <p class="eyebrow">One envelope, every command</p>
-        <h2>Answers an agent can act on.</h2>
-        <p>Every command returns the same JSON shape on stdout, says where its data came from, and stays read-only until you decide otherwise.</p>
-        <ul class="demo__notes">
-          <li><b>ok / data / error / meta</b> on every call, CLI or MCP</li>
-          <li><b>readOnly</b> reported, not assumed</li>
-          <li><b>source</b> on every result, so nothing is a mystery</li>
-        </ul>
-      </div>
-      <div data-reveal style="--d: 120ms">
-        <Terminal />
+      <div class="integrator">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">Connect</p>
+          <h2 id="connect-title">One switchboard for everything outside the editor.</h2>
+          <p>Your agent asks toil, and toil knows which line to plug in. Databases and every enterprise tool sit behind one interface and one JSON shape, so nothing new to learn per system.</p>
+          <p class="areas__more">
+            <a class="tap" href={url('/connect/')}>See all {integrationCount} integrations and {databaseCount} database engines <span aria-hidden="true">→</span></a>
+          </p>
+        </div>
+        <div class="toon integrator__art" data-reveal style="--d: 120ms">
+          <img
+            src={url('/images/cartoon-switchboard-1536.webp')}
+            srcset={`${url('/images/cartoon-switchboard-960.webp')} 960w, ${url('/images/cartoon-switchboard-1536.webp')} 1536w`}
+            sizes="(min-width: 980px) 520px, 100vw"
+            width="1536"
+            height="1024"
+            alt="A small package character in a hard hat calmly works an old telephone switchboard, plugging cables into sockets for a database, tickets, metrics, code and security."
+            loading="lazy"
+          />
+        </div>
       </div>
     </div>
   </section>
@@ -284,116 +148,6 @@ const teaser = principles.slice(0, 3);
     </div>
   </section>
 
-  <!-- ============ Locked down ============ -->
-  <section class="section section--rule locked">
-    <div class="container locked__inner">
-      <div class="locked__art toon" data-reveal="wipe">
-        <img
-          src={url('/images/cartoon-bouncer-1536.webp')}
-          srcset={`${url('/images/cartoon-bouncer-960.webp')} 960w, ${url('/images/cartoon-bouncer-1536.webp')} 1536w`}
-          sizes="(min-width: 980px) 560px, 100vw"
-          width="1536"
-          height="1024"
-          alt="A security guard holds back a glum queue of executable files at a velvet rope, while a small package walks straight through the door."
-          loading="lazy"
-        />
-      </div>
-      <div>
-        <div class="section-head" data-reveal>
-          <p class="eyebrow">Built for the locked-down laptop</p>
-          <h2>If your machine runs Node, it runs toil.</h2>
-          <p>Application control blocks unsigned executables. Security reviews stall on native modules. toil is built so there is nothing for either to catch.</p>
-        </div>
-        <ul class="facts">
-          {facts.map((f, n) => (
-            <li class="fact" data-reveal style={`--d: ${n * 100}ms`}>
-              <svg viewBox="0 0 32 32" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={f.icon} />
-              <div>
-                <h3>{f.title}</h3>
-                <p>{f.body}</p>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ Areas ============ -->
-  <section class="section section--rule">
-    <div class="container">
-      <div class="integrator">
-        <div class="section-head" data-reveal>
-          <p class="eyebrow">The central integrator</p>
-          <h2>One switchboard for everything outside the editor.</h2>
-          <p>Your agent asks toil, and toil knows which line to plug in. Databases and every enterprise tool sit behind one interface and one JSON shape, so nothing new to learn per system.</p>
-        </div>
-        <div class="toon integrator__art" data-reveal style="--d: 120ms">
-          <img
-            src={url('/images/cartoon-switchboard-1536.webp')}
-            srcset={`${url('/images/cartoon-switchboard-960.webp')} 960w, ${url('/images/cartoon-switchboard-1536.webp')} 1536w`}
-            sizes="(min-width: 980px) 520px, 100vw"
-            width="1536"
-            height="1024"
-            alt="A small package character in a hard hat calmly works an old telephone switchboard, plugging cables into sockets for a database, tickets, metrics, code and security."
-            loading="lazy"
-          />
-        </div>
-      </div>
-      <div class="areas">
-        {areas.map((a, n) => (
-          <article class="card area" data-reveal style={`--d: ${n * 110}ms`}>
-            <span class="card-tag">{a.tag}</span>
-            <h3>{a.title}</h3>
-            <p>{a.body}</p>
-            <code class="area__ex" tabindex="0" role="region" aria-label={`Example: ${a.example}`}><span>$</span> {a.example}</code>
-          </article>
-        ))}
-      </div>
-      <p class="areas__more" data-reveal>
-        <a class="tap" href={url('/integrations/')}>See all {integrationCount} integrations <span aria-hidden="true">→</span></a>
-      </p>
-    </div>
-  </section>
-
-  <!-- ============ MCP stand-in ============ -->
-  <section class="section section--rule mcp">
-    <div class="container mcp__inner">
-      <div>
-        <div class="section-head" data-reveal>
-          <p class="eyebrow">Still speaks MCP</p>
-          <h2>When a client wants MCP, toil serves it.</h2>
-          <p><code>toil mcp</code> serves the same commands as MCP tools. Vendor servers are often blocked, need a browser login, or don't exist; scope toil to the areas you need and point your agent at it: one config entry, a small, focused tool list, and write tools that only exist if you've turned them on.</p>
-        </div>
-        <div class="toon mcp__art" data-reveal style="--d: 80ms">
-          <img
-            src={url('/images/cartoon-understudy-1536.webp')}
-            srcset={`${url('/images/cartoon-understudy-960.webp')} 960w, ${url('/images/cartoon-understudy-1536.webp')} 1536w`}
-            sizes="(min-width: 980px) 520px, 100vw"
-            width="1536"
-            height="1024"
-            alt="A star performer is stuck backstage, wrapped in red tape and a login pop-up, while a small package steps into the spotlight as the understudy holding a bouquet of cables."
-            loading="lazy"
-          />
-        </div>
-      </div>
-      <div class="codeblock mcp__code" data-reveal style="--d: 120ms">
-        <span class="card-tag">mcp.json</span>
-<pre tabindex="0" role="region" aria-label="mcp.json"><span class="p">{</span>
-  <span class="k">"mcpServers"</span><span class="p">: {</span>
-    <span class="k">"tickets-and-docs"</span><span class="p">: {</span>
-      <span class="k">"command"</span><span class="p">:</span> <span class="s">"npx"</span><span class="p">,</span>
-      <span class="k">"args"</span><span class="p">: [</span>
-        <span class="s">"-y"</span><span class="p">,</span> <span class="s">"@imagile-dev/toil"</span><span class="p">,</span> <span class="s">"mcp"</span><span class="p">,</span>
-        <span class="s">"--areas"</span><span class="p">,</span> <span class="s">"jira,confluence"</span>
-      <span class="p">]</span>
-    <span class="p">}</span>
-  <span class="p">}</span>
-<span class="p">}</span></pre>
-      </div>
-    </div>
-  </section>
-
   <!-- ============ Principles teaser ============ -->
   <section class="section section--rule">
     <div class="container">
@@ -412,63 +166,11 @@ const teaser = principles.slice(0, 3);
         ))}
       </ol>
       <p class="areas__more" data-reveal>
-        <a class="tap" href={url('/principles/')}>Read all {principles.length} principles <span aria-hidden="true">→</span></a>
+        <a class="tap" href={url('/about/principles/')}>Read all {principles.length} principles <span aria-hidden="true">→</span></a>
       </p>
     </div>
   </section>
-
-  <!-- ============ Feedback ============ -->
-  <section class="section section--rule">
-    <div class="container feedback" data-reveal>
-      <div class="section-head">
-        <p class="eyebrow">Feedback</p>
-        <h2>Found a bug? Tell us.</h2>
-        <p>Report a bug or ask for a feature without a GitHub account. Each report becomes a public GitHub issue, and we email you the link.</p>
-      </div>
-      <a class="btn btn--primary" href={url('/feedback/')}>Send feedback <span aria-hidden="true">→</span></a>
-    </div>
-  </section>
-
-  <!-- ============ CTA ============ -->
-  <section class="cta grid-ground">
-    <div class="cta__glow" aria-hidden="true"></div>
-    <div class="container cta__inner" data-reveal>
-      <div class="cta__mark"><Logo height={192} /></div>
-      <h2>Watch it get built.</h2>
-      <p>toil is alpha and developed in the open. Star the repo or watch releases to follow each one.</p>
-      <div class="hero__actions">
-        <a href={repoUrl} class="btn btn--primary">Star on GitHub</a>
-        <a href={`${repoUrl}/releases`} class="btn btn--ghost">Watch releases</a>
-      </div>
-    </div>
-  </section>
 </Layout>
-
-<script>
-  // Count stats up from zero once they scroll into view.
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const nums = document.querySelectorAll<HTMLElement>('[data-count]');
-  if (!reduce && 'IntersectionObserver' in window) {
-    const io = new IntersectionObserver((entries) => {
-      for (const e of entries) {
-        if (!e.isIntersecting) continue;
-        io.unobserve(e.target);
-        const el = e.target as HTMLElement;
-        const end = Number(el.dataset.count);
-        if (!end) continue;
-        const t0 = performance.now();
-        const step = (t: number) => {
-          const k = Math.min(1, (t - t0) / 1400);
-          el.textContent = String(Math.round(end * (1 - Math.pow(1 - k, 3))));
-          if (k < 1) requestAnimationFrame(step);
-        };
-        el.textContent = '0';
-        requestAnimationFrame(step);
-      }
-    }, { threshold: 0.6 });
-    nums.forEach((n) => io.observe(n));
-  }
-</script>
 
 <style>
   /* ---------- Hero ---------- */
@@ -669,73 +371,8 @@ const teaser = principles.slice(0, 3);
     .hero__art { margin-inline: -10% -14%; }
   }
 
-  /* ---------- Stats ---------- */
-  .stats {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1px;
-    background: var(--color-line);
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-md);
-    overflow: hidden;
-  }
 
-  .stats li {
-    background: var(--color-bg);
-    padding: var(--space-md);
-    display: grid;
-    gap: 0.25rem;
-  }
-
-  .stats strong {
-    font-family: var(--font-display);
-    font-size: var(--text-3xl);
-    line-height: 1;
-    color: var(--color-ink);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .stats li:first-child strong {
-    background: var(--gradient-accent);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  .stats strong[data-count='0'] { color: var(--color-amber); }
-
-  .stats span {
-    font-family: var(--font-mono);
-    font-size: var(--text-xs);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-muted);
-  }
-
-  @media (min-width: 760px) { .stats { grid-template-columns: repeat(4, 1fr); } }
-
-  /* ---------- Demo ---------- */
-  .demo__inner { display: grid; gap: var(--space-lg); align-items: center; }
-
-  .demo__notes { margin-top: var(--space-md); display: grid; gap: 0.6rem; color: var(--color-muted); }
-  .demo__notes li { padding-left: 1.2rem; position: relative; }
-  .demo__notes li::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0.62em;
-    width: 0.45rem;
-    height: 0.45rem;
-    border: 1px solid var(--color-accent);
-    border-radius: 50%;
-  }
-  .demo__notes b { font-family: var(--font-mono); font-weight: 500; font-size: 0.9em; color: var(--color-ink); }
-
-  @media (min-width: 980px) {
-    .demo__inner { grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); }
-    .demo .section-head { margin-bottom: 0; }
-  }
-
-  /* ---------- Locked down ---------- */
+  /* ---------- Toil UI ---------- */
   .toilui__inner { display: grid; gap: var(--space-lg); align-items: center; }
   .toilui__inner > * { min-width: 0; }
   .toilui__go { margin-top: var(--space-md); }
@@ -746,8 +383,6 @@ const teaser = principles.slice(0, 3);
     .toilui .section-head { margin-bottom: 0; }
   }
 
-  .locked__inner { display: grid; gap: var(--space-lg); align-items: center; }
-  .locked__art { margin-inline: -1rem; }
 
   /* Cartoon spot art: painted on (slightly darker than) the page colour, so
      lighten drops its background. A small tilt on hover, nothing more. */
@@ -755,106 +390,13 @@ const teaser = principles.slice(0, 3);
   .toon img { width: 100%; height: auto; transition: transform 600ms var(--ease-out); }
   .toon:hover img { transform: rotate(-1.2deg) scale(1.02); }
 
-  .integrator { display: grid; gap: var(--space-md); align-items: center; margin-bottom: var(--space-lg); }
+  .integrator { display: grid; gap: var(--space-md); align-items: center; }
   .integrator .section-head { margin-bottom: 0; }
   .integrator__art { margin-inline: -1rem; }
   @media (min-width: 980px) {
     .integrator { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
     .integrator__art { margin-inline: 0 -6%; }
   }
-
-  .mcp__art { margin: var(--space-md) -1rem 0; }
-  @media (min-width: 980px) { .mcp__art { margin-inline: -4% 0; max-width: 520px; } }
-
-  .facts { display: grid; gap: var(--space-md); }
-
-  .fact { display: grid; grid-template-columns: auto 1fr; gap: var(--space-sm); align-items: start; }
-  .fact svg { color: var(--color-ink); margin-top: 0.15rem; }
-  .fact svg :global(.accent) { stroke: var(--color-accent); }
-  .fact h3 { font-family: var(--font-body); font-size: var(--text-base); font-weight: 600; }
-  .fact p { color: var(--color-muted); font-size: var(--text-sm); margin-top: 0.2rem; }
-
-  /* Icons trace themselves in once their row is revealed. */
-  @media (prefers-reduced-motion: no-preference) {
-    :global(.reveal-armed) .fact svg :global(*) { stroke-dasharray: 80; stroke-dashoffset: 80; }
-    :global(.reveal-armed) .fact.is-visible svg :global(*) {
-      stroke-dashoffset: 0;
-      transition: stroke-dashoffset 1400ms var(--ease-out) calc(var(--d, 0ms) + 200ms);
-    }
-  }
-
-  @media (min-width: 560px) { .facts { grid-template-columns: 1fr 1fr; } }
-  @media (min-width: 980px) { .facts--four { grid-template-columns: repeat(4, 1fr); gap: var(--space-lg); } }
-
-  /* ---------- Before and after ---------- */
-  .before-after { display: grid; gap: var(--space-md); margin-top: var(--space-xl); }
-  .before-after figure { min-width: 0; display: grid; gap: var(--space-xs); align-content: start; }
-  .before-after figcaption { display: grid; gap: var(--space-3xs); }
-  .before-after figcaption code { color: var(--color-ink); font-size: var(--text-sm); overflow-wrap: anywhere; }
-  .before-after__size { color: var(--color-muted); font-size: var(--text-sm); }
-  .before-after pre {
-    overflow-x: auto; max-width: 100%; margin: 0; padding: var(--space-sm);
-    border: 1px solid var(--color-line); border-radius: var(--radius-md);
-    background: var(--color-bg-deep); font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.6; color: var(--color-muted);
-  }
-  @media (min-width: 980px) { .before-after { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-
-  /* ---------- Feedback ---------- */
-  .feedback { display: grid; gap: var(--space-sm) var(--space-lg); align-items: center; }
-  .feedback .section-head { margin-bottom: 0; }
-  .feedback .btn { justify-self: start; }
-  @media (min-width: 860px) { .feedback { grid-template-columns: minmax(0, 1fr) auto; } }
-
-  @media (min-width: 980px) {
-    .locked__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-    .locked__art { margin-inline: -8% 0; }
-  }
-
-  /* ---------- Areas ---------- */
-  .areas { display: grid; gap: var(--space-md); }
-
-  .area {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-xs);
-    padding: var(--space-md) var(--space-md) var(--space-sm);
-    transition: transform var(--duration-base) var(--ease-out), border-color var(--duration-base) var(--ease-out);
-  }
-
-  /* A hairline of accent sweeps along the bottom edge on hover. Animated by
-     background-position so nothing overflows the card (its tag sits above). */
-  .area::before {
-    content: '';
-    position: absolute;
-    left: var(--radius-md);
-    right: var(--radius-md);
-    bottom: -1px;
-    height: 2px;
-    background: linear-gradient(90deg, transparent, var(--color-accent), transparent) no-repeat;
-    background-size: 40% 100%;
-    background-position: -80% 0;
-    transition: background-position 900ms var(--ease-out);
-  }
-
-  .area:hover { transform: translateY(-3px); border-color: var(--color-line-strong); }
-  .area:hover::before { background-position: 180% 0; }
-
-  .area h3 { font-size: var(--text-xl); margin-top: var(--space-2xs); }
-  .area p { color: var(--color-muted); font-size: var(--text-sm); flex: 1; }
-
-  .area__ex {
-    display: block;
-    margin-top: var(--space-xs);
-    padding: 0.6rem 0.75rem;
-    border-radius: var(--radius-sm);
-    background: var(--color-bg-deep);
-    border: 1px solid var(--color-line);
-    font-size: 0.75rem;
-    color: var(--color-ink);
-    overflow-x: auto;
-    white-space: nowrap;
-  }
-  .area__ex span { color: var(--color-accent); }
 
   .areas__more { margin-top: var(--space-lg); }
   .areas__more a {
@@ -864,16 +406,6 @@ const teaser = principles.slice(0, 3);
   }
   .areas__more a span { display: inline-block; transition: transform var(--duration-fast) var(--ease-out); }
   .areas__more a:hover span { transform: translateX(4px); }
-
-  @media (min-width: 860px) { .areas { grid-template-columns: repeat(2, 1fr); } }
-
-  /* ---------- MCP ---------- */
-  .mcp__inner { display: grid; gap: var(--space-lg); align-items: center; }
-  .mcp__code { font-size: 0.8rem; }
-  @media (min-width: 980px) {
-    .mcp__inner { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-    .mcp .section-head { margin-bottom: 0; }
-  }
 
   /* ---------- Principles teaser ---------- */
   .teaser { display: grid; gap: var(--space-md); }
@@ -895,38 +427,4 @@ const teaser = principles.slice(0, 3);
   .teaser p { color: var(--color-muted); font-size: var(--text-sm); }
 
   @media (min-width: 860px) { .teaser { grid-template-columns: repeat(3, 1fr); gap: var(--space-lg); } }
-
-  /* ---------- CTA ---------- */
-  .cta {
-    position: relative;
-    overflow: clip;
-    padding-block: var(--space-2xl);
-    border-top: 1px solid var(--color-line);
-    text-align: center;
-  }
-
-  .cta__glow {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: min(900px, 120vw);
-    aspect-ratio: 2;
-    transform: translate(-50%, -50%);
-    background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.26), rgba(var(--rgb-amber), 0.05) 60%, transparent);
-    pointer-events: none;
-  }
-
-  .cta__inner { position: relative; display: grid; justify-items: center; gap: var(--space-sm); }
-
-  /* The mark, large, running its command loop. Scales down on phones. */
-  .cta__mark { width: min(192px, 60vw); margin-bottom: var(--space-sm); filter: drop-shadow(0 0 24px rgba(var(--rgb-accent), 0.25)); }
-  .cta__mark :global(svg) { width: 100%; height: auto; }
-  .cta h2 { font-size: var(--text-3xl); }
-  .cta p { color: var(--color-muted); max-width: 52ch; margin-bottom: var(--space-xs); }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .cta__glow { animation: breathe 6s ease-in-out infinite; }
-  }
-
-  @keyframes breathe { 50% { opacity: 0.55; transform: translate(-50%, -50%) scale(1.1); } }
 </style>

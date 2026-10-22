@@ -1,0 +1,41 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import PageHero from '../../components/PageHero.astro';
+import Crumb from '../../components/Crumb.astro';
+import { Content } from '../../../../CHANGELOG.md';
+import { repoUrl } from '../../lib/url';
+
+// The changelog (#431): CHANGELOG.md, which release-please writes from the
+// commits on every release, rendered as it is. The site keeps no copy of its
+// own, so it is exactly as current as the last release. Minutes of every
+// meeting, taken by a robot that never misses one.
+---
+
+<Layout title="Changelog" description="Every toil release and what changed in it.">
+  <PageHero eyebrow="<b>About</b>" title="Changelog" lead="Every release, from the commits that made it.">
+    <Crumb steps={[{ label: 'About', href: '/about/' }, { label: 'Changelog' }]} />
+  </PageHero>
+
+  <section class="section--tight">
+    <div class="container doc">
+      <article class="doc__body">
+        <div class="skill-doc">
+          <Content />
+        </div>
+        <p class="doc__source"><a href={`${repoUrl}/blob/main/CHANGELOG.md`}><code>CHANGELOG.md</code></a> · <a href={`${repoUrl}/releases`}>Releases on GitHub</a></p>
+      </article>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .doc { display: grid; gap: var(--space-lg); align-items: start; padding-block: var(--space-lg); }
+  .doc > * { min-width: 0; }
+  .doc__body { display: grid; gap: var(--space-lg); max-width: 80ch; }
+  .doc__body > * { min-width: 0; }
+  /* Commit links are long hashes and issue numbers; let them wrap on a phone. */
+  .skill-doc :global(li) { overflow-wrap: anywhere; }
+  .doc__source { margin-top: var(--space-sm); font-size: var(--text-xs); color: var(--color-faint); }
+  .doc__source a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-muted); }
+  .doc__source a:hover, .doc__source a:hover code { color: var(--color-accent); }
+</style>

@@ -7,7 +7,7 @@ for people and agents alike, and it wins wherever this page is shorter than it.
 
 - **Bugs and ideas start as an issue.** Use the
   [issue forms](https://github.com/imagile-dev/toil/issues/new/choose), or the
-  [feedback page](https://imagile-dev.github.io/toil/feedback/) on the site.
+  [feedback page](https://imagile-dev.github.io/toil/about/feedback/) on the site.
 - **Security problems never do.** See [SECURITY.md](SECURITY.md).
 - **A new integration** has to clear the Authentication Bar first: a long-lived
   token the user generates once in the vendor's UI, with no browser step, OAuth

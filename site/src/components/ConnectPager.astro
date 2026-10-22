@@ -1,0 +1,23 @@
+---
+// Previous and next through /connect/'s pages, in the catalogue's order
+// (connectWalk in data/integrations.ts). A page the catalogue doesn't list
+// draws only the way back to it.
+import { connectWalk } from '../data/integrations';
+import { url, sitePath } from '../lib/url';
+
+const at = connectWalk.findIndex((p) => p.href === sitePath(Astro.url.pathname));
+const prev = at > 0 ? connectWalk[at - 1] : undefined;
+const next = at >= 0 ? connectWalk[at + 1] : undefined;
+---
+
+<nav class="pager" aria-label="Connect, previous and next">
+  {prev ? <a class="tap" href={url(prev.href)}><span class="pager__dir">Previous</span><span>← {prev.name}</span></a> : <a class="tap" href={url('/connect/')}><span class="pager__dir">Back to</span><span>← Connect</span></a>}
+  {next && <a class="tap pager__next" href={url(next.href)}><span class="pager__dir">Next</span><span>{next.name} →</span></a>}
+</nav>
+
+<style>
+  .pager { display: flex; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; padding-top: var(--space-md); border-top: 1px solid var(--color-line); }
+  .pager a { display: grid; gap: 0.1rem; color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
+  .pager__next { text-align: right; justify-items: end; margin-left: auto; }
+  .pager__dir { font-family: var(--font-mono); font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-faint); }
+</style>

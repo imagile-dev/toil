@@ -1,21 +1,16 @@
 ---
-import SkillPage from '../../../components/SkillPage.astro';
-import CommandIndex from '../../../components/CommandIndex.astro';
-import { allIntegrations, envPrefix, statusMeaning, type IntegrationEntry } from '../../../data/integrations';
-import { integrationDocs, type SkillDoc } from '../../../lib/skill';
-import { url } from '../../../lib/url';
+import SkillPage from '../../components/SkillPage.astro';
+import CommandIndex from '../../components/CommandIndex.astro';
+import ConnectPager from '../../components/ConnectPager.astro';
+import { allIntegrations, envPrefix, statusMeaning, type IntegrationEntry } from '../../data/integrations';
+import { integrationDocs, type SkillDoc } from '../../lib/skill';
 
-// One page per area file in skills/toil/, so a new area's file is its page
-// with no page code. The body is that file, rendered; the board entry
+// One page per area file in skills/toil/, under /connect/ since #431, so a
+// new area's file is its page with no page code. The body is that file,
+// rendered; the board entry
 // (data/integrations/<area>.json), where there is one, adds its name, status,
 // credential and supported version to the facts panel, and the registry's
 // own lists of commands and settings follow the body.
-const boardOrder = (area: string) => {
-  const at = allIntegrations.findIndex((i) => i.area === area);
-  return at < 0 ? allIntegrations.length : at;
-};
-const ordered = [...integrationDocs].sort((a, b) => boardOrder(a.area!) - boardOrder(b.area!) || a.area!.localeCompare(b.area!));
-
 export function getStaticPaths() {
   const order = (area: string) => {
     const at = allIntegrations.findIndex((i) => i.area === area);
@@ -31,15 +26,11 @@ const area = doc.area!;
 const board: IntegrationEntry | undefined = allIntegrations.find((i) => i.area === area);
 const name = board?.name ?? doc.title;
 type SiteSetting = { key: string; env: string; description: string; required: boolean; secret: boolean; fallbacks: string[] };
-const settingFiles = import.meta.glob<SiteSetting[]>('../../../data/settings/*.json', { eager: true, import: 'default' });
-const settings: SiteSetting[] = settingFiles[`../../../data/settings/${area}.json`] ?? [];
-const index = ordered.findIndex((d) => d.area === area);
-const prev = ordered[index - 1];
-const next = ordered[index + 1];
-const nameOf = (d: SkillDoc) => allIntegrations.find((i) => i.area === d.area)?.name ?? d.title;
+const settingFiles = import.meta.glob<SiteSetting[]>('../../data/settings/*.json', { eager: true, import: 'default' });
+const settings: SiteSetting[] = settingFiles[`../../data/settings/${area}.json`] ?? [];
 ---
 
-<SkillPage file={doc.file} title={name} trail={['Integrations', ...(board ? [board.group] : [])]}>
+<SkillPage file={doc.file} title={name} root={{ label: 'Connect', href: '/connect/' }} trail={board ? [board.group] : []}>
   <dl slot="facts">
     <div><dt>Area</dt><dd><code>toil {area}</code></dd></div>
     {board && <div><dt>Status</dt><dd><span class={`status status--${board.status}`}>{board.status}</span><span class="status__meaning">{statusMeaning(board)}</span></dd></div>}
@@ -72,10 +63,7 @@ const nameOf = (d: SkillDoc) => allIntegrations.find((i) => i.area === d.area)?.
 
   <CommandIndex group={area} />
 
-  <nav class="pager" aria-label="Other integrations">
-    {prev ? <a class="tap" href={url(`/docs/integrations/${prev.area}/`)}>← {nameOf(prev)}</a> : <span></span>}
-    {next ? <a class="tap" href={url(`/docs/integrations/${next.area}/`)}>{nameOf(next)} →</a> : <span></span>}
-  </nav>
+  <ConnectPager />
 </SkillPage>
 
 <style>
@@ -104,6 +92,4 @@ const nameOf = (d: SkillDoc) => allIntegrations.find((i) => i.area === d.area)?.
     border-radius: 999px; padding: 0.05rem 0.45rem; border: 1px solid var(--color-line-strong); color: var(--color-muted);
   }
 
-  .pager { display: flex; justify-content: space-between; gap: var(--space-sm); flex-wrap: wrap; padding-top: var(--space-md); border-top: 1px solid var(--color-line); }
-  .pager a { color: var(--color-accent); font-family: var(--font-action); font-weight: 500; }
 </style>

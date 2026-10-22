@@ -1,7 +1,7 @@
 {
   "area": "jira",
   "name": "Jira Data Center",
-  "group": "work",
+  "group": "trackers",
   "order": 1,
   "covers": "Issues, search, transitions, comments, worklogs, attachments, custom fields, boards, sprints",
   "credential": "Personal access token",

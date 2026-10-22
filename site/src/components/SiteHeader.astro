@@ -2,13 +2,14 @@
 import Logo from './Logo.astro';
 import { url, repoUrl } from '../lib/url';
 
+// The site map (#431): Map, Connect, Toil UI, Docs, About. The search box
+// (#433) goes between the links and the GitHub button.
 const nav = [
-  { href: url('/how-it-works/'), label: 'How it works' },
-  { href: url('/integrations/'), label: 'Integrations' },
+  { href: url('/map/'), label: 'Map' },
+  { href: url('/connect/'), label: 'Connect' },
   { href: url('/ui/'), label: 'Toil UI' },
   { href: url('/docs/'), label: 'Docs' },
-  { href: url('/principles/'), label: 'Principles', wide: true },
-  { href: url('/feedback/'), label: 'Feedback' },
+  { href: url('/about/'), label: 'About' },
 ];
 const current = Astro.url.pathname;
 ---
@@ -28,7 +29,7 @@ const current = Astro.url.pathname;
     <nav class="site-header__nav" aria-label="Primary">
       <ul class="site-header__links">
         {nav.map((item) => (
-          <li class={item.wide ? 'nav--wide' : undefined}>
+          <li>
             <a class="tap" href={item.href} aria-current={current.startsWith(item.href) ? 'page' : undefined}>{item.label}</a>
           </li>
         ))}
@@ -53,8 +54,7 @@ const current = Astro.url.pathname;
 </header>
 
 <style>
-  /* Desktop shows every link inline; mid widths drop the least-used one
-     (it stays in the footer); phones fold the rest into the menu. */
+  /* Desktop and tablets show every link inline; phones fold them into the menu. */
   .site-header__menu { display: none; position: relative; }
   .site-header__menu summary {
     list-style: none; cursor: pointer; justify-content: center; min-width: 44px;
@@ -72,9 +72,6 @@ const current = Astro.url.pathname;
   .site-header__menu a { width: 100%; color: var(--color-muted); }
   .site-header__menu a[aria-current='page'], .site-header__menu a:hover { color: var(--color-accent); }
 
-  @media (max-width: 899px) {
-    .site-header__nav ul :global(.nav--wide) { display: none; }
-  }
   @media (max-width: 799px) {
     .site-header__nav > .site-header__links { display: none; }
     .site-header__menu { display: block; }

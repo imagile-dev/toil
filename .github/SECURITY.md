@@ -11,7 +11,7 @@ Report it through GitHub's private vulnerability reporting:
 the report, and the fix and advisory are drafted with you in the same place.
 
 Please don't use a public issue, a pull request, a discussion, or the
-[feedback page](https://imagile-dev.github.io/toil/feedback/) for a security
+[feedback page](https://imagile-dev.github.io/toil/about/feedback/) for a security
 report. Feedback from the site becomes a public issue.
 
 A useful report has:

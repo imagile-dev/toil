@@ -1,8 +1,8 @@
 {
   "area": "alation",
   "name": "Alation",
-  "group": "design",
-  "order": 2,
+  "group": "docs",
+  "order": 3,
   "covers": "Catalog metadata, search, documents",
   "credential": "Refresh token, exchanged over HTTP",
   "credentialWhere": "Your profile → Account Settings → Authentication → Create Refresh Token",
