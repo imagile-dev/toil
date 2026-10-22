@@ -7,14 +7,20 @@
 
 export type Rgb = readonly [number, number, number];
 
-/** toil's palette, the same values as the site's tokens. */
+/**
+ * toil's palette, the same values as the site's tokens (Toil UI Plain's dark
+ * scheme, #442): the blue accent and its lighter highlight, the neutrals, and
+ * ok and danger for a result that worked or didn't.
+ */
 export const PALETTE = {
-  accent: [255, 106, 61],
-  amber: [255, 184, 77],
-  ink: [246, 241, 233],
-  muted: [180, 169, 152],
-  faint: [153, 141, 126],
-  bg: [22, 19, 15],
+  accent: [140, 196, 255],
+  highlight: [194, 224, 255],
+  ink: [232, 234, 237],
+  muted: [167, 175, 186],
+  faint: [134, 143, 155],
+  bg: [15, 17, 21],
+  ok: [111, 211, 148],
+  danger: [255, 138, 128],
 } as const satisfies Record<string, Rgb>;
 
 export interface TermCaps {
@@ -108,12 +114,14 @@ function to256(r: number, g: number, b: number): number {
 }
 
 function to16(r: number, g: number, b: number): number {
-  // Warm palette only: bright yellow for amber, bright red for flame, white for ink.
-  if (r > 200 && g > 200 && b > 200) return 97;
-  if (r > 200 && g > 150) return 93;
-  if (r > 200) return 91;
-  if (r > 120) return 33;
-  return 90;
+  // The palette's own colours only: white for ink, grey for the neutrals,
+  // bright blue for the accent, bright cyan for its highlight, green for ok
+  // and red for danger.
+  const hi = Math.max(r, g, b);
+  if (hi - Math.min(r, g, b) < 40) return hi > 200 ? 97 : hi > 160 ? 37 : 90;
+  if (b >= r && b >= g) return g > 210 ? 96 : 94;
+  if (g >= r) return 92;
+  return 91;
 }
 
 /** Printable width, ignoring escape sequences. */
