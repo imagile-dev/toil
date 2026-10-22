@@ -2,7 +2,7 @@ import type { Connection } from '../area.js';
 
 /**
  * The contract every database engine implements: SQLite, PostgreSQL, MySQL,
- * SQL Server and Oracle. The `db` area's commands call only this, so an
+ * SQL Server, Oracle and Teradata. The `db` area's commands call only this, so an
  * engine is added by writing one provider and registering it in `engines.ts`,
  * never by touching a command.
  *
@@ -75,14 +75,32 @@ export interface DbSettings {
   auth?: 'sql' | 'windows';
   /** SQL Server with `auth: windows`: the domain of the account in `user`. */
   domain?: string;
+  /** Teradata: the Query Service's base URL, under which `/systems/<system>/...` lives. */
+  baseUrl?: string;
+  /** Teradata: the system's alias in the Query Service (its administrator names it). */
+  system?: string;
+  /** Teradata: a bearer token for the Query Service, in place of user and password. A secret. */
+  token?: string;
+  /** Teradata: the logon mechanism for the session; absent, the system's default. */
+  logMech?: 'TD2' | 'LDAP' | 'JWT';
 }
 
 export type DbConnection = Connection<DbSettings>;
 
-/** What a provider gets besides the connection: the call's signal, and debug output that never carries a credential. */
+/**
+ * What a provider gets besides the connection: the call's signal, debug
+ * output that never carries a credential, and, for an engine reached over
+ * HTTP (Teradata's Query Service), the command's own fetch, so proxy, OS
+ * certificates, --verbose and the audit log work as they do for every HTTP
+ * area. Socket drivers ignore both fetches.
+ */
 export interface DbCall {
   signal: AbortSignal;
   debug: (message: string) => void;
+  /** The command's fetch, bound to `signal`. */
+  fetch: typeof globalThis.fetch;
+  /** The command's fetch without its signal, for a cancel or a session close after `signal` fired (CommandContext.cleanupFetch). */
+  cleanupFetch: typeof globalThis.fetch;
 }
 
 export interface TableRef {

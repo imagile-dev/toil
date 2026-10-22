@@ -1,6 +1,6 @@
 ---
 area: db
-description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server, Oracle)
+description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, Teradata)
 ---
 
 # Databases (`db`)
@@ -15,6 +15,7 @@ uses, and the commands work the same way on all of them.
 | MySQL / MariaDB | `mysql` | `live`: automated tests run against MySQL 8.4 and MariaDB 11.8 (the official `mysql:8.4` and `mariadb:11.8` images) |
 | SQL Server | `sqlserver` | `live`: automated tests run against SQL Server 2022 (the official `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04` image) |
 | Oracle | `oracle` | `live`: automated tests run against Oracle Database 23ai Free (the `gvenzl/oracle-free:23.26.3-slim-faststart` image) |
+| Teradata | `teradata` | `unit`: tested against a stubbed Teradata Query Service only. It has never been run against a live Query Service or database |
 
 **Supported versions:** The oldest SQLite version toil supports hasn't been established. toil
 uses the SQLite built into Node, so the version is whichever your Node ships.
@@ -25,6 +26,8 @@ SQL Server is tested against 2022; the catalog views and `OFFSET ... FETCH` toil
 need 2012 or later. Azure SQL Database speaks the same protocol but hasn't been tested.
 Oracle is tested against 23ai; Thin mode and the dictionary columns toil reads need
 12.1 or later. No release older than 23ai has been run.
+Teradata goes through version 1.0 of the Teradata Query Service's REST API; no Query
+Service release or database version has been run yet.
 
 ## SQLite connections
 
@@ -346,11 +349,86 @@ saying so.
 agent should see, and nothing that writes. On Oracle this matters more than on the
 other engines; see the known limit under "Reads are read-only at the engine".
 
+## Teradata connections
+
+toil reaches Teradata through the **Teradata Query Service**, Teradata's REST service
+for SQL over HTTPS: no driver, no native library, no `bteq`, nothing to install. Each
+request goes through toil's own HTTP stack, so it uses `HTTPS_PROXY` and `NO_PROXY`,
+trusts the OS certificate store, and shows in `--verbose` and the audit log like any
+other HTTP integration.
+
+**Check your site has the Query Service.** It is hosted for you on VantageCloud
+Enterprise and VantageCloud Lake. An on-premises VantageCore site has to install it,
+so ask whoever runs your Teradata whether it's there, and for its URL and the
+system's alias.
+
+| Key | Required | Meaning |
+|-----|----------|---------|
+| `engine` | yes | `teradata` |
+| `baseUrl` | yes | The Query Service's base URL, everything before `/systems/...`: `https://teradata.imagile.dev:1443`, or with the path your site serves it under, such as `https://teradata.imagile.dev/api/query`. No default: toil only talks to the host you give it. |
+| `system` | yes | The system's alias in the Query Service, as its administrator named it (`prod`) |
+| `user` | with `password` | The database user. Leave it out when you use `token`. |
+| `password` | no | The user's password. A secret: an env var or the OS credential store, never the config file. Sent as HTTP Basic authentication. |
+| `token` | instead of `user` | A bearer token for the Query Service, such as a JWT for a database that accepts JWT logons. A secret, like `password`. toil doesn't issue or refresh it: when it expires, the service refuses it with `AUTH`, and you store a new one. |
+| `database` | with `token` | The default database: unqualified names resolve in it, and it's what `--schema` defaults to. Without it, the user's own database. |
+| `logMech` | no | The session's logon mechanism: `TD2`, `LDAP` (a directory account) or `JWT`. Default: the system's own default. |
+| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+
+```bash
+export TOIL_DB_ENGINE=teradata
+export TOIL_DB_BASE_URL=https://teradata.imagile.dev:1443
+export TOIL_DB_SYSTEM=prod
+export TOIL_DB_USER=toil_reader
+export TOIL_DB_PASSWORD=<the user's password>
+export TOIL_DB_DATABASE=sales
+export TOIL_DB_LOG_MECH=LDAP
+```
+
+With a token instead of a user and password:
+
+```bash
+export TOIL_DB_TOKEN=<the bearer token>
+```
+
+```json
+{
+  "version": 2,
+  "connections": {
+    "warehouse": { "area": "db", "engine": "teradata", "baseUrl": "https://teradata.imagile.dev:1443", "system": "prod", "user": "toil_reader", "database": "sales" }
+  },
+  "defaults": { "db": { "connection": "warehouse" } }
+}
+```
+
+```bash
+toil connections login warehouse   # prompts for the password (or token) and stores it
+```
+
+The base path differs between Query Service releases and sites, which is why
+`baseUrl` is the whole of it: toil adds `systems/<system>/sessions` and
+`systems/<system>/queries` to the end. A 404 naming the system means the alias or
+the base path is wrong.
+
+**Connect as a read-only user.** toil can't make Teradata refuse writes: the
+database has no read-only transaction, and the Query Service has no read-only
+session. `db query` relies on the user, and toil doesn't parse your SQL to decide
+what writes, so create a user that can only read:
+
+```sql
+CREATE USER toil_reader FROM sales_admin AS PERM = 0, PASSWORD = "<a strong password>";
+GRANT SELECT ON sales TO toil_reader;
+```
+
+What toil does do is roll back. Every read runs in a session of its own, opened in
+ANSI mode with auto-commit off, and ends with `ROLLBACK` and the session closed (see
+"Reads are read-only at the engine"). Use a second connection, with a user that may
+write and `writes: true`, for `db execute`.
+
 ## Commands
 
 | Command | MCP tool | Returns |
 |---------|----------|---------|
-| `toil db schema list` | `db_schema_list` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas; for Oracle, the users the login can see that Oracle doesn't maintain. |
+| `toil db schema list` | `db_schema_list` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas; for Oracle, the users the login can see that Oracle doesn't maintain; for Teradata, the databases and users in `DBC.DatabasesV`, without the ones Teradata maintains (`DBC`, `SYSLIB`, `TD_SYSFNLIB` and the like), which you can still name with `--schema`. |
 | `toil db table list [--schema <name>]` | `db_table_list` | `{ schema, tables: [{ name, type }] }`, `type` being `table` or `view` |
 | `toil db table describe <table> [--schema <name>]` | `db_table_describe` | `{ schema, name, type, columns, primaryKey, indexes, foreignKeys }` |
 | `toil db table preview <table> [--schema] [--limit] [--cursor]` | `db_table_preview` | A page of rows: `{ columns, rows }` |
@@ -361,12 +439,14 @@ other engines; see the known limit under "Reads are read-only at the engine".
 Every command takes `--connection <name>`. `--schema` defaults to the engine's
 default schema (`main` for SQLite, `public` for PostgreSQL, the connection's database
 for MySQL, where a schema is a database, `dbo` for SQL Server, and the user's own
-schema for Oracle). PostgreSQL names are case-sensitive as stored: an unquoted
+schema for Oracle, the connection's `database` or else the user's own for Teradata).
+PostgreSQL names are case-sensitive as stored: an unquoted
 `CREATE TABLE People` is stored as `people`. MySQL table names are case-sensitive on
 most Linux servers. Oracle stores an unquoted name in upper case and reports names as
 stored (`PEOPLE`, `ID`); a schema or table you name that doesn't exist as written is
 looked up again in upper case, so `table describe people` finds `PEOPLE`. A quoted
-mixed-case name (`"People"`) must be typed exactly.
+mixed-case name (`"People"`) must be typed exactly. Teradata compares names without
+regard to case, as it does itself, and reports them as stored.
 
 Rows come back as arrays in the order of `columns`, so a join's two `id` columns both
 survive:
@@ -417,13 +497,27 @@ through the local time zone of the machine running toil: `DATE` as
 (`Europe/Paris`) and `TIMESTAMP WITH LOCAL TIME ZONE` come back as the same instant in
 UTC (`+00`).
 
+Teradata reports each result column's type as the Query Service names it, and
+`table describe` gives the declared form from `DBC.ColumnsV` (`VARCHAR(100)`,
+`DECIMAL(10,2)`, `TIMESTAMP(6)`). A `BIGINT` too large for JavaScript, and a
+`DECIMAL` or `NUMBER` with more than 15 significant digits, come back as strings, so
+no digits are lost; dates and timestamps come back as the text the service sends.
+`table describe` takes the primary key from a `PRIMARY KEY` constraint, or, when
+there is none, from a unique primary index, which is what Teradata makes of a
+`PRIMARY KEY` declared without a primary index; the primary index is listed with the
+other indexes, named `primary index` when it has no name. A foreign key's columns come
+from `DBC.All_RI_ChildrenV`, and Teradata has no `ON UPDATE` or `ON DELETE` actions,
+so both are null. `table preview` pages in primary-key order, or in the engine's own
+order for a table without one.
+
 ### Paging and row caps
 
 `table preview` and `query` return 100 rows per page unless you pass `--limit`
 (1 to 1000). When there are more, `meta.page.nextCursor` holds a cursor; pass it
 back with `--cursor`, along with the same SQL or table, to get the next page. A
 cursor only works with the query it came from. Use `ORDER BY` in a query you page
-through, so the pages are stable.
+through, so the pages are stable. On Teradata the Query Service skips and caps the
+rows itself (`row_offset` and `row_limit`), so each page runs the query again.
 
 ### Pre-flight lint
 
@@ -437,9 +531,9 @@ names the engine and every rule that ran, on success and failure alike.
 |------|----------|---------|----------|
 | `unterminated` | error | all | A string, quoted name or block comment that is never closed (SQLite lets a block comment run to the end, so only its strings and names) |
 | `multiple-statements` | error | all but SQL Server, on `db query` | More than one statement. SQL Server is left to its own check, which refuses SQL that returns more than one result, so `DECLARE @n int = 1; SELECT @n` still runs |
-| `read-only-write` | error (`WRITE_DISABLED`) | all, on `db query` | A statement that starts with `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `REPLACE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, `RENAME` or `COMMENT`, or a `WITH` holding a data change |
-| `dialect-limit` | error | SQL Server, Oracle | `LIMIT n`: use `TOP (n)` or `OFFSET ... FETCH NEXT n ROWS ONLY` on SQL Server, `FETCH FIRST n ROWS ONLY` on Oracle (`ROWNUM <= n` on 11g). A PL/SQL block's own `BULK COLLECT ... LIMIT n` is left alone |
-| `dialect-top` | error | all but SQL Server | `SELECT TOP n`: use `LIMIT n`, or `FETCH FIRST n ROWS ONLY` on Oracle |
+| `read-only-write` | error (`WRITE_DISABLED`) | all, on `db query` | A statement that starts with `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `REPLACE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, `RENAME` or `COMMENT` (on Teradata also `INS`, `UPD`, `DEL`, `COLLECT` and `MODIFY`), or a `WITH` holding a data change |
+| `dialect-limit` | error | SQL Server, Oracle, Teradata | `LIMIT n`: use `TOP (n)` or `OFFSET ... FETCH NEXT n ROWS ONLY` on SQL Server, `FETCH FIRST n ROWS ONLY` on Oracle (`ROWNUM <= n` on 11g), `TOP n` (or `SAMPLE n`) on Teradata. A PL/SQL block's own `BULK COLLECT ... LIMIT n` is left alone |
+| `dialect-top` | error | all but SQL Server and Teradata | `SELECT TOP n`: use `LIMIT n`, or `FETCH FIRST n ROWS ONLY` on Oracle |
 | `dialect-backtick` | error; warning on SQLite | all but MySQL | `` `name` ``: use `"name"`, or `[name]` on SQL Server. SQLite accepts backticks for MySQL compatibility, so there it only warns |
 | `dialect-function` | warning | all | A function another engine has: `NOW()`, `GETDATE()`, `SYSDATETIME()`, two-argument `ISNULL()`, `NVL()`, `IFNULL()`, `LEN()`, `LENGTH()`, `CHARINDEX()`, `SUBSTR()`, where the engine lacks it |
 | `dialect-concat` | warning | all | `\|\|` on SQL Server (use `+` or `CONCAT()`) or MySQL (a logical OR there; use `CONCAT()`), and `+` beside a text literal elsewhere (use `\|\|`, or `CONCAT()` on MySQL) |
@@ -580,6 +674,32 @@ ordinary account doesn't have. A trigger or stored function with an autonomous
 transaction commits on its own; toil can't see it, so "nothing was applied" after a
 failed `db execute` covers only the script's own transaction.
 
+**Teradata** has no read-only transaction, and the Query Service has no read-only
+session, so **toil can't enforce read-only on Teradata**, as on SQL Server: `db query`
+relies on a read-only user (see "Teradata connections"). What toil adds is a rollback.
+Each read opens an explicit Query Service session of its own with `transaction_mode`
+`ANSI` and `auto_commit` off. In ANSI mode a transaction stays open from the first
+statement until a `COMMIT` or `ROLLBACK`, and logging off rolls back whatever is still
+open, so toil ends every read with `ROLLBACK` and closes the session: anything the
+read changed is undone. A result the service reports as an update count instead of
+rows (an `INSERT`, `UPDATE`, `MERGE`, DDL, a macro or procedure that writes) comes back
+as `WRITE_DISABLED`, rolled back with the rest, and so does a read-only user's refusal
+of a write ("does not have INSERT access"). `db query` runs one statement; several, or
+SQL that returns more than one result, are `INVALID_INPUT`.
+
+`COMMIT`, `ROLLBACK`, `ABORT`, `BT`, `ET`, `BEGIN TRANSACTION` and `END TRANSACTION`
+are refused on every read with `INVALID_INPUT`, before anything is sent: each would end
+the transaction toil rolls back.
+
+Known limits: this is built from the session settings Teradata documents and has
+been tested only against a stubbed Query Service, never a live one. A stored procedure
+can `COMMIT` inside itself in ANSI mode, and work outside the transaction (an external
+procedure, a `CALL` that reaches another system) isn't undone by a rollback. ANSI mode
+also changes some semantics from Teradata mode, the default in tools such as BTEQ: for
+example how string comparisons treat case, and whether a value too long for its column
+is an error or silently truncated. A query that answers differently here than in your
+usual tool may be meeting that difference.
+
 ### Writes
 
 `db execute` is the only command that changes data. It needs both:
@@ -627,6 +747,16 @@ nothing in the script could have committed does it say nothing was applied (an
 autonomous-transaction trigger or function is the exception; see the known limit above). Keep DDL in a
 script of its own, or first.
 
+On Teradata, the script is sent as one request in the call's own ANSI-mode session,
+and toil sends `COMMIT` only after every statement succeeded; otherwise it sends
+`ROLLBACK`. Several statements in one request are a Teradata multi-statement request,
+and the database runs them as one. Teradata doesn't allow DDL in a multi-statement
+request, so a DDL statement goes in a call of its own. `BT`, `ET`, `BEGIN
+TRANSACTION`, `END TRANSACTION`, `COMMIT`, `ROLLBACK` and `ABORT` are refused before
+any of it runs, anywhere in the script, a procedure body included; a temporary
+table's `ON COMMIT PRESERVE ROWS` or `ON COMMIT DELETE ROWS` is fine. `changes` adds up
+the update counts the service reports.
+
 ### Time limits and cancelling
 
 Every command stops at `TOIL_TIMEOUT_MS` (default 120000) with `TIMEOUT`, and on
@@ -657,6 +787,16 @@ Thin mode's break travels in the data stream, so a session parked in
 `DBMS_SESSION.SLEEP` hears it only when the sleep ends; toil still answers straight
 away. `db query` reads rows a batch at a time from a server-side cursor.
 
+Teradata is asked to stop the statement too: on a time limit or a cancel, toil lists
+the queries running in the call's session (`GET /systems/<system>/queries?session=<id>`),
+asks the Query Service to abort each one (`DELETE /systems/<system>/queries/<id>`), and
+then closes the session, which rolls back anything still open. Those requests go out
+after toil has already answered, each with a 10-second limit of its own. Each page is
+answered in one response, so there is no server-side cursor to stop early. Known
+limit: a cancel that lands while the session is still being opened leaves toil without
+its id, so it can't close it; the session counts against the user's session limit
+until the Query Service's idle timeout closes it.
+
 ## Examples
 
 ```bash
@@ -679,11 +819,12 @@ Over MCP:
 | Code | Means |
 |------|-------|
 | `NOT_CONFIGURED` | No db connection set up (`db lint` needs one only without `--engine`) |
-| `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`), `path` is relative, the file isn't a SQLite database, `"auth": "windows"` is set off Windows, or an Oracle `host` or `database` holds more than a host name or service name |
-| `AUTH` | The server refused the login: check `user` and `password` (for SQL Server, also that SQL Server logins are allowed; for Oracle, also a locked or expired account, or a password verifier too old for Thin mode); or Windows authentication couldn't start (Constrained Language mode, SSPI refused) |
+| `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`; for Teradata `baseUrl`, `system`, and `user` or `token`), `path` is relative, the file isn't a SQLite database, `"auth": "windows"` is set off Windows, an Oracle `host` or `database` holds more than a host name or service name, or a Teradata connection has both `user` and `token`, or `token` without `database` |
+| `AUTH` | The server refused the login: check `user` and `password` (for SQL Server, also that SQL Server logins are allowed; for Oracle, also a locked or expired account, or a password verifier too old for Thin mode; for Teradata, also `logMech`, or a `token` that has expired); or Windows authentication couldn't start (Constrained Language mode, SSPI refused) |
+| `HTTP` | Teradata only: the Query Service refused a new session because the user already has as many as it's allowed (429 Too Many Sessions), or was too busy to run the request (412). Both say so and can be retried later (`error.details.retryable`) |
 | `NETWORK` | The server or listener couldn't be reached, didn't answer, or its TLS certificate wasn't trusted; or SQL Server requires encryption and `ssl` is off |
-| `NOT_FOUND` | The file, database, Oracle service, schema or table doesn't exist |
+| `NOT_FOUND` | The file, database, Oracle service, Teradata system alias, schema or table doesn't exist |
 | `WRITE_DISABLED` | A write was refused: by `db query` (by the pre-flight lint before it ran, or by the engine; DDL included, on Oracle), or by the write gate on `db execute` |
-| `INVALID_INPUT` | Bad flags, a cursor from another query, SQL the pre-flight lint refused (another engine's syntax, an unclosed quote), several statements in `db query`, or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), transaction control and `OUTPUT` (SQL Server), or PL/SQL (Oracle) |
+| `INVALID_INPUT` | Bad flags, a cursor from another query, SQL the pre-flight lint refused (another engine's syntax, an unclosed quote), several statements in `db query`, or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), transaction control and `OUTPUT` (SQL Server), PL/SQL (Oracle), or transaction control (Teradata) |
 | `DATABASE` | The engine refused or failed the statement: bad SQL, a constraint, a lock, a permission; on SQL Server, also SQL that ended toil's transaction itself |
 | `TIMEOUT`, `CANCELLED` | Stopped waiting; for `db execute`, check whether the change was made before retrying |

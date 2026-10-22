@@ -60,8 +60,8 @@ export interface LintOptions {
   warnings?: boolean;
 }
 
-export const LABELS: Record<Dialect, string> = { sqlite: 'SQLite', postgres: 'PostgreSQL', mysql: 'MySQL', sqlserver: 'SQL Server', oracle: 'Oracle' };
-const ALL: readonly Dialect[] = ['sqlite', 'postgres', 'mysql', 'sqlserver', 'oracle'];
+export const LABELS: Record<Dialect, string> = { sqlite: 'SQLite', postgres: 'PostgreSQL', mysql: 'MySQL', sqlserver: 'SQL Server', oracle: 'Oracle', teradata: 'Teradata' };
+const ALL: readonly Dialect[] = ['sqlite', 'postgres', 'mysql', 'sqlserver', 'oracle', 'teradata'];
 
 interface Rule {
   id: RuleId;
@@ -85,6 +85,8 @@ const isCount = (t: Token | undefined) => t?.kind === 'number' || t?.kind === 'p
 
 /** Statements that change the database, by their first word. */
 const WRITE_FIRST = new Set(['INSERT', 'UPDATE', 'DELETE', 'MERGE', 'REPLACE', 'CREATE', 'ALTER', 'DROP', 'TRUNCATE', 'GRANT', 'REVOKE', 'RENAME', 'COMMENT']);
+/** Teradata's own: the INS, UPD and DEL abbreviations, COLLECT STATISTICS and MODIFY USER or DATABASE. */
+const TERADATA_WRITE_FIRST = new Set([...WRITE_FIRST, 'INS', 'UPD', 'DEL', 'COLLECT', 'MODIFY']);
 /** Data changes a WITH can hold, in a CTE (`AS (DELETE ...)`) or as its main statement (`) UPDATE ...`). */
 const WRITE_IN_WITH = new Set(['INSERT', 'UPDATE', 'DELETE', 'MERGE']);
 
@@ -92,10 +94,11 @@ const readOnlyWrite: Rule = {
   id: 'read-only-write',
   on: every('error'),
   purpose: 'query',
-  check(statement) {
+  check(statement, { engine }) {
     const first = statement[0];
+    const writes = engine === 'teradata' ? TERADATA_WRITE_FIRST : WRITE_FIRST;
     let at: Token | undefined;
-    if (first?.kind === 'word' && WRITE_FIRST.has(first.upper)) at = first;
+    if (first?.kind === 'word' && writes.has(first.upper)) at = first;
     else if (word(first, 'WITH')) at = statement.find((t, i) => t.kind === 'word' && WRITE_IN_WITH.has(t.upper) && (statement[i - 1]?.kind === 'open' || statement[i - 1]?.kind === 'close'));
     if (!at) return [];
     return [
@@ -111,11 +114,12 @@ const readOnlyWrite: Rule = {
 const limitFix: Partial<Record<Dialect, (n: string) => string>> = {
   sqlserver: (n) => `Write SELECT TOP (${n}) ..., or ORDER BY ... OFFSET 0 ROWS FETCH NEXT ${n} ROWS ONLY. db query already caps the rows it returns with --limit.`,
   oracle: (n) => `Write FETCH FIRST ${n} ROWS ONLY at the end (OFFSET m ROWS FETCH NEXT ${n} ROWS ONLY to skip rows), or WHERE ROWNUM <= ${n} on Oracle 11g. db query already caps the rows it returns with --limit.`,
+  teradata: (n) => `Write SELECT TOP ${n} ..., or SAMPLE ${n} at the end for any ${n} rows. db query already caps the rows it returns with --limit.`,
 };
 
 const dialectLimit: Rule = {
   id: 'dialect-limit',
-  on: { sqlserver: 'error', oracle: 'error' },
+  on: { sqlserver: 'error', oracle: 'error', teradata: 'error' },
   check(statement, { engine, label }) {
     // PL/SQL has a LIMIT of its own (FETCH c BULK COLLECT INTO v LIMIT 100).
     if (engine === 'oracle' && opensPlsql(firstWords(statement))) return [];
@@ -129,7 +133,8 @@ const dialectLimit: Rule = {
 
 const dialectTop: Rule = {
   id: 'dialect-top',
-  on: every('error', ['sqlserver']),
+  // Teradata has SELECT TOP n too.
+  on: every('error', ['sqlserver', 'teradata']),
   check(statement, { engine, label }) {
     return statement.flatMap((t, i) => {
       if (!word(t, 'TOP')) return [];
@@ -149,11 +154,12 @@ const backtickFix: Partial<Record<Dialect, string>> = {
   oracle: 'Quote names with double quotes ("NAME"; a quoted name is case-sensitive), or leave it unquoted.',
   sqlserver: 'Quote names with square brackets ([name]) or double quotes ("name").',
   sqlite: 'Quote names with double quotes ("name"), the standard form; SQLite accepts backticks only for MySQL compatibility.',
+  teradata: 'Quote names with double quotes ("name"), or leave it unquoted; Teradata compares names case-blind either way.',
 };
 
 const dialectBacktick: Rule = {
   id: 'dialect-backtick',
-  on: { postgres: 'error', sqlserver: 'error', oracle: 'error', sqlite: 'warning' },
+  on: { postgres: 'error', sqlserver: 'error', oracle: 'error', teradata: 'error', sqlite: 'warning' },
   check(statement, { engine, label }) {
     const at = statement.find((t) => t.kind === 'ident' && t.quote === '`');
     if (!at) return [];
@@ -170,19 +176,19 @@ interface ForeignFunction {
   use: Partial<Record<Dialect, string>>;
 }
 
-const NOW_ELSEWHERE = { postgres: 'now() or CURRENT_TIMESTAMP', mysql: 'NOW()', sqlite: "CURRENT_TIMESTAMP or datetime('now')", oracle: 'SYSTIMESTAMP or SYSDATE', sqlserver: 'SYSDATETIME() or GETDATE()' };
+const NOW_ELSEWHERE = { postgres: 'now() or CURRENT_TIMESTAMP', mysql: 'NOW()', sqlite: "CURRENT_TIMESTAMP or datetime('now')", oracle: 'SYSTIMESTAMP or SYSDATE', sqlserver: 'SYSDATETIME() or GETDATE()', teradata: 'CURRENT_TIMESTAMP' };
 const COALESCE = Object.fromEntries(ALL.map((d) => [d, 'COALESCE(a, b)']));
 const FUNCTIONS: Record<string, ForeignFunction> = {
   NOW: { has: ['postgres', 'mysql'], use: NOW_ELSEWHERE },
   GETDATE: { has: ['sqlserver'], use: NOW_ELSEWHERE },
   SYSDATETIME: { has: ['sqlserver'], use: NOW_ELSEWHERE },
   ISNULL: { has: ['sqlserver'], args: 2, use: COALESCE },
-  NVL: { has: ['oracle'], use: { ...COALESCE, mysql: 'COALESCE(a, b) (MariaDB also accepts NVL; MySQL does not)' } },
+  NVL: { has: ['oracle', 'teradata'], use: { ...COALESCE, mysql: 'COALESCE(a, b) (MariaDB also accepts NVL; MySQL does not)' } },
   IFNULL: { has: ['mysql', 'sqlite'], use: COALESCE },
-  LEN: { has: ['sqlserver'], use: { postgres: 'char_length()', mysql: 'CHAR_LENGTH()', sqlite: 'length()', oracle: 'LENGTH()' } },
-  LENGTH: { has: ['postgres', 'mysql', 'sqlite', 'oracle'], use: { sqlserver: 'LEN() (DATALENGTH() for bytes)' } },
-  CHARINDEX: { has: ['sqlserver'], use: { postgres: 'strpos(text, part) or position(part IN text)', mysql: 'LOCATE(part, text)', sqlite: 'instr(text, part)', oracle: 'INSTR(text, part)' } },
-  SUBSTR: { has: ['postgres', 'mysql', 'sqlite', 'oracle'], use: { sqlserver: 'SUBSTRING(text, start, length)' } },
+  LEN: { has: ['sqlserver'], use: { postgres: 'char_length()', mysql: 'CHAR_LENGTH()', sqlite: 'length()', oracle: 'LENGTH()', teradata: 'CHARACTER_LENGTH()' } },
+  LENGTH: { has: ['postgres', 'mysql', 'sqlite', 'oracle', 'teradata'], use: { sqlserver: 'LEN() (DATALENGTH() for bytes)' } },
+  CHARINDEX: { has: ['sqlserver'], use: { postgres: 'strpos(text, part) or position(part IN text)', mysql: 'LOCATE(part, text)', sqlite: 'instr(text, part)', oracle: 'INSTR(text, part)', teradata: 'INSTR(text, part) or POSITION(part IN text)' } },
+  SUBSTR: { has: ['postgres', 'mysql', 'sqlite', 'oracle', 'teradata'], use: { sqlserver: 'SUBSTRING(text, start, length)' } },
 };
 
 /** How many arguments the call opening at `open` passes, counting commas at its own depth. */

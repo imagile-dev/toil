@@ -2,7 +2,7 @@
   {
     "key": "engine",
     "env": "TOIL_DB_ENGINE",
-    "description": "Database engine: sqlite, postgres, mysql, sqlserver, oracle",
+    "description": "Database engine: sqlite, postgres, mysql, sqlserver, oracle, teradata",
     "required": true,
     "secret": false,
     "fallbacks": []
@@ -34,7 +34,7 @@
   {
     "key": "database",
     "env": "TOIL_DB_DATABASE",
-    "description": "PostgreSQL, MySQL, SQL Server: database to connect to (for MySQL, also the default schema). Oracle: the service name (FREEPDB1, ORCLPDB1)",
+    "description": "PostgreSQL, MySQL, SQL Server: database to connect to (for MySQL, also the default schema). Oracle: the service name (FREEPDB1, ORCLPDB1). Teradata: the default database",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -42,7 +42,7 @@
   {
     "key": "user",
     "env": "TOIL_DB_USER",
-    "description": "PostgreSQL, MySQL, SQL Server, Oracle: login role, account or user (for SQL Server, a SQL Server login, or with auth windows another domain account)",
+    "description": "PostgreSQL, MySQL, SQL Server, Oracle, Teradata: login role, account or user (for SQL Server, a SQL Server login, or with auth windows another domain account)",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -50,7 +50,7 @@
   {
     "key": "password",
     "env": "TOIL_DB_PASSWORD",
-    "description": "PostgreSQL, MySQL, SQL Server, Oracle: the login's password (a secret: env var or OS credential store)",
+    "description": "PostgreSQL, MySQL, SQL Server, Oracle, Teradata: the login's password (a secret: env var or OS credential store)",
     "required": false,
     "secret": true,
     "fallbacks": []
@@ -75,6 +75,38 @@
     "key": "domain",
     "env": "TOIL_DB_DOMAIN",
     "description": "SQL Server with auth windows: the domain of the account in user, to sign in as someone other than the current Windows user",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "baseUrl",
+    "env": "TOIL_DB_BASE_URL",
+    "description": "Teradata: the Query Service base URL, e.g. https://teradata.imagile.dev:1443 (with any path in front of /systems, such as /api/query)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "system",
+    "env": "TOIL_DB_SYSTEM",
+    "description": "Teradata: the system's alias in the Query Service, as its administrator named it",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "token",
+    "env": "TOIL_DB_TOKEN",
+    "description": "Teradata: a bearer token for the Query Service, in place of user and password (a secret: env var or OS credential store)",
+    "required": false,
+    "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "logMech",
+    "env": "TOIL_DB_LOG_MECH",
+    "description": "Teradata: the session's logon mechanism (TD2, LDAP or JWT). Default: the system's own default",
     "required": false,
     "secret": false,
     "fallbacks": []

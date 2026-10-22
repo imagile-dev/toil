@@ -107,7 +107,7 @@ describe('db lint', () => {
     const { context } = testContext();
     expect((await execute(lint, { sql: 'SELECT 1 FROM dual', engine: 'oracle' }, context)).ok).toBe(true);
     const missing = await execute(lint, { sql: 'SELECT 1' }, context);
-    expect(missing.error).toMatchObject({ code: 'NOT_CONFIGURED', fix: 'Pass --engine (sqlite, postgres, mysql, sqlserver, oracle), or set up a db connection.' });
+    expect(missing.error).toMatchObject({ code: 'NOT_CONFIGURED', fix: 'Pass --engine (sqlite, postgres, mysql, sqlserver, oracle, teradata), or set up a db connection.' });
   });
 
   it('refuses an --engine that disagrees with the --connection named beside it', async () => {
