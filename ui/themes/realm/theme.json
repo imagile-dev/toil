@@ -1,7 +1,7 @@
 {
   "name": "realm",
   "label": "Realm",
-  "description": "A grimdark house ledger kept as a tabletop campaign: soot and iron around aged vellum, leather-bound folios with wax-sealed headings, a dungeon map in the margins, a d20 rolling while a view loads, the dependency graph as an engraved war-table map, an item's fields as a character sheet, and the agent as the dungeon master.",
+  "description": "A grimdark house ledger kept as a tabletop campaign: soot and iron around aged vellum, leather-bound folios with wax-sealed headings, a dungeon map at the foot of every page, a d20 rolling while a view loads, the dependency graph as an engraved war-table map, an item's fields as a character sheet, and the agent as the dungeon master.",
   "schemes": {
     "light": {
       "bg": "#cbbd9e",

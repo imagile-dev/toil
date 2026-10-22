@@ -899,7 +899,7 @@ it goes, both on by default:
   read the same in every theme.
 - **Themed agent voice:** the agent answers in the theme's register, a terse
   dockworker in Crate, a patient farmhand in Harvest, a ship's log in Starship, a
-  house's steward in Realm. It changes phrasing only.
+  dungeon master in Realm. It changes phrasing only.
 
 A theme with particles also gets **Particles and ambient effects**, kept for each
 theme on its own: off, that theme's particles are gone entirely, while its other
