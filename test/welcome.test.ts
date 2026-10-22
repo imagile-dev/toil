@@ -4,7 +4,8 @@ import { BLINKS, CENTER, DURATION, logoCells, logoFrame, ORBIT, orbitDots, scene
 import type { Settings } from '../src/core/config.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { finish, initialState, reduce, render, top, type MenuState } from '../src/welcome/menu.js';
-import { agentScreen, connectionsScreen, healthScreen, type WelcomeData } from '../src/welcome/screens.js';
+import { agentScreen, connectionsScreen, healthScreen, learnScreen, type WelcomeData } from '../src/welcome/screens.js';
+import { learnView } from '../src/welcome/views/health.js';
 import { launchCommand } from '../src/welcome/data.js';
 import { playSplash, SPEED, splashFrame, TAGLINE, wordmarkCells, wordmarkFrame } from '../src/welcome/splash.js';
 import { detectCaps, fitLine, PALETTE, visibleLength, wrapLine } from '../src/welcome/term.js';
@@ -309,13 +310,13 @@ describe('the menu', () => {
   const press = (state: MenuState, d: WelcomeData, ...keys: K[]) => keys.reduce((s, k) => reduce(s, keyOf(k), d), state);
   const type = (state: MenuState, d: WelcomeData, text: string) => press(state, d, ...[...text]);
   const where = (s: MenuState) => top(s).view;
-  // Home with one tested connection: no attention rows, so the modules are 1-6 and Quit is 7.
+  // Home with one tested connection: no attention rows, so the modules are 1-8 and Quit is 9.
   const settled = { ...initialState, session: { health: { jira: { ok: true as const, live: true } } } };
 
   it('moves with arrows or j/k, wrapping at both ends', () => {
     expect(top(press(settled, data(), 'down', 'down')).selected).toBe(2);
-    expect(top(press(settled, data(), 'up')).selected).toBe(7);
-    expect(top(press(settled, data(), 'j', 'k', 'k')).selected).toBe(7);
+    expect(top(press(settled, data(), 'up')).selected).toBe(8);
+    expect(top(press(settled, data(), 'j', 'k', 'k')).selected).toBe(8);
   });
 
   it('opens a screen with enter or its number, and goes back with esc to where it was', () => {
@@ -329,8 +330,9 @@ describe('the menu', () => {
   it('quits with q or the Quit entry; Ctrl+C is left to the loop, which wants it twice', () => {
     expect(press(settled, data(), 'q').quit).toBe(true);
     expect(press(settled, data(), { name: 'c', ctrl: true }).quit).toBeUndefined();
-    expect(press(settled, data(), '8').quit).toBe(true);
-    expect(press(settled, data(), '9').quit).toBeUndefined();
+    expect(press(settled, data(), '9').quit).toBe(true);
+    expect(where(press(settled, data(), '8'))).toBe('learn');
+    expect(press(settled, data(), '7').quit).toBeUndefined();
     expect(press(settled, data(), '0').quit).toBeUndefined();
   });
 
@@ -521,6 +523,14 @@ describe('the screens', () => {
     const vscode = agentScreen(plain, data(), 'vscode').join('\n');
     expect(vscode).toContain('"command": "toil"');
     expect(launchCommand('/usr/lib/node_modules/@imagile-dev/toil/dist/toil.js')).toEqual({ command: 'toil', args: [] });
+  });
+
+  it('print the Learn links whole, each on its own line, and open nothing', () => {
+    const lines = learnScreen(plain);
+    const links = lines.map((l) => l.trim()).filter((l) => l.startsWith('https://'));
+    expect(links).toEqual(['glossary', 'modules/getting-started', 'modules/ai-fluency-101', 'modules/autonomy-spectrum', 'modules/git-time-machine'].map((p) => `https://kolatts.github.io/context-overflow/${p}`));
+    for (const line of lines) expect(visibleLength(line)).toBeLessThanOrEqual(80);
+    expect(learnView.items).toBeUndefined();
   });
 
   it('cut a line to the window without counting or breaking colour codes', () => {

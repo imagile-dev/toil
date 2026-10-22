@@ -9,16 +9,24 @@
  * link to the settings section where it's set, which never changes anything
  * by itself. `useLandOn` is how that section takes focus once its page has
  * loaded. Both keep one size and place in every theme (help.css).
+ *
+ * The learning links (#418) live here too: a topic's glossary terms, each
+ * with Read more on Context Overflow, in its popover; `HeaderHelp`, the
+ * header's Help, which is a menu with Learn while they're on and the plain
+ * link it always was while they're off; and `LearnButton`, the same four
+ * modules from the agent's empty state. Every one is a plain link a person
+ * follows into a new tab: nothing is fetched or prefetched.
  * Clarifying notes are available on request, and on hover, which saves a request.
  */
 
 import { useEffect } from 'react';
-import { Button, Dialog, DialogTrigger, Heading, Popover, Tooltip, TooltipTrigger } from 'react-aria-components';
-import { HELP, helpHref, type HelpTopicId } from '../help.ts';
+import { Button, Dialog, DialogTrigger, Header, Heading, Menu, MenuItem, MenuSection, MenuTrigger, Popover, Text, Tooltip, TooltipTrigger } from 'react-aria-components';
+import { HELP, LEARN, glossaryHref, helpHref, learnHref, type GlossaryEntry, type HelpTopic, type HelpTopicId } from '../help.ts';
+import { useLearningLinks } from '../learning.ts';
 import './help.css';
 
 export function Help({ topic }: { topic: HelpTopicId }) {
-  const t = HELP[topic];
+  const t: HelpTopic = HELP[topic];
   return (
     <DialogTrigger>
       <TooltipTrigger delay={400} closeDelay={200}>
@@ -42,6 +50,104 @@ export function Help({ topic }: { topic: HelpTopicId }) {
               Read more<span className="sr-only"> about {t.title} in the docs (opens in a new tab)</span>
             </a>
           </p>
+          {t.glossary && <Glossary entries={t.glossary} />}
+        </Dialog>
+      </Popover>
+    </DialogTrigger>
+  );
+}
+
+/**
+ * A topic's AI terms (#418): each one's first sentence from Context
+ * Overflow's glossary and a link to the rest there. Nothing while learning
+ * links are off.
+ */
+export function Glossary({ entries }: { entries: readonly GlossaryEntry[] }) {
+  const [on] = useLearningLinks();
+  if (!on || !entries.length) return null;
+  return (
+    <ul className="help-glossary" aria-label="Terms, from Context Overflow's glossary" data-glossary="">
+      {entries.map((g) => (
+        <li key={g.slug}>
+          <span>
+            <strong>{g.term}</strong>: {g.text}{' '}
+          </span>
+          <a href={glossaryHref(g)} target="_blank" rel="noopener noreferrer" data-learn-link="">
+            Read more on Context Overflow<span className="sr-only"> about {g.term} (opens in a new tab)</span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * The header's Help (#346, #418). With learning links on it's a menu: the
+ * docs for the view in front of you, then Learn, Context Overflow's four
+ * modules by task. With them off it's the one link it was before.
+ */
+export function HeaderHelp({ href }: { href: string }) {
+  const [on] = useLearningLinks();
+  if (!on) {
+    return (
+      <a className="btn help-link" href={href} target="_blank" rel="noopener noreferrer" data-help-link="">
+        Help<span className="sr-only"> (opens in a new tab)</span>
+      </a>
+    );
+  }
+  return (
+    <MenuTrigger>
+      <Button className="btn help-link" data-help-link="">
+        Help<span aria-hidden="true"> ▾</span>
+      </Button>
+      <Popover className="popover menu-popover" placement="bottom end" offset={6}>
+        <Menu className="menu help-menu" aria-label="Help">
+          <MenuItem className="menu-item" href={href} target="_blank" rel="noopener noreferrer" textValue="Help for this view">
+            Help for this view<span className="sr-only"> (opens in a new tab)</span>
+          </MenuItem>
+          <MenuSection>
+            <Header className="menu-header">Learn, on Context Overflow</Header>
+            {LEARN.map((m) => (
+              <MenuItem key={m.path} id={m.path} className="menu-item help-menu__module" href={learnHref(m)} target="_blank" rel="noopener noreferrer" textValue={m.title} data-learn-link="">
+                <Text slot="label">{m.title}</Text>
+                <Text slot="description" className="note">
+                  {m.task}
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </Text>
+              </MenuItem>
+            ))}
+          </MenuSection>
+        </Menu>
+      </Popover>
+    </MenuTrigger>
+  );
+}
+
+/** Learn from the agent's empty state (#418): the same four modules, in a popover. Nothing while learning links are off. */
+export function LearnButton() {
+  const [on] = useLearningLinks();
+  if (!on) return null;
+  return (
+    <DialogTrigger>
+      <Button className="btn btn--small learn-button" data-learn="">
+        Learn
+      </Button>
+      <Popover className="popover help-popover" placement="bottom start" offset={6}>
+        <Dialog className="help-popover__dialog" aria-labelledby="learn-title">
+          <Heading slot="title" id="learn-title" className="help-popover__title">
+            Learn, on Context Overflow
+          </Heading>
+          <ul className="help-learn">
+            {LEARN.map((m) => (
+              <li key={m.path}>
+                <a href={learnHref(m)} target="_blank" rel="noopener noreferrer" data-learn-link="">
+                  {m.title}
+                  <span className="sr-only"> (opens in a new tab)</span>
+                </a>
+                <span className="note">{m.task}</span>
+              </li>
+            ))}
+          </ul>
         </Dialog>
       </Popover>
     </DialogTrigger>
