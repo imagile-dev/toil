@@ -328,6 +328,10 @@ describe('what a sync sees for the theme moments (#419)', () => {
     // An unlinked blocker clears it too; a blocked item that is itself done now doesn't count.
     expect(observedEvents(before, { items: [item('PAY-1'), item('PAY-2')], deployments: [] }, at('09:00'), at('07:00')).map((x) => x.kind)).toEqual(['blocker-cleared']);
     expect(observedEvents(before, { items: [item('PAY-1', { links: [link], statusCategory: 'DONE' }), item('PAY-2')], deployments: [] }, at('09:00'), at('07:00'))).toEqual([]);
+    // A blocker whose whole source left the picture (an area unlinked from the dossier) clears nothing.
+    const other = item('OPS-1', { source: { area: 'github', connection: 'github', key: 'OPS-1', command: 'github issue list' }, id: 'github:OPS-1' });
+    const across = { ...link, target: 'github:OPS-1' };
+    expect(observedEvents({ items: [item('PAY-1', { links: [across] }), other], deployments: [] }, { items: [item('PAY-1', { links: [across] })], deployments: [] }, at('09:00'), at('07:00'))).toEqual([]);
   });
 
   it("records a sprint's end once, at the sync after it, with its tally", () => {

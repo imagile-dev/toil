@@ -464,14 +464,18 @@ export function observedEvents(before: Snapshot | null, after: Snapshot, at: str
       out.push({ ...e, key: `blocker:${blocked}:${by}:${stamp}`, observed: { previousSync }, who: item.assignee });
     }
   }
-  // A blocker gone since the last picture, on an item still open: the item it blocked can move (#419).
+  // A blocker gone since the last picture, on an item still open: the item it blocked can move (#419). A blocker that
+  // left the picture counts (a done item can drop out of the query), unless its whole source did: an area unlinked from
+  // the dossier, or one that read nothing, clears nothing.
   const now = blockers(after.items);
+  const areas = new Set(after.items.map((i) => i.source.area));
   for (const [blocked, was] of old) {
     const item = byId.get(blocked);
     if (!item || !unfinished(item)) continue;
     for (const by of [...was].sort()) {
       if (now.get(blocked)?.has(by)) continue;
       const blocker = byId.get(by) ?? before.items.find((i) => i.id === by);
+      if (blocker && !areas.has(blocker.source.area)) continue;
       const refs = blocker ? { [by]: { label: keyOf(blocker), url: blocker.url } } : {};
       const e = itemEvent(item, 'blocker-cleared', stamp, `no longer blocked by [[${by}]]`, null, by, refs);
       out.push({ ...e, key: `blocker-cleared:${blocked}:${by}:${stamp}`, observed: { previousSync }, who: item.assignee });

@@ -5,6 +5,7 @@
  * so nothing is fetched from anywhere but the app's own origin, and a key the
  * theme doesn't list is simply no picture (the test on theme.json refuses one
  * before it ships).
+ * Every picture signed out from the stores by its catalogue number, never by aisle and shelf.
  */
 
 import type { ThemeManifest } from '../theme-pack.ts';

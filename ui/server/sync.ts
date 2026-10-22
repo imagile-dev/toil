@@ -384,7 +384,7 @@ export class SyncService {
       deployments: loaded.deployments,
       sources,
     });
-    if (news.length) (this.job.news ??= []).push({ dossier: name, events: news.slice(-MAX_NEWS) });
+    if (news.length) (this.job.news ??= []).push({ dossier: name, events: [...news].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)).slice(-MAX_NEWS) });
     const failed = sources.filter((s) => !s.ok);
     this.say(`${name}: ${loaded.items.length} items, ${loaded.changes.length} changes, ${loaded.deployments.length} deployments${failed.length ? `; ${failed.map((s) => s.area).join(', ')} failed, showing the last good copy` : ''}`);
   }
