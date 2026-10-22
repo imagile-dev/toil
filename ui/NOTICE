@@ -21,9 +21,8 @@ The app (dist/app/) bundles:
   (https://github.com/hafontia/Fredoka-One); each through Fontsource
   (https://fontsource.org) and licensed under the SIL Open Font License,
   Version 1.1, copied below.
-- For the Harvest, Starship, Realm, Sprawl and Frontier themes, each loaded only when
-  its theme
-  is picked: Pixelify Sans, Copyright 2021 The Pixelify Sans Project Authors
+- For the Harvest, Starship, Realm, Sprawl, Frontier and Overworld themes, each
+  loaded only when its theme is picked: Pixelify Sans, Copyright 2021 The Pixelify Sans Project Authors
   (https://github.com/eifetx/Pixelify-Sans); Chakra Petch, Copyright 2018 The
   Chakra Petch Project Authors (https://github.com/m4rc1e/Chakra-Petch);
   Orbitron, Copyright 2018 The
@@ -34,8 +33,10 @@ The app (dist/app/) bundles:
   EB Garamond, Copyright 2017 The EB Garamond Project Authors
   (https://github.com/octaviopardo/EBGaramond12); Rye, Copyright (c) 2012,
   Sorkin Type Co, with Reserved Font Name 'Rye'; and Bitter, Copyright 2011
-  The Bitter Project Authors (https://github.com/solmatas/BitterPro); each
-  through Fontsource and
+  The Bitter Project Authors (https://github.com/solmatas/BitterPro); and
+  Press Start 2P, Copyright 2012 The Press Start 2P Project Authors
+  (cody@zone38.net), with Reserved Font Name "Press Start 2P"; each through
+  Fontsource and
   licensed under the SIL Open Font License, Version 1.1, copied below. The
   themes' art (ui/themes/*/assets/) is original, drawn for Toil UI, and
   licensed under the Apache License, Version 2.0 with the rest of the app.

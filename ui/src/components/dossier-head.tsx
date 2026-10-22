@@ -12,6 +12,7 @@ import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode 
 import type { ConfigApi } from '../config.ts';
 import { dossierEditHref, sourceLabel as label } from '../format.ts';
 import { EditLink } from './help.tsx';
+import { matches } from '../shortcuts.ts';
 import type { DossierPreview, PreviewSprint } from '../model/preview.ts';
 import './dossier-head.css';
 
@@ -170,10 +171,10 @@ export function Editable({
     }
   };
   const onKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
+    if (matches('editSave', e)) {
       e.preventDefault();
       void save();
-    } else if (e.key === 'Escape') {
+    } else if (matches('editCancel', e)) {
       e.preventDefault();
       e.stopPropagation();
       setText(value ?? '');

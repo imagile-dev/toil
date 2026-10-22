@@ -19,6 +19,7 @@ import { PlainAvatar, type AvatarProps } from './components/avatar.tsx';
 import { crateSkins } from './skins/crate.tsx';
 import { frontierSkins } from './skins/frontier.tsx';
 import { harvestSkins } from './skins/harvest.tsx';
+import { overworldSkins } from './skins/overworld.tsx';
 import { realmSkins } from './skins/realm.tsx';
 import { sprawlSkins } from './skins/sprawl.tsx';
 import { starshipSkins } from './skins/starship.tsx';
@@ -67,7 +68,7 @@ export const DEFAULT_SKINS: Skins = {
 };
 
 /** The skins each built-in theme ships, by theme name. */
-export const BUILT_IN_SKINS: Record<string, Partial<Skins>> = { crate: crateSkins, harvest: harvestSkins, starship: starshipSkins, realm: realmSkins, sprawl: sprawlSkins, frontier: frontierSkins };
+export const BUILT_IN_SKINS: Record<string, Partial<Skins>> = { crate: crateSkins, harvest: harvestSkins, starship: starshipSkins, realm: realmSkins, sprawl: sprawlSkins, frontier: frontierSkins, overworld: overworldSkins };
 
 export const skinsFor = (theme: string): Skins => ({ ...DEFAULT_SKINS, ...BUILT_IN_SKINS[theme] });
 

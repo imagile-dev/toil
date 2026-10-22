@@ -1,0 +1,35 @@
+/* The command palette and the shortcuts sheet (src/components/palette.tsx). Colours, fonts and the radius
+   come from the active theme's tokens; above the Ask view's overlay, so Ctrl+K works from inside it too. */
+
+.palette-overlay { position: fixed; inset: 0; z-index: 40; display: grid; place-items: start center; padding: 10vh 16px 1rem; overflow-y: auto; background: rgb(0 0 0 / 0.55); }
+.palette-modal { width: 100%; max-width: 40rem; min-width: 0; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 12px 32px rgb(0 0 0 / 0.35); }
+.palette, .shortcuts { display: grid; gap: 0.5rem; padding: 0.75rem; outline: none; min-width: 0; max-height: calc(90svh - 2rem); overflow: auto; overscroll-behavior: contain; }
+.palette__search { display: grid; position: sticky; top: -0.75rem; z-index: 1; margin: -0.75rem -0.75rem 0; padding: 0.75rem 0.75rem 0.25rem; background: var(--surface); }
+.palette__input { font: inherit; font-size: 1rem; min-height: 44px; padding: 0 0.75rem; border: 1px solid var(--muted); border-radius: var(--radius); background: var(--raised); color: var(--ink); min-width: 0; }
+.palette__input::-webkit-search-cancel-button { display: none; }
+.palette__input[data-focused] { outline: 3px solid var(--focus); outline-offset: 1px; }
+.palette__status:empty { display: none; }
+.palette__list { outline: none; padding: 0; max-height: none; overflow: visible; }
+.palette__group + .palette__group { border-top: 1px solid var(--line); margin-top: 0.25rem; padding-top: 0.25rem; }
+.palette .palette__item { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.1rem; padding-block: 0.35rem; min-width: 0; }
+.palette .palette__item[data-focused] { outline: 2px solid var(--focus); outline-offset: -2px; }
+.palette__label { overflow-wrap: anywhere; }
+.palette__detail { font-size: 0.8125rem; color: var(--muted); overflow-wrap: anywhere; }
+.palette__empty { padding: 0.75rem; color: var(--muted); }
+.palette__foot { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; }
+.palette kbd, .shortcuts kbd { display: inline-block; min-width: 1.5em; padding: 0 0.3em; border: 1px solid var(--muted); border-radius: 4px; background: var(--raised); color: var(--ink); font-family: var(--font-mono); font-size: 0.8125rem; text-align: center; }
+
+.shortcuts-modal { max-width: 44rem; }
+.shortcuts__head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.shortcuts__head h2 { font-size: 1.25rem; }
+.shortcuts__group h3 { font-size: 0.9375rem; color: var(--muted); margin-block: 0.5rem 0.25rem; }
+.shortcuts__group dl { display: grid; gap: 0.25rem; margin: 0; }
+.shortcuts__row { display: grid; grid-template-columns: minmax(7rem, 12rem) minmax(0, 1fr); gap: 0.25rem 1rem; align-items: baseline; }
+.shortcuts__row dt { white-space: nowrap; }
+.shortcuts__row dd { margin: 0; overflow-wrap: anywhere; }
+
+@media (max-width: 599px) {
+  .palette-overlay { padding: 0.5rem 16px 1rem; }
+  .shortcuts__row { grid-template-columns: minmax(0, 1fr); }
+  .shortcuts__row dt { white-space: normal; }
+}

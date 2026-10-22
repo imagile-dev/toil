@@ -8,7 +8,8 @@
 //   1. Sample data. `toil-ui --sample` in a throwaway home, every view through
 //      the layout and axe check (scripts/layout-check.mjs) in every theme and
 //      scheme at 375, 768 and 1440px. Needs nothing but a browser, so CI can
-//      run it.
+//      run it. Then the first run (#416): toil-ui on an empty home, whose
+//      Dossiers view must show the three-step checklist, through the same check.
 //   2. Real data, from a source (`--source github`, the default): the private
 //      sandbox imagile-dev/toil-sandbox, in the isolated home dev-real.mjs
 //      uses (scripts/real-home.mjs) at <clone>/.scratch/verify/home, made fresh
@@ -47,7 +48,7 @@ import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { basename, join, relative } from 'node:path';
 import { findChrome, openBrowser } from './chrome.mjs';
-import { ROUTES, WIDTHS, checkLayout, themeRuns } from './layout-check.mjs';
+import { FIRST_RUN_ROUTE, ROUTES, WIDTHS, checkLayout, themeRuns } from './layout-check.mjs';
 import { npmCli } from './package-rules.mjs';
 import { ADAPTERS, RealHomeError, adoProblem, buildToil, githubToken, sdkInstall, sdkInstalled, prepareAdoHome, prepareRealHome, realHomeEnv, root, toilIn, toilUi, toilUiNodeArgs } from './real-home.mjs';
 
@@ -197,7 +198,7 @@ async function layout(part, launchUrl, routes) {
   const runs = themeRuns();
   const log = (line) => say(`  layout (${part}): ${line}`);
   // A real dossier's name and links may genuinely fill the header's row at 1440px, so only the sample's must fit (#387).
-  const headerFits = part === 'sample';
+  const headerFits = part !== 'real';
   const strict = await checkLayout({ urlFor, routes, runs: runs.filter((r) => r.strict), shots: join(out, 'shots', part), log, headerFits });
   const other = await checkLayout({ urlFor, routes, runs: runs.filter((r) => !r.strict), log, headerFits });
   const found = [...strict.problems, ...other.problems];
@@ -449,6 +450,19 @@ try {
   } finally {
     await sample.stop();
     rmSync(work, { recursive: true, force: true, maxRetries: 5 });
+  }
+
+  // 1b. The first run (#416): toil-ui on a home with no connections and no dossiers, and no TOIL_* variable from this
+  // shell, so it shows the checklist. It reads only toil's own empty config, so it needs no network either.
+  const fresh = join(tmpdir(), `toil-ui-verify-first-${process.pid}`);
+  const freshEnv = Object.fromEntries(Object.entries(process.env).filter(([k]) => !k.startsWith('TOIL_')));
+  Object.assign(freshEnv, { HOME: join(fresh, 'home'), USERPROFILE: join(fresh, 'home'), TOIL_UI_DATA_DIR: join(fresh, 'data') });
+  const first = await launch([], freshEnv);
+  try {
+    await layout('first-run', first.launchUrl, [FIRST_RUN_ROUTE]);
+  } finally {
+    await first.stop();
+    rmSync(fresh, { recursive: true, force: true, maxRetries: 5 });
   }
 
   // 2. Real data.

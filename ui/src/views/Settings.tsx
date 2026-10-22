@@ -30,7 +30,14 @@ import { Usage } from './settings/Usage.tsx';
 import { ModelUsage } from './settings/ModelUsage.tsx';
 import type { ModelUsageApi } from '../server-client.ts';
 
-const PAGES: Array<{ page: SettingsPage; label: string; about: string; topic: HelpTopicId }> = [
+/**
+ * Where a link lands on a page that isn't a named thing (#416): the add-connection form, or the
+ * create-dossier form. A connection or dossier name can't start with `+`, so these never collide with one.
+ */
+export const ADD_CONNECTION_HREF = '#/settings/connections/+add';
+export const CREATE_DOSSIER_HREF = '#/settings/dossiers/+new';
+
+export const SETTINGS_PAGES: Array<{ page: SettingsPage; label: string; about: string; topic: HelpTopicId }> = [
   { page: 'connections', label: 'Connections', about: 'The connections toil uses: add, test, set the default, turn writes on or off, replace a secret, remove.', topic: 'connections' },
   { page: 'dossiers', label: 'Dossiers', about: 'Set up a repository that has a dossier, create dossiers, and give them repositories, areas, field names, people and a work-in-progress limit.', topic: 'dossier-setup' },
   { page: 'toil', label: 'General', about: 'How Toil UI looks, talks, moves, notifies and links out in this browser, and the settings toil has no command for.', topic: 'bounds' },
@@ -40,7 +47,8 @@ const PAGES: Array<{ page: SettingsPage; label: string; about: string; topic: He
 ];
 
 export function Settings({ page, at = [], config, agent, modelUsage = null }: { page: SettingsPage; at?: string[]; config: ConfigApi | null; agent?: AgentSettingsPanelProps; modelUsage?: ModelUsageApi | null }) {
-  const current = PAGES.find((p) => p.page === page)!;
+  const current = SETTINGS_PAGES.find((p) => p.page === page)!;
+  const form = at[0] === '+add' || at[0] === '+new';
   const words = useWords();
   return (
     <>
@@ -53,7 +61,7 @@ export function Settings({ page, at = [], config, agent, modelUsage = null }: { 
       </div>
       <nav className="subnav" aria-label="Settings pages">
         <ul>
-          {PAGES.map((p) => (
+          {SETTINGS_PAGES.map((p) => (
             <li key={p.page}>
               <a href={`#/settings/${p.page}`} aria-current={p.page === page ? 'page' : undefined}>
                 {p.label}
@@ -86,9 +94,9 @@ export function Settings({ page, at = [], config, agent, modelUsage = null }: { 
       ) : !config ? (
         <p className="failure">This app wasn't given toil's config commands, so there is nothing to show.</p>
       ) : page === 'connections' ? (
-        <Connections config={config} {...(at[0] ? { at: at[0] } : {})} />
+        <Connections config={config} {...(form ? { toForm: true } : at[0] ? { at: at[0] } : {})} />
       ) : page === 'dossiers' ? (
-        <DossierSetup config={config} {...(at[0] ? { at: { dossier: at[0], section: at[1] ?? null } } : {})} />
+        <DossierSetup config={config} {...(form ? { toForm: true } : at[0] ? { at: { dossier: at[0], section: at[1] ?? null } } : {})} />
       ) : page === 'usage' ? (
         <Usage config={config} />
       ) : (
