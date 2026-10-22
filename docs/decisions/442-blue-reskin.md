@@ -72,7 +72,6 @@ or overturn.
   the app in its default theme, Crate. It is the app's own colours, like `/ui/`.
 - **The feedback emails** (`functions/feedback/src/lib/templates.ts`) keep their warm
   inline colours. They are not site chrome, and changing them redeploys the feedback
-  function; a follow-up can move them. #453 moved them to Plain's palette
-  (`docs/decisions/453-feedback-emails.md`).
+  function; a follow-up can move them.
 - **The GitHub social preview** is uploaded by hand: `.github/assets/social-preview.png`
   is updated, and Settings → General → Social preview needs the new file.

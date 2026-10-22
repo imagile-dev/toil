@@ -1,7 +1,8 @@
-# #453: the feedback emails in Plain's blue
+# The feedback emails in Plain's blue (#453)
 
 Decisions an agent made by default while building #453, for the maintainer to keep
-or overturn.
+or overturn. This picks up the follow-up `docs/decisions/442-blue-reskin.md` left
+open under "Left as they were": the emails now use Plain's colours.
 
 ## The function keeps a copy of the colours, held to theme.json by a test
 
