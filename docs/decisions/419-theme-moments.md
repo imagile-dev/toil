@@ -94,3 +94,7 @@
   each Settings page, and the chat's thinking line. Settings keep their standard words,
   in the theme's loader. The layout check's "still loading" test now looks for
   `[data-loading]` too.
+- **The layout check waits for finite animations to end** before it measures or runs
+  axe (`ANIMATIONS_DONE`, up to 2 s), loops left running. The first motion-on pass caught
+  the board's dropped ghost card mid-fade (an animation from #393 that the reduced-motion
+  pass had never seen) and read its text as low contrast; the card is fine once it lands.

@@ -264,6 +264,12 @@ const inMenu = (selector) => `(async () => {
   return await ${clickAll(selector)};
 })()`;
 
+/**
+ * Resolves once every animation with an end has ended (up to 2s), so a check with motion on never reads a
+ * colour or a box halfway through a fade (#419). Loops (a drifting grid, a loader's motif) are left running.
+ */
+const ANIMATIONS_DONE = `Promise.race([Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))), new Promise((r) => setTimeout(r, 2000))])`;
+
 /** Polls `expression` in the page every 50ms until it is truthy or `ms` pass; resolves with its last value. */
 const until = (page, expression, ms = 5000) =>
   page.evaluate(`(async () => { const deadline = Date.now() + ${ms}; for (;;) { const v = (${expression}); if (v || Date.now() > deadline) return v; await new Promise((r) => setTimeout(r, 50)); } })()`);
@@ -499,6 +505,7 @@ async function dragCheck(page, width, shoot, inspectDropped) {
   if (ghost === null) problems.push('after the drop, no proposed ghost of the card showed on the board within 5s');
   else if (ghost !== plan.target) problems.push(`after the drop, the proposed ghost is in ${ghost || 'no column'}, not ${plan.target}`);
   await shoot('drag-dropped');
+  await page.evaluate(ANIMATIONS_DONE);
   const dropped = ghost === null ? none : await inspectDropped();
   // Undo, so the next width starts from the board as it opened. For 50ms after a drop dnd-kit stops every click on
   // the page (the one a pointerup would make), so Undo is pressed until the ghost has gone, not once.
@@ -583,6 +590,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
     for (const width of widths) {
       await page.size(width);
       await page.evaluate(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 150))))`);
+      await page.evaluate(ANIMATIONS_DONE);
       const where = `${label} ${route} at ${width}px`;
       const slug = `${run.theme}-${run.scheme}__${route.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'home'}__${width}`;
       const record = (state, findings) => {
@@ -625,6 +633,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
         // A state may say why it opened nothing, as text, rather than leave the generic line.
         else if (typeof opened === 'string') problems.push(`${where} (${state.name}): ${opened}`);
         await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
+        await page.evaluate(ANIMATIONS_DONE);
         await shoot(`${slug}__${state.name}`);
         record(state.name, await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)}, ${headerFits})`));
         // An open sheet covers the page on purpose, like a dialog; only the page's own states must clear the dock.
