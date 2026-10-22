@@ -76,7 +76,7 @@ export function Dossiers({ dossiers, calls, loaded, now, synced, config, onDescr
           {words('dossiers.lede')} <Help topic="dossiers" />
         </p>
       </div>
-      {/* The first run (#416), in place of the empty state, which it carries as its first line. */}
+      {/* The first run (#416), in place of the empty state, whose one line it keeps above the steps that fill the page. */}
       {firstRunShows(dossiers.length, synced, Boolean(onSync)) && <FirstRun dossiers={dossiers.length} synced={synced} config={config} onSync={onSync} {...(dossiers.length === 0 ? { lede: words('empty.dossiers') } : {})} />}
       {dossiers.length === 0 ? null : (
         <CardGrid className="dossiers" min="sm">

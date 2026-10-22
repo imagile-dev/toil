@@ -48,8 +48,12 @@
   arrows, Escape) are listed from the table but handled by dnd-kit, as before.
 - **The first run shows** when there is no dossier, or, where Toil UI syncs, when no
   dossier has synced yet: a dossier made in step 2 keeps the list up until step 3. A
-  wiped cache shows it again until the next sync, which is true of that state. The
-  theme's empty-state line is kept as the checklist's first line.
+  wiped cache shows it again until the next sync, which is true of that state.
+- **The theme's empty-state line stays, as the checklist's first line**, though the
+  screen review (principle 11) asks whether it should go: it is one sentence beside
+  the actions, not a paragraph, it is each theme's voice on that page, and it is the
+  only lexicon entry that exercises the rule that a theme keeps a `toil` command
+  (`ui/test/themes.test.ts`). Dropping it means removing the key from every theme.
 - **"Connect a tracker" counts a connection to an area the dossiers read work items
   from** (`jira`, `jira-cloud`, `ado`, `ado-cloud`, `github`), from toil's own
   `OWI_SOURCES`; a Jenkins or Bitbucket connection alone doesn't tick it. `connections
