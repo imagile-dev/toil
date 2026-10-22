@@ -20,6 +20,11 @@ export type HistoryKind = 'needs-you' | 'done' | 'failed' | 'cap' | 'stale' | 's
 export interface HistoryEntry {
   /** Rises with every entry, so read and unread are one comparison. */
   seq: number;
+  /**
+   * What it is about, the same in every tab: each open tab hears the same server event and sees the same sync end,
+   * and the history they share keeps one entry for it.
+   */
+  id: string;
   /** When it happened, as an ISO time. */
   at: string;
   kind: HistoryKind;
@@ -45,7 +50,7 @@ export function parseHistory(text: string | null): History {
   try {
     const v = JSON.parse(text) as Partial<History> | null;
     const entries = (Array.isArray(v?.entries) ? v.entries : []).filter(
-      (e): e is HistoryEntry => !!e && typeof e === 'object' && Number.isInteger(e.seq) && typeof e.at === 'string' && KINDS.has(e.kind) && typeof e.title === 'string' && typeof e.line === 'string' && typeof e.href === 'string' && /^#\//.test(e.href),
+      (e): e is HistoryEntry => !!e && typeof e === 'object' && Number.isInteger(e.seq) && typeof e.id === 'string' && typeof e.at === 'string' && KINDS.has(e.kind) && typeof e.title === 'string' && typeof e.line === 'string' && typeof e.href === 'string' && /^#\//.test(e.href),
     );
     return { entries: entries.slice(0, MAX_HISTORY), read: typeof v?.read === 'number' ? v.read : 0 };
   } catch {
@@ -53,10 +58,17 @@ export function parseHistory(text: string | null): History {
   }
 }
 
-/** Adds entries, newest first, keeping the last MAX_HISTORY. */
+/** Adds entries, newest first, keeping the last MAX_HISTORY; one whose id is already kept (another tab added it) is skipped. */
 export function added(h: History, add: ReadonlyArray<Omit<HistoryEntry, 'seq'>>): History {
   let seq = Math.max(h.read, ...h.entries.map((e) => e.seq), 0);
-  const fresh = add.map((e) => ({ ...e, seq: ++seq })).reverse();
+  const kept = new Set(h.entries.map((e) => e.id));
+  const fresh: HistoryEntry[] = [];
+  for (const e of add) {
+    if (kept.has(e.id)) continue;
+    kept.add(e.id);
+    fresh.unshift({ ...e, seq: ++seq });
+  }
+  if (!fresh.length) return h;
   return { ...h, entries: [...fresh, ...h.entries].slice(0, MAX_HISTORY) };
 }
 
@@ -116,7 +128,9 @@ export function browserHistory(key = HISTORY_KEY): HistoryStore {
   return {
     get: load,
     add: (entries) => {
-      if (entries.length) save(added(load(), entries));
+      const now = load();
+      const next = added(now, entries);
+      if (next !== now) save(next);
     },
     markAllRead: () => save(allRead(load())),
     subscribe: (l) => {

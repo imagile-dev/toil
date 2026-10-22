@@ -989,8 +989,8 @@ the Sync panel, with the dossier that failed, and when each happened. Every entr
 to what it's about: the assignment, the dossier, or the Dossiers view. **Mark all read**
 clears the count and keeps the entries. The bell keeps a change that quiet hours held
 back, and one whose notice you dismissed; which changes reach it is the notification
-settings' choice. It's kept in this browser's `localStorage`, shared by its tabs, and
-sent nowhere. Notices follow the rules above unchanged, and a theme's moments play from
+settings' choice. It's kept in this browser's `localStorage`, shared by its tabs (with one
+entry for each event, however many tabs saw it), and sent nowhere. Notices follow the rules above unchanged, and a theme's moments play from
 the worklog's facts, never from the bell.
 
 ## Themes

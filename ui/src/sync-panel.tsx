@@ -41,16 +41,18 @@ export function lastSynced(status: SyncStatus | null): string | null {
 /** A finished sync as the bell keeps it (#417): how it went, linking to the dossier that failed, or the Dossiers view. */
 export function syncEntry(s: SyncStatus): Omit<HistoryEntry, 'seq'> {
   const at = s.job.finishedAt ?? new Date().toISOString();
-  if (s.job.error) return { at, kind: 'sync-failed', title: 'The sync stopped', line: s.job.error, href: '#/' };
+  // Every tab sees the same sync end, so the id is the sync's own.
+  const id = `sync:${at}`;
+  if (s.job.error) return { id, at, kind: 'sync-failed', title: 'The sync stopped', line: s.job.error, href: '#/' };
   const bad = s.dossiers.flatMap((d) => d.sources.filter((x) => x.status === 'failed').map((x) => ({ dossier: d.name, area: x.area })));
   const badDossiers = s.dossiers.filter((d) => d.status === 'failed' && !d.sources.some((x) => x.status === 'failed')).map((d) => d.name);
   if (bad.length || badDossiers.length) {
     const named = [...bad.map((b) => `${b.dossier}: ${sourceLabel(b.area)}`), ...badDossiers.map((d) => `${d}: the dossier`)];
     const first = bad[0]?.dossier ?? badDossiers[0]!;
-    return { at, kind: 'sync-failed', title: `Sync finished; ${named.length} ${named.length === 1 ? 'source' : 'sources'} failed`, line: named.join(', '), href: dossierHref(first) };
+    return { id, at, kind: 'sync-failed', title: `Sync finished; ${named.length} ${named.length === 1 ? 'source' : 'sources'} failed`, line: named.join(', '), href: dossierHref(first) };
   }
   const n = s.dossiers.length;
-  return { at, kind: 'sync', title: 'Sync finished', line: `${n} ${n === 1 ? 'dossier' : 'dossiers'} up to date`, href: '#/' };
+  return { id, at, kind: 'sync', title: 'Sync finished', line: `${n} ${n === 1 ? 'dossier' : 'dossiers'} up to date`, href: '#/' };
 }
 
 function DossierRow({ dossier }: { dossier: DossierState }) {

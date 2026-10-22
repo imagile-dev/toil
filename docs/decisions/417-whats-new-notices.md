@@ -34,6 +34,15 @@
   still the notification settings' choice; "done" is off by default there, and so it
   isn't kept by default either. A chat stopped at its own usage cap says so in the chat
   in front of you, and isn't added.
+- **One entry per event, however many tabs are open.** Every tab hears the same server
+  event and sees the same sync end, and they share one history, so each entry carries an
+  id from its subject (the session, the state and the server event's sequence number;
+  `sync:<finishedAt>` for a sync), and an id already kept is skipped. The writes are
+  synchronous `localStorage` calls, so the second tab always sees the first one's entry.
+- **The bell is the one control always on screen.** It shows a count, which can't sit
+  out of sight and still be seen. Principle 11 asks for something to come off the screen
+  or stay hidden in exchange: the bell takes nothing off, and #417 asks for it by name.
+  What's new adds no control at all, only an item inside Help and a dot.
 - **Each sync's result is one entry**, from the Sync panel when a sync ends: finished,
   finished with sources failed (naming them, and linking to the first failed
   dossier), or stopped (with toil's message). A wipe is not an entry.

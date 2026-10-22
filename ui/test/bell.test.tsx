@@ -12,7 +12,7 @@ import type { SyncStatus } from '../src/server-client.ts';
 
 /** The notification history behind the header's bell (#417). */
 
-const entry = (n: number): Omit<HistoryEntry, 'seq'> => ({ at: `2026-10-13T08:${String(n % 60).padStart(2, '0')}:00.000Z`, kind: 'done', title: `Codex finished ${n}`, line: `PAY-${n}: finished`, href: `#/dossier/card-payments/assignment/a${n}` });
+const entry = (n: number): Omit<HistoryEntry, 'seq'> => ({ id: `assignment:a${n}:done`, at: `2026-10-13T08:${String(n % 60).padStart(2, '0')}:00.000Z`, kind: 'done', title: `Codex finished ${n}`, line: `PAY-${n}: finished`, href: `#/dossier/card-payments/assignment/a${n}` });
 
 beforeEach(() => localStorage.clear());
 
@@ -38,6 +38,15 @@ describe('the history', () => {
     expect(parseHistory('{').entries).toEqual([]);
   });
 
+  it('keeps one entry when two tabs add the same one', () => {
+    const one = browserHistory('test.tabs');
+    const two = browserHistory('test.tabs');
+    one.add([entry(1)]);
+    two.add([entry(1), entry(2)]);
+    expect(two.get().entries.map((e) => e.id)).toEqual(['assignment:a2:done', 'assignment:a1:done']);
+    expect(unread(one.get())).toBe(2);
+  });
+
   it('is kept in this browser, and read again when another tab changes it', () => {
     const store = browserHistory('test.history');
     let heard = 0;
@@ -54,7 +63,7 @@ describe('the history', () => {
     const status = (over: Partial<SyncStatus['job']>, dossiers: SyncStatus['dossiers']) => ({ job: { running: false, finishedAt: '2026-10-13T08:00:00.000Z', ...over }, dossiers }) as unknown as SyncStatus;
     const ok = { name: 'card-payments', status: 'ok', sources: [{ area: 'jira', status: 'ok' }] };
     const bad = { name: 'settlement', status: 'ok', sources: [{ area: 'ado', status: 'failed' }] };
-    expect(syncEntry(status({}, [ok] as never))).toMatchObject({ kind: 'sync', title: 'Sync finished', line: '1 dossier up to date', href: '#/' });
+    expect(syncEntry(status({}, [ok] as never))).toMatchObject({ id: 'sync:2026-10-13T08:00:00.000Z', kind: 'sync', title: 'Sync finished', line: '1 dossier up to date', href: '#/' });
     expect(syncEntry(status({}, [ok, bad] as never))).toMatchObject({ kind: 'sync-failed', title: 'Sync finished; 1 source failed', line: 'settlement: Azure DevOps', href: '#/dossier/settlement' });
     expect(syncEntry(status({ error: 'toil could not start' }, [] as never))).toMatchObject({ kind: 'sync-failed', title: 'The sync stopped', line: 'toil could not start' });
   });
@@ -99,7 +108,7 @@ describe('the bell', () => {
     );
     act(() => notify!.report({ key: 'chat:1:0', state: 'stale', notable: 'stale', agent: 'The chat', item: null, itemTitle: null, why: 'toil changed', dossier: 'card-payments', href: '#/dossier/card-payments', mine: true }, 'fresh'));
     await waitFor(() => expect(screen.getByRole('button', { name: 'Notifications, 1 unread' })).toBeTruthy(), { timeout: 6000 });
-    expect(history.get().entries[0]).toMatchObject({ kind: 'stale', title: 'The chat went stale', line: 'card-payments: toil changed', href: '#/dossier/card-payments' });
+    expect(history.get().entries[0]).toMatchObject({ id: 'chat:1:0:stale', kind: 'stale', title: 'The chat went stale', line: 'card-payments: toil changed', href: '#/dossier/card-payments' });
     expect(notify!.notices).toEqual([]);
   }, 10_000);
 

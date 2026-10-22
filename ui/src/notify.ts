@@ -59,6 +59,8 @@ export interface Transition {
   /** Where the notice links: the assignment's page, or the dossier. */
   href: string;
   mine: boolean;
+  /** The server event's sequence number, where it came from one: every tab hears the same event, so the bell's history can tell it's one (#417). */
+  event?: number;
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n === 1 ? 'a' : n} ${n === 1 ? one : many}`;
@@ -72,7 +74,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n === 1 ? 'a' : 
 export function transitionOf(e: AssignmentEvent, o: { mine: boolean; href: string }): Transition | null {
   if (e.kind !== 'state' || e.state === e.previous) return null;
   const agent = e.adapter ? ADAPTER_NAME[e.adapter as AssignAdapter] : 'An agent';
-  const base = { key: `assignment:${e.id}`, state: e.state, agent, item: e.item, itemTitle: e.itemTitle ?? null, dossier: e.dossier, href: o.href, mine: o.mine };
+  const base = { key: `assignment:${e.id}`, event: e.seq, state: e.state, agent, item: e.item, itemTitle: e.itemTitle ?? null, dossier: e.dossier, href: o.href, mine: o.mine };
   return { ...base, ...notableOf(e.state, e) };
 }
 
