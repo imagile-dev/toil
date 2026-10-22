@@ -54,6 +54,14 @@
   background: repeating-linear-gradient(to bottom, rgba(234, 246, 255, 0.025) 0 1px, transparent 1px 3px);
 }
 
+/* Monospace is wider than a proportional face, so a long unbroken run (a URL
+   in a note) may break anywhere rather than push a narrow dialog wider than
+   the screen. */
+[data-theme="sprawl"] p,
+[data-theme="sprawl"] li {
+  overflow-wrap: anywhere;
+}
+
 [data-theme="sprawl"] h1,
 [data-theme="sprawl"] h2,
 [data-theme="sprawl"] .stat-value,
@@ -126,7 +134,7 @@
   border: 1px solid rgba(63, 240, 255, 0.38);
   background:
     linear-gradient(135deg, rgba(63, 240, 255, 0.05), transparent 45%, rgba(255, 46, 136, 0.05)),
-    rgba(14, 12, 29, 0.94);
+    var(--surface);
   box-shadow: 0 0 16px rgba(63, 240, 255, 0.08), inset 0 0 22px rgba(63, 240, 255, 0.04);
 }
 
@@ -346,7 +354,7 @@
   border-color: rgba(255, 46, 136, 0.45);
 }
 
-[data-theme="sprawl"] .bubble--you::before {
+[data-theme="sprawl"] .bubble--you > :first-child::before {
   content: "> " / "";
   color: var(--accent);
   font-weight: 600;
