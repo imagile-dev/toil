@@ -170,7 +170,7 @@ from `main`).
   - **About** (`/about/`) holds How it works, the principles, the changelog
     (`CHANGELOG.md`, rendered) and the feedback form, and the case for toil that
     no longer fits on the homepage. **The homepage stays at five sections**: the
-    hero (the slot #432's map fills), Get started, Connect, Toil UI and the
+    hero, which is the toil map, Get started, Connect, Toil UI and the
     principles. Something added there means something comes off (principle 11).
     Get started opens with the start-here paths by role (#433), `startPaths` in
     `docs-path.mjs`: three steps each, every one a page or heading already on the
@@ -189,7 +189,15 @@ from `main`).
     in `src/lib/redirects.mjs` that forwards with its query and hash, and the
     sitemap leaves them out. `npm run build` ends with `scripts/check-links.mjs`,
     which fails on an internal link or anchor that doesn't resolve, on a page
-    linking to an old address, and on an old address that forwards nowhere.
+    linking to an old address, on an old address that forwards nowhere, and on a
+    page under `/connect/` with no node on `/map/`.
+  - **The toil map** (`src/components/ToilMap.astro`, #432) is the homepage's hero
+    and, larger, `/map/`: who asks (agents, people, CI/CD), toil, and everything
+    it reaches. Its nodes come from `src/data/map.ts`, which reads the Connect
+    catalogue, so a new board file is a new node with no map edit. Hover, focus
+    or a first tap lights a node's paths and shows its label; the wires and
+    motion are `src/scripts/toil-map.js`, and the map works without them. It
+    uses the site's colour tokens only, never a colour of its own.
   - **Diagrams in the docs** are hand-drawn HTML and inline SVG in
     `site/src/figures/<name>.html`, never a runtime library or CDN. A skill file
     places one with a `<!-- figure: <name> -->` line, which agents read past and the
