@@ -159,6 +159,8 @@ describe('db pre-flight lint', () => {
     expect(rulesOf('MSCK REPAIR TABLE people', 'hive')).toEqual(['read-only-write']);
     expect(rulesOf('FROM people p INSERT INTO TABLE archive SELECT p.id', 'hive')).toEqual(['read-only-write']);
     expect(rulesOf('COMPUTE STATS people', 'impala')).toEqual(['read-only-write']);
+    for (const sql of ['ANALYZE TABLE people COMPUTE STATISTICS', "KILL QUERY 'hive_1'", 'ABORT TRANSACTIONS 12']) expect(rulesOf(sql, 'hive'), sql).toEqual(['read-only-write']);
+    for (const sql of ['INVALIDATE METADATA people', 'REFRESH people']) expect(rulesOf(sql, 'impala'), sql).toEqual(['read-only-write']);
     expect(rulesOf('MSCK REPAIR TABLE people', 'postgres')).toEqual([]);
     expect(rulesOf('FROM people SELECT id', 'impala')).toEqual([]);
   });

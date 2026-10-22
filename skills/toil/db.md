@@ -628,7 +628,7 @@ names the engine and every rule that ran, on success and failure alike.
 |------|----------|---------|----------|
 | `unterminated` | error | all | A string, quoted name or block comment that is never closed (SQLite lets a block comment run to the end, so only its strings and names) |
 | `multiple-statements` | error | all but SQL Server, on `db query` | More than one statement. SQL Server is left to its own check, which refuses SQL that returns more than one result, so `DECLARE @n int = 1; SELECT @n` still runs |
-| `read-only-write` | error (`WRITE_DISABLED`) | all, on `db query` | A statement that starts with `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `REPLACE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, `RENAME` or `COMMENT` (on Teradata also `INS`, `UPD`, `DEL`, `COLLECT` and `MODIFY`; on Hive `LOAD`, `MSCK`, `EXPORT`, `IMPORT` and a multi-insert `FROM ... INSERT`; on Impala `UPSERT`, `LOAD` and `COMPUTE`), or a `WITH` holding a data change |
+| `read-only-write` | error (`WRITE_DISABLED`) | all, on `db query` | A statement that starts with `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `REPLACE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, `RENAME` or `COMMENT` (on Teradata also `INS`, `UPD`, `DEL`, `COLLECT` and `MODIFY`; on Hive `LOAD`, `MSCK`, `EXPORT`, `IMPORT`, `ANALYZE`, `KILL`, `ABORT` and a multi-insert `FROM ... INSERT`; on Impala `UPSERT`, `LOAD`, `COMPUTE`, `INVALIDATE` and `REFRESH`), or a `WITH` holding a data change |
 | `dialect-limit` | error | SQL Server, Oracle, Teradata | `LIMIT n`: use `TOP (n)` or `OFFSET ... FETCH NEXT n ROWS ONLY` on SQL Server, `FETCH FIRST n ROWS ONLY` on Oracle (`ROWNUM <= n` on 11g), `TOP n` (or `SAMPLE n`) on Teradata. A PL/SQL block's own `BULK COLLECT ... LIMIT n` is left alone |
 | `dialect-top` | error | all but SQL Server and Teradata | `SELECT TOP n`: use `LIMIT n`, or `FETCH FIRST n ROWS ONLY` on Oracle |
 | `dialect-backtick` | error; warning on SQLite | all but MySQL, Hive and Impala | `` `name` ``: use `"name"`, or `[name]` on SQL Server. SQLite accepts backticks for MySQL compatibility, so there it only warns |
@@ -808,8 +808,8 @@ written when it returns. Within that:
   back as `WRITE_DISABLED`, and nothing was changed.
 - The pre-flight lint refuses the obvious write on `db query` before anything is sent
   (the `read-only-write` rule, which also knows Hive's `LOAD`, `MSCK`, `EXPORT`,
-  `IMPORT` and multi-insert `FROM ... INSERT`, and Impala's `UPSERT`, `LOAD` and
-  `COMPUTE STATS`). It isn't a guard: toil doesn't parse SQL to decide whether it writes.
+  `IMPORT`, `ANALYZE`, `KILL`, `ABORT` and multi-insert `FROM ... INSERT`, and Impala's
+  `UPSERT`, `LOAD`, `COMPUTE STATS`, `INVALIDATE METADATA` and `REFRESH`). It isn't a guard: toil doesn't parse SQL to decide whether it writes.
 - A read the server reports as having changed rows comes back as `DATABASE`, saying the
   change has been made: Hive 4.0 and later report the rows a statement changed when it
   finishes (Hive 3.1 doesn't, so there it goes unreported), and Impala when it's closed.

@@ -40,8 +40,9 @@
   parsing; the docs say the account must be refused those too, which Ranger and SQL
   standard authorization do for anyone not an administrator. The lint's
   `read-only-write` rule does learn the statements that are plainly writes on these
-  engines (Hive's `LOAD`, `MSCK`, `EXPORT`, `IMPORT` and multi-insert `FROM ... INSERT`;
-  Impala's `UPSERT`, `LOAD`, `COMPUTE`), as advice, the way it already knows `REPLACE`.
+  engines (Hive's `LOAD`, `MSCK`, `EXPORT`, `IMPORT`, `ANALYZE`, `KILL`, `ABORT` and
+  multi-insert `FROM ... INSERT`; Impala's `UPSERT`, `LOAD`, `COMPUTE`, `INVALIDATE`,
+  `REFRESH`; the last five from review), as advice, the way it already knows `REPLACE`.
 - **Impala's row count comes from `CloseImpalaOperation`, written by hand in the
   generated client's shape (`hs2.ts`, `impalaClose`).** HiveServer2 has no row count
   for a write, and Impala reports one only in its own extension of the service, which

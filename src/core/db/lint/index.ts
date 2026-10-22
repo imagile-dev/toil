@@ -88,12 +88,13 @@ const WRITE_FIRST = new Set(['INSERT', 'UPDATE', 'DELETE', 'MERGE', 'REPLACE', '
 /** Teradata's own: the INS, UPD and DEL abbreviations, COLLECT STATISTICS and MODIFY USER or DATABASE. */
 const TERADATA_WRITE_FIRST = new Set([...WRITE_FIRST, 'INS', 'UPD', 'DEL', 'COLLECT', 'MODIFY']);
 /**
- * Statements only some engines have that change the database, by their first word: Hive's LOAD DATA,
- * MSCK REPAIR (which adds partitions), EXPORT and IMPORT, and Impala's UPSERT, LOAD DATA and COMPUTE STATS.
+ * Statements only some engines have that change the database or the server, by their first word: Hive's
+ * LOAD DATA, MSCK REPAIR (which adds partitions), EXPORT, IMPORT, ANALYZE (statistics), KILL QUERY and
+ * ABORT TRANSACTIONS, and Impala's UPSERT, LOAD DATA, COMPUTE STATS, INVALIDATE METADATA and REFRESH.
  */
 const WRITE_FIRST_IN: Partial<Record<Dialect, ReadonlySet<string>>> = {
-  hive: new Set(['LOAD', 'MSCK', 'EXPORT', 'IMPORT']),
-  impala: new Set(['UPSERT', 'LOAD', 'COMPUTE']),
+  hive: new Set(['LOAD', 'MSCK', 'EXPORT', 'IMPORT', 'ANALYZE', 'KILL', 'ABORT']),
+  impala: new Set(['UPSERT', 'LOAD', 'COMPUTE', 'INVALIDATE', 'REFRESH']),
 };
 /** Data changes a WITH can hold, in a CTE (`AS (DELETE ...)`) or as its main statement (`) UPDATE ...`). */
 const WRITE_IN_WITH = new Set(['INSERT', 'UPDATE', 'DELETE', 'MERGE']);
