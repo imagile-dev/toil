@@ -52,6 +52,12 @@ import { Choice } from './components/choice.tsx';
 import { ThemeChoiceProvider, wordingOn } from './theme-context.ts';
 import { wordFor, type WordKey } from './wording.ts';
 import { viewHelpHref } from './help.ts';
+import { Loader, MomentsProvider, Splash, useMomentPlayer } from './moments/Moments.tsx';
+import { momentsFor } from './moments/events.ts';
+import { progressText, syncText, trackCalls, type CallProgress } from './moments/progress.ts';
+import { useThemeMotion } from './motion.ts';
+import type { WorklogEvent } from './model/worklog.ts';
+import type { SyncJob } from './server-client.ts';
 import { CommandPalette, ShortcutsSheet } from './components/palette.tsx';
 import { matches, typingIn } from './shortcuts.ts';
 import { HeaderHelp } from './components/help.tsx';
@@ -181,6 +187,10 @@ export interface AppProps {
   afterDescribe?: () => void;
   /** Whether the server is older than what is on disk (#305), for the header; absent in the preview. Keep it one function for the App's life: the header asks it again every minute. */
   serverStatus?: () => Promise<ServerStatus | null>;
+  /** A sync running now (#419), for the themed loader that says its progress; absent or null while none runs. */
+  syncing?: SyncJob | null;
+  /** The facts the last sync recorded for the first time (#419), by dossier, which play the theme's moments once; `id` is when that sync finished. */
+  news?: { id: string; byDossier: Array<{ dossier: string; events: WorklogEvent[] }> } | null;
   /** Starts a sync, where the local app keeps a cache (#416): for the command palette and the first-run checklist. */
   onSync?: () => void;
 }
@@ -188,7 +198,7 @@ export interface AppProps {
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync }: AppProps) {
+export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, news }: AppProps) {
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
@@ -197,6 +207,8 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   const assignments = useMemo(() => (given ? remembering(given, mark) : undefined), [given, mark]);
   const [list, setList] = useState<Loaded<{ dossiers: DossierSummary[]; calls: Call[] }> | null>(null);
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
+  // What the dossier on screen is waiting on, for its loading screen (#419): the real calls, as they go.
+  const [progress, setProgress] = useState<Record<string, CallProgress>>({});
   const choice = useThemeChoice();
   const theme = themeNamed(choice.theme);
   const main = useRef<HTMLElement>(null);
@@ -301,7 +313,8 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   useEffect(() => {
     if (!wanted || dossiers[wanted]) return;
     let live = true;
-    loadDossier(execute, wanted).then(
+    const counted = trackCalls(execute, (p) => live && setProgress((all) => ({ ...all, [wanted]: p })));
+    loadDossier(counted, wanted).then(
       (value) => live && setDossiers((d) => ({ ...d, [wanted]: { ok: true, value } })),
       (e: unknown) => live && setDossiers((d) => ({ ...d, [wanted]: failed(e) })),
     );
@@ -339,6 +352,10 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   };
 
   const skins = skinsFor(theme.name);
+  // Mirrors Theme motion on the root (#419), so the moments' CSS plays at the level chosen.
+  useThemeMotion();
+  const splashReady = route.view === 'settings' || (route.view === 'dossiers' ? list !== null : Boolean(wanted && dossiers[wanted]));
+  const splashDetail = route.view === 'dossiers' || !wanted ? 'Reading the dossiers with toil dossiers list.' : progressText(progress[wanted]);
   // The App provides the theme context, so it can't read it through useWords(); this is the same lookup.
   const words = (key: WordKey, vars?: Record<string, string>) => wordFor(theme.lexicon, wordingOn(theme, choice), key, vars);
   // A dossier's own views are its tabs (#394), so the header carries only what sits above every dossier.
@@ -381,9 +398,9 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   if (route.view === 'settings') {
     body = <Settings page={route.page} {...(route.at ? { at: route.at } : {})} config={config ?? null} modelUsage={modelUsage ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'dossiers') {
-    body = !list ? <skins.Loading message={words('loading.dossiers')} /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} loaded={dossiers} now={now} synced={synced ?? (preview ? null : {})} config={config ?? null} onDescribed={described} onSync={onSync} /> : failure(list.message);
+    body = !list ? <Loader message={words('loading.dossiers')} detail="Reading them with toil dossiers list." /> : list.ok ? <Dossiers dossiers={list.value.dossiers} calls={list.value.calls} loaded={dossiers} now={now} synced={synced ?? (preview ? null : {})} config={config ?? null} onDescribed={described} onSync={onSync} /> : failure(list.message);
   } else if (!current) {
-    body = <skins.Loading message={words('loading.dossier', { name: route.dossier })} />;
+    body = <Loader message={words('loading.dossier', { name: route.dossier })} detail={progressText(progress[route.dossier])} />;
   } else if (!current.ok) {
     body = failure(current.message);
   } else {
@@ -405,8 +422,11 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
     <ThemeProvider value={theme}>
       <ThemeChoiceProvider value={choice}>
       <SkinProvider value={skins}>
+        <MomentsProvider>
         <TokenStyles css={THEMES.map(tokenCss).join('\n')} />
         <Ambient theme={theme.name} />
+        <Splash ready={splashReady} detail={splashDetail} />
+        <PlayNews news={news ?? null} dossier={wanted} />
         <a className="skip" href="#main" onClick={skip}>
           Skip to content
         </a>
@@ -453,6 +473,8 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
           </p>
         </header>
         <main id="main" ref={main} data-view={route.view}>
+          {/* A running sync (#419): the theme's loader with its progress; the Sync panel's own line is the one announced. */}
+          {syncing?.running && <Loader size="panel" message={syncText(syncing)!} live={false} />}
           {body}
         </main>
         <CommandPalette
@@ -475,6 +497,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
           openShortcuts={() => setSheet(true)}
         />
         <ShortcutsSheet isOpen={sheet} onOpenChange={setSheet} />
+        </MomentsProvider>
       </SkinProvider>
       </ThemeChoiceProvider>
     </ThemeProvider>
@@ -624,4 +647,17 @@ function HeaderMenu({ links, feedback, controls, help, onPalette, onShortcuts }:
       {feedback && <FeedbackModal api={feedback} isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />}
     </>
   );
+}
+
+/** The facts a sync recorded for the first time, played once as the theme's moments (#419): the dossier on screen's, or every dossier's on the views above them. */
+const played = new Set<string>();
+function PlayNews({ news, dossier }: { news: AppProps['news'] | null; dossier: string | null }) {
+  const player = useMomentPlayer();
+  useEffect(() => {
+    if (!news || played.has(news.id)) return;
+    played.add(news.id);
+    const events = news.byDossier.filter((d) => !dossier || d.dossier === dossier).flatMap((d) => d.events);
+    player.play(momentsFor(events));
+  }, [news, dossier, player]);
+  return null;
 }

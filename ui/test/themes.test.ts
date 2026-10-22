@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { alignmentProblems, cssProblems, fileProblems, lexiconProblems, manifestProblems, voiceProblems } from './theme-rules.ts';
+import { alignmentProblems, cssProblems, fileProblems, lexiconProblems, manifestProblems, momentsProblems, voiceProblems } from './theme-rules.ts';
 import { rolled } from '../src/model/alignment.ts';
 import { initialChoice } from '../src/theme-choice.ts';
 import { STANDARD, WORD_KEYS, wordFor } from '../src/wording.ts';
@@ -90,10 +90,10 @@ describe.each(THEMES.map((t) => [t.name, t] as const))('the %s theme', (name, th
     for (const m of css.matchAll(/url\("\.\/([^"]+)"\)/g)) expect(Object.values(theme.assets), m[1]).toContain(m[1]);
   });
 
-  it('keeps its art small: 64 KB a file, 160 KB in all', () => {
+  it('keeps its art small: 64 KB a file, 320 KB in all, its moments included (#419)', () => {
     const sizes = Object.values(theme.assets).map((path) => statSync(join(themesDir, name, path)).size);
     for (const size of sizes) expect(size).toBeLessThanOrEqual(64 * 1024);
-    expect(sizes.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(160 * 1024);
+    expect(sizes.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(320 * 1024);
   });
 
   it('moves only when motion is welcome, and plays no sound by default', () => {
@@ -219,6 +219,38 @@ describe('the default theme (#277)', () => {
 
   it('is the theme the page starts in, before any script runs', () => {
     expect(readFileSync(join(import.meta.dirname, '..', 'index.html'), 'utf8')).toContain('<html lang="en" data-theme="crate" data-scheme="system">');
+  });
+});
+
+describe('theme moments in theme.json (#419)', () => {
+  it('holds every theme to the schema, and a theme without the block to nothing', () => {
+    for (const t of THEMES) expect(momentsProblems(t.moments, t.assets), t.name).toEqual([]);
+    expect(momentsProblems(undefined)).toEqual([]);
+  });
+
+  it('gives Crate and Harvest the whole first slice: a splash, a loader, an entrance, tab transitions, tips and all five moments', () => {
+    for (const name of ['crate', 'harvest']) {
+      const m = themeNamed(name).moments!;
+      expect(m.splash, name).toBeDefined();
+      expect(m.loader, name).toBeDefined();
+      expect(m.entrance, name).toBeDefined();
+      expect(m.tabs, name).toBeDefined();
+      expect(m.tips?.label, name).toBeTruthy();
+      expect(Object.keys(m.events ?? {}).sort(), name).toEqual(['blocker-cleared', 'build-failed', 'build-passed', 'item-done', 'pr-merged', 'sprint-ended']);
+    }
+  });
+
+  it('gives Plain none of it', () => {
+    expect(themeNamed('plain').moments).toBeUndefined();
+  });
+
+  it('refuses a picture the theme does not list, a motif the engine has not got, and markup in its words', () => {
+    const assets = { a: 'assets/a.svg' };
+    expect(momentsProblems({ entrance: 'spin' }, assets)).toEqual(['theme.json: moments.entrance must be one of fade, rise, drop, pop, slide, stamp, sweep, grow.']);
+    expect(momentsProblems({ events: { 'item-done': { art: 'b', width: 64, height: 64, motif: 'pop', label: 'Done' } } }, assets)).toEqual(["theme.json: moments.events.item-done.art must name one of the theme's assets by its key."]);
+    expect(momentsProblems({ tips: { label: '<b>Hi</b>' } }, assets)).toEqual(['theme.json: moments.tips.label must be plain text, up to 160 characters.']);
+    expect(momentsProblems({ events: { 'item-shipped': {} } }, assets)[0]).toMatch(/isn't a moment kind/);
+    expect(momentsProblems({ video: 'x' }, assets)[0]).toMatch(/isn't a moment/);
   });
 });
 

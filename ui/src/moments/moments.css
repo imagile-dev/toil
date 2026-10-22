@@ -1,0 +1,289 @@
+/* Theme moments (#419): the engine's own layout and motion, shared by every
+   theme. Everything that moves moves by transform and opacity, only while the
+   system allows motion (the @media blocks), only at the Theme motion level
+   that plays it (data-theme-motion on the root, src/motion.ts), and never
+   while the tab is hidden (data-page-hidden). "Reduce motion and effects"
+   stops it all too, through app.css. A theme's theme.css may colour and frame
+   these, scoped to itself, but never adds a player. */
+
+/* Loaders ------------------------------------------------------------------ */
+
+.loader--pending { min-height: 1px; }
+
+.loader--view {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 0.75rem;
+  min-height: min(60vh, 32rem);
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+.loader--panel {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+  text-align: center;
+}
+
+.loader--inline {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.loader--inline .note { margin: 0; }
+
+.loader__stage {
+  display: grid;
+  justify-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+}
+
+.loader__art,
+.splash__art {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.loader--panel .loader__art { max-width: min(100%, 8rem); }
+
+.loader__progress {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.loader__flavour {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.loader__track {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: flex-end;
+  max-width: 100%;
+}
+
+.loader__track img { display: block; }
+
+.loader-tip {
+  margin: 0.5rem 0 0;
+  max-width: 52ch;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.loader-tip__label {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.loader-tip__label::after { content: ":"; }
+
+/* A sprite sheet: one frame's box, the strip inside it. */
+.m-sheet {
+  display: inline-block;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.m-sheet img { display: block; max-width: none; }
+
+/* The splash --------------------------------------------------------------- */
+
+.splash {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  overflow-y: auto;
+  background: var(--bg);
+  cursor: default;
+}
+
+.splash__inner {
+  display: grid;
+  justify-items: center;
+  gap: 0.6rem;
+  width: min(36rem, 100%);
+  text-align: center;
+}
+
+.splash__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.splash__ui {
+  display: inline-block;
+  padding: 0 0.35em;
+  border-radius: 0.3em;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 0.55em;
+  vertical-align: 0.35em;
+}
+
+.splash__line {
+  margin: 0;
+  color: var(--muted);
+  max-width: 40ch;
+}
+
+.splash__progress {
+  margin: 0;
+  color: var(--ink);
+  max-width: 46ch;
+  overflow-wrap: anywhere;
+}
+
+/* Event moments ------------------------------------------------------------ */
+
+.moment {
+  position: fixed;
+  z-index: 55;
+  top: 5.5rem;
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+  width: min(26rem, calc(100vw - 2rem));
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  color: var(--ink);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+}
+
+.moment__art { flex: none; width: 64px; height: 64px; }
+
+.moment__words { min-width: 0; }
+
+.moment__label,
+.moment__text { margin: 0; overflow-wrap: anywhere; }
+
+.moment__text { color: var(--muted); font-size: 0.92rem; }
+
+.moment__count { color: var(--muted); }
+
+.moment--recap {
+  width: min(30rem, calc(100vw - 2rem));
+  align-items: flex-start;
+}
+
+.moment--recap .moment__art { width: 80px; height: 80px; }
+
+.moment__figures {
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.15rem;
+  font-size: 0.92rem;
+}
+
+/* The preview in Settings ---------------------------------------------------- */
+
+.moments-preview { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+.moment-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  overflow-y: auto;
+  background: var(--bg);
+}
+
+.moment-preview {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+  width: min(40rem, 100%);
+  outline: none;
+}
+
+/* Motion: loops and tracks -------------------------------------------------- */
+
+/* Nothing plays while nobody can see it. */
+:root[data-page-hidden] [data-moments],
+:root[data-page-hidden] [data-moments] * {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* The art's loop plays at full only; subtle holds the art still. */
+  :root[data-theme-motion="full"] .m-loop--bob { animation: m-bob 1.3s ease-in-out infinite alternate; }
+  :root[data-theme-motion="full"] .m-loop--sway { animation: m-sway 1.6s ease-in-out infinite alternate; transform-origin: 50% 90%; }
+  :root[data-theme-motion="full"] .m-loop--roll { animation: m-roll 1.4s ease-in-out infinite; }
+  :root[data-theme-motion="full"] .m-loop--pulse { animation: m-pulse 1.2s ease-in-out infinite alternate; }
+  :root[data-theme-motion="full"] .m-loop--frames { animation: m-frames 0.9s steps(var(--m-frames, 4)) infinite; }
+
+  /* The progress track plays at full and, slower and smaller, at subtle. */
+  :root[data-theme-motion="full"] .loader__track { --m-amp: 1; --m-beat: 1.5s; }
+  :root[data-theme-motion="subtle"] .loader__track { --m-amp: 0.4; --m-beat: 2.4s; }
+  :root:is([data-theme-motion="full"], [data-theme-motion="subtle"]) .m-track--march img {
+    animation: m-march var(--m-beat) ease-in-out infinite;
+    animation-delay: calc(var(--m-i) * var(--m-beat) / var(--m-count));
+  }
+  :root:is([data-theme-motion="full"], [data-theme-motion="subtle"]) .m-track--grow img {
+    animation: m-grow var(--m-beat) ease-in-out infinite;
+    animation-delay: calc(var(--m-i) * var(--m-beat) / var(--m-count));
+    transform-origin: 50% 100%;
+  }
+  :root:is([data-theme-motion="full"], [data-theme-motion="subtle"]) .m-track--blink img {
+    animation: m-blink var(--m-beat) ease-in-out infinite;
+    animation-delay: calc(var(--m-i) * var(--m-beat) / var(--m-count));
+  }
+}
+
+@keyframes m-bob { from { transform: translateY(0); } to { transform: translateY(-6px); } }
+@keyframes m-sway { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+@keyframes m-roll {
+  0%, 100% { transform: translateX(-6px) rotate(-2deg); }
+  50% { transform: translateX(6px) rotate(2deg); }
+}
+@keyframes m-pulse { from { transform: scale(1); } to { transform: scale(1.05); } }
+@keyframes m-frames { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+@keyframes m-march {
+  0%, 100% { transform: translateY(0); opacity: 0.45; }
+  40% { transform: translateY(calc(-8px * var(--m-amp))); opacity: 1; }
+}
+@keyframes m-grow {
+  0%, 100% { transform: scale(calc(1 - 0.5 * var(--m-amp))); opacity: 0.6; }
+  45% { transform: scale(1); opacity: 1; }
+}
+@keyframes m-blink {
+  0%, 100% { opacity: calc(1 - 0.7 * var(--m-amp)); }
+  45% { opacity: 1; }
+}
+
+/* A dialog the preview opens takes focus itself; the ring belongs on its controls. */
+.moment-preview:focus-visible { outline: none; }
+
+/* An entry that can't play at Theme motion off reads as unavailable, as a disabled button does. */
+.menu-item[data-disabled] { cursor: not-allowed; opacity: 0.75; }

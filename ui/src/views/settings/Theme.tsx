@@ -19,6 +19,7 @@ import { Help } from '../../components/help.tsx';
 import { useMotionAllowed, useMotionChoice, useParticlesChoice } from '../../motion.ts';
 import { useTheme, useThemeChoiceContext } from '../../theme-context.ts';
 import { THEMES } from '../../themes.ts';
+import { MomentsPreview } from '../../moments/Preview.tsx';
 
 export function ThemeSetting() {
   const theme = useTheme();
@@ -55,6 +56,7 @@ export function ThemeSetting() {
           </p>
         </>
       )}
+      <MomentsPreview />
       {(noWording || noVoice) && (
         <p className="note theme-setting__plain" id="theme-none-note">
           {noWording && noVoice ? `${theme.label} has no wording or voice of its own, so both are off while it's chosen. Pick a game theme to use them.` : `${theme.label} has no ${noWording ? 'wording' : 'voice'} of its own, so that box is off while it's chosen.`}

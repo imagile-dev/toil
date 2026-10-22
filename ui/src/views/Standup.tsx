@@ -22,9 +22,10 @@ import { useData } from '../data.ts';
 import { dossierHref, standupHref, worklogHref } from '../format.ts';
 import { allLines, bucketNone, BUCKETS, BUCKET_TITLE, defaultRange, factsCited, groupTitle, MAX_STANDUP_DAYS, standupLede, standupTitle, standupWriteUp, whenText, type StandupGroup, type StandupLine, type StandupReport } from '../model/standup.ts';
 import { dayOf } from '../model/worklog.ts';
-import { useSkins, useTheme, useThemeChoiceContext } from '../skins.tsx';
+import { useTheme, useThemeChoiceContext } from '../skins.tsx';
 import { voiceOn } from '../theme-context.ts';
 import type { WorklogApi, WorklogExport, WorklogStandup } from '../worklog.ts';
+import { Loader } from '../moments/Moments.tsx';
 
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string } | null;
 const failedWith = (e: unknown) => ({ ok: false as const, message: e instanceof Error ? e.message : String(e) });
@@ -32,7 +33,6 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 
 export function Standup({ api, from, to, ignored }: { api: WorklogApi | null; from: string | null; to: string | null; ignored?: string }) {
   const { dossier, now } = useData();
-  const { Loading } = useSkins();
   const today = dayOf(now)!;
   const range = from && to ? { from, to } : defaultRange(today);
   const [loaded, setLoaded] = useState<Loaded<WorklogStandup>>(null);
@@ -84,7 +84,7 @@ export function Standup({ api, from, to, ignored }: { api: WorklogApi | null; fr
           <RangeForm key={`${range.from}/${range.to}`} from={range.from} to={range.to} today={today} explicit={Boolean(from && to)} />
         </Panel>
         {!loaded ? (
-          <Loading message="Folding the stand-up" />
+          <Loader size="panel" message="Folding the stand-up" />
         ) : loaded.ok ? (
           <Report api={api} data={loaded.value} onRebuilt={(value) => setLoaded({ ok: true, value })} />
         ) : (
