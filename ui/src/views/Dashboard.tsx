@@ -16,12 +16,13 @@ import { DataTable, type Column } from '../components/layout.tsx';
 import { Panel } from '../components/panel.tsx';
 import { Help } from '../components/help.tsx';
 import { useData, useDerived } from '../data.ts';
-import { STATUS_CATEGORY_LABEL, boardHref, dateTime, estimateText, peopleHref } from '../format.ts';
+import { STATUS_CATEGORY_LABEL, boardHref, dateTime, dossierEditHref, estimateText, peopleHref } from '../format.ts';
+import { Empty, EmptyLink } from '../components/empty.tsx';
 import { needingAttention } from '../model/insights.ts';
 import { assignedTo, cardByKey, people } from '../model/people.ts';
 import type { Health } from '../model/sprint.ts';
 import { FLAG_TEXT, trace, type Trace as TraceRow } from '../model/trace.ts';
-import { useSkins, useTerm, useWords } from '../skins.tsx';
+import { useTerm, useWords } from '../skins.tsx';
 import type { ChangeRef, Deployment } from '../toil.ts';
 import { Board } from './Board.tsx';
 import { Analyses } from './Analyses.tsx';
@@ -160,7 +161,6 @@ export function Dashboard({ tab = 'overview', person, analysis }: { tab?: Dashbo
 function BoardTab({ person }: { person?: string }) {
   const { dossier } = useData();
   const filter = useBoardFilter(person);
-  const { EmptyState } = useSkins();
   const term = useTerm();
   const words = useWords();
   const [gapsOnly, setGapsOnly] = useState(false);
@@ -218,7 +218,7 @@ function BoardTab({ person }: { person?: string }) {
               ))}
             </ul>
           ) : (
-            <EmptyState message={words('empty.builds')} />
+            <Empty message={words('empty.builds')} action={<EmptyLink edit href={dossierEditHref(dossier.name, 'sources')}>Link a pipeline</EmptyLink>} help="dossier-setup" />
           )}
         </Panel>
 
@@ -230,7 +230,7 @@ function BoardTab({ person }: { person?: string }) {
               ))}
             </ul>
           ) : (
-            <EmptyState message={words('empty.deployments')} />
+            <Empty message={words('empty.deployments')} action={<EmptyLink edit href={dossierEditHref(dossier.name, 'sources')}>Add an environment</EmptyLink>} help="dossier-setup" />
           )}
         </Panel>
       </div>

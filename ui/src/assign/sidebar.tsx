@@ -12,7 +12,7 @@ import { ItemLink } from '../components/items.tsx';
 import { StaleNote } from '../components/stale.tsx';
 import { useChatScope, type Turn } from '../components/ask.tsx';
 import { useData } from '../data.ts';
-import { analysesHref, analysisHref, dateTime } from '../format.ts';
+import { analysesHref, analysisHref, boardHref, dateTime } from '../format.ts';
 import { ADAPTER_NAME, MODE_INFO, runMs, runText, type Assignment } from './model.ts';
 import { InboxRow, Limits, RenewAll, StateChip, assignmentHref, useAssignments } from './views.tsx';
 import './assign.css';
@@ -95,7 +95,7 @@ function RecentAnalyses() {
           ))}
         </ul>
       ) : (
-        !running && <p className="note">None yet for this dossier. Analyze, in the bar above, asks for one.</p>
+        !running && <p className="note">None yet.</p>
       )}
       <a href={analysesHref(dossier.name)}>All analyses</a>
     </section>
@@ -139,7 +139,11 @@ export function AgentsSidebar() {
           </ul>
         </section>
       )}
-      {list && !rest.length && <p className="note">Nothing assigned to an agent in {dossier.name} yet. Assign an item from its card's menu on the board, or from its page.</p>}
+      {list && !rest.length && (
+        <p className="note">
+          Nothing assigned yet. <a href={boardHref(dossier.name)}>Assign from the board</a>
+        </p>
+      )}
       {groups.map(({ g, items }) =>
         items.length === 0 ? null : g === 'earlier' ? (
           <details key={g} className="agents-group agents-group--earlier">

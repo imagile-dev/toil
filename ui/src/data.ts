@@ -52,6 +52,8 @@ export interface Data {
    * Command Center then shows its button disabled, saying so.
    */
   startReady?: StartReady;
+  /** Starts a sync, where the local app keeps a cache: the action an empty panel that a sync fills offers (#417). Absent in the preview. */
+  sync?: () => void;
 }
 
 export const DataContext = createContext<Data | null>(null);

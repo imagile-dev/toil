@@ -18,6 +18,7 @@ import { useData, useDerived } from '../data.ts';
 import { analysisHref, boardHref, dateTime, dependenciesHref, prsHref } from '../format.ts';
 import { whoText } from '../components/analysis.tsx';
 import { useChatScope } from '../components/ask.tsx';
+import { Empty, TrackerAction } from '../components/empty.tsx';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
 import { WAITING_LABEL, daysText, openQueue } from '../model/prs.ts';
@@ -167,7 +168,7 @@ function Metric({ id, label, value, unit, spark, title, children }: { id: string
 
 /** The metrics as sparklines (#394): burn-up, throughput, cycle time, aging work in progress and pull request wait. */
 function MetricStrip() {
-  const { dossier, now, byId } = useData();
+  const { dossier, now, byId, sync } = useData();
   const { health: h, insights: p } = useDerived();
   const words = useWords();
   // A theme's sprint dressing (Harvest's calendar) hangs on the sprint wherever it shows.
@@ -209,7 +210,7 @@ function MetricStrip() {
               </PanelSkin>
             </div>
           ) : (
-            <p>{words('empty.sprint')}</p>
+            <Empty message={words('empty.sprint')} action={<TrackerAction dossier={dossier.name} sync={sync} />} />
           )}
         </Metric>
         <Metric id="throughput" label="Throughput" value={String(round1(mean))} unit="a week" spark={<Sparkline kind="bars" values={t.weeks.map((w) => w.items.length)} />} title="Throughput">
