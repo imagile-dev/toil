@@ -24,7 +24,7 @@ afterEach(cleanup);
 
 describe('what the showcase reads from Toil UI', () => {
   it('shows each theme\'s prompt as the server builds it, cut into its three layers', () => {
-    expect(THEMES.map((t) => t.name)).toEqual(['plain', 'crate', 'harvest', 'starship', 'realm', 'sprawl', 'frontier']);
+    expect(THEMES.map((t) => t.name)).toEqual(['plain', 'crate', 'harvest', 'starship', 'realm', 'sprawl', 'frontier', 'overworld']);
     for (const t of THEMES) {
       const style = promptStyle({ theme: t.name, voice: true }, { instructions: SAMPLE_INSTRUCTIONS, voice: null });
       expect(t.prompt.full).toBe(systemPrompt(DOSSIER, FIXTURE_NOW, style));

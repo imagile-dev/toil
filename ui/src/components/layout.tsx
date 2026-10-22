@@ -170,7 +170,8 @@ export function splitTail(value: string): [string, string] {
   return [value.slice(0, at), value.slice(at)];
 }
 
-function Copy({ value, what }: { value: string; what: string }) {
+/** A Copy button for one value, which says in a live region whether the copy worked. */
+export function Copy({ value, what }: { value: string; what: string }) {
   const [copied, setCopied] = useState<boolean | null>(null);
   const copy = async () => {
     try {

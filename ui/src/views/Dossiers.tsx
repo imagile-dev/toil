@@ -17,6 +17,7 @@ import { Card, CardGrid } from '../components/layout.tsx';
 import { CountStrip, Editable, MiniBurnup, SourceBadges, SprintLine, type Described } from '../components/dossier-head.tsx';
 import { Sources } from '../components/panel.tsx';
 import { Help } from '../components/help.tsx';
+import { FirstRun, firstRunShows } from '../components/first-run.tsx';
 import type { ConfigApi } from '../config.ts';
 import { dateTime, dossierHref } from '../format.ts';
 import type { DossierData, DossierSummary } from '../load.ts';
@@ -43,6 +44,8 @@ export interface DossiersProps {
   synced: Record<string, SyncedAt> | null;
   config: ConfigApi | null;
   onDescribed: (d: Described) => void;
+  /** Starts a sync, where Toil UI keeps a cache (#416): the first-run checklist's last step. */
+  onSync?: (() => void) | undefined;
 }
 
 /** The card that leads: the only one, else the dossier opened most recently here, else the one with the most in motion. */
@@ -56,8 +59,7 @@ export function leadOf(names: string[], previews: Map<string, DossierPreview>, s
   return ranked[0] && previews.get(ranked[0])!.motion > 0 ? ranked[0] : null;
 }
 
-export function Dossiers({ dossiers, calls, loaded, now, synced, config, onDescribed }: DossiersProps) {
-  const { EmptyState } = useSkins();
+export function Dossiers({ dossiers, calls, loaded, now, synced, config, onDescribed, onSync }: DossiersProps) {
   const words = useWords();
   const previews = new Map<string, DossierPreview>();
   for (const d of dossiers) {
@@ -74,9 +76,9 @@ export function Dossiers({ dossiers, calls, loaded, now, synced, config, onDescr
           {words('dossiers.lede')} <Help topic="dossiers" />
         </p>
       </div>
-      {dossiers.length === 0 ? (
-        <EmptyState message={words('empty.dossiers')} />
-      ) : (
+      {/* The first run (#416), in place of the empty state, whose one line it keeps above the steps that fill the page. */}
+      {firstRunShows(dossiers.length, synced, Boolean(onSync)) && <FirstRun dossiers={dossiers.length} synced={synced} config={config} onSync={onSync} {...(dossiers.length === 0 ? { lede: words('empty.dossiers') } : {})} />}
+      {dossiers.length === 0 ? null : (
         <CardGrid className="dossiers" min="sm">
           {ordered.map((d) => (
             <li key={d.name} className={d.name === lead ? 'dossiers__lead' : undefined}>
