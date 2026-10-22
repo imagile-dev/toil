@@ -10,9 +10,20 @@
  * rather than a reader. Plain data with no imports, so the site's build
  * script can read it as it is.
  * Every form now comes with its own guidance notes, filed separately, as is customary.
+ *
+ * Some topics also carry `glossary` entries (#418): an AI term the topic's
+ * screen uses, its first sentence, and a Read more link to its page in
+ * Context Overflow's glossary. Linking to that site is the maintainer's
+ * decision of 2026-10-22, recorded on #418 and in principle 6 as its one
+ * exception to the rule that the docs and code name no other project. The sentences are Context Overflow's
+ * own, copied into this file by hand from its glossary's term files (the first
+ * sentence of each `description:`) and attributed to it here; nothing is
+ * fetched while the app runs. `ui/test/help.test.tsx` holds every slug to a
+ * pinned copy of the glossary's term list. "Links to learning content" under
+ * Settings, General turns all of it off (src/learning.ts).
  */
 
-/** Where the docs live. A Read more link is the one link out of the app, and a person follows it. */
+/** Where the docs live. Read more and Help link out to them, and the learning links below to Context Overflow; nothing else leaves the app, and a person follows each one. */
 export const DOCS_SITE = 'https://imagile-dev.github.io/toil';
 
 /** The docs pages a topic may point at; the tests map each one to the file it renders. */
@@ -26,7 +37,47 @@ export interface HelpTopic {
   page: DocsPage;
   /** The heading's id on that page, as the site's build makes it. */
   anchor: string;
+  /** The AI terms this topic's screen uses, each linked to Context Overflow's glossary (#418). Shown only while learning links are on. */
+  glossary?: readonly GlossaryEntry[];
 }
+
+/** Context Overflow, the AI-fluency course whose glossary and modules the learning links open (#418). */
+export const LEARN_SITE = 'https://kolatts.github.io/context-overflow';
+
+/** One glossary term: its name, its slug on Context Overflow, and its first sentence there, copied in. */
+export interface GlossaryEntry {
+  term: string;
+  /** `slugOf(term)`, the path segment of its page. */
+  slug: string;
+  /** The first sentence of the term's definition in Context Overflow's glossary. */
+  text: string;
+}
+
+/** Context Overflow's slug rule: lower case, each run of anything outside a-z and 0-9 one hyphen, none at either end. */
+export const slugOf = (term: string): string =>
+  term
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+export const glossaryHref = (entry: GlossaryEntry): string => `${LEARN_SITE}/glossary/${entry.slug}`;
+
+/** One of Context Overflow's modules, for Help, Learn and the agent's empty state (#418). */
+export interface LearnModule {
+  /** The module's title on Context Overflow. */
+  title: string;
+  /** What it helps with. */
+  task: string;
+  /** Its path under LEARN_SITE. */
+  path: string;
+}
+export const LEARN: readonly LearnModule[] = [
+  { title: 'Hello, Agent', task: 'New to agents: start here', path: '/modules/getting-started' },
+  { title: 'AI Fluency 101', task: 'New to agents: then this', path: '/modules/ai-fluency-101' },
+  { title: 'The Autonomy Spectrum', task: 'Deciding how much to hand an agent', path: '/modules/autonomy-spectrum' },
+  { title: 'Git: Your Time Machine', task: 'Branches and pull requests, for Implement mode', path: '/modules/git-time-machine' },
+];
+export const learnHref = (m: LearnModule): string => `${LEARN_SITE}${m.path}`;
 
 export const HELP = {
   dossiers: { title: 'dossiers', text: 'A dossier names the repositories, tracker, pipelines and environments of one body of work. Each card is read from the cache a sync filled, so opening this page asks no tracker anything.', page: '/docs/ui/', anchor: 'the-dossiers-view' },
@@ -47,10 +98,12 @@ export const HELP = {
   bounds: { title: 'bounds and the time limit', text: "toil has no command to change these, and Toil UI never edits toil's files, so they're shown as toil reports them. Only your own config file can relax a bound, and only the file workspace.", page: '/docs/core/', anchor: 'files-and-the-workspace' },
   audit: { title: 'usage of toil', text: "From toil audit stats, which reads only toil's audit log on this machine and sends it nowhere. It counts the command, how it was called and how it ended, never what a call was given or got back.", page: '/docs/core/', anchor: 'the-audit-log' },
   'audit-failures': { title: 'failures', text: "The log keeps each failure's error code, never its message, so the fix shown is the one that usually applies to that code.", page: '/docs/core/', anchor: 'the-audit-log' },
-  'model-usage': { title: "the agent's usage", text: "Figures the Claude, Codex and Copilot SDKs reported, kept only in Toil UI's local cache and sent nowhere. A figure an SDK didn't report reads not reported; your vendor's bill is the authority.", page: '/docs/ui/', anchor: 'what-the-agents-models-used' },
-  caps: { title: 'caps', text: 'At 80% the chat says so; at 100% the question stops, naming the cap. A cap counts only what the SDK reports, so it guards against a runaway and is not a budget.', page: '/docs/ui/', anchor: 'what-the-agents-models-used' },
-  agent: { title: 'the agent', text: "The agent your organization already approved answers in the chat, on your own subscription, and only reads. These are Toil UI's own settings, kept in its data folder, never in toil's config.", page: '/docs/ui/', anchor: 'the-agent' },
-  assignments: { title: 'assigning work to an agent', text: 'An assignment runs on your adapter, within your time limit and usage caps. Nothing it proposes leaves this machine until you apply it through toil\'s write gate.', page: '/docs/ui/', anchor: 'assigning-work-to-an-agent' },
+  'model-usage': { title: "the agent's usage", text: "Figures the Claude, Codex and Copilot SDKs reported, kept only in Toil UI's local cache and sent nowhere. A figure an SDK didn't report reads not reported; your vendor's bill is the authority.", page: '/docs/ui/', anchor: 'what-the-agents-models-used', glossary: [{ term: 'Token', slug: 'token', text: 'The atomic unit a model reads and writes.' }, { term: 'Input tokens', slug: 'input-tokens', text: 'Tokens the harness sends on each model provider request.' }, { term: 'Output tokens', slug: 'output-tokens', text: 'Tokens the model generates back.' }, { term: 'Cache tokens', slug: 'cache-tokens', text: 'Input tokens the provider has cached from a previous request via its prefix cache, billed at a much lower rate.' }] },
+  caps: { title: 'caps', text: 'At 80% the chat says so; at 100% the question stops, naming the cap. A cap counts only what the SDK reports, so it guards against a runaway and is not a budget.', page: '/docs/ui/', anchor: 'what-the-agents-models-used', glossary: [{ term: 'Context window', slug: 'context-window', text: 'Everything the model sees on each model provider request.' }, { term: 'Effort', slug: 'effort', text: 'A dial for how much reasoning the model does before it answers.' }] },
+  agent: { title: 'the agent', text: "The agent your organization already approved answers in the chat, on your own subscription, and only reads. These are Toil UI's own settings, kept in its data folder, never in toil's config.", page: '/docs/ui/', anchor: 'the-agent', glossary: [{ term: 'Model', slug: 'model', text: 'The parameters. Stateless — does next-token prediction and nothing else.' }, { term: 'Model provider', slug: 'model-provider', text: 'Whatever serves a model for inference.' }, { term: 'Harness', slug: 'harness', text: 'Everything around the model that turns it into an agent: tools, system prompt, context-window management, permissions, hooks.' }, { term: 'MCP', slug: 'mcp', text: 'A protocol for plugging external tool servers into a harness — how an agent gets tools beyond what the harness ships with.' }, { term: 'Tool call', slug: 'tool-call', text: "The model's output naming a tool and its arguments — just structured text." }] },
+  assignments: { title: 'assigning work to an agent', text: 'An assignment runs on your adapter, within your time limit and usage caps. Nothing it proposes leaves this machine until you apply it through toil\'s write gate.', page: '/docs/ui/', anchor: 'assigning-work-to-an-agent', glossary: [{ term: 'Sandbox', slug: 'sandbox', text: 'An isolated environment the agent runs inside — container, VM, or restricted shell.' }, { term: 'Permission mode', slug: 'permission-mode', text: 'The permission-gating slice of an agent mode — which tool calls trigger a permission request and which run automatically.' }, { term: 'Human-in-the-loop', slug: 'human-in-the-loop', text: 'A working pattern where one or more humans pair with the agent during a session — reviewing, redirecting, or collaborating in real time.' }, { term: 'Human review', slug: 'human-review', text: 'The user reading the code the agent produced and forming a judgement on it.' }] },
+  stale: { title: 'stale sessions', text: 'A chat or an assignment works from the instructions it started on. When toil, the dossier or your instructions change, it says which, and renews on request.', page: '/docs/ui/', anchor: 'stale-sessions', glossary: [{ term: 'Session', slug: 'session', text: 'One bounded run of interaction with an agent.' }, { term: 'System prompt', slug: 'system-prompt', text: "The instructions the harness prepends to every model provider request — the agent's standing brief." }, { term: 'Skill', slug: 'skill', text: 'A teachable capability bundled as a unit — kept out of the context window until a context pointer pulls it in for the task at hand.' }] },
+  answers: { title: 'these answers', text: "The agent reads through toil and cites each item it used, and an id its tools never returned is named above the answer. Analyze answers top-down: a recommendation, the issues behind it, then the evidence.", page: '/docs/ui/', anchor: 'the-agent', glossary: [{ term: 'Hallucination', slug: 'hallucination', text: 'Confidently-wrong model output.' }, { term: 'Primary source', slug: 'primary-source', text: 'The thing itself — code, transcripts, raw data.' }, { term: 'Non-determinism', slug: 'non-determinism', text: 'The same input can produce different output.' }] },
   'themed-wording': { title: 'themed wording', text: "The theme's own lede, eyebrows, notes, empty states and loading lines, and its names for a sprint, a board or an epic beside the real ones. Buttons, links, figures, ids, commands and errors always read the same.", page: '/docs/themes/', anchor: 'visuals-wording-and-voice' },
   'themed-voice': { title: 'themed agent voice', text: "The agent answers in the theme's register. It changes phrasing only: citations, figures and proposals stay exact.", page: '/docs/themes/', anchor: 'the-checkboxes' },
   motion: { title: 'motion and effects', text: "Reduce motion stops the themes' animations and particles in this browser. Your system's reduced-motion setting stops them whichever way this is set.", page: '/docs/themes/', anchor: 'motion-and-particles' },
