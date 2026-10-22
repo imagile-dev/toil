@@ -55,9 +55,9 @@
   "moments": {
     "splash": { "art": { "art": "momentSplash", "width": 480, "height": 320 }, "motif": "fade", "line": "Morning on the farm. Walking out to the fields." },
     "loader": {
-      "art": { "art": "momentSprout", "width": 64, "height": 64, "frames": 4 },
+      "art": { "art": "momentSprout", "width": 128, "height": 128, "frames": 4 },
       "loop": "frames",
-      "track": { "art": "momentBale", "size": 20, "count": 5, "motif": "grow" },
+      "track": { "art": "momentBale", "size": 24, "count": 5, "motif": "grow" },
       "flavour": ["Watering the rows.", "Checking under the leaves.", "Listening to the weather report.", "Counting the hay bales.", "Shooing the crows off the fence."]
     },
     "tips": { "label": "From the almanac" },

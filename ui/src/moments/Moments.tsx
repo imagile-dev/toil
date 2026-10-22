@@ -240,8 +240,8 @@ export function Splash({ ready, detail = null, preview = false, onDone }: { read
   const [over, setOver] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const [tipsOn] = useTipsOn();
-  const tip = useTip(tipsOn && shown && first && !over);
   const playing = first && !over && Boolean(m.splash) && level !== 'off' && (preview || !ready);
+  const tip = useTip(tipsOn && shown && playing);
 
   const end = useCallback(() => {
     setOver(true);
