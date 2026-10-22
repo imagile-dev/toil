@@ -1580,6 +1580,18 @@ describe('the worklog (#308)', () => {
     expect(screen.getByRole('button', { name: 'Next month' }).getAttribute('data-disabled')).not.toBeNull();
   });
 
+  it('marks today as today on the calendar before it has a page, so no theme reads it as a past day (#415)', async () => {
+    const base = fixtureWorklog();
+    const worklog: WorklogApi = { ...base, month: async (dossier, month) => {
+      const m = await base.month(dossier, month);
+      return { ...m, days: m.days.filter((d) => d.day !== m.today) };
+    } };
+    const { container } = await open('#/dossier/card-payments/worklog', { worklog });
+    await screen.findByRole('heading', { name: 'Tuesday 13 October 2026' });
+    await waitFor(() => expect(container.querySelector('td.calendar__empty[data-today]')).not.toBeNull());
+    expect(container.querySelector('td.calendar__empty[data-today]')!.textContent).toContain('today: no page');
+  });
+
   it("shows a day's facts, each linked to its source, the agent's run with whether its proposal was applied, and the note", async () => {
     const { container } = await open('#/dossier/card-payments/worklog/2026-10-12');
     const day = await screen.findByRole('region', { name: 'Monday 12 October 2026' });
