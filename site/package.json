@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/ui-preview.mjs && astro dev",
-    "build": "node scripts/ui-preview.mjs && astro build && node scripts/check-help-links.mjs && node scripts/check-links.mjs",
+    "build": "node scripts/ui-preview.mjs && astro build && node scripts/search-index.mjs && node scripts/check-help-links.mjs && node scripts/check-links.mjs",
     "preview": "astro preview",
     "check": "astro check"
   },

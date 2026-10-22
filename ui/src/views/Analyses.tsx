@@ -22,6 +22,7 @@ import { UsageFooter } from '../components/usage.tsx';
 import { useData } from '../data.ts';
 import { analysesHref, analysisHref, dateTime } from '../format.ts';
 import { unchanged, type AnalysisSummary, type AnalysisView } from '../model/analysis.ts';
+import { Loader } from '../moments/Moments.tsx';
 import { useTerm } from '../skins.tsx';
 
 export function Analyses({ open }: { open?: string } = {}) {
@@ -50,7 +51,7 @@ function AnalysisList() {
       )}
       {history?.error && <p className="failure">{history.error}</p>}
       {list === null ? (
-        !history?.error && <p className="note">Reading the analyses…</p>
+        !history?.error && <Loader size="panel" message="Reading the analyses…" />
       ) : list.length ? (
         <ol className="analyses__list" aria-label="Analyses, newest first">
           {list.map((a) => (

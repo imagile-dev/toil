@@ -52,18 +52,23 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   const [assignments] = useState(() => httpAssignments(session));
   // The server's own staleness (#305), for the header: one function for the page's life, which the header asks every minute.
   const [serverStatus] = useState(() => () => httpServerStatus(session));
+  // A running sync, for the theme's loader (#419), and the facts the last one recorded for the first time, for its moments.
+  const [syncing, setSyncing] = useState<SyncStatus['job'] | null>(null);
+  const [news, setNews] = useState<{ id: string; byDossier: NonNullable<SyncStatus['job']['news']> } | null>(null);
+  const onStatus = useCallback((next: SyncStatus) => setSyncing(next.job.running ? next.job : null), []);
   // Sync from the command palette or the first-run checklist (#416): the panel runs it, as if its own button were pressed.
   const [syncAsked, setSyncAsked] = useState(0);
   const askSync = useCallback(() => setSyncAsked((n) => n + 1), []);
   const onChange = useCallback((next: SyncStatus) => {
     setSynced(lastSynced(next));
     setByDossier(syncedBy(next));
+    if (next.job.finishedAt && next.job.news?.length) setNews({ id: next.job.finishedAt, byDossier: next.job.news });
     setGeneration((g) => g + 1);
   }, []);
   return (
     <>
-      <App key={generation} serverStatus={serverStatus} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byDossier, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
-      {sync && <SyncPanel client={sync} onChange={onChange} request={syncAsked} />}
+      <App key={generation} syncing={syncing} news={news} serverStatus={serverStatus} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byDossier, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
+      {sync && <SyncPanel client={sync} onChange={onChange} onStatus={onStatus} request={syncAsked} />}
     </>
   );
 }

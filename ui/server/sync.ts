@@ -48,6 +48,7 @@
 import type { ProgressEvent } from '@imagile-dev/toil/api';
 import { loadDossier, type LoaderMapOwi } from '../src/load.ts';
 import type { Envelope } from '../src/toil.ts';
+import type { WorklogEvent } from '../src/model/worklog.ts';
 import { areaOf, type Cache, type DossierState, type SourceResult } from './cache.ts';
 import type { RequestContext } from './context.ts';
 import { CALLER } from './store.ts';
@@ -61,6 +62,9 @@ export type SyncExecute = (
 
 /** The OWI mapper the sync hands the loader: the API's, from the toil Toil UI runs with. */
 export type MapOwi = LoaderMapOwi;
+
+/** The most new facts a job keeps for one dossier's moments (#419); the page plays a few at most anyway. */
+export const MAX_NEWS = 50;
 
 /** The most pages one call follows before it stops and says so. */
 export const MAX_PAGES = 200;
@@ -89,6 +93,12 @@ export interface SyncJob {
   messages: string[];
   /** What stopped the job as a whole (the dossier list failed, it was cancelled). Source failures are on the sources. */
   error: string | null;
+  /**
+   * The facts this job recorded for the first time, by dossier (#419): the
+   * page plays its theme moments from these once the job ends. Up to
+   * MAX_NEWS a dossier, newest kept.
+   */
+  news?: Array<{ dossier: string; events: WorklogEvent[] }>;
 }
 
 export interface SyncStatus {
@@ -364,7 +374,7 @@ export class SyncService {
       watermark: s.error === null ? new Date(Date.parse(run.startedAt) - SKEW_MS).toISOString() : null,
       calls: s.calls,
     }));
-    this.cache.saveDossier({
+    const news = this.cache.saveDossier({
       dossier: name,
       startedAt: run.startedAt,
       finishedAt: this.now().toISOString(),
@@ -374,6 +384,7 @@ export class SyncService {
       deployments: loaded.deployments,
       sources,
     });
+    if (news.length) (this.job.news ??= []).push({ dossier: name, events: [...news].sort((a, b) => (a.at < b.at ? -1 : a.at > b.at ? 1 : 0)).slice(-MAX_NEWS) });
     const failed = sources.filter((s) => !s.ok);
     this.say(`${name}: ${loaded.items.length} items, ${loaded.changes.length} changes, ${loaded.deployments.length} deployments${failed.length ? `; ${failed.map((s) => s.area).join(', ')} failed, showing the last good copy` : ''}`);
   }
@@ -506,5 +517,5 @@ const numberOf = (item: Rec) => (isRec(item.content) ? String(item.content.numbe
 const updatedOf = (item: Rec) => (isRec(item.content) && typeof item.content.updatedAt === 'string' ? item.content.updatedAt : typeof item.updatedAt === 'string' ? item.updatedAt : null);
 
 function idle(): SyncJob {
-  return { running: false, by: null, startedAt: null, finishedAt: null, dossier: null, dossiersDone: 0, dossiersTotal: 0, fetched: 0, reused: 0, requests: 0, pages: 0, retries: 0, messages: [], error: null };
+  return { running: false, by: null, startedAt: null, finishedAt: null, dossier: null, dossiersDone: 0, dossiersTotal: 0, fetched: 0, reused: 0, requests: 0, pages: 0, retries: 0, messages: [], error: null, news: [] };
 }

@@ -130,3 +130,60 @@ export function useParticlesAllowed(theme: string): boolean {
   const [on] = useParticlesChoice(theme);
   return allowed && on;
 }
+
+/**
+ * "Theme motion" (#419): how much a theme's moments move, kept in this
+ * browser. Full plays them as the theme declares; subtle plays them shorter
+ * and smaller, with the loaders' art still; off makes every moment an instant
+ * change of state and every loader its still art and the progress text. It
+ * sits under the two switches above: with the OS asking for reduced motion,
+ * or "Reduce motion and effects" ticked, it is off whatever is chosen, which
+ * makes off the default whenever reduced motion is set. The level is
+ * mirrored on the root as `data-theme-motion`, so CSS scales what CSS plays.
+ */
+export type ThemeMotion = 'full' | 'subtle' | 'off';
+export const THEME_MOTIONS: readonly ThemeMotion[] = ['full', 'subtle', 'off'];
+const THEME_MOTION_KEY = 'toil-ui.theme-motion';
+
+function rememberedThemeMotion(): ThemeMotion {
+  try {
+    const v = localStorage.getItem(THEME_MOTION_KEY);
+    return v === 'subtle' || v === 'off' ? v : 'full';
+  } catch {
+    return 'full';
+  }
+}
+
+let themeMotion: ThemeMotion | null = null;
+const currentThemeMotion = () => (themeMotion ??= rememberedThemeMotion());
+
+export function setThemeMotion(next: ThemeMotion) {
+  themeMotion = next;
+  try {
+    localStorage.setItem(THEME_MOTION_KEY, next);
+  } catch {
+    // Not remembered; it still holds for this visit.
+  }
+  for (const l of listeners) l();
+}
+
+/** Forgets the cached theme motion, so the next read comes from storage again. For tests. */
+export function resetThemeMotion() {
+  themeMotion = null;
+}
+
+/** The person's own choice of theme motion, and the setter for it. */
+export function useThemeMotionChoice(): [ThemeMotion, (m: ThemeMotion) => void] {
+  return [useSyncExternalStore(subscribe, currentThemeMotion, () => 'full' as const), setThemeMotion];
+}
+
+/** How much the theme's moments move now: off whenever reduced motion is asked for, else the person's choice. Keeps `data-theme-motion` on the root current. */
+export function useThemeMotion(): ThemeMotion {
+  const allowed = useMotionAllowed();
+  const [mine] = useThemeMotionChoice();
+  const level: ThemeMotion = allowed ? mine : 'off';
+  useEffect(() => {
+    if (typeof document !== 'undefined') document.documentElement.dataset.themeMotion = level;
+  }, [level]);
+  return level;
+}

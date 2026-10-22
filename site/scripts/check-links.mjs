@@ -90,8 +90,19 @@ if (feedbackUrl.origin !== 'https://imagile-dev.github.io' || !feedbackUrl.pathn
 else if (isRedirect(feedbackPath)) problems.push(`src/feedback/consent.ts: FEEDBACK_FORM is the old address ${feedbackPath}, which now lives at ${REDIRECTS[feedbackPath] ?? feedbackPath.replace(MOVED_PREFIX.from, MOVED_PREFIX.to)}`);
 else if (!fileFor(feedbackPath)) problems.push(`src/feedback/consent.ts: FEEDBACK_FORM is ${FEEDBACK_FORM}, which isn't a page this build made`);
 
+// Every result the site search can offer (dist/search.json, scripts/search-index.mjs) lands too.
+const index = join(dist, 'search.json');
+const results = existsSync(index) ? JSON.parse(readFileSync(index, 'utf8')) : [];
+if (!existsSync(index)) problems.push('/search.json: the build made no search index (scripts/search-index.mjs runs before this)');
+for (const r of results) {
+  const [path, hash] = r.u.split('#');
+  const to = isRedirect(path) ? undefined : fileFor(path);
+  if (!to) problems.push(`/search.json: "${r.t}" links to ${r.u}, which is no page this build made`);
+  else if (hash && !idsOf(to).has(hash)) problems.push(`/search.json: "${r.t}" links to ${r.u}, and ${path} has no element with id "${hash}"`);
+}
+
 if (problems.length) {
   console.error(`Internal links that don't resolve:\n${problems.map((p) => `  ${p}`).join('\n')}`);
   process.exit(1);
 }
-console.log(`links: all ${links} internal links on ${pages.length - forwards.length} pages resolve, and ${forwards.length} old addresses forward`);
+console.log(`links: all ${links} internal links on ${pages.length - forwards.length} pages resolve, ${forwards.length} old addresses forward, and all ${results.length} search results land`);

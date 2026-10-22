@@ -4,14 +4,14 @@
 // page adds a facts panel (slot "facts") and generated reference after the
 // body (the default slot), and nothing written here. A docs page takes its
 // breadcrumb and its previous and next links from the docs path
-// (data/docs-path.ts); a page under another root (/connect/) names that root
+// (data/docs-path.mjs); a page under another root (/connect/) names that root
 // and its own trail, and brings its own pager.
 import Layout from '../layouts/Layout.astro';
 import PageHero from './PageHero.astro';
 import Crumb from './Crumb.astro';
 import DocsCrumb from './DocsCrumb.astro';
 import DocsPager from './DocsPager.astro';
-import { docsPlace } from '../data/docs-path';
+import { docsPlace } from '../data/docs-path.mjs';
 import { skillDoc } from '../lib/skill';
 import { repoUrl, sitePath } from '../lib/url';
 

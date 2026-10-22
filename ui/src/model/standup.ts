@@ -200,7 +200,7 @@ function categoryOf(e: WorklogEvent, items: Map<string, WorkItem>): StatusCatego
 /** Who a fact belongs to: its `who`, or for a fact recorded before #345, who its line names. */
 function whoOf(e: WorklogEvent, items: Map<string, WorkItem>): Person | null {
   if (e.who !== undefined) return e.who;
-  if (e.kind === 'blocker') return items.get(e.subject)?.assignee ?? null;
+  if (e.kind === 'blocker' || e.kind === 'blocker-cleared') return items.get(e.subject)?.assignee ?? null;
   return e.by ? { id: e.by, name: e.by, email: null } : null;
 }
 
@@ -258,6 +258,9 @@ export function buildStandup(input: StandupInput): StandupReport {
           break;
         case 'blocker':
           put(g.of(e.source, who), 'blocked', fromEvent(e));
+          break;
+        case 'blocker-cleared':
+          put(g.of(e.source, who), 'progress', fromEvent(e));
           break;
         case 'pr-opened':
         case 'pr-review':
