@@ -22,6 +22,7 @@ const MARKS: Record<string, string | Record<ResolvedScheme, string>> = {
   starship: new URL('../themes/starship/assets/mark.svg', import.meta.url).href,
   realm: new URL('../themes/realm/assets/mark.svg', import.meta.url).href,
   sprawl: new URL('../themes/sprawl/assets/mark.svg', import.meta.url).href,
+  frontier: new URL('../themes/frontier/assets/mark.svg', import.meta.url).href,
   overworld: new URL('../themes/overworld/assets/mark.svg', import.meta.url).href,
 };
 

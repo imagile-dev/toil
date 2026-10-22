@@ -1,13 +1,13 @@
 ---
-description: Toil UI's seven themes, themed wording and the agent's voice, the checkboxes that set how far a theme goes and whether its particles run, Plain's fonts, and how the agent's prompt is composed.
+description: Toil UI's eight themes, themed wording and the agent's voice, the checkboxes that set how far a theme goes and whether its particles run, Plain's fonts, and how the agent's prompt is composed.
 lead: How far a Toil UI theme goes, and what it never changes.
 ---
 
 # Themes
 
-Toil UI has seven built-in themes. Each one changes how the app looks, and the six game themes can go further: they can change the app's microcopy, and the voice the agent answers in. Two checkboxes decide how far a theme goes. Nothing a theme does changes your data, what a button is called, or what the agent is allowed to do.
+Toil UI has eight built-in themes. Each one changes how the app looks, and the seven game themes can go further: they can change the app's microcopy, and the voice the agent answers in. Two checkboxes decide how far a theme goes. Nothing a theme does changes your data, what a button is called, or what the agent is allowed to do.
 
-## The seven themes
+## The eight themes
 
 Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the real app on sample data, with the prompt and the answer each theme gives side by side.
 
@@ -19,6 +19,7 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
 | Realm | A grimdark house ledger: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, the dependency graph as an engraved war-table map | A house's steward | Decorative |
 | Sprawl | A terminal in a rain-soaked megacity: monospace type and a block cursor, faint scanlines and a CRT edge glow, neon magenta and cyan on deep blue-black, the skyline at the foot of the page, the dependency graph as a net map where a blocker is black ICE | A laconic street-level netrunner | Decorative |
+| Frontier | Steampunk on the wild west frontier: brass, copper and riveted iron over sun-bleached desert wood, panels framed in riveted brass, pressure gauges on the tallies, the dependency graph as a railroad survey map | A dry telegraph operator | Decorative |
 | Overworld | A top-down 16-bit adventure: an overworld map at the page's edges, panels as dungeon rooms walled in stone, a pixel face for headings only, a heart meter for the sprint's days left and a gem counter for its points, chests that open as work is done, the dependency graph as a dungeon map where a blocker is a locked door | An old sage in a cave | Decorative |
 
 Crate is the default. The theme picker is in the header (in the Menu on a narrow screen) and in Settings, General. A `?theme=` in the address opens a view in that theme, for example `?theme=realm`, and this browser remembers it like a choice made in the picker.
@@ -39,7 +40,7 @@ A theme has up to three layers.
 
 - **Visuals** are what every theme has: colours, fonts, borders, art, and motion. They never change a word.
 - **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the dossier list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, the Ask pane's notes, and the chat's placeholder, welcome and status words (#343). Crate's empty board column reads "Bay empty." and Realm's reads "None stand here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Campaign (Epic)" or "Ledger (Sprint 42: day 7 of 10)". The Settings pages and the Sync panel keep the standard text.
-- **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, Realm like a house's steward reporting to its war council, Sprawl like a netrunner on a job: work items are gigs, the sprint is the run, a pull request is a payload waiting on the fixer, a build is an ICE check, a deployment is jacking in to prod, and a blocker is black ICE, and Overworld like an old sage in a cave: brief, warm and a little cryptic, with the facts kept plain.
+- **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, Realm like a house's steward reporting to its war council, Frontier like a dry telegraph operator who also keeps the engine running, Sprawl like a netrunner on a job: work items are gigs, the sprint is the run, a pull request is a payload waiting on the fixer, a build is an ICE check, a deployment is jacking in to prod, and a blocker is black ICE, and Overworld like an old sage in a cave: brief, warm and a little cryptic, with the facts kept plain.
 
 Wording never touches these, in any theme:
 
@@ -115,13 +116,13 @@ The (i) in the chat's strip says which voice the answers are in, which agent is 
 ## Accessibility
 
 - **Plain and Crate** are held to WCAG 2.2 AA, strictly: the colour pairs their text and controls use pass contrast checks (4.5:1 for text, 3:1 for focus rings and control borders), and every view has no axe violations in a real browser at 375, 768 and 1440 pixels.
-- **Harvest, Starship, Realm, Sprawl and Overworld** are decorative. Their colour pairs still pass the same contrast checks, but their axe findings in a browser are reported rather than failed, since a pixel font, a leather border or a neon glow may bend a rule for style. If you need the strict bar, use Plain or Crate.
+- **Harvest, Starship, Realm, Sprawl, Frontier and Overworld** are decorative. Their colour pairs still pass the same contrast checks, but their axe findings in a browser are reported rather than failed, since a pixel font, a leather border or a neon glow may bend a rule for style. If you need the strict bar, use Plain or Crate.
 - **Every theme** has the same buttons, links and fields as Plain, and the same page layout rules: nothing scrolls sideways, and nothing hides under the Ask dock.
 - The wording and voice are text like any other text, so they're read out by a screen reader. Art a theme adds is decoration and is hidden from screen readers.
 
 ## Motion and particles
 
-The six game themes move a little: dust drifting in the flame glow and the site's slow drafting grid in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers and a faint candle flicker in Realm, rain on a slant, a blinking cursor and a brief glitch as a page opens in Sprawl, and fairies wandering as motes of light in Overworld, where a chest hops open as a card reaches Done and a key is lifted as one gets under way. Plain doesn't move. No theme plays sound.
+The seven game themes move a little: dust drifting in the flame glow and the site's slow drafting grid in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers and a faint candle flicker in Realm, rain on a slant, a blinking cursor and a brief glitch as a page opens in Sprawl, desert dust on the wind with steam rising from the foot of the page in Frontier, and fairies wandering as motes of light in Overworld, where a chest hops open as a card reaches Done and a key is lifted as one gets under way. Plain doesn't move. No theme plays sound.
 
 Three settings decide what moves, in this order:
 

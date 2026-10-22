@@ -21,6 +21,7 @@ import harvest from '../themes/harvest/theme.json';
 import starship from '../themes/starship/theme.json';
 import realm from '../themes/realm/theme.json';
 import sprawl from '../themes/sprawl/theme.json';
+import frontier from '../themes/frontier/theme.json';
 import overworld from '../themes/overworld/theme.json';
 import themesDoc from '../docs/themes.md?raw';
 import readme from '../README.md?raw';
@@ -32,7 +33,7 @@ export const DOSSIER = 'card-payments';
 export const SAMPLE_INSTRUCTIONS = 'Answer in British English. Lead with risks.';
 
 /** The built-in themes, in the picker's order (ui/src/themes.ts). */
-const MANIFESTS = [plain, crate, harvest, starship, realm, sprawl, overworld] as unknown as ThemeManifest[];
+const MANIFESTS = [plain, crate, harvest, starship, realm, sprawl, frontier, overworld] as unknown as ThemeManifest[];
 
 export const DEFAULT_THEME = 'crate';
 

@@ -15,7 +15,7 @@ import { ItemLink } from '../components/items.tsx';
 import { Card, CardGrid, Cluster, Stack } from '../components/layout.tsx';
 import { useData } from '../data.ts';
 import { CAPS_HREF, dossierHref } from '../format.ts';
-import { EditLink } from '../components/help.tsx';
+import { EditLink, Help } from '../components/help.tsx';
 import { ADAPTER_LABEL, addUp, usageParts } from '../model-usage.ts';
 import type { PersonEntry } from '../model/people.ts';
 import type { WorkItem } from '../toil.ts';
@@ -165,7 +165,10 @@ export function AssignForm({ item, list, start, close, onDone }: { item: Pick<Wo
         </p>
       ) : (
         <RadioGroup className="agent-adapters" value={mode} onChange={(v) => setMode(v as AssignMode)}>
-          <Label>Mode</Label>
+          <div className="edit-head">
+            <Label className="agent-label">Mode</Label>
+            <Help topic="assignments" />
+          </div>
           {MODES.map((m) => (
             <Radio key={m} value={m} className="agent-choice">
               <strong>{MODE_INFO[m].label}</strong>
@@ -401,7 +404,7 @@ export function RenewAll({ list, onDone }: { list: AssignmentList; onDone: () =>
                 <Heading slot="title" level={2} id="renew-title">
                   Renew stale sessions
                 </Heading>
-                <p className="note">Each renews as a fresh session on today's instructions, with what the old one left as context. The old one stays readable. Renew never interrupts a turn, and skips any session waiting on you.</p>
+                <p className="note">Each renews as a fresh session on today's instructions, with what the old one left as context. The old one stays readable. Renew never interrupts a turn, and skips any session waiting on you. <Help topic="stale" /></p>
                 <ul className="rows renew-list">
                   {listed.map((r) => (
                     <li key={r.key}>
