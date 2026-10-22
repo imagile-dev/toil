@@ -67,6 +67,20 @@ export function pagePath(file) {
 /** The areas whose file is an integration page: every area file without a page of its own. */
 export const integrationFiles = skillFiles.filter((f) => f.area && !(f.file in OWN_PAGES));
 
+/** Command groups whose commands a page other than their area's documents. */
+const GROUP_PAGES = { skill: '/docs/skills/#commands-at-a-glance', dossiers: '/docs/dossiers/' };
+
+/**
+ * The page that documents a command group (the first word after `toil`): its
+ * area's page at the commands list, or undefined when no page does. The
+ * command index and the site search both link a command there.
+ */
+export function commandGroupPage(group) {
+  if (group in GROUP_PAGES) return GROUP_PAGES[group];
+  const path = skillFiles.find((f) => f.area === group && f.path)?.path;
+  return path ? `${path}#commands-at-a-glance` : undefined;
+}
+
 /** Toil UI's own docs, outside the toil skill (ui/docs/*.md): each is a page, by its file. */
 export const uiDocDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', 'ui', 'docs');
 export const UI_DOC_PAGES = { 'themes.md': '/docs/themes/', 'help.md': '/docs/ui-help/' };
