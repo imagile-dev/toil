@@ -35,6 +35,8 @@ import { ChatUsage, UsageFooter } from './usage.tsx';
 import type { AnswerUsage } from '../model-usage.ts';
 import type { ChatSession } from '../fingerprint.ts';
 import { StaleNote } from './stale.tsx';
+import { Glossary, LearnButton } from './help.tsx';
+import { HELP } from '../help.ts';
 import { useNotify } from './notify.tsx';
 import { analysisHref, dossierHref } from '../format.ts';
 import type { AnalysisSummary } from '../model/analysis.ts';
@@ -439,7 +441,14 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
           </p>
         )}
         <div className="log" role="log" aria-live="polite" aria-busy={busy} aria-label="Conversation">
-          {entries.length === 0 && (agent.notice ? <p className="note agent-notice">{agent.notice}</p> : <EmptyState message={words('ask.welcome', { name: dossier.name })} />)}
+          {entries.length === 0 &&
+            (agent.notice ? (
+              <p className="note agent-notice">{agent.notice}</p>
+            ) : (
+              <EmptyState message={words('ask.welcome', { name: dossier.name })}>
+                <LearnButton />
+              </EmptyState>
+            ))}
           {entries.map((e) =>
             e.kind === 'renew' ? (
               <p key={`r${e.id}`} className="ask-switch note">
@@ -693,6 +702,7 @@ export function AskInfo({ agentLabel }: { agentLabel: string | undefined }) {
           <p>
             Change the voice under <a href="#/settings/toil">Settings, General</a>, and add your own instructions or voice under <a href="#/settings/agent">Settings, Agent</a>.
           </p>
+          <Glossary entries={HELP.answers.glossary} />
         </Dialog>
       </Popover>
     </DialogTrigger>

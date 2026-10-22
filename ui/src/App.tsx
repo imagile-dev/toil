@@ -54,6 +54,7 @@ import { wordFor, type WordKey } from './wording.ts';
 import { viewHelpHref } from './help.ts';
 import { CommandPalette, ShortcutsSheet } from './components/palette.tsx';
 import { matches, typingIn } from './shortcuts.ts';
+import { HeaderHelp } from './components/help.tsx';
 
 export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'usage' | 'agent-usage' | 'agent';
 export type Route =
@@ -366,12 +367,8 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
       )}
     </>
   );
-  // Help (#346): the docs section for the view in front of you, in a new tab.
-  const help = (
-    <a className="btn help-link" href={viewHelpHref(route.view, route.view === 'settings' ? route.page : undefined)} target="_blank" rel="noopener noreferrer" data-help-link="">
-      Help<span className="sr-only"> (opens in a new tab)</span>
-    </a>
-  );
+  // Help (#346): the docs section for the view in front of you, in a new tab, and Learn (#418) while learning links are on.
+  const help = <HeaderHelp href={viewHelpHref(route.view, route.view === 'settings' ? route.page : undefined)} />;
   const current = wanted ? dossiers[wanted] : undefined;
   const failure = (message: string) => (
     <div role="alert" className="failure">

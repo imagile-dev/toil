@@ -1,6 +1,7 @@
 import { connectionsOf, connectionWrites, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
 import { PALETTE, paint, type TermCaps } from './term.js';
 import type { Health, Session } from './view.js';
+import { LEARN_LINKS, LEARN_SITE } from './learn.js';
 
 /**
  * What the menu's screens show. Every screen is built from the same code the
@@ -255,6 +256,20 @@ export function helpScreen(caps: Caps, data: WelcomeData): string[] {
     `${muted(caps, 'Source    ')} https://github.com/imagile-dev/toil`,
     `${muted(caps, 'Version   ')} ${data.version}, by Imagile (https://www.imagile.dev)`,
     ...(data.launch.command === 'toil' ? [] : ['', faint(caps, `From this clone, "toil" is ${[data.launch.command, ...data.launch.args].join(' ')}.`)]),
+  ];
+}
+
+/** Learn (#418): the links in learn.ts, printed and never opened. */
+export function learnScreen(caps: Caps): string[] {
+  // Each link on a line of its own, so an 80-column terminal never cuts one short.
+  const entry = (label: string, url: string, task = '') => [`  ${paint(caps, PALETTE.ink, label)}${task ? `  ${muted(caps, task)}` : ''}`, `    ${url}`];
+  return [
+    heading(caps, 'Learn'),
+    '',
+    'AI terms and agent basics, on Context Overflow. Open a link in your browser.',
+    '',
+    ...entry('Glossary of AI terms', `${LEARN_SITE}/glossary`),
+    ...LEARN_LINKS.flatMap((m) => entry(m.title, `${LEARN_SITE}${m.path}`, m.task)),
   ];
 }
 

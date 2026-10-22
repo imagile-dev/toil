@@ -491,9 +491,21 @@ of these docs that says the rest. A **pencil** beside a configurable value (a
 connection, a dossier's sources, people, field names or work-in-progress limit,
 the agent, a usage cap) opens the settings page where it's set, at that value; it
 only navigates. **Help** in the header opens the docs for the view you're on.
-Read more and Help open the docs site in a new tab, which is the one place the app
-links out to. [Help and edit links](https://imagile-dev.github.io/toil/docs/ui-help/)
-has the rule views follow.
+
+Where a screen uses an AI term (tokens and the context window under Agent usage,
+model, harness and MCP under Agent, sandbox and permission mode in the Assign
+dialog's modes, session and system prompt in Renew all stale, hallucination in the
+chat's **About these answers**), its (i) popover also gives each term's first
+sentence from Context Overflow's glossary, with **Read more on Context Overflow**.
+Help is then a menu, with **Learn**: four of Context Overflow's modules, by task.
+The agent's empty chat has the same **Learn**. **Links to learning content**, under
+**Settings, General** and kept in this browser, is on by default; off, every link to
+Context Overflow and every glossary line is gone, and Help is one link again.
+
+Read more, Help and Learn open in a new tab, and are the only places the app links
+out to: nothing is fetched until you follow one.
+[Help and edit links](https://imagile-dev.github.io/toil/docs/ui-help/) has the rule
+views follow.
 
 ## The command palette
 
