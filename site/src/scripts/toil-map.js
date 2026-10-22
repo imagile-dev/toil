@@ -227,6 +227,15 @@ function setUp(root) {
   document.addEventListener('pointerdown', (e) => {
     if (active && !root.contains(e.target)) clear();
   });
+  // A touch that scrolls never becomes a click, so the flag is also dropped
+  // when the pointer is cancelled or a key is pressed; keyboard focus must
+  // never wait on a tap that isn't coming.
+  root.addEventListener('pointercancel', () => {
+    touchTap = false;
+  });
+  document.addEventListener('keydown', () => {
+    touchTap = false;
+  });
   root.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && active) clear();
   });
