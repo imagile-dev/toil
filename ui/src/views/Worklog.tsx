@@ -161,8 +161,8 @@ function Calendar({ data, selected, onMonth }: { data: WorklogMonth; selected: s
                 const n = Number(d.slice(8));
                 if (!p) {
                   return (
-                    <td key={d} className={d > data.today ? 'calendar__future' : 'calendar__empty'}>
-                      <span className="sr-only">{longDay(d)}: {d > data.today ? 'not yet' : 'no page'}</span>
+                    <td key={d} className={d > data.today ? 'calendar__future' : 'calendar__empty'} data-today={d === data.today || undefined}>
+                      <span className="sr-only">{longDay(d)}{d === data.today ? ', today' : ''}: {d > data.today ? 'not yet' : 'no page'}</span>
                       <span aria-hidden="true">{n}</span>
                     </td>
                   );

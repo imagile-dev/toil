@@ -488,10 +488,10 @@
 }
 
 /* Rest days on the worklog's calendar: a past day with nothing on its page,
-   or no page at all, carries a camp fire in its lower corner, small on a weekday (a short rest)
+   or no page at all, carries a camp fire in its lower corner (today never does), small on a weekday (a short rest)
    and larger at the weekend (a long rest). Only while the panel's note says
    so. */
-[data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty,
+[data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty:not([data-today]),
 [data-theme="realm"] .realm-rest-key ~ .calendar .calendar__day[data-quiet]:not([data-today]):not([aria-current]) {
   background-image: url("./assets/rest.svg");
   background-position: right 2px bottom 2px;
@@ -499,9 +499,19 @@
   background-repeat: no-repeat;
 }
 
-[data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty:nth-child(n+6),
+[data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty:not([data-today]):nth-child(n+6),
 [data-theme="realm"] .realm-rest-key ~ .calendar td:nth-child(n+6) .calendar__day[data-quiet]:not([data-today]):not([aria-current]) {
   background-size: 12px 12px;
+}
+
+/* The line naming the camp fires shows only under a calendar, never under
+   its loading line or a failed read, where there are no fires to explain. */
+[data-theme="realm"] .realm-rests {
+  display: none;
+}
+
+[data-theme="realm"] .calendar ~ .realm-rests {
+  display: block;
 }
 
 /* A rolled alignment on a People card: a playful tag, set in italic so it
