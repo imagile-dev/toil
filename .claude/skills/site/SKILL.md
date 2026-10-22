@@ -30,7 +30,10 @@ from `main`).
   it has drifted. ok, warn and danger are for status only (a stable level, a sent
   form), never decoration; no other hue appears, in the site or in generated art.
   No light palette, no theme toggle. Toil UI's showcase (`/ui/`) keeps each theme's
-  own colours inside its frame.
+  own colours inside its frame. The feedback emails wear Plain too (#453): light
+  inline, Plain's dark scheme for clients that ask, from a hand copy in
+  `functions/feedback/src/lib/palette.ts` that `test/brand-sync.test.ts` holds to
+  the theme. A change to Plain's colours changes that copy in the same PR.
 - **Imagile is credited prominently**: a byline in the header, a linked "By Imagile"
   in the hero eyebrow, and a feature panel in the footer, all pointing to
   https://www.imagile.dev. Imagile's mark keeps its own colours.

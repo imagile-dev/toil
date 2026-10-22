@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { appJwt } from '../src/lib/github.js';
 import { issueFor, processSubmissions, quietMentions, resetSmokeIssue, smokeBody, webhook, SMOKE_LABEL } from '../src/lib/handlers.js';
 import type { Stored } from '../src/lib/tables.js';
+import { EMAIL_COLORS } from '../src/lib/palette.js';
 import { closed, confirmation } from '../src/lib/templates.js';
 import { API, REPO, SHA, TEST_KEY, TEST_PUBLIC_KEY, deps, json, memoryTables, type Call } from './helpers.js';
 
@@ -243,5 +244,38 @@ describe('GitHub App auth and the emails', () => {
     const done = closed('you@example.com', { number: 3, url: 'https://github.com/imagile-dev/toil/issues/3', stateReason: 'completed' }, 'T', '<b>fixed</b>');
     expect(done.html).toContain('&lt;b&gt;fixed&lt;/b&gt;');
     expect(done.text).toContain('It was closed as done.');
+  });
+
+  // Plain's light scheme inline for every client, its dark scheme for clients that ask for it.
+  const issue = { number: 3, url: 'https://github.com/imagile-dev/toil/issues/3' };
+  const messages = [
+    ['confirmation', confirmation('you@example.com', issue, 'T').html],
+    ['closed notice', closed('you@example.com', { ...issue, stateReason: 'completed' }, 'T', 'Done.').html],
+  ] as const;
+  const inline = (html: string) => [...html.matchAll(/style="([^"]*)"/g)].map((m) => m[1]).join(';');
+  const css = (html: string) => html.match(/<style>([\s\S]*)<\/style>/)?.[1] ?? '';
+
+  it.each(messages)('the %s uses only Plain colours, light inline and dark in the media query', (_, html) => {
+    const hexes = (text: string) => new Set(text.match(/#[0-9a-f]{6}\b/gi));
+    for (const hex of hexes(inline(html))) expect(Object.values(EMAIL_COLORS.light), hex).toContain(hex);
+    expect(css(html)).toContain('@media (prefers-color-scheme:dark)');
+    for (const hex of hexes(css(html))) expect(Object.values(EMAIL_COLORS.dark), hex).toContain(hex);
+    expect(html).toContain('<meta name="color-scheme" content="light dark">');
+    expect(inline(html)).toContain(`background:${EMAIL_COLORS.light.bg}`);
+    expect(css(html)).toContain(`.t-page{background:${EMAIL_COLORS.dark.bg}!important;color:${EMAIL_COLORS.dark.ink}!important}`);
+  });
+
+  it.each(messages)('the %s overrides every coloured class in the dark scheme', (_, html) => {
+    const classes = new Set([...html.matchAll(/class="(t-[a-z]+)"/g)].map((m) => m[1]));
+    expect(classes.size).toBeGreaterThan(0);
+    for (const name of classes) expect(css(html), name).toContain(`.${name}{`);
+  });
+
+  it('shows the accent on the link, and done in green; any other reason in the text colour', () => {
+    const done = closed('you@example.com', { ...issue, stateReason: 'completed' }, 'T', undefined).html;
+    expect(done).toContain(`href="${issue.url}"`);
+    expect(done).toMatch(new RegExp(`class="t-link" style="[^"]*color:${EMAIL_COLORS.light.link}`));
+    expect(done).toMatch(new RegExp(`class="t-ok" style="[^"]*color:${EMAIL_COLORS.light.ok}[^"]*">It was closed as done\\.`));
+    expect(closed('you@example.com', { ...issue, stateReason: 'not_planned' }, 'T', undefined).html).not.toContain('class="t-ok"');
   });
 });

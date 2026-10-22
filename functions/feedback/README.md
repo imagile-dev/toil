@@ -6,6 +6,12 @@ Reports become GitHub issues filed by the Imagile Bot, and the submitter gets an
 email when the issue is filed and when it closes. It is its own private package,
 like `site/`, and is never published.
 
+The two emails (`src/lib/templates.ts`) are in Toil UI Plain's colours: its light
+scheme inline, and its dark scheme for clients that honour `prefers-color-scheme`.
+The colours are a copy in `src/lib/palette.ts`, because clients need inline hex;
+`test/brand-sync.test.ts` at the repository root fails when the copy differs from
+`ui/themes/plain/theme.json`, or when a text colour falls under 4.5:1.
+
 | Function | Trigger | What it does |
 |---|---|---|
 | `Submit` | `POST /api/submit` | The site's form. Honeypot, then `Origin`, validation, consent, Turnstile, and the per-IP daily limit (10), in that order. Stores a pending row. |
