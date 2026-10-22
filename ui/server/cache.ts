@@ -18,6 +18,10 @@
  *   fact a sync recorded, each source's syncs, the agent's runs and the
  *   lines a person added. A sync upserts its facts by key, so the same fact
  *   is one row however often it's synced.
+ * - **analyses**: every Analyze (#395), its answer and a snapshot of what
+ *   the dossier looked like when it was made (src/model/analysis.ts), kept
+ *   per dossier like the worklog: a sync never rewrites it, and the newest
+ *   100 of a dossier stay until the retention period ends or a wipe.
  * - **usage**: the agent's model usage (#295), one row per report an SDK
  *   made, apart from everything a sync writes. Forgetting a dossier or a
  *   sync's cleanup never touches it, so a total never drops and a cap never
@@ -37,6 +41,7 @@ import * as nodePath from 'node:path';
 import { sameReport, type UsageRecord } from '../src/model-usage.ts';
 import type { ChangeRef, Deployment, Envelope, WorkItem } from '../src/toil.ts';
 import { dayOf, eventsFrom, observedEvents, type AgentRun, type SyncRun, type WorklogEvent, type WorklogNote } from '../src/model/worklog.ts';
+import { MAX_ANALYSES, type AnalysisRecord } from '../src/model/analysis.ts';
 import { loadSqlite, type DatabaseSync } from './sqlite.ts';
 
 /** The path functions the cache's locations are built with: node:path, or path.win32 / path.posix in the tests. */
@@ -208,6 +213,20 @@ export const MIGRATIONS: readonly Migration[] = [
       );
     `,
   },
+  {
+    version: 4,
+    description: 'every Analyze kept per dossier, with a snapshot of what it saw (#395)',
+    sql: `
+      CREATE TABLE analyses (
+        dossier TEXT NOT NULL,
+        id TEXT NOT NULL,
+        at TEXT NOT NULL,
+        record TEXT NOT NULL,
+        PRIMARY KEY (dossier, id)
+      );
+      CREATE INDEX analyses_at ON analyses (dossier, at);
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
@@ -312,6 +331,8 @@ const DAY = 86_400_000;
 
 /** The worklog's tables (#308), which a forgotten dossier takes with it. */
 const WORKLOG_TABLES = ['worklog_events', 'sync_runs', 'agent_runs', 'notes'];
+/** The tables kept per dossier that a sync never rewrites: the worklog's, and the analyses (#395). */
+const KEPT_TABLES = [...WORKLOG_TABLES, 'analyses'];
 
 /** The lock a running Toil UI holds on its data folder: which process, and a token only the holder knows. */
 export interface CacheLock {
@@ -564,7 +585,7 @@ export class Cache {
   /** A dossier toil no longer has: everything synced for it goes. */
   forget(dossier: string) {
     this.transaction(() => {
-      for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', ...WORKLOG_TABLES]) this.db.prepare(`DELETE FROM ${table} WHERE dossier = ?`).run(dossier);
+      for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', ...KEPT_TABLES]) this.db.prepare(`DELETE FROM ${table} WHERE dossier = ?`).run(dossier);
       this.db.prepare('DELETE FROM dossiers WHERE name = ?').run(dossier);
     });
   }
@@ -583,7 +604,7 @@ export class Cache {
     if (from === to) return 0;
     let moved = 0;
     this.transaction(() => {
-      for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', ...WORKLOG_TABLES]) this.db.prepare(`DELETE FROM ${table} WHERE dossier = ?`).run(to);
+      for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', ...KEPT_TABLES]) this.db.prepare(`DELETE FROM ${table} WHERE dossier = ?`).run(to);
       this.db.prepare('DELETE FROM dossiers WHERE name = ?').run(to);
       const rows = this.db.prepare('SELECT command, input_key, envelope FROM responses WHERE dossier = ?').all(from) as unknown as Array<{ command: string; input_key: string; envelope: string }>;
       const move = this.db.prepare('UPDATE responses SET dossier = ?, input_key = ?, envelope = ? WHERE dossier = ? AND command = ? AND input_key = ?');
@@ -598,6 +619,10 @@ export class Cache {
       for (const r of this.db.prepare('SELECT id, run FROM agent_runs WHERE dossier = ?').all(from) as unknown as Array<{ id: string; run: string }>) {
         const run = JSON.parse(r.run) as AgentRun;
         moved += Number(this.db.prepare('UPDATE agent_runs SET dossier = ?, run = ? WHERE dossier = ? AND id = ?').run(to, JSON.stringify({ ...run, dossier: to }), from, r.id).changes);
+      }
+      for (const r of this.db.prepare('SELECT id, record FROM analyses WHERE dossier = ?').all(from) as unknown as Array<{ id: string; record: string }>) {
+        const record = JSON.parse(r.record) as AnalysisRecord;
+        moved += Number(this.db.prepare('UPDATE analyses SET dossier = ?, record = ? WHERE dossier = ? AND id = ?').run(to, JSON.stringify({ ...record, dossier: to }), from, r.id).changes);
       }
       moved += Number(this.db.prepare('UPDATE dossiers SET name = ? WHERE name = ?').run(to, from).changes);
     });
@@ -718,6 +743,21 @@ export class Cache {
     return rows.map((r) => JSON.parse(r.note) as WorklogNote);
   }
 
+  // The analyses (#395) ---------------------------------------------------------------
+
+  /** Keeps one Analyze, and only the newest MAX_ANALYSES of its dossier. */
+  saveAnalysis(record: AnalysisRecord) {
+    this.transaction(() => {
+      this.db.prepare('INSERT OR REPLACE INTO analyses (dossier, id, at, record) VALUES (?, ?, ?, ?)').run(record.dossier, record.id, record.at, JSON.stringify(record));
+      this.db.prepare('DELETE FROM analyses WHERE dossier = ? AND id NOT IN (SELECT id FROM analyses WHERE dossier = ? ORDER BY at DESC, id DESC LIMIT ?)').run(record.dossier, record.dossier, MAX_ANALYSES);
+    });
+  }
+
+  /** A dossier's analyses, oldest first. */
+  analyses(dossier: string): AnalysisRecord[] {
+    return (this.db.prepare('SELECT record FROM analyses WHERE dossier = ? ORDER BY at, id').all(dossier) as unknown as Array<{ record: string }>).map((r) => JSON.parse(r.record) as AnalysisRecord);
+  }
+
   /** Deletes every row last synced before the retention period. Returns how many went. */
   prune(): number {
     const cutoff = new Date(this.now().getTime() - this.retentionDays * DAY).toISOString();
@@ -733,6 +773,8 @@ export class Cache {
       removed += Number(this.db.prepare('DELETE FROM sync_runs WHERE at < ?').run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM agent_runs WHERE started_at < ?').run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM notes WHERE at < ?').run(cutoff).changes);
+      // An analysis by when it was made (schema 4): it quotes ticket titles, so it never outstays the rest.
+      if (this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'analyses'").get()) removed += Number(this.db.prepare('DELETE FROM analyses WHERE at < ?').run(cutoff).changes);
     });
     return removed;
   }
@@ -768,7 +810,7 @@ export class Cache {
   /** Row counts per table, for the tests and the wipe's report. */
   counts(): Record<string, number> {
     const out: Record<string, number> = {};
-    for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers', 'usage', ...WORKLOG_TABLES]) out[table] = Number((this.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n);
+    for (const table of ['responses', 'items', 'transitions', 'change_refs', 'sources', 'dossiers', 'usage', ...KEPT_TABLES]) out[table] = Number((this.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get() as { n: number }).n);
     return out;
   }
 

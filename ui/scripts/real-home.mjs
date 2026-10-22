@@ -152,7 +152,7 @@ function writeConfig(home, log) {
 }
 
 /** One toil command in the home, through the toil Toil UI runs on, as its envelope. */
-function toilIn(home, env) {
+export function toilIn(home, env) {
   return (...argv) => {
     const res = spawnSync(process.execPath, [toilCli, ...argv], { env, encoding: 'utf8', cwd: home });
     try {

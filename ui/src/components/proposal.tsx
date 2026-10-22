@@ -59,7 +59,7 @@ export function ProposalCard({ proposal, onDismiss, kind = 'Proposed change, not
       <p className="proposal-kind">{kind}</p>
       <h3>{proposal.title}</h3>
       <p>
-        <Cited text={proposal.reason} />
+        <Cited text={proposal.reason} chips={proposal.from === 'agent'} />
       </p>
       {showShells && (
         <RadioGroup className="shells" orientation="horizontal" value={shell} onChange={(v) => setShell(v as Shell)} aria-label="Show the command for">

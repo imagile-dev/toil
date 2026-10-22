@@ -19,6 +19,8 @@ import { FEEDBACK_SAMPLE_DISABLED, type FeedbackApi, type FeedbackFields } from 
 import type { SyncStatus } from '../server/sync.ts';
 import type { Envelope, Execute } from './toil.ts';
 import type { ChatSession, ServerStatus } from './fingerprint.ts';
+import type { AnalysesApi } from './analyses.ts';
+import type { AnalysisSummary, AnalysisView } from './model/analysis.ts';
 import { WORKLOG_SAMPLE_DISABLED, type WorklogApi, type WorklogDay, type WorklogExport, type WorklogMonth, type WorklogRebuilt, type WorklogStandup } from './worklog.ts';
 
 export type { DossierState, SourceState } from '../server/cache.ts';
@@ -405,5 +407,27 @@ export function httpModelUsage(session: Session, base = './'): ModelUsageApi {
   return {
     view: async () => answer(await call(base, session, 'api/usage'), 'Reading the model usage'),
     save: async (settings) => answer(await call(base, session, 'api/usage/settings', { body: settings }), 'Saving the caps'),
+  };
+}
+
+/**
+ * The history of analyses over the server (#395): read only. The server
+ * keeps each Analyze itself as its answer ends, so this client has no
+ * `record`. One the history no longer holds comes back as null.
+ */
+export function httpAnalyses(session: Session, base = './'): AnalysesApi {
+  const q = (params: Record<string, string>) => new URLSearchParams(params).toString();
+  return {
+    list: async (dossier) => {
+      const res = await call(base, session, `api/analyses?${q({ dossier })}`);
+      if (!res.ok) throw await failure(res, 'Reading the analyses');
+      return (await res.json()) as AnalysisSummary[];
+    },
+    get: async (dossier, id) => {
+      const res = await call(base, session, `api/analyses/one?${q({ dossier, id })}`);
+      if (res.status === 404) return null;
+      if (!res.ok) throw await failure(res, 'Reading the analysis');
+      return (await res.json()) as AnalysisView;
+    },
   };
 }

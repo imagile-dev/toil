@@ -3,7 +3,7 @@
  * narrower screen: the tracker's inbox, then the dossier's assignments as
  * small cards in three groups, those that need you, those working and those
  * gone stale, with the finished ones folded under Earlier; then Renew all
- * stale, the limits, and the chat's recent analyses. It replaced the Agents
+ * stale, the limits, and the dossier's recent analyses (#395). It replaced the Agents
  * lane, a panel halfway down the old dashboard, and reads the same
  * assignments the same way (./views.tsx). Same trays, nearer the desk.
  */
@@ -12,7 +12,7 @@ import { ItemLink } from '../components/items.tsx';
 import { StaleNote } from '../components/stale.tsx';
 import { useChatScope, type Turn } from '../components/ask.tsx';
 import { useData } from '../data.ts';
-import { analysesHref, dateTime } from '../format.ts';
+import { analysesHref, analysisHref, dateTime } from '../format.ts';
 import { ADAPTER_NAME, MODE_INFO, runMs, runText, type Assignment } from './model.ts';
 import { InboxRow, Limits, RenewAll, StateChip, assignmentHref, useAssignments } from './views.tsx';
 import './assign.css';
@@ -67,40 +67,46 @@ function AgentCard({ a, now }: { a: Assignment; now: string }) {
   );
 }
 
-/** The chat's Analyze answers, newest first: what the Analyses tab shows in full. */
+/** The chat's Analyze answers in this page, newest first. */
 export function analysesOf(turns: Turn[]): Turn[] {
   return turns.filter((t) => t.analyze).reverse();
 }
 
+/** The three newest analyses the dossier keeps (#395), the same list the Analyses tab shows, and one being written now. */
 function RecentAnalyses() {
   const { dossier } = useData();
   const chat = useChatScope();
-  const list = analysesOf(chat?.turns ?? []).slice(0, 3);
+  const running = analysesOf(chat?.turns ?? []).find((t) => !t.done);
+  const list = (chat?.history.list ?? []).slice(0, 3);
   return (
     <section className="agents-side__analyses" aria-labelledby="recent-analyses">
       <h3 id="recent-analyses">Recent analyses</h3>
+      {chat?.history.error && <p className="failure">{chat.history.error}</p>}
+      {running && <p className="note analysis-line">Analyze is answering now.</p>}
       {list.length ? (
         <ul className="plain">
-          {list.map((t) => (
-            <li key={t.id} className="analysis-line">
-              <span className="note">{dateTime(new Date(t.started).toISOString())}</span>{' '}
-              {t.error ? <span className="failure">Didn't finish.</span> : t.done ? <span>{summaryOf(t)}</span> : <span className="note">Still answering.</span>}
+          {list.map((a) => (
+            <li key={a.id} className="analysis-line">
+              <a href={analysisHref(dossier.name, a.id)}>
+                <span className="note">{dateTime(a.at)}</span>
+                <span className="sr-only">, </span> <span>{a.recommendation ? plainText(a.recommendation) : 'No recommendation line.'}</span>
+              </a>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="note">None yet in this session. Analyze, in the bar above, asks for one.</p>
+        !running && <p className="note">None yet for this dossier. Analyze, in the bar above, asks for one.</p>
       )}
       <a href={analysesHref(dossier.name)}>All analyses</a>
     </section>
   );
 }
 
-/** The first sentence of an answer, its citations as plain ids, for a one-line summary. */
-export function summaryOf(t: Turn): string {
-  const text = (t.answer?.parts.map((p) => p.text).join(' ') ?? '').replace(/\[\[([^\]]+)\]\]/g, (_, id: string) => id.slice(id.indexOf(':') + 1)).replace(/\s+/g, ' ').trim();
-  const first = /^(.{1,140}?[.!?])(\s|$)/.exec(text)?.[1] ?? text.slice(0, 140);
-  return first.length < text.length && !/[.!?]$/.test(first) ? `${first}…` : first;
+/** Text with its citations as their keys, cut to one sentence: for a line with no room for chips. */
+export function plainText(text: string): string {
+  const flat = text.replace(/\[\[([^\]]+)\]\]/g, (_, id: string) => id.slice(id.indexOf(':') + 1)).replace(/\s+/g, ' ').trim();
+  const first = /^(.{1,140}?[.!?])(\s|$)/.exec(flat)?.[1] ?? flat.slice(0, 140);
+  return first.length < flat.length && !/[.!?]$/.test(first) ? `${first}…` : first;
 }
 
 /** The sidebar itself, the same inside the drawer and beside the view. */

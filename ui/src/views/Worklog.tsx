@@ -285,7 +285,7 @@ function Run({ line }: { line: RunLine }) {
           {run.answer ? (
             run.answer.split(/\n{2,}/).map((para, i) => (
               <p key={i}>
-                <Cited text={para} />
+                <Cited text={para} chips />
               </p>
             ))
           ) : (

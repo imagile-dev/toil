@@ -46,6 +46,8 @@ export interface Answer {
   activity?: AnswerActivity;
   /** What the chat started on and whether that has gone stale (#305), on the finished answer only. */
   session?: ChatSession;
+  /** The id the history of analyses keeps an Analyze answer under (#395), on its finished answer only. */
+  analysis?: string;
 }
 
 /**
