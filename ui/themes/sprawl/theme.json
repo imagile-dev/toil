@@ -37,7 +37,37 @@
     "blackIce": "assets/black-ice.svg",
     "loading": "assets/jack-in.webp",
     "emptyState": "assets/dead-drop.webp",
-    "mark": "assets/mark.svg"
+    "mark": "assets/mark.svg",
+    "momentBoot": "assets/moments/boot-sheet.webp",
+    "momentShard": "assets/moments/shard-sheet.svg",
+    "momentCipher": "assets/moments/cipher-block.svg",
+    "momentGig": "assets/moments/gig-closed.svg",
+    "momentBreach": "assets/moments/ice-breached.svg",
+    "momentTripped": "assets/moments/ice-tripped.svg",
+    "momentCracked": "assets/moments/ice-cracked.svg",
+    "momentPayload": "assets/moments/payload.svg",
+    "momentRunOver": "assets/moments/run-over.svg"
+  },
+  "moments": {
+    "splash": { "art": { "art": "momentBoot", "width": 336, "height": 210, "frames": 2 }, "motif": "fade", "line": "Rain on the glass. Jacking in." },
+    "loader": {
+      "art": { "art": "momentShard", "width": 96, "height": 96, "frames": 4 },
+      "loop": "frames",
+      "track": { "art": "momentCipher", "size": 14, "count": 6, "motif": "blink" },
+      "flavour": ["Decrypting the data shard.", "Spoofing the handshake.", "Routing around the black ICE.", "Waiting on the fixer to pick up.", "Rain on the uplink. Retrying.", "Counting the hops to the tracker."]
+    },
+    "tips": { "label": "Word on the street" },
+    "entrance": "sweep",
+    "tabs": "fade",
+    "events": {
+      "item-done": { "art": "momentGig", "width": 64, "height": 64, "motif": "stamp", "label": "Gig closed" },
+      "build-passed": { "art": "momentBreach", "width": 64, "height": 64, "motif": "pop", "label": "ICE breached" },
+      "build-failed": { "art": "momentTripped", "width": 64, "height": 64, "motif": "drop", "label": "Tripped the ICE" },
+      "blocker-cleared": { "art": "momentCracked", "width": 64, "height": 64, "motif": "slide", "label": "Black ICE cracked" },
+      "pr-merged": { "art": "momentPayload", "width": 64, "height": 64, "motif": "sweep", "label": "Payload delivered" },
+      "sprint-ended": { "art": "momentRunOver", "width": 64, "height": 64, "motif": "rise", "label": "End of the run" }
+    },
+    "recap": { "label": "Run debrief" }
   },
   "terms": {
     "epic": "Contract",

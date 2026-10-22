@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" fill="none">
+<!-- Black ICE cracked: the dark barrier from the net map, shattered and falling apart, a cyan spark at the break. -->
+<path d="M28 4 7 16v13l12-3 9-22Z" fill="#07060f" stroke="#ff6470" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M39 5l19 11v12l-14 2-5-25Z" fill="#07060f" stroke="#ff6470" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M6 39v11l20 12 4-18-24-5Z" fill="#07060f" stroke="#ff6470" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M43 42l16-2v10L40 61l3-19Z" fill="#07060f" stroke="#ff6470" stroke-width="2" stroke-linejoin="bevel"/>
+<path d="M32 21v22M21 32h22" stroke="#3ff0ff" stroke-width="2.5"/>
+<path d="M25 25l14 14M39 25 25 39" stroke="#3ff0ff" stroke-width="1.4" opacity=".8"/>
+<rect x="29" y="29" width="6" height="6" fill="#eaf6ff"/>
+</svg>

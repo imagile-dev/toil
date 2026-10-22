@@ -382,19 +382,132 @@
   box-shadow: 0 -6px 18px rgba(255, 46, 136, 0.12);
 }
 
-/* Glitch transitions and the cursor's blink, only when motion is welcome. */
+/* Moments (#437): the splash is a terminal's cold boot that glitches into the
+   skyline, the loading screen decrypts a data shard, and each moment arrives
+   as a terminal readout with a magenta rail and a cut corner. Everything that
+   moves moves by transform and opacity; the colours and frames are here. */
+[data-theme="sprawl"] .splash {
+  background:
+    radial-gradient(circle at 88% 0%, rgba(255, 46, 136, 0.14), transparent 55vmax),
+    radial-gradient(circle at 8% 100%, rgba(63, 240, 255, 0.1), transparent 50vmax),
+    var(--bg);
+}
+
+[data-theme="sprawl"] .splash__art {
+  box-shadow: 0 0 28px rgba(255, 46, 136, 0.2), 0 0 2px rgba(63, 240, 255, 0.6);
+}
+
+[data-theme="sprawl"] .splash__name .wordmark {
+  color: var(--accent);
+  text-shadow: -1px 0 rgba(255, 46, 136, 0.75), 1px 0 rgba(63, 240, 255, 0.75), 0 0 14px rgba(255, 46, 136, 0.45);
+}
+
+[data-theme="sprawl"] .splash__ui {
+  border-radius: 0;
+}
+
+/* The progress reads as a line at the prompt; the caret is decoration, so a screen reader skips it. */
+[data-theme="sprawl"] .loader__progress::before,
+[data-theme="sprawl"] .splash__progress::before {
+  content: "> " / "";
+  color: var(--accent);
+  font-weight: 600;
+}
+
+[data-theme="sprawl"] .loader-tip {
+  padding: 0.5rem 0.75rem;
+  border-top: 0;
+  border-left: 2px solid var(--link);
+  background: rgba(14, 12, 29, 0.92);
+}
+
+[data-theme="sprawl"] .loader-tip__label {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--link);
+}
+
+[data-theme="sprawl"] .loader__flavour {
+  font-style: normal;
+}
+
+[data-theme="sprawl"] .moment {
+  border: 1px solid rgba(63, 240, 255, 0.5);
+  border-left: 3px solid var(--accent);
+  border-radius: 0;
+  background:
+    linear-gradient(135deg, rgba(63, 240, 255, 0.07), transparent 50%, rgba(255, 46, 136, 0.08)),
+    var(--raised);
+  box-shadow: 0 0 22px rgba(255, 46, 136, 0.22), 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+/* A cut corner, top right, as on the panels. */
+[data-theme="sprawl"] .moment::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  width: 12px;
+  height: 12px;
+  background: linear-gradient(225deg, var(--accent) 0 50%, transparent 50%);
+}
+
+/* A failed build runs hot in the danger red, so it never reads as decoration. */
+[data-theme="sprawl"] .moment--build-failed {
+  border-color: var(--danger);
+  box-shadow: 0 0 22px rgba(255, 100, 112, 0.28), 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="sprawl"] .moment__label {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--link);
+  text-shadow: -1px 0 rgba(255, 46, 136, 0.6), 1px 0 rgba(63, 240, 255, 0.4);
+}
+
+[data-theme="sprawl"] .moment--build-failed .moment__label {
+  color: var(--danger);
+}
+
+[data-theme="sprawl"] .moment__figures li::before {
+  content: "> " / "";
+  color: var(--accent);
+}
+
+/* Glitch transitions and the cursor's blink, only when motion is welcome.
+   The page title's glitch and the panels' scan-in are entrances, so Theme
+   motion off stops them as it stops the engine's (#437); the tab change is
+   the engine's own transition now. */
 @media (prefers-reduced-motion: no-preference) {
   [data-theme="sprawl"] h1::after {
     animation: sprawl-blink 1.1s steps(1) infinite;
   }
 
-  [data-theme="sprawl"] h1 {
+  [data-theme="sprawl"]:not([data-theme-motion="off"]) h1 {
     animation: sprawl-glitch 0.5s steps(2) 1;
   }
 
-  [data-theme="sprawl"] .tab-panels > *,
-  [data-theme="sprawl"] .l-card {
+  [data-theme="sprawl"]:not([data-theme-motion="off"]) .l-card {
     animation: sprawl-scan-in 0.35s steps(4) 1;
+  }
+
+  /* The splash's cold boot: the log holds, tears twice into the skyline, and
+     lands there. Four cuts in a third of a second, then still: two flashes,
+     under the three a second that WCAG 2.3.1 allows, on a dark picture. The
+     strip only moves, so nothing is redrawn. Subtle makes one clean cut. */
+  [data-theme="sprawl"][data-theme-motion="full"] .splash__art img {
+    animation: sprawl-boot 0.9s steps(1, end) 0.25s 1 both;
+  }
+
+  [data-theme="sprawl"][data-theme-motion="subtle"] .splash__art img {
+    animation: sprawl-boot-cut 0.6s steps(1, end) 1 both;
+  }
+
+  /* A moment's label comes up like a readout catching: one dip, then steady. */
+  [data-theme="sprawl"][data-theme-motion="full"] .moment__label {
+    animation: sprawl-readout 0.36s steps(1, end) 1 both;
   }
 
   [data-theme="sprawl"] .gedge--live .react-flow__edge-path {
@@ -420,6 +533,26 @@
 @keyframes sprawl-scan-in {
   from { clip-path: inset(0 0 100% 0); }
   to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes sprawl-boot {
+  0%, 40% { transform: translate(0, 0); }
+  41% { transform: translate(-31%, 1px); }
+  52% { transform: translate(-3%, -1px); }
+  63% { transform: translate(-44%, 0); }
+  74%, 100% { transform: translate(-50%, 0); }
+}
+
+@keyframes sprawl-boot-cut {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes sprawl-readout {
+  0% { opacity: 0; }
+  25% { opacity: 1; }
+  50% { opacity: 0.45; }
+  70%, 100% { opacity: 1; }
 }
 
 @keyframes sprawl-current {
