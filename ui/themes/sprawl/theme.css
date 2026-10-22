@@ -316,7 +316,7 @@
   fill: var(--bg);
 }
 
-/* The blocker Gantt: the blocked span hatched like the ICE on the map. */
+/* The blocker Gantt: time in progress glows like the data lines on the map. */
 [data-theme="sprawl"] .gantt-seg--progress {
   filter: drop-shadow(0 0 3px rgba(63, 240, 255, 0.6));
 }
