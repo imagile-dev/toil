@@ -50,7 +50,20 @@
   text-transform: none;
   overflow-wrap: anywhere;
 }
-.help-popover { max-width: min(22rem, calc(100vw - 2rem)); }
+.help-popover { max-width: min(22rem, calc(100vw - 2rem)); overflow: auto; }
+/* The learning links (#418): a topic's glossary terms under its own sentences, ruled off from them as quoted matter, and Learn's
+   four modules. Both lists are bare: the popover is the frame. */
+.help-glossary, .help-learn { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
+.help-glossary { border-top: 1px solid var(--line); padding-top: 0.5rem; }
+.help-glossary li, .help-learn li { display: grid; justify-items: start; overflow-wrap: anywhere; }
+.help-learn .note { margin-top: -0.6rem; }
+/* Learn under the agent's welcome, inside the theme's empty state, so it sits where the welcome does (centred under a game
+   theme's art); its own width, so its popover isn't as wide as the chat. */
+.btn.learn-button { width: auto; margin-top: 0.5rem; }
+/* The menu's items are links, but read as a menu's rows: no underline, the theme's ink, the task under the title. */
+.help-menu .menu-item { text-decoration: none; color: var(--ink); }
+.menu-item.help-menu__module { flex-direction: column; align-items: flex-start; justify-content: center; padding-block: 0.35rem; }
+.help-menu .menu-header { border-top: 1px solid var(--line); margin-top: 0.25rem; padding-top: 0.5rem; }
 .help-popover__dialog { padding: 0.9rem 1rem; display: grid; gap: 0.5rem; outline: none; font-family: var(--font-body); font-size: 0.9375rem; font-weight: 400; letter-spacing: normal; text-transform: none; }
 .help-popover__dialog p { margin: 0; overflow-wrap: anywhere; }
 .help-popover__dialog a { display: inline-flex; align-items: center; min-height: 44px; color: var(--link); }

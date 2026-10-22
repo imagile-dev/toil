@@ -258,6 +258,33 @@ export function helpScreen(caps: Caps, data: WelcomeData): string[] {
   ];
 }
 
+/**
+ * Learn (#418): Context Overflow's glossary and four of its modules, printed
+ * as links to copy or click in the terminal. The menu never opens a browser
+ * and toil never fetches them. Linking to that course is the maintainer's
+ * decision of 2026-10-22, recorded on #418.
+ */
+export const LEARN_SITE = 'https://kolatts.github.io/context-overflow';
+export const LEARN_LINKS: ReadonlyArray<{ task: string; title: string; path: string }> = [
+  { task: 'New to agents', title: 'Hello, Agent', path: '/modules/getting-started' },
+  { task: 'New to agents, next', title: 'AI Fluency 101', path: '/modules/ai-fluency-101' },
+  { task: 'How much to hand an agent', title: 'The Autonomy Spectrum', path: '/modules/autonomy-spectrum' },
+  { task: 'Branches and pull requests', title: 'Git: Your Time Machine', path: '/modules/git-time-machine' },
+];
+
+export function learnScreen(caps: Caps): string[] {
+  // Each link on a line of its own, so an 80-column terminal never cuts one short.
+  const entry = (label: string, url: string) => [`  ${paint(caps, PALETTE.ink, label)}`, `    ${url}`];
+  return [
+    heading(caps, 'Learn'),
+    '',
+    'AI terms and agent basics, on Context Overflow. Open a link in your browser.',
+    '',
+    ...entry('Glossary of AI terms', `${LEARN_SITE}/glossary`),
+    ...LEARN_LINKS.flatMap((m) => entry(`${m.task}: ${m.title}`, `${LEARN_SITE}${m.path}`)),
+  ];
+}
+
 function shellQuote(arg: string): string {
   return /^[\w@%+=:,./\\-]+$/.test(arg) ? arg : `"${arg.replace(/"/g, '\\"')}"`;
 }

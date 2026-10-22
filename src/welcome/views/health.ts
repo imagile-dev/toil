@@ -1,4 +1,4 @@
-import { connectionNames, healthScreen, helpScreen } from '../screens.js';
+import { connectionNames, healthScreen, helpScreen, learnScreen } from '../screens.js';
 import type { Item, View } from '../view.js';
 import { testAll } from './connections.js';
 
@@ -25,4 +25,10 @@ export const healthView: View = {
 export const helpView: View = {
   title: () => 'Help',
   body: (caps, p) => helpScreen(caps, p.data),
+};
+
+/** Learn (#418): links to print, never to open. */
+export const learnView: View = {
+  title: () => 'Learn',
+  body: (caps) => learnScreen(caps),
 };

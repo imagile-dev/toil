@@ -7,6 +7,9 @@ description: What every toil command shares, in detail - the envelope and errors
 `SKILL.md` has the rules every call needs. This page has the detail behind them, for
 when a call needs more than a command's own flags.
 
+For an AI term you meet here or in Toil UI (token, context window, harness, MCP),
+Context Overflow's glossary has a page each: <https://kolatts.github.io/context-overflow/glossary>.
+
 The jira, jira-cloud, ado and ado-cloud commands are `toil <area> <resource> <action>
 [ids...]`: ids are positional, everything else is a flag, and `toil <area> <resource>
 --help` lists what a resource can do (`toil jira issue --help`).

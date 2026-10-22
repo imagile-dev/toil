@@ -2,7 +2,7 @@ import type { View } from '../view.js';
 import { agentAreas, agentsView, agentView } from './agents.js';
 import { addArea, addName, connectionsList, connectionView, makeDefault, removeView } from './connections.js';
 import * as dossiers from './dossiers.js';
-import { healthView, helpView } from './health.js';
+import { healthView, helpView, learnView } from './health.js';
 import { homeView, type HomeEntry } from './home.js';
 import { resultView } from './result.js';
 import * as services from './services.js';
@@ -22,6 +22,7 @@ export const HOME_ENTRIES: HomeEntry[] = [
   { label: 'Agent skills', hint: 'Skill plugins, what is installed, and the toil skill', view: 'agent-skills' },
   { label: 'Dossiers', hint: 'This folder, create, review, edit, export and import', view: 'dossiers' },
   { label: 'Help', hint: 'How toil works, a command cheatsheet, the docs', view: 'help' },
+  { label: 'Learn', hint: 'AI terms and agent basics, as links to open', view: 'learn' },
 ];
 
 export const VIEWS: Record<string, View> = {
@@ -37,6 +38,7 @@ export const VIEWS: Record<string, View> = {
   'agent-areas': agentAreas,
   agent: agentView,
   help: helpView,
+  learn: learnView,
   'agent-skills': agentSkillsView,
   skills: skillsView,
   marketplace: marketplaceView,
