@@ -457,7 +457,7 @@ describe('teradata: reading SQL and JSON', () => {
     ] as const) {
       expect(scanSql(sql).transactionControl, sql).toBe(word);
     }
-    for (const sql of ["SELECT 'COMMIT', \"rollback\" FROM t", '-- BT\nSELECT 1 /* ET */', 'BEGIN QUERY LOGGING ON sales', 'SELECT commit_date, bt_id FROM t', 'SELECT transaction FROM begin_end']) {
+    for (const sql of ["SELECT 'COMMIT', \"rollback\" FROM t", '-- BT\nSELECT 1 /* ET */', 'BEGIN QUERY LOGGING ON sales', 'CREATE VOLATILE TABLE t (id INTEGER) ON COMMIT PRESERVE ROWS; INSERT INTO t VALUES (1);', 'CREATE MULTISET VOLATILE TABLE t AS (SELECT 1 AS x) WITH DATA ON COMMIT DELETE ROWS', 'SELECT commit_date, bt_id FROM t', 'SELECT transaction FROM begin_end']) {
       expect(scanSql(sql).transactionControl, sql).toBeUndefined();
     }
   });

@@ -33,7 +33,8 @@ references; none of the shipped docs, code or skills names them.
   right named, so a `SELECT` refused for lack of access stays `DATABASE`.
 - **Transaction control is refused anywhere in the SQL**, reads and `db execute`
   alike: `COMMIT`, `ROLLBACK`, `ABORT`, `BT`, `ET`, and `BEGIN`/`END` before
-  `TRANSACTION`. They are reserved words, so outside strings, quoted names and
+  `TRANSACTION`, and `COMMIT` except after `ON` (a temporary table's `ON COMMIT
+  PRESERVE ROWS`, review on #410). They are reserved words, so outside strings, quoted names and
   comments they can only be those statements. A procedure body that commits is
   refused with the rest rather than parsed (`src/core/db/teradata/split.ts`).
 - **The path is `systems/<system>/...` under a user-supplied `baseUrl`.** The spec's
@@ -64,7 +65,10 @@ references; none of the shipped docs, code or skills names them.
   session. Those go through a new `CommandContext.cleanupFetch`: `ctx.fetch` is bound
   to the command's signal, which has just fired, so it can't send them. It is the
   same instrumented fetch without that signal, and each request has a 10-second
-  limit of its own. Asynchronous queries (`spooled_result_set`) would hand back an id
+  limit of its own. An abort while `POST .../sessions` is still in flight leaves toil
+  without the session's id, so that session waits for the service's idle timeout;
+  it is a documented known limit (review on #410), since finishing the open on the
+  cleanup fetch and then closing it is more machinery than a `unit` provider needs. Asynchronous queries (`spooled_result_set`) would hand back an id
   up front, but cost a spool file and polling for every read; not used.
 - **429 Too Many Sessions is reported at once, not retried.** Core's 429 retry waits
   seconds; a session limit frees up when someone else's work ends. The error says the

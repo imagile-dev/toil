@@ -753,7 +753,8 @@ and toil sends `COMMIT` only after every statement succeeded; otherwise it sends
 and the database runs them as one. Teradata doesn't allow DDL in a multi-statement
 request, so a DDL statement goes in a call of its own. `BT`, `ET`, `BEGIN
 TRANSACTION`, `END TRANSACTION`, `COMMIT`, `ROLLBACK` and `ABORT` are refused before
-any of it runs, anywhere in the script, a procedure body included. `changes` adds up
+any of it runs, anywhere in the script, a procedure body included; a temporary
+table's `ON COMMIT PRESERVE ROWS` or `ON COMMIT DELETE ROWS` is fine. `changes` adds up
 the update counts the service reports.
 
 ### Time limits and cancelling
@@ -791,7 +792,10 @@ the queries running in the call's session (`GET /systems/<system>/queries?sessio
 asks the Query Service to abort each one (`DELETE /systems/<system>/queries/<id>`), and
 then closes the session, which rolls back anything still open. Those requests go out
 after toil has already answered, each with a 10-second limit of its own. Each page is
-answered in one response, so there is no server-side cursor to stop early.
+answered in one response, so there is no server-side cursor to stop early. Known
+limit: a cancel that lands while the session is still being opened leaves toil without
+its id, so it can't close it; the session counts against the user's session limit
+until the Query Service's idle timeout closes it.
 
 ## Examples
 

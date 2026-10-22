@@ -14,7 +14,8 @@
  * word: COMMIT, ROLLBACK, ABORT, BT and ET are reserved words, so outside
  * strings, comments and quoted names they can only be the statements
  * themselves, and BEGIN and END count only before TRANSACTION (BEGIN QUERY
- * LOGGING is something else). A stored procedure body that commits is
+ * LOGGING is something else) and COMMIT not after ON (a temporary table's
+ * ON COMMIT PRESERVE ROWS). A stored procedure body that commits is
  * refused with the rest; that is the price of not parsing SPL, and it is
  * cheaper than the alternative's change ticket.
  */
@@ -72,7 +73,8 @@ export function scanSql(sql: string): Scan {
     if (word) {
       const upper = word.toUpperCase();
       if (transactionControl === undefined) {
-        if (CONTROL.has(upper)) transactionControl = upper;
+        // ON COMMIT PRESERVE ROWS and ON COMMIT DELETE ROWS are a temporary table's clause, not a COMMIT.
+        if (CONTROL.has(upper) && !(upper === 'COMMIT' && previous === 'ON')) transactionControl = upper;
         else if (upper === 'TRANSACTION' && (previous === 'BEGIN' || previous === 'END')) transactionControl = `${previous} TRANSACTION`;
       }
       previous = upper;
