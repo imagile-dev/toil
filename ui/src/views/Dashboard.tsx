@@ -34,7 +34,6 @@ const Graph = lazy(() => import('./Graph.tsx').then((m) => ({ default: m.Graph }
 /** `corp-bitbucket:PAY/payments-core#311` reads as `#311`; the panel already says where. */
 const short = (id: string) => id.slice(id.lastIndexOf('#'));
 
-
 function ChangeLink({ change }: { change: ChangeRef }) {
   const text = change.kind === 'pull-request' ? `${short(change.id)} ${change.title}` : change.title;
   return change.url ? <a href={change.url}>{text}</a> : <span>{text}</span>;

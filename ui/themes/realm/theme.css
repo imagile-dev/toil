@@ -495,7 +495,7 @@
    and larger at the weekend (a long rest). Only while the panel's note says
    so. */
 [data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty,
-[data-theme="realm"] .realm-rest-key ~ .calendar .calendar__day[data-quiet]:not([data-today], [aria-current]) {
+[data-theme="realm"] .realm-rest-key ~ .calendar .calendar__day[data-quiet]:not([data-today]):not([aria-current]) {
   background-image: url("./assets/rest.svg");
   background-position: right 3px top 3px;
   background-size: 11px 11px;
@@ -503,7 +503,7 @@
 }
 
 [data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty:nth-child(n+6),
-[data-theme="realm"] .realm-rest-key ~ .calendar td:nth-child(n+6) .calendar__day[data-quiet]:not([data-today], [aria-current]) {
+[data-theme="realm"] .realm-rest-key ~ .calendar td:nth-child(n+6) .calendar__day[data-quiet]:not([data-today]):not([aria-current]) {
   background-size: 16px 16px;
 }
 

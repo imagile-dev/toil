@@ -141,7 +141,9 @@ describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () =>
     const board = screen.getByRole('region', { name: /board/ });
     expect(within(board).getAllByText(/^Initiative \(Priority\): \S/).length).toBeGreaterThan(0);
     const builds = screen.getByRole('region', { name: 'Saving throws (Builds)' });
-    expect(within(builds).getAllByText(/^(Natural 20 \(passed\)|Critical fail \(failed\)): /).length).toBeGreaterThan(0);
+    const rolls = [...builds.querySelectorAll('.outcome__roll')].map((r) => r.textContent);
+    expect(rolls).toContain('Natural 20 (passed): ');
+    expect(rolls).toContain('Critical fail (failed): ');
     cleanup();
     await open('#/dossier/card-payments/people', 'realm', 'light');
     expect(screen.getByRole('heading', { level: 1, name: 'Party (People)' })).toBeTruthy();
