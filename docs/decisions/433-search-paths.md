@@ -42,7 +42,7 @@
   badge, moved just above them. The roles are "You work with an agent", "You lead a
   team" and "You run CI/CD", with the issue's three steps each. Analyze has no
   heading of its own, so that step links to The agent in Toil UI's docs, where the
-  Ask bar and Analyze are described. The paths are data in `docs-path.ts`, and a
+  Ask bar and Analyze are described. The paths are data in `docs-path.mjs`, and a
   test holds every step to a page on the docs path.
 - **Search and the start-here paths use the site's colour tokens only**
   (`var(--color-…)`, and `color-mix` over them for the backdrop and the step

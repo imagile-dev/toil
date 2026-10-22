@@ -141,7 +141,7 @@ from `main`).
     `dossiers.md`, `install.md`, `mcp.md`, `util.md`, `skills.md`, Toil UI's own
     docs and a command index (`/docs/commands/`, the registry's lists). They are
     read as a path, Get started, Use, Connect, Agents, Toil UI, Reference, which
-    `site/src/data/docs-path.ts` defines once: the index draws it, the footer
+    `site/src/data/docs-path.mjs` defines once: the index draws it, the footer
     links its groups, and every docs page takes its breadcrumb and its previous
     and next links from it. A new docs page goes on the path there.
   - **Connect** (`/connect/`) is the catalogue of everything toil talks to: the
@@ -159,7 +159,7 @@ from `main`).
     hero (the slot #432's map fills), Get started, Connect, Toil UI and the
     principles. Something added there means something comes off (principle 11).
     Get started opens with the start-here paths by role (#433), `startPaths` in
-    `docs-path.ts`: three steps each, every one a page or heading already on the
+    `docs-path.mjs`: three steps each, every one a page or heading already on the
     docs path, never a page of its own.
   - **Search** (#433) is the header's Search button, `/` or Ctrl+K (Cmd+K): a
     `<dialog>` (`src/components/SiteSearch.astro`, `src/scripts/search.ts`) over one

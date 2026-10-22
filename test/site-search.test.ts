@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildRecords, extractPage, search, words } from '../site/src/lib/search.mjs';
 import { commandGroupPage, integrationFiles, skillFiles } from '../site/src/lib/skill-pages.mjs';
-import { docsPath, startPaths } from '../site/src/data/docs-path.js';
+import { docsPath, startPaths } from '../site/src/data/docs-path.mjs';
 
 /**
  * The site search (#433): its index is built after `astro build` from the

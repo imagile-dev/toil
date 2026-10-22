@@ -15,7 +15,6 @@ if (dialog && input && list && status) {
   const base = dialog.dataset.base ?? '';
   let records: SearchRecord[] | undefined;
   let loading: Promise<void> | undefined;
-  let opener: HTMLElement | null = null;
 
   const load = () =>
     (loading ??= fetch(dialog.dataset.index!)
@@ -93,7 +92,6 @@ if (dialog && input && list && status) {
 
   const open = () => {
     if (dialog.open) return;
-    opener = document.activeElement as HTMLElement | null;
     dialog.showModal();
     input.select();
     void load();
@@ -103,7 +101,7 @@ if (dialog && input && list && status) {
   list.addEventListener('click', (e) => {
     if ((e.target as Element).closest('a')) dialog.close();
   });
-  dialog.addEventListener('close', () => opener?.focus());
+  // The dialog returns focus to whatever had it, without scrolling, when it closes.
   // A click on the backdrop lands on the dialog itself, outside its panel.
   dialog.addEventListener('click', (e) => {
     if (e.target === dialog) dialog.close();
