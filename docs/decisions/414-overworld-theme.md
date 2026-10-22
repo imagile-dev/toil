@@ -49,7 +49,7 @@
   dungeon map for the graph (768px, 40 KB), the sage's cave for loading (15 KB), the
   empty room for empty and not-found states (15 KB) and the sage's portrait (2 KB).
   Everything else (badge, wall, hearts, gem, chests, key, locked door) is hand-placed
-  pixel SVG. The theme is about 137 KB, under the 160 KB cap.
+  pixel SVG. The theme is 139 KB, under the 160 KB cap.
 - **The lexicon's mapping** follows the issue: work items are quests, the sprint is
   the journey, the board is the quest log, a pull request is an item to appraise at
   the shop, a build is the dungeon trial, a deployment opens a sealed door, a blocker
