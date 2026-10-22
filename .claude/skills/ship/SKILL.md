@@ -103,9 +103,11 @@ principle), and the simplest fix.
   principle is missing or needs sharpening? Report only. This reviewer proposes no
   code fix, because the principles are the maintainer's to change.
 - **Screen review** (principle 11), when the diff touches `ui/src/`, `ui/themes/` or
-  `src/welcome/`. Run `npm run verify:ui` (or `toil-ui --sample` for the welcome
-  menu, the menu itself) and look at every screen the change touches, at 1440 and
-  375px. Flag:
+  `src/welcome/`. For Toil UI, run `npm run verify:ui` and look at every screen the
+  change touches at 1440 and 375px. For the welcome menu, run bare `toil` (or
+  `node dist/toil.js` after a build) in an interactive terminal, at a full-width and
+  a narrow window. Errors, failures, and a result's source and verification level
+  stay on screen (principle 4), so never flag those. Flag:
   - a sentence of explanation on the page that belongs in an (i) tooltip with a
     Read more link (`ui/src/help.ts`)
   - a control repeated on every row or card that belongs in a menu, the command

@@ -20,8 +20,9 @@ Who it is for, in priority order:
 The rules in this file are consequences of a few principles. When a rule and a
 situation disagree, or a case is not covered, reason from the principle.
 
-Principles 1 to 7, 9 and 10 govern **toil itself**, and principle 11 the screens people work in (Toil UI and toil's welcome menu): the npm package and what it does on a
-user's machine. This repository's own tooling (`scripts/`, the tests, workflows, and
+Principles 1 to 7, 9 and 10 govern **toil itself**: the npm package and what it does on a
+user's machine. Principle 11 governs the screens people work in: Toil UI and toil's
+welcome menu. This repository's own tooling (`scripts/`, the tests, workflows, and
 the skills under `.claude/skills/`) is never published or installed by toil. It may
 run `git` and `gh` and call GitHub. It still follows principle 8, because every
 contributor runs it, and principle 2 where an agent does the work.
@@ -107,7 +108,9 @@ gets made again in the next place it applies.
     explanation goes into an (i) tooltip with a Read more link to the docs. A
     control appears where it's used, or in a menu, the command palette or a
     shortcut, never as one more button on every row. An empty state offers the
-    action that fills it, not a paragraph about why it's empty. When something new
+    action that fills it, not a paragraph about why it's empty. Principle 4 still
+    holds: errors, failures, and a result's source and verification level always
+    stay on screen, never behind a tooltip. When something new
     is added, something should come off the screen, or it should stay out of sight
     until it's called up (the maintainer's call, 2026-10-22). → Toil UI's help
     topics (`ui/src/help.ts`, #346) and the **Screen review** in the `ship` skill.
