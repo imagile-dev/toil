@@ -15,6 +15,7 @@ import { Card, CardGrid, Path } from '../../components/layout.tsx';
 import { Help, useLandOn } from '../../components/help.tsx';
 import { ChangeForm, OutcomeLine, SecretField, SelectField, TextField, commandLine, failedOutcome, outcomeOf, secretRefusal, type Outcome } from './parts.tsx';
 import { checkSecret, type SecretRules } from '../../../../src/core/secret-input.ts';
+import { Loader } from '../../moments/Moments.tsx';
 
 const SOURCE_WORD: Record<string, string> = { env: 'env var', ci: 'CI variable', file: 'config file', store: 'credential store', defaults: 'area defaults' };
 
@@ -43,7 +44,7 @@ export function Connections({ config, at, toForm = false }: { config: ConfigApi;
 
   // An edit link names a connection (#346): its card takes focus once the list has loaded.
   useLandOn(toForm ? 'conn-add' : at ? `conn-${at}` : null, Boolean(list));
-  if (!list) return <p className="skin-loading">Reading your connections with toil connections list…</p>;
+  if (!list) return <Loader size="panel" message="Reading your connections with toil connections list…" />;
   if (!list.ok) {
     return (
       <div role="alert" className="failure">

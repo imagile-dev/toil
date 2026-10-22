@@ -28,8 +28,10 @@
 // from the Ask bar (#343) with its (i) popover, its agent switcher, an answer, its Suggestions menu and
 // Analyze's pulse check, a help (i)'s tooltip and popover (#346), the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
 // the calendar on an earlier month, a stand-up written up, and every failing
-// command's recent audit lines open on the Usage page. Reduced motion
-// is on, so an animation caught mid-flight can't fail a run.
+// command's recent audit lines open on the Usage page, and the theme moments' previews
+// (#419): a loading screen, the launch splash and the sprint recap card. Reduced motion
+// is on, so an animation caught mid-flight can't fail a run; `npm run smoke` then runs
+// MOTION_ROUTES again with motion on, where the moments play.
 //
 // On a dossier's Board tab the board is also dragged as a hand drags it
 // (#393): real mouse input through the DevTools protocol, a finger at 375
@@ -113,6 +115,12 @@ export const ROUTES = [
   '#/settings/agent',
 ];
 export const WIDTHS = [375, 768, 1440];
+/**
+ * The views checked a second time with motion on (#419): where the theme's moments play (the dossier entrance and
+ * its tabs, the previews of the splash, a loading screen and the sprint recap under Settings, General). The full set
+ * runs with reduced motion, which is also Theme motion off, so both are proven.
+ */
+export const MOTION_ROUTES = ['#/', '#/dossier/card-payments', '#/dossier/card-payments/board', '#/dossier/card-payments/prs', '#/settings/toil'];
 
 /**
  * The first run (#416): the Dossiers view on a home with no dossiers, which verify:ui opens under this
@@ -229,7 +237,7 @@ function covered() {
 /** Waits until the view has its heading and nothing is still loading. */
 const SETTLED = `new Promise((resolve) => {
   const started = Date.now();
-  const done = () => document.querySelector('main h1') && !document.querySelector('.skin-loading, [role="status"].skin-loading') && !/Drawing the graph|Reading /.test(document.querySelector('main')?.textContent ?? '');
+  const done = () => document.querySelector('main h1') && !document.querySelector('main .skin-loading, main [data-loading]') && !/Drawing the graph|Reading /.test(document.querySelector('main')?.textContent ?? '');
   const tick = () => (done() || Date.now() - started > 15000 ? document.fonts.ready.then(() => setTimeout(resolve, 250)) : setTimeout(tick, 100));
   tick();
 })`;
@@ -261,6 +269,12 @@ const inMenu = (selector) => `(async () => {
   if (!shown() && !(await ${clickAll('[data-menu-button]')})) return -1;
   return await ${clickAll(selector)};
 })()`;
+
+/**
+ * Resolves once every animation with an end has ended (up to 2s), so a check with motion on never reads a
+ * colour or a box halfway through a fade (#419). Loops (a drifting grid, a loader's motif) are left running.
+ */
+const ANIMATIONS_DONE = `Promise.race([Promise.all(document.getAnimations().filter((a) => a.effect?.getComputedTiming().iterations !== Infinity).map((a) => a.finished.catch(() => undefined))), new Promise((r) => setTimeout(r, 2000))])`;
 
 /** Polls `expression` in the page every 50ms until it is truthy or `ms` pass; resolves with its last value. */
 const until = (page, expression, ms = 5000) =>
@@ -387,6 +401,19 @@ function states(route, width) {
   if (/\/worklog$/.test(route)) out.push({ name: 'previous-month', setup: clickAll('.calendar-nav button', '/Previous month/'), undoJs: clickAll('.calendar-nav button', '/Next month/') });
   // A dossier's name and description open for editing in place (#342), every pencil on the page at once: the longest the cards and the dashboard's header get.
   if (route === '#/' || route === '#/dossier/settlement') out.push({ name: 'editing', setup: clickAll('[data-edit]'), undoJs: "document.querySelectorAll('.edit-field').forEach((i) => i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })))" });
+  // Theme moments (#419), from their previews under Settings, General: a loading screen as the theme draws it, the
+  // launch splash, and the sprint recap card, the largest moment. The recap is decoration, hidden from screen readers,
+  // so it is shown to the check (aria-hidden lifted) for its layout and axe. With Theme motion off (the reduced-motion
+  // pass) the splash and moments don't play, and their buttons say so by being disabled: that state checks the page as it is.
+  if (route === '#/settings/toil') {
+    // Each preview is an entry in one menu: the menu is opened, then the entry pressed, as a person would.
+    const pick = (entry) => `(async () => { const open = await ${clickAll('[data-preview-menu]')}; if (!open) return 'no preview menu button'; const deadline = Date.now() + 5000; while (!document.querySelector('[role="menu"]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const item = document.querySelector(${JSON.stringify(`[data-preview="${entry}"]`)}); if (!item) { document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return document.querySelector('[role="menu"] [data-preview="loader"]') ? 'none' : 0; } if (item.getAttribute('aria-disabled') === 'true') { item.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 'disabled'; } item.click(); return 'pressed'; })()`;
+    out.push({ name: 'loading-screen', setup: `(async () => { const how = await ${pick('loader')}; if (how !== 'pressed') return how || 0; const deadline = Date.now() + 5000; while (!document.querySelector('[data-moment-preview] [data-loading] [role="status"]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return document.querySelector('[data-moment-preview] [data-loading] [role="status"]') ? 1 : 'the loading screen preview opened with no progress status'; })()`, undo: 'Escape', undoJs: clickAll('[data-preview-close]', null, 0) });
+    // A theme with no splash has no entry for it, and with Theme motion off the splash and moments are disabled: each checks the page as it is.
+    const played = (entry, shown) => `(async () => { const how = await ${pick(entry)}; if (how === 'none' || how === 'disabled') return 1; if (how !== 'pressed') return how || 0; const deadline = Date.now() + 5000; while (!document.querySelector(${JSON.stringify(shown)}) && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const el = document.querySelector(${JSON.stringify(shown)}); if (!el) return 'pressed the ${entry} preview and nothing showed'; el.removeAttribute('aria-hidden'); return 1; })()`;
+    out.push({ name: 'splash', setup: played('splash', '.splash'), undo: 'Escape' });
+    out.push({ name: 'sprint-recap', setup: played('sprint-ended', '[data-moment="sprint-ended"]'), undo: 'Escape' });
+  }
   if (route === '#/settings/agent') out.push({ name: 'full-prompt', setup: clickAll('[data-full-prompt]', '/Show the full prompt/'), undoJs: clickAll('[data-full-prompt]', '/Hide the full prompt/') });
   // Install (#344): the dialog with the exact npm command, before anything runs, for the first SDK missing. On a
   // machine with every SDK installed there is no Install to press, which counts only when the status card says so.
@@ -501,6 +528,7 @@ async function dragCheck(page, width, shoot, inspectDropped) {
   if (ghost === null) problems.push('after the drop, no proposed ghost of the card showed on the board within 5s');
   else if (ghost !== plan.target) problems.push(`after the drop, the proposed ghost is in ${ghost || 'no column'}, not ${plan.target}`);
   await shoot('drag-dropped');
+  await page.evaluate(ANIMATIONS_DONE);
   const dropped = ghost === null ? none : await inspectDropped();
   // Undo, so the next width starts from the board as it opened. For 50ms after a drop dnd-kit stops every click on
   // the page (the one a pointerup would make), so Undo is pressed until the ghost has gone, not once.
@@ -585,6 +613,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
     for (const width of widths) {
       await page.size(width);
       await page.evaluate(`new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(r, 150))))`);
+      await page.evaluate(ANIMATIONS_DONE);
       const where = `${label} ${route} at ${width}px`;
       const slug = `${run.theme}-${run.scheme}__${route.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '') || 'home'}__${width}`;
       const record = (state, findings) => {
@@ -627,6 +656,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
         // A state may say why it opened nothing, as text, rather than leave the generic line.
         else if (typeof opened === 'string') problems.push(`${where} (${state.name}): ${opened}`);
         await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
+        await page.evaluate(ANIMATIONS_DONE);
         await shoot(`${slug}__${state.name}`);
         record(state.name, await page.evaluate(`(${inspect})(${JSON.stringify(CARDS)}, ${headerFits})`));
         // An open sheet covers the page on purpose, like a dialog; only the page's own states must clear the dock.

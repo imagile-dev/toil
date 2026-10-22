@@ -331,6 +331,9 @@ const DAY = 86_400_000;
 
 /** The worklog's tables (#308), which a forgotten dossier takes with it. */
 const WORKLOG_TABLES = ['worklog_events', 'sync_runs', 'agent_runs', 'notes'];
+
+/** How far before the last good sync a newly listed fact may be and still count as news: the clocks may disagree (#419). */
+export const NEWS_SKEW_MS = 5 * 60_000;
 /** The tables kept per dossier that a sync never rewrites: the worklog's, and the analyses (#395). */
 const KEPT_TABLES = [...WORKLOG_TABLES, 'analyses'];
 
@@ -645,9 +648,15 @@ export class Cache {
    * failed one keeps its last good copy. Items, transitions and change refs
    * are the dossier's whole picture as the sync saw it (the sync hands the
    * loader a failed source's last good copy, so a failure never blanks them).
+   *
+   * Returns the facts this sync recorded for the first time (#419), which the
+   * theme moments play: none on a dossier's first sync, when everything in its
+   * history would be new, and none from before the last good sync, so a fact
+   * a source only now lists (an old build, a closed issue) isn't news.
    */
-  saveDossier(save: DossierSave) {
+  saveDossier(save: DossierSave): WorklogEvent[] {
     const at = save.finishedAt;
+    let news: WorklogEvent[] = [];
     this.transaction(() => {
       // The last good picture, for what the trackers record no time for (a new blocker, a deployment that failed). The items
       // table keeps it through a failed sync, so a change made during the failure is still seen by the next good one.
@@ -658,6 +667,9 @@ export class Cache {
       const facts = [...eventsFrom({ items: save.items, changes: save.changes }, builds), ...observedEvents(before, { items: save.items, deployments: save.deployments }, at, lastGood)];
       const fact = this.db.prepare(`INSERT INTO worklog_events (dossier, key, day, at, kind, event, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (dossier, key) DO UPDATE SET day = excluded.day, at = excluded.at, kind = excluded.kind, event = excluded.event, synced_at = excluded.synced_at`);
+      const known = new Set((this.db.prepare('SELECT key FROM worklog_events WHERE dossier = ?').all(save.dossier) as unknown as Array<{ key: string }>).map((r) => r.key));
+      const since = lastGood ? Date.parse(lastGood) - NEWS_SKEW_MS : null;
+      news = previous && since !== null ? facts.filter((e) => !known.has(e.key) && (e.observed !== null || Date.parse(e.at) >= since)) : [];
       for (const e of facts) fact.run(save.dossier, e.key, dayOf(e.at)!, e.at, e.kind, JSON.stringify(e), at);
       const run = this.db.prepare('INSERT OR REPLACE INTO sync_runs (dossier, area, at, ok, error) VALUES (?, ?, ?, ?, ?)');
       for (const s of save.sources) run.run(save.dossier, s.area, at, s.ok ? 1 : 0, s.error);
@@ -698,6 +710,7 @@ export class Cache {
       this.db.prepare('INSERT INTO dossiers (name, last_sync_at, status, error) VALUES (?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET last_sync_at = excluded.last_sync_at, status = excluded.status, error = excluded.error').run(save.dossier, at, status, error);
     });
     this.prune();
+    return news;
   }
 
   // The worklog (#308) ---------------------------------------------------------------

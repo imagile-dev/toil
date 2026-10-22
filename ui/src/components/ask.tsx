@@ -41,6 +41,7 @@ import { useNotify } from './notify.tsx';
 import { analysisHref, dossierHref } from '../format.ts';
 import type { AnalysisSummary } from '../model/analysis.ts';
 import { AnalysisBody } from './analysis.tsx';
+import { Loader } from '../moments/Moments.tsx';
 import { useUiCommand } from '../commands.ts';
 
 /** A new chat's id: one per dossier's conversation, so the server can add up and cap the chat (#295). */
@@ -515,7 +516,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                         {e.done && e.answer.usage && <UsageFooter usage={e.answer.usage} />}
                       </>
                     ) : (
-                      <p className="note">{e.stopped ? 'Stopped before any answer arrived.' : words('loading.answer')}</p>
+                      e.stopped ? <p className="note">Stopped before any answer arrived.</p> : <Loader size="inline" message={words('loading.answer')} live={false} />
                     )}
                     {e.done &&
                       !e.stopped &&

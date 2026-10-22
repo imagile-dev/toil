@@ -349,3 +349,15 @@ describe('the worklog after a sync (#308)', () => {
     expect(job.messages.at(-1)).toBe("Couldn't update the worklog: disk full");
   });
 });
+
+describe('the facts for the theme moments (#419)', () => {
+  it('carries none on a first sync, nor on one that finds nothing new', async () => {
+    const { sync, advance } = await setup();
+    const first = await sync.run(ctx);
+    expect(first.news ?? []).toEqual([]);
+    advance(60_000);
+    const again = await sync.run(ctx);
+    expect(again.news ?? []).toEqual([]);
+    expect(sync.status().job.news ?? []).toEqual([]);
+  });
+});

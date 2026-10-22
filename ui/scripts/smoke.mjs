@@ -14,7 +14,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { request } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { WIDTHS, checkLayout, themeRuns } from './layout-check.mjs';
+import { MOTION_ROUTES, WIDTHS, checkLayout, themeRuns } from './layout-check.mjs';
 import { npmCli } from './package-rules.mjs';
 
 const ui = join(import.meta.dirname, '..');
@@ -138,6 +138,18 @@ try {
   problems.push(...layout.problems);
   for (const r of layout.reported) console.log(`  report-only (decorative theme): ${r}`);
   steps.push(`layout: ${layout.checked} views and states in ${themeRuns().length} theme schemes at ${WIDTHS.join(', ')}px, ${layout.problems.length} problem(s) (no sideways scroll, no overflow outside a declared scroller, nothing past its card, nothing fixed covering the page's end, one-row headers, a full header row at 1440px, a dimming backdrop, a board card dragged with real mouse and touch input that follows the pointer and lands as a ghost in its target column, and no axe violation in Plain or Crate), ${layout.reported.length} report-only axe finding(s) in the decorative themes`);
+
+  // Motion on (#419): the views where the theme moments play, again, with the system allowing motion and Theme motion at full.
+  const moving = await checkLayout({
+    urlFor: (theme, scheme, route) => `${launchUrl}&theme=${theme}&scheme=${scheme}${route}`,
+    routes: MOTION_ROUTES,
+    motion: 'no-preference',
+    log: (line) => process.stderr.write(`  layout (motion on): ${line}
+`),
+  });
+  problems.push(...moving.problems.map((p) => `motion on: ${p}`));
+  for (const r of moving.reported) console.log(`  report-only (decorative theme, motion on): ${r}`);
+  steps.push(`layout with motion on: ${moving.checked} views and states (${MOTION_ROUTES.join(', ')}) in ${themeRuns().length} theme schemes at ${WIDTHS.join(', ')}px, the splash, a loading screen and the sprint recap playing, ${moving.problems.length} problem(s), ${moving.reported.length} report-only axe finding(s)`);
 
   // toil's own execute(), from the installed package, with an empty home, behind the SQLite cache.
   const live = launch(bin, []);
