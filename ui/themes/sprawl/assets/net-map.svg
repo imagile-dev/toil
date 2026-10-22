@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" width="320" height="320">
+<!-- The net map: a megacity street grid as a wireframe, tiled behind the dependency graph. -->
+<rect width="320" height="320" fill="#07060f"/>
+<path d="M0 0V320" stroke="#3ff0ff" stroke-width="1.2" opacity="0.32"/>
+<path d="M58 0V320" stroke="#3ff0ff" stroke-width="0.6" opacity="0.18"/>
+<path d="M96 0V320" stroke="#3ff0ff" stroke-width="0.6" opacity="0.18"/>
+<path d="M150 0V320" stroke="#3ff0ff" stroke-width="1.2" opacity="0.32"/>
+<path d="M212 0V320" stroke="#3ff0ff" stroke-width="0.6" opacity="0.18"/>
+<path d="M248 0V320" stroke="#3ff0ff" stroke-width="0.6" opacity="0.18"/>
+<path d="M290 0V320" stroke="#3ff0ff" stroke-width="0.6" opacity="0.18"/>
+<path d="M0 0H320" stroke="#3ff0ff" stroke-width="1.2" opacity="0.32"/>
+<path d="M0 44H320" stroke="#3ff0ff" stroke-width="0.6" opacity="0.18"/>
+<path d="M0 110H320" stroke="#3ff0ff" stroke-width="0.6" opacity="0.18"/>
+<path d="M0 148H320" stroke="#3ff0ff" stroke-width="1.2" opacity="0.32"/>
+<path d="M0 196H320" stroke="#3ff0ff" stroke-width="0.6" opacity="0.18"/>
+<path d="M0 262H320" stroke="#3ff0ff" stroke-width="0.6" opacity="0.18"/>
+<path d="M0 300H320" stroke="#3ff0ff" stroke-width="0.6" opacity="0.18"/>
+<rect x="4" y="4" width="50" height="36" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="4" y="114" width="50" height="30" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="4" y="152" width="50" height="40" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="4" y="266" width="50" height="30" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="62" y="114" width="30" height="30" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="100" y="4" width="46" height="36" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="100" y="152" width="46" height="40" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="100" y="266" width="46" height="30" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="154" y="48" width="54" height="58" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="154" y="114" width="54" height="30" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="216" y="114" width="28" height="30" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="216" y="152" width="28" height="40" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="216" y="266" width="28" height="30" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="252" y="4" width="34" height="36" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="252" y="48" width="34" height="58" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="252" y="114" width="34" height="30" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="294" y="4" width="22" height="36" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="294" y="48" width="22" height="58" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="294" y="152" width="22" height="40" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="294" y="200" width="22" height="58" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<rect x="294" y="266" width="22" height="30" stroke="#5a4bb0" stroke-width="0.6" opacity="0.35"/>
+<path d="M0 230L90 140M90 140H150L320 -30M0 550" stroke="#ff2e88" stroke-width="0.8" opacity="0.28"/>
+<circle cx="0" cy="110" r="1.8" fill="#ff2e88" opacity="0.7"/>
+<circle cx="96" cy="196" r="1.8" fill="#3ff0ff" opacity="0.7"/>
+<circle cx="290" cy="148" r="1.8" fill="#3ff0ff" opacity="0.7"/>
+<circle cx="58" cy="110" r="1.8" fill="#ff2e88" opacity="0.7"/>
+<circle cx="58" cy="110" r="1.8" fill="#3ff0ff" opacity="0.7"/>
+<circle cx="96" cy="110" r="1.8" fill="#3ff0ff" opacity="0.7"/>
+<circle cx="150" cy="196" r="1.8" fill="#ff2e88" opacity="0.7"/>
+<circle cx="58" cy="300" r="1.8" fill="#3ff0ff" opacity="0.7"/>
+<circle cx="150" cy="300" r="1.8" fill="#3ff0ff" opacity="0.7"/>
+</svg>
