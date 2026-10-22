@@ -1,0 +1,323 @@
+---
+/**
+ * The toil map (#432): who asks toil on one side, everything toil reaches on
+ * the other, and toil in between. Every node is a link to its page; hovering,
+ * focusing or a first tap lights its paths and shows its label
+ * (src/scripts/toil-map.js). The nodes come from site/src/data/map.ts, which
+ * reads /connect/'s catalogue, so the map is never a list kept by hand.
+ *
+ * Two variants: `hero`, the home page's hero, with the headline in the middle
+ * (slot `head`) and the pitch and install call to action under toil (slot
+ * `sub`); and `full`, /map/'s larger copy, with what sits inside toil and a
+ * filter by verification level.
+ *
+ * Without JavaScript it is still the whole map: the nodes, grouped and linked.
+ * The wires, labels and motion are the script's, and reduced motion keeps the
+ * wires and labels and drops the motion. Like most org charts, it is clearer
+ * with the lines drawn, and still correct without them.
+ */
+import Logo from './Logo.astro';
+import { url } from '../lib/url';
+import { lanes, inside, reach, reachCount, mapLevels, type MapNode } from '../data/map';
+
+interface Props {
+  variant?: 'hero' | 'full';
+}
+const { variant = 'hero' } = Astro.props;
+const full = variant === 'full';
+
+/** What a screen reader hears after the chip's own text: its name when that differs, then its label. */
+const spoken = (n: MapNode) => `${n.name.toLowerCase() === n.text.toLowerCase() ? '' : `, ${n.name}`}: ${n.label}`;
+---
+
+<div class={`tmap tmap--${variant}`} data-tmap>
+  <svg class="tmap__wires" aria-hidden="true" focusable="false"></svg>
+
+  {!full && <div class="tmap__head"><slot name="head" /></div>}
+  {!full && <div class="tmap__sub"><slot name="sub" /></div>}
+
+  <section class="tmap__asks" aria-labelledby={`tmap-asks-${variant}`}>
+    <h2 class="tmap__side" id={`tmap-asks-${variant}`}>Who asks</h2>
+    <ul class="tmap__lanes">
+      {lanes.map((lane, i) => (
+        <li class="tmap__lane tmap__in" data-lane={lane.id} style={`--i: ${i}`}>
+          <h3 class="tmap__group">{lane.title}</h3>
+          <ul class="tmap__chips">
+            {lane.nodes.map((n) => (
+              <li>
+                <a class="tmap__node tmap__chip" href={url(n.href)} data-name={n.name} data-label={n.label}>
+                  {n.text}<span class="tmap__sr">{spoken(n)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <div class="tmap__core tmap__in" style="--i: 3">
+    <a class="tmap__node tmap__hub" href={url('/about/how-it-works/')} data-hub data-name="toil" data-label="Read-only by default, and every result cites its source">
+      <Logo height={full ? 112 : 88} />
+      <span class="wordmark tmap__word">toil</span>
+      <span class="tmap__sr">: how it works</span>
+    </a>
+    <p class="tmap__answer">One JSON answer back</p>
+    {full && (
+      <ul class="tmap__chips tmap__inside" aria-label="Inside toil">
+        {inside.map((n) => (
+          <li>
+            <a class="tmap__node tmap__chip" href={url(n.href)} data-name={n.name} data-label={n.label}>
+              {n.text}<span class="tmap__sr">{spoken(n)}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+
+  <section class="tmap__reach" aria-labelledby={`tmap-reach-${variant}`}>
+    <div class="tmap__reach-head">
+      <h2 class="tmap__side" id={`tmap-reach-${variant}`}>What it reaches</h2>
+      <a class="tmap__list tap" href={url('/connect/')}>All {reachCount} as a list <span aria-hidden="true">→</span></a>
+    </div>
+    {full && (
+      <div class="tmap__filter" role="group" aria-label="Show by verification level">
+        <button type="button" class="tmap__level" data-level="" aria-pressed="true">all</button>
+        {mapLevels.map((l) => <button type="button" class="tmap__level" data-level={l} aria-pressed="false"><span class={`tmap__dot tmap__dot--${l}`} aria-hidden="true"></span>{l}</button>)}
+      </div>
+    )}
+    <ul class="tmap__cats">
+      {reach.map((c, i) => (
+        <li class="tmap__cat tmap__in" data-cat={c.id} style={`--i: ${4 + i * 0.5}`}>
+          <h3 class="tmap__group"><a class="tmap__node tmap__cat-link" href={url(c.href)} data-name={c.title} data-label={c.blurb}>{c.title}</a></h3>
+          <ul class="tmap__chips">
+            {c.nodes.map((n) => (
+              <li>
+                <a class="tmap__node tmap__chip" href={url(n.href)} data-name={n.name} data-label={n.label} data-status={n.status}>
+                  {full && <span class={`tmap__dot tmap__dot--${n.status}`} aria-hidden="true"></span>}
+                  {n.text}<span class="tmap__sr">{spoken(n)}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <p class="tmap__tip" aria-hidden="true" hidden><b></b><span></span></p>
+</div>
+
+<script src="../scripts/toil-map.js"></script>
+
+<style>
+  .tmap {
+    /* The script reads this to choose the wiring: across in a row, down a stack. */
+    --tmap-flow: column;
+    position: relative;
+    display: grid;
+    gap: var(--space-lg);
+  }
+  .tmap > * { min-width: 0; }
+
+  /* Phones and tablets: the headline, the pitch and install, then the map's
+     story top to bottom, who asks, then toil, then what it reaches. */
+  .tmap__head { order: 1; }
+  .tmap__sub { order: 2; }
+  .tmap__asks { order: 3; }
+  .tmap__core { order: 4; }
+  .tmap__reach { order: 5; }
+
+  .tmap__wires {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+    z-index: 0;
+  }
+  .tmap__asks, .tmap__core, .tmap__reach, .tmap__head, .tmap__sub { position: relative; z-index: 1; }
+
+  .tmap__side {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  .tmap__group {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-ink);
+  }
+
+  .tmap__lanes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2xs); margin-top: var(--space-xs); }
+  .tmap__lane {
+    display: grid;
+    gap: var(--space-2xs);
+    align-content: start;
+    padding: var(--space-xs);
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+  }
+  .tmap__lane .tmap__chips { flex-direction: column; align-items: stretch; }
+
+  .tmap__chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+  .tmap__chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4em;
+    min-height: 34px;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-deep);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--color-ink);
+    white-space: nowrap;
+    transition: border-color var(--duration-fast) var(--ease-out), opacity var(--duration-base) var(--ease-out), background var(--duration-fast) var(--ease-out);
+  }
+  @media (pointer: coarse) { .tmap__chip { min-height: 44px; } }
+  .tmap__chip:hover, .tmap__chip.is-active { border-color: var(--color-accent); background: var(--color-surface-raised); }
+  .tmap__chip.is-out { opacity: 0.3; }
+
+  .tmap__cat-link { display: inline-flex; align-items: center; min-height: 34px; }
+  .tmap__cat-link:hover, .tmap__cat-link.is-active { color: var(--color-accent); }
+  @media (pointer: coarse) { .tmap__cat-link { min-height: 44px; } }
+
+  .tmap__sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* ---- toil, in between ---- */
+  .tmap__core { display: grid; justify-items: center; gap: var(--space-2xs); text-align: center; }
+  .tmap__hub {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: var(--space-xs) var(--space-md);
+    border-radius: var(--radius-md);
+    color: var(--color-ink);
+  }
+  .tmap__hub .logo { filter: drop-shadow(0 10px 30px color-mix(in oklab, var(--color-accent) 35%, transparent)); }
+  .tmap__word { font-size: 2rem; line-height: 1; }
+  .tmap__hub:hover .tmap__word, .tmap__hub.is-active .tmap__word { color: var(--color-accent); }
+  .tmap__answer { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--color-muted); }
+  .tmap__inside { justify-content: center; margin-top: var(--space-2xs); }
+
+  /* ---- what it reaches ---- */
+  .tmap__reach-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-sm); }
+  .tmap__list { font-family: var(--font-action); font-weight: 500; font-size: var(--text-sm); color: var(--color-accent); }
+  .tmap__cats { display: grid; gap: var(--space-xs); margin-top: var(--space-2xs); }
+  .tmap__cat { display: grid; gap: 0.3rem; }
+  .tmap__cat > *, .tmap__lane > * { transition: opacity var(--duration-base) var(--ease-out); }
+
+  /* While one node is lit, the groups it doesn't touch step back. The children
+     fade, not the group, whose entrance animation holds its own opacity. */
+  .tmap.is-lit .tmap__lane:not(.is-on) > *, .tmap.is-lit .tmap__cat:not(.is-on) > * { opacity: 0.4; }
+  .tmap.is-lit .tmap__lane:not(.is-on) { border-color: var(--color-line); }
+
+  .tmap__filter { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-block: var(--space-2xs); }
+  .tmap__level {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    min-height: 44px;
+    padding: 0 0.9rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 999px;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--color-muted);
+    cursor: pointer;
+  }
+  .tmap__level[aria-pressed='true'] { border-color: var(--color-accent); color: var(--color-ink); background: var(--color-accent-soft); }
+
+  /* A level's dot: hollow for unit, half for live, full for stable. Shape, not hue, so it reads without colour. */
+  .tmap__dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; border: 1.5px solid var(--color-accent); flex: none; }
+  .tmap__dot--live { background: linear-gradient(90deg, var(--color-accent) 50%, transparent 50%); }
+  .tmap__dot--stable { background: var(--color-accent); }
+
+  /* ---- the label ---- */
+  .tmap__tip {
+    position: absolute;
+    z-index: 3;
+    max-width: min(18rem, 100%);
+    padding: 0.5rem 0.7rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface-raised);
+    box-shadow: 0 12px 30px -12px rgba(0, 0, 0, 0.8);
+    font-size: var(--text-xs);
+    line-height: 1.4;
+    color: var(--color-muted);
+    pointer-events: none;
+  }
+  .tmap__tip b { display: block; color: var(--color-ink); font-weight: 600; font-size: var(--text-sm); }
+
+  /* ---- wires (drawn by the script) ----
+     Every colour on the map is a site token, so a reskin of the tokens reskins the map. */
+  .tmap :global(.tmap__wire) { fill: none; stroke: var(--color-line-strong); stroke-width: 1.5; transition: stroke var(--duration-fast) var(--ease-out), opacity var(--duration-base) var(--ease-out); }
+  .tmap :global(.tmap__wire.is-lit) { stroke: var(--color-accent); stroke-width: 2; }
+  .tmap.is-lit :global(.tmap__wire:not(.is-lit)) { opacity: 0.35; }
+  .tmap :global(.tmap__flow) { fill: none; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 14 var(--len); stroke-dashoffset: 14; }
+
+  @media (min-width: 640px) {
+    .tmap__cats { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-sm) var(--space-md); }
+  }
+
+  /* ---- desktop: across, toil in the middle ---- */
+  @media (min-width: 980px) {
+    .tmap { --tmap-flow: row; align-items: center; column-gap: clamp(3rem, 6vw, 6rem); row-gap: var(--space-md); }
+    .tmap--hero {
+      grid-template-columns: minmax(10rem, 0.5fr) minmax(0, 1.4fr) minmax(0, 1.25fr);
+      grid-template-areas: 'asks head reach' 'asks core reach' 'asks sub reach';
+    }
+    .tmap--full {
+      grid-template-columns: minmax(11rem, 0.55fr) minmax(0, 0.75fr) minmax(0, 2fr);
+      grid-template-areas: 'asks core reach';
+    }
+    .tmap__head { grid-area: head; text-align: center; }
+    .tmap__sub { grid-area: sub; text-align: center; }
+    .tmap__asks { grid-area: asks; }
+    .tmap__core { grid-area: core; }
+    .tmap__reach { grid-area: reach; }
+    .tmap__lanes { grid-template-columns: 1fr; gap: var(--space-sm); }
+    .tmap--hero .tmap__cats { grid-template-columns: 1fr; gap: var(--space-2xs); }
+    /* The full map keeps one category to a row, title then chips, so every
+       wire reaches its category without crossing another's chips. */
+    .tmap--full .tmap__cats { grid-template-columns: 1fr; gap: var(--space-sm); }
+    .tmap--full .tmap__cat { grid-template-columns: 12rem minmax(0, 1fr); align-items: center; gap: var(--space-sm); }
+  }
+
+  /* ---- motion: the map assembles, then a request goes in and an answer comes back ---- */
+  @media (prefers-reduced-motion: no-preference) {
+    .tmap__in { opacity: 0; transform: translateY(12px); animation: tmap-rise 700ms var(--ease-out) forwards; animation-delay: calc(200ms + var(--i) * 120ms); }
+    .tmap :global(.tmap__wire.is-drawing) { stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation: tmap-draw 900ms var(--ease-out) forwards; animation-delay: var(--delay, 0ms); }
+    .tmap :global(.tmap__flow.is-flowing) {
+      animation: tmap-in 900ms ease-in-out var(--in, 0ms), tmap-back 900ms ease-in-out var(--back, 0ms);
+    }
+  }
+  @keyframes tmap-rise { to { opacity: 1; transform: none; } }
+  @keyframes tmap-draw { to { stroke-dashoffset: 0; } }
+  @keyframes tmap-in { from { stroke: var(--color-accent); stroke-dashoffset: 14; } to { stroke: var(--color-accent); stroke-dashoffset: calc(var(--len) * -1); } }
+  @keyframes tmap-back { from { stroke: var(--color-ink); stroke-dashoffset: calc(var(--len) * -1); } to { stroke: var(--color-ink); stroke-dashoffset: 14; } }
+</style>

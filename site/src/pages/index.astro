@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ToilMap from '../components/ToilMap.astro';
 import { integrationCount, databaseCount } from '../data/integrations';
 import { principles } from '../data/principles';
 import { url, repoUrl } from '../lib/url';
@@ -17,44 +18,29 @@ const teaser = principles.slice(0, 3);
 ---
 
 <Layout title="toil">
-  <!-- ============ Hero: the slot for the toil map ============
-       #432 replaces this hero with the interactive toil map, with the headline,
-       the pitch and the install call to action set into it. Until then the
-       hero stays as it was. -->
-  <section class="hero grid-ground">
+  <!-- ============ Hero: the toil map ============
+       Who asks, toil in between, and everything it reaches (#432), with the
+       headline in the middle and the pitch and install under toil. -->
+  <section class="hero grid-ground" aria-labelledby="hero-title">
     <div class="hero__glow" aria-hidden="true"></div>
     <div class="hero__glow hero__glow--warm" aria-hidden="true"></div>
     <div class="container hero__inner">
-      <div class="hero__copy">
-        <p class="eyebrow hero__in" style="--i: 0"><span><b>Alpha</b> · Open source · By <a class="hero__imagile" href="https://www.imagile.dev">Imagile</a></span></p>
-        <h1 class="hero__title">
-          <span class="hero__in" style="--i: 1">The <em class="hero__mark text-gradient">token-efficient</em></span>
-          <span class="hero__in" style="--i: 2">alternative to MCP.</span>
-        </h1>
-        <p class="hero__subtitle hero__in" style="--i: 3">
-          toil gives your agents your enterprise tools and databases through one CLI,
-          and spends as little of their context as it can: compact JSON, only the
-          fields asked for, and docs read a page at a time instead of every tool
-          schema up front.
-        </p>
-        <div class="hero__actions hero__in" style="--i: 4">
-          <a href="#start" class="btn btn--primary">Get started</a>
-          <a href={url('/about/#demo')} class="btn btn--ghost">See it work</a>
-        </div>      </div>
-      <div class="hero__art" aria-hidden="true">
-        <img
-          src={url('/images/hero-diagram-1536.webp')}
-          srcset={`${url('/images/hero-diagram-960.webp')} 960w, ${url('/images/hero-diagram-1536.webp')} 1536w`}
-          sizes="(min-width: 980px) 640px, 100vw"
-          width="1536"
-          height="1024"
-          alt=""
-          loading="eager"
-          fetchpriority="high"
-          data-parallax="-0.06"
-        />
-        <span class="hero__pulse"></span>
-      </div>
+      <ToilMap>
+        <Fragment slot="head">
+          <p class="eyebrow hero__in" style="--i: 0"><span><b>Alpha</b> · Open source · By <a class="hero__imagile" href="https://www.imagile.dev">Imagile</a></span></p>
+          <h1 class="hero__title" id="hero-title">
+            <span class="hero__in" style="--i: 1">The <em class="hero__mark text-gradient">token-efficient</em></span>
+            <span class="hero__in" style="--i: 2">alternative to MCP.</span>
+          </h1>
+        </Fragment>
+        <Fragment slot="sub">
+          <p class="hero__subtitle hero__in" style="--i: 3">One CLI between whoever asks and your enterprise tools and databases.</p>
+          <div class="hero__install hero__in" style="--i: 4">
+            <code class="hero__cmd"><span aria-hidden="true">$ </span>{npmCommands[0]}</code>
+            <a href="#start" class="btn btn--primary">Get started</a>
+          </div>
+        </Fragment>
+      </ToilMap>
     </div>
   </section>
 
@@ -173,10 +159,8 @@ const teaser = principles.slice(0, 3);
 </Layout>
 
 <style>
-  /* ---------- Hero ---------- */
-  /* Below 980px the drawing is the last thing in the hero, so the hero needs
-     almost no bottom padding of its own. */
-  .hero { position: relative; overflow: clip; padding-block: var(--space-xl) var(--space-sm); }
+  /* ---------- Hero: the toil map ---------- */
+  .hero { position: relative; overflow: clip; padding-block: var(--space-lg) var(--space-xl); }
 
   .hero__glow {
     position: absolute;
@@ -185,7 +169,7 @@ const teaser = principles.slice(0, 3);
     height: 70vw;
     max-width: 900px;
     max-height: 900px;
-    background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.24), transparent 70%);
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--color-accent) 20%, transparent), transparent 70%);
     pointer-events: none;
   }
 
@@ -193,24 +177,17 @@ const teaser = principles.slice(0, 3);
     inset: auto auto -35% -20%;
     width: 55vw;
     height: 55vw;
-    background: radial-gradient(closest-side, rgba(var(--rgb-amber), 0.1), transparent 70%);
+    background: radial-gradient(closest-side, color-mix(in oklab, var(--color-accent) 8%, transparent), transparent 70%);
     animation-direction: alternate-reverse !important;
   }
 
-  .hero__inner {
-    position: relative;
-    display: grid;
-    gap: var(--space-lg);
-    align-items: center;
-  }
-
-  .hero__copy { position: relative; z-index: 2; }
+  .hero__inner { position: relative; }
 
   .hero__title {
-    font-size: var(--text-display);
+    font-size: clamp(2.3rem, 1.4rem + 2.4vw, 3rem);
     line-height: 1.04;
     letter-spacing: -0.015em;
-    margin: var(--space-sm) 0 var(--space-md);
+    margin-top: var(--space-sm);
   }
   .hero__title > span { display: block; }
 
@@ -230,7 +207,7 @@ const teaser = principles.slice(0, 3);
     height: 3px;
     border-radius: 2px;
     background: var(--gradient-accent);
-    box-shadow: 0 0 18px rgba(var(--rgb-accent), 0.6);
+    box-shadow: 0 0 18px color-mix(in oklab, var(--color-accent) 60%, transparent);
     transform-origin: left;
     transform: scaleX(1);
   }
@@ -238,7 +215,7 @@ const teaser = principles.slice(0, 3);
   .hero__imagile {
     color: var(--color-ink);
     text-decoration: underline;
-    text-decoration-color: rgba(var(--rgb-accent), 0.7);
+    text-decoration-color: color-mix(in oklab, var(--color-accent) 70%, transparent);
     text-underline-offset: 3px;
   }
   .hero__imagile:hover { color: var(--color-accent); }
@@ -246,11 +223,50 @@ const teaser = principles.slice(0, 3);
   .hero__subtitle {
     font-size: var(--text-lg);
     color: var(--color-muted);
-    max-width: 52ch;
-    margin-bottom: var(--space-md);
+    max-width: 34ch;
+    margin-inline: auto;
   }
 
-  .hero__actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+  .hero__install { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 0.75rem; margin-top: var(--space-sm); }
+  .hero__cmd {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    max-width: 100%;
+    padding: 0 0.9rem;
+    border: 1px solid var(--color-line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-deep);
+    font-size: 0.8rem;
+    overflow-wrap: anywhere;
+  }
+  .hero__cmd span { color: var(--color-accent); white-space: pre; }
+
+  /* Phones: the headline and install read left-aligned, like the rest of the page. */
+  @media (max-width: 979px) {
+    .hero__subtitle { margin-inline: 0; }
+    .hero__install { justify-content: flex-start; }
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .hero__in {
+      opacity: 0;
+      transform: translateY(16px);
+      animation: rise 800ms var(--ease-out) forwards;
+      animation-delay: calc(120ms + var(--i) * 110ms);
+    }
+
+    .hero__mark::after {
+      transform: scaleX(0);
+      animation: rule 900ms var(--ease-out) 900ms forwards;
+    }
+
+    .hero__glow { animation: glow 12s ease-in-out infinite alternate; }
+  }
+
+  @keyframes rise { to { opacity: 1; transform: none; } }
+  @keyframes rule { to { transform: scaleX(1); } }
+  @keyframes glow { to { transform: translate(-6%, 8%) scale(1.08); } }
 
   /* The Alpha badge by the install commands; the hero's eyebrow says it too. */
   .start__alpha {
@@ -294,83 +310,6 @@ const teaser = principles.slice(0, 3);
   .start__links { display: flex; flex-wrap: wrap; gap: 0 1.4rem; margin-top: auto; }
   .start__links a { font-family: var(--font-action); font-weight: 500; color: var(--color-accent); }
   @media (min-width: 860px) { .start__ways { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-
-  /* The drawing was generated on the page colour, so lighten lets the
-     drafting grid show through exactly as a transparent PNG would. The blend
-     sits on the wrapper: its animations make it a stacking context, which
-     would otherwise isolate a blend set on the img from the page beneath. */
-  .hero__art {
-    position: relative;
-    margin-inline: -1rem;
-    mix-blend-mode: lighten;
-  }
-
-  .hero__art img { width: 100%; height: auto; }
-
-  /* Stacked on phones and tablets, trim the drawing's empty lower strip (its
-     lines end about 86% of the way down) so no blank band sits above the
-     ticker. */
-  @media (max-width: 979px) {
-    .hero__inner { gap: var(--space-md); }
-    .hero__art img { aspect-ratio: 960 / 560; object-fit: cover; object-position: 50% 0; }
-  }
-
-  /* A soft beacon behind the crate, roughly where it sits in the drawing. */
-  .hero__pulse {
-    position: absolute;
-    left: 49%;
-    top: 62%;
-    width: 22%;
-    aspect-ratio: 1;
-    border-radius: 50%;
-    transform: translate(-50%, -50%);
-    background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.28), transparent);
-    mix-blend-mode: screen;
-    pointer-events: none;
-  }
-
-  /* The cropped drawing above is shorter, so the crate sits lower in it. */
-  @media (max-width: 979px) {
-    .hero__pulse { top: 71%; }
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .hero__in {
-      opacity: 0;
-      transform: translateY(16px);
-      animation: rise 800ms var(--ease-out) forwards;
-      animation-delay: calc(120ms + var(--i) * 110ms);
-    }
-
-    .hero__mark::after {
-      transform: scaleX(0);
-      animation: rule 900ms var(--ease-out) 900ms forwards;
-    }
-
-    .hero__art {
-      opacity: 0;
-      animation: art-in 1600ms var(--ease-out) 300ms forwards, float 9s ease-in-out 1.9s infinite;
-    }
-
-    .hero__pulse { animation: pulse 3.2s ease-in-out 1.6s infinite; }
-
-    .hero__glow { animation: glow 12s ease-in-out infinite alternate; }
-  }
-
-  @keyframes rise { to { opacity: 1; transform: none; } }
-  @keyframes rule { to { transform: scaleX(1); } }
-  @keyframes art-in { from { opacity: 0; transform: scale(0.96); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
-  @keyframes float { 50% { translate: 0 -10px; } }
-  @keyframes pulse { 0%, 100% { opacity: 0.35; scale: 0.85; } 50% { opacity: 1; scale: 1.15; } }
-  @keyframes glow { to { transform: translate(-6%, 8%) scale(1.08); } }
-
-  @media (min-width: 980px) {
-    .hero { padding-block: var(--space-2xl); }
-    .hero__inner { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.9fr); }
-    .hero__title { font-size: clamp(2.8rem, 1.2rem + 3.4vw, 4.4rem); }
-    .hero__art { margin-inline: -10% -14%; }
-  }
-
 
   /* ---------- Toil UI ---------- */
   .toilui__inner { display: grid; gap: var(--space-lg); align-items: center; }
