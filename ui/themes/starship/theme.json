@@ -37,7 +37,37 @@
     "loading": "assets/lightspeed.svg",
     "mark": "assets/mark.svg",
     "nebula": "assets/nebula.webp",
-    "emptyState": "assets/empty-sector.webp"
+    "emptyState": "assets/empty-sector.webp",
+    "momentWarp": "assets/moments/warp.webp",
+    "momentSensor": "assets/moments/sensor-sheet.svg",
+    "momentPip": "assets/moments/pip.svg",
+    "momentObjective": "assets/moments/objective.svg",
+    "momentNominal": "assets/moments/nominal.svg",
+    "momentRedAlert": "assets/moments/red-alert.svg",
+    "momentAllClear": "assets/moments/all-clear.svg",
+    "momentDocking": "assets/moments/docking.svg",
+    "momentMission": "assets/moments/mission.svg"
+  },
+  "moments": {
+    "splash": { "art": { "art": "momentWarp", "width": 480, "height": 320 }, "motif": "pop", "line": "Dropping out of warp. Bringing the dossiers on screen." },
+    "loader": {
+      "art": { "art": "momentSensor", "width": 128, "height": 128, "frames": 8 },
+      "loop": "frames",
+      "track": { "art": "momentPip", "size": 16, "count": 6, "motif": "blink" },
+      "flavour": ["Long-range sensors sweeping the sector.", "Aligning the navigation array.", "Requesting telemetry from the outer stations.", "Cross-checking the star charts.", "Holding position while the readings come in.", "Routing auxiliary power to the scanners."]
+    },
+    "tips": { "label": "Standing orders" },
+    "entrance": "sweep",
+    "tabs": "fade",
+    "events": {
+      "item-done": { "art": "momentObjective", "width": 64, "height": 64, "motif": "pop", "label": "Objective complete" },
+      "build-passed": { "art": "momentNominal", "width": 64, "height": 64, "motif": "rise", "label": "Systems nominal" },
+      "build-failed": { "art": "momentRedAlert", "width": 64, "height": 64, "motif": "drop", "label": "Red alert" },
+      "blocker-cleared": { "art": "momentAllClear", "width": 64, "height": 64, "motif": "slide", "label": "All clear" },
+      "pr-merged": { "art": "momentDocking", "width": 64, "height": 64, "motif": "sweep", "label": "Docking complete" },
+      "sprint-ended": { "art": "momentMission", "width": 64, "height": 64, "motif": "rise", "label": "Mission complete" }
+    },
+    "recap": { "label": "Mission debrief" }
   },
   "terms": {
     "sprint": "Ship's status",
