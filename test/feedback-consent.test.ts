@@ -1,8 +1,9 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import * as fn from '../functions/feedback/src/lib/consent.js';
-import { CONSENT_VERSION, DISCLAIMER, FEEDBACK_ENDPOINT } from '../src/feedback/consent.js';
+import { CONSENT_VERSION, DISCLAIMER, FEEDBACK_ENDPOINT, FEEDBACK_FORM } from '../src/feedback/consent.js';
+import { isRedirect } from '../site/src/lib/redirects.mjs';
 
 /**
  * The feedback disclaimer is one text with one version wherever a report can
@@ -39,5 +40,32 @@ describe('the feedback disclaimer', () => {
 
   it('is required by the function on both ways in, as its README says', () => {
     expect(flat(read('functions/feedback/README.md'))).toContain('"consent":1');
+  });
+});
+
+/**
+ * The feedback form's address is one constant, FEEDBACK_FORM (#435). This
+ * holds it to a page the site has, and every copy of it in the docs toil
+ * ships to it. The site's link check holds it to the built page too
+ * (site/scripts/check-links.mjs); this runs on every PR, that one when the
+ * site builds.
+ */
+describe('the feedback form link', () => {
+  const site = 'https://imagile-dev.github.io/toil';
+  const path = FEEDBACK_FORM.slice(site.length);
+
+  it("is a page in the site's own sources, not an old address that forwards", () => {
+    expect(FEEDBACK_FORM.startsWith(`${site}/`)).toBe(true);
+    expect(isRedirect(path)).toBe(false);
+    const page = join('site/src/pages', ...path.split('/').filter(Boolean));
+    expect(existsSync(join(repo, `${page}.astro`)) || existsSync(join(repo, page, 'index.astro'))).toBe(true);
+  });
+
+  it('is the address the shipped skill and the themes doc link to, and no other feedback address appears', () => {
+    for (const doc of ['skills/toil/core.md', 'ui/docs/themes.md']) {
+      const text = read(doc);
+      expect(text).toContain(FEEDBACK_FORM);
+      expect(text.replaceAll(FEEDBACK_FORM, '')).not.toMatch(/github\.io\/toil\/[^\s)]*feedback/);
+    }
   });
 });

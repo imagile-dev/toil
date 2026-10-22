@@ -7,7 +7,7 @@ import { runCli } from '../../test/harness/cli.js';
 import { scriptedPrompter, testContext } from '../../test/harness/context.js';
 import type { Route } from '../../test/harness/fake-fetch.js';
 import { feedbackCommands } from './command.js';
-import { CONSENT_VERSION, DISCLAIMER, FEEDBACK_ENDPOINT } from './consent.js';
+import { CONSENT_VERSION, DISCLAIMER, FEEDBACK_ENDPOINT, FEEDBACK_FORM } from './consent.js';
 
 /**
  * `toil feedback`: nothing leaves without approval of the exact report, and
@@ -125,7 +125,7 @@ describe('toil feedback', () => {
     const run = await runCli([...args, '--consent'], { commands: defs, context });
     expect(run.envelope?.error).toMatchObject({ code: 'HTTP', message: 'The toil feedback endpoint refused the report: This address has sent 3 reports today, the daily limit for /api/report. Try again tomorrow (UTC).' });
     expect(run.envelope?.error?.fix).toContain('Nothing was filed');
-    expect(run.envelope?.error?.fix).toContain('https://imagile-dev.github.io/toil/feedback/');
+    expect(run.envelope?.error?.fix).toContain(FEEDBACK_FORM);
   });
 
   it('refuses to send from a build that does not know its commit, but still previews, without asking first', async () => {
