@@ -37,7 +37,7 @@ declare module 'thrift' {
   interface Thrift {
     Thrift: {
       Type: Record<'STOP' | 'STRUCT' | 'MAP' | 'STRING' | 'I64', number>;
-      MessageType: Record<'CALL' | 'EXCEPTION', number>;
+      MessageType: Record<'CALL' | 'REPLY' | 'EXCEPTION', number>;
       TApplicationException: new () => Error & { read(input: TProtocol): void };
     };
     Connection: new (stream: Duplex, options: { transport: unknown; protocol: unknown }) => ThriftConnection;
@@ -46,6 +46,9 @@ declare module 'thrift' {
     TBufferedTransport: unknown;
     TBinaryProtocol: unknown;
     setLogFunc(fn: (...args: unknown[]) => void): void;
+    /** A Thrift server for a generated service; only the tests' fake HiveServer2 uses it. */
+    createServer(service: unknown, handler: object, options: { transport: unknown; protocol: unknown }): import('node:net').Server;
+    Int64: new (bytes: Buffer) => object;
   }
   const thrift: Thrift;
   export default thrift;
