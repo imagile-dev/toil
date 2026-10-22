@@ -24,6 +24,7 @@ import { useSkins, useTerm, useWords } from '../skins.tsx';
 import type { ChangeRef, Deployment } from '../toil.ts';
 import { Board } from './Board.tsx';
 import { Analyses } from './Analyses.tsx';
+import { BlockerGantt } from './Gantt.tsx';
 import { Overview } from './Overview.tsx';
 
 // The graph library is the biggest piece of the page, so it loads on its own, after the rest.
@@ -239,7 +240,7 @@ function BoardTab({ person }: { person?: string }) {
   );
 }
 
-/** The Dependencies tab: the dependency graph, with every relation listed in words under it. */
+/** The Dependencies tab: the blocker Gantt on the sprint's timeline (#396), then the dependency graph, with every relation listed in words under it. */
 function DependenciesTab() {
   const { dossier } = useData();
   const { Loading } = useSkins();
@@ -247,6 +248,9 @@ function DependenciesTab() {
   const words = useWords();
   return (
     <div className="tab-panels">
+      <Panel id="gantt" title="Blocker timeline" calls={[...dossier.calls.work, ...dossier.calls.prs, ...dossier.calls.builds]} alerts={false}>
+        <BlockerGantt />
+      </Panel>
       <Panel id="graph" title={term('dependencies', 'Dependencies')} calls={dossier.calls.work} alerts={false}>
         <Suspense fallback={<Loading message={words('loading.graph')} />}>
           <Graph />

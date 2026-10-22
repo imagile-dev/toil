@@ -42,8 +42,7 @@
   the stand-up's write-up, a worklog run's transcript and an agent proposal's reason.
   Insights, readiness reasons and the Overview's own issue sentences keep the plain
   link, since they already say what each id is. The chip is the Overview's
-  `TicketChip`, moved to `ui/src/components/items.tsx` (the Overview re-exports it for
-  #396), with a React Aria tooltip on hover or keyboard focus: type and status,
+  `TicketChip`, moved to `ui/src/components/items.tsx`, with a React Aria tooltip on hover or keyboard focus: type and status,
   assignee, estimate, sprint and last update; a pull request's repository, author,
   checks and how many items it carries. An id the dossier doesn't hold stays the bare
   `missing` id, as before.

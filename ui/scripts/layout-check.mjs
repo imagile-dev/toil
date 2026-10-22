@@ -46,7 +46,7 @@
 //   node scripts/layout-check.mjs --base http://127.0.0.1:4173/ [--theme crate] [--route '#/settings/dossiers'] [--width 375] [--motion full] [--shots <dir>] [--json <file>]
 //
 // Repo tooling only; nothing here ships. It measures twice and files once.
-/* global document, window, getComputedStyle, CSS -- inspect(), covered(), dragPlan() and dragMid() run in the page */
+/* global document, window, getComputedStyle, CSS -- inspect(), covered(), dragPlan(), hitTest() and dragMid() run in the page */
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { availableParallelism } from 'node:os';
@@ -71,9 +71,12 @@ export const ROUTES = [
   '#/dossier/settlement',
   '#/dossier/checkout-web',
   // The dossier's own tabs (#394): the Board with its needs-attention flags, the longest titles' board, Dependencies, and Analyses.
+  // Dependencies carries the blocker Gantt and its table (#396): a three-item chain with failing checks, a one-link Azure DevOps chain, and a dossier with no blocker.
   '#/dossier/card-payments/board',
   '#/dossier/checkout-web/board',
   '#/dossier/card-payments/dependencies',
+  '#/dossier/settlement/dependencies',
+  '#/dossier/checkout-web/dependencies',
   '#/dossier/card-payments/analyses',
   // The history of analyses (#395): one opened again, top-down, with its evidence folded and what changed since the one before.
   '#/dossier/card-payments/analyses/sample-analysis-2',
@@ -253,6 +256,28 @@ const inMenu = (selector) => `(async () => {
   return await ${clickAll(selector)};
 })()`;
 
+/** Polls `expression` in the page every 50ms until it is truthy or `ms` pass; resolves with its last value. */
+const until = (page, expression, ms = 5000) =>
+  page.evaluate(`(async () => { const deadline = Date.now() + ${ms}; for (;;) { const v = (${expression}); if (v || Date.now() > deadline) return v; await new Promise((r) => setTimeout(r, 50)); } })()`);
+
+const OPEN_DIALOGS = `document.querySelectorAll('[role="dialog"]').length`;
+
+/**
+ * Closes any menu or dialog an earlier state left open, as a person would:
+ * focus inside it, Escape, and wait until it has gone. On a slow runner an
+ * earlier undo's Escape can land before the overlay has focus, and an open
+ * one holds focus inside itself and covers the page (#404). Resolves with
+ * the label of one still open after three tries, or '' when none is.
+ */
+async function closeOverlays(page) {
+  for (let i = 0, open; i < 3 && (open = await page.evaluate(OPEN_DIALOGS)) > 0; i++) {
+    await page.evaluate(`(() => { const d = [...document.querySelectorAll('[role="dialog"]')].at(-1); (d.querySelector('a, button, input, [tabindex]') ?? d).focus(); })()`);
+    await page.key('Escape');
+    await until(page, `${OPEN_DIALOGS} < ${open}`, 2000);
+  }
+  return page.evaluate(`(() => { const d = [...document.querySelectorAll('[role="dialog"]')].at(-1); return d ? (d.getAttribute('aria-label') ?? d.className) || 'a dialog' : ''; })()`);
+}
+
 /** The states each view is checked in, beyond how it opens. */
 function states(route, width) {
   const out = [];
@@ -390,23 +415,47 @@ function dragMid(item, tx, ty) {
   };
 }
 
+/** What is at (x, y) on the page, when it isn't the grip of `item`: '' when it is. */
+function hitTest(item, x, y) {
+  const el = document.elementFromPoint(x, y);
+  if (el?.closest('.card-grip')?.dataset.item === item) return '';
+  if (!el) return 'nothing';
+  const label = el.closest('[aria-label]')?.getAttribute('aria-label');
+  return `${el.tagName.toLowerCase()}${el.className && typeof el.className === 'string' ? `.${el.className.trim().split(/\s+/).join('.')}` : ''}${label ? ` in "${label}"` : ''}`;
+}
+
 /**
  * Drags a card to the next column with real input and checks what a person
  * sees on the way and after. Resolves with problems, as strings; the dropped
  * state's layout and axe findings come back as `findings` and `violations`.
+ *
+ * Every step waits on what it needs, never on a fixed time (#404): no menu
+ * or dialog left open over the board, the card's grip under the pointer, the
+ * card picked up, the copy under the pointer, the ghost in the column.
  */
 async function dragCheck(page, width, shoot, inspectDropped) {
+  const none = { findings: [], violations: [] };
+  // A menu an earlier state's Escape missed would take the press and close itself instead of the card moving.
+  const open = await closeOverlays(page);
+  if (open) return { problems: [`before the drag, "${open}" was still open after three Escapes, covering the board`], ...none };
   const plan = await page.evaluate(`(${dragPlan})()`);
-  if (!plan) return { problems: ['no board with two columns to drag between'], findings: [], violations: [] };
+  if (!plan) return { problems: ['no board with two columns to drag between'], ...none };
+  const blocked = await page.evaluate(`(${hitTest})(${JSON.stringify(plan.item)}, ${plan.x}, ${plan.y})`);
+  if (blocked) return { problems: [`before the drag, the card's grip at ${plan.x},${plan.y} is under ${blocked}, so a press there can't pick it up`], ...none };
   const settle = (ms) => page.evaluate(`new Promise((r) => setTimeout(r, ${ms}))`);
   const touch = width < 768;
   const problems = [];
   const steps = 12;
+  const placeholder = `(${dragMid})(${JSON.stringify(plan.item)}, 0, 0).placeholder`;
   if (touch) {
     await page.touchscreen(true);
     await page.touch('start', plan.x, plan.y);
-    // The hold that picks a card up by touch (TOUCH_HOLD in src/views/Board.tsx), and a little more.
-    await settle(350);
+    // The hold that picks a card up by touch (TOUCH_HOLD in src/views/Board.tsx): the finger stays still until it has.
+    if (!(await until(page, placeholder))) {
+      await page.touch('end', plan.x, plan.y);
+      await page.touchscreen(false);
+      return { problems: [`a finger held on the card's grip at ${plan.x},${plan.y} didn't pick it up within 5s`], ...none };
+    }
   } else {
     await page.mouse('move', plan.x, plan.y);
     await page.mouse('down', plan.x, plan.y);
@@ -415,26 +464,28 @@ async function dragCheck(page, width, shoot, inspectDropped) {
     const x = Math.round(plan.x + ((plan.tx - plan.x) * i) / steps);
     const y = Math.round(plan.y + ((plan.ty - plan.y) * i) / steps);
     await (touch ? page.touch('move', x, y) : page.mouse('move', x, y));
+    // A hand's pace, not a wait for anything: what the drag must show is waited for below.
     await settle(16);
   }
-  await settle(150);
-  const mid = await page.evaluate(`(${dragMid})(${JSON.stringify(plan.item)}, ${plan.tx}, ${plan.ty})`);
+  const midNow = `(${dragMid})(${JSON.stringify(plan.item)}, ${plan.tx}, ${plan.ty})`;
+  await until(page, `(() => { const m = ${midNow}; return m.overlay && m.underPointer && m.placeholder && /^Drop to propose: /.test(m.verdict ?? ''); })()`);
+  const mid = await page.evaluate(midNow);
   await shoot('drag-mid');
-  if (!mid.overlay) problems.push('mid-drag, no copy of the card follows the pointer');
-  else if (!mid.underPointer) problems.push(`mid-drag, the copy of the card isn't under the pointer at ${plan.tx},${plan.ty}`);
+  if (!mid.overlay) problems.push('mid-drag, no copy of the card followed the pointer within 5s');
+  else if (!mid.underPointer) problems.push(`mid-drag, the copy of the card wasn't under the pointer at ${plan.tx},${plan.ty} within 5s`);
   if (mid.overlay && !/^Drop to propose: /.test(mid.verdict ?? '')) problems.push(`mid-drag over the next column, the copy says "${mid.verdict}" instead of what a drop would propose`);
-  if (!mid.placeholder) problems.push('mid-drag, the card left no placeholder in its column');
+  if (!mid.placeholder) problems.push('mid-drag, the card left no placeholder in its column within 5s');
   await (touch ? page.touch('end', plan.tx, plan.ty) : page.mouse('up', plan.tx, plan.ty));
   if (touch) await page.touchscreen(false);
-  await settle(300);
-  const ghost = await page.evaluate(`(() => { const g = document.querySelector('[data-proposed-ghost]'); return g ? g.closest('.column')?.querySelector('h3')?.id ?? '' : null; })()`);
-  if (ghost === null) problems.push('after the drop, no proposed ghost of the card shows on the board');
+  const ghost = await until(page, `(() => { const g = document.querySelector('[data-proposed-ghost]'); return g ? g.closest('.column')?.querySelector('h3')?.id ?? '' : null; })()`);
+  if (ghost === null) problems.push('after the drop, no proposed ghost of the card showed on the board within 5s');
   else if (ghost !== plan.target) problems.push(`after the drop, the proposed ghost is in ${ghost || 'no column'}, not ${plan.target}`);
   await shoot('drag-dropped');
-  const dropped = ghost === null ? { findings: [], violations: [] } : await inspectDropped();
-  // Undo, so the next width starts from the board as it opened.
-  await page.evaluate(`document.querySelectorAll('[data-proposed-ghost] button').forEach((b) => /^Undo/.test(b.getAttribute('aria-label') ?? '') && b.click())`);
-  await settle(200);
+  const dropped = ghost === null ? none : await inspectDropped();
+  // Undo, so the next width starts from the board as it opened. For 50ms after a drop dnd-kit stops every click on
+  // the page (the one a pointerup would make), so Undo is pressed until the ghost has gone, not once.
+  const undone = await page.evaluate(`(async () => { const deadline = Date.now() + 5000; for (;;) { const b = [...document.querySelectorAll('[data-proposed-ghost] button')].find((x) => /^Undo/.test(x.getAttribute('aria-label') ?? '')); if (!b) return !document.querySelector('[data-proposed-ghost]'); if (Date.now() > deadline) return false; b.click(); await new Promise((r) => setTimeout(r, 100)); } })()`);
+  if (!undone) problems.push('after Undo was pressed for 5s, the proposed ghost was still on the board');
   return { problems, ...dropped };
 }
 
@@ -547,14 +598,8 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
       for (const state of states(route, width)) {
         // A state that opens nothing checks nothing, so it's a problem, never a quiet pass. clickAll waits for
         // its element to show, and an item in the compact header's Menu is looked for once the Menu is open (#289).
-        // A state that needs focus (`clearOverlays`) first closes any menu or dialog an earlier state left open, as a
-        // person would: focus inside it, Escape. On a slow runner an earlier undo's Escape can land before the overlay
-        // has focus, and an open one holds focus inside itself.
-        for (let i = 0; state.clearOverlays && i < 3 && (await page.evaluate(`document.querySelectorAll('[role="dialog"]').length`)) > 0; i++) {
-          await page.evaluate(`(() => { const d = [...document.querySelectorAll('[role="dialog"]')].at(-1); (d.querySelector('a, button, input, [tabindex]') ?? d).focus(); })()`);
-          await page.key('Escape');
-          await page.evaluate(`new Promise((r) => setTimeout(r, 300))`);
-        }
+        // A state that needs focus (`clearOverlays`) first closes any menu or dialog an earlier state left open.
+        if (state.clearOverlays) await closeOverlays(page);
         if (state.key) await page.key(state.key);
         const opened = await page.evaluate(state.setup);
         if (opened === -1) problems.push(`${where} (${state.name}): no Menu button to open`);

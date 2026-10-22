@@ -180,19 +180,6 @@ a.ticket-chip:hover { border-color: var(--link); }
 /* The sprint in full, as its panel was: a theme's sprint dressing (Harvest's calendar) is placed against it. */
 .chart-dialog__sprint { position: relative; display: grid; gap: 0.75rem; min-width: 0; }
 
-/* The blockers in brief: each blocker, then what it holds. */
-.blocker-rows { list-style: none; padding: 0; margin: 0; display: grid; gap: 0.25rem; }
-.blocker-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem; min-width: 0; }
-.blocker-row > .ticket-chip { max-width: 100%; }
-.blocker-row__arrow { color: var(--muted); font-size: 0.8125rem; }
-.blocker-row__more { flex: none; white-space: nowrap; }
-/* One line a blocker where it fits: the titles give way first, the keys never. */
-@media (min-width: 600px) {
-  .blocker-row, .blocker-row .ticket-chips { flex-wrap: nowrap; }
-  .blocker-row .ticket-chips, .blocker-row .ticket-chips > li, .blocker-row .ticket-chip { min-width: 0; }
-  .blocker-row > .ticket-chip { flex: 0 1 auto; }
-  .blocker-row__arrow { flex: none; }
-}
 .overview-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1rem; }
 
 @media (max-width: 599px) {
