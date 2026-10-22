@@ -21,7 +21,8 @@ import { neverAnswers, type CannedResponse, type RecordedRequest, type Route } f
  * query shapes (`sessionId`, `results[].resultSet`, `columns`, `data` as
  * arrays, `rowCount`), the error body (`{ error, message }`), and the
  * statuses it documents (404, 412, 420 Database Error, 429 Too Many
- * Sessions). None was captured from a live service. The tests assert both
+ * Sessions). None was captured from a live service; the request for one is
+ * still awaiting a sponsor. The tests assert both
  * sides: the exact requests toil sent, and how each answer was reshaped.
  */
 
