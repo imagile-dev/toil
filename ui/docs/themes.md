@@ -38,16 +38,22 @@ Fonts don't change contrast: Plain keeps its colours, and its pages pass the axe
 A theme has up to three layers.
 
 - **Visuals** are what every theme has: colours, fonts, borders, art, and motion. They never change a word.
-- **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the dossier list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, the Ask pane's notes, and the chat's placeholder, welcome and status words (#343). Crate's empty board column reads "Bay empty." and Realm's reads "None stand here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Campaign (Epic)" or "Ledger (Sprint 42: day 7 of 10)". A theme may also rename the People and Analyses headings, an item's priority, the Builds panel, how a build ended, and the sprint's points done and left: Realm reads them as "Party (People)", "Quest log (Analyses)", "Initiative (Priority)", "Saving throws (Builds)", "Natural 20 (passed)" or "Critical fail (failed)" beside the build's own state, "Experience points (Points done)" and "Hit points (Points left)". The Settings pages and the Sync panel keep the standard text.
+- **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the dossier list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, the Ask pane's notes, and the chat's placeholder, welcome and status words (#343). Crate's empty board column reads "Bay empty." and Realm's reads "None stand here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Campaign (Epic)" or "Ledger (Sprint 42: day 7 of 10)". A theme may also rename the People and Analyses headings, an item's priority, the Builds panel, how a build ended, and the sprint's points done and left: Realm reads them as "Party (People)", "Quest log (Analyses)", "Initiative (Priority)" on an item's fields, "Saving throws (Builds)", "Natural 20 (passed)" or "Critical fail (failed)" beside the build's own state, "Experience points (Done)" on the sprint's tally and "Hit points (Points left)", which takes the place of the sprint's meter. The Settings pages and the Sync panel keep the standard text.
 - **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, Realm like a dungeon master narrating a grim campaign to the party, dramatic but brief with every figure and citation as the data gives it, Frontier like a dry telegraph operator who also keeps the engine running, and Sprawl like a netrunner on a job: work items are gigs, the sprint is the run, a pull request is a payload waiting on the fixer, a build is an ICE check, a deployment is jacking in to prod, and a blocker is black ICE.
-
-**Rolled alignments** are Realm's one playful label on a person. With themed wording on, each card on the People tab carries a "Rolled alignment", such as "Neutral good", picked from the card's name alone, so the same name always rolls the same and nothing from anyone's work goes into it: it can't score or rank anyone. Only good and neutral alignments are on the list, and the page says what they are. Switch themed wording off and they're gone. A theme lists its own in `theme.json`'s `alignments`, and the theme test refuses one that judges a person.
 
 Wording never touches these, in any theme:
 
 - the name of a button, a link or a form field, so what you, a script or voice control looks for is always there, and every control's accessible name matches its visible words (WCAG 2.5.3);
 - a heading a screen reader or a test finds a section by, apart from the renamed words shown beside the real ones;
 - a command such as `toil dossiers init`, an item's id, a number, a date, an error or its fix, or a not-found notice such as an item the dossier doesn't have.
+
+## Rolled alignments
+
+Realm's one playful label on a person. With themed wording on, each card on the People tab carries a "Rolled alignment", such as "Neutral good", picked from the card's name alone, so the same name always rolls the same and nothing from anyone's work goes into it: it can't score or rank anyone. Only good and neutral alignments are on the list, and the (i) beside the cards says what they are. Switch themed wording off and they're gone. A theme lists its own in `theme.json`'s `alignments`, and the theme test refuses one that judges a person.
+
+## Rest days
+
+In Realm, a past day on the worklog's calendar with nothing on its page, or no page at all, is a rest and carries a camp fire in its corner: a small one for a short rest on a weekday, a larger one for a long rest at the weekend. The fires and the line that names them show only while themed wording is on.
 
 ## The checkboxes
 

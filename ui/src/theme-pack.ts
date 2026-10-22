@@ -55,7 +55,7 @@ export interface ThemeManifest {
    * A playful label a theme may roll for each card on the People tab (#415),
    * shown only while themed wording is on. It is picked from `values` by the
    * card's name alone, never from anyone's work, so it can't score or rank a
-   * person, and `note` says so on the page.
+   * person; the (i) beside the cards says so.
    */
-  alignments?: { label: string; note: string; values: string[] };
+  alignments?: { label: string; values: string[] };
 }

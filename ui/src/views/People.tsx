@@ -81,8 +81,8 @@ export function People() {
           <div className="edit-head">
             <h2 id="people-cards">People and agents</h2>
             <EditLink href={dossierEditHref(dossier.name, 'people')} label={`Edit ${dossier.name}'s people`} />
+            {alignments && <Help topic="alignments" />}
           </div>
-          {alignments && <p className="note people-roll-note">{alignments.note}</p>}
           <CardGrid min="md" className="people-cards">
             {view.people.map((c) => (
               <li key={c.who.key}>

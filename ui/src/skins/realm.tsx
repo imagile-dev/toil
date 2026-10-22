@@ -1,10 +1,9 @@
 /**
  * Realm's skins (#210, #349, #415): a house ledger kept by candlelight, played
  * as a tabletop campaign. A board card names the campaign it serves (its
- * epic) and its place in the initiative order (its priority), each with the
- * source's own word beside the theme's; the sprint keeps its hit points
- * (points left) and experience (points done); a worklog day with no page is a
- * rest; the header closes on an embossed, riveted rule; an empty list is a
+ * epic, with the source's own word beside the theme's); the sprint's meter
+ * becomes its hit points (points left); a worklog day with nothing on its
+ * page is a rest; the header closes on an embossed, riveted rule; an empty list is a
  * ledger lying open on blank pages; the agent answers as the dungeon master
  * under its wax seal; and while a view loads, a d20 rolls. The art is drawn
  * for this theme and hidden from screen readers, and every figure it dresses
@@ -13,6 +12,7 @@
  */
 
 import { useContext, type ReactNode } from 'react';
+import { Help } from '../components/help.tsx';
 import { DataContext, useDerived } from '../data.ts';
 import type { Skins } from '../skins.tsx';
 import { useTerm, useThemeChoiceContext } from '../theme-context.ts';
@@ -33,21 +33,12 @@ function Campaign({ item }: { item: WorkItem }) {
   );
 }
 
-/** The card's priority, as its place in the initiative order: "Initiative (Priority): High". */
-function Initiative({ item }: { item: WorkItem }) {
-  const term = useTerm();
-  if (!item.priority) return null;
-  return (
-    <p className="realm-initiative">
-      {term('priority', 'Priority')}: {item.priority}
-    </p>
-  );
-}
-
 /**
- * The sprint's vitals: its points left as hit points, drawn as a bar, and its
- * points done as experience. The same two figures the sprint panel already
- * counts, so with themed wording off it shows nothing new and stays away.
+ * The sprint's hit points: its points left, drawn as a bar that takes the
+ * place of the panel's own meter (theme.css hides that one beside it), so
+ * the panel shows the same figures it did, in the campaign's words. Its
+ * points done already read as experience on the Done tally. With themed
+ * wording off it stays away and the meter comes back.
  */
 function Vitals() {
   const { health: h } = useDerived();
@@ -64,9 +55,6 @@ function Vitals() {
       <span className="realm-hp" aria-hidden="true">
         <span style={{ width: `${total ? (100 * left) / total : 0}%` }} />
       </span>
-      <p className="realm-vital">
-        <span className="realm-vital__name">{term('pointsDone', 'Points done')}</span> <span className="realm-vital__value">{h.done.points}</span>
-      </p>
     </div>
   );
 }
@@ -75,7 +63,11 @@ function Vitals() {
 function Rests() {
   const { wording } = useThemeChoiceContext();
   if (!wording) return null;
-  return <p className="note realm-rests">A past day with nothing on its page, or no page at all, is a rest, marked with a camp fire: a short rest on a weekday, a long rest at the weekend.</p>;
+  return (
+    <p className="note realm-rests">
+      Camp fires mark rest days. <Help topic="rest-days" />
+    </p>
+  );
 }
 
 function Panel({ id, children }: { id: string; children: ReactNode }) {
@@ -119,7 +111,6 @@ export const realmSkins: Partial<Skins> = {
   Card: ({ item, children }) => (
     <>
       {children}
-      <Initiative item={item} />
       <Campaign item={item} />
     </>
   ),

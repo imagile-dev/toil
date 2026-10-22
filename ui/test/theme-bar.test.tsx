@@ -146,8 +146,6 @@ describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () =>
 
   it('reads the board, builds, people, analyses and an item as a tabletop campaign in Realm, beside the real words (#415)', async () => {
     await open('#/dossier/card-payments/board', 'realm', 'light');
-    const board = screen.getByRole('region', { name: /board/ });
-    expect(within(board).getAllByText(/^Initiative \(Priority\): \S/).length).toBeGreaterThan(0);
     const builds = screen.getByRole('region', { name: 'Saving throws (Builds)' });
     const rolls = [...builds.querySelectorAll('.outcome__roll')].map((r) => r.textContent);
     expect(rolls).toContain('Natural 20 (passed): ');
@@ -242,20 +240,22 @@ describe('the skins', { timeout: SLOW }, () => {
     expect(tags.length).toBe(cards.length);
     const values = themeNamed('realm').alignments!.values;
     for (const t of tags) expect(values).toContain(t!.replace(/^Rolled alignment: /, ''));
-    expect(screen.getByText(/rolled from each name, for play/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'About rolled alignments' })).toBeTruthy();
     const first = tags;
     cleanup();
     await open('#/dossier/card-payments/people', 'realm', 'light');
     expect([...document.querySelectorAll('.person-tag--roll')].map((t) => t.textContent)).toEqual(first);
   });
 
-  it("count the sprint's hit points and experience in Realm, from the sprint's own figures", async () => {
+  it("count the sprint's hit points in place of its meter in Realm, from the sprint's own figures", async () => {
     await open('#/dossier/card-payments', 'realm', 'light');
     await userEvent.click(screen.getByRole('button', { name: /^Burn-up / }));
     const dialog = await screen.findByRole('dialog');
     const vitals = dialog.querySelector('.realm-vitals')!;
-    expect(vitals.textContent).toMatch(/Hit points \(Points left\) 18 of 21/);
-    expect(vitals.textContent).toMatch(/Experience points \(Points done\) 3$/);
+    expect(vitals.textContent).toBe('Hit points (Points left) 18 of 21');
+    // The meter it stands in for is still in the page (theme.css hides it), and the Done tally reads as experience.
+    expect(vitals.nextElementSibling?.matches('.meter') || dialog.querySelector('.realm-vitals ~ .meter')).toBeTruthy();
+    expect(within(dialog).getByText('Experience points (Done)')).toBeTruthy();
     expect(vitals.querySelector('.realm-hp')!.getAttribute('aria-hidden')).toBe('true');
   });
 
@@ -263,7 +263,8 @@ describe('the skins', { timeout: SLOW }, () => {
     // The worklog needs the server's cache, which the preview has none of, so the panel's skin is rendered on its own.
     const Panel = skinsFor('realm').Panel;
     render(<Panel id="worklog-calendar"><table className="calendar" /></Panel>);
-    expect(screen.getByText(/a short rest on a weekday, a long rest at the weekend/)).toBeTruthy();
+    expect(screen.getByText(/Camp fires mark rest days/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'About rest days' })).toBeTruthy();
     expect(document.querySelector('.realm-rest-key + .calendar')).toBeTruthy();
   });
 

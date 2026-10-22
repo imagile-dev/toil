@@ -121,18 +121,16 @@ export function manifestProblems(folder: string, raw: unknown): string[] {
 const JUDGEMENT = /\b(evil|bad|wicked|villain|lazy|slow|weak|worst|poor)\b/i;
 
 /**
- * Problems with a theme's alignments (#415): a short label, a note that says
- * what they are, and at least two values, each plain text and short enough
+ * Problems with a theme's alignments (#415): a short label and at least two values, each plain text and short enough
  * for a tag, none of them a judgement of a person.
  */
 export function alignmentProblems(alignments: unknown): string[] {
   if (alignments === undefined) return [];
-  const a = alignments as { label?: unknown; note?: unknown; values?: unknown };
-  if (!a || typeof a !== 'object' || Array.isArray(a)) return ['theme.json: "alignments" must be an object with a label, a note and values.'];
+  const a = alignments as { label?: unknown; values?: unknown };
+  if (!a || typeof a !== 'object' || Array.isArray(a)) return ['theme.json: "alignments" must be an object with a label and values.'];
   const plain = (v: unknown, max: number) => typeof v === 'string' && v.trim() !== '' && v.length <= max && !/[<>`]|\[\[|[\r\n]/.test(v);
   const out: string[] = [];
   if (!plain(a.label, 30)) out.push('theme.json: alignments.label must be plain text of 30 characters or fewer.');
-  if (!plain(a.note, 200)) out.push('theme.json: alignments.note must be plain text of 200 characters or fewer.');
   if (!Array.isArray(a.values) || a.values.length < 2) out.push('theme.json: alignments.values must list at least two labels.');
   for (const v of Array.isArray(a.values) ? a.values : []) {
     if (!plain(v, 24)) out.push(`theme.json: alignments.values ${JSON.stringify(v)} must be plain text of 24 characters or fewer.`);

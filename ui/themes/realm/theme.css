@@ -439,15 +439,12 @@
   font-size: 0.9375rem;
 }
 
-/* A card's place in the initiative order (its priority). */
-[data-theme="realm"] .realm-initiative {
-  font-size: 0.875rem;
-  font-variant: small-caps;
-  letter-spacing: 0.03em;
-  color: var(--muted);
+/* The sprint's hit points: an oxblood bar in an iron frame, in place of the
+   panel's own meter, which hides while they show. */
+[data-theme="realm"] .realm-vitals ~ .meter {
+  display: none;
 }
 
-/* The sprint's vitals: hit points as an oxblood bar in an iron frame, and experience beneath. */
 [data-theme="realm"] .realm-vitals {
   display: grid;
   gap: 0.3rem;
@@ -491,20 +488,20 @@
 }
 
 /* Rest days on the worklog's calendar: a past day with nothing on its page,
-   or no page at all, carries a camp fire in its corner, small on a weekday (a short rest)
+   or no page at all, carries a camp fire in its lower corner, small on a weekday (a short rest)
    and larger at the weekend (a long rest). Only while the panel's note says
    so. */
 [data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty,
 [data-theme="realm"] .realm-rest-key ~ .calendar .calendar__day[data-quiet]:not([data-today]):not([aria-current]) {
   background-image: url("./assets/rest.svg");
-  background-position: right 3px top 3px;
-  background-size: 11px 11px;
+  background-position: right 2px bottom 2px;
+  background-size: 9px 9px;
   background-repeat: no-repeat;
 }
 
 [data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty:nth-child(n+6),
 [data-theme="realm"] .realm-rest-key ~ .calendar td:nth-child(n+6) .calendar__day[data-quiet]:not([data-today]):not([aria-current]) {
-  background-size: 16px 16px;
+  background-size: 12px 12px;
 }
 
 /* A rolled alignment on a People card: a playful tag, set in italic so it

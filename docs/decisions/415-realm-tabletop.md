@@ -12,29 +12,42 @@
   (`ui/test/themes.test.ts`), which would have made three parallel theme PRs edit each
   other's `theme.json`.
 - **Where each one shows:** the People and Analyses headings ("Party (People)", "Quest
-  log (Analyses)"); an item's Priority field and a line on each Realm board card
-  ("Initiative (Priority): High"); the Builds panel ("Saving throws (Builds)"); a build
+  log (Analyses)"); an item's Priority field ("Initiative (Priority)"); the Builds panel ("Saving throws (Builds)"); a build
   that passed or failed carries "Natural 20 (passed): " or "Critical fail (failed): "
   before the state its source gave, in the Builds panel, the trace table and an item's
-  page (one shared `Outcome` in `ui/src/components/bits.tsx`); and the sprint's points
-  left and done as hit points and experience, in the sprint panel's skin (the burn-up
-  dialog), from the same figures the panel counts. A deployment's outcome is not
+  page (one shared `Outcome` in `ui/src/components/bits.tsx`); the sprint's Done tally
+  ("Experience points (Done)"); and the sprint's points left as hit points, a bar in
+  the sprint panel's skin (the burn-up dialog) that takes the place of the panel's own
+  meter, which Realm's CSS hides beside it. A deployment's outcome is not
   renamed: it isn't a saving throw.
-- **Initiative order reads the board's priority, it doesn't reorder the board.** The
-  attention note says the ranked list is "in initiative order"; the board's columns
-  keep their own order.
+- **Initiative order reads the board's priority, it doesn't reorder the board, and it
+  isn't a line on every card.** The attention note says the ranked list is "in
+  initiative order", and an item's fields read "Initiative (Priority)". A first pass put
+  "Initiative (Priority): High" on every board card; principle 11 (quiet screens), which
+  landed on main while this was in review, asks that nothing be added to every card
+  without something coming off, so it came off the cards. The board's columns keep
+  their own order.
+- **Explanations are (i)s, not paragraphs** (principle 11). Two new help topics,
+  `alignments` and `rest-days` (`ui/src/help.ts`), link to their own sections of
+  `ui/docs/themes.md`. The People tab shows the alignments' (i) beside the cards'
+  heading, and the worklog's calendar a short "Camp fires mark rest days." with its (i).
+  The hit points replace the meter instead of adding a block, and experience is the
+  existing Done tally's word, not a second figure.
 - **Rest days are a camp fire on the worklog's calendar**: a past day with nothing on
   its page, or no page at all, is a short rest on a weekday and a long rest at the
   weekend. The day link gains a generic `data-quiet` attribute when its page has no
   lines (`ui/src/views/Worklog.tsx`), which only Realm styles. The marks show only
-  while the panel's note explaining them does, which is only with themed wording on.
+  while the line naming them does, which is only with themed wording on.
 - **Alignments are rolled from the name, and only good or neutral.** The issue allows
   them only if they are playful, optional and never judge a person. A label worked
   out from anyone's work would judge it, so the roll reads the card's name alone
   (FNV-1a, `ui/src/model/alignment.ts`): the same name always rolls the same, and no
   figure reaches it. The list holds the six good and neutral alignments; evil is left
-  out. The tag is italic and dashed so it doesn't read as a fact, the People tab says
-  in a note what the labels are, and themed wording off removes both. It is data in
+  out. The tag is italic and dashed so it doesn't read as a fact, an (i) beside the
+  cards says what the labels are, and themed wording off removes both. The tag is one
+  more thing on every card, which principle 11 asks to avoid; it stays because it is
+  what the issue asked for, and it is the theme's own wording, which one switch takes
+  away. It is data in
   `theme.json` (`alignments`), and `ui/test/theme-rules.ts` refuses a value that holds
   a judging word. Any theme may list its own; only Realm does.
 - **The art:** a d20 (hand-written SVG, iron and tarnished gold with an oxblood face)

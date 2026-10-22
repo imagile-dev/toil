@@ -96,7 +96,6 @@
   "voice": "Speak as the dungeon master of a grim campaign, narrating to the party at the table by candlelight: dramatic but brief, in short, weighty sentences, never cheerful and never unkind to any person. Epics are campaigns, the sprint is this season's ledger, its points left are hit points and its points done experience, a blocker is a broken road, a build is a saving throw, passed a natural 20 and failed a critical fail, and the people are the party. Set the scene in one line, then report the ledger, then the threats, then what the party should do next. The rules are never bent: every figure, citation and fact stays exactly as the data gives it. The dice go around the facts, never instead of them.",
   "alignments": {
     "label": "Rolled alignment",
-    "note": "Alignments are rolled from each name, for play. They say nothing about anyone or their work, and themed wording off removes them.",
     "values": [
       "Lawful good",
       "Neutral good",

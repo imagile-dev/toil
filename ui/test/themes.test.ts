@@ -233,9 +233,9 @@ describe('rolled alignments (#415)', () => {
 
   it('refuses an alignment that judges a person, or one that is not a short plain label', () => {
     expect(alignmentProblems(undefined)).toEqual([]);
-    expect(alignmentProblems({ label: 'Rolled', note: 'For play.', values: ['Lawful good', 'Chaotic evil'] })).toEqual(['theme.json: alignments.values "Chaotic evil" judges a person; a rolled label never does.']);
-    expect(alignmentProblems({ label: 'Rolled', note: 'For play.', values: ['Only one'] })).toEqual(['theme.json: alignments.values must list at least two labels.']);
-    expect(alignmentProblems({ label: '<b>x</b>', note: 'For play.', values: ['A', 'B'] })).toEqual(['theme.json: alignments.label must be plain text of 30 characters or fewer.']);
-    expect(alignmentProblems([])).toEqual(['theme.json: "alignments" must be an object with a label, a note and values.']);
+    expect(alignmentProblems({ label: 'Rolled', values: ['Lawful good', 'Chaotic evil'] })).toEqual(['theme.json: alignments.values "Chaotic evil" judges a person; a rolled label never does.']);
+    expect(alignmentProblems({ label: 'Rolled', values: ['Only one'] })).toEqual(['theme.json: alignments.values must list at least two labels.']);
+    expect(alignmentProblems({ label: '<b>x</b>', values: ['A', 'B'] })).toEqual(['theme.json: alignments.label must be plain text of 30 characters or fewer.']);
+    expect(alignmentProblems([])).toEqual(['theme.json: "alignments" must be an object with a label and values.']);
   });
 });
