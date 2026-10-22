@@ -30,13 +30,13 @@ export const area = defineArea({
     // A relative path would resolve against wherever the process started,
     // which for an MCP server is wherever its client happened to be.
     path: z.string().min(1).refine(isAbsolute, 'path must be absolute.').optional().describe('SQLite: absolute path to the database file'),
-    host: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle: server host name or address'),
-    port: z.number().int().min(1).max(65535).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle: TCP port (default 5432 for PostgreSQL, 3306 for MySQL, 1433 for SQL Server, 1521 for Oracle)'),
-    database: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server: database to connect to (for MySQL, also the default schema). Oracle: the service name (FREEPDB1, ORCLPDB1). Teradata: the default database'),
-    user: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle, Teradata: login role, account or user (for SQL Server, a SQL Server login, or with auth windows another domain account)'),
-    password: z.string().optional().describe("PostgreSQL, MySQL, SQL Server, Oracle, Teradata: the login's password (a secret: env var or OS credential store)"),
-    ssl: z.boolean().optional().describe("PostgreSQL, MySQL, SQL Server, Oracle: connect over TLS (Oracle: TCPS), verifying the server's certificate against the OS store"),
-    auth: z.enum(['sql', 'windows']).optional().describe('SQL Server: sql (a SQL Server login, the default) or windows (Windows authentication, Windows only)'),
+    host: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle, Hive, Impala: server host name or address'),
+    port: z.number().int().min(1).max(65535).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle, Hive, Impala: TCP port (default 5432 for PostgreSQL, 3306 for MySQL, 1433 for SQL Server, 1521 for Oracle, 10000 for Hive, 21050 for Impala)'),
+    database: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server: database to connect to (for MySQL, also the default schema). Oracle: the service name (FREEPDB1, ORCLPDB1). Teradata: the default database. Hive, Impala: optional, the database to start in and the default schema (default: default)'),
+    user: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle, Teradata, Hive, Impala: login role, account or user (for SQL Server, a SQL Server login, or with auth windows another domain account; for Hive and Impala, a read-only account)'),
+    password: z.string().optional().describe("PostgreSQL, MySQL, SQL Server, Oracle, Teradata, Hive, Impala: the login's password (a secret: env var or OS credential store)"),
+    ssl: z.boolean().optional().describe("PostgreSQL, MySQL, SQL Server, Oracle, Hive, Impala: connect over TLS (Oracle: TCPS), verifying the server's certificate against the OS store"),
+    auth: z.enum(['sql', 'windows', 'nosasl']).optional().describe('SQL Server: sql (a SQL Server login, the default) or windows (Windows authentication, Windows only). Hive, Impala: nosasl for a server with no authentication; unset signs in with user and password (SASL PLAIN, for LDAP)'),
     domain: z.string().min(1).optional().describe("SQL Server with auth windows: the domain of the account in user, to sign in as someone other than the current Windows user"),
     baseUrl: z.url().optional().describe('Teradata: the Query Service base URL, e.g. https://teradata.imagile.dev:1443 (with any path in front of /systems, such as /api/query)'),
     system: z.string().min(1).optional().describe("Teradata: the system's alias in the Query Service, as its administrator named it"),
@@ -80,8 +80,8 @@ function preflight(ctx: DbContext, sql: string, purpose: LintPurpose, warnings: 
 const lintField = z.boolean().default(true).describe("Run the pre-flight lint's warning rules (default: true). False skips the warnings only; its errors always run.");
 const lintOption = { flags: '--no-lint', field: 'lint', description: "Skip the pre-flight lint's warnings (its errors always run)" };
 
-const schemaField = z.string().min(1).optional().describe("Schema to read. Defaults to the engine's default schema (SQLite: main, PostgreSQL: public, MySQL: the connection's database, SQL Server: dbo, Oracle: the user's own schema, Teradata: the connection's database, else the user's own).");
-const schemaOption = { flags: '--schema <name>', field: 'schema', description: "Schema (default: the engine's default, main for SQLite, public for PostgreSQL, the connection's database for MySQL, dbo for SQL Server, the user's own for Oracle, the connection's database or else the user's own for Teradata)" };
+const schemaField = z.string().min(1).optional().describe("Schema to read. Defaults to the engine's default schema (SQLite: main, PostgreSQL: public, MySQL: the connection's database, SQL Server: dbo, Oracle: the user's own schema, Teradata: the connection's database, else the user's own, Hive and Impala: the connection's database, else default).");
+const schemaOption = { flags: '--schema <name>', field: 'schema', description: "Schema (default: the engine's default, main for SQLite, public for PostgreSQL, the connection's database for MySQL, dbo for SQL Server, the user's own for Oracle, the connection's database or else the user's own for Teradata, the connection's database or default for Hive and Impala)" };
 const limitField = z.coerce.number().int().min(1).max(MAX_LIMIT).optional().describe(`Rows per page, 1 to ${MAX_LIMIT}. Default ${DEFAULT_LIMIT}.`);
 const cursorField = z.string().min(1).optional().describe('meta.page.nextCursor from the previous page, to fetch the next one');
 const pageOptions = [

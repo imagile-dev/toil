@@ -2,7 +2,7 @@
   {
     "key": "engine",
     "env": "TOIL_DB_ENGINE",
-    "description": "Database engine: sqlite, postgres, mysql, sqlserver, oracle, teradata",
+    "description": "Database engine: sqlite, postgres, mysql, sqlserver, oracle, teradata, hive, impala",
     "required": true,
     "secret": false,
     "fallbacks": []
@@ -18,7 +18,7 @@
   {
     "key": "host",
     "env": "TOIL_DB_HOST",
-    "description": "PostgreSQL, MySQL, SQL Server, Oracle: server host name or address",
+    "description": "PostgreSQL, MySQL, SQL Server, Oracle, Hive, Impala: server host name or address",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -26,7 +26,7 @@
   {
     "key": "port",
     "env": "TOIL_DB_PORT",
-    "description": "PostgreSQL, MySQL, SQL Server, Oracle: TCP port (default 5432 for PostgreSQL, 3306 for MySQL, 1433 for SQL Server, 1521 for Oracle)",
+    "description": "PostgreSQL, MySQL, SQL Server, Oracle, Hive, Impala: TCP port (default 5432 for PostgreSQL, 3306 for MySQL, 1433 for SQL Server, 1521 for Oracle, 10000 for Hive, 21050 for Impala)",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -34,7 +34,7 @@
   {
     "key": "database",
     "env": "TOIL_DB_DATABASE",
-    "description": "PostgreSQL, MySQL, SQL Server: database to connect to (for MySQL, also the default schema). Oracle: the service name (FREEPDB1, ORCLPDB1). Teradata: the default database",
+    "description": "PostgreSQL, MySQL, SQL Server: database to connect to (for MySQL, also the default schema). Oracle: the service name (FREEPDB1, ORCLPDB1). Teradata: the default database. Hive, Impala: optional, the database to start in and the default schema (default: default)",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -42,7 +42,7 @@
   {
     "key": "user",
     "env": "TOIL_DB_USER",
-    "description": "PostgreSQL, MySQL, SQL Server, Oracle, Teradata: login role, account or user (for SQL Server, a SQL Server login, or with auth windows another domain account)",
+    "description": "PostgreSQL, MySQL, SQL Server, Oracle, Teradata, Hive, Impala: login role, account or user (for SQL Server, a SQL Server login, or with auth windows another domain account; for Hive and Impala, a read-only account)",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -50,7 +50,7 @@
   {
     "key": "password",
     "env": "TOIL_DB_PASSWORD",
-    "description": "PostgreSQL, MySQL, SQL Server, Oracle, Teradata: the login's password (a secret: env var or OS credential store)",
+    "description": "PostgreSQL, MySQL, SQL Server, Oracle, Teradata, Hive, Impala: the login's password (a secret: env var or OS credential store)",
     "required": false,
     "secret": true,
     "fallbacks": []
@@ -58,7 +58,7 @@
   {
     "key": "ssl",
     "env": "TOIL_DB_SSL",
-    "description": "PostgreSQL, MySQL, SQL Server, Oracle: connect over TLS (Oracle: TCPS), verifying the server's certificate against the OS store",
+    "description": "PostgreSQL, MySQL, SQL Server, Oracle, Hive, Impala: connect over TLS (Oracle: TCPS), verifying the server's certificate against the OS store",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -66,7 +66,7 @@
   {
     "key": "auth",
     "env": "TOIL_DB_AUTH",
-    "description": "SQL Server: sql (a SQL Server login, the default) or windows (Windows authentication, Windows only)",
+    "description": "SQL Server: sql (a SQL Server login, the default) or windows (Windows authentication, Windows only). Hive, Impala: nosasl for a server with no authentication; unset signs in with user and password (SASL PLAIN, for LDAP)",
     "required": false,
     "secret": false,
     "fallbacks": []

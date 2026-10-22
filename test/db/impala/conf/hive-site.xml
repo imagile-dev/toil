@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!-- The metastore settings the local Impala in ../compose.yml shares: where the
+     metastore is, where tables live, and the events Impala's catalog follows. -->
+<configuration>
+  <property>
+    <name>hive.metastore.uris</name>
+    <value>thrift://hms:9083</value>
+  </property>
+  <property>
+    <name>hive.metastore.warehouse.dir</name>
+    <value>/user/hive/warehouse/managed</value>
+  </property>
+  <property>
+    <name>hive.metastore.warehouse.external.dir</name>
+    <value>/user/hive/warehouse/external</value>
+  </property>
+  <property>
+    <name>hive.metastore.dml.events</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>hive.metastore.event.db.notification.api.auth</name>
+    <value>false</value>
+  </property>
+  <property>
+    <name>hive.support.concurrency</name>
+    <value>true</value>
+  </property>
+  <property>
+    <name>hive.txn.manager</name>
+    <value>org.apache.hadoop.hive.ql.lockmgr.DbTxnManager</value>
+  </property>
+  <property>
+    <name>javax.jdo.option.ConnectionDriverName</name>
+    <value>org.apache.derby.jdbc.EmbeddedDriver</value>
+  </property>
+  <property>
+    <name>javax.jdo.option.ConnectionURL</name>
+    <value>jdbc:derby:;databaseName=/var/lib/hive/metastore/metastore_db;create=true</value>
+  </property>
+  <property>
+    <name>hive.stats.autogather</name>
+    <value>false</value>
+  </property>
+</configuration>

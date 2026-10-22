@@ -44,6 +44,14 @@ for (const target of targets) {
     };
     // Oracle stores an unquoted name in upper case, and reports it so.
     const n = target.stored ?? ((name: string) => name);
+    const lacks = target.lacks ?? {};
+    /** A test name's note for what this engine doesn't do, so a skipped or narrowed check says why. */
+    const noting = (...what: Array<keyof typeof lacks>) => {
+      const reasons = what.map((w) => lacks[w]).filter(Boolean);
+      return reasons.length > 0 ? ` (not on ${target.name ?? target.engine}: ${reasons.join('; ')})` : '';
+    };
+    // An engine with no read-only mode is read-only only through a read-only account; without one, what the engine refuses can't be checked.
+    const engineReader = () => (lacks.readOnlyMode ? db.reader : db.settings);
     const ids = async (sql = 'SELECT id FROM people ORDER BY id') => (await db.rows(sql)).map((r) => Number(Object.values(r as object)[0]));
     const activeOf = async (id: number) => Number(Object.values((await db.rows(`SELECT active FROM people WHERE id = ${id}`))[0] as object)[0]);
 
@@ -87,24 +95,28 @@ for (const target of targets) {
     });
 
     describe('table describe', () => {
-      it('describes columns, primary key, indexes and foreign keys', async () => {
+      it(`describes columns, primary key, indexes and foreign keys${noting('keys', 'columnConstraints', 'indexes')}`, async () => {
         const d = (await run(describeTable, { table: 'people' })).data as Record<string, unknown>;
-        expect(d).toMatchObject({ schema: schema(), name: n('people'), type: 'table', primaryKey: [n('id')] });
+        expect(d).toMatchObject({ schema: schema(), name: n('people'), type: 'table', ...(lacks.keys ? {} : { primaryKey: [n('id')] }) });
         const columns = d.columns as Array<{ name: string; nullable: boolean; primaryKey: number | null; default: string | null; type: string | null }>;
         expect(columns.map((c) => c.name)).toEqual(['id', 'name', 'team_id', 'active'].map(n));
-        expect(columns.find((c) => c.name === n('id'))).toMatchObject({ nullable: false, primaryKey: 1 });
-        expect(columns.find((c) => c.name === n('name'))).toMatchObject({ nullable: false, primaryKey: null });
+        if (!lacks.keys) expect(columns.find((c) => c.name === n('id'))).toMatchObject({ nullable: false, primaryKey: 1 });
+        expect(columns.find((c) => c.name === n('name'))).toMatchObject({ primaryKey: null });
+        if (!lacks.columnConstraints) expect(columns.find((c) => c.name === n('name'))).toMatchObject({ nullable: false });
         expect(columns.find((c) => c.name === n('team_id'))).toMatchObject({ nullable: true });
-        expect(columns.find((c) => c.name === n('active'))?.default).toMatch(/1/);
-        // VARCHAR(100) as declared (SQLite), its standard name (PostgreSQL's character varying(100)), or Oracle's VARCHAR2(100).
-        expect(columns.find((c) => c.name === n('name'))?.type?.toUpperCase()).toMatch(/VARCHAR|CHARACTER VARYING/);
-        expect(d.indexes).toContainEqual({ name: n('people_team'), columns: [n('team_id')], unique: false });
-        expect(d.foreignKeys).toEqual([
-          { columns: [n('team_id')], references: { schema: schema(), table: n('teams'), columns: [n('id')] }, onUpdate: null, onDelete: null },
-        ]);
+        if (!lacks.columnConstraints) expect(columns.find((c) => c.name === n('active'))?.default).toMatch(/1/);
+        // VARCHAR(100) as declared (SQLite), its standard name (PostgreSQL's character varying(100)), Oracle's VARCHAR2(100), or a text type with no length (Impala's Iceberg STRING).
+        expect(columns.find((c) => c.name === n('name'))?.type?.toUpperCase()).toMatch(/VARCHAR|CHARACTER VARYING|STRING/);
+        if (!lacks.indexes) expect(d.indexes).toContainEqual({ name: n('people_team'), columns: [n('team_id')], unique: false });
+        else expect(d.indexes).toEqual([]);
+        if (!lacks.keys) {
+          expect(d.foreignKeys).toEqual([
+            { columns: [n('team_id')], references: { schema: schema(), table: n('teams'), columns: [n('id')] }, onUpdate: null, onDelete: null },
+          ]);
+        }
       });
 
-      it('reports a unique constraint as a unique index', async () => {
+      it.skipIf(lacks.indexes !== undefined)(`reports a unique constraint as a unique index${noting('indexes')}`, async () => {
         const d = (await run(describeTable, { table: 'teams' })).data as { indexes: Array<{ columns: string[]; unique: boolean }> };
         expect(d.indexes.find((i) => i.columns.join() === n('name'))?.unique).toBe(true);
       });
@@ -171,9 +183,10 @@ for (const target of targets) {
         ]);
       });
 
-      it('keeps two result columns with the same name', async () => {
+      it(`keeps two result columns with the same name${noting('sameNamedColumns')}`, async () => {
         const result = data(await run(query, { sql: 'SELECT p.id, t.id FROM people p JOIN teams t ON t.id = p.team_id WHERE p.id = 1' }));
-        expect(result.columns.map((c) => c.name)).toEqual([n('id'), n('id')]);
+        if (lacks.sameNamedColumns) expect(result.columns.map((c) => c.name)).toEqual([n('id'), expect.stringMatching(/^id/)]);
+        else expect(result.columns.map((c) => c.name)).toEqual([n('id'), n('id')]);
         expect(result.rows).toEqual([[1, 1]]);
       });
 
@@ -204,8 +217,8 @@ for (const target of targets) {
 
       it('refuses more than one statement rather than running only the first', async () => {
         expect((await run(query, { sql: 'SELECT 1; SELECT 2' })).error?.code).toBe('INVALID_INPUT');
-        expect(data(await run(query, { sql: 'SELECT 1 AS one; -- trailing comment' })).rows).toEqual([[1]]);
-        expect(data(await run(query, { sql: 'SELECT 1 AS one; /* trailing */ /* comments */' })).rows).toEqual([[1]]);
+        expect(data(await run(query, { sql: 'SELECT 1 AS x; -- trailing comment' })).rows).toEqual([[1]]);
+        expect(data(await run(query, { sql: 'SELECT 1 AS x; /* trailing */ /* comments */' })).rows).toEqual([[1]]);
         // A statement between two block comments is still a second statement.
         expect((await run(query, { sql: 'SELECT 1; /* a */ SELECT 2 /* b */' })).error?.code).toBe('INVALID_INPUT');
         expect((await run(query, { sql: 'SELECT 1; /* a */ SELECT 2' })).error?.code).toBe('INVALID_INPUT');
@@ -221,7 +234,7 @@ for (const target of targets) {
         expect(Date.now() - started).toBeLessThan(5000);
         // A server engine stops the statement on the server, not just toil's wait for it.
         if (db.running) await expect.poll(db.running, { timeout: 5000 }).toBe(0);
-        expect(data(await run(query, { sql: 'SELECT 1 AS one' })).rows).toEqual([[1]]);
+        expect(data(await run(query, { sql: 'SELECT 1 AS x' })).rows).toEqual([[1]]);
       });
 
       it('stops at the time limit', async () => {
@@ -252,7 +265,8 @@ for (const target of targets) {
           run(executeCmd, { sql: 'UPDATE people SET active = 0', allowWrite: true }),
           run(executeCmd, { sql: 'UPDATE people SET active = 0' }, { writes: true }),
           run(executeCmd, { sql: 'COMMIT', allowWrite: true }, { writes: true }),
-          run(executeCmd, { sql: 'INSERT INTO teams (id, name) VALUES (1, \'Duplicate\')', allowWrite: true }, { writes: true }),
+          // An engine that doesn't enforce keys inserts the duplicate.
+          ...(lacks.enforcedKeys ? [] : [run(executeCmd, { sql: 'INSERT INTO teams (id, name) VALUES (1, \'Duplicate\')', allowWrite: true }, { writes: true })]),
           run(listSchemas, {}, { settings }),
           run(listSchemas, {}, { settings: { ...db.settings, engine: 'abacus' } }),
         ]);
@@ -269,7 +283,7 @@ for (const target of targets) {
     });
 
     describe('read-only enforcement', () => {
-      it('db query refuses a write, even on a connection with writes on, and so does the engine', async () => {
+      it(`db query refuses a write, even on a connection with writes on, and so does the engine${noting('readOnlyMode')}`, async () => {
         for (const writes of [false, true]) {
           const envelope = await run(query, { sql: 'UPDATE people SET active = 0 WHERE id = 1' }, { writes });
           expect(envelope.error?.code, `writes: ${writes}`).toBe('WRITE_DISABLED');
@@ -277,16 +291,20 @@ for (const target of targets) {
         }
         const insert = await run(query, { sql: "INSERT INTO teams (id, name) VALUES (3, 'Ops')" }, { writes: true });
         expect(insert.error?.code).toBe('WRITE_DISABLED');
-        for (const sql of ['UPDATE people SET active = 0 WHERE id = 1', "INSERT INTO teams (id, name) VALUES (3, 'Ops')"]) {
-          await expect(engineQuery(db.settings, sql), sql).rejects.toMatchObject({ code: 'WRITE_DISABLED' });
+        const reader = engineReader();
+        if (reader) {
+          for (const sql of ['UPDATE people SET active = 0 WHERE id = 1', "INSERT INTO teams (id, name) VALUES (3, 'Ops')"]) {
+            await expect(engineQuery(reader, sql), sql).rejects.toMatchObject({ code: 'WRITE_DISABLED' });
+          }
         }
         expect(await activeOf(1)).toBe(1);
         expect(await ids('SELECT id FROM teams ORDER BY id')).toEqual([1, 2]);
       });
 
-      it('db query refuses DDL, and so does the engine', async () => {
+      it(`db query refuses DDL, and so does the engine${noting('readOnlyMode')}`, async () => {
         expect((await run(query, { sql: 'DROP TABLE people' }, { writes: true })).error?.code).toBe('WRITE_DISABLED');
-        await expect(engineQuery(db.settings, 'DROP TABLE people')).rejects.toMatchObject({ code: 'WRITE_DISABLED' });
+        const reader = engineReader();
+        if (reader) await expect(engineQuery(reader, 'DROP TABLE people')).rejects.toMatchObject({ code: 'WRITE_DISABLED' });
         expect(await ids()).toHaveLength(PEOPLE.length);
       });
 
@@ -309,7 +327,7 @@ for (const target of targets) {
         expect(await activeOf(2)).toBe(0);
       });
 
-      it('db execute runs several statements as one transaction, all or nothing', async () => {
+      it.skipIf(lacks.transactions !== undefined)('db execute runs several statements as one transaction, all or nothing', async () => {
         const ok = await run(executeCmd, { sql: "INSERT INTO teams (id, name) VALUES (3, 'Ops'); UPDATE people SET team_id = 3 WHERE id = 1", allowWrite: true }, { writes: true });
         expect(ok.data).toEqual({ changes: 2 });
 
@@ -318,13 +336,25 @@ for (const target of targets) {
         expect(await activeOf(4)).toBe(1);
       });
 
-      it('db execute runs DDL and the statements that depend on it in one script', async () => {
+      it.runIf(lacks.transactions !== undefined)(`db execute refuses several statements before running any${noting('transactions')}`, async () => {
+        const envelope = await run(executeCmd, { sql: "INSERT INTO teams (id, name) VALUES (3, 'Ops'); UPDATE people SET team_id = 3 WHERE id = 1", allowWrite: true }, { writes: true });
+        expect(envelope.error?.code).toBe('INVALID_INPUT');
+        expect(await ids('SELECT id FROM teams ORDER BY id')).toEqual([1, 2]);
+      });
+
+      it.skipIf(lacks.transactions !== undefined)('db execute runs DDL and the statements that depend on it in one script', async () => {
         const envelope = await run(executeCmd, { sql: 'CREATE TABLE notes (id INTEGER PRIMARY KEY, body VARCHAR(20)); INSERT INTO notes (id, body) VALUES (1, \'a\'), (2, \'b\')', allowWrite: true }, { writes: true });
         expect(envelope.data).toEqual({ changes: 2 });
         expect(await ids('SELECT id FROM notes ORDER BY id')).toEqual([1, 2]);
       });
 
-      it('db execute runs every statement, whatever comments sit between them', async () => {
+      it.runIf(lacks.transactions !== undefined)('db execute runs its one statement, whatever comments sit around it', async () => {
+        const envelope = await run(executeCmd, { sql: '/* a */ UPDATE people SET active = 0 WHERE id = 1 /* b */; -- c\n', allowWrite: true }, { writes: true });
+        expect(envelope.data).toEqual({ changes: 1 });
+        expect(await activeOf(1)).toBe(0);
+      });
+
+      it.skipIf(lacks.transactions !== undefined)('db execute runs every statement, whatever comments sit between them', async () => {
         const sql = 'UPDATE people SET active = 0 WHERE id = 1; /* c */ UPDATE people SET active = 0 WHERE id = 2; /* d */ -- e\n UPDATE people SET active = 0 WHERE id = 4 /* f */';
         const envelope = await run(executeCmd, { sql, allowWrite: true }, { writes: true });
         expect(envelope.data).toEqual({ changes: 3 });

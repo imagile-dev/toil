@@ -502,6 +502,7 @@ export const sqlserverProvider: DbProvider = {
 
   // A SQL login needs a user; Windows authentication needs Windows, and a domain only names whose user.
   check(settings) {
+    if (settings.auth === 'nosasl') return [{ key: 'auth', message: 'SQL Server connections take "auth": "sql" or "windows"; "nosasl" is for Hive and Impala.' }];
     if (settings.auth === 'windows') {
       if (process.platform !== 'win32') return [{ key: 'auth', message: notWindows('this connection').message + ' Use a SQL Server login: remove "auth" and set "user" and "password".' }];
       if (settings.domain && !settings.user) return [{ key: 'user', message: 'SQL Server connections with a domain need user, the account in that domain to sign in as.' }];

@@ -60,8 +60,8 @@ export interface LintOptions {
   warnings?: boolean;
 }
 
-export const LABELS: Record<Dialect, string> = { sqlite: 'SQLite', postgres: 'PostgreSQL', mysql: 'MySQL', sqlserver: 'SQL Server', oracle: 'Oracle', teradata: 'Teradata' };
-const ALL: readonly Dialect[] = ['sqlite', 'postgres', 'mysql', 'sqlserver', 'oracle', 'teradata'];
+export const LABELS: Record<Dialect, string> = { sqlite: 'SQLite', postgres: 'PostgreSQL', mysql: 'MySQL', sqlserver: 'SQL Server', oracle: 'Oracle', teradata: 'Teradata', hive: 'Hive', impala: 'Impala' };
+const ALL: readonly Dialect[] = ['sqlite', 'postgres', 'mysql', 'sqlserver', 'oracle', 'teradata', 'hive', 'impala'];
 
 interface Rule {
   id: RuleId;
@@ -87,6 +87,15 @@ const isCount = (t: Token | undefined) => t?.kind === 'number' || t?.kind === 'p
 const WRITE_FIRST = new Set(['INSERT', 'UPDATE', 'DELETE', 'MERGE', 'REPLACE', 'CREATE', 'ALTER', 'DROP', 'TRUNCATE', 'GRANT', 'REVOKE', 'RENAME', 'COMMENT']);
 /** Teradata's own: the INS, UPD and DEL abbreviations, COLLECT STATISTICS and MODIFY USER or DATABASE. */
 const TERADATA_WRITE_FIRST = new Set([...WRITE_FIRST, 'INS', 'UPD', 'DEL', 'COLLECT', 'MODIFY']);
+/**
+ * Statements only some engines have that change the database or the server, by their first word: Hive's
+ * LOAD DATA, MSCK REPAIR (which adds partitions), EXPORT, IMPORT, ANALYZE (statistics), KILL QUERY and
+ * ABORT TRANSACTIONS, and Impala's UPSERT, LOAD DATA, COMPUTE STATS, INVALIDATE METADATA and REFRESH.
+ */
+const WRITE_FIRST_IN: Partial<Record<Dialect, ReadonlySet<string>>> = {
+  hive: new Set(['LOAD', 'MSCK', 'EXPORT', 'IMPORT', 'ANALYZE', 'KILL', 'ABORT']),
+  impala: new Set(['UPSERT', 'LOAD', 'COMPUTE', 'INVALIDATE', 'REFRESH']),
+};
 /** Data changes a WITH can hold, in a CTE (`AS (DELETE ...)`) or as its main statement (`) UPDATE ...`). */
 const WRITE_IN_WITH = new Set(['INSERT', 'UPDATE', 'DELETE', 'MERGE']);
 
@@ -98,8 +107,10 @@ const readOnlyWrite: Rule = {
     const first = statement[0];
     const writes = engine === 'teradata' ? TERADATA_WRITE_FIRST : WRITE_FIRST;
     let at: Token | undefined;
-    if (first?.kind === 'word' && writes.has(first.upper)) at = first;
+    if (first?.kind === 'word' && (writes.has(first.upper) || WRITE_FIRST_IN[engine]?.has(first.upper))) at = first;
     else if (word(first, 'WITH')) at = statement.find((t, i) => t.kind === 'word' && WRITE_IN_WITH.has(t.upper) && (statement[i - 1]?.kind === 'open' || statement[i - 1]?.kind === 'close'));
+    // Hive's multi-insert puts FROM first: FROM src INSERT OVERWRITE TABLE a SELECT ...
+    else if (engine === 'hive' && word(first, 'FROM')) at = atDepthZero(statement).find((t) => word(t, 'INSERT'));
     if (!at) return [];
     return [
       {
@@ -176,19 +187,39 @@ interface ForeignFunction {
   use: Partial<Record<Dialect, string>>;
 }
 
-const NOW_ELSEWHERE = { postgres: 'now() or CURRENT_TIMESTAMP', mysql: 'NOW()', sqlite: "CURRENT_TIMESTAMP or datetime('now')", oracle: 'SYSTIMESTAMP or SYSDATE', sqlserver: 'SYSDATETIME() or GETDATE()', teradata: 'CURRENT_TIMESTAMP' };
+const NOW_ELSEWHERE = {
+  postgres: 'now() or CURRENT_TIMESTAMP',
+  mysql: 'NOW()',
+  sqlite: "CURRENT_TIMESTAMP or datetime('now')",
+  oracle: 'SYSTIMESTAMP or SYSDATE',
+  sqlserver: 'SYSDATETIME() or GETDATE()',
+  hive: 'current_timestamp()',
+  impala: 'now() or current_timestamp()',
+  teradata: 'CURRENT_TIMESTAMP',
+};
 const COALESCE = Object.fromEntries(ALL.map((d) => [d, 'COALESCE(a, b)']));
 const FUNCTIONS: Record<string, ForeignFunction> = {
-  NOW: { has: ['postgres', 'mysql'], use: NOW_ELSEWHERE },
+  NOW: { has: ['postgres', 'mysql', 'impala'], use: NOW_ELSEWHERE },
   GETDATE: { has: ['sqlserver'], use: NOW_ELSEWHERE },
   SYSDATETIME: { has: ['sqlserver'], use: NOW_ELSEWHERE },
-  ISNULL: { has: ['sqlserver'], args: 2, use: COALESCE },
-  NVL: { has: ['oracle', 'teradata'], use: { ...COALESCE, mysql: 'COALESCE(a, b) (MariaDB also accepts NVL; MySQL does not)' } },
-  IFNULL: { has: ['mysql', 'sqlite'], use: COALESCE },
-  LEN: { has: ['sqlserver'], use: { postgres: 'char_length()', mysql: 'CHAR_LENGTH()', sqlite: 'length()', oracle: 'LENGTH()', teradata: 'CHARACTER_LENGTH()' } },
-  LENGTH: { has: ['postgres', 'mysql', 'sqlite', 'oracle', 'teradata'], use: { sqlserver: 'LEN() (DATALENGTH() for bytes)' } },
-  CHARINDEX: { has: ['sqlserver'], use: { postgres: 'strpos(text, part) or position(part IN text)', mysql: 'LOCATE(part, text)', sqlite: 'instr(text, part)', oracle: 'INSTR(text, part)', teradata: 'INSTR(text, part) or POSITION(part IN text)' } },
-  SUBSTR: { has: ['postgres', 'mysql', 'sqlite', 'oracle', 'teradata'], use: { sqlserver: 'SUBSTRING(text, start, length)' } },
+  ISNULL: { has: ['sqlserver', 'impala'], args: 2, use: COALESCE },
+  NVL: { has: ['oracle', 'teradata', 'hive', 'impala'], use: { ...COALESCE, mysql: 'COALESCE(a, b) (MariaDB also accepts NVL; MySQL does not)' } },
+  IFNULL: { has: ['mysql', 'sqlite', 'impala'], use: COALESCE },
+  LEN: { has: ['sqlserver'], use: { postgres: 'char_length()', mysql: 'CHAR_LENGTH()', sqlite: 'length()', oracle: 'LENGTH()', teradata: 'CHARACTER_LENGTH()', hive: 'length()', impala: 'length()' } },
+  LENGTH: { has: ['postgres', 'mysql', 'sqlite', 'oracle', 'teradata', 'hive', 'impala'], use: { sqlserver: 'LEN() (DATALENGTH() for bytes)' } },
+  CHARINDEX: {
+    has: ['sqlserver'],
+    use: {
+      postgres: 'strpos(text, part) or position(part IN text)',
+      mysql: 'LOCATE(part, text)',
+      sqlite: 'instr(text, part)',
+      oracle: 'INSTR(text, part)',
+      teradata: 'INSTR(text, part) or POSITION(part IN text)',
+      hive: 'instr(text, part) or locate(part, text)',
+      impala: 'instr(text, part) or locate(part, text)',
+    },
+  },
+  SUBSTR: { has: ['postgres', 'mysql', 'sqlite', 'oracle', 'teradata', 'hive', 'impala'], use: { sqlserver: 'SUBSTRING(text, start, length)' } },
 };
 
 /** How many arguments the call opening at `open` passes, counting commas at its own depth. */
@@ -242,7 +273,7 @@ const dialectConcat: Rule = {
       const typed = (at: number) => word(statement[at - 1], 'DATE', 'TIME', 'TIMESTAMP', 'INTERVAL') || statement[at + 1]?.text === '::';
       const text = (textLiteral(before) && !typed(i - 1)) || (textLiteral(after) && !typed(i + 1));
       if (!text) return [];
-      const fix = engine === 'mysql' ? 'Write CONCAT(a, b) to join strings.' : 'Write a || b to join strings.';
+      const fix = engine === 'mysql' || engine === 'hive' || engine === 'impala' ? 'Write CONCAT(a, b) to join strings.' : 'Write a || b to join strings.';
       return [{ at: t, message: `+ adds numbers on ${label}; it doesn't join strings.`, fix }];
     });
   },
@@ -264,6 +295,16 @@ function selectListStart(statement: Token[], at: number): number {
   if (word(statement[j], 'PERCENT')) j++;
   if (word(statement[j], 'WITH') && word(statement[j + 1], 'TIES')) j += 2;
   return j;
+}
+
+/** The tokens of a statement outside any parentheses. */
+function atDepthZero(statement: Token[]): Token[] {
+  let depth = 0;
+  return statement.filter((t) => {
+    if (t.kind === 'open') depth++;
+    else if (t.kind === 'close') depth--;
+    return depth === 0 && t.kind !== 'close';
+  });
 }
 
 /** The `*` of a top-level SELECT *, and the table its FROM names, if one does. */

@@ -162,12 +162,32 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 60
+      # HiveServer2 with SQL standard authorization, so the hive target has a read-only
+      # account to check reads against. It takes any password. 10002 is its web UI, where
+      # the target counts running statements; it answers only on its own port number.
+      hive:
+        image: apache/hive:4.2.1
+        env:
+          SERVICE_NAME: hiveserver2
+          SERVICE_OPTS: >-
+            -Dhive.security.authorization.enabled=true
+            -Dhive.security.authorization.manager=org.apache.hadoop.hive.ql.security.authorization.plugin.sqlstd.SQLStdHiveAuthorizerFactory
+            -Dhive.security.authenticator.manager=org.apache.hadoop.hive.ql.security.SessionStateUserAuthenticator
+            -Dhive.users.in.admin.role=hive
+        ports: ['10000:10000', '10002:10002']
+        options: >-
+          --health-cmd "bash -c 'echo > /dev/tcp/127.0.0.1/10000'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 60
+          --health-start-period 20s
     env:
       TOIL_TEST_PG_URL: postgres://postgres:postgres@localhost:5432/postgres
       TOIL_TEST_MYSQL_URL: mysql://root:mysql@localhost:3306/
       TOIL_TEST_MARIADB_URL: mysql://root:mysql@localhost:3307/
       TOIL_TEST_SQLSERVER_URL: mssql://sa:Toil-test-Pa55word@localhost:1433/master
       TOIL_TEST_ORACLE_URL: oracle://system:toil_test_pw@localhost:1521/FREEPDB1
+      TOIL_TEST_HIVE_URL: hive://hive:hive@localhost:10000/?webui=10002
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0

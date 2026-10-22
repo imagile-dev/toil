@@ -1,6 +1,6 @@
 ---
 area: db
-description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, Teradata)
+description: Schemas, tables, describe, row previews, read-only queries with paging, and gated writes on databases (SQLite, PostgreSQL, MySQL/MariaDB, SQL Server, Oracle, Teradata, Hive, Impala)
 ---
 
 # Databases (`db`)
@@ -16,6 +16,8 @@ uses, and the commands work the same way on all of them.
 | SQL Server | `sqlserver` | `live`: automated tests run against SQL Server 2022 (the official `mcr.microsoft.com/mssql/server:2022-CU27-ubuntu-22.04` image) |
 | Oracle | `oracle` | `live`: automated tests run against Oracle Database 23ai Free (the `gvenzl/oracle-free:23.26.3-slim-faststart` image) |
 | Teradata | `teradata` | `unit`: tested against a stubbed Teradata Query Service only. It has never been run against a live Query Service or database |
+| Apache Hive | `hive` | `live`: automated tests run against Hive 4.2 (the official `apache/hive:4.2.1` image), with a read-only account under SQL standard authorization |
+| Apache Impala | `impala` | `live`: the same tests were run against Impala 4.5 (the official `apache/impala:4.5.3` quickstart images) on a developer's machine; CI doesn't run them |
 
 **Supported versions:** The oldest SQLite version toil supports hasn't been established. toil
 uses the SQLite built into Node, so the version is whichever your Node ships.
@@ -28,6 +30,12 @@ Oracle is tested against 23ai; Thin mode and the dictionary columns toil reads n
 12.1 or later. No release older than 23ai has been run.
 Teradata goes through version 1.0 of the Teradata Query Service's REST API; no Query
 Service release or database version has been run yet.
+Hive is tested against 4.2 and Impala against 4.5; both need HiveServer2 protocol V6
+(Hive 0.13) or later, and the oldest releases toil supports haven't been established.
+Hive 3.1, the release most clusters run, was also run (the official `apache/hive:3.1.3`
+image) on a developer's machine: everything works, except that Hive 3.1 reports no row
+count for a write, so `db execute`'s `changes` is 0 there, and a read that wrote goes
+unreported. Impala reports keys only from 4.0.
 
 ## SQLite connections
 
@@ -424,11 +432,81 @@ ANSI mode with auto-commit off, and ends with `ROLLBACK` and the session closed 
 "Reads are read-only at the engine"). Use a second connection, with a user that may
 write and `writes: true`, for `db execute`.
 
+## Hive and Impala connections
+
+One provider covers both, because both speak HiveServer2's Thrift protocol: Hive
+natively, and Impala on its HiveServer2 port. toil speaks it in plain JavaScript (the
+`thrift` runtime and the HiveServer2 client generated with `hive-driver`, both bundled
+into toil): no ODBC or JDBC driver, no `beeline` or `impala-shell`, nothing to install.
+
+| Key | Required | Meaning |
+|-----|----------|---------|
+| `engine` | yes | `hive` or `impala` |
+| `host` | yes | The HiveServer2 host: a HiveServer2 instance, or an Impala coordinator |
+| `port` | no | Its HiveServer2 port. Default `10000` for Hive, `21050` for Impala. |
+| `database` | no | The database to start in, and the default schema. Default `default`. |
+| `user` | yes, unless `auth` is `nosasl` | The account to sign in as. **It must be a read-only account**; see below. |
+| `password` | no | The account's password (its LDAP password, on a cluster that checks one). A secret: an env var or the OS credential store, never the config file. |
+| `ssl` | no | `true` connects over TLS and verifies the server's certificate, and that its name matches `host`, against Node's CAs, `NODE_EXTRA_CA_CERTS` and the OS certificate store. Off by default, which sends the password and every result unencrypted. |
+| `auth` | no | `nosasl` for a server that runs without authentication (Impala's default, or Hive's `NOSASL` mode): no sign-in, and `user` goes only into the session. Leave it out to sign in with `user` and `password` (SASL PLAIN), which is what LDAP authentication, and Hive's default `NONE` mode, expect. |
+| `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
+
+```bash
+export TOIL_DB_ENGINE=hive
+export TOIL_DB_HOST=hive.imagile.dev
+export TOIL_DB_PORT=10000
+export TOIL_DB_DATABASE=sales
+export TOIL_DB_USER=toil_reader
+export TOIL_DB_PASSWORD=<the account's LDAP password>
+export TOIL_DB_SSL=true
+```
+
+```json
+{
+  "version": 2,
+  "connections": {
+    "lake-hive": { "area": "db", "engine": "hive", "host": "hive.imagile.dev", "database": "sales", "user": "toil_reader", "ssl": true },
+    "lake-impala": { "area": "db", "engine": "impala", "host": "impala.imagile.dev", "database": "sales", "user": "toil_reader", "ssl": true }
+  },
+  "defaults": { "db": { "connection": "lake-hive" } }
+}
+```
+
+```bash
+toil connections login lake-hive   # prompts for the password and stores it
+```
+
+**Connect with a read-only account. toil can't make Hive or Impala refuse a write.**
+Neither engine has a read-only session or transaction, and neither has anything to
+roll back: a statement that writes has written by the time it returns. SQL Server has
+no read-only transaction either, but toil still rolls back every read there; on Hive
+and Impala there is nothing to roll back. toil doesn't parse SQL to decide whether a
+statement writes, so `db query` on these engines is read-only only because the account
+is. Use an account whose role grants `SELECT` and nothing else: a Ranger policy, a
+Sentry role, or Hive's SQL standard authorization (`GRANT SELECT ON TABLE ... TO USER
+toil_reader`). The account must also be refused Hive's non-SQL commands (`dfs`, `add`,
+`delete`, `compile`, `reload`), which Ranger and SQL standard authorization refuse to
+anyone who isn't an administrator. When the account is refused a write, toil reports
+`WRITE_DISABLED`; see "Reads are read-only at the engine" for what toil does when a
+write gets through.
+
+Use a second connection, with an account that may write and `writes: true`, for `db
+execute`.
+
+**Kerberos isn't supported.** Signing in with Kerberos needs a native GSSAPI library,
+which toil doesn't ship, so a cluster that accepts only Kerberos can't be reached: it
+refuses toil's sign-in with `AUTH`, saying the server expects Kerberos (the server's
+own words are usually `Unsupported mechanism type PLAIN`). Many clusters run an LDAP
+HiveServer2 endpoint beside the Kerberos one (another port, or a gateway); point the
+connection at that. HiveServer2's HTTP transport (`hive.server2.transport.mode=http`,
+often behind a gateway) isn't supported either: toil connects to the binary port only.
+Nor is ZooKeeper service discovery: `host` names one HiveServer2 or one coordinator.
+
 ## Commands
 
 | Command | MCP tool | Returns |
 |---------|----------|---------|
-| `toil db schema list` | `db_schema_list` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas; for Oracle, the users the login can see that Oracle doesn't maintain; for Teradata, the databases and users in `DBC.DatabasesV`, without the ones Teradata maintains (`DBC`, `SYSLIB`, `TD_SYSFNLIB` and the like), which you can still name with `--schema`. |
+| `toil db schema list` | `db_schema_list` | `{ schemas: [{ name }] }`. For SQLite, the attached databases (`main`); for PostgreSQL, the schemas, without `pg_*` and `information_schema`; for MySQL, the databases the account can see, without `mysql`, `sys`, `performance_schema` and `information_schema`; for SQL Server, the schemas, without `sys`, `INFORMATION_SCHEMA`, `guest` and the `db_*` role schemas; for Oracle, the users the login can see that Oracle doesn't maintain; for Teradata, the databases and users in `DBC.DatabasesV`, without the ones Teradata maintains (`DBC`, `SYSLIB`, `TD_SYSFNLIB` and the like), which you can still name with `--schema`; for Hive and Impala, the databases the account can see, without Hive's `sys` and `information_schema` and Impala's `_impala_builtins`. |
 | `toil db table list [--schema <name>]` | `db_table_list` | `{ schema, tables: [{ name, type }] }`, `type` being `table` or `view` |
 | `toil db table describe <table> [--schema <name>]` | `db_table_describe` | `{ schema, name, type, columns, primaryKey, indexes, foreignKeys }` |
 | `toil db table preview <table> [--schema] [--limit] [--cursor]` | `db_table_preview` | A page of rows: `{ columns, rows }` |
@@ -439,7 +517,7 @@ write and `writes: true`, for `db execute`.
 Every command takes `--connection <name>`. `--schema` defaults to the engine's
 default schema (`main` for SQLite, `public` for PostgreSQL, the connection's database
 for MySQL, where a schema is a database, `dbo` for SQL Server, and the user's own
-schema for Oracle, the connection's `database` or else the user's own for Teradata).
+schema for Oracle, the connection's `database` or else the user's own for Teradata, and the connection's `database`, else `default`, for Hive and Impala).
 PostgreSQL names are case-sensitive as stored: an unquoted
 `CREATE TABLE People` is stored as `people`. MySQL table names are case-sensitive on
 most Linux servers. Oracle stores an unquoted name in upper case and reports names as
@@ -447,6 +525,8 @@ stored (`PEOPLE`, `ID`); a schema or table you name that doesn't exist as writte
 looked up again in upper case, so `table describe people` finds `PEOPLE`. A quoted
 mixed-case name (`"People"`) must be typed exactly. Teradata compares names without
 regard to case, as it does itself, and reports them as stored.
+Hive and Impala store names in lower case, and a name you type is looked up in lower
+case.
 
 Rows come back as arrays in the order of `columns`, so a join's two `id` columns both
 survive:
@@ -510,6 +590,23 @@ from `DBC.All_RI_ChildrenV`, and Teradata has no `ON UPDATE` or `ON DELETE` acti
 so both are null. `table preview` pages in primary-key order, or in the engine's own
 order for a table without one.
 
+Hive and Impala name each result column's type as HiveQL writes it (`INT`, `BIGINT`,
+`VARCHAR(100)`, `DECIMAL(10,2)`, `TIMESTAMP`), and an untyped `NULL` as null. `BIGINT`
+comes back as a number when it fits and a string when it doesn't; `DECIMAL` as a
+string, so no digit is lost; `BOOLEAN` as true or false; `BINARY` as base64.
+`TIMESTAMP` and `DATE` come back as the text the server sent
+(`2026-01-02 03:04:05.123456`), never shifted into a time zone, and `ARRAY`, `MAP` and
+`STRUCT` as the server's JSON-like text (`[1,2]`, `{"k":1}`), not parsed. In `table
+describe`, `indexes` is always empty, because neither engine has indexes; the primary
+and foreign keys are the informational ones the table declares (`DISABLE NOVALIDATE`),
+which neither engine enforces, so `onUpdate` and `onDelete` are null. Neither reports
+`NOT NULL` or `DEFAULT` through the protocol, so `nullable` is true and `default` null
+for every column outside the primary key. Impala reports no keys for an Iceberg table.
+Hive renames a second result column with the same name (`id`, `id_1`); Impala keeps both
+names. `table preview` reads with a `LIMIT` that covers the page, in the engine's own
+order: a table with no `ORDER BY` can come back in a different order next time, so use
+`db query` with `ORDER BY` to page through a large one.
+
 ### Paging and row caps
 
 `table preview` and `query` return 100 rows per page unless you pass `--limit`
@@ -531,12 +628,12 @@ names the engine and every rule that ran, on success and failure alike.
 |------|----------|---------|----------|
 | `unterminated` | error | all | A string, quoted name or block comment that is never closed (SQLite lets a block comment run to the end, so only its strings and names) |
 | `multiple-statements` | error | all but SQL Server, on `db query` | More than one statement. SQL Server is left to its own check, which refuses SQL that returns more than one result, so `DECLARE @n int = 1; SELECT @n` still runs |
-| `read-only-write` | error (`WRITE_DISABLED`) | all, on `db query` | A statement that starts with `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `REPLACE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, `RENAME` or `COMMENT` (on Teradata also `INS`, `UPD`, `DEL`, `COLLECT` and `MODIFY`), or a `WITH` holding a data change |
+| `read-only-write` | error (`WRITE_DISABLED`) | all, on `db query` | A statement that starts with `INSERT`, `UPDATE`, `DELETE`, `MERGE`, `REPLACE`, `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `GRANT`, `REVOKE`, `RENAME` or `COMMENT` (on Teradata also `INS`, `UPD`, `DEL`, `COLLECT` and `MODIFY`; on Hive `LOAD`, `MSCK`, `EXPORT`, `IMPORT`, `ANALYZE`, `KILL`, `ABORT` and a multi-insert `FROM ... INSERT`; on Impala `UPSERT`, `LOAD`, `COMPUTE`, `INVALIDATE` and `REFRESH`), or a `WITH` holding a data change |
 | `dialect-limit` | error | SQL Server, Oracle, Teradata | `LIMIT n`: use `TOP (n)` or `OFFSET ... FETCH NEXT n ROWS ONLY` on SQL Server, `FETCH FIRST n ROWS ONLY` on Oracle (`ROWNUM <= n` on 11g), `TOP n` (or `SAMPLE n`) on Teradata. A PL/SQL block's own `BULK COLLECT ... LIMIT n` is left alone |
 | `dialect-top` | error | all but SQL Server and Teradata | `SELECT TOP n`: use `LIMIT n`, or `FETCH FIRST n ROWS ONLY` on Oracle |
-| `dialect-backtick` | error; warning on SQLite | all but MySQL | `` `name` ``: use `"name"`, or `[name]` on SQL Server. SQLite accepts backticks for MySQL compatibility, so there it only warns |
+| `dialect-backtick` | error; warning on SQLite | all but MySQL, Hive and Impala | `` `name` ``: use `"name"`, or `[name]` on SQL Server. SQLite accepts backticks for MySQL compatibility, so there it only warns |
 | `dialect-function` | warning | all | A function another engine has: `NOW()`, `GETDATE()`, `SYSDATETIME()`, two-argument `ISNULL()`, `NVL()`, `IFNULL()`, `LEN()`, `LENGTH()`, `CHARINDEX()`, `SUBSTR()`, where the engine lacks it |
-| `dialect-concat` | warning | all | `\|\|` on SQL Server (use `+` or `CONCAT()`) or MySQL (a logical OR there; use `CONCAT()`), and `+` beside a text literal elsewhere (use `\|\|`, or `CONCAT()` on MySQL) |
+| `dialect-concat` | warning | all | `\|\|` on SQL Server (use `+` or `CONCAT()`) or MySQL (a logical OR there; use `CONCAT()`), and `+` beside a text literal elsewhere (use `\|\|`, or `CONCAT()` on MySQL, Hive and Impala) |
 | `select-star` | warning | all, on `db query` | `SELECT *` at the top of a query, whose rows are capped at `--limit` |
 | `implicit-cross-join` | warning | all | A comma between tables in `FROM` with no `WHERE`, which pairs every row with every row |
 
@@ -700,6 +797,27 @@ example how string comparisons treat case, and whether a value too long for its 
 is an error or silently truncated. A query that answers differently here than in your
 usual tool may be meeting that difference.
 
+**Hive and Impala** have no read-only mode, and toil can't enforce one on them: reads
+there are read-only only because the account is. That is why their connections require
+a read-only account (see "Hive and Impala connections"). Unlike SQL Server, where toil
+still rolls back every read, there is nothing to roll back: a statement that writes has
+written when it returns. Within that:
+
+- A write the account is refused (`INSERT`, `UPDATE`, `DELETE`, DDL; Hive's SQL
+  standard authorization, Ranger and Impala each word the refusal their own way) comes
+  back as `WRITE_DISABLED`, and nothing was changed.
+- The pre-flight lint refuses the obvious write on `db query` before anything is sent
+  (the `read-only-write` rule, which also knows Hive's `LOAD`, `MSCK`, `EXPORT`,
+  `IMPORT`, `ANALYZE`, `KILL`, `ABORT` and multi-insert `FROM ... INSERT`, and Impala's
+  `UPSERT`, `LOAD`, `COMPUTE STATS`, `INVALIDATE METADATA` and `REFRESH`). It isn't a guard: toil doesn't parse SQL to decide whether it writes.
+- A read the server reports as having changed rows comes back as `DATABASE`, saying the
+  change has been made: Hive 4.0 and later report the rows a statement changed when it
+  finishes (Hive 3.1 doesn't, so there it goes unreported), and Impala when it's closed.
+  With a read-only account this can't happen.
+
+`db query` runs exactly one statement; SQL holding several is refused with
+`INVALID_INPUT` before anything is sent. A trailing semicolon and comments are fine.
+
 ### Writes
 
 `db execute` is the only command that changes data. It needs both:
@@ -757,6 +875,16 @@ any of it runs, anywhere in the script, a procedure body included; a temporary
 table's `ON COMMIT PRESERVE ROWS` or `ON COMMIT DELETE ROWS` is fine. `changes` adds up
 the update counts the service reports.
 
+On Hive and Impala, `db execute` runs **one statement per call**. Neither engine has a
+transaction to hold several together, so a script that failed halfway would leave its
+first half applied; SQL holding more than one statement is refused with
+`INVALID_INPUT` before any of it runs. Send each statement in its own call, in order.
+Hive can `UPDATE`, `DELETE` and `MERGE` only transactional (ACID) tables, and Impala
+only Iceberg and Kudu tables; elsewhere the server refuses them with `DATABASE`.
+`changes` is the row count the server reports: Hive's for the statement (from 4.0;
+Hive 3.1 reports none, so it's 0 there), Impala's from closing it. For an Iceberg `UPDATE`, which Impala counts as rows deleted and written
+again, it's the rows updated.
+
 ### Time limits and cancelling
 
 Every command stops at `TOIL_TIMEOUT_MS` (default 120000) with `TIMEOUT`, and on
@@ -797,6 +925,13 @@ limit: a cancel that lands while the session is still being opened leaves toil w
 its id, so it can't close it; the session counts against the user's session limit
 until the Query Service's idle timeout closes it.
 
+Hive and Impala are sent CancelOperation for the running statement on a time limit or
+a cancel, which stops it on the server (Hive kills its job), and the session is closed.
+The cancel goes out on a second connection as well as the call's own, because the
+server answers one request per connection at a time and the call's own may be waiting
+on a fetch. `db query` fetches rows a batch at a time and closes the statement once the
+page is full, so the server stops producing more.
+
 ## Examples
 
 ```bash
@@ -819,12 +954,12 @@ Over MCP:
 | Code | Means |
 |------|-------|
 | `NOT_CONFIGURED` | No db connection set up (`db lint` needs one only without `--engine`) |
-| `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`; for Teradata `baseUrl`, `system`, and `user` or `token`), `path` is relative, the file isn't a SQLite database, `"auth": "windows"` is set off Windows, an Oracle `host` or `database` holds more than a host name or service name, or a Teradata connection has both `user` and `token`, or `token` without `database` |
-| `AUTH` | The server refused the login: check `user` and `password` (for SQL Server, also that SQL Server logins are allowed; for Oracle, also a locked or expired account, or a password verifier too old for Thin mode; for Teradata, also `logMech`, or a `token` that has expired); or Windows authentication couldn't start (Constrained Language mode, SSPI refused) |
+| `CONFIG_INVALID` | A connection is missing `engine` or a key its engine needs (`path`; `host`, `database`, `user`; for Teradata `baseUrl`, `system`, and `user` or `token`), `path` is relative, the file isn't a SQLite database, `"auth": "windows"` is set off Windows, an Oracle `host` or `database` holds more than a host name or service name, or a Teradata connection has both `user` and `token`, or `token` without `database`, or a Hive or Impala connection has another engine's `auth`, or a `password` with `"auth": "nosasl"` |
+| `AUTH` | The server refused the login: check `user` and `password` (for SQL Server, also that SQL Server logins are allowed; for Oracle, also a locked or expired account, or a password verifier too old for Thin mode; for Teradata, also `logMech`, or a `token` that has expired; for Hive and Impala, also a server that accepts only Kerberos); or Windows authentication couldn't start (Constrained Language mode, SSPI refused) |
 | `HTTP` | Teradata only: the Query Service refused a new session because the user already has as many as it's allowed (429 Too Many Sessions), or was too busy to run the request (412). Both say so and can be retried later (`error.details.retryable`) |
-| `NETWORK` | The server or listener couldn't be reached, didn't answer, or its TLS certificate wasn't trusted; or SQL Server requires encryption and `ssl` is off |
+| `NETWORK` | The server or listener couldn't be reached, didn't answer, or its TLS certificate wasn't trusted; or SQL Server requires encryption and `ssl` is off; or Hive or Impala ended the connection during sign-in, usually because `auth` doesn't match the server (`nosasl` for one with no authentication) |
 | `NOT_FOUND` | The file, database, Oracle service, Teradata system alias, schema or table doesn't exist |
-| `WRITE_DISABLED` | A write was refused: by `db query` (by the pre-flight lint before it ran, or by the engine; DDL included, on Oracle), or by the write gate on `db execute` |
-| `INVALID_INPUT` | Bad flags, a cursor from another query, SQL the pre-flight lint refused (another engine's syntax, an unclosed quote), several statements in `db query`, or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), transaction control and `OUTPUT` (SQL Server), PL/SQL (Oracle), or transaction control (Teradata) |
-| `DATABASE` | The engine refused or failed the statement: bad SQL, a constraint, a lock, a permission; on SQL Server, also SQL that ended toil's transaction itself |
+| `WRITE_DISABLED` | A write was refused: by `db query` (by the pre-flight lint before it ran, or by the engine; DDL included, on Oracle; on Hive and Impala, by the read-only account), or by the write gate on `db execute` |
+| `INVALID_INPUT` | Bad flags, a cursor from another query, SQL the pre-flight lint refused (another engine's syntax, an unclosed quote), several statements in `db query` (or in `db execute`, on Hive and Impala), or on a read `VACUUM` (SQLite), `COPY` and `DO` (PostgreSQL), `INTO OUTFILE` and `SET` (MySQL), transaction control and `OUTPUT` (SQL Server), PL/SQL (Oracle), or transaction control (Teradata) |
+| `DATABASE` | The engine refused or failed the statement: bad SQL, a constraint, a lock, a permission; on SQL Server, also SQL that ended toil's transaction itself; on Hive and Impala, also a read the server reports as having changed rows, and a server older than HiveServer2 protocol V6 |
 | `TIMEOUT`, `CANCELLED` | Stopped waiting; for `db execute`, check whether the change was made before retrying |
