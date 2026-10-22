@@ -10,6 +10,8 @@
  * - Starship: a few stars that twinkle over the drifting starfield, and now
  *   and then a warp streak.
  * - Realm: ash drifting down, and embers rising from the foot of the page.
+ * - Sprawl: thin rain falling on a slant, most of it catching the cyan neon
+ *   and now and then a streak of magenta.
  * Particles are reviewed annually for continued relevance to the business.
  */
 
@@ -248,9 +250,61 @@ export const realm: Preset = {
   draw: (ctx, p, s) => stamp(ctx, s[p.kind], p),
 };
 
+/** Sprawl's rain leans with the wind, a little to the right as it falls. */
+const SLANT = (12 * Math.PI) / 180;
+
+/**
+ * Sprawl: rain on the glass. Each drop is a short streak falling fast on a
+ * slant; kind 0 catches the cyan neon, kind 1 the magenta. Faint, so a drop
+ * passing behind a panel's edge reads as weather, not as noise.
+ */
+export const sprawl: Preset = {
+  density: 3,
+  max: 42,
+  spawn(p, { w, h }, rand, initial) {
+    p.seed = rand();
+    p.kind = rand() < 0.82 ? 0 : 1;
+    const speed = between(rand, 520, 760);
+    p.vx = Math.sin(SLANT) * speed;
+    p.vy = Math.cos(SLANT) * speed;
+    // Start above the window, and far enough left that the slant carries a drop across its whole width.
+    p.x = between(rand, -0.2, 1) * w;
+    p.y = initial ? rand() * h : between(rand, -60, -10);
+    p.size = between(rand, 14, 30);
+    p.life = 10;
+  },
+  step(p, dt, { w, h }) {
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    return p.y < h + 40 && p.x < w + 40;
+  },
+  alpha: (p) => (p.kind === 1 ? 0.28 : 0.22) * (0.6 + 0.4 * p.seed),
+  sprites: (make) => [
+    ['63, 240, 255', '234, 246, 255'],
+    ['255, 46, 136', '255, 200, 225'],
+  ].map(([rgb, tip]) =>
+    make(32, (ctx, s) => {
+      // A streak down the middle of the sprite, fading in from its tail to a bright tip.
+      const g = ctx.createLinearGradient(0, 0, 0, s);
+      g.addColorStop(0, `rgba(${rgb}, 0)`);
+      g.addColorStop(0.8, `rgba(${rgb}, 0.8)`);
+      g.addColorStop(1, `rgba(${tip}, 1)`);
+      ctx.fillStyle = g;
+      ctx.fillRect(s / 2 - 0.6, 0, 1.2, s);
+    }),
+  ),
+  draw(ctx, p, s) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(-SLANT);
+    ctx.drawImage(s[p.kind]!, -p.size / 2, -p.size, p.size, p.size);
+    ctx.restore();
+  },
+};
+
 /**
  * The presets by name, which a theme names in its theme.json as
  * `"ambient": { "particles": "<name>" }` (#348). A theme that names none,
  * Plain included, has no particles.
  */
-export const PRESETS: Record<string, Preset> = { dust: crate, leaves: harvest, stars: starship, embers: realm };
+export const PRESETS: Record<string, Preset> = { dust: crate, leaves: harvest, stars: starship, embers: realm, rain: sprawl };

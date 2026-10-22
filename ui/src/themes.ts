@@ -21,13 +21,14 @@ import crate from '../themes/crate/theme.json';
 import harvest from '../themes/harvest/theme.json';
 import plain from '../themes/plain/theme.json';
 import realm from '../themes/realm/theme.json';
+import sprawl from '../themes/sprawl/theme.json';
 import starship from '../themes/starship/theme.json';
 import { TOKENS, type Scheme, type ThemeManifest, type Token } from './theme-pack.ts';
 
 export { TERMS, TOKENS, type Scheme, type TermKey, type ThemeManifest, type Token } from './theme-pack.ts';
 
 /** The built-in themes, in the picker's order: Plain, the quiet one, first. */
-export const THEMES: ThemeManifest[] = [plain, crate, harvest, starship, realm] as ThemeManifest[];
+export const THEMES: ThemeManifest[] = [plain, crate, harvest, starship, realm, sprawl] as ThemeManifest[];
 
 /**
  * The theme a browser shows until someone picks one (the maintainer's call,
@@ -41,6 +42,7 @@ const STYLES: Record<string, () => Promise<unknown>> = {
   harvest: () => import('../themes/harvest/theme.css'),
   starship: () => import('../themes/starship/theme.css'),
   realm: () => import('../themes/realm/theme.css'),
+  sprawl: () => import('../themes/sprawl/theme.css'),
 };
 
 const loaded = new Map<string, Promise<void>>();
