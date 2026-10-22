@@ -193,7 +193,7 @@ describe('the scripted answers in each theme\'s voice (#283)', () => {
     expect((await agent.ask('card-payments', 'risk', { theme: 'plain', voice: true })).parts).toEqual(standard.parts);
     expect((await agent.ask('card-payments', 'deployed', { theme: 'crate', voice: true })).parts).toEqual((await agent.ask('card-payments', 'deployed')).parts);
     // By label too, as the pane sends a typed question.
-    expect((await agent.ask('settlement', "What's at risk in this dossier?", { theme: 'realm', voice: true })).parts[0]!.text).toMatch(/points is taken; 15 remain\./);
+    expect((await agent.ask('settlement', "What's at risk in this dossier?", { theme: 'realm', voice: true })).parts[0]!.text).toMatch(/points is won; 15 remain as hit points\./);
   });
 
   it('streams the voiced answer and ends on the whole of it', async () => {

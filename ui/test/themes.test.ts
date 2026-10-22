@@ -1,7 +1,8 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { cssProblems, fileProblems, lexiconProblems, manifestProblems, voiceProblems } from './theme-rules.ts';
+import { alignmentProblems, cssProblems, fileProblems, lexiconProblems, manifestProblems, voiceProblems } from './theme-rules.ts';
+import { rolled } from '../src/model/alignment.ts';
 import { initialChoice } from '../src/theme-choice.ts';
 import { STANDARD, WORD_KEYS, wordFor } from '../src/wording.ts';
 import { themed } from '../src/theme-context.ts';
@@ -218,5 +219,23 @@ describe('the default theme (#277)', () => {
 
   it('is the theme the page starts in, before any script runs', () => {
     expect(readFileSync(join(import.meta.dirname, '..', 'index.html'), 'utf8')).toContain('<html lang="en" data-theme="crate" data-scheme="system">');
+  });
+});
+
+describe('rolled alignments (#415)', () => {
+  it('rolls the same value for the same name, from the list only', () => {
+    const values = ['Lawful good', 'True neutral', 'Chaotic good'];
+    expect(rolled(values, 'Ada D.')).toBe(rolled(values, 'Ada D.'));
+    const seen = new Set(['Ada D.', 'J. Smith', 'Pat Example', 'Codex', 'R. Okafor', 'M. Chen'].map((n) => rolled(values, n)));
+    for (const v of seen) expect(values).toContain(v);
+    expect(seen.size).toBeGreaterThan(1);
+  });
+
+  it('refuses an alignment that judges a person, or one that is not a short plain label', () => {
+    expect(alignmentProblems(undefined)).toEqual([]);
+    expect(alignmentProblems({ label: 'Rolled', note: 'For play.', values: ['Lawful good', 'Chaotic evil'] })).toEqual(['theme.json: alignments.values "Chaotic evil" judges a person; a rolled label never does.']);
+    expect(alignmentProblems({ label: 'Rolled', note: 'For play.', values: ['Only one'] })).toEqual(['theme.json: alignments.values must list at least two labels.']);
+    expect(alignmentProblems({ label: '<b>x</b>', note: 'For play.', values: ['A', 'B'] })).toEqual(['theme.json: alignments.label must be plain text of 30 characters or fewer.']);
+    expect(alignmentProblems([])).toEqual(['theme.json: "alignments" must be an object with a label, a note and values.']);
   });
 });

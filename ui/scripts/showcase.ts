@@ -101,6 +101,7 @@ const WORD_ROWS: { where: string; key: WordKey; vars?: Record<string, string> }[
 /** The real word each renamed term stands beside, as the dashboard and chat use it. */
 const TERM_REAL: Record<(typeof TERMS)[number], string> = {
   epic: 'Epic', board: 'Board', dependencies: 'Dependencies', sprint: 'Sprint 42', agent: 'Agent', blocked: 'Blocked',
+  people: 'People', analyses: 'Analyses', priority: 'Priority', builds: 'Builds', passed: 'passed', failed: 'failed', pointsDone: 'Points done', pointsLeft: 'Points left',
 };
 
 export interface ShowTheme {

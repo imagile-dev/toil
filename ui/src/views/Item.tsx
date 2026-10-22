@@ -4,7 +4,7 @@
  * listed, not hidden (principle 4). Full disclosure, without the twelve-page form.
  */
 
-import { Avatar, StatusChip } from '../components/bits.tsx';
+import { Avatar, Outcome, StatusChip } from '../components/bits.tsx';
 import { Cited, ItemLink, typeText } from '../components/items.tsx';
 import { ReadinessPanel } from '../components/readiness.tsx';
 import { Card, DataTable } from '../components/layout.tsx';
@@ -15,7 +15,7 @@ import { possibleDuplicates } from '../model/duplicates.ts';
 import { age, cycleTime } from '../model/flow.ts';
 import { INSIGHT_LABEL, insights } from '../model/insights.ts';
 import { entry } from '../model/sprint.ts';
-import { useSkins, useTheme } from '../skins.tsx';
+import { useSkins, useTerm, useTheme } from '../skins.tsx';
 import { ItemAssignments } from '../assign/views.tsx';
 
 /** OWI's link type in words, by direction; the source's own wording is shown beside it. */
@@ -30,6 +30,7 @@ const LINK_WORD: Record<string, [string, string]> = {
 export function ItemView({ id }: { id: string }) {
   const { byId, dossier, now } = useData();
   const theme = useTheme();
+  const term = useTerm();
   const { insights: prepared } = useDerived();
   const { EmptyState } = useSkins();
   const item = byId.get(id);
@@ -150,7 +151,7 @@ export function ItemView({ id }: { id: string }) {
             </dd>
             <dt>Assignee</dt>
             <dd>{personText(item.assignee)}</dd>
-            <dt>Priority</dt>
+            <dt>{term('priority', 'Priority')}</dt>
             <dd>{item.priority ?? 'None'}</dd>
             <dt>Sprint</dt>
             <dd>
@@ -211,7 +212,7 @@ export function ItemView({ id }: { id: string }) {
             <ul className="rows">
               {mine.map((c) => (
                 <li key={c.id}>
-                  {c.url ? <a href={c.url}>{c.title}</a> : c.title} <span className={`outcome outcome--${c.outcome}`}>{c.state}</span>{' '}
+                  {c.url ? <a href={c.url}>{c.title}</a> : c.title} <Outcome of={c} />{' '}
                   <span className="field">
                     (<code>toil {c.command}</code>)
                   </span>

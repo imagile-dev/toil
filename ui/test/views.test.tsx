@@ -648,7 +648,7 @@ describe('the chat up front (#343)', () => {
     const chat = await openChat('card-payments');
     expect(chat.textContent).toContain('Dossier card-payments');
     expect(chat.textContent).toContain('Sprint 42, day 7 of 10');
-    expect(chat.textContent).toContain('Petition the steward about card-payments');
+    expect(chat.textContent).toContain('Ask the dungeon master about card-payments');
     expect(within(chat).getByRole('group', { name: 'Starter questions' }).querySelectorAll('button').length).toBe(5);
     expect(await violations(container)).toEqual([]);
     await userEvent.keyboard('{Escape}');

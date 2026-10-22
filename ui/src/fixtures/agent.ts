@@ -217,9 +217,9 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${J(104)} transferred from Sprint 41 with pull request #305 still open. ${J(107)} came aboard after the sprint started, with no estimate logged.`,
     ],
     realm: [
-      `Day 7 of 10 of Sprint 42. 3 of 21 points are taken; 18 are not.`,
-      `${J(101)}'s pull request #311 fails its Jenkins build. The road is broken there, and ${J(102)} and ${J(103)} wait behind it: 11 points held.`,
-      `${J(104)} was carried from Sprint 41, its pull request #305 still open. ${J(107)} entered the ledger after the sprint began, with no estimate.`,
+      `Candles gutter on day 7 of 10 of Sprint 42. 3 of 21 points are won as experience; 18 still stand as the sprint's hit points.`,
+      `${J(101)}'s pull request #311 fails its Jenkins build: a critical fail on the saving throw. The road is broken there, and ${J(102)} and ${J(103)} wait behind it, 11 points held.`,
+      `${J(104)} was carried from Sprint 41, its pull request #305 still open. ${J(107)} entered the ledger after the sprint began, with no estimate rolled.`,
     ],
   },
   settlement: {
@@ -242,9 +242,9 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${A(2307)} was removed from the backlog, which OWI logs as done.`,
     ],
     realm: [
-      `Day 7 of 9 of Sprint 42. 1 of 16 points is taken; 15 remain. ${A(2305)} is not reckoned in points: it is measured in hours.`,
-      `${A(2303)} cannot march until ${A(2302)} is done, and 2302's pull request #87 is still building.`,
-      `${A(2304)} was carried from Sprint 41, bound to nothing. ${A(2305)} and ${A(2306)} entered after the sprint began.`,
+      `The dice fall on day 7 of 9 of Sprint 42. 1 of 16 points is won; 15 remain as hit points. ${A(2305)} is not reckoned in points: it is measured in hours.`,
+      `${A(2303)} cannot march until ${A(2302)} is done, and 2302's pull request #87 is still rolling its saving throw.`,
+      `${A(2304)} was carried from Sprint 41, bound to nothing. ${A(2305)} and ${A(2306)} joined the quest after the sprint began.`,
       `${A(2307)} was struck from the backlog, which OWI counts as done.`,
     ],
   },
@@ -265,9 +265,9 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${G(45)} has been aboard since day one with no estimate logged.`,
     ],
     realm: [
-      `Day 7 of 10 of Sprint 42. 1 of 11 points is taken; 10 remain.`,
-      `${G(43)} entered after the sprint began, and its draft pull request #53 fails the e2e-safari check.`,
-      `${G(45)} was taken up on day one. It still has no estimate.`,
+      `The torches burn low on day 7 of 10 of Sprint 42. 1 of 11 points is won; 10 remain as hit points.`,
+      `${G(43)} joined the quest after the sprint began, and its draft pull request #53 fails the e2e-safari check: a critical fail.`,
+      `${G(45)} was taken up on day one. No one has yet rolled its estimate.`,
     ],
   },
 };

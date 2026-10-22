@@ -1,12 +1,15 @@
-/* Realm (#210, #349): a grimdark house ledger. Tokens come from theme.json;
-   this file adds aged vellum under everything, soot at the window's far edges,
-   an iron band for the header, leather-bound folios riveted at the corners for
-   the panels, wax-sealed tabs for their headings, one illuminated capital for
-   the dossier's title, and the dependency graph as an engraved war-table map,
-   where epics fly a banner, a blocker is a keep and the road it holds is
-   broken. The same layout and click targets as Plain: only the look changes.
-   Art is original and hidden from screen readers; the words beside it say
-   what it shows. Text stays on vellum, never on soot, so every pair keeps AA. */
+/* Realm (#210, #349, #415): a grimdark house ledger, kept as a tabletop
+   campaign. Tokens come from theme.json; this file adds aged vellum under
+   everything, soot and a dungeon map at the window's far edges, an iron band
+   for the header, leather-bound folios riveted at the corners for the panels,
+   wax-sealed tabs for their headings, one illuminated capital for the
+   dossier's title, an item's fields as a character sheet, a d20 that rolls
+   while a view loads, camp fires on the worklog's rest days, and the
+   dependency graph as an engraved war-table map, where epics fly a banner, a
+   blocker is a keep and the road it holds is broken. The same layout and
+   click targets as Plain: only the look changes. Art is original and hidden
+   from screen readers; the words beside it say what it shows. Text stays on
+   vellum, never on soot or the map, so every pair keeps AA. */
 
 @import '@fontsource/grenze-gotisch/latin-600.css';
 @import '@fontsource/grenze-gotisch/latin-800.css';
@@ -23,11 +26,16 @@
   font-size: 1.0625rem;
 }
 
-/* Soot in the margins beside the 1280px column, where no text ever sits. */
+/* Soot in the margins beside the 1280px column, where no text ever sits,
+   over a dungeon map drawn exactly as wide as each margin, so it never
+   reaches under the column. The map runs down both edges like the torn side
+   of a map book's page, darkest at the window's edge. */
 @media (min-width: 1360px) {
   [data-theme="realm"] body {
     background:
-      linear-gradient(90deg, rgba(20, 17, 14, 0.62), rgba(20, 17, 14, 0) calc(50% - 640px), rgba(20, 17, 14, 0) calc(50% + 640px), rgba(20, 17, 14, 0.62)) fixed,
+      linear-gradient(90deg, rgba(20, 17, 14, 0.7), rgba(20, 17, 14, 0.15) calc(50% - 660px), rgba(20, 17, 14, 0) calc(50% - 640px), rgba(20, 17, 14, 0) calc(50% + 640px), rgba(20, 17, 14, 0.15) calc(50% + 660px), rgba(20, 17, 14, 0.7)) fixed,
+      url("./assets/dungeon-map.webp") left top / calc(50% - 640px) auto repeat-y,
+      url("./assets/dungeon-map.webp") right 0 top 37% / calc(50% - 640px) auto repeat-y,
       linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
       url("./assets/vellum.webp") 0 0 / 512px 512px,
       var(--bg);
@@ -341,7 +349,7 @@
   fill: var(--raised);
 }
 
-/* The steward. */
+/* The dungeon master's answers. */
 [data-theme="realm"] .realm-steward {
   border: 1px solid #3a3733;
   border-left: 3px solid var(--accent);
@@ -368,12 +376,146 @@
   max-width: 100%;
 }
 
-/* While a view loads, the candle burns beside the closed ledger; its soot
-   ground fades into the vellum around it. */
-[data-theme="realm"] .realm-candle img {
-  width: 240px;
-  -webkit-mask-image: radial-gradient(ellipse 50% 50% at center, #000 55%, transparent 100%);
-  mask-image: radial-gradient(ellipse 50% 50% at center, #000 55%, transparent 100%);
+/* While a view loads, a d20 rolls. With reduced motion it rests, twenty up. */
+[data-theme="realm"] .realm-roll .realm-d20 {
+  width: 72px;
+  height: 72px;
+  filter: drop-shadow(0 4px 4px rgba(20, 17, 14, 0.45));
+}
+
+@keyframes realm-roll {
+  0% { transform: rotate(0deg) scale(1); }
+  30% { transform: rotate(250deg) scale(0.9); }
+  60% { transform: rotate(330deg) scale(1.04); }
+  80%, 100% { transform: rotate(360deg) scale(1); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  [data-theme="realm"] .realm-roll .realm-d20 {
+    animation: realm-roll 1.6s cubic-bezier(0.3, 0.7, 0.4, 1) infinite;
+  }
+}
+
+/* A card's place in the initiative order (its priority). */
+[data-theme="realm"] .realm-initiative {
+  font-size: 0.875rem;
+  font-variant: small-caps;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+/* The sprint's vitals: hit points as an oxblood bar in an iron frame, and experience beneath. */
+[data-theme="realm"] .realm-vitals {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #3a3733;
+  border-left: 3px solid var(--accent);
+  background: var(--raised);
+}
+
+[data-theme="realm"] .realm-vital {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+[data-theme="realm"] .realm-vital__name {
+  font-variant: small-caps;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+}
+
+[data-theme="realm"] .realm-vital__value {
+  font-family: var(--font-display);
+  color: var(--accent);
+}
+
+[data-theme="realm"] .realm-hp {
+  display: block;
+  height: 10px;
+  border: 1px solid #14110e;
+  background: #2e2a26;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="realm"] .realm-hp > span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(180deg, #a3362c, var(--accent) 60%, #4a1411);
+}
+
+/* Rest days on the worklog's calendar: a past day with no page carries a
+   camp fire, small on a weekday (a short rest) and larger at the weekend (a
+   long rest). Only while the panel's note says so. */
+[data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty {
+  background: url("./assets/rest.svg") right 2px bottom 2px / 10px 10px no-repeat;
+}
+
+[data-theme="realm"] .realm-rest-key ~ .calendar td.calendar__empty:nth-child(n+6) {
+  background-size: 16px 16px;
+}
+
+/* A rolled alignment on a People card: a playful tag, set in italic so it
+   never reads as one of the card's facts. */
+[data-theme="realm"] .person-tag--roll {
+  font-style: italic;
+  border-style: dashed;
+  border-color: #6b6660;
+  background: transparent;
+}
+
+/* An item's fields as a character sheet: a double iron rule around a leaf
+   of vellum, each field a labelled line filled in by hand. */
+[data-theme="realm"] .item-grid section[aria-labelledby="fields"] {
+  padding: 0.85rem 1rem 1rem;
+  border: 4px double #3a3733;
+  background:
+    linear-gradient(rgba(236, 228, 210, 0.82), rgba(236, 228, 210, 0.82)),
+    url("./assets/vellum.webp") 0 0 / 512px 512px,
+    var(--raised);
+  box-shadow: 0 4px 10px rgba(20, 17, 14, 0.28);
+}
+
+[data-theme="realm"] .item-grid section[aria-labelledby="fields"] h2 {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+[data-theme="realm"] .item-grid section[aria-labelledby="fields"] h2::before {
+  content: "";
+  flex: none;
+  width: 1.2em;
+  height: 1.2em;
+  background: url("./assets/d20.svg") center / contain no-repeat;
+}
+
+[data-theme="realm"] .fields {
+  gap: 0 0.75rem;
+}
+
+[data-theme="realm"] .fields dt {
+  padding: 0.35rem 0;
+  font-variant: small-caps;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-bottom: 1px solid #3a3733;
+}
+
+[data-theme="realm"] .fields dd {
+  margin: 0;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 480px) {
+  [data-theme="realm"] .fields dt {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
 }
 
 /* The local app's sync panel (#257). */
