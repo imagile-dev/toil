@@ -5,7 +5,7 @@ import { principles } from '../data/principles';
 import { repoUrl } from '../lib/url';
 ---
 
-<Layout title="Principles" description="The nine principles every decision in toil traces back to.">
+<Layout title="Principles" description={`The ${principles.length} principles every decision in toil traces back to.`}>
   <PageHero
     eyebrow="How toil is built"
     title="Principles first. <em>Rules follow.</em>"

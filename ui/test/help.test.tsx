@@ -1,14 +1,18 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { resetLearningLinks, setLearningLinks } from '../src/learning.ts';
+import { GLOSSARY_SLUGS } from './glossary-terms.ts';
+import { openChat } from './chat.ts';
 import { App, parseRoute } from '../src/App.tsx';
 import { EditLink, Help } from '../src/components/help.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { DOCS_SITE, HELP, helpHref, viewHelpHref, type HelpView } from '../src/help.ts';
+import { LEARN_LINKS, LEARN_SITE as CLI_LEARN_SITE } from '../../src/welcome/learn.ts';
+import { DOCS_SITE, HELP, LEARN, LEARN_SITE, glossaryHref, helpHref, learnHref, slugOf, viewHelpHref, type HelpTopic, type HelpView } from '../src/help.ts';
 import { UI_DOC_PAGES, skillFiles, skillDir, uiDocDir } from '../../site/src/lib/skill-pages.mjs';
 
 /**
@@ -132,8 +136,131 @@ describe('edit links', () => {
   });
 
   it('has a Help entry in the header for the view in front of you', async () => {
+    setLearningLinks(false);
     await open('#/dossier/card-payments/people');
     expect(screen.getByRole('link', { name: /^Help/ }).getAttribute('href')).toBe(helpHref(HELP.people));
     expect(screen.getByRole('link', { name: "Edit card-payments's work-in-progress limit" }).getAttribute('href')).toBe('#/settings/dossiers/card-payments/wip');
+  });
+});
+
+describe('learning links (#418)', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    resetLearningLinks();
+  });
+  const entries = Object.entries(HELP).flatMap(([id, t]) => ((t as HelpTopic).glossary ?? []).map((g) => [id, g] as const));
+  const terms = ['token', 'input-tokens', 'output-tokens', 'cache-tokens', 'context-window', 'effort', 'model', 'model-provider', 'harness', 'mcp', 'tool-call', 'sandbox', 'permission-mode', 'human-in-the-loop', 'human-review', 'session', 'system-prompt', 'skill', 'hallucination', 'primary-source', 'non-determinism'];
+
+  it("covers the issue's terms, each once, and every slug is one Context Overflow's glossary has", () => {
+    expect(entries.map(([, g]) => g.slug).sort()).toEqual([...terms].sort());
+    for (const [id, g] of entries) {
+      expect(GLOSSARY_SLUGS, `${id}: ${g.slug}`).toContain(g.slug);
+      expect(slugOf(g.term), id).toBe(g.slug);
+      expect(glossaryHref(g)).toBe(`https://kolatts.github.io/context-overflow/glossary/${g.slug}`);
+      expect(g.text, g.slug).toMatch(/^[A-Z].*\.$/);
+    }
+  });
+
+  it('slugs a term the way Context Overflow does', () => {
+    expect(['Human-in-the-loop', 'AGENTS.md', 'Tool call', ' MCP '].map(slugOf)).toEqual(['human-in-the-loop', 'agents-md', 'tool-call', 'mcp']);
+  });
+
+  it('links Learn to the four modules, the same four the welcome menu prints', () => {
+    expect(LEARN.map(learnHref)).toEqual(['getting-started', 'ai-fluency-101', 'autonomy-spectrum', 'git-time-machine'].map((m) => `https://kolatts.github.io/context-overflow/modules/${m}`));
+    expect(CLI_LEARN_SITE).toBe(LEARN_SITE);
+    expect(LEARN_LINKS.map(({ title, task, path }) => ({ title, task, path }))).toEqual(LEARN.map(({ title, task, path }) => ({ title, task, path })));
+  });
+
+  it("puts a topic's terms in its popover, each with Read more on Context Overflow, and none once the setting is off", async () => {
+    const { unmount } = render(<Help topic="model-usage" />);
+    await userEvent.click(screen.getByRole('button', { name: "About the agent's usage" }));
+    const dialog = await screen.findByRole('dialog', { name: "About the agent's usage" });
+    const list = within(dialog).getByRole('list', { name: "Terms, from Context Overflow's glossary" });
+    expect(within(list).getAllByRole('listitem')[0]!.textContent).toBe('Token: The atomic unit a model reads and writes. Read more on Context Overflow about Token (opens in a new tab)');
+    const link = within(list).getByRole('link', { name: /^Read more on Context Overflow ?about Cache tokens/ });
+    expect(link.getAttribute('href')).toBe('https://kolatts.github.io/context-overflow/glossary/cache-tokens');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+    unmount();
+    setLearningLinks(false);
+    render(<Help topic="model-usage" />);
+    await userEvent.click(screen.getByRole('button', { name: "About the agent's usage" }));
+    const plain = await screen.findByRole('dialog', { name: "About the agent's usage" });
+    expect(plain.querySelector('[data-glossary]')).toBeNull();
+    expect(plain.textContent).not.toContain('Context Overflow');
+    expect(within(plain).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual([helpHref(HELP['model-usage'])]);
+  });
+
+  const open = async (hash: string) => {
+    window.location.hash = hash;
+    render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
+    await screen.findByRole('heading', { level: 1 });
+  };
+
+  it('makes Help a menu with Learn, and the plain docs link again once the setting is off', async () => {
+    await open('#/dossier/card-payments/people');
+    await userEvent.click(screen.getByRole('button', { name: /^Help/ }));
+    const menu = await screen.findByRole('menu', { name: 'Help' });
+    const items = within(menu).getAllByRole('menuitem');
+    expect(items.map((i) => i.getAttribute('href'))).toEqual([helpHref(HELP.people), ...LEARN.map(learnHref)]);
+    for (const i of items) {
+      expect(i.getAttribute('target')).toBe('_blank');
+      expect(i.getAttribute('rel')).toBe('noopener noreferrer');
+    }
+    expect(items[3]!.textContent).toBe('The Autonomy SpectrumDeciding how much to hand an agent (opens in a new tab)');
+    await userEvent.keyboard('{Escape}');
+    act(() => setLearningLinks(false));
+    expect(screen.getByRole('link', { name: /^Help/ }).getAttribute('href')).toBe(helpHref(HELP.people));
+    expect(document.querySelector('a[href*="context-overflow"], [data-learn-link], [data-learn]')).toBeNull();
+  });
+
+  it("offers Learn in the agent's empty chat, and the answers' terms in its (i)", async () => {
+    await open('#/dossier/checkout-web');
+    const chat = await openChat('checkout-web');
+    await userEvent.click(within(chat).getByRole('button', { name: 'Learn' }));
+    const learn = await screen.findByRole('dialog', { name: 'Learn, on Context Overflow' });
+    expect(within(learn).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(LEARN.map(learnHref));
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(within(chat).getByRole('button', { name: 'About these answers' }));
+    const info = await screen.findByRole('dialog', { name: 'About these answers' });
+    expect(within(info).getAllByRole('link', { name: /^Read more on Context Overflow/ }).map((a) => a.getAttribute('href'))).toEqual(HELP.answers.glossary.map(glossaryHref));
+  });
+
+  it('turns off from Settings, General, and is remembered in this browser', async () => {
+    await open('#/settings/toil');
+    const box = screen.getByRole('checkbox', { name: 'Links to learning content' });
+    expect(box).toHaveProperty('checked', true);
+    await userEvent.click(box);
+    expect(box).toHaveProperty('checked', false);
+    expect(localStorage.getItem('toil-ui.learning')).toBe('off');
+    expect(screen.getByRole('link', { name: /^Help/ })).toBeTruthy();
+    resetLearningLinks();
+    expect(screen.getByRole('checkbox', { name: 'Links to learning content' })).toHaveProperty('checked', false);
+  });
+
+  it('fetches and prefetches nothing from Context Overflow', async () => {
+    const fetched: string[] = [];
+    const real = globalThis.fetch;
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      fetched.push(String(input instanceof Request ? input.url : input));
+      return real(input);
+    }) as typeof fetch;
+    try {
+      await open('#/settings/agent-usage');
+      await userEvent.click(screen.getAllByRole('button', { name: "About the agent's usage" })[0]!);
+      await screen.findByRole('dialog', { name: "About the agent's usage" });
+      expect(fetched.filter((u) => u.includes('context-overflow'))).toEqual([]);
+      expect(document.querySelector('link[href*="context-overflow"]')).toBeNull();
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
+  it('names Context Overflow only in the help table', () => {
+    const src = join(root, 'ui', 'src');
+    const named = readdirSync(src, { recursive: true, encoding: 'utf8' })
+      .filter((f) => /\.(ts|tsx|css|json)$/.test(f))
+      .filter((f) => readFileSync(join(src, f), 'utf8').includes('kolatts.github.io'));
+    expect(named.map((f) => f.replace(/\\/g, '/'))).toEqual(['help.ts']);
   });
 });

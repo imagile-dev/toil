@@ -122,6 +122,26 @@ describe('the particle presets', () => {
       expect(ps.filter((p) => p.kind === 0).every((p) => p.vy < 0)).toBe(true);
     }
   });
+
+  it("blows Frontier's dust across the page on the wind and lifts its steam up it, swelling, in every width", () => {
+    for (const w of [375, 1440]) {
+      const view = { w, h: 812, t: 0 };
+      const ps = [] as ReturnType<typeof blank>[];
+      const rand = seeded(5);
+      fill(PRESETS.steam!, ps, view, rand);
+      // A phone holds only a few particles, so the kinds are counted over the whole run.
+      const kinds = new Set<number>();
+      for (let i = 0; i < 900; i++) {
+        stepAll(PRESETS.steam!, ps, 1 / 30, view, rand);
+        for (const p of ps) {
+          kinds.add(p.kind);
+          if (p.kind === 0) expect(p.vx).toBeGreaterThan(0);
+          else expect(p.vy < 0 && p.size >= 26 && p.size <= 110).toBe(true);
+        }
+      }
+      expect(kinds).toEqual(new Set([0, 1]));
+    }
+  });
 });
 
 describe('the ambient layer', () => {

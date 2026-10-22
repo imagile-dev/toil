@@ -63,4 +63,16 @@ export const principles: Principle[] = [
     body: 'No telemetry, no update checks, no call home. Network traffic goes to hosts in your config, or to a public API a command names in its own name.',
     forYou: 'Your firewall logs show exactly what you would expect.',
   },
+  {
+    n: '10',
+    title: 'Learn one area, know them all',
+    body: 'Every integration takes the same shape: toil, the area, the thing, then what to do to it, with only the ids that lead there as arguments. One idea has one flag everywhere, so --limit means the same in Jira as in GitHub.',
+    forYou: 'Once you know one service in toil, you can guess the commands for the next.',
+  },
+  {
+    n: '11',
+    title: 'Quiet screens',
+    body: 'A screen shows what you need to act on right now and little else. Explanations wait behind an (i) with a link to the docs, and controls sit where you use them. Errors, and where a result came from, always stay in view.',
+    forYou: 'You see your work first, and help is one click away when you want it.',
+  },
 ];

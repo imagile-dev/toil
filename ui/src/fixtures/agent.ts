@@ -226,6 +226,11 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${J(101)} hit black ICE: its pull request #311 fails the Jenkins build, and ${J(102)} and ${J(103)} are stuck behind it. 11 points going nowhere.`,
       `${J(104)} rolled over from Sprint 41, its pull request #305 still open, waiting on the fixer. ${J(107)} showed up after the sprint started, no estimate on it.`,
     ],
+    frontier: [
+      `Day 7 of 10 on the drive for Sprint 42. 3 of 21 points are in the pen; 18 are still out on the range.`,
+      `${J(101)} is the busted axle: its pull request #311 keeps failing the Jenkins boiler test, and ${J(102)} and ${J(103)} sit behind it. That's 11 points going nowhere.`,
+      `${J(104)} rode over from Sprint 41, and its telegram, pull request #305, is still waiting on a signature. ${J(107)} joined after the drive set out, with no estimate on it.`,
+    ],
   },
   settlement: {
     crate: [
@@ -258,6 +263,12 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `${A(2304)} rolled over from Sprint 41 with nothing linked to it. ${A(2305)} and ${A(2306)} showed up after the sprint started.`,
       `${A(2307)} got pulled off the backlog, which OWI logs as done.`,
     ],
+    frontier: [
+      `Day 7 of 9 on the drive for Sprint 42. 1 of 16 points is in the pen; 15 are still out. ${A(2305)} isn't in that count: it's tallied in hours, not points.`,
+      `${A(2303)} can't move till ${A(2302)} is done, and 2302's pull request #87 is still in its boiler test.`,
+      `${A(2304)} rode over from Sprint 41 with nothing hitched to it. ${A(2305)} and ${A(2306)} joined after the drive set out.`,
+      `${A(2307)} was struck off the backlog, which OWI books as done.`,
+    ],
   },
   'checkout-web': {
     crate: [
@@ -284,6 +295,11 @@ export const VOICED: Record<string, Record<string, string[]>> = {
       `Day 7 of 10 on the run, Sprint 42. 1 of 11 points is clean, 10 still live.`,
       `${G(43)} showed up after the sprint started, and its draft pull request #53 fails the e2e-safari check.`,
       `${G(45)} has been live since day one with no estimate on it.`,
+    ],
+    frontier: [
+      `Day 7 of 10 on the drive for Sprint 42. 1 of 11 points is in the pen; 10 are still out on the range.`,
+      `${G(43)} joined after the drive set out, and its draft telegram, pull request #53, fails the e2e-safari check.`,
+      `${G(45)} has been out on the trail since day one with no estimate on it.`,
     ],
   },
 };

@@ -1,7 +1,7 @@
 /**
  * toil's configuration from the browser (#253, item 4): Connections, Dossiers,
  * General (the theme and how deep it goes, #283, motion in this browser,
- * #271, then bounds and the time limit), Usage (what toil's audit log says
+ * #271, notifications, links to learning content, #418, then bounds and the time limit), Usage (what toil's audit log says
  * about how toil is used, #309), Agent usage (what the agent's models used,
  * and its caps, #295), and
  * the agent's own settings (#251), each its own page under `#/settings/`. Every change to toil's config runs one of toil's
@@ -23,6 +23,7 @@ import { Connections } from './settings/Connections.tsx';
 import { DossierSetup } from './settings/DossierSetup.tsx';
 import { General } from './settings/General.tsx';
 import { MotionSetting } from './settings/Motion.tsx';
+import { LearningSetting } from './settings/Learning.tsx';
 import { NotifySetting } from '../components/notify.tsx';
 import { ThemeSetting } from './settings/Theme.tsx';
 import { Usage } from './settings/Usage.tsx';
@@ -32,7 +33,7 @@ import type { ModelUsageApi } from '../server-client.ts';
 const PAGES: Array<{ page: SettingsPage; label: string; about: string; topic: HelpTopicId }> = [
   { page: 'connections', label: 'Connections', about: 'The connections toil uses: add, test, set the default, turn writes on or off, replace a secret, remove.', topic: 'connections' },
   { page: 'dossiers', label: 'Dossiers', about: 'Set up a repository that has a dossier, create dossiers, and give them repositories, areas, field names, people and a work-in-progress limit.', topic: 'dossier-setup' },
-  { page: 'toil', label: 'General', about: 'How Toil UI looks, talks, moves and notifies in this browser, and the settings toil has no command for.', topic: 'bounds' },
+  { page: 'toil', label: 'General', about: 'How Toil UI looks, talks, moves, notifies and links out in this browser, and the settings toil has no command for.', topic: 'bounds' },
   { page: 'usage', label: 'Usage', about: "How toil is used on this machine: calls per day, the commands used and failing most, and the ones never called, from toil's local audit log.", topic: 'audit' },
   { page: 'agent-usage', label: 'Agent usage', about: "What the agent's models used in your chats, and optional caps that stop a runaway.", topic: 'model-usage' },
   { page: 'agent', label: 'Agent', about: 'Which agent answers questions in the chat, and your own instructions for it.', topic: 'agent' },
@@ -75,6 +76,7 @@ export function Settings({ page, at = [], config, agent, modelUsage = null }: { 
           <ThemeSetting />
           <MotionSetting />
           <NotifySetting />
+          <LearningSetting />
         </>
       )}
       {page === 'agent' ? (

@@ -15,7 +15,7 @@ import { THEMES, themeNamed } from '../src/themes.ts';
  * The bar every theme is held to (#206, #277), run the same way for each: the
  * same click targets as Plain on every view, so a theme changes how a view
  * looks and never what can be done on it, and axe at WCAG 2.2 AA. Plain and
- * Crate are strict, with no violations; Harvest, Starship, Realm and Sprawl may
+ * Crate are strict, with no violations; Harvest, Starship, Realm, Sprawl and Frontier may
  * deviate for style, so their findings are reported, never failed (the
  * maintainer's bar, AGENT_DECISIONS.md, #267). Contrast is checked on the
  * tokens (themes.test.ts) and in a real browser (scripts/layout-check.mjs),
@@ -56,7 +56,7 @@ function targets(): string[] {
   const roles = ['link', 'button', 'checkbox', 'textbox', 'combobox', 'menuitem', 'option', 'tab'] as const;
   return roles
     .flatMap((role) => screen.queryAllByRole(role).map((el) => `${role}: ${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim()}`))
-    .filter((t) => !/^button: (Theme|Appearance)|^button: .*(Plain|Crate|Harvest|Starship|Realm|Sprawl|System|Light|Dark)/.test(t));
+    .filter((t) => !/^button: (Theme|Appearance)|^button: .*(Plain|Crate|Harvest|Starship|Realm|Sprawl|Frontier|System|Light|Dark)/.test(t));
 }
 
 beforeEach(() => {
@@ -85,11 +85,11 @@ describe('every theme', { timeout: SLOW }, () => {
     expect(targets()).toEqual(plainTargets.get(hash));
   });
 
-  it('is listed in the theme picker, all six of them', async () => {
+  it('is listed in the theme picker, all seven of them', async () => {
     await open('#/', 'plain', 'light');
     screen.getByRole('button', { name: /Theme/ }).click();
     const options = await screen.findAllByRole('option');
-    expect(options.map((o) => o.textContent)).toEqual(['Plain', 'Crate', 'Harvest', 'Starship', 'Realm', 'Sprawl']);
+    expect(options.map((o) => o.textContent)).toEqual(['Plain', 'Crate', 'Harvest', 'Starship', 'Realm', 'Sprawl', 'Frontier']);
   });
 
   it('ships skins for the named slots only, and only as a built-in theme', () => {
@@ -116,6 +116,7 @@ describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () =>
     ['realm', 'War table (Dependencies)', 'Broken road (Blocked)'],
     ['starship', 'Star chart (Dependencies)', 'Hazard (Blocked)'],
     ['sprawl', 'Net map (Dependencies)', 'Black ICE (Blocked)'],
+    ['frontier', 'Rail survey (Dependencies)', 'Busted axle (Blocked)'],
     ['plain', 'Dependencies', 'Blocked'],
   ])('%s names the graph %s and its blockers %s', async (theme, title, blocked) => {
     const scheme = Object.keys(themeNamed(theme).schemes)[0]!;
@@ -131,6 +132,12 @@ describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () =>
     expect(document.querySelector('.sprint-chip')!.textContent).toMatch(/^Season calendar \(Sprint 42: day \d+ of \d+\)$/);
   });
 
+  it('names the claims board and the cattle drive in Frontier beside their own words', async () => {
+    await open('#/dossier/card-payments/board', 'frontier', 'light');
+    expect(screen.getByRole('region', { name: /^Claims board \(Sprint 42 board\)$/ })).toBeTruthy();
+    expect(document.querySelector('.sprint-chip')!.textContent).toMatch(/^Cattle drive \(Sprint 42: day \d+ of \d+\)$/);
+  });
+
   it('names the campaign each card serves in Realm', async () => {
     await open('#/dossier/card-payments/board', 'realm', 'light');
     const board = screen.getByRole('region', { name: /board/ });
@@ -144,6 +151,7 @@ describe('the skins', { timeout: SLOW }, () => {
     ['starship', 'dark', "Ship's computer (Agent)"],
     ['realm', 'light', 'Steward (Agent)'],
     ['sprawl', 'dark', 'Netrunner (Agent)'],
+    ['frontier', 'light', 'Operator (Agent)'],
   ])('answer in %s (%s) as %s', async (theme, scheme, name) => {
     await open('#/dossier/settlement', theme, scheme);
     await openChat('settlement');
@@ -182,6 +190,8 @@ describe('the skins', { timeout: SLOW }, () => {
     ['realm', 'Loading', 'candle-ledger'],
     ['sprawl', 'Loading', 'jack-in'],
     ['sprawl', 'EmptyState', 'dead-drop'],
+    ['frontier', 'Loading', 'locomotive'],
+    ['frontier', 'EmptyState', 'wanted-poster'],
   ] as const)("show %s's own art in its %s slot, decorative, beside the words", (theme, slot, file) => {
     const Slot = skinsFor(theme)[slot];
     const { container } = render(<Slot message="Nothing to file." />);
