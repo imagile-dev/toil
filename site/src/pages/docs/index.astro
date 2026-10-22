@@ -1,10 +1,10 @@
 ---
 import SkillPage from '../../components/SkillPage.astro';
 import { categories } from '../../data/integrations';
-import { docsPath } from '../../data/docs-path';
+import { docsPath } from '../../data/docs-path.mjs';
 import { url } from '../../lib/url';
 
-// The docs index: the docs path first (data/docs-path.ts), group by group,
+// The docs index: the docs path first (data/docs-path.mjs), group by group,
 // then the skill's own index, skills/toil/SKILL.md, rendered, then everything
 // /connect/ lists, in its order. A page is added to the path in one place,
 // and shows up here, in the footer and in every page's previous and next.

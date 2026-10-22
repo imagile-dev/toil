@@ -5,20 +5,10 @@
 // pages in this order. A link with a hash is a section of a page listed
 // elsewhere, so the walk skips it, and a link outside /docs/ is a signpost to
 // a page with a walk of its own (/connect/). Every page in its proper queue.
+// Plain JavaScript with its types in docs-path.d.mts, so the repository's own
+// tests can import it without the site's packages installed.
 
-export interface DocsLink {
-  label: string;
-  /** Site-relative, as url() takes it. */
-  href: string;
-}
-
-export interface DocsGroup {
-  id: string;
-  title: string;
-  links: DocsLink[];
-}
-
-export const docsPath: DocsGroup[] = [
+export const docsPath = [
   {
     id: 'get-started',
     title: 'Get started',
@@ -75,16 +65,46 @@ export const docsPath: DocsGroup[] = [
   },
 ];
 
-/** A docs page on the walk: its label, path and group. */
-export interface DocsStop extends DocsLink {
-  group: DocsGroup;
-}
+// Start here, by role (#433): the homepage's Get started section shows these
+// beside the two ways to install. Each step is a page or a heading the docs
+// already have, so a path is a reading order, never a new page; check-links
+// fails the build when a step stops landing. Three roles, three steps each:
+// the org chart, abridged.
+export const startPaths = [
+  {
+    id: 'agent',
+    role: 'You work with an agent',
+    steps: [
+      { label: 'Install toil', href: '/docs/install/' },
+      { label: 'Add the skill', href: '/docs/install/#installing-this-skill' },
+      { label: 'Connect MCP', href: '/docs/mcp/#registering-it' },
+    ],
+  },
+  {
+    id: 'lead',
+    role: 'You lead a team',
+    steps: [
+      { label: 'Run Toil UI', href: '/docs/ui/#start-it' },
+      { label: 'Onboard to a dossier', href: '/docs/dossiers/#onboarding-to-a-repo-that-has-a-dossier' },
+      { label: 'Press Analyze', href: '/docs/ui/#the-agent' },
+    ],
+  },
+  {
+    id: 'ci',
+    role: 'You run CI/CD',
+    steps: [
+      { label: 'Connections from env vars', href: '/docs/core/#configuration' },
+      { label: 'The JSON envelope', href: '/docs/core/#the-envelope-and-errors' },
+      { label: 'Read-only by default', href: '/docs/core/#writes' },
+    ],
+  },
+];
 
 /** Every whole docs page, in reading order, each once. */
-export const docsWalk: DocsStop[] = docsPath.flatMap((group) => group.links.filter((l) => l.href.startsWith('/docs/') && !l.href.includes('#')).map((l) => ({ ...l, group })));
+export const docsWalk = docsPath.flatMap((group) => group.links.filter((l) => l.href.startsWith('/docs/') && !l.href.includes('#')).map((l) => ({ ...l, group })));
 
 /** Where a docs page sits: its group, and the pages before and after it. The index itself leads to the first page. */
-export function docsPlace(path: string): { stop?: DocsStop; prev?: DocsLink; next?: DocsLink } {
+export function docsPlace(path) {
   if (path === '/docs/') return { next: docsWalk[0] };
   const at = docsWalk.findIndex((s) => s.href === path);
   if (at < 0) return {};

@@ -1,7 +1,7 @@
 ---
-// Previous and next along the docs path (data/docs-path.ts), at the foot of
+// Previous and next along the docs path (data/docs-path.mjs), at the foot of
 // every docs page. A page off the path draws nothing.
-import { docsPlace } from '../data/docs-path';
+import { docsPlace } from '../data/docs-path.mjs';
 import { url, sitePath } from '../lib/url';
 
 const { prev, next } = docsPlace(sitePath(Astro.url.pathname));
