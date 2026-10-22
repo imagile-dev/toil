@@ -50,7 +50,9 @@
   each cited item's title in the record would cover it, at the cost of a bigger
   record; left for now.
 - **The Overview's recommendation** is the latest analysis's when it has a
-  recommendation line, saying "From the latest Analyze", its time, who wrote it and a
+  recommendation line and is current: made at or after the time the data was read, or
+  the same UTC day (the review bot's point on #407; an old one would lead with work
+  since done). An older one is linked from the code's card instead, saying "From the latest Analyze", its time, who wrote it and a
   link; otherwise the code's, saying "Worked out by code" and whether there is no
   analysis or the latest had no line. The key issues stay the code's either way. The
   analysis's line is cut at three lines there, to keep the page to one screen; the

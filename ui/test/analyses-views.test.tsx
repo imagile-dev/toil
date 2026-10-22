@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
 import type { AnalysesApi } from '../src/analyses.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
-import { fixtureAnalyses } from '../src/fixtures/analyses.ts';
+import { fixtureAnalyses, sampleAnalysisRecords } from '../src/fixtures/analyses.ts';
+import { memoryAnalyses } from '../src/analyses.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { askBar } from './chat.ts';
 
@@ -34,7 +35,7 @@ describe('the Analyses tab', () => {
     const entries = within(await list()).getAllByRole('listitem').filter((li) => li.classList.contains('analysis'));
     expect(entries).toHaveLength(2);
     const [latest, first] = entries as [HTMLElement, HTMLElement];
-    expect(latest.textContent).toContain('12 Oct 2026, 16:30 UTC, by the scripted preview, not a model.');
+    expect(latest.textContent).toContain('13 Oct 2026, 07:30 UTC, by the scripted preview, not a model.');
     expect(latest.querySelector('.analysis__rec')!.textContent).toContain("Fix");
     // The recommendation's citations are chips: key, title and status.
     const chip = within(latest.querySelector('.analysis__rec') as HTMLElement).getAllByRole('link')[0]!;
@@ -52,7 +53,7 @@ describe('the Analyses tab', () => {
     expect(within(changes).getByText('Cleared').nextElementSibling!.textContent).toContain('PAY-104');
     expect(within(changes).getByText('Points moved').nextElementSibling!.textContent).toMatch(/PAY-102.*\d+ points? to \d+ points?/s);
     expect(within(changes).getByText('The sprint').nextElementSibling!.textContent).toBe('Sprint 42: 0 done, 21 left, then Sprint 42: 3 done, 18 left.');
-    expect(latest.querySelector('.analysis__open a')!.textContent).toBe('Open the analysis of 12 Oct 2026, 16:30 UTC');
+    expect(latest.querySelector('.analysis__open a')!.textContent).toBe('Open the analysis of 13 Oct 2026, 07:30 UTC');
     expect(latest.querySelector('.analysis__open a')!.getAttribute('href')).toBe('#/dossier/card-payments/analyses/sample-analysis-2');
   });
 
@@ -63,7 +64,7 @@ describe('the Analyses tab', () => {
 
   it('opens one again, top-down, with its evidence folded and what changed', async () => {
     await open('#/dossier/card-payments/analyses/sample-analysis-2');
-    const panel = await screen.findByRole('region', { name: /^Analysis of 12 Oct 2026/ });
+    const panel = await screen.findByRole('region', { name: /^Analysis of 13 Oct 2026/ });
     expect(within(panel).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Recommendation', 'Issues', 'What changed since the one before']);
     const issues = within(within(panel).getByRole('region', { name: 'Issues' })).getAllByRole('listitem');
     expect(issues.map((li) => li.querySelector('strong')?.textContent)).toEqual(['Build failing: ', 'Blocked chain: ', 'Aging carry-over: ']);
@@ -86,9 +87,18 @@ describe("the Overview's recommendation", () => {
     await open('#/dossier/card-payments');
     const card = await screen.findByRole('region', { name: /^Recommendation/ });
     await waitFor(() => expect(card.dataset.recSource).toBe('analysis'));
-    expect(card.textContent).toContain('From the latest Analyze, 12 Oct 2026, 16:30 UTC, by the scripted preview, not a model.');
+    expect(card.textContent).toContain('From the latest Analyze, 13 Oct 2026, 07:30 UTC, by the scripted preview, not a model.');
     expect(within(card).getByRole('link', { name: 'Open the analysis' }).getAttribute('href')).toBe('#/dossier/card-payments/analyses/sample-analysis-2');
     expect(card.querySelector('.overview-rec__headline')!.textContent).toContain('Fix');
+  });
+
+  it("falls back to the code's when the latest analysis is older than the data, and links to it", async () => {
+    const old = (await sampleAnalysisRecords()).map((r, i) => ({ ...r, at: `2026-10-0${8 + i}T09:00:00.000Z` }));
+    await open('#/dossier/card-payments', memoryAnalyses(old));
+    const card = await screen.findByRole('region', { name: /^Recommendation/ });
+    await waitFor(() => expect(card.textContent).toContain('The latest Analyze, 9 Oct 2026, 09:00 UTC, is older than the data: open it.'));
+    expect(card.dataset.recSource).toBe('code');
+    expect(within(card).getByRole('link', { name: 'open it' }).getAttribute('href')).toBe('#/dossier/card-payments/analyses/sample-analysis-2');
   });
 
   it('falls back to the code\'s, and says so, where there is no analysis', async () => {

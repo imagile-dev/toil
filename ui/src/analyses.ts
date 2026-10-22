@@ -5,7 +5,8 @@
  * (server/analyses.ts) and records each Analyze itself as its answer ends,
  * so the page only reads. The preview, which has no server, keeps them in
  * memory (`memoryAnalyses`) and records them from the chat, which is what
- * `record` is for. The rules are src/model/analysis.ts's either way.
+ * `record` is for. The rules are src/model/analysis.ts's either way. A
+ * filing cabinet that only ever opens from the front.
  */
 
 import type { Answer } from './agent.ts';

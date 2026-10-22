@@ -33,9 +33,11 @@ export function Overview() {
   const { dossier, now } = useData();
   const { health: h, insights: p } = useDerived();
   const rec = useMemo(() => recommend({ items: dossier.items, pullRequests: dossier.pullRequests ?? [], prepared: p, health: h, readiness: dossier.readiness, now }), [dossier, now, h, p]);
-  // The latest Analyze's recommendation when there is one (#395); the code's otherwise, and the card says which.
+  // The latest Analyze's recommendation when there is one and it is current (#395): made since the data was read, or
+  // the same UTC day. An older one would lead with work since done, so the code's leads then; the card says which.
   const latest = useChatScope()?.history.list?.[0] ?? null;
-  const analysis = latest?.recommendation ? latest : null;
+  const current = latest ? latest.at >= now || latest.at.slice(0, 10) === now.slice(0, 10) : false;
+  const analysis = latest?.recommendation && current ? latest : null;
   return (
     <div className="overview">
       <Card as="section" className="panel overview-rec" aria-labelledby="rec-title" data-rec-source={analysis ? 'analysis' : 'code'}>
@@ -55,7 +57,18 @@ export function Overview() {
               <>
                 <span className="overview-rec__source">Worked out by code</span>
                 {rec.derivedFrom.replace(/^Worked out by code/, '')}
-                {latest ? ' The latest Analyze had no recommendation line.' : ' No Analyze kept for this dossier yet.'}
+                {!latest ? (
+                  ' No Analyze kept for this dossier yet.'
+                ) : (
+                  <>
+                    {' '}
+                    The latest Analyze, <time dateTime={latest.at}>{dateTime(latest.at)}</time>, {current ? 'had no recommendation line' : 'is older than the data'}:{' '}
+                    <a href={analysisHref(dossier.name, latest.id)} data-rec-analysis="">
+                      open it
+                    </a>
+                    .
+                  </>
+                )}
               </>
             )}
           </p>

@@ -8,7 +8,8 @@
  * (src/model/analysis.ts), so the list can say what changed from one to the
  * next by code. The cache keeps them (`analyses`, schema 4), so they survive
  * a restart and go with `toil-ui wipe`; the sample keeps them in memory. The
- * page only reads: nothing it sends can write a record.
+ * page only reads: nothing it sends can write a record. Minutes taken by
+ * the clerk, never by the people being minuted.
  */
 
 import { randomUUID } from 'node:crypto';

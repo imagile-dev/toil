@@ -8,8 +8,10 @@
  * scripted too, on a snapshot made a few days earlier by hand: PAY-103 not
  * yet blocked, PAY-104 then waiting on PAY-105, PAY-102 estimated at two
  * points fewer, and three fewer points done. Every record says it was the
- * scripted preview, not a model. Analyze pressed in the preview is kept
- * beside them, in memory, until the page reloads.
+ * scripted preview, not a model. The latest is from the sample's own
+ * morning, so the Overview leads with it. Analyze pressed in the preview is kept
+ * beside them, in memory, until the page reloads. Two meetings, minuted
+ * before anyone arrived.
  */
 
 import { citationsOf, type AnswerPart } from '../agent.ts';
@@ -53,7 +55,7 @@ export async function sampleAnalysisRecords(): Promise<AnalysisRecord[]> {
   };
   return [
     recordOf(answer(EARLIER_PARTS), { id: 'sample-analysis-1', dossier: DOSSIER, startedAt: at(90.5), at: at(90), snapshot: earlier(now) }),
-    recordOf(answer(analyzeParts(DOSSIER)), { id: 'sample-analysis-2', dossier: DOSSIER, startedAt: at(15.6), at: at(15.5), snapshot: now }),
+    recordOf(answer(analyzeParts(DOSSIER)), { id: 'sample-analysis-2', dossier: DOSSIER, startedAt: at(0.6), at: at(0.5), snapshot: now }),
   ];
 }
 

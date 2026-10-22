@@ -141,10 +141,11 @@ A dossier opens on its **Overview**, in a frame all of its pages share:
 The Overview puts the answer first, then the reasons, then the evidence, and fits a
 1440 by 900 screen without scrolling:
 
-1. **The recommendation:** the one thing to do first. When the dossier has an
-   analysis, it is the latest Analyze's recommendation, with when it was made, who
-   wrote it and a link to it. Without one (or when the latest had no Recommendation
-   line), it is worked out by code from what the dossier already holds, with no agent
+1. **The recommendation:** the one thing to do first. When the dossier has a
+   current analysis (made since the data was read, or the same UTC day), it is the
+   latest Analyze's recommendation, with when it was made, who wrote it and a link to
+   it. Without one (none yet, the latest had no Recommendation line, or it is older
+   than the data, which the card links to), it is worked out by code from what the dossier already holds, with no agent
    call (`ui/src/model/recommend.ts`), and says what it read. The card says which of
    the two it is. The key issues under it are always the code's.
 2. **Three key issues**, each with its tickets as chips, every one showing its key,
