@@ -114,7 +114,7 @@ export function manifestProblems(folder: string, raw: unknown): string[] {
   if (typeof m.radius !== 'string' || !/^\d+(\.\d+)?(px|rem|em)$/.test(m.radius)) out.push('theme.json: "radius" must be a length, like "6px".');
   for (const key of Object.keys(m.terms ?? {})) if (!(TERMS as readonly string[]).includes(key)) out.push(`theme.json: "${key}" isn't a word a theme can rename (${TERMS.join(', ')}).`);
   for (const [key, word] of Object.entries(m.terms ?? {})) if (typeof word !== 'string' || /[<>]/.test(word)) out.push(`theme.json: terms.${key} must be plain text.`);
-  out.push(...lexiconProblems(m.lexicon), ...voiceProblems(m.voice), ...momentsProblems(m.moments, (m.assets ?? {}) as Record<string, string>));
+  out.push(...lexiconProblems(m.lexicon), ...voiceProblems(m.voice), ...alignmentProblems(m.alignments), ...momentsProblems(m.moments, (m.assets ?? {}) as Record<string, string>));
   return out;
 }
 
@@ -190,6 +190,28 @@ export function momentsProblems(moments: unknown, assets: Record<string, string>
       motif(`events.${kind}.motif`, (e as Record<string, unknown>)?.motif, ENTER_MOTIFS);
       words(`events.${kind}.label`, (e as Record<string, unknown>)?.label);
     }
+  }
+  return out;
+}
+
+/** Words an alignment may never hold (#415): a label on a person's card is play, never a verdict on them. */
+const JUDGEMENT = /\b(evil|bad|wicked|villain|lazy|slow|weak|worst|poor)\b/i;
+
+/**
+ * Problems with a theme's alignments (#415): a short label and at least two values, each plain text and short enough
+ * for a tag, none of them a judgement of a person.
+ */
+export function alignmentProblems(alignments: unknown): string[] {
+  if (alignments === undefined) return [];
+  const a = alignments as { label?: unknown; values?: unknown };
+  if (!a || typeof a !== 'object' || Array.isArray(a)) return ['theme.json: "alignments" must be an object with a label and values.'];
+  const plain = (v: unknown, max: number) => typeof v === 'string' && v.trim() !== '' && v.length <= max && !/[<>`]|\[\[|[\r\n]/.test(v);
+  const out: string[] = [];
+  if (!plain(a.label, 30)) out.push('theme.json: alignments.label must be plain text of 30 characters or fewer.');
+  if (!Array.isArray(a.values) || a.values.length < 2) out.push('theme.json: alignments.values must list at least two labels.');
+  for (const v of Array.isArray(a.values) ? a.values : []) {
+    if (!plain(v, 24)) out.push(`theme.json: alignments.values ${JSON.stringify(v)} must be plain text of 24 characters or fewer.`);
+    else if (JUDGEMENT.test(v as string)) out.push(`theme.json: alignments.values "${v as string}" judges a person; a rolled label never does.`);
   }
   return out;
 }

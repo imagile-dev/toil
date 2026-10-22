@@ -17,7 +17,7 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 | Crate | toil's own brand, as on the site: the warm near-black, the drafting grid and the flame glow, the flame-to-amber accent, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
 | Harvest | A 16-bit farm: a pixel font, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
-| Realm | A grimdark house ledger: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, the dependency graph as an engraved war-table map | A house's steward | Decorative |
+| Realm | A grimdark house ledger kept as a tabletop campaign: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, a dungeon map at the foot of every page, a d20 that rolls while a view loads, an item's fields as a character sheet, the dependency graph as an engraved war-table map | A dungeon master | Decorative |
 | Sprawl | A terminal in a rain-soaked megacity: monospace type and a block cursor, faint scanlines and a CRT edge glow, neon magenta and cyan on deep blue-black, the skyline at the foot of the page, the dependency graph as a net map where a blocker is black ICE | A laconic street-level netrunner | Decorative |
 | Frontier | Steampunk on the wild west frontier: brass, copper and riveted iron over sun-bleached desert wood, panels framed in riveted brass, pressure gauges on the tallies, the dependency graph as a railroad survey map | A dry telegraph operator | Decorative |
 | Overworld | A top-down 16-bit adventure: an overworld map at the page's edges, panels as dungeon rooms walled in stone, a pixel face for headings only, a heart meter for the sprint's days left and a gem counter for its points, chests that open as work is done, the dependency graph as a dungeon map where a blocker is a locked door | An old sage in a cave | Decorative |
@@ -39,14 +39,22 @@ Fonts don't change contrast: Plain keeps its colours, and its pages pass the axe
 A theme has up to three layers.
 
 - **Visuals** are what every theme has: colours, fonts, borders, art, and motion. They never change a word.
-- **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the dossier list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, the Ask pane's notes, and the chat's placeholder, welcome and status words (#343). Crate's empty board column reads "Bay empty." and Realm's reads "None stand here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Campaign (Epic)" or "Ledger (Sprint 42: day 7 of 10)". The Settings pages and the Sync panel keep the standard text.
-- **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, Realm like a house's steward reporting to its war council, Frontier like a dry telegraph operator who also keeps the engine running, Sprawl like a netrunner on a job: work items are gigs, the sprint is the run, a pull request is a payload waiting on the fixer, a build is an ICE check, a deployment is jacking in to prod, and a blocker is black ICE, and Overworld like an old sage in a cave: brief, warm and a little cryptic, with the facts kept plain.
+- **Wording** is the theme's own microcopy, from the `lexicon` in its `theme.json`: the lede on the dossier list, the small eyebrow above a page's title, the notes under the dashboard's panels, the empty states, the loading lines, the Ask pane's notes, and the chat's placeholder, welcome and status words (#343). Crate's empty board column reads "Bay empty." and Realm's reads "None stand here." A theme's word for a sprint, a board or an epic is always shown beside the real one, as in Realm's "Campaign (Epic)" or "Ledger (Sprint 42: day 7 of 10)". A theme may also rename the People and Analyses headings, an item's priority, the Builds panel, how a build ended, and the sprint's points done and left: Realm reads them as "Party (People)", "Quest log (Analyses)", "Initiative (Priority)" on an item's fields, "Saving throws (Builds)", "Natural 20 (passed)" or "Critical fail (failed)" beside the build's own state, "Experience points (Done)" on the sprint's tally and "Hit points (Points left)", which takes the place of the sprint's meter. The Settings pages and the Sync panel keep the standard text.
+- **Voice** is the register the agent answers in, from the `voice` in the theme's `theme.json`. Crate answers like a terse dockworker, Harvest like a patient farmhand, Starship like a ship's log, Realm like a dungeon master narrating a grim campaign to the party, dramatic but brief with every figure and citation as the data gives it, Frontier like a dry telegraph operator who also keeps the engine running, Sprawl like a netrunner on a job: work items are gigs, the sprint is the run, a pull request is a payload waiting on the fixer, a build is an ICE check, a deployment is jacking in to prod, and a blocker is black ICE, and Overworld like an old sage in a cave: brief, warm and a little cryptic, with the facts kept plain.
 
 Wording never touches these, in any theme:
 
 - the name of a button, a link or a form field, so what you, a script or voice control looks for is always there, and every control's accessible name matches its visible words (WCAG 2.5.3);
 - a heading a screen reader or a test finds a section by, apart from the renamed words shown beside the real ones;
 - a command such as `toil dossiers init`, an item's id, a number, a date, an error or its fix, or a not-found notice such as an item the dossier doesn't have.
+
+## Rolled alignments
+
+Realm's one playful label on a person. With themed wording on, each card on the People tab carries a "Rolled alignment", such as "Neutral good", picked from the card's name alone, so the same name always rolls the same and nothing from anyone's work goes into it: it can't score or rank anyone. Only good and neutral alignments are on the list, and the (i) beside the cards says what they are. Switch themed wording off and they're gone. A theme lists its own in `theme.json`'s `alignments`, and the theme test refuses one that judges a person.
+
+## Rest days
+
+In Realm, a past day on the worklog's calendar with nothing on its page, or no page at all, is a rest and carries a camp fire in its corner: a small one for a short rest on a weekday, a larger one for a long rest at the weekend. The fires and the line that names them show only while themed wording is on.
 
 ## The checkboxes
 
@@ -122,7 +130,7 @@ The (i) in the chat's strip says which voice the answers are in, which agent is 
 
 ## Motion and particles
 
-The seven game themes move a little: dust drifting in the flame glow and the site's slow drafting grid in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers and a faint candle flicker in Realm, rain on a slant, a blinking cursor and a brief glitch as a page opens in Sprawl, desert dust on the wind with steam rising from the foot of the page in Frontier, and fairies wandering as motes of light in Overworld, where a chest hops open as a card reaches Done and a key is lifted as one gets under way. Plain doesn't move. No theme plays sound.
+The seven game themes move a little: dust drifting in the flame glow and the site's slow drafting grid in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers, a faint candle flicker and a d20 that tumbles while a view loads in Realm, rain on a slant, a blinking cursor and a brief glitch as a page opens in Sprawl, desert dust on the wind with steam rising from the foot of the page in Frontier, and fairies wandering as motes of light in Overworld, where a chest hops open as a card reaches Done and a key is lifted as one gets under way. Plain doesn't move. No theme plays sound.
 
 Three settings decide what moves, in this order:
 

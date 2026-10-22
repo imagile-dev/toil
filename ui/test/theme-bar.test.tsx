@@ -151,13 +151,38 @@ describe('a renamed word keeps the real one beside it', { timeout: SLOW }, () =>
     const board = screen.getByRole('region', { name: /board/ });
     expect(within(board).getAllByText(/^Campaign \(Epic\): /).length).toBeGreaterThan(0);
   });
+
+  it('reads the board, builds, people, analyses and an item as a tabletop campaign in Realm, beside the real words (#415)', async () => {
+    await open('#/dossier/card-payments/board', 'realm', 'light');
+    const builds = screen.getByRole('region', { name: 'Saving throws (Builds)' });
+    const rolls = [...builds.querySelectorAll('.outcome__roll')].map((r) => r.textContent);
+    expect(rolls).toContain('Natural 20 (passed): ');
+    expect(rolls).toContain('Critical fail (failed): ');
+    cleanup();
+    await open('#/dossier/card-payments/people', 'realm', 'light');
+    expect(screen.getByRole('heading', { level: 1, name: 'Party (People)' })).toBeTruthy();
+    cleanup();
+    await open('#/dossier/card-payments/analyses', 'realm', 'light');
+    expect(screen.getByRole('heading', { name: 'Quest log (Analyses)' })).toBeTruthy();
+    cleanup();
+    await open(item('card-payments', 'corp-jira:PAY-100'), 'realm', 'light');
+    expect(screen.getByText('Initiative (Priority)', { selector: 'dt' })).toBeTruthy();
+  });
+
+  it('keeps the real words alone in Realm with themed wording off', async () => {
+    localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'realm', scheme: 'light', wording: false }));
+    window.location.hash = '#/dossier/card-payments/people';
+    render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview />);
+    expect(await screen.findByRole('heading', { level: 1, name: 'People' })).toBeTruthy();
+    expect(document.querySelector('.person-tag--roll')).toBeNull();
+  });
 });
 
 describe('the skins', { timeout: SLOW }, () => {
   it.each([
     ['harvest', 'light', 'Almanac (Agent)'],
     ['starship', 'dark', "Ship's computer (Agent)"],
-    ['realm', 'light', 'Steward (Agent)'],
+    ['realm', 'light', 'Dungeon master (Agent)'],
     ['sprawl', 'dark', 'Netrunner (Agent)'],
     ['frontier', 'light', 'Operator (Agent)'],
     ['overworld', 'dark', 'Sage (Agent)'],
@@ -218,7 +243,6 @@ describe('the skins', { timeout: SLOW }, () => {
   it.each([
     ['crate', 'Loading', 'crate-loading'],
     ['starship', 'EmptyState', 'empty-sector'],
-    ['realm', 'Loading', 'candle-ledger'],
     ['sprawl', 'Loading', 'jack-in'],
     ['sprawl', 'EmptyState', 'dead-drop'],
     ['frontier', 'Loading', 'locomotive'],
@@ -232,6 +256,49 @@ describe('the skins', { timeout: SLOW }, () => {
     expect(img.getAttribute('src')).toContain(file);
     expect(img.getAttribute('alt')).toBe('');
     expect(screen.getByText('Nothing to file.')).toBeTruthy();
+  });
+
+  it("roll a d20 in Realm's Loading slot, decorative, beside the words", () => {
+    const Slot = skinsFor('realm').Loading;
+    const { container } = render(<Slot message="Rolling for the ledgers…" />);
+    const img = container.querySelector('img.realm-d20')!;
+    expect(img.getAttribute('alt')).toBe('');
+    expect(screen.getByRole('status').textContent).toBe('Rolling for the ledgers…');
+  });
+
+  it("roll an alignment for every Realm People card, the same each time, from the name only, and say what it is (#415)", async () => {
+    await open('#/dossier/card-payments/people', 'realm', 'light');
+    const cards = [...document.querySelectorAll('.person-card')];
+    const tags = [...document.querySelectorAll('.person-tag--roll')].map((t) => t.textContent);
+    expect(tags.length).toBe(cards.length);
+    const values = themeNamed('realm').alignments!.values;
+    for (const t of tags) expect(values).toContain(t!.replace(/^Rolled alignment: /, ''));
+    expect(screen.getByRole('button', { name: 'About rolled alignments' })).toBeTruthy();
+    const first = tags;
+    cleanup();
+    await open('#/dossier/card-payments/people', 'realm', 'light');
+    expect([...document.querySelectorAll('.person-tag--roll')].map((t) => t.textContent)).toEqual(first);
+  });
+
+  it("count the sprint's hit points in place of its meter in Realm, from the sprint's own figures", async () => {
+    await open('#/dossier/card-payments', 'realm', 'light');
+    await userEvent.click(screen.getByRole('button', { name: /^Burn-up / }));
+    const dialog = await screen.findByRole('dialog');
+    const vitals = dialog.querySelector('.realm-vitals')!;
+    expect(vitals.textContent).toBe('Hit points (Points left) 18 of 21');
+    // The meter it stands in for is still in the page (theme.css hides it), and the Done tally reads as experience.
+    expect(vitals.nextElementSibling?.matches('.meter') || dialog.querySelector('.realm-vitals ~ .meter')).toBeTruthy();
+    expect(within(dialog).getByText('Experience points (Done)')).toBeTruthy();
+    expect(vitals.querySelector('.realm-hp')!.getAttribute('aria-hidden')).toBe('true');
+  });
+
+  it('mark the rest days on the worklog calendar in Realm, and say what the marks mean', () => {
+    // The worklog needs the server's cache, which the preview has none of, so the panel's skin is rendered on its own.
+    const Panel = skinsFor('realm').Panel;
+    render(<Panel id="worklog-calendar"><table className="calendar" /></Panel>);
+    expect(screen.getByText(/Camp fires mark rest days/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'About rest days' })).toBeTruthy();
+    expect(document.querySelector('.realm-rest-key + .calendar')).toBeTruthy();
   });
 
   it('put a notched corner on Sprawl panels and the header, out of the accessibility tree, and the netrunner in a terminal window', async () => {

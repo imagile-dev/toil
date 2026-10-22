@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="96" height="96" stroke-linejoin="round">
+<!-- A twenty-sided die in iron, its edges picked out in tarnished gold, the twenty face up. -->
+<path d="M50 4 90 27V73L50 96 10 73V27Z" fill="#2e2a26"/>
+<path d="M50 4 10 27 50 30ZM50 4 90 27 50 30Z" fill="#4a443d"/>
+<path d="M10 27 28 66 50 30ZM90 27 72 66 50 30Z" fill="#3a3530"/>
+<path d="M10 27 10 73 28 66ZM90 27 90 73 72 66Z" fill="#26221f"/>
+<path d="M10 73 50 96 28 66ZM90 73 50 96 72 66ZM28 66 72 66 50 96Z" fill="#1d1a17"/>
+<path d="M50 30 72 66H28Z" fill="#6e1c18"/>
+<g fill="none" stroke="#c9a85e" stroke-width="1.6">
+<path d="M50 4 90 27V73L50 96 10 73V27Z" stroke="#9c7a3c" stroke-width="2.4"/>
+<path d="M50 30 72 66H28ZM50 30 50 4M50 30 10 27M50 30 90 27M72 66 90 27M72 66 90 73M72 66 50 96M28 66 10 27M28 66 10 73M28 66 50 96"/>
+</g>
+<text x="50" y="59" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="17" font-weight="700" fill="#efe6d2">20</text>
+</svg>

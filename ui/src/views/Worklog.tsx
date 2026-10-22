@@ -168,7 +168,7 @@ function Calendar({ data, selected, onMonth }: { data: WorklogMonth; selected: s
                 }
                 return (
                   <td key={d}>
-                    <a href={worklogHref(dossier.name, d)} className="calendar__day" aria-current={d === selected ? 'date' : undefined} data-today={d === data.today || undefined}>
+                    <a href={worklogHref(dossier.name, d)} className="calendar__day" aria-current={d === selected ? 'date' : undefined} data-today={d === data.today || undefined} data-quiet={p.lines === 0 || undefined}>
                       <span className="sr-only">{longDay(d)}{d === data.today ? ', today' : ''}: </span>
                       <span className="calendar__n" aria-hidden="true">
                         {n}

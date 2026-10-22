@@ -21,7 +21,9 @@ import { useData } from '../data.ts';
 import { boardHref, dateTime, dossierHref, sourceLabel, dossierEditHref } from '../format.ts';
 import { ACTIVITY_DAYS, people, suggestionLine, type Activity, type Card as PersonCard, type Identity, type Suggestion } from '../model/people.ts';
 import { daysText, WAITING_LABEL } from '../model/prs.ts';
-import { useSkins } from '../skins.tsx';
+import { useSkins, useTerm, useTheme, useThemeChoiceContext } from '../skins.tsx';
+import { wordingOn } from '../theme-context.ts';
+import { rolled } from '../model/alignment.ts';
 import './people.css';
 import { AgentAssignments } from '../assign/views.tsx';
 import { failedOutcome, OutcomeLine, outcomeOf, type Outcome } from './settings/parts.tsx';
@@ -34,6 +36,8 @@ const identityText = (i: Identity) => `${sourceLabel(i.area)} ${i.name && i.name
 export function People() {
   const { dossier, now } = useData();
   const { EmptyState } = useSkins();
+  const term = useTerm();
+  const alignments = useAlignments();
   const view = useMemo(
     () => people({ dossier: dossier.name, entries: dossier.people ?? [], wipLimit: dossier.wipLimit ?? null, items: dossier.items, changes: dossier.pullRequests ?? [], now }),
     [dossier, now],
@@ -48,7 +52,7 @@ export function People() {
         <p className="eyebrow">
           <a href={dossierHref(dossier.name)}>{dossier.name}</a>
         </p>
-        <h1 tabIndex={-1}>People</h1>
+        <h1 tabIndex={-1}>{term('people', 'People')}</h1>
         <p className="lede">
           {view.people.length
             ? `${[humans ? count(humans, 'person', 'people') : '', agents ? count(agents, 'agent') : ''].filter(Boolean).join(' and ')} from the dossier's people, and ${count(view.unmapped.length, 'account')} it doesn't map.`
@@ -77,6 +81,7 @@ export function People() {
           <div className="edit-head">
             <h2 id="people-cards">People and agents</h2>
             <EditLink href={dossierEditHref(dossier.name, 'people')} label={`Edit ${dossier.name}'s people`} />
+            {alignments && <Help topic="alignments" />}
           </div>
           <CardGrid min="md" className="people-cards">
             {view.people.map((c) => (
@@ -200,8 +205,16 @@ function TeamStrip({ view }: { view: ReturnType<typeof people> }) {
   );
 }
 
+/** The theme's rolled alignments (#415), while its wording is on; Plain and every theme without them have none. */
+function useAlignments() {
+  const theme = useTheme();
+  const choice = useThemeChoiceContext();
+  return wordingOn(theme, choice) ? theme.alignments : undefined;
+}
+
 function PersonCardView({ card, limit }: { card: PersonCard; limit: number | null }) {
   const { dossier } = useData();
+  const alignments = useAlignments();
   const { who } = card;
   const id = `who-${who.key.replace(/[^a-zA-Z0-9_-]/g, '-')}`;
   const seen = who.identities.find((i) => i.name) ?? who.identities[0];
@@ -215,6 +228,11 @@ function PersonCardView({ card, limit }: { card: PersonCard; limit: number | nul
             {who.kind === 'agent' && <li className="person-tag">Agent</li>}
             {!who.mapped && <li className="person-tag">Not mapped</li>}
             {card.overLimit && <li className="person-tag person-tag--warn">Over the limit: {card.wipCount} of {limit}</li>}
+            {alignments && (
+              <li className="person-tag person-tag--roll">
+                {alignments.label}: {rolled(alignments.values, who.key)}
+              </li>
+            )}
           </ul>
         </div>
         <p className="note any-break">{who.identities.length ? who.identities.map(identityText).join(' · ') : 'No identities in the dossier yet.'}</p>
