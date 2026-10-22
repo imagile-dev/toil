@@ -21,5 +21,13 @@ export const DISCLAIMER =
 /** Where `toil feedback` sends a report: the function's terminal endpoint (functions/feedback/, `Report`). */
 export const FEEDBACK_ENDPOINT = 'https://func-toil-feedback.azurewebsites.net/api/report';
 
-/** The form on the site, for anyone whose toil can't send (a build with no commit, a network that blocks the endpoint). */
-export const FEEDBACK_FORM = 'https://imagile-dev.github.io/toil/feedback/';
+/**
+ * The form on the site, for anyone whose toil can't send (a build with no
+ * commit, a network that blocks the endpoint). Every link to it reads this one
+ * address: `toil feedback`, Toil UI's Feedback dialog, and the toil skill and
+ * Toil UI's themes doc, which test/feedback-consent.test.ts holds to it. The
+ * site's link check (site/scripts/check-links.mjs) fails the build when it
+ * names no page there, or only an old address that forwards (#435). A form
+ * that moves leaves a forwarding address; this one doesn't rely on it.
+ */
+export const FEEDBACK_FORM = 'https://imagile-dev.github.io/toil/about/feedback/';

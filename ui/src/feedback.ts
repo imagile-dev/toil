@@ -13,12 +13,13 @@
  * card goes in the box; the box is locked until you sign the card.
  */
 
+import { FEEDBACK_FORM } from '../../src/feedback/consent.ts';
 import type { Envelope } from './toil.ts';
 
 export type FeedbackKind = 'bug' | 'feature';
 
 /** Why sample data sends nothing, said beside the Send button. */
-export const FEEDBACK_SAMPLE_DISABLED = "This is sample data, so it sends nothing. Toil UI on your own machine sends through toil feedback, or use the form at https://imagile-dev.github.io/toil/feedback/.";
+export const FEEDBACK_SAMPLE_DISABLED = `This is sample data, so it sends nothing. Toil UI on your own machine sends through toil feedback, or use the form at ${FEEDBACK_FORM}.`;
 
 /** What the person typed. Nothing else goes in a report: toil adds only its version and commit. */
 export interface FeedbackFields {
@@ -61,7 +62,7 @@ export function feedbackProblem(envelope: Envelope): string {
   const error = envelope.error;
   if (!error) return 'toil returned no report.';
   if (/has no command "feedback"/.test(error.message)) {
-    return `The toil this Toil UI runs (${envelope.meta.version}) has no feedback command; it needs a newer toil. Until then, use the form at https://imagile-dev.github.io/toil/feedback/.`;
+    return `The toil this Toil UI runs (${envelope.meta.version}) has no feedback command; it needs a newer toil. Until then, use the form at ${FEEDBACK_FORM}.`;
   }
   return `${error.message}${error.fix ? ` ${error.fix}` : ''}`;
 }

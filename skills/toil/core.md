@@ -502,7 +502,7 @@ it would send, the `disclaimer`, `consentVersion` and how to approve, with a
 given, plus `version`, `commit` and `consent` (the disclaimer's version). toil never
 adds config, connection names, hosts or tokens. A build that doesn't know its commit
 previews but can't send (`UNSUPPORTED`); the form at
-https://imagile-dev.github.io/toil/feedback/ works from any browser.
+https://imagile-dev.github.io/toil/about/feedback/ works from any browser.
 
 **An agent sending feedback for a user follows every step, in order, every time:**
 
