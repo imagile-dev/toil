@@ -82,8 +82,8 @@
   pattern for #417 follows the same layout: a key in `assets`, the file under
   `assets/moments/` (or its own folder), drawn to the theme's palette.
 - **Toil tips live in `ui/src/tips.ts`**, each pointing at a help topic, so the existing
-  help-link test resolves every Read more. Six topics were added to the help table for
-  them, additively (`board`, `analyses`, `notifications`, `sync`, `theme-motion`,
+  help-link test resolves every Read more. Five topics were added to the help table for
+  them, additively (`board`, `analyses`, `notifications`, `theme-motion`,
   `tips`). The order is shuffled once per browser session and kept in `sessionStorage`
   with what was seen, so a tip doesn't repeat until all have been seen; a new tip joins
   the end of the round. Tips show on view-size loading screens and the splash, not on a

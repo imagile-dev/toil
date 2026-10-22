@@ -39,6 +39,7 @@ export const TIPS: readonly Tip[] = [
   { id: 'standup', text: "The stand-up, under the Worklog tab, folds the worklog's days into done, in progress and blocked, by code alone.", topic: 'standup' },
   { id: 'readiness', text: "The Board's Readiness view says which items are ready to start, worked out from the cache with no model call.", topic: 'readiness' },
   { id: 'wipe', text: 'toil-ui wipe deletes everything Toil UI synced to this machine. Your trackers are never touched.', topic: 'sync' },
+  { id: 'palette', text: 'Ctrl+K (Cmd+K on a Mac) opens the command palette: jump to a dossier, a tab, an item or a setting, or run Sync, Analyze and Ask.', topic: 'palette' },
   { id: 'help', text: 'Help in the header opens the docs section for the view in front of you, and every (i) has a Read more link.', topic: 'dossiers' },
 ];
 
