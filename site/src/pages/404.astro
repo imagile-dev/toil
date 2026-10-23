@@ -19,7 +19,7 @@ import { url } from '../lib/url';
   .nf { padding-block: var(--section-space); min-height: 60svh; display: grid; align-items: center; }
   .nf__inner { display: grid; justify-items: start; gap: var(--space-md); }
   .nf h1 { font-size: var(--text-3xl); }
-  .nf__toon { width: min(100%, 560px); height: auto; mix-blend-mode: lighten; margin-inline: -1rem; }
+  .nf__toon { width: min(100%, 560px); height: auto; mix-blend-mode: lighten; margin-inline: calc(-1 * var(--gutter)); }
   .nf__json {
     font-family: var(--font-mono);
     font-size: var(--text-sm);

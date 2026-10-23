@@ -280,7 +280,7 @@ const beforeAfter = {
 
   /* ---------- Locked down ---------- */
   .locked__inner { display: grid; gap: var(--space-lg); align-items: center; }
-  .locked__art { margin-inline: -1rem; }
+  .locked__art { margin-inline: calc(-1 * var(--gutter)); }
 
   /* Cartoon spot art: painted on (slightly darker than) the page colour, so
      lighten drops its background. A small tilt on hover, nothing more. */
@@ -288,7 +288,7 @@ const beforeAfter = {
   .toon img { width: 100%; height: auto; transition: transform 600ms var(--ease-out); }
   .toon:hover img { transform: rotate(-1.2deg) scale(1.02); }
 
-  .mcp__art { margin: var(--space-md) -1rem 0; }
+  .mcp__art { margin: var(--space-md) calc(-1 * var(--gutter)) 0; }
   @media (min-width: 980px) { .mcp__art { margin-inline: -4% 0; max-width: 520px; } }
 
   .facts { display: grid; gap: var(--space-md); }
