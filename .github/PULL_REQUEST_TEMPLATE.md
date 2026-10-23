@@ -18,4 +18,5 @@ Closes # (or Refs # when more PRs will follow for the same issue)
 - [ ] Conventional Commit title (`fix:`, `feat:`, `docs:`, `chore:`)
 - [ ] Placeholder hosts and IDs only (`<service>.imagile.dev`, `abc12345`)
 - [ ] `dist/` untouched (only the release PR changes it)
+- [ ] A theme's moments changed: the `npm run moments:measure -w ui` table and the `npm run screens:sheet -w ui` sheets are in the PR (`ui/README.md`, Measuring theme moments)
 - [ ] Docs and the toil skill (`skills/toil/`) updated in the same PR, where the change needs it
