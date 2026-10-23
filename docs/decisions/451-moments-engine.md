@@ -19,7 +19,10 @@
   motion were allowed; pseudo-elements are left out, being boxes of their own). It also renders
   the splash and a loading screen and fails if any looping part (a loop, a sprite sheet's strip,
   a progress track's piece) is matched by more than its one rule. Put back the old `Art` and it
-  fails on Crate's splash; add a theme rule animating the loader's picture and it fails there. A test rather than a lint rule, because what lands on an
+  fails on Crate's splash; add a theme rule animating the loader's picture, or a theme-scoped
+  rule animating `.splash__art` or `.moment__art`, and it fails there. Each element is checked
+  at the moment the engine animates it, while it's still in the page, so the theme's
+  `[data-theme="…"]` scope can match it. A test rather than a lint rule, because what lands on an
   element is only known once the engine has rendered it; a dev-time warning was left out, since
   the test already covers every theme on every run.
 - **Sprawl's panel scan-in moves by opacity and transform.** `.l-card` came up through an

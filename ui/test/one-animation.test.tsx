@@ -79,13 +79,17 @@ function animatingRules(css: string): string[][] {
 
 const choice = (theme: string): ThemeChoiceState => ({ theme, scheme: 'system', wording: true, voice: true, saveError: null, setTheme: () => undefined, setScheme: () => undefined, setWording: () => undefined, setVoice: () => undefined });
 
-/** Every element the engine plays an arrival on, while `body` runs, with a stand-in for Web Animations (jsdom has none). */
-async function arrivals(body: () => Promise<void>): Promise<HTMLElement[]> {
-  const targets: HTMLElement[] = [];
+/**
+ * Every element the engine plays an arrival on while `body` runs, with a stand-in for Web Animations
+ * (jsdom has none), and what `probe` found on each at that moment, while it is still in the page:
+ * a detached element has no `<html data-theme>` above it, so a theme's scoped rules couldn't match it.
+ */
+async function arrivals(body: () => Promise<void>, probe: (el: HTMLElement) => string[]): Promise<Array<{ el: HTMLElement; found: string[] }>> {
+  const targets: Array<{ el: HTMLElement; found: string[] }> = [];
   Object.defineProperty(HTMLElement.prototype, 'animate', {
     configurable: true,
     value(this: HTMLElement, _frames: Keyframe[], options: KeyframeAnimationOptions) {
-      targets.push(this);
+      targets.push({ el: this, found: this.isConnected ? probe(this) : ['was animated while out of the page, so it could not be checked'] });
       // A finished animation calls its onfinish, so a moment's fade ends and the next one plays.
       const anim = { onfinish: null as null | (() => void), cancel: () => clearTimeout(timer) };
       const timer = setTimeout(() => anim.onfinish?.(), Number(options.duration ?? 0));
@@ -166,13 +170,20 @@ describe('one animation to an element (#451)', () => {
   it.each(withMoments)('%s: no arrival lands on an element that loops, and no loop shares its element', async (name) => {
     const sheets = sheetsFor(name);
     const root = document.documentElement;
-    const problems: string[] = [];
-    const check = (where: string, targets: HTMLElement[]) => {
-      // The root's attributes are the ones a theme's rules are scoped to, at Theme motion full.
+    // The root's attributes are the ones a theme's rules are scoped to, at Theme motion full.
+    const scope = () => {
       root.dataset.theme = name;
       root.dataset.themeMotion = 'full';
+    };
+    scope();
+    const problems: string[] = [];
+    const probe = (el: HTMLElement) => {
+      scope();
+      return secondAnimations(el, sheets);
+    };
+    const check = (where: string, targets: Array<{ el: HTMLElement; found: string[] }>) => {
       expect(targets.length, `${where} played no arrival`).toBeGreaterThan(0);
-      for (const el of targets) for (const p of secondAnimations(el, sheets)) problems.push(`${where}: ${describeEl(el)} also has ${p}`);
+      for (const { el, found } of targets) for (const p of found) problems.push(`${where}: ${describeEl(el)} also has ${p}`);
     };
 
     // The launch splash, held as its preview holds it.
@@ -190,11 +201,10 @@ describe('one animation to an element (#451)', () => {
     check('the splash', await arrivals(async () => {
       const r = render(wrap(<Splash ready={false} preview />));
       shown = [...document.querySelectorAll<HTMLElement>('.splash *')];
-      root.dataset.theme = name;
-      root.dataset.themeMotion = 'full';
+      scope();
       problems.push(...doubledLoops(sheets).map((p) => `the splash: ${p}`));
       r.unmount();
-    }));
+    }, probe));
     expect(shown.length).toBeGreaterThan(0);
 
     // A loading screen: it has no arrival, but each of its loops must be the only animation on its element.
@@ -220,7 +230,7 @@ describe('one animation to an element (#451)', () => {
       }
       expect([...seen].sort()).toEqual(MOMENT_KINDS.filter((k) => theme.moments?.events?.[k]).sort());
       r.unmount();
-    }));
+    }, probe));
     vi.useRealTimers();
 
     // The dossier entrance, then a tab change.
@@ -232,7 +242,7 @@ describe('one animation to an element (#451)', () => {
         window.location.hash = '#/dossier/card-payments/board';
         await new Promise((r) => setTimeout(r, 50));
       });
-    }));
+    }, probe));
 
     expect(problems).toEqual([]);
   });
