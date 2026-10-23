@@ -1,24 +1,24 @@
 {
   "name": "crate",
   "label": "Crate",
-  "description": "The warm workshop: the warm near-black, the drafting grid and the flame glow, the flame-to-amber accent, dust drifting in the glow, and the crate in its hard hat when there's nothing to show yet.",
+  "description": "The toil site's look: its near-black, the drafting grid and the blue glow, the blue accent gradient, dust drifting in the glow, and the crate in its hard hat when there's nothing to show yet.",
   "schemes": {
     "dark": {
-      "bg": "#16130f",
-      "surface": "#1f1a15",
-      "raised": "#2a231c",
-      "ink": "#f6f1e9",
-      "muted": "#b4a998",
-      "line": "#4a423a",
-      "accent": "#ff6a3d",
-      "accentInk": "#160b05",
-      "link": "#ffb84d",
-      "focus": "#6fb2ff",
-      "ok": "#ffb84d",
-      "warn": "#ffb84d",
-      "danger": "#ff6a3d",
-      "bannerBg": "#2a231c",
-      "bannerInk": "#ffb84d"
+      "bg": "#0f1115",
+      "surface": "#171a21",
+      "raised": "#1e222b",
+      "ink": "#e8eaed",
+      "muted": "#a7afba",
+      "line": "#3a414d",
+      "accent": "#8cc4ff",
+      "accentInk": "#0b1220",
+      "link": "#c2e0ff",
+      "focus": "#8cc4ff",
+      "ok": "#6fd394",
+      "warn": "#f0b849",
+      "danger": "#ff8a80",
+      "bannerBg": "#1e222b",
+      "bannerInk": "#c2e0ff"
     }
   },
   "fonts": {

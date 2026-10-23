@@ -1,5 +1,5 @@
 /**
- * Crate's skins: the crate in its amber-striped hard hat stands in for an empty
+ * Crate's skins: the crate in its hard hat stands in for an empty
  * state, as it does on the site's 404, and wheels a hand truck of paperwork
  * while a view loads (#267). It is always competent; the joke is on the
  * paperwork, never on the person looking at an empty list.
