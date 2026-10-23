@@ -84,7 +84,7 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
   const background: Background = backgroundFromEnv(io.env) ?? probed?.background ?? 'dark';
   // An answer still on its way after the wait is dropped, never read as keys.
   const late = probed && !probed.answered ? lateReplyFilter() : undefined;
-  // The theme's colours for this terminal, on every frame the menu draws; the game keeps its own.
+  // The theme's colours for this terminal, on every frame the menu draws, the game's included (#471).
   const capsNow = (): TermCaps => ({ ...detectCaps(output, io.env), palette: palette(themeNamed(data.theme?.name), background) });
 
   // One "exit now" signal that ends whichever phase is running.
@@ -227,8 +227,9 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
           keyListeners.add(handler);
           return () => keyListeners.delete(handler);
         },
-        caps: () => detectCaps(output, io.env),
+        caps: capsNow,
         movesCursor: movesCursor(output, io.env),
+        reducedMotion: reducedMotion(io.env),
         best: state.session[which]?.best ?? 0,
         notice: () => notice,
         signal: exiting.signal,

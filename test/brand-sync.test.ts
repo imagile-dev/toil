@@ -212,9 +212,11 @@ describe("Crate wears the site's blue", () => {
     expect(Object.keys(crate.schemes.dark!).sort()).toEqual(Object.keys(SITE_TOKEN).sort());
   });
 
-  // On a dark terminal the default menu is the site's palette, the same one PALETTE (Plain's dark, the site's) is.
-  it("gives the welcome menu the site's palette on a dark terminal", () => {
-    expect(palette(crateTerminal, 'dark')).toEqual(PALETTE);
+  // On a dark terminal the default menu is the site's palette, the same one PALETTE (Plain's dark, the site's) is,
+  // but for faint and dim, which are lifted so they read on lighter dark terminals too (#471).
+  it("gives the welcome menu the site's palette on a dark terminal, faint and dim aside", () => {
+    const unlifted = (p: Record<string, Rgb>) => Object.fromEntries(Object.entries(p).filter(([role]) => role !== 'faint' && role !== 'dim'));
+    expect(unlifted(palette(crateTerminal, 'dark'))).toEqual(unlifted(PALETTE));
   });
 
   it("colours its theme.css only with the theme's tokens", () => {

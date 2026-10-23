@@ -2,9 +2,9 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { splashFrame } from '../src/welcome/splash.js';
-import { PALETTE } from '../src/welcome/term.js';
+import { mix, PALETTE } from '../src/welcome/term.js';
 import { SPLASH_CUES } from '../src/welcome/themes/moments.generated.js';
-import { contrast, hexToRgb, LIGHT_GROUND, MIN_CONTRAST, ORNAMENTS, palette, splashLook, TERMINAL_THEMES, terminalMotif, type Background } from '../src/welcome/themes/index.js';
+import { contrast, DARK_GROUND, DIM_CONTRAST, DIM_MIX, hexToRgb, LIGHT_GROUND, MIN_CONTRAST, ORNAMENTS, palette, readable, splashLook, TERMINAL_THEMES, terminalMotif, type Background } from '../src/welcome/themes/index.js';
 // @ts-expect-error The repository's scripts are plain JavaScript with no declarations.
 import { splashCues } from '../scripts/gen-areas.mjs';
 
@@ -36,6 +36,19 @@ const json = (name: string): ThemeJson => JSON.parse(readFileSync(join(themesDir
 
 /** Toil UI's particles, by the ornament the terminal draws for them. None is Plain's orbit. */
 const ORNAMENT_FOR: Record<string, (typeof ORNAMENTS)[number]> = { none: 'orbit', dust: 'orbit', leaves: 'crops', stars: 'warp', embers: 'embers', rain: 'rain', steam: 'steam', fairies: 'fairies' };
+
+/**
+ * The terminal backgrounds every theme is read on: the common light ones
+ * (#467), and black, near-black, VS Code's, Solarized Dark's, One Half Dark's
+ * and Nord's (#471), where faint used to fall to about 3.8:1.
+ */
+const GROUNDS: Record<Background, readonly string[]> = {
+  light: [LIGHT_GROUND, '#fafafa', '#ffffff'],
+  dark: ['#000000', '#0c0c0c', '#1e1e1e', '#002b36', '#282c34', DARK_GROUND],
+};
+
+/** Every role is text and meets 4.5:1, but dim, the game's remembered map, a drawing held to 3:1. */
+const bar = (role: string) => (role === 'dim' ? DIM_CONTRAST : MIN_CONTRAST);
 
 it('has a terminal version of every Toil UI theme, and of nothing else', () => {
   expect(TERMINAL_THEMES.map((t) => t.name).sort()).toEqual(folders);
@@ -74,15 +87,17 @@ describe.each(TERMINAL_THEMES.map((t) => [t.name, t] as const))('%s', (name, the
   it.each(['dark', 'light'] as const)('reads on a %s terminal: every colour meets the bar on its background', (bg) => {
     const p = palette(theme, bg);
     for (const [role, colour] of Object.entries(p)) {
-      if (role !== 'bg') expect(contrast(colour, p.bg), `${role} on ${bg}`).toBeGreaterThanOrEqual(MIN_CONTRAST);
+      if (role !== 'bg') expect(contrast(colour, p.bg), `${role} on ${bg}`).toBeGreaterThanOrEqual(bar(role));
     }
   });
 
   // #467: a light terminal is often off-white, so every role clears the bar on
-  // the darkest common light ground too, and so on One Half Light's #fafafa.
-  it.each([LIGHT_GROUND, '#fafafa', '#ffffff'])('reads on a light terminal whose background is %s', (ground) => {
-    for (const [role, colour] of Object.entries(palette(theme, 'light'))) {
-      if (role !== 'bg') expect(contrast(colour, hexToRgb(ground)), `${role} on ${ground}`).toBeGreaterThanOrEqual(MIN_CONTRAST);
+  // the darkest common light ground too. #471: a dark one is often lighter than
+  // black (One Half Dark's #282c34), so every role clears it on the lightest
+  // common dark ground as well, faint included, for the menu and the game alike.
+  it.each((['light', 'dark'] as const).flatMap((kind) => GROUNDS[kind].map((ground) => [kind, ground] as const)))('reads on a %s terminal whose background is %s', (kind, ground) => {
+    for (const [role, colour] of Object.entries(palette(theme, kind))) {
+      if (role !== 'bg') expect(contrast(colour, hexToRgb(ground)), `${role} on ${ground}`).toBeGreaterThanOrEqual(bar(role));
     }
   });
 
@@ -116,8 +131,16 @@ it("has a terminal rendition of every #419 enter motif a theme may name", () => 
   for (const motif of motifs) expect(terminalMotif(motif), motif).toBeDefined();
 });
 
-// toil's own palette, the game's and any frame drawn without a theme, is Plain's
-// dark scheme, as the site's is (#442). The menu's default theme is Crate (#467).
-it("keeps Plain's dark palette as toil's own", () => {
-  expect(palette(TERMINAL_THEMES[0]!, 'dark')).toEqual(PALETTE);
+// toil's own palette, for any frame drawn without a theme, is Plain's dark
+// scheme, as the site's is (#442). The menu's default theme is Crate (#467).
+// On a terminal, faint and dim are lifted for lighter dark grounds (#471), so
+// those two are a little lighter there than the site's; the rest is the same.
+it("keeps Plain's dark palette as toil's own, faint lifted for lighter dark terminals", () => {
+  const { faint, dim, ...rest } = palette(TERMINAL_THEMES[0]!, 'dark');
+  const { faint: ownFaint, dim: ownDim, ...own } = PALETTE;
+  expect(rest).toEqual(own);
+  expect(contrast(faint, hexToRgb(DARK_GROUND))).toBeGreaterThanOrEqual(MIN_CONTRAST);
+  expect(contrast(ownFaint, hexToRgb(DARK_GROUND)), "the site's faint, short of the bar on Nord").toBeLessThan(MIN_CONTRAST);
+  expect(contrast(dim, hexToRgb(DARK_GROUND))).toBeGreaterThanOrEqual(DIM_CONTRAST);
+  expect(ownDim).toEqual(readable(mix(ownFaint, PALETTE.bg, DIM_MIX), PALETTE.bg, DIM_CONTRAST));
 });
