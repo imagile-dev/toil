@@ -1,5 +1,5 @@
 import { AGENT_CLIENTS, agentScreen, type AgentClient } from '../screens.js';
-import { PALETTE, paint } from '../term.js';
+import { pal, paint } from '../term.js';
 import type { View } from '../view.js';
 
 /**
@@ -11,7 +11,7 @@ import type { View } from '../view.js';
 
 export const agentsView: View = {
   title: () => 'Connect an agent',
-  body: (caps) => [paint(caps, PALETTE.muted, 'Which agent?')],
+  body: (caps) => [paint(caps, pal(caps).muted, 'Which agent?')],
   items: () => AGENT_CLIENTS.map((c) => ({ label: c.label, hint: '', action: { go: 'agent-areas', params: { client: c.id } } })),
 };
 
@@ -20,9 +20,9 @@ const clientLabel = (id: string | undefined) => AGENT_CLIENTS.find((c) => c.id =
 export const agentAreas: View = {
   title: (p) => clientLabel(p.frame.params.client),
   body: (caps) => [
-    paint(caps, PALETTE.highlight, 'Which areas should it see?'),
+    paint(caps, pal(caps).highlight, 'Which areas should it see?'),
     '',
-    paint(caps, PALETTE.muted, 'Space ticks an area, enter goes on. Tick none for every area.'),
+    paint(caps, pal(caps).muted, 'Space ticks an area, enter goes on. Tick none for every area.'),
   ],
   checklist: {
     options: (p) =>

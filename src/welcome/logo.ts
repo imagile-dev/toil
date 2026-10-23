@@ -1,4 +1,6 @@
-import { type Cell, mix, PALETTE, renderCells, type Rgb, type TermCaps } from './term.js';
+import { ornamentAt, type Particle, type Point } from './ornaments.js';
+import { type Cell, mix, pal, type Palette, PALETTE, renderCells, type Rgb, type TermCaps } from './term.js';
+import type { SplashLook } from './themes/index.js';
 
 /**
  * The toil mark, drawn in a terminal: the badge (a blue tile with its top-right
@@ -40,10 +42,10 @@ export const ORBIT = { k: 0.66, r: 27, dot: 3.5, n: 6 } as const;
 export const DOT_COLORS: Array<keyof typeof PALETTE> = ['highlight', 'accent', 'ink'];
 
 /** The dots' centres at a turn of `a` radians, clockwise; at rest they sit at 0°, 60°, 120°... */
-export function orbitDots(a = 0): Array<{ at: Point; color: Rgb }> {
+export function orbitDots(a = 0, palette: Palette = PALETTE): Array<{ at: Point; color: Rgb }> {
   return Array.from({ length: ORBIT.n }, (_, i) => {
     const angle = (i / ORBIT.n) * Math.PI * 2 + a;
-    return { at: [CENTER + Math.cos(angle) * ORBIT.r, CENTER + Math.sin(angle) * ORBIT.r] as const, color: PALETTE[DOT_COLORS[i % DOT_COLORS.length]!] };
+    return { at: [CENTER + Math.cos(angle) * ORBIT.r, CENTER + Math.sin(angle) * ORBIT.r] as const, color: palette[DOT_COLORS[i % DOT_COLORS.length]!] };
   });
 }
 
@@ -54,8 +56,6 @@ const enum Layer {
   Sheet = 3,
   Dot = 5,
 }
-
-type Point = readonly [number, number];
 
 /**
  * The timeline, in timeline seconds (splash.ts plays it at SPEED): the badge
@@ -149,7 +149,39 @@ const CHEVRON: Array<[Point, Point]> = [
 ];
 const CURSOR: [Point, Point] = [[31.8, 40], [38, 40]];
 
-function draw(scene: Scene): { px: Uint8Array; color: Rgb[] } {
+/** Plain's splash: the ring of tool dots, arriving by fading in. Every theme's look is one of these (src/welcome/themes/). */
+export const PLAIN_LOOK: SplashLook = { ornament: 'orbit', motif: 'fade' };
+
+/**
+ * Where the badge is while it arrives, by the theme's motif: faded in where
+ * it stands (fade), up from below (rise), down from above (drop), in from the
+ * left (slide), or scaled up past its size and back (pop). By 0.5 timeline
+ * seconds it's where every other frame has it.
+ */
+export function entrance(motif: SplashLook['motif'], t: number): { dx: number; dy: number; scale: number } {
+  const e = 1 - (1 - Math.max(0, Math.min(1, t / 0.5))) ** 3;
+  switch (motif) {
+    case 'rise':
+      return { dx: 0, dy: 8 * (1 - e), scale: 1 };
+    case 'drop':
+      return { dx: 0, dy: 0 - 8 * (1 - e), scale: 1 };
+    case 'slide':
+      return { dx: 0 - 10 * (1 - e), dy: 0, scale: 1 };
+    case 'pop':
+      return { dx: 0, dy: 0, scale: Math.max(0.05, 0.55 + 0.45 * backOut(t / 0.45)) };
+    default:
+      return { dx: 0, dy: 0, scale: 1 };
+  }
+}
+
+function draw(scene: Scene, t: number, palette: Palette, look: SplashLook): { px: Uint8Array; color: Rgb[] } {
+  const move = entrance(look.motif, t);
+  // Braille is drawn in fine dots, which read lighter than their colour on a
+  // light terminal; there the tile and the ornament take a deeper shade, toward
+  // the ink, so the badge keeps its weight. A dark terminal keeps the exact colours.
+  const light = palette.bg[0] + palette.bg[1] + palette.bg[2] > 3 * 160;
+  const deepen = (c: Rgb): Rgb => (light ? mix(c, palette.ink, 0.35) : c);
+  const k = ORBIT.k * move.scale;
   const px = new Uint8Array(SIZE * SIZE);
   const color: Rgb[] = new Array(SIZE * SIZE);
   const sheet = new Uint8Array(SIZE * SIZE);
@@ -157,26 +189,28 @@ function draw(scene: Scene): { px: Uint8Array; color: Rgb[] } {
     for (let ix = 0; ix < SIZE; ix++) {
       const i = iy * SIZE + ix;
       // The pixel's centre, in badge units (the badge is shrunk to ORBIT.k about the centre),
-      const bx = CENTER + (ix + 0.5 - CENTER) / ORBIT.k;
-      const by = CENTER + (iy + 0.5 - CENTER) / ORBIT.k;
+      const bx = CENTER + (ix + 0.5 - CENTER - move.dx) / k;
+      const by = CENTER + (iy + 0.5 - CENTER - move.dy) / k;
       // and in the sheet's own units.
       const sx = 31.5 + (bx - SHEET.cx) / SHEET.s;
       const sy = 32.5 + (by - SHEET.cy) / SHEET.s;
       if (scene.badge <= 0) continue;
       if (inSheet(sx, sy)) {
-        // The page is dark, so it's the terminal's own background: only the
-        // fold and the prompt on it are drawn, the fold and `>` in ink and the
-        // cursor in the accent, as the site's badge has them.
+        // The page is the terminal's own background: dark on a dark terminal,
+        // as the site's badge has it, and white on a light one, as Plain's
+        // light badge has it. Only the fold and the prompt on it are drawn,
+        // the fold and `>` in ink and the cursor in the accent, and ink is
+        // the theme's ink for that background, so they show on either.
         sheet[i] = 1;
         const ink = inFold(sx, sy) || CHEVRON.some(([a, b]) => distToSegment([sx, sy], a, b) < 1.5);
         const cursor = scene.cursor && distToSegment([sx, sy], ...CURSOR) < 1.5;
         if (ink || cursor) {
           px[i] = Layer.Sheet;
-          color[i] = mix(PALETTE.bg, ink ? PALETTE.ink : PALETTE.accent, scene.badge);
+          color[i] = mix(palette.bg, ink ? palette.ink : palette.accent, scene.badge);
         }
       } else if (inTile(bx, by)) {
         px[i] = Layer.Tile;
-        color[i] = mix(PALETTE.bg, PALETTE.accent, scene.badge);
+        color[i] = mix(palette.bg, deepen(palette.accent), scene.badge);
       }
     }
   }
@@ -189,21 +223,26 @@ function draw(scene: Scene): { px: Uint8Array; color: Rgb[] } {
     const near = (x > 0 && sheet[i - 1]) || (x < SIZE - 1 && sheet[i + 1]) || (i >= SIZE && sheet[i - SIZE]) || (i < SIZE * (SIZE - 1) && sheet[i + SIZE]);
     if (near) px[i] = Layer.None;
   }
-  // The dots, each with a clear gap around it.
-  orbitDots(scene.spin).forEach((dot, n) => {
-    const r = ORBIT.dot * scene.dots[n]!;
-    if (r <= 0.2) return;
-    const [dx, dy] = dot.at;
-    for (let iy = Math.floor(dy - r - 1); iy <= dy + r + 1; iy++) {
-      for (let ix = Math.floor(dx - r - 1); ix <= dx + r + 1; ix++) {
+  // The ornament: the ring of tool dots, or the theme's own (src/welcome/ornaments.ts).
+  const particles: Particle[] =
+    look.ornament === 'orbit'
+      ? orbitDots(scene.spin, palette).map((dot, n) => ({ at: dot.at, r: ORBIT.dot * scene.dots[n]!, color: dot.color }))
+      : ornamentAt(look.ornament, t, palette);
+  for (const p of particles) {
+    if (p.r <= 0.2) continue;
+    const [ax, ay] = p.at;
+    const [zx, zy] = p.to ?? p.at;
+    for (let iy = Math.floor(Math.min(ay, zy) - p.r - 1); iy <= Math.max(ay, zy) + p.r + 1; iy++) {
+      for (let ix = Math.floor(Math.min(ax, zx) - p.r - 1); ix <= Math.max(ax, zx) + p.r + 1; ix++) {
         if (ix < 0 || iy < 0 || ix >= SIZE || iy >= SIZE) continue;
-        if (Math.hypot(ix + 0.5 - dx, iy + 0.5 - dy) <= r) {
+        const d = p.to ? distToSegment([ix + 0.5, iy + 0.5], p.at, p.to) : Math.hypot(ix + 0.5 - ax, iy + 0.5 - ay);
+        if (d <= p.r) {
           px[iy * SIZE + ix] = Layer.Dot;
-          color[iy * SIZE + ix] = dot.color;
+          color[iy * SIZE + ix] = deepen(p.color);
         }
       }
     }
-  });
+  }
   return { px, color };
 }
 
@@ -216,13 +255,13 @@ const BRAILLE = [
 ];
 
 /** The logo at time t, as 16 lines of 32 cells. */
-export function logoFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unicode'>): string[] {
-  return logoCells(t, caps).map((row) => renderCells(row, caps));
+export function logoFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unicode'>, look: SplashLook = PLAIN_LOOK): string[] {
+  return logoCells(t, caps, look).map((row) => renderCells(row, caps));
 }
 
 /** The logo at time t as cells, for the splash to compose. */
-export function logoCells(t: number, caps: Pick<TermCaps, 'unicode'>): Cell[][] {
-  const { px, color } = draw(sceneAt(t));
+export function logoCells(t: number, caps: Pick<TermCaps, 'unicode'>, look: SplashLook = PLAIN_LOOK): Cell[][] {
+  const { px, color } = draw(sceneAt(t), t, pal(caps), look);
   const rows: Cell[][] = [];
   for (let cy = 0; cy < SIZE / 4; cy++) {
     const out: Cell[] = [];

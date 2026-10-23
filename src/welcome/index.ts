@@ -3,8 +3,10 @@ import { CONTRACT_VERSION, type Envelope } from '../core/envelope.js';
 import { playRogue, type SaveIO } from './rogue/play.js';
 import { breadcrumb, finish, initialState, type Key, type MenuState, played, reduce, render } from './menu.js';
 import type { WelcomeData } from './screens.js';
+import { backgroundFromEnv, probeBackground } from './background.js';
 import { playSplash } from './splash.js';
-import { cursor, detectCaps, movesCursor, PALETTE, paint } from './term.js';
+import { cursor, detectCaps, isModernHost, movesCursor, pal, paint, reducedMotion, type TermCaps } from './term.js';
+import { type Background, palette, splashLook, themeNamed } from './themes/index.js';
 import { commandLine, type Run, type StepResult } from './view.js';
 import { outcome } from './views/result.js';
 
@@ -34,6 +36,12 @@ export interface WelcomeIO {
   run?: (args: string[], signal: AbortSignal) => Promise<Envelope>;
   /** Where the game keeps its progress: under "game" in the user's config, sealed (src/welcome/rogue/save.ts). */
   save?: SaveIO;
+  /**
+   * Ask the terminal whether its background is light or dark when COLORFGBG
+   * doesn't say (src/welcome/background.ts). The real terminal does; tests,
+   * whose terminal answers nothing, leave it off and get dark.
+   */
+  probeBackground?: boolean;
   /** Reads everything the screens show again, after a command may have changed it. */
   reload?: () => WelcomeData;
 }
@@ -71,6 +79,11 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
   emitKeypressEvents(input);
   input.setRawMode(true);
   input.resume();
+  // Before any keypress listener, so the terminal's answer is never read as keys.
+  const probed = !backgroundFromEnv(io.env) && io.probeBackground && output.isTTY && isModernHost(io.env) ? await probeBackground({ input, write }) : undefined;
+  const background: Background = backgroundFromEnv(io.env) ?? probed ?? 'dark';
+  // The theme's colours for this terminal, on every frame the menu draws; the game keeps its own.
+  const capsNow = (): TermCaps => ({ ...detectCaps(output, io.env), palette: palette(themeNamed(data.theme?.name), background) });
 
   // One "exit now" signal that ends whichever phase is running.
   let interrupted = false;
@@ -145,11 +158,11 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
   };
 
   try {
-    const caps = detectCaps(output, io.env);
-    await Promise.race([playSplash({ write, onKey }, caps, data.version), exited]);
+    const caps = capsNow();
+    await Promise.race([playSplash({ write, onKey }, caps, data.version, splashLook(themeNamed(data.theme?.name))), exited]);
     if (interrupted) return 'interrupted';
-    if (notice) write(`  ${paint(caps, PALETTE.accent, notice)}\n`);
-    await Promise.race([pause(io.env.TOIL_NO_ANIMATION ? 0 : 600, onKey), exited]);
+    if (notice) write(`  ${paint(caps, pal(caps).accent, notice)}\n`);
+    await Promise.race([pause(reducedMotion(io.env) ? 0 : 600, onKey), exited]);
     if (interrupted) return 'interrupted';
 
     // The menu lives on the alternate screen, so the finished splash stays in
@@ -161,7 +174,7 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
       // A running command or the game owns the screen; a resize or a notice
       // waits for it. Once exiting, nothing more is drawn.
       if (busy || gaming || exiting.signal.aborted) return;
-      const now = detectCaps(output, io.env);
+      const now = capsNow();
       write(`${cursor.home}${cursor.clearDown}${render(state, now, data, notice).join('\n')}`);
     };
     redraw();
@@ -170,14 +183,14 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
     // A run's commands prompt on this terminal, so the menu steps aside:
     // raw mode off, cursor on, its own keys ignored, and back again after.
     const perform = async (run: Run) => {
-      const caps = detectCaps(output, io.env);
+      const caps = capsNow();
       const arrow = caps.unicode ? '›' : '>';
-      write(`${cursor.home}${cursor.clearDown}${cursor.show}\n  ${paint(caps, PALETTE.highlight, `${breadcrumb(state, caps, data)} ${arrow} ${run.title}`)}\n`);
+      write(`${cursor.home}${cursor.clearDown}${cursor.show}\n  ${paint(caps, pal(caps).highlight, `${breadcrumb(state, caps, data)} ${arrow} ${run.title}`)}\n`);
       const results: StepResult[] = [];
       for (const step of run.steps) {
         if (interrupted) break;
-        if (step.label) write(`\n  ${paint(caps, PALETTE.highlight, step.label)}`);
-        write(`\n  ${paint(caps, PALETTE.faint, `$ ${commandLine(data, step.args)}`)}\n\n`);
+        if (step.label) write(`\n  ${paint(caps, pal(caps).highlight, step.label)}`);
+        write(`\n  ${paint(caps, pal(caps).faint, `$ ${commandLine(data, step.args)}`)}\n\n`);
         running = new AbortController();
         if (input.isTTY) input.setRawMode(false);
         let envelope: Envelope;
@@ -194,7 +207,7 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
         }
         results.push({ args: step.args, envelope });
         const o = outcome({ args: step.args, envelope });
-        write(`  ${paint(caps, o.good ? PALETTE.ok : PALETTE.danger, o.text)}\n`);
+        write(`  ${paint(caps, o.good ? pal(caps).ok : pal(caps).danger, o.text)}\n`);
         if (!envelope.ok && !run.keepGoing) break;
       }
       write(cursor.hide);

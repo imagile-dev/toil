@@ -24,6 +24,8 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 
 Crate is the default. The theme picker is in the header (in the Menu on a narrow screen) and in Settings, General. A `?theme=` in the address opens a view in that theme, for example `?theme=realm`, and this browser remembers it like a choice made in the picker.
 
+The theme is also toil's own setting, `"theme"` in `~/.toil/config.json`, which the welcome menu a bare `toil` opens follows too. A pick in Toil UI writes it with `toil theme set`, and Toil UI opens in the theme it names, so `toil theme set realm` in a terminal changes both. `TOIL_THEME` overrides the file for both. A browser that had a theme saved before the setting existed keeps it until you pick one. If toil can't save a pick, the page shows the theme anyway and says why it wasn't saved. With sample data, the theme is this browser's alone.
+
 ## Plain's fonts
 
 Plain uses toil's own type, so it looks like toil without leaving the accessibility baseline.

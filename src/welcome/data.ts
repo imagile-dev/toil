@@ -7,7 +7,9 @@ import { fieldSchema } from '../core/schema.js';
 import { toToilError } from '../core/errors.js';
 import { readGitContext } from '../core/git-repo.js';
 import { withoutHttpUserinfo } from '../node-context.js';
+import { themeInEffect, unknownThemeWarning } from '../theme/commands.js';
 import type { AreaSummary, CommandSummary, WelcomeData } from './screens.js';
+import { themeNamed } from './themes/index.js';
 
 export interface WelcomeDataOptions {
   version: string;
@@ -39,6 +41,9 @@ export function gatherWelcomeData(o: WelcomeDataOptions): WelcomeData {
     const e = toToilError(err);
     config = { error: { code: e.code, message: e.message, ...(e.fix ? { fix: e.fix } : {}) } };
   }
+  // The theme: the one set, when toil has it. A config that won't load still has TOIL_THEME.
+  const effect = themeInEffect('error' in config ? { ...(o.env.TOIL_THEME?.trim() ? { theme: { name: o.env.TOIL_THEME.trim(), source: 'env' as const } } : {}) } : config);
+  if (effect.unknown && !('error' in config)) config.warnings.push(unknownThemeWarning(effect.unknown));
   return {
     version: o.version,
     node: process.versions.node,
@@ -50,6 +55,7 @@ export function gatherWelcomeData(o: WelcomeDataOptions): WelcomeData {
     mcpAreas: o.mcpAreas,
     launch: launchCommand(o.script),
     folder: folderOf(o),
+    theme: themeNamed(effect.name),
   };
 }
 

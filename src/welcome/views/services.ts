@@ -1,6 +1,6 @@
 import { connectionsOf } from '../../core/config.js';
 import { healthWord, ok, type AreaSummary, type CommandSummary, type WelcomeData } from '../screens.js';
-import { PALETTE, paint } from '../term.js';
+import { pal, paint } from '../term.js';
 import { commandLine, type Action, type Caps, type Item, type Run, type View, type ViewProps } from '../view.js';
 
 /**
@@ -94,7 +94,7 @@ export function matching(data: WelcomeData, query: string): CommandSummary[] {
 
 export const servicesView: View = {
   title: () => 'Services',
-  body: (caps) => [paint(caps, PALETTE.muted, 'Every command is toil <service> <resource> <action>. Pick a service, then what to act on.')],
+  body: (caps) => [paint(caps, pal(caps).muted, 'Every command is toil <service> <resource> <action>. Pick a service, then what to act on.')],
   items: (p) => {
     const areas = p.data.areas.filter((a) => commandsOf(a).length > 0);
     const connected = areas.filter((a) => connectionsFor(p.data, a.name).length > 0);
@@ -122,7 +122,7 @@ export const serviceView: View = {
       : area.configurable
         ? ok(caps, false, 'none yet; commands that talk to it need one')
         : 'none needed';
-    return [paint(caps, PALETTE.highlight, area.description), '', `${paint(caps, PALETTE.muted, 'Connections ')} ${connections}`];
+    return [paint(caps, pal(caps).highlight, area.description), '', `${paint(caps, pal(caps).muted, 'Connections ')} ${connections}`];
   },
   items: (p) => {
     const area = areaOf(p.data, p.frame.params.area);
@@ -152,17 +152,17 @@ export const resourceView: View = {
 };
 
 function commandBody(caps: Caps, c: CommandSummary): string[] {
-  const lines = [paint(caps, PALETTE.highlight, c.description), '', paint(caps, PALETTE.ink, usage(c))];
+  const lines = [paint(caps, pal(caps).highlight, c.description), '', paint(caps, pal(caps).ink, usage(c))];
   if (c.writes) lines.push('', ok(caps, false, 'Writes: needs writes on for the connection, and asks you before it runs.'));
   // A passthrough's method decides; the menu runs the line as typed, and toil's own gate says if it needs --allow-write.
-  if (c.mayWrite) lines.push('', paint(caps, PALETTE.muted, 'Some calls write (a POST, say): add --allow-write to the flags for those; writes must be on for the connection.'));
+  if (c.mayWrite) lines.push('', paint(caps, pal(caps).muted, 'Some calls write (a POST, say): add --allow-write to the flags for those; writes must be on for the connection.'));
   if (c.args.length) {
-    lines.push('', paint(caps, PALETTE.muted, 'Arguments'));
-    for (const a of c.args) lines.push(`  ${`<${a.name}>`.padEnd(28)} ${paint(caps, PALETTE.muted, a.description)}`);
+    lines.push('', paint(caps, pal(caps).muted, 'Arguments'));
+    for (const a of c.args) lines.push(`  ${`<${a.name}>`.padEnd(28)} ${paint(caps, pal(caps).muted, a.description)}`);
   }
   if (c.flags.length) {
-    lines.push('', paint(caps, PALETTE.muted, 'Flags'));
-    for (const f of c.flags) lines.push(`  ${f.flags.padEnd(28)} ${paint(caps, PALETTE.muted, `${f.description}${f.required ? ' (required)' : ''}`)}`);
+    lines.push('', paint(caps, pal(caps).muted, 'Flags'));
+    for (const f of c.flags) lines.push(`  ${f.flags.padEnd(28)} ${paint(caps, pal(caps).muted, `${f.description}${f.required ? ' (required)' : ''}`)}`);
   }
   return lines;
 }
@@ -190,7 +190,7 @@ export const argView: View = {
   body: (caps, p) => {
     const c = findCommand(p.data, p.frame.params.cmd);
     const a = c?.args[Number(p.frame.params.i)];
-    return a ? [paint(caps, PALETTE.ink, usage(c!)), '', a.description, ...(a.variadic ? [paint(caps, PALETTE.muted, 'Separate several with spaces.')] : [])] : [];
+    return a ? [paint(caps, pal(caps).ink, usage(c!)), '', a.description, ...(a.variadic ? [paint(caps, pal(caps).muted, 'Separate several with spaces.')] : [])] : [];
   },
   input: {
     label: (p) => findCommand(p.data, p.frame.params.cmd)?.args[Number(p.frame.params.i)]?.name ?? '',
@@ -215,7 +215,7 @@ export const argView: View = {
 /** With more than one connection to the service, the flag that picks one, and the names to pick from. */
 function connectionHint(caps: Caps, data: WelcomeData, c: CommandSummary): string[] {
   const names = connectionsFor(data, c.path[0]!);
-  return names.length > 1 ? [`  ${'--connection <name>'.padEnd(28)} ${paint(caps, PALETTE.muted, `One of ${names.join(', ')}; the default when left out`)}`] : [];
+  return names.length > 1 ? [`  ${'--connection <name>'.padEnd(28)} ${paint(caps, pal(caps).muted, `One of ${names.join(', ')}; the default when left out`)}`] : [];
 }
 
 /** Flags as you'd type them after the command; the required ones are filled in to edit. */
@@ -226,10 +226,10 @@ export const flagsView: View = {
     if (!c) return [];
     const values = JSON.parse(p.frame.params.values ?? '[]') as string[];
     return [
-      paint(caps, PALETTE.faint, `$ ${commandLine(p.data, [...c.path, ...values])} …`),
+      paint(caps, pal(caps).faint, `$ ${commandLine(p.data, [...c.path, ...values])} …`),
       '',
-      ...c.flags.map((f) => `  ${f.flags.padEnd(28)} ${paint(caps, PALETTE.muted, `${f.description}${f.required ? ' (required)' : ''}`)}`),
-      ...(c.flags.length ? [] : [paint(caps, PALETTE.muted, 'It has no flags of its own; press enter to run it.')]),
+      ...c.flags.map((f) => `  ${f.flags.padEnd(28)} ${paint(caps, pal(caps).muted, `${f.description}${f.required ? ' (required)' : ''}`)}`),
+      ...(c.flags.length ? [] : [paint(caps, pal(caps).muted, 'It has no flags of its own; press enter to run it.')]),
       ...connectionHint(caps, p.data, c),
     ];
   },
@@ -258,9 +258,9 @@ export const confirmView: View = {
     return [
       ok(caps, false, 'This changes something on the service.'),
       '',
-      paint(caps, PALETTE.ink, `$ ${commandLine(p.data, [...argv, '--allow-write'])}`),
+      paint(caps, pal(caps).ink, `$ ${commandLine(p.data, [...argv, '--allow-write'])}`),
       '',
-      paint(caps, PALETTE.muted, "It runs only if writes are on for the connection; if they're off, it says so and changes nothing."),
+      paint(caps, pal(caps).muted, "It runs only if writes are on for the connection; if they're off, it says so and changes nothing."),
     ];
   },
   items: (p: ViewProps) => {
@@ -277,7 +277,7 @@ export const confirmView: View = {
 
 export const findView: View = {
   title: () => 'Find',
-  body: (caps) => [paint(caps, PALETTE.muted, 'Words to look for in a command or what it does, such as "pr comment" or "sprint".')],
+  body: (caps) => [paint(caps, pal(caps).muted, 'Words to look for in a command or what it does, such as "pr comment" or "sprint".')],
   input: {
     label: () => 'Find',
     submit: (text): Action | { error: string } => (text.trim() ? { go: 'service-matches', params: { q: text.trim() } } : { error: 'Type a word or two to look for.' }),

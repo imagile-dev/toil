@@ -2,7 +2,7 @@ import { CONNECTION_NAME, connectionWrites, type ResolvedConfig } from '../../co
 import { AGENT_NAMES, AGENTS, DEFAULT_AGENT, type AgentName } from '../../skills/folders.js';
 import { nameFromRepo, repoNameFromUrl } from '../../skills/marketplace.js';
 import { connectionNames, envOnly, ok, type WelcomeData } from '../screens.js';
-import { PALETTE, paint } from '../term.js';
+import { pal, paint } from '../term.js';
 import type { Action, Caps, Item, Run, StepResult, View, ViewProps } from '../view.js';
 
 /**
@@ -54,9 +54,9 @@ export function toilSkillRun(agent: string, scope: string): Run {
 export const agentSkillsView: View = {
   title: () => 'Agent skills',
   body: (caps) => [
-    paint(caps, PALETTE.highlight, 'Agent skills'),
+    paint(caps, pal(caps).highlight, 'Agent skills'),
     '',
-    paint(caps, PALETTE.muted, 'Skill plugins come from marketplaces, git repositories of agent skills. The toil skill ships with toil, and toil keeps the copies it installed current.'),
+    paint(caps, pal(caps).muted, 'Skill plugins come from marketplaces, git repositories of agent skills. The toil skill ships with toil, and toil keeps the copies it installed current.'),
   ],
   items: () => [
     { label: 'Skill plugins', hint: 'Marketplaces: add, install, switch on and off', action: { go: 'skills' } },
@@ -72,9 +72,9 @@ export const skillsView: View = {
   body: (caps, p) => {
     const names = marketplaceNames(p.data);
     if (names.length === 0) {
-      return [paint(caps, PALETTE.muted, 'No skills marketplace yet. A marketplace is a git repository of skill plugins; add one to install its skills for Codex, GitHub Copilot or Claude Code.')];
+      return [paint(caps, pal(caps).muted, 'No skills marketplace yet. A marketplace is a git repository of skill plugins; add one to install its skills for Codex, GitHub Copilot or Claude Code.')];
     }
-    return [paint(caps, PALETTE.highlight, 'Marketplaces'), ...names.map((name) => `  ${name}  ${writesOn(p.data, name) ? ok(caps, true, 'writes on') : paint(caps, PALETTE.faint, 'writes off')}`)];
+    return [paint(caps, pal(caps).highlight, 'Marketplaces'), ...names.map((name) => `  ${name}  ${writesOn(p.data, name) ? ok(caps, true, 'writes on') : paint(caps, pal(caps).faint, 'writes off')}`)];
   },
   items: (p) => [
     ...marketplaceNames(p.data).map((name): Item => ({ label: name, hint: String(config(p.data)!.connections[name]!.repoUrl ?? ''), action: { go: 'marketplace', params: { name } } })),
@@ -91,12 +91,12 @@ export const marketplaceView: View = {
     if (!conn) return [ok(caps, false, `There's no marketplace named ${name} any more.`)];
     const writes = connectionWrites(conn);
     const lines = [
-      paint(caps, PALETTE.highlight, name),
+      paint(caps, pal(caps).highlight, name),
       '',
-      `${paint(caps, PALETTE.muted, 'Clone URL ')} ${String(conn.repoUrl ?? '')}`,
-      `${paint(caps, PALETTE.muted, 'Writes    ')} ${writes ? ok(caps, true, 'on') : 'off'}`,
+      `${paint(caps, pal(caps).muted, 'Clone URL ')} ${String(conn.repoUrl ?? '')}`,
+      `${paint(caps, pal(caps).muted, 'Writes    ')} ${writes ? ok(caps, true, 'on') : 'off'}`,
     ];
-    if (!writes) lines.push('', paint(caps, PALETTE.muted, 'Writes are off, so nothing can be installed from it yet. Turning them on lets toil (and an agent you allow) install and switch its skill plugins.'));
+    if (!writes) lines.push('', paint(caps, pal(caps).muted, 'Writes are off, so nothing can be installed from it yet. Turning them on lets toil (and an agent you allow) install and switch its skill plugins.'));
     return lines;
   },
   items: (p) => {
@@ -146,7 +146,7 @@ const parse = <T>(text: string | undefined, fallback: T): T => {
 
 export const pluginView: View = {
   title: () => 'Install',
-  body: (caps) => [paint(caps, PALETTE.highlight, 'Which skill plugin?')],
+  body: (caps) => [paint(caps, pal(caps).highlight, 'Which skill plugin?')],
   items: (p) => {
     const name = p.frame.params.name!;
     const plugins = parse<Array<{ name: string; description: string }>>(p.frame.params.plugins, []);
@@ -163,7 +163,7 @@ export const pluginView: View = {
  */
 export const agentView: View = {
   title: (p) => (p.frame.params.mode === 'toggle' || p.frame.params.mode === 'toil' ? 'Agent' : (p.frame.params.plugin ?? 'Agent')),
-  body: (caps) => [paint(caps, PALETTE.highlight, 'For which agent?')],
+  body: (caps) => [paint(caps, pal(caps).highlight, 'For which agent?')],
   items: (p) => {
     const agents = [DEFAULT_AGENT, ...AGENT_NAMES.filter((a) => a !== DEFAULT_AGENT)];
     const rows = agents.map((agent): Item => ({
@@ -201,9 +201,9 @@ export function statusRun(agent: string, scope: string): Run {
 export const scopeView: View = {
   title: (p) => (p.frame.params.agent === 'all' ? 'Every agent' : (agentLabel[p.frame.params.agent as AgentName] ?? '')),
   body: (caps, p) => [
-    paint(caps, PALETTE.highlight, 'Where?'),
+    paint(caps, pal(caps).highlight, 'Where?'),
     '',
-    paint(caps, PALETTE.muted, `Your user folder works in every repository; this repository's folder only here${p.data.folder.repo ? ` (${p.data.folder.repo.root})` : ` (${p.data.folder.cwd})`}.`),
+    paint(caps, pal(caps).muted, `Your user folder works in every repository; this repository's folder only here${p.data.folder.repo ? ` (${p.data.folder.repo.root})` : ` (${p.data.folder.cwd})`}.`),
   ],
   items: (p) => {
     const agent = p.frame.params.agent as AgentName | 'all';
@@ -231,7 +231,7 @@ export function checkUrl(text: string): string | undefined {
 export const addUrlView: View = {
   title: () => 'Add',
   body: (caps) => [
-    paint(caps, PALETTE.highlight, 'Step 1 of 3: where it is'),
+    paint(caps, pal(caps).highlight, 'Step 1 of 3: where it is'),
     '',
     'The marketplace\'s git clone URL, https://<host>/<path>.git, or a local path. If it is private, toil asks for a token in step 3 and keeps it in your OS credential store, never in a file.',
   ],
@@ -246,7 +246,7 @@ export const addUrlView: View = {
 
 export const addNameView: View = {
   title: () => 'Name',
-  body: (caps) => [paint(caps, PALETTE.highlight, 'Step 2 of 3: name'), '', 'What should it be called? You pick it with --marketplace when you have more than one.'],
+  body: (caps) => [paint(caps, pal(caps).highlight, 'Step 2 of 3: name'), '', 'What should it be called? You pick it with --marketplace when you have more than one.'],
   input: {
     label: () => 'Marketplace name',
     initial: (p) => {
@@ -272,7 +272,7 @@ export const addNameView: View = {
 export const removeMarketplaceView: View = {
   title: () => 'Remove',
   body: (caps, p) => [
-    paint(caps, PALETTE.danger, `Remove ${p.frame.params.name}?`),
+    paint(caps, pal(caps).danger, `Remove ${p.frame.params.name}?`),
     '',
     'This takes it out of your config and its token out of the OS credential store. Its clone and the skills already installed from it stay where they are.',
   ],
@@ -319,9 +319,9 @@ const isOn = (s: PluginState) => s.on > 0;
 export const pluginsView: View = {
   title: () => 'Switch skill plugins',
   body: (caps) => [
-    paint(caps, PALETTE.highlight, 'Switch installed skill plugins on and off'),
+    paint(caps, pal(caps).highlight, 'Switch installed skill plugins on and off'),
     '',
-    paint(caps, PALETTE.muted, 'Switched off, a skill plugin\'s skills move to a hidden folder the agent doesn\'t read; nothing is deleted. Pick the agent and place first.'),
+    paint(caps, pal(caps).muted, 'Switched off, a skill plugin\'s skills move to a hidden folder the agent doesn\'t read; nothing is deleted. Pick the agent and place first.'),
   ],
   items: () => [{ label: 'Choose agent and place', hint: 'Then tick what should be on', action: { go: 'skills-agent', params: { mode: 'toggle' } } }],
 };
@@ -330,8 +330,8 @@ export const toggleView: View = {
   title: (p) => (p.frame.params.scope === 'project' ? 'This repository' : 'Your folder'),
   body: (caps, p) => {
     const states = parse<PluginState[]>(p.frame.params.plugins, []);
-    if (states.length === 0) return [paint(caps, PALETTE.muted, 'No skill plugins installed here from a marketplace. Install one from Skill plugins first.')];
-    return [paint(caps, PALETTE.muted, 'Space switches a skill plugin, enter shows what will change before anything is written.')];
+    if (states.length === 0) return [paint(caps, pal(caps).muted, 'No skill plugins installed here from a marketplace. Install one from Skill plugins first.')];
+    return [paint(caps, pal(caps).muted, 'Space switches a skill plugin, enter shows what will change before anything is written.')];
   },
   checklist: {
     options: (p) =>
@@ -383,11 +383,11 @@ export const reviewView: View = {
   title: () => 'Review',
   body: (caps: Caps, p: ViewProps) => {
     const changes = parse<ToggleChange[]>(p.frame.params.changes, []);
-    const lines = [paint(caps, PALETTE.highlight, 'This will change:'), ''];
-    for (const c of changes) lines.push(`  ${c.on ? ok(caps, true, 'on ') : ok(caps, false, 'off')}  ${c.plugin}  ${paint(caps, PALETTE.faint, c.marketplace)}`);
+    const lines = [paint(caps, pal(caps).highlight, 'This will change:'), ''];
+    for (const c of changes) lines.push(`  ${c.on ? ok(caps, true, 'on ') : ok(caps, false, 'off')}  ${c.plugin}  ${paint(caps, pal(caps).faint, c.marketplace)}`);
     const off = [...new Set(changes.map((c) => c.marketplace))].filter((m) => !writesOn(p.data, m));
     if (off.length) lines.push('', ok(caps, false, `Writes are off for ${off.join(', ')}, so those changes will be refused. Turn them on from Skill plugins first.`));
-    lines.push('', paint(caps, PALETTE.muted, 'Each line runs one command; nothing else in the folder or its index changes.'));
+    lines.push('', paint(caps, pal(caps).muted, 'Each line runs one command; nothing else in the folder or its index changes.'));
     return lines;
   },
   items: (p) => {

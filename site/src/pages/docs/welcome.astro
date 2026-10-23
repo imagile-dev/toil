@@ -72,7 +72,8 @@ const keys = [
         <dl>
           <div><dt>Opens with</dt><dd><code>toil</code>, alone, on a terminal</dd></div>
           <div><dt>Never opens</dt><dd>With arguments, in a pipe, in CI or under MCP</dd></div>
-          <div><dt>Still frame</dt><dd><code>NO_COLOR</code>, <code>TOIL_NO_ANIMATION</code>, legacy console</dd></div>
+          <div><dt>Still frame</dt><dd><code>NO_COLOR</code>, <code>TOIL_REDUCED_MOTION</code>, legacy console</dd></div>
+          <div><dt>Theme</dt><dd><code>toil theme set &lt;name&gt;</code>, or <code>TOIL_THEME</code></dd></div>
           <div><dt>ASCII</dt><dd><code>TOIL_ASCII</code>, or a console without Unicode</dd></div>
         </dl>
       </aside>
@@ -209,6 +210,18 @@ const keys = [
         </section>
 
         <section data-reveal>
+          <h2>Themes</h2>
+          <p>
+            The menu wears the same theme as Toil UI: <code>toil theme set realm</code> writes it to your config file, <code>TOIL_THEME</code> overrides
+            it for one shell, and <code>toil theme list</code> shows them all. A theme brings its colours, its own short animation around the badge
+            (Harvest's crops come up, Starship jumps to warp, Realm's embers rise, Crate and Plain keep the orbit), its splash line, and its words for a
+            heading or two, with the plain words kept beside them. Every row that names a command keeps its plain name. Nothing a script or an
+            agent reads changes: not the JSON, not <code>--help</code>, not an error. The colours are picked for your terminal's background, light
+            or dark, which toil asks the terminal once (or reads from <code>COLORFGBG</code>, which you can set yourself, <code>0;15</code> for light).
+          </p>
+        </section>
+
+        <section data-reveal>
           <h2>Brick breaker, retired</h2>
           <p>
             Brick breaker has been retired: a paddle on a character grid never felt right. There may be something else in the menu for the minutes a build takes. It is not listed, it is not a command or an MCP
@@ -223,8 +236,9 @@ const keys = [
           <h2>Terminals</h2>
           <p>
             The splash animates in Windows Terminal, macOS Terminal and Linux terminals. The legacy Windows console host, <code>NO_COLOR</code>,
-            <code>TOIL_NO_ANIMATION</code>, <code>TERM=dumb</code> and a window smaller than 40 by 12 get the still frame. Where Unicode isn't safe, the
-            legacy console host or <code>TOIL_ASCII</code>, everything is drawn in plain ASCII. Long lists scroll on a short window; on a narrow one, text
+            reduced motion (<code>TOIL_REDUCED_MOTION</code>, or its older name <code>TOIL_NO_ANIMATION</code>), <code>TERM=dumb</code> and a window smaller than 40 by 12 get the still frame. Where Unicode isn't safe, the
+            legacy console host or <code>TOIL_ASCII</code>, everything is drawn in plain ASCII. A terminal with 256 or 16 colours gets the theme's
+            nearest, the older console host included. Long lists scroll on a short window; on a narrow one, text
             wraps and table rows are cut at the edge rather than wrapping into each other.
           </p>
           <div class="table-wrap" tabindex="0" role="region" aria-label="Keys">

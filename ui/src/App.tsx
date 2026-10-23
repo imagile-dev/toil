@@ -166,6 +166,12 @@ export interface AppProps {
   agent: Agent;
   /** toil's config commands, for the settings pages: the server's, or the preview's sample one, which changes nothing. */
   config?: ConfigApi;
+  /**
+   * toil's theme setting (#427), read with `toil theme list` and written with
+   * `toil theme set` through the server's config commands. Absent (the preview,
+   * sample data, a test), the theme is this browser's alone.
+   */
+  themeSetting?: ConfigApi;
   /** When the data is read; sprint figures are worked out at it. The preview's is fixed. */
   now: string;
   /** The site's live sample: shows the sample-data banner on every view. */
@@ -203,7 +209,7 @@ export interface AppProps {
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, news, versions }: AppProps) {
+export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, news, versions }: AppProps) {
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
@@ -214,7 +220,7 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
   const [dossiers, setDossiers] = useState<Record<string, Loaded<DossierData>>>({});
   // What the dossier on screen is waiting on, for its loading screen (#419): the real calls, as they go.
   const [progress, setProgress] = useState<Record<string, CallProgress>>({});
-  const choice = useThemeChoice();
+  const choice = useThemeChoice(themeSetting ?? null);
   const theme = themeNamed(choice.theme);
   const main = useRef<HTMLElement>(null);
   const first = useRef(true);
@@ -503,6 +509,11 @@ export function App({ execute, agent, config, now, preview, agentSettings, feedb
         <main id="main" ref={main} data-view={route.view}>
           {/* A running sync (#419): the theme's loader with its progress; the Sync panel's own line is the one announced. */}
           {syncing?.running && <Loader size="panel" message={syncText(syncing)!} live={false} />}
+          {choice.saveError && (
+            <p className="notice" role="alert">
+              The theme shows here, but toil didn't save it: {choice.saveError}
+            </p>
+          )}
           {body}
         </main>
         <CommandPalette

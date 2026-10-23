@@ -55,7 +55,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const choice = (over: Partial<ThemeChoiceState> = {}): ThemeChoiceState => ({ theme: 'crate', scheme: 'system', wording: true, voice: true, setTheme: () => undefined, setScheme: () => undefined, setWording: () => undefined, setVoice: () => undefined, ...over });
+const choice = (over: Partial<ThemeChoiceState> = {}): ThemeChoiceState => ({ theme: 'crate', scheme: 'system', wording: true, voice: true, saveError: null, setTheme: () => undefined, setScheme: () => undefined, setWording: () => undefined, setVoice: () => undefined, ...over });
 
 function inTheme(name: string, node: React.ReactNode, wording = true) {
   return (

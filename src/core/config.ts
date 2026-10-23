@@ -43,6 +43,13 @@ export interface ResolvedConfig {
   dossierPaths?: string[];
   /** `"wait": { "maxTimeout": "2h" }`: the longest `toil wait --timeout` may be (src/core/wait.ts). Absent means the default. */
   wait?: WaitSettings;
+  /**
+   * The welcome menu's and Toil UI's theme (#427): `TOIL_THEME`, else
+   * `"theme"` in the config file (version 2), with where it came from. Absent
+   * means neither set one. Which names exist is the theme commands' to say
+   * (src/theme/commands.ts); the loader only checks it's a name.
+   */
+  theme?: { name: string; source: 'env' | 'global' };
 }
 
 /** The settings `toil wait` reads from the config file. */
@@ -74,7 +81,7 @@ export interface AreaInfo {
 export const CONFIG_VERSION = 2;
 
 /** Top-level keys that are never areas, in any version. */
-const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds', 'dossierPaths', 'audit', 'wait', 'game']);
+const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds', 'dossierPaths', 'audit', 'wait', 'game', 'theme']);
 
 /**
  * Connection names map one-to-one onto env names: lowercase letters, digits
@@ -115,6 +122,9 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
   config.defaults = file.defaults;
   if (file.dossierPaths) config.dossierPaths = file.dossierPaths;
   if (file.wait) config.wait = file.wait;
+  const envTheme = options.env.TOIL_THEME?.trim();
+  if (envTheme) config.theme = { name: envTheme, source: 'env' };
+  else if (file.theme) config.theme = { name: file.theme, source: 'global' };
   if (file.bounds) {
     config.bounds = file.bounds;
     if (file.bounds.files === 'unbounded') {
@@ -232,7 +242,7 @@ export function readConfigForEdit(path: string): EditableConfig {
   const { connections, defaults } = migrateConfig(raw, path, []);
   if ((raw.version ?? 1) !== 1) return { ...raw, version: CONFIG_VERSION, connections: { ...connections }, defaults: { ...defaults } };
   // In version 1 these keys were ignored; upgrading would give them meaning.
-  for (const key of ['connections', 'defaults', 'dossierPaths']) {
+  for (const key of ['connections', 'defaults', 'dossierPaths', 'theme']) {
     if (key in raw) {
       throw new ToilError('CONFIG_INVALID', `${path} is a version 1 file with a "${key}" key, which version 1 ignores, so toil won't upgrade it automatically.`, {
         fix: `Remove "${key}" from ${path}, or add "version": ${CONFIG_VERSION} and check it reads as you intend.`,
@@ -281,7 +291,7 @@ export function migrateConfig(
   raw: Record<string, unknown>,
   path: string,
   warnings: ResolvedConfig['warnings'],
-): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds; dossierPaths?: string[]; audit?: true; wait?: WaitSettings } {
+): { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings>; bounds?: Bounds; dossierPaths?: string[]; audit?: true; wait?: WaitSettings; theme?: string } {
   // Absent means version 1; present-but-null is a mistake, not a default.
   const version = 'version' in raw ? raw.version : 1;
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
@@ -300,7 +310,26 @@ export function migrateConfig(
   // Checked here so a typo is loud on every command; read from the user's own file only (src/core/audit.ts).
   if (raw.audit !== undefined) parseAuditSettings(raw.audit, path);
   const wait = readWait(raw.wait, path);
-  return { ...read, ...(bounds ? { bounds } : {}), ...(dossierPaths ? { dossierPaths } : {}), ...(raw.audit !== undefined ? { audit: true as const } : {}), ...(wait ? { wait } : {}) };
+  const theme = version === 1 ? undefined : readTheme(raw.theme, path);
+  return { ...read, ...(bounds ? { bounds } : {}), ...(dossierPaths ? { dossierPaths } : {}), ...(raw.audit !== undefined ? { audit: true as const } : {}), ...(wait ? { wait } : {}), ...(theme ? { theme } : {}) };
+}
+
+/** A theme's name: lowercase letters, digits and hyphens, as its folder under ui/themes/ is named. */
+export const THEME_NAME = /^[a-z][a-z0-9-]*$/;
+
+/**
+ * `"theme": "realm"`: the welcome menu's and Toil UI's theme (#427). A name
+ * here; whether toil has that theme is for `toil theme list` and the menu to
+ * say, so a theme a newer toil added doesn't break every command in an older one.
+ */
+function readTheme(raw: unknown, path: string): string | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== 'string' || !THEME_NAME.test(raw)) {
+    throw new ToilError('CONFIG_INVALID', `"theme" in ${path} must be a theme's name, such as "plain", found ${JSON.stringify(raw)}.`, {
+      fix: `Run toil theme set <name> (toil theme list names them), or remove "theme" from ${path}.`,
+    });
+  }
+  return raw;
 }
 
 /**
@@ -378,7 +407,7 @@ function fromVersion1(raw: Record<string, unknown>, path: string, warnings: Reso
   for (const [key, settings] of Object.entries(raw)) {
     refuseReservedKey(key, key, path);
     if (RESERVED_KEYS.has(key)) {
-      if (key === 'connections' || key === 'defaults' || key === 'dossierPaths') {
+      if (key === 'connections' || key === 'defaults' || key === 'dossierPaths' || key === 'theme') {
         warnings.push({ code: 'CONFIG_RESERVED_KEY', message: `"${key}" in ${path} needs "version": ${CONFIG_VERSION} and was ignored.` });
       }
       continue;
@@ -445,7 +474,7 @@ function fromVersion2(raw: Record<string, unknown>, path: string, warnings: Reso
  * Environment variable names toil reserves for itself. They never map onto an
  * area, whatever areas exist now or later.
  */
-const RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/, /^TOIL_WORKSPACE$/, /^TOIL_FEEDBACK_URL$/];
+const RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/, /^TOIL_WORKSPACE$/, /^TOIL_FEEDBACK_URL$/, /^TOIL_THEME$/];
 
 /** camelCase key to SNAKE: baseUrl -> BASE_URL, baseURL -> BASE_URL, apiKey2 -> API_KEY2. */
 function snake(key: string): string {

@@ -1,7 +1,7 @@
 import { CONNECTION_NAME, connectionsOf, connectionWrites, defaultConnectionName, type ResolvedConfig } from '../../core/config.js';
 import { hostMatches } from '../../core/dossier.js';
 import { hostOf, ok, type WelcomeData } from '../screens.js';
-import { PALETTE, paint } from '../term.js';
+import { pal, paint } from '../term.js';
 import { commandLine, type Action, type Caps, type Item, type Run, type Step, type StepResult, type View, type ViewProps } from '../view.js';
 
 /**
@@ -108,9 +108,9 @@ const isRecord = (value: unknown): value is Record<string, unknown> => typeof va
 
 const config = (data: WelcomeData): ResolvedConfig | undefined => ('error' in data.config ? undefined : data.config);
 
-const muted = (caps: Caps, text: string) => paint(caps, PALETTE.muted, text);
-const faint = (caps: Caps, text: string) => paint(caps, PALETTE.faint, text);
-const heading = (caps: Caps, text: string) => paint(caps, PALETTE.highlight, text);
+const muted = (caps: Caps, text: string) => paint(caps, pal(caps).muted, text);
+const faint = (caps: Caps, text: string) => paint(caps, pal(caps).faint, text);
+const heading = (caps: Caps, text: string) => paint(caps, pal(caps).highlight, text);
 const label = (caps: Caps, text: string) => muted(caps, text.padEnd(10));
 
 const plural = (n: number, word: string) => `${n} ${n === 1 ? word : word.endsWith('y') ? `${word.slice(0, -1)}ies` : `${word}s`}`;
@@ -891,7 +891,7 @@ export const saveView: View = {
     return [
       ...(area ? [heading(caps, `${where(area, env)} now`), ...sectionLines(caps, sectionOf(shownOf(p), area, env)), ''] : []),
       heading(caps, 'Saving runs'),
-      ...steps.map((args) => paint(caps, PALETTE.ink, `  $ ${commandLine(p.data, args)}`)),
+      ...steps.map((args) => paint(caps, pal(caps).ink, `  $ ${commandLine(p.data, args)}`)),
       '',
       faint(caps, 'The command checks the change and refuses a value already there; the dossier is shown again after.'),
     ];
@@ -1274,12 +1274,12 @@ export const agentView: View = {
     return [
       heading(caps, 'Give the agent these areas'),
       '',
-      paint(caps, PALETTE.ink, `  ${commandLine(p.data, ['mcp', '--areas', areas.join(',')])}`),
+      paint(caps, pal(caps).ink, `  ${commandLine(p.data, ['mcp', '--areas', areas.join(',')])}`),
       faint(caps, 'Connect an agent builds the config snippet for your client; tick the same areas there.'),
       '',
       heading(caps, 'Then ask it'),
       '',
-      paint(caps, PALETTE.ink, handOffPrompt(s?.name ?? ref, folder)),
+      paint(caps, pal(caps).ink, handOffPrompt(s?.name ?? ref, folder)),
       '',
       muted(caps, "Over MCP, an agent can't bind a dossier to a connection with writes on, change a connection, or delete a dossier: those stay yours, here or on the CLI."),
     ];

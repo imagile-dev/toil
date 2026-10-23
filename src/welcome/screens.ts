@@ -1,7 +1,8 @@
 import { connectionsOf, connectionWrites, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
-import { PALETTE, paint, type TermCaps } from './term.js';
+import { pal, paint, type TermCaps } from './term.js';
 import type { Health, Session } from './view.js';
 import { LEARN_LINKS, LEARN_SITE } from './learn.js';
+import type { TerminalTheme } from './themes/index.js';
 
 /**
  * What the menu's screens show. Every screen is built from the same code the
@@ -59,14 +60,16 @@ export interface WelcomeData {
   launch: { command: string; args: string[] };
   /** What this folder is: the working directory and the repository it's in, read from `.git` without git. */
   folder: { cwd: string; repo?: { root: string; branch: string; remote?: string } };
+  /** The theme the menu wears (`toil theme set`, TOIL_THEME): its colours, splash and words. Plain when absent. */
+  theme?: TerminalTheme;
 }
 
 type Caps = Pick<TermCaps, 'colorDepth' | 'unicode'>;
 
-const heading = (caps: Caps, text: string) => paint(caps, PALETTE.highlight, text);
-const muted = (caps: Caps, text: string) => paint(caps, PALETTE.muted, text);
-const faint = (caps: Caps, text: string) => paint(caps, PALETTE.faint, text);
-export const ok = (caps: Caps, good: boolean, text: string) => paint(caps, good ? PALETTE.ok : PALETTE.danger, text);
+const heading = (caps: Caps, text: string) => paint(caps, pal(caps).highlight, text);
+const muted = (caps: Caps, text: string) => paint(caps, pal(caps).muted, text);
+const faint = (caps: Caps, text: string) => paint(caps, pal(caps).faint, text);
+export const ok = (caps: Caps, good: boolean, text: string) => paint(caps, good ? pal(caps).ok : pal(caps).danger, text);
 
 export function hostOf(value: unknown): string {
   if (typeof value !== 'string') return '';
@@ -209,16 +212,16 @@ export function agentScreen(caps: Caps, data: WelcomeData, client: AgentClient, 
   const label = AGENT_CLIENTS.find((c) => c.id === client)!.label;
   const lines = [heading(caps, `Connect ${label}`), ''];
   if (client === 'claude') {
-    lines.push('Run this once:', '', paint(caps, PALETTE.ink, `  claude mcp add toil -- ${[data.launch.command, ...args].map(shellQuote).join(' ')}`));
+    lines.push('Run this once:', '', paint(caps, pal(caps).ink, `  claude mcp add toil -- ${[data.launch.command, ...args].map(shellQuote).join(' ')}`));
   } else if (client === 'codex') {
     lines.push('Add this to ~/.codex/config.toml:', '');
-    lines.push(paint(caps, PALETTE.ink, '  [mcp_servers.toil]'));
-    lines.push(paint(caps, PALETTE.ink, `  command = ${JSON.stringify(data.launch.command)}`));
-    lines.push(paint(caps, PALETTE.ink, `  args = [${args.map((a) => JSON.stringify(a)).join(', ')}]`));
+    lines.push(paint(caps, pal(caps).ink, '  [mcp_servers.toil]'));
+    lines.push(paint(caps, pal(caps).ink, `  command = ${JSON.stringify(data.launch.command)}`));
+    lines.push(paint(caps, pal(caps).ink, `  args = [${args.map((a) => JSON.stringify(a)).join(', ')}]`));
   } else {
     lines.push('Add this to .vscode/mcp.json in your project:', '');
     const json = JSON.stringify({ servers: { toil: { type: 'stdio', command: data.launch.command, args } } }, null, 2);
-    for (const l of json.split('\n')) lines.push(paint(caps, PALETTE.ink, `  ${l}`));
+    for (const l of json.split('\n')) lines.push(paint(caps, pal(caps).ink, `  ${l}`));
   }
   lines.push(
     '',
@@ -230,7 +233,7 @@ export function agentScreen(caps: Caps, data: WelcomeData, client: AgentClient, 
 
 export function helpScreen(caps: Caps, data: WelcomeData): string[] {
   const t = (args: string) => `toil ${args}`;
-  const row = (command: string, what: string) => `  ${paint(caps, PALETTE.ink, command.padEnd(34))} ${muted(caps, what)}`;
+  const row = (command: string, what: string) => `  ${paint(caps, pal(caps).ink, command.padEnd(34))} ${muted(caps, what)}`;
   return [
     heading(caps, 'How toil works'),
     '',
@@ -262,7 +265,7 @@ export function helpScreen(caps: Caps, data: WelcomeData): string[] {
 /** Learn (#418): the links in learn.ts, printed and never opened. */
 export function learnScreen(caps: Caps): string[] {
   // Each link on a line of its own, so an 80-column terminal never cuts one short.
-  const entry = (label: string, url: string, task = '') => [`  ${paint(caps, PALETTE.ink, label)}${task ? `  ${muted(caps, task)}` : ''}`, `    ${url}`];
+  const entry = (label: string, url: string, task = '') => [`  ${paint(caps, pal(caps).ink, label)}${task ? `  ${muted(caps, task)}` : ''}`, `    ${url}`];
   return [
     heading(caps, 'Learn'),
     '',
