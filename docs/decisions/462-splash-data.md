@@ -9,8 +9,9 @@
   `toil-ui:splash`, beside `toil-ui:looked`). The next launch on that dossier's page reads it
   once, as the App mounts, and works the day out from the dates at the App's clock with the
   same weekday count the dashboard uses (`sprintDays`, split out of `health` in
-  `ui/src/model/sprint.ts`), so the splash's day and the page's "day 7 of 10" agree. The
-  splash never waits for anything.
+  `ui/src/model/sprint.ts`), so the splash's day and the page's "day 7 of 10" agree, except
+  before a sprint's first weekday, when the page says day 0 and the die, which has no 0, says 1.
+  The splash never waits for anything.
 - **Why the browser and not the server's cache.** The server's cache holds the last sync, but
   reaching it means a read, which is the wait the splash covers; handing it over in the
   session would add the sprint model to the server for one number. The browser already keeps

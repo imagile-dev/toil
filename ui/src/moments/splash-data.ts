@@ -6,7 +6,8 @@
  * the sprint that dossier was in: its name, its dates and the items done. The
  * next launch on that dossier's page works the day out from those dates at the
  * App's clock, the same way the dashboard does, so the splash and the page it
- * hands over to agree. Nothing is remembered on sample data.
+ * hands over to agree (but for a sprint's weekend start, which the page calls
+ * day 0 and the splash day 1). Nothing is remembered on sample data.
  *
  * Kept in localStorage beside `toil-ui:looked` (src/looked.ts), per browser,
  * never sent anywhere. With nothing remembered, storage off, a sprint over or
