@@ -39,8 +39,11 @@
   scheme it has, and the other scheme is derived by turning each colour's lightness
   over, keeping its hue; then every role is lifted to 4.5:1 on its background. The
   background is read from `COLORFGBG`, else asked of the terminal once with OSC 11
-  (with DA1 after it, so a terminal that ignores OSC 11 ends the wait at once; 250 ms
-  at most), else taken as dark. On a light terminal the badge's page is white, which is
+  (with DA1 after it, so a terminal that ignores OSC 11 ends the wait at once; 500 ms
+  at most), else taken as dark. An answer that arrives after the wait (a slow SSH
+  link) is dropped from the keys the menu reads, from its `ESC ]` to the DA1 answer's
+  `c`, so a `1` in `rgb:` can't choose a row (`lateReplyFilter`, tested through
+  Node's own keypress decoding). On a light terminal the badge's page is white, which is
   Plain's light badge, and the tile and ornament take a deeper shade (mixed 35% toward
   the ink), because braille's fine dots read lighter than their colour on white. There
   is no `TOIL_*` switch for the background; `COLORFGBG` is the standard one and a

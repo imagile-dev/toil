@@ -3,7 +3,7 @@ import { CONTRACT_VERSION, type Envelope } from '../core/envelope.js';
 import { playRogue, type SaveIO } from './rogue/play.js';
 import { breadcrumb, finish, initialState, type Key, type MenuState, played, reduce, render } from './menu.js';
 import type { WelcomeData } from './screens.js';
-import { backgroundFromEnv, probeBackground } from './background.js';
+import { backgroundFromEnv, lateReplyFilter, probeBackground } from './background.js';
 import { playSplash } from './splash.js';
 import { cursor, detectCaps, isModernHost, movesCursor, pal, paint, reducedMotion, type TermCaps } from './term.js';
 import { type Background, palette, splashLook, themeNamed } from './themes/index.js';
@@ -81,7 +81,9 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
   input.resume();
   // Before any keypress listener, so the terminal's answer is never read as keys.
   const probed = !backgroundFromEnv(io.env) && io.probeBackground && output.isTTY && isModernHost(io.env) ? await probeBackground({ input, write }) : undefined;
-  const background: Background = backgroundFromEnv(io.env) ?? probed ?? 'dark';
+  const background: Background = backgroundFromEnv(io.env) ?? probed?.background ?? 'dark';
+  // An answer still on its way after the wait is dropped, never read as keys.
+  const late = probed && !probed.answered ? lateReplyFilter() : undefined;
   // The theme's colours for this terminal, on every frame the menu draws; the game keeps its own.
   const capsNow = (): TermCaps => ({ ...detectCaps(output, io.env), palette: palette(themeNamed(data.theme?.name), background) });
 
@@ -116,6 +118,7 @@ export async function runWelcome(io: WelcomeIO, initial: WelcomeData): Promise<'
   let gaming = false;
   const onKeypress = (_: string, key: Key | undefined) => {
     const k = key ?? {};
+    if (late?.(k.sequence)) return;
     if (busy) {
       if (k.ctrl && k.name === 'c') running?.abort();
       return;

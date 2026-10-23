@@ -98,6 +98,8 @@ export function useThemeChoice(config: ConfigApi | null = null) {
   const [origin] = useState(() => originOf(window.location.search));
   // Whether this browser's theme follows toil's setting: once a person picks, it does.
   const synced = useRef(remembered().synced === true);
+  // A pick made before `theme list` answers wins: the setting read is older than it.
+  const picked = useRef(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const writes = config !== null && config.disabled === null;
 
@@ -112,6 +114,7 @@ export function useThemeChoice(config: ConfigApi | null = null) {
           console.warn(`Toil UI couldn't read toil's theme setting (${env.error.code}): ${env.error.message}`);
           return;
         }
+        if (picked.current) return;
         const next = themeFromToil(env.data as ToilTheme, origin);
         if (next) setChoice((c) => (c.theme === next ? c : { ...c, theme: next }));
       },
@@ -142,17 +145,23 @@ export function useThemeChoice(config: ConfigApi | null = null) {
   /** A person's pick: shown at once, and written to toil's setting, so the terminal and every browser follow it. */
   const pick = (theme: string) => {
     // Only a pick toil saved makes this browser follow the setting from now on.
+    picked.current = true;
     if (writes) synced.current = true;
     setChoice((c) => ({ ...c, theme }));
     if (!writes) return;
     config.run('theme set', { name: theme }).then(
-      (env) => setSaveError(env.ok ? null : [env.error.message, env.error.fix].filter(Boolean).join(' ')),
-      (e: unknown) => setSaveError(e instanceof Error ? e.message : String(e)),
+      (env) => {
+        if (!env.ok) return setSaveError(`Toil didn't save the theme: ${[env.error.message, env.error.fix].filter(Boolean).join(' ')}`);
+        // Saved, but TOIL_THEME wins over the file, so the next load shows that theme: say so now.
+        const overridden = env.meta.warnings?.find((w) => w.code === 'OVERRIDDEN_BY_ENV');
+        setSaveError(overridden ? `Saved to toil's config, but ${overridden.message}` : null);
+      },
+      (e: unknown) => setSaveError(`Toil didn't save the theme: ${e instanceof Error ? e.message : String(e)}`),
     );
   };
   return {
     ...choice,
-    /** Why the last pick wasn't saved to toil's config, or null. */
+    /** Why the last pick won't stick (toil refused it, or TOIL_THEME wins over it), or null. */
     saveError,
     setTheme: pick,
     setScheme: (scheme: SchemeChoice) => setChoice((c) => ({ ...c, scheme })),

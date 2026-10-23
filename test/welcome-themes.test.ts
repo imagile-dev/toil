@@ -1,6 +1,8 @@
 import { EventEmitter } from 'node:events';
+import { emitKeypressEvents } from 'node:readline';
+import { PassThrough } from 'node:stream';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { backgroundFromEnv, parseBackgroundReply, probeBackground } from '../src/welcome/background.js';
+import { backgroundFromEnv, lateReplyFilter, parseBackgroundReply, probeBackground } from '../src/welcome/background.js';
 import { runWelcome } from '../src/welcome/index.js';
 import { DURATION, entrance, logoFrame } from '../src/welcome/logo.js';
 import { render, initialState } from '../src/welcome/menu.js';
@@ -186,7 +188,7 @@ describe("the terminal's background", () => {
     const answer = probeBackground({ input: input as never, write: (t) => (asked += t) }, 5000);
     input.emit('data', Buffer.from('\x1b]11;rgb:ffff/ffff/ffff\x1b\\'));
     input.emit('data', Buffer.from('\x1b[?62;22c'));
-    await expect(answer).resolves.toBe('light');
+    await expect(answer).resolves.toEqual({ background: 'light', answered: true });
     expect(asked).toBe('\x1b]11;?\x1b\\\x1b[c');
     expect(input.listenerCount('data')).toBe(0);
   });
@@ -195,8 +197,22 @@ describe("the terminal's background", () => {
     vi.useFakeTimers();
     const answer = probeBackground({ input: new EventEmitter() as never, write: () => undefined }, 250);
     await vi.advanceTimersByTimeAsync(300);
-    await expect(answer).resolves.toBeUndefined();
+    await expect(answer).resolves.toEqual({ answered: false });
     vi.useRealTimers();
+  });
+
+  it("drops an answer that arrives after the wait, as readline hands it over, and passes every key after it", async () => {
+    const stream = new PassThrough();
+    emitKeypressEvents(stream);
+    const late = lateReplyFilter();
+    const passed: string[] = [];
+    stream.on('keypress', (_: string, key: { sequence?: string } | undefined) => {
+      if (!late(key?.sequence)) passed.push(key?.sequence ?? '');
+    });
+    stream.write('\x1b]11;rgb:ffff/ffff/ffff\x1b\\\x1b[?62;22c1q\x1b]x');
+    await new Promise((r) => setTimeout(r, 20));
+    // The 1 and the q a person typed pass; after the DA1 answer the filter is off, so an Alt+] passes too.
+    expect(passed).toEqual(['1', 'q', '\x1b]', 'x']);
   });
 });
 

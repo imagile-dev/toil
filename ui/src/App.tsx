@@ -511,7 +511,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           {syncing?.running && <Loader size="panel" message={syncText(syncing)!} live={false} />}
           {choice.saveError && (
             <p className="notice" role="alert">
-              The theme shows here, but toil didn't save it: {choice.saveError}
+              {choice.saveError}
             </p>
           )}
           {body}

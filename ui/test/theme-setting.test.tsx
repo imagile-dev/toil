@@ -83,8 +83,27 @@ describe('the theme picker with the setting', () => {
     const { result } = renderHook(() => useThemeChoice(api));
     await waitFor(() => expect(result.current.theme).toBe('crate'));
     act(() => result.current.setTheme('starship'));
-    await waitFor(() => expect(result.current.saveError).toBe("The config file won't take starship. Fix the file."));
+    await waitFor(() => expect(result.current.saveError).toBe("Toil didn't save the theme: The config file won't take starship. Fix the file."));
     expect(result.current.theme).toBe('starship');
+  });
+
+  it('says when TOIL_THEME will win over the pick on the next load', async () => {
+    const warned = (name: string): Envelope => ({ ...ok('theme set', { theme: name }), meta: { ...meta('theme set'), warnings: [{ code: 'OVERRIDDEN_BY_ENV', message: `TOIL_THEME is "starship" and wins over the file; unset it for "${name}" to show.` }] } });
+    const { api } = fakeSetting('starship', 'env', warned);
+    const { result } = renderHook(() => useThemeChoice(api));
+    await waitFor(() => expect(result.current.theme).toBe('starship'));
+    act(() => result.current.setTheme('realm'));
+    await waitFor(() => expect(result.current.saveError).toBe('Saved to toil\'s config, but TOIL_THEME is "starship" and wins over the file; unset it for "realm" to show.'));
+  });
+
+  it('keeps a pick made before toil answers, rather than the older setting', async () => {
+    let answer: (e: Envelope) => void = () => undefined;
+    const { api } = fakeSetting('realm', 'file');
+    const slow: ConfigApi = { ...api, run: (command, input) => (command === 'theme list' ? new Promise((r) => (answer = r)) : api.run(command, input)) };
+    const { result } = renderHook(() => useThemeChoice(slow));
+    act(() => result.current.setTheme('harvest'));
+    await act(async () => answer(ok('theme list', { current: 'realm', source: 'file', themes: [] })));
+    expect(result.current.theme).toBe('harvest');
   });
 
   it('reads and writes nothing without the setting (the preview, a test)', async () => {
