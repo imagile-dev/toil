@@ -84,6 +84,16 @@ export const ONBOARD_PLAN = {
   },
 };
 
+/** `toil theme list` with no theme set (#427). */
+export const THEME_LIST = {
+  current: 'plain',
+  source: 'default',
+  themes: [
+    ['plain', 'Plain'], ['crate', 'Crate'], ['harvest', 'Harvest'], ['starship', 'Starship'],
+    ['realm', 'Realm'], ['sprawl', 'Sprawl'], ['frontier', 'Frontier'], ['overworld', 'Overworld'],
+  ].map(([name, label]) => ({ name, label, current: name === 'plain' })),
+};
+
 interface Answer {
   command: string;
   input: Record<string, unknown>;
@@ -102,6 +112,8 @@ export const CONFIG_CANNED: Answer[] = [
   })),
   ...usageCanned(),
   { command: 'dossiers onboard', input: { plan: true }, data: ONBOARD_PLAN },
+  // No theme set: toil's default, so Toil UI keeps its own.
+  { command: 'theme list', input: {}, data: THEME_LIST },
 ];
 
 /** A plan with no pin asks nothing and changes nothing, so the preview answers it as it answers a read. */

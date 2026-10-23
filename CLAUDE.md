@@ -269,7 +269,10 @@ GitHub Actions; its build tooling is out of scope.
   `src/core/audit.ts` keeps; `stats.ts` is the summary's arithmetic
 - `src/feedback/` — `toil feedback bug|feature`, CLI only, and the disclaimer every
   way of sending feedback shows (`consent.ts`, which `test/feedback-consent.test.ts`
-  holds the function's and the site's copies to)
+  holds the function's and the site's copies to, and which also holds the feedback
+  form's address, `FEEDBACK_FORM`)
+- `src/theme/` — `toil theme list | set`: the one `"theme"` setting in the user's
+  config, `TOIL_THEME` over it, that the welcome menu and Toil UI both follow (#427)
 - `src/areas/<area>/index.ts` — one folder per area, exporting `area` and
   `commands` (standalone commands export only `commands`). `src/areas/util/kit/`
   is what the local `util` commands share: the input reader, self-verification,
@@ -300,6 +303,12 @@ GitHub Actions; its build tooling is out of scope.
   Its Services module (`views/services.ts`) runs any area command that way: a
   write only after a confirm screen that shows the line with `--allow-write`,
   so the connection's `writes` still decides, as it would typed by hand.
+  It wears the theme `toil theme set` picks (#427): `themes/` holds one terminal
+  version of each Toil UI theme (its colours for a light and a dark terminal, the
+  splash's ornament, a few menu words), `test/theme-sync.test.ts` holds each to
+  `ui/themes/<name>/theme.json`, and the splash's cues are read from that file's
+  `moments.splash` at build time (`scripts/gen-areas.mjs`). A theme never reaches
+  an envelope, `--help`, an error, a fix or MCP.
   The one exception is Two Weeks' Notice, a roguelike for the wait on a build,
   reached by typing `resign` on the home screen and listed nowhere: its rules are
   pure functions in `rogue/`, the loop hands it the screen until q, and its progress
@@ -758,7 +767,7 @@ that matches no registered area is ignored, never guessed at, so a variable can'
 change meaning when an area is added. `envName()` and `parseEnvName()` in
 `src/core/config.ts` are the only places the mapping lives. These names are reserved
 and never map onto an area: `TOIL_CONN_*`, `TOIL_DOSSIER*`, `TOIL_ENV`, `TOIL_CONFIG*`,
-`TOIL_TIMEOUT_MS`, `TOIL_WORKSPACE`, `TOIL_FEEDBACK_URL`.
+`TOIL_TIMEOUT_MS`, `TOIL_WORKSPACE`, `TOIL_FEEDBACK_URL`, `TOIL_THEME`.
 
 **The config file is versioned.** `"version"` is a whole number; a file without one
 is version 1. Every format change adds a step to `migrateConfig()` with a test, so an

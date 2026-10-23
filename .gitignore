@@ -67,6 +67,7 @@ site/public/lab/
 src/areas.generated.ts
 src/skill-pages.generated.ts
 src/areas/util/kit/bounded-worker.generated.ts
+src/welcome/themes/moments.generated.ts
 
 # Area stubs test/stub-area.test.ts writes and removes
 test/.stubs/

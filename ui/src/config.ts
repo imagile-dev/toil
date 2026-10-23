@@ -23,7 +23,7 @@
 import type { Envelope } from './toil.ts';
 
 /** The reads the pages make: run read-only, even on the config path. The audit reads fill Usage (#309). */
-export const CONFIG_READS = ['connections list', 'connections test', 'dossiers list', 'dossiers show', 'dossiers check', 'audit stats', 'audit list'] as const;
+export const CONFIG_READS = ['connections list', 'connections test', 'dossiers list', 'dossiers show', 'dossiers check', 'audit stats', 'audit list', 'theme list'] as const;
 
 /** The changes, each only to toil's own config or dossiers. */
 export const CONFIG_CHANGES = [
@@ -41,6 +41,8 @@ export const CONFIG_CHANGES = [
   'dossiers onboard',
   // A dossier's name and description, edited in place on its card and dashboard (#342).
   'dossiers describe',
+  // The theme a person picks, as toil's own setting, which the welcome menu follows too (#427).
+  'theme set',
 ] as const;
 
 /** Everything `/api/config` runs, and nothing else. */

@@ -1,0 +1,20 @@
+[
+  {
+    "name": "list",
+    "tool": "theme_list",
+    "description": "List the themes the welcome menu and Toil UI can show, and which one is in effect",
+    "writes": false,
+    "connection": false,
+    "flags": []
+  },
+  {
+    "name": "set",
+    "tool": "theme_set",
+    "description": "Set the theme the welcome menu and Toil UI show, as \"theme\" in your config file",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<name>"
+    ]
+  }
+]

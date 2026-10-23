@@ -1024,8 +1024,11 @@ screen also carries a **toil tip**, one line with a Read more link, which **Toil
 loading screens** turns off. Waits under 300 ms show no loading screen at all.
 
 Plain has neither wording nor voice, so both are off while it's chosen. It sets
-headings and figures in Fredoka, toil's wordmark face, on IBM Plex Sans. The choice
-is kept in this browser. Toil UI doesn't install themes from anywhere else: to ask for one, send a
+headings and figures in Fredoka, toil's wordmark face, on IBM Plex Sans. The theme
+is toil's own setting too (`toil theme set`, `TOIL_THEME` over it), which the welcome
+menu follows: a pick here writes it, and Toil UI opens in it, except in a browser that
+had a theme saved before the setting, which keeps it until the next pick. The other
+choices are kept in this browser. Toil UI doesn't install themes from anywhere else: to ask for one, send a
 feature request from **Feedback** or with `toil feedback feature`. A `themes/` folder
 left in the data folder by an earlier alpha is not read, and Toil UI says so when it
 starts. [Themes](https://imagile-dev.github.io/toil/docs/themes/) has the whole

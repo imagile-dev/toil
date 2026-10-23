@@ -105,7 +105,14 @@ from `main`).
     `public/brand/toil-orbit.svg`, for docs. On the braille canvas the dark page is
     the terminal's own background: only the tile, the fold and the prompt are
     drawn. The menu (`src/welcome/term.ts`, `PALETTE`) uses the site's colour
-    tokens, with ok and danger for a result that worked or didn't. **The site, the terminal and Toil UI
+    tokens, with ok and danger for a result that worked or didn't. That is Plain,
+    the default; `toil theme set` picks another Toil UI theme's terminal version
+    (`src/welcome/themes/`, #427), whose colours come from its `theme.json` and are
+    held there by `test/theme-sync.test.ts`. On a light terminal the page is white,
+    which is Plain's light badge, and every theme's colours meet 4.5:1 on either
+    background. Each theme keeps the badge and changes only what surrounds it (the
+    orbit for Plain and Crate, crops, warp, embers, rain, steam or fairies),
+    never the mark itself. **The site, the terminal and Toil UI
     are one brand: a change to the badge's geometry or to a colour token changes all
     three in the same PR.** `test/brand-sync.test.ts` fails when the terminal's
     palette, tile, page placement or orbit, or any static copy, differs from the

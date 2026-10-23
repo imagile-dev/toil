@@ -155,7 +155,7 @@ describe('the allowlist', () => {
   it('is exactly the config commands the pages need, each one toil has, the changes local writes only', () => {
     const served = new Map([...registry.commands, ...registry.personCommands].map((c) => [c.name, c]));
     expect([...CONFIG_COMMANDS].sort()).toEqual(
-      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'dossiers add-repo', 'dossiers check', 'dossiers field', 'dossiers init', 'dossiers link', 'dossiers list', 'dossiers onboard', 'dossiers person', 'dossiers show', 'dossiers wip-limit', 'dossiers describe'].sort(),
+      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'dossiers add-repo', 'dossiers check', 'dossiers field', 'dossiers init', 'dossiers link', 'dossiers list', 'dossiers onboard', 'dossiers person', 'dossiers show', 'dossiers wip-limit', 'dossiers describe', 'theme list', 'theme set'].sort(),
     );
     for (const name of CONFIG_READS) expect(served.get(name), name).toMatchObject({ writes: false, writesLocal: false, writesDependOnInput: false });
     // A change writes only toil's own config on this machine, never a service.
@@ -305,6 +305,15 @@ describe('dossiers, through toil', () => {
     expectEnvelope(await config('dossiers show', { dossier: 'payments' })).toMatchObject({ ok: true, data: { areas: { jira: { connection: { value: 'corp-jira' }, writes: false, inputs: { project: 'PAY' } } } } });
     expectEnvelope(await config('dossiers check', { dossier: 'payments' })).toMatchObject({ ok: true, data: { ok: true } });
     sweep();
+  });
+
+  it("sets the theme as toil's own setting, which the welcome menu reads too, and reads it back (#427)", async () => {
+    const { config } = await serve();
+    expectEnvelope(await config('theme list')).toMatchObject({ ok: true, data: { current: 'plain', source: 'default' } });
+    expectEnvelope(await config('theme set', { name: 'realm' })).toMatchObject({ ok: true, data: { theme: 'realm', changed: true } });
+    expect(JSON.parse(readFileSync(join(home, '.toil', 'config.json'), 'utf8'))).toMatchObject({ version: 2, theme: 'realm' });
+    expectEnvelope(await config('theme list')).toMatchObject({ ok: true, data: { current: 'realm', source: 'file' } });
+    expectEnvelope(await config('theme set', { name: 'vaporwave' })).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
   });
 
   it('maps people and sets the limit, and leaves removing either to the CLI', async () => {

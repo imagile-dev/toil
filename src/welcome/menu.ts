@@ -1,6 +1,6 @@
 import type { WelcomeData } from './screens.js';
 import { wordmarkFrame } from './splash.js';
-import { fitLine, PALETTE, paint, type TermCaps, wrapLine } from './term.js';
+import { fitLine, pal, paint, type TermCaps, wrapLine } from './term.js';
 import { type Action, type Frame, type Game, healthOf, type Item, type Run, type Session, type StepResult, type View, type ViewProps } from './view.js';
 import { VIEWS } from './views/index.js';
 
@@ -179,7 +179,7 @@ export function render(state: MenuState, caps: RenderCaps, data: WelcomeData, no
   const columns = caps.columns ?? 100;
   // The wordmark only where it leaves room for the screen itself.
   const head = rows >= 30 && columns >= 40 ? ['', ...wordmarkFrame(99, caps).map((l) => `  ${l}`)] : [];
-  const lines: string[] = [...head, '', `  ${paint(caps, PALETTE.highlight, breadcrumb(state, caps, data))}`, ''];
+  const lines: string[] = [...head, '', `  ${paint(caps, pal(caps).highlight, breadcrumb(state, caps, data))}`, ''];
   const body = view.body?.(caps, p) ?? [];
   // Prose wraps to the window; tables and rows are cut at its edge below.
   lines.push(...body.flatMap((l) => (l ? wrapLine(`  ${l}`, columns - 1) : [''])));
@@ -187,9 +187,9 @@ export function render(state: MenuState, caps: RenderCaps, data: WelcomeData, no
   let keys: string;
   if (view.input) {
     const text = f.text ?? view.input.initial?.(p) ?? '';
-    const caret = paint(caps, PALETTE.accent, caps.unicode ? '▏' : '_');
-    lines.push('', `  ${paint(caps, PALETTE.muted, `${view.input.label(p)}:`)} ${paint(caps, PALETTE.ink, text)}${caret}`);
-    if (f.error) lines.push(...wrapLine(`  ${paint(caps, PALETTE.danger, f.error)}`, columns - 1));
+    const caret = paint(caps, pal(caps).accent, caps.unicode ? '▏' : '_');
+    lines.push('', `  ${paint(caps, pal(caps).muted, `${view.input.label(p)}:`)} ${paint(caps, pal(caps).ink, text)}${caret}`);
+    if (f.error) lines.push(...wrapLine(`  ${paint(caps, pal(caps).danger, f.error)}`, columns - 1));
     keys = 'type   enter go on   esc back';
   } else if (view.checklist) {
     const options = view.checklist.options(p);
@@ -201,8 +201,8 @@ export function render(state: MenuState, caps: RenderCaps, data: WelcomeData, no
       ...windowed(caps, options, f.selected, rowsLeft, (o, index) => {
         const on = index === f.selected;
         const box = checked.has(o.id) ? '[x]' : '[ ]';
-        const pointer = on ? paint(caps, PALETTE.accent, caps.unicode ? '▸' : '>') : ' ';
-        return `${pointer} ${paint(caps, on ? PALETTE.ink : PALETTE.muted, `${box} ${o.label.padEnd(width)}`)}   ${o.hint ? paint(caps, PALETTE.faint, o.hint) : ''}`;
+        const pointer = on ? paint(caps, pal(caps).accent, caps.unicode ? '▸' : '>') : ' ';
+        return `${pointer} ${paint(caps, on ? pal(caps).ink : pal(caps).muted, `${box} ${o.label.padEnd(width)}`)}   ${o.hint ? paint(caps, pal(caps).faint, o.hint) : ''}`;
       }).map((l) => `  ${l}`),
     );
     keys = 'up/down move   space tick   enter go on   esc back   q quit';
@@ -214,7 +214,7 @@ export function render(state: MenuState, caps: RenderCaps, data: WelcomeData, no
       keys = state.stack.length === 1 ? `up/down move   enter select   1-${Math.min(9, items.length)} jump   q quit` : 'up/down move   enter select   esc back   q quit';
     } else keys = 'esc back   q quit';
   }
-  lines.push('', notice ? `  ${paint(caps, PALETTE.accent, notice)}` : `  ${paint(caps, PALETTE.faint, keys)}`);
+  lines.push('', notice ? `  ${paint(caps, pal(caps).accent, notice)}` : `  ${paint(caps, pal(caps).faint, keys)}`);
   return lines.map((l) => fitLine(l, columns - 1));
 }
 
@@ -226,8 +226,8 @@ function windowed<T>(caps: Pick<TermCaps, 'colorDepth' | 'unicode'>, items: T[],
   const start = Math.max(0, Math.min(selected - Math.floor(size / 2), items.length - size));
   const out = items.slice(start, start + size).map((item, i) => draw(item, start + i));
   const after = items.length - start - size;
-  if (start > 0) out.unshift(paint(caps, PALETTE.faint, `     ${caps.unicode ? '↑' : '^'} ${start} more`));
-  if (after > 0) out.push(paint(caps, PALETTE.faint, `     ${caps.unicode ? '↓' : 'v'} ${after} more`));
+  if (start > 0) out.unshift(paint(caps, pal(caps).faint, `     ${caps.unicode ? '↑' : '^'} ${start} more`));
+  if (after > 0) out.push(paint(caps, pal(caps).faint, `     ${caps.unicode ? '↓' : 'v'} ${after} more`));
   return out;
 }
 
@@ -236,10 +236,10 @@ function list(caps: Pick<TermCaps, 'colorDepth' | 'unicode'>, items: Item[], sel
   const width = Math.max(...items.map((i) => [...i.label].length));
   return windowed(caps, items, selected, room, (item, index) => {
     const on = index === selected;
-    const mark = on ? paint(caps, PALETTE.accent, pointer) : ' ';
-    const number = paint(caps, PALETTE.faint, index < 9 ? `${index + 1}` : ' ');
-    const color = item.attention ? PALETTE.danger : on ? PALETTE.ink : PALETTE.muted;
+    const mark = on ? paint(caps, pal(caps).accent, pointer) : ' ';
+    const number = paint(caps, pal(caps).faint, index < 9 ? `${index + 1}` : ' ');
+    const color = item.attention ? pal(caps).danger : on ? pal(caps).ink : pal(caps).muted;
     const text = paint(caps, color, item.label.padEnd(width));
-    return `${mark} ${number}  ${text}   ${item.hint ? paint(caps, PALETTE.faint, item.hint) : ''}`;
+    return `${mark} ${number}  ${text}   ${item.hint ? paint(caps, pal(caps).faint, item.hint) : ''}`;
   });
 }

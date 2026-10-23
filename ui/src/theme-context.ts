@@ -21,6 +21,7 @@ const FIXED: ThemeChoiceState = {
   scheme: 'system' as SchemeChoice,
   wording: true,
   voice: true,
+  saveError: null,
   setTheme: () => undefined,
   setScheme: () => undefined,
   setWording: () => undefined,

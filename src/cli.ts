@@ -148,7 +148,7 @@ export async function main(): Promise<void> {
     } else if (wantsWelcome(process.argv.slice(2), process.stdin, process.stdout, process.env)) {
       const data = welcomeData();
       const save = saveFor(data.configPath, { user: accountName(), home: homedir() });
-      const ended = await runWelcome({ input: process.stdin, output: process.stdout, env: process.env, run: runForMenu, reload: welcomeData, save }, data);
+      const ended = await runWelcome({ input: process.stdin, output: process.stdout, env: process.env, run: runForMenu, reload: welcomeData, save, probeBackground: true }, data);
       if (ended === 'interrupted') process.exitCode = 130;
     } else {
       process.exitCode = await runProgram(program(), process.argv);

@@ -85,10 +85,12 @@ afterAll(() => outsideDisk.cleanup());
 // An area fixture's own dossier (`dossier`), as your own and named by TOIL_DOSSIER, for its check-dossier.
 const fixtureDisks = new Map<LoadedFixture, ReturnType<typeof dossierDisk>>();
 afterAll(() => fixtureDisks.forEach((d) => d.cleanup()));
-type Local = { repo?: GitContext; git?: GitRunner; home?: Record<string, string>; dossiers?: ReturnType<typeof dossierDisk>['catalog'] };
+type Local = { repo?: GitContext; git?: GitRunner; home?: Record<string, string>; dossiers?: ReturnType<typeof dossierDisk>['catalog']; configFile?: string };
 function localOf(f: LoadedFixture): Local {
   const local: Local = { ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}), ...(f.home ? { home: f.home } : {}) };
   if (f === outside) {
+    // `theme set` writes the config file: one in the temp home, which the reset below empties before each run.
+    local.configFile = join(outsideDisk.home, '.toil', 'config.json');
     local.dossiers = (config) => {
       outsideDisk.reset();
       return outsideDisk.catalog(config, { areas: dossierAreas });

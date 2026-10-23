@@ -67,7 +67,7 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   }, []);
   return (
     <>
-      <App key={generation} syncing={syncing} news={news} serverStatus={serverStatus} execute={execute} agent={agent} config={config} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byDossier, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} versions={{ ui: session.version, toil: session.toil.version }} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
+      <App key={generation} syncing={syncing} news={news} serverStatus={serverStatus} execute={execute} agent={agent} config={config} {...(session.sample ? {} : { themeSetting: config })} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byDossier, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} versions={{ ui: session.version, toil: session.toil.version }} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
       {sync && <SyncPanel client={sync} onChange={onChange} onStatus={onStatus} request={syncAsked} />}
     </>
   );

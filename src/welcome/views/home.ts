@@ -1,5 +1,6 @@
 import { connectionNames, folderLines, statusLine } from '../screens.js';
-import { PALETTE, paint } from '../term.js';
+import { pal, paint } from '../term.js';
+import { DEFAULT_THEME, themeNamed, type MenuWords } from '../themes/index.js';
 import type { Item, View, ViewProps } from '../view.js';
 import { testAll } from './connections.js';
 
@@ -16,15 +17,34 @@ export interface HomeEntry {
   view: string;
 }
 
+const PLAIN_WORDS: MenuWords = themeNamed(DEFAULT_THEME).words;
+
+/**
+ * The theme's words for the home screen (#427). A heading or a label a theme
+ * renames keeps the plain one beside it, the attention heading in brackets
+ * and the agent row in its hint, so a themed screen still says what it means.
+ */
+export function homeWords(p: Pick<ViewProps, 'data'>): { attention: string; agent?: { label: string; hint: string }; quit: string } {
+  const words = (p.data.theme ?? themeNamed(DEFAULT_THEME)).words;
+  return {
+    attention: words.attention === PLAIN_WORDS.attention ? words.attention : `${words.attention} (${PLAIN_WORDS.attention.toLowerCase()})`,
+    ...(words.agent === PLAIN_WORDS.agent ? {} : { agent: { label: words.agent, hint: `${PLAIN_WORDS.agent}: pick areas, get the MCP config snippet` } }),
+    quit: words.quit,
+  };
+}
+
 export function homeView(entries: readonly HomeEntry[]): View {
   return {
     title: () => '',
-    body: (caps, p) => [statusLine(caps, p.data, p.session), '', ...folderLines(caps, p.data), ...(attention(p).length ? ['', paint(caps, PALETTE.danger, 'Needs attention')] : [])],
-    items: (p) => [
-      ...attention(p),
-      ...entries.map((e): Item => ({ label: e.label, hint: e.hint, action: { go: e.view } })),
-      { label: 'Quit', hint: 'Back to your shell', action: { quit: true } },
-    ],
+    body: (caps, p) => [statusLine(caps, p.data, p.session), '', ...folderLines(caps, p.data), ...(attention(p).length ? ['', paint(caps, pal(caps).danger, homeWords(p).attention)] : [])],
+    items: (p) => {
+      const words = homeWords(p);
+      return [
+        ...attention(p),
+        ...entries.map((e): Item => ({ ...(e.view === 'agents' && words.agent ? words.agent : { label: e.label, hint: e.hint }), action: { go: e.view } })),
+        { label: 'Quit', hint: words.quit, action: { quit: true } },
+      ];
+    },
   };
 }
 

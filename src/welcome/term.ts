@@ -23,6 +23,17 @@ export const PALETTE = {
   danger: [255, 138, 128],
 } as const satisfies Record<string, Rgb>;
 
+/** The colour roles every theme's terminal palette fills (src/welcome/themes/). */
+export type Palette = Record<keyof typeof PALETTE, Rgb>;
+
+/**
+ * The palette a frame is drawn in: the theme's, carried on the caps, or toil's
+ * own (Plain's dark scheme) where none was given, as in most tests.
+ */
+export function pal(caps: object): Palette {
+  return (caps as { palette?: Palette }).palette ?? PALETTE;
+}
+
 export interface TermCaps {
   /** 1 (no color), 4 (16 colors), 8 (256) or 24 (truecolor). */
   colorDepth: 1 | 4 | 8 | 24;
@@ -32,6 +43,8 @@ export interface TermCaps {
   animate: boolean;
   columns: number;
   rows: number;
+  /** The theme's colours for this terminal's background (src/welcome/themes/); toil's own when absent. */
+  palette?: Palette;
 }
 
 export interface TermLike {
@@ -41,8 +54,13 @@ export interface TermLike {
   getColorDepth?: (env?: NodeJS.ProcessEnv) => number;
 }
 
+/** Reduced motion: TOIL_REDUCED_MOTION, or TOIL_NO_ANIMATION, its older name. The splash is then drawn once. */
+export function reducedMotion(env: NodeJS.ProcessEnv): boolean {
+  return Boolean(env.TOIL_REDUCED_MOTION || env.TOIL_NO_ANIMATION);
+}
+
 /**
- * Detects capabilities. NO_COLOR, TOIL_NO_ANIMATION, CI, TERM=dumb and a narrow
+ * Detects capabilities. NO_COLOR, reduced motion, CI, TERM=dumb and a narrow
  * window all mean a still frame. Unicode is assumed except on a Windows
  * console that isn't Windows Terminal or another known modern host, where
  * braille may come out as boxes. That legacy console host also gets the still
@@ -57,7 +75,7 @@ export function detectCaps(out: TermLike, env: NodeJS.ProcessEnv, platform: Node
   const columns = out.columns ?? 80;
   const rows = out.rows ?? 24;
   const animate =
-    out.isTTY === true && modernHost && !noColor && !env.TOIL_NO_ANIMATION && !env.CI && env.TERM !== 'dumb' && columns >= 40 && rows >= 12;
+    out.isTTY === true && modernHost && !noColor && !reducedMotion(env) && !env.CI && env.TERM !== 'dumb' && columns >= 40 && rows >= 12;
   return { colorDepth, unicode, animate, columns, rows };
 }
 
@@ -114,14 +132,19 @@ function to256(r: number, g: number, b: number): number {
 }
 
 function to16(r: number, g: number, b: number): number {
-  // The palette's own colours only: white for ink, grey for the neutrals,
-  // bright blue for the accent, bright cyan for its highlight, green for ok
-  // and red for danger.
+  // The nearest of the sixteen by hue: bright for a light colour (a palette
+  // for a dark terminal), normal for a dark one (a palette for a light
+  // terminal), and greys by how light they are. The older console host has
+  // nothing else, and every theme still reads there.
   const hi = Math.max(r, g, b);
-  if (hi - Math.min(r, g, b) < 40) return hi > 200 ? 97 : hi > 160 ? 37 : 90;
-  if (b >= r && b >= g) return g > 210 ? 96 : 94;
-  if (g >= r) return 92;
-  return 91;
+  const lo = Math.min(r, g, b);
+  if (hi - lo < 40) return hi > 200 ? 97 : hi > 160 ? 37 : hi > 60 ? 90 : 30;
+  const d = hi - lo;
+  const hue = (hi === r ? ((g - b) / d + 6) % 6 : hi === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60;
+  // red 1, green 2, yellow 3, blue 4, magenta 5, cyan 6
+  let base = hue < 20 || hue >= 330 ? 1 : hue < 70 ? 3 : hue < 160 ? 2 : hue < 195 ? 6 : hue < 265 ? 4 : 5;
+  if (base === 4 && g > 210) base = 6;
+  return ((hi + lo) / 2 >= 128 ? 90 : 30) + base;
 }
 
 /** Printable width, ignoring escape sequences. */

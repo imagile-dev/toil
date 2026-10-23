@@ -1,5 +1,6 @@
-import { BLINKS, DURATION, logoCells, SPIN } from './logo.js';
-import { blank, type Cell, cursor, mix, PALETTE, renderCells, textCells, type TermCaps } from './term.js';
+import { BLINKS, DURATION, logoCells, PLAIN_LOOK, SPIN } from './logo.js';
+import { blank, type Cell, cursor, mix, pal, renderCells, textCells, type TermCaps } from './term.js';
+import type { SplashLook } from './themes/index.js';
 import { WORDMARK } from './wordmark.js';
 
 /**
@@ -10,6 +11,9 @@ import { WORDMARK } from './wordmark.js';
  */
 
 export const TAGLINE = 'Let your agents handle the toil.';
+
+/** The line under the tagline in Plain, and in any theme whose moments give no splash line of its own. */
+export const PLAIN_LINE = 'Enterprise tools and databases.';
 
 /**
  * How fast the timeline plays: 1.25 timeline seconds per real second. The
@@ -58,6 +62,7 @@ const bitsAt = (line: number, cell: number, dy = 0, dx = 0) =>
  */
 export function wordmarkCells(t: number, caps: Pick<TermCaps, 'unicode'> & Partial<Pick<TermCaps, 'colorDepth'>>): Cell[][] {
   const colour = (caps.colorDepth ?? 24) > 1;
+  const PALETTE = pal(caps);
   const reveal = clamp((t - 0.3) / 0.6) * (WORDMARK_WIDTH + 4);
   const shineAt = SPIN.to - 0.05;
   const shine = ((t - shineAt) / 0.45) * (WORDMARK_WIDTH + 8) - 4;
@@ -109,20 +114,57 @@ function typed(text: string, t: number, from: number, to: number): string {
   return text.slice(0, Math.round(clamp((t - from) / (to - from)) * text.length));
 }
 
-/** One frame of the splash, as lines. Every frame has the same height, so redrawing in place never scrolls. */
-export function splashFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unicode' | 'columns'>, version: string): string[] {
-  const logo = logoCells(t, caps);
+/** Words wrapped at spaces to `width` characters a line. */
+function wrapWords(text: string, width: number): string[] {
+  const lines: string[] = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    if (line && line.length + 1 + word.length > width) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/** Wrapped lines that type themselves out together, each filling before the next starts. */
+function typedLines(lines: string[], t: number, from: number, to: number): string[] {
+  let left = Math.round(clamp((t - from) / (to - from)) * lines.reduce((n, l) => n + l.length, 0));
+  return lines.map((l) => {
+    const shown = l.slice(0, Math.max(0, left));
+    left -= l.length;
+    return shown;
+  });
+}
+
+/** The text column's width beside the logo. */
+const TEXT_WIDTH = Math.max(WORDMARK_WIDTH, TAGLINE.length);
+
+/**
+ * One frame of the splash, as lines. Every frame has the same height, so
+ * redrawing in place never scrolls. The theme's look says what surrounds the
+ * badge, how it arrives, and the line under the tagline, wrapped to the text
+ * column, as wide as the window allows: three lines at most beside the logo,
+ * which is sixteen tall (the third takes the blank line above it), and as
+ * many as it takes when the window is narrow enough to stack them.
+ */
+export function splashFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unicode' | 'columns'>, version: string, look: SplashLook = PLAIN_LOOK): string[] {
+  const PALETTE = pal(caps);
+  const logo = logoCells(t, caps, look);
   const dot = caps.unicode ? '·' : '-';
+  const stacked = caps.columns < LOGO_WIDTH + GAP + TEXT_WIDTH + 4;
+  const wrapped = wrapWords(look.line ?? PLAIN_LINE, stacked ? Math.max(20, caps.columns - 2) : Math.max(TEXT_WIDTH, caps.columns - LOGO_WIDTH - GAP - 4));
+  const lines = stacked ? wrapped : wrapped.slice(0, 3);
   const side: Cell[][] = [
     ...Array.from({ length: LEAD }, () => []),
     ...wordmarkCells(t, caps),
     [],
     textCells(typed(TAGLINE, t, 0.9, 1.4), PALETTE.ink),
-    [],
-    textCells(typed('Enterprise tools and databases.', t, 1.2, 1.6), PALETTE.muted),
+    ...(lines.length < 3 || stacked ? [[]] : []),
+    ...typedLines(lines, t, 1.2, 1.6).map((l) => textCells(l, PALETTE.muted)),
     textCells(t > 1.5 ? `toil ${version} ${dot} by Imagile` : '', PALETTE.faint),
   ];
-  const stacked = caps.columns < LOGO_WIDTH + GAP + Math.max(WORDMARK_WIDTH, TAGLINE.length) + 4;
   const rows = stacked
     ? [...logo, ...side.slice(LEAD)].map((row) => [{ ch: ' ' }, ...row])
     : logo.map((row, i) => [{ ch: ' ' }, ...row, ...blank(GAP), ...(side[i] ?? [])]);
@@ -142,10 +184,10 @@ const FRAME_MS = 33;
 
 /**
  * Plays the splash in place. With animation off (not a TTY, NO_COLOR,
- * TOIL_NO_ANIMATION, CI, a small window) it prints the still and returns.
+ * reduced motion, CI, a small window) it prints the still and returns.
  */
-export async function playSplash(io: SplashIO, caps: TermCaps, version: string): Promise<void> {
-  const still = splashFrame(DURATION + 1, caps, version);
+export async function playSplash(io: SplashIO, caps: TermCaps, version: string, look: SplashLook = PLAIN_LOOK): Promise<void> {
+  const still = splashFrame(DURATION + 1, caps, version, look);
   if (!caps.animate) {
     io.write(`\n${still.join('\n')}\n`);
     return;
@@ -156,13 +198,13 @@ export async function playSplash(io: SplashIO, caps: TermCaps, version: string):
   const stopListening = io.onKey?.(() => (skipped = true));
   const redraw = (lines: string[]) => io.write(`${cursor.up(still.length)}${lines.map((line) => `${cursor.clearLine}${line}`).join('\n')}\n`);
 
-  io.write(`${cursor.hide}\n${splashFrame(0, caps, version).join('\n')}\n`);
+  io.write(`${cursor.hide}\n${splashFrame(0, caps, version, look).join('\n')}\n`);
   const start = now();
   try {
     for (;;) {
       const t = ((now() - start) / 1000) * SPEED;
       if (skipped || t >= DURATION) break;
-      redraw(splashFrame(t, caps, version));
+      redraw(splashFrame(t, caps, version, look));
       await sleep(FRAME_MS);
     }
     redraw(still);

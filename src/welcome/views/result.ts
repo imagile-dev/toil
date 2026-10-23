@@ -1,5 +1,5 @@
 import { ok } from '../screens.js';
-import { PALETTE, paint } from '../term.js';
+import { pal, paint } from '../term.js';
 import { commandLine, type Caps, type StepResult, type View } from '../view.js';
 import { dossiersOutcome } from './dossiers.js';
 import { skillsOutcome } from './skills.js';
@@ -47,7 +47,7 @@ const DATA_LINES = 24;
 export function dataLines(caps: Caps, data: unknown): string[] {
   const all = (JSON.stringify(data, null, 2) ?? 'null').split('\n');
   const shown = all.slice(0, DATA_LINES).map((line) => `  ${line}`);
-  return all.length > DATA_LINES ? [...shown, paint(caps, PALETTE.muted, `  … ${all.length - DATA_LINES} more lines; run it in a shell (add --pretty) for all of it.`)] : shown;
+  return all.length > DATA_LINES ? [...shown, paint(caps, pal(caps).muted, `  … ${all.length - DATA_LINES} more lines; run it in a shell (add --pretty) for all of it.`)] : shown;
 }
 
 export const resultView: View = {
@@ -61,17 +61,17 @@ export const resultView: View = {
     const lines: string[] = [];
     for (const r of results) {
       const o = outcome(r);
-      lines.push(paint(caps, PALETTE.faint, `$ ${commandLine(p.data, r.args)}`));
+      lines.push(paint(caps, pal(caps).faint, `$ ${commandLine(p.data, r.args)}`));
       // Which connection answered, so a result from the wrong one is obvious.
       const via = r.envelope.meta.context?.connection;
-      if (p.frame.run?.showData && via) lines.push(paint(caps, PALETTE.muted, `  on ${String(via.value)} (${via.source})`));
+      if (p.frame.run?.showData && via) lines.push(paint(caps, pal(caps).muted, `  on ${String(via.value)} (${via.source})`));
       if (p.frame.run?.showData && r.envelope.ok) lines.push(...dataLines(caps, r.envelope.data));
       else lines.push(`${mark(o.good)} ${o.good ? o.text : ok(caps, false, o.text)}`);
-      if (o.fix) lines.push(paint(caps, PALETTE.muted, `  Fix: ${o.fix}`));
-      for (const w of o.warnings.filter((m) => !known.has(m))) lines.push(paint(caps, PALETTE.muted, `  Note: ${w}`));
+      if (o.fix) lines.push(paint(caps, pal(caps).muted, `  Fix: ${o.fix}`));
+      for (const w of o.warnings.filter((m) => !known.has(m))) lines.push(paint(caps, pal(caps).muted, `  Note: ${w}`));
       lines.push('');
     }
-    lines.push(paint(caps, PALETTE.faint, 'Each step above is a plain command: run it yourself any time.'));
+    lines.push(paint(caps, pal(caps).faint, 'Each step above is a plain command: run it yourself any time.'));
     return lines;
   },
   // Where the run says to go next; the menu takes this screen off the stack first.

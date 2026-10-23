@@ -57,6 +57,8 @@ export interface TestContextOptions {
    * starting state. Absent, there's no home, and the skills commands refuse.
    */
   home?: string | Record<string, string>;
+  /** The config file a config command reads and writes (`toil theme set`); `/home/test/.toil/config.json` by default, which no test should write. */
+  configFile?: string;
 }
 
 /** The one seeded home per test process; see TestContextOptions.home. */
@@ -85,6 +87,7 @@ export function testContext(options: TestContextOptions = {}): { context: Contex
   const audit = options.audit ?? memoryAudit();
   const files = memoryFiles(options.files, options.stdin === undefined ? {} : { stdin: options.stdin });
   const config = testConfig(options.config);
+  if (options.configFile) config.files.global = options.configFile;
   const context: Context = {
     config,
     fetch: http.fetch,
