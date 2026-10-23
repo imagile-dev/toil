@@ -1,10 +1,17 @@
-# Powershell Man: local prototype
+# Powershell Man: hidden arcade in Toil UI and on the site
 
 Requested directly by the maintainer, without opening a GitHub issue.
 
+## Browser proof
+
+Verified with headless Chrome on Windows, Node 24.14: the three story panels, next/back/skip/start, two hits and enemy death, charged aura, pause/resume, and site dialog close/reopen. Desktop 1440×900 and mobile 375×812 captures are retained below. The final boss victory and physical gamepad hardware were not verified.
+
+![Comic opening at 1440px](live-runs/powershell-man/story-desktop.png)
+![Comic opening at 375px](live-runs/powershell-man/story-mobile.png)
+
 The hidden game uses Canvas 2D and a fixed physics timestep. A 2D platformer needs no Three.js dependency, scene graph, or WebGL initialization. React owns the menus; the game loop owns movement and collisions. The game is loaded on demand, so regular UI visits do not download its title art or run its animation loop.
 
-Type `powershell` outside a text field to discover it in Toil UI or the public site. `#/powershell-man` opens the UI game directly for playtests. The site embeds the same static preview build, with no tracker access or server dependency. Closing the public-site dialog unloads the frame. Nothing is published by this change.
+Type `powershell` outside a text field to discover it in Toil UI or the public site. `#/powershell-man` opens the UI game directly for playtests. The site embeds the same static preview build, with no tracker access or server dependency. Closing the public-site dialog unloads the frame. The normal Pages deployment publishes the site entry after this change merges; the game never compiles or distributes software.
 
 The first playable level is a compact keyboard prototype, not a promised five-minute campaign. Controls and checkpoints are explained in the game. Pause freezes gameplay; returning to work restores the previous UI route.
 

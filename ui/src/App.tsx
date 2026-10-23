@@ -252,8 +252,8 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const gameLastKey = useRef(0);
   useEffect(() => {
     const onType = (e: KeyboardEvent) => {
-      if (game.open || e.repeat || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || typingIn(e.target)) {
-        if (game.open) gameBuffer.current = '';
+      if (game.open || e.repeat || e.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || typingIn(e.target) || (e.target instanceof Element && e.target.closest('[role="dialog"]'))) {
+        gameBuffer.current = '';
         return;
       }
       if (e.key.length !== 1 || !/[a-z]/i.test(e.key)) return;
@@ -430,6 +430,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   }, [routeKey, landing]);
   useEffect(() => {
     // A board filtered to one person (#292) takes focus at the filter's line instead, which is what the link was for.
+    if (game.open) return;
     const h1 = pending.current ? (main.current?.querySelector<HTMLElement>('#board-filter') ?? main.current?.querySelector<HTMLElement>('h1')) : null;
     if (h1) {
       pending.current = false;
@@ -525,15 +526,14 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
       <ThemeChoiceProvider value={choice}>
       <SkinProvider value={skins}>
         <MomentsProvider>
-        <div className="pm-background" inert={game.open} aria-hidden={game.open || undefined}>
         <TokenStyles css={THEMES.map(tokenCss).join('\n')} />
         <Ambient theme={theme.name} />
         <Splash ready={splashReady} detail={splashDetail} data={splashData} />
         <PlayNews news={news ?? null} dossier={wanted} />
-        <a className="skip" href="#main" onClick={skip}>
+        <a className="skip" href="#main" onClick={skip} inert={game.open} aria-hidden={game.open || undefined}>
           Skip to content
         </a>
-        <header>
+        <header inert={game.open} aria-hidden={game.open || undefined}>
           {preview && (
             <p className="banner" role="note">
               <strong>Toil UI alpha, on sample data.</strong> Nothing here connects to a tracker.
@@ -556,7 +556,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
               {compact ? (
                 <>
                   <Bell />
-                  <HeaderMenu links={links} feedback={feedback} controls={controls} help={helpWith} fresh={whatsNew.fresh.length > 0} onPalette={openPalette} onShortcuts={() => setSheet(true)} />
+                  <HeaderMenu suspended={game.open} links={links} feedback={feedback} controls={controls} help={helpWith} fresh={whatsNew.fresh.length > 0} onPalette={openPalette} onShortcuts={() => setSheet(true)} />
                 </>
               ) : (
                 <>
@@ -566,7 +566,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
                   <div className="settings">
                     <Bell />
                     {helpWith()}
-                    {feedback && <FeedbackButton api={feedback} />}
+                    {feedback && !game.open && <FeedbackButton api={feedback} />}
                     {controls}
                   </div>
                 </>
@@ -579,7 +579,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
             {preview ? 'Sample data' : 'Data'} read {dateTime(now)} through toil, read-only.
           </p>
         </header>
-        <main id="main" ref={main} data-view={route.view}>
+        <main id="main" ref={main} data-view={route.view} inert={game.open} aria-hidden={game.open || undefined}>
           {/* A running sync (#419): the theme's loader with its progress; the Sync panel's own line is the one announced. */}
           {syncing?.running && <Loader size="panel" message={syncText(syncing)!} live={false} />}
           {choice.saveError && (
@@ -590,7 +590,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           {body}
         </main>
         <CommandPalette
-          isOpen={palette.open}
+          isOpen={palette.open && !game.open}
           onOpenChange={(open) => setPalette((p) => ({ ...p, open }))}
           agent={agent}
           analysesApi={analyses}
@@ -608,9 +608,8 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           agentSettings={Boolean(agentSettings)}
           openShortcuts={() => setSheet(true)}
         />
-        <ShortcutsSheet isOpen={sheet} onOpenChange={setSheet} />
-        <WhatsNewModal shown={newsOpen?.shown ?? []} fresh={newsOpen?.fresh ?? false} isOpen={newsOpen !== null} onOpenChange={(open) => !open && setNewsOpen(null)} />
-        </div>
+        <ShortcutsSheet isOpen={sheet && !game.open} onOpenChange={setSheet} />
+        <WhatsNewModal shown={newsOpen?.shown ?? []} fresh={newsOpen?.fresh ?? false} isOpen={newsOpen !== null && !game.open} onOpenChange={(open) => !open && setNewsOpen(null)} />
         {game.open && <Suspense fallback={null}><div className="pm-dialog" ref={focusGameDialog} role="dialog" aria-modal="true" aria-label="Powershell Man" tabIndex={-1} data-powershell-man onKeyDown={(e) => {
           if (!['Tab'].includes(e.key)) return;
           const focusable = [...(gameDialog.current?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? [])].filter((el) => !el.hasAttribute('disabled'));
@@ -711,13 +710,13 @@ function NavLinks({ links, onFollow }: { links: NavLink[]; onFollow?: () => void
  * inside while it's open, Escape or a click outside closes it, and focus goes
  * back to the button. Feedback closes the menu first, then opens its dialog.
  */
-function HeaderMenu({ links, feedback, controls, help, fresh, onPalette, onShortcuts }: { links: NavLink[]; feedback: FeedbackApi | undefined; controls: ReactNode; help: (closeFirst: () => void) => ReactNode; fresh: boolean; onPalette: () => void; onShortcuts: () => void }) {
+function HeaderMenu({ suspended, links, feedback, controls, help, fresh, onPalette, onShortcuts }: { suspended: boolean; links: NavLink[]; feedback: FeedbackApi | undefined; controls: ReactNode; help: (closeFirst: () => void) => ReactNode; fresh: boolean; onPalette: () => void; onShortcuts: () => void }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const current = links.find((l) => l.current)?.label;
   return (
     <>
-      <DialogTrigger isOpen={open} onOpenChange={setOpen}>
+      <DialogTrigger isOpen={open && !suspended} onOpenChange={setOpen}>
         <Button className="btn menu-button" data-menu-button="">
           <span aria-hidden="true" className="menu-button__icon">
             ☰
@@ -769,7 +768,7 @@ function HeaderMenu({ links, feedback, controls, help, fresh, onPalette, onShort
           </Dialog>
         </Popover>
       </DialogTrigger>
-      {feedback && <FeedbackModal api={feedback} isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />}
+      {feedback && <FeedbackModal api={feedback} isOpen={feedbackOpen && !suspended} onOpenChange={setFeedbackOpen} />}
     </>
   );
 }

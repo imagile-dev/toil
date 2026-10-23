@@ -36,7 +36,6 @@ h1:focus-visible { outline: 3px solid var(--focus); outline-offset: 4px; }
 }
 
 #root { display: flex; flex-direction: column; min-height: 100svh; }
-.pm-background { display: contents; }
 
 .skip {
   position: absolute;
