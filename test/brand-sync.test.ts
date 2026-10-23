@@ -35,7 +35,7 @@ function token(name: string): Rgb {
   const n = parseInt(hex[1]!, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
-const hexToRgb = (value: string): Rgb => [1, 3, 5].map((i) => parseInt(value.slice(i, i + 2), 16)) as Rgb;
+const hexToRgb = (value: string): Rgb => [parseInt(value.slice(1, 3), 16), parseInt(value.slice(3, 5), 16), parseInt(value.slice(5, 7), 16)];
 const hex = (rgb: Rgb) => `#${rgb.map((n) => n.toString(16).padStart(2, '0')).join('')}`;
 
 /** The page's placement, as every copy of the badge writes it. */
@@ -153,7 +153,7 @@ describe("Toil UI's badges", () => {
   });
 
   // Plain's badge is the same badge in Plain's own blue, one per scheme: the
-  // tile takes that scheme's accent instead of the flame-to-amber gradient.
+  // tile takes that scheme's accent with no gradient.
   const plain = plainTheme;
   it.each(['light', 'dark'] as const)("draws Plain's %s badge in that scheme's accent, on the same tile", (scheme) => {
     const svg = read(`ui/themes/plain/assets/mark-${scheme}.svg`);
