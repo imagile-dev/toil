@@ -49,7 +49,9 @@ menu theming."
   `TOIL_NO_ANIMATION`) the game's clock holds still, so the title doesn't shimmer and
   nothing blinks; text appears at once instead of typing out; the map doesn't shake;
   and an effect shows as its first frame for as long as it would have played, so a hit
-  still says how much it did. `NO_COLOR` and the 256- and 16-colour fallbacks needed no
+  still says how much it did. An agent about to run out of context, which blinks, holds
+  its warning colour instead (the review's finding), since that blink is the only sign
+  of it. `NO_COLOR` and the 256- and 16-colour fallbacks needed no
   change: the game already painted through the caps' colour depth.
   - **The game's first frame now knows its text** (`sync()` before the first draw), so
     with reduced motion the first page is whole at once. Without it, the typewriter

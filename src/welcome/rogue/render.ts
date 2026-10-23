@@ -335,7 +335,8 @@ export function frame(g: Game, caps: Caps, hud: Hud): string[] {
   };
   put(g.exit.x, g.exit.y, g.floor === LAST_FLOOR ? 'H' : '>', Math.floor(hud.clock / 12) % 2 ? pal(caps).highlight : pal(caps).ink);
   for (const i of g.pickups) if (now[i.y]![i.x]) put(i.x, i.y, PICKUPS[i.kind].glyph, pal(caps).highlight);
-  for (const a of g.agents) put(a.x, a.y, '&', a.context <= 5 && Math.floor(hud.clock / 4) % 2 ? pal(caps).faint : pal(caps).ink);
+  // An agent about to run out of context blinks; with reduced motion it holds the warning colour instead.
+  for (const a of g.agents) put(a.x, a.y, '&', a.context <= 5 && (hud.still || Math.floor(hud.clock / 4) % 2) ? pal(caps).faint : pal(caps).ink);
   for (const m of g.mobs) if (now[m.y]![m.x]) put(m.x, m.y, m.kind.glyph, mobColor(caps, !!m.kind.robot));
   rows[g.player.y]![g.player.x] = { ch: '@', color: g.player.stun ? pal(caps).muted : pal(caps).ink };
   // Effects paint over the map, on cells you can see.

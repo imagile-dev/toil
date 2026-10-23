@@ -282,6 +282,17 @@ describe("Two Weeks' Notice: drawing", () => {
     expect(frameColumn(frame(g, plain, hud({ since: 0 })))).not.toBe(frameColumn(frame(g, plain, hud())));
   });
 
+  it('holds an agent short of context in the warning colour for reduced motion, where it would blink', () => {
+    const g = structuredClone(onFloor(6));
+    g.fx = [];
+    g.agents = [{ x: g.player.x + 1, y: g.player.y, context: 3 }];
+    const caps = { colorDepth: 24, unicode: true, palette: palette(findTheme('crate')!, 'dark') } as const;
+    const agent = (colour: Rgb) => `\x1b[38;2;${colour.join(';')}m&`;
+    expect(frame(g, caps, hud({ clock: 0, still: true })).join('\n')).toContain(agent(caps.palette.faint));
+    // Without reduced motion, the same tick is the blink's ink half.
+    expect(frame(g, caps, hud({ clock: 0 })).join('\n')).not.toContain(agent(caps.palette.faint));
+  });
+
   it('refuses politely on a small window or a console that cannot redraw in place', () => {
     expect(refusal({ columns: 40, rows: 20 }, true)).toContain('this one is 40 by 20');
     expect(refusal({ columns: 120, rows: 40 }, false)).toContain("can't redraw in place");
