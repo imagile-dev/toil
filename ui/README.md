@@ -1014,7 +1014,7 @@ theme on its own: off, that theme's particles are gone entirely, while its other
 motion keeps following **Reduce motion and effects** (and the operating system's
 reduced-motion setting, which stops everything).
 
-Crate, Harvest, Starship, Realm, Sprawl and Frontier also have **theme moments**: a launch splash while the first read
+Crate, Harvest, Starship, Realm, Sprawl, Frontier and Overworld also have **theme moments**: a launch splash while the first read
 runs, their own loading screens with the real progress and a rotating line of their own,
 an entrance as a dossier opens, a transition between its tabs, and a short moment when a
 sync brings an item done, a build passed or failed, a blocker cleared, a pull request

@@ -5,7 +5,8 @@
  * a heart meter for the working days still ahead and a gem counter for the
  * points carried home, the agent answers as an old sage in his dialogue box,
  * an empty list is an empty dungeon room, and while a view loads the sage
- * tends his fire. All of it is pixel art drawn or generated for this theme,
+ * tends his fire (kept as the fallback: a wait shows the moments' map
+ * scroll, #439). All of it is pixel art drawn or generated for this theme,
  * hidden from screen readers: the words beside it already say what it shows.
  * Every quest is entered in the log before the sage is consulted.
  */

@@ -325,8 +325,8 @@
   border-radius: 0;
 }
 
-/* An empty list is an empty dungeon room, its chest already opened; while a
-   view loads, the sage tends his fire. Both fade into the page. */
+/* An empty list is an empty dungeon room, its chest already opened; the
+   fallback loader is the sage tending his fire. Both fade into the page. */
 [data-theme="overworld"] .ow-room img,
 [data-theme="overworld"] .ow-cave img {
   width: 240px;
@@ -433,16 +433,100 @@
   fill: var(--muted);
 }
 
+/* Moments (#439): the splash is a pixel title card of the road to the sage's
+   cave, the loading screen a map scrolling under a walking traveller with
+   footprints for its progress, and each moment a dialogue box like the
+   sage's. Colour and frame only: the engine moves them. The card is drawn at
+   3x on a phone and 4x where there's room, so every pixel stays square. */
+[data-theme="overworld"] .splash {
+  background:
+    radial-gradient(ellipse at 50% 42%, rgba(242, 201, 76, 0.1), transparent 50vmax),
+    var(--bg);
+}
+
+[data-theme="overworld"] .splash__art {
+  box-shadow: 4px 4px 0 #000;
+}
+
+@media (min-width: 600px) {
+  [data-theme="overworld"] .splash__art {
+    width: 448px;
+  }
+}
+
+[data-theme="overworld"] .splash__name {
+  font-size: 1.75rem;
+  line-height: 1.5;
+}
+
+[data-theme="overworld"] .splash__name .wordmark {
+  color: #f2c94c;
+  text-shadow: 3px 3px 0 #000;
+}
+
+[data-theme="overworld"] .splash__ui {
+  border-radius: 0;
+  box-shadow: 2px 2px 0 #000;
+}
+
+[data-theme="overworld"] .loader__art {
+  box-shadow: 3px 3px 0 #000;
+}
+
+[data-theme="overworld"] .loader__flavour {
+  font-style: normal;
+}
+
+/* A tip is the sage's counsel, in his dialogue box. */
+[data-theme="overworld"] .loader-tip {
+  padding: 0.6rem 0.75rem;
+  border: 4px double #f3efdc;
+  background: #0b120e;
+}
+
+[data-theme="overworld"] .loader-tip__label,
+[data-theme="overworld"] .moment__label strong {
+  font-family: var(--font-display);
+  font-size: 0.6875rem;
+  font-weight: 400;
+  line-height: 1.8;
+  color: #f2c94c;
+}
+
+[data-theme="overworld"] .moment {
+  border: 4px double #f3efdc;
+  border-radius: 0;
+  background: #0b120e;
+  box-shadow: 4px 4px 0 #000;
+}
+
+/* A lost trial in the danger red; a quest, a cleared trial and an unlocked door in leaf green. */
+[data-theme="overworld"] .moment--build-failed {
+  border-color: var(--danger);
+}
+
+[data-theme="overworld"] .moment--build-failed .moment__label strong {
+  color: var(--danger);
+}
+
+[data-theme="overworld"] .moment--item-done .moment__label strong,
+[data-theme="overworld"] .moment--build-passed .moment__label strong,
+[data-theme="overworld"] .moment--blocker-cleared .moment__label strong {
+  color: var(--ok);
+}
+
 /* Motion, only where it is welcome: a chest opens with a hop when a quest
    reaches Done, a key is lifted overhead when one gets under way, and the
-   sage's fire flickers while a view loads. Each plays once as the card
-   arrives in its column, in steps, as a sprite would. */
+   sage's fire flickers in the fallback loader. Each plays once as the card
+   arrives in its column, in steps, as a sprite would. The hop and the lift
+   are entrances, so Theme motion off stops them as it stops the engine's
+   (#439); the fire flickers by opacity, so nothing is repainted. */
 @media (prefers-reduced-motion: no-preference) {
-  [data-theme="overworld"] .ow-loot--done {
+  [data-theme="overworld"]:not([data-theme-motion="off"]) .ow-loot--done {
     animation: ow-chest 0.6s steps(3, end) 1 both;
   }
 
-  [data-theme="overworld"] .ow-loot--in_progress {
+  [data-theme="overworld"]:not([data-theme-motion="off"]) .ow-loot--in_progress {
     animation: ow-key 0.8s steps(4, end) 1 both;
   }
 
@@ -465,6 +549,6 @@
 }
 
 @keyframes ow-fire {
-  from { filter: brightness(1); }
-  to { filter: brightness(1.12); }
+  from { opacity: 1; }
+  to { opacity: 0.88; }
 }
