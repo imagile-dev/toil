@@ -1576,7 +1576,8 @@ describe('the worklog (#308)', () => {
     const today = screen.getByRole('link', { name: /Tuesday 13 October 2026, today/ });
     expect(today.getAttribute('aria-current')).toBe('date');
     expect(today.getAttribute('href')).toBe('#/dossier/card-payments/worklog/2026-10-13');
-    expect(screen.getByText(/^Today so far: built from the syncs up to 07:55 UTC/)).toBeTruthy();
+    // The line is built from the syncs, which can land after the heading on a loaded runner.
+    expect(await screen.findByText(/^Today so far: built from the syncs up to 07:55 UTC/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Next month' }).getAttribute('data-disabled')).not.toBeNull();
   });
 
