@@ -296,7 +296,7 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
   .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
   /* ---- hero ---- */
-  .uix-hero { position: relative; overflow: clip; padding-block: var(--space-xl) var(--space-lg); border-bottom: 1px solid var(--color-line); }
+  .uix-hero { position: relative; overflow: clip; padding-block: var(--section-space-tight) var(--space-lg); border-bottom: 1px solid var(--color-line); }
   .uix-hero__glow {
     position: absolute; right: -10%; top: -40%; width: 60vw; max-width: 760px; aspect-ratio: 1;
     background: radial-gradient(closest-side, rgba(var(--rgb-accent), 0.2), transparent 70%); pointer-events: none;
@@ -459,7 +459,7 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
   [data-uix][data-wording='on'] [data-wording-off],
   [data-uix][data-wording='off'] [data-wording-on] { display: none; }
 
-  .uix-cta { position: relative; padding-block: var(--space-xl); border-top: 1px solid var(--color-line); }
+  .uix-cta { position: relative; padding-block: var(--section-space-tight); border-top: 1px solid var(--color-line); }
   .uix-cta__inner { display: grid; gap: var(--space-sm); justify-items: start; max-width: 44rem; }
   .uix-cta h2 { font-size: var(--text-3xl); }
 </style>
