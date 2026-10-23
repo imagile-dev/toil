@@ -25,6 +25,7 @@ import plain from '../themes/plain/theme.json';
 import realm from '../themes/realm/theme.json';
 import sprawl from '../themes/sprawl/theme.json';
 import starship from '../themes/starship/theme.json';
+import { DEFAULT_THEME } from '../../src/theme/default.ts';
 import { TOKENS, type Scheme, type ThemeManifest, type Token } from './theme-pack.ts';
 
 export { TERMS, TOKENS, type Scheme, type TermKey, type ThemeManifest, type Token } from './theme-pack.ts';
@@ -33,11 +34,13 @@ export { TERMS, TOKENS, type Scheme, type TermKey, type ThemeManifest, type Toke
 export const THEMES: ThemeManifest[] = [plain, crate, harvest, starship, realm, sprawl, frontier, overworld] as ThemeManifest[];
 
 /**
- * The theme a browser shows until someone picks one (the maintainer's call,
- * #277). Crate is dark only, so the system's light or dark preference doesn't
- * change the default; it still picks Plain's scheme once Plain is chosen.
+ * The theme a browser shows until someone picks one: Crate (the maintainer's
+ * call, #277), and the welcome menu's default too (#467), from the one
+ * constant toil keeps for both. Crate is dark only, so the system's light or
+ * dark preference doesn't change the default; it still picks Plain's scheme
+ * once Plain is chosen.
  */
-export const DEFAULT_THEME = 'crate';
+export { DEFAULT_THEME };
 
 /** Each built-in theme's stylesheet, loaded when the theme is first picked. */
 const STYLES: Record<string, () => Promise<unknown>> = {

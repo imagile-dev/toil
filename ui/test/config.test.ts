@@ -309,7 +309,7 @@ describe('dossiers, through toil', () => {
 
   it("sets the theme as toil's own setting, which the welcome menu reads too, and reads it back (#427)", async () => {
     const { config } = await serve();
-    expectEnvelope(await config('theme list')).toMatchObject({ ok: true, data: { current: 'plain', source: 'default' } });
+    expectEnvelope(await config('theme list')).toMatchObject({ ok: true, data: { current: 'crate', source: 'default', default: 'crate' } });
     expectEnvelope(await config('theme set', { name: 'realm' })).toMatchObject({ ok: true, data: { theme: 'realm', changed: true } });
     expect(JSON.parse(readFileSync(join(home, '.toil', 'config.json'), 'utf8'))).toMatchObject({ version: 2, theme: 'realm' });
     expectEnvelope(await config('theme list')).toMatchObject({ ok: true, data: { current: 'realm', source: 'file' } });

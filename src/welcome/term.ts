@@ -8,9 +8,11 @@
 export type Rgb = readonly [number, number, number];
 
 /**
- * toil's palette, the same values as the site's tokens (Toil UI Plain's dark
- * scheme, #442): the blue accent and its lighter highlight, the neutrals, and
- * ok and danger for a result that worked or didn't.
+ * toil's own palette, Toil UI Plain's dark scheme, which the site wears too
+ * (#442): the blue accent and its lighter highlight, the neutrals, and ok and
+ * danger for a result that worked or didn't. The game draws in it, and so does
+ * a frame given no theme. The menu itself draws in its theme's palette, Crate's
+ * by default (#467).
  */
 export const PALETTE = {
   accent: [140, 196, 255],

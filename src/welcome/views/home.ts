@@ -1,6 +1,7 @@
 import { connectionNames, folderLines, statusLine } from '../screens.js';
 import { pal, paint } from '../term.js';
-import { DEFAULT_THEME, themeNamed, type MenuWords } from '../themes/index.js';
+import type { MenuWords } from '../themes/index.js';
+import { plain } from '../themes/plain.js';
 import type { Item, View, ViewProps } from '../view.js';
 import { testAll } from './connections.js';
 
@@ -17,7 +18,8 @@ export interface HomeEntry {
   view: string;
 }
 
-const PLAIN_WORDS: MenuWords = themeNamed(DEFAULT_THEME).words;
+// The plain words are Plain's, whichever theme is the default.
+const PLAIN_WORDS: MenuWords = plain.words;
 
 /**
  * The theme's words for the home screen (#427). A heading or a label a theme
@@ -25,7 +27,8 @@ const PLAIN_WORDS: MenuWords = themeNamed(DEFAULT_THEME).words;
  * and the agent row in its hint, so a themed screen still says what it means.
  */
 export function homeWords(p: Pick<ViewProps, 'data'>): { attention: string; agent?: { label: string; hint: string }; quit: string } {
-  const words = (p.data.theme ?? themeNamed(DEFAULT_THEME)).words;
+  // A frame given no theme draws as Plain, in words as in colours (pal()); the menu itself always carries one.
+  const words = (p.data.theme ?? plain).words;
   return {
     attention: words.attention === PLAIN_WORDS.attention ? words.attention : `${words.attention} (${PLAIN_WORDS.attention.toLowerCase()})`,
     ...(words.agent === PLAIN_WORDS.agent ? {} : { agent: { label: words.agent, hint: `${PLAIN_WORDS.agent}: pick areas, get the MCP config snippet` } }),

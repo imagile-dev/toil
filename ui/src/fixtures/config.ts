@@ -86,12 +86,13 @@ export const ONBOARD_PLAN = {
 
 /** `toil theme list` with no theme set (#427). */
 export const THEME_LIST = {
-  current: 'plain',
+  current: 'crate',
   source: 'default',
+  default: 'crate',
   themes: [
     ['plain', 'Plain'], ['crate', 'Crate'], ['harvest', 'Harvest'], ['starship', 'Starship'],
     ['realm', 'Realm'], ['sprawl', 'Sprawl'], ['frontier', 'Frontier'], ['overworld', 'Overworld'],
-  ].map(([name, label]) => ({ name, label, current: name === 'plain' })),
+  ].map(([name, label]) => ({ name, label, current: name === 'crate', default: name === 'crate' })),
 };
 
 interface Answer {
@@ -112,7 +113,7 @@ export const CONFIG_CANNED: Answer[] = [
   })),
   ...usageCanned(),
   { command: 'dossiers onboard', input: { plan: true }, data: ONBOARD_PLAN },
-  // No theme set: toil's default, so Toil UI keeps its own.
+  // No theme set: toil's default, Crate, which is Toil UI's too (#467).
   { command: 'theme list', input: {}, data: THEME_LIST },
 ];
 

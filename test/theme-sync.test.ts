@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { splashFrame } from '../src/welcome/splash.js';
 import { PALETTE } from '../src/welcome/term.js';
 import { SPLASH_CUES } from '../src/welcome/themes/moments.generated.js';
-import { contrast, MIN_CONTRAST, ORNAMENTS, palette, splashLook, TERMINAL_THEMES, terminalMotif, type Background } from '../src/welcome/themes/index.js';
+import { contrast, hexToRgb, LIGHT_GROUND, MIN_CONTRAST, ORNAMENTS, palette, splashLook, TERMINAL_THEMES, terminalMotif, type Background } from '../src/welcome/themes/index.js';
 // @ts-expect-error The repository's scripts are plain JavaScript with no declarations.
 import { splashCues } from '../scripts/gen-areas.mjs';
 
@@ -78,6 +78,14 @@ describe.each(TERMINAL_THEMES.map((t) => [t.name, t] as const))('%s', (name, the
     }
   });
 
+  // #467: a light terminal is often off-white, so every role clears the bar on
+  // the darkest common light ground too, and so on One Half Light's #fafafa.
+  it.each([LIGHT_GROUND, '#fafafa', '#ffffff'])('reads on a light terminal whose background is %s', (ground) => {
+    for (const [role, colour] of Object.entries(palette(theme, 'light'))) {
+      if (role !== 'bg') expect(contrast(colour, hexToRgb(ground)), `${role} on ${ground}`).toBeGreaterThanOrEqual(MIN_CONTRAST);
+    }
+  });
+
   it("plays its splash with the theme's own cues, its line in full", () => {
     const look = splashLook(theme);
     const cue = ui.moments?.splash;
@@ -108,6 +116,8 @@ it("has a terminal rendition of every #419 enter motif a theme may name", () => 
   for (const motif of motifs) expect(terminalMotif(motif), motif).toBeDefined();
 });
 
-it("keeps Plain's dark palette as toil's own, the site's tokens", () => {
+// toil's own palette, the game's and any frame drawn without a theme, is Plain's
+// dark scheme, as the site's is (#442). The menu's default theme is Crate (#467).
+it("keeps Plain's dark palette as toil's own", () => {
   expect(palette(TERMINAL_THEMES[0]!, 'dark')).toEqual(PALETTE);
 });

@@ -217,6 +217,15 @@ describe('the default theme (#277)', () => {
     expect(themeNamed('no-such-theme').name).toBe('crate');
   });
 
+  // #467: one default everywhere, so the welcome menu and Toil UI open in the same theme.
+  it("is the welcome menu's default too, and what toil theme list reports with nothing set", async () => {
+    const { DEFAULT_THEME: TERMINAL_DEFAULT, themeNamed: terminalTheme } = await import('../../src/welcome/themes/index.ts');
+    expect(TERMINAL_DEFAULT).toBe(DEFAULT_THEME);
+    expect(terminalTheme(undefined).name).toBe(DEFAULT_THEME);
+    const { THEME_LIST } = await import('../src/fixtures/config.ts');
+    expect(THEME_LIST).toMatchObject({ current: DEFAULT_THEME, source: 'default', default: DEFAULT_THEME });
+  });
+
   it('is the theme the page starts in, before any script runs', () => {
     expect(readFileSync(join(import.meta.dirname, '..', 'index.html'), 'utf8')).toContain('<html lang="en" data-theme="crate" data-scheme="system">');
   });

@@ -8,10 +8,12 @@ import { EMAIL_COLORS } from '../functions/feedback/src/lib/palette.js';
 import { plainTokens } from '../site/scripts/plain-tokens.mjs';
 
 /**
- * The site, the terminal and Toil UI show one mark, the badge, in the same
- * colours. They can't share code (the site and the UI are their own packages),
- * so this test reads their sources and fails when any of them drifts. Change
- * one, change the others.
+ * The site, the terminal and Toil UI show one mark, the badge, and the site
+ * and the feedback emails wear one palette, Toil UI Plain's (#442, #453). They
+ * can't share code (the site and the UI are their own packages), so this test
+ * reads their sources and fails when any of them drifts. Change one, change the
+ * others. The terminal's colours are each theme's own, held to ui/themes/ by
+ * test/theme-sync.test.ts; its default theme is Crate (#467), not the site's.
  */
 
 const root = join(import.meta.dirname, '..');
@@ -35,13 +37,21 @@ const hex = (rgb: Rgb) => `#${rgb.map((n) => n.toString(16).padStart(2, '0')).jo
 /** The page's placement, as every copy of the badge writes it. */
 const placement = `translate(${SHEET.cx} ${SHEET.cy}) scale(${SHEET.s}) translate(-31.5 -32.5)`;
 
-describe('the terminal matches the site', () => {
-  it('uses the site palette for every colour', () => {
-    for (const name of ['accent', 'highlight', 'ink', 'muted', 'faint', 'bg', 'ok', 'danger'] as const) {
-      expect(PALETTE[name], `PALETTE.${name} vs the site's ${name} token`).toEqual(token(name));
-    }
+const plainTheme = JSON.parse(read('ui/themes/plain/theme.json')) as { schemes: Record<'light' | 'dark', Record<string, string>> };
+
+describe("the site wears Plain's dark scheme", () => {
+  it.each(['bg', 'ink', 'muted', 'accent', 'ok', 'danger'] as const)("its %s token is Plain's", (name) => {
+    expect(hex(token(name)), `the site's ${name} token vs ui/themes/plain/theme.json`).toBe(plainTheme.schemes.dark[name]!.toLowerCase());
   });
 
+  // global.css writes these two by hand. PALETTE is Plain's dark scheme with the
+  // same roles derived (theme-sync pins it to palette(plain, 'dark')), so it holds them to Plain.
+  it.each(['highlight', 'faint'] as const)("its derived %s token is Plain's, as the terminal derives it", (name) => {
+    expect(token(name), `the site's ${name} token vs Plain's derived ${name}`).toEqual(PALETTE[name]);
+  });
+});
+
+describe("the site's badge is the terminal's badge", () => {
   it('draws the same tile, its corner cut parallel to the fold', () => {
     expect(logo).toContain(`'${tilePath()}'`);
     // The cut runs from (42, 6) to (58, 22): the line x - y = 36, parallel to the
@@ -140,7 +150,7 @@ describe("Toil UI's badges", () => {
 
   // Plain's badge is the same badge in Plain's own blue, one per scheme: the
   // tile takes that scheme's accent instead of the flame-to-amber gradient.
-  const plain = JSON.parse(read('ui/themes/plain/theme.json')) as { schemes: Record<'light' | 'dark', { accent: string }> };
+  const plain = plainTheme;
   it.each(['light', 'dark'] as const)("draws Plain's %s badge in that scheme's accent, on the same tile", (scheme) => {
     const svg = read(`ui/themes/plain/assets/mark-${scheme}.svg`);
     expect(svg).toContain(`<path d="${tilePath()}" fill="${plain.schemes[scheme].accent}"/>`);

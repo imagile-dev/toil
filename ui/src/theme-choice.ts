@@ -77,8 +77,8 @@ export interface ChoiceOrigin {
 /**
  * The theme to switch to once toil's setting is known, or null to keep the
  * one showing: TOIL_THEME over a saved theme, the file's setting unless this
- * browser's theme predates it, and nothing for toil's default (which is
- * Plain in the terminal, while Toil UI keeps Crate).
+ * browser's theme predates it, and nothing for toil's default (Crate in both,
+ * one constant, #467), so a browser's own pick stands until a setting exists.
  */
 export function themeFromToil(toil: ToilTheme, origin: ChoiceOrigin): string | null {
   if (origin.fromAddress || !THEMES.some((t) => t.name === toil.current)) return null;

@@ -9,6 +9,7 @@ import { realm } from './realm.js';
 import { sprawl } from './sprawl.js';
 import { starship } from './starship.js';
 import type { Ornament, SchemeColours, TerminalTheme } from './types.js';
+import { DEFAULT_THEME } from '../../theme/default.js';
 
 export type { MenuWords, Ornament, SchemeColours, TerminalTheme } from './types.js';
 export { ORNAMENTS } from './types.js';
@@ -16,21 +17,22 @@ export { ORNAMENTS } from './types.js';
 /**
  * The welcome menu's themes (#427): one terminal version of each Toil UI
  * theme, in Toil UI's picker order. `"theme"` in ~/.toil/config.json picks
- * one, `TOIL_THEME` overrides it, and Plain is the default. A theme changes
+ * one, `TOIL_THEME` overrides it, and Crate is the default (#467), the same
+ * constant Toil UI reads (src/theme/default.ts). A theme changes
  * the menu's colours, the splash and a few of its words, and nothing an
  * agent or a script reads: never an envelope, help text, an error or a fix.
  */
 export const TERMINAL_THEMES: readonly TerminalTheme[] = [plain, crate, harvest, starship, realm, sprawl, frontier, overworld];
 
-export const DEFAULT_THEME = 'plain';
+export { DEFAULT_THEME };
 
 export const THEME_NAMES: readonly string[] = TERMINAL_THEMES.map((t) => t.name);
 
 /** The theme by name; undefined for a name toil doesn't have. */
 export const findTheme = (name: string | undefined): TerminalTheme | undefined => TERMINAL_THEMES.find((t) => t.name === name);
 
-/** The theme by name, or Plain for anything toil doesn't have. */
-export const themeNamed = (name: string | undefined): TerminalTheme => findTheme(name) ?? plain;
+/** The theme by name, or the default (Crate) for anything toil doesn't have. */
+export const themeNamed = (name: string | undefined): TerminalTheme => findTheme(name) ?? findTheme(DEFAULT_THEME)!;
 
 /** What the splash takes from a theme: what it draws around the badge, how the badge arrives, and its line. */
 export interface SplashLook {
@@ -155,11 +157,23 @@ export function schemeFor(theme: TerminalTheme, background: Background): SchemeC
 }
 
 /**
+ * The light ground every role is lifted against on a light terminal, as well
+ * as the scheme's own: Solarized Light's cream (#467). The menu draws on the
+ * terminal's own background, which toil knows only as light or dark, and a
+ * light terminal is often off-white (One Half Light is #fafafa), so a colour
+ * at exactly 4.5:1 on white falls short there. Lifted against the darkest
+ * common light ground, it clears the bar on that ground and on everything
+ * lighter. Four-and-a-half to one, on any paper the office has in stock.
+ */
+export const LIGHT_GROUND = '#fdf6e3';
+
+/**
  * A theme's palette for a terminal of this background. Highlight is the
  * theme's link colour, or, where the link is the accent, a lighter (or on a
  * light terminal, deeper) tint of the accent; faint is muted mixed toward the
- * background. Every role meets MIN_CONTRAST on the scheme's background, so
- * the menu reads on a light terminal and a dark one alike.
+ * background. Every role meets MIN_CONTRAST on the scheme's background, and on
+ * a light terminal on LIGHT_GROUND too, so the menu reads on a light terminal
+ * and a dark one alike.
  */
 export function palette(theme: TerminalTheme, background: Background): Palette {
   const s = schemeFor(theme, background);
@@ -170,6 +184,8 @@ export function palette(theme: TerminalTheme, background: Background): Palette {
   const link = hexToRgb(s.link);
   const highlight = s.highlight ? hexToRgb(s.highlight) : s.link.toLowerCase() === s.accent.toLowerCase() ? mix(accent, ink, 0.45) : link;
   const faint = s.faint ? hexToRgb(s.faint) : mix(muted, bg, 0.25);
-  const lift = (c: Rgb) => readable(c, bg);
+  const cream = hexToRgb(LIGHT_GROUND);
+  const ground = background === 'light' && luminance(cream) < luminance(bg) ? cream : bg;
+  const lift = (c: Rgb) => readable(c, ground);
   return { accent: lift(accent), highlight: lift(highlight), ink: lift(ink), muted: lift(muted), faint: lift(faint), bg, ok: lift(hexToRgb(s.ok)), danger: lift(hexToRgb(s.danger)) };
 }

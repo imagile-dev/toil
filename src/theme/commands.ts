@@ -25,7 +25,7 @@ export interface ThemeInEffect {
   unknown?: { name: string; source: 'env' | 'file' };
 }
 
-/** The theme in effect for a loaded config: the one set, when toil has it, else Plain. */
+/** The theme in effect for a loaded config: the one set, when toil has it, else the default, Crate. */
 export function themeInEffect(config: Pick<ResolvedConfig, 'theme'>): ThemeInEffect {
   const set = config.theme;
   if (!set) return { name: DEFAULT_THEME, source: 'default' };
@@ -39,9 +39,11 @@ export function unknownThemeWarning(unknown: NonNullable<ThemeInEffect['unknown'
   const from = unknown.source === 'env' ? 'TOIL_THEME' : '"theme" in the config file';
   return {
     code: 'THEME_UNKNOWN',
-    message: `${from} is "${unknown.name}", which this toil doesn't have, so Plain shows instead. The themes are ${TERMINAL_THEMES.map((t) => t.name).join(', ')}.`,
+    message: `${from} is "${unknown.name}", which this toil doesn't have, so ${defaultLabel()}, the default, shows instead. The themes are ${TERMINAL_THEMES.map((t) => t.name).join(', ')}.`,
   };
 }
+
+const defaultLabel = () => findTheme(DEFAULT_THEME)?.label ?? DEFAULT_THEME;
 
 function access(ctx: CommandContext<unknown>): ConfigAccess {
   if (!ctx.manage) throw new Error('A theme command ran without ctx.manage; define it with defineConfigCommand.');
@@ -55,7 +57,7 @@ export function themeCommands(): AnyCommand[] {
     path: ['theme', 'list'],
     description: 'List the themes the welcome menu and Toil UI can show, and which one is in effect',
     toolDescription:
-      "Lists toil's themes (name and label) and the one in effect, with where it came from: env (TOIL_THEME), file (\"theme\" in the config file) or default (Plain). A theme changes only how the welcome menu and Toil UI look, never any tool's output.",
+      "Lists toil's themes (name and label) and the one in effect, with where it came from: env (TOIL_THEME), file (\"theme\" in the config file) or default (Crate, when neither is set; each theme says whether it is the default). A theme changes only how the welcome menu and Toil UI look, never any tool's output.",
     input: z.object({}),
     writes: false,
     writesLocal: false,
@@ -66,7 +68,8 @@ export function themeCommands(): AnyCommand[] {
       return {
         current: effect.name,
         source: effect.source,
-        themes: TERMINAL_THEMES.map((t) => ({ name: t.name, label: t.label, current: t.name === effect.name })),
+        default: DEFAULT_THEME,
+        themes: TERMINAL_THEMES.map((t) => ({ name: t.name, label: t.label, current: t.name === effect.name, default: t.name === DEFAULT_THEME })),
       };
     },
   });

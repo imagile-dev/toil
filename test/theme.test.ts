@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { loadConfig, parseEnvName } from '../src/core/config.js';
+import { gatherWelcomeData } from '../src/welcome/data.js';
 import { areas } from '../src/registry.js';
 import { clearConnectionEnv } from './harness/hermetic-env.js';
 import { sharedStore } from './harness/shared-store.js';
@@ -17,7 +18,7 @@ const { execute, registry } = await import('../src/api.js');
 /**
  * `toil theme list | set` and the `"theme"` setting (#427): one theme in
  * ~/.toil/config.json for the welcome menu and Toil UI, TOIL_THEME over it,
- * Plain when neither says. Each test has its own home.
+ * Crate when neither says (#467). Each test has its own home.
  */
 
 let home: string;
@@ -71,14 +72,24 @@ describe('the config loader', () => {
 });
 
 describe('toil theme list', () => {
-  it('lists every theme, with Plain in effect by default', async () => {
+  it('lists every theme, with Crate in effect by default and marked as the default', async () => {
     const env = await execute('theme list', {}, { readOnly: true });
     expect(env.ok).toBe(true);
-    const data = env.data as { current: string; source: string; themes: Array<{ name: string; current: boolean }> };
-    expect(data.current).toBe('plain');
+    const data = env.data as { current: string; source: string; default: string; themes: Array<{ name: string; current: boolean; default: boolean }> };
+    expect(data.current).toBe('crate');
     expect(data.source).toBe('default');
+    expect(data.default).toBe('crate');
     expect(data.themes.map((t) => t.name)).toEqual(['plain', 'crate', 'harvest', 'starship', 'realm', 'sprawl', 'frontier', 'overworld']);
-    expect(data.themes.filter((t) => t.current).map((t) => t.name)).toEqual(['plain']);
+    expect(data.themes.filter((t) => t.current).map((t) => t.name)).toEqual(['crate']);
+    expect(data.themes.filter((t) => t.default).map((t) => t.name)).toEqual(['crate']);
+  });
+
+  it('keeps Plain for a config that already chose it, and lets TOIL_THEME choose it too', async () => {
+    writeConfig({ version: 2, theme: 'plain' });
+    expect((await execute('theme list', {}, { readOnly: true })).data).toMatchObject({ current: 'plain', source: 'file', default: 'crate' });
+    rmSync(configFile());
+    vi.stubEnv('TOIL_THEME', 'plain');
+    expect((await execute('theme list', {}, { readOnly: true })).data).toMatchObject({ current: 'plain', source: 'env' });
   });
 
   it('marks the theme from the file, and TOIL_THEME over it', async () => {
@@ -88,11 +99,24 @@ describe('toil theme list', () => {
     expect((await execute('theme list', {}, { readOnly: true })).data).toMatchObject({ current: 'harvest', source: 'env' });
   });
 
-  it("says so when the theme set is one toil doesn't have, and shows Plain", async () => {
+  it("says so when the theme set is one toil doesn't have, and shows the default", async () => {
     vi.stubEnv('TOIL_THEME', 'vaporwave');
     const env = await execute('theme list', {}, { readOnly: true });
-    expect(env.data).toMatchObject({ current: 'plain', source: 'default' });
+    expect(env.data).toMatchObject({ current: 'crate', source: 'default' });
     expect(env.meta.warnings?.[0]).toMatchObject({ code: 'THEME_UNKNOWN', message: expect.stringContaining('TOIL_THEME is "vaporwave"') });
+    expect(env.meta.warnings?.[0]?.message).toContain('so Crate, the default, shows instead');
+  });
+});
+
+describe('the welcome menu', () => {
+  const welcomeTheme = (env: NodeJS.ProcessEnv = {}) =>
+    gatherWelcomeData({ version: '0.0.0', env, cwd: home, home, areas, catalog: [], mcpAreas: [], script: undefined }).theme?.name;
+
+  it('opens in Crate with nothing set, Plain for a config that chose it, and TOIL_THEME over both', () => {
+    expect(welcomeTheme()).toBe('crate');
+    writeConfig({ version: 2, theme: 'plain' });
+    expect(welcomeTheme()).toBe('plain');
+    expect(welcomeTheme({ TOIL_THEME: 'realm' })).toBe('realm');
   });
 });
 
