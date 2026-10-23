@@ -1,5 +1,6 @@
 ---
 import Logo from './Logo.astro';
+import ImagileMark from './ImagileMark.astro';
 import { docsPath } from '../data/docs-path.mjs';
 import { url, repoUrl } from '../lib/url';
 
@@ -44,7 +45,7 @@ const columns = [
 <footer class="site-footer">
   <div class="container">
     <a class="imagile" href="https://www.imagile.dev" data-reveal>
-      <img class="imagile__mark" src={url('/images/imagile-mark-128.png')} width="64" height="64" alt="" loading="lazy" />
+      <ImagileMark size={64} class="imagile__mark" />
       <div class="imagile__copy">
         <p class="eyebrow">Built by <b>Imagile</b></p>
         <p class="imagile__line">Imagile helps companies put AI to work: training engineers to build with it, designing the agentic workflows that remove the busywork, and shipping the software behind it.</p>
@@ -112,8 +113,16 @@ const columns = [
   .imagile:hover { border-color: rgba(var(--rgb-accent), 0.45); translate: 0 -2px; }
   .imagile:hover::after { background-position: -50% 0; }
 
-  .imagile__mark { width: 64px; height: 64px; transition: transform var(--duration-base) var(--ease-out); }
-  .imagile:hover .imagile__mark { transform: rotate(-6deg) scale(1.06); }
+  /* Imagile's mark in one colour (#468): muted at rest, the accent on hover and
+     focus, picking up the border that lights with it. */
+  .imagile :global(.imagile__mark) { color: var(--color-muted); transition: color var(--duration-fast) var(--ease-out); }
+  .imagile:hover :global(.imagile__mark),
+  .imagile:focus-visible :global(.imagile__mark) { color: var(--color-accent); }
+  @media (prefers-reduced-motion: no-preference) {
+    .imagile :global(.imagile__mark) { transition: color var(--duration-fast) var(--ease-out), transform var(--duration-base) var(--ease-out); }
+    .imagile:hover :global(.imagile__mark),
+    .imagile:focus-visible :global(.imagile__mark) { transform: rotate(-6deg) scale(1.06); }
+  }
 
   .imagile__line {
     margin-top: 0.35rem;

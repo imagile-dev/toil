@@ -40,7 +40,8 @@ from `main`).
   the theme. A change to Plain's colours changes that copy in the same PR.
 - **Imagile is credited prominently**: a byline in the header, a linked "By Imagile"
   in the hero eyebrow, and a feature panel in the footer, all pointing to
-  https://www.imagile.dev. Imagile's mark keeps its own colours.
+  https://www.imagile.dev. Imagile's mark is drawn in one colour from the tokens
+  (`ImagileMark.astro`, #468), never its terracotta.
 - **Honest about status** (*principle 4*). Until 1.0, the site says **Alpha**
   ("Alpha: APIs and flags may change before 1.0", the README's wording) by the
   install commands and in the hero, and labels sample output as planned. The

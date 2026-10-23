@@ -1,5 +1,6 @@
 ---
 import Logo from './Logo.astro';
+import ImagileMark from './ImagileMark.astro';
 import { url, repoUrl } from '../lib/url';
 
 // The site map (#431): Map, Connect, Toil UI, Docs, About, then the search
@@ -23,7 +24,7 @@ const current = Astro.url.pathname;
     </a>
     <a href="https://www.imagile.dev" class="site-header__by tap" aria-label="toil is built by Imagile — visit imagile.dev">
       <span class="site-header__by-text">by</span>
-      <img src={url('/images/imagile-mark-64.png')} srcset={`${url('/images/imagile-mark-64.png')} 1x, ${url('/images/imagile-mark-128.png')} 2x`} width="20" height="20" alt="" />
+      <ImagileMark size={20} />
       <span>Imagile</span>
     </a>
 
@@ -106,7 +107,8 @@ const current = Astro.url.pathname;
     font-size: 1.7rem;
   }
 
-  /* Byline: a hairline divider, then Imagile's own mark in its own colour. */
+  /* Byline: a hairline divider, then Imagile's mark in the link's own ink
+     (#468): muted at rest, full ink on hover and focus, like the name beside it. */
   .site-header__by {
     gap: 0.4rem;
     margin-right: auto;
@@ -117,9 +119,13 @@ const current = Astro.url.pathname;
     color: var(--color-muted);
     transition: color var(--duration-fast) var(--ease-out);
   }
-  .site-header__by img { transition: transform var(--duration-base) var(--ease-out); }
-  .site-header__by:hover { color: var(--color-ink); }
-  .site-header__by:hover img { transform: rotate(-8deg) scale(1.12); }
+  .site-header__by:hover,
+  .site-header__by:focus-visible { color: var(--color-ink); }
+  @media (prefers-reduced-motion: no-preference) {
+    .site-header__by :global(.imagile-mark) { transition: transform var(--duration-base) var(--ease-out); }
+    .site-header__by:hover :global(.imagile-mark),
+    .site-header__by:focus-visible :global(.imagile-mark) { transform: rotate(-8deg) scale(1.12); }
+  }
   .site-header__by-text { color: var(--color-faint); }
 
   @media (max-width: 640px) {
