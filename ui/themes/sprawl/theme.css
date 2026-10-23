@@ -489,8 +489,23 @@
     animation: sprawl-glitch 0.5s steps(2) 1;
   }
 
+  /* A panel scans in: its face comes up in four steps while a cyan scan line
+     runs down it in the same four. Both move by opacity and transform, so the
+     compositor plays them; the clip-path it used to animate could only be
+     played on the main thread (#451). */
   [data-theme="sprawl"]:not([data-theme-motion="off"]) .l-card {
     animation: sprawl-scan-in 0.35s steps(4) 1;
+  }
+
+  [data-theme="sprawl"]:not([data-theme-motion="off"]) .l-card::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(to bottom, transparent 60%, rgba(63, 240, 255, 0.1) 94%, rgba(63, 240, 255, 0.6));
+    opacity: 0;
+    transform-origin: 50% 0;
+    animation: sprawl-scan-line 0.35s steps(4) 1;
   }
 
   /* The splash's cold boot: the log holds, tears twice into the skyline, and
@@ -531,8 +546,13 @@
 }
 
 @keyframes sprawl-scan-in {
-  from { clip-path: inset(0 0 100% 0); }
-  to { clip-path: inset(0 0 0 0); }
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes sprawl-scan-line {
+  from { opacity: 1; transform: scaleY(0); }
+  to { opacity: 1; transform: scaleY(1); }
 }
 
 @keyframes sprawl-boot {

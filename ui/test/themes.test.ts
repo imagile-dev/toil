@@ -307,6 +307,15 @@ describe("Sprawl's glitches (#437)", () => {
     for (const r of rates) expect(r.perSecond, r.name).toBeLessThanOrEqual(3);
   });
 
+  it('scans a panel in by opacity and transform, which the compositor plays, never clip-path (#451)', () => {
+    const css = readFileSync(join(themesDir, 'sprawl', 'theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const name of ['sprawl-scan-in', 'sprawl-scan-line']) {
+      const block = new RegExp(String.raw`@keyframes ${name}\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}`).exec(css);
+      expect(block, name).not.toBeNull();
+      for (const p of block![1]!.matchAll(/([a-z-]+)\s*:/g)) expect(['transform', 'opacity'], `${name} sets ${p[1]}`).toContain(p[1]);
+    }
+  });
+
   it('counts a fast stepped loop as the flashing it is', () => {
     expect(steppedFlashRates('@keyframes x { 0% { opacity: 1; } 50% { opacity: 0; } } a { animation: x 0.2s steps(1) infinite; }')).toEqual([{ name: 'x', perSecond: 5 }]);
   });
