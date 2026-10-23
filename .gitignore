@@ -76,6 +76,8 @@ test/.stubs/
 .scratch/
 # npm run verify:ui's report and screenshots
 ui/.verify/
+# npm run moments:measure and npm run screens:sheet output (ui/scripts/moments-kit.mjs)
+ui/.moments/
 
 # The ADO seed's map of seed keys to one organization's work item ids (ui/scripts/ado-seed/apply.mjs)
 ui/scripts/ado-seed/ids.local.json

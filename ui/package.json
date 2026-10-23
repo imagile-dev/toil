@@ -38,7 +38,9 @@
     "check:package": "node scripts/check-package.mjs",
     "smoke": "node scripts/smoke.mjs",
     "check:lockfile": "node scripts/check-lockfile.mjs",
-    "verify:ui": "node scripts/verify.mjs"
+    "verify:ui": "node scripts/verify.mjs",
+    "moments:measure": "node scripts/moments-measure.mjs",
+    "screens:sheet": "node scripts/screens-sheet.mjs"
   },
   "dependencies": {
     "@imagile-dev/toil": "0.1.0-alpha.5"

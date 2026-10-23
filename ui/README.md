@@ -1254,6 +1254,50 @@ toil util owi map board.jsonl > mapped.json
 node ui/scripts/ado-seed/compare.mjs mapped.json --project "<project>" --backdated
 ```
 
+## Measuring theme moments
+
+Two more commands are for a PR that changes a theme's moments ([Theme
+moments](https://imagile-dev.github.io/toil/docs/themes/#theme-moments)) or the engine that
+plays them. Both build Toil UI first (`--no-build` skips it), run `toil-ui --sample` in a
+throwaway home, drive headless Chrome (the one the layout check finds; `CHROME_PATH` picks
+another), and write to `ui/.moments/`, which git ignores.
+
+```bash
+npm run moments:measure -w ui                       # every theme with moments, 3 runs each
+npm run moments:measure -w ui -- --theme realm --cold
+npm run screens:sheet -w ui                         # every theme, 375 and 1440px, full, subtle and off
+npm run screens:sheet -w ui -- --theme realm --width 768 --motion full
+```
+
+- **`moments:measure`** times each theme's launch splash, loading screen and sprint recap at
+  1440px with GPU compositing on. A `requestAnimationFrame` recorder gives the frame times
+  (Sprawl's rain and Realm's embers draw at 30 fps by design, which raw presented-frame gaps
+  would misread), and Chrome's frame reporter the frames it dropped. Each run opens a fresh
+  browser per theme and plays it twice: the first pass is Chrome compiling its GPU shaders,
+  which a person sees at most once per browser version, and the second is the figure. It
+  prints a table, each cell the median frame, the worst frame, the frames over 20 ms and the
+  frames Chrome dropped over every run, and writes it to `ui/.moments/measure.md` with the
+  raw results in `measure.json` beside it. It exits 1 when any frame is over 20 ms or a phase
+  didn't play. `--report-only` prints the same and exits 0; `--cold` adds the first pass's
+  worst frames; `--runs <n>` (default 3), `--motion subtle`, `--throttle <rate>` (a slower
+  CPU) and `--no-gpu` (software rendering) change the run. It takes about two minutes a
+  theme.
+- **`screens:sheet`** makes one contact sheet for each theme, width and Theme motion level,
+  `ui/.moments/sheets/<theme>-<width>-<motion>.png`, ready to attach to the PR, with its
+  frames and an HTML copy in a folder beside it. A sheet shows the splash arriving, held and
+  handing over; the loading screen as its loops turn; each event moment the theme declares
+  coming in, held and going out, cropped to the card; the dossier entrance; and a change of
+  tab. Every frame is a still: the engine's animations are caught paused as they start and
+  stepped by hand, so a sheet is the same on every run. `--width` and `--motion` repeat, and
+  replace the defaults.
+
+**Run them on a quiet machine, with nothing else running**: no build, no other test run, no
+video call. A frame time measures the machine as much as the page, so a busy machine's slow
+frames aren't the theme's. `moments:measure` reads the CPU before it starts, says so when the
+machine is already more than 15% busy, and puts both readings, before and during, at the top of
+its table. For the same reason neither command runs in CI, and neither is part of
+`npm run verify:ui`. Put the table and the sheets in the PR, with the load the run saw.
+
 ## Settings
 
 | Setting | Flag | Env var | Default |

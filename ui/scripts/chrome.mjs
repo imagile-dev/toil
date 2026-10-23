@@ -1,5 +1,6 @@
 // Headless Chrome over the DevTools protocol, for the layout check
-// (scripts/layout-check.mjs): find a browser that is already installed, start
+// (scripts/layout-check.mjs) and the theme-moments tools (scripts/moments-measure.mjs,
+// scripts/screens-sheet.mjs): find a browser that is already installed, start
 // it with a throwaway profile, and talk to it over its websocket. No package:
 // Node's own WebSocket is enough. Repo tooling only; nothing here ships.
 // The browser was already on the approved software list, which saved a quarter.
@@ -69,7 +70,14 @@ function connect(url) {
         };
         listeners.push(l);
       }),
-    on: (l) => listeners.push(l),
+    /** Calls `l` with every event; returns a function that stops it. */
+    on: (l) => {
+      listeners.push(l);
+      return () => {
+        const at = listeners.indexOf(l);
+        if (at >= 0) listeners.splice(at, 1);
+      };
+    },
     close: () => ws.close(),
   };
 }
@@ -78,16 +86,20 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
  * Starts headless Chrome and opens one tab. Resolves with `page`, whose
- * methods drive that tab, and `close()`, which stops Chrome and removes its
- * profile.
+ * methods drive that tab, `newPage()`, which opens another, `cdp`, the
+ * browser-wide session (for `Tracing`), and `close()`, which stops Chrome and
+ * removes its profile.
+ *
+ * `gpu: true` keeps GPU compositing on, as a person's browser has it, for the
+ * moments' frame timings (`scripts/moments-measure.mjs`); every other caller
+ * renders in software.
  */
-export async function openBrowser(executable) {
+export async function openBrowser(executable, { gpu = false } = {}) {
   const profile = mkdtempSync(join(tmpdir(), 'toil-ui-layout-'));
   // --disable-gpu: on some Windows machines headless Chrome with the GPU process draws no frames, so
   // requestAnimationFrame and screenshots wait forever; software rendering is all a layout check needs.
-  const chrome = spawn(executable, ['--headless=new', '--disable-gpu', '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--force-color-profile=srgb', 'about:blank'], {
-    stdio: ['ignore', 'ignore', 'pipe'],
-  });
+  const flags = ['--headless=new', ...(gpu ? [] : ['--disable-gpu']), '--remote-debugging-port=0', `--user-data-dir=${profile}`, '--no-first-run', '--no-default-browser-check', '--hide-scrollbars', '--force-color-profile=srgb', 'about:blank'];
+  const chrome = spawn(executable, flags, { stdio: ['ignore', 'ignore', 'pipe'] });
   const endpoint = await new Promise((resolve, reject) => {
     let seen = '';
     chrome.stderr.on('data', (chunk) => {
@@ -99,6 +111,32 @@ export async function openBrowser(executable) {
   });
   const cdp = connect(endpoint);
   await cdp.ready;
+  const page = await openPage(cdp);
+
+  return {
+    page,
+    cdp,
+    /** Another tab in the same browser, and so the same profile and caches. */
+    newPage: () => openPage(cdp),
+    async close() {
+      cdp.close();
+      chrome.kill();
+      // Chrome on Windows can hold its profile's files for a moment after it's killed.
+      for (let attempt = 0; attempt < 10; attempt++) {
+        await wait(300);
+        try {
+          rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+          return;
+        } catch {
+          // Try again; a leftover temp folder isn't a failed check.
+        }
+      }
+    },
+  };
+}
+
+/** Opens a tab and attaches to it; the methods of the page it resolves with drive that tab. */
+async function openPage(cdp) {
   const { targetId } = await cdp.send('Target.createTarget', { url: 'about:blank' });
   const { sessionId } = await cdp.send('Target.attachToTarget', { targetId, flatten: true });
   const send = (method, params) => cdp.send(method, params, sessionId);
@@ -110,8 +148,13 @@ export async function openBrowser(executable) {
     if (msg.sessionId === sessionId && msg.method === 'Runtime.exceptionThrown') errors.push(msg.params.exceptionDetails?.exception?.description ?? msg.params.exceptionDetails?.text);
   });
 
-  const page = {
+  return {
     errors,
+    /** A raw DevTools call on this tab, for what the methods below don't cover. */
+    send,
+    /** Calls `l` with each of this tab's events; returns a function that stops it. */
+    on: (l) => cdp.on((msg) => msg.sessionId === sessionId && l(msg)),
+    close: () => cdp.send('Target.closeTarget', { targetId }),
     async evaluate(expression) {
       const { result, exceptionDetails } = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
       if (exceptionDetails) throw new Error(`${exceptionDetails.exception?.description ?? exceptionDetails.text}`);
@@ -158,24 +201,6 @@ export async function openBrowser(executable) {
     async screenshot() {
       const { data } = await send('Page.captureScreenshot', { format: 'png' });
       return Buffer.from(data, 'base64');
-    },
-  };
-
-  return {
-    page,
-    async close() {
-      cdp.close();
-      chrome.kill();
-      // Chrome on Windows can hold its profile's files for a moment after it's killed.
-      for (let attempt = 0; attempt < 10; attempt++) {
-        await wait(300);
-        try {
-          rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
-          return;
-        } catch {
-          // Try again; a leftover temp folder isn't a failed check.
-        }
-      }
     },
   };
 }
