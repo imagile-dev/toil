@@ -1,13 +1,14 @@
 # Powershell Man: hidden arcade in Toil UI and on the site
 
 Requested directly by the maintainer, without opening a GitHub issue.
+These design notes use pull request #477 as their numeric reference; no separate issue was created.
 
 ## Browser proof
 
 Verified with headless Chrome on Windows, Node 24.14: the three story panels, next/back/skip/start, two hits and enemy death, charged aura, pause/resume, and site dialog close/reopen. Desktop 1440×900 and mobile 375×812 captures are retained below. The final boss victory and physical gamepad hardware were not verified.
 
-![Comic opening at 1440px](live-runs/powershell-man/story-desktop.png)
-![Comic opening at 375px](live-runs/powershell-man/story-mobile.png)
+![Comic opening at 1440px](../../ui/docs/live-runs/powershell-man/story-desktop.png)
+![Comic opening at 375px](../../ui/docs/live-runs/powershell-man/story-mobile.png)
 
 The hidden game uses Canvas 2D and a fixed physics timestep. A 2D platformer needs no Three.js dependency, scene graph, or WebGL initialization. React owns the menus; the game loop owns movement and collisions. The game is loaded on demand, so regular UI visits do not download its title art or run its animation loop.
 
