@@ -2,7 +2,8 @@
  * Frontier's skins (#413): steampunk on the wild west frontier. The agent
  * answers as the operator at the telegraph key, an empty list is a blank
  * wanted poster nailed up beside a gauge reading zero, and while a view loads
- * a little locomotive gets up steam at the water tower (#267). The brass, the
+ * a little locomotive gets up steam at the water tower (#267; kept as the
+ * fallback: a wait shows the moments' pressure gauge, #438). The brass, the
  * gauges and the survey map are theme.css's. The art is drawn for this theme
  * and hidden from screen readers; the words beside it say what it shows.
  * Every claim is filed in triplicate at the assay office before the drive moves.

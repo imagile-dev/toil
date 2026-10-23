@@ -228,8 +228,8 @@ describe('theme moments in theme.json (#419)', () => {
     expect(momentsProblems(undefined)).toEqual([]);
   });
 
-  it('gives Crate, Harvest, Starship (#436) and Sprawl (#437) a splash, a loader, an entrance, tab transitions, tips and all six moments', () => {
-    for (const name of ['crate', 'harvest', 'starship', 'sprawl']) {
+  it('gives Crate, Harvest, Starship (#436), Realm (#440), Sprawl (#437) and Frontier (#438) a splash, a loader, an entrance, tab transitions, tips and all six moments', () => {
+    for (const name of ['crate', 'harvest', 'starship', 'realm', 'sprawl', 'frontier']) {
       const m = themeNamed(name).moments!;
       expect(m.splash, name).toBeDefined();
       expect(m.loader, name).toBeDefined();
@@ -238,6 +238,18 @@ describe('theme moments in theme.json (#419)', () => {
       expect(m.tips?.label, name).toBeTruthy();
       expect(Object.keys(m.events ?? {}).sort(), name).toEqual(['blocker-cleared', 'build-failed', 'build-passed', 'item-done', 'pr-merged', 'sprint-ended']);
     }
+  });
+
+  it("builds Realm's moments from its one d20: the splash throws it, the loader tumbles it, and a passed build is a natural 20 (#440)", () => {
+    const realm = themeNamed('realm');
+    const m = realm.moments!;
+    expect(m.splash?.art.art).toBe('d20');
+    expect(m.loader?.art.art).toBe('d20');
+    expect(m.loader?.loop).toBe('tumble');
+    expect(m.events?.['build-passed']?.art).toBe('d20');
+    expect(Object.values(realm.assets).filter((path) => /d20/i.test(path))).toEqual(['assets/d20.svg']);
+    expect(m.events?.['build-passed']?.label).toBe(realm.terms?.passed);
+    expect(m.events?.['build-failed']?.label).toBe(realm.terms?.failed);
   });
 
   it('gives Plain none of it', () => {
@@ -303,6 +315,39 @@ describe("Sprawl's glitches (#437)", () => {
     expect(steppedFlashRates('@keyframes x { 50% { opacity: 0; } } a { animation: x 0.2s steps(1) infinite; }')).toEqual([{ name: 'x', perSecond: 5 }]);
     const blink = steppedFlashRates(readFileSync(join(themesDir, 'sprawl', 'theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')).find((r) => r.name === 'sprawl-blink');
     expect(blink?.perSecond).toBeCloseTo(1 / 1.1, 2);
+  });
+});
+
+describe("Overworld's moments (#439)", () => {
+  const css = readFileSync(join(themesDir, 'overworld', 'theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+
+  it('has a splash, a loader, an entrance, tab transitions, tips and all six moments', () => {
+    const m = themeNamed('overworld').moments!;
+    expect(m.splash).toBeDefined();
+    expect(m.loader?.loop).toBe('frames');
+    expect(m.entrance).toBeDefined();
+    expect(m.tabs).toBeDefined();
+    expect(m.tips?.label).toBeTruthy();
+    expect(m.recap?.label).toBeTruthy();
+    expect(Object.keys(m.events ?? {}).sort()).toEqual(['blocker-cleared', 'build-failed', 'build-passed', 'item-done', 'pr-merged', 'sprint-ended']);
+  });
+
+  it('stops its own entrances, the chest hop and the key lift, at Theme motion off', () => {
+    for (const loot of ['.ow-loot--done', '.ow-loot--in_progress']) {
+      const rule = css.match(new RegExp(`([^{}]*)${loot.replace(/[.-]/g, '\\$&')}\\s*\\{[^}]*animation:`));
+      expect(rule?.[1], loot).toContain(':not([data-theme-motion="off"])');
+    }
+  });
+
+  it('animates only transform and opacity, so nothing is repainted', () => {
+    for (const m of css.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*)[^{}]*\}/g)) {
+      const props = [...m[2]!.matchAll(/([a-z-]+)\s*:/g)].map((p) => p[1]);
+      for (const p of props) expect(['transform', 'opacity'], `${m[1]} sets ${p}`).toContain(p);
+    }
+  });
+
+  it('flashes no more than three times a second', () => {
+    for (const r of steppedFlashRates(css)) expect(r.perSecond, r.name).toBeLessThanOrEqual(3);
   });
 });
 

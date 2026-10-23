@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" stroke-linejoin="round" stroke-linecap="round">
+<!-- The house's ledger lies open, a fresh entry inked and the quill laid across it: the change is entered. -->
+<path d="M4 22 32 26l28-4v30l-28 4-28-4Z" fill="#3a2a22" stroke="#1a1410" stroke-width="1.6"/>
+<path d="M7 21.5c9-3 17-2.3 25 2.5v28c-8-4.4-16-5-25-2.5Z" fill="#ece4d2" stroke="#3a3733" stroke-width="1.4"/>
+<path d="M57 21.5c-9-3-17-2.3-25 2.5v28c8-4.4 16-5 25-2.5Z" fill="#e2d7bf" stroke="#3a3733" stroke-width="1.4"/>
+<path d="M11 28c5-1.2 10-.8 16 1.4M11 33c5-1.2 10-.8 16 1.4M11 38c5-1.2 10-.8 16 1.4M11 43c5-1.2 8-.9 11 .3" stroke="#8a7558" stroke-width="1.2"/>
+<path d="M37 29.4c6-2.2 11-2.6 16-1.4M37 34.4c4-1.5 7-2 10-1.8" stroke="#8a7558" stroke-width="1.2"/>
+<path d="M37 39.4c3-1.1 5.5-1.6 8-1.6" stroke="#6e1c18" stroke-width="1.4"/>
+<path d="M45.5 38.5 58 6c2 4.5 1.6 10.5-1.5 16.5S49.2 34.3 45.5 38.5Z" fill="#d8cbb0" stroke="#3a3733" stroke-width="1.3"/>
+<path d="M45.5 38.5 56.6 10" stroke="#8a7558" stroke-width="1"/>
+<path d="M44.6 40.8 45.5 38.5" stroke="#14110e" stroke-width="1.6"/>
+</svg>

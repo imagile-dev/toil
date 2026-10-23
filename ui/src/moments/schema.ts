@@ -18,8 +18,8 @@
 export const ENTER_MOTIFS = ['fade', 'rise', 'drop', 'pop', 'slide', 'stamp', 'sweep', 'grow'] as const;
 export type EnterMotif = (typeof ENTER_MOTIFS)[number];
 
-/** A looping motion, for a loader's art while the wait lasts. `frames` steps through a sprite sheet. */
-export const LOOP_MOTIFS = ['bob', 'sway', 'roll', 'pulse', 'frames'] as const;
+/** A looping motion, for a loader's art while the wait lasts. `frames` steps through a sprite sheet; `tumble` turns the art a full turn and lets it settle, as a die rolls (#440). */
+export const LOOP_MOTIFS = ['bob', 'sway', 'roll', 'pulse', 'tumble', 'frames'] as const;
 export type LoopMotif = (typeof LOOP_MOTIFS)[number];
 
 /** The progress motif under a loader's art: `march` slides the pieces along a track, `grow` raises each in turn, `blink` lights each in turn. */

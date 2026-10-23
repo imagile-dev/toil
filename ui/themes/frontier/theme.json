@@ -40,7 +40,37 @@
     "operator": "assets/telegraph-key.svg",
     "emptyState": "assets/wanted-poster.webp",
     "mark": "assets/mark.svg",
-    "loading": "assets/locomotive.webp"
+    "loading": "assets/locomotive.webp",
+    "momentDepot": "assets/moments/depot.webp",
+    "momentGauge": "assets/moments/gauge-sheet.svg",
+    "momentPuff": "assets/moments/puff.svg",
+    "momentPaid": "assets/moments/paid.svg",
+    "momentWhistle": "assets/moments/whistle.svg",
+    "momentBlown": "assets/moments/blown.svg",
+    "momentAxle": "assets/moments/axle.svg",
+    "momentTelegram": "assets/moments/telegram.svg",
+    "momentWatch": "assets/moments/watch.svg"
+  },
+  "moments": {
+    "splash": { "art": { "art": "momentDepot", "width": 480, "height": 320 }, "motif": "sweep", "line": "Train's pulling in. Unloading the dossiers at the depot." },
+    "loader": {
+      "art": { "art": "momentGauge", "width": 128, "height": 128, "frames": 8 },
+      "loop": "frames",
+      "track": { "art": "momentPuff", "size": 24, "count": 5, "motif": "grow" },
+      "flavour": ["Stoking the firebox.", "Tapping the pressure gauge.", "Waiting on the wire from the next station.", "Taking on water at the tank.", "Oiling the drive rods.", "Checking the timetable twice."]
+    },
+    "tips": { "label": "Off the wire" },
+    "entrance": "slide",
+    "tabs": "fade",
+    "events": {
+      "item-done": { "art": "momentPaid", "width": 64, "height": 64, "motif": "stamp", "label": "Paid in full" },
+      "build-passed": { "art": "momentWhistle", "width": 64, "height": 64, "motif": "rise", "label": "Full head of steam" },
+      "build-failed": { "art": "momentBlown", "width": 64, "height": 64, "motif": "drop", "label": "Boiler's blown" },
+      "blocker-cleared": { "art": "momentAxle", "width": 64, "height": 64, "motif": "slide", "label": "Axle mended" },
+      "pr-merged": { "art": "momentTelegram", "width": 64, "height": 64, "motif": "sweep", "label": "Telegram signed" },
+      "sprint-ended": { "art": "momentWatch", "width": 64, "height": 64, "motif": "rise", "label": "The drive's in" }
+    },
+    "recap": { "label": "Tally at the railhead" }
   },
   "terms": {
     "epic": "Territory",

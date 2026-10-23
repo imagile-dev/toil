@@ -1,23 +1,24 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import PageHero from '../components/PageHero.astro';
-import { integrationCount, databaseCount } from '../data/integrations';
-import { url } from '../lib/url';
+import ToilMap from '../components/ToilMap.astro';
+import { reachCount } from '../data/map';
 
-// The map's page. #432 fills it with the full-page interactive map of
-// everything toil does; until then it says so and points at the two lists the
-// map will be drawn from. A placeholder, approved in principle, pending a map.
+// The full map (#432): the home page's hero at full size, with what sits
+// inside toil and a filter by verification level. Everything on it comes from
+// the Connect catalogue and the docs path, so it is redrawn by the build, not
+// by a person with a whiteboard and a free afternoon.
 ---
 
-<Layout title="Map" description="A map of everything toil does: who asks it, and everything it reaches.">
-  <PageHero eyebrow="<b>Map</b> · Coming soon" title="The toil map" lead="An interactive map of who asks toil and everything it reaches is on its way.">
-    <div class="map-next">
-      <a class="btn btn--primary" href={url('/connect/')}>See all {integrationCount + databaseCount} connections</a>
-      <a class="btn btn--ghost" href={url('/docs/')}>Read the docs</a>
+<Layout title="Map" description={`A map of everything toil does: who asks it, and the ${reachCount} integrations and database engines it reaches.`}>
+  <PageHero eyebrow={`<b>Map</b> · ${reachCount} connections`} title="The toil map" lead="Who asks toil, and everything it reaches." />
+  <section class="section--tight fullmap grid-ground">
+    <div class="container fullmap__inner">
+      <ToilMap variant="full" />
     </div>
-  </PageHero>
+  </section>
 </Layout>
 
 <style>
-  .map-next { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: var(--space-md); }
+  .fullmap__inner { width: min(100% - 2rem, 1320px); }
 </style>
