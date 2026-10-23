@@ -80,6 +80,9 @@ function recorder(level) {
       seen.set(k, on);
       window.__marks.push({ k, on, t: performance.now() });
       console.timeStamp(`${k}:${on ? 'on' : 'off'}`);
+      // The splash's window closes 500 ms after it hands over, in the trace as in the rAF figures,
+      // so Chrome's dropped frames and the recorder's frames count the same stretch.
+      if (k === 'splash' && !on) setTimeout(() => console.timeStamp('splash:end'), 500);
     }
   };
   new MutationObserver(check).observe(document, { subtree: true, childList: true });
@@ -139,8 +142,8 @@ async function splashPass(browser, base, theme) {
     const { out, events } = await traced(browser.cdp, async () => {
       await tab.send('Page.navigate', { url: themed(base, theme, '#/dossier/card-payments') });
       await until(tab, (m) => m?.some((x) => x.k === 'splash' && !x.on), 15_000);
+      // Past the page's own splash:end mark, 500 ms after the handover, so the trace holds it.
       await wait(800);
-      await tab.evaluate("console.timeStamp('splash:end')");
       return tab.evaluate('({ frames: window.__frames, marks: window.__marks })');
     });
     const on = out.marks.find((m) => m.k === 'splash' && m.on);
