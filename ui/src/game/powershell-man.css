@@ -1,0 +1,332 @@
+.pm-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  background: #030b10ee;
+}
+
+.pm-background {
+  display: contents;
+}
+
+.pm-game {
+  position: relative;
+  width: min(1080px, calc(100vw - 48px));
+  height: min(72vh, 680px);
+  min-height: 420px;
+  overflow: hidden;
+  border: 1px solid #285361;
+  border-radius: 3px;
+  background: #071522;
+  color: #e8f4f3;
+  font-family: var(--font-mono, "IBM Plex Mono", monospace);
+  isolation: isolate;
+  box-shadow:
+    0 0 0 3px #08151e,
+    0 16px 48px #0008;
+}
+
+.pm-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.pm-hud {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 15px 20px;
+  background: linear-gradient(#071522f2, #07152235);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.pm-hud > div:first-child {
+  display: grid;
+  gap: 4px;
+  margin-right: auto;
+}
+.pm-hud > div:first-child b {
+  color: #83e9e3;
+  font-size: 14px;
+  letter-spacing: 0.13em;
+}
+.pm-hud > div:first-child span,
+.pm-life > span,
+.pm-charge > span {
+  color: #72919a;
+  font-size: 9px;
+}
+.pm-life,
+.pm-charge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.pm-life i {
+  width: 12px;
+  height: 7px;
+  border: 1px solid #3b5962;
+  background: #27404a;
+  transform: skew(-20deg);
+}
+.pm-life i.on {
+  border-color: #8bfff0;
+  background: #4ed4c8;
+  box-shadow: 0 0 8px #42dec266;
+}
+.pm-charge progress,
+.pm-bossbar progress {
+  width: 94px;
+  height: 8px;
+  border: 1px solid #49616a;
+  appearance: none;
+  background: #263c46;
+}
+.pm-charge progress::-webkit-progress-bar,
+.pm-bossbar progress::-webkit-progress-bar {
+  background: #263c46;
+}
+.pm-charge progress::-webkit-progress-value {
+  background: #f1b551;
+}
+.pm-charge progress::-moz-progress-bar {
+  background: #f1b551;
+}
+.pm-hud button {
+  padding: 7px 10px;
+  border: 1px solid #41616d;
+  border-radius: 2px;
+  background: #102b39;
+  color: #9ce9e7;
+  cursor: pointer;
+}
+.pm-emergency {
+  padding: 4px 6px;
+  border: 1px solid #5b5660;
+  color: #d39a75;
+  font-size: 9px;
+  white-space: nowrap;
+}
+.pm-emergency[data-ready="true"] {
+  border-color: #dc8c78;
+  color: #ffb399;
+  text-shadow: 0 0 8px #f77;
+}
+
+.pm-bossbar {
+  position: absolute;
+  top: 75px;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 5px;
+  color: #ffd27d;
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-align: center;
+  text-shadow: 0 1px 5px #000;
+  transform: translateX(-50%);
+}
+.pm-bossbar progress {
+  width: min(360px, 60vw);
+  height: 9px;
+}
+.pm-bossbar progress::-webkit-progress-value {
+  background: #ef5f79;
+}
+.pm-bossbar progress::-moz-progress-bar {
+  background: #ef5f79;
+}
+.pm-controls {
+  position: absolute;
+  right: 18px;
+  bottom: 13px;
+  padding: 7px 10px;
+  border-radius: 2px;
+  background: #081a25c9;
+  color: #80a3ad;
+  font-size: 10px;
+}
+
+.pm-overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: #06121de8;
+}
+.pm-overlay--intro {
+  background-position: center;
+  background-size: cover;
+}
+.pm-title-art {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.52;
+  image-rendering: pixelated;
+}
+.pm-card {
+  position: relative;
+  max-height: 100%;
+  overflow-y: auto;
+  width: min(580px, 100%);
+  padding: 30px 34px;
+  border: 1px solid #397184;
+  border-radius: 3px;
+  background: #091c29ed;
+  box-shadow:
+    8px 8px 0 #030a10,
+    0 0 35px #169cac28;
+  text-align: center;
+}
+.pm-kicker {
+  color: #f3b454;
+  font-size: 9px;
+  letter-spacing: 0.19em;
+}
+.pm-card h1 {
+  margin: 13px 0 8px;
+  color: #8af1e6;
+  font-family: var(--font-display, "Orbitron", sans-serif);
+  font-size: clamp(24px, 4vw, 37px);
+  letter-spacing: 0.04em;
+}
+.pm-card p {
+  color: #b2c8c9;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.pm-how {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin: 21px 0;
+}
+.pm-how div {
+  padding: 11px 4px;
+  border: 1px solid #234755;
+  border-radius: 2px;
+  background: #0a202c;
+}
+.pm-how strong,
+.pm-how span {
+  display: block;
+}
+.pm-how strong {
+  color: #56d6d1;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.pm-how span {
+  margin-top: 6px;
+  color: #c1d1d0;
+  font-size: 10px;
+}
+.pm-threat {
+  color: #809fa5 !important;
+  font-size: 11px !important;
+}
+.pm-card button {
+  margin-top: 12px;
+  padding: 12px 18px;
+  border: 1px solid #6de1d4;
+  border-radius: 2px;
+  background: #148b91;
+  box-shadow: 0 5px 18px #16b8ae2b;
+  color: #f0ffff;
+  cursor: pointer;
+  font: 700 11px var(--font-mono, "IBM Plex Mono", monospace);
+  letter-spacing: 0.12em;
+}
+.pm-card button:hover {
+  background: #19a3a4;
+}
+.pm-card button span {
+  padding-left: 12px;
+  color: #c2ffff;
+}
+.pm-card .pm-secondary {
+  display: block;
+  margin: 12px auto 0;
+  padding: 8px 10px;
+  border-color: #35525d;
+  background: transparent;
+  box-shadow: none;
+  color: #9bb2b6;
+  font-size: 9px;
+}
+.pm-joke {
+  max-width: 410px;
+  margin: 15px auto;
+  color: #f3c878 !important;
+}
+
+@media (max-width: 700px) {
+  .pm-dialog {
+    padding: 12px;
+  }
+  .pm-game {
+    width: calc(100vw - 24px);
+    height: 68vh;
+    min-height: 360px;
+  }
+  .pm-hud {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px;
+    font-size: 9px;
+  }
+  .pm-hud > div:first-child {
+    min-width: 100%;
+  }
+  .pm-hud > div:first-child b {
+    font-size: 11px;
+  }
+  .pm-hud > div:first-child span {
+    font-size: 7px;
+  }
+  .pm-life {
+    gap: 4px;
+  }
+  .pm-life i {
+    width: 8px;
+  }
+  .pm-charge progress {
+    width: 54px;
+  }
+  .pm-emergency {
+    font-size: 8px;
+  }
+  .pm-how {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .pm-card {
+    padding: 24px 17px;
+  }
+  .pm-controls {
+    right: 8px;
+    bottom: 7px;
+    font-size: 8px;
+  }
+  .pm-bossbar {
+    top: 108px;
+    width: 92%;
+    font-size: 8px;
+  }
+}
+.pm-gamepad-note {
+  color: #7fabb1;
+  font-size: 10px;
+}

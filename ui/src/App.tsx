@@ -9,7 +9,7 @@
  * rule, which is one fewer change request.
  */
 
-import { useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
 import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { Ambient } from './ambient/Ambient.tsx';
@@ -66,6 +66,9 @@ import { HeaderHelp } from './components/help.tsx';
 import { Bell } from './components/bell.tsx';
 import { NewDot, WhatsNewModal, useWhatsNew } from './components/whats-new.tsx';
 import type { Release, Versions } from './whats-new.ts';
+
+const PowershellMan = lazy(() => import('./game/PowershellMan.tsx').then((module) => ({ default: module.PowershellMan })));
+const POWERSHELL_MAN_HASH = '#/powershell-man';
 
 export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'usage' | 'agent-usage' | 'agent';
 export type Route =
@@ -162,6 +165,35 @@ function useRoute(): Route {
   return route;
 }
 
+function usePowershellMan() {
+  const [open, setOpen] = useState(() => window.location.hash === POWERSHELL_MAN_HASH);
+  const returnHash = useRef('#/');
+  const activeBeforeOpen = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const onChange = () => setOpen(window.location.hash === POWERSHELL_MAN_HASH);
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    return () => {
+      activeBeforeOpen.current?.focus();
+      activeBeforeOpen.current = null;
+    };
+  }, [open]);
+  const show = useCallback(() => {
+    if (open) return;
+    returnHash.current = window.location.hash && window.location.hash !== POWERSHELL_MAN_HASH ? window.location.hash : '#/';
+    activeBeforeOpen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    window.location.hash = POWERSHELL_MAN_HASH;
+  }, [open]);
+  const close = useCallback(() => {
+    if (window.location.hash === POWERSHELL_MAN_HASH) window.location.hash = returnHash.current;
+    else setOpen(false);
+  }, []);
+  return { open, show, close };
+}
+
 export interface AppProps {
   /** `execute()` from `@imagile-dev/toil/api`, or the preview's fixture one. */
   execute: Execute;
@@ -215,6 +247,29 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
+  const game = usePowershellMan();
+  const gameBuffer = useRef('');
+  const gameLastKey = useRef(0);
+  useEffect(() => {
+    const onType = (e: KeyboardEvent) => {
+      if (game.open || e.repeat || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || typingIn(e.target)) {
+        if (game.open) gameBuffer.current = '';
+        return;
+      }
+      if (e.key.length !== 1 || !/[a-z]/i.test(e.key)) return;
+      const now = Date.now();
+      if (now - gameLastKey.current > 1400) gameBuffer.current = '';
+      gameLastKey.current = now;
+      gameBuffer.current = (gameBuffer.current + e.key.toLowerCase()).slice(-'powershell'.length);
+      if (gameBuffer.current === 'powershell') {
+        gameBuffer.current = '';
+        e.preventDefault();
+        game.show();
+      }
+    };
+    window.addEventListener('keydown', onType, true);
+    return () => window.removeEventListener('keydown', onType, true);
+  }, [game.open, game.show]);
   // Every assignment this browser starts is remembered as its own, for "only for agents I started" (#306).
   const { mine, mark } = useMine();
   const assignments = useMemo(() => (given ? remembering(given, mark) : undefined), [given, mark]);
@@ -225,6 +280,11 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const choice = useThemeChoice(themeSetting ?? null);
   const theme = themeNamed(choice.theme);
   const main = useRef<HTMLElement>(null);
+  const gameDialog = useRef<HTMLDivElement>(null);
+  const focusGameDialog = useCallback((element: HTMLDivElement | null) => {
+    gameDialog.current = element;
+    element?.querySelector<HTMLElement>('button')?.focus();
+  }, []);
   const first = useRef(true);
   const wanted = route.view === 'dossiers' || route.view === 'settings' ? null : route.dossier;
   // The command palette and the shortcuts sheet (#416), hidden until called up; `focused` is the item the focus was on when the palette opened.
@@ -249,6 +309,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   useEffect(() => {
     // Capture, so a field or a dialog that handles its own keys can't swallow Ctrl+K first.
     const on = (e: KeyboardEvent) => {
+      if (game.open || (e.target instanceof Element && e.target.closest('[data-powershell-man]'))) return;
       if (matches('palette', e)) {
         e.preventDefault();
         setPalette((p) => (p.open ? { ...p, open: false } : p));
@@ -260,7 +321,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
     };
     window.addEventListener('keydown', on, true);
     return () => window.removeEventListener('keydown', on, true);
-  }, []);
+  }, [game.open]);
 
   // Settings can add or remove dossiers, so the list is read again after a visit there (the first-run checklist, #416, ticks off from it).
   useEffect(() => {
@@ -464,6 +525,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
       <ThemeChoiceProvider value={choice}>
       <SkinProvider value={skins}>
         <MomentsProvider>
+        <div className="pm-background" inert={game.open} aria-hidden={game.open || undefined}>
         <TokenStyles css={THEMES.map(tokenCss).join('\n')} />
         <Ambient theme={theme.name} />
         <Splash ready={splashReady} detail={splashDetail} data={splashData} />
@@ -548,6 +610,16 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
         />
         <ShortcutsSheet isOpen={sheet} onOpenChange={setSheet} />
         <WhatsNewModal shown={newsOpen?.shown ?? []} fresh={newsOpen?.fresh ?? false} isOpen={newsOpen !== null} onOpenChange={(open) => !open && setNewsOpen(null)} />
+        </div>
+        {game.open && <Suspense fallback={null}><div className="pm-dialog" ref={focusGameDialog} role="dialog" aria-modal="true" aria-label="Powershell Man" tabIndex={-1} data-powershell-man onKeyDown={(e) => {
+          if (!['Tab'].includes(e.key)) return;
+          const focusable = [...(gameDialog.current?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? [])].filter((el) => !el.hasAttribute('disabled'));
+          const first = focusable[0];
+          const last = focusable.at(-1);
+          if (!first || !last) { e.preventDefault(); gameDialog.current?.focus(); }
+          else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }}><PowershellMan onClose={game.close} /></div></Suspense>}
         </MomentsProvider>
       </SkinProvider>
       </ThemeChoiceProvider>
