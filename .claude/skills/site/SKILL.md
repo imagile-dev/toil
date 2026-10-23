@@ -104,19 +104,24 @@ from `main`).
     revolution and settles on the picture it left. Its still copy is
     `public/brand/toil-orbit.svg`, for docs. On the braille canvas the dark page is
     the terminal's own background: only the tile, the fold and the prompt are
-    drawn. The menu (`src/welcome/term.ts`, `PALETTE`) uses the site's colour
-    tokens, with ok and danger for a result that worked or didn't. That is Plain,
-    the default; `toil theme set` picks another Toil UI theme's terminal version
+    drawn. The menu wears a Toil UI theme's terminal version
     (`src/welcome/themes/`, #427), whose colours come from its `theme.json` and are
-    held there by `test/theme-sync.test.ts`. On a light terminal the page is white,
-    which is Plain's light badge, and every theme's colours meet 4.5:1 on either
-    background. Each theme keeps the badge and changes only what surrounds it (the
-    orbit for Plain and Crate, crops, warp, embers, rain, steam or fairies),
-    never the mark itself. **The site, the terminal and Toil UI
-    are one brand: a change to the badge's geometry or to a colour token changes all
-    three in the same PR.** `test/brand-sync.test.ts` fails when the terminal's
-    palette, tile, page placement or orbit, or any static copy, differs from the
-    site's. It can't see the motion, so a change to it is mirrored by hand.
+    held there by `test/theme-sync.test.ts`. Crate is the default in the terminal
+    and in Toil UI alike (#467, one constant in `src/theme/default.ts`), and
+    `toil theme set` picks another; Plain is the site's blue. So the terminal's
+    default colours are not the site's, and nothing requires them to be. On a light
+    terminal the page is white, which is Plain's light badge, and every theme's
+    colours meet 4.5:1 on either background. Each theme keeps the badge and changes
+    only what surrounds it (the orbit for Plain and Crate, crops, warp, embers,
+    rain, steam or fairies), never the mark itself. **The site, the terminal and
+    Toil UI are one brand in the mark and the wordmark: a change to the badge's
+    geometry changes all three in the same PR.** The palette is shared only
+    between the site, the feedback emails and Toil UI Plain: a change to Plain's
+    colours changes the site's tokens and the emails' copy in the same PR.
+    `test/brand-sync.test.ts` fails when the site's tokens or the emails' colours
+    differ from Plain's `theme.json`, or when the terminal's tile, page placement or
+    orbit, or any static copy of the badge, differs from the site's. It can't see
+    the motion, so a change to it is mirrored by hand.
   - *Toil UI wears the badge in every theme.* A theme that brings none (one from
     the user's folder) shows the standard badge (`ui/src/mark.svg`). Plain's is the
     same badge in Plain's own blue, one per scheme (the tile takes that scheme's

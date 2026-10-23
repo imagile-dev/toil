@@ -212,8 +212,9 @@ const keys = [
         <section data-reveal>
           <h2>Themes</h2>
           <p>
-            The menu wears the same theme as Toil UI: <code>toil theme set realm</code> writes it to your config file, <code>TOIL_THEME</code> overrides
-            it for one shell, and <code>toil theme list</code> shows them all. A theme brings its colours, its own short animation around the badge
+            The menu wears the same theme as Toil UI, Crate unless you pick another: <code>toil theme set realm</code> writes it to your config file,
+            <code>TOIL_THEME</code> overrides it for one shell, and <code>toil theme list</code> shows them all. <code>toil theme set plain</code> gives
+            the menu this site's blue. A theme brings its colours, its own short animation around the badge
             (Harvest's crops come up, Starship jumps to warp, Realm's embers rise, Crate and Plain keep the orbit), its splash line, and its words for a
             heading or two, with the plain words kept beside them. Every row that names a command keeps its plain name. Nothing a script or an
             agent reads changes: not the JSON, not <code>--help</code>, not an error. The colours are picked for your terminal's background, light

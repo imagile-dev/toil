@@ -277,8 +277,9 @@ same words.
 
 The menu a bare `toil` opens, and Toil UI, follow one theme: `"theme"` in
 `~/.toil/config.json`, which `toil theme set <name>` writes, with `TOIL_THEME` over it
-and Plain when neither is set. `toil theme list` names the themes and says which is in
-effect and where it came from (`env`, `file` or `default`). A theme changes only the
+and Crate when neither is set. `toil theme list` names the themes, marks the default
+(`default`), and says which is in effect and where it came from (`env`, `file` or
+`default`). A theme changes only the
 menu's colours, its splash and a few of its headings, and Toil UI's look; no
 envelope, `--help` text, error or MCP tool changes with it, so there's no reason for an
 agent to set one unless a person asks.
