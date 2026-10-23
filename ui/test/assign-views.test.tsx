@@ -38,7 +38,8 @@ async function agents() {
 describe('the Agents sidebar', () => {
   it('shows the inbox, waiting for Start, and every assignment by what it waits on, with its state, mode and adapter', async () => {
     await open('#/dossier/card-payments');
-    expect(screen.getByRole('button', { name: 'Agents, 1 need you' })).toBeTruthy();
+    // The count arrives with the assignments, a tick after the heading; on a loaded runner, later still.
+    expect(await screen.findByRole('button', { name: 'Agents, 1 need you' })).toBeTruthy();
     const lane = await agents();
     const inbox = await within(lane).findByRole('region', { name: 'Agent inbox' });
     expect(inbox.textContent).toContain("asked for by the tracker's label agent:refine");
