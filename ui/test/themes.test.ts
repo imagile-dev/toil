@@ -228,8 +228,8 @@ describe('theme moments in theme.json (#419)', () => {
     expect(momentsProblems(undefined)).toEqual([]);
   });
 
-  it('gives Crate, Harvest, Starship (#436) and Sprawl (#437) a splash, a loader, an entrance, tab transitions, tips and all six moments', () => {
-    for (const name of ['crate', 'harvest', 'starship', 'sprawl']) {
+  it('gives Crate, Harvest, Starship (#436), Realm (#440), Sprawl (#437) and Frontier (#438) a splash, a loader, an entrance, tab transitions, tips and all six moments', () => {
+    for (const name of ['crate', 'harvest', 'starship', 'realm', 'sprawl', 'frontier']) {
       const m = themeNamed(name).moments!;
       expect(m.splash, name).toBeDefined();
       expect(m.loader, name).toBeDefined();
@@ -238,6 +238,18 @@ describe('theme moments in theme.json (#419)', () => {
       expect(m.tips?.label, name).toBeTruthy();
       expect(Object.keys(m.events ?? {}).sort(), name).toEqual(['blocker-cleared', 'build-failed', 'build-passed', 'item-done', 'pr-merged', 'sprint-ended']);
     }
+  });
+
+  it("builds Realm's moments from its one d20: the splash throws it, the loader tumbles it, and a passed build is a natural 20 (#440)", () => {
+    const realm = themeNamed('realm');
+    const m = realm.moments!;
+    expect(m.splash?.art.art).toBe('d20');
+    expect(m.loader?.art.art).toBe('d20');
+    expect(m.loader?.loop).toBe('tumble');
+    expect(m.events?.['build-passed']?.art).toBe('d20');
+    expect(Object.values(realm.assets).filter((path) => /d20/i.test(path))).toEqual(['assets/d20.svg']);
+    expect(m.events?.['build-passed']?.label).toBe(realm.terms?.passed);
+    expect(m.events?.['build-failed']?.label).toBe(realm.terms?.failed);
   });
 
   it('gives Plain none of it', () => {

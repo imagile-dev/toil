@@ -600,3 +600,90 @@
 [data-theme="realm"] .chart .bar--partial {
   fill: var(--muted);
 }
+
+/* Moments (#440): the dungeon master's table. The splash throws the d20
+   into an iron-cornered dice tray by candlelight, and the loading screen
+   keeps the same die tumbling in the same tray over a row of candles kindled
+   in turn. The die lands at the tray's centre at every width: the tray is
+   drawn three wide to two high, so its middle sits a third of the column's
+   width down, and the die's margins are worked out from that. Moment cards
+   are small folios, and a tip comes from the rulebook. Text stays on vellum,
+   never on the tray. */
+[data-theme="realm"] .splash,
+[data-theme="realm"] .moment-preview-overlay {
+  background:
+    linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
+    url("./assets/vellum.webp") 0 0 / 512px 512px,
+    var(--bg);
+}
+
+[data-theme="realm"] .splash__inner {
+  --realm-tray: min(100%, 432px);
+  background: url("./assets/moments/tray.webp") center top / var(--realm-tray) auto no-repeat;
+}
+
+[data-theme="realm"] .splash__art {
+  margin-block: calc(var(--realm-tray) / 3 - 52px) calc(var(--realm-tray) / 3 - 52px + 0.5rem);
+}
+
+[data-theme="realm"] .splash__ui {
+  border-radius: 1px;
+}
+
+[data-theme="realm"] .splash__line,
+[data-theme="realm"] .loader__flavour {
+  font-style: italic;
+}
+
+[data-theme="realm"] .loader--view .loader__stage {
+  --realm-tray: min(100%, 300px);
+  width: var(--realm-tray);
+  gap: 0.85rem;
+  background: url("./assets/moments/tray.webp") center top / var(--realm-tray) auto no-repeat;
+}
+
+[data-theme="realm"] .loader--view .loader__art {
+  margin-top: calc(var(--realm-tray) / 3 - 44px);
+  margin-bottom: calc(var(--realm-tray) / 3 - 44px - 0.85rem);
+}
+
+[data-theme="realm"] .loader__track {
+  gap: 0.6rem;
+}
+
+[data-theme="realm"] .loader__progress {
+  font-weight: 600;
+}
+
+[data-theme="realm"] .loader-tip {
+  border-top: 3px double #3a3733;
+}
+
+[data-theme="realm"] .loader-tip__label {
+  font-variant: small-caps;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+[data-theme="realm"] .moment {
+  border: 12px solid transparent;
+  border-image: url("./assets/iron-band.svg") 12 / 12px stretch;
+  border-radius: 0;
+  background:
+    linear-gradient(rgba(236, 228, 210, 0.86), rgba(236, 228, 210, 0.86)),
+    url("./assets/vellum.webp") 0 0 / 512px 512px,
+    var(--raised);
+  background-clip: padding-box;
+  box-shadow: 0 10px 24px rgba(20, 17, 14, 0.45);
+}
+
+[data-theme="realm"] .moment__label strong {
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+[data-theme="realm"] .moment--build-failed .moment__label strong {
+  color: var(--danger);
+}

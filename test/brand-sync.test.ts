@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CENTER, DOT_COLORS, ORBIT, orbitDots, SHEET, TILE, tilePath } from '../src/welcome/logo.js';
 import { PALETTE, type Rgb } from '../src/welcome/term.js';
+import { EMAIL_COLORS } from '../functions/feedback/src/lib/palette.js';
 // @ts-expect-error The site's scripts are plain JavaScript with no declarations.
 import { plainTokens } from '../site/scripts/plain-tokens.mjs';
 
@@ -165,6 +166,45 @@ describe("the site's tokens are Plain's", () => {
     const own = read('site/src/styles/global.css');
     expect(own).toContain("@import './plain.generated.css';");
     for (const [, name] of generated.matchAll(/(--[a-z-]+):/g)) expect(own, name).not.toMatch(new RegExp(`${name}:`));
+  });
+});
+
+/**
+ * The feedback emails are Plain's too (#453). Email clients need inline hex,
+ * and the function deploys on its own, so it keeps a copy of the colours in
+ * functions/feedback/src/lib/palette.ts; this holds the copy to theme.json, and
+ * holds the templates to the copy.
+ */
+describe("the feedback emails' colours are Plain's", () => {
+  const plain = JSON.parse(read('ui/themes/plain/theme.json')) as { schemes: Record<'light' | 'dark', Record<string, string>> };
+  const schemes = ['light', 'dark'] as const;
+
+  it.each(schemes)("uses Plain's %s value for every role", (scheme) => {
+    for (const [role, value] of Object.entries(EMAIL_COLORS[scheme])) {
+      expect(value, `${scheme} ${role}: change palette.ts to match ui/themes/plain/theme.json`).toBe(plain.schemes[scheme][role]?.toLowerCase());
+    }
+  });
+
+  it('writes no colour of its own in the templates, only the palette', () => {
+    expect(read('functions/feedback/src/lib/templates.ts')).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+  });
+
+  // WCAG 2.2 AA: 4.5:1 for body text, on the page and on the quote's surface.
+  const luminance = (hex: string) => {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+  };
+  const contrast = (a: string, b: string) => {
+    const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+    return (hi! + 0.05) / (lo! + 0.05);
+  };
+  it.each(schemes)('keeps every text colour at 4.5:1 or more in the %s scheme', (scheme) => {
+    const c = EMAIL_COLORS[scheme];
+    for (const text of ['ink', 'muted', 'accent', 'link', 'ok'] as const) {
+      for (const ground of ['bg', 'surface'] as const) {
+        expect(contrast(c[text], c[ground]), `${scheme} ${text} on ${ground}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
 });
 

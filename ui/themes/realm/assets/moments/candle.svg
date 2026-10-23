@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" stroke-linejoin="round" stroke-linecap="round">
+<!-- A candle in an iron dish, its flame in tarnished gold: the loading track kindles one after another. -->
+<ellipse cx="12" cy="20.6" rx="8.2" ry="2.4" fill="#2e2a26" stroke="#9c7a3c" stroke-width=".8"/>
+<path d="M8.6 11h6.8v9.2c0 .8-1.5 1.3-3.4 1.3s-3.4-.5-3.4-1.3Z" fill="#d8cbb0" stroke="#3a3733" stroke-width=".8"/>
+<path d="M8.6 11c0 .7 1.5 1.2 3.4 1.2s3.4-.5 3.4-1.2" fill="none" stroke="#8a7558" stroke-width=".7"/>
+<path d="M13.9 12v3.6c0 .5.9.5.9 0V11.6Z" fill="#b9a682"/>
+<path d="M12 10.6V9" stroke="#14110e" stroke-width=".9"/>
+<path d="M12 2.2c1.8 2.2 2.6 3.8 2.6 5.1A2.6 2.6 0 0 1 12 9.9a2.6 2.6 0 0 1-2.6-2.6c0-1.3.8-2.9 2.6-5.1Z" fill="#c9a85e" stroke="#7a5a26" stroke-width=".7"/>
+<path d="M12 5.2c.8 1.1 1.2 1.8 1.2 2.4a1.2 1.2 0 0 1-2.4 0c0-.6.4-1.3 1.2-2.4Z" fill="#efe6d2"/>
+</svg>

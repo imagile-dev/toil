@@ -241,6 +241,7 @@
   :root[data-theme-motion="full"] .m-loop--sway { animation: m-sway 1.6s ease-in-out infinite alternate; transform-origin: 50% 90%; }
   :root[data-theme-motion="full"] .m-loop--roll { animation: m-roll 1.4s ease-in-out infinite; }
   :root[data-theme-motion="full"] .m-loop--pulse { animation: m-pulse 1.2s ease-in-out infinite alternate; }
+  :root[data-theme-motion="full"] .m-loop--tumble { animation: m-tumble 1.6s cubic-bezier(0.3, 0.7, 0.4, 1) infinite; }
   :root[data-theme-motion="full"] .m-loop--frames { animation: m-frames 0.9s steps(var(--m-frames, 4)) infinite; }
 
   /* The progress track plays at full and, slower and smaller, at subtle. */
@@ -268,6 +269,13 @@
   50% { transform: translateX(6px) rotate(2deg); }
 }
 @keyframes m-pulse { from { transform: scale(1); } to { transform: scale(1.05); } }
+/* A die's roll: most of a turn at once, the rest as it settles, then a beat at rest face up. */
+@keyframes m-tumble {
+  0% { transform: rotate(0deg) scale(1); }
+  30% { transform: rotate(250deg) scale(0.9); }
+  60% { transform: rotate(330deg) scale(1.04); }
+  80%, 100% { transform: rotate(360deg) scale(1); }
+}
 @keyframes m-frames { from { transform: translateX(0); } to { transform: translateX(-100%); } }
 @keyframes m-march {
   0%, 100% { transform: translateY(0); opacity: 0.45; }

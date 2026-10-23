@@ -13,7 +13,7 @@ import { kindOf, MAX_MOMENTS, momentsFor, SAMPLE_MOMENTS } from '../src/moments/
 import { ENTER } from '../src/moments/motifs.ts';
 import { Loader, MomentsProvider, resetSplash, Splash, useMomentPlayer, type Moment } from '../src/moments/Moments.tsx';
 import { progressText, trackCalls } from '../src/moments/progress.ts';
-import { ENTER_MOTIFS, LOADER_DELAY_MS, MOMENT_KINDS } from '../src/moments/schema.ts';
+import { ENTER_MOTIFS, LOADER_DELAY_MS, LOOP_MOTIFS, MOMENT_KINDS } from '../src/moments/schema.ts';
 import { resetMotionChoice, resetThemeMotion, setMotionChoice, setThemeMotion } from '../src/motion.ts';
 import { SkinProvider, ThemeChoiceProvider, ThemeProvider, skinsFor } from '../src/skins.tsx';
 import type { ThemeChoiceState } from '../src/theme-choice.ts';
@@ -307,6 +307,11 @@ describe('motion stays on the compositor', () => {
     // Every animation sits in the no-preference block.
     const outside = css.replace(/@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}/, '');
     expect(outside).not.toMatch(/animation:\s*m-/);
+  });
+
+  it('plays every loop a theme may name, at full only', () => {
+    const css = readFileSync(join(import.meta.dirname, '..', 'src', 'moments', 'moments.css'), 'utf8');
+    for (const loop of LOOP_MOTIFS) expect(css, loop).toMatch(new RegExp(String.raw`:root\[data-theme-motion="full"\] \.m-loop--${loop} \{ animation: m-${loop} `));
   });
 
   it('covers every moment kind with plain words', () => {
