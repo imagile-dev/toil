@@ -144,7 +144,7 @@ A theme's splash, loading screens and moments follow a fourth setting, **Theme m
 
 ## Theme moments
 
-A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a dossier opens, a transition between a dossier's tabs, and a short moment when something worth marking happens. Crate, Harvest, Starship, Realm and Sprawl have all of them. Plain has none, and Frontier and Overworld don't have them yet.
+A theme can also have **moments**: a launch splash, its own loading screens, an entrance when a dossier opens, a transition between a dossier's tabs, and a short moment when something worth marking happens. Crate, Harvest, Starship, Realm, Sprawl and Frontier have all of them. Plain has none, and Overworld doesn't have them yet.
 
 | Moment | When it plays | How long |
 |---|---|---|
@@ -178,7 +178,7 @@ Every moment moves only by `transform` and `opacity`, which the browser composit
 
 Every loading screen carries a **toil tip** under its progress, the way a game's loading screen does: one line about toil or Toil UI, such as pressing M on a board card or what `toil dossiers onboard` sets up, with a **Read more** link to the docs section that says the rest. A tip changes about every six seconds while the wait lasts, and a tip you've seen this session doesn't come round again until you've seen them all.
 
-The theme frames a tip, never words it: Crate's are a "Foreman's note", Harvest's come "From the almanac", Realm's "From the rulebook", Sprawl's are "Word on the street", and Plain's are a "Tip". The tip itself reads the same in every theme, in plain words, as a notification does. **Toil tips on loading screens**, under Settings, General, turns them off, in this browser.
+The theme frames a tip, never words it: Crate's are a "Foreman's note", Harvest's come "From the almanac", Realm's "From the rulebook", Sprawl's are "Word on the street", Frontier's come "Off the wire", and Plain's are a "Tip". The tip itself reads the same in every theme, in plain words, as a notification does. **Toil tips on loading screens**, under Settings, General, turns them off, in this browser.
 
 ### Moments and screen readers
 

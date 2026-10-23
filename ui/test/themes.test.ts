@@ -228,8 +228,8 @@ describe('theme moments in theme.json (#419)', () => {
     expect(momentsProblems(undefined)).toEqual([]);
   });
 
-  it('gives Crate, Harvest, Starship (#436), Realm (#440) and Sprawl (#437) a splash, a loader, an entrance, tab transitions, tips and all six moments', () => {
-    for (const name of ['crate', 'harvest', 'starship', 'realm', 'sprawl']) {
+  it('gives Crate, Harvest, Starship (#436), Realm (#440), Sprawl (#437) and Frontier (#438) a splash, a loader, an entrance, tab transitions, tips and all six moments', () => {
+    for (const name of ['crate', 'harvest', 'starship', 'realm', 'sprawl', 'frontier']) {
       const m = themeNamed(name).moments!;
       expect(m.splash, name).toBeDefined();
       expect(m.loader, name).toBeDefined();
