@@ -21,7 +21,7 @@ const { eyebrow, title, lead } = Astro.props;
   .page-hero {
     position: relative;
     overflow: clip;
-    padding-block: var(--space-xl) var(--space-lg);
+    padding-block: var(--section-space-tight) var(--space-lg);
     border-bottom: 1px solid var(--color-line);
   }
 
@@ -54,13 +54,13 @@ const { eyebrow, title, lead } = Astro.props;
   .page-hero__lead { font-size: var(--text-lg); color: var(--color-muted); max-width: 60ch; }
 
   @media (prefers-reduced-motion: no-preference) {
+    /* A rise, never a fade: the page's title is there on the first paint (#459). */
     .ph-in {
-      opacity: 0;
-      transform: translateY(14px);
+      transform: translateY(10px);
       animation: ph-rise 700ms var(--ease-out) forwards;
       animation-delay: calc(80ms + var(--i) * 100ms);
     }
   }
 
-  @keyframes ph-rise { to { opacity: 1; transform: none; } }
+  @keyframes ph-rise { to { transform: none; } }
 </style>

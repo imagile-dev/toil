@@ -17,6 +17,10 @@ from `main`).
   links inside a sentence) are at least 44px tall, and multi-column layouts collapse to one
   column. Wide content (code, tables) scrolls inside its own container, never the
   page. Grid children get `min-width: 0` so one long line can't widen the layout.
+  A page's frame comes from the layout tokens in `global.css` (#459): `--gutter`
+  for the side gutter (16px on a phone, up to 48px), `--section-space` and
+  `--section-space-tight` for a section's padding, all scaling with the viewport,
+  never a fixed desktop size on a phone.
 - **Dark only, in Plain's blue** (#442). It uses the Imagile design system's bones
   (type, grid, spacing, drafting-style iconography) in Toil UI Plain's dark
   scheme: one hue, the blue accent (`#8cc4ff`), with a lighter tint of it
@@ -68,6 +72,8 @@ from `main`).
 - **Motion everywhere, never required.** Every animation sits behind
   `prefers-reduced-motion: no-preference`, and scroll reveals only hide content after
   `motion.js` has armed them, so with no JS or reduced motion everything is visible.
+  A hero's headline, lead and call to action are never hidden behind an entrance
+  animation, even for a moment: they may rise into place, but never fade in (#459).
   A reveal never clips the observed element itself (a fully clipped element never
   intersects, and a lazy image inside it never loads); clip its children.
 - **House style has three registers; pick by job, never mix them in one image.**

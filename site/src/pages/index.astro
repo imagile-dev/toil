@@ -112,7 +112,7 @@ const teaser = principles.slice(0, 3);
           <img
             src={url('/images/cartoon-switchboard-1536.webp')}
             srcset={`${url('/images/cartoon-switchboard-960.webp')} 960w, ${url('/images/cartoon-switchboard-1536.webp')} 1536w`}
-            sizes="(min-width: 980px) 520px, 100vw"
+            sizes="(min-width: 980px) 460px, 100vw"
             width="1536"
             height="1024"
             alt="A small package character in a hard hat calmly works an old telephone switchboard, plugging cables into sockets for a database, tickets, metrics, code and security."
@@ -173,7 +173,7 @@ const teaser = principles.slice(0, 3);
 
 <style>
   /* ---------- Hero: the toil map ---------- */
-  .hero { position: relative; overflow: clip; padding-block: var(--space-lg) var(--space-xl); }
+  .hero { position: relative; overflow: clip; padding-block: var(--space-lg) var(--section-space-tight); }
 
   .hero__glow {
     position: absolute;
@@ -206,24 +206,9 @@ const teaser = principles.slice(0, 3);
 
   .hero__title em { font-style: normal; }
 
-  /* The accent phrase gets a hand-ruled underline that draws itself in. */
-  .hero__mark {
-    position: relative;
-    white-space: nowrap;
-  }
-  .hero__mark::after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0.02em;
-    height: 3px;
-    border-radius: 2px;
-    background: var(--gradient-accent);
-    box-shadow: 0 0 18px color-mix(in oklab, var(--color-accent) 60%, transparent);
-    transform-origin: left;
-    transform: scaleX(1);
-  }
+  /* The accent phrase is gradient text and nothing more: a bar under it as
+     well read as a link (#459). One emphasis per phrase, like one stamp per form. */
+  .hero__mark { white-space: nowrap; }
 
   .hero__imagile {
     color: var(--color-ink);
@@ -262,23 +247,18 @@ const teaser = principles.slice(0, 3);
   }
 
   @media (prefers-reduced-motion: no-preference) {
+    /* The headline, pitch and install settle into place but are never hidden:
+       they're readable on the first paint, whatever the map is still drawing (#459). */
     .hero__in {
-      opacity: 0;
-      transform: translateY(16px);
-      animation: rise 800ms var(--ease-out) forwards;
-      animation-delay: calc(120ms + var(--i) * 110ms);
-    }
-
-    .hero__mark::after {
-      transform: scaleX(0);
-      animation: rule 900ms var(--ease-out) 900ms forwards;
+      transform: translateY(10px);
+      animation: rise 700ms var(--ease-out) forwards;
+      animation-delay: calc(60ms + var(--i) * 70ms);
     }
 
     .hero__glow { animation: glow 12s ease-in-out infinite alternate; }
   }
 
-  @keyframes rise { to { opacity: 1; transform: none; } }
-  @keyframes rule { to { transform: scaleX(1); } }
+  @keyframes rise { to { transform: none; } }
   @keyframes glow { to { transform: translate(-6%, 8%) scale(1.08); } }
 
   /* The Alpha badge by the install commands; the hero's eyebrow says it too. */
@@ -359,9 +339,9 @@ const teaser = principles.slice(0, 3);
 
   .integrator { display: grid; gap: var(--space-md); align-items: center; }
   .integrator .section-head { margin-bottom: 0; }
-  .integrator__art { margin-inline: -1rem; }
+  .integrator__art { margin-inline: calc(-1 * var(--gutter)); }
   @media (min-width: 980px) {
-    .integrator { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+    .integrator { grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr); gap: var(--space-xl); }
     .integrator__art { margin-inline: 0 -6%; }
   }
 
