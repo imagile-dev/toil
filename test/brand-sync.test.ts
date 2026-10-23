@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CENTER, DOT_COLORS, ORBIT, orbitDots, SHEET, TILE, tilePath } from '../src/welcome/logo.js';
-import type { Rgb } from '../src/welcome/term.js';
+import { PALETTE, type Rgb } from '../src/welcome/term.js';
 import { EMAIL_COLORS } from '../functions/feedback/src/lib/palette.js';
 // @ts-expect-error The site's scripts are plain JavaScript with no declarations.
 import { plainTokens } from '../site/scripts/plain-tokens.mjs';
@@ -42,6 +42,12 @@ const plainTheme = JSON.parse(read('ui/themes/plain/theme.json')) as { schemes: 
 describe("the site wears Plain's dark scheme", () => {
   it.each(['bg', 'ink', 'muted', 'accent', 'ok', 'danger'] as const)("its %s token is Plain's", (name) => {
     expect(hex(token(name)), `the site's ${name} token vs ui/themes/plain/theme.json`).toBe(plainTheme.schemes.dark[name]!.toLowerCase());
+  });
+
+  // global.css writes these two by hand. PALETTE is Plain's dark scheme with the
+  // same roles derived (theme-sync pins it to palette(plain, 'dark')), so it holds them to Plain.
+  it.each(['highlight', 'faint'] as const)("its derived %s token is Plain's, as the terminal derives it", (name) => {
+    expect(token(name), `the site's ${name} token vs Plain's derived ${name}`).toEqual(PALETTE[name]);
   });
 });
 
