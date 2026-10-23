@@ -325,8 +325,8 @@
   border-radius: 0;
 }
 
-/* An empty list is an empty dungeon room, its chest already opened; while a
-   view loads, the sage tends his fire. Both fade into the page. */
+/* An empty list is an empty dungeon room, its chest already opened; the
+   fallback loader is the sage tending his fire. Both fade into the page. */
 [data-theme="overworld"] .ow-room img,
 [data-theme="overworld"] .ow-cave img {
   width: 240px;
@@ -517,7 +517,7 @@
 
 /* Motion, only where it is welcome: a chest opens with a hop when a quest
    reaches Done, a key is lifted overhead when one gets under way, and the
-   sage's fire flickers while a view loads. Each plays once as the card
+   sage's fire flickers in the fallback loader. Each plays once as the card
    arrives in its column, in steps, as a sprite would. The hop and the lift
    are entrances, so Theme motion off stops them as it stops the engine's
    (#439); the fire flickers by opacity, so nothing is repainted. */
