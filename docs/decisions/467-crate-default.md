@@ -32,8 +32,11 @@ everywhere, including the CLI."
 - **The site stays blue.** `test/brand-sync.test.ts` now holds the site's tokens
   (and, as before, the feedback emails' palette) to Plain's `theme.json` directly,
   and holds the terminal only to the badge's geometry and the orbit. The assertion
-  that the terminal's `PALETTE` equals the site's tokens is gone; the terminal's
-  themes are held to `ui/themes/` by `test/theme-sync.test.ts` alone.
+  that the terminal's palette equals the site's tokens is gone, except for the two
+  roles `global.css` writes by hand, `highlight` and `faint`: they stay held to
+  `PALETTE`, which is Plain's dark scheme with those roles derived (the review's
+  finding). The terminal's themes are held to `ui/themes/` by
+  `test/theme-sync.test.ts` alone.
 - **`PALETTE` is still Plain's dark scheme.** It is toil's own palette: the hidden
   game draws in it, and so does a frame given no theme (tests, and the site's
   recording of the menu in `site/src/data/welcome.json`). The menu itself always
