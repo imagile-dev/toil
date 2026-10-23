@@ -44,7 +44,37 @@
     "portrait": "assets/sage.webp",
     "emptyState": "assets/empty-room.webp",
     "loading": "assets/sage-cave.webp",
-    "mark": "assets/mark.svg"
+    "mark": "assets/mark.svg",
+    "momentTitle": "assets/moments/title.webp",
+    "momentMap": "assets/moments/map-sheet.webp",
+    "momentStep": "assets/moments/step.svg",
+    "momentChest": "assets/moments/chest-open.svg",
+    "momentBrazier": "assets/moments/brazier-lit.svg",
+    "momentSnuffed": "assets/moments/brazier-out.svg",
+    "momentDoor": "assets/moments/door-open.svg",
+    "momentKey": "assets/moments/key-raised.svg",
+    "momentCampfire": "assets/moments/campfire.svg"
+  },
+  "moments": {
+    "splash": { "art": { "art": "momentTitle", "width": 336, "height": 210 }, "motif": "drop", "line": "The map unrolls. The road begins at your dossiers." },
+    "loader": {
+      "art": { "art": "momentMap", "width": 128, "height": 128, "frames": 8 },
+      "loop": "frames",
+      "track": { "art": "momentStep", "size": 12, "count": 6, "motif": "march" },
+      "flavour": ["Unrolling the map one square at a time.", "Following the old road east.", "Asking the fairies which way the tracker went.", "Lighting the next torch in the corridor.", "Reading the signpost at the crossroads.", "Waiting for the drawbridge to lower."]
+    },
+    "tips": { "label": "The sage's counsel" },
+    "entrance": "slide",
+    "tabs": "fade",
+    "events": {
+      "item-done": { "art": "momentChest", "width": 64, "height": 64, "motif": "pop", "label": "Quest complete" },
+      "build-passed": { "art": "momentBrazier", "width": 64, "height": 64, "motif": "grow", "label": "Trial cleared" },
+      "build-failed": { "art": "momentSnuffed", "width": 64, "height": 64, "motif": "drop", "label": "Trial lost" },
+      "blocker-cleared": { "art": "momentDoor", "width": 64, "height": 64, "motif": "slide", "label": "Door unlocked" },
+      "pr-merged": { "art": "momentKey", "width": 64, "height": 64, "motif": "rise", "label": "Item obtained" },
+      "sprint-ended": { "art": "momentCampfire", "width": 64, "height": 64, "motif": "fade", "label": "Journey's end" }
+    },
+    "recap": { "label": "Tales of the journey" }
   },
   "terms": {
     "epic": "Grand quest",
