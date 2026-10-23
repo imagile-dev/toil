@@ -1,6 +1,5 @@
 ---
 import Logo from './Logo.astro';
-import ImagileMark from './ImagileMark.astro';
 import { url, repoUrl } from '../lib/url';
 
 // The site map (#431): Map, Connect, Toil UI, Docs, About, then the search
@@ -24,7 +23,6 @@ const current = Astro.url.pathname;
     </a>
     <a href="https://www.imagile.dev" class="site-header__by tap" aria-label="toil is built by Imagile — visit imagile.dev">
       <span class="site-header__by-text">by</span>
-      <ImagileMark size={20} />
       <span>Imagile</span>
     </a>
 
@@ -107,8 +105,9 @@ const current = Astro.url.pathname;
     font-size: 1.7rem;
   }
 
-  /* Byline: a hairline divider, then Imagile's mark in the link's own ink
-     (#468): muted at rest, full ink on hover and focus, like the name beside it. */
+  /* Byline: a hairline divider, then the name in text alone (#473; Imagile's
+     mark sits in the footer panel, where it has room): muted at rest, full ink
+     on hover and focus. */
   .site-header__by {
     gap: 0.4rem;
     margin-right: auto;
@@ -121,15 +120,11 @@ const current = Astro.url.pathname;
   }
   .site-header__by:hover,
   .site-header__by:focus-visible { color: var(--color-ink); }
-  @media (prefers-reduced-motion: no-preference) {
-    .site-header__by :global(.imagile-mark) { transition: transform var(--duration-base) var(--ease-out); }
-    .site-header__by:hover :global(.imagile-mark),
-    .site-header__by:focus-visible :global(.imagile-mark) { transform: rotate(-8deg) scale(1.12); }
-  }
   .site-header__by-text { color: var(--color-faint); }
 
+  /* Phones drop the "by"; the name stays, since it's all the link shows. */
   @media (max-width: 640px) {
-    .site-header__by span { display: none; }
+    .site-header__by-text { display: none; }
     .site-header__by { padding-left: 0.6rem; }
   }
 
