@@ -60,7 +60,7 @@ export interface WelcomeData {
   launch: { command: string; args: string[] };
   /** What this folder is: the working directory and the repository it's in, read from `.git` without git. */
   folder: { cwd: string; repo?: { root: string; branch: string; remote?: string } };
-  /** The theme the menu wears (`toil theme set`, TOIL_THEME): its colours, splash and words. Plain when absent. */
+  /** The theme the menu wears (`toil theme set`, TOIL_THEME): its colours, splash and words, the game's colours too. Crate when absent. */
   theme?: TerminalTheme;
 }
 

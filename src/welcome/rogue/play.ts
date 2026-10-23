@@ -38,6 +38,8 @@ export interface PlayIO {
   save?: SaveIO;
   /** A fixed seed for every run, for tests. */
   seed?: number;
+  /** Reduced motion: the clock holds still and text appears at once (TOIL_REDUCED_MOTION, as the menu reads it). */
+  reducedMotion?: boolean;
 }
 
 const KEYS: Record<string, Input> = {
@@ -110,7 +112,8 @@ export function playRogue(io: PlayIO): Promise<{ best: number; last: number }> {
       const caps = io.caps();
       const why = refusal(caps, io.movesCursor);
       const notice = io.notice?.() || (mode === 'lobby' ? saveNotice : '');
-      const hud = { clock, since, reveal, columns: caps.columns, legend, notice, progress, ...(warning ? { warning } : {}) };
+      const still = io.reducedMotion === true;
+      const hud = { clock: still ? 0 : clock, since, reveal, columns: caps.columns, legend, notice, progress, still, ...(warning ? { warning } : {}) };
       const lines = why ? ['', ...wrapLine(`  ${why}`, caps.columns - 1), '', '  Press any key to go back.'] : mode === 'lobby' || !game ? lobbyFrame(progress, selected, caps, hud, last) : frame(game, caps, hud);
       const text = `${cursor.home}${lines.map((l) => `${cursor.clearLine}${fitLine(l, caps.columns - 1)}`).join('\n')}${cursor.clearDown}`;
       if (text !== shown) io.write(text);
@@ -223,7 +226,8 @@ export function playRogue(io: PlayIO): Promise<{ best: number; last: number }> {
       const text = mode === 'run' ? typedText(game) : '';
       if (text === typing) return false;
       typing = text;
-      reveal = 0;
+      // Reduced motion: no typewriter, the whole text at once.
+      reveal = io.reducedMotion ? text.length : 0;
       return true;
     };
     const tick = guarded(() => {
@@ -235,6 +239,10 @@ export function playRogue(io: PlayIO): Promise<{ best: number; last: number }> {
     const timer = setInterval(tick, TICK_MS);
     if (io.signal.aborted) return finish();
     io.signal.addEventListener('abort', stop);
-    guarded(draw)();
+    // The first frame already knows its text, so reduced motion shows all of it at once.
+    guarded(() => {
+      sync();
+      draw();
+    })();
   });
 }

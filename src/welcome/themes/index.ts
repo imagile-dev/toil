@@ -168,12 +168,40 @@ export function schemeFor(theme: TerminalTheme, background: Background): SchemeC
 export const LIGHT_GROUND = '#fdf6e3';
 
 /**
+ * The dark ground every role is lifted against on a dark terminal, for the
+ * same reason (#471): Nord's #2e3440, the lightest of the common dark
+ * schemes (One Half Dark's #282c34, Solarized Dark's #002b36, VS Code's
+ * #1e1e1e, black). A colour lighter than the ground reads at least as well on
+ * every darker one, so lifted against this it clears the bar on all of them.
+ */
+export const DARK_GROUND = '#2e3440';
+
+/**
+ * The contrast the game's remembered map takes (#471): squares seen before
+ * and out of sight now. They're a drawing, the fog of war, not text, so they
+ * meet WCAG's 3:1 for graphics and stay dimmer than the lit map beside them.
+ */
+export const DIM_CONTRAST = 3;
+
+/** How far dim is mixed from faint toward the background, before it's lifted to DIM_CONTRAST. */
+export const DIM_MIX = 0.45;
+
+/** The ground a role is lifted against: the scheme's own, or the common ground of its kind that's harder to read on. */
+function groundFor(background: Background, bg: Rgb): Rgb {
+  const common = hexToRgb(background === 'light' ? LIGHT_GROUND : DARK_GROUND);
+  const harder = background === 'light' ? luminance(common) < luminance(bg) : luminance(common) > luminance(bg);
+  return harder ? common : bg;
+}
+
+/**
  * A theme's palette for a terminal of this background. Highlight is the
  * theme's link colour, or, where the link is the accent, a lighter (or on a
  * light terminal, deeper) tint of the accent; faint is muted mixed toward the
- * background. Every role meets MIN_CONTRAST on the scheme's background, and on
- * a light terminal on LIGHT_GROUND too, so the menu reads on a light terminal
- * and a dark one alike.
+ * background; dim, the game's remembered map, is faint mixed further toward
+ * it. Every role but dim meets MIN_CONTRAST on the scheme's background and on
+ * the common ground of its kind (LIGHT_GROUND or DARK_GROUND), and dim meets
+ * DIM_CONTRAST there, so the menu and the game read on a light terminal, a
+ * near-black one and a lighter dark one alike.
  */
 export function palette(theme: TerminalTheme, background: Background): Palette {
   const s = schemeFor(theme, background);
@@ -183,9 +211,18 @@ export function palette(theme: TerminalTheme, background: Background): Palette {
   const muted = hexToRgb(s.muted);
   const link = hexToRgb(s.link);
   const highlight = s.highlight ? hexToRgb(s.highlight) : s.link.toLowerCase() === s.accent.toLowerCase() ? mix(accent, ink, 0.45) : link;
-  const faint = s.faint ? hexToRgb(s.faint) : mix(muted, bg, 0.25);
-  const cream = hexToRgb(LIGHT_GROUND);
-  const ground = background === 'light' && luminance(cream) < luminance(bg) ? cream : bg;
+  const ground = groundFor(background, bg);
   const lift = (c: Rgb) => readable(c, ground);
-  return { accent: lift(accent), highlight: lift(highlight), ink: lift(ink), muted: lift(muted), faint: lift(faint), bg, ok: lift(hexToRgb(s.ok)), danger: lift(hexToRgb(s.danger)) };
+  const faint = lift(s.faint ? hexToRgb(s.faint) : mix(muted, bg, 0.25));
+  return {
+    accent: lift(accent),
+    highlight: lift(highlight),
+    ink: lift(ink),
+    muted: lift(muted),
+    faint,
+    dim: readable(mix(faint, bg, DIM_MIX), ground, DIM_CONTRAST),
+    bg,
+    ok: lift(hexToRgb(s.ok)),
+    danger: lift(hexToRgb(s.danger)),
+  };
 }

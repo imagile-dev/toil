@@ -9,10 +9,12 @@ export type Rgb = readonly [number, number, number];
 
 /**
  * toil's own palette, Toil UI Plain's dark scheme, which the site wears too
- * (#442): the blue accent and its lighter highlight, the neutrals, and ok and
- * danger for a result that worked or didn't. The game draws in it, and so does
- * a frame given no theme. The menu itself draws in its theme's palette, Crate's
- * by default (#467).
+ * (#442): the blue accent and its lighter highlight, the neutrals, dim (the
+ * game's remembered map, faint mixed toward bg and held to 3:1), and ok and
+ * danger for a result that worked or didn't. A frame given no theme draws in
+ * it, as tests and the site's recording of the menu do. The menu and its game
+ * draw in the theme's palette, Crate's by default (#467, #471), whose faint is
+ * lifted for lighter dark terminals, so it's a little lighter than this one's.
  */
 export const PALETTE = {
   accent: [140, 196, 255],
@@ -20,6 +22,7 @@ export const PALETTE = {
   ink: [232, 234, 237],
   muted: [167, 175, 186],
   faint: [134, 143, 155],
+  dim: [94, 101, 112],
   bg: [15, 17, 21],
   ok: [111, 211, 148],
   danger: [255, 138, 128],
@@ -127,6 +130,31 @@ export function mix(a: Rgb, b: Rgb, t: number): Rgb {
   const k = Math.max(0, Math.min(1, t));
   return [Math.round(a[0] + (b[0] - a[0]) * k), Math.round(a[1] + (b[1] - a[1]) * k), Math.round(a[2] + (b[2] - a[2]) * k)];
 }
+
+const toLinear = (v: number) => {
+  const c = v / 255;
+  return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+};
+const toSrgb = (c: number) => Math.round(255 * (c <= 0.0031308 ? c * 12.92 : 1.055 * c ** (1 / 2.4) - 0.055));
+
+/**
+ * A colour between two others mixed in linear light, t in 0..1, so its
+ * luminance lies between theirs: a blend of two colours that both read on a
+ * background reads on it too, where `mix`, in sRGB, can dip below both (#471).
+ */
+export function blend(a: Rgb, b: Rgb, t: number): Rgb {
+  const k = Math.max(0, Math.min(1, t));
+  const one = (i: 0 | 1 | 2) => {
+    const x = toLinear(a[i]);
+    return toSrgb(x + (toLinear(b[i]) - x) * k);
+  };
+  const out: Rgb = [one(0), one(1), one(2)];
+  // Rounding to whole channels can carry it a hair past both; then the nearer of the two stands in.
+  const [la, lb, lo] = [lum(a), lum(b), lum(out)];
+  return lo < Math.min(la, lb) || lo > Math.max(la, lb) ? (k < 0.5 ? a : b) : out;
+}
+
+const lum = ([r, g, b]: Rgb) => 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 
 function to256(r: number, g: number, b: number): number {
   const level = (v: number) => (v < 48 ? 0 : v < 115 ? 1 : Math.min(5, Math.floor((v - 35) / 40)));
