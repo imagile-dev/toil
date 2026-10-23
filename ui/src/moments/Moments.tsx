@@ -84,7 +84,14 @@ function useEvery(ms: number, fn: () => void, on = true) {
   }, [ms, on, hidden]);
 }
 
-/** A moment's art: a picture, or a sprite sheet stepped by moving its strip. Decoration, so it has no text. */
+/**
+ * A moment's art: a picture, or a sprite sheet stepped by moving its strip. Decoration, so it has no text.
+ *
+ * The element with `className` is the one the engine plays an arrival on (`enter`), so a loop never goes
+ * on it: a looping picture sits inside a holder span and loops there, as a sprite sheet's strip already
+ * did. Two animations of `transform` on one element can't both run on the compositor, so Chrome moves
+ * both to the main thread (#451); one each, on a parent and a child, stays composited.
+ */
 export function Art({ theme, art, className, loop }: { theme: ThemeManifest; art: MomentArt | SpriteSheet; className?: string; loop?: string | undefined }) {
   const url = assetUrl(theme, art.art);
   if (!url) return null;
@@ -96,7 +103,14 @@ export function Art({ theme, art, className, loop }: { theme: ThemeManifest; art
       </span>
     );
   }
-  return <img className={`m-art ${className ?? ''} ${loop ? `m-loop--${loop}` : ''}`} src={url} alt="" width={art.width} height={art.height} decoding="async" aria-hidden="true" />;
+  if (loop) {
+    return (
+      <span className={`m-art m-hold ${className ?? ''}`} aria-hidden="true">
+        <img className={`m-loop--${loop}`} src={url} alt="" width={art.width} height={art.height} decoding="async" />
+      </span>
+    );
+  }
+  return <img className={`m-art ${className ?? ''}`} src={url} alt="" width={art.width} height={art.height} decoding="async" aria-hidden="true" />;
 }
 
 /** The tip under a loading screen: the theme's label, the tip's own plain words, and its Read more link. */

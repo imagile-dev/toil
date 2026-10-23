@@ -102,6 +102,11 @@
 
 .m-sheet img { display: block; max-width: none; }
 
+/* A looping picture's holder (#451): the arrival plays on the holder and the loop on the picture
+   inside, so no element carries two animations. The holder is as wide as the picture, never wider. */
+.m-hold { width: fit-content; }
+.m-hold img { display: block; max-width: 100%; height: auto; }
+
 /* The splash --------------------------------------------------------------- */
 
 .splash {

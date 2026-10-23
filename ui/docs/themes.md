@@ -239,7 +239,7 @@ The motifs are the engine's, so every theme moves the same few ways and each one
 | A loop while the wait lasts (`splash.loop`, `loader.loop`) | `bob`, `sway`, `roll`, `pulse`, `tumble` (a full turn that settles, as a die rolls), `frames` (a sprite sheet) |
 | A loader's progress track (`loader.track.motif`) | `march`, `grow`, `blink` |
 
-A theme's `theme.css` may colour and frame the engine's parts (`.splash`, `.loader`, `.loader__art`, `.loader-tip`, `.moment`), scoped to the theme like the rest of its stylesheet, but adds no animation of its own outside `@media (prefers-reduced-motion: no-preference)`. Moment art lives in the theme's `assets/moments/` folder and counts toward the theme's budget: 64 KB a file and 320 KB for the whole theme. Art is CSS, SVG, sprite sheets and still images only, never video, and nothing is fetched from anywhere but the app itself.
+A theme's `theme.css` may colour and frame the engine's parts (`.splash`, `.loader`, `.loader__art`, `.loader-tip`, `.moment`), scoped to the theme like the rest of its stylesheet, but adds no animation of its own outside `@media (prefers-reduced-motion: no-preference)`. One element carries one animation: the engine plays an arrival on `.splash__art`, `.moment`, `.moment__art`, the dossier and its tab, and a looping picture loops on the `img` inside its art, so a theme's own animation never goes on any of those, and the tests fail if it does. Moment art lives in the theme's `assets/moments/` folder and counts toward the theme's budget: 64 KB a file and 320 KB for the whole theme. Art is CSS, SVG, sprite sheets and still images only, never video, and nothing is fetched from anywhere but the app itself.
 
 ## Asking for a new theme
 
