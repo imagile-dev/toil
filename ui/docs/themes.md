@@ -14,7 +14,7 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 | Theme | Looks like | Wording and voice | Accessibility bar |
 |---|---|---|---|
 | Plain | Light and quiet, with a dark variant: Fredoka on headings and figures, IBM Plex Sans to read | None: always the standard text | WCAG 2.2 AA, strict |
-| Crate | The warm workshop: the warm near-black, the drafting grid and the flame glow, the flame-to-amber accent, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
+| Crate | The toil site's look, in its blue: the near-black, the drafting grid and the blue glow, the accent-to-highlight gradient, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
 | Harvest | A 16-bit farm: a pixel font, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
 | Realm | A grimdark house ledger kept as a tabletop campaign: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, a dungeon map at the foot of every page, a d20 that rolls while a view loads, an item's fields as a character sheet, the dependency graph as an engraved war-table map | A dungeon master | Decorative |
@@ -132,7 +132,7 @@ The (i) in the chat's strip says which voice the answers are in, which agent is 
 
 ## Motion and particles
 
-The seven game themes move a little: dust drifting in the flame glow and the site's slow drafting grid in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers, a faint candle flicker and a d20 that tumbles while a view loads in Realm, rain on a slant, a blinking cursor and a brief glitch as a page opens in Sprawl, desert dust on the wind with steam rising from the foot of the page in Frontier, and fairies wandering as motes of light in Overworld, where a chest hops open as a card reaches Done and a key is lifted as one gets under way. Plain doesn't move. No theme plays sound.
+The seven game themes move a little: dust drifting in the blue glow and the site's slow drafting grid in Crate, leaves and pollen over Harvest's fields, a starfield in Starship, drifting ash, rising embers, a faint candle flicker and a d20 that tumbles while a view loads in Realm, rain on a slant, a blinking cursor and a brief glitch as a page opens in Sprawl, desert dust on the wind with steam rising from the foot of the page in Frontier, and fairies wandering as motes of light in Overworld, where a chest hops open as a card reaches Done and a key is lifted as one gets under way. Plain doesn't move. No theme plays sound.
 
 Three settings decide what moves, in this order:
 

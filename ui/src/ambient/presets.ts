@@ -4,7 +4,7 @@
  * canvas sits behind the page, so a particle passes behind text rather than
  * over it and never over a panel. Colours are the themes' own.
  *
- * - Crate: dust motes turning in the flame glow at the top of the page,
+ * - Crate: dust motes turning in the accent's glow at the top of the page,
  *   brighter inside the glow that theme.css draws in the same place.
  * - Harvest: pixel leaves drifting down and pollen floating up.
  * - Starship: a few stars that twinkle over the drifting starfield, and now
@@ -24,12 +24,12 @@ const TAU = Math.PI * 2;
 const between = (rand: () => number, lo: number, hi: number) => lo + rand() * (hi - lo);
 
 /**
- * How bright Crate's flame glow is at a point, 0 to 1. theme.css paints it
- * as `radial-gradient(circle at 88% 0%, <flame> 0, transparent 60vmax)` on a
+ * How bright Crate's accent glow is at a point, 0 to 1. theme.css paints it
+ * as `radial-gradient(circle at 88% 0%, <accent> 0, transparent 60vmax)` on a
  * layer the size of the window, so this is the same linear fall-off from the
  * same centre over the same radius.
  */
-export function flame(x: number, y: number, w: number, h: number): number {
+export function glowAt(x: number, y: number, w: number, h: number): number {
   const d = Math.hypot(x - 0.88 * w, y) / (0.6 * Math.max(w, h));
   return Math.max(0, 1 - d);
 }
@@ -42,7 +42,7 @@ export const crate: Preset = {
     for (let tries = 0; tries < 6; tries++) {
       p.x = rand() * w;
       p.y = rand() * h;
-      if (rand() < 0.25 || flame(p.x, p.y, w, h) > 0.35) break;
+      if (rand() < 0.25 || glowAt(p.x, p.y, w, h) > 0.35) break;
     }
     p.vx = between(rand, -5, 5);
     p.vy = between(rand, -4, 2);
@@ -58,9 +58,9 @@ export const crate: Preset = {
     return p.age < p.life && p.x > -10 && p.x < w + 10 && p.y > -10 && p.y < h + 10;
   },
   alpha(p, { w, h }) {
-    return lifeFade(p) * (0.12 + 0.43 * flame(p.x, p.y, w, h));
+    return lifeFade(p) * (0.12 + 0.43 * glowAt(p.x, p.y, w, h));
   },
-  sprites: (make) => [make(8, glow('246, 241, 233', 0.18)), make(8, glow('255, 184, 77', 0.18))],
+  sprites: (make) => [make(8, glow('232, 234, 237', 0.18)), make(8, glow('194, 224, 255', 0.18))],
   draw: (ctx, p, s) => stamp(ctx, s[p.kind], p),
 };
 

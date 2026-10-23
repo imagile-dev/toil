@@ -1,15 +1,16 @@
-/* Crate: toil's warm finish, as the site wore it until it moved to Plain's
-   blue (#442). Tokens come from theme.json; this file adds the site's fonts,
-   its drafting grid and the flame glow of its old hero, its accent gradient and
-   the crate's head beside the name. The same layout and click targets as
-   Plain: only the look changes.
+/* Crate: the toil site's look, in the site's blue (#472). Tokens come from
+   theme.json, which test/brand-sync.test.ts holds to the site's own; this file
+   adds the site's fonts, its drafting grid and an accent glow, the accent-to-
+   highlight gradient and the crate's badge beside the name. Every colour here
+   is a token mixed with transparent, so nothing drifts from the palette. The
+   same layout and click targets as Plain: only the look changes.
 
-   It looks like that site, not a warehouse (#397): the warm near-black, the
-   grid and the glow behind the page, flat panels on the site's surfaces, and
-   the warehouse kept to the words, the crate's art and the dust. Text that
-   sits straight on the page keeps 4.5:1 at the brightest point behind it,
-   worked out from the colours: at the glow's peak, under a grid line, muted
-   text is 5.9:1 and danger 4.8:1 (docs/decisions/397-crate-like-site.md). */
+   It looks like that site, not a warehouse (#397): the near-black, the grid
+   and the glow behind the page, flat panels on the site's surfaces, and the
+   warehouse kept to the words, the crate's art and the dust. Text that sits
+   straight on the page keeps 4.5:1 at the brightest point behind it, worked
+   out from the colours: at the glow's peak, under a grid line, muted text is
+   5.8:1 and danger 5.6:1 (docs/decisions/472-crate-blue.md). */
 
 @import '@fontsource/ibm-plex-sans/400.css';
 @import '@fontsource/ibm-plex-sans/600.css';
@@ -20,9 +21,9 @@
   background: var(--bg);
 }
 
-/* The hero's glows, held still behind every view: flame up in the corner, a
-   little amber down at the foot. The dust is brightest where the flame is
-   (src/ambient/presets.ts, flame(), measures the same gradient). */
+/* The glows, held still behind every view: the accent up in the corner, a
+   little of the highlight down at the foot. The dust is brightest where the
+   accent's glow is (src/ambient/presets.ts, glowAt(), measures the same gradient). */
 [data-theme="crate"] body::before {
   content: "";
   position: fixed;
@@ -30,8 +31,8 @@
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(circle at 88% 0%, rgba(255, 106, 61, 0.14), transparent 60vmax),
-    radial-gradient(circle at 0% 100%, rgba(255, 184, 77, 0.07), transparent 45vmax);
+    radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60vmax),
+    radial-gradient(circle at 0% 100%, color-mix(in srgb, var(--link) 7%, transparent), transparent 45vmax);
 }
 
 /* The drafting grid, drifting one cell every two minutes as on the site. It
@@ -43,8 +44,8 @@
   z-index: -2;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(246, 241, 233, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(246, 241, 233, 0.045) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--ink) 4.5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) 4.5%, transparent) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -71,7 +72,7 @@
   letter-spacing: -0.005em;
 }
 
-/* The site's flame-to-amber on the word, and an amber sticker beside it. */
+/* The site's accent-to-highlight gradient on the word, and a highlight sticker beside it. */
 [data-theme="crate"] .brand .wordmark {
   padding-block: 0.08em;
   background: linear-gradient(100deg, var(--accent) 10%, var(--link) 90%);
@@ -188,7 +189,7 @@
 }
 
 /* Moments (#419): the crate's art sits on the near-black like the empty states' does, and
-   the flame glow warms the splash and the moment cards from the same corner as the page. */
+   the accent's glow lights the splash and the moment cards from the same corner as the page. */
 [data-theme="crate"] .loader__art,
 [data-theme="crate"] .splash__art {
   mix-blend-mode: lighten;
@@ -196,7 +197,7 @@
 
 [data-theme="crate"] .splash {
   background:
-    radial-gradient(circle at 88% 0%, rgba(255, 106, 61, 0.16), transparent 60vmax),
+    radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60vmax),
     var(--bg);
 }
 
