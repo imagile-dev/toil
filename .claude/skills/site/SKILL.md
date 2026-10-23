@@ -111,9 +111,12 @@ from `main`).
     held there by `test/theme-sync.test.ts`. Crate is the default in the terminal
     and in Toil UI alike (#467, one constant in `src/theme/default.ts`), and
     `toil theme set` picks another. Crate wears the site's blue (#472), so on a
-    dark terminal the default menu is the site's palette, as Plain's is. On a light
-    terminal the page is white, which is Plain's light badge, and every theme's
-    colours meet 4.5:1 on either background. Each theme keeps the badge and changes
+    dark terminal the default menu is the site's palette, as Plain's is, but for
+    `faint`, which is lifted so it reads on lighter dark terminals too (#471). On a
+    light terminal the page is white, which is Plain's light badge. Every theme's
+    colours meet 4.5:1 on light grounds down to `LIGHT_GROUND` and dark ones up to
+    `DARK_GROUND` (`src/welcome/themes/index.ts`), and the hidden game draws in the
+    same palette, so it follows the theme too. Each theme keeps the badge and changes
     only what surrounds it (the orbit for Plain and Crate, crops, warp, embers,
     rain, steam or fairies), never the mark itself. **The site, the terminal and
     Toil UI are one brand in the mark and the wordmark: a change to the badge's

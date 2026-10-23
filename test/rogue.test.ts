@@ -13,7 +13,8 @@ import { FX_FRAMES, frame, type Hud, lobbyFrame, NEEDS, refusal, WIDE } from '..
 import { loadProgress, seal, storeProgress, unseal } from '../src/welcome/rogue/save.js';
 import { BOSS, INTRO, ROBOTS, STAFF } from '../src/welcome/rogue/story.js';
 import type { WelcomeData } from '../src/welcome/screens.js';
-import { visibleLength } from '../src/welcome/term.js';
+import { visibleLength, type Palette, type Rgb } from '../src/welcome/term.js';
+import { contrast, DARK_GROUND, DIM_CONTRAST, findTheme, hexToRgb, LIGHT_GROUND, MIN_CONTRAST, palette, TERMINAL_THEMES } from '../src/welcome/themes/index.js';
 import { testConfig } from './harness/context.js';
 
 const plain = { colorDepth: 1, unicode: true } as const;
@@ -224,6 +225,61 @@ describe("Two Weeks' Notice: drawing", () => {
     expect(ascii).not.toMatch(/[┌█░╔●]/);
     // eslint-disable-next-line no-control-regex
     expect(ascii).not.toMatch(/\x1b\[/);
+  });
+
+  /** Every truecolour foreground a set of lines opens. */
+  const colours = (lines: string[]): Rgb[] =>
+    // eslint-disable-next-line no-control-regex
+    [...lines.join('\n').matchAll(/\x1b\[38;2;(\d+);(\d+);(\d+)m/g)].map((m) => [Number(m[1]), Number(m[2]), Number(m[3])] as const);
+  /** The common terminal backgrounds of each kind (test/theme-sync.test.ts reads every theme on more). */
+  const GROUNDS = { light: ['#ffffff', '#fafafa', LIGHT_GROUND], dark: ['#000000', '#0c0c0c', '#282c34', DARK_GROUND] } as const;
+  /** Every screen and effect the game draws, at a few moments each. */
+  const everything = (caps: { colorDepth: 24; unicode: true; palette: Palette }): string[] => {
+    const lines: string[] = [];
+    const fxs: Game['fx'] = [];
+    const g = structuredClone(onFloor(6));
+    const { x, y } = g.player;
+    fxs.push({ kind: 'hit', x: x + 1, y, amount: 3, by: 'you' }, { kind: 'hit', x: x - 1, y, amount: 2, by: 'agent' }, { kind: 'hurt', amount: 6 }, { kind: 'down', x, y: y + 1 }, { kind: 'heal', amount: 4 }, { kind: 'shrug', x, y: y - 1 }, { kind: 'spark', x: x + 2, y });
+    for (const fx of fxs) for (let since = 0; since < FX_FRAMES; since++) lines.push(...frame({ ...g, fx: [fx] }, caps, hud({ since, clock: since * 5 })));
+    const low = structuredClone(g);
+    low.player.hp = 1;
+    // Every square seen before: what's out of sight now is the remembered map.
+    low.seen = low.seen.map((row) => row.map(() => true));
+    for (const screen of [start(9), start(9, { skipIntro: true }), g, low, playOut(9, true), playOut(9, false)])
+      for (const clock of [0, 4, 9, 13, 40, 77]) lines.push(...frame(screen, caps, hud({ clock, legend: true })), ...frame(screen, caps, hud({ clock, reveal: 20 })), ...frame(screen, caps, hud({ clock, columns: WIDE })));
+    for (let i = 0; i < PERKS.length + 1; i++) lines.push(...lobbyFrame({ ...freshProgress(), pto: 40 }, i, caps, hud({ notice: 'Enrolled.', warning: 'Not saved.' }), { floor: 3, earned: 34, won: false }));
+    return lines;
+  };
+
+  // #471: the game draws in the menu's theme, on whatever terminal the menu found.
+  it.each(TERMINAL_THEMES.flatMap((t) => (['dark', 'light'] as const).map((bg) => [t.name, bg] as const)))(
+    'draws in the %s theme on a %s terminal, every colour readable on every common ground',
+    (name, bg) => {
+      const p = palette(findTheme(name)!, bg);
+      const seen = colours(everything({ colorDepth: 24, unicode: true, palette: p }));
+      const same = (a: Rgb, b: Rgb) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
+      for (const role of ['ink', 'muted', 'faint', 'dim', 'highlight', 'accent', 'danger'] as const) expect(seen.some((c) => same(c, p[role])), role).toBe(true);
+      for (const colour of new Set(seen.map((c) => c.join(',')))) {
+        const rgb = colour.split(',').map(Number) as unknown as Rgb;
+        // The remembered map is a drawing (the fog of war), held to 3:1; every other colour is on text.
+        const bar = same(rgb, p.dim) ? DIM_CONTRAST : MIN_CONTRAST;
+        for (const ground of GROUNDS[bg]) expect(contrast(rgb, hexToRgb(ground)), `rgb(${colour}) on ${ground}`).toBeGreaterThanOrEqual(bar);
+      }
+    },
+  );
+
+  it('draws effects as their first frame and never shakes, for reduced motion', () => {
+    const g = structuredClone(onFloor(6));
+    g.fx = [{ kind: 'hurt', amount: 6 }, { kind: 'down', x: g.player.x, y: g.player.y + 1 }];
+    const still = (since: number) => frame(g, plain, hud({ since, still: true }));
+    expect(still(1)).toEqual(still(0));
+    expect(still(5)).toEqual(still(0));
+    expect(still(0).join('\n')).toContain('-6');
+    expect(still(FX_FRAMES).join('\n')).not.toContain('-6');
+    // The map's frame sits in the same column, where a big hit would shake it.
+    const frameColumn = (lines: string[]) => lines.find((l) => l.includes('┌'))!.indexOf('┌');
+    expect(frameColumn(still(0))).toBe(frameColumn(frame(g, plain, hud())));
+    expect(frameColumn(frame(g, plain, hud({ since: 0 })))).not.toBe(frameColumn(frame(g, plain, hud())));
   });
 
   it('refuses politely on a small window or a console that cannot redraw in place', () => {
@@ -448,6 +504,20 @@ describe("Two Weeks' Notice: the loop", () => {
     await ended;
   });
 
+  it('holds still for reduced motion: text appears at once and the title does not shimmer', async () => {
+    const t = harness(undefined, freshProgress());
+    const io = { ...t.io, reducedMotion: true };
+    const run = playRogue(io);
+    // The whole first page, before a single tick.
+    expect(t.screen()).toContain('nine years');
+    t.clear();
+    await vi.advanceTimersByTimeAsync(TICK_MS * 100);
+    expect(t.screen(), 'nothing redrawn while nothing happens').toBe('');
+    t.key('q');
+    t.key('q');
+    await run;
+  });
+
   it('starts typing a new page the moment a key turns to it, so a quick second key reveals it instead of skipping it', async () => {
     const h = harness(undefined, freshProgress());
     const ended = playRogue(h.io);
@@ -577,6 +647,26 @@ describe("Two Weeks' Notice: the terminal is put back on every exit", () => {
     expect(t.screen()).toBe(screen);
     expect(vi.getTimerCount()).toBe(0);
   }
+
+  // #471: the game wears the menu's theme, on the background the menu found.
+  it("draws the game in the menu's theme", async () => {
+    const t = fakeTerminal();
+    (t.output as { getColorDepth: () => number }).getColorDepth = () => 24;
+    const realm = findTheme('realm')!;
+    const save: SaveIO = { load: () => ({ progress: { ...freshProgress(), briefed: true }, writable: true }), store: () => undefined };
+    const ended = runWelcome({ input: t.input as never, output: t.output as never, env: { TOIL_NO_ANIMATION: '1', TERM: 'xterm', COLORFGBG: '0;15' }, signals: t.signals as never, save }, { ...data(), theme: realm });
+    await vi.advanceTimersByTimeAsync(10);
+    for (const ch of SECRET) t.key(ch);
+    await vi.advanceTimersByTimeAsync(10);
+    const screen = t.screen();
+    const game = screen.slice(screen.lastIndexOf('Benefits Enrollment') - 2000);
+    const { highlight } = palette(realm, 'light');
+    expect(game).toContain(`\x1b[38;2;${highlight.join(';')}m`);
+    t.key('q');
+    await vi.advanceTimersByTimeAsync(10);
+    t.key('q');
+    await expect(ended).resolves.toBe('quit');
+  });
 
   it('on Ctrl+C twice mid-run: the first warns, a second within the window exits', async () => {
     const t = fakeTerminal();
