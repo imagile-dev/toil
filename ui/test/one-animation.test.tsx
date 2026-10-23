@@ -197,15 +197,18 @@ describe('one animation to an element (#451)', () => {
         </ThemeChoiceProvider>
       </ThemeProvider>
     );
-    let shown: HTMLElement[] = [];
-    check('the splash', await arrivals(async () => {
-      const r = render(wrap(<Splash ready={false} preview />));
-      shown = [...document.querySelectorAll<HTMLElement>('.splash *')];
-      scope();
-      problems.push(...doubledLoops(sheets).map((p) => `the splash: ${p}`));
-      r.unmount();
-    }, probe));
-    expect(shown.length).toBeGreaterThan(0);
+    // With no data, and on a sprint's day (#462), when a face rides in the holder that arrives.
+    for (const [where, data] of [['the splash', null], ["the splash on a sprint's day", { dossier: 'card-payments', day: 7, days: 10, done: 4 }]] as const) {
+      let shown: HTMLElement[] = [];
+      check(where, await arrivals(async () => {
+        const r = render(wrap(<Splash ready={false} data={data} preview />));
+        shown = [...document.querySelectorAll<HTMLElement>('.splash *')];
+        scope();
+        problems.push(...doubledLoops(sheets).map((p) => `${where}: ${p}`));
+        r.unmount();
+      }, probe));
+      expect(shown.length).toBeGreaterThan(0);
+    }
 
     // A loading screen: it has no arrival, but each of its loops must be the only animation on its element.
     {

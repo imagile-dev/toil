@@ -263,6 +263,11 @@ describe('theme moments in theme.json (#419)', () => {
     expect(momentsProblems({ tips: { label: '<b>Hi</b>' } }, assets)).toEqual(['theme.json: moments.tips.label must be plain text, up to 160 characters.']);
     expect(momentsProblems({ events: { 'item-shipped': {} } }, assets)[0]).toMatch(/isn't a moment kind/);
     expect(momentsProblems({ video: 'x' }, assets)[0]).toMatch(/isn't a moment/);
+    // A splash's face (#462) names one of the engine's values, never markup or a script of its own.
+    const splash = { art: { art: 'a', width: 64, height: 64 }, motif: 'pop', line: 'Hello.' };
+    expect(momentsProblems({ splash: { ...splash, face: { value: 'sprint-day', max: 20 } } }, assets)).toEqual([]);
+    expect(momentsProblems({ splash: { ...splash, face: { value: 'location.href' } } }, assets)).toEqual(['theme.json: moments.splash.face.value must be one of sprint-day, items-done.']);
+    expect(momentsProblems({ splash: { ...splash, face: { value: 'sprint-day', max: 0, html: '<b>' } } }, assets)).toEqual(['theme.json: moments.splash.face.max must be a whole number from 1 to 999.', "theme.json: moments.splash.face.html isn't a face key (value, max)."]);
   });
 });
 

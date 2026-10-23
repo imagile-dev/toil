@@ -626,6 +626,23 @@
   margin-block: calc(var(--realm-tray) / 3 - 52px) calc(var(--realm-tray) / 3 - 52px + 0.5rem);
 }
 
+/* The die lands on the sprint's day when the splash knows it (#462): the number goes on the d20's
+   upper face, a triangle of the face's own oxblood laid inside its gold edges over the 20 it is drawn
+   with, in the same serif. Without a day there is no face and the die shows its 20. */
+[data-theme="realm"] .splash__art .m-face {
+  inset: 32% auto auto 29.5%;
+  width: 41%;
+  height: 33%;
+  place-items: end center;
+  padding-bottom: 6%;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  background: #6e1c18;
+  color: #efe6d2;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 17.5px;
+  font-variant-numeric: lining-nums;
+}
+
 [data-theme="realm"] .splash__ui {
   border-radius: 1px;
 }

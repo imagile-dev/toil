@@ -107,6 +107,21 @@
 .m-hold { width: fit-content; }
 .m-hold img { display: block; max-width: 100%; height: auto; }
 
+/* A face (#462): a number written on the picture, in the same holder, so it arrives with it and never
+   moves on its own. Centred on the picture by default; a theme places it on its art's own face. */
+.m-hold,
+.m-sheet { position: relative; }
+
+.m-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  line-height: 1;
+  pointer-events: none;
+}
+
 /* The splash --------------------------------------------------------------- */
 
 .splash {

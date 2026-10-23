@@ -33,7 +33,7 @@ import type { ThemeManifest } from '../theme-pack.ts';
 import { takeTip, useTipsOn, type Tip } from '../tips.ts';
 import { assetUrl } from './assets.ts';
 import { enter, leave } from './motifs.ts';
-import { FLAVOUR_MS, LOADER_DELAY_MS, MOMENT_MS, MOMENT_PLAIN, RECAP_HOLD_MS, SPLASH_MAX_MS, TIP_MS, tipsLabel, type EnterMotif, type MomentArt, type MomentKind, type SpriteSheet, type ThemeMoments } from './schema.ts';
+import { FLAVOUR_MS, LOADER_DELAY_MS, MOMENT_MS, MOMENT_PLAIN, RECAP_HOLD_MS, SPLASH_MAX_MS, TIP_MS, tipsLabel, type EnterMotif, type MomentArt, type MomentKind, type SplashData, type SplashMoment, type SpriteSheet, type ThemeMoments } from './schema.ts';
 import './moments.css';
 
 /** The theme's moments, or the plain defaults when it declares none. */
@@ -90,9 +90,11 @@ function useEvery(ms: number, fn: () => void, on = true) {
  * The element with `className` is the one the engine plays an arrival on (`enter`), so a loop never goes
  * on it: a looping picture sits inside a holder span and loops there, as a sprite sheet's strip already
  * did. Two animations of `transform` on one element can't both run on the compositor, so Chrome moves
- * both to the main thread (#451); one each, on a parent and a child, stays composited.
+ * both to the main thread (#451); one each, on a parent and a child, stays composited. A `face`, a number
+ * written on the picture (#462), sits in the same holder, so it arrives with the picture and never moves
+ * on its own.
  */
-export function Art({ theme, art, className, loop }: { theme: ThemeManifest; art: MomentArt | SpriteSheet; className?: string; loop?: string | undefined }) {
+export function Art({ theme, art, className, loop, face = null }: { theme: ThemeManifest; art: MomentArt | SpriteSheet; className?: string; loop?: string | undefined; face?: string | null }) {
   const url = assetUrl(theme, art.art);
   if (!url) return null;
   const frames = 'frames' in art ? art.frames : 1;
@@ -100,13 +102,15 @@ export function Art({ theme, art, className, loop }: { theme: ThemeManifest; art
     return (
       <span className={`m-art m-sheet ${className ?? ''}`} style={{ width: art.width, height: art.height, ['--m-frames' as string]: frames }} aria-hidden="true">
         <img className={loop === 'frames' ? 'm-loop--frames' : undefined} src={url} alt="" width={art.width * frames} height={art.height} decoding="async" />
+        {face !== null && <span className="m-face">{face}</span>}
       </span>
     );
   }
-  if (loop) {
+  if (loop || face !== null) {
     return (
       <span className={`m-art m-hold ${className ?? ''}`} aria-hidden="true">
-        <img className={`m-loop--${loop}`} src={url} alt="" width={art.width} height={art.height} decoding="async" />
+        <img className={loop ? `m-loop--${loop}` : undefined} src={url} alt="" width={art.width} height={art.height} decoding="async" />
+        {face !== null && <span className="m-face">{face}</span>}
       </span>
     );
   }
@@ -226,6 +230,16 @@ function Track({ theme, m }: { theme: ThemeManifest; m: ThemeMoments }) {
   );
 }
 
+/** The number a splash's face shows (#462): the value it names, capped at its `max`; null, and the art as drawn, without one. */
+export function faceOf(splash: Pick<SplashMoment, 'face'>, data: SplashData | null): string | null {
+  if (!splash.face || !data) return null;
+  const value = splash.face.value === 'sprint-day' ? data.day : data.done;
+  return String(Math.min(splash.face.max ?? Infinity, value));
+}
+
+/** The splash's values as data attributes, for a theme's CSS: plain numbers and a name, nothing it could run. */
+const dataAttributes = (data: SplashData | null) => (data ? { 'data-sprint-day': data.day, 'data-sprint-days': data.days, 'data-items-done': data.done, 'data-dossier': data.dossier } : {});
+
 /** The splash plays once per launch, however often the App remounts after a sync. */
 let launched = false;
 /** Forgets that the splash played. For tests. */
@@ -239,8 +253,10 @@ export function resetSplash() {
  * or after its 1.8 seconds, when the view's own loader carries on. A theme
  * with no splash, or Theme motion off, has none: the loader covers the wait.
  * `preview` holds it until a key or click, for Settings and the checks.
+ * `data` is what it may know of the dossier opening (#462, src/moments/splash-data.ts): with none, the
+ * splash is exactly as it was.
  */
-export function Splash({ ready, detail = null, preview = false, onDone }: { ready: boolean; detail?: string | null; preview?: boolean; onDone?: () => void }) {
+export function Splash({ ready, detail = null, data = null, preview = false, onDone }: { ready: boolean; detail?: string | null; data?: SplashData | null; preview?: boolean; onDone?: () => void }) {
   const theme = useTheme();
   const level = useThemeMotion();
   const m = momentsOf(theme);
@@ -279,9 +295,9 @@ export function Splash({ ready, detail = null, preview = false, onDone }: { read
 
   if (!playing || !shown || !m.splash) return null;
   return (
-    <div className="splash" data-moments="" data-level={level} data-splash={theme.name} ref={box} onPointerDown={end}>
+    <div className="splash" data-moments="" data-level={level} data-splash={theme.name} {...dataAttributes(data)} ref={box} onPointerDown={end}>
       <div className="splash__inner">
-        <Art theme={theme} art={m.splash.art} className="splash__art" loop={level === 'full' ? m.splash.loop : undefined} />
+        <Art theme={theme} art={m.splash.art} className="splash__art" loop={level === 'full' ? m.splash.loop : undefined} face={faceOf(m.splash, data)} />
         <p className="splash__name" aria-hidden="true">
           <span className="wordmark">toil</span> <span className="splash__ui">UI</span>
         </p>

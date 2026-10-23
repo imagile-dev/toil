@@ -15,7 +15,10 @@ import { useThemeMotion } from '../motion.ts';
 import { useTheme } from '../theme-context.ts';
 import { SAMPLE_MOMENTS } from './events.ts';
 import { Loader, momentsOf, Splash, useMomentPlayer } from './Moments.tsx';
-import { MOMENT_KINDS, MOMENT_PLAIN, type MomentKind } from './schema.ts';
+import { MOMENT_KINDS, MOMENT_PLAIN, type MomentKind, type SplashData } from './schema.ts';
+
+/** The splash's preview is handed a sample sprint (#462), as the loader's is a sample read, so a theme's face shows. */
+const SAMPLE_SPLASH: SplashData = { dossier: 'card-payments', day: 7, days: 10, done: 4 };
 
 export function MomentsPreview() {
   const theme = useTheme();
@@ -55,7 +58,7 @@ export function MomentsPreview() {
         </Popover>
       </MenuTrigger>
       <Help topic="theme-motion" />
-      {open === 'splash' && <Splash ready={false} preview onDone={() => setOpen(null)} />}
+      {open === 'splash' && <Splash ready={false} data={SAMPLE_SPLASH} preview onDone={() => setOpen(null)} />}
       <ModalOverlay className="moment-preview-overlay" data-backdrop="" isDismissable isOpen={open === 'loader'} onOpenChange={(o) => !o && setOpen(null)}>
         <Modal className="moment-preview-modal">
           <Dialog className="moment-preview" aria-labelledby="moment-preview-title" data-moment-preview="">
