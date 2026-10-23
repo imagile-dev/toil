@@ -1,18 +1,25 @@
 import type { TerminalTheme } from './types.js';
 
-/** Crate's terminal version (ui/themes/crate/theme.json). Signed for in triplicate; the third copy is filed under 'probably fine'. */
+/**
+ * Crate's terminal version (ui/themes/crate/theme.json), in the site's blue
+ * (#472): its link is the site's highlight, and its faint is the site's faint
+ * token, so on a dark terminal the default menu wears the site's palette.
+ * test/brand-sync.test.ts holds both to the site. Signed for in triplicate;
+ * the third copy is filed under 'probably fine'.
+ */
 export const crate: TerminalTheme = {
   name: 'crate',
   label: 'Crate',
   schemes: {
     dark: {
-      bg: '#16130f',
-      ink: '#f6f1e9',
-      muted: '#b4a998',
-      accent: '#ff6a3d',
-      link: '#ffb84d',
-      ok: '#ffb84d',
-      danger: '#ff6a3d',
+      bg: '#0f1115',
+      ink: '#e8eaed',
+      muted: '#a7afba',
+      accent: '#8cc4ff',
+      link: '#c2e0ff',
+      ok: '#6fd394',
+      danger: '#ff8a80',
+      faint: '#868f9b',
     },
   },
   terms: {},

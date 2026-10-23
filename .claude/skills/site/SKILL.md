@@ -109,18 +109,20 @@ from `main`).
     (`src/welcome/themes/`, #427), whose colours come from its `theme.json` and are
     held there by `test/theme-sync.test.ts`. Crate is the default in the terminal
     and in Toil UI alike (#467, one constant in `src/theme/default.ts`), and
-    `toil theme set` picks another; Plain is the site's blue. So the terminal's
-    default colours are not the site's, and nothing requires them to be. On a light
+    `toil theme set` picks another. Crate wears the site's blue (#472), so on a
+    dark terminal the default menu is the site's palette, as Plain's is. On a light
     terminal the page is white, which is Plain's light badge, and every theme's
     colours meet 4.5:1 on either background. Each theme keeps the badge and changes
     only what surrounds it (the orbit for Plain and Crate, crops, warp, embers,
     rain, steam or fairies), never the mark itself. **The site, the terminal and
     Toil UI are one brand in the mark and the wordmark: a change to the badge's
-    geometry changes all three in the same PR.** The palette is shared only
-    between the site, the feedback emails and Toil UI Plain: a change to Plain's
-    colours changes the site's tokens and the emails' copy in the same PR.
+    geometry changes all three in the same PR.** The palette is shared
+    between the site, the feedback emails, Toil UI Plain and Crate: a change to
+    Plain's colours changes the site's tokens, the emails' copy and Crate's
+    `theme.json` (and its terminal version) in the same PR.
     `test/brand-sync.test.ts` fails when the site's tokens or the emails' colours
-    differ from Plain's `theme.json`, or when the terminal's tile, page placement or
+    differ from Plain's `theme.json`, when a colour in Crate's `theme.json` isn't
+    the site's token for its role, when Crate's art strays from the blue palette, or when the terminal's tile, page placement or
     orbit, or any static copy of the badge, differs from the site's. It can't see
     the motion, so a change to it is mirrored by hand.
   - *Toil UI wears the badge in every theme.* A theme that brings none (one from
@@ -130,7 +132,7 @@ from `main`).
     `mark-dark.svg`); the dark one is the site's badge and the standard one, line
     for line. Each built-in game theme
     has its own skin of the same silhouette in `ui/themes/<theme>/assets/mark.svg`: Crate
-    kraft cardboard with a hazard-striped tape and a stencilled prompt, Harvest a
+    blue-grey cardboard with a hazard-striped tape in the highlight and a stencilled prompt, Harvest a
     16-pixel wooden sign, Starship a riveted hull plate with a glowing console, Realm
     an illuminated tile with a gilt edge, Frontier a riveted brass boiler plate
     with a copper rule, Overworld a mossy dungeon block with a torch-gold rim. It sits beside the name at 32px (twice

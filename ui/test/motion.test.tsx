@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.tsx';
 import { Ambient } from '../src/ambient/Ambient.tsx';
 import { blank, fill, particleCount, stepAll, type Preset, type Viewport } from '../src/ambient/engine.ts';
-import { PRESETS, flame } from '../src/ambient/presets.ts';
+import { PRESETS, glowAt } from '../src/ambient/presets.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
@@ -101,13 +101,13 @@ describe('the particle presets', () => {
     }
   });
 
-  it("puts Crate's flame glow where theme.css draws it: brightest at 88% across the top, gone 60vmax away", () => {
+  it("puts Crate's accent glow where theme.css draws it: brightest at 88% across the top, gone 60vmax away", () => {
     const [w, h] = [1440, 900];
     const css = readFileSync(join(import.meta.dirname, '..', 'themes', 'crate', 'theme.css'), 'utf8');
-    expect(css).toContain('radial-gradient(circle at 88% 0%, rgba(255, 106, 61, 0.14), transparent 60vmax)');
-    expect(flame(0.88 * w, 0, w, h)).toBeCloseTo(1, 5);
-    expect(flame(0.88 * w, 0.3 * w, w, h)).toBeCloseTo(0.5, 5);
-    expect(flame(0, h, w, h)).toBe(0);
+    expect(css).toContain('radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60vmax)');
+    expect(glowAt(0.88 * w, 0, w, h)).toBeCloseTo(1, 5);
+    expect(glowAt(0.88 * w, 0.3 * w, w, h)).toBeCloseTo(0.5, 5);
+    expect(glowAt(0, h, w, h)).toBe(0);
   });
 
   it("drifts Realm's ash down the page and its embers up it, in every width", () => {

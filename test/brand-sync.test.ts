@@ -1,8 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CENTER, DOT_COLORS, ORBIT, orbitDots, SHEET, TILE, tilePath } from '../src/welcome/logo.js';
 import { PALETTE, type Rgb } from '../src/welcome/term.js';
+import { crate as crateTerminal } from '../src/welcome/themes/crate.js';
+import { palette } from '../src/welcome/themes/index.js';
 import { EMAIL_COLORS } from '../functions/feedback/src/lib/palette.js';
 // @ts-expect-error The site's scripts are plain JavaScript with no declarations.
 import { plainTokens } from '../site/scripts/plain-tokens.mjs';
@@ -13,7 +15,8 @@ import { plainTokens } from '../site/scripts/plain-tokens.mjs';
  * can't share code (the site and the UI are their own packages), so this test
  * reads their sources and fails when any of them drifts. Change one, change the
  * others. The terminal's colours are each theme's own, held to ui/themes/ by
- * test/theme-sync.test.ts; its default theme is Crate (#467), not the site's.
+ * test/theme-sync.test.ts. Crate, the default theme in the terminal and in
+ * Toil UI (#467), wears the site's blue too (#472), and is held to it below.
  */
 
 const root = join(import.meta.dirname, '..');
@@ -32,6 +35,7 @@ function token(name: string): Rgb {
   const n = parseInt(hex[1]!, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
+const hexToRgb = (value: string): Rgb => [1, 3, 5].map((i) => parseInt(value.slice(i, i + 2), 16)) as Rgb;
 const hex = (rgb: Rgb) => `#${rgb.map((n) => n.toString(16).padStart(2, '0')).join('')}`;
 
 /** The page's placement, as every copy of the badge writes it. */
@@ -165,7 +169,7 @@ describe("Toil UI's badges", () => {
  * The site's colours are Toil UI Plain's, dark scheme (#442).
  * site/scripts/plain-tokens.mjs writes them from Plain's theme.json, and the
  * site's build runs it; this fails when the committed file has drifted from
- * what it would write. Crate keeps its own warm palette.
+ * what it would write.
  */
 describe("the site's tokens are Plain's", () => {
   it('site/src/styles/plain.generated.css is what plain-tokens.mjs writes from ui/themes/plain/theme.json', () => {
@@ -176,6 +180,66 @@ describe("the site's tokens are Plain's", () => {
     const own = read('site/src/styles/global.css');
     expect(own).toContain("@import './plain.generated.css';");
     for (const [, name] of generated.matchAll(/(--[a-z-]+):/g)) expect(own, name).not.toMatch(new RegExp(`${name}:`));
+  });
+});
+
+/**
+ * Crate, the default theme, is the site's look (#472): every colour in its
+ * theme.json is one of the site's tokens, so a change to Plain's blue (and so
+ * the site's) fails here until Crate follows. Its second colour, `link`, is the
+ * site's highlight: Crate's gradients, sticker and chart run accent to link, as
+ * the site's run accent to highlight. The banner is the raised surface with the
+ * highlight on it.
+ */
+describe("Crate wears the site's blue", () => {
+  const crate = JSON.parse(read('ui/themes/crate/theme.json')) as { schemes: Record<string, Record<string, string>> };
+  /** Each of Crate's keys, and the site token it takes. */
+  const SITE_TOKEN: Record<string, string> = {
+    bg: 'bg', surface: 'surface', raised: 'surface-raised', ink: 'ink', muted: 'muted', line: 'line',
+    accent: 'accent', accentInk: 'accent-ink', link: 'highlight', focus: 'focus',
+    ok: 'ok', warn: 'warn', danger: 'danger', bannerBg: 'surface-raised', bannerInk: 'highlight',
+  };
+
+  it('has only the dark scheme, as the site does', () => {
+    expect(Object.keys(crate.schemes)).toEqual(['dark']);
+  });
+
+  it.each(Object.entries(SITE_TOKEN))("takes its %s from the site's %s token", (key, name) => {
+    expect(crate.schemes.dark![key]?.toLowerCase(), `ui/themes/crate/theme.json dark.${key} vs the site's --${name}`).toBe(hex(token(name)));
+  });
+
+  it('sets no colour the map above leaves out', () => {
+    expect(Object.keys(crate.schemes.dark!).sort()).toEqual(Object.keys(SITE_TOKEN).sort());
+  });
+
+  // On a dark terminal the default menu is the site's palette, the same one PALETTE (Plain's dark, the site's) is.
+  it("gives the welcome menu the site's palette on a dark terminal", () => {
+    expect(palette(crateTerminal, 'dark')).toEqual(PALETTE);
+  });
+
+  it("colours its theme.css only with the theme's tokens", () => {
+    const css = read('ui/themes/crate/theme.css').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
+  });
+
+  it("draws its dust in its ink and its highlight", () => {
+    const rgb = (key: string) => hexToRgb(crate.schemes.dark![key]!).join(', ');
+    expect(read('ui/src/ambient/presets.ts')).toContain(`sprites: (make) => [make(8, glow('${rgb('ink')}', 0.18)), make(8, glow('${rgb('link')}', 0.18))]`);
+  });
+
+  // The art was recoloured from the warm originals (#472): a colour in Crate's SVGs is a
+  // grey, a blue in the site's band, or one of the site's status colours.
+  const svgs = ['mark.svg', ...readdirSync(join(root, 'ui/themes/crate/assets/moments')).filter((f) => f.endsWith('.svg')).map((f) => `moments/${f}`)];
+  it.each(svgs)('draws %s in the blue palette', (file) => {
+    const status = ['ok', 'warn', 'danger'].map((name) => hex(token(name)));
+    for (const [colour] of read(`ui/themes/crate/assets/${file}`).toLowerCase().matchAll(/#[0-9a-f]{6}\b/g)) {
+      const [r, g, b] = hexToRgb(colour).map((n) => n / 255) as [number, number, number];
+      const hi = Math.max(r, g, b);
+      const chroma = hi - Math.min(r, g, b);
+      const hue = chroma === 0 ? 0 : hi === b ? 60 * ((r - g) / chroma + 4) : hi === g ? 60 * ((b - r) / chroma + 2) : (60 * ((g - b) / chroma) + 360) % 360;
+      const grey = chroma <= 0.08;
+      expect(grey || (hue >= 190 && hue <= 230) || status.includes(colour), `${colour} in ${file}`).toBe(true);
+    }
   });
 });
 
