@@ -54,6 +54,25 @@ export interface SpriteSheet extends MomentArt {
   frames: number;
 }
 
+/**
+ * The plain values a splash may be handed (#462), when the engine knows them: the sprint's day and
+ * length, the items done in it and the dossier's name. Numbers and a name, never markup or code; they
+ * reach a theme only as a face's text and as data attributes on the splash (`data-sprint-day`,
+ * `data-sprint-days`, `data-items-done`, `data-dossier`).
+ */
+export interface SplashData {
+  dossier: string;
+  /** The sprint's working day, from 1: "day 7 of 10". */
+  day: number;
+  days: number;
+  /** Items done in the sprint. */
+  done: number;
+}
+
+/** Which of the splash's values a face shows. */
+export const FACE_VALUES = ['sprint-day', 'items-done'] as const;
+export type FaceValue = (typeof FACE_VALUES)[number];
+
 export interface SplashMoment {
   /** The art the splash holds while the first read runs. */
   art: MomentArt | SpriteSheet;
@@ -62,6 +81,12 @@ export interface SplashMoment {
   loop?: LoopMotif;
   /** One line under the name, plain text: the theme's own greeting. */
   line: string;
+  /**
+   * A number written on the art, which arrives with it (#462): one of the splash's values, capped at
+   * `max` (a d20's day 23 shows 20). Shown only when the engine has the value; without it the art
+   * shows as drawn.
+   */
+  face?: { value: FaceValue; max?: number };
 }
 
 export interface LoaderMoment {

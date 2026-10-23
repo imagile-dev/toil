@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.tsx';
@@ -13,6 +13,9 @@ import { kindOf, MAX_MOMENTS, momentsFor, SAMPLE_MOMENTS } from '../src/moments/
 import { ENTER } from '../src/moments/motifs.ts';
 import { Loader, MomentsProvider, resetSplash, Splash, useMomentPlayer, type Moment } from '../src/moments/Moments.tsx';
 import { progressText, trackCalls } from '../src/moments/progress.ts';
+import { rememberSprint, renameSprint, splashDataFor } from '../src/moments/splash-data.ts';
+import { health } from '../src/model/sprint.ts';
+import { loadDossier } from '../src/load.ts';
 import { ENTER_MOTIFS, LOADER_DELAY_MS, LOOP_MOTIFS, MOMENT_KINDS } from '../src/moments/schema.ts';
 import { resetMotionChoice, resetThemeMotion, setMotionChoice, setThemeMotion } from '../src/motion.ts';
 import { SkinProvider, ThemeChoiceProvider, ThemeProvider, skinsFor } from '../src/skins.tsx';
@@ -291,6 +294,102 @@ describe('the splash', () => {
     render(inTheme('plain', <Splash ready={false} />));
     act(() => vi.advanceTimersByTime(LOADER_DELAY_MS));
     expect(document.querySelector('.splash')).toBeNull();
+  });
+});
+
+describe("the splash's data (#462)", () => {
+  // A sprint of ten working days from Monday 5 October 2026; the fixture's clock is the Tuesday of its second week.
+  const SPRINT = { start: '2026-10-05T00:00:00.000Z', end: '2026-10-17T00:00:00.000Z' };
+  const keep = (kept: unknown) => localStorage.setItem('toil-ui:splash', JSON.stringify(kept));
+  const DATA = { dossier: 'card-payments', day: 7, days: 10, done: 4 };
+  const played = (theme: string, data: typeof DATA | null) => {
+    cleanup();
+    resetSplash();
+    vi.useFakeTimers();
+    render(inTheme(theme, <Splash ready={false} data={data} />));
+    act(() => vi.advanceTimersByTime(LOADER_DELAY_MS));
+    return document.querySelector<HTMLElement>('.splash')!;
+  };
+
+  it("works the day out from the remembered sprint at the App's clock, and knows nothing outside it", () => {
+    keep({ 'card-payments': { ...SPRINT, done: 4 } });
+    expect(splashDataFor('card-payments', FIXTURE_NOW)).toEqual(DATA);
+    // The Saturday after the first week is still day 5; the sprint's last minute is day 10.
+    expect(splashDataFor('card-payments', '2026-10-10T12:00:00.000Z')?.day).toBe(5);
+    expect(splashDataFor('card-payments', '2026-10-16T23:59:00.000Z')?.day).toBe(10);
+    expect(splashDataFor('card-payments', SPRINT.end)).toBeNull();
+    expect(splashDataFor('card-payments', '2026-10-04T23:00:00.000Z')).toBeNull();
+    expect(splashDataFor('settlement', FIXTURE_NOW)).toBeNull();
+    // Storage that holds something else, or nothing readable, is nothing.
+    keep({ 'card-payments': { start: 'soon', end: SPRINT.end, done: 4 }, settlement: { ...SPRINT, done: -1 } });
+    expect(splashDataFor('card-payments', FIXTURE_NOW)).toBeNull();
+    expect(splashDataFor('settlement', FIXTURE_NOW)).toBeNull();
+    localStorage.setItem('toil-ui:splash', 'not json');
+    expect(splashDataFor('card-payments', FIXTURE_NOW)).toBeNull();
+  });
+
+  it("remembers a dossier's sprint as its page loads, forgets one with no sprint, and follows a rename", async () => {
+    const d = await loadDossier(fixtureExecute().execute, 'card-payments');
+    const h = health(d.items, d.changes, FIXTURE_NOW)!;
+    rememberSprint('card-payments', h);
+    const kept = JSON.parse(localStorage.getItem('toil-ui:splash')!) as Record<string, unknown>;
+    expect(kept['card-payments']).toEqual({ start: h.sprint.start, end: h.sprint.end, done: h.done.count });
+    expect(splashDataFor('card-payments', FIXTURE_NOW)).toEqual({ dossier: 'card-payments', day: h.days.gone, days: h.days.total, done: h.done.count });
+    renameSprint('card-payments', 'payments');
+    expect(splashDataFor('card-payments', FIXTURE_NOW)).toBeNull();
+    expect(splashDataFor('payments', FIXTURE_NOW)?.day).toBe(h.days.gone);
+    rememberSprint('payments', null);
+    expect(splashDataFor('payments', FIXTURE_NOW)).toBeNull();
+  });
+
+  it("lands Realm's d20 on the sprint's day, in the holder that arrives, capped at twenty", () => {
+    const splash = played('realm', DATA);
+    const art = splash.querySelector('.splash__art')!;
+    expect(art.tagName).toBe('SPAN');
+    expect(art.querySelector('.m-face')?.textContent).toBe('7');
+    expect(art.querySelector('img')?.className).toBe('');
+    expect(splash.dataset).toMatchObject({ sprintDay: '7', sprintDays: '10', itemsDone: '4', dossier: 'card-payments' });
+    expect(played('realm', { ...DATA, day: 23, days: 28 }).querySelector('.m-face')?.textContent).toBe('20');
+  });
+
+  it('looks exactly as it did with no data, and a theme without a face only gets the data attributes', () => {
+    const plain = played('realm', null);
+    expect(plain.querySelector('.m-face')).toBeNull();
+    expect(plain.querySelector('.splash__art')?.tagName).toBe('IMG');
+    expect(Object.keys(plain.dataset).sort()).toEqual(['level', 'moments', 'splash']);
+    const crate = played('crate', DATA);
+    expect(crate.querySelector('.m-face')).toBeNull();
+    expect(crate.dataset.sprintDay).toBe('7');
+  });
+
+  it("plays the remembered day on the next launch of that dossier's page, and never on sample data", async () => {
+    localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'realm' }));
+    keep({ 'card-payments': { ...SPRINT, done: 4 } });
+    window.location.hash = '#/dossier/card-payments';
+    // A first read that never ends, so the splash plays over it.
+    const slow = () => new Promise<never>(() => undefined);
+    const live = render(<App execute={slow} agent={scriptedAgent()} now={FIXTURE_NOW} preview={false} />);
+    await waitFor(() => expect(document.querySelector('.splash .m-face')?.textContent).toBe('7'), { timeout: 5000 });
+    live.unmount();
+    resetSplash();
+    render(<App execute={slow} agent={scriptedAgent()} now={FIXTURE_NOW} preview />);
+    await waitFor(() => expect(document.querySelector('.splash')).not.toBeNull(), { timeout: 5000 });
+    expect(document.querySelector('.splash .m-face')).toBeNull();
+    expect(document.querySelector<HTMLElement>('.splash')!.dataset.sprintDay).toBeUndefined();
+  }, 15_000);
+
+  it('remembers nothing from sample data', async () => {
+    window.location.hash = '#/dossier/card-payments';
+    render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview />);
+    await screen.findByRole('heading', { level: 1 });
+    expect(localStorage.getItem('toil-ui:splash')).toBeNull();
+  });
+
+  it('remembers the sprint of the dossier on screen from real data', async () => {
+    window.location.hash = '#/dossier/card-payments';
+    render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={fixtureConfig()} now={FIXTURE_NOW} preview={false} />);
+    await screen.findByRole('heading', { level: 1 });
+    await waitFor(() => expect(splashDataFor('card-payments', FIXTURE_NOW)).not.toBeNull());
   });
 });
 

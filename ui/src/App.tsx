@@ -30,6 +30,8 @@ import { DossierShell, type DossierTab } from './views/DossierShell.tsx';
 import { Dossiers, type SyncedAt } from './views/Dossiers.tsx';
 import type { Described } from './components/dossier-head.tsx';
 import { markLooked, renameLooked } from './looked.ts';
+import { health } from './model/sprint.ts';
+import { rememberSprint, renameSprint, splashDataFor } from './moments/splash-data.ts';
 import { ItemView } from './views/Item.tsx';
 import { AssignmentView } from './views/Assignment.tsx';
 import { startReadyWith } from './assign/start.ts';
@@ -302,6 +304,14 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
     if (looking) markLooked(looking);
   }, [looking]);
 
+  // The splash on the next launch (#462) may show this dossier's sprint, so its dates are remembered as it loads; never the sample's.
+  const onScreen = wanted ? dossiers[wanted] : undefined;
+  useEffect(() => {
+    if (!preview && wanted && onScreen?.ok) rememberSprint(wanted, health(onScreen.value.items, onScreen.value.changes, now));
+  }, [preview, wanted, onScreen, now]);
+  // What the splash knows as it plays, read once: the dossier being opened's remembered sprint at the App's clock, else nothing.
+  const [splashData] = useState(() => (!preview && wanted ? splashDataFor(wanted, now) : null));
+
   /**
    * After a name or description was changed in place: a description is written
    * into what's loaded; a rename reads the list and that dossier again, and
@@ -321,6 +331,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
     }
     const { from, to } = d.renamed;
     renameLooked(from, to);
+    renameSprint(from, to);
     setList(null);
     setDossiers(({ [from]: _, ...rest }) => rest);
     if (wanted === from) {
@@ -455,7 +466,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
         <MomentsProvider>
         <TokenStyles css={THEMES.map(tokenCss).join('\n')} />
         <Ambient theme={theme.name} />
-        <Splash ready={splashReady} detail={splashDetail} />
+        <Splash ready={splashReady} detail={splashDetail} data={splashData} />
         <PlayNews news={news ?? null} dossier={wanted} />
         <a className="skip" href="#main" onClick={skip}>
           Skip to content

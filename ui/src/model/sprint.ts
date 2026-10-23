@@ -134,6 +134,13 @@ const isDone = (item: WorkItem) => item.statusCategory === 'DONE';
 const points = (item: WorkItem) => (item.estimate?.unit === 'points' ? item.estimate.value : 0);
 const tally = (items: WorkItem[]): Tally => ({ count: items.length, points: items.reduce((n, i) => n + points(i), 0) });
 
+/** Working days (Monday to Friday, UTC) of a sprint gone at `now`, and in total: what "day 7 of 10" reads. */
+export function sprintDays(start: string, end: string, now: string): { gone: number; total: number } {
+  const from = Date.parse(start);
+  const to = Date.parse(end);
+  return { gone: weekdays(from, Math.min(Date.parse(now), to)), total: weekdays(from, to) };
+}
+
 function weekdays(from: number, to: number): number {
   let n = 0;
   for (let t = Math.floor(from / DAY) * DAY; t < to; t += DAY) {
@@ -179,13 +186,11 @@ export function health(all: WorkItem[], changes: ChangeRef[], now: string): Heal
     if (reasons.length) risks.push({ id: item.id, reasons });
   }
 
-  const start = Date.parse(sprint.start!);
-  const end = Date.parse(sprint.end!);
   return {
     sprint,
     items,
     entries,
-    days: { gone: weekdays(start, Math.min(Date.parse(now), end)), total: weekdays(start, end) },
+    days: sprintDays(sprint.start!, sprint.end!, now),
     planned: tally(kind('planned')),
     added: tally(kind('added')),
     carried: tally(kind('carried')),

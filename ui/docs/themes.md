@@ -156,11 +156,13 @@ A theme can also have **moments**: a launch splash, its own loading screens, an 
 | Tab transition | When you move between a dossier's tabs | About 0.25 seconds |
 | Event moment | Once, when a sync records one of these for the first time: an item done, a build passed or failed, a blocker cleared, a pull request merged, or a sprint's end | Under a second each, at most three a sync. The sprint's end is a recap card with its figures, which stays five seconds so you can read them |
 
+The splash can't wait for the sprint it's opening, so the browser remembers the sprint each dossier was in the last time its page loaded here. When Toil UI opens on that dossier's page while the sprint is still running, the splash knows the sprint's day, how many of its items were done, and the dossier's name, and a theme can show them: Realm's d20 lands on the sprint's day ("day 7 of 10" is a 7), capped at 20. Opened anywhere else, on sample data, after the sprint has ended, or in a browser that keeps nothing, the splash is as it always is, and the die shows its 20.
+
 A loading screen shows the theme's art, its progress motif, and the real progress in words: what toil is reading and how many of its calls have been answered, or a sync's dossiers, requests and pages. In a game theme, a line of the theme's own flavour text changes every few seconds under it, while **Themed wording** is on. Waits shorter than 300 ms show nothing at all, so a quick read never flashes a loading screen.
 
 An event moment comes from the facts the worklog keeps (**Worklog** in [Toil UI](https://imagile-dev.github.io/toil/docs/ui/)): each sync records what it sees, and a moment plays only for a fact that sync recorded for the first time. A dossier's first sync plays nothing, since everything in its history would be new, and neither does a fact from before the last good sync. The moment says the plain word ("Done", "Build failed") and, while **Themed wording** is on, the theme's word beside it, as in "Signed off (Done)".
 
-You can see every moment of the theme you're in from **Preview the theme's moments**, a menu under **Settings, General**, Theme: the launch splash, a loading screen, and each event moment. With Theme motion off, the splash and the moments are greyed out in it. A preview's progress text is a sample, and says so.
+You can see every moment of the theme you're in from **Preview the theme's moments**, a menu under **Settings, General**, Theme: the launch splash, a loading screen, and each event moment. With Theme motion off, the splash and the moments are greyed out in it. A preview's progress text is a sample, and says so, and the splash's preview is handed a sample sprint's day, so Realm's die shows a 7.
 
 ### Theme motion
 
@@ -221,7 +223,7 @@ Pictures are named by their key in the theme's `assets`, never by a path, so the
 
 | Key | What it holds | Absent means |
 |---|---|---|
-| `splash` | `art` (a picture or a sprite sheet, below), `motif` (how it arrives), an optional `loop` (how it moves while the wait lasts, at full only), and `line`, the theme's greeting under the name | No splash |
+| `splash` | `art` (a picture or a sprite sheet, below), `motif` (how it arrives), an optional `loop` (how it moves while the wait lasts, at full only), `line`, the theme's greeting under the name, and an optional `face` (below) | No splash |
 | `loader` | `art` and its `loop`; `track`, the progress motif: `count` copies of the asset `art` at `size` pixels, moved by `motif`; and `flavour`, up to 12 lines that change while the wait lasts | The theme's Loading skin, with the progress text and a tip |
 | `tips` | `label`, the frame on a tip: "Foreman's note" | "Tip" |
 | `entrance` | The motif a dossier arrives with | It simply appears |
@@ -230,6 +232,8 @@ Pictures are named by their key in the theme's `assets`, never by a path, so the
 | `recap` | `label`, the heading of the sprint-end recap card | The `sprint-ended` event's label |
 
 A **picture** is `{ "art": "<asset key>", "width": <px>, "height": <px> }`, the size it's drawn at in CSS pixels, from 8 to 640. A **sprite sheet** adds `"frames": <n>`: that many frames side by side in one image, each `width` wide, which the `frames` loop steps through by moving the strip, never by repainting it.
+
+A splash's **face** is a number written on its art, which arrives with it: `{ "value": "sprint-day" | "items-done", "max": <n> }`, the value capped at `max`. The engine puts it in a `.m-face` span over the art, centred, and the theme's `theme.css` places it on its picture's own face. It shows only when the splash has the value; without it the art shows as drawn, so draw the art with the face it should show when there's no data. Whatever the splash knows, it also carries as data attributes on `.splash`, for a theme's stylesheet: `data-sprint-day`, `data-sprint-days`, `data-items-done` and `data-dossier`. They're plain numbers and a name, and a theme can't ask for anything else.
 
 The motifs are the engine's, so every theme moves the same few ways and each one moves only by `transform` and `opacity`:
 

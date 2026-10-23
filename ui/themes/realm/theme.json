@@ -54,7 +54,7 @@
     "momentCampfire": "assets/moments/campfire.svg"
   },
   "moments": {
-    "splash": { "art": { "art": "d20", "width": 104, "height": 104 }, "motif": "stamp", "line": "The candles are lit and the party is gathered. The dungeon master rolls for the ledgers." },
+    "splash": { "art": { "art": "d20", "width": 104, "height": 104 }, "motif": "stamp", "face": { "value": "sprint-day", "max": 20 }, "line": "The candles are lit and the party is gathered. The dungeon master rolls for the ledgers." },
     "loader": {
       "art": { "art": "d20", "width": 88, "height": 88 },
       "loop": "tumble",

@@ -8,7 +8,7 @@
  * The dress code, enforced at the door rather than in the annual review.
  */
 
-import { ENTER_MOTIFS, LOOP_MOTIFS, MOMENT_KINDS, TRACK_MOTIFS } from '../src/moments/schema.ts';
+import { ENTER_MOTIFS, FACE_VALUES, LOOP_MOTIFS, MOMENT_KINDS, TRACK_MOTIFS } from '../src/moments/schema.ts';
 import { TERMS, TOKENS, type ThemeManifest } from '../src/theme-pack.ts';
 import { STANDARD, WORD_KEYS, commandsIn, placeholders, type WordKey } from '../src/wording.ts';
 
@@ -161,6 +161,12 @@ export function momentsProblems(moments: unknown, assets: Record<string, string>
     motif('splash.motif', s.motif, ENTER_MOTIFS);
     if (s.loop !== undefined) motif('splash.loop', s.loop, LOOP_MOTIFS);
     words('splash.line', s.line);
+    if (s.face !== undefined) {
+      const f = (s.face ?? {}) as Record<string, unknown>;
+      motif('splash.face.value', f.value, FACE_VALUES);
+      if (f.max !== undefined && (typeof f.max !== 'number' || !Number.isInteger(f.max) || f.max < 1 || f.max > 999)) at('splash.face.max', 'must be a whole number from 1 to 999.');
+      for (const key of Object.keys(f)) if (key !== 'value' && key !== 'max') at(`splash.face.${key}`, "isn't a face key (value, max).");
+    }
   }
   if (m.loader !== undefined) {
     const l = m.loader as Record<string, unknown>;
