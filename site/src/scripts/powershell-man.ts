@@ -1,3 +1,6 @@
+// The site's way into Powershell Man: type the secret, and the Toil UI preview's
+// game opens in a full-screen dialog that unloads it again on close. Requests to
+// ship a homegrown build are routed to Packaging, as the form requires.
 const dialog = document.getElementById('powershell-man') as HTMLDialogElement | null;
 const closeButton = dialog?.querySelector<HTMLButtonElement>('[data-game-close]');
 const frame = dialog?.querySelector<HTMLIFrameElement>('[data-game-frame]');
@@ -12,6 +15,11 @@ if (dialog && closeButton && frame) {
     closeButton.focus();
   };
 
+  // The game listens on the frame's own window, so keys reach it only once the
+  // frame has focus; Close stays one Shift+Tab away.
+  frame.addEventListener('load', () => {
+    if (dialog.open && frame.src) frame.contentWindow?.focus();
+  });
   closeButton.addEventListener('click', () => dialog.close());
   // Escape belongs to the game while it has focus (it pauses); the persistent
   // close control remains available for leaving the simulator.

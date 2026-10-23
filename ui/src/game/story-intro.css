@@ -22,7 +22,7 @@
 
 .pm-story__art {
   left: 42%;
-  background-image: url("./story.png");
+  background-image: url("./story.webp");
   background-repeat: no-repeat;
   background-size: 300% auto;
   image-rendering: pixelated;

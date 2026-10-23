@@ -16,6 +16,26 @@ const typeSecret = (text: string, target: Window | HTMLElement = window) => {
 const openApp = () => render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview />);
 
 describe('the hidden arcade entry', () => {
+  it('keeps the view behind it mounted and reads nothing while it is open', async () => {
+    window.location.hash = '#/dossier/card-payments';
+    const execute = vi.fn(fixtureExecute().execute);
+    render(<App execute={execute} agent={scriptedAgent()} now={FIXTURE_NOW} preview />);
+    await waitFor(() => expect(document.querySelector('main h1')?.textContent).toBeTruthy());
+    // Let the dashboard finish its own reads before counting.
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    const h1 = document.querySelector('main h1')!;
+    const before = execute.mock.calls.length;
+    act(() => typeSecret('powershell'));
+    await screen.findByRole('dialog', { name: 'Powershell Man' });
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(h1.isConnected).toBe(true);
+    expect(execute.mock.calls.length).toBe(before);
+    fireEvent.click(screen.getByRole('button', { name: 'Exit arcade' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Powershell Man' })).toBeNull());
+    expect(window.location.hash).toBe('#/dossier/card-payments');
+    expect(h1.isConnected).toBe(true);
+  });
+
   it('opens from the secret, contains focus, and returns to the previous route', async () => {
     window.location.hash = '#/settings';
     openApp();
@@ -23,6 +43,7 @@ describe('the hidden arcade entry', () => {
     expect(screen.queryByRole('dialog', { name: 'Powershell Man' })).toBeNull();
     act(() => typeSecret('powershell'));
     const dialog = await screen.findByRole('dialog', { name: 'Powershell Man' });
+    expect(screen.getByRole('heading', { level: 1, name: "toil's configuration", hidden: true })).toBeDefined();
     await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
     fireEvent.click(screen.getByRole('button', { name: 'Exit arcade' }));
     await waitFor(() => expect(window.location.hash).toBe('#/settings'));

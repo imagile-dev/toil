@@ -1,6 +1,9 @@
+// Powershell Man, the hidden arcade level: one Canvas 2D loop, its sprites and
+// input, loaded only when someone types the secret. It builds nothing, files
+// nothing and distributes nothing, which puts it ahead of most release trains.
 import { useCallback, useEffect, useRef, useState } from "react";
-import titleArt from "./title.png";
-import spriteArt from "./sprites.png";
+import titleArt from "./title.webp";
+import spriteArt from "./sprites.webp";
 import { StoryIntro } from "./StoryIntro.tsx";
 import "./powershell-man.css";
 

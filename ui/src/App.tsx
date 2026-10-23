@@ -158,7 +158,14 @@ export function tabOf(route: Route): DossierTab | null {
 function useRoute(): Route {
   const [route, setRoute] = useState(() => parseRoute(window.location.hash));
   useEffect(() => {
-    const onChange = () => setRoute(parseRoute(window.location.hash));
+    const onChange = () => {
+      // Opening the arcade is a modal transition: keep the current view and
+      // any unfinished form mounted behind it until the player returns.
+      // Coming back to the same route keeps the same object, so nothing reloads on exit either.
+      if (window.location.hash === POWERSHELL_MAN_HASH) return;
+      const next = parseRoute(window.location.hash);
+      setRoute((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+    };
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
   }, []);

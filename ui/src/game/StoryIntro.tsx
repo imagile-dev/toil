@@ -1,3 +1,5 @@
+// The skippable three-panel comic before the level. Skipping it is allowed; the
+// change advisory board has noted the decision and will raise it at the next one.
 import { useCallback, useEffect, useState } from "react";
 import "./story-intro.css";
 
