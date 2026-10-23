@@ -68,6 +68,24 @@ keeps its character, themed blue like the public site.
 - **The ground:** every raster's ground is at most `(7, 9, 10)`, below Crate's new
   bg `#0f1115`, so `mix-blend-mode: lighten` still hides it.
 
+## The site's screenshot of Toil UI is retaken in the blue Crate
+
+- **What:** `site/public/images/ui-dossier-card-payments-1536.webp` and `-960.webp`
+  (the home page's Toil UI section and `/docs/dossiers/`' "One dossier, three
+  views") are a new shot of card-payments' dashboard in Crate, on the sample data,
+  at 1280 by 640 CSS pixels and 1.2x (so 1536 by 768, the size the markup declares),
+  with Theme motion off. Same names, sizes and format, so no markup moves.
+- **The alt text changed** on both, because the dashboard has changed since the old
+  shot (the recommendation, the key issues and the agent inbox now lead it, where the
+  sprint's progress used to); an alt text that describes a screen nobody sees would
+  fail the people who rely on it.
+- **The files are larger** (73 KB and 42 KB, from 44 KB and 24 KB): the new dashboard
+  has more text on it. Still lazy-loaded below the fold.
+- **The rest was checked:** the `/ui/` showcase frames the real app, so its default
+  Crate is the blue one; the cartoons, `og.png`, the README banner and cartoon, the
+  social preview and the avatars were already blue (#448). Nothing else in `site/`
+  or `.github/assets/` shows Crate.
+
 ## Words
 
 - The theme's description, `ui/docs/themes.md`, the site skill and the welcome docs
