@@ -83,12 +83,17 @@ describe.each(TERMINAL_THEMES.map((t) => [t.name, t] as const))('%s', (name, the
     const cue = ui.moments?.splash;
     if (cue?.motif) expect(look.motif).toBe(terminalMotif(cue.motif));
     expect(look.line).toBe(cue?.line);
-    const text = splashFrame(99, { colorDepth: 1, unicode: true, columns: 100 }, '0.0.0', look)
-      .join(' ')
-      // The drawing beside the text: braille and block elements.
-      .replace(/[▀-▟⠀-⣿]/g, '')
-      .replace(/\s+/g, ' ');
-    if (cue?.line) expect(text).toContain(cue.line);
+    // 80 columns is the narrowest window that keeps the text beside the logo.
+    for (const columns of [80, 120]) {
+      const frame = splashFrame(99, { colorDepth: 1, unicode: true, columns }, '0.0.0', look);
+      for (const line of frame) expect([...line].length, `${columns} columns`).toBeLessThanOrEqual(columns);
+      const text = frame
+        .join(' ')
+        // The drawing beside the text: braille and block elements.
+        .replace(/[▀-▟⠀-⣿]/g, '')
+        .replace(/\s+/g, ' ');
+      if (cue?.line) expect(text, `${columns} columns`).toContain(cue.line);
+    }
   });
 });
 

@@ -145,7 +145,8 @@ const TEXT_WIDTH = Math.max(WORDMARK_WIDTH, TAGLINE.length);
  * One frame of the splash, as lines. Every frame has the same height, so
  * redrawing in place never scrolls. The theme's look says what surrounds the
  * badge, how it arrives, and the line under the tagline, wrapped to the text
- * column: two lines at most beside the logo, which is sixteen tall, and as
+ * column, as wide as the window allows: three lines at most beside the logo,
+ * which is sixteen tall (the third takes the blank line above it), and as
  * many as it takes when the window is narrow enough to stack them.
  */
 export function splashFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unicode' | 'columns'>, version: string, look: SplashLook = PLAIN_LOOK): string[] {
@@ -153,14 +154,14 @@ export function splashFrame(t: number, caps: Pick<TermCaps, 'colorDepth' | 'unic
   const logo = logoCells(t, caps, look);
   const dot = caps.unicode ? '·' : '-';
   const stacked = caps.columns < LOGO_WIDTH + GAP + TEXT_WIDTH + 4;
-  const wrapped = wrapWords(look.line ?? PLAIN_LINE, stacked ? Math.max(20, caps.columns - 2) : TEXT_WIDTH);
-  const lines = stacked || wrapped.length <= 2 ? wrapped : wrapped.slice(0, 2);
+  const wrapped = wrapWords(look.line ?? PLAIN_LINE, stacked ? Math.max(20, caps.columns - 2) : Math.max(TEXT_WIDTH, caps.columns - LOGO_WIDTH - GAP - 4));
+  const lines = stacked ? wrapped : wrapped.slice(0, 3);
   const side: Cell[][] = [
     ...Array.from({ length: LEAD }, () => []),
     ...wordmarkCells(t, caps),
     [],
     textCells(typed(TAGLINE, t, 0.9, 1.4), PALETTE.ink),
-    [],
+    ...(lines.length < 3 || stacked ? [[]] : []),
     ...typedLines(lines, t, 1.2, 1.6).map((l) => textCells(l, PALETTE.muted)),
     textCells(t > 1.5 ? `toil ${version} ${dot} by Imagile` : '', PALETTE.faint),
   ];

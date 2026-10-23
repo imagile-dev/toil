@@ -65,8 +65,10 @@
   only how the badge arrives (fade, rise, drop, slide, pop); a loop motif (`bob`)
   isn't played, since nothing in the terminal keeps moving.
 - **The splash line** is the theme's `moments.splash.line` in place of "Enterprise
-  tools and databases.", wrapped to the text column, two lines at most beside the
-  logo. The sync test checks every theme's line shows in full.
+  tools and databases.", wrapped to the text column, which widens with the window:
+  three lines at most beside the logo, the third taking the blank line above it
+  (Realm's line is 89 characters). The sync test checks every theme's line shows in
+  full at 80 and 120 columns.
 - **Two Weeks' Notice keeps toil's own palette** in every theme: it's a hidden game
   with its own colour rules, and theming it was out of the issue's scope.
 - **The parity suite's config file.** `theme set` is the first config command over
