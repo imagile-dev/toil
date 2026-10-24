@@ -53,7 +53,7 @@ export const USAGE = `Usage: toil-ui [options]
        toil-ui wipe [--data-dir <dir>]
 
 Starts Toil UI on this machine and prints the one URL that opens it.
-Alpha, local only: it binds loopback and reads through toil, read-only.
+Beta, local only: it binds loopback and reads through toil, read-only.
 A sync stores what the dashboards show in a cache in the data folder.
 
 Commands:

@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/@imagile-dev/toil"><img src="https://img.shields.io/npm/v/@imagile-dev/toil/alpha?style=flat-square&label=npm&labelColor=0f1115&color=8cc4ff" alt="npm version (alpha)"></a>
+  <a href="https://www.npmjs.com/package/@imagile-dev/toil"><img src="https://img.shields.io/npm/v/@imagile-dev/toil/beta?style=flat-square&label=npm&labelColor=0f1115&color=8cc4ff" alt="npm version (beta)"></a>
   <a href="https://github.com/imagile-dev/toil/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/imagile-dev/toil/ci.yml?branch=main&style=flat-square&label=CI&labelColor=0f1115" alt="CI status on main"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/node-%E2%89%A5%2024.22.1-c2e0ff?style=flat-square&labelColor=0f1115" alt="Node.js 24.22.1 or later"></a>
   <a href="https://imagile-dev.github.io/toil/about/how-it-works/"><img src="https://img.shields.io/badge/runtime%20dependencies-0-c2e0ff?style=flat-square&labelColor=0f1115" alt="No runtime dependencies"></a>
@@ -36,7 +36,7 @@ tools and your databases while spending as little of their context as it can.
 `toil mcp` serves the same commands as MCP tools for clients that want them. toil is
 plain JavaScript on Node, so it also runs where executables are blocked.
 
-> **Status:** Alpha: APIs and flags may change before 1.0
+> **Status:** Beta: commands, flags and output are stable, and any breaking change comes with a migration note
 
 toil is published to npm as [`@imagile-dev/toil`](https://www.npmjs.com/package/@imagile-dev/toil),
 and documented at [imagile-dev.github.io/toil](https://imagile-dev.github.io/toil/). This
@@ -94,7 +94,7 @@ toil deps scan      # inventory the npm, Maven and NuGet packages in this folder
 toil mcp            # serve toil to an agent over stdio
 ```
 
-Releases are alpha and published under npm's `alpha` tag, which `latest` follows
+Releases are beta and published under npm's `beta` tag, which `latest` follows
 until 1.0 ([npm](https://www.npmjs.com/package/@imagile-dev/toil)). Setup, connections and every command are on the
 [site](https://imagile-dev.github.io/toil/docs/).
 
@@ -206,7 +206,7 @@ database engines sit beside the integrations, says what its level means.
 
 ## Toil UI
 
-**Alpha, local only.** Toil UI (`@imagile-dev/toil-ui`, in [`ui/`](ui/)) is a
+**Beta, local only.** Toil UI (`@imagile-dev/toil-ui`, in [`ui/`](ui/)) is a
 separate package: a local web app with one dashboard per dossier, syncing through
 toil into a local cache with your own connections, read-only. It binds loopback and opens only from
 the one URL it prints when it starts. Installing toil never installs it.

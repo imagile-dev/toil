@@ -15,7 +15,8 @@
       "initial-version": "0.1.0-alpha.1",
       "versioning": "prerelease",
       "prerelease": true,
-      "prerelease-type": "alpha",
+      "prerelease-type": "beta",
+      "release-as": "0.1.0-beta.1",
       "exclude-paths": [
         "ui"
       ],
@@ -36,7 +37,8 @@
       "initial-version": "0.1.0-alpha.1",
       "versioning": "prerelease",
       "prerelease": true,
-      "prerelease-type": "alpha"
+      "prerelease-type": "beta",
+      "release-as": "0.1.0-beta.1"
     }
   }
 }

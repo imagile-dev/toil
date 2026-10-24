@@ -1,7 +1,7 @@
 {
   "name": "@imagile-dev/toil-ui",
   "version": "0.1.0-alpha.3",
-  "description": "Toil UI: a local web app to see and reason about work across Jira, Azure DevOps and GitHub, on toil. Alpha, local only.",
+  "description": "Toil UI: a local web app to see and reason about work across Jira, Azure DevOps and GitHub, on toil. Beta, local only.",
   "license": "Apache-2.0",
   "author": "Imagile",
   "homepage": "https://imagile-dev.github.io/toil/docs/ui/",

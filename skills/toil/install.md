@@ -25,8 +25,9 @@ With no global install, `npx -y @imagile-dev/toil version` runs it on demand. Ea
 GitHub release also carries the packed `.tgz` for offline or mirrored installs:
 `npm install -g ./imagile-dev-toil-<version>.tgz`.
 
-**toil is alpha: APIs and flags may change before 1.0.** Releases are published under
-npm's `alpha` tag, which `latest` follows until 1.0.
+**toil is beta: commands, flags and output are stable, and any breaking change comes
+with a migration note.** Releases are published under npm's `beta` tag, which `latest`
+follows until 1.0.
 
 ## From a clone, with no npm install
 

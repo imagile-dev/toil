@@ -28,7 +28,7 @@ const teaser = principles.slice(0, 3);
     <div class="container hero__inner">
       <ToilMap>
         <Fragment slot="head">
-          <p class="eyebrow hero__in" style="--i: 0"><span><b>Alpha</b> · Open source · By <a class="hero__imagile" href="https://www.imagile.dev">Imagile</a></span></p>
+          <p class="eyebrow hero__in" style="--i: 0"><span><b>Beta</b> · Open source · By <a class="hero__imagile" href="https://www.imagile.dev">Imagile</a></span></p>
           <h1 class="hero__title" id="hero-title">
             <span class="hero__in" style="--i: 1">The <em class="hero__mark text-gradient">token-efficient</em></span>
             <span class="hero__in" style="--i: 2">alternative to MCP.</span>
@@ -64,7 +64,7 @@ const teaser = principles.slice(0, 3);
           </li>
         ))}
       </ol>
-      <p class="start__sub">Two ways to run it. Both need Node.js 24.22.1 or later on 24.x, or 26.12.1 or later, on Windows, macOS or Linux. <span class="start__alpha">Alpha</span> APIs and flags may change before 1.0.</p>
+      <p class="start__sub">Two ways to run it. Both need Node.js 24.22.1 or later on 24.x, or 26.12.1 or later, on Windows, macOS or Linux. <span class="start__beta">Beta</span> Commands, flags and output are stable, and any breaking change comes with a migration note.</p>
       <div class="start__ways">
         <article class="card start__way" aria-labelledby="start-npm">
           <span class="card-tag">npm</span>
@@ -127,7 +127,7 @@ const teaser = principles.slice(0, 3);
   <section class="section section--rule toilui" aria-labelledby="toilui-title">
     <div class="container toilui__inner">
       <div class="section-head" data-reveal>
-        <p class="eyebrow"><b>Toil UI</b> · Alpha</p>
+        <p class="eyebrow"><b>Toil UI</b> · Beta</p>
         <h2 id="toilui-title">Rather see it on a screen?</h2>
         <p>Toil UI is a local web app on toil: one dashboard per dossier, a chat that cites every item it reads, and eight themes that change how it looks and how its agent talks.</p>
         <a class="btn btn--primary toilui__go" href={url('/ui/')}>Try it live</a>
@@ -261,8 +261,8 @@ const teaser = principles.slice(0, 3);
   @keyframes rise { to { transform: none; } }
   @keyframes glow { to { transform: translate(-6%, 8%) scale(1.08); } }
 
-  /* The Alpha badge by the install commands; the hero's eyebrow says it too. */
-  .start__alpha {
+  /* The Beta badge by the install commands; the hero's eyebrow says it too. */
+  .start__beta {
     font-family: var(--font-mono);
     font-style: normal;
     margin-right: 0.5rem;

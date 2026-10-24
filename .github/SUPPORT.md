@@ -29,5 +29,5 @@ Never through any of the above. See [SECURITY.md](SECURITY.md).
 
 ## What to expect
 
-toil is in alpha and maintained by Imagile. There's no support contract or
+toil is in beta and maintained by Imagile. There's no support contract or
 response-time promise, but every report is read.

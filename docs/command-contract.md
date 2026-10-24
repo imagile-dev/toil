@@ -95,5 +95,6 @@ declares with `feat!:` and a `BREAKING CHANGE:` footer. An additive change (a ne
 command, flag, field, error code, warning or `meta` key) leaves it alone, so a
 caller built against version N works with every toil that reports N.
 
-Before the first npm release nothing is relied on yet (principle 7), so the version
-stays 1 until then, and the first release ships 1.
+The contract is stable from the first beta, `0.1.0-beta.1` (principle 7). The alphas
+before it all report 1, the first beta ships 1, and every breaking change from then
+on raises it.
