@@ -7,9 +7,12 @@
   once that version is released**) fails as soon as `.release-please-manifest.json`
   reaches the forced version, with the fix in its message. It skips on the release PR
   (`GITHUB_HEAD_REF` starting `release-please--`), which is what moves the manifest,
-  and in `publish-toil` (`GITHUB_JOB`), which runs `npm test` on the release's tag
-  before publishing. So after the release PR merges, `main`'s CI and every PR fail
-  until a PR deletes both `release-as` lines. A loud red check was chosen over a
+  in `publish-toil` (`GITHUB_JOB`), which runs `npm test` on the release's tag
+  before publishing, and on the lockfile PR the release opens
+  (`imagile-bot/lockfile-toil-…`), because `check:lockfile` fails every other PR,
+  the removal included, until that one merges. The order after the release is: the
+  lockfile PR merges, then a PR deletes both `release-as` lines; until then `main`'s
+  CI and every other PR fail here. A loud red check was chosen over a
   workflow that edits the config by itself, which would need write access the release
   job doesn't otherwise use.
 - **The dist-tag script is unchanged.** It already takes the word after the hyphen, so

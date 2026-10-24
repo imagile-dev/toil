@@ -60,13 +60,15 @@ describe('release-please', () => {
 
   // release-as forces one version. Left in after that version has gone out, it
   // forces it again, and the next release PR asks to publish a version npm
-  // already has. Two runs see the manifest at that version with the override
-  // still in, and both are exempt: the release PR, which is what moves the
-  // manifest up to it, and publish-toil, which tests the release's tag before
-  // publishing it. Once the release PR merges, every other run fails here, with
-  // the fix, until a PR removes the override (#478).
-  const releasing = process.env.GITHUB_HEAD_REF?.startsWith('release-please--') || process.env.GITHUB_JOB === 'publish-toil';
-  it.skipIf(releasing)('drops a release-as override once that version is released (skipped on the release PR and in publish-toil)', () => {
+  // already has. Three runs see the manifest at that version with the override
+  // still in, and all are exempt: the release PR, which is what moves the
+  // manifest up to it; publish-toil, which tests the release's tag before
+  // publishing it; and the lockfile PR the release opens, which has to merge
+  // before any other PR passes check:lockfile, the removal included (#299).
+  // Every other run fails here, with the fix, until a PR removes the override (#478).
+  const head = process.env.GITHUB_HEAD_REF ?? '';
+  const releasing = head.startsWith('release-please--') || head.startsWith('imagile-bot/lockfile-toil-') || process.env.GITHUB_JOB === 'publish-toil';
+  it.skipIf(releasing)('drops a release-as override once that version is released (skipped on the release and lockfile PRs and in publish-toil)', () => {
     const parse = (text: string) => {
       const parsed = npmGrammar.parse(text);
       if (!parsed.ok) throw new Error(`${text}: ${parsed.reason}`);
@@ -209,6 +211,8 @@ describe('the lockfile after a release (#299)', () => {
     expect(fix).toContain('npm install --package-lock-only --prefer-online --ignore-scripts --no-audit --no-fund "@imagile-dev/toil@$PIN" -w ui --save-exact');
     expect(fix.indexOf('npm ci --ignore-scripts')).toBeLessThan(fix.indexOf('npm run check:lockfile -w ui'));
     const pr = step('lockfile', 'Open the lockfile PR')!.run!;
+    // The release-as check above skips this branch by its prefix.
+    expect(pr).toContain('BRANCH="imagile-bot/lockfile-toil-$PIN"');
     expect(pr).toContain('git add package-lock.json\n');
     expect(pr).not.toMatch(/git add (-A|\.|--all)/);
     expect(pr).toContain('gh pr create --base main');
