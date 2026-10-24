@@ -9,7 +9,7 @@
  * rule, which is one fewer change request.
  */
 
-import { useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useInsertionEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode, type RefObject } from 'react';
 import { Button, Dialog, DialogTrigger, Popover } from 'react-aria-components';
 import type { Agent } from './agent.ts';
 import { Ambient } from './ambient/Ambient.tsx';
@@ -66,6 +66,9 @@ import { HeaderHelp } from './components/help.tsx';
 import { Bell } from './components/bell.tsx';
 import { NewDot, WhatsNewModal, useWhatsNew } from './components/whats-new.tsx';
 import type { Release, Versions } from './whats-new.ts';
+
+const PowershellMan = lazy(() => import('./game/PowershellMan.tsx').then((module) => ({ default: module.PowershellMan })));
+const POWERSHELL_MAN_HASH = '#/powershell-man';
 
 export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'usage' | 'agent-usage' | 'agent';
 export type Route =
@@ -155,11 +158,47 @@ export function tabOf(route: Route): DossierTab | null {
 function useRoute(): Route {
   const [route, setRoute] = useState(() => parseRoute(window.location.hash));
   useEffect(() => {
-    const onChange = () => setRoute(parseRoute(window.location.hash));
+    const onChange = () => {
+      // Opening the arcade is a modal transition: keep the current view and
+      // any unfinished form mounted behind it until the player returns.
+      // Coming back to the same route keeps the same object, so nothing reloads on exit either.
+      if (window.location.hash === POWERSHELL_MAN_HASH) return;
+      const next = parseRoute(window.location.hash);
+      setRoute((prev) => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
+    };
     window.addEventListener('hashchange', onChange);
     return () => window.removeEventListener('hashchange', onChange);
   }, []);
   return route;
+}
+
+function usePowershellMan() {
+  const [open, setOpen] = useState(() => window.location.hash === POWERSHELL_MAN_HASH);
+  const returnHash = useRef('#/');
+  const activeBeforeOpen = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const onChange = () => setOpen(window.location.hash === POWERSHELL_MAN_HASH);
+    window.addEventListener('hashchange', onChange);
+    return () => window.removeEventListener('hashchange', onChange);
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    return () => {
+      activeBeforeOpen.current?.focus();
+      activeBeforeOpen.current = null;
+    };
+  }, [open]);
+  const show = useCallback(() => {
+    if (open) return;
+    returnHash.current = window.location.hash && window.location.hash !== POWERSHELL_MAN_HASH ? window.location.hash : '#/';
+    activeBeforeOpen.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    window.location.hash = POWERSHELL_MAN_HASH;
+  }, [open]);
+  const close = useCallback(() => {
+    if (window.location.hash === POWERSHELL_MAN_HASH) window.location.hash = returnHash.current;
+    else setOpen(false);
+  }, []);
+  return { open, show, close };
 }
 
 export interface AppProps {
@@ -215,6 +254,29 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
+  const game = usePowershellMan();
+  const gameBuffer = useRef('');
+  const gameLastKey = useRef(0);
+  useEffect(() => {
+    const onType = (e: KeyboardEvent) => {
+      if (game.open || e.repeat || e.isComposing || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || typingIn(e.target) || (e.target instanceof Element && e.target.closest('[role="dialog"]'))) {
+        gameBuffer.current = '';
+        return;
+      }
+      if (e.key.length !== 1 || !/[a-z]/i.test(e.key)) return;
+      const now = Date.now();
+      if (now - gameLastKey.current > 1400) gameBuffer.current = '';
+      gameLastKey.current = now;
+      gameBuffer.current = (gameBuffer.current + e.key.toLowerCase()).slice(-'powershell'.length);
+      if (gameBuffer.current === 'powershell') {
+        gameBuffer.current = '';
+        e.preventDefault();
+        game.show();
+      }
+    };
+    window.addEventListener('keydown', onType, true);
+    return () => window.removeEventListener('keydown', onType, true);
+  }, [game.open, game.show]);
   // Every assignment this browser starts is remembered as its own, for "only for agents I started" (#306).
   const { mine, mark } = useMine();
   const assignments = useMemo(() => (given ? remembering(given, mark) : undefined), [given, mark]);
@@ -225,6 +287,11 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const choice = useThemeChoice(themeSetting ?? null);
   const theme = themeNamed(choice.theme);
   const main = useRef<HTMLElement>(null);
+  const gameDialog = useRef<HTMLDivElement>(null);
+  const focusGameDialog = useCallback((element: HTMLDivElement | null) => {
+    gameDialog.current = element;
+    element?.querySelector<HTMLElement>('button')?.focus();
+  }, []);
   const first = useRef(true);
   const wanted = route.view === 'dossiers' || route.view === 'settings' ? null : route.dossier;
   // The command palette and the shortcuts sheet (#416), hidden until called up; `focused` is the item the focus was on when the palette opened.
@@ -249,6 +316,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   useEffect(() => {
     // Capture, so a field or a dialog that handles its own keys can't swallow Ctrl+K first.
     const on = (e: KeyboardEvent) => {
+      if (game.open || (e.target instanceof Element && e.target.closest('[data-powershell-man]'))) return;
       if (matches('palette', e)) {
         e.preventDefault();
         setPalette((p) => (p.open ? { ...p, open: false } : p));
@@ -260,7 +328,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
     };
     window.addEventListener('keydown', on, true);
     return () => window.removeEventListener('keydown', on, true);
-  }, []);
+  }, [game.open]);
 
   // Settings can add or remove dossiers, so the list is read again after a visit there (the first-run checklist, #416, ticks off from it).
   useEffect(() => {
@@ -369,6 +437,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   }, [routeKey, landing]);
   useEffect(() => {
     // A board filtered to one person (#292) takes focus at the filter's line instead, which is what the link was for.
+    if (game.open) return;
     const h1 = pending.current ? (main.current?.querySelector<HTMLElement>('#board-filter') ?? main.current?.querySelector<HTMLElement>('h1')) : null;
     if (h1) {
       pending.current = false;
@@ -468,10 +537,10 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
         <Ambient theme={theme.name} />
         <Splash ready={splashReady} detail={splashDetail} data={splashData} />
         <PlayNews news={news ?? null} dossier={wanted} />
-        <a className="skip" href="#main" onClick={skip}>
+        <a className="skip" href="#main" onClick={skip} inert={game.open} aria-hidden={game.open || undefined}>
           Skip to content
         </a>
-        <header>
+        <header inert={game.open} aria-hidden={game.open || undefined}>
           {preview && (
             <p className="banner" role="note">
               <strong>Toil UI alpha, on sample data.</strong> Nothing here connects to a tracker.
@@ -494,7 +563,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
               {compact ? (
                 <>
                   <Bell />
-                  <HeaderMenu links={links} feedback={feedback} controls={controls} help={helpWith} fresh={whatsNew.fresh.length > 0} onPalette={openPalette} onShortcuts={() => setSheet(true)} />
+                  <HeaderMenu suspended={game.open} links={links} feedback={feedback} controls={controls} help={helpWith} fresh={whatsNew.fresh.length > 0} onPalette={openPalette} onShortcuts={() => setSheet(true)} />
                 </>
               ) : (
                 <>
@@ -504,7 +573,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
                   <div className="settings">
                     <Bell />
                     {helpWith()}
-                    {feedback && <FeedbackButton api={feedback} />}
+                    {feedback && !game.open && <FeedbackButton api={feedback} />}
                     {controls}
                   </div>
                 </>
@@ -517,7 +586,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
             {preview ? 'Sample data' : 'Data'} read {dateTime(now)} through toil, read-only.
           </p>
         </header>
-        <main id="main" ref={main} data-view={route.view}>
+        <main id="main" ref={main} data-view={route.view} inert={game.open} aria-hidden={game.open || undefined}>
           {/* A running sync (#419): the theme's loader with its progress; the Sync panel's own line is the one announced. */}
           {syncing?.running && <Loader size="panel" message={syncText(syncing)!} live={false} />}
           {choice.saveError && (
@@ -528,7 +597,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           {body}
         </main>
         <CommandPalette
-          isOpen={palette.open}
+          isOpen={palette.open && !game.open}
           onOpenChange={(open) => setPalette((p) => ({ ...p, open }))}
           agent={agent}
           analysesApi={analyses}
@@ -546,8 +615,17 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           agentSettings={Boolean(agentSettings)}
           openShortcuts={() => setSheet(true)}
         />
-        <ShortcutsSheet isOpen={sheet} onOpenChange={setSheet} />
-        <WhatsNewModal shown={newsOpen?.shown ?? []} fresh={newsOpen?.fresh ?? false} isOpen={newsOpen !== null} onOpenChange={(open) => !open && setNewsOpen(null)} />
+        <ShortcutsSheet isOpen={sheet && !game.open} onOpenChange={setSheet} />
+        <WhatsNewModal shown={newsOpen?.shown ?? []} fresh={newsOpen?.fresh ?? false} isOpen={newsOpen !== null && !game.open} onOpenChange={(open) => !open && setNewsOpen(null)} />
+        {game.open && <Suspense fallback={null}><div className="pm-dialog" ref={focusGameDialog} role="dialog" aria-modal="true" aria-label="Powershell Man" tabIndex={-1} data-powershell-man onKeyDown={(e) => {
+          if (!['Tab'].includes(e.key)) return;
+          const focusable = [...(gameDialog.current?.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])') ?? [])].filter((el) => !el.hasAttribute('disabled'));
+          const first = focusable[0];
+          const last = focusable.at(-1);
+          if (!first || !last) { e.preventDefault(); gameDialog.current?.focus(); }
+          else if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+          else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        }}><PowershellMan onClose={game.close} /></div></Suspense>}
         </MomentsProvider>
       </SkinProvider>
       </ThemeChoiceProvider>
@@ -639,13 +717,13 @@ function NavLinks({ links, onFollow }: { links: NavLink[]; onFollow?: () => void
  * inside while it's open, Escape or a click outside closes it, and focus goes
  * back to the button. Feedback closes the menu first, then opens its dialog.
  */
-function HeaderMenu({ links, feedback, controls, help, fresh, onPalette, onShortcuts }: { links: NavLink[]; feedback: FeedbackApi | undefined; controls: ReactNode; help: (closeFirst: () => void) => ReactNode; fresh: boolean; onPalette: () => void; onShortcuts: () => void }) {
+function HeaderMenu({ suspended, links, feedback, controls, help, fresh, onPalette, onShortcuts }: { suspended: boolean; links: NavLink[]; feedback: FeedbackApi | undefined; controls: ReactNode; help: (closeFirst: () => void) => ReactNode; fresh: boolean; onPalette: () => void; onShortcuts: () => void }) {
   const [open, setOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const current = links.find((l) => l.current)?.label;
   return (
     <>
-      <DialogTrigger isOpen={open} onOpenChange={setOpen}>
+      <DialogTrigger isOpen={open && !suspended} onOpenChange={setOpen}>
         <Button className="btn menu-button" data-menu-button="">
           <span aria-hidden="true" className="menu-button__icon">
             ☰
@@ -697,7 +775,7 @@ function HeaderMenu({ links, feedback, controls, help, fresh, onPalette, onShort
           </Dialog>
         </Popover>
       </DialogTrigger>
-      {feedback && <FeedbackModal api={feedback} isOpen={feedbackOpen} onOpenChange={setFeedbackOpen} />}
+      {feedback && <FeedbackModal api={feedback} isOpen={feedbackOpen && !suspended} onOpenChange={setFeedbackOpen} />}
     </>
   );
 }

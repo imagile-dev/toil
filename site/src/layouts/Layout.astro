@@ -65,7 +65,12 @@ const ogImage = new URL(url('/og.png'), Astro.site);
     </main>
     <SiteFooter />
     <SiteSearch />
+    <dialog class="powershell-man" id="powershell-man" aria-labelledby="powershell-man-title" data-game-url={url('/ui/app/#/powershell-man')}>
+      <div class="powershell-man__bar"><h2 id="powershell-man-title">Powershell Man · Esc pauses</h2><button type="button" data-game-close class="tap">Close game</button></div>
+      <iframe title="Powershell Man game" data-game-frame></iframe>
+    </dialog>
     <script src="../scripts/motion.js"></script>
+    <script src="../scripts/powershell-man.ts"></script>
   </body>
 </html>
 
@@ -84,4 +89,15 @@ const ogImage = new URL(url('/og.png'), Astro.site);
     font-weight: 500;
   }
   .skip:focus { top: 1rem; }
+  .powershell-man {
+    position: fixed; inset: 0; width: 100%; height: 100%; max-width: none; max-height: none;
+    margin: 0; padding: 0; border: 0; background: #030b10; color: #e8f4f3; overflow: hidden;
+  }
+  .powershell-man[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+  .powershell-man::backdrop { background: #030b10; }
+  .powershell-man__bar { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.4rem 1rem; background: #0d1a23; border-bottom: 1px solid #27404a; }
+  .powershell-man__bar h2 { margin: 0; font: 500 0.85rem var(--font-mono); }
+  .powershell-man__bar button { min-height: 44px; padding: 0.4rem 0.7rem; border: 1px solid #41616d; border-radius: 5px; background: #102b39; color: #cce5e5; cursor: pointer; font: inherit; }
+  .powershell-man__bar kbd { margin-left: 0.5rem; color: #91adb4; }
+  .powershell-man iframe { display: block; width: 100%; height: 100%; border: 0; }
 </style>
