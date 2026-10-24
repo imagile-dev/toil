@@ -1,5 +1,54 @@
 # Changelog
 
+## [0.1.0-beta.1](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-alpha.3...toil-ui-v0.1.0-beta.1) (2026-10-24)
+
+
+### Features
+
+* Crate in the site's blue, in Toil UI, the welcome menu and the site's screenshot ([#475](https://github.com/imagile-dev/toil/issues/475)) ([9c5be91](https://github.com/imagile-dev/toil/commit/9c5be917c1339dd32a6f3080d44ffa31b82738b5))
+* Crate is the default theme everywhere, CLI included ([#470](https://github.com/imagile-dev/toil/issues/470)) ([db54367](https://github.com/imagile-dev/toil/commit/db543677011f1736916d1b8794bda6b96f0c56b3))
+* move toil and Toil UI to beta, with a stable interface from 0.1.0-beta.1 ([#481](https://github.com/imagile-dev/toil/issues/481)) ([abe6958](https://github.com/imagile-dev/toil/commit/abe6958a4c3f956831d0e58f39ca879e0344cce7))
+* one theme setting for the welcome menu and Toil UI ([#461](https://github.com/imagile-dev/toil/issues/461)) ([46ac45f](https://github.com/imagile-dev/toil/commit/46ac45fe23e42f7a969362b0b991a589b6dd9f25))
+* **site:** a full blue reskin in Toil UI Plain's palette ([#448](https://github.com/imagile-dev/toil/issues/448)) ([ad773d5](https://github.com/imagile-dev/toil/commit/ad773d5e7f8a63f31d3e5f363c59ed7fbdd54210))
+* **ui:** a blocker Gantt on the sprint timeline, with the critical chain ([#403](https://github.com/imagile-dev/toil/issues/403)) ([875520c](https://github.com/imagile-dev/toil/commit/875520cabbaf0a13175bad69c6ac63ca5265053b))
+* **ui:** a guided first run, a command palette, and search across dossiers ([#426](https://github.com/imagile-dev/toil/issues/426)) ([ca491b6](https://github.com/imagile-dev/toil/commit/ca491b65268151f55a7a1583ee2bf6e9db10e6c2))
+* **ui:** a history of analyses, and answers that read top-down ([#407](https://github.com/imagile-dev/toil/issues/407)) ([58e62c5](https://github.com/imagile-dev/toil/commit/58e62c5df1be1a51202088a32609957a7856e939))
+* **ui:** add hidden Powershell Man arcade to UI and site ([#477](https://github.com/imagile-dev/toil/issues/477)) ([0fdc0c3](https://github.com/imagile-dev/toil/commit/0fdc0c38577d5e841a0a953595f3aeaac616ac70))
+* **ui:** Context Overflow glossary links in the (i)s, and Learn in Help, the chat and the CLI menu ([#424](https://github.com/imagile-dev/toil/issues/424)) ([e294fbc](https://github.com/imagile-dev/toil/commit/e294fbc60927452fccfa42fb7cd98947b743915f))
+* **ui:** Crate looks like the toil site, without the pallets ([#399](https://github.com/imagile-dev/toil/issues/399)) ([672f11f](https://github.com/imagile-dev/toil/commit/672f11fe85e3aad8123702a82fc58e5f50ab996b)), closes [#397](https://github.com/imagile-dev/toil/issues/397)
+* **ui:** dossier page in tabs, with an Agents sidebar and a Minto overview ([#402](https://github.com/imagile-dev/toil/issues/402)) ([3ebb235](https://github.com/imagile-dev/toil/commit/3ebb235dc52073dec1d055959fe03f0ad7e4e4da))
+* **ui:** Frontier, a steampunk theme with a wild west flair ([#423](https://github.com/imagile-dev/toil/issues/423)) ([f966e50](https://github.com/imagile-dev/toil/commit/f966e50a458fc181404a44a140e13679929180f9))
+* **ui:** give the launch splash data, so Realm's d20 lands on the sprint's day ([#465](https://github.com/imagile-dev/toil/issues/465)) ([cf430e3](https://github.com/imagile-dev/toil/commit/cf430e348bd9b80b5da8a7ec56d23beca2f07296))
+* **ui:** moments:measure and screens:sheet, the theme-moments frame timings and contact sheets as repo tools ([#466](https://github.com/imagile-dev/toil/issues/466)) ([e975b3b](https://github.com/imagile-dev/toil/commit/e975b3b74f930132526c30477cb223fa872ddf25))
+* **ui:** Overworld, a top-down 16-bit adventure theme ([#429](https://github.com/imagile-dev/toil/issues/429)) ([12155a3](https://github.com/imagile-dev/toil/commit/12155a3ac035c25487dd19364bf0d389d2498b85))
+* **ui:** Realm leans into tabletop dungeon crawling ([#428](https://github.com/imagile-dev/toil/issues/428)) ([5b3273d](https://github.com/imagile-dev/toil/commit/5b3273df6367eb34b429de6101d522bd564a73ab))
+* **ui:** Sprawl, a cyberpunk theme on terminal bones ([#422](https://github.com/imagile-dev/toil/issues/422)) ([ccec44e](https://github.com/imagile-dev/toil/commit/ccec44e6fcb1700c6d7278c627e7f00adcff5abc))
+* **ui:** theme moments for Frontier: a train pulling into the depot, a pressure-gauge loader, PAID stamps and a blown boiler ([#456](https://github.com/imagile-dev/toil/issues/456)) ([10f3b41](https://github.com/imagile-dev/toil/commit/10f3b41c25caa2c8553a1bc452ceb741b670d923))
+* **ui:** theme moments for Overworld: a pixel title card, a map-scroll loader, and chest, brazier, door and key moments ([#458](https://github.com/imagile-dev/toil/issues/458)) ([3bb1b74](https://github.com/imagile-dev/toil/commit/3bb1b743081517d618fe0085ed0c74f531fca03a))
+* **ui:** theme moments for Realm: a d20 thrown into a dice tray, natural 20 and critical fail, and a session recap ([#455](https://github.com/imagile-dev/toil/issues/455)) ([27ba05f](https://github.com/imagile-dev/toil/commit/27ba05fca61fc85fa76ce57d3ae984e9c54c087b)), closes [#440](https://github.com/imagile-dev/toil/issues/440)
+* **ui:** theme moments for Sprawl: a cold boot that glitches into the skyline, a data-shard loader, and ICE moments ([#450](https://github.com/imagile-dev/toil/issues/450)) ([4ffe066](https://github.com/imagile-dev/toil/commit/4ffe0660d89c31d192c15326ba400f4ab7cef938))
+* **ui:** theme moments for Starship: a warp-in splash, a sensor-sweep loader, red alert and all clear ([#447](https://github.com/imagile-dev/toil/issues/447)) ([21b73d9](https://github.com/imagile-dev/toil/commit/21b73d97f1d04596e0a892bf56b7d61b9db2a6ee))
+* **ui:** theme moments: splash, loading screens, event moments and toil tips, with Crate and Harvest ([#430](https://github.com/imagile-dev/toil/issues/430)) ([a4ba492](https://github.com/imagile-dev/toil/commit/a4ba4927600b92cc4171ba184af75dcc9c2e7502))
+* **ui:** what's new after an upgrade, empty panels that act, and a notification bell ([#449](https://github.com/imagile-dev/toil/issues/449)) ([c34daaf](https://github.com/imagile-dev/toil/commit/c34daaf510176b66b74e21935430c0167988d58a))
+
+
+### Bug Fixes
+
+* point toil feedback, Toil UI and the skill at /about/feedback/ ([#445](https://github.com/imagile-dev/toil/issues/445)) ([50c7b7e](https://github.com/imagile-dev/toil/commit/50c7b7ecbc710f1028bd27b2225da531c12238ee)), closes [#435](https://github.com/imagile-dev/toil/issues/435)
+* require a Node patched for CVE-2026-111497 (24.22.1 or 26.12.1) ([#480](https://github.com/imagile-dev/toil/issues/480)) ([b2eacb1](https://github.com/imagile-dev/toil/commit/b2eacb1cfade0b97a66f884b9aecf5512a7c933d))
+* **ui:** Claude's agent features verified live on Haiku, with two usage fixes ([#398](https://github.com/imagile-dev/toil/issues/398)) ([89ee711](https://github.com/imagile-dev/toil/commit/89ee711523834d58937f00259c8691b0d0dc5cc0)), closes [#318](https://github.com/imagile-dev/toil/issues/318)
+* **ui:** one animation to an element in the moments engine, Sprawl's scan-in on the compositor, and every theme re-measured ([#463](https://github.com/imagile-dev/toil/issues/463)) ([2f4232e](https://github.com/imagile-dev/toil/commit/2f4232e42cad442f72766125cf14628351531c7e))
+* **ui:** Realm's rest days skip today, and their key shows only under a calendar ([#441](https://github.com/imagile-dev/toil/issues/441)) ([05ef95e](https://github.com/imagile-dev/toil/commit/05ef95e16d98409acaa3342837962af775e578be)), closes [#415](https://github.com/imagile-dev/toil/issues/415)
+* **ui:** show a board drag while it happens and where it lands ([#400](https://github.com/imagile-dev/toil/issues/400)) ([83879a2](https://github.com/imagile-dev/toil/commit/83879a2eacfdedcbe22009ad77ba64833ed252a5))
+* **ui:** the layout check's board drag waits on conditions, not time ([#405](https://github.com/imagile-dev/toil/issues/405)) ([baf16d1](https://github.com/imagile-dev/toil/commit/baf16d179c25d479d825ba794faf9812b698927e))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @imagile-dev/toil bumped from 0.1.0-alpha.5 to 0.1.0-beta.1
+
 ## [0.1.0-alpha.3](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-alpha.2...toil-ui-v0.1.0-alpha.3) (2026-10-21)
 
 
