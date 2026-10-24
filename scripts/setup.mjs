@@ -24,7 +24,10 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const MIN = [24, 14];
+// The patched release on each Node line toil accepts, as src/core/runtime.ts
+// has them (CVE-2026-111497, #479). Node 25 gets no fix; a newer line is allowed.
+const PATCHED = [[24, 22, 1], [26, 12, 1]];
+const NEED = 'Node.js 24.22.1 or later on 24.x, or 26.12.1 or later';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const bundle = join(root, 'dist', 'toil.js');
 const args = process.argv.slice(2);
@@ -45,9 +48,11 @@ const noAlias = args.includes('--no-alias');
 if (unknown.length > 0) fail(`unknown option ${unknown.join(' ')}.`, 'Use --skip-build, --no-alias and --profile <file>, or none of them.');
 
 // 1. Node.
-const [major, minor] = process.versions.node.split('.').map(Number);
-if (major < MIN[0] || (major === MIN[0] && minor < MIN[1])) {
-  fail(`toil needs Node.js ${MIN.join('.')} or later, and this is ${process.versions.node}.`, `Install Node.js ${MIN.join('.')} or later from https://nodejs.org, then run node scripts/setup.mjs again.`);
+const have = process.versions.node.split('.').map(Number);
+const line = PATCHED.find((p) => p[0] === have[0]);
+const refused = line ? have[1] < line[1] || (have[1] === line[1] && have[2] < line[2]) : have[0] < PATCHED[PATCHED.length - 1][0];
+if (refused) {
+  fail(`toil needs ${NEED}, the releases that fix CVE-2026-111497, and this is ${process.versions.node}.`, `Install ${NEED} from https://nodejs.org, then run node scripts/setup.mjs again.`);
 }
 
 // Runs npm with its output streamed. npm is npm.cmd on Windows, which only a shell
@@ -61,7 +66,7 @@ const npmCli =
 
 function npm(npmArgs) {
   const label = `npm ${npmArgs.join(' ')}`;
-  if (!existsSync(npmCli)) fail(`npm isn't where this node keeps it (${npmCli}).`, `Reinstall Node.js ${MIN.join('.')} or later with its bundled npm, or set npm_execpath to npm's bin/npm-cli.js, then run node scripts/setup.mjs again.`);
+  if (!existsSync(npmCli)) fail(`npm isn't where this node keeps it (${npmCli}).`, `Reinstall ${NEED} with its bundled npm, or set npm_execpath to npm's bin/npm-cli.js, then run node scripts/setup.mjs again.`);
   console.log(`\n> ${label}`);
   const result = spawnSync(process.execPath, [npmCli, ...npmArgs], { cwd: root, stdio: 'inherit' });
   if (result.error) fail(`${label} didn't start (${result.error.message}).`, `Check that ${npmCli} is npm's bin/npm-cli.js.`);

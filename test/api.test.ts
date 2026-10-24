@@ -91,6 +91,21 @@ describe('contractVersion', () => {
   });
 });
 
+describe('the Node floor through the API (CVE-2026-111497, #479)', () => {
+  it("refuses every call on an unpatched Node with the CLI's UNSUPPORTED_NODE envelope, before anything runs", async () => {
+    const real = Object.getOwnPropertyDescriptor(process.versions, 'node')!;
+    Object.defineProperty(process.versions, 'node', { ...real, value: '24.22.0' });
+    try {
+      const refused = await apiExecute('version');
+      expect(refused.ok).toBe(false);
+      expect(refused.error).toMatchObject({ code: 'UNSUPPORTED_NODE', message: expect.stringContaining('CVE-2026-111497') });
+      expect((await apiExecute('no such command')).error?.code).toBe('UNSUPPORTED_NODE');
+    } finally {
+      Object.defineProperty(process.versions, 'node', real);
+    }
+  });
+});
+
 describe('progress events', () => {
   it('reports every request, page and 429 retry from core, with no change to the envelope', async () => {
     const events: ProgressEvent[] = [];

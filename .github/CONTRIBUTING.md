@@ -16,7 +16,7 @@ for people and agents alike, and it wins wherever this page is shorter than it.
 
 ## Setting up
 
-Node.js 24.14 or later, on Windows, macOS or Linux.
+Node.js 24.22.1 or later on 24.x, or 26.12.1 or later, on Windows, macOS or Linux.
 
 ```bash
 git clone https://github.com/imagile-dev/toil.git
@@ -47,7 +47,7 @@ other PR that does. `git checkout -- dist/` puts the released bundle back.
 ## The gate
 
 All six pass before a PR opens. CI runs them on Windows, macOS and Linux, on
-Node 24.14 and 26.
+Node 24.22.1 and 26.12.1.
 
 ```bash
 npm run typecheck

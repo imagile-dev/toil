@@ -4,7 +4,7 @@
 
 toil is a structured-JSON CLI and MCP server, owned by Imagile, that gives AI agents
 and humans one interface to enterprise tools and databases. TypeScript on
-Node.js (24.14 or later), published to npm as `@imagile-dev/toil`.
+Node.js (24.22.1 or later on 24.x, or 26.12.1 or later), published to npm as `@imagile-dev/toil`.
 
 Who it is for, in priority order:
 
@@ -139,11 +139,14 @@ gets made again in the next place it applies.
   the repo LF so Windows checkouts produce identical bundles.
 - Config lives in `~/.toil/` on every platform, so instructions are identical.
 - CI runs the full gate on `windows-latest`, `macos-latest` and `ubuntu-latest`, on
-  Node 24.14 (the floor) and 26, the current release. 24.14 is the first release
-  where toil can trust the OS certificate store and honour `HTTPS_PROXY` /
-  `NO_PROXY` from code, with no flag and no package (`src/core/network.ts`). On an
-  older Node the CLI prints one `UNSUPPORTED_NODE` envelope and exits 1
-  (`src/core/runtime.ts`). A test that is skipped on one platform says why in its name.
+  Node 24.22.1 (the floor) and 26.12.1, the current release. 24.14 was the floor
+  first, the first release where toil can trust the OS certificate store and honour
+  `HTTPS_PROXY` / `NO_PROXY` from code, with no flag and no package
+  (`src/core/network.ts`). The floor also has to be a release patched for every
+  known remote code execution in Node, so it is each line's release that fixes
+  CVE-2026-111497 (24.22.1 and 26.12.1, #479), and 25.x, which gets no fix, is
+  refused. On any other Node the CLI prints one `UNSUPPORTED_NODE` envelope naming
+  the CVE and exits 1 (`src/core/runtime.ts`). A test that is skipped on one platform says why in its name.
 
 ## No Executables
 
@@ -570,7 +573,7 @@ All six pass before a PR opens. A PR that touches `ui/` also passes Toil UI's ga
 checks Toil UI on sample and real data and writes `ui/.verify/report.md`, whose table
 goes in the PR, so the work is verified before the review bot sees it (`ui/README.md`,
 Verify before you open a PR). On a PR and on `main`, CI (`ci.yml`) runs them on
-Linux on Node 24.14, as two jobs side by side, toil's gate and Toil UI's. Its `CI ok`
+Linux on Node 24.22.1, as two jobs side by side, toil's gate and Toil UI's. Its `CI ok`
 job passes only when both passed, along with the database integration job and the
 `dist/` guard (below), and it's the one check `main`'s ruleset requires, so nothing
 merges on a red gate. Windows, macOS and Node 26 run in `platforms.yml`: daily, on
