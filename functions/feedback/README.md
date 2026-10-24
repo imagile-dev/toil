@@ -6,6 +6,12 @@ Reports become GitHub issues filed by the Imagile Bot, and the submitter gets an
 email when the issue is filed and when it closes. It is its own private package,
 like `site/`, and is never published.
 
+Flex Consumption takes the Node runtime by major version only (`runtime: { name:
+'node', version: '24' }` in `infra/main.bicep`); Azure picks and patches the minor
+and patch release on its own schedule, and neither the template nor `az functionapp
+config show` names it. Its build and tests run on the patched 24.22.1
+(`feedback-deploy.yml`, CVE-2026-111497, #479).
+
 The two emails (`src/lib/templates.ts`) are in Toil UI Plain's colours: its light
 scheme inline, and its dark scheme for clients that honour `prefers-color-scheme`.
 The colours are a copy in `src/lib/palette.ts`, because clients need inline hex;

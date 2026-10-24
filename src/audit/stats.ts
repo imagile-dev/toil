@@ -121,7 +121,7 @@ const FIXES: Record<ErrorCode, string> = {
   CANCELLED: 'The call was cancelled by the person or the client; nothing to fix unless that was unintended.',
   DATABASE: "The database refused the statement. Run it again to read the database's own message.",
   CREDENTIAL_STORE: "Check the OS credential store is available, or set the secret's env var instead.",
-  UNSUPPORTED_NODE: 'Install Node 24.14 or later.',
+  UNSUPPORTED_NODE: 'Install Node 24.22.1 or later on 24.x, or 26.12.1 or later (CVE-2026-111497).',
   GIT_NOT_FOUND: 'Install git 2.24 or later and put it on PATH.',
   UNSUPPORTED: "The server's release doesn't have the API the command needs; check the area's supported versions.",
   INTERNAL: 'This is a bug in toil. Report it with toil feedback bug, naming the command.',

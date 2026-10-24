@@ -131,7 +131,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '24.14'
+          node-version: '24.22.1'
 
       # A push that only merges the base branch into a commit the bot approved
       # gets its approval back in seconds, with no agent run. main's ruleset

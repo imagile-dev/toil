@@ -66,7 +66,7 @@ export function packageProblems(pkg, toilVersion) {
   const peers = Object.keys(pkg.peerDependencies ?? {}).sort();
   if (JSON.stringify(peers) !== JSON.stringify(AGENT_PEERS)) problems.push(`package.json's peer dependencies must be the agent SDKs and the zod the Claude SDK takes, ${AGENT_PEERS.join(', ')}, not ${JSON.stringify(peers)}.`);
   if (JSON.stringify(pkg.bin) !== JSON.stringify({ 'toil-ui': 'dist/server/toil-ui.js' })) problems.push(`package.json's bin must be { "toil-ui": "dist/server/toil-ui.js" }, not ${JSON.stringify(pkg.bin)}.`);
-  if (pkg.engines?.node !== '>=24.14') problems.push('package.json must require Node >=24.14, as toil does.');
+  if (pkg.engines?.node !== '^24.22.1 || >=26.12.1') problems.push('package.json must require Node ^24.22.1 || >=26.12.1, as toil does (CVE-2026-111497, #479).');
   return problems;
 }
 

@@ -1,6 +1,6 @@
 name: Platforms
 
-# Windows, macOS and Linux on Node 24.14 and 26, and the skill install on each
+# Windows, macOS and Linux on Node 24.22.1 and 26.12.1, and the skill install on each
 # OS: the whole matrix, daily and on the release PR (#376). Pull requests and
 # main run the Linux gate in ci.yml, so an approved PR isn't held behind macOS
 # and Windows runners. Every OS stays first-class (principle 8): a break on any
@@ -29,13 +29,14 @@ jobs:
       fail-fast: false
       matrix:
         # Windows, macOS and Linux are all first-class (principle 8), on the
-        # supported floor and the current Node release. The floor is 24.14, the
+        # supported floor and the current Node release. The floor was 24.14, the
         # first release where both the OS certificate store and the proxy env
         # vars can be switched on from code (tls.setDefaultCACertificates,
-        # http.setGlobalProxyFromEnv); keep it in step with "engines" in
-        # package.json.
+        # http.setGlobalProxyFromEnv); each line's floor is now its release
+        # patched for CVE-2026-111497 (#479), 24.22.1 and 26.12.1. Keep them in
+        # step with "engines" in package.json and src/core/runtime.ts.
         os: [ubuntu-latest, windows-latest, macos-latest]
-        node: ['24.14', 26]
+        node: ['24.22.1', '26.12.1']
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -107,7 +108,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: '24.14'
+          node-version: '24.22.1'
       - name: Claude Code validates the marketplace and installs the skill from it
         shell: bash
         env:
