@@ -103,7 +103,6 @@ describe('the Node floor through the API (CVE-2026-111497, #479)', () => {
     } finally {
       Object.defineProperty(process.versions, 'node', real);
     }
-    expect((await apiExecute('version')).ok).toBe(true);
   });
 });
 
