@@ -18,6 +18,11 @@
   stub function, for beta, a later beta, an alpha, a beta after a stable `latest`, and
   a stable release, rather than restating the logic in JavaScript. Where bash isn't on
   PATH the block is skipped, and its name says so (principle 8).
+- **A `feat!:` doesn't leave the beta line.** With `versioning: prerelease`,
+  `prerelease: true` and `bump-minor-pre-major`, release-please 17.11.2's prerelease
+  strategy takes `0.1.0-beta.1` to `0.1.0-beta.2` for a `fix:`, a `feat:` and a
+  `feat!:` alike (checked by calling the strategy directly), so declaring a breaking
+  change never cuts a 0.2.0 or a 1.0 by accident.
 - **Toil UI's pin and order are unchanged.** The node-workspace plugin moves Toil UI's
   exact pin to `0.1.0-beta.1` in the release PR, `publish-ui` still needs
   `publish-toil` and waits for npm to serve the pin, and the `lockfile` job still
