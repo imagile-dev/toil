@@ -1,6 +1,6 @@
 import { createRequire as __toilCreateRequire } from 'node:module';
 const require = __toilCreateRequire(import.meta.url);
-const __TOIL_VERSION__ = "0.1.0-alpha.5"; // x-release-please-version
+const __TOIL_VERSION__ = "0.1.0-beta.1"; // x-release-please-version
 const __TOIL_COMMIT__ = "b25fcc43002639d94d7cc5bc14676cad45aa4578"; // toil-build-commit
 var __create = Object.create;
 var __defProp = Object.defineProperty;
