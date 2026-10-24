@@ -7,7 +7,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@imagile-dev/toil"><img src="https://img.shields.io/npm/v/@imagile-dev/toil/beta?style=flat-square&label=npm&labelColor=0f1115&color=8cc4ff" alt="npm version (beta)"></a>
   <a href="https://github.com/imagile-dev/toil/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/imagile-dev/toil/ci.yml?branch=main&style=flat-square&label=CI&labelColor=0f1115" alt="CI status on main"></a>
-  <a href="package.json"><img src="https://img.shields.io/badge/node-%E2%89%A5%2024.14-c2e0ff?style=flat-square&labelColor=0f1115" alt="Node.js 24.14 or later"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/node-%E2%89%A5%2024.22.1-c2e0ff?style=flat-square&labelColor=0f1115" alt="Node.js 24.22.1 or later"></a>
   <a href="https://imagile-dev.github.io/toil/about/how-it-works/"><img src="https://img.shields.io/badge/runtime%20dependencies-0-c2e0ff?style=flat-square&labelColor=0f1115" alt="No runtime dependencies"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/imagile-dev/toil?style=flat-square&labelColor=0f1115&color=a7afba" alt="Apache 2.0 license"></a>
 </p>
@@ -81,7 +81,8 @@ point it at. Windows, macOS and Linux are all first-class.
 ## Quick start
 
 There are two ways to run toil: install it from npm, or run it from a clone. Both
-need Node.js 24.14 or later, on Windows, macOS or Linux. There is no executable, no
+need Node.js 24.22.1 or later on 24.x, or 26.12.1 or later (the releases that fix
+CVE-2026-111497), on Windows, macOS or Linux. There is no executable, no
 native module and no install script.
 
 ### From npm

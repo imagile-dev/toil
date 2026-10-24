@@ -8,9 +8,11 @@ Check first: if `toil version` prints an envelope with `"ok": true`, toil is ins
 and nothing here is needed. If `toil` isn't found but a clone of the toil repository is
 on the machine, `node <clone>/dist/toil.js version` is the same thing.
 
-toil needs **Node.js 24.14 or later** (`node --version`) and nothing else: no
-executable, no native module, no install script and no admin rights. On an older Node
-every command returns `UNSUPPORTED_NODE`. Windows, macOS and Linux all work the same.
+toil needs **Node.js 24.22.1 or later on 24.x, or 26.12.1 or later** (`node
+--version`) and nothing else: no executable, no native module, no install script and
+no admin rights. Those are the releases that fix CVE-2026-111497, a remote code
+execution in Node's Brotli decoder, which every `fetch()` goes through. On any other
+Node, 25.x included, every command returns `UNSUPPORTED_NODE`. Windows, macOS and Linux all work the same.
 
 ## From npm (recommended)
 

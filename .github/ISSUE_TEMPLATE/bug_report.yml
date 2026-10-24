@@ -40,7 +40,7 @@ body:
     id: environment
     attributes:
       label: OS and Node.js version
-      placeholder: Windows 11, Node 24.14.0
+      placeholder: Windows 11, Node 24.22.1
     validations:
       required: true
   - type: textarea

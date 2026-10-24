@@ -21,7 +21,7 @@ package, can change from one beta to the next.
 npx @imagile-dev/toil-ui
 ```
 
-It needs Node 24.14 or later and installs one dependency, `@imagile-dev/toil`, at
+It needs Node 24.22.1 or later on 24.x, or 26.12.1 or later, as toil does, and installs one dependency, `@imagile-dev/toil`, at
 the exact version it was built with. Until a version shows on
 [npm](https://www.npmjs.com/package/@imagile-dev/toil-ui), run it from a clone of
 the repository:
