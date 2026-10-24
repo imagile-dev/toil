@@ -62,7 +62,7 @@ function encoder() {
 }
 
 const sample: WelcomeData = {
-  version: 'alpha',
+  version: 'beta',
   node: '24.14.0',
   platform: 'linux x64',
   configPath: '/home/you/.toil/config.json',
@@ -90,7 +90,7 @@ const sample: WelcomeData = {
   folder: { cwd: '/home/you/payments', repo: { root: '/home/you/payments', branch: 'main', remote: 'https://bitbucket.imagile.dev/scm/pay/payments.git' } },
 };
 
-const env = (data: unknown, command: string): Envelope => ({ ok: true, data, error: null, meta: { command, durationMs: 120, version: 'alpha', contractVersion: 1 } });
+const env = (data: unknown, command: string): Envelope => ({ ok: true, data, error: null, meta: { command, durationMs: 120, version: 'beta', contractVersion: 1 } });
 const keys = (state: MenuState, ...list: string[]) =>
   list.reduce((s, k) => reduce(s, (k.length === 1 ? { name: k, sequence: k } : { name: k }) satisfies Key, sample), state);
 
@@ -104,7 +104,7 @@ function screens(): Array<{ id: string; caption: string; state: MenuState }> {
         ok: false,
         data: null,
         error: { code: 'AUTH', message: 'Confluence rejected the personal access token on connection "wiki".', fix: 'Create a new token, then run toil connections login wiki.' },
-        meta: { command: 'connections test', durationMs: 90, version: 'alpha', contractVersion: 1 },
+        meta: { command: 'connections test', durationMs: 90, version: 'beta', contractVersion: 1 },
       },
     },
   ]);
@@ -133,8 +133,8 @@ export function welcomeData() {
   const e = encoder();
   const seconds = DURATION / SPEED;
   const frames: number[][] = [];
-  for (let i = 0; i <= Math.ceil(seconds * FPS); i++) frames.push(splashFrame((i / FPS) * SPEED, caps, 'alpha').map(e.line));
-  const still = splashFrame(DURATION + 1, caps, 'alpha').map(e.line);
+  for (let i = 0; i <= Math.ceil(seconds * FPS); i++) frames.push(splashFrame((i / FPS) * SPEED, caps, 'beta').map(e.line));
+  const still = splashFrame(DURATION + 1, caps, 'beta').map(e.line);
   const shots = screens().map((s) => ({ id: s.id, caption: s.caption, lines: render(s.state, caps, sample).map(e.line) }));
   return { fps: FPS, columns: COLUMNS, colors: e.colors, lines: e.lines, splash: { frames, still }, screens: shots };
 }

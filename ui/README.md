@@ -5,13 +5,15 @@ A local web app for seeing work across Jira, Azure DevOps and GitHub, read throu
 with its stories, pull requests, builds and deployments side by side, a pull
 requests view for what is waiting on review, and a daily worklog of what happened.
 
-**Status: alpha, local only.** It runs on your own machine, binds loopback, and
+**Status: beta, local only.** It runs on your own machine, binds loopback, and
 reads through toil with your own connections and dossiers, read-only. Its
 settings pages, and a dossier's name and description edited in place, are the only
 places it changes anything of toil's, and only toil's own connections and dossiers. The worklog keeps its pages and the notes you add in its own
 data folder, and writes anywhere else only when you export a page. Its Feedback dialog sends a report to Imagile through
 `toil feedback`, only when you approve it. It is a separate package from toil: installing toil
-never installs it.
+never installs it. toil's beta commitment to stable commands, flags and output doesn't
+cover Toil UI: its screens, and its server's HTTP API, which is internal to the
+package, can change from one beta to the next.
 
 ## Start it
 
@@ -33,7 +35,7 @@ node ui/dist/server/toil-ui.js
 It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
-Toil UI 0.1.0-alpha.1 (alpha, local only), on toil 0.1.0-alpha.3
+Toil UI 0.1.0-beta.1 (beta, local only), on toil 0.1.0-beta.1
 Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages, and a dossier's name and description edited in place, change anything: toil's own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
@@ -1313,7 +1315,7 @@ release. The data folder is Toil UI's own, apart from toil's `~/.toil/`, and hol
 the cache, `agent.json` and `usage.json`. A `~` at the start of `TOIL_UI_DATA_DIR` means your home folder, on
 Windows too.
 
-## Not in this alpha
+## Not in this beta
 
 - **Serving other machines.** It is local only.
 - **Implement mode on Claude or Copilot**, and **answering an agent's questions in the assignment** itself: answer on the item and assign it again.

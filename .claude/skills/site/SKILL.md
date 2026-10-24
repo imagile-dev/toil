@@ -43,9 +43,9 @@ from `main`).
   https://www.imagile.dev. Imagile's mark appears only in the footer panel, drawn
   in one colour from the tokens (`ImagileMark.astro`, #468), never its terracotta;
   the header byline is text alone, since the mark is too small to read there (#473).
-- **Honest about status** (*principle 4*). Until 1.0, the site says **Alpha**
-  ("Alpha: APIs and flags may change before 1.0", the README's wording) by the
-  install commands and in the hero, and labels sample output as planned. The
+- **Honest about status** (*principle 4*). Until 1.0, the site says **Beta**
+  ("Beta: commands, flags and output are stable, and any breaking change comes
+  with a migration note", the README's wording) by the install commands and in the hero, and labels sample output as planned. The
   homepage's two ways to start come from `site/src/data/start.json`, copied from the
   README; `test/start-commands.test.ts` fails when they drift. An integration is on the board
   only once its code is on `main`, and shows its verification level: `unit`,
@@ -255,7 +255,7 @@ from `main`).
   prompt, the answer, the wording). Everything it says about prompts and wording is
   read from Toil UI's source at build time (`ui/scripts/showcase.ts`, which `ui/test/showcase.test.tsx` checks), never written
   out again; a source that changes shape fails the build. The app itself is static
-  files at `/ui/app/`, labelled "Toil UI alpha, on sample data" on every view. `npm run
+  files at `/ui/app/`, labelled "Toil UI beta, on sample data" on every view. `npm run
   dev` and `npm run build` build it first (`scripts/ui-preview.mjs`, into
   `ui/dist/preview/`, copied to `public/ui/app/`), so run `npm ci --ignore-scripts` at
   the repository root once (`ui/` is its workspace). `/ui-preview/`, its old address,

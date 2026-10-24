@@ -543,7 +543,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
         <header inert={game.open} aria-hidden={game.open || undefined}>
           {preview && (
             <p className="banner" role="note">
-              <strong>Toil UI alpha, on sample data.</strong> Nothing here connects to a tracker.
+              <strong>Toil UI beta, on sample data.</strong> Nothing here connects to a tracker.
             </p>
           )}
           <div className="top" data-one-row="" ref={top}>

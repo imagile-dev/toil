@@ -118,10 +118,11 @@ jobs:
       # A token is only needed until trusted publishing is configured for the
       # package on npmjs.com; with it unset, npm publishes over OIDC. (The
       # `latest` move below still needs a token: see the note there.)
-      # A prerelease (0.1.0-alpha.1) goes out under its own dist-tag (`alpha`).
+      # A prerelease goes out under its own dist-tag, the word after the hyphen:
+      # 0.1.0-beta.1 under `beta` (the alphas before it went out under `alpha`).
       # Once a stable release exists, a plain `npm install @imagile-dev/toil`
       # never picks up a prerelease; before 1.0, `latest` follows the newest
-      # alpha (below), because there is nothing stable to install instead.
+      # beta (below), because there is nothing stable to install instead.
       - name: Publish to npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -277,7 +278,7 @@ jobs:
   # plugin rewrites the pin whenever toil releases), so the toil it names must
   # be on npm before it is. It runs when toil had nothing to release
   # (publish-toil skipped), and is skipped when toil's publish failed. Same npm
-  # token, provenance, alpha dist-tag logic and Discord notice as publish-toil.
+  # token, provenance, prerelease dist-tag logic and Discord notice as publish-toil.
   publish-ui:
     needs: [release-please, publish-toil]
     if: >-

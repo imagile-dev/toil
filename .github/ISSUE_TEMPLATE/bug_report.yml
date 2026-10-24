@@ -15,7 +15,7 @@ body:
     attributes:
       label: toil version
       description: The `version` field from `toil version`, or the commit if you run a clone.
-      placeholder: 0.1.0-alpha.2
+      placeholder: 0.1.0-beta.1
     validations:
       required: true
   - type: dropdown

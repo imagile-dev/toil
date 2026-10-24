@@ -1,7 +1,9 @@
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
+import { npmGrammar } from '../src/core/versions/npm.js';
 
 /**
  * One release-please run, two packages (#206, Packaging and release): toil at
@@ -50,9 +52,35 @@ describe('release-please', () => {
     expect(ui['extra-files']).toBeUndefined();
   });
 
-  it('tags the UI toil-ui-v<version>, with the same alpha settings as toil', () => {
+  it('tags the UI toil-ui-v<version>, with the same beta settings as toil (#478)', () => {
     expect(ui).toMatchObject({ 'release-type': 'node', 'package-name': '@imagile-dev/toil-ui', component: 'toil-ui', 'include-component-in-tag': true });
-    for (const key of ['bump-minor-pre-major', 'initial-version', 'versioning', 'prerelease', 'prerelease-type', 'changelog-path']) expect(ui[key], key).toEqual(toil[key]);
+    expect(toil).toMatchObject({ versioning: 'prerelease', prerelease: true, 'prerelease-type': 'beta' });
+    for (const key of ['bump-minor-pre-major', 'initial-version', 'versioning', 'prerelease', 'prerelease-type', 'release-as', 'changelog-path']) expect(ui[key], key).toEqual(toil[key]);
+  });
+
+  // release-as forces one version. Left in after that version has gone out, it
+  // forces it again, and the next release PR asks to publish a version npm
+  // already has. Two runs see the manifest at that version with the override
+  // still in, and both are exempt: the release PR, which is what moves the
+  // manifest up to it, and publish-toil, which tests the release's tag before
+  // publishing it. Once the release PR merges, every other run fails here, with
+  // the fix, until a PR removes the override (#478).
+  const releasing = process.env.GITHUB_HEAD_REF?.startsWith('release-please--') || process.env.GITHUB_JOB === 'publish-toil';
+  it.skipIf(releasing)('drops a release-as override once that version is released (skipped on the release PR and in publish-toil)', () => {
+    const parse = (text: string) => {
+      const parsed = npmGrammar.parse(text);
+      if (!parsed.ok) throw new Error(`${text}: ${parsed.reason}`);
+      return parsed.value;
+    };
+    for (const [path, pkg] of Object.entries(config.packages) as Array<[string, Record<string, unknown>]>) {
+      const forced = pkg['release-as'];
+      if (typeof forced !== 'string') continue;
+      const released = manifest[path] as string;
+      expect(
+        npmGrammar.compare(parse(released), parse(forced)),
+        `release-please-config.json forces "${path}" to ${forced}, and .release-please-manifest.json says ${released} is already out. Remove "release-as" from that package so the next release counts up from it.`,
+      ).toBeLessThan(0);
+    }
   });
 
   it("names the packages each folder's package.json does", () => {
@@ -102,6 +130,53 @@ describe('the publish jobs', () => {
       expect(at(cmd), cmd).toBeGreaterThan(-1);
       expect(at(cmd), cmd).toBeLessThan(publish);
     }
+  });
+});
+
+/**
+ * The dist-tag a version publishes under, and whether `latest` follows it,
+ * from the publish script itself, run in bash with npm stubbed out: alphas
+ * went out under `alpha`, betas go out under `beta`, and either moves `latest`
+ * while no stable release exists (#478).
+ */
+const hasBash = spawnSync('bash', ['-c', 'echo ok'], { encoding: 'utf8' }).stdout?.trim() === 'ok';
+describe.skipIf(!hasBash)('the dist-tag a release publishes under (skipped where bash is not on PATH)', () => {
+  const script = step('publish-toil', 'Publish to npm')!.run!;
+  /** Runs the script with `npm` a shell function that logs each call to stderr and answers `npm view` with `latest`; returns both streams. */
+  const publish = (version: string, latest: string) => {
+    const stub = `npm() { echo "npm $*" >&2; if [[ "$1" == view ]]; then echo "${latest}"; fi; }\n`;
+    const run = spawnSync('bash', ['-c', stub + script], { encoding: 'utf8', env: { ...process.env, VERSION: version } });
+    expect(run.status, run.stderr).toBe(0);
+    return run.stdout + run.stderr;
+  };
+
+  it('publishes a beta under `beta`, and moves `latest` to it while the newest release is a prerelease', () => {
+    const out = publish('0.1.0-beta.1', '0.1.0-alpha.5');
+    expect(out).toContain('Publishing 0.1.0-beta.1 under dist-tag beta');
+    expect(out).toContain('npm publish --access public --provenance --ignore-scripts --tag beta');
+    expect(out).toContain('npm dist-tag add @imagile-dev/toil@0.1.0-beta.1 latest');
+  });
+
+  it('counts later betas up under the same tag', () => {
+    const out = publish('0.1.0-beta.2', '0.1.0-beta.1');
+    expect(out).toContain('--tag beta');
+    expect(out).toContain('npm dist-tag add @imagile-dev/toil@0.1.0-beta.2 latest');
+  });
+
+  it('still publishes an alpha under `alpha`', () => {
+    expect(publish('0.1.0-alpha.6', '0.1.0-alpha.5')).toContain('--tag alpha');
+  });
+
+  it('leaves `latest` alone once it is a stable release', () => {
+    const out = publish('1.1.0-beta.1', '1.0.0');
+    expect(out).toContain('--tag beta');
+    expect(out).not.toContain('dist-tag add');
+  });
+
+  it('publishes a stable release under `latest` and moves nothing else', () => {
+    const out = publish('1.0.0', '0.1.0-beta.3');
+    expect(out).toContain('--tag latest');
+    expect(out).not.toContain('npm view');
   });
 });
 

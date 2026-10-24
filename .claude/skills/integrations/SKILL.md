@@ -395,7 +395,10 @@ breaking the other.
   field names and the text that names them. Client code, requests, results, errors
   and `data` stay as the contract records them. The old paths and flags are dropped,
   never aliased, and the contract's entries for the area are rewritten to the new
-  surface in the same change (CLAUDE.md, **The command contract**).
+  surface in the same change (CLAUDE.md, **The command contract**). From the first
+  beta on, a reshape is also a breaking change under principle 7: a `feat!:` with a
+  migration footer, keeping the old path with a deprecation warning for at least one
+  beta where practical.
 - **Every integration area follows it** (#290, #297), and a new area follows it from
   the start. A later reshape carries the old-to-new table of every path and flag in
   its PR (CLAUDE.md, **The command contract**). `git` (local git's own verbs) and `util`

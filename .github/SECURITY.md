@@ -31,7 +31,7 @@ Everything in this repository:
 
 - `@imagile-dev/toil`: the CLI, the MCP server (`toil mcp`) and the
   `@imagile-dev/toil/api` entry
-- Toil UI (`@imagile-dev/toil-ui`, in `ui/`), which is in alpha
+- Toil UI (`@imagile-dev/toil-ui`, in `ui/`), which is in beta
 - the GitHub Actions workflows, the feedback function under `functions/feedback/`,
   and the site at https://imagile-dev.github.io/toil/
 
@@ -48,13 +48,13 @@ their vendors), and findings that need an attacker who already controls your
 
 ## Supported versions
 
-toil is in alpha. Fixes land on `main` and ship in the next alpha release; earlier
-alphas aren't patched.
+toil is in beta. Fixes land on `main` and ship in the next beta release; earlier
+betas and the alphas before them aren't patched.
 
 | Version | Supported |
 |---------|-----------|
-| Newest `0.x` alpha | Yes |
-| Older alphas | No, upgrade to the newest |
+| Newest `0.x` beta | Yes |
+| Older betas, and every alpha | No, upgrade to the newest |
 
 ## What happens next
 

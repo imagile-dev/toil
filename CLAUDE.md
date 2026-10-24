@@ -78,14 +78,18 @@ gets made again in the next place it applies.
    source by hand with their source named (the maintainer's decision on #418,
    2026-10-22).
 7. **Never break what users already rely on silently.** Config on disk, command paths
-   and flags, MCP tool names (which follow the paths), page cursors, the JSON envelope
-   and precedence are contracts; changing them is a declared,
-   documented breaking change. → Output Contract, Delivery. **This starts at toil's
-   first npm release**, which waits until every integration is built. Alpha
-   prereleases (`0.1.0-alpha.N`) don't count (the maintainer's call, 2026-10-19). Until then
-   no one can rely on anything, so contract changes need no breaking-change checks,
-   declarations or migration notes. Compatibility with the command contract
-   (the `integrations` skill) is a separate requirement and still applies.
+   and flags, MCP tool names (which follow the paths), page cursors, the JSON envelope,
+   precedence, the `./api` `execute()` surface and exit codes are contracts. **They
+   are stable from the first beta, `0.1.0-beta.1`** (the maintainer's call on #478,
+   2026-10-24). From then on, changing one is a declared breaking change: a `feat!:`
+   with a `BREAKING CHANGE:` footer saying why and how to migrate, and, where
+   practical, the old name keeps working with a deprecation warning for at least one
+   beta before it's removed. → Output Contract, Delivery. The alphas
+   (`0.1.0-alpha.N`) came before that commitment, so what changed in them needs no
+   migration notes. Toil UI's screens and HTTP API (internal to its package) and
+   the welcome menu's look are not contracts, and keep evolving. Compatibility
+   with the command contract (the `integrations` skill) is a separate requirement
+   and still applies.
 8. **Same behavior on Windows, macOS and Linux.** None is second-class; a feature
    that works on one and not the others is not done. → Cross-Platform; the site
    is mobile responsive for the same reason (`site` skill).
@@ -345,7 +349,7 @@ GitHub Actions; its build tooling is out of scope.
   area still to build
 - `site/` — the GitHub Pages site (Astro), its own private package; see the `site`
   skill
-- `ui/` — Toil UI (#206), the separate package `@imagile-dev/toil-ui` (alpha, local
+- `ui/` — Toil UI (#206), the separate package `@imagile-dev/toil-ui` (beta, local
   only), the root's npm workspace with its own release (`toil-ui-v…`): a React and
   Vite front end, with one dashboard per dossier, and its local server in
   `ui/server/` (`node:http`, the `toil-ui` bin), which pins `@imagile-dev/toil`
@@ -601,8 +605,9 @@ a breaking change.
 - **`meta.contractVersion`** is on every envelope and in `toil version`: `CONTRACT_VERSION`
   in `src/core/envelope.ts`, equal to `contractVersion` in `docs/command-contract.json`
   (a test holds them together). It goes up by one with every breaking change to the
-  contract and never for an additive one; it stays 1 until the first release
-  (`docs/command-contract.md`, The contract version).
+  contract and never for an additive one. The alphas all report 1, the first beta
+  ships 1, and every breaking change from then on raises it (principle 7;
+  `docs/command-contract.md`, The contract version).
 - **Three front doors, one `execute()`.** The CLI, MCP, and `@imagile-dev/toil/api`
   (`via: 'api'`, `src/api.ts`), which sends MCP's fields and is held to MCP's rules:
   it serves what MCP serves, applies `offMcpWhen`, words input errors in field names,
@@ -864,9 +869,12 @@ callers who rely on the recorded result.
   the contract, in the same change, and keeps every recorded request, result, error
   and `data` field. A path or flag the contract recorded before the reshape is gone, not
   aliased, and needs no divergence entry. The area's entries may be rebuilt from the
-  registry only in its reshape PR, before the first non-alpha release, and that PR
+  registry only in its reshape PR, before the first beta, and that PR
   carries the old-to-new table of every path and flag for review: a contract rebuilt
-  from the code can't catch what the code dropped, so the table is the check.
+  from the code can't catch what the code dropped, so the table is the check. From
+  the first beta on, a reshape changes paths users rely on, so it's a breaking change
+  under principle 7: declared, and with the old path kept, with a deprecation
+  warning, for at least one beta where practical.
 - **Implement the recorded behavior exactly, bugs included,** until a live instance
   proves otherwise. That covers validation, defaults, paging, id-or-name detection,
   encoding and error messages too, not just the happy path.
@@ -887,8 +895,8 @@ callers who rely on the recorded result.
   The other is additive output the contract already allows (a new `data` field,
   `meta.warnings`, `meta.page`).
 - **The first live run checks every item** in the area's issue. A confirmed bug is
-  fixed as a declared change (`fix:` or `feat:`, and `feat!:` once toil has been
-  released, per Delivery) and listed as a divergence; a refuted one is closed.
+  fixed as a declared change (`fix:` or `feat:`, and `feat!:` when it changes a
+  contract principle 7 lists, per Delivery) and listed as a divergence; a refuted one is closed.
 - **A work-item integration's change inspects its Open Work Item mapping in the same
   PR** (`integrations` skill, **Open Work Items**).
 
@@ -1009,10 +1017,13 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 
 - Conventional Commits: `fix:`, `feat:`, `feat!:` with a `BREAKING CHANGE:` footer
   that says why and how to migrate. release-please builds the changelog from them.
-  **Before the first npm release, don't use `feat!:` or `BREAKING CHANGE:`**
-  (principle 7; alphas don't count as that release): a contract change is a plain `feat:` or `fix:`, and a breaking
-  marker would put a migration note for a change no user ever saw into the first
-  changelog.
+  **From the first beta on, a change to a contract principle 7 lists is a `feat!:`
+  with a `BREAKING CHANGE:` footer**, and, where practical, keeps the old name
+  working with a deprecation warning for at least one beta before removing it.
+  The alphas used a plain `feat:` or `fix:` for contract changes, and their
+  changelog entries stay as they are. Toil UI's screens and HTTP API and the
+  welcome menu's look aren't contracts, so a change to them is a plain `feat:` or
+  `fix:`.
 - **Every major item starts with a GitHub issue, created before the branch.** Keep it
   concise: a short paragraph on what and why, and one "Done when" line.
   - **What counts as a major item:** the foundation, the site, the gateway,
@@ -1054,13 +1065,15 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   `package-lock.json` at a toil npm doesn't serve yet, so once toil publishes, the
   release workflow's `lockfile` job opens a PR that does; until it merges,
   `check:lockfile` fails other PRs and names the fix (#299).
-- **Until 1.0, every release is an alpha prerelease** (`0.1.0-alpha.1`, then
-  `-alpha.2` …), marked as a prerelease on GitHub and published under npm's `alpha`
-  dist-tag. Until a stable release exists, `latest` also follows the newest alpha,
-  so a plain `npm install @imagile-dev/toil` gets the current alpha rather than a
-  stale first one; once 1.0 ships, prereleases only move their own tag. Going
-  to beta or 1.0 is a deliberate change to `release-please-config.json`, made by a
-  human.
+- **Until 1.0, every release is a beta prerelease** (`0.1.0-beta.1`, then
+  `-beta.2` …; the alphas, `0.1.0-alpha.N`, came before), marked as a prerelease on
+  GitHub and published under npm's `beta` dist-tag. Until a stable release exists,
+  `latest` also follows the newest beta, so a plain `npm install @imagile-dev/toil`
+  gets the current beta rather than a stale first one; once 1.0 ships, prereleases
+  only move their own tag. Going to 1.0 is a deliberate change to
+  `release-please-config.json`, made by a human. A one-time `release-as` there
+  forces a version; once that version is released, `test/release-workflow.test.ts`
+  fails every run but the release PR's until the override is removed.
 - PRs are vertical slices (core → CLI → MCP → tests → skill doc), sized large enough
   to avoid process overhead, fully verified before opening. Use the `ship` skill, which
   reviews locally, fixes, turns on auto-merge where principle 2 allows it, and watches
@@ -1071,10 +1084,9 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   Scratch work goes in a temp folder outside the repo, never at its root.
   `test/repo-hygiene.test.ts` fails on an empty tracked file or an unexpected
   top-level entry. A new top-level file goes on its allowlist on purpose.
-- After the first npm release, before changing behavior users rely on, check config
+- From the first beta on, before changing behavior users rely on, check config
   already on disk, existing flags, the envelope, and precedence, and say what you
-  checked in the PR. Before it, skip that: the PR has no section for it, and reviews
-  don't ask.
+  checked in the PR.
 - **Decisions an agent makes by default go in `docs/decisions/<issue#>-<slug>.md`**,
   one file per PR named after its branch, with what, why and where, so the maintainer
   can review or overturn them (`docs/decisions/README.md`). A PR writes only its own
