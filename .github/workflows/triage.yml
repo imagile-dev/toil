@@ -223,10 +223,10 @@ jobs:
                  `docs/divergences/<area>.json`, `site/src/data/integrations/<area>.json`, and the generated
                  `site/src/data/commands/<area>.json` and `site/src/data/settings/<area>.json`.
                - **Toil UI:** `ui/src/` (its fixtures included), `ui/docs/`, `ui/test/`, `ui/themes/` (CSS and
-                 raster images only, never `theme.json` or SVG) and, from `ui/server/`, `ui/server/store.ts` alone. Not `ui/server/`
+                 raster images only, never `theme.json` or SVG) and, from `ui/server/`, `ui/server/reads.ts` alone (the read list; `store.ts` holds the read-only lock). Not `ui/server/`
                  otherwise (its own launch token, CSP, write gates, env and tool allowlists, and what it
                  spawns), and not the suites that hold Toil UI to its own rules: `ui/test/registry.test.ts`,
-                 `themes.test.ts`, `package.test.ts`, `install.test.ts`, `setup.ts` and `harness.ts`. An issue
+                 `themes.test.ts`, `package.test.ts`, `install.test.ts`, `setup.ts` and `harness.ts` and `config.test.ts`; and not `ui/src/config.ts`, the write allowlist for Settings. An issue
                  about Toil UI is work you can do (the maintainer's decision on #487, 2026-10-26): it is no
                  longer maintainer work. A fix that needs both one area and Toil UI is fine; one that needs
                  two areas is not.
@@ -241,7 +241,7 @@ jobs:
                something off the screen); `ui/docs/themes.md` for a theme (themes are CSS, JSON and assets
                only, built in); `ui/test/registry.test.ts`, which holds every call the fixture answers
                to toil's real registry (you may not edit it, but your change must pass it), so a command
-               the views read goes in `READ_COMMANDS` (`ui/server/store.ts`) and in the fixture
+               the views read goes in `READ_COMMANDS` (`ui/server/reads.ts`) and in the fixture
                (`ui/src/fixtures/`); and no runtime dependency beyond the toil pin. You cannot run anything, so you cannot run Toil
                UI's gate (`npm run verify:ui`, the layout check at 375, 768 and 1440 px); say in
                `.triage-out/pr-body.md` that this PR changes Toil UI and needs that check and the screen

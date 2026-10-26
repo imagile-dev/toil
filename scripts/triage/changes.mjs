@@ -13,14 +13,14 @@
 //   site/src/data/commands/<area>.json      generated from the registry by the tests
 //   site/src/data/settings/<area>.json      generated from the registry by the tests
 //
-//   ui/src/**  ui/docs/**  ui/server/store.ts  ui/test/**  ui/themes/**   Toil UI
+//   ui/src/**  ui/docs/**  ui/server/reads.ts  ui/test/**  ui/themes/**   Toil UI
 //
 // Toil UI's server is its core: the launch token, the CSP, the write gates, the
 // env and tool allowlists, and what it spawns all live in ui/server/, so a fix
-// may change only store.ts there (the read allowlist, every entry of which
-// runs read-only). ui/test/ is open except the files that gate Toil UI the
+// may change only reads.ts there (the read list: data, every entry of which
+// runs read-only under the Store, which holds the lock and stays out). ui/test/ is open except the files that gate Toil UI the
 // way test/parity and test/contract gate the CLI. ui/themes/ takes data and
-// stylesheets and images, never theme.json or script. What the server imports from ui/src/ (the worklog export, the proposals a person presses, usage settings) is in scope with the rest of ui/src/: Toil's bounds, read-only sync and the human merge hold there. Not listed, so still maintainer work: Toil UI's
+// stylesheets and images, never theme.json or script. Except ui/src/config.ts, the Settings write allowlist, what the server imports from ui/src/ (the worklog export, the proposals a person presses, usage settings) is in scope with the rest of ui/src/: Toil's bounds, read-only sync and the human merge hold there. Not listed, so still maintainer work: Toil UI's
 // package.json and lockfile entries, build and lint configuration, and
 // ui/scripts/ (the verify and smoke tooling that gates it).
 //
@@ -46,10 +46,12 @@ const PER_AREA = [
 ];
 
 const UI_FOLDERS = ['ui/src/', 'ui/test/', 'ui/docs/', 'ui/themes/'];
-/** The one file of Toil UI's server a fix may change: its read allowlist. */
-const UI_SERVER_FILE = 'ui/server/store.ts';
+/** The one file of Toil UI's server a fix may change: its read list, data only. */
+const UI_SERVER_FILE = 'ui/server/reads.ts';
 /** The suites that hold Toil UI to its own rules, which the fix being held must not edit. */
-const UI_GATES = new Set(['themes.test.ts', 'registry.test.ts', 'package.test.ts', 'install.test.ts', 'setup.ts', 'harness.ts']);
+const UI_GATES = new Set(['themes.test.ts', 'registry.test.ts', 'package.test.ts', 'install.test.ts', 'setup.ts', 'harness.ts', 'config.test.ts']);
+/** Under ui/src/ but the server's write allowlist for Settings (CONFIG_COMMANDS, used by ui/server/config.ts and server.ts). */
+const UI_WRITE_ALLOWLIST = 'ui/src/config.ts';
 /** Themes: CSS and raster images and fonts only. theme.json is refused (its `voice` is prompt text for Toil UI's agent, ui/server/agents/voices.ts) and so is SVG (it can carry script). */
 const THEME_FILES = /\.(css|png|webp|avif|jpe?g|gif|woff2?)$/i;
 
@@ -59,6 +61,7 @@ const wellFormed = (path) => !(path.includes('\\') || path.split('/').some((part
 export function isUi(path) {
   if (!wellFormed(path)) return false;
   if (path === UI_SERVER_FILE) return true;
+  if (path === UI_WRITE_ALLOWLIST) return false;
   if (path.startsWith('ui/test/')) return !UI_GATES.has(path.slice('ui/test/'.length));
   if (path.startsWith('ui/themes/')) return THEME_FILES.test(path);
   return UI_FOLDERS.some((folder) => path.startsWith(folder));

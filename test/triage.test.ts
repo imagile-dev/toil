@@ -283,14 +283,14 @@ describe('the path check', () => {
   });
 
   it.each([
-    'ui/src/load.ts', 'ui/src/components/panel.tsx', 'ui/server/store.ts', 'ui/test/server.test.ts', 'ui/test/views.test.tsx', 'ui/docs/themes.md', 'ui/themes/plain/theme.css', 'ui/themes/plain/mark.png',
+    'ui/src/load.ts', 'ui/src/components/panel.tsx', 'ui/server/reads.ts', 'ui/test/server.test.ts', 'ui/test/views.test.tsx', 'ui/docs/themes.md', 'ui/themes/plain/theme.css', 'ui/themes/plain/mark.png',
   ])('allows %s as Toil UI', (path) => {
     expect(isUi(path)).toBe(true);
     expect(check([{ path, newMode: '100644' }], known)).toEqual({ ok: true, area: undefined, ui: true, refused: [] });
   });
 
   it.each([
-    'ui/package.json', 'ui/tsconfig.json', 'ui/vite.config.ts', 'ui/scripts/layout-check.mjs', 'ui/server/agents/install.ts', 'ui/server/agents/tested.ts', 'ui/server/agents/env.ts', 'ui/server/server.ts', 'ui/server/csp.ts', 'ui/server/config.ts', 'ui/test/registry.test.ts', 'ui/test/themes.test.ts', 'ui/test/package.test.ts', 'ui/test/install.test.ts', 'ui/test/setup.ts', 'ui/test/harness.ts', 'ui/themes/plain/x.ts', 'ui/themes/plain/theme.json', 'ui/themes/plain/mark.svg', 'ui/themes/plain/x.js', 'ui/src/../../src/core/x.ts', 'ui/srcx/a.ts', 'ui', 'ui/src/', 'ui\\src\\a.ts', 'ui/README.md',
+    'ui/package.json', 'ui/tsconfig.json', 'ui/vite.config.ts', 'ui/scripts/layout-check.mjs', 'ui/server/agents/install.ts', 'ui/server/agents/tested.ts', 'ui/server/agents/env.ts', 'ui/server/server.ts', 'ui/server/csp.ts', 'ui/server/config.ts', 'ui/test/registry.test.ts', 'ui/test/themes.test.ts', 'ui/test/package.test.ts', 'ui/test/install.test.ts', 'ui/test/setup.ts', 'ui/test/config.test.ts', 'ui/src/config.ts', 'ui/server/store.ts', 'ui/test/harness.ts', 'ui/themes/plain/x.ts', 'ui/themes/plain/theme.json', 'ui/themes/plain/mark.svg', 'ui/themes/plain/x.js', 'ui/src/../../src/core/x.ts', 'ui/srcx/a.ts', 'ui', 'ui/src/', 'ui\\src\\a.ts', 'ui/README.md',
   ])('refuses %s as Toil UI', (path) => {
     expect(isUi(path)).toBe(false);
   });
