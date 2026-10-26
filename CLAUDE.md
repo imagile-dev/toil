@@ -48,9 +48,11 @@ gets made again in the next place it applies.
    The one exception: issues filed from outside (the site's feedback form and its
    curl endpoint) may be triaged by an agent, but only after redaction, within the
    daily cap, under the safeguards in the `automation` skill, and only through PRs
-   that a human merges. Triage may change one integration area and/or Toil UI's own files, never
-   core or Toil UI's server files (the `automation` skill lists both; the maintainer's call on #487,
-   2026-10-26: Toil UI issues are not maintainer-only work).
+   that a human merges. Triage may change one integration area and/or Toil UI (`ui/`, but not
+   its spawner, packaging or tooling), never core. Edits to Toil UI's safety layer (the
+   server's gates, allowlists and launchers) are allowed and are listed at the top of the
+   draft PR (the maintainer's call on #487, 2026-10-26: Toil UI issues are not
+   maintainer-only work; `automation` skill).
    On a PR the maintainer is driving through Claude Code, the maintainer's decision is
    standing (2026-10-19): the agent turns on auto-merge, so the PR lands once the
    Imagile Bot's review approves its head commit and `CI ok` passes. A human still

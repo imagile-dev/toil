@@ -248,7 +248,12 @@ export async function openPr({ env, fetcher = fetch, cwd = process.cwd(), log = 
   // The token reaches git through a credential helper reading env, never argv.
   const pushUrl = env.PUSH_URL ?? `https://github.com/${repo}.git`;
   git(cwd, ['-c', 'credential.helper=', '-c', 'credential.helper=!f() { echo username=x-access-token; echo "password=${GH_TOKEN}"; }; f', 'push', '--force', pushUrl, `HEAD:refs/heads/${branch}`], { GH_TOKEN: env.GH_TOKEN ?? '' });
+  // Listed by the workflow from the checked paths, so the agent can't leave it out; its own account of what each edit loosened follows in its text.
+  const safety = checked.safety.length
+    ? ['## Safety-layer edits', '', "This fix edits files that decide what Toil UI's server, agent or Settings may run or reach. Read these first; the description below says what each change loosened or widened, if the agent said:", '', ...checked.safety.map((f) => `- \`${f}\``), '']
+    : [];
   const body = [
+    ...safety,
     read('pr-body.checked.md').toString('utf8').trim(),
     '',
     `Closes #${number}`,

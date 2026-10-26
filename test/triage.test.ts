@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { extract, inspect } from '../scripts/triage/archive.mjs';
 import { ustar } from './harness/ustar.js';
 import { CLAIMED, QUEUED, claim, claimRank, gh, waiting, type LabelEvent } from '../scripts/triage/cap.mjs';
-import { areaOf, check, isUi, parseRaw } from '../scripts/triage/changes.mjs';
+import { areaOf, check, isUi, parseRaw, SAFETY_LAYER } from '../scripts/triage/changes.mjs';
 import { agentRan, defuseClosingKeywords, parseDecision } from '../scripts/triage/decision.mjs';
 import { areas, labels } from '../scripts/triage/labels.mjs';
 import { MAX_LENGTH, parseTerms, redact, tokenShaped } from '../scripts/triage/redact.mjs';
@@ -283,20 +283,20 @@ describe('the path check', () => {
   });
 
   it.each([
-    'ui/src/load.ts', 'ui/src/components/panel.tsx', 'ui/server/reads.ts', 'ui/test/server.test.ts', 'ui/test/views.test.tsx', 'ui/docs/themes.md', 'ui/themes/plain/theme.css', 'ui/themes/plain/mark.png',
+    'ui/src/load.ts', 'ui/src/components/panel.tsx', 'ui/server/server.ts', 'ui/server/agents/env.ts', 'ui/server/agents/tested.ts', 'ui/test/registry.test.ts', 'ui/test/views.test.tsx', 'ui/docs/themes.md', 'ui/themes/plain/theme.json',
   ])('allows %s as Toil UI', (path) => {
     expect(isUi(path)).toBe(true);
-    expect(check([{ path, newMode: '100644' }], known)).toEqual({ ok: true, area: undefined, ui: true, refused: [] });
+    expect(check([{ path, newMode: '100644' }], known)).toMatchObject({ ok: true, area: undefined, ui: true, refused: [] });
   });
 
   it.each([
-    'ui/package.json', 'ui/tsconfig.json', 'ui/vite.config.ts', 'ui/scripts/layout-check.mjs', 'ui/server/agents/install.ts', 'ui/server/agents/tested.ts', 'ui/server/agents/env.ts', 'ui/server/server.ts', 'ui/server/csp.ts', 'ui/server/config.ts', 'ui/test/registry.test.ts', 'ui/test/themes.test.ts', 'ui/test/package.test.ts', 'ui/test/install.test.ts', 'ui/test/setup.ts', 'ui/test/config.test.ts', 'ui/src/config.ts', 'ui/server/store.ts', 'ui/test/harness.ts', 'ui/themes/plain/x.ts', 'ui/themes/plain/theme.json', 'ui/themes/plain/mark.svg', 'ui/themes/plain/x.js', 'ui/src/../../src/core/x.ts', 'ui/srcx/a.ts', 'ui', 'ui/src/', 'ui\\src\\a.ts', 'ui/README.md',
+    'ui/package.json', 'ui/tsconfig.json', 'ui/vite.config.ts', 'ui/scripts/layout-check.mjs', 'ui/server/agents/install.ts', 'ui/src/../../src/core/x.ts', 'ui/srcx/a.ts', 'ui', 'ui/src/', 'ui\\src\\a.ts', 'ui/README.md',
   ])('refuses %s as Toil UI', (path) => {
     expect(isUi(path)).toBe(false);
   });
 
   it('lets one area and Toil UI change together, and still refuses two areas', () => {
-    expect(check([{ path: 'src/areas/jira-cloud/a.ts', newMode: '100644' }, { path: 'ui/src/load.ts', newMode: '100644' }], known)).toEqual({ ok: true, area: 'jira-cloud', ui: true, refused: [] });
+    expect(check([{ path: 'src/areas/jira-cloud/a.ts', newMode: '100644' }, { path: 'ui/src/load.ts', newMode: '100644' }], known)).toMatchObject({ ok: true, area: 'jira-cloud', ui: true, refused: [] });
     expect(check([{ path: 'ui/src/load.ts', newMode: '100644' }, { path: 'src/core/execute.ts', newMode: '100644' }], known).refused).toEqual(["src/core/execute.ts (outside an area's own files and Toil UI's)"]);
     expect(check([{ path: 'ui/src/load.ts', newMode: '120000' }], known).ok).toBe(false);
     expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'src/areas/github/a.ts', newMode: '100644' }, { path: 'ui/src/load.ts', newMode: '100644' }], known).refused).toEqual(['more than one area: github, jira']);
@@ -310,12 +310,20 @@ describe('the path check', () => {
     expect(areaOf(path, known)).toBeUndefined();
   });
 
+  it('lists every safety-layer edit, so the draft can lead with them, and only those', () => {
+    const edit = (path: string) => ({ path, newMode: '100644' });
+    const result = check([edit('ui/server/csp.ts'), edit('ui/server/agents/tools.ts'), edit('ui/src/config.ts'), edit('ui/test/server.test.ts'), edit('ui/src/load.ts'), edit('ui/server/sync.ts')], known);
+    expect(result).toMatchObject({ ok: true, ui: true, safety: ['ui/server/agents/tools.ts', 'ui/server/csp.ts', 'ui/src/config.ts', 'ui/test/server.test.ts'] });
+    expect(check([edit('ui/src/load.ts')], known).safety).toEqual([]);
+    expect(SAFETY_LAYER.every((p) => isUi(p))).toBe(true);
+  });
+
   it('refuses a second area, a symlink, a submodule, and an empty change', () => {
     expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'skills/toil/github.md', newMode: '100644' }], known).refused).toEqual(['more than one area: github, jira']);
     expect(check([{ path: 'src/areas/jira/a.ts', newMode: '120000' }], known).ok).toBe(false);
     expect(check([{ path: 'src/areas/jira/sub', newMode: '160000' }], known).ok).toBe(false);
     expect(check([], known).refused).toEqual(['no changes']);
-    expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'src/areas/jira/old.ts', newMode: '000000' }], known)).toEqual({ ok: true, area: 'jira', ui: false, refused: [] });
+    expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'src/areas/jira/old.ts', newMode: '000000' }], known)).toEqual({ ok: true, area: 'jira', ui: false, safety: [], refused: [] });
   });
 
   it('reads git diff --raw -z from a real repository, so the parser matches what git writes', () => {
@@ -334,7 +342,7 @@ describe('the path check', () => {
       git('commit', '-qm', 'fix');
       const entries = parseRaw(git('diff', '--raw', '-z', '--no-renames', 'HEAD~1', 'HEAD'));
       expect(entries.map((e) => e.path).sort()).toEqual(['src/areas/jira/a.ts', 'src/areas/jira/name with space.ts']);
-      expect(check(entries, known)).toEqual({ ok: true, area: 'jira', ui: false, refused: [] });
+      expect(check(entries, known)).toEqual({ ok: true, area: 'jira', ui: false, safety: [], refused: [] });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

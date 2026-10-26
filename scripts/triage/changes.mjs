@@ -13,16 +13,17 @@
 //   site/src/data/commands/<area>.json      generated from the registry by the tests
 //   site/src/data/settings/<area>.json      generated from the registry by the tests
 //
-//   ui/src/**  ui/docs/**  ui/server/reads.ts  ui/test/**  ui/themes/**   Toil UI
+//   ui/src/**  ui/server/**  ui/test/**  ui/docs/**  ui/themes/**   Toil UI
 //
-// Toil UI's server is its core: the launch token, the CSP, the write gates, the
-// env and tool allowlists, and what it spawns all live in ui/server/, so a fix
-// may change only reads.ts there (the read list: data, every entry of which
-// runs read-only under the Store, which holds the lock and stays out). ui/test/ is open except the files that gate Toil UI the
-// way test/parity and test/contract gate the CLI. ui/themes/ takes data and
-// stylesheets and images, never theme.json or script. Except ui/src/config.ts, the Settings write allowlist, what the server imports from ui/src/ (the worklog export, the proposals a person presses, usage settings) is in scope with the rest of ui/src/: Toil's bounds, read-only sync and the human merge hold there. Not listed, so still maintainer work: Toil UI's
+// All of ui/ but the one server file that spawns (agents/install.ts), Toil UI's
 // package.json and lockfile entries, build and lint configuration, and
-// ui/scripts/ (the verify and smoke tooling that gates it).
+// ui/scripts/ (the verify and smoke tooling that gates it), which stay
+// maintainer work. That is the maintainer's call (#487, 2026-10-26, after the
+// narrower rules were weighed): Toil UI issues are not maintainer-only work.
+// Some of what that admits is Toil UI's safety layer (SAFETY_LAYER below). The
+// scope does not stop an edit to it; it makes the edit impossible to miss:
+// check() lists every one, and open-pr puts them under "Safety-layer edits"
+// at the top of the draft PR's description, where the maintainer reads first.
 //
 // Everything else (core, the workflows and the rest of .github/, functions/,
 // infra/, site pages, dist/, package.json, the lockfile) is maintainer work.
@@ -45,26 +46,27 @@ const PER_AREA = [
   (a) => (p) => p === `site/src/data/settings/${a}.json`,
 ];
 
-const UI_FOLDERS = ['ui/src/', 'ui/test/', 'ui/docs/', 'ui/themes/'];
-/** The one file of Toil UI's server a fix may change: its read list, data only. */
-const UI_SERVER_FILE = 'ui/server/reads.ts';
-/** The suites that hold Toil UI to its own rules, which the fix being held must not edit. */
-const UI_GATES = new Set(['themes.test.ts', 'registry.test.ts', 'package.test.ts', 'install.test.ts', 'setup.ts', 'harness.ts', 'config.test.ts']);
-/** Under ui/src/ but the server's write allowlist for Settings (CONFIG_COMMANDS, used by ui/server/config.ts and server.ts). */
-const UI_WRITE_ALLOWLIST = 'ui/src/config.ts';
-/** Themes: CSS and raster images and fonts only. theme.json is refused (its `voice` is prompt text for Toil UI's agent, ui/server/agents/voices.ts) and so is SVG (it can carry script). */
-const THEME_FILES = /\.(css|png|webp|avif|jpe?g|gif|woff2?)$/i;
+const UI_FOLDERS = ['ui/src/', 'ui/server/', 'ui/test/', 'ui/docs/', 'ui/themes/'];
+/** The one Toil UI server file that starts a process (`npm install` of an agent SDK, on a person's press). */
+const UI_SPAWNER = 'ui/server/agents/install.ts';
+
+/**
+ * Toil UI's safety layer: the files that decide what its server, its agent and
+ * Settings may run or reach. A triage fix may edit them; every such edit is
+ * called out in the PR (the maintainer's call on #487). `reads.ts` is the read
+ * list and `store.ts` the read-only lock; `src/config.ts` is Settings' write allowlist.
+ */
+export const SAFETY_LAYER = [
+  'ui/server/server.ts', 'ui/server/context.ts', 'ui/server/csp.ts', 'ui/server/config.ts', 'ui/server/store.ts', 'ui/server/reads.ts',
+  'ui/server/agents/tools.ts', 'ui/server/agents/env.ts', 'ui/server/agents/claude.ts', 'ui/server/agents/codex.ts', 'ui/server/agents/copilot.ts',
+  'ui/src/config.ts', 'ui/test/server.test.ts',
+];
 
 const wellFormed = (path) => !(path.includes('\\') || path.split('/').some((part) => part === '..' || part === '.' || part === '') || path.startsWith('/'));
 
 /** Whether a path is one of Toil UI's own files that a triage fix may touch. */
 export function isUi(path) {
-  if (!wellFormed(path)) return false;
-  if (path === UI_SERVER_FILE) return true;
-  if (path === UI_WRITE_ALLOWLIST) return false;
-  if (path.startsWith('ui/test/')) return !UI_GATES.has(path.slice('ui/test/'.length));
-  if (path.startsWith('ui/themes/')) return THEME_FILES.test(path);
-  return UI_FOLDERS.some((folder) => path.startsWith(folder));
+  return wellFormed(path) && path !== UI_SPAWNER && UI_FOLDERS.some((folder) => path.startsWith(folder));
 }
 
 /** The area a path belongs to, or undefined when it isn't one any area may touch. */
@@ -102,7 +104,7 @@ export function check(entries, areas) {
   }
   if (touched.size > 1) refused.push(`more than one area: ${[...touched].sort().join(', ')}`);
   if (entries.length === 0) refused.push('no changes');
-  return { ok: refused.length === 0, area: touched.size === 1 ? [...touched][0] : undefined, ui, refused };
+  return { ok: refused.length === 0, area: touched.size === 1 ? [...touched][0] : undefined, ui, safety: entries.map((e) => e.path).filter((p) => SAFETY_LAYER.includes(p)).sort(), refused };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
