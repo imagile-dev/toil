@@ -237,9 +237,8 @@ jobs:
                are no users to break (CLAUDE.md, principle 7): don't ask for breaking-change
                declarations, compatibility checks or migration notes.
             7. A PR from triage (branch `claude/issue-<n>`, label `from-triage`) that edits Toil UI's
-               safety layer (the files `scripts/triage/changes.mjs` lists as `SAFETY_LAYER`: the
-               server's token, CSP, write gates, read list and read-only lock, the agent's tool and env
-               allowlists and launchers, Settings' write allowlist): open your summary with a
+               safety layer (what `isSafetyLayer` in `scripts/triage/changes.mjs` flags: every file under
+               `ui/server/`, `ui/src/config.ts`, each `theme.json`, and the suites that check Toil UI's own rules): open your summary with a
                "Safety-layer edits" paragraph naming each file and what it loosened or widened, so the
                maintainer sees it first.
             8. Anything else CLAUDE.md or a relevant skill asks of a change like this one.

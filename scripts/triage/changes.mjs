@@ -20,7 +20,7 @@
 // ui/scripts/ (the verify and smoke tooling that gates it), which stay
 // maintainer work. That is the maintainer's call (#487, 2026-10-26, after the
 // narrower rules were weighed): Toil UI issues are not maintainer-only work.
-// Some of what that admits is Toil UI's safety layer (SAFETY_LAYER below). The
+// Some of what that admits is Toil UI's safety layer (isSafetyLayer below). The
 // scope does not stop an edit to it; it makes the edit impossible to miss:
 // check() lists every one, and open-pr puts them under "Safety-layer edits"
 // at the top of the draft PR's description, where the maintainer reads first.
@@ -51,16 +51,19 @@ const UI_FOLDERS = ['ui/src/', 'ui/server/', 'ui/test/', 'ui/docs/', 'ui/themes/
 const UI_SPAWNER = 'ui/server/agents/install.ts';
 
 /**
- * Toil UI's safety layer: the files that decide what its server, its agent and
- * Settings may run or reach. A triage fix may edit them; every such edit is
- * called out in the PR (the maintainer's call on #487). `reads.ts` is the read
- * list and `store.ts` the read-only lock; `src/config.ts` is Settings' write allowlist.
+ * Toil UI's safety layer: whatever decides what its server, its agent and
+ * Settings may run or reach. A triage fix may edit it; every such edit is
+ * called out in the PR (the maintainer's call on #487). The whole of ui/server/
+ * is the trust boundary, so it is flagged by folder, not by a list that goes
+ * stale when a file is added. Elsewhere: Settings' write allowlist, a theme's
+ * theme.json (its `voice` is prompt text for Toil UI's agent), and the suites
+ * that check Toil UI's own rules, which a weakening edit would most need seen.
  */
-export const SAFETY_LAYER = [
-  'ui/server/server.ts', 'ui/server/context.ts', 'ui/server/csp.ts', 'ui/server/config.ts', 'ui/server/store.ts', 'ui/server/reads.ts',
-  'ui/server/agents/tools.ts', 'ui/server/agents/env.ts', 'ui/server/agents/claude.ts', 'ui/server/agents/codex.ts', 'ui/server/agents/copilot.ts',
-  'ui/src/config.ts', 'ui/test/server.test.ts',
-];
+const SAFETY_ELSEWHERE = new Set([
+  'ui/src/config.ts', 'ui/test/server.test.ts', 'ui/test/registry.test.ts', 'ui/test/config.test.ts', 'ui/test/themes.test.ts',
+  'ui/test/package.test.ts', 'ui/test/install.test.ts', 'ui/test/setup.ts', 'ui/test/harness.ts',
+]);
+export const isSafetyLayer = (path) => path.startsWith('ui/server/') || SAFETY_ELSEWHERE.has(path) || /^ui\/themes\/[^/]+\/theme\.json$/.test(path);
 
 const wellFormed = (path) => !(path.includes('\\') || path.split('/').some((part) => part === '..' || part === '.' || part === '') || path.startsWith('/'));
 
@@ -104,7 +107,7 @@ export function check(entries, areas) {
   }
   if (touched.size > 1) refused.push(`more than one area: ${[...touched].sort().join(', ')}`);
   if (entries.length === 0) refused.push('no changes');
-  return { ok: refused.length === 0, area: touched.size === 1 ? [...touched][0] : undefined, ui, safety: entries.map((e) => e.path).filter((p) => SAFETY_LAYER.includes(p)).sort(), refused };
+  return { ok: refused.length === 0, area: touched.size === 1 ? [...touched][0] : undefined, ui, safety: entries.map((e) => e.path).filter((p) => isSafetyLayer(p)).sort(), refused };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { extract, inspect } from '../scripts/triage/archive.mjs';
 import { ustar } from './harness/ustar.js';
 import { CLAIMED, QUEUED, claim, claimRank, gh, waiting, type LabelEvent } from '../scripts/triage/cap.mjs';
-import { areaOf, check, isUi, parseRaw, SAFETY_LAYER } from '../scripts/triage/changes.mjs';
+import { areaOf, check, isUi, isSafetyLayer, parseRaw } from '../scripts/triage/changes.mjs';
 import { agentRan, defuseClosingKeywords, parseDecision } from '../scripts/triage/decision.mjs';
 import { areas, labels } from '../scripts/triage/labels.mjs';
 import { MAX_LENGTH, parseTerms, redact, tokenShaped } from '../scripts/triage/redact.mjs';
@@ -313,9 +313,12 @@ describe('the path check', () => {
   it('lists every safety-layer edit, so the draft can lead with them, and only those', () => {
     const edit = (path: string) => ({ path, newMode: '100644' });
     const result = check([edit('ui/server/csp.ts'), edit('ui/server/agents/tools.ts'), edit('ui/src/config.ts'), edit('ui/test/server.test.ts'), edit('ui/src/load.ts'), edit('ui/server/sync.ts')], known);
-    expect(result).toMatchObject({ ok: true, ui: true, safety: ['ui/server/agents/tools.ts', 'ui/server/csp.ts', 'ui/src/config.ts', 'ui/test/server.test.ts'] });
+    expect(result).toMatchObject({ ok: true, ui: true, safety: ['ui/server/agents/tools.ts', 'ui/server/csp.ts', 'ui/server/sync.ts', 'ui/src/config.ts', 'ui/test/server.test.ts'] });
     expect(check([edit('ui/src/load.ts')], known).safety).toEqual([]);
-    expect(SAFETY_LAYER.every((p) => isUi(p))).toBe(true);
+    // The folder is flagged whole, so a file added later is too; so are theme.json and the suites that check Toil UI's own rules.
+    const flagged = ['ui/server/main.ts', 'ui/server/agents/mcp.ts', 'ui/server/assign/runner.ts', 'ui/server/brand-new.ts', 'ui/themes/plain/theme.json', 'ui/test/registry.test.ts', 'ui/src/config.ts'];
+    expect(flagged.every((p) => isSafetyLayer(p) && isUi(p))).toBe(true);
+    expect(['ui/src/load.ts', 'ui/test/views.test.tsx', 'ui/themes/plain/theme.css', 'ui/docs/themes.md'].some(isSafetyLayer)).toBe(false);
   });
 
   it('refuses a second area, a symlink, a submodule, and an empty change', () => {

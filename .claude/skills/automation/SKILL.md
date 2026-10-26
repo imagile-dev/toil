@@ -191,10 +191,9 @@ refuses.
   touches `ui/` says it needs `npm run verify:ui` and the screen review, which a
   maintainer runs before it merges.
 - **Safety-layer edits are flagged, not forbidden.** Toil UI's safety layer
-  (`SAFETY_LAYER` in `scripts/triage/changes.mjs`: the server's `server.ts`, `context.ts`,
-  `csp.ts`, `config.ts`, `store.ts`, `reads.ts`, `agents/tools.ts`, `agents/env.ts` and the
-  three SDK launchers, `ui/src/config.ts`, and the `READ_COMMANDS` pin in
-  `ui/test/server.test.ts`) can be edited by a triage fix. When one is, `open-pr` puts a
+  (`isSafetyLayer` in `scripts/triage/changes.mjs`: every file under `ui/server/`,
+  `ui/src/config.ts`, each theme's `theme.json`, and the suites that check Toil UI's own
+  rules, listed there) can be edited by a triage fix. When one is, `open-pr` puts a
   "Safety-layer edits" section listing the files at the top of the draft, computed
   from the checked paths so the agent can't leave it out, and the agent's own
   section says what each edit loosened or widened. `claude-review.yml` asks its

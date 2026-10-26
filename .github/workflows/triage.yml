@@ -228,12 +228,13 @@ jobs:
                  is work you can do (the maintainer's decision on #487, 2026-10-26): it is no longer
                  maintainer work. A fix that needs both one area and Toil UI is fine; one that needs two
                  areas is not.
-               - **Toil UI's safety layer** is allowed but must never be edited quietly. It is:
-                 `ui/server/server.ts`, `context.ts` (launch token), `csp.ts`, `config.ts`, `store.ts` (the
-                 read-only lock), `reads.ts` (the read list, `READ_COMMANDS`), `agents/tools.ts`
-                 (`LIVE_COMMANDS`), `agents/env.ts`, `agents/claude.ts`, `codex.ts` and `copilot.ts`;
-                 `ui/src/config.ts` (Settings' write allowlist); and the pin on `READ_COMMANDS` in
-                 `ui/test/server.test.ts`. Edit one only when the issue needs it, as narrowly as you can, and
+               - **Toil UI's safety layer** is allowed but must never be edited quietly. It is every file
+                 under `ui/server/` (the launch token, CSP, write gates, read list and read-only lock,
+                 agent tool and env allowlists, launchers), `ui/src/config.ts` (Settings' write
+                 allowlist), each theme's `theme.json` (its `voice` is prompt text for Toil UI's agent),
+                 and the suites that check Toil UI's own rules: `ui/test/server.test.ts`, `registry.test.ts`,
+                 `config.test.ts`, `themes.test.ts`, `package.test.ts`, `install.test.ts`, `setup.ts` and
+                 `harness.ts`. Edit one only when the issue needs it, as narrowly as you can, and
                  in `.triage-out/pr-body.md` add a section headed "What the safety-layer edits change" naming
                  each file and saying plainly what it loosened or widened (a command added to a list, a
                  header relaxed, an env variable passed on), or that it loosened nothing. The workflow
