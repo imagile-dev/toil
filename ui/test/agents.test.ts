@@ -766,6 +766,20 @@ describe('the agent settings', () => {
 describe("the agent CLI's environment", () => {
   const leaked = (env: Record<string, unknown>) => ['TOIL_JIRA_TOKEN', 'GITHUB_TOKEN', 'SYSTEM_ACCESSTOKEN'].filter((k) => k in env);
 
+  it('passes USER through the Claude SDK so its CLI can find the macOS sign-in (#489)', async () => {
+    const claude = claudeStub(SCRIPT);
+    const { host, env } = hostFor('claude', claude.module, { platform: 'darwin' });
+    env.USER = 'you';
+    await streamed(host);
+    expect(claude.seen.options!.env).toMatchObject({ USER: 'you', HOME: '/home/you' });
+    expect(leaked(claude.seen.options!.env as Record<string, string>)).toEqual([]);
+  });
+
+  it.each(['claude', 'copilot', 'codex'] as const)('preserves only the exact USER identity variable for %s', (adapter) => {
+    expect(agentEnv({ USER: 'you', USER_TOKEN: 'secret', TOIL_JIRA_TOKEN: 'secret', GITHUB_TOKEN: 'secret' }, adapter)).toEqual({ USER: 'you' });
+    expect(agentEnv({ USER: undefined }, adapter)).toEqual({});
+  });
+
   it('is an allowlist per adapter: toil and CI tokens never reach any CLI, each CLI keeps its own sign-in', async () => {
     const claude = claudeStub(SCRIPT);
     await streamed(hostFor('claude', claude.module).host);

@@ -133,6 +133,9 @@ gets made again in the next place it applies.
 
 *Principle 8.* Windows, macOS and Linux are all first-class.
 
+- Agent CLI environment allowlists preserve the OS identity needed to locate an
+  existing sign-in, including `USER` for Claude on macOS. Keep these names exact;
+  preserving identity must not admit unrelated credentials (#489).
 - Build paths with `node:path` and resolve home with `os.homedir()`; never hardcode a
   separator, a drive letter, or `~`. Paths in JSON output use forward slashes;
   paths on disk use the platform's own form.
