@@ -222,9 +222,9 @@ jobs:
                - **One area:** `src/areas/<area>/`, `test/fixtures/<area>.fixture.ts`, `skills/toil/<area>.md`,
                  `docs/divergences/<area>.json`, `site/src/data/integrations/<area>.json`, and the generated
                  `site/src/data/commands/<area>.json` and `site/src/data/settings/<area>.json`.
-               - **Toil UI:** `ui/src/` (its fixtures included), `ui/docs/`, `ui/test/`, `ui/themes/` (CSS,
-                 JSON and assets only) and, from `ui/server/`, `ui/server/store.ts` alone. Not `ui/server/`
-                 otherwise (its launch token, CSP, write gates, env and tool allowlists, and what it
+               - **Toil UI:** `ui/src/` (its fixtures included), `ui/docs/`, `ui/test/`, `ui/themes/` (CSS and
+                 raster images only, never `theme.json` or SVG) and, from `ui/server/`, `ui/server/store.ts` alone. Not `ui/server/`
+                 otherwise (its own launch token, CSP, write gates, env and tool allowlists, and what it
                  spawns), and not the suites that hold Toil UI to its own rules: `ui/test/registry.test.ts`,
                  `themes.test.ts`, `package.test.ts`, `install.test.ts`, `setup.ts` and `harness.ts`. An issue
                  about Toil UI is work you can do (the maintainer's decision on #487, 2026-10-26): it is no

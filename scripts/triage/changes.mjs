@@ -20,7 +20,7 @@
 // may change only store.ts there (the read allowlist, every entry of which
 // runs read-only). ui/test/ is open except the files that gate Toil UI the
 // way test/parity and test/contract gate the CLI. ui/themes/ takes data and
-// assets, never script. Not listed, so still maintainer work: Toil UI's
+// stylesheets and images, never theme.json or script. What the server imports from ui/src/ (the worklog export, the proposals a person presses, usage settings) is in scope with the rest of ui/src/: Toil's bounds, read-only sync and the human merge hold there. Not listed, so still maintainer work: Toil UI's
 // package.json and lockfile entries, build and lint configuration, and
 // ui/scripts/ (the verify and smoke tooling that gates it).
 //
@@ -50,8 +50,8 @@ const UI_FOLDERS = ['ui/src/', 'ui/test/', 'ui/docs/', 'ui/themes/'];
 const UI_SERVER_FILE = 'ui/server/store.ts';
 /** The suites that hold Toil UI to its own rules, which the fix being held must not edit. */
 const UI_GATES = new Set(['themes.test.ts', 'registry.test.ts', 'package.test.ts', 'install.test.ts', 'setup.ts', 'harness.ts']);
-/** Themes are CSS, JSON and assets; a script there would be loaded by the page. */
-const THEME_FILES = /\.(css|json|svg|png|webp|avif|jpe?g|gif|woff2?|md)$/i;
+/** Themes: CSS and raster images and fonts only. theme.json is refused (its `voice` is prompt text for Toil UI's agent, ui/server/agents/voices.ts) and so is SVG (it can carry script). */
+const THEME_FILES = /\.(css|png|webp|avif|jpe?g|gif|woff2?)$/i;
 
 const wellFormed = (path) => !(path.includes('\\') || path.split('/').some((part) => part === '..' || part === '.' || part === '') || path.startsWith('/'));
 

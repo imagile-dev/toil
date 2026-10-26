@@ -182,9 +182,9 @@ refuses.
 - **Scope.** One area (`src/areas/<area>/`, its fixture, skill file, divergences,
   board entry, and the two generated site data files) and/or Toil UI (`ui/src/`,
   `ui/docs/`, `ui/test/` except the suites that gate Toil UI (`registry`, `themes`,
-  `package` and `install` tests, `setup.ts`, `harness.ts`), `ui/themes/` (CSS, JSON
-  and assets, never script) and from `ui/server/` only `store.ts`, because the rest is
-  Toil UI's core: launch token, CSP, write gates, env and tool allowlists, spawning; the
+  `package` and `install` tests, `setup.ts`, `harness.ts`), `ui/themes/` (CSS and
+  raster images, never `theme.json`, whose `voice` is prompt text for Toil UI's agent, or SVG) and from `ui/server/` only `store.ts`, because the rest is
+  Toil UI's own server files: launch token, CSP, write gates, env and tool allowlists, spawning. Modules `ui/server/` imports from `ui/src/` (the worklog export, the proposals a person presses) stay in scope: Toil's bounds, the read-only sync and the human merge hold there; the
   maintainer's decision on #487, 2026-10-26, which supersedes denials that called
   `ui/` maintainer work). Core, `functions/`, `infra/`, site pages, `.github/`,
   `scripts/`, `dist/`, every `package.json` and lockfile, Toil UI's build and lint
