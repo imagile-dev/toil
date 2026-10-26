@@ -238,8 +238,8 @@ jobs:
                in the `integrations` skill, the command contract), quoting the rule. For a Toil UI change
                the rules in CLAUDE.md that bind you are: the Layout entry for `ui/`; principle 11 (quiet
                screens: show what is needed to act, explain on demand, and when you add something, take
-               something off the screen); `ui/docs/themes.md` for a theme (themes are CSS, JSON and assets
-               only, built in); `ui/test/registry.test.ts`, which holds every call the fixture answers
+               something off the screen); `ui/docs/themes.md` for a theme (themes take CSS and raster
+               images only here, built in; `theme.json` and SVG are maintainer work); `ui/test/registry.test.ts`, which holds every call the fixture answers
                to toil's real registry (you may not edit it, but your change must pass it), so a command
                the views read goes in `READ_COMMANDS` (`ui/server/reads.ts`) and in the fixture
                (`ui/src/fixtures/`); and no runtime dependency beyond the toil pin. You cannot run anything, so you cannot run Toil

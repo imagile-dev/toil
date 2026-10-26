@@ -180,18 +180,26 @@ refuses.
   path to one area's own files and Toil UI's, in `finish` before anything lands, and again on the
   commit before the push.
 - **Scope.** One area (`src/areas/<area>/`, its fixture, skill file, divergences,
-  board entry, and the two generated site data files) and/or Toil UI (`ui/src/`,
-  `ui/docs/`, `ui/test/` except the suites that gate Toil UI (`registry`, `themes`,
-  `package` and `install` tests, `setup.ts`, `harness.ts`, `config.test.ts`), not `ui/src/config.ts` (the Settings write allowlist),, `ui/themes/` (CSS and
-  raster images, never `theme.json`, whose `voice` is prompt text for Toil UI's agent, or SVG) and from `ui/server/` only `reads.ts` (the read list; `store.ts` holds the read-only lock), because the rest is
-  Toil UI's own server files: launch token, CSP, write gates, env and tool allowlists, spawning. Modules `ui/server/` imports from `ui/src/` (the worklog export, the proposals a person presses) stay in scope: Toil's bounds, the read-only sync and the human merge hold there; the
-  maintainer's decision on #487, 2026-10-26, which supersedes denials that called
-  `ui/` maintainer work). Core, `functions/`, `infra/`, site pages, `.github/`,
-  `scripts/`, `dist/`, every `package.json` and lockfile, Toil UI's build and lint
-  configuration, `ui/scripts/` and new dependencies are maintainer work, denied with
-  that explanation. The agent has no Bash, so it cannot run Toil UI's gate; the draft
-  PR for a fix that touches `ui/` says it needs `npm run verify:ui` and the screen
-  review, which a maintainer runs before it merges.
+  board entry, and the two generated site data files) and/or Toil UI, by the
+  maintainer's decision on #487 (2026-10-26), which supersedes denials that called
+  `ui/` maintainer work.
+  - *Toil UI allowed:* `ui/src/` except `config.ts`, `ui/docs/`, `ui/test/` except
+    the gate suites, `ui/themes/` (CSS and raster images only), and
+    `ui/server/reads.ts` (the read list, data only).
+  - *Toil UI refused:* the rest of `ui/server/` (launch token, CSP, write gates, env
+    and tool allowlists, spawning; `store.ts` holds the read-only lock),
+    `ui/src/config.ts` (the Settings write allowlist), the gate suites (`registry`,
+    `themes`, `package`, `install` and `config` tests, `setup.ts`, `harness.ts`),
+    `theme.json` (its `voice` is prompt text for Toil UI's agent), SVG, `ui/scripts/`,
+    Toil UI's `package.json`, lockfile, and build and lint configuration.
+  - Modules `ui/server/` imports from `ui/src/` (the worklog export, the proposals
+    a person presses) stay in scope: Toil's bounds, the read-only sync and the human
+    merge hold there.
+  - Core, `functions/`, `infra/`, site pages, `.github/`, `scripts/`, `dist/`, every
+    `package.json` and lockfile, and new dependencies are maintainer work, denied
+    with that explanation. The agent has no Bash, so it cannot run Toil UI's gate;
+    the draft PR for a fix that touches `ui/` says it needs `npm run verify:ui` and
+    the screen review, which a maintainer runs before it merges.
 - **Model and turns are fixed:** `--model sonnet --max-turns 100`. Transient GitHub
   failures (5xx, 429, network) are retried. The outcome goes to the job summary.
   No triage job uses `cache: npm`.
