@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.0-beta.2](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-beta.1...toil-ui-v0.1.0-beta.2) (2026-10-26)
+
+
+### Features
+
+* **ui:** sync Jira Cloud dossiers, and let triage change Toil UI ([#488](https://github.com/imagile-dev/toil/issues/488)) ([b245d0e](https://github.com/imagile-dev/toil/commit/b245d0ec6640a84e771732cb4f9ccdb47462c6df))
+
+
+### Bug Fixes
+
+* **ui:** preserve USER for Claude CLI authentication ([#491](https://github.com/imagile-dev/toil/issues/491)) ([b6f44cc](https://github.com/imagile-dev/toil/commit/b6f44ccba9dea0fb8d060789f57d8dda02ea4d4a))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @imagile-dev/toil bumped from 0.1.0-beta.1 to 0.1.0-beta.2
+
 ## [0.1.0-beta.1](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-alpha.3...toil-ui-v0.1.0-beta.1) (2026-10-24)
 
 
