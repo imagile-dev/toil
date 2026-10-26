@@ -759,6 +759,8 @@ describe('the Stores', () => {
     const noSampleDossier = ['github issue list', 'ado-cloud work-item iterations', 'ado-cloud work-item search', 'ado-cloud work-item get-many', 'ado-cloud work-item history', 'ado-cloud pr list', 'ado-cloud pr get'];
     // The readiness gate's workflow reads (#307) for the trackers the sample has no dossier on, Jira Cloud and Azure DevOps Services.
     noSampleDossier.push('jira-cloud issue transitions', 'ado-cloud work-item states');
+    // The Jira Cloud work item reads: test/registry.test.ts loads a Jira Cloud variant of card-payments through them.
+    noSampleDossier.push('jira-cloud issue search', 'jira-cloud issue history');
     expect([...READ_COMMANDS].sort()).toEqual([...new Set([...CANNED.map((c) => c.command), ...noSampleDossier])].sort());
   });
 

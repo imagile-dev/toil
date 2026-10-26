@@ -253,7 +253,8 @@ export async function openPr({ env, fetcher = fetch, cwd = process.cwd(), log = 
     '',
     `Closes #${number}`,
     '',
-    "Opened as a draft by triage (`.github/workflows/triage.yml`) from a fix an agent proposed. Every changed path was checked against one area's own files. CI runs the full gate on this draft; a human marks it ready and merges it.",
+    ...(checked.ui ? ["This changes Toil UI (`ui/`). Triage cannot run Toil UI's gate, so before it merges a maintainer runs `npm run verify:ui` and the `ship` skill's screen review (CLAUDE.md, Build & Test), and reads the change against principle 11.", ''] : []),
+    "Opened as a draft by triage (`.github/workflows/triage.yml`) from a fix an agent proposed. Every changed path was checked against one area's own files and Toil UI's. CI runs the full gate on this draft; a human marks it ready and merges it.",
   ].join('\n');
   const owner = repo.split('/')[0];
   const open = await gh('GET', `/repos/${repo}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`, undefined, options(env, fetcher));

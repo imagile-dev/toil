@@ -67,6 +67,8 @@ export const READ_COMMANDS: ReadonlySet<string> = new Set([
   'dossiers show',
   'jira issue search',
   'jira issue history',
+  'jira-cloud issue search',
+  'jira-cloud issue history',
   'ado work-item iterations',
   'ado work-item search',
   'ado work-item get-many',

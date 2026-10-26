@@ -110,5 +110,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     process.exit(1);
   }
   if (dest) extract(result, join(dest));
-  console.log(result.area);
+  console.log(result.area ?? 'ui');
 }

@@ -26,6 +26,8 @@ import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, 
 export const JQL = (project: string) => `project = ${project} ORDER BY Rank ASC`;
 /** The areas that read Azure DevOps work items: Server and Services. */
 export const ADO_AREAS = ['ado', 'ado-cloud'] as const;
+/** The areas that read Jira work items: Data Center and Cloud, which send the same issue shapes under the same command names. */
+export const JIRA_AREAS = ['jira', 'jira-cloud'] as const;
 export const WIQL = 'SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project ORDER BY [System.Id]';
 
 export type Panel = 'dossier' | 'work' | 'prs' | 'owners' | 'builds' | 'deployments';
@@ -220,17 +222,17 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
 
   // Work items, mapped to OWI ---------------------------------------------------------
   // Each area is mapped on its own, with its own section's OWI fields.
-  const work: Record<'jira' | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], ado: [], 'ado-cloud': [], github: [] };
+  const work: Record<(typeof JIRA_AREAS)[number] | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], 'jira-cloud': [], ado: [], 'ado-cloud': [], github: [] };
   const tasks: Array<Promise<void>> = [];
-  if (areas.jira?.inputs.project) {
+  for (const jira of JIRA_AREAS.filter((a) => areas[a]?.inputs.project)) {
     tasks.push((async () => {
-      const search = await run('work', 'jira issue search', { ...base, jql: JQL(areas.jira!.inputs.project!) });
+      const search = await run('work', `${jira} issue search`, { ...base, jql: JQL(areas[jira]!.inputs.project!) });
       if (!search) return;
-      work.jira.push(search);
+      work[jira].push(search);
       const keys = recs((search.data as Rec).issues).map((i) => String(i.key));
       for (const key of keys) {
-        const history = await run('work', 'jira issue history', { ...base, key });
-        if (history) work.jira.push({ key, history });
+        const history = await run('work', `${jira} issue history`, { ...base, key });
+        if (history) work[jira].push({ key, history });
       }
     })());
   }
