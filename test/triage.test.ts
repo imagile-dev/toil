@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { extract, inspect } from '../scripts/triage/archive.mjs';
 import { ustar } from './harness/ustar.js';
 import { CLAIMED, QUEUED, claim, claimRank, gh, waiting, type LabelEvent } from '../scripts/triage/cap.mjs';
-import { areaOf, check, parseRaw } from '../scripts/triage/changes.mjs';
+import { areaOf, check, isUi, isSafetyLayer, parseRaw } from '../scripts/triage/changes.mjs';
 import { agentRan, defuseClosingKeywords, parseDecision } from '../scripts/triage/decision.mjs';
 import { areas, labels } from '../scripts/triage/labels.mjs';
 import { MAX_LENGTH, parseTerms, redact, tokenShaped } from '../scripts/triage/redact.mjs';
@@ -283,6 +283,26 @@ describe('the path check', () => {
   });
 
   it.each([
+    'ui/src/load.ts', 'ui/src/components/panel.tsx', 'ui/server/server.ts', 'ui/server/agents/env.ts', 'ui/server/agents/tested.ts', 'ui/test/registry.test.ts', 'ui/test/views.test.tsx', 'ui/docs/themes.md', 'ui/themes/plain/theme.json',
+  ])('allows %s as Toil UI', (path) => {
+    expect(isUi(path)).toBe(true);
+    expect(check([{ path, newMode: '100644' }], known)).toMatchObject({ ok: true, area: undefined, ui: true, refused: [] });
+  });
+
+  it.each([
+    'ui/package.json', 'ui/tsconfig.json', 'ui/vite.config.ts', 'ui/scripts/layout-check.mjs', 'ui/server/agents/install.ts', 'ui/src/../../src/core/x.ts', 'ui/srcx/a.ts', 'ui', 'ui/src/', 'ui\\src\\a.ts', 'ui/README.md',
+  ])('refuses %s as Toil UI', (path) => {
+    expect(isUi(path)).toBe(false);
+  });
+
+  it('lets one area and Toil UI change together, and still refuses two areas', () => {
+    expect(check([{ path: 'src/areas/jira-cloud/a.ts', newMode: '100644' }, { path: 'ui/src/load.ts', newMode: '100644' }], known)).toMatchObject({ ok: true, area: 'jira-cloud', ui: true, refused: [] });
+    expect(check([{ path: 'ui/src/load.ts', newMode: '100644' }, { path: 'src/core/execute.ts', newMode: '100644' }], known).refused).toEqual(["src/core/execute.ts (outside an area's own files and Toil UI's)"]);
+    expect(check([{ path: 'ui/src/load.ts', newMode: '120000' }], known).ok).toBe(false);
+    expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'src/areas/github/a.ts', newMode: '100644' }, { path: 'ui/src/load.ts', newMode: '100644' }], known).refused).toEqual(['more than one area: github, jira']);
+  });
+
+  it.each([
     '.github/workflows/triage.yml', '.github/CODEOWNERS', 'src/core/execute.ts', 'src/registry.ts', 'functions/feedback/src/lib/handlers.ts', 'infra/main.bicep',
     'site/src/pages/feedback.astro', 'dist/toil.js', 'package.json', 'package-lock.json', 'scripts/triage/changes.mjs', 'CLAUDE.md',
     'src/areas/newthing/index.ts', 'src/areas/jira/../../core/x.ts', 'test/fixtures/jira.fixture.ts.bak', 'test/triage.test.ts',
@@ -290,12 +310,23 @@ describe('the path check', () => {
     expect(areaOf(path, known)).toBeUndefined();
   });
 
+  it('lists every safety-layer edit, so the draft can lead with them, and only those', () => {
+    const edit = (path: string) => ({ path, newMode: '100644' });
+    const result = check([edit('ui/server/csp.ts'), edit('ui/server/agents/tools.ts'), edit('ui/src/config.ts'), edit('ui/test/server.test.ts'), edit('ui/src/load.ts'), edit('ui/server/sync.ts')], known);
+    expect(result).toMatchObject({ ok: true, ui: true, safety: ['ui/server/agents/tools.ts', 'ui/server/csp.ts', 'ui/server/sync.ts', 'ui/src/config.ts', 'ui/test/server.test.ts'] });
+    expect(check([edit('ui/src/load.ts')], known).safety).toEqual([]);
+    // The folder is flagged whole, so a file added later is too; so are theme.json and the suites that check Toil UI's own rules.
+    const flagged = ['ui/server/main.ts', 'ui/server/agents/mcp.ts', 'ui/server/assign/runner.ts', 'ui/server/brand-new.ts', 'ui/themes/plain/theme.json', 'ui/test/registry.test.ts', 'ui/src/config.ts'];
+    expect(flagged.every((p) => isSafetyLayer(p) && isUi(p))).toBe(true);
+    expect(['ui/src/load.ts', 'ui/test/views.test.tsx', 'ui/themes/plain/theme.css', 'ui/docs/themes.md'].some(isSafetyLayer)).toBe(false);
+  });
+
   it('refuses a second area, a symlink, a submodule, and an empty change', () => {
     expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'skills/toil/github.md', newMode: '100644' }], known).refused).toEqual(['more than one area: github, jira']);
     expect(check([{ path: 'src/areas/jira/a.ts', newMode: '120000' }], known).ok).toBe(false);
     expect(check([{ path: 'src/areas/jira/sub', newMode: '160000' }], known).ok).toBe(false);
     expect(check([], known).refused).toEqual(['no changes']);
-    expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'src/areas/jira/old.ts', newMode: '000000' }], known)).toEqual({ ok: true, area: 'jira', refused: [] });
+    expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'src/areas/jira/old.ts', newMode: '000000' }], known)).toEqual({ ok: true, area: 'jira', ui: false, safety: [], refused: [] });
   });
 
   it('reads git diff --raw -z from a real repository, so the parser matches what git writes', () => {
@@ -314,7 +345,7 @@ describe('the path check', () => {
       git('commit', '-qm', 'fix');
       const entries = parseRaw(git('diff', '--raw', '-z', '--no-renames', 'HEAD~1', 'HEAD'));
       expect(entries.map((e) => e.path).sort()).toEqual(['src/areas/jira/a.ts', 'src/areas/jira/name with space.ts']);
-      expect(check(entries, known)).toEqual({ ok: true, area: 'jira', refused: [] });
+      expect(check(entries, known)).toEqual({ ok: true, area: 'jira', ui: false, safety: [], refused: [] });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -349,7 +380,7 @@ describe('the handover archive', () => {
     [[{ path: 'src/areas/jira/link', type: '2' }], 'type 2: only regular files'],
     [[{ path: 'src/areas/jira/hard', type: '1' }], 'type 1: only regular files'],
     [[{ path: 'src/areas/jira/x', type: 'L' }], 'type L: only regular files'],
-    [[{ path: '.github/workflows/ci.yml', data: 'x' }], ".github/workflows/ci.yml (outside an area's own files)"],
+    [[{ path: '.github/workflows/ci.yml', data: 'x' }], ".github/workflows/ci.yml (outside an area's own files and Toil UI's)"],
     [[{ path: 'src/areas/jira/../../core/x.ts', data: 'x' }], "outside an area's own files"],
     [[{ path: 'src/areas/jira/a.ts', data: 'x' }, { path: 'src/areas/github/b.ts', data: 'y' }], 'more than one area'],
   ])('refuses %j', (entries, reason) => {

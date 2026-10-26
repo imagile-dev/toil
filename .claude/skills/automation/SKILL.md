@@ -177,12 +177,28 @@ refuses.
   and closes it as a duplicate.
 - **Paths.** `scripts/triage/archive.mjs` reads the handover archive itself (regular
   files only, no links or extensions) and `scripts/triage/changes.mjs` holds every
-  path to one area's own files, in `finish` before anything lands, and again on the
+  path to one area's own files and Toil UI's, in `finish` before anything lands, and again on the
   commit before the push.
-- **Scope.** One area: `src/areas/<area>/`, its fixture, skill file, divergences,
-  board entry, and the two generated site data files. Core, `functions/`, `infra/`,
-  site pages, `.github/`, `scripts/`, `dist/`, `package.json`, the lockfile and new
-  dependencies are maintainer work, denied with that explanation.
+- **Scope.** One area (`src/areas/<area>/`, its fixture, skill file, divergences,
+  board entry, and the two generated site data files) and/or Toil UI: `ui/src/`,
+  `ui/server/` except `agents/install.ts` (the one file that spawns), `ui/test/`,
+  `ui/docs/` and `ui/themes/`. That is the maintainer's decision on #487 (2026-10-26),
+  after narrower rules were weighed, and it supersedes denials that called `ui/`
+  maintainer work. Core, `functions/`, `infra/`, site pages, `.github/`, `scripts/`,
+  `dist/`, every `package.json` and lockfile, Toil UI's build and lint configuration,
+  `ui/scripts/` and new dependencies are maintainer work, denied with that explanation.
+  The agent has no Bash, so it cannot run Toil UI's gate; the draft PR for a fix that
+  touches `ui/` says it needs `npm run verify:ui` and the screen review, which a
+  maintainer runs before it merges.
+- **Safety-layer edits are flagged, not forbidden.** Toil UI's safety layer
+  (`isSafetyLayer` in `scripts/triage/changes.mjs`: every file under `ui/server/`,
+  `ui/src/config.ts`, each theme's `theme.json`, and the suites that check Toil UI's own
+  rules, listed there) can be edited by a triage fix. When one is, `open-pr` puts a
+  "Safety-layer edits" section listing the files at the top of the draft, computed
+  from the checked paths so the agent can't leave it out, and the agent's own
+  section says what each edit loosened or widened. `claude-review.yml` asks its
+  reviewer to open with the same paragraph (it skips triage PRs today, because the App
+  can't approve its own PR, so the draft's description is what the maintainer reads).
 - **Model and turns are fixed:** `--model sonnet --max-turns 100`. Transient GitHub
   failures (5xx, 429, network) are retried. The outcome goes to the job summary.
   No triage job uses `cache: npm`.

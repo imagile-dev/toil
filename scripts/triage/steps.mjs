@@ -248,12 +248,18 @@ export async function openPr({ env, fetcher = fetch, cwd = process.cwd(), log = 
   // The token reaches git through a credential helper reading env, never argv.
   const pushUrl = env.PUSH_URL ?? `https://github.com/${repo}.git`;
   git(cwd, ['-c', 'credential.helper=', '-c', 'credential.helper=!f() { echo username=x-access-token; echo "password=${GH_TOKEN}"; }; f', 'push', '--force', pushUrl, `HEAD:refs/heads/${branch}`], { GH_TOKEN: env.GH_TOKEN ?? '' });
+  // Listed by the workflow from the checked paths, so the agent can't leave it out; its own account of what each edit loosened follows in its text.
+  const safety = checked.safety.length
+    ? ['## Safety-layer edits', '', "This fix edits files that decide what Toil UI's server, agent or Settings may run or reach. Read these first; the description below says what each change loosened or widened, if the agent said:", '', ...checked.safety.map((f) => `- \`${f}\``), '']
+    : [];
   const body = [
+    ...safety,
     read('pr-body.checked.md').toString('utf8').trim(),
     '',
     `Closes #${number}`,
     '',
-    "Opened as a draft by triage (`.github/workflows/triage.yml`) from a fix an agent proposed. Every changed path was checked against one area's own files. CI runs the full gate on this draft; a human marks it ready and merges it.",
+    ...(checked.ui ? ["This changes Toil UI (`ui/`). Triage cannot run Toil UI's gate, so before it merges a maintainer runs `npm run verify:ui` and the `ship` skill's screen review (CLAUDE.md, Build & Test), and reads the change against principle 11.", ''] : []),
+    "Opened as a draft by triage (`.github/workflows/triage.yml`) from a fix an agent proposed. Every changed path was checked against one area's own files and Toil UI's. CI runs the full gate on this draft; a human marks it ready and merges it.",
   ].join('\n');
   const owner = repo.split('/')[0];
   const open = await gh('GET', `/repos/${repo}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`, undefined, options(env, fetcher));

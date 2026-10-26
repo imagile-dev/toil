@@ -212,19 +212,49 @@ jobs:
                  Read why it was denied in `denied.json`; never guess at the reason. If the denial rested on a
                  rule CLAUDE.md no longer has, it is not a duplicate: assess this one fresh in steps 2 to 4,
                  and say in your comment that the earlier decision was made under rules that have since changed.
+                 One such rule: a denial that said Toil UI (`ui/`) is maintainer work was made before triage
+                 could change Toil UI (step 3), so it is superseded; assess that request fresh.
                - Matching titles alone are not enough: the same area and the same behavior must be asked for.
                Only go on to step 2 if there is no duplicate.
             2. **Areas.** Work out which integrations it involves. The areas are:
                ${{ steps.prep.outputs.areas }}.
-            3. **Decide.** You may change exactly one area, and only these files of it:
-               `src/areas/<area>/`, `test/fixtures/<area>.fixture.ts`, `skills/toil/<area>.md`,
-               `docs/divergences/<area>.json`, `site/src/data/integrations/<area>.json`, and the generated
-               `site/src/data/commands/<area>.json` and `site/src/data/settings/<area>.json`.
+            3. **Decide.** A fix may change one integration area and/or Toil UI, and only these files:
+               - **One area:** `src/areas/<area>/`, `test/fixtures/<area>.fixture.ts`, `skills/toil/<area>.md`,
+                 `docs/divergences/<area>.json`, `site/src/data/integrations/<area>.json`, and the generated
+                 `site/src/data/commands/<area>.json` and `site/src/data/settings/<area>.json`.
+               - **Toil UI:** `ui/src/` (its fixtures included), `ui/server/` (but not
+                 `ui/server/agents/install.ts`, the one file that spawns), `ui/test/`, `ui/docs/` and
+                 `ui/themes/`, with the tests, fixtures and docs the change needs. An issue about Toil UI
+                 is work you can do (the maintainer's decision on #487, 2026-10-26): it is no longer
+                 maintainer work. A fix that needs both one area and Toil UI is fine; one that needs two
+                 areas is not.
+               - **Toil UI's safety layer** is allowed but must never be edited quietly. It is every file
+                 under `ui/server/` (the launch token, CSP, write gates, read list and read-only lock,
+                 agent tool and env allowlists, launchers), `ui/src/config.ts` (Settings' write
+                 allowlist), each theme's `theme.json` (its `voice` is prompt text for Toil UI's agent),
+                 and the suites that check Toil UI's own rules: `ui/test/server.test.ts`, `registry.test.ts`,
+                 `config.test.ts`, `themes.test.ts`, `package.test.ts`, `install.test.ts`, `setup.ts` and
+                 `harness.ts`. Edit one only when the issue needs it, as narrowly as you can, and
+                 in `.triage-out/pr-body.md` add a section headed "What the safety-layer edits change" naming
+                 each file and saying plainly what it loosened or widened (a command added to a list, a
+                 header relaxed, an env variable passed on), or that it loosened nothing. The workflow
+                 puts the list of these files at the top of the draft; your section says what they do.
                Anything in core (`src/core/` and the rest of `src/` outside one area), `functions/`,
-               `infra/`, site pages, `.github/`, `scripts/`, `dist/`, `package.json` or the lockfile, a new
-               dependency, a new area, or a change to more than one area is maintainer work: deny it, saying
-               exactly that. Deny anything CLAUDE.md rules out (its principles, the Authentication Bar in the
-               `integrations` skill, the command contract), quoting the rule.
+               `infra/`, site pages, `.github/`, `scripts/`, `dist/`, `package.json` or the lockfile
+               (the root's or `ui/`'s), Toil UI's build and lint configuration, a new dependency, a new
+               area, or a change to more than one area is maintainer work: deny it, saying exactly which
+               of those it needs. Deny anything CLAUDE.md rules out (its principles, the Authentication Bar
+               in the `integrations` skill, the command contract), quoting the rule. For a Toil UI change
+               the rules in CLAUDE.md that bind you are: the Layout entry for `ui/`; principle 11 (quiet
+               screens: show what is needed to act, explain on demand, and when you add something, take
+               something off the screen); `ui/docs/themes.md` for a theme (themes are CSS, JSON and assets
+               only, built in); `ui/test/registry.test.ts`, which holds every call the fixture answers
+               to toil's real registry, so a command the views read goes in `READ_COMMANDS`
+               (`ui/server/reads.ts`) and in the fixture or that test, as the change needs; and no
+               runtime dependency beyond the toil pin. You cannot run anything, so you cannot run Toil
+               UI's gate (`npm run verify:ui`, the layout check at 375, 768 and 1440 px); say in
+               `.triage-out/pr-body.md` that this PR changes Toil UI and needs that check and the screen
+               review before it merges.
             4. **To fix:** make the narrowest change that resolves the issue, by editing files. No refactors,
                no unrelated edits, and change no tests except the ones for your change. Follow the command
                contract: a suspected bug in recorded behavior is recorded, not fixed. CI runs typecheck,
