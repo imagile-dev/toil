@@ -16,6 +16,7 @@ import { runCommand } from '../src/core/run.js';
 import { clearTokenCache, watchTokenExchanges } from '../src/core/token.js';
 import { argvFor, routedArgvFor } from '../src/program.js';
 import { areas as registeredAreas, commands, routedAliases } from '../src/registry.js';
+import { EXAMPLE_BRIEF_RECORDS } from '../src/dossiers/brief.js';
 import { demoCommands } from './fixtures/demo-commands.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
@@ -50,8 +51,9 @@ beforeAll(() => setUp(fixtures));
 afterAll(() => tearDown(fixtures));
 type Files = Record<string, string | Uint8Array>;
 // Config, files and routes are read from the fixture when each test runs, after setup.
-// Two connections the dossier build examples bind to, both with writes off.
-const outside: LoadedFixture = { area: '', routes: [], config: { jira: { baseUrl: 'https://jira.imagile.dev' }, openshift: { baseUrl: 'https://api.ocp.imagile.dev:6443' } }, files: {}, commands: [], trace: [] };
+// Two connections the dossier build examples bind to, both with writes off, and the
+// OWI records `dossiers brief` reads from a file.
+const outside: LoadedFixture = { area: '', routes: [], config: { jira: { baseUrl: 'https://jira.imagile.dev' }, openshift: { baseUrl: 'https://api.ocp.imagile.dev:6443' } }, files: { 'owi/brief.owi.json': EXAMPLE_BRIEF_RECORDS }, commands: [], trace: [] };
 // A group of standalone commands that read files or run git (`util`) brings
 // its own fixture, named after the group, and runs in that suite instead.
 const grouped = new Set(fixtures.map((f) => f.area));

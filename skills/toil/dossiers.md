@@ -175,7 +175,10 @@ The request it sent was
   assigned on the tracker to one of the dossier's agents is queued in Toil UI's Agent
   inbox, where it waits for a person to start it.
 - **`wipLimit`**: how many items one person may have in progress at once, as the team
-  agreed. Toil UI counts each person's work in progress against it, and nothing else.
+  agreed. Toil UI counts each person's work in progress against it, and `toil dossiers
+  brief` flags anyone over it (**Brief**).
+- **`analyze`**: how Analyze briefs the dossier: its goal, reader, lenses and what to
+  watch for or leave out (**Analyze**). Absent, the standard applies.
 
 ## Where dossiers live
 
@@ -259,6 +262,77 @@ Work in the repository and the dossier applies by itself, or pass
 which dossier the folder resolves to and why, and `toil dossiers show card-payments`
 says, per area, the connection a call would use, whether writes are on for it, the
 environment and the inputs it supplies.
+
+### Brief
+
+`toil dossiers brief card-payments` says what needs a person in the dossier's work,
+and what to do first. It reads the work items and pull requests you pass it as Open
+Work Items, and contacts no service: read each tracker and code host with its own
+command, map it, and pipe it in.
+
+```bash
+toil jira issue search --dossier card-payments --jql "project = PAY AND statusCategory != Done" --fields "summary,status,assignee,updated,issuelinks,Sprint,Story Points" | toil util owi map > items.owi.json
+toil bitbucket pr get 311 --dossier card-payments --include reviews,checks | toil util owi map --key-pattern "PAY-{n}=corp-jira" > prs.owi.json
+cat items.owi.json prs.owi.json > work.owi.json
+toil dossiers brief card-payments --file work.owi.json
+```
+
+Blocked needs `issuelinks`, and Sprint at risk needs the sprint and estimate fields.
+`pr list` returns no reviews or checks, so map each open pull request's `pr get
+--include reviews,checks` as well: with a list alone, failing checks and waiting on
+review can't test anything, and `lenses[].note` says so. Several `util owi map`
+outputs can go in together, one after another, in one file or on stdin. The lenses
+apply in order, and each item goes under the first one that flags it, so it appears
+once:
+
+| Lens | Flags |
+|---|---|
+| Failing checks | Checks on an open pull request for an open item have failed for more than 24 hours |
+| Blocked | An open item waits on another open item |
+| Waiting on review | An open pull request has had no first review for more than 2 working days |
+| Sprint at risk | At the pace so far, the current sprint won't finish the points in it |
+| Stale | An item in progress has had no update for more than 5 days |
+| Over the WIP limit | Someone has more items in progress than the dossier's `wipLimit` |
+| Ticket and pull request disagree | An item is done while its pull request is open, or its pull request merged while it's still open |
+| Not ready | Off, and not checked here: readiness is worked out in Toil UI |
+
+The result has a `recommendation`, one `reasons` entry per lens that found something
+(its `line` says how much it holds up), and `onTrack`, which counts what's left
+rather than listing it. Each item has `why`, the `evidence` it rests on, its
+`source`, what it `holds` up down a `blocks` chain, its pull requests, and `url`,
+which opens it in its tracker. Sentences cite items and pull requests as
+`[[<owi id>]]`, the id each one has in the result. Each lens in `lenses` says
+whether it ran, how many items it couldn't test for a missing field (`untested`),
+and why in `note`. `--as-of` briefs as of another moment.
+
+### Analyze
+
+The briefing by code finds what's wrong; Analyze, run by an agent, weighs it and
+writes what to do. A dossier tunes how, starting from one standard:
+
+```bash
+toil dossiers analyze set card-payments --goal "Card payments v2 live for all merchants by 31 Oct." --threshold waiting=3 --off stale
+toil dossiers analyze show card-payments
+toil dossiers analyze prompt card-payments
+```
+
+`set` takes a goal, the reader (`--audience lead`, `engineer` or `stakeholder`), the
+lens order (`--order blocked,failing`), lenses turned `--on` or `--off`, a lens's
+`--threshold id=n`, and words for the agent, `--watch-for` and `--leave-out`, up to
+1000 characters each. Anything you don't set follows the standard, and `brief`
+applies the same order, lenses and thresholds. A value already there needs
+`--replace`; `--clear <setting>` and `--reset` go back to the standard, on the CLI
+only. They're stored under `"analyze"` in the dossier file, so a team that shares
+the dossier shares them.
+
+`prompt` prints the prompt an agent runs: how to read the dossier with toil's tools
+and brief it, the method with the dossier's lenses, its focus, and how to answer,
+with every work item and pull request as a Markdown link to its tracker. `toil mcp`
+serves the same prompt as `analyze`, so an agent client lists it with its prompts.
+A focus from a dossier you haven't adopted (one checked into a repository) still
+applies, and the prompt says where it came from and that you haven't adopted it.
+The agent is told to list anything `--leave-out` hid, so nothing drops off the
+briefing unsaid.
 
 ### Share
 
