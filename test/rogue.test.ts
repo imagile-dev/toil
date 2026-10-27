@@ -318,8 +318,8 @@ describe("Two Weeks' Notice: drawing", () => {
     },
   );
 
-  // Crate and the other themes drawn for dark terminals get a light scheme derived from it: its colours must stay colours there.
-  it.each(TERMINAL_THEMES.filter((t) => !t.schemes.light).map((t) => t.name))(
+  // The light schemes authored for #507 replace the derived ones #505 fixed, so they keep what #505 asked of them: colours that stay colours.
+  it.each(['crate', 'starship', 'sprawl', 'overworld'])(
     'keeps the %s theme in colour on a light terminal, so items, stairs, staff and headings stand apart from the text',
     (name) => {
       const p = palette(findTheme(name)!, 'light');

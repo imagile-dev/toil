@@ -482,18 +482,16 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const controls = (
     <>
       <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
-      {Object.keys(theme.schemes).length > 1 && (
-        <Choice
-          label="Appearance"
-          value={choice.scheme}
-          onChange={(v) => choice.setScheme(v as typeof choice.scheme)}
-          options={[
-            { id: 'system', label: 'System' },
-            { id: 'light', label: 'Light' },
-            { id: 'dark', label: 'Dark' },
-          ]}
-        />
-      )}
+      <Choice
+        label="Appearance"
+        value={choice.scheme}
+        onChange={(v) => choice.setScheme(v as typeof choice.scheme)}
+        options={[
+          { id: 'system', label: 'System' },
+          { id: 'light', label: 'Light' },
+          { id: 'dark', label: 'Dark' },
+        ]}
+      />
     </>
   );
   // Help (#346): the docs section for the view in front of you, in a new tab, and Learn (#418) while learning links are on.

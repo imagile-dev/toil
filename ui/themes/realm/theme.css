@@ -17,11 +17,87 @@
 @import '@fontsource/eb-garamond/400.css';
 @import '@fontsource/eb-garamond/600.css';
 
+/* Every colour that depends on the scheme lives here, so the stylesheet below
+   reads the same in both. Light is the ledger by day: soot, iron and oxblood
+   on vellum. Dark is the same ledger by candlelight: the vellum smoked to
+   leather, the iron and brass pale enough to be seen, the oxblood lifted into
+   an ember. The page follows the system's choice where the scheme says so. */
+[data-theme="realm"] {
+  --realm-wash: rgba(203, 189, 158, 0.55);
+  --realm-soot: rgba(20, 17, 14, 0.62);
+  --realm-soot-clear: rgba(20, 17, 14, 0);
+  --realm-candle: rgba(214, 140, 52, 0.16);
+  --realm-candle-clear: rgba(214, 140, 52, 0);
+  --realm-folio: rgba(226, 215, 191, 0.8);
+  --realm-leaf: rgba(236, 228, 210, 0.82);
+  --realm-moment: rgba(236, 228, 210, 0.86);
+  --realm-folio-shadow: rgba(20, 17, 14, 0.32);
+  --realm-iron: #3a3733;
+  --realm-emboss: rgba(255, 255, 255, 0.45);
+  --realm-rivet: #6b6660;
+  --realm-stripe: #4a1411;
+  --realm-hp-hi: #a3362c;
+  --realm-hp-lo: #4a1411;
+  --realm-seal-hi: #84251f;
+  --realm-seal-lo: #4a1411;
+  --realm-chart-top: #8a2a22;
+  --realm-chart-bottom: #4a1411;
+  --realm-well: #2e2a26;
+}
+
+[data-theme="realm"][data-scheme="dark"] {
+  --realm-wash: rgba(28, 23, 18, 0.86);
+  --realm-soot: rgba(6, 4, 3, 0.7);
+  --realm-soot-clear: rgba(6, 4, 3, 0);
+  --realm-candle: rgba(226, 150, 58, 0.22);
+  --realm-candle-clear: rgba(226, 150, 58, 0);
+  --realm-folio: rgba(42, 35, 27, 0.9);
+  --realm-leaf: rgba(52, 43, 33, 0.9);
+  --realm-moment: rgba(52, 43, 33, 0.92);
+  --realm-folio-shadow: rgba(0, 0, 0, 0.6);
+  --realm-iron: #8f7d62;
+  --realm-emboss: rgba(255, 240, 210, 0.07);
+  --realm-rivet: #9a8e78;
+  --realm-stripe: #8a3a2c;
+  --realm-hp-hi: #e2806a;
+  --realm-hp-lo: #7a2c20;
+  --realm-seal-hi: #e6866f;
+  --realm-seal-lo: #c9674f;
+  --realm-chart-top: #e6866f;
+  --realm-chart-bottom: #a8483a;
+  --realm-well: #120f0c;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="realm"][data-scheme="system"] {
+    --realm-wash: rgba(28, 23, 18, 0.86);
+    --realm-soot: rgba(6, 4, 3, 0.7);
+    --realm-soot-clear: rgba(6, 4, 3, 0);
+    --realm-candle: rgba(226, 150, 58, 0.22);
+    --realm-candle-clear: rgba(226, 150, 58, 0);
+    --realm-folio: rgba(42, 35, 27, 0.9);
+    --realm-leaf: rgba(52, 43, 33, 0.9);
+    --realm-moment: rgba(52, 43, 33, 0.92);
+    --realm-folio-shadow: rgba(0, 0, 0, 0.6);
+    --realm-iron: #8f7d62;
+    --realm-emboss: rgba(255, 240, 210, 0.07);
+    --realm-rivet: #9a8e78;
+    --realm-stripe: #8a3a2c;
+    --realm-hp-hi: #e2806a;
+    --realm-hp-lo: #7a2c20;
+    --realm-seal-hi: #e6866f;
+    --realm-seal-lo: #c9674f;
+    --realm-chart-top: #e6866f;
+    --realm-chart-bottom: #a8483a;
+    --realm-well: #120f0c;
+}
+}
+
 /* Aged vellum under everything, washed with the page's own colour so muted
    text keeps 6:1 at the darkest stain. */
 [data-theme="realm"] body {
   background:
-    linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
+    linear-gradient(var(--realm-wash), var(--realm-wash)),
     url("./assets/vellum.webp") 0 0 / 512px 512px,
     var(--bg);
   font-size: 1.0625rem;
@@ -33,15 +109,15 @@
 @media (min-width: 1360px) {
   [data-theme="realm"] body {
     background:
-      linear-gradient(90deg, rgba(20, 17, 14, 0.62), rgba(20, 17, 14, 0) calc(50% - 640px), rgba(20, 17, 14, 0) calc(50% + 640px), rgba(20, 17, 14, 0.62)) fixed,
-      linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
+      linear-gradient(90deg, var(--realm-soot), var(--realm-soot-clear) calc(50% - 640px), var(--realm-soot-clear) calc(50% + 640px), var(--realm-soot)) fixed,
+      linear-gradient(var(--realm-wash), var(--realm-wash)),
       url("./assets/vellum.webp") 0 0 / 512px 512px,
       var(--bg);
   }
 
   [data-theme="realm"] body:has(.dossier-shell) {
     background:
-      linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
+      linear-gradient(var(--realm-wash), var(--realm-wash)),
       url("./assets/vellum.webp") 0 0 / 512px 512px,
       var(--bg);
   }
@@ -50,8 +126,8 @@
 @media (min-width: 1760px) {
   [data-theme="realm"] body:has(.dossier-shell) {
     background:
-      linear-gradient(90deg, rgba(20, 17, 14, 0.62), rgba(20, 17, 14, 0) calc(50% - 840px), rgba(20, 17, 14, 0) calc(50% + 840px), rgba(20, 17, 14, 0.62)) fixed,
-      linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
+      linear-gradient(90deg, var(--realm-soot), var(--realm-soot-clear) calc(50% - 840px), var(--realm-soot-clear) calc(50% + 840px), var(--realm-soot)) fixed,
+      linear-gradient(var(--realm-wash), var(--realm-wash)),
       url("./assets/vellum.webp") 0 0 / 512px 512px,
       var(--bg);
   }
@@ -86,7 +162,7 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(ellipse 70% 55% at 12% 100%, rgba(214, 140, 52, 0.16), rgba(214, 140, 52, 0) 70%);
+  background: radial-gradient(ellipse 70% 55% at 12% 100%, var(--realm-candle), var(--realm-candle-clear) 70%);
 }
 
 @keyframes realm-candle {
@@ -186,11 +262,11 @@
   border-image: url("./assets/iron-band.svg") 12 / 12px stretch;
   border-radius: 0;
   background:
-    linear-gradient(rgba(226, 215, 191, 0.8), rgba(226, 215, 191, 0.8)),
+    linear-gradient(var(--realm-folio), var(--realm-folio)),
     url("./assets/vellum.webp") 0 0 / 512px 512px,
     var(--surface);
   background-clip: padding-box;
-  box-shadow: 0 6px 14px rgba(20, 17, 14, 0.32);
+  box-shadow: 0 6px 14px var(--realm-folio-shadow);
 }
 
 /* Section headings are wax-sealed tabs, cut into the folio's top edge. */
@@ -230,24 +306,24 @@
 [data-theme="realm"] .attention-item,
 [data-theme="realm"] .proposal,
 [data-theme="realm"] .stat {
-  border: 1px solid #3a3733;
+  border: 1px solid var(--realm-iron);
   border-radius: 1px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), 0 1px 0 rgba(20, 17, 14, 0.25);
+  box-shadow: inset 0 1px 0 var(--realm-emboss), 0 1px 0 rgba(20, 17, 14, 0.25);
 }
 
 /* Each tally is a small riveted plate. */
 [data-theme="realm"] .stat {
   background:
-    radial-gradient(circle at 6px 6px, #6b6660 1.6px, transparent 2.2px),
-    radial-gradient(circle at calc(100% - 6px) 6px, #6b6660 1.6px, transparent 2.2px),
-    radial-gradient(circle at 6px calc(100% - 6px), #6b6660 1.6px, transparent 2.2px),
-    radial-gradient(circle at calc(100% - 6px) calc(100% - 6px), #6b6660 1.6px, transparent 2.2px),
+    radial-gradient(circle at 6px 6px, var(--realm-rivet) 1.6px, transparent 2.2px),
+    radial-gradient(circle at calc(100% - 6px) 6px, var(--realm-rivet) 1.6px, transparent 2.2px),
+    radial-gradient(circle at 6px calc(100% - 6px), var(--realm-rivet) 1.6px, transparent 2.2px),
+    radial-gradient(circle at calc(100% - 6px) calc(100% - 6px), var(--realm-rivet) 1.6px, transparent 2.2px),
     linear-gradient(180deg, var(--raised) 40%, color-mix(in srgb, var(--raised) 88%, #9c7a3c));
 }
 
 [data-theme="realm"] .column {
-  border: 1px solid #3a3733;
-  border-top: 3px solid #3a3733;
+  border: 1px solid var(--realm-iron);
+  border-top: 3px solid var(--realm-iron);
   border-radius: 0;
 }
 
@@ -264,13 +340,13 @@
 [data-theme="realm"] .starter,
 [data-theme="realm"] .shell-choice,
 [data-theme="realm"] .field-text input {
-  border-color: #3a3733;
+  border-color: var(--realm-iron);
 }
 
 [data-theme="realm"] .top button,
 [data-theme="realm"] .top .btn,
 [data-theme="realm"] .top select {
-  border-color: #6b6660;
+  border-color: var(--realm-rivet);
 }
 
 /* The campaign a card serves. */
@@ -284,7 +360,7 @@
 
 /* The sprint panel as a page of the ledger: an embossed double rule under its tab. */
 [data-theme="realm"] section[aria-labelledby="sprint"] > h2 + * {
-  border-top: 3px double #3a3733;
+  border-top: 3px double var(--realm-iron);
   padding-top: 0.5rem;
 }
 
@@ -294,11 +370,11 @@
 
 [data-theme="realm"] .meter {
   border-radius: 0;
-  border-color: #3a3733;
+  border-color: var(--realm-iron);
 }
 
 [data-theme="realm"] .meter > span {
-  background: repeating-linear-gradient(-45deg, var(--accent) 0 4px, #4a1411 4px 6px);
+  background: repeating-linear-gradient(-45deg, var(--accent) 0 4px, var(--realm-stripe) 4px 6px);
 }
 
 /* The dependency graph as an engraved war-table map, darkened toward its
@@ -345,7 +421,7 @@
 
 /* A blocker is a keep that holds the road: a heavier iron wall. */
 [data-theme="realm"] .gnode--blocking {
-  border: 2px solid #3a3733;
+  border: 2px solid var(--realm-iron);
   box-shadow: inset 0 0 0 1px var(--warn), 0 3px 6px rgba(20, 17, 14, 0.55);
 }
 
@@ -387,7 +463,7 @@
 
 /* The dungeon master's answers. */
 [data-theme="realm"] .realm-steward {
-  border: 1px solid #3a3733;
+  border: 1px solid var(--realm-iron);
   border-left: 3px solid var(--accent);
   border-radius: 0;
   background: var(--raised);
@@ -403,7 +479,7 @@
 }
 
 [data-theme="realm"] .bubble--you {
-  border-color: #3a3733;
+  border-color: var(--realm-iron);
   font-style: italic;
 }
 
@@ -450,7 +526,7 @@
   gap: 0.3rem;
   margin-bottom: 0.75rem;
   padding: 0.6rem 0.75rem;
-  border: 1px solid #3a3733;
+  border: 1px solid var(--realm-iron);
   border-left: 3px solid var(--accent);
   background: var(--raised);
 }
@@ -477,14 +553,14 @@
   display: block;
   height: 10px;
   border: 1px solid #14110e;
-  background: #2e2a26;
+  background: var(--realm-well);
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
 [data-theme="realm"] .realm-hp > span {
   display: block;
   height: 100%;
-  background: linear-gradient(180deg, #a3362c, var(--accent) 60%, #4a1411);
+  background: linear-gradient(180deg, var(--realm-hp-hi), var(--accent) 60%, var(--realm-hp-lo));
 }
 
 /* Rest days on the worklog's calendar: a past day with nothing on its page,
@@ -519,7 +595,7 @@
 [data-theme="realm"] .person-tag--roll {
   font-style: italic;
   border-style: dashed;
-  border-color: #6b6660;
+  border-color: var(--realm-rivet);
   background: transparent;
 }
 
@@ -527,9 +603,9 @@
    of vellum, each field a labelled line filled in by hand. */
 [data-theme="realm"] .item-grid section[aria-labelledby="fields"] {
   padding: 0.85rem 1rem 1rem;
-  border: 4px double #3a3733;
+  border: 4px double var(--realm-iron);
   background:
-    linear-gradient(rgba(236, 228, 210, 0.82), rgba(236, 228, 210, 0.82)),
+    linear-gradient(var(--realm-leaf), var(--realm-leaf)),
     url("./assets/vellum.webp") 0 0 / 512px 512px,
     var(--raised);
   box-shadow: 0 4px 10px rgba(20, 17, 14, 0.28);
@@ -558,7 +634,7 @@
   font-variant: small-caps;
   font-weight: 600;
   letter-spacing: 0.04em;
-  border-bottom: 1px solid #3a3733;
+  border-bottom: 1px solid var(--realm-iron);
 }
 
 [data-theme="realm"] .fields dd {
@@ -576,7 +652,7 @@
 
 /* The local app's sync panel (#257). */
 [data-theme="realm"] .sync-panel {
-  border-top: 3px double #3a3733;
+  border-top: 3px double var(--realm-iron);
   background: transparent;
 }
 
@@ -585,11 +661,11 @@
 [data-theme="realm"] .btn--accent,
 [data-theme="realm"] .top nav a[aria-current="page"],
 [data-theme="realm"] button[aria-pressed="true"] {
-  background: linear-gradient(180deg, #84251f, var(--accent) 55%, #4a1411);
+  background: linear-gradient(180deg, var(--realm-seal-hi), var(--accent) 55%, var(--realm-seal-lo));
 }
 
-[data-theme="realm"] .chart .chart-stop--top { stop-color: #8a2a22; }
-[data-theme="realm"] .chart .chart-stop--bottom { stop-color: #4a1411; }
+[data-theme="realm"] .chart .chart-stop--top { stop-color: var(--realm-chart-top); }
+[data-theme="realm"] .chart .chart-stop--bottom { stop-color: var(--realm-chart-bottom); }
 
 [data-theme="realm"] .chart .bar,
 [data-theme="realm"] .chart .area {
@@ -612,7 +688,7 @@
 [data-theme="realm"] .splash,
 [data-theme="realm"] .moment-preview-overlay {
   background:
-    linear-gradient(rgba(203, 189, 158, 0.55), rgba(203, 189, 158, 0.55)),
+    linear-gradient(var(--realm-wash), var(--realm-wash)),
     url("./assets/vellum.webp") 0 0 / 512px 512px,
     var(--bg);
 }
@@ -673,7 +749,7 @@
 }
 
 [data-theme="realm"] .loader-tip {
-  border-top: 3px double #3a3733;
+  border-top: 3px double var(--realm-iron);
 }
 
 [data-theme="realm"] .loader-tip__label {
@@ -687,7 +763,7 @@
   border-image: url("./assets/iron-band.svg") 12 / 12px stretch;
   border-radius: 0;
   background:
-    linear-gradient(rgba(236, 228, 210, 0.86), rgba(236, 228, 210, 0.86)),
+    linear-gradient(var(--realm-moment), var(--realm-moment)),
     url("./assets/vellum.webp") 0 0 / 512px 512px,
     var(--raised);
   background-clip: padding-box;

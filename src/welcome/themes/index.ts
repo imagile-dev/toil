@@ -119,56 +119,14 @@ export function readable(color: Rgb, bg: Rgb, ratio = MIN_CONTRAST): Rgb {
   return lighter ? [255, 255, 255] : [0, 0, 0];
 }
 
-/** The background a derived scheme is checked against: near-black for dark, white for light. */
-const DERIVED_BG: Record<Background, string> = { dark: '#121417', light: '#ffffff' };
-
-/**
- * The least lightness (HSL) a derived light scheme gives its colours, as
- * opposed to its greys. A dark theme's colours are pale tints, and a pale
- * tint turned over lands next to black: Crate's #c2e0ff became #001e3d, so on
- * a light terminal its headings, the game's items, stairs and staff, and the
- * morale bar all read as body text. Kept between this and the middle, they
- * stay blue, red and green, and still clear the bar.
- */
-export const LIGHT_HUE_FLOOR = 0.3;
-
-/**
- * A scheme for a terminal of the kind the theme doesn't have: each colour's
- * lightness turned over (dark ink becomes light ink, a deep red accent a pale
- * one), keeping its hue, on a plain background of that kind. On a light
- * terminal the colours (not ink or muted) are then squeezed up into
- * LIGHT_HUE_FLOOR to the middle, keeping their order, so they stay colours.
- * `palette()` then lifts anything still short of the bar.
- */
-export function deriveScheme(from: SchemeColours, to: Background): SchemeColours {
-  const flip = (hex: string, hue = false) => {
-    const [h, s, l] = toHsl(hexToRgb(hex));
-    const turned = 1 - l;
-    const kept = hue && to === 'light' && turned < 0.5 ? LIGHT_HUE_FLOOR + turned * (1 - 2 * LIGHT_HUE_FLOOR) : turned;
-    return rgbToHex(fromHsl([h, s, kept]));
-  };
-  return {
-    bg: DERIVED_BG[to],
-    ink: flip(from.ink),
-    muted: flip(from.muted),
-    accent: flip(from.accent, true),
-    link: flip(from.link, true),
-    ok: flip(from.ok, true),
-    danger: flip(from.danger, true),
-    ...(from.highlight ? { highlight: flip(from.highlight, true) } : {}),
-  };
-}
-
 export const rgbToHex = (rgb: Rgb) => `#${rgb.map((n) => n.toString(16).padStart(2, '0')).join('')}`;
 
-/** The scheme a terminal of this background shows: the theme's own, else one derived from the scheme it has. */
-export function schemeFor(theme: TerminalTheme, background: Background): SchemeColours {
-  const own = theme.schemes[background];
-  if (own) return own;
-  const other = theme.schemes[background === 'dark' ? 'light' : 'dark'];
-  if (!other) throw new Error(`The ${theme.name} terminal theme has no colours.`);
-  return deriveScheme(other, background);
-}
+/**
+ * The scheme a terminal of this background shows: the theme's own, authored in
+ * its theme.json (#507). Nothing is derived any more; a scheme made up by
+ * arithmetic passed every audit and still looked like a photocopy of a fax.
+ */
+export const schemeFor = (theme: TerminalTheme, background: Background): SchemeColours => theme.schemes[background];
 
 /**
  * The light ground every role is lifted against on a light terminal, as well

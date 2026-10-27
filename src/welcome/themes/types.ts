@@ -50,8 +50,8 @@ export interface TerminalTheme {
   /** The theme's folder under ui/themes/, and what `toil theme set` takes. */
   name: string;
   label: string;
-  /** Every scheme theme.json has, with the same colours. A terminal of the other kind gets one derived from it. */
-  schemes: { light?: SchemeColours; dark?: SchemeColours };
+  /** Both of theme.json's schemes, with the same colours (#507): every theme has a light and a dark one, so nothing is derived. */
+  schemes: { light: SchemeColours; dark: SchemeColours };
   /** Copies of theme.json's `terms` for the words that use them, so a word can't drift from the theme. */
   terms: Partial<Record<TermKey, string>>;
   words: MenuWords;

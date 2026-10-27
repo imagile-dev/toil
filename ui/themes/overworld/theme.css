@@ -14,14 +14,93 @@
 @import '@fontsource/ibm-plex-sans/400.css';
 @import '@fontsource/ibm-plex-sans/600.css';
 
+/* Each literal that depends on the scheme is a property here. The dark scheme
+   is the dungeon after dark; the light one is the same land at midday, its
+   stone and torch-gold deepened and its panels lifted to parchment, with a
+   light wash over the map art. A second scheme ticks the same boxes as the
+   first, only with the lights on. */
+[data-theme="overworld"] {
+  --overworld-fade-a: rgba(17, 28, 22, 0.55);
+  --overworld-fade-b: rgba(17, 28, 22, 0.35);
+  --overworld-band-a: #0b120e;
+  --overworld-band-b: #15211a;
+  --overworld-floor: rgba(26, 38, 32, 0.96);
+  --overworld-brick: rgba(0, 0, 0, 0.25);
+  --overworld-bevel: rgba(255, 255, 255, 0.06);
+  --overworld-grid: rgba(255, 255, 255, 0.03);
+  --overworld-map-wash: rgba(11, 18, 14, 0.62);
+  --overworld-sun: rgba(242, 201, 76, 0.1);
+  --overworld-shade: #0b120e;
+  --overworld-pane: #0b120e;
+  --overworld-gold: #f2c94c;
+  --overworld-stone: #3d4843;
+  --overworld-stone-shade: #1b231f;
+  --overworld-wall: #5f6b65;
+  --overworld-pane-ink: #f3efdc;
+  --overworld-portrait: #111c16;
+  --overworld-leaf-hi: #7ad48a;
+  --overworld-leaf-lo: #2f6b3a;
+  --overworld-drop: #000;
+}
+
+[data-theme="overworld"][data-scheme="light"] {
+  --overworld-fade-a: rgba(233, 239, 214, 0.7);
+  --overworld-fade-b: rgba(233, 239, 214, 0.55);
+  --overworld-band-a: #f6f3e0;
+  --overworld-band-b: #e1e9c8;
+  --overworld-floor: rgba(250, 247, 230, 0.96);
+  --overworld-brick: rgba(60, 74, 50, 0.13);
+  --overworld-bevel: rgba(255, 255, 255, 0.8);
+  --overworld-grid: rgba(40, 60, 40, 0.05);
+  --overworld-map-wash: rgba(246, 243, 224, 0.72);
+  --overworld-sun: rgba(242, 201, 76, 0.38);
+  --overworld-shade: #5b6b55;
+  --overworld-pane: #fffbe9;
+  --overworld-gold: #8a5a00;
+  --overworld-stone: #8f9c86;
+  --overworld-stone-shade: #b9c4a6;
+  --overworld-wall: #8f9c86;
+  --overworld-pane-ink: #1c2a20;
+  --overworld-portrait: #dfe8c8;
+  --overworld-leaf-hi: #4fa35e;
+  --overworld-leaf-lo: #1f5a2d;
+  --overworld-drop: rgba(40, 56, 36, 0.45);
+}
+
+@media (prefers-color-scheme: light) {
+  [data-theme="overworld"][data-scheme="system"] {
+    --overworld-fade-a: rgba(233, 239, 214, 0.7);
+    --overworld-fade-b: rgba(233, 239, 214, 0.55);
+    --overworld-band-a: #f6f3e0;
+    --overworld-band-b: #e1e9c8;
+    --overworld-floor: rgba(250, 247, 230, 0.96);
+    --overworld-brick: rgba(60, 74, 50, 0.13);
+    --overworld-bevel: rgba(255, 255, 255, 0.8);
+    --overworld-grid: rgba(40, 60, 40, 0.05);
+    --overworld-map-wash: rgba(246, 243, 224, 0.72);
+    --overworld-sun: rgba(242, 201, 76, 0.38);
+    --overworld-shade: #5b6b55;
+    --overworld-pane: #fffbe9;
+    --overworld-gold: #8a5a00;
+    --overworld-stone: #8f9c86;
+    --overworld-stone-shade: #b9c4a6;
+    --overworld-wall: #8f9c86;
+    --overworld-pane-ink: #1c2a20;
+    --overworld-portrait: #dfe8c8;
+    --overworld-leaf-hi: #4fa35e;
+    --overworld-leaf-lo: #1f5a2d;
+    --overworld-drop: rgba(40, 56, 36, 0.45);
+  }
+}
+
 /* The overworld along the foot of the page, and in the margins beside the
-   1280px column where they are wide enough, washed dark so it reads as a
-   map seen at night. The page keeps the strip clear, so no text sits on it. */
+   1280px column where they are wide enough, washed to the scheme (dark as a
+   map seen at night, light as one at midday). The page keeps the strip clear, so no text sits on it. */
 [data-theme="overworld"] body {
   image-rendering: pixelated;
   background:
     linear-gradient(var(--bg), var(--bg)) center top / 100% calc(100% - 128px) no-repeat,
-    linear-gradient(var(--bg), rgba(17, 28, 22, 0.55) 60%, rgba(17, 28, 22, 0.35)) center bottom / 100% 128px no-repeat,
+    linear-gradient(var(--bg), var(--overworld-fade-a) 60%, var(--overworld-fade-b)) center bottom / 100% 128px no-repeat,
     url("./assets/overworld.webp") center bottom / 384px 384px repeat-x,
     var(--bg);
 }
@@ -29,7 +108,7 @@
 @media (min-width: 1360px) {
   [data-theme="overworld"] body {
     background:
-      linear-gradient(90deg, rgba(17, 28, 22, 0.35), var(--bg) calc(50% - 640px), var(--bg) calc(50% + 640px), rgba(17, 28, 22, 0.35)) fixed,
+      linear-gradient(90deg, var(--overworld-fade-b), var(--bg) calc(50% - 640px), var(--bg) calc(50% + 640px), var(--overworld-fade-b)) fixed,
       url("./assets/overworld.webp") 0 0 / 384px 384px repeat fixed,
       var(--bg);
   }
@@ -51,7 +130,7 @@
 }
 
 [data-theme="overworld"] .brand .wordmark {
-  color: #f2c94c;
+  color: var(--overworld-gold);
 }
 
 [data-theme="overworld"] img,
@@ -125,14 +204,14 @@
 /* The header is the top of the screen in an old adventure: a dark band with a
    torch-gold rule and a row of stone along its foot. */
 [data-theme="overworld"] .top {
-  background: linear-gradient(180deg, #0b120e, #15211a);
-  border-bottom: 4px solid #f2c94c;
-  box-shadow: 0 4px 0 #3d4843, 0 8px 0 #1b231f;
+  background: linear-gradient(180deg, var(--overworld-band-a), var(--overworld-band-b));
+  border-bottom: 4px solid var(--overworld-gold);
+  box-shadow: 0 4px 0 var(--overworld-stone), 0 8px 0 var(--overworld-stone-shade);
   margin-bottom: 8px;
 }
 
 [data-theme="overworld"] .banner {
-  border-bottom: 4px solid #3d4843;
+  border-bottom: 4px solid var(--overworld-stone);
 }
 
 /* Panels are dungeon rooms: stone brick walls with a moss trim, around the
@@ -140,13 +219,13 @@
 [data-theme="overworld"] .l-card,
 [data-theme="overworld"] .ask,
 [data-theme="overworld"] .ask-bar {
-  border: 8px solid #5f6b65;
+  border: 8px solid var(--overworld-wall);
   border-image: url("./assets/stone-wall.svg") 8 / 8px round;
   border-radius: 0;
   background:
-    linear-gradient(rgba(26, 38, 32, 0.96), rgba(26, 38, 32, 0.96)),
-    repeating-linear-gradient(0deg, transparent 0 23px, rgba(0, 0, 0, 0.25) 23px 24px),
-    repeating-linear-gradient(90deg, transparent 0 23px, rgba(0, 0, 0, 0.25) 23px 24px),
+    linear-gradient(var(--overworld-floor), var(--overworld-floor)),
+    repeating-linear-gradient(0deg, transparent 0 23px, var(--overworld-brick) 23px 24px),
+    repeating-linear-gradient(90deg, transparent 0 23px, var(--overworld-brick) 23px 24px),
     var(--surface);
 }
 
@@ -167,10 +246,10 @@
   justify-self: start;
   max-width: 100%;
   padding: 0.35rem 0.6rem;
-  color: #f3efdc;
-  background: #0b120e;
-  border: 2px solid #f2c94c;
-  box-shadow: 2px 2px 0 #000;
+  color: var(--overworld-pane-ink);
+  background: var(--overworld-pane);
+  border: 2px solid var(--overworld-gold);
+  box-shadow: 2px 2px 0 var(--overworld-drop);
   overflow-wrap: anywhere;
 }
 
@@ -181,7 +260,7 @@
 [data-theme="overworld"] .stat {
   border: 2px solid var(--line);
   border-radius: 0;
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.06), 3px 3px 0 #0b120e;
+  box-shadow: inset 0 2px 0 var(--overworld-bevel), 3px 3px 0 var(--overworld-shade);
 }
 
 [data-theme="overworld"] .stat {
@@ -189,7 +268,7 @@
 }
 
 [data-theme="overworld"] .stat-value {
-  color: #f2c94c;
+  color: var(--overworld-gold);
 }
 
 [data-theme="overworld"] button,
@@ -199,7 +278,7 @@
 [data-theme="overworld"] .field-text input {
   border: 2px solid var(--ink);
   border-radius: 0;
-  box-shadow: 2px 2px 0 #0b120e;
+  box-shadow: 2px 2px 0 var(--overworld-shade);
 }
 
 [data-theme="overworld"] .chip,
@@ -213,12 +292,12 @@
    stone, its lintel coloured by how far the quests in it have gone. */
 [data-theme="overworld"] .column {
   border: 2px solid var(--line);
-  border-top: 8px solid #5f6b65;
+  border-top: 8px solid var(--overworld-wall);
   border-radius: 0;
   background-color: var(--bg);
   background-image:
-    repeating-linear-gradient(0deg, transparent 0 31px, rgba(255, 255, 255, 0.03) 31px 32px),
-    repeating-linear-gradient(90deg, transparent 0 31px, rgba(255, 255, 255, 0.03) 31px 32px);
+    repeating-linear-gradient(0deg, transparent 0 31px, var(--overworld-grid) 31px 32px),
+    repeating-linear-gradient(90deg, transparent 0 31px, var(--overworld-grid) 31px 32px);
 }
 
 [data-theme="overworld"] .column--in_progress {
@@ -226,7 +305,7 @@
 }
 
 [data-theme="overworld"] .column--done {
-  border-top-color: #f2c94c;
+  border-top-color: var(--overworld-gold);
 }
 
 /* A chest, a key or an open chest in each card's corner, clear of the estimate beside it. */
@@ -260,12 +339,12 @@
   gap: 0.5rem 1rem;
   margin: 0;
   padding: 0.35rem 0.5rem;
-  background: #0b120e;
-  border: 2px solid #3d4843;
+  background: var(--overworld-pane);
+  border: 2px solid var(--overworld-stone);
   font-family: var(--font-display);
   font-size: 0.6875rem;
   line-height: 1.6;
-  color: #f3efdc;
+  color: var(--overworld-pane-ink);
 }
 
 [data-theme="overworld"] .ow-hearts {
@@ -296,16 +375,16 @@
 [data-theme="overworld"] .ow-sage {
   grid-template-columns: 48px minmax(0, 1fr);
   align-items: start;
-  border: 4px double #f3efdc;
+  border: 4px double var(--overworld-pane-ink);
   border-radius: 0;
-  background: #0b120e;
+  background: var(--overworld-pane);
 }
 
 [data-theme="overworld"] .ow-portrait {
   width: 48px;
   height: auto;
-  border: 2px solid #f2c94c;
-  background: #111c16;
+  border: 2px solid var(--overworld-gold);
+  background: var(--overworld-portrait);
 }
 
 [data-theme="overworld"] .ow-sage-text {
@@ -317,7 +396,7 @@
 [data-theme="overworld"] .ow-sage-name {
   font-family: var(--font-display);
   font-size: 0.6875rem;
-  color: #f2c94c;
+  color: var(--overworld-gold);
 }
 
 [data-theme="overworld"] .bubble--you {
@@ -336,16 +415,16 @@
   mask-image: radial-gradient(ellipse 50% 50% at center, #000 60%, transparent 100%);
 }
 
-/* The dependency graph as a dungeon map, washed dark so every label on its
+/* The dependency graph as a dungeon map, washed to the scheme so every label on its
    token keeps its contrast. */
 [data-theme="overworld"] .graph {
-  border: 4px solid #3d4843;
+  border: 4px solid var(--overworld-stone);
   border-radius: 0;
   background:
-    linear-gradient(rgba(11, 18, 14, 0.62), rgba(11, 18, 14, 0.62)),
+    linear-gradient(var(--overworld-map-wash), var(--overworld-map-wash)),
     url("./assets/dungeon-map.webp") center / cover no-repeat,
-    #0b120e;
-  box-shadow: inset 0 0 0 2px #f2c94c;
+    var(--overworld-pane);
+  box-shadow: inset 0 0 0 2px var(--overworld-gold);
 }
 
 [data-theme="overworld"] .graph .react-flow__background {
@@ -353,19 +432,19 @@
 }
 
 [data-theme="overworld"] .gnode {
-  border: 2px solid #0b120e;
+  border: 2px solid var(--overworld-shade);
   border-radius: 0;
   background: var(--raised);
-  box-shadow: inset 0 0 0 1px #5f6b65, 3px 3px 0 #000;
+  box-shadow: inset 0 0 0 1px var(--overworld-wall), 3px 3px 0 var(--overworld-drop);
 }
 
 /* A grand quest carries a gold lintel. */
 [data-theme="overworld"] .gnode--epic {
-  border-top: 4px solid #f2c94c;
+  border-top: 4px solid var(--overworld-gold);
 }
 
 [data-theme="overworld"] .gnode--blocking {
-  box-shadow: inset 0 0 0 2px var(--warn), 3px 3px 0 #000;
+  box-shadow: inset 0 0 0 2px var(--warn), 3px 3px 0 var(--overworld-drop);
 }
 
 [data-theme="overworld"] .gnode--blocked {
@@ -390,12 +469,12 @@
 
 /* The links are corridors drawn in torch gold; the key path is drawn in red. */
 [data-theme="overworld"] .gedge .react-flow__edge-path {
-  stroke: #f2c94c;
+  stroke: var(--overworld-gold);
   stroke-dasharray: 6 4;
 }
 
 [data-theme="overworld"] .gedge--live .react-flow__edge-path {
-  stroke: #ff8a7a;
+  stroke: var(--danger);
   stroke-dasharray: 2 4;
   stroke-width: 2.5;
 }
@@ -406,22 +485,22 @@
 
 /* The local app's sync panel (#257). */
 [data-theme="overworld"] .sync-panel {
-  border-top: 4px solid #3d4843;
+  border-top: 4px solid var(--overworld-stone);
 }
 
 /* Buttons lit from above in two pixel bands; charts in moss and leaf. */
 [data-theme="overworld"] .btn--accent,
 [data-theme="overworld"] .top nav a[aria-current="page"],
 [data-theme="overworld"] button[aria-pressed="true"] {
-  background: linear-gradient(180deg, #7ad48a 0 50%, var(--accent) 50%);
+  background: linear-gradient(180deg, var(--overworld-leaf-hi) 0 50%, var(--accent) 50%);
 }
 
 [data-theme="overworld"] .meter > span {
-  background: repeating-linear-gradient(90deg, var(--accent) 0 6px, #2f6b3a 6px 8px);
+  background: repeating-linear-gradient(90deg, var(--accent) 0 6px, var(--overworld-leaf-lo) 6px 8px);
 }
 
-[data-theme="overworld"] .chart .chart-stop--top { stop-color: #7ad48a; }
-[data-theme="overworld"] .chart .chart-stop--bottom { stop-color: #2f6b3a; }
+[data-theme="overworld"] .chart .chart-stop--top { stop-color: var(--overworld-leaf-hi); }
+[data-theme="overworld"] .chart .chart-stop--bottom { stop-color: var(--overworld-leaf-lo); }
 
 [data-theme="overworld"] .chart .bar,
 [data-theme="overworld"] .chart .area {
@@ -440,12 +519,12 @@
    3x on a phone and 4x where there's room, so every pixel stays square. */
 [data-theme="overworld"] .splash {
   background:
-    radial-gradient(ellipse at 50% 42%, rgba(242, 201, 76, 0.1), transparent 50vmax),
+    radial-gradient(ellipse at 50% 42%, var(--overworld-sun), transparent 50vmax),
     var(--bg);
 }
 
 [data-theme="overworld"] .splash__art {
-  box-shadow: 4px 4px 0 #000;
+  box-shadow: 4px 4px 0 var(--overworld-drop);
 }
 
 @media (min-width: 600px) {
@@ -460,17 +539,17 @@
 }
 
 [data-theme="overworld"] .splash__name .wordmark {
-  color: #f2c94c;
-  text-shadow: 3px 3px 0 #000;
+  color: var(--overworld-gold);
+  text-shadow: 3px 3px 0 var(--overworld-drop);
 }
 
 [data-theme="overworld"] .splash__ui {
   border-radius: 0;
-  box-shadow: 2px 2px 0 #000;
+  box-shadow: 2px 2px 0 var(--overworld-drop);
 }
 
 [data-theme="overworld"] .loader__art {
-  box-shadow: 3px 3px 0 #000;
+  box-shadow: 3px 3px 0 var(--overworld-drop);
 }
 
 [data-theme="overworld"] .loader__flavour {
@@ -480,8 +559,8 @@
 /* A tip is the sage's counsel, in his dialogue box. */
 [data-theme="overworld"] .loader-tip {
   padding: 0.6rem 0.75rem;
-  border: 4px double #f3efdc;
-  background: #0b120e;
+  border: 4px double var(--overworld-pane-ink);
+  background: var(--overworld-pane);
 }
 
 [data-theme="overworld"] .loader-tip__label,
@@ -490,14 +569,14 @@
   font-size: 0.6875rem;
   font-weight: 400;
   line-height: 1.8;
-  color: #f2c94c;
+  color: var(--overworld-gold);
 }
 
 [data-theme="overworld"] .moment {
-  border: 4px double #f3efdc;
+  border: 4px double var(--overworld-pane-ink);
   border-radius: 0;
-  background: #0b120e;
-  box-shadow: 4px 4px 0 #000;
+  background: var(--overworld-pane);
+  box-shadow: 4px 4px 0 var(--overworld-drop);
 }
 
 /* A lost trial in the danger red; a quest, a cleared trial and an unlocked door in leaf green. */

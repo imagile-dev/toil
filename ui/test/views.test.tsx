@@ -1170,8 +1170,8 @@ describe('themes', () => {
     await open('#/dossier/card-payments');
     const before = screen.getAllByRole('button').map((b) => b.textContent);
     expect(document.documentElement.dataset.theme).toBe('crate');
-    // Crate is dark only, so there's no appearance to choose; its crate stars in the empty state.
-    expect(screen.queryByRole('button', { name: /Appearance/ })).toBeNull();
+    // Every theme has a light and a dark scheme (#507), so Appearance is there in Crate too; its crate stars in the empty state.
+    expect(screen.getByRole('button', { name: /Appearance/ })).toBeTruthy();
     await openChat('card-payments');
     expect(document.querySelector('.ask img')?.getAttribute('alt')).toBe('');
     await userEvent.keyboard('{Escape}');

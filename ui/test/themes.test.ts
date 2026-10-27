@@ -127,8 +127,8 @@ describe.each(THEMES.map((t) => [t.name, t] as const))('the %s theme', (name, th
     for (const key of Object.keys(theme.terms ?? {})) expect(TERMS).toContain(key);
   });
 
-  it('defines every token for every scheme', () => {
-    expect(Object.keys(theme.schemes).length).toBeGreaterThan(0);
+  it('defines every token for a light and a dark scheme (#507)', () => {
+    expect(Object.keys(theme.schemes).sort()).toEqual(['dark', 'light']);
     for (const tokens of Object.values(theme.schemes)) {
       expect(Object.keys(tokens!).sort()).toEqual([...TOKENS].sort());
       for (const value of Object.values(tokens!)) expect(value).toMatch(/^#[0-9a-f]{6}$/i);

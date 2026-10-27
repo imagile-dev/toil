@@ -12,13 +12,101 @@
 @import '@fontsource/exo-2/400.css';
 @import '@fontsource/exo-2/600.css';
 
+/* Bridge lights: the console's colours as custom properties, so the lights-up
+   scheme can swap them without rewriting a rule. Each rgb triple feeds an
+   rgba() that sets its own alpha. This block is the night bridge, as it
+   always was. */
+[data-theme="starship"] {
+  --starship-cyan: 54, 214, 255;
+  --starship-violet: 160, 110, 255;
+  --starship-red: 255, 122, 142;
+  --starship-amber: 255, 200, 87;
+  --starship-void: 5, 7, 15;
+  --starship-hull: 16, 27, 49;
+  --starship-ice: 230, 241, 255;
+  --starship-lift: 0.45;
+  --starship-glow-h1: 0 0 12px rgba(54, 214, 255, 0.45);
+  --starship-glow-word: 0 0 10px rgba(54, 214, 255, 0.6);
+  --starship-glow-stat: 0 0 10px rgba(54, 214, 255, 0.5);
+  --starship-glow-splash: 0 0 14px rgba(54, 214, 255, 0.6);
+  --starship-star-core: #e6f1ff;
+  --starship-star: #36d6ff;
+  --starship-star-rim: #0b5a80;
+  --starship-star-halo: #36d6ff;
+  --starship-done: #5df2a6;
+  --starship-done-rim: #0e5a38;
+  --starship-done-halo: #5df2a6;
+  --starship-chart-low: #1a6f99;
+  --starship-wash: rgba(5, 7, 15, 0.75);
+  --starship-stars: none;
+  --starship-chart-wash: transparent;
+}
+
+/* The bridge with the lights up: pale bulkhead panels, the same cyan, violet
+   and red deepened until they read on light, and the glows cut to tinted
+   edges, since a glow on a pale panel is only a smudge. The starfield and
+   nebula stay, under a light wash. Light-on-dark text shadows are dropped. */
+[data-theme="starship"][data-scheme="light"] {
+  --starship-cyan: 0, 111, 148;
+  --starship-violet: 98, 64, 196;
+  --starship-red: 179, 33, 61;
+  --starship-amber: 176, 112, 0;
+  --starship-void: 234, 241, 249;
+  --starship-hull: 255, 255, 255;
+  --starship-ice: 10, 26, 46;
+  --starship-lift: 0.12;
+  --starship-glow-h1: none;
+  --starship-glow-word: none;
+  --starship-glow-stat: none;
+  --starship-glow-splash: none;
+  --starship-star-core: #ffffff;
+  --starship-star: #0a8cb8;
+  --starship-star-rim: #04506e;
+  --starship-star-halo: rgba(10, 140, 184, 0.45);
+  --starship-done: #1ea36b;
+  --starship-done-rim: #0b5a38;
+  --starship-done-halo: rgba(30, 163, 107, 0.45);
+  --starship-chart-low: #7fcbe6;
+  --starship-wash: rgba(234, 241, 249, 0.93);
+  --starship-stars: invert(1) opacity(0.5);
+  --starship-chart-wash: rgba(234, 241, 249, 0.82);
+}
+
+@media (prefers-color-scheme: light) {
+  [data-theme="starship"][data-scheme="system"] {
+    --starship-cyan: 0, 111, 148;
+    --starship-violet: 98, 64, 196;
+    --starship-red: 179, 33, 61;
+    --starship-amber: 176, 112, 0;
+    --starship-void: 234, 241, 249;
+    --starship-hull: 255, 255, 255;
+    --starship-ice: 10, 26, 46;
+    --starship-lift: 0.12;
+    --starship-glow-h1: none;
+    --starship-glow-word: none;
+    --starship-glow-stat: none;
+    --starship-glow-splash: none;
+    --starship-star-core: #ffffff;
+    --starship-star: #0a8cb8;
+    --starship-star-rim: #04506e;
+    --starship-star-halo: rgba(10, 140, 184, 0.45);
+    --starship-done: #1ea36b;
+    --starship-done-rim: #0b5a38;
+    --starship-done-halo: rgba(30, 163, 107, 0.45);
+    --starship-chart-low: #7fcbe6;
+    --starship-wash: rgba(234, 241, 249, 0.93);
+    --starship-stars: invert(1) opacity(0.5);
+    --starship-chart-wash: rgba(234, 241, 249, 0.82);
+  }
+}
+
 /* Deep space behind the console: a nebula and a planet's limb, under a scrim
    of the page's own black. At its brightest pixel the scrim leaves muted text
    at 4.5:1 and ink at 13:1, so text that sits straight on the page stays
    readable. The drifting starfield passes over it. */
 [data-theme="starship"] body {
   background:
-    linear-gradient(rgba(5, 7, 15, 0.75), rgba(5, 7, 15, 0.75)) fixed,
+    linear-gradient(var(--starship-wash), var(--starship-wash)) fixed,
     url("./assets/nebula.webp") center / cover no-repeat fixed,
     var(--bg);
 }
@@ -26,7 +114,7 @@
 /* The badge as a hull plate beside the name, its console lit. */
 [data-theme="starship"] .brand::before {
   background-image: url("./assets/mark.svg");
-  filter: drop-shadow(0 0 5px rgba(54, 214, 255, 0.45));
+  filter: drop-shadow(0 0 5px rgba(var(--starship-cyan), 0.45));
 }
 
 /* The starfield, on its own layer so it can drift without repainting the page. */
@@ -37,6 +125,7 @@
   z-index: -1;
   pointer-events: none;
   background: url("./assets/starfield.svg") 0 0 / 320px 320px;
+  filter: var(--starship-stars);
 }
 
 /* Scanlines over everything, faint enough that text keeps its contrast, and never in the way of a click. */
@@ -46,7 +135,7 @@
   inset: 0;
   z-index: 40;
   pointer-events: none;
-  background: repeating-linear-gradient(to bottom, rgba(230, 241, 255, 0.022) 0 1px, transparent 1px 3px);
+  background: repeating-linear-gradient(to bottom, rgba(var(--starship-ice), 0.022) 0 1px, transparent 1px 3px);
 }
 
 [data-theme="starship"] h1,
@@ -60,7 +149,7 @@
 }
 
 [data-theme="starship"] h1 {
-  text-shadow: 0 0 12px rgba(54, 214, 255, 0.45);
+  text-shadow: var(--starship-glow-h1);
 }
 
 [data-theme="starship"] h2 {
@@ -73,7 +162,7 @@
 /* The wordmark keeps its shape in every theme; here it only glows. */
 [data-theme="starship"] .brand .wordmark {
   color: var(--accent);
-  text-shadow: 0 0 10px rgba(54, 214, 255, 0.6);
+  text-shadow: var(--starship-glow-word);
 }
 
 [data-theme="starship"] .banner {
@@ -85,8 +174,8 @@
 [data-theme="starship"] .top {
   position: relative;
   border-bottom: 1px solid var(--accent);
-  box-shadow: 0 1px 0 rgba(54, 214, 255, 0.25), 0 6px 18px rgba(54, 214, 255, 0.12);
-  background: linear-gradient(180deg, rgba(54, 214, 255, 0.07), transparent), var(--surface);
+  box-shadow: 0 1px 0 rgba(var(--starship-cyan), 0.25), 0 6px 18px rgba(var(--starship-cyan), 0.12);
+  background: linear-gradient(180deg, rgba(var(--starship-cyan), 0.07), transparent), var(--surface);
 }
 
 /* Holo panels with a glow, and HUD corner brackets from the Panel skin. */
@@ -97,9 +186,9 @@
 [data-theme="starship"] .l-card,
 [data-theme="starship"] .ask,
 [data-theme="starship"] .ask-bar {
-  border: 1px solid rgba(54, 214, 255, 0.45);
-  background: linear-gradient(180deg, rgba(54, 214, 255, 0.05), rgba(54, 214, 255, 0.015) 40%), var(--surface);
-  box-shadow: 0 0 18px rgba(54, 214, 255, 0.12), inset 0 0 24px rgba(54, 214, 255, 0.05);
+  border: 1px solid rgba(var(--starship-cyan), 0.45);
+  background: linear-gradient(180deg, rgba(var(--starship-cyan), 0.05), rgba(var(--starship-cyan), 0.015) 40%), var(--surface);
+  box-shadow: 0 0 18px rgba(var(--starship-cyan), 0.12), inset 0 0 24px rgba(var(--starship-cyan), 0.05);
 }
 
 [data-theme="starship"] .ask {
@@ -133,13 +222,13 @@
 [data-theme="starship"] .attention-item,
 [data-theme="starship"] .proposal,
 [data-theme="starship"] .gnode {
-  border-color: rgba(54, 214, 255, 0.35);
-  box-shadow: inset 0 0 14px rgba(54, 214, 255, 0.06);
+  border-color: rgba(var(--starship-cyan), 0.35);
+  box-shadow: inset 0 0 14px rgba(var(--starship-cyan), 0.06);
 }
 
 [data-theme="starship"] .column {
-  border-color: rgba(54, 214, 255, 0.25);
-  background: rgba(5, 7, 15, 0.85);
+  border-color: rgba(var(--starship-cyan), 0.25);
+  background: rgba(var(--starship-void), 0.85);
 }
 
 [data-theme="starship"] button,
@@ -147,14 +236,14 @@
 [data-theme="starship"] .starter,
 [data-theme="starship"] .shell-choice,
 [data-theme="starship"] .field-text input {
-  border-color: rgba(54, 214, 255, 0.6);
+  border-color: rgba(var(--starship-cyan), 0.6);
 }
 
 /* Sprint health as ship's status readouts. */
 [data-theme="starship"] .stat {
-  border: 1px solid rgba(54, 214, 255, 0.4);
+  border: 1px solid rgba(var(--starship-cyan), 0.4);
   border-left: 3px solid var(--accent);
-  background: linear-gradient(90deg, rgba(54, 214, 255, 0.08), transparent 70%), var(--raised);
+  background: linear-gradient(90deg, rgba(var(--starship-cyan), 0.08), transparent 70%), var(--raised);
 }
 
 [data-theme="starship"] .stat-label {
@@ -165,7 +254,7 @@
 
 [data-theme="starship"] .stat-value {
   color: var(--link);
-  text-shadow: 0 0 10px rgba(54, 214, 255, 0.5);
+  text-shadow: var(--starship-glow-stat);
 }
 
 [data-theme="starship"] .meter {
@@ -177,13 +266,14 @@
 
 [data-theme="starship"] .meter > span {
   background: repeating-linear-gradient(90deg, var(--accent) 0 10px, transparent 10px 13px);
-  box-shadow: 0 0 10px rgba(54, 214, 255, 0.6);
+  box-shadow: 0 0 10px rgba(var(--starship-cyan), 0.6);
 }
 
 /* The dependency graph as a star chart. */
 [data-theme="starship"] .graph {
-  border-color: rgba(54, 214, 255, 0.45);
+  border-color: rgba(var(--starship-cyan), 0.45);
   background:
+    linear-gradient(var(--starship-chart-wash), var(--starship-chart-wash)),
     url("./assets/star-chart.svg") center / cover no-repeat,
     url("./assets/starfield.svg") 0 0 / 320px 320px,
     var(--bg);
@@ -195,7 +285,7 @@
 
 /* Each item is a system, with its star beside its key. */
 [data-theme="starship"] .gnode {
-  background: rgba(16, 27, 49, 0.94);
+  background: rgba(var(--starship-hull), 0.94);
   border-radius: 14px 2px 14px 2px;
 }
 
@@ -204,21 +294,21 @@
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #e6f1ff, #36d6ff 45%, #0b5a80);
-  box-shadow: 0 0 10px #36d6ff;
+  background: radial-gradient(circle at 35% 35%, var(--starship-star-core), var(--starship-star) 45%, var(--starship-star-rim));
+  box-shadow: 0 0 10px var(--starship-star-halo);
 }
 
 [data-theme="starship"] .gnode--done::before {
-  background: radial-gradient(circle at 35% 35%, #e6f1ff, #5df2a6 45%, #0e5a38);
-  box-shadow: 0 0 10px #5df2a6;
+  background: radial-gradient(circle at 35% 35%, var(--starship-star-core), var(--starship-done) 45%, var(--starship-done-rim));
+  box-shadow: 0 0 10px var(--starship-done-halo);
 }
 
 /* Blockers are hazards: amber-striped, with the word on the node. */
 [data-theme="starship"] .gnode--blocked {
   border-color: var(--danger);
   background:
-    repeating-linear-gradient(-45deg, rgba(255, 200, 87, 0.09) 0 8px, transparent 8px 16px),
-    rgba(16, 27, 49, 0.96);
+    repeating-linear-gradient(-45deg, rgba(var(--starship-amber), 0.09) 0 8px, transparent 8px 16px),
+    rgba(var(--starship-hull), 0.96);
 }
 
 [data-theme="starship"] .gnode--blocked::before {
@@ -236,13 +326,13 @@
 
 /* Links are hyperspace lanes. */
 [data-theme="starship"] .gedge .react-flow__edge-path {
-  stroke: #36d6ff;
-  filter: drop-shadow(0 0 3px rgba(54, 214, 255, 0.8));
+  stroke: var(--starship-star);
+  filter: drop-shadow(0 0 3px rgba(var(--starship-cyan), 0.8));
 }
 
 [data-theme="starship"] .gedge--live .react-flow__edge-path {
   stroke: var(--danger);
-  filter: drop-shadow(0 0 3px rgba(255, 122, 142, 0.8));
+  filter: drop-shadow(0 0 3px rgba(var(--starship-red), 0.8));
 }
 
 [data-theme="starship"] .graph .react-flow__edge-textbg {
@@ -251,8 +341,8 @@
 
 /* The ship's computer. */
 [data-theme="starship"] .starship-computer {
-  border-color: rgba(54, 214, 255, 0.5);
-  background: linear-gradient(180deg, rgba(54, 214, 255, 0.08), transparent 60%), var(--bg);
+  border-color: rgba(var(--starship-cyan), 0.5);
+  background: linear-gradient(180deg, rgba(var(--starship-cyan), 0.08), transparent 60%), var(--bg);
 }
 
 [data-theme="starship"] .starship-voice {
@@ -267,13 +357,13 @@
 }
 
 [data-theme="starship"] .bubble--you {
-  border-color: rgba(54, 214, 255, 0.35);
+  border-color: rgba(var(--starship-cyan), 0.35);
 }
 
 [data-theme="starship"] .chart .line--done,
 [data-theme="starship"] .chart .bar,
 [data-theme="starship"] .chart .dot {
-  filter: drop-shadow(0 0 3px rgba(54, 214, 255, 0.7));
+  filter: drop-shadow(0 0 3px rgba(var(--starship-cyan), 0.7));
 }
 
 /* An empty list is an empty sector on the scanner. */
@@ -283,14 +373,14 @@
 
 /* The jump to lightspeed: still when reduced motion is on. */
 [data-theme="starship"] .starship-jump img {
-  border: 1px solid rgba(54, 214, 255, 0.45);
+  border: 1px solid rgba(var(--starship-cyan), 0.45);
   border-radius: 2px;
 }
 
 /* The local app's sync panel (#257). */
 [data-theme="starship"] .sync-panel {
   border-top: 1px solid var(--accent);
-  box-shadow: 0 -6px 18px rgba(54, 214, 255, 0.12);
+  box-shadow: 0 -6px 18px rgba(var(--starship-cyan), 0.12);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -327,22 +417,22 @@
    down. Light text keeps 5.3:1 or better at the brightest stop. */
 [data-theme="starship"] .top {
   background:
-    linear-gradient(90deg, transparent 35%, rgba(160, 110, 255, 0.1)),
-    linear-gradient(180deg, rgba(54, 214, 255, 0.07), transparent),
+    linear-gradient(90deg, transparent 35%, rgba(var(--starship-violet), 0.1)),
+    linear-gradient(180deg, rgba(var(--starship-cyan), 0.07), transparent),
     var(--surface);
 }
 
 [data-theme="starship"] .l-card,
 [data-theme="starship"] .ask {
   background:
-    linear-gradient(135deg, rgba(54, 214, 255, 0.06), transparent 45%, rgba(160, 110, 255, 0.06)),
+    linear-gradient(135deg, rgba(var(--starship-cyan), 0.06), transparent 45%, rgba(var(--starship-violet), 0.06)),
     var(--surface);
 }
 
 [data-theme="starship"] .stat {
   background:
-    linear-gradient(90deg, rgba(54, 214, 255, 0.12), transparent 70%),
-    linear-gradient(180deg, transparent 50%, rgba(160, 110, 255, 0.06)),
+    linear-gradient(90deg, rgba(var(--starship-cyan), 0.12), transparent 70%),
+    linear-gradient(180deg, transparent 50%, rgba(var(--starship-violet), 0.06)),
     var(--raised);
 }
 
@@ -353,7 +443,7 @@
 }
 
 [data-theme="starship"] .chart .chart-stop--top { stop-color: var(--link); }
-[data-theme="starship"] .chart .chart-stop--bottom { stop-color: #1a6f99; }
+[data-theme="starship"] .chart .chart-stop--bottom { stop-color: var(--starship-chart-low); }
 
 [data-theme="starship"] .chart .bar,
 [data-theme="starship"] .chart .area {
@@ -374,19 +464,19 @@
    through the letters. */
 [data-theme="starship"] .splash {
   background:
-    radial-gradient(ellipse at 50% 38%, rgba(54, 214, 255, 0.1), transparent 55vmax),
+    radial-gradient(ellipse at 50% 38%, rgba(var(--starship-cyan), 0.1), transparent 55vmax),
     var(--bg);
 }
 
 [data-theme="starship"] .splash__art {
-  border: 1px solid rgba(54, 214, 255, 0.45);
+  border: 1px solid rgba(var(--starship-cyan), 0.45);
   border-radius: 2px;
-  box-shadow: 0 0 24px rgba(54, 214, 255, 0.18);
+  box-shadow: 0 0 24px rgba(var(--starship-cyan), 0.18);
 }
 
 [data-theme="starship"] .splash__name .wordmark {
   color: var(--accent);
-  text-shadow: 0 0 14px rgba(54, 214, 255, 0.6);
+  text-shadow: var(--starship-glow-splash);
 }
 
 [data-theme="starship"] .splash__ui {
@@ -402,7 +492,7 @@
 }
 
 [data-theme="starship"] .loader-tip {
-  border-top-color: rgba(54, 214, 255, 0.45);
+  border-top-color: rgba(var(--starship-cyan), 0.45);
 }
 
 [data-theme="starship"] .loader-tip__label,
@@ -415,18 +505,18 @@
 }
 
 [data-theme="starship"] .moment {
-  border: 1px solid rgba(54, 214, 255, 0.45);
+  border: 1px solid rgba(var(--starship-cyan), 0.45);
   border-left: 3px solid var(--accent);
-  background: linear-gradient(90deg, rgba(54, 214, 255, 0.1), transparent 70%), var(--raised);
-  box-shadow: 0 0 18px rgba(54, 214, 255, 0.18), 0 10px 30px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(90deg, rgba(var(--starship-cyan), 0.1), transparent 70%), var(--raised);
+  box-shadow: 0 0 18px rgba(var(--starship-cyan), 0.18), 0 10px 30px rgba(0, 0, 0, var(--starship-lift));
 }
 
 /* A red alert in the theme's danger red, an all clear and a passing check in its green. */
 [data-theme="starship"] .moment--build-failed {
-  border-color: rgba(255, 122, 142, 0.55);
+  border-color: rgba(var(--starship-red), 0.55);
   border-left-color: var(--danger);
-  background: linear-gradient(90deg, rgba(255, 122, 142, 0.12), transparent 70%), var(--raised);
-  box-shadow: 0 0 18px rgba(255, 122, 142, 0.22), 0 10px 30px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(90deg, rgba(var(--starship-red), 0.12), transparent 70%), var(--raised);
+  box-shadow: 0 0 18px rgba(var(--starship-red), 0.22), 0 10px 30px rgba(0, 0, 0, var(--starship-lift));
 }
 
 [data-theme="starship"] .moment--build-failed .moment__label strong {

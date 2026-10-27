@@ -200,8 +200,8 @@ describe("Crate wears the site's blue", () => {
     ok: 'ok', warn: 'warn', danger: 'danger', bannerBg: 'surface-raised', bannerInk: 'highlight',
   };
 
-  it('has only the dark scheme, as the site does', () => {
-    expect(Object.keys(crate.schemes)).toEqual(['dark']);
+  it('has a dark scheme, which the site wears, and a light one of its own (#507)', () => {
+    expect(Object.keys(crate.schemes)).toEqual(['dark', 'light']);
   });
 
   it.each(Object.entries(SITE_TOKEN))("takes its %s from the site's %s token", (key, name) => {

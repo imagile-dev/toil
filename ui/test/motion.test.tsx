@@ -104,7 +104,9 @@ describe('the particle presets', () => {
   it("puts Crate's accent glow where theme.css draws it: brightest at 88% across the top, gone 60vmax away", () => {
     const [w, h] = [1440, 900];
     const css = readFileSync(join(import.meta.dirname, '..', 'themes', 'crate', 'theme.css'), 'utf8');
-    expect(css).toContain('radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60vmax)');
+    expect(css).toContain('radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--accent) var(--crate-glow-a), transparent), transparent 60vmax)');
+    // The dark scheme's glow, the one the site wears; the light scheme sets its own (#507).
+    expect(css).toMatch(/\[data-theme="crate"\] \{[^}]*--crate-glow-a: 14%;/);
     expect(glowAt(0.88 * w, 0, w, h)).toBeCloseTo(1, 5);
     expect(glowAt(0.88 * w, 0.3 * w, w, h)).toBeCloseTo(0.5, 5);
     expect(glowAt(0, h, w, h)).toBe(0);

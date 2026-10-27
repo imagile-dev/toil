@@ -13,11 +13,70 @@
 @import '@fontsource/bitter/latin-400.css';
 @import '@fontsource/bitter/latin-600.css';
 
+/* Frontier by day is the sun-bleached desert; by night it is the same town
+   under lamplight: ink-navy sky, dark weathered wood, brass and lamp-amber,
+   paper gone pale. Every colour that depends on the hour lives in a --frontier-
+   property below, set to the day value here and the night one in the dark
+   scheme (and when the system asks for dark). Brass, the rust red and the
+   copper nameplates stay as they are: metal looks the same by lamplight. */
+[data-theme="frontier"] {
+  --frontier-wash: rgba(214, 196, 160, 0.72);
+  --frontier-sun: rgba(255, 236, 190, 0.55);
+  --frontier-edge: #6b5233;
+  --frontier-case: #4a3814;
+  --frontier-bevel: rgba(255, 255, 255, 0.5);
+  --frontier-glass-top: #f6eedb;
+  --frontier-glass-bottom: #e4d6b6;
+  --frontier-copper-lit: #b25424;
+  --frontier-copper-top: #a5491d;
+  --frontier-copper-bottom: #6a2a0c;
+  --frontier-copper-deep: #5e240b;
+  --frontier-map-wash: rgba(239, 227, 200, 0.35);
+  --frontier-map: #d9c6a1;
+  --frontier-track: #2e2a26;
+}
+
+[data-theme="frontier"][data-scheme="dark"] {
+  --frontier-wash: rgba(21, 24, 31, 0.8);
+  --frontier-sun: rgba(226, 162, 63, 0.2);
+  --frontier-edge: #8f7348;
+  --frontier-case: #b08d3c;
+  --frontier-bevel: rgba(255, 224, 170, 0.1);
+  --frontier-glass-top: #1b1815;
+  --frontier-glass-bottom: #2b251d;
+  --frontier-copper-lit: #f0bd6a;
+  --frontier-copper-top: #efb862;
+  --frontier-copper-bottom: #b97a28;
+  --frontier-copper-deep: #a8691f;
+  --frontier-map-wash: rgba(21, 24, 31, 0.6);
+  --frontier-map: #1d2029;
+  --frontier-track: #d9c392;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="frontier"][data-scheme="system"] {
+    --frontier-wash: rgba(21, 24, 31, 0.8);
+    --frontier-sun: rgba(226, 162, 63, 0.2);
+    --frontier-edge: #8f7348;
+    --frontier-case: #b08d3c;
+    --frontier-bevel: rgba(255, 224, 170, 0.1);
+    --frontier-glass-top: #1b1815;
+    --frontier-glass-bottom: #2b251d;
+    --frontier-copper-lit: #f0bd6a;
+    --frontier-copper-top: #efb862;
+    --frontier-copper-bottom: #b97a28;
+    --frontier-copper-deep: #a8691f;
+    --frontier-map-wash: rgba(21, 24, 31, 0.6);
+    --frontier-map: #1d2029;
+    --frontier-track: #d9c392;
+  }
+}
+
 /* Sun-bleached planks under everything, washed with the page's own colour so
    muted text keeps its contrast over the darkest knot. */
 [data-theme="frontier"] body {
   background:
-    linear-gradient(rgba(214, 196, 160, 0.72), rgba(214, 196, 160, 0.72)),
+    linear-gradient(var(--frontier-wash), var(--frontier-wash)),
     url("./assets/wood.webp") 0 0 / 512px 436px,
     var(--bg);
 }
@@ -29,7 +88,7 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background: radial-gradient(ellipse 55% 45% at 90% 12%, rgba(255, 236, 190, 0.55), rgba(255, 236, 190, 0) 70%);
+  background: radial-gradient(ellipse 55% 45% at 90% 12%, var(--frontier-sun), transparent 70%);
 }
 
 [data-theme="frontier"] h1,
@@ -151,9 +210,9 @@
 [data-theme="frontier"] .proposal,
 [data-theme="frontier"] .stat,
 [data-theme="frontier"] .metric__button {
-  border: 1px solid #6b5233;
+  border: 1px solid var(--frontier-edge);
   border-radius: 2px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 0 rgba(34, 23, 13, 0.2);
+  box-shadow: inset 0 1px 0 var(--frontier-bevel), 0 1px 0 rgba(34, 23, 13, 0.2);
 }
 
 /* A board card is a claim ticket tacked up with one brass tack. */
@@ -184,8 +243,8 @@
 }
 
 [data-theme="frontier"] .column {
-  border: 1px solid #6b5233;
-  border-top: 4px solid #6b5233;
+  border: 1px solid var(--frontier-edge);
+  border-top: 4px solid var(--frontier-edge);
   border-radius: 2px;
 }
 
@@ -202,30 +261,30 @@
 [data-theme="frontier"] .starter,
 [data-theme="frontier"] .shell-choice,
 [data-theme="frontier"] .field-text input {
-  border-color: #6b5233;
+  border-color: var(--frontier-edge);
 }
 
 /* Meters are brass-cased sight glasses, filled with copper. */
 [data-theme="frontier"] .meter {
   border-radius: 2px;
-  border: 1px solid #4a3814;
-  background: linear-gradient(180deg, #f6eedb, #e4d6b6);
+  border: 1px solid var(--frontier-case);
+  background: linear-gradient(180deg, var(--frontier-glass-top), var(--frontier-glass-bottom));
   box-shadow: 0 0 0 2px #b08d3c;
 }
 
 [data-theme="frontier"] .meter > span {
-  background: linear-gradient(180deg, #b25424, var(--accent) 55%, #5e240b);
+  background: linear-gradient(180deg, var(--frontier-copper-lit), var(--accent) 55%, var(--frontier-copper-deep));
 }
 
 /* Copper buttons, lit from above. The ink on them keeps 7:1. */
 [data-theme="frontier"] .btn--accent,
 [data-theme="frontier"] .top nav a[aria-current="page"],
 [data-theme="frontier"] button[aria-pressed="true"] {
-  background: linear-gradient(180deg, #a5491d, var(--accent) 55%, #6a2a0c);
+  background: linear-gradient(180deg, var(--frontier-copper-top), var(--accent) 55%, var(--frontier-copper-bottom));
 }
 
-[data-theme="frontier"] .chart .chart-stop--top { stop-color: #a5491d; }
-[data-theme="frontier"] .chart .chart-stop--bottom { stop-color: #5e240b; }
+[data-theme="frontier"] .chart .chart-stop--top { stop-color: var(--frontier-copper-top); }
+[data-theme="frontier"] .chart .chart-stop--bottom { stop-color: var(--frontier-copper-deep); }
 
 [data-theme="frontier"] .chart .bar,
 [data-theme="frontier"] .chart .area {
@@ -239,12 +298,12 @@
 
 /* The dependency graph as a railroad survey map. Every word on it sits on its own paper slip. */
 [data-theme="frontier"] .graph {
-  border: 1px solid #4a3814;
+  border: 1px solid var(--frontier-case);
   border-radius: 0;
   background:
-    linear-gradient(rgba(239, 227, 200, 0.35), rgba(239, 227, 200, 0.35)),
+    linear-gradient(var(--frontier-map-wash), var(--frontier-map-wash)),
     url("./assets/survey-map.webp") center / cover no-repeat,
-    #d9c6a1;
+    var(--frontier-map);
   box-shadow: inset 0 0 0 2px #b08d3c;
 }
 
@@ -254,7 +313,7 @@
 
 /* Each item is a telegraph slip pinned to the map. */
 [data-theme="frontier"] .gnode {
-  border: 1px solid #4a3814;
+  border: 1px solid var(--frontier-case);
   border-radius: 2px;
   background: var(--raised);
   box-shadow: 0 3px 6px rgba(34, 23, 13, 0.4);
@@ -265,7 +324,7 @@
 }
 
 [data-theme="frontier"] .gnode--blocking {
-  border: 2px solid #2e2a26;
+  border: 2px solid var(--frontier-track);
   box-shadow: inset 0 0 0 1px var(--warn), 0 3px 6px rgba(34, 23, 13, 0.4);
 }
 
@@ -290,7 +349,7 @@
 
 /* Links are track, iron rails with their ties showing; a blocking chain is rusted, broken track. */
 [data-theme="frontier"] .gedge .react-flow__edge-path {
-  stroke: #2e2a26;
+  stroke: var(--frontier-track);
   stroke-width: 2;
   stroke-dasharray: 10 2;
 }
@@ -307,7 +366,7 @@
 
 /* The operator at the telegraph key. */
 [data-theme="frontier"] .frontier-operator {
-  border: 1px solid #6b5233;
+  border: 1px solid var(--frontier-edge);
   border-left: 4px solid #b08d3c;
   border-radius: 2px;
   background: var(--raised);
@@ -324,7 +383,7 @@
 }
 
 [data-theme="frontier"] .bubble--you {
-  border-color: #6b5233;
+  border-color: var(--frontier-edge);
 }
 
 /* The blank wanted poster for an empty list, and the locomotive getting up
@@ -340,7 +399,7 @@
 
 /* The local app's sync panel (#257). */
 [data-theme="frontier"] .sync-panel {
-  border-top: 3px double #6b5233;
+  border-top: 3px double var(--frontier-edge);
   background: transparent;
 }
 
@@ -353,7 +412,7 @@
    engine moves them. Words sit on paper here too, never on the planks. */
 [data-theme="frontier"] .splash {
   background:
-    linear-gradient(rgba(214, 196, 160, 0.72), rgba(214, 196, 160, 0.72)),
+    linear-gradient(var(--frontier-wash), var(--frontier-wash)),
     url("./assets/wood.webp") 0 0 / 512px 436px,
     var(--bg);
 }
@@ -369,7 +428,7 @@
 }
 
 [data-theme="frontier"] .splash__art {
-  border: 1px solid #6b5233;
+  border: 1px solid var(--frontier-edge);
   border-radius: 2px;
   box-shadow: 0 2px 6px rgba(34, 23, 13, 0.3);
 }
@@ -380,7 +439,7 @@
 
 [data-theme="frontier"] .splash__ui {
   border-radius: 2px;
-  background: linear-gradient(180deg, #a5491d, var(--accent) 55%, #6a2a0c);
+  background: linear-gradient(180deg, var(--frontier-copper-top), var(--accent) 55%, var(--frontier-copper-bottom));
   font-family: var(--font-body);
   font-weight: 600;
 }
@@ -391,7 +450,7 @@
 }
 
 [data-theme="frontier"] .loader-tip {
-  border-top: 3px double #6b5233;
+  border-top: 3px double var(--frontier-edge);
 }
 
 [data-theme="frontier"] .loader-tip__label,

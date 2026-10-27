@@ -36,9 +36,9 @@ export const THEMES: ThemeManifest[] = [plain, crate, harvest, starship, realm, 
 /**
  * The theme a browser shows until someone picks one: Crate (the maintainer's
  * call, #277), and the welcome menu's default too (#467), from the one
- * constant toil keeps for both. Crate is dark only, so the system's light or
- * dark preference doesn't change the default; it still picks Plain's scheme
- * once Plain is chosen.
+ * constant toil keeps for both. Every theme has a light and a dark scheme
+ * (#507), and `system` follows the operating system's preference, so a light
+ * desktop opens Crate in its light scheme.
  */
 export { DEFAULT_THEME };
 

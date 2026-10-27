@@ -19,6 +19,23 @@
       "danger": "#ff6470",
       "bannerBg": "#0e0c1d",
       "bannerInk": "#3ff0ff"
+    },
+    "light": {
+      "bg": "#e9e7f2",
+      "surface": "#f4f2fa",
+      "raised": "#ffffff",
+      "ink": "#14102a",
+      "muted": "#4a4570",
+      "line": "#8f88bd",
+      "accent": "#b80f62",
+      "accentInk": "#ffffff",
+      "link": "#00667a",
+      "focus": "#5b21c9",
+      "ok": "#0a6e3e",
+      "warn": "#80530a",
+      "danger": "#bd1530",
+      "bannerBg": "#d5f1f5",
+      "bannerInk": "#00424f"
     }
   },
   "fonts": {
@@ -33,6 +50,7 @@
   "assets": {
     "skyline": "assets/skyline.webp",
     "netMap": "assets/net-map.svg",
+    "netMapLight": "assets/net-map-light.svg",
     "netrunner": "assets/netrunner.svg",
     "blackIce": "assets/black-ice.svg",
     "loading": "assets/jack-in.webp",

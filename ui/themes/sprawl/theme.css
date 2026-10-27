@@ -4,7 +4,10 @@
    glow and faint scanlines, neon magenta and cyan on deep blue-black, a block
    cursor after the page's title, panels as holographic terminals with a
    notched corner, and the dependency graph as a net map, where a blocker is
-   black ICE. Rain falls from the particle preset. The same layout and click
+   black ICE. Rain falls from the particle preset. The light scheme is the same city at
+   dawn: concrete in place of black, the neon deepened to ink, the glows cut
+   to thin edges (every colour below is a --sprawl-* property that the two
+   scheme blocks set). The same layout and click
    targets as Plain: only the look changes. Art is original and hidden from
    screen readers; the words beside it say what it shows. */
 
@@ -13,6 +16,65 @@
 @import '@fontsource/chakra-petch/600.css';
 @import '@fontsource/chakra-petch/700.css';
 
+/* The dark scheme is the city after midnight and the default; these are its
+   values, so it renders as it always did. Colours are channel triples, so one
+   alpha can sit on either city. --sprawl-glow scales every glow and --sprawl-tint
+   every border and wash. Dawn pulls the glows down because neon on pale grey
+   reads as a stain, and leans on the thin edges instead. */
+[data-theme="sprawl"] {
+  --sprawl-pink: 255, 46, 136;
+  --sprawl-cyan: 63, 240, 255;
+  --sprawl-danger: 255, 100, 112;
+  --sprawl-bg: 7, 6, 15;
+  --sprawl-surface: 14, 12, 29;
+  --sprawl-raised: 23, 20, 44;
+  --sprawl-glow: 1;
+  --sprawl-tint: 1;
+  --sprawl-foot: 0.7;
+  --sprawl-scan: rgba(234, 246, 255, 0.025);
+  --sprawl-drop: rgba(0, 0, 0, 0.5);
+  --sprawl-accent-hi: #ff5aa3;
+  --sprawl-chart-low: #5a2a9c;
+  --sprawl-netmap: url("./assets/net-map.svg");
+}
+
+/* The same city at dawn: pale grey-violet concrete, the magenta and cyan deepened to ink-strength, and a soft shadow where the glow was. */
+[data-theme="sprawl"][data-scheme="light"] {
+  --sprawl-pink: 184, 15, 98;
+  --sprawl-cyan: 0, 102, 122;
+  --sprawl-danger: 192, 24, 47;
+  --sprawl-bg: 233, 231, 242;
+  --sprawl-surface: 244, 242, 250;
+  --sprawl-raised: 255, 255, 255;
+  --sprawl-glow: 0.45;
+  --sprawl-tint: 1;
+  --sprawl-foot: 0.88;
+  --sprawl-scan: rgba(20, 16, 42, 0.03);
+  --sprawl-drop: rgba(60, 40, 120, 0.2);
+  --sprawl-accent-hi: #d62a82;
+  --sprawl-chart-low: #a58be8;
+  --sprawl-netmap: url("./assets/net-map-light.svg");
+}
+
+@media (prefers-color-scheme: light) {
+  [data-theme="sprawl"][data-scheme="system"] {
+    --sprawl-pink: 184, 15, 98;
+    --sprawl-cyan: 0, 102, 122;
+    --sprawl-danger: 192, 24, 47;
+    --sprawl-bg: 233, 231, 242;
+    --sprawl-surface: 244, 242, 250;
+    --sprawl-raised: 255, 255, 255;
+    --sprawl-glow: 0.45;
+    --sprawl-tint: 1;
+    --sprawl-foot: 0.88;
+    --sprawl-scan: rgba(20, 16, 42, 0.03);
+    --sprawl-drop: rgba(60, 40, 120, 0.2);
+    --sprawl-accent-hi: #d62a82;
+    --sprawl-chart-low: #a58be8;
+    --sprawl-netmap: url("./assets/net-map-light.svg");
+  }
+}
+
 /* The megacity at the foot of the window, under a scrim of the page's own
    black that is solid where the top of the page sits and thins toward the
    skyline. At the scrim's thinnest the brightest neon in the art leaves muted
@@ -20,7 +82,7 @@
    readable; most text sits on panels anyway. */
 [data-theme="sprawl"] body {
   background:
-    linear-gradient(180deg, rgba(7, 6, 15, 0.97) 0, rgba(7, 6, 15, 0.92) 55%, rgba(7, 6, 15, 0.7) 100%) fixed,
+    linear-gradient(180deg, rgba(var(--sprawl-bg), 0.97) 0, rgba(var(--sprawl-bg), 0.92) 55%, rgba(var(--sprawl-bg), var(--sprawl-foot)) 100%) fixed,
     url("./assets/skyline.webp") center bottom / 100% auto no-repeat fixed,
     var(--bg);
 }
@@ -28,7 +90,7 @@
 /* The badge as a neon-edged terminal beside the name. */
 [data-theme="sprawl"] .brand::before {
   background-image: url("./assets/mark.svg");
-  filter: drop-shadow(0 0 4px rgba(255, 46, 136, 0.55));
+  filter: drop-shadow(0 0 4px rgba(var(--sprawl-pink), calc(0.55 * var(--sprawl-glow))));
 }
 
 /* The CRT's edge glow: magenta bleeding in at the corners, cyan along the
@@ -40,8 +102,8 @@
   z-index: 39;
   pointer-events: none;
   box-shadow:
-    inset 0 0 90px rgba(255, 46, 136, 0.13),
-    inset 0 0 3px rgba(63, 240, 255, 0.35);
+    inset 0 0 90px rgba(var(--sprawl-pink), calc(0.13 * var(--sprawl-tint))),
+    inset 0 0 3px rgba(var(--sprawl-cyan), calc(0.35 * var(--sprawl-tint)));
 }
 
 /* Scanlines over everything, faint enough that text keeps its contrast. */
@@ -51,7 +113,7 @@
   inset: 0;
   z-index: 40;
   pointer-events: none;
-  background: repeating-linear-gradient(to bottom, rgba(234, 246, 255, 0.025) 0 1px, transparent 1px 3px);
+  background: repeating-linear-gradient(to bottom, var(--sprawl-scan) 0 1px, transparent 1px 3px);
 }
 
 /* Monospace is wider than a proportional face, so inside a dialog a long
@@ -76,7 +138,7 @@
 
 /* The title in neon with a split of its own colour, chromatic aberration on an old screen, and a block cursor after it. */
 [data-theme="sprawl"] h1 {
-  text-shadow: -1px 0 rgba(255, 46, 136, 0.75), 1px 0 rgba(63, 240, 255, 0.75), 0 0 14px rgba(255, 46, 136, 0.35);
+  text-shadow: -1px 0 rgba(var(--sprawl-pink), calc(0.75 * var(--sprawl-glow))), 1px 0 rgba(var(--sprawl-cyan), calc(0.75 * var(--sprawl-glow))), 0 0 14px rgba(var(--sprawl-pink), calc(0.35 * var(--sprawl-glow)));
 }
 
 [data-theme="sprawl"] h1::after {
@@ -87,7 +149,7 @@
   margin-left: 0.15em;
   vertical-align: -0.08em;
   background: var(--accent);
-  box-shadow: 0 0 10px rgba(255, 46, 136, 0.7);
+  box-shadow: 0 0 10px rgba(var(--sprawl-pink), calc(0.7 * var(--sprawl-glow)));
 }
 
 [data-theme="sprawl"] h2 {
@@ -95,7 +157,7 @@
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--link);
-  text-shadow: 0 0 8px rgba(63, 240, 255, 0.35);
+  text-shadow: 0 0 8px rgba(var(--sprawl-cyan), calc(0.35 * var(--sprawl-glow)));
 }
 
 /* A dossier's name is an identifier, so it keeps its own case. */
@@ -107,7 +169,7 @@
 /* The wordmark keeps its shape in every theme; here it only glows. */
 [data-theme="sprawl"] .brand .wordmark {
   color: var(--accent);
-  text-shadow: 0 0 10px rgba(255, 46, 136, 0.6);
+  text-shadow: 0 0 10px rgba(var(--sprawl-pink), calc(0.6 * var(--sprawl-glow)));
 }
 
 [data-theme="sprawl"] .banner {
@@ -118,9 +180,9 @@
 [data-theme="sprawl"] .top {
   position: relative;
   border-bottom: 1px solid var(--accent);
-  box-shadow: 0 1px 0 rgba(255, 46, 136, 0.25), 0 6px 22px rgba(255, 46, 136, 0.12);
+  box-shadow: 0 1px 0 rgba(var(--sprawl-pink), calc(0.25 * var(--sprawl-glow))), 0 6px 22px rgba(var(--sprawl-pink), calc(0.12 * var(--sprawl-glow)));
   background:
-    linear-gradient(90deg, rgba(63, 240, 255, 0.06), transparent 40%, rgba(255, 46, 136, 0.08)),
+    linear-gradient(90deg, rgba(var(--sprawl-cyan), calc(0.06 * var(--sprawl-tint))), transparent 40%, rgba(var(--sprawl-pink), calc(0.08 * var(--sprawl-tint)))),
     var(--surface);
 }
 
@@ -132,11 +194,11 @@
 [data-theme="sprawl"] .l-card,
 [data-theme="sprawl"] .ask,
 [data-theme="sprawl"] .ask-bar {
-  border: 1px solid rgba(63, 240, 255, 0.38);
+  border: 1px solid rgba(var(--sprawl-cyan), calc(0.38 * var(--sprawl-tint)));
   background:
-    linear-gradient(135deg, rgba(63, 240, 255, 0.05), transparent 45%, rgba(255, 46, 136, 0.05)),
+    linear-gradient(135deg, rgba(var(--sprawl-cyan), calc(0.05 * var(--sprawl-tint))), transparent 45%, rgba(var(--sprawl-pink), calc(0.05 * var(--sprawl-tint)))),
     var(--surface);
-  box-shadow: 0 0 16px rgba(63, 240, 255, 0.08), inset 0 0 22px rgba(63, 240, 255, 0.04);
+  box-shadow: 0 0 16px rgba(var(--sprawl-cyan), calc(0.08 * var(--sprawl-glow))), inset 0 0 22px rgba(var(--sprawl-cyan), calc(0.04 * var(--sprawl-glow)));
 }
 
 [data-theme="sprawl"] .ask {
@@ -174,7 +236,7 @@
   width: 36px;
   height: 2px;
   background: var(--link);
-  box-shadow: 0 0 6px rgba(63, 240, 255, 0.8);
+  box-shadow: 0 0 6px rgba(var(--sprawl-cyan), calc(0.8 * var(--sprawl-glow)));
 }
 
 [data-theme="sprawl"] .top > .sprawl-notch::after {
@@ -186,23 +248,23 @@
 [data-theme="sprawl"] .agent-card,
 [data-theme="sprawl"] .proposal,
 [data-theme="sprawl"] .gnode {
-  border-color: rgba(63, 240, 255, 0.3);
-  box-shadow: inset 0 0 12px rgba(63, 240, 255, 0.05);
+  border-color: rgba(var(--sprawl-cyan), calc(0.3 * var(--sprawl-tint)));
+  box-shadow: inset 0 0 12px rgba(var(--sprawl-cyan), calc(0.05 * var(--sprawl-glow)));
 }
 
 /* A gig on the board: a magenta rail down its left edge. */
 [data-theme="sprawl"] .card {
   border-left: 3px solid var(--accent);
-  background: rgba(23, 20, 44, 0.96);
+  background: rgba(var(--sprawl-raised), 0.96);
 }
 
 [data-theme="sprawl"] .card--overlay {
-  box-shadow: 0 0 0 1px var(--link), 0 0 24px rgba(63, 240, 255, 0.45);
+  box-shadow: 0 0 0 1px var(--link), 0 0 24px rgba(var(--sprawl-cyan), calc(0.45 * var(--sprawl-glow)));
 }
 
 [data-theme="sprawl"] .column {
-  border-color: rgba(63, 240, 255, 0.22);
-  background: rgba(7, 6, 15, 0.86);
+  border-color: rgba(var(--sprawl-cyan), calc(0.22 * var(--sprawl-tint)));
+  background: rgba(var(--sprawl-bg), 0.86);
 }
 
 [data-theme="sprawl"] button,
@@ -210,7 +272,7 @@
 [data-theme="sprawl"] .starter,
 [data-theme="sprawl"] .shell-choice,
 [data-theme="sprawl"] .field-text input {
-  border-color: rgba(63, 240, 255, 0.55);
+  border-color: rgba(var(--sprawl-cyan), calc(0.55 * var(--sprawl-tint)));
 }
 
 [data-theme="sprawl"] input,
@@ -221,9 +283,9 @@
 /* Sprint health as readouts on a terminal: an uppercase label, a neon figure. */
 [data-theme="sprawl"] .stat,
 [data-theme="sprawl"] .metric {
-  border: 1px solid rgba(63, 240, 255, 0.35);
+  border: 1px solid rgba(var(--sprawl-cyan), calc(0.35 * var(--sprawl-tint)));
   border-left: 3px solid var(--link);
-  background: linear-gradient(90deg, rgba(63, 240, 255, 0.07), transparent 70%), var(--raised);
+  background: linear-gradient(90deg, rgba(var(--sprawl-cyan), calc(0.07 * var(--sprawl-tint))), transparent 70%), var(--raised);
 }
 
 [data-theme="sprawl"] .stat-label,
@@ -235,7 +297,7 @@
 [data-theme="sprawl"] .stat-value,
 [data-theme="sprawl"] .metric__value {
   color: var(--link);
-  text-shadow: 0 0 8px rgba(63, 240, 255, 0.45);
+  text-shadow: 0 0 8px rgba(var(--sprawl-cyan), calc(0.45 * var(--sprawl-glow)));
 }
 
 [data-theme="sprawl"] .meter {
@@ -248,13 +310,13 @@
 /* A progress bar drawn as terminal blocks. */
 [data-theme="sprawl"] .meter > span {
   background: repeating-linear-gradient(90deg, var(--accent) 0 8px, transparent 8px 10px);
-  box-shadow: 0 0 10px rgba(255, 46, 136, 0.55);
+  box-shadow: 0 0 10px rgba(var(--sprawl-pink), calc(0.55 * var(--sprawl-glow)));
 }
 
 /* The dependency graph as a net map: the city's grid in wireframe. */
 [data-theme="sprawl"] .graph {
-  border-color: rgba(63, 240, 255, 0.4);
-  background: url("./assets/net-map.svg") 0 0 / 320px 320px, var(--bg);
+  border-color: rgba(var(--sprawl-cyan), calc(0.4 * var(--sprawl-tint)));
+  background: var(--sprawl-netmap) 0 0 / 320px 320px, var(--bg);
 }
 
 [data-theme="sprawl"] .graph .react-flow__background {
@@ -263,7 +325,7 @@
 
 /* Each item is a node on the net: a terminal box with a cyan square for its port. */
 [data-theme="sprawl"] .gnode {
-  background: rgba(14, 12, 29, 0.95);
+  background: rgba(var(--sprawl-surface), 0.95);
   font-family: var(--font-mono);
 }
 
@@ -284,8 +346,8 @@
 [data-theme="sprawl"] .gnode--blocked {
   border-color: var(--danger);
   background:
-    repeating-linear-gradient(-45deg, rgba(255, 100, 112, 0.1) 0 6px, transparent 6px 12px),
-    rgba(7, 6, 15, 0.97);
+    repeating-linear-gradient(-45deg, rgba(var(--sprawl-danger), calc(0.1 * var(--sprawl-tint))) 0 6px, transparent 6px 12px),
+    rgba(var(--sprawl-bg), 0.97);
 }
 
 [data-theme="sprawl"] .gnode--blocked::before {
@@ -303,13 +365,13 @@
 
 /* Links are data lines; a live block runs hot in magenta. */
 [data-theme="sprawl"] .gedge .react-flow__edge-path {
-  stroke: #3ff0ff;
-  filter: drop-shadow(0 0 3px rgba(63, 240, 255, 0.7));
+  stroke: var(--link);
+  filter: drop-shadow(0 0 3px rgba(var(--sprawl-cyan), calc(0.7 * var(--sprawl-glow))));
 }
 
 [data-theme="sprawl"] .gedge--live .react-flow__edge-path {
   stroke: var(--accent);
-  filter: drop-shadow(0 0 3px rgba(255, 46, 136, 0.8));
+  filter: drop-shadow(0 0 3px rgba(var(--sprawl-pink), calc(0.8 * var(--sprawl-glow))));
 }
 
 [data-theme="sprawl"] .graph .react-flow__edge-textbg {
@@ -318,15 +380,15 @@
 
 /* The blocker Gantt: time in progress glows like the data lines on the map. */
 [data-theme="sprawl"] .gantt-seg--progress {
-  filter: drop-shadow(0 0 3px rgba(63, 240, 255, 0.6));
+  filter: drop-shadow(0 0 3px rgba(var(--sprawl-cyan), calc(0.6 * var(--sprawl-glow))));
 }
 
 /* The netrunner's answers in a terminal window with its own title bar. */
 [data-theme="sprawl"] .sprawl-term {
   padding: 0;
   overflow: hidden;
-  border: 1px solid rgba(63, 240, 255, 0.45);
-  background: rgba(7, 6, 15, 0.96);
+  border: 1px solid rgba(var(--sprawl-cyan), calc(0.45 * var(--sprawl-tint)));
+  background: rgba(var(--sprawl-bg), 0.96);
 }
 
 [data-theme="sprawl"] .sprawl-term__bar {
@@ -335,8 +397,8 @@
   gap: 0.5rem;
   margin: 0;
   padding: 0.3rem 0.6rem;
-  border-bottom: 1px solid rgba(63, 240, 255, 0.35);
-  background: linear-gradient(90deg, rgba(255, 46, 136, 0.18), rgba(63, 240, 255, 0.08));
+  border-bottom: 1px solid rgba(var(--sprawl-cyan), calc(0.35 * var(--sprawl-tint)));
+  background: linear-gradient(90deg, rgba(var(--sprawl-pink), calc(0.18 * var(--sprawl-tint))), rgba(var(--sprawl-cyan), calc(0.08 * var(--sprawl-tint))));
   font-family: var(--font-display);
   font-size: 0.8125rem;
   text-transform: uppercase;
@@ -351,7 +413,7 @@
 
 /* Your own question, as a line typed at the prompt. */
 [data-theme="sprawl"] .bubble--you {
-  border-color: rgba(255, 46, 136, 0.45);
+  border-color: rgba(var(--sprawl-pink), calc(0.45 * var(--sprawl-tint)));
 }
 
 [data-theme="sprawl"] .bubble--you > :first-child::before {
@@ -363,7 +425,7 @@
 [data-theme="sprawl"] .chart .line--done,
 [data-theme="sprawl"] .chart .bar,
 [data-theme="sprawl"] .chart .dot {
-  filter: drop-shadow(0 0 3px rgba(63, 240, 255, 0.6));
+  filter: drop-shadow(0 0 3px rgba(var(--sprawl-cyan), calc(0.6 * var(--sprawl-glow))));
 }
 
 /* An empty list is a dead drop: an empty alley and a terminal nobody is at. */
@@ -371,14 +433,14 @@
   width: 240px;
   max-width: 100%;
   height: auto;
-  border: 1px solid rgba(63, 240, 255, 0.35);
-  box-shadow: 0 0 18px rgba(255, 46, 136, 0.15);
+  border: 1px solid rgba(var(--sprawl-cyan), calc(0.35 * var(--sprawl-tint)));
+  box-shadow: 0 0 18px rgba(var(--sprawl-pink), calc(0.15 * var(--sprawl-glow)));
 }
 
 /* The local app's sync panel (#257). */
 [data-theme="sprawl"] .sync-panel {
   border-top: 1px solid var(--accent);
-  box-shadow: 0 -6px 18px rgba(255, 46, 136, 0.12);
+  box-shadow: 0 -6px 18px rgba(var(--sprawl-pink), calc(0.12 * var(--sprawl-glow)));
 }
 
 /* Moments (#437): the splash is a terminal's cold boot that glitches into the
@@ -387,18 +449,18 @@
    moves moves by transform and opacity; the colours and frames are here. */
 [data-theme="sprawl"] .splash {
   background:
-    radial-gradient(circle at 88% 0%, rgba(255, 46, 136, 0.14), transparent 55vmax),
-    radial-gradient(circle at 8% 100%, rgba(63, 240, 255, 0.1), transparent 50vmax),
+    radial-gradient(circle at 88% 0%, rgba(var(--sprawl-pink), calc(0.14 * var(--sprawl-tint))), transparent 55vmax),
+    radial-gradient(circle at 8% 100%, rgba(var(--sprawl-cyan), calc(0.1 * var(--sprawl-tint))), transparent 50vmax),
     var(--bg);
 }
 
 [data-theme="sprawl"] .splash__art {
-  box-shadow: 0 0 28px rgba(255, 46, 136, 0.2), 0 0 2px rgba(63, 240, 255, 0.6);
+  box-shadow: 0 0 28px rgba(var(--sprawl-pink), calc(0.2 * var(--sprawl-glow))), 0 0 2px rgba(var(--sprawl-cyan), calc(0.6 * var(--sprawl-glow)));
 }
 
 [data-theme="sprawl"] .splash__name .wordmark {
   color: var(--accent);
-  text-shadow: -1px 0 rgba(255, 46, 136, 0.75), 1px 0 rgba(63, 240, 255, 0.75), 0 0 14px rgba(255, 46, 136, 0.45);
+  text-shadow: -1px 0 rgba(var(--sprawl-pink), calc(0.75 * var(--sprawl-glow))), 1px 0 rgba(var(--sprawl-cyan), calc(0.75 * var(--sprawl-glow))), 0 0 14px rgba(var(--sprawl-pink), calc(0.45 * var(--sprawl-glow)));
 }
 
 [data-theme="sprawl"] .splash__ui {
@@ -417,7 +479,7 @@
   padding: 0.5rem 0.75rem;
   border-top: 0;
   border-left: 2px solid var(--link);
-  background: rgba(14, 12, 29, 0.92);
+  background: rgba(var(--sprawl-surface), 0.92);
 }
 
 [data-theme="sprawl"] .loader-tip__label {
@@ -432,13 +494,13 @@
 }
 
 [data-theme="sprawl"] .moment {
-  border: 1px solid rgba(63, 240, 255, 0.5);
+  border: 1px solid rgba(var(--sprawl-cyan), calc(0.5 * var(--sprawl-tint)));
   border-left: 3px solid var(--accent);
   border-radius: 0;
   background:
-    linear-gradient(135deg, rgba(63, 240, 255, 0.07), transparent 50%, rgba(255, 46, 136, 0.08)),
+    linear-gradient(135deg, rgba(var(--sprawl-cyan), calc(0.07 * var(--sprawl-tint))), transparent 50%, rgba(var(--sprawl-pink), calc(0.08 * var(--sprawl-tint)))),
     var(--raised);
-  box-shadow: 0 0 22px rgba(255, 46, 136, 0.22), 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 22px rgba(var(--sprawl-pink), calc(0.22 * var(--sprawl-glow))), 0 10px 30px var(--sprawl-drop);
 }
 
 /* A cut corner, top right, as on the panels. */
@@ -455,7 +517,7 @@
 /* A failed build runs hot in the danger red, so it never reads as decoration. */
 [data-theme="sprawl"] .moment--build-failed {
   border-color: var(--danger);
-  box-shadow: 0 0 22px rgba(255, 100, 112, 0.28), 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 0 22px rgba(var(--sprawl-danger), calc(0.28 * var(--sprawl-glow))), 0 10px 30px var(--sprawl-drop);
 }
 
 [data-theme="sprawl"] .moment__label {
@@ -463,7 +525,7 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--link);
-  text-shadow: -1px 0 rgba(255, 46, 136, 0.6), 1px 0 rgba(63, 240, 255, 0.4);
+  text-shadow: -1px 0 rgba(var(--sprawl-pink), calc(0.6 * var(--sprawl-glow))), 1px 0 rgba(var(--sprawl-cyan), calc(0.4 * var(--sprawl-glow)));
 }
 
 [data-theme="sprawl"] .moment--build-failed .moment__label {
@@ -501,7 +563,7 @@
     position: absolute;
     inset: 0;
     pointer-events: none;
-    background: linear-gradient(to bottom, transparent 60%, rgba(63, 240, 255, 0.1) 94%, rgba(63, 240, 255, 0.6));
+    background: linear-gradient(to bottom, transparent 60%, rgba(var(--sprawl-cyan), calc(0.1 * var(--sprawl-tint))) 94%, rgba(var(--sprawl-cyan), calc(0.6 * var(--sprawl-tint))));
     opacity: 0;
     transform-origin: 50% 0;
     animation: sprawl-scan-line 0.35s steps(4) 1;
@@ -588,12 +650,12 @@
 [data-theme="sprawl"] .btn--accent,
 [data-theme="sprawl"] .top nav a[aria-current="page"],
 [data-theme="sprawl"] button[aria-pressed="true"] {
-  background: linear-gradient(100deg, var(--accent), #ff5aa3);
-  box-shadow: 0 0 12px rgba(255, 46, 136, 0.4);
+  background: linear-gradient(100deg, var(--accent), var(--sprawl-accent-hi));
+  box-shadow: 0 0 12px rgba(var(--sprawl-pink), calc(0.4 * var(--sprawl-glow)));
 }
 
 [data-theme="sprawl"] .chart .chart-stop--top { stop-color: var(--link); }
-[data-theme="sprawl"] .chart .chart-stop--bottom { stop-color: #5a2a9c; }
+[data-theme="sprawl"] .chart .chart-stop--bottom { stop-color: var(--sprawl-chart-low); }
 
 [data-theme="sprawl"] .chart .bar,
 [data-theme="sprawl"] .chart .area {

@@ -17,6 +17,39 @@
 @import '@fontsource/source-serif-4/600.css';
 @import '@fontsource/fira-code/400.css';
 
+/* The light scheme is the same yard at midday: the site's blue, deepened to
+   read on warm paper, with the glow, grid and art turned down to match. Every
+   colour that depends on the scheme is a property here; the dark values are
+   what shipped first, and the light ones are overridden below, as Plain does it. */
+[data-theme="crate"] {
+  --crate-glow-a: 14%;
+  --crate-glow-b: 7%;
+  --crate-glow-splash: 16%;
+  --crate-grid: 4.5%;
+  --crate-art-blend: lighten;
+  --crate-art-filter: none;
+}
+
+[data-theme="crate"][data-scheme="light"] {
+  --crate-glow-a: 9%;
+  --crate-glow-b: 5%;
+  --crate-glow-splash: 11%;
+  --crate-grid: 7%;
+  --crate-art-blend: multiply;
+  --crate-art-filter: invert(1) hue-rotate(180deg) brightness(1.08);
+}
+
+@media (prefers-color-scheme: light) {
+  [data-theme="crate"][data-scheme="system"] {
+    --crate-glow-a: 9%;
+    --crate-glow-b: 5%;
+    --crate-glow-splash: 11%;
+    --crate-grid: 7%;
+    --crate-art-blend: multiply;
+    --crate-art-filter: invert(1) hue-rotate(180deg) brightness(1.08);
+  }
+}
+
 [data-theme="crate"] body {
   background: var(--bg);
 }
@@ -31,8 +64,8 @@
   z-index: -2;
   pointer-events: none;
   background:
-    radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60vmax),
-    radial-gradient(circle at 0% 100%, color-mix(in srgb, var(--link) 7%, transparent), transparent 45vmax);
+    radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--accent) var(--crate-glow-a), transparent), transparent 60vmax),
+    radial-gradient(circle at 0% 100%, color-mix(in srgb, var(--link) var(--crate-glow-b), transparent), transparent 45vmax);
 }
 
 /* The drafting grid, drifting one cell every two minutes as on the site. It
@@ -44,8 +77,8 @@
   z-index: -2;
   pointer-events: none;
   background-image:
-    linear-gradient(color-mix(in srgb, var(--ink) 4.5%, transparent) 1px, transparent 1px),
-    linear-gradient(90deg, color-mix(in srgb, var(--ink) 4.5%, transparent) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--ink) var(--crate-grid), transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--ink) var(--crate-grid), transparent) 1px, transparent 1px);
   background-size: 24px 24px;
 }
 
@@ -91,7 +124,8 @@
 
 /* The crate's cartoon sits on the site's near-black, so it blends into the panel behind it. */
 [data-theme="crate"] .skin-empty--art img {
-  mix-blend-mode: lighten;
+  mix-blend-mode: var(--crate-art-blend);
+  filter: var(--crate-art-filter);
 }
 
 [data-theme="crate"] .banner {
@@ -192,12 +226,13 @@
    the accent's glow lights the splash and the moment cards from the same corner as the page. */
 [data-theme="crate"] .loader__art,
 [data-theme="crate"] .splash__art {
-  mix-blend-mode: lighten;
+  mix-blend-mode: var(--crate-art-blend);
+  filter: var(--crate-art-filter);
 }
 
 [data-theme="crate"] .splash {
   background:
-    radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60vmax),
+    radial-gradient(circle at 88% 0%, color-mix(in srgb, var(--accent) var(--crate-glow-splash), transparent), transparent 60vmax),
     var(--bg);
 }
 

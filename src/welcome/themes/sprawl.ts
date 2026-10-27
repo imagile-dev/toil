@@ -1,6 +1,6 @@
 import type { TerminalTheme } from './types.js';
 
-/** Sprawl's terminal version (ui/themes/sprawl/theme.json). Neon on file, with the variance request still pending. */
+/** Sprawl's terminal version (ui/themes/sprawl/theme.json). Neon on file after dark, the same city at dawn in daylight. */
 export const sprawl: TerminalTheme = {
   name: 'sprawl',
   label: 'Sprawl',
@@ -13,6 +13,15 @@ export const sprawl: TerminalTheme = {
       link: '#3ff0ff',
       ok: '#39ff9c',
       danger: '#ff6470',
+    },
+    light: {
+      bg: '#e9e7f2',
+      ink: '#14102a',
+      muted: '#4a4570',
+      accent: '#b80f62',
+      link: '#00667a',
+      ok: '#0a6e3e',
+      danger: '#bd1530',
     },
   },
   terms: { agent: 'Netrunner', blocked: 'Black ICE' },
