@@ -347,7 +347,7 @@ describe('util md: the areas accept what it writes', () => {
     expect((POSTED(t.http.calls).body as { storage: { value: string; representation: string } }).storage).toEqual({ value: storage, representation: 'storage' });
   });
 
-  it('confluence-cloud page create takes the storage format as its body', async () => {
+  it('confluence page create on a Cloud connection takes the storage format as its body', async () => {
     const storage = (await convert(MD_CORPUS['story.md']!, 'md', 'storage')).data.output as string;
     const t = testContext({ config: confluenceCloudConfig, routes: confluenceCloudRoutes });
     const envelope = await execute(confluenceCloudCreatePage, { space: 'DOCS', title: 'Invoice export', body: storage, allowWrite: true }, t.context);

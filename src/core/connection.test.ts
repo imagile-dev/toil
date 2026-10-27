@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { defineArea } from './area.js';
 import { emptyConfig, type ResolvedConfig } from './config.js';
 import { resolveConnection } from './connection.js';
+import { confluenceArea } from '../areas/confluence/area.js';
 import type { Warning } from './envelope.js';
 
 const db = defineArea({
@@ -325,5 +326,27 @@ describe('shares.fallbackWhen reads the connection as it resolves', () => {
     };
     await expect(resolveConnection(cfg('cloud'), wiki, undefined, () => {})).resolves.toMatchObject({ apiToken: 'lent-token' });
     await expect(resolveConnection(cfg('server'), wiki, undefined, () => {})).resolves.not.toHaveProperty('apiToken');
+  });
+});
+
+describe('the real confluence area shares the Jira token only between like deployments', () => {
+  const jiraConn = (settings: Record<string, unknown>) => ({ area: 'jira', ...settings });
+  const resolveWith = (jira: Record<string, unknown>) => {
+    const cfg: ResolvedConfig = {
+      ...config(
+        { jira: jiraConn(jira), confluence: { area: 'confluence', baseUrl: 'https://confluence-cloud.imagile.dev', email: 'you@example.com' } },
+        { jira: { connection: 'jira' }, confluence: { connection: 'confluence', deployment: 'cloud' } },
+      ),
+      sources: { 'jira.apiToken': 'env' },
+    };
+    return resolveConnection(cfg, confluenceArea, undefined, () => {});
+  };
+
+  it('lends a Cloud Jira token to a Confluence whose Cloud deployment is set only in defaults.confluence', async () => {
+    await expect(resolveWith({ baseUrl: 'https://confluence-cloud.imagile.dev', deployment: 'cloud', email: 'you@example.com', apiToken: 'jira-token' })).resolves.toMatchObject({ apiToken: 'jira-token' });
+  });
+
+  it('does not lend a Data Center Jira token to that Cloud Confluence', async () => {
+    await expect(resolveWith({ baseUrl: 'https://jira.imagile.dev', apiToken: 'dc-pat' })).rejects.toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('apiToken') });
   });
 });

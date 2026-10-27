@@ -486,7 +486,7 @@ function foldRenamedAreas(read: { connections: Record<string, ConnectionSettings
     // A file older than version 3 meant the old area, so reading it as the new one is no news. A version 3 file is news: toil wrote it, or a person edited it, with a name that no longer exists.
     if (say) {
       const what = [...moved.map((name) => `connection ${name}`), ...(oldDefaults ? [`defaults.${old}`] : [])].join(', ');
-      warnings.push({ code: 'CONFIG_RENAMED_AREA', message: `${path} still names area "${old}" (${what}), which no longer exists, so it is read as ${renamed.area}. ${renamedAreaFix(old)} Any toil connections change saves the file with the new form.` });
+      warnings.push({ code: 'CONFIG_RENAMED_AREA', message: `${path} still names area "${old}" (${what}), which no longer exists, so it is read as ${renamed.area}. ${renamedAreaFix(old)} Any toil connections change saves the file with the new form and clears this warning, such as toil connections default <name>.` });
     }
     if (Object.keys(target).length === 0) delete read.defaults[renamed.area];
   }

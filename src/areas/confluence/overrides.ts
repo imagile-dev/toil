@@ -40,7 +40,7 @@ export const overrides: Record<string, DeploymentOverride> = {
       "Runs a CQL query and returns Confluence's search result as it came (results, each with content, title and excerpt). One page: on Data Center raise limit or advance offset for more; on Cloud pass meta.page.nextCursor as cursor for the next.",
     describe: {
       limit: 'Maximum number of results (default: 25)',
-      expand: 'Comma-separated fields to expand (Cloud, e.g. content.space,content.version)',
+      expand: 'Comma-separated fields to expand (Data Center e.g. space,version; Cloud e.g. content.space,content.version)',
     },
   },
   'confluence page create': {
