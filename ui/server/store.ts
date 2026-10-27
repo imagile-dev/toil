@@ -22,6 +22,7 @@
 import { fixtureConfigExecute } from '../src/fixtures/config.ts';
 import { fixtureFeedbackEnvelope } from '../src/fixtures/feedback.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
+import { isDashboardQuery } from '../src/load.ts';
 import type { Envelope, Execute, ExecuteOptions, ExecutePerson } from '../src/toil.ts';
 import type { Cache } from './cache.ts';
 import { READ_COMMANDS, WORKFLOW_READS } from './reads.ts';
@@ -85,6 +86,9 @@ export function toilStore(execute: Execute): Store {
   };
 }
 
+/** The searches whose query the dashboard builds, which the sync stores under the cache's own window (isDashboardQuery). */
+const SEARCHES = /^[a-z-]+ (issue search|work-item search)$/;
+
 /** The commands a cache answers by passing them to toil: the dossiers are toil's own config on this machine, read fresh, and the readiness gate's workflow reads are live by design. */
 const LIVE_COMMANDS = new Set<string>(['dossiers list', 'dossiers show', ...WORKFLOW_READS]);
 
@@ -106,7 +110,8 @@ export function sqliteStore(cache: () => Cache, execute: Execute, toil: { versio
       if (access !== 'read' || LIVE_COMMANDS.has(command)) return execute(command, input, toilOptions(ctx, access, how));
       const meta = { command, durationMs: 0, version: toil.version, contractVersion: toil.contractVersion };
       const dossier = typeof input.dossier === 'string' ? input.dossier : null;
-      const stored = dossier ? cache().response(dossier, command, input) : null;
+      // The dashboard's own search names a window of days; the sync stored the cache's, which a browser may not know (src/load.ts).
+      const stored = dossier ? (cache().response(dossier, command, input) ?? (SEARCHES.test(command) && isDashboardQuery(input) ? cache().latest(dossier, command) : null)) : null;
       if (!stored) {
         return {
           ok: false,
@@ -121,7 +126,7 @@ export function sqliteStore(cache: () => Cache, execute: Execute, toil: { versio
       }
       const source = cache().source(dossier!, stored.area);
       if (source?.status !== 'failed') return stored.envelope;
-      const warning = { code: 'STALE', message: `The latest sync of ${stored.area} failed (${source.error ?? 'no message'}), so this is the copy synced ${stored.syncedAt}.` };
+      const warning = { code: 'STALE', message: `The latest sync of ${stored.area} failed (${source.error ?? 'no message'}), so this is the copy synced ${source.lastSuccessAt ?? stored.syncedAt}.` };
       return { ...stored.envelope, meta: { ...stored.envelope.meta, warnings: [...(stored.envelope.meta.warnings ?? []), warning] } } as Envelope;
     },
   };

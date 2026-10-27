@@ -10,7 +10,7 @@ import { sqliteStore } from '../server/store.ts';
 import { SKEW_MS, SyncBusy, SyncService, joinPages } from '../server/sync.ts';
 import { DOSSIERS } from '../src/fixtures/dossiers.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
-import { loadDossier } from '../src/load.ts';
+import { JQL, loadDossier } from '../src/load.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 import { JIRA_PAGE, stubToil, type StubToil } from './toil-stub.ts';
 
@@ -73,7 +73,7 @@ describe('a full sync', () => {
     );
     // jira issue search came in pages of JIRA_PAGE, every one followed.
     const pages = named(toil, 'jira issue search');
-    const issues = (await fixtureExecute().execute('jira issue search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' }, { readOnly: true })).data as { issues: unknown[] };
+    const issues = (await fixtureExecute().execute('jira issue search', { dossier: 'card-payments', jql: JQL('PAY') }, { readOnly: true })).data as { issues: unknown[] };
     expect(pages.length).toBe(Math.ceil(issues.issues.length / JIRA_PAGE));
     expect(pages.slice(1).map((p) => p.input.cursor)).toEqual(pages.slice(1).map((_, i) => String((i + 1) * JIRA_PAGE)));
     // OWI items, transitions and change refs are stored.
@@ -100,7 +100,7 @@ describe('a full sync', () => {
 
   it('answers a call it never synced with a refusal that says to sync', async () => {
     const { viaStore } = await setup();
-    const env = await viaStore('jira issue search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' });
+    const env = await viaStore('jira issue search', { dossier: 'card-payments', jql: JQL('PAY') });
     expect(env.ok).toBe(false);
     if (!env.ok) {
       expect(env.error.code).toBe('NOT_FOUND');
@@ -193,6 +193,70 @@ describe('an incremental sync', () => {
   });
 });
 
+describe('deleted and moved items (#493)', () => {
+  const keys = (items: Array<{ source: { key: string } }>) => items.map((i) => i.source.key);
+
+  it('drops a Jira issue the source no longer has once a day, and keeps it in between', async () => {
+    const { toil, sync, cache, viaStore, advance } = await setup();
+    await sync.run(ctx);
+    expect(cache.source('card-payments', 'jira')!.fullReadAt).toBe(FIXTURE_NOW);
+    toil.removeJira('PAY-104');
+
+    // An hour on, the search asks only since the watermark, which can't list a deletion: the issue stays.
+    advance(3_600_000);
+    toil.reset();
+    await sync.run(ctx);
+    expect(named(toil, 'jira issue search').map((c) => c.input.fields)).toEqual([undefined]);
+    expect(keys(cache.items('card-payments'))).toContain('PAY-104');
+
+    // A day after the last whole listing: the delta, and then the ids alone, with no watermark.
+    advance(24 * 3_600_000);
+    toil.reset();
+    const job = await sync.run(ctx);
+    const searches = named(toil, 'jira issue search').filter((c) => c.input.cursor === undefined);
+    expect(searches.map((c) => [c.input.updatedSince !== undefined, c.input.fields])).toEqual([[true, undefined], [false, 'key']]);
+    expect(keys(cache.items('card-payments'))).not.toContain('PAY-104');
+    expect(named(toil, 'jira issue history').map((c) => c.input.key)).not.toContain('PAY-104');
+    expect(job.messages.some((m) => m.includes('listed whole: 1 no longer there'))).toBe(true);
+    const card = await loadDossier(viaStore, 'card-payments', { mapOwi });
+    expect(keys(card.items)).not.toContain('PAY-104');
+    expect(card.items).toHaveLength(cache.items('card-payments').length);
+    expect(cache.source('card-payments', 'jira')!.fullReadAt).toBe(new Date(Date.parse(FIXTURE_NOW) + 25 * 3_600_000).toISOString());
+
+    // And an hour after that is quiet again.
+    advance(3_600_000);
+    toil.reset();
+    await sync.run(ctx);
+    expect(named(toil, 'jira issue search')).toHaveLength(1);
+  });
+
+  it('does the same for an Azure DevOps work item, whose WIQL answer is ids already', async () => {
+    const { toil, sync, cache, advance } = await setup();
+    await sync.run(ctx);
+    toil.removeAdo(2302);
+    advance(3_600_000);
+    toil.reset();
+    await sync.run(ctx);
+    expect(keys(cache.items('settlement'))).toContain('2302');
+    advance(24 * 3_600_000);
+    toil.reset();
+    await sync.run(ctx);
+    expect(named(toil, 'ado work-item search').map((c) => c.input.updatedSince !== undefined)).toEqual([true, false]);
+    expect(keys(cache.items('settlement'))).not.toContain('2302');
+  });
+
+  it('lists a source whole after an upgrade that left no whole listing on record', async () => {
+    const { toil, sync, cache, advance } = await setup();
+    await sync.run(ctx);
+    // A cache from before the column existed has a watermark and no whole listing.
+    (cache as unknown as { db: { exec(sql: string): void } }).db.exec('UPDATE sources SET full_read_at = NULL');
+    advance(60_000);
+    toil.reset();
+    await sync.run(ctx);
+    expect(named(toil, 'jira issue search').filter((c) => c.input.cursor === undefined).map((c) => c.input.fields)).toEqual([undefined, 'key']);
+  });
+});
+
 describe('a failing source', () => {
   it("is marked failed with toil's message and fix, keeps its last good data marked stale, and leaves the others alone", async () => {
     const { toil, sync, cache, viaStore, advance } = await setup();
@@ -218,7 +282,7 @@ describe('a failing source', () => {
     const after = await loadDossier(viaStore, 'card-payments', { mapOwi });
     expect(after.items).toEqual(good.items);
     expect(after.changes).toEqual(good.changes);
-    const search = (await viaStore('jira issue search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' })) as Envelope & { ok: true };
+    const search = (await viaStore('jira issue search', { dossier: 'card-payments', jql: JQL('PAY') })) as Envelope & { ok: true };
     expect(search.ok).toBe(true);
     expect(search.meta.warnings?.map((w) => w.code)).toContain('STALE');
     expect(cache.items('card-payments')).toHaveLength(good.items.length);
@@ -230,7 +294,7 @@ describe('a failing source', () => {
     await sync.run(ctx);
     expect(named(toil, 'jira issue search')[0]!.input.updatedSince).toBe(watermark);
     expect(cache.source('card-payments', 'jira')).toMatchObject({ status: 'ok', stale: false });
-    const fresh = (await viaStore('jira issue search', { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' })) as Envelope & { ok: true };
+    const fresh = (await viaStore('jira issue search', { dossier: 'card-payments', jql: JQL('PAY') })) as Envelope & { ok: true };
     expect(fresh.meta.warnings ?? []).toEqual([]);
   });
 

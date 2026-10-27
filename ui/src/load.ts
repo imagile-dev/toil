@@ -22,13 +22,72 @@ import { readReadiness, type ReadinessSettings } from './model/readiness.ts';
 import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
 import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
-/** The JQL and WIQL a dashboard sends: one query per tracker, the whole project. */
-export const JQL = (project: string) => `project = ${project} ORDER BY Rank ASC`;
+/**
+ * How many days back of its last change a closed Jira or Azure DevOps item is
+ * still read: the cache's own retention period (`retentionDays`), which
+ * prunes anything older anyway. The sync passes the cache's value; a browser
+ * that doesn't says this one, which is the cache's default.
+ */
+export const DEFAULT_WINDOW_DAYS = 30;
+
+/**
+ * The JQL a dashboard sends: the project's open items, and anything updated
+ * within the window, so a project's closed history from years ago isn't read
+ * only to be pruned.
+ */
+export const JQL = (project: string, windowDays: number = DEFAULT_WINDOW_DAYS) => `project = ${project} AND (statusCategory != Done OR updated >= -${windowDays}d) ORDER BY Rank ASC`;
 /** The areas that read Azure DevOps work items: Server and Services. */
 export const ADO_AREAS = ['ado', 'ado-cloud'] as const;
 /** The areas that read Jira work items: Data Center and Cloud, which send the same issue shapes under the same command names. */
 export const JIRA_AREAS = ['jira', 'jira-cloud'] as const;
-export const WIQL = 'SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project ORDER BY [System.Id]';
+/**
+ * The WIQL a dashboard sends, bounded the same way as the JQL. WIQL has no
+ * status category, so "open" is an item with no closed date (the Agile, Scrum
+ * and CMMI processes set `ClosedDate` when an item reaches a closed state).
+ * `toil ado work-item search --updated-since` ANDs onto the WHERE and
+ * parenthesizes this one, so the two compose.
+ */
+export const wiqlFor = (windowDays: number = DEFAULT_WINDOW_DAYS) =>
+  `SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project AND ([Microsoft.VSTS.Common.ClosedDate] = '' OR [System.ChangedDate] >= @Today - ${windowDays}) ORDER BY [System.Id]`;
+export const WIQL = wiqlFor();
+
+/**
+ * Whether an input's query is the dashboard's own, whatever window it names.
+ * The cache answers the views from the sync's copy of that search, so a
+ * browser that says 30 days still finds what a sync with a 7-day retention
+ * stored; an agent's own JQL or WIQL never matches and is never answered
+ * with a search it didn't ask for.
+ */
+export function isDashboardQuery(input: Record<string, unknown>): boolean {
+  if (typeof input.jql === 'string') return /^project = \S+ AND \(statusCategory != Done OR updated >= -\d+d\) ORDER BY Rank ASC$/.test(input.jql);
+  if (typeof input.wiql === 'string') return input.wiql.replace(/@Today - \d+\)/, '@Today - N)') === wiqlFor(0).replace('@Today - 0)', '@Today - N)');
+  return false;
+}
+
+/** How many per-item calls (histories, pull request gets) run at once, across all of a dossier's areas. toil retries a 429 itself. */
+export const PER_ITEM_CONCURRENCY = 6;
+
+/**
+ * A gate that lets `limit` calls through at once and queues the rest, first
+ * come first served. The same number of counters is open for every area of a
+ * dossier, which is how a queue at an airport stays fair.
+ */
+export function limiter(limit: number) {
+  let active = 0;
+  const waiting: Array<() => void> = [];
+  return async function slot<T>(fn: () => Promise<T>): Promise<T> {
+    // A finishing call hands its place straight to the next in line, so the count never dips for a newcomer to slip into.
+    if (active >= limit) await new Promise<void>((resolve) => waiting.push(resolve));
+    else active++;
+    try {
+      return await fn();
+    } finally {
+      const next = waiting.shift();
+      if (next) next();
+      else active--;
+    }
+  };
+}
 
 export type Panel = 'dossier' | 'work' | 'prs' | 'owners' | 'builds' | 'deployments';
 
@@ -197,21 +256,39 @@ export type LoaderMapOwi = (input: unknown, options?: { fields?: Record<string, 
 export interface LoadOptions {
   /** The OWI mapper: the browser's (src/owi.ts) by default; the tests pass the API's to prove they agree. */
   mapOwi?: LoaderMapOwi;
+  /** Days of closed Jira and Azure DevOps items to read; the sync passes the cache's retention. */
+  windowDays?: number;
 }
 
 export async function loadDossier(execute: Execute, name: string, options: LoadOptions = {}): Promise<DossierData> {
   const calls: Record<Panel, Call[]> = { dossier: [], work: [], prs: [], owners: [], builds: [], deployments: [] };
 
-  /** One call, recorded on its panel. A failure is kept on the panel and comes back as null. */
-  const run = async (panel: Panel, command: string, input: Rec): Promise<Envelope | null> => {
+  /** One call and how it went, not yet recorded anywhere. */
+  const send = async (command: string, input: Rec): Promise<{ env: Envelope | null; call: Call }> => {
     const env = await execute(command, input, CALL_OPTIONS);
     const call: Call = { command, input, ok: env.ok, error: env.ok ? null : `${env.error.message}${env.error.fix ? ` ${env.error.fix}` : ''}` };
+    return { env: env.ok ? env : null, call };
+  };
+
+  /** One call, recorded on its panel. A failure is kept on the panel and comes back as null. */
+  const run = async (panel: Panel, command: string, input: Rec): Promise<Envelope | null> => {
+    const { env, call } = await send(command, input);
     calls[panel].push(call);
-    if (!env.ok) {
-      if (panel === 'dossier') throw new CallFailed(call);
-      return null;
-    }
+    if (!env && panel === 'dossier') throw new CallFailed(call);
     return env;
+  };
+
+  /**
+   * One call per input, at most PER_ITEM_CONCURRENCY at a time across the
+   * whole dossier. The answers come back, and the calls are recorded on the
+   * panel, in the order of the inputs however they finished, so the same
+   * dossier loads the same way twice.
+   */
+  const slot = limiter(PER_ITEM_CONCURRENCY);
+  const runEach = async (panel: Panel, command: string, inputs: Rec[]): Promise<Array<Envelope | null>> => {
+    const sent = await Promise.all(inputs.map((input) => slot(() => send(command, input))));
+    calls[panel].push(...sent.map((s) => s.call));
+    return sent.map((s) => s.env);
   };
 
   const show = await run('dossier', 'dossiers show', { dossier: name });
@@ -226,14 +303,14 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   const tasks: Array<Promise<void>> = [];
   for (const jira of JIRA_AREAS.filter((a) => areas[a]?.inputs.project)) {
     tasks.push((async () => {
-      const search = await run('work', `${jira} issue search`, { ...base, jql: JQL(areas[jira]!.inputs.project!) });
+      const search = await run('work', `${jira} issue search`, { ...base, jql: JQL(areas[jira]!.inputs.project!, options.windowDays) });
       if (!search) return;
       work[jira].push(search);
       const keys = recs((search.data as Rec).issues).map((i) => String(i.key));
-      for (const key of keys) {
-        const history = await run('work', `${jira} issue history`, { ...base, key });
-        if (history) work[jira].push({ key, history });
-      }
+      const histories = await runEach('work', `${jira} issue history`, keys.map((key) => ({ ...base, key })));
+      histories.forEach((history, n) => {
+        if (history) work[jira].push({ key: keys[n]!, history });
+      });
     })());
   }
   // Azure DevOps Server and Services send the same work item shapes under the same command names.
@@ -241,15 +318,13 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     tasks.push((async () => {
       const iterations = await run('work', `${ado} work-item iterations`, base);
       if (iterations) work[ado].push(iterations);
-      const search = await run('work', `${ado} work-item search`, { ...base, wiql: WIQL });
+      const search = await run('work', `${ado} work-item search`, { ...base, wiql: wiqlFor(options.windowDays) });
       const ids = search ? recs((search.data as Rec).workItems).map((w) => Number(w.id)) : [];
       if (!ids.length) return;
       const batch = await run('work', `${ado} work-item get-many`, { ...base, id: ids });
       if (batch) work[ado].push(batch);
-      for (const id of ids) {
-        const revisions = await run('work', `${ado} work-item history`, { ...base, id });
-        if (revisions) work[ado].push(revisions);
-      }
+      const histories = await runEach('work', `${ado} work-item history`, ids.map((id) => ({ ...base, id })));
+      for (const revisions of histories) if (revisions) work[ado].push(revisions);
     })());
   }
   if (areas.github) {
@@ -262,10 +337,11 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
         const issues = await run('work', 'github issue list', { ...base, state: 'all' });
         if (!issues) return;
         work.github.push(issues);
-        for (const number of historyNumbers(recs(issues.data))) {
-          const events = await run('work', 'github issue history', { ...base, number });
-          if (events) work.github.push({ key: String(number), history: events });
-        }
+        const wanted = historyNumbers(recs(issues.data));
+        const histories = await runEach('work', 'github issue history', wanted.map((number) => ({ ...base, number })));
+        histories.forEach((events, n) => {
+          if (events) work.github.push({ key: String(wanted[n]), history: events });
+        });
         return;
       }
       for (const project of projects) {
@@ -280,10 +356,11 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       if (!numbers.size) return;
       const issues = await run('work', 'github issue get', { ...base, number: [...numbers], subIssues: true });
       if (issues) work.github.push(issues);
-      for (const number of numbers) {
-        const events = await run('work', 'github issue history', { ...base, number });
-        if (events) work.github.push({ key: String(number), history: events });
-      }
+      const wanted = [...numbers];
+      const histories = await runEach('work', 'github issue history', wanted.map((number) => ({ ...base, number })));
+      histories.forEach((events, n) => {
+        if (events) work.github.push({ key: String(wanted[n]), history: events });
+      });
     })());
   }
   await Promise.all(tasks);
@@ -318,14 +395,14 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     }
     const listed = first.changes as Change[];
     const docs: Envelope[] = [list];
-    for (const pr of checkedPrs(listed)) {
-      const number = Number(pr.id.slice(pr.id.lastIndexOf('#') + 1));
-      const got = await run('prs', `${host.area} pr get`, { ...base, [host.id]: number, include: PR_INCLUDE });
-      if (got) {
-        docs.push(got);
-        gets.set(pr.id, got);
+    const checked = checkedPrs(listed);
+    const got = await runEach('prs', `${host.area} pr get`, checked.map((pr) => ({ ...base, [host.id]: Number(pr.id.slice(pr.id.lastIndexOf('#') + 1)), include: PR_INCLUDE })));
+    got.forEach((envelope, n) => {
+      if (envelope) {
+        docs.push(envelope);
+        gets.set(checked[n]!.id, envelope);
       }
-    }
+    });
     const prs = (mapper(docs, { keyPatterns, authorKinds }).changes ?? []) as Change[];
     pullRequests.push(...prs);
     return { prs, gets };

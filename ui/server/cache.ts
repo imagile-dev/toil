@@ -35,7 +35,7 @@
  * welcome. A filing cabinet with a shredder bolted to the side.
  */
 
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { chmodSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import * as nodePath from 'node:path';
 import { sameReport, type UsageRecord } from '../src/model-usage.ts';
@@ -227,6 +227,14 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX analyses_at ON analyses (dossier, at);
     `,
   },
+  {
+    version: 5,
+    description: "a stored response's digest, so a sync rewrites only what changed, and when each source was last read whole (#493)",
+    sql: `
+      ALTER TABLE responses ADD COLUMN digest TEXT;
+      ALTER TABLE sources ADD COLUMN full_read_at TEXT;
+    `,
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1]!.version;
@@ -260,6 +268,8 @@ export interface SourceState {
   lastSuccessAt: string | null;
   /** The instant the next incremental sync asks for changes since. */
   watermark: string | null;
+  /** When a sync last listed this source's items whole, not since a watermark: the sync drops what a whole listing no longer has (#493). */
+  fullReadAt?: string | null;
   error: string | null;
   fix: string | null;
   calls: number;
@@ -304,6 +314,8 @@ export interface SourceResult {
   fix: string | null;
   /** On success: where the next sync starts from. */
   watermark: string | null;
+  /** On success, when this sync listed the source's items whole; null when it only asked for what changed. */
+  fullReadAt?: string | null;
   calls: number;
 }
 
@@ -312,7 +324,13 @@ export interface DossierSave {
   dossier: string;
   startedAt: string;
   finishedAt: string;
-  responses: Array<{ command: string; input: Record<string, unknown>; envelope: Envelope }>;
+  responses: Array<{
+    command: string;
+    input: Record<string, unknown>;
+    envelope: Envelope;
+    /** The sync handed back the last copy untouched, so there is nothing to compare or rewrite. */
+    unchanged?: boolean;
+  }>;
   items: WorkItem[];
   changes: ChangeRef[];
   deployments: Deployment[];
@@ -334,6 +352,13 @@ const WORKLOG_TABLES = ['worklog_events', 'sync_runs', 'agent_runs', 'notes'];
 
 /** How far before the last good sync a newly listed fact may be and still count as news: the clocks may disagree (#419). */
 export const NEWS_SKEW_MS = 5 * 60_000;
+/** What makes two envelopes the same answer: everything but how long the call took and the requests it made. */
+export function digestOf(env: Envelope): string {
+  return createHash('sha256').update(JSON.stringify([env.ok, env.data, env.error, env.meta.warnings ?? null, env.meta.context ?? null])).digest('hex');
+}
+
+const byId = (a: { id: string }, b: { id: string }) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
 /** The tables kept per dossier that a sync never rewrites: the worklog's, and the analyses (#395). */
 const KEPT_TABLES = [...WORKLOG_TABLES, 'analyses'];
 
@@ -662,39 +687,88 @@ export class Cache {
       // table keeps it through a failed sync, so a change made during the failure is still seen by the next good one.
       const previous = this.db.prepare('SELECT name FROM dossiers WHERE name = ?').get(save.dossier);
       const lastGood = (this.db.prepare('SELECT MAX(at) AS at FROM sync_runs WHERE dossier = ? AND ok = 1').get(save.dossier) as { at: string | null }).at;
-      const before = previous ? { items: this.items(save.dossier), deployments: this.changes(save.dossier).filter((c) => c.kind === 'deployment').map((c) => c.ref as Deployment) } : null;
+      // A row last synced before this is refreshed to `at`: a quarter of the retention period back, so an unchanged row is
+      // written about four times in a retention period instead of on every sync, and is never left older than the period.
+      const refresh = new Date(Date.parse(at) - (this.retentionDays * DAY) / 4).toISOString();
+      const itemRows = this.db.prepare('SELECT id, item FROM items WHERE dossier = ? ORDER BY id').all(save.dossier) as unknown as Array<{ id: string; item: string }>;
+      const refRows = this.db.prepare('SELECT kind, id, ref FROM change_refs WHERE dossier = ?').all(save.dossier) as unknown as Array<{ kind: string; id: string; ref: string }>;
+      const before = previous ? { items: itemRows.map((r) => JSON.parse(r.item) as WorkItem), deployments: refRows.filter((c) => c.kind === 'deployment').sort(byId).map((c) => JSON.parse(c.ref) as Deployment) } : null;
       const builds = (this.db.prepare("SELECT event FROM worklog_events WHERE dossier = ? AND kind LIKE 'build-%'").all(save.dossier) as unknown as Array<{ event: string }>).map((r) => JSON.parse(r.event) as WorklogEvent);
       const facts = [...eventsFrom({ items: save.items, changes: save.changes }, builds), ...observedEvents(before, { items: save.items, deployments: save.deployments }, at, lastGood)];
       const fact = this.db.prepare(`INSERT INTO worklog_events (dossier, key, day, at, kind, event, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (dossier, key) DO UPDATE SET day = excluded.day, at = excluded.at, kind = excluded.kind, event = excluded.event, synced_at = excluded.synced_at`);
-      const known = new Set((this.db.prepare('SELECT key FROM worklog_events WHERE dossier = ?').all(save.dossier) as unknown as Array<{ key: string }>).map((r) => r.key));
+      const known = new Map((this.db.prepare('SELECT key, event, synced_at FROM worklog_events WHERE dossier = ?').all(save.dossier) as unknown as Array<{ key: string; event: string; synced_at: string }>).map((r) => [r.key, r]));
       const since = lastGood ? Date.parse(lastGood) - NEWS_SKEW_MS : null;
       news = previous && since !== null ? facts.filter((e) => !known.has(e.key) && (e.observed !== null || Date.parse(e.at) >= since)) : [];
-      for (const e of facts) fact.run(save.dossier, e.key, dayOf(e.at)!, e.at, e.kind, JSON.stringify(e), at);
+      for (const e of facts) {
+        const text = JSON.stringify(e);
+        const old = known.get(e.key);
+        if (old && old.event === text && old.synced_at >= refresh) continue;
+        fact.run(save.dossier, e.key, dayOf(e.at)!, e.at, e.kind, text, at);
+      }
       const run = this.db.prepare('INSERT OR REPLACE INTO sync_runs (dossier, area, at, ok, error) VALUES (?, ?, ?, ?, ?)');
       for (const s of save.sources) run.run(save.dossier, s.area, at, s.ok ? 1 : 0, s.error);
 
-      const put = this.db.prepare('INSERT INTO responses (dossier, command, input_key, area, envelope, synced_at) VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT (dossier, command, input_key) DO UPDATE SET area = excluded.area, envelope = excluded.envelope, synced_at = excluded.synced_at');
-      for (const r of save.responses) put.run(save.dossier, r.command, inputKey(r.input), areaOf(r.command), JSON.stringify(r.envelope), at);
-      const drop = this.db.prepare('DELETE FROM responses WHERE dossier = ? AND area = ? AND synced_at < ?');
-      for (const s of save.sources) if (s.ok) drop.run(save.dossier, s.area, at);
+      // Responses: a row is rewritten only when its envelope changed. One the sync reused is not even compared; one that
+      // came back the same is told apart by its digest, which leaves out how long the call took.
+      const stored = new Map((this.db.prepare('SELECT command, input_key, area, digest FROM responses WHERE dossier = ?').all(save.dossier) as unknown as Array<{ command: string; input_key: string; area: string; digest: string | null }>).map((r) => [`${r.command}\n${r.input_key}`, r]));
+      const okAreas = save.sources.filter((s) => s.ok).map((s) => s.area);
+      const put = this.db.prepare('INSERT INTO responses (dossier, command, input_key, area, envelope, synced_at, digest) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (dossier, command, input_key) DO UPDATE SET area = excluded.area, envelope = excluded.envelope, synced_at = excluded.synced_at, digest = excluded.digest');
+      const touch = this.db.prepare('UPDATE responses SET synced_at = ? WHERE dossier = ? AND command = ? AND input_key = ? AND synced_at < ?');
+      const wanted = new Set<string>();
+      for (const r of save.responses) {
+        const key = inputKey(r.input);
+        const id = `${r.command}\n${key}`;
+        wanted.add(id);
+        const old = stored.get(id);
+        const digest = r.unchanged && old?.digest ? old.digest : digestOf(r.envelope);
+        if (old && old.digest === digest) {
+          // A failed source's rows are outside the bulk refresh below, and the sync did read this one.
+          if (!okAreas.includes(old.area)) touch.run(at, save.dossier, r.command, key, refresh);
+          continue;
+        }
+        put.run(save.dossier, r.command, key, areaOf(r.command), JSON.stringify(r.envelope), at, digest);
+      }
+      // A source whose sync worked drops the responses this sync didn't ask for; a failed one keeps its last good copy.
+      const drop = this.db.prepare('DELETE FROM responses WHERE dossier = ? AND command = ? AND input_key = ?');
+      for (const [id, r] of stored) if (!wanted.has(id) && okAreas.includes(r.area)) drop.run(save.dossier, id.slice(0, id.indexOf('\n')), id.slice(id.indexOf('\n') + 1));
+      if (okAreas.length) this.db.prepare(`UPDATE responses SET synced_at = ? WHERE dossier = ? AND synced_at < ? AND area IN (${okAreas.map(() => '?').join(', ')})`).run(at, save.dossier, refresh, ...okAreas);
 
-      for (const table of ['items', 'transitions', 'change_refs']) this.db.prepare(`DELETE FROM ${table} WHERE dossier = ?`).run(save.dossier);
+      // Items, transitions and change refs are the dossier's whole picture as the sync saw it (the sync hands the loader a
+      // failed source's last good copy, so a failure never blanks them). Only a row that changed is written, a row that is
+      // gone is deleted, and the rest are refreshed in one statement each.
+      const oldItems = new Map(itemRows.map((r) => [r.id, r.item]));
+      const nowItems = new Map(save.items.map((i) => [i.id, i]));
       const item = this.db.prepare('INSERT OR REPLACE INTO items (dossier, id, area, connection, native_key, type, status_category, updated, item, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+      const dropTransitions = this.db.prepare('DELETE FROM transitions WHERE dossier = ? AND item_id = ?');
       const transition = this.db.prepare('INSERT OR REPLACE INTO transitions (dossier, item_id, seq, from_status, to_status, from_category, to_category, at, by_name, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-      for (const i of save.items) {
-        item.run(save.dossier, i.id, i.source.area, i.source.connection, i.source.key, i.type, i.statusCategory, i.updated, JSON.stringify(i), at);
+      for (const [id, i] of nowItems) {
+        const text = JSON.stringify(i);
+        if (oldItems.get(id) === text) continue;
+        item.run(save.dossier, i.id, i.source.area, i.source.connection, i.source.key, i.type, i.statusCategory, i.updated, text, at);
+        dropTransitions.run(save.dossier, id);
         (i.history?.transitions ?? []).forEach((t, seq) => transition.run(save.dossier, i.id, seq, t.from, t.to, t.fromCategory, t.toCategory, t.at, t.by?.name ?? null, at));
       }
-      const change = this.db.prepare('INSERT OR REPLACE INTO change_refs (dossier, id, kind, area, command, state, outcome, at, items, ref, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
-      for (const c of save.changes) change.run(save.dossier, c.id, c.kind, c.source, c.command, c.state, c.outcome, c.at || null, JSON.stringify(c.items), JSON.stringify(c), at);
-      for (const d of save.deployments) change.run(save.dossier, d.id, 'deployment', d.source, d.command, d.state, d.outcome, null, JSON.stringify(d.items), JSON.stringify(d), at);
+      const dropItem = this.db.prepare('DELETE FROM items WHERE dossier = ? AND id = ?');
+      for (const id of oldItems.keys()) if (!nowItems.has(id)) dropItem.run(save.dossier, id);
+      this.db.prepare('DELETE FROM transitions WHERE dossier = ? AND item_id NOT IN (SELECT id FROM items WHERE dossier = ?)').run(save.dossier, save.dossier);
 
-      const source = this.db.prepare(`INSERT INTO sources (dossier, area, status, last_attempt_at, last_success_at, watermark, error, fix, calls) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      const nowRefs = new Map<string, { kind: string; id: string; values: Array<string | null>; text: string }>();
+      for (const c of save.changes) nowRefs.set(`${c.kind}\n${c.id}`, { kind: c.kind, id: c.id, text: JSON.stringify(c), values: [c.source, c.command, c.state, c.outcome, c.at || null, JSON.stringify(c.items)] });
+      for (const d of save.deployments) nowRefs.set(`deployment\n${d.id}`, { kind: 'deployment', id: d.id, text: JSON.stringify(d), values: [d.source, d.command, d.state, d.outcome, null, JSON.stringify(d.items)] });
+      const oldRefs = new Map(refRows.map((r) => [`${r.kind}\n${r.id}`, r.ref]));
+      const change = this.db.prepare('INSERT OR REPLACE INTO change_refs (dossier, id, kind, area, command, state, outcome, at, items, ref, synced_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+      for (const [key, c] of nowRefs) if (oldRefs.get(key) !== c.text) change.run(save.dossier, c.id, c.kind, ...c.values, c.text, at);
+      const dropRef = this.db.prepare('DELETE FROM change_refs WHERE dossier = ? AND kind = ? AND id = ?');
+      for (const key of oldRefs.keys()) if (!nowRefs.has(key)) dropRef.run(save.dossier, key.slice(0, key.indexOf('\n')), key.slice(key.indexOf('\n') + 1));
+      for (const table of ['items', 'transitions', 'change_refs']) this.db.prepare(`UPDATE ${table} SET synced_at = ? WHERE dossier = ? AND synced_at < ?`).run(at, save.dossier, refresh);
+
+      const source = this.db.prepare(`INSERT INTO sources (dossier, area, status, last_attempt_at, last_success_at, watermark, full_read_at, error, fix, calls) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (dossier, area) DO UPDATE SET status = excluded.status, last_attempt_at = excluded.last_attempt_at,
           last_success_at = COALESCE(excluded.last_success_at, sources.last_success_at), watermark = COALESCE(excluded.watermark, sources.watermark),
+          full_read_at = COALESCE(excluded.full_read_at, sources.full_read_at),
           error = excluded.error, fix = excluded.fix, calls = excluded.calls`);
-      for (const s of save.sources) source.run(save.dossier, s.area, s.ok ? 'ok' : 'failed', at, s.ok ? at : null, s.ok ? s.watermark : null, s.error, s.fix, s.calls);
+      for (const s of save.sources) source.run(save.dossier, s.area, s.ok ? 'ok' : 'failed', at, s.ok ? at : null, s.ok ? s.watermark : null, s.ok ? (s.fullReadAt ?? null) : null, s.error, s.fix, s.calls);
       // A source the dossier no longer reads (its area left the dossier) goes with its data.
       const areas = save.sources.map((s) => s.area);
       for (const old of this.db.prepare('SELECT area FROM sources WHERE dossier = ?').all(save.dossier) as unknown as Array<{ area: string }>) {
@@ -846,6 +920,7 @@ interface SourceRow {
   last_attempt_at: string;
   last_success_at: string | null;
   watermark: string | null;
+  full_read_at?: string | null;
   error: string | null;
   fix: string | null;
   calls: number;
@@ -885,6 +960,7 @@ function sourceOf(r: SourceRow): SourceState {
     lastAttemptAt: r.last_attempt_at,
     lastSuccessAt: r.last_success_at,
     watermark: r.watermark,
+    fullReadAt: r.full_read_at ?? null,
     error: r.error,
     fix: r.fix,
     calls: Number(r.calls),
