@@ -106,9 +106,9 @@ describe('the proposals "Ticket this" offers', () => {
     const cloud = { ...cards.items[6]!, id: 'cloud-jira:PAY-102', source: { ...cards.items[6]!.source, area: 'jira', connection: 'cloud-jira', deployment: 'cloud' } };
     expect(subTaskProposal('Rotate vault keys', cloud, 'card-payments')).toMatchObject({ command: 'jira issue create', input: { issueType: 'Subtask', parent: 'PAY-102', project: 'PAY' } });
     expect(subTaskProposal('Rotate vault keys', cards.items[6]!, 'card-payments')).toMatchObject({ command: 'jira issue create', input: { issueType: 'Sub-task' } });
-    const services = { ...settlement.items[4]!, id: 'ado-cloud:2302', source: { ...settlement.items[4]!.source, area: 'ado-cloud', connection: 'ado-cloud' } };
+    const services = { ...settlement.items[4]!, id: 'ado-services:2302', source: { ...settlement.items[4]!.source, connection: 'ado-services', deployment: 'cloud' } };
     const p = subTaskProposal('Add a header row', services, 'settlement');
-    expect(p).toMatchObject({ command: 'ado-cloud work-item create', input: { type: 'Task', title: 'Add a header row' } });
+    expect(p).toMatchObject({ command: 'ado work-item create', input: { type: 'Task', title: 'Add a header row' } });
     expect(p.input).not.toHaveProperty('parent');
     expect(p.note).toContain('takes no parent');
   });

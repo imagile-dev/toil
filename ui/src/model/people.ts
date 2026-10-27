@@ -79,12 +79,9 @@ export interface Identity {
 const identityKey = (area: string, id: string) => `${area}\u0000${lower(id)}`;
 const keyOf = (i: Identity) => identityKey(i.area, i.id);
 
-/** `ado-cloud` is an Azure DevOps: a person's `ado` identity applies to both unless the dossier names the variant. */
-const family = (area: string) => area.replace(/-cloud$/, '');
-
-/** The identity a person has in an area: the area's own entry, else its family's. */
+/** The identity a person has in an area: their entry for that area. */
 function idIn(person: PersonEntry, area: string): string | undefined {
-  return person.ids[area] ?? (family(area) !== area ? person.ids[family(area)] : undefined);
+  return person.ids[area];
 }
 
 /** Whether a person is this account: their identity for its area is the account's id or its email. */
@@ -324,7 +321,7 @@ export function people(input: { dossier: string; entries: PersonEntry[]; wipLimi
   const peopleCards = entries.map((e) => {
     const found = [...seen.values()].filter((i) => isPerson(e, i));
     // Ids the dossier gives that no data has shown yet still say who the card is about.
-    const named = Object.entries(e.ids).filter(([area, id]) => !found.some((f) => family(f.area) === family(area) && (lower(f.id) === lower(id) || lower(f.email) === lower(id)))).map(([area, id]): Identity => ({ area, id, name: null, email: null }));
+    const named = Object.entries(e.ids).filter(([area, id]) => !found.some((f) => f.area === area && (lower(f.id) === lower(id) || lower(f.email) === lower(id)))).map(([area, id]): Identity => ({ area, id, name: null, email: null }));
     const who: Who = { key: personKey(e.name), name: e.name, kind: e.kind, mapped: true, identities: [...found, ...named], email: e.email };
     return cardFor(who, (i) => isPerson(e, i), e.kind === 'agent' ? e : null, data);
   });

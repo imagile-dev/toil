@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { adoArea } from './area.js';
+import { adoArea } from '../area.js';
 import { API, API_CONNECTION, adoAll, ado, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, where, type AdoContext } from './client.js';
 
 /**

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { adoCloudArea } from './area.js';
+import { adoArea } from '../area.js';
 import { IN_PROJECT, IN_REPO, adoc, connectionData, cursorField, enc, exampleCursor, headerPages, limitField, pageOf, pageOptions, projectPath, repoPath } from './client.js';
 
 /**
@@ -12,8 +12,8 @@ const at = { project: 'Imagile' };
 // Both group inputs, set on one example of each command so the parity suite covers them; a command that doesn't use one ignores it.
 const inRepo = { ...at, repo: 'imagile-api' };
 
-export const whoamiCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'whoami'],
+export const whoamiCommand = adoArea.command({
+  path: ['ado', 'whoami'],
   description: 'Show the authenticated user',
   toolDescription: "Returns the organization's connectionData for the token: the authenticated user (id, display name), the instance and the deployment. authenticatedUser.id is the identity id the vote commands use.",
   input: z.object({}),
@@ -22,8 +22,8 @@ export const whoamiCommand = adoCloudArea.command({
   run: (_input, ctx) => connectionData(ctx),
 });
 
-export const projectListCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'project', 'list'],
+export const projectListCommand = adoArea.command({
+  path: ['ado', 'project', 'list'],
   description: 'List projects in the organization',
   toolDescription: 'Lists every project in the organization (id, name, state, visibility), following continuation tokens to the end. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.',
   input: z.object({ limit: limitField('projects'), cursor: cursorField }),
@@ -33,19 +33,19 @@ export const projectListCommand = adoCloudArea.command({
   run: (input, ctx) => headerPages(ctx, '/_apis/projects', {}, 'Azure DevOps projects', pageOf(input)),
 });
 
-export const projectGetCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'project', 'get'],
+export const projectGetCommand = adoArea.command({
+  path: ['ado', 'project', 'get'],
   description: 'Get a project by name',
   toolDescription: 'Returns one project in the organization by name or id.',
   input: z.object({ name: z.string().min(1).describe('Project name or id') }),
   writes: false,
-  args: [{ name: 'name', field: 'name', description: 'Project name or id' }],
+  args: [{ name: 'name', field: 'name', description: 'Project name' }],
   examples: [{ name: 'Imagile' }, { ...inRepo, name: 'Imagile' }],
   run: (input, ctx) => adoc(ctx, `/_apis/projects/${enc(input.name)}`),
 });
 
-export const repoListCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'list'],
+export const repoListCommand = adoArea.command({
+  path: ['ado', 'repo', 'list'],
   description: 'List git repositories in the project',
   toolDescription: 'Lists the git repositories in the project (id, name, default branch, urls). The API returns them in one answer. Needs no repo.',
   input: z.object({}),
@@ -55,8 +55,8 @@ export const repoListCommand = adoCloudArea.command({
   run: async (_input, ctx) => (await adoc<{ value?: unknown[] }>(ctx, `${projectPath(ctx)}/_apis/git/repositories`)).value ?? [],
 });
 
-export const repoGetCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'repo', 'get'],
+export const repoGetCommand = adoArea.command({
+  path: ['ado', 'repo', 'get'],
   description: 'Get a repository',
   toolDescription: 'Returns the repository (id, name, default branch, project, urls).',
   input: z.object({}),

@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import type { Connection } from '../../core/area.js';
-import type { CommandContext } from '../../core/context.js';
-import { apiRequest, apiResponse, type ApiRequest } from '../../core/api.js';
-import { ToilError } from '../../core/errors.js';
-import { paginate } from '../../core/paginate.js';
-import { repointUrl } from '../../core/rest.js';
-import { serverTooOld } from '../../core/supported.js';
-import { adoArea, adoSupported } from './area.js';
+import type { Connection } from '../../../core/area.js';
+import type { CommandContext } from '../../../core/context.js';
+import { apiRequest, apiResponse, type ApiRequest } from '../../../core/api.js';
+import { ToilError } from '../../../core/errors.js';
+import { paginate } from '../../../core/paginate.js';
+import { repointUrl } from '../../../core/rest.js';
+import { serverTooOld } from '../../../core/supported.js';
+import { adoArea, adoSupported } from '../area.js';
 
 /**
  * Every request toil sends to Azure DevOps Server, as the canonical

@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { runCli } from '../../../test/harness/cli.js';
-import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
-import { ADO, ATTACHMENT, COLL, config as fixtureConfig, files as fixtureFiles, ME, PROJ, pr, prCommit, prStatus, REPO, routes, SHA, threads, workItem, build } from '../../../test/fixtures/ado.fixture.js';
-import { commandName, type AnyCommand } from '../../core/command.js';
-import type { Context } from '../../core/context.js';
-import { execute } from '../../core/run.js';
-import { commands } from './index.js';
+import { runCli } from '../../../../test/harness/cli.js';
+import { testContext } from '../../../../test/harness/context.js';
+import type { Route } from '../../../../test/harness/fake-fetch.js';
+import { ADO, ATTACHMENT, COLL, config as fixtureConfig, files as fixtureFiles, ME, PROJ, pr, prCommit, prStatus, REPO, routes, SHA, threads, workItem, build } from '../../../../test/fixtures/ado.fixture.js';
+import { commandName, type AnyCommand } from '../../../core/command.js';
+import type { Context } from '../../../core/context.js';
+import { execute } from '../../../core/run.js';
+import { commands } from '../index.js';
 
 /**
  * The exact requests toil sends to Azure DevOps Server and what it makes of

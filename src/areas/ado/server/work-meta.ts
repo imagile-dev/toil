@@ -1,12 +1,12 @@
 import { basename } from 'node:path';
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { allowWriteField } from '../../core/run.js';
-import { adoArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { allowWriteField } from '../../../core/run.js';
+import { adoArea } from '../area.js';
 import { API, PATCH, ado, adoDownload, adoUpload, enc, projectPath, toInt, where, type AdoContext } from './client.js';
 import { ADO_WORK_INPUT_FILE_EXAMPLE, ADO_WORK_INPUT_FILE_SCHEMA } from './fields.js';
 import { AT, getWorkItem, idArg, idInput, intText } from './work.js';
-import { downloadFileName } from '../../core/files.js';
+import { downloadFileName } from '../../../core/files.js';
 
 /**
  * Around the work items: their attachments, the area and iteration trees,

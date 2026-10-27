@@ -7,10 +7,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-epic-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-epic-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "EPIC",
@@ -101,10 +102,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-feature-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-feature-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "OTHER",
@@ -195,10 +197,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-feature-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-feature-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "OTHER",
@@ -283,10 +286,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-pbi-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-pbi-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -395,10 +399,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-pbi-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-pbi-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -492,10 +497,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-pbi-3",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-pbi-3",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -584,10 +590,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-pbi-4",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-pbi-4",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -674,10 +681,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-pbi-5",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-pbi-5",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -791,10 +799,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-task-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-task-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "TASK",
@@ -889,10 +898,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-task-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-task-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "TASK",
@@ -978,10 +988,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-task-3",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-task-3",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "TASK",
@@ -1067,10 +1078,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-bug-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-bug-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",
@@ -1170,10 +1182,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-bug-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-bug-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",
@@ -1280,10 +1293,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-bug-3",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-bug-3",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",
@@ -1367,10 +1381,11 @@
       "owi": "0.1",
       "id": "toil-seed:cp-bug-4",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cp-bug-4",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",
@@ -1460,10 +1475,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-epic-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-epic-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "EPIC",
@@ -1554,10 +1570,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-feature-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-feature-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "OTHER",
@@ -1648,10 +1665,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-feature-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-feature-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "OTHER",
@@ -1741,10 +1759,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-pbi-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-pbi-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -1850,10 +1869,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-pbi-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-pbi-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -1958,10 +1978,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-pbi-3",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-pbi-3",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -2067,10 +2088,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-pbi-4",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-pbi-4",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -2167,10 +2189,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-pbi-5",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-pbi-5",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -2282,10 +2305,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-task-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-task-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "TASK",
@@ -2371,10 +2395,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-task-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-task-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "TASK",
@@ -2468,10 +2493,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-task-3",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-task-3",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "TASK",
@@ -2557,10 +2583,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-bug-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-bug-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",
@@ -2675,10 +2702,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-bug-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-bug-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",
@@ -2777,10 +2805,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-bug-3",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-bug-3",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",
@@ -2871,10 +2900,11 @@
       "owi": "0.1",
       "id": "toil-seed:st-bug-4",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "st-bug-4",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",
@@ -2988,10 +3018,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-epic-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-epic-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "EPIC",
@@ -3082,10 +3113,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-feature-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-feature-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "OTHER",
@@ -3168,10 +3200,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-feature-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-feature-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "OTHER",
@@ -3264,10 +3297,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-pbi-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-pbi-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -3356,10 +3390,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-pbi-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-pbi-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -3455,10 +3490,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-pbi-3",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-pbi-3",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -3550,10 +3586,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-pbi-4",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-pbi-4",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -3663,10 +3700,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-pbi-5",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-pbi-5",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "STORY",
@@ -3778,10 +3816,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-task-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-task-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "TASK",
@@ -3863,10 +3902,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-task-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-task-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "TASK",
@@ -3952,10 +3992,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-task-3",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-task-3",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "TASK",
@@ -4041,10 +4082,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-bug-1",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-bug-1",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",
@@ -4160,10 +4202,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-bug-2",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-bug-2",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",
@@ -4277,10 +4320,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-bug-3",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-bug-3",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",
@@ -4368,10 +4412,11 @@
       "owi": "0.1",
       "id": "toil-seed:cw-bug-4",
       "source": {
-        "area": "ado-cloud",
+        "area": "ado",
         "connection": "toil-seed",
         "key": "cw-bug-4",
-        "command": "ado-seed generate"
+        "command": "ado-seed generate",
+        "deployment": "cloud"
       },
       "url": null,
       "type": "BUG",

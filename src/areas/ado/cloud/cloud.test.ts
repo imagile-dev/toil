@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
-import { change, iteration, ME, ORG_URL, REPO, SHA, config as fixtureConfig, files as fixtureFiles, pr, prCommit, prStatus, routes as fixtureRoutes, threads, workItem, BOARD, DEFAULT_TEAM, backlogItems, backlogs, board, boards, bugStates, sprintItems, teamIterations } from '../../../test/fixtures/ado-cloud.fixture.js';
-import { commandName, type AnyCommand } from '../../core/command.js';
-import { execute } from '../../core/run.js';
+import { testContext } from '../../../../test/harness/context.js';
+import type { Route } from '../../../../test/harness/fake-fetch.js';
+import { change, iteration, ME, ORG_URL, REPO, SHA, config as fixtureConfig, files as fixtureFiles, pr, prCommit, prStatus, routes as fixtureRoutes, threads, workItem, BOARD, DEFAULT_TEAM, backlogItems, backlogs, board, boards, bugStates, sprintItems, teamIterations } from '../../../../test/fixtures/ado-cloud-data.js';
+import { commandName, type AnyCommand } from '../../../core/command.js';
+import { execute } from '../../../core/run.js';
 import { referenceName } from './fields.js';
-import { commands } from './index.js';
+import { commands } from '../index.js';
 
 /**
  * Request building and response reshaping for Azure DevOps Services,
@@ -26,8 +26,8 @@ const inRepo = { ...at, repo: 'imagile-api' };
 const write = { allowWrite: true };
 
 const cmd = (name: string): AnyCommand => {
-  const found = commands.find((d) => commandName(d) === `ado-cloud ${name}`);
-  if (!found) throw new Error(`no ado-cloud ${name}`);
+  const found = commands.find((d) => commandName(d) === `ado ${name}`);
+  if (!found) throw new Error(`no ado ${name}`);
   return found;
 };
 
@@ -51,7 +51,7 @@ describe('credentials and the organization URL', () => {
     expect(envelope.error).toMatchObject({ code: 'AUTH', message: expect.stringContaining('TF400813') });
     expect(envelope.error?.fix).toContain('organization-scoped personal access token');
     expect(envelope.error?.fix).toContain('stop working on December 1, 2026');
-    expect(envelope.error?.fix).toContain('TOIL_ADO_CLOUD_PAT');
+    expect(envelope.error?.fix).toContain('TOIL_ADO_PAT');
   });
 
   it("a 404 is NOT_FOUND and a 400 keeps its HTTP code, each with Azure DevOps's own message", async () => {
@@ -63,7 +63,7 @@ describe('credentials and the organization URL', () => {
 
   it('an organization URL without exactly one organization is CONFIG_INVALID before anything is sent, on both hosts', async () => {
     for (const baseUrl of ['https://dev.azure.com', 'https://dev.azure.com/imagile/Imagile', 'https://imagile.visualstudio.com/Imagile', 'https://imagile.visualstudio.com/DefaultCollection/Imagile']) {
-      const { envelope, calls } = await run('work-item get', { id: 42 }, [], { 'ado-cloud': { baseUrl, pat: 'test-pat' } });
+      const { envelope, calls } = await run('work-item get', { id: 42 }, [], { 'ado-cloud': { area: 'ado', deployment: 'cloud', baseUrl, pat: 'test-pat' } });
       expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', fix: expect.stringContaining('https://dev.azure.com/<organization>') });
       expect(calls).toHaveLength(0);
     }
@@ -73,14 +73,14 @@ describe('credentials and the organization URL', () => {
     for (const baseUrl of ['https://imagile.visualstudio.com', 'https://imagile.visualstudio.com/DefaultCollection', 'https://imagile.visualstudio.com/defaultcollection/']) {
       const prefix = baseUrl.replace(/\/$/, '');
       const routes: Route[] = [{ url: `${prefix}/_apis/wit/workitems/42?api-version=7.1&%24expand=all`, respond: { json: workItem(42) } }];
-      const { envelope } = await run('work-item get', { id: 42 }, routes, { 'ado-cloud': { baseUrl, pat: 'test-pat' } });
+      const { envelope } = await run('work-item get', { id: 42 }, routes, { 'ado-cloud': { area: 'ado', deployment: 'cloud', baseUrl, pat: 'test-pat' } });
       expect(envelope.ok, baseUrl).toBe(true);
     }
   });
 
   it("an organization URL with a trailing slash, as Azure Pipelines' System.CollectionUri has, is accepted", async () => {
     const routes: Route[] = [{ url: 'https://dev.azure.com/imagile/_apis/wit/workitems/42?api-version=7.1&%24expand=all', respond: { json: workItem(42) } }];
-    const { envelope } = await run('work-item get', { id: 42 }, routes, { 'ado-cloud': { baseUrl: 'https://dev.azure.com/imagile/', pat: 'test-pat' } });
+    const { envelope } = await run('work-item get', { id: 42 }, routes, { 'ado-cloud': { area: 'ado', deployment: 'cloud', baseUrl: 'https://dev.azure.com/imagile/', pat: 'test-pat' } });
     expect(envelope.ok).toBe(true);
   });
 
@@ -159,7 +159,7 @@ describe('work items', () => {
     expect((body(calls[0]!) as { ids: number[] }).ids).toHaveLength(200);
     expect(data).toMatchObject({ count: 200, missing: [404] });
     expect((data as { value: Array<{ id: number }> }).value[0]!.id).toBe(1);
-    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'ADO_CLOUD_WORK_ITEMS_MISSING' })]);
+    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'ADO_WORK_ITEMS_MISSING' })]);
   });
 
   it('get-many over 1,000 ids is refused before anything is sent', async () => {
@@ -353,7 +353,7 @@ describe('pull requests', () => {
     expect(envelope.error).toMatchObject({
       code: 'INVALID_INPUT',
       message: 'Pull request 42 has no source commit to complete yet.',
-      fix: 'Check data.mergeStatus with ado-cloud pr get, and retry once the server has merged the source branch.',
+      fix: 'Check data.mergeStatus with ado pr get, and retry once the server has merged the source branch.',
     });
     expect(calls.map((c) => c.method)).toEqual(['GET']);
   });
@@ -426,7 +426,7 @@ describe('work item type states', () => {
     const { calls, data, envelope } = await run('work-item states', { ...at, type: 'User Story' });
     expect(calls[0]!.url).toBe(`${P}/_apis/wit/workitemtypes/User%20Story/states?api-version=7.1`);
     expect(data).toEqual([]);
-    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'ADO_CLOUD_TYPE_UNKNOWN', message: expect.stringContaining('"User Story"') })]);
+    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'ADO_TYPE_UNKNOWN', message: expect.stringContaining('"User Story"') })]);
   });
 });
 
@@ -436,7 +436,7 @@ describe('team settings: sprints, backlogs and boards', () => {
 
   it("without --team, reads the project's default team first and puts its id in the path", async () => {
     const { calls, data, envelope } = await run('sprint list', at);
-    expect(envelope.meta.warnings).toEqual([{ code: 'ADO_CLOUD_DEFAULT_TEAM', message: `No team given, so this read the project's default team, "Imagile Team" (${DEFAULT_TEAM}). Pass --team to read another.` }]);
+    expect(envelope.meta.warnings).toEqual([{ code: 'ADO_DEFAULT_TEAM', message: `No team given, so this read the project's default team, "Imagile Team" (${DEFAULT_TEAM}). Pass --team to read another.` }]);
     expect(calls).toEqual([
       { method: 'GET', url: `${ORG_URL}/_apis/projects/Imagile?api-version=7.1`, headers: GET_HEADERS, body: undefined },
       { method: 'GET', url: `${T}/_apis/work/teamsettings/iterations?api-version=7.1`, headers: GET_HEADERS, body: undefined },

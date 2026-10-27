@@ -781,7 +781,9 @@ that area. A value on a connection resolves from, highest first:
 2. `TOIL_<AREA>_<KEY>`, for the area's default connection only
 3. A well-known CI-provided variable the area declares (`fallbacks`), for its default
    connection, only where the service's own tooling treats it as canonical
-   (`GITHUB_TOKEN`, `SYSTEM_ACCESSTOKEN`). Never invent one.
+   (`GITHUB_TOKEN`, `SYSTEM_ACCESSTOKEN`). Never invent one. Where one deployment of an area
+   shouldn't take it, the area says so (`fallbackWhen`): Azure Pipelines' job token fits Azure
+   DevOps Server, and an Azure DevOps Services default never reads it.
 4. The connection in `~/.toil/config.json`, or the file passed with `--config`. A
    secret there must be a `keychain:<ref>` reference to the OS credential store,
    read when the connection is resolved; a plaintext secret in a file is refused
@@ -822,7 +824,7 @@ contacts. That's why a dossier may be checked into a repository when config may 
 
 Env var names map onto areas through the registry, using the longest match, so
 `TOIL_FOO_BAR_TOKEN` is `foo-bar.token`, not `foo.barToken`. The
-names of an area that was folded into another (`TOIL_JIRA_CLOUD_*`, `TOIL_CONFLUENCE_CLOUD_*`, `TOIL_BITBUCKET_CLOUD_*`, `TOIL_CONN_<NAME>_AREA=jira-cloud`)
+names of an area that was folded into another (`TOIL_JIRA_CLOUD_*`, `TOIL_CONFLUENCE_CLOUD_*`, `TOIL_BITBUCKET_CLOUD_*`, `TOIL_ADO_CLOUD_*`, `TOIL_CONN_<NAME>_AREA=jira-cloud`)
 are refused with `CONFIG_INVALID` naming the new form (`TOIL_JIRA_*` with
 `TOIL_JIRA_DEPLOYMENT=cloud`), never mapped and never ignored (`src/core/renamed-areas.ts`). A `TOIL_*` name
 that matches no registered area is ignored, never guessed at, so a variable can't
@@ -836,8 +838,8 @@ is version 1. Every format change adds a step to `migrateConfig()` with a test, 
 old file always loads. A file from a newer toil is refused with an upgrade fix rather
 than half-read. Version 1 is a map of area to settings and reads as one connection
 per area, named after it and set as its default. Version 2 holds `connections` and
-`defaults`; using them needs `"version": 2`. Version 3 (#495) folds `jira-cloud` into `jira`, `confluence-cloud` into `confluence` and `bitbucket-cloud` into `bitbucket`:
-a connection with `"area": "jira-cloud"` reads as `"area": "jira", "deployment": "cloud"` (likewise confluence and bitbucket)
+`defaults`; using them needs `"version": 2`. Version 3 (#495) folds `jira-cloud` into `jira`, `confluence-cloud` into `confluence`, `bitbucket-cloud` into `bitbucket` and `ado-cloud` into `ado`:
+a connection with `"area": "jira-cloud"` reads as `"area": "jira", "deployment": "cloud"` (likewise confluence, bitbucket and ado)
 and `defaults.jira-cloud` folds into `defaults.jira`. The fold runs for every version and is idempotent, so a version 3 file that still names a folded area (written before that area was folded) folds too, with a `CONFIG_RENAMED_AREA` warning; an older file is migrated on load and
 rewritten as version 3 by the commands that save config. Standalone and area-local commands
 (`version`, `jira issue schema`) don't load config at all, so a broken or newer file can't stop a user finding out which
@@ -1092,8 +1094,8 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   - **What never gets its own issue:** individual commands or features inside an
     area. They're part of their area's issue, never sub-issues.
   - **Data Center/Cloud products** are one area with a `deployment` connection field,
-    so one issue (Jira, Confluence and Bitbucket are folded; `ado-cloud` is still a separate
-    area until #495's last slice); `data-center` and `cloud` label work that touches only one
+    so one issue (Jira, Confluence, Bitbucket and Azure DevOps are all folded, and no
+    `-cloud` area remains); `data-center` and `cloud` label work that touches only one
     deployment.
   - **Product labels, on every issue a person or agent files here:** `cli` for the
     published toil package (the CLI, the MCP server, `./api`, `skills/toil/`), `ui`

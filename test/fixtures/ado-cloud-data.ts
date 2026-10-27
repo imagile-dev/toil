@@ -1,10 +1,11 @@
 import type { RecordedRequest, Route } from '../harness/fake-fetch.js';
-import { defineFixture } from '../harness/fixtures.js';
 
 /**
- * Canned Azure DevOps Services responses for every request the ado-cloud
- * examples send, so the parity suite runs every command offline through both
- * front doors.
+ * Canned Azure DevOps Services responses for every request the Services
+ * examples of `ado` send, so the parity suite runs them offline through both
+ * front doors. Not a fixture of its own: Services is a deployment of the ado
+ * area, and ado.fixture.ts brings its connection and these routes in beside
+ * Server's.
  *
  * Provenance: most shapes here are invented from Microsoft's Azure DevOps
  * Services REST API 7.1 reference
@@ -20,14 +21,15 @@ import { defineFixture } from '../harness/fixtures.js';
  */
 
 export const ORG_URL = 'https://ado-cloud.imagile.dev/imagile';
-const HOST = 'https://ado-cloud.imagile.dev';
+export const HOST = 'https://ado-cloud.imagile.dev';
 export const ORG = '/imagile';
 export const PROJ = `${ORG}/Imagile`;
 export const REPO = `${PROJ}/_apis/git/repositories/imagile-api`;
 export const SHA = 'abc12345def67890abc12345def67890abc12345';
 export const ME = 'abc12345-0000-0000-0000-00000000000a';
 
-export const config = { 'ado-cloud': { baseUrl: ORG_URL, pat: 'test-pat', writes: true } };
+/** The Services connection, named `ado-cloud`: an ordinary ado connection with deployment cloud. */
+export const config = { 'ado-cloud': { area: 'ado', deployment: 'cloud', baseUrl: ORG_URL, pat: 'test-pat', writes: true } };
 
 /** An identity as Services returns one: an Entra (aad.) descriptor, the user's email as uniqueName, and links on vssps. */
 export const identity = (id: string, name: string) => ({
@@ -348,4 +350,3 @@ export const routes: Route[] = [
 
 export const files = { 'patch.json': '[{"op":"add","path":"/fields/System.Title","value":"From the passthrough"}]' };
 
-export const fixture = defineFixture({ area: 'ado-cloud', routes, config, files });

@@ -1,6 +1,6 @@
 /**
  * An Azure DevOps Services organization in memory, for the seed scripts and
- * toil's ado-cloud commands to run against with `fetch` stubbed: one project
+ * toil's ado commands (on a Services connection) to run against with `fetch` stubbed: one project
  * with three sprints, work items made from JSON Patch, a revision for every
  * change, relations with their reverse on the other end, WIQL that knows only
  * the two queries the seed and Toil UI send, and a recycle bin. Shapes follow

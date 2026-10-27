@@ -60,7 +60,7 @@ const common = (dossier: string, mode: AssignMode, now: string) => [
   '3. Cite every work item you mention by its OWI id in double square brackets, such as [[jira:PAY-101]], and every pull request by its change id, exactly as your tools returned it. The server checks every id against your tool results and flags any it never saw.',
   '4. Your tools only read. When the work calls for a change to the tracker, write it as a proposal for a person to apply, in a fenced block like this, one block per change:',
   '```proposal',
-  '{"item": "<owi id>", "title": "<one line>", "reason": "<why, citing [[ids]]>", "command": "<the toil write command, such as ado-cloud work-item update, or null if toil has none>", "input": {"<field>": "<value>"}, "note": "<anything to check first, or null>"}',
+  '{"item": "<owi id>", "title": "<one line>", "reason": "<why, citing [[ids]]>", "command": "<the toil write command, such as ado work-item update, or null if toil has none>", "input": {"<field>": "<value>"}, "note": "<anything to check first, or null>"}',
   '```',
   "   The input is the toil command's MCP input, without the dossier and without allowWrite: call proposal_fields with the command first and use only its fields. Never say a change was made: it is only proposed.",
   '5. Anything you need a person to answer goes on a line of its own that starts QUESTION: followed by the question.',

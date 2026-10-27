@@ -1,4 +1,4 @@
-import { ToilError } from '../../core/errors.js';
+import { ToilError } from '../../../core/errors.js';
 
 /**
  * Work item fields as a caller names them: `--field name=value`, resolved

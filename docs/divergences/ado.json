@@ -142,6 +142,16 @@
       "why": "Windows reads each of those as a different file from the one named: a device, a stream inside an existing file, or the same name without its dots. The no-overwrite check has to see the file a write really lands on, and a name must work the same way on every platform.",
       "principle": "2",
       "class": "security"
+    },
+    {
+      "allows": [
+        "ado pr list --creator",
+        "ado pr list --reviewer"
+      ],
+      "old": "ado pr list spelling the flags --creator <alias> and --reviewer <alias>",
+      "toil": "The flags are --creator <id> and --reviewer <id>, and their help says the value is an identity id (a GUID, from ado whoami). Server sends it as the identity id filter, exactly as recorded; the value was never resolved from an alias",
+      "why": "Azure DevOps Server and Azure DevOps Services are one area now (#495), so one idea has one flag. The recorded placeholder named a kind of value the command never looked up, and Services takes the identity id the same way.",
+      "principle": "10"
     }
   ]
 }

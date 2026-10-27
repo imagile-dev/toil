@@ -110,17 +110,18 @@ describe('every proposal the board, the scripted agent and the pull request view
   for (const name of NAMES) {
     const { items } = await loadDossier(fixtureExecute().execute, name);
     const open = items.filter((i) => i.statusCategory !== 'DONE');
-    const asArea = (area: string) => open.filter((i) => /^(jira|ado)$/.test(i.source.area)).map((i) => ({ ...i, id: `${area}:${i.source.key}`, source: { ...i.source, area, connection: area } }));
+    // Azure DevOps on a Services connection is still area ado: the item's source says the deployment.
+    const onServices = open.filter((i) => i.source.area === 'ado').map((i) => ({ ...i, id: `services-ado:${i.source.key}`, source: { ...i.source, connection: 'services-ado', deployment: 'cloud' } }));
     // Jira on a Cloud connection is still area jira: the item's source says the deployment.
     const onCloud = open.filter((i) => i.source.area === 'jira').map((i) => ({ ...i, id: `cloud-jira:${i.source.key}`, source: { ...i.source, connection: 'cloud-jira', deployment: 'cloud' } }));
-    for (const item of [...open, ...onCloud, ...asArea('ado-cloud')]) proposals.push(subTaskProposal('Tokenise card numbers at the edge', item, name));
+    for (const item of [...open, ...onCloud, ...onServices]) proposals.push(subTaskProposal('Tokenise card numbers at the edge', item, name));
     proposals.push(newTicketProposal('Tokenise card numbers at the edge', items, name, null));
-    for (const list of [onCloud, asArea('ado-cloud')]) proposals.push(newTicketProposal('Tokenise card numbers at the edge', list, name, null));
+    for (const list of [onCloud, onServices]) proposals.push(newTicketProposal('Tokenise card numbers at the edge', list, name, null));
   }
   const withCommand = proposals.filter((p) => p?.command);
 
   it('includes some of each kind', () => {
-    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update', 'github pr add-reviewers', 'bitbucket pr add-reviewer', 'bitbucket pr update', 'confluence page create', 'github issue create', 'jira issue create', 'ado work-item create', 'ado-cloud work-item create']));
+    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update', 'github pr add-reviewers', 'bitbucket pr add-reviewer', 'bitbucket pr update', 'confluence page create', 'github issue create', 'jira issue create', 'ado work-item create']));
   });
 
   it.each(withCommand.map((p) => [p!.id, p!] as const))('%s names a write command, with input its schema accepts', (_id, p) => {

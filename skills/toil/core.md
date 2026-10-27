@@ -10,7 +10,7 @@ when a call needs more than a command's own flags.
 For an AI term you meet here or in Toil UI (token, context window, harness, MCP),
 Context Overflow's glossary has a page each: <https://kolatts.github.io/context-overflow/glossary>.
 
-The jira (Data Center and Cloud), ado and ado-cloud commands are `toil <area> <resource> <action>
+The jira and ado commands, whichever deployment a connection is, are `toil <area> <resource> <action>
 [ids...]`: ids are positional, everything else is a flag, and `toil <area> <resource>
 --help` lists what a resource can do (`toil jira issue --help`).
 
@@ -39,8 +39,7 @@ command's own paging flag, which its reference names.
 
 ## Moving work items by intent
 
-`jira issue transition`, `ado work-item transition` and
-`ado-cloud work-item transition` take `--to <intent>` (`to` over MCP): `start`,
+`jira issue transition` and `ado work-item transition` take `--to <intent>` (`to` over MCP): `start`,
 `review`, `done`, `reopen`, or a status name. toil resolves it against the moves that
 one item offers right now, by its own workflow, because a workflow belongs to the issue
 or work item type: a Story may go through In Review while a Task goes straight to Done.

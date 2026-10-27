@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { allowWriteField } from '../../core/run.js';
-import { adoMoves, intentOf, oneOfTransition, resolveTransition, type AdoState, type TransitionReport } from '../../core/transition-intent.js';
-import { adoCloudArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { allowWriteField } from '../../../core/run.js';
+import { adoMoves, intentOf, oneOfTransition, resolveTransition, type AdoState, type TransitionReport } from '../../../core/transition-intent.js';
+import { adoArea } from '../area.js';
 import { API_COMMENTS, IN_PROJECT, PATCH, adoc, bodyTokenPages, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, skipPages } from './client.js';
 import { fieldPatch, parseFieldArgs, type JsonPatchOp } from './fields.js';
 import { andWhere, checkFlat, wiqlInstant } from './wiql.js';
@@ -33,8 +33,8 @@ const workItemPath = (n: number) => `/_apis/wit/workitems/${enc(n)}`;
 /** What resolving `--to` needs to know about a work item: its type, state and project. */
 const STATE_FIELDS = 'System.WorkItemType,System.State,System.TeamProject';
 
-export const workGetCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work-item', 'get'],
+export const workGetCommand = adoArea.command({
+  path: ['ado', 'work-item', 'get'],
   description: 'Get a work item by ID',
   toolDescription: 'Returns one work item by id with every field, its relations and links ($expand=all). Needs no project.',
   input: z.object({ id }),
@@ -47,8 +47,8 @@ export const workGetCommand = adoCloudArea.command({
 const fieldInput = z.array(z.string()).optional().describe('Field as name=value, by reference name or alias (repeatable)');
 const fieldOption = { flags: '--field <name=value>', field: 'field', description: 'Field as name=value, by reference name or alias (repeatable)' };
 
-export const workCreateCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work-item', 'create'],
+export const workCreateCommand = adoArea.command({
+  path: ['ado', 'work-item', 'create'],
   description: 'Create a work item',
   toolDescription:
     'Creates a work item of a type in the project and returns it as created. Title, description, assignee and priority have flags; any other field goes in field as name=value, by reference name (Microsoft.VSTS.Scheduling.StoryPoints) or alias (storypoints).',
@@ -88,8 +88,8 @@ export const workCreateCommand = adoCloudArea.command({
   },
 });
 
-export const workUpdateCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work-item', 'update'],
+export const workUpdateCommand = adoArea.command({
+  path: ['ado', 'work-item', 'update'],
   description: 'Update work item fields',
   toolDescription:
     'Sets fields on a work item (field as name=value, by reference name or alias: state=Active, Microsoft.VSTS.Scheduling.StoryPoints=5) in one JSON Patch and returns the updated item. With rev, the change is refused if the item has moved past that revision. Needs no project.',
@@ -114,13 +114,13 @@ export const workUpdateCommand = adoCloudArea.command({
 });
 
 /** What a transition's errors name: the exact flag, and where a dossier pins an intent for a type. */
-const TRANSITION_HELP = { explicit: '--state <state>', pinKey: 'ado-cloud.transitions' };
+const TRANSITION_HELP = { explicit: '--state <state>', pinKey: 'ado.transitions' };
 
-export const workTransitionCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work-item', 'transition'],
+export const workTransitionCommand = adoArea.command({
+  path: ['ado', 'work-item', 'transition'],
   description: 'Set the state of a work item',
   toolDescription:
-    "Sets System.State on a work item and returns it. Give state with an exact state, or to with an intent (start, review, done, reopen) or a state name, and toil resolves it against the states this item's own type has: a pin in the dossier first, then an exact state name, then the intent's state category (start InProgress, review Resolved, done Completed, reopen Proposed), then a single state named for it. No match, or more than one, is refused with the states the type does have; meta.transition says what it resolved to. Needs no project. ado_cloud_work_item_states lists the states a type has.",
+    "Sets System.State on a work item and returns it. Give state with an exact state, or to with an intent (start, review, done, reopen) or a state name, and toil resolves it against the states this item's own type has: a pin in the dossier first, then an exact state name, then the intent's state category (start InProgress, review Resolved, done Completed, reopen Proposed), then a single state named for it. No match, or more than one, is refused with the states the type does have; meta.transition says what it resolved to. Needs no project. ado_work_item_states lists the states a type has.",
   input: z.object({
     id,
     state: z.string().min(1).optional().describe('New state (e.g. Active, Resolved, Closed)'),
@@ -169,11 +169,11 @@ interface WiqlResult {
   [key: string]: unknown;
 }
 
-export const workSearchCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work-item', 'search'],
+export const workSearchCommand = adoArea.command({
+  path: ['ado', 'work-item', 'search'],
   description: 'Run a WIQL query (consider --output-file for large results)',
   toolDescription:
-    "Runs a WIQL query in the project and returns the server's answer: the matching work item ids and urls (workItems), not their fields. Fetch fields with ado_cloud_work_item_get_many. updatedSince (an ISO 8601 date or zoned date-time) ANDs [System.ChangedDate] >= it onto a flat query and turns on time precision for the whole query, so = on any date field then matches one exact instant: write date conditions with >= and < instead. With limit, workItems holds at most that many; pass meta.page.nextCursor as cursor for the next page, which runs the query again.",
+    "Runs a WIQL query in the project and returns the server's answer: the matching work item ids and urls (workItems), not their fields. Fetch fields with ado_work_item_get_many. updatedSince (an ISO 8601 date or zoned date-time) ANDs [System.ChangedDate] >= it onto a flat query and turns on time precision for the whole query, so = on any date field then matches one exact instant: write date conditions with >= and < instead. With limit, workItems holds at most that many; pass meta.page.nextCursor as cursor for the next page, which runs the query again.",
   input: z.object({
     wiql: z.string().min(1).describe('WIQL query string'),
     updatedSince: z.string().optional().describe(UPDATED_SINCE),
@@ -227,8 +227,8 @@ export const workSearchCommand = adoCloudArea.command({
 
 const REVISIONS_PAGE = 100;
 
-export const workRevisionsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work-item', 'history'],
+export const workRevisionsCommand = adoArea.command({
+  path: ['ado', 'work-item', 'history'],
   description: 'List the revisions of a work item, oldest first',
   toolDescription:
     'Lists every revision of a work item, oldest first: each is the whole work item as it stood after that change (id, rev, fields, url), so comparing neighbours gives the history of states, assignees and other fields. Needs no project. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.',
@@ -245,10 +245,10 @@ export const BATCH_SIZE = 200;
 /** The most ids one get-many call takes: five requests, then a bound rather than a loop. */
 export const BATCH_MAX = 1000;
 
-export const workGetBatchCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work-item', 'get-many'],
+export const workGetBatchCommand = adoArea.command({
+  path: ['ado', 'work-item', 'get-many'],
   description: 'Get several work items by ID in one call',
-  toolDescription: `Returns several work items by id through the batch endpoint, ${BATCH_SIZE} per request, at most ${BATCH_MAX} ids: { count, value, missing }. value holds the items found, in the order asked, with every field and relation unless fields names the ones to return; missing lists each id that doesn't exist or the token can't see, with an ADO_CLOUD_WORK_ITEMS_MISSING warning. Needs no project.`,
+  toolDescription: `Returns several work items by id through the batch endpoint, ${BATCH_SIZE} per request, at most ${BATCH_MAX} ids: { count, value, missing }. value holds the items found, in the order asked, with every field and relation unless fields names the ones to return; missing lists each id that doesn't exist or the token can't see, with an ADO_WORK_ITEMS_MISSING warning. Needs no project.`,
   input: z.object({
     id: z.array(z.number().int().positive()).min(1).describe('Work item IDs'),
     fields: z.string().optional().describe('Comma-separated field reference names to return (default: every field, with relations)'),
@@ -276,7 +276,7 @@ export const workGetBatchCommand = adoCloudArea.command({
     }
     const value = ids.filter((n) => found.has(n)).map((n) => found.get(n)!);
     const missing = ids.filter((n) => !found.has(n));
-    if (missing.length > 0) ctx.warn({ code: 'ADO_CLOUD_WORK_ITEMS_MISSING', message: `No work item with id ${missing.join(', ')}, or the token can't see ${missing.length === 1 ? 'it' : 'them'}.` });
+    if (missing.length > 0) ctx.warn({ code: 'ADO_WORK_ITEMS_MISSING', message: `No work item with id ${missing.join(', ')}, or the token can't see ${missing.length === 1 ? 'it' : 'them'}.` });
     return { count: value.length, value, missing };
   },
 });
@@ -284,8 +284,8 @@ export const workGetBatchCommand = adoCloudArea.command({
 /** Comments per request: the page size toil asks for; the server may send fewer and a continuation token. */
 const COMMENTS_PAGE = 200;
 
-export const workListCommentsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work-item', 'comments'],
+export const workListCommentsCommand = adoArea.command({
+  path: ['ado', 'work-item', 'comments'],
   description: 'List comments on a work item',
   toolDescription:
     "Lists every comment on a work item in the server's order (newest first in Microsoft's examples): id, text, createdBy, createdDate, modifiedDate, following continuation tokens to the end. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.",
@@ -306,8 +306,8 @@ export const workListCommentsCommand = adoCloudArea.command({
     ),
 });
 
-export const workAddCommentCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work-item', 'comment'],
+export const workAddCommentCommand = adoArea.command({
+  path: ['ado', 'work-item', 'comment'],
   description: 'Add a comment to a work item',
   toolDescription: 'Adds a comment (HTML or plain text) to a work item and returns it.',
   input: z.object({ id, body: z.string().min(1).describe('Comment text'), ...allowWriteField }),
@@ -321,8 +321,8 @@ export const workAddCommentCommand = adoCloudArea.command({
 
 const DEPTH = 'Depth of the iteration tree to retrieve (default: 10)';
 
-export const workListIterationsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work-item', 'iterations'],
+export const workListIterationsCommand = adoArea.command({
+  path: ['ado', 'work-item', 'iterations'],
   description: 'List the iteration tree for the project, with start and finish dates',
   toolDescription: "Returns the project's iteration tree (classification nodes) with start and finish dates, to the given depth (10 by default).",
   input: z.object({ depth: z.number().int().min(0).optional().describe(DEPTH) }),
@@ -333,11 +333,11 @@ export const workListIterationsCommand = adoCloudArea.command({
   run: (input, ctx) => adoc(ctx, `${projectPath(ctx)}/_apis/wit/classificationnodes/iterations`, { query: { $depth: input.depth ?? 10 } }),
 });
 
-export const workListStatesCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'work-item', 'states'],
+export const workListStatesCommand = adoArea.command({
+  path: ['ado', 'work-item', 'states'],
   description: 'List valid states for a work item type',
   toolDescription:
-    "Lists the states a work item type has in the project's process (name, color, category), in workflow order. category (Proposed, InProgress, Resolved, Completed, Removed) is how a custom state is classified. A type the project doesn't have returns no states, with an ADO_CLOUD_TYPE_UNKNOWN warning.",
+    "Lists the states a work item type has in the project's process (name, color, category), in workflow order. category (Proposed, InProgress, Resolved, Completed, Removed) is how a custom state is classified. A type the project doesn't have returns no states, with an ADO_TYPE_UNKNOWN warning.",
   input: z.object({ type: z.string().min(1).describe('Work item type name (e.g. Bug)') }),
   writes: false,
   context: IN_PROJECT,
@@ -346,7 +346,7 @@ export const workListStatesCommand = adoCloudArea.command({
   run: async (input, ctx) => {
     const states = (await adoc<{ value?: unknown[] }>(ctx, `${projectPath(ctx)}/_apis/wit/workitemtypes/${enc(input.type)}/states`)).value ?? [];
     // The server answers an unknown type with an empty list rather than a 404, so say so.
-    if (states.length === 0) ctx.warn({ code: 'ADO_CLOUD_TYPE_UNKNOWN', message: `Project "${ctx.context.project}" has no states for work item type "${input.type}", which usually means it has no such type. The project's types are at GET <project>/_apis/wit/workitemtypes (ado-cloud api).` });
+    if (states.length === 0) ctx.warn({ code: 'ADO_TYPE_UNKNOWN', message: `Project "${ctx.context.project}" has no states for work item type "${input.type}", which usually means it has no such type. The project's types are at GET <project>/_apis/wit/workitemtypes (ado api).` });
     return states;
   },
 });

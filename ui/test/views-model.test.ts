@@ -223,8 +223,8 @@ describe('the board', () => {
     expect(readLine(p.hint!, 'posix').line).toBe("toil ado work-item states --dossier 'settlement' --type '$(rm -rf ~) `id` it'\\''s'");
     expect(readLine(p.hint!, 'powershell').line).toBe("toil ado work-item states --dossier 'settlement' --type '$(rm -rf ~) `id` it''s'");
 
-    const cloud = item({ id: 'ado-board:9', source: { area: 'ado-cloud', connection: 'ado-board', key: '9', command: 'ado-cloud work-item get-many' }, typeName: 'Bug' });
-    expect(readLine(proposeMove(cloud, 'DONE', [cloud], 'ado-board')!.hint!, 'posix').line).toBe("toil ado-cloud work-item states --dossier 'ado-board' --type 'Bug'");
+    const cloud = item({ id: 'ado-board:9', source: { area: 'ado', connection: 'ado-board', key: '9', command: 'ado work-item get-many', deployment: 'cloud' }, typeName: 'Bug' });
+    expect(readLine(proposeMove(cloud, 'DONE', [cloud], 'ado-board')!.hint!, 'posix').line).toBe("toil ado work-item states --dossier 'ado-board' --type 'Bug'");
   });
 });
 

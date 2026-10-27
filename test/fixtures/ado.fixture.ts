@@ -1,5 +1,6 @@
 import type { RecordedRequest, Route } from '../harness/fake-fetch.js';
 import { defineFixture } from '../harness/fixtures.js';
+import * as cloud from './ado-cloud-data.js';
 
 /**
  * Canned Azure DevOps Server responses for every request the ado examples
@@ -303,4 +304,20 @@ export const files = {
  */
 export const dossier = { name: 'payments', ado: { collection: { 'imagile-api': 'DefaultCollection' }, project: { 'imagile-api': 'Imagile' }, repo: { 'imagile-api': 'imagile-api' } } };
 
-export const fixture = defineFixture({ area: 'ado', routes, config, files, dossier });
+
+/**
+ * Both deployments, side by side: Server's connection (`ado`, the area's
+ * default) and Services' (`ado-cloud`, deployment cloud), each with the routes
+ * and files its examples read. Every route is pinned to its own origin, so the
+ * two sets of paths can't answer for each other.
+ */
+const pinned = (list: Route[], origin: string): Route[] => list.map((r) => (r.path !== undefined && r.origin === undefined ? { ...r, origin } : r));
+
+export const fixture = defineFixture({
+  area: 'ado',
+  routes: [...pinned(routes, ADO), ...pinned(cloud.routes, cloud.HOST)],
+  config: { ...config, ...cloud.config },
+  deployments: { server: 'ado', cloud: 'ado-cloud' },
+  files: { ...files, ...cloud.files },
+  dossier,
+});

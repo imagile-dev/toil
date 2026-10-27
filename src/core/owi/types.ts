@@ -32,15 +32,13 @@ const BITBUCKET: OwiSource = { family: 'bitbucket', items: [], history: [], cont
 
 /**
  * The areas toil maps to OWI. An area that sends one of these shapes is one
- * line here: `jira` serves Data Center and Cloud from one mapper, `bitbucket`
- * from two (its connection's deployment picks, since their shapes differ in
- * almost every field), and the variants that are still areas of their own
- * (`ado-cloud`) share their family's.
+ * line here: `jira` and `ado` serve both their deployments from one mapper, and
+ * `bitbucket` has one per deployment (its connection's deployment picks, since
+ * their shapes differ in almost every field).
  */
 export const OWI_SOURCES: Record<string, OwiSource> = {
   jira: JIRA,
   ado: ADO,
-  'ado-cloud': ADO,
   github: GITHUB,
   bitbucket: BITBUCKET,
 };

@@ -14,8 +14,8 @@
 // again here before acting, so an item someone else made that happens to
 // match the query is still refused.
 //
-// The organization URL and the token come from TOIL_ADO_CLOUD_BASE_URL and
-// TOIL_ADO_CLOUD_PAT, the variables toil itself reads; the project is always
+// The organization URL and the token come from TOIL_ADO_BASE_URL and
+// TOIL_ADO_PAT, the variables toil itself reads; the project is always
 // named on the command line. Nothing here writes them anywhere. Repo tooling
 // only: nothing here ships. Two ways to say "this one is ours", because the
 // form for the first one needed a licence.
@@ -37,11 +37,11 @@ export class SeedError extends Error {
 
 /** The connection, from the env toil reads, checked before anything is sent. */
 export function connectionFromEnv(env = process.env) {
-  const baseUrl = env.TOIL_ADO_CLOUD_BASE_URL?.replace(/\/+$/, '');
-  const pat = env.TOIL_ADO_CLOUD_PAT;
-  if (!baseUrl || !pat) throw new SeedError('TOIL_ADO_CLOUD_BASE_URL and TOIL_ADO_CLOUD_PAT must both be set.', 'Set them to the organization URL (https://dev.azure.com/<organization>) and an organization-scoped token with Work Items (Read & write).');
+  const baseUrl = env.TOIL_ADO_BASE_URL?.replace(/\/+$/, '');
+  const pat = env.TOIL_ADO_PAT;
+  if (!baseUrl || !pat) throw new SeedError('TOIL_ADO_BASE_URL and TOIL_ADO_PAT must both be set.', 'Set them to the organization URL (https://dev.azure.com/<organization>) and an organization-scoped token with Work Items (Read & write).');
   const url = new URL(baseUrl);
-  if (url.hostname === 'dev.azure.com' && url.pathname.split('/').filter(Boolean).length !== 1) throw new SeedError(`${baseUrl} doesn't name one organization.`, 'Set TOIL_ADO_CLOUD_BASE_URL to https://dev.azure.com/<organization>, with no project.');
+  if (url.hostname === 'dev.azure.com' && url.pathname.split('/').filter(Boolean).length !== 1) throw new SeedError(`${baseUrl} doesn't name one organization.`, 'Set TOIL_ADO_BASE_URL to https://dev.azure.com/<organization>, with no project.');
   return { baseUrl, pat };
 }
 
@@ -66,7 +66,7 @@ export function client({ baseUrl, pat, project, fetch: fetchFn = fetch }) {
     })();
     if (!res.ok) {
       const message = typeof body === 'object' && body?.message ? body.message : String(text).slice(0, 300);
-      throw new SeedError(`${method} ${path} answered ${res.status}: ${message}`, res.status === 401 ? 'Check TOIL_ADO_CLOUD_PAT: it must be for this organization and not expired.' : res.status === 403 ? "The token's identity lacks a permission this needs; the message above names it." : 'See the message above.');
+      throw new SeedError(`${method} ${path} answered ${res.status}: ${message}`, res.status === 401 ? 'Check TOIL_ADO_PAT: it must be for this organization and not expired.' : res.status === 403 ? "The token's identity lacks a permission this needs; the message above names it." : 'See the message above.');
     }
     return body;
   }

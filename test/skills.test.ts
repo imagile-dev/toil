@@ -262,7 +262,7 @@ describe('the skill tells an agent to ticket the work before starting it (#304)'
     }
   });
 
-  for (const area of ['jira', 'ado', 'ado-cloud', 'github']) {
+  for (const area of ['jira', 'ado', 'github']) {
     it(`${area}.md shows its own search, mapped and ranked, and points to the rule`, () => {
       const rule = section(read(`${area}.md`));
       expect(rule, `add "## Ticket the work" to skills/toil/${area}.md`).not.toBe('');

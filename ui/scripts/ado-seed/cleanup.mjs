@@ -12,8 +12,8 @@
 // bin (Boards → Work items → Recycle bin), where they can be restored; this
 // never destroys one. `--only <id>` narrows it to one seeded item.
 //
-// The organization and token come from TOIL_ADO_CLOUD_BASE_URL and
-// TOIL_ADO_CLOUD_PAT. Repo tooling only: nothing here ships. Shredding is
+// The organization and token come from TOIL_ADO_BASE_URL and
+// TOIL_ADO_PAT. Repo tooling only: nothing here ships. Shredding is
 // a two-signature process here too, but both signatures are yours.
 import { createHash } from 'node:crypto';
 import { existsSync, rmSync } from 'node:fs';

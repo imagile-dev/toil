@@ -2,9 +2,9 @@
 /**
  * The Azure DevOps seed (ui/scripts/ado-seed/) end to end, offline: the
  * generated OWI file, apply.mjs and cleanup.mjs against an organization in
- * memory (test/ado-board.ts), and then toil's own ado-cloud commands and
+ * memory (test/ado-board.ts), and then toil's own ado commands and
  * `mapOwi` reading that board back, compared with the file the board was
- * seeded from. Then Toil UI's loader on an ado-cloud dossier. The live run
+ * seeded from. Then Toil UI's loader on a Services dossier. The live run
  * this rehearses is in the PR (#319); this is the version that runs on a
  * plane.
  */
@@ -190,18 +190,19 @@ describe('cleanup.mjs', () => {
 
 const saved: Record<string, string | undefined> = {};
 const folders: string[] = [];
-const ENV = ['HOME', 'USERPROFILE', 'TOIL_ADO_CLOUD_PAT', 'TOIL_ADO_CLOUD_BASE_URL', 'TOIL_DOSSIER', 'TOIL_DOSSIER_PATHS', 'SYSTEM_ACCESSTOKEN'];
+const ENV = ['HOME', 'USERPROFILE', 'TOIL_ADO_PAT', 'TOIL_ADO_BASE_URL', 'TOIL_ADO_DEPLOYMENT', 'TOIL_DOSSIER', 'TOIL_DOSSIER_PATHS', 'SYSTEM_ACCESSTOKEN'];
 beforeEach(() => {
   const home = mkdtempSync(join(tmpdir(), 'toil-ui-ado-seed-'));
   folders.push(home);
   mkdirSync(join(home, '.toil', 'dossiers'), { recursive: true });
-  writeFileSync(join(home, '.toil', 'config.json'), JSON.stringify({ version: 2, connections: { 'ado-cloud': { area: 'ado-cloud', baseUrl: ORG } }, audit: { enabled: false } }));
-  writeFileSync(join(home, '.toil', 'dossiers', 'ado-board.json'), JSON.stringify({ name: 'ado-board', description: 'The seeded board', repos: [], 'ado-cloud': { connection: 'ado-cloud', project: PROJECT } }));
+  writeFileSync(join(home, '.toil', 'config.json'), JSON.stringify({ version: 3, connections: { 'imagile-ado': { area: 'ado', deployment: 'cloud', baseUrl: ORG } }, audit: { enabled: false } }));
+  writeFileSync(join(home, '.toil', 'dossiers', 'ado-board.json'), JSON.stringify({ name: 'ado-board', description: 'The seeded board', repos: [], ado: { connection: 'imagile-ado', project: PROJECT } }));
   for (const key of ENV) saved[key] = process.env[key];
   process.env.HOME = home;
   process.env.USERPROFILE = home;
-  process.env.TOIL_ADO_CLOUD_PAT = 'test-pat';
-  for (const key of ['TOIL_ADO_CLOUD_BASE_URL', 'TOIL_DOSSIER', 'TOIL_DOSSIER_PATHS', 'SYSTEM_ACCESSTOKEN']) delete process.env[key];
+  process.env.TOIL_ADO_PAT = 'test-pat';
+  process.env.TOIL_ADO_DEPLOYMENT = 'cloud';
+  for (const key of ['TOIL_ADO_BASE_URL', 'TOIL_DOSSIER', 'TOIL_DOSSIER_PATHS', 'SYSTEM_ACCESSTOKEN']) delete process.env[key];
 });
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -212,7 +213,7 @@ afterEach(() => {
   while (folders.length) rmSync(folders.pop()!, { recursive: true, force: true, maxRetries: 3 });
 });
 
-describe("toil's ado-cloud commands on the seeded board", () => {
+describe("toil's ado commands on a Services connection, on the seeded board", () => {
   it('read back, through util owi map, exactly what the OWI file seeded, dates and history included', async () => {
     const board = adoBoard();
     await seed(board);
@@ -220,7 +221,7 @@ describe("toil's ado-cloud commands on the seeded board", () => {
     board.writes.length = 0;
     const data = await loadDossier(execute as unknown as Execute, 'ado-board', { mapOwi });
     expect(data.calls.work.filter((c) => !c.ok)).toEqual([]);
-    expect(data.calls.work.map((c) => c.command)).toEqual(expect.arrayContaining(['ado-cloud work-item iterations', 'ado-cloud work-item search', 'ado-cloud work-item get-many', 'ado-cloud work-item history']));
+    expect(data.calls.work.map((c) => c.command)).toEqual(expect.arrayContaining(['ado work-item iterations', 'ado work-item search', 'ado work-item get-many', 'ado work-item history']));
     expect(compare(items, data.items, { project: PROJECT, backdated: true })).toEqual([]);
     // Scrum's In Progress is in progress, not a custom state.
     expect(data.items.filter((i) => i.status === 'In Progress').every((i) => i.statusCategory === 'IN_PROGRESS')).toBe(true);
@@ -246,21 +247,21 @@ describe("toil's ado-cloud commands on the seeded board", () => {
       repository: { name: 'payments-core', webUrl: `${ORG}/${PROJECT}/_git/payments-core`, project: { name: PROJECT } },
     });
     const file = join(process.env.HOME!, '.toil', 'dossiers', 'ado-board.json');
-    writeFileSync(file, JSON.stringify({ name: 'ado-board', repos: [], 'ado-cloud': { connection: 'ado-cloud', project: PROJECT, repo: 'payments-core' } }));
+    writeFileSync(file, JSON.stringify({ name: 'ado-board', repos: [], ado: { connection: 'imagile-ado', project: PROJECT, repo: 'payments-core' } }));
     vi.stubGlobal('fetch', board.fetch);
     const data = await loadDossier(execute as unknown as Execute, 'ado-board', { mapOwi });
-    expect(data.calls.prs.map((c) => [c.command, c.ok])).toEqual([['ado-cloud pr list', true], ['ado-cloud pr get', true]]);
-    expect(data.pullRequests.map((c) => [c.id, c.state, c.workItems, c.checks])).toEqual([[`ado-cloud:${PROJECT}/payments-core#7`, 'MERGED', [`ado-cloud:${id}`], 'NONE']]);
-    expect(READ_COMMANDS.has('ado-cloud pr list')).toBe(true);
-    expect(data.changes.filter((c) => c.kind === 'pull-request').map((c) => [c.id, c.command, c.outcome, c.items])).toEqual([[`ado-cloud:${PROJECT}/payments-core#7`, 'ado-cloud pr get', 'merged', [`ado-cloud:${id}`]]]);
+    expect(data.calls.prs.map((c) => [c.command, c.ok])).toEqual([['ado pr list', true], ['ado pr get', true]]);
+    expect(data.pullRequests.map((c) => [c.id, c.state, c.workItems, c.checks])).toEqual([[`imagile-ado:${PROJECT}/payments-core#7`, 'MERGED', [`imagile-ado:${id}`], 'NONE']]);
+    expect(READ_COMMANDS.has('ado pr list')).toBe(true);
+    expect(data.changes.filter((c) => c.kind === 'pull-request').map((c) => [c.id, c.command, c.outcome, c.items])).toEqual([[`imagile-ado:${PROJECT}/payments-core#7`, 'ado pr get', 'merged', [`imagile-ado:${id}`]]]);
   });
 
-  it('proposes a board move on an ado-cloud item as work-item transition in its own area', async () => {
+  it('proposes a board move on a Services item as ado work-item transition', async () => {
     const board = adoBoard();
     await seed(board);
     vi.stubGlobal('fetch', board.fetch);
     const data = await loadDossier(execute as unknown as Execute, 'ado-board', { mapOwi });
     const item = data.items.find((i) => i.status === 'New' && i.type === 'STORY') as WorkItem;
-    expect(proposeMove(item, 'IN_PROGRESS', data.items, 'ado-board')).toMatchObject({ command: 'ado-cloud work-item transition', input: { dossier: 'ado-board', id: Number(item.source.key), state: 'Committed' } });
+    expect(proposeMove(item, 'IN_PROGRESS', data.items, 'ado-board')).toMatchObject({ command: 'ado work-item transition', input: { dossier: 'ado-board', id: Number(item.source.key), state: 'Committed' } });
   });
 });

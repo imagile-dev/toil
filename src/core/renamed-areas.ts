@@ -2,8 +2,8 @@ import { ToilError } from './errors.js';
 
 /**
  * Areas that no longer exist under their old name, and where they went.
- * `jira-cloud`, `confluence-cloud` and `bitbucket-cloud` are `jira`,
- * `confluence` and `bitbucket` with `"deployment": "cloud"` on the connection (#495): one product, one command
+ * `jira-cloud`, `confluence-cloud`, `bitbucket-cloud` and `ado-cloud` are `jira`,
+ * `confluence`, `bitbucket` and `ado` with `"deployment": "cloud"` on the connection (#495): one product, one command
  * tree, one set of MCP tools. Everything that still names the old area (a
  * config file, an env var, a dossier
  * section, `--areas`, a typed command) gets the new form from here, so no
@@ -26,6 +26,7 @@ export const RENAMED_AREAS: Readonly<Record<string, RenamedArea>> = {
   'jira-cloud': { area: 'jira', settings: { deployment: 'cloud' } },
   'confluence-cloud': { area: 'confluence', settings: { deployment: 'cloud' } },
   'bitbucket-cloud': { area: 'bitbucket', settings: { deployment: 'cloud' }, tools: { bitbucket_cloud_pr_request_changes: 'bitbucket_pr_needs_work' } },
+  'ado-cloud': { area: 'ado', settings: { deployment: 'cloud' } },
 };
 
 export const renamedArea = (name: string): RenamedArea | undefined => (Object.hasOwn(RENAMED_AREAS, name) ? RENAMED_AREAS[name] : undefined);

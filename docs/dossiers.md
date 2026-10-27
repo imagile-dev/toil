@@ -142,14 +142,15 @@ TOIL_CONN_OCP_PROD_TOKEN=...
   A dossier is validated section by section, so an unknown area's section is kept but
   reported (`DOSSIER_UNKNOWN_SECTION`), never dropped.
 
-  A `jira-cloud` section is read as `jira`, a `confluence-cloud` one as `confluence`, and a
-  `bitbucket-cloud` one as `bitbucket` (those areas are now `jira`, `confluence` and
-  `bitbucket`, with `deployment` on the connection, #495). So is such an entry under
+  A `jira-cloud` section is read as `jira`, a `confluence-cloud` one as `confluence`, a
+  `bitbucket-cloud` one as `bitbucket` and an `ado-cloud` one as `ado` (those areas are now `jira`, `confluence`,
+  `bitbucket` and `ado`, with `deployment` on the connection, #495). So is such an entry under
   `environments.<env>` and in a person's `ids`. Each is reported as `DOSSIER_RENAMED_AREA`
   by key path, saying to rename it; where the dossier already has the new entry, that one is
   used and the warning says the old one is ignored. **A dossier has one section per product
-  (`jira`, `confluence`, `bitbucket`), so each picks one connection**: a body of work that uses
-  both a Data Center and a Cloud Jira, Confluence or Bitbucket takes two dossiers. A
+  (`jira`, `confluence`, `bitbucket`, `ado`), so each picks one connection**: a body of work that uses
+  both a Data Center and a Cloud Jira, Confluence or Bitbucket, or both Azure DevOps Server and
+  Services, takes two dossiers. A
   `bitbucket` section can hold `project` and `repo` (Data Center) or `workspace` and `repo`
   (Cloud); the other deployment's input is ignored for a connection that doesn't take it.
 - **`env`** names the environment the dossier works in by default; it must be a key of
@@ -227,13 +228,13 @@ prompts. The names are used through **one fixed input**, never through generated
   Toil UI passes them to `mapOwi` for the section's area; nothing else reads them.
   Like every value in `fields` they are text, so a number is quoted:
   `"iterationDays": "14"`. An unquoted `14` fails `dossiers check`.
-- A code host's section (`github`, `bitbucket`, `ado`,
-  `ado-cloud`) may keep `authorKinds`, reference data mapping an author's id to
+- A code host's section (`github`, `bitbucket`, `ado`)
+  may keep `authorKinds`, reference data mapping an author's id to
   `HUMAN`, `AGENT` or `BOT` (`"authorKinds": { "release-bot": "BOT" }`). Toil UI
   passes it to `mapOwi` as the override that wins over every other signal when it
   says who wrote a pull request (`docs/owi/spec.md`, Who wrote it); nothing else
   reads it.
-- A work item area's section (`jira`, `ado`, `ado-cloud`, `github`)
+- A work item area's section (`jira`, `ado`, `github`)
   may name `fields.acceptanceCriteria`, the field that holds acceptance criteria
   (also a `--field` alias like any other), and keep `readiness`, reference data
   `{ "minWords": 25, "templates": ["## What\n## Why"] }`. Toil UI's readiness gate
@@ -251,7 +252,7 @@ for this body of work, where the item's own workflow doesn't settle it:
 ```
 
 - `--to <intent>` on `issue transition` (jira) and `work-item transition`
-  (ado, ado-cloud) reads it first, for the item's own type (compared ignoring case),
+  (ado) reads it first, for the item's own type (compared ignoring case),
   and only for the four intents: `start`, `review`, `done`, `reopen`. The rest of the
   resolution is in `skills/toil/core.md`, **Moving work items by intent**.
 - A pin is the author's word, so it never falls through to a guess: a pin naming no

@@ -427,7 +427,7 @@ function owi(r, all, blocks, related) {
   return {
     owi: '0.1',
     id: id(r.key),
-    source: { area: 'ado-cloud', connection: SEED_CONNECTION, key: r.key, command: COMMAND },
+    source: { area: 'ado', connection: SEED_CONNECTION, key: r.key, command: COMMAND, deployment: 'cloud' },
     url: null,
     type: OWI_TYPE[r.typeName],
     typeName: r.typeName,
