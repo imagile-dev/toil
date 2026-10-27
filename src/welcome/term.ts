@@ -114,7 +114,7 @@ export function movesCursor(out: TermLike, env: NodeJS.ProcessEnv, platform: Nod
 const ESC = '\x1b[';
 
 /** Foreground color at whatever depth the terminal supports; '' with no color. */
-export function fg(caps: Pick<TermCaps, 'colorDepth'>, [r, g, b]: Rgb): string {
+export function fg(caps: Pick<TermCaps, 'colorDepth'> & Partial<Pick<TermCaps, 'palette'>>, [r, g, b]: Rgb): string {
   switch (caps.colorDepth) {
     case 24:
       return `${ESC}38;2;${r};${g};${b}m`;
@@ -182,31 +182,49 @@ const ROUNDING_SLACK = 7.5;
 /** The six levels of each channel in the 256-colour cube. */
 const CUBE = [0, 95, 135, 175, 215, 255];
 
+/** A colour in OKLab, where distance follows what the eye sees: a green is nearer another green than a grey of its lightness. */
+function oklab(rgb: Rgb): [number, number, number] {
+  const [r, g, b] = rgb.map(toLinear) as [number, number, number];
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
+}
+
+/** Every colour from 16 up: the cube, then the 24 greys, measured once. */
+const XTERM = Array.from({ length: 240 }, (_, i) => {
+  const color: Rgb = i < 216 ? [CUBE[Math.floor(i / 36)]!, CUBE[Math.floor(i / 6) % 6]!, CUBE[i % 6]!] : [8 + 10 * (i - 216), 8 + 10 * (i - 216), 8 + 10 * (i - 216)];
+  return { index: 16 + i, color, lum: lum(color), lab: oklab(color) };
+});
+
 /**
- * The 256-colour palette's nearest colour to this one, rounded away from the
- * background: of the cube's corners around it and the 24 greys after the
- * cube, the closest that is no nearer the background in luminance, or that
- * keeps ROUNDING_SLACK on it. Plain rounding to the nearest can land on a
- * lighter corner on a light terminal (Overworld's faint went from 4.6:1 to
- * 3.8:1), and macOS Terminal draws 256 colours on white by default. Rounded
- * this way, a colour that clears the bar in truecolour clears it here too.
- * The greys keep a grey from rounding into a corner of some other hue, which
- * would be a rebrand nobody approved.
+ * The 256-colour palette's nearest colour to this one by eye (OKLab), rounded
+ * away from the background: the closest that is no nearer the background in
+ * luminance, or that keeps ROUNDING_SLACK on it. Plain rounding to the nearest
+ * can land on a lighter colour on a light terminal (Overworld's faint went
+ * from 4.6:1 to 3.8:1), and macOS Terminal draws 256 colours on white by
+ * default. Rounded this way, a colour that clears the bar in truecolour clears
+ * it here too, and keeps its hue where the palette has one dark (or light)
+ * enough, and losing colour costs extra: a green stays green, a grey stays grey. Nobody's brand guidelines
+ * were consulted, only their luminance.
  */
 function to256(rgb: Rgb, bg: Rgb): number {
-  const around = rgb.map((v) => {
-    const up = CUBE.findIndex((c) => c >= v);
-    return up <= 0 ? [Math.max(0, up)] : CUBE[up] === v ? [up] : [up - 1, up];
-  }) as [number[], number[], number[]];
-  const candidates: Array<{ index: number; color: Rgb }> = [];
-  for (const r of around[0]) for (const g of around[1]) for (const b of around[2]) candidates.push({ index: 16 + 36 * r + 6 * g + b, color: [CUBE[r]!, CUBE[g]!, CUBE[b]!] });
-  for (let i = 0; i < 24; i++) candidates.push({ index: 232 + i, color: [8 + 10 * i, 8 + 10 * i, 8 + 10 * i] });
-  const darker = lum(bg) > lum(rgb);
-  const ratio = (c: Rgb) => (Math.max(lum(c), lum(bg)) + 0.05) / (Math.min(lum(c), lum(bg)) + 0.05);
-  const far = candidates.filter((c) => (darker ? lum(c.color) <= lum(rgb) : lum(c.color) >= lum(rgb)) || ratio(c.color) >= ROUNDING_SLACK);
-  const distance = (c: Rgb) => (c[0] - rgb[0]) ** 2 + (c[1] - rgb[1]) ** 2 + (c[2] - rgb[2]) ** 2;
-  // The corner of all-lower (or all-upper) levels always qualifies, so far is never empty.
-  return far.reduce((best, c) => (distance(c.color) < distance(best.color) ? c : best)).index;
+  const [own, ground] = [lum(rgb), lum(bg)];
+  const darker = ground > own;
+  const ratio = (l: number) => (Math.max(l, ground) + 0.05) / (Math.min(l, ground) + 0.05);
+  const [L, A, B] = oklab(rgb);
+  const chroma = Math.hypot(A, B);
+  let best = { index: 16, distance: Infinity };
+  for (const c of XTERM) {
+    if ((darker ? c.lum > own : c.lum < own) && ratio(c.lum) < ROUNDING_SLACK) continue;
+    // Lightness counts half, since the filter above already looks after contrast, and colour lost counts
+    // twice: a green heading is better as a darker green than as an olive or a grey of its lightness.
+    const faded = Math.max(0, chroma - Math.hypot(c.lab[1], c.lab[2]));
+    const distance = ((c.lab[0] - L) / 2) ** 2 + (c.lab[1] - A) ** 2 + (c.lab[2] - B) ** 2 + faded ** 2;
+    if (distance < best.distance) best = { index: c.index, distance };
+  }
+  // Black (or white) is always no nearer the background, so something always qualifies.
+  return best.index;
 }
 
 function to16(r: number, g: number, b: number): number {

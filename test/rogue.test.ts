@@ -13,7 +13,7 @@ import { FX_FRAMES, frame, type Hud, lobbyFrame, NEEDS, refusal, WIDE } from '..
 import { loadProgress, seal, storeProgress, unseal } from '../src/welcome/rogue/save.js';
 import { BOSS, INTRO, ROBOTS, STAFF } from '../src/welcome/rogue/story.js';
 import type { WelcomeData } from '../src/welcome/screens.js';
-import { fg, visibleLength, type Palette, type Rgb, type TermCaps } from '../src/welcome/term.js';
+import { fg, renderCells, visibleLength, type Palette, type Rgb } from '../src/welcome/term.js';
 import { contrast, DARK_GROUND, DIM_CONTRAST, findTheme, hexToRgb, LIGHT_GROUND, MIN_CONTRAST, palette, TERMINAL_THEMES } from '../src/welcome/themes/index.js';
 import { testConfig } from './harness/context.js';
 
@@ -297,22 +297,32 @@ describe("Two Weeks' Notice: drawing", () => {
     },
   );
 
-  it('keeps a grey grey on a 256-colour terminal, rather than rounding it into another hue', () => {
+  /** A role as a 256-colour terminal draws it. */
+  const at256 = (p: Palette, role: keyof Palette): Rgb => xterm(Number(/38;5;(\d+)m/.exec(fg({ colorDepth: 8, palette: p }, p[role]))![1]));
+  const chroma = (c: Rgb) => Math.max(...c) - Math.min(...c);
+
+  it('keeps a grey grey and a colour a colour on a 256-colour terminal, in the default theme', () => {
     for (const bg of ['light', 'dark'] as const) {
       const p = palette(findTheme('crate')!, bg);
-      for (const role of ['ink', 'muted', 'faint', 'dim'] as const) {
-        const [r, g, b] = xterm(Number(/38;5;(\d+)m/.exec(fg({ colorDepth: 8, palette: p } as TermCaps, p[role]))![1]));
-        expect(Math.max(r, g, b) - Math.min(r, g, b), `${bg} ${role}`).toBeLessThanOrEqual(40);
-      }
+      for (const role of ['ink', 'muted', 'faint', 'dim'] as const) expect(chroma(at256(p, role)), `${bg} ${role}`).toBeLessThanOrEqual(40);
+      for (const role of ['accent', 'highlight', 'ok', 'danger'] as const) expect(chroma(at256(p, role)), `${bg} ${role}`).toBeGreaterThanOrEqual(60);
     }
   });
+
+  // The robots, the notices and the morale bar's low end: on 256 colours, in every theme, they never fade to grey.
+  it.each(TERMINAL_THEMES.flatMap((t) => (['dark', 'light'] as const).map((bg) => [t.name, bg] as const)))(
+    'keeps the %s theme\'s accent and danger in colour on a %s 256-colour terminal',
+    (name, bg) => {
+      const p = palette(findTheme(name)!, bg);
+      for (const role of ['accent', 'danger'] as const) expect(chroma(at256(p, role)), `${role} rgb(${p[role].join(',')})`).toBeGreaterThanOrEqual(60);
+    },
+  );
 
   // Crate and the other themes drawn for dark terminals get a light scheme derived from it: its colours must stay colours there.
   it.each(TERMINAL_THEMES.filter((t) => !t.schemes.light).map((t) => t.name))(
     'keeps the %s theme in colour on a light terminal, so items, stairs, staff and headings stand apart from the text',
     (name) => {
       const p = palette(findTheme(name)!, 'light');
-      const chroma = (c: Rgb) => Math.max(...c) - Math.min(...c);
       const distance = (a: Rgb, b: Rgb) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
       for (const role of ['highlight', 'accent', 'danger'] as const) {
         expect(chroma(p[role]), `${role} rgb(${p[role].join(',')})`).toBeGreaterThanOrEqual(60);
@@ -328,6 +338,8 @@ describe("Two Weeks' Notice: drawing", () => {
       const caps = { colorDepth: 24, unicode: true, palette: palette(findTheme('crate')!, bg) } as const;
       expect(frame(g, caps, hud()).join('\n')).toContain(`\x1b[1m\x1b[38;2;${caps.palette.ink.join(';')}m@`);
     }
+    // Bold ends with its cell: a wall of the same colour beside you is drawn plain.
+    expect(renderCells([{ ch: '@', color: [1, 2, 3], bold: true }, { ch: '#', color: [1, 2, 3] }], { colorDepth: 24 })).toBe('\x1b[1m\x1b[38;2;1;2;3m@\x1b[0m\x1b[38;2;1;2;3m#\x1b[0m');
   });
 
   it('draws effects as their first frame and never shakes, for reduced motion', () => {
