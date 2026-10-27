@@ -650,9 +650,11 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
         if (a.lenses?.length && !input.replace) throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name}'s lenses are already set.`, { fix: 'Pass --replace to change them.' });
         const had = new Map((a.lenses ?? []).map((l) => [l.id, { ...l }]));
         const order = input.order !== undefined ? input.order.split(',').map((s) => lensId(s.trim(), '--order')) : [...had.keys()];
+        const both = (input.on ?? []).filter((id) => (input.off ?? []).includes(id));
+        if (both.length) throw new ToilError('INVALID_INPUT', `${both.join(', ')} ${both.length > 1 ? 'are' : 'is'} in both --on and --off.`, { fix: 'Name each lens in one of them.' });
         const named = [...(input.on ?? []).map((id) => lensId(id, '--on')), ...(input.off ?? []).map((id) => lensId(id, '--off')), ...thresholds.map(([id]) => id)];
         for (const id of named) if (!order.includes(id)) order.push(id);
-        const lenses = [...new Set(order)].map((id) => had.get(id) ?? { id });
+        const lenses = [...new Set([...order, ...had.keys()])].map((id) => had.get(id) ?? { id });
         const at = (id: LensId) => lenses.find((l) => l.id === id)!;
         for (const id of input.on ?? []) at(id as LensId).on = true;
         for (const id of input.off ?? []) at(id as LensId).on = false;

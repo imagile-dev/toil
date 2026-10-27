@@ -207,7 +207,7 @@ function sprintFacts(items: readonly WorkItem[], asOf: string): SprintFacts | nu
   // Stories land late in a sprint, so a pace is only read once a quarter of it (and at least a day) has gone.
   const pace = gone >= Math.max(1, all / 4) ? done / gone : null;
   const projected = pace === null ? null : Math.min(total - done, pace * (all - gone));
-  return { name: it.name, start: it.start, end, days: { total: round1(all), gone: round1(gone), left: round1(all - gone) }, points: { total, done, left: total - done }, pace: pace === null ? null : round1(pace), projected: projected === null ? null : round1(projected) };
+  return { name: it.name, start: it.start, end: it.end, days: { total: round1(all), gone: round1(gone), left: round1(all - gone) }, points: { total, done, left: total - done }, pace: pace === null ? null : round1(pace), projected: projected === null ? null : round1(projected) };
 }
 
 interface Finding {
@@ -216,7 +216,6 @@ interface Finding {
   changes: Change[];
 }
 
-/** What one lens finds about one open item, or null. */
 const unmapped = (c: Change, field: string) => (c.unmapped ?? []).some((u) => u.field === field);
 
 /** Why one lens can't test one item: a field it reads is missing. Null when it can. */
@@ -235,6 +234,7 @@ function untestable(lens: LensId, item: WorkItem, prs: Change[]): string | null 
   }
 }
 
+/** What one lens finds about one open item, or null. */
 function find(lens: LensId, item: WorkItem, t: number | null, ctx: { byId: ReadonlyMap<string, WorkItem>; changesOf: (id: string) => Change[]; asOf: string; wipLimit: number | null; loadOf: ReadonlyMap<string, number> }): Finding | null {
   const prs = ctx.changesOf(item.id);
   switch (lens) {
@@ -365,7 +365,7 @@ export function brief(input: BriefInput): Brief {
         severity: def.severity,
         line: `${pointsText(s.points.left)} left, ${daysText(s.days.left, 'working days')}, ${s.projected > 0 ? `about ${round1(s.projected)} land` : 'none land'} at this pace`,
         items: [],
-        text: `${s.name} has done ${pointsText(s.points.done)} of ${s.points.total} in ${daysText(s.days.gone, 'working days')}, ${s.pace} a day. At that pace ${s.projected > 0 ? `about ${round1(s.projected)}` : 'none'} of the ${pointsText(s.points.left)} left land by ${s.end.slice(0, 10)}.`,
+        text: `${s.name} has done ${pointsText(s.points.done)} of ${s.points.total} in ${daysText(s.days.gone, 'working days')}, ${s.pace} a day. At that pace ${s.projected > 0 ? `about ${round1(s.projected)}` : 'none'} of the ${pointsText(s.points.left)} left land by ${new Date(Date.parse(endOf(s.end)) - 1).toISOString().slice(0, 10)}.`,
       });
       continue;
     }

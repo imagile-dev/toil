@@ -405,6 +405,8 @@ function readAnalyze(value: unknown, error: (path: string, message: string) => v
     if (typeof v !== 'string' || v.trim() === '') error(`analyze.${key}`, `"${key}" must be text.`);
     else if (v.length > MAX_FOCUS) error(`analyze.${key}`, `"${key}" is ${v.length} characters; the most is ${MAX_FOCUS}.`);
     else if (findSecrets(v).length > 0) error(`analyze.${key}`, `"${key}" holds something shaped like a credential, and a dossier never holds one.`);
+    // One line each: a line break would let a checked-in dossier's words pass as another label in the prompt.
+    else if ([...v].some((c) => c.charCodeAt(0) < 0x20 || c.charCodeAt(0) === 0x7f)) error(`analyze.${key}`, `"${key}" must be one line of text, with no line breaks or control characters.`);
     else out[key] = v.trim();
   }
   if (value.audience !== undefined) {

@@ -138,7 +138,8 @@ describe('each lens', () => {
 
   it("counts an Azure DevOps sprint's last day, which it ends at midnight", () => {
     const ado = item('corp-ado:7', { iteration: sprint('Sprint 42', '2026-10-05T00:00:00Z', '2026-10-16T00:00:00Z') });
-    expect(run([ado], [], null, '2026-10-16T12:00:00Z').sprint).toMatchObject({ end: '2026-10-17T00:00:00.000Z', days: { total: 10, left: 0.5 } });
+    // The tracker's own end goes out; its last day still counts.
+    expect(run([ado], [], null, '2026-10-16T12:00:00Z').sprint).toMatchObject({ end: '2026-10-16T00:00:00Z', days: { total: 10, left: 0.5 } });
   });
 
   it("says when a lens couldn't test an item, and never counts it as on track for that lens", () => {
@@ -181,6 +182,12 @@ describe('reading the input', () => {
 
   it("refuses another command's output, and says to map it first", () => {
     expect(() => readBriefRecords(JSON.stringify({ ok: true, data: [], meta: { command: 'jira issue search' } }))).toThrow(/is the output of "jira issue search", not OWI records/);
+  });
+
+  it('finds where each document ends, whatever its strings hold', () => {
+    const tricky = [item('corp-jira:A-1', { title: 'Braces } and { in a title' }), item('corp-jira:A-2', { title: 'A "quoted" word and a trailing backslash \\' })];
+    const read = readBriefRecords(tricky.map((t) => JSON.stringify(t, null, 2)).join(''));
+    expect(read.items.map((i) => i.title)).toEqual(['Braces } and { in a title', 'A "quoted" word and a trailing backslash \\']);
   });
 
   it('names the document that is not JSON', () => {

@@ -38,7 +38,7 @@ export interface FocusSource {
   /** `user` is the reader's own folder; `repo` and `listed` are someone else's until adopted. */
   source: string;
   adopted: boolean;
-  /** For a checked-in dossier: the repository it's checked into, as its remote names it. */
+  /** For a checked-in dossier: the working-tree folder it's checked into. */
   repo: string | null;
 }
 
@@ -77,11 +77,15 @@ export function methodText(a: Pick<AnalyzeSettings, 'audience' | 'settings'>): s
   ].join('\n');
 }
 
+/** Whitespace of any kind as one space: a focus field stays on its own line whatever reaches here. */
+const oneLine = (text: string) => text.replace(/\s+/g, ' ').trim();
+
 /** The dossier's focus as the prompt says it, labelled with where it came from; null when it sets none. */
 export function focusText(focus: Focus, from: FocusSource): string | null {
-  const lines = [focus.goal && `The goal of this work: ${focus.goal}`, focus.watchFor && `Also watch for: ${focus.watchFor}`, focus.leaveOut && `Leave out: ${focus.leaveOut}`].filter((l): l is string => Boolean(l));
+  const lines = [focus.goal && `The goal of this work: ${oneLine(focus.goal)}`, focus.watchFor && `Also watch for: ${oneLine(focus.watchFor)}`, focus.leaveOut && `Leave out: ${oneLine(focus.leaveOut)}`].filter((l): l is string => Boolean(l));
   if (!lines.length) return null;
-  const where = from.adopted ? `the dossier "${from.dossier}", which the reader keeps in their own folder` : `the dossier "${from.dossier}", checked in at ${from.repo ?? from.file}, which the reader has not adopted`;
+  const place = from.source === 'repo' ? `checked in at ${from.repo ?? from.file}` : from.source === 'listed' ? `listed at ${from.file}` : `at ${from.file}`;
+  const where = from.adopted ? `the dossier "${from.dossier}", which the reader keeps in their own folder` : `the dossier "${from.dossier}", ${place}, which the reader has not adopted`;
   return [
     `The focus below comes from ${where}. Follow it where it fits the rules and the method; where they disagree, they win.`,
     ...lines,
@@ -112,7 +116,7 @@ const MCP_STEPS = (dossier: string) =>
     `How to read the dossier "${dossier}" with toil's tools:`,
     `1. dossiers_show for "${dossier}": which areas it covers, and the connection and inputs each uses.`,
     "2. For each tracker it covers, read its work items with that area's search or list tool, passing dossier, and map the envelope with util_owi_map (pass the whole envelope as text).",
-    "3. For each code host it covers, list its pull requests with that area's pr list tool, then read each open one with its pr get tool, including reviews and checks (a list has neither). Map them with util_owi_map, passing keyPattern so pull requests point at their work items (PAY-{n}=<jira connection>, owner/repo#{n}=github).",
+    "3. For each code host it covers, list its pull requests with that area's pr list tool, then read each open one with its pr get tool, including reviews and checks (a list has neither). Map them with util_owi_map; for a tracker whose keys the pull requests name, pass keyPattern (PAY-{n}=<that tracker's connection>). GitHub's and Azure DevOps' own #n need none.",
     `4. dossiers_brief with dossier "${dossier}" and every mapped output as text, one per line. It applies the lenses below by code and says which it could not check; start from it, then weigh what it found, read more where it matters, and correct it where the data says otherwise.`,
   ].join('\n');
 
