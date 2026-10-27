@@ -29,14 +29,18 @@
  * - **Everything else** (builds, deployments, iterations) has no "changed
  *   since" in toil, so it is read again, bounded as the loader already bounds
  *   it.
- *
  * - **Deleted and moved items** never show up in a search "since" a
  *   watermark, so once a day (`RECONCILE_MS`) a source's search is also sent
  *   whole, asking for ids only where the command can (Jira's `--fields key`;
  *   a WIQL answer is ids already), and a cached item it no longer lists is
- *   dropped. Between those, the merge by id goes on as before.
+ *   dropped. Between those, the merge by id goes on as before. GitHub's
+ *   issue list has no window, so it is left out. A whole listing that fails
+ *   keeps the merged delta, says so in the job's messages and is tried again
+ *   by the next sync.
  * - **The window.** The loader asks Jira and Azure DevOps for open items and
- *   what changed within the cache's retention period, not the whole project.
+ *   what changed within the read window (the retention period, at least six
+ *   weeks), not the whole project. Its per-item calls run through the pool in
+ *   `src/load.ts`.
  *
  * Every call follows `meta.page.nextCursor` to the end, up to `MAX_PAGES`,
  * and says so when it stops there (Bounds). Work items go through `mapOwi`.
@@ -54,7 +58,7 @@
  */
 
 import type { ProgressEvent } from '@imagile-dev/toil/api';
-import { loadDossier, type LoaderMapOwi } from '../src/load.ts';
+import { loadDossier, windowFor, type LoaderMapOwi } from '../src/load.ts';
 import type { Envelope } from '../src/toil.ts';
 import type { WorklogEvent } from '../src/model/worklog.ts';
 import { areaOf, type Cache, type DossierState, type SourceResult } from './cache.ts';
@@ -128,11 +132,12 @@ const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !
 const recs = (v: unknown): Rec[] => (Array.isArray(v) ? v.filter(isRec) : []);
 
 /** A search whose answer is a list of items with ids, which `updatedSince` narrows. `list` is null when the answer is the list itself. */
-const SEARCHES: Record<string, { list: string | null; id: (r: Rec) => string }> = {
-  'jira issue search': { list: 'issues', id: (r) => String(r.key) },
-  'ado work-item search': { list: 'workItems', id: (r) => String(r.id) },
-  'ado-cloud work-item search': { list: 'workItems', id: (r) => String(r.id) },
-  'github issue list': { list: null, id: (r) => String(r.number) },
+const SEARCHES: Record<string, { list: string | null; id: (r: Rec) => string; reconcile: boolean }> = {
+  'jira issue search': { list: 'issues', id: (r) => String(r.key), reconcile: true },
+  'ado work-item search': { list: 'workItems', id: (r) => String(r.id), reconcile: true },
+  'ado-cloud work-item search': { list: 'workItems', id: (r) => String(r.id), reconcile: true },
+  // Not reconciled: it has no window, so a whole listing would read every issue the repository ever had, every day.
+  'github issue list': { list: null, id: (r) => String(r.number), reconcile: false },
 };
 /** A batch get by ids: the input field holding them, and where the answer lists the items. */
 const BATCHES: Record<string, { field: string; list: string; id: (r: Rec) => string }> = {
@@ -376,7 +381,7 @@ export class SyncService {
     const syncing = (command: string, input: Record<string, unknown> = {}) => this.answer(run, command, input, signal);
     let loaded;
     try {
-      loaded = await loadDossier(syncing, name, { mapOwi: this.mapOwi, windowDays: this.cache.retentionDays });
+      loaded = await loadDossier(syncing, name, { mapOwi: this.mapOwi, windowDays: windowFor(this.cache.retentionDays) });
     } catch (e) {
       // `dossiers show` failed: the dossier keeps everything it had.
       const message = e instanceof Error ? e.message : String(e);
@@ -463,15 +468,19 @@ export class SyncService {
       // A search "since" never lists what was deleted or moved away, so once in a while the source is listed whole and what it no longer has is dropped.
       let removed = 0;
       const fullReadAt = state?.fullReadAt ?? null;
-      if (fullReadAt === null || Date.parse(run.startedAt) - Date.parse(fullReadAt) >= RECONCILE_MS) {
+      if (search.reconcile && (fullReadAt === null || Date.parse(run.startedAt) - Date.parse(fullReadAt) >= RECONCILE_MS)) {
         const whole = await this.call(command, idsOnly(command, input), signal);
-        if (!whole.ok) return whole;
-        const present = new Set(listOf(whole.data).map(search.id));
-        const kept = merged.filter((r) => present.has(search.id(r)));
-        removed = merged.length - kept.length;
-        merged = kept;
-        source.fullSearches++;
-        this.say(`${dossier}: ${command} listed whole: ${removed} no longer there`);
+        if (whole.ok) {
+          const present = new Set(listOf(whole.data).map(search.id));
+          const kept = merged.filter((r) => present.has(search.id(r)));
+          removed = merged.length - kept.length;
+          merged = kept;
+          source.fullSearches++;
+          if (removed) this.say(`${dossier}: ${command} listed whole: ${removed} no longer there`);
+        } else {
+          // The delta stands and the watermark moves on; fullReadAt stays where it was, so the next sync lists the source whole again.
+          this.say(`${dossier}: ${command} listed whole failed, ${whole.error.message}; keeping the changes since ${watermark}, trying again next sync`);
+        }
       }
       if (!fresh.length && !removed) return reuse(last.envelope);
       if (search.list === null) return { ...delta, data: merged };

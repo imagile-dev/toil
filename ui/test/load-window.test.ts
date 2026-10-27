@@ -1,48 +1,61 @@
 // @vitest-environment node
 import { mapOwi } from '@imagile-dev/toil/api';
-import { describe, expect, it } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
 import { andWhere as adoAndWhere } from '../../src/areas/ado/wiql.ts';
 import { andWhere as adoCloudAndWhere } from '../../src/areas/ado-cloud/wiql.ts';
 import { withUpdatedSince } from '../../src/areas/jira/since.ts';
+import { Cache } from '../server/cache.ts';
 import { DEFAULT_RETENTION_DAYS } from '../server/settings.ts';
 import { sqliteStore } from '../server/store.ts';
 import { fixtureExecute } from '../src/fixtures/execute.ts';
-import { DEFAULT_WINDOW_DAYS, JQL, PER_ITEM_CONCURRENCY, WIQL, isDashboardQuery, limiter, loadDossier, wiqlFor } from '../src/load.ts';
+import { DEFAULT_WINDOW_DAYS, JQL, PER_ITEM_CONCURRENCY, WIQL, limiter, loadDossier, windowFor, wiqlFor, withWindow } from '../src/load.ts';
+import { LOOKBACK_DAYS, THROUGHPUT_WEEKS } from '../src/model/flow.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 
 /**
  * The window the loader reads Jira and Azure DevOps through (#493), how the
  * incremental `updatedSince` composes with it, and the pool the per-item calls
  * run in.
+ *
+ * The window is a policy, and policies are best kept in a place everyone can
+ * read; this file is that place, with assertions.
  */
 
 describe('the window', () => {
-  it('is the cache default unless the sync says otherwise', () => {
-    expect(DEFAULT_WINDOW_DAYS).toBe(DEFAULT_RETENTION_DAYS);
-    expect(JQL('PAY')).toBe('project = PAY AND (statusCategory != Done OR updated >= -30d) ORDER BY Rank ASC');
+  it('is the retention period, but never under the throughput chart look-back', () => {
+    expect(LOOKBACK_DAYS).toBe(THROUGHPUT_WEEKS * 7);
+    expect(LOOKBACK_DAYS).toBe(42);
+    expect(windowFor(7)).toBe(42);
+    expect(windowFor(90)).toBe(90);
+    expect(DEFAULT_WINDOW_DAYS).toBe(windowFor(DEFAULT_RETENTION_DAYS));
+    expect(JQL('PAY')).toBe('project = PAY AND (statusCategory != Done OR updated >= -42d) ORDER BY Rank ASC');
     expect(JQL('PAY', 7)).toBe('project = PAY AND (statusCategory != Done OR updated >= -7d) ORDER BY Rank ASC');
-    expect(WIQL).toBe(wiqlFor(30));
+    expect(WIQL).toBe(wiqlFor(42));
     expect(wiqlFor(7)).toBe("SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project AND ([Microsoft.VSTS.Common.ClosedDate] = '' OR [System.ChangedDate] >= @Today - 7) ORDER BY [System.Id]");
   });
 
   it('composes with toil\'s updatedSince: Jira wraps the whole query, ahead of the ORDER BY', () => {
-    expect(withUpdatedSince(JQL('PAY', 30), '2026-10-13 07:55')).toBe('(project = PAY AND (statusCategory != Done OR updated >= -30d)) AND updated >= "2026-10-13 07:55" ORDER BY Rank ASC');
+    expect(withUpdatedSince(JQL('PAY', 42), '2026-10-13 07:55')).toBe('(project = PAY AND (statusCategory != Done OR updated >= -42d)) AND updated >= "2026-10-13 07:55" ORDER BY Rank ASC');
   });
 
   it("composes with toil's updatedSince: Azure DevOps wraps the WHERE and keeps the ORDER BY, on Server and Services", () => {
     const since = "[System.ChangedDate] >= '2026-10-13T07:55:00.000Z'";
-    const expected = `SELECT [System.Id] FROM WorkItems WHERE ([System.TeamProject] = @project AND ([Microsoft.VSTS.Common.ClosedDate] = '' OR [System.ChangedDate] >= @Today - 30)) AND ${since} ORDER BY [System.Id]`;
+    const expected = `SELECT [System.Id] FROM WorkItems WHERE ([System.TeamProject] = @project AND ([Microsoft.VSTS.Common.ClosedDate] = '' OR [System.ChangedDate] >= @Today - 42)) AND ${since} ORDER BY [System.Id]`;
     expect(adoAndWhere(WIQL, since)).toBe(expected);
     expect(adoCloudAndWhere(WIQL, since)).toBe(expected);
   });
 
-  it('is recognised as the dashboard\'s own query whatever its window, and nothing else is', () => {
-    expect(isDashboardQuery({ jql: JQL('PAY', 7) })).toBe(true);
-    expect(isDashboardQuery({ wiql: wiqlFor(90) })).toBe(true);
-    expect(isDashboardQuery({ jql: 'project = PAY' })).toBe(false);
-    expect(isDashboardQuery({ jql: 'project = PAY AND status = Blocked ORDER BY Rank ASC' })).toBe(false);
-    expect(isDashboardQuery({ wiql: "SELECT [System.Id] FROM WorkItems WHERE [System.State] = 'Active'" })).toBe(false);
-    expect(isDashboardQuery({})).toBe(false);
+  it('is rewritten only in the dashboard query, and nothing else', () => {
+    expect(withWindow({ jql: JQL('PAY', 7) }, 42)).toEqual({ jql: JQL('PAY', 42) });
+    expect(withWindow({ wiql: wiqlFor(90) }, 42)).toEqual({ wiql: wiqlFor(42) });
+    const other = { jql: 'project = PAY AND status = Blocked ORDER BY Rank ASC' };
+    expect(withWindow(other, 42)).toBe(other);
+    const plain = { jql: 'project = PAY' };
+    expect(withWindow(plain, 42)).toBe(plain);
+    expect(withWindow({}, 42)).toEqual({});
   });
 
   it('is sent to the trackers as the sync asks for it', async () => {
@@ -60,18 +73,45 @@ describe('the window', () => {
   });
 });
 
-describe('the cache answers the dashboard whatever window the sync used', () => {
-  it('finds the stored search for the same query with another window, and not for any other', async () => {
-    const stored = { ok: true, data: { issues: [{ key: 'PAY-1' }] }, error: null, meta: { command: 'jira issue search', durationMs: 0, version: 'x', contractVersion: 1 } } as Envelope;
-    const cache = {
-      response: (_d: string, _c: string, input: Record<string, unknown>) => (input.jql === JQL('PAY', 7) ? { envelope: stored, area: 'jira', syncedAt: 't' } : null),
-      latest: () => ({ envelope: stored, area: 'jira', syncedAt: 't' }),
-      source: () => null,
-    };
-    const store = sqliteStore(() => cache as never, (async () => stored) as unknown as Execute, { version: 'x', contractVersion: 1 });
+const folders: string[] = [];
+const caches: Cache[] = [];
+afterEach(() => {
+  while (caches.length) caches.pop()!.close();
+  while (folders.length) rmSync(folders.pop()!, { recursive: true, force: true, maxRetries: 3 });
+});
+
+describe('the cache answers the dashboard whatever window the browser names', () => {
+  it('finds a project search under another window, and never another project one', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'toil-ui-window-'));
+    folders.push(dir);
+    const cache = await Cache.open(dir, { retentionDays: 7 });
+    caches.push(cache);
+    const envelope = (command: string, data: unknown) => ({ ok: true, data, error: null, meta: { command, durationMs: 0, version: 'x', contractVersion: 1 } }) as Envelope;
+    const at = new Date().toISOString();
+    // What a sync with a 7-day retention stores: the 42-day floor.
+    const jql = JQL('PAY', windowFor(7));
+    cache.saveDossier({
+      dossier: 'd',
+      startedAt: at,
+      finishedAt: at,
+      responses: [{ command: 'jira issue search', input: { dossier: 'd', jql }, envelope: envelope('jira issue search', { issues: [{ key: 'PAY-1' }] }) }],
+      items: [],
+      changes: [],
+      deployments: [],
+      sources: [{ area: 'jira', ok: true, error: null, fix: null, watermark: at, calls: 1 }],
+    });
+    const store = sqliteStore(() => cache, (async () => envelope('x', null)) as unknown as Execute, { version: 'x', contractVersion: 1 });
     const ctx = { viewer: { id: 'local', name: 'you', via: 'launch-token' }, signal: new AbortController().signal } as never;
-    expect((await store.execute(ctx, 'jira issue search', { dossier: 'd', jql: JQL('PAY') }, 'read')).ok).toBe(true);
-    expect((await store.execute(ctx, 'jira issue search', { dossier: 'd', jql: 'project = PAY AND status = Blocked' }, 'read')).ok).toBe(false);
+    const ask = (q: string) => store.execute(ctx, 'jira issue search', { dossier: 'd', jql: q }, 'read');
+
+    const same = await ask(JQL('PAY', 30));
+    expect(same.ok).toBe(true);
+    expect(JSON.stringify(same)).toContain('PAY-1');
+    expect((await ask(JQL('PAY'))).ok).toBe(true);
+    const other = await ask(JQL('NEWPROJ'));
+    expect(other.ok).toBe(false);
+    expect(!other.ok && other.error.code).toBe('NOT_FOUND');
+    expect((await ask('project = PAY AND status = Blocked')).ok).toBe(false);
   });
 });
 

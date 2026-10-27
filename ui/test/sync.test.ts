@@ -257,6 +257,40 @@ describe('deleted and moved items (#493)', () => {
   });
 });
 
+describe('a whole listing that fails (#493)', () => {
+  it('keeps the delta, moves the watermark on, says so, and lists the source whole again next sync', async () => {
+    const { toil, cache, advance } = await setup();
+    let breakWhole = false;
+    const execute: typeof toil.execute = (command, input, options) =>
+      breakWhole && command === 'jira issue search' && input?.fields === 'key'
+        ? Promise.resolve({ ok: false, data: null, error: { code: 'HTTP', message: 'Jira is having a moment', fix: 'Try again.' }, meta: { command, durationMs: 0, version: 'x', contractVersion: 1 } } as Envelope)
+        : toil.execute(command, input, options);
+    const clock = () => new Date(advance(0));
+    const sync = new SyncService({ cache, execute, mapOwi, now: clock });
+    await sync.run(ctx);
+    const firstWhole = cache.source('card-payments', 'jira')!.fullReadAt;
+
+    toil.touchJira('PAY-104', 'Blocked', new Date(Date.parse(FIXTURE_NOW) + 24 * 3_600_000).toISOString());
+    breakWhole = true;
+    advance(25 * 3_600_000);
+    const job = await sync.run(ctx);
+    const jira = cache.source('card-payments', 'jira')!;
+    expect(job.messages.some((m) => m.includes('listed whole failed') && m.includes('Jira is having a moment'))).toBe(true);
+    expect(jira.status).toBe('ok');
+    expect(jira.watermark).not.toBe(null);
+    expect(Date.parse(jira.watermark!)).toBeGreaterThan(Date.parse(FIXTURE_NOW) + 24 * 3_600_000);
+    expect(jira.fullReadAt).toBe(firstWhole);
+    expect(cache.items('card-payments').find((i) => i.source.key === 'PAY-104')!.status).toBe('Blocked');
+
+    breakWhole = false;
+    advance(60_000);
+    toil.reset();
+    await sync.run(ctx);
+    expect(named(toil, 'jira issue search').filter((c) => c.input.cursor === undefined).map((c) => c.input.fields)).toEqual([undefined, 'key']);
+    expect(cache.source('card-payments', 'jira')!.fullReadAt).not.toBe(firstWhole);
+  });
+});
+
 describe('a failing source', () => {
   it("is marked failed with toil's message and fix, keeps its last good data marked stale, and leaves the others alone", async () => {
     const { toil, sync, cache, viaStore, advance } = await setup();

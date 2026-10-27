@@ -5,6 +5,9 @@
  * windowed one), pages Jira by 100, chunks Azure DevOps batches by 200, and
  * counts what it was asked. The same file runs against the code before the
  * change and after it, which is how the numbers in the PR were made.
+ *
+ * Three thousand tickets were harmed in the making of this fixture, none of
+ * them real, all of them closed in a quarterly clean-up nobody remembers.
  */
 
 import { mapOwi } from '@imagile-dev/toil/api';

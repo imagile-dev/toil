@@ -11,6 +11,8 @@ import type { Envelope, WorkItem } from '../src/toil.ts';
  * rewrites nothing that did not change, and one changed item costs about one
  * item's rows. Counted with SQLite's own `total_changes()`, which counts every
  * row an INSERT, UPDATE or DELETE touched on the connection.
+ *
+ * Every row counted here was, at some point, in a status meeting.
  */
 
 const DAY = 86_400_000;
@@ -146,8 +148,29 @@ describe('what a sync writes (#493)', () => {
   it('lets an untouched row age out when no sync reads it', async () => {
     const cache = await open(30);
     cache.saveDossier(dossier());
-    clock.ms = 31 * DAY;
+    clock.ms = 38 * DAY; // past the retention period and the quarter that lazily refreshed rows get on top
     expect(cache.prune()).toBeGreaterThan(0);
+    expect(cache.items('card-payments')).toEqual([]);
+  });
+
+  it('prunes a dossier rows together, though a sync refreshed only the ones that changed', async () => {
+    const cache = await open(30);
+    const keyed = (n: number) => ({ dossier: 'card-payments', key: `PAY-${n}` });
+    cache.saveDossier(dossier());
+    // A week on, only item 1 changed: item 2 is under a quarter of the period old, so its rows are not refreshed.
+    clock.ms = 7 * DAY;
+    cache.saveDossier(dossier({ changed: 1 }));
+    clock.ms = 31 * DAY;
+    cache.prune();
+    expect(cache.counts().responses).toBeGreaterThan(0);
+    expect(cache.response('card-payments', 'jira issue search', { dossier: 'card-payments', jql: 'project = PAY' })).not.toBeNull();
+    expect(cache.response('card-payments', 'jira issue history', keyed(1))).not.toBeNull();
+    expect(cache.response('card-payments', 'jira issue history', keyed(2))).not.toBeNull();
+    expect(cache.items('card-payments')).toHaveLength(COUNT);
+    expect(cache.transitions('card-payments')).toHaveLength(COUNT * 2);
+    // And they do age out, in time.
+    clock.ms = 45 * DAY;
+    cache.prune();
     expect(cache.items('card-payments')).toEqual([]);
   });
 });

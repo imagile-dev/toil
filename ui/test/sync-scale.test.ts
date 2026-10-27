@@ -7,6 +7,9 @@ import { simulate, type Counts } from './scale-sim.ts';
  * 200 are open or touched within the week, and the rest closed 60 days to four
  * years ago. The first sync reads the window, not the project; a second one that
  * finds nothing sends only its delta queries and rewrites next to nothing.
+ *
+ * The sync used to read four years of closed tickets on request, in the
+ * spirit of an archive retrieval, and with the turnaround to match.
  */
 
 const TOTAL = 3000;

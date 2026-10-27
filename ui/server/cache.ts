@@ -845,18 +845,23 @@ export class Cache {
     return (this.db.prepare('SELECT record FROM analyses WHERE dossier = ? ORDER BY at, id').all(dossier) as unknown as Array<{ record: string }>).map((r) => JSON.parse(r.record) as AnalysisRecord);
   }
 
-  /** Deletes every row last synced before the retention period. Returns how many went. */
+  /**
+   * Deletes every row last synced before the retention period. Returns how many went.
+   * The rows a sync refreshes lazily (saveDossier: only once more than a quarter of the period old) get that quarter
+   * on top, because their synced_at means "last confirmed within retention/4", so a dossier's rows from one sync go together.
+   */
   prune(): number {
     const cutoff = new Date(this.now().getTime() - this.retentionDays * DAY).toISOString();
+    const lazyCutoff = new Date(this.now().getTime() - this.retentionDays * 1.25 * DAY).toISOString();
     let removed = 0;
     this.transaction(() => {
-      for (const table of ['responses', 'items', 'transitions', 'change_refs']) removed += Number(this.db.prepare(`DELETE FROM ${table} WHERE synced_at < ?`).run(cutoff).changes);
+      for (const table of ['responses', 'items', 'transitions', 'change_refs']) removed += Number(this.db.prepare(`DELETE FROM ${table} WHERE synced_at < ?`).run(lazyCutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM sources WHERE last_attempt_at < ?').run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM dossiers WHERE last_sync_at < ?').run(cutoff).changes);
       // A test's own migration list may stop short of the usage table; every real file has it.
       if (this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'usage'").get()) removed += Number(this.db.prepare('DELETE FROM usage WHERE at < ?').run(cutoff).changes);
       // The worklog's records (schema 3): a fact by when a sync last recorded it, like every row above; a sync, a run and a note by when it happened.
-      removed += Number(this.db.prepare('DELETE FROM worklog_events WHERE synced_at < ?').run(cutoff).changes);
+      removed += Number(this.db.prepare('DELETE FROM worklog_events WHERE synced_at < ?').run(lazyCutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM sync_runs WHERE at < ?').run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM agent_runs WHERE started_at < ?').run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM notes WHERE at < ?').run(cutoff).changes);

@@ -9,6 +9,11 @@
  * shown on its panel with toil's own message and fix (principle 4), never
  * dropped.
  *
+ * Jira and Azure DevOps are asked for open items and what changed within a
+ * window of days (windowFor), not the whole project, and the per-item calls
+ * (histories, pull request gets) run through one pool of PER_ITEM_CONCURRENCY
+ * across the dossier.
+ *
  * Work items and pull requests go through `mapOwi` (src/owi.ts), pull
  * requests as OWI 0.2 changes: each code host's `pr list`, then `pr get
  * --include reviews,checks,commits,files` for every open one and the newest
@@ -17,6 +22,7 @@
  */
 
 import { adoBuilds, adoDeployments, byEnvironment, changeRef, githubBuild, jenkinsBuilds, openshiftDeployments } from './model/delivery.ts';
+import { LOOKBACK_DAYS } from './model/flow.ts';
 import { readPeople, type PersonEntry } from './model/people.ts';
 import { readReadiness, type ReadinessSettings } from './model/readiness.ts';
 import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
@@ -24,11 +30,15 @@ import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, 
 
 /**
  * How many days back of its last change a closed Jira or Azure DevOps item is
- * still read: the cache's own retention period (`retentionDays`), which
- * prunes anything older anyway. The sync passes the cache's value; a browser
- * that doesn't says this one, which is the cache's default.
+ * still read: the cache's retention period, but at least LOOKBACK_DAYS so the
+ * longest view (six weeks of throughput) stays whole. The cache prunes by when
+ * a row was last synced, not by when an item changed, so the window is a
+ * choice: a closed item older than it isn't read and leaves every view. The
+ * sync passes windowFor(retentionDays); a browser that doesn't says
+ * DEFAULT_WINDOW_DAYS, which is the same for the cache's default retention.
  */
-export const DEFAULT_WINDOW_DAYS = 30;
+export const windowFor = (retentionDays: number) => Math.max(retentionDays, LOOKBACK_DAYS);
+export const DEFAULT_WINDOW_DAYS = windowFor(30);
 
 /**
  * The JQL a dashboard sends: the project's open items, and anything updated
@@ -52,20 +62,25 @@ export const wiqlFor = (windowDays: number = DEFAULT_WINDOW_DAYS) =>
 export const WIQL = wiqlFor();
 
 /**
- * Whether an input's query is the dashboard's own, whatever window it names.
- * The cache answers the views from the sync's copy of that search, so a
- * browser that says 30 days still finds what a sync with a 7-day retention
- * stored; an agent's own JQL or WIQL never matches and is never answered
- * with a search it didn't ask for.
+ * The input with its query's window set to `windowDays`, when the query is
+ * the dashboard's own (JQL() or wiqlFor()); any other input comes back as it
+ * was. The store asks the cache for the search the sync made, which names the
+ * window the sync used, and only the window may differ from what a browser sent.
  */
-export function isDashboardQuery(input: Record<string, unknown>): boolean {
-  if (typeof input.jql === 'string') return /^project = \S+ AND \(statusCategory != Done OR updated >= -\d+d\) ORDER BY Rank ASC$/.test(input.jql);
-  if (typeof input.wiql === 'string') return input.wiql.replace(/@Today - \d+\)/, '@Today - N)') === wiqlFor(0).replace('@Today - 0)', '@Today - N)');
-  return false;
+export function withWindow(input: Record<string, unknown>, windowDays: number): Record<string, unknown> {
+  if (typeof input.jql === 'string') {
+    const jql = input.jql.replace(/^(project = \S+ AND \(statusCategory != Done OR updated >= -)\d+(d\) ORDER BY Rank ASC)$/, `$1${windowDays}$2`);
+    return jql === input.jql ? input : { ...input, jql };
+  }
+  if (typeof input.wiql === 'string') {
+    const wiql = input.wiql.replace(/(\[System\.ChangedDate\] >= @Today - )\d+(\) ORDER BY \[System\.Id\])$/, `$1${windowDays}$2`);
+    return wiql === input.wiql ? input : { ...input, wiql };
+  }
+  return input;
 }
 
 /** How many per-item calls (histories, pull request gets) run at once, across all of a dossier's areas. toil retries a 429 itself. */
-export const PER_ITEM_CONCURRENCY = 6;
+export const PER_ITEM_CONCURRENCY = 4;
 
 /**
  * A gate that lets `limit` calls through at once and queues the rest, first
