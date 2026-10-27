@@ -260,6 +260,13 @@ commands can't change. `toil connections test
 in, turning writes on and choosing a default are for a person: a bare `toil` in a
 terminal opens a menu for them.
 
+A CI job that wants an empty variable to be an error, not a skipped line, sets
+`TOIL_STRICT_ENV=true`. Today it matters for one thing: an empty variable of an area that
+no longer exists (`TOIL_JIRA_CLOUD_API_TOKEN=""`) is skipped by default, as an empty CI
+fallback is, and refused with `CONFIG_INVALID` when it is on; a variable with a value is
+refused either way. `TOIL_STRICT_ENV` is read only from the environment and maps onto no
+area.
+
 When `toil connections add` or `login` asks for a secret, the terminal shows one `•`
 per character typed or pasted (Backspace removes one, Ctrl+U clears them), never the
 characters, and after Enter says how many arrived: `Received 40 characters.` Before
@@ -397,7 +404,7 @@ refuses (see `install.md`), every `execute()` returns the CLI's
 ```js
 import { contractVersion, execute, registry, version } from '@imagile-dev/toil/api';
 
-if (contractVersion !== 1) throw new Error(`Needs toil's contract 1; toil ${version} has ${contractVersion}.`);
+if (contractVersion !== 2) throw new Error(`Needs toil's contract 2; toil ${version} has ${contractVersion}.`);
 const envelope = await execute('jira issue search', { jql: 'project = PAY', limit: 50 }, {
   readOnly: true,
   caller: 'nightly-sync',

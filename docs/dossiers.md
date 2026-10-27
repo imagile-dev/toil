@@ -59,7 +59,7 @@ implemented in #59. What dossiers rely on:
   "version": 3,
   "connections": {
     "corp-jira":  { "area": "jira",       "baseUrl": "https://jira.imagile.dev" },
-    "jira-cloud": { "area": "jira",       "deployment": "cloud", "baseUrl": "https://jira-cloud.imagile.dev", "email": "you@example.com", "writes": true },
+    "imagile-cloud": { "area": "jira",    "deployment": "cloud", "baseUrl": "https://jira-cloud.imagile.dev", "email": "you@example.com", "writes": true },
     "ocp-prod":   { "area": "openshift",  "baseUrl": "https://api.ocp.imagile.dev:6443" }
   },
   "defaults": { "jira": { "connection": "corp-jira" } }
@@ -141,6 +141,14 @@ TOIL_CONN_OCP_PROD_TOKEN=...
 
   A dossier is validated section by section, so an unknown area's section is kept but
   reported (`DOSSIER_UNKNOWN_SECTION`), never dropped.
+
+  A `jira-cloud` section is read as `jira` (that area is now `jira`, with `deployment`
+  on the connection, #495). So is a `jira-cloud` entry under `environments.<env>` and
+  in a person's `ids`. Each is reported as `DOSSIER_RENAMED_AREA` by key path, saying
+  to rename it; where the dossier already has the `jira` entry, that one is used and
+  the warning says `jira-cloud` is ignored. **A dossier has one `jira` section, so it
+  picks one Jira connection**: a body of work that uses both a Data Center and a Cloud
+  Jira takes two dossiers.
 - **`env`** names the environment the dossier works in by default; it must be a key of
   `environments`.
 - **`people`** (#292) lists the team, agents included: `{ "name": "Pat Example",
@@ -198,8 +206,8 @@ A `connection` that names no connection you have fails the call too, as an unkno
 `fields` maps friendly names to the service's field ids, so field ids never leak into
 prompts. The names are used through **one fixed input**, never through generated flags:
 
-- The commands that take custom fields already have one: Jira's and Jira Cloud's
-  `--field Name=value` (`field` over MCP), repeatable. An alias works there wherever
+- The commands that take custom fields already have one: Jira's
+  `--field Name=value` (Data Center and Cloud) (`field` over MCP), repeatable. An alias works there wherever
   the dossier applies (`--field storyPoints=5`), so the schema is the same whichever
   dossier resolves. MCP tool schemas stay fixed, and the CLI and MCP stay identical.
   Core hands the area the aliases (`ctx.dossierFields()`) only when the call names a
@@ -267,7 +275,7 @@ path):
    repository: clone it once and list its folder. Only folders you list are read;
    toil never searches for them.
    - In config, a top-level `"dossierPaths": ["C:/Code/team-dossiers/.toil/dossiers"]`
-     in a version 2 file, each path absolute. It's a reserved top-level key, so it's
+     in a version 2 or later file, each path absolute. It's a reserved top-level key, so it's
      never read as an area; a version 1 file ignores it with a warning.
    - From env, `TOIL_DOSSIER_PATHS`, separated by the platform's path delimiter (`;`
      on Windows, `:` elsewhere). It replaces the config's list, as env always wins.
@@ -389,7 +397,8 @@ and transition pins (#302), which still apply from any dossier.
 connection, inputs, shared }`. The connection and each context input are `{ value,
 source }` (source `input`, `file`, `dossier`, `git`, `connection` or `default`, with
 `via` when an input selected the connection and `host` when a dossier's host selector
-did), and `shared` any setting taken from another area's connection. `dossier`, when
+did; the connection also carries `deployment` for an area whose variants are keyed on it,
+such as Jira), and `shared` any setting taken from another area's connection. `dossier`, when
 one applied, is:
 
 ```jsonc

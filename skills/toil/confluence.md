@@ -20,7 +20,8 @@ There is no username, password or browser login.
 
 **The Jira token works too.** When the default Confluence connection has no token of
 its own in env (`TOIL_CONFLUENCE_API_TOKEN`), it uses `TOIL_JIRA_API_TOKEN`, the default
-Jira connection's env value. Any Confluence connection can instead borrow a Jira
+Jira connection's env value, but only when that connection is Data Center (a Cloud Jira's token is never lent to
+Data Center Confluence). Any Confluence connection can instead borrow a Jira
 connection's token, env or stored, by naming it: `"apiTokenFrom": "corp-jira"`.
 `meta.context.shared` says when the token came from Jira, never the value.
 

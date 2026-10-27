@@ -45,8 +45,8 @@ versions.
    become the area's context inputs in `area.ts`, with a TODO for where each value
    comes from (a connection setting, the git remote, or selecting the connection).
    An area with no contract entry (a variant that is still its own area, with no contract) is stubbed
-   from command names given after it, `node scripts/stub-area.mjs confluence-cloud "page get"
-   "space list"`, each with no flags yet, or with none named, one `example` command.
+   from command names given after it, `node scripts/stub-area.mjs <area> "item get"
+   "item list"`, each with no flags yet, or with none named, one `example` command.
 3. **Build each command**: request, paging, errors and `data` exactly as
    recorded, through `ctx.fetch` and core's helpers. Set `writes`
    from what the command does to the service; the stub only guessed from the verb.
@@ -143,7 +143,10 @@ versions.
   shares: { area, keys } })`. It declares which keys a connection may pair, nothing
   more: the user pairs one with `<key>From` (`"apiKeyFrom": "es-prod"`), and the
   area's default connection alone also takes the other area's default env value, as
-  the env chain the contract records does. Document the `<key>From` setting in the area's skill file.
+  the env chain the contract records does, unless the area's `shares.fallbackWhen` refuses
+  the other connection (a pair shares a credential only between like deployments:
+  Confluence takes Jira's token only from a Jira of the same deployment). An explicit
+  `<key>From` is the user's call and isn't asked. Document the `<key>From` setting in the area's skill file.
   `ctx.resolved.shared` says whether the key came from the other area, for an auth
   error that names which key was sent.
 - **`--env` means which environment**, and it's the same input the dossier supplies.

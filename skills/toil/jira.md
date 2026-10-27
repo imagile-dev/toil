@@ -381,17 +381,43 @@ connection already uses keeps the connection's meaning.
 Jira Cloud used to be its own area. It is `jira` with `"deployment": "cloud"` now, and the
 old names are gone, not deprecated:
 
-- **Config:** a version 2 file loads as it is: a connection with `"area": "jira-cloud"` is
+- **Config:** a version 1 or 2 file loads as it is: a connection with `"area": "jira-cloud"` is
   read as `"area": "jira", "deployment": "cloud"`, and `defaults.jira-cloud` folds into
-  `defaults.jira`. Any command that saves a connection writes the file back as version 3.
-  Keychain entries are untouched.
+  `defaults.jira` with care, because `defaults.jira` reaches every Jira connection. The
+  connection default folds as is. A Cloud default for another key (`project`) moves to
+  `defaults.jira` only when no Data Center connection would inherit it, and is otherwise
+  written onto the Cloud connections. In the other direction, when a file has both moved
+  Cloud connections and Data Center ones, each shared key `defaults.jira` already had
+  (`project`, `issueType`, `priority`, `customFields`) is written onto the Data Center
+  connections and leaves `defaults.jira`, so it doesn't start reaching Cloud. Any command
+  that saves a connection writes the file back as version 3 (so does the welcome menu's game
+  save). Keychain entries are untouched. A version 3 file that still says
+  `"area": "jira-cloud"` warns with `CONFIG_RENAMED_AREA`, naming the new form.
+- **`CONFIG_DEFAULT_KEPT`:** when both areas named a default connection, `jira`'s stays the
+  default and the warning names the Cloud one that was set aside. Any `toil connections`
+  change, such as `toil connections default <name>`, saves the file as version 3 and clears
+  the warning.
+- **Toil UI and older toil:** a version 3 file is refused by toil 0.1.0-beta.2, so toil UI's pin
+  moves to the toil release that has this change.
 - **Commands and tools:** the `jira-cloud` command path is `jira`, the `jira_cloud_*` tools are
   `jira_*`, and `--areas jira-cloud` is `--areas jira`. The old forms fail with
   `INVALID_INPUT` naming the new one.
 - **Env vars:** `TOIL_JIRA_CLOUD_*` is refused with `CONFIG_INVALID`; use `TOIL_JIRA_*` with
   `TOIL_JIRA_DEPLOYMENT=cloud`, or `TOIL_CONN_<NAME>_*` with `TOIL_CONN_<NAME>_DEPLOYMENT=cloud`.
-- **Dossiers:** a `jira-cloud` section is read as `jira`, with a `DOSSIER_RENAMED_AREA`
-  warning to rename it (`toil dossiers check` reports it). With both, `jira` wins.
+  `TOIL_CONN_<NAME>_AREA=jira-cloud` is refused the same way, with `TOIL_CONN_<NAME>_AREA=jira`
+  and `TOIL_CONN_<NAME>_DEPLOYMENT=cloud` as the fix. An empty `TOIL_JIRA_CLOUD_*` is skipped
+  unless `TOIL_STRICT_ENV=true`, which refuses it too (see `core.md`, **Configuration**).
+- **Old `TOIL_JIRA_*` values on a Cloud default:** `TOIL_JIRA_*` reaches jira's default
+  connection. When that connection is Cloud (a migrated `jira-cloud` one, or `deployment`
+  set in `defaults.jira`) and `TOIL_JIRA_DEPLOYMENT` isn't set, the call fails with
+  `CONFIG_INVALID` naming the variables, so Data Center values and a token never land on a
+  Cloud site by accident. Set `TOIL_JIRA_DEPLOYMENT=cloud` if the values are Cloud ones, or
+  define a separate Data Center connection with `TOIL_CONN_<NAME>_*`. `TOIL_CONN_<NAME>_*`
+  is never affected.
+- **Dossiers:** a `jira-cloud` section is read as `jira` (also under an environment and in a
+  person's `ids`), with a `DOSSIER_RENAMED_AREA` warning to rename it (`toil dossiers check`
+  reports it). With both, `jira` wins. A dossier has one `jira` section, so it picks one Jira
+  connection: a body of work that uses both a Data Center and a Cloud Jira takes two dossiers.
 
 ## Ticket the work
 

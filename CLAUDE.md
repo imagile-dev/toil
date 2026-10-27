@@ -106,7 +106,9 @@ gets made again in the next place it applies.
    (`docs/bounds.md`, `feedback.send`). A credential goes only to the connection
    it's configured on, or to one the user paired it with; the one exception is an
    area's default connection taking another area's default env value, which keeps
-   the env chain the contract records.
+   the env chain the contract records, unless the area's `shares.fallbackWhen`
+   refuses it (Confluence takes Jira's token only from a Jira of the same
+   deployment).
 10. **Learn one area, know them all.** Integration commands converge on one shape,
     `toil <area> <resource> <action> [ids...] [--flags]`: everything you can do to a
     thing lives under that thing, positional arguments are only the ids that lead to
@@ -486,7 +488,10 @@ the two, the env tier beats the file tier, and the own connection wins a tie. Wi
 no pairing a connection uses only its own key, with one exception that keeps the contract's
 env chain: the area's default connection takes the other area's default
 connection's env value (`TOIL_KIBANA_API_KEY`, then `TOIL_ELASTICSEARCH_API_KEY`),
-matching precedence rule 2. A shared key is a secret in both areas or in neither.
+matching precedence rule 2, unless the area's `shares.fallbackWhen` refuses that
+connection (Confluence takes Jira's token only from a Jira of the same deployment,
+read as it resolves, `defaults.<area>` included). An explicit `<key>From` pairing is
+the user's call and isn't checked. A shared key is a secret in both areas or in neither.
 `meta.context.shared` names the connection, whether it was paired, and whether the
 value came from env or the store, never the value.
 
@@ -727,7 +732,8 @@ a breaking change.
   SQL (the `databases` skill).
 - **`meta.context`**, on area commands only, says where the call acted: `{ dossier,
   connection, inputs, shared }`. `dossier`, when one applied, names it, where it
-  lives, what chose it and how the folder matched it. `connection` and each of `inputs` is `{ value, source }`, the
+  lives, what chose it and how the folder matched it. `connection` and each of `inputs` is `{ value, source }`
+  (`connection` also carries `deployment` for an area whose `variants` are keyed on it), the
   source one of `input`, `file` (a value the command read from a file the call
   named, through `ctx.supply`), `dossier`, `git`, `connection` or `default`, plus `via` (the
   input that selected the connection), `host` (the dossier's host selector that did)
@@ -815,7 +821,7 @@ that matches no registered area is ignored, never guessed at, so a variable can'
 change meaning when an area is added. `envName()` and `parseEnvName()` in
 `src/core/config.ts` are the only places the mapping lives. These names are reserved
 and never map onto an area: `TOIL_CONN_*`, `TOIL_DOSSIER*`, `TOIL_ENV`, `TOIL_CONFIG*`,
-`TOIL_TIMEOUT_MS`, `TOIL_WORKSPACE`, `TOIL_FEEDBACK_URL`, `TOIL_THEME`.
+`TOIL_TIMEOUT_MS`, `TOIL_WORKSPACE`, `TOIL_FEEDBACK_URL`, `TOIL_THEME`, `TOIL_STRICT_ENV`.
 
 **The config file is versioned.** `"version"` is a whole number; a file without one
 is version 1. Every format change adds a step to `migrateConfig()` with a test, so an
@@ -1078,7 +1084,8 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   - **What never gets its own issue:** individual commands or features inside an
     area. They're part of their area's issue, never sub-issues.
   - **Data Center/Cloud products** are one area with a `deployment` connection field,
-    so one issue; `data-center` and `cloud` label work that touches only one
+    so one issue (Jira is folded; `confluence`, `bitbucket` and `ado` are still separate
+    `-cloud` areas until #495's later slices); `data-center` and `cloud` label work that touches only one
     deployment.
   - **Product labels, on every issue a person or agent files here:** `cli` for the
     published toil package (the CLI, the MCP server, `./api`, `skills/toil/`), `ui`
