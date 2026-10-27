@@ -194,7 +194,7 @@ function useChat() {
       if (!controller.signal.aborted) {
         update(id, { done: true, ms: Date.now() - started });
         // A whole Analyze joins the history (#395): the server keeps its own; the preview keeps it here.
-        if (prompt === ANALYZE && last && last.parts.length) {
+        if (prompt === ANALYZE && last && (last.parts.length || last.briefing)) {
           if (analyses?.record && !last.analysis) {
             const kept = await analyses.record(dossier.name, last, { startedAt: new Date(started).toISOString(), at: new Date().toISOString(), items: dossier.items, now }).catch(() => null);
             if (kept) update(id, { answer: { ...last, analysis: kept } });
@@ -476,7 +476,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                   </>
                 ) : (
                   <ChatMessage from="agent">
-                    {e.answer && e.answer.parts.length > 0 ? (
+                    {e.answer && (e.answer.parts.length > 0 || e.answer.briefing) ? (
                       <>
                         <h3>{e.answer.prompt}</h3>
                         {e.done && e.answer.warnings && e.answer.warnings.length > 0 && (

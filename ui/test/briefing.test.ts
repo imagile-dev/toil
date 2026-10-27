@@ -1,5 +1,6 @@
 import { registry } from '@imagile-dev/toil/api';
 import { describe, expect, it } from 'vitest';
+import { isWhole } from '../server/analyses.ts';
 import { finish, writeCommands } from '../server/agents/answer.ts';
 import { analyzeQuestion } from '../server/agents/prompts.ts';
 import { Ledger } from '../server/agents/tools.ts';
@@ -76,6 +77,15 @@ describe("the server's answer", () => {
     expect(a.briefing?.recommendation).toBe('Fix [[corp-jira:PAY-101]].');
     expect(a.parts.map((p) => p.text).join('\n')).not.toContain('```briefing');
     expect(a.unverified).toEqual(['corp-jira:PAY-404']);
+  });
+
+  it('counts an answer that is only a briefing as whole, citing its items, so the history keeps it', () => {
+    const b = { recommendation: 'Fix [[corp-jira:PAY-101]].', reasons: [{ lens: 'failing', label: 'Failing checks', line: 'one', text: null, items: [{ id: 'corp-jira:PAY-101', why: 'Checks fail.', next: null }] }], onTrack: null, changed: [], leftOut: [] };
+    const a = finish(block(b), f);
+    expect(a.parts).toEqual([]);
+    expect(a.citations).toEqual(['corp-jira:PAY-101']);
+    expect(a.warnings).toEqual([]);
+    expect(isWhole(a)).toBe(true);
   });
 
   it("says what in the block didn't fit", () => {

@@ -26,8 +26,8 @@ export interface AnalysisKeeper {
   record(dossier: string, answer: Answer, startedAt: string): Promise<string>;
 }
 
-/** An answer that is whole: not a partial still streaming, and with something in it. */
-export const isWhole = (a: Answer | undefined): a is Answer => !!a && !a.activity && a.parts.length > 0;
+/** An answer that is whole: not a partial still streaming, and with something in it, prose or a briefing (#494). */
+export const isWhole = (a: Answer | undefined): a is Answer => !!a && !a.activity && (a.parts.length > 0 || Boolean(a.briefing));
 
 /** The cache's history: what a real Toil UI keeps. `cache` is a getter, since a wipe swaps the file underneath. */
 export function cacheAnalyses(cache: () => Cache, now: () => string = () => new Date().toISOString()): AnalysisKeeper {

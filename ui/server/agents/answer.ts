@@ -169,7 +169,8 @@ export function finish(raw: string, f: Finish): Answer {
   const projects = new Set([...keyOf].map((k) => /^([A-Z][A-Z0-9]{1,9})-\d+$/.exec(k)?.[1]).filter(Boolean));
   for (const key of keys) if (projects.has(key.split('-')[0]) && !keyOf.has(key) && ![...unverified].some((id) => id.endsWith(`:${key}`))) unverified.add(key);
 
-  const citations = citationsOf(parts);
+  // A briefing's items and the [[ids]] in its sentences are citations too, so an answer that is only a briefing still cites what it rests on.
+  const citations = [...new Set([...citationsOf(parts), ...(b ? [...b.reasons.flatMap((r) => r.items.map((i) => i.id)), ...citationsOf(briefed.map((text) => ({ text })))] : [])])];
   if (unverified.size) warnings.unshift(`This answer names ${unverified.size === 1 ? 'an item' : `${unverified.size} items`} its tools never returned: ${[...unverified].join(', ')}. Treat ${unverified.size === 1 ? 'it' : 'them'} as unverified.`);
   if (read?.problems.length) warnings.push(...read.problems.map((p) => `The briefing: ${p}`));
   if (parts.length && !citations.length && !read?.briefing && ledgerIds.size) warnings.push('This answer cites none of the items its tools read, so nothing in it is traced to a source.');

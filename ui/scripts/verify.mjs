@@ -217,7 +217,10 @@ async function firstItemRoute(launchUrl, dossier) {
     return await page.evaluate(`new Promise((resolve) => {
       const started = Date.now();
       const tick = () => {
-        const link = [...document.querySelectorAll('a[href*="/item/"]')].map((a) => new URL(a.href).hash).find(Boolean);
+        // An item's page, or its drawer (#494: the briefing's rows open ?item=), which names the same item.
+        const page = [...document.querySelectorAll('a[href*="/item/"]')].map((a) => new URL(a.href).hash).find(Boolean);
+        const peek = [...document.querySelectorAll('a[href*="?item="]')].map((a) => new URL(a.href).hash).find(Boolean);
+        const link = page ?? (peek ? peek.replace(/\\?item=(.+)$/, '/item/$1') : undefined);
         if (link || Date.now() - started > 15000) resolve(link ?? null);
         else setTimeout(tick, 100);
       };
@@ -348,9 +351,9 @@ async function askAgent(api, dossier, home, dataDir, env, launchUrl) {
   const pulse = await streamedAsk(api, { dossier, prompt: 'analyze', theme: 'plain', voice: false, chat: { id: 'verify-ui', turn: 2 }, history });
   const pulseSeconds = Math.round((Date.now() - pulseStarted) / 1000);
   const p = pulse.answer;
-  const pulseOk = pulse.status === 200 && !pulse.error && p && p.parts.length && p.citations.length && !(p.unverified ?? []).length && p.carried === 1;
+  const pulseOk = pulse.status === 200 && !pulse.error && p && (p.parts.length || p.briefing) && p.citations.length && !(p.unverified ?? []).length && p.carried === 1;
   if (!pulseOk) fail(`Analyze: ${pulse.error?.message ?? `${p?.parts.length ?? 0} paragraph(s), ${p?.citations.length ?? 0} cited, ${(p?.unverified ?? []).length} unverified, carried ${p?.carried ?? 0}`}`);
-  step('Ask: Analyze, as a follow-up', pulseOk ? 'pass' : 'fail', p ? `${p.parts.length} paragraph(s) in ${pulseSeconds}s, ${p.citations.length} cited, ${(p.unverified ?? []).length} unverified, carried ${p.carried ?? 0} earlier turn; starts: ${p.parts.map((x) => x.text.split(/[:.]/)[0].slice(0, 30)).join(' / ')}` : (pulse.error?.message ?? 'no answer'));
+  step('Ask: Analyze, as a follow-up', pulseOk ? 'pass' : 'fail', p ? `${p.briefing ? `a briefing (${p.briefing.reasons.length} reason(s)), ` : ''}${p.parts.length} paragraph(s) in ${pulseSeconds}s, ${p.citations.length} cited, ${(p.unverified ?? []).length} unverified, carried ${p.carried ?? 0} earlier turn; starts: ${p.parts.map((x) => x.text.split(/[:.]/)[0].slice(0, 30)).join(' / ')}` : (pulse.error?.message ?? 'no answer'));
   if (p) await analysisHistory(api, dossier, home, env, launchUrl, p, [...history, { prompt: p.prompt, answer: p.parts.map((x) => x.text).join('\n\n'), by: p.by }]);
 }
 
