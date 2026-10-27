@@ -54,7 +54,7 @@ const texts = (v: unknown) => (Array.isArray(v) ? v.map(text).filter((t): t is s
 export function readBriefing(answer: string): BriefingRead {
   const m = BLOCK.exec(answer);
   if (!m) return { briefing: null, problems: ['The answer has no ```briefing block.'], rest: answer.trim() };
-  const rest = (answer.slice(0, m.index) + answer.slice(m.index + m[0].length)).trim();
+  const rest = (answer.slice(0, m.index) + answer.slice(m.index + m[0].length)).replace(/(\r?\n\s*){3,}/g, '\n\n').trim();
   const problems: string[] = [];
   let raw: unknown;
   try {
