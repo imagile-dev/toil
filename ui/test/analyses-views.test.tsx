@@ -65,9 +65,10 @@ describe('the Analyses tab', () => {
   it('opens one again, top-down, with its evidence folded and what changed', async () => {
     await open('#/dossier/card-payments/analyses/sample-analysis-2');
     const panel = await screen.findByRole('region', { name: /^Analysis of 13 Oct 2026/ });
-    expect(within(panel).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Recommendation', 'Issues', 'What changed since the one before']);
-    const issues = within(within(panel).getByRole('region', { name: 'Issues' })).getAllByRole('listitem');
-    expect(issues.map((li) => li.querySelector('strong')?.textContent)).toEqual(['Build failing: ', 'Blocked chain: ', 'Aging carry-over: ']);
+    expect(within(panel).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Recommendation', 'Reasons', 'What changed since the one before']);
+    const reasons = within(panel).getByRole('region', { name: 'Reasons' }).querySelectorAll('ol > li');
+    expect([...reasons].map((li) => li.querySelector('strong')?.textContent)).toEqual(['Failing checks: ', 'Blocked: ', 'Waiting on review: ']);
+    expect(panel.querySelector('.analysis-next')?.textContent).toContain('Next:');
     const evidence = panel.querySelector('details.analysis-evidence') as HTMLDetailsElement;
     expect(evidence.open).toBe(false);
     expect(evidence.querySelector('summary')!.textContent).toMatch(/^Evidence \(\d+ paragraphs\)$/);
@@ -82,31 +83,72 @@ describe('the Analyses tab', () => {
   });
 });
 
-describe("the Overview's recommendation", () => {
-  it("is the latest analysis's, with its time and a link, and says so", async () => {
+describe("the dossier's briefing (#494)", () => {
+  it("is the latest Analyze's when it is current, says who wrote it, and links to it", async () => {
     await open('#/dossier/card-payments');
-    const card = await screen.findByRole('region', { name: /^Recommendation/ });
-    await waitFor(() => expect(card.dataset.recSource).toBe('analysis'));
-    expect(card.textContent).toContain('From the latest Analyze, 13 Oct 2026, 07:30 UTC, by the scripted preview, not a model.');
-    expect(within(card).getByRole('link', { name: 'Open the analysis' }).getAttribute('href')).toBe('#/dossier/card-payments/analyses/sample-analysis-2');
-    expect(card.querySelector('.overview-rec__headline')!.textContent).toContain('Fix');
+    const b = await screen.findByRole('region', { name: 'Briefing' });
+    await waitFor(() => expect(b.dataset.recSource).toBe('analysis'));
+    expect(b.textContent).toContain('Analyze, the scripted preview, not a model, 13 Oct 2026, 07:30 UTC');
+    expect(within(b).getByRole('link', { name: 'Open the analysis' }).getAttribute('href')).toBe('#/dossier/card-payments/analyses/sample-analysis-2');
+    expect(b.querySelector('.briefing__head')!.textContent).toContain('Fix');
+    // The first reason is open, the rest folded.
+    const reasons = [...b.querySelectorAll<HTMLDetailsElement>('details[data-reason]')];
+    expect(reasons.map((r) => [r.dataset.reason, r.open])).toEqual([['failing', true], ['blocked', false], ['waiting', false]]);
   });
 
-  it("falls back to the code's when the latest analysis is older than the data, and links to it", async () => {
+  it("opens an item's drawer from its row, with why it's here, the next step and the way to its page", async () => {
+    await open('#/dossier/card-payments');
+    const b = await screen.findByRole('region', { name: 'Briefing' });
+    await waitFor(() => expect(b.dataset.recSource).toBe('analysis'));
+    const row = b.querySelector<HTMLAnchorElement>('a[data-row="corp-jira:PAY-101"]')!;
+    expect(row.getAttribute('href')).toBe('#/dossier/card-payments?item=corp-jira%3APAY-101');
+    window.location.hash = row.getAttribute('href')!;
+    const drawer = await screen.findByRole('complementary', { name: 'Tokenise card numbers at the edge' });
+    expect(within(drawer).getByRole('region', { name: "Why it's here" }).textContent).toContain('Failing checks');
+    expect(within(drawer).getByRole('region', { name: 'Next step' }).textContent).toContain('Fix the failing test in the tokeniser');
+    expect(within(drawer).getByRole('link', { name: 'Open' }).getAttribute('href')).toBe('#/dossier/card-payments/item/corp-jira%3APAY-101');
+    expect(within(drawer).getByRole('link', { name: 'Close the drawer' }).getAttribute('href')).toBe('#/dossier/card-payments');
+    // The view behind it stays where it was.
+    expect(screen.getByRole('region', { name: 'Briefing' })).toBeTruthy();
+  });
+
+  it("falls back to the code's briefing when the latest Analyze is older than the data, and says so", async () => {
     const old = (await sampleAnalysisRecords()).map((r, i) => ({ ...r, at: `2026-10-0${8 + i}T09:00:00.000Z` }));
     await open('#/dossier/card-payments', memoryAnalyses(old));
-    const card = await screen.findByRole('region', { name: /^Recommendation/ });
-    await waitFor(() => expect(card.textContent).toContain('The latest Analyze, 9 Oct 2026, 09:00 UTC, is older than the data: open it.'));
-    expect(card.dataset.recSource).toBe('code');
-    expect(within(card).getByRole('link', { name: 'open it' }).getAttribute('href')).toBe('#/dossier/card-payments/analyses/sample-analysis-2');
+    const b = await screen.findByRole('region', { name: 'Briefing' });
+    await waitFor(() => expect(b.textContent).toContain('The latest Analyze is older than the data.'));
+    expect(b.dataset.recSource).toBe('code');
+    expect(b.textContent).toContain('By code, no agent');
+    expect(within(b).getByRole('link', { name: 'Open the analysis' }).getAttribute('href')).toBe('#/dossier/card-payments/analyses/sample-analysis-2');
   });
 
-  it('falls back to the code\'s, and says so, where there is no analysis', async () => {
+  it("is the code's, and says so, where there is no analysis", async () => {
     await open('#/dossier/settlement');
-    const card = await screen.findByRole('region', { name: /^Recommendation/ });
-    expect(card.dataset.recSource).toBe('code');
-    expect(card.textContent).toContain('Worked out by code, with no agent call');
-    expect(card.textContent).toContain('No Analyze kept for this dossier yet.');
+    const b = await screen.findByRole('region', { name: 'Briefing' });
+    expect(b.dataset.recSource).toBe('code');
+    expect(b.textContent).toContain('By code, no agent');
+    expect(b.querySelectorAll('details[data-reason]').length).toBeGreaterThan(0);
+  });
+
+  it('opens the same drawer from a Board card and a pull request, over the view', async () => {
+    await open('#/dossier/card-payments/board');
+    const key = await waitFor(() => document.querySelector<HTMLAnchorElement>('a.card-key[href*="PAY-101"]')!);
+    expect(key.getAttribute('href')).toBe('#/dossier/card-payments/board?item=corp-jira%3APAY-101');
+    window.location.hash = '#/dossier/card-payments/prs';
+    const link = await waitFor(() => {
+      const found = document.querySelector<HTMLAnchorElement>('a.item-link[href*="/prs?item="]');
+      expect(found).toBeTruthy();
+      return found!;
+    });
+    expect(link.getAttribute('href')).toMatch(/^#\/dossier\/card-payments\/prs\?item=/);
+    window.location.hash = link.getAttribute('href')!;
+    expect(await screen.findByRole('complementary', { name: /./ })).toBeTruthy();
+  });
+
+  it('says plainly when a drawer names an item the dossier does not hold', async () => {
+    await open('#/dossier/card-payments?item=corp-jira%3APAY-999');
+    const drawer = await screen.findByRole('complementary', { name: 'Not in this dossier' });
+    expect(drawer.textContent).toContain("corp-jira:PAY-999 isn't one of card-payments's items");
   });
 });
 
@@ -114,12 +156,12 @@ describe('Analyze in the chat', () => {
   it('lays the answer out top-down with its evidence folded, keeps it, and the tab, sidebar and Overview follow', async () => {
     // No history given: the App keeps this page's own, which starts empty.
     await open('#/dossier/checkout-web', undefined);
-    const card = await screen.findByRole('region', { name: /^Recommendation/ });
+    const card = await screen.findByRole('region', { name: 'Briefing' });
     expect(card.dataset.recSource).toBe('code');
     await userEvent.click(within(askBar('checkout-web')).getByRole('button', { name: 'Analyze' }));
     const chat = await screen.findByRole('dialog', { name: 'Ask about checkout-web' });
     const kept = await within(chat).findByRole('link', { name: 'Kept in Analyses' }, { timeout: 5000 });
-    expect(within(chat).getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual(['Recommendation', 'Issues']);
+    expect(within(chat).getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual(['Recommendation', 'Reasons']);
     expect((chat.querySelector('details.analysis-evidence') as HTMLDetailsElement).open).toBe(false);
     // Every citation in the answer is a chip naming its key, title and status.
     const chips = chat.querySelectorAll('.ticket-chip--cite');
@@ -130,7 +172,7 @@ describe('Analyze in the chat', () => {
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ask about checkout-web' })).toBeNull());
     expect(await screen.findByRole('region', { name: /^Analysis of / })).toBeTruthy();
     window.location.hash = '#/dossier/checkout-web';
-    await waitFor(() => expect(screen.getByRole('region', { name: /^Recommendation/ }).dataset.recSource).toBe('analysis'));
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Briefing' }).dataset.recSource).toBe('analysis'));
   });
 });
 

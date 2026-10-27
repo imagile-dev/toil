@@ -14,7 +14,7 @@
 import { brief as briefByCode, lensDef, type Brief, type BriefItem, type LensId, type Severity } from '../../../src/core/brief/brief.ts';
 import type { Briefing } from '../../../src/core/brief/answer.ts';
 import type { BriefSettings } from '../../../src/core/brief/brief.ts';
-import type { AnalysisRecord } from './analysis.ts';
+import type { AnalysisSummary } from './analysis.ts';
 import type { Change, WorkItem } from '../toil.ts';
 
 export interface BriefingItem {
@@ -37,7 +37,7 @@ export interface BriefingReason {
 export interface BriefingView {
   /** Who wrote it: `analyze` (with the record) or `code`. */
   by: 'analyze' | 'code';
-  analysis: AnalysisRecord | null;
+  analysis: AnalysisSummary | null;
   /** Set when an Analyze is kept but isn't what the page shows, saying why. */
   stale: string | null;
   recommendation: string | null;
@@ -60,14 +60,14 @@ export interface BriefingInput {
   now: string;
   settings: BriefSettings;
   /** The dossier's analyses, newest first. */
-  analyses: readonly AnalysisRecord[];
+  analyses: readonly AnalysisSummary[];
 }
 
 const severityOf = (lens: string): Severity => (lens === 'failing' || lens === 'blocked' ? 'danger' : 'warn');
 const knownLens = (lens: string): lens is LensId => ['failing', 'blocked', 'waiting', 'sprint', 'stale', 'load', 'drift', 'ready'].includes(lens);
 
 /** Whether an analysis is current enough to lead the page: made since the data was read, or the same UTC day. */
-export const isCurrent = (record: AnalysisRecord, now: string) => record.at >= now || record.at.slice(0, 10) === now.slice(0, 10);
+export const isCurrent = (record: { at: string }, now: string) => record.at >= now || record.at.slice(0, 10) === now.slice(0, 10);
 
 /** The briefing the page shows. */
 export function briefingOf(input: BriefingInput): BriefingView {

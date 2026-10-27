@@ -1,132 +1,189 @@
 /**
- * A dossier's Overview (#394), in the Minto order: the recommendation first,
- * then the three key issues behind it, each with its tickets as chips, then
- * the evidence: the metrics as a strip of sparklines, each opening its full
- * chart, and the blockers in brief: the critical chain as a compact Gantt (#396). It fits a 1440 by 900 screen without
- * scrolling. The recommendation is the latest Analyze's when the dossier has
- * one (#395), with when it was made and a link to it; otherwise it is worked
- * out by code (src/model/recommend.ts), with no agent asked. It says which. The answer before the slides, for once.
+ * A dossier's home (#494, replacing #394's Overview): the briefing, one layer
+ * at a time. The recommendation first, as a sentence; then the reasons behind
+ * it, each one line, the first open; each item a row that opens its drawer;
+ * what is on track counted, not listed; and, one step in, anything the
+ * dossier's focus left out or the code flagged that Analyze didn't mention.
+ * The numbers wait behind a fold, and every other view is a quiet link away
+ * as well as a tab. Analyze writes it when its latest answer is current;
+ * otherwise code does, and the page says which (principle 4). Briefing notes,
+ * with the appendix stapled to the back rather than the front.
  */
 
 import { useMemo, type ReactNode } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { Sparkline } from '../components/charts.tsx';
-import { Help } from '../components/help.tsx';
-import { Cited, PrLink, TicketChip } from '../components/items.tsx';
-import { Card } from '../components/layout.tsx';
+import { briefingSource, PeekLinks, useBriefing } from '../components/briefing.tsx';
+import { Cited, PrLink } from '../components/items.tsx';
 import { useData, useDerived } from '../data.ts';
-import { analysisHref, boardHref, dateTime, dependenciesHref, prsHref } from '../format.ts';
-import { whoText } from '../components/analysis.tsx';
-import { useChatScope } from '../components/ask.tsx';
+import { analysesHref, analysisHref, boardHref, dependenciesHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, worklogHref } from '../format.ts';
 import { Empty, TrackerAction } from '../components/empty.tsx';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
 import { WAITING_LABEL, daysText, openQueue } from '../model/prs.ts';
-import { recommend, type IssueTab, type KeyIssue } from '../model/recommend.ts';
+import type { BriefingReason } from '../model/briefing.ts';
 import { useSkins, useWords } from '../skins.tsx';
 import { Aging, CycleTime, SprintDetail, Throughput } from './Flow.tsx';
-import { ChainGantt } from './Gantt.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
-const TAB_NAME: Record<IssueTab, string> = { board: 'Board', dependencies: 'Dependencies', prs: 'Pull requests' };
 
 export function Overview() {
-  const { dossier, now } = useData();
-  const { health: h, insights: p } = useDerived();
-  const rec = useMemo(() => recommend({ items: dossier.items, pullRequests: dossier.pullRequests ?? [], prepared: p, health: h, readiness: dossier.readiness, now }), [dossier, now, h, p]);
-  // The latest Analyze's recommendation when there is one and it is current (#395): made since the data was read, or
-  // the same UTC day. An older one would lead with work since done, so the code's leads then; the card says which.
-  const latest = useChatScope()?.history.list?.[0] ?? null;
-  const current = latest ? latest.at >= now || latest.at.slice(0, 10) === now.slice(0, 10) : false;
-  const analysis = latest?.recommendation && current ? latest : null;
+  const { dossier } = useData();
+  const { health: h } = useDerived();
+  const view = useBriefing();
+  const here = typeof window === 'undefined' ? '#/' : window.location.hash;
+  const focus = dossier.analyze && (dossier.analyze.goal || dossier.analyze.watchFor || dossier.analyze.leaveOut) ? dossier.origin : null;
   return (
-    <div className="overview">
-      <Card as="section" className="panel overview-rec" aria-labelledby="rec-title" data-rec-source={analysis ? 'analysis' : 'code'}>
-        <div className="overview-head">
-          <h2 id="rec-title" className="overview-label">
-            Recommendation <Help topic="recommendation" />
-          </h2>
-          <p className="note overview-rec__how">
-            {analysis ? (
-              <>
-                <span className="overview-rec__source">From the latest Analyze</span>, <time dateTime={analysis.at}>{dateTime(analysis.at)}</time>, by {whoText(analysis)}.{' '}
-                <a href={analysisHref(dossier.name, analysis.id)} data-rec-analysis="">
-                  Open the analysis
-                </a>
-              </>
-            ) : (
-              <>
-                <span className="overview-rec__source">Worked out by code</span>
-                {rec.derivedFrom.replace(/^Worked out by code/, '')}
-                {!latest ? (
-                  ' No Analyze kept for this dossier yet.'
-                ) : (
-                  <>
-                    {' '}
-                    The latest Analyze, <time dateTime={latest.at}>{dateTime(latest.at)}</time>, {current ? 'had no recommendation line' : 'is older than the data'}:{' '}
-                    <a href={analysisHref(dossier.name, latest.id)} data-rec-analysis="">
-                      open it
-                    </a>
-                    .
-                  </>
-                )}
-              </>
-            )}
-          </p>
-        </div>
-        <p className={`overview-rec__headline${analysis ? ' overview-rec__headline--analysis' : ''}`}>
-          {analysis ? <Cited text={analysis.recommendation!} chips /> : <Cited text={rec.headline} />}
-        </p>
-      </Card>
-
-      <section className="overview-issues" aria-labelledby="issues-title">
-        <h2 id="issues-title" className="overview-label">
-          Key issues
-        </h2>
-        {rec.issues.length ? (
-          <ol className="issue-cards">
-            {rec.issues.map((i) => (
-              <IssueCard key={i.kind} issue={i} />
-            ))}
-          </ol>
-        ) : (
-          <p className="note">No issue stands out: nothing is blocked, failing, waiting on review or aging.</p>
+    <section className="briefing" aria-label="Briefing" data-rec-source={view.by === 'analyze' ? 'analysis' : 'code'}>
+      <p className="briefing__meta">
+        {h && (
+          <span>
+            {h.sprint.name}, day {h.days.gone} of {h.days.total}
+          </span>
         )}
-      </section>
-
-      <MetricStrip />
-      <Blockers />
-    </div>
+        <span className="briefing__by source" data-briefing-by={view.by}>
+          {briefingSource(view)}
+          {view.stale && `. ${view.stale}`}
+          {view.analysis && (
+            <>
+              {' · '}
+              <a href={analysisHref(dossier.name, view.analysis.id)} data-rec-analysis="">
+                Open the analysis
+              </a>
+            </>
+          )}
+        </span>
+        {focus && !focus.adopted && (
+          <span className="source" data-focus-from="">
+            Focus from {focus.file}, a dossier you haven't adopted
+          </span>
+        )}
+      </p>
+      <PeekLinks>
+        <h2 className="sr-only">Recommendation</h2>
+        <p className="briefing__head">{view.recommendation ? <Cited text={view.recommendation} /> : 'Nothing needs anyone right now.'}</p>
+        {view.unknown.length > 0 && (
+          <p className="briefing__warning" role="note">
+            Analyze named {view.unknown.length === 1 ? 'an item' : `${view.unknown.length} items`} that {view.unknown.length === 1 ? "isn't" : "aren't"} this dossier's: <code>{view.unknown.join(', ')}</code>. Treat {view.unknown.length === 1 ? 'it' : 'them'} as unverified.
+          </p>
+        )}
+        <section aria-labelledby="why-title">
+          <h2 id="why-title" className="briefing__label">
+            Why
+          </h2>
+          <div className="reasons">
+            {view.reasons.map((r, i) => (
+              <Reason key={`${r.lens}-${i}`} reason={r} open={i === 0} here={here} />
+            ))}
+            <div className="reason reason--quiet">
+              <p className="reason__line">
+                <span className="reason__dot reason__dot--ok" aria-hidden="true" />
+                <span className="reason__title">
+                  <b>On track.</b> <span>{view.onTrack}</span>
+                </span>
+              </p>
+            </div>
+            {view.leftOut.length > 0 && (
+              <details className="reason" data-left-out="">
+                <summary>
+                  <span className="reason__dot" aria-hidden="true" />
+                  <span className="reason__title">
+                    <b>Left out by the dossier's focus.</b> <span>Analyze set these aside because of "leave out".</span>
+                  </span>
+                  <span className="reason__count">{view.leftOut.length}</span>
+                </summary>
+                <div className="reason__body">{view.leftOut.map((l) => <Row key={l.id} id={l.id} note={l.why} here={here} />)}</div>
+              </details>
+            )}
+            {view.notMentioned.length > 0 && (
+              <details className="reason" data-not-mentioned="">
+                <summary>
+                  <span className="reason__dot reason__dot--warn" aria-hidden="true" />
+                  <span className="reason__title">
+                    <b>Flagged by code, not in the briefing.</b> <span>Analyze didn't mention these.</span>
+                  </span>
+                  <span className="reason__count">{view.notMentioned.length}</span>
+                </summary>
+                <div className="reason__body">{view.notMentioned.map((i) => <Row key={i.id} id={i.id} note={i.why} here={here} />)}</div>
+              </details>
+            )}
+          </div>
+        </section>
+        {view.changed.length > 0 && (
+          <section aria-labelledby="changed-title">
+            <h2 id="changed-title" className="briefing__label">
+              Since the last briefing
+            </h2>
+            <ul className="rows">
+              {view.changed.map((c, i) => (
+                <li key={i}>
+                  <Cited text={c} />
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+      </PeekLinks>
+      <details className="briefing__numbers">
+        <summary>The numbers</summary>
+        <MetricStrip />
+      </details>
+      <nav className="briefing__links" aria-label={`More on ${dossier.name}`}>
+        <span className="briefing__label">Go to</span>
+        <a href={boardHref(dossier.name)}>Board</a>
+        <a href={dependenciesHref(dossier.name)}>Dependencies</a>
+        <a href={prsHref(dossier.name)}>Pull requests</a>
+        <a href={peopleHref(dossier.name)}>People</a>
+        <a href={worklogHref(dossier.name)}>Worklog</a>
+        <a href={analysesHref(dossier.name)}>Analyses</a>
+      </nav>
+    </section>
   );
 }
 
-function tabHref(dossier: string, tab: IssueTab): string {
-  return tab === 'prs' ? prsHref(dossier) : tab === 'dependencies' ? dependenciesHref(dossier) : boardHref(dossier);
+/** One reason: a line, folded; open, its items as rows that open the drawer, or its text. */
+function Reason({ reason: r, open, here }: { reason: BriefingReason; open: boolean; here: string }) {
+  return (
+    <details className="reason" open={open} data-reason={r.lens}>
+      <summary>
+        <span className={`reason__dot reason__dot--${r.severity}`} aria-hidden="true" />
+        <span className="reason__title">
+          <b>{r.label}.</b> <span>{r.line}</span>
+        </span>
+        {r.items.length > 0 && <span className="reason__count">{r.items.length}</span>}
+      </summary>
+      <div className="reason__body">
+        {r.text && (
+          <p>
+            <Cited text={r.text} />
+          </p>
+        )}
+        {r.items.map((i) => (
+          <Row key={i.id} id={i.id} here={here} />
+        ))}
+      </div>
+    </details>
+  );
 }
 
-function IssueCard({ issue }: { issue: KeyIssue }) {
-  const { dossier } = useData();
-  const more = issue.count - issue.tickets.length;
+/** One item as a row: key, title and who, opening its drawer; a note under it when there's one to give. */
+function Row({ id, here, note }: { id: string; here: string; note?: string }) {
+  const { byId } = useData();
+  const item = byId.get(id);
+  const current = here.includes(`?item=${encodeURIComponent(id)}`);
   return (
-    <li className="issue-card" data-card="">
-      <h3 className={`issue-card__title issue-card__title--${issue.kind}`}>{issue.title}</h3>
-      <p className="issue-card__detail">
-        <Cited text={issue.detail} />
-      </p>
-      <ul className="ticket-chips" aria-label={`Tickets: ${issue.title}`}>
-        {issue.tickets.map((id) => (
-          <li key={id}>
-            <TicketChip id={id} />
-          </li>
-        ))}
-      </ul>
-      <p className="issue-card__foot note">
-        <a href={tabHref(dossier.name, issue.tab)}>
-          {more > 0 ? `${more} more on ` : 'Open '}
-          {TAB_NAME[issue.tab]}
-        </a>
-      </p>
-    </li>
+    <>
+      <a className="reason-row" href={peekHref(here, id)} aria-current={current ? 'true' : undefined} data-row={id}>
+        <span className="reason-row__key">{item ? `${sourceLabel(item.source.area)} ${shortKey(item)}` : id}</span>
+        <span className="reason-row__title">{item?.title ?? 'Not in this dossier'}</span>
+        <span className="reason-row__who">{item ? personText(item.assignee) : ''}</span>
+      </a>
+      {note && (
+        <p className="note">
+          <Cited text={note} />
+        </p>
+      )}
+    </>
   );
 }
 
@@ -251,28 +308,6 @@ function MetricStrip() {
           </p>
         </Metric>
       </ul>
-    </section>
-  );
-}
-
-/**
- * The blockers in brief (#396): the critical chain as a compact Gantt, the
- * chain of open blockers holding the most points, on the sprint's timeline.
- * The Dependencies tab has every blocker, the key and the table.
- */
-function Blockers() {
-  const { dossier } = useData();
-  return (
-    <section className="overview-blockers" aria-labelledby="blockers-title">
-      <div className="overview-head">
-        <h2 id="blockers-title" className="overview-label">
-          Blockers
-        </h2>
-        <a className="note" href={dependenciesHref(dossier.name)}>
-          All dependencies
-        </a>
-      </div>
-      <ChainGantt />
     </section>
   );
 }

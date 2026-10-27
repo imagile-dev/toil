@@ -71,7 +71,7 @@ const PowershellMan = lazy(() => import('./game/PowershellMan.tsx').then((module
 const POWERSHELL_MAN_HASH = '#/powershell-man';
 
 export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'usage' | 'agent-usage' | 'agent';
-export type Route =
+type RouteOf =
   | { view: 'dossiers' }
   /** `at`: where an edit link lands on the page (#346): a connection's name, a dossier and its section, or `caps`. */
   | { view: 'settings'; page: SettingsPage; at?: string[] }
@@ -93,7 +93,17 @@ export type Route =
   /** One agent assignment (#293). */
   | { view: 'assignment'; dossier: string; id: string };
 
+/** A route, and on any dossier page the item its drawer shows (#494): `?item=<owi id>` after the path, so the peek has an address of its own. */
+export type Route = RouteOf & { peek?: string };
+
 export function parseRoute(hash: string): Route {
+  const at = hash.indexOf('?');
+  const route = parsePath(at < 0 ? hash : hash.slice(0, at));
+  const peek = at < 0 ? null : new URLSearchParams(hash.slice(at + 1)).get('item');
+  return peek && 'dossier' in route && route.view !== 'item' ? { ...route, peek } : route;
+}
+
+function parsePath(hash: string): RouteOf {
   const parts = hash.replace(/^#\/?/, '').split('/');
   if (parts[0] === 'settings') {
     const page: SettingsPage = parts[1] === 'dossiers' || parts[1] === 'toil' || parts[1] === 'usage' || parts[1] === 'agent-usage' || parts[1] === 'agent' ? parts[1] : 'connections';
@@ -519,7 +529,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
       <DataContext value={data}>
         {/* The Ask bar (#343), on every dossier page; its chat is keyed by dossier, so a conversation lasts across that dossier's views. */}
         <ChatScope key={route.dossier}>
-          <DossierShell tab={tabOf(route)} heading={route.view === 'dashboard'} dossiers={list?.ok ? list.value.dossiers.map((d) => d.name) : null} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
+          <DossierShell tab={tabOf(route)} peek={route.peek ?? null} heading={route.view === 'dashboard'} dossiers={list?.ok ? list.value.dossiers.map((d) => d.name) : null} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
             {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} {...(route.analysis ? { analysis: route.analysis } : {})} />}
           </DossierShell>
         </ChatScope>

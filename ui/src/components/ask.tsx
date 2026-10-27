@@ -489,7 +489,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                           </div>
                         )}
                         {e.analyze ? (
-                          <AnalysisBody parts={e.answer.parts} done={e.done} />
+                          <AnalysisBody parts={e.answer.parts} briefing={e.answer.briefing} done={e.done} />
                         ) : (
                           e.answer.parts.map((p, i) => (
                             <p key={i}>

@@ -246,6 +246,9 @@ export interface AnalysisSummary {
   citations: string[];
   unverified: number;
   changes: AnalysisChanges;
+  /** Its briefing (#494) and proposals, for the dossier's home page and the item drawer. */
+  briefing: Briefing | null;
+  proposals: Proposal[];
 }
 
 /** A record and what changed since the one before it, for one analysis opened. */
@@ -269,6 +272,8 @@ export function historyOf(records: readonly AnalysisRecord[]): AnalysisSummary[]
       citations: r.citations,
       unverified: r.unverified.length,
       changes: changesBetween(oldest[i - 1] ?? null, r),
+      briefing: r.briefing ?? null,
+      proposals: r.proposals,
     }))
     .reverse();
 }

@@ -18,8 +18,8 @@ import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'rea
 import { ItemLink } from '../components/items.tsx';
 import { DataTable, Scroller, type Column } from '../components/layout.tsx';
 import { useData, useDerived } from '../data.ts';
-import { STATUS_CATEGORY_LABEL, day, dependenciesHref, shortKey } from '../format.ts';
-import { blockerGantt, chainOnly, type Bar, type Gantt, type Segment } from '../model/gantt.ts';
+import { STATUS_CATEGORY_LABEL, day, shortKey } from '../format.ts';
+import { blockerGantt, type Bar, type Gantt, type Segment } from '../model/gantt.ts';
 import { VERDICT_LABEL } from '../model/readiness.ts';
 import './gantt.css';
 
@@ -62,8 +62,6 @@ interface Layout {
 const FULL: Layout = { label: 220, row: 36, bar: 14, top: 26, right: 16 };
 /** How many lanes the arrows leaving bars that end together are spread over. */
 const LANES = 5;
-/** The most rows the Overview's compact Gantt draws. */
-const COMPACT_ROWS = 4;
 const COMPACT: Layout = { label: 170, row: 24, bar: 10, top: 16, right: 12 };
 
 function timeText(s: Segment) {
@@ -352,30 +350,3 @@ export function BlockerGantt() {
   );
 }
 
-/** The Overview's compact Gantt (#396): the critical chain alone, linking into the tab. */
-export function ChainGantt() {
-  const { dossier } = useData();
-  const full = useGantt();
-  const g = useMemo(() => {
-    // The Overview fits one screen, so a long chain shows its head; the tab has the rest.
-    const chain = chainOnly(full);
-    const bars = chain.bars.slice(0, COMPACT_ROWS);
-    const ids = new Set(bars.map((b) => b.id));
-    return { ...chain, bars, arrows: chain.arrows.filter((a) => ids.has(a.from) && ids.has(a.to)) };
-  }, [full]);
-  if (!g.bars.length) return <p className="note">Nothing open is blocked by anything open.</p>;
-  const c = g.chain!;
-  const more = c.ids.length - g.bars.length;
-  return (
-    <div className="gantt-compact">
-      <Scroller label="The critical chain on the sprint's timeline" hint="Scroll sideways for the whole sprint." className="gantt-scroll">
-        <Drawing g={g} compact />
-      </Scroller>
-      <p className="note">
-        Critical chain: {plural(c.ids.length, 'item')}
-        {c.byCount ? '' : `, ${plural(c.points, 'point')}`}
-        {more > 0 ? `; the first ${g.bars.length} shown` : ''}. <a href={dependenciesHref(dossier.name)}>Every blocker, and the table, on Dependencies</a>
-      </p>
-    </div>
-  );
-}

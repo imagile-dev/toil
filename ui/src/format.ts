@@ -40,6 +40,10 @@ export const personText = (p: Person | null) => (p ? (p.name ?? p.id) : 'Unassig
 
 export const dossierHref = (dossier: string) => `#/dossier/${encodeURIComponent(dossier)}`;
 export const itemHref = (dossier: string, id: string) => `${dossierHref(dossier)}/item/${encodeURIComponent(id)}`;
+/** The page you're on with an item's drawer open over it (#494): its path, then `?item=`. */
+export const peekHref = (page: string, id: string) => `${page.split('?')[0] || '#/'}?item=${encodeURIComponent(id)}`;
+/** The page you're on with its drawer closed. */
+export const unpeekHref = (page: string) => page.split('?')[0] || '#/';
 export const prsHref = (dossier: string) => `${dossierHref(dossier)}/prs`;
 export const peopleHref = (dossier: string) => `${dossierHref(dossier)}/people`;
 /** The Command Center (#307): every work item with its readiness verdict. */
