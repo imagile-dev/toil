@@ -1,3 +1,5 @@
+import { ToilError } from './errors.js';
+
 /**
  * Areas that no longer exist under their old name, and where they went.
  * `jira-cloud` is `jira` with `"deployment": "cloud"` on the connection
@@ -49,4 +51,14 @@ export function renamedEnvFix(name: string): string {
   const set = Object.entries(r.settings).map(([k, v]) => `TOIL_${upper(r.area)}_${upper(k)}=${v}`).join(' ');
   const conn = Object.entries(r.settings).map(([k, v]) => `TOIL_CONN_<NAME>_${upper(k)}=${v}`).join(' ');
   return `Rename ${name} to TOIL_${upper(r.area)}_${rest} and set ${set}. For a named connection, use TOIL_CONN_<NAME>_${rest} with TOIL_CONN_<NAME>_AREA=${r.area} and ${conn}.`;
+}
+
+/** The old area whose MCP tools `tool` looks like (`jira_cloud_issue_get`), if any. */
+export function renamedAreaOfTool(tool: string): string | undefined {
+  return Object.keys(RENAMED_AREAS).find((old) => tool.startsWith(`${old.replace(/-/g, '_')}_`));
+}
+
+/** Refuses an area name that was folded into another, with where it went; anything else passes through for the caller's own check. */
+export function refuseRenamedArea(name: string): void {
+  if (renamedArea(name)) throw new ToilError('INVALID_INPUT', `toil ${name} no longer exists.`, { fix: renamedAreaFix(name) });
 }

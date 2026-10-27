@@ -157,6 +157,15 @@ describe('an agent building a dossier over MCP, from discovery to a shared file'
   });
 });
 
+describe('the dossier commands name the area a retired one became', () => {
+  it('link to jira-cloud says it is now jira with deployment cloud, not that toil has no such area', async () => {
+    const d = disk();
+    ok(await cli(d, ['dossiers', 'init', 'payments']));
+    const run = await cli(d, ['dossiers', 'link', 'payments', 'jira-cloud', '--set', 'project=PAY']);
+    expect(run.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'toil jira-cloud no longer exists.', fix: expect.stringContaining('TOIL_JIRA_DEPLOYMENT=cloud') });
+  });
+});
+
 describe('the dossier commands never add a duplicate', () => {
   it('refuses a repo, a value, a list item or a field alias already there, naming it, unless --replace', async () => {
     const d = disk();

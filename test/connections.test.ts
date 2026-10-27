@@ -358,6 +358,14 @@ describe('toil connections remove', () => {
     expect(readConfig().connections).toEqual({});
   });
 
+  it('--area jira-cloud on add, list and remove says where the area went, rather than that toil has no such area', async () => {
+    writeConfig({ version: 3, connections: {} });
+    for (const argv of [['connections', 'add', 'x', '--area', 'jira-cloud'], ['connections', 'list', '--area', 'jira-cloud'], ['connections', 'remove', 'x', '--area', 'jira-cloud']]) {
+      const run = await cli(argv, context({ secrets: fakeStore() }));
+      expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: 'toil jira-cloud no longer exists.', fix: expect.stringContaining('TOIL_JIRA_DEPLOYMENT=cloud') });
+    }
+  });
+
   it('with --area, removes only a connection to that area, and refuses another before changing anything', async () => {
     const config = { version: 2, connections: { a: { area: 'demo', token: 'keychain:a.token' }, w: { area: 'warehouse', host: 'db.imagile.dev', username: 'u' } } };
     writeConfig(config);

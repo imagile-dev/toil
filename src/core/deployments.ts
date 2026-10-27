@@ -240,7 +240,7 @@ function defaultDeployment(def: AnyCommand): string {
 function others(area: AnyArea, routed: NonNullable<AnyCommand['deployments']>, serves: string[], config: ResolvedConfig): string {
   const fallback = String(area.defaults?.[routed.by] ?? Object.keys(routed.labels)[0]);
   const names = Object.entries(config.connections)
-    .filter(([, conn]) => conn.area === area.name && serves.includes(String(conn[routed.by] ?? fallback)))
+    .filter(([, conn]) => conn.area === area.name && serves.includes(String({ ...config.defaults[area.name], ...conn }[routed.by] ?? fallback)))
     .map(([connName]) => connName);
   return names.length > 0 ? ` (--connection ${names.join(' or ')})` : '';
 }

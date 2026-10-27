@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Settings } from '../src/core/config.js';
-import { viewScopes, type DossierView } from '../src/core/dossier.js';
+import { validateDossier, viewScopes, type DossierView } from '../src/core/dossier.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { areas, commands } from '../src/registry.js';
 import { fixture as ado } from './fixtures/ado.fixture.js';
@@ -124,6 +124,26 @@ describe('check-dossier for the rest of the areas', () => {
     const both = await check(jira, { name: 'p', jira: { projects: ['PROJ'] }, 'jira-cloud': { projects: ['GONE'] } }, ['--connection', 'jira-cloud']);
     expect(found(both.envelope)).toEqual([['jira.projects[0]', 'project', 'PROJ', true]]);
     expect(both.envelope.meta.warnings?.[0]?.message).toContain('"jira-cloud" is ignored');
+  });
+
+  it("a jira-cloud entry under an environment or in a person's ids is read as jira too, each warned by key path", () => {
+    const { dossier, problems } = validateDossier(
+      {
+        name: 'p',
+        environments: { prod: { 'jira-cloud': { projects: ['PROJ'] } } },
+        people: [{ name: 'Sam', ids: { 'jira-cloud': 'sam@example.com' } }],
+      },
+      dossierAreas,
+    );
+    expect(problems.filter((p) => p.level === 'error')).toEqual([]);
+    expect(problems.filter((p) => p.code === 'DOSSIER_RENAMED_AREA').map((p) => p.path)).toEqual(['environments.prod.jira-cloud', 'people[0].ids.jira-cloud']);
+    expect(JSON.stringify(dossier)).not.toContain('jira-cloud');
+    expect(dossier?.environments?.prod?.jira).toMatchObject({ projects: ['PROJ'] });
+    expect(dossier?.people?.[0]?.ids).toEqual({ jira: 'sam@example.com' });
+    // Both present: the new one wins, and the old one is named as ignored.
+    const both = validateDossier({ name: 'p', people: [{ name: 'Sam', ids: { jira: 'new', 'jira-cloud': 'old' } }] }, dossierAreas);
+    expect(both.dossier?.people?.[0]?.ids).toEqual({ jira: 'new' });
+    expect(both.problems.find((p) => p.code === 'DOSSIER_RENAMED_AREA')?.message).toContain('"jira-cloud" is ignored');
   });
 
   it("checks what a call would use: an environment's value shadows the area's own, and keys pair across the two", async () => {

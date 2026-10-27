@@ -86,7 +86,8 @@ export function loadProgress(path: string, who: Who): Loaded {
   if (typeof version === 'number' && version > CONFIG_VERSION) {
     return { progress: freshProgress(), writable: false, notice: `Progress isn't being saved: ${path} was written by a newer toil, and this one won't rewrite it.` };
   }
-  if (version !== CONFIG_VERSION) {
+  // A version 2 file is the format before jira-cloud became jira: its "game" key reads the same, and saving upgrades it the way any config write does.
+  if (version !== CONFIG_VERSION && version !== 2) {
     return { progress: freshProgress(), writable: false, notice: `Progress isn't being saved: ${path} is an older config file, and toil won't rewrite it just to keep a game. Any toil command that saves a connection upgrades it.` };
   }
   const sealed = raw?.[SAVE_KEY];

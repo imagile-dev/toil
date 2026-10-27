@@ -73,6 +73,24 @@ describe('the retired Jira Cloud names fail with the new form', () => {
     expect(run.envelope?.error?.fix).toContain('toil jira');
   });
 
+  it("a typo with the old name further along isn't called the old area: only the first command word counts", async () => {
+    for (const argv of [['connections', 'tset', 'jira-cloud'], ['jira', 'isue', 'get', '--connection', 'jira-cloud']]) {
+      const run = await runCli(argv, { commands, context: testContext().context });
+      expect(run.envelope).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
+      expect(run.envelope?.error?.message).not.toContain('no longer exists');
+    }
+  });
+
+  it('an MCP call to a jira_cloud_* tool is an unknown tool whose message says where it went', async () => {
+    const session = await connectMcp({ commands, context: ctx().context, areas: ['jira'] });
+    try {
+      await expect(session.call('jira_cloud_issue_get', { key: 'PROJ-1' })).rejects.toThrow(/Unknown tool: jira_cloud_issue_get.*jira-cloud is now jira.*TOIL_JIRA_DEPLOYMENT=cloud/);
+      await expect(session.call('nothing_here', {})).rejects.toThrow(/Unknown tool: nothing_here$/);
+    } finally {
+      await session.close();
+    }
+  });
+
   it('--areas jira-cloud is INVALID_INPUT, not an unknown area', () => {
     expect(() => selectCommands(commands, ['jira-cloud'], emptyConfig())).toThrow(
       expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('jira-cloud'), fix: expect.stringContaining('--areas jira') }),
