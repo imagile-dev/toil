@@ -339,7 +339,7 @@ sits in that test's `PENDING` list, by its issue, and switches on once it regist
 ### Deployment Variants
 
 *Principle 10.* **A product that ships Data Center/Server and Cloud is one area, one
-command tree and one set of MCP tools** (`jira`, with `confluence`, `bitbucket` and
+command tree and one set of MCP tools** (`jira` and `bitbucket`, with `confluence` and
 `ado` following, #495). Someone who has learned `toil jira` has learned both. The
 deployments still differ in their APIs, so the code stays apart and the surface is shared:
 
@@ -366,6 +366,11 @@ deployments still differ in their APIs, so the code stays apart and the surface 
   keep both flags and refuse each on the other deployment: `confluence page list` takes
   `--offset` on Data Center (a position) and `--cursor` on Cloud (an opaque token), which
   are not one idea.
+- **An input only one deployment takes** (Bitbucket's `--project` is Data Center's,
+  `--ws` is Cloud's) is declared once in the area's `context` with `deployments: [...]`.
+  The other deployments refuse it with `UNSUPPORTED` and don't need it, and a deployment's
+  own `missing` wording can differ (`missing` may be a function of the connection). A command
+  that lists the input itself takes it on any deployment (Cloud's `repo create --project`).
 - **Each returns its own API's shape.** Don't reshape `data` to make the two look alike;
   `meta.context.connection.deployment` says which ran, and OWI is the normalised view.
 - **The fixture runs both.** The area's fixture names a connection per deployment
@@ -374,15 +379,15 @@ deployments still differ in their APIs, so the code stays apart and the surface 
 - **Docs, skill and site are one page per product**, with a section on what differs. A
   verification level is recorded for the product; say in the PR when the deployments are at
   different levels.
-- **Retiring an old area name** (`jira-cloud`, `confluence-cloud`) goes in `src/core/renamed-areas.ts`, which makes
+- **Retiring an old area name** (`jira-cloud`, `confluence-cloud`, `bitbucket-cloud`) goes in `src/core/renamed-areas.ts`, which makes
   every old form (env vars, `--areas`, a typed path, a dossier section, a config file) fail or
   warn with the new one. The config fold in `migrateConfig()` runs for every version and is
   idempotent, so a file written before the area was folded folds too, whatever its version.
 - When the variants differ only in host (GitHub.com and GitHub Enterprise Server),
   they stay one area with a configurable `baseUrl` and no `deployment`.
 
-Until each pair is folded, the others (`bitbucket-cloud`, `ado-cloud`) are
-still areas of their own, built the old way; the folding is #495's later slices.
+Until it is folded, the other (`ado-cloud`) is
+still an area of its own, built the old way; folding it is #495's last slice.
 
 ## Command Shape
 

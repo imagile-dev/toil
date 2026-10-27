@@ -10,8 +10,11 @@ export interface DeploymentRoutes {
   by: string;
   /** Every deployment the area has, by value, in words (`server` is "Data Center"), including ones this command has no implementation for. */
   labels: Record<string, string>;
-  /** The deployments that implement it, each with the input fields its implementation takes and the run that does the work. */
-  routes: Record<string, { fields: string[]; run: (input: never, ctx: never) => Promise<unknown> }>;
+  /**
+   * The deployments that implement it, each with the input fields its implementation takes, the
+   * context inputs it needs (a deployment takes only the ones the area declares for it) and the run that does the work.
+   */
+  routes: Record<string, { fields: string[]; context: Record<string, ContextNeed>; run: (input: never, ctx: never) => Promise<unknown> }>;
 }
 
 /** A positional CLI argument, mapped onto one input field. */
@@ -176,6 +179,13 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
    * command-level ones it lists.
    */
   context?: Record<string, ContextNeed>;
+  /**
+   * The inputs the command listed itself, as opposed to the ones every command
+   * of the area gets. Set by `area.command()`. For a command folded by
+   * `byDeployment()` it is how a deployment takes an input the area gives
+   * another deployment (Cloud's `repo create` takes `--project`).
+   */
+  contextListed?: string[];
   /**
    * A time limit above execute()'s 120 s default, for a command that waits
    * on slow work by design (a scan, a report); `area.command()` refuses a

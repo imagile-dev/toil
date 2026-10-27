@@ -1,10 +1,11 @@
 import type { RecordedRequest, Route } from '../harness/fake-fetch.js';
-import { defineFixture } from '../harness/fixtures.js';
 
 /**
- * Canned Bitbucket Cloud responses for every request the bitbucket-cloud
- * examples send, so the parity suite runs every command offline through both
- * front doors.
+ * Canned Bitbucket Cloud responses for every request the Cloud examples of
+ * `bitbucket` send, so the parity suite runs them offline through both front
+ * doors. Not a fixture of its own: Cloud is a deployment of the bitbucket
+ * area, and bitbucket.fixture.ts brings its connection and these routes in
+ * beside Data Center's.
  *
  * Provenance: every shape here is invented from Atlassian's documented
  * Bitbucket Cloud REST API 2.0 (the OpenAPI spec behind
@@ -188,10 +189,9 @@ export const routes: Route[] = [
   { method: 'GET', path: `${REPO}/pipelines/%7Babc12345-0000-0000-0000-000000000000%7D/steps/%7Babc12345-0000-0000-0000-000000000001%7D/log`, respond: { text: LOG, headers: { 'content-type': 'application/octet-stream' } } },
 ];
 
-export const config = { 'bitbucket-cloud': { baseUrl: API, email: 'you@example.com', apiToken: 'test-token', writes: true } };
+/** The Cloud connection, named `bitbucket-cloud`: an ordinary bitbucket connection with deployment cloud. */
+export const config = { 'bitbucket-cloud': { area: 'bitbucket', deployment: 'cloud', baseUrl: API, email: 'you@example.com', apiToken: 'test-token', writes: true } };
 
 export const repo = { root: 'C:/work/toil', branch: 'feature/retries', remotes: ['https://bitbucket.org/imagile/toil.git'] };
 
 export const files = { 'comment.json': '{"content":{"raw":"Looks good."}}' };
-
-export const fixture = defineFixture({ area: 'bitbucket-cloud', routes, config, repo, files });

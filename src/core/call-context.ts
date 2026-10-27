@@ -3,6 +3,7 @@ import type { AnyArea, Connection, ContextInput } from './area.js';
 import { commandName, type AnyCommand } from './command.js';
 import { connectionEnvName, connectionsOf, defaultConnectionName, envName, type ResolvedConfig } from './config.js';
 import { resolveConnection, selectConnection } from './connection.js';
+import { refusesDeployment } from './deployments.js';
 import type { ContextReport, ContextSource, ContextValue, Warning } from './envelope.js';
 import { ToilError } from './errors.js';
 import type { SecretStore } from './keychain.js';
@@ -80,6 +81,8 @@ export async function resolveCall(
   warn: (w: Warning) => void,
   signal: AbortSignal,
   report: ContextReport = {},
+  // The call as its caller sent it, which decides whether the connection's deployment will refuse it (below).
+  sent?: Record<string, unknown>,
 ): Promise<ResolvedCall> {
   const area = def.area!;
   const declared = area.context as Record<string, ContextInput>;
@@ -141,7 +144,9 @@ export async function resolveCall(
   // Step 4, from the connection this call resolved.
   const inputs: Record<string, ContextValue> = {};
   const missing: string[] = [];
-  for (const [name, need] of Object.entries(needs)) {
+  // A command with an implementation per deployment needs what its deployment's does; one the deployment lacks needs nothing, and is refused next.
+  const here = def.deployments ? (def.deployments.routes[String(connection[def.deployments.by])]?.context ?? {}) : needs;
+  for (const [name, need] of Object.entries(here)) {
     const spec = declared[name]!;
     const setting = spec.setting === undefined ? undefined : connection[spec.setting];
     const value =
@@ -153,7 +158,9 @@ export async function resolveCall(
     else if (need === 'required') missing.push(name);
   }
   if (Object.keys(inputs).length > 0) report.inputs = inputs;
-  if (missing.length > 0) throw missingContext(sources.config, def, area, connection.name, missing);
+  // A call the deployment is about to refuse (`--ws` on Data Center) is told so, not told what the other one's inputs lack.
+  const refused = missing.length > 0 && sent !== undefined && refusesDeployment(def, sent, connection);
+  if (missing.length > 0 && !refused) throw missingContext(sources.config, def, area, connection, missing);
   return { connection, context: Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, v.value])), report };
 }
 
@@ -267,8 +274,9 @@ export function flagOf(name: string, spec: ContextInput): string {
 }
 
 /** The first missing input that declares its own wording (`missing`) words the error; otherwise core's. */
-function missingContext(config: ResolvedConfig, def: AnyCommand, area: AnyArea, connection: string, missing: string[]): ToilError {
+function missingContext(config: ResolvedConfig, def: AnyCommand, area: AnyArea, resolved: Connection, missing: string[]): ToilError {
   const declared = area.context as Record<string, ContextInput>;
+  const connection = resolved.name;
   const isDefault = defaultConnectionName(config, area.name) === connection;
   const ways = missing.map((name) => {
     const spec = declared[name]!;
@@ -278,7 +286,7 @@ function missingContext(config: ResolvedConfig, def: AnyCommand, area: AnyArea, 
     return `pass ${flag}, or set ${spec.setting} on connection ${connection} (${variable})`;
   });
   const fix = `${ways.join('; ').replace(/^p/, 'P')}.`;
-  const own = missing.map((name) => declared[name]!.missing).find((m) => m !== undefined);
+  const own = missing.map((name) => declared[name]!.missing).map((m) => (typeof m === 'function' ? m(resolved) : m)).find((m) => m !== undefined);
   if (own) return new ToilError('INVALID_INPUT', own.message, { fix: own.fix ?? fix });
   return new ToilError('INVALID_INPUT', `${commandName(def)} needs ${missing.join(' and ')}, and none was given or found.`, { fix });
 }

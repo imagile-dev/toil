@@ -232,7 +232,9 @@ for (const suite of suites) {
       for (const def of suite.commands) {
         const used = new Set(def.examples.flatMap((e) => Object.keys(e as object)));
         // `connection`, `dossier` and `cwd` are added by core to every area command; the suites below cover them.
-        const unused = Object.keys(def.input.shape).filter((f) => !used.has(f) && !CORE_FIELDS.includes(f));
+        // A command with an implementation per deployment lists the area's other-deployment inputs too (`--ws` on `pr create-many`), which no deployment of it takes.
+        const taken = def.deployments ? new Set(Object.values(def.deployments.routes).flatMap((r) => r.fields)) : undefined;
+        const unused = Object.keys(def.input.shape).filter((f) => !used.has(f) && !CORE_FIELDS.includes(f) && (taken === undefined || taken.has(f)));
         expect(unused, `${commandName(def)}: fields no example sets`).toEqual([]);
       }
     });

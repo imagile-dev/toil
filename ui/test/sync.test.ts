@@ -69,7 +69,7 @@ describe('a full sync', () => {
     const states = cache.states();
     expect(states.map((d) => [d.name, d.status])).toEqual(DOSSIERS.map((d) => [d.name, 'ok']).sort());
     expect(states.flatMap((d) => d.sources.map((s) => `${d.name}/${s.area}:${s.status}`)).sort()).toEqual(
-      ['card-payments/bitbucket:ok', 'card-payments/jenkins:ok', 'card-payments/jira:ok', 'card-payments/openshift:ok', 'checkout-web/bitbucket-cloud:ok', 'checkout-web/github:ok', 'checkout-web/openshift:ok', 'settlement/ado:ok'],
+      ['card-payments/bitbucket:ok', 'card-payments/jenkins:ok', 'card-payments/jira:ok', 'card-payments/openshift:ok', 'checkout-web/bitbucket:ok', 'checkout-web/github:ok', 'checkout-web/openshift:ok', 'settlement/ado:ok'],
     );
     // jira issue search came in pages of JIRA_PAGE, every one followed.
     const pages = named(toil, 'jira issue search');
@@ -159,10 +159,12 @@ describe('an incremental sync', () => {
     toil.reset();
     await sync.run(ctx);
     const since = new Date(first - SKEW_MS).toISOString();
-    for (const command of ['github pr list', 'bitbucket pr list', 'bitbucket-cloud pr list', 'ado pr list']) expect(named(toil, command).map((c) => c.input.updatedSince), command).toEqual([since]);
+    for (const command of ['github pr list', 'ado pr list']) expect(named(toil, command).map((c) => c.input.updatedSince), command).toEqual([since]);
+    // Bitbucket is asked once for each dossier that has it: Data Center for card-payments, Cloud for checkout-web.
+    expect(named(toil, 'bitbucket pr list').map((c) => c.input.updatedSince)).toEqual([since, since]);
     // The open ones every time (a check finishing isn't an update everywhere), the changed merged one, and no other merged one.
     expect(named(toil, 'github pr get').map((c) => c.input.number).sort()).toEqual([48, 51, 52, 53]);
-    expect(named(toil, 'bitbucket pr get').map((c) => c.input.id).sort()).toEqual([305, 311]);
+    expect(named(toil, 'bitbucket pr get').map((c) => c.input.id).sort((a, b) => Number(a) - Number(b))).toEqual([12, 305, 311]);
     expect(named(toil, 'ado pr get').map((c) => c.input.id)).toEqual([87]);
     // And the merged list still holds every pull request.
     const web = await loadDossier(viaStore, 'checkout-web', { mapOwi });

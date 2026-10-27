@@ -31,7 +31,7 @@ export function blankChange(doc: OwiDocument, repo: string, number: string, titl
   return {
     owi: OWI_VERSION,
     id: idFor(doc.connection, key),
-    source: { area: doc.area, connection: doc.connection, key, command: doc.command },
+    source: { area: doc.area, connection: doc.connection, key, command: doc.command, ...(doc.deployment === undefined ? {} : { deployment: doc.deployment }) },
     url: null,
     repo,
     title,

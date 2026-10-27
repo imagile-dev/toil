@@ -30,7 +30,6 @@ const EXPECTED: Record<string, Expected> = {
   alation: { path: '/integration/v1/datasource/', query: { limit: '1' } },
   artifactory: { path: '/api/repositories' },
   bitbucket: { path: '/rest/api/1.0/profile/recent/repos', query: { limit: '1' } },
-  'bitbucket-cloud': { path: '/user' },
   checkmarx: { path: '/projects', query: { limit: '1' } },
   confluence: { path: '/rest/api/user/current', accepted: { type: 'known', username: 'you' }, anonymous: { type: 'anonymous' } },
   contrast: { path: '/Contrast/api/ng/{orgUuid}/applications', query: { limit: '1' } },
@@ -97,6 +96,21 @@ describe('connections test, per deployment', () => {
     expect(known.gets[0]!.headers.authorization).toBe(`Basic ${Buffer.from(`${String(cloud.email)}:${String(cloud.apiToken)}`).toString('base64')}`);
     const anonymous = await ask({ type: 'anonymous' });
     expect(anonymous.run.envelope?.ok).toBe(false);
+  });
+});
+
+describe('connections test, per deployment (bitbucket)', () => {
+  it('bitbucket on a Cloud connection probes /user under its REST root with the account email and token, one GET', async () => {
+    const fixture = fixtures.find((f) => f.area === 'bitbucket')!;
+    const cloud = fixture.config['bitbucket-cloud']!;
+    const { context, http } = testContext({ config: fixture.config, routes: [{ method: 'GET', url: /.*/, respond: { json: {} } }] });
+    const run = await runCli(['connections', 'test', 'bitbucket-cloud'], { commands, context });
+    expect(run.envelope?.data).toMatchObject({ area: 'bitbucket', live: true, authenticated: true });
+    const gets = http.calls.filter((c) => c.method === 'GET');
+    expect(gets).toHaveLength(1);
+    expect(new URL(gets[0]!.url).origin).toBe(new URL(String(cloud.baseUrl)).origin);
+    expect(new URL(gets[0]!.url).pathname).toBe('/2.0/user');
+    expect(gets[0]!.headers.authorization).toBe(`Basic ${Buffer.from(`${String(cloud.email)}:${String(cloud.apiToken)}`).toString('base64')}`);
   });
 });
 

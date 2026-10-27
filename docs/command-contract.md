@@ -104,9 +104,11 @@ on raises it.
 | Version | Change |
 |---------|--------|
 | 1 | The alphas and the first beta. |
-| 2 | `jira-cloud` folded into `jira`, and `confluence-cloud` into `confluence` (#495): the `jira-cloud` and `confluence-cloud` command paths, the `jira_cloud_*` and `confluence_cloud_*` MCP tools, `--areas jira-cloud` and `--areas confluence-cloud`, the `TOIL_JIRA_CLOUD_*` and `TOIL_CONFLUENCE_CLOUD_*` variables and those areas in config and dossiers are gone. A Cloud call is `toil jira …` or `toil confluence …` on a connection with `"deployment": "cloud"`. Config is version 3 and migrates on load. |
+| 2 | `jira-cloud` folded into `jira`, `confluence-cloud` into `confluence`, and `bitbucket-cloud` into `bitbucket` (#495): the `jira-cloud`, `confluence-cloud` and `bitbucket-cloud` command paths, the `jira_cloud_*`, `confluence_cloud_*` and `bitbucket_cloud_*` MCP tools, `--areas` with those names, the `TOIL_JIRA_CLOUD_*`, `TOIL_CONFLUENCE_CLOUD_*` and `TOIL_BITBUCKET_CLOUD_*` variables and those areas in config and dossiers are gone. A Cloud call is `toil jira …`, `toil confluence …` or `toil bitbucket …` on a connection with `"deployment": "cloud"`. Bitbucket Cloud's `pr request-changes` is now an alias of `pr needs-work`. Config is version 3 and migrates on load. |
 
 The contract's `jira` entries still record Jira Data Center. Jira Cloud's own commands and
 flags (`project list`, `project get`, `user search`, `issue schema --deployment`) are additive, and a call
 that the connection's deployment can't serve is `UNSUPPORTED` (`docs/divergences/jira.json`
 records the one flag it spells differently, `--assignee <user>`).
+
+The contract's `bitbucket` entries still record Bitbucket Data Center. Cloud's commands and flags (`repo list`, `branch`, `tag`, `file`, `pipeline`, `api`, `--ws`, `--query`, `--spec`) are additive, and a call that the connection's deployment can't serve is `UNSUPPORTED`. `docs/divergences/bitbucket.json` records the one argument it spells differently: `pr diff [id]` is optional, since Cloud diffs a commit spec instead.

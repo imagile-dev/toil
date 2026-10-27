@@ -2,14 +2,16 @@
   {
     "name": "repo create",
     "tool": "bitbucket_repo_create",
-    "description": "Create a new repository in a project",
+    "description": "Create a new repository in a project (Data Center) or a workspace (Cloud)",
     "writes": true,
     "connection": true,
     "flags": [
       "--name <name>",
       "--description <desc>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
+      "--public",
       "--allow-write"
     ]
   },
@@ -29,7 +31,9 @@
       "--limit <n>",
       "--cursor <cursor>",
       "--project <key>",
-      "--repo <slug>"
+      "--ws <slug>",
+      "--repo <slug>",
+      "--query <bbql>"
     ]
   },
   {
@@ -42,6 +46,7 @@
       "<id>",
       "--include <list>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>"
     ]
   },
@@ -58,7 +63,10 @@
       "--description <desc>",
       "--reviewers <users>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
+      "--close-source-branch",
+      "--draft",
       "--allow-write"
     ]
   },
@@ -76,6 +84,7 @@
       "--description <desc>",
       "--reviewers <users>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
       "--allow-write"
     ]
@@ -92,7 +101,9 @@
       "--description <desc>",
       "--reviewers <users>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
+      "--target <branch>",
       "--allow-write"
     ]
   },
@@ -107,7 +118,9 @@
       "--strategy <strategy>",
       "--delete-branch",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
+      "--message <text>",
       "--allow-write"
     ]
   },
@@ -120,6 +133,7 @@
     "flags": [
       "<id>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
       "--allow-write"
     ]
@@ -132,6 +146,7 @@
     "connection": true,
     "flags": [
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>"
     ],
     "aliases": [
@@ -150,6 +165,7 @@
       "--inline-only",
       "--general-only",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>"
     ]
   },
@@ -163,6 +179,7 @@
       "<id>",
       "--body <text>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
       "--allow-write"
     ]
@@ -180,6 +197,7 @@
       "--body <text>",
       "--line-type <type>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
       "--allow-write"
     ]
@@ -195,6 +213,7 @@
       "<comment-id>",
       "--body <text>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
       "--allow-write"
     ]
@@ -210,6 +229,7 @@
       "<comment-id>",
       "--comment-version <n>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
       "--allow-write"
     ]
@@ -225,6 +245,7 @@
       "<comment-id>",
       "--comment-version <n>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
       "--allow-write"
     ]
@@ -232,15 +253,17 @@
   {
     "name": "pr diff",
     "tool": "bitbucket_pr_diff",
-    "description": "Get unified diff for a pull request",
+    "description": "Get the diff of a pull request (on Cloud, or of a commit spec)",
     "writes": false,
     "connection": true,
     "flags": [
-      "<id>",
+      "[id]",
       "--file <path>",
       "--context-lines <n>",
       "--project <key>",
-      "--repo <slug>"
+      "--ws <slug>",
+      "--repo <slug>",
+      "--spec <a..b>"
     ]
   },
   {
@@ -252,6 +275,7 @@
     "flags": [
       "<id>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>"
     ]
   },
@@ -264,6 +288,7 @@
     "flags": [
       "<id>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
       "--allow-write"
     ]
@@ -277,6 +302,7 @@
     "flags": [
       "<id>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
       "--allow-write"
     ]
@@ -284,14 +310,18 @@
   {
     "name": "pr needs-work",
     "tool": "bitbucket_pr_needs_work",
-    "description": "Mark a pull request as needs-work",
+    "description": "Mark a pull request as needs-work (Cloud: request changes)",
     "writes": true,
     "connection": true,
     "flags": [
       "<id>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
       "--allow-write"
+    ],
+    "aliases": [
+      "bitbucket pr request-changes"
     ]
   },
   {
@@ -303,17 +333,19 @@
     "flags": [
       "<id>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>"
     ]
   },
   {
     "name": "repo default-reviewers",
     "tool": "bitbucket_repo_default_reviewers",
-    "description": "List the default-reviewer conditions configured for a repository",
+    "description": "List a repository's default reviewers (Data Center: its default-reviewer conditions)",
     "writes": false,
     "connection": true,
     "flags": [
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>"
     ]
   },
@@ -327,6 +359,7 @@
       "<id>",
       "--user <username>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>",
       "--allow-write"
     ]
@@ -340,18 +373,20 @@
     "flags": [
       "<id>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>"
     ]
   },
   {
     "name": "commit status",
     "tool": "bitbucket_commit_status",
-    "description": "Get build status for a commit SHA",
+    "description": "Get build statuses for a commit SHA",
     "writes": false,
     "connection": true,
     "flags": [
       "<commit>",
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>"
     ]
   },
@@ -363,7 +398,226 @@
     "connection": true,
     "flags": [
       "--project <key>",
+      "--ws <slug>",
       "--repo <slug>"
+    ]
+  },
+  {
+    "name": "repo list",
+    "tool": "bitbucket_repo_list",
+    "description": "List repositories in a workspace",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--filter <bbql>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "repo get",
+    "tool": "bitbucket_repo_get",
+    "description": "Get a repository",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "branch list",
+    "tool": "bitbucket_branch_list",
+    "description": "List branches in a repository",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--filter <bbql>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "branch create",
+    "tool": "bitbucket_branch_create",
+    "description": "Create a branch at a commit",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--name <branch>",
+      "--commit <sha>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "tag list",
+    "tool": "bitbucket_tag_list",
+    "description": "List tags in a repository",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--filter <bbql>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "tag create",
+    "tool": "bitbucket_tag_create",
+    "description": "Create an annotated tag at a commit",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "--name <tag>",
+      "--commit <sha>",
+      "--message <text>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "commit list",
+    "tool": "bitbucket_commit_list",
+    "description": "List commits, newest first",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--branch <ref>",
+      "--path <path>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "commit get",
+    "tool": "bitbucket_commit_get",
+    "description": "Get a commit by hash",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<commit>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "file get",
+    "tool": "bitbucket_file_get",
+    "description": "Get a file's contents at a ref",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<path>",
+      "--ref <ref>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "file list",
+    "tool": "bitbucket_file_list",
+    "description": "List a folder's entries at a ref",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "[path]",
+      "--ref <ref>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "pipeline list",
+    "tool": "bitbucket_pipeline_list",
+    "description": "List pipeline runs, newest first",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--branch <branch>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "pipeline get",
+    "tool": "bitbucket_pipeline_get",
+    "description": "Get a pipeline run",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<pipeline>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "pipeline steps",
+    "tool": "bitbucket_pipeline_steps",
+    "description": "List a pipeline run's steps",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<pipeline>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "pipeline logs",
+    "tool": "bitbucket_pipeline_logs",
+    "description": "Get a pipeline step's log",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<pipeline>",
+      "<step>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>"
+    ]
+  },
+  {
+    "name": "api",
+    "tool": "bitbucket_api",
+    "description": "Call any Bitbucket Cloud REST endpoint on the connection, e.g. toil bitbucket api GET /repositories/imagile/toil",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<method>",
+      "<path>",
+      "--query <key=value>",
+      "--body-file <path>",
+      "--content-type <type>",
+      "--project <key>",
+      "--ws <slug>",
+      "--repo <slug>",
+      "--allow-write"
     ]
   }
 ]

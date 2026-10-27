@@ -35,7 +35,7 @@ work item alone can't show it.
 |-------|------|---------|
 | `owi` | `"0.2"` | The OWI version of this record (`"0.1"` on one written before 0.2) |
 | `id` | string | `<connection>:<native key>`: the toil connection, then the source's key. `corp-jira:PAY-101`, `corp-ado:2302`, `github:imagile/payments-web#41` |
-| `source` | object | `{ area, connection, key, command, deployment? }`: the toil area, the connection, the native key, the command whose output was mapped, and for an area with more than one deployment (`jira`: `server` or `cloud`) which one the connection is, when the envelope's `meta.context` says |
+| `source` | object | `{ area, connection, key, command, deployment? }`: the toil area, the connection, the native key, the command whose output was mapped, and for an area with more than one deployment (`jira`, `bitbucket`: `server` or `cloud`) which one the connection is, when the envelope's `meta.context` says |
 | `url` | string or null | The item in the source's web UI |
 | `type` | enum | `EPIC`, `STORY`, `TASK`, `BUG`, `INCIDENT` or `OTHER` |
 | `typeName` | string or null | The source's own word for the type (Product Backlog Item, Sub-task, Feature). Show it beside `type` |
@@ -202,8 +202,7 @@ A change is a pull request. Its commands, by area:
 | Area | Changes |
 |------|---------|
 | `github` | `github pr list`, `github pr get` |
-| `bitbucket` | `bitbucket pr list`, `bitbucket pr get` |
-| `bitbucket-cloud` | `bitbucket-cloud pr list`, `bitbucket-cloud pr get` |
+| `bitbucket` | `bitbucket pr list`, `bitbucket pr get` (Data Center and Cloud: the connection's deployment says which shape it is) |
 | `ado` | `ado pr list`, `ado pr get` |
 | `ado-cloud` | `ado-cloud pr list`, `ado-cloud pr get` |
 
@@ -298,13 +297,13 @@ is itself a change in the same input is dropped from `workItems`.
   (`failure`, `timed_out`, `cancelled`, `action_required`, `startup_failure` and
   `stale` fail; `neutral` and `skipped` pass). `mergeable` and `size` (`changed_files`,
   `additions`, `deletions`) from `pr get`; a list has neither.
-- **Bitbucket Data Center** (`bitbucket`). `reviewers[].status` `APPROVED`,
+- **Bitbucket Data Center** (`bitbucket`, deployment `server`). `reviewers[].status` `APPROVED`,
   `NEEDS_WORK` (changes requested) or `UNAPPROVED` (pending); reviews from the
   activities `APPROVED`, `REVIEWED` and `UNAPPROVED`. `checks` from the build statuses
   (`SUCCESSFUL`, `FAILED`, `INPROGRESS`). `mergeable` from `properties.mergeResult`
   (`CLEAN`, `CONFLICTED`). `size` counts files only: Data Center lists changed files,
   not lines.
-- **Bitbucket Cloud** (`bitbucket-cloud`). `SUPERSEDED` is `DECLINED`. Reviewers from
+- **Bitbucket Cloud** (`bitbucket`, deployment `cloud`). `SUPERSEDED` is `DECLINED`. Reviewers from
   `reviewers` and the participants' `state` (`approved`, `changes_requested`); reviews
   from the activity's approvals and requests for changes. `checks` from the commit
   statuses (`SUCCESSFUL`, `FAILED`, `STOPPED`, `INPROGRESS`); `size` from the diffstat.
@@ -325,7 +324,7 @@ is itself a change in the same input is dropped from `workItems`.
 `test/fixtures/owi/pull-requests.ts` holds Sprint 42's pull requests across four
 hosts: Bitbucket Data Center (`corp-bitbucket`, PAY/payments-core), Azure DevOps
 Server (`corp-ado`, Payments/settlement), GitHub (`github`, imagile/payments-web) and
-Bitbucket Cloud (`bitbucket-cloud`, imagile/checkout-sdk), each as its `pr list` and
+Bitbucket Cloud (a `bitbucket` connection named `bitbucket-cloud`, imagile/checkout-sdk), each as its `pr list` and
 `pr get --include reviews,checks,commits,files` print it. Among them: a pull request
 sent back for work with a failing build, one waiting four working days for a first
 review and in conflict, an agent's pull request with no reviewer and no issue whose

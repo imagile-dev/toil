@@ -191,7 +191,7 @@ Code the clone is also a plugin marketplace: `claude plugin marketplace add
 | [`skills`](https://imagile-dev.github.io/toil/docs/skills/) | Add a git-hosted skills marketplace, install its plugins for Codex, GitHub Copilot or Claude Code, switch them on and off |
 | [The toil skill](https://imagile-dev.github.io/toil/docs/) | toil's own command reference for agents, one file per area |
 | [Work tracking](https://imagile-dev.github.io/toil/connect/#trackers) (3) | Jira (Data Center and Cloud), Azure DevOps Server and Services |
-| [Source and review](https://imagile-dev.github.io/toil/connect/#source) (4) | GitHub & GitHub Enterprise, Bitbucket (Data Center and Cloud), local git |
+| [Source and review](https://imagile-dev.github.io/toil/connect/#source) (3) | GitHub & GitHub Enterprise, Bitbucket (Data Center and Cloud), local git |
 | [CI/CD and runtime](https://imagile-dev.github.io/toil/connect/#cicd) (3) | Jenkins, JFrog Artifactory, OpenShift / Kubernetes |
 | [Testing and flags](https://imagile-dev.github.io/toil/connect/#testing) (2) | Sauce Labs, Split.IO |
 | [Security and quality](https://imagile-dev.github.io/toil/connect/#security) (7) | Checkmarx One, Contrast Security, SD Elements, SonarQube, Sonatype IQ Server, Sonatype OSS Index, OSV.dev |

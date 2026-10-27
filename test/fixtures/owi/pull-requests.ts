@@ -34,7 +34,7 @@ const VERSION = '0.1.0-alpha.1';
 export const sha = (short: string) => short.padEnd(40, '0');
 const ms = (iso: string) => Date.parse(iso);
 
-const envelope = (command: string, data: unknown, connection: string, inputs: Record<string, string>) => ({
+const envelope = (command: string, data: unknown, connection: string, inputs: Record<string, string>, deployment?: string) => ({
   ok: true,
   data,
   error: null,
@@ -43,7 +43,7 @@ const envelope = (command: string, data: unknown, connection: string, inputs: Re
     durationMs: 233,
     version: VERSION,
     context: {
-      connection: { value: connection, source: 'dossier' },
+      connection: { value: connection, source: 'dossier', ...(deployment === undefined ? {} : { deployment }) },
       inputs: Object.fromEntries(Object.entries(inputs).map(([k, value]) => [k, { value, source: 'dossier' }])),
     },
   },
@@ -445,9 +445,9 @@ const BBC_SPECS: BbcSpec[] = [
   },
 ];
 
-/** `bitbucket-cloud pr list --state ALL` for checkout-web's SDK. */
+/** `bitbucket pr list --state ALL` on a Cloud connection for checkout-web's SDK. */
 export const BITBUCKET_CLOUD_PRS = BBC_SPECS.map(bbcPr);
-/** `bitbucket-cloud pr get <id> --include reviews,checks,commits,files`, by id. */
+/** `bitbucket pr get <id> --include reviews,checks,commits,files`, by id. */
 export const BITBUCKET_CLOUD_PR_GETS: Record<number, unknown> = Object.fromEntries(BBC_SPECS.map((s) => [s.id, bbcGet(s)]));
 
 // As util owi map reads them ------------------------------------------------------------
@@ -459,14 +459,14 @@ const BBC_AT = { workspace: 'imagile', repo: 'checkout-sdk' };
 
 /** Every list and get above, as envelopes: what `util owi map` maps to changes. */
 export const prEnvelopes: unknown[] = [
-  envelope('bitbucket pr list', BITBUCKET_PRS, 'corp-bitbucket', BB_AT),
-  ...Object.values(BITBUCKET_PR_GETS).map((d) => envelope('bitbucket pr get', d, 'corp-bitbucket', BB_AT)),
+  envelope('bitbucket pr list', BITBUCKET_PRS, 'corp-bitbucket', BB_AT, 'server'),
+  ...Object.values(BITBUCKET_PR_GETS).map((d) => envelope('bitbucket pr get', d, 'corp-bitbucket', BB_AT, 'server')),
   envelope('ado pr list', ADO_PRS, 'corp-ado', ADO_AT),
   ...Object.values(ADO_PR_GETS).map((d) => envelope('ado pr get', d, 'corp-ado', ADO_AT)),
   envelope('github pr list', GITHUB_PRS, 'github', GH_AT),
   ...Object.values(GITHUB_PR_GETS).map((d) => envelope('github pr get', d, 'github', GH_AT)),
-  envelope('bitbucket-cloud pr list', BITBUCKET_CLOUD_PRS, 'bitbucket-cloud', BBC_AT),
-  ...Object.values(BITBUCKET_CLOUD_PR_GETS).map((d) => envelope('bitbucket-cloud pr get', d, 'bitbucket-cloud', BBC_AT)),
+  envelope('bitbucket pr list', BITBUCKET_CLOUD_PRS, 'bitbucket-cloud', BBC_AT, 'cloud'),
+  ...Object.values(BITBUCKET_CLOUD_PR_GETS).map((d) => envelope('bitbucket pr get', d, 'bitbucket-cloud', BBC_AT, 'cloud')),
 ];
 
 /** The key patterns the dossiers give: Jira's PAY project, and the GitHub issues the SDK's pull requests name. */

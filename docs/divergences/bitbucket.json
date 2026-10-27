@@ -35,6 +35,15 @@
       "toil": "Each id is encoded as one path segment, and the --file path one segment at a time, with a . or .. part refused as INVALID_INPUT; project and repo holding /, \\, ?, #, % or a control character are refused as INVALID_INPUT before anything is sent, wherever the value came from (flag, connection, dossier, env or git remote)",
       "why": "An id names one resource. Bitbucket project keys are letters, digits and _ (a personal project is ~ and a URL-safe user slug) and repository slugs are letters, digits, -, _ and ., so no real key or slug holds those characters, and a file name holding # or ? is still that file.",
       "principle": "2"
+    },
+    {
+      "allows": [
+        "bitbucket pr diff"
+      ],
+      "old": "pr diff <id>, the pull request id a required argument",
+      "toil": "pr diff [id], optional, because a Cloud connection can diff a commit spec (--spec) instead of a pull request. Data Center still requires it: a call without an id is INVALID_INPUT naming the missing argument, before any request",
+      "why": "Bitbucket Data Center and Bitbucket Cloud are one area now (#495), so one command has one argument list, and it can't be required for one deployment and optional for the other. Data Center's behavior is the contract's.",
+      "principle": "10"
     }
   ]
 }

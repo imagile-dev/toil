@@ -23,6 +23,7 @@ export interface RenamedArea {
 export const RENAMED_AREAS: Readonly<Record<string, RenamedArea>> = {
   'jira-cloud': { area: 'jira', settings: { deployment: 'cloud' } },
   'confluence-cloud': { area: 'confluence', settings: { deployment: 'cloud' } },
+  'bitbucket-cloud': { area: 'bitbucket', settings: { deployment: 'cloud' } },
 };
 
 export const renamedArea = (name: string): RenamedArea | undefined => (Object.hasOwn(RENAMED_AREAS, name) ? RENAMED_AREAS[name] : undefined);

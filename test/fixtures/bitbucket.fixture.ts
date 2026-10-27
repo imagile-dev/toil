@@ -1,9 +1,10 @@
 import type { Route } from '../harness/fake-fetch.js';
 import { defineFixture } from '../harness/fixtures.js';
+import * as cloud from './bitbucket-cloud-data.js';
 
 /**
- * Canned Bitbucket Data Center responses for every request the bitbucket
- * examples send, so the parity suite runs every command offline through both
+ * Canned Bitbucket Data Center responses for every request the Data Center
+ * examples of bitbucket send (Cloud's are in bitbucket-cloud-data.ts), so the parity suite runs every command offline through both
  * front doors. Routes match on method, path and, where one path answers
  * differently, the query.
  *
@@ -177,4 +178,21 @@ export const repo = { root: 'C:/work/imagile-api', branch: 'feature/retries', re
  */
 export const dossier = { name: 'payments', bitbucket: { project: { 'imagile-api': 'PROJ' }, repo: { 'imagile-api': 'imagile-api' } } };
 
-export const fixture = defineFixture({ area: 'bitbucket', routes, config, repo, dossier });
+/**
+ * Both deployments, side by side: Data Center's connection (`bitbucket`, the
+ * area's default) and Cloud's (`bitbucket-cloud`, deployment cloud), each with
+ * the routes and files its examples read. Every route is pinned to its own
+ * origin, so neither deployment's paths can answer for the other's.
+ */
+export const fixture = defineFixture({
+  area: 'bitbucket',
+  routes: [
+    ...routes.map((r) => (r.path !== undefined && r.origin === undefined ? { ...r, origin: BITBUCKET } : r)),
+    ...cloud.routes.map((r) => (r.path !== undefined && r.origin === undefined ? { ...r, origin: new URL(cloud.API).origin } : r)),
+  ],
+  config: { ...config, ...cloud.config },
+  deployments: { server: 'bitbucket', cloud: 'bitbucket-cloud' },
+  files: cloud.files,
+  repo: { ...repo, remotes: [...repo.remotes, ...cloud.repo.remotes] },
+  dossier,
+});

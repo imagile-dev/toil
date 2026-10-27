@@ -215,8 +215,24 @@ export interface ContextInput {
    * The error when a command that requires this input finds it nowhere, so an
    * integration keeps the wording its contract specifies ("No project specified…"). `fix`
    * defaults to core's, which names the flag, the setting and its env var.
+   * A function words it for the connection that was resolved, where the
+   * deployments name the missing input differently.
    */
-  missing?: { message: string; fix?: string };
+  missing?: MissingContext | ((connection: Connection<any>) => MissingContext); // eslint-disable-line @typescript-eslint/no-explicit-any
+  /**
+   * For an area with `variants` keyed on `deployment`: the deployments whose
+   * connections take this input (`--project` is Data Center's, `--ws` is
+   * Cloud's). Left out, every deployment takes it. On a connection of any
+   * other deployment the input is refused as `UNSUPPORTED` and never
+   * resolved; it applies to commands folded by `byDeployment()` only.
+   */
+  deployments?: string[];
+}
+
+/** See {@link ContextInput.missing}. */
+export interface MissingContext {
+  message: string;
+  fix?: string;
 }
 
 /** A connection as a command receives it: validated, defaults applied. */
@@ -331,6 +347,9 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
     if (input.setting !== undefined && !(input.setting in spec.connection.shape)) {
       throw new Error(`Area ${spec.name}: context input "${name}" reads setting "${input.setting}", which isn't a connection key.`);
     }
+    for (const deployment of input.deployments ?? []) {
+      if (!spec.variants || !(deployment in spec.variants.of)) throw new Error(`Area ${spec.name}: context input "${name}" is for deployment "${deployment}", which the area's variants don't have.`);
+    }
     if (input.selectsConnection && !((input.setting ?? name) in spec.connection.shape)) {
       throw new Error(`Area ${spec.name}: context input "${name}" selects a connection by "${input.setting ?? name}", which must be a connection key.`);
     }
@@ -388,6 +407,7 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
         kind,
         area,
         ...(Object.keys(needs).length > 0 ? { context: needs } : {}),
+        ...(def.context ? { contextListed: Object.keys(def.context) } : {}),
         input: def.input.extend({
           ...fields,
           [CONNECTION_FIELD]: z

@@ -335,13 +335,15 @@ export function mapOwi(documents: OwiDocument[], options: MapOptions = {}): OwiR
 function mapChanges(docs: OwiDocument[], state: ChangeMapState, skipped: OwiSkipped[]): Change[] {
   const out = new Map<string, Change>();
   for (const doc of docs) {
-    const family = OWI_SOURCES[doc.area]!.family;
-    const prs = family === 'github' ? githubPrs(doc.data) : family === 'ado' ? adoPrs(doc.data) : bitbucketPrs(doc.data);
+    const known = OWI_SOURCES[doc.area]!.family;
+    const prs = known === 'github' ? githubPrs(doc.data) : known === 'ado' ? adoPrs(doc.data) : bitbucketPrs(doc.data);
     if (!prs) {
       skipped.push({ at: doc.at, command: doc.command, reason: "it doesn't hold pull requests" });
       continue;
     }
     for (const pr of prs) {
+      // Bitbucket's two deployments send different shapes. The connection says which; a bare record shows it (Cloud's has a destination, Data Center's a toRef).
+      const family = known === 'bitbucket' && (doc.deployment === 'cloud' || (doc.deployment === undefined && isRecord(pr.destination))) ? 'bitbucket-cloud' : known;
       const change =
         family === 'github' ? githubChange(doc, pr, state)
         : family === 'ado' ? adoChange(doc, pr, state)

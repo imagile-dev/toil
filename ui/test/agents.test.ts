@@ -1021,7 +1021,7 @@ describe('the people tools (#292)', () => {
     expect((await get('github:bo-web')).person.name).toBe('Bo W.');
     const none = await get('Nobody');
     expect(none.error).toBe('Nobody in checkout-web is "Nobody". Use people_list for the names and keys.');
-    expect(none.people?.map((p) => p.key)).toEqual(['person:Ada D.', 'person:Bo W.', 'person:Claude', 'id:bitbucket-cloud:557058:abc12345-0000-0000-0000-000000000010']);
+    expect(none.people?.map((p) => p.key)).toEqual(['person:Ada D.', 'person:Bo W.', 'person:Claude', 'id:bitbucket:557058:abc12345-0000-0000-0000-000000000010']);
   });
 
   it('works with no people section: every account is unmapped, and nothing is suggested', async () => {

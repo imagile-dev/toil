@@ -142,13 +142,16 @@ TOIL_CONN_OCP_PROD_TOKEN=...
   A dossier is validated section by section, so an unknown area's section is kept but
   reported (`DOSSIER_UNKNOWN_SECTION`), never dropped.
 
-  A `jira-cloud` section is read as `jira`, and a `confluence-cloud` one as `confluence` (those areas are now `jira` and `confluence`, with `deployment`
-  on the connection, #495). So is such an entry under `environments.<env>` and
-  in a person's `ids`. Each is reported as `DOSSIER_RENAMED_AREA` by key path, saying
-  to rename it; where the dossier already has the `jira` entry, that one is used and
-  the warning says the old name is ignored. **A dossier has one `jira` section, and one `confluence` section, so it
-  picks one connection of each**: a body of work that uses both a Data Center and a Cloud
-  Jira takes two dossiers.
+  A `jira-cloud` section is read as `jira`, a `confluence-cloud` one as `confluence`, and a
+  `bitbucket-cloud` one as `bitbucket` (those areas are now `jira`, `confluence` and
+  `bitbucket`, with `deployment` on the connection, #495). So is such an entry under
+  `environments.<env>` and in a person's `ids`. Each is reported as `DOSSIER_RENAMED_AREA`
+  by key path, saying to rename it; where the dossier already has the new entry, that one is
+  used and the warning says the old one is ignored. **A dossier has one section per product
+  (`jira`, `confluence`, `bitbucket`), so each picks one connection**: a body of work that uses
+  both a Data Center and a Cloud Jira, Confluence or Bitbucket takes two dossiers. A
+  `bitbucket` section can hold `project` and `repo` (Data Center) or `workspace` and `repo`
+  (Cloud); the other deployment's input is ignored for a connection that doesn't take it.
 - **`env`** names the environment the dossier works in by default; it must be a key of
   `environments`.
 - **`people`** (#292) lists the team, agents included: `{ "name": "Pat Example",
@@ -224,7 +227,7 @@ prompts. The names are used through **one fixed input**, never through generated
   Toil UI passes them to `mapOwi` for the section's area; nothing else reads them.
   Like every value in `fields` they are text, so a number is quoted:
   `"iterationDays": "14"`. An unquoted `14` fails `dossiers check`.
-- A code host's section (`github`, `bitbucket`, `bitbucket-cloud`, `ado`,
+- A code host's section (`github`, `bitbucket`, `ado`,
   `ado-cloud`) may keep `authorKinds`, reference data mapping an author's id to
   `HUMAN`, `AGENT` or `BOT` (`"authorKinds": { "release-bot": "BOT" }`). Toil UI
   passes it to `mapOwi` as the override that wins over every other signal when it

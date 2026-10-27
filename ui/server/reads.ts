@@ -44,8 +44,6 @@ export const READ_COMMANDS: ReadonlySet<string> = new Set([
   'github repo file',
   'bitbucket pr list',
   'bitbucket pr get',
-  'bitbucket-cloud pr list',
-  'bitbucket-cloud pr get',
   'jenkins pipeline runs',
   'openshift deployment list',
   // The readiness gate's one live read (#307): an item's workflow, on a person's press.

@@ -120,7 +120,7 @@ describe('every proposal the board, the scripted agent and the pull request view
   const withCommand = proposals.filter((p) => p?.command);
 
   it('includes some of each kind', () => {
-    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update', 'github pr add-reviewers', 'bitbucket pr add-reviewer', 'bitbucket-cloud pr update', 'confluence page create', 'github issue create', 'jira issue create', 'ado work-item create', 'ado-cloud work-item create']));
+    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update', 'github pr add-reviewers', 'bitbucket pr add-reviewer', 'bitbucket pr update', 'confluence page create', 'github issue create', 'jira issue create', 'ado work-item create', 'ado-cloud work-item create']));
   });
 
   it.each(withCommand.map((p) => [p!.id, p!] as const))('%s names a write command, with input its schema accepts', (_id, p) => {

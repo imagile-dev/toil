@@ -136,8 +136,6 @@ export const LIVE_COMMANDS: readonly string[] = [
   'github commit checks',
   'bitbucket pr list',
   'bitbucket pr get',
-  'bitbucket-cloud pr list',
-  'bitbucket-cloud pr get',
   'jenkins pipeline runs',
   'openshift deployment list',
 ];
