@@ -18,7 +18,7 @@ import { loaded } from './harness.ts';
 
 const block = (o: unknown) => `\`\`\`briefing\n${JSON.stringify(o)}\n\`\`\``;
 const summary = (over: Partial<AnalysisSummary>): AnalysisSummary =>
-  ({ id: 'a1', at: FIXTURE_NOW, adapter: 'codex', model: null, by: 'Codex', recommendation: null, issues: [], citations: [], unverified: 0, changes: { previous: null, newlyBlocked: [], cleared: [], points: [], sprint: null, cited: [], dropped: [], recommendationChanged: false }, briefing: null, proposals: [], ...over }) as AnalysisSummary;
+  ({ id: 'a1', at: FIXTURE_NOW, adapter: 'codex', model: null, by: 'Codex', recommendation: null, issues: [], citations: [], unverified: 0, changes: { previous: null, newlyBlocked: [], cleared: [], points: [], sprint: null, cited: [], dropped: [], recommendationChanged: false }, briefing: null, briefingProblems: [], proposals: [], ...over }) as AnalysisSummary;
 
 describe('the briefing the page shows', async () => {
   const { data } = await loaded('card-payments');
@@ -52,6 +52,11 @@ describe('the briefing the page shows', async () => {
     expect(v.leftOut.map((l) => l.id)).toEqual(['corp-jira:PAY-102']);
     expect(v.notMentioned.map((i) => i.id)).toEqual(flagged.filter((id) => id !== 'corp-jira:PAY-101' && id !== 'corp-jira:PAY-102'));
     expect(itemBriefing(v, 'corp-jira:PAY-101').item).toEqual({ id: 'corp-jira:PAY-101', why: 'Checks fail.', next: 'Fix it.' });
+  });
+
+  it('says what in the block did not fit, and names ids its tools never returned', () => {
+    const v = briefingOf(input([summary({ unverified: 2, briefingProblems: ['Reason 2 has no items and no text, so it was left out.'], briefing: { recommendation: 'Go.', reasons: [], onTrack: null, changed: [], leftOut: [] } })]));
+    expect(v.problems).toEqual(['Reason 2 has no items and no text, so it was left out.', 'Analyze named 2 items its tools never returned; the analysis marks them.']);
   });
 
   it("falls back to the code's, and says why, when the latest Analyze is older than the data or has no briefing", () => {

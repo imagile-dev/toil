@@ -325,8 +325,13 @@ GitHub Actions; its build tooling is out of scope.
   a pipe, CI, MCP) gets the JSON CLI untouched. Every screen is a pure function of
   data and every animation frame a pure function of time, so both are unit-tested.
   One file of views per menu module under `views/`, registered in `views/index.ts`;
-  every action runs a real `toil` command in-process and shows the line it ran.
-  Its Services module (`views/services.ts`) runs any area command that way: a
+  every action runs a real `toil` command in-process and shows the line it ran (a
+  `--text` that carries earlier steps' output is named, with the pipe to type
+  instead). Its Dossiers module can brief a dossier (`views/briefing.ts`, #494):
+  each read, then `util owi map`, then `dossiers brief`, with every key an OSC 8
+  hyperlink where the terminal draws them (`TermCaps.hyperlinks`) and the URL
+  printed where not; service text goes to the screen with its control characters
+  stripped. Its Services module (`views/services.ts`) runs any area command that way: a
   write only after a confirm screen that shows the line with `--allow-write`,
   so the connection's `writes` still decides, as it would typed by hand.
   It wears the theme `toil theme set` picks (#427): `themes/` holds one terminal
@@ -376,7 +381,10 @@ GitHub Actions; its build tooling is out of scope.
   Vite front end, with one dashboard per dossier, and its local server in
   `ui/server/` (`node:http`, the `toil-ui` bin), which pins `@imagile-dev/toil`
   exactly and has no other runtime dependency. The app is built on toil's own
-  `execute()` and an `Agent` interface; the server answers both behind its `Store`
+  `execute()` and an `Agent` interface, and imports a few of toil's pure modules
+  from source where it needs them in the page (`src/core/brief/`, the briefing and
+  the Analyze prompt, #494; `src/core/owi/similar.ts`), which is why it releases with
+  the toil it needs; the server answers both behind its `Store`
   and `Agent` interfaces, behind a launch token. It reads by default and writes only
   what a person presses: a worklog export, through `util encode --out` and toil's file
   service (#308), and the connection and dossier changes Settings runs through toil's

@@ -159,7 +159,9 @@ export function finish(raw: string, f: Finish): Answer {
   const connections = new Set([...ledgerIds].map((id) => id.slice(0, id.indexOf(':'))));
   const keyOf = new Set([...ledgerIds].map((id) => id.slice(id.indexOf(':') + 1)));
   const unverified = new Set<string>();
-  const briefed = read?.briefing ? [read.briefing.recommendation, ...read.briefing.reasons.flatMap((r) => [r.text ?? '', ...r.items.flatMap((i) => [i.id, i.why, i.next ?? ''])]), ...read.briefing.leftOut.map((l) => l.id)] : [];
+  // Every field of the briefing the page shows with citations: its ids and its sentences alike.
+  const b = read?.briefing;
+  const briefed = b ? [b.recommendation, b.onTrack ?? '', ...b.changed, ...b.reasons.flatMap((r) => [r.line, r.text ?? '', ...r.items.flatMap((i) => [i.id, i.why, i.next ?? ''])]), ...b.leftOut.flatMap((l) => [l.id, l.why])] : [];
   const all = [...parts.map((p) => p.text), ...proposals.map((p) => p.reason), ...briefed].join('\n\n');
   const { cited, bare, keys } = named(all, connections);
   for (const id of [...cited, ...bare, ...proposals.map((p) => p.item)]) if (!ledgerIds.has(id)) unverified.add(id);

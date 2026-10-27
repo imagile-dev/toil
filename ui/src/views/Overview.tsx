@@ -15,6 +15,7 @@ import { Button, Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'rea
 import { Sparkline } from '../components/charts.tsx';
 import { briefingSource, Customize, PeekLinks, useBriefing } from '../components/briefing.tsx';
 import { useBriefingPrefs } from '../briefing-prefs.ts';
+import { parseRoute } from '../App.tsx';
 import { Help } from '../components/help.tsx';
 import { Cited, PrLink } from '../components/items.tsx';
 import { useData, useDerived } from '../data.ts';
@@ -34,10 +35,12 @@ export function Overview() {
   const { health: h } = useDerived();
   const view = useBriefing();
   const prefs = useBriefingPrefs();
-  const shown = view.reasons.filter((r) => !prefs.hidden.includes(r.lens));
+  // A red reason (failing checks, blocked) can be folded but never hidden: principle 4 outranks a layout preference.
+  const shown = view.reasons.filter((r) => r.severity === 'danger' || !prefs.hidden.includes(r.lens));
   const hidden = view.reasons.length - shown.length;
   const here = typeof window === 'undefined' ? '#/' : window.location.hash;
-  const focus = dossier.analyze && (dossier.analyze.goal || dossier.analyze.watchFor || dossier.analyze.leaveOut) ? dossier.origin : null;
+  // Whose settings tuned this briefing, whenever a dossier tunes it (#494): its file, and whether it's the reader's own.
+  const tuned = dossier.analyze && Object.keys(dossier.analyze).length ? dossier.origin : null;
   return (
     <section className="briefing" aria-label="Briefing" data-rec-source={view.by === 'analyze' ? 'analysis' : 'code'}>
       <p className="briefing__meta">
@@ -58,16 +61,21 @@ export function Overview() {
             </>
           )}
         </span>
-        <Customize lenses={view.reasons.map((r) => ({ lens: r.lens, label: r.label }))} />
-        {focus && !focus.adopted && (
+        <Customize lenses={view.reasons.filter((r) => r.severity !== 'danger').map((r) => ({ lens: r.lens, label: r.label }))} />
+        {tuned && (
           <span className="source" data-focus-from="">
-            Focus from {focus.file}, a dossier you haven't adopted
+            Analyze settings from {tuned.file}, {tuned.adopted ? 'your own dossier' : "a dossier you haven't adopted"}
           </span>
         )}
       </p>
       <Links page={prefs.opensIn === 'page'}>
         <h2 className="sr-only">Recommendation</h2>
         <p className="briefing__head">{view.recommendation ? <Cited text={view.recommendation} /> : 'Nothing needs anyone right now.'}</p>
+        {view.problems.map((p) => (
+          <p key={p} className="briefing__warning" role="note">
+            {p}
+          </p>
+        ))}
         {view.unknown.length > 0 && (
           <p className="briefing__warning" role="note">
             Analyze named {view.unknown.length === 1 ? 'an item' : `${view.unknown.length} items`} that {view.unknown.length === 1 ? "isn't" : "aren't"} this dossier's: <code>{view.unknown.join(', ')}</code>. Treat {view.unknown.length === 1 ? 'it' : 'them'} as unverified.
@@ -90,6 +98,23 @@ export function Overview() {
                 </span>
               </p>
             </div>
+            {view.unchecked.length > 0 && (
+              <details className="reason" data-unchecked="">
+                <summary>
+                  <span className="reason__dot" aria-hidden="true" />
+                  <span className="reason__title">
+                    <b>Couldn't check.</b> <span>{view.unchecked.map((u) => u.label).join(', ')}</span>
+                  </span>
+                </summary>
+                <div className="reason__body">
+                  {view.unchecked.map((u) => (
+                    <p key={u.label}>
+                      {u.label}: {u.note}
+                    </p>
+                  ))}
+                </div>
+              </details>
+            )}
             {view.leftOut.length > 0 && (
               <details className="reason" data-left-out="">
                 <summary>
@@ -183,7 +208,7 @@ function Row({ id, here, note }: { id: string; here: string; note?: string }) {
   const { byId, dossier } = useData();
   const { opensIn } = useBriefingPrefs();
   const item = byId.get(id);
-  const current = here.includes(`?item=${encodeURIComponent(id)}`);
+  const current = parseRoute(here).peek === id;
   return (
     <>
       <a className="reason-row" href={opensIn === 'page' ? itemHref(dossier.name, id) : peekHref(here, id)} aria-current={current ? 'true' : undefined} data-row={id}>

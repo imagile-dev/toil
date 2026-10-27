@@ -465,7 +465,7 @@ export const dossierView: View = {
     items.push({ label: 'Hand off to an agent', hint: 'A prompt to extend it with an agent', action: { go: 'dossier-agent', params: { ref } } });
     if (s.source === 'user') items.push({ label: 'Delete', hint: 'Asks you to type its name', action: { go: 'dossier-delete', params: { ref, name: s.name } } });
     // Last, so the rows a hand already knows keep their places.
-    if (Object.keys(s.areas).length) items.push({ label: 'Brief this dossier', hint: 'What needs a person, and what to do first', action: { run: briefRun(s.name, s.areas) } });
+    if (Object.keys(s.areas).length) items.push({ label: 'Brief this dossier', hint: 'What needs a person, and what to do first', action: { run: briefRun(ref, s.areas) } });
     return items;
   },
 };

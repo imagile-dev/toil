@@ -250,6 +250,8 @@ export interface AppProps {
   serverStatus?: () => Promise<ServerStatus | null>;
   /** A sync running now (#419), for the themed loader that says its progress; absent or null while none runs. */
   syncing?: SyncJob | null;
+  /** When the last sync finished (#494), for Analyze after a sync; absent where nothing syncs. */
+  syncedAt?: string | null;
   /** The facts the last sync recorded for the first time (#419), by dossier, which play the theme's moments once; `id` is when that sync finished. */
   news?: { id: string; byDossier: Array<{ dossier: string; events: WorklogEvent[] }> } | null;
   /** Starts a sync, where the local app keeps a cache (#416): for the command palette, the first-run checklist and the empty states that a sync fills (#417). */
@@ -261,7 +263,7 @@ export interface AppProps {
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, news, versions }: AppProps) {
+export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, syncedAt, news, versions }: AppProps) {
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
@@ -530,7 +532,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
       <DataContext value={data}>
         {/* The Ask bar (#343), on every dossier page; its chat is keyed by dossier, so a conversation lasts across that dossier's views. */}
         <ChatScope key={route.dossier}>
-          <AnalyzeAfterSync syncedAt={news?.id ?? null} />
+          <AnalyzeAfterSync syncedAt={syncedAt ?? null} />
           <DossierShell tab={tabOf(route)} peek={route.peek ?? null} heading={route.view === 'dashboard'} dossiers={list?.ok ? list.value.dossiers.map((d) => d.name) : null} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
             {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} {...(route.analysis ? { analysis: route.analysis } : {})} />}
           </DossierShell>

@@ -281,10 +281,3 @@ export function blockerGantt(input: GanttInput): Gantt {
   }
   return { start: at(start), end: at(end), now: at(now), sprint: h?.sprint.name ?? null, bars, arrows, chain, cycle: g.cycle };
 }
-
-/** The bars on the critical chain, with the arrows between them: the Overview's compact Gantt. */
-export function chainOnly(g: Gantt): Gantt {
-  const on = new Set(g.chain?.ids ?? []);
-  const bars = (g.chain?.ids ?? []).map((id) => g.bars.find((b) => b.id === id)).filter((b): b is Bar => b !== undefined);
-  return { ...g, bars, arrows: g.arrows.filter((a) => a.onChain && on.has(a.from) && on.has(a.to)) };
-}

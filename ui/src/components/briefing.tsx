@@ -14,7 +14,7 @@ import { analyzeSettings } from '../../../src/core/brief/settings.ts';
 import { useData } from '../data.ts';
 import { dateTime, dossierEditHref, itemHref, peekHref, personText, shortKey, sourceLabel, STATUS_CATEGORY_LABEL, estimateText, unpeekHref } from '../format.ts';
 import { briefingOf, itemBriefing, type BriefingView } from '../model/briefing.ts';
-import { matches } from '../shortcuts.ts';
+import { matches, typingIn } from '../shortcuts.ts';
 import { ANALYZE } from '../agent.ts';
 import { useChatScope } from './ask.tsx';
 import { setPrefs, useBriefingPrefs } from '../briefing-prefs.ts';
@@ -61,10 +61,18 @@ export function ItemDrawer({ id }: { id: string }) {
   useEffect(() => {
     heading.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (matches('drawerClose', e)) window.location.hash = close;
+      if (!typingIn(e.target) && matches('drawerClose', e)) window.location.hash = close;
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      // Focus goes back to what opened the drawer: the row or card key for this item, once the page behind has drawn.
+      setTimeout(() => {
+        if (window.location.hash.includes('?item=')) return;
+        const key = encodeURIComponent(id);
+        document.querySelector<HTMLElement>(`[data-row="${CSS.escape(id)}"], a.card-key[href$="?item=${CSS.escape(key)}"]`)?.focus();
+      });
+    };
   }, [id, close]);
   const item = byId.get(id);
   const head = (
@@ -184,14 +192,27 @@ export function ItemDrawer({ id }: { id: string }) {
 export function AnalyzeAfterSync({ syncedAt }: { syncedAt: string | null }) {
   const prefs = useBriefingPrefs();
   const chat = useChatScope();
-  const seen = useRef(syncedAt);
   useEffect(() => {
-    if (!syncedAt || syncedAt === seen.current) return;
-    seen.current = syncedAt;
-    if (prefs.afterSync && chat && !chat.busy) void chat.ask(ANALYZE, 'Analyze');
+    if (!syncedAt || syncedAt === lastSync.seen) return;
+    // The first sync this page sees was there before it opened: noted, never acted on.
+    const first = lastSync.seen === undefined;
+    lastSync.seen = syncedAt;
+    if (!first && prefs.afterSync && chat && !chat.busy) void chat.ask(ANALYZE, 'Analyze');
   }, [syncedAt, prefs.afterSync, chat]);
   return null;
 }
+
+/**
+ * The last finished sync the page has seen, kept outside React: the local app
+ * remounts the whole page when a sync finishes (ui/src/local.tsx), and a ref
+ * inside it would start again from the new sync and never see it as new.
+ */
+const lastSync: { seen: string | undefined } = { seen: undefined };
+
+/** For tests: forget the syncs seen, as a freshly opened page has. */
+export const forgetSyncs = () => {
+  lastSync.seen = undefined;
+};
 
 /** Customize (#494): how this person likes the briefing laid out, in this browser only. */
 export function Customize({ lenses }: { lenses: Array<{ lens: string; label: string }> }) {

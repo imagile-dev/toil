@@ -50,6 +50,10 @@ export interface BriefingView {
   notMentioned: BriefItem[];
   /** Ids Analyze named that aren't the dossier's: shown as named, flagged. */
   unknown: string[];
+  /** What the page must say about the briefing itself: a block that didn't fit, ids its tools never returned. Shown, never folded. */
+  problems: string[];
+  /** Lenses that couldn't test some items, or couldn't run, and why: one step in. */
+  unchecked: Array<{ label: string; note: string }>;
   /** The code's briefing, always: the drawer's facts and the lens notes come from it. */
   code: Brief;
 }
@@ -75,6 +79,7 @@ export function briefingOf(input: BriefingInput): BriefingView {
   const latest = input.analyses[0] ?? null;
   const usable = latest?.briefing && isCurrent(latest, input.now) ? latest : null;
   const onTrackByCode = `${code.onTrack.open} open and ${code.onTrack.done} done are on track.`;
+  const unchecked = code.lenses.filter((l) => l.on && l.note).map((l) => ({ label: l.label, note: l.note! }));
   if (!usable) {
     const stale = !latest ? null : !isCurrent(latest, input.now) ? 'The latest Analyze is older than the data.' : 'The latest Analyze has no briefing block, so it is shown as it came on its own page.';
     return {
@@ -88,6 +93,8 @@ export function briefingOf(input: BriefingInput): BriefingView {
       leftOut: [],
       notMentioned: [],
       unknown: [],
+      problems: [],
+      unchecked,
       code,
     };
   }
@@ -106,6 +113,8 @@ export function briefingOf(input: BriefingInput): BriefingView {
     leftOut: b.leftOut,
     notMentioned: code.reasons.flatMap((r) => r.items).filter((i) => !named.has(i.id) && !left.has(i.id)),
     unknown: [...named, ...left].filter((id) => !ids.has(id)),
+    problems: [...usable.briefingProblems, ...(usable.unverified ? [`Analyze named ${usable.unverified === 1 ? 'an item' : `${usable.unverified} items`} its tools never returned; the analysis marks ${usable.unverified === 1 ? 'it' : 'them'}.`] : [])],
+    unchecked,
     code,
   };
 }

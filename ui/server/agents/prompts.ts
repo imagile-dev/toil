@@ -157,7 +157,10 @@ export async function analyzeQuestion(execute: Execute, dossier: string): Promis
   const prompt = e.ok && typeof e.data === 'object' && e.data !== null ? (e.data as { prompt?: unknown }).prompt : undefined;
   if (typeof prompt === 'string') return { label: ANALYZE_LABEL, text: prompt, warning: null };
   const why = e.ok ? 'it returned no prompt' : e.error.message;
-  return { label: ANALYZE_LABEL, text: analyzePrompt(dossier), warning: `Analyze used Toil UI's own question, not the dossier's: toil dossiers analyze prompt failed (${why}). Upgrade toil to use the dossier's Analyze settings.` };
+  // Only a toil without the command needs upgrading; any other failure carries toil's own fix.
+  const missing = !e.ok && /unknown command|isn't a command|no command/i.test(e.error.message);
+  const fix = missing ? "Upgrade toil to use the dossier's Analyze settings." : e.ok ? 'Upgrade toil, or report it: a toil with the command returns a prompt.' : (e.error.fix ?? '');
+  return { label: ANALYZE_LABEL, text: analyzePrompt(dossier), warning: `Analyze used Toil UI's own question, not the dossier's: toil dossiers analyze prompt failed (${why}).${fix ? ` ${fix}` : ''}` };
 }
 
 /** The question for a starter id or Analyze (#343), or the typed text as it is; "Prepare my 1:1 notes for <person>" typed out gets the 1:1 instructions, and "Write up the stand-up for <from> to <to>" the stand-up's. */

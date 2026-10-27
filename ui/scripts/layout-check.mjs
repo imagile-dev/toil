@@ -72,6 +72,11 @@ export const ROUTES = [
   '#/dossier/card-payments',
   '#/dossier/settlement',
   '#/dossier/checkout-web',
+  // An item's drawer (#494): beside the briefing from 1200px, over it below that, and over the Board, whose card key opens it.
+  '#/dossier/card-payments?item=corp-jira%3APAY-101',
+  '#/dossier/card-payments/board?item=corp-jira%3APAY-104',
+  // How Analyze briefs a dossier (#494), with its prompt preview open among the details.
+  '#/settings/dossiers/card-payments/analyze',
   // The dossier's own tabs (#394): the Board with its needs-attention flags, the longest titles' board, Dependencies, and Analyses.
   // Dependencies carries the blocker Gantt and its table (#396): a three-item chain with failing checks, a one-link Azure DevOps chain, and a dossier with no blocker.
   '#/dossier/card-payments/board',

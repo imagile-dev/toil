@@ -31,8 +31,9 @@ the credential and is the only thing that talks to the host.
   value came from (`meta.context`). The dossier can't widen what the agent may do: it
   holds no credential, can't point a connection at a new host, and a write on a
   connection it chose waits until you adopt it (**Writes**, below).
-- **What Toil UI shows.** Toil UI draws one dashboard per dossier: the stories, pull
-  requests, builds and deployments of exactly the areas the dossier names.
+- **What Toil UI shows.** Toil UI draws one dashboard per dossier, opening on its
+  briefing: the stories, pull requests, builds and deployments of exactly the areas
+  the dossier names.
 - **Knowledge that outlives the handover.** Repositories, project keys, field ids,
   boards and namespaces are written down once, in a file a team can review, instead
   of in one person's shell history.
@@ -306,11 +307,12 @@ whether it ran, how many items it couldn't test for a missing field (`untested`)
 and why in `note`. `--as-of` briefs as of another moment.
 
 The menu a bare `toil` opens does all of this for you: **Dossiers**, a dossier,
-**Brief this dossier** runs each read, each open pull request in full, the map and
-the brief, showing every command as it goes, then the briefing. Each key on it opens
-its ticket where the terminal draws links (Windows Terminal, VS Code, iTerm2, WezTerm,
-Ghostty, GNOME Terminal), and its URL is printed under it anywhere else. Azure DevOps
-work items, which take a read each, are left to Toil UI there.
+**Brief this dossier** runs each read, the dossier's open pull requests in full (up
+to 20), the map and the brief, showing every command as it goes, then the briefing,
+with any read that failed named at its top. Each key on it opens its ticket where the
+terminal draws links (Windows Terminal, VS Code, iTerm2, WezTerm, Ghostty, and VTE
+terminals such as GNOME Terminal from 0.50), and its URL is printed under it anywhere
+else. Azure DevOps work items, which take a read each, are left to Toil UI there.
 
 ### Analyze
 

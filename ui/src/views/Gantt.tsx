@@ -62,7 +62,6 @@ interface Layout {
 const FULL: Layout = { label: 220, row: 36, bar: 14, top: 26, right: 16 };
 /** How many lanes the arrows leaving bars that end together are spread over. */
 const LANES = 5;
-const COMPACT: Layout = { label: 170, row: 24, bar: 10, top: 16, right: 12 };
 
 function timeText(s: Segment) {
   return `${s.estimated ? 'about ' : ''}${day(s.start)} to ${day(s.end)}`;
@@ -80,10 +79,10 @@ function rowWords(bar: Bar, g: Gantt, name: (id: string) => string): string {
   return parts.join('; ');
 }
 
-function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
+function Drawing({ g }: { g: Gantt }) {
   const { byId } = useData();
-  const { ref, width, narrow } = useWidth(compact ? 560 : 680);
-  const L = { ...(compact ? COMPACT : FULL), ...(narrow ? { label: 150 } : {}) };
+  const { ref, width, narrow } = useWidth(680);
+  const L = { ...FULL, ...(narrow ? { label: 150 } : {}) };
   const uid = useId().replace(/[^\w-]/g, '');
   const hatch = `gantt-hatch-${uid}`;
   const head = `gantt-head-${uid}`;
@@ -92,8 +91,8 @@ function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
   const end = t(g.end);
   const plot = width - L.label - L.right;
   const x = (ms: number) => L.label + (plot * (Math.min(Math.max(ms, start), end) - start)) / Math.max(1, end - start);
-  // The rows, then a band under them for the Today label, clear of the day labels above; the compact one has no day labels, so Today sits above its rows.
-  const height = L.top + g.bars.length * L.row + (compact ? 4 : 18);
+  // The rows, then a band under them for the Today label, clear of the day labels above.
+  const height = L.top + g.bars.length * L.row + 18;
   const rowY = new Map(g.bars.map((b, i) => [b.id, L.top + i * L.row + L.row / 2]));
   const key = (id: string) => {
     const item = byId.get(id);
@@ -129,7 +128,7 @@ function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
 
   return (
     <div ref={ref} className="gantt-measure">
-      <svg className="gantt" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={summary} data-gantt={compact ? 'compact' : 'full'}>
+      <svg className="gantt" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={summary} data-gantt="full">
         <defs>
           <pattern id={hatch} patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
             <rect className="gantt-hatch-bg" width="6" height="6" />
@@ -145,12 +144,10 @@ function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
 
         {ticks.map((d) => (
           <g key={d}>
-            <line className="gantt-grid" x1={x(d)} x2={x(d)} y1={L.top - 4} y2={height - (compact ? 2 : 16)} />
-            {!compact && (
-              <text className="gantt-axis" x={x(d) + 3} y={L.top - 10}>
-                {day(new Date(d).toISOString()).replace(/ \d{4}$/, '')}
-              </text>
-            )}
+            <line className="gantt-grid" x1={x(d)} x2={x(d)} y1={L.top - 4} y2={height - 16} />
+            <text className="gantt-axis" x={x(d) + 3} y={L.top - 10}>
+              {day(new Date(d).toISOString()).replace(/ \d{4}$/, '')}
+            </text>
           </g>
         ))}
 
@@ -214,8 +211,8 @@ function Drawing({ g, compact = false }: { g: Gantt; compact?: boolean }) {
           );
         })}
 
-        <line className="gantt-today" x1={nowX} x2={nowX} y1={compact ? 2 : L.top - 4} y2={compact ? height : height - 2} />
-        <text className="gantt-today-label" x={nowX > width - 60 ? nowX - 4 : nowX + 4} y={compact ? 11 : height - 4} textAnchor={nowX > width - 60 ? 'end' : 'start'}>
+        <line className="gantt-today" x1={nowX} x2={nowX} y1={L.top - 4} y2={height - 2} />
+        <text className="gantt-today-label" x={nowX > width - 60 ? nowX - 4 : nowX + 4} y={height - 4} textAnchor={nowX > width - 60 ? 'end' : 'start'}>
           Today
         </text>
       </svg>

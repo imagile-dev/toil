@@ -356,7 +356,8 @@ async function askAgent(api, dossier, home, dataDir, env, launchUrl) {
 
 /**
  * The history of analyses (#395): the Analyze just asked was kept, read back
- * top-down (a Recommendation line, at most three Issues); then the dossier's
+ * with its briefing (#494: a recommendation, and its first three reasons as the
+ * history's issues); then the dossier's
  * WIP limit changes in the scratch home, Analyze runs again, and the history
  * lists both, newest first, the second saying what changed since the first.
  * The Analyses tab and the second one opened go through the layout check,
@@ -370,7 +371,7 @@ async function analysisHistory(api, dossier, home, env, launchUrl, first, histor
   };
   const shapeOf = (r) => (r ? `recommendation ${r.recommendation ? `"${r.recommendation.replace(/\[\[[^\]]*:([^\]]+)\]\]/g, '$1').slice(0, 90)}${r.recommendation.length > 90 ? '…' : ''}"` : 'missing'}, ${r.issues.length} issue(s)${r.issues.length ? ` (${r.issues.map((i) => i.title ?? 'untitled').join(', ')})` : ''}, ${r.citations.length} cited` : 'not kept');
   const kept = await one(first.analysis);
-  const topDown = (r) => Boolean(r?.record.recommendation) && r.record.issues.length <= 3;
+  const topDown = (r) => Boolean(r?.record.recommendation && r.record.briefing) && r.record.issues.length <= 3;
   if (!kept) fail(`the first Analyze wasn't kept: its answer names ${first.analysis ? `analysis ${first.analysis}, which the history doesn't have` : 'no analysis'}.`);
   else if (!topDown(kept)) fail(`the first Analyze isn't top-down: ${shapeOf(kept.record)}.`);
   step('Analyses: the first kept, top-down', topDown(kept) ? 'pass' : 'fail', shapeOf(kept?.record));

@@ -16,7 +16,6 @@ import './analysis.css';
 import type { ThemeManifest } from '../themes.ts';
 import type { Change, WorkItem } from '../toil.ts';
 
-/** The item's source and key, as a link to its page. */
 /**
  * Where an item link goes: its own page, unless a view says otherwise. The
  * briefing (#494) opens the item's drawer instead, one step in rather than a
@@ -24,6 +23,7 @@ import type { Change, WorkItem } from '../toil.ts';
  */
 export const ItemHrefContext = createContext<((dossier: string, id: string) => string) | null>(null);
 
+/** The item's source and key, as a link to its page, or to its drawer where a view says so. */
 export function ItemLink({ id, withTitle = false }: { id: string; withTitle?: boolean }) {
   const { byId, prById, dossier } = useData();
   const hrefOf = useContext(ItemHrefContext);

@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
 import { setPrefs } from '../src/briefing-prefs.ts';
+import { forgetSyncs } from '../src/components/briefing.tsx';
 import type { Agent } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureAnalyses } from '../src/fixtures/analyses.ts';
@@ -62,31 +63,33 @@ describe("the dossier's Analyze settings", () => {
 });
 
 describe('Analyze after a sync', () => {
+  beforeEach(() => forgetSyncs());
   const counting = () => {
     const base = scriptedAgent();
     const asked: string[] = [];
     const agent: Agent = { ...base, stream: (d, p, ...rest) => (asked.push(p), base.stream!(d, p, ...rest)) };
     return { agent, asked };
   };
-  const syncs = (n: number) => ({ id: `2026-10-13T0${n}:00:00.000Z`, byDossier: [] });
+  // As the local app does: each finished sync remounts the page under a new key (ui/src/local.tsx).
+  const page = (agent: Agent, key: number, syncedAt: string) => <App key={key} execute={fixtureExecute().execute} agent={agent} analyses={fixtureAnalyses()} now={FIXTURE_NOW} preview syncedAt={syncedAt} />;
 
-  it('runs once per finished sync when turned on, and never on the sync already there', async () => {
+  it('runs once per finished sync when turned on, across the remount, and never on the sync already there', async () => {
     setPrefs({ afterSync: true });
     const { agent, asked } = counting();
     window.location.hash = '#/dossier/card-payments';
-    const view = render(<App execute={fixtureExecute().execute} agent={agent} analyses={fixtureAnalyses()} now={FIXTURE_NOW} preview news={syncs(1)} />);
+    const view = render(page(agent, 0, '2026-10-13T01:00:00.000Z'));
     await briefing();
     expect(asked).toEqual([]);
-    view.rerender(<App execute={fixtureExecute().execute} agent={agent} analyses={fixtureAnalyses()} now={FIXTURE_NOW} preview news={syncs(2)} />);
+    view.rerender(page(agent, 1, '2026-10-13T02:00:00.000Z'));
     await waitFor(() => expect(asked).toEqual(['analyze']));
   });
 
   it('stays off unless asked for', async () => {
     const { agent, asked } = counting();
     window.location.hash = '#/dossier/card-payments';
-    const view = render(<App execute={fixtureExecute().execute} agent={agent} analyses={fixtureAnalyses()} now={FIXTURE_NOW} preview news={syncs(1)} />);
+    const view = render(page(agent, 0, '2026-10-13T01:00:00.000Z'));
     await briefing();
-    view.rerender(<App execute={fixtureExecute().execute} agent={agent} analyses={fixtureAnalyses()} now={FIXTURE_NOW} preview news={syncs(2)} />);
+    view.rerender(page(agent, 1, '2026-10-13T02:00:00.000Z'));
     await new Promise((r) => setTimeout(r, 50));
     expect(asked).toEqual([]);
   });

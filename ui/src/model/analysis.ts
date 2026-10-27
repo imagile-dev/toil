@@ -248,6 +248,8 @@ export interface AnalysisSummary {
   changes: AnalysisChanges;
   /** Its briefing (#494) and proposals, for the dossier's home page and the item drawer. */
   briefing: Briefing | null;
+  /** What in the briefing block didn't fit, in words. */
+  briefingProblems: string[];
   proposals: Proposal[];
 }
 
@@ -273,6 +275,7 @@ export function historyOf(records: readonly AnalysisRecord[]): AnalysisSummary[]
       unverified: r.unverified.length,
       changes: changesBetween(oldest[i - 1] ?? null, r),
       briefing: r.briefing ?? null,
+      briefingProblems: r.briefingProblems ?? [],
       proposals: r.proposals,
     }))
     .reverse();

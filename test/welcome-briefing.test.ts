@@ -55,7 +55,7 @@ describe('the reads', () => {
     expect(mapArgs[4]!.split('\n')).toHaveLength(3);
     const briefed = runOf(map.next!([result(mapArgs, env('util owi map', { items: [] }))], {} as never));
     expect(briefed.steps[0]!.args.slice(0, 3)).toEqual(['dossiers', 'brief', 'payments']);
-    expect(briefed.next!([result(briefed.steps[0]!.args, env('dossiers brief', {}))], {} as never)).toEqual({ go: 'dossier-brief', params: { dossier: 'payments' } });
+    expect(briefed.next!([result(briefed.steps[0]!.args, env('dossiers brief', {}))], {} as never)).toEqual({ go: 'dossier-brief', params: { dossier: 'payments', gaps: '[]' } });
   });
 
   it('names a long --text on the result screen rather than printing it', () => {

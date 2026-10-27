@@ -143,6 +143,8 @@ A dossier opens on its **Overview**, the briefing, in a frame all of its pages s
   in three groups (those that need you, those working, and those gone stale), with the
   finished ones under **Earlier**; then **Renew all stale**, the **Limits**, and this
   dossier's three newest analyses, each linking to it (Assigning work to an agent, below).
+  While an item's drawer is open (`?item=<id>`, The briefing, below), it takes the
+  sidebar's column from 1200px wide, and covers the view from the right below that.
 - **Analyses** lists every Analyze kept for the dossier, newest first: when it was made,
   the adapter and model that wrote it, its one-line recommendation, and what changed
   since the one before (items newly blocked or blocked by something new, blockers
@@ -190,11 +192,25 @@ to the view behind it.
 Each dossier tunes how Analyze briefs it, under **Settings → Dossiers**, **How
 Analyze briefs** (`#/settings/dossiers/<name>/analyze`): its goal, who it's written
 for, its lenses in order with their thresholds, and what else to watch for or leave
-out. The prompt Analyze will send shows beside the form as you type, composed by
-toil's own code, and **Save** runs `toil dossiers analyze set`. The settings live in
-the dossier file, so a team that shares the dossier shares them; a focus from a
-dossier you haven't adopted still applies, and the briefing names the file it came
-from. Clearing a setting is a delete, made in a terminal.
+out, the lenses folded until you open them. **The prompt Analyze will send**, under
+the form, shows it as you type, composed by toil's own code, and **Save** runs
+`toil dossiers analyze set` with only what you changed, the line it runs shown under
+the form. The settings live in the dossier file, so a team that shares the dossier
+shares them; whenever a dossier tunes Analyze, the briefing names the file and
+whether it's your own, and a focus from a dossier you haven't adopted still applies.
+Clearing a setting is a delete, made in a terminal. Toil UI composes the preview with
+the toil code it's built with, and Analyze asks the toil it runs on, so the two match
+when Toil UI and toil are released together.
+
+#### Customize
+
+**Customize**, on the briefing's top line, keeps how you like it in this browser
+only: whether the first reason opens, whether the numbers start open, which amber
+reasons are hidden (a red one, failing checks or blocked, can be folded but never
+hidden, and the On track line counts what is), whether an item opens in its drawer
+or on its own page, and **Run Analyze after each sync**, off unless you turn it on,
+since each run uses your agent's usage. It runs once for each sync that finishes
+while the page is open, never for the one already there when it opened.
 
 ### The Dependencies tab
 
@@ -213,8 +229,8 @@ blocks another or is blocked, on the current sprint's dates, then the dependency
   A dashed arrow is a wait that is over: the blocker is done. A dotted line marks today.
 - **The critical chain** is the chain of open blockers holding the most points (the
   longest chain when nothing on any chain has points). Its rows carry a diamond and
-  its arrows are drawn heavy, and it is named above the chart. The Overview shows it
-  alone, in brief.
+  its arrows are drawn heavy, and it is named above the chart. The briefing's
+  **Blocked** reason names the same items.
 - **What is estimated is said, in the chart's note and on each table cell.** No tracker
   toil reads dates a link, so a block is drawn from when both items existed. An item
   whose history records no move into In progress (GitHub records only open and closed)
@@ -243,8 +259,7 @@ deployments themselves.
 
 ## Insights
 
-The board's cards and its **Needs attention** flag, the flow charts and the Overview's
-key issues mark
+The board's cards and its **Needs attention** flag and the flow charts mark
 each open work item with its insights, weightiest first, each naming the data it
 rests on (`ui/src/model/insights.ts`). One the data can't support isn't raised at
 all, rather than raised on a guess.
@@ -670,15 +685,18 @@ conversation stays, for the rest of the dossier's pages, until you reload.
 - **The wording follows the theme**: the bar's placeholder, the welcome and the status
   words are in each game theme's voice, and Plain stays neutral. The starter questions
   read the same in every theme.
-- **Analyze** asks for a pulse check in one press: what changed since the last Analyze
-  (from the worklog), who is on what, what is blocked or stuck in review, the sprint's
-  health and risks, and anything that looks off, such as a ticket marked done while its
-  pull request is open. Every line cites its items, and follow-up questions continue
-  from it. It answers top-down: a **Recommendation** line first, then the **Issues**
-  behind it (three at most), then the **Evidence**, which stays folded until you open
-  it. An answer that doesn't start with a Recommendation line is shown as it came, and
-  says so. Each whole Analyze is kept in the dossier's **Analyses** tab, and the
-  answer links to it.
+- **Analyze** briefs the dossier in one press (#494). Its question comes from toil,
+  `toil dossiers analyze prompt <dossier> --host toil-ui`: the standard method with
+  the dossier's own lenses and focus (Tuning Analyze, above). It answers with a
+  briefing block, which the server lifts out of the answer and checks, every id in it
+  against what the agent's tools read: a recommendation, then the reasons, each item
+  with why it's there and the next step, then what changed, and anything the
+  dossier's focus left out. The briefing, the item drawer, the chat and the analysis
+  page all lay it out, with the rest of the answer as **Evidence**, folded until you
+  open it. An answer with no briefing block is shown as it came, and says so. With a
+  toil that has no `dossiers analyze prompt`, Analyze asks Toil UI's own question
+  instead, and the answer warns that it did. Each whole Analyze is kept in the
+  dossier's **Analyses** tab, and the answer links to it.
 - **Citations are chips**: in every answer, each `[[id]]` is a chip with the item's
   key, title and status, linking to its page (a pull request to its host). Hovering or
   focusing one shows its type, assignee, estimate, sprint and last update. An id the
@@ -1161,8 +1179,8 @@ npm run verify:ui -- --no-build --starter standup
   that its proposals parsed, that nothing ran (no write in toil's audit log for the
   run), and that `codex mcp list` in Toil UI's Codex home shows only `toil_ui`. Then it
   asks Analyze as the chat's second question, and checks the history of analyses
-  (#395): that Analyze was kept, top-down (a Recommendation line, three issues at
-  most); then it changes the dossier's WIP limit in the scratch home (`toil dossiers
+  (#395): that Analyze was kept with its briefing (a recommendation, and its first
+  three reasons as the history's issues); then it changes the dossier's WIP limit in the scratch home (`toil dossiers
   wip-limit --replace`), asks Analyze again, checks the history lists both, newest
   first, the second compared with the first, and puts the Overview, the Analyses tab
   and the second analysis opened through the layout check, shot. It needs the Codex CLI signed in and the

@@ -38,7 +38,7 @@ export function readSteps(dossier: string, areas: Areas): { steps: Step[]; skipp
     }
     if (area === 'github' && typeof inputs.repo === 'string') steps.push({ args: ['github', 'issue', 'list', '--dossier', dossier, '--state', 'all'], label: `${String(inputs.owner ?? '')}/${inputs.repo}'s issues` });
     if (codeHosts(area) && typeof inputs.repo === 'string') steps.push({ args: [area, 'pr', 'list', '--dossier', dossier, '--state', OPEN[area]!], label: `${area}'s open pull requests` });
-    if (area.startsWith('ado') && inputs.project && !inputs.repo) skipped.push(area);
+    if (area.startsWith('ado') && inputs.project) skipped.push(area);
   }
   return { steps, skipped };
 }
@@ -68,7 +68,16 @@ function keyPatterns(results: StepResult[]): string[] {
 /** The envelopes a run returned, one per line, as `util owi map` and `dossiers brief` read them. */
 const lines = (results: StepResult[]) => results.filter((r) => r.envelope.ok).map((r) => JSON.stringify(r.envelope)).join('\n');
 
-/** Brief a dossier, from its `dossiers show` data: the four runs, each shown, then the briefing. */
+/** What the briefing couldn't read, in words, for its screen: failed reads, areas left out, and pull requests past the cap. */
+function gaps(results: StepResult[], skipped: string[], capped: string[]): string[] {
+  return [
+    ...results.filter((r) => !r.envelope.ok).map((r) => `${r.args.slice(0, 3).join(' ')} failed (${r.envelope.ok ? '' : r.envelope.error.code}), so the briefing leaves its work out.`),
+    ...skipped.map((a) => `${a} work items aren't read here, since each takes a read of its own: Toil UI reads them.`),
+    ...capped,
+  ];
+}
+
+/** Brief a dossier, from its `dossiers show` data: the four runs, each shown, then the briefing with anything it couldn't read. */
 export function briefRun(dossier: string, areas: Areas): Run {
   const { steps, skipped } = readSteps(dossier, areas);
   return {
@@ -76,7 +85,9 @@ export function briefRun(dossier: string, areas: Areas): Run {
     steps,
     keepGoing: true,
     next: (read) => {
-      const gets: Step[] = read.flatMap((r) => openIds(r).slice(0, MAX_PR_READS).map((id): Step => ({ args: [r.args[0]!, 'pr', 'get', id, '--dossier', dossier, '--include', 'reviews,checks'] })));
+      const open = read.flatMap((r) => openIds(r).map((id): Step => ({ args: [r.args[0]!, 'pr', 'get', id, '--dossier', dossier, '--include', 'reviews,checks'] })));
+      const gets = open.slice(0, MAX_PR_READS);
+      const capped = open.length > MAX_PR_READS ? [`The dossier has ${open.length} open pull requests; the first ${MAX_PR_READS} were read in full, the rest only as listed.`] : [];
       const map = (all: StepResult[]): Run => ({
         title: `Map ${dossier}'s work to Open Work Items`,
         steps: [{ args: ['util', 'owi', 'map', '--text', lines(all), ...keyPatterns(all).flatMap((k) => ['--key-pattern', k])] }],
@@ -84,42 +95,51 @@ export function briefRun(dossier: string, areas: Areas): Run {
           run: {
             title: `Brief ${dossier}`,
             steps: [{ args: ['dossiers', 'brief', dossier, '--text', lines(mapped)] }],
-            next: (briefed) => (briefed[0]?.envelope.ok ? { go: 'dossier-brief', params: { dossier } } : undefined),
+            next: (briefed) => (briefed[0]?.envelope.ok ? { go: 'dossier-brief', params: { dossier, gaps: JSON.stringify(gaps([...all, ...mapped], skipped, capped)) } } : undefined),
           },
         }),
       });
-      return gets.length ? { run: { title: `Read ${dossier}'s open pull requests in full`, steps: gets, keepGoing: true, next: (got) => ({ run: map([...read, ...got]) }) } } : { run: map(read) };
+      return gets.length ? { run: { title: `Read ${dossier}'s open pull requests in full${capped.length ? ` (the first ${MAX_PR_READS} of ${open.length})` : ''}`, steps: gets, keepGoing: true, next: (got) => ({ run: map([...read, ...got]) }) } } : { run: map(read) };
     },
   };
 }
 
-/** A terminal hyperlink (OSC 8) where the terminal draws them; the text alone otherwise, with the URL printed after it by the caller. */
+/** Text from a service, safe to print: control characters (escape sequences among them) dropped, so a ticket's title can't write to the terminal. */
+export function plain(text: string): string {
+  return [...text].filter((c) => {
+    const n = c.codePointAt(0)!;
+    return n >= 0x20 && n !== 0x7f && !(n >= 0x80 && n < 0xa0);
+  }).join('');
+}
+
+/** A terminal hyperlink (OSC 8) where the terminal draws them, to an http(s) address only; the text alone otherwise, with the URL printed after it by the caller. */
 export function link(caps: Caps, text: string, url: string | null): string {
-  if (!url || !caps.hyperlinks) return text;
+  if (!url || !caps.hyperlinks || !/^https?:\/\//i.test(url) || plain(url) !== url) return text;
   return `\x1b]8;;${url}\x1b\\${text}\x1b]8;;\x1b\\`;
 }
 
-/** `[[corp-jira:PAY-101]]` as its key, linked: the briefing's citations, as a terminal shows them. */
+/** `[[corp-jira:PAY-101]]` as its key, linked: the briefing's citations, items and pull requests alike, as a terminal shows them. */
 function cited(caps: Caps, text: string, urls: ReadonlyMap<string, string | null>): string {
-  return text.replace(/\[\[([^\]]+)\]\]/g, (_m, id: string) => link(caps, id.slice(id.indexOf(':') + 1), urls.get(id) ?? null));
+  return plain(text).replace(/\[\[([^\]]+)\]\]/g, (_m, id: string) => link(caps, id.slice(id.indexOf(':') + 1), urls.get(id) ?? null));
 }
 
-/** The briefing, as lines: the recommendation, each reason with its items, what's on track, and which lenses couldn't check. */
-export function briefingLines(caps: Caps, b: Brief & { dossier?: { name: string } }): string[] {
+/** The briefing, as lines: the recommendation, each reason with its items, what's on track, which lenses couldn't check, and what wasn't read. */
+export function briefingLines(caps: Caps, b: Brief & { dossier?: { name: string } }, notRead: readonly string[] = []): string[] {
   const p = pal(caps);
   const items = b.reasons.flatMap((r) => r.items);
   const byId = new Map<string, string | null>([...items.map((i): [string, string | null] => [i.id, i.url]), ...items.flatMap((i) => i.changes.map((c): [string, string | null] => [c.id, c.url]))]);
   const out: string[] = [];
-  out.push(paint(caps, p.muted, `Briefed by code as of ${b.asOf.slice(0, 16).replace('T', ' ')} UTC${b.sprint ? `, ${b.sprint.name}` : ''}`));
+  out.push(paint(caps, p.muted, `Briefed by code as of ${b.asOf.slice(0, 16).replace('T', ' ')} UTC${b.sprint ? `, ${plain(b.sprint.name)}` : ''}`));
+  for (const n of notRead) out.push(ok(caps, false, plain(n)));
   out.push('');
   out.push(b.recommendation ? cited(caps, b.recommendation.text, byId) : 'Nothing needs anyone right now.');
   for (const r of b.reasons) {
-    out.push('', `${ok(caps, r.severity !== 'danger', r.label)}  ${paint(caps, p.muted, r.line)}`);
+    out.push('', `${ok(caps, r.severity !== 'danger', r.label)}  ${paint(caps, p.muted, plain(r.line))}`);
     if (r.text) out.push(`  ${cited(caps, r.text, byId)}`);
     for (const i of r.items) {
-      out.push(`  ${link(caps, i.key, i.url)}  ${i.title}${i.assignee ? paint(caps, p.faint, `  ${i.assignee}`) : ''}`);
+      out.push(`  ${link(caps, plain(i.key), i.url)}  ${plain(i.title)}${i.assignee ? paint(caps, p.faint, `  ${plain(i.assignee)}`) : ''}`);
       out.push(`    ${paint(caps, p.muted, cited(caps, i.why, byId))}`);
-      if (i.url && !caps.hyperlinks) out.push(`    ${paint(caps, p.faint, i.url)}`);
+      if (i.url && !caps.hyperlinks) out.push(`    ${paint(caps, p.faint, plain(i.url))}`);
     }
   }
   out.push('', paint(caps, p.muted, `On track: ${b.onTrack.open} open, ${b.onTrack.done} done.`));
@@ -127,13 +147,19 @@ export function briefingLines(caps: Caps, b: Brief & { dossier?: { name: string 
   return out;
 }
 
-/** The briefing screen: the latest `dossiers brief` this session ran for the dossier, and the way to run it again. */
+/** The briefing screen: the latest `dossiers brief` this session ran for the dossier, what it couldn't read, and the way to run it again. */
 export const briefView: View = {
   title: () => 'Briefing',
   body: (caps, p) => {
     const b = p.session.briefs?.[p.frame.params.dossier ?? ''];
     if (!b) return ['No briefing yet: Brief this dossier reads it.'];
-    return briefingLines(caps, b as Brief);
+    let notRead: string[] = [];
+    try {
+      notRead = JSON.parse(p.frame.params.gaps ?? '[]') as string[];
+    } catch {
+      // A frame from before gaps were kept: nothing to add.
+    }
+    return briefingLines(caps, b as Brief, notRead);
   },
   items: (p) => {
     const dossier = p.frame.params.dossier ?? '';

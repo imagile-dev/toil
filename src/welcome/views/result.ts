@@ -76,7 +76,16 @@ export const resultView: View = {
       for (const w of o.warnings.filter((m) => !known.has(m))) lines.push(paint(caps, pal(caps).muted, `  Note: ${w}`));
       lines.push('');
     }
-    lines.push(paint(caps, pal(caps).faint, 'Each step above is a plain command: run it yourself any time.'));
+    const passed = (p.frame.results ?? []).some((r) => shownArgs(r.args).some((a, i) => a !== r.args[i]));
+    lines.push(
+      paint(
+        caps,
+        pal(caps).faint,
+        passed
+          ? 'Each step above is a plain command; a --text step takes the output of the steps before it, so on the command line pipe them in instead: ... | toil util owi map, then ... | toil dossiers brief <dossier>.'
+          : 'Each step above is a plain command: run it yourself any time.',
+      ),
+    );
     return lines;
   },
   // Where the run says to go next; the menu takes this screen off the stack first.
