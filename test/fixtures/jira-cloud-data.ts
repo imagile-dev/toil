@@ -223,7 +223,11 @@ export const routes: Route[] = [
   {
     method: 'POST',
     path: `${API}/search/jql`,
-    respond: () => json({ issues: searchIssues, isLast: true }),
+    // Invented from the docs: with expand=changelog each issue carries the changelog object.
+    respond: (req) => {
+      const expand = (JSON.parse(req.body!) as { expand?: string }).expand;
+      return json({ issues: expand === 'changelog' ? searchIssues.map((i) => ({ ...i, changelog: { startAt: 0, maxResults: 100, total: 1, histories: [{ id: '10100', author: { accountId: ACCOUNT, displayName: 'J. Smith' }, created: '2026-10-01T09:30:00.000+0000', items: [{ field: 'status', fieldtype: 'jira', fieldId: 'status', from: '1', fromString: 'To Do', to: '3', toString: 'In Progress' }] }] } })) : searchIssues, isLast: true });
+    },
   },
 
   {

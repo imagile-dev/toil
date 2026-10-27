@@ -135,7 +135,7 @@ listed when writes are on, and `allowWrite: true` stands in for the flag.
 | `issue comment` ✎ | `<key> --body` | The comment (on Cloud plus `bodyText`) |
 | `issue comments` | `<key> --limit --cursor` | Every comment, or a page of them (on Cloud each with `bodyText`) |
 | `issue log-work` ✎ | `<key> --time-spent --comment --started` | The worklog (on Cloud plus `commentText`) |
-| `issue search` | `--jql` or `--jql-file`, `--limit --start-at --cursor --updated-since --fields` | Data Center: `{ issues, total, startAt, maxResults }`. Cloud: `{ issues, maxResults, isLast }`. `--start-at` is Data Center only |
+| `issue search` | `--jql` or `--jql-file`, `--limit --start-at --cursor --updated-since --changelog --fields` | Data Center: `{ issues, total, startAt, maxResults }`. Cloud: `{ issues, maxResults, isLast }`. `--start-at` is Data Center only |
 | `issue label` ✎ / `issue unlabel` ✎ | `<key> --labels a,b` | `{ updated, labelsAdded }` / `{ updated, labelsRemoved }` |
 | `issue assign` ✎ | `<key> --assignee <user>` | `{ assigned, assignee }`: a username on Data Center, an accountId on Cloud |
 | `issue link` ✎ | `<key> --target --type` | `{ linked, to, type }` |
@@ -252,6 +252,15 @@ These are what a sync needs: read everything once, then only what changed.
   not at all. If Jira names no zone it knows, toil writes UTC and warns with
   `JIRA_TIME_ZONE` (`JIRA_CLOUD_TIME_ZONE` on Cloud). On its own, `--updated-since` is the
   whole query.
+- **`--changelog`** on `issue search` returns each issue with its change history inline
+  (`changelog: { total, histories }`, the entries `issue history` returns, oldest first), so
+  reading the history of many issues is one search instead of one `issue history` call per
+  issue. It sends `expand=changelog` (`"expand": ["changelog"]` in the Data Center POST body,
+  `"expand": "changelog"` in Cloud's). Jira may send fewer entries than an issue has: when
+  an issue's `changelog.total` is more than the entries sent, toil leaves the data as Jira sent
+  it and adds one warning, `JIRA_CHANGELOG_TRUNCATED` (`JIRA_CLOUD_CHANGELOG_TRUNCATED` on
+  Cloud), saying how many issues were cut short; `issue history <key>` reads the whole
+  history of one. Without the flag nothing changes.
 - **`issue history`** returns the history entries Jira records for an issue, each
   with `id`, `author`, `created` and `items` (`field`, `fieldtype`, `from`,
   `fromString`, `to`, `toString`, and `fieldId` on Cloud). Data Center sends the history

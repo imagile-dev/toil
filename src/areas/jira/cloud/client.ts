@@ -301,12 +301,12 @@ export const STANDARD_SEARCH_FIELDS = ['summary', 'status', 'priority', 'assigne
 export function search(
   ctx: JiraCloudContext,
   jql: string,
-  opts: { fields: string[]; cap?: number | undefined; cursor?: string | undefined },
+  opts: { fields: string[]; cap?: number | undefined; cursor?: string | undefined; changelog?: boolean | undefined },
 ): Promise<Paged<JiraCloudIssue>> {
   const maxResults = Math.min(SEARCH_PAGE, opts.cap ?? SEARCH_PAGE);
   return paginate<JiraCloudIssue>(
     { kind: 'nextPageKey', param: 'nextPageToken', key: (body) => (body as { nextPageToken?: string }).nextPageToken, items: (body) => (body as { issues?: JiraCloudIssue[] }).issues ?? [] },
-    async (paging) => ({ body: await jiraCloud(ctx, `${API}/search/jql`, { method: 'POST', body: { jql, maxResults, fields: opts.fields, ...paging } }) }),
+    async (paging) => ({ body: await jiraCloud(ctx, `${API}/search/jql`, { method: 'POST', body: { jql, maxResults, fields: opts.fields, ...(opts.changelog ? { expand: 'changelog' } : {}), ...paging } }) }),
     { what: 'Jira Cloud search', ...(opts.cap !== undefined ? { cap: opts.cap, setPage: ctx.setPage } : {}), ...(opts.cursor !== undefined ? { cursor: opts.cursor } : {}) },
   );
 }

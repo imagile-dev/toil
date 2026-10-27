@@ -4,6 +4,7 @@ import { jiraArea } from '../area.js';
 import * as client from './client.js';
 import { buildFieldMap, resolveFieldKey, translateFieldsInOutput, translateJql } from './custom-fields.js';
 import { asInt, commaList, parseStartAt, resolveJql } from './input.js';
+import { changelogField, changelogOption, warnTruncatedChangelogs } from '../changelog.js';
 import { jqlInstant, parseUpdatedSince, updatedSinceField, updatedSinceOption, withUpdatedSince } from '../since.js';
 
 /**
@@ -17,7 +18,7 @@ export const search = jiraArea.command({
   path: ['jira', 'issue', 'search'],
   description: 'Search Jira issues with JQL (consider --output-file for large results)',
   toolDescription:
-    'Searches Jira issues with JQL and returns { issues, total, startAt, maxResults }. Without limit it pages through every match, so bound broad queries. meta.page.nextCursor is where the next page starts: pass it back as cursor (or startAt). updatedSince adds updated >= that instant to the JQL, in the time zone of your Jira profile. Use jira_issue_get for one issue by key.',
+    'Searches Jira issues with JQL and returns { issues, total, startAt, maxResults }. Without limit it pages through every match, so bound broad queries. meta.page.nextCursor is where the next page starts: pass it back as cursor (or startAt). updatedSince adds updated >= that instant to the JQL, in the time zone of your Jira profile. changelog adds the change history of each issue inline (the same entries jira_issue_history returns), so one search replaces a history call per issue; a warning says when a long history came back cut short. Use jira_issue_get for one issue by key.',
   input: z.object({
     jql: z.string().optional().describe('JQL query, e.g. project = PROJ AND status = "In Progress"'),
     jqlFile: z.string().optional().describe('Path to a file holding the JQL query ("-" = stdin on the CLI)'),
@@ -25,6 +26,7 @@ export const search = jiraArea.command({
     startAt: z.union([z.number(), z.string()]).optional().describe('Index of the first result to return (a non-negative integer), for resuming or paging'),
     cursor: z.string().min(1).optional().describe('meta.page.nextCursor from the previous page, to carry on from there (the same as startAt)'),
     updatedSince: updatedSinceField,
+    changelog: changelogField,
     fields: z.string().optional().describe('Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")'),
   }),
   writes: false,
@@ -37,6 +39,7 @@ export const search = jiraArea.command({
     { flags: '--start-at <n>', field: 'startAt', description: 'Index of the first result to return (for resuming or paging)' },
     { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous page (the same as --start-at)' },
     updatedSinceOption,
+    changelogOption,
     { flags: '--fields <list>', field: 'fields', description: 'Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")' },
   ],
   examples: [
@@ -46,6 +49,7 @@ export const search = jiraArea.command({
     { jql: 'project = PROJ AND status = "In Progress"', limit: 2, cursor: '2' },
     { jqlFile: 'query.jql', updatedSince: '2026-10-01T09:30:00Z', limit: 2 },
     { updatedSince: '2026-10-01' },
+    { jql: 'project = PROJ', limit: 2, changelog: true },
   ],
   run: async (input, ctx) => {
     const fieldMap = buildFieldMap(ctx.connection.customFields);
@@ -80,7 +84,8 @@ export const search = jiraArea.command({
       );
       query = withUpdatedSince(query, instant);
     }
-    const result = await client.search(ctx, query!, { maxResults, startAt, fields });
+    const result = await client.search(ctx, query!, { maxResults, startAt, fields, changelog: input.changelog === true });
+    if (input.changelog) warnTruncatedChangelogs(ctx.warn, 'JIRA_CHANGELOG_TRUNCATED', result.issues);
     const next = result.startAt + result.issues.length;
     ctx.setPage({ nextCursor: next < result.total ? String(next) : null, limit: maxResults ?? result.issues.length });
     return { ...result, issues: result.issues.map((issue) => ({ ...issue, fields: translateFieldsInOutput(issue.fields, fieldMap) })) };
