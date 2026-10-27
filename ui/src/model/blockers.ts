@@ -1,9 +1,8 @@
 /**
  * Who holds up whom (#394, #396): each open item that blocks another open
  * item, and everything waiting behind it, directly or down a chain. The
- * Overview's recommendation and the blocker Gantt both read it from here, so
- * the blocker the recommendation names first and the chain the Gantt draws
- * come from one reading of the same links. Read from each item's `blocked`
+ * blocker Gantt reads it from here, so the chain it draws comes from one
+ * reading of the same links. Read from each item's `blocked`
  * insight (src/model/insights.ts), so what counts as blocked is decided in
  * one place too. A dependency register, kept without a register.
  */

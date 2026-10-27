@@ -20,6 +20,7 @@ import { adoBuilds, adoDeployments, byEnvironment, changeRef, githubBuild, jenki
 import { readPeople, type PersonEntry } from './model/people.ts';
 import { readReadiness, type ReadinessSettings } from './model/readiness.ts';
 import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
+import type { DossierAnalyze } from '../../src/core/brief/prompt.ts';
 import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
 /** The JQL and WIQL a dashboard sends: one query per tracker, the whole project. */
@@ -54,6 +55,10 @@ export interface DossierData extends DossierSummary {
   people: PersonEntry[];
   /** How many items one person may have in progress at once, from the dossier; null when it sets none. */
   wipLimit: number | null;
+  /** How Analyze briefs it (#494): the dossier's analyze key as written, null for the standard. */
+  analyze: DossierAnalyze | null;
+  /** Where the dossier came from, for labelling its focus: its file, whose it is, and whether the reader adopted it. */
+  origin: { source: string; file: string; adopted: boolean } | null;
   /** What couldn't be read from the dossier's people, in words the People view shows. */
   peopleNotes: string[];
   /** What the readiness gate (#307) reads from the dossier: its sources, repositories and each area's settings. */
@@ -398,7 +403,10 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   if (namespaces.length) deployments.push(...(await onOpenShift(changes.filter((c) => c.kind === 'pull-request'))));
 
   const team = readPeople(dossier);
-  return { ...summary, items, pullRequests, codeowners, prNotes, changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, peopleNotes: team.notes, readiness: readReadiness(dossier), calls };
+  const analyze = isRec(dossier.analyze) ? (dossier.analyze as DossierAnalyze) : null;
+  const shown = show!.data as Rec;
+  const origin = typeof shown.source === 'string' && typeof shown.file === 'string' ? { source: shown.source, file: shown.file, adopted: shown.adopted === true } : null;
+  return { ...summary, items, pullRequests, codeowners, prNotes, changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, origin, peopleNotes: team.notes, readiness: readReadiness(dossier), calls };
 }
 
 /** `dossiers list`, and `dossiers show` for each, so the list can say what each one covers. */

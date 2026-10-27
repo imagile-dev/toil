@@ -6,6 +6,7 @@
  * somewhere, a first for a status report.
  */
 
+import { createContext, useContext } from 'react';
 import { Link, Tooltip, TooltipTrigger } from 'react-aria-components';
 import { segments } from '../agent.ts';
 import { useData } from '../data.ts';
@@ -15,15 +16,23 @@ import './analysis.css';
 import type { ThemeManifest } from '../themes.ts';
 import type { Change, WorkItem } from '../toil.ts';
 
-/** The item's source and key, as a link to its page. */
+/**
+ * Where an item link goes: its own page, unless a view says otherwise. The
+ * briefing (#494) opens the item's drawer instead, one step in rather than a
+ * page away, and the drawer's Open link goes on to the page.
+ */
+export const ItemHrefContext = createContext<((dossier: string, id: string) => string) | null>(null);
+
+/** The item's source and key, as a link to its page, or to its drawer where a view says so. */
 export function ItemLink({ id, withTitle = false }: { id: string; withTitle?: boolean }) {
   const { byId, prById, dossier } = useData();
+  const hrefOf = useContext(ItemHrefContext);
   const item = byId.get(id);
   const pr = item ? undefined : prById?.get(id);
   if (pr) return <PrLink change={pr} withTitle={withTitle} />;
   if (!item) return <code className="missing">{id}</code>;
   return (
-    <a href={itemHref(dossier.name, id)} className="item-link">
+    <a href={hrefOf ? hrefOf(dossier.name, id) : itemHref(dossier.name, id)} className="item-link">
       <span className="key">
         <span className="source">{sourceLabel(item.source.area)}</span> {shortKey(item)}
       </span>

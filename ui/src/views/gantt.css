@@ -5,7 +5,7 @@
    at least 3:1 on the card (WCAG 1.4.11); the gridlines and the chain's band
    are decoration and may be fainter. */
 
-.gantt-panel, .gantt-compact { display: grid; gap: 0.6rem; min-width: 0; }
+.gantt-panel { display: grid; gap: 0.6rem; min-width: 0; }
 .gantt-measure { width: max-content; min-width: 100%; }
 .gantt { display: block; overflow: visible; font-family: var(--font-body); }
 

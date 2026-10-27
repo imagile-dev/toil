@@ -21,6 +21,7 @@ import { THEMES, themeNamed, tokenCss } from './themes.ts';
 import { useThemeChoice } from './theme-choice.ts';
 import type { Call, Execute } from './toil.ts';
 import { ChatScope } from './components/ask.tsx';
+import { AnalyzeAfterSync } from './components/briefing.tsx';
 import { ServerStale } from './components/stale.tsx';
 import { Notices, NotifyProvider, remembering, useMine } from './components/notify.tsx';
 import type { ServerStatus } from './fingerprint.ts';
@@ -71,7 +72,7 @@ const PowershellMan = lazy(() => import('./game/PowershellMan.tsx').then((module
 const POWERSHELL_MAN_HASH = '#/powershell-man';
 
 export type SettingsPage = 'connections' | 'dossiers' | 'toil' | 'usage' | 'agent-usage' | 'agent';
-export type Route =
+type RouteOf =
   | { view: 'dossiers' }
   /** `at`: where an edit link lands on the page (#346): a connection's name, a dossier and its section, or `caps`. */
   | { view: 'settings'; page: SettingsPage; at?: string[] }
@@ -93,7 +94,17 @@ export type Route =
   /** One agent assignment (#293). */
   | { view: 'assignment'; dossier: string; id: string };
 
+/** A route, and on any dossier page the item its drawer shows (#494): `?item=<owi id>` after the path, so the peek has an address of its own. */
+export type Route = RouteOf & { peek?: string };
+
 export function parseRoute(hash: string): Route {
+  const at = hash.indexOf('?');
+  const route = parsePath(at < 0 ? hash : hash.slice(0, at));
+  const peek = at < 0 ? null : new URLSearchParams(hash.slice(at + 1)).get('item');
+  return peek && 'dossier' in route && route.view !== 'item' ? { ...route, peek } : route;
+}
+
+function parsePath(hash: string): RouteOf {
   const parts = hash.replace(/^#\/?/, '').split('/');
   if (parts[0] === 'settings') {
     const page: SettingsPage = parts[1] === 'dossiers' || parts[1] === 'toil' || parts[1] === 'usage' || parts[1] === 'agent-usage' || parts[1] === 'agent' ? parts[1] : 'connections';
@@ -239,6 +250,8 @@ export interface AppProps {
   serverStatus?: () => Promise<ServerStatus | null>;
   /** A sync running now (#419), for the themed loader that says its progress; absent or null while none runs. */
   syncing?: SyncJob | null;
+  /** When the last sync finished (#494), for Analyze after a sync; absent where nothing syncs. */
+  syncedAt?: string | null;
   /** The facts the last sync recorded for the first time (#419), by dossier, which play the theme's moments once; `id` is when that sync finished. */
   news?: { id: string; byDossier: Array<{ dossier: string; events: WorklogEvent[] }> } | null;
   /** Starts a sync, where the local app keeps a cache (#416): for the command palette, the first-run checklist and the empty states that a sync fills (#417). */
@@ -250,7 +263,7 @@ export interface AppProps {
 type Loaded<T> = { ok: true; value: T } | { ok: false; message: string };
 const failed = (e: unknown): Loaded<never> => ({ ok: false, message: e instanceof Error ? e.message : String(e) });
 
-export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, news, versions }: AppProps) {
+export function App({ execute, agent, config, themeSetting, now, preview, agentSettings, feedback, modelUsage, worklog, startReady, assignments: given, analyses: givenAnalyses, synced, afterDescribe, serverStatus, onSync, syncing, syncedAt, news, versions }: AppProps) {
   const [ownAnalyses] = useState(() => memoryAnalyses());
   const analyses = givenAnalyses ?? ownAnalyses;
   const route = useRoute();
@@ -519,7 +532,8 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
       <DataContext value={data}>
         {/* The Ask bar (#343), on every dossier page; its chat is keyed by dossier, so a conversation lasts across that dossier's views. */}
         <ChatScope key={route.dossier}>
-          <DossierShell tab={tabOf(route)} heading={route.view === 'dashboard'} dossiers={list?.ok ? list.value.dossiers.map((d) => d.name) : null} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
+          <AnalyzeAfterSync syncedAt={syncedAt ?? null} />
+          <DossierShell tab={tabOf(route)} peek={route.peek ?? null} heading={route.view === 'dashboard'} dossiers={list?.ok ? list.value.dossiers.map((d) => d.name) : null} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
             {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} {...(route.analysis ? { analysis: route.analysis } : {})} />}
           </DossierShell>
         </ChatScope>

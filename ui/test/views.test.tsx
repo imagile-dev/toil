@@ -603,14 +603,6 @@ describe('the views on a dashboard (#252, #253)', () => {
     expect(gantt.textContent).toContain('Blocked time is estimated');
   });
 
-  it("shows the critical chain on the Overview, linking to Dependencies (#396)", async () => {
-    await open('#/dossier/card-payments');
-    const brief = screen.getByRole('region', { name: 'Blockers' });
-    expect(brief.querySelector('svg.gantt[data-gantt="compact"]')!.querySelectorAll('.gantt-row')).toHaveLength(3);
-    expect(brief.textContent).toContain('Critical chain: 3 items, 16 points.');
-    expect(within(brief).getByRole('link', { name: /Every blocker, and the table, on Dependencies/ }).getAttribute('href')).toBe('#/dossier/card-payments/dependencies');
-  });
-
   it('says so when a dossier has no links to draw', async () => {
     localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'plain' }));
     await open('#/dossier/checkout-web/dependencies');

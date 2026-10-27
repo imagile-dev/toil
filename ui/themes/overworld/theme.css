@@ -110,7 +110,7 @@
 }
 
 /* A sentence reads in the body face, even where other themes set it as a figure. */
-[data-theme="overworld"] .overview-rec__headline {
+[data-theme="overworld"] .briefing__head {
   font-family: var(--font-body);
   font-weight: 600;
 }

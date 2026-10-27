@@ -155,7 +155,7 @@ function OpenAnalysis({ id }: { id: string }) {
           ))}
         </div>
       )}
-      <AnalysisBody parts={r.parts} level={3} />
+      <AnalysisBody parts={r.parts} briefing={r.briefing} level={3} />
       {r.proposals.length > 0 && (
         <section aria-labelledby="analysis-proposals">
           <h3 id="analysis-proposals">Suggested changes</h3>

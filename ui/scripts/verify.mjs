@@ -217,7 +217,10 @@ async function firstItemRoute(launchUrl, dossier) {
     return await page.evaluate(`new Promise((resolve) => {
       const started = Date.now();
       const tick = () => {
-        const link = [...document.querySelectorAll('a[href*="/item/"]')].map((a) => new URL(a.href).hash).find(Boolean);
+        // An item's page, or its drawer (#494: the briefing's rows open ?item=), which names the same item.
+        const page = [...document.querySelectorAll('a[href*="/item/"]')].map((a) => new URL(a.href).hash).find(Boolean);
+        const peek = [...document.querySelectorAll('a[href*="?item="]')].map((a) => new URL(a.href).hash).find(Boolean);
+        const link = page ?? (peek ? peek.replace(/\\?item=(.+)$/, '/item/$1') : undefined);
         if (link || Date.now() - started > 15000) resolve(link ?? null);
         else setTimeout(tick, 100);
       };
@@ -348,15 +351,16 @@ async function askAgent(api, dossier, home, dataDir, env, launchUrl) {
   const pulse = await streamedAsk(api, { dossier, prompt: 'analyze', theme: 'plain', voice: false, chat: { id: 'verify-ui', turn: 2 }, history });
   const pulseSeconds = Math.round((Date.now() - pulseStarted) / 1000);
   const p = pulse.answer;
-  const pulseOk = pulse.status === 200 && !pulse.error && p && p.parts.length && p.citations.length && !(p.unverified ?? []).length && p.carried === 1;
+  const pulseOk = pulse.status === 200 && !pulse.error && p && (p.parts.length || p.briefing) && p.citations.length && !(p.unverified ?? []).length && p.carried === 1;
   if (!pulseOk) fail(`Analyze: ${pulse.error?.message ?? `${p?.parts.length ?? 0} paragraph(s), ${p?.citations.length ?? 0} cited, ${(p?.unverified ?? []).length} unverified, carried ${p?.carried ?? 0}`}`);
-  step('Ask: Analyze, as a follow-up', pulseOk ? 'pass' : 'fail', p ? `${p.parts.length} paragraph(s) in ${pulseSeconds}s, ${p.citations.length} cited, ${(p.unverified ?? []).length} unverified, carried ${p.carried ?? 0} earlier turn; starts: ${p.parts.map((x) => x.text.split(/[:.]/)[0].slice(0, 30)).join(' / ')}` : (pulse.error?.message ?? 'no answer'));
+  step('Ask: Analyze, as a follow-up', pulseOk ? 'pass' : 'fail', p ? `${p.briefing ? `a briefing (${p.briefing.reasons.length} reason(s)), ` : ''}${p.parts.length} paragraph(s) in ${pulseSeconds}s, ${p.citations.length} cited, ${(p.unverified ?? []).length} unverified, carried ${p.carried ?? 0} earlier turn; starts: ${p.parts.map((x) => x.text.split(/[:.]/)[0].slice(0, 30)).join(' / ')}` : (pulse.error?.message ?? 'no answer'));
   if (p) await analysisHistory(api, dossier, home, env, launchUrl, p, [...history, { prompt: p.prompt, answer: p.parts.map((x) => x.text).join('\n\n'), by: p.by }]);
 }
 
 /**
  * The history of analyses (#395): the Analyze just asked was kept, read back
- * top-down (a Recommendation line, at most three Issues); then the dossier's
+ * with its briefing (#494: a recommendation, and its first three reasons as the
+ * history's issues); then the dossier's
  * WIP limit changes in the scratch home, Analyze runs again, and the history
  * lists both, newest first, the second saying what changed since the first.
  * The Analyses tab and the second one opened go through the layout check,
@@ -370,7 +374,7 @@ async function analysisHistory(api, dossier, home, env, launchUrl, first, histor
   };
   const shapeOf = (r) => (r ? `recommendation ${r.recommendation ? `"${r.recommendation.replace(/\[\[[^\]]*:([^\]]+)\]\]/g, '$1').slice(0, 90)}${r.recommendation.length > 90 ? '…' : ''}"` : 'missing'}, ${r.issues.length} issue(s)${r.issues.length ? ` (${r.issues.map((i) => i.title ?? 'untitled').join(', ')})` : ''}, ${r.citations.length} cited` : 'not kept');
   const kept = await one(first.analysis);
-  const topDown = (r) => Boolean(r?.record.recommendation) && r.record.issues.length <= 3;
+  const topDown = (r) => Boolean(r?.record.recommendation && r.record.briefing) && r.record.issues.length <= 3;
   if (!kept) fail(`the first Analyze wasn't kept: its answer names ${first.analysis ? `analysis ${first.analysis}, which the history doesn't have` : 'no analysis'}.`);
   else if (!topDown(kept)) fail(`the first Analyze isn't top-down: ${shapeOf(kept.record)}.`);
   step('Analyses: the first kept, top-down', topDown(kept) ? 'pass' : 'fail', shapeOf(kept?.record));

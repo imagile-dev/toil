@@ -11,7 +11,7 @@ import type { TermCaps } from './term.js';
  * under views/ and one line in views/index.ts, with no form to fill in first.
  */
 
-export type Caps = Pick<TermCaps, 'colorDepth' | 'unicode'>;
+export type Caps = Pick<TermCaps, 'colorDepth' | 'unicode' | 'hyperlinks'>;
 
 /** What `toil connections test` said about a connection, this session. */
 export type Health = { ok: true; live: boolean; authenticated?: boolean } | { ok: false; code: string; message: string; fix?: string };
@@ -25,6 +25,8 @@ export interface Session {
    * edit reads it again.
    */
   dossiers?: Record<string, { show?: unknown; check?: unknown }>;
+  /** The last `toil dossiers brief` data this session, by dossier (#494), for its Briefing screen. */
+  briefs?: Record<string, unknown>;
   /** Two Weeks' Notice's scores this session: the best and the last run. Its progress is saved separately (src/welcome/rogue/save.ts). */
   rogue?: { best: number; last: number };
 }

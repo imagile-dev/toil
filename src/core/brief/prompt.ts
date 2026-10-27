@@ -15,6 +15,16 @@ import { lensDef, type BriefSettings, type LensId } from './brief.js';
  */
 
 export type Audience = 'lead' | 'engineer' | 'stakeholder';
+
+/** A dossier's Analyze settings, as a dossier file holds it (src/core/dossier.ts reads and checks it): every key optional, the standard filling the rest. */
+export interface DossierAnalyze {
+  goal?: string;
+  audience?: Audience;
+  /** Lenses in the order to apply them; any not listed follow in the standard order. */
+  lenses?: Array<{ id: LensId; on?: boolean; threshold?: number }>;
+  watchFor?: string;
+  leaveOut?: string;
+}
 export const AUDIENCES: readonly Audience[] = ['lead', 'engineer', 'stakeholder'];
 
 /** Who the briefing is for, as the prompt says it. */

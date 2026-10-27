@@ -62,8 +62,3 @@
 .analysis-changes__since { margin: 0; }
 .analysis-changes__row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.4rem; min-width: 0; }
 
-/* The Overview's recommendation, from an analysis: what it came from in bold, and the line cut at three lines to keep the page to one screen. */
-.overview-rec__source { font-weight: 600; color: var(--ink); }
-@media (min-width: 1024px) {
-  .overview-rec__headline--analysis { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-}

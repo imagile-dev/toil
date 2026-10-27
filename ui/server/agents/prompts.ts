@@ -15,6 +15,7 @@
  */
 
 import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type Starter } from '../../src/agent.ts';
+import type { Execute } from '../../src/toil.ts';
 import { MAX_PROPOSALS } from './answer.ts';
 
 export { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS } from '../../src/agent.ts';
@@ -142,6 +143,25 @@ const STANDUP = /^\s*write\s+up\s+the\s+stand-?up\s+for\s+(\d{4}-\d{2}-\d{2})(?:
 /** The instructions behind it: the report's facts only, in its order, each sentence naming its fact numbers. */
 export const standupPrompt = (dossier: string, from: string, to: string) =>
   `Write up the stand-up for the dossier "${dossier}" from ${from} to ${to} (UTC days). Call standup_report with from "${from}" and to "${to}" and use only what it returns. Write it as a few short paragraphs a team can read aloud in a minute: first the team lines, then each person with anything in their lists, in the report's order, saying what they got done, what is in progress, what is blocked and what is next. Keep every fact as the report gives it: add nothing it doesn't say, and leave out nothing that is blocked. End each sentence with the fact numbers it rests on in parentheses, such as (F3, F7), and cite every work item and pull request by its id. If the report's gaps say the worklog can't vouch for part of the range, say so in one sentence first. Describe the work, never the people: no praise, no blame and no comparison.`;
+
+/**
+ * Analyze's question, from toil (#494): `dossiers analyze prompt --host toil-ui`
+ * composes the standard method with the dossier's own lenses and focus, the
+ * focus labelled with where it came from, and asks for a briefing block the
+ * page lays out. A toil without that command (Toil UI ahead of its release)
+ * gets the question this file kept before, which the page still reads, and the
+ * answer says so in a warning.
+ */
+export async function analyzeQuestion(execute: Execute, dossier: string): Promise<{ label: string; text: string; warning: string | null }> {
+  const e = await execute('dossiers analyze prompt', { dossier, host: 'toil-ui' }, { readOnly: true, caller: 'toil-ui' });
+  const prompt = e.ok && typeof e.data === 'object' && e.data !== null ? (e.data as { prompt?: unknown }).prompt : undefined;
+  if (typeof prompt === 'string') return { label: ANALYZE_LABEL, text: prompt, warning: null };
+  const why = e.ok ? 'it returned no prompt' : e.error.message;
+  // Only a toil without the command needs upgrading; any other failure carries toil's own fix.
+  const missing = !e.ok && /unknown command|isn't a command|no command/i.test(e.error.message);
+  const fix = missing ? "Upgrade toil to use the dossier's Analyze settings." : e.ok ? 'Upgrade toil, or report it: a toil with the command returns a prompt.' : (e.error.fix ?? '');
+  return { label: ANALYZE_LABEL, text: analyzePrompt(dossier), warning: `Analyze used Toil UI's own question, not the dossier's: toil dossiers analyze prompt failed (${why}).${fix ? ` ${fix}` : ''}` };
+}
 
 /** The question for a starter id or Analyze (#343), or the typed text as it is; "Prepare my 1:1 notes for <person>" typed out gets the 1:1 instructions, and "Write up the stand-up for <from> to <to>" the stand-up's. */
 export function promptFor(dossier: string, prompt: string): { label: string; text: string } {
