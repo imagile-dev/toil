@@ -307,12 +307,13 @@ whether it ran, how many items it couldn't test for a missing field (`untested`)
 and why in `note`. `--as-of` briefs as of another moment.
 
 The menu a bare `toil` opens does all of this for you: **Dossiers**, a dossier,
-**Brief this dossier** runs each read, the dossier's open pull requests in full (up
-to 20), the map and the brief, showing every command as it goes, then the briefing,
-with any read that failed named at its top. Each key on it opens its ticket where the
-terminal draws links (Windows Terminal, VS Code, iTerm2, WezTerm, Ghostty, and VTE
-terminals such as GNOME Terminal from 0.50), and its URL is printed under it anywhere
-else. Azure DevOps work items, which take a read each, are left to Toil UI there.
+**Brief this dossier** runs each read (an Azure DevOps project's work items as a WIQL
+search, then one `work-item get-many` for up to 200 of them), the dossier's open pull
+requests in full (up to 20), the map and the brief, showing every command as it goes,
+then the briefing, with any read that failed or was cut short named at its top. Each
+key on it opens its ticket where the terminal draws links (Windows Terminal, VS Code,
+iTerm2, WezTerm, Ghostty, and VTE terminals such as GNOME Terminal from 0.50), and
+its URL is printed under it anywhere else.
 
 ### Analyze
 

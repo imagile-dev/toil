@@ -24,7 +24,7 @@ const runOf = (a: Action | undefined): Run => {
 
 describe('the reads', () => {
   it("reads each tracker's issues and each code host's open pull requests, as the dossier names them", () => {
-    const { steps, skipped } = readSteps('payments', {
+    const { steps } = readSteps('payments', {
       jira: { inputs: { project: 'PAY' } },
       github: { inputs: { owner: 'imagile', repo: 'payments-web' } },
       bitbucket: { inputs: { project: 'PAY', repo: 'payments-core' } },
@@ -35,9 +35,23 @@ describe('the reads', () => {
       'github issue list --dossier payments --state all',
       'github pr list --dossier payments --state open',
       'bitbucket pr list --dossier payments --state OPEN',
+      'ado work-item search --dossier payments --wiql SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project ORDER BY [System.Id]',
     ]);
-    // Azure DevOps work items need a query and a read each; the menu says it leaves them to Toil UI.
-    expect(skipped).toEqual(['ado']);
+  });
+
+  it('reads the Azure DevOps work items a search names in one get-many, and maps those, not the search', () => {
+    const run = briefRun('settlement', { ado: { inputs: { project: 'Payments', repo: 'settlement' } } });
+    expect(run.steps.map((s) => s.args.slice(0, 3).join(' '))).toEqual(['ado pr list', 'ado work-item search']);
+    const read = [
+      result(run.steps[0]!.args, env('ado pr list', [{ pullRequestId: 87 }])),
+      result(run.steps[1]!.args, env('ado work-item search', { workItems: [{ id: 2302 }, { id: 2303 }] })),
+    ];
+    const gets = runOf(run.next!(read, {} as never));
+    expect(gets.title).toBe("Read settlement's work items and open pull requests in full");
+    expect(gets.steps.map((s) => s.args.join(' '))).toEqual(['ado work-item get-many 2302 2303 --dossier settlement', 'ado pr get 87 --dossier settlement --include reviews,checks']);
+    const map = runOf(gets.next!([result(gets.steps[0]!.args, env('ado work-item get-many', { value: [] }))], {} as never));
+    const mapped = map.steps[0]!.args[4]!.split('\n').map((l) => (JSON.parse(l) as Envelope).meta.command);
+    expect(mapped).toEqual(['ado pr list', 'ado work-item get-many']);
   });
 
   it('then reads each open pull request in full, maps everything with key patterns from the issues, and briefs it', () => {
