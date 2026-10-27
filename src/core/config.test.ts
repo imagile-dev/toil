@@ -34,7 +34,7 @@ afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 const file = () => join(home, '.toil', 'config.json');
 const writeJson = (path: string, value: unknown) => writeFileSync(path, JSON.stringify(value));
-const areas: AreaInfo[] = [{ name: 'jira' }, { name: 'jira-cloud' }, { name: 'db' }, { name: 'github', fallbacks: { token: ['GITHUB_TOKEN'] } }];
+const areas: AreaInfo[] = [{ name: 'jira' }, { name: 'confluence-cloud' }, { name: 'db' }, { name: 'github', fallbacks: { token: ['GITHUB_TOKEN'] } }];
 const knownAreas = areas.map((a) => a.name);
 const load = (env: NodeJS.ProcessEnv = {}) => loadConfig({ env, cwd: repo, home, areas });
 
@@ -235,8 +235,8 @@ describe('config file versions', () => {
 
 describe('env names', () => {
   it('map hyphenated areas by the longest known name', () => {
-    expect(fromEnv({ TOIL_JIRA_CLOUD_TOKEN: 't', TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev' }, knownAreas)).toEqual({
-      'jira-cloud': { token: 't' },
+    expect(fromEnv({ TOIL_CONFLUENCE_CLOUD_TOKEN: 't', TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev' }, knownAreas)).toEqual({
+      'confluence-cloud': { token: 't' },
       jira: { baseUrl: 'https://jira.imagile.dev' },
     });
   });
@@ -253,10 +253,10 @@ describe('env names', () => {
   });
 
   it('round-trip every (area, key), and name connection variables the same way', () => {
-    for (const [area, key] of [['jira', 'baseUrl'], ['jira-cloud', 'apiToken'], ['db', 'writes']] as const) {
+    for (const [area, key] of [['jira', 'baseUrl'], ['confluence-cloud', 'apiToken'], ['db', 'writes']] as const) {
       expect(parseEnvName(envName(area, key), knownAreas)).toEqual({ area, key });
     }
-    expect(envName('jira-cloud', 'baseUrl')).toBe('TOIL_JIRA_CLOUD_BASE_URL');
+    expect(envName('confluence-cloud', 'baseUrl')).toBe('TOIL_CONFLUENCE_CLOUD_BASE_URL');
     expect(connectionEnvName('corp-jira', 'baseUrl')).toBe('TOIL_CONN_CORP_JIRA_BASE_URL');
   });
 });
@@ -268,8 +268,8 @@ describe('editing the config file', () => {
     expect(readConfigForEdit(join(home, '.toil', 'none.json'))).toEqual({ version: CONFIG_VERSION, connections: {}, defaults: {} });
   });
 
-  it('round-trips a version 2 file key for key, unknown keys included', () => {
-    const content = { version: 2, extra: [1, 2], connections: { a: { area: 'jira', baseUrl: 'https://jira.imagile.dev', custom: { x: 1 } } }, defaults: { jira: { connection: 'a', pageSize: 5 } } };
+  it('round-trips a current-version file key for key, unknown keys included', () => {
+    const content = { version: CONFIG_VERSION, extra: [1, 2], connections: { a: { area: 'jira', baseUrl: 'https://jira.imagile.dev', custom: { x: 1 } } }, defaults: { jira: { connection: 'a', pageSize: 5 } } };
     writeFileSync(path(), JSON.stringify(content));
     writeConfigFile(path(), readConfigForEdit(path()));
     expect(JSON.parse(readFileSync(path(), 'utf8'))).toEqual(content);

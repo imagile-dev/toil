@@ -1,11 +1,11 @@
-import type { AdfDocument, AdfNode } from '../../jira-cloud/adf.js';
+import type { AdfDocument, AdfNode } from '../../jira/cloud/adf.js';
 import type { Align, Block, Doc, Inline, ListItem } from './ast.js';
 import { blockInlines, joinInlines, Losses } from './ast.js';
 
 /**
  * Atlassian Document Format (Jira Cloud's description and comment bodies,
  * Confluence Cloud's `atlas_doc_format`) in and out. The node types are
- * jira-cloud's (`src/areas/jira-cloud/adf.ts`), which already writes plain
+ * Jira Cloud's (`src/areas/jira/cloud/adf.ts`), which already writes plain
  * text as ADF and reads ADF as plain text; this is the rich version of both
  * directions, for Markdown.
  *

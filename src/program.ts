@@ -3,6 +3,7 @@ import { aliasInput, aliasPaths, commandName, takesAllowWrite, toolName, writesF
 import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
 import { ToilError, toToilError } from './core/errors.js';
+import { renamedArea, renamedAreaFix } from './core/renamed-areas.js';
 import { exitCodeOf, runCommand } from './core/run.js';
 import { OUTPUT_FORMAT_FIELD, SUMMARY_FILE_FIELD } from './core/output/fields.js';
 import { SELECT_FIELD } from './core/query/select.js';
@@ -431,6 +432,12 @@ export async function runProgram(options: ProgramOptions, argv: string[], from: 
     const globals = globalsFromArgv(userArgs);
     const command = commandFromArgv(userArgs, options.commands);
     const message = err.message.replace(/^error:\s*/, '');
+    // A path under an area that was folded into another: say where it went, not just that it's unknown.
+    const gone = err.code === 'commander.unknownCommand' ? renamedArea(commandWords(userArgs)[0] ?? '') && commandWords(userArgs)[0] : undefined;
+    if (gone) {
+      emit(failure(new ToilError('INVALID_INPUT', `toil ${gone} no longer exists.`, { fix: renamedAreaFix(gone) }), { command, durationMs: 0, version: options.version }), globals, options.io);
+      return 1;
+    }
     // Only when the option commander refused is itself the misplaced group flag.
     const rejected = err.code === 'commander.unknownOption' ? /'([^']+)'/.exec(message)?.[1]?.split('=')[0] : undefined;
     const misplaced = rejected ? groupFlagBeforeAlias(userArgs, options.commands, rejected) : undefined;
@@ -476,13 +483,8 @@ function groupFlagBeforeAlias(args: string[], commands: AnyCommand[], rejected: 
 
 const VALUE_GLOBALS = new Set(['--config', '--output-file', '--workspace', '--select', '--output-format', '--summary-file']);
 
-/**
- * The command the user meant, for meta.command on a usage error: the longest
- * registered path matching the words they typed, or the first word when none
- * matches. Global flags and their values are skipped, and argument values never
- * end up in it.
- */
-function commandFromArgv(args: string[], commands: AnyCommand[]): string {
+/** The words that name the command in argv: global flags and their values skipped, and nothing after the first flag that follows a word. */
+function commandWords(args: string[]): string[] {
   const words: string[] = [];
   for (let i = 0; i < args.length; i++) {
     const token = args[i]!;
@@ -497,6 +499,17 @@ function commandFromArgv(args: string[], commands: AnyCommand[]): string {
     }
     words.push(token);
   }
+  return words;
+}
+
+/**
+ * The command the user meant, for meta.command on a usage error: the longest
+ * registered path matching the words they typed, or the first word when none
+ * matches. Global flags and their values are skipped, and argument values never
+ * end up in it.
+ */
+function commandFromArgv(args: string[], commands: AnyCommand[]): string {
+  const words = commandWords(args);
   // An alias reports the command it runs, as the envelope of a successful call does.
   let best = { length: 0, name: '' };
   for (const def of commands) {

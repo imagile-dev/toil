@@ -130,7 +130,6 @@ const recs = (v: unknown): Rec[] => (Array.isArray(v) ? v.filter(isRec) : []);
 /** A search whose answer is a list of items with ids, which `updatedSince` narrows. `list` is null when the answer is the list itself. */
 const SEARCHES: Record<string, { list: string | null; id: (r: Rec) => string }> = {
   'jira issue search': { list: 'issues', id: (r) => String(r.key) },
-  'jira-cloud issue search': { list: 'issues', id: (r) => String(r.key) },
   'ado work-item search': { list: 'workItems', id: (r) => String(r.id) },
   'ado-cloud work-item search': { list: 'workItems', id: (r) => String(r.id) },
   'github issue list': { list: null, id: (r) => String(r.number) },
@@ -144,7 +143,6 @@ const BATCHES: Record<string, { field: string; list: string; id: (r: Rec) => str
 /** One item's history: the input field naming the item. */
 const HISTORIES: Record<string, string> = {
   'jira issue history': 'key',
-  'jira-cloud issue history': 'key',
   'ado work-item history': 'id',
   'ado-cloud work-item history': 'id',
   'github issue history': 'number',

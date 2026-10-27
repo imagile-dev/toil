@@ -2,7 +2,7 @@ import { blank, current, idFor, instant, isRecord, num, overrideUnit, person, se
 import type { History, Iteration, Link, Person, StatusCategory, WorkItem } from './types.js';
 
 /**
- * Jira Data Center (`jira`) and Jira Cloud (`jira-cloud`) to OWI: the issues
+ * Jira Data Center and Jira Cloud (both `jira`, by the connection's deployment) to OWI: the issues
  * `issue search` and `issue get` return, one key or several, and the history
  * `issue history` returns. Both variants send the same issue shape; Cloud
  * identifies people by accountId and writes the description as ADF.

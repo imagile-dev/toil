@@ -98,3 +98,15 @@ caller built against version N works with every toil that reports N.
 The contract is stable from the first beta, `0.1.0-beta.1` (principle 7). The alphas
 before it all report 1, the first beta ships 1, and every breaking change from then
 on raises it.
+
+### History
+
+| Version | Change |
+|---------|--------|
+| 1 | The alphas and the first beta. |
+| 2 | `jira-cloud` folded into `jira` (#495): the `jira-cloud` command paths, the `jira_cloud_*` MCP tools, `--areas jira-cloud`, the `TOIL_JIRA_CLOUD_*` variables and a `jira-cloud` area in config and dossiers are gone. A Jira Cloud call is `toil jira …` on a connection with `"deployment": "cloud"`. Config is version 3 and migrates on load. |
+
+The contract's `jira` entries still record Jira Data Center. Jira Cloud's own commands and
+flags (`project list`, `project get`, `user search`, `issue schema --deployment`) are additive, and a call
+that the connection's deployment can't serve is `UNSUPPORTED` (`docs/divergences/jira.json`
+records the one flag it spells differently, `--assignee <user>`).

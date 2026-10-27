@@ -87,7 +87,10 @@ export function loadProgress(path: string, who: Who): Loaded {
     return { progress: freshProgress(), writable: false, notice: `Progress isn't being saved: ${path} was written by a newer toil, and this one won't rewrite it.` };
   }
   if (version !== CONFIG_VERSION) {
-    return { progress: freshProgress(), writable: false, notice: `Progress isn't being saved: ${path} is an older config file, and toil won't rewrite it just to keep a game. Any toil command that saves a connection upgrades it.` };
+    const notice = `Progress isn't being saved: ${path} is an older config file, and toil won't rewrite it just to keep a game. Any toil command that saves a connection upgrades it.`;
+    // A version 2 file's "game" key reads the same, so an existing save still loads; it is read from the raw JSON, never migrated, and never written back.
+    const kept = version === 2 && typeof raw?.[SAVE_KEY] === 'string' ? unseal(raw[SAVE_KEY] as string, who) : undefined;
+    return { progress: kept ?? freshProgress(), writable: false, notice };
   }
   const sealed = raw?.[SAVE_KEY];
   if (sealed === undefined) return { progress: freshProgress(), writable: true };

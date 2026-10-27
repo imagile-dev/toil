@@ -5,6 +5,7 @@ import { recordAudit } from './audit.js';
 import { flagOf, resolveCall, supplyContext, type ResolvedCall } from './call-context.js';
 import { connectionEnvName, connectionsOf, defaultConnectionName, envName } from './config.js';
 import { IncompleteConnectionError } from './connection.js';
+import { refuseForDeployment } from './deployments.js';
 import type { CommandContext, Context } from './context.js';
 import type { Place } from './dossier.js';
 import { CONTRACT_VERSION, failure, success, type ApiAnswer, type ContextReport, type Envelope, type LintReport, type Meta, type Page, type Warning } from './envelope.js';
@@ -320,6 +321,11 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
       }
     }
     const connection = call?.connection;
+    // A command the connection's deployment doesn't have, or a flag only the other one takes, is refused first: before the write gate, which would otherwise talk about writes to a command that can't run.
+    if (connection && def.deployments) {
+      const refusal = refuseForDeployment(def, (own ?? {}) as Record<string, unknown>, connection, ctx.config, via);
+      if (refusal) throw refusal;
+    }
     if (writing) assertWritesAllowed(def, input, connection, call?.report, place ? place.adopted : ctx.adopted, ctx);
 
     // Commands get their connection and nothing else: no config, and no env,

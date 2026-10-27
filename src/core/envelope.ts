@@ -12,11 +12,11 @@ import type { SummaryReport } from './output/summary.js';
  * Delivery declares with `feat!:`: a command, flag, field or envelope key
  * removed, renamed or repurposed, or an error code repurposed. Additive
  * changes (a new command, flag, field or code) leave it alone, so a caller
- * built against version N works with any toil that reports N. Before the first
- * npm release nothing is relied on yet (principle 7), so it stays 1 until then.
+ * built against version N works with any toil that reports N. Version 2 (#495):
+ * the `jira-cloud` area folded into `jira`, and `jira_cloud_*` tools into `jira_*`.
  * docs/command-contract.md, Changing the contract, says the same for people.
  */
-export const CONTRACT_VERSION = 1;
+export const CONTRACT_VERSION = 2;
 
 /**
  * The output contract: every command, through the CLI or MCP, produces exactly
@@ -108,6 +108,8 @@ export interface ContextValue {
   default?: 'named' | 'area-name' | 'only';
   /** For `connection` from a dossier's host selector: the host it matched. A selector, never contacted. */
   host?: string;
+  /** For `connection`, in an area that serves more than one deployment (`jira`): which one ran, `server` or `cloud`. */
+  deployment?: string;
 }
 
 /** The dossier a call used (docs/dossiers.md), and how it was found. Never a value from a connection. */

@@ -218,10 +218,11 @@
           "additionalProperties": false,
           "required": ["area", "connection", "key", "command"],
           "properties": {
-            "area": { "description": "The toil area the record came from: jira, jira-cloud, ado or github in 0.1; an area added later that sends one of their shapes is added here without a version change.", "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+            "area": { "description": "The toil area the record came from: jira (Data Center or Cloud), ado or github in 0.1; an area added later that sends one of their shapes is added here without a version change.", "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
             "connection": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
             "key": { "description": "The native key, the part of id after the connection.", "type": "string", "minLength": 1 },
-            "command": { "description": "The toil command whose output was mapped (jira issue search).", "type": "string" }
+            "command": { "description": "The toil command whose output was mapped (jira issue search).", "type": "string" },
+            "deployment": { "description": "Which deployment of the area the connection is, where the area has more than one (jira: server for Data Center, or cloud), from the envelope's meta.context. Absent when the input says none.", "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }
           }
         },
         "url": { "description": "The item in the source's web UI.", "type": ["string", "null"] },

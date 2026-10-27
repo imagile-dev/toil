@@ -10,7 +10,7 @@
  * person's press from its page. A sync never stores them, so the cache passes
  * them to toil, read-only, like the dossiers.
  */
-export const WORKFLOW_READS = ['jira issue transitions', 'jira-cloud issue transitions', 'ado work-item states', 'ado-cloud work-item states'] as const;
+export const WORKFLOW_READS = ['jira issue transitions', 'ado work-item states', 'ado-cloud work-item states'] as const;
 
 /**
  * The commands the views read, and the only ones `/api/execute` runs. They are
@@ -22,8 +22,6 @@ export const READ_COMMANDS: ReadonlySet<string> = new Set([
   'dossiers show',
   'jira issue search',
   'jira issue history',
-  'jira-cloud issue search',
-  'jira-cloud issue history',
   'ado work-item iterations',
   'ado work-item search',
   'ado work-item get-many',

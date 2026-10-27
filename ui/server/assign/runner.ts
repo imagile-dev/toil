@@ -80,7 +80,6 @@ const COMMENT: Record<string, (key: string, body: string) => { command: string; 
   },
   ado: (key, body) => ({ command: 'ado work-item comment', input: { id: key, body } }),
   jira: (key, body) => ({ command: 'jira issue comment', input: { key, body } }),
-  'jira-cloud': (key, body) => ({ command: 'jira-cloud issue comment', input: { key, body } }),
 };
 
 /** A report as one comment: its paragraphs, citations written as the ids they name. */

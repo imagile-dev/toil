@@ -45,7 +45,6 @@ const EXPECTED: Record<string, Expected> = {
   github: { path: '/user' },
   jenkins: { path: '/me/api/json', query: { tree: 'id' }, accepted: { id: 'you' }, anonymous: { id: 'anonymous' } },
   jira: { path: '/rest/api/2/myself' },
-  'jira-cloud': { path: '/rest/api/3/myself' },
   kibana: { path: '/api/spaces/space' },
   logscale: { path: '/api/v1/repositories' },
   openshift: { path: '/api/v1' },
@@ -68,6 +67,21 @@ async function probe(area: string, body: unknown) {
   const run = await runCli(['connections', 'test', area], { commands, context });
   return { run, gets: http.calls.filter((c) => c.method === 'GET'), settings: fixture!.config[area] ?? {} };
 }
+
+describe('connections test, per deployment', () => {
+  it('jira on a Cloud connection probes /rest/api/3/myself on its own host with the account email and token, one GET', async () => {
+    const fixture = fixtures.find((f) => f.area === 'jira')!;
+    const cloud = fixture.config['jira-cloud']!;
+    const { context, http } = testContext({ config: fixture.config, routes: [{ method: 'GET', url: /.*/, respond: { json: [] } }] });
+    const run = await runCli(['connections', 'test', 'jira-cloud'], { commands, context });
+    expect(run.envelope?.data).toMatchObject({ area: 'jira', live: true, authenticated: true });
+    const gets = http.calls.filter((c) => c.method === 'GET');
+    expect(gets).toHaveLength(1);
+    expect(new URL(gets[0]!.url).origin).toBe(new URL(String(cloud.baseUrl)).origin);
+    expect(new URL(gets[0]!.url).pathname).toBe('/rest/api/3/myself');
+    expect(gets[0]!.headers.authorization).toBe(`Basic ${Buffer.from(`${String(cloud.email)}:${String(cloud.apiToken)}`).toString('base64')}`);
+  });
+});
 
 describe('connections test, per area', () => {
   it('has an expected request for every area with a probe, and no other', () => {

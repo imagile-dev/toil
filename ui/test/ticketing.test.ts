@@ -102,9 +102,10 @@ describe('the proposals "Ticket this" offers', () => {
     expect(p.note).toContain('no sub-issue command');
   });
 
-  it('on Jira Cloud and Azure DevOps Services, their own commands, saying what each lacks', () => {
-    const cloud = { ...cards.items[6]!, id: 'jira-cloud:PAY-102', source: { ...cards.items[6]!.source, area: 'jira-cloud', connection: 'jira-cloud' } };
-    expect(subTaskProposal('Rotate vault keys', cloud, 'card-payments')).toMatchObject({ command: 'jira-cloud issue create', input: { issueType: 'Subtask', parent: 'PAY-102', project: 'PAY' } });
+  it('on Jira Cloud (the same command, its connection\'s deployment naming the type) and Azure DevOps Services, saying what each lacks', () => {
+    const cloud = { ...cards.items[6]!, id: 'cloud-jira:PAY-102', source: { ...cards.items[6]!.source, area: 'jira', connection: 'cloud-jira', deployment: 'cloud' } };
+    expect(subTaskProposal('Rotate vault keys', cloud, 'card-payments')).toMatchObject({ command: 'jira issue create', input: { issueType: 'Subtask', parent: 'PAY-102', project: 'PAY' } });
+    expect(subTaskProposal('Rotate vault keys', cards.items[6]!, 'card-payments')).toMatchObject({ command: 'jira issue create', input: { issueType: 'Sub-task' } });
     const services = { ...settlement.items[4]!, id: 'ado-cloud:2302', source: { ...settlement.items[4]!.source, area: 'ado-cloud', connection: 'ado-cloud' } };
     const p = subTaskProposal('Add a header row', services, 'settlement');
     expect(p).toMatchObject({ command: 'ado-cloud work-item create', input: { type: 'Task', title: 'Add a header row' } });

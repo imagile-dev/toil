@@ -106,7 +106,9 @@ gets made again in the next place it applies.
    (`docs/bounds.md`, `feedback.send`). A credential goes only to the connection
    it's configured on, or to one the user paired it with; the one exception is an
    area's default connection taking another area's default env value, which keeps
-   the env chain the contract records.
+   the env chain the contract records, unless the area's `shares.fallbackWhen`
+   refuses it (Confluence takes Jira's token only from a Jira of the same
+   deployment).
 10. **Learn one area, know them all.** Integration commands converge on one shape,
     `toil <area> <resource> <action> [ids...] [--flags]`: everything you can do to a
     thing lives under that thing, positional arguments are only the ids that lead to
@@ -115,8 +117,10 @@ gets made again in the next place it applies.
     what to type. The shape is toil's own: when an area is reshaped, the paths and flags
     the contract recorded before are dropped, not kept as aliases. Deliberate aliases
     (`deps outdated`, a routed alias, an area's `coreAliases`) are a different thing
-    and stay. → **Command Shape** (`integrations` skill); every integration area
-    follows it (#290, #297).
+    and stay. A product's Data Center and Cloud deployments are one area and one
+    tree, not two to learn: the connection's `deployment` picks the API (#495). →
+    **Command Shape** and **Deployment Variants** (`integrations` skill); every
+    integration area follows it (#290, #297).
 11. **Quiet screens: show what's needed to act, disclose the rest progressively.**
     A screen carries the data and the controls someone needs right now, and little
     else. Each screen has one focus, the thing to read first; everything else is a
@@ -408,7 +412,7 @@ An area is declared once with `defineArea({ name, connection, secrets, defaults,
 fallbacks, renamed, variants, context })`: `connection` is the zod schema of what a
 connection to it holds; `secrets` lists its secret keys, or maps each to `token` or
 `password`; `variants` names the keys each value of one field requires (`db`'s
-`engine`); and `area.envName(key)` gives a setting's env var for fix text, so no
+`engine`, `jira`'s `deployment`); and `area.envName(key)` gives a setting's env var for fix text, so no
 area spells out `TOIL_<AREA>_…` by hand. Its commands come from `area.command({ ...
 })`: a path, a zod input schema, whether it writes, CLI arguments and flags (each
 mapped to an input field), and at least one example input. Core adds the
@@ -484,9 +488,28 @@ the two, the env tier beats the file tier, and the own connection wins a tie. Wi
 no pairing a connection uses only its own key, with one exception that keeps the contract's
 env chain: the area's default connection takes the other area's default
 connection's env value (`TOIL_KIBANA_API_KEY`, then `TOIL_ELASTICSEARCH_API_KEY`),
-matching precedence rule 2. A shared key is a secret in both areas or in neither.
+matching precedence rule 2, unless the area's `shares.fallbackWhen` refuses that
+connection (Confluence takes Jira's token only from a Jira of the same deployment,
+read as it resolves, `defaults.<area>` included). An explicit `<key>From` pairing is
+the user's call and isn't checked. A shared key is a secret in both areas or in neither.
 `meta.context.shared` names the connection, whether it was paired, and whether the
 value came from env or the store, never the value.
+
+**One product, two deployments** (#495, `src/core/deployments.ts`). `jira` serves Data Center
+and Cloud: a connection says `"deployment": "server"` (the default) or `"cloud"`, and
+each deployment keeps its own API code, written as ordinary `area.command()`s that are
+never registered themselves. `area.byDeployment({ server: [...], cloud: [...] })` folds them
+into one command per path, so there is one CLI path and one MCP tool: the input is the
+union of what either takes (a field both take must say the same thing to a reader, or
+the area's overrides say how), `run` hands the call to the implementation for the
+resolved connection's `deployment`, and each implementation still validates its own call
+against its own schema. A call the deployment can't serve, a command only the other one
+has or a flag only the other one takes, is `UNSUPPORTED` before any request and before the
+write gate, naming the connections that can. `data` is each API's own shape, and
+`meta.context.connection.deployment` says which ran. A command with no connection
+(`jira issue schema`) has no deployment to go by and takes it as a flag. The parity
+suite runs every example against a connection of its own deployment
+(`AreaFixture.deployments`).
 
 **Aliases** add CLI paths onto a command: a word is a sibling in its group, a path
 may sit in another group (`deps outdated` for `artifactory package outdated`); MCP still has
@@ -709,7 +732,8 @@ a breaking change.
   SQL (the `databases` skill).
 - **`meta.context`**, on area commands only, says where the call acted: `{ dossier,
   connection, inputs, shared }`. `dossier`, when one applied, names it, where it
-  lives, what chose it and how the folder matched it. `connection` and each of `inputs` is `{ value, source }`, the
+  lives, what chose it and how the folder matched it. `connection` and each of `inputs` is `{ value, source }`
+  (`connection` also carries `deployment` for an area whose `variants` are keyed on it), the
   source one of `input`, `file` (a value the command read from a file the call
   named, through `ctx.supply`), `dossier`, `git`, `connection` or `default`, plus `via` (the
   input that selected the connection), `host` (the dossier's host selector that did)
@@ -789,19 +813,25 @@ own connections, by name or by a host that toil uses purely as a selector and ne
 contacts. That's why a dossier may be checked into a repository when config may not.
 
 Env var names map onto areas through the registry, using the longest match, so
-`TOIL_JIRA_CLOUD_TOKEN` is `jira-cloud.token`, not `jira.cloudToken`. A `TOIL_*` name
+`TOIL_CONFLUENCE_CLOUD_TOKEN` is `confluence-cloud.token`, not `confluence.cloudToken`. The
+names of an area that was folded into another (`TOIL_JIRA_CLOUD_*`, `TOIL_CONN_<NAME>_AREA=jira-cloud`)
+are refused with `CONFIG_INVALID` naming the new form (`TOIL_JIRA_*` with
+`TOIL_JIRA_DEPLOYMENT=cloud`), never mapped and never ignored (`src/core/renamed-areas.ts`). A `TOIL_*` name
 that matches no registered area is ignored, never guessed at, so a variable can't
 change meaning when an area is added. `envName()` and `parseEnvName()` in
 `src/core/config.ts` are the only places the mapping lives. These names are reserved
 and never map onto an area: `TOIL_CONN_*`, `TOIL_DOSSIER*`, `TOIL_ENV`, `TOIL_CONFIG*`,
-`TOIL_TIMEOUT_MS`, `TOIL_WORKSPACE`, `TOIL_FEEDBACK_URL`, `TOIL_THEME`.
+`TOIL_TIMEOUT_MS`, `TOIL_WORKSPACE`, `TOIL_FEEDBACK_URL`, `TOIL_THEME`, `TOIL_STRICT_ENV`.
 
 **The config file is versioned.** `"version"` is a whole number; a file without one
 is version 1. Every format change adds a step to `migrateConfig()` with a test, so an
 old file always loads. A file from a newer toil is refused with an upgrade fix rather
 than half-read. Version 1 is a map of area to settings and reads as one connection
 per area, named after it and set as its default. Version 2 holds `connections` and
-`defaults`; using them needs `"version": 2`. Standalone and area-local commands
+`defaults`; using them needs `"version": 2`. Version 3 (#495) folds `jira-cloud` into `jira`:
+a connection with `"area": "jira-cloud"` reads as `"area": "jira", "deployment": "cloud"`
+and `defaults.jira-cloud` folds into `defaults.jira`; an older file is migrated on load and
+rewritten as version 3 by the commands that save config. Standalone and area-local commands
 (`version`, `jira issue schema`) don't load config at all, so a broken or newer file can't stop a user finding out which
 toil they have.
 
@@ -1053,8 +1083,10 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
     provider** (labelled `database`).
   - **What never gets its own issue:** individual commands or features inside an
     area. They're part of their area's issue, never sub-issues.
-  - **Data Center/Cloud pairs** are labelled `data-center` and `cloud` and link to
-    each other. The Cloud issue starts after its Data Center issue.
+  - **Data Center/Cloud products** are one area with a `deployment` connection field,
+    so one issue (Jira is folded; `confluence`, `bitbucket` and `ado` are still separate
+    `-cloud` areas until #495's later slices); `data-center` and `cloud` label work that touches only one
+    deployment.
   - **Product labels, on every issue a person or agent files here:** `cli` for the
     published toil package (the CLI, the MCP server, `./api`, `skills/toil/`), `ui`
     for Toil UI (`ui/`), and both when it changes both. Repository tooling, the site,
@@ -1157,7 +1189,7 @@ lives in a repo-internal skill under `.claude/skills/<name>/SKILL.md`.
 
 | Skill | Use when |
 |-------|----------|
-| `integrations` | Adding or changing an enterprise integration: the command shape, the Authentication Bar, verification levels, Data Center vs Cloud variants as separate areas, the site docs review, Open Work Item checks for work-item areas, the command contract and its divergences |
+| `integrations` | Adding or changing an enterprise integration: the command shape, the Authentication Bar, verification levels, Data Center and Cloud deployments of one area, the site docs review, Open Work Item checks for work-item areas, the command contract and its divergences |
 | `databases` | Working on the `db` area, a database provider, or database tests, including the local Docker run |
 | `code-intelligence` | Someone proposes code navigation or a language-analysis dependency: small pure-JS code intelligence is welcome, heavy analysis dependencies are ruled out, and what reopening that takes |
 | `mcp` | Changing `toil mcp`, tool registration and descriptions, transports, or the MCP gateway |

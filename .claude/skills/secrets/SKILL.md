@@ -86,7 +86,7 @@ It runs only what the OS ships, each behind a platform check, under the service
   remove the old copy (a plaintext value left in an old file goes with the
   rewrite; an old store entry is deleted after it, and only when nothing else in
   config refers to it).
-- Config writes go through `writeConfigFile`: version 2, every key not prompted for
+- Config writes go through `writeConfigFile`: the current version (`CONFIG_VERSION`, 3), every key not prompted for
   carried through, written alongside and renamed into place, mode 0600 in a 0700
   folder where the platform has POSIX modes.
 - `toil connections list` never prints a value except the host. It reports where

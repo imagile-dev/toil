@@ -1,19 +1,21 @@
 {
   "area": "jira",
-  "name": "Jira Data Center",
+  "name": "Jira",
   "group": "trackers",
   "order": 1,
-  "covers": "Issues, search, transitions, comments, worklogs, attachments, custom fields, boards, sprints",
-  "credential": "Personal access token",
-  "credentialWhere": "Your profile picture → Profile → Personal Access Tokens",
+  "covers": "Issues, search, transitions, comments, worklogs, attachments, custom fields, projects, users, boards, sprints",
+  "credential": "Personal access token (Data Center) or Atlassian account email and API token (Cloud)",
+  "credentialWhere": "Data Center: your profile picture → Profile → Personal Access Tokens. Cloud: id.atlassian.com → Security → API tokens",
   "status": "unit",
   "keys": [
-    "API_TOKEN"
+    "API_TOKEN",
+    "EMAIL"
   ],
   "supported": {
     "product": "Jira Data Center",
     "minimum": "8.14",
     "api": "REST API 2 and Agile REST API 1.0",
-    "note": "toil authenticates with a personal access token, which Jira Data Center added in 8.14. No release has been verified yet."
-  }
+    "note": "toil authenticates to Data Center with a personal access token, which Jira Data Center added in 8.14. No release has been verified yet. Jira Cloud (a connection with deployment cloud) is always current: toil calls REST API 3 (/rest/api/3, with the enhanced JQL search at /rest/api/3/search/jql) and the Agile REST API 1.0, with an Atlassian account email and API token sent as Basic auth. Nothing has been run against a live Cloud site yet."
+  },
+  "credentialNote": "One area for both: a Cloud connection sets deployment to cloud and an email, sent as Basic auth with the token. Both deployments are verified at the unit level, so the board shows one"
 }

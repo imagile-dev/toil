@@ -8,7 +8,7 @@ import { ToilError } from '../src/core/errors.js';
 import { inFieldNames } from '../src/core/run.js';
 import { evaluateCommand } from '../src/areas/sonatypeiq/evaluate.js';
 import { flagsSetRuleCommand } from '../src/areas/splitio/flags.js';
-import { getIssue } from '../src/areas/jira/issues.js';
+import { getIssue } from '../src/areas/jira/server/issues.js';
 import { config as iqConfig, fixture as iqFixture } from './fixtures/sonatypeiq.fixture.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
