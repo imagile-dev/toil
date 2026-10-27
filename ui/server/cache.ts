@@ -846,22 +846,22 @@ export class Cache {
   }
 
   /**
-   * Deletes every row last synced before the retention period. Returns how many went.
-   * The rows a sync refreshes lazily (saveDossier: only once more than a quarter of the period old) get that quarter
-   * on top, because their synced_at means "last confirmed within retention/4", so a dossier's rows from one sync go together.
+   * Deletes what is older than the retention period. Returns how many went.
+   * What a sync writes (responses, items, transitions, change refs, worklog facts) goes per dossier, by the dossier's last
+   * sync: saveDossier already deletes rows that are gone and refreshes only the unchanged rows it finds old, so their
+   * synced_at values differ by up to a quarter of the period and can't decide on their own. A dossier's rows therefore
+   * go together, exactly `retention` days after its last sync. The rest goes by its own date.
    */
   prune(): number {
     const cutoff = new Date(this.now().getTime() - this.retentionDays * DAY).toISOString();
-    const lazyCutoff = new Date(this.now().getTime() - this.retentionDays * 1.25 * DAY).toISOString();
     let removed = 0;
     this.transaction(() => {
-      for (const table of ['responses', 'items', 'transitions', 'change_refs']) removed += Number(this.db.prepare(`DELETE FROM ${table} WHERE synced_at < ?`).run(lazyCutoff).changes);
+      for (const table of ['responses', 'items', 'transitions', 'change_refs', 'worklog_events']) removed += Number(this.db.prepare(`DELETE FROM ${table} WHERE dossier NOT IN (SELECT name FROM dossiers WHERE last_sync_at >= ?)`).run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM sources WHERE last_attempt_at < ?').run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM dossiers WHERE last_sync_at < ?').run(cutoff).changes);
       // A test's own migration list may stop short of the usage table; every real file has it.
       if (this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'usage'").get()) removed += Number(this.db.prepare('DELETE FROM usage WHERE at < ?').run(cutoff).changes);
-      // The worklog's records (schema 3): a fact by when a sync last recorded it, like every row above; a sync, a run and a note by when it happened.
-      removed += Number(this.db.prepare('DELETE FROM worklog_events WHERE synced_at < ?').run(lazyCutoff).changes);
+      // The worklog's other records (schema 3): a sync, a run and a note by when it happened.
       removed += Number(this.db.prepare('DELETE FROM sync_runs WHERE at < ?').run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM agent_runs WHERE started_at < ?').run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM notes WHERE at < ?').run(cutoff).changes);

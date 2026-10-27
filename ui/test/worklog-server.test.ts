@@ -141,7 +141,7 @@ describe('the pages', () => {
     cache.saveDossier(save(T));
     await worklog.reconcile('card-payments');
     expect(existsSync(pagePath(dir, '2026-10-11'))).toBe(true);
-    tick(38 * DAY);
+    tick(31 * DAY);
     cache.prune();
     await worklog.reconcile('card-payments');
     expect(existsSync(pagePath(dir, '2026-10-11'))).toBe(false);

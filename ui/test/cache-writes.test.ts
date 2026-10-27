@@ -148,7 +148,7 @@ describe('what a sync writes (#493)', () => {
   it('lets an untouched row age out when no sync reads it', async () => {
     const cache = await open(30);
     cache.saveDossier(dossier());
-    clock.ms = 38 * DAY; // past the retention period and the quarter that lazily refreshed rows get on top
+    clock.ms = 31 * DAY; // past the retention period
     expect(cache.prune()).toBeGreaterThan(0);
     expect(cache.items('card-payments')).toEqual([]);
   });
@@ -160,6 +160,7 @@ describe('what a sync writes (#493)', () => {
     // A week on, only item 1 changed: item 2 is under a quarter of the period old, so its rows are not refreshed.
     clock.ms = 7 * DAY;
     cache.saveDossier(dossier({ changed: 1 }));
+    // The dossier's last sync is 24 days old on day 31, so everything stays.
     clock.ms = 31 * DAY;
     cache.prune();
     expect(cache.counts().responses).toBeGreaterThan(0);
@@ -168,9 +169,17 @@ describe('what a sync writes (#493)', () => {
     expect(cache.response('card-payments', 'jira issue history', keyed(2))).not.toBeNull();
     expect(cache.items('card-payments')).toHaveLength(COUNT);
     expect(cache.transitions('card-payments')).toHaveLength(COUNT * 2);
-    // And they do age out, in time.
-    clock.ms = 45 * DAY;
+    // Exactly `retention` days after the last sync is still inside; just past it, all of them go together.
+    clock.ms = 37 * DAY;
+    cache.prune();
+    expect(cache.items('card-payments')).toHaveLength(COUNT);
+    clock.ms = 37 * DAY + 1000;
     cache.prune();
     expect(cache.items('card-payments')).toEqual([]);
+    expect(cache.transitions('card-payments')).toEqual([]);
+    expect(cache.changes('card-payments')).toEqual([]);
+    expect(cache.counts().responses).toBe(0);
+    expect(cache.response('card-payments', 'jira issue history', keyed(1))).toBeNull();
+    expect(cache.response('card-payments', 'jira issue history', keyed(2))).toBeNull();
   });
 });

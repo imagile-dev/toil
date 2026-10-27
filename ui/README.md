@@ -656,9 +656,10 @@ requests, builds and deployments that name them.
   ticket content, so it stays on this machine and is readable by your account
   only. The analyses (#395) are kept in the same file, the newest 100 per dossier,
   and a sync never rewrites them.
-- **For how long.** Anything not synced again within the retention period (30
-  days by default) is deleted, at start and after each sync (a row nothing changed is confirmed
-  only now and then, so it can stay up to a quarter of the period longer). The retention period
+- **For how long.** A dossier's synced rows (responses, items,
+  transitions, change refs, worklog facts) are deleted together once its last sync is older
+  than the retention period (30 days by default), at start and after each sync. The rest
+  goes when it is that old itself. The retention period
   also sets how far back closed Jira and Azure DevOps items are read, with a
   floor of 6 weeks (see What it reads). An analysis goes once
   it is older than the retention period, and with its dossier when toil no longer

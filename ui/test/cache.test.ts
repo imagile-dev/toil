@@ -149,15 +149,14 @@ describe('retention', () => {
 
     now += 29 * DAY;
     expect(cache.prune()).toBe(0);
-    // Past the period and the quarter that a lazily refreshed row gets on top.
-    now += 9 * DAY;
+    now += 2 * DAY;
     expect(cache.prune()).toBeGreaterThan(0);
     expect(Object.values(cache.counts()).every((n) => n === 0)).toBe(true);
 
     // On open, too: a file left alone past its retention opens empty.
     cache.saveDossier(save(new Date(now).toISOString()));
     cache.close();
-    const later = await open(dir, { now: () => new Date(now + 38 * DAY), retentionDays: 30 });
+    const later = await open(dir, { now: () => new Date(now + 31 * DAY), retentionDays: 30 });
     expect(later.counts().items).toBe(0);
   });
 
