@@ -338,6 +338,8 @@ describe("Two Weeks' Notice: drawing", () => {
       const caps = { colorDepth: 24, unicode: true, palette: palette(findTheme('crate')!, bg) } as const;
       expect(frame(g, caps, hud()).join('\n')).toContain(`\x1b[1m\x1b[38;2;${caps.palette.ink.join(';')}m@`);
     }
+    // At 16 colours bold would turn a black @ into bright black, the walls' grey on a light terminal, so it stays plain.
+    expect(renderCells([{ ch: '@', color: [1, 2, 3], bold: true }], { colorDepth: 4 })).not.toContain('\x1b[1m');
     // Bold ends with its cell: a wall of the same colour beside you is drawn plain.
     expect(renderCells([{ ch: '@', color: [1, 2, 3], bold: true }, { ch: '#', color: [1, 2, 3] }], { colorDepth: 24 })).toBe('\x1b[1m\x1b[38;2;1;2;3m@\x1b[0m\x1b[38;2;1;2;3m#\x1b[0m');
   });

@@ -208,7 +208,13 @@ const XTERM = Array.from({ length: 240 }, (_, i) => {
  * enough, and losing colour costs extra: a green stays green, a grey stays grey. Nobody's brand guidelines
  * were consulted, only their luminance.
  */
+/** Rounded colours, by colour and background: a frame asks for the same few hundreds of times. */
+const ROUNDED = new Map<string, number>();
+
 function to256(rgb: Rgb, bg: Rgb): number {
+  const key = `${rgb.join(',')}/${bg.join(',')}`;
+  const known = ROUNDED.get(key);
+  if (known !== undefined) return known;
   const [own, ground] = [lum(rgb), lum(bg)];
   const darker = ground > own;
   const ratio = (l: number) => (Math.max(l, ground) + 0.05) / (Math.min(l, ground) + 0.05);
@@ -224,6 +230,7 @@ function to256(rgb: Rgb, bg: Rgb): number {
     if (distance < best.distance) best = { index: c.index, distance };
   }
   // Black (or white) is always no nearer the background, so something always qualifies.
+  ROUNDED.set(key, best.index);
   return best.index;
 }
 
@@ -343,7 +350,7 @@ export const cursor = {
 export interface Cell {
   ch: string;
   color?: Rgb;
-  /** Drawn bold, as the game's player is, so it stands out from walls of nearly the same ink on a light terminal. */
+  /** Drawn bold at 256 colours and up, as the game's player is, so it stands out from walls of nearly the same ink on a light terminal. */
   bold?: boolean;
 }
 
@@ -363,7 +370,8 @@ export function renderCells(cells: Cell[], caps: Pick<TermCaps, 'colorDepth'>): 
   const same = (a?: Rgb, b?: Rgb) => a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1] && a[2] === b[2]);
   for (const cell of cells) {
     const color = cell.ch === ' ' ? undefined : cell.color;
-    const bold = !!color && cell.bold === true;
+    // Not at 16 colours: many terminals draw bold black as bright black, the walls' own grey there.
+    const bold = !!color && cell.bold === true && caps.colorDepth >= 8;
     if (!same(color, open) || bold !== heavy) {
       if (open) out += '\x1b[0m';
       if (bold) out += '\x1b[1m';
