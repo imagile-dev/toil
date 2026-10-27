@@ -115,7 +115,11 @@ from `main`).
     `faint`, which is lifted so it reads on lighter dark terminals too (#471). On a
     light terminal the page is white, which is Plain's light badge. Every theme's
     colours meet 4.5:1 on light grounds down to `LIGHT_GROUND` and dark ones up to
-    `DARK_GROUND` (`src/welcome/themes/index.ts`), and the hidden game draws in the
+    `DARK_GROUND` (`src/welcome/themes/index.ts`). A theme with only a dark scheme
+    (Crate, Starship, Sprawl, Overworld) gets a derived light one whose colours stay
+    between HSL lightness 0.3 and 0.5 (`LIGHT_HUE_FLOOR`), so they stay colours
+    rather than near-black, and 256-colour output rounds away from the background
+    (`to256` in `src/welcome/term.ts`). The hidden game draws in the
     same palette, so it follows the theme too. Each theme keeps the badge and changes
     only what surrounds it (the orbit for Plain and Crate, crops, warp, embers,
     rain, steam or fairies), never the mark itself. **The site, the terminal and
