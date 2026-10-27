@@ -260,6 +260,43 @@ which dossier the folder resolves to and why, and `toil dossiers show card-payme
 says, per area, the connection a call would use, whether writes are on for it, the
 environment and the inputs it supplies.
 
+### Brief
+
+`toil dossiers brief card-payments` says what needs a person in the dossier's work,
+and what to do first. It reads the work items and pull requests you pass it as Open
+Work Items, and contacts no service: read each tracker and code host with its own
+command, map it, and pipe it in.
+
+```bash
+toil jira issue search --jql "project = PAY" | toil util owi map > items.owi.json
+toil bitbucket pr list | toil util owi map --key-pattern "PAY-{n}=corp-jira" > prs.owi.json
+cat items.owi.json prs.owi.json | toil dossiers brief card-payments
+```
+
+Several `util owi map` outputs go in at once, one per line, from stdin or one file
+(`--input-file`). It applies these lenses in order and puts each item under the first
+one that flags it, so an item appears once:
+
+| Lens | Flags |
+|---|---|
+| Failing checks | Checks on an open pull request for an open item have failed for more than 4 hours |
+| Blocked | An open item waits on another open item |
+| Waiting on review | An open pull request has had no first review for more than 2 working days |
+| Sprint at risk | At the pace so far, the current sprint won't finish the points in it |
+| Stale | An item in progress has had no update for more than 5 days |
+| Over the WIP limit | Someone has more items in progress than the dossier's `wipLimit` |
+| Ticket and pull request disagree | An item is done while its pull request is open, or its pull request merged while it's still open |
+
+The result has a `recommendation`, one `reasons` entry per lens that found something
+(its `line` says how much it holds up), and `onTrack`, which counts what's left
+rather than listing it. Each item has `why`, the `evidence` it rests on, what it
+`holds` up down a `blocks` chain, its pull requests, and `url`, which opens it in its
+tracker. Sentences cite items and pull requests as `[[<owi id>]]`, the id each one
+has in the result. A lens it couldn't check says why in `lenses[].note`, for example
+when the dossier sets no `wipLimit`. `--as-of` briefs as of another moment. An agent
+uses `dossiers_brief` as the starting point for an analysis, then weighs what it
+found.
+
 ### Share
 
 A dossier a team shares selects each area's connection by `host`, because teammates

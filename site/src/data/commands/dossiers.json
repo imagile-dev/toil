@@ -42,6 +42,20 @@
     ]
   },
   {
+    "name": "brief",
+    "tool": "dossiers_brief",
+    "description": "Brief one dossier by code: what needs a person, under one reason each, and what to do first, from OWI records you pass (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[dossier]",
+      "--input-file <path>",
+      "--text <text>",
+      "--as-of <time>",
+      "--cwd <dir>"
+    ]
+  },
+  {
     "name": "init",
     "tool": "dossiers_init",
     "description": "Create a dossier in your own folder (~/.toil/dossiers), or with --shared in a repository for the team",

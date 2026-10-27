@@ -12,25 +12,15 @@
 import { prName, sourceLabel } from '../format.ts';
 import type { Proposal } from '../proposal.ts';
 import type { AuthorKind, Change, WorkItem } from '../toil.ts';
+import { workingDays } from '../../../src/core/brief/time.ts';
+import { lensDef } from '../../../src/core/brief/brief.ts';
 import { percentile, weekStart, type Week } from './flow.ts';
 
 const DAY = 86_400_000;
 const WEEK = 7 * DAY;
 
-/** Working days between two instants, Monday to Friday UTC, to the fraction of a day. */
-export function workingDays(from: string, to: string): number {
-  let a = Date.parse(from);
-  const b = Date.parse(to);
-  if (!(b > a)) return 0;
-  let n = 0;
-  while (a < b) {
-    const end = Math.min(b, (Math.floor(a / DAY) + 1) * DAY);
-    const d = new Date(a).getUTCDay();
-    if (d !== 0 && d !== 6) n += (end - a) / DAY;
-    a = end;
-  }
-  return n;
-}
+// The same count toil's briefing uses (src/core/brief/time.ts), so the two never disagree on a wait.
+export { workingDays } from '../../../src/core/brief/time.ts';
 
 const isOpen = (c: Change) => c.state === 'OPEN' || c.state === 'DRAFT';
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -94,7 +84,7 @@ export function sizeOf(c: Change): { bucket: SizeBucket | null; lines: number | 
 // Flags --------------------------------------------------------------------------------
 
 /** Working days a pull request may wait for its first review before it is flagged. */
-export const PICKUP_DAYS = 2;
+export const PICKUP_DAYS = lensDef('waiting').threshold!;
 /** Hours checks may fail before it is flagged. */
 export const FAILING_HOURS = 24;
 

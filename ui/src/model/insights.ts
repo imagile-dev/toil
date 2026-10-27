@@ -11,6 +11,7 @@
  * The standup's "any blockers?", answered before anyone unmutes.
  */
 
+import { lensDef } from '../../../src/core/brief/brief.ts';
 import type { ChangeRef, Deployment, WorkItem } from '../toil.ts';
 import { aging, cycleTimes, flows, percentile } from './flow.ts';
 import { latestBuild, needsEstimate, type Health } from './sprint.ts';
@@ -53,7 +54,7 @@ export const INSIGHT_LABEL: Record<InsightCode, string> = {
 };
 
 /** No update for longer than this many days is stale. */
-export const STALE_DAYS = 5;
+export const STALE_DAYS = lensDef('stale').threshold!;
 /** Aging compares against this percentile of the dossier's cycle times, once there are enough of them. */
 export const AGING_PERCENTILE = 85;
 export const MIN_CYCLES = 3;
