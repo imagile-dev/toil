@@ -117,16 +117,26 @@ gets made again in the next place it applies.
     (`deps outdated`, a routed alias, an area's `coreAliases`) are a different thing
     and stay. → **Command Shape** (`integrations` skill); every integration area
     follows it (#290, #297).
-11. **Quiet screens: show what's needed to act, explain on demand.** A screen carries
-    the data and the controls someone needs right now, and little else. An
+11. **Quiet screens: show what's needed to act, disclose the rest progressively.**
+    A screen carries the data and the controls someone needs right now, and little
+    else. Each screen has one focus, the thing to read first; everything else is a
+    step further in, and each step is one the person chooses (expand, open, drill
+    down), never a wall laid out up front. Detail is never removed, only layered: a
+    summary line, then the item, then its evidence and history. Every page is
+    reachable by more than one path (a link from the summary, its tab or list, the
+    command palette, a search or shortcut, and its own address), so no layer is a
+    dead end and nobody has to know the one way in. An
     explanation goes into an (i) tooltip with a Read more link to the docs. A
     control appears where it's used, or in a menu, the command palette or a
     shortcut, never as one more button on every row. An empty state offers the
     action that fills it, not a paragraph about why it's empty. Principle 4 still
     holds: errors, failures, and a result's source and verification level always
-    stay on screen, never behind a tooltip. When something new
+    stay on screen, never behind a tooltip; a source may shrink to a badge whose
+    detail opens on demand, but it never disappears. When something new
     is added, something should come off the screen, or it should stay out of sight
-    until it's called up (the maintainer's call, 2026-10-22). → Toil UI's help
+    until it's called up (the maintainer's call, 2026-10-22). Progressive
+    disclosure and multiple paths to each page are the central design principle of
+    Toil UI (the maintainer's call, 2026-10-27). → Toil UI's help
     topics (`ui/src/help.ts`, #346) and the **Screen review** in the `ship` skill.
 
 ## Cross-Platform
