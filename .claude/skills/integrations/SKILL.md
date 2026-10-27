@@ -375,7 +375,7 @@ deployments still differ in their APIs, so the code stays apart and the surface 
   `--ws` is Cloud's) is declared once in the area's `context` with `deployments: [...]`.
   The other deployments refuse it with `UNSUPPORTED` and don't need it, and a deployment's
   own `missing` wording can differ (`missing` may be a function of the connection). A command
-  that lists the input itself takes it on any deployment (Cloud's `repo create --project`).
+  that lists the input itself takes it on any deployment (Cloud's `repo create --project`), but there core resolves it from the call or the dossier alone, never from the connection's setting, defaults, env, git or the area default, which are the other deployment's (a write's target comes only from what belongs to its deployment).
 - **Each returns its own API's shape.** Don't reshape `data` to make the two look alike;
   `meta.context.connection.deployment` says which ran, and OWI is the normalised view.
 - **The fixture runs both.** The area's fixture names a connection per deployment

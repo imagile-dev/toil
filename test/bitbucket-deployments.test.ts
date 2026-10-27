@@ -94,6 +94,33 @@ describe('where a call acts: --project is Data Center’s, --ws is Cloud’s', (
     const run = await runCli(['bitbucket', 'repo', 'create', '--name', 'scratch', '--project', 'TOIL', '--ws', 'imagile', '--connection', 'bitbucket-cloud', '--allow-write'], { commands, context: t.context });
     expect(run.envelope?.ok, run.stdout).toBe(true);
     expect(JSON.parse(t.http.calls[0]!.body!)).toMatchObject({ project: { key: 'TOIL' } });
+    expect(run.envelope?.meta.context?.inputs?.project).toEqual({ value: 'TOIL', source: 'input' });
+  });
+
+  it('never fills Cloud’s project from a Data Center default, the connection’s own project setting or the environment: only the call or a dossier', async () => {
+    const t = ctx();
+    t.context.config.defaults.bitbucket = { connection: 'bitbucket', project: 'PAY' };
+    t.context.config.connections['bitbucket-cloud'] = { ...t.context.config.connections['bitbucket-cloud']!, project: 'PAY' };
+    const run = await runCli(['bitbucket', 'repo', 'create', '--name', 'scratch', '--ws', 'imagile', '--connection', 'bitbucket-cloud', '--allow-write'], { commands, context: t.context });
+    expect(run.envelope?.ok, run.stdout).toBe(true);
+    expect(JSON.parse(t.http.calls[0]!.body!)).not.toHaveProperty('project');
+    expect(run.envelope?.meta.context?.inputs).not.toHaveProperty('project');
+    const given = await runCli(['bitbucket', 'repo', 'create', '--name', 'scratch', '--project', 'TOIL', '--ws', 'imagile', '--connection', 'bitbucket-cloud', '--allow-write'], { commands, context: t.context });
+    expect(given.envelope?.meta.context?.inputs?.project).toEqual({ value: 'TOIL', source: 'input' });
+    expect(JSON.parse(t.http.calls[1]!.body!)).toMatchObject({ project: { key: 'TOIL' } });
+  });
+
+  it('still resolves Data Center’s project from the connection and the defaults', async () => {
+    const t = ctx();
+    t.context.config.connections.bitbucket = { ...t.context.config.connections.bitbucket!, project: 'PAY' };
+    const create = await runCli(['bitbucket', 'repo', 'create', '--name', 'scratch', '--allow-write'], { commands, context: t.context });
+    expect(create.envelope?.meta.context?.inputs?.project).toEqual({ value: 'PAY', source: 'connection' });
+    const list = await runCli(['bitbucket', 'pr', 'list', '--repo', 'imagile-api'], { commands, context: t.context });
+    expect(list.envelope?.meta.context?.inputs?.project).toEqual({ value: 'PAY', source: 'connection' });
+    delete t.context.config.connections.bitbucket!.project;
+    t.context.config.defaults.bitbucket = { connection: 'bitbucket', project: 'DEF' };
+    const viaDefault = await runCli(['bitbucket', 'pr', 'list', '--repo', 'imagile-api'], { commands, context: t.context });
+    expect(viaDefault.envelope?.meta.context?.inputs?.project?.value).toBe('DEF');
   });
 });
 

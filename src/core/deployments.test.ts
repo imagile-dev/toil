@@ -195,6 +195,21 @@ describe('context inputs that only some deployments take', () => {
     expect(ran).toContain('cloud make');
   });
 
+  it('resolves an input a deployment takes only because its command lists it from the call or the dossier alone, never from the other deployment’s settings', async () => {
+    const withSettings = { ...cfg, 'gadget-cloud': { ...cfg['gadget-cloud'], project: 'SET' } };
+    const t = testContext({ config: withSettings });
+    t.context.config.defaults.gadget = { connection: 'gadget', project: 'DEF' };
+    const cloud = await execute(make, { connection: 'gadget-cloud', workspace: 'w' }, t.context, 'cli');
+    expect(cloud.error).toBeNull();
+    expect(cloud.data).toMatchObject({ deployment: 'cloud', context: { workspace: 'w' } });
+    expect(cloud.meta.context?.inputs).not.toHaveProperty('project');
+    const given = await execute(make, { connection: 'gadget-cloud', workspace: 'w', project: 'P' }, t.context, 'cli');
+    expect(given.meta.context?.inputs?.project).toEqual({ value: 'P', source: 'input' });
+    // Its own deployment still reads the setting.
+    const server = await execute(make, {}, t.context, 'cli');
+    expect(server.meta.context?.inputs?.project).toEqual({ value: 'DEF', source: 'connection' });
+  });
+
   it("throws at definition time for a context input that names a deployment the area has no variant for", () => {
     expect(() =>
       defineArea({

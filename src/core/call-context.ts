@@ -149,6 +149,14 @@ export async function resolveCall(
   for (const [name, need] of Object.entries(here)) {
     const spec = declared[name]!;
     const setting = spec.setting === undefined ? undefined : connection[spec.setting];
+    // An input the area gives to other deployments, which this one takes only because its command lists it, comes from the call or the
+    // dossier alone: the connection's setting, defaults, env, git and the area default are documented as the other deployment's, and a
+    // write must not take its target from them (principles 2 and 9).
+    if (def.deployments && spec.deployments && !spec.deployments.includes(String(connection[def.deployments.by]))) {
+      if (early[name]) inputs[name] = early[name];
+      else if (need === 'required') missing.push(name);
+      continue;
+    }
     const value =
       early[name] ??
       (spec.selectsConnection ? undefined : checked(area, name, spec, await fromGit(spec, connection), 'git')) ??
