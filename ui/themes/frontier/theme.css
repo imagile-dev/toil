@@ -51,7 +51,7 @@
   font-weight: 400;
 }
 
-[data-theme="frontier"] .overview-rec__headline,
+[data-theme="frontier"] .briefing__head,
 [data-theme="frontier"] .stat-value,
 [data-theme="frontier"] .big-number,
 [data-theme="frontier"] .metric__value,

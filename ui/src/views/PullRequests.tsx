@@ -8,6 +8,7 @@
  * queue, finally reviewed.
  */
 
+import { PeekLinks } from '../components/briefing.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { ThroughputSpark } from '../components/charts.tsx';
 import { Cited, ItemLink, PrLink } from '../components/items.tsx';
@@ -130,7 +131,7 @@ export function PullRequests() {
   const calls = dossier.calls.prs;
 
   return (
-    <>
+    <PeekLinks>
       <div className="view-head">
         <p className="eyebrow">
           <a href={dossierHref(dossier.name)}>{dossier.name}</a>
@@ -236,6 +237,6 @@ export function PullRequests() {
           <p>Every open pull request has a reviewer asked.</p>
         )}
       </Panel>
-    </>
+    </PeekLinks>
   );
 }

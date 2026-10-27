@@ -8,6 +8,10 @@
  * were reorganised into seven tabs, a reorganisation that, for once, removed
  * a layer.
  *
+ * `peek` (#494) is the item a `?item=` address names: its drawer takes the
+ * Agents sidebar's place beside the view, or covers the view on a narrower
+ * screen, and the view behind it stays where it was.
+ *
  * A theme's moments (#419) play here: its dossier entrance as the dossier
  * opens, and its tab transition as a tab changes, each by transform and
  * opacity only, at the Theme motion level, and not at all at off.
@@ -16,6 +20,7 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import { Button, Dialog, Menu, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover } from 'react-aria-components';
 import { AskBar } from '../components/ask.tsx';
+import { ItemDrawer } from '../components/briefing.tsx';
 import { Editable, SourceBadges } from '../components/dossier-head.tsx';
 import { Scroller, useMediaQuery } from '../components/layout.tsx';
 import { AgentsSidebar, useAgentsSummary } from '../assign/sidebar.tsx';
@@ -50,7 +55,7 @@ export const SIDEBAR_WIDE = '(min-width: 1200px)';
  * their own (Overview, Board, Dependencies, Analyses); the others keep theirs.
  * `boardView` says which of the Board tab's two views is showing.
  */
-export function DossierShell({ tab, heading, dossiers, boardView, children }: { tab: DossierTab | null; heading: boolean; dossiers: string[] | null; boardView?: 'board' | 'readiness'; children: ReactNode }) {
+export function DossierShell({ tab, heading, dossiers, boardView, peek = null, children }: { tab: DossierTab | null; heading: boolean; dossiers: string[] | null; boardView?: 'board' | 'readiness'; peek?: string | null; children: ReactNode }) {
   const { dossier, config, described } = useData();
   const { health: h, insights } = useDerived();
   const term = useTerm();
@@ -143,7 +148,9 @@ export function DossierShell({ tab, heading, dossiers, boardView, children }: { 
         <div className="dossier-main" ref={view}>
           {children}
         </div>
-        {wide && (
+        {peek ? (
+          <ItemDrawer id={peek} />
+        ) : wide && (
           <aside className="agents-side" aria-labelledby="agents">
             <div className="agents-side__scroll">
               <AgentsSidebar />

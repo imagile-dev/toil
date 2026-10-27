@@ -1,6 +1,5 @@
-import type { DossierAnalyze } from '../dossier.js';
 import { LENSES, type BriefSettings } from './brief.js';
-import type { AnalyzeSettings } from './prompt.js';
+import type { AnalyzeSettings, DossierAnalyze } from './prompt.js';
 
 /**
  * A dossier's Analyze settings, with the standard filling whatever it leaves

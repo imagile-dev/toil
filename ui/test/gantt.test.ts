@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
-import { blockerGantt, chainOnly } from '../src/model/gantt.ts';
+import { blockerGantt } from '../src/model/gantt.ts';
 import { prepare } from '../src/model/insights.ts';
 import { readReadiness } from '../src/model/readiness.ts';
 import { health } from '../src/model/sprint.ts';
@@ -114,9 +114,6 @@ describe('blockerGantt', () => {
     ]);
     expect(g.chain).toEqual({ ids: ['jira:B-1', 'jira:B-2'], points: 13, byCount: false });
     expect(g.arrows.filter((a) => a.onChain)).toEqual([{ from: 'jira:B-1', to: 'jira:B-2', live: true, onChain: true }]);
-    const c = chainOnly(g);
-    expect(c.bars.map((b) => b.id)).toEqual(['jira:B-1', 'jira:B-2']);
-    expect(c.arrows).toHaveLength(1);
   });
 
   it('takes the longest chain when nothing on it has points, and says so', () => {

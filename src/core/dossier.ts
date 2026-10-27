@@ -12,7 +12,9 @@ import { findSecrets } from './secret-shapes.js';
 import { JsonSyntaxError, parseStrictJson } from './strict-json.js';
 import { INTENTS, type TransitionPins } from './transition-intent.js';
 import { isLensId, lensDef, LENSES, type LensId } from './brief/brief.js';
-import { AUDIENCES, MAX_FOCUS, type Audience } from './brief/prompt.js';
+import { AUDIENCES, MAX_FOCUS, type Audience, type DossierAnalyze } from './brief/prompt.js';
+
+export type { DossierAnalyze } from './brief/prompt.js';
 
 /**
  * Dossiers: what toil knows about one body of work (its repositories, the
@@ -85,15 +87,7 @@ export interface Dossier {
   analyze?: DossierAnalyze;
 }
 
-/** A dossier's Analyze settings, as written: every key optional, the standard filling the rest. */
-export interface DossierAnalyze {
-  goal?: string;
-  audience?: Audience;
-  /** Lenses in the order to apply them; any not listed follow in the standard order. */
-  lenses?: Array<{ id: LensId; on?: boolean; threshold?: number }>;
-  watchFor?: string;
-  leaveOut?: string;
-}
+
 
 export interface DossierProblem {
   /** An `error` stops the dossier loading; a `warning` is reported and the dossier still loads. */

@@ -18,6 +18,7 @@
  * red pen and no publishing rights.
  */
 
+import { readBriefing } from '../../../src/core/brief/answer.ts';
 import { citationsOf, type Answer, type AnswerPart } from '../../src/agent.ts';
 import { POSITIONAL_FIELDS, type Proposal } from '../../src/proposal.ts';
 import type { Ledger } from './tools.ts';
@@ -137,7 +138,10 @@ export function named(text: string, connections: ReadonlySet<string>): { cited: 
 /** The finished answer: parts, citations, proposals, and what the checks flagged. */
 export function finish(raw: string, f: Finish): Answer {
   const blocks = [...raw.matchAll(FENCE)].map((m) => m[1]!);
-  const prose = raw.replace(FENCE, '').replace(OPEN_FENCE, '');
+  const stripped = raw.replace(FENCE, '').replace(OPEN_FENCE, '');
+  // Analyze's briefing block (#494) is data for the page, not text for the pane: it's lifted out, and its ids are checked with the rest.
+  const read = stripped.includes('```briefing') ? readBriefing(stripped) : null;
+  const prose = read ? read.rest : stripped;
   const parts = partsOf(prose);
   const warnings: string[] = [];
   const proposals: Proposal[] = [];
@@ -155,17 +159,22 @@ export function finish(raw: string, f: Finish): Answer {
   const connections = new Set([...ledgerIds].map((id) => id.slice(0, id.indexOf(':'))));
   const keyOf = new Set([...ledgerIds].map((id) => id.slice(id.indexOf(':') + 1)));
   const unverified = new Set<string>();
-  const all = [...parts.map((p) => p.text), ...proposals.map((p) => p.reason)].join('\n\n');
+  // Every field of the briefing the page shows with citations: its ids and its sentences alike.
+  const b = read?.briefing;
+  const briefed = b ? [b.recommendation, b.onTrack ?? '', ...b.changed, ...b.reasons.flatMap((r) => [r.line, r.text ?? '', ...r.items.flatMap((i) => [i.id, i.why, i.next ?? ''])]), ...b.leftOut.flatMap((l) => [l.id, l.why])] : [];
+  const all = [...parts.map((p) => p.text), ...proposals.map((p) => p.reason), ...briefed].join('\n\n');
   const { cited, bare, keys } = named(all, connections);
   for (const id of [...cited, ...bare, ...proposals.map((p) => p.item)]) if (!ledgerIds.has(id)) unverified.add(id);
   // A bare tracker key (PAY-999) in a project the tools returned items from must be one of those items. UTF-8 is not a ticket.
   const projects = new Set([...keyOf].map((k) => /^([A-Z][A-Z0-9]{1,9})-\d+$/.exec(k)?.[1]).filter(Boolean));
   for (const key of keys) if (projects.has(key.split('-')[0]) && !keyOf.has(key) && ![...unverified].some((id) => id.endsWith(`:${key}`))) unverified.add(key);
 
-  const citations = citationsOf(parts);
+  // A briefing's items and the [[ids]] in its sentences are citations too, so an answer that is only a briefing still cites what it rests on.
+  const citations = [...new Set([...citationsOf(parts), ...(b ? [...b.reasons.flatMap((r) => r.items.map((i) => i.id)), ...citationsOf(briefed.map((text) => ({ text })))] : [])])];
   if (unverified.size) warnings.unshift(`This answer names ${unverified.size === 1 ? 'an item' : `${unverified.size} items`} its tools never returned: ${[...unverified].join(', ')}. Treat ${unverified.size === 1 ? 'it' : 'them'} as unverified.`);
-  if (parts.length && !citations.length && ledgerIds.size) warnings.push('This answer cites none of the items its tools read, so nothing in it is traced to a source.');
+  if (read?.problems.length) warnings.push(...read.problems.map((p) => `The briefing: ${p}`));
+  if (parts.length && !citations.length && !read?.briefing && ledgerIds.size) warnings.push('This answer cites none of the items its tools read, so nothing in it is traced to a source.');
   if (parts.length && !ledgerIds.size) warnings.push("The agent's tools returned no work items, so this answer rests on none.");
 
-  return { prompt: f.prompt, by: f.by, parts, citations, proposals, unverified: [...unverified], warnings };
+  return { prompt: f.prompt, by: f.by, parts, citations, proposals, unverified: [...unverified], warnings, ...(read ? { briefing: read.briefing, briefingProblems: read.problems } : {}) };
 }

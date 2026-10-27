@@ -43,7 +43,7 @@ import { Avatar, InsightChips, StatusChip } from '../components/bits.tsx';
 import { ProposalCard } from '../components/proposal.tsx';
 import { AssignModal } from '../assign/views.tsx';
 import { useData, useDerived } from '../data.ts';
-import { STATUS_CATEGORY_LABEL, estimateText, itemHref, personText, shortKey, sourceLabel } from '../format.ts';
+import { STATUS_CATEGORY_LABEL, estimateText, itemHref, peekHref, personText, shortKey, sourceLabel } from '../format.ts';
 import { columns, proposeMove } from '../model/board.ts';
 import { flagsAttention, insights, type Prepared } from '../model/insights.ts';
 import type { Proposal } from '../proposal.ts';
@@ -101,7 +101,6 @@ const attentionClass = (item: WorkItem, p: Prepared) => (flagsAttention(insights
 
 function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
   const { insights: prepared } = useDerived();
-  const { dossier } = useData();
   const { Card: Skin } = useSkins();
   const key = shortKey(item);
   const found = insights(item, prepared);
@@ -109,7 +108,7 @@ function CardFace({ item, ids }: { item: WorkItem; ids?: string }) {
     <Skin item={item}>
       <div className="card-top">
         {ids ? (
-          <a id={`${ids}-key`} href={itemHref(dossier.name, item.id)} className="item-link card-key" draggable={false}>
+          <a id={`${ids}-key`} href={peekHref(typeof window === 'undefined' ? '#/' : window.location.hash, item.id)} className="item-link card-key" draggable={false}>
             <span className="key">{key}</span>
           </a>
         ) : (

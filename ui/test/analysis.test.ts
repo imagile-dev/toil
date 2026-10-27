@@ -1,3 +1,4 @@
+import { readBriefing } from '../../src/core/brief/answer.ts';
 import { describe, expect, it } from 'vitest';
 import { memoryAnalyses } from '../src/analyses.ts';
 import { analyzeParts } from '../src/fixtures/agent.ts';
@@ -65,13 +66,14 @@ describe('structureOf', () => {
     expect(s.evidence).toEqual(['Evidence shows the build is green.\nIssues with it are none.']);
   });
 
-  it('reads the scripted Analyze answer of every sample dossier top-down', () => {
+  it("reads the scripted Analyze answer of every sample dossier as a briefing (#494), the evidence beside it", () => {
     for (const dossier of ['card-payments', 'settlement', 'checkout-web']) {
-      const s = structureOf(analyzeParts(dossier).join('\n\n'))!;
-      expect(s.recommendation).toContain('[[');
-      expect(s.issues).toHaveLength(3);
-      expect(s.issues.every((i) => i.title && i.text.includes('[['))).toBe(true);
-      expect(s.evidence.length).toBeGreaterThan(5);
+      const read = readBriefing(analyzeParts(dossier).join('\n\n'));
+      expect(read.problems, dossier).toEqual([]);
+      expect(read.briefing!.recommendation).toContain('[[');
+      expect(read.briefing!.reasons.length).toBeGreaterThanOrEqual(2);
+      expect(read.briefing!.reasons.every((r) => r.items.every((i) => i.why && i.next))).toBe(true);
+      expect(read.rest.length).toBeGreaterThan(200);
     }
   });
 });

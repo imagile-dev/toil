@@ -17,6 +17,9 @@ import { RepoSetup } from './RepoSetup.tsx';
 import { Help, useLandOn } from '../../components/help.tsx';
 import { AreaField, ChangeForm, CheckField, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
 import { Loader } from '../../moments/Moments.tsx';
+import { isLensId, lensDef, LENSES, type LensId } from '../../../../src/core/brief/brief.ts';
+import { analyzePrompt, AUDIENCES, type Audience, type DossierAnalyze, type FocusSource } from '../../../../src/core/brief/prompt.ts';
+import { analyzeSettings } from '../../../../src/core/brief/settings.ts';
 
 interface ListedDossier {
   name: string;
@@ -41,7 +44,7 @@ const fromEnvelope = <T,>(e: Envelope): Loaded<T> => (e.ok ? { ok: true, value: 
 export type DossierTarget = { dossier: string; section: string | null };
 
 /** The form each section's edit link lands on, by its heading's id. */
-const SECTION_FORM: Record<string, string> = { sources: 'dossier-form-sources', repos: 'dossier-form-repos', fields: 'dossier-form-fields', people: 'dossier-form-people', wip: 'dossier-form-wip' };
+const SECTION_FORM: Record<string, string> = { sources: 'dossier-form-sources', repos: 'dossier-form-repos', fields: 'dossier-form-fields', people: 'dossier-form-people', wip: 'dossier-form-wip', analyze: 'dossier-form-analyze' };
 
 /** `at`: a dossier's section to land on (#346); `toForm`: Create a dossier, which the first-run checklist opens (#416). */
 export function DossierSetup({ config, at, toForm = false }: { config: ConfigApi; at?: DossierTarget; toForm?: boolean }) {
@@ -126,6 +129,7 @@ export function DossierSetup({ config, at, toForm = false }: { config: ConfigApi
             <FieldForm config={config} dossier={target} areas={areas} />
             <PersonForm config={config} dossier={target} areas={areas} />
             <WipLimitForm config={config} dossier={target} />
+            <AnalyzeForm config={config} dossier={target} />
           </>
         )}
       </Card>
@@ -421,6 +425,165 @@ function WipLimitForm({ config, dossier }: { config: ConfigApi; dossier: string 
       <CheckField label="Replace a limit already set" checked={replace} onChange={setReplace} />
     </ChangeForm>
   );
+}
+
+/**
+ * How Analyze briefs a dossier (#494): its goal, reader, lenses and focus,
+ * saved with `toil dossiers analyze set`, and beside it the prompt as Analyze
+ * will send it, composed by toil's own code as you type. Clearing a setting is
+ * a delete, made in a terminal.
+ */
+function AnalyzeForm({ config, dossier }: { config: ConfigApi; dossier: string }) {
+  type Loaded = { analyze: DossierAnalyze | null; wipLimit: number | null; from: FocusSource; draft: Draft };
+  const [shown, setShown] = useState<Loaded | { error: Outcome } | null>(null);
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [replace, setReplace] = useState(false);
+  useEffect(() => {
+    let live = true;
+    config.run('dossiers show', { dossier }).then(
+      (e) => {
+        if (!live) return;
+        if (!e.ok) return setShown({ error: outcomeOf(e, '') });
+        const d = e.data as { source: string; file: string; adopted: boolean; repo?: string | null; dossier: { analyze?: DossierAnalyze; wipLimit?: number } };
+        const a = d.dossier.analyze ?? null;
+        const first = draftOf(a, d.dossier.wipLimit ?? null);
+        setShown({ analyze: a, wipLimit: d.dossier.wipLimit ?? null, from: { dossier, file: d.file, source: d.source, adopted: d.adopted, repo: d.source === 'repo' ? d.file.replace(/\/\.toil\/dossiers\/[^/]+$/, '') : null }, draft: first });
+        setDraft(first);
+      },
+      (err: unknown) => live && setShown({ error: failedOutcome(err) }),
+    );
+    return () => {
+      live = false;
+    };
+  }, [config, dossier]);
+  if (shown && 'error' in shown) {
+    return (
+      <section aria-labelledby="dossier-form-analyze" className="change-form">
+        <h3 id="dossier-form-analyze">How Analyze briefs {dossier}</h3>
+        <OutcomeLine outcome={shown.error} />
+      </section>
+    );
+  }
+  const d = draft ?? draftOf(null, null);
+  const set = (change: Partial<Draft>) => setDraft({ ...d, ...change });
+  const ids = d.order.split(',').map((s) => s.trim()).filter(isLensId);
+  // Only what changed from the dossier as loaded is sent, so a later save works and anything untouched keeps following the standard.
+  const input = shown ? changedInput(dossier, shown.draft, d, ids, replace) : { dossier };
+  const preview = shown ? analyzePrompt(analyzeSettings(draftAnalyze(d, ids), shown.wipLimit), shown.from, 'toil-ui') : null;
+  return (
+    <ChangeForm
+      titleId="dossier-form-analyze"
+      title={`How Analyze briefs ${dossier}`}
+      explain={
+        <>
+          What Analyze looks for, and what the work is for; anything you leave follows the standard. <Help topic="analyze-settings" />
+        </>
+      }
+      runs={commandLine('dossiers analyze set', inputArgs(input))}
+      submit="Save Analyze settings"
+      disabled={config.disabled ?? (shown ? null : 'Reading the dossier…')}
+      onSubmit={async () => (Object.keys(input).length <= 1 ? { ok: true, message: 'Nothing changed, so nothing was saved.', warnings: [] } : outcomeOf(await config.run('dossiers analyze set', input), `${dossier}'s Analyze settings are saved.`))}
+    >
+      <TextField label="Goal of this work" value={d.goal} onChange={(goal) => set({ goal })} hint="One line. Analyze weighs everything against it." />
+      <SelectField label="Written for" value={d.audience} onChange={(v) => set({ audience: AUDIENCES.includes(v as Audience) ? (v as Audience) : 'lead' })} options={[{ value: 'lead', label: 'A team lead' }, { value: 'engineer', label: 'An engineer on the team' }, { value: 'stakeholder', label: 'Someone outside the team' }]} />
+      <TextField label="Lenses, most important first" value={d.order} onChange={(order) => set({ order })} hint={`Lens ids separated by commas: ${LENSES.map((l) => l.id).join(', ')}.`} />
+      <details className="analyze-lenses">
+        <summary>
+          Lenses ({ids.filter((id) => !d.off.includes(id)).length} of {ids.length} on)
+        </summary>
+        {ids.map((id) => {
+          const def = lensDef(id);
+          return (
+            <Cluster key={id}>
+              <CheckField label={`${def.label}: ${def.test(Number(d.thresholds[id]) || def.threshold, shown?.wipLimit ?? null)}`} checked={!d.off.includes(id)} onChange={(on) => set({ off: on ? d.off.filter((o) => o !== id) : [...d.off, id] })} />
+              {def.unit && <TextField label={`${def.label} after, in ${def.unit}`} value={d.thresholds[id] ?? ''} onChange={(v) => set({ thresholds: { ...d.thresholds, [id]: v } })} />}
+            </Cluster>
+          );
+        })}
+      </details>
+      <AreaField label="Also watch for" value={d.watchFor} onChange={(watchFor) => set({ watchFor })} rows={2} hint="One line, up to 1000 characters." />
+      <AreaField label="Leave out" value={d.leaveOut} onChange={(leaveOut) => set({ leaveOut })} rows={2} hint="One line. The briefing lists what this hid." />
+      <CheckField label="Replace settings already there" checked={replace} onChange={setReplace} />
+      {preview && (
+        <details className="analyze-preview">
+          <summary>The prompt Analyze will send</summary>
+          <pre className="analyze-preview__text" tabIndex={0} aria-label="The prompt Analyze will send">
+            {preview}
+          </pre>
+          <p className="note">After toil's rules and before your own instructions and voice from Settings → Agent.</p>
+        </details>
+      )}
+    </ChangeForm>
+  );
+}
+
+/** The form's fields, as text: what's loaded, and what's typed. */
+interface Draft {
+  goal: string;
+  audience: Audience;
+  order: string;
+  off: LensId[];
+  thresholds: Record<string, string>;
+  watchFor: string;
+  leaveOut: string;
+}
+
+function draftOf(a: DossierAnalyze | null, wipLimit: number | null): Draft {
+  const s = analyzeSettings(a ?? undefined, wipLimit);
+  return {
+    goal: a?.goal ?? '',
+    audience: s.audience,
+    order: s.settings.lenses.map((l) => l.id).join(', '),
+    off: s.settings.lenses.filter((l) => !l.on).map((l) => l.id),
+    thresholds: Object.fromEntries(s.settings.lenses.filter((l) => l.threshold !== null).map((l) => [l.id, String(l.threshold)])),
+    watchFor: a?.watchFor ?? '',
+    leaveOut: a?.leaveOut ?? '',
+  };
+}
+
+/** The draft as a dossier would hold it, for the preview. */
+function draftAnalyze(d: Draft, ids: LensId[]): DossierAnalyze {
+  return {
+    ...(d.goal.trim() ? { goal: d.goal.trim() } : {}),
+    audience: d.audience,
+    lenses: ids.map((id) => ({ id, on: !d.off.includes(id), ...(lensDef(id).unit && Number(d.thresholds[id]) > 0 ? { threshold: Number(d.thresholds[id]) } : {}) })),
+    ...(d.watchFor.trim() ? { watchFor: d.watchFor.trim() } : {}),
+    ...(d.leaveOut.trim() ? { leaveOut: d.leaveOut.trim() } : {}),
+  };
+}
+
+/** `dossiers analyze set`'s input: only what differs from the dossier as loaded. */
+function changedInput(dossier: string, was: Draft, d: Draft, ids: LensId[], replace: boolean): Record<string, unknown> {
+  const lensesChanged = was.order !== d.order || was.off.join() !== d.off.join() || JSON.stringify(was.thresholds) !== JSON.stringify(d.thresholds);
+  return {
+    dossier,
+    ...(d.goal.trim() && d.goal !== was.goal ? { goal: d.goal.trim() } : {}),
+    ...(d.audience !== was.audience ? { audience: d.audience } : {}),
+    ...(lensesChanged
+      ? {
+          order: ids.join(','),
+          on: ids.filter((id) => !d.off.includes(id) && was.off.includes(id)),
+          off: ids.filter((id) => d.off.includes(id) && !was.off.includes(id)),
+          threshold: ids.filter((id) => lensDef(id).unit && d.thresholds[id] && d.thresholds[id] !== was.thresholds[id]).map((id) => `${id}=${d.thresholds[id]}`),
+        }
+      : {}),
+    ...(d.watchFor.trim() && d.watchFor !== was.watchFor ? { watchFor: d.watchFor.trim() } : {}),
+    ...(d.leaveOut.trim() && d.leaveOut !== was.leaveOut ? { leaveOut: d.leaveOut.trim() } : {}),
+    ...(replace ? { replace } : {}),
+  };
+}
+
+/** The input as `toil dossiers analyze set`'s arguments, so the line under the form is the one Save runs. */
+function inputArgs(input: Record<string, unknown>): string[] {
+  const flag: Record<string, string> = { goal: '--goal', audience: '--audience', order: '--order', on: '--on', off: '--off', threshold: '--threshold', watchFor: '--watch-for', leaveOut: '--leave-out', replace: '--replace' };
+  const out = [String(input.dossier)];
+  for (const [key, value] of Object.entries(input)) {
+    if (key === 'dossier' || !flag[key]) continue;
+    if (value === true) out.push(flag[key]!);
+    else if (Array.isArray(value)) for (const v of value) out.push(flag[key]!, String(v));
+    else out.push(flag[key]!, String(value));
+  }
+  return out;
 }
 
 function FieldForm({ config, dossier, areas }: { config: ConfigApi; dossier: string; areas: AreaInfo[] }) {

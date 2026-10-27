@@ -368,44 +368,59 @@ const words = (text: string) => text.match(/\[\[[^\]]+\]\]\S*\s*|\S+\s*/g) ?? []
 export const ANALYZE_PARTS = ['risk', 'attention', 'people', 'review'] as const;
 
 /**
- * Analyze's top in the preview (#395): the recommendation and its issues,
- * written top-down as the prompt asks, before the evidence above. Each line
- * restates facts the evidence already holds, so it can't drift from the data.
+ * Analyze's briefing in the preview (#494): what the scripted agent answers
+ * with, a ```briefing block as the prompt asks, before the evidence above as
+ * plain text. Each line restates facts the evidence already holds, so it can't
+ * drift from the data; ids are written bare in the block's fields and as
+ * [[citations]] in its sentences, as a real agent's are.
  */
-export const ANALYZE_TOP: Record<string, { recommendation: string; issues: string[] }> = {
+const id = (citation: string) => citation.slice(2, -2);
+interface ScriptedReason { lens: string; label: string; line: string; text?: string; items: Array<[string, string, string]> }
+export const ANALYZE_BRIEFING: Record<string, { recommendation: string; reasons: ScriptedReason[]; onTrack: string; changed: string[] }> = {
   'card-payments': {
-    recommendation: `Fix ${J(101)}'s failing build first: ${J(102)} and ${J(103)} are blocked behind it, holding 11 points back.`,
-    issues: [
-      `Build failing: ${J(101)}'s latest build failed, and it blocks ${J(102)}: fixing that build unblocks the chain.`,
-      `Blocked chain: ${J(102)} is blocked by ${J(101)} and holds up ${J(103)}, and nothing has changed on it for 8 days.`,
-      `Aging carry-over: ${J(104)} has been in progress for 13.9 days and came over from Sprint 41; its pull request ${BB(305)} has waited 3.9 working days for a first review.`,
+    recommendation: `Fix ${J(101)}'s failing checks first: ${J(102)} and ${J(103)} wait behind it, 11 of the 18 points left, and the sprint ends in 3 days.`,
+    reasons: [
+      { lens: 'failing', label: 'Failing checks', line: 'holds up 2 items, 11 points', items: [[J(101), `Its pull request ${BB(311)} fails the tokeniser's tests, and ${J(102)} and ${J(103)} wait behind it.`, 'Fix the failing test in the tokeniser before anything else in the chain.']] },
+      { lens: 'blocked', label: 'Blocked', line: '2 items, 11 points, both behind PAY-101', items: [[J(102), `Blocked by ${J(101)} and unchanged for 8 days.`, `Nothing to do until ${J(101)}'s checks pass; its assignee can review ${BB(305)} meanwhile.`], [J(103), `Second in the chain behind ${J(102)}, 8 points, and nobody owns it.`, 'Give it an owner now, so it starts the day the chain clears.']] },
+      { lens: 'waiting', label: 'Waiting on review', line: '1 pull request past 2 working days', items: [[J(104), `Its pull request ${BB(305)} has waited 3.9 working days for a first review, and it came over from Sprint 41.`, `Ask for a first review of ${BB(305)} today.`]] },
     ],
+    onTrack: '',
+    changed: [],
   },
   settlement: {
-    recommendation: `Get ${A(2302)} done first: ${A(2303)} can't start until it is, and its pull request #87 is still building.`,
-    issues: [
-      `Blocked: ${A(2303)} is blocked by ${A(2302)}, and nothing has changed on it for 7.9 days.`,
-      `Aging carry-over: ${A(2304)} has been in progress for 15 days, longer than 85% of this dossier's finished items took (8.3 days).`,
-      `Review waiting on its author: ${AZ(87)} waits on D. Okafor: J. Park asked for changes 0.8 working days ago.`,
+    recommendation: `Get ${A(2302)} done first: ${A(2303)} can't start until it is, and its pull request ${AZ(87)} is still building.`,
+    reasons: [
+      { lens: 'blocked', label: 'Blocked', line: '1 item, 3 points', items: [[A(2303), `Blocked by ${A(2302)}, and nothing has changed on it for 7.9 days.`, `Finish ${A(2302)} first; ${AZ(87)} needs its build to pass.`]] },
+      { lens: 'stale', label: 'Stale', line: '1 item past 5 days', items: [[A(2304), 'In progress for 15 days, longer than 85% of this dossier\'s finished items took, and carried over from Sprint 41.', 'Ask whether it should be split or moved out of the sprint.']] },
     ],
+    onTrack: '',
+    changed: [],
   },
   'checkout-web': {
     recommendation: `Fix ${GH(51)}'s failing checks first: it has waited on them for 2 working days, with no reviewer asked.`,
-    issues: [
-      `Failing build: ${G(43)}'s latest build failed on e2e-safari, and nothing has changed on it for 6 days.`,
-      `Reviews waiting: ${SDK(12)} and ${GH(52)} each wait 1.3 working days for review from Ada D.`,
-      `No estimate: ${G(45)} has no estimate and hasn't been updated for 7.9 days.`,
+    reasons: [
+      { lens: 'failing', label: 'Failing checks', line: '1 item', items: [[G(43), `Its latest build failed on e2e-safari, and nothing has changed on it for 6 days.`, 'Rerun e2e-safari, then fix or quarantine the failing spec.']] },
+      { lens: 'waiting', label: 'Waiting on review', line: '2 pull requests, 1.3 working days each', items: [[G(42), `${GH(52)} and ${SDK(12)} each wait 1.3 working days for a review.`, 'Ask Ada D. for the two reviews together.']] },
     ],
+    onTrack: '',
+    changed: [],
   },
 };
 
-/** The scripted Analyze answer's paragraphs, top-down: Recommendation, Issues, then Evidence. */
+/** The scripted Analyze answer: the briefing block, then the evidence as plain text. */
 export function analyzeParts(dossier: string): string[] {
   const script = SCRIPTS[dossier] ?? {};
-  const top = ANALYZE_TOP[dossier];
-  const evidence = ANALYZE_PARTS.flatMap((id) => script[id]?.parts ?? []);
+  const top = ANALYZE_BRIEFING[dossier];
+  const evidence = ANALYZE_PARTS.flatMap((part) => script[part]?.parts ?? []);
   if (!top) return evidence;
-  return [`Recommendation: ${top.recommendation}`, ['Issues:', ...top.issues.map((t, i) => `${i + 1}. ${t}`)].join('\n'), 'Evidence:', ...evidence];
+  const briefing = {
+    recommendation: top.recommendation,
+    reasons: top.reasons.map((r) => ({ lens: r.lens, label: r.label, line: r.line, text: r.text ?? null, items: r.items.map(([cited, why, next]) => ({ id: id(cited), why, next })) })),
+    onTrack: top.onTrack,
+    changed: top.changed,
+    leftOut: [],
+  };
+  return [`\`\`\`briefing\n${JSON.stringify(briefing)}\n\`\`\``, ...evidence];
 }
 
 export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {

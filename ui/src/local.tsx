@@ -29,6 +29,8 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   const [synced, setSynced] = useState(() => lastSynced(status));
   // Each dossier's last sync, for its card on the Dossiers view (#342).
   const [byDossier, setByDossier] = useState(() => syncedBy(status));
+  // When the last sync finished, whatever it found (#494): Analyze after a sync runs on each new one.
+  const [finished, setFinished] = useState<string | null>(() => status?.job.finishedAt ?? null);
   const [agent, setAgent] = useState(firstAgent);
   const [settingsClient] = useState(() => (session.agentSettings ? httpAgentSettings(session) : null));
   // A new choice of agent (#251) brings its own starters, so the agent is fetched again and the App remounted.
@@ -62,12 +64,13 @@ function Local({ session, execute, agent: firstAgent, names, status }: { session
   const onChange = useCallback((next: SyncStatus) => {
     setSynced(lastSynced(next));
     setByDossier(syncedBy(next));
+    if (next.job.finishedAt) setFinished(next.job.finishedAt);
     if (next.job.finishedAt && next.job.news?.length) setNews({ id: next.job.finishedAt, byDossier: next.job.news });
     setGeneration((g) => g + 1);
   }, []);
   return (
     <>
-      <App key={generation} syncing={syncing} news={news} serverStatus={serverStatus} execute={execute} agent={agent} config={config} {...(session.sample ? {} : { themeSetting: config })} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byDossier, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} versions={{ ui: session.version, toil: session.toil.version }} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
+      <App key={generation} syncing={syncing} news={news} syncedAt={finished} serverStatus={serverStatus} execute={execute} agent={agent} config={config} {...(session.sample ? {} : { themeSetting: config })} feedback={feedback} modelUsage={modelUsage} assignments={assignments} worklog={worklog} analyses={analyses} {...(session.sync ? { synced: byDossier, onSync: askSync, afterDescribe: () => void sync?.status().then((s) => setByDossier(syncedBy(s)), () => undefined) } : {})} now={synced ?? session.now} preview={session.sample} versions={{ ui: session.version, toil: session.toil.version }} {...(settingsClient ? { agentSettings: { client: settingsClient, onChange: onAgent, ...(names[0] ? { dossier: names[0] } : {}) } } : {})} />
       {sync && <SyncPanel client={sync} onChange={onChange} onStatus={onStatus} request={syncAsked} />}
     </>
   );

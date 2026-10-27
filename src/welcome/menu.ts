@@ -148,10 +148,12 @@ export function finish(state: MenuState, results: StepResult[]): MenuState {
     const [group, verb, ref] = r.args;
     if (group === 'dossiers' && (verb === 'show' || verb === 'check') && ref && r.envelope.ok) dossiers[ref] = { ...dossiers[ref], [verb]: r.envelope.data };
   }
+  const briefs = { ...state.session.briefs };
+  for (const r of results) if (r.args[0] === 'dossiers' && r.args[1] === 'brief' && r.args[2] && r.envelope.ok) briefs[r.args[2]] = r.envelope.data;
   const run = state.pending;
   const rest = { ...state };
   delete rest.pending;
-  const session = { ...state.session, health, ...(Object.keys(dossiers).length ? { dossiers } : {}) };
+  const session = { ...state.session, health, ...(Object.keys(dossiers).length ? { dossiers } : {}), ...(Object.keys(briefs).length ? { briefs } : {}) };
   return { ...rest, session, stack: [...state.stack, { ...frame('result'), ...(run ? { run } : {}), results }] };
 }
 

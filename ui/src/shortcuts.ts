@@ -31,6 +31,7 @@ export const SHORTCUTS = {
   editSave: { keys: ['Enter'], where: "Editing a dossier's name or description", what: 'Save it' },
   editCancel: { keys: ['Escape'], where: "Editing a dossier's name or description", what: 'Leave it as it was' },
   wipeCancel: { keys: ['Escape'], where: 'Asked whether to wipe the cache', what: 'Keep the cache' },
+  drawerClose: { keys: ['Escape'], where: "In an item's drawer", what: 'Close it, and go back to the view behind it' },
 } as const satisfies Record<string, Shortcut>;
 
 export type ShortcutId = keyof typeof SHORTCUTS;

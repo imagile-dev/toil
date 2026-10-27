@@ -50,6 +50,8 @@ export interface TermCaps {
   rows: number;
   /** The theme's colours for this terminal's background (src/welcome/themes/); toil's own when absent. */
   palette?: Palette;
+  /** It draws OSC 8 hyperlinks, so a key can open its ticket; otherwise the URL is printed beside it. */
+  hyperlinks?: boolean;
 }
 
 export interface TermLike {
@@ -81,7 +83,18 @@ export function detectCaps(out: TermLike, env: NodeJS.ProcessEnv, platform: Node
   const rows = out.rows ?? 24;
   const animate =
     out.isTTY === true && modernHost && !noColor && !reducedMotion(env) && !env.CI && env.TERM !== 'dumb' && columns >= 40 && rows >= 12;
-  return { colorDepth, unicode, animate, columns, rows };
+  return { colorDepth, unicode, animate, columns, rows, hyperlinks: out.isTTY === true && drawsHyperlinks(env) };
+}
+
+/**
+ * Terminals known to draw OSC 8 hyperlinks: Windows Terminal, VS Code's,
+ * iTerm2, WezTerm, Ghostty, and VTE's (GNOME Terminal and its kin) from 0.50.
+ * Any other gets the URL printed instead, since an unknown one may print the
+ * escape as text.
+ */
+export function drawsHyperlinks(env: NodeJS.ProcessEnv): boolean {
+  if (env.TERM === 'dumb') return false;
+  return Boolean(env.WT_SESSION) || ['vscode', 'iTerm.app', 'WezTerm', 'ghostty'].includes(env.TERM_PROGRAM ?? '') || Number(env.VTE_VERSION) >= 5000;
 }
 
 /** Anything but the legacy Windows console host, which can't be trusted to redraw in place or draw braille. */
@@ -177,10 +190,19 @@ function to16(r: number, g: number, b: number): number {
   return ((hi + lo) / 2 >= 128 ? 90 : 30) + base;
 }
 
+/**
+ * The escape sequences a line may hold, each taking no width: colours (CSI)
+ * and terminal hyperlinks (OSC 8, opened and closed around a link's text),
+ * kept whole so a cut never leaves one half-written.
+ */
+// eslint-disable-next-line no-control-regex
+const ESCAPES = /(\x1b\[[0-9;?]*[A-Za-z]|\x1b\]8;[^\x1b]*\x1b\\)/;
+// eslint-disable-next-line no-control-regex
+const WRAP_TOKENS = /(\x1b\[[0-9;?]*[A-Za-z]|\x1b\]8;[^\x1b]*\x1b\\| +)/;
+
 /** Printable width, ignoring escape sequences. */
 export function visibleLength(text: string): number {
-  // eslint-disable-next-line no-control-regex
-  return [...text.replace(/\x1b\[[0-9;?]*[A-Za-z]/g, '')].length;
+  return [...text.replace(new RegExp(ESCAPES.source, 'g'), '')].length;
 }
 
 /**
@@ -191,9 +213,8 @@ export function fitLine(text: string, width: number): string {
   if (visibleLength(text) <= width) return text;
   let out = '';
   let shown = 0;
-  // eslint-disable-next-line no-control-regex
-  for (const part of text.split(/(\x1b\[[0-9;?]*[A-Za-z])/)) {
-    if (part.startsWith('\x1b[')) {
+  for (const part of text.split(ESCAPES)) {
+    if (part.startsWith('\x1b')) {
       out += part;
       continue;
     }
@@ -213,13 +234,16 @@ export function fitLine(text: string, width: number): string {
 export function wrapLine(text: string, width: number): string[] {
   if (visibleLength(text) <= width) return [text];
   const indent = /^ */.exec(text)![0];
-  // eslint-disable-next-line no-control-regex
-  const tokens = text.slice(indent.length).split(/(\x1b\[[0-9;?]*[A-Za-z]| +)/).filter(Boolean);
+  const tokens = text.slice(indent.length).split(WRAP_TOKENS).filter(Boolean);
   const lines: string[] = [];
   let line = indent;
   let shown = indent.length;
   let active = '';
   for (const token of tokens) {
+    if (token.startsWith('\x1b]')) {
+      line += token;
+      continue;
+    }
     if (token.startsWith('\x1b[')) {
       line += token;
       active = token === '\x1b[0m' ? '' : token;

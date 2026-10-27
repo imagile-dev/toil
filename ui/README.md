@@ -130,7 +130,7 @@ sync reads the dossier afresh under its new name.
 
 ## The dossier page
 
-A dossier opens on its **Overview**, in a frame all of its pages share:
+A dossier opens on its **Overview**, the briefing, in a frame all of its pages share:
 
 - **The top row:** its name, with the pencil that renames it; **Switch**, for another
   dossier or the Dossiers view; the sprint and its day; its description, cut to one
@@ -148,6 +148,8 @@ A dossier opens on its **Overview**, in a frame all of its pages share:
   in three groups (those that need you, those working, and those gone stale), with the
   finished ones under **Earlier**; then **Renew all stale**, the **Limits**, and this
   dossier's three newest analyses, each linking to it (Assigning work to an agent, below).
+  While an item's drawer is open (`?item=<id>`, The briefing, below), it takes the
+  sidebar's column from 1200px wide, and covers the view from the right below that.
 - **Analyses** lists every Analyze kept for the dossier, newest first: when it was made,
   the adapter and model that wrote it, its one-line recommendation, and what changed
   since the one before (items newly blocked or blocked by something new, blockers
@@ -159,41 +161,61 @@ A dossier opens on its **Overview**, in a frame all of its pages share:
   cache, below), so they outlast a reload and a restart; with `--sample`,
   card-payments starts with two, kept in memory for the run.
 
-### The Overview
+### The briefing
 
-The Overview puts the answer first, then the reasons, then the evidence, and fits a
-1440 by 900 screen without scrolling:
+A dossier opens on its briefing: one column to read top to bottom, each part a step
+further in, and each step one you choose (#494).
 
-1. **The recommendation:** the one thing to do first. When the dossier has a
-   current analysis (made since the data was read, or the same UTC day), it is the
-   latest Analyze's recommendation, with when it was made, who wrote it and a link to
-   it. Without one (none yet, the latest had no Recommendation line, or it is older
-   than the data, which the card links to), it is worked out by code from what the dossier already holds, with no agent
-   call (`ui/src/model/recommend.ts`), and says what it read. The card says which of
-   the two it is. The key issues under it are always the code's.
-2. **Three key issues**, each with its tickets as chips, every one showing its key,
-   title and status, and a link to the tab that has the rest.
-3. **The metrics as sparklines:** burn-up, throughput, cycle time, aging work in
-   progress and pull request wait, each with its figure. Pressing one opens its full
-   chart, with its figures in a table and what it couldn't compute.
-4. **The blockers in brief:** the critical chain as a compact Gantt on the sprint's
-   timeline, with its points and a link to the Dependencies tab, which has every
-   blocker (The Dependencies tab, below).
+1. **The recommendation:** the one thing to do first, as a sentence. Over it, the
+   sprint and its day, and who wrote the briefing: the latest Analyze, when it is
+   current (made since the data was read, or the same UTC day) and answered with a
+   briefing, with who wrote it, when, and a link to it; otherwise toil's briefing by
+   code (`toil dossiers brief`, `src/core/brief/`), with no agent call, which says so,
+   and why when an older Analyze exists.
+2. **Why:** the reasons, one line each, the first open and the rest folded: Failing
+   checks, Blocked, Waiting on review, Sprint at risk, Stale, Over the WIP limit, and
+   Ticket and pull request disagree, in the dossier's order. Each item is under one
+   reason only, as a row with its key, title and assignee. Then **On track**, counted
+   rather than listed.
+3. **One step in:** anything the dossier's focus left out, with why, and anything the
+   code flagged that Analyze didn't mention, so nothing drops off the page unsaid. An
+   id Analyze named that isn't the dossier's is shown in red.
+4. **The numbers**, folded: burn-up, throughput, cycle time, aging work in progress
+   and pull request wait, each opening its full chart.
+5. **Go to:** every other view, as well as its tab.
 
-The key issues come from six checks, each with a fixed weight, so blockers always come
-first and work not yet started comes last. Within a kind, more tickets outrank fewer.
+A row, or any item link on the briefing, opens the item's **drawer** at the page's
+own address plus `?item=<id>`: beside the view at 1200px and wider, over it below
+that. It says why the item is there and who said so, the next step when Analyze
+wrote one, any change Analyze proposed for it, its pull requests and the chain it's
+in, with **Open** for its page and a link to it in its tracker. A Board card's key
+and the items on Pull requests open the same drawer. Escape or **Close** goes back
+to the view behind it.
 
-| Issue | Raised when | Its tab |
-|---|---|---|
-| Blocked | An open item is blocked by another open one. The blocker holding the most, counting chains, is the one to clear first | Dependencies |
-| Builds failing | An open item's latest build failed | Board |
-| Points left | The sprint's pace so far (points done per working day) won't finish the points left in the days left | Board |
-| Pull requests waiting | An open pull request has waited on review 2 working days or more, or its checks have failed for over a day | Pull requests |
-| Aging | An item has been in progress longer than 85% of finished items took, or has had no update for more than 5 days | Board |
-| Not ready | Work not started in the sprint fails the readiness gate (Readiness and the Command Center, below) | Board |
+#### Tuning Analyze
 
-The recommendation is the heaviest issue's action. With none raised, it says to keep
-going, and why.
+Each dossier tunes how Analyze briefs it, under **Settings → Dossiers**, **How
+Analyze briefs** (`#/settings/dossiers/<name>/analyze`): its goal, who it's written
+for, its lenses in order with their thresholds, and what else to watch for or leave
+out, the lenses folded until you open them. **The prompt Analyze will send**, under
+the form, shows it as you type, composed by toil's own code, and **Save** runs
+`toil dossiers analyze set` with only what you changed, the line it runs shown under
+the form. The settings live in the dossier file, so a team that shares the dossier
+shares them; whenever a dossier tunes Analyze, the briefing names the file and
+whether it's your own, and a focus from a dossier you haven't adopted still applies.
+Clearing a setting is a delete, made in a terminal. Toil UI composes the preview with
+the toil code it's built with, and Analyze asks the toil it runs on, so the two match
+when Toil UI and toil are released together.
+
+#### Customize
+
+**Customize**, on the briefing's top line, keeps how you like it in this browser
+only: whether the first reason opens, whether the numbers start open, which amber
+reasons are hidden (a red one, failing checks or blocked, can be folded but never
+hidden, and the On track line counts what is), whether an item opens in its drawer
+or on its own page, and **Run Analyze after each sync**, off unless you turn it on,
+since each run uses your agent's usage. It runs once for each sync that finishes
+while the page is open, never for the one already there when it opened.
 
 ### The Dependencies tab
 
@@ -212,8 +234,8 @@ blocks another or is blocked, on the current sprint's dates, then the dependency
   A dashed arrow is a wait that is over: the blocker is done. A dotted line marks today.
 - **The critical chain** is the chain of open blockers holding the most points (the
   longest chain when nothing on any chain has points). Its rows carry a diamond and
-  its arrows are drawn heavy, and it is named above the chart. The Overview shows it
-  alone, in brief.
+  its arrows are drawn heavy, and it is named above the chart. The briefing's
+  **Blocked** reason names the same items.
 - **What is estimated is said, in the chart's note and on each table cell.** No tracker
   toil reads dates a link, so a block is drawn from when both items existed. An item
   whose history records no move into In progress (GitHub records only open and closed)
@@ -242,8 +264,7 @@ deployments themselves.
 
 ## Insights
 
-The board's cards and its **Needs attention** flag, the flow charts and the Overview's
-key issues mark
+The board's cards and its **Needs attention** flag and the flow charts mark
 each open work item with its insights, weightiest first, each naming the data it
 rests on (`ui/src/model/insights.ts`). One the data can't support isn't raised at
 all, rather than raised on a guess.
@@ -678,15 +699,18 @@ conversation stays, for the rest of the dossier's pages, until you reload.
 - **The wording follows the theme**: the bar's placeholder, the welcome and the status
   words are in each game theme's voice, and Plain stays neutral. The starter questions
   read the same in every theme.
-- **Analyze** asks for a pulse check in one press: what changed since the last Analyze
-  (from the worklog), who is on what, what is blocked or stuck in review, the sprint's
-  health and risks, and anything that looks off, such as a ticket marked done while its
-  pull request is open. Every line cites its items, and follow-up questions continue
-  from it. It answers top-down: a **Recommendation** line first, then the **Issues**
-  behind it (three at most), then the **Evidence**, which stays folded until you open
-  it. An answer that doesn't start with a Recommendation line is shown as it came, and
-  says so. Each whole Analyze is kept in the dossier's **Analyses** tab, and the
-  answer links to it.
+- **Analyze** briefs the dossier in one press (#494). Its question comes from toil,
+  `toil dossiers analyze prompt <dossier> --host toil-ui`: the standard method with
+  the dossier's own lenses and focus (Tuning Analyze, above). It answers with a
+  briefing block, which the server lifts out of the answer and checks, every id in it
+  against what the agent's tools read: a recommendation, then the reasons, each item
+  with why it's there and the next step, then what changed, and anything the
+  dossier's focus left out. The briefing, the item drawer, the chat and the analysis
+  page all lay it out, with the rest of the answer as **Evidence**, folded until you
+  open it. An answer with no briefing block is shown as it came, and says so. With a
+  toil that has no `dossiers analyze prompt`, Analyze asks Toil UI's own question
+  instead, and the answer warns that it did. Each whole Analyze is kept in the
+  dossier's **Analyses** tab, and the answer links to it.
 - **Citations are chips**: in every answer, each `[[id]]` is a chip with the item's
   key, title and status, linking to its page (a pull request to its host). Hovering or
   focusing one shows its type, assignee, estimate, sprint and last update. An id the
@@ -1169,8 +1193,8 @@ npm run verify:ui -- --no-build --starter standup
   that its proposals parsed, that nothing ran (no write in toil's audit log for the
   run), and that `codex mcp list` in Toil UI's Codex home shows only `toil_ui`. Then it
   asks Analyze as the chat's second question, and checks the history of analyses
-  (#395): that Analyze was kept, top-down (a Recommendation line, three issues at
-  most); then it changes the dossier's WIP limit in the scratch home (`toil dossiers
+  (#395): that Analyze was kept with its briefing (a recommendation, and its first
+  three reasons as the history's issues); then it changes the dossier's WIP limit in the scratch home (`toil dossiers
   wip-limit --replace`), asks Analyze again, checks the history lists both, newest
   first, the second compared with the first, and puts the Overview, the Analyses tab
   and the second analysis opened through the layout check, shot. It needs the Codex CLI signed in and the

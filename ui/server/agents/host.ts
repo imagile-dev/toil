@@ -35,7 +35,7 @@ import { claudeRuntime } from './claude.ts';
 import { AgentError } from './cli.ts';
 import { codexRuntime } from './codex.ts';
 import { copilotRuntime } from './copilot.ts';
-import { promptFor, STARTERS, systemPrompt, withHistory } from './prompts.ts';
+import { analyzeQuestion, promptFor, STARTERS, systemPrompt, withHistory } from './prompts.ts';
 import { staleness, type ChatSession, type Fingerprint } from '../../src/fingerprint.ts';
 import { sha256, type Fingerprints } from '../fingerprint.ts';
 import { installedVersion, installPlan, runInstall, testedVersion, type InstallPlan, type InstallRun } from './install.ts';
@@ -293,7 +293,8 @@ export class AgentHost implements Agent {
       const data = this.o.data(dossier);
       if (!data) throw new AgentError(`Toil UI hasn't synced ${dossier} yet, so the agent has nothing to read.`, 'Press Sync now in the Sync panel, then ask again.');
       const ledger = new Ledger();
-      const { label, text: question } = promptFor(dossier, prompt);
+      const asking = prompt === 'analyze' ? await analyzeQuestion(this.o.execute, dossier) : { ...promptFor(dossier, prompt), warning: null };
+      const { label, text: question } = asking;
       // The chat so far goes before the question, so a follow-up or a switched adapter continues from it (#344).
       const { text, carried } = withHistory(question, extra.history);
       const by = this.byOf(runtime);
@@ -328,7 +329,9 @@ export class AgentHost implements Agent {
       }).then(
         async ({ text: final, usage }) => {
           const session = held ? await this.checked(held).catch(() => null) : null;
-          out.push({ ...finish(final, { dossier, prompt: label, by, ledger, writes: this.writes }), ...who, usage, ...(session ? { session } : {}) });
+          const done = finish(final, { dossier, prompt: label, by, ledger, writes: this.writes });
+          if (asking.warning) done.warnings = [...(done.warnings ?? []), asking.warning];
+          out.push({ ...done, ...who, usage, ...(session ? { session } : {}) });
           out.end();
         },
         (e: unknown) => out.end(e),
