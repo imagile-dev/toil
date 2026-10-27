@@ -310,12 +310,12 @@ describe('search', () => {
 
   describe('--changelog', () => {
     const histories = (n: number) => Array.from({ length: n }, (_, i) => ({ id: String(i + 1), created: '2026-10-01T09:30:00.000+0000', items: [] }));
-    const withChangelog = (changelogs: Array<{ total: number; sent: number }>): Route => ({
+    const withChangelog = (changelogs: Array<{ total: number; sent: number; maxResults?: number }>): Route => ({
       method: 'POST',
       url: `${JIRA}/rest/api/2/search`,
       respond: (req) => {
         const body = JSON.parse(req.body!) as { expand?: string[] };
-        const issues = changelogs.map((c, i) => ({ id: String(i + 1), key: `P-${i + 1}`, fields: {}, ...(body.expand?.includes('changelog') ? { changelog: { startAt: 0, maxResults: 100, total: c.total, histories: histories(c.sent) } } : {}) }));
+        const issues = changelogs.map((c, i) => ({ id: String(i + 1), key: `P-${i + 1}`, fields: {}, ...(body.expand?.includes('changelog') ? { changelog: { startAt: 0, maxResults: c.maxResults ?? 100, total: c.total, histories: histories(c.sent) } } : {}) }));
         return { json: { issues, total: issues.length, startAt: 0, maxResults: 100 } };
       },
     });
@@ -340,6 +340,16 @@ describe('search', () => {
       // The data is what Jira sent: nothing is topped up or trimmed.
       const issues = (envelope.data as { issues: Array<{ changelog: { histories: unknown[] } }> }).issues;
       expect(issues.map((i) => i.changelog.histories.length)).toEqual([100, 3, 100]);
+    });
+
+    it('warns when the entries fill the page, or when total or maxResults is missing', async () => {
+      const full = await run(search, { jql: 'project = P', changelog: true }, [withChangelog([{ total: 100, sent: 100, maxResults: 100 }, { total: 3, sent: 3 }])]);
+      expect(full.envelope.meta.warnings).toEqual([{ code: 'JIRA_CHANGELOG_TRUNCATED', message: expect.stringMatching(/1 of 2 issues.*may be cut short.*jira issue history <key>/) }]);
+      const route: Route = { method: 'POST', url: `${JIRA}/rest/api/2/search`, respond: () => ({ json: { issues: [
+        { id: '1', key: 'P-1', fields: {}, changelog: { startAt: 0, maxResults: 100, histories: histories(2) } },
+      ], total: 1, startAt: 0, maxResults: 100 } }) };
+      const missing = await run(search, { jql: 'project = P', changelog: true }, [route]);
+      expect(missing.envelope.meta.warnings?.[0]?.code).toBe('JIRA_CHANGELOG_TRUNCATED');
     });
 
     it('sends no expand without the flag', async () => {

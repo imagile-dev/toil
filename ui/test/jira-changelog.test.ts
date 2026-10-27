@@ -79,6 +79,26 @@ describe('the inline changelog, split back into what mapOwi has always read', ()
     expect((search.data as { issues: unknown[] }).issues).toHaveLength(data.issues.length);
   });
 
+  // Cloud's documented shape: at most 20 entries on the page, newest first, and total is
+  // the number on the page, so a history cut at 20 says total 20 (RFC-61, PageOfChangelogs).
+  it('reads an issue with issue history when its changelog fills the page, though total equals the entries', async () => {
+    const base = wholeInline(await searchEnvelope());
+    const data = base.data as { issues: Rec[] };
+    const [a, b, c, ...rest] = data.issues;
+    const entry = (n: number) => ({ id: String(n), created: new Date(Date.UTC(2026, 9, 1, 0, 0, 0) + n * 60_000).toISOString(), items: [] });
+    const twenty = Array.from({ length: 20 }, (_, i) => entry(20 - i));
+    const full = { ...a!, changelog: { startAt: 0, maxResults: 20, total: 20, histories: twenty } };
+    const five = { ...b!, changelog: { startAt: 0, maxResults: 20, total: 5, histories: twenty.slice(0, 5) } };
+    // Data Center, total missing: nothing says the history is whole.
+    const noTotal = { ...c!, changelog: { startAt: 0, maxResults: 100, histories: twenty.slice(0, 3) } };
+    const { histories, incomplete } = splitChangelogs({ ...base, data: { ...data, issues: [full, five, noTotal, ...rest] } } as Envelope, 'jira issue history');
+    expect(incomplete).toEqual([String(a!.key), String(c!.key)]);
+    expect(histories.map((h) => h.key)).toEqual([String(b!.key), ...rest.map((i) => String(i.key))]);
+    // 5 of 20 newest first: turned round, oldest first.
+    const ids = (histories[0]!.history.data as Rec[]).map((h) => h.id);
+    expect(ids).toEqual(['16', '17', '18', '19', '20']);
+  });
+
   it('passes a failed search through untouched', () => {
     const failed = { ok: false, data: null, error: { code: 'HTTP', message: 'down', fix: 'later' }, meta: { command: 'jira issue search' } } as unknown as Envelope;
     expect(splitChangelogs(failed, 'jira issue history')).toEqual({ search: failed, histories: [], incomplete: [] });

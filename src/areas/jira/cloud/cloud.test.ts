@@ -287,12 +287,12 @@ describe('search', () => {
 
   describe('--changelog', () => {
     const histories = (n: number) => Array.from({ length: n }, (_, i) => ({ id: String(i + 1), created: '2026-10-01T09:30:00.000+0000', items: [] }));
-    const withChangelog = (changelogs: Array<{ total: number; sent: number }>): Route => ({
+    const withChangelog = (changelogs: Array<{ total: number; sent: number; maxResults?: number }>): Route => ({
       method: 'POST',
       path: '/rest/api/3/search/jql',
       respond: (req) => {
         const sent = body({ body: req.body });
-        const issues = changelogs.map((c, i) => ({ ...issue(`PROJ-${i + 1}`), ...(sent.expand === 'changelog' ? { changelog: { startAt: 0, maxResults: 100, total: c.total, histories: histories(c.sent) } } : {}) }));
+        const issues = changelogs.map((c, i) => ({ ...issue(`PROJ-${i + 1}`), ...(sent.expand === 'changelog' ? { changelog: { startAt: 0, maxResults: c.maxResults ?? 100, total: c.total, histories: histories(c.sent) } } : {}) }));
         return { json: { issues, isLast: true } };
       },
     });
@@ -315,6 +315,29 @@ describe('search', () => {
       expect(envelope.meta.warnings).toEqual([{ code: 'JIRA_CLOUD_CHANGELOG_TRUNCATED', message: expect.stringMatching(/2 of 3 issues.*jira issue history <key>/) }]);
       const issues = (envelope.data as { issues: Array<{ changelog: { histories: unknown[] } }> }).issues;
       expect(issues.map((i) => i.changelog.histories.length)).toEqual([100, 3, 100]);
+    });
+
+    // The documented Cloud shape: the page holds at most 20 entries, newest first, and
+    // `total` is the number on the page ("the number of results on the page"), so a
+    // history cut at 20 reports total 20 and only the full page gives it away.
+    it('warns when the page is full: total equals the entries sent, and both equal maxResults', async () => {
+      const { envelope } = await run(search, { jql: 'project = PROJ', changelog: true }, [withChangelog([{ total: 20, sent: 20, maxResults: 20 }, { total: 5, sent: 5, maxResults: 20 }])]);
+      expect(envelope.meta.warnings).toEqual([{ code: 'JIRA_CLOUD_CHANGELOG_TRUNCATED', message: expect.stringMatching(/1 of 2 issues.*may be cut short.*jira issue history <key>/) }]);
+    });
+
+    it('does not warn for 5 entries on a page of 20 with total 5', async () => {
+      const { envelope } = await run(search, { jql: 'project = PROJ', changelog: true }, [withChangelog([{ total: 5, sent: 5, maxResults: 20 }])]);
+      expect(envelope.meta.warnings).toBeUndefined();
+    });
+
+    it('warns when total or maxResults is missing, since nothing then says the history is whole', async () => {
+      const route: Route = { method: 'POST', path: '/rest/api/3/search/jql', respond: () => ({ json: { issues: [
+        { ...issue('PROJ-1'), changelog: { histories: histories(2) } },
+        { ...issue('PROJ-2'), changelog: { maxResults: 20, histories: histories(2) } },
+        { ...issue('PROJ-3'), changelog: { total: 2, histories: histories(2) } },
+      ], isLast: true } }) };
+      const { envelope } = await run(search, { jql: 'project = PROJ', changelog: true }, [route]);
+      expect(envelope.meta.warnings).toEqual([{ code: 'JIRA_CLOUD_CHANGELOG_TRUNCATED', message: expect.stringMatching(/3 of 3 issues.*may be cut short/) }]);
     });
 
     it('sends no expand without the flag', async () => {
