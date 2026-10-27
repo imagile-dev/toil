@@ -13,10 +13,12 @@
 import { useMemo, type ReactNode } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { Sparkline } from '../components/charts.tsx';
-import { briefingSource, PeekLinks, useBriefing } from '../components/briefing.tsx';
+import { briefingSource, Customize, PeekLinks, useBriefing } from '../components/briefing.tsx';
+import { useBriefingPrefs } from '../briefing-prefs.ts';
+import { Help } from '../components/help.tsx';
 import { Cited, PrLink } from '../components/items.tsx';
 import { useData, useDerived } from '../data.ts';
-import { analysesHref, analysisHref, boardHref, dependenciesHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, worklogHref } from '../format.ts';
+import { analysesHref, analysisHref, boardHref, dependenciesHref, itemHref, peekHref, peopleHref, personText, prsHref, shortKey, sourceLabel, worklogHref } from '../format.ts';
 import { Empty, TrackerAction } from '../components/empty.tsx';
 import { burnup } from '../model/burnup.ts';
 import { aging, cycleTimes, throughput } from '../model/flow.ts';
@@ -31,6 +33,9 @@ export function Overview() {
   const { dossier } = useData();
   const { health: h } = useDerived();
   const view = useBriefing();
+  const prefs = useBriefingPrefs();
+  const shown = view.reasons.filter((r) => !prefs.hidden.includes(r.lens));
+  const hidden = view.reasons.length - shown.length;
   const here = typeof window === 'undefined' ? '#/' : window.location.hash;
   const focus = dossier.analyze && (dossier.analyze.goal || dossier.analyze.watchFor || dossier.analyze.leaveOut) ? dossier.origin : null;
   return (
@@ -53,13 +58,14 @@ export function Overview() {
             </>
           )}
         </span>
+        <Customize lenses={view.reasons.map((r) => ({ lens: r.lens, label: r.label }))} />
         {focus && !focus.adopted && (
           <span className="source" data-focus-from="">
             Focus from {focus.file}, a dossier you haven't adopted
           </span>
         )}
       </p>
-      <PeekLinks>
+      <Links page={prefs.opensIn === 'page'}>
         <h2 className="sr-only">Recommendation</h2>
         <p className="briefing__head">{view.recommendation ? <Cited text={view.recommendation} /> : 'Nothing needs anyone right now.'}</p>
         {view.unknown.length > 0 && (
@@ -69,17 +75,18 @@ export function Overview() {
         )}
         <section aria-labelledby="why-title">
           <h2 id="why-title" className="briefing__label">
-            Why
+            Why <Help topic="briefing" />
           </h2>
           <div className="reasons">
-            {view.reasons.map((r, i) => (
-              <Reason key={`${r.lens}-${i}`} reason={r} open={i === 0} here={here} />
+            {shown.map((r, i) => (
+              <Reason key={`${r.lens}-${i}`} reason={r} open={i === 0 && prefs.firstOpen} here={here} />
             ))}
             <div className="reason reason--quiet">
               <p className="reason__line">
                 <span className="reason__dot reason__dot--ok" aria-hidden="true" />
                 <span className="reason__title">
                   <b>On track.</b> <span>{view.onTrack}</span>
+                  {hidden > 0 && <span> {hidden === 1 ? 'One reason is' : `${hidden} reasons are`} hidden under Customize.</span>}
                 </span>
               </p>
             </div>
@@ -123,8 +130,8 @@ export function Overview() {
             </ul>
           </section>
         )}
-      </PeekLinks>
-      <details className="briefing__numbers">
+      </Links>
+      <details className="briefing__numbers" open={prefs.numbersOpen}>
         <summary>The numbers</summary>
         <MetricStrip />
       </details>
@@ -139,6 +146,11 @@ export function Overview() {
       </nav>
     </section>
   );
+}
+
+/** Item links on the briefing: to the drawer, unless the person chose the item's page under Customize. */
+function Links({ page, children }: { page: boolean; children: ReactNode }) {
+  return page ? <>{children}</> : <PeekLinks>{children}</PeekLinks>;
 }
 
 /** One reason: a line, folded; open, its items as rows that open the drawer, or its text. */
@@ -168,12 +180,13 @@ function Reason({ reason: r, open, here }: { reason: BriefingReason; open: boole
 
 /** One item as a row: key, title and who, opening its drawer; a note under it when there's one to give. */
 function Row({ id, here, note }: { id: string; here: string; note?: string }) {
-  const { byId } = useData();
+  const { byId, dossier } = useData();
+  const { opensIn } = useBriefingPrefs();
   const item = byId.get(id);
   const current = here.includes(`?item=${encodeURIComponent(id)}`);
   return (
     <>
-      <a className="reason-row" href={peekHref(here, id)} aria-current={current ? 'true' : undefined} data-row={id}>
+      <a className="reason-row" href={opensIn === 'page' ? itemHref(dossier.name, id) : peekHref(here, id)} aria-current={current ? 'true' : undefined} data-row={id}>
         <span className="reason-row__key">{item ? `${sourceLabel(item.source.area)} ${shortKey(item)}` : id}</span>
         <span className="reason-row__title">{item?.title ?? 'Not in this dossier'}</span>
         <span className="reason-row__who">{item ? personText(item.assignee) : ''}</span>

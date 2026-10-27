@@ -1,6 +1,7 @@
 import type { View } from '../view.js';
 import { agentAreas, agentsView, agentView } from './agents.js';
 import { addArea, addName, connectionsList, connectionView, makeDefault, removeView } from './connections.js';
+import { briefView } from './briefing.js';
 import * as dossiers from './dossiers.js';
 import { healthView, helpView, learnView } from './health.js';
 import { homeView, type HomeEntry } from './home.js';
@@ -55,6 +56,7 @@ export const VIEWS: Record<string, View> = {
   'dossier-folder': dossiers.folderView,
   'dossier-list': dossiers.listView,
   dossier: dossiers.dossierView,
+  'dossier-brief': briefView,
   'dossier-review': dossiers.reviewView,
   'dossier-service': dossiers.serviceView,
   'dossier-edit': dossiers.editView,

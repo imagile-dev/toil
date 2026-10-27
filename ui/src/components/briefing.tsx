@@ -12,10 +12,12 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { analyzeSettings } from '../../../src/core/brief/settings.ts';
 import { useData } from '../data.ts';
-import { dateTime, itemHref, peekHref, personText, shortKey, sourceLabel, STATUS_CATEGORY_LABEL, estimateText, unpeekHref } from '../format.ts';
+import { dateTime, dossierEditHref, itemHref, peekHref, personText, shortKey, sourceLabel, STATUS_CATEGORY_LABEL, estimateText, unpeekHref } from '../format.ts';
 import { briefingOf, itemBriefing, type BriefingView } from '../model/briefing.ts';
 import { matches } from '../shortcuts.ts';
+import { ANALYZE } from '../agent.ts';
 import { useChatScope } from './ask.tsx';
+import { setPrefs, useBriefingPrefs } from '../briefing-prefs.ts';
 import { whoText } from './analysis.tsx';
 import { Cited, ItemHrefContext, PrLink } from './items.tsx';
 import { ProposalCard } from './proposal.tsx';
@@ -170,5 +172,68 @@ export function ItemDrawer({ id }: { id: string }) {
         Read {item.updated ? `as of ${dateTime(item.updated)}` : ''} with toil {item.source.command}, connection {item.source.connection}.
       </p>
     </aside>
+  );
+}
+
+/**
+ * Analyze after a sync (#494), when the person turned it on under Customize:
+ * once per finished sync, never on the one already there when the page
+ * opened, and never while the chat is busy. It uses the agent's usage, so
+ * it's off unless asked for.
+ */
+export function AnalyzeAfterSync({ syncedAt }: { syncedAt: string | null }) {
+  const prefs = useBriefingPrefs();
+  const chat = useChatScope();
+  const seen = useRef(syncedAt);
+  useEffect(() => {
+    if (!syncedAt || syncedAt === seen.current) return;
+    seen.current = syncedAt;
+    if (prefs.afterSync && chat && !chat.busy) void chat.ask(ANALYZE, 'Analyze');
+  }, [syncedAt, prefs.afterSync, chat]);
+  return null;
+}
+
+/** Customize (#494): how this person likes the briefing laid out, in this browser only. */
+export function Customize({ lenses }: { lenses: Array<{ lens: string; label: string }> }) {
+  const prefs = useBriefingPrefs();
+  const { dossier } = useData();
+  const hide = (lens: string, shown: boolean) => setPrefs({ hidden: shown ? prefs.hidden.filter((h) => h !== lens) : [...new Set([...prefs.hidden, lens])] });
+  return (
+    <details className="customize">
+      <summary className="btn btn--small">Customize</summary>
+      <div className="customize__panel">
+        <p className="source">Just for you, in this browser. What Analyze looks for is the dossier's: <a href={dossierEditHref(dossier.name, 'analyze')}>How Analyze briefs {dossier.name}</a>.</p>
+        <fieldset>
+          <legend className="briefing__label">Show</legend>
+          <label className="customize__check">
+            <input type="checkbox" checked={prefs.firstOpen} onChange={(e) => setPrefs({ firstOpen: e.target.checked })} /> Open the first reason
+          </label>
+          <label className="customize__check">
+            <input type="checkbox" checked={prefs.numbersOpen} onChange={(e) => setPrefs({ numbersOpen: e.target.checked })} /> The numbers, open
+          </label>
+          {lenses.map((l) => (
+            <label key={l.lens} className="customize__check">
+              <input type="checkbox" checked={!prefs.hidden.includes(l.lens)} onChange={(e) => hide(l.lens, e.target.checked)} /> {l.label}
+            </label>
+          ))}
+        </fieldset>
+        <fieldset>
+          <legend className="briefing__label">An item opens</legend>
+          <label className="customize__check">
+            <input type="radio" name="opens-in" checked={prefs.opensIn === 'drawer'} onChange={() => setPrefs({ opensIn: 'drawer' })} /> In its drawer, beside the briefing
+          </label>
+          <label className="customize__check">
+            <input type="radio" name="opens-in" checked={prefs.opensIn === 'page'} onChange={() => setPrefs({ opensIn: 'page' })} /> On its own page
+          </label>
+        </fieldset>
+        <fieldset>
+          <legend className="briefing__label">Analyze</legend>
+          <label className="customize__check">
+            <input type="checkbox" checked={prefs.afterSync} onChange={(e) => setPrefs({ afterSync: e.target.checked })} /> Run Analyze after each sync
+          </label>
+          <p className="source">Uses your agent's usage. Off, the briefing says when it is older than the data.</p>
+        </fieldset>
+      </div>
+    </details>
   );
 }

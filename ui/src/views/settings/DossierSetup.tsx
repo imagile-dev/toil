@@ -17,6 +17,9 @@ import { RepoSetup } from './RepoSetup.tsx';
 import { Help, useLandOn } from '../../components/help.tsx';
 import { AreaField, ChangeForm, CheckField, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
 import { Loader } from '../../moments/Moments.tsx';
+import { isLensId, lensDef, LENSES, type LensId } from '../../../../src/core/brief/brief.ts';
+import { analyzePrompt, AUDIENCES, type Audience, type DossierAnalyze, type FocusSource } from '../../../../src/core/brief/prompt.ts';
+import { analyzeSettings } from '../../../../src/core/brief/settings.ts';
 
 interface ListedDossier {
   name: string;
@@ -41,7 +44,7 @@ const fromEnvelope = <T,>(e: Envelope): Loaded<T> => (e.ok ? { ok: true, value: 
 export type DossierTarget = { dossier: string; section: string | null };
 
 /** The form each section's edit link lands on, by its heading's id. */
-const SECTION_FORM: Record<string, string> = { sources: 'dossier-form-sources', repos: 'dossier-form-repos', fields: 'dossier-form-fields', people: 'dossier-form-people', wip: 'dossier-form-wip' };
+const SECTION_FORM: Record<string, string> = { sources: 'dossier-form-sources', repos: 'dossier-form-repos', fields: 'dossier-form-fields', people: 'dossier-form-people', wip: 'dossier-form-wip', analyze: 'dossier-form-analyze' };
 
 /** `at`: a dossier's section to land on (#346); `toForm`: Create a dossier, which the first-run checklist opens (#416). */
 export function DossierSetup({ config, at, toForm = false }: { config: ConfigApi; at?: DossierTarget; toForm?: boolean }) {
@@ -126,6 +129,7 @@ export function DossierSetup({ config, at, toForm = false }: { config: ConfigApi
             <FieldForm config={config} dossier={target} areas={areas} />
             <PersonForm config={config} dossier={target} areas={areas} />
             <WipLimitForm config={config} dossier={target} />
+            <AnalyzeForm config={config} dossier={target} />
           </>
         )}
       </Card>
@@ -419,6 +423,106 @@ function WipLimitForm({ config, dossier }: { config: ConfigApi; dossier: string 
     >
       <TextField label="Limit" value={limit} onChange={setLimit} required hint="A whole number, e.g. 3." />
       <CheckField label="Replace a limit already set" checked={replace} onChange={setReplace} />
+    </ChangeForm>
+  );
+}
+
+/**
+ * How Analyze briefs a dossier (#494): its goal, reader, lenses and focus,
+ * saved with `toil dossiers analyze set`, and beside it the prompt as Analyze
+ * will send it, composed by toil's own code as you type. Clearing a setting is
+ * a delete, made in a terminal.
+ */
+function AnalyzeForm({ config, dossier }: { config: ConfigApi; dossier: string }) {
+  const [shown, setShown] = useState<{ analyze: DossierAnalyze | null; wipLimit: number | null; from: FocusSource } | null>(null);
+  const [goal, setGoal] = useState('');
+  const [audience, setAudience] = useState<Audience>('lead');
+  const [order, setOrder] = useState('');
+  const [off, setOff] = useState<Set<LensId>>(new Set());
+  const [thresholds, setThresholds] = useState<Record<string, string>>({});
+  const [watchFor, setWatchFor] = useState('');
+  const [leaveOut, setLeaveOut] = useState('');
+  const [replace, setReplace] = useState(false);
+  useEffect(() => {
+    let live = true;
+    config.run('dossiers show', { dossier }).then(
+      (e) => {
+        if (!live || !e.ok) return;
+        const d = e.data as { source: string; file: string; adopted: boolean; dossier: { analyze?: DossierAnalyze; wipLimit?: number } };
+        const a = d.dossier.analyze ?? null;
+        const s = analyzeSettings(a ?? undefined, d.dossier.wipLimit ?? null);
+        setShown({ analyze: a, wipLimit: d.dossier.wipLimit ?? null, from: { dossier, file: d.file, source: d.source, adopted: d.adopted, repo: null } });
+        setGoal(a?.goal ?? '');
+        setAudience(s.audience);
+        setOrder(s.settings.lenses.map((l) => l.id).join(', '));
+        setOff(new Set(s.settings.lenses.filter((l) => !l.on).map((l) => l.id)));
+        setThresholds(Object.fromEntries(s.settings.lenses.filter((l) => l.threshold !== null).map((l) => [l.id, String(l.threshold)])));
+        setWatchFor(a?.watchFor ?? '');
+        setLeaveOut(a?.leaveOut ?? '');
+      },
+      () => {},
+    );
+    return () => {
+      live = false;
+    };
+  }, [config, dossier]);
+  const ids = order.split(',').map((s) => s.trim()).filter(isLensId);
+  const draft: DossierAnalyze = {
+    ...(goal.trim() ? { goal: goal.trim() } : {}),
+    audience,
+    lenses: ids.map((id) => ({ id, on: !off.has(id), ...(lensDef(id).unit && Number(thresholds[id]) > 0 ? { threshold: Number(thresholds[id]) } : {}) })),
+    ...(watchFor.trim() ? { watchFor: watchFor.trim() } : {}),
+    ...(leaveOut.trim() ? { leaveOut: leaveOut.trim() } : {}),
+  };
+  const preview = shown ? analyzePrompt(analyzeSettings(draft, shown.wipLimit), shown.from, 'toil-ui') : null;
+  const input = {
+    dossier,
+    ...(draft.goal ? { goal: draft.goal } : {}),
+    audience,
+    order: ids.join(','),
+    on: ids.filter((id) => !off.has(id)),
+    off: ids.filter((id) => off.has(id)),
+    threshold: ids.filter((id) => lensDef(id).unit && thresholds[id]).map((id) => `${id}=${thresholds[id]}`),
+    ...(draft.watchFor ? { watchFor: draft.watchFor } : {}),
+    ...(draft.leaveOut ? { leaveOut: draft.leaveOut } : {}),
+    ...(replace ? { replace } : {}),
+  };
+  return (
+    <ChangeForm
+      titleId="dossier-form-analyze"
+      title={`How Analyze briefs ${dossier}`}
+      explain={
+        <>
+          What Analyze looks for, in what order, and what it's for. Anything you leave as it is follows the standard; the rules and the shape of the answer stay toil's. Clearing a setting is a delete, made in a terminal with <code>toil dossiers analyze set {dossier} --clear goal</code> or <code>--reset</code>. <Help topic="analyze-settings" />
+        </>
+      }
+      runs={commandLine('dossiers analyze set', [dossier, ...(draft.goal ? ['--goal', draft.goal] : []), '--audience', audience, '--order', ids.join(','), ...(replace ? ['--replace'] : [])])}
+      submit="Save Analyze settings"
+      disabled={config.disabled}
+      onSubmit={async () => outcomeOf(await config.run('dossiers analyze set', input), `${dossier}'s Analyze settings are saved.`)}
+    >
+      <TextField label="Goal of this work" value={goal} onChange={setGoal} hint="One line. Analyze weighs everything against it." />
+      <SelectField label="Written for" value={audience} onChange={(v) => setAudience(AUDIENCES.includes(v as Audience) ? (v as Audience) : 'lead')} options={[{ value: 'lead', label: 'A team lead' }, { value: 'engineer', label: 'An engineer on the team' }, { value: 'stakeholder', label: 'Someone outside the team' }]} />
+      <TextField label="Lenses, most important first" value={order} onChange={setOrder} hint={`Lens ids separated by commas: ${LENSES.map((l) => l.id).join(', ')}.`} />
+      {ids.map((id) => {
+        const def = lensDef(id);
+        return (
+          <Cluster key={id}>
+            <CheckField label={`${def.label}: ${def.test(Number(thresholds[id]) || def.threshold, shown?.wipLimit ?? null)}`} checked={!off.has(id)} onChange={(on) => setOff((s) => { const n = new Set(s); if (on) n.delete(id); else n.add(id); return n; })} />
+            {def.unit && <TextField label={`${def.label} after, in ${def.unit}`} value={thresholds[id] ?? ''} onChange={(v) => setThresholds((t) => ({ ...t, [id]: v }))} />}
+          </Cluster>
+        );
+      })}
+      <AreaField label="Also watch for" value={watchFor} onChange={setWatchFor} rows={2} hint="One line, up to 1000 characters." />
+      <AreaField label="Leave out" value={leaveOut} onChange={setLeaveOut} rows={2} hint="One line. The briefing lists what this hid." />
+      <CheckField label="Replace settings already there" checked={replace} onChange={setReplace} />
+      {preview && (
+        <details className="analyze-preview">
+          <summary>The prompt Analyze will send</summary>
+          <pre className="analyze-preview__text" tabIndex={0} aria-label="The prompt Analyze will send">{preview}</pre>
+          <p className="note">After toil's rules and before your own instructions and voice from Settings → Agent.</p>
+        </details>
+      )}
     </ChangeForm>
   );
 }

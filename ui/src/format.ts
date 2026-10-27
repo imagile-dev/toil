@@ -66,7 +66,7 @@ export const standupHref = (dossier: string, range?: { from: string; to: string 
  * navigates; the settings page it opens lands on that connection, dossier
  * section or cap.
  */
-export type DossierSection = 'sources' | 'repos' | 'fields' | 'people' | 'wip';
+export type DossierSection = 'sources' | 'repos' | 'fields' | 'people' | 'wip' | 'analyze';
 export const connectionEditHref = (name: string) => `#/settings/connections/${encodeURIComponent(name)}`;
 export const dossierEditHref = (dossier: string, section: DossierSection) => `#/settings/dossiers/${encodeURIComponent(dossier)}/${section}`;
 export const AGENT_SETTINGS_HREF = '#/settings/agent';

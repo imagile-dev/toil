@@ -21,6 +21,7 @@ import { THEMES, themeNamed, tokenCss } from './themes.ts';
 import { useThemeChoice } from './theme-choice.ts';
 import type { Call, Execute } from './toil.ts';
 import { ChatScope } from './components/ask.tsx';
+import { AnalyzeAfterSync } from './components/briefing.tsx';
 import { ServerStale } from './components/stale.tsx';
 import { Notices, NotifyProvider, remembering, useMine } from './components/notify.tsx';
 import type { ServerStatus } from './fingerprint.ts';
@@ -529,6 +530,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
       <DataContext value={data}>
         {/* The Ask bar (#343), on every dossier page; its chat is keyed by dossier, so a conversation lasts across that dossier's views. */}
         <ChatScope key={route.dossier}>
+          <AnalyzeAfterSync syncedAt={news?.id ?? null} />
           <DossierShell tab={tabOf(route)} peek={route.peek ?? null} heading={route.view === 'dashboard'} dossiers={list?.ok ? list.value.dossiers.map((d) => d.name) : null} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
             {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} {...(route.analysis ? { analysis: route.analysis } : {})} />}
           </DossierShell>

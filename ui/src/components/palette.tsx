@@ -20,7 +20,7 @@ import type { AdapterList, Agent } from '../agent.ts';
 import type { AnalysesApi } from '../analyses.ts';
 import type { Route } from '../App.tsx';
 import { sendCommand, type UiCommand } from '../commands.ts';
-import { analysisHref, dateTime, dossierHref, itemHref, shortKey, STATUS_CATEGORY_LABEL } from '../format.ts';
+import { analysisHref, dateTime, dossierHref, itemHref, shortKey, STATUS_CATEGORY_LABEL, dossierEditHref } from '../format.ts';
 import { fuzzyRank } from '../fuzzy.ts';
 import type { DossierData } from '../load.ts';
 import type { AnalysisSummary } from '../model/analysis.ts';
@@ -118,6 +118,8 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
   for (const d of x.dossiers) out.push({ id: `dossier:${d}`, group: 'dossiers', label: d, go: { href: dossierHref(d) } });
   for (const d of x.dossiers) {
     for (const t of DOSSIER_TABS) out.push({ id: `tab:${d}:${t.id}`, group: 'tabs', label: t.label, detail: d, text: `${t.label} ${d}`, go: { href: t.href(d) } });
+    // How Analyze briefs it (#494): its page in Settings, one more way in.
+    out.push({ id: `settings:analyze:${d}`, group: 'settings', label: 'How Analyze briefs it', detail: d, text: `analyze settings ${d}`, go: { href: dossierEditHref(d, 'analyze') } });
   }
   for (const d of x.dossiers) {
     const l = x.loaded[d];

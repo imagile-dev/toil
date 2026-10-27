@@ -50,6 +50,8 @@ export interface TermCaps {
   rows: number;
   /** The theme's colours for this terminal's background (src/welcome/themes/); toil's own when absent. */
   palette?: Palette;
+  /** It draws OSC 8 hyperlinks, so a key can open its ticket; otherwise the URL is printed beside it. */
+  hyperlinks?: boolean;
 }
 
 export interface TermLike {
@@ -81,7 +83,18 @@ export function detectCaps(out: TermLike, env: NodeJS.ProcessEnv, platform: Node
   const rows = out.rows ?? 24;
   const animate =
     out.isTTY === true && modernHost && !noColor && !reducedMotion(env) && !env.CI && env.TERM !== 'dumb' && columns >= 40 && rows >= 12;
-  return { colorDepth, unicode, animate, columns, rows };
+  return { colorDepth, unicode, animate, columns, rows, hyperlinks: out.isTTY === true && drawsHyperlinks(env) };
+}
+
+/**
+ * Terminals known to draw OSC 8 hyperlinks: Windows Terminal, VS Code's,
+ * iTerm2, WezTerm, Ghostty, and VTE's (GNOME Terminal and its kin) from 0.50.
+ * Any other gets the URL printed instead, since an unknown one may print the
+ * escape as text.
+ */
+export function drawsHyperlinks(env: NodeJS.ProcessEnv): boolean {
+  if (env.TERM === 'dumb') return false;
+  return Boolean(env.WT_SESSION) || ['vscode', 'iTerm.app', 'WezTerm', 'ghostty'].includes(env.TERM_PROGRAM ?? '') || Number(env.VTE_VERSION) >= 5000;
 }
 
 /** Anything but the legacy Windows console host, which can't be trusted to redraw in place or draw braille. */

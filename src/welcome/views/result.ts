@@ -10,6 +10,11 @@ import { skillsOutcome } from './skills.js';
  * screen is the envelope, read aloud.
  */
 
+/** A step's arguments as the screen shows them: a long --text (the output of the steps before, passed on) is named rather than printed. */
+export function shownArgs(args: readonly string[]): string[] {
+  return args.map((a, i) => (args[i - 1] === '--text' && a.length > 120 ? `<${a.split('\n').length} results from the steps above>` : a));
+}
+
 /** One line about what a finished command did, from its envelope. */
 export function outcome(result: StepResult): { good: boolean; text: string; fix?: string; warnings: string[] } {
   const e = result.envelope;
@@ -61,7 +66,7 @@ export const resultView: View = {
     const lines: string[] = [];
     for (const r of results) {
       const o = outcome(r);
-      lines.push(paint(caps, pal(caps).faint, `$ ${commandLine(p.data, r.args)}`));
+      lines.push(paint(caps, pal(caps).faint, `$ ${commandLine(p.data, shownArgs(r.args))}`));
       // Which connection answered, so a result from the wrong one is obvious.
       const via = r.envelope.meta.context?.connection;
       if (p.frame.run?.showData && via) lines.push(paint(caps, pal(caps).muted, `  on ${String(via.value)} (${via.source})`));

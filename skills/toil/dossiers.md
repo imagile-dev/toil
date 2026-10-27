@@ -305,6 +305,13 @@ which opens it in its tracker. Sentences cite items and pull requests as
 whether it ran, how many items it couldn't test for a missing field (`untested`),
 and why in `note`. `--as-of` briefs as of another moment.
 
+The menu a bare `toil` opens does all of this for you: **Dossiers**, a dossier,
+**Brief this dossier** runs each read, each open pull request in full, the map and
+the brief, showing every command as it goes, then the briefing. Each key on it opens
+its ticket where the terminal draws links (Windows Terminal, VS Code, iTerm2, WezTerm,
+Ghostty, GNOME Terminal), and its URL is printed under it anywhere else. Azure DevOps
+work items, which take a read each, are left to Toil UI there.
+
 ### Analyze
 
 The briefing by code finds what's wrong; Analyze, run by an agent, weighs it and

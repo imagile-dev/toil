@@ -97,3 +97,7 @@ button.btn:disabled { cursor: not-allowed; opacity: 0.75; }
   .cap-on, .cap-key { grid-column: 1 / -1; }
   .rate { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 }
+
+/* How Analyze briefs a dossier (#494): the prompt as it will be sent, beside the form. */
+.analyze-preview > summary { cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; color: var(--link); }
+.analyze-preview__text { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: 0.8rem; line-height: 1.5; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0.75rem; max-height: 24rem; overflow: auto; margin: 0.5rem 0; }
