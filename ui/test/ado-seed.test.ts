@@ -256,6 +256,18 @@ describe("toil's ado commands on a Services connection, on the seeded board", ()
     expect(data.changes.filter((c) => c.kind === 'pull-request').map((c) => [c.id, c.command, c.outcome, c.items])).toEqual([[`imagile-ado:${PROJECT}/payments-core#7`, 'ado pr get', 'merged', [`imagile-ado:${id}`]]]);
   });
 
+  it('reads no pull requests and no runs for a Services dossier with no items and no repository', async () => {
+    const board = adoBoard();
+    const file = join(process.env.HOME!, '.toil', 'dossiers', 'ado-board.json');
+    writeFileSync(file, JSON.stringify({ name: 'ado-board', repos: [], ado: { connection: 'imagile-ado', project: PROJECT, builds: ['ci'], deployments: ['deploy'] } }));
+    vi.stubGlobal('fetch', board.fetch);
+    const data = await loadDossier(execute as unknown as Execute, 'ado-board', { mapOwi });
+    expect(data.items).toEqual([]);
+    const commands = Object.values(data.calls).flat().map((c) => c.command);
+    expect(commands).not.toContain('ado pr list');
+    expect(commands).not.toContain('ado run list');
+  });
+
   it('proposes a board move on a Services item as ado work-item transition', async () => {
     const board = adoBoard();
     await seed(board);

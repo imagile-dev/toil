@@ -154,7 +154,7 @@ export class CallFailed extends Error {
 }
 
 interface ShowArea {
-  connection: { value: string } | null;
+  connection: { value: string; deployment?: string } | null;
   inputs: Record<string, string>;
 }
 
@@ -447,7 +447,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     }
   }
   // Azure DevOps Services has no pipeline commands yet, and reads its pull requests only when the dossier names a repository (Server also reads the remote).
-  const onServices = items.some((i) => i.source.area === 'ado' && i.source.deployment === 'cloud');
+  const onServices = areas.ado?.connection?.deployment === 'cloud';
   if (areas.ado && !(onServices && !areas.ado.inputs.repo)) {
     const prs = refs((await readPrs(PR_HOSTS[1])).prs);
     changes.push(...prs);
