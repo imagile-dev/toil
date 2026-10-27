@@ -2,8 +2,8 @@ import { ToilError } from './errors.js';
 
 /**
  * Areas that no longer exist under their old name, and where they went.
- * `jira-cloud` and `confluence-cloud` are `jira` and `confluence` with
- * `"deployment": "cloud"` on the connection (#495): one product, one command
+ * `jira-cloud`, `confluence-cloud` and `bitbucket-cloud` are `jira`,
+ * `confluence` and `bitbucket` with `"deployment": "cloud"` on the connection (#495): one product, one command
  * tree, one set of MCP tools. Everything that still names the old area (a
  * config file, an env var, a dossier
  * section, `--areas`, a typed command) gets the new form from here, so no
@@ -18,11 +18,14 @@ export interface RenamedArea {
   area: string;
   /** Connection settings that say what the old area was (`deployment: 'cloud'`). */
   settings: Record<string, string>;
+  /** An old tool that is not simply the new area's tool of the same name: `{ bitbucket_cloud_pr_request_changes: 'bitbucket_pr_needs_work' }`. */
+  tools?: Record<string, string>;
 }
 
 export const RENAMED_AREAS: Readonly<Record<string, RenamedArea>> = {
   'jira-cloud': { area: 'jira', settings: { deployment: 'cloud' } },
   'confluence-cloud': { area: 'confluence', settings: { deployment: 'cloud' } },
+  'bitbucket-cloud': { area: 'bitbucket', settings: { deployment: 'cloud' }, tools: { bitbucket_cloud_pr_request_changes: 'bitbucket_pr_needs_work' } },
 };
 
 export const renamedArea = (name: string): RenamedArea | undefined => (Object.hasOwn(RENAMED_AREAS, name) ? RENAMED_AREAS[name] : undefined);
@@ -58,6 +61,20 @@ export function renamedEnvFix(name: string): string {
 /** The old area whose MCP tools `tool` looks like (`jira_cloud_issue_get`), if any. */
 export function renamedAreaOfTool(tool: string): string | undefined {
   return Object.keys(RENAMED_AREAS).find((old) => tool.startsWith(`${old.replace(/-/g, '_')}_`));
+}
+
+/**
+ * The tool that replaced `tool` when it was merged into another (`tools`), for
+ * the old name and for the natural retry under the new area (`bitbucket_pr_request_changes`).
+ */
+export function renamedToolTarget(tool: string): string | undefined {
+  for (const [old, r] of Object.entries(RENAMED_AREAS)) {
+    const prefix = `${old.replace(/-/g, '_')}_`;
+    for (const [oldTool, newTool] of Object.entries(r.tools ?? {})) {
+      if (tool === oldTool || tool === `${r.area.replace(/-/g, '_')}_${oldTool.slice(prefix.length)}`) return newTool;
+    }
+  }
+  return undefined;
 }
 
 /** Refuses an area name that was folded into another, with where it went; anything else passes through for the caller's own check. */

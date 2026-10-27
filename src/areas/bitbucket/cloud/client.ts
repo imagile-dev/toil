@@ -1,11 +1,12 @@
-import type { Connection } from '../../core/area.js';
-import type { CommandContext } from '../../core/context.js';
-import { apiRequest, apiResponse, type ApiRequest } from '../../core/api.js';
-import { segments } from '../../core/api-path.js';
-import { ToilError } from '../../core/errors.js';
-import { paginate, type Paged } from '../../core/paginate.js';
-import type { QueryParam, RestResponse } from '../../core/rest.js';
-import { bitbucketCloudArea, type BitbucketCloudSettings } from './area.js';
+import type { z } from 'zod';
+import type { Connection } from '../../../core/area.js';
+import type { CommandContext } from '../../../core/context.js';
+import { apiRequest, apiResponse, type ApiRequest } from '../../../core/api.js';
+import { segments } from '../../../core/api-path.js';
+import { ToilError } from '../../../core/errors.js';
+import { paginate, type Paged } from '../../../core/paginate.js';
+import type { QueryParam, RestResponse } from '../../../core/rest.js';
+import { bitbucketArea } from '../area.js';
 
 /**
  * Every request toil sends to Bitbucket Cloud, each from Atlassian's REST API
@@ -15,8 +16,8 @@ import { bitbucketCloudArea, type BitbucketCloudSettings } from './area.js';
  * forwarding address for the rest of it, which is more than most memos manage.
  */
 
-export type BitbucketCloudConnection = Connection<BitbucketCloudSettings>;
-export type BitbucketCloudContext = CommandContext<BitbucketCloudConnection, { workspace?: string; repo?: string }>;
+export type BitbucketCloudConnection = Connection<z.output<typeof bitbucketArea.connection>>;
+export type BitbucketCloudContext = CommandContext<BitbucketCloudConnection, { workspace?: string; project?: string; repo?: string }>;
 
 /** Items per page: the documented maximum, so a full list takes the fewest calls. */
 export const PAGELEN = 100;
@@ -49,12 +50,12 @@ export const prPath = (ctx: BitbucketCloudContext, id: number) => `${repoPath(ct
 export type Request = Pick<ApiRequest, 'method' | 'query' | 'json' | 'as' | 'redirect'>;
 
 export function bbc<T>(ctx: BitbucketCloudContext, path: string, req: Request = {}): Promise<T> {
-  return apiRequest<T>(bitbucketCloudArea, ctx, path, req);
+  return apiRequest<T>(bitbucketArea, ctx, path, req);
 }
 
 /** bbc, with the status and headers: a merge answers 202 with a Location to poll. */
 export function bbcResponse<T>(ctx: BitbucketCloudContext, path: string, req: Request = {}): Promise<RestResponse<T>> {
-  return apiResponse<T>(bitbucketCloudArea, ctx, path, req);
+  return apiResponse<T>(bitbucketArea, ctx, path, req);
 }
 
 interface PageBody<T> {
@@ -166,7 +167,7 @@ export function prSpec(found: PullRequest): string {
   const source = found.source?.commit?.hash;
   const destination = found.destination?.commit?.hash;
   if (!source || !destination) {
-    throw new ToilError('NOT_FOUND', `Pull request ${found.id} has no source or destination commit to diff.`, { fix: 'Check the pull request still has both branches: toil bitbucket-cloud pr get <id>.' });
+    throw new ToilError('NOT_FOUND', `Pull request ${found.id} has no source or destination commit to diff.`, { fix: 'Check the pull request still has both branches: toil bitbucket pr get <id>.' });
   }
   return `${source}..${destination}`;
 }
@@ -204,7 +205,7 @@ export async function resolveRef(ctx: BitbucketCloudContext, ref: string | undef
   const page = await bbc<PageBody<{ hash?: string }>>(ctx, `${repoPath(ctx)}/commits`, { query: { include: name, pagelen: 1 } });
   const hash = page.values?.[0]?.hash;
   if (!hash) {
-    throw new ToilError('NOT_FOUND', `No commit found for "${name}" in ${ctx.context.workspace}/${ctx.context.repo}.`, { fix: 'Check the branch, tag or commit exists: toil bitbucket-cloud branch list or tag list.' });
+    throw new ToilError('NOT_FOUND', `No commit found for "${name}" in ${ctx.context.workspace}/${ctx.context.repo}.`, { fix: 'Check the branch, tag or commit exists: toil bitbucket branch list or tag list.' });
   }
   return hash;
 }

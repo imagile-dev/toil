@@ -85,10 +85,10 @@ function foldOne(area: AnyArea, by: string, labels: Record<string, string>, impl
   // What must be the same whichever deployment runs it, or the one command would be two.
   for (const [deployment, def] of impls) {
     if (def.kind !== 'area') throw new Error(`${labels[deployment]}'s command has kind ${def.kind}; a command with no connection has no deployment to go by, so define it once by hand.`);
-    for (const prop of ['writes', 'mcp', 'connectionOptional', 'timeLimitMs', 'writesLocal', 'dispatches'] as const) {
+    for (const prop of ['writes', 'mcp', 'timeLimitMs', 'writesLocal', 'dispatches'] as const) {
       if (json(def[prop]) !== json(first[prop])) throw new Error(`${prop} is ${json(def[prop])} for ${labels[deployment]} but ${json(first[prop])} for ${labels[impls[0]![0]]}.`);
     }
-    for (const prop of ['context', 'aliases', 'auditInput'] as const) {
+    for (const prop of ['auditInput'] as const) {
       if (json(def[prop]) !== json(first[prop])) throw new Error(`${prop} differ between deployments.`);
     }
     for (const prop of ['writesWhen', 'offMcpWhen', 'writesLocalWhen', 'connectionlessWhen'] as const) {
@@ -96,6 +96,10 @@ function foldOne(area: AnyArea, by: string, labels: Record<string, string>, impl
     }
   }
 
+  // Paths either one answers to (Data Center's `git current-pr`) answer for the one command.
+  const aliases = [...new Map(impls.flatMap(([, d]) => d.aliases ?? []).map((alias) => [json(alias), alias] as const)).values()];
+  // A command that can run with no connection for one deployment (`pr current` says so, instead of failing) can for the other: with no connection there is no deployment to ask, and the first one answers.
+  const connectionOptional = impls.some(([, d]) => d.connectionOptional === true);
   // A read by POST in either is a read by POST here; it only widens what the parity suite lets a read send.
   const queryByPost = impls.some(([, d]) => d.queryByPost === true);
   const description = override.description ?? same(impls.map(([, d]) => d.description), `description differs (${who(here)}); say which in the override`);
@@ -134,23 +138,44 @@ function foldOne(area: AnyArea, by: string, labels: Record<string, string>, impl
     options.push({ ...holders[0]![1], flags, description: `${text}${only}` });
   }
   const argsOf = (d: AnyCommand): CliArgument[] => d.args ?? [];
+  // The same arguments in the same order; one a deployment makes optional (`pr diff [id]`, since Cloud can diff a commit instead) is optional here, and the deployment that requires it still does.
+  const sameArg = (a: CliArgument) => json({ ...a, required: undefined });
   for (const [deployment, def] of impls) {
-    if (json(argsOf(def)) !== json(argsOf(first))) throw new Error(`positional arguments differ for ${labels[deployment]}.`);
+    if (json(argsOf(def).map(sameArg)) !== json(argsOf(first).map(sameArg))) throw new Error(`positional arguments differ for ${labels[deployment]}.`);
   }
+  const args = argsOf(first).map((arg, i) => (impls.some(([, d]) => argsOf(d)[i]!.required === false) ? { ...arg, required: false } : arg));
 
-  const routes: Record<string, { fields: string[]; input: z.ZodObject; run: AnyCommand['run'] }> = {};
-  for (const [deployment, def] of impls) routes[deployment] = { fields: Object.keys(def.input.shape), input: def.input, run: def.run };
+  // A context input the area gives to some deployments only (`--ws` is Cloud's) is neither a field nor a need of the others.
+  const declared = area.context as Record<string, { deployments?: string[] }>;
+  // A deployment the input isn't for still takes it on a command that lists it itself.
+  const takes = (deployment: string, def: AnyCommand, field: string) =>
+    !declared[field]?.deployments || declared[field].deployments.includes(deployment) || (def.contextListed ?? []).includes(field);
+  const routes: Record<string, { fields: string[]; context: NonNullable<AnyCommand['context']>; input: z.ZodObject; run: AnyCommand['run'] }> = {};
+  for (const [deployment, def] of impls) {
+    routes[deployment] = {
+      fields: Object.keys(def.input.shape).filter((field) => takes(deployment, def, field)),
+      context: Object.fromEntries(Object.entries(def.context ?? {}).filter(([field]) => takes(deployment, def, field))),
+      input: def.input,
+      run: def.run,
+    };
+  }
+  // Core resolves the union up front; each route then holds the call to the inputs its own deployment takes (call-context.ts).
+  const context: NonNullable<AnyCommand['context']> = {};
+  for (const route of Object.values(routes)) for (const [field, need] of Object.entries(route.context)) if (context[field] !== 'required') context[field] = need;
   const exampleDeployments: string[] = [];
   const examples = impls.flatMap(([deployment, def]) => def.examples.map((example) => (exampleDeployments.push(deployment), example)));
 
   const folded = {
     ...first,
+    ...(Object.keys(context).length > 0 ? { context } : {}),
+    ...(connectionOptional ? { connectionOptional } : {}),
+    ...(aliases.length > 0 ? { aliases } : {}),
     ...(queryByPost ? { queryByPost } : {}),
     description,
     ...(toolDescription !== undefined ? { toolDescription } : {}),
     input: z.object(shape),
     options,
-    ...(argsOf(first).length > 0 ? { args: argsOf(first) } : {}),
+    ...(args.length > 0 ? { args } : {}),
     examples,
     exampleDeployments,
     deployments: { by, labels, routes },
@@ -188,6 +213,14 @@ function revalidate(input: z.ZodObject, name: string, given: Record<string, unkn
 function same<T>(values: T[], message: string): T {
   if (new Set(values.map(json)).size > 1) throw new Error(message);
   return values[0] as T;
+}
+
+/** Whether `refuseForDeployment` would refuse this call; the context resolver asks it before it complains about inputs the deployment never needed. */
+export function refusesDeployment(def: AnyCommand, sent: Record<string, unknown>, connection: Record<string, unknown>): boolean {
+  const routed = def.deployments;
+  if (!routed) return false;
+  const route = routed.routes[String(connection[routed.by] ?? defaultDeployment(def))];
+  return !route || Object.keys(sent).some((field) => sent[field] !== undefined && field in def.input.shape && !route.fields.includes(field));
 }
 
 /**

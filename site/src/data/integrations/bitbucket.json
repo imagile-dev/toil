@@ -1,16 +1,22 @@
 {
   "area": "bitbucket",
-  "name": "Bitbucket Data Center",
+  "name": "Bitbucket",
   "group": "source",
   "order": 2,
-  "covers": "Repositories, pull requests, comments, builds",
-  "credential": "HTTP access token",
-  "credentialWhere": "Your profile picture → Manage account → HTTP access tokens",
+  "covers": "Repositories, branches, tags, commits, files, pull requests, comments, builds, Pipelines",
+  "credential": "HTTP access token (Data Center) or Atlassian API token with Bitbucket scopes, or an access token (Cloud)",
+  "credentialWhere": "Data Center: your profile picture → Manage account → HTTP access tokens. Cloud: id.atlassian.com → Security → API tokens → Create API token with scopes, or Repository, Project or Workspace settings → Access tokens",
+  "credentialNote": "One area for both: a Cloud connection sets deployment to cloud. An API token is sent as Basic auth with the account's email address, which goes in email; an access token goes in accessToken and is sent as Bearer. In Bitbucket Pipelines, BITBUCKET_WORKSPACE and BITBUCKET_REPO_SLUG supply the workspace and repository when no toil setting does. Both deployments are verified at the unit level, so the board shows one",
   "status": "unit",
+  "keys": [
+    "PAT",
+    "EMAIL",
+    "API_TOKEN"
+  ],
   "supported": {
     "product": "Bitbucket Data Center",
     "minimum": null,
     "api": "REST API 1.0",
-    "note": "toil calls REST API 1.0 (/rest/api/1.0, /rest/build-status/1.0 and /rest/default-reviewers/1.0) with an HTTP access token sent as a Bearer header. No release has been verified yet."
+    "note": "toil calls REST API 1.0 (/rest/api/1.0, /rest/build-status/1.0 and /rest/default-reviewers/1.0) with an HTTP access token sent as a Bearer header. No release has been verified yet. Bitbucket Cloud (a connection with deployment cloud) is always current: toil calls REST API 2.0 (https://api.bitbucket.org/2.0) with an Atlassian API token sent as Basic auth with the account email, or a workspace, project or repository access token sent as Bearer. Nothing has been run against a live workspace yet."
   }
 }

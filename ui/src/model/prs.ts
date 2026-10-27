@@ -354,9 +354,10 @@ export function reviewProposal(c: Change, s: Suggested, dossier: string): Propos
     const team = s.id.includes('/');
     return { ...base, command: 'github pr add-reviewers', input: { dossier, number, ...(team ? { teamReviewer: [s.id.slice(s.id.indexOf('/') + 1)] } : { reviewer: [s.id] }) }, note: null };
   }
-  if (area === 'bitbucket') return { ...base, command: 'bitbucket pr add-reviewer', input: { dossier, id: number, user: s.id }, note: null };
-  if (area === 'bitbucket-cloud') {
-    return { ...base, command: 'bitbucket-cloud pr update', input: { dossier, id: number, reviewers: s.id }, note: 'This replaces the reviewer list, which is empty now: check nobody was added since the last sync.' };
+  if (area === 'bitbucket') {
+    // Data Center adds one reviewer; Cloud has no such command, so the list is replaced.
+    if (c.source.deployment !== 'cloud') return { ...base, command: 'bitbucket pr add-reviewer', input: { dossier, id: number, user: s.id }, note: null };
+    return { ...base, command: 'bitbucket pr update', input: { dossier, id: number, reviewers: s.id }, note: 'This replaces the reviewer list, which is empty now: check nobody was added since the last sync.' };
   }
   return { ...base, command: null, input: null, note: `toil has no command that adds a reviewer on ${sourceLabel(area)} yet. Add ${s.id} on the pull request's page${c.url ? `: ${c.url}` : ''}.` };
 }

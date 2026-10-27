@@ -303,7 +303,7 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
         const dossier = ctx.dossiers ? place?.lookup : ctx.dossier;
         try {
           call = await Promise.race([
-            resolveCall(def, input, { config: ctx.config, secrets: ctx.secrets, dossier, gitRemote: place?.gitRemote ?? ctx.gitRemote }, (w) => warnings.push(w), controller.signal, partial),
+            resolveCall(def, input, { config: ctx.config, secrets: ctx.secrets, dossier, gitRemote: place?.gitRemote ?? ctx.gitRemote }, (w) => warnings.push(w), controller.signal, partial, (own ?? {}) as Record<string, unknown>),
             aborted,
           ]);
         } finally {

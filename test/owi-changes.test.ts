@@ -5,7 +5,7 @@ import { agentTrailer, branchNumber, keyPatterns, authorKinds, workItemsIn } fro
 import type { Change } from '../src/core/owi/index.js';
 import { execute } from '../src/core/run.js';
 import { testContext } from './harness/context.js';
-import { BITBUCKET_PR_GETS, GITHUB_PR_GETS, GITHUB_PRS, PR_KEY_PATTERNS, prEnvelopes, prJsonl } from './fixtures/owi/pull-requests.js';
+import { BITBUCKET_CLOUD_PRS, BITBUCKET_PRS, BITBUCKET_PR_GETS, GITHUB_PR_GETS, GITHUB_PRS, PR_KEY_PATTERNS, prEnvelopes, prJsonl } from './fixtures/owi/pull-requests.js';
 
 /**
  * OWI 0.2's changes held to the spec (docs/owi/spec.md, The change): the
@@ -114,6 +114,17 @@ describe('change mapping rules', () => {
     const change = (data.changes as Change[])[0]!;
     expect(change.workItems).toEqual([]);
     expect(change.unmapped.find((u) => u.field === 'workItems')?.reason).toContain('key pattern');
+  });
+
+  it('maps a Cloud pull request list given as bare data with no deployment by its shape, and says it was Cloud', async () => {
+    const { data } = await map({ text: json(BITBUCKET_CLOUD_PRS), command: 'bitbucket pr list' });
+    const changes = data.changes as Change[];
+    expect(changes.length).toBeGreaterThan(0);
+    for (const change of changes) expect(change.source).toMatchObject({ area: 'bitbucket', command: 'bitbucket pr list', deployment: 'cloud' });
+    expect(changes.find((c) => c.id.endsWith('imagile/checkout-sdk#9'))).toMatchObject({ state: 'MERGED' });
+    // A Data Center list given the same way has no destination, so it keeps Data Center's reader and claims no deployment.
+    const server = await map({ text: json(BITBUCKET_PRS), command: 'bitbucket pr list' });
+    for (const change of server.data.changes as Change[]) expect(change.source.deployment).toBeUndefined();
   });
 
   it('lets an override win over every other signal', async () => {

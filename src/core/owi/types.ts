@@ -29,13 +29,13 @@ const JIRA: OwiSource = { family: 'jira', items: ['issue search', 'issue get'], 
 const ADO: OwiSource = { family: 'ado', items: ['work-item get', 'work-item get-many'], history: ['work-item history'], context: ['work-item iterations'], changes: PRS };
 const GITHUB: OwiSource = { family: 'github', items: ['issue list', 'issue search', 'issue get', 'project items'], history: ['issue history'], context: [], changes: PRS };
 const BITBUCKET: OwiSource = { family: 'bitbucket', items: [], history: [], context: [], changes: PRS };
-const BITBUCKET_CLOUD: OwiSource = { family: 'bitbucket-cloud', items: [], history: [], context: [], changes: PRS };
 
 /**
  * The areas toil maps to OWI. An area that sends one of these shapes is one
- * line here: `jira` serves Data Center and Cloud from one mapper, and the
- * variants that are still areas of their own (`ado-cloud`) share their family's
- * where their shapes agree, and have their own where they don't (`bitbucket-cloud`).
+ * line here: `jira` serves Data Center and Cloud from one mapper, `bitbucket`
+ * from two (its connection's deployment picks, since their shapes differ in
+ * almost every field), and the variants that are still areas of their own
+ * (`ado-cloud`) share their family's.
  */
 export const OWI_SOURCES: Record<string, OwiSource> = {
   jira: JIRA,
@@ -43,7 +43,6 @@ export const OWI_SOURCES: Record<string, OwiSource> = {
   'ado-cloud': ADO,
   github: GITHUB,
   bitbucket: BITBUCKET,
-  'bitbucket-cloud': BITBUCKET_CLOUD,
 };
 export const OWI_AREAS = Object.keys(OWI_SOURCES);
 export type OwiArea = string;
@@ -197,7 +196,7 @@ export interface Change {
   owi: typeof OWI_VERSION;
   /** `<connection>:<repo>#<number>`: `github:imagile/payments-web#41`, `corp-bitbucket:PAY/payments-core#311`. */
   id: string;
-  source: { area: OwiArea; connection: string; key: string; command: string };
+  source: { area: OwiArea; connection: string; key: string; command: string; deployment?: string };
   url: string | null;
   /** The repository as the source names it: `owner/repo`, `PROJECT/slug`, `workspace/slug`, `project/repo`. */
   repo: string;

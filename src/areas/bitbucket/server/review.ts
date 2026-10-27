@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { apiPath, rawPath, segments } from '../../core/api-path.js';
-import { allowWriteField } from '../../core/run.js';
-import { bitbucketArea } from './area.js';
+import { apiPath, rawPath, segments } from '../../../core/api-path.js';
+import { allowWriteField } from '../../../core/run.js';
+import { bitbucketArea } from '../area.js';
 import { bb, buildStatus, currentUser, getPR, IN_REPO, prBuilds, prPath, toInt, where } from './client.js';
 
 /**
@@ -95,6 +95,8 @@ export const unapproveCommand = bitbucketArea.command({
 
 export const needsWorkCommand = bitbucketArea.command({
   path: ['bitbucket', 'pr', 'needs-work'],
+  // Cloud's word for it.
+  aliases: ['request-changes'],
   description: 'Mark a pull request as needs-work',
   toolDescription:
     "Marks a pull request as needs-work for the token's user. Bitbucket allows that only for reviewers, so a user who isn't one is first added as a reviewer; that addition stays even if the status change then fails.",

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { bitbucketCloudArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { bitbucketArea } from '../area.js';
 import { all, bbc, exampleCursor, IN_REPO, list, repoPath, seg, type BitbucketCloudContext } from './client.js';
 
 /**
@@ -29,8 +29,8 @@ const pipelinePath = (ctx: BitbucketCloudContext, pipeline: string) => `${repoPa
 const pipelineInput = z.string().min(1).describe('Pipeline uuid, with or without braces');
 const pipelineArg = { name: 'pipeline', field: 'pipeline', description: 'Pipeline uuid, with or without braces' };
 
-export const listPipelinesCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'pipeline', 'list'],
+export const listPipelinesCommand = bitbucketArea.command({
+  path: ['bitbucket', 'pipeline', 'list'],
   description: 'List pipeline runs, newest first',
   toolDescription: `Lists a repository's pipeline runs, newest first (uuid, build_number, state, target, trigger, created_on, completed_on), optionally only those for one branch. Without limit it returns the newest ${PIPELINE_LIMIT}; pass meta.page.nextCursor as cursor for more.`,
   input: z.object({
@@ -52,8 +52,8 @@ export const listPipelinesCommand = bitbucketCloudArea.command({
   },
 });
 
-export const getPipelineCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'pipeline', 'get'],
+export const getPipelineCommand = bitbucketArea.command({
+  path: ['bitbucket', 'pipeline', 'get'],
   description: 'Get a pipeline run',
   toolDescription: 'Returns one pipeline run: uuid, build_number, state (with its result), target branch and commit, trigger, creator, created_on, completed_on and build_seconds_used.',
   input: z.object({ pipeline: pipelineInput }),
@@ -64,10 +64,10 @@ export const getPipelineCommand = bitbucketCloudArea.command({
   run: (input, ctx) => bbc(ctx, pipelinePath(ctx, input.pipeline)),
 });
 
-export const listPipelineStepsCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'pipeline', 'steps'],
+export const listPipelineStepsCommand = bitbucketArea.command({
+  path: ['bitbucket', 'pipeline', 'steps'],
   description: "List a pipeline run's steps",
-  toolDescription: "Lists every step of a pipeline run (uuid, name, state with its result, started_on, completed_on, the image and the script commands). A step's uuid reads its log with bitbucket_cloud_pipeline_logs.",
+  toolDescription: "Lists every step of a pipeline run (uuid, name, state with its result, started_on, completed_on, the image and the script commands). A step's uuid reads its log with bitbucket_pipeline_logs.",
   input: z.object({ pipeline: pipelineInput }),
   writes: false,
   context: IN_REPO,
@@ -76,8 +76,8 @@ export const listPipelineStepsCommand = bitbucketCloudArea.command({
   run: (input, ctx) => all(ctx, `Bitbucket Cloud steps of pipeline ${input.pipeline}`, `${pipelinePath(ctx, input.pipeline)}/steps`),
 });
 
-export const getStepLogCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'pipeline', 'logs'],
+export const getStepLogCommand = bitbucketArea.command({
+  path: ['bitbucket', 'pipeline', 'logs'],
   description: "Get a pipeline step's log",
   toolDescription: "Returns { log }: the full log of one pipeline step as text. A log can be large; --select or --output-file help with that on the CLI.",
   input: z.object({ pipeline: pipelineInput, step: z.string().min(1).describe('Step uuid, with or without braces') }),

@@ -1,12 +1,12 @@
 import type { z } from 'zod';
-import type { Connection } from '../../core/area.js';
-import type { CommandContext } from '../../core/context.js';
-import { apiRequest, apiResponse, type ApiRequest } from '../../core/api.js';
-import { apiPath, rawPath } from '../../core/api-path.js';
-import { ToilError } from '../../core/errors.js';
-import { paginate } from '../../core/paginate.js';
-import type { RestResponse } from '../../core/rest.js';
-import { bitbucketArea } from './area.js';
+import type { Connection } from '../../../core/area.js';
+import type { CommandContext } from '../../../core/context.js';
+import { apiRequest, apiResponse, type ApiRequest } from '../../../core/api.js';
+import { apiPath, rawPath } from '../../../core/api-path.js';
+import { ToilError } from '../../../core/errors.js';
+import { paginate } from '../../../core/paginate.js';
+import type { RestResponse } from '../../../core/rest.js';
+import { bitbucketArea } from '../area.js';
 
 /**
  * Every request toil sends to Bitbucket Data Center, as the canonical

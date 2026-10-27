@@ -42,6 +42,15 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
    */
   fallbacks?: Partial<Record<SettingKey<S>, string[]>>;
   /**
+   * Whether the CI `fallbacks` apply at all, asked of the default
+   * connection's effective settings: its own keys over `defaults.<area>`, over
+   * the area's TOIL_<AREA>_* variables and the connection's TOIL_CONN_ ones.
+   * Bitbucket Pipelines' variables are canonical only for Cloud, so Bitbucket
+   * says `(s) => s.deployment === 'cloud'`; a Data Center default then keeps
+   * what its file says. Left out, the fallbacks always apply.
+   */
+  fallbackWhen?: (effective: Record<string, unknown>) => boolean;
+  /**
    * An example value for a key, which the fix names when the key is missing
    * (`baseUrl: 'https://api.figma.com'` gives "Set TOIL_FIGMA_BASE_URL (e.g.
    * https://api.figma.com)"). Only text for a person to read: it's never a
@@ -86,7 +95,7 @@ export interface AreaSpec<S extends z.ZodObject = z.ZodObject, K extends string 
    * `engine`: each value names the keys a connection of that variant must
    * set. Checked wherever the connection schema is, with the usual fix.
    */
-  variants?: { by: SettingKey<S>; of: Record<string, { label?: string; requires?: Array<SettingKey<S>> }> };
+  variants?: { by: SettingKey<S>; of: Record<string, { label?: string; requires?: Array<SettingKey<S>>; uses?: Array<SettingKey<S>> }> };
   /**
    * Inputs that say *where* in the service a command acts (`--project`,
    * `--repo`, `--instance`), resolved by core in one order for every area:
@@ -215,8 +224,25 @@ export interface ContextInput {
    * The error when a command that requires this input finds it nowhere, so an
    * integration keeps the wording its contract specifies ("No project specified…"). `fix`
    * defaults to core's, which names the flag, the setting and its env var.
+   * A function words it for the connection that was resolved, where the
+   * deployments name the missing input differently.
    */
-  missing?: { message: string; fix?: string };
+  missing?: MissingContext | ((connection: Connection<any>) => MissingContext); // eslint-disable-line @typescript-eslint/no-explicit-any
+  /**
+   * For an area with `variants` keyed on `deployment`: the deployments whose
+   * connections take this input (`--project` is Data Center's, `--ws` is
+   * Cloud's). Left out, every deployment takes it. On a connection of any
+   * other deployment the input is refused as `UNSUPPORTED` and never
+   * resolved, unless that deployment's command lists the input in its own
+   * `context` (`repo create --project` on Cloud); it applies to commands folded by `byDeployment()` only.
+   */
+  deployments?: string[];
+}
+
+/** See {@link ContextInput.missing}. */
+export interface MissingContext {
+  message: string;
+  fix?: string;
 }
 
 /** A connection as a command receives it: validated, defaults applied. */
@@ -331,6 +357,9 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
     if (input.setting !== undefined && !(input.setting in spec.connection.shape)) {
       throw new Error(`Area ${spec.name}: context input "${name}" reads setting "${input.setting}", which isn't a connection key.`);
     }
+    for (const deployment of input.deployments ?? []) {
+      if (!spec.variants || !(deployment in spec.variants.of)) throw new Error(`Area ${spec.name}: context input "${name}" is for deployment "${deployment}", which the area's variants don't have.`);
+    }
     if (input.selectsConnection && !((input.setting ?? name) in spec.connection.shape)) {
       throw new Error(`Area ${spec.name}: context input "${name}" selects a connection by "${input.setting ?? name}", which must be a connection key.`);
     }
@@ -388,6 +417,7 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
         kind,
         area,
         ...(Object.keys(needs).length > 0 ? { context: needs } : {}),
+        ...(def.context ? { contextListed: Object.keys(def.context) } : {}),
         input: def.input.extend({
           ...fields,
           [CONNECTION_FIELD]: z

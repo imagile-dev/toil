@@ -221,7 +221,7 @@ describe('the sample dossiers', () => {
     const { data } = await loaded('checkout-web');
     const v = people({ dossier: 'checkout-web', entries: data.people, wipLimit: data.wipLimit, items: data.items, changes: data.pullRequests, now: FIXTURE_NOW });
     const ada = v.people.find((c) => c.who.name === 'Ada D.')!;
-    expect(ada.who.identities.map((i) => i.area).sort()).toEqual(['bitbucket-cloud', 'github']);
+    expect(ada.who.identities.map((i) => i.area).sort()).toEqual(['bitbucket', 'github']);
     expect(ada.reviews.map((r) => r.change.id)).toEqual(['bitbucket-cloud:imagile/checkout-sdk#12', 'github:imagile/payments-web#52']);
     expect(v.people.find((c) => c.who.name === 'Claude')!.prs.map((p) => p.change.id)).toEqual(['github:imagile/payments-web#51']);
     expect(v.unnamedAgents.map((c) => c.id)).toEqual(['bitbucket-cloud:imagile/checkout-sdk#12']);

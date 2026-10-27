@@ -73,7 +73,7 @@ Getting text into the shape an enterprise tool expects before it's sent, so a de
 
 Work from Jira, Azure DevOps and GitHub in one shape, so a sprint, a board or a question about the work reads the same whichever tracker holds it.
 
-- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, ado, ado-cloud and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item. The pull requests of github, bitbucket, bitbucket-cloud, ado and ado-cloud become changes: state, who wrote it (a person, an agent or a bot, and the signal that said so), reviewers, checks, size, the work items it names and its review timeline. Every record is checked against the published schema.
+- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, ado, ado-cloud and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item. The pull requests of github, bitbucket (Data Center or Cloud), ado and ado-cloud become changes: state, who wrote it (a person, an agent or a bot, and the signal that said so), reviewers, checks, size, the work items it names and its review timeline. Every record is checked against the published schema.
 - **Finding likely duplicates** (`toil util owi similar`): Before filing, proposing or triaging an item, asks whether it already exists: ranks OWI records against some text or one of them, or lists likely duplicate pairs across Jira, Azure DevOps and GitHub. Lexical and deterministic, with no model or network, and every match says why it matched: the shared title and body terms, title trigrams, labels, parent and link.
 
 ### Safety
@@ -1423,8 +1423,8 @@ and `authorKind` (a list of `id=KIND`).
   milestone is its iteration, a `points: N` label its estimate, and "Blocked by
   #n" or "Depends on #n" in its body a `blocks` link. Pull requests in an issue
   list or on a board are left out of the items with a warning.
-- **Pull requests:** `pr list` and `pr get` of `github`, `bitbucket`,
-  `bitbucket-cloud`, `ado` and `ado-cloud`, as changes. A list is enough to rank
+- **Pull requests:** `pr list` and `pr get` of `github`, `bitbucket` (Data Center or Cloud),
+  `ado` and `ado-cloud`, as changes. A list is enough to rank
   what is open; `pr get --include reviews,checks,commits,files` adds what a list
   lacks, and a pull request in both is one change with the get's fields.
 

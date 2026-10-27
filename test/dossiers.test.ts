@@ -7,7 +7,7 @@ import type { Envelope } from '../src/core/envelope.js';
 import { forwardSlashes } from '../src/core/files.js';
 import { toolName } from '../src/core/command.js';
 import { allowWriteField, inFieldNames } from '../src/core/run.js';
-import { currentPrCommand } from '../src/areas/bitbucket/pull-requests.js';
+import { currentPrCommand } from '../src/areas/bitbucket/server/pull-requests.js';
 import { adoArea } from '../src/areas/ado/area.js';
 import { workUpdateCommand } from '../src/areas/ado/work.js';
 import { dossierBuildCommands } from '../src/dossiers/build.js';

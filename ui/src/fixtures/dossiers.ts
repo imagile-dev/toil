@@ -77,13 +77,13 @@ export const DOSSIERS: DossierFile[] = [
     ],
     // The readiness gate (#307): ten words of description, not counting the issue template's headings.
     github: { connection: 'github', owner: 'imagile', repo: 'payments-web', projects: ['7'], readiness: { minWords: 10, templates: [['## What', '## Why', '## Acceptance criteria'].join('\n')] } },
-    'bitbucket-cloud': { connection: 'bitbucket-cloud', workspace: 'imagile', repo: 'checkout-sdk' },
+    bitbucket: { connection: 'bitbucket-cloud', workspace: 'imagile', repo: 'checkout-sdk' },
     environments: {
       staging: { openshift: { connection: 'ocp-nonprod', namespace: 'checkout-staging' } },
       prod: { openshift: { connection: 'ocp-prod', namespace: 'checkout-prod' } },
     },
     people: [
-      { name: 'Ada D.', ids: { github: 'ada-dev', 'bitbucket-cloud': '557058:abc12345-0000-0000-0000-000000000020' } },
+      { name: 'Ada D.', ids: { github: 'ada-dev', bitbucket: '557058:abc12345-0000-0000-0000-000000000020' } },
       { name: 'Bo W.', ids: { github: 'bo-web' } },
       { name: 'Claude', kind: 'agent', ids: {} },
     ],
@@ -97,8 +97,7 @@ export const fileOf = (name: string) => `${USER_DIR}/${name}.json`;
 /** Each area's context inputs, as `dossiers show` resolves them: the ones the registry declares, nothing else. */
 const CONTEXT: Record<string, string[]> = {
   jira: ['project'],
-  bitbucket: ['project', 'repo'],
-  'bitbucket-cloud': ['workspace', 'repo'],
+  bitbucket: ['project', 'workspace', 'repo'],
   jenkins: ['instance'],
   ado: ['collection', 'organization', 'project', 'repo'],
   github: ['owner', 'repo'],

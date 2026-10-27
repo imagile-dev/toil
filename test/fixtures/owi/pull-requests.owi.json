@@ -8,7 +8,8 @@
         "area": "bitbucket",
         "connection": "corp-bitbucket",
         "key": "PAY/payments-core#311",
-        "command": "bitbucket pr get"
+        "command": "bitbucket pr get",
+        "deployment": "server"
       },
       "url": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/311",
       "repo": "PAY/payments-core",
@@ -340,7 +341,8 @@
         "area": "bitbucket",
         "connection": "corp-bitbucket",
         "key": "PAY/payments-core#305",
-        "command": "bitbucket pr get"
+        "command": "bitbucket pr get",
+        "deployment": "server"
       },
       "url": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/305",
       "repo": "PAY/payments-core",
@@ -609,7 +611,8 @@
         "area": "bitbucket",
         "connection": "corp-bitbucket",
         "key": "PAY/payments-core#298",
-        "command": "bitbucket pr get"
+        "command": "bitbucket pr get",
+        "deployment": "server"
       },
       "url": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/298",
       "repo": "PAY/payments-core",
@@ -942,7 +945,8 @@
         "area": "bitbucket",
         "connection": "corp-bitbucket",
         "key": "PAY/payments-core#296",
-        "command": "bitbucket pr get"
+        "command": "bitbucket pr get",
+        "deployment": "server"
       },
       "url": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/296",
       "repo": "PAY/payments-core",
@@ -1245,7 +1249,8 @@
         "area": "bitbucket",
         "connection": "corp-bitbucket",
         "key": "PAY/payments-core#290",
-        "command": "bitbucket pr get"
+        "command": "bitbucket pr get",
+        "deployment": "server"
       },
       "url": "https://bitbucket.imagile.dev/projects/PAY/repos/payments-core/pull-requests/290",
       "repo": "PAY/payments-core",
@@ -3827,10 +3832,11 @@
       "owi": "0.2",
       "id": "bitbucket-cloud:imagile/checkout-sdk#12",
       "source": {
-        "area": "bitbucket-cloud",
+        "area": "bitbucket",
         "connection": "bitbucket-cloud",
         "key": "imagile/checkout-sdk#12",
-        "command": "bitbucket-cloud pr get"
+        "command": "bitbucket pr get",
+        "deployment": "cloud"
       },
       "url": "https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk/pull-requests/12",
       "repo": "imagile/checkout-sdk",
@@ -3884,7 +3890,7 @@
         }
       ],
       "native": {
-        "bitbucket-cloud pr list": {
+        "bitbucket pr list": {
           "type": "pullrequest",
           "id": 12,
           "title": "Format receipt totals in the order currency",
@@ -3971,7 +3977,7 @@
             }
           }
         },
-        "bitbucket-cloud pr get": {
+        "bitbucket pr get": {
           "type": "pullrequest",
           "id": 12,
           "title": "Format receipt totals in the order currency",
@@ -4106,10 +4112,11 @@
       "owi": "0.2",
       "id": "bitbucket-cloud:imagile/checkout-sdk#9",
       "source": {
-        "area": "bitbucket-cloud",
+        "area": "bitbucket",
         "connection": "bitbucket-cloud",
         "key": "imagile/checkout-sdk#9",
-        "command": "bitbucket-cloud pr get"
+        "command": "bitbucket pr get",
+        "deployment": "cloud"
       },
       "url": "https://bitbucket-cloud.imagile.dev/imagile/checkout-sdk/pull-requests/9",
       "repo": "imagile/checkout-sdk",
@@ -4177,7 +4184,7 @@
         }
       ],
       "native": {
-        "bitbucket-cloud pr list": {
+        "bitbucket pr list": {
           "type": "pullrequest",
           "id": 9,
           "title": "Saved-card hooks",
@@ -4266,7 +4273,7 @@
             }
           }
         },
-        "bitbucket-cloud pr get": {
+        "bitbucket pr get": {
           "type": "pullrequest",
           "id": 9,
           "title": "Saved-card hooks",

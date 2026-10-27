@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { apiPath, rawPath } from '../../core/api-path.js';
-import { allowWriteField } from '../../core/run.js';
-import { bitbucketArea } from './area.js';
+import { apiPath, rawPath } from '../../../core/api-path.js';
+import { allowWriteField } from '../../../core/run.js';
+import { bitbucketArea } from '../area.js';
 import { bb, bbAll, IN_REPO, prPath, toInt, where } from './client.js';
 
 /**

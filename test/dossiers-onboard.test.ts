@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { bitbucketCloudArea } from '../src/areas/bitbucket-cloud/area.js';
+import { bitbucketArea } from '../src/areas/bitbucket/area.js';
 import { githubArea } from '../src/areas/github/area.js';
 import { connectionsCommands } from '../src/connections/commands.js';
 import { defineArea, type AnyArea } from '../src/core/area.js';
@@ -12,7 +12,7 @@ import { hostMatches, selectorHost } from '../src/core/dossier.js';
 import type { Prompter } from '../src/core/prompt.js';
 import { dossierBuildCommands, forSharing } from '../src/dossiers/build.js';
 import { dossiersCommands } from '../src/dossiers/commands.js';
-import { dossierOnboardCommands, suggestedBaseUrl } from '../src/dossiers/onboard.js';
+import { dossierOnboardCommands, suggestedBaseUrl, suggestedSettings } from '../src/dossiers/onboard.js';
 import { runCli } from './harness/cli.js';
 import { TEST_VERSION } from './harness/context.js';
 import { dossierDisk, type DossierDisk } from './harness/dossiers.js';
@@ -255,8 +255,12 @@ describe('shareable dossiers by default', () => {
     // The real code hosts: github.com's API is api.github.com, and Enterprise Server's is on its own host.
     expect(hostMatches({ baseUrl: 'https://api.github.com' }, 'github.com', githubArea.siteApis)).toBe(true);
     expect(hostMatches({ baseUrl: 'https://ghe.imagile.dev/api/v3' }, 'ghe.imagile.dev', githubArea.siteApis)).toBe(true);
-    expect(selectorHost({ baseUrl: 'https://api.bitbucket.org/2.0' }, bitbucketCloudArea.siteApis)).toBe('bitbucket.org');
+    expect(selectorHost({ baseUrl: 'https://api.bitbucket.org/2.0' }, bitbucketArea.siteApis)).toBe('bitbucket.org');
     expect(suggestedBaseUrl(githubArea, 'github.com')).toBe('https://api.github.com');
+    // bitbucket.org is the hosted one, so a person onboarding it is offered deployment cloud; a server's host is not.
+    expect(suggestedSettings(bitbucketArea, 'bitbucket.org')).toEqual({ baseUrl: 'https://api.bitbucket.org/2.0', deployment: 'cloud' });
+    expect(suggestedSettings(bitbucketArea, 'bitbucket.imagile.dev')).toEqual({ baseUrl: 'https://bitbucket.imagile.dev' });
+    expect(suggestedSettings(githubArea, 'github.com')).toEqual({ baseUrl: 'https://api.github.com' });
     expect(suggestedBaseUrl(board, 'board.imagile.dev')).toBe('https://board.imagile.dev');
     const config = loadConfig({ env: { TOIL_CONN_MINE_AREA: 'hub', TOIL_CONN_MINE_BASE_URL: 'https://api.hub.imagile.dev', TOIL_CONN_MINE_TOKEN: 't' }, cwd: '/', home: '/nonexistent-home', areas: [{ name: 'hub' }] });
     const shared = forSharing({ name: 'team', repos: [], sections: { hub: { connection: 'mine' } }, environments: {}, people: [] }, config, areas);

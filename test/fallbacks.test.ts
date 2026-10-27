@@ -53,6 +53,7 @@ export function fallbackFailures(area: AreaInfo, all: readonly AreaInfo[] = [are
   return wrong;
 }
 
+// An area's `fallbackWhen` is left out here: this checks position in the order, and each condition has its own test (src/core/config-v3-bitbucket.test.ts).
 const registered: AreaInfo[] = areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks as AreaInfo['fallbacks'] }));
 
 describe('CI fallbacks', () => {

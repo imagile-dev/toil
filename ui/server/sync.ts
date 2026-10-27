@@ -161,12 +161,11 @@ const ABSENT_IS_AN_ANSWER = new Set(['github repo file']);
 const PR_LISTS: Record<string, (r: Rec) => string> = {
   'github pr list': (r) => String(r.number),
   'bitbucket pr list': (r) => String(r.id),
-  'bitbucket-cloud pr list': (r) => String(r.id),
   'ado pr list': (r) => String(r.pullRequestId),
   'ado-cloud pr list': (r) => String(r.pullRequestId),
 };
 /** Each host's pull request get, and the input field naming the pull request. */
-const PR_GETS: Record<string, string> = { 'github pr get': 'number', 'bitbucket pr get': 'id', 'bitbucket-cloud pr get': 'id', 'ado pr get': 'id', 'ado-cloud pr get': 'id' };
+const PR_GETS: Record<string, string> = { 'github pr get': 'number', 'bitbucket pr get': 'id', 'ado pr get': 'id', 'ado-cloud pr get': 'id' };
 /** A pull request record that is merged, declined or abandoned, by whichever host's words it uses. */
 const closedPr = (data: unknown) => isRec(data) && (data.state === 'closed' || ['MERGED', 'DECLINED', 'SUPERSEDED'].includes(String(data.state)) || data.status === 'completed' || data.status === 'abandoned');
 

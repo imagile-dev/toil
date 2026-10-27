@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { checkEach, dossierCheckResult, dossierToCheck, exists, uncheckedScopes, type DossierCheck } from '../../core/check-dossier.js';
-import { viewScopes, viewValues } from '../../core/dossier.js';
-import { bitbucketArea } from './area.js';
+import { checkEach, dossierCheckResult, dossierToCheck, exists, uncheckedScopes, type DossierCheck } from '../../../core/check-dossier.js';
+import { viewScopes, viewValues } from '../../../core/dossier.js';
+import { bitbucketArea } from '../area.js';
 import { bb } from './client.js';
 
 /**

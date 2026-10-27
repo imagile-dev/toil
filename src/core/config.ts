@@ -72,6 +72,8 @@ export interface AreaInfo {
   name: string;
   /** Key to the CI variables that stand in for it, in order. */
   fallbacks?: Record<string, string[] | undefined>;
+  /** `defineArea({ fallbackWhen })`: whether the fallbacks apply, asked of the default connection's effective settings. */
+  fallbackWhen?: (effective: Record<string, unknown>) => boolean;
   /** Its context inputs' names: the keys a dossier section may supply (src/core/dossier.ts). */
   contextInputs?: readonly string[];
   /** Hosts people know the service by, to the API base URL its connections use (`defineArea({ siteApis })`). */
@@ -643,6 +645,11 @@ function applyAreaEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv, areas: rea
       if (found) layer.push([key, env[found], 'ci']);
     }
     for (const [key, value] of Object.entries(fromToil[area.name] ?? {})) layer.push([key, value, 'env']);
+    if (area.fallbackWhen && layer.some(([, , source]) => source === 'ci')) {
+      const connection = defaultConnectionName(config, area.name) ?? area.name;
+      const effective = { ...config.defaults[area.name], ...config.connections[connection], ...fromToil[area.name], ...connectionEnvOf(env, connection) };
+      if (!area.fallbackWhen(effective)) layer.splice(0, layer.length, ...layer.filter(([, , source]) => source !== 'ci'));
+    }
     if (layer.length === 0) continue;
 
     let name = defaultConnectionName(config, area.name);
@@ -700,6 +707,14 @@ function refuseStaleEnvOnRenamed(config: ResolvedConfig, area: string, connectio
       },
     );
   }
+}
+
+/** One connection's TOIL_CONN_<NAME>_<KEY> variables as settings; they outrank every other tier, so a fallback's condition reads them too. */
+function connectionEnvOf(env: NodeJS.ProcessEnv, connection: string): Record<string, string> {
+  const prefix = `TOIL_CONN_${envForm(connection)}_`;
+  const out: Record<string, string> = {};
+  for (const [name, value] of connectionVars(env)) if (name.startsWith(prefix) && value !== '' && !name.endsWith('_AREA')) out[camel(name.slice(prefix.length))] = value;
+  return out;
 }
 
 const connectionVars = (env: NodeJS.ProcessEnv) =>

@@ -14,8 +14,10 @@ export const REDIRECTS = {
   '/feedback/': '/about/feedback/',
   '/docs/integrations/jira-cloud/': '/connect/jira/',
   '/docs/integrations/confluence-cloud/': '/connect/confluence/',
+  '/docs/integrations/bitbucket-cloud/': '/connect/bitbucket/',
   '/connect/jira-cloud/': '/connect/jira/',
   '/connect/confluence-cloud/': '/connect/confluence/',
+  '/connect/bitbucket-cloud/': '/connect/bitbucket/',
 };
 
 /** Every page under `from` moved to the same name under `to`: `/docs/integrations/jira/` is `/connect/jira/`. */

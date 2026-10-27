@@ -23,9 +23,9 @@ type Areas = Record<string, { inputs?: Record<string, unknown> }>;
 export const MAX_PR_READS = 20;
 
 const isJira = (area: string) => area === 'jira' || area.startsWith('jira-');
-const codeHosts = (area: string) => area === 'github' || area === 'bitbucket' || area === 'bitbucket-cloud' || area === 'ado' || area === 'ado-cloud';
+const codeHosts = (area: string) => area === 'github' || area === 'bitbucket' || area === 'ado' || area === 'ado-cloud';
 /** Each code host's word for an open pull request, as its `pr list --state` takes it. */
-const OPEN: Record<string, string> = { github: 'open', bitbucket: 'OPEN', 'bitbucket-cloud': 'OPEN', ado: 'active', 'ado-cloud': 'active' };
+const OPEN: Record<string, string> = { github: 'open', bitbucket: 'OPEN', ado: 'active', 'ado-cloud': 'active' };
 
 /** The first run: each tracker's issues, each code host's open pull requests, and each Azure DevOps project's work item ids (a WIQL search; their fields come from one get-many in the next run). */
 export function readSteps(dossier: string, areas: Areas): { steps: Step[] } {

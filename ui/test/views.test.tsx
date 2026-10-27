@@ -310,7 +310,7 @@ describe('a dashboard', () => {
   it.each([
     ['card-payments', ['jira issue search', 'jira issue history'], ['bitbucket pr list', 'bitbucket pr get'], ['jenkins pipeline runs'], ['openshift deployment list']],
     ['settlement', ['ado work-item iterations', 'ado work-item search', 'ado work-item get-many', 'ado work-item history'], ['ado pr list', 'ado pr get'], ['ado run list'], ['ado run list']],
-    ['checkout-web', ['github project items', 'github issue get', 'github issue history'], ['github pr list', 'github pr get', 'bitbucket-cloud pr list', 'bitbucket-cloud pr get'], ['github pr get'], ['openshift deployment list']],
+    ['checkout-web', ['github project items', 'github issue get', 'github issue history'], ['github pr list', 'github pr get', 'bitbucket pr list', 'bitbucket pr get'], ['github pr get'], ['openshift deployment list']],
   ])('%s names the commands that fed each panel', async (name, work, prs, builds, deployments) => {
     await open(`#/dossier/${name}/board`);
     const fed = (region: HTMLElement) => within(region).getByText(/Fed by/).textContent;

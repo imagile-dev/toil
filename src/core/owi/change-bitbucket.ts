@@ -3,9 +3,9 @@ import { isRecord, num, person, str, type OwiDocument } from './common.js';
 import type { Change, Person, Review, ReviewerState } from './types.js';
 
 /**
- * Bitbucket pull requests to OWI changes: Data Center (`bitbucket`) and
- * Cloud (`bitbucket-cloud`), whose shapes differ in almost every field, so
- * each has its own reader here. Neither host has a tracker of its own, so a
+ * Bitbucket pull requests to OWI changes: Data Center and Cloud, both the
+ * `bitbucket` area (a connection's `deployment`), whose shapes differ in almost
+ * every field, so each has its own reader here. Neither host has a tracker of its own, so a
  * pull request names work only through key patterns (`PAY-{n}` to a Jira
  * connection); with none, its work items are listed as unmapped.
  *

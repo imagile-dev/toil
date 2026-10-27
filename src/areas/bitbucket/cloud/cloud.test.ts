@@ -1,17 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
-import { API, BASE_HASH, DIFF, HASH, LOG, activity, comments, config as fixtureConfig, diffstat, statuses, files as fixtureFiles, pipeline, pullRequest, repo as fixtureRepo, routes as fixtureRoutes } from '../../../test/fixtures/bitbucket-cloud.fixture.js';
-import type { AnyCommand } from '../../core/command.js';
-import { execute } from '../../core/run.js';
-import { errorMessage } from './area.js';
+import { testContext } from '../../../../test/harness/context.js';
+import type { Route } from '../../../../test/harness/fake-fetch.js';
+import { API, BASE_HASH, DIFF, HASH, LOG, activity, comments, config as fixtureConfig, diffstat, statuses, files as fixtureFiles, pipeline, pullRequest, repo as fixtureRepo, routes as fixtureRoutes } from '../../../../test/fixtures/bitbucket-cloud-data.js';
+import type { AnyCommand } from '../../../core/command.js';
+import { execute } from '../../../core/run.js';
+import { errorMessage } from './endpoint.js';
 import { exampleCursor, reviewerRefs } from './client.js';
-import { addCommentCommand, addInlineCommentCommand, deleteCommentCommand, listCommentsCommand, replyCommentCommand, resolveCommentCommand } from './comments.js';
-import { getPipelineCommand, getStepLogCommand, listPipelinesCommand, listPipelineStepsCommand, uuid } from './pipelines.js';
-import { createPrCommand, currentPrCommand, declinePrCommand, getPrCommand, listPrsCommand, mergePrCommand, updatePrCommand } from './pull-requests.js';
-import { createBranchCommand, createRepoCommand, createTagCommand, getCommitCommand, getFileCommand, getRepoCommand, listBranchesCommand, listCommitsCommand, listDirCommand, listReposCommand, listTagsCommand } from './repos.js';
-import { approveCommand, diffCommand, getBuildStatusCommand, listBuildsCommand, listDefaultReviewersCommand, listFilesCommand, listReviewersCommand, requestChangesCommand, unapproveCommand } from './review.js';
-import { commands } from './index.js';
+import { addCommentCommand, addInlineCommentCommand, commentCommands, deleteCommentCommand, listCommentsCommand, replyCommentCommand, resolveCommentCommand } from './comments.js';
+import { getPipelineCommand, getStepLogCommand, listPipelinesCommand, listPipelineStepsCommand, pipelineCommands, uuid } from './pipelines.js';
+import { createPrCommand, currentPrCommand, declinePrCommand, getPrCommand, listPrsCommand, mergePrCommand, pullRequestCommands, updatePrCommand } from './pull-requests.js';
+import { createBranchCommand, createRepoCommand, createTagCommand, getCommitCommand, getFileCommand, getRepoCommand, listBranchesCommand, listCommitsCommand, listDirCommand, listReposCommand, listTagsCommand, repoCommands } from './repos.js';
+import { approveCommand, diffCommand, getBuildStatusCommand, listBuildsCommand, listDefaultReviewersCommand, listFilesCommand, listReviewersCommand, requestChangesCommand, reviewCommands, unapproveCommand } from './review.js';
+import { bitbucketApi } from './api.js';
+import { bitbucketArea } from '../area.js';
 
 /**
  * Request building and response reshaping for Bitbucket Cloud, command by
@@ -47,7 +48,7 @@ describe('credentials', () => {
   });
 
   it('an access token goes as Bearer, with no email needed', async () => {
-    const { calls, envelope } = await run(getRepoCommand, at, fixtureRoutes, { config: { 'bitbucket-cloud': { baseUrl: API, accessToken: 'repo-token' } } });
+    const { calls, envelope } = await run(getRepoCommand, at, fixtureRoutes, { config: { 'bitbucket-cloud': { area: 'bitbucket', deployment: 'cloud', baseUrl: API, accessToken: 'repo-token' } } });
     expect(envelope.ok).toBe(true);
     expect(calls[0]!.headers).toEqual({ authorization: 'Bearer repo-token', accept: 'application/json' });
   });
@@ -59,12 +60,12 @@ describe('credentials', () => {
   });
 
   it('neither token is NOT_CONFIGURED naming both env vars; an API token without its email says so', async () => {
-    const none = await run(getRepoCommand, at, fixtureRoutes, { config: { 'bitbucket-cloud': { baseUrl: API } } });
+    const none = await run(getRepoCommand, at, fixtureRoutes, { config: { 'bitbucket-cloud': { area: 'bitbucket', deployment: 'cloud', baseUrl: API } } });
     expect(none.envelope.error).toMatchObject({ code: 'NOT_CONFIGURED' });
-    expect(none.envelope.error?.fix).toContain('TOIL_BITBUCKET_CLOUD_ACCESS_TOKEN');
-    expect(none.envelope.error?.fix).toContain('TOIL_BITBUCKET_CLOUD_API_TOKEN');
-    const noEmail = await run(getRepoCommand, at, fixtureRoutes, { config: { 'bitbucket-cloud': { baseUrl: API, apiToken: 'test-token' } } });
-    expect(noEmail.envelope.error).toMatchObject({ code: 'NOT_CONFIGURED', message: expect.stringContaining('no email'), fix: expect.stringContaining('TOIL_BITBUCKET_CLOUD_EMAIL') });
+    expect(none.envelope.error?.fix).toContain('TOIL_BITBUCKET_ACCESS_TOKEN');
+    expect(none.envelope.error?.fix).toContain('TOIL_BITBUCKET_API_TOKEN');
+    const noEmail = await run(getRepoCommand, at, fixtureRoutes, { config: { 'bitbucket-cloud': { area: 'bitbucket', deployment: 'cloud', baseUrl: API, apiToken: 'test-token' } } });
+    expect(noEmail.envelope.error).toMatchObject({ code: 'NOT_CONFIGURED', message: expect.stringContaining('no email'), fix: expect.stringContaining('TOIL_BITBUCKET_EMAIL') });
     expect(none.calls.length + noEmail.calls.length).toBe(0);
   });
 
@@ -77,10 +78,10 @@ describe('credentials', () => {
   });
 
   it('a 401 on an access token names the access token to create instead', async () => {
-    const { envelope } = await run(getRepoCommand, at, [{ path: /.*/, respond: { status: 401, json: { type: 'error', error: { message: 'Unauthorized' } } } }], { config: { 'bitbucket-cloud': { baseUrl: API, accessToken: 'repo-token' } } });
+    const { envelope } = await run(getRepoCommand, at, [{ path: /.*/, respond: { status: 401, json: { type: 'error', error: { message: 'Unauthorized' } } } }], { config: { 'bitbucket-cloud': { area: 'bitbucket', deployment: 'cloud', baseUrl: API, accessToken: 'repo-token' } } });
     expect(envelope.error?.code).toBe('AUTH');
     expect(envelope.error?.fix).toContain('Create a new access token in Bitbucket');
-    expect(envelope.error?.fix).toContain('TOIL_BITBUCKET_CLOUD_ACCESS_TOKEN');
+    expect(envelope.error?.fix).toContain('TOIL_BITBUCKET_ACCESS_TOKEN');
   });
 
   it('a 410 Gone is AUTH with the same fix, not a bare HTTP failure', async () => {
@@ -91,8 +92,7 @@ describe('credentials', () => {
   });
 
   it('the api passthrough maps a 410 the same way, since it goes through the same hook', async () => {
-    const api = commands.find((c) => c.path.join(' ') === 'bitbucket-cloud api')!;
-    const { envelope } = await run(api, { method: 'GET', path: 'repositories/imagile' }, [{ path: /.*/, respond: { status: 410, json: { type: 'error', error: { message: 'Gone' } } } }]);
+    const { envelope } = await run(bitbucketApi, { method: 'GET', path: 'repositories/imagile' }, [{ path: /.*/, respond: { status: 410, json: { type: 'error', error: { message: 'Gone' } } } }]);
     expect(envelope.error).toMatchObject({ code: 'AUTH', message: 'Gone' });
   });
 
@@ -379,7 +379,7 @@ describe('pull requests', () => {
     const { envelope } = await run(mergePrCommand, { ...at, id: 43, ...write });
     expect(envelope.ok).toBe(true);
     expect(envelope.data).toEqual({ pending: true, taskStatus: '/repositories/imagile/toil/pullrequests/43/merge/task-status/abc12345' });
-    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'BITBUCKET_CLOUD_MERGE_PENDING', message: expect.stringContaining('toil bitbucket-cloud api GET /repositories/imagile/toil/pullrequests/43/merge/task-status/abc12345') })]);
+    expect(envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'BITBUCKET_CLOUD_MERGE_PENDING', message: expect.stringContaining('toil bitbucket api GET /repositories/imagile/toil/pullrequests/43/merge/task-status/abc12345') })]);
   });
 
   it('an unknown merge strategy is INVALID_INPUT', async () => {
@@ -528,10 +528,12 @@ describe('pipelines', () => {
 });
 
 describe('the area', () => {
-  it('registers every command under bitbucket-cloud, the api passthrough among them, and nothing under bitbucket', () => {
-    const paths = commands.map((c) => c.path.join(' '));
-    expect(paths.every((p) => p.startsWith('bitbucket-cloud '))).toBe(true);
-    expect(paths).toContain('bitbucket-cloud api');
+  it('registers every Cloud command under bitbucket, the api passthrough among them', () => {
+    const cloud = [...repoCommands, ...pullRequestCommands, ...reviewCommands, ...commentCommands, ...pipelineCommands, bitbucketApi];
+    const paths = cloud.map((c) => c.path.join(' '));
+    expect(paths.every((p) => p.startsWith('bitbucket '))).toBe(true);
+    expect(paths).toContain('bitbucket api');
     expect(new Set(paths).size).toBe(paths.length);
+    expect(bitbucketArea.name).toBe('bitbucket');
   });
 });

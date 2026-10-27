@@ -1,11 +1,25 @@
-import { checkDossier } from './check-dossier.js';
 import { bitbucketArea, bitbucketSupported } from './area.js';
-import { commentCommands } from './comments.js';
-import { pullRequestCommands } from './pull-requests.js';
-import { reviewCommands } from './review.js';
+import { bitbucketApi } from './cloud/api.js';
+import { commentCommands as cloudComments } from './cloud/comments.js';
+import { pipelineCommands } from './cloud/pipelines.js';
+import { pullRequestCommands as cloudPullRequests } from './cloud/pull-requests.js';
+import { repoCommands } from './cloud/repos.js';
+import { reviewCommands as cloudReview } from './cloud/review.js';
+import { overrides } from './overrides.js';
+import { checkDossier } from './server/check-dossier.js';
+import { commentCommands as serverComments } from './server/comments.js';
+import { pullRequestCommands as serverPullRequests } from './server/pull-requests.js';
+import { reviewCommands as serverReview } from './server/review.js';
 
 // Registered by existing: scripts/gen-areas.mjs finds this file, and no
-// central register of areas needed a countersignature.
+// central register of areas needed a countersignature. The second Bitbucket
+// used to need a cover sheet of its own.
 export const area = bitbucketArea;
 export const supported = bitbucketSupported;
-export const commands = [...pullRequestCommands, ...commentCommands, ...reviewCommands, checkDossier];
+export const commands = bitbucketArea.byDeployment(
+  {
+    server: [...serverPullRequests, ...serverComments, ...serverReview, checkDossier],
+    cloud: [...repoCommands, ...cloudPullRequests, ...cloudReview, ...cloudComments, ...pipelineCommands, bitbucketApi],
+  },
+  { overrides },
+);

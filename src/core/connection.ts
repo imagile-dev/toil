@@ -110,7 +110,7 @@ export async function resolveConnection(
     const isDefault = defaultConnectionName(config, area.name) === name;
     const vars = keys.map((k) => (isDefault ? defaultVar(area, k) : withExample(area, k, connectionEnvName(name, k))));
     const options = {
-      fix: vars.length ? `Set ${vars.join(' and ')}, or fix ${keys.join(', ')} on "${name}" in your toil config.` : `Fix connection "${name}" in your toil config.`,
+      fix: (vars.length ? `Set ${vars.join(' and ')}, or fix ${keys.join(', ')} on "${name}" in your toil config.` : `Fix connection "${name}" in your toil config.`) + otherVariantHint(area, name, isDefault, merged),
       details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
     };
     // Only unset keys, nothing set wrong: a command that answers "not set up" itself may still run.
@@ -128,6 +128,27 @@ export async function resolveConnection(
     throw incomplete ? new IncompleteConnectionError(message, options) : new ToilError('CONFIG_INVALID', message, options);
   }
   return { ...(parsed.data as Record<string, unknown>), name, area: area.name, writes: connectionWrites(stored) };
+}
+
+/**
+ * A connection that forgot its variant holds keys only another variant takes
+ * (a Cloud connection with an `accessToken` and no `deployment` is read as Data
+ * Center, and asked for a `pat`). The fix says so, rather than leaving the
+ * reader to find the one missing word.
+ */
+function otherVariantHint(area: AnyArea, name: string, isDefault: boolean, merged: Settings): string {
+  const variants = area.variants;
+  if (!variants) return '';
+  const takes = (value: string): string[] => [...(variants.of[value]?.requires ?? []), ...(variants.of[value]?.uses ?? [])];
+  const current = String(merged[variants.by] ?? '');
+  for (const value of Object.keys(variants.of)) {
+    if (value === current) continue;
+    const held = takes(value).filter((key) => merged[key] !== undefined && !takes(current).includes(key));
+    if (held.length === 0) continue;
+    const setting = isDefault ? envName(area.name, variants.by) : connectionEnvName(name, variants.by);
+    return ` "${name}" holds ${held.join(', ')}, which only ${variants.of[value]!.label ?? value} connections take: if it is one, set ${variants.by} to ${value} (${setting}=${value}).`;
+  }
+  return '';
 }
 
 /**

@@ -203,7 +203,6 @@ export const PR_INCLUDE = 'reviews,checks,commits,files';
 /** Each code host the loader reads pull requests from: its list's state for every pull request, and its get's id field. */
 export const PR_HOSTS = [
   { area: 'bitbucket', all: 'ALL', id: 'id' },
-  { area: 'bitbucket-cloud', all: 'ALL', id: 'id' },
   { area: 'ado', all: 'all', id: 'id' },
   { area: 'ado-cloud', all: 'all', id: 'id' },
   { area: 'github', all: 'all', id: 'number' },
@@ -448,9 +447,8 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       }
     }
   }
-  if (areas['bitbucket-cloud']) changes.push(...refs((await readPrs(PR_HOSTS[1])).prs));
   if (areas.ado) {
-    const prs = refs((await readPrs(PR_HOSTS[2])).prs);
+    const prs = refs((await readPrs(PR_HOSTS[1])).prs);
     changes.push(...prs);
     const connection = prs[0]?.change?.source.connection ?? areas.ado.connection?.value ?? 'ado';
     for (const pipeline of strings(section('ado').builds)) {
@@ -463,9 +461,9 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     }
   }
   // Azure DevOps Services: its pull requests when the dossier names a repository. It has no pipeline commands yet.
-  if (areas['ado-cloud']?.inputs.repo) changes.push(...refs((await readPrs(PR_HOSTS[3])).prs));
+  if (areas['ado-cloud']?.inputs.repo) changes.push(...refs((await readPrs(PR_HOSTS[2])).prs));
   if (areas.github) {
-    const { prs, gets } = await readPrs(PR_HOSTS[4]);
+    const { prs, gets } = await readPrs(PR_HOSTS[3]);
     const github = refs(prs);
     changes.push(...github);
     // A head's check runs came with its get: one build per pull request read in full, so the gets fed the builds too.

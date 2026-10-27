@@ -198,6 +198,16 @@ export function suggestedBaseUrl(area: AnyArea, host: string): string {
   return Object.hasOwn(area.siteApis ?? {}, host) ? area.siteApis![host]! : `https://${host}`;
 }
 
+/**
+ * What to offer for a host's connection: its base URL, and for an area with
+ * deployments, `cloud` when the host is one the area names a hosted API for
+ * (bitbucket.org), so a person onboarding it isn't left on the Data Center default.
+ */
+export function suggestedSettings(area: AnyArea, host: string): Record<string, string> {
+  const hosted = area.variants?.by === 'deployment' && Object.hasOwn(area.siteApis ?? {}, host);
+  return { baseUrl: suggestedBaseUrl(area, host), ...(hosted ? { deployment: 'cloud' } : {}) };
+}
+
 function freeName(config: ResolvedConfig, area: string): string {
   if (!config.connections[area]) return area;
   for (let i = 2; ; i++) if (!config.connections[`${area}-${i}`]) return `${area}-${i}`;
@@ -230,7 +240,7 @@ async function offerConnection(ctx: CommandContext<unknown>, ask: NonNullable<Co
   if (!/^y(es)?$/i.test(yes)) return null;
   const name = named ?? (await ask.ask(`Name for the new ${t.area.name} connection`, freeName(config, t.area.name), `name:${t.path}`));
   try {
-    await addConnection(ctx, areas, { name, area: t.area.name }, host ? { suggest: { baseUrl: suggestedBaseUrl(t.area, host) }, host } : {});
+    await addConnection(ctx, areas, { name, area: t.area.name }, host ? { suggest: suggestedSettings(t.area, host), host } : {});
     return name;
   } catch (err) {
     const e = toToilError(err);
@@ -302,6 +312,6 @@ function reloaded(manage: ConfigAccess, areas: readonly AnyArea[]): ResolvedConf
     cwd: dirname(path),
     home: dirname(dirname(path)),
     configPath: path,
-    areas: areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) })),
+    areas: areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, ...(a.fallbackWhen ? { fallbackWhen: a.fallbackWhen } : {}), contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) })),
   });
 }

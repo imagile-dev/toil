@@ -35,16 +35,18 @@ export interface Canned {
   dossier?: string;
   area?: string;
   env?: string;
+  /** For an area with more than one deployment, which one the connection is (`cloud`). */
+  deployment?: string;
 }
 
 
 const card = 'card-payments';
 const settle = 'settlement';
 const checkout = 'checkout-web';
-const at = (dossier: string, area: string, env?: string) => ({ dossier, area, ...(env ? { env } : {}) });
+const at = (dossier: string, area: string, env?: string, deployment?: string) => ({ dossier, area, ...(env ? { env } : {}), ...(deployment ? { deployment } : {}) });
 /** `pr get <n> --include …` for each pull request a host's fixture holds. */
-const gets = (dossier: string, area: string, field: string, byNumber: Record<number, unknown>): Canned[] =>
-  Object.entries(byNumber).map(([n, data]) => ({ command: `${area} pr get`, input: { dossier, [field]: Number(n), include: PR_INCLUDE }, data, ...at(dossier, area) }));
+const gets = (dossier: string, area: string, field: string, byNumber: Record<number, unknown>, deployment?: string): Canned[] =>
+  Object.entries(byNumber).map(([n, data]) => ({ command: `${area} pr get`, input: { dossier, [field]: Number(n), include: PR_INCLUDE }, data, ...at(dossier, area, undefined, deployment) }));
 
 export const CANNED: Canned[] = [
   { command: 'dossiers list', input: {}, data: listData() },
@@ -79,8 +81,8 @@ export const CANNED: Canned[] = [
   { command: 'github pr list', input: { dossier: checkout, state: 'all' }, data: GITHUB_PRS, ...at(checkout, 'github') },
   ...gets(checkout, 'github', 'number', GITHUB_PR_GETS),
   { command: 'github repo file', input: { dossier: checkout, path: CODEOWNERS_PATHS[0] }, data: GITHUB_CODEOWNERS, ...at(checkout, 'github') },
-  { command: 'bitbucket-cloud pr list', input: { dossier: checkout, state: 'ALL' }, data: BITBUCKET_CLOUD_PRS, ...at(checkout, 'bitbucket-cloud') },
-  ...gets(checkout, 'bitbucket-cloud', 'id', BITBUCKET_CLOUD_PR_GETS),
+  { command: 'bitbucket pr list', input: { dossier: checkout, state: 'ALL' }, data: BITBUCKET_CLOUD_PRS, ...at(checkout, 'bitbucket', undefined, 'cloud') },
+  ...gets(checkout, 'bitbucket', 'id', BITBUCKET_CLOUD_PR_GETS, 'cloud'),
   { command: 'openshift deployment list', input: { dossier: checkout, env: 'staging', namespace: 'checkout-staging' }, data: OPENSHIFT['checkout-staging'], ...at(checkout, 'openshift', 'staging') },
   { command: 'openshift deployment list', input: { dossier: checkout, env: 'prod', namespace: 'checkout-prod' }, data: OPENSHIFT['checkout-prod'], ...at(checkout, 'openshift', 'prod') },
 ];
@@ -100,7 +102,7 @@ function contextOf(c: Canned) {
   const inputs = (showData(d).areas[c.area] as { inputs: Record<string, string> } | undefined)?.inputs ?? {};
   return {
     dossier: { name: d.name, source: 'user' as const, file: fileOf(d.name), by: 'input' as const },
-    connection: { value: String(section.connection), source: 'dossier' as const },
+    connection: { value: String(section.connection), source: 'dossier' as const, ...(c.deployment ? { deployment: c.deployment } : {}) },
     ...(Object.keys(inputs).length ? { inputs: Object.fromEntries(Object.entries(inputs).map(([k, value]) => [k, { value, source: 'dossier' as const }])) } : {}),
   };
 }

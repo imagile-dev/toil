@@ -71,19 +71,43 @@
   },
   {
     "name": "bitbucket",
-    "description": "Bitbucket Data Center: repositories, pull requests, comments, reviewers and build statuses",
+    "description": "Bitbucket Data Center and Bitbucket Cloud: repositories, branches, tags, commits, files, pull requests, comments, reviewers, build statuses and Pipelines",
     "connection": [
       {
         "name": "baseUrl",
-        "description": "Bitbucket server root, e.g. https://bitbucket.imagile.dev",
+        "description": "Bitbucket root: the Data Center server (https://bitbucket.imagile.dev), or the Cloud REST API root (https://api.bitbucket.org/2.0)",
         "secret": false,
         "password": false,
         "default": null,
         "required": true
       },
       {
+        "name": "deployment",
+        "description": "Which Bitbucket this is: \"server\" for Data Center (the default), or \"cloud\" for Bitbucket Cloud",
+        "secret": false,
+        "password": false,
+        "default": "server",
+        "required": false
+      },
+      {
+        "name": "email",
+        "description": "Bitbucket Cloud only: the email address of the Atlassian account an API token belongs to (with apiToken)",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
         "name": "project",
-        "description": "Default project key",
+        "description": "Data Center: default project key",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "workspace",
+        "description": "Bitbucket Cloud: default workspace slug",
         "secret": false,
         "password": false,
         "default": null,
@@ -99,7 +123,7 @@
       },
       {
         "name": "targetBranch",
-        "description": "Default target branch for pr create (main when unset)",
+        "description": "Data Center: default target branch for pr create (main when unset)",
         "secret": false,
         "password": false,
         "default": null,
@@ -107,11 +131,27 @@
       },
       {
         "name": "pat",
-        "description": "HTTP access token",
+        "description": "Data Center: an HTTP access token",
         "secret": true,
         "password": false,
         "default": null,
-        "required": true
+        "required": false
+      },
+      {
+        "name": "apiToken",
+        "description": "Bitbucket Cloud only: an Atlassian API token with Bitbucket scopes, sent as Basic auth with email",
+        "secret": true,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
+        "name": "accessToken",
+        "description": "Bitbucket Cloud only: a workspace, project or repository access token, sent as Bearer",
+        "secret": true,
+        "password": false,
+        "default": null,
+        "required": false
       }
     ]
   },

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { allowWriteField } from '../../core/run.js';
-import { bitbucketCloudArea } from './area.js';
+import { allowWriteField } from '../../../core/run.js';
+import { bitbucketArea } from '../area.js';
 import { all, bbc, IN_REPO, prPath } from './client.js';
 
 /**
@@ -24,8 +24,8 @@ export interface Comment {
   [key: string]: unknown;
 }
 
-export const listCommentsCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'pr', 'comments'],
+export const listCommentsCommand = bitbucketArea.command({
+  path: ['bitbucket', 'pr', 'comments'],
   description: 'List comments on a pull request (includes threaded replies by default)',
   toolDescription:
     'Lists the comments on a pull request, oldest first, replies included, each reply carrying parent.id and each inline comment carrying inline (path, from, to). withReplies false keeps top-level comments only; inlineOnly and generalOnly keep only file-anchored or only general comments.',
@@ -50,10 +50,10 @@ export const listCommentsCommand = bitbucketCloudArea.command({
   },
 });
 
-export const addCommentCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'pr', 'comment'],
+export const addCommentCommand = bitbucketArea.command({
+  path: ['bitbucket', 'pr', 'comment'],
   description: 'Add a comment to a pull request',
-  toolDescription: 'Adds a general comment (Markdown) to a pull request and returns it. Use bitbucket_cloud_pr_comment_inline for a comment on a line of a file.',
+  toolDescription: 'Adds a general comment (Markdown) to a pull request and returns it. Use bitbucket_pr_comment_inline for a comment on a line of a file.',
   input: z.object({ id: pr, body: z.string().min(1).describe('Comment text (Markdown)'), ...allowWriteField }),
   writes: true,
   context: IN_REPO,
@@ -63,8 +63,8 @@ export const addCommentCommand = bitbucketCloudArea.command({
   run: (input, ctx) => bbc(ctx, `${prPath(ctx, input.id)}/comments`, { method: 'POST', json: { content: { raw: input.body } } }),
 });
 
-export const addInlineCommentCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'pr', 'comment-inline'],
+export const addInlineCommentCommand = bitbucketArea.command({
+  path: ['bitbucket', 'pr', 'comment-inline'],
   description: 'Add an inline comment to a file in a pull request',
   toolDescription:
     "Adds a comment on one line of a file in a pull request's diff and returns it. lineType ADDED (default) or CONTEXT numbers the line in the new version of the file; REMOVED numbers it in the old version.",
@@ -96,8 +96,8 @@ export const addInlineCommentCommand = bitbucketCloudArea.command({
   },
 });
 
-export const replyCommentCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'pr', 'reply'],
+export const replyCommentCommand = bitbucketArea.command({
+  path: ['bitbucket', 'pr', 'reply'],
   description: 'Reply to a comment on a pull request',
   toolDescription: 'Replies to a comment on a pull request and returns the reply.',
   input: z.object({ id: pr, commentId: commentId.describe('Comment ID to reply to'), body: z.string().min(1).describe('Reply text (Markdown)'), ...allowWriteField }),
@@ -109,8 +109,8 @@ export const replyCommentCommand = bitbucketCloudArea.command({
   run: (input, ctx) => bbc(ctx, `${prPath(ctx, input.id)}/comments`, { method: 'POST', json: { content: { raw: input.body }, parent: { id: input.commentId } } }),
 });
 
-export const resolveCommentCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'pr', 'resolve'],
+export const resolveCommentCommand = bitbucketArea.command({
+  path: ['bitbucket', 'pr', 'resolve'],
   description: 'Resolve a comment thread on a pull request (use the root comment ID, not a reply)',
   toolDescription: "Resolves a comment thread on a pull request, given the thread's root comment ID, and returns Bitbucket's resolution record. A thread that is already resolved is an HTTP 409.",
   input: z.object({ id: pr, commentId, ...allowWriteField }),
@@ -121,8 +121,8 @@ export const resolveCommentCommand = bitbucketCloudArea.command({
   run: (input, ctx) => bbc(ctx, `${prPath(ctx, input.id)}/comments/${input.commentId}/resolve`, { method: 'POST' }),
 });
 
-export const deleteCommentCommand = bitbucketCloudArea.command({
-  path: ['bitbucket-cloud', 'pr', 'delete-comment'],
+export const deleteCommentCommand = bitbucketArea.command({
+  path: ['bitbucket', 'pr', 'delete-comment'],
   description: 'Delete a comment on a pull request',
   toolDescription: 'Deletes a comment on a pull request. Returns { deleted: true }.',
   // Deletes never go through MCP (CLAUDE.md, Writes): the CLI only, behind the write gate.
