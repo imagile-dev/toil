@@ -20,7 +20,7 @@ import { ADO_CI_RUNS, ADO_DEPLOY_RUNS, ADO_PR_GETS, ADO_PRS, BITBUCKET_CLOUD_PR_
 import { DOSSIERS, fileOf, listData, showData, type DossierFile } from './dossiers.ts';
 import {
   ADO_BATCH, ADO_IDS, ADO_ITERATIONS, ADO_REVISIONS, ADO_WIQL, GITHUB_EVENTS, GITHUB_ISSUES, GITHUB_NUMBERS, GITHUB_PROJECT_ITEMS,
-  ADO_STATES, JIRA_CHANGELOGS, JIRA_KEYS, JIRA_SEARCH, JIRA_TRANSITIONS,
+  ADO_STATES, JIRA_CHANGELOGS, JIRA_CUT_SHORT, JIRA_SEARCH_WITH_CHANGELOGS, JIRA_TRANSITIONS,
 } from './work.ts';
 
 /** The moment the sample data was read: day seven of Sprint 42. */
@@ -53,8 +53,9 @@ export const CANNED: Canned[] = [
   ...DOSSIERS.map((d) => ({ command: 'dossiers show', input: { dossier: d.name }, data: showData(d) })),
 
   // card-payments
-  { command: 'jira issue search', input: { dossier: card, jql: JQL('PAY') }, data: JIRA_SEARCH, ...at(card, 'jira') },
-  ...JIRA_KEYS.map((key) => ({ command: 'jira issue history', input: { dossier: card, key }, data: JIRA_CHANGELOGS[key], ...at(card, 'jira') })),
+  // The search carries each issue's history (toil's --changelog); the sample cuts one short, and that issue is read with its own call.
+  { command: 'jira issue search', input: { dossier: card, jql: JQL('PAY'), changelog: true }, data: JIRA_SEARCH_WITH_CHANGELOGS, ...at(card, 'jira') },
+  ...JIRA_CUT_SHORT.map((key) => ({ command: 'jira issue history', input: { dossier: card, key }, data: JIRA_CHANGELOGS[key], ...at(card, 'jira') })),
   // The readiness gate's one live read (#307), made only when a person presses for it on an item's page.
   ...Object.entries(JIRA_TRANSITIONS).map(([key, data]) => ({ command: 'jira issue transitions', input: { dossier: card, key }, data, ...at(card, 'jira') })),
   { command: 'bitbucket pr list', input: { dossier: card, state: 'ALL' }, data: BITBUCKET_PRS, ...at(card, 'bitbucket') },

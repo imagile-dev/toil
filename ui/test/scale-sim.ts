@@ -49,6 +49,8 @@ export interface Sim {
   touch(n: number): void;
   /** Deletes a live item from the tracker. */
   remove(n: number): void;
+  /** Makes Jira send a shortened changelog for an item, as it does for a very long history. */
+  cutShort(n: number): void;
   close(): void;
 }
 
@@ -64,6 +66,7 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
   const open = (n: number) => n > total - live && n % 4 !== 0;
   const touched = new Map<number, number>();
   const removed = new Set<number>();
+  const cut = new Set<number>();
   const changed = (n: number) => touched.get(n) ?? updatedAt(n);
   const ids = () => Array.from({ length: total }, (_, i) => i + 1).filter((n) => !removed.has(n));
 
@@ -71,6 +74,11 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
   const doneStatus = { name: 'Done', id: '10001', statusCategory: { id: 3, key: 'done', name: 'Done' } };
   const openStatus = { name: 'In Progress', id: '3', statusCategory: { id: 4, key: 'indeterminate', name: 'In Progress' } };
   const jiraIssue = (n: number): Rec => ({ ...jiraTemplate, id: String(10000 + n), key: `PAY-${n}`, fields: { ...jiraTemplate.fields, summary: `Issue ${n}`, updated: new Date(changed(n)).toISOString(), status: open(n) ? openStatus : doneStatus } });
+  // The inline changelog Jira sends with --changelog: the whole history, or the first entry of a longer one.
+  const withChangelog = (n: number): Rec => {
+    const histories = JIRA_CHANGELOGS['PAY-101'] as unknown[];
+    return { ...jiraIssue(n), changelog: { startAt: 0, maxResults: 100, total: cut.has(n) ? histories.length + 50 : histories.length, histories: cut.has(n) ? histories.slice(0, 1) : histories } };
+  };
   const adoTemplate = ADO_BATCH.value[0]!;
   const adoItem = (n: number): Rec => ({ ...adoTemplate, id: 5000 + n, fields: { ...adoTemplate.fields, 'System.Title': `Item ${n}`, 'System.State': open(n) ? 'Active' : 'Closed', 'System.ChangedDate': new Date(changed(n)).toISOString(), ...(open(n) ? {} : { 'Microsoft.VSTS.Common.ClosedDate': new Date(changed(n)).toISOString() }) } });
 
@@ -100,7 +108,7 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
       const select = ids().filter((n) => (window ? open(n) || changed(n) >= clock - Number(window[1]) * DAY : true)).filter((n) => since === null || changed(n) >= since);
       const start = typeof input.cursor === 'string' ? Number(input.cursor) : 0;
       const page = select.slice(start, start + JIRA_PAGE_SIZE);
-      const issues = page.map((n) => (input.fields === 'key' ? { key: `PAY-${n}` } : jiraIssue(n)));
+      const issues = page.map((n) => (input.fields === 'key' ? { key: `PAY-${n}` } : input.changelog === true ? withChangelog(n) : jiraIssue(n)));
       const next = start + JIRA_PAGE_SIZE < select.length ? String(start + JIRA_PAGE_SIZE) : null;
       return ok(command, { startAt: start, maxResults: JIRA_PAGE_SIZE, total: select.length, issues }, { nextCursor: next, limit: JIRA_PAGE_SIZE });
     }
@@ -158,6 +166,9 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
     },
     remove(n) {
       removed.add(n);
+    },
+    cutShort(n) {
+      cut.add(n);
     },
     close() {
       cache.close();

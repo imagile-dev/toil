@@ -22,6 +22,7 @@
  */
 
 import { adoBuilds, adoDeployments, byEnvironment, changeRef, githubBuild, jenkinsBuilds, openshiftDeployments } from './model/delivery.ts';
+import { splitChangelogs } from './jira-changelog.ts';
 import { LOOKBACK_DAYS } from './model/flow.ts';
 import { readPeople, type PersonEntry } from './model/people.ts';
 import { readReadiness, type ReadinessSettings } from './model/readiness.ts';
@@ -322,13 +323,15 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   const tasks: Array<Promise<void>> = [];
   for (const jira of JIRA_AREAS.filter((a) => areas[a]?.inputs.project)) {
     tasks.push((async () => {
-      const search = await run('work', `${jira} issue search`, { ...base, jql: JQL(areas[jira]!.inputs.project!, options.windowDays) });
-      if (!search) return;
+      // The search brings each issue's history with it (toil's --changelog); only an issue whose changelog came back short is read with a call of its own.
+      const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(areas[jira]!.inputs.project!, options.windowDays), changelog: true });
+      if (!asked) return;
+      const { search, histories: inline, incomplete } = splitChangelogs(asked, `${jira} issue history`);
       work[jira].push(search);
-      const keys = recs((search.data as Rec).issues).map((i) => String(i.key));
-      const histories = await runEach('work', `${jira} issue history`, keys.map((key) => ({ ...base, key })));
+      for (const { key, history } of inline) work[jira].push({ key, history });
+      const histories = await runEach('work', `${jira} issue history`, incomplete.map((key) => ({ ...base, key })));
       histories.forEach((history, n) => {
-        if (history) work[jira].push({ key: keys[n]!, history });
+        if (history) work[jira].push({ key: incomplete[n]!, history });
       });
     })());
   }

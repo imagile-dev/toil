@@ -84,7 +84,8 @@ export function stubToil(): StubToil {
     const since = typeof updatedSince === 'string' ? Date.parse(updatedSince) : null;
 
     if (command === 'jira issue search') {
-      const hit = find(command, rest);
+      // The ids-only listing (fields: 'key') carries no changelog, and is answered from the one canned search the dashboard asks.
+      const hit = find(command, fields === 'key' ? { ...rest, changelog: true } : rest);
       if (!hit) return fail(command, 'INVALID_INPUT', `No canned ${command}.`, 'Add it.');
       // fields: 'key' is the sync's ids-only listing (#493): the key and nothing else.
       const all = (hit.data as { issues: Array<{ key: string; fields: Rec }> }).issues.filter((i) => since === null || Date.parse(String(i.fields.updated)) >= since).map((i) => (fields === 'key' ? ({ key: i.key } as { key: string; fields: Rec }) : i));
