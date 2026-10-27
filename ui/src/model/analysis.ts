@@ -15,6 +15,7 @@
  * reshaped into something it didn't write. Minutes with an agenda, at last.
  */
 
+import { readBriefing, type Briefing } from '../../../src/core/brief/answer.ts';
 import { citationsOf, type Answer, type AnswerPart } from '../agent.ts';
 import type { AnswerUsage } from '../model-usage.ts';
 import type { Proposal } from '../proposal.ts';
@@ -143,9 +144,13 @@ export interface AnalysisRecord {
   model: string | null;
   by: string;
   usage: AnswerUsage | null;
-  /** The recommendation and issues, as structureOf read them; null and none when the answer didn't follow the shape. */
+  /** The recommendation and issues: from the briefing block (#494), or as structureOf read an older answer; null and none when it followed neither shape. */
   recommendation: string | null;
   issues: AnalysisIssue[];
+  /** The briefing the answer's ```briefing block held (#494), checked for its shape; null for an answer without one, and for analyses kept before it. */
+  briefing?: Briefing | null;
+  /** What in the block didn't fit, in words: shown on the page, never fixed up. */
+  briefingProblems?: string[];
   /** The whole answer, to read again. */
   parts: AnswerPart[];
   citations: string[];
@@ -157,7 +162,11 @@ export interface AnalysisRecord {
 
 /** An Analyze answer, finished, as a record for the history. */
 export function recordOf(answer: Answer, o: { id: string; dossier: string; startedAt: string; at: string; snapshot: AnalysisSnapshot }): AnalysisRecord {
-  const s = structureOf(textOfParts(answer.parts));
+  const text = textOfParts(answer.parts);
+  // The server lifts the block out into answer.briefing; the sample, and an answer kept before that, still carry it in the text.
+  const read = answer.briefing !== undefined ? { briefing: answer.briefing, problems: answer.briefingProblems ?? [] } : text.includes('```briefing') ? readBriefing(text) : null;
+  const b = read?.briefing ?? null;
+  const s = b ? null : structureOf(text);
   return {
     id: o.id,
     dossier: o.dossier,
@@ -167,8 +176,10 @@ export function recordOf(answer: Answer, o: { id: string; dossier: string; start
     model: answer.model ?? null,
     by: answer.by,
     usage: answer.usage ?? null,
-    recommendation: s?.recommendation ?? null,
-    issues: s?.issues ?? [],
+    recommendation: b?.recommendation ?? s?.recommendation ?? null,
+    issues: b ? b.reasons.slice(0, MAX_ISSUES).map((r) => ({ title: r.label, text: r.text ?? r.line })) : (s?.issues ?? []),
+    briefing: b,
+    briefingProblems: read?.problems ?? [],
     parts: answer.parts,
     citations: answer.citations.length ? answer.citations : citationsOf(answer.parts),
     unverified: answer.unverified ?? [],

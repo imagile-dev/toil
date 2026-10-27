@@ -9,6 +9,7 @@
  * emptied, by design.
  */
 
+import type { Briefing } from '../../src/core/brief/answer.ts';
 import type { AnswerUsage, ChatTurn } from './model-usage.ts';
 import type { Proposal } from './proposal.ts';
 import type { ChatSession } from './fingerprint.ts';
@@ -35,6 +36,10 @@ export interface Answer {
   unverified?: string[];
   /** What the server's checks found, in words the pane shows above the answer. */
   warnings?: string[];
+  /** Analyze's briefing (#494), lifted out of the answer's ```briefing block and checked for its shape; the parts hold the rest. */
+  briefing?: Briefing | null;
+  /** What in the briefing block didn't fit, in words. */
+  briefingProblems?: string[];
   /** What the SDK reported this question used (#295), on the finished answer only. */
   usage?: AnswerUsage;
   /** The adapter that wrote it (#344), by name, and the model Settings gave it (null: its CLI's default). */
