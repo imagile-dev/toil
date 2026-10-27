@@ -409,15 +409,25 @@ describe("Two Weeks' Notice: the encrypted save", () => {
     expect(loadProgress(newer, who)).toMatchObject({ writable: false, notice: expect.stringContaining('newer toil') });
   });
 
-  it('loads the save from a version 2 file, and saving upgrades it to the current version, keeping every other key', () => {
+  it('loads the save from a version 2 file, reports it read-only, and leaves the file untouched', () => {
     const path = join(dir(), 'config.json');
     const connections = { 'corp-jira': { area: 'jira', baseUrl: 'https://jira.imagile.dev' } };
     writeFileSync(path, JSON.stringify({ version: 2, connections, defaults: {}, game: seal(progress, who) }));
-    expect(loadProgress(path, who)).toEqual({ progress, writable: true });
+    const before = readFileSync(path);
+    const loaded = loadProgress(path, who);
+    expect(loaded).toMatchObject({ progress, writable: false });
+    expect(loaded.notice).toContain('older config file');
+    expect(readFileSync(path).equals(before)).toBe(true);
+  });
+
+  it('saves into a current-version file touching only "game"', () => {
+    const path = join(dir(), 'config.json');
+    const config = { version: CONFIG_VERSION, connections: { 'corp-jira': { area: 'jira', baseUrl: 'https://jira.imagile.dev' } }, defaults: { jira: { connection: 'corp-jira' } } };
+    writeFileSync(path, JSON.stringify(config));
     expect(storeProgress(path, progress, who)).toBeUndefined();
-    const written = JSON.parse(readFileSync(path, 'utf8'));
-    expect(written).toMatchObject({ version: CONFIG_VERSION, connections });
-    expect(loadProgress(path, who)).toEqual({ progress, writable: true });
+    const { game, ...rest } = JSON.parse(readFileSync(path, 'utf8'));
+    expect(rest).toEqual(config);
+    expect(typeof game).toBe('string');
   });
 
   it('creates a config holding only the save when there is none', () => {
