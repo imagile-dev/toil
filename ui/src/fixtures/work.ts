@@ -171,3 +171,22 @@ export const ADO_STATES: Record<string, unknown> = {
   Bug: AGILE,
   Feature: AGILE,
 };
+
+/** The issues whose inline changelog the sample cuts short: the only ones the dashboard reads with `issue history`. */
+export const JIRA_CUT_SHORT = ['PAY-106'];
+
+/**
+ * `jira issue search --changelog`'s data: the same answer with each issue's
+ * history inline, as Jira sends it (`changelog: { startAt, maxResults, total,
+ * histories }`). The entries are the ones `issue history` returns for the key.
+ */
+export const JIRA_SEARCH_WITH_CHANGELOGS = {
+  ...JIRA_SEARCH,
+  issues: JIRA_SEARCH.issues.map((i) => {
+    const key = (i as { key: string }).key;
+    const histories = JIRA_CHANGELOGS[key] as unknown[];
+    // An issue in JIRA_CUT_SHORT comes back with the first entry only, as a long history does, so the dashboard reads it with `issue history`.
+    const sent = JIRA_CUT_SHORT.includes(key) ? histories.slice(0, 1) : histories;
+    return { ...i, changelog: { startAt: 0, maxResults: 100, total: histories.length, histories: sent } };
+  }),
+};

@@ -170,7 +170,11 @@ const reusedEnvelopes = new WeakSet<object>();
 const reuse = (env: Envelope): Envelope => (reusedEnvelopes.add(env), env);
 
 /** The same search asking for ids only, where the command can: a listing to reconcile with, not to read. */
-const idsOnly = (command: string, input: Rec): Rec => (command.endsWith('issue search') ? { ...input, fields: 'key' } : input);
+const idsOnly = (command: string, input: Rec): Rec => {
+  if (!command.endsWith('issue search')) return input;
+  // Ids only means no histories either: the reconcile lists the project, it doesn't read it.
+  return { ...Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'changelog')), fields: 'key' };
+};
 
 /** Two pages of one listing as one answer: lists concatenated, the rest from the newer page. */
 export function joinPages(a: unknown, b: unknown): unknown {

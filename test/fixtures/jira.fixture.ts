@@ -161,8 +161,9 @@ export const routes: Route[] = [
     method: 'POST',
     url: api('/search'),
     respond: (req: RecordedRequest) => {
-      const body = JSON.parse(req.body!) as { startAt: number; maxResults: number };
-      const page = searchIssues.slice(body.startAt, body.startAt + body.maxResults);
+      const body = JSON.parse(req.body!) as { startAt: number; maxResults: number; expand?: string[] };
+      // Invented from the docs: with expand=changelog each issue carries the changelog object.
+      const page = searchIssues.slice(body.startAt, body.startAt + body.maxResults).map((i) => (body.expand?.includes('changelog') ? { ...i, changelog: { startAt: 0, maxResults: 100, total: 1, histories: [{ id: '10100', author: { name: 'jsmith', displayName: 'J. Smith' }, created: '2026-10-01T09:30:00.000+0000', items: [{ field: 'status', fieldtype: 'jira', from: '1', fromString: 'To Do', to: '3', toString: 'In Progress' }] }] } } : i));
       return json({ expand: 'schema,names', startAt: body.startAt, maxResults: body.maxResults, total: searchIssues.length, issues: page });
     },
   },

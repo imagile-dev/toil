@@ -4,6 +4,7 @@ import { jiraArea } from '../area.js';
 import * as client from './client.js';
 import { buildFieldMap, resolveFieldKey, translateFieldsInOutput, translateJql } from './custom-fields.js';
 import { commaList, resolveJql } from './input.js';
+import { changelogField, changelogOption, warnTruncatedChangelogs } from '../changelog.js';
 import { jqlInstant, parseUpdatedSince, updatedSinceField, updatedSinceOption, withUpdatedSince } from '../since.js';
 
 /**
@@ -17,13 +18,14 @@ export const search = jiraArea.command({
   path: ['jira', 'issue', 'search'],
   description: 'Search Jira issues with JQL (consider --output-file for large results)',
   toolDescription:
-    'Searches Jira issues with JQL and returns { issues, maxResults, isLast }: maxResults is how many came back, isLast whether that was everything. Without limit it pages through every match, so bound broad queries. With limit, pass meta.page.nextCursor as cursor to get the next page. Jira reports no total. updatedSince adds updated >= that instant to the JQL, in the time zone of your Atlassian account. Use jira_issue_get for one issue by key.',
+    'Searches Jira issues with JQL and returns { issues, maxResults, isLast }: maxResults is how many came back, isLast whether that was everything. Without limit it pages through every match, so bound broad queries. With limit, pass meta.page.nextCursor as cursor to get the next page. Jira reports no total. updatedSince adds updated >= that instant to the JQL, in the time zone of your Atlassian account. changelog adds Jira\'s own changelog of each issue inline, in the order Jira sends it (Cloud: newest first, at most 20 entries; jira_issue_history reads the whole history, oldest first), so one search replaces a history call per issue. A JIRA_CLOUD_CHANGELOG_TRUNCATED warning names issues that may be cut short. Use jira_issue_get for one issue by key.',
   input: z.object({
     jql: z.string().optional().describe('JQL query, e.g. project = PROJ AND status = "In Progress"'),
     jqlFile: z.string().optional().describe('Path to a file holding the JQL query ("-" = stdin on the CLI)'),
     limit: z.number().int().positive().optional().describe('Maximum number of issues to return; all matches when omitted'),
     cursor: z.string().min(1).optional().describe('meta.page.nextCursor from the previous page, to carry on from there (with limit)'),
     updatedSince: updatedSinceField,
+    changelog: changelogField,
     fields: z.string().optional().describe('Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")'),
   }),
   writes: false,
@@ -35,6 +37,7 @@ export const search = jiraArea.command({
     { flags: '--limit <n>', field: 'limit', description: 'Maximum number of results' },
     { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous page (with --limit)' },
     updatedSinceOption,
+    changelogOption,
     { flags: '--fields <list>', field: 'fields', description: 'Comma-separated fields to return instead of the default set (names or ids, e.g. summary,status,"Story Points")' },
   ],
   examples: [
@@ -44,6 +47,7 @@ export const search = jiraArea.command({
     { jqlFile: 'query.jql', fields: 'summary,status,Story Points' },
     { jqlFile: 'query.jql', updatedSince: '2026-10-01T09:30:00Z', limit: 2 },
     { updatedSince: '2026-10-01' },
+    { jql: 'project = PROJ', limit: 2, changelog: true },
   ],
   run: async (input, ctx) => {
     const fieldMap = buildFieldMap(ctx.connection.customFields);
@@ -74,8 +78,9 @@ export const search = jiraArea.command({
       );
       query = withUpdatedSince(query, instant);
     }
-    const result = await client.search(ctx, query!, { fields, cap: input.limit, cursor: input.cursor });
+    const result = await client.search(ctx, query!, { fields, cap: input.limit, cursor: input.cursor, changelog: input.changelog === true });
     const issues = result.items.map((issue) => ({ ...issue, fields: translateFieldsInOutput(issue.fields, fieldMap) }));
+    if (input.changelog) warnTruncatedChangelogs(ctx.warn, 'JIRA_CLOUD_CHANGELOG_TRUNCATED', issues);
     return { issues, maxResults: issues.length, isLast: result.nextCursor === null };
   },
 });

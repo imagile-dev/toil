@@ -38,6 +38,8 @@ export interface Counts {
   tracker: Record<string, number>;
   /** Rows the cache wrote, updated or deleted during the sync (SQLite's total_changes()). */
   rowsWritten: number;
+  /** Bytes of cached responses (the search rows among them) the sync added or rewrote: new or changed envelope text. */
+  responseBytesWritten: number;
   items: number;
   seconds: number;
 }
@@ -49,11 +51,20 @@ export interface Sim {
   touch(n: number): void;
   /** Deletes a live item from the tracker. */
   remove(n: number): void;
+  /** Makes Jira send a shortened changelog for an item, as it does for a very long history. */
+  cutShort(n: number): void;
   close(): void;
 }
 
+/**
+ * `longEvery` models Jira Cloud's cap (#493): every `longEvery`th issue has a
+ * 30-entry history, and the search sends only its 20 newest, newest first,
+ * with `maxResults: 20` and `total: 20` ("the number of results on the page"),
+ * as Atlassian documents. Every other issue's history arrives whole under the
+ * same `maxResults: 20`. 0 leaves every history short, as before.
+ */
 /** `total` items numbered 1 to total, the last `live` of them open or touched within a week; the rest closed 60 to 1500 days ago. */
-export async function simulate(kind: 'jira' | 'ado', total: number, live: number, retentionDays = 30): Promise<Sim> {
+export async function simulate(kind: 'jira' | 'ado', total: number, live: number, retentionDays = 30, longEvery = 0): Promise<Sim> {
   const dir = mkdtempSync(join(tmpdir(), 'toil-ui-scale-'));
   let clock = NOW;
   const now = () => new Date(clock);
@@ -64,6 +75,7 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
   const open = (n: number) => n > total - live && n % 4 !== 0;
   const touched = new Map<number, number>();
   const removed = new Set<number>();
+  const cut = new Set<number>();
   const changed = (n: number) => touched.get(n) ?? updatedAt(n);
   const ids = () => Array.from({ length: total }, (_, i) => i + 1).filter((n) => !removed.has(n));
 
@@ -71,6 +83,18 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
   const doneStatus = { name: 'Done', id: '10001', statusCategory: { id: 3, key: 'done', name: 'Done' } };
   const openStatus = { name: 'In Progress', id: '3', statusCategory: { id: 4, key: 'indeterminate', name: 'In Progress' } };
   const jiraIssue = (n: number): Rec => ({ ...jiraTemplate, id: String(10000 + n), key: `PAY-${n}`, fields: { ...jiraTemplate.fields, summary: `Issue ${n}`, updated: new Date(changed(n)).toISOString(), status: open(n) ? openStatus : doneStatus } });
+  const shortHistory = JIRA_CHANGELOGS['PAY-101'] as Array<Rec>;
+  const isLong = (n: number) => longEvery > 0 && n % longEvery === 0;
+  // A long history, oldest first: the short one's entries repeated under new ids and later times.
+  const longHistory = Array.from({ length: 30 }, (_, i) => ({ ...shortHistory[i % shortHistory.length], id: String(900 + i), created: new Date(NOW - (30 - i) * DAY).toISOString() }));
+  const wholeHistory = (n: number): Array<Rec> => (isLong(n) ? longHistory : shortHistory);
+  // The inline changelog Jira sends with --changelog: Cloud's page of at most 20, newest first, whose total counts the page; or, for a cut-short item, the first entry of a longer one with the real total.
+  const withChangelog = (n: number): Rec => {
+    const whole = wholeHistory(n);
+    if (cut.has(n)) return { ...jiraIssue(n), changelog: { startAt: 0, maxResults: 20, total: whole.length + 50, histories: whole.slice(0, 1) } };
+    const page = whole.slice(-20).reverse();
+    return { ...jiraIssue(n), changelog: { startAt: 0, maxResults: 20, total: page.length, histories: page } };
+  };
   const adoTemplate = ADO_BATCH.value[0]!;
   const adoItem = (n: number): Rec => ({ ...adoTemplate, id: 5000 + n, fields: { ...adoTemplate.fields, 'System.Title': `Item ${n}`, 'System.State': open(n) ? 'Active' : 'Closed', 'System.ChangedDate': new Date(changed(n)).toISOString(), ...(open(n) ? {} : { 'Microsoft.VSTS.Common.ClosedDate': new Date(changed(n)).toISOString() }) } });
 
@@ -100,14 +124,15 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
       const select = ids().filter((n) => (window ? open(n) || changed(n) >= clock - Number(window[1]) * DAY : true)).filter((n) => since === null || changed(n) >= since);
       const start = typeof input.cursor === 'string' ? Number(input.cursor) : 0;
       const page = select.slice(start, start + JIRA_PAGE_SIZE);
-      const issues = page.map((n) => (input.fields === 'key' ? { key: `PAY-${n}` } : jiraIssue(n)));
+      const issues = page.map((n) => (input.fields === 'key' ? { key: `PAY-${n}` } : input.changelog === true ? withChangelog(n) : jiraIssue(n)));
       const next = start + JIRA_PAGE_SIZE < select.length ? String(start + JIRA_PAGE_SIZE) : null;
       return ok(command, { startAt: start, maxResults: JIRA_PAGE_SIZE, total: select.length, issues }, { nextCursor: next, limit: JIRA_PAGE_SIZE });
     }
     if (kind === 'jira' && command === 'jira issue history') {
       bump();
       request();
-      return ok(command, JIRA_CHANGELOGS['PAY-101']);
+      const key = /PAY-(\d+)/.exec(String(input.key));
+      return ok(command, wholeHistory(key ? Number(key[1]) : 0));
     }
     if (kind === 'ado' && command === 'ado work-item search') {
       bump();
@@ -137,6 +162,7 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
   const dossier = kind === 'jira' ? 'card-payments' : 'settlement';
   const db = (cache as unknown as { db: { prepare(sql: string): { get(): { n: number } } } }).db;
   const changes = () => Number(db.prepare('SELECT total_changes() AS n').get().n);
+  const responses = () => new Map((db as unknown as { prepare(sql: string): { all(): Array<{ k: string; envelope: string }> } }).prepare("SELECT command || '|' || input_key AS k, envelope FROM responses").all().map((r) => [r.k, r.envelope] as const));
 
   return {
     async sync(afterMs) {
@@ -145,19 +171,25 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
       requests = 0;
       tracker = {};
       const before = changes();
+      const stored = responses();
       const started = performance.now();
       const job = await sync.run(ctx, dossier);
       const seconds = (performance.now() - started) / 1000;
       if (job.error) throw new Error(job.error);
       const failed = cache.states().flatMap((d) => d.sources.filter((s) => s.status === 'failed').map((s) => `${s.area}: ${s.error}`));
       if (failed.length) throw new Error(failed.join('; '));
-      return { toilCalls, requests, tracker: { ...tracker }, rowsWritten: changes() - before, items: cache.items(dossier).length, seconds };
+      let responseBytesWritten = 0;
+      for (const [k, envelope] of responses()) if (stored.get(k) !== envelope) responseBytesWritten += Buffer.byteLength(envelope);
+      return { toilCalls, requests, tracker: { ...tracker }, rowsWritten: changes() - before, responseBytesWritten, items: cache.items(dossier).length, seconds };
     },
     touch(n) {
       touched.set(n, clock + 60_000);
     },
     remove(n) {
       removed.add(n);
+    },
+    cutShort(n) {
+      cut.add(n);
     },
     close() {
       cache.close();
