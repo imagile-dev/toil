@@ -197,6 +197,9 @@ const XTERM = Array.from({ length: 240 }, (_, i) => {
   return { index: 16 + i, color, lum: lum(color), lab: oklab(color) };
 });
 
+/** Rounded colours, by colour and background: a frame asks for the same few hundreds of times. */
+const ROUNDED = new Map<string, number>();
+
 /**
  * The 256-colour palette's nearest colour to this one by eye (OKLab), rounded
  * away from the background: the closest that is no nearer the background in
@@ -208,9 +211,6 @@ const XTERM = Array.from({ length: 240 }, (_, i) => {
  * enough, and losing colour costs extra: a green stays green, a grey stays grey. Nobody's brand guidelines
  * were consulted, only their luminance.
  */
-/** Rounded colours, by colour and background: a frame asks for the same few hundreds of times. */
-const ROUNDED = new Map<string, number>();
-
 function to256(rgb: Rgb, bg: Rgb): number {
   const key = `${rgb.join(',')}/${bg.join(',')}`;
   const known = ROUNDED.get(key);
