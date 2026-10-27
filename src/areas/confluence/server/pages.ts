@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import type { FileAccess } from '../../core/files.js';
-import { allowWriteField } from '../../core/run.js';
-import { confluenceArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import type { FileAccess } from '../../../core/files.js';
+import { allowWriteField } from '../../../core/run.js';
+import { confluenceArea } from '../area.js';
 import * as client from './client.js';
 import { withBodyHints } from './hints.js';
 

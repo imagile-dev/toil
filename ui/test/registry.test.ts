@@ -103,7 +103,7 @@ describe('every proposal the board, the scripted agent and the pull request view
   for (const scripts of Object.values(SCRIPTS)) for (const s of Object.values(scripts)) proposals.push(...(s.proposals ?? []));
   // Publishing a worklog (#308), to every place a dossier can name.
   const { publishProposals } = await import('../src/worklog.ts');
-  const everywhere = { confluence: { connection: null, inputs: { space: 'PAY' } }, 'confluence-cloud': { connection: null, inputs: { space: 'PAY' } }, github: { connection: null, inputs: { owner: 'imagile', repo: 'payments-web' } } };
+  const everywhere = { confluence: { connection: null, inputs: { space: 'PAY' } }, github: { connection: null, inputs: { owner: 'imagile', repo: 'payments-web' } } };
   proposals.push(...publishProposals('card-payments', { day: '2026-10-12' }, 'C:/Users/you/Documents/worklog-card-payments-2026-10-12.md', everywhere));
   // Ticketing a chat's work (#304): a sub-task under every open item, and a new ticket, on every tracker toil creates on.
   const { newTicketProposal, subTaskProposal } = await import('../src/model/ticketing.ts');

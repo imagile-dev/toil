@@ -25,7 +25,7 @@ afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 const file = () => join(home, '.toil', 'config.json');
 const writeJson = (value: unknown) => writeFileSync(file(), JSON.stringify(value));
-const areas: AreaInfo[] = [{ name: 'jira' }, { name: 'db' }];
+const areas: AreaInfo[] = [{ name: 'jira' }, { name: 'confluence' }, { name: 'db' }];
 const load = (env: NodeJS.ProcessEnv = {}) => loadConfig({ env, cwd: repo, home, areas });
 
 const cloud = { area: 'jira-cloud', baseUrl: 'https://jira-cloud.imagile.dev', email: 'you@example.com', apiToken: 'keychain:imagile-cloud.apiToken' };
@@ -103,11 +103,15 @@ describe('version 3: jira-cloud became jira with deployment cloud', () => {
     expect(load().connections['imagile-cloud']).toMatchObject({ area: 'jira', deployment: 'cloud' });
   });
 
-  it('warns about a version 3 file that still names the old area, with the new form', () => {
-    writeJson({ version: 3, connections: { old: { area: 'jira-cloud' } } });
-    const warning = load().warnings.find((w) => w.code === 'CONFIG_RENAMED_AREA')!;
+  it('folds a version 3 file that still names the old area, with a warning that gives the new form', () => {
+    writeJson({ version: 3, connections: { old: { ...cloud, area: 'jira-cloud' } }, defaults: { 'jira-cloud': { connection: 'old' } } });
+    const config = load();
+    expect(config.connections.old).toEqual({ ...cloud, area: 'jira', deployment: 'cloud' });
+    expect(defaultConnectionName(config, 'jira')).toBe('old');
+    const warning = config.warnings.find((w) => w.code === 'CONFIG_RENAMED_AREA')!;
     expect(warning.message).toContain('jira-cloud is now jira');
     expect(warning.message).toContain('TOIL_JIRA_DEPLOYMENT=cloud');
+    expect(warning.message).toContain('connection old');
   });
 
   it('refuses TOIL_JIRA_CLOUD_* env vars, naming TOIL_JIRA_* with TOIL_JIRA_DEPLOYMENT=cloud, rather than ignoring a credential', () => {
@@ -185,5 +189,68 @@ describe('empty retired variables, and TOIL_STRICT_ENV', () => {
     );
     expect(() => load({ TOIL_JIRA_CLOUD_API_TOKEN: '', TOIL_STRICT_ENV: 'false' })).not.toThrow();
     expect(parseEnvName('TOIL_STRICT_ENV', ['jira'])).toBeUndefined();
+  });
+});
+
+describe('confluence-cloud became confluence with deployment cloud', () => {
+  const wiki = { area: 'confluence-cloud', baseUrl: 'https://confluence-cloud.imagile.dev', email: 'you@example.com', apiToken: 'keychain:wiki-cloud.apiToken' };
+  const folded = { ...wiki, area: 'confluence', deployment: 'cloud' };
+
+  it('folds a version 2 file quietly, keychain reference untouched', () => {
+    writeJson({ version: 2, connections: { 'wiki-cloud': wiki }, defaults: { 'confluence-cloud': { connection: 'wiki-cloud' } } });
+    const config = load();
+    expect(config.connections['wiki-cloud']).toEqual(folded);
+    expect(defaultConnectionName(config, 'confluence')).toBe('wiki-cloud');
+    expect(config.defaults).toEqual({ confluence: { connection: 'wiki-cloud' } });
+    expect(config.warnings).toEqual([]);
+  });
+
+  it('folds a version 3 file, which an earlier build of this change could still write, with a warning', () => {
+    writeJson({ version: 3, connections: { 'wiki-cloud': wiki }, defaults: { 'confluence-cloud': { connection: 'wiki-cloud' } } });
+    const config = load();
+    expect(config.connections['wiki-cloud']).toEqual(folded);
+    expect(defaultConnectionName(config, 'confluence')).toBe('wiki-cloud');
+    expect(config.defaults).not.toHaveProperty('confluence-cloud');
+    const warning = config.warnings.find((w) => w.code === 'CONFIG_RENAMED_AREA')!;
+    expect(warning.message).toContain('confluence-cloud is now confluence');
+    expect(warning.message).toContain('TOIL_CONFLUENCE_DEPLOYMENT=cloud');
+    expect(warning.message).toContain('connection wiki-cloud');
+    expect(warning.message).toContain('defaults.confluence-cloud');
+  });
+
+  it('keeps the Data Center default beside a folded Cloud connection', () => {
+    writeJson({
+      version: 3,
+      connections: { 'corp-wiki': { area: 'confluence', baseUrl: 'https://confluence.imagile.dev' }, 'wiki-cloud': wiki },
+      defaults: { confluence: { connection: 'corp-wiki' }, 'confluence-cloud': { connection: 'wiki-cloud' } },
+    });
+    const config = load();
+    expect(defaultConnectionName(config, 'confluence')).toBe('corp-wiki');
+    expect(config.warnings.map((w) => w.code).sort()).toEqual(['CONFIG_DEFAULT_KEPT', 'CONFIG_RENAMED_AREA']);
+  });
+
+  it('folding twice changes nothing: what an edit writes back loads clean and reads back the same', () => {
+    writeJson({ version: 3, connections: { 'wiki-cloud': wiki, 'imagile-cloud': cloud }, defaults: { 'confluence-cloud': { connection: 'wiki-cloud' }, 'jira-cloud': { connection: 'imagile-cloud' } } });
+    const once = readConfigForEdit(file());
+    expect(once).toEqual({
+      version: 3,
+      connections: { 'wiki-cloud': folded, 'imagile-cloud': { ...cloud, area: 'jira', deployment: 'cloud' } },
+      defaults: { confluence: { connection: 'wiki-cloud' }, jira: { connection: 'imagile-cloud' } },
+    });
+    writeConfigFile(file(), once);
+    const config = load();
+    expect(config.warnings).toEqual([]);
+    expect(readConfigForEdit(file())).toEqual(once);
+  });
+
+  it('refuses TOIL_CONFLUENCE_CLOUD_* env vars and TOIL_CONN_<NAME>_AREA=confluence-cloud, naming the new form', () => {
+    expect(() => load({ TOIL_CONFLUENCE_CLOUD_API_TOKEN: 't' })).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', fix: expect.stringContaining('TOIL_CONFLUENCE_API_TOKEN and set TOIL_CONFLUENCE_DEPLOYMENT=cloud') }));
+    expect(() => load({ TOIL_CONN_CI_AREA: 'confluence-cloud' })).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', fix: expect.stringContaining('TOIL_CONN_CI_AREA=confluence, and TOIL_CONN_CI_DEPLOYMENT=cloud') }));
+  });
+
+  it('refuses stale TOIL_CONFLUENCE_* on a Cloud default, and lets them through with TOIL_CONFLUENCE_DEPLOYMENT=cloud', () => {
+    writeJson({ version: 3, connections: { 'wiki-cloud': folded }, defaults: { confluence: { connection: 'wiki-cloud' } } });
+    expect(() => load({ TOIL_CONFLUENCE_API_TOKEN: 'dc-pat' })).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', fix: expect.stringContaining('TOIL_CONFLUENCE_DEPLOYMENT=cloud') }));
+    expect(load({ TOIL_CONFLUENCE_API_TOKEN: 't', TOIL_CONFLUENCE_DEPLOYMENT: 'cloud' }).connections['wiki-cloud']).toMatchObject({ apiToken: 't' });
   });
 });

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { allowWriteField } from '../../core/run.js';
-import { confluenceCloudArea } from './area.js';
+import { allowWriteField } from '../../../core/run.js';
+import { confluenceArea } from '../area.js';
 import * as client from './client.js';
 import { withBodyText } from './storage.js';
 
@@ -14,8 +14,8 @@ import { withBodyText } from './storage.js';
 const id = z.string().min(1).describe('Page ID');
 const idArg = { name: 'id', field: 'id', description: 'Page ID' };
 
-export const listComments = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'comments'],
+export const listComments = confluenceArea.command({
+  path: ['confluence', 'page', 'comments'],
   description: 'List footer comments on a Confluence Cloud page',
   toolDescription:
     'Returns the top-level footer comments on a page, each with its storage-format body, version and bodyText (plain text). Replies and inline comments are not included.',
@@ -26,8 +26,8 @@ export const listComments = confluenceCloudArea.command({
   run: async (input, ctx) => (await client.listComments(ctx, input.id)).map(withBodyText),
 });
 
-export const addComment = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'comment'],
+export const addComment = confluenceArea.command({
+  path: ['confluence', 'page', 'comment'],
   description: 'Add a footer comment to a Confluence Cloud page',
   input: z.object({
     id,
@@ -48,8 +48,8 @@ export const addComment = confluenceCloudArea.command({
   run: async (input, ctx) => withBodyText(await client.addComment(ctx, input.id, input.body, input.representation ?? 'storage')),
 });
 
-export const getLabels = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'labels'],
+export const getLabels = confluenceArea.command({
+  path: ['confluence', 'page', 'labels'],
   description: 'Get labels on a Confluence Cloud page',
   input: z.object({ id }),
   writes: false,
@@ -58,8 +58,8 @@ export const getLabels = confluenceCloudArea.command({
   run: (input, ctx) => client.getLabels(ctx, input.id),
 });
 
-export const addLabel = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'label'],
+export const addLabel = confluenceArea.command({
+  path: ['confluence', 'page', 'label'],
   description: 'Add labels to a Confluence Cloud page',
   input: z.object({ id, labels: z.string().min(1).describe('Comma-separated label names'), ...allowWriteField }),
   writes: true,
@@ -77,8 +77,8 @@ export const addLabel = confluenceCloudArea.command({
     ),
 });
 
-export const removeLabel = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'unlabel'],
+export const removeLabel = confluenceArea.command({
+  path: ['confluence', 'page', 'unlabel'],
   description: 'Remove a label from a Confluence Cloud page',
   input: z.object({ id, label: z.string().min(1).describe('Label name to remove'), ...allowWriteField }),
   writes: true,

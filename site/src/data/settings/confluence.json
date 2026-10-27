@@ -2,7 +2,7 @@
   {
     "key": "baseUrl",
     "env": "TOIL_CONFLUENCE_BASE_URL",
-    "description": "Confluence server root, e.g. https://confluence.imagile.dev",
+    "description": "Confluence root: the Data Center server (https://confluence.imagile.dev), or the Cloud site without /wiki (https://<your-site>.atlassian.net)",
     "required": true,
     "secret": false,
     "fallbacks": []
@@ -10,9 +10,25 @@
   {
     "key": "apiToken",
     "env": "TOIL_CONFLUENCE_API_TOKEN",
-    "description": "Personal access token",
+    "description": "Data Center: a personal access token. Cloud: an Atlassian account API token",
     "required": true,
     "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "deployment",
+    "env": "TOIL_CONFLUENCE_DEPLOYMENT",
+    "description": "Which Confluence this is: \"server\" for Data Center (the default), or \"cloud\" for Confluence Cloud",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "email",
+    "env": "TOIL_CONFLUENCE_EMAIL",
+    "description": "Confluence Cloud only: the email address of the Atlassian account the API token belongs to",
+    "required": false,
+    "secret": false,
     "fallbacks": []
   },
   {

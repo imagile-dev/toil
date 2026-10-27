@@ -142,12 +142,12 @@ TOIL_CONN_OCP_PROD_TOKEN=...
   A dossier is validated section by section, so an unknown area's section is kept but
   reported (`DOSSIER_UNKNOWN_SECTION`), never dropped.
 
-  A `jira-cloud` section is read as `jira` (that area is now `jira`, with `deployment`
-  on the connection, #495). So is a `jira-cloud` entry under `environments.<env>` and
+  A `jira-cloud` section is read as `jira`, and a `confluence-cloud` one as `confluence` (those areas are now `jira` and `confluence`, with `deployment`
+  on the connection, #495). So is such an entry under `environments.<env>` and
   in a person's `ids`. Each is reported as `DOSSIER_RENAMED_AREA` by key path, saying
   to rename it; where the dossier already has the `jira` entry, that one is used and
-  the warning says `jira-cloud` is ignored. **A dossier has one `jira` section, so it
-  picks one Jira connection**: a body of work that uses both a Data Center and a Cloud
+  the warning says the old name is ignored. **A dossier has one `jira` section, and one `confluence` section, so it
+  picks one connection of each**: a body of work that uses both a Data Center and a Cloud
   Jira takes two dossiers.
 - **`env`** names the environment the dossier works in by default; it must be a key of
   `environments`.

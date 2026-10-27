@@ -269,7 +269,6 @@ const spaces = (area: string): Discovery => ({ what: 'spaces', args: [area, 'spa
 export const DISCOVERY: Record<string, Discovery> = {
   jira: jiraFields('jira'),
   confluence: spaces('confluence'),
-  'confluence-cloud': spaces('confluence-cloud'),
   sonar: { what: 'projects', args: ['sonar', 'project', 'list'], id: 'key', name: 'name', key: 'projects' },
   ado: { what: 'projects', args: ['ado', 'project', 'list'], id: 'name', name: 'name', key: 'projects' },
 };

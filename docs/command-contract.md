@@ -104,7 +104,7 @@ on raises it.
 | Version | Change |
 |---------|--------|
 | 1 | The alphas and the first beta. |
-| 2 | `jira-cloud` folded into `jira` (#495): the `jira-cloud` command paths, the `jira_cloud_*` MCP tools, `--areas jira-cloud`, the `TOIL_JIRA_CLOUD_*` variables and a `jira-cloud` area in config and dossiers are gone. A Jira Cloud call is `toil jira …` on a connection with `"deployment": "cloud"`. Config is version 3 and migrates on load. |
+| 2 | `jira-cloud` folded into `jira`, and `confluence-cloud` into `confluence` (#495): the `jira-cloud` and `confluence-cloud` command paths, the `jira_cloud_*` and `confluence_cloud_*` MCP tools, `--areas jira-cloud` and `--areas confluence-cloud`, the `TOIL_JIRA_CLOUD_*` and `TOIL_CONFLUENCE_CLOUD_*` variables and those areas in config and dossiers are gone. A Cloud call is `toil jira …` or `toil confluence …` on a connection with `"deployment": "cloud"`. Config is version 3 and migrates on load. |
 
 The contract's `jira` entries still record Jira Data Center. Jira Cloud's own commands and
 flags (`project list`, `project get`, `user search`, `issue schema --deployment`) are additive, and a call

@@ -1120,7 +1120,7 @@ Known losses, by format:
 
 To send the result, pass it to the area's own command: wiki markup as
 `toil jira issue create --description`, storage format as
-`toil confluence page create --body` (or `confluence-cloud`), and ADF as
+`toil confluence page create --body` (on a Data Center or a Cloud connection), and ADF as
 `fields.description` in a `toil jira issue create --input-file` on a Cloud connection. How each product's own renderer displays it hasn't
 been checked against a live instance.
 ### `toil util openapi`: read an API description before calling it

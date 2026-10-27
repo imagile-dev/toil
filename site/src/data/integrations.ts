@@ -179,7 +179,7 @@ export interface IntegrationEntry extends Integration {
 /** Every integration, flattened, in board order. */
 export const allIntegrations: IntegrationEntry[] = groups.flatMap((g) => g.items.map((item) => ({ ...item, group: g.title })));
 
-/** The env var prefix for an area: confluence-cloud -> TOIL_CONFLUENCE_CLOUD_. */
+/** The env var prefix for an area: foo-bar -> TOIL_FOO_BAR_. */
 export function envPrefix(area: string): string {
   return `TOIL_${area.toUpperCase().replace(/-/g, '_')}_`;
 }

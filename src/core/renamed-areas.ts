@@ -2,9 +2,10 @@ import { ToilError } from './errors.js';
 
 /**
  * Areas that no longer exist under their old name, and where they went.
- * `jira-cloud` is `jira` with `"deployment": "cloud"` on the connection
- * (#495): one product, one command tree, one set of MCP tools. Everything
- * that still names the old area (a config file, an env var, a dossier
+ * `jira-cloud` and `confluence-cloud` are `jira` and `confluence` with
+ * `"deployment": "cloud"` on the connection (#495): one product, one command
+ * tree, one set of MCP tools. Everything that still names the old area (a
+ * config file, an env var, a dossier
  * section, `--areas`, a typed command) gets the new form from here, so no
  * place invents its own wording and none of them goes quiet.
  *
@@ -21,6 +22,7 @@ export interface RenamedArea {
 
 export const RENAMED_AREAS: Readonly<Record<string, RenamedArea>> = {
   'jira-cloud': { area: 'jira', settings: { deployment: 'cloud' } },
+  'confluence-cloud': { area: 'confluence', settings: { deployment: 'cloud' } },
 };
 
 export const renamedArea = (name: string): RenamedArea | undefined => (Object.hasOwn(RENAMED_AREAS, name) ? RENAMED_AREAS[name] : undefined);

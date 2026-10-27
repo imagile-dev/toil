@@ -109,7 +109,7 @@ export const MAX_NOTE = 2000;
 export const exportName = (dossier: string, what: ExportWhat) => `${isStandup(what) ? 'standup' : 'worklog'}-${dossier}-${spanOf(what)}.md`;
 
 /** What `dossiers show` says about the dossier's areas, as far as publishing needs. */
-export type ShowAreas = Record<string, { connection: { value: string } | null; inputs: Record<string, string> }>;
+export type ShowAreas = Record<string, { connection: { value: string; deployment?: string } | null; inputs: Record<string, string> }>;
 
 /**
  * Where an exported worklog could be published, each as a proposal: a
@@ -123,9 +123,9 @@ export function publishProposals(dossier: string, what: ExportWhat, path: string
   const title = `${isStandup(what) ? 'Stand-up' : 'Worklog'}: ${dossier}, ${isStandup(what) && what.from !== what.to ? `${what.from} to ${what.to}` : span}`;
   const out: Proposal[] = [];
   const reason = `The ${thing} exported to ${path}, as it stands. Check it reads as you want before it's posted: it is the cache's record, facts only.`;
-  // Confluence Data Center converts Markdown with --markdown; Confluence Cloud's page create takes storage format or wiki markup only, so it isn't offered.
+  // Confluence Data Center converts Markdown with --markdown; Confluence Cloud's page create takes storage format or wiki markup only, so on a Cloud connection it isn't offered.
   const space = areas.confluence?.inputs.space;
-  if (space) {
+  if (space && areas.confluence?.connection?.deployment !== 'cloud') {
     out.push({
       id: `${thing}:${dossier}:${span}:confluence`,
       from: 'worklog',

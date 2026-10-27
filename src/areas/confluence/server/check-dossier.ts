@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { checkEach, dossierCheckResult, dossierToCheck, notFound } from '../../core/check-dossier.js';
-import { viewValues } from '../../core/dossier.js';
-import { apiPath } from '../../core/api-path.js';
-import { confluenceArea } from './area.js';
+import { checkEach, dossierCheckResult, dossierToCheck, notFound } from '../../../core/check-dossier.js';
+import { viewValues } from '../../../core/dossier.js';
+import { apiPath } from '../../../core/api-path.js';
+import { confluenceArea } from '../area.js';
 import { confluence } from './client.js';
 
 /**

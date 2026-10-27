@@ -196,7 +196,7 @@ Code the clone is also a plugin marketplace: `claude plugin marketplace add
 | [Testing and flags](https://imagile-dev.github.io/toil/connect/#testing) (2) | Sauce Labs, Split.IO |
 | [Security and quality](https://imagile-dev.github.io/toil/connect/#security) (7) | Checkmarx One, Contrast Security, SD Elements, SonarQube, Sonatype IQ Server, Sonatype OSS Index, OSV.dev |
 | [Observability](https://imagile-dev.github.io/toil/connect/#observability) (4) | Dynatrace, Elasticsearch, Kibana, Falcon LogScale |
-| [Docs and design](https://imagile-dev.github.io/toil/connect/#docs) (4) | Confluence (Data Center and Cloud), Figma, Alation |
+| [Docs and design](https://imagile-dev.github.io/toil/connect/#docs) (3) | Confluence (Data Center and Cloud), Figma, Alation |
 
 Every integration that needs a credential signs in with a long-lived token you
 generate once in the vendor's UI. Every integration records how far it has been

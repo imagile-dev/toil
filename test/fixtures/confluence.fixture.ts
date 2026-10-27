@@ -1,5 +1,6 @@
 import type { RecordedRequest, Route } from '../harness/fake-fetch.js';
 import { defineFixture } from '../harness/fixtures.js';
+import * as cloud from './confluence-cloud-data.js';
 
 /**
  * Canned Confluence Data Center responses for every request the confluence
@@ -148,4 +149,17 @@ export const config = { confluence: { baseUrl: CONFLUENCE, apiToken: 'test-token
 /** The dossier the examples run with, for check-dossier: reference data only, so no other example changes. */
 export const dossier = { name: 'payments', confluence: { spaces: ['DOCS'] } };
 
-export const fixture = defineFixture({ area: 'confluence', routes, config, files, dossier });
+/**
+ * Both deployments, side by side: Data Center's connection (`confluence`, the area's
+ * default) and Cloud's (`confluence-cloud`, deployment cloud), each with the routes
+ * and files its examples read. Cloud's routes are pinned to its own origin, so
+ * neither deployment's canned answers can reach the other's requests.
+ */
+export const fixture = defineFixture({
+  area: 'confluence',
+  routes: [...routes, ...cloud.routes.map((r) => (r.path !== undefined && r.origin === undefined ? { ...r, origin: cloud.SITE } : r))],
+  config: { ...config, ...cloud.config },
+  deployments: { server: 'confluence', cloud: 'confluence-cloud' },
+  files: { ...files, ...cloud.files },
+  dossier,
+});

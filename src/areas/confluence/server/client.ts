@@ -1,12 +1,12 @@
 import type { z } from 'zod';
-import type { Connection } from '../../core/area.js';
-import type { CommandContext } from '../../core/context.js';
-import { apiRequest } from '../../core/api.js';
-import { apiPath } from '../../core/api-path.js';
-import { ToilError } from '../../core/errors.js';
-import { paginate } from '../../core/paginate.js';
-import { repointUrl, type QueryValue } from '../../core/rest.js';
-import { confluenceArea } from './area.js';
+import type { Connection } from '../../../core/area.js';
+import type { CommandContext } from '../../../core/context.js';
+import { apiRequest } from '../../../core/api.js';
+import { apiPath } from '../../../core/api-path.js';
+import { ToilError } from '../../../core/errors.js';
+import { paginate } from '../../../core/paginate.js';
+import { repointUrl, type QueryValue } from '../../../core/rest.js';
+import { confluenceArea } from '../area.js';
 
 /**
  * Every request toil sends to Confluence Data Center, sent exactly as the

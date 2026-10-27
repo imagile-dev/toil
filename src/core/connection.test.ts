@@ -285,13 +285,15 @@ describe('shares.fallbackWhen reads the connection as it resolves', () => {
     description: 'test',
     connection: z.object({ baseUrl: z.string(), deployment: z.enum(['server', 'cloud']).default('server'), apiToken: z.string().optional() }),
     secrets: ['apiToken'],
+    defaults: { deployment: 'server' },
   });
   const wiki = defineArea({
     name: 'wiki',
     description: 'test',
-    connection: z.object({ baseUrl: z.string(), apiToken: z.string().optional() }),
+    connection: z.object({ baseUrl: z.string(), deployment: z.enum(['server', 'cloud']).default('server'), apiToken: z.string().optional() }),
     secrets: ['apiToken'],
-    shares: { area: jira, keys: ['apiToken'], fallbackWhen: (other) => other.deployment !== 'cloud' },
+    defaults: { deployment: 'server' },
+    shares: { area: jira, keys: ['apiToken'], fallbackWhen: (other, own) => other.deployment === own.deployment },
   });
 
   it("never lends a Cloud token to a Data Center area when the deployment is set only in defaults.jira", async () => {
@@ -310,5 +312,18 @@ describe('shares.fallbackWhen reads the connection as it resolves', () => {
     );
     cfg.sources['jira.apiToken'] = 'env';
     await expect(resolveConnection(cfg, wiki, undefined, () => {})).resolves.toMatchObject({ apiToken: 'dc-token' });
+  });
+
+  it('lends a Cloud token to a Cloud connection, and never a Data Center token to it', async () => {
+    const cfg = (jiraDeployment: string) => {
+      const c = config(
+        { jira: { area: 'jira', baseUrl: 'https://jira.imagile.dev', deployment: jiraDeployment, apiToken: 'lent-token' }, wiki: { area: 'wiki', baseUrl: 'https://wiki.imagile.dev', deployment: 'cloud' } },
+        { jira: { connection: 'jira' }, wiki: { connection: 'wiki' } },
+      );
+      c.sources['jira.apiToken'] = 'env';
+      return c;
+    };
+    await expect(resolveConnection(cfg('cloud'), wiki, undefined, () => {})).resolves.toMatchObject({ apiToken: 'lent-token' });
+    await expect(resolveConnection(cfg('server'), wiki, undefined, () => {})).resolves.not.toHaveProperty('apiToken');
   });
 });

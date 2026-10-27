@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import type { FileAccess } from '../../core/files.js';
-import { allowWriteField } from '../../core/run.js';
-import { confluenceCloudArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import type { FileAccess } from '../../../core/files.js';
+import { allowWriteField } from '../../../core/run.js';
+import { confluenceArea } from '../area.js';
 import * as client from './client.js';
 import { storageOf, withBodyText } from './storage.js';
 
@@ -31,8 +31,8 @@ export function needLimitForCursor(input: { limit?: number | undefined; cursor?:
   }
 }
 
-export const getPage = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'get'],
+export const getPage = confluenceArea.command({
+  path: ['confluence', 'page', 'get'],
   description: 'Get a Confluence Cloud page by ID, with its storage-format body',
   toolDescription: 'Returns a Confluence Cloud page by id as v2 returns it (title, spaceId, parentId, version, body.storage), plus bodyText, the body as plain text.',
   input: z.object({ id }),
@@ -42,8 +42,8 @@ export const getPage = confluenceCloudArea.command({
   run: async (input, ctx) => withBodyText(await client.getPage(ctx, input.id)),
 });
 
-export const getPageByTitle = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'find'],
+export const getPageByTitle = confluenceArea.command({
+  path: ['confluence', 'page', 'find'],
   description: 'Find a Confluence Cloud page by space key and exact title',
   input: z.object({ space, title: z.string().min(1).describe('Page title') }),
   writes: false,
@@ -54,15 +54,15 @@ export const getPageByTitle = confluenceCloudArea.command({
     const page = await client.getPageByTitle(ctx, found.id, input.title);
     if (!page) {
       throw new ToilError('NOT_FOUND', `Page not found: "${input.title}" in space ${input.space}`, {
-        fix: `Check the title (it must match exactly) and the space key. toil confluence-cloud page search --cql 'space=${input.space} AND title~"…"' finds near matches.`,
+        fix: `Check the title (it must match exactly) and the space key. toil confluence page search --cql 'space=${input.space} AND title~"…"' finds near matches.`,
       });
     }
     return withBodyText(page);
   },
 });
 
-export const listPages = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'list'],
+export const listPages = confluenceArea.command({
+  path: ['confluence', 'page', 'list'],
   description: 'List pages in a Confluence Cloud space (consider --output-file for large results)',
   toolDescription:
     'Lists the pages in a Confluence Cloud space (id, title, parentId, version; no bodies). Without limit it returns every page, which can be large; with limit, pass meta.page.nextCursor as cursor for the next page.',
@@ -77,8 +77,8 @@ export const listPages = confluenceCloudArea.command({
   },
 });
 
-export const getPageChildren = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'children'],
+export const getPageChildren = confluenceArea.command({
+  path: ['confluence', 'page', 'children'],
   description: 'Get the direct children of a Confluence Cloud page',
   toolDescription: "Returns a page's direct children (id, title, type, status). type is page for child pages; folders, whiteboards, databases and embeds are listed too.",
   input: z.object({ id: z.string().min(1).describe('Parent page ID') }),
@@ -88,8 +88,8 @@ export const getPageChildren = confluenceCloudArea.command({
   run: (input, ctx) => client.getPageChildren(ctx, input.id),
 });
 
-export const getPageHistory = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'history'],
+export const getPageHistory = confluenceArea.command({
+  path: ['confluence', 'page', 'history'],
   description: 'Get the versions of a Confluence Cloud page',
   toolDescription: "Returns every version of a page (number, createdAt, authorId, message, minorEdit), newest first as Confluence sorts them. No bodies.",
   input: z.object({ id }),
@@ -99,8 +99,8 @@ export const getPageHistory = confluenceCloudArea.command({
   run: (input, ctx) => client.getPageVersions(ctx, input.id),
 });
 
-export const search = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'search'],
+export const search = confluenceArea.command({
+  path: ['confluence', 'page', 'search'],
   description: 'Search Confluence Cloud with CQL',
   toolDescription:
     "Runs a CQL query and returns Confluence Cloud's search result as it came (results, each with content, title and excerpt; size; _links). One page: pass meta.page.nextCursor as cursor for the next.",
@@ -147,8 +147,8 @@ export function bodyOf(files: FileAccess, body: string | undefined, bodyFile: st
   }
 }
 
-export const createPage = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'create'],
+export const createPage = confluenceArea.command({
+  path: ['confluence', 'page', 'create'],
   description: 'Create a new Confluence Cloud page',
   toolDescription:
     'Creates a published page in a space, optionally under a parent page, and returns the page Confluence created. The body is storage-format XHTML, or wiki markup with representation wiki. Without parentId the page goes under the space homepage.',
@@ -184,8 +184,8 @@ export const createPage = confluenceCloudArea.command({
   },
 });
 
-export const updatePage = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'update'],
+export const updatePage = confluenceArea.command({
+  path: ['confluence', 'page', 'update'],
   description: 'Update a Confluence Cloud page (fetches the current version automatically)',
   toolDescription:
     "Updates a page's title, body or status. Reads the page first and sends the next version number, keeping the title unless one is given. Confluence Cloud requires a body on every update, so with no body the current one is sent back unchanged. status draft turns the page into a draft and deletes any draft it already has.",
@@ -240,8 +240,8 @@ export const updatePage = confluenceCloudArea.command({
   },
 });
 
-export const deletePage = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'delete'],
+export const deletePage = confluenceArea.command({
+  path: ['confluence', 'page', 'delete'],
   description: 'Delete a Confluence Cloud page (moves it to the trash; does not purge it)',
   input: z.object({ id, ...allowWriteField }),
   writes: true,

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { allowWriteField } from '../../core/run.js';
-import { confluenceArea } from './area.js';
+import { allowWriteField } from '../../../core/run.js';
+import { confluenceArea } from '../area.js';
 import * as client from './client.js';
 
 /**

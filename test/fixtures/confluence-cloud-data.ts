@@ -1,8 +1,7 @@
 import type { RecordedRequest, Route } from '../harness/fake-fetch.js';
-import { defineFixture } from '../harness/fixtures.js';
 
 /**
- * Canned Confluence Cloud responses for every request the confluence-cloud
+ * Canned Confluence Cloud responses for every request the Cloud
  * examples send, so the parity suite runs every command offline through both
  * front doors.
  *
@@ -195,6 +194,6 @@ export const files: Record<string, string> = {
   'notes.txt': 'notes\n',
 };
 
-export const config = { 'confluence-cloud': { baseUrl: SITE, email: 'you@example.com', apiToken: 'test-token', writes: true } };
+/** The Cloud connection, named `confluence-cloud`: an ordinary confluence connection with deployment cloud. */
+export const config = { 'confluence-cloud': { area: 'confluence', deployment: 'cloud', baseUrl: SITE, email: 'you@example.com', apiToken: 'test-token', writes: true } };
 
-export const fixture = defineFixture({ area: 'confluence-cloud', routes, config, files });

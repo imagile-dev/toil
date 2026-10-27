@@ -280,6 +280,12 @@ describe('publishing', () => {
     expect(publishProposals('card-payments', { month: '2026-10' }, 'x.md', {})).toEqual([]);
     expect(exportName('card-payments', { month: '2026-10' })).toBe('worklog-card-payments-2026-10.md');
   });
+
+  it('offers no Confluence page on a Cloud connection, which takes no Markdown, and still offers it on Data Center', () => {
+    const on = (deployment: string) => publishProposals('card-payments', { day: DAY }, 'x.md', { confluence: { connection: { value: 'wiki', deployment }, inputs: { space: 'PAY' } } }).map((p) => p.command);
+    expect(on('cloud')).toEqual([]);
+    expect(on('server')).toEqual(['confluence page create']);
+  });
 });
 
 describe('the sample worklog', () => {

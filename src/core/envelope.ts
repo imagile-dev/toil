@@ -13,7 +13,7 @@ import type { SummaryReport } from './output/summary.js';
  * removed, renamed or repurposed, or an error code repurposed. Additive
  * changes (a new command, flag, field or code) leave it alone, so a caller
  * built against version N works with any toil that reports N. Version 2 (#495):
- * the `jira-cloud` area folded into `jira`, and `jira_cloud_*` tools into `jira_*`.
+ * the `jira-cloud` and `confluence-cloud` areas folded into `jira` and `confluence`, and `jira_cloud_*` and `confluence_cloud_*` tools into `jira_*` and `confluence_*`.
  * docs/command-contract.md, Changing the contract, says the same for people.
  */
 export const CONTRACT_VERSION = 2;

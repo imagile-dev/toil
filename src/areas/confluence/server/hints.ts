@@ -1,4 +1,4 @@
-import { ToilError } from '../../core/errors.js';
+import { ToilError } from '../../../core/errors.js';
 
 /**
  * What a failed page create or page update adds to Confluence's error, word

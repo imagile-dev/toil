@@ -1,11 +1,11 @@
 import type { z } from 'zod';
-import type { Connection } from '../../core/area.js';
-import type { CommandContext } from '../../core/context.js';
-import { apiRequest } from '../../core/api.js';
-import { ToilError } from '../../core/errors.js';
-import { paginate, type Paged } from '../../core/paginate.js';
-import { repointUrl, type QueryParam } from '../../core/rest.js';
-import { confluenceCloudArea } from './area.js';
+import type { Connection } from '../../../core/area.js';
+import type { CommandContext } from '../../../core/context.js';
+import { apiRequest } from '../../../core/api.js';
+import { ToilError } from '../../../core/errors.js';
+import { paginate, type Paged } from '../../../core/paginate.js';
+import { repointUrl, type QueryParam } from '../../../core/rest.js';
+import { confluenceArea } from '../area.js';
 
 /**
  * Every request toil sends to Confluence Cloud, each from Atlassian's REST
@@ -17,7 +17,7 @@ import { confluenceCloudArea } from './area.js';
  * printed on the door; the id is what the building register goes by.
  */
 
-export type ConfluenceCloudConnection = Connection<z.output<typeof confluenceCloudArea.connection>>;
+export type ConfluenceCloudConnection = Connection<z.output<typeof confluenceArea.connection>>;
 export type ConfluenceCloudContext = CommandContext<ConfluenceCloudConnection>;
 
 const V2 = '/wiki/api/v2';
@@ -49,7 +49,7 @@ interface Request {
 }
 
 export function confluenceCloud<T>(ctx: ConfluenceCloudContext, path: string, req: Request = {}): Promise<T> {
-  return apiRequest<T>(confluenceCloudArea, ctx, path, {
+  return apiRequest<T>(confluenceArea, ctx, path, {
     method: req.method ?? 'GET',
     ...(req.query ? { query: req.query } : {}),
     ...(req.body !== undefined ? { json: req.body } : {}),
@@ -108,7 +108,7 @@ export async function getSpace(ctx: ConfluenceCloudContext, key: string): Promis
   const space = result.results?.find((s) => s.key === key);
   if (!space) {
     throw new ToilError('NOT_FOUND', `Confluence Cloud space not found: ${key}`, {
-      fix: 'Check the space key (it is case-sensitive). toil confluence-cloud space list lists the spaces this account can see.',
+      fix: 'Check the space key (it is case-sensitive). toil confluence space list lists the spaces this account can see.',
     });
   }
   return space;
@@ -219,7 +219,7 @@ export function listAttachments(ctx: ConfluenceCloudContext, pageId: string): Pr
 
 /** POST /wiki/rest/api/content/{id}/child/attachment: v1, since v2 can't upload. Always a new attachment. */
 export async function uploadAttachment(ctx: ConfluenceCloudContext, pageId: string, fileName: string, data: Uint8Array, comment?: string): Promise<unknown[] | undefined> {
-  const result = await apiRequest<{ results?: unknown[] }>(confluenceCloudArea, ctx, `${V1}/content/${seg(pageId)}/child/attachment`, {
+  const result = await apiRequest<{ results?: unknown[] }>(confluenceArea, ctx, `${V1}/content/${seg(pageId)}/child/attachment`, {
     method: 'POST',
     // The XSRF check Confluence documents for multipart uploads.
     headers: { 'X-Atlassian-Token': 'nocheck' },
@@ -252,7 +252,7 @@ export async function downloadAttachment(ctx: ConfluenceCloudContext, attachment
   const link = attachment.downloadLink;
   if (!link) {
     throw new ToilError('NOT_FOUND', `Attachment ${attachment.id} has no download link (title: ${attachment.title}).`, {
-      fix: 'Check the id is an attachment id from toil confluence-cloud page attachments <page-id>.',
+      fix: 'Check the id is an attachment id from toil confluence page attachments <page-id>.',
     });
   }
   const target = /^[a-z][a-z0-9+.-]*:/i.test(link)
@@ -263,7 +263,7 @@ export async function downloadAttachment(ctx: ConfluenceCloudContext, attachment
         fix: 'Download it from the Confluence web interface instead.',
       })
     : `/wiki${link.startsWith('/') ? '' : '/'}${link}`;
-  return apiRequest<Uint8Array>(confluenceCloudArea, ctx, target, { as: 'bytes', redirect: 'follow-without-auth' });
+  return apiRequest<Uint8Array>(confluenceArea, ctx, target, { as: 'bytes', redirect: 'follow-without-auth' });
 }
 
 // DELETE /wiki/api/v2/attachments/{id}: to the trash, not purged.

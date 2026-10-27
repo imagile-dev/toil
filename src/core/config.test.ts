@@ -34,7 +34,7 @@ afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 const file = () => join(home, '.toil', 'config.json');
 const writeJson = (path: string, value: unknown) => writeFileSync(path, JSON.stringify(value));
-const areas: AreaInfo[] = [{ name: 'jira' }, { name: 'confluence-cloud' }, { name: 'db' }, { name: 'github', fallbacks: { token: ['GITHUB_TOKEN'] } }];
+const areas: AreaInfo[] = [{ name: 'jira' }, { name: 'demo-cloud' }, { name: 'db' }, { name: 'github', fallbacks: { token: ['GITHUB_TOKEN'] } }];
 const knownAreas = areas.map((a) => a.name);
 const load = (env: NodeJS.ProcessEnv = {}) => loadConfig({ env, cwd: repo, home, areas });
 
@@ -235,8 +235,8 @@ describe('config file versions', () => {
 
 describe('env names', () => {
   it('map hyphenated areas by the longest known name', () => {
-    expect(fromEnv({ TOIL_CONFLUENCE_CLOUD_TOKEN: 't', TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev' }, knownAreas)).toEqual({
-      'confluence-cloud': { token: 't' },
+    expect(fromEnv({ TOIL_DEMO_CLOUD_TOKEN: 't', TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev' }, knownAreas)).toEqual({
+      'demo-cloud': { token: 't' },
       jira: { baseUrl: 'https://jira.imagile.dev' },
     });
   });
@@ -253,10 +253,10 @@ describe('env names', () => {
   });
 
   it('round-trip every (area, key), and name connection variables the same way', () => {
-    for (const [area, key] of [['jira', 'baseUrl'], ['confluence-cloud', 'apiToken'], ['db', 'writes']] as const) {
+    for (const [area, key] of [['jira', 'baseUrl'], ['demo-cloud', 'apiToken'], ['db', 'writes']] as const) {
       expect(parseEnvName(envName(area, key), knownAreas)).toEqual({ area, key });
     }
-    expect(envName('confluence-cloud', 'baseUrl')).toBe('TOIL_CONFLUENCE_CLOUD_BASE_URL');
+    expect(envName('demo-cloud', 'baseUrl')).toBe('TOIL_DEMO_CLOUD_BASE_URL');
     expect(connectionEnvName('corp-jira', 'baseUrl')).toBe('TOIL_CONN_CORP_JIRA_BASE_URL');
   });
 });

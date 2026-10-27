@@ -212,7 +212,9 @@ function resolvedAreas(catalog: DossierCatalog, config: ResolvedConfig, areas: r
     try {
       const bound = catalog.binding(dossier, area.name, dossier.env);
       const name = bound.connection ?? defaultConnectionName(config, area.name);
-      const connection = name === undefined ? null : { value: name, source: bound.connection ? 'dossier' : 'default', ...(bound.host ? { host: bound.host } : {}) };
+      // For an area with deployments, which one the connection is, as the call would resolve it (the connection, then defaults.<area>, then the area's own).
+      const deployment = name === undefined || area.variants === undefined ? undefined : String({ ...area.defaults, ...config.defaults[area.name], ...config.connections[name] }[area.variants.by as string] ?? '');
+      const connection = name === undefined ? null : { value: name, source: bound.connection ? 'dossier' : 'default', ...(bound.host ? { host: bound.host } : {}), ...(deployment ? { deployment } : {}) };
       out[area.name] = { connection, writes: name === undefined ? null : connectionWrites(config.connections[name]), env: env ?? null, inputs };
     } catch (err) {
       const e = toToilError(err);

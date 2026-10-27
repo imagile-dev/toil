@@ -350,7 +350,7 @@ deployments still differ in their APIs, so the code stays apart and the surface 
   `TOIL_CONN_<NAME>_DEPLOYMENT=cloud`). One area's `request` hook branches on it for the
   credential, as does its `probe`.
 - **Separate API code per deployment.** Each deployment is a folder under the area
-  (`src/areas/jira/server/`, `src/areas/jira/cloud/`) of ordinary `area.command()`s that
+  (`src/areas/jira/server/`, `src/areas/jira/cloud/`; `confluence` is built the same way) of ordinary `area.command()`s that
   are never registered themselves. They share only generic helpers. The area's `index.ts`
   folds them with `area.byDeployment({ server: [...], cloud: [...] })`
   (`src/core/deployments.ts`): one command per path, whose `run` calls the implementation
@@ -362,7 +362,10 @@ deployments still differ in their APIs, so the code stays apart and the surface 
   with `UNSUPPORTED` before any request, naming the deployment and the connections that can.
   Flags for one idea share one name, and their help says what each deployment takes
   (`--assignee`: a username on Data Center, an accountId on Cloud). The paths and flags
-  the contract records for Data Center are unchanged.
+  the contract records for Data Center are unchanged. Where the two page differently,
+  keep both flags and refuse each on the other deployment: `confluence page list` takes
+  `--offset` on Data Center (a position) and `--cursor` on Cloud (an opaque token), which
+  are not one idea.
 - **Each returns its own API's shape.** Don't reshape `data` to make the two look alike;
   `meta.context.connection.deployment` says which ran, and OWI is the normalised view.
 - **The fixture runs both.** The area's fixture names a connection per deployment
@@ -371,13 +374,14 @@ deployments still differ in their APIs, so the code stays apart and the surface 
 - **Docs, skill and site are one page per product**, with a section on what differs. A
   verification level is recorded for the product; say in the PR when the deployments are at
   different levels.
-- **Retiring an old area name** (`jira-cloud`) goes in `src/core/renamed-areas.ts`, which makes
+- **Retiring an old area name** (`jira-cloud`, `confluence-cloud`) goes in `src/core/renamed-areas.ts`, which makes
   every old form (env vars, `--areas`, a typed path, a dossier section, a config file) fail or
-  warn with the new one, and in `migrateConfig()` with a config version.
+  warn with the new one. The config fold in `migrateConfig()` runs for every version and is
+  idempotent, so a file written before the area was folded folds too, whatever its version.
 - When the variants differ only in host (GitHub.com and GitHub Enterprise Server),
   they stay one area with a configurable `baseUrl` and no `deployment`.
 
-Until each pair is folded, the others (`confluence-cloud`, `bitbucket-cloud`, `ado-cloud`) are
+Until each pair is folded, the others (`bitbucket-cloud`, `ado-cloud`) are
 still areas of their own, built the old way; the folding is #495's later slices.
 
 ## Command Shape
