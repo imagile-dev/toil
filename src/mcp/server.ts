@@ -17,7 +17,7 @@ import { areaOf, commandName, servedOverMcp, takesAllowWrite, toolName, usesConn
 import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
-import { renamedArea, renamedAreaFix, renamedAreaOfTool } from '../core/renamed-areas.js';
+import { renamedArea, renamedAreaFix, renamedAreaOfTool, renamedToolTarget } from '../core/renamed-areas.js';
 import { shownToPeople, type ProgressEvent } from '../core/progress.js';
 import { OUTPUT_FORMAT_DESCRIPTION, OUTPUT_FORMAT_FIELD, OUTPUT_FORMATS, SUMMARY_FILE_DESCRIPTION, SUMMARY_FILE_FIELD } from '../core/output/fields.js';
 import { SELECT_DESCRIPTION, SELECT_FIELD } from '../core/query/select.js';
@@ -146,7 +146,8 @@ export function createMcpServer(options: {
     const def = byName.get(request.params.name);
     if (!def) {
       const gone = renamedAreaOfTool(request.params.name);
-      throw new McpError(ErrorCode.InvalidParams, `Unknown tool: ${request.params.name}${gone ? `. ${renamedAreaFix(gone)}` : ''}`);
+      const target = renamedToolTarget(request.params.name);
+      throw new McpError(ErrorCode.InvalidParams, `Unknown tool: ${request.params.name}${gone ? `. ${renamedAreaFix(gone)}` : ''}${target ? `${gone ? '' : '.'} Use ${target}.` : ''}`);
     }
     const shared = await clientRoots();
     // A client that sent a progress token hears after every attempt of a wait,

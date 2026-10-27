@@ -153,6 +153,27 @@ describe('the retired Bitbucket Cloud names fail with the new form', () => {
     }
   });
 
+  it('the retired request-changes tool, and the natural retry under bitbucket, both name bitbucket_pr_needs_work', async () => {
+    const session = await connectMcp({ commands, context: ctx().context, areas: ['bitbucket'] });
+    try {
+      await expect(session.call('bitbucket_cloud_pr_request_changes', { id: 1 })).rejects.toThrow(/Unknown tool: bitbucket_cloud_pr_request_changes.*bitbucket-cloud is now bitbucket.* Use bitbucket_pr_needs_work./);
+      await expect(session.call('bitbucket_pr_request_changes', { id: 1 })).rejects.toThrow(/Unknown tool: bitbucket_pr_request_changes. Use bitbucket_pr_needs_work./);
+    } finally {
+      await session.close();
+    }
+  });
+
+  it('a Cloud connection that forgot deployment is told to set it, not only to supply a pat', async () => {
+    const config = { bitbucket: { area: 'bitbucket', baseUrl: 'https://bitbucket.imagile.dev', accessToken: 'abc12345', workspace: 'imagile' } };
+    const run = await runCli(['bitbucket', 'pr', 'list', '--project', 'PROJ', '--repo', 'toil'], { commands, context: testContext({ config }).context });
+    expect(run.envelope?.error?.message).toContain('missing or has invalid pat');
+    expect(run.envelope?.error?.fix).toContain('holds accessToken, workspace, which only Cloud connections take');
+    expect(run.envelope?.error?.fix).toContain('TOIL_BITBUCKET_DEPLOYMENT=cloud');
+    // A Data Center connection that is merely missing its pat gets no such hint.
+    const plain = await runCli(['bitbucket', 'pr', 'list', '--project', 'PROJ', '--repo', 'toil'], { commands, context: testContext({ config: { bitbucket: { area: 'bitbucket', baseUrl: 'https://bitbucket.imagile.dev' } } }).context });
+    expect(plain.envelope?.error?.fix).not.toContain('only Cloud');
+  });
+
   it('--areas bitbucket-cloud is INVALID_INPUT, not an unknown area', () => {
     expect(() => selectCommands(commands, ['bitbucket-cloud'], emptyConfig())).toThrow(
       expect.objectContaining({ code: 'INVALID_INPUT', message: expect.stringContaining('bitbucket-cloud'), fix: expect.stringContaining('--areas bitbucket') }),
