@@ -1,10 +1,10 @@
 import { basename } from 'node:path';
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { allowWriteField } from '../../core/run.js';
-import { confluenceArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { allowWriteField } from '../../../core/run.js';
+import { ATTACHMENT_ID, confluenceArea } from '../area.js';
 import * as client from './client.js';
-import { downloadFileName } from '../../core/files.js';
+import { downloadFileName } from '../../../core/files.js';
 
 /**
  * Attachments: list a page's, upload one, save one locally, or move one to
@@ -14,8 +14,8 @@ import { downloadFileName } from '../../core/files.js';
  */
 
 const pageId = z.string().describe('Page ID');
-const attachmentId = z.string().describe('Attachment content ID');
-const attachmentArg = { name: 'id', field: 'id', description: 'Attachment content ID' };
+const attachmentId = z.string().describe(ATTACHMENT_ID);
+const attachmentArg = { name: 'id', field: 'id', description: ATTACHMENT_ID };
 const pageArg = { name: 'id', field: 'id', description: 'Page ID' };
 
 /**

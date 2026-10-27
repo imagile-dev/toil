@@ -1,12 +1,12 @@
 import { z } from 'zod';
-import { confluenceCloudArea } from './area.js';
+import { confluenceArea } from '../area.js';
 import * as client from './client.js';
 import { needLimitForCursor } from './pages.js';
 
 /** Spaces: list them, or read one by key with its plain-text description. A space is a filing cabinet with a key and, on Cloud, a serial number. */
 
-export const listSpaces = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'space', 'list'],
+export const listSpaces = confluenceArea.command({
+  path: ['confluence', 'space', 'list'],
   description: 'List Confluence Cloud spaces',
   toolDescription: 'Lists the Confluence Cloud spaces this account can see (id, key, name, type, status). With limit, pass meta.page.nextCursor as cursor for the next page.',
   input: z.object({
@@ -27,8 +27,8 @@ export const listSpaces = confluenceCloudArea.command({
   },
 });
 
-export const getSpace = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'space', 'get'],
+export const getSpace = confluenceArea.command({
+  path: ['confluence', 'space', 'get'],
   description: 'Get a Confluence Cloud space by key',
   input: z.object({ key: z.string().min(1).describe('Space key') }),
   writes: false,

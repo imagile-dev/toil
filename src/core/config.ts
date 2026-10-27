@@ -112,7 +112,7 @@ export interface LoadConfigOptions {
   cwd: string;
   home: string;
   configPath?: string | undefined;
-  /** Registered areas, so TOIL_CONFLUENCE_CLOUD_TOKEN maps to confluence-cloud, not confluence. */
+  /** Registered areas, so TOIL_FOO_BAR_TOKEN maps to foo-bar, not foo. */
   areas?: readonly AreaInfo[];
 }
 
@@ -183,10 +183,6 @@ function warnUnknownAreas(config: ResolvedConfig, areas: readonly AreaInfo[]): v
   const known = new Set(areas.map((a) => a.name));
   for (const [name, conn] of Object.entries(config.connections)) {
     if (known.has(conn.area)) continue;
-    if (renamedArea(conn.area)) {
-      config.warnings.push({ code: 'CONFIG_RENAMED_AREA', message: `Connection ${name} is for area "${conn.area}", which no longer exists. ${renamedAreaFix(conn.area)} Change it with toil connections, or edit its "area" in the config file.` });
-      continue;
-    }
     config.warnings.push({
       code: 'CONFIG_UNKNOWN_AREA',
       message: `Connection ${name} is for area "${conn.area}", which this toil doesn't have. Known areas: ${[...known].sort().join(', ')}.`,
@@ -331,8 +327,8 @@ export function migrateConfig(
     });
   }
   const read = version === 1 ? fromVersion1(raw, path, warnings) : fromVersion2(raw, path, warnings);
-  // Version 3 is where areas that were folded into another (jira-cloud into jira) stop being separate; older files are read as they meant.
-  if (version < 3) foldRenamedAreas(read, path, warnings);
+  // Areas that were folded into another (jira-cloud into jira, confluence-cloud into confluence) are read as the area they became, whatever the file's version: older files meant it, and a version 3 file written before its area was folded still says the old name. Folding is idempotent, so a folded file is left as it is.
+  foldRenamedAreas(read, path, warnings, version >= 3);
   const bounds = readBounds(raw.bounds, path);
   const dossierPaths = version === 1 ? undefined : readDossierPaths(raw.dossierPaths, path);
   // Checked here so a typo is loud on every command; read from the user's own file only (src/core/audit.ts).
@@ -430,10 +426,17 @@ function readBounds(raw: unknown, path: string): Bounds | undefined {
 }
 
 /**
- * Version 3 (#495): `jira-cloud` became `jira` with `"deployment": "cloud"`
- * on the connection. A connection of a renamed area changes area and gains
- * the setting; its `defaults` entry folds into the new area's. Keychain
- * references are untouched, being named after the connection and not the area.
+ * Folded areas (#495): `jira-cloud` became `jira`, and `confluence-cloud`
+ * `confluence`, each with `"deployment": "cloud"` on the connection. A
+ * connection of a renamed area changes area and gains the setting; its
+ * `defaults` entry folds into the new area's. Keychain references are
+ * untouched, being named after the connection and not the area.
+ *
+ * It runs on every version, and a second run changes nothing. Files older
+ * than version 3 meant the old area, so they fold quietly; a version 3 file
+ * can still say it (one written before that area was folded, or edited by
+ * hand), and folding it is kinder than refusing it, so it folds with a
+ * `CONFIG_RENAMED_AREA` warning.
  *
  * Defaults are the delicate part: `defaults.jira` reaches every Jira
  * connection, so a Cloud default moves there only when nothing else would
@@ -445,7 +448,7 @@ function readBounds(raw: unknown, path: string): Bounds | undefined {
  * only had by being the sole connection; when the old area named a different
  * default, the warning names the one that was set aside.
  */
-function foldRenamedAreas(read: { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings> }, path: string, warnings: ResolvedConfig['warnings']): void {
+function foldRenamedAreas(read: { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings> }, path: string, warnings: ResolvedConfig['warnings'], say: boolean): void {
   for (const [old, renamed] of Object.entries(RENAMED_AREAS)) {
     const moved = Object.keys(read.connections).filter((name) => read.connections[name]!.area === old);
     const oldDefaults = read.defaults[old];
@@ -480,6 +483,11 @@ function foldRenamedAreas(read: { connections: Record<string, ConnectionSettings
       }
     }
     delete read.defaults[old];
+    // A file older than version 3 meant the old area, so reading it as the new one is no news. A version 3 file is news: toil wrote it, or a person edited it, with a name that no longer exists.
+    if (say) {
+      const what = [...moved.map((name) => `connection ${name}`), ...(oldDefaults ? [`defaults.${old}`] : [])].join(', ');
+      warnings.push({ code: 'CONFIG_RENAMED_AREA', message: `${path} still names area "${old}" (${what}), which no longer exists, so it is read as ${renamed.area}. ${renamedAreaFix(old)} Any toil connections change saves the file with the new form and clears this warning, such as toil connections default <name>.` });
+    }
     if (Object.keys(target).length === 0) delete read.defaults[renamed.area];
   }
 }
@@ -578,7 +586,7 @@ function camel(snakeKey: string): string {
 
 const envForm = (name: string) => name.toUpperCase().replace(/-/g, '_');
 
-/** The variable for a key on an area's default connection: confluence-cloud + baseUrl -> TOIL_CONFLUENCE_CLOUD_BASE_URL. */
+/** The variable for a key on an area's default connection: foo-bar + baseUrl -> TOIL_FOO_BAR_BASE_URL. */
 export function envName(area: string, key: string): string {
   return `TOIL_${envForm(area)}_${snake(key)}`;
 }
@@ -590,7 +598,7 @@ export function connectionEnvName(connection: string, key: string): string {
 
 /**
  * The inverse of envName, against the areas toil knows. The longest matching
- * area wins, so TOIL_CONFLUENCE_CLOUD_TOKEN is confluence-cloud.token. A name matching no
+ * area wins, so TOIL_FOO_BAR_TOKEN is foo-bar.token. A name matching no
  * known area, or one toil reserves, is not config: it returns undefined rather
  * than guessing, so the same variable never means different things in
  * different versions.

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
-import { attachment, comment, config as fixtureConfig, page, routes as fixtureRoutes, SITE, spacePages, spaces } from '../../../test/fixtures/confluence-cloud.fixture.js';
-import type { AnyCommand } from '../../core/command.js';
-import { execute } from '../../core/run.js';
+import { testContext } from '../../../../test/harness/context.js';
+import type { Route } from '../../../../test/harness/fake-fetch.js';
+import { attachment, comment, config as fixtureConfig, page, routes as fixtureRoutes, SITE, spacePages, spaces } from '../../../../test/fixtures/confluence-cloud-data.js';
+import type { AnyCommand } from '../../../core/command.js';
+import { execute } from '../../../core/run.js';
 import { attachmentFileName, deleteAttachment, downloadAttachment, listAttachments, uploadAttachment } from './attachments.js';
 import { cursorOf, seg } from './client.js';
 import { addComment, addLabel, getLabels, listComments, removeLabel } from './discussion.js';
@@ -54,7 +54,7 @@ describe('storage format as plain text', () => {
 
 describe('connection', () => {
   const own = fixtureConfig['confluence-cloud'];
-  const noToken = { baseUrl: own.baseUrl, email: own.email, writes: true };
+  const noToken = { area: 'confluence', deployment: 'cloud', baseUrl: own.baseUrl, email: own.email, writes: true };
   const jira = { area: 'jira', deployment: 'cloud', baseUrl: 'https://jira-cloud.imagile.dev', email: 'you@example.com', apiToken: 'jira-token' };
   const JIRA_AUTH = `Basic ${Buffer.from('you@example.com:jira-token').toString('base64')}`;
 
@@ -62,7 +62,7 @@ describe('connection', () => {
     for (const baseUrl of [`${SITE}/wiki`, `${SITE}/wiki/`, `${SITE}/WIKI`]) {
       const { envelope, calls } = await run(getPage, { id: '12345' }, fixtureRoutes, { config: { 'confluence-cloud': { ...own, baseUrl } } });
       expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('ends in /wiki'), fix: expect.stringContaining('Drop the trailing /wiki') });
-      expect(envelope.error?.fix).toContain('TOIL_CONFLUENCE_CLOUD_BASE_URL');
+      expect(envelope.error?.fix).toContain('TOIL_CONFLUENCE_BASE_URL');
       expect(calls).toHaveLength(0);
     }
   });
@@ -264,8 +264,8 @@ describe('pages', () => {
   it('a 401 is AUTH, with a fix naming the email and token settings', async () => {
     const { envelope } = await run(getPage, { id: '12345' }, [{ method: 'GET', path: '/wiki/api/v2/pages/12345', respond: { status: 401, json: { message: 'Unauthorized' } } }]);
     expect(envelope.error).toMatchObject({ code: 'AUTH' });
-    expect(envelope.error?.fix).toContain('TOIL_CONFLUENCE_CLOUD_EMAIL');
-    expect(envelope.error?.fix).toContain('TOIL_CONFLUENCE_CLOUD_API_TOKEN');
+    expect(envelope.error?.fix).toContain('TOIL_CONFLUENCE_EMAIL');
+    expect(envelope.error?.fix).toContain('TOIL_CONFLUENCE_API_TOKEN');
   });
 });
 

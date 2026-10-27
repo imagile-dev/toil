@@ -503,7 +503,7 @@ the user's call and isn't checked. A shared key is a secret in both areas or in 
 `meta.context.shared` names the connection, whether it was paired, and whether the
 value came from env or the store, never the value.
 
-**One product, two deployments** (#495, `src/core/deployments.ts`). `jira` serves Data Center
+**One product, two deployments** (#495, `src/core/deployments.ts`). `jira` and `confluence` serve Data Center
 and Cloud: a connection says `"deployment": "server"` (the default) or `"cloud"`, and
 each deployment keeps its own API code, written as ordinary `area.command()`s that are
 never registered themselves. `area.byDeployment({ server: [...], cloud: [...] })` folds them
@@ -821,8 +821,8 @@ own connections, by name or by a host that toil uses purely as a selector and ne
 contacts. That's why a dossier may be checked into a repository when config may not.
 
 Env var names map onto areas through the registry, using the longest match, so
-`TOIL_CONFLUENCE_CLOUD_TOKEN` is `confluence-cloud.token`, not `confluence.cloudToken`. The
-names of an area that was folded into another (`TOIL_JIRA_CLOUD_*`, `TOIL_CONN_<NAME>_AREA=jira-cloud`)
+`TOIL_FOO_BAR_TOKEN` is `foo-bar.token`, not `foo.barToken`. The
+names of an area that was folded into another (`TOIL_JIRA_CLOUD_*`, `TOIL_CONFLUENCE_CLOUD_*`, `TOIL_CONN_<NAME>_AREA=jira-cloud`)
 are refused with `CONFIG_INVALID` naming the new form (`TOIL_JIRA_*` with
 `TOIL_JIRA_DEPLOYMENT=cloud`), never mapped and never ignored (`src/core/renamed-areas.ts`). A `TOIL_*` name
 that matches no registered area is ignored, never guessed at, so a variable can't
@@ -836,9 +836,9 @@ is version 1. Every format change adds a step to `migrateConfig()` with a test, 
 old file always loads. A file from a newer toil is refused with an upgrade fix rather
 than half-read. Version 1 is a map of area to settings and reads as one connection
 per area, named after it and set as its default. Version 2 holds `connections` and
-`defaults`; using them needs `"version": 2`. Version 3 (#495) folds `jira-cloud` into `jira`:
-a connection with `"area": "jira-cloud"` reads as `"area": "jira", "deployment": "cloud"`
-and `defaults.jira-cloud` folds into `defaults.jira`; an older file is migrated on load and
+`defaults`; using them needs `"version": 2`. Version 3 (#495) folds `jira-cloud` into `jira` and `confluence-cloud` into `confluence`:
+a connection with `"area": "jira-cloud"` reads as `"area": "jira", "deployment": "cloud"` (likewise confluence)
+and `defaults.jira-cloud` folds into `defaults.jira`. The fold runs for every version and is idempotent, so a version 3 file that still says `jira-cloud` or `confluence-cloud` (written before that area was folded) folds too, with a `CONFIG_RENAMED_AREA` warning; an older file is migrated on load and
 rewritten as version 3 by the commands that save config. Standalone and area-local commands
 (`version`, `jira issue schema`) don't load config at all, so a broken or newer file can't stop a user finding out which
 toil they have.
@@ -1092,7 +1092,7 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   - **What never gets its own issue:** individual commands or features inside an
     area. They're part of their area's issue, never sub-issues.
   - **Data Center/Cloud products** are one area with a `deployment` connection field,
-    so one issue (Jira is folded; `confluence`, `bitbucket` and `ado` are still separate
+    so one issue (Jira and Confluence are folded; `bitbucket` and `ado` are still separate
     `-cloud` areas until #495's later slices); `data-center` and `cloud` label work that touches only one
     deployment.
   - **Product labels, on every issue a person or agent files here:** `cli` for the

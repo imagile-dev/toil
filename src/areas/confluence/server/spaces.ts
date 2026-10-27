@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { confluenceArea } from './area.js';
+import { confluenceArea } from '../area.js';
 import * as client from './client.js';
 
 /** Spaces: list them, or read one with its plain-text description. A space is a filing cabinet with a key. */

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
-import { attachment, CONFLUENCE, config as fixtureConfig, page } from '../../../test/fixtures/confluence.fixture.js';
-import type { AnyCommand } from '../../core/command.js';
-import { ToilError } from '../../core/errors.js';
-import { multipart } from '../../core/multipart.js';
-import { execute } from '../../core/run.js';
+import { testContext } from '../../../../test/harness/context.js';
+import type { Route } from '../../../../test/harness/fake-fetch.js';
+import { attachment, CONFLUENCE, config as fixtureConfig, page } from '../../../../test/fixtures/confluence.fixture.js';
+import type { AnyCommand } from '../../../core/command.js';
+import { ToilError } from '../../../core/errors.js';
+import { multipart } from '../../../core/multipart.js';
+import { execute } from '../../../core/run.js';
 import { attachmentFileName, deleteAttachment, downloadAttachment, uploadAttachment } from './attachments.js';
 import { addComment, addLabel, listComments, removeLabel } from './discussion.js';
 import { storageFormatHint, xmlParseHint } from './hints.js';
@@ -56,6 +56,13 @@ describe('auth', () => {
     const { envelope, calls } = await run(getPage, { id: '1' }, [{ url: /content\/1/, respond: { json: page('1') } }], { config });
     expect(calls[0]!.headers.authorization).toBe('Bearer jira-token');
     expect(envelope.meta.context?.shared).toEqual({ apiToken: { area: 'jira', connection: 'jira', source: 'env', via: 'env-fallback' } });
+  });
+
+  it("never lends a Jira Cloud token to Confluence Data Center by the env fallback: an Atlassian account token isn't sent to a server", async () => {
+    const config = { confluence: { baseUrl: CONFLUENCE, writes: true }, jira: { baseUrl: 'https://jira-cloud.imagile.dev', deployment: 'cloud', email: 'you@example.com', apiToken: 'cloud-token' } };
+    const { envelope, calls } = await run(getPage, { id: '1' }, [{ url: /content\/1/, respond: { json: page('1') } }], { config });
+    expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('apiToken') });
+    expect(calls).toHaveLength(0);
   });
 
   it('its own token wins over the Jira one', async () => {

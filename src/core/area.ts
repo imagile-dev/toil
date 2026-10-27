@@ -160,13 +160,14 @@ export interface SharedSettings {
   keys: string[];
   /**
    * Whether the other area's default connection may lend its env value to
-   * this area's default connection, judged from that connection's settings.
-   * For a pair that shares one credential only between like deployments:
-   * Confluence Cloud may take Jira's token only from a Jira connection that is
-   * itself Cloud, never a Data Center token sent off to the Atlassian cloud.
+   * this area's default connection, judged from both connections' settings as
+   * they resolve (`other`, then `own`). For a pair that shares one credential
+   * only between like deployments: Confluence takes Jira's token only from a
+   * Jira of the same deployment, never a Data Center token sent off to the
+   * Atlassian cloud, nor the reverse.
    * An explicit `<key>From` pairing is the user's call and isn't asked.
    */
-  fallbackWhen?: (other: Record<string, unknown>) => boolean;
+  fallbackWhen?: (other: Record<string, unknown>, own: Record<string, unknown>) => boolean;
 }
 
 /** The setting that pairs `key` with another area's connection: `apiKey` -> `apiKeyFrom`. */

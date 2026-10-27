@@ -392,7 +392,7 @@ old names are gone, not deprecated:
   connections and leaves `defaults.jira`, so it doesn't start reaching Cloud. Any command
   that saves a connection writes the file back as version 3 (so does the welcome menu's game
   save). Keychain entries are untouched. A version 3 file that still says
-  `"area": "jira-cloud"` warns with `CONFIG_RENAMED_AREA`, naming the new form.
+  `"area": "jira-cloud"` is folded too, with a `CONFIG_RENAMED_AREA` warning naming the new form.
 - **`CONFIG_DEFAULT_KEPT`:** when both areas named a default connection, `jira`'s stays the
   default and the warning names the Cloud one that was set aside. Any `toil connections`
   change, such as `toil connections default <name>`, saves the file as version 3 and clears

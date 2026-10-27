@@ -33,7 +33,6 @@ const EXPECTED: Record<string, Expected> = {
   'bitbucket-cloud': { path: '/user' },
   checkmarx: { path: '/projects', query: { limit: '1' } },
   confluence: { path: '/rest/api/user/current', accepted: { type: 'known', username: 'you' }, anonymous: { type: 'anonymous' } },
-  'confluence-cloud': { path: '/wiki/rest/api/user/current', accepted: { type: 'known', accountId: 'abc12345' }, anonymous: { type: 'anonymous' } },
   contrast: { path: '/Contrast/api/ng/{orgUuid}/applications', query: { limit: '1' } },
   dynatrace: { path: '/api/v2/entities', query: { entitySelector: 'type("SERVICE")', pageSize: '1' } },
   elasticsearch: {
@@ -80,6 +79,24 @@ describe('connections test, per deployment', () => {
     expect(new URL(gets[0]!.url).origin).toBe(new URL(String(cloud.baseUrl)).origin);
     expect(new URL(gets[0]!.url).pathname).toBe('/rest/api/3/myself');
     expect(gets[0]!.headers.authorization).toBe(`Basic ${Buffer.from(`${String(cloud.email)}:${String(cloud.apiToken)}`).toString('base64')}`);
+  });
+
+  it('confluence on a Cloud connection probes /wiki/rest/api/user/current on its own host, refusing an anonymous answer, one GET', async () => {
+    const fixture = fixtures.find((f) => f.area === 'confluence')!;
+    const cloud = fixture.config['confluence-cloud']!;
+    const ask = async (body: unknown) => {
+      const { context, http } = testContext({ config: fixture.config, routes: [{ method: 'GET', url: /.*/, respond: { json: body } }] });
+      const run = await runCli(['connections', 'test', 'confluence-cloud'], { commands, context });
+      return { run, gets: http.calls.filter((c) => c.method === 'GET') };
+    };
+    const known = await ask({ type: 'known', accountId: 'abc12345' });
+    expect(known.run.envelope?.data).toMatchObject({ area: 'confluence', live: true, authenticated: true });
+    expect(known.gets).toHaveLength(1);
+    expect(new URL(known.gets[0]!.url).origin).toBe(new URL(String(cloud.baseUrl)).origin);
+    expect(new URL(known.gets[0]!.url).pathname).toBe('/wiki/rest/api/user/current');
+    expect(known.gets[0]!.headers.authorization).toBe(`Basic ${Buffer.from(`${String(cloud.email)}:${String(cloud.apiToken)}`).toString('base64')}`);
+    const anonymous = await ask({ type: 'anonymous' });
+    expect(anonymous.run.envelope?.ok).toBe(false);
   });
 });
 

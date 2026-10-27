@@ -267,11 +267,11 @@ describe('the daily cap', () => {
 });
 
 describe('the path check', () => {
-  const known = ['jira', 'confluence-cloud', 'github'];
+  const known = ['jira', 'demo-cloud', 'github'];
 
   it.each([
     ['src/areas/jira/commands.ts', 'jira'],
-    ['src/areas/confluence-cloud/index.ts', 'confluence-cloud'],
+    ['src/areas/demo-cloud/index.ts', 'demo-cloud'],
     ['test/fixtures/jira.fixture.ts', 'jira'],
     ['skills/toil/github.md', 'github'],
     ['docs/divergences/jira.json', 'jira'],
@@ -296,7 +296,7 @@ describe('the path check', () => {
   });
 
   it('lets one area and Toil UI change together, and still refuses two areas', () => {
-    expect(check([{ path: 'src/areas/confluence-cloud/a.ts', newMode: '100644' }, { path: 'ui/src/load.ts', newMode: '100644' }], known)).toMatchObject({ ok: true, area: 'confluence-cloud', ui: true, refused: [] });
+    expect(check([{ path: 'src/areas/demo-cloud/a.ts', newMode: '100644' }, { path: 'ui/src/load.ts', newMode: '100644' }], known)).toMatchObject({ ok: true, area: 'demo-cloud', ui: true, refused: [] });
     expect(check([{ path: 'ui/src/load.ts', newMode: '100644' }, { path: 'src/core/execute.ts', newMode: '100644' }], known).refused).toEqual(["src/core/execute.ts (outside an area's own files and Toil UI's)"]);
     expect(check([{ path: 'ui/src/load.ts', newMode: '120000' }], known).ok).toBe(false);
     expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'src/areas/github/a.ts', newMode: '100644' }, { path: 'ui/src/load.ts', newMode: '100644' }], known).refused).toEqual(['more than one area: github, jira']);

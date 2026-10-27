@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { allowWriteField } from '../../core/run.js';
-import { confluenceCloudArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { allowWriteField } from '../../../core/run.js';
+import { ATTACHMENT_ID, confluenceArea } from '../area.js';
 import * as client from './client.js';
-import { downloadFileName } from '../../core/files.js';
+import { downloadFileName } from '../../../core/files.js';
 
 /**
  * Attachments: list a page's, upload one, save one locally, or move one to
@@ -12,8 +12,8 @@ import { downloadFileName } from '../../core/files.js';
  * Emptying the trash is an administrator's job, and stays one.
  */
 
-const attachmentId = z.string().min(1).describe('Attachment ID (e.g. att98765)');
-const attachmentArg = { name: 'id', field: 'id', description: 'Attachment ID (e.g. att98765)' };
+const attachmentId = z.string().min(1).describe(ATTACHMENT_ID);
+const attachmentArg = { name: 'id', field: 'id', description: ATTACHMENT_ID };
 const pageArg = { name: 'id', field: 'id', description: 'Page ID' };
 
 /**
@@ -26,10 +26,10 @@ export function attachmentFileName(title: string): string {
   return segments.pop() ?? 'attachment';
 }
 
-export const listAttachments = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'attachments'],
+export const listAttachments = confluenceArea.command({
+  path: ['confluence', 'page', 'attachments'],
   description: 'List attachments on a Confluence Cloud page',
-  toolDescription: 'Returns every attachment on a page (id, title, mediaType, fileSize, downloadLink). Use confluence_cloud_attachment_download with an id to save one.',
+  toolDescription: 'Returns every attachment on a page (id, title, mediaType, fileSize, downloadLink). Use confluence_attachment_download with an id to save one.',
   input: z.object({ id: z.string().min(1).describe('Page ID') }),
   writes: false,
   args: [pageArg],
@@ -37,8 +37,8 @@ export const listAttachments = confluenceCloudArea.command({
   run: (input, ctx) => client.listAttachments(ctx, input.id),
 });
 
-export const uploadAttachment = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'page', 'attach'],
+export const uploadAttachment = confluenceArea.command({
+  path: ['confluence', 'page', 'attach'],
   description: 'Upload a file as an attachment to a Confluence Cloud page',
   toolDescription:
     'Uploads a local file to a page as a new attachment and returns what Confluence created. file is a path inside the workspace. A file name already on the page is refused by Confluence, not versioned.',
@@ -68,11 +68,11 @@ export const uploadAttachment = confluenceCloudArea.command({
   },
 });
 
-export const downloadAttachment = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'attachment', 'download'],
+export const downloadAttachment = confluenceArea.command({
+  path: ['confluence', 'attachment', 'download'],
   description: 'Download a Confluence Cloud attachment to .toil/ (or --dir)',
   toolDescription:
-    'Saves one Confluence Cloud attachment to a directory inside the workspace (default .toil) and returns { saved, filename, size }. Never replaces an existing file. Get the id from confluence_cloud_page_attachments.',
+    'Saves one Confluence Cloud attachment to a directory inside the workspace (default .toil) and returns { saved, filename, size }. Never replaces an existing file. Get the id from confluence_page_attachments.',
   input: z.object({
     id: attachmentId,
     dir: z.string().optional().describe('Output directory; defaults to .toil in the workspace'),
@@ -90,8 +90,8 @@ export const downloadAttachment = confluenceCloudArea.command({
   },
 });
 
-export const deleteAttachment = confluenceCloudArea.command({
-  path: ['confluence-cloud', 'attachment', 'delete'],
+export const deleteAttachment = confluenceArea.command({
+  path: ['confluence', 'attachment', 'delete'],
   description: 'Delete a Confluence Cloud attachment by its ID (moves it to the trash; does not purge it)',
   input: z.object({ id: attachmentId, ...allowWriteField }),
   writes: true,

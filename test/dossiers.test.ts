@@ -12,6 +12,7 @@ import { adoArea } from '../src/areas/ado/area.js';
 import { workUpdateCommand } from '../src/areas/ado/work.js';
 import { dossierBuildCommands } from '../src/dossiers/build.js';
 import { dossiersCommands } from '../src/dossiers/commands.js';
+import { areas as realAreas } from '../src/registry.js';
 import { demoCommands, demoArea } from './fixtures/demo-commands.js';
 import { demoContextArea, demoContextCommands } from './fixtures/demo-context-commands.js';
 import { runCli } from './harness/cli.js';
@@ -507,6 +508,25 @@ describe('toil dossiers list, show, check and context', () => {
       problems: [{ level: 'warning', code: 'DOSSIER_UNKNOWN_SECTION', path: 'nonesuch' }],
     });
     expect((envelope.data as { dossier: { repos: unknown[] } }).dossier.repos).toEqual(payments.repos);
+  });
+
+  it('reports a connection deployment only for an area whose variants are keyed on it, not a db engine', async () => {
+    const d = disk({ 'work/.toil/dossiers/payments.json': { ...payments, db: { connection: 'warehouse' }, confluence: { connection: 'wiki' } } });
+    asRepo(d);
+    const config = configOf({
+      connections: {
+        warehouse: { area: 'db', engine: 'postgres', host: 'db.imagile.dev' },
+        wiki: { area: 'confluence', deployment: 'cloud', baseUrl: 'https://confluence-cloud.imagile.dev' },
+      },
+      defaults: {},
+    });
+    const { context } = testContext();
+    const result = await runCli(['dossiers', 'show', 'payments'], { commands: dossiersCommands(realAreas), context: { ...context, config, dossiers: d.catalog(config, {}) } });
+    expect(result.envelope?.error).toBeNull();
+    const shown = (result.envelope!.data as { areas: Record<string, { connection: Record<string, unknown> }> }).areas;
+    expect(shown.db!.connection).toMatchObject({ value: 'warehouse' });
+    expect(shown.db!.connection).not.toHaveProperty('deployment');
+    expect(shown.confluence!.connection).toMatchObject({ value: 'wiki', deployment: 'cloud' });
   });
 
   it('checks locally: unknown connections and unmatched hosts are errors, a writes binding in a shared dossier a warning, and the CLI exits 1', async () => {

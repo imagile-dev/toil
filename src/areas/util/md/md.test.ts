@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { config as confluenceCloudConfig, routes as confluenceCloudRoutes } from '../../../../test/fixtures/confluence-cloud.fixture.js';
+import { config as confluenceCloudConfig, routes as confluenceCloudRoutes } from '../../../../test/fixtures/confluence-cloud-data.js';
 import { config as confluenceConfig, routes as confluenceRoutes } from '../../../../test/fixtures/confluence.fixture.js';
 import { config as jiraCloudConfig, routes as jiraCloudRoutes } from '../../../../test/fixtures/jira-cloud-data.js';
 import { config as jiraConfig, routes as jiraRoutes } from '../../../../test/fixtures/jira.fixture.js';
@@ -9,8 +9,8 @@ import { testContext } from '../../../../test/harness/context.js';
 import { connectMcp } from '../../../../test/harness/mcp.js';
 import type { Warning } from '../../../core/envelope.js';
 import { execute } from '../../../core/run.js';
-import { createPage as confluenceCloudCreatePage } from '../../confluence-cloud/pages.js';
-import { createPage as confluenceCreatePage } from '../../confluence/pages.js';
+import { createPage as confluenceCloudCreatePage } from '../../confluence/cloud/pages.js';
+import { createPage as confluenceCreatePage } from '../../confluence/server/pages.js';
 import { createIssue as jiraCloudCreateIssue } from '../../jira/cloud/issues.js';
 import { createIssue as jiraCreateIssue } from '../../jira/server/issues.js';
 import { commands } from '../index.js';
@@ -347,7 +347,7 @@ describe('util md: the areas accept what it writes', () => {
     expect((POSTED(t.http.calls).body as { storage: { value: string; representation: string } }).storage).toEqual({ value: storage, representation: 'storage' });
   });
 
-  it('confluence-cloud page create takes the storage format as its body', async () => {
+  it('confluence page create on a Cloud connection takes the storage format as its body', async () => {
     const storage = (await convert(MD_CORPUS['story.md']!, 'md', 'storage')).data.output as string;
     const t = testContext({ config: confluenceCloudConfig, routes: confluenceCloudRoutes });
     const envelope = await execute(confluenceCloudCreatePage, { space: 'DOCS', title: 'Invoice export', body: storage, allowWrite: true }, t.context);

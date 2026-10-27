@@ -2,7 +2,7 @@
   {
     "name": "page get",
     "tool": "confluence_page_get",
-    "description": "Get a Confluence page by ID",
+    "description": "Get a Confluence page by ID, with its storage-format body",
     "writes": false,
     "connection": true,
     "flags": [
@@ -13,7 +13,7 @@
   {
     "name": "page find",
     "tool": "confluence_page_find",
-    "description": "Find a Confluence page by space key and title",
+    "description": "Find a Confluence page by space key and exact title",
     "writes": false,
     "connection": true,
     "flags": [
@@ -30,7 +30,8 @@
     "flags": [
       "--space <key>",
       "--limit <n>",
-      "--offset <n>"
+      "--offset <n>",
+      "--cursor <cursor>"
     ]
   },
   {
@@ -46,7 +47,7 @@
   {
     "name": "page history",
     "tool": "confluence_page_history",
-    "description": "Get the version history metadata for a Confluence page",
+    "description": "Get the version history of a Confluence page",
     "writes": false,
     "connection": true,
     "flags": [
@@ -63,7 +64,8 @@
       "--cql <query>",
       "--limit <n>",
       "--offset <n>",
-      "--expand <fields>"
+      "--expand <fields>",
+      "--cursor <cursor>"
     ]
   },
   {
@@ -86,7 +88,7 @@
   {
     "name": "page update",
     "tool": "confluence_page_update",
-    "description": "Update a Confluence page (fetches current version automatically)",
+    "description": "Update a Confluence page (fetches the current version automatically)",
     "writes": true,
     "connection": true,
     "flags": [
@@ -103,7 +105,7 @@
   {
     "name": "page delete",
     "tool": null,
-    "description": "Delete a Confluence page",
+    "description": "Delete a Confluence page (on Cloud it goes to the trash and is not purged)",
     "writes": true,
     "connection": true,
     "flags": [
@@ -124,7 +126,7 @@
   {
     "name": "page comment",
     "tool": "confluence_page_comment",
-    "description": "Add a comment to a Confluence page",
+    "description": "Add a comment to a Confluence page (a footer comment on Cloud)",
     "writes": true,
     "connection": true,
     "flags": [
@@ -176,7 +178,8 @@
     "connection": true,
     "flags": [
       "--type <type>",
-      "--limit <n>"
+      "--limit <n>",
+      "--cursor <cursor>"
     ]
   },
   {
@@ -226,7 +229,7 @@
   {
     "name": "attachment delete",
     "tool": null,
-    "description": "Delete an attachment from Confluence by its content ID (moves it to the trash; does not permanently purge it)",
+    "description": "Delete a Confluence attachment by its ID (moves it to the trash; does not purge it)",
     "writes": true,
     "connection": true,
     "flags": [

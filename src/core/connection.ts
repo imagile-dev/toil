@@ -292,7 +292,7 @@ async function takeShared(
     const target = from === undefined ? undefined : config.connections[from];
     if (from === undefined || !target || target.area !== other.name) continue;
     // The refusal reads the connection as it resolves: defaults.<area> and the area's own defaults fill what the connection leaves out.
-    if (via === 'env-fallback' && area.shares!.fallbackWhen && !area.shares!.fallbackWhen({ ...other.defaults, ...config.defaults[other.name], ...target })) continue;
+    if (via === 'env-fallback' && area.shares!.fallbackWhen && !area.shares!.fallbackWhen({ ...other.defaults, ...config.defaults[other.name], ...target }, merged)) continue;
 
     const mine = findSetting(config, area, name, stored, key);
     const theirs = findSetting(config, other, from, target, key);
