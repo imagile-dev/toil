@@ -261,7 +261,9 @@ Work in the repository and the dossier applies by itself, or pass
 `--dossier card-payments` from anywhere. Before a call, `toil dossiers context` says
 which dossier the folder resolves to and why, and `toil dossiers show card-payments`
 says, per area, the connection a call would use, whether writes are on for it, the
-environment and the inputs it supplies.
+environment and the inputs it supplies. For an area with Data Center and Cloud
+deployments (`jira`, `confluence`) the connection also carries `deployment`
+(`server` or `cloud`); other areas, `db` included, have no such field.
 
 ### Brief
 
