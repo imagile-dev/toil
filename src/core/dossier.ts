@@ -10,6 +10,8 @@ import { assertLocalPath } from './local-path.js';
 import { findSecrets } from './secret-shapes.js';
 import { JsonSyntaxError, parseStrictJson } from './strict-json.js';
 import { INTENTS, type TransitionPins } from './transition-intent.js';
+import { isLensId, lensDef, LENSES, type LensId } from './brief/brief.js';
+import { AUDIENCES, MAX_FOCUS, type Audience } from './brief/prompt.js';
 
 /**
  * Dossiers: what toil knows about one body of work (its repositories, the
@@ -78,6 +80,18 @@ export interface Dossier {
   people: DossierPerson[];
   /** How many items one person may have in progress at once, as the team agreed; absent when it set none. */
   wipLimit?: number;
+  /** How Analyze briefs it (#494): its reader, its lenses, and its focus; absent for the standard. */
+  analyze?: DossierAnalyze;
+}
+
+/** A dossier's Analyze settings, as written: every key optional, the standard filling the rest. */
+export interface DossierAnalyze {
+  goal?: string;
+  audience?: Audience;
+  /** Lenses in the order to apply them; any not listed follow in the standard order. */
+  lenses?: Array<{ id: LensId; on?: boolean; threshold?: number }>;
+  watchFor?: string;
+  leaveOut?: string;
 }
 
 export interface DossierProblem {
@@ -108,7 +122,7 @@ export interface DossierArea {
 
 /** Keys of a section that core reads itself; every other key is a context input or reference data. */
 const CORE_SECTION_KEYS = new Set(['connection', 'host', 'fields', 'transitions']);
-const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'environments', 'people', 'wipLimit']);
+const TOP_LEVEL = new Set(['$schema', 'name', 'description', 'env', 'repos', 'environments', 'people', 'wipLimit', 'analyze']);
 const ALIAS = /^[a-z][a-zA-Z0-9]*$/;
 const HOST = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:\d{1,5})?$/i;
 
@@ -349,6 +363,8 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
   const people = readPeople(raw.people, byName, error, warn);
   if (raw.wipLimit !== undefined && !(typeof raw.wipLimit === 'number' && Number.isInteger(raw.wipLimit) && raw.wipLimit > 0)) error('wipLimit', '"wipLimit" must be a whole number above 0: how many items one person may have in progress at once.');
 
+  const analyze = readAnalyze(raw.analyze, error, warn);
+
   if (problems.some((p) => p.level === 'error')) return { problems };
   return {
     dossier: {
@@ -361,9 +377,68 @@ export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { 
       environments,
       people,
       ...(typeof raw.wipLimit === 'number' ? { wipLimit: raw.wipLimit } : {}),
+      ...(analyze ? { analyze } : {}),
     },
     problems,
   };
+}
+
+const ANALYZE_KEYS = ['goal', 'audience', 'lenses', 'watchFor', 'leaveOut'];
+
+/**
+ * The `analyze` object (#494): words for the agent, and lens settings. Each
+ * text is at most MAX_FOCUS characters and never shaped like a credential,
+ * since a dossier never holds one; a lens is named once, and only a lens with
+ * a unit takes a threshold.
+ */
+function readAnalyze(value: unknown, error: (path: string, message: string) => void, warn: (code: string, path: string, message: string) => void): DossierAnalyze | undefined {
+  if (value === undefined) return undefined;
+  if (!isRecord(value)) {
+    error('analyze', '"analyze" must be an object: { goal, audience, lenses, watchFor, leaveOut }.');
+    return undefined;
+  }
+  const out: DossierAnalyze = {};
+  for (const key of Object.keys(value)) if (!ANALYZE_KEYS.includes(key)) warn('DOSSIER_UNKNOWN_KEY', `analyze.${key}`, `"${key}" isn't an analyze key; analyze takes ${ANALYZE_KEYS.join(', ')}. It was ignored.`);
+  for (const key of ['goal', 'watchFor', 'leaveOut'] as const) {
+    const v = value[key];
+    if (v === undefined) continue;
+    if (typeof v !== 'string' || v.trim() === '') error(`analyze.${key}`, `"${key}" must be text.`);
+    else if (v.length > MAX_FOCUS) error(`analyze.${key}`, `"${key}" is ${v.length} characters; the most is ${MAX_FOCUS}.`);
+    else if (findSecrets(v).length > 0) error(`analyze.${key}`, `"${key}" holds something shaped like a credential, and a dossier never holds one.`);
+    else out[key] = v.trim();
+  }
+  if (value.audience !== undefined) {
+    if (AUDIENCES.includes(value.audience as Audience)) out.audience = value.audience as Audience;
+    else error('analyze.audience', `"audience" must be one of ${AUDIENCES.join(', ')}.`);
+  }
+  if (value.lenses !== undefined) {
+    if (!Array.isArray(value.lenses)) error('analyze.lenses', '"lenses" must be a list: [{ "id": "failing", "on": true, "threshold": 4 }, …].');
+    else {
+      const seen = new Set<string>();
+      const lenses: NonNullable<DossierAnalyze['lenses']> = [];
+      value.lenses.forEach((l: unknown, i: number) => {
+        const path = `analyze.lenses[${i}]`;
+        if (!isRecord(l) || typeof l.id !== 'string' || !isLensId(l.id)) return void error(path, `Each lens needs an id, one of ${LENSES.map((d) => d.id).join(', ')}.`);
+        if (seen.has(l.id)) return void error(path, `"${l.id}" is listed twice.`);
+        seen.add(l.id);
+        for (const key of Object.keys(l)) if (!['id', 'on', 'threshold'].includes(key)) warn('DOSSIER_UNKNOWN_KEY', `${path}.${key}`, `"${key}" isn't a lens key; a lens takes id, on and threshold. It was ignored.`);
+        const lens: { id: LensId; on?: boolean; threshold?: number } = { id: l.id };
+        if (l.on !== undefined) {
+          if (typeof l.on === 'boolean') lens.on = l.on;
+          else error(`${path}.on`, '"on" must be true or false.');
+        }
+        if (l.threshold !== undefined) {
+          const unit = lensDef(l.id).unit;
+          if (!unit) error(`${path}.threshold`, `The ${l.id} lens takes no threshold.`);
+          else if (typeof l.threshold !== 'number' || !(l.threshold > 0) || l.threshold > 365) error(`${path}.threshold`, `"threshold" must be a number of ${unit} above 0 and at most 365.`);
+          else lens.threshold = l.threshold;
+        }
+        lenses.push(lens);
+      });
+      out.lenses = lenses;
+    }
+  }
+  return out;
 }
 
 /** Why a value can't be an identity: it's shaped like a credential, which a dossier never holds. Undefined when it can. */
@@ -498,6 +573,7 @@ export function dossierContent(dossier: Dossier): Record<string, unknown> {
     ...(Object.keys(dossier.environments).length > 0 ? { environments: dossier.environments } : {}),
     ...(dossier.people.length > 0 ? { people: dossier.people } : {}),
     ...(dossier.wipLimit !== undefined ? { wipLimit: dossier.wipLimit } : {}),
+    ...(dossier.analyze !== undefined ? { analyze: dossier.analyze } : {}),
   };
 }
 

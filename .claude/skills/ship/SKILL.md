@@ -121,7 +121,7 @@ principle), and the simplest fix.
   - detail laid out up front that belongs one step further in (a summary row that
     expands, a drawer, the item's own page)
   - a page reachable only one way: it needs its address plus at least one of a link
-    from a summary, its tab or list, and the command palette
+    from a summary, its tab or list, the command palette, or a search or shortcut
 
   Each finding names the screen, the element and the quieter form. These are fixed
   like code findings.

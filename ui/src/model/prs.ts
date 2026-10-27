@@ -86,7 +86,7 @@ export function sizeOf(c: Change): { bucket: SizeBucket | null; lines: number | 
 /** Working days a pull request may wait for its first review before it is flagged. */
 export const PICKUP_DAYS = lensDef('waiting').threshold!;
 /** Hours checks may fail before it is flagged. */
-export const FAILING_HOURS = 24;
+export const FAILING_HOURS = lensDef('failing').threshold!;
 
 export type PrFlag = 'slow-pickup' | 'failing-checks' | 'conflict' | 'no-work-item' | 'item-done' | 'merged-item-open';
 

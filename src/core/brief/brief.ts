@@ -1,12 +1,12 @@
 import type { Change, StatusCategory, WorkItem } from '../owi/types.js';
-import { calendarDays, round1, workingDays } from './time.js';
+import { calendarDays, DAY, round1, workingDays } from './time.js';
 
 /**
  * The dossier briefing, by code (#494): what needs a person, sorted into
  * reasons, and the one thing to do first. It reads Open Work Items and their
  * changes (pull requests), the same records `util owi map` prints, and asks
- * nobody: the caller composes the reads (principle 3). Toil UI fills its home
- * page with it, `toil dossiers brief` prints it, and Analyze starts from it
+ * nobody: the caller composes the reads (principle 3). `toil dossiers brief`
+ * prints it, Toil UI's home page is built on it, and Analyze starts from it
  * and adds the judgement code can't make.
  *
  * Each lens is one test, applied to every open item in the dossier's order of
@@ -39,7 +39,7 @@ export interface LensDef {
 
 /** Every lens, in the standard order: what holds the most work up first. */
 export const LENSES: readonly LensDef[] = [
-  { id: 'failing', label: 'Failing checks', severity: 'danger', unit: 'hours', threshold: 4, on: true, test: (t) => `checks on an open pull request for an open item have failed for more than ${t} hours` },
+  { id: 'failing', label: 'Failing checks', severity: 'danger', unit: 'hours', threshold: 24, on: true, test: (t) => `checks on an open pull request for an open item have failed for more than ${t} hours` },
   { id: 'blocked', label: 'Blocked', severity: 'danger', unit: null, threshold: null, on: true, test: () => 'an open item waits on another open item' },
   { id: 'waiting', label: 'Waiting on review', severity: 'warn', unit: 'working days', threshold: 2, on: true, test: (t) => `an open pull request has had no first review for more than ${t} working days` },
   { id: 'sprint', label: 'Sprint at risk', severity: 'warn', unit: null, threshold: null, on: true, test: () => "at the pace so far, the current sprint won't finish the points in it" },
@@ -73,6 +73,8 @@ export const standardSettings = (wipLimit: number | null = null): BriefSettings 
 /** A pull request an item's reason rests on. */
 export interface BriefChange {
   id: string;
+  /** The repository, as its code host names it. */
+  repo: string;
   title: string;
   url: string | null;
   state: Change['state'];
@@ -83,6 +85,8 @@ export interface BriefItem {
   /** The OWI id, `<connection>:<key>`: Toil UI's address for the item. */
   id: string;
   key: string;
+  /** Where the record came from: the area, the connection and the toil command that read it. */
+  source: WorkItem['source'];
   title: string;
   /** The item in its tracker, to open. */
   url: string | null;
@@ -106,7 +110,7 @@ export interface BriefReason {
   /** One line on how much it holds up. */
   line: string;
   items: BriefItem[];
-  /** For a reason about the whole dossier (the sprint): what it found, citing `[[ids]]`. */
+  /** For a reason about the whole dossier (the sprint): what it found, in one or two sentences. */
   text: string | null;
 }
 
@@ -132,7 +136,8 @@ export interface Brief {
   onTrack: { open: number; done: number };
   sprint: SprintFacts | null;
   /** The lenses as applied: each one's test, and why one wasn't checked. */
-  lenses: Array<{ id: LensId; label: string; on: boolean; threshold: number | null; unit: LensDef['unit']; test: string; checked: boolean; note: string | null }>;
+  /** The lenses as applied: each one's test, whether it ran, how many items it couldn't test for a missing field, and why. */
+  lenses: Array<{ id: LensId; label: string; on: boolean; threshold: number | null; unit: LensDef['unit']; test: string; checked: boolean; untested: number; note: string | null }>;
 }
 
 export interface BriefInput {
@@ -171,6 +176,9 @@ function heldBy(id: string, byId: ReadonlyMap<string, WorkItem>): WorkItem[] {
 
 const pointsOf = (i: WorkItem) => (i.estimate?.unit === 'points' ? i.estimate.value : 0);
 
+/** A sprint's end: one given as midnight exactly is the start of its last day (Azure DevOps' finishDate), so the end of that day. */
+const endOf = (end: string) => (/T00:00:00(\.0+)?Z$/.test(end) ? new Date(Date.parse(end) + DAY).toISOString() : end);
+
 /** The sprint the most open items are in, by its dates, or the tracker's word that it's current. */
 function currentSprint(items: readonly WorkItem[], asOf: string): WorkItem['iteration'] {
   const t = Date.parse(asOf);
@@ -178,7 +186,7 @@ function currentSprint(items: readonly WorkItem[], asOf: string): WorkItem['iter
   for (const i of items) {
     const it = i.iteration;
     if (!it?.start || !it.end) continue;
-    const now = it.state === 'current' || (Date.parse(it.start) <= t && t <= Date.parse(it.end));
+    const now = it.state === 'current' || (Date.parse(it.start) <= t && t <= Date.parse(endOf(it.end)));
     if (!now) continue;
     const key = `${it.name}|${it.start}|${it.end}`;
     counts.set(key, { it, n: (counts.get(key)?.n ?? 0) + 1 });
@@ -186,21 +194,20 @@ function currentSprint(items: readonly WorkItem[], asOf: string): WorkItem['iter
   return [...counts.values()].sort((a, b) => b.n - a.n)[0]?.it ?? null;
 }
 
-function sprintFacts(items: readonly WorkItem[], asOf: string): { facts: SprintFacts; ids: string[] } | null {
+function sprintFacts(items: readonly WorkItem[], asOf: string): SprintFacts | null {
   const it = currentSprint(items, asOf);
   if (!it?.start || !it.end) return null;
-  const inIt = items.filter((i) => i.iteration?.name === it.name && i.iteration.start === it.start);
+  // Two trackers may each have a "Sprint 42"; only the one with these dates is this sprint.
+  const inIt = items.filter((i) => i.iteration?.name === it.name && i.iteration.start === it.start && i.iteration.end === it.end);
   const total = inIt.reduce((n, i) => n + pointsOf(i), 0);
   const done = inIt.filter((i) => !open(i)).reduce((n, i) => n + pointsOf(i), 0);
-  const all = workingDays(it.start, it.end);
+  const end = endOf(it.end);
+  const all = workingDays(it.start, end);
   const gone = Math.min(all, workingDays(it.start, asOf));
   // Stories land late in a sprint, so a pace is only read once a quarter of it (and at least a day) has gone.
   const pace = gone >= Math.max(1, all / 4) ? done / gone : null;
   const projected = pace === null ? null : Math.min(total - done, pace * (all - gone));
-  return {
-    facts: { name: it.name, start: it.start, end: it.end, days: { total: round1(all), gone: round1(gone), left: round1(all - gone) }, points: { total, done, left: total - done }, pace: pace === null ? null : round1(pace), projected: projected === null ? null : round1(projected) },
-    ids: inIt.filter(open).map((i) => i.id),
-  };
+  return { name: it.name, start: it.start, end, days: { total: round1(all), gone: round1(gone), left: round1(all - gone) }, points: { total, done, left: total - done }, pace: pace === null ? null : round1(pace), projected: projected === null ? null : round1(projected) };
 }
 
 interface Finding {
@@ -210,14 +217,32 @@ interface Finding {
 }
 
 /** What one lens finds about one open item, or null. */
+const unmapped = (c: Change, field: string) => (c.unmapped ?? []).some((u) => u.field === field);
+
+/** Why one lens can't test one item: a field it reads is missing. Null when it can. */
+function untestable(lens: LensId, item: WorkItem, prs: Change[]): string | null {
+  switch (lens) {
+    case 'failing':
+      return prs.some((c) => openChange(c) && (c.checks === null || unmapped(c, 'checks') || (c.checks === 'FAILING' && !c.checksAt))) ? 'checks' : null;
+    case 'waiting':
+      return prs.some((c) => c.state === 'OPEN' && (!c.created || unmapped(c, 'firstReviewAt'))) ? 'firstReviewAt' : null;
+    case 'stale':
+      return item.statusCategory === 'IN_PROGRESS' && !item.updated ? 'updated' : null;
+    case 'load':
+      return item.statusCategory === 'IN_PROGRESS' && !item.assignee?.id ? 'assignee' : null;
+    default:
+      return null;
+  }
+}
+
 function find(lens: LensId, item: WorkItem, t: number | null, ctx: { byId: ReadonlyMap<string, WorkItem>; changesOf: (id: string) => Change[]; asOf: string; wipLimit: number | null; loadOf: ReadonlyMap<string, number> }): Finding | null {
   const prs = ctx.changesOf(item.id);
   switch (lens) {
     case 'failing': {
-      const failing = prs.filter((c) => openChange(c) && c.checks === 'FAILING' && (!c.checksAt || calendarDays(c.checksAt, ctx.asOf) * 24 > (t ?? 0)));
+      const failing = prs.filter((c) => openChange(c) && c.checks === 'FAILING' && c.checksAt && calendarDays(c.checksAt, ctx.asOf) * 24 > (t ?? 0));
       if (!failing.length) return null;
       const c = failing[0]!;
-      return { why: `Checks fail on ${cite(c.id)}${c.checksAt ? `, for ${daysText(calendarDays(c.checksAt, ctx.asOf), 'days')}` : ''}.`, evidence: failing.map((f) => f.id), changes: failing };
+      return { why: `Checks fail on ${cite(c.id)}, for ${daysText(calendarDays(c.checksAt!, ctx.asOf), 'days')}.`, evidence: failing.map((f) => f.id), changes: failing };
     }
     case 'blocked': {
       const by = item.links.filter((l) => l.type === 'blocks' && l.direction === 'inward' && ctx.byId.has(l.target) && open(ctx.byId.get(l.target)!)).map((l) => l.target);
@@ -225,7 +250,7 @@ function find(lens: LensId, item: WorkItem, t: number | null, ctx: { byId: Reado
       return { why: `Blocked by ${[...new Set(by)].map(cite).join(' and ')}, which ${by.length === 1 ? "isn't" : "aren't"} done.`, evidence: ['links'], changes: [] };
     }
     case 'waiting': {
-      const waiting = prs.filter((c) => c.state === 'OPEN' && !c.firstReviewAt && c.created && workingDays(c.created, ctx.asOf) > (t ?? 0));
+      const waiting = prs.filter((c) => c.state === 'OPEN' && !c.firstReviewAt && !unmapped(c, 'firstReviewAt') && c.created && workingDays(c.created, ctx.asOf) > (t ?? 0));
       if (!waiting.length) return null;
       const c = waiting[0]!;
       return { why: `${cite(c.id)} has waited ${daysText(workingDays(c.created!, ctx.asOf), 'working days')} for its first review.`, evidence: waiting.map((w) => w.id), changes: waiting };
@@ -256,7 +281,7 @@ function find(lens: LensId, item: WorkItem, t: number | null, ctx: { byId: Reado
 }
 
 function briefChange(c: Change): BriefChange {
-  return { id: c.id, title: c.title, url: c.url, state: c.state, checks: c.checks };
+  return { id: c.id, repo: c.repo, title: c.title, url: c.url, state: c.state, checks: c.checks };
 }
 
 /** The line under a reason's name: how much it holds up. */
@@ -308,7 +333,9 @@ function recommend(reason: BriefReason): { text: string; items: string[] } {
 export function brief(input: BriefInput): Brief {
   const { items, changes, asOf, settings } = input;
   const byId = new Map(items.map((i) => [i.id, i]));
-  const changesOf = (id: string) => changes.filter((c) => c.workItems.includes(id));
+  const byItem = new Map<string, Change[]>();
+  for (const c of changes) for (const id of new Set(c.workItems)) byItem.set(id, [...(byItem.get(id) ?? []), c]);
+  const changesOf = (id: string) => byItem.get(id) ?? [];
   const loadOf = new Map<string, number>();
   for (const i of items) if (i.statusCategory === 'IN_PROGRESS' && i.assignee?.id) loadOf.set(i.assignee.id, (loadOf.get(i.assignee.id) ?? 0) + 1);
   const ctx = { byId, changesOf, asOf, wipLimit: settings.wipLimit, loadOf };
@@ -320,13 +347,17 @@ export function brief(input: BriefInput): Brief {
   for (const setting of settings.lenses) {
     const def = lensDef(setting.id);
     const t = setting.threshold ?? def.threshold;
-    const note = !setting.on ? null : setting.id === 'ready' ? 'Readiness is worked out in Toil UI, not from OWI records.' : setting.id === 'load' && settings.wipLimit === null ? 'The dossier sets no WIP limit (toil dossiers wip-limit).' : setting.id === 'sprint' && !sprint ? 'No item is in a sprint running now.' : null;
-    const checked = setting.on && note === null;
-    lenses.push({ id: def.id, label: def.label, on: setting.on, threshold: t, unit: def.unit, test: def.test(t, settings.wipLimit), checked, note });
+    const skip = !setting.on ? null : setting.id === 'ready' ? 'Readiness is worked out in Toil UI, not from OWI records.' : setting.id === 'load' && settings.wipLimit === null ? 'The dossier sets no WIP limit (toil dossiers wip-limit).' : setting.id === 'sprint' && !sprint ? 'No item is in a sprint running now.' : setting.id === 'sprint' && sprint!.points.total === 0 ? 'No item in the sprint has a points estimate.' : null;
+    const checked = setting.on && skip === null;
+    // A lens that ran still says which items it couldn't test, so "nothing found" never hides "nothing read".
+    const missing = checked ? items.filter((i) => (open(i) || setting.id === 'drift') && untestable(setting.id, i, changesOf(i.id))) : [];
+    const field = missing.length ? untestable(setting.id, missing[0]!, changesOf(missing[0]!.id)) : null;
+    const note = skip ?? (missing.length ? `${plural(missing.length, 'item')} couldn't be tested: ${field === 'checks' || field === 'firstReviewAt' ? `a pull request has no ${field === 'checks' ? 'checks' : 'reviews'} read (map pr get --include reviews,checks, not only pr list)` : `no ${field}`}.` : null);
+    lenses.push({ id: def.id, label: def.label, on: setting.on, threshold: t, unit: def.unit, test: def.test(t, settings.wipLimit), checked, untested: missing.length, note });
     if (!checked) continue;
 
     if (setting.id === 'sprint') {
-      const s = sprint!.facts;
+      const s = sprint!;
       if (s.projected === null || s.projected >= s.points.left - 0.01 || s.points.left <= 0) continue;
       reasons.push({
         lens: 'sprint',
@@ -349,6 +380,7 @@ export function brief(input: BriefInput): Brief {
       found.push({
         id: item.id,
         key: item.source.key,
+        source: item.source,
         title: item.title,
         url: item.url,
         status: item.status,
@@ -373,7 +405,7 @@ export function brief(input: BriefInput): Brief {
     recommendation: reasons[0] ? recommend(reasons[0]) : null,
     reasons,
     onTrack: { open: items.filter((i) => open(i) && !taken.has(i.id)).length, done: items.filter((i) => !open(i) && !taken.has(i.id)).length },
-    sprint: sprint?.facts ?? null,
+    sprint,
     lenses,
   };
 }

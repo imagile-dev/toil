@@ -285,9 +285,11 @@ GitHub Actions; its build tooling is out of scope.
   `skills.folders`), the `skills` commands that read or change config, and the toil
   skill itself (`bundled.ts`, and `skill install | show` in `skill-commands.ts`); the
   `skills` area's own commands are in `src/areas/skills/`
-- `src/dossiers/` — `toil dossiers list | show | check | context` (`commands.ts`) and
-  `init | add-repo | link | env | field | person | wip-limit | describe | export | import | unlink | remove` (`build.ts`); the
-  model, resolution and writing are `src/core/dossier.ts`
+- `src/dossiers/` — `toil dossiers list | show | check | context` (`commands.ts`),
+  `init | add-repo | link | env | field | person | wip-limit | analyze set | describe | export | import | unlink | remove` (`build.ts`),
+  `onboard` (`onboard.ts`), and `brief | analyze show | analyze prompt` (`brief.ts`); the
+  model, resolution and writing are `src/core/dossier.ts`, and the briefing's lenses,
+  its reader and the Analyze prompt are `src/core/brief/`, which Toil UI reads too
 - `src/repos/` — `toil repos scan`, discovery for dossiers
 - `src/audit/` — `toil audit list | stats | path`, reading the audit log
   `src/core/audit.ts` keeps; `stats.ts` is the summary's arithmetic

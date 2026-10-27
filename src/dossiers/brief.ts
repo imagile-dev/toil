@@ -1,8 +1,11 @@
 import { z } from 'zod';
 import { inputFields, openInput, textOption } from '../areas/util/kit/input.js';
-import { brief, standardSettings } from '../core/brief/brief.js';
+import { brief, lensDef } from '../core/brief/brief.js';
+import { analyzePrompt, type FocusSource } from '../core/brief/prompt.js';
+import { analyzeSettings, isStandard } from '../core/brief/settings.js';
 import { readBriefRecords } from '../core/brief/read.js';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
+import type { Applied } from '../core/dossier.js';
 import { ToilError } from '../core/errors.js';
 import { forwardSlashes } from '../core/files.js';
 import { chosen } from './commands.js';
@@ -16,8 +19,6 @@ import { chosen } from './commands.js';
  * in src/core/brief/, where Toil UI reads them too. The status meeting,
  * minus the meeting.
  */
-
-const MAX_BYTES = 64 * 1024 * 1024;
 
 /** Three items in a chain and the pull request whose checks fail on the first, for the examples. */
 export const EXAMPLE_BRIEF_RECORDS = JSON.stringify({
@@ -47,7 +48,7 @@ export function dossierBriefCommands(): AnyCommand[] {
     writesLocal: false,
     args: [{ name: 'dossier', field: 'dossier', description: 'A dossier name or file (default: the one the folder matches)', required: false }],
     options: [
-      { flags: '--input-file <path>', field: 'file', description: 'The OWI records: a file inside the workspace, or - for stdin (the default when no --text is given)' },
+      { flags: '--file <path>', field: 'file', description: 'The OWI records: a file inside the workspace, or - for stdin (the default when no --text is given)' },
       textOption,
       { flags: '--as-of <time>', field: 'asOf', description: 'Brief as of this ISO 8601 time (default: now)' },
       { flags: '--cwd <dir>', field: 'cwd', description: 'The folder to look from (default: the working directory)' },
@@ -59,7 +60,7 @@ export function dossierBriefCommands(): AnyCommand[] {
     run: async (input, ctx) => {
       const applied = chosen(ctx.manage!.dossiers!, input, ctx);
       const { dossier, source, file } = applied.file;
-      const read = await openInput(ctx, input, { maxBytes: MAX_BYTES });
+      const read = await openInput(ctx, input);
       const records = readBriefRecords(await read.text());
       if (!records.items.length) {
         throw new ToilError('INVALID_INPUT', `The input holds no work items${records.skipped.length ? ` (${records.skipped.length} records skipped: ${records.skipped[0]!.at}, ${records.skipped[0]!.reason})` : ''}.`, {
@@ -68,10 +69,86 @@ export function dossierBriefCommands(): AnyCommand[] {
       }
       if (records.skipped.length) ctx.warn({ code: 'BRIEF_SKIPPED', message: `${records.skipped.length} record${records.skipped.length > 1 ? 's were' : ' was'} skipped: ${records.skipped[0]!.at}, ${records.skipped[0]!.reason}. data.skipped lists each.` });
       if (records.duplicates.length) ctx.warn({ code: 'BRIEF_DUPLICATE_ID', message: `${records.duplicates.length} id${records.duplicates.length > 1 ? 's appear' : ' appears'} more than once (${records.duplicates.slice(0, 3).join(', ')}); the first of each was used.` });
-      if (!records.changes.length) ctx.warn({ code: 'BRIEF_NO_CHANGES', message: 'The input holds no pull requests, so failing checks, waiting on review and drift found nothing. Map the code hosts\' pr list output too.' });
-      const result = brief({ items: records.items, changes: records.changes, asOf: input.asOf ?? new Date().toISOString(), settings: standardSettings(dossier.wipLimit ?? null) });
+      if (!records.changes.length) ctx.warn({ code: 'BRIEF_NO_CHANGES', message: "The input holds no pull requests, so failing checks, waiting on review and drift found nothing. Map the code hosts' pull requests too." });
+      const known = new Set(records.items.map((i) => i.id));
+      const unlinked = records.changes.filter((c) => !c.workItems.some((id) => known.has(id)));
+      if (unlinked.length) {
+        ctx.warn({
+          code: 'BRIEF_UNLINKED_CHANGES',
+          message: `${unlinked.length} of ${records.changes.length} pull requests name no work item in the input (${unlinked.slice(0, 3).map((c) => c.id).join(', ')}), so no lens reads them. Check the --key-pattern they were mapped with.`,
+        });
+      }
+      const result = brief({ items: records.items, changes: records.changes, asOf: input.asOf ?? new Date().toISOString(), settings: analyzeSettings(dossier.analyze, dossier.wipLimit ?? null).settings });
       return { dossier: { name: dossier.name, file: forwardSlashes(file), source, adopted: source === 'user' }, ...result, skipped: records.skipped };
     },
   });
-  return [command];
+  const dossierField = z.string().min(1).optional().describe('A dossier name, or the path to a dossier file. Defaults to the dossier that applies to the folder.');
+  const cwdField = z.string().min(1).optional().describe('The folder to look from; its repository decides which checked-in dossiers apply. Defaults to the workspace.');
+  const dossierArg = { name: 'dossier', field: 'dossier', description: 'A dossier name or file (default: the one the folder matches)', required: false };
+  const cwdOption = { flags: '--cwd <dir>', field: 'cwd', description: 'The folder to look from (default: the working directory)' };
+
+  const show = defineConfigCommand({
+    path: ['dossiers', 'analyze', 'show'],
+    description: "Show how Analyze briefs a dossier: its reader, its lenses in order with their thresholds, and its focus",
+    toolDescription:
+      "Shows a dossier's Analyze settings as they apply: the reader (audience), every lens in the order it is applied with whether it is on, its threshold and unit, and the test it applies, and the focus (goal, watchFor, leaveOut) with where it came from and whether you adopted that dossier. standard is true when the dossier sets nothing and the standard applies as it is; analyze is the dossier's own analyze key as written. Change them with dossiers_analyze_set. Reads local files only.",
+    input: z.object({ dossier: dossierField, cwd: cwdField }),
+    writes: false,
+    writesLocal: false,
+    args: [dossierArg],
+    options: [cwdOption],
+    examples: [{ dossier: 'payments' }, { dossier: 'payments', cwd: '.' }],
+    run: async (input, ctx) => {
+      const applied = chosen(ctx.manage!.dossiers!, input, ctx);
+      const { dossier } = applied.file;
+      const a = analyzeSettings(dossier.analyze, dossier.wipLimit ?? null);
+      return {
+        dossier: focusSource(applied),
+        standard: isStandard(dossier.analyze),
+        analyze: dossier.analyze ?? null,
+        audience: a.audience,
+        lenses: a.settings.lenses.map((l) => {
+          const def = lensDef(l.id);
+          return { id: l.id, label: def.label, on: l.on, threshold: l.threshold, unit: def.unit, test: def.test(l.threshold, a.settings.wipLimit) };
+        }),
+        wipLimit: a.settings.wipLimit,
+        focus: a.focus,
+      };
+    },
+  });
+
+  const prompt = defineConfigCommand({
+    path: ['dossiers', 'analyze', 'prompt'],
+    description: 'Print the Analyze prompt for a dossier, for an agent with toil to run',
+    toolDescription:
+      "Returns the Analyze prompt for one dossier, ready to run: the steps to read its work items and pull requests with toil's tools and brief them with dossiers_brief, the standard method with the dossier's lenses and thresholds, its focus labelled with where it came from (a dossier you haven't adopted is named as such), and how to write the answer, with every work item and pull request as a Markdown link to its url. Returns { dossier, host, prompt, focused }. host toil-ui gives the version Toil UI sends, which answers with a briefing block instead of Markdown. Reads local files only; contacts no service.",
+    input: z.object({
+      dossier: dossierField,
+      cwd: cwdField,
+      host: z.enum(['toil-mcp', 'toil-ui']).optional().describe('Which agent runs it: toil-mcp (the default), any agent with toil\'s MCP tools, answering in Markdown; toil-ui, Toil UI\'s, answering with a briefing block'),
+    }),
+    writes: false,
+    writesLocal: false,
+    args: [dossierArg],
+    options: [cwdOption, { flags: '--host <host>', field: 'host', description: 'toil-mcp (the default) or toil-ui' }],
+    examples: [{ dossier: 'payments' }, { dossier: 'payments', cwd: '.', host: 'toil-ui' }],
+    run: async (input, ctx) => {
+      const applied = chosen(ctx.manage!.dossiers!, input, ctx);
+      const { dossier } = applied.file;
+      const host = input.host ?? 'toil-mcp';
+      const from = focusSource(applied);
+      const a = analyzeSettings(dossier.analyze, dossier.wipLimit ?? null);
+      return { dossier: from, host, prompt: analyzePrompt(a, from, host), focused: Boolean(a.focus.goal || a.focus.watchFor || a.focus.leaveOut) };
+    },
+  });
+  return [command, show, prompt];
 }
+
+/** Where a dossier came from, as the focus is labelled: its file, whose it is, and for a checked-in one the repository it's in. */
+export function focusSource(applied: Applied): FocusSource {
+  const { dossier, source, file } = applied.file;
+  const path = forwardSlashes(file);
+  const repo = source === 'repo' ? path.replace(/\/\.toil\/dossiers\/[^/]+$/, '') : null;
+  return { dossier: dossier.name, file: path, source, adopted: source === 'user', repo };
+}
+

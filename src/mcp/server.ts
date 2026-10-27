@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import {
   CallToolRequestSchema,
   ErrorCode,
+  GetPromptRequestSchema,
+  ListPromptsRequestSchema,
   ListResourcesRequestSchema,
   ListResourceTemplatesRequestSchema,
   ListToolsRequestSchema,
@@ -57,6 +59,15 @@ export function selectCommands(commands: AnyCommand[], areas: string[] | undefin
   return [...tools, ...(canWait ? commands.filter((def) => def.dispatches && servedOverMcp(def)) : [])];
 }
 
+/** The tool the Analyze prompt is built by, and the prompt as clients list it. */
+const ANALYZE_TOOL = 'dossiers_analyze_prompt';
+export const ANALYZE_PROMPT = {
+  name: 'analyze',
+  title: 'Analyze a dossier',
+  description: "Brief one dossier: what needs a person, why, and what to do first, read through toil's tools, with every work item and pull request linked.",
+  arguments: [{ name: 'dossier', description: 'The dossier to analyze (default: the one the folder matches)', required: false }],
+};
+
 /**
  * Builds the MCP server. Each tool runs exactly the code its CLI command runs.
  *
@@ -87,7 +98,7 @@ export function createMcpServer(options: {
   const startup = options.context();
   const selected = selectCommands(options.commands, options.areas, startup.config);
   const byName = new Map(selected.map((def) => [toolName(def), def]));
-  const server = new Server({ name: 'toil', version: startup.version }, { capabilities: { tools: {}, resources: {} } });
+  const server = new Server({ name: 'toil', version: startup.version }, { capabilities: { tools: {}, resources: {}, prompts: {} } });
 
   let roots: Promise<string[] | undefined> | undefined;
   server.setNotificationHandler(RootsListChangedNotificationSchema, () => {
@@ -162,6 +173,18 @@ export function createMcpServer(options: {
     if (err instanceof ToilError) throw new McpError(ErrorCode.InternalError, `${err.message}${err.fix ? ` ${err.fix}` : ''}`);
     throw err;
   };
+  // The one prompt, Analyze (#494), is the dossiers_analyze_prompt tool's answer, so it's served exactly when that tool is.
+  const analyze = byName.get(ANALYZE_TOOL);
+  server.setRequestHandler(ListPromptsRequestSchema, () => ({ prompts: analyze ? [ANALYZE_PROMPT] : [] }));
+  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    if (request.params.name !== ANALYZE_PROMPT.name || !analyze) throw new McpError(ErrorCode.InvalidParams, `Unknown prompt: ${request.params.name}`);
+    const dossier = request.params.arguments?.dossier?.trim();
+    const shared = await clientRoots();
+    const envelope = await runCommand(analyze, dossier ? { dossier } : {}, (d) => options.context(d, undefined, shared), startup.version, 'mcp', { targets: selected });
+    if (!envelope.ok) throw new McpError(ErrorCode.InvalidParams, `${envelope.error!.message}${envelope.error!.fix ? ` ${envelope.error!.fix}` : ''}`);
+    const data = envelope.data as { prompt: string; dossier: { dossier: string } };
+    return { description: `Analyze the dossier ${data.dossier.dossier}`, messages: [{ role: 'user' as const, content: { type: 'text' as const, text: data.prompt } }] };
+  });
   server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: await listResources(await host()).catch(asMcpError) }));
   server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({ resourceTemplates: listTemplates(await host()) }));
   server.setRequestHandler(ReadResourceRequestSchema, async (request) => ({ contents: [await readResource(await host(), request.params.uri).catch(asMcpError)] }));

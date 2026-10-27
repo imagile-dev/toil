@@ -10,6 +10,7 @@ import {
   dossierContent, EMAIL, hasSecretUserinfo, identityKey, identityProblem, normalizeRemote, PERSON_KINDS, samePath, selectorHost, stripUserinfo,
   type Dossier, type DossierCatalog, type DossierFile, type DossierPerson, type Section,
 } from '../core/dossier.js';
+import { isLensId, LENSES, type LensId } from '../core/brief/brief.js';
 import { ToilError, toToilError } from '../core/errors.js';
 import { forwardSlashes } from '../core/files.js';
 
@@ -580,7 +581,91 @@ export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
     },
   });
 
-  return [init, addRepo, link, env, field, person, wipLimit, describe, exportCommand, importCommand, unlink, remove];
+
+  const analyzeSet = defineConfigCommand({
+    path: ['dossiers', 'analyze', 'set'],
+    description: 'Tune how Analyze briefs a dossier: its goal, reader, lenses, and what to watch for or leave out',
+    toolDescription:
+      "Sets a dossier's Analyze settings (its analyze key): goal (what the work is for), audience (lead, engineer or stakeholder), the lens order (order: lens ids separated by commas, from failing, blocked, waiting, sprint, stale, load, drift and ready), lenses turned on or off, a lens's threshold (threshold, as id=number: failing in hours, waiting in working days, stale in days), and watchFor and leaveOut (words for the agent, up to 1000 characters each). Anything not set follows the standard. dossiers_brief and dossiers_analyze_prompt read it. A value already set is refused unless replace is set. Clearing a setting, or reset to the standard, is a delete: a person does that on the CLI. A local write: no allowWrite.",
+    input: z.object({
+      dossier: dossierField,
+      goal: z.string().min(1).optional().describe('What the work is for, in one line, e.g. "Card payments v2 live for all merchants by 31 Oct."'),
+      audience: z.enum(['lead', 'engineer', 'stakeholder']).optional().describe('Who the briefing is for: lead (the standard), engineer or stakeholder'),
+      order: z.string().min(1).optional().describe('Lens ids in the order to apply them, separated by commas, e.g. blocked,failing,waiting; any not named follow in the standard order'),
+      on: z.array(z.string()).optional().describe('Lenses to turn on, by id'),
+      off: z.array(z.string()).optional().describe('Lenses to turn off, by id'),
+      threshold: z.array(z.string()).optional().describe("A lens's threshold, as id=number: failing=24 (hours), waiting=3 (working days), stale=7 (days)"),
+      watchFor: z.string().min(1).optional().describe('What else Analyze should look for, in words'),
+      leaveOut: z.string().min(1).optional().describe('What Analyze should leave out, in words; the briefing lists what this hid'),
+      clear: z.array(z.enum(['goal', 'audience', 'lenses', 'watchFor', 'leaveOut'])).optional().describe('Settings to remove, back to the standard. A delete: CLI only.'),
+      reset: z.boolean().optional().describe('Remove every Analyze setting, back to the standard. A delete: CLI only.'),
+      replace: replaceField,
+    }),
+    writes: false,
+    writesLocal: true,
+    offMcpWhen: (input) => (input.reset || input.clear?.length ? 'Clearing Analyze settings is a delete, which is never served over MCP or the API: a person runs toil dossiers analyze set --clear or --reset on the CLI.' : undefined),
+    args: [dossierArg],
+    options: [
+      { flags: '--goal <text>', field: 'goal', description: 'What the work is for, in one line' },
+      { flags: '--audience <who>', field: 'audience', description: 'lead, engineer or stakeholder' },
+      { flags: '--order <ids>', field: 'order', description: 'Lens ids in the order to apply them, separated by commas' },
+      { flags: '--on <id>', field: 'on', description: 'Turn a lens on (repeatable)' },
+      { flags: '--off <id>', field: 'off', description: 'Turn a lens off (repeatable)' },
+      { flags: '--threshold <id=n>', field: 'threshold', description: "Set a lens's threshold (repeatable): failing=24, waiting=3, stale=7" },
+      { flags: '--watch-for <text>', field: 'watchFor', description: 'What else to look for' },
+      { flags: '--leave-out <text>', field: 'leaveOut', description: 'What to leave out' },
+      { flags: '--clear <setting>', field: 'clear', description: 'Remove a setting: goal, audience, lenses, watchFor or leaveOut (repeatable; CLI only)' },
+      { flags: '--reset', field: 'reset', description: 'Remove every Analyze setting (CLI only)' },
+      replaceOption,
+    ],
+    examples: [
+      { dossier: 'payments', goal: 'Card payments v2 live for all merchants by 31 Oct.', audience: 'lead', threshold: ['waiting=3'] },
+      { dossier: 'payments', order: 'blocked,failing', on: ['ready'], off: ['stale'], watchFor: 'Changes to the tokeniser without a security review.', leaveOut: 'The docs epic, PAY-90.', replace: true, clear: [], reset: false },
+    ],
+    run: async (input, ctx) => {
+      const { catalog } = access(ctx);
+      const file = catalog.find(input.dossier);
+      const dossier = structuredClone(file.dossier);
+      const before = JSON.stringify(dossier.analyze ?? {});
+      const a: NonNullable<Dossier['analyze']> = input.reset ? {} : structuredClone(dossier.analyze ?? {});
+      for (const key of input.clear ?? []) delete a[key];
+      const words = { goal: input.goal, audience: input.audience, watchFor: input.watchFor, leaveOut: input.leaveOut };
+      for (const key of ['goal', 'audience', 'watchFor', 'leaveOut'] as const) {
+        const value = words[key];
+        if (value === undefined) continue;
+        if (a[key] !== undefined && a[key] !== value && !input.replace) throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name}'s ${key} is already set.`, { fix: 'Pass --replace to change it.' });
+        (a as Record<string, unknown>)[key] = value;
+      }
+      const lensId = (id: string, flag: string): LensId => {
+        if (!isLensId(id)) throw new ToilError('INVALID_INPUT', `${flag} names "${id}", which isn't a lens.`, { fix: `Use one of: ${LENSES.map((l) => l.id).join(', ')}.` });
+        return id;
+      };
+      const thresholds = (input.threshold ?? []).map((pair) => {
+        const [id, value] = keyValue(pair, '--threshold', { example: 'waiting=3' });
+        const n = Number(value);
+        if (!Number.isFinite(n)) throw new ToilError('INVALID_INPUT', `--threshold ${pair} isn't a number.`, { fix: 'For example --threshold waiting=3.' });
+        return [lensId(id, '--threshold'), n] as const;
+      });
+      if (input.order !== undefined || input.on?.length || input.off?.length || thresholds.length) {
+        if (a.lenses?.length && !input.replace) throw new ToilError('INVALID_INPUT', `Dossier ${dossier.name}'s lenses are already set.`, { fix: 'Pass --replace to change them.' });
+        const had = new Map((a.lenses ?? []).map((l) => [l.id, { ...l }]));
+        const order = input.order !== undefined ? input.order.split(',').map((s) => lensId(s.trim(), '--order')) : [...had.keys()];
+        const named = [...(input.on ?? []).map((id) => lensId(id, '--on')), ...(input.off ?? []).map((id) => lensId(id, '--off')), ...thresholds.map(([id]) => id)];
+        for (const id of named) if (!order.includes(id)) order.push(id);
+        const lenses = [...new Set(order)].map((id) => had.get(id) ?? { id });
+        const at = (id: LensId) => lenses.find((l) => l.id === id)!;
+        for (const id of input.on ?? []) at(id as LensId).on = true;
+        for (const id of input.off ?? []) at(id as LensId).on = false;
+        for (const [id, n] of thresholds) at(id).threshold = n;
+        a.lenses = lenses;
+      }
+      if (Object.keys(a).length) dossier.analyze = a;
+      else delete dossier.analyze;
+      return saved(ctx, catalog, file, dossier, JSON.stringify(dossier.analyze ?? {}) !== before, { analyze: dossier.analyze ?? null });
+    },
+  });
+
+  return [init, addRepo, link, env, field, person, wipLimit, analyzeSet, describe, exportCommand, importCommand, unlink, remove];
 
   /** link and env: one section's binding, context inputs and reference data. */
   async function changeSection(

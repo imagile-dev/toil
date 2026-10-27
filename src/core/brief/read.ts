@@ -9,9 +9,10 @@ import type { Change, ChangeState, StatusCategory, WorkItem } from '../owi/types
  * calls (`jira issue search … | util owi map` and `bitbucket pr list … |
  * util owi map`). A record is a work item when it has a statusCategory and a
  * change when it has a repo and a state. Anything else is skipped and listed
- * with why, never guessed at; the fields the rules read are checked for their
- * shape, and a missing list is read as empty. Forms received in triplicate,
- * filed once.
+ * with why, never guessed at. A missing list is read as empty, a link that
+ * isn't one is dropped, and an estimate whose value isn't a number is read as
+ * none, so a malformed field can't crash the rules or skew a total. Forms
+ * received in triplicate, filed once.
  */
 
 export interface BriefRecords {
@@ -27,24 +28,45 @@ const STATES = new Set<ChangeState>(['OPEN', 'MERGED', 'DECLINED', 'DRAFT']);
 const isEnvelope = (v: unknown): v is { ok: unknown; data?: unknown; meta: { command: string } } => isRecord(v) && 'ok' in v && isRecord(v.meta) && typeof v.meta.command === 'string';
 const list = (v: unknown) => (Array.isArray(v) ? v : []);
 
+/**
+ * The JSON values in some text, however they're laid out: one value, one a
+ * line, or several pretty-printed documents run together (`cat a.json b.json`).
+ * A scanner finds where each top-level value ends, outside strings.
+ */
 function values(text: string): unknown[] {
-  const trimmed = text.trim();
-  if (trimmed === '') throw new ToilError('INVALID_INPUT', 'The input is empty.', { fix: 'Pipe OWI records in (toil jira issue search … | toil util owi map | toil dossiers brief), or pass the file that holds them.' });
-  try {
-    return [JSON.parse(trimmed) as unknown];
-  } catch {
-    // Not one JSON value: one record or envelope a line.
-  }
-  return trimmed.split(/\r?\n/).flatMap((line, i) => {
-    if (line.trim() === '') return [];
-    try {
-      return [JSON.parse(line) as unknown];
-    } catch (err) {
-      throw new ToilError('INVALID_INPUT', `Line ${i + 1} of the input isn't JSON (${(err as Error).message}), and the input as a whole isn't one JSON value either.`, {
-        fix: 'Pass what toil util owi map printed, a JSON array of OWI records, or one record a line.',
-      });
+  if (text.trim() === '') throw new ToilError('INVALID_INPUT', 'The input is empty.', { fix: 'Pipe OWI records in (toil jira issue search … | toil util owi map | toil dossiers brief), or pass the file that holds them.' });
+  const out: unknown[] = [];
+  let depth = 0;
+  let inString = false;
+  let from = -1;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]!;
+    if (inString) {
+      if (ch === '\\') i++;
+      else if (ch === '"') inString = false;
+      continue;
     }
-  });
+    if (ch === '"') inString = true;
+    if (from < 0 && !/\s/.test(ch)) from = i;
+    if (ch === '{' || ch === '[') depth++;
+    else if (ch === '}' || ch === ']') depth--;
+    if (from >= 0 && depth === 0 && (ch === '}' || ch === ']')) {
+      out.push(parse(text.slice(from, i + 1), out.length + 1));
+      from = -1;
+    }
+  }
+  if (from >= 0) out.push(parse(text.slice(from), out.length + 1));
+  return out;
+}
+
+function parse(chunk: string, n: number): unknown {
+  try {
+    return JSON.parse(chunk) as unknown;
+  } catch (err) {
+    throw new ToilError('INVALID_INPUT', `Document ${n} of the input isn't JSON (${(err as Error).message}).`, {
+      fix: 'Pass what toil util owi map printed, JSON arrays of OWI records, or one record a line.',
+    });
+  }
 }
 
 /** The work items and changes in some text. */
@@ -91,7 +113,9 @@ function record(v: unknown): Read | string {
   }
   if (CATEGORIES.has(v.statusCategory as StatusCategory)) {
     const source = isRecord(v.source) && typeof v.source.key === 'string' ? (v.source as WorkItem['source']) : { area: '', connection: v.id.split(':')[0] ?? '', key: v.id.slice(v.id.indexOf(':') + 1), command: '' };
-    return { kind: 'item', record: { ...(v as unknown as WorkItem), source, links: list(v.links) as WorkItem['links'], url: typeof v.url === 'string' ? v.url : null } };
+    const links = list(v.links).filter((l): l is WorkItem['links'][number] => isRecord(l) && typeof l.type === 'string' && typeof l.target === 'string' && (l.direction === 'inward' || l.direction === 'outward'));
+    const estimate = isRecord(v.estimate) && typeof v.estimate.value === 'number' && Number.isFinite(v.estimate.value) ? (v.estimate as unknown as WorkItem['estimate']) : null;
+    return { kind: 'item', record: { ...(v as unknown as WorkItem), source, links, estimate, url: typeof v.url === 'string' ? v.url : null } };
   }
   return `${v.id} is neither a work item (no statusCategory) nor a change (no repo and state)`;
 }

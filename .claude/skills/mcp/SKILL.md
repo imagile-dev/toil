@@ -66,7 +66,10 @@ the server's tool list as its targets. Resources (`src/mcp/resources.ts`) are
 descriptions, never data: `toil://connections` (name, area, default, writes, never a
 host or secret), `toil://dossiers[/<name>]` through the dossiers commands, served
 when those tools are, and `toil://skill/<area>` for each area served. A resource
-never reads from a service or a database, and follows `--areas` as the tools do.
+never reads from a service or a database, and follows `--areas` as the tools do. The
+one prompt, `analyze` (#494), is the `dossiers_analyze_prompt` tool's answer, run
+through `runCommand()` and served exactly when that tool is; a new prompt follows the
+same rule, a tool's answer and never text the server writes itself.
 
 **The base package never opens a port** (*principle 1*: a listening socket is the
 other thing locked-down machines block). Stdio is the only transport in
