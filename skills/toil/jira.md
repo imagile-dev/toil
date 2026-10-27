@@ -253,14 +253,16 @@ These are what a sync needs: read everything once, then only what changed.
   `JIRA_TIME_ZONE` (`JIRA_CLOUD_TIME_ZONE` on Cloud). On its own, `--updated-since` is the
   whole query.
 - **`--changelog`** on `issue search` returns each issue with its change history inline
-  (`changelog: { total, histories }`, the entries `issue history` returns, oldest first), so
-  reading the history of many issues is one search instead of one `issue history` call per
-  issue. It sends `expand=changelog` (`"expand": ["changelog"]` in the Data Center POST body,
-  `"expand": "changelog"` in Cloud's). Jira may send fewer entries than an issue has: when
-  an issue's `changelog.total` is more than the entries sent, toil leaves the data as Jira sent
-  it and adds one warning, `JIRA_CHANGELOG_TRUNCATED` (`JIRA_CLOUD_CHANGELOG_TRUNCATED` on
-  Cloud), saying how many issues were cut short; `issue history <key>` reads the whole
-  history of one. Without the flag nothing changes.
+  (`changelog: { startAt, maxResults, total, histories }`), so reading the history of many
+  issues is one search instead of one `issue history` call per issue. It is Jira's own
+  changelog, in the order Jira sends it (Cloud: newest first, at most 20 entries;
+  `jira issue history` reads the whole history, oldest first). It sends `expand=changelog`
+  (`"expand": ["changelog"]` in the Data Center POST body, `"expand": "changelog"` in
+  Cloud's). A `JIRA_CHANGELOG_TRUNCATED` warning (`JIRA_CLOUD_CHANGELOG_TRUNCATED` on Cloud)
+  names issues that may be cut short, how many of the issues: `total` is more than the
+  entries sent, the entries fill the page, or Jira sent no `total` or `maxResults`; toil
+  leaves the data as Jira sent it, and `issue history <key>` reads the whole history of one.
+  Without the flag nothing changes.
 - **`issue history`** returns the history entries Jira records for an issue, each
   with `id`, `author`, `created` and `items` (`field`, `fieldtype`, `from`,
   `fromString`, `to`, `toString`, and `fieldId` on Cloud). Data Center sends the history

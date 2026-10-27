@@ -18,7 +18,7 @@ export const search = jiraArea.command({
   path: ['jira', 'issue', 'search'],
   description: 'Search Jira issues with JQL (consider --output-file for large results)',
   toolDescription:
-    'Searches Jira issues with JQL and returns { issues, total, startAt, maxResults }. Without limit it pages through every match, so bound broad queries. meta.page.nextCursor is where the next page starts: pass it back as cursor (or startAt). updatedSince adds updated >= that instant to the JQL, in the time zone of your Jira profile. changelog adds the change history of each issue inline (the same entries jira_issue_history returns), so one search replaces a history call per issue; a warning says when a long history came back cut short. Use jira_issue_get for one issue by key.',
+    'Searches Jira issues with JQL and returns { issues, total, startAt, maxResults }. Without limit it pages through every match, so bound broad queries. meta.page.nextCursor is where the next page starts: pass it back as cursor (or startAt). updatedSince adds updated >= that instant to the JQL, in the time zone of your Jira profile. changelog adds Jira\'s own changelog of each issue inline, in the order Jira sends it (Cloud: newest first, at most 20 entries; jira_issue_history reads the whole history, oldest first), so one search replaces a history call per issue. A JIRA_CHANGELOG_TRUNCATED warning names issues that may be cut short. Use jira_issue_get for one issue by key.',
   input: z.object({
     jql: z.string().optional().describe('JQL query, e.g. project = PROJ AND status = "In Progress"'),
     jqlFile: z.string().optional().describe('Path to a file holding the JQL query ("-" = stdin on the CLI)'),
