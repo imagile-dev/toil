@@ -6,32 +6,41 @@ import { z } from 'zod';
  * caller that wants the history of many issues makes one search instead of one
  * `jira issue history` call per issue.
  *
- * Both APIs may send a changelog shorter than the issue has. toil returns what
- * they sent, unchanged, and says how many issues were cut short, because a
- * history that quietly stops at the hundredth entry is a history somebody will
- * one day treat as complete. Completeness, like the minutes of a stand-up, is
+ * Both APIs may send a changelog shorter than the issue has (Cloud's enhanced
+ * search documents at most 20 entries per issue, newest first, and reports
+ * `total` as the number on the page, so a cut cannot be seen from it). toil
+ * returns what they sent, unchanged, and says how many issues may be cut
+ * short, because a history that quietly stops at the twentieth entry is a
+ * history somebody will one day treat as complete. Completeness, like the minutes of a stand-up, is
  * only as good as the attendance.
  */
 
 export const changelogField = z
   .boolean()
   .optional()
-  .describe('Return each issue with its change history (changelog), as Jira sends it inline; a long history may arrive cut short, which a warning names');
+  .describe('Return each issue with its change history (changelog), in Jira\'s own order (Cloud: newest first, at most 20 entries); a warning names issues that may be cut short');
 
 export const changelogOption = {
   flags: '--changelog',
   field: 'changelog',
-  description: "Include each issue's change history (changelog), so no `jira issue history` call per issue is needed; a very long history may come back cut short (a warning says so)",
+  description: "Include each issue's change history (changelog), so no `jira issue history` call per issue is needed; a long history may come back cut short (Cloud: at most 20 entries, newest first); a warning names the issues that may be",
 };
 
-/** How many issues have an inline changelog holding fewer entries than Jira says the issue has. */
+/**
+ * How many issues may have an inline changelog shorter than the issue's real
+ * history: `total` is more than the entries sent, the entries fill the page
+ * (`histories.length >= maxResults`), or Jira sent no `total` or `maxResults`
+ * to judge by. Cloud's `total` only counts the page, so the page being full is
+ * the sign that matters there.
+ */
 export function truncatedChangelogs(issues: ReadonlyArray<Record<string, unknown>>): number {
   let cut = 0;
   for (const issue of issues) {
     const log = issue.changelog;
     if (typeof log !== 'object' || log === null) continue;
-    const { total, histories } = log as { total?: unknown; histories?: unknown };
-    if (typeof total === 'number' && Array.isArray(histories) && total > histories.length) cut++;
+    const { total, maxResults, histories } = log as { total?: unknown; maxResults?: unknown; histories?: unknown };
+    if (!Array.isArray(histories)) continue;
+    if (typeof total !== 'number' || typeof maxResults !== 'number' || total > histories.length || histories.length >= maxResults) cut++;
   }
   return cut;
 }
@@ -42,6 +51,6 @@ export function warnTruncatedChangelogs(warn: (w: { code: string; message: strin
   if (cut === 0) return;
   warn({
     code,
-    message: `Jira sent a shortened changelog for ${cut} of ${issues.length} issue${issues.length === 1 ? '' : 's'}, so their older changes are missing here. \`jira issue history <key>\` reads the whole history of one issue.`,
+    message: `The changelog of ${cut} of ${issues.length} issue${issues.length === 1 ? '' : 's'} may be cut short, so older changes may be missing here. \`jira issue history <key>\` reads the whole history of one issue.`,
   });
 }

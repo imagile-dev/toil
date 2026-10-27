@@ -8,10 +8,14 @@
  * from the search's own envelope (same connection, same deployment, same
  * warnings-free meta) with the history entries as `data`.
  *
- * Jira may send a changelog shorter than the issue has (`changelog.total` more
- * than the entries sent), and an older toil sends none: those issues are
- * returned in `incomplete`, and the loader reads them with `issue history`,
- * which reads the whole history. Nothing partial is ever mapped as if complete.
+ * Jira may send a changelog shorter than the issue has. Cloud's search caps it
+ * at 20 entries and reports `total` as the count on the page, so the entries
+ * only count as whole when `total` equals them and they leave room on the
+ * page (`histories.length < maxResults`). Anything else, or a single issue
+ * with no changelog, is returned in `incomplete`, and the loader reads it with
+ * `issue history`, which reads the whole history. Nothing partial is ever
+ * mapped as if complete. (An older toil does not fall back: it refuses the
+ * `changelog` field, since input is strict, and the search fails.)
  *
  * Reconciling two sources of one history has been known to need a working group. This is a function.
  */
@@ -34,15 +38,16 @@ export interface SplitSearch {
 function wholeHistories(changelog: unknown): Rec[] | null {
   if (!isRec(changelog) || !Array.isArray(changelog.histories)) return null;
   const histories = changelog.histories.filter(isRec);
-  if (typeof changelog.total === 'number' && changelog.total > histories.length) return null;
+  if (typeof changelog.total !== 'number' || changelog.total !== histories.length) return null;
+  if (typeof changelog.maxResults !== 'number' || histories.length >= changelog.maxResults) return null;
   return histories;
 }
 
 /**
- * `issue history` lists entries oldest first, on both deployments. Search
- * orders the inline ones the same way on Data Center; Cloud's order is
- * unconfirmed (docs/decisions/493-jira-changelog.md), so a list that runs
- * newest first is turned round, which gives `mapOwi` the entries in the order
+ * `issue history` lists entries oldest first, on both deployments. Cloud's
+ * search sends them newest first (Data Center's order is undocumented,
+ * docs/decisions/493-jira-changelog.md), so a list that runs newest first is
+ * turned round, which gives `mapOwi` the entries in the order
  * `issue history` would have. A list already oldest first is left alone.
  */
 function oldestFirst(histories: Rec[]): Rec[] {
