@@ -21,7 +21,7 @@
  * loader, one dossier, no spreadsheet.
  */
 
-import { feedStart, splitRevisionFeed } from './ado-revisions.ts';
+import { ADO_FEED_FIELDS, feedStart, splitRevisionFeed } from './ado-revisions.ts';
 import { adoBuilds, adoDeployments, byEnvironment, changeRef, githubBuild, jenkinsBuilds, openshiftDeployments } from './model/delivery.ts';
 import { splitChangelogs } from './jira-changelog.ts';
 import { LOOKBACK_DAYS } from './model/flow.ts';
@@ -273,6 +273,9 @@ const connectionOf = (env: Envelope, fallback: string) => (env.ok ? (env.meta.co
  */
 export type LoaderMapOwi = (input: unknown, options?: { fields?: Record<string, string>; keyPatterns?: string[]; authorKinds?: Record<string, string> }) => { items: unknown[]; changes?: unknown[] };
 
+/** The most ids one `get-many` call takes. */
+const GET_MANY_MAX = 1000;
+
 export interface LoadOptions {
   /** The OWI mapper: the browser's (src/owi.ts) by default; the tests pass the API's to prove they agree. */
   mapOwi?: LoaderMapOwi;
@@ -345,12 +348,19 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       const search = await run('work', `${ado} work-item search`, { ...base, wiql: wiqlFor(options.windowDays) });
       const ids = search ? recs((search.data as Rec).workItems).map((w) => Number(w.id)) : [];
       if (!ids.length) return;
-      const batch = await run('work', `${ado} work-item get-many`, { ...base, id: ids });
-      if (batch) work[ado].push(batch);
+      // get-many takes at most 1000 ids a call, so a larger window is asked for in slices, in order.
+      const items: Rec[] = [];
+      for (let from = 0; from < ids.length; from += GET_MANY_MAX) {
+        const batch = await run('work', `${ado} work-item get-many`, { ...base, id: ids.slice(from, from + GET_MANY_MAX) });
+        if (!batch) continue;
+        work[ado].push(batch);
+        items.push(...recs((batch.data as Rec).value));
+      }
       // One feed of every revision since the window opened stands in for each item's history call; an item whose revisions it doesn't hold whole is read with work-item history (src/ado-revisions.ts).
-      const items = batch ? recs((batch.data as Rec).value) : [];
-      const feed = items.length ? await run('work', `${ado} work-item revisions`, { ...base, updatedSince: feedStart((options.now ?? (() => new Date()))(), options.windowDays ?? DEFAULT_WINDOW_DAYS) }) : null;
-      const { histories: inline, incomplete } = splitRevisionFeed(feed, items, `${ado} work-item history`, owiFields(section(ado).fields).iteration);
+      // The feed is used only when the dossier has no iteration field of its own, so it asks for just the fields mapOwi reads from a revision.
+      const iteration = owiFields(section(ado).fields).iteration;
+      const feed = items.length ? await run('work', `${ado} work-item feed`, { ...base, updatedSince: feedStart((options.now ?? (() => new Date()))(), options.windowDays ?? DEFAULT_WINDOW_DAYS), ...(iteration === undefined ? { fields: ADO_FEED_FIELDS } : {}) }) : null;
+      const { histories: inline, incomplete } = splitRevisionFeed(feed, items, `${ado} work-item history`, iteration);
       work[ado].push(...inline);
       // Items get-many didn't return have no rev to check the feed against, so they are read one by one as before.
       const known = new Set(items.map((i) => Number(i.id)));

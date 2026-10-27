@@ -136,7 +136,7 @@ type Revision = { id: number; rev: number; fields: Record<string, unknown> };
 const asText = (who: unknown) => (typeof who === 'object' && who !== null ? `${(who as { displayName: string }).displayName} <${(who as { uniqueName: string }).uniqueName}>` : who);
 
 /**
- * `ado work-item revisions`'s data for the sample: every revision after
+ * `ado work-item feed`'s data for the sample: every revision after
  * the feed's start, in the order they were made, as the reporting feed sends
  * them ({ id, rev, fields } with people as text and no url). The sample's
  * items were created from late August, so one of them (2301, from the 24th) is

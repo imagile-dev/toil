@@ -150,6 +150,35 @@ describe('the schema', () => {
   it('keys a call by its input whatever the order of its fields', () => {
     expect(inputKey({ b: 1, a: { d: 2, c: [3] } })).toBe(inputKey({ a: { c: [3], d: 2 }, b: 1 }));
   });
+
+  it('leaves updatedSince out of the revision feed key only: a pull request list asked since a date is not the whole list', async () => {
+    const cache = await open(folder());
+    const feed = { dossier: 'card-payments' };
+    const prs = { dossier: 'card-payments', state: 'all' };
+    cache.saveDossier(save(T0, {
+      responses: [
+        { command: 'ado work-item feed', input: { ...feed, updatedSince: '2026-09-01T00:00:00.000Z' }, envelope: envelope('ado work-item feed', [{ id: 1, rev: 1, fields: {} }]) },
+        { command: 'ado pr list', input: prs, envelope: envelope('ado pr list', [{ pullRequestId: 1 }]) },
+      ],
+    }));
+    // The feed is found again whatever day it is asked from; the list is found only as it was asked.
+    expect(cache.response('card-payments', 'ado work-item feed', { ...feed, updatedSince: '2026-09-02T00:00:00.000Z' })?.envelope.data).toEqual([{ id: 1, rev: 1, fields: {} }]);
+    expect(cache.response('card-payments', 'ado pr list', prs)?.envelope.data).toEqual([{ pullRequestId: 1 }]);
+    expect(cache.response('card-payments', 'ado pr list', { ...prs, updatedSince: '2026-10-01T00:00:00.000Z' })).toBeNull();
+  });
+
+  it('lists every stored envelope of a command, whatever its input', async () => {
+    const cache = await open(folder());
+    const many = (ids: number[]) => envelope('ado work-item get-many', { value: ids.map((id) => ({ id })) });
+    cache.saveDossier(save(T0, {
+      responses: [
+        { command: 'ado work-item get-many', input: { dossier: 'card-payments', id: [1, 2] }, envelope: many([1, 2]) },
+        { command: 'ado work-item get-many', input: { dossier: 'card-payments', id: [3] }, envelope: many([3]) },
+      ],
+    }));
+    expect(cache.all('card-payments', 'ado work-item get-many')).toHaveLength(2);
+    expect(cache.all('card-payments', 'ado work-item history')).toEqual([]);
+  });
 });
 
 describe('retention', () => {

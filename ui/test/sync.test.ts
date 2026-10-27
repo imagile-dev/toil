@@ -119,7 +119,7 @@ describe('an incremental sync', () => {
     await sync.run(ctx);
     expect(cache.source('card-payments', 'jira')!.watermark).toBe(new Date(first - SKEW_MS).toISOString());
     // The first read: one feed of revisions since the window opened, and a history call only for the item whose revisions start before it (2301, from 08-24).
-    expect(named(toil, 'ado work-item revisions')).toHaveLength(1);
+    expect(named(toil, 'ado work-item feed')).toHaveLength(1);
     expect(named(toil, 'ado work-item history').map((c) => c.input.id)).toEqual([2301]);
 
     advance(3_600_000);
@@ -140,7 +140,7 @@ describe('an incremental sync', () => {
     expect(named(toil, 'ado work-item search')[0]!.input.updatedSince).toBe(new Date(first - SKEW_MS).toISOString());
     expect(named(toil, 'ado work-item get-many').map((c) => c.input.id)).toEqual([[2302]]);
     // The new revision comes from the feed since the watermark and is laid over the last copy: no history call, and 2301's stays the one it had.
-    expect(named(toil, 'ado work-item revisions').map((c) => c.input.updatedSince)).toEqual([new Date(first - SKEW_MS).toISOString()]);
+    expect(named(toil, 'ado work-item feed').map((c) => c.input.updatedSince)).toEqual([new Date(first - SKEW_MS).toISOString()]);
     expect(named(toil, 'ado work-item history')).toEqual([]);
 
     // Nothing on the GitHub board moved, so no issue or timeline was fetched again.

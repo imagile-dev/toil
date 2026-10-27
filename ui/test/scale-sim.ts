@@ -190,7 +190,7 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
       const n = Number(input.id) - 5000;
       return removed.has(n) ? ({ ok: false, data: null, error: { code: 'NOT_FOUND', message: `No work item ${input.id}.`, fix: '' }, meta: { command } } as unknown as Envelope) : ok(command, revisionsOf(n));
     }
-    if (kind === 'ado' && command === 'ado work-item revisions') {
+    if (kind === 'ado' && command === 'ado work-item feed') {
       bump();
       // The project's feed: every revision after the start, of every item changed since (closed ones from the past are not in it).
       const feed = ids().flatMap((n) => revisionsOf(n)).filter((r) => since === null || Date.parse(String(r.fields['System.ChangedDate'])) > since).sort((a, b) => Date.parse(String(a.fields['System.ChangedDate'])) - Date.parse(String(b.fields['System.ChangedDate'])) || a.id - b.id);

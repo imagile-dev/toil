@@ -105,7 +105,7 @@ describe('a large Azure DevOps project', () => {
       report('ado first sync', first);
       expect(first.items).toBe(LIVE);
       // Of the 200 live items, 150 are open and 50 of those were created over a year ago: the feed, which starts with the window, holds only their last two revisions.
-      expect(first.tracker['ado work-item revisions']).toBe(1);
+      expect(first.tracker['ado work-item feed']).toBe(1);
       expect(first.tracker['ado work-item history']).toBe(OLD_OPEN);
       // Whichever way a history arrived, it is whole: every item starts at its first revision.
       expect(sim.wholeHistories()).toEqual({ whole: LIVE, items: LIVE });
@@ -121,7 +121,7 @@ describe('a large Azure DevOps project', () => {
       sim.touch(TOTAL - 3);
       const third = await sim.sync(3_600_000);
       report('ado third sync, two changed (one recent, one old and open)', third);
-      expect(third.tracker['ado work-item revisions']).toBe(1);
+      expect(third.tracker['ado work-item feed']).toBe(1);
       // 2997 = 3000 - 3 is an old open item: its cached history is the one from the first sync, which the sync reads again because the item changed.
       expect(third.tracker['ado work-item history'] ?? 0).toBe(1);
       expect(third.items).toBe(LIVE);

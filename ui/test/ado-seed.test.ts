@@ -224,7 +224,7 @@ describe("toil's ado commands on a Services connection, on the seeded board", ()
     expect(data.calls.work.map((c) => c.command)).toEqual(expect.arrayContaining(['ado work-item iterations', 'ado work-item search', 'ado work-item get-many', 'ado work-item history']));
     // One feed call (read in several batches) stood in for most histories; the items it doesn't hold whole were read one by one, and the result is the same board.
     const commands = data.calls.work.map((c) => c.command);
-    expect(commands.filter((c) => c === 'ado work-item revisions')).toHaveLength(1);
+    expect(commands.filter((c) => c === 'ado work-item feed')).toHaveLength(1);
     expect(board.feedRequests).toBeGreaterThan(1);
     expect(commands.filter((c) => c === 'ado work-item history').length).toBeGreaterThan(0);
     expect(commands.filter((c) => c === 'ado work-item history').length).toBeLessThan(data.items.length);

@@ -639,6 +639,8 @@ requests, builds and deployments that name them.
   where toil can), and an item they no longer list is dropped; if that listing
   fails, the changes are kept and the next sync tries it again. Per-item calls
   (histories, pull request gets) run 4 at a time across a dossier.
+  Azure DevOps histories come from the project's revisions feed, read from the
+  watermark; an item is read on its own when the feed doesn't hold all of it.
 - **Every page.** Each call follows `meta.page.nextCursor` to the end, up to 200
   pages, and fails that source, saying so, rather than keep part of a listing.
 - **Each source on its own.** Each area a dossier reads (Jira, Bitbucket, Jenkins,

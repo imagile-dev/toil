@@ -1,6 +1,6 @@
 /**
  * Azure DevOps has two ways to say how a work item changed. `ado work-item
- * history <id>` lists one item's revisions, and `ado work-item revisions` is
+ * history <id>` lists one item's revisions, and `ado work-item feed` is
  * the project's reporting feed, every revision of every item from a date on
  * (#493). `mapOwi` reads the first; a sync that asked for each of 3000 items
  * would rather read the second. This is the adapter between them, and its one
@@ -38,6 +38,9 @@ import type { Envelope } from './toil.ts';
 type Rec = Record<string, unknown>;
 const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !Array.isArray(v);
 const DAY = 86_400_000;
+
+/** The fields of a revision that `mapOwi` reads (adoHistory): the revision's `rev` is the feed's own, the rest are asked for by name. */
+export const ADO_FEED_FIELDS = 'System.Rev,System.ChangedDate,System.ChangedBy,System.State,System.IterationPath';
 
 /** `Name <email>`: the text form of an identity in the feed. */
 const NAMED = /^.+<[^<>]+>$/;

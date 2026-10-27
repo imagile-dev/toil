@@ -6,7 +6,7 @@ import { ADO_BATCH, ADO_FEED, ADO_IDS, ADO_ITERATIONS, ADO_REVISIONS } from '../
 import type { Envelope } from '../src/toil.ts';
 
 /**
- * `ado work-item revisions` against one `ado work-item history` call per item:
+ * `ado work-item feed` against one `ado work-item history` call per item:
  * whichever way a history reached the loader, `mapOwi` has to see the same
  * input and give the same items (#493). The sample's histories are the
  * per-item side; the feed side is the same revisions as the reporting feed
@@ -46,7 +46,7 @@ const perItem = () => [iterations, batch, ...ADO_IDS.map((id) => env(HISTORY, AD
 
 /** What it gives now: the same, with the histories the feed holds whole taken from it and the rest read one by one. */
 function viaFeed(feed: Revision[], override?: string) {
-  const { histories, incomplete } = splitRevisionFeed(env('ado work-item revisions', feed), items, HISTORY, override);
+  const { histories, incomplete } = splitRevisionFeed(env('ado work-item feed', feed), items, HISTORY, override);
   return { docs: [iterations, batch, ...histories, ...incomplete.map((id) => env(HISTORY, ADO_REVISIONS[id]))], histories, incomplete };
 }
 
@@ -82,7 +82,7 @@ describe('the revision feed, split back into what mapOwi has always read', () =>
       return { ...r, fields: { ...r.fields, 'System.ChangedBy': { ...by, uniqueName: String(by.uniqueName).replace(/^IMAGILE\\(.+)$/, '$1@example.com') } } };
     });
     const text = whole.map(email);
-    const { histories } = splitRevisionFeed(env('ado work-item revisions', text), items, HISTORY);
+    const { histories } = splitRevisionFeed(env('ado work-item feed', text), items, HISTORY);
     const before = mapOwi([iterations, batch, ...ADO_IDS.map((id) => env(HISTORY, asObject(id)))]);
     const after = mapOwi([iterations, batch, ...histories]);
     expect(same(after.items)).toEqual(same(before.items));
@@ -91,7 +91,7 @@ describe('the revision feed, split back into what mapOwi has always read', () =>
 
   it('gives mapOwi each history in the shape of work-item history: oldest first, under that command, with no paging or warnings of the feed', () => {
     const shuffled = [...whole].reverse();
-    const { histories } = splitRevisionFeed({ ...env('ado work-item revisions', shuffled), meta: { ...meta('ado work-item revisions'), page: { nextCursor: null, limit: 5 }, warnings: [{ code: 'X', message: 'x' }] } } as unknown as Envelope, items, HISTORY);
+    const { histories } = splitRevisionFeed({ ...env('ado work-item feed', shuffled), meta: { ...meta('ado work-item feed'), page: { nextCursor: null, limit: 5 }, warnings: [{ code: 'X', message: 'x' }] } } as unknown as Envelope, items, HISTORY);
     for (const h of histories) {
       const m = (h as unknown as { meta: Rec }).meta;
       expect(m.command).toBe(HISTORY);
@@ -105,7 +105,7 @@ describe('the revision feed, split back into what mapOwi has always read', () =>
 
 describe('an item is taken from the feed only when its revisions run from 1 to its rev', () => {
   const only = (id: number, drop: (r: Revision) => boolean = () => false) => whole.filter((r) => r.id === id && !drop(r));
-  const split = (feed: Revision[], rev: number, id = 2290) => splitRevisionFeed(env('ado work-item revisions', feed), [{ id, rev }], HISTORY);
+  const split = (feed: Revision[], rev: number, id = 2290) => splitRevisionFeed(env('ado work-item feed', feed), [{ id, rev }], HISTORY);
 
   it('takes an item whose revisions are all there', () => {
     expect(split(only(2290), 4).incomplete).toEqual([]);
@@ -126,7 +126,7 @@ describe('an item is taken from the feed only when its revisions run from 1 to i
 
   it('refuses an item the feed has no revisions of (open, and nobody touched it since the window opened), and an item with no rev to check against', () => {
     expect(split([], 4).incomplete).toEqual([2290]);
-    expect(splitRevisionFeed(env('ado work-item revisions', only(2290)), [{ id: 2290 }], HISTORY).incomplete).toEqual([2290]);
+    expect(splitRevisionFeed(env('ado work-item feed', only(2290)), [{ id: 2290 }], HISTORY).incomplete).toEqual([2290]);
   });
 
   it('refuses a revision with no change date, and one by a person the text form does not name', () => {
@@ -137,8 +137,8 @@ describe('an item is taken from the feed only when its revisions run from 1 to i
   });
 
   it('refuses every item when the dossier names its own iteration field, or the feed call failed', () => {
-    expect(splitRevisionFeed(env('ado work-item revisions', whole), items, HISTORY, 'Custom.Iteration').incomplete).toEqual(ADO_IDS);
-    const failed = { ok: false, data: null, error: { code: 'HTTP', message: 'down' }, meta: meta('ado work-item revisions') } as unknown as Envelope;
+    expect(splitRevisionFeed(env('ado work-item feed', whole), items, HISTORY, 'Custom.Iteration').incomplete).toEqual(ADO_IDS);
+    const failed = { ok: false, data: null, error: { code: 'HTTP', message: 'down' }, meta: meta('ado work-item feed') } as unknown as Envelope;
     expect(splitRevisionFeed(failed, items, HISTORY).incomplete).toEqual(ADO_IDS);
     expect(splitRevisionFeed(null, items, HISTORY).histories).toEqual([]);
   });
@@ -169,7 +169,7 @@ describe('a feed read in two parts is the feed read whole', () => {
   it('leaves a hole where the delta missed a revision, which the next read of the item catches', () => {
     const cached = whole.filter((r) => r.id === 2290 && r.rev <= 2);
     const delta = whole.filter((r) => r.id === 2290 && r.rev === 4);
-    const lay = splitRevisionFeed(env('ado work-item revisions', mergeFeed(cached as Rec[], delta as Rec[]) as Revision[]), [{ id: 2290, rev: 4 }], HISTORY);
+    const lay = splitRevisionFeed(env('ado work-item feed', mergeFeed(cached as Rec[], delta as Rec[]) as Revision[]), [{ id: 2290, rev: 4 }], HISTORY);
     expect(lay.incomplete).toEqual([2290]);
   });
 });

@@ -26,7 +26,7 @@ export const READ_COMMANDS: ReadonlySet<string> = new Set([
   'ado work-item search',
   'ado work-item get-many',
   'ado work-item history',
-  'ado work-item revisions',
+  'ado work-item feed',
   'ado pr list',
   'ado pr get',
   'ado run list',
