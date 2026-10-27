@@ -127,3 +127,83 @@ describe('area.byDeployment definition checks', () => {
     expect(() => plain.byDeployment({ server: [] })).toThrow(/declare variants/);
   });
 });
+
+/**
+ * Context inputs by deployment (#495, Bitbucket): the gadget area has a Data Center
+ * and a Cloud that take different inputs. `project` is Data Center's, `workspace`
+ * is Cloud's, and `repo` is both's but worded differently when missing.
+ */
+describe('context inputs that only some deployments take', () => {
+  const gadget = defineArea({
+    name: 'gadget',
+    description: 'test',
+    connection: z.object({ baseUrl: z.url(), deployment: z.enum(['server', 'cloud']).default('server'), project: z.string().optional(), workspace: z.string().optional(), repo: z.string().optional() }),
+    defaults: { deployment: 'server' },
+    variants: { by: 'deployment', of: { server: { label: 'Data Center' }, cloud: { label: 'Cloud' } } },
+    context: {
+      project: { description: 'Project', flags: '--project <key>', setting: 'project', deployments: ['server'], schema: z.string().min(1) },
+      workspace: { description: 'Workspace', flags: '--ws <slug>', setting: 'workspace', deployments: ['cloud'], schema: z.string().min(1) },
+      repo: {
+        description: 'Repository',
+        flags: '--repo <slug>',
+        setting: 'repo',
+        missing: (connection) => ({ message: connection.deployment === 'cloud' ? 'No Cloud repository given.' : 'No Data Center repository given.' }),
+        schema: z.string().min(1),
+      },
+    },
+  });
+  const ran: string[] = [];
+  const command = (deployment: string, path: string, context: Record<string, 'optional' | 'required'>) =>
+    gadget.command({
+      path: ['gadget', path],
+      description: `Run ${path}`,
+      input: z.object({}),
+      writes: false,
+      context,
+      examples: [{}],
+      run: async (_input, ctx) => (ran.push(`${deployment} ${path}`), { deployment, context: ctx.context }),
+    });
+  const read = gadget.byDeployment({ server: [command('server', 'read', { project: 'required', repo: 'required' })], cloud: [command('cloud', 'read', { workspace: 'required', repo: 'required' })] })[0]!;
+  // Cloud lists --project itself on this command (Bitbucket's repo create), so it takes it although the area gives it to Data Center.
+  const make = gadget.byDeployment({ server: [command('server', 'make', { project: 'required' })], cloud: [command('cloud', 'make', { workspace: 'required', project: 'optional' })] })[0]!;
+  const cfg = {
+    gadget: { area: 'gadget', baseUrl: 'https://gadget.imagile.dev', deployment: 'server', writes: true },
+    'gadget-cloud': { area: 'gadget', baseUrl: 'https://gadget-cloud.imagile.dev', deployment: 'cloud', writes: true },
+  };
+  const go = (def: AnyCommand, input: Record<string, unknown>, via: 'cli' | 'mcp' = 'cli') => execute(def, input, testContext({ config: cfg }).context, via);
+
+  it("refuses an input the connection's deployment never takes, before any request or any run", async () => {
+    const onCloud = await go(read, { connection: 'gadget-cloud', workspace: 'w', project: 'P', repo: 'r' });
+    expect(onCloud.error).toMatchObject({ code: 'UNSUPPORTED', message: expect.stringContaining('--project') });
+    const onServer = await go(read, { workspace: 'w', project: 'P', repo: 'r' }, 'mcp');
+    expect(onServer.error).toMatchObject({ code: 'UNSUPPORTED', message: expect.stringContaining('workspace') });
+    expect(ran).toEqual([]);
+  });
+
+  it("requires only the inputs of the connection's own deployment, and words each missing one for it", async () => {
+    expect((await go(read, { project: 'P' })).error?.message).toContain('No Data Center repository given.');
+    expect((await go(read, { connection: 'gadget-cloud', workspace: 'w' })).error?.message).toContain('No Cloud repository given.');
+    // Cloud isn't asked for the project Data Center needs; Data Center isn't asked for the workspace.
+    expect((await go(read, { connection: 'gadget-cloud', workspace: 'w', repo: 'r' })).data).toMatchObject({ deployment: 'cloud' });
+    expect((await go(read, { project: 'P', repo: 'r' })).data).toMatchObject({ deployment: 'server' });
+  });
+
+  it("takes an input on any deployment when the command lists it in its own context", async () => {
+    const made = await go(make, { connection: 'gadget-cloud', workspace: 'w', project: 'P' });
+    expect(made.error).toBeNull();
+    expect(made.data).toMatchObject({ deployment: 'cloud' });
+    expect(ran).toContain('cloud make');
+  });
+
+  it("throws at definition time for a context input that names a deployment the area has no variant for", () => {
+    expect(() =>
+      defineArea({
+        name: 'gizmo',
+        description: 'test',
+        connection: z.object({ deployment: z.enum(['server', 'cloud']).default('server') }),
+        variants: { by: 'deployment', of: { server: {}, cloud: {} } },
+        context: { project: { description: 'P', flags: '--project <key>', deployments: ['edge'], schema: z.string() } },
+      }),
+    ).toThrow(/deployment "edge"/);
+  });
+});
