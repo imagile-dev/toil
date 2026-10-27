@@ -349,6 +349,8 @@ function mapChanges(docs: OwiDocument[], state: ChangeMapState, skipped: OwiSkip
         : family === 'ado' ? adoChange(doc, pr, state)
         : family === 'bitbucket-cloud' ? bitbucketCloudChange(doc, pr, state)
         : bitbucketChange(doc, pr, state);
+      // The shape decided, so say which deployment it was: Toil UI picks its review commands by it.
+      if (change && family === 'bitbucket-cloud' && change.source.deployment === undefined) change.source.deployment = 'cloud';
       if (!change) {
         skipped.push({ at: doc.at, command: doc.command, reason: "a pull request has no number or repository to name it by" });
         continue;
