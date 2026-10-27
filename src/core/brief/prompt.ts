@@ -68,7 +68,7 @@ export function methodText(a: Pick<AnalyzeSettings, 'audience' | 'settings'>): s
     `You are briefing ${READER[a.audience]}, who has two minutes. Decide the one thing to do first to keep this work on track, and show why.`,
     '',
     'Work it out before you write:',
-    '- Read what changed since the last briefing, every open item with its pull requests, checks and links, and who has what.',
+    '- Read what changed lately, every open item with its pull requests, checks and links, and who has what.',
     '- Put each item that needs a person under the one reason that best explains why, looking through these lenses in this order:',
     ...on.map((l, i) => lensLine(l.id, l.threshold, a.settings.wipLimit, i + 1)),
     '- Weigh each finding by what it holds up (the items and points behind it), how soon it bites (the days left), and how long it has sat still. A blocker holding three items outranks a slow review holding one.',
@@ -112,7 +112,7 @@ const MCP_STEPS = (dossier: string) =>
     `How to read the dossier "${dossier}" with toil's tools:`,
     `1. dossiers_show for "${dossier}": which areas it covers, and the connection and inputs each uses.`,
     "2. For each tracker it covers, read its work items with that area's search or list tool, passing dossier, and map the envelope with util_owi_map (pass the whole envelope as text).",
-    '3. For each code host it covers, read its pull requests with that area\'s pr list tool, and map them with util_owi_map, passing keyPattern so pull requests point at their work items (PAY-{n}=<jira connection>, owner/repo#{n}=github).',
+    "3. For each code host it covers, list its pull requests with that area's pr list tool, then read each open one with its pr get tool, including reviews and checks (a list has neither). Map them with util_owi_map, passing keyPattern so pull requests point at their work items (PAY-{n}=<jira connection>, owner/repo#{n}=github).",
     `4. dossiers_brief with dossier "${dossier}" and every mapped output as text, one per line. It applies the lenses below by code and says which it could not check; start from it, then weigh what it found, read more where it matters, and correct it where the data says otherwise.`,
   ].join('\n');
 
