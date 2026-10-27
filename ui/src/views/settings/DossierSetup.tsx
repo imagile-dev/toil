@@ -493,7 +493,7 @@ function AnalyzeForm({ config, dossier }: { config: ConfigApi; dossier: string }
       title={`How Analyze briefs ${dossier}`}
       explain={
         <>
-          What Analyze looks for, in what order, and what it's for. Anything you leave as it is follows the standard; the rules and the shape of the answer stay toil's. Clearing a setting is a delete, made in a terminal with <code>toil dossiers analyze set {dossier} --clear goal</code> or <code>--reset</code>. <Help topic="analyze-settings" />
+          What Analyze looks for, and what the work is for; anything you leave follows the standard. <Help topic="analyze-settings" />
         </>
       }
       runs={commandLine('dossiers analyze set', [dossier, ...(draft.goal ? ['--goal', draft.goal] : []), '--audience', audience, '--order', ids.join(','), ...(replace ? ['--replace'] : [])])}
@@ -504,6 +504,10 @@ function AnalyzeForm({ config, dossier }: { config: ConfigApi; dossier: string }
       <TextField label="Goal of this work" value={goal} onChange={setGoal} hint="One line. Analyze weighs everything against it." />
       <SelectField label="Written for" value={audience} onChange={(v) => setAudience(AUDIENCES.includes(v as Audience) ? (v as Audience) : 'lead')} options={[{ value: 'lead', label: 'A team lead' }, { value: 'engineer', label: 'An engineer on the team' }, { value: 'stakeholder', label: 'Someone outside the team' }]} />
       <TextField label="Lenses, most important first" value={order} onChange={setOrder} hint={`Lens ids separated by commas: ${LENSES.map((l) => l.id).join(', ')}.`} />
+      <details className="analyze-lenses">
+        <summary>
+          Lenses ({ids.filter((id) => !off.has(id)).length} of {ids.length} on)
+        </summary>
       {ids.map((id) => {
         const def = lensDef(id);
         return (
@@ -513,6 +517,7 @@ function AnalyzeForm({ config, dossier }: { config: ConfigApi; dossier: string }
           </Cluster>
         );
       })}
+      </details>
       <AreaField label="Also watch for" value={watchFor} onChange={setWatchFor} rows={2} hint="One line, up to 1000 characters." />
       <AreaField label="Leave out" value={leaveOut} onChange={setLeaveOut} rows={2} hint="One line. The briefing lists what this hid." />
       <CheckField label="Replace settings already there" checked={replace} onChange={setReplace} />
