@@ -56,23 +56,18 @@ export function proposeMove(item: WorkItem, to: StatusCategory, items: WorkItem[
   if (fam === 'github') {
     return { ...base, command: null, input: null, note: `toil has no command that sets a GitHub Projects status yet. Change ${key}'s Status field on the project board${item.url ? `: ${item.url}` : ''}.` };
   }
-  const transitions = { text: 'List the transitions the workflow offers:', command: 'jira issue transitions', input: { dossier, key: item.source.key } };
-  // Both Azure DevOps areas list a type's states under the same command name.
+  // Each Jira and Azure DevOps pair (Data Center or Server, and Cloud) names its commands alike, so the item's own area fills the path.
+  const transitions = { text: 'List the transitions the workflow offers:', command: `${item.source.area} issue transitions`, input: { dossier, key: item.source.key } };
   const states = { text: 'List the states the work item type has:', command: `${item.source.area} work-item states`, input: { dossier, type: item.typeName ?? 'User Story' } };
-  // Azure DevOps Services has no transition command; its state is a field, set with work-item update.
-  if (item.source.area === 'ado-cloud') {
-    if (!status) return { ...base, command: null, input: null, note: `No ${label} item in this dossier shows which state to use.`, hint: states };
-    return { ...base, command: 'ado-cloud work-item update', input: { dossier, id: Number(item.source.key), field: [`System.State=${status}`] }, note: null };
-  }
   if (!status) {
     const hint = fam === 'jira' ? transitions : states;
     return { ...base, command: null, input: null, note: `No ${label} item in this dossier shows which status to use.`, hint };
   }
   if (fam === 'jira') {
-    return { ...base, command: 'jira issue transition', input: { dossier, key: item.source.key, transition: status }, note: `"${status}" is the status other ${label} items use; the workflow may name the transition differently.`, hint: transitions };
+    return { ...base, command: `${item.source.area} issue transition`, input: { dossier, key: item.source.key, transition: status }, note: `"${status}" is the status other ${label} items use; the workflow may name the transition differently.`, hint: transitions };
   }
   if (fam === 'ado') {
-    return { ...base, command: 'ado work-item transition', input: { dossier, id: Number(item.source.key), state: status }, note: null };
+    return { ...base, command: `${item.source.area} work-item transition`, input: { dossier, id: Number(item.source.key), state: status }, note: null };
   }
   return { ...base, command: null, input: null, note: `toil has no status change for ${item.source.area} items.` };
 }
