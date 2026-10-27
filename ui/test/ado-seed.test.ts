@@ -255,12 +255,12 @@ describe("toil's ado-cloud commands on the seeded board", () => {
     expect(data.changes.filter((c) => c.kind === 'pull-request').map((c) => [c.id, c.command, c.outcome, c.items])).toEqual([[`ado-cloud:${PROJECT}/payments-core#7`, 'ado-cloud pr get', 'merged', [`ado-cloud:${id}`]]]);
   });
 
-  it('proposes a board move on an ado-cloud item as work-item update in its own area', async () => {
+  it('proposes a board move on an ado-cloud item as work-item transition in its own area', async () => {
     const board = adoBoard();
     await seed(board);
     vi.stubGlobal('fetch', board.fetch);
     const data = await loadDossier(execute as unknown as Execute, 'ado-board', { mapOwi });
     const item = data.items.find((i) => i.status === 'New' && i.type === 'STORY') as WorkItem;
-    expect(proposeMove(item, 'IN_PROGRESS', data.items, 'ado-board')).toMatchObject({ command: 'ado-cloud work-item update', input: { dossier: 'ado-board', id: Number(item.source.key), field: ['System.State=Committed'] } });
+    expect(proposeMove(item, 'IN_PROGRESS', data.items, 'ado-board')).toMatchObject({ command: 'ado-cloud work-item transition', input: { dossier: 'ado-board', id: Number(item.source.key), state: 'Committed' } });
   });
 });
