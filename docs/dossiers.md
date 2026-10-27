@@ -13,9 +13,9 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
   build and share (`src/core/dossier.ts`, `src/dossiers/`)
 - `toil dossiers onboard`, which sets a reader up for a repository's dossier (#333,
   `src/dossiers/onboard.ts`)
-- field aliases on Jira's and Jira Cloud's `--field`
+- field aliases on Jira's `--field` (Data Center and Cloud)
 - `toil repos scan` (`src/repos/`)
-- `toil <area> check-dossier` for every area a dossier describes: `jira`, `jira-cloud`,
+- `toil <area> check-dossier` for every area a dossier describes: `jira`,
   `confluence`, `sonar`, `ado`, `bitbucket`, `github`, `openshift` and `dynatrace`
   (`src/core/check-dossier.ts`)
 
@@ -52,10 +52,10 @@ implemented in #59. What dossiers rely on:
 ```jsonc
 // ~/.toil/config.json
 {
-  "version": 2,
+  "version": 3,
   "connections": {
     "corp-jira":  { "area": "jira",       "baseUrl": "https://jira.imagile.dev" },
-    "jira-cloud": { "area": "jira-cloud", "baseUrl": "https://jira-cloud.imagile.dev", "email": "you@example.com", "writes": true },
+    "jira-cloud": { "area": "jira",       "deployment": "cloud", "baseUrl": "https://jira-cloud.imagile.dev", "email": "you@example.com", "writes": true },
     "ocp-prod":   { "area": "openshift",  "baseUrl": "https://api.ocp.imagile.dev:6443" }
   },
   "defaults": { "jira": { "connection": "corp-jira" } }
@@ -210,7 +210,7 @@ prompts. The names are used through **one fixed input**, never through generated
   passes it to `mapOwi` as the override that wins over every other signal when it
   says who wrote a pull request (`docs/owi/spec.md`, Who wrote it); nothing else
   reads it.
-- A work item area's section (`jira`, `jira-cloud`, `ado`, `ado-cloud`, `github`)
+- A work item area's section (`jira`, `ado`, `ado-cloud`, `github`)
   may name `fields.acceptanceCriteria`, the field that holds acceptance criteria
   (also a `--field` alias like any other), and keep `readiness`, reference data
   `{ "minWords": 25, "templates": ["## What\n## Why"] }`. Toil UI's readiness gate
@@ -227,7 +227,7 @@ for this body of work, where the item's own workflow doesn't settle it:
 "ado": { "transitions": { "Product Backlog Item": { "reopen": "New" } } }
 ```
 
-- `--to <intent>` on `issue transition` (jira, jira-cloud) and `work-item transition`
+- `--to <intent>` on `issue transition` (jira) and `work-item transition`
   (ado, ado-cloud) reads it first, for the item's own type (compared ignoring case),
   and only for the four intents: `start`, `review`, `done`, `reopen`. The rest of the
   resolution is in `skills/toil/core.md`, **Moving work items by intent**.
@@ -503,7 +503,7 @@ files directly:
   one service. `toil <area> check-dossier [--dossier <name|file>]` looks every value
   the call's dossier gives that area up on the service, using and reporting the
   connection it resolved. An agent or a script composes them:
-  - `jira`, `jira-cloud`: projects (`project`, `projects`) and field ids
+  - `jira`: projects (`project`, `projects`) and field ids
   - `confluence`: spaces (`space`, `spaces`)
   - `sonar`: project keys (`project`, `projectKeys`, `projects`)
   - `ado`: team projects in their collection, and repos in their project. The

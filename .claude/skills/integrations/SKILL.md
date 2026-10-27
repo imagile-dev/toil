@@ -1,6 +1,6 @@
 ---
 name: integrations
-description: Rules for toil's enterprise-tool integrations (Jira, Confluence, Bitbucket, SonarQube and every other service area). Use when adding, changing or reviewing an integration or one of its commands, judging whether a requested service can be supported (its authentication), recording or raising a verification level, adding a vendor's Cloud variant (each variant is its own area), reviewing an integration's site documentation page, or touching anything covered by the command contract (docs/command-contract.json, docs/command-contract.md, docs/divergences/, `toil config import`, command paths, flags, env var and config key names). Not needed for databases or the MCP server alone.
+description: Rules for toil's enterprise-tool integrations (Jira, Confluence, Bitbucket, SonarQube and every other service area). Use when adding, changing or reviewing an integration or one of its commands, judging whether a requested service can be supported (its authentication), recording or raising a verification level, adding a vendor's Cloud deployment (one area, a `deployment` on the connection), reviewing an integration's site documentation page, or touching anything covered by the command contract (docs/command-contract.json, docs/command-contract.md, docs/divergences/, `toil config import`, command paths, flags, env var and config key names). Not needed for databases or the MCP server alone.
 ---
 
 # Integrations
@@ -44,9 +44,9 @@ versions.
    overwrites, and it leaves out commands a divergence removes. Group-level flags
    become the area's context inputs in `area.ts`, with a TODO for where each value
    comes from (a connection setting, the git remote, or selecting the connection).
-   An area with no contract entry (a Cloud variant, with no contract) is stubbed
-   from command names given after it, `node scripts/stub-area.mjs jira-cloud "issue search"
-   "issue get"`, each with no flags yet, or with none named, one `example` command.
+   An area with no contract entry (a variant that is still its own area, with no contract) is stubbed
+   from command names given after it, `node scripts/stub-area.mjs confluence-cloud "page get"
+   "space list"`, each with no flags yet, or with none named, one `example` command.
 3. **Build each command**: request, paging, errors and `data` exactly as
    recorded, through `ctx.fetch` and core's helpers. Set `writes`
    from what the command does to the service; the stub only guessed from the verb.
@@ -313,7 +313,7 @@ compatibility path, never a place for a command that calls more than one of them
 ### Open Work Items
 
 *Principles 3 and 4.* A work-item integration is any area that reads or writes
-issues, work items or tickets: today `jira`, `jira-cloud`, `ado` and `github`, then
+issues, work items or tickets: today `jira` (Data Center and Cloud), `ado` and `github`, then
 `ado-cloud` (#222) and any tracker after it. Adding or changing one means inspecting
 the Open Work Item mapping (`docs/owi/spec.md`) **in the same PR**:
 
@@ -335,24 +335,47 @@ sits in that test's `PENDING` list, by its issue, and switches on once it regist
 
 ### Deployment Variants
 
-**Each deployment variant whose API diverges is its own area.** Jira Data Center is
-`jira` and Jira Cloud is `jira-cloud`; likewise `confluence` and `confluence-cloud`,
-and any other vendor that ships both. Variants never share an area behind a `--cloud`
-flag, a config switch or auto-detection. That would mean two code paths behind one
-schema, one MCP tool describing two payload shapes, and fixes for one variant quietly
-breaking the other.
+*Principle 10.* **A product that ships Data Center/Server and Cloud is one area, one
+command tree and one set of MCP tools** (`jira`, with `confluence`, `bitbucket` and
+`ado` following, #495). Someone who has learned `toil jira` has learned both. The
+deployments still differ in their APIs, so the code stays apart and the surface is shared:
 
-- Each variant has its own module, config section, credentials, commands, MCP tools
-  (`jira_issue_get`, `jira_cloud_issue_get`), skill file, site page and verification
-  level. They share only generic HTTP helpers.
-- The unsuffixed area is the self-hosted variant, the one the command contract
-  records, so its commands keep the contract's paths.
-- A Cloud area reuses command names and flags where the operation is the same, and
-  differs where the API does (for example, `accountId` where Data Center uses a
-  username).
+- **The connection says which.** A connection has `"deployment"`: `"server"` (the
+  default, Data Center/Server) or `"cloud"`, declared once with `defineArea({ variants:
+  { by: 'deployment', ... } })`, which also names the keys only one needs (Cloud's
+  `email`). Env vars follow the area (`TOIL_JIRA_DEPLOYMENT=cloud`, or
+  `TOIL_CONN_<NAME>_DEPLOYMENT=cloud`). One area's `request` hook branches on it for the
+  credential, as does its `probe`.
+- **Separate API code per deployment.** Each deployment is a folder under the area
+  (`src/areas/jira/server/`, `src/areas/jira/cloud/`) of ordinary `area.command()`s that
+  are never registered themselves. They share only generic helpers. The area's `index.ts`
+  folds them with `area.byDeployment({ server: [...], cloud: [...] })`
+  (`src/core/deployments.ts`): one command per path, whose `run` calls the implementation
+  for the resolved connection's deployment. A conflict between two deployments' versions
+  of a command fails when the registry is built, and the area's `overrides.ts` says how
+  each is worded once.
+- **The surface is the union, and a gap is refused.** The shared tree holds every command and
+  flag that either deployment has. A call the connection's deployment can't serve fails
+  with `UNSUPPORTED` before any request, naming the deployment and the connections that can.
+  Flags for one idea share one name, and their help says what each deployment takes
+  (`--assignee`: a username on Data Center, an accountId on Cloud). The paths and flags
+  the contract records for Data Center are unchanged.
+- **Each returns its own API's shape.** Don't reshape `data` to make the two look alike;
+  `meta.context.connection.deployment` says which ran, and OWI is the normalised view.
+- **The fixture runs both.** The area's fixture names a connection per deployment
+  (`deployments: { server: 'jira', cloud: 'jira-cloud' }`), and the parity suite runs
+  every example against a connection of its own deployment, plus the refusals.
+- **Docs, skill and site are one page per product**, with a section on what differs. A
+  verification level is recorded for the product; say in the PR when the deployments are at
+  different levels.
+- **Retiring an old area name** (`jira-cloud`) goes in `src/core/renamed-areas.ts`, which makes
+  every old form (env vars, `--areas`, a typed path, a dossier section, a config file) fail or
+  warn with the new one, and in `migrateConfig()` with a config version.
 - When the variants differ only in host (GitHub.com and GitHub Enterprise Server),
-  they stay one area with a configurable `baseUrl`.
-- Env vars follow the area name: `TOIL_JIRA_CLOUD_TOKEN` configures `jira-cloud`.
+  they stay one area with a configurable `baseUrl` and no `deployment`.
+
+Until each pair is folded, the others (`confluence-cloud`, `bitbucket-cloud`, `ado-cloud`) are
+still areas of their own, built the old way; the folding is #495's later slices.
 
 ## Command Shape
 
@@ -442,8 +465,9 @@ anything it does differently is a listed divergence.
     change; a refuted one is closed.
   - A verification level recorded anywhere outside toil is context, not a level here.
     A new integration still starts at `unit`.
-  - Cloud variants aren't in the contract. They're built against the vendor's
-    documented API, and the PR says what they were run against.
+  - A Cloud deployment isn't in the contract: the contract records the self-hosted
+    behavior at each path, and what only Cloud has (a command, a flag) is additive. The Cloud
+    side is built against the vendor's documented API, and the PR says what it was run against.
 - **The command surface is recorded** in `docs/command-contract.json`: every command
   path, its arguments and its flags, and the field names of each command's `data`,
   kept by hand. Briefs and issues may point at reference material outside this
