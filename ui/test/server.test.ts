@@ -20,6 +20,7 @@ import { CALLER, READ_COMMANDS, fixtureStore, sqliteStore, toilStore, type Acces
 import { SyncService } from '../server/sync.ts';
 import { stubToil } from './toil-stub.ts';
 import { CANNED } from '../src/fixtures/execute.ts';
+import { JQL } from '../src/load.ts';
 import type { Envelope, Execute } from '../src/toil.ts';
 
 /**
@@ -586,7 +587,7 @@ describe('the sync API', () => {
     let release!: () => void;
     const { origin, auth, session, get } = await withSync(new Promise((r) => (release = r)));
     expect(session).toMatchObject({ store: 'sqlite', sync: true, sample: false });
-    const before = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
+    const before = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: JQL('PAY') } }, auth)).body) as Envelope;
     expect(before.ok).toBe(false);
 
     const started = await post(origin, '/api/sync', {}, auth);
@@ -605,7 +606,7 @@ describe('the sync API', () => {
     expect(status.retentionDays).toBe(30);
     expect(status.dossiers.map((d: { name: string; status: string }) => `${d.name}:${d.status}`)).toEqual(['card-payments:ok', 'checkout-web:ok', 'settlement:ok']);
 
-    const after = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
+    const after = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: JQL('PAY') } }, auth)).body) as Envelope;
     expect(after.ok).toBe(true);
     const one = await post(origin, '/api/sync', { dossier: 7 }, auth);
     expect(one.status).toBe(400);
@@ -710,7 +711,7 @@ describe('toil-ui wipe and a running server', () => {
       const job = await sync.run(ctx);
       expect(job.error).toBeNull();
       expect(cache.states().map((d) => d.status)).toEqual(['ok', 'ok', 'ok']);
-      const search = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: 'project = PAY ORDER BY Rank ASC' } }, auth)).body) as Envelope;
+      const search = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: JQL('PAY') } }, auth)).body) as Envelope;
       expect(search.ok).toBe(true);
       cache.close();
     } finally {

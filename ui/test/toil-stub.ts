@@ -34,6 +34,10 @@ export interface StubToil {
   canned: Canned[];
   /** Updates one Jira issue: its status and updated time. */
   touchJira(key: string, status: string, at: string): void;
+  /** Deletes one Jira issue from the tracker, as deleting or moving it out of the project does. */
+  removeJira(key: string): void;
+  /** Deletes one Azure DevOps work item. */
+  removeAdo(id: number): void;
   /** Updates one Azure DevOps work item: its state and changed date. */
   touchAdo(id: number, state: string, at: string): void;
   reset(): void;
@@ -76,13 +80,14 @@ export function stubToil(): StubToil {
     await Promise.resolve();
     if (failing.has(command.split(' ')[0]!)) return fail(command, 'HTTP', `${command.split(' ')[0]}.imagile.dev answered 503 Service Unavailable.`, 'Try again when the server is back; toil config test checks the connection.');
 
-    const { updatedSince, cursor, ...rest } = input;
+    const { updatedSince, cursor, fields, ...rest } = input;
     const since = typeof updatedSince === 'string' ? Date.parse(updatedSince) : null;
 
     if (command === 'jira issue search') {
       const hit = find(command, rest);
       if (!hit) return fail(command, 'INVALID_INPUT', `No canned ${command}.`, 'Add it.');
-      const all = (hit.data as { issues: Array<{ key: string; fields: Rec }> }).issues.filter((i) => since === null || Date.parse(String(i.fields.updated)) >= since);
+      // fields: 'key' is the sync's ids-only listing (#493): the key and nothing else.
+      const all = (hit.data as { issues: Array<{ key: string; fields: Rec }> }).issues.filter((i) => since === null || Date.parse(String(i.fields.updated)) >= since).map((i) => (fields === 'key' ? ({ key: i.key } as { key: string; fields: Rec }) : i));
       const start = typeof cursor === 'string' ? Number(cursor) : 0;
       const issues = all.slice(start, start + JIRA_PAGE);
       const next = start + JIRA_PAGE < all.length ? String(start + JIRA_PAGE) : null;
@@ -122,7 +127,7 @@ export function stubToil(): StubToil {
   };
 
   const execute: SyncExecute = async (command, input, options) => {
-    const rest = Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'updatedSince' && k !== 'cursor'));
+    const rest = Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'updatedSince' && k !== 'cursor' && k !== 'fields'));
     return context(find(command, rest) ?? sameDossier(command, rest), await answer(command, input, options));
   };
 
@@ -149,6 +154,15 @@ export function stubToil(): StubToil {
           w.fields['System.ChangedDate'] = at;
           w.fields['System.State'] = state;
         }
+      }
+    },
+    removeJira(key) {
+      for (const c of canned) if (c.command === 'jira issue search') (c.data as { issues: Array<{ key: string }> }).issues = (c.data as { issues: Array<{ key: string }> }).issues.filter((i) => i.key !== key);
+    },
+    removeAdo(id) {
+      for (const c of canned) {
+        if (c.command === 'ado work-item search') (c.data as { workItems: Array<{ id: number }> }).workItems = (c.data as { workItems: Array<{ id: number }> }).workItems.filter((w) => w.id !== id);
+        if (c.command === 'ado work-item get-many') (c.data as { value: Array<{ id: number }> }).value = (c.data as { value: Array<{ id: number }> }).value.filter((w) => w.id !== id);
       }
     },
     reset() {

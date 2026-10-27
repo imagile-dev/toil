@@ -22,6 +22,7 @@ const synced: SyncStatus = {
     {
       name: 'card-payments',
       lastSyncAt: LATER,
+      lastSavedAt: LATER,
       status: 'partial',
       error: 'jira: failed',
       sources: [
@@ -29,7 +30,7 @@ const synced: SyncStatus = {
         { area: 'jira', status: 'failed', lastAttemptAt: LATER, lastSuccessAt: AT, watermark: AT, error: 'jira issue search: jira.imagile.dev answered 503.', fix: 'Try again when the server is back.', calls: 1, stale: true },
       ],
     },
-    { name: 'settlement', lastSyncAt: AT, status: 'ok', error: null, sources: [{ area: 'ado', status: 'ok', lastAttemptAt: AT, lastSuccessAt: AT, watermark: AT, error: null, fix: null, calls: 9, stale: false }] },
+    { name: 'settlement', lastSyncAt: AT, lastSavedAt: AT, status: 'ok', error: null, sources: [{ area: 'ado', status: 'ok', lastAttemptAt: AT, lastSuccessAt: AT, watermark: AT, error: null, fix: null, calls: 9, stale: false }] },
   ],
 };
 const empty: SyncStatus = { ...synced, job: idle, dossiers: [] };

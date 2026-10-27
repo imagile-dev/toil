@@ -22,6 +22,7 @@
 import { fixtureConfigExecute } from '../src/fixtures/config.ts';
 import { fixtureFeedbackEnvelope } from '../src/fixtures/feedback.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
+import { windowFor, withWindow } from '../src/load.ts';
 import type { Envelope, Execute, ExecuteOptions, ExecutePerson } from '../src/toil.ts';
 import type { Cache } from './cache.ts';
 import { READ_COMMANDS, WORKFLOW_READS } from './reads.ts';
@@ -106,7 +107,8 @@ export function sqliteStore(cache: () => Cache, execute: Execute, toil: { versio
       if (access !== 'read' || LIVE_COMMANDS.has(command)) return execute(command, input, toilOptions(ctx, access, how));
       const meta = { command, durationMs: 0, version: toil.version, contractVersion: toil.contractVersion };
       const dossier = typeof input.dossier === 'string' ? input.dossier : null;
-      const stored = dossier ? cache().response(dossier, command, input) : null;
+      // The dashboard's own search names a window of days; the sync stored the cache's. Only the window may differ (src/load.ts), so another project's search is never answered.
+      const stored = dossier ? cache().response(dossier, command, withWindow(input, windowFor(cache().retentionDays))) : null;
       if (!stored) {
         return {
           ok: false,
@@ -121,7 +123,7 @@ export function sqliteStore(cache: () => Cache, execute: Execute, toil: { versio
       }
       const source = cache().source(dossier!, stored.area);
       if (source?.status !== 'failed') return stored.envelope;
-      const warning = { code: 'STALE', message: `The latest sync of ${stored.area} failed (${source.error ?? 'no message'}), so this is the copy synced ${stored.syncedAt}.` };
+      const warning = { code: 'STALE', message: `The latest sync of ${stored.area} failed (${source.error ?? 'no message'}), so this is the copy synced ${source.lastSuccessAt ?? stored.syncedAt}.` };
       return { ...stored.envelope, meta: { ...stored.envelope.meta, warnings: [...(stored.envelope.meta.warnings ?? []), warning] } } as Envelope;
     },
   };

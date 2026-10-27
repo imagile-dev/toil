@@ -64,7 +64,7 @@ Options:
   --port <n>           Port; 0 (default) lets the OS pick a free one.          Env: TOIL_UI_PORT
   --base-path <path>   Path the app is served under (default /).                Env: TOIL_UI_BASE_PATH
   --data-dir <dir>     Toil UI's own folder (default ~/.toil-ui).               Env: TOIL_UI_DATA_DIR
-  --retention-days <n> Days the cache keeps synced data (default ${DEFAULT_RETENTION_DAYS}).        Env: TOIL_UI_RETENTION_DAYS
+  --retention-days <n> Days the cache keeps synced data, and how far back closed Jira and Azure DevOps items are read (at least 42) (default ${DEFAULT_RETENTION_DAYS}).        Env: TOIL_UI_RETENTION_DAYS
   --sample             Serve sample data and the scripted agent, not toil.
   --version            Print the version.
   --help               Print this help.

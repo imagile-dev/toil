@@ -29,6 +29,18 @@
  * - **Everything else** (builds, deployments, iterations) has no "changed
  *   since" in toil, so it is read again, bounded as the loader already bounds
  *   it.
+ * - **Deleted and moved items** never show up in a search "since" a
+ *   watermark, so once a day (`RECONCILE_MS`) a source's search is also sent
+ *   whole, asking for ids only where the command can (Jira's `--fields key`;
+ *   a WIQL answer is ids already), and a cached item it no longer lists is
+ *   dropped. Between those, the merge by id goes on as before. GitHub's
+ *   issue list has no window, so it is left out. A whole listing that fails
+ *   keeps the merged delta, says so in the job's messages and is tried again
+ *   by the next sync.
+ * - **The window.** The loader asks Jira and Azure DevOps for open items and
+ *   what changed within the read window (the retention period, at least six
+ *   weeks), not the whole project. Its per-item calls run through the pool in
+ *   `src/load.ts`.
  *
  * Every call follows `meta.page.nextCursor` to the end, up to `MAX_PAGES`,
  * and says so when it stops there (Bounds). Work items go through `mapOwi`.
@@ -46,7 +58,7 @@
  */
 
 import type { ProgressEvent } from '@imagile-dev/toil/api';
-import { loadDossier, type LoaderMapOwi } from '../src/load.ts';
+import { loadDossier, windowFor, type LoaderMapOwi } from '../src/load.ts';
 import type { Envelope } from '../src/toil.ts';
 import type { WorklogEvent } from '../src/model/worklog.ts';
 import { areaOf, type Cache, type DossierState, type SourceResult } from './cache.ts';
@@ -70,6 +82,8 @@ export const MAX_NEWS = 50;
 export const MAX_PAGES = 200;
 /** How far back of the last sync's start the next one asks from, for clocks that disagree a little. */
 export const SKEW_MS = 5 * 60_000;
+/** How long a source's last whole listing stands before the next sync lists it whole again, to notice items deleted or moved away (#493). */
+export const RECONCILE_MS = 24 * 3_600_000;
 /** The progress lines a job keeps for the page. */
 export const MAX_MESSAGES = 50;
 
@@ -118,11 +132,12 @@ const isRec = (v: unknown): v is Rec => typeof v === 'object' && v !== null && !
 const recs = (v: unknown): Rec[] => (Array.isArray(v) ? v.filter(isRec) : []);
 
 /** A search whose answer is a list of items with ids, which `updatedSince` narrows. `list` is null when the answer is the list itself. */
-const SEARCHES: Record<string, { list: string | null; id: (r: Rec) => string }> = {
-  'jira issue search': { list: 'issues', id: (r) => String(r.key) },
-  'ado work-item search': { list: 'workItems', id: (r) => String(r.id) },
-  'ado-cloud work-item search': { list: 'workItems', id: (r) => String(r.id) },
-  'github issue list': { list: null, id: (r) => String(r.number) },
+const SEARCHES: Record<string, { list: string | null; id: (r: Rec) => string; reconcile: boolean }> = {
+  'jira issue search': { list: 'issues', id: (r) => String(r.key), reconcile: true },
+  'ado work-item search': { list: 'workItems', id: (r) => String(r.id), reconcile: true },
+  'ado-cloud work-item search': { list: 'workItems', id: (r) => String(r.id), reconcile: true },
+  // Not reconciled: it has no window, so a whole listing would read every issue the repository ever had, every day.
+  'github issue list': { list: null, id: (r) => String(r.number), reconcile: false },
 };
 /** A batch get by ids: the input field holding them, and where the answer lists the items. */
 const BATCHES: Record<string, { field: string; list: string; id: (r: Rec) => string }> = {
@@ -155,6 +170,13 @@ const PR_GETS: Record<string, string> = { 'github pr get': 'number', 'bitbucket 
 /** A pull request record that is merged, declined or abandoned, by whichever host's words it uses. */
 const closedPr = (data: unknown) => isRec(data) && (data.state === 'closed' || ['MERGED', 'DECLINED', 'SUPERSEDED'].includes(String(data.state)) || data.status === 'completed' || data.status === 'abandoned');
 
+/** Envelopes the sync handed back as the last copy, untouched: the cache needn't compare them with what it holds. */
+const reusedEnvelopes = new WeakSet<object>();
+const reuse = (env: Envelope): Envelope => (reusedEnvelopes.add(env), env);
+
+/** The same search asking for ids only, where the command can: a listing to reconcile with, not to read. */
+const idsOnly = (command: string, input: Rec): Rec => (command.endsWith('issue search') ? { ...input, fields: 'key' } : input);
+
 /** Two pages of one listing as one answer: lists concatenated, the rest from the newer page. */
 export function joinPages(a: unknown, b: unknown): unknown {
   if (Array.isArray(a) && Array.isArray(b)) return [...a, ...b];
@@ -183,6 +205,9 @@ interface Source {
   changed: Set<string> | null;
   /** Pull requests that changed since the watermark, kept apart because a work item and a pull request can share a number. */
   changedPrs: Set<string> | null;
+  /** Searches this sync ran, and how many of them listed the source whole (a first read or a reconcile). */
+  searches: number;
+  fullSearches: number;
 }
 
 interface Run {
@@ -356,7 +381,7 @@ export class SyncService {
     const syncing = (command: string, input: Record<string, unknown> = {}) => this.answer(run, command, input, signal);
     let loaded;
     try {
-      loaded = await loadDossier(syncing, name, { mapOwi: this.mapOwi });
+      loaded = await loadDossier(syncing, name, { mapOwi: this.mapOwi, windowDays: windowFor(this.cache.retentionDays) });
     } catch (e) {
       // `dossiers show` failed: the dossier keeps everything it had.
       const message = e instanceof Error ? e.message : String(e);
@@ -370,6 +395,7 @@ export class SyncService {
       error: s.error?.message ?? null,
       fix: s.error?.fix ?? null,
       watermark: s.error === null ? new Date(Date.parse(run.startedAt) - SKEW_MS).toISOString() : null,
+      fullReadAt: s.error === null && s.searches > 0 && s.fullSearches === s.searches ? run.startedAt : null,
       calls: s.calls,
     }));
     const news = this.cache.saveDossier({
@@ -390,7 +416,7 @@ export class SyncService {
   private source(run: Run, area: string): Source {
     let s = run.sources.get(area);
     if (!s) {
-      s = { area, calls: 0, error: null, changed: null, changedPrs: null };
+      s = { area, calls: 0, error: null, changed: null, changedPrs: null, searches: 0, fullSearches: 0 };
       run.sources.set(area, s);
     }
     return s;
@@ -409,7 +435,7 @@ export class SyncService {
     const env = await this.fetch(run, source, command, input, signal);
     // A file that isn't there (a repository with no CODEOWNERS) is an answer, kept like one, not a failing source.
     if (env.ok || (ABSENT_IS_AN_ANSWER.has(command) && env.error.code === 'NOT_FOUND')) {
-      run.responses.push({ command, input, envelope: env });
+      run.responses.push({ command, input, envelope: env, ...(reusedEnvelopes.has(env) ? { unchanged: true } : {}) });
       return env;
     }
     source.error ??= { message: `${command}: ${env.error.message}`, fix: env.error.fix ?? null };
@@ -425,15 +451,38 @@ export class SyncService {
 
     const search = SEARCHES[command];
     if (search) {
+      source.searches++;
       const last = this.cache.response(dossier, command, input);
-      if (!watermark || !last?.envelope.ok) return this.call(command, input, signal);
+      if (!watermark || !last?.envelope.ok) {
+        const whole = await this.call(command, input, signal);
+        if (whole.ok) source.fullSearches++;
+        return whole;
+      }
       const delta = await this.call(command, { ...input, updatedSince: watermark }, signal);
       if (!delta.ok) return delta;
       const listOf = (data: unknown) => recs(search.list === null ? data : (data as Rec)[search.list]);
       const fresh = listOf(delta.data);
       source.changed = new Set([...(source.changed ?? []), ...fresh.map(search.id)]);
       this.say(`${dossier}: ${command} since ${watermark}: ${fresh.length} changed`);
-      const merged = mergeById(listOf(last.envelope.data), fresh, search.id);
+      let merged = mergeById(listOf(last.envelope.data), fresh, search.id);
+      // A search "since" never lists what was deleted or moved away, so once in a while the source is listed whole and what it no longer has is dropped.
+      let removed = 0;
+      const fullReadAt = state?.fullReadAt ?? null;
+      if (search.reconcile && (fullReadAt === null || Date.parse(run.startedAt) - Date.parse(fullReadAt) >= RECONCILE_MS)) {
+        const whole = await this.call(command, idsOnly(command, input), signal);
+        if (whole.ok) {
+          const present = new Set(listOf(whole.data).map(search.id));
+          const kept = merged.filter((r) => present.has(search.id(r)));
+          removed = merged.length - kept.length;
+          merged = kept;
+          source.fullSearches++;
+          if (removed) this.say(`${dossier}: ${command} listed whole: ${removed} no longer there`);
+        } else {
+          // The delta stands and the watermark moves on; fullReadAt stays where it was, so the next sync lists the source whole again.
+          this.say(`${dossier}: ${command} listed whole failed, ${whole.error.message}; keeping the changes since ${watermark}, trying again next sync`);
+        }
+      }
+      if (!fresh.length && !removed) return reuse(last.envelope);
       if (search.list === null) return { ...delta, data: merged };
       const data: Rec = { ...(last.envelope.data as Rec), [search.list]: merged };
       if ('total' in data) data.total = merged.length;
@@ -458,7 +507,7 @@ export class SyncService {
       const last = this.cache.response(dossier, command, input);
       if (last?.envelope.ok && closedPr(last.envelope.data)) {
         this.job.reused++;
-        return last.envelope;
+        return reuse(last.envelope);
       }
     }
 
@@ -485,6 +534,9 @@ export class SyncService {
       const toFetch = wanted.filter((id) => changed.has(id) || !cached.has(id));
       if (!toFetch.length) {
         this.job.reused++;
+        const all = recs((last.envelope.data as Rec)[batch.list]);
+        // Asking for exactly what was cached, in the same order, is the last copy itself.
+        if (all.length === wanted.length && all.every((r, n) => batch.id(r) === wanted[n])) return reuse(last.envelope);
         return { ...last.envelope, data: { ...(last.envelope.data as Rec), [batch.list]: wanted.flatMap((id) => (cached.has(id) ? [cached.get(id)!] : [])) } };
       }
       const asInput = (ids: string[]) => (input[batch.field] as unknown[]).filter((v) => ids.includes(String(v)));
@@ -504,7 +556,7 @@ export class SyncService {
       const last = this.cache.response(dossier, command, input);
       if (last?.envelope.ok) {
         this.job.reused++;
-        return last.envelope;
+        return reuse(last.envelope);
       }
     }
     return this.call(command, input, signal);

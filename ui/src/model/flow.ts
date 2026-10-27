@@ -107,12 +107,16 @@ export interface Week {
   partial: boolean;
 }
 
+/** The weeks the throughput chart looks back over, and the days they make: the least the sync's read window may be, so the longest view stays whole. */
+export const THROUGHPUT_WEEKS = 6;
+export const LOOKBACK_DAYS = THROUGHPUT_WEEKS * 7;
+
 /**
  * Items finished per week, Monday to Sunday UTC, for the `weeks` weeks up to
  * and including the one `now` falls in. An item is counted in the week of its
  * last move into Done; a done item with none recorded is unknown.
  */
-export function throughput(items: WorkItem[], now: string, weeks = 6): { weeks: Week[]; unknown: Unknown[]; earlier: number } {
+export function throughput(items: WorkItem[], now: string, weeks = THROUGHPUT_WEEKS): { weeks: Week[]; unknown: Unknown[]; earlier: number } {
   const last = Date.parse(weekStart(now));
   const out: Week[] = Array.from({ length: weeks }, (_, i) => ({ start: new Date(last - (weeks - 1 - i) * WEEK).toISOString(), items: [], partial: i === weeks - 1 }));
   const unknown: Unknown[] = [];
