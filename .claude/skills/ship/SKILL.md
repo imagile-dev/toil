@@ -116,6 +116,12 @@ principle), and the simplest fix.
   - something added to a screen with nothing taken off and no reason it must
     always show
   - help text that repeats what a label already says
+  - a screen with no single focus: several panels at the same weight competing to
+    be read first
+  - detail laid out up front that belongs one step further in (a summary row that
+    expands, a drawer, the item's own page)
+  - a page reachable only one way: it needs its address plus at least one of a link
+    from a summary, its tab or list, the command palette, or a search or shortcut
 
   Each finding names the screen, the element and the quieter form. These are fixed
   like code findings.

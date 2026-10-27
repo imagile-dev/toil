@@ -40,6 +40,11 @@ port.
   notification for each page a listing reads and each rate-limited (429) request
   toil waits to retry, with the same message the CLI writes to stderr
   (`core.md`, **Progress**). The envelope is the same either way.
+- **Prompts**: `analyze` briefs one dossier (its one argument, `dossier`, defaults to
+  the one the folder matches): what needs a person, why, and what to do first, read
+  through toil's tools, with every work item and pull request linked. It's what the
+  `dossiers_analyze_prompt` tool returns, served when that tool is (`dossiers.md`,
+  **Analyze**).
 - **Resources**: besides tools, the server serves read-only resources that describe
   toil's own context, so a client can read it without a tool call. None reads from a
   service, and none holds a secret. They follow `--areas` as the tools do.

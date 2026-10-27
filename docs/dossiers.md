@@ -13,6 +13,10 @@ connections, [#51](https://github.com/imagile-dev/toil/issues/51) (core in #59).
   build and share (`src/core/dossier.ts`, `src/dossiers/`)
 - `toil dossiers onboard`, which sets a reader up for a repository's dossier (#333,
   `src/dossiers/onboard.ts`)
+- `toil dossiers brief`, which briefs a dossier by code from Open Work Item records the
+  caller passes, and `toil dossiers analyze set | show | prompt`, its Analyze settings
+  and the prompt an agent runs, also served by `toil mcp` as the prompt `analyze`
+  (#494, `src/dossiers/brief.ts`, `src/core/brief/`)
 - field aliases on Jira's `--field` (Data Center and Cloud)
 - `toil repos scan` (`src/repos/`)
 - `toil <area> check-dossier` for every area a dossier describes: `jira`,
@@ -146,7 +150,15 @@ TOIL_CONN_OCP_PROD_TOKEN=...
   unique (an identity compares without case), and a value shaped like a token is
   refused by key path, never echoed: an identity is a name, not a credential.
   `wipLimit`, a whole number above 0, is how many items one person may have in
-  progress at once. toil itself reads neither; Toil UI's People view does.
+  progress at once. toil reads `wipLimit` only in `toil dossiers brief`, for its load
+  lens, and reads `people` not at all; Toil UI's People view reads both.
+- **`analyze`** holds how Analyze briefs the dossier (#494): `goal`, `audience`
+  (`lead`, `engineer` or `stakeholder`), `lenses` (each `{ id, on, threshold }`, in the
+  order to apply them; any not listed follow in the standard order), and `watchFor`
+  and `leaveOut`, words for the agent, up to 1000 characters each and never shaped
+  like a credential. Absent, the standard applies. A focus from a dossier the reader
+  hasn't adopted still applies, labelled with where it came from (the maintainer's
+  decision on #494).
 - **Remotes are only for matching.** toil never contacts a remote URL. Before storing,
   comparing or printing one, toil strips any userinfo
   (`https://user:<token>@host/...` becomes `https://host/...`), so a token embedded in
@@ -456,8 +468,12 @@ files directly:
     `--remove` takes the person out, or with `--id` only those identities; it's a
     delete, so it runs on the CLI only (refused over MCP and the API).
   - `toil dossiers wip-limit <dossier> <limit>` sets how many items one person may have
-    in progress at once, which Toil UI's People view counts against. `--clear` removes
-    it, on the CLI only.
+    in progress at once, which Toil UI's People view and `toil dossiers brief` count
+    against. `--clear` removes it, on the CLI only.
+  - `toil dossiers analyze set <dossier> [--goal <text>] [--audience <who>] [--order
+    <ids>] [--on <id>] [--off <id>] [--threshold <id=n>] [--watch-for <text>]
+    [--leave-out <text>]` tunes how Analyze briefs it. A value already set needs
+    `--replace`; `--clear <setting>` and `--reset` are deletes, on the CLI only.
   - `toil dossiers describe <dossier> [--name <new name>] [--description <text>]`
     renames one of your own dossiers or replaces its description, or both. A rename
     writes `~/.toil/dossiers/<new name>.json` with everything the dossier held, checked

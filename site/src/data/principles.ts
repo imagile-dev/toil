@@ -72,7 +72,7 @@ export const principles: Principle[] = [
   {
     n: '11',
     title: 'Quiet screens',
-    body: 'A screen shows what you need to act on right now and little else. Explanations wait behind an (i) with a link to the docs, and controls sit where you use them. Errors, and where a result came from, always stay in view.',
-    forYou: 'You see your work first, and help is one click away when you want it.',
+    body: 'A screen shows what you need to act on right now and little else. Each one has a single focus, and the detail sits a step further in, opened when you want it. Every page can be reached more than one way. Explanations wait behind an (i) with a link to the docs, and controls sit where you use them. Errors, and where a result came from, always stay in view.',
+    forYou: 'You see your work first, go deeper only as far as you want, and never need to know the one way in.',
   },
 ];

@@ -42,6 +42,43 @@
     ]
   },
   {
+    "name": "brief",
+    "tool": "dossiers_brief",
+    "description": "Brief one dossier by code: what needs a person, under one reason each, and what to do first, from OWI records you pass (local only)",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[dossier]",
+      "--file <path>",
+      "--text <text>",
+      "--as-of <time>",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "analyze show",
+    "tool": "dossiers_analyze_show",
+    "description": "Show how Analyze briefs a dossier: its reader, its lenses in order with their thresholds, and its focus",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[dossier]",
+      "--cwd <dir>"
+    ]
+  },
+  {
+    "name": "analyze prompt",
+    "tool": "dossiers_analyze_prompt",
+    "description": "Print the Analyze prompt for a dossier, for an agent with toil to run",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[dossier]",
+      "--cwd <dir>",
+      "--host <host>"
+    ]
+  },
+  {
     "name": "init",
     "tool": "dossiers_init",
     "description": "Create a dossier in your own folder (~/.toil/dossiers), or with --shared in a repository for the team",
@@ -145,6 +182,27 @@
       "<dossier>",
       "[limit]",
       "--clear",
+      "--replace"
+    ]
+  },
+  {
+    "name": "analyze set",
+    "tool": "dossiers_analyze_set",
+    "description": "Tune how Analyze briefs a dossier: its goal, reader, lenses, and what to watch for or leave out",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "<dossier>",
+      "--goal <text>",
+      "--audience <who>",
+      "--order <ids>",
+      "--on <id>",
+      "--off <id>",
+      "--threshold <id=n>",
+      "--watch-for <text>",
+      "--leave-out <text>",
+      "--clear <setting>",
+      "--reset",
       "--replace"
     ]
   },

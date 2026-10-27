@@ -315,6 +315,10 @@ a call will use before making it: `toil dossiers context` (which dossier a folde
 resolves to and why), `toil dossiers show [name]` (per area: the connection and why,
 whether writes are on, the environment and the inputs), `toil dossiers list`, and
 `toil dossiers check [name]`, which checks one locally and contacts no service.
+`toil dossiers brief [name]` says what in the dossier's work needs a person, from
+Open Work Item records you pass it, and `toil dossiers analyze prompt [name]` (the
+MCP prompt `analyze`) is the prompt an agent runs to analyze it (`dossiers.md`,
+**Brief** and **Analyze**).
 
 In a repository that already has one checked in, `toil dossiers onboard` sets you
 up: for each area it finds your connection on the dossier's host, offers to add one
