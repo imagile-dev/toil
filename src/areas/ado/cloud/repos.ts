@@ -39,7 +39,7 @@ export const projectGetCommand = adoArea.command({
   toolDescription: 'Returns one project in the organization by name or id.',
   input: z.object({ name: z.string().min(1).describe('Project name or id') }),
   writes: false,
-  args: [{ name: 'name', field: 'name', description: 'Project name' }],
+  args: [{ name: 'name', field: 'name', description: 'Project name (Services also takes an id)' }],
   examples: [{ name: 'Imagile' }, { ...inRepo, name: 'Imagile' }],
   run: (input, ctx) => adoc(ctx, `/_apis/projects/${enc(input.name)}`),
 });

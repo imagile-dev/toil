@@ -99,7 +99,7 @@ export const overrides: Record<string, DeploymentOverride> = {
   },
   'ado pr update': {
     toolDescription:
-      "Changes a pull request's title, description, draft state and, on Server, reviewers or, on Services, target branch, in one PATCH and returns it. draft is the text \"true\" or anything else for false. Services doesn't change reviewers this way; the vote commands set the token's own vote.",
+      "Changes a pull request's title, description, draft state and, on Server, reviewers or, on Services, target branch, in one PATCH and returns it. draft is true or false (on Server, any text but \"true\" is false). Services doesn't change reviewers this way; the vote commands set the token's own vote.",
   },
   'ado pr merge': {
     toolDescription:

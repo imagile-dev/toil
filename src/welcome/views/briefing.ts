@@ -22,7 +22,7 @@ type Areas = Record<string, { inputs?: Record<string, unknown> }>;
 /** The most open pull requests read in full; a dossier with more is briefed on these, and says so. */
 export const MAX_PR_READS = 20;
 
-const isJira = (area: string) => area === 'jira' || area.startsWith('jira-');
+const isJira = (area: string) => area === 'jira';
 const codeHosts = (area: string) => area === 'github' || area === 'bitbucket' || area === 'ado';
 /** Each code host's word for an open pull request, as its `pr list --state` takes it. */
 const OPEN: Record<string, string> = { github: 'open', bitbucket: 'OPEN', ado: 'active' };
