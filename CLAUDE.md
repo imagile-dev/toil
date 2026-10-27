@@ -1092,8 +1092,8 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
   - **What never gets its own issue:** individual commands or features inside an
     area. They're part of their area's issue, never sub-issues.
   - **Data Center/Cloud products** are one area with a `deployment` connection field,
-    so one issue (Jira, Confluence and Bitbucket are folded; `ado` is still separate
-    `-cloud` areas until #495's later slices); `data-center` and `cloud` label work that touches only one
+    so one issue (Jira, Confluence and Bitbucket are folded; `ado-cloud` is still a separate
+    area until #495's last slice); `data-center` and `cloud` label work that touches only one
     deployment.
   - **Product labels, on every issue a person or agent files here:** `cli` for the
     published toil package (the CLI, the MCP server, `./api`, `skills/toil/`), `ui`

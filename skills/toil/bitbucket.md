@@ -99,10 +99,11 @@ scopes it needs. There is no OAuth app, Connect app or browser login.
 | `targetBranch` | `TOIL_BITBUCKET_TARGET_BRANCH` | no | Data Center: default target branch for `pr create` (`main` when unset) |
 | `writes` | `TOIL_BITBUCKET_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
 
-**CI fallback:** in Bitbucket Pipelines, the default connection takes `workspace` from
+**CI fallback:** in Bitbucket Pipelines, a Cloud default connection takes `workspace` from
 `BITBUCKET_WORKSPACE` and `repo` from `BITBUCKET_REPO_SLUG`, which Pipelines sets on
-every step, when `TOIL_BITBUCKET_WORKSPACE` and `TOIL_BITBUCKET_REPO` aren't set. Pipelines
-sets no API credential, so the token is still yours to supply as a secured variable.
+every step, when `TOIL_BITBUCKET_WORKSPACE` and `TOIL_BITBUCKET_REPO` aren't set. A Data Center
+default ignores both. Pipelines sets no API credential, so the token is still yours to supply as a
+secured variable.
 
 Environment variables (CI, or a one-off shell):
 
@@ -123,17 +124,17 @@ export TOIL_BITBUCKET_ACCESS_TOKEN=<your access token>
 The Cloud variables were `TOIL_BITBUCKET_CLOUD_*` before config version 3; those are
 refused now, with the name to use instead (see **Moving from `bitbucket-cloud`**).
 
-Or `~/.toil/config.json`, with `project`, `workspace`, `repo` and `targetBranch` usually set
-once under `defaults.bitbucket` so every Bitbucket connection shares them:
+Or `~/.toil/config.json`. `defaults.bitbucket` reaches every Bitbucket connection, Cloud ones
+too, so a Data Center `project`, `repo` and `targetBranch` go on the Data Center connection:
 
 ```json
 {
   "version": 3,
   "connections": {
-    "corp-bitbucket": { "area": "bitbucket", "baseUrl": "https://bitbucket.imagile.dev", "writes": true },
+    "corp-bitbucket": { "area": "bitbucket", "baseUrl": "https://bitbucket.imagile.dev", "project": "PROJ", "repo": "imagile-api", "targetBranch": "develop", "writes": true },
     "imagile-bbc": { "area": "bitbucket", "deployment": "cloud", "baseUrl": "https://api.bitbucket.org/2.0", "email": "you@example.com", "writes": true }
   },
-  "defaults": { "bitbucket": { "connection": "corp-bitbucket", "project": "PROJ", "repo": "imagile-api", "targetBranch": "develop" } }
+  "defaults": { "bitbucket": { "connection": "corp-bitbucket" } }
 }
 ```
 
@@ -434,10 +435,11 @@ and the old names are gone, not deprecated:
   in a person's `ids`), with a `DOSSIER_RENAMED_AREA` warning to rename it (`toil dossiers check`
   reports it). With both, `bitbucket` wins. A dossier has one `bitbucket` section, so it picks
   one Bitbucket connection: a body of work that uses both a Data Center and a Cloud Bitbucket takes
-  two dossiers.
-- **Pipelines:** `BITBUCKET_WORKSPACE` and `BITBUCKET_REPO_SLUG` still fill `workspace` and `repo`
-  on the default connection, which is now Data Center unless you say otherwise. Set
-  `TOIL_BITBUCKET_DEPLOYMENT=cloud` in the pipeline.
+  two dossiers. A person keeps one Bitbucket id per dossier now (a username on Data Center, an
+  account id on Cloud), as with Jira.
+- **Pipelines:** `BITBUCKET_WORKSPACE` and `BITBUCKET_REPO_SLUG` still fill `workspace` and `repo`,
+  but only on a default connection that is Cloud, and the default is Data Center unless you say
+  otherwise. Set `TOIL_BITBUCKET_DEPLOYMENT=cloud` in the pipeline.
 
 ## Checking a dossier
 

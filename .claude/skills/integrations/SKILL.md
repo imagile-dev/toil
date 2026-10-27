@@ -73,7 +73,12 @@ versions.
    precedence test for it: `test/fallbacks.test.ts` checks every declared
    fallback against the real config loader (below `TOIL_<AREA>_<KEY>`, above the
    file, default connection only), and the not-configured errors name it beside
-   the `TOIL_` variable on their own.
+   the `TOIL_` variable on their own. A fallback that is canonical for only one
+   deployment (Bitbucket Pipelines' are Cloud's) adds `defineArea({ fallbackWhen })`:
+   a function of the default connection's effective settings
+   (`(effective) => effective.deployment === 'cloud'`) that decides whether the
+   area's fallbacks apply; test it with a connection of each deployment, as
+   `src/core/config-v3-bitbucket.test.ts` does.
 6. **Supported version**: export `supported` from `index.ts`, set the same value in
    the board entry, and state it in the skill file. An error that means the server
    is too old uses `serverTooOld()` from `src/core/supported.ts`, so its message says so and names
@@ -339,7 +344,7 @@ sits in that test's `PENDING` list, by its issue, and switches on once it regist
 ### Deployment Variants
 
 *Principle 10.* **A product that ships Data Center/Server and Cloud is one area, one
-command tree and one set of MCP tools** (`jira` and `bitbucket`, with `confluence` and
+command tree and one set of MCP tools** (`jira`, `confluence` and `bitbucket`, with
 `ado` following, #495). Someone who has learned `toil jira` has learned both. The
 deployments still differ in their APIs, so the code stays apart and the surface is shared:
 
