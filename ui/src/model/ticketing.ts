@@ -118,10 +118,11 @@ export function subTaskProposal(prompt: string, parent: WorkItem, dossier: strin
     return { ...base, command: 'jira issue create', input: { dossier, project: parent.source.key.split('-')[0]!, issueType: type, parent: parent.source.key, summary, description: describe(prompt) }, note: `${type} is Jira's default name for the type; your project may call it something else.` };
   }
   if (area === 'ado') {
+    // Services' work-item create takes no parent (Server's does); the item's source says which it came from.
+    if (parent.source.deployment === 'cloud') {
+      return { ...base, command: 'ado work-item create', input: { dossier, type: 'Task', title: summary, description: describe(prompt) }, note: `ado work-item create takes no parent on a Services connection: once it exists, link it under ${key} on the board.` };
+    }
     return { ...base, command: 'ado work-item create', input: { dossier, type: 'Task', title: summary, description: describe(prompt), parent: parent.source.key }, note: null };
-  }
-  if (area === 'ado-cloud') {
-    return { ...base, command: 'ado-cloud work-item create', input: { dossier, type: 'Task', title: summary, description: describe(prompt) }, note: `ado-cloud work-item create takes no parent: once it exists, link it under ${key} on the board.` };
   }
   if (area === 'github') {
     const m = /^([^/]+)\/([^#]+)#(\d+)$/.exec(parent.source.key);
@@ -140,9 +141,9 @@ export function newTicketProposal(prompt: string, items: readonly WorkItem[], do
   if (area === 'jira') {
     return { ...base, command: 'jira issue create', input: { dossier, summary, description: describe(prompt) }, note: "The project and issue type come from the dossier and the connection's defaults; add --project or --type where they don't set them." };
   }
-  if (area === 'ado' || area === 'ado-cloud') {
+  if (area === 'ado') {
     const type = commonType(items, area);
-    return { ...base, command: `${area} work-item create`, input: { dossier, type: type ?? 'Task', title: summary, description: describe(prompt) }, note: type ? `${type} is the type most of the dossier's open ${area} items have; change --type if this is something else.` : 'Task is a guess: no open item shows which type the process uses; change --type if it calls it something else.' };
+    return { ...base, command: 'ado work-item create', input: { dossier, type: type ?? 'Task', title: summary, description: describe(prompt) }, note: type ? `${type} is the type most of the dossier's open ${area} items have; change --type if this is something else.` : 'Task is a guess: no open item shows which type the process uses; change --type if it calls it something else.' };
   }
   if (area === 'github') {
     return { ...base, command: 'github issue create', input: { dossier, title: summary, body: describe(prompt) }, note: 'The repository comes from the dossier; add --owner and --repo where it names none.' };

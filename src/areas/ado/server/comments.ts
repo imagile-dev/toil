@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { allowWriteField } from '../../core/run.js';
-import { adoArea } from './area.js';
+import { allowWriteField } from '../../../core/run.js';
+import { adoArea } from '../area.js';
 import { API, ado, enc, repoPath, toInt, where } from './client.js';
 import { IN_REPO, prArg } from './repo.js';
 import { intText } from './work.js';

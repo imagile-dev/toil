@@ -2,7 +2,7 @@
   {
     "key": "baseUrl",
     "env": "TOIL_ADO_BASE_URL",
-    "description": "Azure DevOps Server root, e.g. https://ado.imagile.dev (keep any /tfs prefix)",
+    "description": "Server: the root, e.g. https://ado.imagile.dev (keep any /tfs prefix). Services: the organization URL, https://dev.azure.com/<organization> (or https://<organization>.visualstudio.com)",
     "required": true,
     "secret": false,
     "fallbacks": []
@@ -10,7 +10,7 @@
   {
     "key": "pat",
     "env": "TOIL_ADO_PAT",
-    "description": "Personal access token",
+    "description": "Personal access token. Services: an organization-scoped one",
     "required": true,
     "secret": true,
     "fallbacks": [
@@ -18,9 +18,17 @@
     ]
   },
   {
+    "key": "deployment",
+    "env": "TOIL_ADO_DEPLOYMENT",
+    "description": "Which Azure DevOps this is: \"server\" for Azure DevOps Server (the default), or \"cloud\" for Azure DevOps Services",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
     "key": "collection",
     "env": "TOIL_ADO_COLLECTION",
-    "description": "Default collection, when --collection isn't given",
+    "description": "Server only: default collection, when --collection isn't given",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -42,6 +50,14 @@
     "fallbacks": []
   },
   {
+    "key": "team",
+    "env": "TOIL_ADO_TEAM",
+    "description": "Services only: default team for the board, backlog and sprint commands, when --team isn't given (else the project's default team)",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
     "key": "fieldAliases",
     "env": "TOIL_ADO_FIELD_ALIASES",
     "description": "Work item field aliases, friendly name to reference name (e.g. {\"storypoints\": \"Microsoft.VSTS.Scheduling.StoryPoints\"})",
@@ -52,7 +68,7 @@
   {
     "key": "discoveredFields",
     "env": "TOIL_ADO_DISCOVERED_FIELDS",
-    "description": "Work item fields recorded by an earlier discovery; kept, not read",
+    "description": "Server only: work item fields recorded by an earlier discovery; kept, not read",
     "required": false,
     "secret": false,
     "fallbacks": []
@@ -60,7 +76,7 @@
   {
     "key": "discoveredTypes",
     "env": "TOIL_ADO_DISCOVERED_TYPES",
-    "description": "Work item types recorded by an earlier discovery; kept, not read",
+    "description": "Server only: work item types recorded by an earlier discovery; kept, not read",
     "required": false,
     "secret": false,
     "fallbacks": []

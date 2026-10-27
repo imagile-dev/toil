@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { allowWriteField } from '../../core/run.js';
-import { adoCloudArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { allowWriteField } from '../../../core/run.js';
+import { adoArea } from '../area.js';
 import { IN_REPO, adoc, connectionData, cursorField, enc, exampleCursor, headerPages, limitField, nextSkipPages, pageOf, pageOptions, repoPath, skipPages, type AdoCloudContext } from './client.js';
 import { wiqlInstant } from './wiql.js';
 
@@ -100,11 +100,11 @@ async function prIncluded(ctx: AdoCloudContext, id: number, name: PrInclude): Pr
   }
 }
 
-export const repoListPrsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'pr', 'list'],
+export const repoListPrsCommand = adoArea.command({
+  path: ['ado', 'pr', 'list'],
   description: 'List pull requests',
   toolDescription:
-    'Lists every pull request in the repository in one state (active by default), optionally by creator or reviewer identity id (a GUID, from ado_cloud_whoami) and by creation date. updatedSince keeps the pull requests still active plus those created or closed at or after that instant: Azure DevOps records no last-updated time on a pull request, so this is a superset of what changed, safe for a sync that merges by pullRequestId. With limit, returns at most that many (counting kept ones only); pass meta.page.nextCursor as cursor for the next page.',
+    'Lists every pull request in the repository in one state (active by default), optionally by creator or reviewer identity id (a GUID, from ado_whoami) and by creation date. updatedSince keeps the pull requests still active plus those created or closed at or after that instant: Azure DevOps records no last-updated time on a pull request, so this is a superset of what changed, safe for a sync that merges by pullRequestId. With limit, returns at most that many (counting kept ones only); pass meta.page.nextCursor as cursor for the next page.',
   input: z.object({
     state: z.enum(STATES).optional().describe(STATE),
     creator: z.string().min(1).optional().describe('Only PRs created by this identity id'),
@@ -152,8 +152,8 @@ export const repoListPrsCommand = adoCloudArea.command({
   },
 });
 
-export const repoGetPrCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'pr', 'get'],
+export const repoGetPrCommand = adoArea.command({
+  path: ['ado', 'pr', 'get'],
   description: 'Get a pull request by ID',
   toolDescription:
     "Returns one pull request by id: title, description, status, refs, reviewers and votes, merge commits. include (comma-separated reviews, checks, commits, files) adds data.included holding only the lists asked for, each every page of Azure DevOps' own records: reviews are the comment threads (a vote change is a system comment in a thread whose properties.CodeReviewThreadType is VoteUpdate, beside each reviewer's comments with publishedDate), checks the pull request's statuses, commits its commits, files the changeEntries of its latest iteration. Each list costs one or more extra requests.",
@@ -179,8 +179,8 @@ export const repoGetPrCommand = adoCloudArea.command({
 
 const TARGET = 'Target branch (default: main)';
 
-export const repoCreatePrCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'pr', 'create'],
+export const repoCreatePrCommand = adoArea.command({
+  path: ['ado', 'pr', 'create'],
   description: 'Create a pull request',
   toolDescription:
     'Opens a pull request from a source branch to a target (main by default) and returns it. A branch name gets refs/heads/; a full ref (refs/...) is sent as given. reviewers are identity ids, comma-separated.',
@@ -225,8 +225,8 @@ export const repoCreatePrCommand = adoCloudArea.command({
   },
 });
 
-export const repoUpdatePrCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'pr', 'update'],
+export const repoUpdatePrCommand = adoArea.command({
+  path: ['ado', 'pr', 'update'],
   description: 'Update a pull request',
   toolDescription: "Changes a pull request's title, description, target branch or draft state in one PATCH and returns it. Reviewers aren't changed this way; the vote commands set the token's own vote.",
   input: z.object({
@@ -264,8 +264,8 @@ export const repoUpdatePrCommand = adoCloudArea.command({
 const STRATEGIES = ['noFastForward', 'squash', 'rebase', 'rebaseMerge'] as const;
 const STRATEGY = 'Merge strategy: noFastForward|squash|rebase|rebaseMerge (default: noFastForward)';
 
-export const repoMergePrCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'pr', 'merge'],
+export const repoMergePrCommand = adoArea.command({
+  path: ['ado', 'pr', 'merge'],
   description: 'Complete (merge) a pull request',
   toolDescription:
     'Asks the server to complete a pull request with a merge strategy (noFastForward by default), optionally deleting the source branch, and returns the pull request. It reads the pull request first, to send the source commit the completion is for. Completion is asynchronous: check data.status and data.mergeStatus, which stay active and queued while policies or conflicts hold it.',
@@ -293,7 +293,7 @@ export const repoMergePrCommand = adoCloudArea.command({
     const commitId = pr.lastMergeSourceCommit?.commitId;
     if (!commitId) {
       throw new ToilError('INVALID_INPUT', `Pull request ${input.id} has no source commit to complete yet.`, {
-        fix: 'Check data.mergeStatus with ado-cloud pr get, and retry once the server has merged the source branch.',
+        fix: 'Check data.mergeStatus with ado pr get, and retry once the server has merged the source branch.',
       });
     }
     const body = {
@@ -305,8 +305,8 @@ export const repoMergePrCommand = adoCloudArea.command({
   },
 });
 
-export const repoAbandonPrCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'pr', 'abandon'],
+export const repoAbandonPrCommand = adoArea.command({
+  path: ['ado', 'pr', 'abandon'],
   description: 'Abandon a pull request',
   toolDescription: 'Abandons a pull request and returns it.',
   input: z.object({ id: prId, ...allowWriteField }),
@@ -319,8 +319,8 @@ export const repoAbandonPrCommand = adoCloudArea.command({
 
 /** A vote cast as the token's own identity, read from connectionData first. */
 function voteCommand(name: 'approve' | 'unapprove' | 'wait-for-author', description: string, vote: number, toolDescription: string) {
-  return adoCloudArea.command({
-    path: ['ado-cloud', 'pr', name],
+  return adoArea.command({
+    path: ['ado', 'pr', name],
     description,
     toolDescription,
     input: z.object({ id: prId, ...allowWriteField }),
@@ -339,8 +339,8 @@ export const repoApproveCommand = voteCommand('approve', 'Approve a pull request
 export const repoUnapproveCommand = voteCommand('unapprove', 'Remove your vote from a pull request', 0, "Resets the token's own vote on a pull request to 0 (no vote), and returns the reviewer entry.");
 export const repoWaitForAuthorCommand = voteCommand('wait-for-author', 'Mark a pull request as waiting for author', -5, "Votes -5 (waiting for author) on a pull request as the token's own user, and returns the reviewer entry.");
 
-export const repoListReviewersCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'pr', 'reviewers'],
+export const repoListReviewersCommand = adoArea.command({
+  path: ['ado', 'pr', 'reviewers'],
   description: 'List reviewers on a pull request',
   toolDescription: 'Lists the reviewers on a pull request with their votes (10 approved, 5 with suggestions, 0 none, -5 waiting for author, -10 rejected).',
   input: z.object({ id: prId }),

@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { allowWriteField } from '../../core/run.js';
-import { adoArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { allowWriteField } from '../../../core/run.js';
+import { adoArea } from '../area.js';
 import { API, ado, adoAll, adoNextSkip, adoSkipPages, adoValue, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, repoPath, toInt, where, type AdoContext, type PageRequest, type Where } from './client.js';
 import { connectionData } from './server.js';
 import { AT, intText } from './work.js';
@@ -300,7 +300,8 @@ export const repoUpdatePrCommand = adoArea.command({
     title: z.string().optional().describe('New title'),
     description: z.string().optional().describe('New description'),
     reviewers: z.string().optional().describe('Comma-separated reviewer IDs'),
-    draft: z.string().optional().describe('Set draft status: true|false'),
+    // Text or a boolean (see priority in work.ts): the text "true" is true, anything else false, as recorded.
+    draft: z.union([z.string(), z.boolean()]).optional().describe('Set draft status: true|false'),
     ...allowWriteField,
   }),
   writes: true,
@@ -322,7 +323,7 @@ export const repoUpdatePrCommand = adoArea.command({
     if (input.description !== undefined) body.description = input.description;
     // Suspected bug (#69 item 9): reviewers aren't an updatable property of this endpoint.
     if (input.reviewers) body.reviewers = input.reviewers.split(',').map((id) => ({ id: id.trim() }));
-    if (input.draft !== undefined) body.isDraft = input.draft === 'true';
+    if (input.draft !== undefined) body.isDraft = input.draft === 'true' || input.draft === true;
     return ado(ctx, prUrl(w, toInt(input.id)), { method: 'PATCH', json: body });
   },
 });

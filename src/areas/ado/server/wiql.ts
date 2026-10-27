@@ -1,4 +1,4 @@
-import { ToilError } from '../../core/errors.js';
+import { ToilError } from '../../../core/errors.js';
 
 /**
  * Adding a condition to a WIQL query the caller wrote, without parsing WIQL.

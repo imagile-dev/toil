@@ -150,7 +150,7 @@
           "additionalProperties": false,
           "required": ["area", "connection", "key", "command"],
           "properties": {
-            "area": { "description": "github, bitbucket, ado or ado-cloud in 0.2.", "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+            "area": { "description": "github, bitbucket or ado in 0.2.", "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
             "connection": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
             "key": { "description": "<repo>#<number>, the part of id after the connection.", "type": "string", "minLength": 1 },
             "command": { "description": "The toil command whose output was mapped (github pr get).", "type": "string" },
@@ -223,7 +223,7 @@
             "connection": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
             "key": { "description": "The native key, the part of id after the connection.", "type": "string", "minLength": 1 },
             "command": { "description": "The toil command whose output was mapped (jira issue search).", "type": "string" },
-            "deployment": { "description": "Which deployment of the area the connection is, where the area has more than one (jira or bitbucket: server for Data Center, or cloud), from the envelope's meta.context. Absent when the input says none.", "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }
+            "deployment": { "description": "Which deployment of the area the connection is, where the area has more than one (jira, bitbucket or ado: server, or cloud), from the envelope's meta.context. Absent when the input says none.", "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" }
           }
         },
         "url": { "description": "The item in the source's web UI.", "type": ["string", "null"] },

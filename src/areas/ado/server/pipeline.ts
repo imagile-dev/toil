@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { sleep } from '../../core/rest.js';
-import { allowWriteField } from '../../core/run.js';
-import { adoArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { sleep } from '../../../core/rest.js';
+import { allowWriteField } from '../../../core/run.js';
+import { adoArea } from '../area.js';
 import { API, ado, adoAll, adoText, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, toInt, where, type AdoContext, type PageRequest, type Where } from './client.js';
 import { listBuilds } from './repo.js';
 import { AT, intText } from './work.js';

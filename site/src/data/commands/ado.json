@@ -2,7 +2,7 @@
   {
     "name": "whoami",
     "tool": "ado_whoami",
-    "description": "Show current authenticated user",
+    "description": "Show the authenticated user",
     "writes": false,
     "connection": true,
     "flags": [
@@ -41,7 +41,7 @@
   {
     "name": "project list",
     "tool": "ado_project_list",
-    "description": "List team projects in a collection",
+    "description": "List team projects in a collection (Server) or an organization (Services)",
     "writes": false,
     "connection": true,
     "flags": [
@@ -106,7 +106,7 @@
   {
     "name": "work-item update",
     "tool": "ado_work_item_update",
-    "description": "Update a work item field",
+    "description": "Update work item fields",
     "writes": true,
     "connection": true,
     "flags": [
@@ -117,6 +117,7 @@
       "--organization <name>",
       "--project <name>",
       "--repo <name>",
+      "--rev <n>",
       "--allow-write"
     ]
   },
@@ -229,7 +230,9 @@
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
-      "--repo <name>"
+      "--repo <name>",
+      "--limit <n>",
+      "--cursor <cursor>"
     ]
   },
   {
@@ -344,7 +347,7 @@
   {
     "name": "work-item iterations",
     "tool": "ado_work_item_iterations",
-    "description": "List classification iterations for the team project (tree), including start/finish dates",
+    "description": "List the iteration tree for the project, with start and finish dates",
     "writes": false,
     "connection": true,
     "flags": [
@@ -400,16 +403,6 @@
     ]
   },
   {
-    "name": "work-item schema",
-    "tool": "ado_work_item_schema",
-    "description": "Print the --input-file JSON schema and an example for work-item create/update",
-    "writes": false,
-    "connection": false,
-    "flags": [
-      "--example-only"
-    ]
-  },
-  {
     "name": "repo list",
     "tool": "ado_repo_list",
     "description": "List git repositories in the project",
@@ -440,7 +433,7 @@
   {
     "name": "repo get",
     "tool": "ado_repo_get",
-    "description": "Get a specific repository",
+    "description": "Get a repository",
     "writes": false,
     "connection": true,
     "flags": [
@@ -458,8 +451,8 @@
     "connection": true,
     "flags": [
       "--state <state>",
-      "--creator <alias>",
-      "--reviewer <alias>",
+      "--creator <id>",
+      "--reviewer <id>",
       "--created-after <date>",
       "--created-before <date>",
       "--updated-since <iso>",
@@ -522,6 +515,7 @@
       "--organization <name>",
       "--project <name>",
       "--repo <name>",
+      "--target <branch>",
       "--allow-write"
     ]
   },
@@ -539,6 +533,7 @@
       "--organization <name>",
       "--project <name>",
       "--repo <name>",
+      "--message <text>",
       "--allow-write"
     ]
   },
@@ -645,7 +640,7 @@
   {
     "name": "pr unapprove",
     "tool": "ado_pr_unapprove",
-    "description": "Remove approval from a pull request",
+    "description": "Remove your vote from a pull request",
     "writes": true,
     "connection": true,
     "flags": [
@@ -701,7 +696,8 @@
       "--collection <name>",
       "--organization <name>",
       "--project <name>",
-      "--repo <name>"
+      "--repo <name>",
+      "--include-system"
     ]
   },
   {
@@ -759,7 +755,7 @@
   {
     "name": "pr resolve",
     "tool": "ado_pr_resolve",
-    "description": "Mark a comment thread as resolved (fixed)",
+    "description": "Mark a comment thread as resolved",
     "writes": true,
     "connection": true,
     "flags": [
@@ -769,6 +765,7 @@
       "--organization <name>",
       "--project <name>",
       "--repo <name>",
+      "--status <status>",
       "--allow-write"
     ]
   },
@@ -913,6 +910,137 @@
       "--organization <name>",
       "--project <name>",
       "--repo <name>"
+    ]
+  },
+  {
+    "name": "pr threads",
+    "tool": "ado_pr_threads",
+    "description": "List comment threads on a pull request",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<id>",
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>"
+    ]
+  },
+  {
+    "name": "sprint list",
+    "tool": "ado_sprint_list",
+    "description": "List the team's sprints, with which one is current",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--state <states>",
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
+    ]
+  },
+  {
+    "name": "sprint items",
+    "tool": "ado_sprint_items",
+    "description": "List the work items in one of the team's sprints",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<id>",
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
+    ]
+  },
+  {
+    "name": "backlog list",
+    "tool": "ado_backlog_list",
+    "description": "List the team's backlog levels",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
+    ]
+  },
+  {
+    "name": "backlog items",
+    "tool": "ado_backlog_items",
+    "description": "List the work items on one backlog level, in backlog order",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<id>",
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
+    ]
+  },
+  {
+    "name": "board list",
+    "tool": "ado_board_list",
+    "description": "List the team's boards",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
+    ]
+  },
+  {
+    "name": "board get",
+    "tool": "ado_board_get",
+    "description": "Get a board, with its columns and the state each holds",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<id>",
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>",
+      "--team <name>"
+    ]
+  },
+  {
+    "name": "api",
+    "tool": "ado_api",
+    "description": "Call any Azure DevOps Services REST endpoint on the connection, e.g. toil ado api GET /_apis/projects?api-version=7.1",
+    "writes": true,
+    "connection": true,
+    "flags": [
+      "<method>",
+      "<path>",
+      "--query <key=value>",
+      "--body-file <path>",
+      "--content-type <type>",
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>",
+      "--allow-write"
+    ]
+  },
+  {
+    "name": "work-item schema",
+    "tool": "ado_work_item_schema",
+    "description": "Print the --input-file JSON schema and an example for work-item create/update",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--example-only"
     ]
   }
 ]

@@ -1,19 +1,27 @@
 [
   {
     "name": "ado",
-    "description": "Azure DevOps Server: work items, repositories, pull requests and pipelines",
+    "description": "Azure DevOps Server and Azure DevOps Services: work items, boards, sprints, repositories, pull requests and pipelines",
     "connection": [
       {
         "name": "baseUrl",
-        "description": "Azure DevOps Server root, e.g. https://ado.imagile.dev (keep any /tfs prefix)",
+        "description": "Server: the root, e.g. https://ado.imagile.dev (keep any /tfs prefix). Services: the organization URL, https://dev.azure.com/<organization> (or https://<organization>.visualstudio.com)",
         "secret": false,
         "password": false,
         "default": null,
         "required": true
       },
       {
+        "name": "deployment",
+        "description": "Which Azure DevOps this is: \"server\" for Azure DevOps Server (the default), or \"cloud\" for Azure DevOps Services",
+        "secret": false,
+        "password": false,
+        "default": "server",
+        "required": false
+      },
+      {
         "name": "collection",
-        "description": "Default collection, when --collection isn't given",
+        "description": "Server only: default collection, when --collection isn't given",
         "secret": false,
         "password": false,
         "default": null,
@@ -36,6 +44,14 @@
         "required": false
       },
       {
+        "name": "team",
+        "description": "Services only: default team for the board, backlog and sprint commands, when --team isn't given (else the project's default team)",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
+      },
+      {
         "name": "fieldAliases",
         "description": "Work item field aliases, friendly name to reference name (e.g. {\"storypoints\": \"Microsoft.VSTS.Scheduling.StoryPoints\"})",
         "secret": false,
@@ -45,7 +61,7 @@
       },
       {
         "name": "discoveredFields",
-        "description": "Work item fields recorded by an earlier discovery; kept, not read",
+        "description": "Server only: work item fields recorded by an earlier discovery; kept, not read",
         "secret": false,
         "password": false,
         "default": null,
@@ -53,7 +69,7 @@
       },
       {
         "name": "discoveredTypes",
-        "description": "Work item types recorded by an earlier discovery; kept, not read",
+        "description": "Server only: work item types recorded by an earlier discovery; kept, not read",
         "secret": false,
         "password": false,
         "default": null,
@@ -61,7 +77,7 @@
       },
       {
         "name": "pat",
-        "description": "Personal access token",
+        "description": "Personal access token. Services: an organization-scoped one",
         "secret": true,
         "password": false,
         "default": null,

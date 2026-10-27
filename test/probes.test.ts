@@ -26,7 +26,6 @@ type Expected = {
 
 const EXPECTED: Record<string, Expected> = {
   ado: { path: '/_apis/projectCollections', query: { 'api-version': '7.1' } },
-  'ado-cloud': { path: '/_apis/connectionData', query: { 'api-version': '7.1-preview.1' } },
   alation: { path: '/integration/v1/datasource/', query: { limit: '1' } },
   artifactory: { path: '/api/repositories' },
   bitbucket: { path: '/rest/api/1.0/profile/recent/repos', query: { limit: '1' } },
@@ -111,6 +110,24 @@ describe('connections test, per deployment (bitbucket)', () => {
     expect(new URL(gets[0]!.url).origin).toBe(new URL(String(cloud.baseUrl)).origin);
     expect(new URL(gets[0]!.url).pathname).toBe('/2.0/user');
     expect(gets[0]!.headers.authorization).toBe(`Basic ${Buffer.from(`${String(cloud.email)}:${String(cloud.apiToken)}`).toString('base64')}`);
+  });
+});
+
+describe('connections test, per deployment (ado)', () => {
+  it('ado on a Services connection probes the organization connectionData on its own host with the PAT, one GET, whatever collection a default names', async () => {
+    const fixture = fixtures.find((f) => f.area === 'ado')!;
+    const cloud = fixture.config['ado-cloud']!;
+    const config = { ...fixture.config, 'ado-cloud': { ...cloud, collection: 'DefaultCollection' } };
+    const { context, http } = testContext({ config, routes: [{ method: 'GET', url: /.*/, respond: { json: [] } }] });
+    const run = await runCli(['connections', 'test', 'ado-cloud'], { commands, context });
+    expect(run.envelope?.data).toMatchObject({ area: 'ado', live: true, authenticated: true });
+    const gets = http.calls.filter((c) => c.method === 'GET');
+    expect(gets).toHaveLength(1);
+    const url = new URL(gets[0]!.url);
+    expect(url.origin).toBe(new URL(String(cloud.baseUrl)).origin);
+    expect(url.pathname).toBe(`${new URL(String(cloud.baseUrl)).pathname}/_apis/connectionData`);
+    expect(Object.fromEntries(url.searchParams)).toEqual({ 'api-version': '7.1-preview.1' });
+    expect(gets[0]!.headers.authorization).toBe(`Basic ${Buffer.from(`:${String(cloud.pat)}`).toString('base64')}`);
   });
 });
 

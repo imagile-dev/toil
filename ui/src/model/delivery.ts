@@ -41,7 +41,7 @@ export const iso = (v: unknown): string => {
 
 // Pull requests ---------------------------------------------------------------
 
-/** A source's family, as the panels name it: `ado-cloud` is Azure DevOps. */
+/** A source's family, as the panels name it: an area's first word (`github`, `ado`). */
 const family = (area: string): SourceKind => area.split('-')[0] as SourceKind;
 
 /**

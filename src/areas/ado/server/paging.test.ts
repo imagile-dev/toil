@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
-import { ADO, COLL, config as fixtureConfig, PROJ, REPO, routes, workItem } from '../../../test/fixtures/ado.fixture.js';
-import { commandName, type AnyCommand } from '../../core/command.js';
-import { execute } from '../../core/run.js';
-import { commands } from './index.js';
+import { testContext } from '../../../../test/harness/context.js';
+import type { Route } from '../../../../test/harness/fake-fetch.js';
+import { ADO, COLL, config as fixtureConfig, PROJ, REPO, routes, workItem } from '../../../../test/fixtures/ado.fixture.js';
+import { commandName, type AnyCommand } from '../../../core/command.js';
+import { execute } from '../../../core/run.js';
+import { commands } from '../index.js';
 import { andWhere, wiqlInstant } from './wiql.js';
 
 /**

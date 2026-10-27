@@ -9,7 +9,7 @@ import { toolName } from '../src/core/command.js';
 import { allowWriteField, inFieldNames } from '../src/core/run.js';
 import { currentPrCommand } from '../src/areas/bitbucket/server/pull-requests.js';
 import { adoArea } from '../src/areas/ado/area.js';
-import { workUpdateCommand } from '../src/areas/ado/work.js';
+import { workUpdateCommand } from '../src/areas/ado/server/work.js';
 import { dossierBuildCommands } from '../src/dossiers/build.js';
 import { dossiersCommands } from '../src/dossiers/commands.js';
 import { areas as realAreas } from '../src/registry.js';

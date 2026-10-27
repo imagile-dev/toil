@@ -4,8 +4,8 @@ import { idFor, isRecord, str, type OwiDocument } from './common.js';
 import type { Change, Review, ReviewerState } from './types.js';
 
 /**
- * Azure DevOps pull requests to OWI changes, for Server (`ado`) and
- * Services (`ado-cloud`), which send the same GitPullRequest. A vote is a
+ * Azure DevOps pull requests to OWI changes, for Server and
+ * Services (both `ado`, by the connection's deployment), which send the same GitPullRequest. A vote is a
  * number (10 approved, 5 approved with suggestions, 0 none, -5 waiting for
  * the author, -10 rejected); the history of votes is in the comment
  * threads, as system comments; `#2302` in a title or description is a work

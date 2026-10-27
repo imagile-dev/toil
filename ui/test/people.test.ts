@@ -49,10 +49,10 @@ describe('reading the dossier', () => {
     expect(readPeople(null)).toEqual({ people: [], wipLimit: null, notes: [] });
   });
 
-  it("matches an account on its id or email without case, and a family's id on its Cloud variant", () => {
+  it("matches an account on its id or email without case, and a Services connection's id the same way", () => {
     expect(isPerson(PAT, { area: 'github', id: 'Pat-Ex', name: null, email: null })).toBe(true);
     expect(isPerson(PAT, { area: 'jira', id: 'pat', name: null, email: null })).toBe(true);
-    expect(isPerson({ ...PAT, ids: { ado: 'you@example.com' } }, { area: 'ado-cloud', id: 'abc12345', name: null, email: 'YOU@example.com' })).toBe(true);
+    expect(isPerson({ ...PAT, ids: { ado: 'you@example.com' } }, { area: 'ado', id: 'abc12345', name: null, email: 'YOU@example.com' })).toBe(true);
     expect(isPerson(PAT, { area: 'bitbucket', id: 'pat', name: 'Pat Example', email: 'you@example.com' })).toBe(false);
   });
 });

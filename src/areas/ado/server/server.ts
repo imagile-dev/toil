@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { adoArea } from './area.js';
+import { adoArea } from '../area.js';
 import { API, API_CONNECTION, adoAll, ado, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, where, type AdoContext } from './client.js';
 
 /**
@@ -71,7 +71,7 @@ export const projectGetCommand = adoArea.command({
   toolDescription: 'Returns one team project in the collection by name or id.',
   input: z.object({ name: z.string().describe('Project name') }),
   writes: false,
-  args: [{ name: 'name', field: 'name', description: 'Project name' }],
+  args: [{ name: 'name', field: 'name', description: 'Project name (Services also takes an id)' }],
   examples: [{ ...AT, name: 'Imagile' }],
   run: async (input, ctx) => {
     const { collection } = where(ctx);

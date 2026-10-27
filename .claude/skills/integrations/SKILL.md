@@ -321,8 +321,8 @@ compatibility path, never a place for a command that calls more than one of them
 ### Open Work Items
 
 *Principles 3 and 4.* A work-item integration is any area that reads or writes
-issues, work items or tickets: today `jira` (Data Center and Cloud), `ado` and `github`, then
-`ado-cloud` (#222) and any tracker after it. Adding or changing one means inspecting
+issues, work items or tickets: today `jira` and `ado` (each Data Center or Server and Cloud or Services) and `github`, then
+any tracker after it. Adding or changing one means inspecting
 the Open Work Item mapping (`docs/owi/spec.md`) **in the same PR**:
 
 - Check the mapper still covers the area's output: a new or changed field, status,
@@ -384,15 +384,15 @@ deployments still differ in their APIs, so the code stays apart and the surface 
 - **Docs, skill and site are one page per product**, with a section on what differs. A
   verification level is recorded for the product; say in the PR when the deployments are at
   different levels.
-- **Retiring an old area name** (`jira-cloud`, `confluence-cloud`, `bitbucket-cloud`) goes in `src/core/renamed-areas.ts`, which makes
+- **Retiring an old area name** (`jira-cloud`, `confluence-cloud`, `bitbucket-cloud`, `ado-cloud`) goes in `src/core/renamed-areas.ts`, which makes
   every old form (env vars, `--areas`, a typed path, a dossier section, a config file) fail or
   warn with the new one. The config fold in `migrateConfig()` runs for every version and is
   idempotent, so a file written before the area was folded folds too, whatever its version.
 - When the variants differ only in host (GitHub.com and GitHub Enterprise Server),
   they stay one area with a configurable `baseUrl` and no `deployment`.
 
-Until it is folded, the other (`ado-cloud`) is
-still an area of its own, built the old way; folding it is #495's last slice.
+Every pair is folded: no `-cloud` area remains, and a vendor's next
+deployment pair is built the same way, as one area with a `deployment` field.
 
 ## Command Shape
 

@@ -1,5 +1,5 @@
-import { ToilError } from '../../core/errors.js';
-import type { FileAccess } from '../../core/files.js';
+import { ToilError } from '../../../core/errors.js';
+import type { FileAccess } from '../../../core/files.js';
 
 /**
  * Work item fields as a caller names them: `--field name=value`, an

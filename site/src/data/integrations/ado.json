@@ -1,16 +1,20 @@
 {
   "area": "ado",
-  "name": "Azure DevOps Server",
+  "name": "Azure DevOps",
   "group": "trackers",
   "order": 2,
-  "covers": "Work items, repos, pull requests, pipelines",
-  "credential": "Personal access token",
-  "credentialWhere": "User settings → Personal access tokens",
+  "covers": "Work items, boards, backlogs, sprints, repos, pull requests, comments, votes, pipelines",
+  "credential": "Personal access token (Server), or an organization-scoped one (Services)",
+  "credentialWhere": "User settings → Personal access tokens → New Token. On Services, set Organization to one organization",
+  "credentialNote": "One area for both: a Services connection sets deployment to cloud and its base URL to the organization. Global tokens (all accessible organizations) stop working on December 1, 2026, so create one per organization. In Azure Pipelines, SYSTEM_ACCESSTOKEN is read for a Server default; for Services map $(System.AccessToken) and $(System.CollectionUri) to TOIL_ADO_PAT and TOIL_ADO_BASE_URL with TOIL_ADO_DEPLOYMENT=cloud. Both deployments are verified at the unit level, so the board shows one",
   "status": "unit",
+  "keys": [
+    "PAT"
+  ],
   "supported": {
     "product": "Azure DevOps Server",
     "minimum": "2022.1",
     "api": "REST API 7.1",
-    "note": "Requests send api-version=7.1, which newer servers also accept. Azure DevOps Server 2022 RTM, 2020 and 2019 are out of scope."
+    "note": "Requests send api-version=7.1, which newer servers also accept. Azure DevOps Server 2022 RTM, 2020 and 2019 are out of scope. Azure DevOps Services (a connection with deployment cloud) is always current: toil sends api-version=7.1, the newest released version (7.2 is preview only), with an organization-scoped personal access token as Basic auth. Its work item reads and team settings commands have been run against one live Scrum organization; its pull request commands have not."
   }
 }

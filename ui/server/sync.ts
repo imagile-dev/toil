@@ -135,21 +135,18 @@ const recs = (v: unknown): Rec[] => (Array.isArray(v) ? v.filter(isRec) : []);
 const SEARCHES: Record<string, { list: string | null; id: (r: Rec) => string; reconcile: boolean }> = {
   'jira issue search': { list: 'issues', id: (r) => String(r.key), reconcile: true },
   'ado work-item search': { list: 'workItems', id: (r) => String(r.id), reconcile: true },
-  'ado-cloud work-item search': { list: 'workItems', id: (r) => String(r.id), reconcile: true },
   // Not reconciled: it has no window, so a whole listing would read every issue the repository ever had, every day.
   'github issue list': { list: null, id: (r) => String(r.number), reconcile: false },
 };
 /** A batch get by ids: the input field holding them, and where the answer lists the items. */
 const BATCHES: Record<string, { field: string; list: string; id: (r: Rec) => string }> = {
   'ado work-item get-many': { field: 'id', list: 'value', id: (r) => String(r.id) },
-  'ado-cloud work-item get-many': { field: 'id', list: 'value', id: (r) => String(r.id) },
   'github issue get': { field: 'number', list: 'issues', id: (r) => String(r.number) },
 };
 /** One item's history: the input field naming the item. */
 const HISTORIES: Record<string, string> = {
   'jira issue history': 'key',
   'ado work-item history': 'id',
-  'ado-cloud work-item history': 'id',
   'github issue history': 'number',
 };
 const BOARD = 'github project items';
@@ -162,10 +159,9 @@ const PR_LISTS: Record<string, (r: Rec) => string> = {
   'github pr list': (r) => String(r.number),
   'bitbucket pr list': (r) => String(r.id),
   'ado pr list': (r) => String(r.pullRequestId),
-  'ado-cloud pr list': (r) => String(r.pullRequestId),
 };
 /** Each host's pull request get, and the input field naming the pull request. */
-const PR_GETS: Record<string, string> = { 'github pr get': 'number', 'bitbucket pr get': 'id', 'ado pr get': 'id', 'ado-cloud pr get': 'id' };
+const PR_GETS: Record<string, string> = { 'github pr get': 'number', 'bitbucket pr get': 'id', 'ado pr get': 'id' };
 /** A pull request record that is merged, declined or abandoned, by whichever host's words it uses. */
 const closedPr = (data: unknown) => isRec(data) && (data.state === 'closed' || ['MERGED', 'DECLINED', 'SUPERSEDED'].includes(String(data.state)) || data.status === 'completed' || data.status === 'abandoned');
 
