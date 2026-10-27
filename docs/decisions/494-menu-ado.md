@@ -1,0 +1,4 @@
+# Azure DevOps work items in the menu's Briefing (#494)
+
+- The menu's Briefing reads an Azure DevOps project's work items the way Toil UI's loader does (`ui/src/load.ts`): `ado work-item search` with the same WIQL (every work item in the project, by id), then one `ado work-item get-many` for the ids it returns, beside the open pull requests' `pr get`. The search lists ids only, so it stays out of `util owi map`'s input; the get-many is what maps to Open Work Items. It replaces the note that left Azure DevOps work items to Toil UI.
+- One get-many reads at most 1000 work items, the same limit as Toil UI's get-many. The search lists ids oldest first, so a project with more keeps the newest 1000, where the active work is, and says so at the top of the briefing (review: the first draft kept the oldest 200). Toil UI also reads each item's history; the menu doesn't, so stale and drift rest on each item's `updated` date and its pull requests, as for Jira.
