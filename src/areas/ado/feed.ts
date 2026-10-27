@@ -10,8 +10,8 @@ import { paginate, type FetchedPage } from '../../core/paginate.js';
  * project, which a sync reads from a watermark instead of asking for each
  * item's history on its own. Both deployments page it the same way, so the
  * shape and the paging are said once here; each deployment's client only sends
- * the request. Microsoft describes it as the feed for building a warehouse,
- * which is to say it was written for people who already own the reporting database.
+ * the request. The feed is built for a data warehouse, which presumes
+ * a warehouse team and the change ticket that fed it; a sync with neither reads it directly.
  */
 
 export interface FeedRevision {
@@ -21,9 +21,9 @@ export interface FeedRevision {
 }
 
 export const REVISIONS_DESCRIPTION =
-  'Lists the revisions of every work item in the project as one feed: { id, rev, fields } for each, with every reportable field (or only those in fields) as it stood after that change. updatedSince starts the feed at an ISO 8601 date or zoned date-time, so a sync reads only what changed; without it the feed starts at the beginning of the project. People are text ("Name <email>"). The revisions of one work item are in order, but not next to each other. Long text fields (the description) are not in it. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.';
+  'The project\'s change feed: every work item\'s revisions since a date, as one list (work-item history is the revisions of one item). Lists the revisions of every work item in the project: { id, rev, fields } for each, with every reportable field (or only those in fields) as it stood after that change. updatedSince starts the feed at an ISO 8601 date or zoned date-time, so a sync reads only what changed; without it the feed starts at the beginning of the project. People are text ("Name <email>"). The revisions of one work item are in order, but not next to each other. Long text fields (the description) are not in it. With limit, returns at most that many; pass meta.page.nextCursor as cursor for the next page.';
 
-export const FEED_SINCE = 'Only revisions after this ISO 8601 date (2026-10-01) or zoned date-time (2026-10-01T09:00:00Z)';
+export const FEED_SINCE = 'Only revisions from this ISO 8601 date (2026-10-01) or zoned date-time (2026-10-01T09:00:00Z)';
 export const FEED_FIELDS = 'Comma-separated field reference names to return (default: every reportable field)';
 
 export const revisionsInput = {

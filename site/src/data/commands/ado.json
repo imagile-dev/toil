@@ -205,9 +205,9 @@
     ]
   },
   {
-    "name": "work-item revisions",
-    "tool": "ado_work_item_revisions",
-    "description": "List the revisions of every work item in the project, as one feed (for a sync)",
+    "name": "work-item feed",
+    "tool": "ado_work_item_feed",
+    "description": "The project's change feed: every work item's revisions since a date, as one list (work-item history is the revisions of one item)",
     "writes": false,
     "connection": true,
     "flags": [

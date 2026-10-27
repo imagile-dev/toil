@@ -254,14 +254,14 @@ Work items (`<id>` is the work item id):
   the token can't see, with an `ADO_WORK_ITEMS_MISSING` warning.
 - `work-item history <id>`: Every revision of a work item, oldest first; each is the
   whole item as it stood after that change, so neighbours show what changed and when.
-- `work-item revisions` (`--updated-since <iso>`, `--fields a,b`): The revisions of every work
+- `work-item feed` (`--updated-since <iso>`, `--fields a,b`): The project's change feed, the revisions of every work
   item in the project as one feed (the reporting work item revisions API, on both
   deployments), so a sync reads what changed since a date in a few requests instead of
   one `work-item history` call per item. Each entry is `{ id, rev, fields }` with every
   reportable field, or only `--fields`; people are `Name <email>` text, long text
   fields (the description) are left out, and the revisions of one item are in order but
   not next to each other. `--updated-since` takes the same date forms as `work-item
-  search` and starts the feed there (revisions after it); without it the feed starts at
+  search` and starts the feed there (revisions from it on); without it the feed starts at
   the project's first revision. It is read batch by batch, following the continuation
   token, with `--limit` and `--cursor` like any list. A feed that starts at a date holds
   only the later revisions of an older item, so an item's whole history is the feed's
@@ -424,7 +424,7 @@ list's `value`, or the whole body).
   which state each column holds.
 
 Paging: `project list`, `pipeline list`, `run list`, `pr list`, `pr builds`,
-`work-item search`, `work-item history`, `work-item revisions` and (Services) `work-item comments` return the
+`work-item search`, `work-item history`, `work-item feed` and (Services) `work-item comments` return the
 whole list by default. With `--limit <n>` they return at most that many and set
 `meta.page.nextCursor`; pass it back as `--cursor`, with the same `--limit`, for the
 next page, until it's `null`. `run list` takes `--limit` or `--top`, not both. Every

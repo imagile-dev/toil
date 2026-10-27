@@ -242,11 +242,13 @@ export const workRevisionsCommand = adoArea.command({
 });
 
 export const workFeedCommand = adoArea.command({
-  path: ['ado', 'work-item', 'revisions'],
-  description: 'List the revisions of every work item in the project, as one feed (for a sync)',
+  path: ['ado', 'work-item', 'feed'],
+  description: 'The project\'s change feed: every work item\'s revisions since a date, as one list (work-item history is the revisions of one item)',
   toolDescription: REVISIONS_DESCRIPTION,
   input: z.object({ ...revisionsInput, limit: limitField('revisions'), cursor: cursorField }),
   writes: false,
+  // Every revision of the project can be a long read, and a long read is the work, not a hang: --limit is the way to stop early.
+  timeLimitMs: 600_000,
   context: IN_PROJECT,
   options: [
     { flags: '--updated-since <iso>', field: 'updatedSince', description: FEED_SINCE },
