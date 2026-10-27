@@ -114,12 +114,12 @@ export function movesCursor(out: TermLike, env: NodeJS.ProcessEnv, platform: Nod
 const ESC = '\x1b[';
 
 /** Foreground color at whatever depth the terminal supports; '' with no color. */
-export function fg(caps: Pick<TermCaps, 'colorDepth'>, [r, g, b]: Rgb): string {
+export function fg(caps: Pick<TermCaps, 'colorDepth'> & Partial<Pick<TermCaps, 'palette'>>, [r, g, b]: Rgb): string {
   switch (caps.colorDepth) {
     case 24:
       return `${ESC}38;2;${r};${g};${b}m`;
     case 8:
-      return `${ESC}38;5;${to256(r, g, b)}m`;
+      return `${ESC}38;5;${to256([r, g, b], pal(caps).bg)}m`;
     case 4:
       return `${ESC}${to16(r, g, b)}m`;
     default:
@@ -169,9 +169,69 @@ export function blend(a: Rgb, b: Rgb, t: number): Rgb {
 
 const lum = ([r, g, b]: Rgb) => 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 
-function to256(r: number, g: number, b: number): number {
-  const level = (v: number) => (v < 48 ? 0 : v < 115 ? 1 : Math.min(5, Math.floor((v - 35) / 40)));
-  return 16 + 36 * level(r) + 6 * level(g) + level(b);
+/**
+ * The contrast on its background above which a colour may round toward the
+ * background. 7.5:1 on any theme's background, black included, still leaves
+ * 4.5:1 on the common ground of its kind (LIGHT_GROUND, DARK_GROUND in
+ * themes/), so a colour well clear of the bar keeps its hue rather than
+ * drifting to the one corner that lies further out (Crate's blue highlight to
+ * cyan on a dark terminal).
+ */
+const ROUNDING_SLACK = 7.5;
+
+/** The six levels of each channel in the 256-colour cube. */
+const CUBE = [0, 95, 135, 175, 215, 255];
+
+/** A colour in OKLab, where distance follows what the eye sees: a green is nearer another green than a grey of its lightness. */
+function oklab(rgb: Rgb): [number, number, number] {
+  const [r, g, b] = rgb.map(toLinear) as [number, number, number];
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
+}
+
+/** Every colour from 16 up: the cube, then the 24 greys, measured once. */
+const XTERM = Array.from({ length: 240 }, (_, i) => {
+  const color: Rgb = i < 216 ? [CUBE[Math.floor(i / 36)]!, CUBE[Math.floor(i / 6) % 6]!, CUBE[i % 6]!] : [8 + 10 * (i - 216), 8 + 10 * (i - 216), 8 + 10 * (i - 216)];
+  return { index: 16 + i, color, lum: lum(color), lab: oklab(color) };
+});
+
+/** Rounded colours, by colour and background: a frame asks for the same few hundreds of times. */
+const ROUNDED = new Map<string, number>();
+
+/**
+ * The 256-colour palette's nearest colour to this one by eye (OKLab), rounded
+ * away from the background: the closest that is no nearer the background in
+ * luminance, or that keeps ROUNDING_SLACK on it. Plain rounding to the nearest
+ * can land on a lighter colour on a light terminal (Overworld's faint went
+ * from 4.6:1 to 3.8:1), and macOS Terminal draws 256 colours on white by
+ * default. Rounded this way, a colour that clears the bar in truecolour clears
+ * it here too, and keeps its hue where the palette has one dark (or light)
+ * enough, and losing colour costs extra: a green stays green, a grey stays grey. Nobody's brand guidelines
+ * were consulted, only their luminance.
+ */
+function to256(rgb: Rgb, bg: Rgb): number {
+  const key = `${rgb.join(',')}/${bg.join(',')}`;
+  const known = ROUNDED.get(key);
+  if (known !== undefined) return known;
+  const [own, ground] = [lum(rgb), lum(bg)];
+  const darker = ground > own;
+  const ratio = (l: number) => (Math.max(l, ground) + 0.05) / (Math.min(l, ground) + 0.05);
+  const [L, A, B] = oklab(rgb);
+  const chroma = Math.hypot(A, B);
+  let best = { index: 16, distance: Infinity };
+  for (const c of XTERM) {
+    if ((darker ? c.lum > own : c.lum < own) && ratio(c.lum) < ROUNDING_SLACK) continue;
+    // Lightness counts half, since the filter above already looks after contrast, and colour lost counts
+    // twice: a green heading is better as a darker green than as an olive or a grey of its lightness.
+    const faded = Math.max(0, chroma - Math.hypot(c.lab[1], c.lab[2]));
+    const distance = ((c.lab[0] - L) / 2) ** 2 + (c.lab[1] - A) ** 2 + (c.lab[2] - B) ** 2 + faded ** 2;
+    if (distance < best.distance) best = { index: c.index, distance };
+  }
+  // Black (or white) is always no nearer the background, so something always qualifies.
+  ROUNDED.set(key, best.index);
+  return best.index;
 }
 
 function to16(r: number, g: number, b: number): number {
@@ -290,6 +350,8 @@ export const cursor = {
 export interface Cell {
   ch: string;
   color?: Rgb;
+  /** Drawn bold at 256 colours and up, as the game's player is, so it stands out from walls of nearly the same ink on a light terminal. */
+  bold?: boolean;
 }
 
 export const blank = (width: number): Cell[] => Array.from({ length: width }, () => ({ ch: ' ' }));
@@ -304,13 +366,18 @@ export function renderCells(cells: Cell[], caps: Pick<TermCaps, 'colorDepth'>): 
   if (caps.colorDepth === 1) return cells.map((c) => c.ch).join('');
   let out = '';
   let open: Rgb | undefined;
+  let heavy = false;
   const same = (a?: Rgb, b?: Rgb) => a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1] && a[2] === b[2]);
   for (const cell of cells) {
     const color = cell.ch === ' ' ? undefined : cell.color;
-    if (!same(color, open)) {
+    // Not at 16 colours: many terminals draw bold black as bright black, the walls' own grey there.
+    const bold = !!color && cell.bold === true && caps.colorDepth >= 8;
+    if (!same(color, open) || bold !== heavy) {
       if (open) out += '\x1b[0m';
+      if (bold) out += '\x1b[1m';
       if (color) out += fg(caps, color);
       open = color;
+      heavy = bold;
     }
     out += cell.ch;
   }

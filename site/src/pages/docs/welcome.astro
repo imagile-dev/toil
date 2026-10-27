@@ -240,8 +240,8 @@ const keys = [
           <p>
             The splash animates in Windows Terminal, macOS Terminal and Linux terminals. The legacy Windows console host, <code>NO_COLOR</code>,
             reduced motion (<code>TOIL_REDUCED_MOTION</code>, or its older name <code>TOIL_NO_ANIMATION</code>), <code>TERM=dumb</code> and a window smaller than 40 by 12 get the still frame. Where Unicode isn't safe, the
-            legacy console host or <code>TOIL_ASCII</code>, everything is drawn in plain ASCII. A terminal with 256 or 16 colours gets the theme's
-            nearest, the older console host included. Long lists scroll on a short window; on a narrow one, text
+            legacy console host or <code>TOIL_ASCII</code>, everything is drawn in plain ASCII. A terminal with 256 colours gets the closest colour that
+            reads no worse on its background; one with 16 gets the nearest of the terminal's own, the older console host included. Long lists scroll on a short window; on a narrow one, text
             wraps and table rows are cut at the edge rather than wrapping into each other.
           </p>
           <div class="table-wrap" tabindex="0" role="region" aria-label="Keys">
