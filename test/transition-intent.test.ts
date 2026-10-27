@@ -5,7 +5,7 @@ import { execute } from '../src/core/run.js';
 import { adoMoves, resolveTransition, type TransitionCandidate } from '../src/core/transition-intent.js';
 import { areas, commands } from '../src/registry.js';
 import { config as adoConfig, ADO } from './fixtures/ado.fixture.js';
-import { config as adoCloudConfig, ORG_URL } from './fixtures/ado-cloud.fixture.js';
+import { config as adoCloudConfig, ORG_URL } from './fixtures/ado-cloud-data.js';
 import { config as jiraCloudConfig, SITE } from './fixtures/jira-cloud-data.js';
 import { config as jiraConfig, JIRA } from './fixtures/jira.fixture.js';
 import { testContext } from './harness/context.js';
@@ -207,8 +207,8 @@ const SCRUM_PBI = [
 const workItem = (id: number, type: string, state: string, project = 'Imagile') => ({ id, rev: 3, fields: { 'System.WorkItemType': type, 'System.State': state, 'System.TeamProject': project }, url: `${ADO}/_apis/wit/workItems/${id}` });
 
 for (const variant of [
-  { area: 'ado', items: `${ADO}/DefaultCollection/_apis/wit/workitems`, types: (p: string) => `${ADO}/DefaultCollection/${p}/_apis/wit/workitemtypes`, version: '7.1', input: { collection: 'DefaultCollection', project: 'Imagile' }, config: adoConfig },
-  { area: 'ado-cloud', items: `${ORG_URL}/_apis/wit/workitems`, types: (p: string) => `${ORG_URL}/${p}/_apis/wit/workitemtypes`, version: '7.1', input: {}, config: adoCloudConfig },
+  { label: 'ado', area: 'ado', items: `${ADO}/DefaultCollection/_apis/wit/workitems`, types: (p: string) => `${ADO}/DefaultCollection/${p}/_apis/wit/workitemtypes`, version: '7.1', input: { collection: 'DefaultCollection', project: 'Imagile' }, config: adoConfig },
+  { label: 'ado on Services', area: 'ado', cloud: true, items: `${ORG_URL}/_apis/wit/workitems`, types: (p: string) => `${ORG_URL}/${p}/_apis/wit/workitemtypes`, version: '7.1', input: {}, config: adoCloudConfig },
 ] as const) {
   const routesFor = (item: ReturnType<typeof workItem>, states: typeof AGILE_STORY): Route[] => [
     { path: new URL(`${variant.items}/${item.id}`).pathname, query: { 'api-version': variant.version, fields: 'System.WorkItemType,System.State,System.TeamProject' }, respond: { json: item } },
@@ -216,9 +216,9 @@ for (const variant of [
     { method: 'PATCH', path: new URL(`${variant.items}/${item.id}`).pathname, respond: (r) => ({ json: { ...item, rev: 4, fields: { ...item.fields, 'System.State': (JSON.parse(r.body!) as Array<{ value: string }>)[0]!.value } } }) },
   ];
   const transition = (input: Record<string, unknown>, item: ReturnType<typeof workItem>, states: typeof AGILE_STORY, dossier?: Record<string, unknown>) =>
-    run(`${variant.area} work-item transition`, { ...variant.input, id: variant.area === 'ado' ? String(item.id) : item.id, ...write, ...input }, routesFor(item, states), variant.config, dossier);
+    run(`${variant.area} work-item transition`, { ...variant.input, id: 'cloud' in variant ? item.id : String(item.id), ...write, ...input }, routesFor(item, states), variant.config, dossier);
 
-  describe(`${variant.area} work-item transition --to`, () => {
+  describe(`${variant.label} work-item transition --to`, () => {
     it('review on an Agile User Story lands in Resolved, by state category, reading the type in its own project', async () => {
       const story = workItem(42, 'User Story', 'Active', 'Payments');
       const { envelope, calls } = await transition({ to: 'review' }, story, AGILE_STORY);

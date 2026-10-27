@@ -5,8 +5,8 @@
 //   node ui/scripts/ado-seed/apply.mjs --project "<project>"
 //   node ui/scripts/ado-seed/apply.mjs --project "<project>" --no-backdate --identity marker
 //
-// The organization and token come from TOIL_ADO_CLOUD_BASE_URL and
-// TOIL_ADO_CLOUD_PAT; the project must be named. Run it again and it creates
+// The organization and token come from TOIL_ADO_BASE_URL and
+// TOIL_ADO_PAT; the project must be named. Run it again and it creates
 // only what is missing: each item is found by its seed key (ado.mjs says
 // how), and one left half-made by an earlier run is walked on to its last
 // state and sprint. Links already there are left alone.

@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { adoCloudArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { adoArea } from '../area.js';
 import { adoc, enc, projectPath, type AdoCloudContext } from './client.js';
 import { at } from './work.js';
 
@@ -41,7 +41,7 @@ async function teamPath(ctx: AdoCloudContext): Promise<string> {
       });
     }
     // meta.context lists only the inputs that resolved, so say which team was read.
-    ctx.warn({ code: 'ADO_CLOUD_DEFAULT_TEAM', message: `No team given, so this read the project's default team, "${project.defaultTeam?.name ?? name}" (${name}). Pass --team to read another.` });
+    ctx.warn({ code: 'ADO_DEFAULT_TEAM', message: `No team given, so this read the project's default team, "${project.defaultTeam?.name ?? name}" (${name}). Pass --team to read another.` });
   }
   return `${projectPath(ctx)}/${enc(name)}`;
 }
@@ -56,8 +56,8 @@ interface TeamIteration {
   [key: string]: unknown;
 }
 
-export const sprintListCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'sprint', 'list'],
+export const sprintListCommand = adoArea.command({
+  path: ['ado', 'sprint', 'list'],
   description: "List the team's sprints, with which one is current",
   toolDescription:
     "Lists the sprints (iterations) the team has selected, in the team's order: id, name, path and attributes { startDate, finishDate, timeFrame }. timeFrame (past, current or future) is the team settings' own word for where each sprint stands, set even when the sprint has no dates, so this is how to find the current sprint. state keeps only the time frames named (state: current for the current sprint). Without team, the project's default team.",
@@ -78,11 +78,11 @@ export const sprintListCommand = adoCloudArea.command({
 
 const sprintId = { name: 'id', field: 'id', description: 'Sprint (team iteration) id, from sprint list' };
 
-export const sprintItemsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'sprint', 'items'],
+export const sprintItemsCommand = adoArea.command({
+  path: ['ado', 'sprint', 'items'],
   description: 'List the work items in one of the team\'s sprints',
   toolDescription:
-    "Returns the work items in a team sprint as the server sends them: workItemRelations, each { rel, source, target: { id, url } }. A top-level item has rel and source null; a child under its parent has rel System.LinkTypes.Hierarchy-Forward and the parent as source. Ids only: fetch fields with ado_cloud_work_item_get_many. id is the sprint's id from ado_cloud_sprint_list. Without team, the project's default team.",
+    "Returns the work items in a team sprint as the server sends them: workItemRelations, each { rel, source, target: { id, url } }. A top-level item has rel and source null; a child under its parent has rel System.LinkTypes.Hierarchy-Forward and the parent as source. Ids only: fetch fields with ado_work_item_get_many. id is the sprint's id from ado_sprint_list. Without team, the project's default team.",
   input: z.object({ id: z.string().min(1).describe(sprintId.description) }),
   writes: false,
   context: IN_TEAM,
@@ -91,11 +91,11 @@ export const sprintItemsCommand = adoCloudArea.command({
   run: async (input, ctx) => adoc(ctx, `${await teamPath(ctx)}/_apis/work/teamsettings/iterations/${enc(input.id)}/workitems`),
 });
 
-export const backlogListCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'backlog', 'list'],
+export const backlogListCommand = adoArea.command({
+  path: ['ado', 'backlog', 'list'],
   description: "List the team's backlog levels",
   toolDescription:
-    "Lists the team's backlog levels (Epics, Features, the requirement backlog, the task level) as the server sends them: id (the category reference name, such as Microsoft.RequirementCategory, which ado_cloud_backlog_items takes), name, rank, type, workItemTypes, defaultWorkItemType, columnFields and isHidden. Without team, the project's default team.",
+    "Lists the team's backlog levels (Epics, Features, the requirement backlog, the task level) as the server sends them: id (the category reference name, such as Microsoft.RequirementCategory, which ado_backlog_items takes), name, rank, type, workItemTypes, defaultWorkItemType, columnFields and isHidden. Without team, the project's default team.",
   input: z.object({}),
   writes: false,
   context: IN_TEAM,
@@ -105,11 +105,11 @@ export const backlogListCommand = adoCloudArea.command({
 
 const backlogId = { name: 'id', field: 'id', description: 'Backlog level id, from backlog list (e.g. Microsoft.RequirementCategory)' };
 
-export const backlogItemsCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'backlog', 'items'],
+export const backlogItemsCommand = adoArea.command({
+  path: ['ado', 'backlog', 'items'],
   description: 'List the work items on one backlog level, in backlog order',
   toolDescription:
-    "Returns the work items on one of the team's backlog levels, in backlog (priority) order, as the server sends them: workItems, each { rel, source, target: { id } }. Ids only: fetch fields with ado_cloud_work_item_get_many. id is the level's id from ado_cloud_backlog_list, such as Microsoft.RequirementCategory. Without team, the project's default team.",
+    "Returns the work items on one of the team's backlog levels, in backlog (priority) order, as the server sends them: workItems, each { rel, source, target: { id } }. Ids only: fetch fields with ado_work_item_get_many. id is the level's id from ado_backlog_list, such as Microsoft.RequirementCategory. Without team, the project's default team.",
   input: z.object({ id: z.string().min(1).describe(backlogId.description) }),
   writes: false,
   context: IN_TEAM,
@@ -118,10 +118,10 @@ export const backlogItemsCommand = adoCloudArea.command({
   run: async (input, ctx) => adoc(ctx, `${await teamPath(ctx)}/_apis/work/backlogs/${enc(input.id)}/workItems`),
 });
 
-export const boardListCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'board', 'list'],
+export const boardListCommand = adoArea.command({
+  path: ['ado', 'board', 'list'],
   description: "List the team's boards",
-  toolDescription: "Lists the team's boards, one per backlog level: id, name, url. ado_cloud_board_get takes the id or the name. Without team, the project's default team.",
+  toolDescription: "Lists the team's boards, one per backlog level: id, name, url. ado_board_get takes the id or the name. Without team, the project's default team.",
   input: z.object({}),
   writes: false,
   context: IN_TEAM,
@@ -131,8 +131,8 @@ export const boardListCommand = adoCloudArea.command({
 
 const boardId = { name: 'id', field: 'id', description: 'Board id or name, from board list (e.g. "Backlog items")' };
 
-export const boardGetCommand = adoCloudArea.command({
-  path: ['ado-cloud', 'board', 'get'],
+export const boardGetCommand = adoArea.command({
+  path: ['ado', 'board', 'get'],
   description: 'Get a board, with its columns and the state each holds',
   toolDescription:
     "Returns one of the team's boards as the server sends it: columns, each { id, name, itemLimit, columnType (incoming, inProgress, outgoing), stateMappings: { <work item type>: <state> }, isSplit }, rows (swimlanes), allowedMappings, and fields (the board's own column, lane and done fields). Columns are named by the team, so stateMappings is how a state maps to a column. id is the board's id or name. Without team, the project's default team.",

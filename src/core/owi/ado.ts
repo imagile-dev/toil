@@ -29,7 +29,7 @@ export const ADO_HOURS_FIELD = 'Microsoft.VSTS.Scheduling.OriginalEstimate';
  * the table had missed it, as tables do. Resolved behaves like In Progress on boards,
  * so it is IN_PROGRESS here; Removed is out of the work, so DONE, with the
  * reason as its resolution. A custom state isn't here and is UNKNOWN, with a
- * warning: `ado work-item states` (or `ado-cloud work-item states`) shows its category.
+ * warning: `ado work-item states` shows its category.
  */
 export const ADO_STATES: Record<string, StatusCategory> = {
   New: 'TODO',

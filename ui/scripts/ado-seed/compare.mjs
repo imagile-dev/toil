@@ -1,9 +1,9 @@
 // Compares what `toil util owi map` made of the board with items.owi.json, the
 // file the board was seeded from, and prints every difference:
 //
-//   toil ado-cloud work-item iterations --project "<project>"            >  board.jsonl
-//   toil ado-cloud work-item get-many <ids…>                             >> board.jsonl
-//   toil ado-cloud work-item history <id>   (once per id)                >> board.jsonl
+//   toil ado work-item iterations --project "<project>"            >  board.jsonl
+//   toil ado work-item get-many <ids…>                             >> board.jsonl
+//   toil ado work-item history <id>   (once per id)                >> board.jsonl
 //   toil util owi map board.jsonl > mapped.json
 //   node ui/scripts/ado-seed/compare.mjs mapped.json --project "<project>"
 //

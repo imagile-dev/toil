@@ -15,7 +15,7 @@ export const SOURCE_LABEL: Record<SourceKind, string> = {
   openshift: 'OpenShift',
 };
 
-/** `ado-cloud` reads as Azure DevOps: the family is what a person recognises. */
+/** An area reads as its family's name (the first word of the area), which is what a person recognises. */
 export function sourceLabel(area: string): string {
   const family = area.split('-')[0] as SourceKind;
   return SOURCE_LABEL[family] ?? area;

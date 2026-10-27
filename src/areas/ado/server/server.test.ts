@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { runCli } from '../../../test/harness/cli.js';
-import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
-import { ADO, ATTACHMENT, COLL, config as fixtureConfig, files as fixtureFiles, ME, PROJ, pr, prCommit, prStatus, REPO, routes, SHA, threads, workItem, build } from '../../../test/fixtures/ado.fixture.js';
-import { commandName, type AnyCommand } from '../../core/command.js';
-import type { Context } from '../../core/context.js';
-import { execute } from '../../core/run.js';
-import { commands } from './index.js';
+import { runCli } from '../../../../test/harness/cli.js';
+import { testContext } from '../../../../test/harness/context.js';
+import type { Route } from '../../../../test/harness/fake-fetch.js';
+import { ADO, ATTACHMENT, COLL, config as fixtureConfig, files as fixtureFiles, ME, PROJ, pr, prCommit, prStatus, REPO, routes, SHA, threads, workItem, build } from '../../../../test/fixtures/ado.fixture.js';
+import { commandName, type AnyCommand } from '../../../core/command.js';
+import type { Context } from '../../../core/context.js';
+import { execute } from '../../../core/run.js';
+import { commands } from '../index.js';
 
 /**
  * The exact requests toil sends to Azure DevOps Server and what it makes of
@@ -229,6 +229,15 @@ describe('work items', () => {
     ]);
   });
 
+  it('work-item create takes a numeric priority (the widened schema) and sends it as the text "2"', async () => {
+    const { calls, envelope } = await run('work-item create', { ...W, type: 'Bug', title: 'T', priority: 2 });
+    expect(envelope.ok).toBe(true);
+    expect(body(calls[0]!)).toEqual([
+      { op: 'add', path: '/fields/System.Title', value: 'T' },
+      { op: 'add', path: '/fields/Microsoft.VSTS.Common.Priority', value: '2' },
+    ]);
+  });
+
   it('work-item create reads --input-file with @file values; flags win with a warning', async () => {
     const { calls, envelope } = await run('work-item create', { ...W, inputFile: 'work-item.json', title: 'Flag' });
     expect(calls[0]!.url).toContain('/workitems/%24Task?');
@@ -399,6 +408,11 @@ describe('pull requests', () => {
   it('pr update treats any --draft but "true" as false, and sends reviewers in the PATCH (#69 item 9)', async () => {
     const { calls } = await run('pr update', { ...W, id: '42', draft: 'yes', reviewers: 'a' });
     expect(body(calls[0]!)).toEqual({ reviewers: [{ id: 'a' }], isDraft: false });
+  });
+
+  it('pr update takes a boolean --draft (the widened schema) and sends isDraft: true', async () => {
+    const { calls } = await run('pr update', { ...W, id: '42', draft: true });
+    expect(body(calls[0]!)).toEqual({ isDraft: true });
   });
 
   it('pr merge reads the PR, then completes it with its last merge source commit, or "" without one', async () => {

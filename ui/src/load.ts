@@ -22,6 +22,7 @@
  */
 
 import { adoBuilds, adoDeployments, byEnvironment, changeRef, githubBuild, jenkinsBuilds, openshiftDeployments } from './model/delivery.ts';
+import { splitChangelogs } from './jira-changelog.ts';
 import { LOOKBACK_DAYS } from './model/flow.ts';
 import { readPeople, type PersonEntry } from './model/people.ts';
 import { readReadiness, type ReadinessSettings } from './model/readiness.ts';
@@ -47,8 +48,8 @@ export const DEFAULT_WINDOW_DAYS = windowFor(30);
  * only to be pruned.
  */
 export const JQL = (project: string, windowDays: number = DEFAULT_WINDOW_DAYS) => `project = ${project} AND (statusCategory != Done OR updated >= -${windowDays}d) ORDER BY Rank ASC`;
-/** The areas that read Azure DevOps work items: Server and Services. */
-export const ADO_AREAS = ['ado', 'ado-cloud'] as const;
+/** The areas that read Azure DevOps work items: one, whose connection is Server or Services, both sending the same work item shapes. */
+export const ADO_AREAS = ['ado'] as const;
 /** The areas that read Jira work items: one, whose connection is Data Center or Cloud, both sending the same issue shapes. */
 export const JIRA_AREAS = ['jira'] as const;
 /**
@@ -154,7 +155,7 @@ export class CallFailed extends Error {
 }
 
 interface ShowArea {
-  connection: { value: string } | null;
+  connection: { value: string; deployment?: string } | null;
   inputs: Record<string, string>;
 }
 
@@ -204,7 +205,6 @@ export const PR_INCLUDE = 'reviews,checks,commits,files';
 export const PR_HOSTS = [
   { area: 'bitbucket', all: 'ALL', id: 'id' },
   { area: 'ado', all: 'all', id: 'id' },
-  { area: 'ado-cloud', all: 'all', id: 'id' },
   { area: 'github', all: 'all', id: 'number' },
 ] as const;
 
@@ -318,17 +318,19 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
 
   // Work items, mapped to OWI ---------------------------------------------------------
   // Each area is mapped on its own, with its own section's OWI fields.
-  const work: Record<(typeof JIRA_AREAS)[number] | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], ado: [], 'ado-cloud': [], github: [] };
+  const work: Record<(typeof JIRA_AREAS)[number] | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], ado: [], github: [] };
   const tasks: Array<Promise<void>> = [];
   for (const jira of JIRA_AREAS.filter((a) => areas[a]?.inputs.project)) {
     tasks.push((async () => {
-      const search = await run('work', `${jira} issue search`, { ...base, jql: JQL(areas[jira]!.inputs.project!, options.windowDays) });
-      if (!search) return;
+      // The search brings each issue's history with it (toil's --changelog); only an issue whose changelog came back short is read with a call of its own.
+      const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(areas[jira]!.inputs.project!, options.windowDays), changelog: true });
+      if (!asked) return;
+      const { search, histories: inline, incomplete } = splitChangelogs(asked, `${jira} issue history`);
       work[jira].push(search);
-      const keys = recs((search.data as Rec).issues).map((i) => String(i.key));
-      const histories = await runEach('work', `${jira} issue history`, keys.map((key) => ({ ...base, key })));
+      for (const { key, history } of inline) work[jira].push({ key, history });
+      const histories = await runEach('work', `${jira} issue history`, incomplete.map((key) => ({ ...base, key })));
       histories.forEach((history, n) => {
-        if (history) work[jira].push({ key: keys[n]!, history });
+        if (history) work[jira].push({ key: incomplete[n]!, history });
       });
     })());
   }
@@ -447,23 +449,23 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       }
     }
   }
-  if (areas.ado) {
+  // Azure DevOps Services has no pipeline commands yet, and reads its pull requests only when the dossier names a repository (Server also reads the remote).
+  const onServices = areas.ado?.connection?.deployment === 'cloud';
+  if (areas.ado && !(onServices && !areas.ado.inputs.repo)) {
     const prs = refs((await readPrs(PR_HOSTS[1])).prs);
     changes.push(...prs);
     const connection = prs[0]?.change?.source.connection ?? areas.ado.connection?.value ?? 'ado';
-    for (const pipeline of strings(section('ado').builds)) {
+    for (const pipeline of onServices ? [] : strings(section('ado').builds)) {
       const runs = await run('builds', 'ado run list', { ...base, name: pipeline, top: 20 });
       if (runs) changes.push(...adoBuilds(runs.data, connectionOf(runs, connection), prs));
     }
-    for (const pipeline of strings(section('ado').deployments)) {
+    for (const pipeline of onServices ? [] : strings(section('ado').deployments)) {
       const runs = await run('deployments', 'ado run list', { ...base, name: pipeline, top: 20 });
       if (runs) deployments.push(...adoDeployments(runs.data, connectionOf(runs, connection), prs));
     }
   }
-  // Azure DevOps Services: its pull requests when the dossier names a repository. It has no pipeline commands yet.
-  if (areas['ado-cloud']?.inputs.repo) changes.push(...refs((await readPrs(PR_HOSTS[2])).prs));
   if (areas.github) {
-    const { prs, gets } = await readPrs(PR_HOSTS[3]);
+    const { prs, gets } = await readPrs(PR_HOSTS[2]);
     const github = refs(prs);
     changes.push(...github);
     // A head's check runs came with its get: one build per pull request read in full, so the gets fed the builds too.

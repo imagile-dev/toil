@@ -135,21 +135,18 @@ const recs = (v: unknown): Rec[] => (Array.isArray(v) ? v.filter(isRec) : []);
 const SEARCHES: Record<string, { list: string | null; id: (r: Rec) => string; reconcile: boolean }> = {
   'jira issue search': { list: 'issues', id: (r) => String(r.key), reconcile: true },
   'ado work-item search': { list: 'workItems', id: (r) => String(r.id), reconcile: true },
-  'ado-cloud work-item search': { list: 'workItems', id: (r) => String(r.id), reconcile: true },
   // Not reconciled: it has no window, so a whole listing would read every issue the repository ever had, every day.
   'github issue list': { list: null, id: (r) => String(r.number), reconcile: false },
 };
 /** A batch get by ids: the input field holding them, and where the answer lists the items. */
 const BATCHES: Record<string, { field: string; list: string; id: (r: Rec) => string }> = {
   'ado work-item get-many': { field: 'id', list: 'value', id: (r) => String(r.id) },
-  'ado-cloud work-item get-many': { field: 'id', list: 'value', id: (r) => String(r.id) },
   'github issue get': { field: 'number', list: 'issues', id: (r) => String(r.number) },
 };
 /** One item's history: the input field naming the item. */
 const HISTORIES: Record<string, string> = {
   'jira issue history': 'key',
   'ado work-item history': 'id',
-  'ado-cloud work-item history': 'id',
   'github issue history': 'number',
 };
 const BOARD = 'github project items';
@@ -162,10 +159,9 @@ const PR_LISTS: Record<string, (r: Rec) => string> = {
   'github pr list': (r) => String(r.number),
   'bitbucket pr list': (r) => String(r.id),
   'ado pr list': (r) => String(r.pullRequestId),
-  'ado-cloud pr list': (r) => String(r.pullRequestId),
 };
 /** Each host's pull request get, and the input field naming the pull request. */
-const PR_GETS: Record<string, string> = { 'github pr get': 'number', 'bitbucket pr get': 'id', 'ado pr get': 'id', 'ado-cloud pr get': 'id' };
+const PR_GETS: Record<string, string> = { 'github pr get': 'number', 'bitbucket pr get': 'id', 'ado pr get': 'id' };
 /** A pull request record that is merged, declined or abandoned, by whichever host's words it uses. */
 const closedPr = (data: unknown) => isRec(data) && (data.state === 'closed' || ['MERGED', 'DECLINED', 'SUPERSEDED'].includes(String(data.state)) || data.status === 'completed' || data.status === 'abandoned');
 
@@ -174,7 +170,11 @@ const reusedEnvelopes = new WeakSet<object>();
 const reuse = (env: Envelope): Envelope => (reusedEnvelopes.add(env), env);
 
 /** The same search asking for ids only, where the command can: a listing to reconcile with, not to read. */
-const idsOnly = (command: string, input: Rec): Rec => (command.endsWith('issue search') ? { ...input, fields: 'key' } : input);
+const idsOnly = (command: string, input: Rec): Rec => {
+  if (!command.endsWith('issue search')) return input;
+  // Ids only means no histories either: the reconcile lists the project, it doesn't read it.
+  return { ...Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'changelog')), fields: 'key' };
+};
 
 /** Two pages of one listing as one answer: lists concatenated, the rest from the newer page. */
 export function joinPages(a: unknown, b: unknown): unknown {

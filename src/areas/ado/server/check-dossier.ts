@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { checkEach, dossierCheckResult, dossierToCheck, exists, uncheckedScopes, type DossierCheck, type Unchecked } from '../../core/check-dossier.js';
-import { viewScopes, viewValues } from '../../core/dossier.js';
-import { adoArea } from './area.js';
+import { checkEach, dossierCheckResult, dossierToCheck, exists, uncheckedScopes, type DossierCheck, type Unchecked } from '../../../core/check-dossier.js';
+import { viewScopes, viewValues } from '../../../core/dossier.js';
+import { adoArea } from '../area.js';
 import { ado, API } from './client.js';
 
 /**

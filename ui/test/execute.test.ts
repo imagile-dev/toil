@@ -17,7 +17,7 @@ const read = { readOnly: true, caller: 'toil-ui' };
 describe('the fixture execute()', () => {
   it('answers a canned call with its envelope, dossier context included', async () => {
     const { execute } = fixtureExecute();
-    const env = await execute('jira issue search', { jql: JQL('PAY'), dossier: 'card-payments' }, read);
+    const env = await execute('jira issue search', { jql: JQL('PAY'), changelog: true, dossier: 'card-payments' }, read);
     expect(env.ok).toBe(true);
     expect(env.meta.command).toBe('jira issue search');
     expect(env.meta.contractVersion).toBe(1);

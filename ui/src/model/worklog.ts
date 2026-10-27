@@ -75,7 +75,7 @@ export interface WorklogEvent {
   at: string;
   /** The OWI id of the item or pull request, or the build or deployment id, the line is about. */
   subject: string;
-  /** The area it came from (`github`, `jira`, `ado-cloud`). */
+  /** The area it came from (`github`, `jira`, `ado`). */
   source: string;
   label: string;
   title: string;

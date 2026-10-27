@@ -22,10 +22,10 @@ type Areas = Record<string, { inputs?: Record<string, unknown> }>;
 /** The most open pull requests read in full; a dossier with more is briefed on these, and says so. */
 export const MAX_PR_READS = 20;
 
-const isJira = (area: string) => area === 'jira' || area.startsWith('jira-');
-const codeHosts = (area: string) => area === 'github' || area === 'bitbucket' || area === 'ado' || area === 'ado-cloud';
+const isJira = (area: string) => area === 'jira';
+const codeHosts = (area: string) => area === 'github' || area === 'bitbucket' || area === 'ado';
 /** Each code host's word for an open pull request, as its `pr list --state` takes it. */
-const OPEN: Record<string, string> = { github: 'open', bitbucket: 'OPEN', ado: 'active', 'ado-cloud': 'active' };
+const OPEN: Record<string, string> = { github: 'open', bitbucket: 'OPEN', ado: 'active' };
 
 /** The first run: each tracker's issues, each code host's open pull requests, and each Azure DevOps project's work item ids (a WIQL search; their fields come from one get-many in the next run). */
 export function readSteps(dossier: string, areas: Areas): { steps: Step[] } {
@@ -37,7 +37,7 @@ export function readSteps(dossier: string, areas: Areas): { steps: Step[] } {
     }
     if (area === 'github' && typeof inputs.repo === 'string') steps.push({ args: ['github', 'issue', 'list', '--dossier', dossier, '--state', 'all'], label: `${String(inputs.owner ?? '')}/${inputs.repo}'s issues` });
     if (codeHosts(area) && typeof inputs.repo === 'string') steps.push({ args: [area, 'pr', 'list', '--dossier', dossier, '--state', OPEN[area]!], label: `${area}'s open pull requests` });
-    if (area.startsWith('ado') && inputs.project) steps.push({ args: [area, 'work-item', 'search', '--dossier', dossier, '--wiql', WIQL], label: `${String(inputs.project)}'s work items` });
+    if (area === 'ado' && inputs.project) steps.push({ args: [area, 'work-item', 'search', '--dossier', dossier, '--wiql', WIQL], label: `${String(inputs.project)}'s work items` });
   }
   return { steps };
 }

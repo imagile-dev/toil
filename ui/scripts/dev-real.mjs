@@ -15,9 +15,9 @@
 //
 // With --source ado it reads an Azure DevOps Services board instead (one the
 // seed in ui/scripts/ado-seed/ filled, or any other): the dossier `ado-board`
-// on the ado-cloud connection toil makes from TOIL_ADO_CLOUD_BASE_URL and
-// TOIL_ADO_CLOUD_PAT, which go into toil-ui's environment and nowhere else.
-// --project, else TOIL_ADO_CLOUD_PROJECT, names the project; the dossier file
+// on the ado connection (deployment cloud) toil makes from TOIL_ADO_BASE_URL and
+// TOIL_ADO_PAT, which go into toil-ui's environment and nowhere else.
+// --project, else TOIL_ADO_PROJECT, names the project; the dossier file
 // in the scratch home holds it.
 //
 // Toil UI, and the toil that makes the dossiers, run on toil built from this
@@ -52,7 +52,7 @@ function fail(message, fix) {
 }
 
 const source = take('--source', 'github');
-const project = take('--project', process.env.TOIL_ADO_CLOUD_PROJECT);
+const project = take('--project', process.env.TOIL_ADO_PROJECT);
 const repo = take('--repo', 'imagile-dev/toil-sandbox');
 const home = resolve(take('--home', join(root, '.scratch', 'home')));
 const port = take('--port', '0');
@@ -61,7 +61,7 @@ if (args.length) fail(`Unknown argument: ${args.join(' ')}`, 'Use --source githu
 if (!['github', 'ado'].includes(source)) fail(`--source ${source} isn't github or ado.`, 'Pass --source github (the default) or --source ado.');
 const ado = source === 'ado';
 const adoMissing = ado ? adoProblem(process.env, project) : null;
-if (adoMissing) fail(`--source ado can't start: ${adoMissing}.`, 'Set TOIL_ADO_CLOUD_BASE_URL and TOIL_ADO_CLOUD_PAT in this shell, and pass --project.');
+if (adoMissing) fail(`--source ado can't start: ${adoMissing}.`, 'Set TOIL_ADO_BASE_URL and TOIL_ADO_PAT in this shell, and pass --project.');
 if (!existsSync(toilUi)) fail(`${toilUi} isn't built.`, 'Run npm run build -w ui first.');
 
 // The token: in this process's memory and toil-ui's environment, nowhere else.

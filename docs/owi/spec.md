@@ -35,7 +35,7 @@ work item alone can't show it.
 |-------|------|---------|
 | `owi` | `"0.2"` | The OWI version of this record (`"0.1"` on one written before 0.2) |
 | `id` | string | `<connection>:<native key>`: the toil connection, then the source's key. `corp-jira:PAY-101`, `corp-ado:2302`, `github:imagile/payments-web#41` |
-| `source` | object | `{ area, connection, key, command, deployment? }`: the toil area, the connection, the native key, the command whose output was mapped, and for an area with more than one deployment (`jira`, `bitbucket`: `server` or `cloud`) which one the connection is, when the envelope's `meta.context` says |
+| `source` | object | `{ area, connection, key, command, deployment? }`: the toil area, the connection, the native key, the command whose output was mapped, and for an area with more than one deployment (`jira`, `bitbucket`, `ado`: `server` or `cloud`) which one the connection is, when the envelope's `meta.context` says |
 | `url` | string or null | The item in the source's web UI |
 | `type` | enum | `EPIC`, `STORY`, `TASK`, `BUG`, `INCIDENT` or `OTHER` |
 | `typeName` | string or null | The source's own word for the type (Product Backlog Item, Sub-task, Feature). Show it beside `type` |
@@ -79,10 +79,10 @@ The commands whose output maps, and what each gives:
 | Area | Items | History | Context |
 |------|-------|---------|---------|
 | `jira` (Data Center and Cloud) | `jira issue search`, `jira issue get` | `jira issue history` | |
-| `ado`, `ado-cloud` | `ado work-item get`, `ado work-item get-many`, `ado-cloud work-item get`, `ado-cloud work-item get-many` | `ado work-item history`, `ado-cloud work-item history` | `ado work-item iterations`, `ado-cloud work-item iterations` (iteration dates) |
+| `ado` (Server and Services) | `ado work-item get`, `ado work-item get-many` | `ado work-item history` | `ado work-item iterations` (iteration dates) |
 | `github` | `github issue list`, `github issue search`, `github issue get`, `github project items` | `github issue history` | |
 
-`ado work-item search` and `ado-cloud work-item search` return ids only, so they are skipped
+`ado work-item search` returns ids only, so they are skipped
 with a pointer to `work-item get-many`. Pull requests in GitHub's issue lists and on boards are
 left out of the items, with a warning: an issue list holds too little of a pull request to
 map it as a change, so map `github pr list` or `github pr get` for those (**The change**,
@@ -111,7 +111,7 @@ below). Any other command's output is refused.
 
 ### Azure DevOps (Server and Services)
 
-`ado` (Azure DevOps Server) and `ado-cloud` (Azure DevOps Services) send the same
+`ado` serves Azure DevOps Server and Azure DevOps Services, which send the same
 work item, revision and classification-node shapes, so one mapper reads both. Where
 Services differs, the mapping already holds:
 
@@ -131,7 +131,7 @@ Services differs, the mapping already holds:
   Feature and Task), Doing, Committed, Open and Resolved are `IN_PROGRESS`
   (Resolved behaves as in progress on boards); Closed
   and Done are `DONE`; Removed is `DONE` with its reason as `resolution`. A custom
-  state is `UNKNOWN`; `ado work-item states` (`ado-cloud work-item states` on Services)
+  state is `UNKNOWN`; `ado work-item states`
   shows its category.
 - **Estimate**, the first with a value: `Microsoft.VSTS.Scheduling.StoryPoints`
   (Agile), `.Effort` (Scrum), `.Size` (CMMI) as points, then
@@ -204,7 +204,6 @@ A change is a pull request. Its commands, by area:
 | `github` | `github pr list`, `github pr get` |
 | `bitbucket` | `bitbucket pr list`, `bitbucket pr get` (Data Center and Cloud: the connection's deployment says which shape it is) |
 | `ado` | `ado pr list`, `ado pr get` |
-| `ado-cloud` | `ado-cloud pr list`, `ado-cloud pr get` |
 
 A list is enough to rank what is open. What it can't hold (reviews, checks, commits,
 the files changed) comes from `pr get --include reviews,checks,commits,files`, which
@@ -309,7 +308,7 @@ is itself a change in the same input is dropped from `workItems`.
   statuses (`SUCCESSFUL`, `FAILED`, `STOPPED`, `INPROGRESS`); `size` from the diffstat.
   Cloud records no merge or close time and doesn't say whether a pull request merges
   cleanly, so `mergedAt`, `closedAt` and `mergeable` are unmapped.
-- **Azure DevOps** (`ado`, `ado-cloud`), one mapper for Server and Services.
+- **Azure DevOps** (`ado`), one mapper for Server and Services.
   `completed` is `MERGED`, `abandoned` `DECLINED`, `isDraft` `DRAFT`. A vote of 10 or
   5 is `APPROVED`, -5 or -10 `CHANGES_REQUESTED`, 0 `PENDING`; reviews from the
   comment threads: a `VoteUpdate` thread is the vote, and a thread a reviewer started

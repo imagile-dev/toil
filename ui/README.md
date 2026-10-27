@@ -1213,8 +1213,8 @@ npm run verify:ui -- --no-build --starter standup
 
 `--source ado` runs the real-data part against an Azure DevOps Services board
 instead (the `ado-board` dossier, as `dev-real.mjs --source ado` makes it below),
-with `TOIL_ADO_CLOUD_BASE_URL`, `TOIL_ADO_CLOUD_PAT` and `--project <name>` (else
-`TOIL_ADO_CLOUD_PROJECT`); without them it skips that part and says why. Each source is
+with `TOIL_ADO_BASE_URL`, `TOIL_ADO_PAT` and `--project <name>` (else
+`TOIL_ADO_PROJECT`); without them it skips that part and says why. Each source is
 one entry in `SOURCES` in `scripts/verify.mjs`. Set `CHROME_PATH` if the browser it finds doesn't draw headless; Playwright's
 Chromium works where an installed Chrome doesn't.
 
@@ -1245,19 +1245,19 @@ toil's `github` area doesn't read.
 ### An Azure DevOps Services board
 
 `--source ado` runs the same way against an Azure DevOps Services project, through
-toil's `ado-cloud` area, with a dossier named `ado-board`:
+toil's `ado` area on a Services connection, with a dossier named `ado-board`:
 
 ```bash
 node ui/scripts/dev-real.mjs --source ado --project "<project>"
 ```
 
-It needs `TOIL_ADO_CLOUD_BASE_URL` (`https://dev.azure.com/<organization>`) and
-`TOIL_ADO_CLOUD_PAT` (an organization-scoped token with Work Items, Read) in the
-shell. They go into Toil UI's environment only: toil makes its `ado-cloud`
+It needs `TOIL_ADO_BASE_URL` (`https://dev.azure.com/<organization>`) and
+`TOIL_ADO_PAT` (an organization-scoped token with Work Items, Read) in the
+shell. They go into Toil UI's environment only: toil makes its `ado` (deployment cloud)
 connection from them, with writes off, and nothing about the organization is
-written to the config file. `--project`, or `TOIL_ADO_CLOUD_PROJECT`, names the
+written to the config file. `--project`, or `TOIL_ADO_PROJECT`, names the
 project; the dossier in the scratch home holds it. The dossier names no repository,
-so no pull requests are read; add `repo` to its `ado-cloud` section for them.
+so no pull requests are read; add `repo` to its `ado` section for them.
 
 To fill a board with made-up work, `ui/scripts/ado-seed/` seeds one from Open Work
 Items. `items.owi.json` holds 45 of them across the three sample products
@@ -1290,9 +1290,9 @@ To check what toil reads back, map the board's output and compare it with the fi
 difference, leaving out what the server assigns.
 
 ```bash
-toil ado-cloud work-item iterations --project "<project>" > board.jsonl
-toil ado-cloud work-item get-many <ids…> >> board.jsonl
-toil ado-cloud work-item history <id> >> board.jsonl        # once for each id
+toil ado work-item iterations --project "<project>" > board.jsonl
+toil ado work-item get-many <ids…> >> board.jsonl
+toil ado work-item history <id> >> board.jsonl        # once for each id
 toil util owi map board.jsonl > mapped.json
 node ui/scripts/ado-seed/compare.mjs mapped.json --project "<project>" --backdated
 ```

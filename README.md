@@ -190,7 +190,7 @@ Code the clone is also a plugin marketplace: `claude plugin marketplace add
 | [`util`](https://imagile-dev.github.io/toil/docs/utilities/) | Local commands with no connection or network: JWTs, dependency inventories, encodings and hashes, certificates, test and coverage reports, logs, secret scans, time and versions, Jira and Confluence markup, OpenAPI |
 | [`skills`](https://imagile-dev.github.io/toil/docs/skills/) | Add a git-hosted skills marketplace, install its plugins for Codex, GitHub Copilot or Claude Code, switch them on and off |
 | [The toil skill](https://imagile-dev.github.io/toil/docs/) | toil's own command reference for agents, one file per area |
-| [Work tracking](https://imagile-dev.github.io/toil/connect/#trackers) (3) | Jira (Data Center and Cloud), Azure DevOps Server and Services |
+| [Work tracking](https://imagile-dev.github.io/toil/connect/#trackers) (2) | Jira (Data Center and Cloud), Azure DevOps Server and Services |
 | [Source and review](https://imagile-dev.github.io/toil/connect/#source) (3) | GitHub & GitHub Enterprise, Bitbucket (Data Center and Cloud), local git |
 | [CI/CD and runtime](https://imagile-dev.github.io/toil/connect/#cicd) (3) | Jenkins, JFrog Artifactory, OpenShift / Kubernetes |
 | [Testing and flags](https://imagile-dev.github.io/toil/connect/#testing) (2) | Sauce Labs, Split.IO |

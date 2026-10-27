@@ -76,7 +76,7 @@ const ask = has('ask');
 const build = !has('no-build');
 const sourceName = value('source', 'github');
 const starter = value('starter', 'hygiene');
-const project = value('project', process.env.TOIL_ADO_CLOUD_PROJECT);
+const project = value('project', process.env.TOIL_ADO_PROJECT);
 const adapter = value('adapter', 'codex');
 const model = value('model', null) || null;
 if (!ADAPTERS[adapter]) {
@@ -91,8 +91,8 @@ const askStep = `Ask (${agentLabel})`;
  * home and hands back toil-ui's environment, or says why it can't (`skip`).
  * Another tracker is one more entry of the same shape: `--source ado` runs
  * the same sync, layout check and Ask against an Azure DevOps Services board
- * (the one ui/scripts/ado-seed/ fills), from TOIL_ADO_CLOUD_BASE_URL,
- * TOIL_ADO_CLOUD_PAT and --project (else TOIL_ADO_CLOUD_PROJECT).
+ * (the one ui/scripts/ado-seed/ fills), from TOIL_ADO_BASE_URL,
+ * TOIL_ADO_PAT and --project (else TOIL_ADO_PROJECT).
  */
 const SOURCES = {
   github: {
@@ -112,7 +112,7 @@ const SOURCES = {
       if (missing) return { skip: `${missing}.` };
       const env = { ...realHomeEnv(home, null, process.env, { ado: true }), TOIL_UI_DATA_DIR: join(home, '.toil-ui') };
       const dossier = prepareAdoHome({ home, project, env, log: say });
-      return { env, dossier, detail: "TOIL_ADO_CLOUD_BASE_URL and TOIL_ADO_CLOUD_PAT in toil-ui's environment only" };
+      return { env, dossier, detail: "TOIL_ADO_BASE_URL and TOIL_ADO_PAT in toil-ui's environment only" };
     },
   },
 };

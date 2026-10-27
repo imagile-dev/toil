@@ -61,10 +61,10 @@ describe('acceptance criteria', () => {
   });
 
   it("default to Azure DevOps' own field, in HTML, and take a Jira field sent under its registered name", () => {
-    expect(readReadiness({ 'ado-cloud': {} }).areas['ado-cloud']).toMatchObject({ acceptanceField: ADO_ACCEPTANCE_FIELD, acceptanceFrom: 'default' });
+    expect(readReadiness({ ado: {} }).areas.ado).toMatchObject({ acceptanceField: ADO_ACCEPTANCE_FIELD, acceptanceFrom: 'default' });
     expect(readReadiness({ jira: {} }).areas.jira).toMatchObject({ acceptanceField: null, acceptanceFrom: null });
-    const ado = item('7', { source: { area: 'ado-cloud', connection: 'ado-cloud', key: '7', command: 'ado-cloud work-item get-many' }, body: { format: 'html', content: `<p>${WORDS(30)}</p>` }, native: { x: { fields: { [ADO_ACCEPTANCE_FIELD]: '<ul><li>Works on Visa</li></ul>' } } } });
-    expect(rowOf(ado, 'acceptance', [done], { ...readReadiness({ 'ado-cloud': {} }), repos: ['r'] }).state).toBe('pass');
+    const ado = item('7', { source: { area: 'ado', connection: 'ado-services', key: '7', command: 'ado work-item get-many', deployment: 'cloud' }, body: { format: 'html', content: `<p>${WORDS(30)}</p>` }, native: { x: { fields: { [ADO_ACCEPTANCE_FIELD]: '<ul><li>Works on Visa</li></ul>' } } } });
+    expect(rowOf(ado, 'acceptance', [done], { ...readReadiness({ ado: {} }), repos: ['r'] }).state).toBe('pass');
     const named = item('C', { body: { format: 'markdown', content: WORDS(30) }, native: { s: { fields: { 'Acceptance Criteria': 'It works' } } } });
     expect(rowOf(named, 'acceptance', [done], readReadiness({ jira: { fields: { acceptanceCriteria: 'customfield_1' } } })).state).toBe('pass');
   });
@@ -152,7 +152,7 @@ describe('the done state', () => {
 
   it('names the one read for each tracker, and none for GitHub', () => {
     expect(workflowRead(item('PAY-1'))).toEqual({ command: 'jira issue transitions', input: { key: 'PAY-1' } });
-    expect(workflowRead(item('1', { source: { area: 'ado-cloud', connection: 'a', key: '1', command: 'x' }, typeName: 'Product Backlog Item' }))).toEqual({ command: 'ado-cloud work-item states', input: { type: 'Product Backlog Item' } });
+    expect(workflowRead(item('1', { source: { area: 'ado', connection: 'a', key: '1', command: 'x', deployment: 'cloud' }, typeName: 'Product Backlog Item' }))).toEqual({ command: 'ado work-item states', input: { type: 'Product Backlog Item' } });
     expect(workflowRead(item('1', { source: { area: 'github', connection: 'g', key: 'o/r#1', command: 'x' } }))).toBeNull();
   });
 });

@@ -6,8 +6,8 @@
 //     it; `sandbox` for imagile-dev/toil-sandbox), and `toil-self` for
 //     imagile-dev/toil unless asked not to;
 //   - or, for an Azure DevOps Services board (prepareAdoHome), the dossier
-//     `ado-board` on the ado-cloud connection toil makes from
-//     TOIL_ADO_CLOUD_BASE_URL and TOIL_ADO_CLOUD_PAT, for one project. Nothing
+//     `ado-board` on the ado connection (deployment cloud) toil makes from
+//     TOIL_ADO_BASE_URL and TOIL_ADO_PAT, for one project. Nothing
 //     about the organization is written to the config file, and writes stay off.
 // Dossiers are made through toil's own dossiers commands. The environment it
 // hands back points HOME there and carries the GitHub token from `gh auth
@@ -80,15 +80,15 @@ export function githubToken(env = process.env) {
 }
 
 /** Why an ADO run can't start, or null: it needs the organization URL, a token and a project. */
-export function adoProblem(env = process.env, project = env.TOIL_ADO_CLOUD_PROJECT) {
-  if (!env.TOIL_ADO_CLOUD_BASE_URL || !env.TOIL_ADO_CLOUD_PAT) return "TOIL_ADO_CLOUD_BASE_URL and TOIL_ADO_CLOUD_PAT aren't both set (the organization URL and an organization-scoped token with Work Items (Read))";
-  if (!project) return 'no project is named (pass --project "<project>", or set TOIL_ADO_CLOUD_PROJECT)';
+export function adoProblem(env = process.env, project = env.TOIL_ADO_PROJECT) {
+  if (!env.TOIL_ADO_BASE_URL || !env.TOIL_ADO_PAT) return "TOIL_ADO_BASE_URL and TOIL_ADO_PAT aren't both set (the organization URL and an organization-scoped token with Work Items (Read))";
+  if (!project) return 'no project is named (pass --project "<project>", or set TOIL_ADO_PROJECT)';
   return null;
 }
 
 /**
  * toil-ui's environment: HOME in the scratch home, the GitHub token (or, with
- * `ado`, the ado-cloud connection's two variables), Codex's own sign-in, and
+ * `ado`, the ado connection's variables), Codex's own sign-in, and
  * no other toil or CI variable.
  */
 export function realHomeEnv(home, token, base = process.env, { ado = false } = {}) {
@@ -104,9 +104,11 @@ export function realHomeEnv(home, token, base = process.env, { ado = false } = {
   delete env.GITHUB_API_URL;
   // SYSTEM_ACCESSTOKEN is ado's CI fallback; this run is not a pipeline.
   delete env.SYSTEM_ACCESSTOKEN;
-  // The ado-cloud connection is these two and nothing else: no writes, no project, from the shell.
-  const keep = new Set(['TOIL_GITHUB_TOKEN', ...(ado ? ['TOIL_ADO_CLOUD_BASE_URL', 'TOIL_ADO_CLOUD_PAT'] : [])]);
+  // The Services connection is these two and its deployment, nothing else: no writes, no project, from the shell.
+  const keep = new Set(['TOIL_GITHUB_TOKEN', ...(ado ? ['TOIL_ADO_BASE_URL', 'TOIL_ADO_PAT', 'TOIL_ADO_DEPLOYMENT'] : [])]);
   for (const key of Object.keys(env)) if (key.startsWith('TOIL_') && !keep.has(key) && !key.startsWith('TOIL_UI_')) delete env[key];
+  // The URL and token are Azure DevOps Services', whatever else the shell has set.
+  if (ado) env.TOIL_ADO_DEPLOYMENT = 'cloud';
   const claude = claudeSignIn(base);
   if (claude.token) env.CLAUDE_CODE_OAUTH_TOKEN = claude.token;
   return env;
@@ -196,16 +198,16 @@ export function prepareRealHome({ home, repo, self = true, env, log = say }) {
 }
 
 /**
- * The board's dossier, `ado-board`, on the ado-cloud connection the env makes,
+ * The board's dossier, `ado-board`, on the ado connection the env makes (deployment cloud),
  * for one project, after `toil connections test` proves the token. Resolves
  * with the dossier name.
  */
 export function prepareAdoHome({ home, project, env, log = say }) {
   writeConfig(home, log);
   const toil = toilIn(home, env);
-  const test = toil('connections', 'test', 'ado-cloud');
-  if (!test.ok || !test.data.authenticated) throw new RealHomeError(`toil couldn't reach the ado-cloud connection: ${test.error?.message ?? 'the token was refused'}`, test.error?.fix ?? 'Check TOIL_ADO_CLOUD_BASE_URL and TOIL_ADO_CLOUD_PAT.');
-  ensureDossier(toil, 'ado-board', 'An Azure DevOps Services board, read-only', ['ado-cloud', '--connection', 'ado-cloud', '--set', `project=${project}`]);
+  const test = toil('connections', 'test', 'ado');
+  if (!test.ok || !test.data.authenticated) throw new RealHomeError(`toil couldn't reach the ado connection: ${test.error?.message ?? 'the token was refused'}`, test.error?.fix ?? 'Check TOIL_ADO_BASE_URL and TOIL_ADO_PAT.');
+  ensureDossier(toil, 'ado-board', 'An Azure DevOps Services board, read-only', ['ado', '--connection', 'ado', '--set', `project=${project}`]);
   log('Dossier ado-board: the project on Azure DevOps Services, checked.');
   return 'ado-board';
 }

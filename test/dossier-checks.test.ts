@@ -146,6 +146,20 @@ describe('check-dossier for the rest of the areas', () => {
     expect(both.problems.find((p) => p.code === 'DOSSIER_RENAMED_AREA')?.message).toContain('"jira-cloud" is ignored');
   });
 
+  it('an ado-cloud section, with its team and transition pins, is read as the ado section, warned by key path, and ado wins when both exist', () => {
+    const { dossier, problems } = validateDossier(
+      { name: 'p', 'ado-cloud': { project: 'Imagile', team: 'Imagile Team', transitions: { 'User Story': { review: 'Resolved' } } }, environments: { prod: { 'ado-cloud': { project: 'Prod' } } } },
+      dossierAreas,
+    );
+    expect(problems.filter((p) => p.level === 'error')).toEqual([]);
+    expect(problems.filter((p) => p.code === 'DOSSIER_RENAMED_AREA').map((p) => p.path)).toEqual(['ado-cloud', 'environments.prod.ado-cloud']);
+    expect(JSON.stringify(dossier)).not.toContain('ado-cloud');
+    expect(dossier?.sections.ado).toMatchObject({ project: 'Imagile', team: 'Imagile Team', transitions: { 'User Story': { review: 'Resolved' } } });
+    const both = validateDossier({ name: 'p', ado: { project: 'New' }, 'ado-cloud': { project: 'Old' } }, dossierAreas);
+    expect(both.dossier?.sections.ado).toMatchObject({ project: 'New' });
+    expect(both.problems.find((p) => p.code === 'DOSSIER_RENAMED_AREA')?.message).toContain('"ado-cloud" is ignored');
+  });
+
   it("checks what a call would use: an environment's value shadows the area's own, and keys pair across the two", async () => {
     // The review's case: the dev namespace is never looked up on the prod cluster.
     const shadowed = await check(openshift, { name: 'p', env: 'prod', openshift: { namespace: 'payments-dev' }, environments: { prod: { openshift: { namespace: 'payments' } } } }, ['--env', 'prod']);

@@ -130,7 +130,7 @@ describe('work-item areas are all mapped to OWI', () => {
 
   it('marks every area that has work-item commands in OWI_SOURCES', () => {
     expect(workItemAreas.filter((area) => !PENDING[area] && !OWI_SOURCES[area])).toEqual([]);
-    expect(workItemAreas).toEqual(expect.arrayContaining(['ado', 'ado-cloud', 'github', 'jira']));
+    expect(workItemAreas).toEqual(expect.arrayContaining(['ado', 'github', 'jira']));
   });
 
   it("marks only areas that exist, and lists each one's mapped commands among its registered ones", () => {
@@ -229,16 +229,13 @@ describe('mapping rules', () => {
     const { data } = await map({ text: json(env('ado work-item get', { id: 5, fields: { 'System.Title': 'T', 'System.State': 'Ready for QA', 'System.WorkItemType': 'Bug' } })) });
     expect(data.items[0]).toMatchObject({ statusCategory: 'UNKNOWN', type: 'BUG' });
     expect(data.items[0].unmapped.find((u: Data) => u.field === 'statusCategory').reason).toContain('ado work-item states');
-    // Services has its own states command, and the reason names it.
-    const cloud = await map({ text: json(env('ado-cloud work-item get', { id: 5, fields: { 'System.Title': 'T', 'System.State': 'Ready for QA', 'System.WorkItemType': 'Bug' } })) });
-    expect(cloud.data.items[0].unmapped.find((u: Data) => u.field === 'statusCategory').reason).toContain('ado-cloud work-item states');
   });
 
   it("maps Scrum's In Progress (Epic, Feature, Task) to IN_PROGRESS, in the item and its history, as a live Scrum organization reports it (#319)", async () => {
     const rev = (rev: number, state: string, at: string) => ({ id: 9, rev, fields: { 'System.State': state, 'System.ChangedDate': at } });
     const input = [
-      env('ado-cloud work-item get', { id: 9, fields: { 'System.Title': 'T', 'System.State': 'In Progress', 'System.WorkItemType': 'Task' } }),
-      env('ado-cloud work-item history', [rev(1, 'To Do', '2026-10-05T09:00:00Z'), rev(2, 'In Progress', '2026-10-06T09:00:00Z')]),
+      env('ado work-item get', { id: 9, fields: { 'System.Title': 'T', 'System.State': 'In Progress', 'System.WorkItemType': 'Task' } }),
+      env('ado work-item history', [rev(1, 'To Do', '2026-10-05T09:00:00Z'), rev(2, 'In Progress', '2026-10-06T09:00:00Z')]),
     ];
     const { data, warnings } = await map({ text: json(input) });
     const item = data.items[0] as WorkItem;
@@ -340,6 +337,17 @@ describe('a jira connection\'s deployment', () => {
     expect(data.verified.passed, json(data.verified)).toBe(true);
     const plain = await map({ text: json(env('jira issue get', issue, 'corp-jira')) });
     expect(plain.data.items[0].source).toEqual({ area: 'jira', connection: 'corp-jira', key: 'PAY-1', command: 'jira issue get' });
+  });
+});
+
+describe('an ado connection\'s deployment', () => {
+  it("is carried from meta.context into the item's source, so a Services item says it came from Services", async () => {
+    const item = { id: 5, fields: { 'System.Title': 'T', 'System.State': 'New', 'System.WorkItemType': 'Bug' } };
+    const cloud = env('ado work-item get', item, 'imagile-services');
+    (cloud.meta.context.connection as Record<string, unknown>).deployment = 'cloud';
+    const { data } = await map({ text: json(cloud) });
+    expect(data.items[0].source).toEqual({ area: 'ado', connection: 'imagile-services', key: '5', command: 'ado work-item get', deployment: 'cloud' });
+    expect(data.verified.passed, json(data.verified)).toBe(true);
   });
 });
 

@@ -184,6 +184,7 @@
       "--start-at <n>",
       "--cursor <cursor>",
       "--updated-since <iso>",
+      "--changelog",
       "--fields <list>"
     ]
   },

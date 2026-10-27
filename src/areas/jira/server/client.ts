@@ -331,7 +331,7 @@ export const STANDARD_SEARCH_FIELDS = ['summary', 'status', 'priority', 'assigne
 export async function search(
   ctx: JiraContext,
   jql: string,
-  opts: { maxResults?: number | undefined; startAt?: number | undefined; fields: string[] },
+  opts: { maxResults?: number | undefined; startAt?: number | undefined; fields: string[]; changelog?: boolean | undefined },
 ): Promise<JiraSearchResult> {
   const first = opts.startAt ?? 0;
   const max = opts.maxResults;
@@ -354,7 +354,7 @@ export async function search(
     async (params) => {
       const startAt = Number(params.startAt);
       const pageSize = max === undefined ? PAGE : Math.min(PAGE, max - (startAt - first));
-      const page = await jira<JiraSearchResult>(ctx, `${API}/search`, { method: 'POST', body: { jql, startAt, maxResults: pageSize, fields: opts.fields } });
+      const page = await jira<JiraSearchResult>(ctx, `${API}/search`, { method: 'POST', body: { jql, startAt, maxResults: pageSize, fields: opts.fields, ...(opts.changelog ? { expand: ['changelog'] } : {}) } });
       // Every page's total, the empty last one included, as the contract specifies.
       // Not Paged.total: that's the clamped end offset above, and it drops a
       // total the server left out, where the contract keeps it as sent.

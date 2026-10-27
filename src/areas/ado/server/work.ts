@@ -1,8 +1,8 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { allowWriteField } from '../../core/run.js';
-import { adoMoves, intentOf, oneOfTransition, resolveTransition, type AdoState, type TransitionReport } from '../../core/transition-intent.js';
-import { adoArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { allowWriteField } from '../../../core/run.js';
+import { adoMoves, intentOf, oneOfTransition, resolveTransition, type AdoState, type TransitionReport } from '../../../core/transition-intent.js';
+import { adoArea } from '../area.js';
 import { API, API_COMMENTS, PATCH, ado, adoSkipPages, baseUrlOf, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, toInt, where, type AdoContext } from './client.js';
 import { buildFieldPatch, mergeWithOverrides, parseFieldArgs, readJsonInputFile, resolveAtFileRef, splitWorkFieldsDictionary, type JsonPatchOp } from './fields.js';
 import { andWhere, checkFlat, wiqlInstant } from './wiql.js';
@@ -70,7 +70,8 @@ export const workCreateCommand = adoArea.command({
     title: z.string().optional().describe('Work item title (required, unless supplied via --input-file)'),
     description: z.string().optional().describe('Description'),
     assignee: z.string().optional().describe('Assigned to (display name or email)'),
-    priority: z.string().optional().describe('Priority (1-4)'),
+    // A number as well as text, so one input serves a Services call that sends a number (the fold takes this schema); it is sent as text, as it always was.
+    priority: z.union([z.string(), z.number()]).optional().describe('Priority (1-4)'),
     parent: z.string().optional().describe('Parent work item ID — creates a parent link after creation'),
     field: fieldInput('Additional field as name=value (repeatable)'),
     inputFile: z.string().optional().describe(INPUT_FILE_CREATE),
@@ -103,7 +104,7 @@ export const workCreateCommand = adoArea.command({
       ...(input.title !== undefined ? { title: input.title } : {}),
       ...(input.description !== undefined ? { description: input.description } : {}),
       ...(input.assignee !== undefined ? { assignee: input.assignee } : {}),
-      ...(input.priority !== undefined ? { priority: input.priority } : {}),
+      ...(input.priority !== undefined ? { priority: String(input.priority) } : {}),
     };
     const { merged: builtin, overrides: builtinOverrides } = mergeWithOverrides(jsonBuiltin, flagBuiltin);
     if (!builtin.title) throw new ToilError('INVALID_INPUT', '--title required (or "fields.Title" in --input-file)', { fix: 'Pass --title "<title>".' });

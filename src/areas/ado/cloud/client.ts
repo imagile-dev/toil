@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import type { Connection } from '../../core/area.js';
-import type { CommandContext } from '../../core/context.js';
-import { apiRequest, apiResponse, type ApiRequest } from '../../core/api.js';
-import { ToilError } from '../../core/errors.js';
-import { paginate } from '../../core/paginate.js';
-import { adoCloudArea, type AdoCloudSettings } from './area.js';
+import type { Connection } from '../../../core/area.js';
+import type { CommandContext } from '../../../core/context.js';
+import { apiRequest, apiResponse, type ApiRequest } from '../../../core/api.js';
+import { ToilError } from '../../../core/errors.js';
+import { paginate } from '../../../core/paginate.js';
+import { adoArea, type AdoSettings } from '../area.js';
 
 /**
  * Every request toil sends to Azure DevOps Services, each from Microsoft's
@@ -14,7 +14,7 @@ import { adoCloudArea, type AdoCloudSettings } from './area.js';
  * page live here, because three teams each wrote a memo on the subject.
  */
 
-export type AdoCloudConnection = Connection<AdoCloudSettings>;
+export type AdoCloudConnection = Connection<AdoSettings>;
 export type AdoCloudContext = CommandContext<AdoCloudConnection, { project?: string; repo?: string; team?: string }>;
 
 /** The REST API version every request asks for: the newest released one (7.2 is preview only). */
@@ -38,7 +38,7 @@ export type Request = Pick<ApiRequest, 'method' | 'query' | 'json' | 'headers'>;
 
 /** One JSON request, with api-version 7.1 unless the call names another. */
 export function adoc<T>(ctx: AdoCloudContext, path: string, req: Request = {}): Promise<T> {
-  return apiRequest<T>(adoCloudArea, ctx, path, { ...req, query: { 'api-version': API, ...req.query }, headers: { Accept: 'application/json', ...req.headers } });
+  return apiRequest<T>(adoArea, ctx, path, { ...req, query: { 'api-version': API, ...req.query }, headers: { Accept: 'application/json', ...req.headers } });
 }
 
 /** `/<project>`, encoded. */
@@ -59,7 +59,7 @@ export const limitField = (what: string) =>
   z.number().int().positive().optional().describe(`Return at most this many ${what}; meta.page.nextCursor then says where the rest start (default: all)`);
 /** The `--cursor` field of a list that pages. */
 export const cursorField = z.string().min(1).optional().describe('meta.page.nextCursor from the previous call, passed with the same limit, to carry on from there');
-/** `--limit` and `--cursor`, as every ado-cloud list that pages spells them (the same as ado's). */
+/** `--limit` and `--cursor`, as every Services list that pages spells them (the same as ado's). */
 export const pageOptions = (what: string) => [
   { flags: '--limit <n>', field: 'limit', description: `Return at most this many ${what}; meta.page.nextCursor says where the rest start (default: all)` },
   { flags: '--cursor <cursor>', field: 'cursor', description: 'meta.page.nextCursor from the previous call (with --limit)' },
@@ -83,7 +83,7 @@ const pageOptionsFor = (ctx: AdoCloudContext, what: string, page: PageRequest) =
 
 /** One page of a list, with the response headers a continuation token arrives in. */
 async function raw(ctx: AdoCloudContext, path: string, query: Record<string, string | number>): Promise<{ body: unknown; headers: Headers }> {
-  const response = await apiResponse<unknown>(adoCloudArea, ctx, path, { query: { 'api-version': API, ...query }, headers: { Accept: 'application/json' } });
+  const response = await apiResponse<unknown>(adoArea, ctx, path, { query: { 'api-version': API, ...query }, headers: { Accept: 'application/json' } });
   return { body: response.data, headers: response.headers };
 }
 

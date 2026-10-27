@@ -587,7 +587,7 @@ describe('the sync API', () => {
     let release!: () => void;
     const { origin, auth, session, get } = await withSync(new Promise((r) => (release = r)));
     expect(session).toMatchObject({ store: 'sqlite', sync: true, sample: false });
-    const before = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: JQL('PAY') } }, auth)).body) as Envelope;
+    const before = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: JQL('PAY'), changelog: true } }, auth)).body) as Envelope;
     expect(before.ok).toBe(false);
 
     const started = await post(origin, '/api/sync', {}, auth);
@@ -606,7 +606,7 @@ describe('the sync API', () => {
     expect(status.retentionDays).toBe(30);
     expect(status.dossiers.map((d: { name: string; status: string }) => `${d.name}:${d.status}`)).toEqual(['card-payments:ok', 'checkout-web:ok', 'settlement:ok']);
 
-    const after = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: JQL('PAY') } }, auth)).body) as Envelope;
+    const after = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: JQL('PAY'), changelog: true } }, auth)).body) as Envelope;
     expect(after.ok).toBe(true);
     const one = await post(origin, '/api/sync', { dossier: 7 }, auth);
     expect(one.status).toBe(400);
@@ -711,7 +711,7 @@ describe('toil-ui wipe and a running server', () => {
       const job = await sync.run(ctx);
       expect(job.error).toBeNull();
       expect(cache.states().map((d) => d.status)).toEqual(['ok', 'ok', 'ok']);
-      const search = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: JQL('PAY') } }, auth)).body) as Envelope;
+      const search = JSON.parse((await post(origin, '/api/execute', { command: 'jira issue search', input: { dossier: 'card-payments', jql: JQL('PAY'), changelog: true } }, auth)).body) as Envelope;
       expect(search.ok).toBe(true);
       cache.close();
     } finally {
@@ -756,10 +756,8 @@ describe('the Stores', () => {
   it('lets the views read exactly the commands the fixture answers, plus the ones the sample has no dossier for', () => {
     // A GitHub dossier with no board reads the repository's issues; the sample's GitHub dossier has a board.
     // test/github-repo.test.ts proves that path with its own stub.
-    // The sample has no Azure DevOps Services dossier; test/ado-seed.test.ts reads one through toil, its work items and its board.
-    const noSampleDossier = ['github issue list', 'ado-cloud work-item iterations', 'ado-cloud work-item search', 'ado-cloud work-item get-many', 'ado-cloud work-item history', 'ado-cloud pr list', 'ado-cloud pr get'];
-    // The readiness gate's workflow reads (#307) for the tracker the sample has no dossier on, Azure DevOps Services.
-    noSampleDossier.push('ado-cloud work-item states');
+    // The sample has no Azure DevOps Services dossier; test/ado-seed.test.ts reads one through toil, its work items and its board, with the same ado commands.
+    const noSampleDossier = ['github issue list'];
     expect([...READ_COMMANDS].sort()).toEqual([...new Set([...CANNED.map((c) => c.command), ...noSampleDossier])].sort());
   });
 
