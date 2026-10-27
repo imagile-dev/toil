@@ -45,10 +45,12 @@ export const bitbucketArea = defineArea({
   variants: {
     by: 'deployment',
     // Cloud takes either an access token, or an email with an API token; the request hook says which is missing.
-    of: { server: { label: 'Data Center', requires: ['pat'] }, cloud: { label: 'Cloud' } },
+    of: { server: { label: 'Data Center', requires: ['pat'] }, cloud: { label: 'Cloud', uses: ['email', 'apiToken', 'accessToken', 'workspace'] } },
   },
   // Bitbucket Pipelines sets both on every step, so a Cloud pipeline needs no toil-specific context.
+  // They are Bitbucket Cloud's: a Data Center default keeps the workspace and repo its file says.
   fallbacks: { workspace: ['BITBUCKET_WORKSPACE'], repo: ['BITBUCKET_REPO_SLUG'] },
+  fallbackWhen: (effective) => effective.deployment === 'cloud',
   examples: { baseUrl: 'https://bitbucket.imagile.dev', email: 'you@example.com' },
   // bitbucket.org's API is on api.bitbucket.org, so a dossier's host: bitbucket.org selects that connection.
   siteApis: { 'bitbucket.org': 'https://api.bitbucket.org/2.0' },

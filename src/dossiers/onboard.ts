@@ -312,6 +312,6 @@ function reloaded(manage: ConfigAccess, areas: readonly AnyArea[]): ResolvedConf
     cwd: dirname(path),
     home: dirname(dirname(path)),
     configPath: path,
-    areas: areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) })),
+    areas: areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, ...(a.fallbackWhen ? { fallbackWhen: a.fallbackWhen } : {}), contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) })),
   });
 }

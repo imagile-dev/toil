@@ -26,7 +26,7 @@ afterEach(() => rmSync(root, { recursive: true, force: true }));
 
 const file = () => join(home, '.toil', 'config.json');
 const writeJson = (value: unknown) => writeFileSync(file(), JSON.stringify(value));
-const areas: AreaInfo[] = [{ name: 'bitbucket', fallbacks: { workspace: ['BITBUCKET_WORKSPACE'], repo: ['BITBUCKET_REPO_SLUG'] } }, { name: 'jira' }];
+const areas: AreaInfo[] = [{ name: 'bitbucket', fallbacks: { workspace: ['BITBUCKET_WORKSPACE'], repo: ['BITBUCKET_REPO_SLUG'] }, fallbackWhen: (effective) => effective.deployment === 'cloud' }, { name: 'jira' }];
 const load = (env: NodeJS.ProcessEnv = {}) => loadConfig({ env, cwd: repo, home, areas });
 
 const cloud = { area: 'bitbucket-cloud', baseUrl: 'https://bitbucket-cloud.imagile.dev/2.0', email: 'you@example.com', apiToken: 'keychain:imagile-bbc.apiToken' };
@@ -71,5 +71,24 @@ describe('version 3: bitbucket-cloud became bitbucket with deployment cloud', ()
     expect(() => load({ TOIL_BITBUCKET_PAT: 'dc-token', TOIL_BITBUCKET_DEPLOYMENT: 'cloud' })).not.toThrow();
     const pipeline = load({ BITBUCKET_WORKSPACE: 'imagile', BITBUCKET_REPO_SLUG: 'toil' });
     expect(pipeline.connections['imagile-bbc']).toMatchObject({ workspace: 'imagile', repo: 'toil' });
+  });
+
+  it('applies the Pipelines fallbacks to a Cloud default only: a Data Center default keeps the repo its file says', () => {
+    const pipeline = { BITBUCKET_WORKSPACE: 'imagile', BITBUCKET_REPO_SLUG: 'toil' };
+    writeJson({ version: 3, connections: { 'corp-bitbucket': { ...dataCenter, repo: 'imagile-api' } }, defaults: { bitbucket: { connection: 'corp-bitbucket' } } });
+    const server = load(pipeline);
+    expect(server.connections['corp-bitbucket']).toMatchObject({ repo: 'imagile-api' });
+    expect(server.connections['corp-bitbucket']!.workspace).toBeUndefined();
+    // Cloud, said by the file, by TOIL_BITBUCKET_DEPLOYMENT, by the connection's own variable, or by defaults.bitbucket.
+    writeJson({ version: 3, connections: { 'imagile-bbc': { ...cloud, area: 'bitbucket', deployment: 'cloud', repo: 'old' } }, defaults: { bitbucket: { connection: 'imagile-bbc' } } });
+    expect(load(pipeline).connections['imagile-bbc']).toMatchObject({ workspace: 'imagile', repo: 'toil' });
+    writeJson({ version: 3, connections: { 'corp-bitbucket': { ...dataCenter, repo: 'imagile-api' } }, defaults: { bitbucket: { connection: 'corp-bitbucket' } } });
+    expect(load({ ...pipeline, TOIL_BITBUCKET_DEPLOYMENT: 'cloud' }).connections['corp-bitbucket']).toMatchObject({ repo: 'toil' });
+    expect(load({ ...pipeline, TOIL_CONN_CORP_BITBUCKET_DEPLOYMENT: 'cloud' }).connections['corp-bitbucket']).toMatchObject({ repo: 'toil' });
+    writeJson({ version: 3, connections: { 'corp-bitbucket': { ...dataCenter, repo: 'imagile-api' } }, defaults: { bitbucket: { connection: 'corp-bitbucket', deployment: 'cloud' } } });
+    expect(load(pipeline).connections['corp-bitbucket']).toMatchObject({ repo: 'toil' });
+    // With no connection at all and no deployment said, the default is Data Center, so nothing is taken.
+    writeJson({ version: 3, connections: {}, defaults: {} });
+    expect(load(pipeline).connections.bitbucket).toBeUndefined();
   });
 });
