@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { fixture } from '../../../test/fixtures/jira.fixture.js';
-import { runCli } from '../../../test/harness/cli.js';
-import { testContext } from '../../../test/harness/context.js';
-import { connectMcp } from '../../../test/harness/mcp.js';
-import { commands } from '../../registry.js';
-import { toolName } from '../../core/command.js';
-import { selectCommands } from '../../mcp/server.js';
-import { emptyConfig } from '../../core/config.js';
+import { fixture } from './fixtures/jira.fixture.js';
+import { runCli } from './harness/cli.js';
+import { testContext } from './harness/context.js';
+import { connectMcp } from './harness/mcp.js';
+import { commands } from '../src/registry.js';
+import { toolName } from '../src/core/command.js';
+import { selectCommands } from '../src/mcp/server.js';
+import { emptyConfig } from '../src/core/config.js';
 
 /**
  * Jira is one area for Data Center and Cloud (#495): one command tree and one
