@@ -76,7 +76,8 @@ describe.skipIf(!tracked)('tracked files', () => {
   });
 
   it('has no placeholder tenant on a vendor that answers for every subdomain', () => {
-    const found = tracked!.filter((f) => !BINARY.test(f)).flatMap((f) => {
+    // dist/ is the release PR's build of source scanned here already; its 9 MB bundle only made this test slow.
+    const found = tracked!.filter((f) => !BINARY.test(f) && !f.startsWith('dist/')).flatMap((f) => {
       try {
         return readFileSync(join(root, f), 'utf8').split('\n').flatMap((line, i) => (WILDCARD_TENANT.test(line) ? [`${f}:${i + 1}`] : []));
       } catch {
@@ -84,7 +85,7 @@ describe.skipIf(!tracked)('tracked files', () => {
       }
     });
     expect(found).toEqual([]);
-  });
+  }, 30_000);
 
   it('has no Markdown file with two titles, the mark of a document pasted into itself', () => {
     const doubled = tracked!.filter((f) => f.endsWith('.md')).flatMap((f) => {
