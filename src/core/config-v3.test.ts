@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { defaultConnectionName, loadConfig, readConfigForEdit, writeConfigFile, type AreaInfo } from './config.js';
+import { defaultConnectionName, loadConfig, parseEnvName, readConfigForEdit, writeConfigFile, type AreaInfo } from './config.js';
 
 /**
  * Config version 3 (#495): `jira-cloud` became `jira` with `"deployment":
@@ -57,6 +57,8 @@ describe('version 3: jira-cloud became jira with deployment cloud', () => {
     expect(defaultConnectionName(config, 'jira')).toBe('corp-jira');
     expect(config.warnings).toEqual([expect.objectContaining({ code: 'CONFIG_DEFAULT_KEPT', message: expect.stringContaining('"imagile-cloud"') })]);
     expect(config.warnings[0]!.message).toContain('corp-jira');
+    expect(config.warnings[0]!.message).toContain('toil connections default <name>');
+    expect(config.warnings[0]!.message).toContain('version 3');
   });
 
   it("doesn't let a Cloud default reach Data Center connections: it moves onto the Cloud connections instead", () => {
@@ -72,6 +74,25 @@ describe('version 3: jira-cloud became jira with deployment cloud', () => {
     // jira had a connection, which was what `toil jira` used and still is; the warning says the Cloud default was set aside.
     expect(defaultConnectionName(config, 'jira')).toBe('corp-jira');
     expect(config.warnings.map((w) => w.code)).toEqual(['CONFIG_DEFAULT_KEPT']);
+  });
+
+  it("doesn't let Data Center defaults reach the connections that moved in: they are written onto the Data Center connections instead", () => {
+    writeJson({
+      version: 2,
+      connections: { 'corp-jira': { area: 'jira', baseUrl: 'https://jira.imagile.dev', priority: 'High' }, 'other-jira': { area: 'jira', baseUrl: 'https://jira2.imagile.dev' }, 'imagile-cloud': cloud },
+      defaults: { jira: { connection: 'corp-jira', project: 'DC', priority: 'Low' }, 'jira-cloud': { connection: 'imagile-cloud' } },
+    });
+    const config = load();
+    expect(config.defaults.jira).toEqual({ connection: 'corp-jira' });
+    expect(config.connections['corp-jira']).toMatchObject({ project: 'DC', priority: 'High' });
+    expect(config.connections['other-jira']).toMatchObject({ project: 'DC', priority: 'Low' });
+    expect(config.connections['imagile-cloud']).not.toHaveProperty('project');
+    expect(config.connections['imagile-cloud']).not.toHaveProperty('priority');
+  });
+
+  it('leaves defaults.jira alone when no connection moves in', () => {
+    writeJson({ version: 2, connections: { 'corp-jira': { area: 'jira', baseUrl: 'https://jira.imagile.dev' } }, defaults: { jira: { connection: 'corp-jira', project: 'DC' } } });
+    expect(load().defaults.jira).toEqual({ connection: 'corp-jira', project: 'DC' });
   });
 
   it('is what an edit writes back: version 3, folded, other keys kept', () => {
@@ -109,5 +130,60 @@ describe('version 3: jira-cloud became jira with deployment cloud', () => {
     expect(named.connections.ci).toMatchObject({ area: 'jira', deployment: 'cloud', email: 'you@example.com' });
     const byArea = load({ TOIL_JIRA_DEPLOYMENT: 'cloud', TOIL_JIRA_EMAIL: 'you@example.com' });
     expect(byArea.connections.jira).toMatchObject({ area: 'jira', deployment: 'cloud' });
+  });
+});
+
+describe('TOIL_JIRA_* reaching a connection that is Cloud', () => {
+  const migrated = { version: 2, connections: { 'imagile-cloud': cloud }, defaults: { 'jira-cloud': { connection: 'imagile-cloud' } } };
+
+  it('refuses them when the jira default is Cloud and TOIL_JIRA_DEPLOYMENT is unset, naming the variables, the fix and sending nothing', () => {
+    writeJson(migrated);
+    expect(() => load({ TOIL_JIRA_API_TOKEN: 'dc-pat', TOIL_JIRA_BASE_URL: 'https://jira.imagile.dev' })).toThrow(
+      expect.objectContaining({
+        code: 'CONFIG_INVALID',
+        message: expect.stringMatching(/TOIL_JIRA_API_TOKEN, TOIL_JIRA_BASE_URL are set.*"imagile-cloud".*deployment cloud/),
+        fix: expect.stringContaining('TOIL_JIRA_DEPLOYMENT=cloud'),
+      }),
+    );
+    try {
+      load({ TOIL_JIRA_API_TOKEN: 'dc-pat' });
+    } catch (err) {
+      expect(JSON.stringify(err)).not.toContain('dc-pat');
+      expect((err as { fix: string }).fix).toContain('TOIL_CONN_<NAME>_AREA=jira');
+    }
+  });
+
+  it('also refuses when the deployment is only in defaults.jira', () => {
+    writeJson({ version: 3, connections: { j: { area: 'jira', baseUrl: 'https://jira-cloud.imagile.dev', email: 'you@example.com' } }, defaults: { jira: { connection: 'j', deployment: 'cloud' } } });
+    expect(() => load({ TOIL_JIRA_API_TOKEN: 't' })).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID' }));
+  });
+
+  it('lets them through with TOIL_JIRA_DEPLOYMENT=cloud', () => {
+    writeJson(migrated);
+    const config = load({ TOIL_JIRA_API_TOKEN: 't', TOIL_JIRA_DEPLOYMENT: 'cloud' });
+    expect(config.connections['imagile-cloud']).toMatchObject({ apiToken: 't', deployment: 'cloud' });
+  });
+
+  it('leaves TOIL_CONN_<NAME>_* alone, and a Data Center default, and a file with no env at all', () => {
+    writeJson(migrated);
+    expect(() => load({ TOIL_CONN_IMAGILE_CLOUD_API_TOKEN: 't' })).not.toThrow();
+    expect(() => load()).not.toThrow();
+    writeJson({ version: 3, connections: { dc: { area: 'jira', baseUrl: 'https://jira.imagile.dev' } }, defaults: { jira: { connection: 'dc' } } });
+    expect(() => load({ TOIL_JIRA_API_TOKEN: 't' })).not.toThrow();
+  });
+});
+
+describe('empty retired variables, and TOIL_STRICT_ENV', () => {
+  it('skips an empty TOIL_JIRA_CLOUD_* by default, and still refuses one with a value', () => {
+    expect(() => load({ TOIL_JIRA_CLOUD_API_TOKEN: '' })).not.toThrow();
+    expect(() => load({ TOIL_JIRA_CLOUD_API_TOKEN: '', TOIL_JIRA_CLOUD_EMAIL: 'you@example.com' })).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', message: expect.stringContaining('TOIL_JIRA_CLOUD_EMAIL') }));
+  });
+
+  it('with TOIL_STRICT_ENV=true refuses an empty one too, with the same fix, and the variable maps onto no area', () => {
+    expect(() => load({ TOIL_JIRA_CLOUD_API_TOKEN: '', TOIL_STRICT_ENV: 'true' })).toThrow(
+      expect.objectContaining({ code: 'CONFIG_INVALID', message: expect.stringContaining('TOIL_JIRA_CLOUD_API_TOKEN'), fix: expect.stringContaining('TOIL_JIRA_API_TOKEN and set TOIL_JIRA_DEPLOYMENT=cloud') }),
+    );
+    expect(() => load({ TOIL_JIRA_CLOUD_API_TOKEN: '', TOIL_STRICT_ENV: 'false' })).not.toThrow();
+    expect(parseEnvName('TOIL_STRICT_ENV', ['jira'])).toBeUndefined();
   });
 });

@@ -168,7 +168,11 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
  * one whose pipeline it was.
  */
 function refuseRenamedEnv(env: NodeJS.ProcessEnv): void {
-  const old = Object.keys(env).filter((name) => env[name] !== undefined && renamedAreaOfEnv(name) !== undefined).sort();
+  // An empty variable carries no credential, so by default it is skipped, as an empty CI fallback is. TOIL_STRICT_ENV=true makes CI fail on it too.
+  const strict = env.TOIL_STRICT_ENV?.trim().toLowerCase() === 'true';
+  const old = Object.keys(env)
+    .filter((name) => env[name] !== undefined && (strict || env[name] !== '') && renamedAreaOfEnv(name) !== undefined)
+    .sort();
   if (old.length > 0) {
     throw new ToilError('CONFIG_INVALID', `${old.join(', ')} ${old.length > 1 ? 'are' : 'is'} set, and the ${renamedAreaOfEnv(old[0]!)} area they configure no longer exists. ${renamedAreaFix(renamedAreaOfEnv(old[0]!)!)}`, { fix: renamedEnvFix(old[0]!) });
   }
@@ -431,10 +435,13 @@ function readBounds(raw: unknown, path: string): Bounds | undefined {
  * the setting; its `defaults` entry folds into the new area's. Keychain
  * references are untouched, being named after the connection and not the area.
  *
- * Defaults are the delicate part: `defaults.jira` also reaches the Data
- * Center connections, so a Cloud default moves there only when nothing else
- * would inherit it, and is otherwise written onto the Cloud connections
- * themselves. The new area's default stays what it was, including the one it
+ * Defaults are the delicate part: `defaults.jira` reaches every Jira
+ * connection, so a Cloud default moves there only when nothing else would
+ * inherit it, and is otherwise written onto the Cloud connections
+ * themselves. The mirror image holds too: when connections move in beside
+ * existing Data Center ones, the shared keys `defaults.jira` already had are
+ * written onto those Data Center connections (where they were set, so they
+ * stay) and leave `defaults.jira`, which would now reach the Cloud ones. The new area's default stays what it was, including the one it
  * only had by being the sole connection; when the old area named a different
  * default, the warning names the one that was set aside.
  */
@@ -449,6 +456,14 @@ function foldRenamedAreas(read: { connections: Record<string, ConnectionSettings
     // What `toil jira` used before stays what it uses: the default it named, else the connection called jira, else the only one.
     const before = typeof target.connection === 'string' ? target.connection : others.includes(renamed.area) ? renamed.area : others.length === 1 ? others[0] : undefined;
     if (target.connection === undefined && before !== undefined) target.connection = before;
+    // The other way round: what defaults.jira said only ever reached the Data Center connections, and must not start reaching the ones that moved in.
+    if (moved.length > 0 && others.length > 0) {
+      for (const [key, value] of Object.entries(target)) {
+        if (key === 'connection') continue;
+        for (const name of others) if (read.connections[name]![key] === undefined) read.connections[name]![key] = value;
+        delete target[key];
+      }
+    }
     const { connection: named, ...shared } = oldDefaults ?? {};
     for (const [key, value] of Object.entries(shared)) {
       if (target[key] === undefined && others.length === 0) target[key] = value;
@@ -460,7 +475,7 @@ function foldRenamedAreas(read: { connections: Record<string, ConnectionSettings
         const kept = String(target.connection);
         warnings.push({
           code: 'CONFIG_DEFAULT_KEPT',
-          message: `${path} named ${old} connection "${named}" as the default for ${old}, and ${renamed.area} already has one (${kept}), which stays the default. ${old} is now ${renamed.area}.`,
+          message: `${path} named ${old} connection "${named}" as the default for ${old}, and ${renamed.area} already has one (${kept}), which stays the default. ${old} is now ${renamed.area}. Any toil connections change, such as toil connections default <name>, saves the file as version ${CONFIG_VERSION} and clears this warning.`,
         });
       }
     }
@@ -542,7 +557,7 @@ function fromVersion2(raw: Record<string, unknown>, path: string, warnings: Reso
  * Environment variable names toil reserves for itself. They never map onto an
  * area, whatever areas exist now or later.
  */
-const RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/, /^TOIL_WORKSPACE$/, /^TOIL_FEEDBACK_URL$/, /^TOIL_THEME$/];
+const RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/, /^TOIL_WORKSPACE$/, /^TOIL_FEEDBACK_URL$/, /^TOIL_THEME$/, /^TOIL_STRICT_ENV$/];
 
 /** camelCase key to SNAKE: baseUrl -> BASE_URL, baseURL -> BASE_URL, apiKey2 -> API_KEY2. */
 function snake(key: string): string {
@@ -636,10 +651,46 @@ function applyAreaEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv, areas: rea
       (config.defaults[area.name] ??= {}).connection = name;
     }
     const target = config.connections[name]!;
+    refuseStaleEnvOnRenamed(config, area.name, name, target, layer, env);
     for (const [key, value, source] of layer) {
       target[key] = value;
       config.sources[`${name}.${key}`] = source;
     }
+  }
+}
+
+/**
+ * TOIL_JIRA_* used to mean Data Center's default connection; since #495 they
+ * reach whichever connection is jira's default, and a connection that came
+ * from `jira-cloud` is Cloud. A pipeline that still sets Data Center values
+ * would send them (and a token) to that Cloud connection with nothing saying
+ * so. So when the connection the env tier would land on is one the folded
+ * area's settings describe (deployment cloud) and TOIL_JIRA_DEPLOYMENT isn't
+ * set to say the values are meant for it, the call is refused. A named
+ * connection (TOIL_CONN_<NAME>_*) is explicit and untouched.
+ */
+function refuseStaleEnvOnRenamed(config: ResolvedConfig, area: string, connection: string, target: ConnectionSettings, layer: Array<[string, unknown, Source]>, env: NodeJS.ProcessEnv): void {
+  const fromEnv = layer.filter(([, , source]) => source === 'env');
+  if (fromEnv.length === 0) return;
+  for (const renamed of Object.values(RENAMED_AREAS)) {
+    if (renamed.area !== area) continue;
+    const effective = { ...config.defaults[area], ...target };
+    const isFolded = Object.entries(renamed.settings).every(([key, value]) => effective[key] === value);
+    if (!isFolded) continue;
+    const says = Object.keys(renamed.settings).every((key) => {
+      const named = envName(area, key);
+      return env[named] !== undefined && env[named] !== '';
+    });
+    if (says) continue;
+    const vars = fromEnv.map(([key]) => envName(area, key)).sort();
+    const set = Object.entries(renamed.settings).map(([key, value]) => `${envName(area, key)}=${value}`).join(' ');
+    throw new ToilError(
+      'CONFIG_INVALID',
+      `${vars.join(', ')} ${vars.length > 1 ? 'are' : 'is'} set, and ${area}'s default connection "${connection}" is ${Object.entries(renamed.settings).map(([k, v]) => `${k} ${v}`).join(', ')}, so ${vars.length > 1 ? 'they' : 'it'} would apply to it. Nothing was sent.`,
+      {
+        fix: `If they are for that connection, also set ${set}. If they are for a Data Center ${area} connection, define it separately with TOIL_CONN_<NAME>_AREA=${area} and TOIL_CONN_<NAME>_* variables, or remove them.`,
+      },
+    );
   }
 }
 
