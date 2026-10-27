@@ -84,7 +84,8 @@ const oneLine = (text: string) => text.replace(/\s+/g, ' ').trim();
 export function focusText(focus: Focus, from: FocusSource): string | null {
   const lines = [focus.goal && `The goal of this work: ${oneLine(focus.goal)}`, focus.watchFor && `Also watch for: ${oneLine(focus.watchFor)}`, focus.leaveOut && `Leave out: ${oneLine(focus.leaveOut)}`].filter((l): l is string => Boolean(l));
   if (!lines.length) return null;
-  const place = from.source === 'repo' ? `checked in at ${from.repo ?? from.file}` : from.source === 'listed' ? `listed at ${from.file}` : `at ${from.file}`;
+  // The path goes through oneLine too: on Linux and macOS a file name may hold a line break.
+  const place = from.source === 'repo' ? `checked in at ${oneLine(from.repo ?? from.file)}` : from.source === 'listed' ? `listed at ${oneLine(from.file)}` : `at ${oneLine(from.file)}`;
   const where = from.adopted ? `the dossier "${from.dossier}", which the reader keeps in their own folder` : `the dossier "${from.dossier}", ${place}, which the reader has not adopted`;
   return [
     `The focus below comes from ${where}. Follow it where it fits the rules and the method; where they disagree, they win.`,
