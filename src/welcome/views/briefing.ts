@@ -27,7 +27,7 @@ const codeHosts = (area: string) => area === 'github' || area === 'bitbucket' ||
 /** Each code host's word for an open pull request, as its `pr list --state` takes it. */
 const OPEN: Record<string, string> = { github: 'open', bitbucket: 'OPEN', 'bitbucket-cloud': 'OPEN', ado: 'active', 'ado-cloud': 'active' };
 
-/** The first run: each tracker's issues and each code host's open pull requests. Azure DevOps work items need a query and a read each, which the menu leaves to Toil UI. */
+/** The first run: each tracker's issues, each code host's open pull requests, and each Azure DevOps project's work item ids (a WIQL search; their fields come from one get-many in the next run). */
 export function readSteps(dossier: string, areas: Areas): { steps: Step[] } {
   const steps: Step[] = [];
   for (const [area, a] of Object.entries(areas)) {
@@ -45,8 +45,8 @@ export function readSteps(dossier: string, areas: Areas): { steps: Step[] } {
 /** The WIQL Toil UI sends for a project's work items (ui/src/load.ts): all of them, by id. */
 const WIQL = 'SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project ORDER BY [System.Id]';
 
-/** The most Azure DevOps work items one get-many reads; a project with more is briefed on these, and says so. */
-export const MAX_WORK_ITEMS = 200;
+/** The most Azure DevOps work items one get-many reads, as Toil UI's does (BATCH_MAX); a project with more is briefed on its newest, and says so. */
+export const MAX_WORK_ITEMS = 1000;
 
 /** The work item ids an Azure DevOps search returned. */
 function workItemIds(result: StepResult): string[] {
@@ -80,7 +80,7 @@ function keyPatterns(results: StepResult[]): string[] {
 /** The envelopes a run returned, one per line, as `util owi map` and `dossiers brief` read them. */
 const lines = (results: StepResult[]) => results.filter((r) => r.envelope.ok && !(r.args[1] === 'work-item' && r.args[2] === 'search')).map((r) => JSON.stringify(r.envelope)).join('\n');
 
-/** What the briefing couldn't read, in words, for its screen: failed reads, areas left out, and pull requests past the cap. */
+/** What the briefing couldn't read, in words, for its screen: failed reads, and work items or pull requests past their caps. */
 function gaps(results: StepResult[], capped: string[]): string[] {
   return [
     ...results.filter((r) => !r.envelope.ok).map((r) => `${r.args.slice(0, 3).join(' ')} failed (${r.envelope.ok ? '' : r.envelope.error.code}), so the briefing leaves its work out.`),
@@ -100,8 +100,8 @@ export function briefRun(dossier: string, areas: Areas): Run {
       const capped: string[] = open.length > MAX_PR_READS ? [`The dossier has ${open.length} open pull requests; the first ${MAX_PR_READS} were read in full, the rest only as listed.`] : [];
       const items = read.flatMap((r) => {
         const ids = workItemIds(r);
-        if (ids.length > MAX_WORK_ITEMS) capped.push(`${r.args[0]} has ${ids.length} work items; the first ${MAX_WORK_ITEMS} were read.`);
-        return ids.length ? [{ args: [r.args[0]!, 'work-item', 'get-many', ...ids.slice(0, MAX_WORK_ITEMS), '--dossier', dossier] }] : [];
+        if (ids.length > MAX_WORK_ITEMS) capped.push(`${r.args[0]} has ${ids.length} work items; the newest ${MAX_WORK_ITEMS} were read, since the search lists the oldest first.`);
+        return ids.length ? [{ args: [r.args[0]!, 'work-item', 'get-many', ...ids.slice(-MAX_WORK_ITEMS), '--dossier', dossier] }] : [];
       });
       const gets = [...items, ...open.slice(0, MAX_PR_READS)];
       const map = (all: StepResult[]): Run => ({

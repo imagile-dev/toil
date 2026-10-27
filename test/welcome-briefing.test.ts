@@ -5,7 +5,7 @@ import { readBriefRecords } from '../src/core/brief/read.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { drawsHyperlinks } from '../src/welcome/term.js';
 import type { Action, Run, StepResult } from '../src/welcome/view.js';
-import { briefingLines, briefRun, link, readSteps } from '../src/welcome/views/briefing.js';
+import { briefingLines, briefRun, link, MAX_WORK_ITEMS, readSteps } from '../src/welcome/views/briefing.js';
 import { shownArgs } from '../src/welcome/views/result.js';
 
 /**
@@ -37,6 +37,19 @@ describe('the reads', () => {
       'bitbucket pr list --dossier payments --state OPEN',
       'ado work-item search --dossier payments --wiql SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project ORDER BY [System.Id]',
     ]);
+  });
+
+  it('reads the newest work items when a project has more than the cap, and says so', () => {
+    const run = briefRun('settlement', { ado: { inputs: { project: 'Payments' } } });
+    const ids = Array.from({ length: MAX_WORK_ITEMS + 5 }, (_, i) => ({ id: i + 1 }));
+    const gets = runOf(run.next!([result(run.steps[0]!.args, env('ado work-item search', { workItems: ids }))], {} as never));
+    const args = gets.steps[0]!.args;
+    expect(args.slice(3, 5)).toEqual(['6', '7']);
+    expect(args.at(-3)).toBe(String(MAX_WORK_ITEMS + 5));
+    const map = runOf(gets.next!([result(args, env('ado work-item get-many', { value: [] }))], {} as never));
+    const brief = runOf(map.next!([result(map.steps[0]!.args, env('util owi map', { items: [] }))], {} as never));
+    const go = brief.next!([result(brief.steps[0]!.args, env('dossiers brief', {}))], {} as never) as unknown as { params: { gaps: string } };
+    expect(JSON.parse(go.params.gaps)).toEqual([`ado has ${MAX_WORK_ITEMS + 5} work items; the newest ${MAX_WORK_ITEMS} were read, since the search lists the oldest first.`]);
   });
 
   it('reads the Azure DevOps work items a search names in one get-many, and maps those, not the search', () => {

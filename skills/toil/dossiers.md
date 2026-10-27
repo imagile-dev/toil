@@ -308,7 +308,7 @@ and why in `note`. `--as-of` briefs as of another moment.
 
 The menu a bare `toil` opens does all of this for you: **Dossiers**, a dossier,
 **Brief this dossier** runs each read (an Azure DevOps project's work items as a WIQL
-search, then one `work-item get-many` for up to 200 of them), the dossier's open pull
+search, then one `work-item get-many` for them, the newest 1000 when there are more), the dossier's open pull
 requests in full (up to 20), the map and the brief, showing every command as it goes,
 then the briefing, with any read that failed or was cut short named at its top. Each
 key on it opens its ticket where the terminal draws links (Windows Terminal, VS Code,
