@@ -19,7 +19,7 @@ import type { Call, Envelope, Execute, ExecuteOptions } from '../toil.ts';
 import { ADO_CI_RUNS, ADO_DEPLOY_RUNS, ADO_PR_GETS, ADO_PRS, BITBUCKET_CLOUD_PR_GETS, BITBUCKET_CLOUD_PRS, BITBUCKET_PR_GETS, BITBUCKET_PRS, GITHUB_CODEOWNERS, GITHUB_PR_GETS, GITHUB_PRS, JENKINS_RUNS, OPENSHIFT } from './delivery.ts';
 import { DOSSIERS, fileOf, listData, showData, type DossierFile } from './dossiers.ts';
 import {
-  ADO_BATCH, ADO_IDS, ADO_ITERATIONS, ADO_REVISIONS, ADO_WIQL, GITHUB_EVENTS, GITHUB_ISSUES, GITHUB_NUMBERS, GITHUB_PROJECT_ITEMS,
+  ADO_BATCH, ADO_FEED, ADO_FEED_GAPS, ADO_IDS, ADO_ITERATIONS, ADO_REVISIONS, ADO_WIQL, GITHUB_EVENTS, GITHUB_ISSUES, GITHUB_NUMBERS, GITHUB_PROJECT_ITEMS,
   ADO_STATES, JIRA_CHANGELOGS, JIRA_CUT_SHORT, JIRA_SEARCH_WITH_CHANGELOGS, JIRA_TRANSITIONS,
 } from './work.ts';
 
@@ -68,7 +68,9 @@ export const CANNED: Canned[] = [
   { command: 'ado work-item iterations', input: { dossier: settle }, data: ADO_ITERATIONS, ...at(settle, 'ado') },
   { command: 'ado work-item search', input: { dossier: settle, wiql: WIQL }, data: ADO_WIQL, ...at(settle, 'ado') },
   { command: 'ado work-item get-many', input: { dossier: settle, id: ADO_IDS }, data: ADO_BATCH, ...at(settle, 'ado') },
-  ...ADO_IDS.map((id) => ({ command: 'ado work-item history', input: { dossier: settle, id }, data: ADO_REVISIONS[id], ...at(settle, 'ado') })),
+  // The feed holds every item's revisions but the ones that start before it; those are read one by one.
+  { command: 'ado work-item revisions', input: { dossier: settle }, data: ADO_FEED, ...at(settle, 'ado') },
+  ...ADO_FEED_GAPS.map((id) => ({ command: 'ado work-item history', input: { dossier: settle, id }, data: ADO_REVISIONS[id], ...at(settle, 'ado') })),
   ...Object.entries(ADO_STATES).map(([type, data]) => ({ command: 'ado work-item states', input: { dossier: settle, type }, data, ...at(settle, 'ado') })),
   { command: 'ado pr list', input: { dossier: settle, state: 'all' }, data: ADO_PRS, ...at(settle, 'ado') },
   ...gets(settle, 'ado', 'id', ADO_PR_GETS),
@@ -90,6 +92,9 @@ export const CANNED: Canned[] = [
 
 /** One string per command and input, whatever order the input's keys came in. */
 export function callKey(command: string, input: Record<string, unknown>): string {
+  // When a call was made is not what it asked for (src/ado-revisions.ts's feed start moves with the clock; the cache's inputKey leaves it out too).
+  const { updatedSince: _when, ...asked } = input;
+  input = asked;
   const sort = (v: unknown): unknown =>
     Array.isArray(v) ? v.map(sort) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, sort(x)])) : v;
   return `${command} ${JSON.stringify(sort(input))}`;

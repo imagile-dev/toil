@@ -247,8 +247,15 @@ export class CacheError extends Error {
   }
 }
 
-/** One string per command and input, whatever order the input's keys came in. */
+/**
+ * One string per command and input, whatever order the input's keys came in.
+ * `updatedSince` is left out: it says when a call was made, not what it asked
+ * for (the feed's start date moves with the clock), and the sync adds its own
+ * to a delta read without ever recording it.
+ */
 export function inputKey(input: Record<string, unknown>): string {
+  const { updatedSince: _when, ...asked } = input;
+  input = asked;
   const sort = (v: unknown): unknown =>
     Array.isArray(v) ? v.map(sort) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, x]) => [k, sort(x)])) : v;
   return JSON.stringify(sort(input));

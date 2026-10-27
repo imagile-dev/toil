@@ -14,6 +14,8 @@ import { simulate, type Counts } from './scale-sim.ts';
 
 const TOTAL = 3000;
 const LIVE = 200;
+/** Open live items created over a year ago (one live item in four, scale-sim.ts): the feed that starts with the window holds part of their history. */
+const OLD_OPEN = 50;
 const report = (label: string, c: Counts) => console.info(`[scale] ${label}: ${c.toilCalls} toil calls, ${c.requests} requests, ${c.rowsWritten} rows written, ${c.responseBytesWritten} response bytes written, ${c.items} items, ${c.seconds.toFixed(1)}s, tracker ${JSON.stringify(c.tracker)}`);
 
 describe('a large Jira project', () => {
@@ -96,22 +98,36 @@ describe('a large Jira Cloud project, where one issue in ten has a history longe
 });
 
 describe('a large Azure DevOps project', () => {
-  it('syncs its window, then nothing', async () => {
+  it('syncs its window from one feed of revisions, reads one by one only the items the feed holds part of, then syncs nothing', async () => {
     const sim = await simulate('ado', TOTAL, LIVE);
     try {
       const first = await sim.sync(0);
       report('ado first sync', first);
       expect(first.items).toBe(LIVE);
-      expect(first.tracker['ado work-item history']).toBe(LIVE);
+      // Of the 200 live items, 150 are open and 50 of those were created over a year ago: the feed, which starts with the window, holds only their last two revisions.
+      expect(first.tracker['ado work-item revisions']).toBe(1);
+      expect(first.tracker['ado work-item history']).toBe(OLD_OPEN);
+      // Whichever way a history arrived, it is whole: every item starts at its first revision.
+      expect(sim.wholeHistories()).toEqual({ whole: LIVE, items: LIVE });
 
       const second = await sim.sync(3_600_000);
       report('ado second sync, nothing changed', second);
       expect(second.tracker['ado work-item history'] ?? 0).toBe(0);
       expect(second.tracker['ado work-item get-many'] ?? 0).toBe(0);
       expect(second.rowsWritten).toBeLessThan(40);
+
+      // A change to a recent item adds one revision to the feed; to an old open item, which the feed never held whole, it changes nothing about how that history is read.
+      sim.touch(TOTAL - 1);
+      sim.touch(TOTAL - 3);
+      const third = await sim.sync(3_600_000);
+      report('ado third sync, two changed (one recent, one old and open)', third);
+      expect(third.tracker['ado work-item revisions']).toBe(1);
+      // 2997 = 3000 - 3 is an old open item: its cached history is the one from the first sync, which the sync reads again because the item changed.
+      expect(third.tracker['ado work-item history'] ?? 0).toBe(1);
+      expect(third.items).toBe(LIVE);
+      expect(sim.wholeHistories()).toEqual({ whole: LIVE, items: LIVE });
     } finally {
       sim.close();
     }
   }, 120_000);
-
 });

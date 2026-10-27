@@ -21,6 +21,13 @@
  * - **Histories** (`jira issue history`, `ado work-item history`, `github
  *   issue-events`) are fetched only for changed and new items; the rest are
  *   the last copy.
+ * - **Azure DevOps' revision feed** (`ado work-item revisions`) is read from
+ *   the start of the window the first time and from the watermark after that,
+ *   and the new revisions are laid over the last copy by item and revision
+ *   number, so a changed item's history grows by what it did instead of being
+ *   read again whole. Only an item whose revisions run from 1 to its own `rev`
+ *   is mapped from the feed (src/ado-revisions.ts); the rest are read with
+ *   `ado work-item history`, through the histories rule above.
  * - **Pull request lists** (every host's `pr list`) ask only for what changed
  *   since the watermark too, with `updatedSince`, merged into the last copy
  *   by id; and a **pull request's get** is read again only when it changed
@@ -58,6 +65,7 @@
  */
 
 import type { ProgressEvent } from '@imagile-dev/toil/api';
+import { mergeFeed } from '../src/ado-revisions.ts';
 import { loadDossier, windowFor, type LoaderMapOwi } from '../src/load.ts';
 import type { Envelope } from '../src/toil.ts';
 import type { WorklogEvent } from '../src/model/worklog.ts';
@@ -150,6 +158,9 @@ const HISTORIES: Record<string, string> = {
   'github issue history': 'number',
 };
 const BOARD = 'github project items';
+/** Azure DevOps' feed of every revision since a date, which stands in for each item's history (src/ado-revisions.ts). */
+const ADO_FEED = 'ado work-item revisions';
+const ADO_SEARCH = 'ado work-item search';
 
 /** Commands whose NOT_FOUND says the thing isn't there, which is worth knowing: the loader looks for CODEOWNERS where GitHub would. */
 const ABSENT_IS_AN_ANSWER = new Set(['github repo file']);
@@ -380,7 +391,7 @@ export class SyncService {
     const syncing = (command: string, input: Record<string, unknown> = {}) => this.answer(run, command, input, signal);
     let loaded;
     try {
-      loaded = await loadDossier(syncing, name, { mapOwi: this.mapOwi, windowDays: windowFor(this.cache.retentionDays) });
+      loaded = await loadDossier(syncing, name, { mapOwi: this.mapOwi, windowDays: windowFor(this.cache.retentionDays), now: this.now });
     } catch (e) {
       // `dossiers show` failed: the dossier keeps everything it had.
       const message = e instanceof Error ? e.message : String(e);
@@ -487,6 +498,20 @@ export class SyncService {
       if ('total' in data) data.total = merged.length;
       if ('maxResults' in data) data.maxResults = merged.length;
       return { ...delta, data };
+    }
+
+    if (command === ADO_FEED) {
+      const last = this.cache.response(dossier, command, input);
+      if (!watermark || !last?.envelope.ok || !Array.isArray(last.envelope.data)) return this.call(command, input, signal);
+      const delta = await this.call(command, { ...input, updatedSince: watermark }, signal);
+      if (!delta.ok || !Array.isArray(delta.data)) return delta;
+      this.say(`${dossier}: ${command} since ${watermark}: ${delta.data.length} revisions`);
+      // Only the work items this run lists matter; the search ran before the feed, so its answer is in the run.
+      const search = run.responses.find((r) => r.command === ADO_SEARCH && r.envelope.ok);
+      const keep = search ? new Set(recs((search.envelope.data as Rec).workItems).map((w) => Number(w.id))) : undefined;
+      const merged = mergeFeed(recs(last.envelope.data), recs(delta.data), keep);
+      if (!delta.data.length && merged.length === (last.envelope.data as unknown[]).length) return reuse(last.envelope);
+      return { ...delta, data: merged };
     }
 
     const prId = PR_LISTS[command];

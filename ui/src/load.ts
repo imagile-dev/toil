@@ -21,6 +21,7 @@
  * loader, one dossier, no spreadsheet.
  */
 
+import { feedStart, splitRevisionFeed } from './ado-revisions.ts';
 import { adoBuilds, adoDeployments, byEnvironment, changeRef, githubBuild, jenkinsBuilds, openshiftDeployments } from './model/delivery.ts';
 import { splitChangelogs } from './jira-changelog.ts';
 import { LOOKBACK_DAYS } from './model/flow.ts';
@@ -277,6 +278,8 @@ export interface LoadOptions {
   mapOwi?: LoaderMapOwi;
   /** Days of closed Jira and Azure DevOps items to read; the sync passes the cache's retention. */
   windowDays?: number;
+  /** The clock the Azure DevOps feed's start date is counted back from; the sync passes its own. */
+  now?: () => Date;
 }
 
 export async function loadDossier(execute: Execute, name: string, options: LoadOptions = {}): Promise<DossierData> {
@@ -344,7 +347,14 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       if (!ids.length) return;
       const batch = await run('work', `${ado} work-item get-many`, { ...base, id: ids });
       if (batch) work[ado].push(batch);
-      const histories = await runEach('work', `${ado} work-item history`, ids.map((id) => ({ ...base, id })));
+      // One feed of every revision since the window opened stands in for each item's history call; an item whose revisions it doesn't hold whole is read with work-item history (src/ado-revisions.ts).
+      const items = batch ? recs((batch.data as Rec).value) : [];
+      const feed = items.length ? await run('work', `${ado} work-item revisions`, { ...base, updatedSince: feedStart((options.now ?? (() => new Date()))(), options.windowDays ?? DEFAULT_WINDOW_DAYS) }) : null;
+      const { histories: inline, incomplete } = splitRevisionFeed(feed, items, `${ado} work-item history`, owiFields(section(ado).fields).iteration);
+      work[ado].push(...inline);
+      // Items get-many didn't return have no rev to check the feed against, so they are read one by one as before.
+      const known = new Set(items.map((i) => Number(i.id)));
+      const histories = await runEach('work', `${ado} work-item history`, [...incomplete, ...ids.filter((id) => !known.has(id))].map((id) => ({ ...base, id })));
       for (const revisions of histories) if (revisions) work[ado].push(revisions);
     })());
   }

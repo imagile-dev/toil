@@ -222,6 +222,12 @@ describe("toil's ado commands on a Services connection, on the seeded board", ()
     const data = await loadDossier(execute as unknown as Execute, 'ado-board', { mapOwi });
     expect(data.calls.work.filter((c) => !c.ok)).toEqual([]);
     expect(data.calls.work.map((c) => c.command)).toEqual(expect.arrayContaining(['ado work-item iterations', 'ado work-item search', 'ado work-item get-many', 'ado work-item history']));
+    // One feed call (read in several batches) stood in for most histories; the items it doesn't hold whole were read one by one, and the result is the same board.
+    const commands = data.calls.work.map((c) => c.command);
+    expect(commands.filter((c) => c === 'ado work-item revisions')).toHaveLength(1);
+    expect(board.feedRequests).toBeGreaterThan(1);
+    expect(commands.filter((c) => c === 'ado work-item history').length).toBeGreaterThan(0);
+    expect(commands.filter((c) => c === 'ado work-item history').length).toBeLessThan(data.items.length);
     expect(compare(items, data.items, { project: PROJECT, backdated: true })).toEqual([]);
     // Scrum's In Progress is in progress, not a custom state.
     expect(data.items.filter((i) => i.status === 'In Progress').every((i) => i.statusCategory === 'IN_PROGRESS')).toBe(true);

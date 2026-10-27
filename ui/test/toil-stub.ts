@@ -4,13 +4,17 @@
  * which test/registry.test.ts holds to the real registry), plus what a sync
  * adds on top of the views' calls: `updatedSince` on the searches (filtered by
  * each item's own updated time, as Jira and Azure DevOps filter), a batch of
- * some of the ids, and `meta.page.nextCursor` paging on `jira issue search`. A
+ * some of the ids, and `meta.page.nextCursor` paging on `jira issue search`. Azure
+ * DevOps revisions are kept per item, answering `work-item history` whole and
+ * `work-item revisions` as the feed does (every item's revisions after `updatedSince`,
+ * people as text). A
  * test can change an item, fail an area, or count the calls. Nothing here
  * reaches a network.
  */
 
 import { CANNED, fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
 import { inputKey } from '../server/cache.ts';
+import { ADO_REVISIONS } from '../src/fixtures/work.ts';
 import type { SyncExecute } from '../server/sync.ts';
 import type { Envelope } from '../src/toil.ts';
 
@@ -56,6 +60,13 @@ function fail(command: string, code: string, message: string, fix: string): Enve
 export function stubToil(): StubToil {
   const canned = structuredClone(CANNED);
   const calls: StubCall[] = [];
+  // Every work item's revisions, which touchAdo adds to: the one history that both ADO commands read.
+  const revisions = new Map<number, Rec[]>(Object.entries(ADO_REVISIONS).map(([id, r]) => [Number(id), structuredClone(r as Rec[])]));
+  const asText = (who: unknown) => (isRec(who) ? `${who.displayName} <${who.uniqueName}>` : who);
+  const feedOf = (r: Rec): Rec => {
+    const fields = r.fields as Rec;
+    return { id: r.id, rev: r.rev, fields: { 'System.Id': r.id, 'System.Rev': r.rev, ...fields, 'System.ChangedBy': asText(fields['System.ChangedBy']) } };
+  };
   const failing = new Set<string>();
   const find = (command: string, input: Rec) => canned.find((c) => c.command === command && inputKey(c.input) === inputKey(input));
   const sameDossier = (command: string, input: Rec) => canned.find((c) => c.command === command && c.input.dossier === input.dossier);
@@ -100,6 +111,18 @@ export function stubToil(): StubToil {
       const changed = adoChanged(rest.dossier);
       const data = hit.data as { workItems: Array<{ id: number }> };
       return ok(command, { ...data, workItems: data.workItems.filter((w) => since === null || Date.parse(changed.get(w.id) ?? '') >= since) });
+    }
+    if (command === 'ado work-item history') {
+      const list = revisions.get(Number(rest.id));
+      return list ? ok(command, structuredClone(list)) : fail(command, 'NOT_FOUND', `No work item ${String(rest.id)}.`, 'Ask for an id the sample has.');
+    }
+    if (command === 'ado work-item revisions') {
+      const ids = new Set(adoChanged(rest.dossier).keys());
+      const feed = [...revisions].filter(([id]) => ids.has(id)).flatMap(([, list]) => list)
+        .filter((r) => since === null || Date.parse(String((r.fields as Rec)['System.ChangedDate'])) > since)
+        .map(feedOf)
+        .sort((a, b) => Date.parse(String((a.fields as Rec)['System.ChangedDate'])) - Date.parse(String((b.fields as Rec)['System.ChangedDate'])) || Number(a.id) - Number(b.id));
+      return ok(command, feed);
     }
     if (command === 'ado work-item get-many' || command === 'github issue get') {
       const exact = find(command, rest);
@@ -154,6 +177,12 @@ export function stubToil(): StubToil {
           if (w.id !== id) continue;
           w.fields['System.ChangedDate'] = at;
           w.fields['System.State'] = state;
+          // A save is a revision: the item's rev moves on, and the feed and its history both gain it.
+          const list = revisions.get(id)!;
+          const last = list[list.length - 1]!;
+          const rev = Number(last.rev) + 1;
+          (w as { rev?: number }).rev = rev;
+          list.push({ ...last, rev, fields: { ...(last.fields as Rec), 'System.State': state, 'System.ChangedDate': at } });
         }
       }
     },
