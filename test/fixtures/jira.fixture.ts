@@ -1,5 +1,6 @@
 import type { RecordedRequest, Route } from '../harness/fake-fetch.js';
 import { defineFixture } from '../harness/fixtures.js';
+import * as cloud from './jira-cloud-data.js';
 
 /**
  * Canned Jira Data Center responses for every request the jira examples send,
@@ -263,4 +264,17 @@ export const config = {
  */
 export const dossier = { name: 'payments', jira: { projects: ['PROJ'], fields: { storyPoints: 'customfield_10016' } } };
 
-export const fixture = defineFixture({ area: 'jira', routes, config, files, dossier });
+/**
+ * Both deployments, side by side: Data Center's connection (`jira`, the area's
+ * default) and Cloud's (`jira-cloud`, deployment cloud), each with the routes
+ * and files its examples read. Cloud's routes are pinned to its own origin, so
+ * the two sets of agile paths can't answer for each other.
+ */
+export const fixture = defineFixture({
+  area: 'jira',
+  routes: [...routes, ...cloud.routes.map((r) => (r.path !== undefined && r.origin === undefined ? { ...r, origin: cloud.SITE } : r))],
+  config: { ...config, ...cloud.config },
+  deployments: { server: 'jira', cloud: 'jira-cloud' },
+  files: { ...files, ...cloud.files },
+  dossier,
+});

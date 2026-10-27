@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { memoryFiles } from '../../../test/harness/files.js';
+import { memoryFiles } from '../../../../test/harness/files.js';
 import { buildFieldMap, formatFieldValue, resolveFieldKey, suggestedType, translateFieldsInOutput, translateJql } from './custom-fields.js';
 import { mergeWithOverrides, normalizeLabels, parseFieldArgs, parseFieldsFile, splitFieldsDictionary } from './input.js';
 

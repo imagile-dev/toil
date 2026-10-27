@@ -127,7 +127,7 @@ describe('toil connections add', () => {
     expect(store.entries.get('corp-demo.token')).toBe(SECRET);
     expect(store.log).toEqual(['set corp-demo.token', 'get corp-demo.token']);
     expect(readConfig()).toEqual({
-      version: 2,
+      version: 3,
       connections: { 'corp-demo': { area: 'demo', baseUrl: 'https://jira.imagile.dev', token: 'keychain:corp-demo.token' } },
       defaults: { demo: { connection: 'corp-demo' } },
     });
@@ -226,7 +226,7 @@ describe('toil connections add', () => {
     });
     await cli(['connections', 'add', 'second', '--area', 'demo'], context({ prompt: terminal({ token: SECRET }).prompt, secrets: fakeStore() }));
     expect(readConfig()).toEqual({
-      version: 2,
+      version: 3,
       $schema: 'https://imagile-dev.github.io/toil/config.schema.json',
       futureKey: { kept: true },
       connections: {
@@ -241,7 +241,7 @@ describe('toil connections add', () => {
     writeConfig({ demo: { baseUrl: 'https://v1.imagile.dev', token: 'plain', writes: true } });
     await cli(['connections', 'add', 'reporting', '--area', 'warehouse'], context({ prompt: terminal({ host: 'h', username: 'u', password: 'p' }).prompt, secrets: fakeStore() }));
     expect(readConfig()).toEqual({
-      version: 2,
+      version: 3,
       connections: {
         demo: { area: 'demo', baseUrl: 'https://v1.imagile.dev', token: 'plain', writes: true },
         reporting: { area: 'warehouse', host: 'h', username: 'u', password: 'keychain:reporting.password' },
@@ -345,7 +345,7 @@ describe('toil connections remove', () => {
     const store = fakeStore({ entries: { 'a.token': 'x', 'b.token': 'y' }, onDelete: () => seenAtDelete.push(readFileSync(file, 'utf8')) });
     const run = await cli(['connections', 'remove', 'a'], context({ secrets: store }));
     expect(run.envelope).toMatchObject({ ok: true, data: { name: 'a', deletedFromStore: ['a.token'] } });
-    expect(readConfig()).toEqual({ version: 2, connections: { b: { area: 'demo', token: 'keychain:b.token' } }, defaults: { demo: { pageSize: 5 } } });
+    expect(readConfig()).toEqual({ version: 3, connections: { b: { area: 'demo', token: 'keychain:b.token' } }, defaults: { demo: { pageSize: 5 } } });
     expect(seenAtDelete[0]).not.toContain('"a"');
     expect([...store.entries.keys()]).toEqual(['b.token']);
   });

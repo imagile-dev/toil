@@ -97,7 +97,6 @@ export const fileOf = (name: string) => `${USER_DIR}/${name}.json`;
 /** Each area's context inputs, as `dossiers show` resolves them: the ones the registry declares, nothing else. */
 const CONTEXT: Record<string, string[]> = {
   jira: ['project'],
-  'jira-cloud': ['project'],
   bitbucket: ['project', 'repo'],
   'bitbucket-cloud': ['workspace', 'repo'],
   jenkins: ['instance'],

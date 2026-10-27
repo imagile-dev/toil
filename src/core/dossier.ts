@@ -7,6 +7,7 @@ import { ToilError } from './errors.js';
 import { forwardSlashes, isSystemPath, type Workspace } from './files.js';
 import { findGitRepo, readGitBranch, readGitRemotes, type GitContext } from './git-repo.js';
 import { assertLocalPath } from './local-path.js';
+import { RENAMED_AREAS } from './renamed-areas.js';
 import { findSecrets } from './secret-shapes.js';
 import { JsonSyntaxError, parseStrictJson } from './strict-json.js';
 import { INTENTS, type TransitionPins } from './transition-intent.js';
@@ -200,17 +201,54 @@ function inside(child: string, parent: string): boolean {
 }
 
 /**
+ * A dossier written for an area that is now another (`jira-cloud` is `jira`,
+ * #495) is read as the new one: its section, its environments' sections and the
+ * `people` identities it names. Where the dossier already has the new area's
+ * entry, that one wins and the warning says the old one was ignored. Either
+ * way each is a warning by key path, so `dossiers check` reports it.
+ */
+function foldRenamedSections(raw: Record<string, unknown>, warn: (code: string, path: string, message: string) => void): Record<string, unknown> {
+  // Moves `holder[old]` to `holder[new]`, or drops it when the new entry exists; `where` is the holder's key path.
+  const fold = (holder: Record<string, unknown>, where: string): Record<string, unknown> => {
+    const out = { ...holder };
+    for (const [old, renamed] of Object.entries(RENAMED_AREAS)) {
+      if (!Object.hasOwn(out, old)) continue;
+      const path = at(where, old);
+      const next = renamed.area;
+      if (Object.hasOwn(out, next)) {
+        warn('DOSSIER_RENAMED_AREA', path, `"${old}" is now "${next}", and this dossier has both: the "${next}" entry is used and "${old}" is ignored. Merge anything you need into "${next}" and remove "${old}".`);
+      } else {
+        out[next] = out[old];
+        warn('DOSSIER_RENAMED_AREA', path, `"${old}" is now "${next}", so this is read as "${next}". Rename it to "${next}" in the file.`);
+      }
+      delete out[old];
+    }
+    return out;
+  };
+  const out = fold(raw, '');
+  if (isRecord(out.environments)) {
+    out.environments = Object.fromEntries(Object.entries(out.environments).map(([env, areas]) => [env, isRecord(areas) ? fold(areas, at('environments', env)) : areas]));
+  }
+  if (Array.isArray(out.people)) {
+    out.people = out.people.map((person: unknown, i) => (isRecord(person) && isRecord(person.ids) ? { ...person, ids: fold(person.ids, at(at('people', i), 'ids')) } : person));
+  }
+  return out;
+}
+
+/**
  * Validates a parsed dossier, section by section. Unknown areas' sections are
  * kept and reported, never dropped. Remotes come back without userinfo.
  */
-export function validateDossier(raw: unknown, areas: readonly DossierArea[]): { dossier?: Dossier; problems: DossierProblem[] } {
+export function validateDossier(input: unknown, areas: readonly DossierArea[]): { dossier?: Dossier; problems: DossierProblem[] } {
   const problems: DossierProblem[] = [];
   const error = (path: string, message: string) => problems.push({ level: 'error', code: 'DOSSIER_INVALID', path, message });
   const warn = (code: string, path: string, message: string) => problems.push({ level: 'warning', code, path, message });
-  if (!isRecord(raw)) {
+  if (!isRecord(input)) {
     error('', 'A dossier must be a JSON object.');
     return { problems };
   }
+  // A section for an area that was folded into another is read as the new one, and the warning says to rename it.
+  const raw = foldRenamedSections(input, warn);
   const byName = new Map(areas.map((a) => [a.name, a]));
   for (const path of reservedKeyPaths(raw)) {
     const key = path.slice(path.lastIndexOf('.') + 1);

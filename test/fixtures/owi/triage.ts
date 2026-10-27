@@ -22,7 +22,7 @@ import { sprintEnvelopes } from './sprint.js';
  *   should stay below the threshold.
  * - Noise: new work that resembles nothing (PAY-212, #52, 2313, WEB-32).
  *
- * Provenance: written by hand to the shapes the jira, jira-cloud, ado and
+ * Provenance: written by hand to the shapes the jira (Data Center and Cloud), ado and
  * github commands return, like ./sprint.ts; invented, not captured. Every
  * host is a placeholder and every name made up. A backlog with four
  * duplicates in eleven new items is, by industry standards, well kept.
@@ -89,7 +89,7 @@ const jiraSearch = {
   ],
 };
 
-// Jira Cloud: jira-cloud issue search, with the description in Atlassian Document Format
+// Jira Cloud: jira issue search on a Cloud connection, with the description in Atlassian Document Format
 
 const adf = (...paragraphs: string[]) => ({ type: 'doc', version: 1, content: paragraphs.map((text) => ({ type: 'paragraph', content: [{ type: 'text', text }] })) });
 
@@ -179,7 +179,7 @@ const ghIssues = [
 /** The new week's envelopes alone. */
 export const triageEnvelopes: unknown[] = [
   envelope('jira issue search', jiraSearch, 'corp-jira'),
-  envelope('jira-cloud issue search', cloudSearch, 'cloud-jira'),
+  envelope('jira issue search', cloudSearch, 'cloud-jira'),
   envelope('ado work-item get-many', adoBatch, 'corp-ado', { collection: 'DefaultCollection', project: 'Payments' }),
   envelope('github issue list', ghIssues, 'github', { owner: 'imagile', repo: 'payments-web' }),
 ];

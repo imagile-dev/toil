@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
-import { ACCOUNT, config as fixtureConfig, doc, issue, SITE, sprints } from '../../../test/fixtures/jira-cloud.fixture.js';
-import type { AnyCommand } from '../../core/command.js';
-import { execute } from '../../core/run.js';
+import { testContext } from '../../../../test/harness/context.js';
+import type { Route } from '../../../../test/harness/fake-fetch.js';
+import { ACCOUNT, config as fixtureConfig, doc, issue, SITE, sprints } from '../../../../test/fixtures/jira-cloud-data.js';
+import type { AnyCommand } from '../../../core/command.js';
+import { execute } from '../../../core/run.js';
 import { adfToText, textToAdf } from './adf.js';
 import { listSprints, setSprint } from './agile.js';
 import { addAttachment, downloadAttachment } from './attachments.js';
 import { suggestedType } from './custom-fields.js';
-import { addComment, addLabel, assign, createIssue, getIssue, linkIssue, listComments, logWork, schema, transitionIssue, updateIssue } from './issues.js';
+import { addComment, addLabel, assign, createIssue, getIssue, linkIssue, listComments, logWork, transitionIssue, updateIssue } from './issues.js';
 import { getProject, listProjects, searchUsers } from './projects.js';
 import { fields, search } from './search.js';
 
@@ -93,9 +93,9 @@ describe('issues', () => {
   it('issue get: a 401 is AUTH, naming the email setting and where to make a token', async () => {
     const { envelope } = await run(getIssue, { key: 'PROJ-1' }, [{ path: /issue/, respond: { status: 401, text: '' } }]);
     expect(envelope.error).toMatchObject({ code: 'AUTH' });
-    expect(envelope.error?.fix).toContain('TOIL_JIRA_CLOUD_EMAIL');
+    expect(envelope.error?.fix).toContain('TOIL_JIRA_EMAIL');
     expect(envelope.error?.fix).toContain('https://id.atlassian.com/manage-profile/security/api-tokens');
-    expect(envelope.error?.fix).toContain('then set apiToken (TOIL_JIRA_CLOUD_API_TOKEN for the default connection).');
+    expect(envelope.error?.fix).toContain('then set apiToken (TOIL_JIRA_API_TOKEN for the default connection).');
   });
 
   it('issue create: POSTs the Cloud payload (ADF description, accountId assignee), then reads the issue back', async () => {
@@ -150,7 +150,7 @@ describe('issues', () => {
     delete noProject.project;
     const { envelope, calls } = await run(createIssue, { summary: 'S', ...write }, [], { config: { 'jira-cloud': noProject } });
     expect(envelope.error?.code).toBe('INVALID_INPUT');
-    expect(envelope.error?.fix).toContain('TOIL_JIRA_CLOUD_PROJECT');
+    expect(envelope.error?.fix).toContain('TOIL_JIRA_PROJECT');
     expect(calls).toHaveLength(0);
   });
 
@@ -355,12 +355,6 @@ describe('custom fields and input files', () => {
     const bad = await run(updateIssue, { key: 'PROJ-123', inputFile: 'u.json', ...write }, [], { files: { 'u.json': JSON.stringify({ fields: { summary: { text: 'x' } } }) } });
     expect(bad.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'fields.summary in --input-file must be text.' });
     expect(bad.calls).toHaveLength(0);
-  });
-
-  it('schema needs no connection and describes ADF and accountIds', async () => {
-    const { envelope } = await run(schema, {}, [], { config: {} });
-    expect(JSON.stringify(envelope.data)).toContain('ADF');
-    expect(JSON.stringify(envelope.data)).toContain('accountId');
   });
 
   it('fields --discover --project merges allowedValues from the paged createmeta, and refuses an unknown issue type', async () => {

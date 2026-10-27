@@ -15,6 +15,8 @@ export interface OwiDocument {
   command: string;
   /** The toil connection, the first part of every id. The area's name when the input says none. */
   connection: string;
+  /** Which deployment of the area the connection is (`server`, `cloud`), when the envelope's meta.context says. */
+  deployment?: string;
   data: unknown;
   /** The context inputs the call resolved (`owner`, `repo`, `project`), from meta.context. */
   inputs: Record<string, string>;
@@ -121,7 +123,7 @@ export function blank(doc: OwiDocument, key: string, title: string, native: Reco
   return {
     owi: OWI_VERSION,
     id: idFor(doc.connection, key),
-    source: { area: doc.area, connection: doc.connection, key, command: doc.command },
+    source: { area: doc.area, connection: doc.connection, key, command: doc.command, ...(doc.deployment === undefined ? {} : { deployment: doc.deployment }) },
     url: null,
     type: 'OTHER',
     typeName: null,

@@ -31,8 +31,9 @@ scripts. There is no password, OAuth app or browser login. The token acts with t
 account's own permissions, so a read sees what that account can see.
 
 The same account token works for Jira Cloud. With no token of its own, the default
-connection uses `TOIL_JIRA_CLOUD_API_TOKEN` (the default `jira-cloud` connection's env
-value). Any other connection borrows a `jira-cloud` connection's token, env or stored,
+connection uses `TOIL_JIRA_API_TOKEN` (the default `jira` connection's env value), but only
+when that connection is a Cloud one (`deployment` cloud): a Data Center token is never lent to
+the Atlassian cloud. Any other connection borrows a `jira` connection's token, env or stored,
 only by naming it: `"apiTokenFrom": "imagile-cloud"`. Its own token always wins, and
 `meta.context.shared` says when the token came from Jira Cloud. Only the token is
 borrowed: `email` is always this connection's own, and must be the address the token
@@ -45,7 +46,7 @@ belongs to.
 | `baseUrl` | `TOIL_CONFLUENCE_CLOUD_BASE_URL` | yes | Confluence Cloud site root, without `/wiki`: `https://<your-site>.atlassian.net` |
 | `email` | `TOIL_CONFLUENCE_CLOUD_EMAIL` | yes | Email address of the Atlassian account the token belongs to |
 | `apiToken` | `TOIL_CONFLUENCE_CLOUD_API_TOKEN` | yes | Atlassian account API token (a secret), unless borrowed from Jira Cloud |
-| `apiTokenFrom` | `TOIL_CONFLUENCE_CLOUD_API_TOKEN_FROM` | no | A `jira-cloud` connection whose token this connection uses |
+| `apiTokenFrom` | `TOIL_CONFLUENCE_CLOUD_API_TOKEN_FROM` | no | A `jira` connection whose token this connection uses |
 | `writes` | `TOIL_CONFLUENCE_CLOUD_WRITES` | no | `true` lets write commands run (with `--allow-write`) |
 
 toil adds `/wiki/api/v2` and `/wiki/rest/api` itself, so `baseUrl` is the site root. A

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
-import { config as fixtureConfig, issue, SITE } from '../../../test/fixtures/jira-cloud.fixture.js';
-import type { AnyCommand } from '../../core/command.js';
-import { execute } from '../../core/run.js';
+import { testContext } from '../../../../test/harness/context.js';
+import type { Route } from '../../../../test/harness/fake-fetch.js';
+import { config as fixtureConfig, issue, SITE } from '../../../../test/fixtures/jira-cloud-data.js';
+import type { AnyCommand } from '../../../core/command.js';
+import { execute } from '../../../core/run.js';
 import { listBoards, listSprints } from './agile.js';
 import { getChangelog, getIssue, listComments } from './issues.js';
 import { listProjects, searchUsers } from './projects.js';

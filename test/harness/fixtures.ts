@@ -37,8 +37,19 @@ export interface TracedTarget {
 export interface AreaFixture {
   area: string;
   routes?: Route[];
-  /** Must include `writes: true` for an area with write commands, so every example runs. */
+  /**
+   * Connections by name, each with `writes: true` for an area with write
+   * commands, so every example runs. A key that is an area's name is that
+   * area's default connection; any other sets its own `area`.
+   */
   config?: Record<string, Settings>;
+  /**
+   * For an area with more than one deployment (`jira`): the connection each
+   * deployment's examples run on, by deployment (`{ server: 'jira', cloud:
+   * 'jira-cloud' }`). A per-deployment command's example carries its deployment
+   * (`exampleDeployments`), and `examplesOf` runs it with that connection.
+   */
+  deployments?: Record<string, string>;
   /** Local files the examples read (input files, uploads), relative to the test working directory. */
   files?: Files;
   /**
@@ -83,6 +94,21 @@ export interface AreaFixture {
 
 export function defineFixture(fixture: AreaFixture): AreaFixture {
   return fixture;
+}
+
+/**
+ * A command's examples as they run against a fixture: a routed command's
+ * example runs on the connection of its own deployment, so Data Center's and
+ * Cloud's are each proven against the connection they are for.
+ */
+export function examplesOf(def: AnyCommand, fixture: Pick<AreaFixture, 'area' | 'deployments'>): Array<Record<string, unknown>> {
+  return (def.examples as Array<Record<string, unknown>>).map((example, i) => {
+    const deployment = def.exampleDeployments?.[i];
+    if (deployment === undefined) return example;
+    const connection = fixture.deployments?.[deployment];
+    if (connection === undefined) throw new Error(`${def.path.join(' ')} example ${i + 1} runs on ${deployment}, and the ${fixture.area} fixture names no ${deployment} connection in deployments.`);
+    return { ...example, connection };
+  });
 }
 
 /** A fixture as the suites use it: every optional list filled in. Config, files and routes are final only after `setUp`. */

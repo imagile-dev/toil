@@ -249,7 +249,7 @@ credential in it. Each problem names its key path:
 
 `toil jira check-dossier --dossier card-payments` goes one step further and asks the
 service whether each project and field id the dossier names exists. `jira`,
-`jira-cloud`, `confluence`, `sonar`, `ado`, `bitbucket`, `github`, `openshift` and
+`confluence`, `sonar`, `ado`, `bitbucket`, `github`, `openshift` and
 `dynatrace` each have one.
 
 ### Use

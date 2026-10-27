@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { jiraCloudArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { jiraArea } from '../area.js';
 import * as client from './client.js';
 import { buildFieldMap, resolveFieldKey, translateFieldsInOutput, translateJql } from './custom-fields.js';
 import { commaList, resolveJql } from './input.js';
-import { jqlInstant, parseUpdatedSince, updatedSinceField, updatedSinceOption, withUpdatedSince } from '../jira/since.js';
+import { jqlInstant, parseUpdatedSince, updatedSinceField, updatedSinceOption, withUpdatedSince } from '../since.js';
 
 /**
  * JQL search on Jira Cloud's enhanced search endpoint, which pages by token
@@ -13,11 +13,11 @@ import { jqlInstant, parseUpdatedSince, updatedSinceField, updatedSinceOption, w
  * reorganisations, no longer anyone's responsibility.
  */
 
-export const search = jiraCloudArea.command({
-  path: ['jira-cloud', 'issue', 'search'],
-  description: 'Search Jira Cloud issues with JQL (consider --output-file for large results)',
+export const search = jiraArea.command({
+  path: ['jira', 'issue', 'search'],
+  description: 'Search Jira issues with JQL (consider --output-file for large results)',
   toolDescription:
-    'Searches Jira Cloud issues with JQL and returns { issues, maxResults, isLast }: maxResults is how many came back, isLast whether that was everything. Without limit it pages through every match, so bound broad queries. With limit, pass meta.page.nextCursor as cursor to get the next page. Jira Cloud reports no total. updatedSince adds updated >= that instant to the JQL, in the time zone of your Atlassian account. Use jira_cloud_issue_get for one issue by key.',
+    'Searches Jira issues with JQL and returns { issues, maxResults, isLast }: maxResults is how many came back, isLast whether that was everything. Without limit it pages through every match, so bound broad queries. With limit, pass meta.page.nextCursor as cursor to get the next page. Jira reports no total. updatedSince adds updated >= that instant to the JQL, in the time zone of your Atlassian account. Use jira_issue_get for one issue by key.',
   input: z.object({
     jql: z.string().optional().describe('JQL query, e.g. project = PROJ AND status = "In Progress"'),
     jqlFile: z.string().optional().describe('Path to a file holding the JQL query ("-" = stdin on the CLI)'),
@@ -80,11 +80,11 @@ export const search = jiraCloudArea.command({
   },
 });
 
-export const fields = jiraCloudArea.command({
-  path: ['jira-cloud', 'issue', 'fields'],
+export const fields = jiraArea.command({
+  path: ['jira', 'issue', 'fields'],
   description: 'List custom fields (configured or discovered from Jira API) (consider --output-file for large results)',
   toolDescription:
-    "Without discover, returns the custom fields registered on the connection. With discover, returns Jira Cloud's field list (id, name, schema, suggestedType), and with project also each field's allowedValues. Use it to find a field's id before setting it.",
+    "Without discover, returns the custom fields registered on the connection. With discover, returns Jira's field list (id, name, schema, suggestedType), and with project also each field's allowedValues. Use it to find a field's id before setting it.",
   input: z.object({
     discover: z.boolean().optional().describe('Fetch field metadata from the Jira API instead of listing registered fields'),
     customOnly: z.boolean().optional().describe('Only custom fields (with discover)'),

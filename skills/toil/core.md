@@ -10,7 +10,7 @@ when a call needs more than a command's own flags.
 For an AI term you meet here or in Toil UI (token, context window, harness, MCP),
 Context Overflow's glossary has a page each: <https://kolatts.github.io/context-overflow/glossary>.
 
-The jira, jira-cloud, ado and ado-cloud commands are `toil <area> <resource> <action>
+The jira (Data Center and Cloud), ado and ado-cloud commands are `toil <area> <resource> <action>
 [ids...]`: ids are positional, everything else is a flag, and `toil <area> <resource>
 --help` lists what a resource can do (`toil jira issue --help`).
 
@@ -39,7 +39,7 @@ command's own paging flag, which its reference names.
 
 ## Moving work items by intent
 
-`jira issue transition`, `jira-cloud issue transition`, `ado work-item transition` and
+`jira issue transition`, `ado work-item transition` and
 `ado-cloud work-item transition` take `--to <intent>` (`to` over MCP): `start`,
 `review`, `done`, `reopen`, or a status name. toil resolves it against the moves that
 one item offers right now, by its own workflow, because a workflow belongs to the issue
@@ -335,7 +335,7 @@ workspace. Then:
 - `toil dossiers field <name> jira storyPoints customfield_10002` names a field, so
   `--field storyPoints=5` works.
 - `toil <area> check-dossier` checks a section against the service, for the call's
-  environment (jira, jira-cloud, confluence, sonar, ado, bitbucket, github, openshift,
+  environment (jira, confluence, sonar, ado, bitbucket, github, openshift,
   dynatrace).
 - `toil dossiers export <name> --repo <root>` writes a shareable copy into a
   repository's `.toil/dossiers/`. It uses host selectors and no local paths, and toil

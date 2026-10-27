@@ -1,10 +1,10 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { jiraArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { jiraArea } from '../area.js';
 import * as client from './client.js';
 import { buildFieldMap, resolveFieldKey, translateFieldsInOutput, translateJql } from './custom-fields.js';
 import { asInt, commaList, parseStartAt, resolveJql } from './input.js';
-import { jqlInstant, parseUpdatedSince, updatedSinceField, updatedSinceOption, withUpdatedSince } from './since.js';
+import { jqlInstant, parseUpdatedSince, updatedSinceField, updatedSinceOption, withUpdatedSince } from '../since.js';
 
 /**
  * Finding issues with JQL, and finding out which fields exist to search on.

@@ -15,6 +15,7 @@ import { areaOf, commandName, servedOverMcp, takesAllowWrite, toolName, usesConn
 import { anyWrites, hasConfig, type ResolvedConfig } from '../core/config.js';
 import type { Context } from '../core/context.js';
 import { ToilError } from '../core/errors.js';
+import { renamedArea, renamedAreaFix } from '../core/renamed-areas.js';
 import { shownToPeople, type ProgressEvent } from '../core/progress.js';
 import { OUTPUT_FORMAT_DESCRIPTION, OUTPUT_FORMAT_FIELD, OUTPUT_FORMATS, SUMMARY_FILE_DESCRIPTION, SUMMARY_FILE_FIELD } from '../core/output/fields.js';
 import { SELECT_DESCRIPTION, SELECT_FIELD } from '../core/query/select.js';
@@ -41,6 +42,10 @@ import { listResources, listTemplates, readResource, ResourceError, type Resourc
 export function selectCommands(commands: AnyCommand[], areas: string[] | undefined, config: ResolvedConfig): AnyCommand[] {
   if (areas) {
     const known = new Set(commands.map(areaOf));
+    const gone = areas.find((a) => renamedArea(a));
+    if (gone) {
+      throw new ToilError('INVALID_INPUT', `--areas names "${gone}", which no longer exists.`, { fix: renamedAreaFix(gone) });
+    }
     const unknown = areas.filter((a) => !known.has(a));
     if (unknown.length > 0) {
       throw new ToilError('INVALID_INPUT', `Unknown area${unknown.length > 1 ? 's' : ''}: ${unknown.join(', ')}.`, {

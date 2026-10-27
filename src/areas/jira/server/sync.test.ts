@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { testContext } from '../../../test/harness/context.js';
-import type { Route } from '../../../test/harness/fake-fetch.js';
-import { config as fixtureConfig, issue, JIRA } from '../../../test/fixtures/jira.fixture.js';
-import type { AnyCommand } from '../../core/command.js';
-import { execute } from '../../core/run.js';
-import { runCli } from '../../../test/harness/cli.js';
+import { testContext } from '../../../../test/harness/context.js';
+import type { Route } from '../../../../test/harness/fake-fetch.js';
+import { config as fixtureConfig, issue, JIRA } from '../../../../test/fixtures/jira.fixture.js';
+import type { AnyCommand } from '../../../core/command.js';
+import { execute } from '../../../core/run.js';
+import { runCli } from '../../../../test/harness/cli.js';
 import { listBoards, listSprints } from './agile.js';
-import { MAX_BULK_KEYS } from './bulk.js';
+import { MAX_BULK_KEYS } from '../bulk.js';
 import { getChangelog, getIssue, listComments } from './issues.js';
 import { search } from './search.js';
-import { jqlInstant, parseUpdatedSince, topLevelOrderBy, withUpdatedSince } from './since.js';
+import { jqlInstant, parseUpdatedSince, topLevelOrderBy, withUpdatedSince } from '../since.js';
 
 /**
  * What a sync needs from Jira Data Center (#212): every list paging through

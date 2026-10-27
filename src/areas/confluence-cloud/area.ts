@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { defineArea } from '../../core/area.js';
 import { ToilError } from '../../core/errors.js';
 import type { SupportedVersion } from '../../core/supported.js';
-import { jiraCloudArea } from '../jira-cloud/area.js';
+import { jiraArea } from '../jira/area.js';
 
 /**
  * Confluence Cloud: Atlassian's hosted Confluence, on REST API v2 under
@@ -23,9 +23,10 @@ export const confluenceCloudArea = defineArea({
   }),
   secrets: ['apiToken'],
   // The same Atlassian account token works for Jira Cloud. The default connection
-  // falls back to TOIL_JIRA_CLOUD_API_TOKEN; any connection can name a jira-cloud
-  // connection to borrow from with apiTokenFrom. The email is never borrowed.
-  shares: { area: jiraCloudArea, keys: ['apiToken'] },
+  // falls back to TOIL_JIRA_API_TOKEN when the default jira connection is a Cloud one
+  // (a Data Center token is never lent to the Atlassian cloud); any connection can name
+  // a jira connection to borrow from with apiTokenFrom. The email is never borrowed.
+  shares: { area: jiraArea, keys: ['apiToken'], fallbackWhen: (jira) => jira.deployment === 'cloud' },
   examples: { baseUrl: 'https://<your-site>.atlassian.net', email: 'you@example.com' },
   // The current user; Confluence answers an anonymous caller with a 200 and type "anonymous".
   probe: () => ({ path: '/wiki/rest/api/user/current', accepts: (body) => (body as { type?: unknown } | null)?.type !== 'anonymous' }),

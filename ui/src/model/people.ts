@@ -79,7 +79,7 @@ export interface Identity {
 const identityKey = (area: string, id: string) => `${area}\u0000${lower(id)}`;
 const keyOf = (i: Identity) => identityKey(i.area, i.id);
 
-/** `jira-cloud` is a Jira, `ado-cloud` an Azure DevOps: a person's `jira` identity applies to both unless the dossier names the variant. */
+/** `ado-cloud` is an Azure DevOps: a person's `ado` identity applies to both unless the dossier names the variant. */
 const family = (area: string) => area.replace(/-cloud$/, '');
 
 /** The identity a person has in an area: the area's own entry, else its family's. */

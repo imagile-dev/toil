@@ -1,5 +1,5 @@
 import { textToAdf } from './adf.js';
-import type { CustomFieldDefinition, CustomFieldType } from './area.js';
+import type { CustomFieldDefinition, CustomFieldType } from '../area.js';
 
 /**
  * Custom fields by friendly name. Jira knows a field as `customfield_10032`;

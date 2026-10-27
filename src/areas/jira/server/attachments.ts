@@ -1,10 +1,10 @@
 import { basename } from 'node:path';
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { allowWriteField } from '../../core/run.js';
-import { jiraArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { allowWriteField } from '../../../core/run.js';
+import { jiraArea } from '../area.js';
 import * as client from './client.js';
-import { downloadFileName } from '../../core/files.js';
+import { downloadFileName } from '../../../core/files.js';
 
 /**
  * Attachments: upload one, list them, save one locally. Files move through

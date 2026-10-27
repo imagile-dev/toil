@@ -1,9 +1,10 @@
 import type { RecordedRequest, Route } from '../harness/fake-fetch.js';
-import { defineFixture } from '../harness/fixtures.js';
 
 /**
- * Canned Jira Cloud responses for every request the jira-cloud examples send,
- * so the parity suite runs every command offline through both front doors.
+ * Canned Jira Cloud responses for every request the Cloud examples of `jira`
+ * send, so the parity suite runs them offline through both front doors. Not a
+ * fixture of its own: Cloud is a deployment of the jira area, and
+ * jira.fixture.ts brings its connection and these routes in beside Data Center's.
  *
  * Provenance: every shape here is invented from Atlassian's documented Jira
  * Cloud REST API 3 and Agile REST API 1.0 (the OpenAPI specs behind
@@ -289,16 +290,19 @@ export const routes: Route[] = [
 
 /** Local files the examples read. */
 export const files: Record<string, string> = {
-  'issue.json': JSON.stringify({ project: 'PROJ', issueType: 'Story', fields: { summary: 'From a file', description: '@desc.txt', labels: ['a', 'b'], priority: 'High' } }),
-  'update.json': JSON.stringify({ fields: { description: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'As ADF' }] }] }, customfield_10050: 'Acceptance criteria' } }),
+  'cloud-issue.json': JSON.stringify({ project: 'PROJ', issueType: 'Story', fields: { summary: 'From a file', description: '@desc.txt', labels: ['a', 'b'], priority: 'High' } }),
+  'cloud-update.json': JSON.stringify({ fields: { description: { type: 'doc', version: 1, content: [{ type: 'paragraph', content: [{ type: 'text', text: 'As ADF' }] }] }, customfield_10050: 'Acceptance criteria' } }),
   'fields.json': JSON.stringify({ fixVersions: [{ name: '1.4.2' }], 'Story Points': 3 }),
   'desc.txt': 'A long description.\n\nIn two paragraphs.',
   'query.jql': 'project = PROJ ORDER BY created DESC\n',
   'screenshot.png': 'PNG!',
 };
 
+/** The Cloud connection, named `jira-cloud`: an ordinary jira connection with deployment cloud. */
 export const config = {
   'jira-cloud': {
+    area: 'jira',
+    deployment: 'cloud',
     baseUrl: SITE,
     email: 'you@example.com',
     apiToken: 'test-token',
@@ -310,8 +314,3 @@ export const config = {
     writes: true,
   },
 };
-
-/** The dossier the examples run with, for check-dossier: reference data and a field alias only, so no other example changes. */
-export const dossier = { name: 'payments', 'jira-cloud': { projects: ['PROJ'], fields: { storyPoints: 'customfield_10016' } } };
-
-export const fixture = defineFixture({ area: 'jira-cloud', routes, config, files, dossier });

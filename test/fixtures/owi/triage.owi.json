@@ -5613,10 +5613,10 @@
       "owi": "0.2",
       "id": "cloud-jira:WEB-31",
       "source": {
-        "area": "jira-cloud",
+        "area": "jira",
         "connection": "cloud-jira",
         "key": "WEB-31",
-        "command": "jira-cloud issue search"
+        "command": "jira issue search"
       },
       "url": "https://jira-cloud.imagile.dev/browse/WEB-31",
       "type": "BUG",
@@ -5680,7 +5680,7 @@
         }
       ],
       "native": {
-        "jira-cloud issue search": {
+        "jira issue search": {
           "id": "10501",
           "self": "https://jira-cloud.imagile.dev/rest/api/3/issue/10501",
           "key": "WEB-31",
@@ -5739,10 +5739,10 @@
       "owi": "0.2",
       "id": "cloud-jira:WEB-32",
       "source": {
-        "area": "jira-cloud",
+        "area": "jira",
         "connection": "cloud-jira",
         "key": "WEB-32",
-        "command": "jira-cloud issue search"
+        "command": "jira issue search"
       },
       "url": "https://jira-cloud.imagile.dev/browse/WEB-32",
       "type": "STORY",
@@ -5797,7 +5797,7 @@
         }
       ],
       "native": {
-        "jira-cloud issue search": {
+        "jira issue search": {
           "id": "10502",
           "self": "https://jira-cloud.imagile.dev/rest/api/3/issue/10502",
           "key": "WEB-32",

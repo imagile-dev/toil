@@ -1,16 +1,16 @@
 import type { z } from 'zod';
-import type { Connection } from '../../core/area.js';
-import type { CommandContext } from '../../core/context.js';
-import { apiRequest } from '../../core/api.js';
-import { ToilError } from '../../core/errors.js';
-import type { JiraIssueWithTransitions } from '../../core/transition-intent.js';
-import { paginate, type Paged, type PageStyle } from '../../core/paginate.js';
-import type { QueryParam } from '../../core/rest.js';
+import type { Connection } from '../../../core/area.js';
+import type { CommandContext } from '../../../core/context.js';
+import { apiRequest } from '../../../core/api.js';
+import { ToilError } from '../../../core/errors.js';
+import type { JiraIssueWithTransitions } from '../../../core/transition-intent.js';
+import { paginate, type Paged, type PageStyle } from '../../../core/paginate.js';
+import type { QueryParam } from '../../../core/rest.js';
 import { textToAdf, type AdfDocument } from './adf.js';
-import { jiraCloudArea, type CustomFieldDefinition } from './area.js';
+import { jiraArea, type CustomFieldDefinition } from '../area.js';
 import { suggestedType } from './custom-fields.js';
-import type { BulkError } from '../jira/bulk.js';
-import type { PageOpts } from '../jira/paging.js';
+import type { BulkError } from '../bulk.js';
+import type { PageOpts } from '../paging.js';
 
 /**
  * Every request toil sends to Jira Cloud, each from Atlassian's REST API 3
@@ -23,7 +23,7 @@ import type { PageOpts } from '../jira/paging.js';
  * announced in a changelog, which is the closest thing to consent on record.
  */
 
-export type JiraCloudConnection = Connection<z.output<typeof jiraCloudArea.connection>>;
+export type JiraCloudConnection = Connection<z.output<typeof jiraArea.connection>>;
 export type JiraCloudContext = CommandContext<JiraCloudConnection>;
 
 const API = '/rest/api/3';
@@ -71,7 +71,7 @@ interface Request {
 }
 
 export function jiraCloud<T>(ctx: JiraCloudContext, path: string, req: Request = {}): Promise<T> {
-  return apiRequest<T>(jiraCloudArea, ctx, path, {
+  return apiRequest<T>(jiraArea, ctx, path, {
     method: req.method ?? 'GET',
     ...(req.query ? { query: req.query } : {}),
     ...(req.body !== undefined ? { json: req.body } : {}),
@@ -418,7 +418,7 @@ export interface JiraCloudAttachment {
 
 // POST /rest/api/3/issue/{issueIdOrKey}/attachments: one multipart part named file, with the no-check header Jira requires.
 export function uploadAttachment(ctx: JiraCloudContext, key: string, fileName: string, data: Uint8Array): Promise<JiraCloudAttachment[]> {
-  return apiRequest<JiraCloudAttachment[]>(jiraCloudArea, ctx, `${API}/issue/${seg(key)}/attachments`, {
+  return apiRequest<JiraCloudAttachment[]>(jiraArea, ctx, `${API}/issue/${seg(key)}/attachments`, {
     method: 'POST',
     headers: { 'X-Atlassian-Token': 'no-check' },
     multipart: [{ name: 'file', fileName, data }],
@@ -437,7 +437,7 @@ export async function listAttachments(ctx: JiraCloudContext, key: string): Promi
  * request never leaves the connection's host and the credential goes nowhere else.
  */
 export function downloadAttachment(ctx: JiraCloudContext, id: string): Promise<Uint8Array> {
-  return apiRequest<Uint8Array>(jiraCloudArea, ctx, `${API}/attachment/content/${seg(id)}`, { query: { redirect: false }, headers: { Accept: '*/*' }, as: 'bytes' });
+  return apiRequest<Uint8Array>(jiraArea, ctx, `${API}/attachment/content/${seg(id)}`, { query: { redirect: false }, headers: { Accept: '*/*' }, as: 'bytes' });
 }
 
 export interface JiraCloudFieldInfo {

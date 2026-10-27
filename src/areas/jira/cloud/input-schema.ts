@@ -1,14 +1,14 @@
 /**
  * The JSON Schema and a runnable example for the --input-file that
- * `jira-cloud issue create` and `issue update` accept, served by `toil
- * jira-cloud issue schema` so a caller can discover the shape without reading the
+ * `jira issue create` and `issue update` accept, served by `toil
+ * jira issue schema --deployment cloud` so a caller can discover the shape without reading the
  * manual. The manual exists. It is the schema.
  */
 export const JIRA_CLOUD_INPUT_FILE_SCHEMA = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   title: 'toil Jira Cloud issue input file',
   description:
-    'Shape accepted by --input-file on `toil jira-cloud issue create` / `issue update`. ' +
+    'Shape accepted by --input-file on `toil jira issue create` / `issue update`. ' +
     'CLI flags (--summary, --description, --priority, --field, ...) override matching keys here; ' +
     'overridden keys are reported in meta.warnings.',
   type: 'object',

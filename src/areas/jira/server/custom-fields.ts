@@ -1,4 +1,5 @@
-import type { CustomFieldDefinition, CustomFieldType } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import type { CustomFieldDefinition, CustomFieldType } from '../area.js';
 
 /**
  * Custom fields by friendly name. Jira knows a field as `customfield_10032`;
@@ -106,6 +107,10 @@ export function formatFieldValue(value: string, type: CustomFieldType | undefine
       return value.split(',').map((v) => v.trim());
     case 'user':
       return { name: value };
+    case 'multi-user':
+      throw new ToilError('INVALID_INPUT', 'The custom field type "multi-user" is for Jira Cloud, which names people by accountId; Data Center has no such type.', {
+        fix: 'Use type "user" (a username) for a single-user field, or drop the type for a raw value.',
+      });
     default:
       return value;
   }

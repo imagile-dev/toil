@@ -1,10 +1,10 @@
 import { basename } from 'node:path';
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { allowWriteField } from '../../core/run.js';
-import { jiraCloudArea } from './area.js';
+import { ToilError } from '../../../core/errors.js';
+import { allowWriteField } from '../../../core/run.js';
+import { jiraArea } from '../area.js';
 import * as client from './client.js';
-import { downloadFileName } from '../../core/files.js';
+import { downloadFileName } from '../../../core/files.js';
 
 /**
  * Attachments on a Jira Cloud issue: upload one, list them, save one locally.
@@ -18,10 +18,10 @@ import { downloadFileName } from '../../core/files.js';
 const key = z.string().min(1).describe('Issue key, e.g. PROJ-123');
 const keyArg = { name: 'key', field: 'key', description: 'Issue key (e.g. PROJ-123)' };
 
-export const addAttachment = jiraCloudArea.command({
-  path: ['jira-cloud', 'issue', 'attach'],
-  description: 'Upload a file as an attachment to a Jira Cloud issue',
-  toolDescription: 'Uploads a local file to a Jira Cloud issue and returns the attachments Jira created. file is a path on the machine toil runs on.',
+export const addAttachment = jiraArea.command({
+  path: ['jira', 'issue', 'attach'],
+  description: 'Upload a file as an attachment to a Jira issue',
+  toolDescription: 'Uploads a local file to a Jira issue and returns the attachments Jira created. file is a path on the machine toil runs on.',
   input: z.object({ key, file: z.string().min(1).describe('Path to the file to upload'), ...allowWriteField }),
   writes: true,
   args: [keyArg],
@@ -33,10 +33,10 @@ export const addAttachment = jiraCloudArea.command({
   },
 });
 
-export const listAttachments = jiraCloudArea.command({
-  path: ['jira-cloud', 'issue', 'attachments'],
-  description: 'List attachments on a Jira Cloud issue',
-  toolDescription: 'Returns the attachments on a Jira Cloud issue (id, filename, size, mimeType, content URL). Use jira_cloud_issue_download to save one.',
+export const listAttachments = jiraArea.command({
+  path: ['jira', 'issue', 'attachments'],
+  description: 'List attachments on a Jira issue',
+  toolDescription: 'Returns the attachments on a Jira issue (id, filename, size, mimeType, content URL). Use jira_issue_download to save one.',
   input: z.object({ key }),
   writes: false,
   args: [keyArg],
@@ -44,11 +44,11 @@ export const listAttachments = jiraCloudArea.command({
   run: (input, ctx) => client.listAttachments(ctx, input.key),
 });
 
-export const downloadAttachment = jiraCloudArea.command({
-  path: ['jira-cloud', 'issue', 'download'],
-  description: 'Download a Jira Cloud issue attachment to .toil/ (or --dir)',
+export const downloadAttachment = jiraArea.command({
+  path: ['jira', 'issue', 'download'],
+  description: 'Download a Jira issue attachment to .toil/ (or --dir)',
   toolDescription:
-    'Saves one attachment from a Jira Cloud issue to a local directory (default .toil in the working directory) and returns { saved, filename, size }. Get the id from jira_cloud_issue_attachments. Never replaces an existing file.',
+    'Saves one attachment from a Jira issue to a local directory (default .toil in the working directory) and returns { saved, filename, size }. Get the id from jira_issue_attachments. Never replaces an existing file.',
   input: z.object({
     key,
     attachmentId: z.string().min(1).describe('Attachment id from issue attachments'),
@@ -69,7 +69,7 @@ export const downloadAttachment = jiraCloudArea.command({
     const attachment = (await client.listAttachments(ctx, input.key)).find((a) => a.id === input.attachmentId);
     if (!attachment) {
       throw new ToilError('INVALID_INPUT', `Attachment not found on ${input.key}: ${input.attachmentId}`, {
-        fix: `Run toil jira-cloud issue attachments ${input.key} for the ids it has.`,
+        fix: `Run toil jira issue attachments ${input.key} for the ids it has.`,
       });
     }
     const data = await client.downloadAttachment(ctx, attachment.id);

@@ -1,16 +1,16 @@
 import type { z } from 'zod';
-import type { Connection } from '../../core/area.js';
-import type { CommandContext } from '../../core/context.js';
-import { apiRequest } from '../../core/api.js';
-import { apiPath } from '../../core/api-path.js';
-import { ToilError } from '../../core/errors.js';
-import type { JiraIssueWithTransitions } from '../../core/transition-intent.js';
-import { paginate, type PageStyle } from '../../core/paginate.js';
-import { repointUrl, type QueryValue } from '../../core/rest.js';
-import { jiraArea, type CustomFieldDefinition } from './area.js';
-import { BULK_CONCURRENCY, perKeyError, type BulkError } from './bulk.js';
+import type { Connection } from '../../../core/area.js';
+import type { CommandContext } from '../../../core/context.js';
+import { apiRequest } from '../../../core/api.js';
+import { apiPath } from '../../../core/api-path.js';
+import { ToilError } from '../../../core/errors.js';
+import type { JiraIssueWithTransitions } from '../../../core/transition-intent.js';
+import { paginate, type PageStyle } from '../../../core/paginate.js';
+import { repointUrl, type QueryValue } from '../../../core/rest.js';
+import { jiraArea, type CustomFieldDefinition } from '../area.js';
+import { BULK_CONCURRENCY, perKeyError, type BulkError } from '../bulk.js';
 import { suggestedType } from './custom-fields.js';
-import type { PageOpts } from './paging.js';
+import type { PageOpts } from '../paging.js';
 
 /**
  * Every request toil sends to Jira Data Center. Commands describe what they
@@ -452,7 +452,7 @@ export async function removeLabels(ctx: JiraContext, key: string, labels: string
 }
 
 /** The upload body, built in core; exported here because the Jira tests compare against it. */
-export { multipartFile } from '../../core/multipart.js';
+export { multipartFile } from '../../../core/multipart.js';
 
 export function uploadAttachment(ctx: JiraContext, key: string, fileName: string, data: Uint8Array): Promise<JiraAttachment[]> {
   return apiRequest<JiraAttachment[]>(jiraArea, ctx, apiPath`/rest/api/2/issue/${key}/attachments`, {

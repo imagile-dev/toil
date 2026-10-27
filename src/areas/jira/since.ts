@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ToilError } from '../../core/errors.js';
 
 /**
- * `--updated-since` for JQL search, shared by `jira` and `jira-cloud`: one
+ * `--updated-since` for JQL search, shared by both Jira deployments: one
  * instant, written into the caller's JQL as `updated >= "…"`.
  *
  * JQL has no way to say an instant. An absolute date is "yyyy-MM-dd HH:mm" in

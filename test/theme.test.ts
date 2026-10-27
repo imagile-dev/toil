@@ -126,13 +126,13 @@ describe('toil theme set', () => {
     const env = await execute('theme set', { name: 'realm' });
     expect(env.ok).toBe(true);
     expect(env.data).toMatchObject({ theme: 'realm', label: 'Realm', previous: null, changed: true });
-    expect(JSON.parse(readFileSync(configFile(), 'utf8'))).toEqual({ version: 2, connections: {}, defaults: {}, dossierPaths: [], game: { sealed: 'x' }, theme: 'realm' });
+    expect(JSON.parse(readFileSync(configFile(), 'utf8'))).toEqual({ version: 3, connections: {}, defaults: {}, dossierPaths: [], game: { sealed: 'x' }, theme: 'realm' });
     expect((await execute('theme set', { name: 'realm' })).data).toMatchObject({ previous: 'realm', changed: false });
   });
 
   it('creates the file when there is none', async () => {
     await execute('theme set', { name: 'crate' });
-    expect(JSON.parse(readFileSync(configFile(), 'utf8'))).toMatchObject({ version: 2, theme: 'crate' });
+    expect(JSON.parse(readFileSync(configFile(), 'utf8'))).toMatchObject({ version: 3, theme: 'crate' });
   });
 
   it('refuses a theme toil does not have, listing the themes', async () => {

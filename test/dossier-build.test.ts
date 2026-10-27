@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { checkDossier as jiraCheckDossier } from '../src/areas/jira/check-dossier.js';
-import { createIssue } from '../src/areas/jira/issues.js';
+import { checkDossier as jiraCheckDossier } from '../src/areas/jira/server/check-dossier.js';
+import { createIssue } from '../src/areas/jira/server/issues.js';
 import type { AnyCommand } from '../src/core/command.js';
 import { toolName } from '../src/core/command.js';
 import type { ResolvedConfig, Settings, Source } from '../src/core/config.js';

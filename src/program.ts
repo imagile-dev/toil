@@ -3,6 +3,7 @@ import { aliasInput, aliasPaths, commandName, takesAllowWrite, toolName, writesF
 import type { Context } from './core/context.js';
 import { failure, type Envelope } from './core/envelope.js';
 import { ToilError, toToilError } from './core/errors.js';
+import { renamedArea, renamedAreaFix } from './core/renamed-areas.js';
 import { exitCodeOf, runCommand } from './core/run.js';
 import { OUTPUT_FORMAT_FIELD, SUMMARY_FILE_FIELD } from './core/output/fields.js';
 import { SELECT_FIELD } from './core/query/select.js';
@@ -431,6 +432,12 @@ export async function runProgram(options: ProgramOptions, argv: string[], from: 
     const globals = globalsFromArgv(userArgs);
     const command = commandFromArgv(userArgs, options.commands);
     const message = err.message.replace(/^error:\s*/, '');
+    // A path under an area that was folded into another: say where it went, not just that it's unknown.
+    const gone = err.code === 'commander.unknownCommand' ? userArgs.find((word) => renamedArea(word)) : undefined;
+    if (gone) {
+      emit(failure(new ToilError('INVALID_INPUT', `toil ${gone} no longer exists.`, { fix: renamedAreaFix(gone) }), { command, durationMs: 0, version: options.version }), globals, options.io);
+      return 1;
+    }
     // Only when the option commander refused is itself the misplaced group flag.
     const rejected = err.code === 'commander.unknownOption' ? /'([^']+)'/.exec(message)?.[1]?.split('=')[0] : undefined;
     const misplaced = rejected ? groupFlagBeforeAlias(userArgs, options.commands, rejected) : undefined;

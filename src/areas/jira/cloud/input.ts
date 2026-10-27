@@ -1,13 +1,15 @@
-import { ToilError } from '../../core/errors.js';
-import type { FileAccess } from '../../core/files.js';
+import { ToilError } from '../../../core/errors.js';
+import type { FileAccess } from '../../../core/files.js';
 import { formatFieldValue, resolveFieldKey, type CustomFieldMap } from './custom-fields.js';
 
 /**
- * Turning what a caller typed into what Jira's API takes: `--field Name=value`,
+ * Turning what a caller typed into what Jira Cloud's API takes: `--field Name=value`,
  * a `--fields-file`, an `--input-file` describing the whole issue, `@file`
  * references inside it, and JQL from a flag or a file. Files are read through
  * `ctx.files`, never `node:fs`, so `-` means stdin only where stdin is free.
- * Supporting documents may be attached; they will, unusually, be read.
+ * The same rules as `jira`'s, kept separate so a fix to one variant can't
+ * quietly change the other. Supporting documents may be attached; they will,
+ * unusually, be read.
  */
 
 /** Shape of the JSON accepted by --input-file on issue create and issue update. */
@@ -173,26 +175,6 @@ export function resolveJql(jql: string | undefined, jqlFile: string | undefined,
   if (!trimmed) throw new ToilError('INVALID_INPUT', 'JQL query is empty', { fix: 'Put a JQL query in the flag or file.' });
   return trimmed;
 }
-
-/**
- * `--start-at`: digits only, as the contract specifies. parseInt would take
- * "10x", and "abc" would never satisfy the paging loop's exit test.
- */
-export function parseStartAt(raw: string | number | undefined): number | undefined {
-  if (raw === undefined) return undefined;
-  const text = String(raw);
-  if (!/^\d+$/.test(text)) {
-    throw new ToilError('INVALID_INPUT', `--start-at must be a non-negative integer, got "${text}"`, { fix: 'Pass --start-at 0, 50, 100, ...' });
-  }
-  return parseInt(text, 10);
-}
-
-/**
- * A number flag read with parseInt, as the contract specifies: so "10x" is 10 and
- * "abc" is NaN (which reaches the request as null or "NaN"). Recorded as a
- * suspected bug rather than validated (CLAUDE.md, The command contract).
- */
-export const asInt = (value: string | number): number => parseInt(String(value), 10);
 
 /** Field ids in Jira's error messages, shown with their friendly names. */
 export function translateFieldErrors(err: unknown, fieldMap: CustomFieldMap): unknown {

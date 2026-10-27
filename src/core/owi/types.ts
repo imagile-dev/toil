@@ -33,13 +33,12 @@ const BITBUCKET_CLOUD: OwiSource = { family: 'bitbucket-cloud', items: [], histo
 
 /**
  * The areas toil maps to OWI. An area that sends one of these shapes is one
- * line here: Data Center and Cloud variants share their family's mapper
- * (`jira-cloud`, `ado-cloud`) where their shapes agree, and have their own
- * where they don't (`bitbucket-cloud`).
+ * line here: `jira` serves Data Center and Cloud from one mapper, and the
+ * variants that are still areas of their own (`ado-cloud`) share their family's
+ * where their shapes agree, and have their own where they don't (`bitbucket-cloud`).
  */
 export const OWI_SOURCES: Record<string, OwiSource> = {
   jira: JIRA,
-  'jira-cloud': JIRA,
   ado: ADO,
   'ado-cloud': ADO,
   github: GITHUB,
@@ -119,7 +118,7 @@ export interface Body {
 export interface WorkItem {
   owi: typeof OWI_VERSION;
   id: string;
-  source: { area: OwiArea; connection: string; key: string; command: string };
+  source: { area: OwiArea; connection: string; key: string; command: string; deployment?: string };
   url: string | null;
   type: WorkItemType;
   typeName: string | null;

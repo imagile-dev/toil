@@ -1,9 +1,9 @@
 import { z } from 'zod';
-import { ToilError } from '../../core/errors.js';
-import { allowWriteField } from '../../core/run.js';
-import { intentOf, jiraMoves, oneOfTransition, resolveTransition } from '../../core/transition-intent.js';
-import { jiraArea } from './area.js';
-import { bulkKeys, bulkWarning, keyOrKeys, MAX_BULK_KEYS } from './bulk.js';
+import { ToilError } from '../../../core/errors.js';
+import { allowWriteField } from '../../../core/run.js';
+import { intentOf, jiraMoves, oneOfTransition, resolveTransition } from '../../../core/transition-intent.js';
+import { jiraArea } from '../area.js';
+import { bulkKeys, bulkWarning, keyOrKeys, MAX_BULK_KEYS } from '../bulk.js';
 import * as client from './client.js';
 import { buildFieldMap, translateFieldsInOutput, withAliases } from './custom-fields.js';
 import {
@@ -17,8 +17,7 @@ import {
   translateFieldErrors,
   type IssueJsonInput,
 } from './input.js';
-import { JIRA_INPUT_FILE_EXAMPLE, JIRA_INPUT_FILE_SCHEMA } from './input-schema.js';
-import { pageOf, pagingFields, pagingOptions } from './paging.js';
+import { pageOf, pagingFields, pagingOptions } from '../paging.js';
 
 /**
  * Commands on one issue: read it, create it, change it, move it through its
@@ -268,28 +267,6 @@ export const updateIssue = jiraArea.command({
   },
 });
 
-export const schema = jiraArea.command({
-  path: ['jira', 'issue', 'schema'],
-  // Under jira's path, but it needs no connection: it answers with no config at all.
-  kind: 'area-local',
-  description: 'Print the --input-file JSON schema and an example for issue create and issue update',
-  toolDescription:
-    'Returns the JSON Schema and a runnable example for the inputFile accepted by jira_issue_create and jira_issue_update. Needs no Jira connection.',
-  input: z.object({
-    exampleOnly: z.boolean().optional().describe('Return only the runnable example as data, ready to save as an input file'),
-  }),
-  writes: false,
-  options: [
-    {
-      flags: '--example-only',
-      field: 'exampleOnly',
-      description: 'Return only the runnable example JSON as data — save .data and pass it to --input-file',
-    },
-  ],
-  examples: [{}, { exampleOnly: true }],
-  run: async (input) => (input.exampleOnly ? JIRA_INPUT_FILE_EXAMPLE : { schema: JIRA_INPUT_FILE_SCHEMA, example: JIRA_INPUT_FILE_EXAMPLE }),
-});
-
 export const transitionIssue = jiraArea.command({
   path: ['jira', 'issue', 'transition'],
   description: 'Transition a Jira issue to a new status',
@@ -478,4 +455,4 @@ export const linkIssue = jiraArea.command({
   },
 });
 
-export const issueCommands = [getIssue, getChangelog, createIssue, updateIssue, schema, transitionIssue, listTransitions, addComment, logWork, listComments, addLabel, removeLabel, assign, linkIssue];
+export const issueCommands = [getIssue, getChangelog, createIssue, updateIssue, transitionIssue, listTransitions, addComment, logWork, listComments, addLabel, removeLabel, assign, linkIssue];

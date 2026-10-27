@@ -291,6 +291,7 @@ async function takeShared(
     }
     const target = from === undefined ? undefined : config.connections[from];
     if (from === undefined || !target || target.area !== other.name) continue;
+    if (via === 'env-fallback' && area.shares!.fallbackWhen && !area.shares!.fallbackWhen(target)) continue;
 
     const mine = findSetting(config, area, name, stored, key);
     const theirs = findSetting(config, other, from, target, key);

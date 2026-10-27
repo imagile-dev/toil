@@ -11,7 +11,7 @@ import { commands, routedAliases } from '../src/registry.js';
 import { resolveRoutedAliases, type ResolvedRoutedAlias } from '../src/core/routed-alias.js';
 import { diffContract, diffOutput, isAllowed, isRemoved, loadContract, loadDivergences, present, readDivergenceFiles, removedPaths, usageArguments, type Contract, type ContractCommand } from './harness/contract.js';
 import { testContext } from './harness/context.js';
-import { loadFixtures, setUp, tearDown } from './harness/fixtures.js';
+import { examplesOf, loadFixtures, setUp, tearDown } from './harness/fixtures.js';
 
 /**
  * Compatibility (integrations skill): every contract command under
@@ -220,6 +220,9 @@ describe('command contract: output field names', async () => {
   beforeAll(() => setUp(fixtures));
   afterAll(() => tearDown(fixtures));
 
+  // The contract records Data Center's output; another deployment returns its own API's shape (variant-native data), so its examples aren't held to the recorded fields.
+  const recorded = (def: AnyCommand, f: Parameters<typeof examplesOf>[1]) => examplesOf(def, f).filter((_, i) => (def.exampleDeployments?.[i] ?? 'server') === 'server');
+
   // A command answers for its own path's row, or for the row of an old path it
   // keeps as an alias in another group (`deps scan` for `util deps scan`).
   const rowOf = (def: AnyCommand) => [def.path, ...aliasPaths(def)].map((p) => byPath.get(p.join(' '))).find((row) => row?.output);
@@ -230,7 +233,7 @@ describe('command contract: output field names', async () => {
     it(`${f.area}: every example returns the contract's field names, apart from listed divergences`, async () => {
       const found: string[] = [];
       for (const def of inContract) {
-        for (const example of def.examples) {
+        for (const example of recorded(def, f)) {
           const { context } = testContext({ config: f.config, routes: f.routes, files: f.files, ...(f.repo ? { repo: f.repo } : {}), ...(f.git ? { git: f.git } : {}), ...(f.home ? { home: f.home } : {}) });
           const envelope = await execute(def, example, context);
           expect(envelope.ok, `${commandName(def)}: ${JSON.stringify(envelope.error)}`).toBe(true);
@@ -245,7 +248,7 @@ describe('command contract: output field names', async () => {
   it('jira issue fields: suggestedType is the one type-hint key, and the toilType the contract records is excused only by its divergence', async () => {
     const f = fixtures.find((x) => x.area === 'jira')!;
     const def = f.commands.find((d) => commandName(d) === 'jira issue fields')!;
-    const examples = def.examples.filter((e) => (e as { discover?: boolean }).discover === true);
+    const examples = recorded(def, f).filter((e) => (e as { discover?: boolean }).discover === true);
     expect(examples.length).toBeGreaterThan(0);
     for (const example of examples) {
       const { context } = testContext({ config: f.config, routes: f.routes, files: f.files });
