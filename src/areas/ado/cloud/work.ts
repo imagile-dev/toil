@@ -3,7 +3,8 @@ import { ToilError } from '../../../core/errors.js';
 import { allowWriteField } from '../../../core/run.js';
 import { adoMoves, intentOf, oneOfTransition, resolveTransition, type AdoState, type TransitionReport } from '../../../core/transition-intent.js';
 import { adoArea } from '../area.js';
-import { API_COMMENTS, IN_PROJECT, PATCH, adoc, bodyTokenPages, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, skipPages } from './client.js';
+import { API_COMMENTS, IN_PROJECT, PATCH, adoc, bodyTokenPages, cursorField, enc, exampleCursor, feedRevisions, limitField, pageOf, pageOptions, projectPath, skipPages } from './client.js';
+import { FEED_FIELDS, FEED_SINCE, REVISIONS_DESCRIPTION, fieldList, revisionsInput } from '../feed.js';
 import { fieldPatch, parseFieldArgs, type JsonPatchOp } from './fields.js';
 import { andWhere, checkFlat, wiqlInstant } from './wiql.js';
 
@@ -240,6 +241,32 @@ export const workRevisionsCommand = adoArea.command({
   run: (input, ctx) => skipPages(ctx, `/_apis/wit/workItems/${enc(input.id)}/revisions`, {}, REVISIONS_PAGE, `revisions of Azure DevOps work item ${input.id}`, pageOf(input)),
 });
 
+export const workFeedCommand = adoArea.command({
+  path: ['ado', 'work-item', 'revisions'],
+  description: 'List the revisions of every work item in the project, as one feed (for a sync)',
+  toolDescription: REVISIONS_DESCRIPTION,
+  input: z.object({ ...revisionsInput, limit: limitField('revisions'), cursor: cursorField }),
+  writes: false,
+  context: IN_PROJECT,
+  options: [
+    { flags: '--updated-since <iso>', field: 'updatedSince', description: FEED_SINCE },
+    { flags: '--fields <names>', field: 'fields', description: FEED_FIELDS },
+    ...pageOptions('revisions'),
+  ],
+  examples: [
+    { ...at },
+    { ...all, updatedSince: '2026-10-01T09:00:00Z', fields: 'System.State, System.IterationPath' },
+    { ...at, limit: 1 },
+    { ...at, limit: 1, cursor: exampleCursor('813;42;2') },
+  ],
+  run: (input, ctx) => {
+    const page = pageOf(input);
+    const fields = fieldList(input.fields);
+    // Every request names the same fields; startDateTime goes on the first only (feed.ts).
+    return feedRevisions(ctx, `${projectPath(ctx)}/_apis/wit/reporting/workitemrevisions`, fields ? { fields } : {}, input.updatedSince === undefined ? undefined : wiqlInstant(input.updatedSince), `revisions of the work items in Azure DevOps project ${ctx.context.project}`, page);
+  },
+});
+
 /** The most ids the batch endpoint takes in one request. */
 export const BATCH_SIZE = 200;
 /** The most ids one get-many call takes: five requests, then a bound rather than a loop. */
@@ -351,4 +378,4 @@ export const workListStatesCommand = adoArea.command({
   },
 });
 
-export const workCommands = [workGetCommand, workCreateCommand, workUpdateCommand, workTransitionCommand, workSearchCommand, workRevisionsCommand, workGetBatchCommand, workListCommentsCommand, workAddCommentCommand, workListIterationsCommand, workListStatesCommand];
+export const workCommands = [workGetCommand, workCreateCommand, workUpdateCommand, workTransitionCommand, workSearchCommand, workRevisionsCommand, workFeedCommand, workGetBatchCommand, workListCommentsCommand, workAddCommentCommand, workListIterationsCommand, workListStatesCommand];

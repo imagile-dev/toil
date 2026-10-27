@@ -259,6 +259,31 @@ export const prCommit = (commitId: string) => ({
 export const iteration = (id: number) => ({ id, description: `Update ${id}`, author: identity(ME, 'Jane Doe'), createdDate: `2026-09-1${id}T12:00:00Z`, updatedDate: `2026-09-1${id}T12:00:00Z`, sourceRefCommit: { commitId: SHA }, targetRefCommit: { commitId: 'def67890abc12345def67890abc12345def67890' } });
 export const change = (id: number, path: string) => ({ changeTrackingId: id, changeId: id, item: { objectId: SHA, path }, changeType: 'edit' });
 
+// Invented from Reporting Work Item Revisions - Read Reporting Revisions Get (7.1): { id, rev, fields }, people as
+// "Name <email>" text, no url. Page one names a continuationToken and says isLastBatch false; page two has the last.
+// (https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/reporting-work-item-revisions/read-reporting-revisions-get?view=azure-devops-rest-7.1)
+export const feedRevision = (id: number, rev: number, state: string) => ({
+  id,
+  rev,
+  fields: {
+    'System.Id': id,
+    'System.Rev': rev,
+    'System.TeamProject': 'Imagile',
+    'System.WorkItemType': 'Bug',
+    'System.State': state,
+    'System.IterationPath': 'Imagile\\Sprint 1',
+    'System.Title': `Item ${id}`,
+    'System.ChangedDate': `2026-09-0${rev}T12:00:00Z`,
+    'System.ChangedBy': 'Jane Doe <jane.doe@example.com>',
+  },
+});
+const feedBatch = (r: RecordedRequest) => {
+  const url = new URL(r.url);
+  return url.searchParams.has('continuationToken')
+    ? { json: { values: [feedRevision(42, 3, 'Resolved')], nextLink: `https://dev.azure.com/imagile/_apis/wit/reporting/workItemRevisions?continuationToken=813;42;3`, continuationToken: '813;42;3', isLastBatch: true } }
+    : { json: { values: [feedRevision(42, 1, 'New'), feedRevision(42, 2, 'Active'), feedRevision(7, 1, 'New')], nextLink: 'https://dev.azure.com/imagile/_apis/wit/reporting/workItemRevisions?continuationToken=abc12345', continuationToken: 'abc12345', isLastBatch: false } };
+};
+
 const hasQuery = (r: RecordedRequest, key: string) => new URL(r.url).searchParams.has(key);
 
 /** A list paged by the x-ms-continuationtoken header: page one names a token, page two has none. */
@@ -285,6 +310,7 @@ export const routes: Route[] = [
     respond: { json: { queryType: 'flat', queryResultType: 'workItem', asOf: '2026-10-17T12:00:00Z', columns: [{ referenceName: 'System.Id', name: 'ID', url: `${ORG_URL}/_apis/wit/fields/System.Id` }], workItems: [42, 7].map((id) => ({ id, url: `${ORG_URL}/_apis/wit/workItems/${id}` })) } },
   },
   { path: `${ORG}/_apis/wit/workItems/42/revisions`, respond: skipped([revision(1, 'New'), revision(2, 'Active')]) },
+  { path: `${ORG}/Imagile/_apis/wit/reporting/workitemrevisions`, respond: feedBatch },
   // With errorPolicy omit, an id that doesn't exist (404 here) comes back as null, in place.
   {
     method: 'POST',

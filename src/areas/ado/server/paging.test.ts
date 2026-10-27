@@ -3,6 +3,7 @@ import { testContext } from '../../../../test/harness/context.js';
 import type { Route } from '../../../../test/harness/fake-fetch.js';
 import { ADO, COLL, config as fixtureConfig, PROJ, REPO, routes, workItem } from '../../../../test/fixtures/ado.fixture.js';
 import { commandName, type AnyCommand } from '../../../core/command.js';
+import { ToilError } from '../../../core/errors.js';
 import { execute } from '../../../core/run.js';
 import { commands } from '../index.js';
 import { andWhere, wiqlInstant } from './wiql.js';
@@ -193,5 +194,49 @@ describe('work-item get-many', () => {
     const { calls, envelope } = await run('work-item get-many', { ...AT, id: Array.from({ length: 1001 }, (_, i) => i + 1) });
     expect(calls).toHaveLength(0);
     expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'get-many takes at most 1000 work item ids in one call, and this one has 1001.' });
+  });
+});
+
+describe('work-item revisions (the reporting feed)', () => {
+  it('reads the feed from a start date, then follows the continuation token without the date', async () => {
+    const { calls, data, envelope } = await run('work-item revisions', { ...AT, updatedSince: '2026-09-01', fields: 'System.State, System.IterationPath' });
+    expect(calls.map((c) => c.url)).toEqual([
+      `${ADO}${COLL}/Imagile/_apis/wit/reporting/workitemrevisions?api-version=7.1&fields=System.State,System.IterationPath&startDateTime=2026-09-01T00%3A00%3A00.000Z`,
+      `${ADO}${COLL}/Imagile/_apis/wit/reporting/workitemrevisions?api-version=7.1&fields=System.State,System.IterationPath&continuationToken=abc12345`,
+    ]);
+    expect((data as Array<{ id: number; rev: number }>).map((r) => `${r.id}@${r.rev}`)).toEqual(['42@1', '42@2', '7@1', '42@3']);
+    expect(envelope.meta.page).toBeUndefined();
+  });
+
+  it('without a start date or fields it sends neither', async () => {
+    const { calls } = await run('work-item revisions', { ...AT });
+    expect(calls.map((c) => c.url)).toEqual([`${ADO}${COLL}/Imagile/_apis/wit/reporting/workitemrevisions?api-version=7.1`, `${ADO}${COLL}/Imagile/_apis/wit/reporting/workitemrevisions?api-version=7.1&continuationToken=abc12345`]);
+  });
+
+  it('--limit stops inside a batch, and the cursor resumes from the token without the start date', async () => {
+    const first = await run('work-item revisions', { ...AT, updatedSince: '2026-09-01', limit: 2 });
+    expect(first.calls).toHaveLength(1);
+    expect((first.data as Array<{ rev: number }>).map((r) => r.rev)).toEqual([1, 2]);
+    expect(first.envelope.meta.page).toEqual({ nextCursor: expect.any(String), limit: 2 });
+    const second = await run('work-item revisions', { ...AT, updatedSince: '2026-09-01', limit: 2, cursor: first.envelope.meta.page!.nextCursor });
+    expect((second.data as Array<{ id: number; rev: number }>).map((r) => `${r.id}@${r.rev}`)).toEqual(['7@1', '42@3']);
+    expect(second.envelope.meta.page).toEqual({ nextCursor: null, limit: 2 });
+  });
+
+  it('refuses a zoneless start, and a cursor without a limit, before anything is sent', async () => {
+    const zoneless = await run('work-item revisions', { ...AT, updatedSince: '2026-09-01T09:00:00' });
+    const cursor = await run('work-item revisions', { ...AT, cursor: 'abc' });
+    expect(zoneless.envelope.error?.code).toBe('INVALID_INPUT');
+    expect(cursor.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: '--cursor needs --limit' });
+    expect(zoneless.calls.length + cursor.calls.length).toBe(0);
+  });
+
+  it('a cancellation between batches stops the feed with CANCELLED instead of reading on', async () => {
+    const controller = new AbortController();
+    const first: Route = { path: /reporting\/workitemrevisions$/, respond: () => { controller.abort(new ToilError('CANCELLED', 'cancelled')); return { json: { values: [], continuationToken: 'abc12345', isLastBatch: false } }; } };
+    const t = testContext({ config: fixtureConfig, routes: [first, ...routes] });
+    const envelope = await execute(cmd('work-item revisions'), { ...AT }, { ...t.context, signal: controller.signal });
+    expect(envelope.error?.code).toBe('CANCELLED');
+    expect(t.http.calls).toHaveLength(1);
   });
 });

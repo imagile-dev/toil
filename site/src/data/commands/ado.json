@@ -205,6 +205,23 @@
     ]
   },
   {
+    "name": "work-item revisions",
+    "tool": "ado_work_item_revisions",
+    "description": "List the revisions of every work item in the project, as one feed (for a sync)",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--updated-since <iso>",
+      "--fields <names>",
+      "--limit <n>",
+      "--cursor <cursor>",
+      "--collection <name>",
+      "--organization <name>",
+      "--project <name>",
+      "--repo <name>"
+    ]
+  },
+  {
     "name": "work-item get-many",
     "tool": "ado_work_item_get_many",
     "description": "Get several work items by ID in one call",
