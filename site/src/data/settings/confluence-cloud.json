@@ -26,7 +26,7 @@
   {
     "key": "apiTokenFrom",
     "env": "TOIL_CONFLUENCE_CLOUD_API_TOKEN_FROM",
-    "description": "The jira-cloud connection to take apiToken from when this connection has none",
+    "description": "The jira connection to take apiToken from when this connection has none",
     "required": false,
     "secret": false,
     "fallbacks": []

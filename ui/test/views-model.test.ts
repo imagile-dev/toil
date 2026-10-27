@@ -208,12 +208,12 @@ describe('the board', () => {
     expect(readLine(p2.hint!, 'posix').line).toBe("toil jira issue transitions 'L-1' --dossier 'd'");
   });
 
-  it("proposes a Jira Cloud item's move in its own area, with that area's transitions hint", () => {
-    const todo = item({ id: 'cloud-jira:PAY-1', source: { area: 'jira-cloud', connection: 'cloud-jira', key: 'PAY-1', command: 'jira-cloud issue search' }, statusCategory: 'TODO', status: 'To Do' });
-    const wip = item({ id: 'cloud-jira:PAY-2', source: { area: 'jira-cloud', connection: 'cloud-jira', key: 'PAY-2', command: 'jira-cloud issue search' }, statusCategory: 'IN_PROGRESS', status: 'In Progress' });
+  it("proposes a Jira Cloud item's move with the jira commands, which route to its connection's deployment", () => {
+    const todo = item({ id: 'cloud-jira:PAY-1', source: { area: 'jira', connection: 'cloud-jira', key: 'PAY-1', command: 'jira issue search', deployment: 'cloud' }, statusCategory: 'TODO', status: 'To Do' });
+    const wip = item({ id: 'cloud-jira:PAY-2', source: { area: 'jira', connection: 'cloud-jira', key: 'PAY-2', command: 'jira issue search', deployment: 'cloud' }, statusCategory: 'IN_PROGRESS', status: 'In Progress' });
     const p = proposeMove(todo, 'IN_PROGRESS', [todo, wip], 'd')!;
-    expect(p).toMatchObject({ command: 'jira-cloud issue transition', input: { dossier: 'd', key: 'PAY-1', transition: 'In Progress' }, hint: { command: 'jira-cloud issue transitions', input: { dossier: 'd', key: 'PAY-1' } } });
-    expect(proposeMove(todo, 'DONE', [todo], 'd')!.hint).toMatchObject({ command: 'jira-cloud issue transitions' });
+    expect(p).toMatchObject({ command: 'jira issue transition', input: { dossier: 'd', key: 'PAY-1', transition: 'In Progress' }, hint: { command: 'jira issue transitions', input: { dossier: 'd', key: 'PAY-1' } } });
+    expect(proposeMove(todo, 'DONE', [todo], 'd')!.hint).toMatchObject({ command: 'jira issue transitions' });
   });
 
   it('builds its hints through the same quoting, so a hostile type name stays one inert argument', () => {

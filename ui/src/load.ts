@@ -27,8 +27,8 @@ import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, 
 export const JQL = (project: string) => `project = ${project} ORDER BY Rank ASC`;
 /** The areas that read Azure DevOps work items: Server and Services. */
 export const ADO_AREAS = ['ado', 'ado-cloud'] as const;
-/** The areas that read Jira work items: Data Center and Cloud, which send the same issue shapes under the same command names. */
-export const JIRA_AREAS = ['jira', 'jira-cloud'] as const;
+/** The areas that read Jira work items: one, whose connection is Data Center or Cloud, both sending the same issue shapes. */
+export const JIRA_AREAS = ['jira'] as const;
 export const WIQL = 'SELECT [System.Id] FROM WorkItems WHERE [System.TeamProject] = @project ORDER BY [System.Id]';
 
 export type Panel = 'dossier' | 'work' | 'prs' | 'owners' | 'builds' | 'deployments';
@@ -227,7 +227,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
 
   // Work items, mapped to OWI ---------------------------------------------------------
   // Each area is mapped on its own, with its own section's OWI fields.
-  const work: Record<(typeof JIRA_AREAS)[number] | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], 'jira-cloud': [], ado: [], 'ado-cloud': [], github: [] };
+  const work: Record<(typeof JIRA_AREAS)[number] | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], ado: [], 'ado-cloud': [], github: [] };
   const tasks: Array<Promise<void>> = [];
   for (const jira of JIRA_AREAS.filter((a) => areas[a]?.inputs.project)) {
     tasks.push((async () => {

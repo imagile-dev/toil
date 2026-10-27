@@ -278,3 +278,37 @@ describe('plaintext secrets in a config file', () => {
     expect(await run(file({ token: 'keychain:a.token', baseUrl: 'https://other.imagile.dev' }))).toMatchObject({ baseUrl: 'https://other.imagile.dev' });
   });
 });
+
+describe('shares.fallbackWhen reads the connection as it resolves', () => {
+  const jira = defineArea({
+    name: 'jira',
+    description: 'test',
+    connection: z.object({ baseUrl: z.string(), deployment: z.enum(['server', 'cloud']).default('server'), apiToken: z.string().optional() }),
+    secrets: ['apiToken'],
+  });
+  const wiki = defineArea({
+    name: 'wiki',
+    description: 'test',
+    connection: z.object({ baseUrl: z.string(), apiToken: z.string().optional() }),
+    secrets: ['apiToken'],
+    shares: { area: jira, keys: ['apiToken'], fallbackWhen: (other) => other.deployment !== 'cloud' },
+  });
+
+  it("never lends a Cloud token to a Data Center area when the deployment is set only in defaults.jira", async () => {
+    const cfg = config(
+      { jira: { area: 'jira', baseUrl: 'https://jira.imagile.dev', apiToken: 'cloud-token' }, wiki: { area: 'wiki', baseUrl: 'https://wiki.imagile.dev' } },
+      { jira: { connection: 'jira', deployment: 'cloud' }, wiki: { connection: 'wiki' } },
+    );
+    cfg.sources['jira.apiToken'] = 'env';
+    await expect(resolveConnection(cfg, wiki, undefined, () => {})).resolves.not.toHaveProperty('apiToken');
+  });
+
+  it('still lends a Data Center token, whichever tier says the deployment', async () => {
+    const cfg = config(
+      { jira: { area: 'jira', baseUrl: 'https://jira.imagile.dev', apiToken: 'dc-token' }, wiki: { area: 'wiki', baseUrl: 'https://wiki.imagile.dev' } },
+      { jira: { connection: 'jira' }, wiki: { connection: 'wiki' } },
+    );
+    cfg.sources['jira.apiToken'] = 'env';
+    await expect(resolveConnection(cfg, wiki, undefined, () => {})).resolves.toMatchObject({ apiToken: 'dc-token' });
+  });
+});

@@ -1,4 +1,4 @@
-import type { AdfDocument } from '../../jira-cloud/adf.js';
+import type { AdfDocument } from '../../jira/cloud/adf.js';
 import { ToilError } from '../../../core/errors.js';
 import type { Warning } from '../../../core/envelope.js';
 import type { BoundedLimits, BoundedTask } from '../kit/bounded.js';

@@ -4,6 +4,16 @@ import type { CommandContext } from './context.js';
 import { OUTPUT_FORMAT_FIELD, SUMMARY_FILE_FIELD } from './output/fields.js';
 import { SELECT_FIELD } from './query/select.js';
 
+/** What `area.byDeployment()` records about a command with one implementation per deployment. */
+export interface DeploymentRoutes {
+  /** The connection key that picks the implementation (`deployment`). */
+  by: string;
+  /** Every deployment the area has, by value, in words (`server` is "Data Center"), including ones this command has no implementation for. */
+  labels: Record<string, string>;
+  /** The deployments that implement it, each with the input fields its implementation takes and the run that does the work. */
+  routes: Record<string, { fields: string[]; run: (input: never, ctx: never) => Promise<unknown> }>;
+}
+
 /** A positional CLI argument, mapped onto one input field. */
 export interface CliArgument {
   name: string;
@@ -135,6 +145,18 @@ export interface CommandDefinition<S extends z.ZodObject = z.ZodObject> {
   connectionlessWhen?: (input: Record<string, unknown>) => boolean;
   /** Set by `area.command()`, for `area` and `area-local` commands. */
   area?: AnyArea;
+  /**
+   * Set by `area.byDeployment()` (src/core/deployments.ts): one command with an
+   * implementation per deployment, chosen by the resolved connection. The
+   * input is the union of what the implementations take; a call the
+   * connection's deployment can't serve is refused before anything is sent.
+   */
+  deployments?: DeploymentRoutes;
+  /**
+   * With `deployments`: which deployment each of `examples` runs against, by index.
+   * The parity suite runs an example on a connection of its deployment.
+   */
+  exampleDeployments?: string[];
   /**
    * Other CLI paths that run this command. A string is a sibling in the same
    * group (commander's own alias); a path may sit in another group, as `deps

@@ -2,7 +2,7 @@
   {
     "key": "baseUrl",
     "env": "TOIL_JIRA_BASE_URL",
-    "description": "Jira server root, e.g. https://jira.imagile.dev",
+    "description": "Jira root: the Data Center server (https://jira.imagile.dev), or the Cloud site (https://<your-site>.atlassian.net)",
     "required": true,
     "secret": false,
     "fallbacks": []
@@ -10,9 +10,25 @@
   {
     "key": "apiToken",
     "env": "TOIL_JIRA_API_TOKEN",
-    "description": "Personal access token",
+    "description": "Data Center: a personal access token. Cloud: an Atlassian account API token",
     "required": true,
     "secret": true,
+    "fallbacks": []
+  },
+  {
+    "key": "deployment",
+    "env": "TOIL_JIRA_DEPLOYMENT",
+    "description": "Which Jira this is: \"server\" for Data Center (the default), or \"cloud\" for Jira Cloud",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "email",
+    "env": "TOIL_JIRA_EMAIL",
+    "description": "Jira Cloud only: the email address of the Atlassian account the API token belongs to",
+    "required": false,
+    "secret": false,
     "fallbacks": []
   },
   {

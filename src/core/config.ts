@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { parseAuditSettings } from './audit.js';
 import { ToilError, withArticle } from './errors.js';
+import { RENAMED_AREAS, renamedArea, renamedAreaFix, renamedAreaOfEnv, renamedEnvFix } from './renamed-areas.js';
 
 /**
  * Configuration is a set of named **connections**, each one instance of a
@@ -78,7 +79,7 @@ export interface AreaInfo {
 }
 
 /** The config file format this toil writes. It reads every version up to this one. */
-export const CONFIG_VERSION = 2;
+export const CONFIG_VERSION = 3;
 
 /** Top-level keys that are never areas, in any version. */
 const RESERVED_KEYS = new Set(['version', '$schema', 'connections', 'defaults', 'bounds', 'dossierPaths', 'audit', 'wait', 'game', 'theme']);
@@ -111,7 +112,7 @@ export interface LoadConfigOptions {
   cwd: string;
   home: string;
   configPath?: string | undefined;
-  /** Registered areas, so TOIL_JIRA_CLOUD_TOKEN maps to jira-cloud, not jira. */
+  /** Registered areas, so TOIL_CONFLUENCE_CLOUD_TOKEN maps to confluence-cloud, not confluence. */
   areas?: readonly AreaInfo[];
 }
 
@@ -151,6 +152,7 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
   // Order matters: connections defined only by env exist before an area's
   // default is chosen, so TOIL_CONN_CI_AREA=jira plus TOIL_JIRA_TOKEN is one
   // connection, not a stray second one named after the area.
+  refuseRenamedEnv(options.env);
   createEnvConnections(config, options.env);
   applyAreaEnv(config, options.env, options.areas ?? []);
   applyConnectionEnv(config, options.env);
@@ -158,11 +160,33 @@ export function loadConfig(options: LoadConfigOptions): ResolvedConfig {
   return config;
 }
 
+/**
+ * TOIL_JIRA_CLOUD_TOKEN would otherwise read as the `jira` area's
+ * `cloudToken` and be ignored, which is silence about a credential that was
+ * meant to be used. It refuses instead, once, naming what to set. A warning
+ * would ride along in meta.warnings, where the first reader to miss it is the
+ * one whose pipeline it was.
+ */
+function refuseRenamedEnv(env: NodeJS.ProcessEnv): void {
+  // An empty variable carries no credential, so by default it is skipped, as an empty CI fallback is. TOIL_STRICT_ENV=true makes CI fail on it too.
+  const strict = env.TOIL_STRICT_ENV?.trim().toLowerCase() === 'true';
+  const old = Object.keys(env)
+    .filter((name) => env[name] !== undefined && (strict || env[name] !== '') && renamedAreaOfEnv(name) !== undefined)
+    .sort();
+  if (old.length > 0) {
+    throw new ToilError('CONFIG_INVALID', `${old.join(', ')} ${old.length > 1 ? 'are' : 'is'} set, and the ${renamedAreaOfEnv(old[0]!)} area they configure no longer exists. ${renamedAreaFix(renamedAreaOfEnv(old[0]!)!)}`, { fix: renamedEnvFix(old[0]!) });
+  }
+}
+
 /** A misspelt area would otherwise surface later as "no such connection", hiding the typo. */
 function warnUnknownAreas(config: ResolvedConfig, areas: readonly AreaInfo[]): void {
   const known = new Set(areas.map((a) => a.name));
   for (const [name, conn] of Object.entries(config.connections)) {
     if (known.has(conn.area)) continue;
+    if (renamedArea(conn.area)) {
+      config.warnings.push({ code: 'CONFIG_RENAMED_AREA', message: `Connection ${name} is for area "${conn.area}", which no longer exists. ${renamedAreaFix(conn.area)} Change it with toil connections, or edit its "area" in the config file.` });
+      continue;
+    }
     config.warnings.push({
       code: 'CONFIG_UNKNOWN_AREA',
       message: `Connection ${name} is for area "${conn.area}", which this toil doesn't have. Known areas: ${[...known].sort().join(', ')}.`,
@@ -222,7 +246,7 @@ function readJson(path: string): Record<string, unknown> {
   return parsed;
 }
 
-/** A config file as `toil connections` edits it: always version 2, every other key kept as found. */
+/** A config file as `toil connections` edits it: always the current version, every other key kept as found. */
 export type EditableConfig = Record<string, unknown> & {
   version: number;
   connections: Record<string, ConnectionSettings>;
@@ -230,9 +254,11 @@ export type EditableConfig = Record<string, unknown> & {
 };
 
 /**
- * Reads the config file for editing, as version 2. A version 2 file comes back
- * exactly as written, unknown keys included, so writing it back drops nothing.
- * A version 1 file becomes the version 2 file it already meant: one connection
+ * Reads the config file for editing, as the current version. A file of version
+ * 2 or later comes back as written (a version 2 file with its renamed areas
+ * folded in, see {@link migrateConfig}), unknown keys included, so writing it
+ * back drops nothing else.
+ * A version 1 file becomes the file it already meant: one connection
  * per area, named after it and set as its default, with every setting carried
  * over. A missing file is an empty one.
  */
@@ -305,6 +331,8 @@ export function migrateConfig(
     });
   }
   const read = version === 1 ? fromVersion1(raw, path, warnings) : fromVersion2(raw, path, warnings);
+  // Version 3 is where areas that were folded into another (jira-cloud into jira) stop being separate; older files are read as they meant.
+  if (version < 3) foldRenamedAreas(read, path, warnings);
   const bounds = readBounds(raw.bounds, path);
   const dossierPaths = version === 1 ? undefined : readDossierPaths(raw.dossierPaths, path);
   // Checked here so a typo is loud on every command; read from the user's own file only (src/core/audit.ts).
@@ -401,6 +429,61 @@ function readBounds(raw: unknown, path: string): Bounds | undefined {
   return bounds;
 }
 
+/**
+ * Version 3 (#495): `jira-cloud` became `jira` with `"deployment": "cloud"`
+ * on the connection. A connection of a renamed area changes area and gains
+ * the setting; its `defaults` entry folds into the new area's. Keychain
+ * references are untouched, being named after the connection and not the area.
+ *
+ * Defaults are the delicate part: `defaults.jira` reaches every Jira
+ * connection, so a Cloud default moves there only when nothing else would
+ * inherit it, and is otherwise written onto the Cloud connections
+ * themselves. The mirror image holds too: when connections move in beside
+ * existing Data Center ones, the shared keys `defaults.jira` already had are
+ * written onto those Data Center connections (where they were set, so they
+ * stay) and leave `defaults.jira`, which would now reach the Cloud ones. The new area's default stays what it was, including the one it
+ * only had by being the sole connection; when the old area named a different
+ * default, the warning names the one that was set aside.
+ */
+function foldRenamedAreas(read: { connections: Record<string, ConnectionSettings>; defaults: Record<string, Settings> }, path: string, warnings: ResolvedConfig['warnings']): void {
+  for (const [old, renamed] of Object.entries(RENAMED_AREAS)) {
+    const moved = Object.keys(read.connections).filter((name) => read.connections[name]!.area === old);
+    const oldDefaults = read.defaults[old];
+    if (moved.length === 0 && !oldDefaults) continue;
+    const others = Object.keys(read.connections).filter((name) => read.connections[name]!.area === renamed.area);
+    for (const name of moved) read.connections[name] = { ...read.connections[name]!, area: renamed.area, ...renamed.settings };
+    const target = (read.defaults[renamed.area] ??= {});
+    // What `toil jira` used before stays what it uses: the default it named, else the connection called jira, else the only one.
+    const before = typeof target.connection === 'string' ? target.connection : others.includes(renamed.area) ? renamed.area : others.length === 1 ? others[0] : undefined;
+    if (target.connection === undefined && before !== undefined) target.connection = before;
+    // The other way round: what defaults.jira said only ever reached the Data Center connections, and must not start reaching the ones that moved in.
+    if (moved.length > 0 && others.length > 0) {
+      for (const [key, value] of Object.entries(target)) {
+        if (key === 'connection') continue;
+        for (const name of others) if (read.connections[name]![key] === undefined) read.connections[name]![key] = value;
+        delete target[key];
+      }
+    }
+    const { connection: named, ...shared } = oldDefaults ?? {};
+    for (const [key, value] of Object.entries(shared)) {
+      if (target[key] === undefined && others.length === 0) target[key] = value;
+      else for (const name of moved) if (read.connections[name]![key] === undefined) read.connections[name]![key] = value;
+    }
+    if (typeof named === 'string' && moved.includes(named)) {
+      if (target.connection === undefined) target.connection = named;
+      else {
+        const kept = String(target.connection);
+        warnings.push({
+          code: 'CONFIG_DEFAULT_KEPT',
+          message: `${path} named ${old} connection "${named}" as the default for ${old}, and ${renamed.area} already has one (${kept}), which stays the default. ${old} is now ${renamed.area}. Any toil connections change, such as toil connections default <name>, saves the file as version ${CONFIG_VERSION} and clears this warning.`,
+        });
+      }
+    }
+    delete read.defaults[old];
+    if (Object.keys(target).length === 0) delete read.defaults[renamed.area];
+  }
+}
+
 function fromVersion1(raw: Record<string, unknown>, path: string, warnings: ResolvedConfig['warnings']) {
   const connections: Record<string, ConnectionSettings> = {};
   const defaults: Record<string, Settings> = {};
@@ -474,7 +557,7 @@ function fromVersion2(raw: Record<string, unknown>, path: string, warnings: Reso
  * Environment variable names toil reserves for itself. They never map onto an
  * area, whatever areas exist now or later.
  */
-const RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/, /^TOIL_WORKSPACE$/, /^TOIL_FEEDBACK_URL$/, /^TOIL_THEME$/];
+const RESERVED_ENV = [/^TOIL_CONN_/, /^TOIL_DOSSIER/, /^TOIL_ENV$/, /^TOIL_CONFIG/, /^TOIL_TIMEOUT_MS$/, /^TOIL_WORKSPACE$/, /^TOIL_FEEDBACK_URL$/, /^TOIL_THEME$/, /^TOIL_STRICT_ENV$/];
 
 /** camelCase key to SNAKE: baseUrl -> BASE_URL, baseURL -> BASE_URL, apiKey2 -> API_KEY2. */
 function snake(key: string): string {
@@ -495,7 +578,7 @@ function camel(snakeKey: string): string {
 
 const envForm = (name: string) => name.toUpperCase().replace(/-/g, '_');
 
-/** The variable for a key on an area's default connection: jira-cloud + baseUrl -> TOIL_JIRA_CLOUD_BASE_URL. */
+/** The variable for a key on an area's default connection: confluence-cloud + baseUrl -> TOIL_CONFLUENCE_CLOUD_BASE_URL. */
 export function envName(area: string, key: string): string {
   return `TOIL_${envForm(area)}_${snake(key)}`;
 }
@@ -507,7 +590,7 @@ export function connectionEnvName(connection: string, key: string): string {
 
 /**
  * The inverse of envName, against the areas toil knows. The longest matching
- * area wins, so TOIL_JIRA_CLOUD_TOKEN is jira-cloud.token. A name matching no
+ * area wins, so TOIL_CONFLUENCE_CLOUD_TOKEN is confluence-cloud.token. A name matching no
  * known area, or one toil reserves, is not config: it returns undefined rather
  * than guessing, so the same variable never means different things in
  * different versions.
@@ -568,10 +651,46 @@ function applyAreaEnv(config: ResolvedConfig, env: NodeJS.ProcessEnv, areas: rea
       (config.defaults[area.name] ??= {}).connection = name;
     }
     const target = config.connections[name]!;
+    refuseStaleEnvOnRenamed(config, area.name, name, target, layer, env);
     for (const [key, value, source] of layer) {
       target[key] = value;
       config.sources[`${name}.${key}`] = source;
     }
+  }
+}
+
+/**
+ * TOIL_JIRA_* used to mean Data Center's default connection; since #495 they
+ * reach whichever connection is jira's default, and a connection that came
+ * from `jira-cloud` is Cloud. A pipeline that still sets Data Center values
+ * would send them (and a token) to that Cloud connection with nothing saying
+ * so. So when the connection the env tier would land on is one the folded
+ * area's settings describe (deployment cloud) and TOIL_JIRA_DEPLOYMENT isn't
+ * set to say the values are meant for it, the call is refused. A named
+ * connection (TOIL_CONN_<NAME>_*) is explicit and untouched.
+ */
+function refuseStaleEnvOnRenamed(config: ResolvedConfig, area: string, connection: string, target: ConnectionSettings, layer: Array<[string, unknown, Source]>, env: NodeJS.ProcessEnv): void {
+  const fromEnv = layer.filter(([, , source]) => source === 'env');
+  if (fromEnv.length === 0) return;
+  for (const renamed of Object.values(RENAMED_AREAS)) {
+    if (renamed.area !== area) continue;
+    const effective = { ...config.defaults[area], ...target };
+    const isFolded = Object.entries(renamed.settings).every(([key, value]) => effective[key] === value);
+    if (!isFolded) continue;
+    const says = Object.keys(renamed.settings).every((key) => {
+      const named = envName(area, key);
+      return env[named] !== undefined && env[named] !== '';
+    });
+    if (says) continue;
+    const vars = fromEnv.map(([key]) => envName(area, key)).sort();
+    const set = Object.entries(renamed.settings).map(([key, value]) => `${envName(area, key)}=${value}`).join(' ');
+    throw new ToilError(
+      'CONFIG_INVALID',
+      `${vars.join(', ')} ${vars.length > 1 ? 'are' : 'is'} set, and ${area}'s default connection "${connection}" is ${Object.entries(renamed.settings).map(([k, v]) => `${k} ${v}`).join(', ')}, so ${vars.length > 1 ? 'they' : 'it'} would apply to it. Nothing was sent.`,
+      {
+        fix: `If they are for that connection, also set ${set}. If they are for a Data Center ${area} connection, define it separately with TOIL_CONN_<NAME>_AREA=${area} and TOIL_CONN_<NAME>_* variables, or remove them.`,
+      },
+    );
   }
 }
 
@@ -586,6 +705,11 @@ function createEnvConnections(config: ResolvedConfig, env: NodeJS.ProcessEnv): v
     if (!CONNECTION_NAME.test(connection)) {
       config.warnings.push({ code: 'CONFIG_UNKNOWN_KEY', message: `${name} doesn't name a valid connection and was ignored.` });
       continue;
+    }
+    if (renamedArea(value)) {
+      throw new ToilError('CONFIG_INVALID', `${name}=${value} names an area that no longer exists. ${renamedAreaFix(value)}`, {
+        fix: `Set ${name}=${renamedArea(value)!.area}, and ${Object.entries(renamedArea(value)!.settings).map(([k, v]) => `${name.replace(/_AREA$/, '')}_${k.toUpperCase()}=${v}`).join(' and ')}.`,
+      });
     }
     const existing = config.connections[connection];
     if (existing && existing.area !== value) {

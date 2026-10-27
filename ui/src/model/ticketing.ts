@@ -112,9 +112,10 @@ export function subTaskProposal(prompt: string, parent: WorkItem, dossier: strin
   const base = { id: `ticket:${dossier}:sub:${parent.id}`, from: 'ticket' as const, item: parent.id, title: `Create a sub-task under ${key}`, reason: `The work reads closest to [[${parent.id}]]. ${ATTACH(key)}` };
   const summary = summaryOf(prompt);
   const area = parent.source.area;
-  if (area === 'jira' || area === 'jira-cloud') {
-    const type = area === 'jira' ? 'Sub-task' : 'Subtask';
-    return { ...base, command: `${area} issue create`, input: { dossier, project: parent.source.key.split('-')[0]!, issueType: type, parent: parent.source.key, summary, description: describe(prompt) }, note: `${type} is Jira's default name for the type; your project may call it something else.` };
+  if (area === 'jira') {
+    // Data Center names the type Sub-task and Cloud Subtask; the item's source says which it came from.
+    const type = parent.source.deployment === 'cloud' ? 'Subtask' : 'Sub-task';
+    return { ...base, command: 'jira issue create', input: { dossier, project: parent.source.key.split('-')[0]!, issueType: type, parent: parent.source.key, summary, description: describe(prompt) }, note: `${type} is Jira's default name for the type; your project may call it something else.` };
   }
   if (area === 'ado') {
     return { ...base, command: 'ado work-item create', input: { dossier, type: 'Task', title: summary, description: describe(prompt), parent: parent.source.key }, note: null };
@@ -136,8 +137,8 @@ export function newTicketProposal(prompt: string, items: readonly WorkItem[], do
   const summary = summaryOf(prompt);
   const area = near?.source.area ?? mainArea(items);
   const base = { id: `ticket:${dossier}:new`, from: 'ticket' as const, item: `${dossier}:new`, title: `Create a new ticket: ${summary}`, reason: near ? `Not one of the matches: a ticket of its own.` : 'No open item shares enough words with the work to be its ticket.' };
-  if (area === 'jira' || area === 'jira-cloud') {
-    return { ...base, command: `${area} issue create`, input: { dossier, summary, description: describe(prompt) }, note: "The project and issue type come from the dossier and the connection's defaults; add --project or --type where they don't set them." };
+  if (area === 'jira') {
+    return { ...base, command: 'jira issue create', input: { dossier, summary, description: describe(prompt) }, note: "The project and issue type come from the dossier and the connection's defaults; add --project or --type where they don't set them." };
   }
   if (area === 'ado' || area === 'ado-cloud') {
     const type = commonType(items, area);

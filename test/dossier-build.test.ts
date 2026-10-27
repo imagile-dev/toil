@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { checkDossier as jiraCheckDossier } from '../src/areas/jira/check-dossier.js';
-import { createIssue } from '../src/areas/jira/issues.js';
+import { checkDossier as jiraCheckDossier } from '../src/areas/jira/server/check-dossier.js';
+import { createIssue } from '../src/areas/jira/server/issues.js';
 import type { AnyCommand } from '../src/core/command.js';
 import { toolName } from '../src/core/command.js';
 import type { ResolvedConfig, Settings, Source } from '../src/core/config.js';
@@ -154,6 +154,15 @@ describe('an agent building a dossier over MCP, from discovery to a shared file'
     teammate.write('work/payments-api/.toil/dossiers/payments.json', readFileSync(join(api, '.toil', 'dossiers', 'payments.json'), 'utf8'));
     const used = await cli(teammate, ['demo-context', 'get-widget', 'W-1', '--cwd', theirs]);
     expect(used.envelope.meta.context).toMatchObject({ dossier: { source: 'repo', match: 'remote', repo: 'payments-api' }, inputs: { project: { value: 'PAY', source: 'dossier' } } });
+  });
+});
+
+describe('the dossier commands name the area a retired one became', () => {
+  it('link to jira-cloud says it is now jira with deployment cloud, not that toil has no such area', async () => {
+    const d = disk();
+    ok(await cli(d, ['dossiers', 'init', 'payments']));
+    const run = await cli(d, ['dossiers', 'link', 'payments', 'jira-cloud', '--set', 'project=PAY']);
+    expect(run.envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: 'toil jira-cloud no longer exists.', fix: expect.stringContaining('TOIL_JIRA_DEPLOYMENT=cloud') });
   });
 });
 

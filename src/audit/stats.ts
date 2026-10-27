@@ -123,7 +123,7 @@ const FIXES: Record<ErrorCode, string> = {
   CREDENTIAL_STORE: "Check the OS credential store is available, or set the secret's env var instead.",
   UNSUPPORTED_NODE: 'Install Node 24.22.1 or later on 24.x, or 26.12.1 or later (CVE-2026-111497).',
   GIT_NOT_FOUND: 'Install git 2.24 or later and put it on PATH.',
-  UNSUPPORTED: "The server's release doesn't have the API the command needs; check the area's supported versions.",
+  UNSUPPORTED: "The server's release, or the connection's deployment, doesn't have what the command needs; check the area's supported versions, or use a connection of the deployment that does.",
   INTERNAL: 'This is a bug in toil. Report it with toil feedback bug, naming the command.',
 };
 

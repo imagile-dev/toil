@@ -58,7 +58,7 @@ describe('site search', () => {
 
   it('finds a command, an integration, an env var, an engine and a docs heading first', () => {
     expect(first('toil jira issue get')).toMatchObject({ k: 'Command', t: 'toil jira issue get', u: '/connect/jira/#commands-at-a-glance' });
-    expect(first('jira')).toMatchObject({ k: 'Integration', t: 'Jira Data Center', u: '/connect/jira/' });
+    expect(first('jira')).toMatchObject({ k: 'Integration', t: 'Jira', u: '/connect/jira/' });
     expect(first('TOIL_JIRA_API_TOKEN')).toMatchObject({ k: 'Setting', u: '/connect/jira/#settings-at-a-glance' });
     expect(first('postgres')).toMatchObject({ k: 'Database', t: 'PostgreSQL', u: '/connect/db/' });
     expect(first('writes')).toMatchObject({ k: 'Section', t: 'Writes', u: '/docs/core/#writes', p: 'Using toil' });

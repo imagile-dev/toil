@@ -15,7 +15,7 @@ export const SOURCE_LABEL: Record<SourceKind, string> = {
   openshift: 'OpenShift',
 };
 
-/** `jira-cloud` reads as Jira: the family is what a person recognises. */
+/** `ado-cloud` reads as Azure DevOps: the family is what a person recognises. */
 export function sourceLabel(area: string): string {
   const family = area.split('-')[0] as SourceKind;
   return SOURCE_LABEL[family] ?? area;

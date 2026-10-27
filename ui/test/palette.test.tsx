@@ -235,7 +235,7 @@ describe('the first run', () => {
     expect(firstRunShows(2, { a: {} }, true)).toBe(false);
     expect(firstRunShows(2, null, false)).toBe(false);
     expect(firstRunShows(2, {}, false)).toBe(false);
-    expect([...TRACKER_AREAS].sort()).toEqual(['ado', 'ado-cloud', 'github', 'jira', 'jira-cloud']);
+    expect([...TRACKER_AREAS].sort()).toEqual(['ado', 'ado-cloud', 'github', 'jira']);
   });
 
   it('replaces the empty Dossiers view with three steps, ticking off a tracker made by env vars', async () => {

@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import type { Settings } from '../src/core/config.js';
-import { viewScopes, type DossierView } from '../src/core/dossier.js';
+import { validateDossier, viewScopes, type DossierView } from '../src/core/dossier.js';
 import type { Envelope } from '../src/core/envelope.js';
 import { areas, commands } from '../src/registry.js';
 import { fixture as ado } from './fixtures/ado.fixture.js';
 import { fixture as bitbucket } from './fixtures/bitbucket.fixture.js';
 import { fixture as dynatrace } from './fixtures/dynatrace.fixture.js';
 import { fixture as github } from './fixtures/github.fixture.js';
-import { fixture as jiraCloud } from './fixtures/jira-cloud.fixture.js';
+import { fixture as jira } from './fixtures/jira.fixture.js';
 import { fixture as openshift } from './fixtures/openshift.fixture.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
@@ -17,7 +17,7 @@ import type { AreaFixture } from './harness/fixtures.js';
 
 /**
  * `toil <area> check-dossier` for ado, openshift, dynatrace, bitbucket, github
- * and jira-cloud: what each looks up, how per-repo values pair up (a repo with
+ * and jira on Cloud: what each looks up, how per-repo values pair up (a repo with
  * its project or owner), a value the service hasn't got, and that only the
  * call's own environment is checked. The parity suite already runs each
  * one's examples through both doors; this proves what they find.
@@ -105,14 +105,45 @@ describe('check-dossier for the rest of the areas', () => {
     ]);
   });
 
-  it('jira-cloud: projects and field ids', async () => {
-    const run = await check(jiraCloud, { name: 'p', 'jira-cloud': { projects: ['PROJ', 'GONE'], fields: { storyPoints: 'customfield_10016', ghost: 'customfield_1' } } });
+  it('jira on a Cloud connection: projects and field ids', async () => {
+    const run = await check(jira, { name: 'p', jira: { projects: ['PROJ', 'GONE'], fields: { storyPoints: 'customfield_10016', ghost: 'customfield_1' } } }, ['--connection', 'jira-cloud']);
     expect(found(run.envelope)).toEqual([
-      ['jira-cloud.projects[0]', 'project', 'PROJ', true],
-      ['jira-cloud.projects[1]', 'project', 'GONE', false],
-      ['jira-cloud.fields.storyPoints', 'field', 'customfield_10016', true],
-      ['jira-cloud.fields.ghost', 'field', 'customfield_1', false],
+      ['jira.projects[0]', 'project', 'PROJ', true],
+      ['jira.projects[1]', 'project', 'GONE', false],
+      ['jira.fields.storyPoints', 'field', 'customfield_10016', true],
+      ['jira.fields.ghost', 'field', 'customfield_1', false],
     ]);
+    expect(run.urls).toContain('/rest/api/3/project/GONE');
+  });
+
+  it('a jira-cloud section is read as the jira section, and check-dossier says to rename it', async () => {
+    const run = await check(jira, { name: 'p', 'jira-cloud': { projects: ['PROJ'] } }, ['--connection', 'jira-cloud']);
+    expect(found(run.envelope)).toEqual([['jira.projects[0]', 'project', 'PROJ', true]]);
+    expect(run.envelope.meta.warnings).toEqual([expect.objectContaining({ code: 'DOSSIER_RENAMED_AREA', message: expect.stringContaining('"jira-cloud" is now "jira"') })]);
+    // Both present: jira wins, and the warning says the other was ignored.
+    const both = await check(jira, { name: 'p', jira: { projects: ['PROJ'] }, 'jira-cloud': { projects: ['GONE'] } }, ['--connection', 'jira-cloud']);
+    expect(found(both.envelope)).toEqual([['jira.projects[0]', 'project', 'PROJ', true]]);
+    expect(both.envelope.meta.warnings?.[0]?.message).toContain('"jira-cloud" is ignored');
+  });
+
+  it("a jira-cloud entry under an environment or in a person's ids is read as jira too, each warned by key path", () => {
+    const { dossier, problems } = validateDossier(
+      {
+        name: 'p',
+        environments: { prod: { 'jira-cloud': { projects: ['PROJ'] } } },
+        people: [{ name: 'Sam', ids: { 'jira-cloud': 'sam@example.com' } }],
+      },
+      dossierAreas,
+    );
+    expect(problems.filter((p) => p.level === 'error')).toEqual([]);
+    expect(problems.filter((p) => p.code === 'DOSSIER_RENAMED_AREA').map((p) => p.path)).toEqual(['environments.prod.jira-cloud', 'people[0].ids.jira-cloud']);
+    expect(JSON.stringify(dossier)).not.toContain('jira-cloud');
+    expect(dossier?.environments?.prod?.jira).toMatchObject({ projects: ['PROJ'] });
+    expect(dossier?.people?.[0]?.ids).toEqual({ jira: 'sam@example.com' });
+    // Both present: the new one wins, and the old one is named as ignored.
+    const both = validateDossier({ name: 'p', people: [{ name: 'Sam', ids: { jira: 'new', 'jira-cloud': 'old' } }] }, dossierAreas);
+    expect(both.dossier?.people?.[0]?.ids).toEqual({ jira: 'new' });
+    expect(both.problems.find((p) => p.code === 'DOSSIER_RENAMED_AREA')?.message).toContain('"jira-cloud" is ignored');
   });
 
   it("checks what a call would use: an environment's value shadows the area's own, and keys pair across the two", async () => {

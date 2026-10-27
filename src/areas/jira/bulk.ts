@@ -3,7 +3,7 @@ import { ToilError } from '../../core/errors.js';
 import type { Warning } from '../../core/envelope.js';
 
 /**
- * `issue get A B`, shared by `jira` and `jira-cloud`: what the
+ * `issue get A B`, shared by both Jira deployments: what the
  * keys may be, how many, and how a key that couldn't be read is reported. A
  * bulk read answers for every key it was given. One that failed is listed
  * under `errors` with why, never left out, and a warning says how many; the

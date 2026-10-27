@@ -3,7 +3,7 @@ import type { Page } from '../../core/envelope.js';
 import { ToilError } from '../../core/errors.js';
 
 /**
- * `--limit` and `--cursor` on the lists of `jira` and `jira-cloud`, so every
+ * `--limit` and `--cursor` on the lists of `jira`, Data Center and Cloud, so every
  * list pages the same way: without a limit, every item; with one, that many,
  * and meta.page.nextCursor says where the next page starts. Pass it back as
  * the cursor, unchanged. The cursor is the startAt Jira itself counts in.

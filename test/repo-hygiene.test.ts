@@ -45,7 +45,7 @@ const BINARY = /\.(?:png|jpe?g|webp|avif|gif|ico|woff2?)$/i;
  * are the occurrences that are meant: a regex's end anchor or a bash quote inside
  * code. A new one is added here on purpose.
  */
-const DOLLAR_PATTERNS: Record<string, number> = { 'CLAUDE.md': 1, 'skills/toil/jira-cloud.md': 1, 'skills/toil/util.md': 1 };
+const DOLLAR_PATTERNS: Record<string, number> = { 'CLAUDE.md': 1, 'skills/toil/jira.md': 1, 'skills/toil/util.md': 1 };
 const DOLLAR = /\$[`']/g;
 
 /** Level-one headings outside fenced code; a document has one title. */

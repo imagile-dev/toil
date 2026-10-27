@@ -32,7 +32,7 @@
       "--summary <text>",
       "--description <text>",
       "--priority <name>",
-      "--assignee <username>",
+      "--assignee <user>",
       "--labels <labels>",
       "--parent <key>",
       "--field <Name=value>",
@@ -53,22 +53,12 @@
       "--summary <text>",
       "--description <text>",
       "--priority <name>",
-      "--assignee <username>",
+      "--assignee <user>",
       "--labels <labels>",
       "--field <Name=value>",
       "--fields-file <path>",
       "--input-file <path>",
       "--allow-write"
-    ]
-  },
-  {
-    "name": "issue schema",
-    "tool": "jira_issue_schema",
-    "description": "Print the --input-file JSON schema and an example for issue create and issue update",
-    "writes": false,
-    "connection": false,
-    "flags": [
-      "--example-only"
     ]
   },
   {
@@ -159,12 +149,12 @@
   {
     "name": "issue assign",
     "tool": "jira_issue_assign",
-    "description": "Assign a Jira issue to a user",
+    "description": "Assign a Jira issue to a user (a username on Data Center, an accountId on Cloud)",
     "writes": true,
     "connection": true,
     "flags": [
       "<key>",
-      "--assignee <username>",
+      "--assignee <user>",
       "--allow-write"
     ]
   },
@@ -176,8 +166,8 @@
     "connection": true,
     "flags": [
       "<key>",
-      "--target <issue-key>",
       "--type <type>",
+      "--target <issue-key>",
       "--allow-write"
     ]
   },
@@ -304,5 +294,50 @@
     "writes": false,
     "connection": true,
     "flags": []
+  },
+  {
+    "name": "project list",
+    "tool": "jira_project_list",
+    "description": "List Jira Cloud projects visible to you",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--query <text>",
+      "--limit <n>",
+      "--cursor <cursor>"
+    ]
+  },
+  {
+    "name": "project get",
+    "tool": "jira_project_get",
+    "description": "Get a Jira Cloud project by key or id",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "<project>"
+    ]
+  },
+  {
+    "name": "user search",
+    "tool": "jira_user_search",
+    "description": "Find Jira Cloud users and their accountIds",
+    "writes": false,
+    "connection": true,
+    "flags": [
+      "--query <text>",
+      "--limit <n>",
+      "--cursor <cursor>"
+    ]
+  },
+  {
+    "name": "issue schema",
+    "tool": "jira_issue_schema",
+    "description": "Print the --input-file JSON schema and an example for issue create and issue update",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "--deployment <server|cloud>",
+      "--example-only"
+    ]
   }
 ]

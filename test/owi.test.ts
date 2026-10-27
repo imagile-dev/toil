@@ -14,7 +14,7 @@ import { argvFor } from '../src/program.js';
 import { commands as registry } from '../src/registry.js';
 import { runCli } from './harness/cli.js';
 import { testContext } from './harness/context.js';
-import { loadFixtures, setUp } from './harness/fixtures.js';
+import { examplesOf, loadFixtures, setUp } from './harness/fixtures.js';
 import { boardlessIssues, boardlessTimelines } from './fixtures/owi/github-boardless.js';
 import { sprintEnvelopes, sprintJsonl } from './fixtures/owi/sprint.js';
 
@@ -72,7 +72,7 @@ describe("every area's fixtures map to valid OWI", async () => {
   const fixtures = await loadFixtures();
   await setUp(fixtures);
   // A history command's output names no item; these keys are the ones its examples read.
-  const KEYS: Record<string, string> = { 'jira issue history': 'PROJ-123', 'jira-cloud issue history': 'PROJ-123', 'github issue history': '9' };
+  const KEYS: Record<string, string> = { 'jira issue history': 'PROJ-123', 'github issue history': '9' };
   const families = new Set<string>();
   for (const fixture of fixtures.filter((f) => OWI_SOURCES[f.area])) {
     const known = OWI_COMMANDS[fixture.area]!;
@@ -83,7 +83,7 @@ describe("every area's fixtures map to valid OWI", async () => {
     });
     for (const def of mapped) {
       families.add(fixture.area);
-      it.each(def.examples.map((example, i) => [i, example] as const))(`${commandName(def)} example %i`, async (_i, example) => {
+      it.each(examplesOf(def, fixture).map((example, i) => [i, example] as const))(`${commandName(def)} example %i`, async (_i, example) => {
         const cli = testContext({ config: fixture.config, routes: fixture.routes, files: fixture.files });
         const run = await runCli(argvFor(def, example, def.path, fixture.commands), { commands: fixture.commands, context: cli.context });
         expect(run.envelope?.ok, run.stdout).toBe(true);
@@ -96,12 +96,12 @@ describe("every area's fixtures map to valid OWI", async () => {
         if (known.items.includes(name)) expect(data.count).toBeGreaterThan(0);
         if (known.changes.includes(name) && (!Array.isArray(run.envelope!.data) || run.envelope!.data.length > 0)) expect(data.changes.length).toBeGreaterThan(0);
         for (const change of data.changes as Change[]) {
-          expect(change.id.startsWith(`${fixture.area}:`)).toBe(true);
+          expect(change.id.startsWith(`${example.connection ?? fixture.area}:`)).toBe(true);
           expect(change.source.command).toBe(name);
         }
         if (known.history.includes(name) && Array.isArray(run.envelope!.data) && run.envelope!.data.length > 0) expect(data.histories.length + data.items.length).toBeGreaterThan(0);
         for (const item of data.items as WorkItem[]) {
-          expect(item.id.startsWith(`${fixture.area}:`)).toBe(true);
+          expect(item.id.startsWith(`${example.connection ?? fixture.area}:`)).toBe(true);
           expect(item.source.command).toBe(name);
         }
       });
@@ -130,7 +130,7 @@ describe('work-item areas are all mapped to OWI', () => {
 
   it('marks every area that has work-item commands in OWI_SOURCES', () => {
     expect(workItemAreas.filter((area) => !PENDING[area] && !OWI_SOURCES[area])).toEqual([]);
-    expect(workItemAreas).toEqual(expect.arrayContaining(['ado', 'ado-cloud', 'github', 'jira', 'jira-cloud']));
+    expect(workItemAreas).toEqual(expect.arrayContaining(['ado', 'ado-cloud', 'github', 'jira']));
   });
 
   it("marks only areas that exist, and lists each one's mapped commands among its registered ones", () => {
@@ -327,7 +327,19 @@ describe('mapping rules', () => {
     expect(() => parseOwiInput('{"ok":')).toThrow(/isn't JSON/);
     expect(() => parseOwiInput('  ')).toThrow(/empty/);
     expect(documentsFrom([a]).documents[0]).toMatchObject({ area: 'jira', connection: 'jira' });
-    expect(documentsFrom([env('jira-cloud issue search', {})]).documents[0]!.area).toBe('jira-cloud');
+  });
+});
+
+describe('a jira connection\'s deployment', () => {
+  it("is carried from meta.context into the item's source, and left out when the input doesn't say", async () => {
+    const issue = { key: 'PAY-1', self: 'https://jira-cloud.imagile.dev/rest/api/3/issue/1', fields: { summary: 'S' } };
+    const cloud = env('jira issue get', issue, 'imagile-cloud');
+    (cloud.meta.context.connection as Record<string, unknown>).deployment = 'cloud';
+    const { data } = await map({ text: json(cloud) });
+    expect(data.items[0].source).toEqual({ area: 'jira', connection: 'imagile-cloud', key: 'PAY-1', command: 'jira issue get', deployment: 'cloud' });
+    expect(data.verified.passed, json(data.verified)).toBe(true);
+    const plain = await map({ text: json(env('jira issue get', issue, 'corp-jira')) });
+    expect(plain.data.items[0].source).toEqual({ area: 'jira', connection: 'corp-jira', key: 'PAY-1', command: 'jira issue get' });
   });
 });
 
@@ -379,7 +391,7 @@ describe('review round 1', () => {
 
   it.each([
     ['jira', [env('jira issue get', { key: 'PAY-1', self: 'https://jira.imagile.dev/rest/api/2/issue/1', fields: { summary: 'S', status: { name: 'Done', statusCategory: { key: 'done' } } } })]],
-    ['jira-cloud', [env('jira-cloud issue get', { key: 'PAY-1', self: 'https://jira-cloud.imagile.dev/rest/api/3/issue/1', fields: { summary: 'S' } })]],
+    ['jira on Cloud', [env('jira issue get', { key: 'PAY-1', self: 'https://jira-cloud.imagile.dev/rest/api/3/issue/1', fields: { summary: 'S' } }, 'imagile-cloud')]],
     ['ado', [env('ado work-item get', { id: 5, fields: { 'System.Title': 'T', 'System.State': 'New', 'System.WorkItemType': 'Bug', 'System.IterationPath': 'P\\S1' } })]],
     ['github, on a board', [env('github issue get', issue(3), 'github'), env('github project items', [board(3)], 'github', { owner: 'imagile' })]],
     ['github, a board item alone', [env('github project items', [board(4)], 'github', { owner: 'imagile' })]],

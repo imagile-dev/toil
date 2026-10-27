@@ -13,6 +13,7 @@ import {
 import { isLensId, LENSES, type LensId } from '../core/brief/brief.js';
 import { ToilError, toToilError } from '../core/errors.js';
 import { forwardSlashes } from '../core/files.js';
+import { refuseRenamedArea } from '../core/renamed-areas.js';
 
 /**
  * `toil dossiers init | add-repo | link | env | field | person | wip-limit |
@@ -35,6 +36,7 @@ import { forwardSlashes } from '../core/files.js';
  */
 export function dossierBuildCommands(areas: readonly AnyArea[]): AnyCommand[] {
   const areaNamed = (name: string): AnyArea => {
+    refuseRenamedArea(name);
     const area = areas.find((a) => a.name === name);
     if (area) return area;
     throw new ToilError('INVALID_INPUT', `toil has no area named "${name}".`, { fix: `Use one of: ${areas.map((a) => a.name).join(', ')}.` });

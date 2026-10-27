@@ -311,7 +311,7 @@ describe('dossiers, through toil', () => {
     const { config } = await serve();
     expectEnvelope(await config('theme list')).toMatchObject({ ok: true, data: { current: 'crate', source: 'default', default: 'crate' } });
     expectEnvelope(await config('theme set', { name: 'realm' })).toMatchObject({ ok: true, data: { theme: 'realm', changed: true } });
-    expect(JSON.parse(readFileSync(join(home, '.toil', 'config.json'), 'utf8'))).toMatchObject({ version: 2, theme: 'realm' });
+    expect(JSON.parse(readFileSync(join(home, '.toil', 'config.json'), 'utf8'))).toMatchObject({ version: 3, theme: 'realm' });
     expectEnvelope(await config('theme list')).toMatchObject({ ok: true, data: { current: 'realm', source: 'file' } });
     expectEnvelope(await config('theme set', { name: 'vaporwave' })).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
   });

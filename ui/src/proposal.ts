@@ -46,7 +46,6 @@ export interface Hint {
  */
 const RENAMED_FLAGS: ReadonlyMap<string, Readonly<Record<string, string>>> = new Map([
   ['jira issue create', { issueType: '--type' }],
-  ['jira-cloud issue create', { issueType: '--type' }],
 ]);
 
 const flagFor = (command: string, key: string) => RENAMED_FLAGS.get(command)?.[key] ?? `--${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
@@ -97,7 +96,7 @@ export function quote(value: string, shell: Shell): string | null {
  */
 export const INPUT_FILE_COMMANDS: ReadonlySet<string> = new Set([
   'ado work-item create', 'ado work-item update', 'alation document create', 'alation document update', 'jira issue create', 'jira issue update',
-  'jira-cloud issue create', 'jira-cloud issue update', 'splitio flag update', 'splitio flag toggle-many',
+  'splitio flag update', 'splitio flag toggle-many',
 ]);
 
 /** One positional list for several commands, as [command, fields] entries. */
@@ -200,18 +199,14 @@ export const POSITIONAL_FIELDS: ReadonlyMap<string, readonly string[]> = new Map
     'saucelabs rdc-job stop', 'saucelabs rdc-job update',
   ),
   ...positional(['key', 'attachmentId'],
-    'jira issue download', 'jira-cloud issue download',
+    'jira issue download',
   ),
   ...positional(['key'],
     'confluence space get', 'confluence-cloud space get', 'jira issue assign', 'jira issue attach',
     'jira issue attachments', 'jira issue comment', 'jira issue comments', 'jira issue get',
     'jira issue history', 'jira issue label', 'jira issue link', 'jira issue log-work',
     'jira issue set-sprint', 'jira issue transition', 'jira issue transitions', 'jira issue unlabel',
-    'jira issue update', 'jira-cloud issue assign', 'jira-cloud issue attach', 'jira-cloud issue attachments',
-    'jira-cloud issue comment', 'jira-cloud issue comments', 'jira-cloud issue get',
-    'jira-cloud issue history', 'jira-cloud issue label', 'jira-cloud issue link',
-    'jira-cloud issue log-work', 'jira-cloud issue set-sprint', 'jira-cloud issue transition',
-    'jira-cloud issue transitions', 'jira-cloud issue unlabel', 'jira-cloud issue update',
+    'jira issue update',
   ),
   ...positional(['method', 'path'],
     'ado-cloud api', 'bitbucket-cloud api', 'jira api',
@@ -252,7 +247,7 @@ export const POSITIONAL_FIELDS: ReadonlyMap<string, readonly string[]> = new Map
     'openshift pod logs',
   ),
   ...positional(['project'],
-    'github project fields', 'github project items', 'jira-cloud project get',
+    'github project fields', 'github project items', 'jira project get',
   ),
   ...positional(['projectId'],
     'figma project files',
