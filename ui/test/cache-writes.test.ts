@@ -183,6 +183,64 @@ describe('what a sync writes (#493)', () => {
     expect(cache.response('card-payments', 'jira issue history', keyed(2))).toBeNull();
   });
 
+  it('expires everything of a dossier together when its dossiers show keeps failing', async () => {
+    const cache = await open(30);
+    const tables = () => {
+      const c = cache.counts();
+      return [c.items, c.responses, c.transitions, c.change_refs, c.worklog_events, c.sources].map((n) => n ?? 0);
+    };
+    cache.saveDossier(dossier());
+    expect(tables().every((n) => n > 0)).toBe(true);
+    expect(cache.counts().dossiers).toBe(1);
+    // One good save on day 0, then a failed dossiers show and a prune every eight days.
+    for (const day of [8, 16, 24, 32, 40, 48, 56, 64, 72, 80, 88, 96]) {
+      clock.ms = day * DAY;
+      cache.saveFailure('card-payments', at(clock.ms), 'dossiers show failed');
+      cache.prune();
+      const counts = tables();
+      // All of it or none of it, never half.
+      expect(counts.every((n) => n > 0) || counts.every((n) => n === 0)).toBe(true);
+      if (day <= 24) {
+        expect(counts.every((n) => n > 0)).toBe(true);
+        expect(cache.items('card-payments')).toHaveLength(COUNT);
+        expect(cache.source('card-payments', 'jira')).not.toBeNull();
+        // The last attempt moves, the last save does not.
+        const state = cache.states().find((d) => d.name === 'card-payments')!;
+        expect(state.lastSyncAt).toBe(at(clock.ms));
+        expect(state.lastSavedAt).toBe(at(0));
+      } else {
+        // The synced data and its sources are gone; at most the failure itself (no save) is left of the dossier row.
+        expect(counts.every((n) => n === 0)).toBe(true);
+        expect(cache.states().find((d) => d.name === 'card-payments')?.lastSavedAt ?? null).toBeNull();
+      }
+      if (day === 24) expect(cache.counts().dossiers).toBe(1);
+    }
+  });
+
+  it('exactly retention days after the last save is still inside; just past it all of it goes, sources and the dossier row too', async () => {
+    const cache = await open(30);
+    cache.saveDossier(dossier());
+    clock.ms = 30 * DAY;
+    cache.prune();
+    expect(cache.counts().dossiers).toBe(1);
+    expect(cache.counts().sources).toBe(1);
+    clock.ms = 30 * DAY + 1000;
+    cache.prune();
+    const c = cache.counts();
+    expect([c.items, c.responses, c.transitions, c.change_refs, c.worklog_events, c.sources, c.dossiers]).toEqual([0, 0, 0, 0, 0, 0, 0]);
+  });
+
+  it('drops a dossier that only ever failed by its last attempt', async () => {
+    const cache = await open(30);
+    cache.saveFailure('never-synced', at(0), 'nope');
+    clock.ms = 30 * DAY;
+    cache.prune();
+    expect(cache.counts().dossiers).toBe(1);
+    clock.ms = 30 * DAY + 1000;
+    cache.prune();
+    expect(cache.counts().dossiers).toBe(0);
+  });
+
   it('expires the worklog facts of items that left the sync, while the dossier keeps syncing, and keeps the live ones', async () => {
     const cache = await open(30);
     const factsOf = (n: number) => cache.worklogEvents('card-payments').filter((e) => new RegExp(`PAY-${n}(?![0-9])`).test(JSON.stringify(e)));

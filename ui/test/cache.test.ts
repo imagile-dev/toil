@@ -96,6 +96,19 @@ describe('the schema', () => {
     raw.close();
   });
 
+  it('moves a schema-4 cache forward, each dossier last save being its last sync', async () => {
+    const dir = folder();
+    await olderFile(dir, 4);
+    const { DatabaseSync } = await loadSqlite();
+    const before = new DatabaseSync(cachePaths(dir).db);
+    const row = before.prepare('SELECT last_sync_at FROM dossiers').get() as { last_sync_at: string };
+    before.close();
+    (await open(dir)).close();
+    const raw = new DatabaseSync(cachePaths(dir).db);
+    expect(raw.prepare('SELECT last_sync_at, last_saved_at FROM dossiers').all()).toEqual([{ last_sync_at: row.last_sync_at, last_saved_at: row.last_sync_at }]);
+    raw.close();
+  });
+
   it('rolls a failed step back and says to wipe', async () => {
     const dir = folder();
     (await open(dir)).close();

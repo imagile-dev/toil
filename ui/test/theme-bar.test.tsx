@@ -329,6 +329,7 @@ describe('the local app\'s sync panel', { timeout: SLOW }, () => {
       {
         name: 'card-payments',
         lastSyncAt: AT,
+        lastSavedAt: AT,
         status: 'partial',
         error: 'jira: failed',
         sources: [

@@ -229,10 +229,12 @@ export const MIGRATIONS: readonly Migration[] = [
   },
   {
     version: 5,
-    description: "a stored response's digest, so a sync rewrites only what changed, and when each source was last read whole (#493)",
+    description: "a stored response's digest, so a sync rewrites only what changed, when each source was last read whole, and when a dossier's data was last saved (#493)",
     sql: `
       ALTER TABLE responses ADD COLUMN digest TEXT;
       ALTER TABLE sources ADD COLUMN full_read_at TEXT;
+      ALTER TABLE dossiers ADD COLUMN last_saved_at TEXT;
+      UPDATE dossiers SET last_saved_at = last_sync_at;
     `,
   },
 ];
@@ -279,7 +281,10 @@ export interface SourceState {
 
 export interface DossierState {
   name: string;
+  /** The last attempt, saved or failed. */
   lastSyncAt: string;
+  /** The last time a sync saved data, which is what the dossier's expiry counts from; null when it only ever failed. */
+  lastSavedAt: string | null;
   status: 'ok' | 'partial' | 'failed';
   error: string | null;
   sources: SourceState[];
@@ -588,6 +593,7 @@ export class Cache {
     return dossiers.map((d) => ({
       name: d.name,
       lastSyncAt: d.last_sync_at,
+      lastSavedAt: d.last_saved_at ?? null,
       status: d.status as DossierState['status'],
       error: d.error,
       sources: sources.filter((s) => s.dossier === d.name).map(sourceOf),
@@ -662,7 +668,7 @@ export class Cache {
     return (this.db.prepare('SELECT name FROM dossiers UNION SELECT DISTINCT dossier FROM responses ORDER BY 1').all() as unknown as Array<{ name: string }>).map((r) => r.name);
   }
 
-  /** A dossier whose `dossiers show` failed: its last sync time and error, and nothing else touched. */
+  /** A dossier whose `dossiers show` failed: its last attempt and error, and nothing else touched. `last_saved_at` stays, so a failing sync keeps no data alive. */
   saveFailure(dossier: string, at: string, error: string) {
     this.db.prepare('INSERT INTO dossiers (name, last_sync_at, status, error) VALUES (?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET last_sync_at = excluded.last_sync_at, status = excluded.status, error = excluded.error').run(dossier, at, 'failed', error);
   }
@@ -781,7 +787,7 @@ export class Cache {
       const failed = save.sources.filter((s) => !s.ok);
       const status = failed.length === 0 ? 'ok' : failed.length === save.sources.length ? 'failed' : 'partial';
       const error = failed.length ? failed.map((s) => `${s.area}: ${s.error ?? 'failed'}`).join(' ') : null;
-      this.db.prepare('INSERT INTO dossiers (name, last_sync_at, status, error) VALUES (?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET last_sync_at = excluded.last_sync_at, status = excluded.status, error = excluded.error').run(save.dossier, at, status, error);
+      this.db.prepare('INSERT INTO dossiers (name, last_sync_at, last_saved_at, status, error) VALUES (?, ?, ?, ?, ?) ON CONFLICT (name) DO UPDATE SET last_sync_at = excluded.last_sync_at, last_saved_at = excluded.last_saved_at, status = excluded.status, error = excluded.error').run(save.dossier, at, at, status, error);
     });
     this.prune();
     return news;
@@ -847,26 +853,30 @@ export class Cache {
 
   /**
    * Deletes what is older than the retention period. Returns how many went.
-   * What a sync writes (responses, items, transitions, change refs, worklog facts) goes per dossier, by the dossier's last
-   * sync: saveDossier already deletes rows that are gone and refreshes only the unchanged rows it finds old, so their
-   * synced_at values differ by up to a quarter of the period and can't decide on their own. A dossier's rows therefore
-   * go together, exactly `retention` days after its last sync. The rest goes by its own date.
+   * Everything a sync writes goes per dossier, together, by one date: `dossiers.last_saved_at`, the last time a sync
+   * saved data (a failed `dossiers show` moves `last_sync_at`, the last attempt, and leaves this alone, so a failing sync
+   * keeps nothing alive). A dossier is kept while last_saved_at >= now - retention. A dossier that is not kept loses its
+   * responses, items, transitions, change refs, worklog facts and sources, and then its row, in this one transaction, so
+   * a dossier is never half there. (One that only ever failed has no last_saved_at; its row goes by last_sync_at.) The
+   * rows' own synced_at values differ by up to a quarter of the period (saveDossier refreshes only the unchanged rows it
+   * finds old), so they can't decide on their own. The rest goes by its own date.
    *
    * Worklog facts also go by their own date, 1.25 x retention. saveDossier only upserts a fact, so one that no sync produces
-   * any more (its item left the sync) would otherwise live as long as the dossier keeps syncing. A fact a sync still
-   * produces is refreshed whenever it is more than retention/4 old, so while its dossier survives (last sync at or after
-   * now - retention) its synced_at is at or after now - 1.25 x retention and this rule never touches it. A fact nothing
-   * produces goes about 1.25 x retention after it was last seen.
+   * any more (its item left the sync) would otherwise live as long as the dossier keeps saving. A fact a sync still
+   * produces is refreshed at a save whenever it is more than retention/4 old. While the dossier is kept its last save was
+   * at or after now - retention, and at that save the fact's synced_at became at least save - retention/4, so it is at or
+   * after now - 1.25 x retention and this rule never touches it. A fact nothing produces goes about 1.25 x retention after
+   * it was last seen. Once saves stop, the whole dossier goes at retention, before this rule matters.
    */
   prune(): number {
     const cutoff = new Date(this.now().getTime() - this.retentionDays * DAY).toISOString();
     let removed = 0;
     this.transaction(() => {
-      for (const table of ['responses', 'items', 'transitions', 'change_refs', 'worklog_events']) removed += Number(this.db.prepare(`DELETE FROM ${table} WHERE dossier NOT IN (SELECT name FROM dossiers WHERE last_sync_at >= ?)`).run(cutoff).changes);
+      const kept = 'SELECT name FROM dossiers WHERE last_saved_at >= ?';
+      for (const table of ['responses', 'items', 'transitions', 'change_refs', 'worklog_events', 'sources']) removed += Number(this.db.prepare(`DELETE FROM ${table} WHERE dossier NOT IN (${kept})`).run(cutoff).changes);
       const stale = new Date(this.now().getTime() - this.retentionDays * 1.25 * DAY).toISOString();
       removed += Number(this.db.prepare('DELETE FROM worklog_events WHERE synced_at < ?').run(stale).changes);
-      removed += Number(this.db.prepare('DELETE FROM sources WHERE last_attempt_at < ?').run(cutoff).changes);
-      removed += Number(this.db.prepare('DELETE FROM dossiers WHERE last_sync_at < ?').run(cutoff).changes);
+      removed += Number(this.db.prepare('DELETE FROM dossiers WHERE last_saved_at < ? OR (last_saved_at IS NULL AND last_sync_at < ?)').run(cutoff, cutoff).changes);
       // A test's own migration list may stop short of the usage table; every real file has it.
       if (this.db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'usage'").get()) removed += Number(this.db.prepare('DELETE FROM usage WHERE at < ?').run(cutoff).changes);
       // The worklog's other records (schema 3): a sync, a run and a note by when it happened.
@@ -941,6 +951,7 @@ interface SourceRow {
 interface DossierRow {
   name: string;
   last_sync_at: string;
+  last_saved_at?: string | null;
   status: string;
   error: string | null;
 }

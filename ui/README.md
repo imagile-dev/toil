@@ -656,9 +656,10 @@ requests, builds and deployments that name them.
   ticket content, so it stays on this machine and is readable by your account
   only. The analyses (#395) are kept in the same file, the newest 100 per dossier,
   and a sync never rewrites them.
-- **For how long.** A dossier's synced rows (responses, items,
-  transitions, change refs, worklog facts) are deleted together once its last sync is older
-  than the retention period (30 days by default), at start and after each sync. Worklog facts that no
+- **For how long.** A dossier's synced data (responses, items,
+  transitions, change refs, worklog facts and each source's state) expires together, once the
+  last sync that saved data for it is older than the retention period (30 days by default),
+  at start and after each sync. A sync that fails doesn't keep old data alive. Worklog facts that no
   sync produces any more go about 1.25 times the retention period after they were last seen. The rest
   goes when it is that old itself. The retention period
   also sets how far back closed Jira and Azure DevOps items are read, with a

@@ -66,7 +66,7 @@ export function cacheData(cache: Pick<Cache, 'states' | 'items' | 'transitions' 
     items: () => cache.items(dossier),
     transitions: (id) => cache.transitions(dossier, id),
     changes: () => cache.changes(dossier),
-    syncedAt: () => state.lastSyncAt,
+    syncedAt: () => state.lastSavedAt,
   };
 }
 
