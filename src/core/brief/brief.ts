@@ -135,7 +135,6 @@ export interface Brief {
   /** Open items no reason took, and items done. Counted, not listed. */
   onTrack: { open: number; done: number };
   sprint: SprintFacts | null;
-  /** The lenses as applied: each one's test, and why one wasn't checked. */
   /** The lenses as applied: each one's test, whether it ran, how many items it couldn't test for a missing field, and why. */
   lenses: Array<{ id: LensId; label: string; on: boolean; threshold: number | null; unit: LensDef['unit']; test: string; checked: boolean; untested: number; note: string | null }>;
 }
