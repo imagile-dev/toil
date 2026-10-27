@@ -201,15 +201,31 @@
   },
   {
     "name": "jira",
-    "description": "Jira Data Center: issues, search, transitions, comments, worklogs, attachments, custom fields, boards and sprints",
+    "description": "Jira Data Center and Jira Cloud: issues, JQL search, transitions, comments, worklogs, attachments, custom fields, projects, users, boards and sprints",
     "connection": [
       {
         "name": "baseUrl",
-        "description": "Jira server root, e.g. https://jira.imagile.dev",
+        "description": "Jira root: the Data Center server (https://jira.imagile.dev), or the Cloud site (https://<your-site>.atlassian.net)",
         "secret": false,
         "password": false,
         "default": null,
         "required": true
+      },
+      {
+        "name": "deployment",
+        "description": "Which Jira this is: \"server\" for Data Center (the default), or \"cloud\" for Jira Cloud",
+        "secret": false,
+        "password": false,
+        "default": "server",
+        "required": false
+      },
+      {
+        "name": "email",
+        "description": "Jira Cloud only: the email address of the Atlassian account the API token belongs to",
+        "secret": false,
+        "password": false,
+        "default": null,
+        "required": false
       },
       {
         "name": "customFields",
@@ -245,7 +261,7 @@
       },
       {
         "name": "apiToken",
-        "description": "Personal access token",
+        "description": "Data Center: a personal access token. Cloud: an Atlassian account API token",
         "secret": true,
         "password": false,
         "default": null,

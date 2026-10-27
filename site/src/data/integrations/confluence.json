@@ -5,7 +5,7 @@
   "order": 1,
   "covers": "Pages, spaces, search, comments, labels, attachments",
   "credential": "Personal access token",
-  "credentialNote": "The default connection uses TOIL_JIRA_API_TOKEN when no Confluence token is set; another connection can borrow a Jira connection's token with apiTokenFrom",
+  "credentialNote": "The default connection uses TOIL_JIRA_API_TOKEN when no Confluence token is set, only if the default Jira connection is Data Center; another connection can borrow a Jira connection's token with apiTokenFrom",
   "credentialWhere": "Your profile picture → Settings → Personal Access Tokens",
   "status": "unit",
   "keys": [

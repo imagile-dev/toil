@@ -27,7 +27,11 @@ export type ErrorCode =
   | 'UNSUPPORTED_NODE'
   /** A command that runs git found no usable git on PATH. Nothing else needs git. */
   | 'GIT_NOT_FOUND'
-  /** The server is a release without an API the command needs (sub-issues or Projects on an older GitHub Enterprise Server). */
+  /**
+   * The server is a release without an API the command needs (sub-issues or
+   * Projects on an older GitHub Enterprise Server), or the connection's
+   * deployment has no such command or flag (`jira project list` on Data Center).
+   */
   | 'UNSUPPORTED'
   | 'INTERNAL';
 

@@ -3,14 +3,15 @@ import { assertNoCoreFields, type CommandDefinition, type CliOption, type Contex
 import { OUTPUT_FORMAT_FIELD, SUMMARY_FILE_FIELD } from './output/fields.js';
 import { SELECT_FIELD } from './query/select.js';
 import { envName } from './config.js';
+import { foldDeployments, type DeploymentOptions } from './deployments.js';
 import type { GitRemote } from './call-context.js';
 import type { CommandContext } from './context.js';
 import type { RequestHook } from './api.js';
 import type { QueryParam } from './rest.js';
 
 /**
- * An area is one service, or one deployment variant of one (`jira`,
- * `jira-cloud`, `db`). It declares the shape of a connection to it once, and
+ * An area is one service (`jira`, `db`), whichever deployments it has: a connection
+ * names its `deployment` where there is more than one. It declares the shape of a connection to it once, and
  * core does the rest: env-var mapping, CI fallbacks, provider defaults,
  * validation with a fix, and handing each command its own resolved connection.
  *
@@ -157,6 +158,15 @@ export interface SharedSettings {
   area: Area<any, string>;
   /** Keys with the same name on both areas' connection schemas, secret in both or in neither. */
   keys: string[];
+  /**
+   * Whether the other area's default connection may lend its env value to
+   * this area's default connection, judged from that connection's settings.
+   * For a pair that shares one credential only between like deployments:
+   * Confluence Cloud may take Jira's token only from a Jira connection that is
+   * itself Cloud, never a Data Center token sent off to the Atlassian cloud.
+   * An explicit `<key>From` pairing is the user's call and isn't asked.
+   */
+  fallbackWhen?: (other: Record<string, unknown>) => boolean;
 }
 
 /** The setting that pairs `key` with another area's connection: `apiKey` -> `apiKeyFrom`. */
@@ -234,6 +244,14 @@ export interface Area<S extends z.ZodObject = z.ZodObject, K extends string = st
    * and `run` gets `ctx.connection` typed from the area's schema.
    */
   command<I extends z.ZodObject>(def: AreaCommand<I, z.output<S>, K>): CommandDefinition<I>;
+  /**
+   * Folds each deployment's own commands (defined with `command`, never
+   * registered themselves) into one command per path: the union of their
+   * inputs, run by the implementation for the resolved connection's
+   * deployment, refused before any request where that deployment has none.
+   * Needs `variants` keyed on the connection's `deployment` (src/core/deployments.ts).
+   */
+  byDeployment(impls: Record<string, readonly CommandDefinition[]>, options?: DeploymentOptions): CommandDefinition[];
 }
 
 /** What an area command declares; `path[0]` must be the area's name. */
@@ -325,6 +343,7 @@ export function defineArea<S extends z.ZodObject, K extends string = never>(spec
     secretKinds,
     context: context as Partial<Record<K, ContextInput>>,
     envName: (key) => envName(spec.name, key),
+    byDeployment: (impls, options) => foldDeployments(area as unknown as AnyArea, impls, options),
     command(def) {
       const name = def.path.join(' ');
       if (def.path[0] !== spec.name) throw new Error(`Command ${name} is defined in area ${spec.name}; its path must start with "${spec.name}".`);

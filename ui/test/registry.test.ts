@@ -1,7 +1,6 @@
 import { Validator } from '@cfworker/json-schema';
 import { describe, expect, it } from 'vitest';
 import { execute, mapOwi as apiMapOwi, registry } from '../../src/api.ts';
-import { DOSSIERS, showData } from '../src/fixtures/dossiers.ts';
 import { CANNED, callKey, fixtureExecute } from '../src/fixtures/execute.ts';
 import { loadDossier, loadDossiers } from '../src/load.ts';
 import { workflowRead } from '../src/model/readiness.ts';
@@ -81,41 +80,6 @@ describe('the dashboards', () => {
   });
 });
 
-describe('a Jira Cloud dossier', () => {
-  // card-payments with only its Jira section, on Jira Cloud: the same issues, asked for through the Cloud area's commands.
-  const card = DOSSIERS.find((d) => d.name === 'card-payments')!;
-  const cloud = { name: card.name.replace('card', 'cloud'), description: card.description, repos: [], 'jira-cloud': { ...(card.jira as object), connection: 'corp-jira-cloud' } } as typeof card;
-  const rename = (c: (typeof CANNED)[number]) => ({ ...c, command: c.command.replace(/^jira /, 'jira-cloud '), input: { ...c.input, dossier: cloud.name } });
-  const canned = [
-    ...CANNED.filter((c) => c.command === 'dossiers list'),
-    { command: 'dossiers show', input: { dossier: cloud.name }, data: showData(cloud) },
-    ...CANNED.filter((c) => c.area === 'jira' && /^jira issue (search|history)$/.test(c.command)).map(rename),
-  ];
-  const cloudCalls = canned.filter((c) => c.command.startsWith('jira-cloud '));
-
-  it.each(cloudCalls.map((c) => [`${c.command} ${JSON.stringify(c.input)}`, c] as const))('%s is a read-only command execute() serves, with input its schema accepts', (_label, call) => {
-    const def = byName.get(call.command);
-    expect(def, `toil has no API command "${call.command}"`).toBeDefined();
-    expect([def!.writes, def!.writesLocal, def!.writesDependOnInput]).toEqual([false, false, false]);
-    expect(new Validator(def!.inputSchema as object, '2020-12', false).validate(call.input).errors.map((e) => `${e.instanceLocation} ${e.error}`)).toEqual([]);
-  });
-
-  it('syncs its work items and their history through jira-cloud, and no other Jira command', async () => {
-    const fixture = fixtureExecute(canned);
-    const data = await loadDossier(fixture.execute, cloud.name, { mapOwi });
-    const asked = fixture.calls.map((c) => c.command);
-    expect(asked).toContain('jira-cloud issue search');
-    expect(asked).toContain('jira-cloud issue history');
-    expect(asked.filter((c) => c.startsWith('jira '))).toEqual([]);
-    expect(fixture.calls.filter((c) => !c.ok)).toEqual([]);
-    const dataCenter = await loadDossier(fixtureExecute().execute, 'card-payments', { mapOwi });
-    expect(data.items.length).toBeGreaterThan(0);
-    expect(data.items.length).toBe(dataCenter.items.length);
-    expect(new Set(data.items.map((i) => i.source.area))).toEqual(new Set(['jira-cloud']));
-    expect(data.items.some((i) => i.history !== null)).toBe(true);
-  });
-});
-
 describe("the browser's mapOwi", () => {
   it.each(NAMES)("maps %s's work exactly as the API's mapOwi does", async (name) => {
     const browser = await loadDossier(fixtureExecute().execute, name, { mapOwi });
@@ -147,14 +111,16 @@ describe('every proposal the board, the scripted agent and the pull request view
     const { items } = await loadDossier(fixtureExecute().execute, name);
     const open = items.filter((i) => i.statusCategory !== 'DONE');
     const asArea = (area: string) => open.filter((i) => /^(jira|ado)$/.test(i.source.area)).map((i) => ({ ...i, id: `${area}:${i.source.key}`, source: { ...i.source, area, connection: area } }));
-    for (const item of [...open, ...asArea(open[0]!.source.area === 'jira' ? 'jira-cloud' : 'ado-cloud')]) proposals.push(subTaskProposal('Tokenise card numbers at the edge', item, name));
+    // Jira on a Cloud connection is still area jira: the item's source says the deployment.
+    const onCloud = open.filter((i) => i.source.area === 'jira').map((i) => ({ ...i, id: `cloud-jira:${i.source.key}`, source: { ...i.source, connection: 'cloud-jira', deployment: 'cloud' } }));
+    for (const item of [...open, ...onCloud, ...asArea('ado-cloud')]) proposals.push(subTaskProposal('Tokenise card numbers at the edge', item, name));
     proposals.push(newTicketProposal('Tokenise card numbers at the edge', items, name, null));
-    for (const area of ['jira-cloud', 'ado-cloud']) proposals.push(newTicketProposal('Tokenise card numbers at the edge', asArea(area), name, null));
+    for (const list of [onCloud, asArea('ado-cloud')]) proposals.push(newTicketProposal('Tokenise card numbers at the edge', list, name, null));
   }
   const withCommand = proposals.filter((p) => p?.command);
 
   it('includes some of each kind', () => {
-    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update', 'github pr add-reviewers', 'bitbucket pr add-reviewer', 'bitbucket-cloud pr update', 'confluence page create', 'github issue create', 'jira issue create', 'jira-cloud issue create', 'ado work-item create', 'ado-cloud work-item create']));
+    expect(new Set(withCommand.map((p) => p!.command))).toEqual(new Set(['jira issue transition', 'ado work-item transition', 'jira issue update', 'ado work-item update', 'github pr add-reviewers', 'bitbucket pr add-reviewer', 'bitbucket-cloud pr update', 'confluence page create', 'github issue create', 'jira issue create', 'ado work-item create', 'ado-cloud work-item create']));
   });
 
   it.each(withCommand.map((p) => [p!.id, p!] as const))('%s names a write command, with input its schema accepts', (_id, p) => {

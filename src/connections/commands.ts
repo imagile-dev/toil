@@ -15,6 +15,7 @@ import { apiRequest } from '../core/api.js';
 import { coerce, resolveConnection } from '../core/connection.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
 import { hostMatches } from '../core/dossier.js';
+import { refuseRenamedArea } from '../core/renamed-areas.js';
 import { ToilError, withArticle } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified, type SecretStore } from '../core/keychain.js';
 import type { Prompter } from '../core/prompt.js';
@@ -282,6 +283,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
 }
 
 function areaIn(areas: readonly AnyArea[], name: string): AnyArea {
+  refuseRenamedArea(name);
   const area = areas.find((a) => a.name === name);
   if (area) return area;
   throw new ToilError('INVALID_INPUT', `toil has no area named "${name}".`, {

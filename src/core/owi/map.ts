@@ -118,6 +118,7 @@ export function documentsFrom(values: unknown[], options: DocumentOptions = {}):
     let command: string;
     let data: unknown;
     let connection: string | undefined;
+    let deployment: string | undefined;
     const inputs: Record<string, string> = {};
     if (isEnvelope(value)) {
       command = value.meta.command;
@@ -129,6 +130,7 @@ export function documentsFrom(values: unknown[], options: DocumentOptions = {}):
       data = value.data;
       const context = isRecord(value.meta.context) ? value.meta.context : {};
       connection = isRecord(context.connection) ? (str(context.connection.value) ?? undefined) : undefined;
+      deployment = isRecord(context.connection) ? (str(context.connection.deployment) ?? undefined) : undefined;
       if (isRecord(context.inputs)) for (const [name, input] of Object.entries(context.inputs)) if (isRecord(input) && typeof input.value === 'string') inputs[name] = input.value;
     } else if (options.command !== undefined) {
       command = options.command;
@@ -148,7 +150,7 @@ export function documentsFrom(values: unknown[], options: DocumentOptions = {}):
       const all = Object.values(OWI_COMMANDS).flatMap((c) => [...c.items, ...c.history, ...c.context, ...c.changes]);
       throw new ToilError('INVALID_INPUT', `${at} is the output of "${command}", which OWI doesn't map.`, { fix: `Map the output of one of: ${all.join(', ')}.` });
     }
-    documents.push({ area, command, connection: connection ?? area, data, inputs, at, ...(key === undefined ? {} : { key }) });
+    documents.push({ area, command, connection: connection ?? area, ...(deployment === undefined ? {} : { deployment }), data, inputs, at, ...(key === undefined ? {} : { key }) });
   });
   return { documents, skipped };
 }

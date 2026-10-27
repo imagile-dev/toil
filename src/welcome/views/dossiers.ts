@@ -268,7 +268,6 @@ const spaces = (area: string): Discovery => ({ what: 'spaces', args: [area, 'spa
 
 export const DISCOVERY: Record<string, Discovery> = {
   jira: jiraFields('jira'),
-  'jira-cloud': jiraFields('jira-cloud'),
   confluence: spaces('confluence'),
   'confluence-cloud': spaces('confluence-cloud'),
   sonar: { what: 'projects', args: ['sonar', 'project', 'list'], id: 'key', name: 'name', key: 'projects' },
@@ -648,7 +647,7 @@ export const areaView: View = {
     ];
     if (reposOf(shownOf(p)).length > 1) items.push({ label: 'Set a value for one repo', hint: 'When repos use different keys', action: { go: 'dossier-repo-pick', params } });
     if (DISCOVERY[area!] && !env) items.push({ label: `Discover ${DISCOVERY[area!]!.what}`, hint: `toil ${DISCOVERY[area!]!.args.slice(0, -1).join(' ')} ..., then tick them`, action: { run: discoverRun(params) } });
-    if (area === 'jira' || area === 'jira-cloud') items.push({ label: 'Name a field', hint: 'alias=field-id, e.g. storyPoints=customfield_10002', action: { go: 'dossier-field', params } });
+    if (area === 'jira') items.push({ label: 'Name a field', hint: 'alias=field-id, e.g. storyPoints=customfield_10002', action: { go: 'dossier-field', params } });
     items.push({ label: 'Remove this section', hint: 'Asks you to type its name', action: { go: 'dossier-unlink', params: { ...params, then: backTo('dossier-edit') } } });
     if (env && shownOf(p)?.dossier.env !== env) {
       items.push({ label: `Make ${env} the default environment`, hint: 'Calls with no --env use it', action: change(params, `Default environment ${env}`, [{ args: ['dossiers', 'env', ref!, env, area!, '--default'] }], thenOf(params)) });

@@ -55,7 +55,7 @@ describe('storage format as plain text', () => {
 describe('connection', () => {
   const own = fixtureConfig['confluence-cloud'];
   const noToken = { baseUrl: own.baseUrl, email: own.email, writes: true };
-  const jira = { baseUrl: 'https://jira-cloud.imagile.dev', email: 'you@example.com', apiToken: 'jira-token' };
+  const jira = { area: 'jira', deployment: 'cloud', baseUrl: 'https://jira-cloud.imagile.dev', email: 'you@example.com', apiToken: 'jira-token' };
   const JIRA_AUTH = `Basic ${Buffer.from('you@example.com:jira-token').toString('base64')}`;
 
   it('a baseUrl ending in /wiki is CONFIG_INVALID, saying to drop it, before anything is sent', async () => {
@@ -72,16 +72,23 @@ describe('connection', () => {
     expect(calls[0]!.url).toBe(`${SITE}/wikis/wiki/api/v2/pages/12345?body-format=storage`);
   });
 
-  it('with no token of its own, the default connection uses the jira-cloud token from env, and says so', async () => {
+  it('with no token of its own, the default connection uses the jira token (from a Cloud connection) from env, and says so', async () => {
     const { envelope, calls } = await run(getPage, { id: '12345' }, fixtureRoutes, { config: { 'confluence-cloud': noToken, 'jira-cloud': jira } });
     expect(calls[0]!.headers.authorization).toBe(JIRA_AUTH);
-    expect(envelope.meta.context?.shared).toEqual({ apiToken: { area: 'jira-cloud', connection: 'jira-cloud', source: 'env', via: 'env-fallback' } });
+    expect(envelope.meta.context?.shared).toEqual({ apiToken: { area: 'jira', connection: 'jira-cloud', source: 'env', via: 'env-fallback' } });
   });
 
-  it('apiTokenFrom names the jira-cloud connection to borrow from; its own token wins otherwise', async () => {
+  it("never lends a Data Center jira token to Confluence Cloud by the env fallback: a PAT isn't sent to the Atlassian cloud", async () => {
+    const dataCenter = { baseUrl: 'https://jira.imagile.dev', apiToken: 'dc-pat' };
+    const { envelope, calls } = await run(getPage, { id: '12345' }, fixtureRoutes, { config: { 'confluence-cloud': noToken, jira: dataCenter } });
+    expect(envelope.error).toMatchObject({ code: 'CONFIG_INVALID', message: expect.stringContaining('apiToken') });
+    expect(calls).toHaveLength(0);
+  });
+
+  it('apiTokenFrom names the jira connection to borrow from; its own token wins otherwise', async () => {
     const paired = await run(getPage, { id: '12345' }, fixtureRoutes, { config: { 'confluence-cloud': { ...noToken, apiTokenFrom: 'jira-cloud' }, 'jira-cloud': jira } });
     expect(paired.calls[0]!.headers.authorization).toBe(JIRA_AUTH);
-    expect(paired.envelope.meta.context?.shared).toMatchObject({ apiToken: { area: 'jira-cloud', connection: 'jira-cloud' } });
+    expect(paired.envelope.meta.context?.shared).toMatchObject({ apiToken: { area: 'jira', connection: 'jira-cloud' } });
     const mine = await run(getPage, { id: '12345' }, fixtureRoutes, { config: { 'confluence-cloud': own, 'jira-cloud': jira } });
     expect(mine.calls[0]!.headers.authorization).toBe(AUTH);
   });

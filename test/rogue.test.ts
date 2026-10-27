@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { loadConfig } from '../src/core/config.js';
+import { CONFIG_VERSION, loadConfig } from '../src/core/config.js';
 import { CTRL_C_WINDOW_MS, runWelcome } from '../src/welcome/index.js';
 import { initialState, played, reduce, render, SECRET } from '../src/welcome/menu.js';
 import { act, called, type Game, type Input, isWall, LAST_FLOOR, mobAt, type Point, start, WIDTH } from '../src/welcome/rogue/game.js';
@@ -367,7 +367,7 @@ describe("Two Weeks' Notice: the encrypted save", () => {
   it('saves under "game" in the config, keeps every other key, and loads it back', () => {
     const home = dir();
     const path = join(home, 'config.json');
-    writeFileSync(path, JSON.stringify({ version: 2, connections: { 'corp-jira': { area: 'jira', baseUrl: 'https://jira.imagile.dev' } }, defaults: {} }));
+    writeFileSync(path, JSON.stringify({ version: CONFIG_VERSION, connections: { 'corp-jira': { area: 'jira', baseUrl: 'https://jira.imagile.dev' } }, defaults: {} }));
     expect(storeProgress(path, progress, who)).toBeUndefined();
     const written = JSON.parse(readFileSync(path, 'utf8'));
     expect(written.connections['corp-jira'].baseUrl).toBe('https://jira.imagile.dev');
@@ -380,7 +380,7 @@ describe("Two Weeks' Notice: the encrypted save", () => {
 
   it('starts fresh with a notice when the save was edited, and never rewrites an older config file', () => {
     const path = join(dir(), 'config.json');
-    writeFileSync(path, JSON.stringify({ version: 2, connections: {}, defaults: {}, game: 'twn1.tampered' }));
+    writeFileSync(path, JSON.stringify({ version: CONFIG_VERSION, connections: {}, defaults: {}, game: 'twn1.tampered' }));
     const tampered = loadProgress(path, who);
     expect(tampered.progress).toEqual(freshProgress());
     expect(tampered.notice).toContain('could not be read');
@@ -398,7 +398,7 @@ describe("Two Weeks' Notice: the encrypted save", () => {
   it('keeps every top-level key when it saves, and says plainly when the file is from a newer toil', () => {
     const home = dir();
     const path = join(home, 'config.json');
-    const config = { $schema: 'x', version: 2, connections: {}, defaults: {}, bounds: { files: 'workspace' }, audit: { enabled: true }, wait: { maxTimeout: '2h' }, dossierPaths: [join(home, 'dossiers')] };
+    const config = { $schema: 'x', version: CONFIG_VERSION, connections: {}, defaults: {}, bounds: { files: 'workspace' }, audit: { enabled: true }, wait: { maxTimeout: '2h' }, dossierPaths: [join(home, 'dossiers')] };
     writeFileSync(path, JSON.stringify(config));
     expect(storeProgress(path, progress, who)).toBeUndefined();
     const { game, ...rest } = JSON.parse(readFileSync(path, 'utf8'));
@@ -407,6 +407,27 @@ describe("Two Weeks' Notice: the encrypted save", () => {
     const newer = join(dir(), 'config.json');
     writeFileSync(newer, JSON.stringify({ version: 99, connections: {}, defaults: {} }));
     expect(loadProgress(newer, who)).toMatchObject({ writable: false, notice: expect.stringContaining('newer toil') });
+  });
+
+  it('loads the save from a version 2 file, reports it read-only, and leaves the file untouched', () => {
+    const path = join(dir(), 'config.json');
+    const connections = { 'corp-jira': { area: 'jira', baseUrl: 'https://jira.imagile.dev' } };
+    writeFileSync(path, JSON.stringify({ version: 2, connections, defaults: {}, game: seal(progress, who) }));
+    const before = readFileSync(path);
+    const loaded = loadProgress(path, who);
+    expect(loaded).toMatchObject({ progress, writable: false });
+    expect(loaded.notice).toContain('older config file');
+    expect(readFileSync(path).equals(before)).toBe(true);
+  });
+
+  it('saves into a current-version file touching only "game"', () => {
+    const path = join(dir(), 'config.json');
+    const config = { version: CONFIG_VERSION, connections: { 'corp-jira': { area: 'jira', baseUrl: 'https://jira.imagile.dev' } }, defaults: { jira: { connection: 'corp-jira' } } };
+    writeFileSync(path, JSON.stringify(config));
+    expect(storeProgress(path, progress, who)).toBeUndefined();
+    const { game, ...rest } = JSON.parse(readFileSync(path, 'utf8'));
+    expect(rest).toEqual(config);
+    expect(typeof game).toBe('string');
   });
 
   it('creates a config holding only the save when there is none', () => {

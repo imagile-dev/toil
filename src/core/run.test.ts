@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { testContext } from '../../test/harness/context.js';
 import { defineCommand } from './command.js';
+import { CONTRACT_VERSION } from './envelope.js';
 import { ToilError } from './errors.js';
 import { execute } from './run.js';
 
@@ -12,7 +13,7 @@ describe('execute', () => {
   it('wraps data in a success envelope with meta', async () => {
     const { context } = testContext();
     const envelope = await execute(make(async () => ({ a: 1 })), {}, context);
-    expect(envelope).toEqual({ ok: true, data: { a: 1 }, error: null, meta: { command: 'test cmd', durationMs: expect.any(Number), version: context.version, contractVersion: 1 } });
+    expect(envelope).toEqual({ ok: true, data: { a: 1 }, error: null, meta: { command: 'test cmd', durationMs: expect.any(Number), version: context.version, contractVersion: CONTRACT_VERSION } });
   });
 
   it('passes a ToilError through with its code and fix', async () => {

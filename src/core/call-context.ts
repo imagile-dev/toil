@@ -119,6 +119,8 @@ export async function resolveCall(
   const shared: NonNullable<ContextReport['shared']> = {};
   const connection = await resolveConnection(sources.config, area, chosen?.value, warn, sources.secrets, signal, { shared });
   report.connection = chosen ? { value: connection.name, source: chosen.source, ...(chosen.via ? { via: chosen.via } : {}) } : { value: connection.name, source: 'default', default: defaultKind(sources.config, area, connection.name) };
+  // An area that serves more than one deployment says which one this call ran against.
+  if (area.variants?.by === 'deployment') report.connection.deployment = String(connection.deployment);
   if (Object.keys(shared).length > 0) report.shared = shared;
 
   // A selecting value that lost to a higher source (an explicit --connection

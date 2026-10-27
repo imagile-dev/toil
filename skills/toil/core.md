@@ -10,7 +10,7 @@ when a call needs more than a command's own flags.
 For an AI term you meet here or in Toil UI (token, context window, harness, MCP),
 Context Overflow's glossary has a page each: <https://kolatts.github.io/context-overflow/glossary>.
 
-The jira, jira-cloud, ado and ado-cloud commands are `toil <area> <resource> <action>
+The jira (Data Center and Cloud), ado and ado-cloud commands are `toil <area> <resource> <action>
 [ids...]`: ids are positional, everything else is a flag, and `toil <area> <resource>
 --help` lists what a resource can do (`toil jira issue --help`).
 
@@ -39,7 +39,7 @@ command's own paging flag, which its reference names.
 
 ## Moving work items by intent
 
-`jira issue transition`, `jira-cloud issue transition`, `ado work-item transition` and
+`jira issue transition`, `ado work-item transition` and
 `ado-cloud work-item transition` take `--to <intent>` (`to` over MCP): `start`,
 `review`, `done`, `reopen`, or a status name. toil resolves it against the moves that
 one item offers right now, by its own workflow, because a workflow belongs to the issue
@@ -260,6 +260,13 @@ commands can't change. `toil connections test
 in, turning writes on and choosing a default are for a person: a bare `toil` in a
 terminal opens a menu for them.
 
+A CI job that wants an empty variable to be an error, not a skipped line, sets
+`TOIL_STRICT_ENV=true`. Today it matters for one thing: an empty variable of an area that
+no longer exists (`TOIL_JIRA_CLOUD_API_TOKEN=""`) is skipped by default, as an empty CI
+fallback is, and refused with `CONFIG_INVALID` when it is on; a variable with a value is
+refused either way. `TOIL_STRICT_ENV` is read only from the environment and maps onto no
+area.
+
 When `toil connections add` or `login` asks for a secret, the terminal shows one `•`
 per character typed or pasted (Backspace removes one, Ctrl+U clears them), never the
 characters, and after Enter says how many arrived: `Received 40 characters.` Before
@@ -339,7 +346,7 @@ workspace. Then:
 - `toil dossiers field <name> jira storyPoints customfield_10002` names a field, so
   `--field storyPoints=5` works.
 - `toil <area> check-dossier` checks a section against the service, for the call's
-  environment (jira, jira-cloud, confluence, sonar, ado, bitbucket, github, openshift,
+  environment (jira, confluence, sonar, ado, bitbucket, github, openshift,
   dynatrace).
 - `toil dossiers export <name> --repo <root>` writes a shareable copy into a
   repository's `.toil/dossiers/`. It uses host selectors and no local paths, and toil
@@ -397,7 +404,7 @@ refuses (see `install.md`), every `execute()` returns the CLI's
 ```js
 import { contractVersion, execute, registry, version } from '@imagile-dev/toil/api';
 
-if (contractVersion !== 1) throw new Error(`Needs toil's contract 1; toil ${version} has ${contractVersion}.`);
+if (contractVersion !== 2) throw new Error(`Needs toil's contract 2; toil ${version} has ${contractVersion}.`);
 const envelope = await execute('jira issue search', { jql: 'project = PAY', limit: 50 }, {
   readOnly: true,
   caller: 'nightly-sync',

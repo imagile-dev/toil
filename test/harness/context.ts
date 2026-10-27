@@ -16,16 +16,19 @@ export const TEST_VERSION = '0.0.0-test';
 
 /**
  * A config as if set by TOIL_<AREA>_* env vars: one connection per area, named
- * after it and set as its default. Values are attributed to env because that's
+ * after it and set as its default. A connection that sets its own `area` is
+ * named by its key instead (`'jira-cloud': { area: 'jira', deployment: 'cloud' }`)
+ * and is the area's default only when no connection is named after the area. Values are attributed to env because that's
  * where a plaintext credential may live (a config file holds only `keychain:`
  * references), and it's how CI provides them.
  */
 export function testConfig(areas: Record<string, Settings> = {}): ResolvedConfig {
   const config: ResolvedConfig = { connections: {}, defaults: {}, sources: {}, files: { global: '/home/test/.toil/config.json' }, warnings: [] };
-  for (const [area, settings] of Object.entries(areas)) {
-    config.connections[area] = { ...settings, area };
-    config.defaults[area] = { connection: area };
-    for (const key of Object.keys(settings)) config.sources[`${area}.${key}`] = 'env';
+  for (const [name, settings] of Object.entries(areas)) {
+    const area = typeof settings.area === 'string' ? settings.area : name;
+    config.connections[name] = { ...settings, area };
+    if (name === area || config.defaults[area] === undefined) config.defaults[area] = { connection: name };
+    for (const key of Object.keys(settings)) if (key !== 'area') config.sources[`${name}.${key}`] = 'env';
   }
   return config;
 }

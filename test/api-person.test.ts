@@ -71,7 +71,7 @@ describe('the registry', () => {
 
   it("says what a connection to each area holds, in the order connections add asks", () => {
     const fields = registry.areas.find((a) => a.name === 'jira')!.connection;
-    expect(fields[0]).toEqual({ name: 'baseUrl', description: 'Jira server root, e.g. https://jira.imagile.dev', secret: false, password: false, default: null, required: true });
+    expect(fields[0]).toEqual({ name: 'baseUrl', description: 'Jira root: the Data Center server (https://jira.imagile.dev), or the Cloud site (https://<your-site>.atlassian.net)', secret: false, password: false, default: null, required: true });
     expect(fields.at(-1)).toMatchObject({ name: 'apiToken', secret: true, password: false, required: true });
     expect(fields.find((f) => f.name === 'project')).toMatchObject({ secret: false, required: false });
   });
@@ -89,7 +89,7 @@ describe('execute() with a person', () => {
     const p = person(jira);
     const added = await execute('connections add', { name: 'corp-jira', area: 'jira' }, { person: p, caller: 'toil-ui' });
     expect(added).toMatchObject({ ok: true, data: { name: 'corp-jira', area: 'jira', secrets: { apiToken: 'store' } } });
-    expect(p.asked.map((q) => q.id)).toEqual(['setting:baseUrl', 'setting:customFields', 'setting:project', 'setting:issueType', 'setting:priority', 'secret:apiToken', 'confirm']);
+    expect(p.asked.map((q) => q.id)).toEqual(['setting:baseUrl', 'setting:deployment', 'setting:email', 'setting:customFields', 'setting:project', 'setting:issueType', 'setting:priority', 'secret:apiToken', 'confirm']);
     expect(p.asked.find((q) => q.id === 'secret:apiToken')).toMatchObject({ secret: true, fallback: null });
     expect(p.asked.find((q) => q.id === 'confirm')).toMatchObject({ secret: false, fallback: 'y' });
     expect(sharedStore.entries.get('corp-jira.apiToken')).toBe(SECRET);

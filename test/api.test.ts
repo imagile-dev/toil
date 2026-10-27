@@ -245,7 +245,7 @@ describe('@imagile-dev/toil/api (src/api.ts)', () => {
 
   it('exports the version, the contract version and a registry of what execute() serves', () => {
     expect(version).toBe('0.0.0-test');
-    expect(contractVersion).toBe(1);
+    expect(contractVersion).toBe(2);
     const names = registry.commands.map((c) => c.name);
     expect(names).toContain('version');
     expect(names).toContain('connections list');
@@ -260,7 +260,7 @@ describe('@imagile-dev/toil/api (src/api.ts)', () => {
   it('runs a command in-process, with the caller in the audit log of the home it runs in', async () => {
     const home = isolatedHome();
     const envelope = await apiExecute('version', {}, { caller: 'toil-ui' });
-    expect(envelope).toMatchObject({ ok: true, data: { version: '0.0.0-test', contractVersion: 1 }, meta: { command: 'version', contractVersion: 1 } });
+    expect(envelope).toMatchObject({ ok: true, data: { version: '0.0.0-test', contractVersion: CONTRACT_VERSION }, meta: { command: 'version', contractVersion: CONTRACT_VERSION } });
     const dir = join(home, '.toil', 'audit');
     const lines = readdirSync(dir).flatMap((f) => readFileSync(join(dir, f), 'utf8').trim().split('\n'));
     expect(lines.map((l) => JSON.parse(l))).toEqual([expect.objectContaining({ via: 'api', caller: 'toil-ui', command: 'version', outcome: 'ok' })]);
@@ -269,7 +269,7 @@ describe('@imagile-dev/toil/api (src/api.ts)', () => {
   it('answers an unknown command, a person-only command and a bad caller label with envelopes, never a throw', async () => {
     isolatedHome();
     const unknown = await apiExecute('jira no-such-thing');
-    expect(unknown).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' }, meta: { command: 'jira no-such-thing', contractVersion: 1 } });
+    expect(unknown).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' }, meta: { command: 'jira no-such-thing', contractVersion: CONTRACT_VERSION } });
     const personal = await apiExecute('connections add', { name: 'x' });
     expect(personal).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', message: "connections add is a person's command: execute() runs it only with a person to answer its questions." } });
     const cliOnly = await apiExecute('setup alias', {});

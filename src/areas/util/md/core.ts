@@ -1,4 +1,4 @@
-import type { AdfDocument, AdfNode } from '../../jira-cloud/adf.js';
+import type { AdfDocument, AdfNode } from '../../jira/cloud/adf.js';
 import { ToilError } from '../../../core/errors.js';
 import { parseAdf, renderAdf } from './adf.js';
 import { dropEmpty, Losses, normalizeBlocks, type Doc, type Loss } from './ast.js';

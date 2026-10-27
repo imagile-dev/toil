@@ -6,7 +6,7 @@ import { adoMoves, resolveTransition, type TransitionCandidate } from '../src/co
 import { areas, commands } from '../src/registry.js';
 import { config as adoConfig, ADO } from './fixtures/ado.fixture.js';
 import { config as adoCloudConfig, ORG_URL } from './fixtures/ado-cloud.fixture.js';
-import { config as jiraCloudConfig, SITE } from './fixtures/jira-cloud.fixture.js';
+import { config as jiraCloudConfig, SITE } from './fixtures/jira-cloud-data.js';
 import { config as jiraConfig, JIRA } from './fixtures/jira.fixture.js';
 import { testContext } from './harness/context.js';
 import { dossierDisk, type DossierDisk } from './harness/dossiers.js';
@@ -57,8 +57,8 @@ const STORY = issueWith('PROJ-1', 'Story', status('In Progress', 'indeterminate'
 const TASK = issueWith('PROJ-2', 'Task', status('In Progress', 'indeterminate'), [move('31', 'Done', 'Done', 'done'), move('11', 'Stop Progress', 'To Do', 'new')]);
 
 for (const variant of [
-  { area: 'jira', base: `${JIRA}/rest/api/2`, config: jiraConfig },
-  { area: 'jira-cloud', base: `${SITE}/rest/api/3`, config: jiraCloudConfig },
+  { label: 'jira', area: 'jira', base: `${JIRA}/rest/api/2`, config: jiraConfig },
+  { label: 'jira on Cloud', area: 'jira', base: `${SITE}/rest/api/3`, config: jiraCloudConfig },
 ] as const) {
   const routesFor = (issue: ReturnType<typeof issueWith>): Route[] => [
     { path: new URL(`${variant.base}/issue/${issue.key}`).pathname, query: { fields: 'issuetype,status', expand: 'transitions' }, respond: { json: issue } },
@@ -68,7 +68,7 @@ for (const variant of [
     run(`${variant.area} issue transition`, { key: issue.key, ...write, ...input }, routesFor(issue), variant.config, dossier);
   const read = (key: string) => `GET ${variant.base}/issue/${key}?fields=issuetype,status&expand=transitions`;
 
-  describe(`${variant.area} issue transition --to`, () => {
+  describe(`${variant.label} issue transition --to`, () => {
     it('review moves a Story into its review status, by the transition named for it', async () => {
       const { envelope, calls } = await transition({ to: 'review' }, STORY);
       expect(sent(calls)).toEqual([read('PROJ-1'), `POST ${variant.base}/issue/PROJ-1/transitions {"transition":{"id":"41"}}`]);
@@ -179,7 +179,7 @@ for (const variant of [
     });
 
     it('the write gate holds before the resolving read: writes off sends nothing', async () => {
-      const off = { [variant.area]: { ...(variant.config as Record<string, Record<string, unknown>>)[variant.area], writes: false } };
+      const off = Object.fromEntries(Object.entries(variant.config as Record<string, Record<string, unknown>>).map(([name, settings]) => [name, { ...settings, writes: false }]));
       const { envelope, calls } = await run(`${variant.area} issue transition`, { key: 'PROJ-1', to: 'review', ...write }, routesFor(STORY), off);
       expect(envelope.error?.code).toBe('WRITE_DISABLED');
       expect(calls).toEqual([]);

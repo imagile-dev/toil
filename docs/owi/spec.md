@@ -35,7 +35,7 @@ work item alone can't show it.
 |-------|------|---------|
 | `owi` | `"0.2"` | The OWI version of this record (`"0.1"` on one written before 0.2) |
 | `id` | string | `<connection>:<native key>`: the toil connection, then the source's key. `corp-jira:PAY-101`, `corp-ado:2302`, `github:imagile/payments-web#41` |
-| `source` | object | `{ area, connection, key, command }`: the toil area, the connection, the native key, and the command whose output was mapped |
+| `source` | object | `{ area, connection, key, command, deployment? }`: the toil area, the connection, the native key, the command whose output was mapped, and for an area with more than one deployment (`jira`: `server` or `cloud`) which one the connection is, when the envelope's `meta.context` says |
 | `url` | string or null | The item in the source's web UI |
 | `type` | enum | `EPIC`, `STORY`, `TASK`, `BUG`, `INCIDENT` or `OTHER` |
 | `typeName` | string or null | The source's own word for the type (Product Backlog Item, Sub-task, Feature). Show it beside `type` |
@@ -78,7 +78,7 @@ The commands whose output maps, and what each gives:
 
 | Area | Items | History | Context |
 |------|-------|---------|---------|
-| `jira`, `jira-cloud` | `jira issue search`, `jira issue get`, `jira-cloud issue search`, `jira-cloud issue get` | `jira issue history`, `jira-cloud issue history` | |
+| `jira` (Data Center and Cloud) | `jira issue search`, `jira issue get` | `jira issue history` | |
 | `ado`, `ado-cloud` | `ado work-item get`, `ado work-item get-many`, `ado-cloud work-item get`, `ado-cloud work-item get-many` | `ado work-item history`, `ado-cloud work-item history` | `ado work-item iterations`, `ado-cloud work-item iterations` (iteration dates) |
 | `github` | `github issue list`, `github issue search`, `github issue get`, `github project items` | `github issue history` | |
 

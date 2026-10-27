@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CONTRACT_VERSION } from './envelope.js';
 import { nodeRefused, unsupportedNode } from './runtime.js';
 
 describe('the Node floor (CVE-2026-111497, #479)', () => {
@@ -39,7 +40,7 @@ describe('the Node floor (CVE-2026-111497, #479)', () => {
           "toil needs Node 24.22.1 or later on 24.x, or 26.12.1 or later, the releases that fix CVE-2026-111497 (a remote code execution in Node's Brotli decoder); this is 24.22.0.",
         fix: "Install Node 24.22.1 or later on 24.x, or 26.12.1 or later (nodejs.org, or your organization's approved channel), then run toil again. Node 25 gets no fix.",
       },
-      meta: { command: 'toil', durationMs: 0, version: '0.0.0-test', contractVersion: 1 },
+      meta: { command: 'toil', durationMs: 0, version: '0.0.0-test', contractVersion: CONTRACT_VERSION },
     });
     expect(unsupportedNode('25.1.0', '0.0.0-test')?.error?.message).toContain('this is 25.1.0.');
     expect(unsupportedNode('24.22.1', '0.0.0-test')).toBeUndefined();

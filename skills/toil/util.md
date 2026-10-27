@@ -73,7 +73,7 @@ Getting text into the shape an enterprise tool expects before it's sent, so a de
 
 Work from Jira, Azure DevOps and GitHub in one shape, so a sprint, a board or a question about the work reads the same whichever tracker holds it.
 
-- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, jira-cloud, ado, ado-cloud and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item. The pull requests of github, bitbucket, bitbucket-cloud, ado and ado-cloud become changes: state, who wrote it (a person, an agent or a bot, and the signal that said so), reviewers, checks, size, the work items it names and its review timeline. Every record is checked against the published schema.
+- **Mapping to Open Work Items** (`toil util owi map`): Turns what the jira, ado, ado-cloud and github commands print into Open Work Items: one model with a type, a status and its category, people, an estimate with its unit and the field it came from, the sprint, parent and children, links, dates and the history of transitions and sprint moves. A GitHub issue and its project board item become one item. The pull requests of github, bitbucket, bitbucket-cloud, ado and ado-cloud become changes: state, who wrote it (a person, an agent or a bot, and the signal that said so), reviewers, checks, size, the work items it names and its review timeline. Every record is checked against the published schema.
 - **Finding likely duplicates** (`toil util owi similar`): Before filing, proposing or triaging an item, asks whether it already exists: ranks OWI records against some text or one of them, or lists likely duplicate pairs across Jira, Azure DevOps and GitHub. Lexical and deterministic, with no model or network, and every match says why it matched: the shared title and body terms, title trigrams, labels, parent and link.
 
 ### Safety
@@ -1121,7 +1121,7 @@ Known losses, by format:
 To send the result, pass it to the area's own command: wiki markup as
 `toil jira issue create --description`, storage format as
 `toil confluence page create --body` (or `confluence-cloud`), and ADF as
-`fields.description` in a `toil jira-cloud issue create --input-file`. How each product's own renderer displays it hasn't
+`fields.description` in a `toil jira issue create --input-file` on a Cloud connection. How each product's own renderer displays it hasn't
 been checked against a live instance.
 ### `toil util openapi`: read an API description before calling it
 
