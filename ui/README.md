@@ -84,6 +84,11 @@ in-process through `@imagile-dev/toil/api`, read-only, and toil's audit log
 records it with `via: "api"` and `caller: "toil-ui"`. A call that fails shows on
 its own panel with toil's message and fix.
 
+Jira and Azure DevOps are read for their open items plus anything changed within
+the read window: the retention period, but at least 6 weeks (42 days), so the
+longest view stays whole. A closed item older than that isn't read, and so isn't
+in any view.
+
 ## The Dossiers view
 
 Toil UI opens on its dossiers, one card each, read from the same data the dashboards
@@ -609,6 +614,10 @@ requests, builds and deployments that name them.
   `updatedAt` moved. Only those items and their histories are fetched again.
   Pull requests, builds, deployments and iterations have no "changed since" in
   toil, so they're read again each time, bounded as the dashboards bound them.
+  Once a day, the Jira and Azure DevOps searches are also sent whole (ids only
+  where toil can), and an item they no longer list is dropped; if that listing
+  fails, the changes are kept and the next sync tries it again. Per-item calls
+  (histories, pull request gets) run 4 at a time across a dossier.
 - **Every page.** Each call follows `meta.page.nextCursor` to the end, up to 200
   pages, and fails that source, saying so, rather than keep part of a listing.
 - **Each source on its own.** Each area a dossier reads (Jira, Bitbucket, Jenkins,
@@ -627,16 +636,21 @@ requests, builds and deployments that name them.
   only. The analyses (#395) are kept in the same file, the newest 100 per dossier,
   and a sync never rewrites them.
 - **For how long.** Anything not synced again within the retention period (30
-  days by default) is deleted, at start and after each sync. An analysis goes once
+  days by default) is deleted, at start and after each sync (a row nothing changed is confirmed
+  only now and then, so it can stay up to a quarter of the period longer). The retention period
+  also sets how far back closed Jira and Azure DevOps items are read, with a
+  floor of 6 weeks (see What it reads). An analysis goes once
   it is older than the retention period, and with its dossier when toil no longer
   has it.
 - **Wiping it.** **Wipe the cache** in the Sync panel deletes it after asking
   first. `toil-ui wipe` does the same from a terminal, once `toil-ui` has
   stopped: a running Toil UI holds `toil-ui.lock` in the data folder, and the
   command refuses while it does. Your trackers are never touched. The next sync fetches everything again.
-- **Deleted tickets.** An item deleted in its tracker stays in the cache until
-  the retention period ends or you wipe it, since an incremental search only
-  returns items that still exist.
+- **Deleted tickets.** An item deleted in its tracker, or moved out of its
+  project, is dropped within a day by the whole listing a Jira or Azure DevOps
+  sync does once a day, since an incremental search only returns items that still
+  exist. So is an item closed longer ago than the read window. A GitHub issue
+  stays until the retention period ends or you wipe the cache.
 
 The page can run only the reads the dashboards make: `dossiers list` and `dossiers
 show`, and each area's search, history, pull request, build and deployment reads.
@@ -1308,7 +1322,7 @@ its table. For the same reason neither command runs in CI, and neither is part o
 | Port | `--port` | `TOIL_UI_PORT` | `0`: the OS picks a free one |
 | Base path | `--base-path` | `TOIL_UI_BASE_PATH` | `/` |
 | Data folder | `--data-dir` | `TOIL_UI_DATA_DIR` | `~/.toil-ui` |
-| Retention | `--retention-days` | `TOIL_UI_RETENTION_DAYS` | `30` (1 to 3650) |
+| Retention | `--retention-days` | `TOIL_UI_RETENTION_DAYS` | `30` (1 to 3650); also how far back closed Jira and Azure DevOps items are read, at least 42 days |
 
 A flag beats its env var. Any bind address other than loopback is refused in this
 release. The data folder is Toil UI's own, apart from toil's `~/.toil/`, and holds
