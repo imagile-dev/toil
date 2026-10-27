@@ -851,12 +851,20 @@ export class Cache {
    * sync: saveDossier already deletes rows that are gone and refreshes only the unchanged rows it finds old, so their
    * synced_at values differ by up to a quarter of the period and can't decide on their own. A dossier's rows therefore
    * go together, exactly `retention` days after its last sync. The rest goes by its own date.
+   *
+   * Worklog facts also go by their own date, 1.25 x retention. saveDossier only upserts a fact, so one that no sync produces
+   * any more (its item left the sync) would otherwise live as long as the dossier keeps syncing. A fact a sync still
+   * produces is refreshed whenever it is more than retention/4 old, so while its dossier survives (last sync at or after
+   * now - retention) its synced_at is at or after now - 1.25 x retention and this rule never touches it. A fact nothing
+   * produces goes about 1.25 x retention after it was last seen.
    */
   prune(): number {
     const cutoff = new Date(this.now().getTime() - this.retentionDays * DAY).toISOString();
     let removed = 0;
     this.transaction(() => {
       for (const table of ['responses', 'items', 'transitions', 'change_refs', 'worklog_events']) removed += Number(this.db.prepare(`DELETE FROM ${table} WHERE dossier NOT IN (SELECT name FROM dossiers WHERE last_sync_at >= ?)`).run(cutoff).changes);
+      const stale = new Date(this.now().getTime() - this.retentionDays * 1.25 * DAY).toISOString();
+      removed += Number(this.db.prepare('DELETE FROM worklog_events WHERE synced_at < ?').run(stale).changes);
       removed += Number(this.db.prepare('DELETE FROM sources WHERE last_attempt_at < ?').run(cutoff).changes);
       removed += Number(this.db.prepare('DELETE FROM dossiers WHERE last_sync_at < ?').run(cutoff).changes);
       // A test's own migration list may stop short of the usage table; every real file has it.

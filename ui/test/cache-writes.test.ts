@@ -182,4 +182,27 @@ describe('what a sync writes (#493)', () => {
     expect(cache.response('card-payments', 'jira issue history', keyed(1))).toBeNull();
     expect(cache.response('card-payments', 'jira issue history', keyed(2))).toBeNull();
   });
+
+  it('expires the worklog facts of items that left the sync, while the dossier keeps syncing, and keeps the live ones', async () => {
+    const cache = await open(30);
+    const factsOf = (n: number) => cache.worklogEvents('card-payments').filter((e) => new RegExp(`PAY-${n}(?![0-9])`).test(JSON.stringify(e)));
+    const live = [1, 2, 3];
+    cache.saveDossier(dossier());
+    const all = cache.worklogEvents('card-payments').length;
+    expect(all).toBeGreaterThan(COUNT);
+    const liveFacts = live.flatMap(factsOf).length;
+    expect(liveFacts).toBeGreaterThan(0);
+    // A sync every eight days with only items 1 to 3 left: the other facts are never produced again.
+    for (let day = 8; day <= 96; day += 8) {
+      clock.ms = day * DAY;
+      cache.saveDossier(dossier({ fewer: COUNT - 3 }));
+      if (day >= 40) expect(factsOf(10)).toEqual([]);
+    }
+    expect(factsOf(300)).toEqual([]);
+    expect(live.flatMap(factsOf)).toHaveLength(liveFacts);
+    expect(cache.worklogEvents('card-payments')).toHaveLength(liveFacts);
+    expect(cache.items('card-payments')).toHaveLength(3);
+    expect(cache.transitions('card-payments')).toHaveLength(6);
+    expect(cache.counts().responses).toBe(4);
+  });
 });

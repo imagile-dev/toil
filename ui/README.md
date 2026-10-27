@@ -658,7 +658,8 @@ requests, builds and deployments that name them.
   and a sync never rewrites them.
 - **For how long.** A dossier's synced rows (responses, items,
   transitions, change refs, worklog facts) are deleted together once its last sync is older
-  than the retention period (30 days by default), at start and after each sync. The rest
+  than the retention period (30 days by default), at start and after each sync. Worklog facts that no
+  sync produces any more go about 1.25 times the retention period after they were last seen. The rest
   goes when it is that old itself. The retention period
   also sets how far back closed Jira and Azure DevOps items are read, with a
   floor of 6 weeks (see What it reads). An analysis goes once
