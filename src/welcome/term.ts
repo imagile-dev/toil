@@ -119,7 +119,7 @@ export function fg(caps: Pick<TermCaps, 'colorDepth'>, [r, g, b]: Rgb): string {
     case 24:
       return `${ESC}38;2;${r};${g};${b}m`;
     case 8:
-      return `${ESC}38;5;${to256(r, g, b)}m`;
+      return `${ESC}38;5;${to256([r, g, b], pal(caps).bg)}m`;
     case 4:
       return `${ESC}${to16(r, g, b)}m`;
     default:
@@ -169,9 +169,44 @@ export function blend(a: Rgb, b: Rgb, t: number): Rgb {
 
 const lum = ([r, g, b]: Rgb) => 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
 
-function to256(r: number, g: number, b: number): number {
-  const level = (v: number) => (v < 48 ? 0 : v < 115 ? 1 : Math.min(5, Math.floor((v - 35) / 40)));
-  return 16 + 36 * level(r) + 6 * level(g) + level(b);
+/**
+ * The contrast on its background above which a colour may round toward the
+ * background. 7.5:1 on any theme's background, black included, still leaves
+ * 4.5:1 on the common ground of its kind (LIGHT_GROUND, DARK_GROUND in
+ * themes/), so a colour well clear of the bar keeps its hue rather than
+ * drifting to the one corner that lies further out (Crate's blue highlight to
+ * cyan on a dark terminal).
+ */
+const ROUNDING_SLACK = 7.5;
+
+/** The six levels of each channel in the 256-colour cube. */
+const CUBE = [0, 95, 135, 175, 215, 255];
+
+/**
+ * The 256-colour palette's nearest colour to this one, rounded away from the
+ * background: of the cube's corners around it and the 24 greys after the
+ * cube, the closest that is no nearer the background in luminance, or that
+ * keeps ROUNDING_SLACK on it. Plain rounding to the nearest can land on a
+ * lighter corner on a light terminal (Overworld's faint went from 4.6:1 to
+ * 3.8:1), and macOS Terminal draws 256 colours on white by default. Rounded
+ * this way, a colour that clears the bar in truecolour clears it here too.
+ * The greys keep a grey from rounding into a corner of some other hue, which
+ * would be a rebrand nobody approved.
+ */
+function to256(rgb: Rgb, bg: Rgb): number {
+  const around = rgb.map((v) => {
+    const up = CUBE.findIndex((c) => c >= v);
+    return up <= 0 ? [Math.max(0, up)] : CUBE[up] === v ? [up] : [up - 1, up];
+  }) as [number[], number[], number[]];
+  const candidates: Array<{ index: number; color: Rgb }> = [];
+  for (const r of around[0]) for (const g of around[1]) for (const b of around[2]) candidates.push({ index: 16 + 36 * r + 6 * g + b, color: [CUBE[r]!, CUBE[g]!, CUBE[b]!] });
+  for (let i = 0; i < 24; i++) candidates.push({ index: 232 + i, color: [8 + 10 * i, 8 + 10 * i, 8 + 10 * i] });
+  const darker = lum(bg) > lum(rgb);
+  const ratio = (c: Rgb) => (Math.max(lum(c), lum(bg)) + 0.05) / (Math.min(lum(c), lum(bg)) + 0.05);
+  const far = candidates.filter((c) => (darker ? lum(c.color) <= lum(rgb) : lum(c.color) >= lum(rgb)) || ratio(c.color) >= ROUNDING_SLACK);
+  const distance = (c: Rgb) => (c[0] - rgb[0]) ** 2 + (c[1] - rgb[1]) ** 2 + (c[2] - rgb[2]) ** 2;
+  // The corner of all-lower (or all-upper) levels always qualifies, so far is never empty.
+  return far.reduce((best, c) => (distance(c.color) < distance(best.color) ? c : best)).index;
 }
 
 function to16(r: number, g: number, b: number): number {
@@ -290,6 +325,8 @@ export const cursor = {
 export interface Cell {
   ch: string;
   color?: Rgb;
+  /** Drawn bold, as the game's player is, so it stands out from walls of nearly the same ink on a light terminal. */
+  bold?: boolean;
 }
 
 export const blank = (width: number): Cell[] => Array.from({ length: width }, () => ({ ch: ' ' }));
@@ -304,13 +341,17 @@ export function renderCells(cells: Cell[], caps: Pick<TermCaps, 'colorDepth'>): 
   if (caps.colorDepth === 1) return cells.map((c) => c.ch).join('');
   let out = '';
   let open: Rgb | undefined;
+  let heavy = false;
   const same = (a?: Rgb, b?: Rgb) => a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1] && a[2] === b[2]);
   for (const cell of cells) {
     const color = cell.ch === ' ' ? undefined : cell.color;
-    if (!same(color, open)) {
+    const bold = !!color && cell.bold === true;
+    if (!same(color, open) || bold !== heavy) {
       if (open) out += '\x1b[0m';
+      if (bold) out += '\x1b[1m';
       if (color) out += fg(caps, color);
       open = color;
+      heavy = bold;
     }
     out += cell.ch;
   }

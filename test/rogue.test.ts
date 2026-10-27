@@ -13,7 +13,7 @@ import { FX_FRAMES, frame, type Hud, lobbyFrame, NEEDS, refusal, WIDE } from '..
 import { loadProgress, seal, storeProgress, unseal } from '../src/welcome/rogue/save.js';
 import { BOSS, INTRO, ROBOTS, STAFF } from '../src/welcome/rogue/story.js';
 import type { WelcomeData } from '../src/welcome/screens.js';
-import { visibleLength, type Palette, type Rgb } from '../src/welcome/term.js';
+import { fg, visibleLength, type Palette, type Rgb, type TermCaps } from '../src/welcome/term.js';
 import { contrast, DARK_GROUND, DIM_CONTRAST, findTheme, hexToRgb, LIGHT_GROUND, MIN_CONTRAST, palette, TERMINAL_THEMES } from '../src/welcome/themes/index.js';
 import { testConfig } from './harness/context.js';
 
@@ -234,7 +234,7 @@ describe("Two Weeks' Notice: drawing", () => {
   /** The common terminal backgrounds of each kind (test/theme-sync.test.ts reads every theme on more). */
   const GROUNDS = { light: ['#ffffff', '#fafafa', LIGHT_GROUND], dark: ['#000000', '#0c0c0c', '#282c34', DARK_GROUND] } as const;
   /** Every screen and effect the game draws, at a few moments each. */
-  const everything = (caps: { colorDepth: 24; unicode: true; palette: Palette }): string[] => {
+  const everything = (caps: { colorDepth: 8 | 24; unicode: true; palette: Palette }): string[] => {
     const lines: string[] = [];
     const fxs: Game['fx'] = [];
     const g = structuredClone(onFloor(6));
@@ -267,6 +267,68 @@ describe("Two Weeks' Notice: drawing", () => {
       }
     },
   );
+
+  /** The xterm 256-colour palette's colour for an index from 16: the cube, then the 24 greys. */
+  const xterm = (n: number): Rgb => {
+    if (n >= 232) return [8 + 10 * (n - 232), 8 + 10 * (n - 232), 8 + 10 * (n - 232)];
+    const level = [0, 95, 135, 175, 215, 255];
+    const i = n - 16;
+    return [level[Math.floor(i / 36)]!, level[Math.floor(i / 6) % 6]!, level[i % 6]!];
+  };
+
+  // macOS Terminal draws 256 colours, on white by default: rounding to the palette must not cost a colour its contrast.
+  it.each(TERMINAL_THEMES.flatMap((t) => (['dark', 'light'] as const).map((bg) => [t.name, bg] as const)))(
+    'draws in the %s theme on a %s 256-colour terminal, every colour still readable on every common ground',
+    (name, bg) => {
+      const p = palette(findTheme(name)!, bg);
+      // The same frames at both depths open their colours in the same order, so each 256-colour index pairs with the colour it stands for.
+      const source = colours(everything({ colorDepth: 24, unicode: true, palette: p }));
+      // eslint-disable-next-line no-control-regex
+      const drawn = [...everything({ colorDepth: 8, unicode: true, palette: p }).join('\n').matchAll(/\x1b\[38;5;(\d+)m/g)].map((m) => Number(m[1]));
+      expect(drawn).toHaveLength(source.length);
+      const checked = new Set<string>();
+      source.forEach((rgb, i) => {
+        const key = `${rgb.join(',')}>${drawn[i]}`;
+        if (checked.has(key)) return;
+        checked.add(key);
+        const bar = rgb.every((v, c) => v === p.dim[c]) ? DIM_CONTRAST : MIN_CONTRAST;
+        for (const ground of GROUNDS[bg]) expect(contrast(xterm(drawn[i]!), hexToRgb(ground)), `rgb(${rgb.join(',')}) as ${drawn[i]} on ${ground}`).toBeGreaterThanOrEqual(bar);
+      });
+    },
+  );
+
+  it('keeps a grey grey on a 256-colour terminal, rather than rounding it into another hue', () => {
+    for (const bg of ['light', 'dark'] as const) {
+      const p = palette(findTheme('crate')!, bg);
+      for (const role of ['ink', 'muted', 'faint', 'dim'] as const) {
+        const [r, g, b] = xterm(Number(/38;5;(\d+)m/.exec(fg({ colorDepth: 8, palette: p } as TermCaps, p[role]))![1]));
+        expect(Math.max(r, g, b) - Math.min(r, g, b), `${bg} ${role}`).toBeLessThanOrEqual(40);
+      }
+    }
+  });
+
+  // Crate and the other themes drawn for dark terminals get a light scheme derived from it: its colours must stay colours there.
+  it.each(TERMINAL_THEMES.filter((t) => !t.schemes.light).map((t) => t.name))(
+    'keeps the %s theme in colour on a light terminal, so items, stairs, staff and headings stand apart from the text',
+    (name) => {
+      const p = palette(findTheme(name)!, 'light');
+      const chroma = (c: Rgb) => Math.max(...c) - Math.min(...c);
+      const distance = (a: Rgb, b: Rgb) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
+      for (const role of ['highlight', 'accent', 'danger'] as const) {
+        expect(chroma(p[role]), `${role} rgb(${p[role].join(',')})`).toBeGreaterThanOrEqual(60);
+        expect(distance(p[role], p.ink), `${role} against ink`).toBeGreaterThanOrEqual(100);
+      }
+    },
+  );
+
+  it('draws you in bold, so you stand out from the walls on a light terminal as on a dark one', () => {
+    const g = structuredClone(onFloor(6));
+    g.fx = [];
+    for (const bg of ['light', 'dark'] as const) {
+      const caps = { colorDepth: 24, unicode: true, palette: palette(findTheme('crate')!, bg) } as const;
+      expect(frame(g, caps, hud()).join('\n')).toContain(`\x1b[1m\x1b[38;2;${caps.palette.ink.join(';')}m@`);
+    }
+  });
 
   it('draws effects as their first frame and never shakes, for reduced motion', () => {
     const g = structuredClone(onFloor(6));
