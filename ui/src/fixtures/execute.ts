@@ -93,8 +93,7 @@ export const CANNED: Canned[] = [
 /** One string per command and input, whatever order the input's keys came in. */
 export function callKey(command: string, input: Record<string, unknown>): string {
   // When a call was made is not what it asked for (src/ado-revisions.ts's feed start moves with the clock; the cache's inputKey leaves it out too).
-  const { updatedSince: _when, ...asked } = input;
-  input = asked;
+  input = Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'updatedSince'));
   const sort = (v: unknown): unknown =>
     Array.isArray(v) ? v.map(sort) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a.localeCompare(b)).map(([k, x]) => [k, sort(x)])) : v;
   return `${command} ${JSON.stringify(sort(input))}`;

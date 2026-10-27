@@ -28,6 +28,8 @@
  * <email>`. Those are the doubts this file can see; the rest are in
  * docs/decisions/493-ado-revisions.md.
  *
+ * One difference stays: `mapOwi` keeps the records it read under `native`, so an item's `native["ado work-item history"]` holds the feed's revisions; no view reads it.
+ *
  * Two lists of one history have been known to need a steering committee. This is a function.
  */
 

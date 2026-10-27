@@ -254,8 +254,7 @@ export class CacheError extends Error {
  * to a delta read without ever recording it.
  */
 export function inputKey(input: Record<string, unknown>): string {
-  const { updatedSince: _when, ...asked } = input;
-  input = asked;
+  input = Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'updatedSince'));
   const sort = (v: unknown): unknown =>
     Array.isArray(v) ? v.map(sort) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, x]) => [k, sort(x)])) : v;
   return JSON.stringify(sort(input));
