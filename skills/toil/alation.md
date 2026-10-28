@@ -18,8 +18,9 @@ release has been verified yet.
 ## Credential
 
 An Alation **refresh token** and the **numeric user ID** it belongs to: in Alation,
-your profile → Account Settings → Authentication → Create Refresh Token. Alation shows the
-user ID with the token. Refresh tokens last 60 days by default.
+your profile → Account Settings → Authentication → Create Refresh Token. Refresh tokens last
+60 days by default. Alation's screens don't label the user ID: it is the number in the
+address of your profile page, such as `102` in `https://alation.imagile.dev/user/102/`.
 
 toil never sends the refresh token to the data API. It POSTs it, with the user ID, to
 `integration/v1/createAPIAccessToken/` on the connection's own host, and sends the

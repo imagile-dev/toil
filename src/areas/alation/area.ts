@@ -18,7 +18,7 @@ const DEFAULT_TTL_SECONDS = 24 * 60 * 60;
 
 /** The numeric ID Alation shows with the refresh token: a number or a string, never anything else. */
 const USER_ID = /^[1-9]\d*$/;
-const userIdMessage = 'Alation userId must be a positive integer (the numeric ID Alation returned when the refresh token was created).';
+const userIdMessage = 'Alation userId must be a positive integer (the number in the address of your Alation profile page, such as 102 in /user/102/).';
 
 const connectionSchema = z.object({
   baseUrl: z.url().describe('Alation instance root, e.g. https://alation.imagile.dev'),
