@@ -10,8 +10,9 @@
  *   cookies to every port on a host, so one would reach any other server on
  *   127.0.0.1. The page keeps the id in `sessionStorage` instead (#485), which
  *   is scoped to this exact origin and never sent by the browser, so a reload
- *   resumes through `GET api/session`; a new tab, or a restart of this server
- *   (sessions are in memory), takes the launch URL again. The token stays: it
+ *   resumes through `GET api/session`; a new tab takes the launch URL again
+ *   (a duplicated or browser-restored tab can carry the id), and a restart of
+ *   this server (sessions are in memory) always ends it. The token stays: it
  *   is what keeps other local processes and users out of an API that runs toil
  *   with the person's connections. The static files hold no data and need no
  *   session.
@@ -505,7 +506,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
     if (typeof csrf !== 'string' || !same(csrf, session.csrf)) throw new HttpError(403, "The request didn't carry this session's CSRF token.", `Send the csrf value ${base}api/session gave in the ${CSRF_HEADER} header.`);
   };
 
-  /** `POST api/session`: the launch token for a new session id, which the page keeps in memory. */
+  /** `POST api/session`: the launch token for a new session id, which the page keeps in its tab's `sessionStorage` (#485). */
   const signIn = async (req: IncomingMessage, res: ServerResponse) => {
     checkOrigin(req);
     const body = await readJson(req);

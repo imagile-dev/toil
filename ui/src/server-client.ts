@@ -8,18 +8,19 @@
  *
  * The page signs in by trading the launch token in its URL for a session id,
  * and sends it as `X-Toil-UI-Session` on every call, with the session's CSRF
- * token on every POST. The id and CSRF token are kept in `sessionStorage`, so a
- * reload signs straight back in (#485).
+ * token on every POST. The id is kept in `sessionStorage`, so a reload signs
+ * straight back in (#485); the server hands the CSRF token out again on resume.
  *
  * Why `sessionStorage` and not a cookie: a browser hands a cookie to every port
  * on 127.0.0.1, so any other local server would receive the session. Storage is
  * scoped to the exact origin, port included, and is never sent anywhere; the
  * page reads it and puts the id in a header itself. It is also scoped to the
- * tab: a new tab, a closed tab or a restarted server (which forgets its
- * sessions) needs the launch URL again, and `localStorage` would outlive all
- * of those. The launch token stays: it is what keeps other local processes and
+ * tab: a new tab needs the launch URL again (a duplicated or browser-restored
+ * tab can carry the id), and a restarted server, which forgets its sessions,
+ * always ends it. `localStorage` would outlive the tab. The launch token stays: it is what keeps other local processes and
  * users out of an API that runs toil with the person's own connections. It is
- * simply no longer needed once the tab holds a session.
+ * simply no longer needed once the tab holds a session. Paperwork, but the kind
+ * that files itself.
  */
 
 import { NO_AGENT_FIX, NO_AGENT_NOTICE, SCRIPTED_LABEL, type AdapterList, type Agent, type Answer, type AskExtra, type AskStyle, type Starter } from './agent.ts';
@@ -136,7 +137,7 @@ export async function signIn(
     throw await failure(res, 'Signing in');
   }
   const session = (await res.json()) as Session;
-  attempt(() => storage?.setItem(STORED, JSON.stringify({ session: session.session, csrf: session.csrf })));
+  attempt(() => storage?.setItem(STORED, JSON.stringify({ session: session.session })));
   return session;
 }
 
@@ -144,13 +145,13 @@ const OPEN_LAUNCH_URL = 'Open the URL toil-ui printed when it started, which car
 
 /** A reload: the kept session, checked with the server, which answers with the rest of what the page needs. */
 async function resume(base: string, storage: Store | null): Promise<Session> {
-  let kept: { session?: unknown; csrf?: unknown } | null;
+  let kept: { session?: unknown } | null;
   try {
-    kept = JSON.parse(storage?.getItem(STORED) ?? 'null') as { session?: unknown; csrf?: unknown } | null;
+    kept = JSON.parse(storage?.getItem(STORED) ?? 'null') as { session?: unknown } | null;
   } catch {
     kept = null;
   }
-  if (typeof kept?.session !== 'string' || typeof kept.csrf !== 'string') throw new Error(`This tab has no session. ${OPEN_LAUNCH_URL}`);
+  if (typeof kept?.session !== 'string') throw new Error(`This tab has no session. ${OPEN_LAUNCH_URL}`);
   const res = await fetch(`${base}api/session`, { credentials: 'omit', headers: { [SESSION_HEADER]: kept.session } });
   if (res.status === 401) {
     attempt(() => storage?.removeItem(STORED));

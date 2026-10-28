@@ -45,16 +45,16 @@ Open this URL in your browser. It carries this launch's token, so keep it to you
 
 Open that URL. The page trades the token for a session, and the token leaves the
 address bar. The tab keeps the session in `sessionStorage`, so reloading the page
-works. A new tab, or a restart of `toil-ui`, needs the URL again; each start prints a
-new token. Toil UI opens no browser itself.
+works. A new tab needs the URL again, and so does a restart of `toil-ui`, which always
+ends the session; each start prints a new token. A duplicated tab, or one the browser
+restores, can carry the session while the same `toil-ui` is still running. Toil UI opens no browser itself.
 
 Why the token, and why `sessionStorage`: the server can run toil with your own
 connections, so something has to keep other local processes and users out of it, and
 the token is that lock. A cookie would have made reloads easy, but a browser sends a
 cookie to every port on `127.0.0.1`, so any other local server would receive the
-session. `sessionStorage` belongs to this exact origin (port included), is never sent
-anywhere, and goes with the tab. `localStorage` would outlive all of that, so it isn't
-used.
+session. `sessionStorage` belongs to this exact origin (port included) and is never
+sent anywhere. `localStorage` would outlive the tab, so it isn't used.
 
 `toil-ui --sample` serves the sample dossiers and the scripted agent that
 [the site's Toil UI page](https://imagile-dev.github.io/toil/ui/) runs on, with
@@ -1107,8 +1107,8 @@ Any program on the machine, or a web page using DNS rebinding, can reach a local
 port, so the server lets in only the browser holding this launch's token:
 
 - **The token.** A random token per start, in the URL it prints. The page trades it
-  for a session id, which it keeps in memory and sends as a header on every API
-  call. Nothing is kept in a cookie: a browser would send one to any other server
+  for a session id, which the tab keeps in `sessionStorage` (see Start it) and
+  sends as a header on every API call. Nothing is kept in a cookie: a browser would send one to any other server
   on `127.0.0.1`, whatever its port.
 - **The Host header.** Only the exact `127.0.0.1:<port>` it printed is answered.
 - **No CORS.** No `Access-Control-*` header is ever sent. Every POST also needs the

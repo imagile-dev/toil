@@ -12,7 +12,7 @@ const SESSION: Session = { session: 'sid-1', csrf: 'csrf-1', version: '0.0.0', t
 afterEach(() => vi.unstubAllGlobals());
 
 /** A tab's storage, holding the kept session if one is given. */
-function memory(kept?: { session: string; csrf: string }) {
+function memory(kept?: { session: string }) {
   const map = new Map<string, string>(kept ? [['toil-ui-session', JSON.stringify(kept)]] : []);
   return { getItem: (k: string) => map.get(k) ?? null, setItem: (k: string, v: string) => void map.set(k, v), removeItem: (k: string) => void map.delete(k) };
 }
@@ -39,14 +39,14 @@ describe('signIn', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(SESSION), { status: 200 })));
     const storage = memory();
     await signIn('./', { search: '?token=abc', pathname: '/', hash: '' }, { replaceState: vi.fn() }, storage);
-    expect(JSON.parse(storage.getItem('toil-ui-session')!)).toEqual({ session: 'sid-1', csrf: 'csrf-1' });
+    expect(JSON.parse(storage.getItem('toil-ui-session')!)).toEqual({ session: 'sid-1' });
     expect(storage.getItem('toil-ui-session')).not.toContain('abc');
   });
 
   it('resumes the kept session on a reload, asking the server with the id', async () => {
     const fetch = vi.fn(async () => new Response(JSON.stringify(SESSION), { status: 200 }));
     vi.stubGlobal('fetch', fetch);
-    const storage = memory({ session: 'sid-1', csrf: 'csrf-1' });
+    const storage = memory({ session: 'sid-1' });
     const session = await signIn('./', { search: '', pathname: '/', hash: '' }, { replaceState: vi.fn() }, storage);
     expect(session).toEqual(SESSION);
     expect(fetch).toHaveBeenCalledWith('./api/session', { credentials: 'omit', headers: { 'X-Toil-UI-Session': 'sid-1' } });
@@ -54,14 +54,29 @@ describe('signIn', () => {
 
   it('forgets a kept session the restarted server does not know, and says to open the launch URL', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 401 })));
-    const storage = memory({ session: 'old', csrf: 'old' });
+    const storage = memory({ session: 'old' });
     await expect(signIn('./', { search: '', pathname: '/', hash: '' }, { replaceState: vi.fn() }, storage)).rejects.toThrow(/Open the URL toil-ui printed.*restart|restarted.*Open the URL toil-ui printed/s);
     expect(storage.getItem('toil-ui-session')).toBeNull();
   });
 
+  it('keeps the session when the server fails for another reason than not knowing it', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 500 })));
+    const storage = memory({ session: 'sid-1' });
+    await expect(signIn('./', { search: '', pathname: '/', hash: '' }, { replaceState: vi.fn() }, storage)).rejects.toThrow(/Resuming the session failed/);
+    expect(storage.getItem('toil-ui-session')).not.toBeNull();
+  });
+
+  it('treats a broken kept value as no session, without asking the server', async () => {
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    const broken = { getItem: () => '{oops', setItem: () => undefined, removeItem: () => undefined };
+    await expect(signIn('./', { search: '', pathname: '/', hash: '' }, { replaceState: vi.fn() }, broken)).rejects.toThrow(/This tab has no session/);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('drops a kept session when a new launch token is refused', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ error: { message: 'No.' } }), { status: 401 })));
-    const storage = memory({ session: 'old', csrf: 'old' });
+    const storage = memory({ session: 'old' });
     await expect(signIn('./', { search: '?token=bad', pathname: '/', hash: '' }, { replaceState: vi.fn() }, storage)).rejects.toThrow('No.');
     expect(storage.getItem('toil-ui-session')).toBeNull();
   });
