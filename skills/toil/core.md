@@ -257,7 +257,11 @@ commands can't change. `toil connections test
 <name>` checks one with a single authenticated read, failing with the `AUTH`,
 `NETWORK` or config error a real command would. Setting up a connection, signing
 in, turning writes on and choosing a default are for a person: a bare `toil` in a
-terminal opens a menu for them. `toil connections migrate` saves the config file in the
+terminal opens a menu for them. An agent may create a connection on the person's yes with
+`toil connections add <name> --area <area> --set key=value` (repeatable, non-secret
+settings only; a secret key is refused), which asks nothing and leaves writes off; the
+person then enters the secret with `toil connections login <name>` or in Toil UI.
+`setup.md` is that walkthrough. `toil connections migrate` saves the config file in the
 current version, with retired areas folded into the areas that replaced them; it reports
 what it wrote (names and keys, never a value) and writes nothing if the file is current.
 It is CLI only, like the other commands that change the file.

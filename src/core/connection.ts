@@ -110,7 +110,7 @@ export async function resolveConnection(
     const isDefault = defaultConnectionName(config, area.name) === name;
     const vars = keys.map((k) => (isDefault ? defaultVar(area, k) : withExample(area, k, connectionEnvName(name, k))));
     const options = {
-      fix: (vars.length ? `Set ${vars.join(' and ')}, or fix ${keys.join(', ')} on "${name}" in your toil config.` : `Fix connection "${name}" in your toil config.`) + otherVariantHint(area, name, isDefault, merged),
+      fix: (vars.length ? `Set ${vars.join(' and ')}, or fix ${keys.join(', ')} on "${name}" in your toil config.` : `Fix connection "${name}" in your toil config.`) + otherVariantHint(area, name, isDefault, merged) + loginHint(area, name, keys, merged),
       details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
     };
     // Only unset keys, nothing set wrong: a command that answers "not set up" itself may still run.
@@ -128,6 +128,16 @@ export async function resolveConnection(
     throw incomplete ? new IncompleteConnectionError(message, options) : new ToilError('CONFIG_INVALID', message, options);
   }
   return { ...(parsed.data as Record<string, unknown>), name, area: area.name, writes: connectionWrites(stored) };
+}
+
+/**
+ * A connection an agent created with `connections add --set` has no secret yet
+ * (#516). Saying who enters it, and where, is the difference between a fix and a
+ * shrug: the person runs `connections login`, never the agent.
+ */
+function loginHint(area: AnyArea, name: string, keys: string[], merged: Settings): string {
+  const missing = keys.filter((k) => (area.secrets ?? []).includes(k) && merged[k] === undefined);
+  return missing.length ? ` A person enters ${missing.join(', ')} with toil connections login ${name}, or in Toil UI's Settings.` : '';
 }
 
 /**

@@ -1,13 +1,12 @@
-import { dirname } from 'node:path';
 import { z } from 'zod';
 import type { AnyArea } from '../core/area.js';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
-import { connectionsOf, defaultConnectionName, loadConfig, type ResolvedConfig } from '../core/config.js';
+import { connectionsOf, defaultConnectionName, type ResolvedConfig } from '../core/config.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
 import { hostMatches, type Dossier, type DossierCatalog, type Section } from '../core/dossier.js';
 import { ToilError, toToilError, withArticle } from '../core/errors.js';
 import { forwardSlashes } from '../core/files.js';
-import { addConnection, testConnection } from '../connections/commands.js';
+import { addConnection, reloadConfig, testConnection } from '../connections/commands.js';
 import { refuseWritesBindings } from './build.js';
 import { checkDossier, chosen } from './commands.js';
 
@@ -84,7 +83,7 @@ export function dossierOnboardCommands(areas: readonly AnyArea[]): AnyCommand[] 
       }
       const pins = pinsFrom(input.pin ?? [], areas, dossier, manage.config);
       let config = manage.config;
-      const reload = () => (config = reloaded(manage, areas));
+      const reload = () => (config = reloadConfig(manage, areas));
 
       const outcomes: Outcome[] = [];
       const toPin: Array<{ target: Target; connection: string }> = [];
@@ -302,16 +301,4 @@ function pinInOwnCopy(ctx: CommandContext<unknown>, catalog: DossierCatalog, man
     ctx.warn({ code: 'ONBOARD_OWN_COPY', message: `Your own copy of ${dossier.name}, ${written}, now applies wherever the shared one does. It is yours, so writes may follow its bindings; toil dossiers remove ${dossier.name} takes it away.` });
   }
   return catalog.find(written);
-}
-
-/** The config as the next call will load it, after `connections add` changed the file. */
-function reloaded(manage: ConfigAccess, areas: readonly AnyArea[]): ResolvedConfig {
-  const path = manage.config.files.global;
-  return loadConfig({
-    env: manage.env,
-    cwd: dirname(path),
-    home: dirname(dirname(path)),
-    configPath: path,
-    areas: areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, ...(a.fallbackWhen ? { fallbackWhen: a.fallbackWhen } : {}), contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) })),
-  });
 }

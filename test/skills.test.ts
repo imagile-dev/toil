@@ -19,7 +19,7 @@ import { checkInvocation, flagsOf, invocations, program, subcommand } from './ha
  */
 const dir = join(import.meta.dirname, '..', 'skills', 'toil');
 /** The files in the skill that belong to no area: the index, what every command shares, dossiers, installing toil, and the MCP server. */
-const GENERAL = ['SKILL.md', 'core.md', 'dossiers.md', 'install.md', 'mcp.md', 'upgrading.md'];
+const GENERAL = ['SKILL.md', 'core.md', 'dossiers.md', 'install.md', 'mcp.md', 'setup.md', 'upgrading.md'];
 const integrations = join(import.meta.dirname, '..', 'site', 'src', 'data', 'integrations');
 
 /** The `key: value` lines between a file's opening `---` fences. */

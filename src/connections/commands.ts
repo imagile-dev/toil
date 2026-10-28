@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { z } from 'zod';
-import type { AnyArea } from '../core/area.js';
+import { pairingKey, type AnyArea } from '../core/area.js';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
 import {
   CONFIG_VERSION,
@@ -8,6 +9,7 @@ import {
   connectionEnvName,
   connectionWrites,
   defaultConnectionName,
+  loadConfig,
   readConfigForEdit,
   writeConfigFile,
   type EditableConfig,
@@ -49,6 +51,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     input: z.object({
       name: z.string().describe('Connection name, e.g. corp-jira'),
       area: z.string().optional().describe('The area it connects to; asked for when left out'),
+      set: z.array(z.string()).optional().describe('A non-secret setting as key=value, repeatable. With it, nothing is asked and no secret is taken'),
     }),
     writes: false,
     writesLocal: true,
@@ -56,8 +59,9 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     args: [{ name: 'name', field: 'name', description: 'Connection name, e.g. corp-jira' }],
     options: [
       { flags: '--area <area>', field: 'area', description: 'The area it connects to (asked for when left out)' },
+      { flags: '--set <key=value>', field: 'set', description: 'A non-secret setting, repeatable (--set baseUrl=https://jira.example.com). Needs --area; asks nothing and takes no secret, which a person then enters with toil connections login' },
     ],
-    examples: [{ name: 'corp-jira', area: 'jira' }],
+    examples: [{ name: 'corp-jira', area: 'jira' }, { name: 'corp-jira', area: 'jira', set: ['baseUrl=https://jira.example.com'] }],
     run: async (input, ctx) => addConnection(ctx, areas, input),
   });
 
@@ -359,7 +363,7 @@ export interface AddOptions {
  * each secret, shows what it will save and saves only on a yes. Exported so
  * `dossiers onboard` sets a missing connection up through this same flow.
  */
-export async function addConnection(ctx: CommandContext<unknown>, areas: readonly AnyArea[], input: { name: string; area?: string | undefined }, options: AddOptions = {}) {
+export async function addConnection(ctx: CommandContext<unknown>, areas: readonly AnyArea[], input: { name: string; area?: string | undefined; set?: string[] | undefined }, options: AddOptions = {}) {
   const { config, secrets, prompt } = access(ctx);
   checkName(input.name);
   const path = config.files.global;
@@ -369,6 +373,7 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
       fix: `Run toil connections login ${input.name} to replace its secret, or toil connections remove ${input.name} first.`,
     });
   }
+  if (input.set !== undefined) return await addFromFlags(ctx, areas, file, path, { name: input.name, area: input.area, set: input.set });
   if (!prompt) throw needsTerminal('add', input.name, input.area ? areaIn(areas, input.area) : undefined);
   const area = areaIn(areas, input.area ?? (await prompt.ask(`Area (${areas.map((a) => a.name).join(', ')})`, areas.length === 1 ? areas[0]!.name : undefined, 'area')));
 
@@ -407,6 +412,134 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
   }
   writeConfigFile(path, file);
   return { name: input.name, area: area.name, configFile: slashes(path), secrets: whereKept(kept) };
+}
+
+/**
+ * `connections add --set`: the non-secret settings come from flags, so an agent's
+ * shell, which has no terminal, can create the connection on the person's yes.
+ * It asks nothing and takes no secret: a secret key in `--set` is refused, and the
+ * result names `connections login`, where only the person types it. Writes stay
+ * off, as for any new connection. Like the prompted flow, the first connection to
+ * an area becomes its default. Nobody has ever approved a change ticket for a
+ * flag that does less than the form it replaces.
+ */
+async function addFromFlags(
+  ctx: CommandContext<unknown>,
+  areas: readonly AnyArea[],
+  file: EditableConfig,
+  path: string,
+  input: { name: string; area: string | undefined; set: string[] },
+) {
+  if (!input.area) {
+    throw new ToilError('INVALID_INPUT', '--set needs --area, because nothing is asked.', { fix: `Run toil connections add ${input.name} --area <area> --set key=value.` });
+  }
+  const area = areaIn(areas, input.area);
+  const shape = area.connection.shape as Record<string, z.ZodType>;
+  const secretKeys: string[] = area.secrets ?? [];
+  const plain = Object.keys(shape).filter((k) => !secretKeys.includes(k)).join(', ');
+  const settings: Settings = {};
+  for (const pair of input.set) {
+    const at = pair.indexOf('=');
+    const key = at < 0 ? pair : pair.slice(0, at);
+    if (at < 0 || key === '') {
+      throw new ToilError('INVALID_INPUT', `--set takes key=value, not "${pair}".`, { fix: `Use --set <key>=<value>. ${area.name} settings: ${plain}.` });
+    }
+    if (secretKeys.includes(key)) {
+      throw new ToilError('INVALID_INPUT', `${key} is a secret, and a secret is never given as a flag. Nothing was saved.`, {
+        fix: `Create the connection without it, then have the person run toil connections login ${input.name}, or enter it in Toil UI's Settings.`,
+      });
+    }
+    // A pairing (tokenFrom) points this connection at another one's credential: moving a secret, which is the person's to do.
+    if (secretKeys.some((k) => pairingKey(k) === key)) {
+      throw new ToilError('INVALID_INPUT', `${key} borrows another connection's secret, and an agent never moves one. Nothing was saved.`, {
+        fix: `Create the connection without it; the person adds ${key} to it themselves.`,
+      });
+    }
+    if (!(key in shape)) {
+      throw new ToilError('INVALID_INPUT', `${area.name} connections have no setting named "${key}". Nothing was saved.`, { fix: `Its settings are: ${plain}.` });
+    }
+    settings[key] = coerce(shape[key]!, pair.slice(at + 1));
+  }
+  // The secrets are present as stand-ins so the rest of the connection is validated now; they are never stored.
+  const standIns = Object.fromEntries(secretKeys.map((k) => [k, 'stand-in']));
+  const parsed = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...standIns });
+  if (!parsed.success) {
+    const keys = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? '')).filter(Boolean))];
+    throw new ToilError('INVALID_INPUT', `Those settings aren't a valid ${area.name} connection: check ${keys.join(', ')}. Nothing was saved.`, {
+      fix: `Run toil connections add ${input.name} --area ${area.name} again with those --set values.`,
+      details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
+    });
+  }
+  file.connections[input.name] = { area: area.name, ...settings };
+  const others = Object.keys(file.connections).filter((n) => n !== input.name && file.connections[n]!.area === area.name);
+  if (others.length === 0 && typeof file.defaults[area.name]?.connection !== 'string') {
+    file.defaults[area.name] = { ...(file.defaults[area.name] ?? {}), connection: input.name };
+  }
+  writeConfigFile(path, file);
+  // Only the secrets this connection can't do without: the schema, variants included, says which (an optional
+  // one, such as a database password, is left out rather than guessed at).
+  const required = secretKeys.filter((k) => {
+    const others = Object.fromEntries(Object.entries(standIns).filter(([name]) => name !== k));
+    const without = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...others });
+    return !without.success && without.error.issues.some((issue) => issue.path[0] === k);
+  });
+  const { secretNeeded, fromEnv } = await whatIsStillNeeded(ctx, areas, area, input.name, required);
+  if (secretNeeded.length > 0) {
+    ctx.warn({
+      code: 'SECRET_NEEDED',
+      message: `${input.name} has no ${secretNeeded.join(', ')} yet. The person runs toil connections login ${input.name} in their own terminal, or enters it in Toil UI's Settings. Writes are off.`,
+    });
+  }
+  return { name: input.name, area: area.name, configFile: slashes(path), secrets: {}, secretNeeded, secretFromEnv: fromEnv, writes: false };
+}
+
+/** The config as the next call will load it, after the file changed (also how `dossiers onboard` tests what it just added). */
+export function reloadConfig(manage: ConfigAccess, areas: readonly AnyArea[]) {
+  const path = manage.config.files.global;
+  return loadConfig({
+    env: manage.env,
+    cwd: dirname(path),
+    home: dirname(dirname(path)),
+    configPath: path,
+    areas: areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, ...(a.fallbackWhen ? { fallbackWhen: a.fallbackWhen } : {}), contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) })),
+  });
+}
+
+/**
+ * Which of the required secrets the connection still lacks, asked of the real
+ * resolver on the config as the next call will load it, so CI fallbacks and their
+ * conditions (`fallbackWhen`), TOIL_CONN_ and TOIL_<AREA> variables, renamed keys,
+ * area defaults and `<key>From` pairings all count exactly as they do on a call, and
+ * can't drift from it. Nothing reads a value out of the process: a secret from
+ * env is named by its variable, which the loader's own record of sources says. If
+ * the config can't be loaded here, every required secret is reported as needed.
+ */
+async function whatIsStillNeeded(ctx: CommandContext<unknown>, areas: readonly AnyArea[], area: AnyArea, name: string, required: string[]) {
+  const manage = access(ctx);
+  let fresh;
+  try {
+    fresh = reloadConfig(manage, areas);
+    await resolveConnection(fresh, area, name, () => {}, manage.secrets, ctx.signal);
+    return { secretNeeded: [] as string[], fromEnv: suppliedByEnv(manage.env, fresh, area, name, required) };
+  } catch (err) {
+    const missing = err instanceof ToilError && err.code === 'CONFIG_INVALID' ? new Set(((err.details ?? []) as Array<{ path?: unknown[] }>).map((d) => String(d.path?.[0] ?? ''))) : undefined;
+    const secretNeeded = missing ? required.filter((k) => missing.has(k)) : required;
+    return { secretNeeded, fromEnv: fresh ? suppliedByEnv(manage.env, fresh, area, name, required.filter((k) => !secretNeeded.includes(k))) : {} };
+  }
+}
+
+/** For secrets the loader took from env or a CI fallback, the variable that supplied each (its name, never its value). */
+function suppliedByEnv(env: NodeJS.ProcessEnv, config: ReturnType<typeof reloadConfig>, area: AnyArea, name: string, keys: string[]): Record<string, string> {
+  const fallbacks = (area.fallbacks as Record<string, string[] | undefined> | undefined) ?? {};
+  return Object.fromEntries(
+    keys.flatMap((k) => {
+      const source = config.sources[`${name}.${k}`];
+      if (source !== 'env' && source !== 'ci') return [];
+      const names = source === 'ci' ? (fallbacks[k] ?? []) : [connectionEnvName(name, k), area.envName(k)];
+      const found = names.find((v) => (env[v] ?? '') !== '');
+      return found ? [[k, found]] : [];
+    }),
+  );
 }
 
 /**

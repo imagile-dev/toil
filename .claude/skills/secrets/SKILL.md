@@ -114,7 +114,10 @@ fail with a fix naming the `TOIL_CONN_<NAME>_*` variables. They ask for exactly 
 keys the area declares, secrets hidden, so a token area is never asked for a
 username and password (the Authentication Bar in the `integrations` skill).
 Setup commands are of kind `cli-only`: never MCP tools, since stdin is the protocol
-there and agents never create or change connections. A secret an area declares as a
+there. An agent never enters or moves a secret or turns writes on; it may create a
+connection with `connections add --area … --set key=value` on the person's yes, which
+asks nothing, refuses a secret key in `--set`, stores nothing and names
+`connections login <name>` for the person to run (#516). A secret an area declares as a
 `password` (`defineArea({ secrets: { password: 'password' } })`) is asked for as one;
 every other secret is a token.
 

@@ -25,16 +25,16 @@ If `toil version` doesn't print an envelope, toil isn't installed: `install.md` 
   differ, each listed in `core.md` under **Writes**.
 - **Connections.** Environment variables always win over `~/.toil/config.json`.
   `--connection <name>` picks one when an area has several; `toil connections list`
-  names them, never a secret. Setting one up is for a person: bare `toil` in a
-  terminal opens a menu.
+  names them, never a secret. To set toil up for someone, follow `setup.md`: you
+  create connections, they enter every secret.
 - **Untracked work.** Before work no ticket covers, rank open tickets with
   `toil util owi similar --query`, then ask the person where it goes: `core.md`,
   **Ticket the work**.
 - **Files** a command reads or writes stay in the workspace (`--workspace <dir>`,
   else the working directory).
 - **Feedback** to Imagile (`toil feedback`) only when the user asks, scrubbed of
-  company data, shown to them in full with its disclaimer, and sent with `--consent`
-  only after their yes to that exact report: `core.md`, **Feedback**.
+  company data, shown in full, and sent with `--consent` only after their yes to that
+  exact report: `core.md`, **Feedback**.
 - **Less output.** `--select <expression>` keeps only the fields you name, and
   `toil wait --until <expression> -- <read>` repeats a read until it's true, instead
   of polling yourself. For any search or listing that may return more than a page,
@@ -49,12 +49,13 @@ Open only the file the task needs; each is beside this one.
 |------|------|
 | `core.md` | `--select`, big results (`--summary-file`, `--output-format toon`), `toil wait`, paging and progress, errors, writes and their exceptions, global flags, files, configuration, the raw `api` passthrough, dossiers, audit log, calling toil from a program (`./api`), sending feedback, certificates and proxies |
 | `<area>.md` | One per area, named after it: `jira.md` for `toil jira …`. Its frontmatter says what the area covers; the file gives the oldest version it supports, its credential, its configuration keys and every command |
-| `dossiers.md` | What a dossier is: one body of work mapped to your connections, its file, how to build, share and brief one |
+| `dossiers.md` | What a dossier is, and how to build, share and brief one |
 | `db.md` | Databases: `toil db …` on every engine |
 | `util.md` | Local utilities with no connection or network: `toil util …` |
 | `skills.md` | Skills marketplaces, and keeping this skill installed |
 | `mcp.md` | Running toil as an MCP server, registering it with an agent |
-| `upgrading.md` | A new toil version, or a warning naming a retired or renamed thing: `changelog.md`, then convert config, env vars, dossiers |
+| `upgrading.md` | A new toil version, or a warning naming a retired or renamed thing |
+| `setup.md` | "Set up toil for me": Toil UI or not, connections, secrets handed to the person, a dossier |
 | `install.md` | Installing toil, and this skill |
 
 `toil --help` lists this install's areas.

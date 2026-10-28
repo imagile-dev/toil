@@ -87,6 +87,12 @@ describe.skipIf(!tracked)('tracked files', () => {
     expect(found).toEqual([]);
   }, 30_000);
 
+  it('the wildcard-tenant check catches a real-looking tenant and passes a placeholder (it reads tracked files, so a new file counts once added)', () => {
+    expect(WILDCARD_TENANT.test(`baseUrl=https://imagile.${'atlassian'}.net`)).toBe(true);
+    expect(WILDCARD_TENANT.test(`https://acme-co.${'atlassian'}.net/browse/X-1`)).toBe(true);
+    expect(WILDCARD_TENANT.test('the `<site>.atlassian.net` URL, https://<site>.atlassian.net')).toBe(false);
+  });
+
   it('has no Markdown file with two titles, the mark of a document pasted into itself', () => {
     const doubled = tracked!.filter((f) => f.endsWith('.md')).flatMap((f) => {
       try {

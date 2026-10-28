@@ -7,7 +7,8 @@
     "connection": false,
     "flags": [
       "<name>",
-      "--area <area>"
+      "--area <area>",
+      "--set <key=value>"
     ],
     "aliases": [
       "jenkins instance add"

@@ -11,6 +11,8 @@ import type { Context } from '../src/core/context.js';
 import { createSecretStore, type SecretStore } from '../src/core/keychain.js';
 import { terminalPrompter, type Prompter } from '../src/core/prompt.js';
 import { demoArea, demoCommands, demoRoutes } from './fixtures/demo-commands.js';
+import { demoContextArea } from './fixtures/demo-context-commands.js';
+import { areas as registryAreas } from '../src/registry.js';
 import { runCli } from './harness/cli.js';
 import { TEST_VERSION } from './harness/context.js';
 import { fakeFetch } from './harness/fake-fetch.js';
@@ -52,7 +54,7 @@ const pinged = defineArea({
   probe: () => ({ path: '/ping', authenticated: false, as: 'text' }),
   request: (c) => ({ baseUrl: c.baseUrl, headers: { Authorization: `Bearer ${c.token}` } }),
 });
-const areas = [demoArea, warehouse, service, pinged];
+const areas = [demoArea, warehouse, service, pinged, demoContextArea];
 const commands = [...connectionsCommands(areas), ...demoCommands];
 const SECRET = 'fake-token-abc12345';
 
@@ -653,5 +655,124 @@ describe('toil connections migrate', () => {
     expect(run.envelope).toMatchObject({ ok: true, data: { written: false } });
     expect((run.envelope?.data as { reason: string }).reason).toContain('no config file');
     expect(() => readFileSync(file, 'utf8')).toThrow();
+  });
+});
+
+/** The agent's way in (#516): non-secret settings from flags, no terminal, no secret. */
+describe('toil connections add --set', () => {
+  it('saves the non-secret settings with no terminal and no store, names the secret still needed, and leaves writes off', async () => {
+    const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo', '--set', 'baseUrl=https://jira.imagile.dev'], context());
+    expect(run.envelope).toMatchObject({ ok: true, data: { name: 'corp-demo', area: 'demo', secrets: {}, secretNeeded: ['token'], writes: false } });
+    expect(run.envelope?.meta.warnings).toEqual([expect.objectContaining({ code: 'SECRET_NEEDED', message: expect.stringContaining('toil connections login corp-demo') })]);
+    expect(readConfig()).toMatchObject({
+      connections: { 'corp-demo': { area: 'demo', baseUrl: 'https://jira.imagile.dev' } },
+      defaults: { demo: { connection: 'corp-demo' } },
+    });
+    expect(readConfig().connections['corp-demo']).not.toHaveProperty('token');
+    expect(readConfig().connections['corp-demo']).not.toHaveProperty('writes');
+  });
+
+  it('then connections test fails for the missing secret, saying how to enter it', async () => {
+    await cli(['connections', 'add', 'svc', '--area', 'service', '--set', 'baseUrl=https://service.imagile.dev'], context());
+    const run = await cli(['connections', 'test', 'svc'], context({ secrets: fakeStore() }));
+    expect(run.envelope?.ok).toBe(false);
+    expect(JSON.stringify(run.envelope?.error)).toContain('toil connections login svc');
+  });
+
+  it('refuses a secret key as a flag without saving or echoing it', async () => {
+    const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo', '--set', `token=${SECRET}`], context());
+    expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('token is a secret'), fix: expect.stringContaining('toil connections login corp-demo') });
+    expect(run.stdout + run.stderr).not.toContain(SECRET);
+    expect(() => readFileSync(file, 'utf8')).toThrow();
+  });
+
+  it('needs --area, a key=value pair, a known key and a valid connection, and saves nothing otherwise', async () => {
+    const bad = async (argv: string[]) => (await cli(['connections', 'add', 'corp-demo', ...argv], context())).envelope?.error;
+    expect(await bad(['--set', 'baseUrl=https://x.imagile.dev'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--set needs --area') });
+    expect(await bad(['--area', 'demo', '--set', 'baseUrl'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('key=value') });
+    expect(await bad(['--area', 'demo', '--set', 'nope=1'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('no setting named "nope"') });
+    expect(await bad(['--area', 'demo', '--set', 'baseUrl=not a url'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('baseUrl') });
+    expect(() => readFileSync(file, 'utf8')).toThrow();
+  });
+
+  it('refuses a pairing key (tokenFrom): borrowing another connection\'s secret is moving one', async () => {
+    writeConfig({ version: 3, connections: { 'corp-demo': { area: 'demo', token: 'keychain:corp-demo.token' } } });
+    const run = await cli(['connections', 'add', 'ctx', '--area', 'demo-context', '--set', 'baseUrl=https://evil.imagile.dev', '--set', 'tokenFrom=corp-demo'], context());
+    expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('tokenFrom borrows another connection') });
+    expect(readConfig().connections).not.toHaveProperty('ctx');
+  });
+
+  it('refuses a name that is already taken, as the prompted flow does', async () => {
+    await cli(['connections', 'add', 'corp-demo', '--area', 'demo', '--set', 'baseUrl=https://jira.imagile.dev'], context());
+    const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo', '--set', 'baseUrl=https://other.imagile.dev'], context());
+    expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('already a connection named') });
+  });
+});
+
+/** Which secrets `add --set` says are still needed, against the real areas and their variants (#516 review). */
+describe('toil connections add --set, secretNeeded', () => {
+  const real = connectionsCommands(registryAreas);
+  const run = (argv: string[], env: NodeJS.ProcessEnv = {}) =>
+    runCli(['connections', 'add', ...argv], {
+      commands: real,
+      context: { ...context({ env }), config: loadConfig({ env, cwd: root, home, areas: registryAreas.map((a) => ({ name: a.name })) }) },
+    });
+
+  it('names nothing and warns of nothing for an engine that signs in with no secret (sqlite)', async () => {
+    const out = await run(['lite', '--area', 'db', '--set', 'engine=sqlite', '--set', 'path=/tmp/x.db']);
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: [], secretFromEnv: {} } });
+    expect(out.envelope?.meta.warnings ?? []).toEqual([]);
+  });
+
+  it('lists no secret for postgres, whose password is optional, rather than guessing that this one signs in with it', async () => {
+    const out = await run(['pg', '--area', 'db', '--set', 'engine=postgres', '--set', 'host=db.imagile.dev', '--set', 'database=app', '--set', 'user=app']);
+    expect(out.envelope?.ok, out.stdout).toBe(true);
+    expect((out.envelope?.data as { secretNeeded: string[] }).secretNeeded).toEqual([]);
+    expect(out.envelope?.meta.warnings ?? []).toEqual([]);
+  });
+
+  it('names the API token for Jira Cloud, which also needs its email set', async () => {
+    const out = await run(['cloud', '--area', 'jira', '--set', 'deployment=cloud', '--set', 'baseUrl=https://jira.imagile.dev', '--set', 'email=you@example.com']);
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: ['apiToken'] } });
+    const noEmail = await run(['cloud2', '--area', 'jira', '--set', 'deployment=cloud', '--set', 'baseUrl=https://jira.imagile.dev']);
+    expect(noEmail.envelope?.error).toMatchObject({ code: 'INVALID_INPUT' });
+  });
+
+  it('does not say "no token yet" for a default connection whose env var already supplies it, and names the variable', async () => {
+    const out = await run(['gh', '--area', 'github', '--set', 'baseUrl=https://api.imagile.dev'], { TOIL_GITHUB_TOKEN: 'set-in-env' });
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: [], secretFromEnv: { token: 'TOIL_GITHUB_TOKEN' } } });
+    expect(out.envelope?.meta.warnings ?? []).toEqual([]);
+    expect(out.stdout).not.toContain('set-in-env');
+  });
+
+  it('counts a CI fallback only where the area takes it: SYSTEM_ACCESSTOKEN is no PAT for Azure DevOps Services', async () => {
+    const services = await run(['adoc', '--area', 'ado', '--set', 'deployment=cloud', '--set', 'baseUrl=https://dev.azure.com/imagile'], { SYSTEM_ACCESSTOKEN: 'set-in-ci' });
+    expect(services.envelope).toMatchObject({ ok: true, data: { secretNeeded: ['pat'], secretFromEnv: {} } });
+    expect(services.envelope?.meta.warnings).toEqual([expect.objectContaining({ code: 'SECRET_NEEDED' })]);
+    expect(services.stdout).not.toContain('set-in-ci');
+  });
+
+  it('counts it for Azure DevOps Server, and names the variable', async () => {
+    const server = await run(['ados', '--area', 'ado', '--set', 'baseUrl=https://ado.imagile.dev'], { SYSTEM_ACCESSTOKEN: 'set-in-ci' });
+    expect(server.envelope).toMatchObject({ ok: true, data: { secretNeeded: [], secretFromEnv: { pat: 'SYSTEM_ACCESSTOKEN' } } });
+    expect(server.envelope?.meta.warnings ?? []).toEqual([]);
+  });
+
+  it('counts a TOIL_CONN_<NAME>_<KEY> variable for a connection that is not the default', async () => {
+    await run(['first', '--area', 'github', '--set', 'baseUrl=https://api.imagile.dev']);
+    const out = await run(['second', '--area', 'github', '--set', 'baseUrl=https://ghe.imagile.dev/api/v3'], { TOIL_CONN_SECOND_TOKEN: 'set-in-env' });
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: [], secretFromEnv: { token: 'TOIL_CONN_SECOND_TOKEN' } } });
+  });
+
+  it('counts a credential the area default shares from another area\'s env, as a call would', async () => {
+    const out = await run(['kib', '--area', 'kibana', '--set', 'baseUrl=https://kibana.imagile.dev'], { TOIL_ELASTICSEARCH_API_KEY: 'set-in-env' });
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: [] } });
+    expect(out.envelope?.meta.warnings ?? []).toEqual([]);
+  });
+
+  it('still names the token when the env var belongs to the area default, not this second connection', async () => {
+    await run(['first', '--area', 'github', '--set', 'baseUrl=https://api.imagile.dev']);
+    const out = await run(['second', '--area', 'github', '--set', 'baseUrl=https://ghe.imagile.dev/api/v3'], { TOIL_GITHUB_TOKEN: 'set-in-env' });
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: ['token'] } });
   });
 });
