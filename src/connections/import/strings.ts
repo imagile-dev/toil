@@ -134,6 +134,10 @@ function fromUrl(text: string): Mapped {
   if (where.host) settings.host = where.host;
   if (where.port) settings.port = where.port;
   const pathDb = decode((path ?? '').replace(/^\//, ''));
+  // An unencoded @, /, ? or # in the password cuts the URL in the wrong place, and what is left would be saved as a host. Refuse it rather than keep a piece of the password.
+  if (where.host?.includes('@') || pathDb.includes('@') || (where.host?.includes(':') && !(hosts ?? '').startsWith('['))) {
+    return { skip: "has a URL toil can't read; percent-encode the password (or leave it out) and try again" };
+  }
   const database = params.get('databasename') ?? params.get('database') ?? params.get('dbname') ?? (pathDb !== '' ? pathDb : undefined);
   if (database) settings.database = database;
 
@@ -274,4 +278,21 @@ export function addMapped(out: Collector, label: string, group: string[], mapped
   }
   tweak?.(mapped.settings);
   out.add({ label, group, engine: mapped.engine, settings: mapped.settings, warnings: [...mapped.warnings, ...extra] });
+}
+
+/**
+ * The connection string with any password taken out, for the command a preview
+ * suggests: a URL's `user:password@`, an Oracle `user/password@`, and a
+ * `password=` or `pwd=` property in JDBC, ADO.NET or query-string form (quoted
+ * values included). Everything else stays as typed, so saving the suggestion
+ * imports the same connection, still without the password.
+ */
+export function withoutPassword(text: string): string {
+  return text
+    .replace(/^(jdbc:oracle:[a-z0-9]+:)([^@/]*)\/[^@]*@/i, '$1$2@')
+    .replace(/(\/\/[^@/?#;:]*):[^@/?#;]*@/, '$1@')
+    .replace(/(^|[;&?])\s*(?:password|pwd)\s*=\s*(?:"[^"]*"|'[^']*'|\{[^}]*\}|[^;&]*)/gi, (_, sep: string) => (sep === '?' ? '?' : ''))
+    .replace(/\?&/, '?')
+    .replace(/\?$/, '')
+    .replace(/^[;&]+/, '');
 }

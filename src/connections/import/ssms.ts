@@ -31,7 +31,7 @@ export function parseSsms(text: string): Parsed {
     const name = local(el);
     if (name === 'RegisteredServer') {
       servers++;
-      registered(out, el, group);
+      registered(out, el, parentGroup(el) ?? group);
       continue;
     }
     let next = group;
@@ -44,6 +44,31 @@ export function parseSsms(text: string): Parsed {
   }
   if (servers === 0) throw new ImportFormatError('The file has no registered servers, so it is not a Registered Servers export (.regsrvr).');
   return out.result();
+}
+
+/**
+ * The groups a server sits in, from the `Parent` URI a real export gives it
+ * (`/RegisteredServersStore/ServerGroup/DatabaseEngineServerGroup/ServerGroup/Prod`):
+ * SSMS writes groups and servers as sibling SML-IF documents, not as a nest, so
+ * the tree is in the addresses. `undefined` when the server has no Parent, which
+ * is the nested layout, where the group comes from the elements around it.
+ */
+function parentGroup(server: XmlElement): string[] | undefined {
+  const uri = textIn(kids(server, 'Parent')[0], 2);
+  if (!uri) return undefined;
+  const parts = uri.split('/');
+  const names: string[] = [];
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (parts[i] !== 'ServerGroup') continue;
+    let name = parts[i + 1]!;
+    try {
+      name = decodeURIComponent(name);
+    } catch {
+      // Not percent-encoded after all; keep it as written.
+    }
+    if (name !== '' && !ROOT_GROUPS.test(name)) names.push(name);
+  }
+  return names;
 }
 
 function registered(out: Collector, server: XmlElement, group: string[]): void {

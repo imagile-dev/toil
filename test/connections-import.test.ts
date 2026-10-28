@@ -7,7 +7,7 @@ import { ImportFormatError } from '../src/connections/import/common.js';
 import { FORMATS, FROM_VALUES } from '../src/connections/import/index.js';
 import { planImport, slugName } from '../src/connections/import/plan.js';
 import { parseJsonc, readXml } from '../src/connections/import/readers.js';
-import { parseConnectionString } from '../src/connections/import/strings.js';
+import { parseConnectionString, withoutPassword } from '../src/connections/import/strings.js';
 import { parseDbeaver } from '../src/connections/import/dbeaver.js';
 import { parseMssqlSettings } from '../src/connections/import/mssql-settings.js';
 import { parsePgadmin, parsePgService } from '../src/connections/import/postgres.js';
@@ -65,6 +65,32 @@ describe('connection strings', () => {
   });
 
   it.each([
+    'postgres://you:p@ss@db.imagile.dev:5432/app',
+    'mysql://you:pa/ss@db.imagile.dev/app',
+    'postgres://you:pa?ss@db.imagile.dev/app',
+  ])('skips a URL whose unencoded password cut it apart, keeping no piece of it: %s', (text) => {
+    const mapped = parseConnectionString(text);
+    // Only a skip, with a reason that quotes none of the URL.
+    expect(mapped).toEqual({ skip: expect.stringMatching(/^has a URL toil can't read; percent-encode/) });
+  });
+
+  it('keeps an IPv6 host', () => {
+    expect(parseConnectionString('postgres://you@[::1]:5432/app')).toMatchObject({ settings: { host: '::1', port: 5432 } });
+  });
+
+  it.each([
+    ['postgres://you:hunter2@db.imagile.dev/app?sslmode=require', 'postgres://you@db.imagile.dev/app?sslmode=require'],
+    ['jdbc:oracle:thin:you/hunter2@//h.imagile.dev:1521/svc', 'jdbc:oracle:thin:you@//h.imagile.dev:1521/svc'],
+    ['Server=sql.imagile.dev;User ID=you;Password=hunter2;Encrypt=True', 'Server=sql.imagile.dev;User ID=you;Encrypt=True'],
+    ['Password="hunter2;x";Server=sql.imagile.dev;User ID=you', 'Server=sql.imagile.dev;User ID=you'],
+    ['jdbc:postgresql://db.imagile.dev/app?password=hunter2&user=you', 'jdbc:postgresql://db.imagile.dev/app?user=you'],
+    ['jdbc:postgresql://db.imagile.dev/app?user=you&password=hunter2', 'jdbc:postgresql://db.imagile.dev/app?user=you'],
+    ['jdbc:sqlserver://h.imagile.dev:1433;user=you@x.com;pwd=hunter2;encrypt=true', 'jdbc:sqlserver://h.imagile.dev:1433;user=you@x.com;encrypt=true'],
+  ])('withoutPassword removes the password and nothing else: %s', (text, expected) => {
+    expect(withoutPassword(text)).toBe(expected);
+  });
+
+  it.each([
     ['jdbc:sqlserver://box.imagile.dev\\SQLEXPRESS;integratedSecurity=true', /instance/],
     ['Server=box.imagile.dev\\SQLEXPRESS;Trusted_Connection=true', /instance/],
     ['jdbc:teradata://td.imagile.dev/DATABASE=x', /Query Service/],
@@ -97,6 +123,26 @@ describe('readers', () => {
     expect(() => parseJsonc('['.repeat(200_000), 'The file')).toThrow(ImportFormatError);
     expect(() => readXml('<a>'.repeat(100) + '</a>'.repeat(100), 'The file')).toThrow(/nested more than 64/);
     expect(() => readXml('<a><b></a>', 'The file')).toThrow(ImportFormatError);
+  });
+  it('never quotes the file in a parse error', () => {
+    for (const read of [() => parseJsonc('{"password": "hunter2" oops}', 'The file'), () => readXml('<a password="hunter2"><b hunter2></a>', 'The file')]) {
+      expect(read).toThrow(ImportFormatError);
+      try {
+        read();
+      } catch (err) {
+        expect((err as Error).message).not.toContain('hunter2');
+      }
+    }
+  });
+  it('never quotes the file in a parse error', () => {
+    for (const read of [() => parseJsonc('{"password": "hunter2" oops}', 'The file'), () => readXml('<a password="hunter2"><b hunter2></a>', 'The file')]) {
+      expect(read).toThrow(ImportFormatError);
+      try {
+        read();
+      } catch (err) {
+        expect((err as Error).message).not.toContain('hunter2');
+      }
+    }
   });
 });
 
@@ -142,6 +188,22 @@ describe('SSMS Registered Servers', () => {
     expect(skipped(parsed, 'Named instance')).toMatch(/instance/);
     expect(skipped(parsed, 'Reports')).toMatch(/ReportServer/);
   });
+  it('takes the group from the Parent URI, nested ones included, and still reads the nested layout', () => {
+    const server = (parent: string) => `<RegisteredServers:RegisteredServer xmlns:RegisteredServers="x" xmlns:sml="y"><RegisteredServers:Parent><sml:Uri>${parent}</sml:Uri></RegisteredServers:Parent><RegisteredServers:Name>S</RegisteredServers:Name><RegisteredServers:ServerName>s.imagile.dev</RegisteredServers:ServerName><RegisteredServers:ServerType>DatabaseEngine</RegisteredServers:ServerType><RegisteredServers:ConnectionStringWithEncryptedPassword>server=s.imagile.dev;uid=you</RegisteredServers:ConnectionStringWithEncryptedPassword></RegisteredServers:RegisteredServer>`;
+    const deep = parseSsms(server('/RegisteredServersStore/ServerGroup/DatabaseEngineServerGroup/ServerGroup/Prod/ServerGroup/Orders'));
+    expect(deep.candidates[0]!.group).toEqual(['Prod', 'Orders']);
+    const nested = parseSsms('<G><Name>Team</Name><RegisteredServer><Name>S</Name><ServerName>s.imagile.dev</ServerName><ServerType>DatabaseEngine</ServerType><ConnectionStringWithEncryptedPassword>server=s.imagile.dev;uid=you</ConnectionStringWithEncryptedPassword></RegisteredServer></G>');
+    expect(nested.candidates[0]!.group).toEqual([]);
+    const grouped = parseSsms('<ServerGroup><Name>Team</Name><RegisteredServer><Name>S</Name><ServerName>s.imagile.dev</ServerName><ServerType>DatabaseEngine</ServerType><ConnectionStringWithEncryptedPassword>server=s.imagile.dev;uid=you</ConnectionStringWithEncryptedPassword></RegisteredServer></ServerGroup>');
+    expect(grouped.candidates[0]!.group).toEqual(['Team']);
+  });
+  it('takes the group from the Parent URI, nested ones included, and still reads the nested layout', () => {
+    const server = (parent: string) => `<RegisteredServers:RegisteredServer xmlns:RegisteredServers="x" xmlns:sml="y"><RegisteredServers:Parent><sml:Uri>${parent}</sml:Uri></RegisteredServers:Parent><RegisteredServers:Name>S</RegisteredServers:Name><RegisteredServers:ServerName>s.imagile.dev</RegisteredServers:ServerName><RegisteredServers:ServerType>DatabaseEngine</RegisteredServers:ServerType><RegisteredServers:ConnectionStringWithEncryptedPassword>server=s.imagile.dev;uid=you</RegisteredServers:ConnectionStringWithEncryptedPassword></RegisteredServers:RegisteredServer>`;
+    const deep = parseSsms(server('/RegisteredServersStore/ServerGroup/DatabaseEngineServerGroup/ServerGroup/Prod/ServerGroup/Orders'));
+    expect(deep.candidates[0]!.group).toEqual(['Prod', 'Orders']);
+    const inner = '<RegisteredServer><Name>S</Name><ServerName>s.imagile.dev</ServerName><ServerType>DatabaseEngine</ServerType><ConnectionStringWithEncryptedPassword>server=s.imagile.dev;uid=you</ConnectionStringWithEncryptedPassword></RegisteredServer>';
+    expect(parseSsms(`<ServerGroup><Name>Team</Name>${inner}</ServerGroup>`).candidates[0]!.group).toEqual(['Team']);
+  });
   it('refuses XML that has no servers', () => {
     expect(() => parseSsms('<a><b/></a>')).toThrow(/no registered servers/);
   });
@@ -166,6 +228,26 @@ describe('Azure Data Studio and the VS Code SQL Server extension', () => {
       ['Integrated box', { host: 'sql4.imagile.dev', auth: 'windows' }],
     ]);
   });
+  it('skips a connection whose provider is not SQL Server, naming it', () => {
+    const parsed = parseMssqlSettings('{"datasource.connections": [{"providerName": "PGSQL", "options": {"server": "pg.imagile.dev", "user": "you"}}, {"providerName": "MSSQL", "options": {"server": "ms.imagile.dev", "user": "you"}}]}', 'datasource.connections');
+    expect(parsed.candidates.map((c) => c.settings.host)).toEqual(['ms.imagile.dev']);
+    expect(skipped(parsed, 'pg.imagile.dev')).toMatch(/PGSQL/);
+  });
+  it('reads a full connectionString quote-aware, so a quoted password cannot spill into other settings', () => {
+    const parsed = parseMssqlSettings('{"mssql.connections": [{"connectionString": "Server=sql.imagile.dev;User ID=you;Password=\\"x;Database=leak\\";Initial Catalog=orders"}]}', 'mssql.connections');
+    expect(parsed.candidates[0]!.settings).toEqual({ host: 'sql.imagile.dev', user: 'you', database: 'orders' });
+    expect(JSON.stringify(parsed)).not.toContain('leak');
+  });
+  it('skips a connection whose provider is not SQL Server, naming it', () => {
+    const parsed = parseMssqlSettings('{"datasource.connections": [{"providerName": "PGSQL", "options": {"server": "pg.imagile.dev", "user": "you"}}, {"providerName": "MSSQL", "options": {"server": "ms.imagile.dev", "user": "you"}}]}', 'datasource.connections');
+    expect(parsed.candidates.map((c) => c.settings.host)).toEqual(['ms.imagile.dev']);
+    expect(skipped(parsed, 'pg.imagile.dev')).toMatch(/PGSQL/);
+  });
+  it('reads a full connectionString quote-aware, so a quoted password cannot spill into other settings', () => {
+    const parsed = parseMssqlSettings(JSON.stringify({ 'mssql.connections': [{ connectionString: 'Server=sql.imagile.dev;User ID=you;Password="x;Database=leak";Initial Catalog=orders' }] }), 'mssql.connections');
+    expect(parsed.candidates[0]!.settings).toEqual({ host: 'sql.imagile.dev', user: 'you', database: 'orders' });
+    expect(JSON.stringify(parsed)).not.toContain('leak');
+  });
   it('says plainly when the setting is not there', () => {
     expect(() => parseMssqlSettings('{"editor.fontSize": 12}', 'mssql.connections')).toThrow(/no "mssql\.connections"/);
   });
@@ -177,8 +259,11 @@ describe('PostgreSQL files', () => {
     expect(parsed.candidates.map((c) => [c.group.join('/'), c.label, c.settings])).toEqual([
       ['', 'Local PostgreSQL', { host: 'localhost', port: 5432, database: 'postgres', user: 'you' }],
       ['Team', 'Reporting', { host: 'reporting.imagile.dev', port: 5432, database: 'reports', user: 'you', ssl: true }],
+      ['Team', 'pgAdmin 8', { host: 'modern.imagile.dev', port: 5432, database: 'postgres', user: 'you', ssl: true }],
     ]);
     expect(parsed.candidates[0]!.warnings.join(' ')).toMatch(/password file/);
+    // pgAdmin 7 and later: sslmode and passfile live under ConnectionParameters.
+    expect(parsed.candidates[2]!.warnings.join(' ')).toMatch(/password file/);
     expect(skipped(parsed, 'Behind a tunnel')).toMatch(/SSH tunnel/);
   });
   it('pg_service.conf: services, libpq default dbname, dropped password, sockets skipped', () => {
@@ -243,7 +328,9 @@ describe('every format', () => {
   it('finds SSMS version folders newest first, on Windows only', () => {
     const ssms = FORMATS.find((f) => f.id === 'ssms')!;
     const where = { platform: 'win32' as const, home: 'C:\\Users\\you', env: { APPDATA: 'C:\\A' }, cwd: '/', list: () => ['18.0', '19.0', 'junk'] };
-    expect(ssms.locations(where)[0]).toBe('C:\\A\\Microsoft\\SQL Server Management Studio\\19.0\\RegSrvr.xml');
+    // SSMS 18 and later: RegSrvr.xml directly in the folder, before any version folder.
+    expect(ssms.locations(where)[0]).toBe('C:\\A\\Microsoft\\SQL Server Management Studio\\RegSrvr.xml');
+    expect(ssms.locations(where)[1]).toBe('C:\\A\\Microsoft\\SQL Server Management Studio\\19.0\\RegSrvr.xml');
     expect(ssms.locations({ ...where, platform: 'linux' })).toEqual([]);
   });
   it('offers each format as a --from value, and url besides', () => {
@@ -297,6 +384,13 @@ describe('planning', () => {
     expect(plan.create[1]!.settings.user).toBeUndefined();
     expect(plan.create[1]!.nextSteps).toEqual(['toil connections test corp-b']);
   });
+  it('never makes a double hyphen when it numbers a name it had to cut', () => {
+    const label = `${'a'.repeat(43)}-bbbbb`;
+    const same = { candidates: [1, 2].map(() => ({ label, group: [], engine: 'postgres', settings: { host: 'h', user: 'u' }, warnings: [] })), skipped: [], warnings: [] };
+    const plan = planImport({ parsed: same, existing: [], validate: () => undefined });
+    expect(plan.create.map((c) => c.name)).toEqual([`${'a'.repeat(43)}-bbbb`, `${'a'.repeat(43)}-2`]);
+    expect(plan.create.every((c) => CONNECTION_NAME.test(c.name))).toBe(true);
+  });
   it('skips what the schema refuses, saying how to supply a missing user', () => {
     const noUser = { candidates: [{ label: 'A', group: [], engine: 'postgres', settings: { host: 'h' }, warnings: [] }], skipped: [], warnings: [] };
     const plan = planImport({ parsed: noUser, existing: [], validate: () => "can't be a db connection: PostgreSQL connections need user." });
@@ -309,6 +403,7 @@ describe('planning', () => {
 // The command, against a real config file in a temp home.
 // ---------------------------------------------------------------------------
 const commands = connectionsCommands(registryAreas);
+const slashes = (p: string) => p.replace(/\\/g, '/');
 let root: string;
 let home: string;
 let file: string;
@@ -354,39 +449,41 @@ describe('toil connections import', () => {
     const run = await cli(['connections', 'import', '--from', 'pgadmin', sample('pgadmin-servers.json')]);
     expect(run.envelope.ok).toBe(true);
     const data = run.envelope.data as Data;
-    expect(data).toMatchObject({ from: 'pgadmin', fileSource: 'argument', saved: false, counts: { connections: 2, exists: 0, skipped: 1 } });
-    expect(data.connections.map((c: Data) => c.name)).toEqual(['local-postgresql', 'team-reporting']);
+    expect(data).toMatchObject({ from: 'pgadmin', fileSource: 'argument', saved: false, counts: { connections: 3, exists: 0, skipped: 1 } });
+    expect(data.connections.map((c: Data) => c.name)).toEqual(['local-postgresql', 'team-reporting', 'team-pgadmin-8']);
     expect(data.connections[1]).toMatchObject({ engine: 'postgres', settings: { host: 'reporting.imagile.dev', ssl: true }, nextSteps: ['toil connections login team-reporting', 'toil connections test team-reporting'] });
     expect(data.skipped[0]).toMatchObject({ label: 'Team / Behind a tunnel' });
-    expect(data.saveWith).toBe(`toil connections import --from pgadmin ${join(root, 'pgadmin-servers.json')} --save`);
+    // The call read this home's config rather than the person's own, so the suggestion says which.
+    expect(data.saveWith).toBe(`toil --config ${slashes(file)} connections import --from pgadmin ${join(root, 'pgadmin-servers.json')} --save`);
     expect(() => readFileSync(file)).toThrow();
   });
 
   it('--save creates the connections: no secret, writes off, no default chosen, and a second run changes nothing', async () => {
     const path = sample('pgadmin-servers.json');
     const run = await cli(['connections', 'import', '--from', 'pgadmin', path, '--save', '--prefix', 'corp']);
-    expect(run.envelope).toMatchObject({ ok: true, data: { saved: true, counts: { connections: 2 } } });
+    expect(run.envelope).toMatchObject({ ok: true, data: { saved: true, counts: { connections: 3 } } });
     const saved = readConfig();
     expect(saved.connections).toEqual({
       'corp-local-postgresql': { area: 'db', engine: 'postgres', host: 'localhost', port: 5432, database: 'postgres', user: 'you' },
       'corp-team-reporting': { area: 'db', engine: 'postgres', host: 'reporting.imagile.dev', port: 5432, database: 'reports', user: 'you', ssl: true },
+      'corp-team-pgadmin-8': { area: 'db', engine: 'postgres', host: 'modern.imagile.dev', port: 5432, database: 'postgres', user: 'you', ssl: true },
     });
     expect(saved.defaults).toEqual({});
     expect(readFileSync(file, 'utf8')).not.toMatch(/password|writes|keychain/i);
 
     const again = await cli(['connections', 'import', '--from', 'pgadmin', path, '--save', '--prefix', 'corp']);
-    expect(again.envelope.data).toMatchObject({ saved: false, counts: { connections: 0, exists: 2 } });
+    expect(again.envelope.data).toMatchObject({ saved: false, counts: { connections: 0, exists: 3 } });
     const list = await cli(['connections', 'list', '--area', 'db']);
-    expect((list.envelope.data as Data).connections.map((c: Data) => [c.name, c.writes])).toEqual([['corp-local-postgresql', false], ['corp-team-reporting', false]]);
+    expect((list.envelope.data as Data).connections.map((c: Data) => [c.name, c.writes])).toEqual([['corp-local-postgresql', false], ['corp-team-pgadmin-8', false], ['corp-team-reporting', false]]);
   });
 
   it('never overwrites a connection of the same name, and keeps what else the file holds', async () => {
     writeConfig({ version: 3, connections: { 'team-reporting': { area: 'db', engine: 'postgres', host: 'other.imagile.dev', database: 'x', user: 'me' } }, defaults: {}, dossierPaths: ['/keep/me'] });
     const run = await cli(['connections', 'import', '--from', 'pgadmin', sample('pgadmin-servers.json'), '--save']);
-    expect(run.envelope.data).toMatchObject({ saved: true, counts: { connections: 1, exists: 1 }, exists: [{ name: 'team-reporting' }] });
+    expect(run.envelope.data).toMatchObject({ saved: true, counts: { connections: 2, exists: 1 }, exists: [{ name: 'team-reporting' }] });
     const saved = readConfig();
     expect(saved.connections['team-reporting']).toMatchObject({ host: 'other.imagile.dev' });
-    expect(Object.keys(saved.connections).sort()).toEqual(['local-postgresql', 'team-reporting']);
+    expect(Object.keys(saved.connections).sort()).toEqual(['local-postgresql', 'team-pgadmin-8', 'team-reporting']);
     expect((saved as Data).dossierPaths).toEqual(['/keep/me']);
   });
 
@@ -407,6 +504,23 @@ describe('toil connections import', () => {
     expect(readConfig().connections['app-db']).toEqual({ area: 'db', engine: 'postgres', host: 'db.imagile.dev', port: 5432, database: 'app', user: 'you', ssl: true });
     expect(readFileSync(file, 'utf8')).not.toContain('hunter2');
     expect(run.stdout + run.stderr).not.toContain('hunter2');
+  });
+
+  it.each([
+    'postgres://you:hunter2@db.imagile.dev/app?sslmode=require&application_name=toil',
+    'jdbc:oracle:thin:you/hunter2@//h.imagile.dev:1521/svc',
+    'Server=sql.imagile.dev;User ID=you;Password=hunter2;Initial Catalog=orders',
+    'jdbc:postgresql://db.imagile.dev/app?user=you&password=hunter2',
+    'jdbc:sqlserver://h.imagile.dev:1433;databaseName=orders;user=you;password=hunter2',
+  ])("a preview's saveWith repeats the connection string without its password, quoted: %s", async (url) => {
+    const run = await cli(['connections', 'import', '--url', url, '--name', 'app-db']);
+    expect(run.envelope.ok).toBe(true);
+    expect((run.envelope.data as Data).saveWith).toMatch(/--url ".*" --name app-db --save$/);
+    expect(run.stdout + run.stderr).not.toContain('hunter2');
+  });
+
+  it("keeps a connection string's password out of the audit log", () => {
+    expect(commands.find((c) => c.path.join(' ') === 'connections import')).toMatchObject({ auditInput: { url: 'hash' } });
   });
 
   it('reports a connection string toil cannot map as skipped, not as an error', async () => {

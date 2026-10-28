@@ -12,7 +12,7 @@ import { assertLocalPath } from '../core/local-path.js';
 import { Collector, ImportFormatError, type DbSettings, type Parsed } from './import/common.js';
 import { FORMATS, FROM_VALUES, formatFor, type Where } from './import/index.js';
 import { planImport, slugName, type ExistingConnection } from './import/plan.js';
-import { parseConnectionString } from './import/strings.js';
+import { parseConnectionString, withoutPassword } from './import/strings.js';
 
 /**
  * `toil connections import`: brings the database connections a person already
@@ -39,12 +39,14 @@ export function importCommand(areas: readonly AnyArea[]): AnyCommand {
       url: z.string().min(1).optional().describe('One connection string instead of a file: postgres://, mysql://, jdbc:..., an ADO.NET string or an absolute SQLite path. Any password in it is dropped'),
       name: z.string().min(1).optional().describe('With --url: the connection name to create (lowercase letters, digits, single hyphens)'),
       prefix: z.string().min(1).optional().describe('Put this in front of every name created, e.g. --prefix corp'),
-      user: z.string().min(1).optional().describe('A user for every connection the file gives none (DBeaver and tnsnames.ora keep logins elsewhere)'),
+      user: z.string().min(1).optional().describe('A user for every connection the file gives none (DBeaver, DataGrip and tnsnames.ora keep logins elsewhere)'),
       save: z.boolean().optional().describe('Create the connections. Without it, nothing is written and the result says what would be'),
     }),
     writes: false,
     writesLocal: true,
     kind: 'cli-only',
+    // A connection string may carry a password the preview drops; the audit log keeps only its hash.
+    auditInput: { url: 'hash' },
     args: [{ name: 'file', field: 'file', description: "The tool's file (left out: its default location on this OS)", required: false }],
     options: [
       { flags: '--from <format>', field: 'from', description: `The tool: ${FROM_VALUES.join(', ')}` },
@@ -162,14 +164,18 @@ async function runImport(ctx: CommandContext<unknown>, areas: readonly AnyArea[]
     connections: plan.create,
     exists: plan.exists,
     skipped: plan.skipped,
-    ...(saved || plan.create.length === 0 ? {} : { saveWith: saveCommand(from, input) }),
+    ...(saved || plan.create.length === 0 ? {} : { saveWith: saveCommand(from, input, configPath) }),
   };
 }
 
 /** The command that saves what a preview showed, with the same choices. */
-function saveCommand(from: string, input: ImportInput): string {
+function saveCommand(from: string, input: ImportInput, configPath: string): string {
   const quote = (v: string) => (/[\s"']/.test(v) ? `"${v.replace(/"/g, '\\"')}"` : v);
-  const parts = ['toil', 'connections', 'import', ...(from === 'url' ? ['--url', quote(input.url ?? '<connection-string>')] : [`--from`, from, ...(input.file ? [quote(input.file)] : [])])];
+  // A connection string always goes in quotes, so & ? ; and $ survive pasting; its password, if any, is left out: the person enters it with login.
+  const urlQuote = (v: string) => `"${v.replace(/(["$`])/g, '\\$1')}"`;
+  // Saved where this call reads: the person's own config, unless the call named another one.
+  const config = configPath === join(homedir(), '.toil', 'config.json') ? [] : ['--config', quote(forwardSlashes(configPath))];
+  const parts = ['toil', ...config, 'connections', 'import', ...(from === 'url' ? ['--url', urlQuote(withoutPassword(input.url ?? '<connection-string>'))] : [`--from`, from, ...(input.file ? [quote(input.file)] : [])])];
   if (input.name) parts.push('--name', input.name);
   if (input.prefix) parts.push('--prefix', quote(input.prefix));
   if (input.user) parts.push('--user', quote(input.user));
@@ -271,6 +277,8 @@ function locate(manage: ConfigAccess, format: (typeof FORMATS)[number], named: s
 /** Refuses toil's own config and credentials, `/proc` and `/sys`, compared after realpath so a link can't get around it. */
 function refuseOwn(path: string, manage: ConfigAccess, home: string): void {
   const real = realish(path);
+  // A link that points at another machine or a device is just as refused as the path that names one.
+  assertLocalPath(real, undefined, 'The file');
   if (isSystemPath(real)) throw systemPath(path);
   const compare = (p: string) => (process.platform === 'win32' ? forwardSlashes(p).toLowerCase() : forwardSlashes(p));
   const target = compare(real);

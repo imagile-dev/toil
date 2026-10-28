@@ -69,7 +69,8 @@ export const FORMATS: readonly ImportFormat[] = [
       if (w.platform !== 'win32') return [];
       const p = win32;
       const roots = [p.join(appData(w), 'Microsoft', 'SQL Server Management Studio'), p.join(appData(w), 'Microsoft', 'Microsoft SQL Server')];
-      return roots.flatMap((root) => newestFirst(w.list(root)).flatMap((v) => [p.join(root, v, 'RegSrvr.xml'), p.join(root, v, 'Tools', 'Shell', 'RegSrvr.xml')]));
+      // SSMS 18 and later keep RegSrvr.xml directly in the folder; older ones kept it in a version folder.
+      return roots.flatMap((root, i) => [...(i === 0 ? [p.join(root, 'RegSrvr.xml')] : []), ...newestFirst(w.list(root)).flatMap((v) => [p.join(root, v, 'RegSrvr.xml'), p.join(root, v, 'Tools', 'Shell', 'RegSrvr.xml')])]);
     },
     howTo: 'In SSMS, open View > Registered Servers, right-click the server group, choose Tasks > Export, and pass the .regsrvr file. (The list of recent servers in the connect dialog is a binary file and is not read.)',
   },

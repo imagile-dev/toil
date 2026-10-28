@@ -19,6 +19,19 @@
       "Username": "you",
       "SSLMode": "verify-full"
     },
+    "4": {
+      "Name": "pgAdmin 8",
+      "Group": "Team",
+      "Host": "modern.imagile.dev",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "you",
+      "ConnectionParameters": {
+        "sslmode": "require",
+        "passfile": "/home/you/.pgpass",
+        "hostaddr": "10.0.0.7"
+      }
+    },
     "3": {
       "Name": "Behind a tunnel",
       "Group": "Team",

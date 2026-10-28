@@ -602,8 +602,8 @@ in step. A new bound, or a change to one, updates both. Only a setting in the us
 own config file relaxes a bound (today only `"bounds": { "files": "unbounded" }`),
 security-class bounds never, and every envelope says so in `meta.warnings` while
 one is relaxed. The documented exceptions are reading git metadata above the
-workspace, `--output-file`, and the shell profile `toil setup alias` edits
-(`docs/bounds.md`).
+workspace, `--output-file`, the shell profile `toil setup alias` edits, and another
+tool's connection file `toil connections import` reads (`docs/bounds.md`).
 
 **The file workspace.** Every path a command reads or writes resolves inside one
 folder: `--workspace <dir>`, else `TOIL_WORKSPACE`, else the CLI's working

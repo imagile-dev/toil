@@ -29,7 +29,9 @@ export function parsePgadmin(text: string): Parsed {
       out.skip(label, "goes through an SSH tunnel, which toil can't open: importing the host alone would point at the wrong machine", groups);
       continue;
     }
-    const host = str(own(s, 'Host')) ?? str(own(s, 'HostAddr'));
+    // pgAdmin 7 and later keep sslmode, passfile and hostaddr under ConnectionParameters; earlier ones had them at the top.
+    const cp = own(s, 'ConnectionParameters');
+    const host = str(own(s, 'Host')) ?? str(own(s, 'HostAddr')) ?? str(own(cp, 'hostaddr'));
     if (!host) {
       out.skip(label, str(own(s, 'Service')) ? `uses the libpq service ${str(own(s, 'Service'))}; import your pg_service.conf with --from pg-service instead` : 'names no host', groups);
       continue;
@@ -45,8 +47,8 @@ export function parsePgadmin(text: string): Parsed {
     if (db) settings.database = db;
     const user = str(own(s, 'Username'));
     if (user) settings.user = user;
-    if (SSL_ON.includes((str(own(s, 'SSLMode')) ?? '').toLowerCase())) settings.ssl = true;
-    if (str(own(s, 'PassFile'))) warnings.push('It names a password file; toil never reads one. Enter the password with toil connections login.');
+    if (SSL_ON.includes((str(own(s, 'SSLMode')) ?? str(own(cp, 'sslmode')) ?? '').toLowerCase())) settings.ssl = true;
+    if (str(own(s, 'PassFile')) ?? str(own(cp, 'passfile'))) warnings.push('It names a password file; toil never reads one. Enter the password with toil connections login.');
     if (str(own(s, 'Password'))) warnings.push(passwordDropped('The entry'));
     out.add({ label, group: groups, engine: 'postgres', settings, warnings });
   }

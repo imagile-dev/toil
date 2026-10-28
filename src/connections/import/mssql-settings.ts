@@ -1,6 +1,6 @@
 import { Collector, ImportFormatError, own, passwordDropped, port, str, type Parsed } from './common.js';
 import { parseJsonc } from './readers.js';
-import { addMapped, fromKeywords } from './strings.js';
+import { addMapped, fromKeywords, parseConnectionString } from './strings.js';
 
 /**
  * The SQL Server connections saved in an editor's `settings.json`: Azure Data
@@ -33,15 +33,18 @@ export function parseMssqlSettings(text: string, setting: 'datasource.connection
     const o = typeof own(item, 'options') === 'object' && own(item, 'options') !== null ? own(item, 'options') : item;
     const label = str(own(item, 'profileName')) ?? str(own(o, 'profileName')) ?? str(own(item, 'connectionName')) ?? str(own(o, 'connectionName')) ?? str(own(o, 'server')) ?? `connection ${index + 1}`;
     const group = groupPath(groups, str(own(item, 'groupId')));
+    const provider = str(own(item, 'providerName')) ?? str(own(o, 'providerName'));
+    if (provider && !/^mssql$/i.test(provider)) {
+      out.skip(label, `is a ${provider} connection, not SQL Server, so toil has no commands for it`, group);
+      continue;
+    }
     const kv = new Map<string, string>();
     const warnings: string[] = [];
     const connectionString = str(own(o, 'connectionString'));
     if (connectionString) {
-      // A full string: its own keywords say everything, so the loose fields are ignored.
-      for (const part of connectionString.split(';')) {
-        const at = part.indexOf('=');
-        if (at > 0) kv.set(part.slice(0, at).trim().toLowerCase().replace(/[\s_]/g, ''), part.slice(at + 1).trim());
-      }
+      // A full string: its own keywords say everything, so the loose fields are ignored. Parsed quote-aware, so Password="a;b" stays one value.
+      addMapped(out, label, group, parseConnectionString(connectionString));
+      continue;
     } else {
       const server = str(own(o, 'server'));
       if (!server) {

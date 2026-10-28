@@ -63,10 +63,11 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | `connections.import` | `files.workspace` | `src/connections/import-command.ts` | `toil connections import` reading one other tool's connection list (DBeaver's `data-sources.json`, a `.regsrvr`, `servers.json`, `pg_service.conf`, ...) from that tool's default location on this OS, or from a path the person names, outside the workspace. Bounded below. |
 | `feedback.send` | `commands.read-only` | `src/feedback/command.ts`, `src/api.ts` | `toil feedback` sending one report to Imagile's feedback endpoint, which files it as a public GitHub issue, with no connection holding `writes: true` and no `--allow-write`. Its gate is the approval of that exact report instead, and it is the one request toil makes to a host the user didn't configure. Bounded below. |
 
-`connections.import` is one read, of a file, and nothing else (CLAUDE.md, principle 2 and **Secrets**; #520):
+`connections.import` is one read, of a file, plus with `--save` a write to toil's own config, and nothing else (CLAUDE.md, principle 2 and **Secrets**; #520):
 
-1. **What.** One file, read as text and parsed, never executed: at most 4 MB, XML nested at most 64 levels,
-   JSON read with `JSON.parse` after comments are stripped, so a `__proto__` key is only a key. It is the
+1. **What.** One file, read as text and parsed, never executed: at most 4 MB, XML nested at most 64 levels
+   with at most 200,000 XML elements, at most 1000 connections, a tnsnames.ora nested at most 32
+   parentheses deep, JSON read with `JSON.parse` after comments are stripped, so a `__proto__` key is only a key. It is the
    tool's own connection list (the formats are the registry in `src/connections/import/index.ts`),
    found at the tool's default location for the OS (built from `os.homedir()`, `%APPDATA%` or
    `XDG_*`) or at the path the person typed.

@@ -119,7 +119,7 @@ export function planImport(options: PlanOptions): Plan {
 function unique(base: string, used: Set<string>): string {
   if (!used.has(base)) return base;
   for (let n = 2; ; n++) {
-    const candidate = `${base.slice(0, 44)}-${n}`;
+    const candidate = `${base.slice(0, 44).replace(/-+$/, '')}-${n}`;
     if (!used.has(candidate)) return candidate;
   }
 }

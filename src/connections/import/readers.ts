@@ -16,8 +16,10 @@ export function parseJsonc(text: string, what: string): unknown {
   try {
     return JSON.parse(clean) as unknown;
   } catch (err) {
-    const deep = err instanceof RangeError;
-    throw new ImportFormatError(deep ? `${what} is nested too deeply to read.` : `${what} isn't valid JSON: ${err instanceof Error ? err.message : String(err)}`);
+    // JSON.parse's own message quotes the start of the file, and a file here may hold a password: say where, never what.
+    if (err instanceof RangeError) throw new ImportFormatError(`${what} is nested too deeply to read.`);
+    const at = /position (d+)/.exec(err instanceof Error ? err.message : '');
+    throw new ImportFormatError(`${what} isn't valid JSON${at ? ` (at character ${at[1]})` : ''}.`);
   }
 }
 
@@ -93,7 +95,7 @@ export function readXml(text: string, what: string): XmlElement[] {
     tokenizer.write(text.replace(/^\uFEFF/, ''));
     tokenizer.end();
   } catch (err) {
-    if (err instanceof XmlSyntaxError) throw new ImportFormatError(`${what} isn't valid XML: ${err.message}`);
+    if (err instanceof XmlSyntaxError) throw new ImportFormatError(`${what} isn't valid XML (line ${err.line}, column ${err.column}).`);
     throw err;
   }
   return top.filter((n): n is XmlElement => n.type === 'element');
