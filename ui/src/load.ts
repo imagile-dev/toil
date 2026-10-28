@@ -357,9 +357,9 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
         items.push(...recs((batch.data as Rec).value));
       }
       // One feed of every revision since the window opened stands in for each item's history call; an item whose revisions it doesn't hold whole is read with work-item history (src/ado-revisions.ts).
-      // The feed is used only when the dossier has no iteration field of its own, so it asks for just the fields mapOwi reads from a revision.
+      // A dossier that maps its own iteration field can't use the feed (it asks for System.IterationPath only), so the call is skipped and every item is read with work-item history.
       const iteration = owiFields(section(ado).fields).iteration;
-      const feed = items.length ? await run('work', `${ado} work-item feed`, { ...base, updatedSince: feedStart((options.now ?? (() => new Date()))(), options.windowDays ?? DEFAULT_WINDOW_DAYS), ...(iteration === undefined ? { fields: ADO_FEED_FIELDS } : {}) }) : null;
+      const feed = items.length && iteration === undefined ? await run('work', `${ado} work-item feed`, { ...base, updatedSince: feedStart((options.now ?? (() => new Date()))(), options.windowDays ?? DEFAULT_WINDOW_DAYS), fields: ADO_FEED_FIELDS }) : null;
       const { histories: inline, incomplete } = splitRevisionFeed(feed, items, `${ado} work-item history`, iteration);
       work[ado].push(...inline);
       // Items get-many didn't return have no rev to check the feed against, so they are read one by one as before.

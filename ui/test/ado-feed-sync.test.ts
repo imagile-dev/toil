@@ -83,6 +83,18 @@ describe('get-many in slices', () => {
   });
 });
 
+describe('a dossier that maps its own iteration field', () => {
+  it('makes no feed call and reads the history of each item', async () => {
+    const toil = stubToil();
+    const show = toil.canned.find((c) => c.command === 'dossiers show' && c.input.dossier === 'settlement')!.data as { dossier: { ado: Record<string, unknown> } };
+    show.dossier.ado.fields = { iteration: 'Custom.Sprint' };
+    await loadDossier(toil.execute as unknown as Execute, 'settlement', { mapOwi });
+    expect(named(toil, FEED)).toHaveLength(0);
+    const ids = (toil.canned.find((c) => c.command === 'ado work-item search' && c.input.dossier === 'settlement')!.data as { workItems: Array<{ id: number }> }).workItems.map((w) => w.id);
+    expect(named(toil, 'ado work-item history').map((c) => c.input.id).sort()).toEqual([...ids].sort());
+  });
+});
+
 describe('the feed in the sync', () => {
   it('is read whole once a day, so a renamed iteration replaces what the cache held', async () => {
     const { toil, sync, cache, advance } = await setup();
