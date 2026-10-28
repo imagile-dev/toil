@@ -34,7 +34,8 @@ export interface ThemeManifest {
   name: string;
   label: string;
   description: string;
-  schemes: Partial<Record<Scheme, Record<Token, string>>>;
+  /** Both schemes, light and dark (#507); the first listed is the theme's default. */
+  schemes: Record<Scheme, Record<Token, string>>;
   fonts: { body: string; display: string; mono: string };
   radius: string;
   motion: 'none' | 'subtle';

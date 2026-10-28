@@ -1054,6 +1054,9 @@ it goes, both on by default:
   dungeon master in Realm, a laconic netrunner in Sprawl, a dry telegraph operator
   in Frontier, an old sage in a cave in Overworld. It changes phrasing only.
 
+Every theme has a light and a dark scheme. **Appearance**, in Settings, General or the
+command palette, picks one; System, the default, follows your operating system.
+
 A theme with particles also gets **Particles and ambient effects**, kept for each
 theme on its own: off, that theme's particles are gone entirely, while its other
 motion keeps following **Reduce motion and effects** (and the operating system's

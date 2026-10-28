@@ -9,8 +9,9 @@
  * a theme's own "Particles and ambient effects" switch removes them outright:
  * no canvas, no frame and no layer. A theme's still backdrop (Crate's grid
  * and glow, Starship's starfield) is its own stylesheet's, on the body, so it
- * stays when the particles go (#397). Crate's pallets were moved off this
- * layer in #397, and the forklift certification lapsed with them.
+ * stays when the particles go (#397). The particles' colours follow the scheme
+ * showing, and the engine restarts when it changes (#507). Crate's pallets were
+ * moved off this layer in #397, and the forklift certification lapsed with them.
  */
 
 import { useEffect, useRef } from 'react';
@@ -20,7 +21,7 @@ import { startParticles } from './engine.ts';
 import { PRESETS } from './presets.ts';
 import './ambient.css';
 
-export function Ambient({ theme }: { theme: string }) {
+export function Ambient({ theme, scheme }: { theme: string; scheme: 'light' | 'dark' }) {
   const particlesOn = useParticlesAllowed(theme);
   const canvas = useRef<HTMLCanvasElement>(null);
   const named = THEMES.find((t) => t.name === theme)?.ambient?.particles;
@@ -28,8 +29,8 @@ export function Ambient({ theme }: { theme: string }) {
 
   useEffect(() => {
     if (!preset || !canvas.current) return;
-    return startParticles(canvas.current, preset);
-  }, [preset]);
+    return startParticles(canvas.current, preset, scheme);
+  }, [preset, scheme]);
 
   if (!preset) return null;
   return (

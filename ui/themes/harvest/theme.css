@@ -9,6 +9,69 @@
 @import '@fontsource/pixelify-sans/400.css';
 @import '@fontsource/pixelify-sans/600.css';
 
+/* Harvest keeps two editions of the farm: the day above, and the night by
+   lantern light below. Every colour that depends on the hour lives in these
+   properties, so the rules after them never ask which hour it is. The crop
+   greens and the straw gold read the same in both and stay where they are. */
+[data-theme="harvest"] {
+  --harvest-check: rgba(92, 63, 36, 0.035);
+  --harvest-wash: transparent;
+  --harvest-plank: #8a5226;
+  --harvest-plank-hi: #dea36a;
+  --harvest-soil: #5c3519;
+  --harvest-furrow: rgba(92, 53, 25, 0.06);
+  --harvest-red: #a3200f;
+  --harvest-portrait: #9fd8ff;
+  --harvest-shadow-moment: rgba(43, 26, 14, 0.35);
+  --harvest-shadow-tip: rgba(43, 26, 14, 0.25);
+  --harvest-glow: #fff4b0;
+  --harvest-straw: #c9932a;
+  --harvest-dew: #9fd8ff;
+  --harvest-lit: #367a23;
+  --harvest-sun: #fff4b0 0 6px, #ffcc4d 6px 9px;
+  --harvest-sky: #f29a6b 0%, #ffd29a 12%, #9fd8ff 30%, #86cbff 50%, #9fd8ff 70%, #ffc27a 88%, #8c5a9c 100%;
+}
+
+[data-theme="harvest"][data-scheme="dark"] {
+  --harvest-check: rgba(240, 176, 96, 0.045);
+  --harvest-wash: rgba(10, 18, 14, 0.62);
+  --harvest-plank: #6e4220;
+  --harvest-plank-hi: #4a2f16;
+  --harvest-soil: #9a6a3a;
+  --harvest-furrow: rgba(240, 176, 96, 0.07);
+  --harvest-red: #e8745c;
+  --harvest-portrait: #1b2f4f;
+  --harvest-shadow-moment: rgba(0, 0, 0, 0.5);
+  --harvest-shadow-tip: rgba(0, 0, 0, 0.4);
+  --harvest-glow: #4a3418;
+  --harvest-straw: #4a3a16;
+  --harvest-dew: #1c3556;
+  --harvest-lit: #a6e07f;
+  --harvest-sun: #f4efd0 0 6px, #cfc7a0 6px 9px;
+  --harvest-sky: #3a2230 0%, #4a3040 12%, #14233f 30%, #0d1830 50%, #14233f 70%, #3a2a3a 88%, #2a1838 100%;
+}
+
+@media (prefers-color-scheme: dark) {
+  [data-theme="harvest"][data-scheme="system"] {
+    --harvest-check: rgba(240, 176, 96, 0.045);
+    --harvest-wash: rgba(10, 18, 14, 0.62);
+    --harvest-plank: #6e4220;
+    --harvest-plank-hi: #4a2f16;
+    --harvest-soil: #9a6a3a;
+    --harvest-furrow: rgba(240, 176, 96, 0.07);
+    --harvest-red: #e8745c;
+    --harvest-portrait: #1b2f4f;
+    --harvest-shadow-moment: rgba(0, 0, 0, 0.5);
+    --harvest-shadow-tip: rgba(0, 0, 0, 0.4);
+    --harvest-glow: #4a3418;
+    --harvest-straw: #4a3a16;
+    --harvest-dew: #1c3556;
+    --harvest-lit: #a6e07f;
+    --harvest-sun: #f4efd0 0 6px, #cfc7a0 6px 9px;
+    --harvest-sky: #3a2230 0%, #4a3040 12%, #14233f 30%, #0d1830 50%, #14233f 70%, #3a2a3a 88%, #2a1838 100%;
+  }
+}
+
 /* The farm itself along the foot of the page (fields, a fence and the barn)
    over a faint woven-straw check, close enough to the background that text
    keeps its contrast. Its sky fades into the page rather than starting at a
@@ -17,9 +80,10 @@
 [data-theme="harvest"] body {
   background:
     linear-gradient(var(--bg), transparent 45%) center bottom / 100% 192px no-repeat,
+    linear-gradient(var(--harvest-wash), var(--harvest-wash)) center bottom / 100% 192px no-repeat,
     url("./assets/fields.webp") center bottom / auto 192px repeat-x,
-    linear-gradient(45deg, rgba(92, 63, 36, 0.035) 25%, transparent 25%, transparent 75%, rgba(92, 63, 36, 0.035) 75%) 0 0 / 8px 8px,
-    linear-gradient(45deg, rgba(92, 63, 36, 0.035) 25%, transparent 25%, transparent 75%, rgba(92, 63, 36, 0.035) 75%) 4px 4px / 8px 8px,
+    linear-gradient(45deg, var(--harvest-check) 25%, transparent 25%, transparent 75%, var(--harvest-check) 75%) 0 0 / 8px 8px,
+    linear-gradient(45deg, var(--harvest-check) 25%, transparent 25%, transparent 75%, var(--harvest-check) 75%) 4px 4px / 8px 8px,
     var(--bg);
 }
 
@@ -56,17 +120,17 @@
   height: 28px;
   border-bottom: 4px solid #4f9a2a;
   background:
-    radial-gradient(circle at calc(var(--p) * 100%) calc(100% - sin(calc(var(--p) * 180deg)) * 75%), #fff4b0 0 6px, #ffcc4d 6px 9px, transparent 9px),
-    linear-gradient(90deg, #f29a6b 0%, #ffd29a 12%, #9fd8ff 30%, #86cbff 50%, #9fd8ff 70%, #ffc27a 88%, #8c5a9c 100%) calc(var(--p) * 100%) 0 / 1000% 100% no-repeat;
+    radial-gradient(circle at calc(var(--p) * 100%) calc(100% - sin(calc(var(--p) * 180deg)) * 75%), var(--harvest-sun), transparent 9px),
+    linear-gradient(90deg, var(--harvest-sky)) calc(var(--p) * 100%) 0 / 1000% 100% no-repeat;
 }
 
 [data-theme="harvest"] .banner {
-  border-bottom: 4px solid #8a5226;
+  border-bottom: 4px solid var(--harvest-plank);
 }
 
 [data-theme="harvest"] .top {
-  border-bottom: 6px solid #8a5226;
-  box-shadow: inset 0 -2px 0 #dea36a;
+  border-bottom: 6px solid var(--harvest-plank);
+  box-shadow: inset 0 -2px 0 var(--harvest-plank-hi);
 }
 
 /* Wooden nine-slice panels: plank borders with nails, from wood-panel.svg. */
@@ -74,7 +138,7 @@
 [data-theme="harvest"] .ask,
 [data-theme="harvest"] .ask-bar,
 [data-theme="harvest"] .stat {
-  border: 8px solid #8a5226;
+  border: 8px solid var(--harvest-plank);
   border-image: url("./assets/wood-panel.svg") 8 / 8px round;
   border-radius: 0;
 }
@@ -87,7 +151,7 @@
 [data-theme="harvest"] .card,
 [data-theme="harvest"] .attention-item,
 [data-theme="harvest"] .proposal {
-  border: 8px solid #8a5226;
+  border: 8px solid var(--harvest-plank);
   border-image: url("./assets/wood-sign.svg") 4 / 8px round;
   border-radius: 0;
 }
@@ -110,10 +174,10 @@
 /* The board as a farm plot: each column a furrow of tilled soil along its top. */
 [data-theme="harvest"] .column {
   border: 2px solid var(--line);
-  border-top: 10px solid #5c3519;
+  border-top: 10px solid var(--harvest-soil);
   border-radius: 0;
   background-color: var(--bg);
-  background-image: repeating-linear-gradient(90deg, rgba(92, 53, 25, 0.06) 0 6px, transparent 6px 12px);
+  background-image: repeating-linear-gradient(90deg, var(--harvest-furrow) 0 6px, transparent 6px 12px);
 }
 
 [data-theme="harvest"] .column--in_progress {
@@ -162,7 +226,7 @@
   gap: 0.2rem;
   background: var(--raised);
   border: 2px solid var(--ink);
-  border-top: 8px solid #a3200f;
+  border-top: 8px solid var(--harvest-red);
   box-shadow: 2px 2px 0 var(--line);
   text-align: center;
 }
@@ -188,8 +252,8 @@
 
 [data-theme="harvest"] .harvest-calendar-grid i.gone {
   background:
-    linear-gradient(45deg, transparent 42%, #a3200f 42% 58%, transparent 58%),
-    linear-gradient(-45deg, transparent 42%, #a3200f 42% 58%, transparent 58%),
+    linear-gradient(45deg, transparent 42%, var(--harvest-red) 42% 58%, transparent 58%),
+    linear-gradient(-45deg, transparent 42%, var(--harvest-red) 42% 58%, transparent 58%),
     var(--surface);
 }
 
@@ -205,14 +269,14 @@
   border: 4px solid var(--ink);
   border-radius: 0;
   background: var(--raised);
-  box-shadow: inset 0 0 0 2px #dea36a;
+  box-shadow: inset 0 0 0 2px var(--harvest-plank-hi);
 }
 
 [data-theme="harvest"] .harvest-portrait {
   width: 48px;
   height: 48px;
   border: 2px solid var(--ink);
-  background: #9fd8ff;
+  background: var(--harvest-portrait);
 }
 
 [data-theme="harvest"] .harvest-dialogue-text {
@@ -255,7 +319,7 @@
 }
 
 [data-theme="harvest"] .graph {
-  border: 4px solid #8a5226;
+  border: 4px solid var(--harvest-plank);
   border-radius: 0;
 }
 
@@ -267,7 +331,7 @@
 /* Motion, only where it is welcome: the watering can tips while a view loads. */
 /* The local app's sync panel (#257). */
 [data-theme="harvest"] .sync-panel {
-  border-top: 6px solid #8a5226;
+  border-top: 6px solid var(--harvest-plank);
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -287,22 +351,22 @@
    two pixel bands. Each stop keeps every text colour at 4.5:1 or better
    (the darkest, `ok` on the straw, is 5.2:1). */
 [data-theme="harvest"] .top {
-  background: linear-gradient(180deg, color-mix(in srgb, var(--raised) 70%, #fff4b0), var(--surface));
+  background: linear-gradient(180deg, color-mix(in srgb, var(--raised) 70%, var(--harvest-glow)), var(--surface));
 }
 
 [data-theme="harvest"] .l-card,
 [data-theme="harvest"] .ask {
-  background: linear-gradient(180deg, var(--raised), var(--surface) 55%, color-mix(in srgb, var(--surface) 90%, #c9932a));
+  background: linear-gradient(180deg, var(--raised), var(--surface) 55%, color-mix(in srgb, var(--surface) 90%, var(--harvest-straw)));
 }
 
 [data-theme="harvest"] .stat {
-  background: linear-gradient(180deg, var(--raised), color-mix(in srgb, var(--surface) 82%, #9fd8ff));
+  background: linear-gradient(180deg, var(--raised), color-mix(in srgb, var(--surface) 82%, var(--harvest-dew)));
 }
 
 [data-theme="harvest"] .btn--accent,
 [data-theme="harvest"] .top nav a[aria-current="page"],
 [data-theme="harvest"] button[aria-pressed="true"] {
-  background: linear-gradient(180deg, #367a23 0 50%, var(--accent) 50%);
+  background: linear-gradient(180deg, var(--harvest-lit) 0 50%, var(--accent) 50%);
 }
 
 [data-theme="harvest"] .chart .chart-stop--top { stop-color: #4f9a2a; }
@@ -322,12 +386,12 @@
    moment cards are wooden signs, and the tips come from the almanac. */
 [data-theme="harvest"] .splash {
   background:
-    linear-gradient(45deg, rgba(92, 63, 36, 0.035) 25%, transparent 25%, transparent 75%, rgba(92, 63, 36, 0.035) 75%) 0 0 / 8px 8px,
+    linear-gradient(45deg, var(--harvest-check) 25%, transparent 25%, transparent 75%, var(--harvest-check) 75%) 0 0 / 8px 8px,
     var(--bg);
 }
 
 [data-theme="harvest"] .splash__art {
-  border: 8px solid #8a5226;
+  border: 8px solid var(--harvest-plank);
   border-image: url("./assets/wood-panel.svg") 8 / 8px round;
   box-sizing: content-box;
   max-width: calc(100% - 16px);
@@ -339,18 +403,18 @@
 }
 
 [data-theme="harvest"] .moment {
-  border: 8px solid #8a5226;
+  border: 8px solid var(--harvest-plank);
   border-image: url("./assets/wood-panel.svg") 8 / 8px round;
   border-radius: 0;
   background: var(--raised);
-  box-shadow: 4px 4px 0 rgba(43, 26, 14, 0.35);
+  box-shadow: 4px 4px 0 var(--harvest-shadow-moment);
 }
 
 [data-theme="harvest"] .loader-tip {
   padding: 0.75rem;
-  border: 4px solid #8a5226;
+  border: 4px solid var(--harvest-plank);
   background: var(--raised);
-  box-shadow: 3px 3px 0 rgba(43, 26, 14, 0.25);
+  box-shadow: 3px 3px 0 var(--harvest-shadow-tip);
 }
 
 [data-theme="harvest"] .loader__flavour {

@@ -1,7 +1,7 @@
 {
   "name": "plain",
   "label": "Plain",
-  "description": "Light and quiet, with a dark variant: toil's rounded brand face, Fredoka, on headings and figures, and IBM Plex Sans to read. The accessibility baseline every other theme is held to.",
+  "description": "Light and quiet: toil's rounded brand face, Fredoka, on headings and figures, and IBM Plex Sans to read. The accessibility baseline every other theme is held to.",
   "schemes": {
     "light": {
       "bg": "#ffffff",

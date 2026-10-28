@@ -93,6 +93,24 @@ export function originOf(search: string): ChoiceOrigin {
   return { fromAddress: THEMES.some((t) => t.name === named), savedBeforeSetting: typeof saved.theme === 'string' && saved.synced !== true };
 }
 
+/**
+ * The scheme actually showing: a picked scheme as it is, `system` as the
+ * operating system has it now, following it as it changes. Particles and the
+ * tab's icon both need a colour, and "system" is not one.
+ */
+export function useResolvedScheme(scheme: SchemeChoice): 'light' | 'dark' {
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia?.('(prefers-color-scheme: dark)')?.matches ?? false);
+  useEffect(() => {
+    const dark = window.matchMedia?.('(prefers-color-scheme: dark)');
+    if (!dark) return;
+    const follow = () => setSystemDark(dark.matches);
+    follow();
+    dark.addEventListener('change', follow);
+    return () => dark.removeEventListener('change', follow);
+  }, []);
+  return scheme === 'system' ? (systemDark ? 'dark' : 'light') : scheme;
+}
+
 export function useThemeChoice(config: ConfigApi | null = null) {
   const [choice, setChoice] = useState(() => initialChoice(window.location.search));
   const [origin] = useState(() => originOf(window.location.search));

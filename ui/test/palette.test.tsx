@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.tsx';
 import { FirstRun, firstRunShows, SAMPLE_COMMAND, TRACKER_AREAS } from '../src/components/first-run.tsx';
 import { ageText, paletteEntries, paletteResults, staleNote, STALE_AFTER_MS, type EntriesInput } from '../src/components/palette.tsx';
@@ -94,6 +94,8 @@ describe('the palette entries', () => {
     themes: [{ name: 'plain', label: 'Plain' }],
     currentTheme: 'plain',
     setTheme: () => {},
+    scheme: 'system',
+    setScheme: () => {},
     onSync: undefined,
     focused: null,
     canAssign: false,
@@ -101,6 +103,18 @@ describe('the palette entries', () => {
     agentSettings: false,
     openShortcuts: () => {},
     ...over,
+  });
+
+  it('offers the three appearances in the themes group, and running one calls setScheme', () => {
+    const setScheme = vi.fn();
+    const themes = Array.from({ length: 8 }, (_, i) => ({ name: `t${i}`, label: `T${i}` }));
+    const entries = paletteEntries(base({ themes, scheme: 'light', setScheme }));
+    const shown = paletteResults(entries, '', null).find((g) => g.group === 'themes')!.entries;
+    expect(shown.map((e) => e.label)).toEqual([...themes.map((t) => `${t.label} theme`), 'Appearance: System', 'Appearance: Light', 'Appearance: Dark']);
+    expect(shown.find((e) => e.label === 'Appearance: Light')!.detail).toBe('The appearance now');
+    const dark = paletteResults(entries, 'dark', null).flatMap((g) => g.entries).find((e) => e.label === 'Appearance: Dark')!;
+    (dark.go as { run: () => void }).run();
+    expect(setScheme).toHaveBeenCalledWith('dark');
   });
 
   it('says how old a stale cache is, and nothing for a fresh one', () => {

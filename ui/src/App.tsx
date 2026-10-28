@@ -18,7 +18,7 @@ import { dateTime, dossierHref } from './format.ts';
 import { loadDossier, loadDossiers, type DossierData, type DossierSummary } from './load.ts';
 import { SkinProvider, ThemeProvider, skinsFor } from './skins.tsx';
 import { THEMES, themeNamed, tokenCss } from './themes.ts';
-import { useThemeChoice } from './theme-choice.ts';
+import { useResolvedScheme, useThemeChoice } from './theme-choice.ts';
 import type { Call, Execute } from './toil.ts';
 import { ChatScope } from './components/ask.tsx';
 import { AnalyzeAfterSync } from './components/briefing.tsx';
@@ -298,6 +298,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   // What the dossier on screen is waiting on, for its loading screen (#419): the real calls, as they go.
   const [progress, setProgress] = useState<Record<string, CallProgress>>({});
   const choice = useThemeChoice(themeSetting ?? null);
+  const scheme = useResolvedScheme(choice.scheme);
   const theme = themeNamed(choice.theme);
   const main = useRef<HTMLElement>(null);
   const gameDialog = useRef<HTMLDivElement>(null);
@@ -479,23 +480,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const narrow = useMediaQuery(COMPACT_HEADER);
   const crowded = useCrowded(top, !narrow, links.map((l) => l.label).join('|'));
   const compact = narrow || crowded;
-  const controls = (
-    <>
-      <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
-      {Object.keys(theme.schemes).length > 1 && (
-        <Choice
-          label="Appearance"
-          value={choice.scheme}
-          onChange={(v) => choice.setScheme(v as typeof choice.scheme)}
-          options={[
-            { id: 'system', label: 'System' },
-            { id: 'light', label: 'Light' },
-            { id: 'dark', label: 'Dark' },
-          ]}
-        />
-      )}
-    </>
-  );
+  const controls = <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />;
   // Help (#346): the docs section for the view in front of you, in a new tab, and Learn (#418) while learning links are on.
   // In the compact header Help sits inside the Menu, which closes first so What's new opens over the page, not over it.
   const helpWith = (closeFirst?: () => void) => (
@@ -548,7 +533,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
       <SkinProvider value={skins}>
         <MomentsProvider>
         <TokenStyles css={THEMES.map(tokenCss).join('\n')} />
-        <Ambient theme={theme.name} />
+        <Ambient theme={theme.name} scheme={scheme} />
         <Splash ready={splashReady} detail={splashDetail} data={splashData} />
         <PlayNews news={news ?? null} dossier={wanted} />
         <a className="skip" href="#main" onClick={skip} inert={game.open} aria-hidden={game.open || undefined}>
@@ -623,6 +608,8 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           themes={THEMES.map((t) => ({ name: t.name, label: t.label }))}
           currentTheme={theme.name}
           setTheme={choice.setTheme}
+          scheme={choice.scheme}
+          setScheme={choice.setScheme}
           onSync={onSync}
           focused={palette.focused}
           canAssign={Boolean(assignments && !assignments.disabled)}

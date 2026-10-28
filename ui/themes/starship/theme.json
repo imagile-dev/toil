@@ -19,6 +19,23 @@
       "danger": "#ff7a8e",
       "bannerBg": "#0a1222",
       "bannerInk": "#7fe3ff"
+    },
+    "light": {
+      "bg": "#eaf1f9",
+      "surface": "#f6f9fd",
+      "raised": "#ffffff",
+      "ink": "#0a1a2e",
+      "muted": "#3d566f",
+      "line": "#7f9bb9",
+      "accent": "#00708f",
+      "accentInk": "#ffffff",
+      "link": "#00607f",
+      "focus": "#8a5a00",
+      "ok": "#0b7a46",
+      "warn": "#8a5a00",
+      "danger": "#b3213d",
+      "bannerBg": "#dbe8f5",
+      "bannerInk": "#00506b"
     }
   },
   "fonts": {

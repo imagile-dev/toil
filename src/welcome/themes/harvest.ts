@@ -1,6 +1,6 @@
 import type { TerminalTheme } from './types.js';
 
-/** Harvest's terminal version (ui/themes/harvest/theme.json). Seasonal staffing, approved one growing cycle at a time. */
+/** Harvest's terminal version (ui/themes/harvest/theme.json), by day or by lantern light. Seasonal staffing, approved one growing cycle at a time. */
 export const harvest: TerminalTheme = {
   name: 'harvest',
   label: 'Harvest',
@@ -13,6 +13,15 @@ export const harvest: TerminalTheme = {
       link: '#8a3410',
       ok: '#2c6a1c',
       danger: '#a3200f',
+    },
+    dark: {
+      bg: '#151d17',
+      ink: '#f3e4bf',
+      muted: '#cdb58a',
+      accent: '#8fd46a',
+      link: '#f0b060',
+      ok: '#8fd46a',
+      danger: '#ff8f7a',
     },
   },
   terms: { agent: 'Almanac' },

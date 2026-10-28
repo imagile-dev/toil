@@ -36,6 +36,13 @@ describe('what the showcase reads from Toil UI', () => {
     expect(STANDARD_PROMPT.style).toBeNull();
   });
 
+  it("draws each theme in its default scheme, the one its theme.json lists first, so Crate stays the site's near-black (#507)", () => {
+    expect(Object.fromEntries(THEMES.map((t) => [t.name, t.scheme]))).toEqual({
+      plain: 'light', crate: 'dark', harvest: 'light', starship: 'dark', realm: 'light', sprawl: 'dark', frontier: 'light', overworld: 'dark',
+    });
+    expect(THEMES.find((t) => t.name === 'crate')!.tokens).toContain('--t-bg: #0f1115');
+  });
+
   it('shows the scripted answers, in each voice the theme has', () => {
     expect(QUESTION).toBe(SCRIPTS[DOSSIER]!.risk!.label);
     for (const t of THEMES) expect(t.answer).toEqual(VOICED[DOSSIER]?.[t.name] ?? null);

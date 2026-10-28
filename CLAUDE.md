@@ -339,9 +339,9 @@ GitHub Actions; its build tooling is out of scope.
   write only after a confirm screen that shows the line with `--allow-write`,
   so the connection's `writes` still decides, as it would typed by hand.
   It wears the theme `toil theme set` picks (#427): `themes/` holds one terminal
-  version of each Toil UI theme (its colours for the kind of terminal its
-  `theme.json` has, the other kind derived from them, the splash's ornament, a few
-  menu words), `test/theme-sync.test.ts` holds each to
+  version of each Toil UI theme (its light and dark colours, copied from its
+  `theme.json`, which authors both, #507; the splash's ornament; a few menu
+  words), `test/theme-sync.test.ts` holds each to
   `ui/themes/<name>/theme.json`, and the splash's cues are read from that file's
   `moments.splash` at build time (`scripts/gen-areas.mjs`). A theme never reaches
   an envelope, `--help`, an error, a fix or MCP.

@@ -123,12 +123,32 @@ describe.each(THEMES.map((t) => [t.name, t] as const))('the %s theme', (name, th
     }
   });
 
+  // A stylesheet's own colours are theme variables set per scheme (#507): its second scheme is set twice, for
+  // data-scheme and for System under prefers-color-scheme, and a rule missing from one would show only one way.
+  it("sets its stylesheet's second scheme the same for data-scheme and for System, and every variable in both", () => {
+    const css = readFileSync(join(themesDir, name, 'theme.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const other = Object.keys(theme.schemes)[1]!;
+    const rules = (text: string, scheme: string) =>
+      Object.fromEntries(
+        [...text.matchAll(/([^{}@]+)\{([^{}]*)\}/g)]
+          .map((m) => [m[1]!.trim().replace(/\s+/g, ' '), m[2]!.replace(/\s+/g, ' ').trim()] as const)
+          .filter(([s]) => s.includes(`[data-scheme="${scheme}"]`))
+          .map(([s, body]) => [s.replaceAll(`[data-scheme="${scheme}"]`, '[data-scheme=*]'), body]),
+      );
+    const media = [...css.matchAll(new RegExp(`@media \\(prefers-color-scheme: ${other}\\) \\{((?:[^{}]*\\{[^{}]*\\})*)\\s*\\}`, 'g'))].map((m) => m[1]!).join('\n');
+    const explicit = rules(css.replace(/@media[^{]*\{(?:[^{}]*\{[^{}]*\})*\s*\}/g, ''), other);
+    expect(rules(media, 'system')).toEqual(explicit);
+    const own = [...css.matchAll(new RegExp(`\\[data-theme="${name}"\\] \\{([^{}]*)\\}`, 'g'))].flatMap((m) => [...m[1]!.matchAll(new RegExp(`(--${name}-[a-z0-9-]+):`, 'g'))].map((v) => v[1]!));
+    const overridden = new Set(Object.values(explicit).flatMap((body) => [...body.matchAll(/(--[a-z0-9-]+):/g)].map((v) => v[1]!)));
+    for (const v of own) expect(overridden, `${v} is set for the ${other} scheme`).toContain(v);
+  });
+
   it('renames only words a theme may rename', () => {
     for (const key of Object.keys(theme.terms ?? {})) expect(TERMS).toContain(key);
   });
 
-  it('defines every token for every scheme', () => {
-    expect(Object.keys(theme.schemes).length).toBeGreaterThan(0);
+  it('defines every token for a light and a dark scheme (#507)', () => {
+    expect(Object.keys(theme.schemes).sort()).toEqual(['dark', 'light']);
     for (const tokens of Object.values(theme.schemes)) {
       expect(Object.keys(tokens!).sort()).toEqual([...TOKENS].sort());
       for (const value of Object.values(tokens!)) expect(value).toMatch(/^#[0-9a-f]{6}$/i);

@@ -1,7 +1,7 @@
 {
   "name": "crate",
   "label": "Crate",
-  "description": "The toil site's look: its near-black, the drafting grid and the blue glow, the blue accent gradient, dust drifting in the glow, and the crate in its hard hat when there's nothing to show yet.",
+  "description": "The toil site's look: its near-black, or warm drafting paper in light, the drafting grid and the blue glow, the blue accent gradient, dust drifting in the glow, and the crate in its hard hat when there's nothing to show yet.",
   "schemes": {
     "dark": {
       "bg": "#0f1115",
@@ -19,6 +19,23 @@
       "danger": "#ff8a80",
       "bannerBg": "#1e222b",
       "bannerInk": "#c2e0ff"
+    },
+    "light": {
+      "bg": "#f4f2ed",
+      "surface": "#faf9f5",
+      "raised": "#ffffff",
+      "ink": "#1a1e26",
+      "muted": "#505865",
+      "line": "#cfcac0",
+      "accent": "#1b66c4",
+      "accentInk": "#ffffff",
+      "link": "#0e4a96",
+      "focus": "#1b66c4",
+      "ok": "#146c2e",
+      "warn": "#7a4a00",
+      "danger": "#b42318",
+      "bannerBg": "#fdf0c4",
+      "bannerInk": "#3d2c00"
     }
   },
   "fonts": {

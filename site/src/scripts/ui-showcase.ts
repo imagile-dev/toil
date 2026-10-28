@@ -18,6 +18,8 @@ if (root && frame) {
   const app = frame.dataset.app ?? '';
   const steps = [...document.querySelectorAll<HTMLButtonElement>('[data-step]')];
   const themeNames = new Set([...document.querySelectorAll<HTMLInputElement>('[data-theme-pick]')].map((i) => i.value));
+  // Each theme opens in the scheme its cards are drawn in, its default, so the frame matches the page whatever the system prefers (#507).
+  const schemeOf = new Map([...document.querySelectorAll<HTMLInputElement>('[data-theme-pick]')].map((i) => [i.value, i.dataset.scheme ?? 'system']));
   const state = {
     theme: root.dataset.theme ?? 'crate',
     voice: true,
@@ -37,7 +39,7 @@ if (root && frame) {
   if (landed) state.route = location.hash;
 
   const appUrl = () => {
-    const q = new URLSearchParams({ theme: state.theme });
+    const q = new URLSearchParams({ theme: state.theme, scheme: schemeOf.get(state.theme) ?? 'system' });
     if (!state.wording) q.set('wording', 'off');
     if (!state.voice) q.set('voice', 'off');
     return `${app}?${q}${state.route}`;

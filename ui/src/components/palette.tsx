@@ -37,7 +37,7 @@ const GROUP_LABEL: Record<PaletteGroup, string> = { commands: 'Commands', dossie
 /** The order with nothing typed. With a query, the groups go in the order of their best match. */
 const GROUP_ORDER: PaletteGroup[] = ['commands', 'dossiers', 'tabs', 'items', 'analyses', 'settings', 'themes'];
 /** The most results a group shows for a query: enough to choose from, few enough to read. */
-const GROUP_CAP: Record<PaletteGroup, number> = { commands: 8, dossiers: 8, tabs: 10, items: 20, analyses: 8, settings: 8, themes: 8 };
+const GROUP_CAP: Record<PaletteGroup, number> = { commands: 8, dossiers: 8, tabs: 10, items: 20, analyses: 8, settings: 8, themes: 12 };
 
 /** How old a dossier's cache may be before its results say how old. */
 export const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
@@ -85,6 +85,8 @@ export interface EntriesInput {
   themes: Array<{ name: string; label: string }>;
   currentTheme: string;
   setTheme: (name: string) => void;
+  scheme: 'system' | 'light' | 'dark';
+  setScheme: (scheme: 'system' | 'light' | 'dark') => void;
   onSync: (() => void) | undefined;
   /** The item the focus was on when the palette opened, in the dossier on screen. */
   focused: string | null;
@@ -137,6 +139,7 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
   }
   for (const p of SETTINGS_PAGES) out.push({ id: `settings:${p.page}`, group: 'settings', label: p.label, detail: 'Settings', text: `settings ${p.label}`, go: { href: `#/settings/${p.page}` } });
   for (const t of x.themes) out.push({ id: `theme:${t.name}`, group: 'themes', label: `${t.label} theme`, ...(t.name === x.currentTheme ? { detail: 'The theme now' } : {}), go: { run: () => x.setTheme(t.name) } });
+  for (const [id, name] of [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']] as const) out.push({ id: `scheme:${id}`, group: 'themes', label: `Appearance: ${name}`, ...(id === x.scheme ? { detail: 'The appearance now' } : {}), go: { run: () => x.setScheme(id) } });
   return out;
 }
 
