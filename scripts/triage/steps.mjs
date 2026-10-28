@@ -250,7 +250,7 @@ export async function openPr({ env, fetcher = fetch, cwd = process.cwd(), log = 
   git(cwd, ['-c', 'credential.helper=', '-c', 'credential.helper=!f() { echo username=x-access-token; echo "password=${GH_TOKEN}"; }; f', 'push', '--force', pushUrl, `HEAD:refs/heads/${branch}`], { GH_TOKEN: env.GH_TOKEN ?? '' });
   // Listed by the workflow from the checked paths, so the agent can't leave it out; its own account of what each edit loosened follows in its text.
   const safety = checked.safety.length
-    ? ['## Safety-layer edits', '', "This fix edits files that decide what Toil UI's server, agent or Settings may run or reach. Read these first; the description below says what each change loosened or widened, if the agent said:", '', ...checked.safety.map((f) => `- \`${f}\``), '']
+    ? ['## Safety-layer edits', '', "This fix edits files that decide what toil or Toil UI may write, read, run or reach (the write gate, secrets, files, network, bounds, audit, config, the MCP server, Toil UI's server and Settings). Read these first; the description below says what each change loosened or widened, if the agent said:", '', ...checked.safety.map((f) => `- \`${f}\``), '']
     : [];
   const body = [
     ...safety,
@@ -258,8 +258,9 @@ export async function openPr({ env, fetcher = fetch, cwd = process.cwd(), log = 
     '',
     `Closes #${number}`,
     '',
+    ...(checked.core ? ['This changes toil itself (`src/` outside one area). Triage cannot run the full gate (typecheck, lint, test, build, `check:pure`, `smoke`); CI runs it on this draft, and it has to be green before a maintainer merges.', ''] : []),
     ...(checked.ui ? ["This changes Toil UI (`ui/`). Triage cannot run Toil UI's gate, so before it merges a maintainer runs `npm run verify:ui` and the `ship` skill's screen review (CLAUDE.md, Build & Test), and reads the change against principle 11.", ''] : []),
-    "Opened as a draft by triage (`.github/workflows/triage.yml`) from a fix an agent proposed. Every changed path was checked against one area's own files and Toil UI's. CI runs the full gate on this draft; a human marks it ready and merges it.",
+    "Opened as a draft by triage (`.github/workflows/triage.yml`) from a fix an agent proposed. Every changed path was checked against what a triage fix may touch (not the workflows, scripts or CLAUDE.md, not the site or the Azure Function backend, not a dependency). CI runs the full gate on this draft; a human marks it ready and merges it.",
   ].join('\n');
   const owner = repo.split('/')[0];
   const open = await gh('GET', `/repos/${repo}/pulls?state=open&head=${encodeURIComponent(`${owner}:${branch}`)}`, undefined, options(env, fetcher));
@@ -271,12 +272,12 @@ export async function openPr({ env, fetcher = fetch, cwd = process.cwd(), log = 
   return { url: pr.html_url };
 }
 
-/** apply: the comment, labels and closing the decision calls for. */
+/** apply: the comment, labels and closing the decision calls for. A `maintainer` decision comments and labels, and leaves the issue open. */
 export async function apply({ env, fetcher = fetch }) {
   const repo = repoOf(env);
   const number = issueOf(env.NUMBER, 'NUMBER');
   const decision = env.DECISION;
-  if (!['fix', 'deny', 'duplicate', 'invalid'].includes(decision)) throw new Error(`apply has nothing to do for decision ${JSON.stringify(decision)}.`);
+  if (!['fix', 'maintainer', 'deny', 'duplicate', 'invalid'].includes(decision)) throw new Error(`apply has nothing to do for decision ${JSON.stringify(decision)}.`);
   const dir = env.HANDOVER;
   let body = existsSync(join(dir, 'comment.checked.md')) ? readFileSync(join(dir, 'comment.checked.md'), 'utf8') : '';
   let labels = (env.LABELS ?? '').split(',').filter(Boolean);

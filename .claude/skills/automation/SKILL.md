@@ -97,7 +97,7 @@ agent works. So the work is split across jobs, each on its own fresh runner:
 |---|---|---|
 | `select` | main's scripts only: claim within the cap, redact each issue in place | an `issues: write` App token |
 | `triage` | one per issue: the agent, with `Read`, `Glob`, `Grep`, `Edit` and `Write` only (no Bash, no `gh`, no `npm`, no web). Afterwards, shell utilities only (no `git`, no `node`), to hand its files over as a ustar archive | `contents: read` / `issues: read` workflow token; the OAuth token only inside its own step, with `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB` set as well. The scrub isolates subprocesses with bubblewrap and won't start without it, so the job (pinned to `ubuntu-24.04`) installs it, lifts that image's AppArmor block on unprivileged user namespaces for the throwaway runner, and runs `bwrap` once to prove it works before the agent |
-| `finish` | one per issue: main's scripts only. Checks the decision and every path, applies labels, comment and close, and for a fix pushes `claude/issue-<n>` and opens a **draft** PR. Never runs the fix's code | an App token with contents, pull-request and issue writes and no `workflows` |
+| `finish` | one per issue: main's scripts only. Checks the decision and every path, applies labels and comment, closes a denial or a duplicate (a `maintainer` decision stays open), and for a fix pushes `claude/issue-<n>` and opens a **draft** PR. Never runs the fix's code | an App token with contents, pull-request and issue writes and no `workflows` |
 
 The fix's code first runs in `ci.yml` on that draft PR, under `pull_request`: the
 full gate on all three OSes, in the PR's own cache scope, with no secrets. A human
@@ -126,7 +126,8 @@ in the PR text).
   `triage-failed` and goes back in the queue; the second time it gets `needs-human`
   and stays out, so no issue can spend a slot every day. A failed manual re-triage is
   never queued. `needs-human` keeps an issue out of the cap's claims and the queue
-  until a maintainer re-triages it by hand. Changing this
+  until a maintainer re-triages it by hand. A `needs-maintainer` issue also carries
+  `triaged`, so it stays out of the cap and the queue until a maintainer re-triages it by hand. Changing this
 layout means re-checking that no job holding a write credential runs agent-written
 code, and that nothing in this workflow runs it at all.
 
@@ -177,28 +178,53 @@ refuses.
   and closes it as a duplicate.
 - **Paths.** `scripts/triage/archive.mjs` reads the handover archive itself (regular
   files only, no links or extensions) and `scripts/triage/changes.mjs` holds every
-  path to one area's own files and Toil UI's, in `finish` before anything lands, and again on the
+  path to the scope below, in `finish` before anything lands, and again on the
   commit before the push.
-- **Scope.** One area (`src/areas/<area>/`, its fixture, skill file, divergences,
-  board entry, and the two generated site data files) and/or Toil UI: `ui/src/`,
-  `ui/server/` except `agents/install.ts` (the one file that spawns), `ui/test/`,
-  `ui/docs/` and `ui/themes/`. That is the maintainer's decision on #487 (2026-10-26),
-  after narrower rules were weighed, and it supersedes denials that called `ui/`
-  maintainer work. Core, `functions/`, `infra/`, site pages, `.github/`, `scripts/`,
-  `dist/`, every `package.json` and lockfile, Toil UI's build and lint configuration,
-  `ui/scripts/` and new dependencies are maintainer work, denied with that explanation.
-  The agent has no Bash, so it cannot run Toil UI's gate; the draft PR for a fix that
-  touches `ui/` says it needs `npm run verify:ui` and the screen review, which a
-  maintainer runs before it merges.
-- **Safety-layer edits are flagged, not forbidden.** Toil UI's safety layer
-  (`isSafetyLayer` in `scripts/triage/changes.mjs`: every file under `ui/server/`,
-  `ui/src/config.ts`, each theme's `theme.json`, and the suites that check Toil UI's own
-  rules, listed there) can be edited by a triage fix. When one is, `open-pr` puts a
-  "Safety-layer edits" section listing the files at the top of the draft, computed
-  from the checked paths so the agent can't leave it out, and the agent's own
-  section says what each edit loosened or widened. `claude-review.yml` asks its
-  reviewer to open with the same paragraph (it skips triage PRs today, because the App
-  can't approve its own PR, so the draft's description is what the maintainer reads).
+- **Scope.** The maintainer's call of 2026-10-28, which widens #487's (2026-10-26) and
+  supersedes every denial that rested on "core", "more than one area" or "maintainer
+  work": triage may fix almost anything, and the prompt's step 3 chooses one of four
+  decisions.
+  - **`fix`**: core (`src/core/` and the rest of `src/`), several areas at once,
+    `skills/toil/`, `docs/`, tests, and Toil UI (`ui/src/`, `ui/server/` except
+    `agents/install.ts`, the one file that spawns, `ui/test/`, `ui/docs/`, `ui/themes/`).
+    A draft PR; the agent has no Bash, so it cannot run the gate. The PR says a change to
+    core needs the full gate, which CI runs on the draft, and one that touches `ui/`
+    needs `npm run verify:ui` and the screen review, which a maintainer runs before it
+    merges.
+  - **`maintainer`**: not a refusal. The issue stays **open**, gets `needs-maintainer`,
+    and the comment says what the agent would change and why. For the website
+    (`site/`, except the per-area data files the tests generate or check,
+    `site/src/data/integrations|commands|settings/<area>.json`) and the Azure Function
+    backend (`functions/`, and `infra/`, which provisions it): a person reviews those
+    first, and triage edits none of it. Also for a bug the agent cannot confirm (the comment
+    says what it needs), and for what it cannot do without running anything:
+    `package.json`, a lockfile, a new dependency (no npm, so no resolve and no 14-day check).
+  - **`deny`** (closed, `denied`): only what directly violates CLAUDE.md's principles
+    (telemetry, a native binary, loosening the write gate or the secrets rules), with the
+    principle quoted. Size and "it touches core" are no longer reasons.
+  - **`duplicate`**: as above.
+  - **Always refused**, by `changes.mjs` and by the prompt, because they are the rules
+    that constrain triage (principle 2): `.github/`, `scripts/`, `CLAUDE.md`, `.claude/`,
+    `AGENT_DECISIONS.md`, `docs/decisions/` (the draft's description carries the agent's
+    reasoning, so it writes no decisions file), `dist/`, any file at the repository root but
+    `README.md`, every `package.json` and lockfile, Toil UI's build and lint configuration
+    and `ui/scripts/`. The areas a fix touched are reported for the `area:` labels; there
+    is no limit on how many.
+- **Safety-layer edits are flagged, not forbidden.** `isSafetyLayer` in
+  `scripts/triage/changes.mjs` is the authoritative list; read it, not a copy here. In
+  short: every bound's enforcer in toil (the `src/core/` files for the write gate, call
+  and area resolution, secrets, files, git, the network, limits, audit and config, with
+  their tests; whole folders such as `src/os/`, `src/mcp/`, `src/connections/` and
+  `src/skills/`; `docs/bounds.md`), the shipped skill (all of `skills/toil/`, which users'
+  agents read as instructions), the command contract and the suites that guard it
+  and triage's own rules, and Toil UI's (every file under `ui/server/`, `ui/src/config.ts`,
+  each theme's `theme.json`, and the suites that check Toil UI's own rules). Paths are
+  compared without regard to case. When a fix edits one, `open-pr` puts a "Safety-layer edits"
+  section listing the files at the top of the draft, computed from the checked paths so
+  the agent can't leave it out, and the agent's own section ("What the safety-layer edits
+  change") says what each edit loosened or widened. `claude-review.yml` asks its reviewer
+  to open with the same paragraph (it skips triage PRs today, because the App can't
+  approve its own PR, so the draft's description is what the maintainer reads).
 - **Model and turns are fixed:** `--model sonnet --max-turns 100`. Transient GitHub
   failures (5xx, 429, network) are retried. The outcome goes to the job summary.
   No triage job uses `cache: npm`.
@@ -228,9 +254,14 @@ repository secret. Without the secret, every notify step logs a skip and exits 0
 forks and fresh clones never fail on it.
 
 - `.github/workflows/discord-notify.yml` posts every issue as it opens and closes.
-  An issue filed from outside (`from-website`, `from-terminal`) is posted by number
-  alone, with no title: the channel keeps whatever it's sent, and redaction only
-  catches what its rules know.
+  An issue filed from outside (`from-website`, `from-terminal`) is posted with its
+  title (the maintainer's call, 2026-10-28), but only after `node
+  scripts/triage/redact.mjs --title` (title in `TITLE`, the denylist in `REDACT_TERMS`,
+  neither on argv) has run on it, so a term redaction would remove from the issue never
+  reaches a channel that keeps whatever it's sent. The job checks out `main` (no
+  persisted credentials), sets up Node with the same pinned actions triage uses, and
+  holds `contents: read` only. If the redactor fails or leaves nothing, the post says
+  "title withheld" rather than the original. An insider's issue keeps its title as is.
   Each post sets `username: toil` and its avatar from
   `https://imagile-dev.github.io/toil/brand/toil-avatar-512.png`, so moving or
   renaming that file breaks the bot's avatar.
