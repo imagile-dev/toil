@@ -253,6 +253,8 @@ const isFile = (path: string): boolean => {
 function locate(manage: ConfigAccess, format: (typeof FORMATS)[number], named: string | undefined): { path: string; source: 'argument' | 'default' } {
   const where = whereAmI(manage);
   if (named !== undefined) {
+    // Checked as typed first: on Linux and macOS resolve() reads `\\host\share` as a relative name and would hide it.
+    assertLocalPath(named, undefined, 'The file');
     const path = resolve(where.cwd, named);
     assertLocalPath(path, undefined, 'The file');
     refuseOwn(path, manage, where.home);
