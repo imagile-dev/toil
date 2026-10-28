@@ -48,7 +48,8 @@ for (const file of pages) {
   if (isRedirect(from)) continue;
   const html = readFileSync(file, 'utf8');
   for (const [, raw] of html.matchAll(/<a\b[^>]*?\shref="([^"]*)"/g)) {
-    const href = raw.replace(/&amp;/g, '&');
+    // Astro writes an attribute's & as &#38; (or &amp;); either is an ampersand, not an anchor.
+    const href = raw.replace(/&amp;|&#38;/g, '&');
     if (/^[a-z][a-z0-9+.-]*:/i.test(href) || href.startsWith('//')) continue;
     links++;
     const [pathPart, hash] = href.split('#');
