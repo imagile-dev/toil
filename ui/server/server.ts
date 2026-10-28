@@ -57,6 +57,7 @@ import { AgentError } from './agents/cli.ts';
 import type { AdapterStatus, AgentStatus } from './agents/host.ts';
 import type { InstallPlan, InstallRun } from './agents/install.ts';
 import type { AdapterName } from './agents/runtime.ts';
+import type { DossierAgents } from './agents/dossier-agents.ts';
 import { answerMcp, McpGrants } from './agents/mcp.ts';
 import type { ServeTools } from './agents/runtime.ts';
 import { StyleError, styleFrom, type StyleChoice } from './agents/voices.ts';
@@ -90,6 +91,8 @@ export interface UiServerOptions {
   agentControl?: AgentControl;
   /** The worklog (#308): the cache's pages, or the sample's. Absent, `api/worklog/*` says there is none. */
   worklog?: WorklogApi;
+  /** The agent last used for each dossier's Analyze (#494): `api/agent/adapters?dossier=` says it, a whole Analyze sets it. Absent with sample data. */
+  dossierAgents?: DossierAgents;
   /** The history of analyses (#395): `api/analyses`, and every Analyze kept as it ends. Absent, Analyze keeps nothing. */
   analyses?: AnalysisKeeper;
   /** The agent's model usage and its caps (#295): `api/usage`. */
@@ -174,6 +177,30 @@ function kept(keeper: AnalysisKeeper, dossier: string, startedAt: string) {
   }
   return { one, stream };
 }
+/**
+ * Remembers the adapter for a dossier (#494) once its Analyze answer is whole, and only then: a stopped
+ * or failed run says nothing about what the person prefers. A memory that can't be written never fails the answer.
+ */
+function rememberer(store: DossierAgents, dossier: string, adapter: string) {
+  const one = (answer: Answer) => {
+    if (!isWhole(answer)) return;
+    try {
+      store.set(dossier, adapter);
+    } catch {
+      // The answer matters more than the memory; the next Analyze simply asks the default again.
+    }
+  };
+  async function* stream(answers: AsyncIterable<Answer>, signal: AbortSignal): AsyncIterable<Answer> {
+    let last: Answer | undefined;
+    for await (const a of answers) {
+      last = a;
+      yield a;
+    }
+    if (!signal.aborted && last) one(last);
+  }
+  return { one, stream };
+}
+
 /** The session id the page got for the launch token, on every API call. Never a cookie. */
 export const SESSION_HEADER = 'x-toil-ui-session';
 
@@ -610,12 +637,16 @@ export function createUiServer(options: UiServerOptions): UiServer {
         const extra = extraOf(body);
         // Analyze is kept in the history once its answer is whole (#395); the answer's last line names the record.
         const keep = body.prompt === ANALYZE && options.analyses ? kept(options.analyses, body.dossier, new Date().toISOString()) : null;
+        // The adapter a whole Analyze was asked of is the dossier's next default (#494).
+        const remember = body.prompt === ANALYZE && extra.adapter && options.dossierAgents ? rememberer(options.dossierAgents, body.dossier, extra.adapter) : null;
         if (body.stream === true && agent.stream) {
           const answers = agent.stream(ctx, body.dossier, body.prompt, style, chat, extra);
-          return streamAnswer(res, keep ? keep.stream(answers, ctx.signal) : answers);
+          const remembered = remember ? remember.stream(answers, ctx.signal) : answers;
+          return streamAnswer(res, keep ? keep.stream(remembered, ctx.signal) : remembered);
         }
         try {
           const answer = await agent.ask(ctx, body.dossier, body.prompt, style, chat, extra);
+          if (remember && !ctx.signal.aborted) remember.one(answer);
           json(res, 200, keep && !ctx.signal.aborted ? await keep.one(answer) : answer);
         } catch (e) {
           json(res, 502, { error: agentFailure(e) });
@@ -673,7 +704,13 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return;
       case 'GET agent/adapters':
         // The chat's switcher (#344): every adapter with its model and whether it can answer, or none for an agent with no choice.
-        json(res, 200, agent.adapterOptions?.() ?? { chosen: null, options: [] });
+        {
+          const list = agent.adapterOptions?.() ?? { chosen: null, options: [] };
+          // With a dossier named (#494), the agent last used for its Analyze comes too; the page decides whether it is still ready.
+          const dossier = url.searchParams.get('dossier');
+          const remembered = dossier && options.dossierAgents ? options.dossierAgents.get(dossier) : null;
+          json(res, 200, remembered ? { ...list, remembered } : list);
+        }
         return;
       case 'GET agent/install':
         json(res, 200, control().installPlan(installAdapter(url.searchParams.get('adapter'))));

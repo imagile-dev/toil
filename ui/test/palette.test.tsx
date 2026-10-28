@@ -163,7 +163,7 @@ describe('the palette entries', () => {
       }),
     ).filter((e) => e.group === 'commands');
     expect(on.map((e) => e.label)).toEqual(['Sync now', 'Ask about card-payments', 'Analyze card-payments', `Assign ${shortKey(item)} to an agent`, 'Answer with Codex', 'Choose the default agent', 'Keyboard shortcuts']);
-    expect(on.find((e) => e.id === 'cmd:agent:codex')!.go).toEqual({ command: { kind: 'agent', name: null, label: 'Codex' } });
+    expect(on.find((e) => e.id === 'cmd:agent:codex')!.go).toEqual({ command: { kind: 'agent', name: 'codex', label: 'Codex' } });
   });
 });
 

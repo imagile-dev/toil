@@ -110,7 +110,7 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
     for (const o of x.adapters?.options ?? []) {
       if (!o.ready) continue;
       const label = o.model ? `${o.label} (${o.model})` : o.label;
-      out.push({ id: `cmd:agent:${o.name}`, group: 'commands', label: `Answer with ${label}`, detail: 'For this chat, from its next question', go: { command: { kind: 'agent', name: o.name === x.adapters!.chosen ? null : o.name, label } } });
+      out.push({ id: `cmd:agent:${o.name}`, group: 'commands', label: `Answer with ${label}`, detail: 'For this chat, from its next question', go: { command: { kind: 'agent', name: o.name, label } } });
     }
   }
   if (x.agentSettings) out.push({ id: 'cmd:agent-default', group: 'commands', label: 'Choose the default agent', detail: 'Settings, Agent', go: { href: '#/settings/agent' } });
@@ -190,7 +190,7 @@ export function CommandPalette({ isOpen, onOpenChange, agent, analysesApi, readi
     if (!isOpen) return;
     let live = true;
     setAt(Date.now());
-    if (agent.adapters && here) agent.adapters().then((a) => live && setAdapters(a), () => live && setAdapters(null));
+    if (agent.adapters && here) agent.adapters(here).then((a) => live && setAdapters(a), () => live && setAdapters(null));
     for (const d of names ? names.split('\n') : []) analysesApi.list(d).then((list) => live && setAnalyses((all) => ({ ...all, [d]: list })), () => undefined);
     return () => {
       live = false;
