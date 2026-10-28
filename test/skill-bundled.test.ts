@@ -120,7 +120,8 @@ describe('the shipped SKILL.md stays small', () => {
   });
 
   it('every reference file is embedded and installed, so an area set up later is already documented', () => {
-    const shipped = readdirSync(join(import.meta.dirname, '..', 'skills', 'toil')).filter((f) => f.endsWith('.md')).sort();
+    // changelog.md is generated from CHANGELOG.md, not a file in skills/toil/.
+    const shipped = [...readdirSync(join(import.meta.dirname, '..', 'skills', 'toil')).filter((f) => f.endsWith('.md')), 'changelog.md'].sort();
     expect(Object.keys(skillFilesFor(describeConfig(testConfig(), AREA_NAMES, new Set()))).sort()).toEqual(shipped);
   });
 });

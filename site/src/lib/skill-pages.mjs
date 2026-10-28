@@ -17,6 +17,7 @@ const OWN_PAGES = {
   'dossiers.md': '/docs/dossiers/',
   'install.md': '/docs/install/',
   'mcp.md': '/docs/mcp/',
+  'upgrading.md': '/docs/upgrading/',
   'db.md': '/connect/db/',
   'util.md': '/docs/utilities/',
   'skills.md': '/docs/skills/',

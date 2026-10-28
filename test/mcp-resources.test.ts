@@ -87,8 +87,10 @@ describe('MCP resources', () => {
   it('follows --areas: only those areas, and no dossiers unless their tools are served', async () => {
     const { client } = await session(['jira']);
     const uris = (await client.listResources()).resources.map((r) => r.uri).sort();
-    expect(uris).toEqual(['toil://connections', 'toil://skill/jira']);
+    expect(uris).toEqual(['toil://connections', 'toil://skill/changelog', 'toil://skill/jira', 'toil://skill/upgrading']);
     expect(JSON.parse(text(await client.readResource({ uri: 'toil://connections' })))).toEqual({ connections: [{ name: 'jira', area: 'jira', isDefault: true, writes: true }] });
+    expect(text(await client.readResource({ uri: 'toil://skill/upgrading' }))).toBe(skillPages.upgrading);
+    expect(text(await client.readResource({ uri: 'toil://skill/changelog' }))).toContain('# toil changelog');
     await expect(client.readResource({ uri: 'toil://skill/demo' })).rejects.toThrow(/no resource/);
     await expect(client.readResource({ uri: 'toil://dossiers' })).rejects.toThrow(/no resource/);
     expect((await client.listResourceTemplates()).resourceTemplates).toEqual([]);

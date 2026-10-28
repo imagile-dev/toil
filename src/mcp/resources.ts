@@ -25,6 +25,12 @@ export const CONNECTIONS_URI = 'toil://connections';
 export const DOSSIERS_URI = 'toil://dossiers';
 const DOSSIER_PREFIX = `${DOSSIERS_URI}/`;
 const SKILL_PREFIX = 'toil://skill/';
+/** The skill pages that belong to no area, served whatever --areas says: what to do when toil is upgraded, and what changed. */
+const UPGRADE_PAGES = ['upgrading', 'changelog'] as const;
+const UPGRADE_DESCRIPTIONS: Record<(typeof UPGRADE_PAGES)[number], string> = {
+  upgrading: 'Standing instructions for when toil is upgraded or a retired name turns up: read what changed, then convert config, env vars and dossiers with approval.',
+  changelog: 'Breaking changes and features of the newest toil releases, newest first.',
+};
 
 export interface ResourceEntry {
   uri: string;
@@ -87,6 +93,9 @@ export async function listResources(host: ResourceHost): Promise<ResourceEntry[]
     if (skillPages[area] === undefined) continue;
     list.push({ uri: `${SKILL_PREFIX}${area}`, name: `skill ${area}`, title: `toil ${area} reference`, description: `The toil skill's page for ${area}: its configuration keys, credential and every command.`, mimeType: 'text/markdown' });
   }
+  for (const page of UPGRADE_PAGES) {
+    list.push({ uri: `${SKILL_PREFIX}${page}`, name: `skill ${page}`, title: page === 'upgrading' ? 'Upgrading toil' : 'toil changelog', description: UPGRADE_DESCRIPTIONS[page], mimeType: 'text/markdown' });
+  }
   return list;
 }
 
@@ -119,7 +128,7 @@ export async function readResource(host: ResourceHost, uri: string): Promise<{ u
   if (uri.startsWith(SKILL_PREFIX)) {
     const area = uri.slice(SKILL_PREFIX.length);
     const page = skillPages[area];
-    if (page !== undefined && servedAreas(host).has(area)) return { uri, mimeType: 'text/markdown', text: page };
+    if (page !== undefined && (servedAreas(host).has(area) || (UPGRADE_PAGES as readonly string[]).includes(area))) return { uri, mimeType: 'text/markdown', text: page };
   }
   throw new ResourceError(`toil serves no resource ${uri} here. resources/list names the ones it does.`, true);
 }
