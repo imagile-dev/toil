@@ -18,7 +18,7 @@ export function parseJsonc(text: string, what: string): unknown {
   } catch (err) {
     // JSON.parse's own message quotes the start of the file, and a file here may hold a password: say where, never what.
     if (err instanceof RangeError) throw new ImportFormatError(`${what} is nested too deeply to read.`);
-    const at = /position (d+)/.exec(err instanceof Error ? err.message : '');
+    const at = /position (\d+)/.exec(err instanceof Error ? err.message : '');
     throw new ImportFormatError(`${what} isn't valid JSON${at ? ` (at character ${at[1]})` : ''}.`);
   }
 }
