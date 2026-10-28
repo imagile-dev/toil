@@ -1,0 +1,88 @@
+{
+  "folders": {
+    "Prod": {},
+    "Orders": { "parent": "Prod" }
+  },
+  "connections": {
+    "postgres-jdbc-abc12345-0000000000000001": {
+      "provider": "postgresql",
+      "driver": "postgres-jdbc",
+      "name": "Orders DB",
+      "save-password": true,
+      "folder": "Orders",
+      "configuration": {
+        "host": "orders-db.imagile.dev",
+        "port": "5432",
+        "database": "orders",
+        "url": "jdbc:postgresql://orders-db.imagile.dev:5432/orders",
+        "configurationType": "MANUAL",
+        "type": "prod",
+        "auth-model": "native",
+        "user": "you",
+        "password": "not-a-real-password",
+        "properties": { "sslmode": "require", "ApplicationName": "DBeaver", "loggerLevel": "OFF" }
+      }
+    },
+    "mysql8-abc12345-0000000000000002": {
+      "provider": "mysql",
+      "driver": "mysql8",
+      "name": "Shop",
+      "configuration": {
+        "host": "shop-db.imagile.dev",
+        "port": "3306",
+        "database": "shop",
+        "url": "jdbc:mysql://shop-db.imagile.dev:3306/shop",
+        "configurationType": "MANUAL",
+        "auth-model": "native"
+      }
+    },
+    "sqlserver-abc12345-0000000000000003": {
+      "provider": "sqlserver",
+      "driver": "microsoft",
+      "name": "Warehouse (Windows login)",
+      "configuration": {
+        "host": "wh.imagile.dev",
+        "port": "1433",
+        "database": "warehouse",
+        "configurationType": "MANUAL",
+        "auth-model": "sqlserver_ntlm"
+      }
+    },
+    "sqlite-abc12345-0000000000000004": {
+      "provider": "sqlite",
+      "driver": "sqlite_jdbc",
+      "name": "Local scratch",
+      "configuration": { "database": "C:/data/scratch.db", "url": "jdbc:sqlite:C:/data/scratch.db", "configurationType": "MANUAL" }
+    },
+    "postgres-jdbc-abc12345-0000000000000005": {
+      "provider": "postgresql",
+      "driver": "postgres-jdbc",
+      "name": "Via bastion",
+      "configuration": {
+        "host": "internal-db.imagile.dev",
+        "port": "5432",
+        "database": "app",
+        "user": "you",
+        "handlers": { "ssh_tunnel": { "type": "tunnel", "enabled": true, "properties": { "host": "bastion.imagile.dev", "port": "22" } } }
+      }
+    },
+    "redshift-abc12345-0000000000000006": {
+      "provider": "postgresql",
+      "driver": "redshift",
+      "name": "Analytics",
+      "configuration": { "host": "analytics.imagile.dev", "port": "5439", "database": "dev" }
+    },
+    "mongo-abc12345-0000000000000007": {
+      "provider": "mongo",
+      "driver": "mongo-client",
+      "name": "Documents",
+      "configuration": { "host": "docs.imagile.dev", "port": "27017" }
+    },
+    "oracle-abc12345-0000000000000008": {
+      "provider": "oracle",
+      "driver": "oracle_thin",
+      "name": "Ledger",
+      "configuration": { "url": "jdbc:oracle:thin:@//ledger.imagile.dev:1521/FREEPDB1", "configurationType": "URL", "user": "you" }
+    }
+  }
+}

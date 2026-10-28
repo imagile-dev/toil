@@ -66,6 +66,12 @@ If you have no terminal the person can see, say which steps they will do themsel
    `<area>.md`. Run `toil connections list` first, and skip what is already connected.
 3. Propose the connections to the person as a list (name, area, URL) and get their yes.
    Ask for anything you cannot read off a remote, such as the Jira site.
+4. For databases, ask which tool they use (DBeaver, SQL Server Management Studio, Azure
+   Data Studio, pgAdmin, DataGrip, MySQL Workbench, a `pg_service.conf` or
+   `tnsnames.ora`). Run `toil connections import --from <tool>` to preview what it
+   finds, show them the list, and on their yes run the `saveWith` line it returns. It
+   copies no password: hand over each one as section 4 says (`core.md`, **Importing
+   database connections**).
 
 ## 4. Create each connection, then hand over its secret
 
@@ -78,7 +84,9 @@ toil connections add imagile-jira --area jira --set baseUrl=https://jira.imagile
 
 For Atlassian Cloud, also set `deployment=cloud`, `email=<their account email>` and the
 `<site>.atlassian.net` URL, as the table says. It asks nothing, stores no secret and leaves writes off. A secret key in `--set` is
-refused. The result lists the secrets this connection cannot work without. A secret the area
+refused. A setting the person has to look up goes in the same way: Alation's `userId` is
+shown nowhere on its screens, only as the number in the address of their profile page
+(`102` in `…/user/102/`), so ask them to open their profile and read it off the address bar. The result lists the secrets this connection cannot work without. A secret the area
 treats as optional, such as a database password, is not listed: if the connection fails to sign in, it needs one.
 
 Then hand it over, in the person's terminal or in Toil UI:

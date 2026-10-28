@@ -1,0 +1,6 @@
+{
+  "mssql.connections": [
+    { "server": "localhost,1433", "database": "dev", "authenticationType": "SqlLogin", "user": "you", "password": "", "emptyPasswordInput": false, "savePassword": false, "profileName": "Local dev", "encrypt": false },
+    { "server": "sql4.imagile.dev", "authenticationType": "Integrated", "profileName": "Integrated box" }
+  ]
+}

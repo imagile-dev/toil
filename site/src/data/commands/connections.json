@@ -90,5 +90,21 @@
     "writes": false,
     "connection": false,
     "flags": []
+  },
+  {
+    "name": "import",
+    "tool": null,
+    "description": "Bring database connections saved in another tool (DBeaver, SSMS, pgAdmin, ...) into toil as db connections: a preview, until --save",
+    "writes": false,
+    "connection": false,
+    "flags": [
+      "[file]",
+      "--from <format>",
+      "--url <connection-string>",
+      "--name <name>",
+      "--prefix <text>",
+      "--user <name>",
+      "--save"
+    ]
   }
 ]

@@ -121,8 +121,8 @@ description in the installed `SKILL.md` names the areas and database engines you
 connections for (names only, never a host or a credential), so an agent reaches for
 toil when a task touches one of them. Any toil command that loads config, on the CLI
 or over MCP, rewrites every copy toil installed when that command changed the config
-file (`toil connections add`, `login`, `remove`, `writes`, `default`, `toil skills
-marketplace add` and `remove`), and when the copy was written by another toil
+file (`toil connections add`, `login`, `remove`, `writes`, `default`, `migrate`,
+`import --save`, `toil skills marketplace add` and `remove`), and when the copy was written by another toil
 version. Nothing else in a skills folder is ever touched. This is one of the writes
 that need no `--allow-write`: `core.md`, under **Writes**, says why, and how to avoid
 it. Connections that only `TOIL_*` env vars define are named when they're set in the

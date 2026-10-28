@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<!-- Shaped from MySQL Workbench's connections.xml, not captured from a real install. -->
+<data grt_format="2.0">
+  <value type="list" content-type="object" content-struct-name="db.mgmt.Connection" key="">
+    <value type="object" struct-name="db.mgmt.Connection" id="abc12345-0000-0000-0000-000000000001" struct-checksum="0x96ba47d">
+      <link type="object" struct-name="db.mgmt.Driver" key="driver">com.mysql.rdbms.mysql.driver.native</link>
+      <value type="string" key="name">Local instance</value>
+      <value type="dict" key="parameterValues">
+        <value type="string" key="hostName">127.0.0.1</value>
+        <value type="int" key="port">3306</value>
+        <value type="string" key="userName">root</value>
+        <value type="string" key="schema">sakila</value>
+        <value type="int" key="useSSL">2</value>
+      </value>
+    </value>
+    <value type="object" struct-name="db.mgmt.Connection" id="abc12345-0000-0000-0000-000000000002" struct-checksum="0x96ba47d">
+      <link type="object" struct-name="db.mgmt.Driver" key="driver">com.mysql.rdbms.mysql.driver.native_sshtun</link>
+      <value type="string" key="name">Through SSH</value>
+      <value type="dict" key="parameterValues">
+        <value type="string" key="hostName">db.imagile.dev</value>
+        <value type="string" key="sshHost">bastion.imagile.dev:22</value>
+      </value>
+    </value>
+  </value>
+</data>

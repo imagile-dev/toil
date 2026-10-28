@@ -24,9 +24,10 @@ import { ToilError, withArticle } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified, type SecretStore } from '../core/keychain.js';
 import type { Prompter } from '../core/prompt.js';
 import { askCheckedSecret } from '../core/secret-input.js';
+import { importCommand } from './import-command.js';
 
 /**
- * `toil connections add | login | list | remove | test | writes | default | migrate`:
+ * `toil connections add | login | list | remove | test | writes | default | migrate | import`:
  * setting up the connections that every area command resolves. Secrets go
  * straight to the OS credential store and config holds only a `keychain:`
  * reference; a secret never sits in the file (env vars are the other place one
@@ -331,7 +332,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     },
   });
 
-  return [add, login, list, remove, test, writes, setDefault, migrate];
+  return [add, login, list, remove, test, writes, setDefault, migrate, importCommand(areas)];
 }
 
 /** The area each connection in the raw file named, by name: a version 1 file has one per area key. */

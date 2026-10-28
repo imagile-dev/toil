@@ -1,6 +1,6 @@
 ---
 name: secrets
-description: Rules for how toil stores, resolves and moves secrets (API tokens, passwords, connection strings, any credential). Use when changing `toil connections add`, `login`, `list` or `remove`, `keychain:` references, the OS credential store in src/core/keychain.ts (macOS `security`, Windows PowerShell advapi32, Linux `secret-tool`), the plaintext-secret check in connection resolution, the terminal prompter, or any code that reads, writes, migrates or logs a secret. Also when adding `config init`, `config set` or `config import`, which follow the same rules.
+description: Rules for how toil stores, resolves and moves secrets (API tokens, passwords, connection strings, any credential). Use when changing `toil connections add`, `login`, `list` or `remove`, `keychain:` references, the OS credential store in src/core/keychain.ts (macOS `security`, Windows PowerShell advapi32, Linux `secret-tool`), the plaintext-secret check in connection resolution, the terminal prompter, or any code that reads, writes, migrates or logs a secret. Also when changing `connections import`, which carries no secret, or adding `config init` or `config set`, which follow the same rules.
 ---
 
 # Secrets
@@ -117,9 +117,12 @@ Setup commands are of kind `cli-only`: never MCP tools, since stdin is the proto
 there. An agent never enters or moves a secret or turns writes on; it may create a
 connection with `connections add --area … --set key=value` on the person's yes, which
 asks nothing, refuses a secret key in `--set`, stores nothing and names
-`connections login <name>` for the person to run (#516). A secret an area declares as a
+`connections login <name>` for the person to run (#516), and import database connections
+with `connections import … --save` the same way (#520). A secret an area declares as a
 `password` (`defineArea({ secrets: { password: 'password' } })`) is asked for as one;
 every other secret is a token.
+
+`connections import` carries no secret: a password found in an imported file or URL is dropped and reported as `SECRET_NOT_IMPORTED`, and `.pgpass`, DBeaver's `credentials-config.json` and SSMS's encrypted passwords are never read.
 
 **Reading a secret (#358).** The terminal prompter (`src/core/prompt.ts`) reads a
 secret in raw mode with `HiddenLine`, not readline, and draws one `•` per character:

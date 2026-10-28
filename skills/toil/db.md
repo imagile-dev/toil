@@ -128,6 +128,8 @@ toil connections login app-pg   # prompts for the password and stores it
 
 A named connection's password can also come from `TOIL_CONN_APP_PG_PASSWORD`.
 
+Already have the connection in DBeaver, SSMS, pgAdmin, DataGrip, MySQL Workbench or a connection string? `toil connections import --from <tool>` previews bringing it in, and `--save` creates it. The password is never imported, so you still run `toil connections login <name>`. See `core.md`, **Importing database connections**.
+
 toil ignores the libpq environment (`PGHOST`, `PGUSER`, `PGPASSWORD`, `PGSSLMODE`,
 `PGOPTIONS` and the rest) and `~/.pgpass`: a connection reaches only the host its own
 settings name, with only its own password.
