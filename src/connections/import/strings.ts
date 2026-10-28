@@ -1,5 +1,6 @@
 import { posix, win32 } from 'node:path';
 import { remotePathKind } from '../../core/local-path.js';
+import { isSecretParam } from '../../core/http.js';
 import { type Collector, engineFor, passwordDropped, port, TERADATA_REASON, truthy, type DbSettings } from './common.js';
 
 /**
@@ -145,11 +146,11 @@ function fromUrl(text: string): Mapped {
   if (userinfo) {
     const colon = userinfo.indexOf(':');
     user = decode(colon < 0 ? userinfo : userinfo.slice(0, colon));
-    if (colon >= 0 && userinfo.slice(colon + 1) !== '') warnings.push(passwordDropped('The URL'));
+    if (colon >= 0 && userinfo.slice(colon + 1) !== '') dropped(warnings, 'The URL');
   }
   user ??= params.get('user') ?? params.get('username') ?? params.get('uid');
   if (user) settings.user = user;
-  if (params.has('password') || params.has('pwd')) warnings.push(passwordDropped('The URL'));
+  if ([...params.keys()].some(isSecretParam)) dropped(warnings, 'The URL');
 
   if (engine === 'postgres') {
     const mode = (params.get('sslmode') ?? '').toLowerCase();
@@ -201,7 +202,7 @@ function fromOracle(tail: string, warnings: string[]): Mapped {
     const slash = credentials.indexOf('/');
     const user = slash < 0 ? credentials : credentials.slice(0, slash);
     if (user) settings.user = user;
-    if (slash >= 0 && credentials.slice(slash + 1) !== '') warnings.push(passwordDropped('The URL'));
+    if (slash >= 0 && credentials.slice(slash + 1) !== '') dropped(warnings, 'The URL');
   }
   let address = m[2]!.trim();
   if (address.startsWith('(')) return { skip: 'uses an Oracle connect descriptor; import its tnsnames.ora with --from tnsnames instead' };
@@ -215,6 +216,8 @@ function fromOracle(tail: string, warnings: string[]): Mapped {
   if (port(svc[2])) settings.port = port(svc[2])!;
   settings.database = svc[3]!;
   if (tcps) settings.ssl = true;
+  const query = address.split('?')[1] ?? '';
+  if (query.split('&').some((p) => isSecretParam(p.split('=')[0] ?? ''))) dropped(warnings, 'The URL');
   return { engine: 'oracle', settings, warnings };
 }
 
@@ -232,7 +235,7 @@ function fromAdo(text: string): Mapped {
 export function fromKeywords(kv: Map<string, string>, source: string): Mapped {
   const warnings: string[] = [];
   const settings: DbSettings = {};
-  if (kv.has('password') || kv.has('pwd')) warnings.push(passwordDropped(source));
+  if ([...kv.keys()].some(isSecretParam)) dropped(warnings, source);
   const server = kv.get('server') ?? kv.get('datasource') ?? kv.get('address') ?? kv.get('addr') ?? kv.get('networkaddress');
   const pg = kv.get('host');
   if (!server && pg) {
@@ -287,11 +290,18 @@ export function addMapped(out: Collector, label: string, group: string[], mapped
  * values included). Everything else stays as typed, so saving the suggestion
  * imports the same connection, still without the password.
  */
+/** One warning per connection, however many places in its string held a secret. */
+function dropped(warnings: string[], where: string): void {
+  const message = passwordDropped(where);
+  if (!warnings.includes(message)) warnings.push(message);
+}
+
 export function withoutPassword(text: string): string {
   return text
     .replace(/^(jdbc:oracle:[a-z0-9]+:)([^@/]*)\/[^@]*@/i, '$1$2@')
     .replace(/(\/\/[^@/?#;:]*):[^@/?#;]*@/, '$1@')
-    .replace(/(^|[;&?])\s*(?:password|pwd)\s*=\s*(?:"[^"]*"|'[^']*'|\{[^}]*\}|[^;&]*)/gi, (_, sep: string) => (sep === '?' ? '?' : ''))
+    // Every secret-named property goes, by the rule redactUrl uses: sslpassword, trustStorePassword, accessToken as well as password.
+    .replace(/(^|[;&?])\s*([^=;&?]+?)\s*=\s*(?:"[^"]*"|'[^']*'|\{[^}]*\}|[^;&]*)/gi, (whole: string, sep: string, name: string) => (isSecretParam(name) ? (sep === '?' ? '?' : '') : whole))
     .replace(/\?&/, '?')
     .replace(/\?$/, '')
     .replace(/^[;&]+/, '');

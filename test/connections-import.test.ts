@@ -86,6 +86,8 @@ describe('connection strings', () => {
     ['jdbc:postgresql://db.imagile.dev/app?password=hunter2&user=you', 'jdbc:postgresql://db.imagile.dev/app?user=you'],
     ['jdbc:postgresql://db.imagile.dev/app?user=you&password=hunter2', 'jdbc:postgresql://db.imagile.dev/app?user=you'],
     ['jdbc:sqlserver://h.imagile.dev:1433;user=you@x.com;pwd=hunter2;encrypt=true', 'jdbc:sqlserver://h.imagile.dev:1433;user=you@x.com;encrypt=true'],
+    ['jdbc:postgresql://h.imagile.dev/app?user=you&sslpassword=hunter2', 'jdbc:postgresql://h.imagile.dev/app?user=you'],
+    ['jdbc:sqlserver://h.imagile.dev;user=you;trustStorePassword=hunter2;encrypt=true', 'jdbc:sqlserver://h.imagile.dev;user=you;encrypt=true'],
   ])('withoutPassword removes the password and nothing else: %s', (text, expected) => {
     expect(withoutPassword(text)).toBe(expected);
   });
@@ -132,6 +134,12 @@ describe('readers', () => {
       } catch (err) {
         expect((err as Error).message).not.toContain('hunter2');
       }
+    }
+  });
+  it('warns once per connection that held a password, wherever the string kept it', () => {
+    for (const url of ['jdbc:oracle:thin:@//h.imagile.dev:1521/svc?password=hunter2', 'postgres://you:hunter2@h.imagile.dev/app?password=hunter3']) {
+      const mapped = parseConnectionString(url);
+      expect('warnings' in mapped && mapped.warnings.filter((w) => /held a password/.test(w))).toHaveLength(1);
     }
   });
   it('says where a JSON file stops parsing', () => {
