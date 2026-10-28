@@ -1,7 +1,7 @@
 {
   "name": "crate",
   "label": "Crate",
-  "description": "The toil site's look: its near-black, the drafting grid and the blue glow, the blue accent gradient, dust drifting in the glow, and the crate in its hard hat when there's nothing to show yet.",
+  "description": "The toil site's look: its near-black, or warm drafting paper in light, the drafting grid and the blue glow, the blue accent gradient, dust drifting in the glow, and the crate in its hard hat when there's nothing to show yet.",
   "schemes": {
     "dark": {
       "bg": "#0f1115",

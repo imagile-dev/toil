@@ -1,7 +1,7 @@
 {
   "name": "sprawl",
   "label": "Sprawl",
-  "description": "A terminal at heart in a rain-soaked megacity: monospace type and a block cursor, faint scanlines and a CRT edge glow, neon magenta and cyan on deep blue-black, the skyline at the foot of the page, rain on the glass, the dependency graph as a net map, and the agent as a netrunner.",
+  "description": "A terminal at heart in a rain-soaked megacity: monospace type and a block cursor, faint scanlines and a CRT edge glow, neon magenta and cyan on deep blue-black, or the city at dawn in light, the skyline at the foot of the page, rain on the glass, the dependency graph as a net map, and the agent as a netrunner.",
   "schemes": {
     "dark": {
       "bg": "#07060f",

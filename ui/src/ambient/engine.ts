@@ -44,8 +44,10 @@ export interface Preset {
   step(p: Particle, dt: number, view: Viewport): boolean;
   /** Its opacity now, 0 to 1. Zero skips the draw. */
   alpha(p: Particle, view: Viewport): number;
+  /** Its colours for each scheme, each `"r, g, b"` as `glow()` takes; `sprites` gets the resolved scheme's list. */
+  colors: Record<'light' | 'dark', readonly string[]>;
   /** The sprites, made once when the engine starts; `draw` picks one. */
-  sprites(make: MakeSprite): Sprites;
+  sprites(make: MakeSprite, colors: readonly string[]): Sprites;
   draw(ctx: CanvasRenderingContext2D, p: Particle, sprites: Sprites, view: Viewport): void;
 }
 
@@ -88,7 +90,7 @@ export function fill(preset: Preset, particles: Particle[], view: Viewport, rand
  * Runs a preset on a canvas until the returned function is called. The canvas
  * fills its box; the engine matches its pixels to that box on resize.
  */
-export function startParticles(canvas: HTMLCanvasElement, preset: Preset): () => void {
+export function startParticles(canvas: HTMLCanvasElement, preset: Preset, scheme: 'light' | 'dark'): () => void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return () => undefined;
   const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
@@ -102,7 +104,7 @@ export function startParticles(canvas: HTMLCanvasElement, preset: Preset): () =>
     }
     return c;
   };
-  const sprites = preset.sprites(make);
+  const sprites = preset.sprites(make, preset.colors[scheme]);
   const particles: Particle[] = [];
   const view: Viewport = { w: 0, h: 0, t: 0 };
   const rand = Math.random;

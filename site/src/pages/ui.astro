@@ -79,7 +79,7 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
           <div class="uix-themes__list">
             {THEMES.map((t) => (
               <label class="uix-theme">
-                <input type="radio" name="uix-theme" value={t.name} checked={t.name === DEFAULT_THEME} data-theme-pick />
+                <input type="radio" name="uix-theme" value={t.name} checked={t.name === DEFAULT_THEME} data-theme-pick data-scheme={t.scheme} />
                 <span class="uix-theme__swatch" aria-hidden="true">{t.swatch.map((c) => <i style={`background:${c}`}></i>)}</span>
                 <span>{t.label}</span>
               </label>
@@ -108,9 +108,9 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
             <div class="uix-window__bar">
               <span class="uix-window__dots" aria-hidden="true"><i></i><i></i><i></i></span>
               <span class="uix-window__title">Toil UI · sample data</span>
-              <a class="uix-window__open" href={`${app}?theme=${DEFAULT_THEME}${home}`} data-open-app target="_blank" rel="noopener">Open full screen</a>
+              <a class="uix-window__open" href={`${app}?theme=${DEFAULT_THEME}&scheme=${crate.scheme}${home}`} data-open-app target="_blank" rel="noopener">Open full screen</a>
             </div>
-            <div class="uix-frame-box" data-frame-box><iframe class="uix-frame" title="Toil UI, running on sample data" src={`${app}?theme=${DEFAULT_THEME}${home}`} data-app={app} data-frame></iframe></div>
+            <div class="uix-frame-box" data-frame-box><iframe class="uix-frame" title="Toil UI, running on sample data" src={`${app}?theme=${DEFAULT_THEME}&scheme=${crate.scheme}${home}`} data-app={app} data-frame></iframe></div>
           </div>
         </div>
       </div>
@@ -130,7 +130,7 @@ const crate = THEMES.find((t) => t.name === DEFAULT_THEME)!;
             <div class="uix-themes__list">
               {THEMES.map((t) => (
                 <label class="uix-theme">
-                  <input type="radio" name="uix-theme-voice" value={t.name} checked={t.name === DEFAULT_THEME} data-theme-pick />
+                  <input type="radio" name="uix-theme-voice" value={t.name} checked={t.name === DEFAULT_THEME} data-theme-pick data-scheme={t.scheme} />
                   <span class="uix-theme__swatch" aria-hidden="true">{t.swatch.map((c) => <i style={`background:${c}`}></i>)}</span>
                   <span>{t.label}</span>
                 </label>

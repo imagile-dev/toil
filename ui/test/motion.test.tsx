@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { act, render, screen } from '@testing-library/react';
+import { act, render, renderHook, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.tsx';
@@ -11,6 +11,7 @@ import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
 import { resetMotionChoice, resetParticlesChoice, setMotionChoice, setParticlesOn } from '../src/motion.ts';
+import { useResolvedScheme } from '../src/theme-choice.ts';
 import { THEMES } from '../src/themes.ts';
 
 /**
@@ -112,6 +113,36 @@ describe('the particle presets', () => {
     expect(glowAt(0, h, w, h)).toBe(0);
   });
 
+  it('has as many colours for one scheme as for the other', () => {
+    for (const [name, preset] of Object.entries(PRESETS)) {
+      expect(preset.colors.light.length, name).toBe(preset.colors.dark.length);
+    }
+  });
+
+  it("shows every colour on its theme's page in either scheme: 1.6:1 at least, faint as it is drawn", () => {
+    /** WCAG relative luminance of an `"r, g, b"` string or a `#rrggbb` one. */
+    const lum = (c: string) => {
+      const rgb = c.startsWith('#') ? [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16)) : c.split(',').map(Number);
+      const [r, g, b] = rgb.map((v) => ((v! / 255) <= 0.04045 ? v! / 255 / 12.92 : (v! / 255 / 1.055 + 0.055 / 1.055) ** 2.4));
+      return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+    };
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi! + 0.05) / (lo! + 0.05);
+    };
+    const weak: string[] = [];
+    for (const theme of THEMES) {
+      const name = theme.ambient?.particles;
+      if (!name) continue;
+      for (const scheme of ['light', 'dark'] as const) {
+        const bg = theme.schemes[scheme]?.bg;
+        if (!bg) continue;
+        for (const c of PRESETS[name]!.colors[scheme]) if (ratio(c, bg) < 1.6) weak.push(`${theme.name} ${scheme}: ${c} on ${bg} is ${ratio(c, bg).toFixed(2)}`);
+      }
+    }
+    expect(weak).toEqual([]);
+  });
+
   it("drifts Realm's ash down the page and its embers up it, in every width", () => {
     for (const w of [375, 1440]) {
       const view = { w, h: 812, t: 0 };
@@ -149,14 +180,14 @@ describe('the particle presets', () => {
 describe('the ambient layer', () => {
   it('is absent from Plain', () => {
     osMotion(false);
-    const { container } = render(<Ambient theme="plain" />);
+    const { container } = render(<Ambient theme="plain" scheme="dark" />);
     expect(container.innerHTML).toBe('');
   });
 
   it('is decoration: hidden from screen readers, with a canvas only while motion is welcome', () => {
     osMotion(false);
     fakeCanvas();
-    const { container } = render(<Ambient theme="starship" />);
+    const { container } = render(<Ambient theme="starship" scheme="dark" />);
     const layer = container.querySelector('.ambient')!;
     expect(layer.getAttribute('aria-hidden')).toBe('true');
     expect(layer.querySelector('canvas')).not.toBeNull();
@@ -165,18 +196,18 @@ describe('the ambient layer', () => {
   it("gives Crate only its dust: the grid and the glow are its stylesheet's, and there is no layer at all when motion isn't welcome", () => {
     osMotion(false);
     fakeCanvas();
-    const { container } = render(<Ambient theme="crate" />);
+    const { container } = render(<Ambient theme="crate" scheme="dark" />);
     expect(container.querySelector('.ambient')!.children).toHaveLength(1);
     expect(container.querySelector('canvas')).not.toBeNull();
     osMotion(true);
-    expect(render(<Ambient theme="crate" />).container.innerHTML).toBe('');
+    expect(render(<Ambient theme="crate" scheme="dark" />).container.innerHTML).toBe('');
   });
 
   it('runs no frames with the OS asking for reduced motion', () => {
     osMotion(true);
     const raf = vi.spyOn(window, 'requestAnimationFrame');
     const getContext = fakeCanvas();
-    render(<Ambient theme="realm" />);
+    render(<Ambient theme="realm" scheme="dark" />);
     expect(getContext).not.toHaveBeenCalled();
     expect(raf).not.toHaveBeenCalled();
   });
@@ -188,7 +219,7 @@ describe('the ambient layer', () => {
     const cancel = vi.spyOn(window, 'cancelAnimationFrame').mockImplementation(() => undefined);
     let hidden = false;
     vi.spyOn(document, 'hidden', 'get').mockImplementation(() => hidden);
-    render(<Ambient theme="harvest" />);
+    render(<Ambient theme="harvest" scheme="dark" />);
     expect(raf).toHaveBeenCalledTimes(1);
     hidden = true;
     document.dispatchEvent(new Event('visibilitychange'));
@@ -201,7 +232,7 @@ describe('the ambient layer', () => {
   it('stops, canvas and all, when the person reduces motion, and says so on the root for CSS', () => {
     osMotion(false);
     fakeCanvas();
-    const { container } = render(<Ambient theme="crate" />);
+    const { container } = render(<Ambient theme="crate" scheme="dark" />);
     expect(container.querySelector('canvas')).not.toBeNull();
     expect(document.documentElement.dataset.motion).toBe('full');
     act(() => setMotionChoice('reduced'));
@@ -235,7 +266,7 @@ describe('Reduce motion and effects, in Settings', () => {
     localStorage.setItem('toil-ui.motion', 'reduced');
     resetMotionChoice();
     osMotion(false);
-    const { container } = render(<Ambient theme="harvest" />);
+    const { container } = render(<Ambient theme="harvest" scheme="dark" />);
     expect(container.querySelector('canvas')).toBeNull();
   });
 });
@@ -246,7 +277,7 @@ describe('Particles and ambient effects, per theme (#348)', () => {
     const getContext = fakeCanvas();
     const raf = vi.spyOn(window, 'requestAnimationFrame');
     setParticlesOn('starship', false);
-    const { container } = render(<Ambient theme="starship" />);
+    const { container } = render(<Ambient theme="starship" scheme="dark" />);
     expect(container.innerHTML).toBe('');
     expect(getContext).not.toHaveBeenCalled();
     expect(raf).not.toHaveBeenCalled();
@@ -257,10 +288,10 @@ describe('Particles and ambient effects, per theme (#348)', () => {
     fakeCanvas();
     setParticlesOn('starship', false);
     expect(JSON.parse(localStorage.getItem('toil-ui.particles')!)).toEqual({ starship: false });
-    const { container } = render(<Ambient theme="harvest" />);
+    const { container } = render(<Ambient theme="harvest" scheme="dark" />);
     expect(container.querySelector('canvas')).not.toBeNull();
     resetParticlesChoice();
-    const again = render(<Ambient theme="starship" />);
+    const again = render(<Ambient theme="starship" scheme="dark" />);
     expect(again.container.innerHTML).toBe('');
   });
 
@@ -268,27 +299,27 @@ describe('Particles and ambient effects, per theme (#348)', () => {
     osMotion(false);
     fakeCanvas();
     setParticlesOn('crate', false);
-    const { container } = render(<Ambient theme="crate" />);
+    const { container } = render(<Ambient theme="crate" scheme="dark" />);
     expect(container.innerHTML).toBe('');
   });
 
   it('comes after the OS and the motion switch: either stops the particles with the switch on', () => {
     fakeCanvas();
     osMotion(true);
-    expect(render(<Ambient theme="harvest" />).container.innerHTML).toBe('');
+    expect(render(<Ambient theme="harvest" scheme="dark" />).container.innerHTML).toBe('');
     osMotion(false);
     act(() => setMotionChoice('reduced'));
-    expect(render(<Ambient theme="harvest" />).container.innerHTML).toBe('');
+    expect(render(<Ambient theme="harvest" scheme="dark" />).container.innerHTML).toBe('');
   });
 
   it('reads a damaged saved value as every theme on', () => {
     localStorage.setItem('toil-ui.particles', '["starship"]');
     osMotion(false);
     fakeCanvas();
-    expect(render(<Ambient theme="starship" />).container.querySelector('canvas')).not.toBeNull();
+    expect(render(<Ambient theme="starship" scheme="dark" />).container.querySelector('canvas')).not.toBeNull();
     resetParticlesChoice();
     localStorage.setItem('toil-ui.particles', '{"starship":"no"}');
-    expect(render(<Ambient theme="starship" />).container.querySelector('canvas')).not.toBeNull();
+    expect(render(<Ambient theme="starship" scheme="dark" />).container.querySelector('canvas')).not.toBeNull();
   });
 
   it('shows in Settings only for a theme with particles, and switching it off takes them away', async () => {
@@ -319,5 +350,35 @@ describe('Particles and ambient effects, per theme (#348)', () => {
     await userEvent.click(screen.getByRole('checkbox', { name: 'Reduce motion and effects' }));
     expect(container.ownerDocument.querySelector('.ambient')).toBeNull();
     expect(screen.getByText(/Reduce motion and effects is ticked below, so no particles show/)).toBeTruthy();
+  });
+});
+
+describe('useResolvedScheme', () => {
+  it('returns a picked scheme as it is, and follows the operating system for system', () => {
+    let dark = false;
+    const listeners = new Set<() => void>();
+    window.matchMedia = ((query: string) => ({
+      get matches() {
+        return query.includes('dark') ? dark : false;
+      },
+      media: query,
+      addEventListener: (_: string, fn: () => void) => listeners.add(fn),
+      removeEventListener: (_: string, fn: () => void) => listeners.delete(fn),
+    })) as unknown as typeof window.matchMedia;
+
+    expect(renderHook(() => useResolvedScheme('light')).result.current).toBe('light');
+    expect(renderHook(() => useResolvedScheme('dark')).result.current).toBe('dark');
+    const system = renderHook(() => useResolvedScheme('system'));
+    expect(system.result.current).toBe('light');
+    act(() => {
+      dark = true;
+      listeners.forEach((fn) => fn());
+    });
+    expect(system.result.current).toBe('dark');
+    act(() => {
+      dark = false;
+      listeners.forEach((fn) => fn());
+    });
+    expect(system.result.current).toBe('light');
   });
 });

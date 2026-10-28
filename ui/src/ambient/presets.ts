@@ -2,7 +2,11 @@
  * Each game theme's particles (#271), on the shared engine (./engine.ts).
  * Plain has none, by design. Every preset is sparse, faint and slow, and the
  * canvas sits behind the page, so a particle passes behind text rather than
- * over it and never over a panel. Colours are the themes' own.
+ * over it and never over a panel. Colours are the themes' own, drawn for both
+ * of its schemes: each preset lists them per scheme (the one the theme opens in
+ * is the original, the other the same hues deepened or lightened to show on
+ * that scheme's page), and the engine hands the resolved scheme's list to
+ * `sprites`.
  *
  * - Crate: dust motes turning in the accent's glow at the top of the page,
  *   brighter inside the glow that theme.css draws in the same place.
@@ -60,12 +64,18 @@ export const crate: Preset = {
   alpha(p, { w, h }) {
     return lifeFade(p) * (0.12 + 0.43 * glowAt(p.x, p.y, w, h));
   },
-  sprites: (make) => [make(8, glow('232, 234, 237', 0.18)), make(8, glow('194, 224, 255', 0.18))],
+  colors: {
+    dark: ['232, 234, 237', '194, 224, 255'],
+    light: ['90, 98, 112', '27, 102, 196'],
+  },
+  sprites: (make, c) => [make(8, glow(c[0]!, 0.18)), make(8, glow(c[1]!, 0.18))],
   draw: (ctx, p, s) => stamp(ctx, s[p.kind], p),
 };
 
-/** Harvest's pixel leaf, 5 by 4, in its own colours. */
-function leaf(fill: string, vein: string) {
+/** Harvest's pixel leaf, 5 by 4, in its own colours (each `"r, g, b"`). */
+function leaf(fillRgb: string, veinRgb: string) {
+  const fill = `rgb(${fillRgb})`;
+  const vein = `rgb(${veinRgb})`;
   return (ctx: CanvasRenderingContext2D, size: number) => {
     const u = size / 5;
     const rows = ['..XX.', '.XXXX', 'XVVX.', '.X...'];
@@ -107,12 +117,17 @@ export const harvest: Preset = {
     return p.y > -16 && p.y < h + 16 && p.x > -16 && p.x < w + 16;
   },
   alpha: (p) => (p.kind === 3 ? 0.55 : 0.5),
-  sprites: (make) => [
-    make(10, leaf('#4f9a2a', '#2f6b1f')),
-    make(10, leaf('#c9932a', '#8a5226')),
-    make(10, leaf('#b8541c', '#7a2e0e')),
+  // Green, amber and rust leaves as fill then vein, then the pollen.
+  colors: {
+    light: ['79, 154, 42', '47, 107, 31', '201, 147, 42', '138, 82, 38', '184, 84, 28', '122, 46, 14', '214, 164, 30'],
+    dark: ['127, 196, 84', '79, 138, 50', '224, 176, 72', '160, 110, 50', '214, 110, 56', '150, 70, 30', '240, 205, 80'],
+  },
+  sprites: (make, c) => [
+    make(10, leaf(c[0]!, c[1]!)),
+    make(10, leaf(c[2]!, c[3]!)),
+    make(10, leaf(c[4]!, c[5]!)),
     make(4, (ctx, s) => {
-      ctx.fillStyle = '#e0b52c';
+      ctx.fillStyle = `rgb(${c[6]})`;
       ctx.fillRect(0, 0, s, s);
     }),
   ],
@@ -170,18 +185,23 @@ export const starship: Preset = {
     const pulse = Math.max(0, Math.sin((p.age / p.life) * TAU * 2 + p.seed * TAU));
     return lifeFade(p, 0.15) * (0.15 + 0.6 * pulse ** 3);
   },
-  sprites: (make) => [
+  // The glow and streak body, the star's cross and the streak's head, the streak's tail.
+  colors: {
+    dark: ['127, 227, 255', '230, 241, 255', '54, 214, 255'],
+    light: ['0, 112, 143', '16, 48, 80', '0, 140, 180'],
+  },
+  sprites: (make, c) => [
     make(12, (ctx, s) => {
-      glow('127, 227, 255', 0.12)(ctx, s);
-      ctx.fillStyle = 'rgba(230, 241, 255, 0.85)';
+      glow(c[0]!, 0.12)(ctx, s);
+      ctx.fillStyle = `rgba(${c[1]}, 0.85)`;
       ctx.fillRect(s / 2 - 0.5, 1, 1, s - 2);
       ctx.fillRect(1, s / 2 - 0.5, s - 2, 1);
     }),
     make(160, (ctx, s) => {
       const g = ctx.createLinearGradient(0, 0, s, 0);
-      g.addColorStop(0, 'rgba(54, 214, 255, 0)');
-      g.addColorStop(0.85, 'rgba(127, 227, 255, 0.8)');
-      g.addColorStop(1, 'rgba(230, 241, 255, 1)');
+      g.addColorStop(0, `rgba(${c[2]}, 0)`);
+      g.addColorStop(0.85, `rgba(${c[0]}, 0.8)`);
+      g.addColorStop(1, `rgba(${c[1]}, 1)`);
       ctx.fillStyle = g;
       ctx.fillRect(0, s / 2 - 1, s, 2);
     }),
@@ -235,11 +255,16 @@ export const realm: Preset = {
     const flicker = 0.75 + 0.25 * Math.sin(view.t * 9 + p.seed * 40);
     return lifeFade(p, 0.25) * 0.7 * flicker;
   },
-  sprites: (make) => [
-    make(10, glow('214, 98, 24', 0.22)),
+  // An ember, then a flake of ash.
+  colors: {
+    light: ['214, 98, 24', '93, 85, 75'],
+    dark: ['240, 130, 50', '189, 174, 146'],
+  },
+  sprites: (make, c) => [
+    make(10, glow(c[0]!, 0.22)),
     make(6, (ctx) => {
       // A flake of ash: a small, uneven grey scrap.
-      ctx.fillStyle = '#5d554b';
+      ctx.fillStyle = `rgb(${c[1]})`;
       ctx.beginPath();
       ctx.moveTo(1, 2);
       ctx.lineTo(4, 0.5);
@@ -282,9 +307,14 @@ export const sprawl: Preset = {
     return p.y < h + 40 && p.x < w + 40;
   },
   alpha: (p) => (p.kind === 1 ? 0.28 : 0.22) * (0.6 + 0.4 * p.seed),
-  sprites: (make) => [
-    ['63, 240, 255', '234, 246, 255'],
-    ['255, 46, 136', '255, 200, 225'],
+  // Cyan then magenta, each as its streak and its bright tip.
+  colors: {
+    dark: ['63, 240, 255', '234, 246, 255', '255, 46, 136', '255, 200, 225'],
+    light: ['0, 120, 145', '10, 40, 70', '184, 15, 98', '90, 8, 60'],
+  },
+  sprites: (make, c) => [
+    [c[0]!, c[1]!],
+    [c[2]!, c[3]!],
   ].map(([rgb, tip]) =>
     make(32, (ctx, s) => {
       // A streak down the middle of the sprite, fading in from its tail to a bright tip.
@@ -345,10 +375,11 @@ export const frontier: Preset = {
   alpha(p) {
     return p.kind === 0 ? lifeFade(p, 0.15) * 0.6 : lifeFade(p, 0.3) * 0.55;
   },
-  sprites: (make) => [
-    make(6, glow('110, 78, 40', 0.45)),
-    make(64, glow('253, 250, 243', 0.15)),
-  ],
+  colors: {
+    light: ['110, 78, 40', '253, 250, 243'],
+    dark: ['205, 185, 152', '214, 204, 184'],
+  },
+  sprites: (make, c) => [make(6, glow(c[0]!, 0.45)), make(64, glow(c[1]!, 0.15))],
   draw: (ctx, p, s) => stamp(ctx, s[p.kind], p),
 };
 
@@ -382,7 +413,11 @@ export const overworld: Preset = {
     const pulse = 0.65 + 0.35 * Math.sin(t * 3 + p.seed * 30);
     return lifeFade(p, 0.2) * (p.kind === 0 ? 0.55 : 0.45) * pulse;
   },
-  sprites: (make) => [make(12, glow('190, 255, 200', 0.25)), make(8, glow('242, 201, 76', 0.25))],
+  colors: {
+    dark: ['190, 255, 200', '242, 201, 76'],
+    light: ['26, 122, 74', '138, 85, 0'],
+  },
+  sprites: (make, c) => [make(12, glow(c[0]!, 0.25)), make(8, glow(c[1]!, 0.25))],
   draw: (ctx, p, s) => stamp(ctx, s[p.kind], p),
 };
 

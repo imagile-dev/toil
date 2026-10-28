@@ -10,7 +10,9 @@
    warehouse kept to the words, the crate's art and the dust. Text that sits
    straight on the page keeps 4.5:1 at the brightest point behind it, worked
    out from the colours: at the glow's peak, under a grid line, muted text is
-   5.8:1 and danger 5.6:1 (docs/decisions/472-crate-blue.md). */
+   5.8:1 and danger 5.6:1 (docs/decisions/472-crate-blue.md). In the light
+   scheme (#507) the margins are thinner: muted 5.0:1, danger 4.6:1 and ok
+   4.5:1, so turn the light glow or grid up only with those in hand. */
 
 @import '@fontsource/ibm-plex-sans/400.css';
 @import '@fontsource/ibm-plex-sans/600.css';

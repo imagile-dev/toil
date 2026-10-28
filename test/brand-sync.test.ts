@@ -224,9 +224,11 @@ describe("Crate wears the site's blue", () => {
     expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(/i);
   });
 
-  it("draws its dust in its ink and its highlight", () => {
+  it("draws its dust in its ink and its highlight, in the dark scheme the site wears", () => {
     const rgb = (key: string) => hexToRgb(crate.schemes.dark![key]!).join(', ');
-    expect(read('ui/src/ambient/presets.ts')).toContain(`sprites: (make) => [make(8, glow('${rgb('ink')}', 0.18)), make(8, glow('${rgb('link')}', 0.18))]`);
+    const presets = read('ui/src/ambient/presets.ts');
+    expect(presets).toContain(`dark: ['${rgb('ink')}', '${rgb('link')}'],`);
+    expect(presets).toContain(`sprites: (make, c) => [make(8, glow(c[0]!, 0.18)), make(8, glow(c[1]!, 0.18))]`);
   });
 
   // The art was recoloured from the warm originals (#472): a colour in Crate's SVGs is a

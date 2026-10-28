@@ -83,23 +83,20 @@ function block(selector: string, scheme: Scheme, tokens: Record<Token, string>):
 
 /**
  * The custom properties for one theme. The first scheme a theme lists is its
- * default. With a second, `data-scheme` picks one, and `system` follows the
- * operating system's preference.
+ * default; `data-scheme` picks the second, and `system` follows the operating
+ * system's preference.
  */
 export function tokenCss(theme: ThemeManifest): string {
   const root = `:root[data-theme="${theme.name}"]`;
   const schemes = Object.entries(theme.schemes) as [Scheme, Record<Token, string>][];
-  const [first, second] = schemes;
+  const [[name, tokens], [other, otherTokens]] = schemes as [[Scheme, Record<Token, string>], [Scheme, Record<Token, string>]];
   const f = theme.fonts;
-  const out = [
+  return [
     `${root} {\n  --font-body: ${f.body};\n  --font-display: ${f.display};\n  --font-mono: ${f.mono};\n  --radius: ${theme.radius};\n}`,
-    block(root, first![0], first![1]),
-  ];
-  if (second) {
-    out.push(block(`${root}[data-scheme="${second[0]}"]`, second[0], second[1]));
-    out.push(`@media (prefers-color-scheme: ${second[0]}) {\n${block(`${root}[data-scheme="system"]`, second[0], second[1])}\n}`);
-  }
-  return out.join('\n');
+    block(root, name, tokens),
+    block(`${root}[data-scheme="${other}"]`, other, otherTokens),
+    `@media (prefers-color-scheme: ${other}) {\n${block(`${root}[data-scheme="system"]`, other, otherTokens)}\n}`,
+  ].join('\n');
 }
 
 export const themeNamed = (name: string) => THEMES.find((t) => t.name === name) ?? THEMES.find((t) => t.name === DEFAULT_THEME)!;

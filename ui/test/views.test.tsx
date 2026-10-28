@@ -1170,8 +1170,8 @@ describe('themes', () => {
     await open('#/dossier/card-payments');
     const before = screen.getAllByRole('button').map((b) => b.textContent);
     expect(document.documentElement.dataset.theme).toBe('crate');
-    // Every theme has a light and a dark scheme (#507), so Appearance is there in Crate too; its crate stars in the empty state.
-    expect(screen.getByRole('button', { name: /Appearance/ })).toBeTruthy();
+    // Appearance lives in Settings and the palette, never the header (#507).
+    expect(screen.queryByRole('button', { name: /Appearance/ })).toBeNull();
     await openChat('card-payments');
     expect(document.querySelector('.ask img')?.getAttribute('alt')).toBe('');
     await userEvent.keyboard('{Escape}');
@@ -1179,13 +1179,20 @@ describe('themes', () => {
     await userEvent.click(screen.getByRole('button', { name: /Theme/ }));
     await userEvent.click(await screen.findByRole('option', { name: 'Plain' }));
     expect(document.documentElement.dataset.theme).toBe('plain');
-    expect(screen.getByRole('button', { name: /Appearance/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Appearance/ })).toBeNull();
     await openChat('card-payments');
     expect(document.querySelector('.ask img')).toBeNull();
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(screen.getAllByRole('button').map((b) => b.textContent).filter((t) => !/Plain|Crate|System/.test(t ?? ''))).toEqual(before.filter((t) => !/Plain|Crate|System/.test(t ?? '')));
     expect(JSON.parse(localStorage.getItem('toil-ui.theme')!)).toEqual({ theme: 'plain', scheme: 'system', wording: true, voice: true });
+  });
+
+  it('picks Appearance in Settings, not the header', async () => {
+    await open('#/settings/toil');
+    await userEvent.click(await screen.findByRole('button', { name: /Appearance/ }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Dark' }));
+    expect(document.documentElement.dataset.scheme).toBe('dark');
   });
 
   it('takes the theme and scheme from the address first', async () => {

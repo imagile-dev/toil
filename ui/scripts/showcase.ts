@@ -14,7 +14,7 @@ import { promptStyle } from '../server/agents/voices.ts';
 import { SCRIPTS, VOICED } from '../src/fixtures/agent.ts';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
 import { STANDARD, wordFor, type WordKey } from '../src/wording.ts';
-import { TERMS, type ThemeManifest } from '../src/theme-pack.ts';
+import { TERMS, type Scheme, type ThemeManifest } from '../src/theme-pack.ts';
 import plain from '../themes/plain/theme.json';
 import crate from '../themes/crate/theme.json';
 import harvest from '../themes/harvest/theme.json';
@@ -37,10 +37,16 @@ const MANIFESTS = [plain, crate, harvest, starship, realm, sprawl, frontier, ove
 
 export const DEFAULT_THEME = 'crate';
 
-/** The theme's colours as custom properties, for a card drawn in that theme: Plain in its light scheme, the rest in their only one. */
+/**
+ * The scheme the showcase draws a theme in: the one its theme.json lists
+ * first, its default (#507), so Crate stays the site's near-black and Plain
+ * stays light, whatever the visitor's system prefers.
+ */
+const showScheme = (t: ThemeManifest): Scheme => Object.keys(t.schemes)[0] as Scheme;
+
+/** The theme's colours as custom properties, for a card drawn in that theme, in its showScheme. */
 function tokens(t: ThemeManifest): string {
-  const scheme = t.schemes.light ?? t.schemes.dark;
-  if (!scheme) throw new Error(`ui/themes/${t.name}/theme.json has no colour scheme`);
+  const scheme = t.schemes[showScheme(t)];
   const vars: Record<string, string> = {
     bg: scheme.bg, surface: scheme.surface, raised: scheme.raised, ink: scheme.ink, muted: scheme.muted, line: scheme.line,
     accent: scheme.accent, 'accent-ink': scheme.accentInk, link: scheme.link, focus: scheme.focus,
@@ -111,6 +117,8 @@ export interface ShowTheme {
   name: string;
   label: string;
   description: string;
+  /** The scheme its cards and the framed app are drawn in. */
+  scheme: Scheme;
   tokens: string;
   swatch: string[];
   voice: boolean;
@@ -130,10 +138,11 @@ export const PROPOSAL = risk.proposals[0].title;
 export const STANDARD_PROMPT = layers(DEFAULT_THEME, false);
 
 export const THEMES: ShowTheme[] = MANIFESTS.map((t) => {
-  const scheme = (t.schemes.light ?? t.schemes.dark)!;
+  const scheme = t.schemes[showScheme(t)];
   return {
     name: t.name,
     label: t.label,
+    scheme: showScheme(t),
     description: t.description,
     tokens: tokens(t),
     swatch: [scheme.bg, scheme.surface, scheme.accent, scheme.ink],

@@ -14,15 +14,15 @@ Each one is on [the Toil UI page](https://imagile-dev.github.io/toil/ui/), the r
 | Theme | Looks like | Wording and voice | Accessibility bar |
 |---|---|---|---|
 | Plain | Light and quiet: Fredoka on headings and figures, IBM Plex Sans to read | None: always the standard text | WCAG 2.2 AA, strict |
-| Crate | The toil site's look, in its blue: the near-black, the drafting grid and the blue glow, the accent-to-highlight gradient, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
+| Crate | The toil site's look, in its blue: the near-black, or warm drafting paper in light, the drafting grid and the blue glow, the accent-to-highlight gradient, the crate in its hard hat | A terse warehouse dockworker | WCAG 2.2 AA, strict |
 | Harvest | A 16-bit farm: a pixel font, wooden sign panels, a sky that runs from dawn to dusk across the sprint | A patient farmhand | Decorative |
 | Starship | A bridge console: HUD frames, scanlines, a slow starfield, holo panels | A ship's log | Decorative |
 | Realm | A grimdark house ledger kept as a tabletop campaign: soot and iron around aged vellum, leather-bound panels with wax-sealed headings, a dungeon map at the foot of every page, a d20 that rolls while a view loads, an item's fields as a character sheet, the dependency graph as an engraved war-table map | A dungeon master | Decorative |
-| Sprawl | A terminal in a rain-soaked megacity: monospace type and a block cursor, faint scanlines and a CRT edge glow, neon magenta and cyan on deep blue-black, the skyline at the foot of the page, the dependency graph as a net map where a blocker is black ICE | A laconic street-level netrunner | Decorative |
+| Sprawl | A terminal in a rain-soaked megacity: monospace type and a block cursor, faint scanlines and a CRT edge glow, neon magenta and cyan on deep blue-black, or the city at dawn in light, the skyline at the foot of the page, the dependency graph as a net map where a blocker is black ICE | A laconic street-level netrunner | Decorative |
 | Frontier | Steampunk on the wild west frontier: brass, copper and riveted iron over sun-bleached desert wood, panels framed in riveted brass, pressure gauges on the tallies, the dependency graph as a railroad survey map | A dry telegraph operator | Decorative |
 | Overworld | A top-down 16-bit adventure: an overworld map at the page's edges, panels as dungeon rooms walled in stone, a pixel face for headings only, a heart meter for the sprint's days left and a gem counter for its points, chests that open as work is done, the dependency graph as a dungeon map where a blocker is a locked door | An old sage in a cave | Decorative |
 
-Every theme comes in a light and a dark scheme. Appearance, beside the theme picker, chooses one, or System (the default), which follows your operating system's light or dark setting. An address can pick one too, for example `?theme=realm&scheme=dark`. The welcome menu uses the same two schemes, picked for your terminal's background.
+Every theme comes in a light and a dark scheme. Appearance, in Settings, General, under the theme, or from the command palette, chooses one, or System (the default), which follows your operating system's light or dark setting. An address can pick one too, for example `?theme=realm&scheme=dark`. Appearance is kept in this browser only, never in toil's config; the welcome menu uses the same two schemes, picked for your terminal's background.
 
 Crate is the default, here and in the welcome menu a bare `toil` opens. The theme picker is in the header (in the Menu on a narrow screen) and in Settings, General. A `?theme=` in the address opens a view in that theme, for example `?theme=realm`, and this browser remembers it like a choice made in the picker.
 

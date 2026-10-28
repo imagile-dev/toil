@@ -119,8 +119,6 @@ export function readable(color: Rgb, bg: Rgb, ratio = MIN_CONTRAST): Rgb {
   return lighter ? [255, 255, 255] : [0, 0, 0];
 }
 
-export const rgbToHex = (rgb: Rgb) => `#${rgb.map((n) => n.toString(16).padStart(2, '0')).join('')}`;
-
 /**
  * The scheme a terminal of this background shows: the theme's own, authored in
  * its theme.json (#507). Nothing is derived any more; a scheme made up by

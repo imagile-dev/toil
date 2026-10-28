@@ -1,6 +1,7 @@
 /**
  * The theme, and how deep it goes (#283), at the top of Settings, General:
- * the same theme picker as the header's, then "Themed wording" (the theme's
+ * the same theme picker as the header's, then Appearance (System, Light or
+ * Dark; it lives here and in the command palette, not the header, #507), then "Themed wording" (the theme's
  * own microcopy) and "Themed agent voice" (its voice in the agent's prompt),
  * both on by default and kept in this browser beside the theme. Plain has no
  * wording or voice of its own, so with Plain both are off and say why. The
@@ -34,6 +35,17 @@ export function ThemeSetting() {
     <Card as="section" className="panel theme-setting" aria-labelledby="theme-setting">
       <h2 id="theme-setting">Theme</h2>
       <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
+      <Choice
+        label="Appearance"
+        value={choice.scheme}
+        onChange={(v) => choice.setScheme(v as typeof choice.scheme)}
+        options={[
+          { id: 'system', label: 'System' },
+          { id: 'light', label: 'Light' },
+          { id: 'dark', label: 'Dark' },
+        ]}
+      />
+      <p className="note">System follows your operating system's light or dark setting; every theme has both. Kept in this browser.</p>
       <p className="note">{theme.description}</p>
       <p className="note" id="theme-effects">
         {particles ? `Particles: ${particles}, ${!particlesOn ? 'off' : moving ? 'on' : 'off while motion is reduced'}.` : 'Particles: none.'}

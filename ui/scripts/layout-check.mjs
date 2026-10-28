@@ -17,7 +17,7 @@
 //     theme's full row fits on the sample data (#387; `headerFits`, off for
 //     real data, whose dossier names and links may genuinely fill the row);
 //   - an open modal whose backdrop doesn't dim the page;
-//   - and, in the strict themes (Plain light and dark, and Crate), any axe
+//   - and, in the strict themes (Plain and Crate, light and dark), any axe
 //     violation at WCAG 2.2 AA. The other themes' axe findings are reported,
 //     never failed (the maintainer's bar, AGENT_DECISIONS.md, #267).
 //
@@ -615,7 +615,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
   const reported = [];
   let checked = 0;
   const shoot = async (name) => shots && writeFileSync(join(shots, `${name}.png`), await page.screenshot());
-  const label = `${run.theme}${run.theme === 'plain' ? ` ${run.scheme}` : ''}`;
+  const label = `${run.theme} ${run.scheme}`;
   for (const route of routes) {
     await page.size(widths[0]);
     await page.goto(urlFor(run.theme, run.scheme, route));
