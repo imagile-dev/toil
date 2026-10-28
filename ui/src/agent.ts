@@ -108,6 +108,8 @@ export interface AdapterOption {
 export interface AdapterList {
   /** The adapter chosen in Settings, or null. */
   chosen: string | null;
+  /** The adapter last used for the asked dossier's Analyze (#494), when the list was asked for one. */
+  remembered?: string | null;
   options: AdapterOption[];
 }
 
@@ -149,8 +151,8 @@ export interface Agent {
    * last is the whole of it. Optional; the pane falls back to `ask`.
    */
   stream?(dossier: string, prompt: string, signal?: AbortSignal, style?: AskStyle, chat?: ChatTurn, extra?: AskExtra): AsyncIterable<Answer>;
-  /** The adapters a chat can switch between (#344). Absent: the chat has no switcher. */
-  adapters?(): Promise<AdapterList>;
+  /** The adapters a chat can switch between (#344), and, for a dossier, the one its Analyze last used (#494). Absent: the chat has no switcher. */
+  adapters?(dossier?: string): Promise<AdapterList>;
   /** What a chat started on, checked now (#305); null before its first question. Absent: chats record nothing. */
   session?(chat: string): Promise<ChatSession | null>;
   /** Starts the chat afresh on today's instructions (#305), keeping its log; refused while it answers. */

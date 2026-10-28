@@ -20,6 +20,7 @@ import { cacheData } from './agents/tools.ts';
 import { Cache, CacheError, wipeCacheFiles } from './cache.ts';
 import { areasFrom, settingsFrom } from './config.ts';
 import { createUiServer, type DossierRenames } from './server.ts';
+import { DossierAgents } from './agents/dossier-agents.ts';
 import { parseSettings, SettingsError, themesNotice, USAGE } from './settings.ts';
 import { fixtureStore, sqliteStore } from './store.ts';
 import { SyncService } from './sync.ts';
@@ -95,6 +96,8 @@ async function main(): Promise<number> {
   let cache: Cache | undefined;
   let sync: SyncService | undefined;
   let worklog: WorklogService | undefined;
+  // The agent last used for each dossier's Analyze (#494), in the data folder beside agent.json; the sample remembers nothing.
+  const dossierAgents = settings.sample ? undefined : new DossierAgents(settings.dataDir);
   if (!settings.sample) {
     try {
       cache = await Cache.open(settings.dataDir, { retentionDays: settings.retentionDays });
@@ -107,7 +110,7 @@ async function main(): Promise<number> {
     }
     worklog = new WorklogService({ cache: () => cache!, execute });
     const pages = worklog;
-    sync = new SyncService({ cache, execute, mapOwi, onFinished: () => pages.reconcileAll() });
+    sync = new SyncService({ cache, execute, mapOwi, onFinished: () => pages.reconcileAll(), onForget: (dossier) => dossierAgents?.forget(dossier) });
     // The cache pruned what outlived its retention as it opened; the pages follow it.
     await worklog.reconcileAll().catch((e: unknown) => process.stderr.write(`toil-ui: couldn't fold the worklog pages again: ${e instanceof Error ? e.message : String(e)}\n`));
   }
@@ -224,6 +227,7 @@ async function main(): Promise<number> {
             };
             step('its cache', () => cache!.rename(from, to));
             step('its assignments', () => assignments.queue.renameDossier(from, to));
+            step('its Analyze agent', () => dossierAgents?.rename(from, to));
             // The pages are folded again under the new name, and the old name's folder, which no dossier holds now, goes.
             await worklog!.reconcileAll().catch((e: unknown) => problems.push(`Toil UI couldn't fold the worklog again under ${to}: ${e instanceof Error ? e.message : String(e)}`));
             return problems;
@@ -233,6 +237,7 @@ async function main(): Promise<number> {
 
   const ui = createUiServer({
     ...(renames ? { renames } : {}),
+    ...(dossierAgents ? { dossierAgents } : {}),
     settings,
     store: cache ? sqliteStore(() => cache, execute, toil) : fixtureStore(),
     agent: host ?? fixtureAgent(),

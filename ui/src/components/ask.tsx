@@ -23,6 +23,7 @@
 
 import { createContext, useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Input, Label, Menu, MenuItem, MenuTrigger, Modal, ModalOverlay, Popover, TextField } from 'react-aria-components';
+import { defaultAgent, sourceHint } from '../agent-default.ts';
 import { ANALYZE, MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type AdapterList, type AdapterOption, type Answer, type HistoryTurn } from '../agent.ts';
 import { useData, useDerived } from '../data.ts';
 import { useSkins, useTheme, useThemeChoiceContext, useWords } from '../skins.tsx';
@@ -153,6 +154,8 @@ function useChat() {
   const next = useRef(0);
   const chatId = useRef(newChatId());
   const abort = useRef<AbortController | null>(null);
+  // Set while a question waits on the agent list, before its turn exists, so a second press in that gap is not a second run.
+  const asking = useRef(false);
   const turns = entries.filter((e): e is Turn => e.kind === 'turn');
   const busy = turns.some((t) => !t.done);
 
@@ -162,11 +165,22 @@ function useChat() {
 
   const refreshAdapters = () => {
     if (!agent.adapters) return;
-    agent.adapters().then(setAdapters, () => setAdapters(null));
+    agent.adapters(dossier.name).then(setAdapters, () => setAdapters(null));
   };
 
   const ask = async (prompt: string, shown = prompt) => {
-    if (busy || !prompt.trim()) return;
+    if (busy || asking.current || !prompt.trim()) return;
+    // Analyze can start before the strip has read the agents (the palette, the button): read them now, so the dossier's own is not missed (#494).
+    let list = adapters;
+    if (!list && !adapter && agent.adapters) {
+      asking.current = true;
+      try {
+        list = await agent.adapters(dossier.name).catch(() => null);
+      } finally {
+        asking.current = false;
+      }
+      if (list) setAdapters(list);
+    }
     const id = next.current++;
     const chat = { id: chatId.current, turn: turns.length + 1 };
     // The chat so far, so a follow-up continues from the last answer and a switched agent carries over (#344).
@@ -174,7 +188,10 @@ function useChat() {
     const history: HistoryTurn[] = turns
       .flatMap((t) => (t.done && !t.error && t.answer?.parts.length ? [{ prompt: t.prompt, answer: textOf(t.answer).slice(0, MAX_HISTORY_ANSWER + 1), by: t.answer.by }] : []))
       .slice(-MAX_HISTORY_TURNS);
-    const extra = { ...(adapter ? { adapter } : {}), ...(history.length ? { history } : {}) };
+    // A picked agent goes as it is; an unpicked chat sends the dossier's remembered one (#494), and the Settings default as before: by sending nothing.
+    const from = defaultAgent(list);
+    const sent = adapter ?? (from?.source === 'dossier' ? from.name : null);
+    const extra = { ...(sent ? { adapter: sent } : {}), ...(history.length ? { history } : {}) };
     const controller = new AbortController();
     abort.current = controller;
     const started = Date.now();
@@ -200,6 +217,8 @@ function useChat() {
             if (kept) update(id, { answer: { ...last, analysis: kept } });
           }
           past.refresh();
+          // A whole Analyze may have set the dossier's remembered agent (#494): read it again.
+          refreshAdapters();
         }
         // The finished answer says whether the chat has gone stale (#305): checked at every turn.
         if (last?.session) setSession(last.session);
@@ -394,7 +413,9 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
   };
 
   const options = chat.adapters?.options ?? [];
-  const current = options.find((o) => o.name === (chat.adapter ?? chat.adapters?.chosen));
+  const from = defaultAgent(chat.adapters);
+  const current = options.find((o) => o.name === (chat.adapter ?? from?.name ?? chat.adapters?.chosen));
+  const hint = sourceHint(chat.adapter !== null, from);
   const answering = current ? optionLabel(current) : (agent.label ?? 'the agent chosen in Settings');
   const usages = turns.flatMap((t) => (t.done && (t.answer?.usage ?? t.usage) ? [(t.answer?.usage ?? t.usage)!] : []));
   const status = last ? statusLine(last, words, now) : null;
@@ -416,7 +437,13 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
             <span>{h ? `${h.sprint.name}, day ${h.days.gone} of ${h.days.total}` : 'No sprint running'}</span>
             <span>
               Answered by{' '}
-              {agent.adapters ? <AgentSwitch label={answering} list={chat.adapters} current={chat.adapter} onPick={chat.switchTo} /> : <strong>{answering}</strong>}
+              {agent.adapters ? <AgentSwitch label={answering} list={chat.adapters} current={chat.adapter ?? from?.name ?? null} onPick={chat.switchTo} /> : <strong>{answering}</strong>}
+              {agent.adapters && hint && (
+                <span className="note agent-source" data-agent-source="">
+                  {' '}
+                  ({hint})
+                </span>
+              )}
             </span>
           </p>
         </div>
@@ -630,7 +657,7 @@ function AgentSwitch({ label, list, current, onPick }: { label: string; list: Ad
                           isDisabled={!o.ready}
                           aria-current={chosen ? true : undefined}
                           onPress={() => {
-                            onPick(o.name === list.chosen ? null : o.name, optionLabel(o));
+                            onPick(o.name, optionLabel(o));
                             close();
                           }}
                         >
@@ -660,7 +687,7 @@ function AgentSwitch({ label, list, current, onPick }: { label: string; list: Ad
                   })}
                 </ul>
               )}
-              <p className="note">Switching holds for this chat, from its next question. The default stays under Settings, Agent.</p>
+              <p className="note">Switching holds for this chat, from its next question. Analyze remembers the one it last ran on for this dossier; your default stays under Settings, Agent.</p>
             </>
           )}
         </Dialog>
@@ -698,7 +725,7 @@ export function AskInfo({ agentLabel }: { agentLabel: string | undefined }) {
             About these answers
           </Heading>
           <p>{voice}</p>
-          <p>Answered by {agentLabel ?? 'the agent chosen in Settings'}.</p>
+          <p>Answered by {agentLabel ?? 'the agent chosen in Settings'}. Analyze starts on the agent last used for this dossier, else your default under Settings, Agent.</p>
           <p>The agent only reads: its tools can't change a ticket, and anything it suggests comes back as a proposal for you to apply.</p>
           <p>
             Change the voice under <a href="#/settings/toil">Settings, General</a>, and add your own instructions or voice under <a href="#/settings/agent">Settings, Agent</a>.
