@@ -62,12 +62,12 @@ const UI_SPAWNER = 'ui/server/agents/install.ts';
 /** Where a fix may go outside ui/ and the per-area site data, which have rules of their own. */
 const OPEN_FOLDERS = ['src/', 'test/', 'docs/', 'skills/'];
 /** The one file at the repository root a fix may edit. */
-const OPEN_ROOT_FILES = new Set(['README.md']);
+const OPEN_ROOT_FILES = new Set(['readme.md']);
 /** Files at any depth that need npm to be right, which the agent doesn't have. */
 const NEEDS_NPM = new Set(['package.json', 'package-lock.json', 'npm-shrinkwrap.json', 'yarn.lock', 'pnpm-lock.yaml']);
 /** Triage's own rules and release output, refused whoever asks (principle 2). */
 const OWN_RULES = ['.github/', 'scripts/', '.claude/', 'dist/', 'docs/decisions/'];
-const OWN_RULE_FILES = new Set(['CLAUDE.md', 'AGENT_DECISIONS.md']);
+const OWN_RULE_FILES = new Set(['claude.md', 'agent_decisions.md']);
 const MAINTAINER_FIRST = ['site/', 'functions/', 'infra/'];
 
 /**
@@ -78,7 +78,7 @@ const MAINTAINER_FIRST = ['site/', 'functions/', 'infra/'];
  * and a weakened test is not missed. src/os/, src/shims/ and src/mcp/ are
  * flagged by folder.
  */
-const CORE_SAFETY = [
+export const CORE_SAFETY = [
   // The write gate, execute() and what a call resolves.
   'run', 'call-context', 'context', 'command', 'area', 'connection', 'deployments', 'dossier', 'check-dossier',
   // Secrets and the credential store.
@@ -89,15 +89,23 @@ const CORE_SAFETY = [
   'network', 'rest', 'api', 'api-path', 'http', 'passthrough', 'multipart', 'progress',
   // Limits, the audit log and config on disk.
   'bounds', 'audit', 'config', 'errors', 'envelope', 'shell-profile', 'runtime', 'renamed-areas',
+  // The bounds' other enforcers: wait's cap and glob matching.
+  'wait', 'wildmatch',
 ];
 const CORE_SAFETY_FILES = new Set([
   ...CORE_SAFETY.flatMap((name) => [`src/core/${name}.ts`, `src/core/${name}.test.ts`]),
   'src/core/token-shapes.mjs', 'src/core/token-shapes.d.mts',
 ]);
-const SAFETY_ELSEWHERE_CORE = new Set([
+export const SAFETY_ELSEWHERE_CORE = new Set([
   'src/api.ts', 'src/node-context.ts', 'src/program.ts', 'docs/bounds.md', 'test/bounds.test.ts', 'test/parity.test.ts',
+  'src/core/time-limit.ts', 'src/core/time-limit.test.ts', 'src/welcome/rogue/save.ts',
+  // The contract, and the suites that guard it, triage's own rules and the repository's hygiene.
+  'docs/command-contract.json', 'docs/command-contract.md', 'test/contract.test.ts', 'test/triage.test.ts', 'test/triage-steps.test.ts',
+  'test/workflow-wiring.test.ts', 'test/merge-only.test.ts', 'test/repo-hygiene.test.ts',
 ]);
-const SAFETY_CORE_FOLDERS = ['src/os/', 'src/shims/', 'src/mcp/'];
+export const SAFETY_CORE_FOLDERS = [
+  'src/os/', 'src/shims/', 'src/mcp/', 'src/core/query/', 'src/connections/', 'src/skills/', 'src/setup/', 'src/feedback/', 'src/dossiers/',
+];
 
 /**
  * Toil UI's safety layer: whatever decides what its server, its agent and
@@ -111,16 +119,20 @@ const SAFETY_ELSEWHERE_UI = new Set([
   'ui/src/config.ts', 'ui/test/server.test.ts', 'ui/test/registry.test.ts', 'ui/test/config.test.ts', 'ui/test/themes.test.ts',
   'ui/test/package.test.ts', 'ui/test/install.test.ts', 'ui/test/setup.ts', 'ui/test/harness.ts',
 ]);
-export const isSafetyLayer = (path) =>
-  path.startsWith('ui/server/') || SAFETY_ELSEWHERE_UI.has(path) || /^ui\/themes\/[^/]+\/theme\.json$/.test(path)
-  || CORE_SAFETY_FILES.has(path) || SAFETY_ELSEWHERE_CORE.has(path) || SAFETY_CORE_FOLDERS.some((folder) => path.startsWith(folder));
+export const isSafetyLayer = (original) => {
+  // Compared lowercase: on Windows and macOS `Src/Core/Run.ts` is run.ts.
+  const path = original.toLowerCase();
+  return path.startsWith('ui/server/') || SAFETY_ELSEWHERE_UI.has(path) || /^ui\/themes\/[^/]+\/theme\.json$/.test(path)
+    || CORE_SAFETY_FILES.has(path) || SAFETY_ELSEWHERE_CORE.has(path) || SAFETY_CORE_FOLDERS.some((folder) => path.startsWith(folder));
+};
 
 const wellFormed = (path) => !(path.includes('\\') || path.split('/').some((part) => part === '..' || part === '.' || part === '') || path.startsWith('/'));
-const basename = (path) => path.slice(path.lastIndexOf('/') + 1);
+const basename = (path) => path.slice(path.lastIndexOf('/') + 1).toLowerCase();
 
 /** Whether a path is one of Toil UI's own files that a triage fix may touch. */
 export function isUi(path) {
-  return wellFormed(path) && path !== UI_SPAWNER && !NEEDS_NPM.has(basename(path)) && UI_FOLDERS.some((folder) => path.startsWith(folder));
+  const lower = path.toLowerCase();
+  return wellFormed(path) && lower !== UI_SPAWNER && !NEEDS_NPM.has(basename(path)) && UI_FOLDERS.some((folder) => lower.startsWith(folder));
 }
 
 /** The area a path belongs to, or undefined when it isn't one area's own file. */
@@ -139,12 +151,14 @@ const isCore = (path) => path.startsWith('src/') && !path.startsWith('src/areas/
  */
 export function refusal(path, areas) {
   if (!wellFormed(path)) return 'not a plain path inside the repository';
-  if (OWN_RULE_FILES.has(path) || OWN_RULES.some((folder) => path.startsWith(folder))) return "triage's own rules and release output; agents never loosen the rules that constrain them";
+  // Prefixes and file names are compared lowercase, so a differently cased path can't slip past on a case-insensitive disk.
+  const lower = path.toLowerCase();
+  if (OWN_RULE_FILES.has(lower) || OWN_RULES.some((folder) => lower.startsWith(folder))) return "triage's own rules and release output; agents never loosen the rules that constrain them";
   if (NEEDS_NPM.has(basename(path))) return 'needs npm (a dependency or lockfile); triage cannot run it, so a maintainer makes this change';
   if (areaOf(path, areas)) return undefined;
-  if (MAINTAINER_FIRST.some((folder) => path.startsWith(folder))) return 'the site and the Azure Function backend are for a maintainer to review first';
-  if (path.startsWith('ui/')) return isUi(path) ? undefined : "Toil UI's spawner, packaging and tooling";
-  if (OPEN_FOLDERS.some((folder) => path.startsWith(folder)) || OPEN_ROOT_FILES.has(path)) return undefined;
+  if (MAINTAINER_FIRST.some((folder) => lower.startsWith(folder))) return 'the site and the Azure Function backend are for a maintainer to review first';
+  if (lower.startsWith('ui/')) return isUi(path) ? undefined : "Toil UI's spawner, packaging and tooling";
+  if (OPEN_FOLDERS.some((folder) => lower.startsWith(folder)) || OPEN_ROOT_FILES.has(lower)) return undefined;
   return 'not a place triage works';
 }
 

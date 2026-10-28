@@ -18,7 +18,7 @@ name: Triage
 #           credential (the workflow token reads; the OAuth token lives only in its
 #           own step). It leaves its decision, comment and files as an artifact.
 #   finish  one per issue, on a fresh runner with main's scripts only: checks the
-#           decision and every path, comments, labels and closes, and for a fix
+#           decision and every path, comments, labels, closes a denial or duplicate, and for a fix
 #           pushes `claude/issue-<n>` and opens a draft PR. It never runs the fix's
 #           code. Its push token has no `workflows` permission.
 #
@@ -240,10 +240,11 @@ jobs:
                  when you cannot confirm a reported bug from the code and need more information (say exactly
                  what you need); and when the change can only be made by running something you cannot run:
                  `package.json`, any lockfile, or a new dependency (you have no npm, so you cannot resolve
-                 it or check the 14-day age rule). Your comment says what you would change and why, or what
+                 it or check the 14-day age rule); and a brand-new area (`src/areas/<new>/`), because its
+                 site data under `site/` needs a maintainer's review. Your comment says what you would change and why, or what
                  you need to know, so the maintainer can act on it. Make no edits.
                - **deny**: only what directly violates CLAUDE.md's principles, and your comment quotes the
-                 principle. Examples: telemetry, logging or calling home anywhere (principle 9); a native
+                 principle. Examples: telemetry, sending logs off the machine, or calling home (principle 9); a native
                  binary or a spawned executable beyond the ones the No Executables section allows
                  (principle 1); loosening the write gate, the secrets rules or a bound (principle 2);
                  something the Authentication Bar in the `integrations` skill rules out; breaking the
@@ -273,7 +274,9 @@ jobs:
                "What the safety-layer edits change" naming each file and saying plainly what it loosened or
                widened (a command added to a list, a header relaxed, an env variable passed on, a bound
                raised), or that it loosened nothing. The workflow puts the list of these files at the top
-               of the draft; your section says what they do.
+               of the draft; your section says what they do. The workflow's `isSafetyLayer` list
+               (`scripts/triage/changes.mjs`) is authoritative, not the summary above: if it flags a file
+               you edited, say what that edit changes.
 
                The rules in CLAUDE.md that bind a fix: for core, the principles, No Executables, Secrets,
                Bounds, the Output Contract and the command contract (a suspected bug in recorded behavior

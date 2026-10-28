@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { extract, inspect } from '../scripts/triage/archive.mjs';
 import { ustar } from './harness/ustar.js';
 import { CLAIMED, QUEUED, claim, claimRank, gh, waiting, type LabelEvent } from '../scripts/triage/cap.mjs';
-import { areaOf, check, isUi, isSafetyLayer, parseRaw, refusal } from '../scripts/triage/changes.mjs';
+import { CORE_SAFETY, SAFETY_CORE_FOLDERS, SAFETY_ELSEWHERE_CORE, areaOf, check, isUi, isSafetyLayer, parseRaw, refusal } from '../scripts/triage/changes.mjs';
 import { agentRan, defuseClosingKeywords, parseDecision } from '../scripts/triage/decision.mjs';
 import { areas, labels } from '../scripts/triage/labels.mjs';
 import { MAX_LENGTH, MAX_TITLE, parseTerms, redact, redactTitle, tokenShaped } from '../scripts/triage/redact.mjs';
@@ -363,18 +363,40 @@ describe('the path check', () => {
       'src/core/git.ts', 'src/core/git-repo.ts', 'src/core/network.ts', 'src/core/rest.ts', 'src/core/api.ts', 'src/core/bounds.ts', 'src/core/audit.ts', 'src/core/config.ts',
       'src/core/passthrough.ts', 'src/core/token.ts', 'src/core/token-shapes.mjs', 'src/os/windows-sspi.ts', 'src/shims/no-spawn.ts', 'src/mcp/server.ts', 'src/mcp/anything-new.ts',
       'docs/bounds.md', 'test/bounds.test.ts', 'test/parity.test.ts', 'src/api.ts',
+      'src/core/wait.ts', 'src/core/time-limit.ts', 'src/core/wildmatch.ts', 'src/core/query/parse.ts', 'src/welcome/rogue/save.ts', 'src/connections/add.ts', 'src/skills/folders.ts',
+      'src/setup/commands.ts', 'src/feedback/command.ts', 'src/dossiers/build.ts', 'docs/command-contract.json', 'docs/command-contract.md', 'test/contract.test.ts', 'test/triage.test.ts',
+      'test/triage-steps.test.ts', 'test/workflow-wiring.test.ts', 'test/merge-only.test.ts', 'test/repo-hygiene.test.ts',
     ];
     expect(flagged.filter((p) => !isSafetyLayer(p))).toEqual([]);
-    expect(['src/core/paginate.ts', 'src/core/query/parse.ts', 'src/areas/jira/commands.ts', 'src/registry.ts', 'skills/toil/core.md', 'test/triage.test.ts'].some(isSafetyLayer)).toBe(false);
+    expect(['src/core/paginate.ts', 'src/areas/jira/commands.ts', 'src/registry.ts', 'skills/toil/core.md', 'test/site-commands.test.ts'].some(isSafetyLayer)).toBe(false);
     const result = check([edit('src/core/run.ts'), edit('src/core/paginate.ts'), edit('src/mcp/server.ts'), edit('src/areas/jira/a.ts')], known);
     expect(result).toMatchObject({ ok: true, core: true, areas: ['jira'], safety: ['src/core/run.ts', 'src/mcp/server.ts'] });
   });
 
   it('every file the safety list names under src/core exists, so the list cannot rot quietly', () => {
-    for (const name of ['run', 'call-context', 'keychain', 'secret-input', 'files', 'local-path', 'git', 'git-repo', 'network', 'rest', 'api', 'bounds', 'audit', 'config', 'passthrough', 'token']) {
+    for (const name of CORE_SAFETY) {
       expect(existsSync(join(process.cwd(), 'src', 'core', `${name}.ts`)), name).toBe(true);
     }
+    for (const path of SAFETY_ELSEWHERE_CORE) expect(existsSync(join(process.cwd(), path)) || path === 'src/core/time-limit.ts', path).toBe(true);
+    for (const folder of SAFETY_CORE_FOLDERS) expect(existsSync(join(process.cwd(), folder)), folder).toBe(true);
   });
+
+  it('flags every src/ path docs/bounds.md and src/core/bounds.ts name, so the list cannot fall behind the bounds', () => {
+    const named = new Set<string>();
+    for (const file of ['docs/bounds.md', 'src/core/bounds.ts']) {
+      for (const [path] of readFileSync(join(process.cwd(), file), 'utf8').matchAll(/src\/[A-Za-z0-9_./-]+\.(?:ts|mjs)/g)) named.add(path);
+    }
+    expect(named.size).toBeGreaterThan(10);
+    expect([...named].filter((path) => !isSafetyLayer(path))).toEqual([]);
+  });
+
+  it.each(['docs/Decisions/x.md', 'ui/server/agents/Install.ts', 'ui/src/Package.json', 'src/core/Run.ts', 'Claude.md', '.GitHub/workflows/triage.yml'])(
+    'matches %s without regard to case, so a differently cased path does not slip past',
+    (path) => {
+      const refused = refusal(path, known) !== undefined;
+      expect(refused || isSafetyLayer(path)).toBe(true);
+    },
+  );
 
   it('refuses a symlink, a submodule, and an empty change; allows deletes of open files', () => {
     expect(check([edit('src/areas/jira/a.ts', '120000')], known).ok).toBe(false);
@@ -545,10 +567,10 @@ describe('waiting() and needs-human', () => {
 });
 
 describe('titles posted outside GitHub (the Discord workflow)', () => {
-  const terms = parseTerms('acmebank\nacme-int.corp');
+  const terms = parseTerms('acmebank\nacme-int.example');
 
   it('redacts a title the way triage redacts an issue: denylisted words, internal hosts, private IPs and tokens', () => {
-    expect(redactTitle('AcmeBank outage on jira.acme-int.corp from 10.1.2.3', terms)).toBe('[org] outage on jira.imagile.dev from [redacted-ip]');
+    expect(redactTitle('AcmeBank outage on jira.acme-int.example from 10.1.2.3', terms)).toBe('[org] outage on jira.imagile.dev from [redacted-ip]');
     expect(redactTitle(`login fails with ${SAMPLES['github-token']}`, terms)).not.toContain(SAMPLES['github-token']!);
     expect(redactTitle(`login fails with ${SAMPLES['github-token']}`, terms)).toContain('[redacted-secret]');
   });

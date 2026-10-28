@@ -57,12 +57,12 @@ gets made again in the next place it applies.
    skill, the docs, the tests and Toil UI (`ui/`, but not its spawner, packaging or tooling)
    (the maintainer's call, 2026-10-28, widening #487's of 2026-10-26). It leaves the
    website (`site/`) and the Azure Function backend (`functions/`, `infra/`) for a maintainer
-   to review first, and so anything it cannot confirm or cannot do without running npm: it
+   to review first, along with anything it cannot confirm or cannot do without running npm: it
    comments and labels the issue `needs-maintainer`, and the issue stays open. It denies and
    closes only what directly violates these principles, quoting the one. It never edits the
-   rules that constrain it: `.github/`, `scripts/`, CLAUDE.md, `.claude/`, `dist/` and the
-   decisions files. Edits to a safety layer (toil's write gate, secrets, files, network,
-   bounds, audit and config code, the MCP server, and Toil UI's gates, allowlists and
+   rules that constrain it: `.github/`, `scripts/`, CLAUDE.md, `.claude/`, `dist/`, the
+   decisions files, and anything at the repository root but `README.md`. Edits to a safety
+   layer (toil's write gate, secrets, files, network, bounds, audit and config code, the MCP server, and Toil UI's gates, allowlists and
    launchers) are allowed and are listed at the top of the draft PR (`automation` skill).
    On a PR the maintainer is driving through Claude Code, the maintainer's decision is
    standing (2026-10-19): the agent turns on auto-merge, so the PR lands once the
