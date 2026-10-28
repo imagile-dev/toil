@@ -8,7 +8,7 @@ import { url, repoUrl } from '../lib/url';
 // The two ways to start, copied from README.md; test/start-commands.test.ts keeps them identical.
 import start from '../data/start.json';
 
-const { cloneBuild, cloneManual, cloneQuick, npmCommands, npmPackageUrl } = start;
+const { agentCommands, agentPrompt, cloneBuild, cloneManual, cloneQuick, npmCommands, npmPackageUrl } = start;
 
 const teaser = principles.slice(0, 3);
 
@@ -64,7 +64,26 @@ const teaser = principles.slice(0, 3);
           </li>
         ))}
       </ol>
-      <p class="start__sub">Two ways to run it. Both need Node.js 24.22.1 or later on 24.x, or 26.12.1 or later, on Windows, macOS or Linux. <span class="start__beta">Beta</span> Commands, flags and output are stable, and any breaking change comes with a migration note.</p>
+      <article class="card start__agent" aria-labelledby="start-agent">
+        <span class="card-tag">Agent</span>
+        <h3 id="start-agent">Let your agent set it up</h3>
+        <ol class="start__agent-steps">
+          <li>Install toil, and its skill for your agent:
+            <pre class="start__code"><code>{agentCommands.map((c) => <span class="start__line"><span class="start__prompt" aria-hidden="true">$ </span>{c}</span>)}</code></pre>
+          </li>
+          <li>Paste this into your coding agent:
+            <div class="start__prompt-row">
+              <pre class="start__code"><code id="agent-prompt">{agentPrompt}</code></pre>
+              <button type="button" class="btn btn--ghost start__copy" data-copy="agent-prompt" hidden>Copy</button>
+            </div>
+          </li>
+        </ol>
+        <p>It asks about Toil UI first, creates your connections when you say yes, and leaves every secret to you.</p>
+        <p class="start__links">
+          <a class="tap" href={url('/docs/setup/')}>What it does <span aria-hidden="true">→</span></a>
+        </p>
+      </article>
+      <p class="start__sub">Or install by hand: two ways. Both need Node.js 24.22.1 or later on 24.x, or 26.12.1 or later, on Windows, macOS or Linux. <span class="start__beta">Beta</span> Commands, flags and output are stable, and any breaking change comes with a migration note.</p>
       <div class="start__ways">
         <article class="card start__way" aria-labelledby="start-npm">
           <span class="card-tag">npm</span>
@@ -291,6 +310,15 @@ const teaser = principles.slice(0, 3);
   }
   @media (min-width: 860px) { .paths { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-md); } }
   .start__sub { color: var(--color-muted); margin-bottom: var(--space-md); max-width: var(--measure); }
+  .start__agent { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; margin-bottom: var(--space-lg); }
+  .start__agent h3 { font-size: var(--text-xl); margin-top: var(--space-2xs); }
+  .start__agent p { color: var(--color-muted); font-size: var(--text-sm); }
+  .start__agent-steps { display: grid; gap: var(--space-sm); padding-left: 1.2rem; font-size: var(--text-sm); }
+  .start__agent-steps li { min-width: 0; }
+  .start__agent-steps .start__code { margin-top: var(--space-2xs); }
+  .start__prompt-row { display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--space-xs); margin-top: var(--space-2xs); }
+  .start__prompt-row .start__code { flex: 1 1 18rem; min-width: 0; margin: 0; }
+  .start__copy { min-height: 44px; }
 
   .start__ways { display: grid; gap: var(--space-md); }
   .start__way { display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
@@ -375,3 +403,22 @@ const teaser = principles.slice(0, 3);
 
   @media (min-width: 860px) { .teaser { grid-template-columns: repeat(3, 1fr); gap: var(--space-lg); } }
 </style>
+
+<script>
+  // The copy button is a convenience: it appears only where the clipboard exists,
+  // and the prompt is selectable text without it.
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
+    const source = document.getElementById(button.dataset.copy ?? '');
+    if (!source || !navigator.clipboard) continue;
+    button.hidden = false;
+    button.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(source.textContent ?? '');
+        button.textContent = 'Copied';
+      } catch {
+        button.textContent = 'Select and copy';
+      }
+      setTimeout(() => (button.textContent = 'Copy'), 2000);
+    });
+  }
+</script>

@@ -49,6 +49,7 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     input: z.object({
       name: z.string().describe('Connection name, e.g. corp-jira'),
       area: z.string().optional().describe('The area it connects to; asked for when left out'),
+      set: z.array(z.string()).optional().describe('A non-secret setting as key=value, repeatable. With it, nothing is asked and no secret is taken'),
     }),
     writes: false,
     writesLocal: true,
@@ -56,8 +57,9 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     args: [{ name: 'name', field: 'name', description: 'Connection name, e.g. corp-jira' }],
     options: [
       { flags: '--area <area>', field: 'area', description: 'The area it connects to (asked for when left out)' },
+      { flags: '--set <key=value>', field: 'set', description: 'A non-secret setting, repeatable (--set baseUrl=https://jira.example.com). Needs --area; asks nothing and takes no secret, which a person then enters with toil connections login' },
     ],
-    examples: [{ name: 'corp-jira', area: 'jira' }],
+    examples: [{ name: 'corp-jira', area: 'jira' }, { name: 'corp-jira', area: 'jira', set: ['baseUrl=https://jira.example.com'] }],
     run: async (input, ctx) => addConnection(ctx, areas, input),
   });
 
@@ -359,7 +361,7 @@ export interface AddOptions {
  * each secret, shows what it will save and saves only on a yes. Exported so
  * `dossiers onboard` sets a missing connection up through this same flow.
  */
-export async function addConnection(ctx: CommandContext<unknown>, areas: readonly AnyArea[], input: { name: string; area?: string | undefined }, options: AddOptions = {}) {
+export async function addConnection(ctx: CommandContext<unknown>, areas: readonly AnyArea[], input: { name: string; area?: string | undefined; set?: string[] | undefined }, options: AddOptions = {}) {
   const { config, secrets, prompt } = access(ctx);
   checkName(input.name);
   const path = config.files.global;
@@ -369,6 +371,7 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
       fix: `Run toil connections login ${input.name} to replace its secret, or toil connections remove ${input.name} first.`,
     });
   }
+  if (input.set !== undefined) return addFromFlags(ctx, areas, file, path, { name: input.name, area: input.area, set: input.set });
   if (!prompt) throw needsTerminal('add', input.name, input.area ? areaIn(areas, input.area) : undefined);
   const area = areaIn(areas, input.area ?? (await prompt.ask(`Area (${areas.map((a) => a.name).join(', ')})`, areas.length === 1 ? areas[0]!.name : undefined, 'area')));
 
@@ -407,6 +410,71 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
   }
   writeConfigFile(path, file);
   return { name: input.name, area: area.name, configFile: slashes(path), secrets: whereKept(kept) };
+}
+
+/**
+ * `connections add --set`: the non-secret settings come from flags, so an agent's
+ * shell, which has no terminal, can create the connection on the person's yes.
+ * It asks nothing and takes no secret: a secret key in `--set` is refused, and the
+ * result names `connections login`, where only the person types it. Writes stay
+ * off, as for any new connection. Like the prompted flow, the first connection to
+ * an area becomes its default. Nobody has ever approved a change ticket for a
+ * flag that does less than the form it replaces.
+ */
+function addFromFlags(
+  ctx: CommandContext<unknown>,
+  areas: readonly AnyArea[],
+  file: EditableConfig,
+  path: string,
+  input: { name: string; area: string | undefined; set: string[] },
+) {
+  if (!input.area) {
+    throw new ToilError('INVALID_INPUT', '--set needs --area, because nothing is asked.', { fix: `Run toil connections add ${input.name} --area <area> --set key=value.` });
+  }
+  const area = areaIn(areas, input.area);
+  const shape = area.connection.shape as Record<string, z.ZodType>;
+  const secretKeys: string[] = area.secrets ?? [];
+  const plain = Object.keys(shape).filter((k) => !secretKeys.includes(k)).join(', ');
+  const settings: Settings = {};
+  for (const pair of input.set) {
+    const at = pair.indexOf('=');
+    const key = at < 0 ? pair : pair.slice(0, at);
+    if (at < 0 || key === '') {
+      throw new ToilError('INVALID_INPUT', `--set takes key=value, not "${pair}".`, { fix: `Use --set <key>=<value>. ${area.name} settings: ${plain}.` });
+    }
+    if (secretKeys.includes(key)) {
+      throw new ToilError('INVALID_INPUT', `${key} is a secret, and a secret is never given as a flag. Nothing was saved.`, {
+        fix: `Create the connection without it, then have the person run toil connections login ${input.name}, or enter it in Toil UI's Settings.`,
+      });
+    }
+    if (!(key in shape)) {
+      throw new ToilError('INVALID_INPUT', `${area.name} connections have no setting named "${key}". Nothing was saved.`, { fix: `Its settings are: ${plain}.` });
+    }
+    settings[key] = coerce(shape[key]!, pair.slice(at + 1));
+  }
+  // The secrets are present as stand-ins so the rest of the connection is validated now; they are never stored.
+  const standIns = Object.fromEntries(secretKeys.map((k) => [k, 'stand-in']));
+  const parsed = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...standIns });
+  if (!parsed.success) {
+    const keys = [...new Set(parsed.error.issues.map((i) => String(i.path[0] ?? '')).filter(Boolean))];
+    throw new ToilError('INVALID_INPUT', `Those settings aren't a valid ${area.name} connection: check ${keys.join(', ')}. Nothing was saved.`, {
+      fix: `Run toil connections add ${input.name} --area ${area.name} again with those --set values.`,
+      details: parsed.error.issues.map((i) => ({ path: i.path, message: i.message })),
+    });
+  }
+  file.connections[input.name] = { area: area.name, ...settings };
+  const others = Object.keys(file.connections).filter((n) => n !== input.name && file.connections[n]!.area === area.name);
+  if (others.length === 0 && typeof file.defaults[area.name]?.connection !== 'string') {
+    file.defaults[area.name] = { ...(file.defaults[area.name] ?? {}), connection: input.name };
+  }
+  writeConfigFile(path, file);
+  if (secretKeys.length > 0) {
+    ctx.warn({
+      code: 'SECRET_NEEDED',
+      message: `${input.name} has no ${secretKeys.join(', ')} yet. The person runs toil connections login ${input.name} in their own terminal, or enters it in Toil UI's Settings. Writes are off.`,
+    });
+  }
+  return { name: input.name, area: area.name, configFile: slashes(path), secrets: {}, secretNeeded: secretKeys, writes: false };
 }
 
 /**

@@ -42,7 +42,12 @@ gets made again in the next place it applies.
 2. **Safe by default when an agent is driving.** Reads are free. Anything that writes,
    to a database or an enterprise tool, needs a human's standing opt-in in config
    plus an explicit flag on the call. Agents never loosen the rules that constrain
-   them, and a person decides every merge. The same holds for agents working on this repository:
+   them, and a person decides every merge. An agent may set up a connection, on the
+   person's approval, with its non-secret settings (`toil connections add --area … --set
+   key=value`, the maintainer's call on #516, 2026-10-28); only a person enters a secret,
+   in their own terminal (`toil connections login`) or in Toil UI's Settings, so an agent
+   never sees, types, stores or moves one, and `writes` stays off until the person turns
+   it on. The same holds for agents working on this repository:
    they act only on feedback from its own people and named bots, stop after three
    pushed rounds with `needs-human`, and stay off any PR labelled `no-auto-fix`.
    The one exception: issues filed from outside (the site's feedback form and its
@@ -575,7 +580,9 @@ prompter are withheld from the context too. The only commands that see the whole
 `ctx.manage` (config, store, prompter); no area command can.
 
 A `cli-only` command is never an MCP tool: it prompts on a terminal (stdin is
-the protocol under MCP) or changes connections, which agents never do. It has no
+the protocol under MCP) or changes connections, which an agent does only for
+`connections add --area … --set key=value` on the person's yes (principle 2): its
+prompts, every secret and turning `writes` on stay the person's. It has no
 time limit, since it may be waiting on someone typing. An area command that must
 stay off MCP but keeps its connection and time limit, a delete, sets `mcp: false`.
 A command whose input decides whether it writes (the passthrough's method) sets

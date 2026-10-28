@@ -14,6 +14,7 @@ export const docsPath = [
     title: 'Get started',
     links: [
       { label: 'Install', href: '/docs/install/' },
+      { label: 'Set up with your agent', href: '/docs/setup/' },
       { label: 'The welcome menu', href: '/docs/welcome/' },
       { label: 'Your first dossier', href: '/docs/dossiers/#create' },
     ],
@@ -78,7 +79,7 @@ export const startPaths = [
     steps: [
       { label: 'Install toil', href: '/docs/install/' },
       { label: 'Add the skill', href: '/docs/install/#installing-this-skill' },
-      { label: 'Connect MCP', href: '/docs/mcp/#registering-it' },
+      { label: 'Ask it to set up toil', href: '/docs/setup/' },
     ],
   },
   {

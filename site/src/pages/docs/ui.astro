@@ -8,9 +8,9 @@ import pkg from '../../../../ui/package.json';
 import { repoUrl } from '../../lib/url';
 
 // Toil UI is its own package, so its reference is its README (ui/README.md),
-// which is also its npm page, rendered here. It is not in the toil skill: an
-// agent driving toil doesn't need it, and approving toil never means approving
-// the UI. The lead is the package's own description.
+// which is also its npm page, rendered here. The toil skill's setup.md may suggest
+// it, asking the person first (#516), but it never starts without their yes, and
+// approving toil never means approving the UI. The lead is the package's own description.
 ---
 
 <Layout title="Toil UI" description={pkg.description}>

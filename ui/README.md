@@ -22,9 +22,9 @@ npx @imagile-dev/toil-ui
 ```
 
 It needs Node 24.22.1 or later on 24.x, or 26.12.1 or later, as toil does, and installs one dependency, `@imagile-dev/toil`, at
-the exact version it was built with. Until a version shows on
-[npm](https://www.npmjs.com/package/@imagile-dev/toil-ui), run it from a clone of
-the repository:
+the exact version it was built with. It is published on
+[npm](https://www.npmjs.com/package/@imagile-dev/toil-ui). To run the checkout you
+are reading instead, build it from a clone of the repository:
 
 ```bash
 npm ci --ignore-scripts
@@ -35,7 +35,7 @@ node ui/dist/server/toil-ui.js
 It prints one URL and keeps running until you press Ctrl+C:
 
 ```text
-Toil UI 0.1.0-beta.1 (beta, local only), on toil 0.1.0-beta.1
+Toil UI <version> (beta, local only), on toil <version>
 Syncing through toil, read-only, with your own connections and dossiers. Only its Settings pages, and a dossier's name and description edited in place, change anything: toil's own connections and dossiers, when you ask. The worklog keeps its pages and your notes in its data folder, and writes anywhere else only when you export one. Feedback goes to Imagile only when you send it.
 The cache is /home/you/.toil-ui/cache/toil-ui.db, kept 30 days after each sync; toil-ui wipe deletes it.
 
@@ -57,7 +57,7 @@ nothing connected to a tracker.
 Until you have a dossier and it has synced once, the Dossiers view shows a short
 checklist in place of the empty page:
 
-1. **Connect a tracker** opens Settings, Connections at the add form.
+1. **Connect a tracker** opens Settings, Connections at the add form. If an agent following the toil skill's `setup.md` already created the connection, you only enter its secret here, on its row.
 2. **Create a dossier** opens Settings, Dossiers at Create a dossier.
 3. **Sync** starts the first sync, as the Sync panel's Sync now does.
 

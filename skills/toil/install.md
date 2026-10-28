@@ -4,6 +4,23 @@ description: Installing toil from npm or from a clone with no npm install, the t
 
 # Installing toil
 
+## The shortest way: let your agent set it up
+
+Three steps, the first two in a terminal:
+
+```bash
+npm install -g @imagile-dev/toil
+toil skill install --claude --allow-write
+```
+
+`--claude` is for Claude Code; `--agent codex` and `--agent github-copilot` are the
+others (**Installing this skill**, below). Then tell your agent: **Set up toil for me
+with its setup skill.** It follows `setup.md`: it asks whether you want Toil UI,
+proposes your connections for your yes and creates them, and leaves every secret to you,
+typed in your own terminal or in Toil UI. The manual installs follow.
+
+## Already installed?
+
 Check first: if `toil version` prints an envelope with `"ok": true`, toil is installed
 and nothing here is needed. If `toil` isn't found but a clone of the toil repository is
 on the machine, `node <clone>/dist/toil.js version` is the same thing.

@@ -655,3 +655,47 @@ describe('toil connections migrate', () => {
     expect(() => readFileSync(file, 'utf8')).toThrow();
   });
 });
+
+/** The agent's way in (#516): non-secret settings from flags, no terminal, no secret. */
+describe('toil connections add --set', () => {
+  it('saves the non-secret settings with no terminal and no store, names the secret still needed, and leaves writes off', async () => {
+    const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo', '--set', 'baseUrl=https://jira.imagile.dev'], context());
+    expect(run.envelope).toMatchObject({ ok: true, data: { name: 'corp-demo', area: 'demo', secrets: {}, secretNeeded: ['token'], writes: false } });
+    expect(run.envelope?.meta.warnings).toEqual([expect.objectContaining({ code: 'SECRET_NEEDED', message: expect.stringContaining('toil connections login corp-demo') })]);
+    expect(readConfig()).toMatchObject({
+      connections: { 'corp-demo': { area: 'demo', baseUrl: 'https://jira.imagile.dev' } },
+      defaults: { demo: { connection: 'corp-demo' } },
+    });
+    expect(readConfig().connections['corp-demo']).not.toHaveProperty('token');
+    expect(readConfig().connections['corp-demo']).not.toHaveProperty('writes');
+  });
+
+  it('then connections test fails for the missing secret, saying how to enter it', async () => {
+    await cli(['connections', 'add', 'svc', '--area', 'service', '--set', 'baseUrl=https://service.imagile.dev'], context());
+    const run = await cli(['connections', 'test', 'svc'], context({ secrets: fakeStore() }));
+    expect(run.envelope?.ok).toBe(false);
+    expect(JSON.stringify(run.envelope?.error)).toContain('toil connections login svc');
+  });
+
+  it('refuses a secret key as a flag without saving or echoing it', async () => {
+    const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo', '--set', `token=${SECRET}`], context());
+    expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('token is a secret'), fix: expect.stringContaining('toil connections login corp-demo') });
+    expect(run.stdout + run.stderr).not.toContain(SECRET);
+    expect(() => readFileSync(file, 'utf8')).toThrow();
+  });
+
+  it('needs --area, a key=value pair, a known key and a valid connection, and saves nothing otherwise', async () => {
+    const bad = async (argv: string[]) => (await cli(['connections', 'add', 'corp-demo', ...argv], context())).envelope?.error;
+    expect(await bad(['--set', 'baseUrl=https://x.imagile.dev'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('--set needs --area') });
+    expect(await bad(['--area', 'demo', '--set', 'baseUrl'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('key=value') });
+    expect(await bad(['--area', 'demo', '--set', 'nope=1'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('no setting named "nope"') });
+    expect(await bad(['--area', 'demo', '--set', 'baseUrl=not a url'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('baseUrl') });
+    expect(() => readFileSync(file, 'utf8')).toThrow();
+  });
+
+  it('refuses a name that is already taken, as the prompted flow does', async () => {
+    await cli(['connections', 'add', 'corp-demo', '--area', 'demo', '--set', 'baseUrl=https://jira.imagile.dev'], context());
+    const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo', '--set', 'baseUrl=https://other.imagile.dev'], context());
+    expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('already a connection named') });
+  });
+});
