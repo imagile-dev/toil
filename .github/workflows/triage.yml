@@ -258,25 +258,19 @@ jobs:
                are the pipeline's own rules and plumbing: the workflow refuses a fix that edits one, so
                decide `maintainer` and say what change is needed instead.
 
-               **Safety layers must never be edited quietly.** Allowed, but flagged. They are toil's own
-               (`src/core/` run, call-context, area, command, connection, dossier and deployments; keychain,
-               secret-input, secret-shapes, prompt and token; files, local-path, git and its repo, config
-               and remote readers; network, rest, api, http, passthrough and api-path; bounds, audit,
-               config, errors and envelope; everything under `src/os/`, `src/shims/` and `src/mcp/`;
-               `src/api.ts`; `docs/bounds.md`, `test/bounds.test.ts` and `test/parity.test.ts`, plus the
-               tests beside those files) and Toil UI's (every file under `ui/server/` (the launch token,
-               CSP, write gates, read list and read-only lock, agent tool and env allowlists, launchers),
-               `ui/src/config.ts` (Settings' write allowlist), each theme's `theme.json` (its `voice` is
-               prompt text for Toil UI's agent), and the suites that check Toil UI's own rules:
-               `ui/test/server.test.ts`, `registry.test.ts`, `config.test.ts`, `themes.test.ts`,
-               `package.test.ts`, `install.test.ts`, `setup.ts` and `harness.ts`). Edit one only when the
+               **Safety layers must never be edited quietly.** Allowed, but flagged. They are the code that holds a bound or
+               a gate: toil's write gate, secrets, files, network, bounds, audit and config code, the
+               connections, skills, setup, feedback and dossier commands, `src/os/`, `src/shims/`,
+               `src/mcp/` and `src/api.ts`, the command contract, the suites that check those rules
+               (triage's own included), and Toil UI's server, Settings allowlist, theme `voice` text and
+               the suites that check them. Edit one only when the
                issue needs it, as narrowly as you can, and in `.triage-out/pr-body.md` add a section headed
                "What the safety-layer edits change" naming each file and saying plainly what it loosened or
                widened (a command added to a list, a header relaxed, an env variable passed on, a bound
                raised), or that it loosened nothing. The workflow puts the list of these files at the top
                of the draft; your section says what they do. The workflow's `isSafetyLayer` list
-               (`scripts/triage/changes.mjs`) is authoritative, not the summary above: if it flags a file
-               you edited, say what that edit changes.
+               (`scripts/triage/changes.mjs`) is the full list: if it flags a file you edited, say what
+               that edit changes.
 
                The rules in CLAUDE.md that bind a fix: for core, the principles, No Executables, Secrets,
                Bounds, the Output Contract and the command contract (a suspected bug in recorded behavior

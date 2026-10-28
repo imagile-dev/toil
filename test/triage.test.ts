@@ -363,7 +363,7 @@ describe('the path check', () => {
       'src/core/git.ts', 'src/core/git-repo.ts', 'src/core/network.ts', 'src/core/rest.ts', 'src/core/api.ts', 'src/core/bounds.ts', 'src/core/audit.ts', 'src/core/config.ts',
       'src/core/passthrough.ts', 'src/core/token.ts', 'src/core/token-shapes.mjs', 'src/os/windows-sspi.ts', 'src/shims/no-spawn.ts', 'src/mcp/server.ts', 'src/mcp/anything-new.ts',
       'docs/bounds.md', 'test/bounds.test.ts', 'test/parity.test.ts', 'src/api.ts',
-      'src/core/wait.ts', 'src/core/time-limit.ts', 'src/core/wildmatch.ts', 'src/core/query/parse.ts', 'src/welcome/rogue/save.ts', 'src/connections/add.ts', 'src/skills/folders.ts',
+      'src/core/wait.ts', 'src/core/time-limit.test.ts', 'src/core/wildmatch.ts', 'src/core/query/parse.ts', 'src/welcome/rogue/save.ts', 'src/connections/add.ts', 'src/skills/folders.ts',
       'src/setup/commands.ts', 'src/feedback/command.ts', 'src/dossiers/build.ts', 'docs/command-contract.json', 'docs/command-contract.md', 'test/contract.test.ts', 'test/triage.test.ts',
       'test/triage-steps.test.ts', 'test/workflow-wiring.test.ts', 'test/merge-only.test.ts', 'test/repo-hygiene.test.ts',
     ];
@@ -377,7 +377,7 @@ describe('the path check', () => {
     for (const name of CORE_SAFETY) {
       expect(existsSync(join(process.cwd(), 'src', 'core', `${name}.ts`)), name).toBe(true);
     }
-    for (const path of SAFETY_ELSEWHERE_CORE) expect(existsSync(join(process.cwd(), path)) || path === 'src/core/time-limit.ts', path).toBe(true);
+    for (const path of SAFETY_ELSEWHERE_CORE) expect(existsSync(join(process.cwd(), path)), path).toBe(true);
     for (const folder of SAFETY_CORE_FOLDERS) expect(existsSync(join(process.cwd(), folder)), folder).toBe(true);
   });
 
