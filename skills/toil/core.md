@@ -279,7 +279,10 @@ and database, `similarTo`), `exists` (names already taken, left alone, never ove
 its `name`, `source` and `reason`), `skipped` (what toil cannot hold, each with its `label` and
 reason) and, on a preview, `saveWith` (the command that saves it, with the connection string's
 password left out and `--config` when the call used another config file).
-An agent runs the preview, shows the person the result and runs `--save` on their yes.
+An agent runs the preview, shows the person the result and runs `--save` on their yes. The
+passwords stay the person's: each connection's `nextSteps` names `toil connections login <name>`,
+which they run in their own terminal and type at its hidden prompt, or they enter it in Toil UI's
+Settings, Connections. Hand those over as `setup.md`, section 4, says; never ask for the password.
 
 The formats were built from each tool's documentation and have not yet been checked against real
 exports; a file that doesn't read says what to export instead.

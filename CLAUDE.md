@@ -44,7 +44,10 @@ gets made again in the next place it applies.
    plus an explicit flag on the call. Agents never loosen the rules that constrain
    them, and a person decides every merge. An agent may set up a connection, on the
    person's approval, with its non-secret settings (`toil connections add --area … --set
-   key=value`, the maintainer's call on #516, 2026-10-28); only a person enters a secret,
+   key=value`, the maintainer's call on #516, 2026-10-28), or import database connections
+   from another tool's file (`toil connections import … --save`, the maintainer's call on
+   #520, 2026-10-28, as long as each then names `toil connections login` for the person);
+   only a person enters a secret,
    in their own terminal (`toil connections login`) or in Toil UI's Settings, so an agent
    never sees, types, stores or moves one, and `writes` stays off until the person turns
    it on. The same holds for agents working on this repository:
@@ -581,7 +584,8 @@ prompter are withheld from the context too. The only commands that see the whole
 
 A `cli-only` command is never an MCP tool: it prompts on a terminal (stdin is
 the protocol under MCP) or changes connections, which an agent does only for
-`connections add --area … --set key=value` on the person's yes (principle 2): its
+`connections add --area … --set key=value` and `connections import … --save`, each on
+the person's yes (principle 2): its
 prompts, every secret and turning `writes` on stay the person's. It has no
 time limit, since it may be waiting on someone typing. An area command that must
 stay off MCP but keeps its connection and time limit, a delete, sets `mcp: false`.

@@ -66,6 +66,12 @@ If you have no terminal the person can see, say which steps they will do themsel
    `<area>.md`. Run `toil connections list` first, and skip what is already connected.
 3. Propose the connections to the person as a list (name, area, URL) and get their yes.
    Ask for anything you cannot read off a remote, such as the Jira site.
+4. For databases, ask which tool they use (DBeaver, SQL Server Management Studio, Azure
+   Data Studio, pgAdmin, DataGrip, MySQL Workbench, a `pg_service.conf` or
+   `tnsnames.ora`). Run `toil connections import --from <tool>` to preview what it
+   finds, show them the list, and on their yes run the `saveWith` line it returns. It
+   copies no password: hand over each one as section 4 says (`core.md`, **Importing
+   database connections**).
 
 ## 4. Create each connection, then hand over its secret
 
