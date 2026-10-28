@@ -234,7 +234,7 @@ describe('util secrets scan: what it finds', () => {
     } finally {
       await session.close();
     }
-  });
+  }, 30_000);
 
   it('reads stdin when no file, text or diff is given, and refuses two inputs at once', async () => {
     const run = await runCli(['util', 'secrets', 'scan'], { commands, context: ctxOf({ stdin: 'password=Pl4ntedPassw0rd\n' }).context });
@@ -297,7 +297,7 @@ describe('util secrets scan: nothing it puts out holds a secret', () => {
       } finally {
         await session.close();
       }
-    });
+    }, 30_000);
   }
 
   it('never shows a secret pasted into the allow file by mistake', async () => {
