@@ -57,7 +57,7 @@ describe('version 3: jira-cloud became jira with deployment cloud', () => {
     expect(defaultConnectionName(config, 'jira')).toBe('corp-jira');
     expect(config.warnings).toEqual([expect.objectContaining({ code: 'CONFIG_DEFAULT_KEPT', message: expect.stringContaining('"imagile-cloud"') })]);
     expect(config.warnings[0]!.message).toContain('corp-jira');
-    expect(config.warnings[0]!.message).toContain('toil connections default <name>');
+    expect(config.warnings[0]!.message).toContain('toil connections migrate');
     expect(config.warnings[0]!.message).toContain('version 3');
   });
 

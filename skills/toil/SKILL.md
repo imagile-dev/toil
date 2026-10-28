@@ -7,7 +7,7 @@ description: Use toil, a structured-JSON CLI and MCP server, to read from and (w
 
 toil is the token-efficient alternative to MCP: the same commands as a CLI, each
 returning one compact envelope, read a file at a time rather than every tool schema
-up front. Keep it lean: `--select` the fields you need, and `toil wait` over polling.
+up front. Keep it lean: `--select` fields you need, and `toil wait` over polling.
 
 If `toil version` doesn't print an envelope, toil isn't installed: `install.md` says how.
 
@@ -47,7 +47,7 @@ Open only the file the task needs; each is beside this one.
 
 | File | When |
 |------|------|
-| `core.md` | `--select`, big results (`--summary-file`, `--output-format toon`), `toil wait`, paging and progress, errors, writes and their exceptions, global flags, files, configuration, the raw `api` passthrough, dossiers, the audit log, calling toil from a program , sending feedback, certificates and proxies |
+| `core.md` | `--select`, big results (`--summary-file`, `--output-format toon`), `toil wait`, paging and progress, errors, writes and their exceptions, global flags, files, configuration, the raw `api` passthrough, dossiers, audit log, calling toil from a program (`./api`), sending feedback, certificates and proxies |
 | `<area>.md` | One per area, named after it: `jira.md` for `toil jira …`. Its frontmatter says what the area covers; the file gives the oldest version it supports, its credential, its configuration keys and every command |
 | `dossiers.md` | What a dossier is: one body of work mapped to your connections, its file, how to build, share and brief one |
 | `db.md` | Databases: `toil db …` on every engine |

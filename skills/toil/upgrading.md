@@ -46,13 +46,13 @@ credential: those are the user's.
 - toil reads an older config version in memory on every load and folds retired areas
   (`jira-cloud` into `jira` with `"deployment": "cloud"`). Nothing on disk changes.
 - The file is rewritten as the current version only by a command that saves config.
-  Ask the user, and on their yes run `toil connections default <name>` naming a
-  connection that is already its area's default. The save writes the migration toil
-  already applies in memory: retired areas folded into the new area with
-  `"deployment": "cloud"`, defaults moved as the area page describes, and a default
-  set aside (`CONFIG_DEFAULT_KEPT`) dropped. Tell the user what it will write before
-  you run it; no connection's host or credential changes. `CONFIG_RENAMED_AREA` and
-  `CONFIG_DEFAULT_KEPT` clear once it is saved.
+  `toil connections migrate` saves it, and writes nothing if the file is already current.
+  The save writes the migration toil already applies in memory: retired areas folded
+  into the new area with `"deployment": "cloud"`, defaults moved as the area page
+  describes, and a default set aside (`CONFIG_DEFAULT_KEPT`) dropped. Before running it,
+  tell the user what it will write (the warnings name each folded area and set-aside
+  default) and get their yes; no connection's host or credential changes. It then
+  reports what it wrote, by name and key, and the warnings clear.
 - Tell the user that an older toil, and a Toil UI pinned to an older toil, cannot read
   the newer version afterwards.
 - `CONFIG_DEFAULT_KEPT` means two defaults collided and one was set aside. Show the

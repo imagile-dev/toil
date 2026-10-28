@@ -257,7 +257,10 @@ commands can't change. `toil connections test
 <name>` checks one with a single authenticated read, failing with the `AUTH`,
 `NETWORK` or config error a real command would. Setting up a connection, signing
 in, turning writes on and choosing a default are for a person: a bare `toil` in a
-terminal opens a menu for them.
+terminal opens a menu for them. `toil connections migrate` saves the config file in the
+current version, with retired areas folded into the areas that replaced them; it reports
+what it wrote (names and keys, never a value) and writes nothing if the file is current.
+It is CLI only, like the other commands that change the file.
 
 A CI job that wants an empty variable to be an error, not a skipped line, sets
 `TOIL_STRICT_ENV=true`. Today it matters for one thing: an empty variable of an area that
