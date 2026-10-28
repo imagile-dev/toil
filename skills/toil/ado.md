@@ -559,9 +559,8 @@ now, and the old names are gone, not deprecated:
   written onto the Server connections instead of reaching the Services ones). Any command
   that saves a connection writes the file back as version 3. Keychain entries are untouched.
 - **`CONFIG_DEFAULT_KEPT`:** when both areas named a default connection, `ado`'s stays
-  the default and the warning names the Services one that was set aside. Any
-  `toil connections` change, such as `toil connections default <name>`, saves the file as
-  version 3 and clears it.
+  the default and the warning names the Services one that was set aside. `toil connections migrate`
+  saves the file as version 3 and clears it.
 - **Commands and tools:** the `ado-cloud` command path is `ado` (use `--connection`, or make
   the Services connection the default), the `ado_cloud_*` tools are `ado_*`, and `--areas
   ado-cloud` is `--areas ado`. The old forms fail with `INVALID_INPUT` naming the new one.

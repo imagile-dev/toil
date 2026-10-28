@@ -593,3 +593,65 @@ describe('pasting a secret at a real terminal prompt (#358)', () => {
     expect(store.entries.get('corp-demo.token')).toBe(SECRET);
   });
 });
+
+describe('toil connections migrate', () => {
+  const cloud = { area: 'jira-cloud', baseUrl: 'https://imagile-cloud.imagile.dev', email: 'you@example.com', token: 'keychain:imagile-cloud.token' };
+
+  it('saves a version 2 file as version 3 with jira-cloud folded into jira, and reports names and keys only', async () => {
+    writeConfig({ version: 2, connections: { 'imagile-cloud': cloud }, defaults: { 'jira-cloud': { connection: 'imagile-cloud', project: 'ABC' } }, theme: 'plain' });
+    const run = await cli(['connections', 'migrate'], context());
+    expect(run.envelope).toMatchObject({
+      ok: true,
+      data: {
+        written: true,
+        fromVersion: 2,
+        toVersion: 3,
+        folded: [{ connection: 'imagile-cloud', from: 'jira-cloud', to: 'jira', deployment: 'cloud' }],
+        defaultsMoved: [{ from: 'jira-cloud', to: 'jira', keys: ['connection', 'project'] }],
+        setAside: [],
+      },
+    });
+    expect(readConfig()).toMatchObject({ version: 3, theme: 'plain', connections: { 'imagile-cloud': { area: 'jira', deployment: 'cloud', token: 'keychain:imagile-cloud.token' } } });
+    expect(readConfig().defaults['jira-cloud']).toBeUndefined();
+    // Nothing secret, and no value of any setting: the reference stays in the file, not in the output.
+    expect(run.stdout).not.toContain('keychain:');
+    expect(run.stdout).not.toContain('imagile-cloud.imagile.dev');
+    expect(run.stdout).not.toContain('you@example.com');
+  });
+
+  it('reports the default it set aside when both areas named one', async () => {
+    writeConfig({
+      version: 2,
+      connections: { 'corp-jira': { area: 'jira', baseUrl: 'https://jira.imagile.dev' }, 'imagile-cloud': cloud },
+      defaults: { jira: { connection: 'corp-jira' }, 'jira-cloud': { connection: 'imagile-cloud' } },
+    });
+    const run = await cli(['connections', 'migrate'], context());
+    expect(run.envelope).toMatchObject({ ok: true, data: { written: true, setAside: [{ area: 'jira', setAside: 'imagile-cloud', kept: 'corp-jira' }] } });
+    expect(readConfig().defaults).toEqual({ jira: { connection: 'corp-jira' } });
+    expect(readConfig().connections['imagile-cloud']).toMatchObject({ area: 'jira', deployment: 'cloud' });
+  });
+
+  it('leaves a current file untouched, byte for byte, and says so', async () => {
+    const current = '{"version":3,"connections":{"corp-demo":{"area":"demo","token":"keychain:corp-demo.token"}},"defaults":{"demo":{"connection":"corp-demo"}}}';
+    mkdirSync(join(home, '.toil'), { recursive: true });
+    writeFileSync(file, current);
+    const run = await cli(['connections', 'migrate'], context());
+    expect(run.envelope).toMatchObject({ ok: true, data: { written: false, fromVersion: 3, toVersion: 3 } });
+    expect((run.envelope?.data as { reason: string }).reason).toContain('nothing was written');
+    expect(readFileSync(file, 'utf8')).toBe(current);
+  });
+
+  it('saves an old version with nothing retired in it as the current version', async () => {
+    writeConfig({ version: 2, connections: { 'corp-demo': { area: 'demo', token: 'keychain:corp-demo.token' } }, defaults: { demo: { connection: 'corp-demo' } } });
+    const run = await cli(['connections', 'migrate'], context());
+    expect(run.envelope).toMatchObject({ ok: true, data: { written: true, fromVersion: 2, toVersion: 3, folded: [] } });
+    expect(readConfig().version).toBe(3);
+  });
+
+  it('writes nothing, and says so, when there is no config file', async () => {
+    const run = await cli(['connections', 'migrate'], context());
+    expect(run.envelope).toMatchObject({ ok: true, data: { written: false } });
+    expect((run.envelope?.data as { reason: string }).reason).toContain('no config file');
+    expect(() => readFileSync(file, 'utf8')).toThrow();
+  });
+});

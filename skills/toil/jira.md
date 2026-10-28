@@ -405,9 +405,8 @@ old names are gone, not deprecated:
   save). Keychain entries are untouched. A version 3 file that still says
   `"area": "jira-cloud"` is folded too, with a `CONFIG_RENAMED_AREA` warning naming the new form.
 - **`CONFIG_DEFAULT_KEPT`:** when both areas named a default connection, `jira`'s stays the
-  default and the warning names the Cloud one that was set aside. Any `toil connections`
-  change, such as `toil connections default <name>`, saves the file as version 3 and clears
-  the warning.
+  default and the warning names the Cloud one that was set aside. `toil connections migrate`
+  saves the file as version 3 and clears the warning.
 - **Toil UI and older toil:** a version 3 file is refused by toil 0.1.0-beta.2, so toil UI's pin
   moves to the toil release that has this change.
 - **Commands and tools:** the `jira-cloud` command path is `jira`, the `jira_cloud_*` tools are

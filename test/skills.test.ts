@@ -19,7 +19,7 @@ import { checkInvocation, flagsOf, invocations, program, subcommand } from './ha
  */
 const dir = join(import.meta.dirname, '..', 'skills', 'toil');
 /** The files in the skill that belong to no area: the index, what every command shares, dossiers, installing toil, and the MCP server. */
-const GENERAL = ['SKILL.md', 'core.md', 'dossiers.md', 'install.md', 'mcp.md'];
+const GENERAL = ['SKILL.md', 'core.md', 'dossiers.md', 'install.md', 'mcp.md', 'upgrading.md'];
 const integrations = join(import.meta.dirname, '..', 'site', 'src', 'data', 'integrations');
 
 /** The `key: value` lines between a file's opening `---` fences. */
@@ -204,7 +204,8 @@ describe('installable skill', () => {
     const present = new Set(readdirSync(dir));
     for (const file of present) {
       const text = readFileSync(join(dir, file), 'utf8');
-      for (const m of text.matchAll(/`([a-z0-9-]+\.md)`/g)) expect(present.has(m[1]!), `${file} points to ${m[1]}`).toBe(true);
+      for (const m of text.matchAll(/`([a-z0-9-]+\.md)`/g)) // changelog.md is generated into the bundle from CHANGELOG.md, not a file in this folder.
+      expect(present.has(m[1]!) || m[1] === 'changelog.md', `${file} points to ${m[1]}`).toBe(true);
     }
   });
 

@@ -6,34 +6,31 @@ description: Use toil, a structured-JSON CLI and MCP server, to read from and (w
 # toil
 
 toil is the token-efficient alternative to MCP: the same commands as a CLI, each
-returning one compact envelope, with this skill read a file at a time rather than
-every tool schema up front. Keep it lean: `--select` the fields you need, and
-`toil wait` rather than polling.
+returning one compact envelope, read a file at a time rather than every tool schema
+up front. Keep it lean: `--select` fields you need, and `toil wait` over polling.
 
-If `toil version` doesn't print an envelope, toil isn't installed yet: `install.md`,
-beside this file, says how.
+If `toil version` doesn't print an envelope, toil isn't installed: `install.md` says how.
 
 ## Every call
 
 - **Output.** Every command prints one JSON envelope on stdout: `{ ok, data, error,
   meta }`. Check `ok`; on failure, `error.code` says what kind of failure it was and
   `error.fix` what to do about it. `meta.warnings` lists what's worth knowing that
-  isn't a failure, and `meta.page.nextCursor` the next page, when there is one.
-- **Two front doors, one command.** `toil <area> <command>` on the command line, or
-  the MCP tool named after its path (`db_query`) from `toil mcp --areas <area>`, with
-  identical inputs and output.
+  isn't a failure, and `meta.page.nextCursor` the next page.
+- **Two front doors, one command.** `toil <area> <command>`, or the MCP tool named
+  after its path (`db_query`) from `toil mcp --areas <area>`: same inputs and output.
 - **Writes.** Reads are always allowed. A command that changes data needs
   `writes: true` on the connection, set by a person, and `--allow-write` on the call
-  (`allowWrite: true` over MCP). Only make a write the user asked for. Four writes
+  (`allowWrite: true` over MCP). Make only writes the user asked for. Four writes
   differ, each listed in `core.md` under **Writes**.
 - **Connections.** Environment variables always win over `~/.toil/config.json`.
   `--connection <name>` picks one when an area has several; `toil connections list`
-  names them, never a secret. Setting one up is for a person: a bare `toil` in a
+  names them, never a secret. Setting one up is for a person: bare `toil` in a
   terminal opens a menu.
 - **Untracked work.** Before work no ticket covers, rank open tickets with
   `toil util owi similar --query`, then ask the person where it goes: `core.md`,
   **Ticket the work**.
-- **Files** a command reads or writes stay inside the workspace (`--workspace <dir>`,
+- **Files** a command reads or writes stay in the workspace (`--workspace <dir>`,
   else the working directory).
 - **Feedback** to Imagile (`toil feedback`) only when the user asks, scrubbed of
   company data, shown to them in full with its disclaimer, and sent with `--consent`
@@ -46,17 +43,18 @@ beside this file, says how.
 
 ## Where to look
 
-Open only the file the task needs; each sits beside this one.
+Open only the file the task needs; each is beside this one.
 
 | File | When |
 |------|------|
-| `core.md` | `--select`, big results (`--summary-file`, `--output-format toon`), `toil wait`, paging and progress, errors, writes and their exceptions, global flags, files, configuration, the raw `api` passthrough, dossiers, the audit log, calling toil from a program (`@imagile-dev/toil/api`), sending feedback, certificates and proxies |
+| `core.md` | `--select`, big results (`--summary-file`, `--output-format toon`), `toil wait`, paging and progress, errors, writes and their exceptions, global flags, files, configuration, the raw `api` passthrough, dossiers, audit log, calling toil from a program (`./api`), sending feedback, certificates and proxies |
 | `<area>.md` | One per area, named after it: `jira.md` for `toil jira …`. Its frontmatter says what the area covers; the file gives the oldest version it supports, its credential, its configuration keys and every command |
 | `dossiers.md` | What a dossier is: one body of work mapped to your connections, its file, how to build, share and brief one |
 | `db.md` | Databases: `toil db …` on every engine |
 | `util.md` | Local utilities with no connection or network: `toil util …` |
 | `skills.md` | Skills marketplaces, and keeping this skill installed |
-| `mcp.md` | Running toil as an MCP server and registering it with an agent |
+| `mcp.md` | Running toil as an MCP server, registering it with an agent |
+| `upgrading.md` | A new toil version, or a warning naming a retired or renamed thing: `changelog.md`, then convert config, env vars, dossiers |
 | `install.md` | Installing toil, and this skill |
 
-`toil --help` lists the areas this install has.
+`toil --help` lists this install's areas.

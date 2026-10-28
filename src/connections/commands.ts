@@ -1,7 +1,9 @@
+import { existsSync, readFileSync } from 'node:fs';
 import { z } from 'zod';
 import type { AnyArea } from '../core/area.js';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
 import {
+  CONFIG_VERSION,
   CONNECTION_NAME,
   connectionEnvName,
   connectionWrites,
@@ -15,14 +17,14 @@ import { apiRequest } from '../core/api.js';
 import { coerce, resolveConnection } from '../core/connection.js';
 import type { CommandContext, ConfigAccess } from '../core/context.js';
 import { hostMatches } from '../core/dossier.js';
-import { refuseRenamedArea } from '../core/renamed-areas.js';
+import { RENAMED_AREAS, refuseRenamedArea } from '../core/renamed-areas.js';
 import { ToilError, withArticle } from '../core/errors.js';
 import { isKeychainRef, KEYCHAIN_PREFIX, refFor, refName, storeVerified, type SecretStore } from '../core/keychain.js';
 import type { Prompter } from '../core/prompt.js';
 import { askCheckedSecret } from '../core/secret-input.js';
 
 /**
- * `toil connections add | login | list | remove | test | writes | default`:
+ * `toil connections add | login | list | remove | test | writes | default | migrate`:
  * setting up the connections that every area command resolves. Secrets go
  * straight to the OS credential store and config holds only a `keychain:`
  * reference; a secret never sits in the file (env vars are the other place one
@@ -279,7 +281,60 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     },
   });
 
-  return [add, login, list, remove, test, writes, setDefault];
+  const migrate = defineConfigCommand({
+    path: ['connections', 'migrate'],
+    description: 'Save the config file in the current version, with retired areas folded into the areas that replaced them',
+    input: z.object({}),
+    writes: false,
+    writesLocal: true,
+    kind: 'cli-only',
+    examples: [{}],
+    run: async (_input, ctx) => {
+      const { config } = access(ctx);
+      const path = config.files.global;
+      if (!existsSync(path)) return { configFile: slashes(path), written: false, reason: 'There is no config file, so there is nothing to migrate.' };
+      const raw = JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+      const file = readConfigForEdit(path);
+      const from = typeof raw.version === 'number' ? raw.version : 1;
+      const rawConnections = connectionAreas(raw, from);
+      const rawDefaults = from === 1 ? {} : ((raw.defaults ?? {}) as Record<string, Record<string, unknown> | undefined>);
+      const folded = Object.entries(file.connections).flatMap(([name, conn]) => {
+        const was = rawConnections[name];
+        return was && Object.hasOwn(RENAMED_AREAS, was) && conn.area !== was ? [{ connection: name, from: was, to: conn.area, deployment: conn.deployment ?? null }] : [];
+      });
+      // Keys only: what moved, never a value.
+      const defaultsMoved = Object.entries(RENAMED_AREAS).flatMap(([old, renamed]) => {
+        const had = rawDefaults[old];
+        return had ? [{ from: old, to: renamed.area, keys: Object.keys(had).sort() }] : [];
+      });
+      const setAside = Object.entries(RENAMED_AREAS).flatMap(([old, renamed]) => {
+        const named = rawDefaults[old]?.connection;
+        const kept = file.defaults[renamed.area]?.connection;
+        return typeof named === 'string' && kept !== named ? [{ area: renamed.area, setAside: named, kept: typeof kept === 'string' ? kept : null }] : [];
+      });
+      const changed = from !== CONFIG_VERSION || folded.length > 0 || defaultsMoved.length > 0;
+      if (changed) writeConfigFile(path, file);
+      return {
+        configFile: slashes(path),
+        written: changed,
+        fromVersion: from,
+        toVersion: CONFIG_VERSION,
+        folded,
+        defaultsMoved,
+        setAside,
+        ...(changed ? {} : { reason: `The file is already version ${CONFIG_VERSION} and names no retired area, so nothing was written.` }),
+      };
+    },
+  });
+
+  return [add, login, list, remove, test, writes, setDefault, migrate];
+}
+
+/** The area each connection in the raw file named, by name: a version 1 file has one per area key. */
+function connectionAreas(raw: Record<string, unknown>, version: number): Record<string, string | undefined> {
+  if (version === 1) return Object.fromEntries(Object.entries(raw).filter(([, v]) => typeof v === 'object' && v !== null && !Array.isArray(v)).map(([k]) => [k, k]));
+  const conns = (raw.connections ?? {}) as Record<string, { area?: unknown } | undefined>;
+  return Object.fromEntries(Object.entries(conns).map(([name, c]) => [name, typeof c?.area === 'string' ? c.area : undefined]));
 }
 
 function areaIn(areas: readonly AnyArea[], name: string): AnyArea {

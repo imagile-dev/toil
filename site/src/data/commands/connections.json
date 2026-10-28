@@ -81,5 +81,13 @@
     "flags": [
       "<name>"
     ]
+  },
+  {
+    "name": "migrate",
+    "tool": null,
+    "description": "Save the config file in the current version, with retired areas folded into the areas that replaced them",
+    "writes": false,
+    "connection": false,
+    "flags": []
   }
 ]

@@ -480,7 +480,7 @@ function foldRenamedAreas(read: { connections: Record<string, ConnectionSettings
         const kept = String(target.connection);
         warnings.push({
           code: 'CONFIG_DEFAULT_KEPT',
-          message: `${path} named ${old} connection "${named}" as the default for ${old}, and ${renamed.area} already has one (${kept}), which stays the default. ${old} is now ${renamed.area}. Any toil connections change, such as toil connections default <name>, saves the file as version ${CONFIG_VERSION} and clears this warning.`,
+          message: `${path} named ${old} connection "${named}" as the default for ${old}, and ${renamed.area} already has one (${kept}), which stays the default. ${old} is now ${renamed.area}. Run toil connections migrate to save the file in version ${CONFIG_VERSION} and clear this warning.`,
         });
       }
     }
@@ -488,7 +488,7 @@ function foldRenamedAreas(read: { connections: Record<string, ConnectionSettings
     // A file older than version 3 meant the old area, so reading it as the new one is no news. A version 3 file is news: toil wrote it, or a person edited it, with a name that no longer exists.
     if (say) {
       const what = [...moved.map((name) => `connection ${name}`), ...(oldDefaults ? [`defaults.${old}`] : [])].join(', ');
-      warnings.push({ code: 'CONFIG_RENAMED_AREA', message: `${path} still names area "${old}" (${what}), which no longer exists, so it is read as ${renamed.area}. ${renamedAreaFix(old)} Any toil connections change saves the file with the new form and clears this warning, such as toil connections default <name>.` });
+      warnings.push({ code: 'CONFIG_RENAMED_AREA', message: `${path} still names area "${old}" (${what}), which no longer exists, so it is read as ${renamed.area}. ${renamedAreaFix(old)} Run toil connections migrate to save the file with the new form and clear this warning.` });
     }
     if (Object.keys(target).length === 0) delete read.defaults[renamed.area];
   }
