@@ -90,3 +90,36 @@ describe('the wiring check bites', () => {
     expect(produced({ uses: 'actions/create-github-app-token@abc' })).toContain('token');
   });
 });
+
+describe('the Discord workflow posts the real title of an outside issue, redacted first', () => {
+  const text = readFileSync(join(process.cwd(), '.github/workflows/discord-notify.yml'), 'utf8');
+  const workflow = load(text) as { permissions: unknown; jobs: Record<string, { permissions?: Record<string, string>; steps: { uses?: string; with?: Record<string, string>; run?: string; env?: Record<string, string> }[] }> };
+  const job = workflow.jobs.notify!;
+
+  it('keeps no permissions at the top and gives the job contents: read alone', () => {
+    expect(workflow.permissions).toEqual({});
+    expect(job.permissions).toEqual({ contents: 'read' });
+  });
+
+  it("checks out main without persisting credentials, on node 24.22.1, with the same SHA pins triage uses", () => {
+    const triage = readFileSync(join(process.cwd(), '.github/workflows/triage.yml'), 'utf8');
+    const checkout = job.steps.find((s) => s.uses?.startsWith('actions/checkout@'))!;
+    expect(checkout.with).toMatchObject({ ref: 'main', 'persist-credentials': false });
+    const node = job.steps.find((s) => s.uses?.startsWith('actions/setup-node@'))!;
+    expect(node.with).toMatchObject({ 'node-version': '24.22.1' });
+    for (const step of job.steps.filter((s) => s.uses)) {
+      expect(step.uses).toMatch(/@[0-9a-f]{40}$/);
+      expect(triage).toContain(`${step.uses} #`);
+    }
+  });
+
+  it('redacts an outside issue\'s title with the triage redactor, from env, and withholds it if that fails', () => {
+    const notify = job.steps.find((s) => s.run?.includes('discord') || s.run?.includes('DISCORD_WEBHOOK'))!;
+    expect(notify.run).toContain('node scripts/triage/redact.mjs --title');
+    expect(notify.run).not.toContain('title not shown');
+    expect(notify.run).toContain('title withheld');
+    expect(notify.env).toHaveProperty('REDACT_TERMS');
+    // The title is attacker-controlled: it reaches the script through env, never interpolated into run:.
+    expect(notify.run).not.toContain('${{');
+  });
+});

@@ -37,6 +37,7 @@
 //
 //   node scripts/triage/redact.mjs < {"title","body"}.json   → {"title","body","changed","invalidTerms"}
 //   node scripts/triage/redact.mjs --titles < [{"title",…}]     → the same list, titles redacted
+//   TITLE=… node scripts/triage/redact.mjs --title              → one title, redacted, on one line
 
 import { pathToFileURL } from 'node:url';
 import { TOKEN_SHAPES } from '../../src/core/token-shapes.mjs';
@@ -206,9 +207,29 @@ export function redact(text, terms = parseTerms('')) {
   return redactWords(redactIps(redactHosts(redactEmails(redactSecrets(normalize(text)), terms), terms)), terms);
 }
 
+/** The longest title posted anywhere that isn't GitHub; Discord's embed title limit is 256. */
+export const MAX_TITLE = 200;
+
+/**
+ * A title fit to post outside GitHub, such as the Discord channel: redacted,
+ * folded onto one line and cut to MAX_TITLE. The Discord workflow runs this on
+ * an issue filed from outside before it posts the title, so a term this module
+ * would remove from the issue never reaches the channel either.
+ */
+export function redactTitle(text, terms = parseTerms('')) {
+  const line = redact(text ?? '', terms).replace(/\s+/g, ' ').trim();
+  return line.length > MAX_TITLE ? `${line.slice(0, MAX_TITLE - 1).trimEnd()}…` : line;
+}
+
 // CLI: JSON {title, body} on stdin, REDACT_TERMS in env, JSON out. The terms
 // never reach stdout, a log line or argv.
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  // --title: the TITLE env var in, its redacted single line out (the Discord workflow). Neither the
+  // title nor REDACT_TERMS touches argv.
+  if (process.argv.includes('--title')) {
+    process.stdout.write(`${redactTitle(process.env.TITLE ?? '', parseTerms(process.env.REDACT_TERMS ?? ''))}\n`);
+    process.exit(0);
+  }
   const chunks = [];
   for await (const chunk of process.stdin) chunks.push(chunk);
   const input = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');

@@ -1,14 +1,14 @@
 // The triage agent's changes travel from its runner as a plain ustar archive
 // plus a list of deleted paths. Its runner is not trusted after the agent ran,
 // so the jobs downstream read the archive themselves, here, instead of handing
-// it to tar: every entry must be a regular file at a path one area may change
+// it to tar: every entry must be a regular file at a path a triage fix may change
 // (scripts/triage/changes.mjs), with no links, devices, long-name extensions or
 // tricks, before a single byte is written. A parcel is inspected at the door,
 // not after it has been signed for and shelved.
 //
 //   node scripts/triage/archive.mjs check   <changes.tar> <deleted.txt> <area>...
 //   node scripts/triage/archive.mjs extract <changes.tar> <deleted.txt> <dest> <area>...
-//   → prints the one area changed; exits 1 naming every refused entry
+//   → prints the areas changed (`-` when none); exits 1 naming every refused entry
 
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
@@ -65,7 +65,7 @@ export function readUstar(buffer) {
   return { files, refused };
 }
 
-/** Checks the archive and the deletions against one area's own files. */
+/** Checks the archive and the deletions against what a triage fix may change. */
 export function inspect(buffer, deletedText, areas) {
   const { files, refused } = readUstar(buffer);
   const deleted = deletedText.split('\n').map((line) => line.trim().replace(/^\.\//, '')).filter(Boolean);
@@ -110,5 +110,5 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     process.exit(1);
   }
   if (dest) extract(result, join(dest));
-  console.log(result.area ?? 'ui');
+  console.log(result.areas.join(',') || '-');
 }

@@ -6,10 +6,10 @@ import { describe, expect, it } from 'vitest';
 import { extract, inspect } from '../scripts/triage/archive.mjs';
 import { ustar } from './harness/ustar.js';
 import { CLAIMED, QUEUED, claim, claimRank, gh, waiting, type LabelEvent } from '../scripts/triage/cap.mjs';
-import { areaOf, check, isUi, isSafetyLayer, parseRaw } from '../scripts/triage/changes.mjs';
+import { areaOf, check, isUi, isSafetyLayer, parseRaw, refusal } from '../scripts/triage/changes.mjs';
 import { agentRan, defuseClosingKeywords, parseDecision } from '../scripts/triage/decision.mjs';
 import { areas, labels } from '../scripts/triage/labels.mjs';
-import { MAX_LENGTH, parseTerms, redact, tokenShaped } from '../scripts/triage/redact.mjs';
+import { MAX_LENGTH, MAX_TITLE, parseTerms, redact, redactTitle, tokenShaped } from '../scripts/triage/redact.mjs';
 import { redactText } from '../src/core/secret-shapes.js';
 import { TOKEN_SHAPES } from '../src/core/token-shapes.mjs';
 
@@ -286,7 +286,7 @@ describe('the path check', () => {
     'ui/src/load.ts', 'ui/src/components/panel.tsx', 'ui/server/server.ts', 'ui/server/agents/env.ts', 'ui/server/agents/tested.ts', 'ui/test/registry.test.ts', 'ui/test/views.test.tsx', 'ui/docs/themes.md', 'ui/themes/plain/theme.json',
   ])('allows %s as Toil UI', (path) => {
     expect(isUi(path)).toBe(true);
-    expect(check([{ path, newMode: '100644' }], known)).toMatchObject({ ok: true, area: undefined, ui: true, refused: [] });
+    expect(check([{ path, newMode: '100644' }], known)).toMatchObject({ ok: true, areas: [], ui: true, refused: [] });
   });
 
   it.each([
@@ -295,23 +295,59 @@ describe('the path check', () => {
     expect(isUi(path)).toBe(false);
   });
 
-  it('lets one area and Toil UI change together, and still refuses two areas', () => {
-    expect(check([{ path: 'src/areas/demo-cloud/a.ts', newMode: '100644' }, { path: 'ui/src/load.ts', newMode: '100644' }], known)).toMatchObject({ ok: true, area: 'demo-cloud', ui: true, refused: [] });
-    expect(check([{ path: 'ui/src/load.ts', newMode: '100644' }, { path: 'src/core/execute.ts', newMode: '100644' }], known).refused).toEqual(["src/core/execute.ts (outside an area's own files and Toil UI's)"]);
-    expect(check([{ path: 'ui/src/load.ts', newMode: '120000' }], known).ok).toBe(false);
-    expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'src/areas/github/a.ts', newMode: '100644' }, { path: 'ui/src/load.ts', newMode: '100644' }], known).refused).toEqual(['more than one area: github, jira']);
+  const edit = (path: string, newMode = '100644') => ({ path, newMode });
+
+  it('lets one area and Toil UI change together, and now any number of areas and core', () => {
+    expect(check([edit('src/areas/demo-cloud/a.ts'), edit('ui/src/load.ts')], known)).toMatchObject({ ok: true, areas: ['demo-cloud'], ui: true, core: false, refused: [] });
+    expect(check([edit('src/areas/jira/a.ts'), edit('src/areas/github/a.ts'), edit('ui/src/load.ts')], known)).toMatchObject({ ok: true, areas: ['github', 'jira'], ui: true, refused: [] });
+    expect(check([edit('ui/src/load.ts'), edit('src/core/files.ts')], known)).toMatchObject({ ok: true, ui: true, core: true, refused: [] });
+    expect(check([edit('ui/src/load.ts', '120000')], known).ok).toBe(false);
   });
 
   it.each([
-    '.github/workflows/triage.yml', '.github/CODEOWNERS', 'src/core/execute.ts', 'src/registry.ts', 'functions/feedback/src/lib/handlers.ts', 'infra/main.bicep',
-    'site/src/pages/feedback.astro', 'dist/toil.js', 'package.json', 'package-lock.json', 'scripts/triage/changes.mjs', 'CLAUDE.md',
-    'src/areas/newthing/index.ts', 'src/areas/jira/../../core/x.ts', 'test/fixtures/jira.fixture.ts.bak', 'test/triage.test.ts',
-  ])('refuses %s', (path) => {
-    expect(areaOf(path, known)).toBeUndefined();
+    'src/core/execute.ts', 'src/core/paginate.ts', 'src/registry.ts', 'src/program.ts', 'src/areas/newthing/index.ts', 'test/triage.test.ts', 'test/fixtures/jira.fixture.ts.bak',
+    'skills/toil/core.md', 'skills/toil/SKILL.md', 'docs/integrations.md', 'docs/divergences/jira.json', 'README.md', 'ui/src/load.ts',
+  ])('lets a fix change %s', (path) => {
+    expect(refusal(path, known)).toBeUndefined();
+    expect(check([edit(path)], known).ok).toBe(true);
+  });
+
+  it('accepts a core fix and reports it', () => {
+    expect(check([edit('src/core/paginate.ts'), edit('src/core/paginate.test.ts'), edit('skills/toil/core.md')], known)).toEqual({ ok: true, areas: [], ui: false, core: true, safety: [], refused: [] });
+  });
+
+  it.each([
+    'site/src/pages/feedback.astro', 'site/src/components/Footer.astro', 'site/src/data/levels.json', 'site/src/data/integrations/newarea.json',
+    'functions/feedback/src/lib/handlers.ts', 'functions/feedback/README.md', 'infra/main.bicep', 'infra/bootstrap.sh',
+  ])('leaves %s for a maintainer to review first, and a fix may not edit it', (path) => {
+    expect(refusal(path, known)).toContain('for a maintainer to review first');
+    expect(check([edit(path)], known).ok).toBe(false);
+  });
+
+  it('still lets a fix change the per-area site data the tests generate', () => {
+    for (const path of ['site/src/data/integrations/jira.json', 'site/src/data/commands/github.json', 'site/src/data/settings/demo-cloud.json']) {
+      expect(check([edit(path)], known)).toMatchObject({ ok: true, refused: [] });
+    }
+  });
+
+  it.each([
+    '.github/workflows/triage.yml', '.github/workflows/discord-notify.yml', '.github/CODEOWNERS', 'scripts/triage/changes.mjs', 'scripts/spawners.mjs', 'CLAUDE.md', 'AGENT_DECISIONS.md',
+    '.claude/skills/automation/SKILL.md', 'docs/decisions/123-anything.md', 'dist/toil.js', 'dist/toil-lib.js',
+  ])('never lets a fix change %s: the rules that constrain triage (principle 2)', (path) => {
+    expect(refusal(path, known)).toContain("triage's own rules");
+    expect(check([edit(path)], known).ok).toBe(false);
+  });
+
+  it.each(['package.json', 'package-lock.json', 'ui/package.json', 'src/areas/jira/package.json', 'functions/feedback/package-lock.json'])('refuses %s: it needs npm, which the agent does not have', (path) => {
+    expect(check([edit(path)], known).ok).toBe(false);
+    expect(refusal(path, known)).toMatch(/needs npm|maintainer to review/);
+  });
+
+  it.each(['tsconfig.json', '.npmrc', 'release-please-config.json', 'LICENSE', '.gitignore', '.scratch/x.json', 'unknown/file.ts', 'ui', 'src', '../x', 'src/../scripts/x.mjs', 'src\\core\\x.ts'])('refuses %s: not a place triage works', (path) => {
+    expect(check([edit(path)], known).ok).toBe(false);
   });
 
   it('lists every safety-layer edit, so the draft can lead with them, and only those', () => {
-    const edit = (path: string) => ({ path, newMode: '100644' });
     const result = check([edit('ui/server/csp.ts'), edit('ui/server/agents/tools.ts'), edit('ui/src/config.ts'), edit('ui/test/server.test.ts'), edit('ui/src/load.ts'), edit('ui/server/sync.ts')], known);
     expect(result).toMatchObject({ ok: true, ui: true, safety: ['ui/server/agents/tools.ts', 'ui/server/csp.ts', 'ui/server/sync.ts', 'ui/src/config.ts', 'ui/test/server.test.ts'] });
     expect(check([edit('ui/src/load.ts')], known).safety).toEqual([]);
@@ -321,12 +357,30 @@ describe('the path check', () => {
     expect(['ui/src/load.ts', 'ui/test/views.test.tsx', 'ui/themes/plain/theme.css', 'ui/docs/themes.md'].some(isSafetyLayer)).toBe(false);
   });
 
-  it('refuses a second area, a symlink, a submodule, and an empty change', () => {
-    expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'skills/toil/github.md', newMode: '100644' }], known).refused).toEqual(['more than one area: github, jira']);
-    expect(check([{ path: 'src/areas/jira/a.ts', newMode: '120000' }], known).ok).toBe(false);
-    expect(check([{ path: 'src/areas/jira/sub', newMode: '160000' }], known).ok).toBe(false);
+  it("flags edits to toil's own safety files the same way, tests beside them included", () => {
+    const flagged = [
+      'src/core/run.ts', 'src/core/call-context.ts', 'src/core/keychain.ts', 'src/core/keychain.test.ts', 'src/core/secret-input.ts', 'src/core/files.ts', 'src/core/local-path.ts',
+      'src/core/git.ts', 'src/core/git-repo.ts', 'src/core/network.ts', 'src/core/rest.ts', 'src/core/api.ts', 'src/core/bounds.ts', 'src/core/audit.ts', 'src/core/config.ts',
+      'src/core/passthrough.ts', 'src/core/token.ts', 'src/core/token-shapes.mjs', 'src/os/windows-sspi.ts', 'src/shims/no-spawn.ts', 'src/mcp/server.ts', 'src/mcp/anything-new.ts',
+      'docs/bounds.md', 'test/bounds.test.ts', 'test/parity.test.ts', 'src/api.ts',
+    ];
+    expect(flagged.filter((p) => !isSafetyLayer(p))).toEqual([]);
+    expect(['src/core/paginate.ts', 'src/core/query/parse.ts', 'src/areas/jira/commands.ts', 'src/registry.ts', 'skills/toil/core.md', 'test/triage.test.ts'].some(isSafetyLayer)).toBe(false);
+    const result = check([edit('src/core/run.ts'), edit('src/core/paginate.ts'), edit('src/mcp/server.ts'), edit('src/areas/jira/a.ts')], known);
+    expect(result).toMatchObject({ ok: true, core: true, areas: ['jira'], safety: ['src/core/run.ts', 'src/mcp/server.ts'] });
+  });
+
+  it('every file the safety list names under src/core exists, so the list cannot rot quietly', () => {
+    for (const name of ['run', 'call-context', 'keychain', 'secret-input', 'files', 'local-path', 'git', 'git-repo', 'network', 'rest', 'api', 'bounds', 'audit', 'config', 'passthrough', 'token']) {
+      expect(existsSync(join(process.cwd(), 'src', 'core', `${name}.ts`)), name).toBe(true);
+    }
+  });
+
+  it('refuses a symlink, a submodule, and an empty change; allows deletes of open files', () => {
+    expect(check([edit('src/areas/jira/a.ts', '120000')], known).ok).toBe(false);
+    expect(check([edit('src/areas/jira/sub', '160000')], known).ok).toBe(false);
     expect(check([], known).refused).toEqual(['no changes']);
-    expect(check([{ path: 'src/areas/jira/a.ts', newMode: '100644' }, { path: 'src/areas/jira/old.ts', newMode: '000000' }], known)).toEqual({ ok: true, area: 'jira', ui: false, safety: [], refused: [] });
+    expect(check([edit('src/areas/jira/a.ts'), edit('src/areas/jira/old.ts', '000000')], known)).toEqual({ ok: true, areas: ['jira'], ui: false, core: false, safety: [], refused: [] });
   });
 
   it('reads git diff --raw -z from a real repository, so the parser matches what git writes', () => {
@@ -345,7 +399,7 @@ describe('the path check', () => {
       git('commit', '-qm', 'fix');
       const entries = parseRaw(git('diff', '--raw', '-z', '--no-renames', 'HEAD~1', 'HEAD'));
       expect(entries.map((e) => e.path).sort()).toEqual(['src/areas/jira/a.ts', 'src/areas/jira/name with space.ts']);
-      expect(check(entries, known)).toEqual({ ok: true, area: 'jira', ui: false, safety: [], refused: [] });
+      expect(check(entries, known)).toEqual({ ok: true, areas: ['jira'], ui: false, core: false, safety: [], refused: [] });
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -357,7 +411,7 @@ describe('the triage labels', () => {
     const names = labels().map((l) => l.name);
     expect(areas()).toContain('jira');
     expect(areas()).not.toContain('kit');
-    expect(names).toEqual(expect.arrayContaining(['area:jira', 'area:github', 'from-website', 'from-terminal', 'unverified-build', 'triaged', 'denied', 'triage-queued', 'triage-claimed', 'from-triage', 'smoke-test']));
+    expect(names).toEqual(expect.arrayContaining(['area:jira', 'area:github', 'from-website', 'from-terminal', 'unverified-build', 'triaged', 'denied', 'needs-maintainer', 'triage-queued', 'triage-claimed', 'from-triage', 'smoke-test']));
     for (const label of labels()) expect(label.name.length).toBeLessThanOrEqual(50);
   });
 });
@@ -367,7 +421,7 @@ describe('the handover archive', () => {
 
   it('reads regular files under one area, deletions included', () => {
     const result = inspect(ustar([{ path: './src/areas/jira/a.ts', data: 'export const a = 1;\n' }, { path: 'skills/toil/jira.md', data: '# Jira\n' }]), './src/areas/jira/old.ts\n', known);
-    expect(result).toMatchObject({ ok: true, area: 'jira', refused: [], deleted: ['src/areas/jira/old.ts'] });
+    expect(result).toMatchObject({ ok: true, areas: ['jira'], refused: [], deleted: ['src/areas/jira/old.ts'] });
     expect(result.files.map((f) => [f.path, f.data.toString()])).toEqual([['src/areas/jira/a.ts', 'export const a = 1;\n'], ['skills/toil/jira.md', '# Jira\n']]);
   });
 
@@ -380,9 +434,9 @@ describe('the handover archive', () => {
     [[{ path: 'src/areas/jira/link', type: '2' }], 'type 2: only regular files'],
     [[{ path: 'src/areas/jira/hard', type: '1' }], 'type 1: only regular files'],
     [[{ path: 'src/areas/jira/x', type: 'L' }], 'type L: only regular files'],
-    [[{ path: '.github/workflows/ci.yml', data: 'x' }], ".github/workflows/ci.yml (outside an area's own files and Toil UI's)"],
-    [[{ path: 'src/areas/jira/../../core/x.ts', data: 'x' }], "outside an area's own files"],
-    [[{ path: 'src/areas/jira/a.ts', data: 'x' }, { path: 'src/areas/github/b.ts', data: 'y' }], 'more than one area'],
+    [[{ path: '.github/workflows/ci.yml', data: 'x' }], ".github/workflows/ci.yml (triage's own rules"],
+    [[{ path: 'src/areas/jira/../../core/x.ts', data: 'x' }], 'not a plain path'],
+    [[{ path: 'package.json', data: 'x' }], 'needs npm'],
   ])('refuses %j', (entries, reason) => {
     const result = inspect(ustar(entries), '', known);
     expect(result.ok).toBe(false);
@@ -416,14 +470,15 @@ describe('the handover archive', () => {
 describe('the agent decision', () => {
   const known = ['jira', 'github'];
 
-  it('accepts fix, deny and duplicate with known areas', () => {
+  it('accepts fix, maintainer, deny and duplicate with known areas', () => {
     expect(parseDecision('{"decision":"fix","areas":["jira"]}', 7, known)).toMatchObject({ ok: true, decision: 'fix', areas: ['jira'] });
+    expect(parseDecision('{"decision":"maintainer","areas":[]}', 7, known)).toMatchObject({ ok: true, decision: 'maintainer', areas: [] });
     expect(parseDecision('{"decision":"duplicate","areas":[],"duplicateOf":3}', 7, known)).toMatchObject({ ok: true, duplicateOf: 3 });
   });
 
   it.each([
     ['not json', 'missing or not JSON'],
-    ['{"decision":"merge","areas":[]}', 'decision must be fix, deny or duplicate'],
+    ['{"decision":"merge","areas":[]}', 'decision must be fix, maintainer, deny or duplicate'],
     ['{"decision":"fix","areas":["jira","core"]}', 'unknown areas: core'],
     ['{"decision":"duplicate","areas":[],"duplicateOf":7}', 'duplicateOf must be another issue number'],
     ['{"decision":"fix"}', 'areas must be a list'],
@@ -477,6 +532,8 @@ describe('finish: a failed agent run is not a decision', () => {
 
   it('passes a valid decision through with its labels', () => {
     expect(run({ 'agent-ok': 'ok', 'decision.json': '{"decision":"deny","areas":["jira"]}', 'comment.md': 'Out of scope.' }).out).toEqual({ decision: 'deny', labels: 'triaged,denied,area:jira', duplicate_of: '' });
+    // maintainer is not a denial: it is labelled needs-maintainer, never denied.
+    expect(run({ 'agent-ok': 'ok', 'decision.json': '{"decision":"maintainer","areas":["jira"]}', 'comment.md': 'The site page would change.' }).out).toEqual({ decision: 'maintainer', labels: 'triaged,needs-maintainer,area:jira', duplicate_of: '' });
   });
 });
 
@@ -484,5 +541,29 @@ describe('waiting() and needs-human', () => {
   it('never picks an issue a person has to look at', () => {
     const list = [{ number: 3, state: 'open', labels: [{ name: QUEUED }, { name: 'needs-human' }] }, { number: 4, state: 'open', labels: [{ name: QUEUED }] }];
     expect(waiting(list).map((i) => i.number)).toEqual([4]);
+  });
+});
+
+describe('titles posted outside GitHub (the Discord workflow)', () => {
+  const terms = parseTerms('acmebank\nacme-int.corp');
+
+  it('redacts a title the way triage redacts an issue: denylisted words, internal hosts, private IPs and tokens', () => {
+    expect(redactTitle('AcmeBank outage on jira.acme-int.corp from 10.1.2.3', terms)).toBe('[org] outage on jira.imagile.dev from [redacted-ip]');
+    expect(redactTitle(`login fails with ${SAMPLES['github-token']}`, terms)).not.toContain(SAMPLES['github-token']!);
+    expect(redactTitle(`login fails with ${SAMPLES['github-token']}`, terms)).toContain('[redacted-secret]');
+  });
+
+  it('keeps an ordinary title as it was, folds it onto one line and cuts it to fit', () => {
+    expect(redactTitle('jira issue get fails on Data Center', terms)).toBe('jira issue get fails on Data Center');
+    expect(redactTitle('two\nlines\t here', terms)).toBe('two lines here');
+    const long = redactTitle('word '.repeat(100), terms);
+    expect(long.length).toBeLessThanOrEqual(MAX_TITLE);
+    expect(long.endsWith('…')).toBe(true);
+    expect(redactTitle('', terms)).toBe('');
+  });
+
+  it('runs from the command line with the title and the denylist in env, never argv', () => {
+    const out = execFileSync(process.execPath, ['scripts/triage/redact.mjs', '--title'], { env: { ...process.env, TITLE: 'AcmeBank cannot connect to 10.0.0.9', REDACT_TERMS: 'acmebank' }, encoding: 'utf8' });
+    expect(out).toBe('[org] cannot connect to [redacted-ip]\n');
   });
 });

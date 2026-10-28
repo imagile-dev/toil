@@ -291,9 +291,56 @@ describe('triage steps, wired as the workflow wires them', () => {
     writeFileSync(join(handover, 'changes.tar'), ustar([{ path: '.github/x.yml', data: 'x' }]));
     writeFileSync(join(handover, 'deleted.txt'), '');
     const gh = fakeGitHub([issue(5)]);
-    await expect(openPr({ env: { ...base, NUMBER: '5', HANDOVER: handover, PUSH_URL: temp('toil-origin-') }, fetcher: gh.fetcher, cwd: work, log: quiet })).rejects.toThrow('outside an area');
+    await expect(openPr({ env: { ...base, NUMBER: '5', HANDOVER: handover, PUSH_URL: temp('toil-origin-') }, fetcher: gh.fetcher, cwd: work, log: quiet })).rejects.toThrow("triage's own rules");
     expect(gh.pulls).toEqual([]);
   });
+
+  it('a fix to the site or the Azure Function backend opens nothing: those are for a maintainer to review first', async () => {
+    for (const path of ['site/src/pages/index.astro', 'functions/feedback/src/lib/handlers.ts', 'infra/main.bicep']) {
+      const handover = temp('toil-handover-');
+      writeFileSync(join(handover, 'changes.tar'), ustar([{ path, data: 'x' }]));
+      writeFileSync(join(handover, 'deleted.txt'), '');
+      const gh = fakeGitHub([issue(5)]);
+      await expect(openPr({ env: { ...base, NUMBER: '5', HANDOVER: handover, PUSH_URL: temp('toil-origin-') }, fetcher: gh.fetcher, cwd: checkout(), log: quiet })).rejects.toThrow('for a maintainer to review first');
+      expect(gh.pulls).toEqual([]);
+    }
+  });
+
+  it('a fix to core and two areas becomes a draft PR that leads with the safety-layer edit and says CI must run the full gate', async () => {
+    const gh = fakeGitHub([issue(5, { labels: ['from-website', CLAIMED] })]);
+    const work = checkout();
+    mkdirSync(join(work, 'src', 'core'), { recursive: true });
+    writeFileSync(join(work, 'src', 'core', 'files.ts'), 'export const files = 1;\n');
+    writeFileSync(join(work, 'src', 'core', 'paginate.ts'), 'export const paginate = 1;\n');
+    const git = (cwd: string, ...args: string[]) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', '-c', 'core.autocrlf=false', ...args], { cwd, encoding: 'utf8' });
+    git(work, 'init', '-q', '-b', 'main');
+    git(work, 'add', '.');
+    git(work, 'commit', '-qm', 'main');
+    const origin = temp('toil-origin-');
+    git(origin, 'init', '-q', '--bare');
+    const handover = temp('toil-handover-');
+    writeFileSync(join(handover, 'agent-ok'), 'ok');
+    writeFileSync(join(handover, 'decision.json'), '{"decision":"fix","areas":["jira","github"]}');
+    writeFileSync(join(handover, 'pr-title.txt'), 'fix: page every list the same way');
+    writeFileSync(join(handover, 'pr-body.md'), 'Pages them.');
+    writeFileSync(join(handover, 'changes.tar'), ustar([
+      { path: 'src/core/paginate.ts', data: 'export const paginate = 2;\n' },
+      { path: 'src/core/files.ts', data: 'export const files = 2;\n' },
+      { path: 'src/areas/jira/index.ts', data: "export const area = 'jira'; // paged\n" },
+      { path: 'src/areas/github/index.ts', data: "export const area = 'github'; // paged\n" },
+    ]));
+    writeFileSync(join(handover, 'deleted.txt'), '');
+    const decided = await decideStep({ env: { NUMBER: '5', HANDOVER: handover }, cwd: work, log: quiet });
+    expect(decided).toEqual({ decision: 'fix', labels: 'triaged,area:jira,area:github', duplicate_of: '' });
+    await openPr({ env: { ...base, NUMBER: '5', HANDOVER: handover, PUSH_URL: origin }, fetcher: gh.fetcher, cwd: work, log: quiet });
+    const body = gh.pulls[0]!.body as string;
+    expect(body.startsWith('## Safety-layer edits')).toBe(true);
+    expect(body).toContain('- `src/core/files.ts`');
+    expect(body).not.toContain('- `src/core/paginate.ts`');
+    expect(body).toContain('This changes toil itself');
+    expect(body).toContain('CI runs it on this draft');
+    expect(git(origin, 'show', 'claude/issue-5:src/core/paginate.ts')).toBe('export const paginate = 2;\n');
+  }, 30_000);
 });
 
 // handover.sh runs on the workflow's ubuntu runner only; it needs GNU sha256sum and comm.
@@ -438,6 +485,23 @@ describe.skipIf(process.platform !== 'linux')('handover.sh and the job secrets (
     expect(run.stdout).not.toContain(value);
     expect(existsSync(join(out, 'secret-match'))).toBe(true);
     expect(readFileSync(join(out, 'comment.md'), 'utf8')).toBe('');
+  });
+});
+
+describe('a maintainer decision', () => {
+  it('comments and labels needs-maintainer, closes nothing, and drops the claim', async () => {
+    const gh = fakeGitHub([issue(5, { labels: ['from-website', CLAIMED] })]);
+    const handover = temp('toil-handover-');
+    writeFileSync(join(handover, 'agent-ok'), 'ok');
+    writeFileSync(join(handover, 'decision.json'), '{"decision":"maintainer","areas":["jira"]}');
+    writeFileSync(join(handover, 'comment.md'), 'This is a change to the site page. I would reword the callout; a maintainer reviews the site first.');
+    const decided = await viaOutputFile(() => decideStep({ env: { NUMBER: '5', HANDOVER: handover }, cwd: checkout(), log: quiet }));
+    expect(decided).toEqual({ decision: 'maintainer', labels: 'triaged,needs-maintainer,area:jira', duplicate_of: '' });
+    await apply({ env: { ...base, NUMBER: '5', HANDOVER: handover, DECISION: decided.decision, LABELS: decided.labels, RUN_URL: 'https://github.com/imagile-dev/toil/actions/runs/1' }, fetcher: gh.fetcher });
+    const after = gh.byNumber.get(5)!;
+    expect(after.state).toBe('open');
+    expect(after.labels.sort()).toEqual(['area:jira', 'from-website', 'needs-maintainer', 'triaged']);
+    expect(after.comments).toEqual(['This is a change to the site page. I would reword the callout; a maintainer reviews the site first.']);
   });
 });
 

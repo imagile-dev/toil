@@ -3,7 +3,10 @@ name: Triage
 # An agent triages each issue filed from outside: through the site's form
 # (`from-website`) or the curl endpoint (`from-terminal`), both opened by the
 # Imagile Bot, or one a maintainer labels `claude-triage`. It proposes the
-# narrowest fix in one area, or explains why not. CLAUDE.md, principle 2, allows
+# narrowest fix, in core, several areas or Toil UI if that is where the problem
+# is (the maintainer's call, 2026-10-28), leaves the site and the Azure Function
+# backend for a maintainer to look at first, and denies only what CLAUDE.md's
+# principles rule out. CLAUDE.md, principle 2, allows
 # this one exception to "act only on feedback from its own people" because of
 # the boundaries here (the `automation` skill describes them):
 #
@@ -26,7 +29,9 @@ name: Triage
 # Imagile Bot as the actor.
 #
 # Every action is pinned to a full commit SHA. The agent never edits this file,
-# the scripts it runs, or anything else under .github/.
+# the scripts it runs, or anything else under .github/ or scripts/, and finish
+# refuses a fix that does (scripts/triage/changes.mjs). A workflow that could edit its own
+# daily cap would be a budget approved by the department it limits.
 
 on:
   issues:
@@ -212,60 +217,88 @@ jobs:
                  Read why it was denied in `denied.json`; never guess at the reason. If the denial rested on a
                  rule CLAUDE.md no longer has, it is not a duplicate: assess this one fresh in steps 2 to 4,
                  and say in your comment that the earlier decision was made under rules that have since changed.
-                 One such rule: a denial that said Toil UI (`ui/`) is maintainer work was made before triage
-                 could change Toil UI (step 3), so it is superseded; assess that request fresh.
+                 Two such rules: a denial that said Toil UI (`ui/`) is maintainer work, and a denial that said
+                 the change touches core, needs more than one area, or is "maintainer work", were made under
+                 narrower scopes (the maintainer's calls of 2026-10-26 and 2026-10-28). They are superseded;
+                 assess that request fresh.
                - Matching titles alone are not enough: the same area and the same behavior must be asked for.
                Only go on to step 2 if there is no duplicate.
-            2. **Areas.** Work out which integrations it involves. The areas are:
+            2. **Areas.** Work out which integrations it involves, if any. The areas are:
                ${{ steps.prep.outputs.areas }}.
-            3. **Decide.** A fix may change one integration area and/or Toil UI, and only these files:
-               - **One area:** `src/areas/<area>/`, `test/fixtures/<area>.fixture.ts`, `skills/toil/<area>.md`,
-                 `docs/divergences/<area>.json`, `site/src/data/integrations/<area>.json`, and the generated
-                 `site/src/data/commands/<area>.json` and `site/src/data/settings/<area>.json`.
-               - **Toil UI:** `ui/src/` (its fixtures included), `ui/server/` (but not
-                 `ui/server/agents/install.ts`, the one file that spawns), `ui/test/`, `ui/docs/` and
-                 `ui/themes/`, with the tests, fixtures and docs the change needs. An issue about Toil UI
-                 is work you can do (the maintainer's decision on #487, 2026-10-26): it is no longer
-                 maintainer work. A fix that needs both one area and Toil UI is fine; one that needs two
-                 areas is not.
-               - **Toil UI's safety layer** is allowed but must never be edited quietly. It is every file
-                 under `ui/server/` (the launch token, CSP, write gates, read list and read-only lock,
-                 agent tool and env allowlists, launchers), `ui/src/config.ts` (Settings' write
-                 allowlist), each theme's `theme.json` (its `voice` is prompt text for Toil UI's agent),
-                 and the suites that check Toil UI's own rules: `ui/test/server.test.ts`, `registry.test.ts`,
-                 `config.test.ts`, `themes.test.ts`, `package.test.ts`, `install.test.ts`, `setup.ts` and
-                 `harness.ts`. Edit one only when the issue needs it, as narrowly as you can, and
-                 in `.triage-out/pr-body.md` add a section headed "What the safety-layer edits change" naming
-                 each file and saying plainly what it loosened or widened (a command added to a list, a
-                 header relaxed, an env variable passed on), or that it loosened nothing. The workflow
-                 puts the list of these files at the top of the draft; your section says what they do.
-               Anything in core (`src/core/` and the rest of `src/` outside one area), `functions/`,
-               `infra/`, site pages, `.github/`, `scripts/`, `dist/`, `package.json` or the lockfile
-               (the root's or `ui/`'s), Toil UI's build and lint configuration, a new dependency, a new
-               area, or a change to more than one area is maintainer work: deny it, saying exactly which
-               of those it needs. Deny anything CLAUDE.md rules out (its principles, the Authentication Bar
-               in the `integrations` skill, the command contract), quoting the rule. For a Toil UI change
-               the rules in CLAUDE.md that bind you are: the Layout entry for `ui/`; principle 11 (quiet
-               screens: show what is needed to act, explain on demand, and when you add something, take
-               something off the screen); `ui/docs/themes.md` for a theme (themes are CSS, JSON and assets
-               only, built in); `ui/test/registry.test.ts`, which holds every call the fixture answers
-               to toil's real registry, so a command the views read goes in `READ_COMMANDS`
-               (`ui/server/reads.ts`) and in the fixture or that test, as the change needs; and no
-               runtime dependency beyond the toil pin. You cannot run anything, so you cannot run Toil
-               UI's gate (`npm run verify:ui`, the layout check at 375, 768 and 1440 px); say in
-               `.triage-out/pr-body.md` that this PR changes Toil UI and needs that check and the screen
-               review before it merges.
+            3. **Decide.** Four outcomes. You may fix almost anything (the maintainer's call, 2026-10-28), so
+               "it touches core", "it touches several areas" and "it is big" are never reasons to deny.
+               - **fix**: you can make the change by editing files. That includes core (`src/core/` and the
+                 rest of `src/`), more than one area at once, `skills/toil/`, `docs/`, tests, and Toil UI
+                 (`ui/src/`, `ui/server/` but not `ui/server/agents/install.ts`, the one file that spawns,
+                 `ui/test/`, `ui/docs/`, `ui/themes/`), with the tests, fixtures and docs the change needs.
+                 Per-area files are `src/areas/<area>/`, `test/fixtures/<area>.fixture.ts`,
+                 `skills/toil/<area>.md`, `docs/divergences/<area>.json` and the site's per-area data
+                 `site/src/data/integrations|commands|settings/<area>.json`.
+               - **maintainer**: a person looks first; the issue stays OPEN and gets the `needs-maintainer`
+                 label. Use it when the change would be to the website (`site/`, other than the per-area data
+                 files above), to the Azure Function backend (`functions/`) or what provisions it (`infra/`);
+                 when you cannot confirm a reported bug from the code and need more information (say exactly
+                 what you need); and when the change can only be made by running something you cannot run:
+                 `package.json`, any lockfile, or a new dependency (you have no npm, so you cannot resolve
+                 it or check the 14-day age rule). Your comment says what you would change and why, or what
+                 you need to know, so the maintainer can act on it. Make no edits.
+               - **deny**: only what directly violates CLAUDE.md's principles, and your comment quotes the
+                 principle. Examples: telemetry, logging or calling home anywhere (principle 9); a native
+                 binary or a spawned executable beyond the ones the No Executables section allows
+                 (principle 1); loosening the write gate, the secrets rules or a bound (principle 2);
+                 something the Authentication Bar in the `integrations` skill rules out; breaking the
+                 command contract without a declared change (principle 7). Deny nothing for being large,
+                 awkward or in core. The issue is closed.
+               - **duplicate**: step 1.
+
+               **Never touch** `.github/`, `scripts/`, `CLAUDE.md`, `.claude/`, `AGENT_DECISIONS.md`,
+               `docs/decisions/`, `dist/`, any file at the repository root besides `README.md`, `package.json`
+               or a lockfile anywhere, or Toil UI's build and lint configuration and `ui/scripts/`. These
+               are the pipeline's own rules and plumbing: the workflow refuses a fix that edits one, so
+               decide `maintainer` and say what change is needed instead.
+
+               **Safety layers must never be edited quietly.** Allowed, but flagged. They are toil's own
+               (`src/core/` run, call-context, area, command, connection, dossier and deployments; keychain,
+               secret-input, secret-shapes, prompt and token; files, local-path, git and its repo, config
+               and remote readers; network, rest, api, http, passthrough and api-path; bounds, audit,
+               config, errors and envelope; everything under `src/os/`, `src/shims/` and `src/mcp/`;
+               `src/api.ts`; `docs/bounds.md`, `test/bounds.test.ts` and `test/parity.test.ts`, plus the
+               tests beside those files) and Toil UI's (every file under `ui/server/` (the launch token,
+               CSP, write gates, read list and read-only lock, agent tool and env allowlists, launchers),
+               `ui/src/config.ts` (Settings' write allowlist), each theme's `theme.json` (its `voice` is
+               prompt text for Toil UI's agent), and the suites that check Toil UI's own rules:
+               `ui/test/server.test.ts`, `registry.test.ts`, `config.test.ts`, `themes.test.ts`,
+               `package.test.ts`, `install.test.ts`, `setup.ts` and `harness.ts`). Edit one only when the
+               issue needs it, as narrowly as you can, and in `.triage-out/pr-body.md` add a section headed
+               "What the safety-layer edits change" naming each file and saying plainly what it loosened or
+               widened (a command added to a list, a header relaxed, an env variable passed on, a bound
+               raised), or that it loosened nothing. The workflow puts the list of these files at the top
+               of the draft; your section says what they do.
+
+               The rules in CLAUDE.md that bind a fix: for core, the principles, No Executables, Secrets,
+               Bounds, the Output Contract and the command contract (a suspected bug in recorded behavior
+               is recorded, not fixed); for a Toil UI change, the Layout entry for `ui/`, principle 11
+               (quiet screens: show what is needed to act, explain on demand, and when you add something,
+               take something off the screen), `ui/docs/themes.md` for a theme (themes are CSS, JSON and
+               assets only, built in), `ui/test/registry.test.ts` (which holds every call the fixture
+               answers to toil's real registry, so a command the views read goes in `READ_COMMANDS`
+               (`ui/server/reads.ts`) and in the fixture or that test), and no runtime dependency beyond
+               the toil pin.
             4. **To fix:** make the narrowest change that resolves the issue, by editing files. No refactors,
-               no unrelated edits, and change no tests except the ones for your change. Follow the command
-               contract: a suspected bug in recorded behavior is recorded, not fixed. CI runs typecheck,
-               lint, test, build and check:pure on the draft PR, so be careful with types and with every
-               test that names the area. Write the PR title (one line) to
-               `.triage-out/pr-title.txt` and its description to `.triage-out/pr-body.md`: what changed and
-               why. Don't write "Closes"; the workflow adds it.
+               no unrelated edits, and change no tests except the ones for your change. You cannot run
+               anything, so be careful with types and with every test that names what you changed. CI runs
+               typecheck, lint, test, build, check:pure and smoke on the draft PR; a change to core needs
+               that whole gate, and a change to Toil UI also needs `npm run verify:ui` and the screen
+               review, so say in `.triage-out/pr-body.md` that this PR changes core or Toil UI and needs
+               them before it merges. Write the PR title (one line) to `.triage-out/pr-title.txt` and its
+               description to `.triage-out/pr-body.md`: what changed and why. Don't write "Closes"; the
+               workflow adds it. Don't write a decisions file: the description carries your reasoning.
             5. Write your decision to `.triage-out/decision.json`, exactly:
-               `{"decision": "fix" | "deny" | "duplicate", "areas": ["<area>", ...], "duplicateOf": <number, for duplicate only>}`
-               and the comment to post on the issue to `.triage-out/comment.md`: for a fix, what you
-               changed; for a denial, the reason, plainly and politely; for a duplicate, the earlier issue.
+               `{"decision": "fix" | "maintainer" | "deny" | "duplicate", "areas": ["<area>", ...], "duplicateOf": <number, for duplicate only>}`
+               (`areas` lists the integration areas involved, and may be empty), and the comment to post on
+               the issue to `.triage-out/comment.md`: for a fix, what you changed; for `maintainer`, what you
+               would change and why, or what you need to know; for a denial, the principle and the reason,
+               plainly and politely; for a duplicate, the earlier issue.
             6. Write nothing outside the fix and `.triage-out/`.
 
             Work entirely in this session. When your turn ends, the job ends.

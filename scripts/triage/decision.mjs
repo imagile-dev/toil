@@ -3,7 +3,15 @@
 // pr-body.md), and the workflow's last job applies it with its own token after
 // checking it here. The agent proposes; the form is checked; a clerk stamps it.
 //
-// decision.json: { "decision": "fix" | "deny" | "duplicate", "areas": ["jira"], "duplicateOf": 12 }
+// decision.json: { "decision": "fix" | "maintainer" | "deny" | "duplicate", "areas": ["jira"], "duplicateOf": 12 }
+//
+//   fix         a change the agent made; opens a draft PR
+//   maintainer  left open, labelled needs-maintainer, with a comment saying what
+//               the agent would change or what it needs to know (the site and the
+//               Azure Function backend, a bug it can't confirm, anything that
+//               needs npm). Not a refusal: the issue stays where a person finds it
+//   deny        only what CLAUDE.md's principles rule out; closes the issue
+//   duplicate   the same request as an earlier issue; closes it
 //
 //   node scripts/triage/decision.mjs <out-dir> <issue> <area>...   writes the checked
 //   decision to $GITHUB_OUTPUT and the comment and PR text, defused, beside it.
@@ -55,7 +63,7 @@ export function parseDecision(raw, issue, knownAreas) {
   }
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return { ok: false, problems: ['decision.json is not an object'] };
   const decision = value.decision;
-  if (!['fix', 'deny', 'duplicate'].includes(decision)) problems.push(`decision must be fix, deny or duplicate, not ${JSON.stringify(decision)}`);
+  if (!['fix', 'maintainer', 'deny', 'duplicate'].includes(decision)) problems.push(`decision must be fix, maintainer, deny or duplicate, not ${JSON.stringify(decision)}`);
   const areas = Array.isArray(value.areas) ? [...new Set(value.areas)] : [];
   if (!Array.isArray(value.areas)) problems.push('areas must be a list');
   const unknown = areas.filter((a) => typeof a !== 'string' || !knownAreas.includes(a));
@@ -118,7 +126,7 @@ export function decide(dir, issue, areas, log = console.log, root = undefined) {
   return {
     decision: parsed.ok ? parsed.decision : 'invalid',
     // A duplicate gets `duplicate`; `denied` only when its original was denied, which apply checks.
-    labels: ['triaged', ...(parsed.ok && parsed.decision === 'deny' ? ['denied'] : []), ...(parsed.ok && parsed.decision === 'duplicate' ? ['duplicate'] : []), ...(parsed.areas ?? []).map((a) => `area:${a}`)].join(','),
+    labels: ['triaged', ...(parsed.ok && parsed.decision === 'maintainer' ? ['needs-maintainer'] : []), ...(parsed.ok && parsed.decision === 'deny' ? ['denied'] : []), ...(parsed.ok && parsed.decision === 'duplicate' ? ['duplicate'] : []), ...(parsed.areas ?? []).map((a) => `area:${a}`)].join(','),
     duplicate_of: parsed.ok && parsed.duplicateOf ? String(parsed.duplicateOf) : '',
   };
 }

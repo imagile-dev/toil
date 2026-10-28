@@ -53,11 +53,17 @@ gets made again in the next place it applies.
    The one exception: issues filed from outside (the site's feedback form and its
    curl endpoint) may be triaged by an agent, but only after redaction, within the
    daily cap, under the safeguards in the `automation` skill, and only through PRs
-   that a human merges. Triage may change one integration area and/or Toil UI (`ui/`, but not
-   its spawner, packaging or tooling), never core. Edits to Toil UI's safety layer (the
-   server's gates, allowlists and launchers) are allowed and are listed at the top of the
-   draft PR (the maintainer's call on #487, 2026-10-26: Toil UI issues are not
-   maintainer-only work; `automation` skill).
+   that a human merges. Triage may fix almost anything: core, several areas at once, the
+   skill, the docs, the tests and Toil UI (`ui/`, but not its spawner, packaging or tooling)
+   (the maintainer's call, 2026-10-28, widening #487's of 2026-10-26). It leaves the
+   website (`site/`) and the Azure Function backend (`functions/`, `infra/`) for a maintainer
+   to review first, and so anything it cannot confirm or cannot do without running npm: it
+   comments and labels the issue `needs-maintainer`, and the issue stays open. It denies and
+   closes only what directly violates these principles, quoting the one. It never edits the
+   rules that constrain it: `.github/`, `scripts/`, CLAUDE.md, `.claude/`, `dist/` and the
+   decisions files. Edits to a safety layer (toil's write gate, secrets, files, network,
+   bounds, audit and config code, the MCP server, and Toil UI's gates, allowlists and
+   launchers) are allowed and are listed at the top of the draft PR (`automation` skill).
    On a PR the maintainer is driving through Claude Code, the maintainer's decision is
    standing (2026-10-19): the agent turns on auto-merge, so the PR lands once the
    Imagile Bot's review approves its head commit and `CI ok` passes. A human still

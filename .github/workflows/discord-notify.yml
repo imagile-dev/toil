@@ -4,13 +4,25 @@ on:
   issues:
     types: [opened, closed]
 
-# The webhook is the only credential this needs; the workflow token gets nothing.
+# The webhook is the only credential this needs; the workflow token gets nothing
+# at the top, and the job below asks for read access to main's scripts alone.
 permissions: {}
 
 jobs:
   notify:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
+      # Main's copy of the redactor, never the issue's or a branch's. Nothing here
+      # runs anything but that script.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.22.1'
       - name: Notify Discord
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
@@ -19,10 +31,14 @@ jobs:
           TITLE: ${{ github.event.issue.title }}
           URL: ${{ github.event.issue.html_url }}
           ISSUE_USER: ${{ github.event.issue.user.login }}
-          # Issues filed from outside (by the feedback backend) are posted by number
-          # alone. Their titles are a reporter's own words, redacted by rules that can
-          # only catch what they know, and the channel keeps whatever it is sent.
+          # Issues filed from outside (by the feedback backend) are posted with
+          # their title (the maintainer's call, 2026-10-28), but only after the
+          # redaction triage uses (scripts/triage/redact.mjs: token shapes, internal
+          # hosts, private IPs and the REDACT_TERMS denylist), so nothing it would
+          # remove from the issue reaches a channel that keeps whatever it is sent.
+          # If the redactor fails, the title is withheld rather than posted as it was.
           FROM_OUTSIDE: ${{ contains(github.event.issue.labels.*.name, 'from-website') || contains(github.event.issue.labels.*.name, 'from-terminal') }}
+          REDACT_TERMS: ${{ secrets.REDACT_TERMS }}
         run: |
           [[ -z "$DISCORD_WEBHOOK" ]] && echo "DISCORD_WEBHOOK not set, skipping" && exit 0
           if [[ "$ACTION" == "opened" ]]; then
@@ -35,7 +51,11 @@ jobs:
             exit 0
           fi
           if [[ "$FROM_OUTSIDE" == "true" ]]; then
-            HEADLINE="Issue #${NUMBER} ${ACTION}: filed from outside, title not shown"
+            if SHOWN=$(node scripts/triage/redact.mjs --title) && [[ -n "$SHOWN" ]]; then
+              HEADLINE="Issue #${NUMBER} ${ACTION}: ${SHOWN}"
+            else
+              HEADLINE="Issue #${NUMBER} ${ACTION}: filed from outside, title withheld"
+            fi
           else
             HEADLINE="Issue #${NUMBER} ${ACTION}: ${TITLE}"
           fi
@@ -44,5 +64,6 @@ jobs:
             --arg url "$URL" \
             --arg desc "${VERB} by [@${ISSUE_USER}](https://github.com/${ISSUE_USER})" \
             --argjson color $COLOR \
-            --arg avatar "https://imagile-dev.github.io/toil/brand/toil-avatar-512.png"             '{"username":"toil","avatar_url":$avatar,"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \
+            --arg avatar "https://imagile-dev.github.io/toil/brand/toil-avatar-512.png" \
+            '{"username":"toil","avatar_url":$avatar,"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \
           | curl -sf -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d @-
