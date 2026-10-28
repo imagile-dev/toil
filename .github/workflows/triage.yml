@@ -262,7 +262,8 @@ jobs:
                a gate: toil's write gate, secrets, files, network, bounds, audit and config code, the
                connections, skills, setup, feedback and dossier commands, `src/os/`, `src/shims/`,
                `src/mcp/` and `src/api.ts`, the command contract, the suites that check those rules
-               (triage's own included), and Toil UI's server, Settings allowlist, theme `voice` text and
+               (triage's own included), the shipped skill's rule pages (`skills/toil/SKILL.md`,
+               `core.md`, `setup.md`, `mcp.md`), and Toil UI's server, Settings allowlist, theme `voice` text and
                the suites that check them. Edit one only when the
                issue needs it, as narrowly as you can, and in `.triage-out/pr-body.md` add a section headed
                "What the safety-layer edits change" naming each file and saying plainly what it loosened or

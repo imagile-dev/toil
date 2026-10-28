@@ -313,7 +313,7 @@ describe('the path check', () => {
   });
 
   it('accepts a core fix and reports it', () => {
-    expect(check([edit('src/core/paginate.ts'), edit('src/core/paginate.test.ts'), edit('skills/toil/core.md')], known)).toEqual({ ok: true, areas: [], ui: false, core: true, safety: [], refused: [] });
+    expect(check([edit('src/core/paginate.ts'), edit('src/core/paginate.test.ts'), edit('skills/toil/core.md')], known)).toEqual({ ok: true, areas: [], ui: false, core: true, safety: ['skills/toil/core.md'], refused: [] });
   });
 
   it.each([
@@ -366,9 +366,10 @@ describe('the path check', () => {
       'src/core/wait.ts', 'src/core/time-limit.test.ts', 'src/core/wildmatch.ts', 'src/core/query/parse.ts', 'src/welcome/rogue/save.ts', 'src/connections/add.ts', 'src/skills/folders.ts',
       'src/setup/commands.ts', 'src/feedback/command.ts', 'src/dossiers/build.ts', 'docs/command-contract.json', 'docs/command-contract.md', 'test/contract.test.ts', 'test/triage.test.ts',
       'test/triage-steps.test.ts', 'test/workflow-wiring.test.ts', 'test/merge-only.test.ts', 'test/repo-hygiene.test.ts',
+      'skills/toil/SKILL.md', 'skills/toil/core.md', 'skills/toil/setup.md', 'skills/toil/mcp.md',
     ];
     expect(flagged.filter((p) => !isSafetyLayer(p))).toEqual([]);
-    expect(['src/core/paginate.ts', 'src/areas/jira/commands.ts', 'src/registry.ts', 'skills/toil/core.md', 'test/site-commands.test.ts'].some(isSafetyLayer)).toBe(false);
+    expect(['src/core/paginate.ts', 'src/areas/jira/commands.ts', 'src/registry.ts', 'skills/toil/jira.md', 'test/site-commands.test.ts'].some(isSafetyLayer)).toBe(false);
     const result = check([edit('src/core/run.ts'), edit('src/core/paginate.ts'), edit('src/mcp/server.ts'), edit('src/areas/jira/a.ts')], known);
     expect(result).toMatchObject({ ok: true, core: true, areas: ['jira'], safety: ['src/core/run.ts', 'src/mcp/server.ts'] });
   });

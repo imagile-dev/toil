@@ -102,6 +102,8 @@ export const SAFETY_ELSEWHERE_CORE = new Set([
   // The contract, and the suites that guard it, triage's own rules and the repository's hygiene.
   'docs/command-contract.json', 'docs/command-contract.md', 'test/contract.test.ts', 'test/triage.test.ts', 'test/triage-steps.test.ts',
   'test/workflow-wiring.test.ts', 'test/merge-only.test.ts', 'test/repo-hygiene.test.ts',
+  // The shipped skill's pages an agent takes its rules from: writes, feedback, setup and secrets.
+  'skills/toil/SKILL.md', 'skills/toil/core.md', 'skills/toil/setup.md', 'skills/toil/mcp.md',
 ]);
 export const SAFETY_CORE_FOLDERS = [
   'src/os/', 'src/shims/', 'src/mcp/', 'src/core/query/', 'src/connections/', 'src/skills/', 'src/setup/', 'src/feedback/', 'src/dossiers/',
@@ -119,11 +121,13 @@ const SAFETY_ELSEWHERE_UI = new Set([
   'ui/src/config.ts', 'ui/test/server.test.ts', 'ui/test/registry.test.ts', 'ui/test/config.test.ts', 'ui/test/themes.test.ts',
   'ui/test/package.test.ts', 'ui/test/install.test.ts', 'ui/test/setup.ts', 'ui/test/harness.ts',
 ]);
+// The same list folded to lowercase for the lookup; the list keeps real names so a test can find each file.
+const SAFETY_ELSEWHERE_LOWER = new Set([...SAFETY_ELSEWHERE_CORE].map((path) => path.toLowerCase()));
 export const isSafetyLayer = (original) => {
   // Compared lowercase: on Windows and macOS `Src/Core/Run.ts` is run.ts.
   const path = original.toLowerCase();
   return path.startsWith('ui/server/') || SAFETY_ELSEWHERE_UI.has(path) || /^ui\/themes\/[^/]+\/theme\.json$/.test(path)
-    || CORE_SAFETY_FILES.has(path) || SAFETY_ELSEWHERE_CORE.has(path) || SAFETY_CORE_FOLDERS.some((folder) => path.startsWith(folder));
+    || CORE_SAFETY_FILES.has(path) || SAFETY_ELSEWHERE_LOWER.has(path) || SAFETY_CORE_FOLDERS.some((folder) => path.startsWith(folder));
 };
 
 const wellFormed = (path) => !(path.includes('\\') || path.split('/').some((part) => part === '..' || part === '.' || part === '') || path.startsWith('/'));
