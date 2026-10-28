@@ -73,10 +73,11 @@ Use the person's approved names and non-secret settings only. Repeat `--set` for
 
 ```bash
 toil connections add github --area github --set baseUrl=https://api.github.com
-toil connections add imagile-jira --area jira --set deployment=cloud --set baseUrl=https://imagile.atlassian.net --set email=you@example.com
+toil connections add imagile-jira --area jira --set baseUrl=https://jira.imagile.dev
 ```
 
-It asks nothing, stores no secret and leaves writes off. A secret key in `--set` is
+For Atlassian Cloud, also set `deployment=cloud`, `email=<their account email>` and the
+`<site>.atlassian.net` URL, as the table says. It asks nothing, stores no secret and leaves writes off. A secret key in `--set` is
 refused. The result names the secret the connection still needs.
 
 Then hand it over, in the person's terminal or in Toil UI:
