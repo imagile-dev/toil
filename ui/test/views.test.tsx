@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
-import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type Agent, type AskExtra } from '../src/agent.ts';
+import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type AdapterList, type Agent, type AskExtra } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { askBar, openChat } from './chat.ts';
 import { CANNED, FIXTURE_NOW, callKey, fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
@@ -738,6 +738,32 @@ describe('the chat up front (#343)', () => {
         unmount();
         cleanup();
       }
+    });
+
+    it('starts one run for two presses while the agent list loads, and Stop cancels it', async () => {
+      let release!: (l: AdapterList) => void;
+      const listing = new Promise<AdapterList>((r) => (release = r));
+      const signals: Array<AbortSignal | undefined> = [];
+      const agent: Agent = {
+        starters: () => [],
+        adapters: () => listing,
+        ask: async () => ({ prompt: 'Analyze', parts: [], citations: [], by: 'Claude', proposals: [] }),
+        async *stream(_d, _p, signal) {
+          signals.push(signal);
+          yield { prompt: 'Analyze', parts: [{ text: 'Working.' }], citations: [], by: 'Claude', proposals: [] };
+          await new Promise<void>((resolve) => signal?.addEventListener('abort', () => resolve()));
+        },
+      };
+      await open('#/dossier/card-payments', { agent, preview: false });
+      await userEvent.click(within(askBar('card-payments')).getByRole('button', { name: 'Analyze' }));
+      const chat = await screen.findByRole('dialog', { name: 'Ask about card-payments' });
+      await userEvent.click(within(chat).getByRole('button', { name: 'Analyze' }));
+      release({ chosen: 'claude', remembered: null, options: [ready('claude', 'Claude')] });
+      await within(chat).findByRole('heading', { level: 3, name: 'Analyze' });
+      expect(signals).toHaveLength(1);
+      await userEvent.click(await within(chat).findByRole('button', { name: 'Stop' }));
+      expect(signals[0]!.aborted).toBe(true);
+      expect(signals).toHaveLength(1);
     });
 
     it("remembers a picked agent: the next Analyze, even in a fresh page, starts on it", async () => {

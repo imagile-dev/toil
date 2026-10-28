@@ -154,6 +154,8 @@ function useChat() {
   const next = useRef(0);
   const chatId = useRef(newChatId());
   const abort = useRef<AbortController | null>(null);
+  // Set while a question waits on the agent list, before its turn exists, so a second press in that gap is not a second run.
+  const asking = useRef(false);
   const turns = entries.filter((e): e is Turn => e.kind === 'turn');
   const busy = turns.some((t) => !t.done);
 
@@ -167,11 +169,16 @@ function useChat() {
   };
 
   const ask = async (prompt: string, shown = prompt) => {
-    if (busy || !prompt.trim()) return;
+    if (busy || asking.current || !prompt.trim()) return;
     // Analyze can start before the strip has read the agents (the palette, the button): read them now, so the dossier's own is not missed (#494).
     let list = adapters;
     if (!list && !adapter && agent.adapters) {
-      list = await agent.adapters(dossier.name).catch(() => null);
+      asking.current = true;
+      try {
+        list = await agent.adapters(dossier.name).catch(() => null);
+      } finally {
+        asking.current = false;
+      }
       if (list) setAdapters(list);
     }
     const id = next.current++;
