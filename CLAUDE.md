@@ -287,7 +287,7 @@ GitHub Actions; its build tooling is out of scope.
   (`secret-input.ts`), and
   JMESPath (`query/`, behind `--select` and `toil wait --until`), and `toil wait`
   (`wait.ts`), which runs a read through `execute()` once per attempt
-- `src/connections/` — `toil connections add | login | list | remove | test | writes | default`
+- `src/connections/` — `toil connections add | login | list | remove | test | writes | default | migrate | import`; `import-command.ts` is `import` and `import/` its pure parsers, one per tool (DBeaver, SSMS, pgAdmin, DataGrip, ...), which map a tool's file to `db` connections and never carry a secret (`docs/bounds.md`, `connections.import`)
 - `src/setup/` — `toil setup alias | remove-alias`, the `toil` alias for a clone
   (CLI only; the profile editing is `src/core/shell-profile.ts`)
 - `src/skills/` — the skills folders and marketplace clones (`docs/bounds.md`,

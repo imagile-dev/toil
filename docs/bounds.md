@@ -60,7 +60,23 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | `dossiers.read` | `files.workspace` | `src/core/dossier.ts` | Reading dossier files (`docs/dossiers.md`) from your own folder (`~/.toil/dossiers/`), the folders you list in `dossierPaths` or `TOIL_DOSSIER_PATHS`, and `.toil/dossiers/` at the root of the repository the call's folder is in. A dossier file named on the call (`--dossier <file>`) must be one of those, or inside the workspace. |
 | `dossiers.write` | `files.workspace` | `src/core/dossier.ts` | The `toil dossiers` commands writing a dossier to your own folder, a listed folder, or `.toil/dossiers/` at the root of a git working tree (`export --repo`). Anywhere else, the file must be inside the workspace. |
 | `dossiers.replace` | `files.no-overwrite` | `src/core/dossier.ts` | Rewriting a dossier: an edit (`link`, `field`, `add-repo`, `env`) rewrites the file it read, and `export`/`import` with `--replace` replace one. Only a file that is already a valid dossier is ever replaced. |
+| `connections.import` | `files.workspace` | `src/connections/import-command.ts` | `toil connections import` reading one other tool's connection list (DBeaver's `data-sources.json`, a `.regsrvr`, `servers.json`, `pg_service.conf`, ...) from that tool's default location on this OS, or from a path the person names, outside the workspace. Bounded below. |
 | `feedback.send` | `commands.read-only` | `src/feedback/command.ts`, `src/api.ts` | `toil feedback` sending one report to Imagile's feedback endpoint, which files it as a public GitHub issue, with no connection holding `writes: true` and no `--allow-write`. Its gate is the approval of that exact report instead, and it is the one request toil makes to a host the user didn't configure. Bounded below. |
+
+`connections.import` is one read, of a file, and nothing else (CLAUDE.md, principle 2 and **Secrets**; #520):
+
+1. **What.** One file, read as text and parsed, never executed: at most 4 MB, XML nested at most 64 levels,
+   JSON read with `JSON.parse` after comments are stripped, so a `__proto__` key is only a key. It is the
+   tool's own connection list (the formats are the registry in `src/connections/import/index.ts`),
+   found at the tool's default location for the OS (built from `os.homedir()`, `%APPDATA%` or
+   `XDG_*`) or at the path the person typed.
+2. **What it still refuses.** Network (UNC) and device paths, anything under `~/.toil` or the `--config`
+   file, and `/proc` and `/sys`, all checked after realpath. It never reads `.pgpass`, DBeaver's
+   `credentials-config.json`, or any credential store, and a password found in a file it does read is
+   dropped and reported, never returned or written.
+3. **What it writes.** Only with `--save`, only new `db` connections in toil's own config through
+   `writeConfigFile`, never over a name that exists, and never `writes: true`. Without `--save` it
+   writes nothing. It is CLI only: never an MCP tool.
 
 `feedback.send` is one request, to one fixed place, and only on approval (CLAUDE.md,
 principle 9 and **Writes**; #265):

@@ -1,0 +1,37 @@
+<?xml version="1.0"?>
+<!-- Shaped from Microsoft's documentation of the Registered Servers format, not captured from a real export. -->
+<RegisteredServers:ServerGroup xmlns:RegisteredServers="http://schemas.microsoft.com/sqlserver/RegisteredServers/2007/08" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
+  <RegisteredServers:Name>DatabaseEngineServerGroup</RegisteredServers:Name>
+  <RegisteredServers:RegisteredServers>
+    <RegisteredServers:RegisteredServer>
+      <RegisteredServers:Name>Dev SQL</RegisteredServers:Name>
+      <RegisteredServers:ServerName>dev-sql.imagile.dev,1433</RegisteredServers:ServerName>
+      <RegisteredServers:ServerType>DatabaseEngine</RegisteredServers:ServerType>
+      <RegisteredServers:ConnectionStringWithEncryptedPassword>server=dev-sql.imagile.dev,1433;uid=you;password=0x01000000d08c9ddf;initial catalog=orders;encrypt=true</RegisteredServers:ConnectionStringWithEncryptedPassword>
+    </RegisteredServers:RegisteredServer>
+  </RegisteredServers:RegisteredServers>
+  <RegisteredServers:ServerGroups>
+    <RegisteredServers:ServerGroup>
+      <RegisteredServers:Name>Prod</RegisteredServers:Name>
+      <RegisteredServers:RegisteredServers>
+        <RegisteredServers:RegisteredServer>
+          <RegisteredServers:Name>Billing</RegisteredServers:Name>
+          <RegisteredServers:ServerName>billing.imagile.dev</RegisteredServers:ServerName>
+          <RegisteredServers:ServerType>DatabaseEngine</RegisteredServers:ServerType>
+          <RegisteredServers:ConnectionStringWithEncryptedPassword>server=billing.imagile.dev;trusted_connection=true;database=billing</RegisteredServers:ConnectionStringWithEncryptedPassword>
+        </RegisteredServers:RegisteredServer>
+        <RegisteredServers:RegisteredServer>
+          <RegisteredServers:Name>Named instance</RegisteredServers:Name>
+          <RegisteredServers:ServerName>box.imagile.dev\SQLEXPRESS</RegisteredServers:ServerName>
+          <RegisteredServers:ServerType>DatabaseEngine</RegisteredServers:ServerType>
+          <RegisteredServers:ConnectionStringWithEncryptedPassword>server=box.imagile.dev\SQLEXPRESS;trusted_connection=true</RegisteredServers:ConnectionStringWithEncryptedPassword>
+        </RegisteredServers:RegisteredServer>
+        <RegisteredServers:RegisteredServer>
+          <RegisteredServers:Name>Reports</RegisteredServers:Name>
+          <RegisteredServers:ServerName>ssrs.imagile.dev</RegisteredServers:ServerName>
+          <RegisteredServers:ServerType>ReportServer</RegisteredServers:ServerType>
+        </RegisteredServers:RegisteredServer>
+      </RegisteredServers:RegisteredServers>
+    </RegisteredServers:ServerGroup>
+  </RegisteredServers:ServerGroups>
+</RegisteredServers:ServerGroup>

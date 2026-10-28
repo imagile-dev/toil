@@ -1,0 +1,34 @@
+{
+  // Shaped from Azure Data Studio's documented settings, not captured from a real profile.
+  "editor.fontSize": 14,
+  "datasource.connectionGroups": [
+    { "name": "ROOT", "id": "root-abc12345" },
+    { "name": "Prod", "id": "group-abc12345", "parentId": "root-abc12345" },
+  ],
+  "datasource.connections": [
+    {
+      "options": {
+        "server": "sql1.imagile.dev",
+        "port": 1433,
+        "database": "orders",
+        "authenticationType": "SqlLogin",
+        "user": "you",
+        "password": "",
+        "encrypt": "Mandatory",
+        "connectionName": "Orders SQL"
+      },
+      "groupId": "group-abc12345",
+      "providerName": "MSSQL",
+      "id": "abc12345-0000-0000-0000-000000000001"
+    },
+    {
+      "options": { "server": "sql2.imagile.dev", "database": "master", "authenticationType": "Integrated" },
+      "groupId": "root-abc12345",
+      "providerName": "MSSQL"
+    },
+    {
+      "options": { "server": "sql3.imagile.dev", "authenticationType": "AzureMFA", "user": "you@example.com" },
+      "providerName": "MSSQL"
+    },
+  ],
+}

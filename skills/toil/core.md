@@ -266,6 +266,45 @@ current version, with retired areas folded into the areas that replaced them; it
 what it wrote (names and keys, never a value) and writes nothing if the file is current.
 It is CLI only, like the other commands that change the file.
 
+### Importing database connections
+
+`toil connections import --from <tool> [file]` brings the database connections a person
+already has in another tool into toil as `db` connections, so nobody retypes hosts. It is a
+**preview** unless `--save` is given: it writes nothing and returns, in `data`, `connections`
+(each with its `name`, `engine`, non-secret `settings`, `warnings` and `nextSteps`), `exists`
+(names already taken, left alone, never overwritten), `skipped` (what toil cannot hold, each with
+its reason), `file` (the file it read) and, on a preview, `saveWith` (the command that saves it).
+An agent runs the preview, shows the person the result and runs `--save` on their yes.
+
+**A secret is never imported.** A password found in a file or connection string is dropped and said
+so in `warnings` (and in `meta.warnings` as `SECRET_NOT_IMPORTED`). toil never reads `.pgpass` or
+DBeaver's `credentials-config.json`. Each created connection lists `nextSteps`: the person runs
+`toil connections login <name>` (a connection that signs in with Windows authentication, or SQLite,
+has no password and only gets `toil connections test <name>`). `writes` stays off, and no default
+connection is chosen.
+
+| Tool | `--from` | Default file | Notes |
+|------|----------|--------------|-------|
+| DBeaver | `dbeaver` | `General/.dbeaver/data-sources.json` in its workspace | Folders become name prefixes; SSH tunnels and proxies are skipped; logins live in an encrypted file toil does not read |
+| SQL Server Management Studio | `ssms` | `RegSrvr.xml` under `%APPDATA%\Microsoft\SQL Server Management Studio\<version>` (Windows) | Or a `.regsrvr` export (Registered Servers > Export); server groups become prefixes; named instances are skipped (toil needs a port) |
+| Azure Data Studio | `azure-data-studio` | its user `settings.json` | `datasource.connections`; Microsoft Entra sign-in is skipped |
+| VS Code SQL Server extension | `vscode-mssql` | VS Code's user `settings.json` | `mssql.connections` |
+| pgAdmin | `pgadmin` | none: export one (Object > Import/Export Servers) | The default "Servers" group is not a prefix |
+| PostgreSQL service file | `pg-service` | `~/.pg_service.conf`, or the file `PGSERVICEFILE` names | `.pgpass` is never read |
+| MySQL Workbench | `mysql-workbench` | `connections.xml` in its data folder | SSH, socket and pipe connections are skipped |
+| DataGrip and JetBrains IDEs | `datagrip` | `.idea/dataSources.xml` in the current folder | Reads the JDBC URL |
+| Oracle | `tnsnames` | `TNS_ADMIN`, or `ORACLE_HOME/network/admin`, `tnsnames.ora` | A SID, not a service name, is skipped; it has no user, so give one with `--user` |
+| One connection string | `url` | none | Given with `--url`: `postgres://`, `mysql://`, `jdbc:...`, an ADO.NET string or an absolute SQLite path |
+
+The other options: `--prefix <text>` goes in front of every name; `--name <name>` names the one
+connection of a `--url` import; `--user <name>` supplies a login for every connection the file gives
+none; `--save` creates them. A path you name always wins over the default. With no file found, the
+error names every place it looked and how to export one. The file is read from where the tool keeps
+it, outside the workspace, but never from `~/.toil`, a network path or `/proc`; it is at most
+4 MB. Each connection is checked against the real `db` schema before the preview shows it, so what
+the preview lists is what `--save` accepts; one it would refuse is in `skipped` with the reason.
+It is CLI only, like the other commands that change the file.
+
 A CI job that wants an empty variable to be an error, not a skipped line, sets
 `TOIL_STRICT_ENV=true`. Today it matters for one thing: an empty variable of an area that
 no longer exists (`TOIL_JIRA_CLOUD_API_TOKEN=""`) is skipped by default, as an empty CI

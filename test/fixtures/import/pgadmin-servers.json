@@ -1,0 +1,33 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Local PostgreSQL",
+      "Group": "Servers",
+      "Host": "localhost",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "you",
+      "SSLMode": "prefer",
+      "PassFile": "/home/you/.pgpass"
+    },
+    "2": {
+      "Name": "Reporting",
+      "Group": "Team",
+      "Host": "reporting.imagile.dev",
+      "Port": 5432,
+      "MaintenanceDB": "reports",
+      "Username": "you",
+      "SSLMode": "verify-full"
+    },
+    "3": {
+      "Name": "Behind a tunnel",
+      "Group": "Team",
+      "Host": "10.0.0.5",
+      "Port": 5432,
+      "MaintenanceDB": "postgres",
+      "Username": "you",
+      "UseSSHTunnel": 1,
+      "TunnelHost": "bastion.imagile.dev"
+    }
+  }
+}

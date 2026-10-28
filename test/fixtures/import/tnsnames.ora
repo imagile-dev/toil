@@ -1,0 +1,21 @@
+# tnsnames.ora, shaped from Oracle's documented syntax.
+LEDGER =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = ledger.imagile.dev)(PORT = 1521))
+    (CONNECT_DATA = (SERVER = DEDICATED)(SERVICE_NAME = FREEPDB1))
+  )
+
+SECURE, SECURE.WORLD =
+  (DESCRIPTION =
+    (ADDRESS_LIST =
+      (ADDRESS = (PROTOCOL = TCPS)(HOST = secure1.imagile.dev)(PORT = 2484))
+      (ADDRESS = (PROTOCOL = TCPS)(HOST = secure2.imagile.dev)(PORT = 2484))
+    )
+    (CONNECT_DATA = (SERVICE_NAME = secure.imagile.dev))
+  )
+
+OLDSID =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = old.imagile.dev)(PORT = 1521))
+    (CONNECT_DATA = (SID = ORCL))
+  )
