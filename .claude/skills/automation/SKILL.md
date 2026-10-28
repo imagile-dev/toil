@@ -215,7 +215,8 @@ refuses.
   short: every bound's enforcer in toil (the `src/core/` files for the write gate, call
   and area resolution, secrets, files, git, the network, limits, audit and config, with
   their tests; whole folders such as `src/os/`, `src/mcp/`, `src/connections/` and
-  `src/skills/`; `docs/bounds.md`), the command contract and the suites that guard it
+  `src/skills/`; `docs/bounds.md`), the shipped skill (all of `skills/toil/`, which users'
+  agents read as instructions), the command contract and the suites that guard it
   and triage's own rules, and Toil UI's (every file under `ui/server/`, `ui/src/config.ts`,
   each theme's `theme.json`, and the suites that check Toil UI's own rules). Paths are
   compared without regard to case. When a fix edits one, `open-pr` puts a "Safety-layer edits"
