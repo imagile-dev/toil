@@ -7,10 +7,20 @@
  * design).
  *
  * The page signs in by trading the launch token in its URL for a session id,
- * which it keeps in memory only and sends as `X-Toil-UI-Session` on every
- * call, with the session's CSRF token on every POST. No cookie: a browser
- * would hand one to every server on 127.0.0.1. A reload forgets the id, so it
- * needs the launch URL again. Paperwork, but the kind that files itself.
+ * and sends it as `X-Toil-UI-Session` on every call, with the session's CSRF
+ * token on every POST. The id is kept in `sessionStorage`, so a reload signs
+ * straight back in (#485); the server hands the CSRF token out again on resume.
+ *
+ * Why `sessionStorage` and not a cookie: a browser hands a cookie to every port
+ * on 127.0.0.1, so any other local server would receive the session. Storage is
+ * scoped to the exact origin, port included, and is never sent anywhere; the
+ * page reads it and puts the id in a header itself. It is also scoped to the
+ * tab: a new tab needs the launch URL again (a duplicated or browser-restored
+ * tab can carry the id), and a restarted server, which forgets its sessions,
+ * always ends it. `localStorage` would outlive the tab. The launch token stays: it is what keeps other local processes and
+ * users out of an API that runs toil with the person's own connections. It is
+ * simply no longer needed once the tab holds a session. Paperwork, but the kind
+ * that files itself.
  */
 
 import { NO_AGENT_FIX, NO_AGENT_NOTICE, SCRIPTED_LABEL, type AdapterList, type Agent, type Answer, type AskExtra, type AskStyle, type Starter } from './agent.ts';
@@ -77,21 +87,77 @@ async function failure(res: Response, what: string): Promise<Error> {
   return new Error(`${what} failed: the server answered ${res.status}.`);
 }
 
+/** Where the tab keeps its session between reloads. */
+const STORED = 'toil-ui-session';
+
+type Store = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
+
+/** The tab's storage, or null where the browser refuses it (some private modes): the page then works until the next reload. */
+function tabStorage(): Store | null {
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** Storage can throw (full, or blocked mid-session); the session just isn't kept then. */
+function attempt(f: () => void) {
+  try {
+    f();
+  } catch {
+    // Nothing to keep it in: the next reload asks for the launch URL.
+  }
+}
+
 /**
- * Signs in with the launch token in the page's URL, then takes the token out
- * of the address bar and the history, leaving any other parameter. Without one (a reload, a bookmark)
- * it says to open the launch URL again.
+ * Signs in. With the launch token in the page's URL it trades the token for a
+ * session, keeps the session in the tab's `sessionStorage` and takes the token
+ * out of the address bar and the history, leaving any other parameter. Without
+ * one (a reload, a bookmark) it asks the server whether the kept session is
+ * still good; if the server has forgotten it (it restarted) or the tab never
+ * had one, it says to open the launch URL again.
  */
-export async function signIn(base = './', location: Pick<Location, 'search' | 'pathname' | 'hash'> = window.location, history: Pick<History, 'replaceState'> = window.history): Promise<Session> {
+export async function signIn(
+  base = './',
+  location: Pick<Location, 'search' | 'pathname' | 'hash'> = window.location,
+  history: Pick<History, 'replaceState'> = window.history,
+  storage: Store | null = tabStorage(),
+): Promise<Session> {
   const token = new URLSearchParams(location.search).get('token');
-  if (!token) throw new Error('This page needs the URL toil-ui printed when it started, which carries the launch token. A reloaded page forgets its session, so open that URL again.');
+  if (!token) return resume(base, storage);
   const res = await fetch(`${base}api/session`, { method: 'POST', credentials: 'omit', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token }) });
   // Only the token goes; a ?theme= or ?scheme= beside it still picks how the app looks.
   const rest = new URLSearchParams(location.search);
   rest.delete('token');
   const query = rest.toString();
   history.replaceState(null, '', `${location.pathname}${query ? `?${query}` : ''}${location.hash}`);
-  if (!res.ok) throw await failure(res, 'Signing in');
+  if (!res.ok) {
+    attempt(() => storage?.removeItem(STORED));
+    throw await failure(res, 'Signing in');
+  }
+  const session = (await res.json()) as Session;
+  attempt(() => storage?.setItem(STORED, JSON.stringify({ session: session.session })));
+  return session;
+}
+
+const OPEN_LAUNCH_URL = 'Open the URL toil-ui printed when it started, which carries the launch token.';
+
+/** A reload: the kept session, checked with the server, which answers with the rest of what the page needs. */
+async function resume(base: string, storage: Store | null): Promise<Session> {
+  let kept: { session?: unknown } | null;
+  try {
+    kept = JSON.parse(storage?.getItem(STORED) ?? 'null') as { session?: unknown } | null;
+  } catch {
+    kept = null;
+  }
+  if (typeof kept?.session !== 'string') throw new Error(`This tab has no session. ${OPEN_LAUNCH_URL}`);
+  const res = await fetch(`${base}api/session`, { credentials: 'omit', headers: { [SESSION_HEADER]: kept.session } });
+  if (res.status === 401) {
+    attempt(() => storage?.removeItem(STORED));
+    throw new Error(`The server no longer knows this tab's session, as after it restarted. ${OPEN_LAUNCH_URL} Each start prints a new one.`);
+  }
+  if (!res.ok) throw await failure(res, 'Resuming the session');
   return (await res.json()) as Session;
 }
 
