@@ -54,3 +54,15 @@
 - **Examples use `jira.imagile.dev`** for Jira, since Atlassian answers for every
   subdomain. `test/repo-hygiene.test.ts` reads only tracked files, so it missed the
   new file until it was added; its pattern is unchanged and now has a test of its own.
+- **`secretNeeded` lists only the secrets this connection cannot work without** (review
+  round 2). Each secret is tested against the area's schema, variants included, with
+  the other secrets present: a database password is optional in the schema (trust
+  auth exists), so postgres lists none and sqlite lists none, and the warning is
+  skipped when the list is empty. This is the simplest accurate rule: toil cannot
+  tell that Teradata alone uses `token`, so it says nothing about optional secrets
+  rather than guess, and `setup.md` says a sign-in that fails needs one.
+- **A secret already supplied by env is not "needed".** For a connection that is or
+  becomes the area's default, `TOIL_<AREA>_<KEY>` or a CI fallback such as
+  `GITHUB_TOKEN`; for any connection, `TOIL_CONN_<NAME>_<KEY>`. Presence is checked,
+  never the value. The result's `secretFromEnv` names the variable, so a person sees
+  why nothing is asked of them.

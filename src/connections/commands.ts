@@ -474,13 +474,27 @@ function addFromFlags(
     file.defaults[area.name] = { ...(file.defaults[area.name] ?? {}), connection: input.name };
   }
   writeConfigFile(path, file);
-  if (secretKeys.length > 0) {
+  // Only the secrets this connection can't do without: the schema, variants included, says which (an optional
+  // one, such as a database password, is left out rather than guessed at). Presence in env is checked, never read.
+  const required = secretKeys.filter((k) => {
+    const others = Object.fromEntries(Object.entries(standIns).filter(([name]) => name !== k));
+    const without = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...others });
+    return !without.success && without.error.issues.some((issue) => issue.path[0] === k);
+  });
+  const env = access(ctx).env;
+  const isDefault = file.defaults[area.name]?.connection === input.name;
+  const fallbacks = (area.fallbacks as Record<string, string[] | undefined> | undefined) ?? {};
+  const suppliedBy = (k: string): string | undefined =>
+    [connectionEnvName(input.name, k), ...(isDefault ? [area.envName(k), ...(fallbacks[k] ?? [])] : [])].find((v) => (env[v] ?? '') !== '');
+  const fromEnv = Object.fromEntries(required.flatMap((k) => { const v = suppliedBy(k); return v ? [[k, v]] : []; }));
+  const secretNeeded = required.filter((k) => !(k in fromEnv));
+  if (secretNeeded.length > 0) {
     ctx.warn({
       code: 'SECRET_NEEDED',
-      message: `${input.name} has no ${secretKeys.join(', ')} yet. The person runs toil connections login ${input.name} in their own terminal, or enters it in Toil UI's Settings. Writes are off.`,
+      message: `${input.name} has no ${secretNeeded.join(', ')} yet. The person runs toil connections login ${input.name} in their own terminal, or enters it in Toil UI's Settings. Writes are off.`,
     });
   }
-  return { name: input.name, area: area.name, configFile: slashes(path), secrets: {}, secretNeeded: secretKeys, writes: false };
+  return { name: input.name, area: area.name, configFile: slashes(path), secrets: {}, secretNeeded, secretFromEnv: fromEnv, writes: false };
 }
 
 /**

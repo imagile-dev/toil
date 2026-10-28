@@ -78,7 +78,8 @@ toil connections add imagile-jira --area jira --set baseUrl=https://jira.imagile
 
 For Atlassian Cloud, also set `deployment=cloud`, `email=<their account email>` and the
 `<site>.atlassian.net` URL, as the table says. It asks nothing, stores no secret and leaves writes off. A secret key in `--set` is
-refused. The result names the secret the connection still needs.
+refused. The result lists the secrets this connection cannot work without. A secret the area
+treats as optional, such as a database password, is not listed: if the connection fails to sign in, it needs one.
 
 Then hand it over, in the person's terminal or in Toil UI:
 
@@ -98,7 +99,7 @@ it is done.
 
 When they say it is done, run `toil connections test <name>`. A failure names the fix:
 an `AUTH` error or a missing secret means they should run `toil connections login
-<name>` again or re-enter it in Toil UI. Report the result, never a secret.
+<name>` again or re-enter it in Toil UI; a database that rejects the sign-in needs its password the same way. Report the result, never a secret.
 
 ## 6. Make a dossier
 

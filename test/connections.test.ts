@@ -12,6 +12,7 @@ import { createSecretStore, type SecretStore } from '../src/core/keychain.js';
 import { terminalPrompter, type Prompter } from '../src/core/prompt.js';
 import { demoArea, demoCommands, demoRoutes } from './fixtures/demo-commands.js';
 import { demoContextArea } from './fixtures/demo-context-commands.js';
+import { areas as registryAreas } from '../src/registry.js';
 import { runCli } from './harness/cli.js';
 import { TEST_VERSION } from './harness/context.js';
 import { fakeFetch } from './harness/fake-fetch.js';
@@ -705,5 +706,48 @@ describe('toil connections add --set', () => {
     await cli(['connections', 'add', 'corp-demo', '--area', 'demo', '--set', 'baseUrl=https://jira.imagile.dev'], context());
     const run = await cli(['connections', 'add', 'corp-demo', '--area', 'demo', '--set', 'baseUrl=https://other.imagile.dev'], context());
     expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('already a connection named') });
+  });
+});
+
+/** Which secrets `add --set` says are still needed, against the real areas and their variants (#516 review). */
+describe('toil connections add --set, secretNeeded', () => {
+  const real = connectionsCommands(registryAreas);
+  const run = (argv: string[], env: NodeJS.ProcessEnv = {}) =>
+    runCli(['connections', 'add', ...argv], {
+      commands: real,
+      context: { ...context({ env }), config: loadConfig({ env, cwd: root, home, areas: registryAreas.map((a) => ({ name: a.name })) }) },
+    });
+
+  it('names nothing and warns of nothing for an engine that signs in with no secret (sqlite)', async () => {
+    const out = await run(['lite', '--area', 'db', '--set', 'engine=sqlite', '--set', 'path=/tmp/x.db']);
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: [], secretFromEnv: {} } });
+    expect(out.envelope?.meta.warnings ?? []).toEqual([]);
+  });
+
+  it('lists no secret for postgres, whose password is optional, rather than guessing that this one signs in with it', async () => {
+    const out = await run(['pg', '--area', 'db', '--set', 'engine=postgres', '--set', 'host=db.imagile.dev', '--set', 'database=app', '--set', 'user=app']);
+    expect(out.envelope?.ok, out.stdout).toBe(true);
+    expect((out.envelope?.data as { secretNeeded: string[] }).secretNeeded).toEqual([]);
+    expect(out.envelope?.meta.warnings ?? []).toEqual([]);
+  });
+
+  it('names the API token for Jira Cloud, which also needs its email set', async () => {
+    const out = await run(['cloud', '--area', 'jira', '--set', 'deployment=cloud', '--set', 'baseUrl=https://jira.imagile.dev', '--set', 'email=you@example.com']);
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: ['apiToken'] } });
+    const noEmail = await run(['cloud2', '--area', 'jira', '--set', 'deployment=cloud', '--set', 'baseUrl=https://jira.imagile.dev']);
+    expect(noEmail.envelope?.error).toMatchObject({ code: 'INVALID_INPUT' });
+  });
+
+  it('does not say "no token yet" for a default connection whose env var already supplies it, and names the variable', async () => {
+    const out = await run(['gh', '--area', 'github', '--set', 'baseUrl=https://api.imagile.dev'], { TOIL_GITHUB_TOKEN: 'set-in-env' });
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: [], secretFromEnv: { token: 'TOIL_GITHUB_TOKEN' } } });
+    expect(out.envelope?.meta.warnings ?? []).toEqual([]);
+    expect(out.stdout).not.toContain('set-in-env');
+  });
+
+  it('still names the token when the env var belongs to the area default, not this second connection', async () => {
+    await run(['first', '--area', 'github', '--set', 'baseUrl=https://api.imagile.dev']);
+    const out = await run(['second', '--area', 'github', '--set', 'baseUrl=https://ghe.imagile.dev/api/v3'], { TOIL_GITHUB_TOKEN: 'set-in-env' });
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: ['token'] } });
   });
 });
