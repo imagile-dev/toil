@@ -229,8 +229,8 @@ export async function httpAgent(session: Session, dossiers: string[], base = './
     ...(session.agent === 'none' ? { notice: `${NO_AGENT_NOTICE} ${NO_AGENT_FIX}` } : {}),
     label: AGENT_LABEL[session.agent] ?? session.agent,
     starters: (dossier) => starters.get(dossier) ?? [],
-    async adapters() {
-      const res = await call(base, session, 'api/agent/adapters');
+    async adapters(dossier) {
+      const res = await call(base, session, `api/agent/adapters${dossier ? `?dossier=${encodeURIComponent(dossier)}` : ''}`);
       if (!res.ok) throw await failure(res, 'Reading the agents');
       return (await res.json()) as AdapterList;
     },

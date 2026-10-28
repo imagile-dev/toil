@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
-import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type Agent, type AskExtra } from '../src/agent.ts';
+import { MAX_HISTORY_ANSWER, MAX_HISTORY_TURNS, type AdapterList, type Agent, type AskExtra } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { askBar, openChat } from './chat.ts';
 import { CANNED, FIXTURE_NOW, callKey, fixtureExecute, type Canned } from '../src/fixtures/execute.ts';
@@ -692,6 +692,99 @@ describe('the chat up front (#343)', () => {
     const answer = await within(chat).findByRole('heading', { level: 3, name: 'Analyze' });
     await waitFor(() => expect(answer.parentElement!.textContent).toContain('Answered by'));
     expect(within(answer.parentElement!).getAllByRole('link').length).toBeGreaterThan(5);
+  });
+
+  describe('the agent Analyze starts on (#494)', () => {
+    const ready = (name: string, label: string, ok = true) => ({ name, label, model: null, ready: ok, problem: ok ? null : 'Not signed in', fix: null, action: ok ? null : ('fix' as const) });
+    /** An agent whose server remembers per dossier what an Analyze was asked of, as the real one does. */
+    function remembering(memory: Record<string, string>) {
+      const sent: AskExtra[] = [];
+      const agent: Agent = {
+        starters: () => [],
+        adapters: async (dossier) => ({ chosen: 'claude', remembered: (dossier && memory[dossier]) || null, options: [ready('claude', 'Claude'), ready('codex', 'Codex'), ready('copilot', 'GitHub Copilot', false)] }),
+        ask: async (dossier, prompt, _s, _c, extra) => {
+          sent.push(extra ?? {});
+          if (prompt === 'analyze' && extra?.adapter) memory[dossier] = extra.adapter;
+          return { prompt: 'Analyze', parts: [{ text: 'Fine.' }], citations: [], by: 'Claude', proposals: [] };
+        },
+      };
+      return { agent, sent };
+    }
+    const analyze = async () => {
+      await userEvent.click(within(askBar('card-payments')).getByRole('button', { name: 'Analyze' }));
+      const chat = await screen.findByRole('dialog', { name: 'Ask about card-payments' });
+      await within(chat).findByRole('heading', { level: 3, name: 'Analyze' });
+      return chat;
+    };
+    const hint = (chat: HTMLElement) => chat.querySelector('[data-agent-source]')?.textContent?.trim();
+
+    it("starts on the dossier's remembered agent and says so", async () => {
+      const { agent, sent } = remembering({ 'card-payments': 'codex' });
+      await open('#/dossier/card-payments', { agent, preview: false });
+      const chat = await analyze();
+      expect(sent).toEqual([{ adapter: 'codex' }]);
+      expect(within(chat).getByRole('button', { name: /^Codex/ })).toBeTruthy();
+      await waitFor(() => expect(hint(chat)).toBe('(last used on this dossier)'));
+    });
+
+    it('falls back to the default from Settings with nothing remembered, or when the remembered agent is not ready', async () => {
+      for (const memory of [{}, { 'card-payments': 'copilot' }] as Array<Record<string, string>>) {
+        const { agent, sent } = remembering({ ...memory });
+        const { unmount } = await open('#/dossier/card-payments', { agent, preview: false });
+        const chat = await analyze();
+        expect(sent).toEqual([{}]);
+        expect(within(chat).getByRole('button', { name: /^Claude/ })).toBeTruthy();
+        expect(hint(chat)).toBe('(your default)');
+        unmount();
+        cleanup();
+      }
+    });
+
+    it('starts one run for two presses while the agent list loads, and Stop cancels it', async () => {
+      let release!: (l: AdapterList) => void;
+      const listing = new Promise<AdapterList>((r) => (release = r));
+      const signals: Array<AbortSignal | undefined> = [];
+      const agent: Agent = {
+        starters: () => [],
+        adapters: () => listing,
+        ask: async () => ({ prompt: 'Analyze', parts: [], citations: [], by: 'Claude', proposals: [] }),
+        async *stream(_d, _p, signal) {
+          signals.push(signal);
+          yield { prompt: 'Analyze', parts: [{ text: 'Working.' }], citations: [], by: 'Claude', proposals: [] };
+          await new Promise<void>((resolve) => signal?.addEventListener('abort', () => resolve()));
+        },
+      };
+      await open('#/dossier/card-payments', { agent, preview: false });
+      await userEvent.click(within(askBar('card-payments')).getByRole('button', { name: 'Analyze' }));
+      const chat = await screen.findByRole('dialog', { name: 'Ask about card-payments' });
+      await userEvent.click(within(chat).getByRole('button', { name: 'Analyze' }));
+      release({ chosen: 'claude', remembered: null, options: [ready('claude', 'Claude')] });
+      await within(chat).findByRole('heading', { level: 3, name: 'Analyze' });
+      expect(signals).toHaveLength(1);
+      await userEvent.click(await within(chat).findByRole('button', { name: 'Stop' }));
+      expect(signals[0]!.aborted).toBe(true);
+      expect(signals).toHaveLength(1);
+    });
+
+    it("remembers a picked agent: the next Analyze, even in a fresh page, starts on it", async () => {
+      const memory: Record<string, string> = {};
+      const first = remembering(memory);
+      const { unmount } = await open('#/dossier/card-payments', { agent: first.agent, preview: false });
+      await userEvent.click(await within(askBar('card-payments')).findByRole('textbox', { name: 'Your question' }));
+      const chat = await screen.findByRole('dialog', { name: 'Ask about card-payments' });
+      await userEvent.click(await within(chat).findByRole('button', { name: /change the agent for this chat/ }));
+      await userEvent.click(await screen.findByRole('button', { name: /Codex/ }));
+      await userEvent.click(within(chat).getByRole('button', { name: 'Analyze' }));
+      await within(chat).findByRole('heading', { level: 3, name: 'Analyze' });
+      expect(first.sent).toEqual([{ adapter: 'codex' }]);
+      expect(memory).toEqual({ 'card-payments': 'codex' });
+      unmount();
+      cleanup();
+      const second = remembering(memory);
+      await open('#/dossier/card-payments', { agent: second.agent, preview: false });
+      await analyze();
+      expect(second.sent).toEqual([{ adapter: 'codex' }]);
+    });
   });
 });
 

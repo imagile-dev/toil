@@ -729,6 +729,17 @@ conversation stays, for the rest of the dossier's pages, until you reload.
   from its next question, which carries the conversation so far; the default stays in
   Settings. An adapter that can't answer is listed with the reason and **Install** or
   **Fix**, never left out. Each answer names the adapter and model that wrote it.
+- **Analyze remembers its agent for each dossier** (#494). A whole Analyze records the
+  agent it was asked of, in `<data folder>/dossier-agents.json` (an adapter name per
+  dossier name, Toil UI's own state, never in the dossier file). The next time the chat
+  opens on that dossier it starts on that agent if it can still answer, else on the
+  default from Settings, Agent (Claude, GitHub Copilot or Codex), else as before, with
+  the server trying the default and saying why it can't. A few words beside **Answered
+  by** say which: "last used on this dossier", "your default" or "picked for this chat".
+  Picking another agent and running Analyze updates the memory; a question that isn't
+  Analyze, or an Analyze that fails or is stopped, doesn't. Renaming a dossier moves its
+  memory, and a dossier toil no longer has is forgotten on the next full sync. The sample
+  remembers nothing.
 
 The chat answers with the agent your organization already approved, on the
 subscription you already have. Toil UI has three adapters, each an optional peer

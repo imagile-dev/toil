@@ -239,6 +239,8 @@ export interface SyncOptions {
    * A failure is said in the job's messages and never fails the sync.
    */
   onFinished?: () => Promise<void>;
+  /** A dossier toil no longer has was forgotten (#494): whatever else Toil UI kept under its name goes too. */
+  onForget?: (dossier: string) => void;
 }
 
 export class SyncService {
@@ -248,6 +250,7 @@ export class SyncService {
   private readonly now: () => Date;
   private readonly maxPages: number;
   private readonly onFinished: SyncOptions['onFinished'];
+  private readonly onForget: SyncOptions['onForget'];
   private job: SyncJob = idle();
   private current: Promise<SyncJob> | null = null;
   private controller: AbortController | null = null;
@@ -259,6 +262,7 @@ export class SyncService {
     this.now = options.now ?? (() => new Date());
     this.maxPages = options.maxPages ?? MAX_PAGES;
     this.onFinished = options.onFinished;
+    this.onForget = options.onForget;
   }
 
   status(): SyncStatus {
@@ -329,7 +333,14 @@ export class SyncService {
         .map((d) => String(d.name));
       if (only !== undefined && !names.includes(only)) throw new Error(`toil has no dossier named ${JSON.stringify(only)}. Run toil dossiers list to see them.`);
       // A dossier toil no longer has is forgotten, with everything synced for it.
-      if (only === undefined) for (const old of this.cache.dossierNames()) if (!names.includes(old)) this.cache.forget(old);
+      if (only === undefined) for (const old of this.cache.dossierNames()) if (!names.includes(old)) {
+        this.cache.forget(old);
+        try {
+          this.onForget?.(old);
+        } catch (e) {
+          this.say(`${old}: couldn't forget its other records: ${e instanceof Error ? e.message : String(e)}`);
+        }
+      }
       const targets = only === undefined ? names : [only];
       job.dossiersTotal = targets.length;
       if (!targets.length) this.say('No dossiers to sync: add one with toil dossiers add.');
