@@ -283,19 +283,20 @@ export function addMapped(out: Collector, label: string, group: string[], mapped
   out.add({ label, group, engine: mapped.engine, settings: mapped.settings, warnings: [...mapped.warnings, ...extra] });
 }
 
-/**
- * The connection string with any password taken out, for the command a preview
- * suggests: a URL's `user:password@`, an Oracle `user/password@`, and a
- * `password=` or `pwd=` property in JDBC, ADO.NET or query-string form (quoted
- * values included). Everything else stays as typed, so saving the suggestion
- * imports the same connection, still without the password.
- */
 /** One warning per connection, however many places in its string held a secret. */
 function dropped(warnings: string[], where: string): void {
   const message = passwordDropped(where);
   if (!warnings.includes(message)) warnings.push(message);
 }
 
+/**
+ * The connection string with any password taken out, for the command a preview
+ * suggests: a URL's `user:password@`, an Oracle `user/password@`, and every
+ * secret-named property (`password`, `pwd`, `sslpassword`, `trustStorePassword`,
+ * by core's `isSecretParam`) in JDBC, ADO.NET or query-string form (quoted values
+ * included). Everything else stays as typed, so saving the suggestion imports the
+ * same connection, still without the password.
+ */
 export function withoutPassword(text: string): string {
   return text
     .replace(/^(jdbc:oracle:[a-z0-9]+:)([^@/]*)\/[^@]*@/i, '$1$2@')
