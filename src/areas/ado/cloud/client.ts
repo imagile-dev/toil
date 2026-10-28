@@ -5,6 +5,7 @@ import { apiRequest, apiResponse, type ApiRequest } from '../../../core/api.js';
 import { ToilError } from '../../../core/errors.js';
 import { paginate } from '../../../core/paginate.js';
 import { adoArea, type AdoSettings } from '../area.js';
+import { feedPages, type FeedRevision } from '../feed.js';
 
 /**
  * Every request toil sends to Azure DevOps Services, each from Microsoft's
@@ -166,4 +167,9 @@ export async function bodyTokenPages<T>(ctx: AdoCloudContext, path: string, quer
 /** The token's own identity in this organization, from its connection data. */
 export function connectionData(ctx: AdoCloudContext): Promise<{ authenticatedUser: { id: string; [key: string]: unknown }; [key: string]: unknown }> {
   return adoc(ctx, '/_apis/connectionData', { query: { 'api-version': API_CONNECTION } });
+}
+
+/** The reporting revisions feed of a project, batch by batch (`feed.ts`), at api-version 7.1. */
+export function feedRevisions(ctx: AdoCloudContext, path: string, query: Record<string, string>, since: string | undefined, what: string, page: PageRequest): Promise<FeedRevision[]> {
+  return feedPages((q) => raw(ctx, path, q), query, since, what, page, ctx.setPage);
 }

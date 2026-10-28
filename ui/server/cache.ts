@@ -247,8 +247,17 @@ export class CacheError extends Error {
   }
 }
 
-/** One string per command and input, whatever order the input's keys came in. */
-export function inputKey(input: Record<string, unknown>): string {
+/** The command whose `updatedSince` is a clock reading, not a question: the revision feed's start date moves with the day. */
+const FEED_COMMAND = 'ado work-item feed';
+
+/**
+ * One string per command and input, whatever order the input's keys came in.
+ * For the revision feed alone, `updatedSince` is left out (it says when the
+ * call was made, and the sync adds its own to a delta read without ever
+ * recording it); on any other command it still tells one answer from another.
+ */
+export function inputKey(input: Record<string, unknown>, command?: string): string {
+  if (command === FEED_COMMAND) input = Object.fromEntries(Object.entries(input).filter(([k]) => k !== 'updatedSince'));
   const sort = (v: unknown): unknown =>
     Array.isArray(v) ? v.map(sort) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, x]) => [k, sort(x)])) : v;
   return JSON.stringify(sort(input));
@@ -567,7 +576,7 @@ export class Cache {
 
   /** The envelope a call got on its last good sync. */
   response(dossier: string, command: string, input: Record<string, unknown>): StoredResponse | null {
-    const row = this.db.prepare('SELECT envelope, area, synced_at FROM responses WHERE dossier = ? AND command = ? AND input_key = ?').get(dossier, command, inputKey(input)) as
+    const row = this.db.prepare('SELECT envelope, area, synced_at FROM responses WHERE dossier = ? AND command = ? AND input_key = ?').get(dossier, command, inputKey(input, command)) as
       | { envelope: string; area: string; synced_at: string }
       | undefined;
     return row ? { envelope: JSON.parse(row.envelope) as Envelope, area: row.area, syncedAt: row.synced_at } : null;
@@ -579,6 +588,12 @@ export class Cache {
       | { envelope: string; area: string; synced_at: string }
       | undefined;
     return row ? { envelope: JSON.parse(row.envelope) as Envelope, area: row.area, syncedAt: row.synced_at } : null;
+  }
+
+  /** Every stored envelope for a command in a dossier, whatever its input. */
+  all(dossier: string, command: string): StoredResponse[] {
+    const rows = this.db.prepare('SELECT envelope, area, synced_at FROM responses WHERE dossier = ? AND command = ? ORDER BY synced_at DESC').all(dossier, command) as unknown as Array<{ envelope: string; area: string; synced_at: string }>;
+    return rows.map((row) => ({ envelope: JSON.parse(row.envelope) as Envelope, area: row.area, syncedAt: row.synced_at }));
   }
 
   source(dossier: string, area: string): SourceState | null {
@@ -647,7 +662,7 @@ export class Cache {
         if (input.dossier === from) input.dossier = to;
         const envelope = JSON.parse(r.envelope) as { meta?: { context?: { dossier?: { name?: unknown } | null } } };
         if (envelope.meta?.context?.dossier?.name === from) envelope.meta.context.dossier.name = to;
-        moved += Number(move.run(to, inputKey(input), JSON.stringify(envelope), from, r.command, r.input_key).changes);
+        moved += Number(move.run(to, inputKey(input, r.command), JSON.stringify(envelope), from, r.command, r.input_key).changes);
       }
       for (const table of ['items', 'transitions', 'change_refs', 'sources', 'worklog_events', 'sync_runs', 'notes']) moved += Number(this.db.prepare(`UPDATE ${table} SET dossier = ? WHERE dossier = ?`).run(to, from).changes);
       for (const r of this.db.prepare('SELECT id, run FROM agent_runs WHERE dossier = ?').all(from) as unknown as Array<{ id: string; run: string }>) {
@@ -723,7 +738,7 @@ export class Cache {
       const touch = this.db.prepare('UPDATE responses SET synced_at = ? WHERE dossier = ? AND command = ? AND input_key = ? AND synced_at < ?');
       const wanted = new Set<string>();
       for (const r of save.responses) {
-        const key = inputKey(r.input);
+        const key = inputKey(r.input, r.command);
         const id = `${r.command}\n${key}`;
         wanted.add(id);
         const old = stored.get(id);

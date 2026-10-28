@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import { Cache } from '../server/cache.ts';
 import type { RequestContext } from '../server/context.ts';
 import { SyncService, type SyncExecute } from '../server/sync.ts';
-import { ADO_BATCH, ADO_REVISIONS, JIRA_CHANGELOGS, JIRA_SEARCH } from '../src/fixtures/work.ts';
+import { ADO_BATCH, JIRA_CHANGELOGS, JIRA_SEARCH } from '../src/fixtures/work.ts';
 import { FIXTURE_NOW } from '../src/fixtures/execute.ts';
 import type { Envelope } from '../src/toil.ts';
 import { stubToil } from './toil-stub.ts';
@@ -28,6 +28,11 @@ const NOW = Date.parse(FIXTURE_NOW);
 const ctx: RequestContext = { viewer: { id: 'local', name: 'you', via: 'launch-token' }, signal: new AbortController().signal };
 const JIRA_PAGE_SIZE = 100;
 const ADO_BATCH_SIZE = 200;
+/**
+ * Revisions per batch of the reporting feed. Microsoft documents `$maxPageSize` and not its default, so this is
+ * an assumption (docs/decisions/493-ado-revisions.md); the request counts below move with it, the call counts do not.
+ */
+export const FEED_BATCH_SIZE = 200;
 
 export interface Counts {
   /** Every execute() the sync made, pages included. */
@@ -44,6 +49,9 @@ export interface Counts {
   seconds: number;
 }
 
+/** One Azure DevOps revision of a simulated item, as `work-item history` lists it. */
+type Revision = { id: number; rev: number; fields: Rec };
+
 export interface Sim {
   /** Runs a sync `afterMs` after the last one and counts it. */
   sync(afterMs: number): Promise<Counts>;
@@ -53,6 +61,8 @@ export interface Sim {
   remove(n: number): void;
   /** Makes Jira send a shortened changelog for an item, as it does for a very long history. */
   cutShort(n: number): void;
+  /** Azure DevOps: how many cached items have the whole of their history (rev 1 to their last), out of those the cache holds. */
+  wholeHistories(): { whole: number; items: number };
   close(): void;
 }
 
@@ -65,6 +75,8 @@ export interface Sim {
  */
 /** `total` items numbered 1 to total, the last `live` of them open or touched within a week; the rest closed 60 to 1500 days ago. */
 export async function simulate(kind: 'jira' | 'ado', total: number, live: number, retentionDays = 30, longEvery = 0): Promise<Sim> {
+  // Azure DevOps items: one in four of the live ones, all of them open, was created over a year ago and has six revisions, the last two this
+  // week (a long-running epic, or a bug nobody likes to close); the rest were created within the window and have three.
   const dir = mkdtempSync(join(tmpdir(), 'toil-ui-scale-'));
   let clock = NOW;
   const now = () => new Date(clock);
@@ -96,7 +108,31 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
     return { ...jiraIssue(n), changelog: { startAt: 0, maxResults: 20, total: page.length, histories: page } };
   };
   const adoTemplate = ADO_BATCH.value[0]!;
-  const adoItem = (n: number): Rec => ({ ...adoTemplate, id: 5000 + n, fields: { ...adoTemplate.fields, 'System.Title': `Item ${n}`, 'System.State': open(n) ? 'Active' : 'Closed', 'System.ChangedDate': new Date(changed(n)).toISOString(), ...(open(n) ? {} : { 'Microsoft.VSTS.Common.ClosedDate': new Date(changed(n)).toISOString() }) } });
+  const oldOpen = (n: number) => open(n) && n % 4 === 1;
+  /** Every revision of item n, oldest first: created, a few saves, the last at changed(n); a touch adds one more. */
+  const revisionsOf = (n: number): Revision[] => {
+    const last = updatedAt(n);
+    const times = oldOpen(n) ? [400, 300, 200, 100].map((d) => NOW - d * DAY).concat([last - DAY, last]) : [last - 10 * DAY, last - 5 * DAY, last];
+    if (touched.has(n)) times.push(touched.get(n)!);
+    const closed = !open(n);
+    return times.map((at, i) => ({
+      id: 5000 + n,
+      rev: i + 1,
+      fields: {
+        'System.WorkItemType': 'Task',
+        'System.State': i === 0 ? 'New' : closed && i === times.length - 1 ? 'Closed' : 'Active',
+        'System.IterationPath': 'Payments',
+        'System.ChangedDate': new Date(at).toISOString(),
+        'System.ChangedBy': { displayName: 'K. Nakamura', uniqueName: 'IMAGILE\\knakamura', id: 'abc12345-0000-0000-0000-000000000090' },
+      },
+    }));
+  };
+  const asFeed = (r: Revision): Revision => ({ id: r.id, rev: r.rev, fields: { 'System.Id': r.id, 'System.Rev': r.rev, ...r.fields, 'System.ChangedBy': 'K. Nakamura <IMAGILE\\knakamura>' } });
+  const adoItem = (n: number): Rec => {
+    const revs = revisionsOf(n);
+    const created = revs[0]!.fields['System.ChangedDate'];
+    return { ...adoTemplate, id: 5000 + n, rev: revs.length, fields: { ...adoTemplate.fields, 'System.Title': `Item ${n}`, 'System.State': revs.at(-1)!.fields['System.State'], 'System.CreatedDate': created, 'System.ChangedDate': new Date(changed(n)).toISOString(), ...(open(n) ? {} : { 'Microsoft.VSTS.Common.ClosedDate': new Date(changed(n)).toISOString() }) } };
+  };
 
   let toilCalls = 0;
   let requests = 0;
@@ -151,7 +187,15 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
     if (kind === 'ado' && command === 'ado work-item history') {
       bump();
       request();
-      return ok(command, ADO_REVISIONS[Object.keys(ADO_REVISIONS).map(Number)[0]!]);
+      const n = Number(input.id) - 5000;
+      return removed.has(n) ? ({ ok: false, data: null, error: { code: 'NOT_FOUND', message: `No work item ${input.id}.`, fix: '' }, meta: { command } } as unknown as Envelope) : ok(command, revisionsOf(n));
+    }
+    if (kind === 'ado' && command === 'ado work-item feed') {
+      bump();
+      // The project's feed: every revision after the start, of every item changed since (closed ones from the past are not in it).
+      const feed = ids().flatMap((n) => revisionsOf(n)).filter((r) => since === null || Date.parse(String(r.fields['System.ChangedDate'])) > since).sort((a, b) => Date.parse(String(a.fields['System.ChangedDate'])) - Date.parse(String(b.fields['System.ChangedDate'])) || a.id - b.id);
+      request(Math.max(1, Math.ceil(feed.length / FEED_BATCH_SIZE)));
+      return ok(command, feed.map(asFeed));
     }
     // The dossier itself, and the pull requests, builds and deployments around it: the preview's canned answers.
     request();
@@ -181,6 +225,16 @@ export async function simulate(kind: 'jira' | 'ado', total: number, live: number
       let responseBytesWritten = 0;
       for (const [k, envelope] of responses()) if (stored.get(k) !== envelope) responseBytesWritten += Buffer.byteLength(envelope);
       return { toilCalls, requests, tracker: { ...tracker }, rowsWritten: changes() - before, responseBytesWritten, items: cache.items(dossier).length, seconds };
+    },
+    wholeHistories() {
+      const cached = cache.items(dossier) as unknown as Array<{ source: { key: string }; history?: { transitions: Array<{ from: string | null; to: string; at: string }> } }>;
+      // A whole history starts at revision 1: a first move from nothing to New, on the day the item was created.
+      const whole = cached.filter((i) => {
+        const first = i.history?.transitions[0];
+        const n = Number(i.source.key) - 5000;
+        return first?.from === null && first.to === 'New' && Date.parse(first.at) === Date.parse(String(revisionsOf(n)[0]!.fields['System.ChangedDate']));
+      });
+      return { whole: whole.length, items: cached.length };
     },
     touch(n) {
       touched.set(n, clock + 60_000);

@@ -62,6 +62,31 @@ const revision = (rev: number, state: string) => ({
   url: `${ADO}${COLL}/_apis/wit/workItems/42/revisions/${rev}`,
 });
 
+// Invented from Reporting Work Item Revisions - Read Reporting Revisions Get (7.1): { id, rev, fields }, people as
+// "Name <email>" text, no url. Page one names a continuationToken and says isLastBatch false; page two has the last.
+// (https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/reporting-work-item-revisions/read-reporting-revisions-get?view=azure-devops-rest-7.1)
+export const feedRevision = (id: number, rev: number, state: string) => ({
+  id,
+  rev,
+  fields: {
+    'System.Id': id,
+    'System.Rev': rev,
+    'System.TeamProject': 'Imagile',
+    'System.WorkItemType': 'Bug',
+    'System.State': state,
+    'System.IterationPath': 'Imagile\\Sprint 1',
+    'System.Title': `Item ${id}`,
+    'System.ChangedDate': `2026-09-0${rev}T12:00:00Z`,
+    'System.ChangedBy': 'Jane Doe <jane.doe@example.com>',
+  },
+});
+const feedBatch = (r: { url: string }) => {
+  const url = new URL(r.url);
+  return url.searchParams.has('continuationToken')
+    ? { json: { values: [feedRevision(42, 3, 'Resolved')], nextLink: `https://dev.azure.com/imagile/_apis/wit/reporting/workItemRevisions?continuationToken=813;42;3`, continuationToken: '813;42;3', isLastBatch: true } }
+    : { json: { values: [feedRevision(42, 1, 'New'), feedRevision(42, 2, 'Active'), feedRevision(7, 1, 'New')], nextLink: 'https://dev.azure.com/imagile/_apis/wit/reporting/workItemRevisions?continuationToken=abc12345', continuationToken: 'abc12345', isLastBatch: false } };
+};
+
 const comment = (id: number) => ({ id, workItemId: 42, version: 1, text: `Comment ${id}`, createdBy: identity(ME, 'Jane Doe'), createdDate: '2026-09-03T12:00:00Z', url: `${ADO}${PROJ}/_apis/wit/workItems/42/comments/${id}` });
 
 const node = (structureType: string, name: string, children: unknown[] = []) => ({
@@ -191,6 +216,7 @@ export const routes: Route[] = [
     path: `${PROJ}/_apis/wit/workItems/42/revisions`,
     respond: (r) => ({ json: new URL(r.url).searchParams.get('$skip') === '0' ? { count: 2, value: [revision(1, 'New'), revision(2, 'Active')] } : { count: 0, value: [] } }),
   },
+  { path: `${PROJ}/_apis/wit/reporting/workitemrevisions`, respond: feedBatch },
   // The batch endpoint with errorPolicy omit: an id that doesn't exist (404 here) comes back as null, in place.
   // From the Get Work Items Batch reference (https://learn.microsoft.com/en-us/rest/api/azure/devops/wit/work-items/get-work-items-batch?view=azure-devops-server-rest-7.1).
   {

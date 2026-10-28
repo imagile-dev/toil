@@ -72,8 +72,8 @@ export const JIRA_CHANGELOGS: Record<string, unknown> = Object.fromEntries(
 // Azure DevOps Server: settlement -------------------------------------------
 
 export const ADO_ITERATIONS = dataOf('ado work-item iterations');
-export const ADO_BATCH = dataOf('ado work-item get-many') as { count: number; value: Array<{ id: number; fields: Record<string, unknown> }>; missing: unknown[] };
-export const ADO_IDS = ADO_BATCH.value.map((w) => w.id);
+const adoBatch = dataOf('ado work-item get-many') as { count: number; value: Array<{ id: number; rev?: number; fields: Record<string, unknown> }>; missing: unknown[] };
+export const ADO_IDS = adoBatch.value.map((w) => w.id);
 
 const ADO = 'https://ado.imagile.dev/DefaultCollection';
 
@@ -119,6 +119,36 @@ const moreRevisions: Record<number, unknown[]> = {
 
 /** Each work item's `ado work-item history` data, oldest first. */
 export const ADO_REVISIONS: Record<number, unknown> = Object.fromEntries(ADO_IDS.map((id) => [id, fixtureRevisions.get(id) ?? moreRevisions[id]]));
+
+/**
+ * `ado work-item get-many`'s data. The OWI fixture gives every item the same
+ * `rev`, which no item with a history of its own could have: a work item's
+ * `rev` is the number of its latest revision, so each gets its history's length.
+ */
+export const ADO_BATCH = { ...adoBatch, value: adoBatch.value.map((w) => ({ ...w, rev: (ADO_REVISIONS[w.id] as unknown[]).length })) };
+
+/** How many days back from the sample's now the sample feed starts: the window (42 days), and the day src/ado-revisions.ts adds. */
+const FEED_DAYS = 43;
+const FEED_FROM = Date.parse('2026-10-13T08:00:00.000Z') - FEED_DAYS * 86_400_000;
+
+type Revision = { id: number; rev: number; fields: Record<string, unknown> };
+/** A person as the feed sends one: `Name <unique name>`, where `work-item history` sends the identity object. */
+const asText = (who: unknown) => (typeof who === 'object' && who !== null ? `${(who as { displayName: string }).displayName} <${(who as { uniqueName: string }).uniqueName}>` : who);
+
+/**
+ * `ado work-item feed`'s data for the sample: every revision after
+ * the feed's start, in the order they were made, as the reporting feed sends
+ * them ({ id, rev, fields } with people as text and no url). The sample's
+ * items were created from late August, so one of them (2301, from the 24th) is
+ * not held whole and is read with `work-item history`.
+ */
+export const ADO_FEED: Revision[] = ADO_IDS.flatMap((id) => ADO_REVISIONS[id] as Revision[])
+  .filter((r) => Date.parse(String(r.fields['System.ChangedDate'])) > FEED_FROM)
+  .map((r): Revision => ({ id: r.id, rev: r.rev, fields: { 'System.Id': r.id, 'System.Rev': r.rev, ...r.fields, 'System.ChangedBy': asText(r.fields['System.ChangedBy']) } }))
+  .sort((a, b) => Date.parse(String(a.fields['System.ChangedDate'])) - Date.parse(String(b.fields['System.ChangedDate'])) || a.id - b.id);
+
+/** The items whose history the sample feed doesn't hold whole: the ones the sample still reads one by one. */
+export const ADO_FEED_GAPS: number[] = ADO_IDS.filter((id) => ADO_FEED.filter((r) => r.id === id).length !== (ADO_REVISIONS[id] as unknown[]).length);
 
 // GitHub Enterprise: checkout-web --------------------------------------------
 

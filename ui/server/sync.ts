@@ -21,6 +21,13 @@
  * - **Histories** (`jira issue history`, `ado work-item history`, `github
  *   issue-events`) are fetched only for changed and new items; the rest are
  *   the last copy.
+ * - **Azure DevOps' revision feed** (`ado work-item feed`) is read from
+ *   the start of the window the first time and from the watermark after that,
+ *   and the new revisions are laid over the last copy by item and revision
+ *   number, so a changed item's history grows by what it did instead of being
+ *   read again whole. Only an item whose revisions run from 1 to its own `rev`
+ *   is mapped from the feed (src/ado-revisions.ts); the rest are read with
+ *   `ado work-item history`, through the histories rule above.
  * - **Pull request lists** (every host's `pr list`) ask only for what changed
  *   since the watermark too, with `updatedSince`, merged into the last copy
  *   by id; and a **pull request's get** is read again only when it changed
@@ -58,6 +65,7 @@
  */
 
 import type { ProgressEvent } from '@imagile-dev/toil/api';
+import { mergeFeed } from '../src/ado-revisions.ts';
 import { loadDossier, windowFor, type LoaderMapOwi } from '../src/load.ts';
 import type { Envelope } from '../src/toil.ts';
 import type { WorklogEvent } from '../src/model/worklog.ts';
@@ -150,6 +158,9 @@ const HISTORIES: Record<string, string> = {
   'github issue history': 'number',
 };
 const BOARD = 'github project items';
+/** Azure DevOps' feed of every revision since a date, which stands in for each item's history (src/ado-revisions.ts). */
+const ADO_FEED = 'ado work-item feed';
+const ADO_SEARCH = 'ado work-item search';
 
 /** Commands whose NOT_FOUND says the thing isn't there, which is worth knowing: the loader looks for CODEOWNERS where GitHub would. */
 const ABSENT_IS_AN_ANSWER = new Set(['github repo file']);
@@ -380,7 +391,7 @@ export class SyncService {
     const syncing = (command: string, input: Record<string, unknown> = {}) => this.answer(run, command, input, signal);
     let loaded;
     try {
-      loaded = await loadDossier(syncing, name, { mapOwi: this.mapOwi, windowDays: windowFor(this.cache.retentionDays) });
+      loaded = await loadDossier(syncing, name, { mapOwi: this.mapOwi, windowDays: windowFor(this.cache.retentionDays), now: this.now });
     } catch (e) {
       // `dossiers show` failed: the dossier keeps everything it had.
       const message = e instanceof Error ? e.message : String(e);
@@ -489,6 +500,30 @@ export class SyncService {
       return { ...delta, data };
     }
 
+    if (command === ADO_FEED) {
+      const last = this.cache.response(dossier, command, input);
+      if (!watermark || !last?.envelope.ok || !Array.isArray(last.envelope.data)) return this.call(command, input, signal);
+      // The delta lays new revisions over old ones and never refreshes what it already holds (a renamed iteration, a changed display name), so once in a while the feed is read whole, on the day the search is listed whole.
+      const fullReadAt = state?.fullReadAt ?? null;
+      if (fullReadAt === null || Date.parse(run.startedAt) - Date.parse(fullReadAt) >= RECONCILE_MS) {
+        const whole = await this.call(command, input, signal);
+        if (whole.ok && Array.isArray(whole.data)) {
+          this.say(`${dossier}: ${command} read whole: ${whole.data.length} revisions`);
+          return whole;
+        }
+        this.say(`${dossier}: ${command} read whole failed${whole.ok ? '' : `, ${whole.error.message}`}; keeping the changes since ${watermark}, trying again next sync`);
+      }
+      const delta = await this.call(command, { ...input, updatedSince: watermark }, signal);
+      if (!delta.ok || !Array.isArray(delta.data)) return delta;
+      this.say(`${dossier}: ${command} since ${watermark}: ${delta.data.length} revisions`);
+      // Only the work items this run lists matter; the search ran before the feed, so its answer is in the run.
+      const search = run.responses.find((r) => r.command === ADO_SEARCH && r.envelope.ok);
+      const keep = search ? new Set(recs((search.envelope.data as Rec).workItems).map((w) => Number(w.id))) : undefined;
+      const merged = mergeFeed(recs(last.envelope.data), recs(delta.data), keep);
+      if (!delta.data.length && merged.length === (last.envelope.data as unknown[]).length) return reuse(last.envelope);
+      return { ...delta, data: merged };
+    }
+
     const prId = PR_LISTS[command];
     if (prId) {
       const last = this.cache.response(dossier, command, input);
@@ -526,17 +561,20 @@ export class SyncService {
     const batch = BATCHES[command];
     if (batch && Array.isArray(input[batch.field]) && (input[batch.field] as unknown[]).length > 1) {
       const wanted = (input[batch.field] as unknown[]).map(String);
-      const last = this.cache.latest(dossier, command);
+      // The loader asks in slices, and where a slice ends moves as items come and go, so every stored slice is the last copy, not only the newest.
+      const stored = this.cache.all(dossier, command).filter((r) => r.envelope.ok);
+      const last = stored[0];
       const changed = source.changed;
-      if (changed === null || !last?.envelope.ok) return this.call(command, input, signal);
-      const cached = new Map(recs((last.envelope.data as Rec)[batch.list]).map((r) => [batch.id(r), r]));
+      if (changed === null || !last) return this.call(command, input, signal);
+      const cached = new Map<string, Rec>();
+      for (const row of stored) for (const r of recs((row.envelope.data as Rec)[batch.list])) if (!cached.has(batch.id(r))) cached.set(batch.id(r), r);
       const toFetch = wanted.filter((id) => changed.has(id) || !cached.has(id));
       if (!toFetch.length) {
         this.job.reused++;
         const all = recs((last.envelope.data as Rec)[batch.list]);
         // Asking for exactly what was cached, in the same order, is the last copy itself.
-        if (all.length === wanted.length && all.every((r, n) => batch.id(r) === wanted[n])) return reuse(last.envelope);
-        return { ...last.envelope, data: { ...(last.envelope.data as Rec), [batch.list]: wanted.flatMap((id) => (cached.has(id) ? [cached.get(id)!] : [])) } };
+        if (stored.length === 1 && all.length === wanted.length && all.every((r, n) => batch.id(r) === wanted[n])) return reuse(last.envelope);
+        return { ...(last.envelope as Extract<Envelope, { ok: true }>), data: { ...(last.envelope.data as Rec), [batch.list]: wanted.flatMap((id) => (cached.has(id) ? [cached.get(id)!] : [])) } };
       }
       const asInput = (ids: string[]) => (input[batch.field] as unknown[]).filter((v) => ids.includes(String(v)));
       const delta = await this.call(command, { ...input, [batch.field]: asInput(toFetch) }, signal);

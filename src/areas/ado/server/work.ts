@@ -3,7 +3,8 @@ import { ToilError } from '../../../core/errors.js';
 import { allowWriteField } from '../../../core/run.js';
 import { adoMoves, intentOf, oneOfTransition, resolveTransition, type AdoState, type TransitionReport } from '../../../core/transition-intent.js';
 import { adoArea } from '../area.js';
-import { API, API_COMMENTS, PATCH, ado, adoSkipPages, baseUrlOf, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, toInt, where, type AdoContext } from './client.js';
+import { API, API_COMMENTS, PATCH, ado, adoFeed, adoSkipPages, baseUrlOf, cursorField, enc, exampleCursor, limitField, pageOf, pageOptions, projectPath, toInt, where, type AdoContext } from './client.js';
+import { FEED_FIELDS, FEED_SINCE, REVISIONS_DESCRIPTION, fieldList, revisionsInput } from '../feed.js';
 import { buildFieldPatch, mergeWithOverrides, parseFieldArgs, readJsonInputFile, resolveAtFileRef, splitWorkFieldsDictionary, type JsonPatchOp } from './fields.js';
 import { andWhere, checkFlat, wiqlInstant } from './wiql.js';
 
@@ -347,6 +348,34 @@ export const workRevisionsCommand = adoArea.command({
   },
 });
 
+export const workFeedCommand = adoArea.command({
+  path: ['ado', 'work-item', 'feed'],
+  description: 'The project\'s change feed: every work item\'s revisions since a date, as one list (work-item history is the revisions of one item)',
+  toolDescription: REVISIONS_DESCRIPTION,
+  input: z.object({ ...revisionsInput, limit: limitField('revisions'), cursor: cursorField }),
+  writes: false,
+  // Every revision of the project can be a long read, and a long read is the work, not a hang: --limit is the way to stop early.
+  timeLimitMs: 600_000,
+  options: [
+    { flags: '--updated-since <iso>', field: 'updatedSince', description: FEED_SINCE },
+    { flags: '--fields <names>', field: 'fields', description: FEED_FIELDS },
+    ...pageOptions('revisions'),
+  ],
+  examples: [
+    { ...AT },
+    { ...AT, updatedSince: '2026-10-01T09:00:00Z', fields: 'System.State, System.IterationPath' },
+    { ...AT, limit: 1 },
+    { ...AT, limit: 1, cursor: exampleCursor('813;42;2') },
+  ],
+  run: (input, ctx) => {
+    const page = pageOf(input);
+    const w = where(ctx);
+    const fields = fieldList(input.fields);
+    // Every request names the same fields; startDateTime goes on the first only (feed.ts).
+    return adoFeed(ctx, `${projectPath(w)}/_apis/wit/reporting/workitemrevisions`, { 'api-version': API, ...(fields ? { fields } : {}) }, input.updatedSince === undefined ? undefined : wiqlInstant(input.updatedSince), `revisions of the work items in Azure DevOps project ${w.project}`, page);
+  },
+});
+
 /** The most ids the batch endpoint takes in one request. */
 export const BATCH_SIZE = 200;
 /** The most ids one get-many call takes: five requests, then a bound rather than a loop. */
@@ -473,6 +502,7 @@ export const workItemCommands = [
   workLinkCommand,
   workSearchCommand,
   workRevisionsCommand,
+  workFeedCommand,
   workGetBatchCommand,
   workListCommentsCommand,
   workAddCommentCommand,

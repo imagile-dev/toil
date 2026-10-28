@@ -53,13 +53,18 @@ export interface Board {
   others(fields: Rec): number;
   /** The pull requests of the one repository, `payments-core`, as the list endpoint returns them. */
   pullRequests: Rec[];
+  /** How many batches of the reporting feed were asked for. */
+  feedRequests: number;
   fetch: typeof fetch;
 }
+
+/** Revisions per batch of the fake feed, small enough that a seeded board needs several. */
+const FEED_BATCH = 7;
 
 export function adoBoard(): Board {
   const items = new Map<number, Item>();
   let next = 2;
-  const board: Board = { items, requests: [], writes: [], refuseBypass: false, others: () => 0, pullRequests: [], fetch: undefined as never };
+  const board: Board = { items, feedRequests: 0, requests: [], writes: [], refuseBypass: false, others: () => 0, pullRequests: [], fetch: undefined as never };
   const url = (id: number) => `${ORG}/_apis/wit/workItems/${id}`;
   const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
   const fail = (status: number, message: string) => json({ message, typeKey: 'Error' }, status);
@@ -152,6 +157,20 @@ export function adoBoard(): Board {
       const item = items.get(Number(del[1]))!;
       item.deleted = true;
       return json({ id: item.id, code: 200 });
+    }
+    // The reporting feed: every revision of every item after startDateTime, in batches of FEED_BATCH with a continuation token,
+    // people as "Name <unique name>" text. The token is the offset into the whole feed, which is as honest as a fake gets.
+    if (method === 'GET' && path === `${p}/_apis/wit/reporting/workitemrevisions`) {
+      const since = u.searchParams.get('startDateTime');
+      if (since && u.searchParams.has('continuationToken')) return fail(400, 'VS402337: startDateTime cannot be used with a continuationToken.');
+      const text = (who: unknown) => (typeof who === 'object' && who !== null && 'displayName' in who && 'uniqueName' in who ? `${(who as Rec).displayName} <${(who as Rec).uniqueName}>` : who);
+      const all = [...items.values()].filter((i) => !i.deleted).flatMap((i) => i.revisions)
+        .filter((r) => !since || Date.parse(String(r.fields['System.ChangedDate'])) > Date.parse(since))
+        .sort((a, b) => Date.parse(String(a.fields['System.ChangedDate'])) - Date.parse(String(b.fields['System.ChangedDate'])) || a.id - b.id);
+      const start = Number(u.searchParams.get('continuationToken') ?? 0);
+      const values = all.slice(start, start + FEED_BATCH).map((r) => ({ id: r.id, rev: r.rev, fields: { 'System.Id': r.id, 'System.Rev': r.rev, ...Object.fromEntries(Object.entries(r.fields).map(([k, v]) => [k, k === 'System.ChangedBy' || k === 'System.CreatedBy' ? text(v) : v])) } }));
+      board.feedRequests++;
+      return json({ values, continuationToken: String(start + values.length), isLastBatch: start + FEED_BATCH >= all.length });
     }
     const revisions = /^\/_apis\/wit\/workItems\/(\d+)\/revisions$/i.exec(path);
     if (method === 'GET' && revisions) {

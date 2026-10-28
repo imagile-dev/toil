@@ -1,6 +1,6 @@
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.tsx';
 import { Bell } from '../src/components/bell.tsx';
 import { NotifyProvider, useNotify } from '../src/components/notify.tsx';
@@ -15,6 +15,7 @@ import type { SyncStatus } from '../src/server-client.ts';
 const entry = (n: number): Omit<HistoryEntry, 'seq'> => ({ id: `assignment:a${n}:done`, at: `2026-10-13T08:${String(n % 60).padStart(2, '0')}:00.000Z`, kind: 'done', title: `Codex finished ${n}`, line: `PAY-${n}: finished`, href: `#/dossier/card-payments/assignment/a${n}` });
 
 beforeEach(() => localStorage.clear());
+afterEach(() => vi.useRealTimers());
 
 describe('the history', () => {
   it('keeps the last 50, newest first, and counts what is unread', () => {
@@ -93,7 +94,9 @@ describe('the bell', () => {
   });
 
   it("keeps each notice's changes, quiet hours included, without a toast it didn't make", async () => {
-    // Quiet all day: the notice is held, and the bell still has it.
+    // Quiet all day: the notice is held, and the bell still has it. Midday is pinned, because 00:00 to 23:59 leaves out the last minute of the day.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 9, 13, 12));
     localStorage.setItem('toil-ui.notify', JSON.stringify({ quiet: { from: '00:00', to: '23:59' } }));
     let notify: ReturnType<typeof useNotify> = null;
     const Grab = () => {
