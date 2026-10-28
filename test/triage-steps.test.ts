@@ -368,7 +368,7 @@ describe.skipIf(!linux)('handover.sh (Linux only: it runs on ubuntu-latest and n
     expect(existsSync(join(ok, 'agent-ok'))).toBe(true);
     expect(readFileSync(join(ok, 'decision.json'), 'utf8')).toContain('"fix"');
     const result = inspect(readFileSync(join(ok, 'changes.tar')), readFileSync(join(ok, 'deleted.txt'), 'utf8'), ['jira']);
-    expect(result).toMatchObject({ ok: true, area: 'jira', deleted: ['src/areas/jira/gone.ts'] });
+    expect(result).toMatchObject({ ok: true, areas: ['jira'], deleted: ['src/areas/jira/gone.ts'] });
     expect(result.files.map((f) => f.path).sort()).toEqual(['src/areas/jira/a.ts', 'src/areas/jira/new file.ts']);
     expect(existsSync(join(run('failure'), 'agent-ok'))).toBe(false);
   });

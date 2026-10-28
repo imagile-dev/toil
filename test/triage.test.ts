@@ -398,6 +398,11 @@ describe('the path check', () => {
     },
   );
 
+  it('marks a differently cased ui/ or src/ path as Toil UI or core, so the draft still asks for the full gate', () => {
+    expect(check([edit('UI/src/app.tsx')], known)).toMatchObject({ ok: true, ui: true });
+    expect(check([edit('Src/core/x.ts')], known)).toMatchObject({ ok: true, core: true });
+  });
+
   it('refuses a symlink, a submodule, and an empty change; allows deletes of open files', () => {
     expect(check([edit('src/areas/jira/a.ts', '120000')], known).ok).toBe(false);
     expect(check([edit('src/areas/jira/sub', '160000')], known).ok).toBe(false);

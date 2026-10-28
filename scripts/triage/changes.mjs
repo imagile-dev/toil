@@ -142,7 +142,10 @@ export function areaOf(path, areas) {
 }
 
 /** Core or shared code: under src/ but not one area's own. */
-const isCore = (path) => path.startsWith('src/') && !path.startsWith('src/areas/');
+const isCore = (path) => {
+  const lower = path.toLowerCase();
+  return lower.startsWith('src/') && !lower.startsWith('src/areas/');
+};
 
 /**
  * Why a path is out of bounds for a fix, or undefined when it is open. The
@@ -193,7 +196,7 @@ export function check(entries, areas) {
     else {
       const area = areaOf(path, areas);
       if (area) touched.add(area);
-      else if (path.startsWith('ui/')) ui = true;
+      else if (path.toLowerCase().startsWith('ui/')) ui = true;
       else if (isCore(path)) core = true;
     }
   }
