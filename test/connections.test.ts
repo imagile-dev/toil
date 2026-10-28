@@ -745,6 +745,31 @@ describe('toil connections add --set, secretNeeded', () => {
     expect(out.stdout).not.toContain('set-in-env');
   });
 
+  it('counts a CI fallback only where the area takes it: SYSTEM_ACCESSTOKEN is no PAT for Azure DevOps Services', async () => {
+    const services = await run(['adoc', '--area', 'ado', '--set', 'deployment=cloud', '--set', 'baseUrl=https://dev.azure.com/imagile'], { SYSTEM_ACCESSTOKEN: 'set-in-ci' });
+    expect(services.envelope).toMatchObject({ ok: true, data: { secretNeeded: ['pat'], secretFromEnv: {} } });
+    expect(services.envelope?.meta.warnings).toEqual([expect.objectContaining({ code: 'SECRET_NEEDED' })]);
+    expect(services.stdout).not.toContain('set-in-ci');
+  });
+
+  it('counts it for Azure DevOps Server, and names the variable', async () => {
+    const server = await run(['ados', '--area', 'ado', '--set', 'baseUrl=https://ado.imagile.dev'], { SYSTEM_ACCESSTOKEN: 'set-in-ci' });
+    expect(server.envelope).toMatchObject({ ok: true, data: { secretNeeded: [], secretFromEnv: { pat: 'SYSTEM_ACCESSTOKEN' } } });
+    expect(server.envelope?.meta.warnings ?? []).toEqual([]);
+  });
+
+  it('counts a TOIL_CONN_<NAME>_<KEY> variable for a connection that is not the default', async () => {
+    await run(['first', '--area', 'github', '--set', 'baseUrl=https://api.imagile.dev']);
+    const out = await run(['second', '--area', 'github', '--set', 'baseUrl=https://ghe.imagile.dev/api/v3'], { TOIL_CONN_SECOND_TOKEN: 'set-in-env' });
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: [], secretFromEnv: { token: 'TOIL_CONN_SECOND_TOKEN' } } });
+  });
+
+  it('counts a credential the area default shares from another area\'s env, as a call would', async () => {
+    const out = await run(['kib', '--area', 'kibana', '--set', 'baseUrl=https://kibana.imagile.dev'], { TOIL_ELASTICSEARCH_API_KEY: 'set-in-env' });
+    expect(out.envelope).toMatchObject({ ok: true, data: { secretNeeded: [] } });
+    expect(out.envelope?.meta.warnings ?? []).toEqual([]);
+  });
+
   it('still names the token when the env var belongs to the area default, not this second connection', async () => {
     await run(['first', '--area', 'github', '--set', 'baseUrl=https://api.imagile.dev']);
     const out = await run(['second', '--area', 'github', '--set', 'baseUrl=https://ghe.imagile.dev/api/v3'], { TOIL_GITHUB_TOKEN: 'set-in-env' });

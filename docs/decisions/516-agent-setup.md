@@ -66,3 +66,11 @@
   `GITHUB_TOKEN`; for any connection, `TOIL_CONN_<NAME>_<KEY>`. Presence is checked,
   never the value. The result's `secretFromEnv` names the variable, so a person sees
   why nothing is asked of them.
+- **`connections add --set` asks the real resolver what is still missing** (review
+  round 3), on the config as the next call will load it (`reloadConfig`, shared with
+  `dossiers onboard`). A mirror of the loader's rules (CI fallbacks and their
+  `fallbackWhen`, `TOIL_CONN_*`, `TOIL_<AREA>_*`, renamed keys, area defaults, `<key>From`
+  pairings, the shared-env chain) had already drifted once, so there is no mirror: the
+  resolver's answer is the answer, and `secretFromEnv` names the variable the loader
+  recorded as the source (names only). If the config can't be loaded, every required
+  secret is reported as needed.

@@ -1,4 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 import { z } from 'zod';
 import { pairingKey, type AnyArea } from '../core/area.js';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
@@ -8,6 +9,7 @@ import {
   connectionEnvName,
   connectionWrites,
   defaultConnectionName,
+  loadConfig,
   readConfigForEdit,
   writeConfigFile,
   type EditableConfig,
@@ -371,7 +373,7 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
       fix: `Run toil connections login ${input.name} to replace its secret, or toil connections remove ${input.name} first.`,
     });
   }
-  if (input.set !== undefined) return addFromFlags(ctx, areas, file, path, { name: input.name, area: input.area, set: input.set });
+  if (input.set !== undefined) return await addFromFlags(ctx, areas, file, path, { name: input.name, area: input.area, set: input.set });
   if (!prompt) throw needsTerminal('add', input.name, input.area ? areaIn(areas, input.area) : undefined);
   const area = areaIn(areas, input.area ?? (await prompt.ask(`Area (${areas.map((a) => a.name).join(', ')})`, areas.length === 1 ? areas[0]!.name : undefined, 'area')));
 
@@ -421,7 +423,7 @@ export async function addConnection(ctx: CommandContext<unknown>, areas: readonl
  * an area becomes its default. Nobody has ever approved a change ticket for a
  * flag that does less than the form it replaces.
  */
-function addFromFlags(
+async function addFromFlags(
   ctx: CommandContext<unknown>,
   areas: readonly AnyArea[],
   file: EditableConfig,
@@ -475,19 +477,13 @@ function addFromFlags(
   }
   writeConfigFile(path, file);
   // Only the secrets this connection can't do without: the schema, variants included, says which (an optional
-  // one, such as a database password, is left out rather than guessed at). Presence in env is checked, never read.
+  // one, such as a database password, is left out rather than guessed at).
   const required = secretKeys.filter((k) => {
     const others = Object.fromEntries(Object.entries(standIns).filter(([name]) => name !== k));
     const without = (area.connection as z.ZodObject).safeParse({ ...(area.defaults ?? {}), ...settings, ...others });
     return !without.success && without.error.issues.some((issue) => issue.path[0] === k);
   });
-  const env = access(ctx).env;
-  const isDefault = file.defaults[area.name]?.connection === input.name;
-  const fallbacks = (area.fallbacks as Record<string, string[] | undefined> | undefined) ?? {};
-  const suppliedBy = (k: string): string | undefined =>
-    [connectionEnvName(input.name, k), ...(isDefault ? [area.envName(k), ...(fallbacks[k] ?? [])] : [])].find((v) => (env[v] ?? '') !== '');
-  const fromEnv = Object.fromEntries(required.flatMap((k) => { const v = suppliedBy(k); return v ? [[k, v]] : []; }));
-  const secretNeeded = required.filter((k) => !(k in fromEnv));
+  const { secretNeeded, fromEnv } = await whatIsStillNeeded(ctx, areas, area, input.name, required);
   if (secretNeeded.length > 0) {
     ctx.warn({
       code: 'SECRET_NEEDED',
@@ -495,6 +491,55 @@ function addFromFlags(
     });
   }
   return { name: input.name, area: area.name, configFile: slashes(path), secrets: {}, secretNeeded, secretFromEnv: fromEnv, writes: false };
+}
+
+/** The config as the next call will load it, after the file changed (also how `dossiers onboard` tests what it just added). */
+export function reloadConfig(manage: ConfigAccess, areas: readonly AnyArea[]) {
+  const path = manage.config.files.global;
+  return loadConfig({
+    env: manage.env,
+    cwd: dirname(path),
+    home: dirname(dirname(path)),
+    configPath: path,
+    areas: areas.map((a) => ({ name: a.name, fallbacks: a.fallbacks, ...(a.fallbackWhen ? { fallbackWhen: a.fallbackWhen } : {}), contextInputs: Object.keys(a.context), ...(a.siteApis ? { siteApis: a.siteApis } : {}) })),
+  });
+}
+
+/**
+ * Which of the required secrets the connection still lacks, asked of the real
+ * resolver on the config as the next call will load it, so CI fallbacks and their
+ * conditions (`fallbackWhen`), TOIL_CONN_ and TOIL_<AREA> variables, renamed keys,
+ * area defaults and `<key>From` pairings all count exactly as they do on a call, and
+ * can't drift from it. Nothing reads a value out of the process: a secret from
+ * env is named by its variable, which the loader's own record of sources says. If
+ * the config can't be loaded here, every required secret is reported as needed.
+ */
+async function whatIsStillNeeded(ctx: CommandContext<unknown>, areas: readonly AnyArea[], area: AnyArea, name: string, required: string[]) {
+  const manage = access(ctx);
+  let fresh;
+  try {
+    fresh = reloadConfig(manage, areas);
+    await resolveConnection(fresh, area, name, () => {}, manage.secrets, ctx.signal);
+    return { secretNeeded: [] as string[], fromEnv: suppliedByEnv(manage.env, fresh, area, name, required) };
+  } catch (err) {
+    const missing = err instanceof ToilError && err.code === 'CONFIG_INVALID' ? new Set(((err.details ?? []) as Array<{ path?: unknown[] }>).map((d) => String(d.path?.[0] ?? ''))) : undefined;
+    const secretNeeded = missing ? required.filter((k) => missing.has(k)) : required;
+    return { secretNeeded, fromEnv: fresh ? suppliedByEnv(manage.env, fresh, area, name, required.filter((k) => !secretNeeded.includes(k))) : {} };
+  }
+}
+
+/** For secrets the loader took from env or a CI fallback, the variable that supplied each (its name, never its value). */
+function suppliedByEnv(env: NodeJS.ProcessEnv, config: ReturnType<typeof reloadConfig>, area: AnyArea, name: string, keys: string[]): Record<string, string> {
+  const fallbacks = (area.fallbacks as Record<string, string[] | undefined> | undefined) ?? {};
+  return Object.fromEntries(
+    keys.flatMap((k) => {
+      const source = config.sources[`${name}.${k}`];
+      if (source !== 'env' && source !== 'ci') return [];
+      const names = source === 'ci' ? (fallbacks[k] ?? []) : [connectionEnvName(name, k), area.envName(k)];
+      const found = names.find((v) => (env[v] ?? '') !== '');
+      return found ? [[k, found]] : [];
+    }),
+  );
 }
 
 /**
