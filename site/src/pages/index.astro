@@ -39,6 +39,7 @@ const teaser = principles.slice(0, 3);
           <div class="hero__agent hero__in" style="--i: 4">
             <p class="hero__agent-title">Let your agent set it up</p>
             <pre class="start__code"><code>{agentCommands.map((c) => <span class="start__line"><span class="start__prompt" aria-hidden="true">$ </span>{c.split(' ').map((t, n) => <span class="tok">{n ? ' ' : ''}{t}</span>)}</span>)}</code></pre>
+            <p class="hero__agent-note">For Codex or GitHub Copilot, leave out <span class="tok">--claude</span>.</p>
             <p class="hero__agent-ask">Then paste this into your coding agent:</p>
             <div class="start__prompt-row">
               <pre class="start__code start__code--wrap"><code id="agent-prompt">{agentPrompt}</code></pre>
@@ -235,7 +236,7 @@ const teaser = principles.slice(0, 3);
   .hero__agent { display: grid; gap: var(--space-xs); justify-items: start; margin-top: var(--space-sm); text-align: left; max-width: 34rem; margin-inline: auto; width: 100%; }
   .hero__agent > * { min-width: 0; max-width: 100%; }
   .hero__agent-title { font-family: var(--font-action); font-weight: 600; color: var(--color-ink); }
-  .hero__agent-ask, .hero__agent-more, .hero__agent-other { color: var(--color-muted); font-size: var(--text-sm); }
+  .hero__agent-note, .hero__agent-ask, .hero__agent-more, .hero__agent-other { color: var(--color-muted); font-size: var(--text-sm); }
   .hero__agent a { color: var(--color-accent); }
   .hero__agent .start__code { width: 100%; }
   /* A flag never breaks across lines: each word of a command is one unbreakable piece. */

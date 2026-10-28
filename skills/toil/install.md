@@ -13,8 +13,8 @@ npm install -g @imagile-dev/toil
 toil skill install --claude --allow-write
 ```
 
-`--claude` is for Claude Code; `--agent codex` and `--agent github-copilot` are the
-others (**Installing this skill**, below). Then tell your agent: **Set up toil for me
+`--claude` is for Claude Code. For Codex or GitHub Copilot, leave out `--claude`: the
+default install is the one both read (**Installing this skill**, below, has the table). Then tell your agent: **Set up toil for me
 with its setup skill.** It follows `setup.md`: it asks whether you want Toil UI,
 proposes your connections for your yes and creates them, and leaves every secret to you,
 typed in your own terminal or in Toil UI. The manual installs follow.
