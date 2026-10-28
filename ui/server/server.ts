@@ -5,11 +5,16 @@
  *
  * - **The launch token.** Each start makes a random token and prints one URL
  *   that carries it, as Jupyter does. The page trades it (`POST api/session`)
- *   for a session id it keeps in memory and sends as `X-Toil-UI-Session` on
- *   every API call; the API answers nothing without one. No cookie is ever
- *   set: browsers send cookies to every port on a host, so one would reach any
- *   other server on 127.0.0.1. The static files hold no data and need no
- *   session. A reload forgets the id, so it takes the launch URL again.
+ *   for a session id and sends it as `X-Toil-UI-Session` on every API call; the
+ *   API answers nothing without one. No cookie is ever set: browsers send
+ *   cookies to every port on a host, so one would reach any other server on
+ *   127.0.0.1. The page keeps the id in `sessionStorage` instead (#485), which
+ *   is scoped to this exact origin and never sent by the browser, so a reload
+ *   resumes through `GET api/session`; a new tab, or a restart of this server
+ *   (sessions are in memory), takes the launch URL again. The token stays: it
+ *   is what keeps other local processes and users out of an API that runs toil
+ *   with the person's connections. The static files hold no data and need no
+ *   session.
  * - **The Host header.** Only the exact `127.0.0.1:<port>` (or `[::1]:<port>`)
  *   the server printed is answered, so a page using DNS rebinding to reach the
  *   port is refused before anything else is read.
@@ -599,7 +604,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
     if (key === 'POST agent/mcp') return mcpCall(req, res, ctx);
     const signedIn = sessionOf(req);
     if (!signedIn) {
-      throw new HttpError(401, `The API answers only a page signed in to this launch, with its session id in ${SESSION_HEADER}.`, 'Open the URL toil-ui printed when it started; a reloaded page needs it again.');
+      throw new HttpError(401, `The API answers only a page signed in to this launch, with its session id in ${SESSION_HEADER}.`, 'Open the URL toil-ui printed when it started; a tab keeps its session across a reload, but not across a restart of toil-ui.');
     }
     if (req.method === 'POST') {
       checkOrigin(req);

@@ -43,10 +43,18 @@ Open this URL in your browser. It carries this launch's token, so keep it to you
   http://127.0.0.1:53117/?token=<token>
 ```
 
-Open that URL. The page trades the token for a session it keeps in memory, and the
-token leaves the address bar. A reloaded page forgets its session, so open the URL
-again to get back in. Each start prints a new token. Toil UI opens no browser
-itself.
+Open that URL. The page trades the token for a session, and the token leaves the
+address bar. The tab keeps the session in `sessionStorage`, so reloading the page
+works. A new tab, or a restart of `toil-ui`, needs the URL again; each start prints a
+new token. Toil UI opens no browser itself.
+
+Why the token, and why `sessionStorage`: the server can run toil with your own
+connections, so something has to keep other local processes and users out of it, and
+the token is that lock. A cookie would have made reloads easy, but a browser sends a
+cookie to every port on `127.0.0.1`, so any other local server would receive the
+session. `sessionStorage` belongs to this exact origin (port included), is never sent
+anywhere, and goes with the tab. `localStorage` would outlive all of that, so it isn't
+used.
 
 `toil-ui --sample` serves the sample dossiers and the scripted agent that
 [the site's Toil UI page](https://imagile-dev.github.io/toil/ui/) runs on, with
