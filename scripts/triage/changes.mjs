@@ -102,11 +102,11 @@ export const SAFETY_ELSEWHERE_CORE = new Set([
   // The contract, and the suites that guard it, triage's own rules and the repository's hygiene.
   'docs/command-contract.json', 'docs/command-contract.md', 'test/contract.test.ts', 'test/triage.test.ts', 'test/triage-steps.test.ts',
   'test/workflow-wiring.test.ts', 'test/merge-only.test.ts', 'test/repo-hygiene.test.ts',
-  // The shipped skill's pages an agent takes its rules from: writes, feedback, setup and secrets.
-  'skills/toil/SKILL.md', 'skills/toil/core.md', 'skills/toil/setup.md', 'skills/toil/mcp.md',
 ]);
 export const SAFETY_CORE_FOLDERS = [
   'src/os/', 'src/shims/', 'src/mcp/', 'src/core/query/', 'src/connections/', 'src/skills/', 'src/setup/', 'src/feedback/', 'src/dossiers/',
+  // The shipped skill: every page ships to users' agents as instructions, and most say how a write gate works.
+  'skills/toil/',
 ];
 
 /**
