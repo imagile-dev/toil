@@ -43,3 +43,14 @@
 - **`setup.md` has no jokes and no dossier-creation detail of its own**: it points at
   `dossiers.md`, **Create**, and `toil dossiers onboard --plan` (which adds no
   connection) so the dossier commands have one place to be documented.
+- **`--set` refuses a pairing key (`<key>From`, such as `tokenFrom`) as it does a
+  secret.** A pairing points a connection at another connection's credential, which
+  moves a secret and could send it to a host the agent chose (principle 9). The person
+  adds it themselves. Review round 1 on the PR found it.
+- **The agent path leads the hero**, in place of the npm command and the Get started
+  button, with the two manual installs one link away (`#start-npm`, `#start-clone`)
+  rather than competing for the first screen. Each word of a command is an unbreakable
+  piece, so a flag never splits across lines, and the prompt block wraps.
+- **Examples use `jira.imagile.dev`** for Jira, since Atlassian answers for every
+  subdomain. `test/repo-hygiene.test.ts` reads only tracked files, so it missed the
+  new file until it was added; its pattern is unchanged and now has a test of its own.

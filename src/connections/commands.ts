@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { z } from 'zod';
-import type { AnyArea } from '../core/area.js';
+import { pairingKey, type AnyArea } from '../core/area.js';
 import { defineConfigCommand, type AnyCommand } from '../core/command.js';
 import {
   CONFIG_VERSION,
@@ -445,6 +445,12 @@ function addFromFlags(
     if (secretKeys.includes(key)) {
       throw new ToilError('INVALID_INPUT', `${key} is a secret, and a secret is never given as a flag. Nothing was saved.`, {
         fix: `Create the connection without it, then have the person run toil connections login ${input.name}, or enter it in Toil UI's Settings.`,
+      });
+    }
+    // A pairing (tokenFrom) points this connection at another one's credential: moving a secret, which is the person's to do.
+    if (secretKeys.some((k) => pairingKey(k) === key)) {
+      throw new ToilError('INVALID_INPUT', `${key} borrows another connection's secret, and an agent never moves one. Nothing was saved.`, {
+        fix: `Create the connection without it; the person adds ${key} to it themselves.`,
       });
     }
     if (!(key in shape)) {

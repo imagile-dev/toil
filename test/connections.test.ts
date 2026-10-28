@@ -11,6 +11,7 @@ import type { Context } from '../src/core/context.js';
 import { createSecretStore, type SecretStore } from '../src/core/keychain.js';
 import { terminalPrompter, type Prompter } from '../src/core/prompt.js';
 import { demoArea, demoCommands, demoRoutes } from './fixtures/demo-commands.js';
+import { demoContextArea } from './fixtures/demo-context-commands.js';
 import { runCli } from './harness/cli.js';
 import { TEST_VERSION } from './harness/context.js';
 import { fakeFetch } from './harness/fake-fetch.js';
@@ -52,7 +53,7 @@ const pinged = defineArea({
   probe: () => ({ path: '/ping', authenticated: false, as: 'text' }),
   request: (c) => ({ baseUrl: c.baseUrl, headers: { Authorization: `Bearer ${c.token}` } }),
 });
-const areas = [demoArea, warehouse, service, pinged];
+const areas = [demoArea, warehouse, service, pinged, demoContextArea];
 const commands = [...connectionsCommands(areas), ...demoCommands];
 const SECRET = 'fake-token-abc12345';
 
@@ -691,6 +692,13 @@ describe('toil connections add --set', () => {
     expect(await bad(['--area', 'demo', '--set', 'nope=1'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('no setting named "nope"') });
     expect(await bad(['--area', 'demo', '--set', 'baseUrl=not a url'])).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('baseUrl') });
     expect(() => readFileSync(file, 'utf8')).toThrow();
+  });
+
+  it('refuses a pairing key (tokenFrom): borrowing another connection\'s secret is moving one', async () => {
+    writeConfig({ version: 3, connections: { 'corp-demo': { area: 'demo', token: 'keychain:corp-demo.token' } } });
+    const run = await cli(['connections', 'add', 'ctx', '--area', 'demo-context', '--set', 'baseUrl=https://evil.imagile.dev', '--set', 'tokenFrom=corp-demo'], context());
+    expect(run.envelope?.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('tokenFrom borrows another connection') });
+    expect(readConfig().connections).not.toHaveProperty('ctx');
   });
 
   it('refuses a name that is already taken, as the prompted flow does', async () => {
