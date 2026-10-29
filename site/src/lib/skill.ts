@@ -6,7 +6,7 @@ import type { MarkdownInstance } from 'astro';
 import { integrationFiles, skillFiles } from './skill-pages.mjs';
 
 type Module = MarkdownInstance<Record<string, string>>;
-const modules = import.meta.glob<Module>('../../../skills/toil/*.md', { eager: true });
+const modules = import.meta.glob<Module>('../../../skills/toil/**/*.md', { eager: true });
 
 export interface SkillDoc {
   file: string;

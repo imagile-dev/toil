@@ -113,6 +113,10 @@ describe('the docs pages render skills/toil/ and carry no reference prose of the
   it('every file of the skill has a page, and every one an integration page names exists', () => {
     expect(skillFiles.filter((f) => !f.path).map((f) => f.file)).toEqual([]);
     for (const file of readdirSync(join(root, 'skills', 'toil')).filter((f) => f.endsWith('.md'))) expect(pagePath(file), file).toBeDefined();
+    // The workflow pages (skills/toil/workflows/) are the same kind of file: the README is the index, each job its own page.
+    const workflows = readdirSync(join(root, 'skills', 'toil', 'workflows')).filter((f) => f.endsWith('.md'));
+    expect(workflows.length).toBeGreaterThan(3);
+    for (const file of workflows) expect(pagePath(`workflows/${file}`), file).toBe(file === 'README.md' ? '/docs/workflows/' : `/docs/workflows/${file.replace(/\.md$/, '')}/`);
   });
 
   it("every one of Toil UI's own docs has a page that renders it (#283)", () => {

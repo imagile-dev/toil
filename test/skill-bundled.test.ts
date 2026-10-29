@@ -121,7 +121,9 @@ describe('the shipped SKILL.md stays small', () => {
 
   it('every reference file is embedded and installed, so an area set up later is already documented', () => {
     // changelog.md is generated from CHANGELOG.md, not a file in skills/toil/.
-    const shipped = [...readdirSync(join(import.meta.dirname, '..', 'skills', 'toil')).filter((f) => f.endsWith('.md')), 'changelog.md'].sort();
+    // The workflow pages are in skills/toil/workflows/, and ship under that path.
+    const skill = join(import.meta.dirname, '..', 'skills', 'toil');
+    const shipped = [...readdirSync(skill).filter((f) => f.endsWith('.md')), ...readdirSync(join(skill, 'workflows')).map((f) => `workflows/${f}`), 'changelog.md'].sort();
     expect(Object.keys(skillFilesFor(describeConfig(testConfig(), AREA_NAMES, new Set()))).sort()).toEqual(shipped);
   });
 });
@@ -151,6 +153,17 @@ describe('the generated description', () => {
     // A plain YAML scalar: no ": " or " #" to turn it into something else.
     expect(d.description).not.toMatch(/: | #/);
     expect(frontmatter(skillFilesFor(d)['SKILL.md']!)?.description).toBe(d.description);
+  });
+
+  it('names the jobs there are workflow pages for, with and without connections, so an agent reaches for the skill on "review this PR"', () => {
+    for (const description of [describeOf({}).description, describeOf({ jira: {} }).description, describeOf({ db: { engine: 'sqlite' } }).description]) {
+      expect(description).toMatch(/review this PR/);
+      expect(description).toMatch(/ship this branch/);
+      expect(description).toMatch(/map this codebase/);
+      // The same sentence SKILL.md ends with, so the installed copy and the repository's can't drift.
+      expect(description.endsWith(/Also use for whole jobs[^.]*\./.exec(frontmatter(skillFiles['SKILL.md']!)?.description ?? '')![0])).toBe(true);
+      expect(description.length).toBeLessThanOrEqual(1024);
+    }
   });
 
   it('a connection set only by TOIL_* env vars counts, and is reported as env-only', () => {
@@ -185,7 +198,8 @@ describe('toil skill install', () => {
         expect(result.ok, JSON.stringify(result.error)).toBe(true);
         const dir = join(scope === 'user' ? home : repo, scope === 'user' ? c.user : c.project);
         expect((result.data as { path: string }).path).toBe(join(dir, 'toil').replace(/\\/g, '/'));
-        expect(readdirSync(join(dir, 'toil')).filter((f) => f.endsWith('.md')).sort()).toEqual(Object.keys(skillFiles).sort());
+        expect(Object.keys(snapshot(join(dir, 'toil'))).filter((f) => f.endsWith('.md')).sort()).toEqual(Object.keys(skillFiles).sort());
+        expect(readFileSync(join(dir, 'toil', 'workflows', 'review.md'), 'utf8')).toBe(skillFiles['workflows/review.md']);
         expect(descriptionIn(dir)).toContain('(jira)');
         expect(readMeta(dir).skills.toil).toMatchObject({ source: 'bundled', toilVersion: '1.0.0' });
       });

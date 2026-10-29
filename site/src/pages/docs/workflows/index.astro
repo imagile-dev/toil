@@ -1,0 +1,17 @@
+---
+import SkillPage from '../../../components/SkillPage.astro';
+import { workflowFiles } from '../../../lib/skill-pages.mjs';
+import { url } from '../../../lib/url';
+
+// The workflows index: skills/toil/workflows/README.md, rendered, then one link
+// per job page, read from the folder, so a new page is listed with no page code.
+const jobs = workflowFiles();
+---
+
+<SkillPage file="workflows/README.md">
+  <ul>
+    {jobs.map((job) => (
+      <li><a class="tap" href={url(job.path!)}>{job.title}</a></li>
+    ))}
+  </ul>
+</SkillPage>
