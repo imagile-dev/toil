@@ -26,12 +26,12 @@ jobs:
     # who merges it is the review.) This job's own token only needs to read.
     permissions:
       contents: read
-      # The last check lists merged release PRs still waiting for their release (#536).
-      pull-requests: read
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
       version: ${{ steps.rp.outputs.version }}
+      # The release PR release-please opened or updated, as JSON, for release-guard.
+      pr: ${{ steps.rp.outputs.pr }}
       # Toil UI (ui/, @imagile-dev/toil-ui): release-please prefixes a package's
       # outputs with its path. Its tag is toil-ui-v<version>.
       ui_release_created: ${{ steps.rp.outputs['ui--release_created'] }}
@@ -90,16 +90,45 @@ jobs:
           git commit -m "chore: rebuild dist/toil.js and dist/toil-lib.js for the release"
           git push
 
+  # A merged release PR that releases nothing ends green unless something checks
+  # (#536). This job is that check, and it's its own job so nothing in it can hold
+  # back a publish: publish-toil and publish-ui never wait on it, so a release
+  # that was tagged still goes to npm whatever happens here.
+  release-guard:
+    needs: release-please
+    if: needs.release-please.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      # Only to edit the release PR's body; this job's own token only reads.
+      - name: Generate Imagile Bot token
+        id: imagile-token
+        if: needs.release-please.outputs.pr
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
+          private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
+          permission-pull-requests: write
+      - if: needs.release-please.outputs.pr
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - if: needs.release-please.outputs.pr
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.22.1'
+
       # release-please reads the merged release PR's body as HTML to find each
       # package's version, and `<placeholder>` text in the notes makes it skip the
-      # release without failing (#536). It rewrites the body on every run, so this
-      # runs every time it opened or updated the PR. scripts/release-pr-body.mjs
-      # says why the escape is `&amp;lt;`.
+      # release without failing. It rewrites the body whenever it opens or updates
+      # the PR, so this runs every time it did. scripts/release-pr-body.mjs says
+      # why the escape is `&amp;lt;`.
       - name: Escape tag-like text in the release PR's body
-        if: steps.rp.outputs.pr
+        if: needs.release-please.outputs.pr
         env:
           GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
-          PR: ${{ fromJSON(steps.rp.outputs.pr).number }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ fromJSON(needs.release-please.outputs.pr).number }}
         run: |
           gh pr view "$PR" --json body -q .body > "$RUNNER_TEMP/body.md"
           node scripts/release-pr-body.mjs < "$RUNNER_TEMP/body.md" > "$RUNNER_TEMP/escaped.md"
@@ -111,21 +140,22 @@ jobs:
 
       # After release-please runs, a merged release PR still labelled
       # "autorelease: pending" was skipped: release-please swaps the label to
-      # "autorelease: tagged" in the same run that releases it. A skipped release
-      # otherwise ends green, and nothing may fail silently (principle 4). Only a
-      # PR merged into the commit this run built counts: one merged while this
+      # "autorelease: tagged" in the same run that releases it (principle 4). Only
+      # a PR merged into the commit this run built counts: one merged while this
       # run was going is the next run's to release, and isn't a failure here.
+      # It runs even when the escape failed, since the two don't depend on each other.
       - name: Fail when a merged release PR was not released
+        if: ${{ !cancelled() }}
         env:
           GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
+          GH_REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
         run: |
           PENDING="$(gh pr list --state merged --base main --label "autorelease: pending" --json number,url,mergeCommit -q '.[] | "\(.mergeCommit.oid) #\(.number) \(.url)"')"
           failed=0
           while read -r merge pr; do
             [[ -z "$merge" ]] && continue
-            status="$(gh api "repos/$REPO/compare/$merge...$SHA" -q .status)"
+            status="$(gh api "repos/$GH_REPO/compare/$merge...$SHA" -q .status)"
             if [[ "$status" != identical && "$status" != ahead ]]; then
               echo "Release PR $pr was merged after the commit this run built ($SHA); the next run releases it."
               continue
@@ -135,8 +165,8 @@ jobs:
           done <<< "$PENDING"
           exit "$failed"
 
-      # A merged release PR that wasn't released is as loud as a failed publish.
-      # Any step can fail here, so the post names the job, not the cause.
+      # As loud as a failed publish. The run page says which step failed; the post
+      # says only what both can mean.
       - name: Notify Discord on failure
         if: failure()
         env:
@@ -145,9 +175,9 @@ jobs:
         run: |
           [[ -z "$DISCORD_WEBHOOK" ]] && echo "DISCORD_WEBHOOK not set, skipping" && exit 0
           jq -n \
-            --arg title "Release FAILED: the release-please job failed" \
+            --arg title "Release check FAILED" \
             --arg url "$RUN_URL" \
-            --arg desc "Nothing was tagged or published from this run. [View the run](${RUN_URL}). npm still serves the previous version." \
+            --arg desc "A merged release PR wasn't released, or the release PR's body couldn't be escaped so it would be. [View the run](${RUN_URL}). Anything this run tagged still publishes; this check doesn't hold it back." \
             --arg avatar "https://imagile-dev.github.io/toil/brand/toil-avatar-512.png" \
             --argjson color 15158332 \
             '{"username":"toil","avatar_url":$avatar,"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \

@@ -1135,7 +1135,8 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 - **Releases** come from release-please (`.github/workflows/release.yml`): Conventional
   Commits on `main` become a release PR, and merging it, which is always a human's
   call, tags, publishes `@imagile-dev/toil` to npm with provenance, attaches the
-  tarball to the GitHub release, and posts to Discord, loudly if the publish fails.
+  tarball to the GitHub release, and posts to Discord, loudly if the publish fails or
+  a merged release PR is skipped and nothing is tagged (#536).
   Publishing uses the `NPM_TOKEN` secret until npm trusted publishing is configured
   for the package, then OIDC with no token. The release PR is opened by the Imagile
   Bot App, not `GITHUB_TOKEN`, so CI runs on it. The agent review skips it, because
