@@ -207,4 +207,91 @@ describe('util size imports: the self-check catches a wrong line', () => {
     expect(done.checks.find((c) => c.check === 'imports.line')).toMatchObject({ status: 'failed', failed: 2 });
     expect(done.checks.find((c) => c.check === 'imports.range')).toMatchObject({ status: 'failed', failed: 1 });
   });
+
+  it('does not pass a short specifier on any line that has the letter in it', async () => {
+    expect((await check([{ specifier: 'a', kind: 'import', line: 2 }])).passed).toBe(false);
+    expect((await check([{ specifier: 'cons', kind: 'import', line: 2 }])).passed).toBe(false);
+    expect((await check([{ specifier: 'const', kind: 'import', line: 2 }])).passed).toBe(true);
+  });
+
+  it('keeps the letter s: whitespace is what is ignored', async () => {
+    const wrapped = ['using System . Text;', 'using D = System.Collections.Generic.Dictionary<string, int>;', 'import os . path'];
+    const reader = { linesAt: async (wanted: number[]) => new Map(wanted.map((n) => [n, wrapped[n - 1]!])) };
+    const v = new Verifier(() => undefined);
+    await verifyImports(
+      [
+        { specifier: 'System.Text', kind: 'using', line: 1 },
+        { specifier: 'System.Collections.Generic.Dictionary<string,int>', kind: 'using', line: 2, alias: 'D' },
+        { specifier: 'os.path', kind: 'import', line: 3 },
+      ],
+      reader,
+      3,
+      v,
+    );
+    expect(v.done().passed).toBe(true);
+    const bad = new Verifier(() => undefined);
+    await verifyImports([{ specifier: 'Sytem.Text', kind: 'using', line: 1 }], reader, 3, bad);
+    expect(bad.done().passed).toBe(false);
+  });
+
+  it('passes the spaced forms end to end', async () => {
+    const run = async (text: string, language: string) => {
+      const envelope = await execute(sizeCommand, { text, language }, testContext({}).context);
+      return envelope.data as FileSize;
+    };
+    for (const [text, language] of [
+      ['using D = System.Collections.Generic.Dictionary<string, int>;\nusing System . Text;\n', 'csharp'],
+      ['import os . path\n', 'python'],
+      ['from . import x\nfrom \\\n  pkg import thing\n', 'python'],
+    ] as const) {
+      const data = await run(text, language);
+      expect(data.outline!.imports!.length).toBeGreaterThan(0);
+      expect(data.verified.passed).toBe(true);
+    }
+  });
+});
+
+describe('util size imports: more forms', () => {
+  it('reads a Python from-import continued with a backslash, at the module’s own line', () => {
+    expect(brief(importsOf('from \\\n  pkg import thing\nimport \\\n  os\n', 'python'))).toEqual(['from pkg@2 {thing}', 'import os@4']);
+  });
+
+  it('reads os . path with spaces as written by its tokens', () => {
+    expect(brief(importsOf('import os . path\n', 'python'))).toEqual(['import os.path@1']);
+  });
+
+  it('reads a template literal with no interpolation as a literal specifier, and not one with', () => {
+    const src = ['const a = await import(`./mod.js`);', 'const b = require(`./other`);', 'const c = require(`./${x}`);', ''].join('\n');
+    expect(brief(importsOf(src, 'typescript'))).toEqual(['dynamic ./mod.js@1', 'require ./other@2']);
+  });
+
+  it('reads using unsafe aliases', () => {
+    expect(brief(importsOf('using unsafe P = int*;\nusing static unsafe System.Math;\n', 'csharp'))).toEqual(['using int*@1 as P [unsafe]', 'using System.Math@2 [static,unsafe]']);
+  });
+});
+
+describe('util size imports: hostile input stays linear', () => {
+  const cases: Array<[string, CodeLanguage, (n: number) => string]> = [
+    ['C# aliases in braces', 'csharp', (n) => '{ } using a = '.repeat(n)],
+    ['unclosed import braces', 'typescript', (n) => 'import { '.repeat(n) + '} '.repeat(n)],
+    ['nested export braces', 'typescript', (n) => 'x = { export { '.repeat(n / 2) + '} } '.repeat(n / 2)],
+    ['unclosed Python import parentheses', 'python', (n) => 'from a import (\n'.repeat(n)],
+    ['unclosed Python from lists', 'python', (n) => 'from a import b, \\\n'.repeat(n)],
+  ];
+  const time = (lang: CodeLanguage, text: string) => {
+    const tokens = lex(text, lang);
+    const start = performance.now();
+    extractImports(tokens, lang);
+    return performance.now() - start;
+  };
+  it.each(cases)('%s: 20,000 repeats in well under a second', (_name, lang, make) => {
+    expect(time(lang, make(20_000))).toBeLessThan(1000);
+  });
+  it.each(cases)('%s: four times the input is not sixteen times the work', (_name, lang, make) => {
+    time(lang, make(5_000));
+    // Floored at 5 ms so timer noise on a fast run can't make the ratio large.
+    const small = Math.max(time(lang, make(10_000)), 5);
+    const large = time(lang, make(40_000));
+    expect(large / small).toBeLessThan(12);
+  });
 });

@@ -341,20 +341,32 @@ export async function verifyOutline(symbols: (OutlineSymbol & { parent?: number 
 }
 
 /**
+ * Whether `line` holds `specifier` as a whole name: after spaces around
+ * punctuation are closed up (`os . path`, `Dictionary<string, int>`, which
+ * the scan joins from tokens), it appears with no identifier character
+ * either side, so `a` doesn't pass on any line with an `a` in it.
+ */
+function holdsSpecifier(line: string, specifier: string): boolean {
+  // Spaces are allowed on either side of each punctuation mark in the specifier, and nowhere else.
+  const pieces = specifier.split(/([.,<>:*()[\]])/).filter((p) => p !== '');
+  const pattern = pieces.map((p) => p.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')).join('\\s*');
+  return new RegExp(`(?<![\\w$])${pattern}(?![\\w$])`).test(line);
+}
+
+/**
  * Each import's line is inside the file, and that line, re-read from the
- * input, holds the specifier as written (spaces ignored, since a C# alias
- * target is joined from its tokens). A failure shows the line it found, with
+ * input, holds the specifier as written (whitespace around punctuation
+ * aside, see holdsSpecifier). A failure shows the line it found, with
  * anything shaped like a secret redacted.
  */
 export async function verifyImports(imports: ImportEntry[], input: Pick<UtilInput, 'linesAt'>, lines: number, v: Verifier): Promise<void> {
   const reread = await input.linesAt(imports.map((i) => i.line));
   const code = { code: 'SIZE_OUTLINE_MISMATCH' };
-  const squash = (s: string) => s.replace(/s+/g, '');
   let shown = 0;
   for (const imp of imports) {
     v.expect('imports.range', imp.line >= 1 && imp.line <= lines, { at: imp.specifier, expected: `1 <= line <= ${lines}`, actual: imp.line }, code);
     const found = reread.get(imp.line);
-    const ok = found !== undefined && squash(found).includes(squash(imp.specifier));
+    const ok = found !== undefined && holdsSpecifier(found, imp.specifier);
     const show = !ok && found !== undefined && shown++ < MAX_SAMPLES;
     v.expect('imports.line', ok, { at: `line ${imp.line}`, expected: imp.specifier, actual: found === undefined ? 'no such line' : show ? redactText(found.trim().slice(0, 4096)).slice(0, 120) : '(not shown)' }, code);
   }

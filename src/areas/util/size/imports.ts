@@ -46,7 +46,9 @@ const isP = (t: Token | undefined, v: string) => t !== undefined && t.t === 'p' 
 const isId = (t: Token | undefined, v?: string) => t !== undefined && t.t === 'id' && (v === undefined || t.v === v);
 /** A string token written with an ordinary quote (templates and regexes are `str` tokens too); `raw` also takes Go's backtick. */
 const isQuoted = (t: Token | undefined, raw = false): t is Token => t !== undefined && t.t === 'str' && (t.v[0] === '"' || t.v[0] === "'" || (raw && t.v[0] === '`'));
-const unquote = (t: Token) => t.v.slice(1, -1);
+/** A string a call can name a module with: an ordinary quote, or a template with nothing interpolated. */
+const isLiteral = (t: Token | undefined): t is Token => t !== undefined && t.t === 'str' && (t.v[0] === '"' || t.v[0] === "'" || (t.v[0] === '`' && !t.v.includes('${')));
+const unquote =(t: Token) => t.v.slice(1, -1);
 
 class Found {
   readonly list: ImportEntry[] = [];
@@ -71,8 +73,14 @@ export function extractImports(tokens: Token[], lang: CodeLanguage): { imports: 
   return { imports: found.list, total: found.total };
 }
 
-/** The names in `{ a, b as c, type d }`, from just after the brace: each as the module exports it. Returns them and the index past the closer. */
-function braceNames(tokens: Token[], from: number): { names: string[]; end: number } {
+/**
+ * The names in `{ a, b as c, type d }`, from just after the brace: each as the
+ * module exports it. Returns them and the index past the closer, or null when
+ * the group isn't closed before something an import clause can't hold (a
+ * brace, a semicolon, another import or export), so a file of unclosed braces
+ * costs one short look per brace and not one look to the end of the file each.
+ */
+function braceNames(tokens: Token[], from: number): { names: string[]; end: number } | null {
   const names: string[] = [];
   let part: Token[] = [];
   const flush = () => {
@@ -89,10 +97,11 @@ function braceNames(tokens: Token[], from: number): { names: string[]; end: numb
       flush();
       return { names, end: i + 1 };
     }
+    if (isP(t, '{') || isP(t, ';') || isId(t, 'import') || isId(t, 'export')) return null;
     if (isP(t, ',')) flush();
     else part.push(t);
   }
-  return { names, end: i };
+  return null;
 }
 
 function scanJs(tokens: Token[], found: Found): void {
@@ -104,7 +113,7 @@ function scanJs(tokens: Token[], found: Found): void {
       if (isP(tokens[i + 1], '(')) {
         // A call with a string literal only: `require('x')`, `import('x')`. `require(name)` names nothing.
         const spec = tokens[i + 2];
-        if (isQuoted(spec) && (isP(tokens[i + 3], ')') || isP(tokens[i + 3], ','))) found.add({ specifier: unquote(spec), kind: t.v === 'require' ? 'require' : 'dynamic', line: spec.line });
+        if (isLiteral(spec) && (isP(tokens[i + 3], ')') || isP(tokens[i + 3], ','))) found.add({ specifier: unquote(spec), kind: t.v === 'require' ? 'require' : 'dynamic', line: spec.line });
       } else if (t.v === 'import') importStatement(tokens, i, found);
     }
   }
@@ -131,6 +140,7 @@ function importStatement(tokens: Token[], at: number, found: Found): void {
     if (isP(t, ';') || isP(t, '=') || isP(t, '(') || isP(t, ')') || isId(t, 'import') || isId(t, 'export')) return;
     if (isP(t, '{')) {
       const r = braceNames(tokens, i + 1);
+      if (r === null) return;
       names.push(...r.names);
       clause = true;
       i = r.end - 1;
@@ -156,6 +166,7 @@ function exportFrom(tokens: Token[], at: number, found: Found): void {
     if (isId(tokens[i], 'as')) i += 2;
   } else if (isP(tokens[i], '{')) {
     const r = braceNames(tokens, i + 1);
+    if (r === null) return;
     names = r.names;
     i = r.end;
   } else return;
@@ -183,6 +194,7 @@ function scanPython(tokens: Token[], found: Found): void {
 function pythonImport(tokens: Token[], from: number, found: Found): void {
   let i = from;
   for (;;) {
+    while (isP(tokens[i], '\\')) i++;
     const first = tokens[i];
     if (first === undefined || !isId(first)) return;
     let spec = first.v;
@@ -205,11 +217,19 @@ function pythonImport(tokens: Token[], from: number, found: Found): void {
 /** `from <dots and names> import <names>`, the names possibly in parentheses across lines. `at` is the `from`. */
 function pythonFrom(tokens: Token[], at: number, found: Found): void {
   let i = at + 1;
-  const line = tokens[at]!.line;
+  let line = 0;
   let spec = '';
+  let prevLine = tokens[at]!.line;
   while (i < tokens.length && !isId(tokens[i], 'import')) {
     const t = tokens[i]!;
-    if (!(isId(t) || isP(t, '.') || isP(t, '...')) || t.line !== line) return;
+    // A backslash continues the statement on the next line; the module's own line is where its first token is.
+    if (isP(t, '\\')) {
+      i++;
+      continue;
+    }
+    if (!(isId(t) || isP(t, '.') || isP(t, '...')) || (t.line !== prevLine && !isP(tokens[i - 1], '\\'))) return;
+    if (line === 0) line = t.line;
+    prevLine = t.line;
     spec += t.v;
     i++;
   }
@@ -222,6 +242,8 @@ function pythonFrom(tokens: Token[], at: number, found: Found): void {
   for (; i < tokens.length; i++) {
     const t = tokens[i]!;
     if (parens ? isP(t, ')') : (t.nl && !isP(tokens[i - 1], '\\')) || isP(t, ';')) break;
+    // Only names, commas, `as` and `*` belong in the list; anything else (or the next statement's keyword) ends it, so unclosed parentheses can't each read to the end of the file.
+    if (isId(t, 'import') || isId(t, 'from') || (t.t === 'p' && !isP(t, ',') && !isP(t, '*') && !isP(t, '\\'))) break;
     if (isId(t, 'as')) afterAs = true;
     else if (isId(t) || isP(t, '*')) {
       if (!afterAs) names.push(t.v);
@@ -269,8 +291,8 @@ function scanCsharp(tokens: Token[], found: Found): void {
     if (!(before === undefined || isP(before, ';') || isP(before, '{') || isP(before, '}') || isP(before, ']'))) continue;
     let k = i + 1;
     const modifiers: string[] = global ? ['global'] : [];
-    if (isId(tokens[k], 'static') && isId(tokens[k + 1])) {
-      modifiers.push('static');
+    while ((isId(tokens[k], 'static') || isId(tokens[k], 'unsafe')) && isId(tokens[k + 1])) {
+      modifiers.push(tokens[k]!.v);
       k++;
     }
     const mods = modifiers.length ? { modifiers } : {};
@@ -278,9 +300,11 @@ function scanCsharp(tokens: Token[], found: Found): void {
     if (!isId(tokens[k])) continue;
     if (isP(tokens[k + 1], '=')) {
       // An alias: `using A = B.C<D>;`, its target read to the semicolon.
-      let target = '';
+      // Stopped at a brace or another using, which no alias target holds, so a run of them can't each read to the end of the file.
+      const parts: string[] = [];
       let j = k + 2;
-      for (; j < tokens.length && !isP(tokens[j], ';'); j++) target += tokens[j]!.v;
+      for (; j < tokens.length && !isP(tokens[j], ';') && !isP(tokens[j], '{') && !isP(tokens[j], '}') && !isId(tokens[j], 'using'); j++) parts.push(tokens[j]!.v);
+      const target = parts.join('');
       if (target !== '' && isP(tokens[j], ';')) found.add({ specifier: target, kind: 'using', line: tokens[k + 2]!.line, alias: tokens[k]!.v, ...mods });
       continue;
     }
