@@ -1,0 +1,13 @@
+# `util size` lists a file's imports (#529)
+
+- **Imports are for one file only.** `util size` on a folder never reads a file's contents beyond counting, and outlining each file there would put a per-file worker run and an unbounded list in a folder's output. The page that wants import edges calls `util size` per file. Said in `skills/toil/util.md`.
+- **They live in `outline`**, as `outline.imports` and `outline.importsMethod`, only for the six code languages (absent for Markdown, JSON, YAML; `[]` for code with none). It is additive output, so the command contract records nothing new and there is no divergence.
+- **One entry per imported module, not per statement.** Python's `import a, b` gives two entries; every other language's statement names one module. A caller counting edges wants modules.
+- **`line` is the line the specifier is written on**, not the line the statement starts on. For a multi-line `import { a,\n b } from 'x'` that is the last line. It lets the self-check re-read exactly one line, and it is where a reader looks to see the module.
+- **Fields beyond the brief:** `names` (`default`, `*`, or the name as the module exports it, not its local alias), `alias`, and `modifiers` (`static`, `global`). Each is left out when empty. Kinds are `import`, `require`, `dynamic`, `from` and `using`; `from` covers `export … from` and Python's `from … import`.
+- **Only literals count.** `require(name)`, `import(\`./${x}\`)` and `import.meta` are not imports a scan can name. A property call such as `x.require('a')` is not one either.
+- **TypeScript's `import x = require('y')` is a `require`**, found by the require rule, and `typeof import('x')` in a type is a `dynamic`. Both are what the tokens say.
+- **Nothing is resolved**: no files, paths, packages, tsconfig or GOPATH. `./foo` stays `./foo`.
+- **Cap of 2,000 imports per file**, with a `SIZE_IMPORTS_TRUNCATED` warning that gives the real count. The scan is one linear pass over tokens the outline already made, so it runs inside the outliner's existing worker, deadline (10 s) and memory limit (512 MB); the worker lexes once for both.
+- **Self-check without a new warning.** `imports.line` (the re-read line holds the specifier, whitespace ignored) and `imports.range` are recorded in `verified`. No extra `APPROXIMATED` warning is added: `outline.symbols` already says the outline is a syntactic scan, and `importsMethod` says what the import scan covers.
+- **A C# alias target is joined from its tokens**, so `Dictionary<string, int>` is reported as `Dictionary<string,int>`; the check ignores whitespace for that reason. A target that wraps onto a second line may fail the check; that is rare and the check would say so.

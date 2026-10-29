@@ -5,6 +5,7 @@ import { BINARY_SNIFF, binaryAt, openInput, type InputContext, type UtilInput } 
 import type { BoundedLimits } from '../kit/bounded.js';
 import { MAX_SAMPLES, Verifier, type Verified } from '../kit/verify.js';
 import type { SymbolKind } from './code.js';
+import type { ImportEntry } from './imports.js';
 import type { NotParsed, Outlined } from './outline.js';
 
 /**
@@ -77,7 +78,7 @@ export interface FileSize {
   lines: number | null;
   tokens: number | null;
   tokenMethod: string;
-  outline: { precision: 'syntactic' | 'parsed'; method: string; symbols: OutlineSymbol[] } | null;
+  outline: { precision: 'syntactic' | 'parsed'; method: string; symbols: OutlineSymbol[]; imports?: ImportEntry[]; importsMethod?: string } | null;
   notOutlined: { reason: NotOutlinedReason; detail: string } | null;
   verified: Verified;
 }
@@ -239,6 +240,7 @@ async function measureFile(input: SizeInput, ctx: InputContext, limits: BoundedL
     // In the bounded worker (size/outline.ts): the outliners' cost is the file's to choose.
     const { boundedError, runBounded } = await import('../kit/bounded.js');
     const result = await runBounded<Outlined | NotParsed>({ kind: 'outline', language, text }, { ...limits, signal: ctx.signal });
+    let importsTotal = 0;
     let unreadable: string | undefined;
     if (!result.ok) {
       // A file nested past the stack is one this outliner can't read: counted, not outlined. A deadline or memory limit is said as an error.
@@ -247,6 +249,7 @@ async function measureFile(input: SizeInput, ctx: InputContext, limits: BoundedL
     } else if ('parseError' in result.value) unreadable = result.value.parseError;
     else {
       outline = result.value.outline as NonNullable<FileSize['outline']>;
+      importsTotal = result.value.importsTotal ?? 0;
       if (result.value.parsedKeys) checkKeyNames(result.value.parsedKeys, outline.symbols.map((s) => s.name), v);
     }
     if (unreadable !== undefined) {
@@ -257,6 +260,12 @@ async function measureFile(input: SizeInput, ctx: InputContext, limits: BoundedL
       if (outline.precision === 'syntactic') v.approximated('outline.symbols', `found by a syntactic scan, not a compiler or parser; outline.method says what it covers`);
       await verifyOutline(outline.symbols as (OutlineSymbol & { parent?: number })[], opened, counts.lines, v);
       outline.symbols = outline.symbols.map(({ parent: _parent, ...s }: OutlineSymbol & { parent?: number }) => s);
+      if (outline.imports) {
+        await verifyImports(outline.imports, opened, counts.lines, v);
+        if (importsTotal > outline.imports.length) {
+          ctx.warn({ code: 'SIZE_IMPORTS_TRUNCATED', message: `${opened.label} has ${importsTotal} imports; outline.imports lists the first ${outline.imports.length}.` });
+        }
+      }
     }
   }
   if (!counts.binary) v.approximated('tokens', TOKEN_METHOD);
@@ -328,6 +337,26 @@ export async function verifyOutline(symbols: (OutlineSymbol & { parent?: number 
       const p = symbols[s.parent];
       v.expect('outline.nesting', p !== undefined && p.startLine <= s.startLine && s.endLine <= p.endLine, { at: label, expected: p ? `inside ${p.startLine}-${p.endLine}` : 'a container', actual: `${s.startLine}-${s.endLine}` }, code);
     }
+  }
+}
+
+/**
+ * Each import's line is inside the file, and that line, re-read from the
+ * input, holds the specifier as written (spaces ignored, since a C# alias
+ * target is joined from its tokens). A failure shows the line it found, with
+ * anything shaped like a secret redacted.
+ */
+export async function verifyImports(imports: ImportEntry[], input: Pick<UtilInput, 'linesAt'>, lines: number, v: Verifier): Promise<void> {
+  const reread = await input.linesAt(imports.map((i) => i.line));
+  const code = { code: 'SIZE_OUTLINE_MISMATCH' };
+  const squash = (s: string) => s.replace(/s+/g, '');
+  let shown = 0;
+  for (const imp of imports) {
+    v.expect('imports.range', imp.line >= 1 && imp.line <= lines, { at: imp.specifier, expected: `1 <= line <= ${lines}`, actual: imp.line }, code);
+    const found = reread.get(imp.line);
+    const ok = found !== undefined && squash(found).includes(squash(imp.specifier));
+    const show = !ok && found !== undefined && shown++ < MAX_SAMPLES;
+    v.expect('imports.line', ok, { at: `line ${imp.line}`, expected: imp.specifier, actual: found === undefined ? 'no such line' : show ? redactText(found.trim().slice(0, 4096)).slice(0, 120) : '(not shown)' }, code);
   }
 }
 

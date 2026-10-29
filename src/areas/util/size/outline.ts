@@ -1,6 +1,7 @@
 import { CODE_METHOD, outlineCode, type CodeSymbol } from './code.js';
 import { keySymbols, outlineMarkdown, scanJsonKeys, scanYamlKeys, type DataSymbol } from './data.js';
-import { OutlineError, type CodeLanguage } from './lexer.js';
+import { extractImports, IMPORTS_METHOD, type ImportEntry } from './imports.js';
+import { lex, OutlineError, type CodeLanguage } from './lexer.js';
 
 /**
  * One file's outline for `util size`, made in the bounded worker
@@ -15,7 +16,9 @@ import { OutlineError, type CodeLanguage } from './lexer.js';
 export type OutlineLanguage = CodeLanguage | 'markdown' | 'json' | 'yaml';
 
 export interface Outlined {
-  outline: { precision: 'syntactic' | 'parsed'; method: string; symbols: Array<CodeSymbol | DataSymbol> };
+  outline: { precision: 'syntactic' | 'parsed'; method: string; symbols: Array<CodeSymbol | DataSymbol>; imports?: ImportEntry[]; importsMethod?: string };
+  /** For code: how many imports the file has, which is more than `outline.imports` holds once the cap cuts it. */
+  importsTotal?: number;
   /** For JSON and YAML: the top-level keys the parser returned, sorted and unique, to hold the scanned keys against. */
   parsedKeys?: string[];
 }
@@ -68,7 +71,11 @@ export function outlineText(language: OutlineLanguage, text: string, parseYaml: 
         parsedKeys: isMapping ? [...new Set(Object.keys(parsed as object))].sort() : [],
       };
     }
-    return { outline: { precision: 'syntactic', method: CODE_METHOD[language], symbols: outlineCode(text, language) } };
+    // One lex serves both: the imports are read from the tokens the outline is.
+    const tokens = lex(text, language);
+    const symbols = outlineCode(text, language, tokens);
+    const { imports, total } = extractImports(tokens, language);
+    return { outline: { precision: 'syntactic', method: CODE_METHOD[language], symbols, imports, importsMethod: IMPORTS_METHOD[language] }, importsTotal: total };
   } catch (err) {
     // An unreadable file (OutlineError), or YAML that doesn't parse (kit/yaml's ToilError): no outline, and why.
     if (err instanceof OutlineError || (err instanceof Error && err.name === 'ToilError')) return { parseError: err.message };
