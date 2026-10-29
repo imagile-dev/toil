@@ -160,6 +160,8 @@ describe('the generated description', () => {
       expect(description).toMatch(/review this PR/);
       expect(description).toMatch(/ship this branch/);
       expect(description).toMatch(/map this codebase/);
+      // The same sentence SKILL.md ends with, so the installed copy and the repository's can't drift.
+      expect(description.endsWith(/Also use for whole jobs[^.]*\./.exec(frontmatter(skillFiles['SKILL.md']!)?.description ?? '')![0])).toBe(true);
       expect(description.length).toBeLessThanOrEqual(1024);
     }
   });

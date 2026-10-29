@@ -40,13 +40,16 @@ whichever connection the PR is on; `<id>` is the PR's number or id.
    something, and "unchecked" if it couldn't run.
 
    ```bash
-   toil util secrets scan --text "<the added lines of the diff>"
+   toil util secrets scan <file-of-the-added-lines>
    toil deps diff --from <base-branch> --to <head-branch>
    toil sonar quality-gate get --project <key> --branch <head-branch>
    toil sonar issue list --project <key> --branch <head-branch> --resolved false
    ```
 
-   The secrets scan flags test keys and placeholders too: say which hits are real and
+   Save the diff's added lines to a file in the workspace first, never pass them
+   with `--text`: a credential on the command line lands in the process list and shell
+   history, and Windows caps a command line at 32,767 characters. The secrets scan
+   flags test keys and placeholders too: say which hits are real and
    which are fixtures, and on what evidence. `deps diff` runs git in a local checkout that has both branches; with none, it is
    unchecked. Sonar only where it is connected and has analysed the branch.
 

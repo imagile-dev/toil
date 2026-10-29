@@ -56,7 +56,7 @@ const INDEX = skillFiles['SKILL.md'] ?? '';
 export const GENERAL_DESCRIPTION = frontmatterOf(INDEX).description ?? '';
 
 /** The jobs the skill has a workflow page for, said in the words someone asks for them. Static text: no host, no name. */
-const JOBS = 'Also use for whole jobs such as review this PR, ship this branch, or map this codebase and draw its architecture.';
+const JOBS = 'Also use for whole jobs such as review this PR, ship this branch, or map this codebase.';
 
 /** `a`, `a and b`, `a, b and c`. */
 const listed = (names: string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`);
