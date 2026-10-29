@@ -1,5 +1,122 @@
 # Changelog
 
+## [0.1.0-beta.3](https://github.com/imagile-dev/toil/compare/v0.1.0-beta.2...v0.1.0-beta.3) (2026-10-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* the ado-cloud area is gone, with no deprecation period. The contract version is 2 for this release, the same bump the Jira fold makes. Migrate as follows:
+    - Config: a version 1 or 2 file loads as it is; a connection with "area":
+      "ado-cloud" is read as "area": "ado", "deployment": "cloud", and
+      defaults.ado-cloud folds into defaults.ado (ado's default connection wins,
+      with a warning naming the one dropped; defaults.ado's shared keys are written
+      onto existing Server connections instead of reaching Services ones). Commands
+      that save config write version 3. Keychain entries are untouched.
+    - Commands: `toil ado-cloud ...` is `toil ado ...` (use --connection, or make the
+      Services connection the default). The old path fails with INVALID_INPUT naming
+      the new form.
+    - MCP: ado_cloud_* tools are ado_*, and `toil mcp --areas ado-cloud` is
+      `--areas ado`.
+    - Env vars: TOIL_ADO_CLOUD_* is refused with CONFIG_INVALID; set TOIL_ADO_*
+      with TOIL_ADO_DEPLOYMENT=cloud (or TOIL_CONN_<NAME>_* with
+      TOIL_CONN_<NAME>_AREA=ado and TOIL_CONN_<NAME>_DEPLOYMENT=cloud). In an Azure
+      Pipelines step, set TOIL_ADO_DEPLOYMENT: cloud beside TOIL_ADO_PAT and
+      TOIL_ADO_BASE_URL. SYSTEM_ACCESSTOKEN is read for a Server default only.
+    - Dossiers: rename an ado-cloud section to ado (transition pins are
+      ado.transitions). It is read as ado with a warning until you do, and ado wins
+      when both exist.
+    - Warning codes: ADO_CLOUD_WORK_ITEMS_MISSING, ADO_CLOUD_TYPE_UNKNOWN and
+      ADO_CLOUD_DEFAULT_TEAM are ADO_WORK_ITEMS_MISSING, ADO_TYPE_UNKNOWN and
+      ADO_DEFAULT_TEAM.
+    - Flags: ado pr list takes --creator <id> and --reviewer <id> (the value was
+      always an identity id).
+* the bitbucket-cloud area is gone, with no deprecation period. Migrate as follows:
+    - Config: a version 1 or 2 file loads as it is; a connection with "area":
+      "bitbucket-cloud" is read as "area": "bitbucket", "deployment": "cloud", and
+      defaults.bitbucket-cloud folds into defaults.bitbucket (bitbucket's default
+      connection wins, with a warning naming the one dropped). Commands that save
+      config write version 3. Keychain entries are untouched.
+    - Commands: `toil bitbucket-cloud ...` is `toil bitbucket ...` (use
+      --connection, or make the Cloud connection the default). The old path fails
+      with INVALID_INPUT naming the new form. `pr request-changes` is an alias of
+      `pr needs-work`.
+    - MCP: bitbucket_cloud_* tools are bitbucket_* (bitbucket_cloud_pr_request_changes
+      is bitbucket_pr_needs_work), and `toil mcp --areas bitbucket-cloud` is
+      `--areas bitbucket`.
+    - Env vars: TOIL_BITBUCKET_CLOUD_* is refused with CONFIG_INVALID; set
+      TOIL_BITBUCKET_* with TOIL_BITBUCKET_DEPLOYMENT=cloud (or TOIL_CONN_<NAME>_*
+      with TOIL_CONN_<NAME>_AREA=bitbucket and TOIL_CONN_<NAME>_DEPLOYMENT=cloud).
+      A Bitbucket Pipelines step also needs TOIL_BITBUCKET_DEPLOYMENT=cloud.
+    - Dossiers: rename a bitbucket-cloud section to bitbucket. It is read as
+      bitbucket with a warning until you do, and bitbucket wins when both exist.
+    - Flags: Cloud's --reviewers placeholder is <users>, and repo create's
+      --project is the shared project input.
+* the confluence-cloud area is gone, with no deprecation period. Migrate as follows.
+    - Config: a connection with "area": "confluence-cloud" is read as "area":
+      "confluence", "deployment": "cloud", and defaults.confluence-cloud folds into
+      defaults.confluence. Any toil connections change writes the file back with the
+      new form. Keychain entries are untouched.
+    - Commands and tools: toil confluence-cloud ... is toil confluence ...,
+      confluence_cloud_* tools are confluence_*, and --areas confluence-cloud is
+      --areas confluence. The old forms fail with INVALID_INPUT naming the new one.
+    - Env vars: TOIL_CONFLUENCE_CLOUD_* is refused with CONFIG_INVALID. Use
+      TOIL_CONFLUENCE_* with TOIL_CONFLUENCE_DEPLOYMENT=cloud, or TOIL_CONN_<NAME>_*
+      with TOIL_CONN_<NAME>_AREA=confluence and TOIL_CONN_<NAME>_DEPLOYMENT=cloud.
+      TOIL_CONFLUENCE_* values on a default connection that is Cloud are refused
+      unless TOIL_CONFLUENCE_DEPLOYMENT is set.
+    - Dossiers: a confluence-cloud section is read as confluence, with a
+      DOSSIER_RENAMED_AREA warning. A dossier has one confluence section.
+* the jira-cloud area is gone, with no deprecation period, and the contract version is 2. Migrate as follows:
+    - Config: a version 2 file loads as it is; a connection with "area":
+      "jira-cloud" is read as "area": "jira", "deployment": "cloud", and
+      defaults.jira-cloud folds into defaults.jira (jira's default connection wins,
+      with a warning naming the one dropped). Commands that save config write
+      version 3. Keychain entries are untouched.
+    - Commands: `toil jira-cloud …` is `toil jira …` (use --connection, or make the
+      Cloud connection the default). The old path fails with INVALID_INPUT naming the
+      new form.
+    - MCP: jira_cloud_* tools are jira_*, and `toil mcp --areas jira-cloud` is
+      `--areas jira`.
+    - Env vars: TOIL_JIRA_CLOUD_* is refused with CONFIG_INVALID; set TOIL_JIRA_*
+      with TOIL_JIRA_DEPLOYMENT=cloud (or TOIL_CONN_<NAME>_* with
+      TOIL_CONN_<NAME>_AREA=jira and TOIL_CONN_<NAME>_DEPLOYMENT=cloud).
+    - Dossiers: rename a jira-cloud section to jira. It is read as jira with a
+      warning until you do, and jira wins when both exist.
+    - jira issue schema takes --deployment cloud for the Cloud input file shape.
+
+### Features
+
+* ado work-item feed, and Toil UI reads Azure DevOps histories from it ([#511](https://github.com/imagile-dev/toil/issues/511)) ([35e90b9](https://github.com/imagile-dev/toil/commit/35e90b9d50c55e4970bbe41dd30dd27e5ebe10d5))
+* agent-led setup: the skill walks an agent through toil and Toil UI, and the person enters every secret ([#518](https://github.com/imagile-dev/toil/issues/518)) ([e757af7](https://github.com/imagile-dev/toil/commit/e757af75638a50c29481a9612237c6ac21bc9fc3))
+* brief a dossier by code, and tune and serve its Analyze prompt ([#497](https://github.com/imagile-dev/toil/issues/497)) ([63c0820](https://github.com/imagile-dev/toil/commit/63c0820f9764dcd5819ba89f6b3e03222501bcc0))
+* **connections:** import database connections from DBeaver, SSMS, pgAdmin and other tools ([#523](https://github.com/imagile-dev/toil/issues/523)) ([585568d](https://github.com/imagile-dev/toil/commit/585568d79303f23ab67ae500ac35f7bc662fc87a))
+* **db:** tlsServerName and tlsCaFile for TLS connections to cloud and aliased servers ([#525](https://github.com/imagile-dev/toil/issues/525)) ([d9202de](https://github.com/imagile-dev/toil/commit/d9202de0a8eff7f4147725f1601c8603a6495c3f))
+* every theme has a light and a dark scheme, in Toil UI and the welcome menu ([#512](https://github.com/imagile-dev/toil/issues/512)) ([f72141c](https://github.com/imagile-dev/toil/commit/f72141c565cc6ca21a6c8db988d2f21d99902f12))
+* fold ado-cloud into ado: one surface for Server and Services ([40b4e2c](https://github.com/imagile-dev/toil/commit/40b4e2c03b1a212952e45e06de09f69f545ee3e1))
+* fold bitbucket-cloud into bitbucket: one surface for Data Center and Cloud ([#504](https://github.com/imagile-dev/toil/issues/504)) ([5a102c1](https://github.com/imagile-dev/toil/commit/5a102c1bc4e12ebc22adfa076c85039be6a8290d))
+* fold confluence-cloud into confluence: one surface for Data Center and Cloud ([#501](https://github.com/imagile-dev/toil/issues/501)) ([95846f8](https://github.com/imagile-dev/toil/commit/95846f8641d5987129c24051f07e6704fad722d3))
+* fold jira-cloud into jira: one surface for Data Center and Cloud ([#499](https://github.com/imagile-dev/toil/issues/499)) ([877e9a1](https://github.com/imagile-dev/toil/commit/877e9a11716ddde6b9f266b4724a6a37405a3297))
+* jira issue search --changelog, and Toil UI reads Jira histories from the search ([#509](https://github.com/imagile-dev/toil/issues/509)) ([7b7fb22](https://github.com/imagile-dev/toil/commit/7b7fb2246d46351abf4e118e6adb49c6d4350bf1))
+* read Azure DevOps work items in the menu's Briefing ([#502](https://github.com/imagile-dev/toil/issues/502)) ([4ff5eec](https://github.com/imagile-dev/toil/commit/4ff5eece9e8f36b389b88aaf409ea4372590af1b))
+* the toil skill tells agents how to handle an upgrade, with the changelog embedded ([#513](https://github.com/imagile-dev/toil/issues/513)) ([36c6bb9](https://github.com/imagile-dev/toil/commit/36c6bb977d0e7f690ce168e9abc99441077cc30f))
+* **triage:** fix anything short of a principle break, and post the redacted real title to Discord ([#522](https://github.com/imagile-dev/toil/issues/522)) ([7141a4d](https://github.com/imagile-dev/toil/commit/7141a4d98612d819307e56ee86a80b7a33e89784))
+* **ui:** a briefing written by Analyze, with an item drawer, Analyze settings and Customize ([#500](https://github.com/imagile-dev/toil/issues/500)) ([9b37a91](https://github.com/imagile-dev/toil/commit/9b37a9131617abb06c0c7d14d763bd65dcad171b))
+* **ui:** Analyze remembers the agent picked for each dossier, falling back to your default agent ([#514](https://github.com/imagile-dev/toil/issues/514)) ([7145a29](https://github.com/imagile-dev/toil/commit/7145a29539b5f105e4a70d6a3f2ad280df570dca))
+* **ui:** keep the session across a reload with sessionStorage ([#517](https://github.com/imagile-dev/toil/issues/517)) ([b066092](https://github.com/imagile-dev/toil/commit/b066092279895d657a1aa60215b6940eb362eda4))
+
+
+### Bug Fixes
+
+* **confluence:** convert --markdown on Data Center with toil's own converter ([#524](https://github.com/imagile-dev/toil/issues/524)) ([9435c15](https://github.com/imagile-dev/toil/commit/9435c1558b8d1eaa03f8945e7c1bac95b53179cc))
+* the hidden game keeps its colours on light terminals ([#506](https://github.com/imagile-dev/toil/issues/506)) ([2baf3b0](https://github.com/imagile-dev/toil/commit/2baf3b0287edf73ab8ebf4ba567a9611a9b3dace))
+* **ui:** decide Services from the dossier's connection, not from the items loaded ([40b4e2c](https://github.com/imagile-dev/toil/commit/40b4e2c03b1a212952e45e06de09f69f545ee3e1))
+* **ui:** propose board moves on Cloud items with the Cloud area's own transition command ([#496](https://github.com/imagile-dev/toil/issues/496)) ([8652258](https://github.com/imagile-dev/toil/commit/865225839d21051f8c80cabb6dd8ae6c3bebb4af)), closes [#495](https://github.com/imagile-dev/toil/issues/495)
+
+
+### Performance Improvements
+
+* **ui:** sync a bounded window, write only what changed, pool per-item calls, notice deletions ([#503](https://github.com/imagile-dev/toil/issues/503)) ([907edad](https://github.com/imagile-dev/toil/commit/907edad881dbc5a007c3bef7c82bb866ea0024d1))
+
 ## [0.1.0-beta.2](https://github.com/imagile-dev/toil/compare/v0.1.0-beta.1...v0.1.0-beta.2) (2026-10-26)
 
 
