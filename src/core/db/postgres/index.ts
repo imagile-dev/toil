@@ -122,16 +122,18 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (c
 
 /** Asks the server to stop the statement on backend `pid`. Best effort: core has already answered the caller. */
 async function cancelOnServer(conn: DbConnection, pid: number, call: DbCall): Promise<void> {
-  const canceller = new Client(clientConfig(conn, call.debug, undefined, call.protect));
-  canceller.on('error', () => {});
+  // Built inside the try: the config re-reads tlsCaFile and can throw, and this runs as `void`, so a throw here would be an unhandled rejection.
+  let canceller: InstanceType<typeof Client> | undefined;
   try {
+    canceller = new Client(clientConfig(conn, call.debug, undefined, call.protect));
+    canceller.on('error', () => {});
     await canceller.connect();
     const { rows } = await canceller.query<{ cancelled: boolean }>('SELECT pg_cancel_backend($1) AS cancelled', [pid]);
     call.debug(`postgres: connection ${conn.name}: cancel ${rows[0]?.cancelled ? 'sent' : 'found nothing running'}`);
   } catch (err) {
     call.debug(`postgres: connection ${conn.name}: couldn't cancel the statement on the server (${(err as Error).message}); it may still be running`);
   } finally {
-    await canceller.end().catch(() => {});
+    await canceller?.end().catch(() => {});
   }
 }
 

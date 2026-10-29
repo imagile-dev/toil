@@ -156,17 +156,19 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (w
 
 /** Asks the server to end connection `id`, stopping its statement and rolling back its transaction. Best effort: core has already answered the caller. */
 async function cancelOnServer(conn: DbConnection, id: number, call: DbCall): Promise<void> {
-  const killer = mysql.createConnection(connectionOptions(conn, null, call.debug, call.protect));
-  killer.on('error', () => {});
+  // Built inside the try: the options re-read tlsCaFile and can throw, and this runs as `void`, so a throw here would be an unhandled rejection.
+  let killer: ReturnType<typeof mysql.createConnection> | undefined;
   try {
+    killer = mysql.createConnection(connectionOptions(conn, null, call.debug, call.protect));
+    killer.on('error', () => {});
     await connect(killer);
     await run(killer, `KILL ${Number(id)}`);
     call.debug(`mysql: connection ${conn.name}: cancel sent`);
   } catch (err) {
     call.debug(`mysql: connection ${conn.name}: couldn't cancel the statement on the server (${(err as Error).message}); it may still be running`);
   } finally {
-    if (killer.threadId) await end(killer);
-    else killer.destroy();
+    if (killer?.threadId) await end(killer);
+    else killer?.destroy();
   }
 }
 
