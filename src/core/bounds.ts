@@ -58,5 +58,6 @@ export const BOUND_EXCEPTIONS: readonly BoundException[] = [
   { id: 'dossiers.write', bound: 'files.workspace', enforcedIn: ['src/core/dossier.ts'] },
   { id: 'dossiers.replace', bound: 'files.no-overwrite', enforcedIn: ['src/core/dossier.ts'] },
   { id: 'connections.import', bound: 'files.workspace', enforcedIn: ['src/connections/import-command.ts'] },
+  { id: 'db.tls-ca-file', bound: 'files.workspace', enforcedIn: ['src/core/db/tls.ts'] },
   { id: 'feedback.send', bound: 'commands.read-only', enforcedIn: ['src/feedback/command.ts', 'src/api.ts'] },
 ];

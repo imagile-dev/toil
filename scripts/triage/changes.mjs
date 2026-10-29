@@ -98,7 +98,7 @@ const CORE_SAFETY_FILES = new Set([
 ]);
 export const SAFETY_ELSEWHERE_CORE = new Set([
   'src/api.ts', 'src/node-context.ts', 'src/program.ts', 'docs/bounds.md', 'test/bounds.test.ts', 'test/parity.test.ts',
-  'src/core/time-limit.test.ts', 'src/welcome/rogue/save.ts',
+  'src/core/time-limit.test.ts', 'src/welcome/rogue/save.ts', 'src/core/db/tls.ts',
   // The contract, and the suites that guard it, triage's own rules and the repository's hygiene.
   'docs/command-contract.json', 'docs/command-contract.md', 'test/contract.test.ts', 'test/triage.test.ts', 'test/triage-steps.test.ts',
   'test/workflow-wiring.test.ts', 'test/merge-only.test.ts', 'test/repo-hygiene.test.ts',

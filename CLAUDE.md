@@ -44,7 +44,8 @@ gets made again in the next place it applies.
    plus an explicit flag on the call. Agents never loosen the rules that constrain
    them, and a person decides every merge. An agent may set up a connection, on the
    person's approval, with its non-secret settings (`toil connections add --area … --set
-   key=value`, the maintainer's call on #516, 2026-10-28), or import database connections
+   key=value`, the maintainer's call on #516, 2026-10-28, trust settings such as a `db`
+   connection's `tlsCaFile` included, the maintainer's call on #520, 2026-10-29), or import database connections
    from another tool's file (`toil connections import … --save`, the maintainer's call on
    #520, 2026-10-28, as long as each then names `toil connections login` for the person);
    only a person enters a secret,

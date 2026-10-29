@@ -614,4 +614,7 @@ of the feedback function for testing, and takes only a loopback address
 
 toil trusts the OS certificate store and Node's bundled CAs, and uses `HTTPS_PROXY` /
 `HTTP_PROXY` / `NO_PROXY` when they're set. A `NETWORK` error about an untrusted
-certificate means the CA is in neither; `NODE_EXTRA_CA_CERTS` adds it.
+certificate means the CA is in neither; `NODE_EXTRA_CA_CERTS` adds it. A database
+connection can also take one CA file of its own (`tlsCaFile`), and a name to verify the
+certificate against when the server is reached by another one (`tlsServerName`); see
+**Cloud and private CAs** in `db.md`.

@@ -64,6 +64,22 @@
     "fallbacks": []
   },
   {
+    "key": "tlsServerName",
+    "env": "TOIL_DB_TLS_SERVER_NAME",
+    "description": "PostgreSQL, MySQL, SQL Server, Hive, Impala, with ssl: the host name the server's certificate is verified against (and sent as SNI) instead of host, for a server reached through an alias, VPN name or tunnel. The connection still goes to host, and verification stays fully on",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
+    "key": "tlsCaFile",
+    "env": "TOIL_DB_TLS_CA_FILE",
+    "description": "PostgreSQL, MySQL, SQL Server, Hive, Impala, with ssl: absolute path to a PEM file of CA certificates (for example Amazon's RDS global-bundle.pem) trusted in addition to Node's, NODE_EXTRA_CA_CERTS and the OS store, for this connection only",
+    "required": false,
+    "secret": false,
+    "fallbacks": []
+  },
+  {
     "key": "auth",
     "env": "TOIL_DB_AUTH",
     "description": "SQL Server: sql (a SQL Server login, the default) or windows (Windows authentication, Windows only). Hive, Impala: nosasl for a server with no authentication; unset signs in with user and password (SASL PLAIN, for LDAP)",

@@ -27,6 +27,8 @@ export interface DbProvider {
   defaultSchema(conn: DbConnection): string;
   /** How far this provider has been verified: one of the levels in site/src/data/levels.json. */
   readonly verification: 'unit' | 'live' | 'stable';
+  /** The TLS settings this engine's driver can honour with verification fully on; absent, a connection that sets one is refused. */
+  readonly tlsSettings?: ReadonlyArray<'tlsServerName' | 'tlsCaFile'>;
   /** Rules on this engine's connection keys beyond `requires`, checked when the connection resolves. */
   check?(settings: Partial<DbSettings>): Array<{ key: keyof DbSettings; message: string }>;
 
@@ -71,6 +73,10 @@ export interface DbSettings {
   password?: string;
   /** Server engines: connect over TLS, verifying the server's certificate. */
   ssl?: boolean;
+  /** PostgreSQL, MySQL, SQL Server, Hive, Impala, with `ssl`: the host name the TLS handshake names and the certificate is verified against, instead of `host`. The socket still goes to `host`. */
+  tlsServerName?: string;
+  /** PostgreSQL, MySQL, SQL Server, Hive, Impala, with `ssl`: an absolute path to a PEM file of CA certificates, trusted in addition to the usual ones for this connection only. */
+  tlsCaFile?: string;
   /** SQL Server: `sql` (a SQL Server login, the default) or `windows` (Windows authentication). Hive and Impala: `nosasl`, for a server with no authentication. */
   auth?: 'sql' | 'windows' | 'nosasl';
   /** SQL Server with `auth: windows`: the domain of the account in `user`. */
@@ -97,6 +103,8 @@ export type DbConnection = Connection<DbSettings>;
 export interface DbCall {
   signal: AbortSignal;
   debug: (message: string) => void;
+  /** toil's own files (its config folder and the --config file), which a file named by a connection setting may never be (`tlsCaFile`). */
+  protect?: readonly string[];
   /** The command's fetch, bound to `signal`. */
   fetch: typeof globalThis.fetch;
   /** The command's fetch without its signal, for a cancel or a session close after `signal` fired (CommandContext.cleanupFetch). */
