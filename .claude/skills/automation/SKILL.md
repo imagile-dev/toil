@@ -266,9 +266,17 @@ forks and fresh clones never fail on it.
   `https://imagile-dev.github.io/toil/brand/toil-avatar-512.png`, so moving or
   renaming that file breaks the bot's avatar.
 - `.github/workflows/release.yml` posts each npm publish (version, release
-  notes, npm link). It **also posts loudly when a publish fails**, because a silent
-  publish failure is the one that goes unnoticed. Both steps are non-fatal:
-  `|| echo "Discord notify failed (non-fatal)"`.
+  notes, npm link). It **also posts loudly when a publish fails, or when the
+  `release-guard` job fails**: a merged release PR that was skipped and is still
+  `autorelease: pending`, a release that left out a package its PR listed, or a
+  release PR body it couldn't escape (#536), because a
+  silent release failure is the one that goes unnoticed. Every notify step is
+  non-fatal: `|| echo "Discord notify failed (non-fatal)"`.
+- `release-guard` also rewrites the release PR's body whenever release-please opened
+  or updated it, escaping tag-like `<` as `&amp;lt;` (`scripts/release-pr-body.mjs`),
+  so the merged PR's description shows `&lt;` literally. That's cosmetic: the release
+  notes and CHANGELOG read `<`. No publish job needs `release-guard`, so nothing in it
+  can hold back a release that was tagged.
 - Event text such as issue titles reaches the script through `env:` and goes into the
   payload with `jq --arg`, never by interpolating `${{ }}` into `run:`. An issue
   title is attacker-controlled.

@@ -20,8 +20,11 @@ interface Step {
   name?: string;
   run?: string;
   'working-directory'?: string;
+  if?: string;
+  env?: Record<string, string>;
 }
 interface Job {
+  permissions?: Record<string, string>;
   needs?: string | string[];
   if?: string;
   outputs?: Record<string, string>;
@@ -222,5 +225,59 @@ describe('the lockfile after a release (#299)', () => {
   it("is held by CI's check:lockfile on every PR but the release PR", () => {
     const check = ci.jobs.ui.steps.find((s) => s.run === 'npm run check:lockfile -w ui')!;
     expect(check.if).toBe("${{ !startsWith(github.head_ref, 'release-please--') }}");
+  });
+});
+
+describe('a release PR that merges but does not release (#536)', () => {
+  const job = 'release-guard';
+  const ESCAPE = "Escape tag-like text in the release PR's body";
+  const FAIL = 'Fail when a merged release PR was not released';
+
+  it('runs after release-please in a job of its own, which no publish waits on', () => {
+    expect(jobs[job]!.needs).toBe('release-please');
+    for (const other of Object.keys(jobs).filter((j) => j !== job)) {
+      expect([jobs[other]!.needs ?? []].flat(), other).not.toContain(job);
+    }
+    // The guard's steps don't live in release-please, where failing them would skip a publish.
+    expect(step('release-please', ESCAPE)).toBeUndefined();
+    expect(step('release-please', FAIL)).toBeUndefined();
+    expect(jobs['release-please']!.permissions).toEqual({ contents: 'read' });
+  });
+
+  it("escapes the release PR's body whenever release-please opened or updated one", () => {
+    expect(jobs['release-please']!.outputs!.pr).toBe('${{ steps.rp.outputs.pr }}');
+    const escape = step(job, ESCAPE)!;
+    expect(escape.if).toBe('needs.release-please.outputs.pr');
+    expect(escape.run).toContain('node scripts/release-pr-body.mjs');
+    expect(escape.run).toContain('gh pr edit');
+    // No checkout carries a remote for gh to read the repository from on every run.
+    expect(escape.env!.GH_REPO).toBe('${{ github.repository }}');
+  });
+
+  it('fails when a merged release PR is still waiting for its release, on every run', () => {
+    const fail = step(job, FAIL)!;
+    expect(fail.if).toBe('${{ !cancelled() }}');
+    expect(fail.env!.GH_REPO).toBe('${{ github.repository }}');
+    expect(fail.run).toContain('autorelease: pending');
+    expect(fail.run).toContain('exit "$failed"');
+    // A release PR merged while this run was going is the next run's to release.
+    expect(fail.run).toContain('compare/$merge...$SHA');
+  });
+
+  it('fails a run that released some of the packages its merged release PR listed', () => {
+    // release-please marks the PR tagged once any one package is released, so the pending check can't see this.
+    const check = step(job, 'Fail when a release left out a package its PR listed')!;
+    expect(check.if).toContain("needs.release-please.outputs.release_created == 'true'");
+    expect(check.if).toContain("needs.release-please.outputs.ui_release_created == 'true'");
+    expect(check.env!.GH_REPO).toBe('${{ github.repository }}');
+    expect(check.run).toContain('node scripts/release-pr-body.mjs --packages');
+    expect(check.run).toContain('toil) released="$TOIL_RELEASED"');
+    expect(check.run).toContain('toil-ui) released="$UI_RELEASED"');
+    expect(check.run).toContain('exit "$failed"');
+  });
+
+  it('lists pull requests with a token that only reads, and shouts on Discord when it fails', () => {
+    expect(jobs[job]!.permissions).toEqual({ contents: 'read', 'pull-requests': 'read' });
+    expect(step(job, 'Notify Discord on failure')!.if).toBe('failure()');
   });
 });

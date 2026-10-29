@@ -30,6 +30,8 @@ jobs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
       version: ${{ steps.rp.outputs.version }}
+      # The release PR release-please opened or updated, as JSON, for release-guard.
+      pr: ${{ steps.rp.outputs.pr }}
       # Toil UI (ui/, @imagile-dev/toil-ui): release-please prefixes a package's
       # outputs with its path. Its tag is toil-ui-v<version>.
       ui_release_created: ${{ steps.rp.outputs['ui--release_created'] }}
@@ -87,6 +89,133 @@ jobs:
           git config user.email "imagile-bot[bot]@users.noreply.github.com"
           git commit -m "chore: rebuild dist/toil.js and dist/toil-lib.js for the release"
           git push
+
+  # A merged release PR that releases nothing ends green unless something checks
+  # (#536). This job is that check, and it's its own job so nothing in it can hold
+  # back a publish: publish-toil and publish-ui never wait on it, so a release
+  # that was tagged still goes to npm whatever happens here.
+  release-guard:
+    needs: release-please
+    if: needs.release-please.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      # Only to edit the release PR's body; this job's own token only reads.
+      - name: Generate Imagile Bot token
+        id: imagile-token
+        if: needs.release-please.outputs.pr
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
+          private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
+          permission-pull-requests: write
+      # For scripts/release-pr-body.mjs, which the escape and the package check run.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '24.22.1'
+
+      # release-please reads the merged release PR's body as HTML to find each
+      # package's version, and `<placeholder>` text in the notes makes it skip the
+      # release without failing. It rewrites the body whenever it opens or updates
+      # the PR, so this runs every time it did. scripts/release-pr-body.mjs says
+      # why the escape is `&amp;lt;`.
+      - name: Escape tag-like text in the release PR's body
+        if: needs.release-please.outputs.pr
+        env:
+          GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ fromJSON(needs.release-please.outputs.pr).number }}
+        run: |
+          gh pr view "$PR" --json body -q .body > "$RUNNER_TEMP/body.md"
+          node scripts/release-pr-body.mjs < "$RUNNER_TEMP/body.md" > "$RUNNER_TEMP/escaped.md"
+          if cmp -s "$RUNNER_TEMP/body.md" "$RUNNER_TEMP/escaped.md"; then
+            echo "The release PR's body needs no escaping."
+            exit 0
+          fi
+          gh pr edit "$PR" --body-file "$RUNNER_TEMP/escaped.md"
+
+      # After release-please runs, a merged release PR still labelled
+      # "autorelease: pending" was skipped: release-please swaps the label to
+      # "autorelease: tagged" in the same run that releases it (principle 4). Only
+      # a PR merged into the commit this run built counts: one merged while this
+      # run was going is the next run's to release, and isn't a failure here.
+      # It runs even when the escape failed, since the two don't depend on each other.
+      - name: Fail when a merged release PR was not released
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          PENDING="$(gh pr list --state merged --base main --label "autorelease: pending" --json number,url,mergeCommit -q '.[] | "\(.mergeCommit.oid) #\(.number) \(.url)"')"
+          failed=0
+          while read -r merge pr; do
+            [[ -z "$merge" ]] && continue
+            status="$(gh api "repos/$GH_REPO/compare/$merge...$SHA" -q .status)"
+            if [[ "$status" != identical && "$status" != ahead ]]; then
+              echo "Release PR $pr was merged after the commit this run built ($SHA); the next run releases it."
+              continue
+            fi
+            echo "::error::release-please skipped the merged release PR $pr, so no tag was created and nothing was published to npm. Look for a warning such as \"PR component ... does not match\" in the release-please step's log, correct the release PR's body, then re-run this workflow (workflow_dispatch)."
+            failed=1
+          done <<< "$PENDING"
+          exit "$failed"
+
+      # release-please marks a release PR tagged once any one of its packages is
+      # released, so a body that lost one package's block releases the other and
+      # still ends green, which the check above can't see. On a run that released,
+      # this holds what it released to the packages the merged release PR lists.
+      # Only a run on that PR's own merge commit knows which PR it was; a re-run on
+      # a later commit has nothing to check against and says so.
+      - name: Fail when a release left out a package its PR listed
+        if: ${{ !cancelled() && (needs.release-please.outputs.release_created == 'true' || needs.release-please.outputs.ui_release_created == 'true') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          TOIL_RELEASED: ${{ needs.release-please.outputs.release_created }}
+          UI_RELEASED: ${{ needs.release-please.outputs.ui_release_created }}
+        run: |
+          gh api "repos/$GH_REPO/commits/$SHA/pulls" -q '.[] | select(.head.ref | startswith("release-please--")) | .body' > "$RUNNER_TEMP/released.md"
+          if [[ ! -s "$RUNNER_TEMP/released.md" ]]; then
+            echo "$SHA isn't a release PR's merge commit, so there's no list to hold this run's releases to."
+            exit 0
+          fi
+          failed=0
+          while read -r pkg; do
+            case "$pkg" in
+              toil) released="$TOIL_RELEASED" ;;
+              toil-ui) released="$UI_RELEASED" ;;
+              *) echo "::error::The release PR lists a release for $pkg, which this check doesn't know. Add it to the case in this step."; failed=1; continue ;;
+            esac
+            if [[ "$released" != true ]]; then
+              echo "::error::The merged release PR lists a release for $pkg, but release-please didn't create it, so $pkg wasn't tagged or published. Its warning is in the release-please step's log; the release PR is already marked tagged, so $pkg has to be released by hand."
+              failed=1
+            fi
+          done < <(node scripts/release-pr-body.mjs --packages < "$RUNNER_TEMP/released.md")
+          exit "$failed"
+
+      # As loud as a failed publish. The run page says which step failed; the post
+      # says only what any of them can mean.
+      - name: Notify Discord on failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [[ -z "$DISCORD_WEBHOOK" ]] && echo "DISCORD_WEBHOOK not set, skipping" && exit 0
+          jq -n \
+            --arg title "Release check FAILED" \
+            --arg url "$RUN_URL" \
+            --arg desc "A merged release PR wasn't released in full, or the release PR's body couldn't be escaped so it would be. [View the run](${RUN_URL}). Anything this run tagged still publishes; this check doesn't hold it back." \
+            --arg avatar "https://imagile-dev.github.io/toil/brand/toil-avatar-512.png" \
+            --argjson color 15158332 \
+            '{"username":"toil","avatar_url":$avatar,"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \
+          | curl -sf -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d @- \
+          || echo "Discord notify failed (non-fatal)"
 
   publish-toil:
     needs: release-please
