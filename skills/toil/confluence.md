@@ -26,7 +26,7 @@ shape**, unchanged; `meta.context.connection.deployment` says which one ran. Wha
 | Credential | personal access token, `Authorization: Bearer` | account `email` + API token, Basic auth |
 | Page ids, spaces | numeric content ids; a space key goes straight into the request | page ids in text; attachment ids start `att`; a space key is looked up to the numeric id v2 wants (one more request) |
 | Bodies out | the page as the Server API returns it, `--expand` picks fields | `body.storage` always, plus `bodyText` beside it (plain text); no `--expand` on `page get` |
-| Markdown in | `--markdown` asks Confluence's converter | none: write storage XHTML, or wiki markup with `--representation wiki` |
+| Markdown in | `--markdown` converts it to storage format on your machine | none: write storage XHTML, or wiki markup with `--representation wiki` |
 | Paging `page list` | `--limit`, `--offset` (a position) | `--limit`, `--cursor` (an opaque token from `meta.page.nextCursor`) |
 | Paging `page search` | `--limit`, `--offset` | `--limit`, `--cursor` |
 | Paging `space list` | `--limit` | `--limit`, `--cursor` |
@@ -184,9 +184,10 @@ toil confluence attachment download att98765 --dir downloads --connection imagil
 Bodies are Confluence **storage format** (XHTML), both ways.
 
 - **Data Center:** `--representation wiki` sends the value under `body.storage` with
-  `representation: "wiki"`. `--markdown` asks Confluence's converter
-  (`/rest/api/contentbody/convert/storage`) to turn Markdown into storage format first;
-  whether your server accepts that hasn't been verified. When Confluence rejects a body,
+  `representation: "wiki"`. `--markdown` converts Markdown to storage format on your
+  machine first, with the converter `toil util md --to storage` runs, so the body sent is
+  well-formed XHTML; anything storage format can't hold comes back as an `MD_LOSSY`
+  warning in `meta.warnings`, and the page is still written. When Confluence rejects a body,
   the error adds the offending line of an XML parse error, and known storage-format
   mistakes behind an HTTP 500 (`<ac:parameter name=…>`, a macro with no `ac:macro-id`).
 - **Cloud:** every page and comment is read with `body-format=storage`, so `body.storage.value`
@@ -194,8 +195,8 @@ Bodies are Confluence **storage format** (XHTML), both ways.
   own lines, list items as `- `, table cells joined with ` | `, code macro text kept, macro
   parameters dropped. It's for reading, not for writing back. In (`--body`, `--body-file`)
   is storage-format XHTML, or wiki markup with `--representation wiki`, which Confluence
-  converts to storage. Atlassian Document Format isn't offered, and Confluence Cloud documents
-  no synchronous Markdown converter, so `--markdown` is refused there.
+  converts to storage. Atlassian Document Format isn't offered, and `--markdown` isn't offered
+  on Cloud yet: convert with `toil util md --to storage` and pass the result with `--body-file`.
 - `--body-file -` reads the body from stdin on the CLI. Over MCP, `-` is refused because
   stdin carries the protocol; pass a file path. Files resolve inside the workspace.
 
