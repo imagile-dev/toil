@@ -195,8 +195,8 @@ Bodies are Confluence **storage format** (XHTML), both ways.
   own lines, list items as `- `, table cells joined with ` | `, code macro text kept, macro
   parameters dropped. It's for reading, not for writing back. In (`--body`, `--body-file`)
   is storage-format XHTML, or wiki markup with `--representation wiki`, which Confluence
-  converts to storage. Atlassian Document Format isn't offered, and Confluence Cloud documents
-  no synchronous Markdown converter, so `--markdown` is refused there.
+  converts to storage. Atlassian Document Format isn't offered, and `--markdown` isn't offered
+  on Cloud yet: convert with `toil util md --to storage` and pass the result with `--body-file`.
 - `--body-file -` reads the body from stdin on the CLI. Over MCP, `-` is refused because
   stdin carries the protocol; pass a file path. Files resolve inside the workspace.
 

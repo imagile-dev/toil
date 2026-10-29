@@ -259,8 +259,10 @@ describe('pages', () => {
       { method: 'PUT', url: `${API}/content/12345`, respond: { status: 500, json: { message: 'java.lang.NullPointerException' } } },
     ]);
     expect(calls.map((c) => c.method)).toEqual(['GET', 'PUT']);
-    expect(JSON.parse(calls[1]!.body!).body.storage.value).toContain('<ac:structured-macro');
+    // Each code macro gets an ac:macro-id, so the 500 can't be blamed on one the person never wrote.
+    expect(JSON.parse(calls[1]!.body!).body.storage.value).toMatch(/<ac:structured-macro ac:macro-id="[0-9a-f-]{36}" ac:name="code"/);
     expect(envelope.error?.message).toContain('java.lang.NullPointerException');
+    expect(envelope.error?.message).not.toContain('without ac:macro-id');
   });
 
   it('page create: --markdown says what storage format could not hold, in meta.warnings', async () => {

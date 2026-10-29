@@ -143,11 +143,13 @@ const markdownOption = { flags: '--markdown', field: 'markdown', description: 'C
  */
 async function toStorage(ctx: { warn: (w: Warning) => void; signal?: AbortSignal | undefined }, text: string): Promise<string> {
   const { convertMarkdown } = await import('../../util/md/convert.js');
-  // The body is already read in full, so the size check has nothing to catch: give it the bytes it read.
+  // The completeness check (input.complete) compares bytes read with bytes expected; the body was read in full, so both are its length.
+  // util md's 4 MB input cap doesn't apply here: MD_LIMITS bound the work in the worker.
   const bytes = Buffer.byteLength(text, 'utf8');
   const source = { source: { kind: 'text' as const }, label: 'the page body', expectedBytes: bytes, bytesRead: bytes, truncated: false };
   const converted = await convertMarkdown({ to: 'storage', text, source }, ctx);
-  return converted.output as string;
+  // Some Confluence versions throw on a macro with no ac:macro-id (hints.ts), and a person who wrote Markdown can't add one.
+  return (converted.output as string).replace(/<ac:structured-macro(?![^>]*\bac:macro-id\b)/g, () => `<ac:structured-macro ac:macro-id="${globalThis.crypto.randomUUID()}"`);
 }
 
 /**
