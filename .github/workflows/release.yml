@@ -26,6 +26,8 @@ jobs:
     # who merges it is the review.) This job's own token only needs to read.
     permissions:
       contents: read
+      # The last check lists merged release PRs still waiting for their release (#536).
+      pull-requests: read
     outputs:
       release_created: ${{ steps.rp.outputs.release_created }}
       tag_name: ${{ steps.rp.outputs.tag_name }}
@@ -87,6 +89,70 @@ jobs:
           git config user.email "imagile-bot[bot]@users.noreply.github.com"
           git commit -m "chore: rebuild dist/toil.js and dist/toil-lib.js for the release"
           git push
+
+      # release-please reads the merged release PR's body as HTML to find each
+      # package's version, and `<placeholder>` text in the notes makes it skip the
+      # release without failing (#536). It rewrites the body on every run, so this
+      # runs every time it opened or updated the PR. scripts/release-pr-body.mjs
+      # says why the escape is `&amp;lt;`.
+      - name: Escape tag-like text in the release PR's body
+        if: steps.rp.outputs.pr
+        env:
+          GH_TOKEN: ${{ steps.imagile-token.outputs.token }}
+          PR: ${{ fromJSON(steps.rp.outputs.pr).number }}
+        run: |
+          gh pr view "$PR" --json body -q .body > "$RUNNER_TEMP/body.md"
+          node scripts/release-pr-body.mjs < "$RUNNER_TEMP/body.md" > "$RUNNER_TEMP/escaped.md"
+          if cmp -s "$RUNNER_TEMP/body.md" "$RUNNER_TEMP/escaped.md"; then
+            echo "The release PR's body needs no escaping."
+            exit 0
+          fi
+          gh pr edit "$PR" --body-file "$RUNNER_TEMP/escaped.md"
+
+      # After release-please runs, a merged release PR still labelled
+      # "autorelease: pending" was skipped: release-please swaps the label to
+      # "autorelease: tagged" in the same run that releases it. A skipped release
+      # otherwise ends green, and nothing may fail silently (principle 4). Only a
+      # PR merged into the commit this run built counts: one merged while this
+      # run was going is the next run's to release, and isn't a failure here.
+      - name: Fail when a merged release PR was not released
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          PENDING="$(gh pr list --state merged --base main --label "autorelease: pending" --json number,url,mergeCommit -q '.[] | "\(.mergeCommit.oid) #\(.number) \(.url)"')"
+          failed=0
+          while read -r merge pr; do
+            [[ -z "$merge" ]] && continue
+            status="$(gh api "repos/$REPO/compare/$merge...$SHA" -q .status)"
+            if [[ "$status" != identical && "$status" != ahead ]]; then
+              echo "Release PR $pr was merged after the commit this run built ($SHA); the next run releases it."
+              continue
+            fi
+            echo "::error::release-please skipped the merged release PR $pr, so no tag was created and nothing was published to npm. Look for a warning such as \"PR component ... does not match\" in the release-please step's log, correct the release PR's body, then re-run this workflow (workflow_dispatch)."
+            failed=1
+          done <<< "$PENDING"
+          exit "$failed"
+
+      # A merged release PR that wasn't released is as loud as a failed publish.
+      # Any step can fail here, so the post names the job, not the cause.
+      - name: Notify Discord on failure
+        if: failure()
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          [[ -z "$DISCORD_WEBHOOK" ]] && echo "DISCORD_WEBHOOK not set, skipping" && exit 0
+          jq -n \
+            --arg title "Release FAILED: the release-please job failed" \
+            --arg url "$RUN_URL" \
+            --arg desc "Nothing was tagged or published from this run. [View the run](${RUN_URL}). npm still serves the previous version." \
+            --arg avatar "https://imagile-dev.github.io/toil/brand/toil-avatar-512.png" \
+            --argjson color 15158332 \
+            '{"username":"toil","avatar_url":$avatar,"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \
+          | curl -sf -X POST "$DISCORD_WEBHOOK" -H "Content-Type: application/json" -d @- \
+          || echo "Discord notify failed (non-fatal)"
 
   publish-toil:
     needs: release-please

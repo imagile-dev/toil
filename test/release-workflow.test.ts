@@ -20,8 +20,11 @@ interface Step {
   name?: string;
   run?: string;
   'working-directory'?: string;
+  if?: string;
+  env?: Record<string, string>;
 }
 interface Job {
+  permissions?: Record<string, string>;
   needs?: string | string[];
   if?: string;
   outputs?: Record<string, string>;
@@ -222,5 +225,36 @@ describe('the lockfile after a release (#299)', () => {
   it("is held by CI's check:lockfile on every PR but the release PR", () => {
     const check = ci.jobs.ui.steps.find((s) => s.run === 'npm run check:lockfile -w ui')!;
     expect(check.if).toBe("${{ !startsWith(github.head_ref, 'release-please--') }}");
+  });
+});
+
+describe('a release PR that merges but does not release (#536)', () => {
+  const job = 'release-please';
+  const names = jobs[job]!.steps.map((s) => s.name);
+  const ESCAPE = "Escape tag-like text in the release PR's body";
+  const FAIL = 'Fail when a merged release PR was not released';
+
+  it("escapes the release PR's body after rebuilding dist, only when release-please opened or updated a PR", () => {
+    const escape = step(job, ESCAPE)!;
+    expect(escape).toBeDefined();
+    expect(escape.if).toBe('steps.rp.outputs.pr');
+    expect(escape.run).toContain('node scripts/release-pr-body.mjs');
+    expect(escape.run).toContain('gh pr edit');
+    expect(names.indexOf(ESCAPE)).toBeGreaterThan(names.indexOf('Rebuild dist/toil.js and dist/toil-lib.js and commit them to the release PR'));
+  });
+
+  it('fails the run when a merged release PR is still waiting for its release', () => {
+    const fail = step(job, FAIL)!;
+    expect(fail).toBeDefined();
+    expect(fail.run).toContain('autorelease: pending');
+    expect(fail.run).toContain('exit "$failed"');
+    // A release PR merged while this run was going is the next run's to release.
+    expect(fail.run).toContain('compare/$merge...$SHA');
+    expect(names.indexOf(FAIL)).toBeGreaterThan(names.indexOf(ESCAPE));
+  });
+
+  it('lets the job list pull requests, and shouts on Discord when it fails', () => {
+    expect(jobs[job]!.permissions).toMatchObject({ contents: 'read', 'pull-requests': 'read' });
+    expect(step(job, 'Notify Discord on failure')!.if).toBe('failure()');
   });
 });
