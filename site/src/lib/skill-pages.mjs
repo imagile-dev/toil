@@ -24,6 +24,25 @@ const OWN_PAGES = {
   'skills.md': '/docs/skills/',
 };
 
+/** Every Markdown file under the skill, as a forward-slash path from its folder (the workflow pages are in `workflows/`). */
+function markdownFiles(prefix) {
+  return readdirSync(join(skillDir, prefix), { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? markdownFiles(`${prefix}${e.name}/`) : e.name.endsWith('.md') ? [`${prefix}${e.name}`] : [],
+  );
+}
+
+/** The page of a workflow file: the README is the index at /docs/workflows/, each job is /docs/workflows/<job>/. */
+function workflowPath(file) {
+  if (!file.startsWith('workflows/')) return undefined;
+  const job = file.slice('workflows/'.length, -'.md'.length);
+  return job === 'README' ? '/docs/workflows/' : `/docs/workflows/${job}/`;
+}
+
+/** The workflow job pages (not the README), for the index that lists them. */
+export function workflowFiles() {
+  return skillFiles.filter((f) => f.file.startsWith('workflows/') && f.file !== 'workflows/README.md');
+}
+
 /** `key: value` frontmatter lines. */
 function frontmatterOf(text) {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(text);
@@ -49,15 +68,14 @@ function firstHeading(text) {
  * Every file in the skill: its page, its frontmatter, and its title (the first
  * heading, without the `(\`area\`)` the agent-facing copy carries).
  */
-export const skillFiles = readdirSync(skillDir)
-  .filter((f) => f.endsWith('.md'))
+export const skillFiles = markdownFiles('')
   .sort()
   .map((file) => {
     const text = readFileSync(join(skillDir, file), 'utf8');
     const meta = frontmatterOf(text);
     const heading = firstHeading(text) ?? file;
     const title = heading.replace(/\s*\(`[^`]+`\)\s*$/, '').replace(/`/g, '');
-    const path = OWN_PAGES[file] ?? (meta.area ? `/connect/${meta.area}/` : undefined);
+    const path = OWN_PAGES[file] ?? workflowPath(file) ?? (meta.area ? `/connect/${meta.area}/` : undefined);
     return { file, area: meta.area, description: meta.description ?? '', title, path };
   });
 

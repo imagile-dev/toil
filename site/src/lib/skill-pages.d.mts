@@ -9,6 +9,7 @@ export interface SkillFile {
 export declare const skillDir: string;
 export declare const skillFiles: SkillFile[];
 export declare const integrationFiles: SkillFile[];
+export declare function workflowFiles(): SkillFile[];
 export declare function pagePath(file: string): string | undefined;
 export declare function commandGroupPage(group: string): string | undefined;
 export declare function remarkSkillLinks(options: { base: string }): () => (tree: unknown, file: unknown) => void;

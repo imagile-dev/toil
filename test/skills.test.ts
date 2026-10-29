@@ -1,6 +1,7 @@
 import type { Command } from 'commander';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { load } from 'js-yaml';
 import { describe, expect, it } from 'vitest';
 import { modules } from '../src/areas.generated.js';
 import { commandName } from '../src/core/command.js';
@@ -18,6 +19,9 @@ import { checkInvocation, flagsOf, invocations, program, subcommand } from './ha
  * capability is, for audit purposes, indistinguishable from no capability.
  */
 const dir = join(import.meta.dirname, '..', 'skills', 'toil');
+const workflowsDir = join(dir, 'workflows');
+/** Every Markdown file of the skill, as a path from its folder: the pages beside SKILL.md, and the workflow pages. */
+const allFiles = [...readdirSync(dir).filter((f) => f.endsWith('.md')), ...readdirSync(workflowsDir).map((f) => `workflows/${f}`)];
 /** The files in the skill that belong to no area: the index, what every command shares, dossiers, installing toil, and the MCP server. */
 const GENERAL = ['SKILL.md', 'core.md', 'dossiers.md', 'install.md', 'mcp.md', 'setup.md', 'upgrading.md'];
 const integrations = join(import.meta.dirname, '..', 'site', 'src', 'data', 'integrations');
@@ -114,7 +118,7 @@ describe('shipped skill', () => {
 });
 
 describe('commands and flags the skill names exist', () => {
-  const files = readdirSync(dir).filter((f) => f.endsWith('.md'));
+  const files = allFiles;
 
   it('finds invocations to check, so a broken parser cannot pass by finding none', () => {
     const found = files.flatMap((f) => invocations(readFileSync(join(dir, f), 'utf8')));
@@ -193,7 +197,7 @@ describe('installable skill', () => {
   });
 
   it('no file in the skill uses syntax only one agent understands', () => {
-    for (const file of readdirSync(dir)) {
+    for (const file of allFiles) {
       const text = readFileSync(join(dir, file), 'utf8');
       // Claude Code's argument and shell-injection placeholders, and plugin-root variables.
       expect(text, file).not.toMatch(/\$ARGUMENTS|!`|\$\{CLAUDE_[A-Z_]+\}/);
@@ -202,7 +206,7 @@ describe('installable skill', () => {
 
   it('stands alone: every file the skill points to is in its own folder, so a copy anywhere works', () => {
     const present = new Set(readdirSync(dir));
-    for (const file of present) {
+    for (const file of allFiles) {
       const text = readFileSync(join(dir, file), 'utf8');
       for (const m of text.matchAll(/`([a-z0-9-]+\.md)`/g)) // changelog.md is generated into the bundle from CHANGELOG.md, not a file in this folder.
       expect(present.has(m[1]!) || m[1] === 'changelog.md', `${file} points to ${m[1]}`).toBe(true);
@@ -273,4 +277,145 @@ describe('the skill tells an agent to ticket the work before starting it (#304)'
       expect(flat).toContain("only on the person's yes");
     });
   }
+});
+
+/**
+ * Workflow pages (#527): whole jobs written as steps of toil commands, in
+ * skills/toil/workflows/. Each page's frontmatter is read by agents and by Toil
+ * UI, so it is held to a format here, to the registry (areas and write
+ * commands that exist), and to the index in SKILL.md. A `toil <host> …` line
+ * stands for every host the page's `needs.any` names, so it is checked once per
+ * host: a verb one host lacks belongs in the page's per-host table, not in a
+ * line that claims to fit all three.
+ */
+describe('workflow pages', () => {
+  const pageFiles = readdirSync(workflowsDir).filter((f) => f !== 'README.md');
+  const areaNames = areas.map((a) => a.name);
+  const index = readFileSync(join(dir, 'SKILL.md'), 'utf8');
+  const KEYS = ['job', 'description', 'role', 'needs', 'inputs', 'writes', 'loop', 'verification'];
+
+  const pageOf = (file: string) => {
+    const text = readFileSync(join(workflowsDir, file), 'utf8');
+    const meta = frontmatter(text) ?? {};
+    const json = (key: string) => JSON.parse(meta[key] ?? 'null') as unknown;
+    return {
+      text,
+      meta,
+      needs: json('needs') as { all?: string[]; any?: string[]; optional?: string[] },
+      inputs: json('inputs') as Array<{ name?: unknown; dossier?: unknown }>,
+      writes: json('writes') as string[],
+    };
+  };
+  /** The write command a line of a page runs, by its full path, if it runs one: after the last `--`, at the front. */
+  const writeCommandOf = (args: string[]) => {
+    const words = args.slice(args.lastIndexOf('--') + 1);
+    return commands.find((c) => c.writes && c.path.every((w, i) => words[i] === w));
+  };
+  /** The lines of SKILL.md's "By job" block that name a page. */
+  const blockLines = (text: string): string[] => {
+    const at = text.indexOf('\n## By job');
+    if (at < 0) return [];
+    const next = text.indexOf('\n## ', at + 5);
+    return text.slice(at, next < 0 ? undefined : next).split('\n').filter((l) => l.startsWith('- `workflows/'));
+  };
+
+  it('has the shared README and at least the three first pages', () => {
+    expect(existsSync(join(workflowsDir, 'README.md'))).toBe(true);
+    expect([...pageFiles].sort()).toEqual(expect.arrayContaining(['map-codebase.md', 'review.md', 'ship.md']));
+    expect(readdirSync(workflowsDir).filter((f) => !f.endsWith('.md'))).toEqual([]);
+  });
+
+  // The docs site compiles each file's frontmatter as real YAML, which the line-by-line
+  // reader above forgives: a ": " in a description is a mapping where a sentence was meant.
+  for (const file of readdirSync(workflowsDir)) {
+    it(`${file}: its frontmatter is valid YAML, and the one-line reader agrees with it`, () => {
+      const text = readFileSync(join(workflowsDir, file), 'utf8');
+      const yaml = load(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(text)![1]!) as Record<string, unknown>;
+      expect(typeof yaml.description).toBe('string');
+      for (const key of Object.keys(frontmatter(text)!)) expect(yaml, key).toHaveProperty(key);
+      if (file !== 'README.md') expect(yaml.needs).toEqual(pageOf(file).needs);
+    });
+  }
+
+  for (const file of pageFiles) {
+    describe(file, () => {
+      const page = pageOf(file);
+      const hosts = page.needs?.any ?? [];
+
+      it('has every frontmatter key, a job named after its file, and values of the right kind', () => {
+        expect(Object.keys(page.meta).sort()).toEqual([...KEYS].sort());
+        expect(page.meta.job).toBe(file.replace(/\.md$/, ''));
+        expect(page.meta.description, 'no ": " inside the description').not.toContain(': ');
+        expect(page.meta.description!.length).toBeGreaterThan(20);
+        expect(['reviewer', 'author', 'any']).toContain(page.meta.role);
+        expect(['unit', 'live']).toContain(page.meta.verification);
+        expect(page.meta.loop === 'none' || /^[1-9]\d*$/.test(page.meta.loop!), 'loop is none or a round limit').toBe(true);
+        expect(Array.isArray(page.inputs) && page.inputs.every((i) => typeof i.name === 'string' && typeof i.dossier === 'boolean'), 'inputs: [{ name, dossier }]').toBe(true);
+        expect(page.inputs.length).toBeGreaterThan(0);
+      });
+
+      it('needs only areas that exist, with alternatives under `any`', () => {
+        expect(Object.keys(page.needs).filter((k) => !['all', 'any', 'optional'].includes(k))).toEqual([]);
+        const named = [...(page.needs.all ?? []), ...hosts, ...(page.needs.optional ?? [])];
+        expect(named.length).toBeGreaterThan(0);
+        expect(named.filter((n) => !areaNames.includes(n))).toEqual([]);
+      });
+
+      it('lists as `writes` full paths of write commands in the areas it needs, each one the page names', () => {
+        const needed = new Set([...(page.needs.all ?? []), ...hosts, ...(page.needs.optional ?? [])]);
+        expect(Array.isArray(page.writes)).toBe(true);
+        for (const path of page.writes) {
+          const def = commands.find((c) => c.path.join(' ') === path);
+          expect(def?.writes, `${path} is not a write command`).toBe(true);
+          expect(needed.has(def!.path[0]!), `${path} is outside the areas the page needs`).toBe(true);
+          expect(page.text.includes(def!.path.slice(1).join(' ')), `${path} is in writes but never shown`).toBe(true);
+        }
+      });
+
+      it('shows no write command that its `writes` leaves out', () => {
+        const shown = invocations(page.text).flatMap((args) => (hosts.length ? [args, ...hosts.map((h) => args.map((w) => (w === '<host>' ? h : w)))] : [args]));
+        const unlisted = shown.flatMap((args) => {
+          const def = writeCommandOf(args);
+          return def && !page.writes.includes(def.path.join(' ')) ? [def.path.join(' ')] : [];
+        });
+        expect([...new Set(unlisted)]).toEqual([]);
+      });
+
+      it('every `toil <host> …` line is a real command with real flags on each host it names', () => {
+        const lines = invocations(page.text).filter((args) => args[0] === '<host>');
+        if (lines.length) expect(hosts.length, '`<host>` needs `needs.any`').toBeGreaterThan(0);
+        const bad = lines.flatMap((args) =>
+          hosts
+            .map((h) => [`${h} ${args.slice(1).join(' ')}`, checkInvocation([h, ...args.slice(1)])] as const)
+            .filter(([, problem]) => problem)
+            .map(([line, problem]) => `toil ${line}: ${problem}`),
+        );
+        expect(bad).toEqual([]);
+      });
+
+      it('has done-when, a report and a never list, and points at the README rather than repeating it', () => {
+        for (const heading of ['## Done when', '## Report', '## Never']) expect(page.text, heading).toContain(heading);
+        expect(page.text).toContain('`workflows/README.md`');
+      });
+
+      it('is listed once in the By job block of SKILL.md', () => {
+        expect(blockLines(index).filter((l) => l.includes(`\`workflows/${file}\``))).toHaveLength(1);
+      });
+    });
+  }
+
+  it('every line of the By job block points at a page that exists, and every page has a line', () => {
+    const named = blockLines(index).map((l) => /^- `(workflows\/[a-z0-9-]+\.md)`: \S/.exec(l)?.[1]);
+    expect(named.every(Boolean), 'each line is "- `workflows/<job>.md`: when to read it"').toBe(true);
+    for (const path of named) expect(existsSync(join(dir, path!)), `${path} is listed but missing`).toBe(true);
+    expect([...named].sort()).toEqual(pageFiles.map((f) => `workflows/${f}`).sort());
+    expect(index).toContain('`workflows/README.md`');
+  });
+
+  it('the checks bite: a write is found, a verb a host lacks and a flag it lacks are caught', () => {
+    expect(writeCommandOf(['github', 'pr', 'comment', '1', '--body', 'x'])?.path.join(' ')).toBe('github pr comment');
+    expect(writeCommandOf(['--select', 'x', 'wait', '--', 'github', 'pr', 'get', '1'])).toBeUndefined();
+    expect(checkInvocation(['bitbucket', 'pr', 'threads', '1'])).toMatch(/threads/);
+    expect(checkInvocation(['github', 'pr', 'comment-inline', '1', '--line-type', 'x'])).toMatch(/--line-type/);
+  });
 });

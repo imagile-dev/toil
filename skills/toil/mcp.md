@@ -54,6 +54,8 @@ port.
     `dossiers_show` tools return, served when those tools are.
   - `toil://skill/<area>`: this skill's page for each area served, such as
     `toil://skill/jira` for `jira.md`.
+  - `toil://skill/workflows/<job>`: the workflow pages (`review`, `ship`,
+    `map-codebase`) and their `README`, whatever `--areas` says, since a job spans areas.
 - **Config**: the server reads `~/.toil/config.json`, or `--config <file>` in its args,
   and the `TOIL_*` env vars it is started with. Keep tokens in the OS credential
   store (`toil connections add`, run once on a terminal) rather than in the client's

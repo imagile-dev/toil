@@ -14,6 +14,8 @@ import { skillPages } from '../skill-pages.generated.js';
  * - `toil://dossiers` and `toil://dossiers/<name>`: what `dossiers list` and
  *   `dossiers show <name>` return, run through the same core as the tools.
  * - `toil://skill/<area>`: the distributed skill's page for each area served.
+ * - `toil://skill/workflows/<job>`: the skill's workflow pages (and their shared
+ *   README), whatever --areas says, since a job spans areas.
  *
  * They follow `--areas` as the tools do: connections only to areas served, the
  * dossiers only when the dossiers tools are, and a skill page only for an area
@@ -31,6 +33,9 @@ const UPGRADE_DESCRIPTIONS: Record<(typeof UPGRADE_PAGES)[number], string> = {
   upgrading: 'Standing instructions for when toil is upgraded or a retired name turns up: read what changed, then convert config, env vars and dossiers with approval.',
   changelog: 'Breaking changes and features of the newest toil releases, newest first.',
 };
+
+/** The workflow pages, `workflows/review` and the rest, which belong to no one area. */
+const workflowPages = () => Object.keys(skillPages).filter((name) => name.startsWith('workflows/')).sort();
 
 export interface ResourceEntry {
   uri: string;
@@ -96,6 +101,16 @@ export async function listResources(host: ResourceHost): Promise<ResourceEntry[]
   for (const page of UPGRADE_PAGES) {
     list.push({ uri: `${SKILL_PREFIX}${page}`, name: `skill ${page}`, title: page === 'upgrading' ? 'Upgrading toil' : 'toil changelog', description: UPGRADE_DESCRIPTIONS[page], mimeType: 'text/markdown' });
   }
+  for (const page of workflowPages()) {
+    const readme = page === 'workflows/README';
+    list.push({
+      uri: `${SKILL_PREFIX}${page}`,
+      name: `skill ${page}`,
+      title: readme ? 'toil workflows' : `toil workflow ${page.slice('workflows/'.length)}`,
+      description: readme ? 'The rules every workflow page follows: only toil, reads free and writes asked, bounded loops, honest output.' : 'A whole job as steps of toil commands: when to read it, what it needs, what it may write, and what it never does.',
+      mimeType: 'text/markdown',
+    });
+  }
   return list;
 }
 
@@ -128,7 +143,7 @@ export async function readResource(host: ResourceHost, uri: string): Promise<{ u
   if (uri.startsWith(SKILL_PREFIX)) {
     const area = uri.slice(SKILL_PREFIX.length);
     const page = skillPages[area];
-    if (page !== undefined && (servedAreas(host).has(area) || (UPGRADE_PAGES as readonly string[]).includes(area))) return { uri, mimeType: 'text/markdown', text: page };
+    if (page !== undefined && (servedAreas(host).has(area) || (UPGRADE_PAGES as readonly string[]).includes(area) || workflowPages().includes(area))) return { uri, mimeType: 'text/markdown', text: page };
   }
   throw new ResourceError(`toil serves no resource ${uri} here. resources/list names the ones it does.`, true);
 }

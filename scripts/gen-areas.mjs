@@ -40,8 +40,19 @@ export async function generate() {
 }
 
 /**
+ * Every Markdown file under the skill, as a forward-slash path from its folder:
+ * the pages beside SKILL.md, and the workflow pages in `workflows/`. Folders
+ * nest as deep as the skill does, which is one level and not a filing system.
+ */
+function skillMarkdown(prefix) {
+  return readdirSync(join(skillsDir, prefix), { withFileTypes: true }).flatMap((e) =>
+    e.isDirectory() ? skillMarkdown(`${prefix}${e.name}/`) : e.name.endsWith('.md') ? [`${prefix}${e.name}`] : [],
+  );
+}
+
+/**
  * Writes src/skill-pages.generated.ts: every file of the distributed skill
- * (skills/toil/*.md). `skillFiles` is the whole skill, SKILL.md included,
+ * (skills/toil/**.md). `skillFiles` is the whole skill, SKILL.md included,
  * which `toil skill install` writes into an agent's skills folder; `skillPages`
  * is each page but the index, which toil mcp serves as toil://skill/<name>.
  * Built in rather than read from disk, so the bundle stays one file and the
@@ -51,9 +62,7 @@ export async function generate() {
  */
 function generateSkillPages() {
   const files = [
-    ...readdirSync(skillsDir)
-      .filter((f) => f.endsWith('.md'))
-      .map((f) => [f, readFileSync(join(skillsDir, f), 'utf8').replace(/\r\n/g, '\n')]),
+    ...skillMarkdown('').map((f) => [f, readFileSync(join(skillsDir, f), 'utf8').replace(/\r\n/g, '\n')]),
     ['changelog.md', changelogPage(readFileSync(join(root, 'CHANGELOG.md'), 'utf8'))],
   ].sort(([x], [y]) => (x < y ? -1 : 1));
   const lines = [

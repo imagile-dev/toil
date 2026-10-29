@@ -43,6 +43,7 @@ export const docsPath = [
     links: [
       { label: 'MCP', href: '/docs/mcp/' },
       { label: 'Skills', href: '/docs/skills/' },
+      { label: 'Workflows', href: '/docs/workflows/' },
       { label: 'Upgrading', href: '/docs/upgrading/' },
       { label: 'From a program (./api)', href: '/docs/core/#using-toil-from-a-program' },
     ],

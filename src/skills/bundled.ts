@@ -1,5 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { readConfigForEdit, type ResolvedConfig } from '../core/config.js';
 import type { Warning } from '../core/envelope.js';
 import { ToilError } from '../core/errors.js';
@@ -55,6 +55,9 @@ const INDEX = skillFiles['SKILL.md'] ?? '';
 /** The description the repository's SKILL.md carries, used when nothing is configured. */
 export const GENERAL_DESCRIPTION = frontmatterOf(INDEX).description ?? '';
 
+/** The jobs the skill has a workflow page for, said in the words someone asks for them. Static text: no host, no name. */
+const JOBS = 'Also use for whole jobs such as review this PR, ship this branch, or map this codebase and draw its architecture.';
+
 /** `a`, `a and b`, `a, b and c`. */
 const listed = (names: string[]) => (names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`);
 
@@ -80,7 +83,7 @@ export function describeConfig(config: ResolvedConfig, knownAreas: readonly stri
   const what = [...(a.length ? [`the toil areas set up on this machine (${listed(a)})`] : []), ...(e.length ? [`databases (${listed(e)})`] : [])];
   const description =
     `Use toil, a structured-JSON CLI and MCP server, to read from and (when allowed) write to ${listed(what)}. ` +
-    'Use when a task needs data from one of them, or mentions `toil` commands, `toil mcp`, a toil connection, or a TOIL_* environment variable.';
+    'Use when a task needs data from one of them, or mentions `toil` commands, `toil mcp`, a toil connection, or a TOIL_* environment variable. ' + JOBS;
   return { description, areas: a, engines: e, envOnly: envOnly.sort() };
 }
 
@@ -137,7 +140,11 @@ export function writeBundledSkill(dir: string, files: Record<string, string>, ve
   rmSync(staging, { recursive: true, force: true });
   mkdirSync(staging);
   try {
-    for (const [name, text] of Object.entries(files)) writeFileSync(join(staging, name), text, 'utf8');
+    for (const [name, text] of Object.entries(files)) {
+      // A page in a folder (`workflows/review.md`) needs its folder first.
+      mkdirSync(dirname(join(staging, name)), { recursive: true });
+      writeFileSync(join(staging, name), text, 'utf8');
+    }
     writeFileSync(join(staging, ORIGIN_FILE), `${JSON.stringify({ version: 1, ...record }, null, 2)}\n`, 'utf8');
     swapIn(staging, final, aside);
   } finally {

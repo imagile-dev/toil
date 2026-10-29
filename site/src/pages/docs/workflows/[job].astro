@@ -1,0 +1,13 @@
+---
+import SkillPage from '../../../components/SkillPage.astro';
+import { workflowFiles } from '../../../lib/skill-pages.mjs';
+
+// One page per job file in skills/toil/workflows/, rendered from the file.
+export function getStaticPaths() {
+  return workflowFiles().map((f) => ({ params: { job: f.file.slice('workflows/'.length, -'.md'.length) } }));
+}
+
+const { job } = Astro.params;
+---
+
+<SkillPage file={`workflows/${job}.md`} />
