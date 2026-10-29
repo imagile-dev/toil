@@ -107,7 +107,7 @@ function braceNames(tokens: Token[], from: number): { names: string[]; end: numb
 function scanJs(tokens: Token[], found: Found): void {
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i]!;
-    if (t.t !== 'id' || isP(tokens[i - 1], '.')) continue;
+    if (t.t !== 'id' || isP(tokens[i - 1], '.') || isP(tokens[i - 1], '?.')) continue;
     if (t.v === 'export') exportFrom(tokens, i, found);
     else if (t.v === 'require' || t.v === 'import') {
       if (isP(tokens[i + 1], '(')) {

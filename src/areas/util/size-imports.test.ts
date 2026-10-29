@@ -56,7 +56,7 @@ describe('util size imports: TypeScript and JavaScript', () => {
   });
 
   it('reads require() and import() with a literal, and import x = require()', () => {
-    const src = ["const a = require('a');", "const lazy = () => import('./lazy');", "import fs = require('node:fs');", 'const n = require(name);', 'const t = await import(`./${x}`);', "x.require('no');", ''].join('\n');
+    const src = ["const a = require('a');", "const lazy = () => import('./lazy');", "import fs = require('node:fs');", 'const n = require(name);', 'const t = await import(`./${x}`);', "x.require('no');", "obj?.require('no');", ''].join('\n');
     expect(brief(importsOf(src, 'typescript'))).toEqual(['require a@1', 'dynamic ./lazy@2', 'require node:fs@3']);
   });
 
