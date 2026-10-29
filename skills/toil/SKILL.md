@@ -33,7 +33,8 @@ If `toil version` doesn't print an envelope, toil isn't installed: `install.md` 
 - **Files** a command reads or writes stay in the workspace (`--workspace <dir>`, or
   the working directory).
 - **Feedback** to Imagile (`toil feedback`) only when asked, scrubbed of company
-  data, shown in full, sent with `--consent` only on their yes: `core.md`, **Feedback**.
+  data, shown in full, sent with `--consent` only on their yes to that exact report:
+  `core.md`, **Feedback**.
 - **Less output.** `--select <expression>` keeps only the fields you name;
   `toil wait --until <expression> -- <read>` repeats a read until it's true. For a
   listing that may pass a page, add `--summary-file <file>` (`summaryFile`): the full
@@ -41,7 +42,7 @@ If `toil version` doesn't print an envelope, toil isn't installed: `install.md` 
 
 ## By job
 
-Asked for one of these? Read its page, and `workflows/README.md` once.
+Read the job's page, and `workflows/README.md` once.
 
 - `workflows/review.md`: review someone else's PR
 - `workflows/ship.md`: take your branch to a PR, answer its review, fix CI

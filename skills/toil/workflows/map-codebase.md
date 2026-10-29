@@ -33,8 +33,9 @@ then `toil dossiers brief` and how to run the repository's gate; it needs no pag
 
    `util size` gives the tree and sizes, and an outline (functions, classes, line
    ranges) of one file at a time, so read the outlines of the largest files and
-   only the parts you need. When `util size` lists imports, take each file's import
-   edges from there; until then, take them from manifests and folder structure.
+   only the parts you need. A file's outline also lists its imports
+   (`outline.imports`, syntactic: specifiers as written, never resolved), which are the
+   import edges between files; for a language with no outline, use manifests and folders.
    `deps scan` finds manifests and so the entry points and packages; `git log` shows
    which areas change often, by the scope in each commit message (it lists no files,
    so mark a hot spot read this way as inferred). The dossier names the repositories
