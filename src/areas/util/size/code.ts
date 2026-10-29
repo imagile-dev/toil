@@ -65,8 +65,7 @@ const OPEN: Record<string, string> = { '(': ')', '[': ']', '{': '}' };
 const CLOSE: Record<string, string> = { ')': '(', ']': '[', '}': '{' };
 
 /** The outline of a code file. Throws OutlineError when its brackets don't balance or the lexer can't read it. */
-export function outlineCode(text: string, lang: CodeLanguage): CodeSymbol[] {
-  const tokens = lex(text, lang);
+export function outlineCode(text: string, lang: CodeLanguage, tokens: Token[] = lex(text, lang)): CodeSymbol[] {
   return lang === 'python' ? outlinePython(tokens) : outlineBraces(tokens, lang);
 }
 

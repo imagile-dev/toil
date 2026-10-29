@@ -92,7 +92,7 @@ Work that looks simple and is easy to get subtly wrong by reasoning alone: time 
 - **Time zones, durations, business days and cron** (`toil util time convert`, `toil util time duration`, `toil util time business-days add`, `toil util time business-days diff`, `toil util time cron`): Date arithmetic on the time zone data Node already ships: convert a time between zones, read or write an ISO 8601 duration, add or count business days, and list a cron schedule's next run times.
 - **Comparing versions** (`toil util semver compare`, `toil util semver satisfies`, `toil util semver sort`, `toil util semver bump`): Compare, sort and bump versions, and check them against ranges, in the grammar of the ecosystem they come from: npm (SemVer 2.0.0 and npm's ranges, the default), NuGet (up to four parts, interval notation) or Maven (Maven's own ordering, where `1.0.0.Final` is `1` and `SNAPSHOT` comes before the release).
 - **Encoding, decoding and hashing** (`toil util encode`): Base64, base64url, hex, URL components and form values, in either direction, and a file's SHA-256, SHA-1 or MD5 hash.
-- **Sizing before reading** (`toil util size`): Tells an agent how much a file or folder will cost to read. For a file it gives bytes, lines, an estimated token count, and an outline: functions, classes and methods with their line ranges for TypeScript, JavaScript, Python, C#, Java and Go, headings for Markdown, and top-level keys for JSON and YAML, so the agent reads only the lines it needs. For a folder it gives a tree of totals, largest first, and names the largest files.
+- **Sizing before reading** (`toil util size`): Tells an agent how much a file or folder will cost to read. For a file it gives bytes, lines, an estimated token count, and an outline: functions, classes and methods with their line ranges, plus the modules the file imports, for TypeScript, JavaScript, Python, C#, Java and Go, headings for Markdown, and top-level keys for JSON and YAML, so the agent reads only the lines it needs. For a folder it gives a tree of totals, largest first, and names the largest files.
 
 ## Commands
 
@@ -820,8 +820,8 @@ points. No model's tokenizer is bundled, and real counts vary by model and
 content. Every result says so in `tokenMethod` and with an `APPROXIMATED` warning.
 
 **For a file**: `{ kind: "file", path, language, bytes, lines, tokens, tokenMethod,
-outline, notOutlined, verified }`. `outline` is `{ precision, method, symbols }`,
-each symbol `{ name, kind, startLine, endLine, container }` (headings add `level`):
+outline, notOutlined, verified }`. `outline` is `{ precision, method, symbols }`
+(code adds `imports` and `importsMethod`), each symbol `{ name, kind, startLine, endLine, container }` (headings add `level`):
 
 - **Code** (`precision: "syntactic"`): TypeScript and JavaScript (`.ts`, `.tsx`,
   `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`), Python, C#, Java and Go. Functions,
@@ -830,6 +830,29 @@ each symbol `{ name, kind, startLine, endLine, container }` (headings add `level
   and strings and matches braces (indentation for Python), not a compiler, so
   `method` says what each language covers. Function bodies aren't searched, and
   fields aren't listed. `container` is the enclosing class or namespace.
+- **Imports** (code files, one file only; a folder's listing doesn't read each
+  file's imports): `outline.imports` lists the modules the file names, found
+  from the same tokens as the outline, so an import in a string or comment never
+  counts. Each is `{ specifier, kind, line }`, plus `names`, `alias` or `modifiers`
+  where the syntax says so. The `specifier` is exactly as written (`./foo`,
+  `node:fs`, `java.util.List`, `System.Text`, `..pkg`) and `line` is the line it's
+  written on. `kind` is `import`, `require`, `dynamic` (`import('…')` with a literal),
+  `from` (`export … from`, Python's `from … import`) or `using` (C#). `names` are
+  `default`, `*` or each name as the module exports it, not its local alias; a
+  Python `import a, b` is one entry per module. C# `using (…)` and `using var`
+  statements aren't imports. **Nothing is resolved**: no file lookup, no path,
+  package or tsconfig resolution, so `./foo` doesn't say which file it is, and a
+  `require(name)` with no literal isn't listed. A file with none has `imports: []`.
+  At most 2,000 are listed; a `SIZE_IMPORTS_TRUNCATED` warning says when more were
+  found. `precision` is `syntactic`, like the outline.
+
+  ```json
+  "imports": [
+    { "specifier": "node:fs", "kind": "import", "line": 1, "names": ["default"] },
+    { "specifier": "./lexer.js", "kind": "import", "line": 2, "names": ["lex", "OutlineError"] },
+    { "specifier": "./legacy", "kind": "require", "line": 9 }
+  ]
+  ```
 - **Markdown**: ATX and setext headings, outside code fences and front matter.
 - **JSON and YAML** (`precision: "parsed"`): the top-level keys, found by scanning
   and held against what the parser returns.
@@ -858,6 +881,8 @@ sorted largest first. `largest` names the biggest files with their language.
 - `outline.range` and `outline.nesting`: each range is inside the file and in
   order, and a member sits inside its container.
 - `outline.keys`: JSON and YAML keys match the parser's.
+- `imports.line` and `imports.range`: each import's line, re-read from the input,
+  holds its specifier as written (spaces ignored), and is inside the file.
 - `counts.reread`: the outline's full read gives the same bytes and lines.
 - `totals.sum` and `tree.sum`: the totals equal the files added up, and each
   folder equals its own files plus its subfolders.
