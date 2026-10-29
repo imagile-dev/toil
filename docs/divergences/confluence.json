@@ -67,6 +67,13 @@
       "why": "Windows reads each of those as a different file from the one named: a device, a stream inside an existing file, or the same name without its dots. The no-overwrite check has to see the file a write really lands on, and a name must work the same way on every platform.",
       "principle": "2",
       "class": "security"
+    },
+    {
+      "allows": [],
+      "old": "confluence page create and page update with --markdown posting the Markdown to POST /rest/api/contentbody/convert/storage with representation \"markdown\", and sending the value Confluence returns as the body",
+      "toil": "The Markdown is converted on this machine by the converter util md --to storage runs, which reads its output back as XML before returning it; no convert request is sent. What storage format can't hold, and any block that didn't survive the round trip, is a warning in meta.warnings (MD_LOSSY, MD_ROUNDTRIP_MISMATCH), and the page is still written (#519; #78 items 2 and 10)",
+      "why": "Data Center documents no Markdown conversion on that endpoint (#78 item 2), and #519 reports it kept the escaped > of an autolink in the href, which failed XML validation. The maintainer chose toil's own converter ahead of a live check (2026-10-29, on #519), so the body sent is the one util md returns, and it is well-formed.",
+      "principle": "4"
     }
   ]
 }

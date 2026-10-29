@@ -1,0 +1,7 @@
+# Data Center's `--markdown` converts on this machine (#519)
+
+- `confluence page create` and `page update` with `--markdown` on Data Center convert the body with `convertMarkdown` from `src/areas/util/md/convert.ts`, the code `util md --to storage` runs, loaded with `await import()` so it costs nothing until a page uses it. The convert request to `/rest/api/contentbody/convert/storage` and `client.convertToStorage` are gone. The maintainer chose this ahead of a live check (2026-10-29); it is a divergence under principle 4 (`docs/divergences/confluence.json`).
+- A lossy conversion or an unexplained round-trip difference is a warning (`MD_LOSSY`, `MD_ROUNDTRIP_MISMATCH`) and the page is still written, the same as `util md` returns its output with those warnings. Refusing the write would block a person on a converter bug they can see in the warning and work around with `util md` plus `--body-file`.
+- The size check `util md` runs on its input is given the body's own byte count, because the body was already read in full by `--body`/`--body-file`; otherwise every page write would warn that the input wasn't checked.
+- Cloud still refuses `--markdown`. Converting locally would let Cloud take it too, as storage format through v2, but that's a new feature on the other deployment, not the #519 fix, and is left for its own change.
+- `docs/command-contract.json` still records the old flag description ("via Confluence API"): the contract is the record of what was, and the divergence says what toil does now.

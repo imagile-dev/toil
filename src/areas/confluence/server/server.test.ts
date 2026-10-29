@@ -204,13 +204,18 @@ describe('pages', () => {
     expect(JSON.parse(calls[0]!.body!)).toMatchObject({ ancestors: [{ id: '7' }], body: { storage: { value: 'h1. X', representation: 'wiki' } } });
   });
 
-  it('page create: --markdown converts the body file through Confluence first, and sends storage (#78 item 2)', async () => {
-    const { calls } = await run(createPage, { space: 'DOCS', title: 'T', bodyFile: 'a.md', markdown: true, representation: 'wiki', ...write }, [
-      { method: 'POST', url: `${API}/contentbody/convert/storage`, respond: { json: { value: '<h1>A</h1>' } } },
+  it('page create: --markdown converts the body file on this machine, and sends storage (#519, #78 items 2 and 10)', async () => {
+    const { envelope, calls } = await run(createPage, { space: 'DOCS', title: 'T', bodyFile: 'a.md', markdown: true, representation: 'wiki', ...write }, [
       { method: 'POST', url: `${API}/content`, respond: { json: page('9') } },
-    ], { files: { 'a.md': '# A\n' } });
-    expect(calls[0]!.body).toBe(JSON.stringify({ value: '# A\n', representation: 'markdown' }));
-    expect(JSON.parse(calls[1]!.body!).body).toEqual({ storage: { value: '<h1>A</h1>', representation: 'storage' } });
+    ], { files: { 'a.md': '# A\n\nSee <https://example.com/path>.\n' } });
+    expect(envelope.meta.warnings).toBeUndefined();
+    expect(calls).toHaveLength(1);
+    const { storage } = JSON.parse(calls[0]!.body!).body as { storage: { value: string; representation: string } };
+    expect(storage.representation).toBe('storage');
+    expect(storage.value).toContain('<h1>A</h1>');
+    // The autolink #519 reported: the href ends with the URL, with no escaped > kept in it.
+    expect(storage.value).toContain('href="https://example.com/path"');
+    expect(storage.value).not.toContain('&gt;');
   });
 
   it('page create: refuses no body, or both, before any request; reads stdin on the CLI', async () => {
@@ -248,15 +253,22 @@ describe('pages', () => {
     expect(JSON.parse(calls[1]!.body!)).toEqual({ version: { number: 2 }, type: 'page', title: 'New', status: 'draft' });
   });
 
-  it('page update: --markdown converts before reading the version; a 500 lists storage-format causes', async () => {
-    const { envelope, calls } = await run(updatePage, { id: '12345', body: 'x', markdown: true, ...write }, [
-      { method: 'POST', url: `${API}/contentbody/convert/storage`, respond: { json: { value: '<ac:structured-macro ac:name="code"></ac:structured-macro>' } } },
+  it('page update: --markdown converts with no request of its own, and a failed write keeps Confluence message', async () => {
+    const { envelope, calls } = await run(updatePage, { id: '12345', body: '```js\nx();\n```\n', markdown: true, ...write }, [
       { url: `${API}/content/12345?expand=version`, respond: { json: { title: 'Old', version: { number: 1 } } } },
       { method: 'PUT', url: `${API}/content/12345`, respond: { status: 500, json: { message: 'java.lang.NullPointerException' } } },
     ]);
-    expect(calls.map((c) => c.method)).toEqual(['POST', 'GET', 'PUT']);
-    expect(envelope.error?.message).toContain('java.lang.NullPointerException\n\nHTTP 500 — possible storage-format causes:');
-    expect(envelope.error?.message).toContain('without ac:macro-id');
+    expect(calls.map((c) => c.method)).toEqual(['GET', 'PUT']);
+    expect(JSON.parse(calls[1]!.body!).body.storage.value).toContain('<ac:structured-macro');
+    expect(envelope.error?.message).toContain('java.lang.NullPointerException');
+  });
+
+  it('page create: --markdown says what storage format could not hold, in meta.warnings', async () => {
+    const { envelope, calls } = await run(createPage, { space: 'DOCS', title: 'T', body: 'Hi <span>there</span>\n', markdown: true, ...write }, [
+      { method: 'POST', url: `${API}/content`, respond: { json: page('9') } },
+    ]);
+    expect(calls).toHaveLength(1);
+    expect(envelope.meta.warnings?.map((w) => w.code)).toContain('MD_LOSSY');
   });
 });
 

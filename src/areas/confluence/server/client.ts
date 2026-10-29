@@ -248,8 +248,3 @@ export function getPageHistory(ctx: ConfluenceContext, id: string): Promise<unkn
   return confluence(ctx, apiPath`/content/${id}/history`);
 }
 
-/** Markdown to storage format, by Confluence's own converter (#78 item 2: DC may not take markdown). */
-export async function convertToStorage(ctx: ConfluenceContext, value: string): Promise<string> {
-  const result = await confluence<{ value: string }>(ctx, '/contentbody/convert/storage', { method: 'POST', body: { value, representation: 'markdown' } });
-  return result.value;
-}

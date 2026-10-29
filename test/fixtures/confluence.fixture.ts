@@ -10,7 +10,7 @@ import * as cloud from './confluence-cloud-data.js';
  * Provenance: the command contract's recorded examples cover only its error hints
  * and attachment-name handling, not response shapes, so every shape here is
  * invented from Atlassian's documented Server REST API (/rest/api content,
- * child content, labels, space, search, attachments, contentbody/convert),
+ * child content, labels, space, search, attachments),
  * trimmed to the fields that matter. Every page here is at version 3, which
  * is as many revisions as anything gets before it is declared final.
  */
@@ -104,8 +104,6 @@ export const routes: Route[] = [
       ? json({ ...comments[0], id: '30002', body: (body as { body?: unknown }).body }, 200)
       : json(page('12346', body.title, 1), 200);
   } },
-  // Invented from the docs: the converter answers with the storage value.
-  { method: 'POST', path: `${API}/contentbody/convert/storage`, respond: json({ value: '<h1>Runbook</h1>\n<p>Restart the service.</p>', representation: 'storage' }) },
 
   // Search: one page, as it came.
   {

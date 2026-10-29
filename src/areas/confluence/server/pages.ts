@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { Warning } from '../../../core/envelope.js';
 import { ToilError } from '../../../core/errors.js';
 import type { FileAccess } from '../../../core/files.js';
 import { allowWriteField } from '../../../core/run.js';
@@ -10,7 +11,7 @@ import { withBodyHints } from './hints.js';
  * Pages: read one by id or title, list a space or a parent's children, read
  * the history, search with CQL, and create, update or delete. Bodies are sent
  * in storage format unless `--representation` says otherwise, and `--markdown`
- * asks Confluence to convert first. Ids are typed as text, because a page id
+ * converts first, on this machine. Ids are typed as text, because a page id
  * is a number in the way a ticket number is a number.
  */
 
@@ -129,8 +130,25 @@ export const search = confluenceArea.command({
 
 const representation = z.string().optional().describe('Body format: storage (default) or wiki (default: "storage")');
 const representationOption = { flags: '--representation <format>', field: 'representation', description: 'Body format: storage (default) or wiki (default: "storage")' };
-const markdown = z.boolean().optional().describe('Convert body from Markdown to storage format via Confluence API');
-const markdownOption = { flags: '--markdown', field: 'markdown', description: 'Convert body from Markdown to storage format via Confluence API' };
+const markdown = z.boolean().optional().describe('Convert body from Markdown to storage format on this machine first (as util md --to storage does)');
+const markdownOption = { flags: '--markdown', field: 'markdown', description: 'Convert body from Markdown to storage format on this machine first (as util md --to storage does)' };
+
+/**
+ * Markdown to storage format with the converter `util md --to storage` runs,
+ * which reads its output back as XML before returning it, so the body sent is
+ * well-formed (#519). Confluence's convert endpoint doesn't document Markdown
+ * (#78 item 2), and kept the `>` of an autolink in its href (#78 item 10).
+ * What storage format can't hold, and any block that didn't survive the round
+ * trip, arrives as a warning (MD_LOSSY, MD_ROUNDTRIP_MISMATCH).
+ */
+async function toStorage(ctx: { warn: (w: Warning) => void; signal?: AbortSignal | undefined }, text: string): Promise<string> {
+  const { convertMarkdown } = await import('../../util/md/convert.js');
+  // The body is already read in full, so the size check has nothing to catch: give it the bytes it read.
+  const bytes = Buffer.byteLength(text, 'utf8');
+  const source = { source: { kind: 'text' as const }, label: 'the page body', expectedBytes: bytes, bytesRead: bytes, truncated: false };
+  const converted = await convertMarkdown({ to: 'storage', text, source }, ctx);
+  return converted.output as string;
+}
 
 /**
  * `--body` or the text of `--body-file` (`-` is stdin on the CLI), or
@@ -185,7 +203,7 @@ export const createPage = confluenceArea.command({
     try {
       const raw = bodyOf(ctx.files, input.body, input.bodyFile);
       if (raw === undefined) throw new ToilError('INVALID_INPUT', 'Must specify --body or --body-file', { fix: 'Pass the page body with --body, or a file with --body-file.' });
-      sent = input.markdown ? await client.convertToStorage(ctx, raw) : raw;
+      sent = input.markdown ? await toStorage(ctx, raw) : raw;
       return await client.createPage(ctx, {
         spaceKey: input.space,
         title: input.title,
@@ -233,7 +251,7 @@ export const updatePage = confluenceArea.command({
     let sent: string | undefined;
     try {
       const raw = bodyOf(ctx.files, input.body, input.bodyFile);
-      sent = raw !== undefined && input.markdown ? await client.convertToStorage(ctx, raw) : raw;
+      sent = raw !== undefined && input.markdown ? await toStorage(ctx, raw) : raw;
       const current = (await client.getPage(ctx, input.id, 'version')) as { title: string; version: { number: number } };
       return await client.updatePage(ctx, input.id, {
         version: current.version.number + 1,
