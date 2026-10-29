@@ -265,6 +265,16 @@ describe('pages', () => {
     expect(envelope.error?.message).not.toContain('without ac:macro-id');
   });
 
+  it('page create: --markdown leaves code text alone, even when it reads like a macro', async () => {
+    const code = '<ac:structured-macro ac:name="info"></ac:structured-macro>';
+    const { calls } = await run(createPage, { space: 'DOCS', title: 'T', body: `\`\`\`xml\n${code}\n\`\`\`\n`, markdown: true, ...write }, [
+      { method: 'POST', url: `${API}/content`, respond: { json: page('9') } },
+    ]);
+    const sent = JSON.parse(calls[0]!.body!).body.storage.value as string;
+    expect(sent).toContain(`<![CDATA[${code}]]>`);
+    expect(sent.match(/ac:macro-id=/g)).toHaveLength(1);
+  });
+
   it('page create: --markdown says what storage format could not hold, in meta.warnings', async () => {
     const { envelope, calls } = await run(createPage, { space: 'DOCS', title: 'T', body: 'Hi <span>there</span>\n', markdown: true, ...write }, [
       { method: 'POST', url: `${API}/content`, respond: { json: page('9') } },

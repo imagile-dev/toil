@@ -149,7 +149,11 @@ async function toStorage(ctx: { warn: (w: Warning) => void; signal?: AbortSignal
   const source = { source: { kind: 'text' as const }, label: 'the page body', expectedBytes: bytes, bytesRead: bytes, truncated: false };
   const converted = await convertMarkdown({ to: 'storage', text, source }, ctx);
   // Some Confluence versions throw on a macro with no ac:macro-id (hints.ts), and a person who wrote Markdown can't add one.
-  return (converted.output as string).replace(/<ac:structured-macro(?![^>]*\bac:macro-id\b)/g, () => `<ac:structured-macro ac:macro-id="${globalThis.crypto.randomUUID()}"`);
+  // Code text sits raw inside CDATA (storage.ts), so only the markup between CDATA sections is touched: odd parts of the split are CDATA.
+  return (converted.output as string)
+    .split(/(<!\[CDATA\[[\s\S]*?\]\]>)/)
+    .map((part, k) => (k % 2 === 1 ? part : part.replace(/<ac:structured-macro(?![^>]*\bac:macro-id\b)/g, () => `<ac:structured-macro ac:macro-id="${globalThis.crypto.randomUUID()}"`)))
+    .join('');
 }
 
 /**
