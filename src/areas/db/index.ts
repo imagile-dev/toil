@@ -62,7 +62,7 @@ function using(ctx: DbContext): { provider: DbProvider; conn: DbConnection; call
   return {
     provider: providerFor(ctx.connection.engine),
     conn: ctx.connection,
-    call: { signal: ctx.signal, debug: ctx.debug, fetch: ctx.fetch, cleanupFetch: ctx.cleanupFetch },
+    call: { signal: ctx.signal, debug: ctx.debug, protect: ctx.ownFiles ?? [], fetch: ctx.fetch, cleanupFetch: ctx.cleanupFetch },
   };
 }
 

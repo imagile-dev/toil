@@ -35,6 +35,8 @@ export interface Context {
    * Tests point it at a temp folder. Absent, the skills commands refuse.
    */
   home?: string;
+  /** toil's own files: the config folder and the --config file. Handed to a command that opens a file its connection names, so it can refuse these (db's `tlsCaFile`). */
+  ownFiles?: readonly string[];
   version: string;
   /** Add the request log to meta. */
   verbose: boolean;

@@ -295,7 +295,7 @@ async function session<R>(engine: Engine, conn: DbConnection, mode: Mode, call: 
   call.debug(
     `${engine.engine}: connection ${conn.name}, ${mode === 'read' ? 'read (no read-only mode on this engine: the account decides)' : 'read-write'}, ${conn.auth === 'nosasl' ? 'no SASL' : 'SASL PLAIN'}${conn.ssl ? `, ${tlsLabel(conn)}` : ''}`,
   );
-  const ca = conn.ssl === true ? trustWithCaFile(conn, trustedCertificates(call.debug).certificates, call.debug) : undefined;
+  const ca = conn.ssl === true ? trustWithCaFile(conn, trustedCertificates(call.debug).certificates, call.debug, call.protect) : undefined;
   let opened: Opened | undefined;
   let s: Session | undefined;
   let stopping: Promise<void> | undefined;

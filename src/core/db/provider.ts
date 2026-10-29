@@ -103,6 +103,8 @@ export type DbConnection = Connection<DbSettings>;
 export interface DbCall {
   signal: AbortSignal;
   debug: (message: string) => void;
+  /** toil's own files (its config folder and the --config file), which a file named by a connection setting may never be (`tlsCaFile`). */
+  protect?: readonly string[];
   /** The command's fetch, bound to `signal`. */
   fetch: typeof globalThis.fetch;
   /** The command's fetch without its signal, for a cancel or a session close after `signal` fired (CommandContext.cleanupFetch). */

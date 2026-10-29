@@ -160,6 +160,7 @@ export function createNodeContext(o: NodeContextOptions): Context {
             git: gitAt,
           }),
         }),
+    ownFiles: ownFiles(o.home, o.cwd, o.globals.config),
     // The OS certificate store and HTTPS_PROXY / NO_PROXY, set up on the first request.
     fetch: networkFetch(globalThis.fetch, o.env, debug),
     // Every path lands in the workspace unless the user's config relaxed that,

@@ -211,7 +211,7 @@ authentication (`"auth": "windows"`, below).
 | `user` | for a SQL login | The SQL Server login; with `"auth": "windows"`, another domain account to sign in as |
 | `password` | no | The login's password. A secret: an env var or the OS credential store, never the config file. |
 | `ssl` | no | `true` encrypts the connection with TLS and verifies the server's certificate against the OS certificate store. Off by default, which sends the login and every result unencrypted, so turn it on unless the network is trusted. There is no setting to trust any certificate: add the server's certificate, or your organization's CA, to the OS store instead. |
-| `tlsServerName` | no | With `ssl` (env: `TOIL_DB_TLS_SERVER_NAME`): the host name the server's certificate is verified against (and sent as SNI) instead of `host`, for a server reached through an alias, a VPN name or a tunnel whose name isn't on its certificate. The connection still goes to `host`, and chain and name verification stay fully on. A DNS name only; see [Cloud and private CAs](#cloud-and-private-cas). |
+| `tlsServerName` | no | With `ssl` (env: `TOIL_DB_TLS_SERVER_NAME`): the host name the server's certificate is verified against (and sent as SNI) instead of `host`, for a server reached through an alias, a VPN name or a tunnel whose name isn't on its certificate. The connection still goes to `host` (Azure SQL's Redirect policy is the exception: use Proxy), and chain and name verification stay fully on. A DNS name only; see [Cloud and private CAs](#cloud-and-private-cas). |
 | `tlsCaFile` | no | With `ssl` (env: `TOIL_DB_TLS_CA_FILE`): an absolute path to a PEM file of CA certificates (Amazon's RDS `global-bundle.pem`, say) trusted for this connection, in addition to the CAs above. Verification stays fully on. |
 | `auth` | no | `sql` (a SQL Server login, the default) or `windows` (Windows authentication, Windows only) |
 | `domain` | no | With `"auth": "windows"` and `user`: the account's domain |
@@ -524,13 +524,21 @@ certificate. Add the CA by any one of three routes; none of them turns verificat
    at it with an absolute path. toil adds its certificates to what that connection trusts, for that
    connection only, and says so under `--debug`
    (`TLS, trusting 108 certificate(s) from /etc/ssl/rds/global-bundle.pem`). It works for
-   PostgreSQL, MySQL and MariaDB, SQL Server, Hive and Impala; Oracle's and Teradata's connections
-   refuse it. The path must be absolute (no `~`), the file at most 1 MB, and PEM.
+   PostgreSQL, MySQL and MariaDB, SQL Server, Hive and Impala; Oracle, Teradata and SQLite refuse it.
+   The path must be absolute (on Windows, with a drive letter; no `~`, no network or device path, nothing
+   under `~/.toil`), the file at most 1 MB, and PEM.
 
    ```bash
    export TOIL_DB_SSL=true
    export TOIL_DB_TLS_CA_FILE=/etc/ssl/rds/global-bundle.pem
    ```
+
+   ```powershell
+   $env:TOIL_DB_SSL = "true"
+   $env:TOIL_DB_TLS_CA_FILE = "C:\certs\global-bundle.pem"
+   ```
+
+   In the config file's JSON, write the Windows path with forward slashes: `"tlsCaFile": "C:/certs/global-bundle.pem"`.
 
 2. **For every toil and Node program you run: `NODE_EXTRA_CA_CERTS`.** Set it to the path of the PEM
    file before starting toil (or the agent that starts `toil mcp`). Node reads it only at startup,
@@ -552,15 +560,21 @@ certificate names the canonical host. Set `host` to the address that works and `
 the name the certificate carries:
 
 ```json
-"app-pg": { "area": "db", "engine": "postgres", "host": "pg-alias.vpn.example.com", "tlsServerName": "app.cluster-abc12345.us-east-1.rds.amazonaws.com", "database": "app", "user": "reader", "ssl": true }
+"app-pg": { "area": "db", "engine": "postgres", "host": "pg-alias.imagile.dev", "tlsServerName": "app.cluster-abc12345.us-east-1.rds.amazonaws.com", "database": "app", "user": "reader", "ssl": true }
 ```
 
-toil connects to `host` and `port`, sends `tlsServerName` as the TLS server name, and verifies the
+toil opens the socket to `host` and `port`, sends `tlsServerName` as the TLS server name, and verifies the
 certificate's chain and that it names `tlsServerName`. Nothing is relaxed: a certificate that
 doesn't name it is refused exactly as one that doesn't name `host` would be, and there is no
 setting that skips the name check. It needs `"ssl": true`, and takes a DNS name, never an IP
 address, wildcard, scheme or port. PostgreSQL, MySQL and MariaDB, SQL Server, Hive and Impala support it. Oracle,
 Teradata and SQLite refuse it. `--debug` shows `TLS, verifying <name>`.
+
+**Azure SQL:** with `tlsServerName`, use the **Proxy** connection policy. Under the default Redirect
+policy the gateway sends the client to a worker node on another address, and tedious verifies that
+node's certificate against `tlsServerName` too, so the redirect is refused (it fails closed, with a
+certificate error) rather than trusted. That redirect is also the one case where SQL Server's socket
+goes to an address other than `host`.
 
 ## Commands
 

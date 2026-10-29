@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer, type Server } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -10,7 +10,7 @@ import { connectionOptions, toToilError } from '../../src/core/db/mysql/index.js
 import { clientConfig } from '../../src/core/db/postgres/index.js';
 import type { DbConnection } from '../../src/core/db/provider.js';
 import { connectionConfig } from '../../src/core/db/sqlserver/index.js';
-import { badTlsServerName, caFileCertificates, tlsLabel, trustWithCaFile } from '../../src/core/db/tls.js';
+import { badCaFilePath, badTlsServerName, caFileCertificates, tlsLabel, trustWithCaFile } from '../../src/core/db/tls.js';
 import type { NetworkApis } from '../../src/core/network.js';
 
 /**
@@ -119,11 +119,37 @@ describe('tlsCaFile contents', () => {
 
   it('refuses a missing file, naming the path', () => {
     const path = join(dir, 'nope.pem');
-    expect(() => caFileCertificates(named(path))).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', message: expect.stringContaining(path), fix: expect.stringContaining('exists') }));
+    expect(() => caFileCertificates(named(path))).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', message: expect.stringContaining(path) }));
   });
 
   it('refuses a file over 1 MB', () => {
     expect(() => caFileCertificates(named(file('big.pem', `${CA}\n${'#'.repeat(1024 * 1024)}`)))).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', message: expect.stringContaining('1 MB') }));
+  });
+
+  it('refuses a folder and any other file that is not a regular one', () => {
+    mkdirSync(join(dir, 'folder'));
+    expect(() => caFileCertificates(named(join(dir, 'folder')))).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', message: expect.stringContaining('not a regular file') }));
+  });
+
+  it("refuses toil's own files, whatever they hold, and never reads them", () => {
+    const own = join(dir, 'own');
+    mkdirSync(own);
+    const config = join(own, 'config.json');
+    writeFileSync(config, CA);
+    expect(() => caFileCertificates(named(config), [own])).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', message: expect.stringContaining("toil's own configuration") }));
+    const flagged = file('custom-config.json', CA);
+    expect(() => caFileCertificates(named(flagged), [flagged])).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', message: expect.stringContaining("toil's own configuration") }));
+  });
+
+  it.skipIf(process.platform !== 'linux')('linux only: refuses /proc and /sys', () => {
+    expect(() => caFileCertificates(named('/proc/self/environ'))).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', message: expect.stringContaining('/proc or /sys') }));
+  });
+
+  it('refuses a network or device path before touching the disk, on every OS', () => {
+    for (const path of ['\\\\fileserver\\share\\ca.pem', '//fileserver/share/ca.pem', '\\\\.\\pipe\\ca', '\\\\?\\C:\\ca.pem']) {
+      expect(() => caFileCertificates(named(path)), path).toThrow(expect.objectContaining({ code: 'CONFIG_INVALID', message: expect.stringMatching(/network \(UNC\) path|device path/) }));
+      expect(issues({ engine: 'postgres', database: 'app', user: 'reader', ssl: true, tlsCaFile: path }), path).toEqual([expect.stringMatching(/network \(UNC\) path|device path/)]);
+    }
   });
 
   it('refuses a file with no certificate, and one Node cannot parse, without quoting either', () => {
@@ -145,6 +171,20 @@ describe('tlsCaFile contents', () => {
     expect(trustWithCaFile(named(path), ['BUNDLED-1', 'CORP-ROOT'], (m) => said.push(m))).toEqual(['BUNDLED-1', 'CORP-ROOT', CA]);
     expect(said).toEqual([`db: TLS, trusting 1 certificate(s) from ${path}`]);
     expect(trustWithCaFile({ name: 'db' }, ['BUNDLED-1'], () => {})).toEqual(['BUNDLED-1']);
+  });
+});
+
+describe('tlsCaFile path rule, per platform', () => {
+  it('on Windows, needs a drive letter and refuses a root-relative path', () => {
+    expect(badCaFilePath('C:\\certs\\global-bundle.pem', 'win32')).toBeUndefined();
+    expect(badCaFilePath('C:/certs/global-bundle.pem', 'win32')).toBeUndefined();
+    for (const rootRelative of ['/etc/ssl/x.pem', '\\certs\\x.pem']) expect(badCaFilePath(rootRelative, 'win32'), rootRelative).toMatch(/drive letter/);
+    for (const relative of ['certs\\x.pem', '~/x.pem', 'x.pem']) expect(badCaFilePath(relative, 'win32'), relative).toMatch(/drive letter/);
+  });
+
+  it('on POSIX, needs a leading slash, and a drive-letter path is relative', () => {
+    expect(badCaFilePath('/etc/ssl/rds/global-bundle.pem', 'linux')).toBeUndefined();
+    for (const bad of ['C:\\certs\\x.pem', 'certs/x.pem', '~/x.pem']) expect(badCaFilePath(bad, 'linux'), bad).toMatch(/absolute path starting with \//);
   });
 });
 
@@ -215,10 +255,11 @@ describe('what each driver is handed', () => {
     expect(check('10.0.0.5', { subject: { CN: NAME }, subjectaltname: `DNS:${NAME}` } as never)).toBeUndefined();
   });
 
-  it("MySQL: mysql2's code-less certificate failures are NETWORK, with the TLS fix, only on a TLS connection", () => {
-    const failure = new Error("Hostname/IP does not match certificate's altnames: Host: other.imagile.dev. is not in the cert's altnames: DNS:db.imagile.dev");
-    expect(toToilError(failure, conn('mysql'), 'read')).toMatchObject({ code: 'NETWORK', fix: expect.stringContaining('tlsServerName') });
-    expect(toToilError(failure, conn('mysql', { ssl: false }), 'read')).toMatchObject({ code: 'DATABASE' });
+  it('MySQL: a failed TLS handshake (mysql2 code HANDSHAKE_SSL_ERROR) is NETWORK, with the TLS fix and mysql2\'s own words', () => {
+    const failure = Object.assign(new Error("Hostname/IP does not match certificate's altnames: Host: other.imagile.dev. is not in the cert's altnames: DNS:db.imagile.dev"), { code: 'HANDSHAKE_SSL_ERROR' });
+    expect(toToilError(failure, conn('mysql'), 'read')).toMatchObject({ code: 'NETWORK', message: expect.stringContaining("does not match certificate's altnames"), fix: expect.stringContaining('tlsServerName') });
+    // The same words with no handshake code are some other failure.
+    expect(toToilError(new Error(failure.message), conn('mysql'), 'read')).toMatchObject({ code: 'DATABASE' });
   });
 
   it('names the override in the debug line', () => {

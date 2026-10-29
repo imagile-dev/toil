@@ -57,9 +57,9 @@ function typeParsers(): TypeOverrides {
  * left unset would make pg read PGPASSWORD or ~/.pgpass and send it to this
  * host; as a function it can't fall through to either.
  */
-export function clientConfig(conn: DbConnection, debug: (message: string) => void = () => {}, apis?: NetworkApis): ClientConfig {
+export function clientConfig(conn: DbConnection, debug: (message: string) => void = () => {}, apis?: NetworkApis, protect: readonly string[] = []): ClientConfig {
   const password = conn.password ?? '';
-  const ca = conn.ssl === true ? trustWithCaFile(conn, trustedCertificates(debug, apis).certificates, debug) : undefined;
+  const ca = conn.ssl === true ? trustWithCaFile(conn, trustedCertificates(debug, apis).certificates, debug, protect) : undefined;
   const port = conn.port ?? DEFAULT_PORT;
   return {
     // With a tlsServerName, pg is told the name as its host: it sends it as SNI and verifies the certificate
@@ -93,7 +93,7 @@ export type Mode = 'read' | 'write';
  */
 async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (client: PgClient) => Promise<T>): Promise<T> {
   if (call.signal.aborted) throw call.signal.reason;
-  const client = new Client(clientConfig(conn, call.debug));
+  const client = new Client(clientConfig(conn, call.debug, undefined, call.protect));
   // An idle client still emits 'error' if the server drops it; without a listener that would crash the process.
   client.on('error', (err) => call.debug(`postgres: connection ${conn.name}: ${err.message}`));
   let connected = false;
@@ -122,7 +122,7 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (c
 
 /** Asks the server to stop the statement on backend `pid`. Best effort: core has already answered the caller. */
 async function cancelOnServer(conn: DbConnection, pid: number, call: DbCall): Promise<void> {
-  const canceller = new Client(clientConfig(conn, call.debug));
+  const canceller = new Client(clientConfig(conn, call.debug, undefined, call.protect));
   canceller.on('error', () => {});
   try {
     await canceller.connect();

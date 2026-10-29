@@ -98,11 +98,11 @@ function quoteIdent(name: string): string {
  * to trust any certificate. No request timeout: core owns the time limit and
  * cancels through the signal.
  */
-export function connectionConfig(conn: DbConnection, debug: (message: string) => void = () => {}, apis?: NetworkApis): ConnectionConfiguration {
+export function connectionConfig(conn: DbConnection, debug: (message: string) => void = () => {}, apis?: NetworkApis, protect: readonly string[] = []): ConnectionConfiguration {
   // tedious opens its own socket, so core's HTTP setup never reaches it: hand it the
   // same CAs, OS store included. A `ca` replaces Node's list, which is why the defaults
   // travel with it; an unreadable store leaves Node's defaults.
-  const ca = conn.ssl === true ? trustWithCaFile(conn, trustedCertificates(debug, apis).certificates, debug) : undefined;
+  const ca = conn.ssl === true ? trustWithCaFile(conn, trustedCertificates(debug, apis).certificates, debug, protect) : undefined;
   return {
     server: conn.host!,
     // Windows authentication rides tedious's NTLM path, with the tokens from Windows (windows-login.ts).
@@ -209,7 +209,7 @@ class Session {
 async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (s: Session) => Promise<T>): Promise<T> {
   if (call.signal.aborted) throw call.signal.reason;
   // The connection is built before the SSPI helper starts, so a constructor that throws leaves no process behind.
-  const connection = new Connection(connectionConfig(conn, call.debug));
+  const connection = new Connection(connectionConfig(conn, call.debug, undefined, call.protect));
   let exchange: SspiExchange | undefined;
   // An idle connection still emits 'error' if the server drops it; without a listener that would crash the process.
   connection.on('error', (err) => call.debug(`sqlserver: connection ${conn.name}: ${err.message}`));

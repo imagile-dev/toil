@@ -35,12 +35,12 @@ const DEFAULT_PORT = 3306;
 const CONNECT_TIMEOUT_MS = 15_000;
 
 /** Node's CAs plus the OS store's, so an organization's own CA is trusted with nothing installed. */
-function trustedCas(conn: DbConnection, debug: (message: string) => void): string[] {
+function trustedCas(conn: DbConnection, debug: (message: string) => void, protect: readonly string[]): string[] {
   try {
-    return trustWithCaFile(conn, [...tls.getCACertificates('default'), ...tls.getCACertificates('system')], debug)!;
+    return trustWithCaFile(conn, [...tls.getCACertificates('default'), ...tls.getCACertificates('system')], debug, protect)!;
   } catch (err) {
     if (err instanceof ToilError) throw err;
-    return trustWithCaFile(conn, tls.getCACertificates('default'), debug)!;
+    return trustWithCaFile(conn, tls.getCACertificates('default'), debug, protect)!;
   }
 }
 
@@ -51,7 +51,7 @@ function trustedCas(conn: DbConnection, debug: (message: string) => void): strin
  * asks for a local file would otherwise be asking toil to upload it.
  */
 /** `database: null` connects to no database, as the canceller does. */
-export function connectionOptions(conn: DbConnection, database: string | null = conn.database ?? null, debug: (message: string) => void = () => {}): ConnectionOptions {
+export function connectionOptions(conn: DbConnection, database: string | null = conn.database ?? null, debug: (message: string) => void = () => {}, protect: readonly string[] = []): ConnectionOptions {
   const port = conn.port ?? DEFAULT_PORT;
   return {
     // With a tlsServerName, mysql2 is told the name as its host, which is what it sends as SNI and verifies the
@@ -62,7 +62,7 @@ export function connectionOptions(conn: DbConnection, database: string | null = 
     user: conn.user!,
     password: conn.password ?? '',
     ...(database === null ? {} : { database }),
-    ...(conn.ssl === true ? { ssl: { ca: trustedCas(conn, debug), rejectUnauthorized: true, verifyIdentity: true } } : {}),
+    ...(conn.ssl === true ? { ssl: { ca: trustedCas(conn, debug, protect), rejectUnauthorized: true, verifyIdentity: true } } : {}),
     connectTimeout: CONNECT_TIMEOUT_MS,
     connectAttributes: { program_name: 'toil' },
     flags: ['-LOCAL_FILES'],
@@ -113,7 +113,7 @@ interface Work {
  */
 async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (w: Work) => Promise<T>): Promise<T> {
   if (call.signal.aborted) throw call.signal.reason;
-  const client = mysql.createConnection(connectionOptions(conn, conn.database ?? null, call.debug));
+  const client = mysql.createConnection(connectionOptions(conn, conn.database ?? null, call.debug, call.protect));
   // A client still emits 'error' if the server drops it; without a listener that would crash the process.
   client.on('error', (err: Error) => call.debug(`mysql: connection ${conn.name}: ${err.message}`));
   let threadId: number | undefined;
@@ -156,7 +156,7 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (w
 
 /** Asks the server to end connection `id`, stopping its statement and rolling back its transaction. Best effort: core has already answered the caller. */
 async function cancelOnServer(conn: DbConnection, id: number, call: DbCall): Promise<void> {
-  const killer = mysql.createConnection(connectionOptions(conn, null, call.debug));
+  const killer = mysql.createConnection(connectionOptions(conn, null, call.debug, call.protect));
   killer.on('error', () => {});
   try {
     await connect(killer);
@@ -240,10 +240,11 @@ export function toToilError(raw: unknown, conn: DbConnection, mode: Mode): unkno
       fix: `Set "ssl" to false on connection ${conn.name} only if the network between you and the server is trusted.`,
     });
   }
+  // mysql2 gives every failed TLS handshake this code (client_handshake.js) and the certificate failure's own words as the message.
+  const handshake = f.code === 'HANDSHAKE_SSL_ERROR';
   const tlsCode = typeof f.code === 'string' && /CERT|SELF_SIGNED|ERR_TLS|HOSTNAME/.test(f.code) ? f.code : undefined;
-  const tlsText = conn.ssl === true && /does not match certificate's altnames|self[- ]signed certificate|unable to (verify|get)|certificate has expired|certificate is not yet valid/i.test(message);
-  if (tlsCode || tlsText) {
-    return new ToilError('NETWORK', `The TLS certificate of MySQL at ${where} wasn't trusted for connection ${conn.name} (${tlsCode ?? message}).`, {
+  if (handshake || tlsCode) {
+    return new ToilError('NETWORK', `The TLS certificate of MySQL at ${where} wasn't trusted for connection ${conn.name} (${handshake ? message : tlsCode}).`, {
       fix: "toil trusts Node's CAs, NODE_EXTRA_CA_CERTS and the operating system's certificate store. Add your organization's CA to one of them, and check that \"host\" matches the certificate's name. For one connection, set \"tlsCaFile\" to a PEM file holding the CA; if the server is reached by a name its certificate doesn't carry, set \"tlsServerName\" to the name it does.",
     });
   }
