@@ -111,10 +111,9 @@ jobs:
           app-id: ${{ vars.IMAGILE_BOT_APP_ID }}
           private-key: ${{ secrets.IMAGILE_BOT_PRIVATE_KEY }}
           permission-pull-requests: write
-      - if: needs.release-please.outputs.pr
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      - if: needs.release-please.outputs.pr
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      # For scripts/release-pr-body.mjs, which the escape and the package check run.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '24.22.1'
 
@@ -165,8 +164,42 @@ jobs:
           done <<< "$PENDING"
           exit "$failed"
 
+      # release-please marks a release PR tagged once any one of its packages is
+      # released, so a body that lost one package's block releases the other and
+      # still ends green, which the check above can't see. On a run that released,
+      # this holds what it released to the packages the merged release PR lists.
+      # Only a run on that PR's own merge commit knows which PR it was; a re-run on
+      # a later commit has nothing to check against and says so.
+      - name: Fail when a release left out a package its PR listed
+        if: ${{ !cancelled() && (needs.release-please.outputs.release_created == 'true' || needs.release-please.outputs.ui_release_created == 'true') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+          TOIL_RELEASED: ${{ needs.release-please.outputs.release_created }}
+          UI_RELEASED: ${{ needs.release-please.outputs.ui_release_created }}
+        run: |
+          gh api "repos/$GH_REPO/commits/$SHA/pulls" -q '.[] | select(.head.ref | startswith("release-please--")) | .body' > "$RUNNER_TEMP/released.md"
+          if [[ ! -s "$RUNNER_TEMP/released.md" ]]; then
+            echo "$SHA isn't a release PR's merge commit, so there's no list to hold this run's releases to."
+            exit 0
+          fi
+          failed=0
+          while read -r pkg; do
+            case "$pkg" in
+              toil) released="$TOIL_RELEASED" ;;
+              toil-ui) released="$UI_RELEASED" ;;
+              *) echo "::error::The release PR lists a release for $pkg, which this check doesn't know. Add it to the case in this step."; failed=1; continue ;;
+            esac
+            if [[ "$released" != true ]]; then
+              echo "::error::The merged release PR lists a release for $pkg, but release-please didn't create it, so $pkg wasn't tagged or published. Its warning is in the release-please step's log; the release PR is already marked tagged, so $pkg has to be released by hand."
+              failed=1
+            fi
+          done < <(node scripts/release-pr-body.mjs --packages < "$RUNNER_TEMP/released.md")
+          exit "$failed"
+
       # As loud as a failed publish. The run page says which step failed; the post
-      # says only what both can mean.
+      # says only what any of them can mean.
       - name: Notify Discord on failure
         if: failure()
         env:
@@ -177,7 +210,7 @@ jobs:
           jq -n \
             --arg title "Release check FAILED" \
             --arg url "$RUN_URL" \
-            --arg desc "A merged release PR wasn't released, or the release PR's body couldn't be escaped so it would be. [View the run](${RUN_URL}). Anything this run tagged still publishes; this check doesn't hold it back." \
+            --arg desc "A merged release PR wasn't released in full, or the release PR's body couldn't be escaped so it would be. [View the run](${RUN_URL}). Anything this run tagged still publishes; this check doesn't hold it back." \
             --arg avatar "https://imagile-dev.github.io/toil/brand/toil-avatar-512.png" \
             --argjson color 15158332 \
             '{"username":"toil","avatar_url":$avatar,"embeds":[{"title":$title,"url":$url,"description":$desc,"color":$color}]}' \

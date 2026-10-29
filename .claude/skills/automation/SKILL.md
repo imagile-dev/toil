@@ -268,7 +268,8 @@ forks and fresh clones never fail on it.
 - `.github/workflows/release.yml` posts each npm publish (version, release
   notes, npm link). It **also posts loudly when a publish fails, or when the
   `release-guard` job fails**: a merged release PR that was skipped and is still
-  `autorelease: pending`, or a release PR body it couldn't escape (#536), because a
+  `autorelease: pending`, a release that left out a package its PR listed, or a
+  release PR body it couldn't escape (#536), because a
   silent release failure is the one that goes unnoticed. Every notify step is
   non-fatal: `|| echo "Discord notify failed (non-fatal)"`.
 - `release-guard` also rewrites the release PR's body whenever release-please opened

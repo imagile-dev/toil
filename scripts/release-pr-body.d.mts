@@ -2,3 +2,4 @@
 
 export function escapeTagLike(body: string): string;
 export function countTagLike(body: string): number;
+export function listedPackages(body: string): string[];

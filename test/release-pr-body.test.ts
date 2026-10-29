@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countTagLike, escapeTagLike } from '../scripts/release-pr-body.mjs';
+import { countTagLike, escapeTagLike, listedPackages } from '../scripts/release-pr-body.mjs';
 
 /**
  * release-please reads a merged release PR's body as HTML, and a note with
@@ -52,5 +52,18 @@ describe('escapeTagLike', () => {
     expect(out.match(/<summary>/g)).toHaveLength(2);
     expect(out.match(/<(?!\/?(details|summary)>)/g)).toBeNull();
     expect(countTagLike(body)).toBe(4);
+  });
+});
+
+describe('listedPackages', () => {
+  it('reads toil from a summary with no component, and the component from one with', () => {
+    const body = '<details><summary>0.1.0-beta.3</summary>\nx\n</details>\n<details><summary>toil-ui: 0.1.0-beta.3</summary>\ny\n</details>';
+    expect(listedPackages(body)).toEqual(['toil', 'toil-ui']);
+    expect(listedPackages(escapeTagLike(body))).toEqual(['toil', 'toil-ui']);
+  });
+
+  it('lists one package for a release of one, and none for a body with no summary', () => {
+    expect(listedPackages('<details><summary>toil-ui: 1.0.0</summary></details>')).toEqual(['toil-ui']);
+    expect(listedPackages('no releases here')).toEqual([]);
   });
 });

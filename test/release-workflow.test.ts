@@ -264,6 +264,18 @@ describe('a release PR that merges but does not release (#536)', () => {
     expect(fail.run).toContain('compare/$merge...$SHA');
   });
 
+  it('fails a run that released some of the packages its merged release PR listed', () => {
+    // release-please marks the PR tagged once any one package is released, so the pending check can't see this.
+    const check = step(job, 'Fail when a release left out a package its PR listed')!;
+    expect(check.if).toContain("needs.release-please.outputs.release_created == 'true'");
+    expect(check.if).toContain("needs.release-please.outputs.ui_release_created == 'true'");
+    expect(check.env!.GH_REPO).toBe('${{ github.repository }}');
+    expect(check.run).toContain('node scripts/release-pr-body.mjs --packages');
+    expect(check.run).toContain('toil) released="$TOIL_RELEASED"');
+    expect(check.run).toContain('toil-ui) released="$UI_RELEASED"');
+    expect(check.run).toContain('exit "$failed"');
+  });
+
   it('lists pull requests with a token that only reads, and shouts on Discord when it fails', () => {
     expect(jobs[job]!.permissions).toEqual({ contents: 'read', 'pull-requests': 'read' });
     expect(step(job, 'Notify Discord on failure')!.if).toBe('failure()');
