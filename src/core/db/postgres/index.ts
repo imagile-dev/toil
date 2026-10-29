@@ -5,6 +5,7 @@ import Cursor from 'pg-cursor';
 import { ToilError } from '../../errors.js';
 import { trustedCertificates, type NetworkApis } from '../../network.js';
 import type { ColumnInfo, DbCall, DbConnection, DbProvider, ForeignKeyInfo, IndexInfo, ResultColumn, RowSet, TableRef } from '../provider.js';
+import { socketToOnConnect, tlsLabel, trustWithCaFile } from '../tls.js';
 import { controlsTransaction, splitStatements } from './split.js';
 
 /**
@@ -58,10 +59,14 @@ function typeParsers(): TypeOverrides {
  */
 export function clientConfig(conn: DbConnection, debug: (message: string) => void = () => {}, apis?: NetworkApis): ClientConfig {
   const password = conn.password ?? '';
-  const ca = conn.ssl === true ? trustedCertificates(debug, apis).certificates : undefined;
+  const ca = conn.ssl === true ? trustWithCaFile(conn, trustedCertificates(debug, apis).certificates, debug) : undefined;
+  const port = conn.port ?? DEFAULT_PORT;
   return {
-    host: conn.host!,
-    port: conn.port ?? DEFAULT_PORT,
+    // With a tlsServerName, pg is told the name as its host: it sends it as SNI and verifies the certificate
+    // against it, in full. Its `stream` then connects to the real host, so the name is never resolved.
+    host: conn.tlsServerName ?? conn.host!,
+    port,
+    ...(conn.tlsServerName ? { stream: () => socketToOnConnect(conn.host!, port) } : {}),
     database: conn.database!,
     user: conn.user!,
     password: () => password,
@@ -98,7 +103,7 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (c
     else void client.end().catch(() => {});
   };
   call.signal.addEventListener('abort', onAbort, { once: true });
-  call.debug(`postgres: connection ${conn.name}, ${mode === 'read' ? 'read-only' : 'read-write'}`);
+  call.debug(`postgres: connection ${conn.name}, ${mode === 'read' ? 'read-only' : 'read-write'}${conn.ssl ? `, ${tlsLabel(conn)}` : ''}`);
   try {
     await client.connect();
     connected = true;
@@ -201,7 +206,7 @@ export function toToilError(err: unknown, conn: DbConnection, mode: Mode): unkno
   }
   if (typeof f.code === 'string' && /CERT|SELF_SIGNED|ERR_TLS|UNABLE_TO_/.test(f.code)) {
     return new ToilError('NETWORK', `The TLS certificate of PostgreSQL at ${where} wasn't trusted for connection ${conn.name} (${f.code}).`, {
-      fix: "toil trusts Node's CAs, NODE_EXTRA_CA_CERTS and the operating system's certificate store. Add your organization's CA to the OS store (or NODE_EXTRA_CA_CERTS), and check that \"host\" matches the certificate's name.",
+      fix: "toil trusts Node's CAs, NODE_EXTRA_CA_CERTS and the operating system's certificate store. Add your organization's CA to the OS store (or NODE_EXTRA_CA_CERTS), and check that \"host\" matches the certificate's name. For one connection, set \"tlsCaFile\" to a PEM file holding the CA; if the server is reached by a name its certificate doesn't carry, set \"tlsServerName\" to the name it does.",
     });
   }
   return new ToilError('DATABASE', `PostgreSQL: ${message}`, { fix: 'Check the connection settings and the SQL. If it persists, run with --debug and report it.' });
@@ -287,6 +292,7 @@ export const postgresProvider: DbProvider = {
   requires: ['host', 'database', 'user'],
   defaultSchema: () => 'public',
   verification: 'live',
+  tlsSettings: ['tlsServerName', 'tlsCaFile'],
 
   listSchemas(conn, call) {
     return session(conn, 'read', call, async (client) => {

@@ -96,6 +96,8 @@ into toil): no libpq, no `psql`, nothing to install.
 | `user` | yes | The login role |
 | `password` | no | The role's password. A secret: an env var or the OS credential store, never the config file. |
 | `ssl` | no | `true` connects over TLS and verifies the server's certificate against Node's CAs, `NODE_EXTRA_CA_CERTS` and the OS certificate store, so a corporate root in the OS store is trusted. Off by default. |
+| `tlsServerName` | no | With `ssl` (env: `TOIL_DB_TLS_SERVER_NAME`): the host name the server's certificate is verified against (and sent as SNI) instead of `host`, for a server reached through an alias, a VPN name or a tunnel whose name isn't on its certificate. The connection still goes to `host`, and chain and name verification stay fully on. A DNS name only; see [Cloud and private CAs](#cloud-and-private-cas). |
+| `tlsCaFile` | no | With `ssl` (env: `TOIL_DB_TLS_CA_FILE`): an absolute path to a PEM file of CA certificates (Amazon's RDS `global-bundle.pem`, say) trusted for this connection, in addition to the CAs above. Verification stays fully on. |
 | `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
 
 **Environment variables**, for the default `db` connection:
@@ -153,6 +155,8 @@ CLI, nothing to install.
 | `user` | yes | The account |
 | `password` | no | The account's password. A secret: an env var or the OS credential store, never the config file. |
 | `ssl` | no | `true` connects over TLS and verifies the server's certificate and host name against Node's and the OS's certificate stores. Off by default. |
+| `tlsServerName` | no | With `ssl` (env: `TOIL_DB_TLS_SERVER_NAME`): the host name the server's certificate is verified against (and sent as SNI) instead of `host`, for a server reached through an alias, a VPN name or a tunnel whose name isn't on its certificate. The connection still goes to `host`, and chain and name verification stay fully on. A DNS name only; see [Cloud and private CAs](#cloud-and-private-cas). |
+| `tlsCaFile` | no | With `ssl` (env: `TOIL_DB_TLS_CA_FILE`): an absolute path to a PEM file of CA certificates (Amazon's RDS `global-bundle.pem`, say) trusted for this connection, in addition to the CAs above. Verification stays fully on. |
 | `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
 
 **Environment variables**, for the default `db` connection:
@@ -207,6 +211,8 @@ authentication (`"auth": "windows"`, below).
 | `user` | for a SQL login | The SQL Server login; with `"auth": "windows"`, another domain account to sign in as |
 | `password` | no | The login's password. A secret: an env var or the OS credential store, never the config file. |
 | `ssl` | no | `true` encrypts the connection with TLS and verifies the server's certificate against the OS certificate store. Off by default, which sends the login and every result unencrypted, so turn it on unless the network is trusted. There is no setting to trust any certificate: add the server's certificate, or your organization's CA, to the OS store instead. |
+| `tlsServerName` | no | With `ssl` (env: `TOIL_DB_TLS_SERVER_NAME`): the host name the server's certificate is verified against (and sent as SNI) instead of `host`, for a server reached through an alias, a VPN name or a tunnel whose name isn't on its certificate. The connection still goes to `host`, and chain and name verification stay fully on. A DNS name only; see [Cloud and private CAs](#cloud-and-private-cas). |
+| `tlsCaFile` | no | With `ssl` (env: `TOIL_DB_TLS_CA_FILE`): an absolute path to a PEM file of CA certificates (Amazon's RDS `global-bundle.pem`, say) trusted for this connection, in addition to the CAs above. Verification stays fully on. |
 | `auth` | no | `sql` (a SQL Server login, the default) or `windows` (Windows authentication, Windows only) |
 | `domain` | no | With `"auth": "windows"` and `user`: the account's domain |
 | `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
@@ -450,6 +456,8 @@ into toil): no ODBC or JDBC driver, no `beeline` or `impala-shell`, nothing to i
 | `user` | yes, unless `auth` is `nosasl` | The account to sign in as. **It must be a read-only account**; see below. |
 | `password` | no | The account's password (its LDAP password, on a cluster that checks one). A secret: an env var or the OS credential store, never the config file. |
 | `ssl` | no | `true` connects over TLS and verifies the server's certificate, and that its name matches `host`, against Node's CAs, `NODE_EXTRA_CA_CERTS` and the OS certificate store. Off by default, which sends the password and every result unencrypted. |
+| `tlsServerName` | no | With `ssl` (env: `TOIL_DB_TLS_SERVER_NAME`): the host name the server's certificate is verified against (and sent as SNI) instead of `host`, for a server reached through an alias, a VPN name or a tunnel whose name isn't on its certificate. The connection still goes to `host`, and chain and name verification stay fully on. A DNS name only; see [Cloud and private CAs](#cloud-and-private-cas). |
+| `tlsCaFile` | no | With `ssl` (env: `TOIL_DB_TLS_CA_FILE`): an absolute path to a PEM file of CA certificates (Amazon's RDS `global-bundle.pem`, say) trusted for this connection, in addition to the CAs above. Verification stays fully on. |
 | `auth` | no | `nosasl` for a server that runs without authentication (Impala's default, or Hive's `NOSASL` mode): no sign-in, and `user` goes only into the session. Leave it out to sign in with `user` and `password` (SASL PLAIN), which is what LDAP authentication, and Hive's default `NONE` mode, expect. |
 | `writes` | no | `true` lets `db execute` change data on this connection. Off by default. |
 
@@ -503,6 +511,56 @@ HiveServer2 endpoint beside the Kerberos one (another port, or a gateway); point
 connection at that. HiveServer2's HTTP transport (`hive.server2.transport.mode=http`,
 often behind a gateway) isn't supported either: toil connects to the binary port only.
 Nor is ZooKeeper service discovery: `host` names one HiveServer2 or one coordinator.
+
+## Cloud and private CAs
+
+A TLS connection (`"ssl": true`) trusts Node's bundled CAs, `NODE_EXTRA_CA_CERTS` and the OS
+certificate store. A managed database's certificate is usually signed by its cloud's own CA,
+which is in none of them, so the connection fails with a `NETWORK` error about an untrusted
+certificate. Add the CA by any one of three routes; none of them turns verification off.
+
+1. **For one connection: `tlsCaFile`.** Download Amazon's global bundle
+   (`https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem`) and point the connection
+   at it with an absolute path. toil adds its certificates to what that connection trusts, for that
+   connection only, and says so under `--debug`
+   (`TLS, trusting 108 certificate(s) from /etc/ssl/rds/global-bundle.pem`). It works for
+   PostgreSQL, MySQL and MariaDB, SQL Server, Hive and Impala; Oracle's and Teradata's connections
+   refuse it. The path must be absolute (no `~`), the file at most 1 MB, and PEM.
+
+   ```bash
+   export TOIL_DB_SSL=true
+   export TOIL_DB_TLS_CA_FILE=/etc/ssl/rds/global-bundle.pem
+   ```
+
+2. **For every toil and Node program you run: `NODE_EXTRA_CA_CERTS`.** Set it to the path of the PEM
+   file before starting toil (or the agent that starts `toil mcp`). Node reads it only at startup,
+   so a change needs a new process, and an MCP client must be restarted to pick it up.
+   - **Windows (PowerShell):** `$env:NODE_EXTRA_CA_CERTS = "C:\certs\global-bundle.pem"` for this
+     session, or `[Environment]::SetEnvironmentVariable("NODE_EXTRA_CA_CERTS", "C:\certs\global-bundle.pem", "User")`
+     to keep it, then open a new terminal.
+   - **macOS and Linux:** `export NODE_EXTRA_CA_CERTS=/etc/ssl/rds/global-bundle.pem`, and put the
+     line in your shell profile (`~/.zshrc`, `~/.bashrc`) to keep it.
+
+3. **Machine-wide: the OS certificate store.** Install the CA there (an administrator's job on a
+   managed machine) and every program that reads the store, toil included, trusts it.
+
+### Reaching a server by another name: `tlsServerName`
+
+Sometimes the name you can reach the server by isn't the name on its certificate: a VPN's DNS
+alias, an SSH or SSM tunnel on `127.0.0.1`, a proxy in front of a managed endpoint whose
+certificate names the canonical host. Set `host` to the address that works and `tlsServerName` to
+the name the certificate carries:
+
+```json
+"app-pg": { "area": "db", "engine": "postgres", "host": "pg-alias.vpn.example.com", "tlsServerName": "app.cluster-abc12345.us-east-1.rds.amazonaws.com", "database": "app", "user": "reader", "ssl": true }
+```
+
+toil connects to `host` and `port`, sends `tlsServerName` as the TLS server name, and verifies the
+certificate's chain and that it names `tlsServerName`. Nothing is relaxed: a certificate that
+doesn't name it is refused exactly as one that doesn't name `host` would be, and there is no
+setting that skips the name check. It needs `"ssl": true`, and takes a DNS name, never an IP
+address, wildcard, scheme or port. PostgreSQL, MySQL and MariaDB, SQL Server, Hive and Impala support it. Oracle,
+Teradata and SQLite refuse it. `--debug` shows `TLS, verifying <name>`.
 
 ## Commands
 

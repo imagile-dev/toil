@@ -2,6 +2,7 @@ import { ToilError } from '../../errors.js';
 import { trustedCertificates } from '../../network.js';
 import { serverTooOld, type SupportedVersion } from '../../supported.js';
 import type { ColumnInfo, DbCall, DbConnection, DbProvider, ForeignKeyInfo, ResultColumn, RowSet, RowWindow, TableRef } from '../provider.js';
+import { tlsLabel, trustWithCaFile } from '../tls.js';
 import { Hs2Link, LinkFailed, ProtocolFailed, SaslRefused, T, type Hs2Status, type Method, type OperationHandle, type Responses } from './hs2.js';
 import { decodeRows, int64ToBigInt, rowCount, typeName } from './rows.js';
 import { splitStatements } from './split.js';
@@ -292,9 +293,9 @@ function port(engine: Engine, conn: DbConnection): number {
 async function session<R>(engine: Engine, conn: DbConnection, mode: Mode, call: DbCall, work: (s: Session) => Promise<R>): Promise<R> {
   if (call.signal.aborted) throw call.signal.reason;
   call.debug(
-    `${engine.engine}: connection ${conn.name}, ${mode === 'read' ? 'read (no read-only mode on this engine: the account decides)' : 'read-write'}, ${conn.auth === 'nosasl' ? 'no SASL' : 'SASL PLAIN'}${conn.ssl ? ', TLS' : ''}`,
+    `${engine.engine}: connection ${conn.name}, ${mode === 'read' ? 'read (no read-only mode on this engine: the account decides)' : 'read-write'}, ${conn.auth === 'nosasl' ? 'no SASL' : 'SASL PLAIN'}${conn.ssl ? `, ${tlsLabel(conn)}` : ''}`,
   );
-  const ca = conn.ssl === true ? trustedCertificates(call.debug).certificates : undefined;
+  const ca = conn.ssl === true ? trustWithCaFile(conn, trustedCertificates(call.debug).certificates, call.debug) : undefined;
   let opened: Opened | undefined;
   let s: Session | undefined;
   let stopping: Promise<void> | undefined;
@@ -333,7 +334,7 @@ async function open(engine: Engine, conn: DbConnection, signal: AbortSignal, ca:
   const link = await Hs2Link.open({
     host: conn.host!,
     port: port(engine, conn),
-    ...(conn.ssl === true ? { tls: { ca } } : {}),
+    ...(conn.ssl === true ? { tls: { ca, ...(conn.tlsServerName ? { serverName: conn.tlsServerName } : {}) } } : {}),
     ...(nosasl ? {} : { sasl: { user: conn.user ?? '', password: conn.password ?? '' } }),
     signal,
     timeoutMs: CONNECT_TIMEOUT_MS,
@@ -424,7 +425,7 @@ export function toToilError(err: unknown, engine: Engine, conn: DbConnection, mo
     const code = err.code ?? '';
     if (/CERT|SELF_SIGNED|ERR_TLS|UNABLE_TO_|ERR_SSL/.test(code)) {
       return new ToilError('NETWORK', `The TLS certificate of ${label} at ${where} wasn't trusted for connection ${conn.name} (${code}).`, {
-        fix: "toil trusts Node's CAs, NODE_EXTRA_CA_CERTS and the operating system's certificate store. Add your organization's CA, or the server's certificate, to one of them, and check that \"host\" matches the certificate's name.",
+        fix: "toil trusts Node's CAs, NODE_EXTRA_CA_CERTS and the operating system's certificate store. Add your organization's CA, or the server's certificate, to one of them, and check that \"host\" matches the certificate's name. For one connection, set \"tlsCaFile\" to a PEM file holding the CA; if the server is reached by a name its certificate doesn't carry, set \"tlsServerName\" to the name it does.",
       });
     }
     if (err.during === 'sign-in' || (err.during === 'call' && code === '')) {
@@ -550,6 +551,7 @@ function provider(engine: Engine): DbProvider {
     requires: ['host'],
     defaultSchema: (conn) => (conn.database ? stored(conn.database) : 'default'),
     verification: engine.verification,
+    tlsSettings: ['tlsServerName', 'tlsCaFile'],
 
     check(settings) {
       if (settings.auth !== undefined && settings.auth !== 'nosasl') {

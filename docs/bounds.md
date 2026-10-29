@@ -61,6 +61,7 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 | `dossiers.write` | `files.workspace` | `src/core/dossier.ts` | The `toil dossiers` commands writing a dossier to your own folder, a listed folder, or `.toil/dossiers/` at the root of a git working tree (`export --repo`). Anywhere else, the file must be inside the workspace. |
 | `dossiers.replace` | `files.no-overwrite` | `src/core/dossier.ts` | Rewriting a dossier: an edit (`link`, `field`, `add-repo`, `env`) rewrites the file it read, and `export`/`import` with `--replace` replace one. Only a file that is already a valid dossier is ever replaced. |
 | `connections.import` | `files.workspace` | `src/connections/import-command.ts` | `toil connections import` reading one other tool's connection list (DBeaver's `data-sources.json`, a `.regsrvr`, `servers.json`, `pg_service.conf`, ...) from that tool's default location on this OS, or from a path the person names, outside the workspace. Bounded below. |
+| `db.tls-ca-file` | `files.workspace` | `src/core/db/tls.ts` | A `db` connection's `tlsCaFile` (with `"ssl": true`) reading one PEM file of CA certificates, named by an absolute path in the person's own config or env, not by a call, so it may sit outside the workspace. Bounded below. |
 | `feedback.send` | `commands.read-only` | `src/feedback/command.ts`, `src/api.ts` | `toil feedback` sending one report to Imagile's feedback endpoint, which files it as a public GitHub issue, with no connection holding `writes: true` and no `--allow-write`. Its gate is the approval of that exact report instead, and it is the one request toil makes to a host the user didn't configure. Bounded below. |
 
 `connections.import` is one read, of a file, plus with `--save` a write to toil's own config, and nothing else (CLAUDE.md, principle 2 and **Secrets**; #520):
@@ -78,6 +79,21 @@ once that command exists. **Security-class bounds can't be relaxed at all.**
 3. **What it writes.** Only with `--save`, only new `db` connections in toil's own config through
    `writeConfigFile`, never over a name that exists, and never `writes: true`. Without `--save` it
    writes nothing. It is CLI only: never an MCP tool.
+
+`db.tls-ca-file` is one read, of one file, and nothing else (#520):
+
+1. **What.** One file at the absolute path in the connection's `tlsCaFile`, at most 1 MB, of which only the
+   `-----BEGIN CERTIFICATE-----` blocks are used, each checked with `crypto.X509Certificate`. A file with
+   none, or one Node can't parse, is `CONFIG_INVALID`, so pointing it at any other file (a config, a key)
+   reads it and refuses it without quoting a byte. Relative and `~` paths are refused before connecting.
+2. **What protects it.** The certificates become trust anchors for that one connection's socket and go
+   nowhere else: not to an envelope, a log, a debug line (which names the path and the count) or a host.
+   They add to the CAs the connection trusts (Node's, `NODE_EXTRA_CA_CERTS`, the OS store); they never replace
+   them and never loosen the chain or name check. A person's own file adding trust to their own connection
+   is the same trust `NODE_EXTRA_CA_CERTS` already gives.
+3. **What it never does.** It is read only when a call connects, not when config loads, so a missing file
+   never blocks `connections list` or `remove`. It is never written, and it never goes through a command's
+   input (`ctx.files`), so an agent can't point it at a file through a call.
 
 `feedback.send` is one request, to one fixed place, and only on approval (CLAUDE.md,
 principle 9 and **Writes**; #265):

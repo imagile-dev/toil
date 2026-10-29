@@ -6,6 +6,7 @@ import { engineNames, providerFor, providers } from '../../core/db/engines.js';
 import { lintError, lintSql, lintWarning, type Dialect, type LintPurpose } from '../../core/db/lint/index.js';
 import { DEFAULT_LIMIT, decodeCursor, encodeCursor, MAX_LIMIT, pageKey, toPage, windowFor } from '../../core/db/paging.js';
 import type { DbCall, DbConnection, DbProvider } from '../../core/db/provider.js';
+import { tlsIssues } from '../../core/db/tls.js';
 import { ToilError } from '../../core/errors.js';
 import { allowWriteField } from '../../core/run.js';
 import type { SupportedVersion } from '../../core/supported.js';
@@ -36,6 +37,8 @@ export const area = defineArea({
     user: z.string().min(1).optional().describe('PostgreSQL, MySQL, SQL Server, Oracle, Teradata, Hive, Impala: login role, account or user (for SQL Server, a SQL Server login, or with auth windows another domain account; for Hive and Impala, a read-only account)'),
     password: z.string().optional().describe("PostgreSQL, MySQL, SQL Server, Oracle, Teradata, Hive, Impala: the login's password (a secret: env var or OS credential store)"),
     ssl: z.boolean().optional().describe("PostgreSQL, MySQL, SQL Server, Oracle, Hive, Impala: connect over TLS (Oracle: TCPS), verifying the server's certificate against the OS store"),
+    tlsServerName: z.string().min(1).optional().describe("PostgreSQL, MySQL, SQL Server, Hive, Impala, with ssl: the host name the server's certificate is verified against (and sent as SNI) instead of host, for a server reached through an alias, VPN name or tunnel. The connection still goes to host, and verification stays fully on"),
+    tlsCaFile: z.string().min(1).optional().describe("PostgreSQL, MySQL, SQL Server, Hive, Impala, with ssl: absolute path to a PEM file of CA certificates (for example Amazon's RDS global-bundle.pem) trusted in addition to Node's, NODE_EXTRA_CA_CERTS and the OS store, for this connection only"),
     auth: z.enum(['sql', 'windows', 'nosasl']).optional().describe('SQL Server: sql (a SQL Server login, the default) or windows (Windows authentication, Windows only). Hive, Impala: nosasl for a server with no authentication; unset signs in with user and password (SASL PLAIN, for LDAP)'),
     domain: z.string().min(1).optional().describe("SQL Server with auth windows: the domain of the account in user, to sign in as someone other than the current Windows user"),
     baseUrl: z.url().optional().describe('Teradata: the Query Service base URL, e.g. https://teradata.imagile.dev:1443 (with any path in front of /systems, such as /api/query)'),
@@ -46,7 +49,7 @@ export const area = defineArea({
     // Rules only one engine has, such as SQL Server's sign-in, come from that engine's provider.
     .superRefine((conn, check) => {
       const provider = providers.find((p) => p.engine === conn.engine);
-      for (const issue of provider?.check?.(conn) ?? []) check.addIssue({ code: 'custom', path: [issue.key], message: issue.message });
+      for (const issue of [...tlsIssues(conn, provider, providers), ...(provider?.check?.(conn) ?? [])]) check.addIssue({ code: 'custom', path: [issue.key], message: issue.message });
     }),
   secrets: { password: 'password', token: 'token' },
   // Each engine names the keys its connections need; core checks them.

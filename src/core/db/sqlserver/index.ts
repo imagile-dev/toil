@@ -6,6 +6,7 @@ import type { DoneInProcToken, DoneToken } from 'tedious/lib/token/token.js';
 import { ToilError } from '../../errors.js';
 import { trustedCertificates, type NetworkApis } from '../../network.js';
 import type { ColumnInfo, DbCall, DbConnection, DbProvider, ForeignKeyInfo, IndexInfo, ResultColumn, RowSet, TableRef } from '../provider.js';
+import { tlsLabel, trustWithCaFile } from '../tls.js';
 import { notWindows, startSspi, type SspiExchange } from '../../../os/windows-sspi.js';
 import { scanScript } from './script.js';
 import { useExchange } from './windows-login.js';
@@ -101,7 +102,7 @@ export function connectionConfig(conn: DbConnection, debug: (message: string) =>
   // tedious opens its own socket, so core's HTTP setup never reaches it: hand it the
   // same CAs, OS store included. A `ca` replaces Node's list, which is why the defaults
   // travel with it; an unreadable store leaves Node's defaults.
-  const ca = conn.ssl === true ? trustedCertificates(debug, apis).certificates : undefined;
+  const ca = conn.ssl === true ? trustWithCaFile(conn, trustedCertificates(debug, apis).certificates, debug) : undefined;
   return {
     server: conn.host!,
     // Windows authentication rides tedious's NTLM path, with the tokens from Windows (windows-login.ts).
@@ -112,6 +113,8 @@ export function connectionConfig(conn: DbConnection, debug: (message: string) =>
       port: conn.port ?? DEFAULT_PORT,
       database: conn.database!,
       encrypt: conn.ssl === true,
+      // tedious sends this as SNI and checks the certificate's name against it, in place of `server` (message-io.js startTls).
+      ...(conn.tlsServerName ? { serverName: conn.tlsServerName } : {}),
       trustServerCertificate: false,
       appName: 'toil',
       connectTimeout: CONNECT_TIMEOUT_MS,
@@ -216,7 +219,7 @@ async function session<T>(conn: DbConnection, mode: Mode, call: DbCall, work: (s
     else connection.close();
   };
   call.signal.addEventListener('abort', onAbort, { once: true });
-  call.debug(`sqlserver: connection ${conn.name}, ${mode === 'read' ? 'read, rolled back' : 'read-write'}`);
+  call.debug(`sqlserver: connection ${conn.name}, ${mode === 'read' ? 'read, rolled back' : 'read-write'}${conn.ssl ? `, ${tlsLabel(conn)}` : ''}`);
   try {
     if (windowsAuth(conn)) {
       exchange = await windowsExchange(conn, call);
@@ -356,7 +359,7 @@ function toToilError(err: unknown, conn: DbConnection, mode: Mode): unknown {
   }
   if (/CERT|SELF_SIGNED|ERR_TLS|UNABLE_TO_VERIFY/.test(causeCode)) {
     return new ToilError('NETWORK', `The TLS certificate of SQL Server at ${where} wasn't trusted for connection ${conn.name} (${causeCode}).`, {
-      fix: "toil trusts Node's certificates, NODE_EXTRA_CA_CERTS and the operating system's store. Add your organization's CA, or the server's certificate, to one of them, and check that \"host\" matches the certificate's name.",
+      fix: "toil trusts Node's certificates, NODE_EXTRA_CA_CERTS and the operating system's store. Add your organization's CA, or the server's certificate, to one of them, and check that \"host\" matches the certificate's name. For one connection, set \"tlsCaFile\" to a PEM file holding the CA; if the server is reached by a name its certificate doesn't carry, set \"tlsServerName\" to the name it does.",
     });
   }
   if (f.code === 'ETIMEOUT') {
@@ -499,6 +502,7 @@ export const sqlserverProvider: DbProvider = {
   requires: ['host', 'database'],
   defaultSchema: () => 'dbo',
   verification: 'live',
+  tlsSettings: ['tlsServerName', 'tlsCaFile'],
 
   // A SQL login needs a user; Windows authentication needs Windows, and a domain only names whose user.
   check(settings) {

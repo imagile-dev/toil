@@ -1,5 +1,5 @@
 import { isIP, connect as netConnect, type Socket } from 'node:net';
-import { connect as tlsConnect } from 'node:tls';
+import { checkServerIdentity, connect as tlsConnect, type ConnectionOptions, type PeerCertificate } from 'node:tls';
 import thrift, { type ThriftConnection, type TProtocol } from 'thrift';
 import TCLIService from 'hive-driver/thrift/gen-nodejs/TCLIService.js';
 import T from 'hive-driver/thrift/gen-nodejs/TCLIService_types.js';
@@ -153,13 +153,31 @@ export class ProtocolFailed extends Error {
 export interface LinkOptions {
   host: string;
   port: number;
-  /** Connect over TLS, trusting these CAs (undefined: Node's defaults), and checking the certificate names `host`. */
-  tls?: { ca: string[] | undefined };
+  /** Connect over TLS, trusting these CAs (undefined: Node's defaults), and checking the certificate names `host`, or `serverName` when it is set (the socket still goes to `host`). */
+  tls?: { ca: string[] | undefined; serverName?: string };
   /** SASL PLAIN with these credentials; absent for a server that runs without authentication (NOSASL). */
   sasl?: { user: string; password: string };
   signal: AbortSignal;
   /** How long to wait for the connection, the TLS handshake and the sign-in, each. */
   timeoutMs: number;
+}
+
+/**
+ * tls.connect's options for a link. With a serverName the socket still goes to
+ * `host`, but SNI and the certificate's name check use serverName: Node checks
+ * identity against `servername` before `host`, and the check is spelled out so
+ * that stays true if that ever changes. rejectUnauthorized never leaves true.
+ */
+export function tlsOptions(host: string, port: number, tls: { ca: string[] | undefined; serverName?: string }): ConnectionOptions {
+  const name = tls.serverName ?? host;
+  return {
+    host,
+    port,
+    ca: tls.ca,
+    rejectUnauthorized: true,
+    ...(isIP(name) ? {} : { servername: name }),
+    ...(tls.serverName ? { checkServerIdentity: (_hostname: string, cert: PeerCertificate) => checkServerIdentity(name, cert) } : {}),
+  };
 }
 
 export class Hs2Link {
@@ -182,7 +200,7 @@ export class Hs2Link {
     const { host, port, signal, timeoutMs } = options;
     if (signal.aborted) throw signal.reason;
     const socket = options.tls
-      ? tlsConnect({ host, port, ca: options.tls.ca, rejectUnauthorized: true, ...(isIP(host) ? {} : { servername: host }) })
+      ? tlsConnect(tlsOptions(host, port, options.tls))
       : netConnect({ host, port });
     try {
       await settle(socket, options.tls ? 'secureConnect' : 'connect', 'connect', timeoutMs, signal);
