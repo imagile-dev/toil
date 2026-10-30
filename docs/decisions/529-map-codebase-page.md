@@ -30,8 +30,15 @@
 - **No git, no refresh shortcut.** Without git there is no changed-file list, so the page
   says to re-map from step 1 rather than guess what changed.
 - **Hub counts follow the map's own edges** (the page's definition: other modules with an
-  edge into it), so `core` is 10 and `registry` 3. The earlier 13 and 4 counted imports.
-- **The map and model agree on how** for every edge and module. Edges toil can cite from
-  `util size --select outline.imports` are observed in both; `services` and `credstore`
-  come from CLAUDE.md, not from code, so both files call them inferred. An external system
-  has no `path`.
+  edge into it), so `core` is 10 and `registry` 2 (`cli`, `api`). The earlier 13 and 4
+  counted imports, not modules.
+- **Review round: every inferred edge was settled by scanning.** `mcp` to `registry` was
+  refuted (`src/mcp` never imports the registry; `src/cli.ts:86` hands it the commands) and
+  dropped, along with the model's `core_run` to `core_db` (`src/core/run.ts` does not import
+  `core/db`). `ui_server` to `core`, `ui_web` to `ui_server`, `site` to `feedback_fn`,
+  `core` to `credstore` and `areas` to `services` were confirmed from the files and are
+  observed. Per-module counts were redone with `util size <file> --select outline.imports`
+  and now say files and imports apart (`areas`: 198 files, 518 imports, not 15 index files).
+  The only inferred item left is the hub's co-change, read from commit scopes.
+- **The map and model agree on how** for every edge and module, checked by script.
+  An external system has no `path`.

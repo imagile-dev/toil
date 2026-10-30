@@ -34,13 +34,13 @@
       "id": "core",
       "path": "src/core",
       "how": "observed",
-      "source": "util size src --depth 1 (151 files, was 150)"
+      "source": "util size src --depth 1 (151 files)"
     },
     {
       "id": "areas",
       "path": "src/areas",
       "how": "observed",
-      "source": "ls src/areas (28 areas); util size src: 343 files, was 341"
+      "source": "ls src/areas (28 areas); util size src --depth 1 (343 files)"
     },
     {
       "id": "dossiers",
@@ -106,13 +106,13 @@
     },
     {
       "id": "services",
-      "how": "inferred",
-      "reason": "CLAUDE.md principle 9, not a measured fact about code"
+      "how": "observed",
+      "source": "apiRequest in 28 files under src/areas"
     },
     {
       "id": "credstore",
-      "how": "inferred",
-      "reason": "named in CLAUDE.md, file not outlined"
+      "how": "observed",
+      "source": "src/core/keychain.ts:13,131"
     }
   ],
   "edges": [
@@ -192,37 +192,37 @@
       "from": "areas",
       "to": "core",
       "how": "observed",
-      "source": "util size <file> --select outline.imports over the 15 area index.ts files: each imports ../../core"
+      "source": "util size <file> --select outline.imports over every source file in src/areas: 198 files import core (518 imports); only 4 of the 28 index.ts files do"
     },
     {
       "from": "dossiers",
       "to": "core",
       "how": "observed",
-      "source": "util size <file> --select outline.imports over src/dossiers: 32 imports of ../core"
+      "source": "util size <file> --select outline.imports over src/dossiers: all 4 files import ../core (32 imports)"
     },
     {
       "from": "connections",
       "to": "core",
       "how": "observed",
-      "source": "util size <file> --select outline.imports over src/connections: 21 imports of ../core"
+      "source": "util size <file> --select outline.imports over src/connections: 3 of 13 files import ../core (21 imports)"
     },
     {
       "from": "skills",
       "to": "core",
       "how": "observed",
-      "source": "util size <file> --select outline.imports over src/skills: 22 imports of ../core"
+      "source": "util size <file> --select outline.imports over src/skills: all 6 files import ../core (22 imports)"
     },
     {
       "from": "welcome",
       "to": "core",
       "how": "observed",
-      "source": "util size <file> --select outline.imports over src/welcome: 16 imports of ../core"
+      "source": "util size <file> --select outline.imports over src/welcome: 10 files import core (16 imports)"
     },
     {
       "from": "mcp",
       "to": "core",
       "how": "observed",
-      "source": "util size <file> --select outline.imports over src/mcp: 14 files import ../core"
+      "source": "util size <file> --select outline.imports over src/mcp: both files import ../core (14 imports)"
     },
     {
       "from": "misc",
@@ -231,40 +231,34 @@
       "source": "util size <file> --select outline.imports over src/audit, feedback, theme, setup, repos, os: 8 of 10 files import ../core (src/audit/commands.ts:2, src/feedback/command.ts:2, src/os/windows-sspi.ts:4)"
     },
     {
-      "from": "mcp",
-      "to": "registry",
-      "how": "inferred",
-      "reason": "tool list is generated from the registry per CLAUDE.md; imports not checked"
-    },
-    {
       "from": "ui_server",
       "to": "core",
-      "how": "inferred",
-      "reason": "CLAUDE.md says the UI is built on execute(); ui/ imports not scanned"
+      "how": "observed",
+      "source": "ui/server/main.ts:14 imports execute from @imagile-dev/toil/api; ui/server/agents/answer.ts:21 and tools.ts:32 import src/core"
     },
     {
       "from": "ui_web",
       "to": "ui_server",
-      "how": "inferred",
-      "reason": "CLAUDE.md Layout"
+      "how": "observed",
+      "source": "ui/src/server-client.ts:129,165 fetch the server's api/session and api routes"
     },
     {
       "from": "site",
       "to": "feedback_fn",
-      "how": "inferred",
-      "reason": "form posts to the backend per CLAUDE.md"
+      "how": "observed",
+      "source": "site/src/pages/about/feedback.astro:25,126 post to the endpoint set in site/src/data/feedback.ts:5, route /api/submit (functions/feedback/src/lib/handlers.ts:4)"
     },
     {
       "from": "areas",
       "to": "services",
-      "how": "inferred",
-      "reason": "request code not read"
+      "how": "observed",
+      "source": "apiRequest( appears in 28 files under src/areas (Grep); the db area runs SQL through src/core/db providers"
     },
     {
       "from": "core",
       "to": "credstore",
-      "how": "inferred",
-      "reason": "CLAUDE.md names src/core/keychain.ts as the credential-store spawner; file not outlined"
+      "how": "observed",
+      "source": "src/core/keychain.ts:1 imports spawn from node:child_process; :13 secret-tool, :131 security"
     }
   ],
   "hubs": [
@@ -279,7 +273,7 @@
     },
     {
       "id": "registry",
-      "dependents": 3,
+      "dependents": 2,
       "changedWith": []
     }
   ],
@@ -347,7 +341,7 @@
   ],
   "notMapped": [
     "dist/ (generated bundle, 9.4MB)",
-    "src/areas/* internals (only index.ts imports scanned)",
+    "src/areas/* internals (only imports of core were scanned)",
     "test/ and *.test.ts",
     "ui/ internals beyond folder sizes",
     "site/ internals",

@@ -46,7 +46,7 @@
           "id": "core",
           "name": "Core machinery",
           "technology": "TypeScript",
-          "description": "src/core: defineArea, defineCommand, execute, config, secrets, dossier, db providers, query, output (150 files, 33k lines, util size src)",
+          "description": "src/core: defineArea, defineCommand, execute, config, secrets, dossier, db providers, query, output (151 files, 33k lines, util size src)",
           "components": [
             {
               "id": "core_run",
@@ -82,7 +82,7 @@
               "id": "core_keychain",
               "name": "keychain.ts",
               "technology": "TypeScript",
-              "description": "(inferred) the OS credential store spawner; CLAUDE.md names it but it was not outlined"
+              "description": "The OS credential store spawner (src/core/keychain.ts:1 imports spawn, :13 names secret-tool)"
             },
             {
               "id": "core_tls",
@@ -96,7 +96,7 @@
           "id": "areas",
           "name": "Integration areas",
           "technology": "TypeScript",
-          "description": "src/areas: 28 area folders (ls src/areas): ado, jira, github, db, util, ... 341 files, 69k lines (util size src --depth 2)"
+          "description": "src/areas: 28 area folders (ls src/areas): ado, jira, github, db, util, ... 343 files, 70k lines (util size src --depth 2)"
         },
         {
           "id": "dossiers",
@@ -163,13 +163,13 @@
       "id": "services",
       "name": "Enterprise services and databases",
       "external": true,
-      "description": "(inferred) named by CLAUDE.md principle 9, not measured in code: Jira, GitHub, databases and the others toil talks to, at hosts in the user config"
+      "description": "Jira, GitHub, databases and the others toil talks to, at hosts in the user config (apiRequest in 28 files under src/areas; providers in src/core/db)"
     },
     {
       "id": "credstore",
       "name": "OS credential store",
       "external": true,
-      "description": "(inferred) named by CLAUDE.md No Executables, file not outlined: macOS Keychain, Windows credential store, secret-tool"
+      "description": "macOS Keychain, Windows credential store, secret-tool (src/core/keychain.ts:13,131)"
     }
   ],
   "relationships": [
@@ -224,13 +224,7 @@
     {
       "source": "mcp",
       "destination": "core_run",
-      "description": "Executes each tool through (util size <file> --select outline.imports over src/mcp: 14 files import ../core)",
-      "technology": "import"
-    },
-    {
-      "source": "mcp",
-      "destination": "registry",
-      "description": "(inferred) reads tool list from",
+      "description": "Executes each tool through (outline.imports over src/mcp: both files import ../core, 14 imports)",
       "technology": "import"
     },
     {
@@ -284,31 +278,31 @@
     {
       "source": "areas",
       "destination": "core_run",
-      "description": "Built on defineArea and execute (util size <file> --select outline.imports over the 15 area index.ts files: each imports ../../core)",
+      "description": "Built on defineArea and execute (outline.imports over src/areas: 198 files import core, 518 imports)",
       "technology": "import"
     },
     {
       "source": "dossiers",
       "destination": "core_dossier",
-      "description": "Built on (util size <file> --select outline.imports over src/dossiers: 32 imports of ../core)",
+      "description": "Built on (outline.imports over src/dossiers: all 4 files import ../core, 32 imports)",
       "technology": "import"
     },
     {
       "source": "connections",
       "destination": "core_config",
-      "description": "Built on (util size <file> --select outline.imports over src/connections: 21 imports of ../core)",
+      "description": "Built on (outline.imports over src/connections: 3 of 13 files import ../core, 21 imports)",
       "technology": "import"
     },
     {
       "source": "skills",
       "destination": "core",
-      "description": "Built on (util size <file> --select outline.imports over src/skills: 22 imports of ../core)",
+      "description": "Built on (outline.imports over src/skills: all 6 files import ../core, 22 imports)",
       "technology": "import"
     },
     {
       "source": "welcome",
       "destination": "core",
-      "description": "Built on (util size <file> --select outline.imports over src/welcome: 16 imports of ../core)",
+      "description": "Built on (outline.imports over src/welcome: 10 files import ../core, 16 imports)",
       "technology": "import"
     },
     {
@@ -320,42 +314,38 @@
     {
       "source": "areas",
       "destination": "services",
-      "description": "(inferred) request code not read; Sends requests to",
+      "description": "Sends requests to (apiRequest in 28 files under src/areas)",
       "technology": "HTTPS, SQL"
     },
     {
       "source": "core",
       "destination": "credstore",
-      "description": "(inferred) reads secrets from via keychain.ts",
+      "description": "Reads secrets from via keychain.ts (src/core/keychain.ts:1 imports spawn, :131 runs security)",
       "technology": "OS tools"
     },
     {
       "source": "ui_server",
       "destination": "core",
-      "description": "(inferred) executes commands through toil execute()",
-      "technology": "npm dependency"
+      "description": "Executes commands through toil execute() (ui/server/main.ts:14 imports it from the api entry; agents/answer.ts:21 imports src/core)",
+      "technology": "import"
     },
     {
       "source": "ui_web",
       "destination": "ui_server",
-      "description": "(inferred) reads and writes through",
+      "description": "Reads and writes through (ui/src/server-client.ts:129,165 fetch its api routes)",
       "technology": "HTTP"
     },
     {
       "source": "site",
       "destination": "feedback_fn",
-      "description": "(inferred) posts the feedback form to",
+      "description": "Posts the feedback form to (site/src/pages/about/feedback.astro:25,126)",
       "technology": "HTTPS"
     },
     {
       "source": "core_run",
       "destination": "core_config",
-      "description": "(inferred) loads connection config through"
-    },
-    {
-      "source": "core_run",
-      "destination": "core_db",
-      "description": "(inferred) hands db commands to"
+      "description": "Loads connection config through (src/core/run.ts:6 imports ./config.js)",
+      "technology": "import"
     },
     {
       "source": "core_db",
