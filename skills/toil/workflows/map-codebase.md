@@ -47,8 +47,9 @@ inside the workspace.
      rather than reading it (`--select "manifests[].file"`).
    - **Edges.** A code file's outline lists its imports (`util size <file> --select
      outline.imports`; each is `{ specifier, kind, line }`, as written and never
-     resolved). Run that over a module's source files (it is toil's command, not reading
-     every file) and fold each specifier into a module yourself: a relative specifier
+     resolved). Scan the entry, index and largest files first, and a whole module's files
+     only where its edges matter; an edge beyond the files you scanned is inferred. Then
+     fold each specifier into a module yourself: a relative specifier
      (`../core/x.js`) resolves against the importing file's folder and lands in the
      module whose path holds it; a package specifier names a package. For C# and .NET,
      the `.csproj` `ProjectReference` lines are the module edges and `using` imports
@@ -57,7 +58,7 @@ inside the workspace.
    - **What changes.** `git log` lists commits and no files, so a hot spot read from the
      scope in each commit message is inferred, and commits without a scope are counted
      as unscoped. If `--since` returns nothing, widen the window or drop it.
-   - **Around the repository.** `dossiers show` answering "No dossier applies" is
+   - **Around the repository.** `dossiers show` failing with `INVALID_INPUT` "No dossier applies" is
      normal: note that none applies and move on. Run `util openapi list` only for
      specs the tree has.
    - **Recorded reasoning.** Read the repository's ADRs and decision files
@@ -80,10 +81,10 @@ inside the workspace.
    element share one id. Every element and every relationship is either **observed**
    (read from source or a command; put the file and line or the command in its
    `description`) or **inferred** (your reading; begin the `description` with
-   `(inferred)` and the reason). The model has no field for it yet, so the diagram
-   shows it that way and nobody takes a guess for a fact. In a components view, a
-   relationship must start and end at elements inside the boundary, or `util c4` drops
-   it with `C4_RELATIONSHIP_NOT_DRAWN`. Find the **hubs**: the modules most others
+   `(inferred)` and the reason). The model has no field for observed or inferred yet, so the `(inferred)` prefix is
+   how the diagram shows it. A relationship that ends on a components view's boundary
+   element is not drawn in that view (`C4_RELATIONSHIP_NOT_DRAWN`); point it at a
+   component inside to show it there. Find the **hubs**: the modules most others
    depend on, and the ones most often changed together, so a reader knows where
    everything flows and where to start.
 
@@ -128,19 +129,22 @@ inside the workspace.
      mapping, from `toil git log --count 1` (not the commit `toil version` prints, which
      is toil's own build).
    - A module's `path` is one path, or an array when the module spans several, and
-     `how` with its `source` or `reason` follows the observed or inferred rule above.
+     `how` with its `source` or `reason` follows the observed or inferred rule above. An
+     external system has no `path`.
 
    **Refresh.** A later run reads the file instead of the code, then updates only what
    changed:
 
    1. List the changed files with your own git: `git diff --name-only <commit> HEAD`
       (toil's `git diff` shows only staged or working changes).
-   2. Map each path to its module by path prefix; a path no module holds is new
+   2. Map each path to its module by path prefix (the longest prefix wins); a path no module holds is new
       (add a module) or belongs in `notMapped`.
    3. Re-scan imports only for changed source files, update those modules' edges, and
       recompute the hubs.
-   4. Render the diagrams again under new names, since `--out` never overwrites, and
-      record the new `commit`.
+   4. Render the diagrams again under new names, since `--out` never overwrites, and,
+      on the person's yes, replace the committed files and record the new `commit`.
+
+   Without git, there is no changed-file list: re-map from step 1.
 
    Answer questions from the file rather than the code. `--select` works on a toil
    command's output, not on a file, so query the file with your own tools.

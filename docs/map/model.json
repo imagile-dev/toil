@@ -163,13 +163,13 @@
       "id": "services",
       "name": "Enterprise services and databases",
       "external": true,
-      "description": "Jira, GitHub, databases and the others toil talks to, at hosts in the user config (CLAUDE.md principle 9)"
+      "description": "(inferred) named by CLAUDE.md principle 9, not measured in code: Jira, GitHub, databases and the others toil talks to, at hosts in the user config"
     },
     {
       "id": "credstore",
       "name": "OS credential store",
       "external": true,
-      "description": "macOS Keychain, Windows credential store, secret-tool (CLAUDE.md No Executables)"
+      "description": "(inferred) named by CLAUDE.md No Executables, file not outlined: macOS Keychain, Windows credential store, secret-tool"
     }
   ],
   "relationships": [
@@ -200,32 +200,32 @@
     {
       "source": "cli",
       "destination": "registry",
-      "description": "Builds commands from",
-      "technology": "import src/cli.ts:14"
+      "description": "Builds commands from (src/cli.ts:14)",
+      "technology": "import"
     },
     {
       "source": "cli",
       "destination": "core_run",
-      "description": "Runs calls through",
-      "technology": "import src/program.ts:7"
+      "description": "Runs calls through (src/program.ts:7)",
+      "technology": "import"
     },
     {
       "source": "cli",
       "destination": "mcp",
-      "description": "Starts for toil mcp",
-      "technology": "import src/cli.ts:10"
+      "description": "Starts for toil mcp (src/cli.ts:10)",
+      "technology": "import"
     },
     {
       "source": "cli",
       "destination": "welcome",
-      "description": "Opens on bare toil",
-      "technology": "import src/cli.ts:17"
+      "description": "Opens on bare toil (src/cli.ts:17)",
+      "technology": "import"
     },
     {
       "source": "mcp",
       "destination": "core_run",
-      "description": "(inferred) Executes each tool through",
-      "technology": "import, 14 files"
+      "description": "Executes each tool through (util size <file> --select outline.imports over src/mcp: 14 files import ../core)",
+      "technology": "import"
     },
     {
       "source": "mcp",
@@ -236,91 +236,91 @@
     {
       "source": "api",
       "destination": "registry",
-      "description": "Exports",
-      "technology": "import src/api.ts:36"
+      "description": "Exports (src/api.ts:36)",
+      "technology": "import"
     },
     {
       "source": "api",
       "destination": "core_run",
-      "description": "Delegates to",
-      "technology": "import src/api.ts:31"
+      "description": "Delegates to (src/api.ts:31)",
+      "technology": "import"
     },
     {
       "source": "api",
       "destination": "mcp",
-      "description": "Imports",
-      "technology": "import src/api.ts:34"
+      "description": "Imports (src/api.ts:34)",
+      "technology": "import"
     },
     {
       "source": "registry",
       "destination": "areas",
-      "description": "Lists via areas.generated.ts",
-      "technology": "import src/registry.ts:1"
+      "description": "Lists via areas.generated.ts (src/registry.ts:1)",
+      "technology": "import"
     },
     {
       "source": "registry",
       "destination": "dossiers",
-      "description": "Registers commands of",
-      "technology": "import src/registry.ts:4-7"
+      "description": "Registers commands of (src/registry.ts:4-7)",
+      "technology": "import"
     },
     {
       "source": "registry",
       "destination": "connections",
-      "description": "Registers commands of",
-      "technology": "import src/registry.ts:3"
+      "description": "Registers commands of (src/registry.ts:3)",
+      "technology": "import"
     },
     {
       "source": "registry",
       "destination": "skills",
-      "description": "Registers commands of",
-      "technology": "import src/registry.ts:14-15"
+      "description": "Registers commands of (src/registry.ts:14-15)",
+      "technology": "import"
     },
     {
       "source": "registry",
       "destination": "misc",
-      "description": "Registers commands of",
-      "technology": "import src/registry.ts:2,8,9,13,16"
+      "description": "Registers commands of (src/registry.ts:2,8,9,13,16)",
+      "technology": "import"
     },
     {
       "source": "areas",
       "destination": "core_run",
-      "description": "(inferred) Built on defineArea and execute",
-      "technology": "import, 15 index files"
+      "description": "Built on defineArea and execute (util size <file> --select outline.imports over the 15 area index.ts files: each imports ../../core)",
+      "technology": "import"
     },
     {
       "source": "dossiers",
       "destination": "core_dossier",
-      "description": "(inferred) Built on",
-      "technology": "import, 32 imports"
+      "description": "Built on (util size <file> --select outline.imports over src/dossiers: 32 imports of ../core)",
+      "technology": "import"
     },
     {
       "source": "connections",
       "destination": "core_config",
-      "description": "(inferred) Built on",
-      "technology": "import, 21 imports"
+      "description": "Built on (util size <file> --select outline.imports over src/connections: 21 imports of ../core)",
+      "technology": "import"
     },
     {
       "source": "skills",
       "destination": "core",
-      "description": "Built on",
-      "technology": "import, 22 imports"
+      "description": "Built on (util size <file> --select outline.imports over src/skills: 22 imports of ../core)",
+      "technology": "import"
     },
     {
       "source": "welcome",
       "destination": "core",
-      "description": "Built on",
-      "technology": "import, 16 imports"
+      "description": "Built on (util size <file> --select outline.imports over src/welcome: 16 imports of ../core)",
+      "technology": "import"
     },
     {
       "source": "misc",
       "destination": "core",
-      "description": "Built on",
+      "description": "Built on (outline.imports of 8 of 10 files, e.g. src/audit/commands.ts:2)",
       "technology": "import"
     },
     {
       "source": "areas",
       "destination": "services",
-      "description": "Sends requests to",
+      "description": "(inferred) request code not read; Sends requests to",
       "technology": "HTTPS, SQL"
     },
     {
@@ -360,8 +360,8 @@
     {
       "source": "core_db",
       "destination": "core_tls",
-      "description": "Providers build their TLS settings with",
-      "technology": "import ../tls.js"
+      "description": "Providers build their TLS settings with (../tls.js)",
+      "technology": "import"
     }
   ],
   "views": [

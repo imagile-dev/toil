@@ -13,9 +13,9 @@ which is also how it is refreshed.
 
 Everything is **observed** (read from source or a command, cited in its description) or
 **inferred** (its description starts with `(inferred)` and says why). The map has 15
-observed and 2 inferred modules and 19 observed and 6 inferred edges; the model has 27
-observed and 1 inferred elements and 21 observed and 11 inferred relationships.
-The hubs are `core` (13 modules depend on it) and `registry` (4).
+observed and 2 inferred modules and 19 observed and 6 inferred edges; the model has 25
+observed and 3 inferred elements and 24 observed and 8 inferred relationships.
+The hubs are `core` (10 modules have an edge into it) and `registry` (3).
 
 **Not mapped:** `dist/` (generated bundle), the insides of `src/areas/*` beyond each
 index file's imports, tests, `ui/` and `site/` beyond folder sizes, schema JSON, and the
@@ -31,14 +31,14 @@ Person(engineer, "Engineer", "Installs toil from npm and runs it, or lets an age
 Person(agent, "AI agent / CI job", "Drives toil through the CLI, MCP or the ./api entry (CLAUDE.md Project)")
 System(toil, "toil", "Structured-JSON CLI and MCP server over enterprise tools and databases (package.json, CLAUDE.md)")
 System(toil_ui, "Toil UI", "Separate package @imagile-dev/toil-ui: React/Vite front end plus local node:http server (ui/package.json, CLAUDE.md Layout)")
-System_Ext(services, "Enterprise services and databases", "Jira, GitHub, databases and the others toil talks to, at hosts in the user config (CLAUDE.md principle 9)")
-System_Ext(credstore, "OS credential store", "macOS Keychain, Windows credential store, secret-tool (CLAUDE.md No Executables)")
+System_Ext(services, "Enterprise services and databases", "(inferred) named by CLAUDE.md principle 9, not measured in code: Jira, GitHub, databases and the others toil talks to, at hosts in the user config")
+System_Ext(credstore, "OS credential store", "(inferred) named by CLAUDE.md No Executables, file not outlined: macOS Keychain, Windows credential store, secret-tool")
 
 Rel(engineer, toil, "Runs", "terminal")
 Rel(agent, toil, "Calls tools on", "MCP stdio")
 Rel(agent, toil, "Imports and calls execute()", "npm ./api")
 Rel(agent, toil, "Runs", "terminal")
-Rel(toil, services, "Sends requests to", "HTTPS, SQL")
+Rel(toil, services, "(inferred) request code not read; Sends requests to", "HTTPS, SQL")
 Rel(toil, credstore, "(inferred) reads secrets from via keychain.ts", "OS tools")
 Rel(toil_ui, toil, "(inferred) executes commands through toil execute()", "npm dependency")
 ```
@@ -52,8 +52,8 @@ title Containers: toil
 Person(engineer, "Engineer", "Installs toil from npm and runs it, or lets an agent drive it (CLAUDE.md Project)")
 Person(agent, "AI agent / CI job", "Drives toil through the CLI, MCP or the ./api entry (CLAUDE.md Project)")
 System(toil_ui, "Toil UI", "Separate package @imagile-dev/toil-ui: React/Vite front end plus local node:http server (ui/package.json, CLAUDE.md Layout)")
-System_Ext(services, "Enterprise services and databases", "Jira, GitHub, databases and the others toil talks to, at hosts in the user config (CLAUDE.md principle 9)")
-System_Ext(credstore, "OS credential store", "macOS Keychain, Windows credential store, secret-tool (CLAUDE.md No Executables)")
+System_Ext(services, "Enterprise services and databases", "(inferred) named by CLAUDE.md principle 9, not measured in code: Jira, GitHub, databases and the others toil talks to, at hosts in the user config")
+System_Ext(credstore, "OS credential store", "(inferred) named by CLAUDE.md No Executables, file not outlined: macOS Keychain, Windows credential store, secret-tool")
 
 System_Boundary(toil, "toil") {
   Container(cli, "CLI front door", "TypeScript, commander", "src/cli.ts main() and src/program.ts buildProgram; bin dist/toil.js (package.json bin)")
@@ -73,27 +73,27 @@ Rel(engineer, cli, "Runs", "terminal")
 Rel(agent, mcp, "Calls tools on", "MCP stdio")
 Rel(agent, api, "Imports and calls execute()", "npm ./api")
 Rel(agent, cli, "Runs", "terminal")
-Rel(cli, registry, "Builds commands from", "import src/cli.ts:14")
-Rel(cli, core, "Runs calls through", "import src/program.ts:7")
-Rel(cli, mcp, "Starts for toil mcp", "import src/cli.ts:10")
-Rel(cli, welcome, "Opens on bare toil", "import src/cli.ts:17")
-Rel(mcp, core, "(inferred) Executes each tool through", "import, 14 files")
+Rel(cli, registry, "Builds commands from (src/cli.ts:14)", "import")
+Rel(cli, core, "Runs calls through (src/program.ts:7)", "import")
+Rel(cli, mcp, "Starts for toil mcp (src/cli.ts:10)", "import")
+Rel(cli, welcome, "Opens on bare toil (src/cli.ts:17)", "import")
+Rel(mcp, core, "Executes each tool through (util size <file> --select outline.imports over src/mcp: 14 files import ../core)", "import")
 Rel(mcp, registry, "(inferred) reads tool list from", "import")
-Rel(api, registry, "Exports", "import src/api.ts:36")
-Rel(api, core, "Delegates to", "import src/api.ts:31")
-Rel(api, mcp, "Imports", "import src/api.ts:34")
-Rel(registry, areas, "Lists via areas.generated.ts", "import src/registry.ts:1")
-Rel(registry, dossiers, "Registers commands of", "import src/registry.ts:4-7")
-Rel(registry, connections, "Registers commands of", "import src/registry.ts:3")
-Rel(registry, skills, "Registers commands of", "import src/registry.ts:14-15")
-Rel(registry, misc, "Registers commands of", "import src/registry.ts:2,8,9,13,16")
-Rel(areas, core, "(inferred) Built on defineArea and execute", "import, 15 index files")
-Rel(dossiers, core, "(inferred) Built on", "import, 32 imports")
-Rel(connections, core, "(inferred) Built on", "import, 21 imports")
-Rel(skills, core, "Built on", "import, 22 imports")
-Rel(welcome, core, "Built on", "import, 16 imports")
-Rel(misc, core, "Built on", "import")
-Rel(areas, services, "Sends requests to", "HTTPS, SQL")
+Rel(api, registry, "Exports (src/api.ts:36)", "import")
+Rel(api, core, "Delegates to (src/api.ts:31)", "import")
+Rel(api, mcp, "Imports (src/api.ts:34)", "import")
+Rel(registry, areas, "Lists via areas.generated.ts (src/registry.ts:1)", "import")
+Rel(registry, dossiers, "Registers commands of (src/registry.ts:4-7)", "import")
+Rel(registry, connections, "Registers commands of (src/registry.ts:3)", "import")
+Rel(registry, skills, "Registers commands of (src/registry.ts:14-15)", "import")
+Rel(registry, misc, "Registers commands of (src/registry.ts:2,8,9,13,16)", "import")
+Rel(areas, core, "Built on defineArea and execute (util size <file> --select outline.imports over the 15 area index.ts files: each imports ../../core)", "import")
+Rel(dossiers, core, "Built on (util size <file> --select outline.imports over src/dossiers: 32 imports of ../core)", "import")
+Rel(connections, core, "Built on (util size <file> --select outline.imports over src/connections: 21 imports of ../core)", "import")
+Rel(skills, core, "Built on (util size <file> --select outline.imports over src/skills: 22 imports of ../core)", "import")
+Rel(welcome, core, "Built on (util size <file> --select outline.imports over src/welcome: 16 imports of ../core)", "import")
+Rel(misc, core, "Built on (outline.imports of 8 of 10 files, e.g. src/audit/commands.ts:2)", "import")
+Rel(areas, services, "(inferred) request code not read; Sends requests to", "HTTPS, SQL")
 Rel(core, credstore, "(inferred) reads secrets from via keychain.ts", "OS tools")
 Rel(toil_ui, core, "(inferred) executes commands through toil execute()", "npm dependency")
 ```

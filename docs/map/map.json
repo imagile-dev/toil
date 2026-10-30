@@ -5,7 +5,10 @@
   "modules": [
     {
       "id": "cli",
-      "path": "src/cli.ts, src/program.ts",
+      "path": [
+        "src/cli.ts",
+        "src/program.ts"
+      ],
       "how": "observed",
       "source": "src/cli.ts:30 main; package.json bin"
     },
@@ -65,7 +68,15 @@
     },
     {
       "id": "misc",
-      "path": "src/audit, src/feedback, src/theme, src/setup, src/repos, src/os, src/shims",
+      "path": [
+        "src/audit",
+        "src/feedback",
+        "src/theme",
+        "src/setup",
+        "src/repos",
+        "src/os",
+        "src/shims"
+      ],
       "how": "observed",
       "source": "util size src --depth 2"
     },
@@ -95,13 +106,11 @@
     },
     {
       "id": "services",
-      "path": "(external)",
       "how": "inferred",
       "reason": "CLAUDE.md principle 9, not a measured fact about code"
     },
     {
       "id": "credstore",
-      "path": "src/core/keychain.ts",
       "how": "inferred",
       "reason": "named in CLAUDE.md, file not outlined"
     }
@@ -183,43 +192,43 @@
       "from": "areas",
       "to": "core",
       "how": "observed",
-      "source": "import scan: 15 area index.ts files"
+      "source": "util size <file> --select outline.imports over the 15 area index.ts files: each imports ../../core"
     },
     {
       "from": "dossiers",
       "to": "core",
       "how": "observed",
-      "source": "import scan: 32 imports"
+      "source": "util size <file> --select outline.imports over src/dossiers: 32 imports of ../core"
     },
     {
       "from": "connections",
       "to": "core",
       "how": "observed",
-      "source": "import scan: 21"
+      "source": "util size <file> --select outline.imports over src/connections: 21 imports of ../core"
     },
     {
       "from": "skills",
       "to": "core",
       "how": "observed",
-      "source": "import scan: 22"
+      "source": "util size <file> --select outline.imports over src/skills: 22 imports of ../core"
     },
     {
       "from": "welcome",
       "to": "core",
       "how": "observed",
-      "source": "import scan: 16"
+      "source": "util size <file> --select outline.imports over src/welcome: 16 imports of ../core"
     },
     {
       "from": "mcp",
       "to": "core",
       "how": "observed",
-      "source": "import scan: 14"
+      "source": "util size <file> --select outline.imports over src/mcp: 14 files import ../core"
     },
     {
       "from": "misc",
       "to": "core",
       "how": "observed",
-      "source": "import scan"
+      "source": "util size <file> --select outline.imports over src/audit, feedback, theme, setup, repos, os: 8 of 10 files import ../core (src/audit/commands.ts:2, src/feedback/command.ts:2, src/os/windows-sspi.ts:4)"
     },
     {
       "from": "mcp",
@@ -249,7 +258,7 @@
       "from": "areas",
       "to": "services",
       "how": "inferred",
-      "reason": "HTTP calls by design; request code not read"
+      "reason": "request code not read"
     },
     {
       "from": "core",
@@ -261,7 +270,7 @@
   "hubs": [
     {
       "id": "core",
-      "dependents": 13,
+      "dependents": 10,
       "changedWith": [
         "ui_web"
       ],
@@ -270,7 +279,7 @@
     },
     {
       "id": "registry",
-      "dependents": 4,
+      "dependents": 3,
       "changedWith": []
     }
   ],
