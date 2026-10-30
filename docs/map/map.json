@@ -1,0 +1,357 @@
+{
+  "schemaVersion": 1,
+  "toilVersion": "0.1.0-beta.3",
+  "commit": "333cf9ca77a624b21b1604f44946327318ba660d",
+  "modules": [
+    {
+      "id": "cli",
+      "path": [
+        "src/cli.ts",
+        "src/program.ts"
+      ],
+      "how": "observed",
+      "source": "src/cli.ts:30 main; package.json bin"
+    },
+    {
+      "id": "mcp",
+      "path": "src/mcp",
+      "how": "observed",
+      "source": "src/cli.ts:10 import; util size src (2 files)"
+    },
+    {
+      "id": "api",
+      "path": "src/api.ts",
+      "how": "observed",
+      "source": "package.json exports ./api; src/api.ts"
+    },
+    {
+      "id": "registry",
+      "path": "src/registry.ts",
+      "how": "observed",
+      "source": "src/registry.ts:23,34"
+    },
+    {
+      "id": "core",
+      "path": "src/core",
+      "how": "observed",
+      "source": "util size src --depth 1 (151 files)"
+    },
+    {
+      "id": "areas",
+      "path": "src/areas",
+      "how": "observed",
+      "source": "ls src/areas (28 areas); util size src --depth 1 (343 files)"
+    },
+    {
+      "id": "dossiers",
+      "path": "src/dossiers",
+      "how": "observed",
+      "source": "util size src --depth 2"
+    },
+    {
+      "id": "connections",
+      "path": "src/connections",
+      "how": "observed",
+      "source": "util size src --depth 2"
+    },
+    {
+      "id": "skills",
+      "path": "src/skills",
+      "how": "observed",
+      "source": "util size src --depth 2"
+    },
+    {
+      "id": "welcome",
+      "path": "src/welcome",
+      "how": "observed",
+      "source": "util size src --depth 2"
+    },
+    {
+      "id": "misc",
+      "path": [
+        "src/audit",
+        "src/feedback",
+        "src/theme",
+        "src/setup",
+        "src/repos",
+        "src/os",
+        "src/shims"
+      ],
+      "how": "observed",
+      "source": "util size src --depth 2"
+    },
+    {
+      "id": "ui_web",
+      "path": "ui/src",
+      "how": "observed",
+      "source": "util size . --depth 2"
+    },
+    {
+      "id": "ui_server",
+      "path": "ui/server",
+      "how": "observed",
+      "source": "ls ui/server"
+    },
+    {
+      "id": "site",
+      "path": "site/",
+      "how": "observed",
+      "source": "util size . --depth 2"
+    },
+    {
+      "id": "feedback_fn",
+      "path": "functions/feedback",
+      "how": "observed",
+      "source": "deps scan manifest functions/feedback/package.json"
+    },
+    {
+      "id": "services",
+      "how": "observed",
+      "source": "apiRequest in 28 files under src/areas"
+    },
+    {
+      "id": "credstore",
+      "how": "observed",
+      "source": "src/core/keychain.ts:13,131"
+    }
+  ],
+  "edges": [
+    {
+      "from": "cli",
+      "to": "registry",
+      "how": "observed",
+      "source": "src/cli.ts:14"
+    },
+    {
+      "from": "cli",
+      "to": "core",
+      "how": "observed",
+      "source": "src/program.ts:7"
+    },
+    {
+      "from": "cli",
+      "to": "mcp",
+      "how": "observed",
+      "source": "src/cli.ts:10"
+    },
+    {
+      "from": "cli",
+      "to": "welcome",
+      "how": "observed",
+      "source": "src/cli.ts:17"
+    },
+    {
+      "from": "api",
+      "to": "registry",
+      "how": "observed",
+      "source": "src/api.ts:36"
+    },
+    {
+      "from": "api",
+      "to": "core",
+      "how": "observed",
+      "source": "src/api.ts:31"
+    },
+    {
+      "from": "api",
+      "to": "mcp",
+      "how": "observed",
+      "source": "src/api.ts:34"
+    },
+    {
+      "from": "registry",
+      "to": "areas",
+      "how": "observed",
+      "source": "src/registry.ts:1"
+    },
+    {
+      "from": "registry",
+      "to": "dossiers",
+      "how": "observed",
+      "source": "src/registry.ts:4-7"
+    },
+    {
+      "from": "registry",
+      "to": "connections",
+      "how": "observed",
+      "source": "src/registry.ts:3"
+    },
+    {
+      "from": "registry",
+      "to": "misc",
+      "how": "observed",
+      "source": "src/registry.ts:2,8,9,13,16"
+    },
+    {
+      "from": "registry",
+      "to": "skills",
+      "how": "observed",
+      "source": "src/registry.ts:14-15"
+    },
+    {
+      "from": "areas",
+      "to": "core",
+      "how": "observed",
+      "source": "util size <file> --select outline.imports over every source file in src/areas: 198 files import core (518 imports); only 4 of the 28 index.ts files do"
+    },
+    {
+      "from": "dossiers",
+      "to": "core",
+      "how": "observed",
+      "source": "util size <file> --select outline.imports over src/dossiers: all 4 files import ../core (32 imports)"
+    },
+    {
+      "from": "connections",
+      "to": "core",
+      "how": "observed",
+      "source": "util size <file> --select outline.imports over src/connections: 3 of 13 files import ../core (21 imports)"
+    },
+    {
+      "from": "skills",
+      "to": "core",
+      "how": "observed",
+      "source": "util size <file> --select outline.imports over src/skills: all 6 files import ../core (22 imports)"
+    },
+    {
+      "from": "welcome",
+      "to": "core",
+      "how": "observed",
+      "source": "util size <file> --select outline.imports over src/welcome: 10 files import core (16 imports)"
+    },
+    {
+      "from": "mcp",
+      "to": "core",
+      "how": "observed",
+      "source": "util size <file> --select outline.imports over src/mcp: both files import ../core (14 imports)"
+    },
+    {
+      "from": "misc",
+      "to": "core",
+      "how": "observed",
+      "source": "util size <file> --select outline.imports over src/audit, feedback, theme, setup, repos, os: 8 of 10 files import ../core (src/audit/commands.ts:2, src/feedback/command.ts:2, src/os/windows-sspi.ts:4)"
+    },
+    {
+      "from": "ui_server",
+      "to": "core",
+      "how": "observed",
+      "source": "ui/server/main.ts:14 imports execute from @imagile-dev/toil/api; ui/server/agents/answer.ts:21 and tools.ts:32 import src/core"
+    },
+    {
+      "from": "ui_web",
+      "to": "ui_server",
+      "how": "observed",
+      "source": "ui/src/server-client.ts:129,165 fetch the server's api/session and api routes"
+    },
+    {
+      "from": "site",
+      "to": "feedback_fn",
+      "how": "observed",
+      "source": "site/src/pages/about/feedback.astro:25,126 post to the endpoint set in site/src/data/feedback.ts:5, route /api/submit (functions/feedback/src/lib/handlers.ts:4)"
+    },
+    {
+      "from": "areas",
+      "to": "services",
+      "how": "observed",
+      "source": "apiRequest( appears in 28 files under src/areas (Grep); the db area runs SQL through src/core/db providers"
+    },
+    {
+      "from": "core",
+      "to": "credstore",
+      "how": "observed",
+      "source": "src/core/keychain.ts:1 imports spawn from node:child_process; :13 secret-tool, :131 security"
+    }
+  ],
+  "hubs": [
+    {
+      "id": "core",
+      "dependents": 10,
+      "changedWith": [
+        "ui_web"
+      ],
+      "changedWithHow": "inferred",
+      "changedWithReason": "commit scopes; the commit log lists no files"
+    },
+    {
+      "id": "registry",
+      "dependents": 2,
+      "changedWith": []
+    }
+  ],
+  "decisions": [
+    {
+      "file": "docs/decisions/432-toil-map.md",
+      "modules": [
+        "core"
+      ]
+    },
+    {
+      "file": "docs/decisions/495-unify-jira-deployments.md",
+      "modules": [
+        "areas",
+        "core"
+      ]
+    },
+    {
+      "file": "docs/decisions/520-connection-import.md",
+      "modules": [
+        "connections"
+      ]
+    },
+    {
+      "file": "docs/decisions/494-dossier-briefing.md",
+      "modules": [
+        "dossiers"
+      ]
+    },
+    {
+      "file": "docs/decisions/516-agent-setup.md",
+      "modules": [
+        "skills"
+      ]
+    },
+    {
+      "file": "docs/decisions/520-tls-server-name.md",
+      "modules": [
+        "core",
+        "areas"
+      ]
+    },
+    {
+      "file": "docs/decisions/519-confluence-markdown-storage.md",
+      "modules": [
+        "areas"
+      ]
+    },
+    {
+      "file": "docs/decisions/529-size-imports.md",
+      "modules": [
+        "areas"
+      ]
+    },
+    {
+      "file": "docs/decisions/527-workflow-pages.md",
+      "modules": [
+        "skills"
+      ]
+    },
+    {
+      "file": "docs/decisions/536-release-body-guard.md",
+      "modules": []
+    }
+  ],
+  "notMapped": [
+    "dist/ (generated bundle, 9.4MB)",
+    "src/areas/* internals (only imports of core were scanned)",
+    "test/ and *.test.ts",
+    "ui/ internals beyond folder sizes",
+    "site/ internals",
+    "src/areas/util/md/adf-schema.json and other schema json",
+    "languages without outline: none significant (ts, json, md only)",
+    "docs/adr (does not exist)",
+    "openapi specs (none in repo)",
+    "dynatrace, openshift, artifactory, confluence (no connection)"
+  ],
+  "c4": {
+    "model": "docs/map/model.json"
+  }
+}

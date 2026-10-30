@@ -17,7 +17,7 @@ request to the page in `SKILL.md`, **By job**.
   the MCP tool of the same path (`github_pr_diff`). Reading and editing the working
   tree, the repository's own gate (build, lint, tests, as its CLAUDE.md or AGENTS.md
   lists them), `git commit` and `git push` on the author's own branch, and a git
-  read toil's `git` area can't ask for (`git diff --name-only <commit>`) are your own
+  read toil's `git` area can't ask for (`git diff --name-only <commit> HEAD`) are your own
   tools; toil has no command for them.
 - **Host-neutral.** Pages say `pr diff`, `commit checks`, `pipeline logs`, and
   write `toil <host> …` where one line fits GitHub (`github`), Bitbucket (`bitbucket`)
