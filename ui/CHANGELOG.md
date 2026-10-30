@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.0-beta.4](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-beta.3...toil-ui-v0.1.0-beta.4) (2026-10-30)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @imagile-dev/toil bumped from 0.1.0-beta.3 to 0.1.0-beta.4
+
 ## [0.1.0-beta.3](https://github.com/imagile-dev/toil/compare/toil-ui-v0.1.0-beta.2...toil-ui-v0.1.0-beta.3) (2026-10-29)
 
 
