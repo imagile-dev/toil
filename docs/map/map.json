@@ -1,0 +1,354 @@
+{
+  "schemaVersion": 1,
+  "toilVersion": "0.1.0-beta.3",
+  "commit": "333cf9ca77a624b21b1604f44946327318ba660d",
+  "modules": [
+    {
+      "id": "cli",
+      "path": "src/cli.ts, src/program.ts",
+      "how": "observed",
+      "source": "src/cli.ts:30 main; package.json bin"
+    },
+    {
+      "id": "mcp",
+      "path": "src/mcp",
+      "how": "observed",
+      "source": "src/cli.ts:10 import; util size src (2 files)"
+    },
+    {
+      "id": "api",
+      "path": "src/api.ts",
+      "how": "observed",
+      "source": "package.json exports ./api; src/api.ts"
+    },
+    {
+      "id": "registry",
+      "path": "src/registry.ts",
+      "how": "observed",
+      "source": "src/registry.ts:23,34"
+    },
+    {
+      "id": "core",
+      "path": "src/core",
+      "how": "observed",
+      "source": "util size src --depth 1 (151 files, was 150)"
+    },
+    {
+      "id": "areas",
+      "path": "src/areas",
+      "how": "observed",
+      "source": "ls src/areas (28 areas); util size src: 343 files, was 341"
+    },
+    {
+      "id": "dossiers",
+      "path": "src/dossiers",
+      "how": "observed",
+      "source": "util size src --depth 2"
+    },
+    {
+      "id": "connections",
+      "path": "src/connections",
+      "how": "observed",
+      "source": "util size src --depth 2"
+    },
+    {
+      "id": "skills",
+      "path": "src/skills",
+      "how": "observed",
+      "source": "util size src --depth 2"
+    },
+    {
+      "id": "welcome",
+      "path": "src/welcome",
+      "how": "observed",
+      "source": "util size src --depth 2"
+    },
+    {
+      "id": "misc",
+      "path": "src/audit, src/feedback, src/theme, src/setup, src/repos, src/os, src/shims",
+      "how": "observed",
+      "source": "util size src --depth 2"
+    },
+    {
+      "id": "ui_web",
+      "path": "ui/src",
+      "how": "observed",
+      "source": "util size . --depth 2"
+    },
+    {
+      "id": "ui_server",
+      "path": "ui/server",
+      "how": "observed",
+      "source": "ls ui/server"
+    },
+    {
+      "id": "site",
+      "path": "site/",
+      "how": "observed",
+      "source": "util size . --depth 2"
+    },
+    {
+      "id": "feedback_fn",
+      "path": "functions/feedback",
+      "how": "observed",
+      "source": "deps scan manifest functions/feedback/package.json"
+    },
+    {
+      "id": "services",
+      "path": "(external)",
+      "how": "inferred",
+      "reason": "CLAUDE.md principle 9, not a measured fact about code"
+    },
+    {
+      "id": "credstore",
+      "path": "src/core/keychain.ts",
+      "how": "inferred",
+      "reason": "named in CLAUDE.md, file not outlined"
+    }
+  ],
+  "edges": [
+    {
+      "from": "cli",
+      "to": "registry",
+      "how": "observed",
+      "source": "src/cli.ts:14"
+    },
+    {
+      "from": "cli",
+      "to": "core",
+      "how": "observed",
+      "source": "src/program.ts:7"
+    },
+    {
+      "from": "cli",
+      "to": "mcp",
+      "how": "observed",
+      "source": "src/cli.ts:10"
+    },
+    {
+      "from": "cli",
+      "to": "welcome",
+      "how": "observed",
+      "source": "src/cli.ts:17"
+    },
+    {
+      "from": "api",
+      "to": "registry",
+      "how": "observed",
+      "source": "src/api.ts:36"
+    },
+    {
+      "from": "api",
+      "to": "core",
+      "how": "observed",
+      "source": "src/api.ts:31"
+    },
+    {
+      "from": "api",
+      "to": "mcp",
+      "how": "observed",
+      "source": "src/api.ts:34"
+    },
+    {
+      "from": "registry",
+      "to": "areas",
+      "how": "observed",
+      "source": "src/registry.ts:1"
+    },
+    {
+      "from": "registry",
+      "to": "dossiers",
+      "how": "observed",
+      "source": "src/registry.ts:4-7"
+    },
+    {
+      "from": "registry",
+      "to": "connections",
+      "how": "observed",
+      "source": "src/registry.ts:3"
+    },
+    {
+      "from": "registry",
+      "to": "misc",
+      "how": "observed",
+      "source": "src/registry.ts:2,8,9,13,16"
+    },
+    {
+      "from": "registry",
+      "to": "skills",
+      "how": "observed",
+      "source": "src/registry.ts:14-15"
+    },
+    {
+      "from": "areas",
+      "to": "core",
+      "how": "observed",
+      "source": "import scan: 15 area index.ts files"
+    },
+    {
+      "from": "dossiers",
+      "to": "core",
+      "how": "observed",
+      "source": "import scan: 32 imports"
+    },
+    {
+      "from": "connections",
+      "to": "core",
+      "how": "observed",
+      "source": "import scan: 21"
+    },
+    {
+      "from": "skills",
+      "to": "core",
+      "how": "observed",
+      "source": "import scan: 22"
+    },
+    {
+      "from": "welcome",
+      "to": "core",
+      "how": "observed",
+      "source": "import scan: 16"
+    },
+    {
+      "from": "mcp",
+      "to": "core",
+      "how": "observed",
+      "source": "import scan: 14"
+    },
+    {
+      "from": "misc",
+      "to": "core",
+      "how": "observed",
+      "source": "import scan"
+    },
+    {
+      "from": "mcp",
+      "to": "registry",
+      "how": "inferred",
+      "reason": "tool list is generated from the registry per CLAUDE.md; imports not checked"
+    },
+    {
+      "from": "ui_server",
+      "to": "core",
+      "how": "inferred",
+      "reason": "CLAUDE.md says the UI is built on execute(); ui/ imports not scanned"
+    },
+    {
+      "from": "ui_web",
+      "to": "ui_server",
+      "how": "inferred",
+      "reason": "CLAUDE.md Layout"
+    },
+    {
+      "from": "site",
+      "to": "feedback_fn",
+      "how": "inferred",
+      "reason": "form posts to the backend per CLAUDE.md"
+    },
+    {
+      "from": "areas",
+      "to": "services",
+      "how": "inferred",
+      "reason": "HTTP calls by design; request code not read"
+    },
+    {
+      "from": "core",
+      "to": "credstore",
+      "how": "inferred",
+      "reason": "CLAUDE.md names src/core/keychain.ts as the credential-store spawner; file not outlined"
+    }
+  ],
+  "hubs": [
+    {
+      "id": "core",
+      "dependents": 13,
+      "changedWith": [
+        "ui_web"
+      ],
+      "changedWithHow": "inferred",
+      "changedWithReason": "commit scopes; the commit log lists no files"
+    },
+    {
+      "id": "registry",
+      "dependents": 4,
+      "changedWith": []
+    }
+  ],
+  "decisions": [
+    {
+      "file": "docs/decisions/432-toil-map.md",
+      "modules": [
+        "core"
+      ]
+    },
+    {
+      "file": "docs/decisions/495-unify-jira-deployments.md",
+      "modules": [
+        "areas",
+        "core"
+      ]
+    },
+    {
+      "file": "docs/decisions/520-connection-import.md",
+      "modules": [
+        "connections"
+      ]
+    },
+    {
+      "file": "docs/decisions/494-dossier-briefing.md",
+      "modules": [
+        "dossiers"
+      ]
+    },
+    {
+      "file": "docs/decisions/516-agent-setup.md",
+      "modules": [
+        "skills"
+      ]
+    },
+    {
+      "file": "docs/decisions/520-tls-server-name.md",
+      "modules": [
+        "core",
+        "areas"
+      ]
+    },
+    {
+      "file": "docs/decisions/519-confluence-markdown-storage.md",
+      "modules": [
+        "areas"
+      ]
+    },
+    {
+      "file": "docs/decisions/529-size-imports.md",
+      "modules": [
+        "areas"
+      ]
+    },
+    {
+      "file": "docs/decisions/527-workflow-pages.md",
+      "modules": [
+        "skills"
+      ]
+    },
+    {
+      "file": "docs/decisions/536-release-body-guard.md",
+      "modules": []
+    }
+  ],
+  "notMapped": [
+    "dist/ (generated bundle, 9.4MB)",
+    "src/areas/* internals (only index.ts imports scanned)",
+    "test/ and *.test.ts",
+    "ui/ internals beyond folder sizes",
+    "site/ internals",
+    "src/areas/util/md/adf-schema.json and other schema json",
+    "languages without outline: none significant (ts, json, md only)",
+    "docs/adr (does not exist)",
+    "openapi specs (none in repo)",
+    "dynatrace, openshift, artifactory, confluence (no connection)"
+  ],
+  "c4": {
+    "model": "docs/map/model.json"
+  }
+}

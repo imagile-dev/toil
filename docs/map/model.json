@@ -1,0 +1,384 @@
+{
+  "title": "toil (@imagile-dev/toil)",
+  "people": [
+    {
+      "id": "engineer",
+      "name": "Engineer",
+      "description": "Installs toil from npm and runs it, or lets an agent drive it (CLAUDE.md Project)"
+    },
+    {
+      "id": "agent",
+      "name": "AI agent / CI job",
+      "description": "Drives toil through the CLI, MCP or the ./api entry (CLAUDE.md Project)"
+    }
+  ],
+  "systems": [
+    {
+      "id": "toil",
+      "name": "toil",
+      "description": "Structured-JSON CLI and MCP server over enterprise tools and databases (package.json, CLAUDE.md)",
+      "containers": [
+        {
+          "id": "cli",
+          "name": "CLI front door",
+          "technology": "TypeScript, commander",
+          "description": "src/cli.ts main() and src/program.ts buildProgram; bin dist/toil.js (package.json bin)"
+        },
+        {
+          "id": "mcp",
+          "name": "MCP server",
+          "technology": "TypeScript, MCP SDK",
+          "description": "src/mcp/server.ts: one tool per registry command (imported at src/cli.ts:10; tool generation per CLAUDE.md Layout)"
+        },
+        {
+          "id": "api",
+          "name": "./api entry",
+          "technology": "TypeScript",
+          "description": "src/api.ts: execute(), registry, envelope types for a program in-process (src/api.ts:31 imports run.js)"
+        },
+        {
+          "id": "registry",
+          "name": "Registry",
+          "technology": "TypeScript",
+          "description": "src/registry.ts lists every area and command; both front doors read it (src/registry.ts:23,34)"
+        },
+        {
+          "id": "core",
+          "name": "Core machinery",
+          "technology": "TypeScript",
+          "description": "src/core: defineArea, defineCommand, execute, config, secrets, dossier, db providers, query, output (150 files, 33k lines, util size src)",
+          "components": [
+            {
+              "id": "core_run",
+              "name": "run.ts (execute)",
+              "technology": "TypeScript",
+              "description": "Validation, write gate and envelope for every call (src/core/run.ts, 530 lines; role from CLAUDE.md Layout)"
+            },
+            {
+              "id": "core_config",
+              "name": "config.ts",
+              "technology": "TypeScript",
+              "description": "Config loading and writing, env precedence (src/core/config.ts, 774 lines)"
+            },
+            {
+              "id": "core_dossier",
+              "name": "dossier.ts",
+              "technology": "TypeScript",
+              "description": "Dossier model, resolution and writing (src/core/dossier.ts, 1440 lines, the largest source file)"
+            },
+            {
+              "id": "core_db",
+              "name": "db providers",
+              "technology": "TypeScript",
+              "description": "src/core/db/{sqlserver,hive,oracle,teradata,...}/index.ts, 580-720 lines each (util size src/core)"
+            },
+            {
+              "id": "core_owi",
+              "name": "owi",
+              "technology": "TypeScript",
+              "description": "Open Work Item mapping, similar.ts 879 lines (src/core/owi/similar.ts)"
+            },
+            {
+              "id": "core_keychain",
+              "name": "keychain.ts",
+              "technology": "TypeScript",
+              "description": "(inferred) the OS credential store spawner; CLAUDE.md names it but it was not outlined"
+            },
+            {
+              "id": "core_tls",
+              "name": "db/tls.ts",
+              "technology": "TypeScript",
+              "description": "TLS options (tlsServerName, tlsCaFile) shared by the postgres, mysql, hive and sqlserver providers (src/core/db/tls.ts:1-189, imports checked in src/core/db/*/index.ts)"
+            }
+          ]
+        },
+        {
+          "id": "areas",
+          "name": "Integration areas",
+          "technology": "TypeScript",
+          "description": "src/areas: 28 area folders (ls src/areas): ado, jira, github, db, util, ... 341 files, 69k lines (util size src --depth 2)"
+        },
+        {
+          "id": "dossiers",
+          "name": "Dossier commands",
+          "technology": "TypeScript",
+          "description": "src/dossiers: list, show, build, onboard, brief (4 files, 1.7k lines)"
+        },
+        {
+          "id": "connections",
+          "name": "Connection commands",
+          "technology": "TypeScript",
+          "description": "src/connections: add, login, list, import ... (13 files, 2.5k lines)"
+        },
+        {
+          "id": "skills",
+          "name": "Skills and bundled skill",
+          "technology": "TypeScript",
+          "description": "src/skills: skills folders, marketplace clones, bundled toil skill (6 files)"
+        },
+        {
+          "id": "welcome",
+          "name": "Welcome menu",
+          "technology": "TypeScript, ANSI",
+          "description": "src/welcome: splash and menu for bare toil on a terminal (38 files, 7.4k lines)"
+        },
+        {
+          "id": "misc",
+          "name": "Small modules",
+          "technology": "TypeScript",
+          "description": "src/audit, feedback, theme, setup, repos, os, shims (each 1 to 4 files, imported by the root and core only)"
+        }
+      ]
+    },
+    {
+      "id": "toil_ui",
+      "name": "Toil UI",
+      "description": "Separate package @imagile-dev/toil-ui: React/Vite front end plus local node:http server (ui/package.json, CLAUDE.md Layout)",
+      "containers": [
+        {
+          "id": "ui_web",
+          "name": "UI front end",
+          "technology": "React, Vite",
+          "description": "ui/src: 185 files, 33.7k lines (util size . --depth 2)"
+        },
+        {
+          "id": "ui_server",
+          "name": "UI server",
+          "technology": "node:http",
+          "description": "ui/server: 37 files, local server and agent spawner (ls ui/server)"
+        }
+      ]
+    },
+    {
+      "id": "site",
+      "name": "Docs site",
+      "description": "site/: Astro GitHub Pages site, 192 files (util size . --depth 2)"
+    },
+    {
+      "id": "feedback_fn",
+      "name": "Feedback backend",
+      "description": "functions/feedback: Azure Function behind the site feedback form (functions/feedback/package.json; role from CLAUDE.md Layout)"
+    },
+    {
+      "id": "services",
+      "name": "Enterprise services and databases",
+      "external": true,
+      "description": "Jira, GitHub, databases and the others toil talks to, at hosts in the user config (CLAUDE.md principle 9)"
+    },
+    {
+      "id": "credstore",
+      "name": "OS credential store",
+      "external": true,
+      "description": "macOS Keychain, Windows credential store, secret-tool (CLAUDE.md No Executables)"
+    }
+  ],
+  "relationships": [
+    {
+      "source": "engineer",
+      "destination": "cli",
+      "description": "Runs",
+      "technology": "terminal"
+    },
+    {
+      "source": "agent",
+      "destination": "mcp",
+      "description": "Calls tools on",
+      "technology": "MCP stdio"
+    },
+    {
+      "source": "agent",
+      "destination": "api",
+      "description": "Imports and calls execute()",
+      "technology": "npm ./api"
+    },
+    {
+      "source": "agent",
+      "destination": "cli",
+      "description": "Runs",
+      "technology": "terminal"
+    },
+    {
+      "source": "cli",
+      "destination": "registry",
+      "description": "Builds commands from",
+      "technology": "import src/cli.ts:14"
+    },
+    {
+      "source": "cli",
+      "destination": "core_run",
+      "description": "Runs calls through",
+      "technology": "import src/program.ts:7"
+    },
+    {
+      "source": "cli",
+      "destination": "mcp",
+      "description": "Starts for toil mcp",
+      "technology": "import src/cli.ts:10"
+    },
+    {
+      "source": "cli",
+      "destination": "welcome",
+      "description": "Opens on bare toil",
+      "technology": "import src/cli.ts:17"
+    },
+    {
+      "source": "mcp",
+      "destination": "core_run",
+      "description": "(inferred) Executes each tool through",
+      "technology": "import, 14 files"
+    },
+    {
+      "source": "mcp",
+      "destination": "registry",
+      "description": "(inferred) reads tool list from",
+      "technology": "import"
+    },
+    {
+      "source": "api",
+      "destination": "registry",
+      "description": "Exports",
+      "technology": "import src/api.ts:36"
+    },
+    {
+      "source": "api",
+      "destination": "core_run",
+      "description": "Delegates to",
+      "technology": "import src/api.ts:31"
+    },
+    {
+      "source": "api",
+      "destination": "mcp",
+      "description": "Imports",
+      "technology": "import src/api.ts:34"
+    },
+    {
+      "source": "registry",
+      "destination": "areas",
+      "description": "Lists via areas.generated.ts",
+      "technology": "import src/registry.ts:1"
+    },
+    {
+      "source": "registry",
+      "destination": "dossiers",
+      "description": "Registers commands of",
+      "technology": "import src/registry.ts:4-7"
+    },
+    {
+      "source": "registry",
+      "destination": "connections",
+      "description": "Registers commands of",
+      "technology": "import src/registry.ts:3"
+    },
+    {
+      "source": "registry",
+      "destination": "skills",
+      "description": "Registers commands of",
+      "technology": "import src/registry.ts:14-15"
+    },
+    {
+      "source": "registry",
+      "destination": "misc",
+      "description": "Registers commands of",
+      "technology": "import src/registry.ts:2,8,9,13,16"
+    },
+    {
+      "source": "areas",
+      "destination": "core_run",
+      "description": "(inferred) Built on defineArea and execute",
+      "technology": "import, 15 index files"
+    },
+    {
+      "source": "dossiers",
+      "destination": "core_dossier",
+      "description": "(inferred) Built on",
+      "technology": "import, 32 imports"
+    },
+    {
+      "source": "connections",
+      "destination": "core_config",
+      "description": "(inferred) Built on",
+      "technology": "import, 21 imports"
+    },
+    {
+      "source": "skills",
+      "destination": "core",
+      "description": "Built on",
+      "technology": "import, 22 imports"
+    },
+    {
+      "source": "welcome",
+      "destination": "core",
+      "description": "Built on",
+      "technology": "import, 16 imports"
+    },
+    {
+      "source": "misc",
+      "destination": "core",
+      "description": "Built on",
+      "technology": "import"
+    },
+    {
+      "source": "areas",
+      "destination": "services",
+      "description": "Sends requests to",
+      "technology": "HTTPS, SQL"
+    },
+    {
+      "source": "core",
+      "destination": "credstore",
+      "description": "(inferred) reads secrets from via keychain.ts",
+      "technology": "OS tools"
+    },
+    {
+      "source": "ui_server",
+      "destination": "core",
+      "description": "(inferred) executes commands through toil execute()",
+      "technology": "npm dependency"
+    },
+    {
+      "source": "ui_web",
+      "destination": "ui_server",
+      "description": "(inferred) reads and writes through",
+      "technology": "HTTP"
+    },
+    {
+      "source": "site",
+      "destination": "feedback_fn",
+      "description": "(inferred) posts the feedback form to",
+      "technology": "HTTPS"
+    },
+    {
+      "source": "core_run",
+      "destination": "core_config",
+      "description": "(inferred) loads connection config through"
+    },
+    {
+      "source": "core_run",
+      "destination": "core_db",
+      "description": "(inferred) hands db commands to"
+    },
+    {
+      "source": "core_db",
+      "destination": "core_tls",
+      "description": "Providers build their TLS settings with",
+      "technology": "import ../tls.js"
+    }
+  ],
+  "views": [
+    {
+      "key": "context",
+      "type": "systemContext",
+      "scope": "toil"
+    },
+    {
+      "key": "containers",
+      "type": "container",
+      "scope": "toil"
+    },
+    {
+      "key": "components",
+      "type": "component",
+      "scope": "core"
+    }
+  ]
+}
