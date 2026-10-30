@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.0-beta.4](https://github.com/imagile-dev/toil/compare/v0.1.0-beta.3...v0.1.0-beta.4) (2026-10-30)
+
+
+### Features
+
+* **skill:** close the gaps found running map-codebase, and commit toil's map ([#539](https://github.com/imagile-dev/toil/issues/539)) ([a1d8708](https://github.com/imagile-dev/toil/commit/a1d87085a12251388f2e7e64108305577ccea2a3))
+* **skill:** workflow pages for review, ship and map-codebase ([#535](https://github.com/imagile-dev/toil/issues/535)) ([a1e04e8](https://github.com/imagile-dev/toil/commit/a1e04e8ac02e87e53a786371755ebaf7d59d6390))
+* **util:** list each file's imports in util size outlines ([#534](https://github.com/imagile-dev/toil/issues/534)) ([496d331](https://github.com/imagile-dev/toil/commit/496d331e03df5a0885102ae6ff2bedcc1b779f43))
+
+
+### Bug Fixes
+
+* **release:** fail loudly when a merged release PR isn't released, and escape its body first ([#537](https://github.com/imagile-dev/toil/issues/537)) ([333cf9c](https://github.com/imagile-dev/toil/commit/333cf9ca77a624b21b1604f44946327318ba660d))
+
 ## [0.1.0-beta.3](https://github.com/imagile-dev/toil/compare/v0.1.0-beta.2...v0.1.0-beta.3) (2026-10-29)
 
 
