@@ -127,8 +127,8 @@ inside the workspace.
    - `<toil version>` is `toil version`. `commit` is the **repository's** head at the
      mapping, from `toil git log --count 1` (not the commit `toil version` prints, which
      is toil's own build).
-   - A module's `path` may list several paths, and `how` and its `source` or `reason`
-     follow the observed or inferred rule above.
+   - A module's `path` is one path, or an array when the module spans several, and
+     `how` with its `source` or `reason` follows the observed or inferred rule above.
 
    **Refresh.** A later run reads the file instead of the code, then updates only what
    changed:

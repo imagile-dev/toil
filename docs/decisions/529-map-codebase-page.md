@@ -5,9 +5,8 @@
   GitHub draws the Mermaid in `docs/map/README.md` inline. The page now proposes
   `docs/map/map.json` with the model beside it, and still lets the person pick.
 - **Files are `map.json`, `model.json`, three SVGs and a README**, without the commit
-  in their names, so a refresh replaces them in one PR. The SVGs are the one exception
-  to the page's "render under a new name": the page says to render under new names, and
-  the committed copies are renamed on commit.
+  in their names, so a refresh replaces them in one PR. `render --out` never
+  overwrites, so a refresh renders under a new name and then replaces the committed file.
 - **Schema.** `c4` is `{ "model": "<path>" }`. `changedWith` holds module ids only;
   a co-change read from commit scopes is marked with `changedWithHow` and
   `changedWithReason` on the hub. Map ids are the model's element ids. `commit` is the
