@@ -184,7 +184,7 @@ function kept(keeper: AnalysisKeeper, dossier: string, startedAt: string) {
   return { one, stream };
 }
 /**
- * Remembers the adapter for a dossier (#494) once its Analyze answer is whole, and only then: a stopped
+ * Remembers the adapter for a dossier (#494) once an answer from it is whole, and only then: a stopped
  * or failed run says nothing about what the person prefers. A memory that can't be written never fails the answer.
  */
 function rememberer(store: DossierAgents, dossier: string, adapter: string) {
@@ -193,7 +193,7 @@ function rememberer(store: DossierAgents, dossier: string, adapter: string) {
     try {
       store.set(dossier, adapter);
     } catch {
-      // The answer matters more than the memory; the next Analyze simply asks the default again.
+      // The answer matters more than the memory; the next question simply asks the default again.
     }
   };
   async function* stream(answers: AsyncIterable<Answer>, signal: AbortSignal): AsyncIterable<Answer> {
@@ -643,8 +643,8 @@ export function createUiServer(options: UiServerOptions): UiServer {
         const extra = extraOf(body);
         // Analyze is kept in the history once its answer is whole (#395); the answer's last line names the record.
         const keep = body.prompt === ANALYZE && options.analyses ? kept(options.analyses, body.dossier, new Date().toISOString()) : null;
-        // The adapter a whole Analyze was asked of is the dossier's next default (#494).
-        const remember = body.prompt === ANALYZE && extra.adapter && options.dossierAgents ? rememberer(options.dossierAgents, body.dossier, extra.adapter) : null;
+        // The adapter a whole answer was asked of, Analyze or an ordinary question, is the dossier's next default (#494).
+        const remember = extra.adapter && options.dossierAgents ? rememberer(options.dossierAgents, body.dossier, extra.adapter) : null;
         if (body.stream === true && agent.stream) {
           const answers = agent.stream(ctx, body.dossier, body.prompt, style, chat, extra);
           const remembered = remember ? remember.stream(answers, ctx.signal) : answers;
