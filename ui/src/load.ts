@@ -28,6 +28,7 @@ import { LOOKBACK_DAYS } from './model/flow.ts';
 import { readPeople, type PersonEntry } from './model/people.ts';
 import { readReadiness, type ReadinessSettings } from './model/readiness.ts';
 import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
+import { githubRepos, type GithubRepo } from './github-repos.ts';
 import type { DossierAnalyze } from '../../src/core/brief/prompt.ts';
 import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
@@ -123,6 +124,8 @@ export interface DossierData extends DossierSummary {
   pullRequests: Change[];
   /** Each GitHub repository's CODEOWNERS, by repository (`owner/repo`), where one was found. */
   codeowners: Record<string, { path: string; text: string }>;
+  /** Each GitHub repository the dossier covers, and whether its issues and pull requests were read. */
+  githubRepos?: Array<{ repo: string; issues: boolean; pullRequests: boolean }>;
   /** Things the pull request view should say about how it was read (an author kind it couldn't use). */
   prNotes: string[];
   changes: ChangeRef[];
@@ -368,40 +371,62 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       for (const revisions of histories) if (revisions) work[ado].push(revisions);
     })());
   }
+  // Every GitHub repository the dossier covers is read with its owner and repo passed explicitly (src/github-repos.ts). When none can be worked out the call goes as toil resolves it, and its failure shows on the panel.
+  const repoList = areas.github ? githubRepos(dossier, areas.github.inputs) : [];
+  const targets: Array<GithubRepo | null> = areas.github ? (repoList.length ? repoList : [null]) : [];
+  const scopeOf = (r: GithubRepo | null): Rec => (r ? { owner: r.owner, repo: r.repo } : {});
+  const keyOf = (r: GithubRepo | null, number: number) => (r ? `${r.slug}#${number}` : String(number));
+  /** Whether each repository's issues and pull requests came back, for the header to say. */
+  const repoRead = new Map<string, { issues: boolean; prs: boolean }>(repoList.map((r) => [r.slug, { issues: true, prs: true }]));
+  const failed = (r: GithubRepo | null, what: 'issues' | 'prs') => {
+    if (r) repoRead.get(r.slug)![what] = false;
+  };
   if (areas.github) {
     tasks.push((async () => {
-      const repo = `${areas.github!.inputs.owner}/${areas.github!.inputs.repo}`;
-      const numbers = new Set<number>();
-      const projects = strings(section('github').projects);
-      // No board named: the repository's own issues are the tracker, open and closed.
-      if (!projects.length) {
-        const issues = await run('work', 'github issue list', { ...base, state: 'all' });
-        if (!issues) return;
-        work.github.push(issues);
-        const wanted = historyNumbers(recs(issues.data));
-        const histories = await runEach('work', 'github issue history', wanted.map((number) => ({ ...base, number })));
+      const readHistories = async (r: GithubRepo | null, wanted: number[]) => {
+        const histories = await runEach('work', 'github issue history', wanted.map((number) => ({ ...base, ...scopeOf(r), number })));
         histories.forEach((events, n) => {
-          if (events) work.github.push({ key: String(wanted[n]), history: events });
+          if (events) work.github.push({ key: keyOf(r, wanted[n]!), history: events });
         });
+      };
+      const projects = strings(section('github').projects);
+      // No board named: each repository's own issues are the tracker, open and closed.
+      if (!projects.length) {
+        await Promise.all(targets.map(async (r) => {
+          const issues = await run('work', 'github issue list', { ...base, ...scopeOf(r), state: 'all' });
+          if (!issues) return failed(r, 'issues');
+          work.github.push(issues);
+          // The closed-issue history cap (CLOSED_ISSUE_HISTORIES) applies to each repository on its own, so a second repository doesn't starve the first of histories.
+          await readHistories(r, historyNumbers(recs(issues.data)));
+        }));
         return;
       }
-      for (const project of projects) {
-        const board = await run('work', 'github project items', { ...base, project: Number(project) });
-        if (!board) continue;
-        work.github.push(board);
-        for (const item of recs(board.data)) {
-          const content = isRec(item.content) ? item.content : {};
-          if (isRec(content.repository) && content.repository.nameWithOwner === repo && typeof content.number === 'number') numbers.add(content.number);
+      // A board belongs to an owner, so it is read once per owner, then each repository takes the issues of it that live there.
+      const board = new Map<string | undefined, Rec[]>();
+      for (const owner of new Set(targets.map((r) => r?.owner))) {
+        const items: Rec[] = [];
+        for (const project of projects) {
+          const answer = await run('work', 'github project items', { ...base, ...(owner ? { owner } : {}), project: Number(project) });
+          if (!answer) continue;
+          work.github.push(answer);
+          items.push(...recs(answer.data));
         }
+        board.set(owner, items);
       }
-      if (!numbers.size) return;
-      const issues = await run('work', 'github issue get', { ...base, number: [...numbers], subIssues: true });
-      if (issues) work.github.push(issues);
-      const wanted = [...numbers];
-      const histories = await runEach('work', 'github issue history', wanted.map((number) => ({ ...base, number })));
-      histories.forEach((events, n) => {
-        if (events) work.github.push({ key: String(wanted[n]), history: events });
-      });
+      for (const r of targets) {
+        const slug = (r ? r.slug : `${areas.github!.inputs.owner}/${areas.github!.inputs.repo}`).toLowerCase();
+        const numbers = new Set<number>();
+        for (const item of board.get(r?.owner) ?? []) {
+          const content = isRec(item.content) ? item.content : {};
+          if (isRec(content.repository) && String(content.repository.nameWithOwner).toLowerCase() === slug && typeof content.number === 'number') numbers.add(content.number);
+        }
+        if (!numbers.size) continue;
+        const wanted = [...numbers];
+        const issues = await run('work', 'github issue get', { ...base, ...scopeOf(r), number: wanted, subIssues: true });
+        if (issues) work.github.push(issues);
+        else failed(r, 'issues');
+        await readHistories(r, wanted);
+      }
     })());
   }
   await Promise.all(tasks);
@@ -424,20 +449,20 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
    * lacks for each one read in full, mapped together so a pull request in
    * both is one change.
    */
-  const readPrs = async (host: (typeof PR_HOSTS)[number]): Promise<{ prs: Change[]; gets: Map<string, Envelope> }> => {
+  const readPrs = async (host: (typeof PR_HOSTS)[number], scope: Rec = {}): Promise<{ prs: Change[]; gets: Map<string, Envelope>; read: boolean }> => {
     const gets = new Map<string, Envelope>();
-    const list = await run('prs', `${host.area} pr list`, { ...base, state: host.all });
-    if (!list) return { prs: [], gets };
+    const list = await run('prs', `${host.area} pr list`, { ...base, ...scope, state: host.all });
+    if (!list) return { prs: [], gets, read: false };
     const authorKinds = authorKindsOf(section(host.area), host.area, prNotes);
     const first = mapper([list], { keyPatterns, authorKinds });
     if (!first.changes) {
       prNotes.push('The toil Toil UI runs with maps no pull requests (it reads OWI 0.1), so none are shown. Upgrade toil to one that maps OWI 0.2 changes.');
-      return { prs: [], gets };
+      return { prs: [], gets, read: true };
     }
     const listed = first.changes as Change[];
     const docs: Envelope[] = [list];
     const checked = checkedPrs(listed);
-    const got = await runEach('prs', `${host.area} pr get`, checked.map((pr) => ({ ...base, [host.id]: Number(pr.id.slice(pr.id.lastIndexOf('#') + 1)), include: PR_INCLUDE })));
+    const got = await runEach('prs', `${host.area} pr get`, checked.map((pr) => ({ ...base, ...scope, [host.id]: Number(pr.id.slice(pr.id.lastIndexOf('#') + 1)), include: PR_INCLUDE })));
     got.forEach((envelope, n) => {
       if (envelope) {
         docs.push(envelope);
@@ -446,7 +471,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     });
     const prs = (mapper(docs, { keyPatterns, authorKinds }).changes ?? []) as Change[];
     pullRequests.push(...prs);
-    return { prs, gets };
+    return { prs, gets, read: true };
   };
   const refs = (prs: Change[]) => prs.map((c) => changeRef(c, byId));
   const onOpenShift = async (prs: ChangeRef[]) => {
@@ -485,28 +510,36 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     }
   }
   if (areas.github) {
-    const { prs, gets } = await readPrs(PR_HOSTS[2]);
-    const github = refs(prs);
-    changes.push(...github);
-    // A head's check runs came with its get: one build per pull request read in full, so the gets fed the builds too.
-    calls.builds.push(...calls.prs.filter((c) => c.command === 'github pr get'));
-    for (const pr of github) {
-      const got = gets.get(pr.id);
-      const checks = got && isRec(got.data) && isRec(got.data.included) ? got.data.included.checks : undefined;
-      const build = Array.isArray(checks) ? githubBuild(checks, pr.change!.source.connection, pr) : null;
-      if (build) changes.push(build);
-    }
-    // CODEOWNERS, for suggesting reviewers, only when an open pull request has none to ask.
-    if (prs.some((c) => (c.state === 'OPEN' || c.state === 'DRAFT') && !c.reviewers.length)) {
-      const repo = `${areas.github.inputs.owner}/${areas.github.inputs.repo}`;
-      for (const path of CODEOWNERS_PATHS) {
-        const answer = await run('owners', 'github repo file', { ...base, path });
-        const text = answer && isRec(answer.data) && typeof answer.data.text === 'string' ? answer.data.text : null;
-        if (text !== null) {
-          codeowners[repo] = { path, text };
-          break;
+    for (const r of targets) {
+      const { prs, gets, read } = await readPrs(PR_HOSTS[2], scopeOf(r));
+      if (!read) failed(r, 'prs');
+      const github = refs(prs);
+      changes.push(...github);
+      for (const pr of github) {
+        const got = gets.get(pr.id);
+        const checks = got && isRec(got.data) && isRec(got.data.included) ? got.data.included.checks : undefined;
+        const build = Array.isArray(checks) ? githubBuild(checks, pr.change!.source.connection, pr) : null;
+        if (build) changes.push(build);
+      }
+      // CODEOWNERS, for suggesting reviewers, only when an open pull request has none to ask.
+      if (prs.some((c) => (c.state === 'OPEN' || c.state === 'DRAFT') && !c.reviewers.length)) {
+        const repo = r ? r.slug : `${areas.github.inputs.owner}/${areas.github.inputs.repo}`;
+        for (const path of CODEOWNERS_PATHS) {
+          const answer = await run('owners', 'github repo file', { ...base, ...scopeOf(r), path });
+          const text = answer && isRec(answer.data) && typeof answer.data.text === 'string' ? answer.data.text : null;
+          if (text !== null) {
+            codeowners[repo] = { path, text };
+            break;
+          }
         }
       }
+    }
+    // A head's check runs came with its get: one build per pull request read in full, so the gets fed the builds too.
+    calls.builds.push(...calls.prs.filter((c) => c.command === 'github pr get'));
+    // A repository whose issues or pull requests didn't come back is said on the pull request view, beside the call that failed.
+    for (const [slug, got] of repoRead) {
+      const missed = [got.issues ? '' : 'issues', got.prs ? '' : 'pull requests'].filter(Boolean).join(' or ');
+      if (missed) prNotes.push(`${slug}: its ${missed} could not be read, so none from it are shown. The failed call is on the panel.`);
     }
   }
 
@@ -518,7 +551,8 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   const analyze = isRec(dossier.analyze) ? (dossier.analyze as DossierAnalyze) : null;
   const shown = show!.data as Rec;
   const origin = typeof shown.source === 'string' && typeof shown.file === 'string' ? { source: shown.source, file: shown.file, adopted: shown.adopted === true } : null;
-  return { ...summary, items, pullRequests, codeowners, prNotes, changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, origin, peopleNotes: team.notes, readiness: readReadiness(dossier), calls };
+  const githubRead = repoList.map((r) => ({ repo: r.slug, issues: repoRead.get(r.slug)!.issues, pullRequests: repoRead.get(r.slug)!.prs }));
+  return { ...summary, items, pullRequests, codeowners, prNotes: [...new Set(prNotes)], githubRepos: githubRead, changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, origin, peopleNotes: team.notes, readiness: readReadiness(dossier), calls };
 }
 
 /** `dossiers list`, and `dossiers show` for each, so the list can say what each one covers. */

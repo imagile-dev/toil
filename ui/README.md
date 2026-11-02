@@ -79,14 +79,18 @@ sync finishes. Each step's (i) explains it and links to these docs.
 ## What it reads
 
 Each dashboard reads its dossier the way `toil dossiers show` describes it: the
-Jira project, the Azure DevOps project and pipelines, the GitHub repository and
-project board, and the OpenShift namespace of each environment. A GitHub section
-with no `projects` reads the repository's own issues, open and closed, as its work
-items, with the history of every open one and the 50 most recently closed. Pull
+Jira project, the Azure DevOps project and pipelines, the GitHub repositories and
+project board, and the OpenShift namespace of each environment. A dossier's GitHub
+repositories are the `github` section's `owner` and `repo` (one value, or one per repo
+name), plus its `repos` remotes on the same GitHub host, and each is read on its own
+with `owner` and `repo` passed explicitly (`src/github-repos.ts`); a repository that
+couldn't be read is named on the Pull requests view. A GitHub section with no `projects`
+reads each repository's own issues, open and closed, as its work items, with the
+history of every open one and the 50 most recently closed in each. Pull
 requests are read from every code host the dossier names (GitHub, Bitbucket Data
 Center and Cloud, Azure DevOps Server and Services) with `pr list`, then `pr get
 --include reviews,checks,commits,files` for every open one and the 20 newest closed or
-merged ones, and mapped to OWI 0.2 changes; a GitHub repository's CODEOWNERS is read
+merged ones (of each GitHub repository), and mapped to OWI 0.2 changes; a GitHub repository's CODEOWNERS is read
 with `github repo file` when an open pull request has no reviewer. Every call runs
 in-process through `@imagile-dev/toil/api`, read-only, and toil's audit log
 records it with `via: "api"` and `caller: "toil-ui"`. A call that fails shows on
