@@ -103,7 +103,10 @@ gets made again in the next place it applies.
    2026-10-24). From then on, changing one is a declared breaking change: a `feat!:`
    with a `BREAKING CHANGE:` footer saying why and how to migrate, and, where
    practical, the old name keeps working with a deprecation warning for at least one
-   beta before it's removed. → Output Contract, Delivery. The alphas
+   beta before it's removed. → Output Contract, Delivery. While toil has no CI users,
+   a fix that only stops toil answering from a source nobody configured (a precedence
+   fall-through that reads the wrong repo or project) is a `fix:`, not a declared
+   breaking change, and its PR says so (the maintainer's call on #540, 2026-11-02). The alphas
    (`0.1.0-alpha.N`) came before that commitment, so what changed in them needs no
    migration notes. Toil UI's screens and HTTP API (internal to its package) and
    the welcome menu's look are not contracts, and keep evolving. Compatibility
@@ -1101,7 +1104,8 @@ IDs use `abc12345` or `abc12345-0000-0000-0000-000000000000`; email uses
 - Conventional Commits: `fix:`, `feat:`, `feat!:` with a `BREAKING CHANGE:` footer
   that says why and how to migrate. release-please builds the changelog from them.
   **From the first beta on, a change to a contract principle 7 lists is a `feat!:`
-  with a `BREAKING CHANGE:` footer**, and, where practical, keeps the old name
+  with a `BREAKING CHANGE:` footer** (but see principle 7 on fixes while there are no
+  CI users), and, where practical, keeps the old name
   working with a deprecation warning for at least one beta before removing it.
   The alphas used a plain `feat:` or `fix:` for contract changes, and their
   changelog entries stay as they are. Toil UI's screens and HTTP API and the
