@@ -43,6 +43,10 @@ describe('which GitHub repositories a dossier covers', () => {
     expect(parseRemote('https://github.com/a/b/c')).toBeNull();
   });
 
+  it("doesn't take a resolved repository that a per-repo map didn't name", () => {
+    expect(slugs({ github: { owner: 'o', repo: { app: 'a', lib: 'l' } } }, { owner: 'o', repo: 'unrelated' })).toEqual(['o/a', 'o/l']);
+  });
+
   it('puts the resolved repository first', () => {
     const dossier = { github: { connection: 'github' }, repos: remotes('https://github.com/imagile/b.git') };
     expect(slugs(dossier, { owner: 'imagile', repo: 'a' })).toEqual(['imagile/a', 'imagile/b']);
