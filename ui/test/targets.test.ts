@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { showData } from '../src/fixtures/dossiers.ts';
 import { fixtureExecute } from '../src/fixtures/execute.ts';
 import { loadDossier } from '../src/load.ts';
-import { targetsOf, valuesOf } from '../src/targets.ts';
+import { ADO_CI_RUNS } from '../src/fixtures/delivery.ts';
+import { resolveTargets, targetsOf, valuesOf } from '../src/targets.ts';
 
 describe('the targets of a dossier section', () => {
   it('is one target naming nothing for plain values', () => {
@@ -28,6 +29,45 @@ describe('the targets of a dossier section', () => {
     expect(valuesOf({ project: 'PAY' }, 'project')).toEqual(['PAY']);
     expect(valuesOf({ project: { a: 'PAY', b: 'LEDG', c: 'PAY' } }, 'project')).toEqual(['PAY', 'LEDG']);
     expect(valuesOf({}, 'project')).toEqual([]);
+  });
+});
+
+describe('a pipeline that lives in one of several Azure DevOps projects', () => {
+  const dossier = {
+    name: 'pipes',
+    description: 'Two projects, one pipeline.',
+    repos: [{ name: 'api', remotes: [] }, { name: 'ui', remotes: [] }],
+    ado: { connection: 'corp-ado', collection: 'DefaultCollection', project: { api: 'Payments', ui: 'Ledger' }, repo: { api: 'a', ui: 'b' }, builds: ['ledger-ci'], deployments: ['nowhere-deploy'] },
+  };
+  const show = { command: 'dossiers show', input: { dossier: 'pipes' }, data: showData(dossier) };
+  const runs = (project: string, name: string) => ({ command: 'ado run list', input: { dossier: 'pipes', collection: 'DefaultCollection', project, name, top: 20 } });
+
+  it('is kept from the project that has it, with no failed call on the panel for the others', async () => {
+    const fixture = fixtureExecute([show, { ...runs('Ledger', 'ledger-ci'), data: ADO_CI_RUNS }]);
+    const data = await loadDossier(fixture.execute, 'pipes');
+    expect(data.calls.builds.map((c) => [c.input.project, c.ok])).toEqual([['Ledger', true]]);
+  });
+
+  it("records one failure, the last project's, when none has the pipeline", async () => {
+    const fixture = fixtureExecute([show]);
+    const data = await loadDossier(fixture.execute, 'pipes');
+    expect(data.calls.deployments.map((c) => [c.input.project, c.ok])).toEqual([['Ledger', false]]);
+  });
+});
+
+describe('a repo name a section leaves half-named', () => {
+  it('is returned as skipped', () => {
+    expect(resolveTargets({ project: { api: 'PAY' }, repo: { api: 'a', ui: 'b' } }, ['project', 'repo'])).toEqual({
+      targets: [{ inputs: { project: 'PAY', repo: 'a' }, label: 'PAY/a' }],
+      skipped: ['ui'],
+    });
+  });
+
+  it('is said not to have been read, for both work items and pull requests, rather than dropped', async () => {
+    const dossier = { name: 'half', description: 'A repo with no project.', repos: [], bitbucket: { connection: 'corp-bitbucket', project: { api: 'PAY' }, repo: { api: 'pay-api', ui: 'pay-ui' } } };
+    const fixture = fixtureExecute([{ command: 'dossiers show', input: { dossier: 'half' }, data: showData(dossier) }]);
+    const data = await loadDossier(fixture.execute, 'half');
+    expect(data.readTargets).toContainEqual({ area: 'bitbucket', label: 'bitbucket ui', work: false, pullRequests: false });
   });
 });
 

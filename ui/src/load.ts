@@ -29,7 +29,7 @@ import { readPeople, type PersonEntry } from './model/people.ts';
 import { readReadiness, type ReadinessSettings } from './model/readiness.ts';
 import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
 import { githubRepos, type GithubRepo } from './github-repos.ts';
-import { targetsOf, valuesOf } from './targets.ts';
+import { resolveTargets, targetsOf, valuesOf } from './targets.ts';
 import type { DossierAnalyze } from '../../src/core/brief/prompt.ts';
 import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
@@ -354,6 +354,15 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     if (what === 'work') target.work = false;
     else target.pullRequests = false;
   };
+  // A repo name that a section's per-repo values leave half-named can't be read; it is said so, work items and pull requests both, rather than dropped.
+  for (const [area, keys] of [['bitbucket', BITBUCKET_INPUTS], ['ado', ADO_REPO_INPUTS]] as const) {
+    if (!areas[area]) continue;
+    for (const name of resolveTargets(section(area), keys).skipped) {
+      const state = track(area, name);
+      markUnread(state, 'work');
+      markUnread(state, 'prs');
+    }
+  }
   // A Jira project is named in the JQL, so a per-repo `project` is one search per distinct project. Plain, it is the project `dossiers show` resolved.
   for (const jira of JIRA_AREAS.filter((a) => areas[a])) {
     const projects = [...new Set([areas[jira]!.inputs.project, ...valuesOf(section(jira), 'project')].filter((p): p is string => Boolean(p)))];
@@ -549,16 +558,28 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     }
     changes.push(...prs);
     const connection = prs[0]?.change?.source.connection ?? areas.ado.connection?.value ?? 'ado';
-    // Pipelines belong to a project, so they are read once per project the dossier names, not once per repository.
-    for (const t of targetsOf(section('ado'), ADO_PROJECT_INPUTS)) {
-      for (const pipeline of onServices ? [] : strings(section('ado').builds)) {
-        const runs = await run('builds', 'ado run list', { ...base, ...t.inputs, name: pipeline, top: 20 });
-        if (runs) changes.push(...adoBuilds(runs.data, connectionOf(runs, connection), prs));
+    // A pipeline lives in one project, so each is tried in the dossier's projects in turn and the first to answer is kept; a failure is recorded only when no project has it (the last one's).
+    const projects = targetsOf(section('ado'), ADO_PROJECT_INPUTS);
+    const firstAnswer = async (panel: Panel, name: string): Promise<Envelope | null> => {
+      let last: Call | null = null;
+      for (const t of projects) {
+        const { env, call } = await send('ado run list', { ...base, ...t.inputs, name, top: 20 });
+        if (env) {
+          calls[panel].push(call);
+          return env;
+        }
+        last = call;
       }
-      for (const pipeline of onServices ? [] : strings(section('ado').deployments)) {
-        const runs = await run('deployments', 'ado run list', { ...base, ...t.inputs, name: pipeline, top: 20 });
-        if (runs) deployments.push(...adoDeployments(runs.data, connectionOf(runs, connection), prs));
-      }
+      if (last) calls[panel].push(last);
+      return null;
+    };
+    for (const pipeline of onServices ? [] : strings(section('ado').builds)) {
+      const runs = await firstAnswer('builds', pipeline);
+      if (runs) changes.push(...adoBuilds(runs.data, connectionOf(runs, connection), prs));
+    }
+    for (const pipeline of onServices ? [] : strings(section('ado').deployments)) {
+      const runs = await firstAnswer('deployments', pipeline);
+      if (runs) deployments.push(...adoDeployments(runs.data, connectionOf(runs, connection), prs));
     }
   }
   if (areas.github) {

@@ -89,7 +89,7 @@ areas' per-repo values: a Jira `project`, a Bitbucket `project`, `workspace` or 
 and an Azure DevOps `collection`, `project` or `repo` given as an object of repo name to
 value are each read once per target (one Jira search per project, work items per Azure
 DevOps project, pull requests per repo) with those inputs passed explicitly
-(`src/targets.ts`), because Toil UI has no repo folder for toil to pick one from; a section
+(`src/targets.ts`; a pipeline is tried in each Azure DevOps project in turn, and a repo name the section leaves half-named is shown as not read), because Toil UI has no repo folder for toil to pick one from; a section
 with plain values sends the calls it always did. Only GitHub's remotes are read for more
 targets. A GitHub section with no `projects`
 reads each repository's own issues, open and closed, as its work items, with the

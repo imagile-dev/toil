@@ -34,15 +34,16 @@ const forName = (value: unknown, name: string): string | undefined => (isRec(val
 const present = (section: Rec, keys: readonly string[]) => keys.filter((k) => text(section[k]) !== undefined || (isRec(section[k]) && Object.keys(section[k] as Rec).length > 0));
 
 /**
- * The targets of `keys` in `section`. A repo name missing a value for one of
- * the keys the section sets is skipped: a read can't be sent half-named.
+ * The targets of `keys` in `section`, and the repo names left out. A name missing a value for one of
+ * the keys the section sets can't be read (a read can't be sent half-named), so it is returned in `skipped` for a screen to say so.
  */
-export function targetsOf(section: Rec, keys: readonly string[]): Target[] {
+export function resolveTargets(section: Rec, keys: readonly string[]): { targets: Target[]; skipped: string[] } {
   const set = present(section, keys);
   const maps = set.filter((k) => isRec(section[k]));
-  if (!maps.length) return [{ inputs: {}, label: '' }];
+  if (!maps.length) return { targets: [{ inputs: {}, label: '' }], skipped: [] };
   const names = [...new Set(maps.flatMap((k) => Object.keys(section[k] as Rec)))];
   const out: Target[] = [];
+  const skipped: string[] = [];
   const seen = new Set<string>();
   for (const name of names) {
     const inputs: Record<string, string> = {};
@@ -50,14 +51,20 @@ export function targetsOf(section: Rec, keys: readonly string[]): Target[] {
       const v = forName(section[k], name);
       if (v !== undefined) inputs[k] = v;
     }
-    if (Object.keys(inputs).length !== set.length) continue;
+    if (Object.keys(inputs).length !== set.length) {
+      skipped.push(name);
+      continue;
+    }
     const id = JSON.stringify(inputs);
     if (seen.has(id)) continue;
     seen.add(id);
     out.push({ inputs, label: Object.values(inputs).join('/') });
   }
-  return out;
+  return { targets: out, skipped };
 }
+
+/** The targets alone. */
+export const targetsOf = (section: Rec, keys: readonly string[]): Target[] => resolveTargets(section, keys).targets;
 
 /** Every distinct value of a section's `key`, plain or per repo, in the order written. */
 export function valuesOf(section: Rec, key: string): string[] {
