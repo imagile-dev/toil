@@ -105,7 +105,7 @@ export async function resolveCall(
   // 1 and 2 for the rest. Their git step waits for the connection, so a
   // parser can trust only a remote on that connection's host.
   const early: Record<string, ContextValue> = {};
-  const stranded = new Set<string>();
+  const stranded = new Map<string, StrandedInput>();
   const namedAround = new Map<string, StrandedInput>();
   const isCheck = def.path[def.path.length - 1] === 'check-dossier';
   for (const name of Object.keys(needs)) {
@@ -127,8 +127,9 @@ export async function resolveCall(
         namedAround.set(name, err);
         fromDossier = undefined;
       } else {
-        if (needs[name] === 'required') throw err;
-        stranded.add(name);
+        // An input only some deployments take waits for the connection: Cloud never asks Data Center's project (step 4 decides).
+        if (needs[name] === 'required' && !spec.deployments) throw err;
+        stranded.set(name, err);
       // Said on the call, so a later "could not determine" error comes with the reason beside it (principle 4).
       // check-dossier reads every per-repo value through the dossier's view by design, so the advice would be wrong there.
         if (!isCheck) warn({ code: 'DOSSIER_REPO_UNMATCHED', message: `${err.message} ${err.fix ?? ''}`.trim() });
@@ -169,7 +170,11 @@ export async function resolveCall(
   const here = def.deployments ? (def.deployments.routes[String(connection[def.deployments.by])]?.context ?? {}) : needs;
   for (const [name, need] of Object.entries(here)) {
     const spec = declared[name]!;
-    if (stranded.has(name)) continue;
+    const strandedHere = stranded.get(name);
+    if (strandedHere) {
+      if (need === 'required') throw strandedHere;
+      continue;
+    }
     const setting = spec.setting === undefined ? undefined : connection[spec.setting];
     // An input the area gives to other deployments, which this one takes only because its command lists it, comes from the call or the
     // dossier alone: the connection's setting, defaults, env, git and the area default are documented as the other deployment's, and a
