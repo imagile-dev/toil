@@ -1219,7 +1219,8 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
       const named = (): boolean => sectionsFor(dossier, area, env).some((section) => Object.keys(section).some((k) => k !== key && isRecord(ownValue(section, k)) && typeof input[k] === 'string'));
       if (stranded !== undefined && !named()) {
         const repos = dossier.repos.map((r) => r.name);
-        throw new StrandedInput('INVALID_INPUT', `Dossier ${dossier.name} sets ${area} ${key} per repo (${stranded.join(', ')}), and the call's folder is none of its repos${repos.length > 0 ? ` (${repos.join(', ')})` : ''}.`, {
+        const same = repos.length === stranded.length && repos.every((r) => stranded!.includes(r));
+        throw new StrandedInput('INVALID_INPUT', `Dossier ${dossier.name} sets ${area} ${key} per repo (${stranded.join(', ')}), and the call's folder is none of its repos${repos.length > 0 && !same ? ` (${repos.join(', ')})` : ''}.`, {
           fix: `Run from inside one of the dossier's repos (--cwd <repo folder>), pass ${key === 'repo' ? '--repo' : `the ${key} input`} yourself, or give ${key} a plain value in the dossier.`,
         });
       }
