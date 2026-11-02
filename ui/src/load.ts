@@ -355,13 +355,11 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     else target.pullRequests = false;
   };
   // A repo name that a section's per-repo values leave half-named can't be read; it is said so, work items and pull requests both, rather than dropped.
-  for (const [area, keys] of [['bitbucket', BITBUCKET_INPUTS], ['ado', ADO_REPO_INPUTS]] as const) {
-    if (!areas[area]) continue;
-    for (const name of resolveTargets(section(area), keys).skipped) {
-      const state = track(area, name);
-      markUnread(state, 'work');
-      markUnread(state, 'prs');
-    }
+  // Only what that name's reads would have fetched is said: pull requests for Bitbucket (no work items are read from it) and for Azure DevOps by repo, its work items by project.
+  if (areas.bitbucket) for (const name of resolveTargets(section('bitbucket'), BITBUCKET_INPUTS).skipped) markUnread(track('bitbucket', name), 'prs');
+  if (areas.ado) {
+    for (const name of resolveTargets(section('ado'), ADO_REPO_INPUTS).skipped) markUnread(track('ado', name), 'prs');
+    for (const name of resolveTargets(section('ado'), ADO_PROJECT_INPUTS).skipped) markUnread(track('ado', name), 'work');
   }
   // A Jira project is named in the JQL, so a per-repo `project` is one search per distinct project. Plain, it is the project `dossiers show` resolved.
   for (const jira of JIRA_AREAS.filter((a) => areas[a])) {

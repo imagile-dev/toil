@@ -63,11 +63,18 @@ describe('a repo name a section leaves half-named', () => {
     });
   });
 
-  it('is said not to have been read, for both work items and pull requests, rather than dropped', async () => {
+  it("is said not to have had its pull requests read, and nothing Bitbucket doesn't give", async () => {
     const dossier = { name: 'half', description: 'A repo with no project.', repos: [], bitbucket: { connection: 'corp-bitbucket', project: { api: 'PAY' }, repo: { api: 'pay-api', ui: 'pay-ui' } } };
     const fixture = fixtureExecute([{ command: 'dossiers show', input: { dossier: 'half' }, data: showData(dossier) }]);
     const data = await loadDossier(fixture.execute, 'half');
-    expect(data.readTargets).toContainEqual({ area: 'bitbucket', label: 'bitbucket ui', work: false, pullRequests: false });
+    expect(data.readTargets).toContainEqual({ area: 'bitbucket', label: 'bitbucket ui', work: true, pullRequests: false });
+  });
+
+  it('says of an Azure DevOps name only what it left unread: pull requests by repo, work items by project', async () => {
+    const dossier = { name: 'half-ado', description: 'A repo for one project only.', repos: [], ado: { connection: 'corp-ado', project: { api: 'P', web: 'Q' }, repo: { api: 'api' } } };
+    const fixture = fixtureExecute([{ command: 'dossiers show', input: { dossier: 'half-ado' }, data: showData(dossier) }]);
+    const data = await loadDossier(fixture.execute, 'half-ado');
+    expect(data.readTargets).toContainEqual({ area: 'ado', label: 'ado web', work: true, pullRequests: false });
   });
 });
 
