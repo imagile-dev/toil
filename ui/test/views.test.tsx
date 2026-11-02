@@ -752,9 +752,9 @@ describe('the chat up front (#343)', () => {
       };
       await open('#/dossier/card-payments', { agent, preview: false });
       const chat = await analyze();
-      expect(sent).toEqual([{ adapter: 'claude' }]);
+      expect(sent).toEqual([{ adapter: 'claude', fallback: true }]);
       expect(within(chat).getByRole('button', { name: /^Claude/ })).toBeTruthy();
-      expect(hint(chat)).toBe("(your default can't run, so the first ready)");
+      expect(hint(chat)).toBe("(your default can't run)");
     });
 
     it('starts one run for two presses while the agent list loads, and Stop cancels it', async () => {

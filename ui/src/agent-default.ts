@@ -34,6 +34,6 @@ export function sourceHint(picked: boolean, from: DefaultAgent | null): string |
   if (picked) return 'picked for this chat';
   if (!from) return null;
   if (from.source === 'dossier') return 'last used on this dossier';
-  if (from.source === 'ready') return from.skippedDefault ? "your default can't run, so the first ready" : 'the first one ready';
+  if (from.source === 'ready') return from.skippedDefault ? "your default can't run" : 'the first one ready';
   return 'your default';
 }

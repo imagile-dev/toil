@@ -65,7 +65,7 @@ describe('the order the agent is chosen in', () => {
     expect(sourceHint(false, { name: 'codex', source: 'dossier' })).toBe('last used on this dossier');
     expect(sourceHint(false, { name: 'claude', source: 'settings' })).toBe('your default');
     expect(sourceHint(true, { name: 'claude', source: 'settings' })).toBe('picked for this chat');
-    expect(sourceHint(false, { name: 'claude', source: 'ready', skippedDefault: true })).toBe("your default can't run, so the first ready");
+    expect(sourceHint(false, { name: 'claude', source: 'ready', skippedDefault: true })).toBe("your default can't run");
     expect(sourceHint(false, { name: 'claude', source: 'ready' })).toBe('the first one ready');
     expect(sourceHint(false, null)).toBeNull();
   });
@@ -230,12 +230,13 @@ describe('the server', () => {
     expect(store.get('card-payments')).toBe('codex');
   });
 
-  it('remembers nothing from a question that names no agent, or one that fails or comes back empty', async () => {
+  it('remembers nothing from a question that names no agent, names only a fallback, or fails or comes back empty', async () => {
     const store = new DossierAgents(folder());
     let next: Answer | Error = whole;
     const { origin, sid, csrf } = await boot(store, () => next);
     await send(origin, '/api/agent/ask', sid, { dossier: 'card-payments', prompt: 'What is blocked?' }, csrf);
     await send(origin, '/api/agent/ask', sid, { dossier: 'card-payments', prompt: 'analyze' }, csrf);
+    await send(origin, '/api/agent/ask', sid, { dossier: 'card-payments', prompt: 'What is blocked?', adapter: 'codex', fallback: true }, csrf);
     next = new Error('The agent is not signed in.');
     expect((await send(origin, '/api/agent/ask', sid, { dossier: 'card-payments', prompt: 'analyze', adapter: 'codex' }, csrf)).status).toBe(502);
     next = { ...whole, parts: [] };

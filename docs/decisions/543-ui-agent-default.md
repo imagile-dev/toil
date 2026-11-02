@@ -14,7 +14,11 @@
   Codex could have answered.
 - **The fallback is sent, and the hint says so.** Any default whose source is not
   Settings goes with the question, so the server answers with what the page shows.
-  The hint reads "your default can't run, so the first ready" when Settings names an
+  The hint reads "your default can't run" when Settings names an
   agent, and "the first one ready" when it names none (principle 4: the person is told
   their default is not what is answering).
+- **A fallback is never remembered.** It goes with `fallback: true`, and the server
+  records only an agent someone chose (picked in the chat, or the dossier's own), so
+  fixing the Settings default later brings it back instead of leaving the dossier on
+  the stand-in.
 - **Toil UI's screens are not contracts (principle 7)**, so none of this is breaking.

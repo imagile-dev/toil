@@ -191,7 +191,7 @@ function useChat() {
     // A picked agent goes as it is; an unpicked chat sends the dossier's remembered one (#494) or the first ready one when the default can't run, and the Settings default as before: by sending nothing.
     const from = defaultAgent(list);
     const sent = adapter ?? (from && from.source !== 'settings' ? from.name : null);
-    const extra = { ...(sent ? { adapter: sent } : {}), ...(history.length ? { history } : {}) };
+    const extra = { ...(sent ? { adapter: sent } : {}), ...(!adapter && from?.source === 'ready' ? { fallback: true } : {}), ...(history.length ? { history } : {}) };
     const controller = new AbortController();
     abort.current = controller;
     const started = Date.now();

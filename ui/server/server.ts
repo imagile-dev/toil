@@ -298,6 +298,10 @@ function extraOf(body: Record<string, unknown>): AskExtra {
     if (typeof body.adapter !== 'string' || !ADAPTER_NAMES.includes(body.adapter)) throw new HttpError(400, `There is no adapter ${JSON.stringify(body.adapter)}.`, `Send adapter as one of ${ADAPTER_NAMES.join(', ')}, or leave it out for the one chosen in Settings.`);
     extra.adapter = body.adapter;
   }
+  if (body.fallback !== undefined) {
+    if (typeof body.fallback !== 'boolean') throw new HttpError(400, 'fallback is true or false.', 'Send fallback: true when the adapter stands in for a default that cannot run, or leave it out.');
+    if (body.fallback) extra.fallback = true;
+  }
   if (body.history !== undefined) {
     const shape = 'Send history as at most 20 turns, each { "prompt": "<question>", "answer": "<text>", "by": "<who>" }, or leave it out.';
     if (!Array.isArray(body.history) || body.history.length > 20) throw new HttpError(400, 'history is the chat so far, as a list of turns.', shape);
@@ -643,8 +647,8 @@ export function createUiServer(options: UiServerOptions): UiServer {
         const extra = extraOf(body);
         // Analyze is kept in the history once its answer is whole (#395); the answer's last line names the record.
         const keep = body.prompt === ANALYZE && options.analyses ? kept(options.analyses, body.dossier, new Date().toISOString()) : null;
-        // The adapter a whole answer was asked of, Analyze or an ordinary question, is the dossier's next default (#494).
-        const remember = extra.adapter && options.dossierAgents ? rememberer(options.dossierAgents, body.dossier, extra.adapter) : null;
+        // The adapter a whole answer was asked of, Analyze or an ordinary question, is the dossier's next default (#494); a fallback was nobody's choice.
+        const remember = extra.adapter && !extra.fallback && options.dossierAgents ? rememberer(options.dossierAgents, body.dossier, extra.adapter) : null;
         if (body.stream === true && agent.stream) {
           const answers = agent.stream(ctx, body.dossier, body.prompt, style, chat, extra);
           const remembered = remember ? remember.stream(answers, ctx.signal) : answers;
