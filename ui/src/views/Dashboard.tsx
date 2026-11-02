@@ -180,7 +180,7 @@ function BoardTab({ person }: { person?: string }) {
       <Panel id="board" title={term('board', h ? `${h.sprint.name} board` : 'Board')} calls={dossier.calls.work} alerts={false}>
         {(dossier.readTargets ?? []).filter((t) => !t.work).map((t) => (
           <p key={t.label} className="note">
-            {t.label}: <a href="#board">work items not read</a>
+            {t.label}: work items not read
           </p>
         ))}
         {filter && <BoardFilter name={filter.name} shown={mine.length} all={filter.items.length} />}

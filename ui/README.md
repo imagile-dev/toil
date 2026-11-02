@@ -84,7 +84,7 @@ project board, and the OpenShift namespace of each environment. A dossier's GitH
 repositories are the `github` section's `owner` and `repo` (one value, or one per repo
 name), plus its `repos` remotes on github.com or on the host of a repository the section names, and each is read on its own
 with `owner` and `repo` passed explicitly (`src/github-repos.ts`); a repository that
-couldn't be read gets one muted line where its gap shows: "pull requests not read" on the Pull requests view, "work items not read" on the Board tab, each linking to the failed call. The same goes for the other
+couldn't be read gets one muted line where its gap shows: "pull requests not read" on the Pull requests view (linking to the failed call), "work items not read" on the Board tab. The same goes for the other
 areas' per-repo values: a Jira `project`, a Bitbucket `project`, `workspace` or `repo`,
 and an Azure DevOps `collection`, `project` or `repo` given as an object of repo name to
 value are each read once per target (one Jira search per project, work items per Azure
