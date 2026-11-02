@@ -106,6 +106,8 @@ export async function resolveCall(
   // parser can trust only a remote on that connection's host.
   const early: Record<string, ContextValue> = {};
   const stranded = new Set<string>();
+  const namedAround = new Map<string, StrandedInput>();
+  const isCheck = def.path[def.path.length - 1] === 'check-dossier';
   for (const name of Object.keys(needs)) {
     const spec = declared[name]!;
     const explicit = input[name];
@@ -120,12 +122,18 @@ export async function resolveCall(
     } catch (err) {
       // A per-repo value with no repo to read it for: a command that needs it is told, one that doesn't gets nothing for it, never a git or connection value.
       if (!(err instanceof StrandedInput)) throw err;
-      if (needs[name] === 'required') throw err;
-      stranded.add(name);
+      // The call named another per-repo input itself, so this one falls through as before; step 4 says where it came from.
+      if (err.callNamed) {
+        namedAround.set(name, err);
+        fromDossier = undefined;
+      } else {
+        if (needs[name] === 'required') throw err;
+        stranded.add(name);
       // Said on the call, so a later "could not determine" error comes with the reason beside it (principle 4).
       // check-dossier reads every per-repo value through the dossier's view by design, so the advice would be wrong there.
-      if (def.path[def.path.length - 1] !== 'check-dossier') warn({ code: 'DOSSIER_REPO_UNMATCHED', message: `${err.message} ${err.fix ?? ''}`.trim() });
-      continue;
+        if (!isCheck) warn({ code: 'DOSSIER_REPO_UNMATCHED', message: `${err.message} ${err.fix ?? ''}`.trim() });
+        continue;
+      }
     }
     const found = checked(area, name, spec, fromDossier, 'dossier') ?? (spec.selectsConnection ? checked(area, name, spec, await fromGit(spec, undefined), 'git') : undefined);
     if (found) early[name] = found;
@@ -176,6 +184,8 @@ export async function resolveCall(
       (spec.selectsConnection ? undefined : checked(area, name, spec, await fromGit(spec, connection), 'git')) ??
       checked(area, name, spec, setting === undefined || setting === null ? undefined : String(setting), 'connection') ??
       checked(area, name, spec, spec.default, 'default');
+    const around = namedAround.get(name);
+    if (value && around && !isCheck) warn({ code: 'DOSSIER_REPO_UNMATCHED', message: `${around.message} ${name} came from ${value.source === 'git' ? 'the git remote' : value.source === 'connection' ? "the connection's setting" : value.source === 'default' ? "the area's default" : value.source} instead. Pass --${name} too, or run inside one of the dossier's repos (--cwd <repo folder>).` });
     if (value) inputs[name] = value;
     else if (need === 'required') missing.push(name);
   }

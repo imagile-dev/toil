@@ -437,7 +437,7 @@ line; for an agent, the `dossiers_show` tool, the `toil://dossiers/<name>` resou
   From a folder that is none of those repos, a call that needs a per-repo value fails
   (`INVALID_INPUT`, naming the repos) rather than use git's or the connection's: use
   `--cwd` inside one of them, or pass the flag (passing another per-repo input, such
-  as `--repo`, lets the rest resolve as usual). A call that doesn't strictly need it
+  as `--repo`, lets the rest resolve as usual, with a warning naming where each came from). A call that doesn't strictly need it
   carries a `DOSSIER_REPO_UNMATCHED` warning instead, and a later "could not
   determine" error is that warning's consequence.
 - **One service in several products?** Put a dossier in each, and pass `--dossier`

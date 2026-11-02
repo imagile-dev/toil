@@ -162,6 +162,10 @@ describe('which dossier applies', () => {
       const { envelope } = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments', '--board', 'mine'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments', board: 'mine' });
       expect(envelope.ok).toBe(true);
       expect(envelope.meta.context?.inputs).toMatchObject({ board: { value: 'mine', source: 'input' }, project: { value: 'PRD', source: 'connection' } });
+      const warning = envelope.meta.warnings?.find((w) => w.code === 'DOSSIER_REPO_UNMATCHED');
+      expect(warning?.message).toContain('sets demo-context project per repo');
+      expect(warning?.message).toContain("project came from the connection's setting instead");
+      expect(warning?.message).toContain('Pass --project too');
     });
 
     it('keeps the old fall-through for a folder that matches a repo the per-repo map leaves out', async () => {

@@ -141,7 +141,8 @@ TOIL_CONN_OCP_PROD_TOKEN=...
     key a plain value), and one that doesn't gets nothing for it, with a
     `DOSSIER_REPO_UNMATCHED` warning that says why. A value you pass always wins,
     and so does choosing a target yourself: pass another of the section's per-repo
-    inputs (`--repo`) and the rest resolve as usual. A folder that matches a repo the
+    inputs (`--repo`) and the rest resolve as usual, with the same warning saying
+    which source each one came from instead. A folder that matches a repo the
     map doesn't name resolves as usual too;
   - anything else (`projects`, `boards`, `deployments`) is reference data, kept as
     written for people and agents to read with `toil dossiers show`, and never applied

@@ -1218,10 +1218,12 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
       // A call that names another per-repo input itself (`--repo`) has chosen its target: the rest is the caller's pairing, not the dossier's.
       const named = (): boolean => sectionsFor(dossier, area, env).some((section) => Object.keys(section).some((k) => k !== key && (areaNames.get(area)?.context.includes(k) ?? false) && isRecord(ownValue(section, k)) && typeof input[k] === 'string'));
       // A folder that matched a repo the map doesn't name keeps the old fall-through; only a folder matching none is stranded.
-      if (stranded !== undefined && applied.repo === undefined && !named()) {
+      if (stranded !== undefined && applied.repo === undefined) {
+        const callNamed = named();
         const repos = dossier.repos.map((r) => r.name);
         const same = repos.length === stranded.length && repos.every((r) => stranded!.includes(r));
         throw new StrandedInput('INVALID_INPUT', `Dossier ${dossier.name} sets ${area} ${key} per repo (${stranded.join(', ')}), and the call's folder is none of its repos${repos.length > 0 && !same ? ` (${repos.join(', ')})` : ''}.`, {
+          callNamed,
           fix: `Run from inside one of the dossier's repos (--cwd <repo folder>), pass --${key} yourself, or give ${key} a plain value in the dossier.`,
         });
       }
