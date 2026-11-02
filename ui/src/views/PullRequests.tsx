@@ -140,9 +140,9 @@ export function PullRequests() {
         <p className="lede">
           {queue.length} open across {new Set(prs.map((c) => c.repo)).size} {new Set(prs.map((c) => c.repo)).size === 1 ? 'repository' : 'repositories'}, {prs.length - queue.length} merged or closed. Read {dateTime(now)}. <Help topic="prs" />
         </p>
-        {(dossier.githubRepos ?? []).filter((g) => !g.pullRequests).map((g) => (
-          <p key={g.repo} className="note">
-            {g.repo}: <a href="#queue">pull requests not read</a>
+        {(dossier.readTargets ?? []).filter((t) => !t.pullRequests || !t.work).map((t) => (
+          <p key={t.label} className="note">
+            {t.label}: {t.pullRequests ? 'work items not read' : <a href="#queue">pull requests not read</a>}
           </p>
         ))}
         {(dossier.prNotes ?? []).map((n, i) => (

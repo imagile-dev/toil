@@ -71,9 +71,9 @@ describe('a dossier with two GitHub repositories', () => {
     const fixture = fixtureExecute(canned);
     const data = await loadDossier(fixture.execute, 'two-repos');
 
-    expect(data.githubRepos).toEqual([
-      { repo: 'imagile/payments-web', issues: true, pullRequests: true },
-      { repo: 'imagile/payments-lib', issues: true, pullRequests: true },
+    expect(data.readTargets).toEqual([
+      { area: 'github', label: 'imagile/payments-web', work: true, pullRequests: true },
+      { area: 'github', label: 'imagile/payments-lib', work: true, pullRequests: true },
     ]);
     const repos = (ids: string[]) => new Set(ids.map((id) => id.replace(/#\d+$/, '')));
     expect(repos(data.items.map((i) => i.id))).toEqual(new Set(['github:imagile/payments-web', 'github:imagile/payments-lib']));
@@ -96,11 +96,11 @@ describe('a dossier with two GitHub repositories', () => {
       { command: 'github pr list', input: { ...base, ...web, state: 'all' }, data: [] },
     ]);
     const data = await loadDossier(fixture.execute, 'half');
-    expect(data.githubRepos).toEqual([
-      { repo: 'imagile/payments-web', issues: true, pullRequests: true },
-      { repo: 'imagile/payments-lib', issues: true, pullRequests: false },
+    expect(data.readTargets).toEqual([
+      { area: 'github', label: 'imagile/payments-web', work: true, pullRequests: true },
+      { area: 'github', label: 'imagile/payments-lib', work: true, pullRequests: false },
     ]);
-    // The Pull requests view words it from githubRepos; prNotes stay for the reads' own caveats.
+    // The Pull requests view words it from readTargets; prNotes stay for the reads' own caveats.
     expect(data.prNotes).toEqual([]);
   });
 });

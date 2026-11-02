@@ -29,6 +29,7 @@ import { readPeople, type PersonEntry } from './model/people.ts';
 import { readReadiness, type ReadinessSettings } from './model/readiness.ts';
 import { AUTHOR_KINDS, mapOwi, OVERRIDABLE } from './owi.ts';
 import { githubRepos, type GithubRepo } from './github-repos.ts';
+import { targetsOf, valuesOf } from './targets.ts';
 import type { DossierAnalyze } from '../../src/core/brief/prompt.ts';
 import { CALL_OPTIONS, type Call, type Change, type ChangeRef, type Deployment, type Envelope, type Execute, type WorkItem } from './toil.ts';
 
@@ -108,6 +109,19 @@ export function limiter(limit: number) {
   };
 }
 
+/** The context inputs each area's reads are scoped by, in the dossier section's own words. */
+export const BITBUCKET_INPUTS = ['project', 'workspace', 'repo'] as const;
+export const ADO_PROJECT_INPUTS = ['collection', 'organization', 'project'] as const;
+export const ADO_REPO_INPUTS = [...ADO_PROJECT_INPUTS, 'repo'] as const;
+
+/** One place the sync read from, and how it went. `label` is what a screen calls it. */
+export interface ReadTarget {
+  area: string;
+  label: string;
+  work: boolean;
+  pullRequests: boolean;
+}
+
 export type Panel = 'dossier' | 'work' | 'prs' | 'owners' | 'builds' | 'deployments';
 
 export interface DossierSummary {
@@ -124,8 +138,8 @@ export interface DossierData extends DossierSummary {
   pullRequests: Change[];
   /** Each GitHub repository's CODEOWNERS, by repository (`owner/repo`), where one was found. */
   codeowners: Record<string, { path: string; text: string }>;
-  /** Each GitHub repository the dossier covers, and whether its issues and pull requests were read. */
-  githubRepos?: Array<{ repo: string; issues: boolean; pullRequests: boolean }>;
+  /** Each place the sync read from (a GitHub repository, a Bitbucket repo, an Azure DevOps project), and whether its work items and pull requests came back. */
+  readTargets?: ReadTarget[];
   /** Things the pull request view should say about how it was read (an author kind it couldn't use). */
   prNotes: string[];
   changes: ChangeRef[];
@@ -329,57 +343,80 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   // Each area is mapped on its own, with its own section's OWI fields.
   const work: Record<(typeof JIRA_AREAS)[number] | (typeof ADO_AREAS)[number] | 'github', unknown[]> = { jira: [], ado: [], github: [] };
   const tasks: Array<Promise<void>> = [];
-  for (const jira of JIRA_AREAS.filter((a) => areas[a]?.inputs.project)) {
-    tasks.push((async () => {
-      // The search brings each issue's history with it (toil's --changelog); only an issue whose changelog came back short is read with a call of its own.
-      const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(areas[jira]!.inputs.project!, options.windowDays), changelog: true });
-      if (!asked) return;
-      const { search, histories: inline, incomplete } = splitChangelogs(asked, `${jira} issue history`);
-      work[jira].push(search);
-      for (const { key, history } of inline) work[jira].push({ key, history });
-      const histories = await runEach('work', `${jira} issue history`, incomplete.map((key) => ({ ...base, key })));
-      histories.forEach((history, n) => {
-        if (history) work[jira].push({ key: incomplete[n]!, history });
-      });
-    })());
+  /** Each place a read went to (a GitHub repository, a Bitbucket repo, an Azure DevOps project) and whether its work items and pull requests came back, for the Pull requests view to say. */
+  const readState = new Map<string, ReadTarget>();
+  const track = (area: string, label: string): ReadTarget => {
+    const key = label ? `${area} ${label}` : area;
+    if (!readState.has(key)) readState.set(key, { area, label: area === 'github' ? label : key, work: true, pullRequests: true });
+    return readState.get(key)!;
+  };
+  const markUnread = (target: ReadTarget, what: 'work' | 'prs') => {
+    if (what === 'work') target.work = false;
+    else target.pullRequests = false;
+  };
+  // A Jira project is named in the JQL, so a per-repo `project` is one search per distinct project. Plain, it is the project `dossiers show` resolved.
+  for (const jira of JIRA_AREAS.filter((a) => areas[a])) {
+    const projects = [...new Set([areas[jira]!.inputs.project, ...valuesOf(section(jira), 'project')].filter((p): p is string => Boolean(p)))];
+    for (const project of projects) {
+      tasks.push((async () => {
+        const state = track(jira, projects.length > 1 ? project : '');
+        // The search brings each issue's history with it (toil's --changelog); only an issue whose changelog came back short is read with a call of its own.
+        const asked = await run('work', `${jira} issue search`, { ...base, jql: JQL(project, options.windowDays), changelog: true });
+        if (!asked) return markUnread(state, 'work');
+        const { search, histories: inline, incomplete } = splitChangelogs(asked, `${jira} issue history`);
+        work[jira].push(search);
+        for (const { key, history } of inline) work[jira].push({ key, history });
+        const histories = await runEach('work', `${jira} issue history`, incomplete.map((key) => ({ ...base, key })));
+        histories.forEach((history, n) => {
+          if (history) work[jira].push({ key: incomplete[n]!, history });
+        });
+      })());
+    }
   }
-  // Azure DevOps Server and Services send the same work item shapes under the same command names.
+  // Azure DevOps Server and Services send the same work item shapes under the same command names. Work items belong to a project, so a per-repo `project` is one read per distinct project.
   for (const ado of ADO_AREAS.filter((a) => areas[a])) {
-    tasks.push((async () => {
-      const iterations = await run('work', `${ado} work-item iterations`, base);
-      if (iterations) work[ado].push(iterations);
-      const search = await run('work', `${ado} work-item search`, { ...base, wiql: wiqlFor(options.windowDays) });
-      const ids = search ? recs((search.data as Rec).workItems).map((w) => Number(w.id)) : [];
-      if (!ids.length) return;
-      // get-many takes at most 1000 ids a call, so a larger window is asked for in slices, in order.
-      const items: Rec[] = [];
-      for (let from = 0; from < ids.length; from += GET_MANY_MAX) {
-        const batch = await run('work', `${ado} work-item get-many`, { ...base, id: ids.slice(from, from + GET_MANY_MAX) });
-        if (!batch) continue;
-        work[ado].push(batch);
-        items.push(...recs((batch.data as Rec).value));
-      }
-      // One feed of every revision since the window opened stands in for each item's history call; an item whose revisions it doesn't hold whole is read with work-item history (src/ado-revisions.ts).
-      // A dossier that maps its own iteration field can't use the feed (it asks for System.IterationPath only), so the call is skipped and every item is read with work-item history.
-      const iteration = owiFields(section(ado).fields).iteration;
-      const feed = items.length && iteration === undefined ? await run('work', `${ado} work-item feed`, { ...base, updatedSince: feedStart((options.now ?? (() => new Date()))(), options.windowDays ?? DEFAULT_WINDOW_DAYS), fields: ADO_FEED_FIELDS }) : null;
-      const { histories: inline, incomplete } = splitRevisionFeed(feed, items, `${ado} work-item history`, iteration);
-      work[ado].push(...inline);
-      // Items get-many didn't return have no rev to check the feed against, so they are read one by one as before.
-      const known = new Set(items.map((i) => Number(i.id)));
-      const histories = await runEach('work', `${ado} work-item history`, [...incomplete, ...ids.filter((id) => !known.has(id))].map((id) => ({ ...base, id })));
-      for (const revisions of histories) if (revisions) work[ado].push(revisions);
-    })());
+    for (const target of targetsOf(section(ado), ADO_PROJECT_INPUTS)) {
+      tasks.push((async () => {
+        const scope = target.inputs;
+        const state = track(ado, target.label);
+        const iterations = await run('work', `${ado} work-item iterations`, { ...base, ...scope });
+        if (iterations) work[ado].push(iterations);
+        const search = await run('work', `${ado} work-item search`, { ...base, ...scope, wiql: wiqlFor(options.windowDays) });
+        if (!search) markUnread(state, 'work');
+        const ids = search ? recs((search.data as Rec).workItems).map((w) => Number(w.id)) : [];
+        if (!ids.length) return;
+        // get-many takes at most 1000 ids a call, so a larger window is asked for in slices, in order.
+        const items: Rec[] = [];
+        for (let from = 0; from < ids.length; from += GET_MANY_MAX) {
+          const batch = await run('work', `${ado} work-item get-many`, { ...base, ...scope, id: ids.slice(from, from + GET_MANY_MAX) });
+          if (!batch) {
+            markUnread(state, 'work');
+            continue;
+          }
+          work[ado].push(batch);
+          items.push(...recs((batch.data as Rec).value));
+        }
+        // One feed of every revision since the window opened stands in for each item's history call; an item whose revisions it doesn't hold whole is read with work-item history (src/ado-revisions.ts).
+        // A dossier that maps its own iteration field can't use the feed (it asks for System.IterationPath only), so the call is skipped and every item is read with work-item history.
+        const iteration = owiFields(section(ado).fields).iteration;
+        const feed = items.length && iteration === undefined ? await run('work', `${ado} work-item feed`, { ...base, ...scope, updatedSince: feedStart((options.now ?? (() => new Date()))(), options.windowDays ?? DEFAULT_WINDOW_DAYS), fields: ADO_FEED_FIELDS }) : null;
+        const { histories: inline, incomplete } = splitRevisionFeed(feed, items, `${ado} work-item history`, iteration);
+        work[ado].push(...inline);
+        // Items get-many didn't return have no rev to check the feed against, so they are read one by one as before.
+        const known = new Set(items.map((i) => Number(i.id)));
+        const histories = await runEach('work', `${ado} work-item history`, [...incomplete, ...ids.filter((id) => !known.has(id))].map((id) => ({ ...base, ...scope, id })));
+        for (const revisions of histories) if (revisions) work[ado].push(revisions);
+      })());
+    }
   }
   // Every GitHub repository the dossier covers is read with its owner and repo passed explicitly (src/github-repos.ts). When none can be worked out the call goes as toil resolves it, and its failure shows on the panel.
   const repoList = areas.github ? githubRepos(dossier, areas.github.inputs) : [];
   const targets: Array<GithubRepo | null> = areas.github ? (repoList.length ? repoList : [null]) : [];
   const scopeOf = (r: GithubRepo | null): Rec => (r ? { owner: r.owner, repo: r.repo } : {});
   const keyOf = (r: GithubRepo | null, number: number) => (r ? `${r.slug}#${number}` : String(number));
-  /** Whether each repository's issues and pull requests came back, for the header to say. */
-  const repoRead = new Map<string, { issues: boolean; prs: boolean }>(repoList.map((r) => [r.slug, { issues: true, prs: true }]));
+  for (const r of repoList) track('github', r.slug);
   const failed = (r: GithubRepo | null, what: 'issues' | 'prs') => {
-    if (r) repoRead.get(r.slug)![what] = false;
+    if (r) markUnread(readState.get(`github ${r.slug}`)!, what === 'issues' ? 'work' : 'prs');
   };
   if (areas.github) {
     tasks.push((async () => {
@@ -483,7 +520,13 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   };
 
   if (areas.bitbucket) {
-    const prs = refs((await readPrs(PR_HOSTS[0])).prs);
+    const prs: ChangeRef[] = [];
+    for (const t of targetsOf(section('bitbucket'), BITBUCKET_INPUTS)) {
+      const state = track('bitbucket', t.label);
+      const read = await readPrs(PR_HOSTS[0], t.inputs);
+      if (!read.read) markUnread(state, 'prs');
+      prs.push(...refs(read.prs));
+    }
     changes.push(...prs);
     for (const job of strings(section('jenkins').jobs)) {
       for (const pr of prs) {
@@ -495,17 +538,27 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   }
   // Azure DevOps Services has no pipeline commands yet, and reads its pull requests only when the dossier names a repository (Server also reads the remote).
   const onServices = areas.ado?.connection?.deployment === 'cloud';
-  if (areas.ado && !(onServices && !areas.ado.inputs.repo)) {
-    const prs = refs((await readPrs(PR_HOSTS[1])).prs);
+  const adoRepo = areas.ado?.inputs.repo || valuesOf(section('ado'), 'repo').length > 0;
+  if (areas.ado && !(onServices && !adoRepo)) {
+    const prs: ChangeRef[] = [];
+    for (const t of targetsOf(section('ado'), ADO_REPO_INPUTS)) {
+      const state = track('ado', t.label);
+      const read = await readPrs(PR_HOSTS[1], t.inputs);
+      if (!read.read) markUnread(state, 'prs');
+      prs.push(...refs(read.prs));
+    }
     changes.push(...prs);
     const connection = prs[0]?.change?.source.connection ?? areas.ado.connection?.value ?? 'ado';
-    for (const pipeline of onServices ? [] : strings(section('ado').builds)) {
-      const runs = await run('builds', 'ado run list', { ...base, name: pipeline, top: 20 });
-      if (runs) changes.push(...adoBuilds(runs.data, connectionOf(runs, connection), prs));
-    }
-    for (const pipeline of onServices ? [] : strings(section('ado').deployments)) {
-      const runs = await run('deployments', 'ado run list', { ...base, name: pipeline, top: 20 });
-      if (runs) deployments.push(...adoDeployments(runs.data, connectionOf(runs, connection), prs));
+    // Pipelines belong to a project, so they are read once per project the dossier names, not once per repository.
+    for (const t of targetsOf(section('ado'), ADO_PROJECT_INPUTS)) {
+      for (const pipeline of onServices ? [] : strings(section('ado').builds)) {
+        const runs = await run('builds', 'ado run list', { ...base, ...t.inputs, name: pipeline, top: 20 });
+        if (runs) changes.push(...adoBuilds(runs.data, connectionOf(runs, connection), prs));
+      }
+      for (const pipeline of onServices ? [] : strings(section('ado').deployments)) {
+        const runs = await run('deployments', 'ado run list', { ...base, ...t.inputs, name: pipeline, top: 20 });
+        if (runs) deployments.push(...adoDeployments(runs.data, connectionOf(runs, connection), prs));
+      }
     }
   }
   if (areas.github) {
@@ -545,8 +598,7 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
   const analyze = isRec(dossier.analyze) ? (dossier.analyze as DossierAnalyze) : null;
   const shown = show!.data as Rec;
   const origin = typeof shown.source === 'string' && typeof shown.file === 'string' ? { source: shown.source, file: shown.file, adopted: shown.adopted === true } : null;
-  const githubRead = repoList.map((r) => ({ repo: r.slug, issues: repoRead.get(r.slug)!.issues, pullRequests: repoRead.get(r.slug)!.prs }));
-  return { ...summary, items, pullRequests, codeowners, prNotes: [...new Set(prNotes)], githubRepos: githubRead, changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, origin, peopleNotes: team.notes, readiness: readReadiness(dossier), calls };
+  return { ...summary, items, pullRequests, codeowners, prNotes: [...new Set(prNotes)], readTargets: [...readState.values()], changes, deployments: deployments.sort(byEnvironment), people: team.people, wipLimit: team.wipLimit, analyze, origin, peopleNotes: team.notes, readiness: readReadiness(dossier), calls };
 }
 
 /** `dossiers list`, and `dossiers show` for each, so the list can say what each one covers. */

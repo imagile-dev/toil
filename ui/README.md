@@ -84,7 +84,14 @@ project board, and the OpenShift namespace of each environment. A dossier's GitH
 repositories are the `github` section's `owner` and `repo` (one value, or one per repo
 name), plus its `repos` remotes on github.com or on the host of a repository the section names, and each is read on its own
 with `owner` and `repo` passed explicitly (`src/github-repos.ts`); a repository that
-couldn't be read is named on the Pull requests view. A GitHub section with no `projects`
+couldn't be read is named on the Pull requests view. The same goes for the other
+areas' per-repo values: a Jira `project`, a Bitbucket `project`, `workspace` or `repo`,
+and an Azure DevOps `collection`, `project` or `repo` given as an object of repo name to
+value are each read once per target (one Jira search per project, work items per Azure
+DevOps project, pull requests per repo) with those inputs passed explicitly
+(`src/targets.ts`), because Toil UI has no repo folder for toil to pick one from; a section
+with plain values sends the calls it always did. Only GitHub's remotes are read for more
+targets. A GitHub section with no `projects`
 reads each repository's own issues, open and closed, as its work items, with the
 history of every open one and the 50 most recently closed in each. Pull
 requests are read from every code host the dossier names (GitHub, Bitbucket Data
