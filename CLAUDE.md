@@ -459,7 +459,9 @@ input `required`. Core resolves each in one order: the call's own value, then th
 dossier that applies to the call, then the git remotes where the area declares how
 to read them (`origin` first, then the others; the first one on the connection's host
 that the area's parser accepts), then the connection's `setting`, then the area's
-`default`. A command that reads one from a
+`default`. A dossier value held per repo that matches no repo of the dossier does not fall through to
+git or the connection: a command that needs it is `INVALID_INPUT`, any other leaves it unresolved with
+a `DOSSIER_REPO_UNMATCHED` warning (#540). A command that reads one from a
 file the call named (an `--input-file`) reports it with `ctx.supply`, which ranks
 it just below the call's own value. An input with `selectsConnection`
 picks the connection (`--env staging` selects the one named `staging` or whose `env`

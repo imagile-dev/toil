@@ -135,12 +135,14 @@ TOIL_CONN_OCP_PROD_TOKEN=...
   - the area's own context inputs by name (`project`, `owner`, `namespace`), each
     either a value or an object of repo name to value (`"project": { "payments-api":
     "PAY", "ledger-svc": "LEDG" }`), the value for the repo the folder matched. When
-    the folder matches none of the dossier's repos, a per-repo value is never read
-    from anywhere else: a command that needs it fails with `INVALID_INPUT` naming the
+    the folder matches none of the dossier's repos, a per-repo value is not read
+    from git or the connection either: a command that needs it fails with `INVALID_INPUT` naming the
     dossier's repos (run from one of them, pass `--cwd`, pass the flag, or give the
     key a plain value), and one that doesn't gets nothing for it, with a
-    `DOSSIER_REPO_UNMATCHED` warning that says why. A value you pass
-    always wins;
+    `DOSSIER_REPO_UNMATCHED` warning that says why. A value you pass always wins,
+    and so does choosing a target yourself: pass another of the section's per-repo
+    inputs (`--repo`) and the rest resolve as usual. A folder that matches a repo the
+    map doesn't name resolves as usual too;
   - anything else (`projects`, `boards`, `deployments`) is reference data, kept as
     written for people and agents to read with `toil dossiers show`, and never applied
     to a call. A value listed twice in it is still reported.
@@ -368,8 +370,9 @@ Explicit inputs always beat dossier defaults. Inside a command, the dossier is s
 of core's context resolver (`resolveCall` in `src/core/call-context.ts`), through its
 `DossierLookup` seam: for each context input an area declares, and for `connection`,
 the order is the call's own value, then the dossier, then the git remote where the
-area reads one, then the connection's setting, then the area's default. Until this
-plan lands the seam returns nothing.
+area reads one, then the connection's setting, then the area's default. The one
+exception: a per-repo dossier value that no repo of the dossier matched is not passed
+on to git or the connection (see the section's inputs, above).
 
 **One `--env`.** "Which environment" is one input everywhere: an explicit `--env`
 wins, otherwise the dossier's environment fills it through the resolver, and an

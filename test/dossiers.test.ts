@@ -164,6 +164,22 @@ describe('which dossier applies', () => {
       expect(envelope.meta.context?.inputs).toMatchObject({ board: { value: 'mine', source: 'input' }, project: { value: 'PRD', source: 'connection' } });
     });
 
+    it('keeps the old fall-through for a folder that matches a repo the per-repo map leaves out', async () => {
+      const d = disk({ 'home/.toil/dossiers/payments.json': { ...payments, 'demo-context': { project: { 'ledger-svc': 'LEDG' } } } });
+      asRepo(d);
+      const { envelope } = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments' });
+      expect(envelope.ok).toBe(true);
+      expect(envelope.meta.context?.dossier).toMatchObject({ repo: 'payments-api' });
+      expect(envelope.meta.context?.inputs?.project).toEqual({ value: 'PRD', source: 'connection' });
+      expect(envelope.meta.warnings?.map((w) => w.code) ?? []).not.toContain('DOSSIER_REPO_UNMATCHED');
+    });
+
+    it("counts only the area's context inputs as the caller choosing a target, not a flag like fields", () => {
+      const d = disk({ 'home/.toil/dossiers/payments.json': { ...perRepo, 'demo-context': { ...perRepo['demo-context'], fields: { points: 'customfield_1' } } } });
+      const { lookup } = d.catalog(configOf()).place({ dossier: 'payments' });
+      expect(() => lookup('demo-context', 'project', { fields: 'System.Title' })).toThrow(expect.objectContaining({ code: 'INVALID_INPUT' }));
+    });
+
     it('lets the call name the input itself, and leaves an input the command never needs unresolved', async () => {
       const d = disk({ 'home/.toil/dossiers/payments.json': perRepo });
       const explicit = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments', '--project', 'OWN'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments', project: 'OWN' });

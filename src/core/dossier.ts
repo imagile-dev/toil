@@ -1216,12 +1216,13 @@ export function createDossierCatalog(o: CatalogOptions): DossierCatalog {
       // A per-repo value with no repo to read it for must not hand the key to git or the connection: the other inputs
       // came from this dossier, so the pair would be one nobody configured (#540). The call's own value never reaches here.
       // A call that names another per-repo input itself (`--repo`) has chosen its target: the rest is the caller's pairing, not the dossier's.
-      const named = (): boolean => sectionsFor(dossier, area, env).some((section) => Object.keys(section).some((k) => k !== key && isRecord(ownValue(section, k)) && typeof input[k] === 'string'));
-      if (stranded !== undefined && !named()) {
+      const named = (): boolean => sectionsFor(dossier, area, env).some((section) => Object.keys(section).some((k) => k !== key && (areaNames.get(area)?.context.includes(k) ?? false) && isRecord(ownValue(section, k)) && typeof input[k] === 'string'));
+      // A folder that matched a repo the map doesn't name keeps the old fall-through; only a folder matching none is stranded.
+      if (stranded !== undefined && applied.repo === undefined && !named()) {
         const repos = dossier.repos.map((r) => r.name);
         const same = repos.length === stranded.length && repos.every((r) => stranded!.includes(r));
         throw new StrandedInput('INVALID_INPUT', `Dossier ${dossier.name} sets ${area} ${key} per repo (${stranded.join(', ')}), and the call's folder is none of its repos${repos.length > 0 && !same ? ` (${repos.join(', ')})` : ''}.`, {
-          fix: `Run from inside one of the dossier's repos (--cwd <repo folder>), pass ${key === 'repo' ? '--repo' : `the ${key} input`} yourself, or give ${key} a plain value in the dossier.`,
+          fix: `Run from inside one of the dossier's repos (--cwd <repo folder>), pass --${key} yourself, or give ${key} a plain value in the dossier.`,
         });
       }
       return undefined;

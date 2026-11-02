@@ -123,7 +123,8 @@ export async function resolveCall(
       if (needs[name] === 'required') throw err;
       stranded.add(name);
       // Said on the call, so a later "could not determine" error comes with the reason beside it (principle 4).
-      warn({ code: 'DOSSIER_REPO_UNMATCHED', message: `${err.message} ${err.fix ?? ''}`.trim() });
+      // check-dossier reads every per-repo value through the dossier's view by design, so the advice would be wrong there.
+      if (def.path[def.path.length - 1] !== 'check-dossier') warn({ code: 'DOSSIER_REPO_UNMATCHED', message: `${err.message} ${err.fix ?? ''}`.trim() });
       continue;
     }
     const found = checked(area, name, spec, fromDossier, 'dossier') ?? (spec.selectsConnection ? checked(area, name, spec, await fromGit(spec, undefined), 'git') : undefined);
