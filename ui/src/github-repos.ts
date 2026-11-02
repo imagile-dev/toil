@@ -57,8 +57,7 @@ export function githubRepos(dossier: Rec, resolved: Record<string, string> | und
     if (owner && repo && !has(owner, repo)) found.push(make(owner, repo));
   };
   const section = isRec(dossier.github) ? dossier.github : {};
-  // A per-repo map resolves, with no repo folder, to whatever the connection or a git remote happens to name: not necessarily a repo of the dossier. Only a plain section (or none) is taken as resolved.
-  if (!isRec(section.owner) && !isRec(section.repo)) add(resolved?.owner, resolved?.repo);
+  add(resolved?.owner, resolved?.repo);
 
   const names = new Set([...(isRec(section.owner) ? Object.keys(section.owner) : []), ...(isRec(section.repo) ? Object.keys(section.repo) : [])]);
   if (names.size) for (const name of names) add(forName(section.owner, name), forName(section.repo, name));

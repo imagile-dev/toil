@@ -393,7 +393,8 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
       // No board named: each repository's own issues are the tracker, open and closed.
       if (!projects.length) {
         await Promise.all(targets.map(async (r) => {
-          const issues = await run('work', 'github issue list', { ...base, ...scopeOf(r), state: 'all' });
+          // Through the dossier's pool, so a dossier of forty repositories doesn't send forty lists at once.
+          const issues = await slot(() => run('work', 'github issue list', { ...base, ...scopeOf(r), state: 'all' }));
           if (!issues) return failed(r, 'issues');
           work.github.push(issues);
           // The closed-issue history cap (CLOSED_ISSUE_HISTORIES) applies to each repository on its own, so a second repository doesn't starve the first of histories.
@@ -401,22 +402,20 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
         }));
         return;
       }
-      // A board belongs to an owner, so it is read once per owner, then each repository takes the issues of it that live there.
-      const board = new Map<string | undefined, Rec[]>();
-      for (const owner of new Set(targets.map((r) => r?.owner))) {
-        const items: Rec[] = [];
-        for (const project of projects) {
-          const answer = await run('work', 'github project items', { ...base, ...(owner ? { owner } : {}), project: Number(project) });
-          if (!answer) continue;
-          work.github.push(answer);
-          items.push(...recs(answer.data));
-        }
-        board.set(owner, items);
+      // The project numbers are the section's, so each board is read once, under the section's plain owner (the first repository's when owner is per repo); each repository then takes the issues of it that live there.
+      const sectionOwner = section('github').owner;
+      const owner = typeof sectionOwner === 'string' && sectionOwner ? sectionOwner : targets[0]?.owner;
+      const board: Rec[] = [];
+      for (const project of projects) {
+        const answer = await run('work', 'github project items', { ...base, ...(owner ? { owner } : {}), project: Number(project) });
+        if (!answer) continue;
+        work.github.push(answer);
+        board.push(...recs(answer.data));
       }
       for (const r of targets) {
         const slug = (r ? r.slug : `${areas.github!.inputs.owner}/${areas.github!.inputs.repo}`).toLowerCase();
         const numbers = new Set<number>();
-        for (const item of board.get(r?.owner) ?? []) {
+        for (const item of board) {
           const content = isRec(item.content) ? item.content : {};
           if (isRec(content.repository) && String(content.repository.nameWithOwner).toLowerCase() === slug && typeof content.number === 'number') numbers.add(content.number);
         }
@@ -536,11 +535,6 @@ export async function loadDossier(execute: Execute, name: string, options: LoadO
     }
     // A head's check runs came with its get: one build per pull request read in full, so the gets fed the builds too.
     calls.builds.push(...calls.prs.filter((c) => c.command === 'github pr get'));
-    // A repository whose issues or pull requests didn't come back is said on the pull request view, beside the call that failed.
-    for (const [slug, got] of repoRead) {
-      const missed = [got.issues ? '' : 'issues', got.prs ? '' : 'pull requests'].filter(Boolean).join(' or ');
-      if (missed) prNotes.push(`${slug}: its ${missed} could not be read, so none from it are shown. The failed call is on the panel.`);
-    }
   }
 
   // OpenShift once per dossier, after every code host's pull requests are in, so a

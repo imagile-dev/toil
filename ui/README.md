@@ -82,7 +82,7 @@ Each dashboard reads its dossier the way `toil dossiers show` describes it: the
 Jira project, the Azure DevOps project and pipelines, the GitHub repositories and
 project board, and the OpenShift namespace of each environment. A dossier's GitHub
 repositories are the `github` section's `owner` and `repo` (one value, or one per repo
-name), plus its `repos` remotes on the same GitHub host, and each is read on its own
+name), plus its `repos` remotes on github.com or on the host of a repository the section names, and each is read on its own
 with `owner` and `repo` passed explicitly (`src/github-repos.ts`); a repository that
 couldn't be read is named on the Pull requests view. A GitHub section with no `projects`
 reads each repository's own issues, open and closed, as its work items, with the

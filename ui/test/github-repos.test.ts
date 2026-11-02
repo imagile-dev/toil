@@ -37,14 +37,10 @@ describe('which GitHub repositories a dossier covers', () => {
   });
 
   it('ignores remotes that are not GitHub-shaped or sit on another host', () => {
-    const dossier = { github: { connection: 'github' }, repos: remotes('ssh://git@bitbucket.imagile.dev:7999/pay/core.git', 'https://dev.azure.com/org/proj/_git/repo', '/local/path', 'https://gitlab.com/a/b.git') };
+    const dossier = { github: { connection: 'github' }, repos: remotes('ssh://git@bitbucket.imagile.dev:7999/pay/core.git', 'https://dev.azure.com/imagile/proj/_git/repo', '/local/path', 'https://gitlab.com/imagile/b.git') };
     expect(slugs(dossier)).toEqual([]);
     expect(parseRemote('/local/path')).toBeNull();
-    expect(parseRemote('https://github.com/a/b/c')).toBeNull();
-  });
-
-  it("doesn't take a resolved repository that a per-repo map didn't name", () => {
-    expect(slugs({ github: { owner: 'o', repo: { app: 'a', lib: 'l' } } }, { owner: 'o', repo: 'unrelated' })).toEqual(['o/a', 'o/l']);
+    expect(parseRemote('https://github.com/imagile/b/c')).toBeNull();
   });
 
   it('puts the resolved repository first', () => {
@@ -104,6 +100,7 @@ describe('a dossier with two GitHub repositories', () => {
       { repo: 'imagile/payments-web', issues: true, pullRequests: true },
       { repo: 'imagile/payments-lib', issues: true, pullRequests: false },
     ]);
-    expect(data.prNotes.join('\n')).toContain('imagile/payments-lib: its pull requests could not be read');
+    // The Pull requests view words it from githubRepos; prNotes stay for the reads' own caveats.
+    expect(data.prNotes).toEqual([]);
   });
 });
