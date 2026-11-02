@@ -67,7 +67,7 @@ export function InsightChips({ insights, max = 3, compact = false, titles }: { i
   return (
     <ul className={`insight-chips${compact ? ' insight-chips--compact' : ''}`} aria-label="Insights">
       {shown.map((g) => {
-        const word = g.insights.length > 1 ? `${INSIGHT_LABEL[g.code]} ${g.insights.length}` : INSIGHT_LABEL[g.code];
+        const word = wordOf(g);
         return compact ? (
           <li key={g.code} className={`insight insight--icon insight--w${g.weight}`} title={groupTitle(g, word, titles)}>
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
@@ -82,13 +82,16 @@ export function InsightChips({ insights, max = 3, compact = false, titles }: { i
         );
       })}
       {rest.length > 0 && (
-        <li className="insight insight--more" {...(compact ? { title: rest.map((g) => INSIGHT_LABEL[g.code]).join(', ') } : {})}>
+        <li className="insight insight--more" {...(compact ? { title: rest.map(wordOf).join(', ') } : {})}>
           +{rest.length} more
         </li>
       )}
     </ul>
   );
 }
+
+/** A chip's word: the label, with a count when several insights share the code. */
+const wordOf = (g: InsightGroup) => (g.insights.length > 1 ? `${INSIGHT_LABEL[g.code]} ${g.insights.length}` : INSIGHT_LABEL[g.code]);
 
 /** A chip's tooltip: its word alone for one insight, else the word and what each says, cited items by title. */
 function groupTitle(g: InsightGroup, word: string, titles?: ReadonlyMap<string, { title: string }>): string {

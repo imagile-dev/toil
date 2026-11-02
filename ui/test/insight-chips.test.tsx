@@ -26,4 +26,10 @@ describe('insight chips', () => {
     const { container } = render(<InsightChips insights={[blocking('c:A'), blocking('c:B'), blocking('c:C'), stale, ...others]} compact />);
     expect([...container.querySelectorAll('li')].map((c) => c.textContent)).toEqual(['Blocking 3', 'Stale', 'Aging', '+2 more']);
   });
+
+  it('keeps the count of a hidden chip in the "+N more" tooltip', () => {
+    const many: Insight = { code: 'aging', weight: 3, text: 'x', evidence: 'x' };
+    const { container } = render(<InsightChips insights={[stale, many, blocking('c:A'), blocking('c:B'), blocking('c:C')]} max={2} compact />);
+    expect(container.querySelector('.insight--more')!.getAttribute('title')).toBe('Blocking 3');
+  });
 });
