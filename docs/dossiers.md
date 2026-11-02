@@ -138,7 +138,8 @@ TOIL_CONN_OCP_PROD_TOKEN=...
     the folder matches none of the dossier's repos, a per-repo value is never read
     from anywhere else: a command that needs it fails with `INVALID_INPUT` naming the
     dossier's repos (run from one of them, pass `--cwd`, pass the flag, or give the
-    key a plain value), and one that doesn't gets nothing for it. A value you pass
+    key a plain value), and one that doesn't gets nothing for it, with a
+    `DOSSIER_REPO_UNMATCHED` warning that says why. A value you pass
     always wins;
   - anything else (`projects`, `boards`, `deployments`) is reference data, kept as
     written for people and agents to read with `toil dossiers show`, and never applied

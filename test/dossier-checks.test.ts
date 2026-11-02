@@ -194,7 +194,7 @@ describe('check-dossier for the rest of the areas', () => {
   it('reports a repo with no owner to look it up under as unchecked, so ok never covers a value nobody looked at', async () => {
     const run = await check(github, { name: 'p', github: { owner: { 'toil-probe': 'imagile' }, repo: { 'toil-probe': 'toil-probe', other: 'other' } } });
     expect(run.envelope.data).toMatchObject({ ok: false, unchecked: [{ path: 'github.repo.other', value: 'other', reason: 'no owner to look this repo up in for repo other' }] });
-    expect(run.envelope.meta.warnings?.[0]).toMatchObject({ code: 'DOSSIER_UNCHECKED', message: expect.stringContaining('github.repo.other ("other") wasn\'t checked') });
+    expect(run.envelope.meta.warnings?.find((w) => w.code === 'DOSSIER_UNCHECKED')).toMatchObject({ code: 'DOSSIER_UNCHECKED', message: expect.stringContaining('github.repo.other ("other") wasn\'t checked') });
     expect(run.exitCode).toBe(1);
   });
 

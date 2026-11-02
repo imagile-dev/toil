@@ -173,6 +173,20 @@ describe('which dossier applies', () => {
       expect(unneeded.envelope.ok).toBe(true);
       expect(unneeded.envelope.meta.context?.inputs?.project).toBeUndefined();
     });
+
+    it.each([
+      ['an unrelated git repository', true],
+      ['a folder with no git', false],
+    ])('warns, naming the dossier, its repos and the fix, when an optional input is left unresolved in %s', async (_name, git) => {
+      const d = disk({ 'home/.toil/dossiers/payments.json': perRepo });
+      if (git) asRepo(d, 'https://git.imagile.dev/other/unrelated.git');
+      const { envelope } = await both(d, ['demo-context', 'echo-filters', '--dossier', 'payments'], 'demo_context_echo_filters', { dossier: 'payments' });
+      expect(envelope.meta.context?.inputs?.project).toBeUndefined();
+      const warning = envelope.meta.warnings?.find((w) => w.code === 'DOSSIER_REPO_UNMATCHED');
+      expect(warning?.message).toContain('Dossier payments sets demo-context project per repo');
+      expect(warning?.message).toContain('payments-api, ledger-svc');
+      expect(warning?.message).toContain('--cwd');
+    });
   });
 
   it('matches a repo by its path, and lets an explicit value win over the dossier', async () => {
