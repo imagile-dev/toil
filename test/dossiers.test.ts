@@ -125,6 +125,56 @@ describe('which dossier applies', () => {
     });
   });
 
+  describe("a per-repo value when the folder is none of the dossier's repos (#540)", () => {
+    // `project` is per repo and `board` is plain: the pair must come from the dossier or not at all.
+    const perRepo = { ...payments, 'demo-context': { project: { 'payments-api': 'PAY', 'ledger-svc': 'LEDG' }, board: 'ops' } };
+    const stranded = (envelope: Envelope) => {
+      expect(envelope.ok).toBe(false);
+      expect(envelope.error).toMatchObject({ code: 'INVALID_INPUT', message: expect.stringContaining('payments-api, ledger-svc') });
+      expect(envelope.error?.fix).toContain('--cwd');
+      expect(envelope.meta.context?.inputs?.project).toBeUndefined();
+    };
+
+    it("reads the matching repo's value, and the plain one beside it", async () => {
+      const d = disk({ 'home/.toil/dossiers/payments.json': perRepo });
+      asRepo(d);
+      const { envelope } = await both(d, ['demo-context', 'get-widget', 'W-1'], 'demo_context_get_widget', { id: 'W-1' });
+      expect(envelope.meta.context?.inputs).toMatchObject({ project: { value: 'PAY', source: 'dossier' }, board: { value: 'ops', source: 'dossier' } });
+    });
+
+    it("refuses an unrelated repository's folder rather than pair the dossier's value with its git remote", async () => {
+      const d = disk({ 'home/.toil/dossiers/payments.json': perRepo });
+      asRepo(d, 'https://git.imagile.dev/other/unrelated.git');
+      const { envelope, calls } = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments' });
+      stranded(envelope);
+      expect(calls).toEqual([]);
+    });
+
+    it("refuses a folder with no git rather than fall to the connection's own project", async () => {
+      const d = disk({ 'home/.toil/dossiers/payments.json': perRepo });
+      const { envelope, calls } = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments' });
+      stranded(envelope);
+      expect(calls).toEqual([]);
+    });
+
+    it("treats another per-repo input the call names itself as the caller's choice of target", async () => {
+      const d = disk({ 'home/.toil/dossiers/payments.json': { ...payments, 'demo-context': { project: { 'payments-api': 'PAY' }, board: { 'payments-api': 'ops' } } } });
+      const { envelope } = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments', '--board', 'mine'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments', board: 'mine' });
+      expect(envelope.ok).toBe(true);
+      expect(envelope.meta.context?.inputs).toMatchObject({ board: { value: 'mine', source: 'input' }, project: { value: 'PRD', source: 'connection' } });
+    });
+
+    it('lets the call name the input itself, and leaves an input the command never needs unresolved', async () => {
+      const d = disk({ 'home/.toil/dossiers/payments.json': perRepo });
+      const explicit = await both(d, ['demo-context', 'get-widget', 'W-1', '--dossier', 'payments', '--project', 'OWN'], 'demo_context_get_widget', { id: 'W-1', dossier: 'payments', project: 'OWN' });
+      expect(explicit.envelope.ok).toBe(true);
+      expect(explicit.envelope.meta.context?.inputs).toMatchObject({ project: { value: 'OWN', source: 'input' }, board: { value: 'ops', source: 'dossier' } });
+      const unneeded = await both(d, ['demo-context', 'echo-filters', '--dossier', 'payments'], 'demo_context_echo_filters', { dossier: 'payments' });
+      expect(unneeded.envelope.ok).toBe(true);
+      expect(unneeded.envelope.meta.context?.inputs?.project).toBeUndefined();
+    });
+  });
+
   it('matches a repo by its path, and lets an explicit value win over the dossier', async () => {
     const d = disk();
     d.write('home/.toil/dossiers/payments.json', { ...payments, repos: [{ name: 'ledger-svc', path: d.workspace }] });

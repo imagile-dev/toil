@@ -432,6 +432,9 @@ line; for an agent, the `dossiers_show` tool, the `toil://dossiers/<name>` resou
   is compared with your connections' hosts, nothing more.
 - **Several services, one product?** One dossier, several `repos`, and per-repo values
   where they differ (`"repo": { "payments-core": "payments-core", "ledger": "ledger-svc" }`).
+  From a folder that is none of those repos, a call that needs a per-repo value fails
+  (`INVALID_INPUT`, naming the repos) rather than use git's or the connection's: use
+  `--cwd` inside one of them, or pass the flag.
 - **One service in several products?** Put a dossier in each, and pass `--dossier`
   when the folder matches both.
 - **Edits while `toil mcp` runs?** Dossiers are read on every call, so an edit applies

@@ -5,7 +5,7 @@ import { connectionEnvName, connectionsOf, defaultConnectionName, envName, type 
 import { resolveConnection, selectConnection } from './connection.js';
 import { refusesDeployment } from './deployments.js';
 import type { ContextReport, ContextSource, ContextValue, Warning } from './envelope.js';
-import { ToilError } from './errors.js';
+import { StrandedInput, ToilError } from './errors.js';
 import type { SecretStore } from './keychain.js';
 
 /**
@@ -105,6 +105,7 @@ export async function resolveCall(
   // 1 and 2 for the rest. Their git step waits for the connection, so a
   // parser can trust only a remote on that connection's host.
   const early: Record<string, ContextValue> = {};
+  const stranded = new Set<string>();
   for (const name of Object.keys(needs)) {
     const spec = declared[name]!;
     const explicit = input[name];
@@ -113,7 +114,16 @@ export async function resolveCall(
       continue;
     }
     // With --connection named, an input that selects one can only agree with it or give way, so the dossier isn't asked for it.
-    const fromDossier = spec.selectsConnection && typeof input.connection === 'string' ? undefined : dossier(area.name, name, input);
+    let fromDossier: string | undefined;
+    try {
+      fromDossier = spec.selectsConnection && typeof input.connection === 'string' ? undefined : dossier(area.name, name, input);
+    } catch (err) {
+      // A per-repo value with no repo to read it for: a command that needs it is told, one that doesn't gets nothing for it, never a git or connection value.
+      if (!(err instanceof StrandedInput)) throw err;
+      if (needs[name] === 'required') throw err;
+      stranded.add(name);
+      continue;
+    }
     const found = checked(area, name, spec, fromDossier, 'dossier') ?? (spec.selectsConnection ? checked(area, name, spec, await fromGit(spec, undefined), 'git') : undefined);
     if (found) early[name] = found;
   }
@@ -148,6 +158,7 @@ export async function resolveCall(
   const here = def.deployments ? (def.deployments.routes[String(connection[def.deployments.by])]?.context ?? {}) : needs;
   for (const [name, need] of Object.entries(here)) {
     const spec = declared[name]!;
+    if (stranded.has(name)) continue;
     const setting = spec.setting === undefined ? undefined : connection[spec.setting];
     // An input the area gives to other deployments, which this one takes only because its command lists it, comes from the call or the
     // dossier alone: the connection's setting, defaults, env, git and the area default are documented as the other deployment's, and a
@@ -186,7 +197,13 @@ export function dossierConnection(config: ResolvedConfig, area: AnyArea, dossier
   const early: Record<string, ContextValue> = {};
   for (const [name, spec] of Object.entries(declared)) {
     if (!spec.selectsConnection) continue;
-    const found = checked(area, name, spec, dossier(area.name, name, {}), 'dossier');
+    let value: string | undefined;
+    try {
+      value = dossier(area.name, name, {});
+    } catch (err) {
+      if (!(err instanceof StrandedInput)) throw err;
+    }
+    const found = checked(area, name, spec, value, 'dossier');
     if (found) early[name] = found;
   }
   const def = { path: [area.name, 'dossier'], area } as unknown as AnyCommand;

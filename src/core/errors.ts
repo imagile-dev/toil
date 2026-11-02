@@ -49,6 +49,12 @@ export class ToilError extends Error {
   }
 }
 
+/**
+ * A dossier holds this input per repo and the call's folder is none of them (#540). The resolver tells it from any other
+ * INVALID_INPUT: an input the command doesn't need is left unresolved, one it does is this error.
+ */
+export class StrandedInput extends ToilError {}
+
 export function toToilError(err: unknown): ToilError {
   if (err instanceof ToilError) return err;
   const message = err instanceof Error ? err.message : String(err);

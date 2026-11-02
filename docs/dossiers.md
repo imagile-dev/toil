@@ -134,7 +134,12 @@ TOIL_CONN_OCP_PROD_TOKEN=...
   - `transitions`, the pinned transitions (below);
   - the area's own context inputs by name (`project`, `owner`, `namespace`), each
     either a value or an object of repo name to value (`"project": { "payments-api":
-    "PAY", "ledger-svc": "LEDG" }`), the value for the repo the folder matched;
+    "PAY", "ledger-svc": "LEDG" }`), the value for the repo the folder matched. When
+    the folder matches none of the dossier's repos, a per-repo value is never read
+    from anywhere else: a command that needs it fails with `INVALID_INPUT` naming the
+    dossier's repos (run from one of them, pass `--cwd`, pass the flag, or give the
+    key a plain value), and one that doesn't gets nothing for it. A value you pass
+    always wins;
   - anything else (`projects`, `boards`, `deployments`) is reference data, kept as
     written for people and agents to read with `toil dossiers show`, and never applied
     to a call. A value listed twice in it is still reported.
