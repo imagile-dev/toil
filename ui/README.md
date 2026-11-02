@@ -744,8 +744,8 @@ conversation stays, for the rest of the dossier's pages, until you reload.
   default from Settings, Agent (Claude, GitHub Copilot or Codex), else the first agent
   that is ready, else as before, with the server trying the default and saying why it
   can't. A few words beside **Answered by** say which: "last used on this dossier",
-  "your default", "your default can't run" or "picked for this
-  chat". Picking another agent and asking updates the memory; a question that names no
+  "your default", "your default can't run", "the first one ready" or
+  "picked for this chat". Picking another agent and asking updates the memory; a question that names no
   agent, or an answer that fails, is stopped or comes back empty, doesn't. Renaming a dossier moves its
   memory, and a dossier toil no longer has is forgotten on the next full sync. The sample
   remembers nothing.

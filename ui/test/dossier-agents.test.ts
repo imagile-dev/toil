@@ -186,6 +186,12 @@ describe('the server', () => {
         if (a instanceof Error) throw a;
         return a;
       },
+      async *stream(_ctx, _d, _p, _s, _c, extra) {
+        asked.push(extra?.adapter);
+        const a = answer(extra?.adapter);
+        if (a instanceof Error) throw a;
+        yield a;
+      },
       adapterOptions: () => list(),
     };
     const ui = createUiServer({ settings: { host: '127.0.0.1', port: 0, basePath: '/', dataDir: app, retentionDays: 30, sample: true }, store: fixtureStore(), agent, appDir: app, version: '0.0.0-test', toil: { version: '0.1.0', contractVersion: 1 }, token: TOKEN, dossierAgents: store });
@@ -228,6 +234,17 @@ describe('the server', () => {
     const { origin, sid, csrf } = await boot(store, () => whole);
     await send(origin, '/api/agent/ask', sid, { dossier: 'card-payments', prompt: 'What is blocked?', adapter: 'codex' }, csrf);
     expect(store.get('card-payments')).toBe('codex');
+    // Streamed, as the page asks: the same.
+    await send(origin, '/api/agent/ask', sid, { dossier: 'settlement', prompt: 'What is blocked?', adapter: 'claude', stream: true }, csrf);
+    expect(store.get('settlement')).toBe('claude');
+  });
+
+  it('refuses a fallback that names no adapter', async () => {
+    const store = new DossierAgents(folder());
+    const { origin, sid, csrf } = await boot(store, () => whole);
+    const res = await send(origin, '/api/agent/ask', sid, { dossier: 'card-payments', prompt: 'What is blocked?', fallback: true }, csrf);
+    expect(res.status).toBe(400);
+    expect(JSON.parse(res.body).error.message).toContain('fallback names no adapter');
   });
 
   it('remembers nothing from a question that names no agent, names only a fallback, or fails or comes back empty', async () => {

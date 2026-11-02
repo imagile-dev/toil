@@ -300,6 +300,7 @@ function extraOf(body: Record<string, unknown>): AskExtra {
   }
   if (body.fallback !== undefined) {
     if (typeof body.fallback !== 'boolean') throw new HttpError(400, 'fallback is true or false.', 'Send fallback: true when the adapter stands in for a default that cannot run, or leave it out.');
+    if (body.fallback && extra.adapter === undefined) throw new HttpError(400, 'fallback names no adapter.', 'Send fallback: true with the adapter it stands in with, or leave it out.');
     if (body.fallback) extra.fallback = true;
   }
   if (body.history !== undefined) {
