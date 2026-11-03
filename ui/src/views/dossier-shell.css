@@ -34,7 +34,7 @@ main:has(> .dossier-shell) { max-width: 1680px; padding-top: 0.5rem; padding-bot
   .dossier-bar__desc-text { white-space: normal; }
 }
 
-/* The tabs: one row that scrolls sideways when it doesn't fit, with the drawer's button at its end. */
+/* The tabs: one row that scrolls sideways when it doesn't fit, under the drawer's button where there is one. */
 .dossier-tabs-row { display: flex; align-items: end; gap: 0.5rem; border-bottom: 1px solid var(--line); }
 .dossier-tabs { flex: 1 1 auto; }
 .dossier-tabs nav { width: max-content; }
@@ -54,12 +54,10 @@ main:has(> .dossier-shell) { max-width: 1680px; padding-top: 0.5rem; padding-bot
 .dossier-tabs a[aria-current="page"] { border-bottom-color: var(--accent); font-weight: 600; }
 .tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 1.4rem; padding: 0 0.35rem; border-radius: 999px; background: var(--warn); color: var(--bg); font-size: 0.75rem; font-weight: 700; line-height: 1.4; }
 .agents-open { flex: none; gap: 0.4rem; margin-bottom: 0.25rem; font-weight: 600; }
-/* Below the width where the Agents drawer is a sidebar, its button takes its own line above the tabs, so the tabs get the whole row instead of a third of it. */
-@media (max-width: 1199px) {
-  .dossier-tabs-row { flex-wrap: wrap; }
-  .dossier-tabs { flex-basis: 100%; }
-  .agents-open { order: -1; margin: 0 0 0.5rem auto; }
-}
+/* Where the drawer's button exists (below 1200px) it comes first and takes its own line, so the tabs get the whole row; focus order follows. */
+.dossier-tabs-row { flex-wrap: wrap; }
+.dossier-tabs { flex-basis: 100%; }
+.agents-open { margin: 0 0 0.5rem auto; }
 
 .board-views { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; font-size: 0.9375rem; }
 .board-views a { display: inline-flex; align-items: center; min-height: 44px; }
