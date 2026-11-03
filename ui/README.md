@@ -1234,8 +1234,8 @@ npm run verify:ui -- --no-build --starter standup
   token` in Toil UI's environment only. It syncs the `sandbox` dossier and runs the
   same check over the home page, the dossier and its Board and Dependencies tabs, its worklog and stand-up, one of its items and the settings pages,
   except that its header may fold into the Menu at 1440px, since a real dossier's name
-  and links can genuinely fill the row, and its Usage page may have no failed command to
-  open, where the page's "No command failed in this window" passes in its place.
+  and links can genuinely fill the row, and its Usage page's failed-command lines are
+  opened on the sample only, since real data may have none.
   Without a GitHub sign-in it skips this part and says so; nothing else depends on it.
 - **`--ask`** asks Codex one starter question (`hygiene` unless `--starter <id>`) and
   checks that an answer arrived, that the server verified every `[[id]]` it cites,

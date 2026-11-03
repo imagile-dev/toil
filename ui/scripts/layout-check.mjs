@@ -29,7 +29,7 @@
 // from the Ask bar (#343) with its (i) popover, its agent switcher, an answer, its Suggestions menu and
 // Analyze's pulse check, a help (i)'s tooltip and popover (#346), the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
 // the calendar on an earlier month, a stand-up written up, and every failing
-// command's recent audit lines open on the Usage page (on real data with no failed command, the page's "No command failed in this window" stands in), the bell's list and What's new (#417), and the theme moments' previews
+// command's recent audit lines open on the Usage page (the sample's; real data may have none), the bell's list and What's new (#417), and the theme moments' previews
 // (#419): a loading screen, the launch splash and the sprint recap card. Reduced motion
 // is on, so an animation caught mid-flight can't fail a run; `npm run smoke` then runs
 // MOTION_ROUTES again with motion on, where the moments play.
@@ -420,8 +420,8 @@ function states(route, width, sample = true) {
   }
   if (route === '#/dossier/card-payments/board') out.push({ name: 'attention-only', setup: clickAll('[data-attention-only]'), undoJs: clickAll('[data-attention-only]') });
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
-  // Real data may genuinely have no failed command, and then there is nothing to open; the sample always has some.
-  if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n || (${!sample} && /No command failed in this window/.test(document.querySelector('main')?.textContent ?? '') ? 1 : 0); })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
+  // Real data may genuinely have no failed command, and a state that opens nothing is a problem, so only the sample (which always has some) is held to it.
+  if (sample && route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).
   // The worklog (#308): a day rebuilt, which says how it compared, and an earlier month in the calendar.
   if (/\/worklog\/\d{4}-\d{2}-\d{2}$/.test(route)) out.push({ name: 'rebuilt', setup: `(async () => { const n = ${clickAll('[data-worklog-rebuild]')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
