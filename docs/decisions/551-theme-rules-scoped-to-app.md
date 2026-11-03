@@ -1,4 +1,4 @@
-# Theme rules that draw decoration are scoped to the app's own elements
+# Theme rules that draw decoration are scoped to the app's own elements (#551)
 
 - Harvest's sky strip (`header::before`) now targets `.app-header`, a class the app
   header in `ui/src/App.tsx` carries. The bare rule also drew it on the game's
