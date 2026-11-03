@@ -11,6 +11,7 @@
 //   - a child box reaching past the edge of its card (`data-card`);
 //   - something fixed to the bottom of the screen covering the end of the
 //     page once it is scrolled all the way down;
+//   - a tab bar (`data-tabs-row`) that scrolls while a sibling takes more than a tenth of its row, or overlaps it;
 //   - a row that must stay one row (`data-one-row`: the compact header, the
 //     settings tabs) wrapping onto a second;
 //   - the header folded into its Menu at 1440 pixels or wider, where every
@@ -200,6 +201,21 @@ function inspect(cards, headerFits) {
     const tops = new Set(kids.map((k) => Math.round(k.getBoundingClientRect().top / 4)));
     const mids = kids.map((k) => { const r = k.getBoundingClientRect(); return r.top + r.height / 2; });
     if (tops.size > 1 && Math.max(...mids) - Math.min(...mids) > 12) add('wraps', row, `its items sit on ${tops.size} rows`);
+  }
+
+  // A tab bar that has to scroll gets (nearly) its whole row: a button beside it that leaves room for two tabs hides the rest.
+  for (const row of document.querySelectorAll('[data-tabs-row]')) {
+    if (!shown(row)) continue;
+    const body = row.querySelector('[data-scroller]');
+    if (!body || body.scrollWidth <= body.clientWidth + 1) continue;
+    const rowW = row.getBoundingClientRect().width;
+    const b = body.getBoundingClientRect();
+    if (b.width < rowW * 0.9) add('tabs-squeezed', body, `the tabs scroll in ${Math.round(b.width)}px of a ${Math.round(rowW)}px row, the rest of it taken by a sibling`);
+    for (const sib of row.querySelectorAll(':scope > *')) {
+      if (sib.contains(body) || !shown(sib)) continue;
+      const r = sib.getBoundingClientRect();
+      if (r.left < b.right - 1 && r.right > b.left + 1 && r.top < b.bottom - 1 && r.bottom > b.top + 1) add('tabs-covered', sib, 'overlaps the tab bar');
+    }
   }
 
   // The header folds into its Menu only when its row is full, and at 1440px every theme's row fits the sample's (#387).

@@ -109,7 +109,7 @@ export function DossierShell({ tab, heading, dossiers, boardView, peek = null, c
         </div>
         <AskBar />
       </div>
-      <div className="dossier-tabs-row">
+      <div className="dossier-tabs-row" data-tabs-row="">
         <Scroller label="Dossier views" className="dossier-tabs">
           <nav aria-label={`${dossier.name} views`}>
             <ul>
