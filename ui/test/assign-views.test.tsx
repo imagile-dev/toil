@@ -43,15 +43,19 @@ describe('the Agents sidebar', () => {
   it('shows the inbox, waiting for Start, and every assignment by what it waits on, with its state, mode and adapter', async () => {
     await open('#/dossier/card-payments');
     // The count arrives with the assignments, a tick after the heading; on a loaded runner, later still.
-    expect(await screen.findByRole('button', { name: 'Agents, 3 waiting on you' })).toBeTruthy();
+    // The inbox row, one proposal, one question and the failed assignment: a failure counts, since the panel starts closed.
+    expect(await screen.findByRole('button', { name: 'Agents, 4 waiting on you' })).toBeTruthy();
     const lane = await agents();
     const inbox = await within(lane).findByRole('region', { name: 'Agent inbox' });
-    expect(inbox.textContent).toContain("asked for by the tracker's label agent:refine");
+    // The raw label is the item's detail (the Start dialog), not the inbox row.
+    expect(inbox.textContent).not.toContain('agent:refine');
     expect(within(inbox).getByRole('button', { name: /^Start/ })).toBeTruthy();
     expect(within(lane).getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual(['Agent inbox', 'Needs you 1', 'Working 1', 'Stale 1', 'Recent analyses']);
     expect([...lane.querySelectorAll('.agent-card .assign-state')].map((c) => c.textContent)).toEqual(['Needs you', 'Working', 'Failed', 'Done']);
     expect(lane.querySelector('details.agents-group--earlier summary')!.textContent).toBe('Earlier (1)');
-    expect(lane.textContent).toContain('2 run at a time, for up to 20 minutes each');
+    // The limits sentence is in the (i) beside the heading.
+    await userEvent.click(within(lane).getAllByRole('button', { name: /^About assigning work/ })[0]!);
+    expect((await screen.findAllByText(/2 run at a time, for up to 20 minutes each/)).length).toBeGreaterThan(0);
   }, 20_000);
 
   it('assigns from a board card, through the dialog, onto the assignment page', async () => {

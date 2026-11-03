@@ -225,12 +225,13 @@ export const forgetSyncs = () => {
 export function Customize({ lenses }: { lenses: Array<{ lens: string; label: string }> }) {
   const prefs = useBriefingPrefs();
   const { dossier } = useData();
+  const { pw } = usePlain();
   const hide = (lens: string, shown: boolean) => setPrefs({ hidden: shown ? prefs.hidden.filter((h) => h !== lens) : [...new Set([...prefs.hidden, lens])] });
   return (
     <details className="customize">
       <summary className="btn btn--small">Customize</summary>
       <div className="customize__panel">
-        <p className="source">Just for you, in this browser. What Analyze looks for is the dossier's: <a href={dossierEditHref(dossier.name, 'analyze')}>How Analyze briefs {dossier.name}</a>.</p>
+        <p className="source">Just for you, in this browser. What {pw('Analyze', 'a briefing')} looks for is {pw("the dossier's", "the Toil project's")}: <a href={dossierEditHref(dossier.name, 'analyze')}>{pw('How Analyze briefs', 'How briefings are made for')} {dossier.name}</a>.</p>
         <fieldset>
           <legend className="briefing__label">Show</legend>
           <label className="customize__check">
@@ -255,11 +256,11 @@ export function Customize({ lenses }: { lenses: Array<{ lens: string; label: str
           </label>
         </fieldset>
         <fieldset>
-          <legend className="briefing__label">Analyze</legend>
+          <legend className="briefing__label">{pw('Analyze', 'Briefing')}</legend>
           <label className="customize__check">
-            <input type="checkbox" checked={prefs.afterSync} onChange={(e) => setPrefs({ afterSync: e.target.checked })} /> Run Analyze after each sync
+            <input type="checkbox" checked={prefs.afterSync} onChange={(e) => setPrefs({ afterSync: e.target.checked })} /> {pw('Run Analyze after each sync', 'Write a briefing after each sync')}
           </label>
-          <p className="source">Uses your agent's usage. Off, the briefing says when it is older than the data.</p>
+          <p className="source">Uses your {pw('agent', 'AI helper')}'s usage. Off, the briefing says when it is older than the data.</p>
         </fieldset>
       </div>
     </details>

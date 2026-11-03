@@ -9,12 +9,13 @@
  */
 
 import { ItemLink } from '../components/items.tsx';
+import { Help } from '../components/help.tsx';
 import { StaleNote } from '../components/stale.tsx';
 import { usePlain } from '../plain-words.ts';
 import { useChatScope, type Turn } from '../components/ask.tsx';
 import { useData } from '../data.ts';
 import { analysesHref, analysisHref, boardHref, dateTime } from '../format.ts';
-import { ADAPTER_NAME, modeInfo, runMs, runText, type Assignment } from './model.ts';
+import { ADAPTER_NAME, modeInfo, pending, runMs, runText, type Assignment } from './model.ts';
 import { InboxRow, Limits, RenewAll, StateChip, assignmentHref, useAssignments } from './views.tsx';
 import './assign.css';
 
@@ -33,12 +34,13 @@ export function groupOf(a: Assignment): Group {
 }
 
 /**
- * What waits on a person, for the Agents button: the tracker's inbox, plus the proposals to approve and the questions
- * to answer on assignments that need you. A count of things to do, not of assignments, so the number on the button is the
- * number of decisions behind it.
+ * What waits on a person, for the Agents button: the tracker's inbox, plus the proposals to approve (a proposal that
+ * failed to apply is still waiting) and the questions to answer on assignments that need you, plus each assignment that
+ * failed. A failure is counted because the panel starts closed: a button that stays quiet about one is a silent failure
+ * (principle 4). A count of things to look at, so the number on the button is the number of things behind it.
  */
 export function waitingOnYou(assignments: Assignment[]): number {
-  return assignments.reduce((n, a) => n + (inInbox(a) ? 1 : a.state === 'needs-you' ? a.proposals.filter((p) => p.status === 'pending').length + a.questions.length : 0), 0);
+  return assignments.reduce((n, a) => n + (inInbox(a) ? 1 : a.state === 'failed' ? 1 : a.state === 'needs-you' ? a.proposals.filter(pending).length + a.questions.length : 0), 0);
 }
 
 /** How many things wait on a person, for the button that opens the panel. */
@@ -60,7 +62,10 @@ function AgentCard({ a, now }: { a: Assignment; now: string }) {
         <StateChip a={a} /> <span className="assign-mode">{modeInfo(a.mode, plain.on).label}</span>
       </p>
       <p className="agent-card__item">
-        <ItemLink id={a.item} /> <span className="agent-card__title">{a.itemTitle}</span>
+        <ItemLink id={a.item} />{' '}
+        <a className="agent-card__title" href={assignmentHref(a.dossier, a.id)}>
+          {a.itemTitle}
+        </a>
       </p>
       <p className="note">
         {a.state === 'needs-you' && needs ? `${needs}. ` : ''}
@@ -73,9 +78,6 @@ function AgentCard({ a, now }: { a: Assignment; now: string }) {
           Renewed as <a href={assignmentHref(a.dossier, a.renewedBy)}>a fresh assignment</a>.
         </p>
       )}
-      <a className="agent-card__open" href={assignmentHref(a.dossier, a.id)}>
-        Open<span className="sr-only"> the assignment on {a.item}</span>
-      </a>
     </li>
   );
 }
@@ -133,24 +135,24 @@ export function AgentsSidebar() {
   const groups = (['needs-you', 'working', 'stale', 'earlier'] as const).map((g) => ({ g, items: rest.filter((a) => groupOf(a) === g) }));
   return (
     <section className="agents-sidebar" aria-labelledby="agents">
-      <h2 id="agents" title={plain.title('Agents')}>
-        {plain.pw('Agents', 'AI helpers')}
-      </h2>
-      {list && (
-        <p className="note">
-          {plain.on ? (list.settings.concurrent === 1 ? 'One works at a time' : `${list.settings.concurrent} work at once`) : list.settings.concurrent === 1 ? 'One runs at a time' : `${list.settings.concurrent} run at a time`}, for up to {list.settings.timeLimitMinutes} minutes each.
-        </p>
-      )}
+      <div className="edit-head">
+        <h2 id="agents" title={plain.title('Agents')}>
+          {plain.pw('Agents', 'AI helpers')}
+        </h2>
+        <Help topic="assignments" {...(list ? { note: `${plain.on ? (list.settings.concurrent === 1 ? 'One works at a time' : `${list.settings.concurrent} work at once`) : list.settings.concurrent === 1 ? 'One runs at a time' : `${list.settings.concurrent} run at a time`}, for up to ${list.settings.timeLimitMinutes} minutes each.` } : {})} />
+      </div>
       {!api && <p className="note">{plain.text("Assigning work to an agent isn't available here.")}</p>}
       {api?.disabled && <p className="note">{api.disabled}</p>}
       {error && <p className="failure">{error}</p>}
       {list?.settings.problem && <p className="failure">{list.settings.problem}</p>}
       {inbox.length > 0 && (
         <section className="assign-inbox" aria-labelledby="agent-inbox">
-          <h3 id="agent-inbox" title={plain.title('Agent inbox')}>
-            {plain.pw('Agent inbox', 'Asked for AI help')}
-          </h3>
-          <p className="note">{plain.text('The tracker asks for an agent on these. Nothing runs until you press Start.')}</p>
+          <div className="edit-head">
+            <h3 id="agent-inbox" title={plain.title('Agent inbox')}>
+              {plain.pw('Agent inbox', 'Asked for AI help')}
+            </h3>
+            <Help topic="assignments" note="The tracker asks for an agent on these. Nothing runs until you press Start." />
+          </div>
           <ul className="rows">
             {inbox.map((a) => (
               <InboxRow key={a.id} a={a} onStarted={reload} />

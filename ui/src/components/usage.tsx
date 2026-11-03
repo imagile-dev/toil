@@ -18,7 +18,7 @@ export function usageSummary(records: readonly UsageRecord[]): string {
   const t = addUp(records);
   const cost = Object.values(t.costUsd).reduce((a, b) => a + b, 0);
   if (!records.length) return 'no usage reported';
-  return Object.keys(t.costUsd).length ? `about ${cost < 0.01 ? dollars(cost) : `$${cost.toFixed(2)}`} of usage` : 'no dollar figure reported';
+  return Object.keys(t.costUsd).length ? `about ${cost < 0.01 ? dollars(cost) : `$${cost.toFixed(2)}`} of usage ${t.plan ? '(not billed on your plan)' : '(estimate)'}` : 'no dollar figure reported';
 }
 
 /**
@@ -26,8 +26,12 @@ export function usageSummary(records: readonly UsageRecord[]): string {
  * token breakdown and the quota behind a fold, and any cap notice out in the
  * open, since a limit warning is never something to open a fold for.
  */
+/** The same line the footer's fold opens from, for a caller that folds it into a line of its own: "about $0.04 of usage", with a sample's label first. */
+export function usageLine(usage: AnswerUsage): string {
+  return `${usage.sample ? 'Sample figures, not from a model. ' : ''}${usageSummary(usage.records)}`;
+}
+
 export function UsageFooter({ usage }: { usage: AnswerUsage }) {
-  const groups = totalsBy(usage.records, modelKey);
   return (
     <div className="usage-footer" role="group" aria-label="What this answer used" data-usage-footer="">
       <details className="usage-details">
@@ -35,6 +39,18 @@ export function UsageFooter({ usage }: { usage: AnswerUsage }) {
           {usage.sample && <span className="usage-sample">Sample figures, not from a model. </span>}
           {usageSummary(usage.records)}
         </summary>
+        <UsageBreakdown usage={usage} />
+      </details>
+      <UsageNotices usage={usage} />
+    </div>
+  );
+}
+
+/** The model, the token breakdown and the quota behind an answer's usage line. */
+export function UsageBreakdown({ usage }: { usage: AnswerUsage }) {
+  const groups = totalsBy(usage.records, modelKey);
+  return (
+    <>
       {groups.length === 0 ? (
         <p className="usage-line">{ADAPTER_LABEL[usage.adapter]} reported no usage for this answer.</p>
       ) : (
@@ -58,13 +74,20 @@ export function UsageFooter({ usage }: { usage: AnswerUsage }) {
           (experimental, from the Copilot SDK's account.getQuota).
         </p>
       )}
-      </details>
+    </>
+  );
+}
+
+/** A limit warning is never something to open a fold for. */
+export function UsageNotices({ usage }: { usage: AnswerUsage }) {
+  return (
+    <>
       {usage.notices.map((n, i) => (
         <p key={i} className="usage-notice" role="status">
           {n} <EditLink href={CAPS_HREF} label="Edit the usage caps" />
         </p>
       ))}
-    </div>
+    </>
   );
 }
 

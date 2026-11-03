@@ -44,3 +44,35 @@
   other three (changed, waiting, ready) rather than answer a question it wasn't asked.
 - **The chat's usage footer is one line** ("about $0.04 of usage"), with the model, token breakdown and estimate caveat behind a fold. Cap notices stay unfolded. **On a phone the chat header is one line**, "Answered by … · Change". The Learn button left the guided start, because the Help menu and the (i) already carry it.
 - **Out of scope:** a real Approve button (it needs a server route through toil's write gate) and the "What just happened?" walkthrough.
+
+## Review round 1
+
+Made by default:
+
+- **Plain words never reword a fact.** An item's title, a quoted title, a briefing's own sentences and `r.line` are shown as they come. The words this app writes itself pick plain or standard where the sentence is built (`Ctx.plain` in `ui/src/model/summary.ts`); the sample agent, a stand-in for a model, speaks plain words on its own standard answers, never on a themed voice.
+- **A sprint with no points is "No estimates"**, not On track, with a sentence naming how many stories lack points.
+- **Failures stay outside the closed fold** (principle 4): one compact line per red reason no card tells (the first reason, plus the blocked and waiting lenses when those cards show), and the "Couldn't check" line.
+- **A failed assignment counts on the AI helpers button**, as does a failed proposal. A failed assignment keeps counting while it sits under Earlier; renewing it or removing it clears it.
+- **The `agent` swap in plain words** has the same guards as the dossier swap, so package names, paths, `AGENTS.md` and `user-agent` are left alone.
+- **How sure** counts code reviews as the base for the review question, says "no items" for zero, and calls its all-clear "every saved read".
+- **The answer's heading is not drawn** but stays for a screen reader's headings list (`sr-only`); the chat's own "Answered by" line shows only when the answer's agent differs from the header's; "Nothing was changed" is said under the first answer of a conversation only. One answer's usage is the chat's, so the chat total waits for a second answer.
+- **Phone:** the AI helpers button is on the Ask row as "AI" plus its count, still named "AI helpers"; the description and sources are behind a "Details" button beside the name; on a phone the beta banner and "Sample data read …" are one line (the "Nothing here connects…" sentence is dropped there).
+- **Edit pencils on a Toil project's card** show on hover or focus only where the pointer can hover (`@media (hover: hover)`); on touch they stay.
+- **New (i) topics** `plain-words` and `status` (the status word and How sure). `HelpTopic.plainNote` holds a sentence only plain words show, because the word swap would turn "dossier" in it into "Toil project". `Help` takes a `note` for a sentence that depends on the screen (the limits).
+- **The raw `agent:refine` label** is in the Start dialog, which is the inbox item's detail.
+- **The homepage screenshot** (`site/public/images/ui-dossier-card-payments-*.webp`) is the old screen and was not retaken: the site skill's `shoot.mjs` is for PR screenshots, not for that image. Its alt text now says so.
+
+Decided by the maintainer on #552, 2026-11-03:
+
+- **How sure** caps at Medium for one unverified item, and at Low for more than one or half of those cited; its reason says so ("It names 1 item its tools never returned."). The all-clear claims only the saved reads.
+- **The Summary all-clear** is replaced, sentence and card, by one that names the failed reads (`dossier.calls`) when any read failed.
+- **Before you ask** is the phone design at every width: one line and the "What AI can see" button. "Who answers" and "What it costs" are dropped, and "See other Toil projects" is replaced by "Read anything your connections can't already read", since the live tools take free queries.
+- **The stale reason** stays on the line with plain words on: "Started before an update: {reason}."
+- **The usage line** says "(estimate)", or "(not billed on your plan)" on a plan.
+- **The status-word fold** says the 75% line is the app's own rule of thumb.
+
+## Principle gaps for the maintainer
+
+- Whether a hover `title` counts as a disclosure a person chooses, since touch and keyboard users can't reach it. This round moved the Test button's explanation and each question's "Good for" into `title`s.
+- Citing a design lab readers can't open, now removed from comments.
+- Whether every invented threshold (75%, 10%, 3 items, 24h/72h) must be flagged as a choice in the copy.

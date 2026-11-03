@@ -97,7 +97,7 @@ export interface EntriesInput {
   adapters: AdapterList | null;
   agentSettings: boolean;
   openShortcuts: () => void;
-  /** Plain words on (src/plain-words.ts): the entries that name a tab, a team or an AI helper use the plain names. */
+  /** Plain words on (src/plain-words.ts): the entries that name a tab, a Toil project or an AI helper use the plain names. */
   plain?: boolean;
 }
 

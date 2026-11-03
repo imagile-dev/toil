@@ -63,7 +63,7 @@ export function Settings({ page, at = [], config, agent, modelUsage = null }: { 
         </h1>
         <p className="lede">
           {plain.on ? (
-            <>Your links to tools such as Jira and GitHub, and your Toil projects. Every change goes through toil's own checks, the same as on the command line (<code>toil connections</code>, <code>toil dossiers</code>).</>
+            <>Your links to tools, and your Toil projects.</>
           ) : (
             <>What <code>toil connections</code> and <code>toil dossiers</code> manage, through toil's own commands.</>
           )}{' '}

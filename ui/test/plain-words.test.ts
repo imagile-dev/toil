@@ -45,6 +45,12 @@ describe('plainify', () => {
     expect(plainify('Topic dossier-setup, key dossier:card-payments, page dossier.eyebrow')).toBe('Topic dossier-setup, key dossier:card-payments, page dossier.eyebrow');
   });
 
+  it('leaves an agent inside a package, a path, a file name or a header alone', () => {
+    for (const s of ['@anthropic-ai/claude-agent-sdk', 'ui/server/agents/install.ts', 'See AGENTS.md first', 'the user-agent header', 'label agent:refine', 'src/agent.ts']) expect(plainify(s)).toBe(s);
+    expect(plainify('Install @anthropic-ai/claude-agent-sdk, then ask the agent.')).toBe('Install @anthropic-ai/claude-agent-sdk, then ask the AI helper.');
+    expect(plainify('Ask the agent.')).toBe('Ask the AI helper.');
+  });
+
   it('leaves a toil command exactly as typed', () => {
     expect(plainify('Made with toil dossiers init.')).toBe('Made with toil dossiers init.');
     expect(plainify('Run toil dossiers describe card-payments, then ask the dossier.')).toBe('Run toil dossiers describe card-payments, then ask the Toil project.');
@@ -61,7 +67,8 @@ describe('wordsFor', () => {
 
   it('uses its own text for a key it words, over the theme', () => {
     expect(wordsFor(lexicon, true, true, 'dossier.eyebrow')).toBe('Toil project');
-    expect(wordsFor(lexicon, true, true, 'dossiers.lede')).toContain('On the command line, a Toil project is called a dossier.');
+    // One sentence; "called a dossier on the command line" is in the (i), not the lede.
+    expect(wordsFor(lexicon, true, true, 'dossiers.lede')).toBe('Pick a Toil project to see its stories, code reviews and releases together.');
     expect(wordsFor(lexicon, true, true, 'ask.placeholder', { name: 'card-payments' })).toBe('Ask a question about card-payments');
   });
 
@@ -71,8 +78,8 @@ describe('wordsFor', () => {
   });
 
   it('keeps every {name} and every toil command the standard text has, in its own text', () => {
-    const own = wordsFor(undefined, false, true, 'empty.dossiers');
-    expect(own).toContain('toil dossiers init');
+    // The empty state drops "made with toil dossiers init" because the first-run steps beside it have a Create button.
+    expect(wordsFor(undefined, false, true, 'empty.dossiers')).toBe('toil sees no Toil projects yet.');
     expect(wordsFor(undefined, false, true, 'loading.dossier', { name: 'settlement' })).toBe('Reading settlement…');
   });
 });

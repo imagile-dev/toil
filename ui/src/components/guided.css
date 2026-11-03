@@ -37,12 +37,13 @@
   .guided-before { position: sticky; top: 0; }
 }
 
-/* Under an answer: how sure, what it looked at, and that nothing changed. */
+/* Under an answer: how sure in a word and a sentence, then one folded line (what it looked at, the time, the usage). */
 .ask-sure { display: grid; gap: 0.4rem; border-top: 1px solid var(--line); padding-top: 0.5rem; min-width: 0; }
-.ask-sure dl { margin: 0; display: grid; gap: 0.5rem; }
-.ask-sure dl > div { display: grid; gap: 0.2rem; min-width: 0; }
-.ask-sure dt { font-weight: 600; }
-.ask-sure dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.ask-sure__sure { margin: 0; overflow-wrap: anywhere; }
+.ask-sure__more { min-width: 0; color: var(--muted); font-size: 0.875rem; }
+.ask-sure__more > summary { cursor: pointer; min-height: 32px; display: flex; align-items: center; overflow-wrap: anywhere; }
+.ask-sure__more[open] > summary { margin-bottom: 0.3rem; }
+.ask-sure__more .usage-footer { border-top: 0; padding-top: 0.3rem; }
 .ask-sure__chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.4rem; }
 .ask-sure__chips li { min-width: 0; max-width: 100%; }
 .ask-sure__safe { margin: 0; }
@@ -53,6 +54,3 @@
 .sure--low { --sure: var(--danger); }
 .sure__dots { flex: none; }
 
-@media (min-width: 700px) {
-  .ask-sure dl > div { grid-template-columns: 9rem minmax(0, 1fr); gap: 1rem; }
-}

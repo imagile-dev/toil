@@ -43,7 +43,9 @@ describe('the answer first', () => {
     const first = within(region).getAllByRole('heading')[0]!;
     expect(first.textContent).toMatch(/^Behind: \. ?18 of 21 points are left, and 3 working days remain\.$/);
     expect(first.querySelector('svg')).toBeTruthy();
-    expect(region.querySelector('.sum-basis')!.textContent).toBe('The status word is an estimate from the pace so far.');
+    // The estimate caveat is the first line of the fold; the basis line is for too early a pace.
+    expect(region.querySelector('.sum-basis')).toBeNull();
+    expect(region.querySelector('.sum-how li')!.textContent).toBe('The status word is an estimate from the pace so far.');
     const why = region.querySelector('[data-why]')!.textContent!;
     expect(why).toBe('Mostly because the tests for “Tokenise card numbers at the edge” are failing, and 2 stories (11 points) wait behind it.');
     expect(first.textContent! + why).not.toMatch(KEY);

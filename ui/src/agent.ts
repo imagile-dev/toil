@@ -123,8 +123,8 @@ export interface Starter {
 /** Who answers in the preview and with --sample: the scripted agent, named so nobody mistakes it for a model. */
 export const SCRIPTED_LABEL = 'a scripted preview, not a model';
 
-/** What the pane says when no adapter is chosen (#251, #552): in everyday words, for whoever is asking and not whoever installs. */
-export const NO_AGENT_NOTICE = 'No agent is set up yet, so nothing can answer questions. An engineer can set one up in Settings → Agent.';
+/** What the pane says when no adapter is chosen (#251, #552): in everyday words, for whoever is asking and not whoever installs. The page adds a link to Settings, Agent, where an engineer sets one up. */
+export const NO_AGENT_NOTICE = 'No agent is set up yet, so nothing can answer questions.';
 /** The step further in, behind a fold: what an engineer needs, with the three adapters and their packages. */
 export const NO_AGENT_DETAILS =
   'Toil UI reasons with the subscription you already have, through one of three adapters: Claude (the Claude Agent SDK, @anthropic-ai/claude-agent-sdk), GitHub Copilot (@github/copilot-sdk) or Codex (@openai/codex-sdk).';

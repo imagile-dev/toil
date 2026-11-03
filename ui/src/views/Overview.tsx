@@ -43,12 +43,15 @@ export function Overview() {
   const plain = usePlain();
   // Worked out once per briefing and clock, from the models the full briefing below reads, so the two can't disagree.
   const { answer, cards } = useMemo(() => {
-    const c = contextOf({ d: dossier, now, byId, h, p, view });
+    const c = contextOf({ d: dossier, now, byId, h, p, view, plain: plain.on });
     return { answer: answerOf(c), cards: cardsOf(c) };
-  }, [dossier, now, byId, h, p, view]);
-  // A red reason (failing checks, blocked) can be folded but never hidden: principle 4 outranks a layout preference.
+  }, [dossier, now, byId, h, p, view, plain.on]);
+  // Customize never hides a red reason (principle 4 outranks a layout preference). The fold can close over it, so a red reason no card tells is a line outside the fold (alerts, below).
   const shown = view.reasons.filter((r) => r.severity === 'danger' || !prefs.hidden.includes(r.lens));
   const hidden = view.reasons.length - shown.length;
+  // The red reasons no card above already tells: the biggest risk is the first reason, and the other two cards are the blocked and waiting lenses.
+  const covered = new Set<string>([cards.some((c) => c.id === 'risk') ? (view.reasons[0]?.lens ?? '') : '', cards.some((c) => c.id === 'blocked') ? 'blocked' : '', cards.some((c) => c.id === 'review') ? 'waiting' : '']);
+  const alerts = view.reasons.filter((r) => r.severity === 'danger' && !covered.has(r.lens));
   const here = typeof window === 'undefined' ? '#/' : window.location.hash;
   // Whose settings tuned this briefing, whenever a dossier tunes it (#494): its file, and whether it's the reader's own.
   const tuned = dossier.analyze && Object.keys(dossier.analyze).length ? dossier.origin : null;
@@ -82,6 +85,38 @@ export function Overview() {
         </p>
       )}
       <NeedsAttention cards={cards} />
+      {/* What principle 4 keeps on screen when the fold is closed: a red reason no card covers, and what couldn't be read. */}
+      {(alerts.length > 0 || view.unchecked.length > 0) && (
+        <div className="reasons briefing__alerts" data-alerts="">
+          {alerts.map((r) => (
+            <p key={r.lens} className="reason reason--line" data-alert={r.lens}>
+              <span className="reason__dot reason__dot--danger" aria-hidden="true" />
+              <button type="button" className="reason__jump" onClick={() => showReason(r.lens)}>
+                <b>{r.label}</b>
+                {r.items.length > 0 && <span className="reason__count">{r.items.length}</span>}
+                <span className="sr-only">, show it in the full briefing</span>
+              </button>
+            </p>
+          ))}
+          {view.unchecked.length > 0 && (
+            <details className="reason" data-unchecked="">
+              <summary>
+                <span className="reason__dot" aria-hidden="true" />
+                <span className="reason__title">
+                  <b>Couldn't check.</b> <span>{view.unchecked.map((u) => u.label).join(', ')}</span>
+                </span>
+              </summary>
+              <div className="reason__body">
+                {view.unchecked.map((u) => (
+                  <p key={u.label}>
+                    {u.label}: {u.note}
+                  </p>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
       <details
         className="briefing__full"
         open={prefs.fullOpen}
@@ -119,23 +154,6 @@ export function Overview() {
                 </span>
               </p>
             </div>
-            {view.unchecked.length > 0 && (
-              <details className="reason" data-unchecked="">
-                <summary>
-                  <span className="reason__dot" aria-hidden="true" />
-                  <span className="reason__title">
-                    <b>Couldn't check.</b> <span>{view.unchecked.map((u) => u.label).join(', ')}</span>
-                  </span>
-                </summary>
-                <div className="reason__body">
-                  {view.unchecked.map((u) => (
-                    <p key={u.label}>
-                      {u.label}: {u.note}
-                    </p>
-                  ))}
-                </div>
-              </details>
-            )}
             {view.leftOut.length > 0 && (
               <details className="reason" data-left-out="">
                 <summary>
@@ -195,6 +213,18 @@ export function Overview() {
   );
 }
 
+/** Opens the full briefing and the reason a line outside it names, and puts the keyboard on it. */
+function showReason(lens: string) {
+  setPrefs({ fullOpen: true });
+  setTimeout(() => {
+    const d = document.querySelector<HTMLDetailsElement>(`details[data-reason="${CSS.escape(lens)}"]`);
+    if (!d) return;
+    d.open = true;
+    d.scrollIntoView({ block: 'center' });
+    d.querySelector('summary')?.focus();
+  });
+}
+
 /** Item links on the briefing: to the drawer, unless the person chose the item's page under Customize. */
 function Links({ page, children }: { page: boolean; children: ReactNode }) {
   return page ? <>{children}</> : <PeekLinks>{children}</PeekLinks>;
@@ -202,13 +232,12 @@ function Links({ page, children }: { page: boolean; children: ReactNode }) {
 
 /** One reason: a line, folded; open, its items as rows that open the drawer, or its text. */
 function Reason({ reason: r, open, here }: { reason: BriefingReason; open: boolean; here: string }) {
-  const plain = usePlain();
   return (
     <details className="reason" open={open} data-reason={r.lens}>
       <summary>
         <span className={`reason__dot reason__dot--${r.severity}`} aria-hidden="true" />
         <span className="reason__title">
-          <b>{r.label}.</b> <span>{plain.text(r.line)}</span>
+          <b>{r.label}.</b> <span>{r.line}</span>
         </span>
         {r.items.length > 0 && <span className="reason__count">{r.items.length}</span>}
       </summary>

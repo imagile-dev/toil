@@ -1,5 +1,5 @@
 /**
- * Plain words (prototype): a switch that renames engineer and toil jargon in
+ * Plain words: a switch that renames engineer and toil jargon in
  * the screens' labels and copy as everyday words, with the precise term one
  * hover away. Same build either way: `?words=plain` in the address turns it
  * on, `?words=standard` turns it off, and what a person last chose is kept in
@@ -24,6 +24,7 @@
  */
 
 import { useSyncExternalStore } from 'react';
+import { plainify } from './plainify.ts';
 import { wordFor, type WordKey } from './wording.ts';
 
 const KEY = 'toil-ui.words';
@@ -99,23 +100,7 @@ export function usePlain(): Plain {
 /** Whether plain words are on, for code outside a component (a test, the word lookup). */
 export const plainOn = (): boolean => read();
 
-/** "Toil project" keeps its capital T mid-sentence, since it is a name; the other swaps follow the case of the word they replace. */
-const keepCase = (from: string, to: string) => (to.startsWith('Toil ') || from[0] === from[0]!.toUpperCase() ? to[0]!.toUpperCase() + to.slice(1) : to);
-
-/**
- * The three words that confuse most, swapped inside a sentence: dossier to
- * Toil project (not "team": a dossier needn't be one, and "project" alone
- * collides with Jira's and Azure DevOps's), pull request to code review,
- * agent to AI helper. A `toil dossiers …` command is left alone, since a
- * command is typed exactly, and so is a dossier inside an id or a path
- * (`dossier-setup`, `dossier:card-payments`).
- */
-export function plainify(text: string): string {
-  return text
-    .replace(/(?<!toil |[\w:/-])(dossier)(s?)\b(?![\w:/-]|\.\w)/gi, (_m, w: string, s: string) => keepCase(w, 'Toil project') + s)
-    .replace(/\b(pull request)(s?)\b/gi, (_m, w: string, s: string) => keepCase(w, 'code review') + s)
-    .replace(/\b(agent)(s?)\b/gi, (_m, w: string, s: string) => keepCase(w, 'AI helper') + s);
-}
+export { plainify };
 
 /**
  * The microcopy plain words writes itself, in place of the theme's and the
@@ -123,9 +108,9 @@ export function plainify(text: string): string {
  * and every `toil …` command the standard text has is kept.
  */
 export const PLAIN_WORDS: Partial<Record<WordKey, string>> = {
-  'dossiers.lede': 'Each Toil project is one body of work: its code, its tracker, its builds and its releases. Pick one to see its stories, code reviews and releases together. On the command line, a Toil project is called a dossier.',
+  'dossiers.lede': 'Pick a Toil project to see its stories, code reviews and releases together.',
   'dossier.eyebrow': 'Toil project',
-  'empty.dossiers': 'toil sees no Toil projects yet. A Toil project is made with toil dossiers init.',
+  'empty.dossiers': 'toil sees no Toil projects yet.',
   'loading.dossiers': 'Reading your Toil projects…',
   'ask.placeholder': 'Ask a question about {name}',
   'ask.placeholder.short': 'Ask a question',

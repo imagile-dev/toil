@@ -5,7 +5,8 @@
  * risk or not"; people ask for three words, so this draws the lines at all of
  * the points left landing, and at three quarters of them, at the pace so far.
  * The word is an estimate and every screen that shows it says so. A traffic
- * light, with the committee that sets the thresholds shown in the open.
+ * light, with the committee that sets the thresholds shown in the open. A
+ * sprint with no points at all gets no word from here: the Summary says so.
  */
 
 export type Status = 'on-track' | 'at-risk' | 'behind' | 'none';

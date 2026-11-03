@@ -34,6 +34,10 @@ export interface SureInput {
   ageHours: number;
   /** How many items there are to go on. */
   items: number;
+  /** Items the answer names that its tools never returned, out of the items it cites: one caps the level at Medium, more than one or half or more of them, at Low. */
+  unverified?: { count: number; of: number } | null;
+  /** What the items are called, when they aren't items ("pull request" for a question about reviews). */
+  noun?: string;
   /** Items that lack something this question needs: what they lack, how many, out of how many. */
   lacking?: { what: string; count: number; of: number } | null;
 }
@@ -72,11 +76,18 @@ export function howSure(c: SureInput): Sure {
   let level: Level = 'high';
   const reasons: string[] = [];
   const said: string[] = [];
+  const noun = c.noun ?? 'item';
 
   if (c.failed.length) {
     level = 'low';
     reasons.push('a read failed');
     said.push(`${list(c.failed)} could not be read, so the answer leaves ${c.failed.length === 1 ? 'it' : 'them'} out`);
+  }
+  const un = c.unverified;
+  if (un && un.count > 0) {
+    level = worse(level, un.count > 1 || un.count / Math.max(un.of, un.count) >= 0.5 ? 'low' : 'medium');
+    reasons.push('names items its tools never returned');
+    said.push(`it names ${plural(un.count, 'item')} its tools never returned`);
   }
   if (c.ageHours > OLD_HOURS) {
     level = worse(level, 'low');
@@ -90,7 +101,7 @@ export function howSure(c: SureInput): Sure {
   if (c.items < MIN_ITEMS) {
     level = worse(level, 'low');
     reasons.push('too few items');
-    said.push(`there ${c.items === 1 ? 'is' : 'are'} only ${plural(c.items, 'item')} to go on`);
+    said.push(c.items === 0 ? `there are no ${noun}s to go on` : `there ${c.items === 1 ? 'is' : 'are'} only ${plural(c.items, noun)} to go on`);
   }
   if (c.lacking && c.lacking.of > 0 && c.lacking.count / c.lacking.of > LACK_SHARE) {
     level = worse(level, 'medium');
@@ -100,6 +111,6 @@ export function howSure(c: SureInput): Sure {
 
   const because = said.length
     ? `${said.join('; ').replace(/^./, (x) => x.toUpperCase())}.`
-    : `Every read worked, the data was read ${ago(c.ageHours)}, and there are ${plural(c.items, 'item')} to go on.`;
+    : `Every saved read worked, the data was read ${ago(c.ageHours)}, and there are ${plural(c.items, noun)} to go on.`;
   return { level, word: LEVEL_WORD[level], because, reasons };
 }

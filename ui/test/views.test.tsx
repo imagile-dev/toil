@@ -386,10 +386,12 @@ describe('a dashboard', () => {
     await userEvent.click(within(chat).getByRole('button', { name: /^Are we going to finish the sprint\?/ }));
     const answer = await within(chat).findByRole('heading', { level: 3, name: 'Are we going to finish the sprint?' });
     const pane = answer.parentElement!;
-    await waitFor(() => expect(pane.textContent).toMatch(/Answered by: a scripted preview, not a model, in \d+ s\./));
+    // Who answered is the header's to say; the answer's own line is how sure it is, then one folded line with the time (#552).
+    await waitFor(() => expect(pane.querySelector('details[data-answer-more] summary')!.textContent).toMatch(/^What it looked at · \d+ s/));
+    expect(pane.textContent).not.toContain('Answered by');
     expect(within(pane).getAllByRole('link').map((a) => a.getAttribute('href'))).toContain(item('settlement', 'corp-ado:2305'));
     // What it rests on is under the answer, with how sure it is, and says nothing was changed (#552).
-    expect(within(pane).getByText('What it looked at')).toBeTruthy();
+    expect(pane.textContent).toContain('How sure is this?');
     expect(pane.textContent).toContain('Suggestions only. Nothing was changed.');
     expect(within(chat).getByRole('log').getAttribute('aria-busy')).toBe('false');
     expect(within(chat).getByText('You asked:', { exact: false }).closest('.bubble')!.textContent).toBe('You asked: Are we going to finish the sprint?');
@@ -667,7 +669,7 @@ describe('the chat up front (#343)', () => {
     setTheme('realm');
     const { container } = await open('#/dossier/card-payments');
     const chat = await openChat('card-payments');
-    expect(chat.textContent).toContain('Dossier card-payments');
+    expect(within(chat).getByRole('heading', { level: 2, name: 'Ask about card-payments' })).toBeTruthy();
     expect(chat.textContent).toContain('Sprint 42, day 7 of 10');
     expect(chat.textContent).toContain('What would you like to know about card-payments?');
     expect(within(chat).getByRole('group', { name: 'Starter questions' }).querySelectorAll('button').length).toBe(9);
@@ -720,7 +722,7 @@ describe('the chat up front (#343)', () => {
     const chat = await screen.findByRole('dialog', { name: 'Ask about card-payments' });
     await userEvent.click(within(chat).getByRole('button', { name: /^Give me the full briefing/ }));
     const answer = await within(chat).findByRole('heading', { level: 3, name: 'Analyze' });
-    await waitFor(() => expect(answer.parentElement!.textContent).toContain('Answered by'));
+    await waitFor(() => expect(answer.parentElement!.textContent).toContain('How sure is this?'));
     expect(within(answer.parentElement!).getAllByRole('link').length).toBeGreaterThan(5);
   });
 
@@ -1213,7 +1215,7 @@ describe('the agent pane, with a real adapter', () => {
     const chat = await openChat('card-payments');
     // In everyday words first (#552; these tests read toil's own terms, and the plain wording is in guided-ask.test.tsx): none yet, and where an engineer sets one up. The packages are one step in, behind a fold.
     const notice = within(chat).getByText(/No agent is set up yet/).closest('[data-no-agent]')!;
-    expect(notice.textContent).toContain('An engineer can set one up in Settings → Agent.');
+    expect(within(notice as HTMLElement).getByRole('link', { name: 'Set up an agent' }).getAttribute('href')).toBe('#/settings/agent');
     const fold = notice.querySelector('details')!;
     expect(fold.open).toBe(false);
     expect(fold.textContent).toContain('GitHub Copilot');

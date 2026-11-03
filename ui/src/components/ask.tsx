@@ -423,9 +423,12 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
   const from = defaultAgent(chat.adapters);
   const current = options.find((o) => o.name === (chat.adapter ?? from?.name ?? chat.adapters?.chosen));
   const hint = sourceHint(chat.adapter !== null, from);
-  const answering = current ? optionLabel(current) : (agent.label ?? 'the agent chosen in Settings');
+  const noAgent = Boolean(agent.notice) && !current;
+  const answering = current ? optionLabel(current) : noAgent ? 'Nobody yet' : (agent.label ?? 'the agent chosen in Settings');
   const usages = turns.flatMap((t) => (t.done && (t.answer?.usage ?? t.usage) ? [(t.answer?.usage ?? t.usage)!] : []));
   const status = last ? statusLine(last, words, now) : null;
+  // "Nothing was changed" is said under the first answer, not under every one.
+  const firstAnswered = turns.find((t) => t.done && !t.stopped && !t.error && t.answer && (t.answer.parts.length > 0 || t.answer.briefing))?.id;
   /** A guided question asked as typing it would be, except the briefing, which is Analyze. */
   const pick = (q: GuidedQuestion, text: string) => void (q.id === 'briefing' ? chat.ask(ANALYZE, text) : chat.ask(text));
   const labelOf = (a: Answer) => {
@@ -438,14 +441,27 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
     <Dialog className="ask ask-focus" aria-labelledby="ask">
       <div className="ask-strip">
         <div className="ask-strip__text">
+          {/* The start's own heading asks the question; this one is the project, and still names the dialog "Ask about …". */}
           <Heading slot="title" id="ask">
-            Ask about {dossier.name}
+            <span className="sr-only">{`Ask about ${dossier.name}`}</span>
+            <span aria-hidden="true">{dossier.name}</span>
           </Heading>
           <p className="ask-strip__context note">
             {/* On a phone the dossier is in the heading and the sprint is on the page behind: one line is left, the agent and the way to change it (#552). */}
-            {!phone && <span>{plain.pw('Dossier', 'Toil project')} {dossier.name}</span>}
             {!phone && <span>{h ? `${h.sprint.name}, day ${h.days.gone} of ${h.days.total}` : 'No sprint running'}</span>}
             <span>
+              {noAgent ? (
+                <>
+                  <strong>Nobody yet</strong>
+                  {agent.adapters && (
+                    <>
+                      {' · '}
+                      <AgentSwitch label={answering} list={chat.adapters} current={chat.adapter ?? from?.name ?? null} onPick={chat.switchTo} compact />
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
               Answered by{' '}
               {phone ? (
                 <>
@@ -468,6 +484,8 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                   ({plain.text(hint)})
                 </span>
               )}
+                </>
+              )}
             </span>
           </p>
         </div>
@@ -483,7 +501,6 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
       </div>
 
       <div className="ask-scroll" data-scroller="" tabIndex={0} role="region" aria-label="The conversation">
-        {entries.length > 0 && <p className="note">{words('ask.note')}</p>}
         {chat.session?.stale && <StaleNote stale={chat.session.stale} />}
         {chat.session?.stale?.restart && <p className="note any-break">{chat.session.stale.restart}</p>}
         {chat.session?.stale && busy && <p className="note">Renew waits for this answer: it never interrupts one.</p>}
@@ -493,7 +510,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
           </p>
         )}
         <div className="log" role="log" aria-live="polite" aria-busy={busy} aria-label="Conversation">
-          {entries.length === 0 && <GuidedStart answering={answering} noAgent={Boolean(agent.notice) && !current} {...(agent.notice ? { notice: agent.notice } : {})} {...(agent.noticeDetails ? { details: agent.noticeDetails } : {})} busy={busy} onPick={pick} />}
+          {entries.length === 0 && <GuidedStart noAgent={noAgent} {...(agent.notice ? { notice: agent.notice } : {})} {...(agent.noticeDetails ? { details: agent.noticeDetails } : {})} busy={busy} onPick={pick} />}
           {entries.map((e) =>
             e.kind === 'renew' ? (
               <p key={`r${e.id}`} className="ask-switch note">
@@ -522,7 +539,8 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                   <ChatMessage from="agent">
                     {e.answer && (e.answer.parts.length > 0 || e.answer.briefing) ? (
                       <>
-                        <h3>{e.answer.prompt}</h3>
+                        {/* The question is in the bubble above; the heading stays for a screen reader's headings list and is not drawn. */}
+                        <h3 className="sr-only">{e.answer.prompt}</h3>
                         {e.done && e.answer.warnings && e.answer.warnings.length > 0 && (
                           <div className="answer-checks" aria-label="Checks on this answer">
                             {e.answer.warnings.map((w, i) => (
@@ -541,12 +559,13 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                             </p>
                           ))
                         )}
-                        {e.done && !e.stopped && <AnswerChecks answer={e.answer} prompt={e.prompt} {...(e.analyze ? { analyze: true } : {})} />}
-                        {e.done && (
+                        {e.done && !e.stopped && <AnswerChecks answer={e.answer} prompt={e.prompt} {...(e.analyze ? { analyze: true } : {})} {...(e.ms !== undefined ? { ms: e.ms } : {})} safe={e.id === firstAnswered} />}
+                        {/* Who answered is the header's to say; this line is for what is different about this answer. */}
+                        {e.done && (e.stopped || (e.answer.unverified && e.answer.unverified.length > 0) || labelOf(e.answer) !== answering || e.answer.carried || e.answer.analysis) && (
                           <p className="by">
-                            {e.stopped ? 'Stopped before the end. ' : e.answer.unverified && e.answer.unverified.length > 0 ? `Names ${e.answer.unverified.length} its tools never returned. ` : ''}
-                            Answered by: {labelOf(e.answer)}
-                            {e.ms !== undefined ? `, in ${seconds(e.ms)} s` : ''}.{e.answer.carried ? ` It was given a summary of the ${e.answer.carried} earlier ${e.answer.carried === 1 ? 'turn' : 'turns'}.` : ''}
+                            {e.stopped ? `Stopped before the end${e.ms !== undefined ? ` after ${seconds(e.ms)} s` : ''}. ` : e.answer.unverified && e.answer.unverified.length > 0 ? `Names ${e.answer.unverified.length} its tools never returned. ` : ''}
+                            {labelOf(e.answer) !== answering ? `Answered by: ${labelOf(e.answer)}. ` : ''}
+                            {e.answer.carried ? `It was given a summary of the ${e.answer.carried} earlier ${e.answer.carried === 1 ? 'turn' : 'turns'}.` : ''}
                             {e.answer.analysis && (
                               <>
                                 {' '}
@@ -558,7 +577,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                             )}
                           </p>
                         )}
-                        {e.done && e.answer.usage && <UsageFooter usage={e.answer.usage} />}
+                        {e.done && e.stopped && e.answer.usage && <UsageFooter usage={e.answer.usage} />}
                       </>
                     ) : (
                       e.stopped ? <p className="note">Stopped before any answer arrived.</p> : <Loader size="inline" message={words('loading.answer')} live={false} />
@@ -598,7 +617,8 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
             )}
           </div>
         )}
-        <ChatUsage usages={usages} />
+        {/* One answer's usage is the chat's: it shows under the answer, and the total waits for a second. */}
+        {usages.length > 1 && <ChatUsage usages={usages} />}
         {turns.length > 0 && (
           <MenuTrigger>
             <Button className="btn btn--small ask-suggest" isDisabled={busy} data-ask-suggestions="">

@@ -6,15 +6,17 @@
  * never a colour alone. Every card's one link only opens something, in the drawer or on
  * the item's page as the person chose under Customize; nothing here sends or
  * changes anything. The executive summary, read aloud by the
- * summary itself.
+ * summary itself. Words that name a toil concept are chosen where the sentence
+ * is built (src/model/summary.ts), so an item's title is shown exactly as the
+ * tracker has it.
  */
 
 import { useBriefingPrefs } from '../briefing-prefs.ts';
+import { Help } from './help.tsx';
 import { useData } from '../data.ts';
 import { itemHref } from '../format.ts';
 import type { Answer, Card } from '../model/summary.ts';
 import type { Status } from '../model/status.ts';
-import { usePlain } from '../plain-words.ts';
 import './summary.css';
 
 type Kind = 'ok' | 'warn' | 'danger' | 'info';
@@ -56,7 +58,6 @@ export function Shape({ tone }: { tone: Status | Card['tone'] }) {
 
 /** The status sentence, its estimate label, the one line on why, and the sums one step in. */
 export function AnswerHero({ answer }: { answer: Answer }) {
-  const { text } = usePlain();
   return (
     <div className="sum-hero" data-status={answer.status}>
       <h2 className="sum-answer" data-answer="">
@@ -66,27 +67,29 @@ export function AnswerHero({ answer }: { answer: Answer }) {
         </span>
         <span aria-hidden="true">: </span>
         <span className="sr-only">. </span>
-        {text(answer.sentence)}
+        {answer.sentence}
       </h2>
       {answer.basis && <p className="sum-basis">{answer.basis}.</p>}
       <p className="sum-why" data-why="">
-        {text(answer.why)}
+        {answer.why}
       </p>
-      <details className="sum-how">
-        <summary>How was this worked out?</summary>
-        <ul>
-          {answer.how.map((l, i) => (
-            <li key={i}>{text(l)}</li>
-          ))}
-        </ul>
-      </details>
+      <div className="sum-howrow">
+        <details className="sum-how">
+          <summary>How was this worked out?</summary>
+          <ul>
+            {answer.how.map((l, i) => (
+              <li key={i}>{l}</li>
+            ))}
+          </ul>
+        </details>
+        <Help topic="status" />
+      </div>
     </div>
   );
 }
 
 /** Up to three cards, one per row on a phone, side by side on a wide screen. */
 export function NeedsAttention({ cards }: { cards: Card[] }) {
-  const { text } = usePlain();
   const { dossier } = useData();
   const { opensIn } = useBriefingPrefs();
   return (
@@ -99,21 +102,27 @@ export function NeedsAttention({ cards }: { cards: Card[] }) {
           <li key={c.id} className="sum-card" data-card={c.id} data-tone={c.tone}>
             <p className="sum-kicker">
               <Shape tone={c.tone} />
-              <span>{text(c.kicker)}</span>
+              <span>{c.kicker}</span>
             </p>
             <h3 className="sum-card__title">
-              {text(c.title)}
+              {c.action ? (
+                <a href={c.action.item && opensIn === 'page' ? itemHref(dossier.name, c.action.item) : c.action.href} data-card-item={c.action.item}>
+                  {c.title}
+                </a>
+              ) : (
+                c.title
+              )}
               {c.key && <span className="sum-key"> {c.key}</span>}
             </h3>
-            <p className="sum-card__why">{text(c.why)}</p>
+            <p className="sum-card__why">{c.why}</p>
             {c.named.length > 0 && (
               <ul className="sum-named">
                 {c.named.map((n, i) => (
                   <li key={i}>
-                    <span className="sum-named__text">{text(n.text)}</span>
+                    <span className="sum-named__text">{n.text}</span>
                     {(n.meta || n.key) && (
                       <span className="sum-named__sub">
-                        {n.meta && text(n.meta)}
+                        {n.meta}
                         {n.meta && n.key ? ' · ' : ''}
                         {n.key && <span className="sum-key">{n.key}</span>}
                       </span>
@@ -123,12 +132,6 @@ export function NeedsAttention({ cards }: { cards: Card[] }) {
               </ul>
             )}
             {c.more && <p className="sum-card__more">{c.more}</p>}
-            {c.action && (
-              <a className="sum-card__link" href={c.action.item && opensIn === 'page' ? itemHref(dossier.name, c.action.item) : c.action.href} data-card-item={c.action.item} aria-label={`${c.action.label}: ${c.title}`}>
-                {c.action.label}
-                <span aria-hidden="true"> &rarr;</span>
-              </a>
-            )}
           </li>
         ))}
       </ul>

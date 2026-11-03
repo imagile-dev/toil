@@ -193,9 +193,10 @@ function BoardTab({ person }: { person?: string }) {
             </span>
             Needs attention only ({flagged.length})
           </Checkbox>
-          <p className="note">
-            A flagged card needs action now or a look: it is blocked, its build fails, it is aging or stale, and the like. <Help topic="insights" />
-          </p>
+          <span className="board-tools__help">
+            <Help topic="insights" />
+            <Help topic="board" />
+          </span>
         </div>
         <Board items={cards} />
       </Panel>

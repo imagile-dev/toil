@@ -27,12 +27,13 @@ import { usePlain } from '../plain-words.ts';
 import { NewDot } from './whats-new.tsx';
 import './help.css';
 
-export function Help({ topic }: { topic: HelpTopicId }) {
+/** `note` adds a sentence the topic can't hold because it depends on the screen (a limit, a count), after the topic's own text. */
+export function Help({ topic, note }: { topic: HelpTopicId; note?: string }) {
   const t: HelpTopic = HELP[topic];
   // One catalogue: plain words swap the jargon in it as it is drawn (src/plain-words.ts), never a second copy of each topic.
   const plain = usePlain();
   const title = plain.text(t.title);
-  const text = plain.text(t.text);
+  const text = plain.text(t.text) + (plain.on && t.plainNote ? ` ${t.plainNote}` : '') + (note ? ` ${plain.text(note)}` : '');
   return (
     <DialogTrigger>
       <TooltipTrigger delay={400} closeDelay={200}>

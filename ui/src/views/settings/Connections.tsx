@@ -95,6 +95,8 @@ function ConnectionCard({ connection: c, areas, config, configFile, onChanged }:
   const readOnly = envOnly(c);
   const titleId = `conn-${c.name}`;
   const secretFields = areas.find((a) => a.name === c.area)?.connection.filter((f) => f.secret) ?? [];
+  // What Test does and the command it runs: the Test button's hover, not a line repeated on every card.
+  const testTitle = plain.on ? `Asks ${c.area} one quick question to check the login works. It changes nothing. Command: ${commandLine('connections test', [c.name])}` : `Sends ${c.area}'s one cheap authenticated read, as a real command would, and changes nothing. Command: ${commandLine('connections test', [c.name])}`;
 
   const test = async () => {
     setTesting(true);
@@ -159,7 +161,7 @@ function ConnectionCard({ connection: c, areas, config, configFile, onChanged }:
         </p>
       )}
       <div className="conn-actions">
-        <button type="button" className="btn" onClick={test} disabled={testing} aria-describedby={`${titleId}-test`}>
+        <button type="button" className="btn" onClick={test} disabled={testing} title={testTitle}>
           {testing ? 'Testing…' : 'Test'}
         </button>
         {!readOnly && (
@@ -183,13 +185,6 @@ function ConnectionCard({ connection: c, areas, config, configFile, onChanged }:
           </>
         )}
       </div>
-      <p id={`${titleId}-test`} className="note">
-        {plain.on ? (
-          <>Test asks {c.area} one quick question to check the login works. It changes nothing. <span className="sr-only">The command is </span><code>{commandLine('connections test', [c.name])}</code>.</>
-        ) : (
-          <>Test sends {c.area}'s one cheap authenticated read, as a real command would (<code>{commandLine('connections test', [c.name])}</code>), and changes nothing.</>
-        )}
-      </p>
       <OutcomeLine outcome={tested} />
       {open === 'default' && (
         <ChangeForm

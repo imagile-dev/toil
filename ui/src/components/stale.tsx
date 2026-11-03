@@ -23,10 +23,10 @@ export function StaleChip() {
 /** The badge and why, on one line: "Stale started on toil 0.1.0-alpha.3 · now alpha.4 · dossier changed". */
 export function StaleNote({ stale, className = '' }: { stale: Staleness; className?: string }) {
   const plain = usePlain();
-  // Plain words say it in one line and keep the exact reason one hover away; the reason is a fact, so standard keeps it on the line.
+  // The reason is a fact, so it stays on the line in both wordings; plain words only add what the badge means.
   return (
     <p className={`stale-note ${className}`.trim()} data-stale="">
-      <StaleChip /> {plain.on ? <span title={`${stale.text}.`}>Started before an update.</span> : <span>{stale.text}.</span>}
+      <StaleChip /> {plain.on ? <span>Started before an update: {stale.text}.</span> : <span>{stale.text}.</span>}
     </p>
   );
 }

@@ -35,10 +35,14 @@
 .sum-named li { display: grid; gap: 0.1rem; min-width: 0; font-size: 0.9375rem; }
 .sum-named__text { font-weight: 600; overflow-wrap: anywhere; }
 .sum-named__sub { color: var(--muted); font-size: 0.875rem; overflow-wrap: anywhere; }
-.sum-card__link { display: inline-flex; align-items: center; min-height: 44px; margin-top: auto; color: var(--link); font-weight: 600; text-decoration: none; }
-.sum-card__link:hover { text-decoration: underline; }
+
+
 
 .briefing__full > summary { display: inline-flex; align-items: center; min-height: 44px; color: var(--link); cursor: pointer; }
 .briefing__full[open] > summary { margin-bottom: 0.5rem; }
 .briefing__full > .briefing__meta { margin-bottom: 0.9rem; }
 .briefing__full > * + * { margin-top: 1.25rem; }
+.sum-card__title a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 0.2em; }
+.sum-card__title a:hover { text-decoration-color: currentColor; }
+.sum-howrow { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 0.5rem; }
+.sum-howrow > .sum-how { flex: 1 1 auto; min-width: 0; }

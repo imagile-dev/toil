@@ -12,6 +12,7 @@ import type { AdapterList, Agent, Answer, AnswerPart, AskStyle, Starter } from '
 import { ANALYZE, SCRIPTED_LABEL, citationsOf } from '../agent.ts';
 import type { ChatTurn } from '../model-usage.ts';
 import type { Proposal } from '../proposal.ts';
+import { plainify } from '../plainify.ts';
 import { sampleAnswerUsage } from './model-usage.ts';
 
 const J = (n: number) => `[[corp-jira:PAY-${n}]]`;
@@ -23,6 +24,12 @@ const BB = (n: number) => P(`corp-bitbucket:PAY/payments-core#${n}`);
 const AZ = (n: number) => P(`corp-ado:Payments/settlement#${n}`);
 const GH = (n: number) => P(`github:imagile/payments-web#${n}`);
 const SDK = (n: number) => P(`bitbucket-cloud:imagile/checkout-sdk#${n}`);
+
+/** Plain words are on in the page this runs in (they start on); anywhere with no page, the sample says toil's own words. */
+const samplePlain = (): boolean => {
+  const doc = (globalThis as { document?: { documentElement?: { dataset?: { words?: string } } } }).document;
+  return doc ? doc.documentElement?.dataset?.words !== 'standard' : false;
+};
 
 export interface Script {
   label: string;
@@ -404,7 +411,7 @@ export const ANALYZE_BRIEFING: Record<string, { recommendation: string; reasons:
     recommendation: `Get ${A(2302)} done first: ${A(2303)} can't start until it is, and its pull request ${AZ(87)} is still building.`,
     reasons: [
       { lens: 'blocked', label: 'Blocked', line: '1 item, 3 points', items: [[A(2303), `Blocked by ${A(2302)}, and nothing has changed on it for 7.9 days.`, `Finish ${A(2302)} first; ${AZ(87)} needs its build to pass.`]] },
-      { lens: 'stale', label: 'Stale', line: '1 item past 5 days', items: [[A(2304), 'In progress for 15 days, longer than 85% of this dossier\'s finished items took, and carried over from Sprint 41.', 'Ask whether it should be split or moved out of the sprint.']] },
+      { lens: 'stale', label: 'Stale', line: '1 item past 5 days', items: [[A(2304), 'In progress for 15 days, longer than 85% of the finished items here took, and carried over from Sprint 41.', 'Ask whether it should be split or moved out of the sprint.']] },
     ],
     onTrack: '',
     changed: [],
@@ -448,7 +455,8 @@ export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
     const entry = id ? script[id] : undefined;
     // The voiced risk answer when the voice is on and the theme has one; Plain, and the voice off, read the standard.
     const voiced = id === 'risk' && style?.voice ? VOICED[dossier]?.[style.theme] : undefined;
-    const parts: AnswerPart[] = (voiced ?? entry?.parts ?? (STANDUP_WRITE_UP.test(prompt) ? SCRIPTED_WRITE_UP : [UNSCRIPTED])).map((text) => ({ text }));
+    // The sample speaks the words the page does: with plain words on, its dossier is a Toil project, as the rest of the screen says.
+    const parts: AnswerPart[] = (voiced ?? entry?.parts ?? (STANDUP_WRITE_UP.test(prompt) ? SCRIPTED_WRITE_UP : [UNSCRIPTED])).map((text) => ({ text: samplePlain() && !voiced ? plainify(text) : text }));
     // In a chat, the answer carries sample usage figures (#295), marked as made up, so the footer has something to show.
     return { prompt: guided && entry ? prompt : (entry?.label ?? prompt), parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals: entry?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, dossier) } : {}) };
   };

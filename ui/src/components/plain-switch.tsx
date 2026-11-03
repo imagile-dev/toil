@@ -8,6 +8,7 @@
 
 import { ToggleButton } from 'react-aria-components';
 import { Card } from './layout.tsx';
+import { Help } from './help.tsx';
 import { setPlain, usePlain } from '../plain-words.ts';
 import '../plain-words.css';
 
@@ -32,7 +33,8 @@ export function PlainWordsSetting() {
       <p className="note">
         {on
           ? 'On: tabs and headings use everyday words (a Toil project is a dossier, a code review a pull request, an AI helper an agent), with toil’s term one hover away. Saved in this browser.'
-          : 'Off: screens use toil’s own terms (dossier, pull request, agent). Saved in this browser.'}
+          : 'Off: screens use toil’s own terms (dossier, pull request, agent). Saved in this browser.'}{' '}
+        <Help topic="plain-words" />
       </p>
     </Card>
   );

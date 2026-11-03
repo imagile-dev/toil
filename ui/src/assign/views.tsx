@@ -289,7 +289,7 @@ export function InboxRow({ a, onStarted }: { a: Assignment; onStarted: () => voi
     <li className="assign-inbox__row">
       <Cluster>
         <span>
-          <ItemLink id={a.item} /> {a.itemTitle}: <strong>{modeInfo(a.mode, plain.on).label.toLowerCase()}</strong>, {plain.pw("asked for by the tracker's", 'asked for by the tracker with')} {a.trigger}.
+          <ItemLink id={a.item} /> {a.itemTitle}: <strong>{modeInfo(a.mode, plain.on).label.toLowerCase()}</strong>
         </span>
         <Button className="btn btn--accent btn--small" onPress={() => setOpen(true)} data-inbox-start="">
           Start<span className="sr-only"> {a.item}</span>…

@@ -480,6 +480,8 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   ];
   const top = useRef<HTMLDivElement>(null);
   const narrow = useMediaQuery(COMPACT_HEADER);
+  // On a phone the beta notice and the "Sample data read …" line are one line: the source and the time stay, the long sentence goes.
+  const phoneBanner = useMediaQuery('(max-width: 599px)');
   const crowded = useCrowded(top, !narrow, links.map((l) => l.label).join('|'));
   const compact = narrow || crowded;
   const controls = (
@@ -546,7 +548,12 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           Skip to content
         </a>
         <header className="app-header" inert={game.open} aria-hidden={game.open || undefined}>
-          {preview && (
+          {preview && phoneBanner && (
+            <p className="banner" role="note" data-banner-merged="">
+              <strong>{plain.pw('Toil UI beta, on sample data.', 'Toil UI beta, showing sample data.')}</strong> Read {dateTime(now)}.
+            </p>
+          )}
+          {preview && !phoneBanner && (
             <p className="banner" role="note">
               <strong>{plain.pw('Toil UI beta, on sample data.', 'Toil UI beta, showing sample data.')}</strong> {plain.pw('Nothing here connects to a tracker.', 'Nothing here connects to your real tools.')}
             </p>
@@ -587,9 +594,11 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
           </div>
           <ServerStale load={serverStatus} />
           <Notices />
-          <p className="sync">
-            {preview ? 'Sample data' : 'Data'} read {dateTime(now)} {plain.pw('through toil, read-only.', 'without changing anything.')}
-          </p>
+          {!(preview && phoneBanner) && (
+            <p className="sync">
+              {preview ? 'Sample data' : 'Data'} read {dateTime(now)} {plain.pw('through toil, read-only.', 'without changing anything.')}
+            </p>
+          )}
         </header>
         <main id="main" ref={main} data-view={route.view} inert={game.open} aria-hidden={game.open || undefined}>
           {/* A running sync (#419): the theme's loader with its progress; the Sync panel's own line is the one announced. */}

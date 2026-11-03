@@ -1,6 +1,6 @@
 /**
  * Every dossier page's frame (#394): a top row with the dossier's name, its
- * switcher, the sprint's day, and the Ask bar with Analyze; then one tab per
+ * switcher, the sprint's day, and the Ask bar; then one tab per
  * view of the dossier; then the view itself, with the Agents panel behind one
  * button: beside the view from 1200px wide once opened, a drawer below that. The tabs are links, one route each,
  * so a view keeps its own address and the old ones (`/prs`, `/people`,
@@ -52,6 +52,9 @@ export const DOSSIER_TABS: ReadonlyArray<{ id: DossierTab; label: string; plain:
 /** Below this width the Agents panel is a drawer behind a button; at 1200px and wider the button opens it beside the view. */
 export const SIDEBAR_WIDE = '(min-width: 1200px)';
 
+/** Below this width the project's description and sources fold behind a button, so the Ask row and the tabs are what a phone opens on. */
+export const PHONE_BAR = '(max-width: 599px)';
+
 /**
  * The dossier's top row and tabs, the view, and the Agents sidebar. `heading`
  * makes the dossier's name the page's h1, for the tabs that have no heading of
@@ -63,6 +66,9 @@ export function DossierShell({ tab, heading, dossiers, boardView, peek = null, c
   const { health: h, insights } = useDerived();
   const term = useTerm();
   const wide = useMediaQuery(SIDEBAR_WIDE);
+  // On a phone the description and the source badges sit behind a button beside the name, one tap away.
+  const phone = useMediaQuery(PHONE_BAR);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [sideOpen] = useAgentsPanelOpen();
   const moments = momentsOf(useTheme());
   const shell = useRef<HTMLDivElement>(null);
@@ -97,9 +103,15 @@ export function DossierShell({ tab, heading, dossiers, boardView, peek = null, c
               <p className="dossier-bar__name">{name}</p>
             )}
             <Switcher current={dossier.name} dossiers={dossiers} />
+            {phone && (
+              <Button className="btn btn--small" aria-expanded={aboutOpen} aria-controls="dossier-about" onPress={() => setAboutOpen(!aboutOpen)} data-about-toggle="">
+                Details<span className="sr-only"> of {dossier.name}: description and sources</span>
+              </Button>
+            )}
             {h && <span className="sprint-chip">{term('sprint', `${h.sprint.name}: day ${h.days.gone} of ${h.days.total}`)}</span>}
           </div>
-          <div className="dossier-bar__about">
+          {(!phone || aboutOpen) && (
+          <div className="dossier-bar__about" id="dossier-about">
             <p className="dossier-bar__desc">
               <Editable field="description" dossier={dossier.name} value={dossier.description} config={config ?? null} onSaved={described ?? (() => undefined)}>
                 {dossier.description ? (
@@ -113,6 +125,7 @@ export function DossierShell({ tab, heading, dossiers, boardView, peek = null, c
             </p>
             <SourceBadges sources={dossier.sources} dossier={dossier.name} />
           </div>
+          )}
         </div>
         <div className="dossier-bar__ask">
           <AskBar />
@@ -211,7 +224,7 @@ function Switcher({ current, dossiers }: { current: string; dossiers: string[] |
 /**
  * The one way into the Agents panel from the frame (#552), labelled "AI helpers" in plain words and carrying how many
  * things wait on a person. From 1200px wide it opens and closes the panel beside the view, and remembers which; below that
- * it opens the drawer. The palette and the shortcut reach the same panel without it.
+ * it opens the drawer. The command palette (Open the Agents panel) reaches the same panel without it; there is no keyboard shortcut.
  */
 function AgentsButton({ wide }: { wide: boolean }) {
   const [open, setOpen] = useState(false);
@@ -228,7 +241,13 @@ function AgentsButton({ wide }: { wide: boolean }) {
     <>
       <Hint precise="Agents">
         <Button className="btn agents-open" onPress={() => (wide ? setSide(!side) : setOpen(true))} aria-expanded={wide ? side : undefined} data-agents-open="">
-          {plain.pw('Agents', 'AI helpers')}
+          {/* On a phone the label shrinks to "AI" and the rest stays for a screen reader, so the name is still "AI helpers". */}
+          <span className="agents-open__label">{plain.pw('Agents', 'AI helpers')}</span>
+          {plain.on && (
+            <span className="agents-open__short" aria-hidden="true">
+              AI
+            </span>
+          )}
           {summary.needsYou > 0 && (
             <span className="tab-count">
               <span aria-hidden="true">{summary.needsYou}</span>

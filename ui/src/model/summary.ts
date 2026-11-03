@@ -7,13 +7,15 @@
  * small print on a card and never in the sentences. No model is asked
  * anything. A status report that has read its own footnotes.
  *
- * Adapted from the design lab's Today mockup, minus the parts that were
- * invented for it: a role picker, a keep-or-drop decision and a person to
- * check in with. People are named where they own something and never ranked.
+ * Words that name a toil concept (a pull request) are chosen here, once, from
+ * `Ctx.plain`; an item's title and the briefing's own sentences are quoted as
+ * they are, never reworded. People are named where they own something and
+ * never ranked.
  */
 
 import { commandCenterHref, dossierHref, peekHref, prName, prsHref, shortKey, sourceLabel } from '../format.ts';
-import type { DossierData } from '../load.ts';
+import { PANEL_WORDS } from '../guided-questions.ts';
+import type { DossierData, Panel } from '../load.ts';
 import type { BriefingView } from './briefing.ts';
 import { behindAll, blockerOrder, heldBy } from './blockers.ts';
 import { flows } from './flow.ts';
@@ -58,9 +60,13 @@ export interface Ctx {
   queue: OpenRow[];
   held: Map<string, string[]>;
   ready: Map<string, Readiness>;
+  /** Plain words are on: a pull request is a code review. Only the words this module writes follow it. */
+  plain: boolean;
 }
 
-export function contextOf(input: { d: DossierData; now: string; byId: Map<string, WorkItem>; h: Health | null; p: Prepared; view: BriefingView }): Ctx {
+const reviewWord = (c: Ctx) => (c.plain ? 'code review' : 'pull request');
+
+export function contextOf(input: { d: DossierData; now: string; byId: Map<string, WorkItem>; h: Health | null; p: Prepared; view: BriefingView; plain?: boolean }): Ctx {
   const { d, now, byId } = input;
   const prs = d.pullRequests ?? [];
   return {
@@ -70,6 +76,7 @@ export function contextOf(input: { d: DossierData; now: string; byId: Map<string
     byId,
     h: input.h,
     view: input.view,
+    plain: input.plain ?? false,
     prById: new Map(prs.map((c) => [c.id, c])),
     queue: openQueue(prs, byId, now),
     held: heldBy(input.p),
@@ -95,7 +102,7 @@ function plainCites(text: string, c: Ctx): string {
   return text.replace(/\[\[([^\]]+)\]\]/g, (_m, id: string) => {
     const i = c.byId.get(id);
     if (i) return q(i.title);
-    return c.prById.has(id) ? `the pull request ${prName(id)}` : id;
+    return c.prById.has(id) ? `the ${reviewWord(c)} ${prName(id)}` : id;
   });
 }
 
@@ -126,8 +133,17 @@ export interface Answer {
   basis: string | null;
 }
 
+/** The panels whose read failed, in words: an all-clear that skipped them would be claiming what it didn't check. */
+export function failedReads(c: Pick<Ctx, 'd' | 'plain'>): string[] {
+  return (Object.keys(c.d.calls ?? {}) as Panel[]).filter((p) => c.d.calls[p]?.some((x) => !x.ok)).map((p) => (c.plain ? PANEL_WORDS[p].replace('pull requests', 'code reviews') : PANEL_WORDS[p]));
+}
+
+const unread = (failed: string[]) => `${cap(list(failed))} could not be read, so there may be problems this does not show.`;
+
 function whyOf(c: Ctx, status: Status): string {
   const top = c.view.reasons[0];
+  const failed = failedReads(c);
+  if (!top && failed.length) return unread(failed);
   if (!top) return status === 'on-track' ? 'Nothing is blocked, failing its tests or waiting too long.' : 'No single cause stands out.';
   const first = c.byId.get(top.items[0]?.id ?? '');
   const title = first ? q(first.title) : 'one item';
@@ -139,7 +155,7 @@ function whyOf(c: Ctx, status: Status): string {
     case 'blocked':
       return `Mostly because ${plural(top.items.length, 'story', 'stories')} can’t move until another story is finished.`;
     case 'waiting':
-      return `Mostly because ${plural(top.items.length, 'pull request')} ${top.items.length === 1 ? 'has' : 'have'} waited past ${PICKUP_DAYS} working days for a first review.`;
+      return `Mostly because ${plural(top.items.length, reviewWord(c))} ${top.items.length === 1 ? 'has' : 'have'} waited past ${PICKUP_DAYS} working days for a first review.`;
     case 'sprint':
       return c.view.code.sprint ? `Mostly because only ${pts(c.view.code.sprint.points.done)} ${c.view.code.sprint.points.done === 1 ? 'is' : 'are'} done so far, and the pace is too slow to finish the rest.` : `${top.label}: ${plainCites(top.line, c)}.`;
     case 'stale':
@@ -147,7 +163,7 @@ function whyOf(c: Ctx, status: Status): string {
     case 'load':
       return 'Mostly because someone has more in progress than the team’s limit.';
     case 'drift':
-      return 'Mostly because a ticket and its pull request disagree about whether the work is done.';
+      return `Mostly because a ticket and its ${reviewWord(c)} disagree about whether the work is done.`;
     default:
       return `${top.label}: ${plainCites(top.line, c)}.`;
   }
@@ -157,7 +173,19 @@ export function answerOf(c: Ctx): Answer {
   const s = c.view.code.sprint;
   const h = c.h;
   if (!s || !h) {
-    return { status: 'none', word: 'No sprint', sentence: 'No sprint is running right now.', why: 'This team has no sprint with dates, so there is nothing to measure the work against.', how: [`Sprints are read from ${sourcesText(c.d)}.`], basis: null };
+    return { status: 'none', word: 'No sprint', sentence: 'No sprint is running right now.', why: 'No sprint with dates was found, so there is nothing to measure the work against.', how: [`Sprints are read from ${sourcesText(c.d)}.`], basis: null };
+  }
+  if (s.points.total === 0) {
+    // Nothing is estimated, so "all 0 points are done" would be a claim with nothing under it.
+    const n = h.items.length;
+    return {
+      status: 'none',
+      word: 'No estimates',
+      sentence: n === 0 ? 'the sprint has no stories yet, so there is no progress to measure.' : `${plural(n, 'story', 'stories')} in the sprint ${n === 1 ? 'has' : 'have'} no points, so progress can’t be measured.`,
+      why: 'Add points to the stories and this reads the pace against them.',
+      how: [`Points come from ${sourcesText(c.d)}. This sprint has none to add up.`],
+      basis: 'A status needs points to measure against',
+    };
   }
   const left = s.points.left;
   const days = daysLeft(h.days);
@@ -172,13 +200,15 @@ export function answerOf(c: Ctx): Answer {
     sentence,
     why: whyOf(c, result.status),
     how: [
+      ...(left > 0 && !result.early ? ['The status word is an estimate from the pace so far.'] : []),
       `${pts(s.points.done)} done out of ${s.points.total} after ${h.days.gone} of ${h.days.total} working days${s.pace !== null ? `, about ${s.pace} a day` : ''}. Working days left do not count today.`,
       s.projected === null ? 'It is too early to read a pace: that needs a quarter of the sprint to have passed.' : `At that pace about ${round1(s.projected)} of the ${left} points left would be done by the end. That is an estimate, not a promise.`,
+      `The ${pct}% line is the app’s own rule of thumb, not a standard.`,
       `On track means the points left should fit at that pace. At risk means at least ${pct}% of them should, or something red is holding work up. Behind means fewer than ${pct}%.`,
       ...(skipped ? [`${plural(skipped, 'story', 'stories')} with no estimate ${skipped === 1 ? 'is' : 'are'} left out of these points.`] : []),
       `Points and dates come from ${sourcesText(c.d)}.`,
     ],
-    basis: left <= 0 ? null : result.early ? 'Too early in the sprint to judge a pace' : 'The status word is an estimate from the pace so far',
+    basis: left > 0 && result.early ? 'Too early in the sprint to judge a pace' : null,
   };
 }
 
@@ -224,7 +254,7 @@ function riskCard(c: Ctx): Card | null {
       : top.lens === 'blocked'
         ? `It can’t move until another story is finished.${holdText(holdsOf(c, item.id))}`
         : top.lens === 'waiting' && waited !== null
-          ? `Its pull request has waited ${plural(Math.round(waited), 'working day')} for a first review.`
+          ? `Its ${reviewWord(c)} has waited ${plural(Math.round(waited), 'working day')} for a first review.`
           : plainCites(first.why, c);
   const owner = nameOf(personIn(c, item.assignee, item.source.area));
   return {
@@ -274,7 +304,7 @@ function reviewCard(c: Ctx): Card | null {
   return {
     id: 'review',
     kicker: 'Waiting on a code review',
-    title: n === 1 ? `The pull request for ${aboutPr(c, r.change.id)} has waited ${plural(days, 'working day')}` : `${n} pull requests have waited over ${PICKUP_DAYS} working days`,
+    title: n === 1 ? `The ${reviewWord(c)} for ${aboutPr(c, r.change.id)} has waited ${plural(days, 'working day')}` : `${n} ${reviewWord(c)}s have waited over ${PICKUP_DAYS} working days`,
     key: n === 1 ? `${sourceLabel(r.change.source.area)} ${prName(r.change.id)}` : null,
     why: `${cap(r.wait.why)}.${extra}${n > 1 ? ` The longest wait is ${aboutPr(c, r.change.id)}.` : ''}`,
     named: [{ text: author ? `Opened by ${author}` : 'Author unknown' }],
@@ -322,6 +352,11 @@ export const ALL_CLEAR: Card = {
   tone: 'ok',
 };
 
+/** In place of the all-clear when a read failed: nothing is flagged, but not everything was looked at. */
+function unreadCard(failed: string[]): Card {
+  return { id: 'clear', kicker: 'Some reads failed', title: 'Nothing is flagged, but not everything could be read', key: null, why: unread(failed), named: [], action: null, tone: 'warn' };
+}
+
 /**
  * Which cards show, at most three, the same for everyone: the biggest risk,
  * stories that can't start, the oldest waiting code review, in that order;
@@ -329,14 +364,14 @@ export const ALL_CLEAR: Card = {
  * (once); and when nothing at all is there, the all-clear card. Never invents
  * work to fill the row.
  */
-export function pickCards(found: { risk: Card | null; blocked: Card | null; review: Card | null; ready: Card | null }): Card[] {
+export function pickCards(found: { risk: Card | null; blocked: Card | null; review: Card | null; ready: Card | null }, failed: string[] = []): Card[] {
   const cards = [found.risk, found.blocked, found.review].filter((x): x is Card => !!x);
   if (cards.length < 3 && found.ready) cards.push(found.ready);
-  return cards.length ? cards : [ALL_CLEAR];
+  return cards.length ? cards : [failed.length ? unreadCard(failed) : ALL_CLEAR];
 }
 
 export function cardsOf(c: Ctx): Card[] {
   const risk = riskCard(c);
   const riskId = c.view.reasons[0]?.items[0]?.id ?? null;
-  return pickCards({ risk, blocked: blockedCard(c, risk ? riskId : null), review: reviewCard(c), ready: notReadyCard(c) });
+  return pickCards({ risk, blocked: blockedCard(c, risk ? riskId : null), review: reviewCard(c), ready: notReadyCard(c) }, failedReads(c));
 }
