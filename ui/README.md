@@ -1194,7 +1194,8 @@ GitHub CLI signed in (`gh auth login`), or `TOIL_GITHUB_TOKEN` set in the shell.
   or set a token from `claude setup-token`, and start the script again.
 
 To run the same build against your own `~/.toil` instead (your connections and
-dossiers as they are, read and never written), run `node ui/scripts/dev-mine.mjs`.
+dossiers as they are, changed only by what you save in Settings, with Toil UI's own
+data in `.scratch/toil-ui`), run `node ui/scripts/dev-mine.mjs`.
 That's the way to try unreleased changes on real work (`skills/toil/install.md`,
 Trying unreleased changes).
 

@@ -63,6 +63,6 @@ Open only the file the task needs; each is beside this one.
 | `mcp.md` | Running toil as an MCP server, and registering it |
 | `upgrading.md` | A new toil version, or a warning naming a retired or renamed thing |
 | `setup.md` | "Set up toil for me": Toil UI or not, connections, secrets, a dossier |
-| `install.md` | Installing toil, trying unreleased changes, and this skill |
+| `install.md` | Installing toil, and this skill |
 
 `toil --help` lists this install's areas.

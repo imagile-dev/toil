@@ -1,17 +1,18 @@
 // Starts the Toil UI built from this clone against your own home: your
 // ~/.toil config, connections, credential store entries and dossiers, as they
 // are. dev-real.mjs is the one to use for a clean, throwaway home; this one is
-// for looking around your own work on the code you're about to ship.
+// for trying unreleased changes on your own work.
 //
 //   node ui/scripts/dev-mine.mjs                 # builds toil and Toil UI, then starts it
 //   node ui/scripts/dev-mine.mjs --no-build      # starts the last build
 //   node ui/scripts/dev-mine.mjs --port 4390
 //
-// Nothing here writes to ~/.toil: it reads what's there through toil's own
-// commands, the same as the published toil-ui would. The environment is the
-// shell's, so TOIL_* variables (an env-only `ado` connection, say) apply as they
-// would to toil typed by hand. Claude Code's access token is passed to toil-ui's
-// process for Ask when it's still fresh, never refreshed or written (real-home.mjs).
+// It uses ~/.toil the way the published toil-ui does: reads through toil's own
+// commands, each recorded in toil's audit log, and changes only what you save in
+// Settings. Toil UI's own folder is .scratch/toil-ui, not ~/.toil-ui, so an
+// unreleased build never shares a cache or a lock with a released one. The
+// environment and HOME are the shell's, so TOIL_* variables apply as they would to
+// toil typed by hand, and each agent finds its own sign-in where it keeps it.
 //
 // Toil UI and the toil it calls both run on toil built from this checkout into
 // .scratch/toil (buildToil, local-toil-hook.mjs), never on the published toil
@@ -19,7 +20,8 @@
 // asked to sign in at reception, which in this case is their own desk.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { RealHomeError, buildToil, claudeSignIn, root, toilUi, toilUiNodeArgs } from './real-home.mjs';
+import { join } from 'node:path';
+import { RealHomeError, buildToil, root, toilUi, toilUiNodeArgs } from './real-home.mjs';
 import { npmCli } from './package-rules.mjs';
 
 const args = process.argv.slice(2);
@@ -52,17 +54,20 @@ try {
   throw e;
 }
 if (build || !existsSync(toilUi)) {
-  const res = spawnSync(process.execPath, [npmCli(), 'run', 'build', '-w', 'ui'], { cwd: root, stdio: 'inherit' });
+  let npm;
+  try {
+    npm = npmCli();
+  } catch (e) {
+    fail(e.message, 'Run it with the node that npm came with, or through npm run.');
+  }
+  const res = spawnSync(process.execPath, [npm, 'run', 'build', '-w', 'ui'], { cwd: root, stdio: 'inherit' });
+  if (res.error) fail(`npm run build -w ui could not start: ${res.error.message}`, 'Check that node and npm run in this shell, then run this again.');
   if (res.status !== 0) fail('npm run build -w ui failed.', 'Fix the build error above, then run this again.');
 }
 
-const env = { ...process.env };
-const claude = claudeSignIn();
-if (claude.token) env.CLAUDE_CODE_OAUTH_TOKEN = claude.token;
-else if (claude.problem) process.stdout.write(`Claude for Ask: ${claude.problem}. Run claude once in a terminal so it refreshes its own sign-in, then start this again.\n`);
-
-process.stdout.write(`Toil UI runs on ${toil.describe}, against your own ~/.toil.\n\n`);
-const child = spawn(process.execPath, [...toilUiNodeArgs, toilUi, '--port', port], { env, stdio: 'inherit' });
+const dataDir = join(root, '.scratch', 'toil-ui');
+process.stdout.write(`Toil UI runs on ${toil.describe}, against your own ~/.toil, with its own data in .scratch/toil-ui.\n\n`);
+const child = spawn(process.execPath, [...toilUiNodeArgs, toilUi, '--port', port, '--data-dir', dataDir], { stdio: 'inherit' });
 const stop = () => child.kill('SIGINT');
 process.on('SIGINT', stop);
 process.on('SIGTERM', stop);

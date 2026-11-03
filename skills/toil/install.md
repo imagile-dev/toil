@@ -108,11 +108,17 @@ node ui/scripts/dev-mine.mjs
   git ignores. Then it starts Toil UI on that build against your own `~/.toil`, and
   prints the URL to open. The committed `dist/` is left alone, so `node dist/toil.js`
   is still the last release.
-- **It only reads your config.** Your connections, credential store entries and
-  dossiers are read as they are, and nothing is written to `~/.toil`. `TOIL_*`
-  variables in your shell apply as they do to `toil` typed by hand.
+- **It uses your config as it is.** Your connections, credential store entries and
+  dossiers are used unchanged. Toil UI changes them only when you save something in
+  Settings, and its reads go in toil's audit log as usual. `TOIL_*` variables in your
+  shell apply as they do to `toil` typed by hand.
+- **Toil UI keeps its own data in `.scratch/toil-ui`,** not `~/.toil-ui`, so an
+  unreleased build never shares a cache with a released Toil UI. Its settings, such as
+  the agent you choose, start fresh there.
 - **The CLI from the same build** is `node .scratch/toil/toil.js`, with the same
-  arguments as `toil`.
+  arguments as `toil`. It is the full CLI on your real config, the same as `toil`.
+  When a command changes your config, it also rewrites an installed copy of this
+  skill with the unreleased version.
 - **Options:** `--no-build` starts the last build, and `--port <n>` fixes the port.
   `git pull` and run it again to get newer changes.
 - **Unreleased means unfinished.** Anything on `main` may change before it's released.
