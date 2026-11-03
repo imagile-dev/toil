@@ -1,14 +1,16 @@
 /**
  * The chat (#253, #343, #344). An Ask bar sits under the header on every
- * dossier page: one line, its placeholder in the theme's voice, with Analyze
- * beside it. Pressing into it opens the focused view, where the conversation
+ * dossier page: one line, its placeholder in the theme's voice. Pressing into it opens the focused view, where the conversation
  * takes the screen and the page steps back behind a dimmed backdrop; Escape
  * or Close puts it away, and the conversation stays for when it opens again.
  * A slim strip keeps the context in sight: the dossier, its sprint, and the
  * agent answering, which a switcher there changes for this chat only.
  *
- * Starter questions are a row of chips before the first question, then a
- * Suggestions menu. Answers stream in as the agent writes them, under a
+ * Before the first question the focused view is a guided start (#552,
+ * ./guided.tsx): plain questions in groups, the first of them the full
+ * briefing that Analyze runs, beside "Before you ask"; after it, the same
+ * questions are a Suggestions menu, and every answer ends in "How sure is
+ * this?". Answers stream in as the agent writes them, under a
  * status line that says plainly what it is doing (reading the cache with
  * owi_query, reading live with github issue list, writing) in the theme's
  * words, and how long it took; Stop cancels cleanly and keeps what arrived.
@@ -36,7 +38,7 @@ import { ChatUsage, UsageFooter } from './usage.tsx';
 import type { AnswerUsage } from '../model-usage.ts';
 import type { ChatSession } from '../fingerprint.ts';
 import { StaleNote } from './stale.tsx';
-import { Glossary, LearnButton } from './help.tsx';
+import { Glossary } from './help.tsx';
 import { HELP } from '../help.ts';
 import { useNotify } from './notify.tsx';
 import { analysisHref, dossierHref } from '../format.ts';
@@ -45,7 +47,8 @@ import { AnalysisBody } from './analysis.tsx';
 import { Loader } from '../moments/Moments.tsx';
 import { useUiCommand } from '../commands.ts';
 import { usePlain } from '../plain-words.ts';
-import { Hint } from './term.tsx';
+import { AnswerChecks, GuidedStart } from './guided.tsx';
+import { GROUPS, QUESTIONS, type GuidedQuestion } from '../guided-questions.ts';
 
 /** A new chat's id: one per dossier's conversation, so the server can add up and cap the chat (#295). */
 const newChatId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
@@ -341,6 +344,7 @@ export function AskBar() {
   };
   const plain = usePlain();
   const analyzeName = plain.pw('Analyze', 'Get a briefing');
+  // Analyze has no button of its own (#552): it is the guided start's first question, and the palette's Analyze, which comes here.
   const analyze = () => {
     openView();
     void chat.ask(ANALYZE, analyzeName);
@@ -362,11 +366,6 @@ export function AskBar() {
         <Button type="submit" className="btn btn--accent">
           Ask
         </Button>
-        <Hint precise="Analyze">
-          <Button className="btn" onPress={analyze} isDisabled={chat.busy} data-analyze="">
-            {analyzeName}
-          </Button>
-        </Hint>
       </form>
       {chat.session?.stale && !open && <StaleNote stale={chat.session.stale} className="ask-bar__stale" />}
       {last && !open && (
@@ -390,7 +389,7 @@ export function AskBar() {
 function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (t: string) => void }) {
   const { agent, dossier } = useData();
   const { health: h } = useDerived();
-  const { EmptyState, ChatMessage } = useSkins();
+  const { ChatMessage } = useSkins();
   const words = useWords();
   const plain = usePlain();
   const placeholder = useAskPlaceholder(dossier.name);
@@ -399,10 +398,10 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
   const end = useRef<HTMLDivElement>(null);
   const { entries, turns, busy } = chat;
   const last = turns[turns.length - 1];
-  const starters = agent.starters(dossier.name);
 
   useEffect(() => {
-    end.current?.scrollIntoView?.({ block: 'nearest' });
+    // Not before the first question: the guided start is read from its top, with its heading.
+    if (entries.length) end.current?.scrollIntoView?.({ block: 'nearest' });
   }, [entries]);
   // The elapsed seconds tick only while something runs.
   useEffect(() => {
@@ -426,6 +425,8 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
   const answering = current ? optionLabel(current) : (agent.label ?? 'the agent chosen in Settings');
   const usages = turns.flatMap((t) => (t.done && (t.answer?.usage ?? t.usage) ? [(t.answer?.usage ?? t.usage)!] : []));
   const status = last ? statusLine(last, words, now) : null;
+  /** A guided question asked as typing it would be, except the briefing, which is Analyze. */
+  const pick = (q: GuidedQuestion, text: string) => void (q.id === 'briefing' ? chat.ask(ANALYZE, text) : chat.ask(text));
   const labelOf = (a: Answer) => {
     const o = options.find((x) => x.name === a.adapter);
     if (a.by === 'scripted') return 'a scripted preview, not a model';
@@ -466,7 +467,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
       </div>
 
       <div className="ask-scroll" data-scroller="" tabIndex={0} role="region" aria-label="The conversation">
-        <p className="note">{words('ask.note')}</p>
+        {entries.length > 0 && <p className="note">{words('ask.note')}</p>}
         {chat.session?.stale && <StaleNote stale={chat.session.stale} />}
         {chat.session?.stale?.restart && <p className="note any-break">{chat.session.stale.restart}</p>}
         {chat.session?.stale && busy && <p className="note">Renew waits for this answer: it never interrupts one.</p>}
@@ -476,14 +477,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
           </p>
         )}
         <div className="log" role="log" aria-live="polite" aria-busy={busy} aria-label="Conversation">
-          {entries.length === 0 &&
-            (agent.notice ? (
-              <p className="note agent-notice">{agent.notice}</p>
-            ) : (
-              <EmptyState message={words('ask.welcome', { name: dossier.name })}>
-                <LearnButton />
-              </EmptyState>
-            ))}
+          {entries.length === 0 && <GuidedStart answering={answering} noAgent={Boolean(agent.notice) && !current} {...(agent.notice ? { notice: agent.notice } : {})} {...(agent.noticeDetails ? { details: agent.noticeDetails } : {})} busy={busy} onPick={pick} />}
           {entries.map((e) =>
             e.kind === 'renew' ? (
               <p key={`r${e.id}`} className="ask-switch note">
@@ -531,9 +525,10 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
                             </p>
                           ))
                         )}
+                        {e.done && !e.stopped && <AnswerChecks answer={e.answer} prompt={e.prompt} {...(e.analyze ? { analyze: true } : {})} />}
                         {e.done && (
                           <p className="by">
-                            {e.stopped ? 'Stopped before the end. ' : `Cites ${e.answer.citations.length} ${e.answer.citations.length === 1 ? 'item' : 'items'}.${e.answer.unverified && e.answer.unverified.length > 0 ? ` Names ${e.answer.unverified.length} its tools never returned.` : ''} `}
+                            {e.stopped ? 'Stopped before the end. ' : e.answer.unverified && e.answer.unverified.length > 0 ? `Names ${e.answer.unverified.length} its tools never returned. ` : ''}
                             Answered by: {labelOf(e.answer)}
                             {e.ms !== undefined ? `, in ${seconds(e.ms)} s` : ''}.{e.answer.carried ? ` It was given a summary of the ${e.answer.carried} earlier ${e.answer.carried === 1 ? 'turn' : 'turns'}.` : ''}
                             {e.answer.analysis && (
@@ -588,31 +583,22 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
           </div>
         )}
         <ChatUsage usages={usages} />
-        {starters.length > 0 &&
-          (turns.length === 0 ? (
-            <div className="starters" role="group" aria-label="Starter questions">
-              {starters.map((s) => (
-                <Button key={s.id} className="starter" onPress={() => void chat.ask(s.id, s.label)} isDisabled={busy}>
-                  {s.label}
-                </Button>
-              ))}
-            </div>
-          ) : (
-            <MenuTrigger>
-              <Button className="btn btn--small ask-suggest" isDisabled={busy} data-ask-suggestions="">
-                Suggestions
-              </Button>
-              <Popover className="popover menu-popover" placement="top start" offset={6}>
-                <Menu className="menu" aria-label="Suggested questions" onAction={(key) => void chat.ask(String(key), starters.find((s) => s.id === key)?.label ?? String(key))}>
-                  {starters.map((s) => (
-                    <MenuItem key={s.id} id={s.id} className="menu-item">
-                      {s.label}
-                    </MenuItem>
-                  ))}
-                </Menu>
-              </Popover>
-            </MenuTrigger>
-          ))}
+        {turns.length > 0 && (
+          <MenuTrigger>
+            <Button className="btn btn--small ask-suggest" isDisabled={busy} data-ask-suggestions="">
+              Suggestions
+            </Button>
+            <Popover className="popover menu-popover" placement="top start" offset={6}>
+              <Menu className="menu" aria-label="Suggested questions" onAction={(key) => pick(QUESTIONS[key as GuidedQuestion['id']], plain.text(QUESTIONS[key as GuidedQuestion['id']].text))}>
+                {GROUPS.flatMap((g) => g.questions).map((id) => (
+                  <MenuItem key={id} id={id} className="menu-item">
+                    {plain.text(QUESTIONS[id].text)}
+                  </MenuItem>
+                ))}
+              </Menu>
+            </Popover>
+          </MenuTrigger>
+        )}
         <form className="ask-form" onSubmit={submit}>
           <TextField className="field-text" value={text} onChange={setText} isDisabled={busy} autoFocus>
             <Label>Your question</Label>
@@ -621,11 +607,6 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
           <Button type="submit" className="btn btn--accent" isDisabled={busy || !text.trim()}>
             Ask
           </Button>
-          <Hint precise="Analyze">
-            <Button className="btn" onPress={() => void chat.ask(ANALYZE, plain.pw('Analyze', 'Get a briefing'))} isDisabled={busy}>
-              {plain.pw('Analyze', 'Get a briefing')}
-            </Button>
-          </Hint>
         </form>
       </div>
     </Dialog>
