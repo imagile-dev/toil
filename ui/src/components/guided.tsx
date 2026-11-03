@@ -21,7 +21,6 @@ import type { Panel } from '../load.ts';
 import type { Answer } from '../agent.ts';
 import { ageHoursOf, howSure, type Level } from '../model/confidence.ts';
 import { usePlain } from '../plain-words.ts';
-import { LearnButton } from './help.tsx';
 import { TicketChip } from './items.tsx';
 import { useMediaQuery } from './layout.tsx';
 import './guided.css';
@@ -137,7 +136,6 @@ export function GuidedStart({ answering, noAgent, notice, details, busy, onPick 
           </div>
         )}
         <p className="note">Pick a question, or type your own below. The answer says what it looked at.</p>
-        <LearnButton />
         <div className="guided__groups" role="group" aria-label="Starter questions">
           {GROUPS.map((g) => (
             <section key={g.id} aria-labelledby={`guided-g-${g.id}`}>

@@ -47,7 +47,7 @@ import { AnalysisBody } from './analysis.tsx';
 import { Loader } from '../moments/Moments.tsx';
 import { useUiCommand } from '../commands.ts';
 import { usePlain } from '../plain-words.ts';
-import { AnswerChecks, GuidedStart } from './guided.tsx';
+import { AnswerChecks, GuidedStart, PHONE } from './guided.tsx';
 import { GROUPS, QUESTIONS, type GuidedQuestion } from '../guided-questions.ts';
 
 /** A new chat's id: one per dossier's conversation, so the server can add up and cap the chat (#295). */
@@ -392,6 +392,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
   const { ChatMessage } = useSkins();
   const words = useWords();
   const plain = usePlain();
+  const phone = useMediaQuery(PHONE);
   const placeholder = useAskPlaceholder(dossier.name);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
@@ -441,15 +442,30 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
             Ask about {dossier.name}
           </Heading>
           <p className="ask-strip__context note">
-            <span>Dossier {dossier.name}</span>
-            <span>{h ? `${h.sprint.name}, day ${h.days.gone} of ${h.days.total}` : 'No sprint running'}</span>
+            {/* On a phone the dossier is in the heading and the sprint is on the page behind: one line is left, the agent and the way to change it (#552). */}
+            {!phone && <span>{plain.pw('Dossier', 'Toil project')} {dossier.name}</span>}
+            {!phone && <span>{h ? `${h.sprint.name}, day ${h.days.gone} of ${h.days.total}` : 'No sprint running'}</span>}
             <span>
               Answered by{' '}
-              {agent.adapters ? <AgentSwitch label={answering} list={chat.adapters} current={chat.adapter ?? from?.name ?? null} onPick={chat.switchTo} /> : <strong>{answering}</strong>}
-              {agent.adapters && hint && (
+              {phone ? (
+                <>
+                  <strong>{plain.text(answering)}</strong>
+                  {agent.adapters && (
+                    <>
+                      {' · '}
+                      <AgentSwitch label={answering} list={chat.adapters} current={chat.adapter ?? from?.name ?? null} onPick={chat.switchTo} compact />
+                    </>
+                  )}
+                </>
+              ) : agent.adapters ? (
+                <AgentSwitch label={answering} list={chat.adapters} current={chat.adapter ?? from?.name ?? null} onPick={chat.switchTo} />
+              ) : (
+                <strong>{plain.text(answering)}</strong>
+              )}
+              {!phone && agent.adapters && hint && (
                 <span className="note agent-source" data-agent-source="">
                   {' '}
-                  ({hint})
+                  ({plain.text(hint)})
                 </span>
               )}
             </span>
@@ -619,20 +635,21 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
  * pointing at Settings, Agent; it is never left out. A choice here holds for
  * this chat only, from its next question; the default stays in Settings.
  */
-function AgentSwitch({ label, list, current, onPick }: { label: string; list: AdapterList | null; current: string | null; onPick: (name: string | null, label: string) => void }) {
+function AgentSwitch({ label, list, current, onPick, compact = false }: { label: string; list: AdapterList | null; current: string | null; onPick: (name: string | null, label: string) => void; compact?: boolean }) {
+  const plain = usePlain();
   return (
     <DialogTrigger>
       <Button className="btn btn--small agent-switch" data-agent-switch="">
-        {label}
+        {compact ? 'Change' : plain.text(label)}
         <span aria-hidden="true"> ▾</span>
-        <span className="sr-only">, change the agent for this chat</span>
+        <span className="sr-only">{plain.text(', change the agent for this chat')}</span>
       </Button>
       <Popover className="popover agent-switch__popover" placement="bottom start" offset={6}>
         <Dialog className="agent-switch__dialog" aria-labelledby="agent-switch-title">
           {({ close }) => (
             <>
               <Heading slot="title" id="agent-switch-title" className="ask-info__title">
-                Agent for this chat
+                {plain.text('Agent for this chat')}
               </Heading>
               {!list ? (
                 <p className="note">Reading the agents…</p>
@@ -677,7 +694,7 @@ function AgentSwitch({ label, list, current, onPick }: { label: string; list: Ad
                   })}
                 </ul>
               )}
-              <p className="note">Switching holds for this chat, from its next question. The chat starts on the agent last used for this dossier, else your default under Settings, Agent, else the first agent that's ready.</p>
+              <p className="note">{plain.text("Switching holds for this chat, from its next question. The chat starts on the agent last used for this dossier, else your default under Settings, Agent, else the first agent that's ready.")}</p>
             </>
           )}
         </Dialog>
@@ -693,6 +710,7 @@ function AgentSwitch({ label, list, current, onPick }: { label: string; list: Ad
  * it's open, and Escape or a click outside closes it.
  */
 export function AskInfo({ agentLabel }: { agentLabel: string | undefined }) {
+  const plain = usePlain();
   const theme = useTheme();
   const choice = useThemeChoiceContext();
   const voiced = voiceOn(theme, choice);
@@ -715,8 +733,8 @@ export function AskInfo({ agentLabel }: { agentLabel: string | undefined }) {
             About these answers
           </Heading>
           <p>{voice}</p>
-          <p>Answered by {agentLabel ?? 'the agent chosen in Settings'}. The chat starts on the agent last used for this dossier, else your default under Settings, Agent, else the first agent that's ready.</p>
-          <p>The agent only reads: its tools can't change a ticket, and anything it suggests comes back as a proposal for you to apply.</p>
+          <p>{plain.text(`Answered by ${agentLabel ?? 'the agent chosen in Settings'}. The chat starts on the agent last used for this dossier, else your default under Settings, Agent, else the first agent that's ready.`)}</p>
+          <p>{plain.text("The agent only reads: its tools can't change a ticket, and anything it suggests comes back as a proposal for you to apply.")}</p>
           <p>
             Change the voice under <a href="#/settings/toil">Settings, General</a>, and add your own instructions or voice under <a href="#/settings/agent">Settings, Agent</a>.
           </p>

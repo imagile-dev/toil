@@ -5,7 +5,6 @@
 .guided__main { display: grid; gap: 0.75rem; min-width: 0; align-content: start; }
 .guided__title { margin: 0; font-size: 1.375rem; line-height: 1.25; overflow-wrap: anywhere; }
 .guided__main > p { margin: 0; }
-.guided__main > .learn-button { justify-self: start; }
 .guided__notice { display: grid; gap: 0.4rem; padding: 0.6rem 0.75rem; border: 1px solid var(--warn); border-left-width: 4px; border-radius: var(--radius); background: var(--bg); }
 .guided__notice p { margin: 0; }
 .guided__notice summary { cursor: pointer; padding: 0.6rem 0; }

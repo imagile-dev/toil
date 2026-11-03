@@ -227,3 +227,44 @@ describe('with no agent set up', () => {
     expect(within(chat).getByRole('complementary', { name: 'Before you ask' }).textContent).toContain('Nobody yet: no AI helper is set up.');
   });
 });
+
+describe('the chat header and usage line (#552)', () => {
+  it('names the Toil project in plain words, and in toil\'s own with them off', async () => {
+    let chat = await openChat(scriptedAgent());
+    expect(chat.querySelector('.ask-strip__context')!.textContent).toContain('Toil project card-payments');
+    cleanup();
+    setPlain(false);
+    chat = await openChat(scriptedAgent());
+    expect(chat.querySelector('.ask-strip__context')!.textContent).toContain('Dossier card-payments');
+  });
+
+  it('folds to one line under 700px, "Answered by ... · Change", which opens the picker, with the (i) and Close kept', async () => {
+    screenWidth(true);
+    const chat = await openChat(scriptedAgent());
+    const line = chat.querySelector('.ask-strip__context')!;
+    expect(line.textContent).toMatch(/^Answered by a scripted preview, not a model · Change/);
+    expect(line.textContent).not.toContain('Sprint 42');
+    expect(line.textContent).not.toContain('Toil project card-payments');
+    expect(within(chat).getByRole('button', { name: 'About these answers' })).toBeTruthy();
+    expect(within(chat).getByRole('button', { name: 'Close' })).toBeTruthy();
+    await userEvent.click(within(line as HTMLElement).getByRole('button', { name: /^Change/ }));
+    expect(await screen.findByRole('heading', { name: 'AI helper for this chat' })).toBeTruthy();
+  });
+
+  it('reads one line of usage, with the breakdown behind a fold, keeping a sample label and any cap notice in the open', async () => {
+    const chat = await openChat(scriptedAgent());
+    await userEvent.click(within(chat).getByRole('button', { name: /^Are we going to finish the sprint\?/ }));
+    const footer = await waitFor(() => {
+      const f = chat.querySelector('[data-usage-footer]');
+      if (!f) throw new Error('not yet');
+      return f as HTMLElement;
+    });
+    const summary = footer.querySelector('summary')!;
+    expect(summary.textContent).toMatch(/^Sample figures, not from a model\. about \$0\.\d\d of usage$/);
+    const fold = footer.querySelector('details')!;
+    expect(fold.open).toBe(false);
+    expect(fold.textContent).toContain('claude-sonnet-4-6');
+    expect(chat.querySelector('[data-chat-usage] summary')!.textContent).toMatch(/^Sample figures\. This chat: about \$/);
+    expect(chat.querySelector('[data-chat-usage] details, details[data-chat-usage]')!.textContent).toContain('Context of the last answer');
+  });
+});
