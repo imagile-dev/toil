@@ -117,8 +117,11 @@ node ui/scripts/dev-mine.mjs
   the agent you choose, start fresh there.
 - **The CLI from the same build** is `node .scratch/toil/toil.js`, with the same
   arguments as `toil`. It is the full CLI on your real config, the same as `toil`.
-  When a command changes your config, it also rewrites an installed copy of this
-  skill with the unreleased version.
+- **This build can replace your installed copy of this skill** with the unreleased
+  version. It does that when it changes your config (from the CLI, or from Toil UI's
+  Settings), and when it runs any command that loads config while your copy came
+  from another toil version. To go back, run `toil skill install --allow-write` again
+  from the released toil, with the same agent flags you installed it with.
 - **Options:** `--no-build` starts the last build, and `--port <n>` fixes the port.
   `git pull` and run it again to get newer changes.
 - **Unreleased means unfinished.** Anything on `main` may change before it's released.
