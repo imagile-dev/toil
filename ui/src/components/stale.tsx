@@ -8,17 +8,25 @@
 
 import { useEffect, useState } from 'react';
 import type { ServerStatus, Staleness } from '../fingerprint.ts';
+import { usePlain } from '../plain-words.ts';
 
 /** The word on the badge. */
 export function StaleChip() {
-  return <span className="stale-chip">Stale</span>;
+  const plain = usePlain();
+  return (
+    <span className="stale-chip" title={plain.on ? 'Started before an update. In toil: stale' : undefined}>
+      {plain.pw('Stale', 'Out of date')}
+    </span>
+  );
 }
 
 /** The badge and why, on one line: "Stale started on toil 0.1.0-alpha.3 · now alpha.4 · dossier changed". */
 export function StaleNote({ stale, className = '' }: { stale: Staleness; className?: string }) {
+  const plain = usePlain();
+  // Plain words say it in one line and keep the exact reason one hover away; the reason is a fact, so standard keeps it on the line.
   return (
     <p className={`stale-note ${className}`.trim()} data-stale="">
-      <StaleChip /> <span>{stale.text}.</span>
+      <StaleChip /> {plain.on ? <span title={`${stale.text}.`}>Started before an update.</span> : <span>{stale.text}.</span>}
     </p>
   );
 }

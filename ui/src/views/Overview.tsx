@@ -26,6 +26,7 @@ import { aging, cycleTimes, throughput } from '../model/flow.ts';
 import { WAITING_LABEL, daysText, openQueue } from '../model/prs.ts';
 import type { BriefingReason } from '../model/briefing.ts';
 import { useSkins, useWords } from '../skins.tsx';
+import { usePlain } from '../plain-words.ts';
 import { Aging, CycleTime, SprintDetail, Throughput } from './Flow.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
@@ -35,6 +36,7 @@ export function Overview() {
   const { health: h } = useDerived();
   const view = useBriefing();
   const prefs = useBriefingPrefs();
+  const plain = usePlain();
   // A red reason (failing checks, blocked) can be folded but never hidden: principle 4 outranks a layout preference.
   const shown = view.reasons.filter((r) => r.severity === 'danger' || !prefs.hidden.includes(r.lens));
   const hidden = view.reasons.length - shown.length;
@@ -50,13 +52,13 @@ export function Overview() {
           </span>
         )}
         <span className="briefing__by source" data-briefing-by={view.by}>
-          {briefingSource(view)}
+          {briefingSource(view, plain.on)}
           {view.stale && `. ${view.stale}`}
           {view.analysis && (
             <>
               {' · '}
-              <a href={analysisHref(dossier.name, view.analysis.id)} data-rec-analysis="">
-                Open the analysis
+              <a href={analysisHref(dossier.name, view.analysis.id)} data-rec-analysis="" title={plain.title('Open the analysis')}>
+                {plain.pw('Open the analysis', 'Open that briefing')}
               </a>
             </>
           )}
@@ -64,7 +66,7 @@ export function Overview() {
         <Customize lenses={view.reasons.filter((r) => r.severity !== 'danger').map((r) => ({ lens: r.lens, label: r.label }))} />
         {tuned && (
           <span className="source" data-focus-from="">
-            Analyze settings from {tuned.file}, {tuned.adopted ? 'your own dossier' : "a dossier you haven't adopted"}
+            {plain.pw('Analyze settings', 'Briefing settings')} from {tuned.file}, {tuned.adopted ? plain.pw('your own dossier', 'your own team') : plain.pw("a dossier you haven't adopted", "a team you haven't adopted")}
           </span>
         )}
       </p>
@@ -78,7 +80,7 @@ export function Overview() {
         ))}
         {view.unknown.length > 0 && (
           <p className="briefing__warning" role="note">
-            Analyze named {view.unknown.length === 1 ? 'an item' : `${view.unknown.length} items`} that {view.unknown.length === 1 ? "isn't" : "aren't"} this dossier's: <code>{view.unknown.join(', ')}</code>. Treat {view.unknown.length === 1 ? 'it' : 'them'} as unverified.
+            {plain.pw('Analyze', 'The briefing')} named {view.unknown.length === 1 ? 'an item' : `${view.unknown.length} items`} that {view.unknown.length === 1 ? "isn't" : "aren't"} {plain.pw("this dossier's", "this team's")}: <code>{view.unknown.join(', ')}</code>. Treat {view.unknown.length === 1 ? 'it' : 'them'} as unverified.
           </p>
         )}
         <section aria-labelledby="why-title">
@@ -93,7 +95,7 @@ export function Overview() {
               <p className="reason__line">
                 <span className="reason__dot reason__dot--ok" aria-hidden="true" />
                 <span className="reason__title">
-                  <b>On track.</b> <span>{view.onTrack}</span>
+                  <b>On track.</b> <span>{plain.text(view.onTrack)}</span>
                   {hidden > 0 && <span> {hidden === 1 ? 'One reason is' : `${hidden} reasons are`} hidden under Customize.</span>}
                 </span>
               </p>
@@ -120,7 +122,7 @@ export function Overview() {
                 <summary>
                   <span className="reason__dot" aria-hidden="true" />
                   <span className="reason__title">
-                    <b>Left out by the dossier's focus.</b> <span>Analyze set these aside because of "leave out".</span>
+                    <b>{plain.pw("Left out by the dossier's focus.", "Left out by the team's focus.")}</b> <span>{plain.pw('Analyze set these aside because of "leave out".', 'The briefing set these aside because of "leave out".')}</span>
                   </span>
                   <span className="reason__count">{view.leftOut.length}</span>
                 </summary>
@@ -132,7 +134,7 @@ export function Overview() {
                 <summary>
                   <span className="reason__dot reason__dot--warn" aria-hidden="true" />
                   <span className="reason__title">
-                    <b>Flagged by code, not in the briefing.</b> <span>Analyze didn't mention these.</span>
+                    <b>{plain.pw('Flagged by code, not in the briefing.', "Flagged by the app's rules, not in the briefing.")}</b> <span>{plain.pw("Analyze didn't mention these.", "The briefing didn't mention these.")}</span>
                   </span>
                   <span className="reason__count">{view.notMentioned.length}</span>
                 </summary>
@@ -163,11 +165,11 @@ export function Overview() {
       <nav className="briefing__links" aria-label={`More on ${dossier.name}`}>
         <span className="briefing__label">Go to</span>
         <a href={boardHref(dossier.name)}>Board</a>
-        <a href={dependenciesHref(dossier.name)}>Dependencies</a>
-        <a href={prsHref(dossier.name)}>Pull requests</a>
+        <a href={dependenciesHref(dossier.name)} title={plain.title('Dependencies')}>{plain.pw('Dependencies', 'What blocks what')}</a>
+        <a href={prsHref(dossier.name)} title={plain.title('Pull requests')}>{plain.pw('Pull requests', 'Code reviews')}</a>
         <a href={peopleHref(dossier.name)}>People</a>
-        <a href={worklogHref(dossier.name)}>Worklog</a>
-        <a href={analysesHref(dossier.name)}>Analyses</a>
+        <a href={worklogHref(dossier.name)} title={plain.title('Worklog')}>{plain.pw('Worklog', 'What happened')}</a>
+        <a href={analysesHref(dossier.name)} title={plain.title('Analyses')}>{plain.pw('Analyses', 'Past briefings')}</a>
       </nav>
     </section>
   );
@@ -180,12 +182,13 @@ function Links({ page, children }: { page: boolean; children: ReactNode }) {
 
 /** One reason: a line, folded; open, its items as rows that open the drawer, or its text. */
 function Reason({ reason: r, open, here }: { reason: BriefingReason; open: boolean; here: string }) {
+  const plain = usePlain();
   return (
     <details className="reason" open={open} data-reason={r.lens}>
       <summary>
         <span className={`reason__dot reason__dot--${r.severity}`} aria-hidden="true" />
         <span className="reason__title">
-          <b>{r.label}.</b> <span>{r.line}</span>
+          <b>{r.label}.</b> <span>{plain.text(r.line)}</span>
         </span>
         {r.items.length > 0 && <span className="reason__count">{r.items.length}</span>}
       </summary>
@@ -266,6 +269,7 @@ function MetricStrip() {
   const { dossier, now, byId, sync } = useData();
   const { health: h, insights: p } = useDerived();
   const words = useWords();
+  const { pw } = usePlain();
   // A theme's sprint dressing (Harvest's calendar) hangs on the sprint wherever it shows.
   const { Panel: PanelSkin } = useSkins();
   // Worked out once per dossier and clock: the chat above re-renders the page as each answer streams in.
@@ -292,7 +296,7 @@ function MetricStrip() {
       <ul className="metric-strip">
         <Metric
           id="burnup"
-          label="Burn-up"
+          label={pw('Burn-up', 'Points done')}
           value={last ? `${last.done} of ${last.scope}` : 'No sprint'}
           unit={last ? 'points' : ''}
           spark={<Sparkline values={b?.days.map((d) => d.done) ?? []} against={b?.days.map((d) => d.scope) ?? []} />}
@@ -308,24 +312,24 @@ function MetricStrip() {
             <Empty message={words('empty.sprint')} action={<TrackerAction dossier={dossier.name} sync={sync} />} />
           )}
         </Metric>
-        <Metric id="throughput" label="Throughput" value={String(round1(mean))} unit="a week" spark={<Sparkline kind="bars" values={t.weeks.map((w) => w.items.length)} />} title="Throughput">
+        <Metric id="throughput" label={pw('Throughput', 'Finished')} value={String(round1(mean))} unit="a week" spark={<Sparkline kind="bars" values={t.weeks.map((w) => w.items.length)} />} title={pw('Throughput', 'Finished a week')}>
           <Throughput />
         </Metric>
         <Metric
           id="cycle"
-          label="Cycle time"
+          label={pw('Cycle time', 'Time to finish')}
           value={p.p85 ? `${round1(p.p85.days)}` : String(cycles.length)}
           unit={p.p85 ? 'days, 85% within' : cycles.length === 1 ? 'item timed' : 'items timed'}
           spark={<Sparkline values={cycles.map((c) => c.days)} mark={p.p85?.days ?? null} />}
-          title="Cycle time"
+          title={pw('Cycle time', 'Time to finish')}
         >
           <CycleTime />
         </Metric>
-        <Metric id="aging" label="Aging WIP" value={String(ages.length)} unit={ages.length ? `in progress, oldest ${round1(ages[0]!.days)} d` : 'in progress'} spark={<Sparkline kind="bars" values={ages.map((a) => a.days)} mark={p.p85?.days ?? null} />} title="Aging work in progress">
+        <Metric id="aging" label={pw('Aging WIP', 'Work getting old')} value={String(ages.length)} unit={ages.length ? `in progress, oldest ${round1(ages[0]!.days)} d` : 'in progress'} spark={<Sparkline kind="bars" values={ages.map((a) => a.days)} mark={p.p85?.days ?? null} />} title={pw('Aging work in progress', 'Work getting old')}>
           <p className="note">{words('aging.note')}</p>
           <Aging />
         </Metric>
-        <Metric id="pr-wait" label="PR wait" value={queue.length ? String(round1(longest)) : '0'} unit={queue.length ? `working days, ${queue.length} open` : 'open'} spark={<Sparkline kind="bars" values={waits} />} title="Pull requests waiting">
+        <Metric id="pr-wait" label={pw('PR wait', 'Review wait')} value={queue.length ? String(round1(longest)) : '0'} unit={queue.length ? `working days, ${queue.length} open` : 'open'} spark={<Sparkline kind="bars" values={waits} />} title={pw('Pull requests waiting', 'Code reviews waiting')}>
           {queue.length ? (
             <ul className="rows">
               {queue.map((r) => (
@@ -342,7 +346,7 @@ function MetricStrip() {
             <p>No pull request is open, apart from drafts.</p>
           )}
           <p>
-            <a href={prsHref(dossier.name)}>The Pull requests tab</a> has the whole queue, its flags and its flow.
+            <a href={prsHref(dossier.name)}>{pw('The Pull requests tab', 'The Code reviews tab')}</a> has the whole queue, its flags and its flow.
           </p>
         </Metric>
       </ul>

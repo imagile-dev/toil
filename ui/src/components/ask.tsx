@@ -44,6 +44,8 @@ import type { AnalysisSummary } from '../model/analysis.ts';
 import { AnalysisBody } from './analysis.tsx';
 import { Loader } from '../moments/Moments.tsx';
 import { useUiCommand } from '../commands.ts';
+import { usePlain } from '../plain-words.ts';
+import { Hint } from './term.tsx';
 
 /** A new chat's id: one per dossier's conversation, so the server can add up and cap the chat (#295). */
 const newChatId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `chat-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`);
@@ -337,9 +339,11 @@ export function AskBar() {
     setText('');
     void chat.ask(prompt);
   };
+  const plain = usePlain();
+  const analyzeName = plain.pw('Analyze', 'Get a briefing');
   const analyze = () => {
     openView();
-    void chat.ask(ANALYZE, 'Analyze');
+    void chat.ask(ANALYZE, analyzeName);
   };
   // The command palette's Ask, Analyze and choice of agent (#416), on this dossier's chat.
   const input = useRef<HTMLInputElement>(null);
@@ -358,9 +362,11 @@ export function AskBar() {
         <Button type="submit" className="btn btn--accent">
           Ask
         </Button>
-        <Button className="btn" onPress={analyze} isDisabled={chat.busy} data-analyze="">
-          Analyze
-        </Button>
+        <Hint precise="Analyze">
+          <Button className="btn" onPress={analyze} isDisabled={chat.busy} data-analyze="">
+            {analyzeName}
+          </Button>
+        </Hint>
       </form>
       {chat.session?.stale && !open && <StaleNote stale={chat.session.stale} className="ask-bar__stale" />}
       {last && !open && (
@@ -386,6 +392,7 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
   const { health: h } = useDerived();
   const { EmptyState, ChatMessage } = useSkins();
   const words = useWords();
+  const plain = usePlain();
   const placeholder = useAskPlaceholder(dossier.name);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [now, setNow] = useState(() => Date.now());
@@ -614,9 +621,11 @@ function Focused({ chat, text, setText }: { chat: Chat; text: string; setText: (
           <Button type="submit" className="btn btn--accent" isDisabled={busy || !text.trim()}>
             Ask
           </Button>
-          <Button className="btn" onPress={() => void chat.ask(ANALYZE, 'Analyze')} isDisabled={busy}>
-            Analyze
-          </Button>
+          <Hint precise="Analyze">
+            <Button className="btn" onPress={() => void chat.ask(ANALYZE, plain.pw('Analyze', 'Get a briefing'))} isDisabled={busy}>
+              {plain.pw('Analyze', 'Get a briefing')}
+            </Button>
+          </Hint>
         </form>
       </div>
     </Dialog>

@@ -30,20 +30,21 @@ import { useData, useDerived } from '../data.ts';
 import { analysesHref, boardHref, commandCenterHref, dependenciesHref, dossierHref, peopleHref, prsHref, worklogHref } from '../format.ts';
 import { needingAttention } from '../model/insights.ts';
 import { useTerm, useTheme } from '../skins.tsx';
+import { usePlain } from '../plain-words.ts';
 import { momentsOf, useEnter } from '../moments/Moments.tsx';
 import './dossier-shell.css';
 
 export type DossierTab = 'overview' | 'board' | 'dependencies' | 'prs' | 'people' | 'worklog' | 'analyses';
 
 /** A dossier's tabs, in order: the command palette (#416) jumps to each of them in every dossier. */
-export const DOSSIER_TABS: ReadonlyArray<{ id: DossierTab; label: string; href: (dossier: string) => string }> = [
-  { id: 'overview', label: 'Overview', href: dossierHref },
-  { id: 'board', label: 'Board', href: (d) => boardHref(d) },
-  { id: 'dependencies', label: 'Dependencies', href: dependenciesHref },
-  { id: 'prs', label: 'Pull requests', href: prsHref },
-  { id: 'people', label: 'People', href: peopleHref },
-  { id: 'worklog', label: 'Worklog', href: (d) => worklogHref(d) },
-  { id: 'analyses', label: 'Analyses', href: analysesHref },
+export const DOSSIER_TABS: ReadonlyArray<{ id: DossierTab; label: string; plain: string; href: (dossier: string) => string }> = [
+  { id: 'overview', label: 'Overview', plain: 'Summary', href: dossierHref },
+  { id: 'board', label: 'Board', plain: 'Board', href: (d) => boardHref(d) },
+  { id: 'dependencies', label: 'Dependencies', plain: 'What blocks what', href: dependenciesHref },
+  { id: 'prs', label: 'Pull requests', plain: 'Code reviews', href: prsHref },
+  { id: 'people', label: 'People', plain: 'People', href: peopleHref },
+  { id: 'worklog', label: 'Worklog', plain: 'What happened', href: (d) => worklogHref(d) },
+  { id: 'analyses', label: 'Analyses', plain: 'Past briefings', href: analysesHref },
 ];
 
 /** Below this width the Agents sidebar is a drawer behind a button; at 1200px and wider it sits beside the view. */
@@ -71,10 +72,13 @@ export function DossierShell({ tab, heading, dossiers, boardView, peek = null, c
       {dossier.name}
     </Editable>
   );
-  const tabs: Array<{ id: DossierTab; href: string; label: string; count?: { n: number; label: string } }> = DOSSIER_TABS.map((t) => ({
+  const plain = usePlain();
+  const { pw } = plain;
+  const tabs: Array<{ id: DossierTab; href: string; label: string; title?: string; count?: { n: number; label: string } }> = DOSSIER_TABS.map((t) => ({
     id: t.id,
     href: t.href(dossier.name),
-    label: t.label,
+    label: pw(t.label, t.plain),
+    ...(plain.on && t.plain !== t.label ? { title: plain.title(t.label)! } : {}),
     ...(t.id === 'board' ? { count: { n: attention, label: attention === 1 ? 'item needs attention' : 'items need attention' } } : {}),
   }));
   return (
@@ -113,12 +117,12 @@ export function DossierShell({ tab, heading, dossiers, boardView, peek = null, c
         </div>
       </div>
       <div className="dossier-tabs-row" data-tabs-row="">
-        <Scroller label="Dossier views" className="dossier-tabs">
+        <Scroller label={pw('Dossier views', 'Toil project views')} className="dossier-tabs">
           <nav aria-label={`${dossier.name} views`}>
             <ul>
               {tabs.map((t) => (
                 <li key={t.id}>
-                  <a href={t.href} aria-current={t.id === tab ? 'page' : undefined} data-tab={t.id}>
+                  <a href={t.href} aria-current={t.id === tab ? 'page' : undefined} data-tab={t.id} title={t.title}>
                     {t.label}
                     {t.count && t.count.n > 0 && (
                       <span className="tab-count">
@@ -140,8 +144,8 @@ export function DossierShell({ tab, heading, dossiers, boardView, peek = null, c
           <a href={boardHref(dossier.name)} aria-current={boardView === 'board' ? 'page' : undefined}>
             Board
           </a>
-          <a href={commandCenterHref(dossier.name)} aria-current={boardView === 'readiness' ? 'page' : undefined}>
-            Readiness (Command Center)
+          <a href={commandCenterHref(dossier.name)} aria-current={boardView === 'readiness' ? 'page' : undefined} title={plain.title('Readiness (Command Center)')}>
+            {pw('Readiness (Command Center)', 'Ready to start?')}
           </a>
         </nav>
       )}
@@ -178,16 +182,17 @@ function PaletteAssign() {
 
 /** The dossier switcher: every dossier this browser has read, and the Dossiers overview, whose cards say most about each. */
 function Switcher({ current, dossiers }: { current: string; dossiers: string[] | null }) {
+  const { pw } = usePlain();
   const others = (dossiers ?? []).filter((d) => d !== current);
   return (
     <MenuTrigger>
-      <Button className="btn btn--small dossier-switch" aria-label={`Switch dossier, on ${current}`} data-dossier-switch="">
+      <Button className="btn btn--small dossier-switch" aria-label={`${pw('Switch dossier', 'Switch team')}, on ${current}`} data-dossier-switch="">
         Switch <span aria-hidden="true">▾</span>
       </Button>
       <Popover className="popover" placement="bottom start">
-        <Menu className="menu" aria-label="Dossiers">
+        <Menu className="menu" aria-label={pw('Dossiers', 'Teams')}>
           <MenuItem id="#/" href="#/" className="menu-item">
-            All dossiers
+            {pw('All dossiers', 'All teams')}
           </MenuItem>
           {others.map((d) => (
             <MenuItem key={d} id={d} href={dossierHref(d)} className="menu-item">
@@ -204,10 +209,11 @@ function Switcher({ current, dossiers }: { current: string; dossiers: string[] |
 function AgentsDrawer() {
   const [open, setOpen] = useState(false);
   const summary = useAgentsSummary();
+  const plain = usePlain();
   return (
     <>
       <Button className="btn agents-open" onPress={() => setOpen(true)} data-agents-open="">
-        Agents
+        {plain.pw('Agents', 'AI helpers')}
         {summary.needsYou > 0 && (
           <span className="tab-count">
             <span aria-hidden="true">{summary.needsYou}</span>
