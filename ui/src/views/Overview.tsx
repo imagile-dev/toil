@@ -55,12 +55,8 @@ export function Overview() {
   return (
     <section className="briefing" aria-label="Briefing" data-rec-source={view.by === 'analyze' ? 'analysis' : 'code'}>
       <AnswerHero answer={answer} />
+      {/* The sprint and its day are on the header's chip; saying it twice is a second signature on the same form. */}
       <p className="briefing__meta">
-        {h && (
-          <span>
-            {h.sprint.name}, day {h.days.gone} of {h.days.total}
-          </span>
-        )}
         <span className="briefing__by source" data-briefing-by={view.by}>
           {briefingSource(view, plain.on)}
           {view.stale && `. ${view.stale}`}

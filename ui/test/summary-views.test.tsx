@@ -72,7 +72,7 @@ describe('the answer first', () => {
     // And what principle 4 keeps on screen is outside the fold.
     const meta = region.querySelector('.briefing__meta')!;
     expect(fold.contains(meta)).toBe(false);
-    expect(meta.textContent).toContain('Sprint 42, day 7 of 10');
+    expect(meta.textContent).not.toContain('day 7 of 10');
     expect(meta.textContent).toContain('Written by an AI helper');
     expect(fold.contains(region.querySelector('nav.briefing__links'))).toBe(false);
   });
