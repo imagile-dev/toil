@@ -161,8 +161,8 @@ A dossier opens on its **Overview**, the briefing, in a frame all of its pages s
   (`/worklog`) and **Analyses** (`/analyses`). The Command Center (`/command-center`)
   is the Board tab's **Readiness** view, the stand-up is the Worklog's, and an item's
   page sits under Board, so every address from before the tabs still opens. On a
-  narrow screen the tabs scroll sideways; below 1200px the Agents button sits on its own
-  line above them, so they get the whole row.
+  narrow screen the tabs scroll sideways; below 1200px the Agents button sits beside the
+  Ask bar (under it on a phone), so they get the whole row.
 - **The Agents sidebar**, beside every tab from 1200px wide, and a drawer behind the
   **Agents** button below that: the tracker's inbox, then the dossier's assignments
   in three groups (those that need you, those working, and those gone stale), with the
