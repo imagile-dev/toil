@@ -41,7 +41,7 @@ export const CREATE_DOSSIER_HREF = '#/settings/dossiers/+new';
 
 export const SETTINGS_PAGES: Array<{ page: SettingsPage; label: string; plain?: { label: string; about: string }; about: string; topic: HelpTopicId }> = [
   { page: 'connections', label: 'Connections', plain: { label: 'Connections', about: 'Your links to tools such as Jira and GitHub: add one, check that it works, choose the main one, allow or stop changes, update a login, or remove it.' }, about: 'The connections toil uses: add, test, set the default, turn writes on or off, replace a secret, remove.', topic: 'connections' },
-  { page: 'dossiers', label: 'Dossiers', plain: { label: 'Teams', about: 'Set up a team: the repositories it covers, its tools, its field names, its people and a limit on work in progress. Create teams here too.' }, about: 'Set up a repository that has a dossier, create dossiers, and give them repositories, areas, field names, people and a work-in-progress limit.', topic: 'dossier-setup' },
+  { page: 'dossiers', label: 'Dossiers', plain: { label: 'Toil projects', about: 'Set up a Toil project: the repositories it covers, its tools, its field names, its people and a limit on work in progress. Create Toil projects here too.' }, about: 'Set up a repository that has a dossier, create dossiers, and give them repositories, areas, field names, people and a work-in-progress limit.', topic: 'dossier-setup' },
   { page: 'toil', label: 'General', about: 'How Toil UI looks, talks, moves, notifies and links out in this browser, and the settings toil has no command for.', topic: 'bounds' },
   { page: 'usage', label: 'Usage', about: "How toil is used on this machine: calls per day, the commands used and failing most, and the ones never called, from toil's local audit log.", topic: 'audit' },
   { page: 'agent-usage', label: 'Agent usage', plain: { label: 'AI usage', about: 'What the AI helpers used in your chats, and optional limits that stop a runaway.' }, about: "What the agent's models used in your chats, and optional caps that stop a runaway.", topic: 'model-usage' },
@@ -59,11 +59,11 @@ export function Settings({ page, at = [], config, agent, modelUsage = null }: { 
       <div className="view-head">
         <p className="eyebrow">{words('settings.eyebrow')}</p>
         <h1 tabIndex={-1} title={plain.title("toil's configuration")}>
-          {plain.pw("toil's configuration", 'Connections and teams')}
+          {plain.pw("toil's configuration", 'Connections and Toil projects')}
         </h1>
         <p className="lede">
           {plain.on ? (
-            <>Your links to tools such as Jira and GitHub, and your teams. Every change goes through toil's own checks, the same as on the command line (<code>toil connections</code>, <code>toil dossiers</code>).</>
+            <>Your links to tools such as Jira and GitHub, and your Toil projects. Every change goes through toil's own checks, the same as on the command line (<code>toil connections</code>, <code>toil dossiers</code>).</>
           ) : (
             <>What <code>toil connections</code> and <code>toil dossiers</code> manage, through toil's own commands.</>
           )}{' '}

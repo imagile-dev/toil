@@ -66,8 +66,8 @@ Settings, General has the theme picker and, under it, these checkboxes:
 
 | Checkbox | Default | Off means |
 |---|---|---|
-| Themed wording | On | The standard text in every theme, and no renamed words |
-| Themed agent voice | On | The agent answers in plain wording, whatever the theme |
+| Themed wording | Off | The standard text in every theme, and no renamed words |
+| Themed agent voice | Off | The agent answers in plain wording, whatever the theme |
 | Particles and ambient effects | On | The theme's particles are gone: nothing is drawn and nothing runs behind the page |
 
 **Particles and ambient effects** shows only for a theme that has particles, and it's kept for each theme on its own, so particles can be off in Starship and on in Harvest. Under the theme's description, the picker says which particles the theme has and whether they're on.

@@ -24,11 +24,11 @@ export function commandsOf(calls: Call[]): Array<{ command: string; count: numbe
   return out;
 }
 
-/** The tools a list of commands read from, by name: `jira issue search` is Jira, `dossiers show` is the saved team settings. */
+/** The tools a list of commands read from, by name: `jira issue search` is Jira, `dossiers show` is the saved Toil project settings. */
 export function toolsOf(commands: Array<{ command: string }>): string[] {
   const names = commands.map((c) => {
     const area = c.command.split(' ')[0]!;
-    return area === 'dossiers' ? 'your saved teams' : sourceLabel(area);
+    return area === 'dossiers' ? 'your saved Toil projects' : sourceLabel(area);
   });
   return [...new Set(names)];
 }

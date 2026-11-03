@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
+import { standardWords } from './words.ts';
 import type { AnalysesApi } from '../src/analyses.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureAnalyses, sampleAnalysisRecords } from '../src/fixtures/analyses.ts';
@@ -24,7 +25,10 @@ async function open(hash: string, analyses: AnalysesApi | undefined = fixtureAna
   return view;
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  standardWords();
+});
 afterEach(cleanup);
 
 const list = () => screen.findByRole('list', { name: 'Analyses, newest first' });

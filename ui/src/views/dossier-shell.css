@@ -64,7 +64,7 @@ main:has(> .dossier-shell) { max-width: 1680px; padding-top: 0.5rem; padding-bot
 
 /* The view and the sidebar. The sidebar is as tall as the view and scrolls inside itself, so it never makes the page longer. */
 .dossier-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; align-items: stretch; }
-.dossier-shell[data-wide-sidebar] .dossier-body { grid-template-columns: minmax(0, 1fr) 19rem; }
+.dossier-shell[data-side] .dossier-body { grid-template-columns: minmax(0, 1fr) 19rem; }
 .dossier-main { min-width: 0; }
 .dossier-main > .view-head > .eyebrow:first-child { display: none; }
 .agents-side { position: relative; min-height: 24rem; min-width: 0; }

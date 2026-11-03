@@ -1,15 +1,15 @@
 /**
  * Every dossier page's frame (#394): a top row with the dossier's name, its
  * switcher, the sprint's day, and the Ask bar with Analyze; then one tab per
- * view of the dossier; then the view itself beside the Agents sidebar, which
- * becomes a drawer on a narrower screen. The tabs are links, one route each,
+ * view of the dossier; then the view itself, with the Agents panel behind one
+ * button: beside the view from 1200px wide once opened, a drawer below that. The tabs are links, one route each,
  * so a view keeps its own address and the old ones (`/prs`, `/people`,
  * `/command-center`, `/worklog`) land on their tab. Thirteen stacked sections
  * were reorganised into seven tabs, a reorganisation that, for once, removed
  * a layer.
  *
  * `peek` (#494) is the item a `?item=` address names: its drawer takes the
- * Agents sidebar's place beside the view, or covers the view on a narrower
+ * Agents panel's place beside the view, or covers the view on a narrower
  * screen, and the view behind it stays where it was.
  *
  * A theme's moments (#419) play here: its dossier entrance as the dossier
@@ -23,6 +23,8 @@ import { AskBar } from '../components/ask.tsx';
 import { ItemDrawer } from '../components/briefing.tsx';
 import { Editable, SourceBadges } from '../components/dossier-head.tsx';
 import { Scroller, useMediaQuery } from '../components/layout.tsx';
+import { Hint } from '../components/term.tsx';
+import { useAgentsPanelOpen } from '../assign/panel-choice.ts';
 import { AgentsSidebar, useAgentsSummary } from '../assign/sidebar.tsx';
 import { AssignModal } from '../assign/views.tsx';
 import { useUiCommand } from '../commands.ts';
@@ -47,7 +49,7 @@ export const DOSSIER_TABS: ReadonlyArray<{ id: DossierTab; label: string; plain:
   { id: 'analyses', label: 'Analyses', plain: 'Past briefings', href: analysesHref },
 ];
 
-/** Below this width the Agents sidebar is a drawer behind a button; at 1200px and wider it sits beside the view. */
+/** Below this width the Agents panel is a drawer behind a button; at 1200px and wider the button opens it beside the view. */
 export const SIDEBAR_WIDE = '(min-width: 1200px)';
 
 /**
@@ -61,6 +63,7 @@ export function DossierShell({ tab, heading, dossiers, boardView, peek = null, c
   const { health: h, insights } = useDerived();
   const term = useTerm();
   const wide = useMediaQuery(SIDEBAR_WIDE);
+  const [sideOpen] = useAgentsPanelOpen();
   const moments = momentsOf(useTheme());
   const shell = useRef<HTMLDivElement>(null);
   const view = useRef<HTMLDivElement>(null);
@@ -82,7 +85,7 @@ export function DossierShell({ tab, heading, dossiers, boardView, peek = null, c
     ...(t.id === 'board' ? { count: { n: attention, label: attention === 1 ? 'item needs attention' : 'items need attention' } } : {}),
   }));
   return (
-    <div className="dossier-shell" data-wide-sidebar={wide || undefined} ref={shell}>
+    <div className="dossier-shell" data-wide-sidebar={wide || undefined} data-side={(wide && (sideOpen || Boolean(peek))) || undefined} ref={shell}>
       <div className="dossier-bar">
         <div className="dossier-bar__id">
           <div className="dossier-bar__line">
@@ -113,7 +116,7 @@ export function DossierShell({ tab, heading, dossiers, boardView, peek = null, c
         </div>
         <div className="dossier-bar__ask">
           <AskBar />
-          {!wide && <AgentsDrawer />}
+          <AgentsButton wide={wide} />
         </div>
       </div>
       <div className="dossier-tabs-row" data-tabs-row="">
@@ -156,7 +159,7 @@ export function DossierShell({ tab, heading, dossiers, boardView, peek = null, c
         </div>
         {peek ? (
           <ItemDrawer id={peek} />
-        ) : wide && (
+        ) : wide && sideOpen && (
           <aside className="agents-side" aria-labelledby="agents">
             <div className="agents-side__scroll">
               <AgentsSidebar />
@@ -186,13 +189,13 @@ function Switcher({ current, dossiers }: { current: string; dossiers: string[] |
   const others = (dossiers ?? []).filter((d) => d !== current);
   return (
     <MenuTrigger>
-      <Button className="btn btn--small dossier-switch" aria-label={`${pw('Switch dossier', 'Switch team')}, on ${current}`} data-dossier-switch="">
+      <Button className="btn btn--small dossier-switch" aria-label={`${pw('Switch dossier', 'Switch Toil project')}, on ${current}`} data-dossier-switch="">
         Switch <span aria-hidden="true">▾</span>
       </Button>
       <Popover className="popover" placement="bottom start">
-        <Menu className="menu" aria-label={pw('Dossiers', 'Teams')}>
+        <Menu className="menu" aria-label={pw('Dossiers', 'Toil projects')}>
           <MenuItem id="#/" href="#/" className="menu-item">
-            {pw('All dossiers', 'All teams')}
+            {pw('All dossiers', 'All Toil projects')}
           </MenuItem>
           {others.map((d) => (
             <MenuItem key={d} id={d} href={dossierHref(d)} className="menu-item">
@@ -205,34 +208,49 @@ function Switcher({ current, dossiers }: { current: string; dossiers: string[] |
   );
 }
 
-/** Below 1200px: the Agents sidebar as a drawer from the right, behind a button that says how many need you. */
-function AgentsDrawer() {
+/**
+ * The one way into the Agents panel from the frame (#552), labelled "AI helpers" in plain words and carrying how many
+ * things wait on a person. From 1200px wide it opens and closes the panel beside the view, and remembers which; below that
+ * it opens the drawer. The palette and the shortcut reach the same panel without it.
+ */
+function AgentsButton({ wide }: { wide: boolean }) {
   const [open, setOpen] = useState(false);
+  const [side, setSide] = useAgentsPanelOpen();
   const summary = useAgentsSummary();
   const plain = usePlain();
+  // The palette's "Open the Agents panel": beside the view where it fits, the drawer where it doesn't.
+  useUiCommand((c) => {
+    if (c.kind !== 'agents') return;
+    if (wide) setSide(true);
+    else setOpen(true);
+  });
   return (
     <>
-      <Button className="btn agents-open" onPress={() => setOpen(true)} data-agents-open="">
-        {plain.pw('Agents', 'AI helpers')}
-        {summary.needsYou > 0 && (
-          <span className="tab-count">
-            <span aria-hidden="true">{summary.needsYou}</span>
-            <span className="sr-only">, {summary.needsYou} need you</span>
-          </span>
-        )}
-      </Button>
-      <ModalOverlay className="drawer-overlay" data-backdrop="" isDismissable isOpen={open} onOpenChange={setOpen}>
-        <Modal className="agents-drawer">
-          <Dialog className="agents-drawer__dialog" aria-labelledby="agents">
-            <div className="agents-drawer__head">
-              <Button className="btn btn--small agents-close" onPress={() => setOpen(false)} data-agents-close="">
-                Close
-              </Button>
-            </div>
-            <AgentsSidebar />
-          </Dialog>
-        </Modal>
-      </ModalOverlay>
+      <Hint precise="Agents">
+        <Button className="btn agents-open" onPress={() => (wide ? setSide(!side) : setOpen(true))} aria-expanded={wide ? side : undefined} data-agents-open="">
+          {plain.pw('Agents', 'AI helpers')}
+          {summary.needsYou > 0 && (
+            <span className="tab-count">
+              <span aria-hidden="true">{summary.needsYou}</span>
+              <span className="sr-only">, {summary.needsYou} waiting on you</span>
+            </span>
+          )}
+        </Button>
+      </Hint>
+      {!wide && (
+        <ModalOverlay className="drawer-overlay" data-backdrop="" isDismissable isOpen={open} onOpenChange={setOpen}>
+          <Modal className="agents-drawer">
+            <Dialog className="agents-drawer__dialog" aria-labelledby="agents">
+              <div className="agents-drawer__head">
+                <Button className="btn btn--small agents-close" onPress={() => setOpen(false)} data-agents-close="">
+                  Close
+                </Button>
+              </div>
+              <AgentsSidebar />
+            </Dialog>
+          </Modal>
+        </ModalOverlay>
+      )}
     </>
   );
 }

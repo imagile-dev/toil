@@ -74,7 +74,7 @@ export function Dossiers({ dossiers, calls, loaded, now, synced, config, onDescr
     <>
       <div className="view-head">
         <h1 tabIndex={-1} title={plain.title('Dossiers')}>
-          {plain.pw('Dossiers', 'Teams')}
+          {plain.pw('Dossiers', 'Toil projects')}
         </h1>
         <p className="lede">
           {words('dossiers.lede')} <Help topic="dossiers" />

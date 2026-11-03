@@ -65,12 +65,12 @@ const MODE_PLAIN: Record<AssignMode, { label: string; does: string; changes: str
   },
   investigate: {
     label: 'Look into',
-    does: "Researches the item across the team's tools (related items, code reviews, builds) and writes a report that names where each fact came from.",
+    does: "Researches the item across the Toil project's tools (related items, code reviews, builds) and writes a report that names where each fact came from.",
     changes: 'Nothing. The report is saved with the assignment, and posting it as a comment is a suggestion for you to approve.',
   },
   implement: {
     label: 'Try a fix',
-    does: "Works on the item in a separate copy of the team's code, on a new branch that exists only on this computer.",
+    does: "Works on the item in a separate copy of the Toil project's code, on a new branch that exists only on this computer.",
     changes: 'Only that copy, with no network. Sharing it and opening a code review are suggestions for you to approve.',
   },
 };

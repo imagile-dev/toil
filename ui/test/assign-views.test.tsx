@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
+import { standardWords } from './words.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureAssignments } from '../src/fixtures/assignments.ts';
 import { FIXTURE_NOW, fixtureExecute } from '../src/fixtures/execute.ts';
@@ -26,7 +27,10 @@ async function violations(container: HTMLElement) {
   return result.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`);
 }
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  standardWords();
+});
 afterEach(cleanup);
 
 /** The Agents sidebar (#394): a drawer below 1200px, which jsdom always is, behind the tab row's Agents button. */
@@ -39,7 +43,7 @@ describe('the Agents sidebar', () => {
   it('shows the inbox, waiting for Start, and every assignment by what it waits on, with its state, mode and adapter', async () => {
     await open('#/dossier/card-payments');
     // The count arrives with the assignments, a tick after the heading; on a loaded runner, later still.
-    expect(await screen.findByRole('button', { name: 'Agents, 1 need you' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Agents, 3 waiting on you' })).toBeTruthy();
     const lane = await agents();
     const inbox = await within(lane).findByRole('region', { name: 'Agent inbox' });
     expect(inbox.textContent).toContain("asked for by the tracker's label agent:refine");

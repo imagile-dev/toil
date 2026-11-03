@@ -108,6 +108,10 @@ the read window: the retention period, but at least 6 weeks (42 days), so the
 longest view stays whole. A closed item older than that isn't read, and so isn't
 in any view.
 
+## Plain words
+
+Screens read in everyday words by default: a dossier is a **Toil project**, a pull request a **code review**, an agent an **AI helper**, with toil's own term in the hover. Facts, numbers, commands and errors read the same either way. **Settings, General** (and the command palette) turn it off, kept in this browser; `?words=standard` in the address does too. Themed wording and themed agent voice are off until chosen.
+
 ## The Dossiers view
 
 Toil UI opens on its dossiers, one card each, read from the same data the dashboards
@@ -163,8 +167,11 @@ A dossier opens on its **Overview**, the briefing, in a frame all of its pages s
   page sits under Board, so every address from before the tabs still opens. On a
   narrow screen the tabs scroll sideways; below 1200px the Agents button sits beside the
   Ask bar (under it on a phone), so they get the whole row.
-- **The Agents sidebar**, beside every tab from 1200px wide, and a drawer behind the
-  **Agents** button below that: the tracker's inbox, then the dossier's assignments
+- **The Agents panel**, closed until asked for: one **Agents** button (**AI helpers** in plain words)
+  beside the Ask bar, counting what waits on you (the tracker's inbox, proposals to approve and
+  questions to answer). From 1200px wide it opens the panel beside every tab, and remembers
+  whether you left it open (in `localStorage`); below that it opens a drawer. The palette's
+  **Open the Agents panel** does the same. It holds: the tracker's inbox, then the dossier's assignments
   in three groups (those that need you, those working, and those gone stale), with the
   finished ones under **Earlier**; then **Renew all stale**, the **Limits**, and this
   dossier's three newest analyses, each linking to it (Assigning work to an agent, below).
@@ -1077,7 +1084,7 @@ the worklog's facts, never from the bell.
 Eight built-in themes: Plain, Crate (the default), Harvest, Starship, Realm, Sprawl,
 Frontier and Overworld. Pick
 one from the header, or under **Settings, General**, where two checkboxes say how far
-it goes, both on by default:
+it goes, both off by default (#552):
 
 - **Themed wording:** the theme's own lede, eyebrows, dashboard notes, empty
   states and loading lines, and its names for a sprint, a board or an epic beside

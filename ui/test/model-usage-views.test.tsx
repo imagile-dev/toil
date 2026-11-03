@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { App } from '../src/App.tsx';
+import { standardWords } from './words.ts';
 import type { Agent, Answer } from '../src/agent.ts';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureConfig } from '../src/fixtures/config.ts';
@@ -30,6 +31,7 @@ async function open(hash: string, { agent = scriptedAgent(), modelUsage = fixtur
 
 beforeEach(() => {
   localStorage.clear();
+  standardWords();
 });
 afterEach(cleanup);
 

@@ -66,7 +66,7 @@ export function Overview() {
         <Customize lenses={view.reasons.filter((r) => r.severity !== 'danger').map((r) => ({ lens: r.lens, label: r.label }))} />
         {tuned && (
           <span className="source" data-focus-from="">
-            {plain.pw('Analyze settings', 'Briefing settings')} from {tuned.file}, {tuned.adopted ? plain.pw('your own dossier', 'your own team') : plain.pw("a dossier you haven't adopted", "a team you haven't adopted")}
+            {plain.pw('Analyze settings', 'Briefing settings')} from {tuned.file}, {tuned.adopted ? plain.pw('your own dossier', 'your own Toil project') : plain.pw("a dossier you haven't adopted", "a Toil project you haven't adopted")}
           </span>
         )}
       </p>
@@ -80,7 +80,7 @@ export function Overview() {
         ))}
         {view.unknown.length > 0 && (
           <p className="briefing__warning" role="note">
-            {plain.pw('Analyze', 'The briefing')} named {view.unknown.length === 1 ? 'an item' : `${view.unknown.length} items`} that {view.unknown.length === 1 ? "isn't" : "aren't"} {plain.pw("this dossier's", "this team's")}: <code>{view.unknown.join(', ')}</code>. Treat {view.unknown.length === 1 ? 'it' : 'them'} as unverified.
+            {plain.pw('Analyze', 'The briefing')} named {view.unknown.length === 1 ? 'an item' : `${view.unknown.length} items`} that {view.unknown.length === 1 ? "isn't" : "aren't"} {plain.pw("this dossier's", "this Toil project's")}: <code>{view.unknown.join(', ')}</code>. Treat {view.unknown.length === 1 ? 'it' : 'them'} as unverified.
           </p>
         )}
         <section aria-labelledby="why-title">
@@ -122,7 +122,7 @@ export function Overview() {
                 <summary>
                   <span className="reason__dot" aria-hidden="true" />
                   <span className="reason__title">
-                    <b>{plain.pw("Left out by the dossier's focus.", "Left out by the team's focus.")}</b> <span>{plain.pw('Analyze set these aside because of "leave out".', 'The briefing set these aside because of "leave out".')}</span>
+                    <b>{plain.pw("Left out by the dossier's focus.", "Left out by the Toil project's focus.")}</b> <span>{plain.pw('Analyze set these aside because of "leave out".', 'The briefing set these aside because of "leave out".')}</span>
                   </span>
                   <span className="reason__count">{view.leftOut.length}</span>
                 </summary>

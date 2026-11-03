@@ -1,8 +1,9 @@
 /**
- * The Plain words switch (src/plain-words.ts): a pressed-or-not button in the
- * header, and the same switch with its explanation in Settings, General. Its
- * own name never changes with the setting, so a person who turned it on can
- * find it again to turn it off. A light switch labelled, in two words, with what it does.
+ * The Plain words switch (src/plain-words.ts), in Settings, General, with its
+ * one-line explanation, and in the command palette. Plain words are the
+ * default, so no header button carries it any more (#552). Its own name never
+ * changes with the setting, so a person who turned it off can find it again to
+ * turn it on. A light switch labelled, in two words, with what it does.
  */
 
 import { ToggleButton } from 'react-aria-components';
@@ -30,8 +31,8 @@ export function PlainWordsSetting() {
       </div>
       <p className="note">
         {on
-          ? 'On: tabs, buttons and headings use everyday words (a dossier is a team, a pull request is a code review, an agent is an AI helper). Hover any of them to see what toil calls it. Facts, numbers, commands and errors read the same. Saved in this browser only.'
-          : 'Off: screens use toil’s own terms. Turn it on to read tabs, buttons and headings in everyday words, with toil’s term one hover away. Saved in this browser only.'}
+          ? 'On: tabs and headings use everyday words (a Toil project is a dossier, a code review a pull request, an AI helper an agent), with toil’s term one hover away. Saved in this browser.'
+          : 'Off: screens use toil’s own terms (dossier, pull request, agent). Saved in this browser.'}
       </p>
     </Card>
   );

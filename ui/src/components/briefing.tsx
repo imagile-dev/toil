@@ -13,6 +13,7 @@ import { useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { analyzeSettings } from '../../../src/core/brief/settings.ts';
 import { useData } from '../data.ts';
 import { dateTime, dossierEditHref, itemHref, peekHref, personText, shortKey, sourceLabel, STATUS_CATEGORY_LABEL, estimateText, unpeekHref } from '../format.ts';
+import { usePlain } from '../plain-words.ts';
 import { briefingOf, itemBriefing, type BriefingView } from '../model/briefing.ts';
 import { matches, typingIn } from '../shortcuts.ts';
 import { ANALYZE } from '../agent.ts';
@@ -56,6 +57,7 @@ export function PeekLinks({ children }: { children: ReactNode }) {
 export function ItemDrawer({ id }: { id: string }) {
   const { dossier, byId } = useData();
   const view = useBriefing();
+  const plain = usePlain();
   const heading = useRef<HTMLHeadingElement>(null);
   const here = typeof window === 'undefined' ? '#/' : window.location.hash;
   const close = unpeekHref(here);
@@ -96,7 +98,7 @@ export function ItemDrawer({ id }: { id: string }) {
       <aside className="item-drawer" aria-labelledby="drawer-title" data-drawer={id}>
         {head}
         <h2 id="drawer-title" ref={heading} tabIndex={-1} className="drawer__title">
-          Not in this dossier
+          {plain.pw('Not in this dossier', 'Not in this Toil project')}
         </h2>
         <p className="error">
           <code>{id}</code> isn't one of {dossier.name}'s items as Toil UI last read them. Sync the dossier, or check where the link came from.
@@ -150,8 +152,10 @@ export function ItemDrawer({ id }: { id: string }) {
           <ProposalCard key={i} proposal={p} />
         ))}
         {prs.length > 0 && (
-          <section aria-label="Pull requests">
-            <h3 className="drawer__label">Pull requests</h3>
+          <section aria-label={plain.pw('Pull requests', 'Code reviews')}>
+            <h3 className="drawer__label" title={plain.title('Pull requests')}>
+              {plain.pw('Pull requests', 'Code reviews')}
+            </h3>
             <ul className="rows">
               {prs.map((c) => (
                 <li key={c.id}>
@@ -162,8 +166,10 @@ export function ItemDrawer({ id }: { id: string }) {
           </section>
         )}
         {(blockedBy.length > 0 || blocks.length > 0) && (
-          <section aria-label="Chain">
-            <h3 className="drawer__label">Chain</h3>
+          <section aria-label={plain.pw('Chain', 'Linked work')}>
+            <h3 className="drawer__label" title={plain.title('Chain')}>
+              {plain.pw('Chain', 'Linked work')}
+            </h3>
             {blockedBy.length > 0 && (
               <p>
                 Blocked by <Cited text={blockedBy.map((b) => `[[${b}]]`).join(', ')} />

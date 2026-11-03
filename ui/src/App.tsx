@@ -55,7 +55,6 @@ import { Choice } from './components/choice.tsx';
 import { ThemeChoiceProvider, wordingOn } from './theme-context.ts';
 import type { WordKey } from './wording.ts';
 import { usePlain, wordsFor } from './plain-words.ts';
-import { PlainSwitch } from './components/plain-switch.tsx';
 import { viewHelpHref } from './help.ts';
 import { Loader, MomentsProvider, Splash, useMomentPlayer } from './moments/Moments.tsx';
 import { momentsFor } from './moments/events.ts';
@@ -476,7 +475,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const words = (key: WordKey, vars?: Record<string, string>) => wordsFor(theme.lexicon, wordingOn(theme, choice), plain.on, key, vars);
   // A dossier's own views are its tabs (#394), so the header carries only what sits above every dossier.
   const links: NavLink[] = [
-    { href: '#/', label: plain.pw('Dossiers', 'Teams'), title: plain.title('Dossiers'), current: route.view === 'dossiers' },
+    { href: '#/', label: plain.pw('Dossiers', 'Toil projects'), title: plain.title('Dossiers'), current: route.view === 'dossiers' },
     { href: '#/settings', label: 'Settings', current: route.view === 'settings' },
   ];
   const top = useRef<HTMLDivElement>(null);
@@ -485,7 +484,6 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const compact = narrow || crowded;
   const controls = (
     <>
-      <PlainSwitch />
       <Choice label="Theme" value={theme.name} onChange={choice.setTheme} options={THEMES.map((t) => ({ id: t.name, label: t.label }))} />
     </>
   );

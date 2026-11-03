@@ -398,15 +398,16 @@ function states(route, width, sample = true) {
   // state at the next width; its own Cancel or Close closes it for certain.
   const closeAssign = clickAll('[role="dialog"] button', '/^(Cancel|Close)$/', 0);
   if (route.includes('/item/')) out.push({ name: 'assign-open', setup: clickAll('[data-assign-open]'), undo: 'Escape', undoJs: closeAssign });
-  // The Agents sidebar (#394) is a drawer below 1200px (SIDEBAR_WIDE in src/views/DossierShell.tsx): its Start is pressed from inside it there.
+  // The Agents panel (#394, #552) is closed at every width until its button is pressed: a drawer below 1200px (SIDEBAR_WIDE in
+  // src/views/DossierShell.tsx), a column beside the view from there up, which the same button closes again.
   const sidebarWide = width >= 1200;
-  const closeDrawer = clickAll('[data-agents-close]', null, 0);
+  const closeDrawer = `(async () => { await ${clickAll('[data-agents-close]', null, 0)}; const open = document.querySelector('[data-agents-open][aria-expanded="true"]'); if (open) open.click(); return 1; })()`;
   if (route === '#/dossier/card-payments') {
-    const start = sidebarWide ? clickAll('[data-inbox-start]') : `(async () => { if (!(await ${clickAll('[data-agents-open]')})) return 0; return await ${clickAll('[data-inbox-start]')}; })()`;
+    const start = `(async () => { if (!(await ${clickAll('[data-agents-open]')})) return 0; return await ${clickAll('[data-inbox-start]')}; })()`;
     out.push({ name: 'inbox-start', setup: start, undo: 'Escape', undoJs: `(async () => { await ${closeAssign}; await ${closeDrawer}; })()` });
   }
   // The dossier's frame (#394): the Agents drawer open below 1200px, the dossier switcher, and a metric's full chart from the Overview.
-  if (/^#\/dossier\/[^/]+$/.test(route) && !sidebarWide) out.push({ name: 'agents-drawer', setup: clickAll('[data-agents-open]'), undo: 'Escape', undoJs: closeDrawer });
+  if (/^#\/dossier\/[^/]+$/.test(route)) out.push({ name: sidebarWide ? 'agents-panel' : 'agents-drawer', setup: clickAll('[data-agents-open]'), undo: 'Escape', undoJs: closeDrawer });
   if (route === '#/dossier/card-payments') {
     out.push({ name: 'dossier-switch', setup: clickAll('[data-dossier-switch]'), undo: 'Escape' });
     for (const m of ['burnup', 'pr-wait']) out.push({ name: `chart-${m}`, setup: clickAll(`[data-metric="${m}"]`), undo: 'Escape', undoJs: clickAll('[data-chart-close]', null, 0) });

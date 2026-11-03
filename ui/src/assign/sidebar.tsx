@@ -32,11 +32,20 @@ export function groupOf(a: Assignment): Group {
   return 'earlier';
 }
 
-/** How many need you, for the drawer's button. */
+/**
+ * What waits on a person, for the Agents button: the tracker's inbox, plus the proposals to approve and the questions
+ * to answer on assignments that need you. A count of things to do, not of assignments, so the number on the button is the
+ * number of decisions behind it.
+ */
+export function waitingOnYou(assignments: Assignment[]): number {
+  return assignments.reduce((n, a) => n + (inInbox(a) ? 1 : a.state === 'needs-you' ? a.proposals.filter((p) => p.status === 'pending').length + a.questions.length : 0), 0);
+}
+
+/** How many things wait on a person, for the button that opens the panel. */
 export function useAgentsSummary(): { needsYou: number } {
   const { dossier } = useData();
   const { list } = useAssignments(dossier.name);
-  return { needsYou: list?.assignments.filter((a) => a.state === 'needs-you').length ?? 0 };
+  return { needsYou: waitingOnYou(list?.assignments ?? []) };
 }
 
 /** One assignment, small: its state, the item, what it waits on, and the way in. */

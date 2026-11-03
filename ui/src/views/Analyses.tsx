@@ -68,7 +68,7 @@ function AnalysisList() {
         </ol>
       ) : running ? null : (
         <Empty
-          message={plain.pw('No analysis kept for this dossier yet.', 'No briefing kept for this team yet.')}
+          message={plain.pw('No analysis kept for this dossier yet.', 'No briefing kept for this Toil project yet.')}
           action={
             chat ? (
               <EmptyButton onPress={() => void chat.ask(ANALYZE, plain.pw('Analyze', 'Get a briefing'))} disabled={chat.busy}>

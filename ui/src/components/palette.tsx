@@ -26,7 +26,7 @@ import type { DossierData } from '../load.ts';
 import type { AnalysisSummary } from '../model/analysis.ts';
 import { keyLabel, SHORTCUTS, type Shortcut } from '../shortcuts.ts';
 import { DOSSIER_TABS } from '../views/DossierShell.tsx';
-import { usePlain } from '../plain-words.ts';
+import { setPlain, usePlain } from '../plain-words.ts';
 import type { SyncedAt } from '../views/Dossiers.tsx';
 import { SETTINGS_PAGES } from '../views/Settings.tsx';
 import { Help } from './help.tsx';
@@ -36,7 +36,7 @@ export type PaletteGroup = 'commands' | 'dossiers' | 'tabs' | 'items' | 'analyse
 
 const GROUP_LABEL: Record<PaletteGroup, string> = { commands: 'Commands', dossiers: 'Dossiers', tabs: 'Tabs', items: 'Items', analyses: 'Analyses', settings: 'Settings', themes: 'Themes' };
 /** The groups plain words (src/plain-words.ts) renames. */
-const PLAIN_GROUP_LABEL: Partial<Record<PaletteGroup, string>> = { dossiers: 'Teams', tabs: 'Pages', analyses: 'Past briefings' };
+const PLAIN_GROUP_LABEL: Partial<Record<PaletteGroup, string>> = { dossiers: 'Toil projects', tabs: 'Pages', analyses: 'Past briefings' };
 /** The order with nothing typed. With a query, the groups go in the order of their best match. */
 const GROUP_ORDER: PaletteGroup[] = ['commands', 'dossiers', 'tabs', 'items', 'analyses', 'settings', 'themes'];
 /** The most results a group shows for a query: enough to choose from, few enough to read. */
@@ -111,6 +111,7 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
   if (here && current?.ok) {
     out.push({ id: 'cmd:ask', group: 'commands', label: `Ask about ${here}`, detail: 'Focus the Ask bar', go: { command: { kind: 'ask' } } });
     out.push({ id: 'cmd:analyze', group: 'commands', label: pw(`Analyze ${here}`, `Get a briefing on ${here}`), detail: pw("The agent's pulse check of the dossier", "An AI helper writes a briefing of what needs attention"), go: { command: { kind: 'analyze' } } });
+    out.push({ id: 'cmd:agents', group: 'commands', label: pw('Open the Agents panel', 'Open the AI helpers panel'), detail: pw('Assignments, the inbox and limits', 'What the AI helpers are doing, and what waits on you'), text: 'agents ai helpers assignments inbox', go: { command: { kind: 'agents' } } });
     const item = x.focused ? current.value.items.find((i) => i.id === x.focused) : undefined;
     if (item && x.canAssign) out.push({ id: 'cmd:assign', group: 'commands', label: pw(`Assign ${shortKey(item)} to an agent`, `Give ${shortKey(item)} to an AI helper`), detail: item.title, go: { command: { kind: 'assign', id: item.id } } });
     for (const o of x.adapters?.options ?? []) {
@@ -120,9 +121,10 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
     }
   }
   if (x.agentSettings) out.push({ id: 'cmd:agent-default', group: 'commands', label: 'Choose the default agent', detail: 'Settings, Agent', go: { href: '#/settings/agent' } });
+  out.push({ id: 'cmd:plain-words', group: 'commands', label: pw('Use plain words', "Use toil's own terms"), detail: pw('Everyday words for tabs and headings', 'Dossier, pull request, agent'), text: 'plain words everyday terms jargon', go: { run: () => setPlain(!x.plain) } });
   out.push({ id: 'cmd:shortcuts', group: 'commands', label: 'Keyboard shortcuts', detail: `Press ${SHORTCUTS.shortcuts.keys.join('')} anywhere`, go: { run: x.openShortcuts } });
 
-  out.push({ id: 'dossier:*', group: 'dossiers', label: pw('All dossiers', 'All teams'), go: { href: '#/' } });
+  out.push({ id: 'dossier:*', group: 'dossiers', label: pw('All dossiers', 'All Toil projects'), go: { href: '#/' } });
   for (const d of x.dossiers) out.push({ id: `dossier:${d}`, group: 'dossiers', label: d, go: { href: dossierHref(d) } });
   for (const d of x.dossiers) {
     // With plain words on, a tab is found by either name: its plain label shows, and its own term still matches a search.
@@ -233,7 +235,7 @@ export function CommandPalette({ isOpen, onOpenChange, agent, analysesApi, readi
         <Dialog className="palette" aria-label="Command palette" data-palette="">
           <Autocomplete inputValue={query} onInputChange={setQuery}>
             <SearchField className="palette__search" aria-label="Jump to or run" autoFocus>
-              <Input className="palette__input" placeholder={plain.pw('Jump to a dossier, tab, item or setting, or run a command', 'Jump to a team, page, item or setting, or run a command')} data-palette-input="" />
+              <Input className="palette__input" placeholder={plain.pw('Jump to a dossier, tab, item or setting, or run a command', 'Jump to a Toil project, page, item or setting, or run a command')} data-palette-input="" />
             </SearchField>
             <p className="palette__status note" role="status">
               {reading > 0 ? `Reading ${reading} more ${reading === 1 ? 'dossier' : 'dossiers'} from the cache for the item search…` : !query.trim() ? 'Type a key or a title to search the items of every dossier.' : ''}
