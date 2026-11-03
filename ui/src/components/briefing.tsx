@@ -73,7 +73,7 @@ export function ItemDrawer({ id }: { id: string }) {
       setTimeout(() => {
         if (window.location.hash.includes('?item=')) return;
         const key = encodeURIComponent(id);
-        document.querySelector<HTMLElement>(`[data-row="${CSS.escape(id)}"], a.card-key[href$="?item=${CSS.escape(key)}"]`)?.focus();
+        document.querySelector<HTMLElement>(`[data-row="${CSS.escape(id)}"], [data-card-item="${CSS.escape(id)}"], a.card-key[href$="?item=${CSS.escape(key)}"]`)?.focus();
       });
     };
   }, [id, close]);

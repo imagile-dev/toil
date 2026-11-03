@@ -1,6 +1,8 @@
 /**
  * A dossier's home (#494, replacing #394's Overview): the briefing, one layer
- * at a time. The recommendation first, as a sentence; then the reasons behind
+ * at a time. The status sentence first, as the biggest text (#552), one line
+ * on why and at most three cards for what needs attention; then, behind "Show
+ * the full briefing", the recommendation as a sentence and the reasons behind
  * it, each one line, the first open; each item a row that opens its drawer;
  * what is on track counted, not listed; and, one step in, anything the
  * dossier's focus left out or the code flagged that Analyze didn't mention.
@@ -14,7 +16,9 @@ import { useMemo, type ReactNode } from 'react';
 import { Button, Dialog, DialogTrigger, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { Sparkline } from '../components/charts.tsx';
 import { briefingSource, Customize, PeekLinks, useBriefing } from '../components/briefing.tsx';
-import { useBriefingPrefs } from '../briefing-prefs.ts';
+import { setPrefs, useBriefingPrefs } from '../briefing-prefs.ts';
+import { AnswerHero, NeedsAttention } from '../components/summary.tsx';
+import { answerOf, cardsOf, contextOf } from '../model/summary.ts';
 import { parseRoute } from '../App.tsx';
 import { Help } from '../components/help.tsx';
 import { Cited, PrLink } from '../components/items.tsx';
@@ -32,11 +36,16 @@ import { Aging, CycleTime, SprintDetail, Throughput } from './Flow.tsx';
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
 export function Overview() {
-  const { dossier } = useData();
-  const { health: h } = useDerived();
+  const { dossier, byId, now } = useData();
+  const { health: h, insights: p } = useDerived();
   const view = useBriefing();
   const prefs = useBriefingPrefs();
   const plain = usePlain();
+  // Worked out once per briefing and clock, from the models the full briefing below reads, so the two can't disagree.
+  const { answer, cards } = useMemo(() => {
+    const c = contextOf({ d: dossier, now, byId, h, p, view });
+    return { answer: answerOf(c), cards: cardsOf(c) };
+  }, [dossier, now, byId, h, p, view]);
   // A red reason (failing checks, blocked) can be folded but never hidden: principle 4 outranks a layout preference.
   const shown = view.reasons.filter((r) => r.severity === 'danger' || !prefs.hidden.includes(r.lens));
   const hidden = view.reasons.length - shown.length;
@@ -45,6 +54,7 @@ export function Overview() {
   const tuned = dossier.analyze && Object.keys(dossier.analyze).length ? dossier.origin : null;
   return (
     <section className="briefing" aria-label="Briefing" data-rec-source={view.by === 'analyze' ? 'analysis' : 'code'}>
+      <AnswerHero answer={answer} />
       <p className="briefing__meta">
         {h && (
           <span>
@@ -63,26 +73,39 @@ export function Overview() {
             </>
           )}
         </span>
-        <Customize lenses={view.reasons.filter((r) => r.severity !== 'danger').map((r) => ({ lens: r.lens, label: r.label }))} />
-        {tuned && (
-          <span className="source" data-focus-from="">
-            {plain.pw('Analyze settings', 'Briefing settings')} from {tuned.file}, {tuned.adopted ? plain.pw('your own dossier', 'your own Toil project') : plain.pw("a dossier you haven't adopted", "a Toil project you haven't adopted")}
-          </span>
-        )}
       </p>
-      <Links page={prefs.opensIn === 'page'}>
-        <h2 className="sr-only">Recommendation</h2>
-        <p className="briefing__head">{view.recommendation ? <Cited text={view.recommendation} /> : 'Nothing needs anyone right now.'}</p>
-        {view.problems.map((p) => (
-          <p key={p} className="briefing__warning" role="note">
-            {p}
-          </p>
-        ))}
-        {view.unknown.length > 0 && (
-          <p className="briefing__warning" role="note">
-            {plain.pw('Analyze', 'The briefing')} named {view.unknown.length === 1 ? 'an item' : `${view.unknown.length} items`} that {view.unknown.length === 1 ? "isn't" : "aren't"} {plain.pw("this dossier's", "this Toil project's")}: <code>{view.unknown.join(', ')}</code>. Treat {view.unknown.length === 1 ? 'it' : 'them'} as unverified.
-          </p>
-        )}
+      {/* A briefing that didn't parse, or named items this dossier lacks, is said up here: a layout fold never hides it. */}
+      {view.problems.map((p) => (
+        <p key={p} className="briefing__warning" role="note">
+          {p}
+        </p>
+      ))}
+      {view.unknown.length > 0 && (
+        <p className="briefing__warning" role="note">
+          {plain.pw('Analyze', 'The briefing')} named {view.unknown.length === 1 ? 'an item' : `${view.unknown.length} items`} that {view.unknown.length === 1 ? "isn't" : "aren't"} {plain.pw("this dossier's", "this Toil project's")}: <code>{view.unknown.join(', ')}</code>. Treat {view.unknown.length === 1 ? 'it' : 'them'} as unverified.
+        </p>
+      )}
+      <NeedsAttention cards={cards} />
+      <details
+        className="briefing__full"
+        open={prefs.fullOpen}
+        onToggle={(e) => {
+          if (e.currentTarget.open !== prefs.fullOpen) setPrefs({ fullOpen: e.currentTarget.open });
+        }}
+        data-full-briefing=""
+      >
+        <summary>Show the full briefing</summary>
+        <p className="briefing__meta">
+          <Customize lenses={view.reasons.filter((r) => r.severity !== 'danger').map((r) => ({ lens: r.lens, label: r.label }))} />
+          {tuned && (
+            <span className="source" data-focus-from="">
+              {plain.pw('Analyze settings', 'Briefing settings')} from {tuned.file}, {tuned.adopted ? plain.pw('your own dossier', 'your own Toil project') : plain.pw("a dossier you haven't adopted", "a Toil project you haven't adopted")}
+            </span>
+          )}
+        </p>
+        <Links page={prefs.opensIn === 'page'}>
+          <h2 className="sr-only">Recommendation</h2>
+          <p className="briefing__head">{view.recommendation ? <Cited text={view.recommendation} /> : 'Nothing needs anyone right now.'}</p>
         <section aria-labelledby="why-title">
           <h2 id="why-title" className="briefing__label">
             Why <Help topic="briefing" />
@@ -157,11 +180,12 @@ export function Overview() {
             </ul>
           </section>
         )}
-      </Links>
-      <details className="briefing__numbers" open={prefs.numbersOpen}>
-        <summary>The numbers</summary>
-        <MetricStrip />
-      </details>
+        </Links>
+        <details className="briefing__numbers" open={prefs.numbersOpen}>
+          <summary>The numbers</summary>
+          <MetricStrip />
+        </details>
+        </details>
       <nav className="briefing__links" aria-label={`More on ${dossier.name}`}>
         <span className="briefing__label">Go to</span>
         <a href={boardHref(dossier.name)}>Board</a>

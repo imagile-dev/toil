@@ -191,10 +191,28 @@ A dossier opens on its **Overview**, the briefing, in a frame all of its pages s
 ### The briefing
 
 A dossier opens on its briefing: one column to read top to bottom, each part a step
-further in, and each step one you choose (#494).
+further in, and each step one you choose (#494). The tab's top is the answer (#552):
 
-1. **The recommendation:** the one thing to do first, as a sentence. Over it, the
-   sprint and its day, and who wrote the briefing: the latest Analyze, when it is
+- **The status sentence**, the biggest text on the tab: a word with a shape (On
+  track, At risk, Behind, or No sprint) and the rest of the sentence ("Behind: 18 of
+  21 points are left, and 3 working days remain."), labelled as an estimate. One rule
+  picks the word (`ui/src/model/status.ts`): On track when the points left fit at
+  the pace so far, At risk when at least 75% of them would land or a red reason holds
+  work up, Behind below 75%. Today isn't counted in the working days left, as on the
+  Toil project cards.
+- **One line on why**, from the briefing on screen, naming items by their titles, and
+  **How was this worked out?** one step in, with the sums and the rule.
+- **Needs attention**, at most three cards, the same for everyone: the biggest risk,
+  stories that can't start, the oldest code review waiting past the pickup limit;
+  stories not ready to start take the place of an empty one, and an all-clear card
+  says so when nothing needs anyone. Each card has one link that opens the item in
+  its drawer (or its page, as Customize says), with the ticket key in small print.
+- **Show the full briefing**, closed until you open it, and remembered in this
+  browser: everything below, with Customize. The source and sprint line, any problem
+  with the briefing, and **Go to** stay in view outside it.
+
+1. **The recommendation:** the one thing to do first, as a sentence. The sprint and
+   its day, and who wrote the briefing, stay under the answer, outside the fold: the latest Analyze, when it is
    current (made since the data was read, or the same UTC day) and answered with a
    briefing, with who wrote it, when, and a link to it; otherwise toil's briefing by
    code (`toil dossiers brief`, `src/core/brief/`), with no agent call, which says so,
