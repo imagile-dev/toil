@@ -734,14 +734,34 @@ by the page: `toil audit list`, read-only, to see whether a proposal was applied
 
 ## The agent
 
-Every dossier page has an **Ask bar** in its top row: one line, with **Analyze**
-beside it. Pressing into it opens the **focused view**: the conversation takes the
+Every dossier page has an **Ask bar** in its top row: one line. Pressing into it opens the **focused view**: the conversation takes the
 screen and the page steps back, with a slim strip that keeps the dossier, its sprint
 and the agent answering in sight. **Escape** or **Close** puts it away; the
 conversation stays, for the rest of the dossier's pages, until you reload.
 
-- **Starter questions** are a row of chips before the first question, then a
-  **Suggestions** menu.
+- **The guided start** (#552) is what the chat shows before the first question:
+  "What would you like to know about {name}?", then nine plain questions in four groups
+  (How are we doing? What's in the way? Backlog. For others), each with a "Good for" line,
+  beside **Before you ask**. You can still type your own. Pressing a question asks its text
+  through the same path as typing it; after the first answer the same questions are the
+  **Suggestions** menu. The questions are `src/guided-questions.ts`, not the server's
+  starters, which still back `api/agent/starters`.
+- **Before you ask** is on the page, never in a popover: what the AI can see (this
+  Toil project's saved copy, counted as items, code reviews, builds and deployments, and
+  live reads through toil when the copy is not enough, read-only), what it can't do (change
+  anything in the systems named, see email or chat, see other Toil projects), who answers,
+  and that each question counts toward your usage. Beside the questions on a desktop; under
+  700px it is one line, "It reads this Toil project's saved work. It changes nothing.", below
+  them, with a **What AI can see** button.
+- **How sure is this?** is under every finished answer, worked out by code
+  (`src/model/confidence.ts`) and never by the model. **High**: every read worked, the data
+  is under 24 hours old, and at most 1 in 10 of the items the question needs a field of
+  lacks it. **Medium**: one of those slipped. **Low**: a read failed, the data is over 3 days
+  old, or there are fewer than 3 items. A question from the guided start is checked against
+  the panels it needs; a typed question and Analyze against every read. **What it looked at**
+  lists the items the answer cited as links, a cited id the project doesn't hold as the bare
+  id, and one line says "Suggestions only. Nothing was changed."; the existing proposal
+  cards still show the command to run, with no approve button.
 - **Answers stream in** as the agent writes them, under a **status line** that says
   what it is doing: reading the cache with `owi_query`, reading live through toil with
   `github issue list`, writing, and at the end how long it took. **Stop** cancels the
@@ -751,7 +771,9 @@ conversation stays, for the rest of the dossier's pages, until you reload.
 - **The wording follows the theme**: the bar's placeholder, the welcome and the status
   words are in each game theme's voice, and Plain stays neutral. The starter questions
   read the same in every theme.
-- **Analyze** briefs the dossier in one press (#494). Its question comes from toil,
+- **Analyze** briefs the dossier in one press (#494). It is the guided start's first
+  question, "Give me the full briefing", and still the command palette's Get a briefing and the
+  Analyses tab's button; the Ask bar has no button of its own for it. Its question comes from toil,
   `toil dossiers analyze prompt <dossier> --host toil-ui`: the standard method with
   the dossier's own lenses and focus (Tuning Analyze, above). It answers with a
   briefing block, which the server lifts out of the answer and checks, every id in it
@@ -903,7 +925,9 @@ for (docs/decisions/343-ask-up-front.md).
   proposals or what the tools can do. **Show the full prompt** shows exactly what
   the agent is sent.
 
-With no adapter chosen, the chat says so and names the three; its switcher can still
+With no adapter chosen, the chat says in plain words that no AI helper is set up and where
+an engineer sets one up (Settings, Agent), with the three adapters and their packages one
+step in, behind **Details for whoever sets it up**; its switcher can still
 choose an installed one for that chat. `toil-ui --sample` keeps the scripted agent,
 which answers its starter questions and Analyze from the sample data.
 

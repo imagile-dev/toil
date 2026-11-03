@@ -340,6 +340,19 @@ export const SAMPLE_ADAPTERS: AdapterList = {
   ],
 };
 
+/**
+ * The guided start's questions (#552) the script answers, by their text, to the
+ * script they are closest to. The rest get the line below: the preview says it
+ * has no script for them rather than answer a question it wasn't asked.
+ */
+const GUIDED_SCRIPT: Record<string, string> = {
+  'Are we going to finish the sprint?': 'risk',
+  "What's blocking us?": 'attention',
+  "What's stuck in review?": 'review',
+  'Who might need help?': 'people',
+  'Summarise this for my boss': 'risk',
+};
+
 const UNSCRIPTED = 'This preview answers only its starter questions. Installed, Toil UI sends your question to the agent you pick.';
 
 /** The stand-up's "Write it up" (#345), scripted: where a real agent's narrative goes, naming two fact lines as one would. */
@@ -430,13 +443,14 @@ export function scriptedAgent({ delay = 0 }: ScriptedOptions = {}): Agent {
       const parts: AnswerPart[] = analyzeParts(dossier).map((text) => ({ text }));
       return { prompt: 'Analyze', parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals: script.risk?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, dossier) } : {}) };
     }
-    const id = script[prompt] ? prompt : Object.entries(script).find(([, s]) => s.label === prompt)?.[0];
+    const guided = GUIDED_SCRIPT[prompt];
+    const id = script[prompt] ? prompt : guided && script[guided] ? guided : Object.entries(script).find(([, s]) => s.label === prompt)?.[0];
     const entry = id ? script[id] : undefined;
     // The voiced risk answer when the voice is on and the theme has one; Plain, and the voice off, read the standard.
     const voiced = id === 'risk' && style?.voice ? VOICED[dossier]?.[style.theme] : undefined;
     const parts: AnswerPart[] = (voiced ?? entry?.parts ?? (STANDUP_WRITE_UP.test(prompt) ? SCRIPTED_WRITE_UP : [UNSCRIPTED])).map((text) => ({ text }));
     // In a chat, the answer carries sample usage figures (#295), marked as made up, so the footer has something to show.
-    return { prompt: entry?.label ?? prompt, parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals: entry?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, dossier) } : {}) };
+    return { prompt: guided && entry ? prompt : (entry?.label ?? prompt), parts, citations: citationsOf(parts), by: 'scripted', adapter: 'scripted', model: null, proposals: entry?.proposals ?? [], ...(chat ? { usage: sampleAnswerUsage(chat.id, chat.turn, dossier) } : {}) };
   };
   return {
     label: SCRIPTED_LABEL,

@@ -247,13 +247,10 @@ describe('learning links (#418)', () => {
     expect(document.querySelector('a[href*="context-overflow"], [data-learn-link], [data-learn]')).toBeNull();
   });
 
-  it("offers Learn in the agent's empty chat, and the answers' terms in its (i)", async () => {
+  it("keeps Learn out of the chat's guided start (the header's Help has it), and offers the answers' terms in its (i)", async () => {
     await open('#/dossier/checkout-web');
     const chat = await openChat('checkout-web');
-    await userEvent.click(within(chat).getByRole('button', { name: 'Learn' }));
-    const learn = await screen.findByRole('dialog', { name: 'Learn, on Context Overflow' });
-    expect(within(learn).getAllByRole('link').map((a) => a.getAttribute('href'))).toEqual(LEARN.map(learnHref));
-    await userEvent.keyboard('{Escape}');
+    expect(within(chat).queryByRole('button', { name: 'Learn' })).toBeNull();
     await userEvent.click(within(chat).getByRole('button', { name: 'About these answers' }));
     const info = await screen.findByRole('dialog', { name: 'About these answers' });
     expect(within(info).getAllByRole('link', { name: /^Read more on Context Overflow/ }).map((a) => a.getAttribute('href'))).toEqual(HELP.answers.glossary.map(glossaryHref));

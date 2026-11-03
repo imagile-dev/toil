@@ -344,3 +344,7 @@
 .standup-writeup { border-left: 4px solid var(--accent); padding-left: 0.75rem; display: grid; gap: 0.5rem; min-width: 0; overflow-wrap: anywhere; }
 .standup-writeup h3 { margin: 0; font-size: 1rem; }
 .standup-writeup .btn--small { margin: 0 0.15rem; }
+
+/* The usage lines (#552): one readable line, the breakdown behind a fold. */
+.usage-details summary, .chat-usage summary { cursor: pointer; }
+.chat-usage[open] > summary, .usage-details[open] > summary { margin-bottom: 0.15rem; }

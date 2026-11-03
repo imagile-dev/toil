@@ -177,8 +177,9 @@ describe("a stale chat (#305)", () => {
     render(<App execute={fixtureExecute().execute} agent={agent} now={FIXTURE_NOW} preview />);
     await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
     const user = userEvent.setup();
-    await user.click(screen.getByRole('button', { name: 'Analyze' }));
+    await user.click(screen.getByRole('textbox', { name: 'Your question' }));
     const chat = await screen.findByRole('dialog', { name: 'Ask about card-payments' });
+    await user.click(within(chat).getByRole('button', { name: /^Give me the full briefing/ }));
     await within(chat).findByText('prompts changed since it started.');
     await user.click(within(chat).getByRole('button', { name: 'Renew' }));
     await within(chat).findByText(/^Renewed on today's instructions\./);

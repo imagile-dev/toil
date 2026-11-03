@@ -372,8 +372,8 @@ function states(route, width, sample = true) {
   const closeAsk = clickAll('[data-ask-close]');
   if (/^#\/dossier\/[^/]+$/.test(route)) {
     // The page stays open from one width to the next, so the chat may already hold the answer an earlier width asked
-    // for: then its starters are the Suggestions button instead of chips.
-    const ready = `document.querySelector('.ask-focus .starters, .ask-focus [data-ask-suggestions]')`;
+    // for: then its questions are the Suggestions button instead of the guided start.
+    const ready = `document.querySelector('.ask-focus [data-guided-start], .ask-focus [data-ask-suggestions]')`;
     out.push({ name: 'ask-open', setup: `(async () => { ${openAsk} const deadline = Date.now() + 5000; while (!${ready} && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return ${ready} ? 1 : 0; })()`, undoJs: closeAsk });
     out.push({ name: 'ask-info', setup: `(async () => { ${openAsk} return await ${clickAll('[data-ask-info]')}; })()`, undo: 'Escape', undoJs: closeAsk });
     out.push({ name: 'ask-switcher', setup: `(async () => { ${openAsk} return await ${clickAll('[data-agent-switch]')}; })()`, undo: 'Escape', undoJs: closeAsk });
@@ -388,11 +388,13 @@ function states(route, width, sample = true) {
   // Done means the new turn is in the view, the Stop button gone and its usage shown; the closed view holds no turns, so they're counted from the bar.
   const answered = (press) => `(async () => { const asked = Number(/(\\d+) questions? in this chat/.exec(document.querySelector('.ask-bar')?.textContent ?? '')?.[1] ?? 0); if (!(await ${press})) return 0; const done = () => { const turns = document.querySelectorAll('.ask-focus .turn'); return turns.length > asked && !document.querySelector('[data-ask-stop]') && turns[turns.length - 1].querySelector('[data-usage-footer]') && document.querySelector('[data-chat-usage]') && document.querySelector('[data-ask-status]'); }; const deadline = Date.now() + 15000; while (!done() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); return done() ? 1 : 0; })()`;
   if (route === '#/dossier/card-payments') {
-    const firstQuestion = `(async () => { ${openAsk} const deadline = Date.now() + 5000; while (!document.querySelector('.ask-focus .starters .starter, [data-ask-suggestions]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const chip = document.querySelector('.ask-focus .starters .starter'); if (chip) return (chip.click(), 1); if (!(await ${clickAll('[data-ask-suggestions]')})) return 0; return await ${clickAll('[role="menuitem"]:first-child')}; })()`;
+    const firstQuestion = `(async () => { ${openAsk} const deadline = Date.now() + 5000; while (!document.querySelector('.ask-focus [data-question], [data-ask-suggestions]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const chip = document.querySelector('.ask-focus [data-question="finish"]'); if (chip) return (chip.click(), 1); if (!(await ${clickAll('[data-ask-suggestions]')})) return 0; return await ${clickAll('[role="menuitem"]:first-child')}; })()`;
     out.push({ name: 'answered', setup: answered(firstQuestion), undoJs: closeAsk });
     out.push({ name: 'ask-suggestions', setup: `(async () => { ${openAsk} return await ${clickAll('[data-ask-suggestions]')}; })()`, undo: 'Escape', undoJs: closeAsk });
   }
-  if (route === '#/dossier/settlement') out.push({ name: 'analyzed', setup: answered(clickAll('[data-analyze]')), undoJs: closeAsk });
+  // Analyze is the guided start's first question (#552), or the same words in the Suggestions menu once the chat has begun.
+  const briefing = `(async () => { ${openAsk} const deadline = Date.now() + 5000; while (!document.querySelector('.ask-focus [data-question], [data-ask-suggestions]') && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50)); const q = document.querySelector('.ask-focus [data-question="briefing"]'); if (q) return (q.click(), 1); if (!(await ${clickAll('[data-ask-suggestions]')})) return 0; return await ${clickAll('[role="menuitem"]', '/^Give me the full briefing/')}; })()`;
+  if (route === '#/dossier/settlement') out.push({ name: 'analyzed', setup: answered(briefing), undoJs: closeAsk });
   // The Assign dialog from an item's page, and Start on the Agents lane's inbox (#293).
   // Escape alone can leave it open on a slow runner (focus not yet inside it), which then holds focus through every
   // state at the next width; its own Cancel or Close closes it for certain.

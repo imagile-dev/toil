@@ -162,8 +162,9 @@ describe('Analyze in the chat', () => {
     await open('#/dossier/checkout-web', undefined);
     const card = await screen.findByRole('region', { name: 'Briefing' });
     expect(card.dataset.recSource).toBe('code');
-    await userEvent.click(within(askBar('checkout-web')).getByRole('button', { name: 'Analyze' }));
+    await userEvent.click(within(askBar('checkout-web')).getByRole('textbox', { name: 'Your question' }));
     const chat = await screen.findByRole('dialog', { name: 'Ask about checkout-web' });
+    await userEvent.click(within(chat).getByRole('button', { name: /^Give me the full briefing/ }));
     const kept = await within(chat).findByRole('link', { name: 'Kept in Analyses' }, { timeout: 5000 });
     expect(within(chat).getAllByRole('heading', { level: 4 }).map((h) => h.textContent)).toEqual(['Recommendation', 'Reasons']);
     expect((chat.querySelector('details.analysis-evidence') as HTMLDetailsElement).open).toBe(false);

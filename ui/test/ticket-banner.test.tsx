@@ -79,7 +79,7 @@ describe('the "Not ticketed yet" banner', () => {
 
   it('stays away from Analyze, which is a question about the dossier, and still catches work asked after it (#343)', async () => {
     const { pane, say } = await chat('settlement');
-    await userEvent.click(within(pane).getByRole('button', { name: 'Analyze' }));
+    await userEvent.click(within(pane).getByRole('button', { name: /^Give me the full briefing/ }));
     await within(pane).findByRole('heading', { level: 3, name: 'Analyze' });
     await waitFor(() => expect(within(pane).getByRole('textbox', { name: 'Your question' })).not.toHaveProperty('disabled', true), { timeout: 8000 });
     expect(within(pane).queryByRole('region', { name: 'Not ticketed yet' })).toBeNull();
