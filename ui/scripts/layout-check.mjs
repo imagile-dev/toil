@@ -29,7 +29,7 @@
 // from the Ask bar (#343) with its (i) popover, its agent switcher, an answer, its Suggestions menu and
 // Analyze's pulse check, a help (i)'s tooltip and popover (#346), the Agent page's full prompt and its Install dialog shown (#344), a worklog day rebuilt and
 // the calendar on an earlier month, a stand-up written up, and every failing
-// command's recent audit lines open on the Usage page, the bell's list and What's new (#417), and the theme moments' previews
+// command's recent audit lines open on the Usage page (on real data with no failed command, the page's "No command failed in this window" stands in), the bell's list and What's new (#417), and the theme moments' previews
 // (#419): a loading screen, the launch splash and the sprint recap card. Reduced motion
 // is on, so an animation caught mid-flight can't fail a run; `npm run smoke` then runs
 // MOTION_ROUTES again with motion on, where the moments play.
