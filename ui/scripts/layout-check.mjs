@@ -320,7 +320,7 @@ async function closeOverlays(page) {
 }
 
 /** The states each view is checked in, beyond how it opens. */
-function states(route, width) {
+function states(route, width, sample = true) {
   const out = [];
   // The app's own breakpoint (COMPACT_HEADER in src/App.tsx): below it, the header is the Menu button.
   const compact = width < 1024;
@@ -420,7 +420,8 @@ function states(route, width) {
   }
   if (route === '#/dossier/card-payments/board') out.push({ name: 'attention-only', setup: clickAll('[data-attention-only]'), undoJs: clickAll('[data-attention-only]') });
   // A failing command's recent audit lines, opened under it on the Usage page (#309).
-  if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n; })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
+  // Real data may genuinely have no failed command, and then there is nothing to open; the sample always has some.
+  if (route === '#/settings/usage') out.push({ name: 'audit-lines', setup: `(async () => { const n = ${clickAll('[data-usage-lines]', '/Show recent failures/')}; await new Promise((r) => setTimeout(r, 300)); return n || (${!sample} && /No command failed in this window/.test(document.querySelector('main')?.textContent ?? '') ? 1 : 0); })()`, undoJs: clickAll('[data-usage-lines]', '/Hide recent failures/') });
   // The person's instructions are on the Agent page as it opens; the full prompt opens under them (#283).
   // The worklog (#308): a day rebuilt, which says how it compared, and an earlier month in the calendar.
   if (/\/worklog\/\d{4}-\d{2}-\d{2}$/.test(route)) out.push({ name: 'rebuilt', setup: `(async () => { const n = ${clickAll('[data-worklog-rebuild]')}; await new Promise((r) => setTimeout(r, 300)); return n; })()` });
@@ -672,7 +673,7 @@ async function checkRun({ page, run, urlFor, routes, widths, shots, axeSource, l
         await page.evaluate('window.scrollTo(0, 0)');
         checked++;
       }
-      for (const state of states(route, width)) {
+      for (const state of states(route, width, headerFits)) {
         // A state that opens nothing checks nothing, so it's a problem, never a quiet pass. clickAll waits for
         // its element to show, and an item in the compact header's Menu is looked for once the Menu is open (#289).
         // A state that needs focus (`clearOverlays`) first closes any menu or dialog an earlier state left open.
