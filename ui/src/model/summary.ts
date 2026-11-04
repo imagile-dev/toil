@@ -236,8 +236,6 @@ export interface Card {
   /** Exactly one way in to the thing; null on an all-clear card. */
   action: { label: string; href: string; item?: string } | null;
   tone: Tone;
-  /** On the blocked card: whether it shows the head of the blocker chain the red `blocked` reason names, so that reason needn't be said again. */
-  coversLens?: boolean;
 }
 
 const holdText = (h: { items: number; points: number } | undefined) => (h && h.items > 0 ? ` ${plural(h.items, 'other story', 'other stories')} (${pts(h.points)}) ${h.items === 1 ? 'waits' : 'wait'} behind it.` : '');
@@ -291,8 +289,6 @@ function blockedCard(c: Ctx, covered: string | null): Card | null {
     named: [{ text: owner ? `Waiting on ${owner}` : 'Waiting on nobody yet', meta: blocker.title }],
     action: { label: 'Open', href: itemHref(c, blocker.id), item: blocker.id },
     tone: 'warn',
-    // Skipping the risk card's chain shows a different blocker; the lens's own items then still need their line.
-    coversLens: headId === blockerOrder(c.held)[0]?.[0],
   };
 }
 
