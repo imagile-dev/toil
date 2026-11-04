@@ -50,7 +50,7 @@ export function Overview() {
   const shown = view.reasons.filter((r) => r.severity === 'danger' || !prefs.hidden.includes(r.lens));
   const hidden = view.reasons.length - shown.length;
   // The red reasons no card above already tells: the biggest risk is the first reason, and the other two cards are the blocked and waiting lenses.
-  const covered = new Set<string>([cards.some((c) => c.id === 'risk') ? (view.reasons[0]?.lens ?? '') : '', cards.some((c) => c.id === 'blocked') ? 'blocked' : '', cards.some((c) => c.id === 'review') ? 'waiting' : '']);
+  const covered = new Set<string>([cards.some((c) => c.id === 'risk') ? (view.reasons[0]?.lens ?? '') : '', cards.some((c) => c.id === 'blocked' && c.coversLens) ? 'blocked' : '', cards.some((c) => c.id === 'review') ? 'waiting' : '']);
   const alerts = view.reasons.filter((r) => r.severity === 'danger' && !covered.has(r.lens));
   const here = typeof window === 'undefined' ? '#/' : window.location.hash;
   // Whose settings tuned this briefing, whenever a dossier tunes it (#494): its file, and whether it's the reader's own.

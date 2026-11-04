@@ -17,6 +17,10 @@ describe('how sure', () => {
     expect(s.because).toBe('Every saved read worked, the data was read 2 hours ago, and there are 12 items to go on.');
   });
 
+  it('says it vouched only for the reads the answer depends on, when the check was scoped to them', () => {
+    expect(sure({ scoped: true }).because).toBe('Every read this answer depends on worked, the data was read 2 hours ago, and there are 12 items to go on.');
+  });
+
   it('is High with nothing lacking to count, and for a typed question that names none', () => {
     expect(sure({ lacking: null }).level).toBe('high');
     expect(sure({ lacking: { what: 'no estimate', count: 0, of: 0 } }).level).toBe('high');

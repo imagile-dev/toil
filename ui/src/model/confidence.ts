@@ -34,6 +34,8 @@ export interface SureInput {
   ageHours: number;
   /** How many items there are to go on. */
   items: number;
+  /** True when `failed` was checked against only the reads this answer depends on, so the all-clear says so rather than vouch for every read. */
+  scoped?: boolean;
   /** Items the answer names that its tools never returned, out of the items it cites: one caps the level at Medium, more than one or half or more of them, at Low. */
   unverified?: { count: number; of: number } | null;
   /** What the items are called, when they aren't items ("pull request" for a question about reviews). */
@@ -111,6 +113,6 @@ export function howSure(c: SureInput): Sure {
 
   const because = said.length
     ? `${said.join('; ').replace(/^./, (x) => x.toUpperCase())}.`
-    : `Every saved read worked, the data was read ${ago(c.ageHours)}, and there are ${plural(c.items, noun)} to go on.`;
+    : `${c.scoped ? 'Every read this answer depends on worked' : 'Every saved read worked'}, the data was read ${ago(c.ageHours)}, and there are ${plural(c.items, noun)} to go on.`;
   return { level, word: LEVEL_WORD[level], because, reasons };
 }

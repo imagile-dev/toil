@@ -76,3 +76,8 @@ Decided by the maintainer on #552, 2026-11-03:
 - Whether a hover `title` counts as a disclosure a person chooses, since touch and keyboard users can't reach it. This round moved the Test button's explanation and each question's "Good for" into `title`s.
 - Citing a design lab readers can't open, now removed from comments.
 - Whether every invented threshold (75%, 10%, 3 items, 24h/72h) must be flagged as a choice in the copy.
+
+## Review round 2 (the Imagile Bot)
+
+- **"How sure" says which reads it vouched for.** A guided question is checked only against the reads it depends on (`needs`), so its all-clear now reads "Every read this answer depends on worked". "Every saved read worked" is kept for a typed question, which is checked against every read. **Where:** `scoped` in `ui/src/model/confidence.ts`, set by `AnswerChecks`.
+- **The blocked card covers the red `blocked` reason only when it shows the head of that reason's chain.** When the risk card already took that chain, the blocked card shows a different blocker, and the red reason keeps its own line outside the fold (`coversLens` on `Card`, read in `Overview.tsx`). There's no unit test for this edge case, because building the blocker chain needs a whole briefing fixture. The view tests cover the usual case.

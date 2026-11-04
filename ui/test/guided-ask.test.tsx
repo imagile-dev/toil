@@ -202,6 +202,10 @@ describe('"How sure is this?"', () => {
     await waitFor(() => expect(chat.querySelector('[data-how-sure]')).not.toBeNull());
     // Who might need help needs work, code reviews and owners; builds are not among them.
     expect(chat.querySelector('[data-sure]')!.textContent).not.toBe('Low');
+    // The builds read did fail, so the all-clear claims only the reads this answer depends on.
+    const checks = chat.querySelector('[data-how-sure]')!.textContent!;
+    expect(checks).not.toContain('Every saved read worked');
+    expect(checks).toContain('Every read this answer depends on worked');
   });
 
   it('shows a cited id the Toil project does not hold as the bare id, never dropping it', async () => {

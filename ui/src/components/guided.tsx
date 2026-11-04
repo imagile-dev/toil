@@ -178,6 +178,7 @@ export function AnswerChecks({ answer, prompt, analyze, ms, safe }: { answer: An
     failed: panels.map((p) => plain.text(PANEL_WORDS[p])),
     ageHours: ageHoursOf(now, viewedAt ?? new Date().toISOString()),
     items: q?.base === 'pullRequests' ? (dossier.pullRequests ?? []).length : dossier.items.length,
+    scoped: !!q?.needs,
     unverified: answer.unverified?.length ? { count: answer.unverified.length, of: answer.citations.length } : null,
     noun: q?.base === 'pullRequests' ? plain.pw('pull request', 'code review') : undefined,
     lacking: lack ? { what: lack.what, count: among.filter(lack.lacks).length, of: among.length } : null,
