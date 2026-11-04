@@ -101,13 +101,13 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
   );
 
   const groups = new Map<string, Command>();
-  const groupFor = (segments: string[], hidden = false): Command => {
+  const groupFor = (segments: string[], hidden = false, instead?: string): Command => {
     let parent = program;
     for (let i = 0; i < segments.length; i++) {
       const key = segments.slice(0, i + 1).join(' ');
       let group = groups.get(key);
       if (!group) {
-        group = quiet((hidden && i === 0 ? parent.command(segments[i]!, { hidden: true }) : parent.command(segments[i]!)).description(i === 0 ? `${key} commands` : groupSummary(key, options.commands)));
+        group = quiet((hidden && i === 0 ? parent.command(segments[i]!, { hidden: true }) : parent.command(segments[i]!)).description(i === 0 ? (hidden && instead ? `retired: use toil ${instead}` : `${key} commands`) : groupSummary(key, options.commands)));
         groups.set(key, group);
       }
       parent = group;
@@ -127,10 +127,12 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
     const fixed = Object.entries(preset)
       .map(([field, value]) => `${def.options?.find((o) => o.field === field)?.flags.split(/[ ,]+/).find((p) => p.startsWith('--')) ?? field} ${String(value)}`)
       .join(' ');
-    // A retired path stays out of --help (its group too), but still answers, with a warning saying what to type instead.
+    // A retired path stays out of --help (its group too), but still answers, with a warning saying what to type instead. Inside a retired group
+    // the commands are listed, each saying what replaced it, so someone who types the old group to look around finds the new one.
+    const retiredGroup = retired && path.length > 1 && path[0] !== def.path[0];
     const leaf = quiet(
-      groupFor(path.slice(0, -1), retired)
-        .command(path[path.length - 1]!, retired ? { hidden: true } : undefined)
+      groupFor(path.slice(0, -1), retired, retiredGroup ? def.path[0] : undefined)
+        .command(path[path.length - 1]!, retired && !retiredGroup ? { hidden: true } : undefined)
         .description(canonical ? def.description : retired ? `${def.description} (retired: use toil ${commandName(def)})` : `${def.description} (same as toil ${commandName(def)}${fixed ? ` ${fixed}` : ''})`),
     );
     if (canonical) for (const alias of def.aliases ?? []) if (typeof alias === 'string') leaf.alias(alias);

@@ -19,8 +19,10 @@ and CI; you propose, they approve.
   - `CONFIG_RENAMED_AREA`, `CONFIG_DEFAULT_KEPT`, `TOIL_PROJECT_RENAMED_AREA`
   - `TOIL_PROJECT_DEPRECATED_NAME`, `CONFIG_RENAMED_KEY` or `TOIL_PROJECT_OLD_FOLDER`:
     what earlier versions called a dossier is now a toil project
-  - `INVALID_INPUT` saying a command, area or tool "no longer exists", including a
-    `dossiers_*` tool or a `dossier` field over MCP
+  - `INVALID_INPUT` saying a command, area or tool "no longer exists"
+  - Over MCP, the SDK's `-32602 Unknown tool: dossiers_list` (no envelope: the tool name is
+    gone, so `projects_list` is the one to call), or `INVALID_INPUT` with `Unrecognized key:
+    "dossier"` and a fix saying the field is now `toilProject`
   - `UNSUPPORTED`, when a flag or command belongs to the other deployment
   - `UNSUPPORTED_NODE`, when the Node on this machine is no longer supported
 - A script, CI file or agent config of the user's names a path, tool, flag or variable
@@ -143,7 +145,9 @@ that matches on them.
   `<area>_check_toil_project`, the input `dossier` is `toilProject`, and the resources
   `toil://dossiers` and `toil://dossiers/<name>` are `toil://projects` and
   `toil://projects/<name>`. Over MCP and the API the old names are gone, with no alias,
-  so a call that still sends `dossier` fails with `INVALID_INPUT`. `toil mcp --areas` is
+  so a call to `dossiers_list` fails with the SDK's `-32602 Unknown tool` error, and a call
+  that still sends `dossier` fails with `INVALID_INPUT` (`Unrecognized key: "dossier"`, its fix
+  naming `toilProject`). `toil mcp --areas` is
   unaffected.
 - An agent's allowed-tools list (for example `mcp__toil__dossiers_list` in a Claude Code
   settings file) must be renamed (`mcp__toil__projects_list`) or the agent loses access

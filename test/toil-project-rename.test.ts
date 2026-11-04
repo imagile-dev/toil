@@ -74,6 +74,14 @@ describe('the old CLI paths', () => {
     expect(help.stdout).not.toContain('dossiers');
   });
 
+  it('`toil dossiers --help` lists the retired commands and says what replaced them, so the old group is a signpost', async () => {
+    const { context } = testContext();
+    const help = await runCli(['dossiers', '--help'], { commands: registryCommands, context });
+    expect(help.stdout).toContain('retired: use toil projects');
+    expect(help.stdout).toContain('list [options]');
+    expect(help.stdout).toContain('show [options]');
+  });
+
   it('every `projects` command has its `dossiers` twin, and every check-toil-project its check-dossier, as retired paths and not aliases', () => {
     const projects = registryCommands.filter((c) => c.path[0] === 'projects' && c.path[1] !== 'migrate');
     expect(projects.length).toBeGreaterThan(10);
@@ -143,6 +151,16 @@ describe('MCP', () => {
     expect(names.filter((n) => n.startsWith('dossiers_') || n.endsWith('_check_dossier'))).toEqual([]);
     // CLI only: it moves files, so an agent never gets it.
     expect(names).not.toContain('projects_migrate');
+  });
+
+  it('a call that still sends `dossier` is refused with INVALID_INPUT whose fix names `toilProject`', async () => {
+    const { context } = testContext();
+    const session = await connectMcp({ commands: registryCommands, context });
+    sessions.push(session);
+    const result = await session.client.callTool({ name: 'projects_list', arguments: { dossier: 'payments' } });
+    const text = JSON.stringify(result);
+    expect(text).toContain('INVALID_INPUT');
+    expect(text).toContain('The field \\"dossier\\" is now \\"toilProject\\"');
   });
 });
 

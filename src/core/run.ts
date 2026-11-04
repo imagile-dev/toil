@@ -50,6 +50,9 @@ export interface CallOptions {
  * Both front doors call this; neither calls execute() directly. Over MCP, an
  * input error names the tool's fields rather than the CLI's flags.
  */
+/** Input fields renamed in a release, so a call that still sends the old one is told the new one (contract version 3). */
+const RENAMED_FIELDS: Record<string, string> = { dossier: 'toilProject' };
+
 export async function runCommand(
   def: AnyCommand,
   rawInput: unknown,
@@ -246,8 +249,10 @@ export async function execute(def: AnyCommand, rawInput: unknown, ctx: Context, 
     const { input: own, query } = takeSelect(commandName(def), rawInput);
     const parsed = def.input.strict().safeParse(own ?? {});
     if (!parsed.success) {
+      // A field that was renamed gets its new name in the fix, not a pointer to --help that never mentions the old one.
+      const renamed = Object.entries(RENAMED_FIELDS).filter(([old]) => parsed.error.issues.some((i: z.core.$ZodIssue) => i.code === 'unrecognized_keys' && i.keys.includes(old)));
       throw new ToilError('INVALID_INPUT', `Invalid input for ${commandName(def)}: ${z.prettifyError(parsed.error)}`, {
-        fix: `Run toil ${commandName(def)} --help to see the expected arguments.`,
+        fix: `${renamed.map(([old, now]) => `The field "${old}" is now "${now}". `).join('')}Run toil ${commandName(def)} --help to see the expected arguments.`,
         details: parsed.error.issues,
       });
     }
