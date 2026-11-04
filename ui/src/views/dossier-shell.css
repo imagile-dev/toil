@@ -180,3 +180,4 @@ a.ticket-chip:hover { border-color: var(--link); }
   .ticket-chip__title { max-width: 10rem; }
 }
 .agent-card__title { display: inline-block; min-height: 32px; }
+.agent-card__item .item-link { display: inline-block; min-height: 24px; padding-block: 2px; box-sizing: border-box; }
