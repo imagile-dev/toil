@@ -43,6 +43,9 @@ export interface CallOptions {
   actor?: string;
 }
 
+/** Input fields renamed in a release, so a call that still sends the old one is told the new one (contract version 3). */
+const RENAMED_FIELDS: Record<string, string> = { dossier: 'toilProject' };
+
 /**
  * Builds the context and runs the command, so a failure building the context
  * (a config file that stopped being JSON while the MCP server was up) is an
@@ -50,9 +53,6 @@ export interface CallOptions {
  * Both front doors call this; neither calls execute() directly. Over MCP, an
  * input error names the tool's fields rather than the CLI's flags.
  */
-/** Input fields renamed in a release, so a call that still sends the old one is told the new one (contract version 3). */
-const RENAMED_FIELDS: Record<string, string> = { dossier: 'toilProject' };
-
 export async function runCommand(
   def: AnyCommand,
   rawInput: unknown,

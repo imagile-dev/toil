@@ -156,7 +156,7 @@ export function buildProgram(options: ProgramOptions): { program: Command; resul
       }
     }
     if (takesAllowWrite(def)) leaf.option('--allow-write', 'Allow this command to change data (writes must also be enabled in config)');
-    // `--dossier` was `--toil-project` until toil projects got their name: still read on the CLI, never over MCP or the API.
+    // `--toil-project` was `--dossier` until toil projects got their name: still read on the CLI, never over MCP or the API.
     const oldFlag = (def.options ?? []).some((o) => o.field === TOIL_PROJECT_FIELD);
     if (oldFlag) leaf.addOption(new Option('--dossier <name|file>').hideHelp());
 
