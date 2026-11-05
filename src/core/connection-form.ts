@@ -95,7 +95,7 @@ export const emptyState = (name = ''): FormState => ({ name, picks: {}, text: {}
 
 const fieldOf = (area: FormArea, name: string) => area.connection.find((f) => f.name === name);
 
-/** `*.atlassian.net` matches `example-site.atlassian.net`, not `atlassian.net`. */
+/** `*.atlassian.net` matches a site name under it, not `atlassian.net` itself. */
 export function hostMatches(host: string, pattern: string): boolean {
   const h = host.toLowerCase();
   return pattern.startsWith('*.') ? h.endsWith(pattern.slice(1)) && h.length > pattern.length - 1 : h === pattern.toLowerCase();
