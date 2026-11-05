@@ -161,7 +161,14 @@ gets made again in the next place it applies.
     is added, something should come off the screen, or it should stay out of sight
     until it's called up (the maintainer's call, 2026-10-22). Progressive
     disclosure and multiple paths to each page are the central design principle of
-    Toil UI (the maintainer's call, 2026-10-27). → Toil UI's help
+    Toil UI (the maintainer's call, 2026-10-27). **Functional words are plain,
+    flavour is for explaining.** Anything a person reads to act (menu items, tabs,
+    buttons, field labels, headings, errors and their fixes) is plain English, the
+    same in every theme, and prefers an everyday word to jargon (a pull request is a
+    code review), with toil's own term one hover away. A theme speaks only where
+    nothing depends on the words: explanations and ledes, loading and progress text,
+    empty-state sentences and its moments. So plain words has no switch: it is
+    always on (the maintainer's call, 2026-11-05, #561). → Toil UI's help
     topics (`ui/src/help.ts`, #346) and the **Screen review** in the `ship` skill.
 12. **Unknown is not zero.** A figure nobody has read yet, because nothing has synced,
     a source failed, or the data isn't there, is *unknown*, and says so. A real count
