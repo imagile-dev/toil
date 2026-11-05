@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.tsx';
 import { scriptedAgent } from '../src/fixtures/agent.ts';
 import { fixtureExecute, FIXTURE_NOW } from '../src/fixtures/execute.ts';

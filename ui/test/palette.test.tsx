@@ -3,7 +3,7 @@ import { join, relative } from 'node:path';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import axe from 'axe-core';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { App } from '../src/App.tsx';
 import { FirstRun, firstRunShows, SAMPLE_COMMAND, TRACKER_AREAS } from '../src/components/first-run.tsx';
 import { ageText, paletteEntries, paletteResults, staleNote, STALE_AFTER_MS, type EntriesInput } from '../src/components/palette.tsx';

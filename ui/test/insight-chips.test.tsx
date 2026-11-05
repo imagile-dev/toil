@@ -1,5 +1,5 @@
 import { render } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { InsightChips } from '../src/components/bits.tsx';
 import type { Insight } from '../src/model/insights.ts';
 
