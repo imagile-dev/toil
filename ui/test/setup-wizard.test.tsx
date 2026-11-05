@@ -59,7 +59,7 @@ async function open(config: ConfigApi, onSync?: () => void) {
 }
 
 const press = (name: string) => userEvent.click(screen.getByRole('button', { name }));
-const progress = () => screen.getByText(/^Step \d of 6/).textContent;
+const progress = () => screen.getByText(/^Step \d of 7/).textContent;
 const passwordFields = () => document.querySelectorAll('input[type="password"]').length;
 
 describe('the setup wizard', () => {
@@ -73,7 +73,7 @@ describe('the setup wizard', () => {
 
   it('welcomes in plain words and promises nothing changes without you', async () => {
     await open(emptyMachine().config);
-    expect(progress()).toContain('Step 1 of 6');
+    expect(progress()).toContain('Step 1 of 7');
     expect(document.querySelector('[data-setup-promise]')!.textContent).toMatch(/Nothing is changed in your tools without you/);
     expect(screen.queryByRole('button', { name: 'Back' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Skip' })).toBeNull();
@@ -100,7 +100,7 @@ describe('the setup wizard', () => {
     await press('Next');
 
     await screen.findByRole('heading', { level: 1, name: 'Link GitHub' });
-    expect(progress()).toContain('Step 3 of 6');
+    expect(progress()).toContain('Step 3 of 7');
     // GitHub.com is the selected radio, so there is no address to type.
     expect((screen.getByRole('radio', { name: /^GitHub.com/ }) as HTMLInputElement).checked).toBe(true);
     await userEvent.type(screen.getByLabelText(/^token/), SECRET);
@@ -128,6 +128,10 @@ describe('the setup wizard', () => {
     expect(calls.find((c) => c.command === 'projects link')!.input).toEqual({ toilProject: 'payments', area: 'github', connection: 'github' });
 
     await press('Next');
+    // Jira isn't linked, so the optional field step has nothing to read and says to skip it.
+    await screen.findByRole('heading', { level: 1, name: 'Let toil learn your Jira fields (optional)' });
+    expect(document.querySelector('[data-find-none]')!.textContent).toMatch(/Jira isn't linked/);
+    await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
     expect(document.querySelector('[data-setup-optional]')!.textContent).toMatch(/Everything else works without one/);
     await press('Finish');
@@ -148,7 +152,9 @@ describe('the setup wizard', () => {
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
     await press('Skip');
     await screen.findByRole('heading', { level: 1, name: 'Your Toil project' });
-    expect(progress()).toContain('Step 4 of 6');
+    expect(progress()).toContain('Step 4 of 7');
+    await press('Skip');
+    await screen.findByRole('heading', { level: 1, name: 'Let toil learn your Jira fields (optional)' });
     await press('Skip');
     await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
     await press('Skip');
@@ -156,6 +162,7 @@ describe('the setup wizard', () => {
     expect(screen.getByRole('list', { name: 'What was set up' }).textContent).toContain('No new tool links');
     await press('Back');
     await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    await press('Back');
     await press('Back');
     await press('Back');
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
@@ -195,6 +202,8 @@ describe('the setup wizard', () => {
     expect(passwordFields()).toBe(0);
     await press('Next');
     expect(passwordFields()).toBe(0);
+    await press('Next');
+    expect(passwordFields()).toBe(0);
     await press('Finish');
     expect(passwordFields()).toBe(0);
   });
@@ -224,6 +233,8 @@ describe('the setup wizard', () => {
     expect(await check()).toEqual([]);
     await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Link GitHub' });
+    expect(await check()).toEqual([]);
+    await press('Next');
     expect(await check()).toEqual([]);
     await press('Next');
     expect(await check()).toEqual([]);

@@ -25,7 +25,7 @@ import type { FormChoices } from '../../src/core/connection-form.ts';
 import type { DescribedScopes } from '../../src/core/scopes.ts';
 
 /** The reads the pages make: run read-only, even on the config path. The audit reads fill Usage (#309). */
-export const CONFIG_READS = ['connections list', 'connections test', 'projects list', 'projects show', 'projects check', 'audit stats', 'audit list', 'theme list'] as const;
+export const CONFIG_READS = ['connections list', 'connections test', 'projects list', 'projects show', 'projects check', 'jira field discover', 'audit stats', 'audit list', 'theme list'] as const;
 
 /** The changes, each only to toil's own config or toil projects. */
 export const CONFIG_CHANGES = [

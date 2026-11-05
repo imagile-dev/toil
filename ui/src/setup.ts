@@ -8,7 +8,7 @@
 import type { AreaInfo } from './config.ts';
 import { hostMatches } from '../../src/core/connection-form.ts';
 
-export const SETUP_STEPS = ['welcome', 'tools', 'connect', 'project', 'helper', 'done'] as const;
+export const SETUP_STEPS = ['welcome', 'tools', 'connect', 'project', 'fields', 'helper', 'done'] as const;
 export type SetupStep = (typeof SETUP_STEPS)[number];
 
 /** The step titles, as the progress line and each screen's heading say them. */
@@ -17,6 +17,7 @@ export const STEP_TITLE: Record<SetupStep, string> = {
   tools: 'Which tools do you use?',
   connect: 'Link your tools',
   project: 'Your Toil project',
+  fields: 'Let toil learn your Jira fields (optional)',
   helper: 'An AI helper (optional)',
   done: 'All set',
 };

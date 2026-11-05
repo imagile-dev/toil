@@ -14,6 +14,8 @@ import { pairs, type AreaInfo, type ConfigApi, type ConnectionsData } from '../.
 import type { Envelope } from '../../toil.ts';
 import { Card, CardGrid, Cluster, DataTable, Path, Stack, Url } from '../../components/layout.tsx';
 import { RepoSetup } from './RepoSetup.tsx';
+import { FindFields } from './FindFields.tsx';
+import { toilProjectEditHref } from '../../format.ts';
 import { ArchiveMenu, ArchiveNoticeLine, ArchivedDisclosure, type ArchiveNotice } from '../../components/archive.tsx';
 import { Help, useLandOn } from '../../components/help.tsx';
 import { AreaField, ChangeForm, CheckField, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './parts.tsx';
@@ -45,7 +47,7 @@ const fromEnvelope = <T,>(e: Envelope): Loaded<T> => (e.ok ? { ok: true, value: 
 export type ToilProjectTarget = { toilProject: string; section: string | null };
 
 /** The form each section's edit link lands on, by its heading's id. */
-const SECTION_FORM: Record<string, string> = { sources: 'toil-project-form-sources', repos: 'toil-project-form-repos', fields: 'toil-project-form-fields', people: 'toil-project-form-people', wip: 'toil-project-form-wip', analyze: 'toil-project-form-analyze' };
+const SECTION_FORM: Record<string, string> = { sources: 'toil-project-form-sources', repos: 'toil-project-form-repos', fields: 'toil-project-form-fields', 'find-fields': 'toil-project-form-find-fields', people: 'toil-project-form-people', wip: 'toil-project-form-wip', analyze: 'toil-project-form-analyze' };
 
 /** `at`: a toil project's section to land on (#346); `toForm`: Create a toil project, which the first-run checklist opens (#416). */
 export function ToilProjectSetup({ config, at, toForm = false }: { config: ConfigApi; at?: ToilProjectTarget; toForm?: boolean }) {
@@ -149,6 +151,7 @@ export function ToilProjectSetup({ config, at, toForm = false }: { config: Confi
             <AddRepoForm config={config} toilProject={target} />
             <LinkForm config={config} toilProject={target} areas={areas} connections={connections} />
             <FieldForm config={config} toilProject={target} areas={areas} />
+            <FindFields config={config} toilProjects={toilProjects.map((d) => d.name)} toilProject={target} connections={connections} titleId="toil-project-form-find-fields" />
             <PersonForm config={config} toilProject={target} areas={areas} />
             <PeopleSaveForm config={config} toilProject={target} />
             <WipLimitForm config={config} toilProject={target} />
@@ -647,7 +650,7 @@ function FieldForm({ config, toilProject, areas }: { config: ConfigApi; toilProj
     <ChangeForm
       titleId="toil-project-form-fields"
       title={`Name a field in ${toilProject}`}
-      explain="Gives one of the area's fields a friendly name in this Toil project (storyPoints for customfield_10002), so commands and Toil UI's work items use the name. The OWI fields estimate, priority, type, team and dueDate are pointed at a team's own field the same way."
+      explain={<>Gives one of the area's fields a friendly name in this Toil project (storyPoints for customfield_10002), so commands and Toil UI's work items use the name. The OWI fields estimate, priority, type, team and dueDate are pointed at a team's own field the same way. Don't know the id? <a href={toilProjectEditHref(toilProject, 'find-fields')}>Find the fields</a>.</>}
       runs={commandLine('projects field', [toilProject, chosen, alias || '<alias>', id || '<field-id>', ...(replace ? ['--replace'] : [])])}
       submit="Name field"
       disabled={config.disabled}

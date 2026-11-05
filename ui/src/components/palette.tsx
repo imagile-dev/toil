@@ -134,6 +134,8 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
   }
   if (x.agentSettings) out.push({ id: 'cmd:agent-default', group: 'commands', label: 'Choose the default agent', detail: 'Settings, Agent', go: { href: '#/settings/agent' } });
   out.push({ id: 'cmd:setup', group: 'commands', label: 'Set up toil, step by step', detail: 'The setup wizard: tools, a Toil project, an AI helper', text: 'setup wizard guided get started connect tools onboarding', go: { href: '#/setup' } });
+  // Reading a few Jira issues to name its custom fields in a Toil project, in Settings or, with no Toil project yet, the wizard that makes one.
+  out.push({ id: 'cmd:find-fields', group: 'commands', label: 'Find your Jira fields', detail: 'Name story points and sprints in a Toil project', text: 'find jira fields custom field discover story points sprint customfield', go: { href: x.toilProjects[0] ? toilProjectEditHref(x.toilProjects[0], 'find-fields') : '#/setup' } });
   out.push({ id: 'cmd:plain-words', group: 'commands', label: pw('Use plain words', "Use toil's own terms"), detail: pw('Everyday words for tabs and headings', 'Pull request, agent'), text: 'plain words everyday terms jargon', go: { run: () => setPlain(!x.plain) } });
   out.push({ id: 'cmd:shortcuts', group: 'commands', label: 'Keyboard shortcuts', detail: `Press ${SHORTCUTS.shortcuts.keys.join('')} anywhere`, go: { run: x.openShortcuts } });
 

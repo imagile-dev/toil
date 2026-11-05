@@ -24,6 +24,7 @@ import { Help } from '../components/help.tsx';
 import { Loader } from '../moments/Moments.tsx';
 import { deploymentOf, freeName, groupAreas, locationKind, locationProblems, projectFile, SETUP_STEPS, STEP_TITLE, terminalAdd, toolName, TOKEN_WORD, tokenState, type SetupStep } from '../setup.ts';
 import { LoginForm, NewConnectionForm } from './settings/Connections.tsx';
+import { FieldsStep } from './settings/FindFields.tsx';
 import { ChangeForm, ChoiceRadios, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './settings/parts.tsx';
 import './setup.css';
 
@@ -118,6 +119,7 @@ export function Setup({ config, agent, onSync }: SetupProps) {
           <ConnectOne key={area} config={config} areas={areas} area={area} rows={connections.filter((c) => c.area === area)} known={listed !== false} allNames={connections.map((c) => c.name)} made={made[area] ?? null} onMade={async (name) => (setMade((m) => ({ ...m, [area]: name })), reload())} />
         )}
         {step === 'project' && (config ? <ProjectStep config={config} configFile={configFile} projects={projects} made={made} existing={connections} picked={picked} chosen={project} onChosen={setProject} reload={reload} /> : <NoConfig />)}
+        {step === 'fields' && (config ? <FieldsStep config={config} made={made} existing={connections} project={project} projects={projects.map((p) => p.name)} /> : <NoConfig />)}
         {step === 'helper' && <HelperStep agent={agent} onChosen={setHelper} />}
         {step === 'done' && <Done made={made} project={project} helper={helper} onSync={onSync} />}
         <nav className="setup__nav" aria-label="Setup steps">
