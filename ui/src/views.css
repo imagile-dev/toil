@@ -402,6 +402,6 @@
   .pr-queue[data-wide] table { min-width: 0; }
   .pr-queue th, .pr-queue td { padding-right: 0; }
   .pr-queue td.l-table__actions { padding: 0; }
-  .pr-queue .flags { grid-template-columns: max-content; }
-.pr-queue .pr-author, .pr-queue .flags li, .pr-queue .pr-size .field { white-space: normal; }
+  .pr-queue .flags { grid-template-columns: minmax(0, 1fr); }
+  .pr-queue .pr-author, .pr-queue .flags li, .pr-queue .pr-size .field { white-space: normal; overflow-wrap: anywhere; }
 }
