@@ -60,6 +60,8 @@ async function toStep(config: ConfigApi, tool: RegExp, step: string) {
   render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={config} now={FIXTURE_NOW} preview />);
   await screen.findByRole('heading', { level: 1, name: 'Welcome' }, { timeout: 3000 });
   await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+  await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+  await userEvent.click(screen.getByRole('button', { name: 'Next' }));
   await userEvent.click(await screen.findByRole('checkbox', { name: tool }));
   await userEvent.click(screen.getByRole('button', { name: 'Next' }));
   await screen.findByRole('heading', { level: 1, name: step });
@@ -193,7 +195,7 @@ describe('what already exists', () => {
     expect(existing.textContent).toContain('jira');
     expect(existing.textContent).toContain(`example-site.${ATL}.net`);
     expect(existing.textContent).toContain('(Cloud)');
-    expect(existing.textContent).toContain('writes off');
+    expect(existing.textContent).toContain('changes off');
     expect(existing.textContent).toContain('token: saved');
     expect((screen.getByRole('radio', { name: /^Use jira \(already set up\)/ }) as HTMLInputElement).checked).toBe(true);
     expect(screen.queryByRole('button', { name: 'Save connection' })).toBeNull();
@@ -284,6 +286,8 @@ describe('the Toil project step says what it writes', () => {
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={machineArg.config} now={FIXTURE_NOW} preview />);
     await screen.findByRole('heading', { level: 1, name: 'Welcome' }, { timeout: 3000 });
     await userEvent.click(screen.getByRole('button', { name: 'Start' }));
+    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
     await userEvent.click(screen.getByRole('button', { name: 'Skip' }));
     await screen.findByRole('heading', { level: 1, name: 'Your Toil project' });

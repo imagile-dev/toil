@@ -367,6 +367,7 @@ export function NewConnectionForm({
   suggest,
   title = 'A new connection',
   existingNames = [],
+  onDraft,
 }: {
   areas: AreaInfo[];
   config: ConfigApi;
@@ -375,6 +376,8 @@ export function NewConnectionForm({
   suggest?: { name?: string; values?: Record<string, string> };
   title?: string;
   existingNames?: string[];
+  /** Told the settings the form would send as they change: the non-secret ones only (src/core/connection-form.ts `submission`), for the wizard's guide (#561). */
+  onDraft?: (settings: Record<string, string>) => void;
 }) {
   const withFields = areas.filter((a) => a.connection.length > 0 && (fixed === undefined || a.name === fixed));
   const [area, setArea] = useState(fixed ?? '');
@@ -480,6 +483,8 @@ export function NewConnectionForm({
   const runs = commandLine('connections add', [state.name || '<name>', '--area', chosenArea.name, ...Object.entries(sent).flatMap(([k, v]) => ['--set', `${k}=${v}`])]);
 
   return (
+    <>
+    {onDraft && <DraftReporter settings={sent} onDraft={onDraft} />}
     <ChangeForm
       title={title}
       explain={
@@ -575,5 +580,13 @@ export function NewConnectionForm({
       )}
       <p className="note">Saves: {review}.</p>
     </ChangeForm>
+    </>
   );
+}
+
+/** Says what the form would send, as it changes. Renders nothing: it only carries the non-secret settings out, which are everything it is given. */
+function DraftReporter({ settings, onDraft }: { settings: Record<string, string>; onDraft: (settings: Record<string, string>) => void }) {
+  const key = JSON.stringify(settings);
+  useEffect(() => onDraft(JSON.parse(key) as Record<string, string>), [key, onDraft]);
+  return null;
 }

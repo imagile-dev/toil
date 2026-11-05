@@ -203,6 +203,8 @@ describe('the wizard step', () => {
     render(<App execute={fixtureExecute().execute} agent={scriptedAgent()} config={config} now={FIXTURE_NOW} preview />);
     await screen.findByRole('heading', { level: 1, name: 'Welcome' }, { timeout: 3000 });
     await press('Start');
+    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    await press('Skip');
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
     await press('Skip');
     await screen.findByRole('heading', { level: 1, name: 'Your Toil project' });
@@ -215,7 +217,7 @@ describe('the wizard step', () => {
     await toStep(config);
     expect(document.body.textContent).toContain('Optional.');
     await press('Skip');
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    await screen.findByRole('heading', { level: 1, name: 'All set' });
     expect(reads(calls)).toEqual([]);
     expect(saves(calls)).toEqual([]);
   });

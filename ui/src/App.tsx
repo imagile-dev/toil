@@ -575,7 +575,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
 
   let body;
   if (route.view === 'setup') {
-    body = <Setup config={config ?? null} agent={agentSettings} onSync={onSync} />;
+    body = <Setup config={config ?? null} agent={agentSettings} guide={agent.guide ? (request, history, signal, style) => agent.guide!(request, history, signal, style) : undefined} onSync={onSync} />;
   } else if (route.view === 'settings') {
     body = <Settings page={route.page} {...(route.at ? { at: route.at } : {})} config={config ?? null} modelUsage={modelUsage ?? null} {...(agentSettings ? { agent: agentSettings } : {})} />;
   } else if (route.view === 'toilProjects') {

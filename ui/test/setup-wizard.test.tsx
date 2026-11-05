@@ -85,6 +85,8 @@ describe('the setup wizard', () => {
     expect(more.map((a) => a.name)).toEqual(['jenkins', 'openshift']);
     await open(emptyMachine().config);
     await press('Start');
+    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
     const boxes = screen.getAllByRole('checkbox').map((b) => b.getAttribute('data-setup-tool'));
     expect(boxes.slice(0, 4)).toEqual(['github', 'jira', 'ado', 'bitbucket']);
@@ -96,11 +98,16 @@ describe('the setup wizard', () => {
     let synced = 0;
     await open(config, () => synced++);
     await press('Start');
+    // The AI helper comes first, and is skipped here: the wizard is what it always was.
+    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    expect(progress()).toContain('Step 2 of 7');
+    expect(document.querySelector('[data-setup-optional]')!.textContent).toMatch(/Everything else works without one/);
+    await press('Skip');
     await userEvent.click(await screen.findByRole('checkbox', { name: /GitHub/ }));
     await press('Next');
 
     await screen.findByRole('heading', { level: 1, name: 'Link GitHub' });
-    expect(progress()).toContain('Step 3 of 7');
+    expect(progress()).toContain('Step 4 of 7');
     // GitHub.com is the selected radio, so there is no address to type.
     expect((screen.getByRole('radio', { name: /^GitHub.com/ }) as HTMLInputElement).checked).toBe(true);
     await userEvent.type(screen.getByLabelText(/^token/), SECRET);
@@ -132,9 +139,6 @@ describe('the setup wizard', () => {
     await screen.findByRole('heading', { level: 1, name: 'Let toil learn your Jira fields (optional)' });
     expect(document.querySelector('[data-find-none]')!.textContent).toMatch(/Jira isn't linked/);
     await press('Next');
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
-    expect(document.querySelector('[data-setup-optional]')!.textContent).toMatch(/Everything else works without one/);
-    await press('Finish');
 
     await screen.findByRole('heading', { level: 1, name: 'All set' });
     const summary = screen.getByRole('list', { name: 'What was set up' });
@@ -149,23 +153,24 @@ describe('the setup wizard', () => {
   it('can be skipped and walked back, with no tool ticked going straight to the Toil project', async () => {
     await open(emptyMachine().config);
     await press('Start');
+    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    await press('Skip');
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
     await press('Skip');
     await screen.findByRole('heading', { level: 1, name: 'Your Toil project' });
-    expect(progress()).toContain('Step 4 of 7');
+    expect(progress()).toContain('Step 5 of 7');
     await press('Skip');
     await screen.findByRole('heading', { level: 1, name: 'Let toil learn your Jira fields (optional)' });
-    await press('Skip');
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
     await press('Skip');
     await screen.findByRole('heading', { level: 1, name: 'All set' });
     expect(screen.getByRole('list', { name: 'What was set up' }).textContent).toContain('No new tool links');
     await press('Back');
-    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
-    await press('Back');
+    await screen.findByRole('heading', { level: 1, name: 'Let toil learn your Jira fields (optional)' });
     await press('Back');
     await press('Back');
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
+    await press('Back');
+    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
   });
 
   it('offers a terminal command with Copy beside the form, and a refusal from toil stays on screen', async () => {
@@ -174,6 +179,7 @@ describe('the setup wizard', () => {
     config.run = async (command, input, extra) => (command === 'connections add' ? { ok: false, data: null, error: { code: 'INVALID_INPUT', message: 'That name is taken.', fix: 'Pick another.' }, meta: { command, durationMs: 0, version: 't', contractVersion: 1 } } as Envelope : run(command, input, extra));
     await open(config);
     await press('Start');
+    await press('Next');
     await userEvent.click(await screen.findByRole('checkbox', { name: /Jira/ }));
     await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Link Jira' });
@@ -192,6 +198,9 @@ describe('the setup wizard', () => {
     await open(emptyMachine().config);
     expect(passwordFields()).toBe(0);
     await press('Start');
+    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    expect(passwordFields()).toBe(0);
+    await press('Next');
     await screen.findByRole('heading', { level: 1, name: 'Which tools do you use?' });
     expect(passwordFields()).toBe(0);
     await userEvent.click(screen.getByRole('checkbox', { name: /GitHub/ }));
@@ -204,18 +213,19 @@ describe('the setup wizard', () => {
     expect(passwordFields()).toBe(0);
     await press('Next');
     expect(passwordFields()).toBe(0);
-    await press('Finish');
-    expect(passwordFields()).toBe(0);
   });
 
-  it('never imports the chat or the agent, and keeps nothing in browser storage', () => {
+  it('never imports the Ask chat, holds no proposal of its own, and keeps nothing in browser storage', () => {
     const text = readFileSync(join(import.meta.dirname, '..', 'src', 'views', 'Setup.tsx'), 'utf8');
-    expect(text).not.toMatch(/components\/ask|from '\.\.\/agent\.ts'|proposal|localStorage|sessionStorage|document\.cookie/);
+    // The guide is its own component (components/guide-panel.tsx, test/setup-guide.test.tsx); the wizard imports it and the Agent's type, never the Ask chat.
+    expect(text).not.toMatch(/components\/ask|proposal|localStorage|sessionStorage|document\.cookie/);
+    expect(text).toContain('components/guide-panel.tsx');
   });
 
   it('keeps its changes off in the preview and says why', async () => {
     await open(fixtureConfig());
     await press('Start');
+    await press('Next');
     await userEvent.click(await screen.findByRole('checkbox', { name: /GitHub/ }));
     await press('Next');
     await screen.findByText(/Changes are turned off/);
@@ -229,6 +239,9 @@ describe('the setup wizard', () => {
     };
     expect(await check()).toEqual([]);
     await press('Start');
+    await screen.findByRole('heading', { level: 1, name: 'An AI helper (optional)' });
+    expect(await check()).toEqual([]);
+    await press('Next');
     await userEvent.click(await screen.findByRole('checkbox', { name: /GitHub/ }));
     expect(await check()).toEqual([]);
     await press('Next');
