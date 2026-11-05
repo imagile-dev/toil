@@ -41,7 +41,7 @@ import { memoryLedger, usageSettingsFile } from '../server/usage.ts';
  * found, streaming, the settings file, and the Codex MCP endpoint.
  */
 
-const ctx = (signal = new AbortController().signal): RequestContext => ({ viewer: { id: 'local', name: 'you', via: 'launch-token' }, signal });
+const ctx = (signal = new AbortController().signal): RequestContext => ({ viewer: { id: 'local', name: 'you', via: 'loopback' }, signal });
 const folder = mkdtempSync(join(tmpdir(), 'toil-ui-agents-'));
 let cache: Cache;
 let data: AgentData;

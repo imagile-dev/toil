@@ -119,7 +119,7 @@ Settings, Agent has two boxes of your own, each up to 4,000 characters, with a c
 - **General instructions** go into every answer, in any theme, voice on or off. For example: "Answer in British English" or "Lead with risks".
 - **Custom voice** replaces the theme's voice. It's used only while Themed agent voice is on and the theme has a voice, so it does nothing in Plain.
 
-Toil UI keeps both in its own data folder, in `agent.json` (`~/.toil-ui/agent.json` by default), never in toil's config. They're saved through the same lock as every other setting: the page's session, its Origin and its CSRF token, and a check that refuses any field it doesn't know. They are plain text: a control or invisible character other than a line break or a tab is refused, and Windows line endings become plain ones.
+Toil UI keeps both in its own data folder, in `agent.json` (`~/.toil-ui/agent.json` by default), never in toil's config. They're saved through the same lock as every other setting: the cookie, the Host, Origin and Fetch Metadata checks and the JSON-only body every call passes, and a check that refuses any field it doesn't know. They are plain text: a control or invisible character other than a line break or a tab is refused, and Windows line endings become plain ones.
 
 Instructions can't widen what the agent can do. Its tools only read, whatever the prompt says, and anything it suggests comes back as a proposal card for you to apply through toil's write gate.
 
