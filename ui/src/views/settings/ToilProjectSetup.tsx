@@ -306,7 +306,7 @@ function InitForm({ config, onChanged }: { config: ConfigApi; onChanged: () => P
   return (
     <ChangeForm
       title="Create a Toil project"
-      explain="Makes an empty Toil project for one body of work in your own folder (~/.toil/projects/<name>.json). Add its repositories and areas with the forms below. It refuses a name you already have."
+      explain="Makes an empty Toil project for one body of work in your own folder (~/.toil/projects/<name>.json), the one file this writes: nothing is created or changed in any repository or folder. Add its repositories and areas with the forms below. It refuses a name you already have."
       runs={commandLine('projects init', [name || '<name>', ...(description ? ['--description', '…'] : [])])}
       submit="Create Toil project"
       disabled={config.disabled}

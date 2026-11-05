@@ -988,18 +988,20 @@ describe('settings', () => {
     const form = await screen.findByRole('form', { name: 'A new connection' });
     await userEvent.type(within(form).getByRole('textbox', { name: /^Name/ }), 'corp-jira-2');
     await userEvent.selectOptions(within(form).getByRole('combobox', { name: 'Area' }), 'jira');
-    await userEvent.type(within(form).getByRole('textbox', { name: /^baseUrl/ }), 'https://jira.imagile.dev');
+    await userEvent.click(within(form).getByRole('radio', { name: 'Data Center' }));
+    await userEvent.type(within(form).getByRole('textbox', { name: /^Address/ }), 'https://jira.imagile.dev');
     const secret = within(form).getByLabelText(/^apiToken/) as HTMLInputElement;
     expect(secret.type).toBe('password');
     await userEvent.type(secret, 'fake-pat-abc12345');
-    expect(form.textContent).toContain('Saves: area jira, baseUrl https://jira.imagile.dev, apiToken to the OS credential store.');
+    expect(form.textContent).toContain('Saves: area jira, baseUrl https://jira.imagile.dev, deployment server, apiToken to the OS credential store.');
     await userEvent.click(within(form).getByRole('button', { name: 'Save connection' }));
     expect(await within(form).findByRole('status')).toBeTruthy();
     expect(sent).toHaveLength(1);
     expect(sent[0]).toMatchObject({ command: 'connections add', input: { name: 'corp-jira-2', area: 'jira' }, answers: { secrets: { apiToken: 'fake-pat-abc12345' } } });
     const answers = (sent[0]!.answers as { answers: Record<string, string> }).answers;
-    expect(answers).toMatchObject({ confirm: 'y', 'setting:baseUrl': 'https://jira.imagile.dev', 'setting:project': '' });
-    expect((within(form).getByLabelText(/^apiToken/) as HTMLInputElement).value).toBe('');
+    expect(answers).toMatchObject({ confirm: 'y', 'setting:deployment': 'server', 'setting:baseUrl': 'https://jira.imagile.dev', 'setting:project': '', 'setting:email': '' });
+    // The form starts over, so the deployment must be chosen again and no secret box is left holding anything.
+    expect(within(form).queryByLabelText(/^apiToken/)).toBeNull();
     expect(document.body.textContent).not.toContain('fake-pat-abc12345');
   });
 
@@ -1033,7 +1035,8 @@ describe('settings', () => {
       const form = await screen.findByRole('form', { name: 'A new connection' });
       await userEvent.type(within(form).getByRole('textbox', { name: /^Name/ }), 'corp-jira-2');
       await userEvent.selectOptions(within(form).getByRole('combobox', { name: 'Area' }), 'jira');
-      await userEvent.type(within(form).getByRole('textbox', { name: /^baseUrl/ }), 'https://jira.imagile.dev');
+      await userEvent.click(within(form).getByRole('radio', { name: 'Data Center' }));
+      await userEvent.type(within(form).getByRole('textbox', { name: /^Address/ }), 'https://jira.imagile.dev');
       const secret = within(form).getByLabelText(/^apiToken/) as HTMLInputElement;
       const note = () => document.getElementById(secret.getAttribute('aria-describedby')!.split(' ')[0]!)!.textContent;
       const save = () => userEvent.click(within(form).getByRole('button', { name: 'Save connection' }));
@@ -1044,7 +1047,8 @@ describe('settings', () => {
       const { secret, note, save, sent, form } = await addForm();
       expect(note()).toBe('Empty: this one is required');
       await save();
-      expect(within(form).getByRole('alert').textContent).toContain('apiToken: Nothing was entered, and this one is required.');
+      expect(form.textContent).toContain('Add the apiToken: Data Center needs it.');
+      expect(within(form).getByRole('button', { name: 'Save connection' }).getAttribute('aria-disabled')).toBe('true');
       expect(sent).toHaveLength(0);
       await userEvent.type(secret, 'fake-pat-abc12345');
       expect(note()).toBe('17 characters');
@@ -1158,7 +1162,9 @@ describe('settings', () => {
     expect(panelEl.textContent).toContain('error: bitbucket.host');
     const add = within(panelEl).getByRole('form', { name: 'Add a bitbucket connection on bitbucket-sdk.imagile.dev' });
     expect((within(add).getByRole('textbox', { name: /^Name/ }) as HTMLInputElement).value).toBe('bitbucket');
-    expect((within(add).getByRole('textbox', { name: /^baseUrl/ }) as HTMLInputElement).value).toBe('https://bitbucket-sdk.imagile.dev');
+    // The deployment is the person's to choose; the suggested address waits under Data Center.
+    await userEvent.click(within(add).getByRole('radio', { name: 'Data Center' }));
+    expect((within(add).getByRole('textbox', { name: /^Address/ }) as HTMLInputElement).value).toBe('https://bitbucket-sdk.imagile.dev');
     // A required secret left empty is refused before anything is sent (#358), so one is typed.
     await userEvent.type(add.querySelector('input[type=password]')!, 'fake-pat-abc12345');
     await userEvent.click(within(add).getByRole('button', { name: 'Save connection' }));
@@ -1166,7 +1172,7 @@ describe('settings', () => {
     const steps = sent.filter((s) => s.command === 'projects onboard' || s.command === 'connections add');
     expect(steps.map((s) => s.command)).toEqual(['projects onboard', 'connections add', 'projects onboard']);
     expect(steps[0]!.input).toEqual({ plan: true });
-    expect(steps[1]).toMatchObject({ input: { name: 'bitbucket', area: 'bitbucket' }, answers: { answers: { 'setting:baseUrl': 'https://bitbucket-sdk.imagile.dev', confirm: 'y' } } });
+    expect(steps[1]).toMatchObject({ input: { name: 'bitbucket', area: 'bitbucket' }, answers: { answers: { 'setting:deployment': 'server', 'setting:baseUrl': 'https://bitbucket-sdk.imagile.dev', confirm: 'y' } } });
   });
 
   it('shows the bounds and the time limit read-only, with where each is set', async () => {

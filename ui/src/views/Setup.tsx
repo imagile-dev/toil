@@ -17,14 +17,14 @@ import { RadioGroup, Radio } from 'react-aria-components';
 import type { AgentSettingsPanelProps } from '../agent-settings.tsx';
 import { AdaptersCard, helperState, STATE_WORD } from '../agent-install.tsx';
 import { SAMPLE_ADAPTER_STATUS } from '../fixtures/agent-status.ts';
-import type { AreaInfo, ConfigApi, ConnectionsData } from '../config.ts';
+import { envOnly, type AreaInfo, type ConfigApi, type ConnectionRow, type ConnectionsData } from '../config.ts';
 import type { AgentStatus } from '../server-client.ts';
 import { Card, Copy } from '../components/layout.tsx';
 import { Help } from '../components/help.tsx';
 import { Loader } from '../moments/Moments.tsx';
-import { groupAreas, SETUP_STEPS, STEP_TITLE, terminalAdd, toolName, type SetupStep } from '../setup.ts';
-import { NewConnectionForm } from './settings/Connections.tsx';
-import { ChangeForm, OutcomeLine, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './settings/parts.tsx';
+import { deploymentOf, freeName, groupAreas, locationKind, locationProblems, projectFile, SETUP_STEPS, STEP_TITLE, terminalAdd, toolName, TOKEN_WORD, tokenState, type SetupStep } from '../setup.ts';
+import { LoginForm, NewConnectionForm } from './settings/Connections.tsx';
+import { ChangeForm, ChoiceRadios, OutcomeLine, SelectField, TextField, commandLine, failedOutcome, outcomeOf, type Outcome } from './settings/parts.tsx';
 import './setup.css';
 
 /** Where the wizard lives, and what opens it from the first run, the palette and Settings. */
@@ -49,6 +49,9 @@ export function Setup({ config, agent, onSync }: SetupProps) {
   const [step, setStep] = useState<SetupStep>('welcome');
   const [areas, setAreas] = useState<AreaInfo[] | null>(null);
   const [connections, setConnections] = useState<ConnectionsData['connections']>([]);
+  /** Whether `connections list` was read: an unreadable list is unknown, not empty. */
+  const [configFile, setConfigFile] = useState<string | null>(null);
+  const [listed, setListed] = useState<boolean | null>(null);
   const [projects, setProjects] = useState<ListedProject[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
   const [areaAt, setAreaAt] = useState(0);
@@ -61,7 +64,11 @@ export function Setup({ config, agent, onSync }: SetupProps) {
   const reload = useCallback(async () => {
     if (!config) return;
     const [list, ps] = await Promise.all([config.run('connections list', {}).catch(() => null), config.run('projects list', {}).catch(() => null)]);
-    if (list?.ok) setConnections((list.data as ConnectionsData).connections);
+    setListed(Boolean(list?.ok));
+    if (list?.ok) {
+      setConnections((list.data as ConnectionsData).connections);
+      setConfigFile((list.data as ConnectionsData).configFile);
+    }
     if (ps?.ok) setProjects((ps.data as { toilProjects: ListedProject[] }).toilProjects ?? []);
   }, [config]);
   useEffect(() => {
@@ -108,9 +115,9 @@ export function Setup({ config, agent, onSync }: SetupProps) {
         {step === 'welcome' && <Welcome />}
         {step === 'tools' && (!config ? <NoConfig /> : !tools ? <Loader size="panel" message="Reading the tools toil knows about…" /> : <Tools tools={tools} connections={connections} picked={picked} onPick={setPicked} />)}
         {step === 'connect' && config && area && areas && (
-          <ConnectOne key={area} config={config} areas={areas} area={area} existing={connections.filter((c) => c.area === area).map((c) => c.name)} made={made[area] ?? null} onMade={async (name) => (setMade((m) => ({ ...m, [area]: name })), reload())} />
+          <ConnectOne key={area} config={config} areas={areas} area={area} rows={connections.filter((c) => c.area === area)} known={listed !== false} allNames={connections.map((c) => c.name)} made={made[area] ?? null} onMade={async (name) => (setMade((m) => ({ ...m, [area]: name })), reload())} />
         )}
-        {step === 'project' && (config ? <ProjectStep config={config} projects={projects} made={made} existing={connections} picked={picked} chosen={project} onChosen={setProject} reload={reload} /> : <NoConfig />)}
+        {step === 'project' && (config ? <ProjectStep config={config} configFile={configFile} projects={projects} made={made} existing={connections} picked={picked} chosen={project} onChosen={setProject} reload={reload} /> : <NoConfig />)}
         {step === 'helper' && <HelperStep agent={agent} onChosen={setHelper} />}
         {step === 'done' && <Done made={made} project={project} helper={helper} onSync={onSync} />}
         <nav className="setup__nav" aria-label="Setup steps">
@@ -182,11 +189,29 @@ function Tools({ tools, connections, picked, onPick }: { tools: ReturnType<typeo
   );
 }
 
-function ConnectOne({ config, areas, area, existing, made, onMade }: { config: ConfigApi; areas: AreaInfo[]; area: string; existing: string[]; made: string | null; onMade: (name: string) => Promise<void> }) {
+type Mode = 'use' | 'replace' | 'add';
+
+/**
+ * One tool's step: first what already exists, read from `connections list`
+ * (which says where each value lives and never what it is), then one choice.
+ * Use what is there, replace its saved token on purpose, or add another under a
+ * name nothing has. Saving over a connection by accident is not on the menu:
+ * the form refuses a name that is taken, and Replace has its own tick box.
+ * `known` is false when the list could not be read, which is not the same as
+ * there being none, so the screen says so.
+ */
+function ConnectOne({ config, areas, area, rows, known, allNames, made, onMade }: { config: ConfigApi; areas: AreaInfo[]; area: string; rows: ConnectionRow[]; known: boolean; allNames: string[]; made: string | null; onMade: (name: string) => Promise<void> }) {
+  const info = areas.find((a) => a.name === area);
+  const secretFields = info?.connection.filter((f) => f.secret) ?? [];
+  const states = rows.map((r) => ({ row: r, token: tokenState(r, secretFields.map((f) => f.name)) }));
+  const good = states.filter((s) => s.token !== 'missing');
+  const [target, setTarget] = useState((rows.find((r) => r.isDefault) ?? rows[0])?.name ?? '');
+  const [mode, setMode] = useState<Mode | null>(rows.length === 0 ? 'add' : good.length === 1 ? 'use' : null);
   const [tested, setTested] = useState<Outcome | null>(null);
   const [testing, setTesting] = useState(false);
   const [draft, setDraft] = useState('');
-  const name = made ?? existing[0] ?? null;
+  const current = rows.find((r) => r.name === target) ?? rows[0];
+  const name = made ?? (mode === 'use' ? (current?.name ?? null) : null);
   const test = async () => {
     if (!name) return;
     setTesting(true);
@@ -201,6 +226,12 @@ function ConnectOne({ config, areas, area, existing, made, onMade }: { config: C
       setTesting(false);
     }
   };
+  const canReplace = current !== undefined && !envOnly(current) && secretFields.length > 0;
+  const modes = [
+    ...(current ? [{ key: 'use', label: `Use ${current.name} (already set up)`, note: 'Keeps everything as it is and goes on to test it.' }] : []),
+    ...(canReplace ? [{ key: 'replace', label: `Replace the saved token for ${current.name}`, note: 'Overwrites the token in your credential store. You confirm before anything is saved.' }] : []),
+    ...(current ? [{ key: 'add', label: `Add another ${toolName(area)} connection`, note: 'Under a new name. Nothing existing is touched.' }] : []),
+  ];
   return (
     <>
       {config.disabled && (
@@ -208,10 +239,42 @@ function ConnectOne({ config, areas, area, existing, made, onMade }: { config: C
           <strong>Changes are turned off.</strong> {config.disabled}
         </p>
       )}
-      {name ? (
+      {!known && (
+        <p className="note" data-setup-unknown="">
+          <span aria-label="not read yet">–</span> toil couldn't read your existing connections, so this page can't say whether you already have a {toolName(area)} one. A name that is already taken is refused when you save.
+        </p>
+      )}
+      {rows.length > 0 && (
+        <section aria-label={`Existing ${toolName(area)} connections`} data-setup-existing="">
+          <p>
+            You already have {rows.length} {toolName(area)} connection{rows.length === 1 ? '' : 's'}:
+          </p>
+          <ul className="plain setup__existing">
+            {states.map(({ row, token }) => (
+              <li key={row.name} data-existing={row.name}>
+                <strong>{row.name}</strong>
+                {row.isDefault && <span className="tag"> default</span>}
+                {row.host && <span className="note"> {row.host}</span>}
+                {info && deploymentOf(info, row) && <span className="note"> ({deploymentOf(info, row)})</span>}
+                <span className="note"> writes {row.writes ? 'on' : 'off'}</span>
+                <span className={`tag tag--${token}`} data-token={token}>
+                  {' '}
+                  token: {TOKEN_WORD[token]}
+                </span>
+                {envOnly(row) && <span className="note"> Set by environment variables; this page can't change it.</span>}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {rows.length > 1 && (
+        <SelectField label="Which one" value={current?.name ?? ''} onChange={setTarget} options={rows.map((r) => ({ value: r.name, label: r.name }))} />
+      )}
+      {rows.length > 0 && !made && <ChoiceRadios label="What would you like to do?" field="existing-mode" selected={mode} onChange={(k) => (setMode(k as Mode), setTested(null))} options={modes} />}
+      {(name && (mode === 'use' || made)) ? (
         <div data-setup-linked={name}>
           <p>
-            {made ? <>Saved as <code>{made}</code>.</> : <>You already have a {toolName(area)} link, <code>{name}</code>.</>} <strong>It can only read.</strong> Changes to {toolName(area)} stay off until you turn them on yourself in Settings.
+            {made ? <>Saved as <code>{made}</code>. <strong>It can only read.</strong></> : <><strong>It can only read</strong> unless you turned writes on.</>} Changes to {toolName(area)} stay off until you turn them on yourself in Settings.
           </p>
           <div className="setup__actions">
             <button type="button" className="btn" onClick={test} disabled={testing} data-setup-test="">
@@ -219,33 +282,173 @@ function ConnectOne({ config, areas, area, existing, made, onMade }: { config: C
             </button>
           </div>
           <OutcomeLine outcome={tested} />
-          <p className="note">If the test says the login is missing, enter it from Settings, Connections, Update login, or on a terminal: <code>toil connections login {name}</code> <Copy value={`toil connections login ${name}`} what="login command" /></p>
+          <p className="note">
+            If the test says the login is missing, enter it from Settings, Connections, Update login, or on a terminal: <code>toil connections login {name}</code> <Copy value={`toil connections login ${name}`} what="login command" />
+          </p>
         </div>
-      ) : (
+      ) : mode === 'replace' && current ? (
+        <div data-setup-replace={current.name}>
+          <p>
+            <strong>This replaces the token saved for {current.name}.</strong> The old token can't be recovered from toil.
+          </p>
+          <LoginForm
+            connection={current}
+            fields={secretFields}
+            config={config}
+            confirm={`Yes, replace the saved token for ${current.name}`}
+            after={async (e, done) => {
+              const o = outcomeOf(e, done);
+              if (o.ok) await onMade(current.name);
+              return o;
+            }}
+          />
+        </div>
+      ) : mode === 'add' ? (
         <>
           <p>
             Fill in where {toolName(area)} lives and your login. The login is typed into a masked box and goes straight to this computer's secure store through toil; it is never kept by this page, never shown again, and never seen by an AI helper. Changes to {toolName(area)} start <strong>off</strong>.
           </p>
           <h2 className="sr-only">Details for {toolName(area)}</h2>
-          <NewConnectionForm areas={areas} config={config} area={area} title={`Link ${toolName(area)}`} suggest={{ name: area }} onAdded={onMade} />
+          <NewConnectionForm areas={areas} config={config} area={area} title={`Link ${toolName(area)}`} suggest={{ name: freeName(area, allNames) }} existingNames={allNames} onAdded={onMade} />
           <details className="more" data-setup-terminal="">
             <summary>Prefer to type it on a terminal?</summary>
             <TextField label="Name for the link" value={draft} onChange={setDraft} />
             <p className="note">
-              <code>{terminalAdd(draft || area, area)}</code> <Copy value={terminalAdd(draft || area, area)} what="terminal command" />
+              <code>{terminalAdd(draft || freeName(area, allNames), area)}</code> <Copy value={terminalAdd(draft || freeName(area, allNames), area)} what="terminal command" />
             </p>
             <p className="note">It asks for the same things, and keeps the login in the same secure store.</p>
           </details>
         </>
+      ) : null}
+    </>
+  );
+}
+
+/** What `projects add-repo` was asked and what it said, per location. */
+interface RepoResult {
+  location: string;
+  ok: boolean;
+  message: string;
+}
+
+/**
+ * Makes a Toil project in the person's own home and records where its code
+ * lives. `projects init <name>` writes one file, `<home>/.toil/projects/<name>.json`;
+ * each `projects add-repo` adds a path inside that file, so toil can tell which
+ * Toil project a folder belongs to. Nothing is written in any folder or
+ * repository, and the wizard never passes `--shared`: that would write into a
+ * repository, and it is a decision for a team, made on the Toil project page.
+ */
+function NewProject({ config, configFile, link, onChosen, reload }: { config: ConfigApi; configFile: string | null; link: (name: string) => Promise<Outcome>; onChosen: (n: string | null) => void; reload: () => Promise<void> }) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [rows, setRows] = useState<string[]>(['']);
+  const [results, setResults] = useState<RepoResult[]>([]);
+  const [saved, setSaved] = useState<string | null>(null);
+  const dupes = locationProblems(rows);
+  const filled = rows.map((r) => r.trim()).filter((r) => r !== '');
+  const file = projectFile(configFile, name);
+  const commands = [commandLine('projects init', [name || '<name>']), ...filled.map((r) => commandLine('projects add-repo', [name || '<name>', r]))];
+  const addAll = async (toilProject: string, locations: string[]): Promise<RepoResult[]> => {
+    const out: RepoResult[] = [];
+    for (const location of locations) {
+      const o = outcomeOf(await config.run('projects add-repo', { toilProject, location }), '');
+      out.push({ location, ok: o.ok, message: o.ok ? 'added' : `${o.message}${!o.ok && o.fix ? ` ${o.fix}` : ''}` });
+    }
+    return out;
+  };
+  const retry = async () => {
+    const again = await addAll(saved ?? name, results.filter((r) => !r.ok).map((r) => r.location));
+    setResults((cur) => cur.map((r) => again.find((a) => a.location === r.location) ?? r));
+  };
+  return (
+    <>
+      <h2 className="sr-only">A new Toil project</h2>
+      <ChangeForm
+        title="Create a Toil project"
+        explain="Makes your own Toil project, links the tools you set up to it, and records the folders or repositories you give."
+        runs={commands.join(' && ')}
+        submit="Create Toil project"
+        disabled={config.disabled}
+        blockedBy={name === '' ? 'Name the Toil project first.' : dupes.some(Boolean) ? 'Remove the repeated folder or address first.' : null}
+        onSubmit={async () => {
+          const e = await config.run('projects init', { name, ...(description ? { description } : {}) });
+          const created = outcomeOf(e, `${name} was created.`);
+          if (!created.ok) return created;
+          setSaved(name);
+          const r = await addAll(name, filled);
+          setResults(r);
+          const l = await link(name);
+          onChosen(name);
+          await reload();
+          const bad = r.filter((x) => !x.ok);
+          const prefix = `${name} was created.${bad.length ? ` ${bad.length} of ${r.length} folders or addresses were not added, listed below.` : ''}`;
+          return l.ok ? { ...l, message: `${prefix} ${l.message}` } : { ...l, message: `${prefix} Linking failed: ${l.message}` };
+        }}
+      >
+        <TextField label="Name" value={name} onChange={setName} required hint="Lowercase letters, digits and single hyphens, e.g. payments." />
+        <TextField label="What is it? (optional)" value={description} onChange={setDescription} />
+        <fieldset className="repo-list" data-setup-repos="">
+          <legend>Folders or repository addresses (optional)</legend>
+          {rows.map((value, i) => {
+            const kind = locationKind(value);
+            return (
+              <div key={i} className="repo-row">
+                <TextField
+                  label={`Folder or address ${i + 1}`}
+                  value={value}
+                  onChange={(v) => setRows((rs) => rs.map((r, j) => (j === i ? v : r)))}
+                  hint={dupes[i] ?? (kind === 'empty' ? undefined : kind === 'address' ? 'Read as a repository address.' : 'Read as a folder path. This page cannot see your disk, so toil checks it when it is used.')}
+                />
+                {rows.length > 1 && (
+                  <button type="button" className="btn btn--small btn--quiet" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))} aria-label={`Remove folder or address ${i + 1}`}>
+                    Remove
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          <button type="button" className="btn btn--small" onClick={() => setRows((rs) => [...rs, ''])}>
+            Add another
+          </button>
+          <p className="note" data-setup-repos-help="">
+            Lets toil infer your project from the path of where you are working. Doesn't write any configuration to this path.
+          </p>
+        </fieldset>
+        <p className="note" data-setup-writes="">
+          Creating it writes one file, <code>{file}</code>, in your own home. Nothing is saved in any folder or repository you list; toil only remembers the path inside that file.
+        </p>
+      </ChangeForm>
+      {saved && (
+        <section data-setup-saved="" aria-label="What was saved">
+          <h3>What was saved</h3>
+          <ul className="plain">
+            <li>
+              <code>{projectFile(configFile, saved)}</code>
+            </li>
+            <li className="note">Nothing in any repository or folder.</li>
+          </ul>
+          {results.length > 0 && (
+            <ul className="plain" data-setup-repo-results="">
+              {results.map((r) => (
+                <li key={r.location} className={r.ok ? 'note' : 'failure'}>
+                  <code>{r.location}</code>: {r.message}
+                </li>
+              ))}
+            </ul>
+          )}
+          {results.some((r) => !r.ok) && (
+            <button type="button" className="btn btn--small" onClick={retry} data-setup-retry="">
+              Retry the ones that failed
+            </button>
+          )}
+        </section>
       )}
     </>
   );
 }
 
-function ProjectStep({ config, projects, made, existing, picked, chosen, onChosen, reload }: { config: ConfigApi; projects: ListedProject[]; made: Record<string, string>; existing: ConnectionsData['connections']; picked: string[]; chosen: string | null; onChosen: (n: string | null) => void; reload: () => Promise<void> }) {
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [repo, setRepo] = useState('');
+function ProjectStep({ config, configFile, projects, made, existing, picked, chosen, onChosen, reload }: { config: ConfigApi; configFile: string | null; projects: ListedProject[]; made: Record<string, string>; existing: ConnectionsData['connections']; picked: string[]; chosen: string | null; onChosen: (n: string | null) => void; reload: () => Promise<void> }) {
   const [mode, setMode] = useState<string>(projects.length > 0 ? (chosen ?? projects[0]!.name) : '+new');
   const [linked, setLinked] = useState<Outcome | null>(null);
   // The connection each picked area would use: the one made here, else the first the person already had.
@@ -285,33 +488,7 @@ function ProjectStep({ config, projects, made, existing, picked, chosen, onChose
         </RadioGroup>
       )}
       {mode === '+new' ? (
-        <>
-        <h2 className="sr-only">A new Toil project</h2>
-        <ChangeForm
-          title="Create a Toil project"
-          explain="Makes your own Toil project, links the tools you set up to it, and adds a repository if you give one."
-          runs={commandLine('projects init', [name || '<name>'])}
-          submit="Create Toil project"
-          disabled={config.disabled}
-          onSubmit={async () => {
-            const e = await config.run('projects init', { name, ...(description ? { description } : {}) });
-            const created = outcomeOf(e, `${name} was created.`);
-            if (!created.ok) return created;
-            if (repo.trim()) {
-              const r = outcomeOf(await config.run('projects add-repo', { toilProject: name, location: repo.trim() }), '');
-              if (!r.ok) return { ...r, message: `${name} was created, but its repository wasn't added: ${r.message}` };
-            }
-            const l = await linkAll(name);
-            onChosen(name);
-            await reload();
-            return l.ok ? { ...l, message: `${name} was created. ${l.message}` } : { ...l, message: `${name} was created, but linking failed: ${l.message}` };
-          }}
-        >
-          <TextField label="Name" value={name} onChange={setName} required hint="Lowercase letters, digits and single hyphens, e.g. payments." />
-          <TextField label="What is it? (optional)" value={description} onChange={setDescription} />
-          <TextField label="A repository folder or address (optional)" value={repo} onChange={setRepo} hint="Lets toil work out which Toil project you are in." />
-        </ChangeForm>
-        </>
+        <NewProject config={config} configFile={configFile} link={linkAll} onChosen={onChosen} reload={reload} />
       ) : (
         <>
           {links.length > 0 && (

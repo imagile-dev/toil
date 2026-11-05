@@ -6,6 +6,7 @@
  */
 
 import type { AreaInfo } from './config.ts';
+import { hostMatches } from '../../src/core/connection-form.ts';
 
 export const SETUP_STEPS = ['welcome', 'tools', 'connect', 'project', 'helper', 'done'] as const;
 export type SetupStep = (typeof SETUP_STEPS)[number];
@@ -41,3 +42,56 @@ export function groupAreas(areas: AreaInfo[]): { common: AreaInfo[]; more: AreaI
 
 /** `toil connections add corp-jira --area jira`, for the person who would rather type it on a terminal. */
 export const terminalAdd = (name: string, area: string): string => `toil connections add ${name || '<name>'} --area ${area}`;
+
+/** Where a connection's token lives, from `connections list`'s per-key sources (never a value). `missing` is a real none; an unreadable list is the caller's dash. */
+export type TokenState = 'saved' | 'env' | 'missing';
+export const TOKEN_WORD: Record<TokenState, string> = { saved: 'saved', env: 'from an environment variable', missing: 'missing' };
+
+export function tokenState(row: { values: Record<string, string> }, secretKeys: string[]): TokenState {
+  const sources = secretKeys.map((k) => row.values[k]);
+  if (sources.some((s) => s === 'store' || s === 'file')) return 'saved';
+  if (sources.some((s) => s === 'env' || s === 'ci')) return 'env';
+  return 'missing';
+}
+
+/** Cloud or Data Center, read from the host the connection is on and the area's own host patterns; null when the area has no such choice. */
+export function deploymentOf(area: AreaInfo, row: { host: string | null }): string | null {
+  const by = area.variantBy && area.connection.find((f) => f.name === area.variantBy)?.choices;
+  if (!by || !row.host) return null;
+  const hit = by.options.find((o) => o.hosts?.some((h) => hostMatches(row.host!, h)));
+  const fallback = by.options.find((o) => !o.hosts?.length);
+  return (hit ?? fallback)?.label ?? null;
+}
+
+/** A name nothing has: the area's own, else `jira-2`, `jira-3`. */
+export function freeName(area: string, taken: readonly string[]): string {
+  if (!taken.includes(area)) return area;
+  for (let n = 2; ; n++) if (!taken.includes(`${area}-${n}`)) return `${area}-${n}`;
+}
+
+/** What a typed location is: a repository address (https, ssh or scp-style) or a folder path. The page can't see the disk, so it never says a folder exists. */
+export type LocationKind = 'address' | 'folder' | 'empty';
+export function locationKind(text: string): LocationKind {
+  const t = text.trim();
+  if (t === '') return 'empty';
+  return /^(https?|ssh|git):\/\//i.test(t) || /^[\w.-]+@[\w.-]+:/.test(t) ? 'address' : 'folder';
+}
+
+/** One problem per row worth saying: a repeat of an earlier row. Empty rows are ignored. */
+export function locationProblems(rows: readonly string[]): Array<string | null> {
+  const seen = new Set<string>();
+  return rows.map((r) => {
+    const t = r.trim().replace(/[\\/]+$/, '');
+    if (t === '') return null;
+    const key = t.toLowerCase();
+    if (seen.has(key)) return 'Already in the list above.';
+    seen.add(key);
+    return null;
+  });
+}
+
+/** The one file `projects init <name>` writes, beside the config file, with forward slashes as toil prints paths. */
+export function projectFile(configFile: string | null, name: string): string {
+  const dir = configFile ? configFile.replace(/\\/g, '/').replace(/\/[^/]*$/, '') : '~/.toil';
+  return `${dir}/projects/${name || '<name>'}.json`;
+}

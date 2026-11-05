@@ -21,6 +21,8 @@
  */
 
 import type { Envelope } from './toil.ts';
+import type { FormChoices } from '../../src/core/connection-form.ts';
+import type { DescribedScopes } from '../../src/core/scopes.ts';
 
 /** The reads the pages make: run read-only, even on the config path. The audit reads fill Usage (#309). */
 export const CONFIG_READS = ['connections list', 'connections test', 'projects list', 'projects show', 'projects check', 'audit stats', 'audit list', 'theme list'] as const;
@@ -63,6 +65,10 @@ export interface ConnectionField {
   password: boolean;
   default: string | null;
   required: boolean;
+  /** Presets the form shows as radio buttons (older toil: absent). */
+  choices?: FormChoices;
+  appliesTo?: readonly string[];
+  requiredFor?: readonly string[];
 }
 
 export interface AreaInfo {
@@ -70,6 +76,9 @@ export interface AreaInfo {
   description: string;
   /** Empty when the toil the server runs doesn't describe its connections. */
   connection: ConnectionField[];
+  /** What its credential must be allowed to do (older toil: absent). */
+  scopes?: DescribedScopes;
+  variantBy?: string;
 }
 
 /** What a person typed for one call: answers by question id, and secrets by key. */

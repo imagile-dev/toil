@@ -101,13 +101,15 @@ describe('the setup wizard', () => {
 
     await screen.findByRole('heading', { level: 1, name: 'Link GitHub' });
     expect(progress()).toContain('Step 3 of 6');
-    await userEvent.type(screen.getByLabelText(/^baseUrl/), 'https://github.imagile.dev');
+    // GitHub.com is the selected radio, so there is no address to type.
+    expect((screen.getByRole('radio', { name: /^GitHub.com/ }) as HTMLInputElement).checked).toBe(true);
     await userEvent.type(screen.getByLabelText(/^token/), SECRET);
     await userEvent.click(screen.getByRole('button', { name: 'Save connection' }));
     await waitFor(() => expect(document.querySelector('[data-setup-linked="github"]')).not.toBeNull());
 
     const add = calls.find((c) => c.command === 'connections add')!;
     expect(add.input).toEqual({ name: 'github', area: 'github' });
+    expect(add.extra?.answers).toMatchObject({ 'setting:baseUrl': 'https://api.github.com' });
     expect(add.extra?.secrets).toEqual({ token: SECRET });
     expect(JSON.stringify([add.input, add.extra?.answers])).not.toContain(SECRET);
     expect(calls.some((c) => c.command === 'connections writes')).toBe(false);
@@ -171,7 +173,8 @@ describe('the setup wizard', () => {
     const terminal = document.querySelector('[data-setup-terminal]') as HTMLElement;
     expect(terminal.textContent).toContain('toil connections add jira --area jira');
     expect(within(terminal).getByRole('button', { name: 'Copy terminal command' })).toBeTruthy();
-    await userEvent.type(screen.getByLabelText(/^baseUrl/), 'https://jira.imagile.dev');
+    await userEvent.click(screen.getByRole('radio', { name: 'Data Center' }));
+    await userEvent.type(screen.getByLabelText(/^Address/), 'https://jira.imagile.dev');
     await userEvent.type(screen.getByLabelText(/^apiToken/), SECRET);
     await userEvent.click(screen.getByRole('button', { name: 'Save connection' }));
     await screen.findByText('That name is taken.');

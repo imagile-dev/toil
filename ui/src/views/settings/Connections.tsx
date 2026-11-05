@@ -13,7 +13,9 @@ import { connectionEnvVar, envOnly, envPrefix, type AreaInfo, type ConfigApi, ty
 import type { Envelope } from '../../toil.ts';
 import { Card, CardGrid, Path } from '../../components/layout.tsx';
 import { Help, useLandOn } from '../../components/help.tsx';
-import { ChangeForm, OutcomeLine, SecretField, SelectField, TextField, commandLine, failedOutcome, outcomeOf, secretRefusal, type Outcome } from './parts.tsx';
+import { ChangeForm, ChoiceRadios, CheckField, OutcomeLine, SecretField, SelectField, TextField, commandLine, failedOutcome, outcomeOf, secretRefusal, type Outcome } from './parts.tsx';
+import { afterChoice, chosen, emptyState, initialState, needOf, reportOf, selectedOption, shownOptions, submission, type FormField, type FormState, type Problem } from '../../../../src/core/connection-form.ts';
+import { ScopesDisclosure, TokenKindRadios } from './Scopes.tsx';
 import { checkSecret, type SecretRules } from '../../../../src/core/secret-input.ts';
 import { Loader } from '../../moments/Moments.tsx';
 import { usePlain } from '../../plain-words.ts';
@@ -80,7 +82,7 @@ export function Connections({ config, at, toForm = false }: { config: ConfigApi;
           </CardGrid>
         )}
       </Card>
-      <AddConnection areas={areas} config={config} onChanged={reload} />
+      <AddConnection areas={areas} config={config} onChanged={reload} existingNames={data.connections.map((c) => c.name)} />
     </>
   );
 }
@@ -257,7 +259,8 @@ function WritesForm({ connection: c, config, after }: { connection: ConnectionRo
   );
 }
 
-function LoginForm({ connection: c, fields, config, after }: { connection: ConnectionRow; fields: AreaInfo['connection']; config: ConfigApi; after: (e: Envelope, done: string) => Promise<Outcome> }) {
+export function LoginForm({ connection: c, fields, config, after, confirm }: { connection: ConnectionRow; fields: AreaInfo['connection']; config: ConfigApi; after: (e: Envelope, done: string) => Promise<Outcome>; /** Words for a tick the person must make before Save can run: for a replacement the wizard names. */ confirm?: string }) {
+  const [sure, setSure] = useState(false);
   const plain = usePlain();
   const [values, setValues] = useState<Record<string, string>>({});
   const secrets = useSecretChoices();
@@ -271,6 +274,7 @@ function LoginForm({ connection: c, fields, config, after }: { connection: Conne
       runs={commandLine('connections login', [c.name])}
       submit={plain.pw('Save to the credential store', 'Save securely')}
       disabled={config.disabled}
+      blockedBy={confirm && !sure ? 'Tick the box to confirm the replacement first.' : null}
       onSubmit={async () => {
         const refused = secrets.refusal(fields.map((f) => [f.name, values[f.name] ?? '', rules(f)]));
         if (refused) return refused;
@@ -282,6 +286,7 @@ function LoginForm({ connection: c, fields, config, after }: { connection: Conne
         return after(await config.run('connections login', { name: c.name }, { secrets: typed, answers }), `${c.name}'s secret was replaced in the credential store.`);
       }}
     >
+      {confirm && <CheckField label={confirm} checked={sure} onChange={setSure} />}
       {fields.map((f) => (
         <SecretField key={f.name} label={`${f.name}${f.description ? ` (${f.description})` : ''}`} value={values[f.name] ?? ''} onChange={(v) => { setValues((s) => ({ ...s, [f.name]: v })); secrets.changed(f.name); }} rules={rules(f)} asking={secrets.asking} kept={secrets.kept(f.name)} onKeep={() => secrets.keep(f.name)} />
       ))}
@@ -321,9 +326,8 @@ function useSecretChoices() {
   };
 }
 
-const NAME = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
-function AddConnection({ areas, config, onChanged }: { areas: AreaInfo[] | null; config: ConfigApi; onChanged: () => Promise<void> }) {
+function AddConnection({ areas, config, onChanged, existingNames }: { areas: AreaInfo[] | null; config: ConfigApi; onChanged: () => Promise<void>; existingNames: string[] }) {
   const withFields = (areas ?? []).filter((a) => a.connection.length > 0);
   if (areas === null) return null;
   if (withFields.length === 0) {
@@ -337,16 +341,23 @@ function AddConnection({ areas, config, onChanged }: { areas: AreaInfo[] | null;
   return (
     <Card as="section" className="panel" aria-labelledby="conn-add">
       <h2 id="conn-add">Add a connection</h2>
-      <NewConnectionForm areas={withFields} config={config} onAdded={onChanged} />
+      <NewConnectionForm areas={withFields} config={config} onAdded={onChanged} existingNames={existingNames} />
     </Card>
   );
 }
 
 /**
- * The form `toil connections add` is from the page. With `area`, it adds a
+ * The form `toil connections add` is from the page, in Settings and in the
+ * setup wizard. What it asks, what it requires and when Save is allowed are
+ * all `src/core/connection-form.ts`, derived from the area itself: leading
+ * radio choices (Cloud or Data Center, GitHub.com or Enterprise Server), the
+ * address made from them, fields that only apply to one choice appearing only
+ * for it, and a live "required" or "optional" on each. With `area`, it adds a
  * connection to that area only, and `suggest` fills the name and settings in
- * (Set up this repo offers a base URL on the toil project's host); the person can
- * change any of them before saving.
+ * (Set up this repo offers a base URL on the toil project's host); the person
+ * can change any of them before saving. `existingNames` are the connections
+ * that already exist: a name taken is refused here, and replacing one is a
+ * different, explicit action.
  */
 export function NewConnectionForm({
   areas,
@@ -355,6 +366,7 @@ export function NewConnectionForm({
   area: fixed,
   suggest,
   title = 'A new connection',
+  existingNames = [],
 }: {
   areas: AreaInfo[];
   config: ConfigApi;
@@ -362,27 +374,110 @@ export function NewConnectionForm({
   area?: string;
   suggest?: { name?: string; values?: Record<string, string> };
   title?: string;
+  existingNames?: string[];
 }) {
   const withFields = areas.filter((a) => a.connection.length > 0 && (fixed === undefined || a.name === fixed));
-  const [name, setName] = useState(suggest?.name ?? '');
   const [area, setArea] = useState(fixed ?? '');
-  const [values, setValues] = useState<Record<string, string>>(suggest?.values ?? {});
-  const [secrets, setSecrets] = useState<Record<string, string>>({});
-  const choices = useSecretChoices();
-  const rulesFor = (f: AreaInfo['connection'][number]): SecretRules => ({ password: f.password, empty: f.required ? 'required' : 'skip', envVars: [`${connectionEnvVar(name || '<name>', 'area')}=${chosen?.name ?? '<area>'}`, ...fields.map((g) => connectionEnvVar(name || '<name>', g.name))] });
-  const chosen = withFields.find((a) => a.name === area) ?? withFields[0];
-  const fields = chosen?.connection ?? [];
-  const settings = fields.filter((f) => !f.secret);
-  const required = settings.filter((f) => f.required);
-  const optional = settings.filter((f) => !f.required);
-  const secretFields = fields.filter((f) => f.secret);
-  const label = (f: AreaInfo['connection'][number]) => `${f.name}${f.description ? ` (${f.description})` : ''}`;
-  if (!chosen) return <p className="note">The toil this server runs doesn't say what a {fixed} connection holds. Add one with <code>toil connections add</code> in a terminal.</p>;
-  const review = [
-    `area ${chosen.name}`,
-    ...settings.filter((f) => (values[f.name] ?? '') !== '').map((f) => `${f.name} ${values[f.name]}`),
-    ...secretFields.filter((f) => (secrets[f.name] ?? '') !== '').map((f) => `${f.name} to the OS credential store`),
-  ].join(', ');
+  const chosenArea = withFields.find((a) => a.name === area) ?? withFields[0];
+  const [form, setForm] = useState<FormState>(() => (chosenArea ? initialState(chosenArea, suggest) : emptyState(suggest?.name)));
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [pressed, setPressed] = useState(false);
+  const [notes, setNotes] = useState<string[]>([]);
+  const secretChoices = useSecretChoices();
+  if (!chosenArea) return <p className="note">The toil this server runs doesn't say what a {fixed} connection holds. Add one with <code>toil connections add</code> in a terminal.</p>;
+
+  const fields = chosenArea.connection;
+  const kinds = chosenArea.scopes?.kinds ?? [];
+  const state: FormState = { ...form, tokenKind: form.tokenKind ?? kinds[0]?.id ?? null };
+  const envVars = () => [`${connectionEnvVar(state.name || '<name>', 'area')}=${chosenArea.name}`, ...fields.map((g) => connectionEnvVar(state.name || '<name>', g.name))];
+  const rulesFor = (f: FormField): SecretRules => ({ password: f.password, empty: needOf(chosenArea, f, state) === 'required' ? 'required' : 'skip', envVars: envVars() });
+  const report = reportOf(chosenArea, state, existingNames, rulesFor);
+  const sent = submission(chosenArea, report);
+  const touch = (name: string) => setTouched((t) => (t[name] ? t : { ...t, [name]: true }));
+  const shown = (name: string): Problem[] => (touched[name] || pressed ? (report.problems[name] ?? []) : []);
+  const setText = (name: string, v: string) => setForm((s) => ({ ...s, text: { ...s.text, [name]: v } }));
+  const setSecret = (name: string, v: string) => {
+    setForm((s) => ({ ...s, secrets: { ...s.secrets, [name]: v } }));
+    secretChoices.changed(name);
+  };
+
+  const pick = (name: string, index: number) => {
+    touch(name);
+    const { state: next, notes: cleared } = afterChoice(chosenArea, state, name, index);
+    // An address typed for one choice means nothing under another: start it over rather than carry it across.
+    for (const f of fields) {
+      if (f.name === name || !f.choices?.options.some((o) => o.when)) continue;
+      const before = selectedOption(chosenArea, f, state)?.index;
+      if (before !== undefined && before !== selectedOption(chosenArea, f, next)?.index) delete next.text[f.name];
+    }
+    setForm(next);
+    setNotes(cleared);
+  };
+  const onSwitch = (p: Problem) => {
+    if (p.switchTo) pick(p.switchTo.field, p.switchTo.index);
+    if (p.switchToken) setForm((s) => ({ ...s, tokenKind: p.switchToken! }));
+  };
+  const focusFirstMissing = () => {
+    setPressed(true);
+    const target = report.blockers[0]?.field;
+    queueMicrotask(() => {
+      const el = target ? document.querySelector<HTMLElement>(`[data-field="${target}"]`) : null;
+      (el?.matches('input,select,textarea') ? el : el?.querySelector<HTMLElement>('input,[role="radio"]'))?.focus();
+    });
+  };
+
+  const secretFields = fields.filter((f) => f.secret && report.needs[f.name] !== 'hidden');
+  const settings = fields.filter((f) => !f.secret && report.needs[f.name] !== 'hidden');
+  const lead = settings.filter((f) => f.choices?.required);
+  const ready = chosen(chosenArea, state);
+  const main = settings.filter((f) => !f.choices?.required && (report.needs[f.name] === 'required' || f.choices));
+  const optional = settings.filter((f) => !f.choices?.required && !main.includes(f));
+  const labelOf = (f: FormField) => (f.name === 'baseUrl' ? 'Address' : f.name);
+
+  const choiceField = (f: FormField) => {
+    const options = shownOptions(chosenArea, f, state);
+    const sel = selectedOption(chosenArea, f, state);
+    const need = report.needs[f.name]!;
+    const compose = sel?.option.compose;
+    const box = sel && sel.option.value === null && (
+      <TextField
+        field={f.name}
+        label={compose?.label ?? labelOf(f)}
+        value={form.text[f.name] ?? ''}
+        onChange={(v) => setText(f.name, v)}
+        onBlur={() => touch(f.name)}
+        need={need}
+        info={f.description}
+        placeholder={compose?.placeholder ?? sel.option.placeholder}
+        problems={shown(f.name)}
+        onSwitch={onSwitch}
+        affix={compose ? { before: compose.prefix, after: compose.suffix ?? '' } : undefined}
+        hint={compose && report.settings[f.name] ? <>Address: <code>{report.settings[f.name]}</code></> : undefined}
+      />
+    );
+    return (
+      <div key={f.name} className="choice-field" data-choice={f.name}>
+        {(options.length > 1 || f.choices?.required) && (
+          <ChoiceRadios
+            label={f.choices?.question ?? labelOf(f)}
+            field={f.name}
+            need={f.choices?.required ? 'required' : undefined}
+            selected={sel ? String(sel.index) : null}
+            onChange={(k) => pick(f.name, Number(k))}
+            options={options.map(({ option, index }) => ({ key: String(index), label: option.label }))}
+          />
+        )}
+        {f.choices?.required ? null : box || (sel && <p className="note">Uses <code>{sel.option.value}</code>.</p>)}
+      </div>
+    );
+  };
+
+  const plainField = (f: FormField) => (
+    <TextField key={f.name} field={f.name} label={f.name} value={form.text[f.name] ?? ''} onChange={(v) => setText(f.name, v)} onBlur={() => touch(f.name)} need={report.needs[f.name]} info={f.description} placeholder={f.default ?? undefined} problems={shown(f.name)} onSwitch={onSwitch} />
+  );
+
+  const review = [`area ${chosenArea.name}`, ...Object.entries(sent).map(([k, v]) => `${k} ${v}`), ...secretFields.filter((f) => (form.secrets[f.name] ?? '') !== '').map((f) => `${f.name} to the OS credential store`)].join(', ');
+  const runs = commandLine('connections add', [state.name || '<name>', '--area', chosenArea.name, ...Object.entries(sent).flatMap(([k, v]) => ['--set', `${k}=${v}`])]);
 
   return (
     <ChangeForm
@@ -392,71 +487,91 @@ export function NewConnectionForm({
           Asks for what <code>toil connections add</code> asks on a terminal. The settings go into your config file and each secret into the OS credential store, never the file. The first connection to an area becomes its default. Writes start off.
         </>
       }
-      runs={commandLine('connections add', [name || '<name>', '--area', chosen.name])}
+      runs={runs}
       submit="Save connection"
       disabled={config.disabled}
+      blockedBy={report.blockers[0]?.reason ?? null}
+      onBlocked={focusFirstMissing}
       onSubmit={async () => {
-        if (!NAME.test(name)) return { ok: false, message: `"${name}" isn't a valid connection name.`, fix: 'Use lowercase letters, digits and single hyphens, starting with a letter, e.g. corp-jira.' };
         const answers: Record<string, string> = { confirm: 'y' };
-        for (const f of settings) answers[`setting:${f.name}`] = values[f.name] ?? '';
-        const refused = choices.refusal(secretFields.map((f) => [f.name, secrets[f.name] ?? '', rulesFor(f)]));
+        // Only what applies is sent; every other setting is answered empty, which saves nothing for it.
+        for (const f of fields.filter((g) => !g.secret)) answers[`setting:${f.name}`] = sent[f.name] ?? '';
+        const refused = secretChoices.refusal(secretFields.map((f) => [f.name, form.secrets[f.name] ?? '', rulesFor(f)]));
         if (refused) return refused;
-        Object.assign(answers, choices.answers());
-        // Every secret field shown is answered, an empty one with '', so toil skips an empty optional one as the CLI does.
-        const typed = Object.fromEntries(secretFields.map((f) => [f.name, secrets[f.name] ?? '']));
-        setSecrets({});
-        choices.reset();
-        const envelope = await config.run('connections add', { name, area: chosen.name }, { answers, secrets: typed });
+        Object.assign(answers, secretChoices.answers());
+        const typed = Object.fromEntries(fields.filter((f) => f.secret).map((f) => [f.name, report.needs[f.name] === 'hidden' ? '' : (form.secrets[f.name] ?? '')]));
+        const name = state.name;
+        setForm((s) => ({ ...s, secrets: {} }));
+        secretChoices.reset();
+        const envelope = await config.run('connections add', { name, area: chosenArea.name }, { answers, secrets: typed });
         const outcome = outcomeOf(envelope, `${name} was added.`);
         if (outcome.ok) {
-          setName('');
-          setValues({});
+          setForm(emptyState());
+          setTouched({});
+          setPressed(false);
+          setNotes([]);
           await onAdded(name);
         }
         return outcome;
       }}
     >
-      <TextField label="Name" value={name} onChange={setName} required hint="Lowercase letters, digits and single hyphens, e.g. corp-jira." />
+      <TextField field="name" label="Name" value={form.name} onChange={(v) => setForm((s) => ({ ...s, name: v }))} onBlur={() => touch('name')} need="required" hint="Lowercase letters, digits and single hyphens, e.g. corp-jira." problems={shown('name')} />
       {fixed === undefined && (
         <SelectField
           label="Area"
-          value={chosen.name}
+          value={chosenArea.name}
           onChange={(v) => {
             setArea(v);
-            setValues({});
-            setSecrets({});
-            choices.reset();
+            setForm((s) => ({ ...emptyState(s.name) }));
+            setTouched({});
+            setNotes([]);
+            secretChoices.reset();
           }}
           options={withFields.map((a) => ({ value: a.name, label: a.name }))}
-          hint={chosen.description}
+          hint={chosenArea.description}
         />
       )}
-      {required.map((f) => (
-        <TextField key={f.name} label={label(f)} value={values[f.name] ?? ''} onChange={(v) => setValues((s) => ({ ...s, [f.name]: v }))} required placeholder={f.default ?? undefined} />
-      ))}
-      {secretFields.map((f) => (
-        <SecretField
-          key={f.name}
-          label={`${label(f)}${f.password ? ', a password' : ''}`}
-          value={secrets[f.name] ?? ''}
-          onChange={(v) => {
-            setSecrets((s) => ({ ...s, [f.name]: v }));
-            choices.changed(f.name);
-          }}
-          rules={rulesFor(f)}
-          asking={choices.asking}
-          kept={choices.kept(f.name)}
-          onKeep={() => choices.keep(f.name)}
-          hint="Goes to the OS credential store; never shown again, and never in the config file."
-        />
-      ))}
-      {optional.length > 0 && (
-        <details className="more">
-          <summary>Optional settings ({optional.length})</summary>
-          {optional.map((f) => (
-            <TextField key={f.name} label={label(f)} value={values[f.name] ?? ''} onChange={(v) => setValues((s) => ({ ...s, [f.name]: v }))} placeholder={f.default ?? undefined} hint={f.default ? `Left empty, it stays ${f.default}.` : undefined} />
+      {lead.map(choiceField)}
+      {notes.length > 0 && (
+        <ul className="plain" role="status" data-cleared="">
+          {notes.map((n) => (
+            <li key={n} className="note">
+              {n}
+            </li>
           ))}
-        </details>
+        </ul>
+      )}
+      {ready && (
+        <>
+          {main.map((f) => (f.choices ? choiceField(f) : plainField(f)))}
+          {kinds.length > 1 && chosenArea.scopes && <TokenKindRadios scopes={chosenArea.scopes} kindId={state.tokenKind ?? kinds[0]!.id} onKind={(id) => setForm((s) => ({ ...s, tokenKind: id }))} />}
+          {secretFields.map((f) => (
+            <SecretField
+              key={f.name}
+              field={f.name}
+              label={`${f.name}${f.password ? ', a password' : ''}`}
+              info={f.description}
+              need={report.needs[f.name]}
+              value={form.secrets[f.name] ?? ''}
+              onChange={(v) => setSecret(f.name, v)}
+              onBlur={() => touch(f.name)}
+              rules={rulesFor(f)}
+              asking={secretChoices.asking}
+              kept={secretChoices.kept(f.name)}
+              onKeep={() => secretChoices.keep(f.name)}
+              problems={shown(f.name)}
+              onSwitch={onSwitch}
+              hint="Goes to the OS credential store; never shown again, and never in the config file."
+            />
+          ))}
+          {chosenArea.scopes && <ScopesDisclosure scopes={chosenArea.scopes} kindId={state.tokenKind ?? kinds[0]!.id} />}
+          {optional.length > 0 && (
+            <details className="more">
+              <summary>Optional settings ({optional.length})</summary>
+              {optional.map(plainField)}
+            </details>
+          )}
+        </>
       )}
       <p className="note">Saves: {review}.</p>
     </ChangeForm>

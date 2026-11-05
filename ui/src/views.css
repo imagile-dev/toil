@@ -405,3 +405,24 @@
   .pr-queue .flags { grid-template-columns: minmax(0, 1fr); }
   .pr-queue .pr-author, .pr-queue .flags li, .pr-queue .pr-size .field { white-space: normal; overflow-wrap: anywhere; }
 }
+
+/* The connection form (#561): the live required/optional badge, the (i) beside a label, what a field says under itself, and an address built around a word. */
+.need { margin-inline-start: 0.4rem; padding: 0 0.4rem; border: 1px solid var(--muted); border-radius: var(--radius); font-size: 0.75rem; font-weight: 400; text-transform: lowercase; }
+.need--required { border-color: var(--accent); }
+.info { display: inline-block; margin-inline-start: 0.35rem; }
+.info > summary { cursor: pointer; list-style: none; display: inline-block; min-width: 24px; min-height: 24px; text-align: center; color: var(--accent); }
+.info > summary::-webkit-details-marker { display: none; }
+.info[open] { display: block; }
+.problems { display: grid; gap: 0.25rem; margin: 0.25rem 0 0; }
+.problem--warning { border-inline-start: 3px solid var(--accent); padding-inline-start: 0.5rem; }
+.affix { display: flex; align-items: center; flex-wrap: wrap; gap: 0.25rem; }
+.affix input { flex: 1 1 10rem; min-width: 0; }
+.choice-field { display: grid; gap: 0.75rem; }
+.scopes__list { display: flex; flex-wrap: wrap; gap: 0.25rem 0.75rem; }
+.scopes__use h4 { margin: 0.75rem 0 0.25rem; }
+.scopes__commands { overflow-wrap: anywhere; display: block; }
+.scopes__entries > li { display: grid; gap: 0.1rem; padding-block: 0.35rem; }
+.setup__existing > li { display: flex; flex-wrap: wrap; gap: 0.25rem 0.5rem; align-items: baseline; padding-block: 0.25rem; }
+.repo-list { display: grid; gap: 0.5rem; border: 0; padding: 0; }
+.repo-row { display: grid; gap: 0.25rem; }
+.btn[aria-disabled="true"] { opacity: 0.6; cursor: not-allowed; }
