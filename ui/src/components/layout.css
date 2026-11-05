@@ -92,3 +92,7 @@
 .l-path__head { min-width: 1.5ch; overflow: hidden; text-overflow: ellipsis; }
 .l-path__tail { flex: none; }
 .l-copy { flex: none; }
+
+/* Stacked cards on a page: one section gap between neighbours, in every view and theme. Cards inside a grid, list or
+   stack already get their gap from it, so this only covers cards that sit directly in the page, which had none. */
+main > .l-card + .l-card, main > * + .l-card { margin-top: var(--section-gap, 1.5rem); }
