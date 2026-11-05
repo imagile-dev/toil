@@ -51,6 +51,13 @@ export interface ThemeManifest {
   terms?: Partial<Record<TermKey, string>>;
   /** Themed wording (#283): the theme's own microcopy, by key, over the standard text in src/wording.ts. */
   lexicon?: Partial<Record<WordKey, string>>;
+  /**
+   * The phrases the Ask bar rotates while a helper is thinking (#561), shown
+   * only while themed wording is on. Flavour only: the elapsed time and any
+   * tool the agent names are said plainly beside them (src/thinking.ts). Plain
+   * has none and reads the standard phrases.
+   */
+  thinking?: string[];
   /** Themed agent voice (#283): the register the agent answers in, added to its prompt as style. Plain has none. */
   voice?: string;
   /**

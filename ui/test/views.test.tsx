@@ -707,6 +707,58 @@ describe('the chat up front (#343)', () => {
     expect([...chat.querySelectorAll('.turn h3')].filter((h) => !h.closest('article')).map((h) => h.textContent)).toEqual(['Are we going to finish the sprint?', 'Who might need help?']);
   });
 
+  describe('the thinking indicator (#561)', () => {
+    /** An agent whose answer arrives when `release` is called, so the wait can be looked at. */
+    function slowAgent() {
+      let release: () => void = () => undefined;
+      const wait = new Promise<void>((resolve) => (release = resolve));
+      const agent: Agent = { starters: () => [], ask: async (_d, prompt) => (await wait, { prompt, parts: [{ text: 'Done.' }], citations: [], by: 'Codex', proposals: [] }) };
+      return { agent, release };
+    }
+
+    async function askAndClose(agent: Agent) {
+      await open('#/project/card-payments', { agent, preview: false });
+      const chat = await openChat('card-payments');
+      await userEvent.type(within(chat).getByRole('textbox', { name: 'Your question' }), 'Who is blocked?{Enter}');
+      await waitFor(() => expect(chat.querySelector('[data-ask-status]')).not.toBeNull());
+      return chat;
+    }
+
+    it("shows the theme's phrase with an icon in the focused view and the Ask bar, and the standard one in Plain", async () => {
+      setTheme('harvest');
+      const { agent, release } = slowAgent();
+      const chat = await askAndClose(agent);
+      const line = chat.querySelector('[data-ask-status]')!;
+      expect(line.getAttribute('role')).toBe('status');
+      expect(line.getAttribute('aria-label')).toBe('Answer progress');
+      expect(line.textContent).toMatch(/^Fertilizing digital soil…/);
+      expect(line.querySelector('[data-thinking-icon]')!.getAttribute('aria-hidden')).toBe('true');
+      expect(within(chat).getByRole('button', { name: 'Stop' })).toBeTruthy();
+      await userEvent.click(within(chat).getByRole('button', { name: 'Close' }));
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ask about card-payments' })).toBeNull());
+      const bar = askBar('card-payments');
+      const live = within(bar).getByRole('status', { name: 'Answer progress' });
+      expect(live.getAttribute('aria-live')).toBe('polite');
+      expect(live.textContent).toMatch(/^Fertilizing digital soil… · \d+ s$/);
+      expect(bar.querySelector('[data-thinking-icon]')).not.toBeNull();
+      expect(bar.textContent).toContain('1 question in this chat, Fertilizing digital soil…');
+      release();
+      await waitFor(() => expect(bar.querySelector('[data-thinking-icon]')).toBeNull());
+      // The live region stays, empty, so the next wait is announced.
+      expect(within(bar).getByRole('status', { name: 'Answer progress' }).textContent).toBe('');
+    });
+
+    it('reads the standard phrases in Plain and with themed wording off', async () => {
+      setTheme('plain');
+      const { agent, release } = slowAgent();
+      const chat = await askAndClose(agent);
+      expect(chat.querySelector('[data-ask-status]')!.textContent).toMatch(/^Reading your data…/);
+      release();
+      await waitFor(() => expect(chat.querySelector('[data-ask-status]')!.textContent).toMatch(/^Done in \d+ s$/));
+      expect(chat.querySelector('[data-thinking-icon]')).toBeNull();
+    });
+  });
+
   it('keeps sending a long chat inside what the server takes: the last turns, each answer cut short (#344)', async () => {
     const sent: AskExtra[] = [];
     const agent: Agent = {

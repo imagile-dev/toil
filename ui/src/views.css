@@ -192,6 +192,17 @@
 .ask-status__line { margin: 0; flex: 1 1 12rem; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
 .ask-status__line code { font-weight: 400; overflow-wrap: anywhere; }
 .ask-status__time { font-weight: 400; color: var(--muted); }
+/* The thinking indicator (#561): a ~1em icon beside "N questions in this chat" and the status line. It spins only where
+   motion is welcome; otherwise it is the same icon, still. */
+.ask-bar__count { display: inline-flex; align-items: center; gap: 0.35em; }
+.thinking-icon { width: 1em; height: 1em; flex: none; vertical-align: -0.125em; overflow: visible; }
+.thinking-icon__track { fill: none; stroke: var(--line); stroke-width: 2; }
+.thinking-icon__arc { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; }
+.ask-status__line .thinking-icon { margin-right: 0.4em; }
+@media (prefers-reduced-motion: no-preference) {
+  .thinking-icon { animation: toil-spin 1.1s linear infinite; }
+}
+@keyframes toil-spin { to { transform: rotate(360deg); } }
 .ask-suggest { justify-self: start; }
 .ask-switch { text-align: center; border-top: 1px dashed var(--line); border-bottom: 1px dashed var(--line); padding: 0.4rem 0; margin: 0; }
 .agent-switch { min-height: 36px; }

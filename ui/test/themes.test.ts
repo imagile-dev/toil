@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { alignmentProblems, cssProblems, fileProblems, lexiconProblems, manifestProblems, momentsProblems, voiceProblems } from './theme-rules.ts';
+import { alignmentProblems, cssProblems, fileProblems, lexiconProblems, manifestProblems, momentsProblems, thinkingProblems, voiceProblems } from './theme-rules.ts';
 import { rolled } from '../src/model/alignment.ts';
 import { initialChoice } from '../src/theme-choice.ts';
 import { STANDARD, WORD_KEYS, wordFor } from '../src/wording.ts';
@@ -123,6 +123,12 @@ describe.each(THEMES.map((t) => [t.name, t] as const))('the %s theme', (name, th
     }
   });
 
+  it('has thinking phrases of its own, flavour only, or none at all in Plain (#561)', () => {
+    expect(thinkingProblems(theme.thinking)).toEqual([]);
+    if (name === 'plain') expect(theme.thinking).toBeUndefined();
+    else expect(theme.thinking!.length).toBeGreaterThanOrEqual(3);
+  });
+
   // A stylesheet's own colours are theme variables set per scheme (#507): its second scheme is set twice, for
   // data-scheme and for System under prefers-color-scheme, and a rule missing from one would show only one way.
   it("sets its stylesheet's second scheme the same for data-scheme and for System, and every variable in both", () => {
@@ -224,6 +230,10 @@ describe('how deep a theme goes (#283)', () => {
     expect(lexiconProblems({ 'button.ask': 'Holler' })).toEqual(['theme.json: lexicon."button.ask" isn\'t a word key (src/wording.ts).']);
     expect(voiceProblems('```proposal```')).toEqual(['theme.json: "voice" must be one paragraph of plain text, with no code fence, citation or line break.']);
     expect(voiceProblems('x'.repeat(801))[0]).toMatch(/over 800/);
+    expect(thinkingProblems(['a…', 'b…'])).toEqual(['theme.json: "thinking" must be a list of 3 to 8 phrases.']);
+    expect(thinkingProblems(['Warming up', 'b…', 'c…'])[0]).toMatch(/must be plain text/);
+    expect(thinkingProblems(['Nearly 90% there…', 'b…', 'c…'])[0]).toMatch(/claims progress/);
+    expect(thinkingProblems(['a…', 'a…', 'c…'])).toEqual(['theme.json: thinking lists a phrase twice.']);
   });
 });
 

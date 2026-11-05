@@ -124,5 +124,12 @@
     "status.done": "Logged in {seconds} s",
     "status.stopped": "Aborted after {seconds} s"
   },
+  "thinking": [
+    "Plotting a course…",
+    "Warming the warp core…",
+    "Scanning the sector…",
+    "Hailing the ship's computer…",
+    "Waiting for the scanners to settle…"
+  ],
   "voice": "Write like a starship's log: crisp, formal and calm, in the first person plural of a bridge crew. The sprint is the current mission, work items are tasks on the duty roster, a blocker is a hazard on the heading, a failing build is a system fault, a deployment is a jump to another sector, and the dependency graph is the star chart. Report status first, then hazards, then the recommended course. Steady under pressure, with no exclamation marks and no alarm. Ship's terms go around the facts, never instead of them."
 }
