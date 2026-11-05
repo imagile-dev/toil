@@ -76,6 +76,19 @@ projects list` for a Toil project, and the Sync panel for the sync. Beside the s
 button, to restart Toil UI on the sample Toil projects. The checklist goes once the first
 sync finishes. Each step's (i) explains it and links to these docs.
 
+## The setup wizard
+
+For someone new to AI, toil and Toil UI, `#/setup` walks through setup one question a screen, with Back, Skip and Next and a "Step 3 of 6" line. It opens from **Set it up step by step** on the first run, from **Set up toil, step by step** in the command palette, from the link under Settings' heading, and by its own address.
+
+1. **Welcome** says what toil and Toil UI are, and that nothing in your tools changes without you.
+2. **Which tools do you use?** lists the areas toil can connect to, from the server's own registry: GitHub, Jira, Azure DevOps, Bitbucket, Confluence and SonarQube first, the rest under **More tools**. A tool you already have a connection to says so.
+3. **Link your tools** takes each ticked tool in turn with the same form as Settings, Connections: the settings in text boxes, and the login in a masked box that goes to toil's own `connections login` path and the OS credential store, as it does in Settings. The wizard never keeps it, and no AI helper, chat or proposal ever sees it. The new connection starts with writes off, and the screen says so. **Test the link** runs `toil connections test`; **Prefer to type it on a terminal?** shows `toil connections add <name> --area <area>` with a Copy button.
+4. **Your Toil project** creates one (`projects init`, an optional repository with `projects add-repo`, then `projects link` for each tool set up) or links the tools to one you already have.
+5. **An AI helper (optional)** is the Agent page's own Install dialog and Save, explained for someone who has never used one, with Skip. Everything else works without one.
+6. **All set** says what was set up and offers **Sync now**.
+
+The wizard keeps its progress in the page only; it adds no config key. Connections it saved stay saved if you close the tab. Every change is one of the commands in the allowlist Settings uses, so each is in toil's audit log as `toil-ui`.
+
 ## What it reads
 
 Each dashboard reads its Toil project the way `toil projects show` describes it: the

@@ -116,6 +116,7 @@ export const ROUTES = [
   '#/project/card-payments/assignment/sample-needsyou-0002',
   '#/project/card-payments/assignment/sample-failed-0000004',
   '#/project/card-payments/assignment/sample-working-0001',
+  '#/setup',
   '#/settings/connections',
   '#/settings/projects',
   '#/settings/toil',

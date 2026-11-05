@@ -107,7 +107,7 @@ export interface EntriesInput {
 export function paletteEntries(x: EntriesInput): PaletteEntry[] {
   const pw = (standard: string, plain: string) => (x.plain ? plain : standard);
   const out: PaletteEntry[] = [];
-  const here = x.route.view === 'toilProjects' || x.route.view === 'settings' ? null : x.route.toilProject;
+  const here = x.route.view === 'toilProjects' || x.route.view === 'settings' || x.route.view === 'setup' ? null : x.route.toilProject;
   const current = here ? x.loaded[here] : undefined;
   if (x.onSync) out.push({ id: 'cmd:sync', group: 'commands', label: 'Sync now', detail: 'Read every Toil project through toil into the cache', go: { run: x.onSync } });
   if (here && current?.ok) {
@@ -127,6 +127,7 @@ export function paletteEntries(x: EntriesInput): PaletteEntry[] {
     }
   }
   if (x.agentSettings) out.push({ id: 'cmd:agent-default', group: 'commands', label: 'Choose the default agent', detail: 'Settings, Agent', go: { href: '#/settings/agent' } });
+  out.push({ id: 'cmd:setup', group: 'commands', label: 'Set up toil, step by step', detail: 'The setup wizard: tools, a Toil project, an AI helper', text: 'setup wizard guided get started connect tools onboarding', go: { href: '#/setup' } });
   out.push({ id: 'cmd:plain-words', group: 'commands', label: pw('Use plain words', "Use toil's own terms"), detail: pw('Everyday words for tabs and headings', 'Pull request, agent'), text: 'plain words everyday terms jargon', go: { run: () => setPlain(!x.plain) } });
   out.push({ id: 'cmd:shortcuts', group: 'commands', label: 'Keyboard shortcuts', detail: `Press ${SHORTCUTS.shortcuts.keys.join('')} anywhere`, go: { run: x.openShortcuts } });
 
@@ -198,7 +199,7 @@ export function CommandPalette({ isOpen, onOpenChange, agent, analysesApi, readi
   // The wall clock when it opened, for how old a cache is: the App's own clock is when its data was read.
   const [at, setAt] = useState(0);
   const names = input.toilProjects.join('\n');
-  const here = input.route.view === 'toilProjects' || input.route.view === 'settings' ? null : input.route.toilProject;
+  const here = input.route.view === 'toilProjects' || input.route.view === 'settings' || input.route.view === 'setup' ? null : input.route.toilProject;
 
   // Each time it opens: the adapters and the saved analyses, both read from what the server already has.
   useEffect(() => {

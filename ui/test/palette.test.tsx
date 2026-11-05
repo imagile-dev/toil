@@ -152,7 +152,7 @@ describe('the palette entries', () => {
     const card = (await loaded('card-payments')).data;
     const item = card.items[0]!;
     const off = paletteEntries(base({ toilProjects: ['card-payments'], loaded: { 'card-payments': { ok: true, value: card } } })).filter((e) => e.group === 'commands').map((e) => e.id);
-    expect(off).toEqual(['cmd:plain-words', 'cmd:shortcuts']);
+    expect(off).toEqual(['cmd:setup', 'cmd:plain-words', 'cmd:shortcuts']);
     const on = paletteEntries(
       base({
         route: { view: 'dashboard', toilProject: 'card-payments', tab: 'board' },
@@ -165,7 +165,7 @@ describe('the palette entries', () => {
         adapters: { chosen: 'codex', options: [{ name: 'codex', label: 'Codex', model: null, ready: true, problem: null, fix: null, action: null }, { name: 'claude', label: 'Claude', model: 'haiku', ready: false, problem: 'Not installed', fix: null, action: 'install' }] },
       }),
     ).filter((e) => e.group === 'commands');
-    expect(on.map((e) => e.label)).toEqual(['Sync now', 'Ask about card-payments', 'Analyze card-payments', 'Open the Agents panel', 'Review a pull request', 'Ship: answer a review', 'Diagram card-payments', `Assign ${shortKey(item)} to an agent`, 'Answer with Codex', 'Choose the default agent', 'Use plain words', 'Keyboard shortcuts']);
+    expect(on.map((e) => e.label)).toEqual(['Sync now', 'Ask about card-payments', 'Analyze card-payments', 'Open the Agents panel', 'Review a pull request', 'Ship: answer a review', 'Diagram card-payments', `Assign ${shortKey(item)} to an agent`, 'Answer with Codex', 'Choose the default agent', 'Set up toil, step by step', 'Use plain words', 'Keyboard shortcuts']);
     expect(on.find((e) => e.id === 'cmd:job:diagram')!.go).toEqual({ href: '#/project/card-payments/job/diagram' });
     expect(on.find((e) => e.id === 'cmd:agent:codex')!.go).toEqual({ command: { kind: 'agent', name: 'codex', label: 'Codex' } });
   });
