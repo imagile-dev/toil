@@ -37,6 +37,8 @@ export const CONFIG_CHANGES = [
   'projects link',
   'projects field',
   'projects person',
+  // Saving the people into the repository's own .toil/projects file, to be reviewed and committed with the code (#561).
+  'projects people save',
   'projects wip-limit',
   // How Analyze briefs a toil project (#494): its goal, reader, lenses and focus.
   'projects analyze set',

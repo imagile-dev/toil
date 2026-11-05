@@ -128,6 +128,7 @@ export function ToilProjectSetup({ config, at, toForm = false }: { config: Confi
             <LinkForm config={config} toilProject={target} areas={areas} connections={connections} />
             <FieldForm config={config} toilProject={target} areas={areas} />
             <PersonForm config={config} toilProject={target} areas={areas} />
+            <PeopleSaveForm config={config} toilProject={target} />
             <WipLimitForm config={config} toilProject={target} />
             <AnalyzeForm config={config} toilProject={target} />
           </>
@@ -396,6 +397,32 @@ function PersonForm({ config, toilProject, areas }: { config: ConfigApi; toilPro
       <SelectField label="Kind" value={kind} onChange={(v) => setKind(v === 'agent' ? 'agent' : 'human')} options={[{ value: 'human', label: 'Person' }, { value: 'agent', label: 'Agent' }]} />
       <TextField label="Email" value={email} onChange={setEmail} hint="Optional, e.g. you@example.com. Compared only, to suggest matches." />
       <CheckField label="Replace an identity, kind or email already set" checked={replace} onChange={setReplace} />
+    </ChangeForm>
+  );
+}
+
+function PeopleSaveForm({ config, toilProject }: { config: ConfigApi; toilProject: string }) {
+  const [replace, setReplace] = useState(false);
+  return (
+    <ChangeForm
+      titleId="toil-project-form-people-save"
+      title={`Save ${toilProject}'s people to a repository`}
+      explain={
+        <>
+          Writes the people (names, kinds, emails and the login or id each system shows, never a credential) into <code>.toil/projects/{toilProject}.json</code> in the repository Toil UI was started in, hosted on GitHub, Azure DevOps or Bitbucket, so teammates who clone it share the mapping. If the file exists only its people change, and people only it lists are kept. Nothing is staged or committed: review it with git and commit it with your code.
+        </>
+      }
+      runs={commandLine('projects people save', [toilProject, ...(replace ? ['--replace'] : [])])}
+      submit="Save to this repository"
+      disabled={config.disabled}
+      onSubmit={async () => {
+        const e = await config.run('projects people save', { toilProject, ...(replace ? { replace } : {}) });
+        const d = (e.ok ? e.data : null) as { file?: string; created?: boolean; changed?: boolean; added?: string[]; updated?: string[] } | null;
+        const said = d?.created ? `Created ${d.file} with ${d.added?.length ?? 0} people.` : d?.changed === false ? `${d.file} already has these people. Nothing changed.` : `Updated ${d?.file}: ${d?.added?.length ?? 0} added, ${d?.updated?.length ?? 0} changed.`;
+        return outcomeOf(e, `${said} Nothing was staged or committed.`);
+      }}
+    >
+      <CheckField label="Take mine where the file lists the same person differently" checked={replace} onChange={setReplace} />
     </ChangeForm>
   );
 }

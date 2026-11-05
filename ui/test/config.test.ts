@@ -155,7 +155,7 @@ describe('the allowlist', () => {
   it('is exactly the config commands the pages need, each one toil has, the changes local writes only', () => {
     const served = new Map([...registry.commands, ...registry.personCommands].map((c) => [c.name, c]));
     expect([...CONFIG_COMMANDS].sort()).toEqual(
-      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'projects add-repo', 'projects analyze set', 'projects check', 'projects field', 'projects init', 'projects link', 'projects list', 'projects onboard', 'projects person', 'projects show', 'projects wip-limit', 'projects describe', 'theme list', 'theme set'].sort(),
+      ['audit list', 'audit stats', 'connections add', 'connections default', 'connections list', 'connections login', 'connections remove', 'connections test', 'connections writes', 'projects add-repo', 'projects analyze set', 'projects check', 'projects field', 'projects init', 'projects link', 'projects list', 'projects onboard', 'projects people save', 'projects person', 'projects show', 'projects wip-limit', 'projects describe', 'theme list', 'theme set'].sort(),
     );
     for (const name of CONFIG_READS) expect(served.get(name), name).toMatchObject({ writes: false, writesLocal: false, writesDependOnInput: false });
     // A change writes only toil's own config on this machine, never a service.
@@ -327,6 +327,19 @@ describe('Toil projects, through toil', () => {
     expectEnvelope(await config('projects person', { toilProject: 'payments', name: 'Claude', remove: true })).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT', fix: 'Only a person can make this call, on the CLI with toil projects person.' } });
     expectEnvelope(await config('projects wip-limit', { toilProject: 'payments', clear: true })).toMatchObject({ ok: false, error: { code: 'INVALID_INPUT' } });
     expect(JSON.parse(readFileSync(join(home, '.toil', 'projects', 'payments.json'), 'utf8'))).toMatchObject({ people: [{ name: 'Pat Example' }, { name: 'Claude' }], wipLimit: 3 });
+    sweep();
+  });
+
+  it("maps one person across sources and saves the people into a repository's .toil/projects, never a secret (#561)", async () => {
+    const { config } = await serve();
+    await config('projects init', { name: 'payments' });
+    expectEnvelope(await config('projects person', { toilProject: 'payments', name: 'Pat Example', github: 'pat-ex', jira: 'pat', ado: 'you@example.com', bitbucket: 'pexample' })).toMatchObject({ ok: true, data: { person: { ids: { github: 'pat-ex', jira: 'pat', ado: 'you@example.com', bitbucket: 'pexample' } } } });
+    const repo = join(home, 'repo');
+    mkdirSync(join(repo, '.git'), { recursive: true });
+    writeFileSync(join(repo, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+    const saved = await config('projects people save', { toilProject: 'payments', repo });
+    expectEnvelope(saved).toMatchObject({ ok: true, data: { created: true, added: ['Pat Example'] } });
+    expect(JSON.parse(readFileSync(join(repo, '.toil', 'projects', 'payments.json'), 'utf8'))).toMatchObject({ name: 'payments', people: [{ name: 'Pat Example', ids: { github: 'pat-ex' } }] });
     sweep();
   });
 

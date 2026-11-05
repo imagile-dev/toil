@@ -28,6 +28,7 @@ import { rolled } from '../model/alignment.ts';
 import './people.css';
 import { AgentAssignments } from '../assign/views.tsx';
 import { failedOutcome, OutcomeLine, outcomeOf, type Outcome } from './settings/parts.tsx';
+import { MapIdentity, SaveToRepo } from './people-map.tsx';
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const calendarDays = (n: number) => `${round1(n)} ${round1(n) === 1 ? 'day' : 'days'}`;
@@ -83,6 +84,7 @@ export function People() {
             <EditLink href={toilProjectEditHref(toilProject.name, 'people')} label={`Edit ${toilProject.name}'s people`} />
             {alignments && <Help topic="alignments" />}
           </div>
+          <SaveToRepo />
           <CardGrid min="md" className="people-cards">
             {view.people.map((c) => (
               <li key={c.who.key}>
@@ -123,7 +125,7 @@ export function People() {
         </p>
         {view.unnamedAgents.length > 0 && (
           <p className="note">
-            {count(view.unnamedAgents.length, 'pull request')} {view.unnamedAgents.length === 1 ? 'was' : 'were'} written with an agent the Toil project's people don't name ({[...new Set(view.unnamedAgents.map((c) => c.authorKindSignal ?? 'an agent account'))].join('; ')}). Add the agent with <code>toil projects person {toilProject.name} "&lt;name&gt;" --kind agent</code> to give it a card.
+            {count(view.unnamedAgents.length, 'pull request')} {view.unnamedAgents.length === 1 ? 'was' : 'were'} written with an agent the Toil project's people don't name ({[...new Set(view.unnamedAgents.map((c) => c.authorKindSignal ?? 'an agent account'))].join('; ')}). Press Map on its account below, and choose Agent, to give it a card. From a terminal: <code>toil projects person {toilProject.name} "&lt;name&gt;" --kind agent</code>.
           </p>
         )}
         {view.unmapped.length ? (
@@ -244,6 +246,7 @@ function PersonCardView({ card, limit }: { card: PersonCard; limit: number | nul
           </ul>
         </div>
         <p className="note any-break">{who.identities.length ? who.identities.map(identityText).join(' · ') : 'No identities in the Toil project yet.'}</p>
+        {!who.mapped && who.identities[0] && <MapIdentity account={who.identities[0]} />}
         <p>
           <a href={boardHref(toilProject.name, who.key)}>{who.name}'s items on the board</a>
         </p>
