@@ -157,7 +157,7 @@ async function main(): Promise<number> {
           return data && worklog ? { ...data, worklog: async (day) => (await worklog!.day(dossier, day)).page, standup: async (from, to) => (await worklog!.standup(dossier, from, to)).report } : data;
         },
         onRun: (run) => worklog?.recordRun(run),
-        rounds: (dossier, label) => roundsUsedFor(cache!.runs(dossier), label),
+        rounds: (dossier, label, self) => roundsUsedFor(cache!.runs(dossier), label, self),
         registry: registry.commands,
         execute,
         mapIds,

@@ -12,7 +12,9 @@
  */
 
 import { FACE, JOB_PROBLEMS, RULES, jobOf, jobLabel, parseJobPrompt, type Job, type JobId } from '../../src/model/jobs.ts';
+import type { ChangeRow } from '../cache.ts';
 import { AgentError } from './cli.ts';
+import { pullRequestsOf } from './tools.ts';
 
 export interface JobQuestion {
   label: string;
@@ -37,14 +39,40 @@ function target(job: Job, id: JobId, subject: string, dossier: string): string {
   return `The repository is ${subject || `the dossier "${dossier}"'s repositories`}. Read the dossier's repositories with dossiers_show. Build the model from what your tools return (the pull requests and their files, the items, the deployments), mark every element observed or inferred as the page says, and draw it with util_c4_mermaid, putting the Mermaid text in your answer.`;
 }
 
+/** What the cache holds for the dossier: the targets a job may be asked about. */
+export interface KnownTargets {
+  /** Ids of the dossier's pull requests. */
+  changes: ReadonlySet<string>;
+  /** Repositories its pull requests name. */
+  repositories: ReadonlySet<string>;
+}
+
+/**
+ * A target goes into the agent's prompt and names the run in the worklog, so
+ * it is only ever one the cache holds: a pull request's id, or a repository of
+ * the dossier (empty for the whole dossier, Diagram only). Anything else, a
+ * crafted link or another spelling of the same pull request, is refused by name.
+ */
+function checkTarget(id: JobId, target: string, dossier: string, known: KnownTargets): void {
+  const shown = JSON.stringify(target.slice(0, 80));
+  if (FACE[id].on === 'pull request') {
+    if (known.changes.has(target)) return;
+    throw new AgentError(`${FACE[id].label} was asked about ${shown}, which is not a pull request Toil UI has cached for ${dossier}.`, "Choose a pull request from the dossier's Pull Requests, or sync the dossier first.");
+  }
+  if (!target || known.repositories.has(target)) return;
+  throw new AgentError(`${FACE[id].label} was asked about ${shown}, which is not a repository of ${dossier}.`, "Choose one of the dossier's repositories, or leave it empty for all of them.");
+}
+
 /**
  * The question for a job prompt (`job:review:<change id>`), or null when the
- * text isn't one. `rounds` is how many finished runs of this very question
- * the worklog holds. A job with a loop that has used all of them throws.
+ * text isn't one. `rounds` is how many runs of this very question the worklog
+ * holds (finished, or started earlier and still running). A job with a loop
+ * that has used all of them throws, and so does a target the cache doesn't hold.
  */
-export function jobQuestion(dossier: string, prompt: string, rounds: (label: string) => number): JobQuestion | null {
+export function jobQuestion(dossier: string, prompt: string, rounds: (label: string) => number, known: KnownTargets): JobQuestion | null {
   const asked = parseJobPrompt(prompt);
   if (!asked) return null;
+  checkTarget(asked.id, asked.target, dossier, known);
   const job = jobOf(asked.id);
   if (!job) {
     const bad = JOB_PROBLEMS[asked.id];
@@ -78,4 +106,10 @@ export function jobQuestion(dossier: string, prompt: string, rounds: (label: str
     job.body,
   ].join('\n');
   return { label, text, warning, writes: job.writes };
+}
+
+/** The targets the cache holds, from a dossier's change rows. */
+export function knownTargets(rows: ChangeRow[]): KnownTargets {
+  const prs = pullRequestsOf(rows);
+  return { changes: new Set(prs.map((c) => c.id)), repositories: new Set(prs.map((c) => c.repo)) };
 }

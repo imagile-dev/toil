@@ -168,7 +168,19 @@ export function roundsUsed(runs: ReadonlyArray<{ prompt: string; outcome: string
   return roundsUsedFor(runs, jobLabel(id, target));
 }
 
-/** The same, for a label already built: what the server counts with. Only questions asked in the Ask pane are rounds, never an assignment. */
-export function roundsUsedFor(runs: ReadonlyArray<{ prompt: string; outcome: string; kind?: string }>, label: string): number {
-  return runs.filter((r) => (r.kind ?? 'ask') === 'ask' && r.prompt === label && r.outcome === 'finished').length;
+/**
+ * The same, for a label already built: what the server counts with. Only
+ * questions asked in the Ask pane are rounds, never an assignment. A run still
+ * running counts when it began before `self` (the run asking), so two started
+ * together can't both be round 3: the earlier holds the round, the later is
+ * the fourth and is refused.
+ */
+export function roundsUsedFor(runs: ReadonlyArray<{ id?: string; prompt: string; outcome: string; kind?: string; startedAt?: string }>, label: string, self?: { id: string; startedAt: string }): number {
+  return runs.filter((r) => {
+    if ((r.kind ?? 'ask') !== 'ask' || r.prompt !== label) return false;
+    if (r.outcome === 'finished') return true;
+    if (r.outcome !== 'running' || !self || r.id === self.id) return false;
+    const at = r.startedAt ?? '';
+    return at < self.startedAt || (at === self.startedAt && (r.id ?? '') < self.id);
+  }).length;
 }

@@ -35,7 +35,7 @@ import { claudeRuntime } from './claude.ts';
 import { AgentError } from './cli.ts';
 import { codexRuntime } from './codex.ts';
 import { copilotRuntime } from './copilot.ts';
-import { jobQuestion } from './jobs.ts';
+import { jobQuestion, knownTargets } from './jobs.ts';
 import { analyzeQuestion, promptFor, STARTERS, systemPrompt, withHistory } from './prompts.ts';
 import { staleness, type ChatSession, type Fingerprint } from '../../src/fingerprint.ts';
 import { sha256, type Fingerprints } from '../fingerprint.ts';
@@ -99,7 +99,7 @@ export interface AgentHostOptions {
    */
   onRun?: (run: AgentRun) => Promise<void> | void;
   /** How many finished runs of a job's question the worklog holds, so a loop (Ship) can stop at its limit (#532). */
-  rounds?: (dossier: string, label: string) => number;
+  rounds?: (dossier: string, label: string, self: { id: string; startedAt: string }) => number;
   /** Where usage records go (#295): the cache's ledger, or one in memory. */
   ledger?: UsageLedger;
   /** Toil UI's own package folder, the one holding dist/server/toil-ui.js: where Install puts an SDK (install.ts, #344). */
@@ -296,7 +296,7 @@ export class AgentHost implements Agent {
       const data = this.o.data(dossier);
       if (!data) throw new AgentError(`Toil UI hasn't synced ${dossier} yet, so the agent has nothing to read.`, 'Press Sync now in the Sync panel, then ask again.');
       const ledger = new Ledger();
-      const asking = prompt === 'analyze' ? await analyzeQuestion(this.o.execute, dossier) : (jobQuestion(dossier, prompt, (l) => this.o.rounds?.(dossier, l) ?? 0) ?? { ...promptFor(dossier, prompt), warning: null });
+      const asking = prompt === 'analyze' ? await analyzeQuestion(this.o.execute, dossier) : (jobQuestion(dossier, prompt, (l) => this.o.rounds?.(dossier, l, record) ?? 0, knownTargets(data.changes())) ?? { ...promptFor(dossier, prompt), warning: null });
       const { label, text: question } = asking;
       // The chat so far goes before the question, so a follow-up or a switched adapter continues from it (#344).
       const { text, carried } = withHistory(question, extra.history);

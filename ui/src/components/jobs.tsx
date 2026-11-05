@@ -146,6 +146,7 @@ export function DiagramLink() {
 export function JobPage({ id, target }: { id: JobId; target: string | null }) {
   const { dossier, config } = useData();
   const info = useConnectionInfo(config);
+  const busy = useChatScope()?.busy ?? false;
   const job = jobOf(id);
   const face = FACE[id];
   const prs = dossier.pullRequests ?? [];
@@ -161,7 +162,6 @@ export function JobPage({ id, target }: { id: JobId; target: string | null }) {
   const ready = availability(job, info && !info.problem ? info.areas : null, host);
   const targets = face.on === 'pull request' ? prs.filter((c) => c.state === 'OPEN' || c.state === 'DRAFT') : repositoriesOf(prs);
   const subject = target ?? '';
-  const busy = useChatScope()?.busy ?? false;
   // A pull request job runs only on an open pull request of this dossier, and Ship only on a person's.
   const runnable = face.on === 'repository' || (change !== undefined && (change.state === 'OPEN' || change.state === 'DRAFT') && (id !== 'ship' || change.authorKind === 'HUMAN'));
   const canRun = ready.ready && runnable && !busy;
