@@ -63,6 +63,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import type { AddressInfo } from 'node:net';
 import { extname, isAbsolute, join, normalize, relative, sep } from 'node:path';
 import { ANALYZE, type Answer, type AskExtra, type HistoryTurn } from '../src/agent.ts';
+import { GUIDE_MAX, GUIDE_REFUSAL, GUIDE_REFUSAL_FIX, looksLikeSecret, readGuideState, type GuideRequest } from '../src/guide.ts';
 import { isWhole, type AnalysisKeeper } from './analyses.ts';
 import type { Envelope, ExecutePerson } from '../src/toil.ts';
 import type { AreaInfo, SettingsInfo } from '../src/config.ts';
@@ -617,6 +618,20 @@ export function createUiServer(options: UiServerOptions): UiServer {
         }
         return;
       }
+      case 'POST agent/guide': {
+        // The setup guide (#561). The refusal comes first, before the body is read any further: a message that looks like a secret is never passed on, kept or logged.
+        const body = await readJson(req);
+        if (!agent.guide) throw new HttpError(404, 'This Toil UI has no setup guide.', 'Start toil-ui without --sample, with an AI helper chosen in Settings.');
+        if (typeof body.message !== 'string' || !body.message.trim()) throw new HttpError(400, 'A question needs its text.', 'Send { "chat": "<chat id>", "message": "<question>", "state": { "step": "connect", "areas": [] } }.');
+        if (body.message.length > GUIDE_MAX || looksLikeSecret(body.message)) throw new HttpError(400, GUIDE_REFUSAL, GUIDE_REFUSAL_FIX);
+        if (typeof body.chat !== 'string' || !CHAT_ID.test(body.chat)) throw new HttpError(400, 'Name the chat by its id: letters, digits and hyphens.', 'Send chat as an id of 8 to 64 letters, digits and hyphens.');
+        const state = readGuideState(body.state);
+        if (typeof state === 'string') throw new HttpError(400, state, 'Send only what the wizard names: the step, the tools, and the plain settings it lists.');
+        const history = extraOf({ history: body.history }).history ?? [];
+        if (history.some((t) => looksLikeSecret(t.prompt))) throw new HttpError(400, GUIDE_REFUSAL, GUIDE_REFUSAL_FIX);
+        const request: GuideRequest = { chat: body.chat, message: body.message, state };
+        return streamAnswer(res, agent.guide(ctx, request, checkedStyle(body), history));
+      }
       case 'GET analyses': {
         const toilProject = named(url.searchParams.get('toilProject'), 'toilProject', `Ask ${base}api/analyses?toilProject=<name>.`);
         json(res, 200, await keeper().list(toilProject));
@@ -786,7 +801,7 @@ export function createUiServer(options: UiServerOptions): UiServer {
         return worklogCall(res, () => worklog().exportTo(named(body.toilProject, 'toilProject', shape), what, named(body.folder, 'folder', shape)));
       }
       default:
-        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: info, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/standup, worklog/rebuild, worklog/note, worklog/export, analyses, analyses/one, fingerprint, agent/starters, agent/ask, agent/session, agent/renew, agent/prompt, agent/settings, agent/adapters, agent/install, agent/mcp and assignments.`);
+        throw new HttpError(404, `There is no ${key} in the API.`, `The API is under ${base}api/: info, execute, config, config/areas, config/settings, feedback, sync, cache/wipe, usage, usage/settings, worklog/month, worklog/day, worklog/standup, worklog/rebuild, worklog/note, worklog/export, analyses, analyses/one, fingerprint, agent/starters, agent/ask, agent/guide, agent/session, agent/renew, agent/prompt, agent/settings, agent/adapters, agent/install, agent/mcp and assignments.`);
     }
   };
 

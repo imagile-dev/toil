@@ -14,6 +14,7 @@
 
 import { NO_AGENT_DETAILS, NO_AGENT_FIX, NO_AGENT_NOTICE, SCRIPTED_LABEL, type AdapterList, type Agent, type Answer, type AskExtra, type AskStyle, type Starter } from './agent.ts';
 import type { AreaInfo, ConfigApi, SettingsInfo } from './config.ts';
+import { GUIDE_REFUSAL, GUIDE_REFUSAL_FIX, looksLikeSecret } from './guide.ts';
 import { FEEDBACK_SAMPLE_DISABLED, type FeedbackApi, type FeedbackFields } from './feedback.ts';
 import type { SyncStatus } from '../server/sync.ts';
 import type { Envelope, Execute } from './toil.ts';
@@ -225,6 +226,14 @@ export async function httpAgent(info: ServerInfo, toilProjects: string[], base =
         yield (await res.json()) as Answer;
         return;
       }
+      yield* answerLines(res);
+    },
+    async *guide(request, history, signal, style) {
+      // The same refusal the page and the server make, once more at the door: a message that looks like a secret never becomes a request.
+      if (looksLikeSecret(request.message)) throw new Error(`${GUIDE_REFUSAL} ${GUIDE_REFUSAL_FIX}`);
+      const turns = (history ?? []).map(({ prompt, answer, by }) => ({ prompt, answer, ...(by ? { by } : {}) }));
+      const res = await call(base, 'api/agent/guide', { body: { chat: request.chat, message: request.message, state: request.state, stream: true, ...style, ...(turns.length ? { history: turns } : {}) }, ...(signal ? { signal } : {}) });
+      if (!res.ok) throw await failure(res, 'The question');
       yield* answerLines(res);
     },
     async session(chat) {

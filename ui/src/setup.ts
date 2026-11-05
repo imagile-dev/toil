@@ -1,5 +1,5 @@
 /**
- * The setup wizard's pure parts (#561): its six steps, and how the registry's
+ * The setup wizard's pure parts (#561): its seven screens (the AI helper comes first, so the guide can explain the rest), and how the registry's
  * areas are sorted into the tools most people use and the long tail behind
  * "more". Nothing here reads or changes anything. Form 27-B, stripped of its
  * boxes, and filed as one array.
@@ -8,7 +8,7 @@
 import type { AreaInfo } from './config.ts';
 import { hostMatches } from '../../src/core/connection-form.ts';
 
-export const SETUP_STEPS = ['welcome', 'tools', 'connect', 'project', 'fields', 'helper', 'done'] as const;
+export const SETUP_STEPS = ['welcome', 'helper', 'tools', 'connect', 'project', 'fields', 'done'] as const;
 export type SetupStep = (typeof SETUP_STEPS)[number];
 
 /** The step titles, as the progress line and each screen's heading say them. */
@@ -21,6 +21,9 @@ export const STEP_TITLE: Record<SetupStep, string> = {
   helper: 'An AI helper (optional)',
   done: 'All set',
 };
+
+/** The steps that sit beside the guide once an AI helper is ready: the ones that ask the person something. */
+export const GUIDED_STEPS: readonly SetupStep[] = ['tools', 'connect', 'project', 'fields'];
 
 /** The work-tracking and code tools most people reach for, in the order the list shows them. */
 export const COMMON_AREAS = ['github', 'jira', 'ado', 'bitbucket', 'confluence', 'sonarqube'] as const;

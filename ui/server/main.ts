@@ -165,6 +165,7 @@ async function main(): Promise<number> {
         registry: registry.commands,
         execute,
         mapIds,
+        areas: areasFrom(registry),
         serveTools: (tools) => serveTools(tools),
         fallback: noAgent(),
         ledger,

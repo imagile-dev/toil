@@ -13,6 +13,7 @@ import type { Briefing } from '../../src/core/brief/answer.ts';
 import type { AnswerUsage, ChatTurn } from './model-usage.ts';
 import type { Proposal } from './proposal.ts';
 import type { ChatSession } from './fingerprint.ts';
+import type { GuideRequest } from './guide.ts';
 
 /** One paragraph of an answer, and the work items it rests on. */
 export interface AnswerPart {
@@ -163,6 +164,11 @@ export interface Agent {
   session?(chat: string): Promise<ChatSession | null>;
   /** Starts the chat afresh on today's instructions (#305), keeping its log; refused while it answers. */
   renew?(chat: string, toilProject: string): Promise<ChatSession>;
+  /**
+   * One question to the setup guide (#561), as it grows: about the wizard's step, with no Toil project and no sync needed. Its request carries
+   * only non-secret state (src/guide.ts), and a message that looks like a secret is refused before it is sent. Absent: no guide.
+   */
+  guide?(request: GuideRequest, history?: HistoryTurn[], signal?: AbortSignal, style?: AskStyle): AsyncIterable<Answer>;
 }
 
 /** The fixed question Analyze asks (#343): a pulse check of the toil project. */
