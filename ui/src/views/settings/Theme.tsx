@@ -13,10 +13,12 @@
  * Two boxes, each pre-ticked, which is the only kind of form that gets returned on time.
  */
 
+import { useEffect } from 'react';
 import { Checkbox } from 'react-aria-components';
 import { Choice } from '../../components/choice.tsx';
 import { Card } from '../../components/layout.tsx';
 import { Help } from '../../components/help.tsx';
+import { loadFonts, pairProperties, useFont } from '../../fonts.ts';
 import { useMotionAllowed, useMotionChoice, useParticlesChoice } from '../../motion.ts';
 import { useTheme, useThemeChoiceContext } from '../../theme-context.ts';
 import { THEMES } from '../../themes.ts';
@@ -46,6 +48,7 @@ export function ThemeSetting() {
         ]}
       />
       <p className="note">System follows your operating system's light or dark setting; every theme has both. Kept in this browser.</p>
+      <FontSetting />
       <p className="note">{theme.description}</p>
       <p className="note" id="theme-effects">
         {particles ? `Particles: ${particles}, ${!particlesOn ? 'off' : moving ? 'on' : 'off while motion is reduced'}.` : 'Particles: none.'}
@@ -76,6 +79,29 @@ export function ThemeSetting() {
       )}
       <p className="note">Saved in this browser only. To ask for a new theme, send a feature request from Feedback.</p>
     </Card>
+  );
+}
+
+/**
+ * Font: "The theme's own" first, then the pairings built only from fonts Toil UI
+ * already bundles (src/fonts.ts). Each is drawn in its own display face, and the
+ * sample line is the pair in effect. Colour, shape and art stay the theme's.
+ */
+function FontSetting() {
+  const theme = useTheme();
+  const font = useFont(theme);
+  // The faces the list shows are bundled files; loading them reaches no network.
+  useEffect(() => {
+    for (const p of font.pairs) loadFonts(p).catch(() => undefined);
+  }, [font.pairs]);
+  const faces = Object.fromEntries(font.pairs.map((p) => [p.id, pairProperties(theme, p)?.['--font-display'] ?? theme.fonts.display]));
+  return (
+    <>
+      <Choice label="Font" value={font.picked} onChange={font.setFont} options={font.pairs.map((p) => ({ id: p.id, label: p.label }))} faces={faces} />
+      <p className="note font-sample" data-font-sample="">
+        <strong>Heading sample</strong> 42 items, 3 code reviews, PAY-101. Only the type changes. Kept in this browser.
+      </p>
+    </>
   );
 }
 

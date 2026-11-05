@@ -57,6 +57,7 @@ import { useMediaQuery } from './components/layout.tsx';
 import { Choice } from './components/choice.tsx';
 import { ThemeChoiceProvider, wordingOn } from './theme-context.ts';
 import type { WordKey } from './wording.ts';
+import { useFontApplied } from './fonts.ts';
 import { usePlain, wordsFor } from './plain-words.ts';
 import { viewHelpHref } from './help.ts';
 import { Setup } from './views/Setup.tsx';
@@ -528,6 +529,8 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
   const skins = skinsFor(theme.name);
   // Mirrors Theme motion on the root (#419), so the moments' CSS plays at the level chosen.
   useThemeMotion();
+  // The pairing picked in Settings, Font (src/fonts.ts), over the theme's own fonts.
+  useFontApplied(theme);
   const splashReady = route.view === 'settings' || route.view === 'setup' || (route.view === 'toilProjects' ? list !== null : Boolean(wanted && toilProjects[wanted]));
   const splashDetail = route.view === 'toilProjects' || !wanted ? 'Reading the Toil projects with toil projects list.' : progressText(progress[wanted]);
   // The App provides the theme context, so it can't read it through useWords(); this is the same lookup.

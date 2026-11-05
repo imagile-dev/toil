@@ -46,7 +46,7 @@
 // --sample`). By hand, against any build:
 //
 //   npx vite preview --port 4173            (after `npx vite build`, in ui/)
-//   node scripts/layout-check.mjs --base http://127.0.0.1:4173/ [--theme crate] [--route '#/settings/projects'] [--width 375] [--motion full] [--shots <dir>] [--json <file>]
+//   node scripts/layout-check.mjs --base http://127.0.0.1:4173/ [--theme crate] [--route '#/settings/projects'] [--width 375] [--font <pair id>] [--motion full] [--shots <dir>] [--json <file>]
 //
 // Repo tooling only; nothing here ships. It measures twice and files once.
 /* global document, window, getComputedStyle, CSS -- inspect(), covered(), dragPlan(), hitTest() and dragMid() run in the page */
@@ -720,7 +720,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   const one = (flag) => many(flag)[0];
   const base = one('--base');
   if (!base) {
-    console.error('Usage: node scripts/layout-check.mjs --base <url> [--theme <name>] [--route <hash>] [--width <px>] [--motion full] [--shots <dir>] [--json <file>]');
+    console.error('Usage: node scripts/layout-check.mjs --base <url> [--theme <name>] [--route <hash>] [--width <px>] [--font <pair id>] [--motion full] [--shots <dir>] [--json <file>]');
     process.exit(2);
   }
   const themes = many('--theme');
@@ -731,6 +731,8 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     const u = new URL(base);
     u.searchParams.set('theme', theme);
     u.searchParams.set('scheme', scheme);
+    // A type pairing from Settings, Font (src/fonts.ts), to prove a wider face still fits (ui/docs/themes.md, Fonts).
+    if (one('--font')) u.searchParams.set('font', one('--font'));
     u.hash = route;
     return u.href;
   };
