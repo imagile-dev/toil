@@ -19,7 +19,7 @@ import { useData } from '../data.ts';
 import { dateTime, toilProjectEditHref, toilProjectHref, personText } from '../format.ts';
 import { Empty, EmptyLink, SyncOr } from '../components/empty.tsx';
 import {
-  allFlags, daysText, FAILING_HOURS, KIND_LABEL, KINDS, openQueue, parseCodeowners, PICKUP_DAYS, PR_FLAG_LABEL, prMetrics, reviewProposal, SIZE_LINES, SIZES, suggestReviewers, WAITING_LABEL,
+  allFlags, daysShort, daysText, diffSquares, FAILING_HOURS, KIND_LABEL, KINDS, openQueue, parseCodeowners, PICKUP_DAYS, PR_FLAG_LABEL, PR_FLAG_SHORT, prMetrics, reviewProposal, SIZE_LINES, SIZES, suggestReviewers, WAITING_LABEL,
   type KindOrAll, type OpenRow, type PrMetrics, type Sample,
 } from '../model/prs.ts';
 import type { Change } from '../toil.ts';
@@ -31,11 +31,46 @@ const ALL: KindOrAll[] = ['ALL', ...KINDS];
 const files = (n: number | null) => (n === null ? 'files not counted' : `${n} ${n === 1 ? 'file' : 'files'}`);
 const ONE = { HUMAN: 'Person', AGENT: 'Agent', BOT: 'Bot' } as const;
 
-function Kind({ change }: { change: Change }) {
+/** The author as a name and a badge; the signal that said who wrote it (a trailer, a branch) is one step in. */
+function Author({ change }: { change: Change }) {
   const why = change.authorKindSource === 'default' ? 'no signal said otherwise' : `${change.authorKindSource}: ${change.authorKindSignal}`;
   return (
-    <span className={`kind kind--${change.authorKind.toLowerCase()}`}>
-      · {ONE[change.authorKind]} <span className="field">({why})</span>
+    <>
+      <span className="pr-author">{personText(change.author)}</span>
+      {change.authorKind === 'HUMAN' ? null : (
+        <details className="cell-more">
+          <summary className={`kind kind--${change.authorKind.toLowerCase()}`}>{ONE[change.authorKind]}</summary>
+          <p className="field">{why}</p>
+        </details>
+      )}
+    </>
+  );
+}
+
+/** Five squares, GitHub's diff stat. Colour is never the only carrier: the numbers are beside it, and the whole is one labelled image. */
+function SizeBar({ size }: { size: OpenRow['size'] }) {
+  const f = files(size.files);
+  if (size.lines === null || size.additions === null || size.deletions === null) {
+    return (
+      <span className="note">
+        – <span className="sr-only">lines not counted, </span>
+        {size.files === null ? 'unknown' : `· ${f}`}
+      </span>
+    );
+  }
+  const sq = diffSquares(size.additions, size.deletions);
+  const cells = [...Array<string>(sq.add).fill('add'), ...Array<string>(sq.del).fill('del'), ...Array<string>(sq.none).fill('none')];
+  const full = `${size.lines} lines changed, ${size.additions} added and ${size.deletions} deleted, ${f}`;
+  return (
+    <span className="pr-size" title={full}>
+      <span className="diffbar" role="img" aria-label={full}>
+        {cells.map((c, i) => (
+          <i key={i} className={`diffbar__sq diffbar__sq--${c}`} />
+        ))}
+      </span>
+      <span aria-hidden="true">
+        <strong>{size.bucket}</strong> <span className="field">{size.lines} · {size.files === null ? 'files unknown' : `${size.files} ${size.files === 1 ? 'file' : 'files'}`}</span>
+      </span>
     </span>
   );
 }
@@ -63,8 +98,6 @@ const queueColumns = (info: ConnectionInfo | null, plain: boolean): Array<Column
       <>
         <PrLink change={r.change} withTitle />
         <span className="field"> {r.change.repo}</span>
-        {/* One menu in the pull request's own cell, not a column and not a button a row (principle 11): the jobs that apply, and what a missing one needs. */}
-        <PullRequestActions change={r.change} info={info} plain={plain} />
       </>
     ),
   },
@@ -74,25 +107,44 @@ const queueColumns = (info: ConnectionInfo | null, plain: boolean): Array<Column
     cell: (r) => (
       <>
         <strong>{WAITING_LABEL[r.wait.on]}</strong>
-        <span className="field"> {r.wait.days === null ? 'for an unknown time' : `for ${daysText(r.wait.days)}`}: {r.wait.why}</span>
+        {/* The age is a figure; the sentence behind it is one press in. An unknown age is a dash, not zero (principle 12). */}
+        <details className="cell-more">
+          <summary>{r.wait.days === null ? '–' : daysShort(r.wait.days)}</summary>
+          <p className="field">
+            {WAITING_LABEL[r.wait.on]} {r.wait.days === null ? 'for an unknown time' : `for ${daysText(r.wait.days)}`}: {r.wait.why}
+          </p>
+        </details>
       </>
     ),
   },
-  { header: 'Author', label: 'Author', cell: (r) => (<>{personText(r.change.author)} <Kind change={r.change} /></>) },
+  { header: 'Author', label: 'Author', cell: (r) => <Author change={r.change} /> },
   { header: 'Work items', label: 'Work items', cell: (r) => <Items ids={r.items} /> },
+  { header: 'Size', label: 'Size', cell: (r) => <SizeBar size={r.size} /> },
   {
-    header: 'Size',
-    label: 'Size',
+    header: 'Flags',
+    label: 'Flags',
     cell: (r) =>
-      r.size.bucket ? (
-        <>
-          {r.size.bucket} <span className="field">({r.size.lines} lines, {files(r.size.files)})</span>
-        </>
+      r.flags.length ? (
+        <ul className="plain flags">
+          {r.flags.map((f) => (
+            <li key={f.flag} title={PR_FLAG_LABEL[f.flag]}>
+              {PR_FLAG_SHORT[f.flag]}
+              {f.days !== undefined && ` · ${round1(f.days)} wd`}
+              <span className="sr-only">: {PR_FLAG_LABEL[f.flag]}</span>
+            </li>
+          ))}
+        </ul>
       ) : (
-        <span className="note">{r.size.files === null ? 'Unknown' : `${files(r.size.files)}, lines not counted`}</span>
+        <span className="note">None</span>
       ),
   },
-  { header: 'Flags', label: 'Flags', cell: (r) => (r.flags.length ? <ul className="plain flags">{r.flags.map((f) => <li key={f.flag}>{PR_FLAG_LABEL[f.flag]}</li>)}</ul> : 'None') },
+  {
+    // The jobs that apply and what a missing one needs: one quiet menu in its own column, not a button a row (principle 11).
+    header: 'Actions',
+    label: 'Actions',
+    actions: true,
+    cell: (r) => <PullRequestActions change={r.change} info={info} plain={plain} />,
+  },
 ];
 
 const fig = (s: Sample, unit: (n: number) => string) => (

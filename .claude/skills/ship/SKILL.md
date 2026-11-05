@@ -120,6 +120,12 @@ principle), and the simplest fix.
     be read first
   - detail laid out up front that belongs one step further in (a summary row that
     expands, a drawer, the item's own page)
+  - a table with a bordered text button on each row (actions belong in their own
+    narrow column as a quiet icon button that opens a menu), a cell with two ideas
+    or a sentence where a figure would do (a compact figure with the sentence one
+    press in), a count that has a shape and is only text (a diff-style bar with a
+    text alternative, never colour alone), or cells with no gutter between columns
+    (`ui/README.md`, **Tables and rows**)
   - a page reachable only one way: it needs its address plus at least one of a link
     from a summary, its tab or list, the command palette, or a search or shortcut
   - a figure or an "absence" sentence ("No sprint running", "Nothing changed") that

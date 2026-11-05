@@ -379,3 +379,29 @@
 .install-registry__row { display: grid; gap: 0.5rem; grid-template-columns: minmax(0, 1fr); }
 .install-registry__row label { display: grid; gap: 0.25rem; }
 @media (min-width: 40rem) { .install-registry__row { grid-template-columns: minmax(0, 1fr) auto; align-items: end; } }
+
+/* The Waiting now table (#561): one idea a cell, roomy gutters, detail one press in. */
+.pr-queue[data-wide] table { min-width: 62rem; }
+.pr-queue th, .pr-queue td { padding-right: 1.5rem; }
+.pr-queue th.l-table__actions, .pr-queue td.l-table__actions { padding-right: 0; }
+.cell-more { display: inline; margin-left: 0.4rem; }
+.cell-more > summary { display: inline; cursor: pointer; color: var(--muted); text-decoration: underline dotted; text-underline-offset: 3px; list-style: none; }
+.cell-more > summary::-webkit-details-marker { display: none; }
+.cell-more > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.cell-more > p { margin: 0.25rem 0 0; max-width: 24ch; }
+.pr-queue .flags { grid-template-columns: max-content; }
+.pr-queue .pr-author, .pr-queue .flags li, .pr-queue .pr-size .field { white-space: nowrap; }
+.pr-size { display: grid; gap: 0.25rem; }
+.diffbar { display: inline-flex; gap: 2px; }
+.diffbar__sq { display: block; width: 0.6rem; height: 0.6rem; border-radius: 1px; background: var(--line); }
+.diffbar__sq--add { background: var(--ok); }
+/* Deletions are danger-coloured and also striped, so the two never rest on colour alone. */
+.diffbar__sq--del { background: repeating-linear-gradient(135deg, var(--danger) 0 2px, color-mix(in srgb, var(--danger) 35%, transparent) 2px 4px); }
+.diffbar__sq--none { background: transparent; box-shadow: inset 0 0 0 1px var(--line); }
+@container l-table (max-width: 28rem) {
+  .pr-queue[data-wide] table { min-width: 0; }
+  .pr-queue th, .pr-queue td { padding-right: 0; }
+  .pr-queue td.l-table__actions { padding: 0; }
+  .pr-queue .flags { grid-template-columns: max-content; }
+.pr-queue .pr-author, .pr-queue .flags li, .pr-queue .pr-size .field { white-space: normal; }
+}
