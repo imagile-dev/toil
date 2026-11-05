@@ -22,6 +22,7 @@ import { Button, Dialog, Menu, MenuItem, MenuTrigger, Modal, ModalOverlay, Popov
 import { AskBar } from '../components/ask.tsx';
 import { ItemDrawer } from '../components/briefing.tsx';
 import { Editable, SourceBadges } from '../components/toil-project-head.tsx';
+import { DiagramLink } from '../components/jobs.tsx';
 import { Scroller, useMediaQuery } from '../components/layout.tsx';
 import { Hint } from '../components/term.tsx';
 import { useAgentsPanelOpen } from '../assign/panel-choice.ts';
@@ -124,6 +125,7 @@ export function ToilProjectShell({ tab, heading, toilProjects, boardView, peek =
               </Editable>
             </p>
             <SourceBadges sources={toilProject.sources} toilProject={toilProject.name} />
+            {tab === 'overview' && <DiagramLink />}
           </div>
           )}
         </div>

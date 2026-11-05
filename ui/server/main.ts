@@ -12,6 +12,7 @@
  */
 
 import { execute as installedExecute, mapOwi, registry, contractVersion as toilContract, version as toilVersion } from '@imagile-dev/toil/api';
+import { roundsUsedFor } from '../src/model/jobs.ts';
 import { fileURLToPath } from 'node:url';
 import { FIXTURE_AREAS } from '../src/fixtures/config.ts';
 import { fixtureAgent, noAgent } from './agent.ts';
@@ -159,6 +160,7 @@ async function main(): Promise<number> {
           return data && worklog ? { ...data, worklog: async (day) => (await worklog!.day(toilProject, day)).page, standup: async (from, to) => (await worklog!.standup(toilProject, from, to)).report } : data;
         },
         onRun: (run) => worklog?.recordRun(run),
+        rounds: (toilProject, label, self) => roundsUsedFor(cache!.runs(toilProject), label, self),
         registry: registry.commands,
         execute,
         mapIds,

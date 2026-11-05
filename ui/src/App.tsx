@@ -40,6 +40,8 @@ import type { AssignmentsApi } from './assign/model.ts';
 import { memoryAnalyses, type AnalysesApi } from './analyses.ts';
 import { People } from './views/People.tsx';
 import { PullRequests } from './views/PullRequests.tsx';
+import { JobPage } from './components/jobs.tsx';
+import { jobForSegment, type JobId } from './model/jobs.ts';
 import { Settings } from './views/Settings.tsx';
 import { Standup } from './views/Standup.tsx';
 import { Worklog } from './views/Worklog.tsx';
@@ -92,6 +94,8 @@ type RouteOf =
   /** `ignored`: what the URL named that isn't a day, said on the page rather than dropped quietly. */
   | { view: 'standup'; toilProject: string; from: string | null; to: string | null; ignored?: string }
   | { view: 'item'; toilProject: string; id: string }
+  /** A workflow job's own page (#532): `#/project/<name>/job/<review|ship|diagram>?target=<change id or repository>`. */
+  | { view: 'job'; toilProject: string; job: JobId; target: string | null }
   /** One agent assignment (#293). */
   | { view: 'assignment'; toilProject: string; id: string };
 
@@ -113,7 +117,9 @@ export function parseRoute(rawHash: string): Route {
   const hash = upgradeHash(rawHash);
   const at = hash.indexOf('?');
   const route = parsePath(at < 0 ? hash : hash.slice(0, at));
-  const peek = at < 0 ? null : new URLSearchParams(hash.slice(at + 1)).get('item');
+  const query = at < 0 ? null : new URLSearchParams(hash.slice(at + 1));
+  const peek = query?.get('item') ?? null;
+  if (route.view === 'job') return { ...route, target: query?.get('target') || null };
   return peek && 'toilProject' in route && route.view !== 'item' ? { ...route, peek } : route;
 }
 
@@ -135,6 +141,7 @@ function parsePath(hash: string): RouteOf {
     const toilProject = decodeURIComponent(parts[1]);
     if (parts[2] === 'item' && parts[3]) return { view: 'item', toilProject, id: decodeURIComponent(parts.slice(3).join('/')) };
     if (parts[2] === 'assignment' && parts[3]) return { view: 'assignment', toilProject, id: decodeURIComponent(parts[3]) };
+    if (parts[2] === 'job' && parts[3] && jobForSegment(parts[3])) return { view: 'job', toilProject, job: jobForSegment(parts[3])!, target: null };
     if (parts[2] === 'prs') return { view: 'prs', toilProject };
     if (parts[2] === 'people') return { view: 'people', toilProject };
     if (parts[2] === 'command-center') return { view: 'command-center', toilProject };
@@ -549,7 +556,7 @@ export function App({ execute, agent, config, themeSetting, now, preview, agentS
         <ChatScope key={route.toilProject}>
           <AnalyzeAfterSync syncedAt={syncedAt ?? null} />
           <ToilProjectShell tab={tabOf(route)} peek={route.peek ?? null} heading={route.view === 'dashboard'} toilProjects={list?.ok ? list.value.toilProjects.map((d) => d.name) : null} {...(route.view === 'command-center' ? { boardView: 'readiness' as const } : route.view === 'dashboard' && route.tab === 'board' ? { boardView: 'board' as const } : {})}>
-            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} {...(route.analysis ? { analysis: route.analysis } : {})} />}
+            {route.view === 'item' ? <ItemView id={route.id} /> : route.view === 'assignment' ? <AssignmentView id={route.id} /> : route.view === 'job' ? <JobPage id={route.job} target={route.target} /> : route.view === 'prs' ? <PullRequests /> : route.view === 'people' ? <People /> : route.view === 'worklog' ? <Worklog api={worklog ?? null} day={route.day} /> : route.view === 'standup' ? <Standup api={worklog ?? null} from={route.from} to={route.to} {...(route.ignored ? { ignored: route.ignored } : {})} /> : route.view === 'command-center' ? <CommandCenter /> : <Dashboard {...(route.tab ? { tab: route.tab } : {})} {...(route.person ? { person: route.person } : {})} {...(route.analysis ? { analysis: route.analysis } : {})} />}
           </ToilProjectShell>
         </ChatScope>
       </DataContext>

@@ -90,7 +90,10 @@ export const ROUTES = [
   '#/project/card-payments/analyses/sample-analysis-2',
   '#/project/checkout-web/prs',
   '#/project/card-payments/prs',
-  // The People view (#292): mapped people with a suggested match, people plus agents and an unmapped account, a toil project listing nobody, and the board filtered to one person.
+  '#/project/card-payments/job/review?target=github%3Aimagile%2Fpayments-web%2343',
+  '#/project/card-payments/job/ship',
+  '#/project/card-payments/job/diagram',
+  // The People view (#292): mapped people with a suggested match, people plus agents and an unmapped account, a toilProject listing nobody, and the board filtered to one person.
   '#/project/card-payments/people',
   '#/project/checkout-web/people',
   '#/project/settlement/people',
