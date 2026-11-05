@@ -21,9 +21,11 @@ without issue types just leaves `type` off each issue; one without sub-issues
 
 ## Credential
 
-A **fine-grained personal access token**: Settings → Developer settings → Personal
-access tokens → Fine-grained tokens, with access to the repositories you work on
-(pull requests, issues, contents and checks, read or write as needed). toil sends it as
+A **personal access token**, either kind. A **classic token** (`ghp_…`) is the common one: Settings →
+Developer settings → Personal access tokens → Tokens (classic), with the scopes below. A
+**fine-grained token** (`github_pat_…`) is limited to the repositories you pick: Settings →
+Developer settings → Personal access tokens → Fine-grained tokens, with the permissions below,
+read or write as needed. toil tells them apart by the token and treats them alike: it sends either as
 `Authorization: Bearer <token>`, with `Accept: application/vnd.github+json` and
 `X-GitHub-Api-Version: 2022-11-28`. There is no OAuth app, username, password or
 browser login.
@@ -40,12 +42,27 @@ What each group of commands needs from the token:
 A token without the Projects permission gets `AUTH` from the `project` commands,
 naming the scope.
 
+### Scopes, for read-only use and for everything
+
+`toil connections scopes --area github` prints exactly what each kind needs, with the
+commands that need each scope (the same list Toil UI shows, with a link to make the token).
+In short:
+
+| | Read-only use needs | Everything toil can do needs |
+|---|---|---|
+| Classic token | `repo`, `read:project` | the same: GitHub has no read-only `repo`, so toil's write gate (`writes` on the connection plus `--allow-write`) is what keeps it read-only |
+| Fine-grained token | Metadata, Pull requests, Contents, Issues, Checks and Commit statuses, each Read, and Projects (organization) Read | Pull requests, Contents and Issues at Read and write, and Administration for `repo create` |
+
+A `ghp_`-style classic token and a `github_pat_` fine-grained one are both sent as
+`Authorization: Bearer <token>`; toil never reads a token's scopes, so a missing one is
+GitHub's refusal, reported as `AUTH`.
+
 ## Configuration
 
 | Key | Env var | Required | Meaning |
 |-----|---------|----------|---------|
-| `baseUrl` | `TOIL_GITHUB_BASE_URL`, then `GITHUB_API_URL` | yes | The REST API root: `https://api.github.com`, or `https://ghe.imagile.dev/api/v3` for Enterprise Server |
-| `token` | `TOIL_GITHUB_TOKEN`, then `GITHUB_TOKEN` | yes | Fine-grained personal access token |
+| `baseUrl` | `TOIL_GITHUB_BASE_URL`, then `GITHUB_API_URL` | yes | The REST API root: `https://api.github.com`, or `https://ghe.imagile.dev/api/v3` for Enterprise Server. Toil UI asks it as a choice between GitHub.com and Enterprise Server |
+| `token` | `TOIL_GITHUB_TOKEN`, then `GITHUB_TOKEN` | yes | Personal access token, classic (`ghp_…`) or fine-grained (`github_pat_…`) |
 | `owner` | `TOIL_GITHUB_OWNER` | no | Default owner (user or org) |
 | `repo` | `TOIL_GITHUB_REPO` | no | Default repository name |
 | `targetBranch` | `TOIL_GITHUB_TARGET_BRANCH` | no | Default base branch for `pr create` (`main` when unset) |
@@ -64,7 +81,7 @@ Environment variables (CI, or a one-off shell):
 
 ```bash
 export TOIL_GITHUB_BASE_URL=https://ghe.imagile.dev/api/v3
-export TOIL_GITHUB_TOKEN=<your fine-grained token>
+export TOIL_GITHUB_TOKEN=<your personal access token>
 ```
 
 Or `~/.toil/config.json`, with `owner`, `repo` and `targetBranch` usually set once

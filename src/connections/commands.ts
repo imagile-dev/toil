@@ -2,7 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { z } from 'zod';
 import { pairingKey, type AnyArea } from '../core/area.js';
-import { defineConfigCommand, type AnyCommand } from '../core/command.js';
+import { defineCommand, defineConfigCommand, type AnyCommand } from '../core/command.js';
+import { describeScopes } from '../core/scopes.js';
 import {
   CONFIG_VERSION,
   CONNECTION_NAME,
@@ -335,7 +336,27 @@ export function connectionsCommands(areas: readonly AnyArea[]): AnyCommand[] {
     },
   });
 
-  return [add, login, list, remove, test, writes, setDefault, migrate, importCommand(areas)];
+  // Local and read-only: it describes what toil's own code declares, so it needs no config and no connection.
+  const scopes = defineCommand({
+    path: ['connections', 'scopes'],
+    description: 'Show the scopes or permissions a credential needs for read-only use and for everything toil can do',
+    toolDescription:
+      "Returns, for each area whose credential has named scopes (github today), the kinds of credential it accepts (GitHub classic and fine-grained tokens), what read-only use needs (readOnly.needs), what everything toil can do needs (everything.needs), a link to the vendor's page for making one (createUrl, prefilled where the vendor supports it), and every scope with the commands that need it (entries). Set `area` for one area; an area that declares none returns an empty list with a warning, which means toil doesn't say, not that nothing is needed. Reads nothing from config and sends nothing.",
+    input: z.object({
+      area: z.string().optional().describe('Only this area, e.g. github'),
+    }),
+    writes: false,
+    options: [{ flags: '--area <area>', field: 'area', description: 'Only this area' }],
+    examples: [{}, { area: 'github' }],
+    run: async (input, ctx) => {
+      const chosen = input.area === undefined ? areas : [areaNamed(input.area)];
+      const described = chosen.flatMap((a) => (a.scopes ? [{ area: a.name, ...describeScopes(a.scopes) }] : []));
+      if (input.area !== undefined && described.length === 0) ctx.warn({ code: 'NO_SCOPES_DECLARED', message: `${input.area} declares no scopes, so toil doesn't say what its credential needs; that is not the same as nothing.` });
+      return { areas: described };
+    },
+  });
+
+  return [add, login, list, remove, test, writes, setDefault, migrate, importCommand(areas), scopes];
 }
 
 /** The area each connection in the raw file named, by name: a version 1 file has one per area key. */
