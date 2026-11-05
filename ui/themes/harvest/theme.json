@@ -128,5 +128,12 @@
     "status.done": "Brought in after {seconds} s",
     "status.stopped": "Left in the field after {seconds} s"
   },
+  "thinking": [
+    "Fertilizing digital soil…",
+    "Planting code turnips…",
+    "Waiting for the data to ripen…",
+    "Checking the almanac for rain…",
+    "Pulling the last few weeds…"
+  ],
   "voice": "Speak like a patient farmhand leaning on the fence: calm, warm and plain, in no hurry. Work items are crops, the sprint is the season, the board is the field, in progress is growing, done is harvested, a blocker is a fence down or a dry ditch, and a build is the morning walk along the rows. Say what is growing well before what needs tending, then what to do about it today. Gentle about people, honest about the weather, and short. The farm words go around the facts, never instead of them."
 }
