@@ -193,11 +193,11 @@ describe('Plain', () => {
 });
 
 describe('how deep a theme goes (#283)', () => {
-  it('has themed wording and the agent voice off until someone switches one on, with the address winning (#552)', () => {
+  it('has themed wording on and the agent voice off until someone changes them, with the address winning (#552, #561)', () => {
     localStorage.clear();
-    expect(initialChoice('')).toMatchObject({ wording: false, voice: false });
-    expect(initialChoice('?wording=on')).toMatchObject({ wording: true, voice: false });
-    expect(initialChoice('?voice=on')).toMatchObject({ wording: false, voice: true });
+    expect(initialChoice('')).toMatchObject({ wording: true, voice: false });
+    expect(initialChoice('?wording=off')).toMatchObject({ wording: false, voice: false });
+    expect(initialChoice('?voice=on')).toMatchObject({ wording: true, voice: true });
     // A choice saved before the default changed is kept as it was, on or off.
     localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'harvest', wording: true, voice: true }));
     expect(initialChoice('')).toMatchObject({ theme: 'harvest', wording: true, voice: true });
@@ -207,9 +207,9 @@ describe('how deep a theme goes (#283)', () => {
     expect(initialChoice('?voice=on')).toMatchObject({ wording: false, voice: true });
     // A hand-edited or older value that isn't a boolean leaves the default; it never throws.
     localStorage.setItem('toil-ui.theme', JSON.stringify({ wording: 'yes', voice: null }));
-    expect(initialChoice('')).toMatchObject({ wording: false, voice: false });
+    expect(initialChoice('')).toMatchObject({ wording: true, voice: false });
     localStorage.setItem('toil-ui.theme', '[1,2]');
-    expect(initialChoice('')).toEqual({ theme: 'crate', scheme: 'system', wording: false, voice: false });
+    expect(initialChoice('')).toEqual({ theme: 'crate', scheme: 'system', wording: true, voice: false });
     localStorage.clear();
   });
 
@@ -244,7 +244,7 @@ describe('the default theme (#277)', () => {
   it('is Crate until someone picks another, and an explicit choice always wins', () => {
     localStorage.clear();
     expect(DEFAULT_THEME).toBe('crate');
-    const deep = { wording: false, voice: false };
+    const deep = { wording: true, voice: false };
     expect(initialChoice('')).toEqual({ theme: 'crate', scheme: 'system', ...deep });
     expect(initialChoice('?theme=plain&scheme=light')).toEqual({ theme: 'plain', scheme: 'light', ...deep });
     localStorage.setItem('toil-ui.theme', JSON.stringify({ theme: 'plain', scheme: 'dark' }));
